@@ -91,7 +91,9 @@ public enum PlayerMoves : byte
 /// A crewmate's emote (GDD §9: in the yard "the crew wait for friends, hang out, dance"; note 298), sent on the press. The
 /// crew see it; nothing in the sim acts on it.
 /// </summary>
-public enum Emote : byte { None, Dance, Wave, Point }
+/// <remarks>Bow, Salute and Conga are the "more emotes" upgrade's (note 714): the host takes them only from a train that has it.
+/// The conga's a dance its players walk in, each following whoever started before them (the client's own steering).</remarks>
+public enum Emote : byte { None, Dance, Wave, Point, Bow, Salute, Conga }
 
 /// <summary>An emote as the crew see it (note 298): unique for the night (its record's key), the host tick it began, whose, which.</summary>
 public readonly record struct EmoteEvent(int Id, uint Tick, int By, Emote Kind);

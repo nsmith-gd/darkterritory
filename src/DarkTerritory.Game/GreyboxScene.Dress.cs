@@ -1,6 +1,7 @@
 using System.Numerics;
 using Ballast;
 using Ballast.Render;
+using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game;
@@ -11,6 +12,12 @@ public sealed partial class GreyboxScene
 {
     /// <summary>The train's dressing fitted (train.json composition.dress, from the campaign's upgrades): campaign.json ids.</summary>
     public IReadOnlyList<string> Dress { get; set; } = [];
+
+    /// <summary>The train's livery (train.json composition.livery; note 714): 0 the works' rust.</summary>
+    public int Livery { get; set; }
+
+    /// <summary>The engine's name (the nameplate, note 714), cast in its brass plates; null, unnamed.</summary>
+    public string? EngineName { get; set; }
 
     /// <summary>The crew's names, for the towels that have opinions of them (content/world/dress.json "named").</summary>
     public IReadOnlyList<string> CrewNames { get; set; } = [];
@@ -34,11 +41,21 @@ public sealed partial class GreyboxScene
 
     void Dressing(MeshBuilder mesh, in CarFrame frame, Double3 eye)
     {
-        if (Dress.Count == 0 || Look is null)
+        if (Dress.Count == 0 && Livery == 0 || Look is null)
             return;
         var art = Look.Art;
         var m = Art.SceneArt.FrameMatrix(frame, eye);
         var shape = frame.Shape;
+        Lining(mesh, frame, m);
+        if (frame.Index == 0 && Dressed("nameplate") && shape.Cab is { } plated)
+        {
+            // Under the cab's side windows, both sides, read from outside (the plate faces +X; the left one turned about).
+            string name = (EngineName is { Length: > 0 } n ? n : "UNNAMED").ToUpperInvariant();
+            var plate = art.Piece($"dress-nameplate-{name}", () => Art.DressKit.Nameplate(Look, name));
+            float z = (float)(plated.Min.Z + plated.Max.Z) / 2;
+            foreach (int side in new[] { -1, 1 })
+                mesh.Append(plate, Matrix4x4.CreateRotationY(side < 0 ? MathF.PI : 0) * Matrix4x4.CreateTranslation(side * ((float)shape.HalfWidth + 0.09f), 2.05f, z) * m);
+        }
         float speed = (float)Math.Min(1, frame.Velocity.Length / 15);
         float t = (float)Time;
         if (frame.Index == 0 && shape.Cab is { } cab)
@@ -117,6 +134,66 @@ public sealed partial class GreyboxScene
         }
         if (shape.Interior is { } room)
             GuardInside(mesh, m, room, eye, frame);
+    }
+
+    /// <summary>The yard photographer's flash going off (0..1, note 714): the app's, from <see cref="YardPhotographer.Flash"/>.</summary>
+    public double PhotoFlash { get; set; }
+
+    /// <summary>
+    /// The yard photographer (note 714): past the gate, off the line's right, behind his camera on its tripod, in his Sunday
+    /// black and a stovepipe; his flash a white burst over the tray as the picture's taken.
+    /// </summary>
+    void Photographer(MeshBuilder mesh, RailLine line, Double3 eye)
+    {
+        if (!Dressed("yardPhotographer") || Look is null || Run is not { } run)
+            return;
+        var (feet, facing) = YardPhotographer.Stand(line, run.YardLength);
+        if ((feet - eye).Length > 400)
+            return;
+        var art = Look.Art;
+        var f = ToF(facing) with { Y = 0 };
+        f = Vector3.Normalize(f);
+        var back = -f;
+        var at = V(feet, eye);
+        var camera = Art.CreatureArt.Basis(at, Vector3.Cross(Vector3.UnitY, back), Vector3.UnitY, back);
+        mesh.Append(art.Piece("dress-tripod", () => Art.DressKit.Tripod(Look)), camera);
+        // Him, a pace behind it, his hands at its back.
+        var creatures = art.Creatures;
+        var him = Art.CreatureArt.Basis(at + back * 0.62f, Vector3.Cross(Vector3.UnitY, back), Vector3.UnitY, back);
+        if (creatures.Draw(mesh, "crew", "idle", Time * 0.8, true, him, 3, seed: 61,
+            adjust: (_, l) => l with { Colour = l.Colour * new Vector3(0.45f, 0.42f, 0.4f), Emissive = 0 })
+            && Art.HatKit.Of(Look, 1) is { } stovepipe)
+            creatures.Wear(mesh, stovepipe, "head", him);
+        if (PhotoFlash > 0)
+        {
+            var tray = Vector3.Transform(Art.DressKit.FlashTray, camera);
+            float k = (float)PhotoFlash;
+            mesh.PointLights.Add(new PointLight(tray, new Vector3(1, 0.97f, 0.9f) * (12 * k), 30));
+            mesh.Billboard(tray, 1.6f * k, 0, new Vector4(new Vector3(1, 0.98f, 0.92f) * (3 * k), 1), -1, FxBlend.Additive);
+            mesh.Billboard(tray, 7f * k, 0, new Vector4(new Vector3(0.9f, 0.88f, 0.8f) * (0.6f * k), 1), -1, FxBlend.Additive);
+        }
+    }
+
+    /// <summary>
+    /// The livery's lining (note 714): gold pinstripes down a crimson train, brass down a green one, a white stripe down a black
+    /// one; along every car's sides and the engine's hood and cab.
+    /// </summary>
+    void Lining(MeshBuilder mesh, in CarFrame frame, Matrix4x4 m)
+    {
+        if (Livery == 0)
+            return;
+        var shape = frame.Shape;
+        float from, to, x;
+        if (frame.Index == 0 && shape.Cab is { } cab)
+            // Down the hood, from the cab's back (the cab's sides are its windows).
+            (from, to, x) = ((float)cab.Max.Z + 0.1f, (float)shape.HalfLength - 0.6f, 1.555f);
+        else if (shape.Interior is not null)
+            (from, to, x) = (-(float)shape.HalfLength + 0.25f, (float)shape.HalfLength - 0.25f, (float)shape.HalfWidth + 0.012f);
+        else
+            return;
+        var lining = Look!.Art.Piece($"dress-lining-{Livery}-{to - from:0.00}", () => Art.DressKit.Lining(Look, Livery, to - from));
+        foreach (int side in new[] { -1, 1 })
+            mesh.Append(lining, Matrix4x4.CreateRotationY(side < 0 ? MathF.PI : 0) * Matrix4x4.CreateTranslation(side * x, 0, (from + to) / 2) * m);
     }
 
     /// <summary>In the guard van: the towels on their rail and the disco ball.</summary>

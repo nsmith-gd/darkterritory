@@ -336,6 +336,11 @@ Cucaracha horn, the air freshener, the participation ribbon, monogrammed towels,
 the train where its card says, read in the tally; the horn heard every pull; the moose head and the disco ball priced in the
 night.
 
+**Built (note 714):** the fun ones: the three liveries (bought once, painted in again at the blacksmith for nothing), the
+engine nameplate (named at the fortress), the hat rack (HAT in the yard), more emotes (the bow, the salute, the conga) and
+the yard photographer (his picture as she comes out of the gate, on the HUD and in the night's folder; the end card's
+gallery is still to come).
+
 ### 8.3 The human cannonball: consent and feedback
 
 Nobody is fired who didn't climb in, and everyone knows what's about to happen.

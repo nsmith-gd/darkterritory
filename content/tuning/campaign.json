@@ -226,6 +226,34 @@
     { "id": "discoBall", "name": "The disco ball", "kind": "fun", "size": "small", "costShare": 0.08, "effect": { "dress:discoBall": 1, "fireFlies": 1.5 },
       "line": "Hung in the guard van, turning, throwing the lamp round the walls. The Fire Flies come to dance: half again as often at a stop.",
       "tally": "Disco ball: turning." },
+    // The fun (note 714; the director, 13 Oct: approved). The liveries: each bought once, and picked in the yard by choosing
+    // an owned one again at the blacksmith; the last picked is on the train (effect "livery": which paint).
+    { "id": "liveryCrimson", "name": "Livery: crimson, lined gold", "kind": "fun", "size": "small", "costShare": 0.05, "effect": { "livery": 1 },
+      "line": "The whole train repainted crimson, lined out in gold leaf. Bought once; choose it again here to paint her in it.",
+      "tally": "Livery: crimson." },
+    { "id": "liveryForest", "name": "Livery: forest green and brass", "kind": "fun", "size": "small", "costShare": 0.05, "effect": { "livery": 2 },
+      "line": "Forest green, brass lining down every side. Bought once; choose it again here to paint her in it.",
+      "tally": "Livery: forest green." },
+    { "id": "liveryMidnight", "name": "Livery: black, white stripe", "kind": "fun", "size": "small", "costShare": 0.05, "effect": { "livery": 3 },
+      "line": "Black from end to end and a white stripe down her. Bought once; choose it again here to paint her in it.",
+      "tally": "Livery: black." },
+    // The engine's name, on brass plates either side of the cab; typed at the fortress (CREW: ENGINE NAME), read in the tally.
+    { "id": "nameplate", "name": "Engine nameplate", "kind": "fun", "size": "small", "costShare": 0.04, "effect": { "dress:nameplate": 1 },
+      "line": "Brass plates for the cab's sides with the engine's name cast in them. Name her at the fortress.",
+      "tally": "Engine: {engine}." },
+    // The hat rack (note 714): look.json crewHats on OUTFIT's HAT row, tried on in the yard, for every crewmate.
+    { "id": "hatRack", "name": "The hat rack", "kind": "fun", "size": "small", "costShare": 0.06, "effect": { "dress:hatRack": 1 },
+      "line": "A rack of hats in the guard van: a stovepipe, a fez, a straw boater and a deerstalker. HAT on the menu in the yard.",
+      "tally": "Hats: on." },
+    // More emotes (note 714): the bow, the salute and the conga on the emote wheel (everyone who joins follows the leader).
+    { "id": "moreEmotes", "name": "More emotes", "kind": "fun", "size": "small", "costShare": 0.05, "effect": { "dress:moreEmotes": 1 },
+      "line": "The bow, the salute and the conga on the emote wheel. The conga: whoever joins it follows whoever started it.",
+      "tally": "Conga: danced." },
+    // The yard photographer (note 714): stands in the yard ahead of the engine with a camera on a tripod, and as she pulls
+    // out, flash: the crew's picture, shown on every machine and kept in the night's bookmarks folder.
+    { "id": "yardPhotographer", "name": "The yard photographer", "kind": "fun", "size": "small", "costShare": 0.03, "effect": { "dress:yardPhotographer": 1 },
+      "line": "A fellow with a tripod who takes the crew's picture as she leaves the yard, every night. Kept in your bookmarks folder.",
+      "tally": "Photograph: taken." },
     // Does nothing at all, and the clerk says so, every night, for good.
     { "id": "commendation", "name": "Framed commendation", "kind": "silly", "size": "small", "costShare": 0.5, "effect": { },
       "line": "\"For Services to the Railway\", signed by a council nobody's met, framed, for the cab. Read into every tally.",

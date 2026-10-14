@@ -725,7 +725,7 @@ while (!window.CloseRequested && !QuitNow())
     // Who you are and what you wear go in your Hello as the night's joined or hosted (notes 267, 298), so they're the
     // settings' before it starts (the name was only set once the first night was under way).
     NetPlaySession.PlayerName = frontEnd.Settings.PlayerName;
-    NetPlaySession.Outfit = frontEnd.Settings.OutfitByte(frontEnd.OutfitNames.Count);
+    NetPlaySession.Outfit = frontEnd.Settings.OutfitByte(frontEnd.OutfitNames.Count, frontEnd.HatNames.Count);
     if (Starting(launch) is not { } begun)
     {
         if (fromCommandLine)
@@ -952,6 +952,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // --ride (linegen plan §20.2): the train drives itself by the line's authority, the camera outside, for looking a
     // generated line over in minutes.
     bool ride = args.Contains("--ride");
+    // The hat rack (note 714): its hats on OUTFIT's HAT row on a night whose train has it.
+    frontEnd.HatNames = session.Train.Dynamics.Tuning.Composition.Dressed("hatRack") && look?.Tuning.CrewHats is { Length: > 0 } hats ? hats : [];
     var scene = new GreyboxScene
     {
         Look = look,
@@ -965,6 +967,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Impacts = session.World.Impacts,
         Run = session.World.Run,
         Band = session.World.BandTuning,
+        // The engine's name on its plates (note 714), the host's campaign's.
+        EngineName = (session as NetPlaySession)?.Setup.EngineName,
         Words = DataFile.Load<DarkTerritory.Game.DressWords>(Path.Combine(content, DarkTerritory.Game.DressWords.File)),
         Holdouts = session.World.Holdouts,
         Town = session.World.Town,
@@ -1076,7 +1080,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             voice.MicLevel = (float)now.MicLevel;
         }
         // An outfit tried on (note 298): asked of the host, which takes it in the yard (and keeps it for the next Hello).
-        byte outfit = now.OutfitByte(frontEnd.OutfitNames.Count);
+        byte outfit = now.OutfitByte(frontEnd.OutfitNames.Count, frontEnd.HatNames.Count);
         if (net is not null && outfit != NetPlaySession.Outfit)
         {
             NetPlaySession.Outfit = outfit;
@@ -1104,6 +1108,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // D.12, D.13 (note 203): and kept past the run-end screen, in the user's app data, a folder for the night.
     var album = new BookmarkAlbum(BookmarkAlbum.DefaultDirectory, DateTime.Now, session.Route?.Name ?? "night");
     bool albumSaid = false;
+    // Note 714: the yard photographer's picture of the crew as she leaves the yard, kept in the same folder.
+    var photographer = new YardPhotographer();
     FrameLighting lighting = default;
     window.MouseCaptured = true;
     window.TextInput = false;
@@ -1355,6 +1361,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
 
         // Held, the emote wheel takes the mouse (note 298); let go, what it was on goes with the next tick.
+        // The bow, the salute and the conga (note 714), on a train with the upgrade.
+        wheel.More = session.Train.Dynamics.Tuning.Composition.Dressed("moreEmotes");
         if (wheel.Update(Held(Control.Emote) && session.Player.Alive, input.MouseDX, input.MouseDY) is var let && let != Emote.None)
             pendingEmote = let;
         if (!inMenu && !wheel.Open)
@@ -1419,6 +1427,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 Cycle = (sbyte)(pendingCycle >= 1 ? -1 : pendingCycle <= -1 ? 1 : 0),
                 Emote = pendingEmote,
             };
+            // In a conga line (note 714), with the stick still, the feet follow whoever started before you.
+            if (intent.MoveX == 0 && intent.MoveZ == 0 && Conga.Follow(session.PlayerId, session.Player, session.World, GameAudio.CrewOf(session)) is { } step)
+                (intent.MoveX, intent.MoveZ, intent.LookYaw) = (step.MoveX, step.MoveZ, step.LookYaw);
             pendingSelect = 0;
             pendingEmote = Emote.None;
             if (Math.Abs(pendingCycle) >= 1)
@@ -1703,6 +1714,21 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // The night's fog as it's drawn: what's past it is cooked off the frame (note 479).
         scene.Fog = lighting;
         frameWatch.Mark("audio, hud");
+        // Note 714: as she passes the gate, the yard photographer's flash, and the crew's picture from his lens (everyone, this
+        // machine's player too, lit by it), kept small and sepia, shown a while over the HUD and put in the night's folder.
+        if (photographer.Due(session, scene.Dress) && session.World.Run is { } photoRun)
+        {
+            var (shownCrew, shownOwn, shownHeld) = (scene.Crew, scene.Own, scene.HeldHere);
+            (scene.Own, scene.HeldHere, scene.PhotoFlash) = (null, null, 1);
+            scene.Crew = BookmarkStills.Figures(session, frames, clock.Alpha, -1);
+            var lens = YardPhotographer.Lens(session.Train.Line, photoRun.YardLength, session.Train);
+            scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, lens.Position);
+            photographer.Keep(renderer.Render(mesh, lens, lighting, lighting.FogColor), renderer.Width, renderer.Height, now);
+            (scene.Crew, scene.Own, scene.HeldHere) = (shownCrew, shownOwn, shownHeld);
+            if (photographer.Save(album.Night) is { } photoFile)
+                Console.WriteLine($"yard photographer: the crew's picture is kept in {photoFile}");
+        }
+        scene.PhotoFlash = photographer.Flash(now);
         scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
         frameWatch.Mark("scene");
         // GDD v1.4 App. D.12: a bookmark that's due is drawn from its camera now, off screen, with what this machine has of
@@ -1743,6 +1769,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 // The first nights' card gives way to a panel opened over it (note 351: it showed through the supplies).
                 firstNight: firstNight && !cardHidden && !Held(Control.Roster) && !showSupplies && cardPage < 0 && !showPlan,
                 captions: frontEnd.Settings.Captions ? captions.Lines() : null);
+            Hud.Photograph(overlay, UiWidth, UiHeight, photographer, now, session);
             wheel.Draw(overlay, UiWidth, UiHeight, Hud.PromptScaleAt((float)renderer.Height / UiHeight));
             // Q held: the crew roster (T69), with who's been heard.
             if (Held(Control.Roster))

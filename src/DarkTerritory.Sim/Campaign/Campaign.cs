@@ -153,6 +153,8 @@ public sealed record CampaignState
 {
     public int Slot { get; init; } = 1;
     public string Name { get; init; } = "";
+    /// <summary>What the crew named the engine (the nameplate, note 714): on its brass plates, and read in the tally. Null, unnamed.</summary>
+    public string? EngineName { get; init; }
     public ulong Seed { get; init; } = 1;
     public int Cars { get; init; }
     public double Scrip { get; init; }
@@ -262,6 +264,11 @@ public static class Campaign
     {
         if (t.Upgrades.FirstOrDefault(u => u.Id == id) is not { } u)
             return new(s, $"no upgrade called '{id}'");
+        // A livery owned (note 714: "bought once, picked in the yard"): chosen again, the train's painted in it. The one on the
+        // train is the last livery in the list, as Apply takes it.
+        if (s.Upgrades.Contains(id) && u.Effect.ContainsKey("livery"))
+            return LiveryOf(t, s) == id ? new(s, $"the train's in {u.Name.ToLowerInvariant()} already")
+                : new(s with { Upgrades = [.. s.Upgrades.Where(x => x != id), id] }, null);
         if (s.Upgrades.Contains(id))
             return new(s, $"you already have {u.Name}");
         if (Unavailable(t, s, u) is { } why)
@@ -269,6 +276,10 @@ public static class Campaign
         double cost = UpgradeCost(t, s, u);
         return s.Scrip < cost ? new(s, $"{u.Name} costs {cost:0} scrip; you have {s.Scrip:0}") : new(s with { Upgrades = [.. s.Upgrades, id], Scrip = s.Scrip - cost }, null);
     }
+
+    /// <summary>The livery the train's painted in (note 714): the last livery upgrade owned, or null for the works' paint.</summary>
+    public static string? LiveryOf(CampaignTuning t, CampaignState s) =>
+        s.Upgrades.LastOrDefault(id => t.Upgrades.FirstOrDefault(u => u.Id == id)?.Effect.ContainsKey("livery") == true);
 
     /// <summary>
     /// Why the fortress won't sell <paramref name="u"/> to this crew yet (note 678), or null: a tool held back until the
@@ -478,6 +489,8 @@ public static class Campaign
                     "switchThrower" => Fit(l, c => c with { SwitchThrower = c.SwitchThrower || k > 0 }),
                     // The BBQ deck (note 698): the engine's front, its chairs, cooler and grill.
                     "bbqDeck" => Fit(l, c => c with { BbqDeck = c.BbqDeck || k > 0 }),
+                    // The livery (note 714): the train's paint, the last owned's (BuyUpgrade puts the one picked last).
+                    "livery" => Fit(l, c => c with { Livery = (int)Math.Round(k) }),
                     // The train's dressing (note 701): drawn on the train; the art reads which.
                     _ when effect.StartsWith("dress:", StringComparison.Ordinal) && k > 0 =>
                         Fit(l, c => c.Dressed(effect["dress:".Length..]) ? c : c with { Dress = [.. c.Dress, effect["dress:".Length..]] }),

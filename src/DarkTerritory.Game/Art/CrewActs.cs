@@ -41,7 +41,7 @@ public static class CrewActs
             Phase: act == CrewPose.Reload ? ReloadPhase(s, world) : 0, Death: s.Death,
             Headset: s.Head > 0 ? new HeadsetBody(s.Head, s.Pitch, s.Parent, s.Position, s.Yaw) : null,
             Car: placed.Parent != PlayerState.World && placed.Parent < frames.Count ? placed.Parent : PlayerState.World, Local: placed.Position,
-            Emote: emote, EmoteSeconds: emoteSeconds);
+            Emote: emote, EmoteSeconds: emoteSeconds, Hat: world.HatOf(id));
     }
 
     /// <summary>Walking faster than this (m/s) ends an emote, as a step away from it does (note 298).</summary>
@@ -53,13 +53,16 @@ public static class CrewActs
     /// </summary>
     public static (Emote Kind, double Seconds) EmoteOf(int id, in PlayerState s, World world)
     {
-        if (!s.Alive || s.Velocity.X * s.Velocity.X + s.Velocity.Z * s.Velocity.Z > EmoteStill * EmoteStill)
+        if (!s.Alive)
             return (Emote.None, 0);
         EmoteEvent? latest = null;
         foreach (var e in world.Emotes)
             if (e.By == id && (latest is null || e.Tick > latest.Value.Tick))
                 latest = e;
         if (latest is not { } at)
+            return (Emote.None, 0);
+        // The conga's danced walking (note 714); the rest stood still.
+        if (at.Kind != Emote.Conga && s.Velocity.X * s.Velocity.X + s.Velocity.Z * s.Velocity.Z > EmoteStill * EmoteStill)
             return (Emote.None, 0);
         double age = ((double)world.Tick - at.Tick) * SimConstants.TickSeconds;
         return age >= 0 && age < world.EmoteTuning.Seconds(at.Kind) ? (at.Kind, age) : (Emote.None, 0);

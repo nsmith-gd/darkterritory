@@ -95,10 +95,20 @@ public sealed record CrewTuning(int Cap = 8, double RefuseLingerSeconds = 3)
 /// <summary>Note 663: how long a line of news is up, and how fast the train runs before a crewmate's own cut is news.</summary>
 public sealed record NewsTuning(double Seconds = 5, double CutToldAbove = 1.5);
 
-public sealed record EmoteTuning(double Dance = 8, double Wave = 2.5, double Point = 2.5, double Cooldown = 0.5)
+public sealed record EmoteTuning(double Dance = 8, double Wave = 2.5, double Point = 2.5, double Cooldown = 0.5, double Bow = 2.5, double Salute = 2.5,
+    double Conga = 30)
 {
-    public double Seconds(Emote e) => e switch { Emote.Dance => Dance, Emote.Wave => Wave, Emote.Point => Point, _ => 0 };
-    public double Longest => Math.Max(Dance, Math.Max(Wave, Point));
+    public double Seconds(Emote e) => e switch
+    {
+        Emote.Dance => Dance,
+        Emote.Wave => Wave,
+        Emote.Point => Point,
+        Emote.Bow => Bow,
+        Emote.Salute => Salute,
+        Emote.Conga => Conga,
+        _ => 0,
+    };
+    public double Longest => new[] { Dance, Wave, Point, Bow, Salute, Conga }.Max();
 }
 /// <param name="LethalAbove">Speed over the ground on landing that kills (spec B.3 after T90); 0 for the train's jump-off band.</param>
 /// <param name="DamageAtLethal">A landing's knock rises from <paramref name="RollDamage"/> to this at the lethal edge.</param>

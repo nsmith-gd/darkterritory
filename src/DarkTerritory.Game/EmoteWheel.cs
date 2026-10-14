@@ -11,13 +11,23 @@ namespace DarkTerritory.Game;
 /// </summary>
 public sealed class EmoteWheel
 {
-    /// <summary>What's on the wheel, and where: the dance up, the wave to the left, the point to the right.</summary>
+    /// <summary>What's on the wheel, and where: the dance up, the wave to the left, the point to the right (and the upgrade's).</summary>
     public static readonly (Emote Emote, string Label, Vector2 At)[] Spokes =
     [
         (Emote.Dance, "DANCE", new(0, -1)),
         (Emote.Wave, "WAVE", new(-1, 0)),
         (Emote.Point, "POINT", new(1, 0)),
+        // The "more emotes" upgrade's (note 714), round the bottom: the bow down, the salute and the conga either side of it.
+        (Emote.Bow, "BOW", new(0, 1)),
+        (Emote.Salute, "SALUTE", new(-0.7f, 0.7f)),
+        (Emote.Conga, "CONGA", new(0.7f, 0.7f)),
     ];
+
+    /// <summary>The bow, the salute and the conga are on the wheel (the train has the "more emotes" upgrade, note 714).</summary>
+    public bool More { get; set; }
+
+    /// <summary>The spokes on offer: the three, or the six with <see cref="More"/>.</summary>
+    public IEnumerable<(Emote Emote, string Label, Vector2 At)> Offered => More ? Spokes : Spokes.Take(3);
 
     /// <summary>How far the mouse has to lean (its counts) before a spoke is picked over the last one.</summary>
     public const float Lean = 40;
@@ -36,7 +46,7 @@ public sealed class EmoteWheel
             if (_lean.Length() < Lean)
                 return Last;
             var dir = Vector2.Normalize(_lean);
-            return Spokes.MaxBy(s => Vector2.Dot(s.At, dir)).Emote;
+            return Offered.MaxBy(s => Vector2.Dot(s.At, dir)).Emote;
         }
     }
 
@@ -73,7 +83,7 @@ public sealed class EmoteWheel
             return;
         float cx = width / 2f, cy = height / 2f, r = 22;
         var picked = Picked;
-        foreach (var (emote, label, at) in Spokes)
+        foreach (var (emote, label, at) in Offered)
         {
             bool on = emote == picked;
             float w = o.Measure(label, scale);

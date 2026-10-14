@@ -1045,7 +1045,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // stages it gnawing, the tower leaning over the line; towerjawfall, the tower down across it.
     string towerJawMode = Str(args, "--towerjaw", view switch { "towerjaw" => "lean", "towerjawfall" => "wreck", _ => "" });
     // --route tier:seed generates the night in memory; --coaling stops the train at its coaling tower, chute pouring.
-    Route? generated = Str(args, "--route", towerJawMode.Length > 0 ? "frontier:3" : Staging.IsHouseView(view) ? "frontier:7" : "") is { Length: > 0 } spec
+    Route? generated = Str(args, "--route", towerJawMode.Length > 0 ? "frontier:3" : Staging.IsHouseView(view) || view is "photographer" or "yardphoto" ? "frontier:7" : "") is { Length: > 0 } spec
         ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars)
         : null;
     var line = generated?.Build() ?? RailLine.Load(Path.Combine(content, "lines", lineName + ".json"));
@@ -1072,6 +1072,16 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         at = run.ChuteAt(tower, line).SpoutAlong + EnginePlan.Of(t.Geometry).CoalFromFront;
         int index = generated.Of(FeatureKind.Facility).ToList().IndexOf(tower);
         run.Mirror(DarkTerritory.Sim.Run.RunPhase.AtFacility, DarkTerritory.Sim.Run.RunEnd.None, 900, index, true, [.. Enumerable.Repeat(200.0, run.FacilityCount)]);
+    }
+    // The yard photographer (note 714; `--upgrades yardPhotographer`): the train stood in the yard short of the gate, him
+    // past it (photographer); or the picture he takes as she passes it, from his lens, flash and sepia (yardphoto).
+    double photoGate = 0;
+    if (view is "photographer" or "yardphoto" && generated is not null && run is null)
+    {
+        photoGate = generated.GateOr(DarkTerritory.Sim.Route.RouteTuning.Load(content).YardLength);
+        run = new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated) { YardLength = photoGate };
+        if (!args.Contains("--at"))
+            at = view == "yardphoto" ? photoGate + YardPhotographer.PastGate - YardPhotographer.ShootAt : photoGate - 8;
     }
     // --site: stop at the first facility with loading modules (spec D), crates out and the winch sled part-hauled.
     DarkTerritory.Sim.Run.Site? site = null;
@@ -1328,6 +1338,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     var outro = DataFile.Load<WreckTuning>(Path.Combine(content, WreckTuning.File)).Stranded;
     var camera = strandedAt >= 0 && !args.Contains("--view") ? Views.Stranded(train, outro, strandedAt)
         : train.Wreck is { } shown && !args.Contains("--view") ? Views.Wreck(shown, shown.RealSeconds) : Views.Get(view, train, (int)Opt(args, "--car", 2));
+    if (view == "yardphoto" && photoGate > 0)
+        camera = YardPhotographer.Lens(train.Line, photoGate, train);
+    else if (view == "photographer" && photoGate > 0)
+    {
+        var (feet, facing) = YardPhotographer.Stand(train.Line, photoGate);
+        camera = Camera.LookAt(feet - facing * 2.6 + Double3.Up * 2.1 + Double3.Cross(facing, Double3.Up) * 1.2, feet + facing * 9 + Double3.Up * 1.4, 60);
+    }
     if (town is not null && !args.Contains("--view"))
         camera = Staging.TownCamera(town, args.Contains("--arrival") ? Str(args, "--where", "square") : Str(args, "--town", "square"));
     if (arrival is not null && !args.Contains("--view"))
@@ -1806,6 +1823,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // The words on the dressing (note 701): the stickers' puns, the towels' monograms, a staged crew's names on them.
         Words = DataFile.Load<DarkTerritory.Game.DressWords>(Path.Combine(content, DarkTerritory.Game.DressWords.File)),
         CrewNames = ["Dave", "Nicki", "Jacob"],
+        // --engine-name (note 714): the nameplate's.
+        EngineName = Str(args, "--engine-name", "") is { Length: > 0 } engineName ? engineName : null,
         Holdouts = holdouts,
         Town = town,
         Arrival = arrival,
@@ -1924,6 +1943,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         scene.Bodies = [.. scene.Bodies ?? [], .. instruments];
         scene.Band = DataFile.Load<DarkTerritory.Sim.Player.BandTuning>(Path.Combine(content, DarkTerritory.Sim.Player.BandTuning.File));
     }
+    // --hats (note 714): every staged crewmate in one of the hat rack's hats, in turn.
+    if (args.Contains("--hats") && scene.Crew is { } hatted)
+        scene.Crew = [.. hatted.Select((c, i) => c with { Hat = i % 4 + 1 })];
     if (cameBack is { } risen)
         scene.Crew = [.. scene.Crew ?? [], risen];
     // Note 301's callouts, every break the crew can mend: --breached i[,j,...] those cars' end walls eaten through (dents are
@@ -2387,6 +2409,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         camera = HeldShot.Frame(victim.Feet, holder.WorldPosition(train), eyesThere, inside, HeldShot.Size(holder.Kind),
             (x, z) => PlayerMotor.GroundAt(new Double3(x, 0, z), train.Line, ref heldHint));
     }
+    scene.PhotoFlash = view == "yardphoto" ? 1 : 0;
     scene.Build(mesh, train, camera.Position, leaned);
     // How long a frame's scene takes to build on the CPU, warm (the first build cooks the kit's pieces).
     var buildClock = Stopwatch.StartNew();
@@ -2440,6 +2463,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         lighting.Wetness = 0;
     }
     var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor);
+    // The yard photographer's print (note 714): as the app keeps it, cropped, shrunk and sepia.
+    if (view == "yardphoto")
+    {
+        var print = BookmarkStills.Shrink(pixels, width, height, YardPhotographer.Width, YardPhotographer.Height);
+        YardPhotographer.Sepia(print.Rgba);
+        (pixels, width, height) = (print.Rgba, print.Width, print.Height);
+    }
     PngWriter.Write(output, pixels, width, height, scale);
     return new
     {

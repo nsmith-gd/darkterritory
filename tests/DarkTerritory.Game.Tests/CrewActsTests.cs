@@ -35,7 +35,9 @@ public class CrewActsTests
         {
             // The emotes (note 298) wait on their clips (the art checklist's crew-emotes row): until then EmoteArms poses
             // them over the walk and the idle, so a missing one is a stand-in, not a gap. A clip of theirs is used as it lands.
-            if (pose is CrewPose.Dance or CrewPose.Wave or CrewPose.Point && !crew!.Clips.ContainsKey(CreatureArt.ClipOf(pose)))
+            // (Note 714's bow, salute and conga likewise.)
+            if (pose is CrewPose.Dance or CrewPose.Wave or CrewPose.Point or CrewPose.Bow or CrewPose.Salute or CrewPose.Conga
+                && !crew!.Clips.ContainsKey(CreatureArt.ClipOf(pose)))
                 continue;
             string clip = CreatureArt.ClipOf(pose);
             Assert.True(pose == CrewPose.Idle || clip != "idle", $"{pose} has no clip of its own");

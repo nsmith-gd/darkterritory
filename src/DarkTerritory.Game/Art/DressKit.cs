@@ -233,6 +233,47 @@ public static class DressKit
         return k.Build($"dress-towel-{monogram}-{colour.X:0.00}");
     }
 
+    /// <summary>
+    /// The livery's lining down a side (note 714), on the plane x = 0 facing +X, <paramref name="length"/> m along Z centred on
+    /// (0, ·, 0): the crimson's two gold pinstripes, the green's brass, the black's one wide white stripe; a hair of glow, as
+    /// fresh paint catches the lamps.
+    /// </summary>
+    public static MeshAsset Lining(Look? look, int livery, float length)
+    {
+        var k = new Kit(look, 1722);
+        var (colour, bands) = livery switch
+        {
+            1 => (new Vector3(0.95f, 0.72f, 0.2f), new (float Y, float H)[] { (1.6f, 0.035f), (1.7f, 0.015f), (3.2f, 0.015f), (3.3f, 0.035f) }),
+            2 => (new Vector3(0.8f, 0.62f, 0.28f), new (float Y, float H)[] { (1.65f, 0.04f), (3.25f, 0.04f) }),
+            _ => (new Vector3(0.92f, 0.92f, 0.9f), new (float Y, float H)[] { (2.25f, 0.22f) }),
+        };
+        k.Use("dress_lining", colour, 0.4f, livery == 3 ? 0.1f : 0.7f);
+        k.Emissive = 0.08f;
+        float h = length / 2;
+        foreach (var (y, height) in bands)
+            k.Quad(new Vector3(0, y, h), new Vector3(0, y, -h), new Vector3(0, y + height, -h), new Vector3(0, y + height, h), twoSided: true);
+        return k.Build($"dress-lining-{livery}-{length:0.00}");
+    }
+
+    /// <summary>A brass nameplate facing +X (its middle at (0, 0, 0)): a cast plate with a raised rim, the engine's name in it.</summary>
+    public static MeshAsset Nameplate(Look? look, string name)
+    {
+        var k = new Kit(look, 1723);
+        float px = MathF.Min(0.022f, 0.86f / Math.Max(1, BitmapFont.Default.Measure(name))), w = Width(name, px) + 0.12f, h = 7 * px + 0.1f;
+        k.Use("dress_brass", new Vector3(0.82f, 0.63f, 0.28f), 0.25f, 0.95f);
+        k.Emissive = 0.12f;
+        k.Box(new Vector3(0, -h / 2, -w / 2), new Vector3(0.02f, h / 2, w / 2));
+        k.Use("dress_plate", new Vector3(0.08f, 0.06f, 0.05f), 0.6f, 0.3f);
+        k.Emissive = 0;
+        k.Box(new Vector3(0.02f, -h / 2 + 0.025f, -w / 2 + 0.025f), new Vector3(0.022f, h / 2 - 0.025f, w / 2 - 0.025f));
+        k.Use("dress_brass", new Vector3(0.9f, 0.72f, 0.32f), 0.2f, 0.95f);
+        k.Emissive = 0.15f;
+        // Read from outside: along −Z, its top up.
+        Letter(k, name, new Vector3(0.024f, 3.5f * px, Width(name, px) / 2), -Vector3.UnitZ, -Vector3.UnitY, px);
+        k.Emissive = 0;
+        return k.Build($"dress-nameplate-{name}");
+    }
+
     /// <summary>A string 1 m long from (0, 0, 0) to −Z, scaled to its length where it's drawn.</summary>
     public static MeshAsset String(Look? look)
     {
@@ -241,6 +282,41 @@ public static class DressKit
         k.Rod(Vector3.Zero, new Vector3(0, 0, -1), 0.003f);
         return k.Build("dress-string");
     }
+
+    /// <summary>
+    /// The yard photographer's camera (note 714), its feet at (0, 0, 0) and its lens to −Z: a wooden field camera on a
+    /// tripod, the bellows out to a brass lens, a dark cloth over its back, and the flash tray up on its rod.
+    /// </summary>
+    public static MeshAsset Tripod(Look? look)
+    {
+        var k = new Kit(look, 1724);
+        const float head = 1.38f;
+        k.Use("dress_wood", new Vector3(0.42f, 0.27f, 0.14f), 0.6f, 0);
+        foreach (float a in new[] { 0f, 2.1f, 4.2f })
+            k.Rod(new Vector3(0, head, 0), new Vector3(0.42f * MathF.Sin(a), 0, 0.42f * MathF.Cos(a) + 0.06f), 0.014f);
+        k.Box(new Vector3(-0.13f, head, -0.12f), new Vector3(0.13f, head + 0.24f, 0.14f));
+        // The bellows: black, stepped down to the lens board.
+        k.Use("dress_paint", Black * 2, 0.8f, 0);
+        k.Box(new Vector3(-0.11f, head + 0.02f, -0.24f), new Vector3(0.11f, head + 0.22f, -0.12f));
+        k.Box(new Vector3(-0.09f, head + 0.04f, -0.32f), new Vector3(0.09f, head + 0.2f, -0.24f));
+        k.Use("dress_wood", new Vector3(0.48f, 0.31f, 0.16f), 0.5f, 0);
+        k.Box(new Vector3(-0.1f, head + 0.02f, -0.35f), new Vector3(0.1f, head + 0.22f, -0.32f));
+        k.Use("dress_brass", new Vector3(0.82f, 0.63f, 0.28f), 0.25f, 0.95f);
+        k.Cylinder(new Vector3(0, head + 0.12f, -0.35f), new Vector3(0, head + 0.12f, -0.45f), 0.045f, 12);
+        k.Use("dress_glass", new Vector3(0.1f, 0.12f, 0.16f), 0.05f, 0.2f);
+        k.Disc(new Vector3(0, head + 0.12f, -0.451f), -Vector3.UnitZ, 0.035f, 12);
+        // The dark cloth over its back, hanging.
+        k.Use("dress_cloth", Black * 1.5f, 0.95f, 0);
+        k.Box(new Vector3(-0.16f, head - 0.25f, 0.14f), new Vector3(0.16f, head + 0.27f, 0.2f));
+        // The flash tray on its rod, up and to the side.
+        k.Use("dress_paint", Black * 3, 0.5f, 0.6f);
+        k.Rod(new Vector3(0.1f, head + 0.24f, 0), new Vector3(0.2f, head + 0.55f, -0.05f), 0.008f);
+        k.Box(new Vector3(0.08f, head + 0.55f, -0.12f), new Vector3(0.32f, head + 0.57f, 0.02f));
+        return k.Build("dress-tripod");
+    }
+
+    /// <summary>Where the tripod's flash goes off (its tray), in its own frame.</summary>
+    public static readonly Vector3 FlashTray = new(0.2f, 1.98f, -0.05f);
 
     /// <summary>The towels' rail: a brass rod <paramref name="length"/> long along Z, on two brackets off the wall at +X.</summary>
     public static MeshAsset TowelRail(Look? look, float length)

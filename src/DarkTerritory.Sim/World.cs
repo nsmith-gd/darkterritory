@@ -368,8 +368,11 @@ public sealed class World
     /// </summary>
     public Dictionary<int, byte> Outfits { get; } = [];
 
-    /// <summary>The look a player is drawn in (note 298): their outfit if they've one, else their id.</summary>
-    public int OutfitOf(int id) => Outfits.TryGetValue(id, out byte o) ? o : id;
+    /// <summary>The look a player is drawn in (note 298): their outfit's colour if they've one, else their id.</summary>
+    public int OutfitOf(int id) => Outfits.TryGetValue(id, out byte o) && Player.Outfit.ColourOf(o) is { } colour ? colour : id;
+
+    /// <summary>The hat a player wears from the hat rack (note 714): 0 none, else which (look.json crewHats, from 1).</summary>
+    public int HatOf(int id) => Outfits.TryGetValue(id, out byte o) ? Player.Outfit.HatOf(o) : 0;
 
     /// <summary>The host's: the campaign's looks by player name, going into the night.</summary>
     public IReadOnlyDictionary<string, string> LooksByName { get; set; } = new Dictionary<string, string>();
@@ -1654,7 +1657,9 @@ public sealed class World
         if (intent.Has(PlayerActions.CarLamp)) _lampWas.Add(playerId); else _lampWas.Remove(playerId);
         // An emote (note 298): the crew see it, and that's all. Not while something has hold of you, and not on top of the
         // last one picked.
+        // The bow, the salute and the conga are the "more emotes" upgrade's (note 714).
         if (Hosting && intent.Emote != Emote.None && s.Alive && !s.Has(PlayerFlags.Held)
+            && (intent.Emote is not (Emote.Bow or Emote.Salute or Emote.Conga) || Train.Dynamics.Tuning.Composition.Dressed("moreEmotes"))
             && !Emotes.Any(e => e.By == playerId && (Tick - e.Tick) * SimConstants.TickSeconds < EmoteTuning.Cooldown))
         {
             Emotes.RemoveAll(e => e.By == playerId);

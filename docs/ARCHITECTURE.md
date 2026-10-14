@@ -891,4 +891,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [711. The band, second round (U1, queue #443; the director, 14 Oct 2026: "let's get the band calming the gaunt and stopping the moose. Let's get…](notes/711.md)
 - [712. The blacksmith's dev unlock (U1, queue #444; the director, 14 Oct 2026: "I want you to add a dev unlock mode where I can just infinitely…](notes/712.md)
 - [713. The tiny caboose collides (U1, queue #445; the director, 14 Oct 2026: "let's absolutely add collision for the little caboose"). Note 701](notes/713.md)
+- [714. The fun batch (U1, queue #446; the director, 14 Oct 2026: "keep going with fun batches and whimsies"; approved in docs/design/upgrades.md…](notes/714.md)
 <!-- end of the notes index -->

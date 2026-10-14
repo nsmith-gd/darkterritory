@@ -82,6 +82,8 @@ public sealed record Settings
     /// with the cap or helmet and scarf that go with it), or −1 for your player id's. Sent as you join; tried on in the yard.
     /// </summary>
     public int Outfit { get; init; } = -1;
+    /// <summary>The hat from the hat rack (note 714): 0 none, else look.json crewHats' (from 1). Worn only on a train with the rack.</summary>
+    public int Hat { get; init; }
     /// <summary>
     /// Note 347: how big the HUD's and the menus' print is, one of <see cref="TextSizes"/>. The overlay's canvas is drawn smaller
     /// and scaled up to the window (<see cref="Canvas"/>), so everything on it grows together and keeps its layout.
@@ -120,7 +122,9 @@ public sealed record Settings
     public static readonly Control[] Toggleable = [Control.Run, Control.Brake, Control.Talk, Control.Radio, Control.Roster, Control.Crouch];
 
     /// <summary>The outfit as the wire has it (note 298): none for −1 or anything off the end.</summary>
-    public byte OutfitByte(int outfits) => Outfit >= 0 && Outfit < outfits ? (byte)Outfit : Sim.Net.Messages.NoOutfit;
+    public byte OutfitByte(int outfits, int hats = 0) =>
+        Hat > 0 && Hat <= hats ? Sim.Player.Outfit.Encode(Outfit < outfits ? Outfit : -1, Hat)
+            : Outfit >= 0 && Outfit < outfits ? (byte)Outfit : Sim.Net.Messages.NoOutfit;
     /// <summary>
     /// T83, note 672: a window, or the whole screen, borderless or exclusive. A new install starts on the whole screen,
     /// exclusive (the director, 13 Oct: "I have notifications popping up that are coming up over the bottom right
@@ -243,7 +247,7 @@ public sealed record Settings
         && MasterVolume == other.MasterVolume && EffectsVolume == other.EffectsVolume && MusicVolume == other.MusicVolume
         && VoiceVolume == other.VoiceVolume && MicDevice == other.MicDevice && MicLevel == other.MicLevel
         && VrTurn == other.VrTurn && VrVignette == other.VrVignette && MouseSpeed == other.MouseSpeed
-        && InvertMouse == other.InvertMouse && FieldOfView == other.FieldOfView && CameraShake == other.CameraShake && Outfit == other.Outfit
+        && InvertMouse == other.InvertMouse && FieldOfView == other.FieldOfView && CameraShake == other.CameraShake && Outfit == other.Outfit && Hat == other.Hat
         && TextSize == other.TextSize && Colours == other.Colours && FirstNights == other.FirstNights && Captions == other.Captions && ToggleHolds == other.ToggleHolds && TextBacking == other.TextBacking
         && Display == other.Display && VSync == other.VSync && Resolution == other.Resolution && RenderScale == other.RenderScale
         && PlayerName == other.PlayerName && PublicLobby == other.PublicLobby && LobbyName == other.LobbyName

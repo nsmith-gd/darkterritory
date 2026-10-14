@@ -22,6 +22,9 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
 {
     /// <summary>The campaign's upgrades (spec F.3). Every machine applies the same list to the same content.</summary>
     public IReadOnlyList<string> Upgrades { get; init; } = [];
+    /// <summary>The engine's name (the nameplate, note 714): its plates and the tally's line, on every machine.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? EngineName { get; init; }
     /// <summary>
     /// The campaign's spare repair kits (GDD v1.4 App. E.12 question 4): each starts the night in a crew locker beside the
     /// train's own. Every machine builds the same train from it.
@@ -299,7 +302,9 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public IReadOnlyList<string> OwnedTally { get; init; } = [];
 
     static IReadOnlyList<string> TallyOf(string content, SessionSetup setup) => setup.Upgrades.Count == 0 ? []
-        : Sim.Campaign.Campaign.TallyLines(DataFile.Load<Sim.Campaign.CampaignTuning>(Path.Combine(content, Sim.Campaign.CampaignTuning.File)), setup.Upgrades);
+        : [.. Sim.Campaign.Campaign.TallyLines(DataFile.Load<Sim.Campaign.CampaignTuning>(Path.Combine(content, Sim.Campaign.CampaignTuning.File)), setup.Upgrades)
+            // The engine's name in its line (the nameplate, note 714): the clerk breaks up over it, as over any name typed.
+            .Select(line => line.Replace("{engine}", setup.EngineName is { Length: > 0 } n ? n : "unnamed", StringComparison.Ordinal))];
 
     /// <summary>The platform lobby this game is hosted in or was joined through, if any.</summary>
     public Lobby? Lobby { get; }

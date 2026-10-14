@@ -1596,6 +1596,32 @@ public static partial class Hud
     }
 
     /// <summary>A bookmark's still in a thin frame; a dark plate where this machine has none (it joined after).</summary>
+    /// <summary>
+    /// The yard photographer's picture (note 714): his flash white over the screen a moment, then the print up in the top
+    /// right on its cream card, the crew's names under it, until it's had its while (<see cref="YardPhotographer.Shown"/>).
+    /// </summary>
+    public static void Photograph(Overlay o, int width, int height, YardPhotographer p, double now, IPlaySession s)
+    {
+        double flash = p.Flash(now);
+        if (flash > 0)
+            o.Rect(0, 0, width, height, new Vector4(1, 0.98f, 0.94f, (float)(0.85 * flash)));
+        if (!p.Shown(now) || p.Photo is not { } photo)
+            return;
+        const int w = 150, h = w * YardPhotographer.Height / YardPhotographer.Width;
+        float x = width - w - 14, y = 16;
+        // Slid in from the right as the flash goes, out again at the end.
+        double age = now - p.TakenAt, left = YardPhotographer.ShowSeconds - age;
+        x += (float)(Math.Max(0, 0.4 - age) / 0.4 * (w + 20) + Math.Max(0, 0.4 - left) / 0.4 * (w + 20));
+        var cream = new Vector4(0.93f, 0.9f, 0.82f, 1);
+        o.Rect(x - 5, y - 5, w + 10, h + 22, cream);
+        o.Image(x, y, w, h, photo.Rgba, photo.Width, photo.Height, w * 2, h * 2, levels: 32);
+        var ink = new Vector4(0.22f, 0.16f, 0.1f, 1);
+        string names = string.Join(", ", s.Roster().Select(r => r.Name).Take(4));
+        o.TextCentred(x + w / 2f, y + h + 4, "THE CREW, LEAVING THE YARD", ink);
+        if (names.Length > 0)
+            o.TextCentred(x + w / 2f, y + h + 11, names.ToUpperInvariant(), ink with { W = 0.7f });
+    }
+
     static void Thumb(Overlay o, float x, float y, Still? still, int w = ThumbWidth, int h = ThumbHeight)
     {
         o.Rect(x - 1, y - 1, w + 2, h + 2, UiStyle.Lit with { W = 0.6f });

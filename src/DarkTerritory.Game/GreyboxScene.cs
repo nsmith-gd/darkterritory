@@ -390,6 +390,7 @@ public sealed partial class GreyboxScene
         Cut = Art.SceneArt.Cuts(train);
         Handrails = train.Dynamics.Tuning.Composition.Handrails;
         Dress = train.Dynamics.Tuning.Composition.Dress;
+        Livery = train.Dynamics.Tuning.Composition.Livery;
         CabooseTuning = train.Dynamics.Tuning.Composition.Caboose;
         SwitchThrower = train.Dynamics.Tuning.Composition.SwitchThrower;
         Build(mesh, train.Line, frames ?? train.Frames, train.Dynamics.Distance, eye);
@@ -530,6 +531,7 @@ public sealed partial class GreyboxScene
                     Fortress(mesh, arrival.Line, eye, turn - to, turn - from, 0, turn - fort.Gate, gateAt: turn - fort.Gate, town: arrival);
                 else
                     Fortress(mesh, line, eye, from, to, fort.Start, fort.End, gateAt: fort.Gate, lit: fort.Lived);
+            Photographer(mesh, line, eye);
             Lap(mesh, "fortresses and towns");
         }
         // Practical lights first, so everything built after is lit by them: each car's lamps, the firebox,
@@ -4518,7 +4520,7 @@ public sealed partial class GreyboxScene
                 if (b.Stowed && b.Parent == frame.Index && b.Locker < 32)
                     tagged |= 1u << b.Locker;
         if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Emergency, Tick, CutEnds(frame.Index), burnt?.Char ?? 0, utility, openLockers, Handrails,
-            dark: frame.Shape.Cab is null && (CarDark(frame.Index) || frame.Index >= (Vehicles?.Count ?? int.MaxValue) - LampsOut), taggedLockers: tagged))
+            dark: frame.Shape.Cab is null && (CarDark(frame.Index) || frame.Index >= (Vehicles?.Count ?? int.MaxValue) - LampsOut), taggedLockers: tagged, paint: Livery))
         {
             if (engine)
                 Look.Art.Gear(mesh, frame, eye, _travelled, Emergency ? 0.06f : 1);

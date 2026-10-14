@@ -128,7 +128,7 @@ public sealed record MenuItem(string Label, string? Detail = null, bool Enabled 
 /// The front end's text fields (note 264, the director's notes on build 1121: "when I go to name of lobby, it just starts
 /// automatically typing"). None takes typing on being chosen: Enter or a click starts editing, Enter or Esc ends it.
 /// </summary>
-public enum TextField { LobbyName, Address, PlayerName, CrewName, LobbyPassword, JoinPassword }
+public enum TextField { LobbyName, Address, PlayerName, CrewName, LobbyPassword, JoinPassword, EngineName }
 
 /// <summary>Where a pointer is over the front end (note 264): an item, and on a value's row, its arrows (−1, +1) or the row (0).</summary>
 public readonly record struct MenuHit(int Item, int Step = 0);
@@ -372,6 +372,9 @@ public sealed class FrontEnd
         // A crew's name erased to nothing is its slot's again (note 320).
         if (Editing == TextField.CrewName && Open is { } crew && crew.Name.Trim().Length == 0)
             SaveCrew(crew with { Name = DefaultCrewName(crew.Slot) });
+        // An engine's name erased to nothing is unnamed again.
+        if (Editing == TextField.EngineName && Open is { } engine && (engine.EngineName ?? "").Trim().Length == 0 && engine.EngineName is not null)
+            SaveCrew(engine with { EngineName = null });
         Editing = null;
         _blankName = false;
         Cue?.Invoke(UiCue.Select);
@@ -490,6 +493,7 @@ public sealed class FrontEnd
     {
         TextField.PlayerName => Settings.PlayerName,
         TextField.CrewName => Open?.Name ?? "",
+        TextField.EngineName => Open?.EngineName ?? "",
         TextField.Address => Address,
         TextField.LobbyPassword => Settings.LobbyPassword,
         TextField.JoinPassword => JoinPassword,
@@ -530,6 +534,16 @@ public sealed class FrontEnd
                 Change(Settings with { LobbyPassword = typed });
             else
                 JoinPassword = typed;
+            return;
+        }
+        // The engine's name (the nameplate, note 714): the crew's name's letters and length.
+        if (Editing == TextField.EngineName && Open is { } named)
+        {
+            string name = named.EngineName ?? "";
+            foreach (char c in text)
+                if ((char.IsLetterOrDigit(c) || c is ' ' or '\'' or '.' or '-' or '!' or '?') && name.Length < MaxCrewName && c < 0x7f)
+                    name += c;
+            SaveCrew(named with { EngineName = name.TrimStart() });
             return;
         }
         if (Editing == TextField.CrewName && Open is { } crew)
@@ -593,6 +607,11 @@ public sealed class FrontEnd
         if (Editing == TextField.CrewName && Open is { Name.Length: > 0 } crew)
         {
             SaveCrew(crew with { Name = crew.Name[..^1] });
+            return;
+        }
+        if (Editing == TextField.EngineName && Open is { EngineName.Length: > 0 } engine)
+        {
+            SaveCrew(engine with { EngineName = engine.EngineName[..^1] });
             return;
         }
         if (Editing == TextField.Address && Address.Length > 0)
@@ -704,6 +723,8 @@ public sealed class FrontEnd
         // In the yard (GDD §9: the crew "try on outfits"; note 298): put one on, and the crew see it.
         if (n.Yard)
             list.Add(OutfitEntry("Left and right to try one on: the crew see it."));
+        if (n.Yard && HatNames.Count > 0)
+            list.Add(HatEntry("From the hat rack: left and right to try one on."));
         // Someone to ask along: a platform lobby that takes invites (its overlay), or a host on the network (its address,
         // to type on JOIN). A night nobody can join (alone, on this machine only) has no INVITE.
         if (n.Invites)
@@ -1261,6 +1282,17 @@ public sealed class FrontEnd
     /// </summary>
     public IReadOnlyList<string> OutfitNames { get; set; } = ["RED", "BLUE", "OCHRE", "TEAL", "GREEN", "VIOLET", "ORANGE", "WHITE"];
 
+    /// <summary>The hat rack's hats by name (note 714; look.json crewHats): the app sets them when the train has the rack, else none.</summary>
+    public IReadOnlyList<string> HatNames { get; set; } = [];
+
+    /// <summary>HAT (note 714): none, then each of the rack's in turn, round again; offered only with the rack aboard.</summary>
+    Entry HatEntry(string detail)
+    {
+        int n = HatNames.Count, now = Math.Clamp(Settings.Hat, 0, n);
+        return new(new($"HAT: {(now == 0 ? "NONE" : HatNames[now - 1].ToUpperInvariant())}", detail), Toggle(s => s with { Hat = (now + 1) % (n + 1) }),
+            by => Change(Settings with { Hat = ((now + by) % (n + 1) + n + 1) % (n + 1) }));
+    }
+
     /// <summary>OUTFIT (note 298): the crew's pick (your place's look), then each look in turn, round again.</summary>
     Entry OutfitEntry(string detail)
     {
@@ -1368,6 +1400,15 @@ public sealed class FrontEnd
         bool naming = Editing == TextField.CrewName;
         list.Add(new(new($"{NameLabel}{(naming ? s.Name : CrewName(s)).ToUpperInvariant()}{(naming ? "_" : "")}",
             naming ? "Type the name; Enter or Esc when it's done." : "Enter to rename the crew."), Field: TextField.CrewName));
+        // The nameplate (note 714): the engine's name, once its plates are bought.
+        if (s.Upgrades.Contains("nameplate"))
+        {
+            bool christening = Editing == TextField.EngineName;
+            string engineName = s.EngineName is { Length: > 0 } en ? en : christening ? "" : "UNNAMED";
+            list.Add(new(new($"ENGINE: {engineName.ToUpperInvariant()}{(christening ? "_" : "")}",
+                christening ? "Type her name; Enter or Esc when it's done." : "Enter to name the engine: it's cast in her plates, and the clerk reads it."),
+                Field: TextField.EngineName));
+        }
         list.Add(new(new("DELETE THIS CREW", $"Slot {s.Slot} emptied for a new crew. It asks first."), Go(Screen.DeleteCrew)));
         list.Add(BackTo(Screen.Slots));
         return list;
@@ -1418,7 +1459,8 @@ public sealed class FrontEnd
             var p = buy(u.Id);
             if (p.Ok)
                 Smithy = shop with { State = p.State };
-            Message = !p.Ok ? p.Refused : had && !p.State.Upgrades.Contains(u.Id) ? $"{u.Name}: taken off before the gate." : $"{u.Name}: fitted before the gate.";
+            Message = !p.Ok ? p.Refused : had && !p.State.Upgrades.Contains(u.Id) ? $"{u.Name}: taken off before the gate."
+                : had ? $"{u.Name}: painted before the gate." : $"{u.Name}: fitted before the gate.";
             return null;
         }, free: SmithyFree);
         if (SmithyMode?.Invoke() is { } mode)
@@ -1451,11 +1493,16 @@ public sealed class FrontEnd
                 string? why = owned || free ? null : Campaign.Unavailable(_campaign, s, u);
                 // The shop says which upgrades the night doesn't model yet (ARCHITECTURE §8 note 29).
                 string detail = u.Line ?? $"{(u.Size == UpgradeSize.Major ? "Major" : "Small")}{(u.Effect.Count == 0 && u.Tally is null ? ", not modelled yet" : "")}.";
+                // A livery owned is picked by choosing it again (note 714): the train's in the last picked.
+                bool livery = u.Effect.ContainsKey("livery");
+                bool painted = livery && owned && Campaign.LiveryOf(_campaign, s) == u.Id;
                 string label = free ? $"{u.Name.ToUpperInvariant()}: {(owned ? "OWNED, TAKE IT OFF" : "FREE")}"
+                    : painted ? $"{u.Name.ToUpperInvariant()}: ON THE TRAIN"
+                    : livery && owned ? $"{u.Name.ToUpperInvariant()}: OWNED, PAINT HER IN IT"
                     : owned ? $"{u.Name.ToUpperInvariant()}: OWNED"
                     : why is not null && Campaign.TierFor(_campaign, s.Cars) < u.FromTier ? $"{u.Name.ToUpperInvariant()}: {Name(u.FromTier)} AND ON"
                     : $"{u.Name.ToUpperInvariant()}: {cost:0}";
-                list.Add(new(new(label, why is null ? detail : $"{why}.", (free || !owned) && why is null), select(u)));
+                list.Add(new(new(label, why is null ? detail : $"{why}.", (free || !owned || livery && !painted) && why is null), select(u)));
             }
         }
         return list;

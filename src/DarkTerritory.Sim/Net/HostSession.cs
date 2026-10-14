@@ -989,6 +989,15 @@ public sealed class HostSession
                 _namesChanged = true;
             return;
         }
+        // A hat's only from the rack (note 714): without it, the colour alone.
+        if (Player.Outfit.HatOf(outfit) > 0 && !World.Train.Dynamics.Tuning.Composition.Dressed("hatRack"))
+            outfit = Player.Outfit.ColourOf(outfit) is { } colour ? (byte)colour : Messages.NoOutfit;
+        if (outfit == Messages.NoOutfit)
+        {
+            if (had && World.Outfits.Remove(id))
+                _namesChanged = true;
+            return;
+        }
         if (had && was == outfit)
             return;
         World.Outfits[id] = outfit;

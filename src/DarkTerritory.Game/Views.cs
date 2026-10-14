@@ -233,6 +233,13 @@ public static class Views
             // inside the guard van, across to the towels' rail with the disco ball turning over the aisle.
             "dressback" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(1.3, 2.0, train.Frames[^1].Shape.HalfLength + 5.0)),
                 train.Frames[^1].ToWorld(new Double3(-0.1, 1.6, train.Frames[^1].Shape.HalfLength + 0.8)), 55),
+            // The cab's side (note 714): the nameplate under its windows, the livery's lining past it.
+            "nameplate" => engine.Shape.Cab is { } plateCab
+                ? Camera.LookAt(engine.ToWorld(new Double3(4.2, 2.6, (plateCab.Min.Z + plateCab.Max.Z) / 2 - 1.5)), engine.ToWorld(new Double3(1.5, 2.3, (plateCab.Min.Z + plateCab.Max.Z) / 2)), 50)
+                : Camera.LookAt(engine.ToWorld(new Double3(0, 2.5, 0)), engine.ToWorld(new Double3(0, 2.5, -1)), 60),
+            // The yard photographer (note 714) and his picture: framed from where he stands past the gate, which only the
+            // night knows (dt screenshot puts them there, YardPhotographer.Stand and .Lens); from here, off the engine's front.
+            "photographer" or "yardphoto" => Camera.LookAt(engine.ToWorld(new Double3(5, 1.6, -engineHalf - 14)), engine.ToWorld(new Double3(0, 2.4, -engineHalf + 6)), 52),
             "dresside" => Camera.LookAt(engine.ToWorld(new Double3(6.5, 2.0, -2.5)), engine.ToWorld(new Double3(1.5, 1.7, 0.2)), 60),
             "dressvan" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(-1.0, 2.3, -2.2)), train.Frames[^1].ToWorld(new Double3(1.3, 2.4, 1.4)), 70),
             // The band (note 700; `--band`): from over the roof's back end, down between the two rows playing.

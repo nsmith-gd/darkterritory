@@ -83,7 +83,18 @@ public sealed partial class SceneArt(Look look)
         };
         // An emote (note 298), stood still with nothing else on.
         if (pose == CrewPose.Idle && c.Emote != Sim.Player.Emote.None)
-            pose = c.Emote switch { Sim.Player.Emote.Dance => CrewPose.Dance, Sim.Player.Emote.Wave => CrewPose.Wave, _ => CrewPose.Point };
+            pose = c.Emote switch
+            {
+                Sim.Player.Emote.Dance => CrewPose.Dance,
+                Sim.Player.Emote.Wave => CrewPose.Wave,
+                Sim.Player.Emote.Bow => CrewPose.Bow,
+                Sim.Player.Emote.Salute => CrewPose.Salute,
+                Sim.Player.Emote.Conga => CrewPose.Conga,
+                _ => CrewPose.Point,
+            };
+        // The conga's danced walking (note 714).
+        else if (pose == CrewPose.Walk && c.Emote == Sim.Player.Emote.Conga)
+            pose = CrewPose.Conga;
         // The extinguisher at work: braced into it and kicking with the jet while the fire's going down under it (GreyboxScene
         // sees that: Spraying), not stood with it on the hip. Come to its bracket already carrying it, it's being hung back:
         // lifted up onto it, not off it (TakeDown is the sim's "at the mount with it" either way), and that plays on through
@@ -138,7 +149,7 @@ public sealed partial class SceneArt(Look look)
             // Up a ladder by how far up it they are, not by the clock: one cycle of crew_clips' climb is two rungs climbed,
             // so the hands and feet stay on the rungs at any pace and stop when the climber does (a Look Review note).
             CrewPose.Climb or CrewPose.ClimbCarry => at.Y / ClimbCycleRise * ClimbCycleSeconds,
-            CrewPose.Dance or CrewPose.Wave or CrewPose.Point => c.EmoteSeconds,
+            CrewPose.Dance or CrewPose.Wave or CrewPose.Point or CrewPose.Bow or CrewPose.Salute or CrewPose.Conga => c.EmoteSeconds,
             _ => time,
         };
         var right = new Vector3((float)Math.Cos(c.Yaw), 0, (float)-Math.Sin(c.Yaw));
@@ -175,6 +186,9 @@ public sealed partial class SceneArt(Look look)
         var kit = pose is CrewPose.Toolbox or CrewPose.ToolboxWalk ? PropArt.Of(Look).Get("repair_kit") : null;
         bool drawn = Creatures.Crewmate(mesh, m, pose, clipTime, c.Variant, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)), ToolProp(c.Holding),
             hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor), body: HeadsetBody(c, pose, time), carried: kit);
+        // The hat rack's (note 714): on the head, over the cap or helmet.
+        if (drawn && c.Hat > 0 && HatKit.Of(Look, c.Hat) is { } hat)
+            Creatures.Wear(mesh, hat, "head", m, CreatureArt.FigureOf(c.Survivor));
         if (drawn && kit is not null)
             _kitHands[c.Id] = time;
         else
@@ -1339,7 +1353,7 @@ public sealed partial class SceneArt(Look look)
     /// <param name="taggedLockers">Crew lockers with something on their shelves (note 264): a tag hangs off a shut one's handle.</param>
     /// <param name="handrails">The train has roof handrails (spec F.3, note 184): drawn along a car's roof edges.</param>
     public bool Car(MeshBuilder mesh, in CarFrame frame, Double3 eye, Vehicle? vehicle, bool emergency, long tick = -1, int cutEnds = 0,
-        float charred = 0, bool utility = false, uint openLockers = 0, bool handrails = false, bool dark = false, uint taggedLockers = 0)
+        float charred = 0, bool utility = false, uint openLockers = 0, bool handrails = false, bool dark = false, uint taggedLockers = 0, int paint = 0)
     {
         // Its lamps out: its lit windows (the guard van's) go dark with them, as under emergency lighting.
         float lamps = emergency || dark ? 0.06f : 1;
@@ -1352,13 +1366,14 @@ public sealed partial class SceneArt(Look look)
         bool armoured = !engine && vehicle is { Armoured: true };
         var livery = armoured ? TrainKit.Livery.Armoured : TrainKit.LiveryOf(frame.Index);
         int variant = frame.Index % 2;
-        string key = engine ? $"engine:{ShapeKey(shape)}" : $"car:{ShapeKey(shape)}:{livery}:{variant}:{shape.Gun is not null}";
+        // The train's livery (note 714) is in the key: a repaint is another piece.
+        string key = (engine ? $"engine:{ShapeKey(shape)}" : $"car:{ShapeKey(shape)}:{livery}:{variant}:{shape.Gun is not null}") + (paint != 0 ? $":paint{paint}" : "");
         // The load's drawn apart from the body (TrainKit.Load), in its cargo's cases, when the scene knows the cargo.
         bool loadApart = !engine && vehicle is not null;
         // The engine's drivers and rods are drawn apart, turning (Gear), where their modelled parts are there to turn.
         bool turning = engine && GearParts is not null;
         var body = Piece(loadApart ? key + ":empty" : turning ? key + ":turning" : key,
-            () => engine ? TrainKit.Engine(Look, shape, 0, gear: !turning) : TrainKit.Car(Look, shape, livery, variant, load: !loadApart, wheel: false));
+            () => engine ? TrainKit.Engine(Look, shape, 0, gear: !turning, paint: paint) : TrainKit.Car(Look, shape, livery, variant, load: !loadApart, wheel: false, paint: paint));
         // Wear and tear off the car's integrity (look.json "damage"): the scar mask over the body and doors, seeded by
         // the car so its scars stay where they are, and past the first state the torn plate the mask can't draw.
         // What a Car Hugger ate of it (App. A.3 FEED) is gone, not battered: the scars and torn plate are the rest of the loss.

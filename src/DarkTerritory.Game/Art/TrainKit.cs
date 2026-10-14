@@ -272,9 +272,10 @@ public static partial class TrainKit
     /// </summary>
     /// <param name="gear">With its drivers and rods in it (a still engine: the catalog's, a wreck's). Without, they're
     /// drawn apart each frame turning with the train's going (SceneArt.Gear).</param>
-    public static MeshAsset Engine(Look? look, CarShape shape, int variant, bool gear = true)
+    /// <param name="paint">The train's livery (note 714; composition.livery): 0 the works' rust.</param>
+    public static MeshAsset Engine(Look? look, CarShape shape, int variant, bool gear = true, int paint = 0)
     {
-        var k = new Kit(look, 101 + variant);
+        var k = new Kit(look, 101 + variant) { Paint = PaintOf(paint) };
         float w = (float)shape.HalfWidth, l = (float)shape.HalfLength;
         var boiler = shape.Solids.First(s => s.Part == PartKind.Boiler).Box;
         var stack = shape.Solids.First(s => s.Part == PartKind.Stack).Box;
@@ -861,7 +862,7 @@ public static partial class TrainKit
     static Kit Plate(Kit k, float tile = 1.3f)
     {
         k.Use("paint_oxide", Palette.RustRed * 0.6f, 0.95f, 0.3f, tile);
-        k.Tint *= PlateTint;
+        k.Tint *= PlateTint * k.Paint;
         return k;
     }
 
@@ -869,7 +870,7 @@ public static partial class TrainKit
     static Kit Iron(Kit k, float tile = 1.3f)
     {
         k.Use("iron_plate", Palette.IronGrey * 0.7f, 0.95f, 0.3f, tile);
-        k.Tint *= IronTint;
+        k.Tint *= IronTint * k.Paint;
         return k;
     }
 
@@ -1978,6 +1979,18 @@ public static partial class TrainKit
 
     // ---------------------------------------------------------------- cars
 
+    /// <summary>
+    /// The train's livery (note 714; the director's approved fun: "crimson lined gold, forest green and brass, black with a white
+    /// stripe"), over the plate's rust: what the painted iron's colour is multiplied by. 0, the works' own (one).
+    /// </summary>
+    public static Vector3 PaintOf(int livery) => livery switch
+    {
+        1 => new(1.55f, 0.5f, 0.45f),
+        2 => new(0.4f, 1.75f, 0.62f),
+        3 => new(0.36f, 0.36f, 0.4f),
+        _ => Vector3.One,
+    };
+
     /// <summary>How a car is finished: planked boxcar, steel boxcar, or armoured (plate and olive paint).</summary>
     public enum Livery { Planked, Steel, Armoured }
 
@@ -1994,9 +2007,9 @@ public static partial class TrainKit
     /// <paramref name="wheel"/> false leaves the brake wheel off (the scene draws it, turned as the car's brake is wound:
     /// <see cref="BrakeWheelPiece"/>).
     /// </summary>
-    public static MeshAsset Car(Look? look, CarShape shape, Livery livery, int variant, bool load = true, bool wheel = true)
+    public static MeshAsset Car(Look? look, CarShape shape, Livery livery, int variant, bool load = true, bool wheel = true, int paint = 0)
     {
-        var k = new Kit(look, 7 + variant * 3 + (int)livery);
+        var k = new Kit(look, 7 + variant * 3 + (int)livery) { Paint = PaintOf(paint) };
         var interior = shape.Interior!.Value;
         float w = (float)shape.HalfWidth, l = (float)shape.HalfLength, h = (float)shape.RoofHeight;
         float floor = (float)interior.Min.Y + 0.1f, ceiling = (float)interior.Max.Y, t = w - (float)interior.Max.X;
@@ -2014,7 +2027,7 @@ public static partial class TrainKit
         void Outside()
         {
             k.Use(outside.Texture, outside.Fallback, 0.9f, 0.2f, outside.Tile);
-            k.Tint *= weather;
+            k.Tint *= weather * k.Paint;
         }
         void Lining() => k.Use("wood_grey", Palette.DeepBrown, 0.8f, 0, 1f);
 

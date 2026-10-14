@@ -144,6 +144,9 @@ public sealed record CompositionTuning
     /// </summary>
     public IReadOnlyList<string> Dress { get; init; } = [];
 
+    /// <summary>The train's paint (note 714): 0 the works' rust and plate; 1 crimson lined gold, 2 forest green and brass, 3 black with a white stripe.</summary>
+    public int Livery { get; init; }
+
     /// <summary>Whether <paramref name="id"/> is fitted (<see cref="Dress"/>).</summary>
     public bool Dressed(string id) => Dress.Contains(id);
     /// <summary>What's on it, and what each does.</summary>
