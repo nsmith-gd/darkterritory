@@ -25,6 +25,11 @@
   // worth what it was.
   "villageBudget": [0.6, 1.2],
   "outlierWeight": 1.8,
+  // Note 738 (the director, 14 Oct: "reward players a little bit more for that type of exploration. Not too much more, but
+  // smaller bits of loot"): each small thing lying on a village's floor (stops.json village.loose) is worth this share of
+  // what a find kept in that village is (villageBudget over its kept finds), on top of them: a village's floors add about
+  // a sixth to what it pays. `kinds.loose` says what they are. Taken at once: they aren't searched.
+  "looseShare": [0.2, 0.4],
   // Stowed: lying still inside any car for this long.
   "settleSeconds": 1.0,
   "radius": 0.15,
@@ -87,7 +92,9 @@
     "cellar":     { "weight": 1.2, "items": ["preserves", "treats", "tools"] },
     "underFloor": { "weight": 1.6, "items": ["valuableTools", "pocketWatch", "preserves"] },
     "bench":      { "weight": 0.9, "items": ["tools", "lampParts"] },
-    "hayloft":    { "weight": 1.0, "items": ["tools", "lampOil", "rope"] }
+    "hayloft":    { "weight": 1.0, "items": ["tools", "lampOil", "rope"] },
+    // (Its weight's unused: the floors' finds have looseBudget to themselves.)
+    "loose":      { "weight": 0.3, "items": ["candles", "candles", "treats", "tinnedFood", "lampOil"] }
   },
 
   // A creature's trophy when it's killed (note 340; the director, 7 Oct 2026: "a dead Gannet can be worth a good deal"):

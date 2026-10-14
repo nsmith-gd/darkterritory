@@ -9,6 +9,8 @@ public sealed record LootTuning
 
     public required YardLootTuning Yard { get; init; }
     public required double[] VillageBudget { get; init; }
+    /// <summary>Note 738: what each small thing lying on a village's floor is worth, as a share of what a find kept in that village is. Unset, nothing.</summary>
+    public double[]? LooseShare { get; init; }
     public required double OutlierWeight { get; init; }
     public required double SettleSeconds { get; init; }
     public required double Radius { get; init; }
@@ -104,18 +106,37 @@ public static class StopLoot
     public static IReadOnlyList<LootFind> Village(LootTuning t, StopLayout stop, ulong routeSeed, int feature, double perCar)
     {
         var rng = new Ballast.Pcg32(StopSeed.Of(StopSeed.Of(routeSeed, StopSeed.Loot, (ulong)feature), stop.Seed));
-        var containers = stop.Containers.Where(c => c.Zone == StopZone.Village).ToList();
-        if (containers.Count == 0)
-            return [];
-        double budget = perCar * rng.Range(t.VillageBudget[0], t.VillageBudget[1]);
-        double Weight(StopContainer c) => t.Of(c.Kind).Weight * (c.Outlier ? t.OutlierWeight : 1);
-        double sum = containers.Sum(Weight);
-        return [.. containers.Select(c =>
+        var containers = stop.Containers.Where(c => c.Zone == StopZone.Village && c.Kind != ContainerKind.Loose).ToList();
+        var finds = new List<LootFind>();
+        double budget = 0;
+        if (containers.Count > 0)
         {
-            var kind = t.Of(c.Kind);
-            string item = kind.Items[(int)(rng.NextDouble() * kind.Items.Length)];
-            return new LootFind(c.Index, item, Math.Max(5, Math.Round(budget * Weight(c) / sum / 5) * 5));
-        })];
+            budget = perCar * rng.Range(t.VillageBudget[0], t.VillageBudget[1]);
+            double Weight(StopContainer c) => t.Of(c.Kind).Weight * (c.Outlier ? t.OutlierWeight : 1);
+            double sum = containers.Sum(Weight);
+            finds.AddRange(containers.Select(c =>
+            {
+                var kind = t.Of(c.Kind);
+                string item = kind.Items[(int)(rng.NextDouble() * kind.Items.Length)];
+                return new LootFind(c.Index, item, Math.Max(5, Math.Round(budget * Weight(c) / sum / 5) * 5));
+            }));
+        }
+        // The small things lying on the floors (note 738): each a share of what a find kept here is worth (the budget over
+        // the kept finds), on a stream of their own, so the village's other finds are what they were: on top of them, and
+        // smaller than them.
+        var loose = stop.Containers.Where(c => c.Zone == StopZone.Village && c.Kind == ContainerKind.Loose).ToList();
+        if (loose.Count > 0 && t.LooseShare is [var lo, var hi])
+        {
+            var lr = new Ballast.Pcg32(StopSeed.Of(StopSeed.Of(routeSeed, StopSeed.Loose, (ulong)feature), stop.Seed));
+            double kept = containers.Count > 0 ? budget / containers.Count : perCar * t.VillageBudget[0] / 8;
+            var kind = t.Of(ContainerKind.Loose);
+            foreach (var c in loose)
+            {
+                string item = kind.Items[(int)(lr.NextDouble() * kind.Items.Length)];
+                finds.Add(new LootFind(c.Index, item, Math.Max(5, Math.Floor(kept * lr.Range(lo, hi) / 5) * 5)));
+            }
+        }
+        return finds;
     }
 
     /// <summary>

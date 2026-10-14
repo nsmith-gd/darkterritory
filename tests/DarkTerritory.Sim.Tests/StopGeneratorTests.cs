@@ -52,11 +52,11 @@ public class StopGeneratorTests
     {
         // Note 593 (the director, 9 Oct: "not every house certainly should have loot in it, but a good chunk of them should
         // have something here, something there"): most of a village's open houses hold a find or more, some nothing, a few
-        // two or three; a little less deeper in.
+        // two or three; a little less deeper in. (Kept finds: the small things lying on the floors, note 738, are besides.)
         var houses = Enumerable.Range(1, 30).Select(s => StopGenerator.Generate(S, tier, (ulong)s, StopKind.Village, Cx))
             .SelectMany(l => l.Buildings.Select((b, i) => (b, i))
                 .Where(x => x.b.Zone == StopZone.Village && x.b.Kind == BuildingKind.House && x.b.Open)
-                .Select(x => l.Containers.Count(c => c.Zone == StopZone.Village && c.Building == x.i))).ToList();
+                .Select(x => l.Containers.Count(c => c.Zone == StopZone.Village && c.Building == x.i && c.Kind != ContainerKind.Loose))).ToList();
         double withFinds = houses.Count(n => n > 0) / (double)houses.Count;
         Assert.InRange(withFinds, 0.6, 0.97);
         Assert.Contains(0, houses);
@@ -333,8 +333,12 @@ public class StopGeneratorTests
                 Assert.Contains(find.Item, L.Of(c.Kind).Items);
                 Assert.True(find.Value > 0);
             }
-            // Rounded to fives, the whole is the budget's range.
-            Assert.InRange(finds.Sum(f => f.Value), perCar * L.VillageBudget[0] - 5 * finds.Count, perCar * L.VillageBudget[1] + 5 * finds.Count);
+            // Rounded to fives, the whole is the budget's range; the small things on the floors (note 738) have their own.
+            var kept = finds.Where(f => stop.Containers[f.Container].Kind != ContainerKind.Loose).ToList();
+            var lying = finds.Where(f => stop.Containers[f.Container].Kind == ContainerKind.Loose).ToList();
+            Assert.InRange(kept.Sum(f => f.Value), perCar * L.VillageBudget[0] - 5 * kept.Count, perCar * L.VillageBudget[1] + 5 * kept.Count);
+            foreach (var f in lying)
+                Assert.InRange(f.Value, 5, Math.Max(5, kept.Sum(k => k.Value) / Math.Max(1, kept.Count) * L.LooseShare![1] + 5));
         }
         Assert.True(stops > 0);
     }
