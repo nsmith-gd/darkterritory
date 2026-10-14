@@ -555,6 +555,8 @@ Each stop of a kind has the module it's named for and two to four in all, drawn 
 
 **The crane operator's view** *(the director's evening playtest, 13 Oct: "Camera angle for lowering things in when you get close does not make a lot of sense ... widen the camera angle a little bit, maybe even go a little more top down"; note 707)*. At the controls, the operator looks from the crane's cab along the gantry, wide enough to see the bridge, the trolley and the car under them. As the hook comes down, the operator leans to the cab's window and the view tips down after it, until with the hook low the operator looks down over what's on it into the car. The ground crew round the stack and the car's side are still out of sight, and still have to call the position (spec D.2).
 
+**A load let go comes down** *(the director's evening playtest, 13 Oct: "It did unhook, but it sort of just stays there in the air, doesn't fall"; note 708)*. A casting unhooked or let go over a car comes down onto what's really under it: the car's floor through an open hatch, the load already in it, or its roof. It never rests on a heap that isn't there (an empty car has none), and the hook lowers it all the way down. Let go of high, it falls and crushes whoever's under it, as before.
+
 **Every facility is optional. Skipping them is safe and pays nothing:** the train leaves the fortress empty, and only what the crew load at the stops and carry out of the villages is paid at the gates (§1 *The fantasy*; the director, 9 Oct 2026, note 575). The payout exists to force bad decisions, not to reward good ones.
 
 ## 19. Cargo
