@@ -137,7 +137,9 @@ return args switch
         Opt(args, "--seconds", 2), new Ballast.Net.LinkConditions(Opt(args, "--latency", 0), Opt(args, "--jitter", 0), Opt(args, "--loss", 0)),
         // --space tunnel: heard as if in that space (content/audio/spaces.json), compressor, reverb and all.
         Str(args, "--space", "") is { Length: > 0 } space ? space : null,
-        args.Contains("--die-at") ? Opt(args, "--die-at", 1) : null)),
+        args.Contains("--die-at") ? Opt(args, "--die-at", 1) : null,
+        // --tube: down the speaking tube, the cab's mouthpiece to the guard van's horn (note 720).
+        tube: args.Contains("--tube"))),
 
     _ => Usage(),
 };
@@ -1842,6 +1844,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             // --driver: a crewmate at the engine's controls (note 445), on the whistle cord with --whistle; --reverser s: the
             // reverser thrown s seconds ago (SceneArt.ReverserThrown), the brake hand on it.
             : args.Contains("--driver") ? [Staging.Driver(train, args.Contains("--whistle"))]
+            // --signal stop,go,back: a crewmate for each on the ballast off car 1 giving that lamp signal (note 720; view
+            // lampsignal); --signal-at s: how far into it.
+            : args.Contains("--signal") ? Staging.Signallers(train, Str(args, "--signal", "stop,go,back").Split(','), Opt(args, "--signal-at", 0.9))
             : args.Contains("--vr-body") ? Staging.Headsets(train, content)
             : args.Contains("--working") ? Staging.Working(train, content)
             : args.Contains("--crew") ? [.. Staging.Crew(train, content), .. args.Contains("--ribbits") || args.Contains("--gaunt") || args.Contains("--grumbler") || args.Contains("--follower") || args.Contains("--soot") ? [Staging.Lone(train)] : Array.Empty<Crewmate>()]

@@ -16,8 +16,11 @@ namespace DarkTerritory.Game.Sound;
 /// <param name="TailDb">The reverb return in the last quarter second, after the voice has stopped: the space ringing on.</param>
 /// <param name="AfterCutDb">With a death mid-sentence (<c>dieAt</c>): how loud the speaker's voice still was, near and on the radio,
 /// from a tick after the death on (a tick for the host's cut to arrive): the hard-cut's −180, silence (GDD v1.4 App. D.2).</param>
+/// <param name="TubeDb">The speaking tube's voice (note 720), in the voice band; <paramref name="TubeLowDb"/> under 300 Hz and
+/// <paramref name="TubeHighDb"/> over 4 kHz, where a pipe's horn has nothing; <paramref name="TubeBandDb"/> its own 800 Hz-1.6 kHz.</param>
 public sealed record VoiceBenchReport(double DistanceM, bool Radio, bool SpeakerInCab, int FramesSent, int FramesHeard, int Underruns, double NearDb, double RadioDb,
-    double RadioLowDb, double RadioBandDb, double BedDuckDb, string Space = "outside", double ReverbDb = -180, double TailDb = -180, double AfterCutDb = 0);
+    double RadioLowDb, double RadioBandDb, double BedDuckDb, string Space = "outside", double ReverbDb = -180, double TailDb = -180, double AfterCutDb = 0,
+    double TubeDb = -180, double TubeLowDb = -180, double TubeHighDb = -180, double TubeBandDb = -180);
 
 /// <summary>
 /// One speaker, one listener, a host between them, over the simulated network: the whole voice path from
@@ -28,8 +31,10 @@ public static class VoiceBench
     /// <param name="speakerCar">Car the speaker stands on (0 = in the cab); the listener is on car 3's roof.</param>
     /// <param name="space">Hear it as if in this space (a tunnel: GDD §22's compressed, close voice); null, where the listener is.</param>
     /// <param name="dieAt">Seconds into the speech the speaker dies, mid-word (the hard-cut's check).</param>
+    /// <param name="tube">The speaking tube (note 720): the speaker at the cab's mouthpiece, the listener in the guard van a few
+    /// metres from its horn, the length of the train away (<paramref name="speakerCar"/> and <paramref name="speakerZ"/> unused).</param>
     public static VoiceBenchReport Run(string content, int speakerCar, double speakerZ, bool radio, double seconds = 2, LinkConditions? link = null,
-        string? space = null, double? dieAt = null, float micLevel = 1)
+        string? space = null, double? dieAt = null, float micLevel = 1, bool tube = false)
     {
         var trainTuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
         var playerTuning = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
@@ -64,8 +69,16 @@ public static class VoiceBench
         for (int i = 0; i < 20 && (speaker.PlayerId is null || listener.PlayerId is null); i++)
             Tick();
         var t = host.Train;
-        host.SetPlayerState(speaker.PlayerId!.Value, speakerCar == 0 ? PlayerMotor.SpawnInCab(t, playerTuning) : PlayerMotor.SpawnOnRoof(t, speakerCar, speakerZ, playerTuning));
-        host.SetPlayerState(listener.PlayerId!.Value, PlayerMotor.SpawnOnRoof(t, 3, 0, playerTuning));
+        if (tube)
+        {
+            host.SetPlayerState(speaker.PlayerId!.Value, SpeakingTube.AtMouth(t, 0, playerTuning));
+            host.SetPlayerState(listener.PlayerId!.Value, SpeakingTube.AtMouth(t, 1, playerTuning, off: 1.2, along: 2.5));
+        }
+        else
+        {
+            host.SetPlayerState(speaker.PlayerId!.Value, speakerCar == 0 ? PlayerMotor.SpawnInCab(t, playerTuning) : PlayerMotor.SpawnOnRoof(t, speakerCar, speakerZ, playerTuning));
+            host.SetPlayerState(listener.PlayerId!.Value, PlayerMotor.SpawnOnRoof(t, 3, 0, playerTuning));
+        }
         for (int i = 0; i < 10; i++)
             Tick();
 
@@ -116,8 +129,9 @@ public static class VoiceBench
             double Tail(string name) => tap.Stems.TryGetValue(name, out var st) && from < st.Length ? Meter.BandDb(st.AsSpan(from), 300, 3000) : -180;
             afterCut = Math.Round(Math.Max(Tail("voice"), Tail("voice-radio")), 1);
         }
-        return new VoiceBenchReport(Math.Round(distance, 1), radio, speakerCar == 0, mouth.FramesSent, heard, underruns, Stem("voice"), Stem("voice-radio"),
-            Stem("voice-radio", 40, 150), Stem("voice-radio", 500, 2500), Math.Round(Audio.GainToDb(duck), 1), audio.Space, Stem(Mixer.ReverbStem), tail, afterCut);
+        return new VoiceBenchReport(Math.Round(distance, 1), radio, speakerCar == 0 || tube, mouth.FramesSent, heard, underruns, Stem("voice"), Stem("voice-radio"),
+            Stem("voice-radio", 40, 150), Stem("voice-radio", 500, 2500), Math.Round(Audio.GainToDb(duck), 1), audio.Space, Stem(Mixer.ReverbStem), tail, afterCut,
+            Stem("voice-tube"), Stem("voice-tube", 40, 300), Stem("voice-tube", 4000, 12000), Stem("voice-tube", 800, 1600));
 
         static Crewmate Make(byte id, PlayerState s, IReadOnlyList<CarFrame> frames)
         {

@@ -64,6 +64,10 @@ public static class ArtCatalog
             return k.Build("guard-armoured");
         }));
         list.Add(new("roof-handrails", SmallProp, () => TrainKit.RoofHandrails(look, cargo)));
+        // The voice's fittings (note 720): the speaking tube's horn and its pipe down to the floor, and the whistle codes' card.
+        list.Add(new("speaking-tube", SmallProp, () => VoiceKit.TubeEnd(look, (float)SpeakingTube.MouthHeight + 0.1f)));
+        list.Add(new("whistle-card", MediumProp, () => VoiceKit.WhistleCard(look, "WHISTLE CODES",
+            ["ONE LONG - STOPPING", "TWO LONG - GOING", "THREE SHORT - BACKING", "FOUR SHORT - HELP", "TWO SHORT - HEARD YOU"])));
         // A car's damage rides on its body (the car class's budget, what the body leaves of it: the kit's are 9-11k).
         list.Add(new("hatch-lid", SmallProp, () => TrainKit.HatchLid(look, new System.Numerics.Vector3(1.4f, 0.15f, 2.4f))));
         list.Add(new("utility-fit", MediumProp, () => TrainKit.UtilityFit(look, cargo)));

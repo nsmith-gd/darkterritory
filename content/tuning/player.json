@@ -243,5 +243,26 @@
     // A tool's swing that meets a crewmate before a creature: a clang, staggerSeconds of stagger, and no damage. The report
     // counts the bonks of anyone bonked reportFrom times or more ("Bonked 14 times, mostly by Priya").
     "bonk": { "staggerSeconds": 0.3, "reportFrom": 5 }
+  },
+  // Voices as tools (GDD §12, §14, App. C.8; the friendslop audit's Friends goal; the director, 14 Oct 2026; ARCHITECTURE
+  // §8 note 720).
+  "voices": {
+    // The speaking tube, a brass pipe from the cab (its left wall, a step behind the hatch ladder) to the guard van (its
+    // front right corner): said within mouthReach (m, across the floor) of one mouthpiece, it comes out of the other's horn,
+    // tinny, heard within heardWithin (m) of it. The near crew hear the speaker as ever. However long the train is.
+    "tube": { "mouthReach": 1.0, "heardWithin": 10 },
+    // Singing together (§14): two or more living crewmates within earshot (m) of each other whose voices (the intent's level,
+    // 0-255) rise and fall together over windowSeconds: each over floor on average, each moving by at least swing (its spread,
+    // so a held drone isn't a song), and the two in time (their correlation at least inTime). While a crew sings: with
+    // feedsChoir false their voices don't feed the loudness meter (the director: "Singing does not fight the choir"); the
+    // livestock aboard settle, their floor under the meter and the hounds' pull to them eased by calmsLivestock (a share);
+    // and a Gaunt near them is talked down faster (enemies.json gaunt.singingTalks).
+    "singing": { "windowSeconds": 4, "earshot": 12, "floor": 40, "swing": 12, "inTime": 0.6, "feedsChoir": false, "calmsLivestock": 0.6 },
+    // Lamp signals (§12): a crewmate holding a hand lamp swings it across (STOP), raises and lowers it (GO) or circles it
+    // (BACK UP); the crew see it for `seconds`, and another may follow after `cooldown`. The bot driver reads one shown within
+    // seenWithin (m) of the cab or the van's rear: STOP, it brakes to a stand and stands up to standSeconds (or till GO);
+    // GO, it releases and goes on; BACK UP, at a stand it sets back backMetres at backSpeed (m/s) and stands. A STOP shown
+    // to a moving train that stands within stoppedWithin (s) is named in the incident report.
+    "lampSignals": { "seconds": 3, "cooldown": 0.5, "seenWithin": 60, "standSeconds": 90, "backMetres": 40, "backSpeed": 1.5, "stoppedWithin": 40 }
   }
 }

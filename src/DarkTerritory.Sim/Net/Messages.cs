@@ -83,6 +83,8 @@ public static class Protocol
     // 59: horseplay (note 717): the player record carries its stagger (its 27th field), the shove rides the third byte of
     //     buttons, a death and a flag or two of its own, and the knocks and the lumps of coal in flight are record kinds; each
     //     input frame says the snapshot it was predicted against (a byte back from the message's), for the crowd.
+    //     And voices (note 720): a voice frame's path is two bytes (the speaking tube's its ninth flag) and the tube's far end follows
+    //     it; a lamp signal rides the intent's third byte (bits 2-3), and the crew see it as a record kind of its own.
     public const int Version = 59;
 }
 
@@ -231,8 +233,8 @@ public static class Messages
         bool tool = i.Select != 0 || i.Cycle != 0 || i.Emote != Emote.None;
         w.U8((byte)(tool ? i.Actions | PlayerActions.Tool : i.Actions & ~PlayerActions.Tool));
         w.U8(i.Voice);
-        // Note 664: the third byte (crouch, push the gun along).
-        w.U8((byte)i.Moves);
+        // Note 664: the third byte (crouch, push the gun along); note 720, a lamp signal in its bits 2-3, on the tick it's given.
+        w.U8((byte)((byte)i.Moves & MovesMask | ((byte)i.Signal & 3) << 2));
         if (i.Watch != 0)
             w.U8(i.Watch);
         // A hotbar choice (T108), only on the tick it's made: the slot in the low nibble, the wheel's step in the high; an
@@ -259,6 +261,9 @@ public static class Messages
         }
     }
 
+    /// <summary>The intent's third byte's bits that are <see cref="PlayerMoves"/>; bits 2-3 are the lamp signal (note 720).</summary>
+    const byte MovesMask = 0b1111_0011;
+
     static short Centimetres(float metres) => (short)Math.Round(Math.Clamp(float.IsFinite(metres) ? metres : 0, -300, 300) * 100);
 
     static PlayerIntent ReadIntent(ref NetReader r)
@@ -276,7 +281,9 @@ public static class Messages
         i.Lamp = (LampSwitch)((notch >> 5) & 3);
         i.Actions = (PlayerActions)r.U8();
         i.Voice = r.U8();
-        i.Moves = (PlayerMoves)r.U8();
+        byte moves = r.U8();
+        i.Moves = (PlayerMoves)(moves & MovesMask);
+        i.Signal = (LampSignal)((moves >> 2) & 3);
         if ((notch & 0x80) != 0)
             i.Watch = r.U8();
         if (i.Has(PlayerActions.Tool))
@@ -337,17 +344,21 @@ public static class Messages
 
     /// <param name="source">For <see cref="VoicePath.Mimic"/>: the Soot Child it's coming from (T40).</param>
     /// <param name="gain">For <see cref="VoicePath.Fading"/>: how much of the voice is left, 0..1.</param>
-    public static void WriteVoiceDown(NetWriter w, byte speaker, ushort sequence, VoicePath path, ReadOnlySpan<byte> opus, int source = 0, double gain = 1)
+    /// <param name="tube">For <see cref="VoicePath.Tube"/>: the speaking tube's end it comes out of (note 720).</param>
+    public static void WriteVoiceDown(NetWriter w, byte speaker, ushort sequence, VoicePath path, ReadOnlySpan<byte> opus, int source = 0, double gain = 1,
+        int tube = 0)
     {
         w.Reset();
         w.U8((byte)MessageType.Voice);
         w.U8(speaker);
         w.U16(sequence);
-        w.U8((byte)path);
+        w.U16((ushort)path);
         if (path.HasFlag(VoicePath.Mimic))
             w.I32(source);
         if (path.HasFlag(VoicePath.Fading))
             w.U8((byte)Math.Round(Math.Clamp(gain, 0, 1) * 255));
+        if (path.HasFlag(VoicePath.Tube))
+            w.U8((byte)Math.Clamp(tube, 0, 255));
         w.Bytes(opus);
     }
 

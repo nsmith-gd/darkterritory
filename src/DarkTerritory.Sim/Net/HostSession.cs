@@ -1060,6 +1060,9 @@ public sealed class HostSession
         // the proximity layer by the living near it (8 m clear, 26 m cutoff), and on the dead channel as ever. It's never said
         // aloud in the world: nothing listening for talk (the meter, the Gaunt, the Soot Children) hears it.
         var liveMic = speaker.State.Alive ? null : World.Holdouts?.LiveMicOf(speaker.Id);
+        // Note 720 (App. C.8): said into the speaking tube's mouthpiece, it comes out of the far end's horn as well, heard near it.
+        var tubeTuning = PlayerTuning.Voices.Tube;
+        var tube = SpeakingTube.Heard(speaker.State, Train, tubeTuning);
         foreach (var listener in _crew)
         {
             if (listener == speaker)
@@ -1070,6 +1073,8 @@ public sealed class HostSession
             var path = VoiceRouting.Route(speaker.State, ears.State, radio, Train, tunnel, World.Bodies.HasRadio(ears.Id), underground);
             if (liveMic is not null && VoiceRouting.HearsLiveMic(listener.State, liveMic.Inside, Train))
                 path |= VoicePath.Proximity;
+            if (tube is { } t && VoiceRouting.HearsTube(ears.State, t.At, Train, tubeTuning))
+                path |= VoicePath.Tube;
             if (path == VoicePath.None)
                 continue;
             // What's holding the speaker changes how they sound (App. C.8): muffled under a hand, fading as they're drained.
@@ -1078,7 +1083,7 @@ public sealed class HostSession
                 path |= VoicePath.Muffled;
             if (gain < 1)
                 path |= VoicePath.Fading;
-            Messages.WriteVoiceDown(_voiceWriter, speaker.Id, seq, path, opus, gain: gain);
+            Messages.WriteVoiceDown(_voiceWriter, speaker.Id, seq, path, opus, gain: gain, tube: tube?.End ?? 0);
             _transport.Send(listener.Peer, _voiceWriter.Written, Delivery.Unreliable);
             VoiceFramesForwarded++;
         }

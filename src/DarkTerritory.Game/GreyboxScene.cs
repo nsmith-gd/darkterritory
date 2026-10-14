@@ -171,6 +171,8 @@ public sealed partial class GreyboxScene
     public double Time { get; set; }
     /// <summary>Vehicle state for doors (open or shut). Without it every door is drawn shut.</summary>
     public IReadOnlyList<Vehicle>? Vehicles { get; set; }
+    /// <summary>The speaking tube's ends (note 720, <see cref="Sim.Train.SpeakingTube.Ends"/>), set from the train each build.</summary>
+    public IReadOnlyList<Sim.Train.TubeEnd>? TubeEnds { get; set; }
     /// <summary>The hot boxes' tuning (note 331), for where a hot one smokes and how near it is to catching; null, the file's defaults.</summary>
     public Sim.Train.HotBoxTuning? HotBoxTuning { get; set; }
     /// <summary>The lamps' guttering tuning (note 346), for how near a guttering lamp is to going out; null, the file's defaults.</summary>
@@ -386,6 +388,7 @@ public sealed partial class GreyboxScene
     {
         Vehicles ??= train.Vehicles;
         Walls = train.Walls ?? Walls;
+        TubeEnds = Sim.Train.SpeakingTube.Ends(train);
         Cut = Art.SceneArt.Cuts(train);
         Handrails = train.Dynamics.Tuning.Composition.Handrails;
         SwitchThrower = train.Dynamics.Tuning.Composition.SwitchThrower;
@@ -5011,6 +5014,14 @@ public sealed partial class GreyboxScene
             mesh.Emissive = 1;
             draw(Box.FromCentre(new Double3(0, room.Max.Y - 0.08, 0), new Double3(0.12, 0.06, 0.12)), Emergency ? EmergencyRed : Palette.LampAmber);
             mesh.Emissive = 0;
+        }
+        // The voice's fittings (note 720): the speaking tube's horn in the cab and the guard van, and the whistle codes' card.
+        if (Look is not null)
+        {
+            if (TubeEnds is { Count: > 0 } ends)
+                Look.Art.SpeakingTubes(mesh, frame, eye, ends);
+            if (frame.Index == 0 && shape.Cab is not null)
+                Look.Art.WhistleCard(mesh, frame, eye);
         }
     }
 

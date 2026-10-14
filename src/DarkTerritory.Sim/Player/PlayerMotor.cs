@@ -88,7 +88,8 @@ public enum PlayerMoves : byte
     /// <summary>
     /// Shove the crewmate you're looking at (note 717, horseplay; LeftAlt): sent while held, acted on the press. Never a bot's.
     /// </summary>
-    Shove = 4,
+    Shove = 16,
+    // (On the wire the byte's bits 2-3 carry the intent's lamp signal, note 720: the moves keep the other bits.)
 }
 
 /// <summary>
@@ -99,6 +100,16 @@ public enum Emote : byte { None, Dance, Wave, Point }
 
 /// <summary>An emote as the crew see it (note 298): unique for the night (its record's key), the host tick it began, whose, which.</summary>
 public readonly record struct EmoteEvent(int Id, uint Tick, int By, Emote Kind);
+
+/// <summary>
+/// A lamp signal (GDD §12; the director's calls of 14 Oct 2026, friendslop.md queue #454; note 720), given with a hand lamp in
+/// the fist: swung across the line (<see cref="Stop"/>), raised and lowered (<see cref="Go"/>), a circle (<see cref="Back"/>).
+/// The crew see the lamp's motion and its light; the bot driver obeys it when it can see it. Sent once, on the pick.
+/// </summary>
+public enum LampSignal : byte { None, Stop, Go, Back }
+
+/// <summary>A lamp signal as the crew see it (note 720): unique for the night (its record's key), the host tick it began, whose, which.</summary>
+public readonly record struct SignalEvent(int Id, uint Tick, int By, LampSignal Kind);
 
 /// <summary>The forward lamp's switch in the cab (T52): set it on or off (a setting, not a toggle, so a held key or a resent intent is harmless).</summary>
 public enum LampSwitch : byte { None, On, Off }
@@ -158,6 +169,11 @@ public struct PlayerIntent
     public float Head;
     /// <summary>Note 664: the third byte (<see cref="PlayerMoves"/>): crouch, and pushing the gun along.</summary>
     public PlayerMoves Moves;
+    /// <summary>
+    /// Note 720: a lamp signal given this tick (its wheel let go), or none: honoured from someone with a hand lamp in their
+    /// fist. Like an emote it moves no player or train state itself; the host keeps it for the crew to see.
+    /// </summary>
+    public LampSignal Signal;
 
     public readonly bool Has(PlayerButtons b) => (Buttons & b) != 0;
     public readonly bool Has(PlayerActions a) => (Actions & a) != 0;

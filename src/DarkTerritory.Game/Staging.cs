@@ -595,6 +595,29 @@ public static partial class Staging
     }
 
     /// <summary>
+    /// Lamp signals at the lineside (note 720; dt screenshot --signal stop,go,back, view lampsignal): a crewmate for each on the
+    /// ballast off car 1's right, a hand lamp in the fist, turned to the trackside camera, <paramref name="seconds"/> into it.
+    /// </summary>
+    public static List<Crewmate> Signallers(TrainOnLine train, IEnumerable<string> signals, double seconds)
+    {
+        var crew = new List<Crewmate>();
+        int i = 0;
+        foreach (var name in signals)
+        {
+            var signal = Enum.Parse<Sim.Player.LampSignal>(name, ignoreCase: true);
+            var feet = Lineside(train, SignalAhead - (i - 1) * 2.4, SignalOut);
+            var to = Lineside(train, SignalAhead, SignalCamera) - feet;
+            crew.Add(new Crewmate((byte)(24 + i), feet, Math.Atan2(-to.X, -to.Z), true, Act: Art.CrewPose.Lantern, Lamp: true,
+                Signal: signal, SignalSeconds: seconds + 0.25 * i));
+            i++;
+        }
+        return crew;
+    }
+
+    /// <summary>Where the staged signallers stand (m): along from the engine's front, out from the line; and the camera, further out.</summary>
+    public const double SignalAhead = -26, SignalOut = 3.8, SignalCamera = 9.5;
+
+    /// <summary>
     /// A driver at the engine's controls (note 445; dt screenshot --driver [--whistle] [--reverser s], views fireman, cab):
     /// stood between the regulator and the brake, facing forward, hands on them, or up on the whistle cord.
     /// </summary>

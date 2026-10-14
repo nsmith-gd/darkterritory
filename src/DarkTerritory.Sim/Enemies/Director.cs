@@ -425,8 +425,9 @@ public sealed class Director
             for (int i = 0; i < options.Count; i++)
             {
                 double w = options[i].Weight;
+                // Note 720: the crew singing settles the beasts, and they draw the hounds less (voices.singing.calmsLivestock).
                 if (aboard.Contains(CargoKind.Livestock) && options[i].Kind == EnemyKind.CinderHound)
-                    w *= _t.HoundsLivestockWeight;
+                    w *= 1 + (_t.HoundsLivestockWeight - 1) * (1 - world.LivestockCalm);
                 foreach (var cargo in aboard)
                     if (_t.CargoWeights.GetValueOrDefault(char.ToLowerInvariant(cargo.ToString()[0]) + cargo.ToString()[1..]) is { } table)
                         w *= table.GetValueOrDefault(Key(options[i].Kind), 1) * table.GetValueOrDefault("*", 1);

@@ -15,7 +15,8 @@ namespace DarkTerritory.Sim.Net;
 /// </summary>
 /// <param name="Source">For a <see cref="VoicePath.Mimic"/> frame, the enemy it comes from (T40); 0 otherwise.</param>
 /// <param name="Gain">With <see cref="VoicePath.Fading"/>: how much of the speaker's voice is left, 0..1 (App. C.8).</param>
-public readonly record struct VoiceFrame(byte Speaker, ushort Sequence, VoicePath Path, byte[] Opus, int Source = 0, double Gain = 1);
+/// <param name="Tube">With <see cref="VoicePath.Tube"/>: the speaking tube's end it comes out of (note 720, <see cref="SpeakingTube.Ends"/>).</param>
+public readonly record struct VoiceFrame(byte Speaker, ushort Sequence, VoicePath Path, byte[] Opus, int Source = 0, double Gain = 1, int Tube = 0);
 
 public sealed class ClientSession
 {
@@ -386,10 +387,11 @@ public sealed class ClientSession
                 case MessageType.Voice:
                     byte speaker = r.U8();
                     ushort vseq = r.U16();
-                    var path = (VoicePath)r.U8();
+                    var path = (VoicePath)r.U16();
                     int source = path.HasFlag(VoicePath.Mimic) ? r.I32() : 0;
                     double gain = path.HasFlag(VoicePath.Fading) ? r.U8() / 255.0 : 1;
-                    VoiceFrames.Enqueue(new VoiceFrame(speaker, vseq, path, r.Rest().ToArray(), source, gain));
+                    int tube = path.HasFlag(VoicePath.Tube) ? r.U8() : 0;
+                    VoiceFrames.Enqueue(new VoiceFrame(speaker, vseq, path, r.Rest().ToArray(), source, gain, tube));
                     break;
                 case MessageType.Wait:
                     WaitingReason = r.Str();

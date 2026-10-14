@@ -8,7 +8,7 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Net;
 
-public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13, Hit = 14, Impact = 15, Heap = 16, Swing = 17, Emote = 18, Search = 19, Door = 20, News = 21, Horseplay = 22, Lump = 23 }
+public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13, Hit = 14, Impact = 15, Heap = 16, Swing = 17, Emote = 18, Search = 19, Door = 20, News = 21, Horseplay = 22, Lump = 23, Signal = 24 }
 
 /// <summary>One replicated thing as fixed-point integers. <see cref="Key"/> is kind in the top byte, id below.</summary>
 public readonly record struct WireRecord(uint Key, long[] Fields)
@@ -142,6 +142,9 @@ public static class WorldRecords
         // Emotes (note 298): who, which, and when it began.
         foreach (var e in world.Emotes)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Emote, e.Id), [e.Tick, e.By, (long)e.Kind]));
+        // Lamp signals (note 720): who, which, and when it began.
+        foreach (var e in world.Signals)
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Signal, e.Id), [e.Tick, e.By, (long)e.Kind]));
         // The news (note 663): what was lost or broke, and what did it, for every crewmate's line; then the cars lost.
         foreach (var e in world.News)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.News, e.Id),
@@ -349,6 +352,7 @@ public static class WorldRecords
         var emotes = new List<EmoteEvent>();
         var horseplay = new List<HorseplayEvent>();
         var lumps = new List<LumpInFlight>();
+        var signals = new List<SignalEvent>();
         var news = new List<NewsEvent>();
         var impacts = new List<CannonImpact>();
         foreach (var r in records)
@@ -475,6 +479,9 @@ public static class WorldRecords
                 case RecordKind.Lump when !world.Authority:
                     lumps.Add(new LumpInFlight(r.Id, (int)f[0], new Double3(D(f[1], Pos), D(f[2], Pos), D(f[3], Pos))));
                     break;
+                case RecordKind.Signal when !world.Authority:
+                    signals.Add(new SignalEvent(r.Id, (uint)f[0], (int)f[1], (LampSignal)f[2]));
+                    break;
                 case RecordKind.News when !world.Authority:
                     news.Add(new NewsEvent(r.Id, (uint)f[0], (NewsKind)f[1], [.. f.Skip(6).Select(c => (int)c)], (byte)f[2], (byte)f[3], (int)f[4], D(f[5], Fine)));
                     break;
@@ -553,7 +560,7 @@ public static class WorldRecords
         if (!world.Authority)
         {
             world.MirrorEnemies(enemies);
-            world.MirrorHits(hits, impacts, swings, emotes, news);
+            world.MirrorHits(hits, impacts, swings, emotes, news, signals);
             world.MirrorHorseplay(horseplay, lumps);
             world.Bodies.Mirror(bodies);
             world.Train.Lying = world.Bodies.Lying(world.Train);
