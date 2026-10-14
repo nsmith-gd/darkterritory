@@ -107,6 +107,39 @@ public class WakerArtTests
     }
 
     /// <summary>
+    /// Note 710: one risen beside whoever ran, holding them, has his right hand on them wherever his lift has them, from down at
+    /// the ground to up at his mouth, his mouth come down to meet them by the end.
+    /// </summary>
+    [Theory]
+    [InlineData(0.6, 0.15)]
+    [InlineData(2.0, 0.5)]
+    [InlineData(3.6, 0.9)]
+    public void WhoHeTookIsInHisHand(double seconds, double k)
+    {
+        var t = Art.WakersTuning;
+        var at = Matrix4x4.CreateTranslation(5, -2, -30);
+        // Him facing −Z from his feet; who he took lifted from where they stood (his reach in front) toward his mouth.
+        var from = new Vector3(0, 0, -(float)t.PickReach);
+        var mouth = new Vector3(0, (float)t.PickMouthHeight, -(float)t.PickMouthOut);
+        float s = (float)(k * k * (3 - 2 * k));
+        var held = from + (mouth - from) * s + Vector3.UnitY;
+        var mesh = new MeshBuilder();
+        Art.WakerIn = new WakerScene(Mouth: Vector3.Transform(mouth, at), Picker: true, Hand: Vector3.Transform(held, at));
+        try
+        {
+            Assert.True(Art.Enemy(mesh, at, EnemyKind.Waker, SpinePhase.Grab, seconds, 2));
+        }
+        finally
+        {
+            Art.WakerIn = default;
+        }
+        var hand = Art.WakerHand(Art.WakerDrawn);
+        Assert.NotNull(hand);
+        float off = Vector3.Distance(hand.Value, Vector3.Transform(held, at));
+        Assert.True(off < 4f, $"{seconds} s into the lift, who he took {held.Y:0} m up: his hand {off:0.0} m off them");
+    }
+
+    /// <summary>
     /// The car he's eating is bitten off, not dropped out of sight (the director, 13 Oct 2026): from its rear end a quarter of
     /// it at a bite, the whole of it (underframe and trucks too), as his jaws shut; the other cars are left alone, and a Car
     /// Hugger's bite still comes off its car's own eating.

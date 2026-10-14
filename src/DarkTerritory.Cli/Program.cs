@@ -2264,8 +2264,43 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --waker rise (note 599; the wakerrise view): one getting up --rise s into its rise (half of it) --behind m back of the
     // last car (riseBehind), or --aside -1|1 off to that side (riseAside out, asideBack further back), the earth and dust it
     // throws off as the sessions draw them.
-    string wakerMode = Str(args, "--waker", view switch { "waker" => "chase", "wakerlift" or "wakerinside" => "lift", "wakerrise" => "rise", "wakerwall" => "wall", _ => "" });
-    if (wakerMode.Length > 0)
+    string wakerMode = Str(args, "--waker", view switch { "waker" => "chase", "wakerlift" or "wakerinside" => "lift", "wakerrise" => "rise", "wakerwall" => "wall", "wakerpick" => "pick", _ => "" });
+    // --waker pick (note 710; the wakerpick view): a crewmate off the held train out in the field, and the one risen beside them
+    // --pick s into his grab (his hand bringing them up to his mouth; --phase rise|walk|grab|eat for the rest of it).
+    if (wakerMode == "pick")
+    {
+        var wt = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).Wakers;
+        var from = DarkTerritory.Game.Staging.Lineside(train, 30, 26);
+        var picker = DarkTerritory.Sim.Enemies.Waker.Beside(9_101, 2, from, train, wt);
+        string pickPhase = Str(args, "--phase", "grab");
+        double pick = Opt(args, "--pick", wt.PickLiftSeconds * 0.7);
+        var phase = pickPhase switch
+        {
+            "rise" => DarkTerritory.Sim.Enemies.SpinePhase.Telegraph,
+            "walk" => DarkTerritory.Sim.Enemies.SpinePhase.Commit,
+            "eat" => DarkTerritory.Sim.Enemies.SpinePhase.Punish,
+            _ => DarkTerritory.Sim.Enemies.SpinePhase.Grab,
+        };
+        // Stood in reach of them for the grab and after; further off on his way over; where he rose for his rise.
+        var feet = phase == DarkTerritory.Sim.Enemies.SpinePhase.Telegraph ? picker.Local
+            : from + (picker.Local - from).Normalized * (phase == DarkTerritory.Sim.Enemies.SpinePhase.Commit ? 30 : wt.PickReach);
+        double fh = train.Dynamics.Distance;
+        feet = feet with { Y = DarkTerritory.Sim.Player.PlayerMotor.GroundAt(feet, line, ref fh) };
+        picker.Restore(phase, pick, 1, DarkTerritory.Sim.Enemies.Enemy.Loose, feet, picker.LineDistance, picker.Lateral, 0, picker.Extra, picker.Extra2);
+        scene.Enemies = [.. scene.Enemies ?? [], picker];
+        double k = phase == DarkTerritory.Sim.Enemies.SpinePhase.Grab ? Math.Clamp(pick / wt.PickLiftSeconds, 0, 1) : 0;
+        k = k * k * (3 - 2 * k);
+        var inHand = from + (DarkTerritory.Sim.Enemies.Waker.Mouth(feet, picker.Lateral, wt) - from) * k;
+        if (phase != DarkTerritory.Sim.Enemies.SpinePhase.Punish)
+            scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id != 2),
+                new DarkTerritory.Game.Crewmate(2, inHand, picker.Lateral + Math.PI, true,
+                    Act: phase == DarkTerritory.Sim.Enemies.SpinePhase.Grab ? DarkTerritory.Game.Art.CrewPose.HeldPinned : null)];
+        // From along the line, back off the field, at the two of them: up to his mouth.
+        var side = feet - from;
+        var mid = from + side * 0.5 + Double3.Up * 14;
+        camera = Camera.LookAt(mid + Double3.Cross(side.Normalized, Double3.Up) * Opt(args, "--dist", 80) + Double3.Up * 6, mid, 60);
+    }
+    else if (wakerMode.Length > 0)
     {
         var wt = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).Wakers;
         var waker = (DarkTerritory.Sim.Enemies.Waker)DarkTerritory.Sim.Enemies.Enemy.Blank(DarkTerritory.Sim.Enemies.EnemyKind.Waker, 9_100);

@@ -882,4 +882,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [707. The crane's camera (A1, queue #439; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 16)](notes/707.md)
 - [708. An unrigged load falls (A1, queue #440; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 17)](notes/708.md)
 - [709. Speed feel (A1, queue #441; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 20)](notes/709.md)
+- [710. The Wakers take those who ran (G1, queue #442; the director, 14 Oct 2026: "The waker ... eats the train now. It should capture players who…](notes/710.md)
 <!-- end of the notes index -->
