@@ -471,6 +471,8 @@ You aren't picking a difficulty level. You're travelling farther from civilizati
 
 Roles emerge from position. You end up on the cannon because you're standing at the cannon.
 
+**Nobody at the controls, a bot takes them** *(the director's playtest, 14 Oct: "I was driving the train and then I died. And the bots did not take over driving the train. They just stood there"; note 741)*. Someone playing who works the cab's controls has them, and the bot driver goes out to work (note 574). If the controls are let go, because whoever held them died or left the cab, and no driver bot is alive to come back to them, a bot goes forward and drives on: a walker first, and a gunner off its gun when no walker is left. A crewmate who's playing is never counted on to come back to the controls in a bot's place.
+
 **The cab's ladder goes up to the roof** *(the director's evening playtest, 13 Oct: "This ladder inside the cab should actually go up to the roof so that I can access the roof quickly and vice versa"; note 704)*. Behind the coal bunker, a ladder runs from the cab floor up through an open hatch onto the cab roof, by the forward gun. It's the quick way between the driver's place and the gun.
 - **Going up:** walk to it looking up, or press the ladder key at its foot. Walking past it while working the cab, eyes level, doesn't take it. A car's hatch ladder inside works the same way ("DOWN INSIDE" from its roof).
 - **Going down:** at the open hatch on the roof, the ladder key takes you down into the cab.

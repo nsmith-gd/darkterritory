@@ -358,13 +358,23 @@ public class StopCrewTests
         var self = PlayerMotor.SpawnOnRoof(train, 4, 0, P);
         var walker = PlayerMotor.SpawnOnRoof(train, 2, 0, P);
         calls.Gunning(2, false, true);
+        // Both bots (note 741: a crewmate playing is no walker to leave it to; see below).
+        calls.Bot(2);
+        calls.Bot(3);
         var legs = new RoofWalkerBot(21, P.Cold) { Me = 2, Calls = calls, Gunner = true, Crew = [(2, self), (3, walker)] };
         legs.Decide(self, world, world.Tick, out _);
+        // The same gunner with someone playing in the walker's place (4, not a bot).
+        var withAPlayer = new RoofWalkerBot(21, P.Cold) { Me = 2, Calls = calls, Gunner = true, Crew = [(2, self), (4, walker)] };
+        withAPlayer.Decide(self, world, world.Tick, out _);
         calls.Say(0, StopJob.Driver, cab with { Health = 0, Death = DeathCause.Climbed });
         world.Tick++;
         legs.Decide(self, world, world.Tick, out _);
         Assert.False(legs.Relieving);
         Assert.Null(calls.Relief);
+        // With someone playing in the walker's place, the gunner goes.
+        withAPlayer.Decide(self, world, world.Tick, out _);
+        Assert.True(withAPlayer.Relieving);
+        calls.Relief = null;
         legs.Crew = [(2, self), (3, walker with { Health = 0, Death = DeathCause.Climbed })];
         world.Tick++;
         legs.Decide(self, world, world.Tick, out _);
