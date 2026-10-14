@@ -55,6 +55,8 @@ public sealed partial class WorldArt(Look look)
         {
             _cells.Clear();
             _cooking.Clear();
+            // (A new line's branches are its own: the last one's pieces go with it.)
+            _branchPieces.Clear();
             (_cellLine, _cellRoute) = (line, route);
         }
         long first = (long)Math.Floor(from / CellLength), last = (long)Math.Floor(Math.Min(to, line.Length - 1e-6) / CellLength);

@@ -903,20 +903,17 @@ public sealed partial class CreatureArt
     }
 
     /// <summary>
-    /// Appends <paramref name="piece"/>, made in the figure's bind pose (model space), riding <paramref name="bone"/> of the
-    /// figure last drawn as <paramref name="figure"/> at <paramref name="model"/>: a townsperson's mask on their head, their
-    /// bottle on their back (note 353). False when that figure or bone isn't built.
+    /// <paramref name="piece"/>, made in the figure's bind pose (model space), riding <paramref name="bone"/> of the figure
+    /// last drawn as <paramref name="figure"/> at <paramref name="model"/>: a townsperson's mask on their head, their bottle
+    /// on their back (note 353). Drawn where it is, never copied into the frame (note 695: copied, a town's near folk were
+    /// 5,000-7,000 triangles moved on the CPU and uploaded every frame, for a draw each saved). False when that figure or
+    /// bone isn't built.
     /// </summary>
-    /// <param name="instanced">Drawn as its own instance rather than copied into the frame (a far figure's, note 479: a draw
-    /// the more, none of its vertices moved on the CPU).</param>
-    public bool Wear(MeshBuilder mesh, MeshAsset piece, string bone, in Matrix4x4 model, string figure = "crew", bool instanced = false)
+    public bool Wear(MeshBuilder mesh, MeshAsset piece, string bone, in Matrix4x4 model, string figure = "crew")
     {
         if (!_models.TryGetValue(figure, out var m) || m.Model.Skeleton.IndexOf(bone) is var b && b < 0)
             return false;
-        if (instanced)
-            mesh.Instances.Add(new MeshInstance(piece, m.Pose.Skin[b] * model));
-        else
-            mesh.Append(piece, m.Pose.Skin[b] * model);
+        mesh.Instances.Add(new MeshInstance(piece, m.Pose.Skin[b] * model));
         return true;
     }
 
