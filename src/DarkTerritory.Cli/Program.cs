@@ -3594,10 +3594,15 @@ static object HudShot(string content, string[] args)
             ? Staging.MailCrane(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "frontier:7", cars), cars, craneSeconds, atDoor: !args.Contains("--mid-car"))
             : roofWarning == "bend-cab"
             ? Staging.BendWarning(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "deadLines:1", cars), cars, Array.IndexOf(args, "--bend-warning") is var bw && bw + 1 < args.Length && double.TryParse(args[bw + 1], System.Globalization.CultureInfo.InvariantCulture, out double bws) ? bws : 4)
+            // --spur-stop [s] (note 764): stopped by a facility down a spur, the dawn clock s seconds out (150).
+            : args.Contains("--spur-stop")
+            ? Staging.SpurStop(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "frontier:7", cars), cars,
+                Array.IndexOf(args, "--spur-stop") is var sp && sp + 1 < args.Length && double.TryParse(args[sp + 1], System.Globalization.CultureInfo.InvariantCulture, out double dawnIn) ? dawnIn : 150)
             : roofWarning.Length > 0
             ? Staging.RoofWarning(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "deadLines:1", cars), cars, roofWarning)
             : generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: false);
-        if (roofWarning.Length == 0 && mailCrane is null)
+        bool staged = roofWarning.Length > 0 || mailCrane is not null || args.Contains("--spur-stop");
+        if (!staged)
             solo.Controls.Throttle = Opt(args, "--throttle", args.Contains("--talk") ? 0 : 0.6);
         // (--news: out of the yard and under way, where cars are lost.)
         if (args.Contains("--news"))
@@ -3606,7 +3611,7 @@ static object HudShot(string content, string[] args)
         if (Str(args, "--hazards", "") is { Length: > 0 } hz)
             DarkTerritory.Sim.Net.HazardConditions.Apply(solo.Train.Line,
                 DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Combinations.HazardSets.First(h => h.Name == hz));
-        for (int i = 0; i < (roofWarning.Length > 0 || mailCrane is not null ? 1 : Opt(args, "--seconds", 6) * SimConstants.TickRate); i++)
+        for (int i = 0; i < (staged ? 1 : Opt(args, "--seconds", 6) * SimConstants.TickRate); i++)
             solo.Step(new PlayerIntent { LookPitch = i == 0 ? (float)Opt(args, "--pitch", 0) : 0, LookYaw = i == 0 ? (float)Opt(args, "--yaw", 0) : 0 });
         // --mend [t]: the repair kit in hand and a broken radio on the belt (GDD §23; note 201), t seconds into mending it.
         if (args.Contains("--mend"))

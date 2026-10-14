@@ -348,6 +348,32 @@ public static partial class Staging
     }
 
     /// <summary>
+    /// Pulled up by a facility down a spur with dawn near (note 764, `dt screenshot --hud --spur-stop [s]`): a solo night on
+    /// <paramref name="route"/> stopped on the main line in its first spur facility's zone, so the top left says what's down
+    /// the spur and how much of the train it takes, with the dawn clock <paramref name="dawnIn"/> seconds out at the top centre
+    /// (the director's 14 Oct playtest, line 24: "Wreck yard is down the spur. It overlaps with Dawn").
+    /// </summary>
+    public static PrototypeSession SpurStop(string content, Sim.Route.Route route, int cars, double dawnIn = 150)
+    {
+        var probe = new PrototypeSession(content, route, cars, enemies: false);
+        var run = probe.World.Run ?? throw new InvalidOperationException($"{route.Name} has no run");
+        var facilities = route.Of(Sim.Route.FeatureKind.Facility).ToList();
+        int i = Enumerable.Range(0, run.FacilityCount).FirstOrDefault(f => run.SpurOf(f) >= 0, -1);
+        if (i < 0)
+            throw new InvalidOperationException($"{route.Name} has no facility down a spur");
+        var zone = facilities[i];
+        var session = new PrototypeSession(content, route, cars, enemies: false, at: zone.Start + Math.Min(40, (zone.End - zone.Start) / 2));
+        session.Controls = new Sim.Train.TrainControls { Reverser = 1, Brake = 1 };
+        session.World.Run!.Resume(route.DawnSeconds - dawnIn, -1, session.Train.Boiler.Tender, session.Train.Vehicles.Sum(v => v.Gun.Ammo));
+        for (int t = 0; t < Sim.SimConstants.TickRate; t++)
+        {
+            session.Train.Dynamics.Velocity = 0;
+            session.Step(default);
+        }
+        return session;
+    }
+
+    /// <summary>
     /// A mail crane coming up (note 673, `dt screenshot --hud --mail-crane [s]`): a solo night on <paramref name="route"/>
     /// with its first crane past the yard about <paramref name="seconds"/> from the second car's side doors, its board read,
     /// the player in that car: with <paramref name="atDoor"/>, in the open side door on the crane's side, else mid-car.
