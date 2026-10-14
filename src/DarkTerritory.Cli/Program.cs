@@ -1433,7 +1433,16 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             // --building [m]: its buildings instead of its machinery (the modelled ones, note 381), from across the track and
             // back along it at a crewman's eye, up at whatever stands m out on its side (19 by default: the grain elevator's
             // silos). Where GreyboxScene puts them: 25 m short of the layout down a spur, at it on the main line.
-            if (args.Contains("--building"))
+            // --yard-crane i: the site's ith yard gantry (level-design P18), from behind its control stand at its near end, the
+            // stand and the gantry beyond it (note 712).
+            if (Opt(args, "--yard-crane", -1) is var yc and >= 0 && yc < site.YardCranes.Count)
+            {
+                var yard = site.YardCranes[(int)yc];
+                var along = ((yard.Corner(1, 0) - yard.Corner(0, 0)) with { Y = 0 }).Normalized;
+                var outward = ((yard.Corner(0, 1) - yard.Corner(0, 0)) with { Y = 0 }).Normalized;
+                camera = Camera.LookAt(yard.Controls - along * 7 - outward * 3 + Double3.Up * 3, yard.Controls + along * 4 + Double3.Up * 1.5, 70);
+            }
+            else if (args.Contains("--building"))
             {
                 double outM = args.SkipWhile(a => a != "--building").Skip(1).FirstOrDefault() is { } given
                     && double.TryParse(given, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var m) ? m : 19;
