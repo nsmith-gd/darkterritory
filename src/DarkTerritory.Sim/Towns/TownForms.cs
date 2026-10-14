@@ -126,6 +126,12 @@ public static class TownForms
         static readonly double[] FenCluster = [26, 52], FenGap = [6, 16];
         /// <summary>A stair street's rise over its run: a steep street's steps (a 24° flight), walked up a stride at a time.</summary>
         const double StairSlope = 0.45;
+        /// <summary>
+        /// A tall tier's lane at its retaining wall's foot, and its walk along the top (m; note 692, the director, 14 Oct: the
+        /// hill towns "missing the elevation and tiering"): where a tier's step is too tall for a flight straight across its
+        /// band, the flight climbs along the wall's foot in the lane, as the renders' walled wards have it.
+        /// </summary>
+        const double WallLane = 4;
         readonly TownTuning _t;
         readonly TownWriting _w;
         readonly FormShape _f;
@@ -575,8 +581,10 @@ public static class TownForms
         {
             var rng = _rngFor("form.warren." + stream);
             double w = _f.StreetWidth, depth = _f.LotDepth, pitch = w + 2 * (_f.Setback + depth) + BandSlack;
+            // (A step too tall for a flight across its band: a lane at each wall's foot and a walk on its top, as the rings.)
+            double gap = Math.Abs(rise) / StairSlope / 2 + w / 2 + 1 > pitch / 2 ? 2 * WallLane : 0;
             var offs = new List<double>();
-            for (double c = _f.Near + _f.Setback + depth + w / 2 + BandSlack / 2; c <= far - w / 2; c += pitch)
+            for (double c = _f.Near + _f.Setback + depth + w / 2 + BandSlack / 2; c <= far - w / 2; c += pitch + gap)
                 offs.Add(c);
             var phase = offs.Select(_ => (rng.Range(0, Math.PI * 2), rng.Range(0.8, 1.2))).ToList();
             var wr = new Warren(side, u0, u1, _f.Near, far, rise, pitch, offs, phase, stream);
@@ -615,12 +623,17 @@ public static class TownForms
             // The stairs and lanes across them first (the rows keep off them): a flight up each back line where the town
             // climbs, never through the square or the works (a lane runs round a works), stopped where a hill stands over it.
             double q0 = _sq.S0 - _gate - 10, q1 = _sq.S1 - _gate + 10;
-            for (double u = wr.U0 + rng.Range(18, 36); u < wr.U1 - 14; u += rng.Range(36, 64))
+            bool along = Math.Abs(wr.Rise) / StairSlope / 2 + w / 2 + 1 > wr.Pitch / 2;
+            int lane = 0;
+            for (double u0 = wr.U0 + rng.Range(18, 36); u0 < wr.U1 - 14; u0 += rng.Range(36, 64))
             {
-                if (side == _sq.Side && u > q0 && u < q1)
+                if (side == _sq.Side && u0 > q0 && u0 < q1)
                     continue;
-                if (_l.Works is { } wk && wk.Side == side && _gate + u > wk.S0 - 4 && _gate + u < wk.S1 + 4)
+                if (_l.Works is { } wk && wk.Side == side && _gate + u0 > wk.S0 - 4 && _gate + u0 < wk.S1 + 4)
                     continue;
+                // (A flight along a wall goes on from where it came up; they turn each way by turns.)
+                double u = u0;
+                int turn = lane++ % 2 == 0 ? 1 : -1;
                 var pts = new List<(double U, double D)> { (u, side * (LineClear + 1)) };
                 var levels = new List<double> { 0 };
                 double run = Math.Abs(wr.Rise) / StairSlope / 2;
@@ -633,6 +646,47 @@ public static class TownForms
                     levels.Add(wr.Level(k));
                     if (k + 1 == wr.Offs.Count || wr.Rise == 0)
                         continue;
+                    if (along)
+                    {
+                        // Along the wall's foot on its lower side, the walk on its top the other: up (or down) the flight.
+                        double lo = Math.Min(wr.Level(k), wr.Level(k + 1)), hi = Math.Max(wr.Level(k), wr.Level(k + 1));
+                        double footSide = wr.Rise > 0 ? -1 : 1, need = (hi - lo) / StairSlope;
+                        double Foot(double x) => wr.Back(k, x, wander) + footSide * WallLane / 2;
+                        double Top(double x) => wr.Back(k, x, wander) - footSide * WallLane / 2;
+                        var flight = new List<(double U, double D)>();
+                        double x1 = u + turn * need;
+                        for (int i = 0; i <= (int)Math.Ceiling(need / 1.5); i++)
+                        {
+                            double x = u + turn * Math.Min(need, i * 1.5);
+                            flight.Add((x, side * Foot(x)));
+                        }
+                        if (!flight.All(f => OnBand(f.U, f.D, lo)) || !OnBand(x1, side * Top(x1), hi) || !OnBand(wr.Rise > 0 ? x1 : u, side * wr.Street(k + 1, wr.Rise > 0 ? x1 : u, wander), wr.Level(k + 1)))
+                            break;
+                        // Climbing out: the foot's on this street's side, the flight from here to x1, then over onto the top.
+                        // Stepping down: over the top here first, then down the flight to x1 on the far side.
+                        if (wr.Rise > 0)
+                        {
+                            for (int i = 0; i < flight.Count; i++)
+                            {
+                                pts.Add(flight[i]);
+                                levels.Add(lo + (hi - lo) * Math.Min(1, i * 1.5 / need));
+                            }
+                            pts.Add((x1, side * Top(x1)));
+                            levels.Add(hi);
+                        }
+                        else
+                        {
+                            pts.Add((u, side * Top(u)));
+                            levels.Add(hi);
+                            for (int i = 0; i < flight.Count; i++)
+                            {
+                                pts.Add(flight[i]);
+                                levels.Add(hi - (hi - lo) * Math.Min(1, i * 1.5 / need));
+                            }
+                        }
+                        u = x1;
+                        continue;
+                    }
                     if (!OnBand(u, side * (back + run + 1), wr.Level(k + 1)))
                         break;
                     pts.Add((u, side * (back - run)));
@@ -684,9 +738,17 @@ public static class TownForms
             // Where the yard's edge is nearest the crown, as the rings measure it; the rings reach the corners by the gates.
             double Rho(double u, double d) => Math.Sqrt((u - cu) * (u - cu) / (aspect * aspect) + (d - cd) * (d - cd));
             double yardRho = Math.Abs(side * _f.Near - cd), far = Math.Max(Rho(-_f.Length, side * _f.Near), Rho(0, side * _f.Near));
+            // A step too tall for a flight across its band: a lane at each climbing wall's foot and a walk on its top, the
+            // flight along the lane (`Along`).
+            bool along = _f.Rise / StairSlope / 2 + w / 2 + 1 > pitch / 2;
+            double gap = along ? 2 * WallLane : 0;
             var radii = new List<double>();
-            for (double r = crown + _f.Setback + _f.LotDepth + w / 2 + BandSlack / 2; r < far; r += pitch)
+            for (double r = crown + _f.Setback + _f.LotDepth + w / 2 + BandSlack / 2 + gap / 2; r < far; r += pitch)
+            {
                 radii.Add(r);
+                if (r + pitch + gap + pitch / 2 < yardRho)
+                    r += gap;
+            }
             // The rings that climb: those whose band is short of the yard's edge; the rest stand on the yard's level.
             int climbing = radii.Count(r => r + pitch / 2 < yardRho);
             double crownLevel = _f.Rise * climbing;
@@ -710,8 +772,11 @@ public static class TownForms
                 && Math.Abs(lv - level) < 1e-6;
             // The spokes: from the yard's edge up to the crown, a little off their line ring by ring, toward the yard's side.
             double toward = side < 0 ? Math.PI / 2 : -Math.PI / 2;
+            int spoke = 0;
             for (double a0 = toward - 1.25 + rng.Range(0, 0.15); a0 < toward + 1.25; a0 += rng.Range(0.2, 0.32))
             {
+                // (Its flights along the walls turn each way by turns.)
+                int turn = spoke++ % 2 == 0 ? 1 : -1;
                 double rho0 = Math.Abs((side * (LineClear + 1) - cd) / Math.Max(1e-6, DMath.Sin(a0)));
                 // (From the yard's edge inside the wall: a spoke too far round to reach it there isn't laid.)
                 if (At(rho0, a0) is var foot && (!InWall(_gate + foot.U, foot.D) || EdgeDistance(_gate + foot.U, foot.D) < WallPad))
@@ -736,6 +801,36 @@ public static class TownForms
                     double inner = Back(k - 1, a), up = k > 0 ? Level(k - 1) : crownLevel;
                     if (Math.Abs(up - Level(k)) < 1e-6)
                         continue;
+                    if (along)
+                    {
+                        // Out to the wall's foot, along it up the flight, over onto the walk on its top.
+                        var flight = new List<(double U, double D)>();
+                        double b = a, need = (up - Level(k)) / StairSlope, got = 0;
+                        var at = At(Back(k - 1, b) + WallLane / 2, b);
+                        flight.Add(at);
+                        while (got < need)
+                        {
+                            b += turn * 1.5 / Math.Max(1, Back(k - 1, b) * aspect);
+                            var next = At(Back(k - 1, b) + WallLane / 2, b);
+                            got += Math.Sqrt((next.U - at.U) * (next.U - at.U) + (next.D - at.D) * (next.D - at.D));
+                            flight.Add(at = next);
+                        }
+                        var onTop = At(Back(k - 1, b) - WallLane / 2, b);
+                        if (!flight.All(f => OnBand(f.U, f.D, Level(k))) || !(OnBand(onTop.U, onTop.D, up) || k == 0 && GroundAt(_gate + onTop.U, onTop.D).Level == crownLevel))
+                            break;
+                        double walked = 0;
+                        for (int i = 0; i < flight.Count; i++)
+                        {
+                            if (i > 0)
+                                walked += Math.Sqrt((flight[i].U - flight[i - 1].U) * (flight[i].U - flight[i - 1].U) + (flight[i].D - flight[i - 1].D) * (flight[i].D - flight[i - 1].D));
+                            pts.Add(flight[i]);
+                            levels.Add(Level(k) + (up - Level(k)) * Math.Min(1, walked / need));
+                        }
+                        pts.Add(onTop);
+                        levels.Add(up);
+                        a = b;
+                        continue;
+                    }
                     var top = At(inner - run, a);
                     if (!OnBand(top.U, top.D, up) && !(k == 0 && GroundAt(_gate + top.U, top.D).Level == crownLevel))
                         break;
@@ -1409,13 +1504,13 @@ public static class TownForms
             double su = -L + 105, sd = -64;
             bool InPit(double u, double d) => (u - su) * (u - su) / (50.0 * 50) + (d - sd) * (d - sd) / (38.0 * 38) < 1.25;
             Green(34, 54);
-            double crown = Rings(-1, -L * 0.42, -wl + 22, 46, 1.7, "quarters", InPit);
+            double crown = Rings(-1, -L * 0.42, -wl + 14, 30, 1.9, "quarters", InPit);
             District(DistrictKind.Terrace, "slag", Blob(su, sd, 46, 34, 0.08, 20, "slag"), -_f.TerraceLevel);
             Landmark("crane", su + 30, sd - 8, 1, 0);
             Landmark("lift", su - 20, sd + 22, 0, -1);
             // The foundry on the crown: its sheds and its stacks.
             Landmark("foundry", -L * 0.42 - 14, -wl + 22, 0, 1);
-            Landmark("foundry", -L * 0.42 + 22, -wl + 30, 0, 1);
+            Landmark("foundry", -L * 0.42 + 22, -wl + 26, 0, 1);
             for (int i = 0; i < 5; i++)
                 Landmark("stack", -L * 0.42 - 34 + i * 15, -wl + 6 + (i % 2) * 8, 0, 1);
             _ = crown;
@@ -1438,7 +1533,8 @@ public static class TownForms
             // Past the wall on the platform's side the cliff, straight down to the sea; behind the town the wooded hills.
             Land("cliff", Rect(-L - m - 40, m + 40, wr + 3, wr + m + 60), -_f.TerraceLevel * 2, 0, roll: 0.3);
             Sea(Rect(-L - m - 40, m + 40, wr + 26, wr + m + 60), -_f.TerraceLevel * 2 - 2, 4);
-            Land("hills", Rect(-L - m - 40, m + 40, -wl - m - 60, -wl - 30), _f.TerraceLevel, 50);
+            // Behind the citadel the clifftop's land falls away to the woods below.
+            Land("woods", Rect(-L - m - 40, m + 40, -wl - m - 60, -wl - 30), -_f.TerraceLevel, 30);
             Approach(10);
             Green(34, 54);
             // Down to the cliff, tier under tier.
@@ -1480,9 +1576,11 @@ public static class TownForms
             round.Add((-L, 14));
             Wall([.. round]);
             double m = _f.Margin;
-            Land("rise", Rect(-L - m - 40, m + 40, -wl - m - 60, -wl - 50), 6, 60);
+            // The holdfast on its knoll: the clearing falls away from under the palisade, the line in on its bank.
+            Land("clearing", Rect(-L - m - 40, m + 40, -wl - m - 60, wr + m + 60), -_f.TerraceLevel, 40);
+            Approach(14);
             Green(34, 52);
-            // The quarters in rings round the market at the clearing's middle, level (a timber town's rise is none).
+            // The quarters in rings round the market on the knoll's top, a terrace up.
             double market = Rings(-1, -L * 0.5, -wl * 0.42, 24, 1.7, "quarters");
             Fill(-L * 0.5, -wl * 0.42, 24, 18, market);
             // The log yards and the sawmill, the platform's side: stacks of logs in rows, the mill and its stacks by the way out.
@@ -1563,9 +1661,9 @@ public static class TownForms
             double L = _f.Length, wl = _f.Left, wr = _f.Right;
             Wall((-L, -wl * 0.75), (-L + 50, -wl), (-L * 0.5, -wl - 20), (-50, -wl), (0, -wl * 0.65), (0, wr * 0.5), (-40, wr), (-L + 40, wr), (-L, wr * 0.7));
             double m = _f.Margin;
-            Land("crag", Rect(-L - m - 40, m + 40, -wl - m - 60, -wl - 25), _f.TerraceLevel * 2, 40);
-            Land("peak", Blob(-L * 0.5, -wl - 70, 130, 50, 0.15, 18, "peak"), _f.TerraceLevel * 3, 45);
-            Sea(Rect(-L - m - 40, m + 40, wr + 3, wr + m + 60), _f.WaterLevel, 6);
+            // The crag in the sea: the wards climb it inside the wall, the rock falls from under the wall to the water all round.
+            Sea(Rect(-L - m - 40, m + 40, -wl - m - 60, wr + m + 60), _f.WaterLevel, 6);
+            Land("crag", Blob(-L * 0.5, (wr - wl) / 2, L * 0.6, (wl + wr) * 0.6, 0.1, 28, "crag"), 0, 16);
             Approach(14);
             Green(34, 54);
             double crown = Rings(-1, -L * 0.52, -wl + 12, 34, 1.6, "terraces");

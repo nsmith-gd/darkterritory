@@ -499,9 +499,9 @@ meaning"), turned into ground plans the walled town's houses and people stand on
 | glasshouse | Glass Gardeners | an eight-sided wall, glasshouse ranges, round reservoirs, beds in plots, the gardeners' rows | long sight lines down the beds, cover only in the ranges |
 | furnace | Furnace Republic | the foundry and its stacks on a crown ringed by the workers' quarters, the slag pit sunk beside them with its crane and lift, the docks and a barge in the sea outside, the workers' rows across the line | the crown is the long climb; the pit is a dead end with one lift |
 | highline | Highline Settlement | a clifftop: the citadel's keep and chapel crowning rings of the upper ward behind the square, the ledges stepping down tier under tier to the cliff wall on the platform's side, the processing sheds by the way out, the lookout's tower on a stack out from the cliff | the ledges step down to a wall over a 28 m drop; the citadel looks down on all of it |
-| timber | Timberholds | a round log palisade, log watchtowers inside and out over a stump-cleared kill zone, the quarters in rings round the market, the log yards and two sawmills on the platform's side | open ground all round the wall; the log yards are a maze of stacks |
+| timber | Timberholds | a round log palisade on its knoll over the clearing, log watchtowers inside and out over a stump-cleared kill zone, the quarters in rings round the market, the log yards and two sawmills on the platform's side | open ground all round the wall; the log yards are a maze of stacks |
 | salt | Saltwardens | an eight-sided wall over the marsh, salt pans in a grid of walks, windpumps and cisterns, the processing sheds, the living rows, the lower ward on stilts in its lagoon | the pans are wide open and wet; the stilt ward is boardwalks only |
-| crag | Craghold | terraced walled wards ringing the crag up to its keep and chapel, a lift up the face, the docks inlet, the lower ward across the line | the climb to the keep, a tier at a time; the lift is the quick way |
+| crag | Craghold | walled wards 12 m apart ringing the crag up to its keep and chapel (36 m), the rock falling to the sea outside the wall, a lift up the face, the docks inlet, the lower ward across the line | the climb to the keep, a tier at a time; the lift is the quick way |
 | street | (note 335) | streets beside the line, lanes between | the grid: many doors, short sight lines |
 
 ## T.3 Rules for the generator
@@ -525,6 +525,11 @@ meaning"), turned into ground plans the walled town's houses and people stand on
 - **Nothing stands in the water.** A house over water stands on a stage, a deck built to bear it, reached by a walk
   from a causeway, a quay or the dyke; one out where the walk ends has a jetty and a boat (the director, 14 Oct: "we
   can't just have houses floating in the water"). A harbour opens to the sea through its wall, its breakwater out past it.
+- **A hill town climbs in walled wards** (the director, 14 Oct, of the fourth pass: "missing the elevation and tiering").
+  Where the references stack a town up its rock, each ring is a ward a storey or more over the last (12 m in Craghold,
+  Highline and Furnace Republic) behind a tall retaining wall, a walk along the wall's top and a lane at its foot, the
+  flight up climbing along the foot (`WallLane`); a flight straight across a band only where the step is low enough to
+  fit it. The land falls away outside the wall, so the town stands on its rock rather than under a hill.
 - **Organic where the land is.** A hill town wraps its hill in rings, its lanes spokes up to the crown; a flat town's
   streets wander together like contours.
 - **Weathered Maritime.** The fortress towns' houses are the province's shapes gone grim: tall, weathered shingle, the
