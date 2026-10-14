@@ -44,6 +44,7 @@ static class TownCommands
                 plan.Form,
                 plan.Population,
                 houses = plan.Houses.Count,
+                plan.Laid,
                 plan.Frame,
                 plan.Margin,
                 climbs,

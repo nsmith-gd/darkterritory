@@ -23,6 +23,15 @@ public sealed record TownDistrict(DistrictKind Kind, string Id, string Name, IRe
     /// </summary>
     public double Falloff { get; init; }
 
+    /// <summary>
+    /// A landform's roll (m; note 692): seeded swells over its top and flanks, up to this much either way, so a ridge or a
+    /// headland past the wall reads as land, not a plateau. Only outside the wall: the town's own ground is laid level.
+    /// </summary>
+    public double Roll { get; init; }
+
+    /// <summary>The roll's seed (the town's, through the planner's stream): the same town, the same swells.</summary>
+    public uint RollSeed { get; init; }
+
     /// <summary>Whether it lies outside the wall (the land the town stands in: a headland, the sea, a valley's sides), not
     /// clipped to it.</summary>
     public bool Outside { get; init; }

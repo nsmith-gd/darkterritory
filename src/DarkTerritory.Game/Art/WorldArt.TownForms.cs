@@ -86,8 +86,9 @@ public sealed partial class WorldArt
                     if ((mid - eye).Length > 900)
                         continue;
                     double a0 = cs, a1 = Math.Min(cs + LandChunk, g.S0 + g.Ns), b0 = cd, b1 = Math.Min(cd + LandChunk, g.D0 + g.Nd);
+                    // (Its far chunks cast no shadow: the moon's and the lamp's maps are for what's near.)
                     if (Piece($"town-land-{plan.Name}-{plan.Form}-{plan.Gate:0}-{cs:0}-{cd:0}", () => FormLand(town, scene.Terrain, a0, a1, b0, b1)) is { Vertices.Length: > 0 } land)
-                        mesh.Instances.Add(new MeshInstance(land, frame));
+                        mesh.Instances.Add(new MeshInstance(land, frame, Shadowless: (mid - eye).Length > 160));
                 }
         }
         // The water: a sheet over the basins' rectangles, a little under the deck's planks, rippling as a lake's does.
@@ -153,6 +154,9 @@ public sealed partial class WorldArt
         double x = a.S + es * k - s, y = a.D + ed * k - d;
         return Math.Sqrt(x * x + y * y);
     }
+
+    /// <summary>A drawn stair's rise a step (m).</summary>
+    const double StepRise = 0.3;
 
     /// <summary>A chunk of a town's land past its wall (m), and the grid it's laid on (m).</summary>
     const double LandChunk = 96, LandGrid = 6;
@@ -322,37 +326,77 @@ public sealed partial class WorldArt
                     double ns = -ed / len * side, nd = es / len * side, off = w.Width / 2 + 0.15;
                     double la = w.Levels![i - 1], lz = w.Levels[i];
                     double ba = g.Bed(a.S + ns * (off + 1), a.D + nd * (off + 1)), bz = g.Bed(z.S + ns * (off + 1), z.D + nd * (off + 1));
+                    // (Where it's level with the ground beside it, it's open to it: the street to the houses either side.)
+                    if (Math.Abs(la - ba) <= Sim.Towns.TownGround.Stride && Math.Abs(lz - bz) <= Sim.Towns.TownGround.Stride)
+                        continue;
                     double lowA = Math.Min(la, ba) - 0.3, lowZ = Math.Min(lz, bz) - 0.3, highA = Math.Max(la, ba) + 0.9, highZ = Math.Max(lz, bz) + 0.9;
                     var (pa, pz) = ((a.S + ns * off, a.D + nd * off), (z.S + ns * off, z.D + nd * off));
                     k.Quad(V(pa.Item1, lowA, pa.Item2), V(pz.Item1, lowZ, pz.Item2), V(pz.Item1, highZ, pz.Item2), V(pa.Item1, highA, pa.Item2), twoSided: true);
                 }
             }
-        // The rails along the deep water and the parapets along the terraces' edges (the Sim's walls, TownGround.Edges).
-        foreach (var (s0, d0, s1, d1, bottom, top) in g.Edges())
+        // The rails along the deep water and the parapets along the terraces' edges: along the districts' own outlines, a
+        // few long runs where the Sim's walls (TownGround.Edges) step with its raster, each piece where the ground either side
+        // of it calls for one (a stride's step, or walkable ground on deep water).
+        void Run((double S, double D) a, (double S, double D) z, double y, double height, double half, bool rail)
         {
-            if (ByARamp((s0 + s1) / 2, (d0 + d1) / 2))
-                continue;
-            double upper = top - Sim.Towns.TownGround.Parapet;
-            bool rail = g.Water((s0 + s1) / 2 + (s1 == s0 ? 0.5 : 0), (d0 + d1) / 2 + (d1 == d0 ? 0.5 : 0)) is not null
-                || g.Water((s0 + s1) / 2 - (s1 == s0 ? 0.5 : 0), (d0 + d1) / 2 - (d1 == d0 ? 0.5 : 0)) is not null;
-            double half = 0.12;
-            var (a, z) = s0 == s1 ? (V(s0 + half, upper, d0), V(s0 - half, upper + (rail ? 1.0 : 0.9), d1)) : (V(s1, upper, d0 - half), V(s0, upper + (rail ? 1.0 : 0.9), d0 + half));
-            if (rail)
+            double es = z.S - a.S, ed = z.D - a.D, len = Math.Sqrt(es * es + ed * ed);
+            if (len < 0.2)
+                return;
+            float yaw = (float)Math.Atan2(es, ed);
+            var at = Matrix4x4.CreateRotationY(yaw) * Matrix4x4.CreateTranslation(V((a.S + z.S) / 2, y, (a.D + z.D) / 2));
+            k.With(at, () =>
             {
-                // A timber rail on posts: the top rail, and a post every two metres.
-                k.Use("wood_grey", Palette.DeepBrown, 0.85f, 0.05f, tile: 2);
-                k.Box(new Vector3(Math.Min(a.X, z.X), z.Y - 0.12f, Math.Min(a.Z, z.Z)), new Vector3(Math.Max(a.X, z.X), z.Y, Math.Max(a.Z, z.Z)));
-                double len = Math.Max(Math.Abs(s1 - s0), Math.Abs(d1 - d0));
-                for (double x = 0; x <= len; x += 2)
+                if (rail)
                 {
-                    var (ps, pd) = s0 == s1 ? (s0, d0 + x) : (s0 + x, d0);
-                    k.BoxAt(V(ps, upper + 0.5, pd), new Vector3(0.07f, 0.5f, 0.07f));
+                    k.Box(new Vector3(-(float)len / 2, (float)height - 0.12f, -0.06f), new Vector3((float)len / 2, (float)height, 0.06f));
+                    for (double x = -len / 2; x <= len / 2; x += 3)
+                        k.Box(new Vector3((float)x - 0.07f, 0, -0.07f), new Vector3((float)x + 0.07f, (float)height, 0.07f), top: false, bottom: false);
                 }
-            }
-            else
+                else
+                    k.Box(new Vector3(-(float)len / 2 - 0.1f, 0, -(float)half), new Vector3((float)len / 2 + 0.1f, (float)height, (float)half), true, false);
+            });
+        }
+        bool Walkable(double s, double d) => g.Water(s, d) is not { } wl || wl - g.Bed(s, d) <= Sim.Towns.TownGround.Wade || g.Deck(s, d);
+        foreach (var d in plan.Districts.Where(x => !x.Outside && x.Falloff <= 0))
+        {
+            var o = d.Outline;
+            for (int i = 0; i < o.Count; i++)
             {
-                k.Use(face, Palette.DeepBrown, 0.8f, 0.05f, tile: 3);
-                k.Box(new Vector3(Math.Min(a.X, z.X) - 0.1f, a.Y, Math.Min(a.Z, z.Z) - 0.1f), new Vector3(Math.Max(a.X, z.X) + 0.1f, z.Y, Math.Max(a.Z, z.Z) + 0.1f));
+                var (pa, pz) = (o[i], o[(i + 1) % o.Count]);
+                double es = pz.S - pa.S, ed = pz.D - pa.D, len = Math.Sqrt(es * es + ed * ed);
+                if (len < 0.5)
+                    continue;
+                // Its normal, and the ground a step either side of each piece of it.
+                double ns = -ed / len, nd = es / len;
+                int pieces = Math.Max(1, (int)Math.Ceiling(len / 4));
+                for (int p = 0; p < pieces; p++)
+                {
+                    double t0 = (double)p / pieces, t1 = (double)(p + 1) / pieces, tm = (t0 + t1) / 2;
+                    double ms = pa.S + es * tm, md = pa.D + ed * tm;
+                    if (!g.Inside(ms, md) || ByARamp(ms, md))
+                        continue;
+                    var (as_, ad) = (ms + ns * 1.2, md + nd * 1.2);
+                    var (bs, bd) = (ms - ns * 1.2, md - nd * 1.2);
+                    bool wa = Walkable(as_, ad), wb = Walkable(bs, bd);
+                    var a0 = (pa.S + es * t0, pa.D + ed * t0);
+                    var a1 = (pa.S + es * t1, pa.D + ed * t1);
+                    if (wa != wb)
+                    {
+                        // Walkable ground on deep water: a timber rail on posts at the ground's (or the deck's) level.
+                        double level = wa ? g.Level(as_, ad) : g.Level(bs, bd);
+                        k.Use("wood_grey", Palette.DeepBrown, 0.85f, 0.05f, tile: 2);
+                        Run(a0, a1, level, 1.0, 0.06, true);
+                        continue;
+                    }
+                    if (!wa)
+                        continue;
+                    double la = g.Level(as_, ad), lb = g.Level(bs, bd);
+                    if (Math.Abs(la - lb) <= Sim.Towns.TownGround.Stride)
+                        continue;
+                    // A step past a stride: the stone parapet on the higher side.
+                    k.Use(face, Palette.DeepBrown, 0.8f, 0.05f, tile: 3);
+                    Run(a0, a1, Math.Max(la, lb) - 0.3, 1.2, 0.22, false);
+                }
             }
         }
         // The ways on the ground (the walled town's streets are Streets'): beaten strips over the ground, a ramp's tilted
@@ -370,7 +414,24 @@ public sealed partial class WorldArt
                     continue;
                 double ns = -ed / len * w.Width / 2, nd = es / len * w.Width / 2;
                 double la = (w.Levels?[i - 1] ?? g.Level(a.S, a.D)) + 0.05, lz = (w.Levels?[i] ?? g.Level(z.S, z.D)) + 0.05;
-                k.Quad(V(a.S - ns, la, a.D - nd), V(z.S - ns, lz, z.D - nd), V(z.S + ns, lz, z.D + nd), V(a.S + ns, la, a.D + nd), twoSided: true);
+                // A steep climb is a flight of steps (a tread and a riser each, a hand's rise apiece), the rest a slope.
+                int steps = Math.Abs(lz - la) / len > 0.2 ? (int)Math.Ceiling(Math.Abs(lz - la) / StepRise) : 0;
+                if (steps == 0)
+                {
+                    k.Quad(V(a.S - ns, la, a.D - nd), V(z.S - ns, lz, z.D - nd), V(z.S + ns, lz, z.D + nd), V(a.S + ns, la, a.D + nd), twoSided: true);
+                    continue;
+                }
+                for (int st = 0; st < steps; st++)
+                {
+                    double t0 = (double)st / steps, t1 = (double)(st + 1) / steps;
+                    // The tread at this step's level from its front to its back; the riser up to it at its front.
+                    double hTread = la + (lz - la) * (lz > la ? t1 : t0), hPrev = la + (lz - la) * (lz > la ? t0 : t1);
+                    var (fs, fd) = (a.S + es * t0, a.D + ed * t0);
+                    var (bs, bd) = (a.S + es * t1, a.D + ed * t1);
+                    k.Quad(V(fs - ns, hTread, fd - nd), V(bs - ns, hTread, bd - nd), V(bs + ns, hTread, bd + nd), V(fs + ns, hTread, fd + nd), twoSided: true);
+                    var (rs, rd) = lz > la ? (fs, fd) : (bs, bd);
+                    k.Quad(V(rs - ns, hTread, rd - nd), V(rs + ns, hTread, rd + nd), V(rs + ns, hPrev, rd + nd), V(rs - ns, hPrev, rd - nd), twoSided: true);
+                }
             }
         }
         return k.Build($"town-form-ground-{plan.Name}");

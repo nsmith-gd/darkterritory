@@ -88,6 +88,8 @@ public sealed record FormShape
     /// <summary>How far past the wall it shapes the land (m; its landform), and each street band's rise over the last (m).</summary>
     public double Margin { get; init; } = 120;
     public double Rise { get; init; }
+    /// <summary>How far its landforms past the wall swell up and down (m, either way; note 692).</summary>
+    public double Roll { get; init; }
 }
 
 /// <summary>A town type's words (world/towns.json <c>forms</c>, note 692): its name ("a harbour town") and the names its

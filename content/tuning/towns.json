@@ -128,7 +128,8 @@
   // quarry's benches; each street band's rise over the last (a terraced town's tiers, stair streets between: note 692's
   // verticality; the director, 13 Oct: "it's lacking some of the verticality ... integrating the layout of the town with
   // the layout of the landscape"), and how far past the wall it shapes the land it stands in (margin: its landform, the
-  // headland, the sea, the mesa, the valley, easing into the line's land over the margin's outer half). All inside the yard's level pad (linegen fortress padM, 200).
+  // headland, the sea, the mesa, the valley, easing into the line's land over the margin's outer 40%), and roll: how far its
+  // landforms swell up and down (m, either way; a ridge reads as land, not a plateau; inside the wall stays level). All inside the yard's level pad (linegen fortress padM, 200).
   "forms": {
     "enabled": true,
     // Every town this form ("harbour", "dykeland", "quarry", "tidewater", "glasshouse"; "" the street town), to play or
@@ -142,11 +143,11 @@
       "foundry": { "tidewater": 2, "harbour": 1, "quarry": 1, "": 1 }
     },
     "shapes": {
-      "harbour":    { "length": 560, "left": 150, "right": 175, "lot": [12, 16], "lotDepth": 8,  "setback": 2.0, "waterLevel": -2.4, "terraceLevel": 16, "rise": 4, "margin": 190 },
+      "harbour":    { "length": 560, "left": 150, "right": 175, "lot": [12, 16], "lotDepth": 8,  "setback": 2.0, "waterLevel": -2.4, "terraceLevel": 16, "rise": 4, "margin": 190, "roll": 5 },
       "dykeland":   { "length": 540, "left": 160, "right": 160, "lot": [12, 16], "lotDepth": 9,  "setback": 1.5, "waterLevel": -0.35, "waterDepth": 0.4, "terraceLevel": 0, "margin": 110 },
-      "quarry":     { "length": 600, "left": 190, "right": 120, "lot": [12, 15], "lotDepth": 8,  "setback": 2.0, "waterLevel": -2.0, "terraceLevel": 5, "benches": 3, "margin": 110 },
-      "tidewater":  { "length": 560, "left": 160, "right": 180, "lot": [12, 16], "lotDepth": 8,  "setback": 2.0, "waterLevel": -1.4, "terraceLevel": 9, "rise": 3, "margin": 170 },
-      "glasshouse": { "length": 520, "left": 170, "right": 170, "lot": [12, 16], "lotDepth": 8,  "setback": 2.0, "waterLevel": -1.8, "terraceLevel": 0, "margin": 170 }
+      "quarry":     { "length": 600, "left": 190, "right": 120, "lot": [12, 15], "lotDepth": 8,  "setback": 2.0, "waterLevel": -2.0, "terraceLevel": 5, "benches": 3, "margin": 110, "roll": 3 },
+      "tidewater":  { "length": 560, "left": 160, "right": 180, "lot": [12, 16], "lotDepth": 8,  "setback": 2.0, "waterLevel": -1.4, "terraceLevel": 14, "rise": 4, "margin": 170, "roll": 6 },
+      "glasshouse": { "length": 520, "left": 170, "right": 170, "lot": [12, 16], "lotDepth": 8,  "setback": 2.0, "waterLevel": -1.8, "terraceLevel": 0, "margin": 170, "roll": 6 }
     }
   }
 }

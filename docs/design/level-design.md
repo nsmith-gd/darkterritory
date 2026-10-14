@@ -483,15 +483,19 @@ meaning"), turned into ground plans the walled town's houses and people stand on
 - **The square by the way out, on the left; the platform on the right.** The town's heart is where the night starts.
 - **The same seed, the same town.** A form is drawn from the town's trade on its own stream; every lot, level and wall from
   the town's seed alone.
+- **Every door is walked to.** From the yard, over steps no taller than a stride and water no deeper than a wade, to every
+  house's front. Height never cuts the town in two: where it would, a stair goes up the least step.
+- **The town sits in its land.** The ground past the wall is the form's (a headland, a ridge, a mesa and its ditch, a
+  valley, tidal flats), easing into the night's land over the margin; the line comes in level through both gates.
 
 ## T.2 The forms
 
 | Form | From the render | Its shape | What it asks of the crew |
 | --- | --- | --- | --- |
-| harbour | Breakwater Town | the basin inside the sea wall, piers out over it, the breakwater; lanes behind the square climbing to the head and its lighthouse | long walks along the wharf; the piers are dead ends over the water |
+| harbour | Breakwater Town | the basin inside the sea wall, piers out over it, the breakwater; streets behind the square climbing 4 m a tier to the head (16 m) and its lighthouse, the crag behind | long walks along the wharf; the piers are dead ends over the water |
 | dykeland | Fenfolk | salt marsh inside the palisade, the line on its dyke, houses on hummocks along boardwalks | the marsh is waded, slow and open; the boardwalks are the only quick ways |
 | quarry | Pitborn | the pit beside the square, benches stepping down to its floor, houses on every bench, one ramp down | height: the floor is 15 m under the rim, one way down and one way up |
-| tidewater | Drowned Boroughs | the drowned ward under the water, its lost houses standing in it, causeways out to the wharves; terraced hills above | causeways are exposed lines across the water; the high ward looks down on everything |
+| tidewater | Drowned Boroughs | the drowned ward under the water, its lost houses standing in it, causeways out to the wharves; streets climbing tier on tier to two hills (14 m, 22 m) under a ridge | causeways are exposed lines across the water; the high ward looks down on everything |
 | glasshouse | Glass Gardeners | an eight-sided wall, glasshouse ranges, round reservoirs, beds in plots, the gardeners' rows | long sight lines down the beds, cover only in the ranges |
 | street | (note 335) | streets beside the line, lanes between | the grid: many doors, short sight lines |
 
@@ -502,6 +506,11 @@ meaning"), turned into ground plans the walled town's houses and people stand on
   two levels at once, or under a way.
 - **A drop is walled, deep water is railed.** A step in the ground taller than a stride (0.7 m) has a retaining wall with a
   parapet; water deeper than 0.75 m has a rail along its walkable edge. Shallower water is waded.
+- **Height where the place earns it, not everywhere.** A harbour climbs its headland, a drowned town its hills, a quarry
+  digs down; a marsh and a valley stay level. Climbing towns terrace their streets a tier at a time (4 m), the back lines
+  retaining walls, the lanes stair streets no steeper than 0.45; a stair is drawn as treads.
+- **The wall stands on its ground.** Each bay from the lower side to its height over the higher, on a plinth: a town on a
+  rise looks down its wall, a town in a pit ditch is ringed by one. It's a fortress first.
 - **Open houses stand square to the line, on dry ground, nearest the square.** Their rooms are their walls.
 - **Reuse the kit.** A form's landmarks are the game's existing pieces (the lighthouse, the chapel, a wall's tower, the pit's
   headframe, a fish shed, a glasshouse); its ground is one mesh a town; nothing in it needs walking into but the open houses.

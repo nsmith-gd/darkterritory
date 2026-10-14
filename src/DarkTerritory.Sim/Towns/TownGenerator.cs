@@ -522,6 +522,7 @@ public static partial class TownGenerator
             Frame = FrameOf(t, site.Gate, homes.Bounds),
             Form = form?.Form ?? "",
             Districts = form?.Districts ?? [],
+            Laid = form is null ? "" : $"stairs {form.Stairs}, cut off {form.CutOff}, on ways {form.OnWays}, on landmarks {form.OnLandmarks}, off their ground {form.OffGround}",
             Margin = form?.Margin ?? 0,
             Ways = form?.Ways ?? [],
         };

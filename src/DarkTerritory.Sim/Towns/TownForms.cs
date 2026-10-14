@@ -37,6 +37,10 @@ public static class TownForms
         public double Entry;
         /// <summary>How far past its wall it shapes the land (m; note 692's landforms).</summary>
         public double Margin;
+        /// <summary>What the walk did (note 692): the stairs it laid, and the lots it left cut off, unbuilt.</summary>
+        public int Stairs, CutOff;
+        /// <summary>The lots each check of the finished ground dropped (a way, a landmark, the ground under it), for `dt town map`.</summary>
+        public int OnWays, OnLandmarks, OffGround;
         public readonly List<(double S, double D)> Outline = [];
         public readonly List<TownDistrict> Districts = [];
         public readonly List<TownWay> Ways = [];
@@ -311,8 +315,13 @@ public static class TownForms
         /// at the margin's edge, into the line plan's land. Never across the line's own way in and out (its approach is
         /// laid level last, <see cref="Approach"/>).
         /// </summary>
-        void Land(string id, IEnumerable<(double U, double D)> outline, double level, double falloff) =>
-            District(DistrictKind.Quarter, id, outline, level, named: false, falloff: falloff, outside: true);
+        void Land(string id, IEnumerable<(double U, double D)> outline, double level, double falloff, double roll = 1)
+        {
+            var d = District(DistrictKind.Quarter, id, outline, level, named: false, falloff: falloff, outside: true);
+            // Its swells (forms.shapes roll, this landform's share of it): each landform its own, the same town the same.
+            if (roll * _f.Roll > 0)
+                _l.Districts[^1] = d with { Roll = roll * _f.Roll, RollSeed = _rngFor($"form.roll.{id}.{_l.Districts.Count}").NextUInt() };
+        }
 
         /// <summary>The sea or the flats outside the wall (note 692): water easing to the line's land at the margin's edge.</summary>
         void Sea(IEnumerable<(double U, double D)> outline, double level, double depth) =>
@@ -322,8 +331,8 @@ public static class TownForms
         void Approach(double falloff)
         {
             double m = _f.Margin + 4, L = _f.Length;
-            Land("approach", Rect(-L - m, -L + 2, -9, 9), 0, falloff);
-            Land("approach", Rect(-2, m, -9, 9), 0, falloff);
+            Land("approach", Rect(-L - m, -L + 2, -9, 9), 0, falloff, roll: 0);
+            Land("approach", Rect(-2, m, -9, 9), 0, falloff, roll: 0);
         }
 
         /// <summary>A way through the town (its points as u, d), taken on the grid as wide as it is and a little more.</summary>
@@ -779,8 +788,8 @@ public static class TownForms
             Wall((-L, -wl * 0.8), (-L + 40, -wl), (-L * 0.45, -wl - 10), (-40, -wl), (0, -wl * 0.65), (0, wr * 0.4), (-40, wr), (-L + 30, wr), (-L, wr * 0.8));
             // The land it stands in (note 692): the ridge the old town climbed, the tide outside the sea wall.
             double m = _f.Margin;
-            Land("ridge", Rect(-L - m - 40, m + 40, -wl - m - 60, -wl - 25), _f.TerraceLevel * 2, 30);
-            Land("ridge", Rect(-L - m - 40, m + 40, -wl - m - 60, -wl - 90), _f.TerraceLevel * 3.6, 60);
+            Land("ridge", Rect(-L - m - 40, m + 40, -wl - m - 60, -wl - 25), _f.TerraceLevel + 8, 30);
+            Land("ridge", Rect(-L - m - 40, m + 40, -wl - m - 60, -wl - 90), _f.TerraceLevel + 24, 60);
             Sea(Rect(-L - m - 40, m + 40, wr + 3, wr + m + 60), -4, 3.5);
             Approach(18);
             var water = Blob(-L * 0.5, wr * 0.62, L * 0.45, wr * 0.45, 0.07, 24, "drowned").Select(x => (x.U, Math.Max(x.D, 26.0))).ToList();
@@ -798,21 +807,21 @@ public static class TownForms
             }
             // The drowned houses: the lost, standing in the water where their street was.
             DrownedLots(water);
-            // Above the line: the square's green, then the terraces up to the chapel hill and the high ward.
+            // Above the line: the square's green, the blocks climbing tier on tier toward the hills (note 692), then the
+            // chapel hill and the high ward over the top tier, a stair up to each from it, houses round their crowns.
             Green(34, 56);
-            District(DistrictKind.Terrace, "chapel", Blob(-L * 0.72, -wl * 0.72, 62, 36, 0.08, 18, "chapel"), _f.TerraceLevel);
-            District(DistrictKind.Terrace, "high", Blob(-L * 0.35, -wl * 0.78, 58, 34, 0.08, 18, "high"), _f.TerraceLevel * 1.6);
-            Landmark("chapel", -L * 0.72, -wl * 0.72 - 6, 0, 1);
-            Landmark("watchtower", -L * 0.35 - 30, -wl * 0.78 - 14, 0, 1);
-            Way([(-L * 0.72 + 50, -wl * 0.45), (-L * 0.72 + 30, -wl * 0.6), (-L * 0.72 + 10, -wl * 0.66)], 4, levels: [_f.Rise, _f.TerraceLevel, _f.TerraceLevel]);
-            Way([(-L * 0.35 + 50, -wl * 0.5), (-L * 0.35 + 30, -wl * 0.66), (-L * 0.35 + 10, -wl * 0.72)], 4, levels: [_f.Rise, _f.TerraceLevel * 1.6, _f.TerraceLevel * 1.6]);
-            RingLots(-L * 0.72, -wl * 0.72, 22, 4, outside: true);
-            RingLots(-L * 0.35, -wl * 0.78, 20, 4, outside: true);
             Works(-L * 0.3, -30, 12, 24, 1, "tidewater");
-            // The blocks climbing tier on tier toward the hills (note 692), the hills' own road round under their edges.
-            Blocks(-1, 34, 29, wl * 0.5, -L + 20, -10, rise: _f.Rise);
-            Way([(-L + 30, -wl * 0.5 - 20), (-24, -wl * 0.5 - 20)], 5);
-            Lots(-L + 30, -wl * 0.5 - 20, -24, -wl * 0.5 - 20, 5, 3);
+            Blocks(-1, 34, 29, wl * 0.72, -L + 20, -10, rise: _f.Rise);
+            double top = _f.Rise * 2;
+            District(DistrictKind.Terrace, "chapel", Blob(-L * 0.72, -wl * 0.74, 62, 34, 0.08, 18, "chapel"), _f.TerraceLevel);
+            District(DistrictKind.Terrace, "high", Blob(-L * 0.35, -wl * 0.8, 58, 30, 0.08, 18, "high"), _f.TerraceLevel * 1.6);
+            // Between the stair lanes that climb to the hills' feet, not on one.
+            Landmark("chapel", -L * 0.72 - 30, -wl * 0.74 - 6, 0, 1);
+            Landmark("watchtower", -L * 0.35, -wl * 0.8 - 12, 0, 1);
+            Way([(-L * 0.72 + 64, -wl * 0.56), (-L * 0.72 + 34, -wl * 0.64), (-L * 0.72 + 12, -wl * 0.68)], 4, levels: [top, _f.TerraceLevel, _f.TerraceLevel]);
+            Way([(-L * 0.35 + 64, -wl * 0.56), (-L * 0.35 + 30, -wl * 0.7), (-L * 0.35 + 10, -wl * 0.74)], 4, levels: [top, _f.TerraceLevel * 1.6, _f.TerraceLevel * 1.6]);
+            RingLots(-L * 0.72, -wl * 0.74, 22, 4, outside: true);
+            RingLots(-L * 0.35, -wl * 0.8, 20, 4, outside: true);
             Landmark("crane", -60, 22, 0, 1);
         }
 
@@ -909,7 +918,7 @@ public static class TownForms
                     return;
                 if (round == StairRounds)
                 {
-                    _l.Lots.RemoveAll(x => cut.Contains(x));
+                    _l.CutOff += _l.Lots.RemoveAll(x => cut.Contains(x));
                     return;
                 }
                 // The first cut off (nearest the square: the lots are in no order yet, so the first laid), its own ground's
@@ -935,11 +944,12 @@ public static class TownForms
                 if (best is not { } b)
                 {
                     // Nowhere to stair it to (an island of ground): its houses aren't built.
-                    _l.Lots.RemoveAll(x => Front(x) is var (fs, fd) && mine(fs, fd));
+                    _l.CutOff += _l.Lots.RemoveAll(x => Front(x) is var (fs, fd) && mine(fs, fd));
                     continue;
                 }
                 double run = Math.Abs(b.To - b.From) / StairSlope + 3, ms = b.S + b.Ds / 2, md = b.D + b.Dd / 2;
                 Way([(ms - b.Ds * run / 2 - _gate, md - b.Dd * run / 2), (ms + b.Ds * run / 2 - _gate, md + b.Dd * run / 2)], 3, levels: [b.From, b.To]);
+                _l.Stairs++;
                 bool OnTheStair(Lot x) => SegDist(x.S, x.D, _l.Ways[^1].Points[0], _l.Ways[^1].Points[1]) <= 3 / 2.0 + Math.Max(x.Frontage, _f.LotDepth) / 2;
                 _l.Lots.RemoveAll(OnTheStair);
             }
@@ -957,9 +967,12 @@ public static class TownForms
             // Nor one a landmark stands on (laid after it).
             bool OnALandmark(Lot x) => _l.Landmarks.Any(m => TownFixtures.Size(m.Kind) is var (hs, hd, _)
                 && Math.Abs(x.S - m.S) < hs + x.Frontage / 2 && Math.Abs(x.D - m.D) < hd + _f.LotDepth / 2);
+            _l.OnWays = _l.Lots.Count(OnAWay);
+            _l.OnLandmarks = _l.Lots.Count(x => !OnAWay(x) && OnALandmark(x));
             var kept = _l.Lots.Where(x => !OnAWay(x) && !OnALandmark(x) && GroundAt(x.S, x.D) is var (kind, level) && (x.Drowned
                 ? kind == DistrictKind.Water && Math.Abs(level - _f.WaterLevel) < 1e-6
                 : kind is not (DistrictKind.Water or DistrictKind.Deck or DistrictKind.Plots or DistrictKind.Yard) && Math.Abs(level - x.Level) < 1e-6)).ToList();
+            _l.OffGround = _l.Lots.Count - _l.OnWays - _l.OnLandmarks - kept.Count;
             _l.Lots.Clear();
             _l.Lots.AddRange(kept);
             Walkable();

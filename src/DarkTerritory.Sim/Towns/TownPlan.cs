@@ -49,6 +49,9 @@ public sealed record TownPlan(
 
     /// <summary>How far past its wall it shapes the land it stands in (m; note 692's landforms), easing into the line's land.</summary>
     public double Margin { get; init; }
+
+    /// <summary>What laying a town type's lots did (note 692; `dt town map`): stairs laid, lots left unbuilt and why.</summary>
+    public string Laid { get; init; } = "";
 }
 
 /// <summary>

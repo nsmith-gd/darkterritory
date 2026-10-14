@@ -26,6 +26,7 @@ public sealed class TownGround
     readonly float[] _level, _bed, _water, _blend;
     readonly byte[] _kind;
     readonly bool[] _inside = [];
+    readonly bool[] _ramp = [];
 
     public double S0 { get; }
     public double D0 { get; }
@@ -67,6 +68,7 @@ public sealed class TownGround
         _blend = new float[n];
         _kind = new byte[n];
         _inside = new bool[n];
+        _ramp = new bool[n];
         Array.Fill(_water, float.NaN);
         // How much the town's ground is the land's (note 692's landforms): all of it inside the wall and for half its margin
         // past it, then less to nothing at the margin's edge, where the line plan's land takes over.
@@ -100,7 +102,7 @@ public sealed class TownGround
                         if (away >= f)
                             continue;
                         double t = Smooth(1 - away / f);
-                        _level[k] = _bed[k] = (float)(_level[k] + (d.Level - _level[k]) * t);
+                        _level[k] = _bed[k] = (float)(_level[k] + (d.Level + Swell(d, s, dd) - _level[k]) * t);
                         continue;
                     }
                     switch (d.Kind)
@@ -118,7 +120,7 @@ public sealed class TownGround
                             _kind[k] = 3;
                             break;
                         default:
-                            _level[k] = _bed[k] = (float)d.Level;
+                            _level[k] = _bed[k] = (float)(d.Level + Swell(d, s, dd));
                             _water[k] = float.NaN;
                             _kind[k] = 1;
                             break;
@@ -148,6 +150,7 @@ public sealed class TownGround
                             continue;
                         int k = i * Nd + j;
                         _level[k] = (float)(la + (lz - la) * t);
+                        _ramp[k] = w.Levels is not null;
                         if (w.Deck)
                         {
                             if (_kind[k] != 2)
@@ -171,6 +174,28 @@ public sealed class TownGround
     public double Margin { get; }
 
     static double Smooth(double x) => x * x * (3 - 2 * x);
+
+    /// <summary>A landform's roll at (s, d) (note 692): two octaves of value noise on a 64 m and a 23 m lattice from its
+    /// seed, in [−Roll, Roll]. Pure and integer-hashed, so every machine lays the same land.</summary>
+    static double Swell(TownDistrict d, double s, double dd) =>
+        d.Roll <= 0 ? 0 : d.Roll * (0.7 * Noise(d.RollSeed, s / 64, dd / 64) + 0.3 * Noise(d.RollSeed ^ 0x9E3779B9u, s / 23, dd / 23));
+
+    static double Noise(uint seed, double x, double y)
+    {
+        double fx = Math.Floor(x), fy = Math.Floor(y), tx = Smooth(x - fx), ty = Smooth(y - fy);
+        int ix = (int)fx, iy = (int)fy;
+        double a = Lattice(seed, ix, iy), b = Lattice(seed, ix + 1, iy), c = Lattice(seed, ix, iy + 1), e = Lattice(seed, ix + 1, iy + 1);
+        return a + (b - a) * tx + (c - a) * ty + (a - b - c + e) * tx * ty;
+    }
+
+    static double Lattice(uint seed, int x, int y)
+    {
+        uint h = seed ^ (uint)x * 0x27D4EB2Du ^ (uint)y * 0x165667B1u;
+        h = (h ^ (h >> 15)) * 0x85EBCA77u;
+        h = (h ^ (h >> 13)) * 0xC2B2AE3Du;
+        h ^= h >> 16;
+        return h * (2.0 / uint.MaxValue) - 1;
+    }
 
     /// <summary>How far outside the wall's outline (or rectangle) a point is (m).</summary>
     static double OutsideBy(TownBounds b, double s, double d)
@@ -272,8 +297,9 @@ public sealed class TownGround
         // Across each cell edge (along d between i and i+1; along s between j and j+1), what wall there is, if any.
         (double Bottom, double Top)? Between(int a, int b)
         {
-            // Only inside the wall (outside, the land eases where it falls: note 692's landforms).
-            if (_blend[a] < 1 || _blend[b] < 1)
+            // Only inside the wall (outside, the land eases where it falls: note 692's landforms; its blend is whole for the
+            // margin's first part too, so it's the wall that's asked).
+            if (!_inside[a] || !_inside[b])
                 return null;
             bool wetA = !float.IsNaN(_water[a]) && _kind[a] == 2, wetB = !float.IsNaN(_water[b]) && _kind[b] == 2;
             if (wetA != wetB)
@@ -339,8 +365,8 @@ public sealed class TownGround
         if (Flat)
             return [];
         var near = Apron(apron);
-        if (insideOnly)
-            near = [.. near.Select((x, k) => x && _inside[k])];
+        // (A ramp's cells are its own to draw, along it: Rects would lay one box a cell up its slope.)
+        near = [.. near.Select((x, k) => x && !_ramp[k] && (!insideOnly || _inside[k]))];
         var used = new bool[Ns * Nd];
         var rects = new List<(double, double, double, double, double, byte)>();
         float LevelOf(int k) => _kind[k] == 3 ? _level[k] : _bed[k];
