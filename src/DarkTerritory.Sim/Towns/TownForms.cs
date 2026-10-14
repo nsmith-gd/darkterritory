@@ -1443,6 +1443,8 @@ public static class TownForms
             Green(34, 54);
             // Down to the cliff, tier under tier.
             // (Short of the wall on the cliff: a walk along its top, nothing built over the drop.)
+            // The processing sheds by the way out, the catch and the crops up from the docks, the lower ward's tiers under them.
+            Works(-L * 0.44, -30, 14, 40, 1, "harbour");
             Rows(Tiers(1, -L + 22, -14, wr * 0.72, -_f.Rise, "lower"));
             // Up to the citadel.
             Rings(-1, -L * 0.4, -wl + 16, 36, 1.8, "upper");

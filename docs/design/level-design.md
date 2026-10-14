@@ -493,10 +493,15 @@ meaning"), turned into ground plans the walled town's houses and people stand on
 | Form | From the render | Its shape | What it asks of the crew |
 | --- | --- | --- | --- |
 | harbour | Breakwater Town | the basin inside the sea wall, piers out over it, the breakwater; streets behind the square climbing 4 m a tier to the head (16 m) and its lighthouse, the crag behind | long walks along the wharf; the piers are dead ends over the water |
-| dykeland | Fenfolk | salt marsh inside the palisade, the line on its dyke, houses on hummocks along boardwalks | the marsh is waded, slow and open; the boardwalks are the only quick ways |
+| dykeland | Fenfolk | salt marsh inside the palisade, the line on its dyke, every house on a stilt stage along a web of boardwalks, the market and chapel on mounds | the marsh is waded, slow and open; the boardwalks are the only quick ways |
 | quarry | Pitborn | the pit beside the square, benches stepping down to its floor, houses on every bench, one ramp down | height: the floor is 15 m under the rim, one way down and one way up |
-| tidewater | Drowned Boroughs | the drowned ward under the water, its lost houses standing in it, causeways out to the wharves; streets climbing tier on tier to two hills (14 m, 22 m) under a ridge | causeways are exposed lines across the water; the high ward looks down on everything |
+| tidewater | Drowned Boroughs | the drowned ward's houses on stilt stages along boardwalks between causeways, a jetty and a dory where a walk ends; streets climbing tier on tier to two hills (14 m, 22 m) under a ridge | causeways are exposed lines across the water; the high ward looks down on everything |
 | glasshouse | Glass Gardeners | an eight-sided wall, glasshouse ranges, round reservoirs, beds in plots, the gardeners' rows | long sight lines down the beds, cover only in the ranges |
+| furnace | Furnace Republic | the foundry and its stacks on a crown ringed by the workers' quarters, the slag pit sunk beside them with its crane and lift, the docks and a barge in the sea outside, the workers' rows across the line | the crown is the long climb; the pit is a dead end with one lift |
+| highline | Highline Settlement | a clifftop: the citadel's keep and chapel crowning rings of the upper ward behind the square, the ledges stepping down tier under tier to the cliff wall on the platform's side, the processing sheds by the way out, the lookout's tower on a stack out from the cliff | the ledges step down to a wall over a 28 m drop; the citadel looks down on all of it |
+| timber | Timberholds | a round log palisade, log watchtowers inside and out over a stump-cleared kill zone, the quarters in rings round the market, the log yards and two sawmills on the platform's side | open ground all round the wall; the log yards are a maze of stacks |
+| salt | Saltwardens | an eight-sided wall over the marsh, salt pans in a grid of walks, windpumps and cisterns, the processing sheds, the living rows, the lower ward on stilts in its lagoon | the pans are wide open and wet; the stilt ward is boardwalks only |
+| crag | Craghold | terraced walled wards ringing the crag up to its keep and chapel, a lift up the face, the docks inlet, the lower ward across the line | the climb to the keep, a tier at a time; the lift is the quick way |
 | street | (note 335) | streets beside the line, lanes between | the grid: many doors, short sight lines |
 
 ## T.3 Rules for the generator
@@ -526,7 +531,11 @@ meaning"), turned into ground plans the walled town's houses and people stand on
   old colours dulled, sooted and salt-bleached.
 - **Open houses stand square to the line, on dry ground, nearest the square.** Their rooms are their walls.
 - **Reuse the kit.** A form's landmarks are the game's existing pieces (the lighthouse, the chapel, a wall's tower, the pit's
-  headframe, a fish shed, a glasshouse); its ground is one mesh a town; nothing in it needs walking into but the open houses.
+  headframe, a fish shed, a glasshouse; the casting for a foundry or sawmill, the windmill for a windpump, a chimney for a
+  stack); its ground is one mesh a town; nothing in it needs walking into but the open houses. New pieces only where the
+  kit has nothing near (a timber town's palisade, log watchtowers and log stacks, `StructureKit`).
+- **A timber town's wall is logs.** Its run is a palisade of sharpened logs on a plank walk and its towers stand on log
+  legs (`TownBounds.Timber`); outside it the kill zone is cleared to stumps.
 
 ## T.4 Not yet
 
