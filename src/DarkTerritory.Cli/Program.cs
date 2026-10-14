@@ -2259,7 +2259,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --waker chase|lift: a Waker at dawn (note 588), coming down the line --behind m (150) back of the last car, or holding
     // the train --held s (7) in, the rear cars up in its hands, as the sessions draw it (WakerLift). The waker view looks
     // back at it from the guard van's platform; wakerlift from out beside the line; wakerinside from the roof of the next car
-    // up, a crewmate's eye, lifted with it.
+    // up, a crewmate's eye, lifted with it (wakerlift --near: out beside the car he's biting off, the catch close).
     // --sway r: the cars' lanterns swung that far on their chains (radians), --thud s: a thud of the Wakers' stir (--stir its
     // strength, 0.8) that many seconds ago, coal coming off the bunker (note 599).
     if (Opt(args, "--sway", 0) is var sway and not 0)
@@ -2307,6 +2307,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             // From the guard van's platform back down the line at it getting up (or off to its side, across the land).
             "wakerrise" => Camera.LookAt(rear.ToWorld(new Double3(0.6, 2.4, half + 1.2)), line.Sample(waker.LineDistance) is var w
                 ? w.Position + Double3.Cross(w.Tangent, Double3.Up).Normalized * waker.Lateral + Double3.Up * 8 : default, Math.Abs(aside) > 0 ? 55 : 45),
+            // (--near: out beside the car he's biting off, level with it: the bites, his hands and his face.)
+            "wakerlift" when args.Contains("--near") => lifted.LastOrDefault(f => f.Origin.Y > lifted[0].Origin.Y - 100) is var eating
+                ? Camera.LookAt(eating.Origin + eating.Right * -34 + Double3.Up * 14 + eating.Back * -8, eating.Origin + Double3.Up * 6 + eating.Back * 4, 72)
+                : camera,
             "wakerlift" => Camera.LookAt(train.Frames[next.Index].ToWorld(new Double3(-60, 4, 10)), train.Frames[next.Index].ToWorld(new Double3(0, 9, 12)), 66),
             "wakerinside" => Camera.LookAt(next.ToWorld(new Double3(0.4, next.Shape.Bounds.Max.Y + 1.6, -half * 0.4)), next.ToWorld(new Double3(-1.5, next.Shape.Bounds.Max.Y + 2, half + 14)), 80),
             _ => camera,

@@ -108,7 +108,22 @@ public struct SkinWeights(Vector4 joints, Vector4 weights)
 /// (<see cref="MeshBuilder.Skinned"/>), the GPU poses it (skinned.glsl).</param>
 public sealed class MeshAsset(string name, Vertex[] vertices, SkinWeights[]? skin = null)
 {
-    public string Name { get; } = name;
+    [ThreadStatic]
+    static long t_made;
+
+    /// <summary>
+    /// How many meshes this thread has made: a frame that's only drawing what's there makes none (note 695; a scene that
+    /// built its town's houses again every frame was the director's town crawl). Per thread, so a test's count is its own.
+    /// </summary>
+    public static long MadeOnThisThread => t_made;
+
+    public string Name { get; } = Counted(name);
+
+    static string Counted(string name)
+    {
+        t_made++;
+        return name;
+    }
     public Vertex[] Vertices { get; } = vertices;
     public SkinWeights[]? Skin { get; } = skin is null || skin.Length == vertices.Length ? skin
         : throw new ArgumentException($"{name}: {skin.Length} skin weights for {vertices.Length} vertices");

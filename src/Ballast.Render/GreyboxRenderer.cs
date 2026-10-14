@@ -704,12 +704,18 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             Upload(CollectionsMarshal.AsSpan(_overlayBoth), OverlayVertex.Stride, ref _overlayVertices, ref _overlayMemory, ref _overlayCapacity);
     }
 
+    /// <summary>The meshes the last <see cref="Prepare(MeshBuilder, Overlay?)"/> put on the GPU for the first time, and their
+    /// bytes (a frame's hitch can be its uploads).</summary>
+    public int Uploaded { get; private set; }
+    public long UploadedBytes { get; private set; }
+
     /// <summary>
     /// Uploads geometry, kit instances and lights (and the overlay, if any) for the next <see cref="Record"/>. Call outside
     /// command recording. A multiview renderer given one overlay shows it to both eyes.
     /// </summary>
     public void Prepare(MeshBuilder mesh, Overlay? overlay = null)
     {
+        (Uploaded, UploadedBytes) = (0, 0);
         Upload(mesh.Vertices, (uint)Vertex.Stride, ref _vertices, ref _vertexMemory, ref _vertexCapacity);
         // Now and then, free the GPU copies of pieces nobody holds any more (the line's cells behind the train). Frames
         // are submitted and waited for, so nothing in flight still uses them.
@@ -733,6 +739,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             if (!_meshes.TryGetValue(instance.Asset, out var gpuMesh))
             {
                 var (buffer, memory) = Resident<Vertex>(instance.Asset.Vertices);
+                Uploaded++;
+                UploadedBytes += instance.Asset.Vertices.Length * (long)Vertex.Stride;
                 gpuMesh = new GpuMesh(buffer, memory, instance.Asset.Vertices.Length);
                 if (instance.Asset.Skin is { } skin)
                     (gpuMesh.Skin, gpuMesh.SkinMemory) = Resident<SkinWeights>(skin);

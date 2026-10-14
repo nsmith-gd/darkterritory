@@ -227,7 +227,9 @@ public static partial class Hud
                 lines.Add("FIRE : [LMB]");
             lines.Add("GET UP : [SPACE]");
             // With a rack (note 374): what's at the gun, and what's left down in the locker for every gun.
-            return (combat.Guns.Rack > 0 ? $"THE GUN: {ready} IN THE RACK, {Guns.Stowed(train, combat.Guns)} BELOW" : $"THE GUN: {gun.Ammo} SHOT", lines);
+            // Note 689: endless shot has no count to give.
+            return (combat.Guns.InfiniteAmmo ? "THE GUN"
+                : combat.Guns.Rack > 0 ? $"THE GUN: {ready} IN THE RACK, {Guns.Stowed(train, combat.Guns)} BELOW" : $"THE GUN: {gun.Ammo} SHOT", lines);
         }
         // The crane (T48), from its cab.
         if (p.Has(PlayerFlags.Operating) && world.Run?.CurrentSite?.CraneNear(PlayerMotor.WorldPosition(p, train)) is { } crane)

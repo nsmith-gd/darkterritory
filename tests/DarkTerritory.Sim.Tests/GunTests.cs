@@ -12,11 +12,13 @@ public class GunTests
     static readonly TrainTuning T = Tuning.Train;
     static readonly PlayerTuning P = Tuning.Player;
     static readonly CombatTuning C = Tuning.Combat;
+    // The night's stock of shot (note 374), as the guns were before note 689 made their shot endless.
+    static readonly CombatTuning Finite = C with { Guns = C.Guns with { InfiniteAmmo = false } };
 
-    static World World(int cars = 10)
+    static World World(int cars = 10, CombatTuning? combat = null)
     {
         var line = new RailLine(new LineDefinition("t", [new TrackSegment(20_000)]));
-        var w = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, cars, 1)), line, 5_000), C);
+        var w = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, cars, 1)), line, 5_000), combat ?? C);
         // The host's (the loudness meter is the host's to keep), with nothing sent.
         w.EnableEnemies(Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } }, null, 1, crew: 1, authority: true);
         return w;
@@ -84,13 +86,15 @@ public class GunTests
         Hold(w, ref s, Reload, C.Guns.ReloadStepSeconds + 0.2);
         Assert.Equal(0, w.Train.Vehicles[0].Gun.ReloadNeeded);
         Assert.Single(Hold(w, ref s, Fire, 1));
-        Assert.Equal(C.Guns.Ammo - 2, w.Train.Vehicles[0].Gun.Ammo);
+        // Note 689 (the director, 13 Oct: "infinite ammo"): two shots took nothing from the gun's stock.
+        Assert.True(C.Guns.InfiniteAmmo);
+        Assert.Equal(C.Guns.Ammo, w.Train.Vehicles[0].Gun.Ammo);
     }
 
     [Fact]
     public void AnEmptyGunFiresNothing()
     {
-        var w = World();
+        var w = World(combat: Finite);
         w.Train.Vehicles[0].Gun.Ammo = 1;
         var s = AtGun(w, 0);
         Assert.Single(Hold(w, ref s, Fire, 2));

@@ -63,7 +63,7 @@ public sealed partial class CreatureArt
     public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
         "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker", "follower", "climber", "fire_fly", "passenger",
         "survivor_prisoner", "survivor_wildlander", "sheep", "moose", "gannet", "mourner", "freight_beetle", "tower_jaw", "brakeman", "knotter", "hotbox", "hanger",
-        "picker", "lodger", "householder"];
+        "picker", "lodger", "householder", "waker"];
 
     /// <summary>
     /// The figure a crewmate plays as (GDD App. D.8): the crew's own, or, freed from a Holdout, its occupant's for the rest
@@ -470,7 +470,8 @@ public sealed partial class CreatureArt
             _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear, person))])
             {
                 Lod = far is null ? null : new Entry(far, [.. far.Materials.Select(m => Resolve(m, wear, person))]),
-                LodFrom = authored is not null ? look.Tuning.CreatureLodMetres : look.Tuning.ClusteredLodMetres,
+                // (The Waker's drawn thirty times his size: his distance copy from thirty times as far, note 679.)
+                LodFrom = (authored is not null ? look.Tuning.CreatureLodMetres : look.Tuning.ClusteredLodMetres) * (name == "waker" ? WakerGait.Scale : 1),
             };
         }
         Dress(DaveKit.Figure, DaveKit.Clothes);
@@ -925,20 +926,17 @@ public sealed partial class CreatureArt
     }
 
     /// <summary>
-    /// Appends <paramref name="piece"/>, made in the figure's bind pose (model space), riding <paramref name="bone"/> of the
-    /// figure last drawn as <paramref name="figure"/> at <paramref name="model"/>: a townsperson's mask on their head, their
-    /// bottle on their back (note 353). False when that figure or bone isn't built.
+    /// <paramref name="piece"/>, made in the figure's bind pose (model space), riding <paramref name="bone"/> of the figure
+    /// last drawn as <paramref name="figure"/> at <paramref name="model"/>: a townsperson's mask on their head, their bottle
+    /// on their back (note 353). Drawn where it is, never copied into the frame (note 695: copied, a town's near folk were
+    /// 5,000-7,000 triangles moved on the CPU and uploaded every frame, for a draw each saved). False when that figure or
+    /// bone isn't built.
     /// </summary>
-    /// <param name="instanced">Drawn as its own instance rather than copied into the frame (a far figure's, note 479: a draw
-    /// the more, none of its vertices moved on the CPU).</param>
-    public bool Wear(MeshBuilder mesh, MeshAsset piece, string bone, in Matrix4x4 model, string figure = "crew", bool instanced = false)
+    public bool Wear(MeshBuilder mesh, MeshAsset piece, string bone, in Matrix4x4 model, string figure = "crew")
     {
         if (!_models.TryGetValue(figure, out var m) || m.Model.Skeleton.IndexOf(bone) is var b && b < 0)
             return false;
-        if (instanced)
-            mesh.Instances.Add(new MeshInstance(piece, m.Pose.Skin[b] * model));
-        else
-            mesh.Append(piece, m.Pose.Skin[b] * model);
+        mesh.Instances.Add(new MeshInstance(piece, m.Pose.Skin[b] * model));
         return true;
     }
 

@@ -52,11 +52,18 @@ public static class DawnStir
         return rear.Back with { Y = 0 };
     }
 
-    /// <summary>The last thud: how strong (0: none, so no stir) and how many seconds ago, its seconds apart shortening as it nears.</summary>
+    /// <summary>
+    /// The last thud: how strong (0: none, so no stir) and how many seconds ago, its seconds apart shortening as it nears; once
+    /// the one on the line is running, his own footfalls (note 679: <see cref="WakerGait"/>, the dust his feet raise the same).
+    /// </summary>
     public static (double Strength, double Since) Thud(World world, double seconds)
     {
         double s = Strength(world);
-        return s <= 0 ? (0, double.PositiveInfinity) : (s, seconds % (7 - 6 * s));
+        if (s <= 0)
+            return (0, double.PositiveInfinity);
+        if (world.Enemies?.Wakers is { } t && world.ActiveEnemies.OfType<Waker>().FirstOrDefault(w => w.Lead) is { Phase: Sim.Enemies.SpinePhase.Commit } waker)
+            return (s, WakerGait.SinceFootfall(waker.PhaseSeconds, t));
+        return (s, seconds % (7 - 6 * s));
     }
 
     /// <summary>

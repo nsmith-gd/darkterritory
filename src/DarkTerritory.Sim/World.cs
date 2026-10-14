@@ -1418,8 +1418,15 @@ public sealed class World
     /// <paramref name="viewTick"/> is when the shooter saw the targets (lag compensation: the host checks
     /// hits against where things were on the shooter's screen).
     /// </summary>
-    public void CrewAct(ref PlayerState s, in PlayerIntent intent, int playerId, uint? viewTick = null)
+    public void CrewAct(ref PlayerState s, in PlayerIntent asked, int playerId, uint? viewTick = null)
     {
+        // While something has hold of you, Use is the struggle's alone (App. C.1; the director, 13 Oct, App. F.5: "struggle is
+        // hold e and when next to the firebox it will also shovel coal into the firebox, we need input prioritization"):
+        // nothing else in reach takes it, the coal, a door, a lever, a body. Prediction runs this too, so a client's held
+        // player works nothing either (note 681).
+        var intent = asked;
+        if (s.Has(PlayerFlags.Held))
+            intent.Buttons &= ~PlayerButtons.Use;
         PlayerMotor.Look(ref s, intent);
         PlayerMotor.TakeHand(ref s, intent, Hand);
         Crouching(ref s, intent);
@@ -1596,11 +1603,11 @@ public sealed class World
             double moving = s.Velocity.Length;
             // Driving a moving train is working it (T115 playtest: the driver, watching the line, was Tippy Toesie's mark).
             bool driving = Net.CabControls.CanDrive(s, Train) && Math.Abs(Train.Dynamics.Speed) > 1;
-            bool idle = moving < ec.Tuning.TippyToesie.IdleBelow && intent.MoveX == 0 && intent.MoveZ == 0 && intent.Buttons == PlayerButtons.None
-                && intent.Actions == PlayerActions.None && !driving;
+            bool idle = moving < ec.Tuning.TippyToesie.IdleBelow && asked.MoveX == 0 && asked.MoveZ == 0 && asked.Buttons == PlayerButtons.None
+                && asked.Actions == PlayerActions.None && !driving;
             IdleSeconds[playerId] = idle ? IdleSeconds.GetValueOrDefault(playerId) + SimConstants.TickSeconds : 0;
             // Alone, there's no friend to act: at a crew of one the held can struggle free (the solo rule, T89).
-            if (s.Has(PlayerFlags.Held) && intent.Has(PlayerButtons.Use) && ec.Tuning.Grab.SoloStruggleOn && _context.Crew.Count(x => x.Player.State.Alive) <= 1)
+            if (s.Has(PlayerFlags.Held) && asked.Has(PlayerButtons.Use) && ec.Tuning.Grab.SoloStruggleOn && _context.Crew.Count(x => x.Player.State.Alive) <= 1)
                 foreach (var holder in _enemies.Where(e => e.Phase == SpinePhase.Grab && e.Holding == playerId).ToList())
                     holder.Struggle(ec, SimConstants.TickSeconds);
         }

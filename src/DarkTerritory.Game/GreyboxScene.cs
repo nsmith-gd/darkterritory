@@ -346,8 +346,20 @@ public sealed partial class GreyboxScene
     readonly System.Diagnostics.Stopwatch _lap = new();
     int _lapCount, _lapInstances;
 
+    /// <summary>The app's frame watch (note 691, 695): each part of the build is a part of its frame, timed with what it
+    /// allocated, so a night's report says which of the scene's parts its frames went to.</summary>
+    public FrameWatch? Watch { get; set; }
+
+    readonly Dictionary<string, string> _watchNames = new(StringComparer.Ordinal);
+
     void Lap(MeshBuilder mesh, string part)
     {
+        if (Watch is { } watch)
+        {
+            if (!_watchNames.TryGetValue(part, out var named))
+                _watchNames[part] = named = "scene: " + part;
+            watch.Mark(named);
+        }
         if (Timings is null)
             return;
         Timings.TryGetValue(part, out var sum);
@@ -525,6 +537,10 @@ public sealed partial class GreyboxScene
         if (Lights is not null)
             foreach (var (at, colour, radius) in Lights)
                 mesh.PointLights.Add(new PointLight(V(at, eye), colour, radius));
+        // The car a Waker's eating is bitten off, not dropped out of sight (note 679): its lamps, its fittings and its body
+        // all go by the same bite (Art.SceneArt.BiteOf).
+        if (Look is not null)
+            Look.Art.WakerEating = WakerEating(frames) is { } eating ? (eating.Car.Index, eating.Through) : null;
         foreach (var frame in frames)
         {
             if ((frame.Origin - eye).Length > LampRange)
@@ -536,7 +552,7 @@ public sealed partial class GreyboxScene
             if (Look is not null && frame.Shape.Interior is { } inside)
                 mesh.Rooms.Add(new Room(V(frame.ToWorld(inside.Centre), eye), ToF(frame.Right), ToF(frame.Up), ToF(frame.Back), ToF(inside.HalfSize)));
             // (A lamp in what a Car Hugger's eaten of the car has gone with its ceiling: Art/BiteKit.)
-            var eatenBy = Look is null ? default : Art.Bite.For(Look.Tuning.Bite, frame.Shape, Vehicles is { } fleet && frame.Index < fleet.Count ? fleet[frame.Index] : null, frame.Index);
+            var eatenBy = Look is null ? default : Look.Art.BiteOf(frame.Shape, Vehicles is { } fleet && frame.Index < fleet.Count ? fleet[frame.Index] : null, frame.Index);
             if (RoofGlow && !dark && frame.Shape.Interior is { } lit)
                 mesh.PointLights.Add(new PointLight(V(frame.ToWorld(new Double3(0, lit.Max.Y + 0.6, lit.Centre.Z)), eye), Palette.LampAmber * 1.4f, 9f));
             if (frame.Shape.Interior is { } room && !dark)
@@ -573,7 +589,7 @@ public sealed partial class GreyboxScene
         {
             // The art pass's effects (Art/Effects): smoke, steam, sparks, the lamp's beam, and fog banks along the line.
             Look.Art.Effects.Train(mesh, frames, eye, Time, Controls, FireGlow, Emergency, Venting && !Ruptured, SafetyValve && !Ruptured,
-                frames.Count == 0 ? default : Art.Bite.For(Look.Tuning.Bite, frames[^1].Shape, Vehicles is { } fleet && frames[^1].Index < fleet.Count ? fleet[frames[^1].Index] : null, frames[^1].Index),
+                frames.Count == 0 ? default : Look.Art.BiteOf(frames[^1].Shape, Vehicles is { } fleet && frames[^1].Index < fleet.Count ? fleet[frames[^1].Index] : null, frames[^1].Index),
                 whistle: !Ruptured && (CordPulled || Enemies?.Any(e => e is Sim.Enemies.Whistler { Whistling: true } && !e.Gone) == true), dead: Ruptured, lamp: LampLit);
             // (And the crew on a straining car stumble: SceneArt.Crewmate, drawn after.)
             Look.Art.BendStrain = BendStrain;
@@ -780,9 +796,14 @@ public sealed partial class GreyboxScene
                     // The train's own: their clips by their mode's time and what came before (notes 364, 365, 367).
                     if (e.Kind is EnemyKind.Brakeman or EnemyKind.Knotter or EnemyKind.Hotbox)
                         modeSeconds = Trainfolk(e, frames, Look?.Art.Creatures);
+                    // A Waker (note 679): stood at the walls, or holding the train, the end of the car he's eating at his mouth.
+                    if (e is Sim.Enemies.Waker titan && Look?.Art.Creatures is { } wakerArt)
+                        wakerArt.WakerIn = WakerIn(titan, line, frames, eye);
                     DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite, prey, room,
                         e.Kind is EnemyKind.Gaunt or EnemyKind.Grumbler or EnemyKind.Moose || outside ? Pace(e) : 0, Flinch(e), HitAge(e),
                         modeSeconds: modeSeconds, place: e is Sim.Enemies.TowerJaw { Mode: Sim.Enemies.TowerJawMode.Wreck } ? TowerPlace(line, e.Local) : null);
+                    if (e.Kind == EnemyKind.Waker && Look?.Art.Creatures is { } drawnWaker)
+                        drawnWaker.WakerIn = default;
                     // A Waker getting up (note 599): the earth it throws off rising, and the dust it raises on the move.
                     if (e.Kind == EnemyKind.Waker && Look?.Art.Effects is { } wake)
                         WakerDust(mesh, wake, e, line, eye);
@@ -1950,9 +1971,55 @@ public sealed partial class GreyboxScene
         new(v.X * Math.Cos(yaw) + v.Z * Math.Sin(yaw), v.Y, -v.X * Math.Sin(yaw) + v.Z * Math.Cos(yaw));
 
     /// <summary>Where <paramref name="e"/> stands in the world: in its car's frame aboard, as it is loose.</summary>
+    /// <summary>Where the Wakers stop short of the terminus's gate (note 588): under the town's guns.</summary>
+    double WakerWall(RailLine line, Sim.Enemies.WakersTuning t) =>
+        (Route?.Plan?.Terminus.GateM ?? line.Length - (Run?.Tuning.TerminusZone ?? 400)) - t.StopShort;
+
     /// <summary>
-    /// A Waker's earth and dust (note 599): rising, the clods it heaves up and the bank of dust it breaks out of; running,
-    /// what its feet raise, a stride as long as its pace makes it (the stir's thuds keep the same beat, <see cref="DawnStir"/>).
+    /// The car the Waker holding the train is eating (note 679): the rearmost car he hasn't finished (an eaten one's drawn far
+    /// under the ground, <see cref="WakerLift"/>) and how far through his eating of it he is (0 till wakers.eatAfter, then
+    /// 0..1 over each wakers.eatSeconds, as the sim counts them eaten). Null with nobody holding it.
+    /// </summary>
+    (Sim.Enemies.Waker Waker, CarFrame Car, double Through)? WakerEating(IReadOnlyList<CarFrame> frames)
+    {
+        if (frames.Count == 0 || Enemies?.OfType<Sim.Enemies.Waker>().FirstOrDefault(w => w.Lead && w.Holds && !w.Gone) is not { } e)
+            return null;
+        var t = Look?.Art.Creatures?.WakersTuning ?? new Sim.Enemies.WakersTuning();
+        double floor = frames[0].Origin.Y - 100;
+        for (int i = frames.Count - 1; i >= 0; i--)
+            if (frames[i].Origin.Y > floor)
+            {
+                double into = e.Extra - t.EatAfter;
+                double through = into < 0 ? 0 : (into - Math.Floor(into / Math.Max(1e-6, t.EatSeconds)) * t.EatSeconds) / Math.Max(1e-6, t.EatSeconds);
+                return (e, frames[i], through);
+            }
+        return null;
+    }
+
+    /// <summary>
+    /// What a Waker's art needs of the scene (note 679): whether he's stood at the walls; and, the one holding the train, where
+    /// his mouth goes: on the car he's eating (the top of <see cref="WakerLift"/>'s ramp, which the lift has drawn the frames up
+    /// to), its end at first, then on down it as he bites it off (<see cref="Art.Bite.Waker"/>), to the next car's end.
+    /// </summary>
+    Art.WakerScene WakerIn(Sim.Enemies.Waker e, RailLine line, IReadOnlyList<CarFrame> frames, Double3 eye)
+    {
+        var t = Look?.Art.Creatures?.WakersTuning ?? new Sim.Enemies.WakersTuning();
+        bool walls = e.Phase == SpinePhase.Commit && e.LineDistance >= WakerWall(line, t) - 1;
+        if (WakerEating(frames) is not { } eating || eating.Waker != e)
+            return new Art.WakerScene(walls);
+        var held = eating.Car;
+        double half = held.Shape.HalfLength, rear = held.Shape.Platform is { } p ? p.Max.Z : half;
+        var end = held.ToWorld(new Double3(0, WakerMouthHeight, rear - eating.Through * (rear + half)));
+        return new Art.WakerScene(walls, V(end, eye));
+    }
+
+    /// <summary>How high up a car's end (m over its floor's frame) a Waker takes it in his mouth: the middle of its body.</summary>
+    const double WakerMouthHeight = 2.6;
+
+    /// <summary>
+    /// A Waker's earth and dust (note 599): rising, the clods it heaves up and the bank of dust it breaks out of; running, the
+    /// dust where each of his feet comes down, where it came down (note 679: his stride, <see cref="WakerGait"/>; the stir's
+    /// thuds are the same footfalls, <see cref="DawnStir"/>).
     /// </summary>
     void WakerDust(MeshBuilder mesh, Art.Effects fx, Enemy e, RailLine line, Double3 eye)
     {
@@ -1966,13 +2033,31 @@ public sealed partial class GreyboxScene
             return;
         fx.WakerRise(mesh, V(feet, eye), r, b, since, t.RiseSeconds, WakerRise.Up(e.Phase, e.PhaseSeconds, t.RiseSeconds), e.Id);
         // Stopped short of the terminus's gate, it stands there under the town's guns (wakers.md §4); else it's coming on.
-        double wall = (Route?.Plan?.Terminus.GateM ?? line.Length - (Run?.Tuning.TerminusZone ?? 400)) - t.StopShort;
+        double wall = WakerWall(line, t);
         if (e.Phase == SpinePhase.Commit && e.LineDistance >= wall - 1)
             fx.WallGuns(mesh, Arrival is { Plan.Bounds: not null } walled ? WallGuns(walled, eye) : WallGuns(line, wall + t.StopShort, eye),
-                V(feet + Double3.Up * 12, eye), V(feet, eye), Time, e.Id);
+                V(feet + Double3.Up * WakerBack, eye), V(feet, eye), Time, e.Id);
         else if (e.Phase == SpinePhase.Commit)
-            fx.WakerStride(mesh, V(feet, eye), r, b, Time, 1.4, e.Id);
+        {
+            // Each foot's last footfall: where it came down (ahead of where he was then), and how long ago.
+            double v = WakerGait.Speed(e.PhaseSeconds, t), cycles = WakerGait.Cycles(e.PhaseSeconds, t);
+            double cycle = WakerGait.CycleSeconds(v), reach = WakerGait.Reach(v);
+            for (int foot = 0; foot < 2; foot++)
+            {
+                double c = cycles - foot * 0.5;
+                if (c < 0)
+                    continue;
+                double ago = (c - Math.Floor(c)) * cycle;
+                var down = line.Sample(e.LineDistance - v * ago + reach);
+                var side = Double3.Cross(down.Tangent, Double3.Up).Normalized;
+                var p = down.Position + side * (e.Lateral + (foot == 0 ? 1 : -1) * WakerGait.FootOut) + Double3.Up * e.Height;
+                fx.WakerFootfall(mesh, V(p, eye), r, b, ago, e.Id * 2 + foot);
+            }
+        }
     }
+
+    /// <summary>How high a Waker's back is over his feet stood (m): where the town's shots land on him.</summary>
+    const double WakerBack = 40;
 
     /// <summary>
     /// The terminus's guns that bear on what's stopped outside its gate (note 599): one on each of the gatehouse's towers and on
@@ -2531,7 +2616,8 @@ public sealed partial class GreyboxScene
                 {
                     // What gets up at dawn (note 588; docs/design/creatures/wakers.md): the land standing up, a car a mouthful.
                     // Rising (TELEGRAPH) it heaves up out of the ground; running, it's bent over the line, long arms reaching;
-                    // holding the train, the arms are up at the last car and its head down to it. Its model is C1/E1's.
+                    // holding the train, the arms are up at the last car and its head down to it. With the art, the Peat Man
+                    // is drawn instead (note 679; CreatureArt.Waker.cs).
                     var earth = Palette.DeepBrown * 0.55f;
                     double sink = WakerRise.Sink(e.Phase, e.PhaseSeconds, creatures?.WakersTuning.RiseSeconds ?? new Sim.Enemies.WakersTuning().RiseSeconds);
                     bool holds = e.Phase == SpinePhase.Punish;
@@ -3429,8 +3515,8 @@ public sealed partial class GreyboxScene
                 Lap(mesh, "town streets");
                 // A town that's lived in (App. F.3, the director: the fortresses feel static): smoke from its chimneys, and
                 // its watch walking the wall with their lanterns.
-                foreach (var top in Look.Art.World.Chimneys(line, eye, town, 160))
-                    Look.Art.Effects.Chimney(mesh, top, Time, (int)(top.X * 7 + top.Z * 13));
+                foreach (var (top, seed) in Look.Art.World.Chimneys(line, eye, town, 160))
+                    Look.Art.Effects.Chimney(mesh, top, Time, seed);
                 // Its lights on the fog over it (note 490): what a crew coming home sees over the wall long before any lamp, and
                 // looks back at as it leaves. Faint from inside, where the lamps themselves are the light.
                 foreach (var (at, size, colour, strength) in Art.WorldArt.Glow(town))
@@ -3439,9 +3525,9 @@ public sealed partial class GreyboxScene
                     mesh.Billboard(V(at, eye), size, 0, new Vector4(colour * strength * (0.06f + 1.2f * far), 1), -1, FxBlend.Additive);
                 }
                 // And the works' (note 353): the foundry's stack and the winding house's chimney, thicker.
-                foreach (var top in Look.Art.World.Stacks(line, eye, town, 420))
+                foreach (var (top, seed) in Look.Art.World.Stacks(line, eye, town, 420))
                     for (int plume = 0; plume < 3; plume++)
-                        Look.Art.Effects.Chimney(mesh, top + new Vector3(0, plume * 0.6f, 0), Time + plume * 1.7, (int)(top.X * 7 + top.Z * 13) + plume * 31);
+                        Look.Art.Effects.Chimney(mesh, top + new Vector3(0, plume * 0.6f, 0), Time + plume * 1.7, seed + plume * 31);
                 Lap(mesh, "town smoke");
                 foreach (var (feet, facing, variant) in Art.WorldArt.Watch(town, gateAt, Time))
                     if ((feet - eye).Length < 260)
@@ -4513,7 +4599,7 @@ public sealed partial class GreyboxScene
     /// track on a lamp-lit chart, north up, its stops marked (facilities amber, villages pale), and where the train is now
     /// in red, moving along it.
     /// </summary>
-    void CabMap(MeshBuilder mesh, CarFrame frame, Action<Box, Vector3> draw)
+    void CabMap(MeshBuilder mesh, CarFrame frame, Double3 eye, Action<Box, Vector3> draw)
     {
         if (_line is not { } line || frame.Shape.Cab is not { } cab)
             return;
@@ -4552,95 +4638,20 @@ public sealed partial class GreyboxScene
             var (u, v) = Chart(wx, wz);
             return new(x0 + W / 2 + (u - _mapFit.U0) * _mapFit.Scale, y0 + H / 2 + (v - _mapFit.V0) * _mapFit.Scale, z + lift);
         }
-        // Flat ink on paper: no surface treatment (it'd take the paper's colour for stone).
+        // The sheet (all of it but where the train is) is the same every frame: cooked once for the line and the engine, in
+        // the cab's own frame, and drawn where the cab is (note 695: it was 4,400 triangles built again every frame).
+        if (_mapSheet is null || !ReferenceEquals(_mapSheetOf.Line, line) || !ReferenceEquals(_mapSheetOf.Route, Route) || !ReferenceEquals(_mapSheetOf.Shape, frame.Shape))
+        {
+            // Flat ink on paper: no surface treatment (it'd take the paper's colour for stone).
+            var sheet = new MeshBuilder { Emissive = 0.08f };
+            Sheet((b, colour) => sheet.Box(ToF(b.Centre), Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, ToF(b.HalfSize), colour));
+            _mapSheet = MeshAsset.From("cab-map", sheet);
+            _mapSheetOf = (line, Route, frame.Shape);
+            FrameCounts.Add("cab maps built");
+        }
+        mesh.Instances.Add(new MeshInstance(_mapSheet, Art.SceneArt.FrameMatrix(frame, eye)));
         var style = mesh.Style;
         mesh.Style = null;
-        mesh.Emissive = 0.08f;
-        draw(new Box(new Double3(x0, y0, z), new Double3(x0 + W, y0 + H, z + 0.008)), MapPaper);
-        draw(new Box(new Double3(x0 - 0.015, y0 - 0.015, z - 0.002), new Double3(x0 + W + 0.015, y0 + H + 0.015, z + 0.004)), Palette.DeepBrown);
-        MapChart(draw, x0, y0, z, W, H);
-        foreach (var (dx, dz) in _mapDots)
-            draw(Box.FromCentre(On(dx, dz, 0.01), new Double3(0.005, 0.005, 0.002)), MapInk);
-        if (Route is { } route)
-            foreach (var f in route.Features.Where(f => f.Kind is FeatureKind.Facility or FeatureKind.Village))
-            {
-                var p = MapStop(line, f, length);
-                draw(Box.FromCentre(On(p.X, p.Z, 0.012), new Double3(0.009, 0.009, 0.003)), f.Kind == FeatureKind.Facility ? Palette.LampAmber : Palette.BoardEnamel);
-            }
-        // T121 playtest ("on bends on the map put a number there that shows the top speed the bend can be taken"): each
-        // posted stretch inked over in red, and its board's figure in km/h beside it, on the outside of the bend. Where two
-        // would print over each other the slower one wins: it's the one that derails you.
-        // Note 266 (the director, 6 Oct: every point that can derail the train "clearly identifiable on the cab map as a
-        // derailment point with its limit"): those (a bend, a weak bridge) in red; a limit that only costs the engine
-        // (brass) in the map's ink. Note 671 (13 Oct: "we just show the number"): the figure alone, no key and no word
-        // after it; the red says which ones have you off.
-        // What's lettered already: the night's name along the top, the scale's figure bottom right. A figure that'd print
-        // on one of them (or on a slower bend's) goes on the bend's other side, or isn't printed (the red rule stays).
-        var font = BitmapFont.Default;
-        var labelled = new List<(double X0, double Y0, double X1, double Y1)>
-        {
-            (x0 + 0.02, y0 + H - 0.026 - font.Height * MapTitleSize, x0 + 0.028 + font.Measure(MapTitle) * MapTitleSize, y0 + H),
-            (x0 + W * 0.55, y0, x0 + W, y0 + 0.04),
-        };
-        var figured = new List<(double X, double Y)>();
-        foreach (var (s0, s1, kmh, why) in PostedBends(line, length).OrderBy(b => b.Kmh))
-        {
-            bool derails = LineGen.PostedSpeeds.Derails(why);
-            var ink = derails ? MapLimit : MapInk;
-            int steps = Math.Max(2, (int)((s1 - s0) / (length / 180)));
-            for (int i = 0; i <= steps; i++)
-            {
-                var q = line.Sample(RailLine.MainPath, s0 + (s1 - s0) * i / steps).Position;
-                draw(Box.FromCentre(On(q.X, q.Z, 0.011), new Double3(0.006, 0.006, 0.002)), ink);
-            }
-            var a = line.Sample(RailLine.MainPath, s0).Position;
-            var b = line.Sample(RailLine.MainPath, s1).Position;
-            var m = line.Sample(RailLine.MainPath, (s0 + s1) / 2).Position;
-            var mid = On(m.X, m.Z, 0);
-            // Out from the bend: from its chord's middle through the arc's; a straight stretch (a bridge) puts it above.
-            var chord = (On(a.X, a.Z, 0) + On(b.X, b.Z, 0)) * 0.5;
-            var outward = new Double3(mid.X - chord.X, mid.Y - chord.Y, 0);
-            outward = outward.Length > 0.004 ? outward.Normalized : new Double3(0, 1, 0);
-            // A bend hard by one already figured (they come slowest first) shares its figure: the slower one's the one to read.
-            if (figured.Any(f => Math.Abs(f.X - mid.X) < 0.06 && Math.Abs(f.Y - mid.Y) < 0.04))
-                continue;
-            string figure = LineGen.PostedSpeeds.Figure(kmh);
-            const double px = 0.0045;
-            double w = font.Measure(figure) * px, h = font.Height * px;
-            // Out from the bend first, then in, then off its shoulders: the first spot clear of the lettering and of the
-            // line's own ink; failing that, the first clear of the lettering.
-            (double X, double Y)? place = null, crossed = null;
-            var spots = new[] { (outward.X, outward.Y), (-outward.X, -outward.Y), (1.0, 0.0), (-1.0, 0.0), (0.8, -0.6), (-0.8, -0.6), (0.8, 0.6), (-0.8, 0.6) };
-            foreach (var (ox, oy, far) in spots.Select(o => (o.Item1, o.Item2, 1.0)).Concat(spots.Select(o => (o.Item1, o.Item2, 2.0))))
-            {
-                double cx = Math.Clamp(mid.X + ox * (0.012 + w / 2) * far, x0 + w / 2 + 0.015, x0 + W - w / 2 - 0.015);
-                double cy = Math.Clamp(mid.Y + oy * (0.012 + h / 2) * far, y0 + h / 2 + 0.015, y0 + H - h / 2 - 0.015);
-                bool Hits(double px, double py, double pad) => px > cx - w / 2 - pad && px < cx + w / 2 + pad && py > cy - h / 2 - pad && py < cy + h / 2 + pad;
-                if (labelled.Any(l => cx + w / 2 + 0.004 > l.X0 && cx - w / 2 - 0.004 < l.X1 && cy + h / 2 + 0.004 > l.Y0 && cy - h / 2 - 0.004 < l.Y1))
-                    continue;
-                crossed ??= (cx, cy);
-                if (_mapDots.Any(d => On(d.X, d.Z, 0) is var q && Hits(q.X, q.Y, 0.006)))
-                    continue;
-                place = (cx, cy);
-                break;
-            }
-            if ((place ?? crossed) is not { } c)
-                continue;
-            labelled.Add((c.X - w / 2, c.Y - h / 2, c.X + w / 2, c.Y + h / 2));
-            figured.Add((mid.X, mid.Y));
-            MapFigure(draw, figure, c.X - w / 2, c.Y + h / 2, z + 0.013, px, ink);
-        }
-        // A scale bar under it, bottom right: a kilometre (five, if one's too short to read), in ink.
-        double km = _mapFit.Scale * 1000 >= 0.04 ? 1 : 5, bar = _mapFit.Scale * 1000 * km;
-        if (bar < W * 0.4)
-        {
-            double bx1 = x0 + W - 0.03, bx0 = bx1 - bar, by = y0 + 0.022;
-            draw(new Box(new Double3(bx0, by, z + 0.009), new Double3(bx1, by + 0.004, z + 0.011)), MapInk);
-            for (int i = 0; i <= 2; i++)
-                draw(new Box(new Double3(bx0 + bar * i / 2 - 0.0015, by, z + 0.009), new Double3(bx0 + bar * i / 2 + 0.0015, by + (i == 1 ? 0.007 : 0.011), z + 0.011)), MapInk);
-            string label = $"{km:0} KM";
-            MapFigure(draw, label, bx0 - BitmapFont.Default.Measure(label) * 0.004 - 0.008, by + 0.014, z + 0.011, 0.004, MapInk);
-        }
         mesh.Emissive = 1;
         // The engine where it is: its distance is along its own path, which on a spur or an alternate isn't the main line's.
         var at = frame.Origin;
@@ -4648,7 +4659,99 @@ public sealed partial class GreyboxScene
         draw(Box.FromCentre(On(at.X, at.Z, 0.014), new Double3(0.013, 0.013, 0.003)), Palette.SignalRed * pulse);
         mesh.Emissive = 0;
         mesh.Style = style;
+
+        void Sheet(Action<Box, Vector3> draw)
+        {
+            draw(new Box(new Double3(x0, y0, z), new Double3(x0 + W, y0 + H, z + 0.008)), MapPaper);
+            draw(new Box(new Double3(x0 - 0.015, y0 - 0.015, z - 0.002), new Double3(x0 + W + 0.015, y0 + H + 0.015, z + 0.004)), Palette.DeepBrown);
+            MapChart(draw, x0, y0, z, W, H);
+            foreach (var (dx, dz) in _mapDots)
+                draw(Box.FromCentre(On(dx, dz, 0.01), new Double3(0.005, 0.005, 0.002)), MapInk);
+            if (Route is { } route)
+                foreach (var f in route.Features.Where(f => f.Kind is FeatureKind.Facility or FeatureKind.Village))
+                {
+                    var p = MapStop(line, f, length);
+                    draw(Box.FromCentre(On(p.X, p.Z, 0.012), new Double3(0.009, 0.009, 0.003)), f.Kind == FeatureKind.Facility ? Palette.LampAmber : Palette.BoardEnamel);
+                }
+            // T121 playtest ("on bends on the map put a number there that shows the top speed the bend can be taken"): each
+            // posted stretch inked over in red, and its board's figure in km/h beside it, on the outside of the bend. Where two
+            // would print over each other the slower one wins: it's the one that derails you.
+            // Note 266 (the director, 6 Oct: every point that can derail the train "clearly identifiable on the cab map as a
+            // derailment point with its limit"): those (a bend, a weak bridge) in red; a limit that only costs the engine
+            // (brass) in the map's ink. Note 671 (13 Oct: "we just show the number"): the figure alone, no key and no word
+            // after it; the red says which ones have you off.
+            // What's lettered already: the night's name along the top, the scale's figure bottom right. A figure that'd print
+            // on one of them (or on a slower bend's) goes on the bend's other side, or isn't printed (the red rule stays).
+            var font = BitmapFont.Default;
+            var labelled = new List<(double X0, double Y0, double X1, double Y1)>
+        {
+            (x0 + 0.02, y0 + H - 0.026 - font.Height * MapTitleSize, x0 + 0.028 + font.Measure(MapTitle) * MapTitleSize, y0 + H),
+            (x0 + W * 0.55, y0, x0 + W, y0 + 0.04),
+        };
+            var figured = new List<(double X, double Y)>();
+            foreach (var (s0, s1, kmh, why) in PostedBends(line, length).OrderBy(b => b.Kmh))
+            {
+                bool derails = LineGen.PostedSpeeds.Derails(why);
+                var ink = derails ? MapLimit : MapInk;
+                int steps = Math.Max(2, (int)((s1 - s0) / (length / 180)));
+                for (int i = 0; i <= steps; i++)
+                {
+                    var q = line.Sample(RailLine.MainPath, s0 + (s1 - s0) * i / steps).Position;
+                    draw(Box.FromCentre(On(q.X, q.Z, 0.011), new Double3(0.006, 0.006, 0.002)), ink);
+                }
+                var a = line.Sample(RailLine.MainPath, s0).Position;
+                var b = line.Sample(RailLine.MainPath, s1).Position;
+                var m = line.Sample(RailLine.MainPath, (s0 + s1) / 2).Position;
+                var mid = On(m.X, m.Z, 0);
+                // Out from the bend: from its chord's middle through the arc's; a straight stretch (a bridge) puts it above.
+                var chord = (On(a.X, a.Z, 0) + On(b.X, b.Z, 0)) * 0.5;
+                var outward = new Double3(mid.X - chord.X, mid.Y - chord.Y, 0);
+                outward = outward.Length > 0.004 ? outward.Normalized : new Double3(0, 1, 0);
+                // A bend hard by one already figured (they come slowest first) shares its figure: the slower one's the one to read.
+                if (figured.Any(f => Math.Abs(f.X - mid.X) < 0.06 && Math.Abs(f.Y - mid.Y) < 0.04))
+                    continue;
+                string figure = LineGen.PostedSpeeds.Figure(kmh);
+                const double px = 0.0045;
+                double w = font.Measure(figure) * px, h = font.Height * px;
+                // Out from the bend first, then in, then off its shoulders: the first spot clear of the lettering and of the
+                // line's own ink; failing that, the first clear of the lettering.
+                (double X, double Y)? place = null, crossed = null;
+                var spots = new[] { (outward.X, outward.Y), (-outward.X, -outward.Y), (1.0, 0.0), (-1.0, 0.0), (0.8, -0.6), (-0.8, -0.6), (0.8, 0.6), (-0.8, 0.6) };
+                foreach (var (ox, oy, far) in spots.Select(o => (o.Item1, o.Item2, 1.0)).Concat(spots.Select(o => (o.Item1, o.Item2, 2.0))))
+                {
+                    double cx = Math.Clamp(mid.X + ox * (0.012 + w / 2) * far, x0 + w / 2 + 0.015, x0 + W - w / 2 - 0.015);
+                    double cy = Math.Clamp(mid.Y + oy * (0.012 + h / 2) * far, y0 + h / 2 + 0.015, y0 + H - h / 2 - 0.015);
+                    bool Hits(double px, double py, double pad) => px > cx - w / 2 - pad && px < cx + w / 2 + pad && py > cy - h / 2 - pad && py < cy + h / 2 + pad;
+                    if (labelled.Any(l => cx + w / 2 + 0.004 > l.X0 && cx - w / 2 - 0.004 < l.X1 && cy + h / 2 + 0.004 > l.Y0 && cy - h / 2 - 0.004 < l.Y1))
+                        continue;
+                    crossed ??= (cx, cy);
+                    if (_mapDots.Any(d => On(d.X, d.Z, 0) is var q && Hits(q.X, q.Y, 0.006)))
+                        continue;
+                    place = (cx, cy);
+                    break;
+                }
+                if ((place ?? crossed) is not { } c)
+                    continue;
+                labelled.Add((c.X - w / 2, c.Y - h / 2, c.X + w / 2, c.Y + h / 2));
+                figured.Add((mid.X, mid.Y));
+                MapFigure(draw, figure, c.X - w / 2, c.Y + h / 2, z + 0.013, px, ink);
+            }
+            // A scale bar under it, bottom right: a kilometre (five, if one's too short to read), in ink.
+            double km = _mapFit.Scale * 1000 >= 0.04 ? 1 : 5, bar = _mapFit.Scale * 1000 * km;
+            if (bar < W * 0.4)
+            {
+                double bx1 = x0 + W - 0.03, bx0 = bx1 - bar, by = y0 + 0.022;
+                draw(new Box(new Double3(bx0, by, z + 0.009), new Double3(bx1, by + 0.004, z + 0.011)), MapInk);
+                for (int i = 0; i <= 2; i++)
+                    draw(new Box(new Double3(bx0 + bar * i / 2 - 0.0015, by, z + 0.009), new Double3(bx0 + bar * i / 2 + 0.0015, by + (i == 1 ? 0.007 : 0.011), z + 0.011)), MapInk);
+                string label = $"{km:0} KM";
+                MapFigure(draw, label, bx0 - BitmapFont.Default.Measure(label) * 0.004 - 0.008, by + 0.014, z + 0.011, 0.004, MapInk);
+            }
+        }
     }
+
+    MeshAsset? _mapSheet;
+    (RailLine? Line, Route? Route, CarShape? Shape) _mapSheetOf;
 
     /// <summary>
     /// Where the run map marks a stop: where the train stands at it (its layout's stop point: a halt's platform, a yard's
@@ -4751,7 +4854,7 @@ public sealed partial class GreyboxScene
         {
             // Only read from the footplate: from farther off it's a pale square, and not worth its dots in the frame budget.
             if ((frame.Origin - eye).Length < 16)
-                CabMap(mesh, frame, draw);
+                CabMap(mesh, frame, eye, draw);
             mesh.Emissive = 1;
             // The fire, through the firehole: the back of the firebox dull with its light, and the bed of coals along the
             // bottom bright (the firehole's sides frame it, Art/TrainKit).
@@ -4817,7 +4920,7 @@ public sealed partial class GreyboxScene
             // Lanterns hanging where the car's lights are (the art pass's), and the car's fittings: its extinguisher's
             // board and cradle, a gun car's powder and shot.
             var fitted = Vehicles is { } lampsOf && frame.Index < lampsOf.Count ? lampsOf[frame.Index] : null;
-            var bitten = Art.Bite.For(Look.Tuning.Bite, frame.Shape, fitted, frame.Index);
+            var bitten = Look.Art.BiteOf(frame.Shape, fitted, frame.Index);
             Look.Art.CarLamps(mesh, frame, eye, Emergency, bitten, lit: !CarDark(frame.Index) && frame.Index < (Vehicles?.Count ?? int.MaxValue) - LampsOut,
                 sway: LampSwayOf?.Invoke(frame.Index) ?? 0);
             Look.Art.Fittings(mesh, frame, eye, fitted, bitten);

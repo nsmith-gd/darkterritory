@@ -36,7 +36,7 @@ These are the rules that make the engine usable by an agent without a human in t
 3. **Every system is runnable headless.** Simulation, networking, audio mixing (offline render to buffer) and rendering (offscreen, to PNG) run without a window. In cloud containers rendering uses Mesa lavapipe (software Vulkan).
 4. **The engine can be driven and inspected from outside.** A `dt` CLI covers batch work (`dt train table`, `dt sim …`, `dt screenshot …`, `dt harness …`). A local JSON-RPC control port on the running game lets an agent query entities, set tuning, teleport, spawn, step, and capture frames.
 5. **Fast verification loop.** `dotnet build` + `dotnet test` in seconds. Scenario tests pin the design numbers (see `tests/DarkTerritory.Sim.Tests/SpecTableTests.cs`). Visual changes are verified by golden screenshots the agent looks at.
-6. **Humans tune while it runs.** All numbers live in hot-reloaded data files (`HotData<T>`). The editor's inspector writes back to the same files, so designer tweaks show up as diffs Claude can see.
+6. **Humans tune while it runs.** All numbers live in hot-reloaded data files (`HotData<T>`): in a dev build, or with `--hot-reload`, watched and reread when they change; a player's game loads them once (note 687). The editor's inspector writes back to the same files, so designer tweaks show up as diffs Claude can see.
 7. **One code path.** Bots, the agent harness, and real players all send the same *intent* input to the same host simulation over the same transport interface.
 
 ## 3. Language: C# on .NET 10
@@ -862,10 +862,14 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [677. Test reports in one file, in the game's folder (A1, queue #409; the director, 13 Oct 2026: "I want them stored as logs in the game folder…](notes/677.md)
 - [679. The Wakers' model (queue #411, C1; docs/design/creatures/wakers.md §8.3, note 588; the director, 13 Oct 2026: "propose some model designs…](notes/679.md)
 - [680. The gym's calls, from the director's run-through (A1, queue #412; GDD §34.1, App. F.5; the director, 13 Oct 2026, from inside the gym: "The…](notes/680.md)
+- [681. Grabs alone: Use is the struggle's, a chance at best, and the holder stays (A1, queue #413; GDD App. C.1, App. F.5; the director, 13 Oct…](notes/681.md)
 - [684. A moved board says its distance from where it stands (B4, queue #416; note 560's handoff, not yet (1); the director, 13 Oct, `pt13-signs`)](notes/684.md)
 - [686. A board past a truss isn't read through the truss (B4, queue #418; note 560's handoff, not yet (2); the director, 13 Oct, `pt13-signs`:…](notes/686.md)
 - [687. Hot reload out of a player's build, and watched not polled in a dev one (D1, queue #419; the director, 13 Oct, on note 666's suggestions:…](notes/687.md)
 - [688. Chimney smoke runs faster as the player moves (D1, queue #420; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 4)](notes/688.md)
 - [689. The guns said NO STEAM after coaling, and wouldn't fire (D1, queue #421; the director, 13 Oct evening,…](notes/689.md)
+- [691. A performance report from a build (A1, queue #423; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 5)](notes/691.md)
+- [693. A board stands back beyond a dead line alongside (B4, queue #425; note 560's handoff, not yet (3); the director, 13 Oct, `pt13-signs`: "I…](notes/693.md)
 - [694. The townsfolk lookbook (P1, queue #426; the director, 13 Oct 2026, with a lookbook of ten town characters: "We want to create more NPC…](notes/694.md)
+- [695. A top-to-bottom performance audit (A1, queue #427; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` lines 1–3)](notes/695.md)
 <!-- end of the notes index -->

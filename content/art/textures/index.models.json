@@ -16014,6 +16014,26 @@
     ]
   },
   {
+    "name": "waker_0",
+    "diffuse": "models/waker_0.png",
+    "spec": "models/waker_0_s.png",
+    "normal": "models/waker_0_n.png",
+    "size": 2048,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/waker.py",
+        "what": "the Waker (the Peat Man), modelled in tools/blender/waker.py, its colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
     "name": "wall_face_0",
     "diffuse": "models/wall_face_0.png",
     "spec": "models/wall_face_0_s.png",

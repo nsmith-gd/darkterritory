@@ -224,7 +224,7 @@ public sealed class LookbookKit(Look? look)
         bool modelled = figure == c.Modelled;
         foreach (var (piece, bone) in Worn(c.Id))
             if (!modelled || !Baked(c.Id).Contains(piece))
-                creatures.Wear(mesh, Get(modelled && piece == "lampmask" ? "masklamp" : piece, c), bone, model, figure, instanced: far);
+                creatures.Wear(mesh, Get(modelled && piece == "lampmask" ? "masklamp" : piece, c), bone, model, figure);
         if (hands)
             foreach (var (piece, left, upright) in Held(c.Id))
                 if (left || !lamp)

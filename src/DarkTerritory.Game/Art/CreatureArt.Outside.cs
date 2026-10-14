@@ -150,6 +150,9 @@ public sealed partial class CreatureArt
                 }
             case EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw or EnemyKind.Pickers or EnemyKind.Lodger or EnemyKind.Householder:
                 return false;
+            case EnemyKind.Waker when _models.ContainsKey("waker"):
+                // THE WAKER, the Peat Man (note 679; tools/blender/waker.py; CreatureArt.Waker.cs).
+                return DrawWaker(mesh, model, phase, t, extra);
             case EnemyKind.Waker:
                 return WakerStandIn(mesh, model, phase, t, WakersTuning.RiseSeconds);
         }
@@ -157,7 +160,7 @@ public sealed partial class CreatureArt
     }
 
     /// <summary>
-    /// A Waker (note 588; docs/design/creatures/wakers.md) until its model comes (C1/E1, the art checklist): the land standing
+    /// A Waker (note 588; docs/design/creatures/wakers.md) where his model isn't there (note 679's is): the land standing
     /// up, a car a mouthful. Rising, it heaves up out of the ground; running, it's bent over the line, long arms reaching;
     /// holding the train, the arms up at the last car and its head down to it. Earth, unlit.
     /// </summary>

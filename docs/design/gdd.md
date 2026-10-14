@@ -1231,6 +1231,21 @@ A developer build keeps its notes and reports where the director can find them, 
 - **If the game's folder can't be written** (installed under Program Files, say), all of it goes where it always did, the user's app data (`%LOCALAPPDATA%\DarkTerritory`), and the log's first lines say where the test reports are.
 - **A player's build is as it was:** a report is a file of its own in the app data, mailed from the game (note 452).
 
+### 34.3 The performance report *(the director, 13 Oct 2026, playing Test build 22; ARCHITECTURE §8 note 691)*
+
+"I think we're gonna need some performance logging. A way that I can send you ... a build report or a performance report."
+
+Every night the game plays is timed frame by frame, and what it found is written down for the studio to read. The director sends it in the file the notes already go in.
+
+- **The night's report.** When a night ends, or the game is closed during one, a performance report goes on the end of `logs/test-reports.txt` (§34.2) under its own numbered rule. It has:
+  - **The frames:** how many, and the time a frame took at the 50th, 90th, 99th and 99.9th percentiles, and the worst. A histogram shows the share of frames in each band, from 120 fps down to under 4 fps.
+  - **The hitches:** a frame at least twice the median of the last 120 frames and at least 25 ms. The player feels these as a stutter. Note 549's slow frames (100 ms and 4× the median) are the worst of them. The report counts them, and says which part of the frame led each one: input, the sim, the audio and HUD, the scene, the upload, or the render and present.
+  - **The frame's parts:** what each part of a frame costs on average, in time and in memory allocated. That includes the scene's own parts (the track, the cars, a town's houses, its folk). A part that allocates every frame keeps the garbage collector busy, and its pauses are stutters. The night's first frames, its loading, aren't counted.
+  - **The night minute by minute:** each minute's median, its 99th percentile, its hitches and where the night was (km, speed, phase). A stutter coming back into town shows as the minutes it happened in.
+  - **The worst hitches,** a dozen, each with its parts and the garbage collector's work. Each also gives how fast the view was turning, the scenery cooked on the spot that frame, and where the night was.
+- **With every note.** A note typed with F8 or spoken with F9 carries the last minute's frames in the same form, so "it's stuttering here" comes with the frames it means.
+- **In every build.** The night's report also goes in the launch log, so a player's REPORT A PROBLEM carries its last lines. Only a developer build writes `test-reports.txt`.
+
 ---
 
 # PART TEN — PRODUCTION
@@ -2049,7 +2064,7 @@ Spawn tuning is the single largest use of the agent harness. Nineteen enemies ag
 The roster depends on nine systems. Each is shared by several enemies, so each is built once. The ninth, failure attribution, was added in v1.3.
 
 1. **The GRAB rescue state.** Part of the shared skeleton (A.1): a held player, a timer (8–20s), an interrupt that ends in BREAK OFF, and a hook for voice effects. **A held player can talk at full clarity** unless the enemy applies a voice effect (C.8). Their commentary is the point of the window: it's the call for help, and it's the joke.
-   **Alone** *(the director, 13 Oct 2026, from the creature gym, App. F.5: "holding e shouldn't always result in escape, it should at best give me a 15% chance of escape")*: a held player can struggle (hold Use), but it's a chance and never a sure thing, at best 15%. A creature struggled off doesn't vanish: it's still there, and it comes again. While you're held, Use is the struggle's alone: nothing else in reach (the firebox's coal, a door, a lever) takes it.
+   **Alone** *(the director, 13 Oct 2026, from the creature gym, App. F.5: "holding e shouldn't always result in escape, it should at best give me a 15% chance of escape")*: a held player can struggle (hold Use, `grab.soloStruggle`, 4 s: shorter than any creature's hold), but it's a chance and never a sure thing: one try a grab, at best 15% (`grab.soloStruggleChance`). A creature struggled off doesn't vanish: it's still there, and it comes again (a Whistler back in its gap, to whistle again; a Soot Child a few steps off, calling). While you're held, Use is the struggle's alone: nothing else in reach (the firebox's coal, a door, a lever) takes it. *(Queue #413, ARCHITECTURE §8 note 681.)*
 2. **Melee.** The core verb. The tools already on the train are the weapons: shovel, wrench, crowbar. The boiler player's shovel doubling as the crew's best club is intended tension. *(Note 664, the director, 13 Oct: "Every crew member should be able to shovel coal regardless of having the shovel in their hand": coal goes on without it, and the shovel's a club on the cab's rack. `boiler.json shovelInHand` false.)* Server-authoritative hits with lag compensation.
 3. **Cannons.** Bullets and guns are rare in this world; crude cannons and crude gunpowder are not. Each mounted cannon has a full manual reload (powder, ball, ram, fire), so every shot is a timed decision. Powder and shot are stocked at departure. *A gun fires what's in its ready rack, six rounds; the rest of the night's powder is in the guard van's powder locker, the engine gun's share too, and comes up a charge at a time, carried by hand to the gun (ARCHITECTURE §8 note 374; [orchestrator.md](orchestrator.md) §5.1 U4). In a wave a gun is a two-person job: a gunner, and someone bringing the powder. A bot crew splits it the same way (note 377).*
 4. **Hand-carried loot.** Small items players carry alongside car-level freight: toys (for the Track Doll), crates (the Grumbler), salvage, and a rescued child. Carrying runs at 2.8 m/s with no climbing, per the systems spec. **Some toys are noisy** (a squeaker, a music box, a wind-up drummer). They emit sound while carried or jostled and feed the loudness meter in the carrier's name (C.7). They are worth more than quiet toys, and the Track Doll likes them just as much.
@@ -2643,8 +2658,8 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 - Tippy Toesie is called very far away, which makes no sense. Many of the creatures' spawn rules need putting to the director for review, in the inbox. *In progress (queue #412, note 680) for Tippy Toesie in the gym (§34.1); the spawn rules' review is open.*
 
 **Grabs** (App. C.1)
-- Struggling free is holding E, and beside the firebox the same hold also shovels coal: input needs priorities. *Open; design change → App. C.1.*
-- The Whistler, and creatures like it, shouldn't vanish when you hold E to escape. Holding E shouldn't always get you out: at best a 15% chance. *Open; design change → App. C.1.*
+- Struggling free is holding E, and beside the firebox the same hold also shovels coal: input needs priorities. *In progress (queue #413, ARCHITECTURE §8 note 681); design change → App. C.1.*
+- The Whistler, and creatures like it, shouldn't vanish when you hold E to escape. Holding E shouldn't always get you out: at best a 15% chance. *In progress (queue #413, note 681); design change → App. C.1.*
 
 **The creatures**
 - The Soot Children: the kill looks terrible as animation. *Open.*

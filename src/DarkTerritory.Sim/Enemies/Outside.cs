@@ -838,6 +838,26 @@ public sealed class SootChildren(int id) : Enemy(id)
         }
     }
 
+    /// <summary>
+    /// Struggled free of alone, it lets go and backs off a few steps past its lunge, calling again (App. C.1; the director,
+    /// 13 Oct: "monsters ... should not disappear entirely if I hold e to escape"; note 681): get away, or it comes again.
+    /// </summary>
+    protected override void Rescued(EnemyContext ctx, int by)
+    {
+        int victim = Holding;
+        base.Rescued(ctx, by);
+        if (by != victim || ctx.Crew.FirstOrDefault(c => c.Player.Id == victim).Player.State is not { Alive: true } freed)
+            return;
+        var t = ctx.Tuning.SootChildren;
+        var them = PlayerMotor.WorldPosition(freed, ctx.Train);
+        var away = (Local - them) with { Y = 0 };
+        var dir = away.Length > 1e-6 ? away.Normalized : new Double3(DMath.Cos(Id), 0, DMath.Sin(Id));
+        var to = them + dir * (t.LungeWithin + 1.5);
+        double hint = ctx.Train.Dynamics.Distance;
+        Local = to with { Y = PlayerMotor.GroundAt(to, ctx.Train.Line, ref hint) };
+        Enter(ctx, SpinePhase.Dormant);
+    }
+
     protected override void Punish(EnemyContext ctx, int victim)
     {
         Kill(ctx, victim, DeathCause.Drained);

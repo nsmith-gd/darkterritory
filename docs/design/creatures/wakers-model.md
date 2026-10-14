@@ -166,6 +166,23 @@ So the Peat Man is built stood up, not crawling as in the blockout above:
   his face, close.
 - **At the walls.** He stands out of the guns' reach and howls, his jaw hanging.
 
+### As built (queue #411, note 679)
+
+![The Peat Man running down the line, from the rear car](waker-built-chase.jpg)
+
+| The catch, close | From the next car up | At the walls |
+|---|---|---|
+| ![](waker-built-catch.jpg) | ![](waker-built-inside.jpg) | ![](waker-built-wall.jpg) |
+
+- **62 m stood** (`tools/blender/waker.py`, modelled 2.07 m and drawn 30 times that), on long legs, hunched, his arms
+  hanging past his knees, the noose's end on his chest. About 11k triangles and a 2048 atlas, with a 3.9k distance copy.
+- **His walk and his run** are blended by his speed and played at it. He walks below 12 m/s, a 24 m step every two
+  seconds; at his top speed he runs, a 44 m step every 1.7 s. His feet stay where they come down. The dust they raise and
+  the thuds through the train are the same footfalls.
+- **The catch.** He's on his knees over the line, bowed so his mouth is on the car he's eating, wherever `WakerLift`'s
+  ramp has it. He bites each car off a quarter at a time, four bites over the Sim's four seconds, the underframe and the
+  trucks going with the rest, and his mouth goes on down it to the next car. `WakerLift` and the Sim are unchanged.
+
 ## C1's recommendation (before the choice)
 
 **A, the Drumlin.** It is the design `wakers.md` already describes:

@@ -77,31 +77,26 @@ public sealed partial class Effects
     }
 
     /// <summary>
-    /// A Waker on the move (note 599): dust kicked up where each of its four feet comes down, a stride every
-    /// <paramref name="stride"/> seconds, so one crossing the land toward the line is seen coming by what it raises.
+    /// A Waker's footfall (note 599; note 679: one of his two feet, each ten metres long, coming down every couple of seconds):
+    /// the dust thrown up round where it came down <paramref name="since"/> seconds ago, rolling out and settling, so one coming
+    /// across the land is seen coming by what he raises.
     /// </summary>
-    /// <param name="feet">The middle of where it stands (camera-relative), on the ground.</param>
-    public void WakerStride(MeshBuilder mesh, Vector3 feet, Vector3 right, Vector3 back, double time, double stride, long seed)
+    /// <param name="at">Where the foot came down (camera-relative), on the ground.</param>
+    public void WakerFootfall(MeshBuilder mesh, Vector3 at, Vector3 right, Vector3 back, double since, long seed)
     {
-        float s0 = seed % 89 + 0.5f;
+        const float Life = 3.2f;
+        if (since < 0 || since > Life)
+            return;
+        float s0 = seed % 89 + 0.5f, s = (float)since / Life;
         var up = Vector3.UnitY;
-        // Its four feet (the stand-in's arms and hind legs), each coming down half a stride after the one before.
-        ReadOnlySpan<(float X, float Z)> foot = [(-5.5f, -11), (5.5f, 12), (5.5f, -11), (-5.5f, 12)];
-        for (int f = 0; f < foot.Length; f++)
+        for (int k = 0; k < 9; k++)
         {
-            float since = (float)((time + f * stride * 0.5) % (stride * 2));
-            const float Life = 2.4f;
-            if (since > Life)
-                continue;
-            var at = feet + right * foot[f].X + back * foot[f].Z;
-            for (int k = 0; k < 6; k++)
-            {
-                float h = Hash(s0 + f * 7.1f + k * 2.3f), h2 = Hash(s0 * 1.7f + f * 3.9f + k * 1.1f);
-                float s = since / Life;
-                var p = at + right * ((h - 0.5f) * (2 + 5 * s)) + back * ((h2 - 0.5f) * (2 + 5 * s)) + up * (0.6f + 2.5f * s);
-                mesh.Billboard(p, 2.5f + 5 * MathF.Sqrt(s), h * 6.28f, new Vector4(new Vector3(0.08f, 0.07f, 0.06f), 0.6f * (1 - s) * MathF.Min(1, since * 6)),
-                    _smoke, FxBlend.Alpha, (int)(MathF.Min(s, 0.999f) * 16), 4);
-            }
+            float h = Hash(s0 + k * 2.3f), h2 = Hash(s0 * 1.7f + k * 1.1f), a = h * 6.283f;
+            // Out from under the foot all round, low and rolling, the nearer puffs higher.
+            float out_ = 4 + 12 * MathF.Sqrt(s) * (0.6f + 0.4f * h2);
+            var p = at + right * (MathF.Cos(a) * out_) + back * (MathF.Sin(a) * out_ * 1.4f) + up * (1 + 4 * s * (1.2f - h2));
+            mesh.Billboard(p, 5 + 9 * MathF.Sqrt(s), h * 6.28f, new Vector4(new Vector3(0.08f, 0.07f, 0.06f), 0.55f * (1 - s) * MathF.Min(1, (float)since * 5)),
+                _smoke, FxBlend.Alpha, (int)(MathF.Min(s, 0.999f) * 16), 4);
         }
     }
 

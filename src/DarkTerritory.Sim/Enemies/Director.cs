@@ -38,6 +38,9 @@ public sealed class Director
     readonly Route.Route? _route;
     Pcg32 _rng;
     readonly ulong _seed;
+
+    /// <summary>The night's seed, for rolls made outside the director's own dice (a lone struggle's chance, note 681).</summary>
+    public ulong Seed => _seed;
     double _cooldown;
 
     double _spent;
