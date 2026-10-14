@@ -45,6 +45,22 @@ public class HudTests
     }
 
     [Fact]
+    public void TheCabsHatchLadderSaysItGoesUpToTheRoofAndDownIntoTheCab()
+    {
+        // Note 704 (the director: the cab's ladder "should actually go up to the roof ... and vice versa"): at its foot the
+        // prompt says where it goes, and at the open hatch on the roof, where that goes.
+        var s = new PrototypeSession(Content, "test-loop", 4);
+        var engine = s.Train.Frames[0];
+        var hatch = engine.Shape.Ladders.Single(l => engine.Shape.Cab!.Value.ContainsXZ(l.Foot) && PlayerMotor.IsHatchLadder(engine.Shape, l));
+        s.Player = PlayerMotor.SpawnInCab(s.Train, s.PlayerTuning);
+        s.Player.Position = hatch.Foot - hatch.Inward * 0.3;
+        Assert.Equal("UP TO THE ROOF : [F]", Hud.Prompt(s));
+        s.Player = PlayerMotor.SpawnOnRoof(s.Train, 0, hatch.Foot.Z - 0.3, s.PlayerTuning, hatch.Foot.X);
+        Assert.Equal(hatch.Top, s.Player.Position.Y, 1);
+        Assert.Equal("DOWN INTO THE CAB : [F]", Hud.Prompt(s));
+    }
+
+    [Fact]
     public void ARackRunDryAndThePowderLockerSayWhereThePowderIs()
     {
         // Note 374: the gun's rack empty, the prompt says where its powder is; at the guard van's locker, take a charge; with

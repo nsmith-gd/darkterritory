@@ -234,6 +234,11 @@ public static class Views
             "cabboard" => CabBoardCamera(train),
             // The run map on the cab's front wall, square on and close enough to read its figures (note 671).
             "cabmap" => MapCamera(engine),
+            // (Not one of Names.) The cab's hatch from its roof (note 704; the director: "this ladder inside the cab should
+            // actually go up to the roof"): standing open, its lid thrown back, the way down into the cab.
+            "cabhatchroof" => CabHatch(engine) is { } hatch
+                ? Camera.LookAt(engine.ToWorld(new Double3(hatch.Foot.X + 0.9, hatch.Top + 2.6, hatch.Foot.Z - 1.9)), engine.ToWorld(new Double3(hatch.Foot.X, hatch.Top, hatch.Foot.Z - 0.33)), 60)
+                : CabCamera(engine),
             "ahead" => Camera.LookAt(engine.ToWorld(new Double3(1.5, 2.2, -engineHalf - 70)), engine.ToWorld(new Double3(0, 2.2, 0)), 55),
             "gap" => GapCamera(train, car),
             // (Not one of Names.) From a cargo car's right-hand side doorway, down at its steps (the director, 8 Oct: "an
@@ -349,6 +354,14 @@ public static class Views
             if (bunker.Box.ContainsXZ(eye))
                 eye = eye with { X = bunker.Box.Max.X + 0.35 };
         return Camera.LookAt(engine.ToWorld(eye), engine.ToWorld(at + new Double3(0, 1.1, 0)), 70);
+    }
+
+    /// <summary>The cab's hatch ladder, up through the cab roof (note 704), if the engine has one.</summary>
+    static Ladder? CabHatch(in CarFrame engine)
+    {
+        var shape = engine.Shape;
+        return shape.Ladders.Where(l => shape.Cab is { } c && c.ContainsXZ(l.Foot) && DarkTerritory.Sim.Player.PlayerMotor.IsHatchLadder(shape, l))
+            .Select(l => (Ladder?)l).FirstOrDefault();
     }
 
     static Camera CabCamera(in CarFrame engine, int side = 1)

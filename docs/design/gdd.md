@@ -471,6 +471,12 @@ You aren't picking a difficulty level. You're travelling farther from civilizati
 
 Roles emerge from position. You end up on the cannon because you're standing at the cannon.
 
+**The cab's ladder goes up to the roof** *(the director's evening playtest, 13 Oct: "This ladder inside the cab should actually go up to the roof so that I can access the roof quickly and vice versa"; note 704)*. Behind the coal bunker, a ladder runs from the cab floor up through an open hatch onto the cab roof, by the forward gun. It's the quick way between the driver's place and the gun.
+- **Going up:** walk to it looking up, or press the ladder key at its foot. Walking past it while working the cab, eyes level, doesn't take it. A car's hatch ladder inside works the same way ("DOWN INSIDE" from its roof).
+- **Going down:** at the open hatch on the roof, the ladder key takes you down into the cab.
+- **What it says:** at the foot, "UP TO THE ROOF"; at the hatch above, "DOWN INTO THE CAB".
+- **How it looks:** the hatch stands open, its lid up on its hinges, and the night shows through it.
+
 ### Weapons
 
 **Guns and bullets are rare in this world.** Crude cannons and crude gunpowder are not. Each mounted cannon has a full manual reload — powder, ball, ram, fire — so every shot is a timed decision. Everyone else fights with the tools they carry: shovel, wrench, crowbar.
