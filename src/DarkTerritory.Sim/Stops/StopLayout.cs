@@ -42,7 +42,8 @@ public enum HouseShape : byte { Rect, L, Cross, Pair, Square }
 public enum RoadKind : byte { Through, Street, Lane, Stub }
 
 /// <summary>Container kinds (P14): where loot can be. The economy decides what's in each (loot.json).</summary>
-public enum ContainerKind : byte { CraneBay, CrateStack, Strongroom, Cupboard, Cabinet, Cellar, UnderFloor, Bench, Hayloft }
+/// <summary>Where loot can be kept (P14). <see cref="Loose"/>: a small thing lying on a house's floor, seen and taken at once (note 738).</summary>
+public enum ContainerKind : byte { CraneBay, CrateStack, Strongroom, Cupboard, Cabinet, Cellar, UnderFloor, Bench, Hayloft, Loose }
 
 /// <summary>A point in a stop's rail frame: <see cref="S"/> metres along the main line from the zone's start, <see cref="D"/> to its right.</summary>
 public readonly record struct Pt(double S, double D)

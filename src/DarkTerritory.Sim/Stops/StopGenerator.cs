@@ -308,6 +308,9 @@ public static partial class StopGenerator
         var walk = new StopWalk(g.Buildings, zone, cx.MaxLateral, t.Holdouts.WalkCell).From(stopPoint);
         var holdouts = PlaceHoldouts(g, new Dice(StopSeed.Of(s, StopSeed.Holdout)), t, cx, stopPoint, halt, walk);
         var lairs = PlaceLairs(g, new Dice(StopSeed.Of(s, StopSeed.Lair)), t, tt, stopPoint, walk);
+        // And the small things lying on the open houses' floors (note 738), after everything else and from their own seed:
+        // every other container, find, toy and kit is where and what it was.
+        PlaceLoose(g, new Dice(StopSeed.Of(s, StopSeed.Loose)), t);
 
         var layout = new StopLayout
         {
