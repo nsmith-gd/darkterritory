@@ -502,15 +502,15 @@ public sealed partial class SceneArt(Look look)
         var m = FrameMatrix(frame, eye);
         var reverser = ReverserHandle(levers, controls.Reverser, time);
         _reverserGrip = frame.ToWorld(reverser);
-        mesh.Append(regulator, Matrix4x4.CreateTranslation(ToF(levers.RegulatorAt(controls.Throttle))) * m);
+        mesh.Instances.Add(new MeshInstance(regulator, Matrix4x4.CreateTranslation(ToF(levers.RegulatorAt(controls.Throttle))) * m));
         void Swung(string lever, string stand, Double3 rest, Double3 now, float length)
         {
             var pivot = ToF(rest) - new Vector3(0, length, 0);
             float angle = MathF.Asin(Math.Clamp((float)(now.Z - rest.Z) / length, -1, 1));
             if (props.Get(stand) is { } s)
-                mesh.Append(s, Matrix4x4.CreateTranslation(pivot) * m);
+                mesh.Instances.Add(new MeshInstance(s, Matrix4x4.CreateTranslation(pivot) * m));
             if (props.Get(lever) is { } l)
-                mesh.Append(l, Matrix4x4.CreateRotationX(angle) * Matrix4x4.CreateTranslation(pivot) * m);
+                mesh.Instances.Add(new MeshInstance(l, Matrix4x4.CreateRotationX(angle) * Matrix4x4.CreateTranslation(pivot) * m));
         }
         Swung("lever_brake", "brake_stand", levers.Brake, levers.BrakeAt(controls.Brake), BrakeLever);
         Swung("lever_reverser", "reverser_quadrant", levers.Reverser, reverser, ReverserLever);
@@ -518,13 +518,13 @@ public sealed partial class SceneArt(Look look)
         // farther off they're a few pixels, and the headset's frame budget has no room for them.)
         bool near = (frame.Origin - eye).Length < 30;
         if (near)
-            mesh.Append(Piece("brake-grip", () => TrainKit.Grip(Look, Palette.SignalRed)), Matrix4x4.CreateTranslation(ToF(levers.BrakeAt(controls.Brake))) * m);
+            mesh.Instances.Add(new MeshInstance(Piece("brake-grip", () => TrainKit.Grip(Look, Palette.SignalRed)), Matrix4x4.CreateTranslation(ToF(levers.BrakeAt(controls.Brake))) * m));
         // The whistle cord down from the cab roof over the driver (GDD §12), hauled down while a crewmate blows it.
         if (near && frame.Shape.Cab is { } roof)
         {
             var handle = TrainKit.WhistleCordHandle(frame.Shape, cordPulled);
             float length = (float)(roof.Max.Y - handle.Y);
-            mesh.Append(Piece($"whistle-cord-{length:0.00}", () => TrainKit.WhistleCord(Look, length)), Matrix4x4.CreateTranslation(ToF(handle)) * m);
+            mesh.Instances.Add(new MeshInstance(Piece($"whistle-cord-{length:0.00}", () => TrainKit.WhistleCord(Look, length)), Matrix4x4.CreateTranslation(ToF(handle)) * m));
         }
         // Outside, the whistle's own lever on its top, pulled by its rod from over the driver (note 445): down only while a
         // crewmate's hand is on the cord, so from the roofs the real whistle is told from the Whistler's (App. A.4).
@@ -534,12 +534,12 @@ public sealed partial class SceneArt(Look look)
         foreach (var i in frame.Shape.Interactables.Where(i => i.Kind == InteractableKind.ToolRack && near))
         {
             var at = Matrix4x4.CreateTranslation(ToF(i.Position)) * m;
-            mesh.Append(Piece("tool-rack", () => TrainKit.ToolRack(Look)), at);
+            mesh.Instances.Add(new MeshInstance(Piece("tool-rack", () => TrainKit.ToolRack(Look)), at));
             if (wrenchRacked)
-                mesh.Append(Piece("wrench", () => TrainKit.Wrench(Look)), at);
+                mesh.Instances.Add(new MeshInstance(Piece("wrench", () => TrainKit.Wrench(Look)), at));
             // The shovel (note 275): its blade (the tool's −Z) down on the floor, the D-grip up, leant back to the wall.
             if (shovelRacked && props.Get("tool_shovel") is { } shovel)
-                mesh.Append(shovel, ShovelStood * at);
+                mesh.Instances.Add(new MeshInstance(shovel, ShovelStood * at));
         }
         foreach (var i in frame.Shape.Interactables.Where(i => i.Kind == InteractableKind.Vent))
         {
@@ -549,10 +549,10 @@ public sealed partial class SceneArt(Look look)
             // T109: in the cab, where the firebox lights it, it needs no lamp.
             bool inCab = frame.Shape.Cab is { } cabBox && cabBox.Contains(i.Position + new Double3(0, 0.2, 0));
             if (near)
-                mesh.Append(inCab ? Piece("vent-stand-cab", () => TrainKit.VentStand(Look, 1.1f, lamp: false)) : Piece("vent-stand", () => TrainKit.VentStand(Look, 1.1f)),
-                    Matrix4x4.CreateTranslation(at) * m);
+                mesh.Instances.Add(new MeshInstance(inCab ? Piece("vent-stand-cab", () => TrainKit.VentStand(Look, 1.1f, lamp: false)) : Piece("vent-stand", () => TrainKit.VentStand(Look, 1.1f)),
+                    Matrix4x4.CreateTranslation(at) * m));
             if (props.Get("vent_valve") is { } vent)
-                mesh.Append(vent, Matrix4x4.CreateTranslation(at + new Vector3(0, 1.1f, 0)) * m);
+                mesh.Instances.Add(new MeshInstance(vent, Matrix4x4.CreateTranslation(at + new Vector3(0, 1.1f, 0)) * m));
             if (inCab)
                 continue;
             var lamp = Vector3.Transform(at + new Vector3(0, 1.55f, 0), m);
