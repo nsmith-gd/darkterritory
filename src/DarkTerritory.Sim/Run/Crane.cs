@@ -78,9 +78,14 @@ public sealed class Crane
     public Double3 BridgeEnd(int side) => _at(Bridge, _t.Span[side], Top);
     /// <summary>Where the hook is (world).</summary>
     public Double3 HookAt => _at(Bridge, Trolley, Hook);
-    /// <summary>The control stand, at the foot of the near leg at the gantry's first end; the cab's up over it.</summary>
+    /// <summary>The control stand, at the foot of the near leg at the gantry's first end.</summary>
     public Double3 Controls => _at(_t.Along - 0.5 * _t.Length + 0.8, _t.Span[0] - 0.8, 0);
-    public Double3 Cab => _at(_t.Along - 0.5 * _t.Length + 0.8, _t.Span[0], Top - 1.2);
+    /// <summary>
+    /// The operator's cab, riding the bridge under its far end, outboard of the stack (GDD §18; the director, 14 Oct: "my
+    /// train is blocking the view of the loot"; note 736). It stood on the near leg, across the track from the castings, and
+    /// the cars' roofs hid the ground round them; from here the stack's in front and the car beyond.
+    /// </summary>
+    public Double3 Cab => _at(Bridge, _t.Span[1] + _t.CabOut, Top - 1.2);
 
     /// <summary>The casting's half-height (it hangs this far under the hook, its middle).</summary>
     public double CastingHalf => _t.CastingSize[1] * 0.5;
