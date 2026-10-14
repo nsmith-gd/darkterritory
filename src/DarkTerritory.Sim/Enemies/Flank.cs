@@ -100,7 +100,7 @@ public sealed class Dragger(int id) : Enemy(id)
                             Enter(ctx, SpinePhase.Gone);
                         return;
                     }
-                    var near = walkers.MinBy(c => Math.Abs(c.Player.State.Position.Z - Local.Z));
+                    var near = walkers.MinBy(c => ctx.Weigh(c.Player.Id, Math.Abs(c.Player.State.Position.Z - Local.Z)));
                     Creep(near.Player.State.Position.Z, t, shape);
                     if (Reaches(near.Player.State, train, t))
                     {
@@ -169,7 +169,7 @@ public sealed class Dragger(int id) : Enemy(id)
             // The car passing under: whoever's on its roof, the nearest the chord's side.
             int side = Lateral >= 0 ? 1 : -1;
             var under = ctx.Crew.Where(c => c.Player.State is { Alive: true, Surface: Surface.Roof } s && s.Parent == v.Id && !s.Has(PlayerFlags.Held))
-                .OrderBy(c => Math.Abs(c.Player.State.Position.X - side * f.Shape.HalfWidth)).ToList();
+                .OrderBy(c => ctx.Weigh(c.Player.Id, Math.Abs(c.Player.State.Position.X - side * f.Shape.HalfWidth))).ToList();
             if (under.Count == 0)
                 return;
             var victim = under[0].Player;
@@ -730,7 +730,7 @@ public sealed class Climber(int id) : Enemy(id)
         var train = ctx.Train;
         var at = WorldPosition(train);
         var near = ctx.LivingCrew().Where(c => (c.World - at).Length <= t.Reach && !c.Player.State.Has(PlayerFlags.Held))
-            .OrderBy(c => (c.World - at).Length).Select(c => (int?)c.Player.Id).FirstOrDefault();
+            .OrderBy(c => ctx.Weigh(c.Player.Id, (c.World - at).Length)).Select(c => (int?)c.Player.Id).FirstOrDefault();
         bool company = Attached == 0 ? ctx.Crew.Any(c => c.Player.State.Alive && PlayerMotor.InCab(c.Player.State, train)) : Occupied(ctx, Attached);
         if (!company && near is null)
         {

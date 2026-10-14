@@ -19,17 +19,34 @@
   "stockAhead": 800,
 
   // Village finds are small things a player carries aboard by hand, and they pay on the spot (GDD §19's medicine,
-  // tools and treats). A stop's finds are worth this many of the tier's value per car (run.json economy.perCar)
-  // between them, split by each container's weight; an outlier's weigh this much more (P11).
-  // Note 593: doubled from [0.3, 0.6] with the villages' finds (about twice as many houses hold something), so each find is
-  // worth what it was.
-  "villageBudget": [0.6, 1.2],
-  "outlierWeight": 1.8,
-  // Note 738 (the director, 14 Oct: "reward players a little bit more for that type of exploration. Not too much more, but
-  // smaller bits of loot"): each small thing lying on a village's floor (stops.json village.loose) is worth this share of
-  // what a find kept in that village is (villageBudget over its kept finds), on top of them: a village's floors add about
-  // a sixth to what it pays. `kinds.loose` says what they are. Taken at once: they aren't searched.
-  "looseShare": [0.2, 0.4],
+  // tools and treats).
+  // Note 718 (queue #452; the director, 14 Oct 2026: "I don't want to have a price shown on every single thing that we find.
+  // I want players to eventually understand that certain objects are more valuable than others, and that as they play the
+  // game more often, they learn what those objects are"): a find is worth what its kind is worth, always, never a share of a
+  // stop's budget split by its container (which made a box of candles and a pocket watch from the same cupboard worth the
+  // same, and either worth something different at the next stop). `worth` is each kind's, in the tier's value per car
+  // (run.json economy.perCar), rounded to fives: on a frontier night (900) candles 20, a pocket watch 110, a comet fragment
+  // 1,080. The commonest are cheapest; what a cabinet or the boards keep one time in several is worth four or five boxes of
+  // candles. Nothing shows a price: the clerk's tally names the night's best finds with what they paid (`tally`), so a crew
+  // learns over nights what's worth carrying. Sized so a night's village finds come to about what the old budgets dealt
+  // (about 3 car-loads' worth a frontier night; the deep tiers' with `findsByTier`).
+  "worth": {
+    "candles": 0.025, "treats": 0.035, "tinnedFood": 0.04, "preserves": 0.05, "rope": 0.05, "lampParts": 0.05,
+    "tools": 0.06, "lampOil": 0.06, "bandages": 0.07, "medicine": 0.1, "valuableTools": 0.1, "pocketWatch": 0.12,
+    "morphine": 0.14,
+    // A comet fragment (`comet`): more than a car-load of goods in one pair of arms. (The trophies' are in `trophies`.)
+    "cometFragment": 1.2
+  },
+  // The village finds' `worth` times this on a tier's nights (unlisted: 1): the deep tiers' villages are fewer and their houses
+  // keep worthier things, so a night's finds there come to what the old budgets dealt (about 2 and 3 car-loads a night).
+  "findsByTier": { "deadLines": 1.3, "deepTerritory": 1.75 },
+  // Level-design P11, an outlier house keeps better things: its container's find is drawn twice and the worthier kept (on a
+  // stream of its own, so every other find a seed deals is as it was). Note 718: it used to draw this many times more of
+  // the stop's budget.
+  "outlierDraws": 2,
+  // Note 738 (B4; the director, 14 Oct: "smaller bits of loot"): the small things lying on a village's floors
+  // (stops.json village.loose, `kinds.loose`) are finds like any other, worth what their kind is (note 718), on top of the
+  // village's kept finds. Taken at once: they aren't searched.
   // Stowed: lying still inside any car for this long.
   "settleSeconds": 1.0,
   "radius": 0.15,
@@ -75,40 +92,77 @@
     "botBelow": 50
   },
 
-  // What each kind of container can hold (drawn evenly from the list, so an item named twice is twice as likely), and how
-  // much of the budget it draws. Note 272 ("healing items are rare loot"): a cabinet was all medicine, bandages and
-  // morphine and a floor's cache a third medicine, about six on a frontier night, a quarter of every find. Now a cabinet
-  // holds them one time in four, bandages the likeliest, and nothing else does: about one a frontier night (the
-  // DamageModelTests pin it). Note 593, with about twice the village finds: one cabinet in eight (6 of its 48), so still
-  // about one a frontier night.
+  // What each kind of container can hold (drawn evenly from the list, so an item named twice is twice as likely). Note 718:
+  // what it's worth is the item's (`worth`), not a share of the stop's budget by the container's weight. Note 272 ("healing
+  // items are rare loot"): a cabinet was all medicine, bandages and morphine and a floor's cache a third medicine, about six
+  // on a frontier night, a quarter of every find. Now a cabinet holds them one time in four, bandages the likeliest, and
+  // nothing else does: about one a frontier night (the DamageModelTests pin it). Note 593, with about twice the village
+  // finds: one cabinet in eight (6 of its 48), so still about one a frontier night.
   "kinds": {
-    "cupboard":   { "weight": 1.0, "items": ["treats", "tinnedFood", "candles"] },
-    "cabinet":    { "weight": 1.3, "items": ["bandages", "bandages", "bandages", "medicine", "medicine", "morphine", "candles", "candles",
+    "cupboard":   { "items": ["treats", "tinnedFood", "candles"] },
+    "cabinet":    { "items": ["bandages", "bandages", "bandages", "medicine", "medicine", "morphine", "candles", "candles",
       "candles", "candles", "candles", "candles", "candles", "candles", "candles", "candles", "lampOil",
       "lampOil", "lampOil", "lampOil", "lampOil", "lampOil", "lampOil", "lampOil", "pocketWatch",
       "pocketWatch", "pocketWatch", "pocketWatch", "pocketWatch", "pocketWatch", "treats", "treats",
       "treats", "treats", "treats", "treats", "treats", "treats", "tinnedFood", "tinnedFood", "tinnedFood",
       "tinnedFood", "rope", "rope", "rope", "rope", "lampParts", "lampParts"] },
-    "cellar":     { "weight": 1.2, "items": ["preserves", "treats", "tools"] },
-    "underFloor": { "weight": 1.6, "items": ["valuableTools", "pocketWatch", "preserves"] },
-    "bench":      { "weight": 0.9, "items": ["tools", "lampParts"] },
-    "hayloft":    { "weight": 1.0, "items": ["tools", "lampOil", "rope"] },
-    // (Its weight's unused: the floors' finds have looseBudget to themselves.)
-    "loose":      { "weight": 0.3, "items": ["candles", "candles", "treats", "tinnedFood", "lampOil"] }
+    "cellar":     { "items": ["preserves", "treats", "tools"] },
+    "underFloor": { "items": ["valuableTools", "pocketWatch", "preserves"] },
+    "bench":      { "items": ["tools", "lampParts"] },
+    "hayloft":    { "items": ["tools", "lampOil", "rope"] },
+    "loose":      { "items": ["candles", "candles", "treats", "tinnedFood", "lampOil"] }
   },
 
   // A creature's trophy when it's killed (note 340; the director, 7 Oct 2026: "a dead Gannet can be worth a good deal"):
-  // the find it drops, and what it pays stowed aboard, in the tier's car-loads (run.json economy.perCar; a rescued child
-  // pays 3).
+  // the find it drops where it falls, what it pays stowed aboard (in the tier's car-loads, run.json economy.perCar; a
+  // rescued child pays 3), and the chance it's left (unset: always).
+  // Note 718 (queue #452; the director, 14 Oct 2026: team-killable creatures "can sometimes leave trophies"): every creature
+  // the crew can kill together (enemies.json coordinatedKill) has one, left about one kill in three, a piece of it a crew
+  // would want to show the town: the Grumbler's jaw, the Gaunt's long hand, a Climber's claw, the Passenger's cap with its
+  // dead railway's badge, the Brakeman's brake wheel, a Knotter's claw, a Hotbox's plate, the Freight Beetle's shovel head,
+  // Tower Jaw's tooth. The Choir's ghosts leave nothing (there's no body). Those that come several to a night (a pack's
+  // Climbers, a Knotter, a Hotbox) are worth less each. Keyed by the kind's tuning name (enemies.json). The Gannet's head
+  // stays as it was, every time: one bird, rare, at speed, the director's "good deal".
   "trophies": {
-    "gannet": { "item": "gannetHead", "perCar": 1.5 }
+    "gannet": { "item": "gannetHead", "perCar": 1.5 },
+    "grumbler": { "item": "grumblerJaw", "perCar": 0.4, "chance": 0.35 },
+    "gaunt": { "item": "gauntHand", "perCar": 0.6, "chance": 0.35 },
+    "climbers": { "item": "climberClaw", "perCar": 0.15, "chance": 0.25 },
+    "passenger": { "item": "passengerCap", "perCar": 0.5, "chance": 0.35 },
+    "brakeman": { "item": "brakemanWheel", "perCar": 0.5, "chance": 0.35 },
+    "knotter": { "item": "knotterClaw", "perCar": 0.25, "chance": 0.35 },
+    "hotbox": { "item": "hotboxPlate", "perCar": 0.25, "chance": 0.35 },
+    "freightBeetle": { "item": "beetleShovel", "perCar": 0.35, "chance": 0.35 },
+    "towerJaw": { "item": "towerJawTooth", "perCar": 0.4, "chance": 0.35 }
   },
+
+  // Note 718 (queue #452; the director, 14 Oct 2026: comet cargo "needs to be at actual stops and needs to be extra valuable
+  // loot that players get excited for when they see"): on some nights a stop holds a comet fragment or two, lumps of the
+  // comet glowing a sick green in the dark (GDD §19), lying out in the open beside the stop's other things (a yard's crate
+  // stack or strongroom where it stands; outside a shed or a house, off its side nearest the line), with no building between
+  // it and the main line, so a crew sees them as the train comes in. Each stop's chance by tier (deeper is likelier: about
+  // one local night in six has one, two frontier nights in five, most deep nights), and how many when it does. One person
+  // carries one; it pays worth.cometFragment (more than a car of goods, five times any find), and while one's aboard (lying
+  // in a car on the engine, or in the hands of someone aboard) the comet's director weights are on (enemies.json
+  // cargoWeights.comet, cometRelaxesGates: "attracts everything").
+  "comet": {
+    "item": "cometFragment",
+    "chance": { "local": 0.06, "frontier": 0.1, "deadLines": 0.15, "deepTerritory": 0.22 },
+    "count": [1, 2]
+  },
+
+  // Note 718: the clerk's tally (GDD §9) names the night's best finds by what they're worth, this many kinds of them, and the
+  // crewmate who brought the most worth aboard ("Light fingers"; the wallet stays shared, §11).
+  "tally": { "best": 3, "finder": true },
 
   // Names for the HUD.
   "items": {
     "treats": "Treats", "tinnedFood": "Tinned food", "candles": "Candles", "medicine": "Medicine", "bandages": "Bandages",
     "morphine": "Morphine", "preserves": "Preserves", "tools": "Tools", "valuableTools": "Valuable tools",
     "pocketWatch": "Pocket watch", "lampParts": "Lamp parts", "lampOil": "Lamp oil", "rope": "Rope",
-    "gannetHead": "The Gannet's head"
+    "gannetHead": "The Gannet's head", "cometFragment": "Comet fragment", "grumblerJaw": "The Grumbler's jaw",
+    "gauntHand": "The Gaunt's hand", "climberClaw": "A Climber's claw", "passengerCap": "The Passenger's cap",
+    "brakemanWheel": "The Brakeman's wheel", "knotterClaw": "A Knotter's claw", "hotboxPlate": "A Hotbox plate",
+    "beetleShovel": "The Beetle's shovel", "towerJawTooth": "Tower Jaw's tooth"
   }
 }

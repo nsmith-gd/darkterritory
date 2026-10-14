@@ -144,7 +144,7 @@ public sealed class Hotbox(int id) : Enemy(id)
         if (Phase != SpinePhase.Telegraph || PhaseSeconds < t.SnapEvery)
             return;
         var at = WorldPosition(ctx.Train);
-        var near = ctx.LivingCrew().Where(c => (c.World - at).Length <= t.SnapReach).OrderBy(c => (c.World - at).Length).ThenBy(c => c.Player.Id)
+        var near = ctx.LivingCrew().Where(c => (c.World - at).Length <= t.SnapReach).OrderBy(c => ctx.Weigh(c.Player.Id, (c.World - at).Length)).ThenBy(c => c.Player.Id)
             .Select(c => (int?)c.Player.Id).FirstOrDefault();
         if (near is not { } victim || !Enter(ctx, SpinePhase.Commit))
             return;

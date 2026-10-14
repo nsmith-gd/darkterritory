@@ -27,6 +27,11 @@
   "tenderCapacity": 400,
   "fireboxCapacity": 6,
   "shovelSeconds": 1.2,
+  // Note 717 (horseplay; the director, 14 Oct 2026: the lump of coal "is going to need to be able to work with the current
+  // coal shoveling system"): this far into a stroke at the firebox (Use held) the coal's on the shovel, and stays on it while
+  // Use is held in the cab, turned from the fire; Throw throws it (player.json horseplay.coal) instead of it going in at
+  // shovelSeconds. Let go of Use and it's back in the tender, as ever. A hand at the coal face (T29) fills the shovel itself.
+  "scoopSeconds": 0.6,
   // App. C.2 "the boiler player's shovel doubling as the crew's best club is intended tension", GDD §12 (note 275): coal
   // goes on with the shovel in hand. There's the one, on the cab's tool rack beside the wrench; Use at the firebox takes it
   // into hand (from your kit, or off the rack if it's there), and Use at the rack with it in hand hangs it back. Taken out

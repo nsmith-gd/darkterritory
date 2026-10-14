@@ -168,11 +168,32 @@ public static class Views
                 target.ToWorld(new Double3(-0.35, Floor(train) + 1.25, -target.Shape.HalfLength + 5.9)), 55),
             // In the middle car, under its forward lantern, up at what's round it (the staged Fire Flies).
             "flies" => FliesCamera(train),
+            // Note 717: horseplay on car 2's roof (Staging.Horseplay): a shove over the side, from along the roof ahead; a
+            // crewmate's sooted face, close.
+            "shove" => Camera.LookAt(target.ToWorld(new Double3(-0.6, roof + 1.7, -4.4)), target.ToWorld(new Double3(target.Shape.HalfWidth - 0.4, roof + 0.9, 0)), 55),
+            "sooted" => Camera.LookAt(target.ToWorld(new Double3(0.5, roof + 1.7, -1.9)), target.ToWorld(new Double3(0, roof + 1.35, 0)), 45),
             "crewside" => Camera.LookAt(target.ToWorld(new Double3(2.6, roof + 1.9, -4.2)), target.ToWorld(new Double3(-0.8, roof + 1.45, -5.6)), 45),
             // (Not one of Names.) Down on the roof round the first two of the staged crew (dt screenshot --act lantern,...), close
             // over their feet: what the hand lamp's light falls on and the shadows it throws (note 436).
             "lampshadow" => Camera.LookAt(target.ToWorld(new Double3(2.2, roof + 2.3, -2.2)), target.ToWorld(new Double3(-0.2, roof + 0.3, -5.6)), 60),
             "cab" => CabCamera(engine),
+            // (Not one of Names.) Across the cab at the speaking tube's mouthpiece on its left wall (note 720), and in the guard
+            // van at its other end, the front right corner.
+            "tube" => TubeCamera(train, 0),
+            "tubevan" => TubeCamera(train, 1),
+            // (Not one of Names.) Close on the whistle codes' card by the cord (note 720), as the driver turns to read it.
+            "whistlecard" => Art.SceneArt.WhistleCardAt(engine.Shape) is { } card
+                ? Camera.LookAt(engine.ToWorld(card + new Double3(-0.62, -0.06, 0.05)), engine.ToWorld(card + new Double3(0, -0.1, 0)), 45)
+                : CabCamera(engine),
+            // (Not one of Names.) At the lineside off car 1, at the staged crew's lamp signals (dt screenshot --signal stop,go,back;
+            // note 720), the train behind them.
+            "lampsignal" => Camera.LookAt(Staging.Lineside(train, Staging.SignalAhead, Staging.SignalCamera) + Double3.Up * 1.55,
+                Staging.Lineside(train, Staging.SignalAhead, Staging.SignalOut) + Double3.Up * 1.25, 55),
+            // (Not one of Names.) Note 718: from the cab coming into a stop with a comet fragment lying out (the screenshot puts
+            // the train short of it); and stood beside the engine looking down at the creatures' trophies laid out on the
+            // ground off the line's left.
+            "comet" => CabCamera(engine),
+            "trophies" => Camera.LookAt(Staging.Lineside(train, 4.2, -1.6) + Double3.Up * 1.55, Staging.Lineside(train, 7.2, -4.1) + Double3.Up * 0.05, 40),
             // Crouched where the fireman shovels, at the firebox door (what's seen when it's open: the staged Stoker).
             "firebox" => FireboxCamera(engine),
             // The work at the cab's front (note 280): from behind where one person runs it all, forward at the coal on the left,
@@ -534,6 +555,18 @@ public static class Views
         var f = train.Frames[v];
         double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 1.1;
         return Camera.LookAt(f.ToWorld(new Double3(-0.55, floor + 1.6, 5.2)), f.ToWorld(new Double3(0.5, floor + 0.9, 1.5)), 70);
+    }
+
+    /// <summary>The speaking tube's end <paramref name="end"/> (note 720), from a couple of metres into the room, a little along.</summary>
+    static Camera TubeCamera(TrainOnLine train, int end)
+    {
+        var ends = Sim.Train.SpeakingTube.Ends(train);
+        if (end >= ends.Count)
+            return CabCamera(train.Frames[0]);
+        var e = ends[end];
+        var f = train.Frames[e.Car];
+        var into = e.Facing * 0.8;
+        return Camera.LookAt(f.ToWorld(e.Mouth + into + new Double3(0, 0.2, 1.0)), f.ToWorld(e.Mouth + new Double3(0, -0.1, 0)), 55);
     }
 
     static Camera StoresCamera(TrainOnLine train)
