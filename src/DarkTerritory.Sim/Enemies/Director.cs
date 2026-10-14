@@ -38,6 +38,9 @@ public sealed class Director
     readonly Route.Route? _route;
     Pcg32 _rng;
     readonly ulong _seed;
+
+    /// <summary>The night's seed, for rolls made outside the director's own dice (a lone struggle's chance, note 681).</summary>
+    public ulong Seed => _seed;
     double _cooldown;
 
     double _spent;
@@ -61,6 +64,42 @@ public sealed class Director
         double u = new Pcg32(seed, 0x6EACE).NextDouble() * tuning.Pressure.GraceTierScale.GetValueOrDefault(key, 1);
         Grace = tuning.GraceMinSeconds + (tuning.GraceMaxSeconds - tuning.GraceMinSeconds) * Math.Clamp(u, 0, 1);
         _tierRate = tuning.Pressure.Tier.GetValueOrDefault(key, 1);
+        // The kinds not about tonight (note 635): each named kind's roll, in name order, on its own stream from the scrambled
+        // seed (a PCG stream's first draws barely move between neighbouring seeds), so the night's other draws are as they were.
+        var about = new Pcg32(unchecked(seed * 0x9E3779B97F4A7C15UL + 0x0BE5E), 0x0BE5E);
+        foreach (var (name, chance) in tuning.NightChance.OrderBy(k => k.Key, StringComparer.Ordinal))
+            if (about.NextDouble() >= chance)
+                _outTonight.Add(name);
+    }
+
+    readonly HashSet<string> _outTonight = [];
+    /// <summary>The cars the engine pulls, as of the director's last second (note 646: the engaged cap's share).</summary>
+    int _cars;
+    readonly Dictionary<EnemyKind, int> _ownWay = [];
+
+    /// <summary>
+    /// One come its own way tonight, not the director's spend (note 644: a group of Pickers up at a yard, a house creature
+    /// put in its house): counted against its night's cap (<see cref="DirectorTuning.PerNight"/>) as the director's own are.
+    /// </summary>
+    public void Counted(EnemyKind kind) => _ownWay[kind] = _ownWay.GetValueOrDefault(kind) + 1;
+
+    /// <summary>Those come their own way tonight, by kind (<see cref="Counted"/>).</summary>
+    public IReadOnlyDictionary<EnemyKind, int> OwnWay => _ownWay;
+
+    /// <summary>The kind's not about tonight (<see cref="DirectorTuning.NightChance"/>'s roll).</summary>
+    public bool OutTonight(EnemyKind kind) => _outTonight.Contains(Key(kind));
+
+    /// <summary>
+    /// The director may send <paramref name="kind"/> now (note 635): it's about tonight, it's under its night's cap
+    /// (<see cref="DirectorTuning.CapFor"/>: its own or the default, note 654), and it isn't one of the night things gone
+    /// to ground before dawn (<see cref="WakersTuning.NightFleesSeconds"/>).
+    /// </summary>
+    public bool Tonight(EnemyKind kind, World world)
+    {
+        string key = Key(kind);
+        if (_outTonight.Contains(key) || _t.CapFor(key) is int cap && Log.Count(l => l.Kind == kind) + _ownWay.GetValueOrDefault(kind) >= cap)
+            return false;
+        return world.Enemies is not { } et || !et.Wakers.Flees(kind) || !Waker.NightFleeing(world, et.Wakers);
     }
 
     readonly double _tierRate;
@@ -103,13 +142,15 @@ public sealed class Director
     /// </summary>
     public void Count(World world, double elapsed, IReadOnlyList<Enemy> active, double noSpawnFinal)
     {
+        _cars = world.Train.Dynamics.Consist.CarCount;
+        _world = world;
         if (world.CrewThisTick.Count > 0)
             Active = world.CrewThisTick.Count(c => c.State.Alive);
         // Counted whenever the orchestrator's on (the harness reads it); census steers only with its own flag (Steering).
         if (!_t.Orchestrator.On)
             return;
         double front = world.Train.Dynamics.Distance;
-        bool home = _route is { } route && (front > route.Length - noSpawnFinal || route.Plan?.Director.TagsAt(front).Contains("terminus_safe") == true);
+        bool home = _route is { } route && (front > route.RunLength - noSpawnFinal || route.Plan?.Director.TagsAt(front).Contains("terminus_safe") == true);
         // Not at a facility either: the stop's work is the crew's to answer there (App. F.1: "slowing opens the doors"; the stops
         // are the heightened part of the night), and the census is for the run between them (App. F.3).
         // And only with the train on the move: a generated stop keeps the run under way while the train stands to be worked.
@@ -136,7 +177,9 @@ public sealed class Director
             var o = _t.Orchestrator;
             if (!o.On)
                 return MaxConcurrent;
-            int byCrew = Math.Min((int)Math.Ceiling(Active * o.EngagedPerActive - 1e-9), (int)Math.Floor(Active * o.PerPlayer + 1e-9));
+            // A longer train has more of them under a threat at once (note 646), never more than perPlayer each.
+            double share = o.EngagedShare(_cars, _t.Pressure.ScaleCars);
+            int byCrew = Math.Min((int)Math.Ceiling(Active * share - 1e-9), (int)Math.Floor(Active * o.PerPlayerFor(_cars) + 1e-9));
             return Math.Min(MaxConcurrent, Math.Max(1, byCrew));
         }
     }
@@ -222,7 +265,7 @@ public sealed class Director
     /// </summary>
     double Reserve(World world, double distance, EnemyKind forKind)
     {
-        if (_route is null || distance < _route.Length * _t.SaveFrom || world.Enemies is not { } et)
+        if (_route is null || distance < _route.RunLength * _t.SaveFrom || world.Enemies is not { } et)
             return 0;
         double reserve = 0;
         foreach (var name in _t.SaveFor)
@@ -248,9 +291,15 @@ public sealed class Director
     }
 
     /// <summary>The cargo aboard: what's in the loaded cargo cars of the engine's rake (a cut car on a spur isn't aboard).</summary>
-    public static HashSet<CargoKind> Aboard(World world) =>
-        world.Train.Dynamics.Consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Load > 0.01 && v.Cargo != CargoKind.None)
+    public static HashSet<CargoKind> Aboard(World world)
+    {
+        var aboard = world.Train.Dynamics.Consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Load > 0.01 && v.Cargo != CargoKind.None)
             .Select(v => v.Cargo).ToHashSet();
+        // Note 718: a comet fragment brought aboard from a stop draws as the comet's freight does ("attracts everything", GDD §19).
+        if (Run.Run.CometAboard(world))
+            aboard.Add(CargoKind.Comet);
+        return aboard;
+    }
 
     /// <summary>A tier gate, relaxed by one with comet-derived material aboard (App. B.8).</summary>
     public RouteTier Gate(World world, RouteTier tier) =>
@@ -265,16 +314,18 @@ public sealed class Director
         if (_route is null)
             return Budget * Math.Clamp(distance / 20_000, 0, 1);
         var facilities = _route.Of(FeatureKind.Facility).ToList();
-        double first = facilities.Count > 0 ? facilities[0].Start : _route.Length * 0.25;
-        double last = facilities.Count > 0 ? facilities[^1].End : _route.Length * 0.75;
+        double first = facilities.Count > 0 ? facilities[0].Start : _route.RunLength * 0.25;
+        double last = facilities.Count > 0 ? facilities[^1].End : _route.RunLength * 0.75;
         var s = _t.PhaseShares;
         double share = distance < first ? s[0] * distance / first
             : distance < last ? s[0] + s[1] * (distance - first) / Math.Max(1, last - first)
-            : s[0] + s[1] + s[2] * (distance - last) / Math.Max(1, _route.Length - last);
+            : s[0] + s[1] + s[2] * (distance - last) / Math.Max(1, _route.RunLength - last);
         return Budget * Math.Clamp(share, 0, 1);
     }
 
-    int MaxConcurrent => Crew >= 6 ? _t.MaxConcurrentLargeCrew : _t.MaxConcurrentSmallCrew;
+    // A long train's two each (note 647) grows the hard caps with them.
+    int MaxConcurrent => (int)Math.Round((Crew >= 6 ? _t.MaxConcurrentLargeCrew : _t.MaxConcurrentSmallCrew)
+        * (_t.Orchestrator.PerPlayerFor(_cars) / Math.Max(1e-9, _t.Orchestrator.PerPlayer)));
 
     /// <summary>At or near one of the route's facilities: within <paramref name="margin"/> of its span.</summary>
     bool NearFacility(double distance, double margin) =>
@@ -297,7 +348,7 @@ public sealed class Director
         double s = train.Dynamics.Distance;
         if (elapsed < Grace)
             return Held("grace");
-        if (_route is not null && s > _route.Length - noSpawnFinal)
+        if (_route is not null && s > _route.RunLength - noSpawnFinal)
             return Held("final stretch");
         // GDD §9, T128 (note 273): nothing comes for a train that's in one of the forts.
         if (world.TrainInFort)
@@ -368,9 +419,9 @@ public sealed class Director
             foreach (var rule in Spawns.Rules)
             {
                 // Killed by the crew together tonight (note 288): it's done for the night.
-                if (!Allows(rule.Kind) || world.Slain.Contains(rule.Kind) || !Room(rule.Kind, active) || rule.Weight(ctx) is not { } w || w <= 0)
+                if (!Allows(rule.Kind) || !Tonight(rule.Kind, world) || world.Slain.Contains(rule.Kind) || !Room(rule.Kind, active) || rule.Weight(ctx) is not { } w || w <= 0)
                     continue;
-                options.Add((rule.Kind, w));
+                options.Add((rule.Kind, w * _t.Weights.GetValueOrDefault(Key(rule.Kind), 1)));
             }
         }
         // The budget saved up for what's still to come (the Passenger) holds, except that a pressed spawn may always spend what
@@ -381,8 +432,9 @@ public sealed class Director
             for (int i = 0; i < options.Count; i++)
             {
                 double w = options[i].Weight;
+                // Note 720: the crew singing settles the beasts, and they draw the hounds less (voices.singing.calmsLivestock).
                 if (aboard.Contains(CargoKind.Livestock) && options[i].Kind == EnemyKind.CinderHound)
-                    w *= _t.HoundsLivestockWeight;
+                    w *= 1 + (_t.HoundsLivestockWeight - 1) * (1 - world.LivestockCalm);
                 foreach (var cargo in aboard)
                     if (_t.CargoWeights.GetValueOrDefault(char.ToLowerInvariant(cargo.ToString()[0]) + cargo.ToString()[1..]) is { } table)
                         w *= table.GetValueOrDefault(Key(options[i].Kind), 1) * table.GetValueOrDefault("*", 1);
@@ -469,9 +521,17 @@ public sealed class Director
     }
 
     /// <summary>The crewmate the census would send the next threat to (note 345): the free one with the most slack, past minSlack.</summary>
-    public CensusEntry? Next => Steering
-        ? Posts.Entries.Where(c => c.On == 0 && c.Post != Post.LeftBehind && c.Slack >= _t.Orchestrator.MinSlack).OrderByDescending(c => c.Slack).ThenBy(c => c.Player).FirstOrDefault()
-        : null;
+    /// <remarks>
+    /// Note 717: a crewmate marked for a shove that killed (<see cref="World.IsMarked"/>) is the next threat's first choice while
+    /// they're about (not left behind, which has its own hunts): their slack needn't be past minSlack, nor are they spared for
+    /// having a threat on them already; among the marked, the most slack.
+    /// </remarks>
+    public CensusEntry? Next => !Steering ? null
+        : Posts.Entries.Where(c => _world?.IsMarked(c.Player) == true && c.Post != Post.LeftBehind).OrderByDescending(c => c.Slack).ThenBy(c => c.Player).FirstOrDefault()
+        ?? Posts.Entries.Where(c => c.On == 0 && c.Post != Post.LeftBehind && c.Slack >= _t.Orchestrator.MinSlack).OrderByDescending(c => c.Slack).ThenBy(c => c.Player).FirstOrDefault();
+
+    /// <summary>The world the director last counted (note 717: who's marked).</summary>
+    World? _world;
 
     /// <summary>
     /// Who's next (note 345; orchestrator.md §3.2 2, 3): a kind answered at the post of the free crewmate with the most slack
@@ -493,7 +553,8 @@ public sealed class Director
             var posts = Census.AnswerPosts(o, op.Kind).ToList();
             if (posts.Count == 0)
                 return op;
-            if (o.PerTarget && entries.Where(c => posts.Contains(c.Post)).ToList() is { Count: > 0 } answering && answering.All(c => c.On > 0))
+            if (o.PerTarget && entries.Where(c => posts.Contains(c.Post)).ToList() is { Count: > 0 } answering
+                && answering.All(c => c.On >= Math.Max(1, (int)Math.Floor(o.PerPlayerFor(_cars) + 1e-9))))
                 return (op.Kind, 0.0);
             if (next is not null && posts.Contains(next.Post))
                 return (op.Kind, op.Weight * o.SlackWeight);
@@ -519,7 +580,7 @@ public sealed class Director
         }
         // How far into the night: along the line, or toward dawn if the clock's ahead of the train.
         double progress = _route is null ? s / 20_000
-            : Math.Max(s / Math.Max(1, _route.Length), _route.DawnSeconds > 0 ? elapsed / _route.DawnSeconds : 0);
+            : Math.Max(s / Math.Max(1, _route.RunLength), _route.DawnSeconds > 0 ? elapsed / _route.DawnSeconds : 0);
         double escalation = 1 + p.Escalation * DMath.Pow(Math.Clamp(progress, 0, 1), p.EscalationPower);
         // Engaged with the crew: showing itself, coming on, holding someone, punishing. What only paces the train or lingers
         // (on the caps, <see cref="Engaged"/>) neither stops the quiet nor keeps the crew busy (harness: a Climber pacing a car
@@ -563,7 +624,13 @@ public sealed class Director
         double busy = 1 / (1 + p.Busy * engaged * Math.Max(0, 1 - p.BusyFade * Math.Clamp(progress, 0, 1)));
         // Note 327 (App. F.3): the crew off the train, on foot, draw it on: the share of the living afoot (Watch, this second).
         double afoot = _t.Afoot.On ? _t.Afoot.PerSecond * AfootShare : 0;
-        double rate = _tierRate * conditions * relief * busy * escalation * (p.BasePerSecond + quiet + loud + cargo + afoot);
+        // Note 717: and a crewmate marked for a shove that killed, on foot (player.json horseplay.marked.pressurePerSecond).
+        if (world.MarkedAfoot)
+            afoot += world.HorseplayTuning.Marked.PressurePerSecond;
+        // By the crew in the night (who joined it, alive or not: the relief valve has the dead) and the cars the engine
+        // pulls (note 646).
+        double scale = p.Scale(Math.Max(1, Crew), world.Train.Dynamics.Consist.CarCount);
+        double rate = _tierRate * scale * conditions * relief * busy * escalation * (p.BasePerSecond + quiet + loud + cargo + afoot);
         _pressure = Math.Min(p.Max, _pressure + rate);
         Terms = new PressureTerms(rate, escalation, _sinceThreat, loud, cargo, relief, conditions, afoot);
     }
@@ -989,7 +1056,7 @@ public sealed class Director
     public void Runs(World world, double elapsed, IReadOnlyList<Enemy> active, double noSpawnFinal)
     {
         var r = _t.Run;
-        if (!r.On || world.Enemies is not { } et || !Allows(EnemyKind.CinderHound))
+        if (!r.On || world.Enemies is not { } et || !Allows(EnemyKind.CinderHound) || !Tonight(EnemyKind.CinderHound, world))
             return;
         if (!_runSeeded)
         {
@@ -998,7 +1065,7 @@ public sealed class Director
         }
         var train = world.Train;
         double speed = train.Dynamics.Speed, front = train.Dynamics.Distance;
-        bool home = _route is { } route && (front > route.Length - noSpawnFinal || route.Plan?.Director.TagsAt(front).Contains("terminus_safe") == true);
+        bool home = _route is { } route && (front > route.RunLength - noSpawnFinal || route.Plan?.Director.TagsAt(front).Contains("terminus_safe") == true);
         bool open = elapsed >= Grace && !world.TrainInFort && !home && train.Dynamics.Consist.CarCount >= 1
             && world.Run?.Phase is null or Run.RunPhase.Underway;
         if (!open || speed < r.StopSpeed)
@@ -1125,7 +1192,7 @@ public sealed class Director
     public void Drops(World world, double elapsed, double noSpawnFinal)
     {
         var t = world.Enemies?.Draggers.Drop;
-        if (t is not { On: true } || !Allows(EnemyKind.Dragger) || _route?.Plan is not { } plan)
+        if (t is not { On: true } || !Allows(EnemyKind.Dragger) || !Tonight(EnemyKind.Dragger, world) || _route?.Plan is not { } plan)
             return;
         if (!_dropSeeded)
         {
@@ -1136,7 +1203,7 @@ public sealed class Director
         }
         var train = world.Train;
         double front = train.Dynamics.Distance;
-        if (elapsed < Grace || world.TrainInFort || train.Dynamics.Speed < t.FromSpeed || front > _route.Length - noSpawnFinal
+        if (elapsed < Grace || world.TrainInFort || train.Dynamics.Speed < t.FromSpeed || front > _route.RunLength - noSpawnFinal
             || train.Dynamics.Consist.CarCount < world.Enemies!.Draggers.MinCars)
             return;
         foreach (var st in plan.Structures)
@@ -1183,6 +1250,12 @@ public sealed class Director
     public static bool Engaged(Enemy e) => !e.Gone && !e.Hazard
         // A Gannet that's peeled off (note 340) isn't there to answer.
         && e is not Gannet { Mode: GannetMode.Away }
+        // The Mourners (note 362) hunt nobody: they come for the dead, and cost the caps nothing.
+        && e.Kind != EnemyKind.Mourners
+        // Nor the Pickers (note 592): the stop's own, after its loot, and they cost the caps nothing.
+        && e.Kind != EnemyKind.Pickers
+        // Nor a Brakeman out of sight under the train (note 364), waiting to come up again.
+        && e is not Brakeman { Mode: BrakemanMode.Hidden }
         && (e.Phase is SpinePhase.Alert or SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab or SpinePhase.Punish
             // Dormant but on the move is pressure too (a Climber pacing the train); only what lies in wait isn't.
             || e.Phase == SpinePhase.Dormant && e.Kind is not (EnemyKind.Dragger or EnemyKind.Whistler or EnemyKind.CarHugger or EnemyKind.Gaunt or EnemyKind.TippyToesie
@@ -1239,6 +1312,19 @@ public sealed class Director
                 EnemyKind.Grumbler => new Grumbler(0),
                 EnemyKind.Moose => new Moose(0),
                 EnemyKind.Gannet => new Gannet(0),
+                EnemyKind.Mourners => new Mourner(0),
+                EnemyKind.TowerJaw => new TowerJaw(0),
+                EnemyKind.FreightBeetle => new FreightBeetle(0),
+                EnemyKind.Brakeman => new Brakeman(0),
+                EnemyKind.Hotbox => new Hotbox(0),
+                EnemyKind.Knotter => new Knotter(0),
+                EnemyKind.Dave => new Dave(0),
+                EnemyKind.Jacob => new Jacob(0),
+                EnemyKind.Pickers => new Picker(0),
+                EnemyKind.Lodger => new Lodger(0),
+                EnemyKind.Householder => new Householder(0),
+                EnemyKind.HollowHouse => new HollowHouse(0),
+                EnemyKind.Hanger => new Hanger(0),
                 _ => new ChoirGhost(0),
             };
             d[kind] = (e.Zone, e.Sense, e.Want);
@@ -1382,7 +1468,7 @@ public sealed class Director
         {
             var ctx = new SpawnContext(world, et, this);
             foreach (var rule in Spawns.Rules)
-                if (Allows(rule.Kind) && rule.Weight(ctx) is > 0 and var w)
+                if (Allows(rule.Kind) && Tonight(rule.Kind, world) && rule.Weight(ctx) is > 0 and var w)
                     eligible.Add((rule.Kind, w));
         }
         var rng = new Pcg32(_seed ^ (ulong)(player + 1) * 0x9E3779B97F4A7C15UL, 0xB0A7);

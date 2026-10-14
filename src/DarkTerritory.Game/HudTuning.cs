@@ -15,12 +15,25 @@ public sealed record HudTuning
     public double PlaceAheadMetres { get; init; } = 1200;
     /// <summary>How long a place's name stays up (s).</summary>
     public double PlaceSeconds { get; init; } = 4.5;
+    /// <summary>
+    /// A mail crane's last seconds (s) before it reaches your car (note 673): its line stays up at the top of the screen for
+    /// anyone in a car, and the open door on its side says the hook.
+    /// </summary>
+    public double MailLeadSeconds { get; init; } = 12;
     /// <summary>How long a deeper step of the cold is said (s).</summary>
     public double ColdSeconds { get; init; } = 5;
     /// <summary>How long before dawn (s) its clock comes up.</summary>
     public double DawnClockSeconds { get; init; } = 600;
     /// <summary>The ping (ms) at which it's shown out on the line (spec E: always in the lobby).</summary>
     public double PingWarnMs { get; init; } = 150;
+    /// <summary>The window (s) the link's loss is counted over (note 534).</summary>
+    public double LossWindowSeconds { get; init; } = 10;
+    /// <summary>Loss (0..1) under which the link's fine.</summary>
+    public double LossGood { get; init; } = 0.02;
+    /// <summary>Loss (0..1) at which the link's bad: danger ink, and shown out on the line.</summary>
+    public double LossWarn { get; init; } = 0.08;
+    /// <summary>The loss window in sim ticks.</summary>
+    public int LossWindowTicks => Math.Max(1, (int)Math.Round(LossWindowSeconds * Sim.SimConstants.TickRate));
     /// <summary>The crew's loudness, as a share of the Choir's threshold, at which the noise meter shows.</summary>
     public double NoiseShowAt { get; init; } = 0.5;
     /// <summary>The HUD's colours that mean something (note 348), as the game was drawn.</summary>

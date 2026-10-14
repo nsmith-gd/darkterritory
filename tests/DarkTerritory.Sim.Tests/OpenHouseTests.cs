@@ -23,7 +23,7 @@ public class OpenHouseTests
 
     [Theory]
     [InlineData("frontier:7")]
-    [InlineData("deadLines:2")]
+    [InlineData("deadLines:7")]
     public void YouWalkInAtTheDoorAndTheFindsAreInside(string spec)
     {
         var route = Routes.Generate(Content, spec, 6);
@@ -36,8 +36,10 @@ public class OpenHouseTests
             for (int i = 0; i < stop.Buildings.Count; i++)
             {
                 var b = stop.Buildings[i];
-                // Every village house stands open, whatever its shape; and the barns, outbuildings and goods sheds (note 417).
-                Assert.Equal(b.Kind is BuildingKind.House or BuildingKind.Barn or BuildingKind.Outbuilding or BuildingKind.GoodsShed, b.Open);
+                // Every village house stands open, whatever its shape; and the barns, outbuildings and goods sheds (note 417), and
+                // a dead town's station (note 493), and a yard's powerhouse (note 509).
+                Assert.Equal(b.Kind is BuildingKind.House or BuildingKind.Barn or BuildingKind.Outbuilding or BuildingKind.GoodsShed or BuildingKind.Station
+                    or BuildingKind.Powerhouse, b.Open);
                 if (!b.Open || !StopWalls.Walled(stop, i))
                     continue;
                 open++;
@@ -80,9 +82,9 @@ public class OpenHouseTests
 
     [Theory]
     [InlineData("frontier:7")]
-    [InlineData("deadLines:2")]
-    [InlineData("local:3")]
-    [InlineData("deepTerritory:2")]
+    [InlineData("deadLines:7")]
+    [InlineData("local:4")]
+    [InlineData("deepTerritory:5")]
     public void TheBiggerHousesHaveABackRoomThroughADoorway(string spec)
     {
         // An L's wing and a long plain house's far end are rooms of their own (note 326's rooms): a wall between, stood
@@ -140,6 +142,58 @@ public class OpenHouseTests
         Assert.True(ls > 0 && plain > 0 && one > 0, $"{spec}: {ls} Ls and {plain} plain houses with a back room, {one} of one room");
     }
 
+    [Theory]
+    [InlineData("frontier:7")]
+    [InlineData("deadLines:7")]
+    public void SmallThingsLieOnTheFloorsAndAreTakenAtOnce(string spec)
+    {
+        // Note 738, the director's 14 Oct playtest: "I never find anything in some of these abandoned buildings ... smaller
+        // bits of loot"; "I don't actually ever find loot like on the floor or anything. It's not really rewarding me for
+        // being attentive." Every village has something lying on a floor: in a corner of a room, inside its walls and clear
+        // of every doorway, not searched for, and small (less than what's kept in a cupboard).
+        var route = Routes.Generate(Content, spec, 6);
+        var line = route.Build();
+        var walls = StopWalls.Of(route, line);
+        var loot = DataFile.Load<LootTuning>(Path.Combine(Content, LootTuning.File));
+        double perCar = DataFile.Load<RunTuning>(Path.Combine(Content, RunTuning.File)).Economy.PerCar[StopLoot.TierKey(route.Tier)];
+        Assert.Null(loot.Search!.Of(ContainerKind.Loose));
+        int villages = 0, lying = 0;
+        for (int i = 0; i < route.Features.Count; i++)
+        {
+            if (route.Features[i].Stop is not { HasVillage: true } stop)
+                continue;
+            bool open = stop.Buildings.Any(b => b is { Kind: BuildingKind.House, Open: true });
+            var loose = stop.Containers.Where(c => c.Kind == ContainerKind.Loose).ToList();
+            if (open)
+            {
+                villages++;
+                Assert.NotEmpty(loose);
+            }
+            var finds = StopLoot.Village(loot, stop, route.Seed, i, perCar);
+            // Smaller bits (note 738), with every kind worth what it is (note 718): what lies on a floor is worth no more than the
+            // middle of what a village's cupboards, cellars and boards can keep.
+            var keptWorths = loot.Kinds.Where(k => k.Key != "loose").SelectMany(k => k.Value.Items).Distinct()
+                .Select(item => loot.WorthOf(item, perCar)).Order().ToList();
+            double kept = keptWorths[keptWorths.Count / 2];
+            foreach (var c in loose)
+            {
+                lying++;
+                var b = stop.Buildings[c.Building];
+                Assert.True(b is { Kind: BuildingKind.House, Open: true });
+                var (x, y) = StopWalls.InsideLocal(b, c.Kind, c.Index);
+                // Inside its walls (where the walls are, a crewmate can't stand), and a metre and more from any way in.
+                var at = Run.Run.StopWorld(line, route.Features[i], StopWalls.InHouse(b, x, y));
+                Assert.False(Blocked(walls, at), $"{spec}: a find in house {c.Building}'s wall ({b.Shape})");
+                foreach (var (_, way) in StopWalls.Doorways(b))
+                    Assert.True(Math.Sqrt((x - way.X) * (x - way.X) + (y - way.Y) * (y - way.Y)) >= 1.0, $"{spec}: a find in house {c.Building}'s doorway ({b.Shape})");
+                var find = finds.Single(f => f.Container == c.Index);
+                Assert.Contains(find.Item, loot.Of(ContainerKind.Loose).Items);
+                Assert.True(find.Value <= kept, $"{spec}: {find.Item} worth {find.Value}, the middle of a kept find's {kept:0}");
+            }
+        }
+        Assert.True(villages > 0 && lying >= villages, $"{spec}: {lying} things lying in {villages} villages");
+    }
+
     [Fact]
     public void EveryOpenHouseIsRansackedTheSameOnEveryMachine()
     {
@@ -177,10 +231,10 @@ public class OpenHouseTests
 
     /// <summary>Where a crewmate gets to from outside a house, on a 10 cm grid in its own frame.</summary>
     [Theory]
-    [InlineData("frontier:7")]
-    [InlineData("deadLines:2")]
-    [InlineData("local:3")]
-    [InlineData("deepTerritory:2")]
+    [InlineData("frontier:1")]
+    [InlineData("deadLines:20")]
+    [InlineData("local:10")]
+    [InlineData("deepTerritory:1")]
     public void TheBarnsAndShedsStandOpenWithTheirFindsInside(string spec)
     {
         // Note 417: a barn, an outbuilding and a dead town's goods shed stand as their walls with one wide door toward the
@@ -219,12 +273,97 @@ public class OpenHouseTests
                     if (c.Kind == ContainerKind.Bench)
                     {
                         benches++;
-                        Assert.False(walk.Reached(kx, ky), $"{spec} at {f.Start:0}: walked through a bench");
+                        Assert.False(walk.Reached(kx, ky), $"{spec} at {f.Start:0}: walked through a {c.Kind}");
                     }
                 }
             }
         }
         Assert.True(sheds > 0 && finds > 0, $"{spec}: {sheds} open sheds, {finds} finds in them, {benches} benches");
+    }
+
+    [Theory]
+    [InlineData("frontier:36")]
+    [InlineData("deadLines:20")]
+    [InlineData("deepTerritory:63")]
+    public void ADeadTownsStationStandsOpenItsCounterSolidAndNothingKeptInIt(string spec)
+    {
+        // Note 493 (note 417's "not yet"): a dead town's station stands open as its goods shed does, walked into by its door
+        // toward the line and nowhere else, its booking office's counter at the back wall solid. Nothing's kept in it (it's
+        // inside the rail buffer, P13), and the dead town is still a stop (a find in it failed the stop's checks).
+        var route = Routes.Generate(Content, spec, 6);
+        var line = route.Build();
+        var walls = StopWalls.Of(route, line);
+        int stations = 0;
+        foreach (var f in route.Features.Where(f => f.Stop is not null))
+        {
+            var stop = f.Stop!;
+            for (int i = 0; i < stop.Buildings.Count; i++)
+            {
+                var b = stop.Buildings[i];
+                if (b.Kind != BuildingKind.Station)
+                    continue;
+                stations++;
+                Assert.True(stop.Valid);
+                Assert.True(StopWalls.OpenShed(b) && StopWalls.Shelled(stop, i) && !StopWalls.Walled(stop, i), $"{spec} at {f.Start:0}: station {i} is shut");
+                Assert.DoesNotContain(stop.Containers, c => c.Building == i);
+                var door = Assert.Single(StopWalls.Doors(stop, i, new Run.WallTuning()));
+                var outward = StopWalls.InHouse(b, 0, door.Side) - StopWalls.InHouse(b, 0, 0);
+                Assert.True(Math.Sign(b.D) * outward.D <= 1e-9, $"{spec} at {f.Start:0}: station {i}'s door faces away from the line");
+                var walk = Reach(walls, line, f, b);
+                double y = door.Side * b.Width / 2;
+                Assert.True(walk.Reached(0, y - door.Side * 0.6) && walk.Reached(0, 0), $"{spec} at {f.Start:0}: station {i} can't be walked into");
+                foreach (var (x, cy) in walk.Crossings)
+                    Assert.True(Math.Abs(x) < door.Width / 2 + 0.5 && Math.Abs(cy - y) < 1.5, $"{spec} at {f.Start:0}: station {i} has a way in at ({x:0.0}, {cy:0.0})");
+                var (kx, ky, _, _) = StopWalls.Kept(b, ContainerKind.Bench, 0);
+                Assert.Single(StopWalls.Benches(stop, i));
+                Assert.False(walk.Reached(kx, ky), $"{spec} at {f.Start:0}: walked through station {i}'s counter");
+            }
+        }
+        Assert.True(stations > 0, $"{spec}: no dead town's station");
+    }
+
+    [Theory]
+    [InlineData("frontier:7")]
+    [InlineData("deepTerritory:2")]
+    [InlineData("deadLines:2")]
+    public void AYardsPowerhouseStandsOpenItsSwitchboardInsideAndTheRestartIsHeldThere(string spec)
+    {
+        // Note 509 (note 417's "not yet"): a yard's powerhouse stands open, walked into by its door toward the line and
+        // nowhere else; its switchboard and its engine stand at the back wall, solid; and the yard's power is restarted
+        // standing at the switchboard (the site's Powerhouse), which is inside and got to.
+        var route = Routes.Generate(Content, spec, 6);
+        var line = route.Build();
+        var walls = StopWalls.Of(route, line);
+        var run = new Run.Run(Ballast.DataFile.Load<Run.RunTuning>(Path.Combine(Content, Run.RunTuning.File)), route);
+        run.EnableSites(Ballast.DataFile.Load<Run.FacilityTuning>(Path.Combine(Content, Run.FacilityTuning.File)), line);
+        int houses = 0;
+        foreach (var f in route.Features.Where(f => f.Stop is { HasYard: true, Powerhouse: >= 0 }))
+        {
+            var stop = f.Stop!;
+            int i = stop.Powerhouse;
+            var b = stop.Buildings[i];
+            houses++;
+            Assert.True(StopWalls.OpenShed(b) && StopWalls.Shelled(stop, i) && !StopWalls.Walled(stop, i), $"{spec} at {f.Start:0}: the powerhouse is shut");
+            var door = Assert.Single(StopWalls.Doors(stop, i, new Run.WallTuning()));
+            var outward = StopWalls.InHouse(b, 0, door.Side) - StopWalls.InHouse(b, 0, 0);
+            Assert.True(Math.Sign(b.D) * outward.D <= 1e-9, $"{spec} at {f.Start:0}: the powerhouse's door faces away from the line");
+            var walk = Reach(walls, line, f, b);
+            double y = door.Side * b.Width / 2;
+            foreach (var (x, cy) in walk.Crossings)
+                Assert.True(Math.Abs(x) < door.Width / 2 + 0.5 && Math.Abs(cy - y) < 1.5, $"{spec} at {f.Start:0}: the powerhouse has a way in at ({x:0.0}, {cy:0.0})");
+            Assert.Equal(2, StopWalls.Benches(stop, i).Count());
+            foreach (int k in new[] { 0, 1 })
+            {
+                var (kx, ky, _, _) = StopWalls.ShedKept(b, k);
+                Assert.False(walk.Reached(kx, ky), $"{spec} at {f.Start:0}: walked through the powerhouse's {(k == 0 ? "switchboard" : "engine")}");
+            }
+            var (sx, sy) = StopWalls.Switchboard(b);
+            Assert.True(StopWalls.InParts(b, sx, sy) && walk.Reached(sx, sy), $"{spec} at {f.Start:0}: the switchboard can't be got to");
+            var site = Assert.Single(run.Sites, s => s?.Feature == f)!;
+            var at = Run.Run.StopWorld(line, f, StopWalls.InHouse(b, sx, sy));
+            Assert.True(((Assert.NotNull(site.Powerhouse) - at) with { Y = 0 }).Length < 0.01, $"{spec} at {f.Start:0}: the restart isn't at the switchboard");
+        }
+        Assert.True(houses > 0, $"{spec}: no yard with a powerhouse");
     }
 
     sealed record Walk(double X0, double Y0, bool[,] Grid, List<(double X, double Y)> Crossings)

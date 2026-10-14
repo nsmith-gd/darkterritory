@@ -182,6 +182,17 @@ public sealed class Holdouts
         return false;
     }
 
+    /// <summary>
+    /// The creature gym (GDD §34.1, note 676): someone stood up again by other means is off the queue and out of any Holdout
+    /// they were waiting in.
+    /// </summary>
+    public void Forget(int playerId)
+    {
+        _queue.RemoveAll(e => e.PlayerId == playerId);
+        foreach (var h in _holdouts.Where(h => h.Occupant == playerId && h.State != HoldoutState.Freed))
+            Release(h);
+    }
+
     /// <summary>D.6 defer: one place further back, never forward.</summary>
     public void Defer(int playerId)
     {

@@ -16,6 +16,12 @@ public sealed record PerfTuning
     public int MaxFrameTriangles { get; init; } = 1_500_000;
     /// <summary>Draw calls in any one pass, at most.</summary>
     public int MaxPassDraws { get; init; } = 1500;
+    /// <summary>
+    /// Triangles built again in a frame (the mesh's own soup, uploaded every frame: what moves or changes by the frame,
+    /// the figures, the flames), at most, in a frame standing in a town or on the line (note 695): everything that stays
+    /// as it is is cooked once and drawn where it is.
+    /// </summary>
+    public int MaxRebuiltTriangles { get; init; } = 8000;
 }
 
 public sealed record PerfTarget

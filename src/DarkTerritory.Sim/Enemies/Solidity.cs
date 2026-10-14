@@ -53,6 +53,31 @@ public static class Solidity
         }
     }
 
+    /// <summary>
+    /// Where a creature of <paramref name="kind"/> on the ground at <paramref name="p"/> would be put by <see cref="Settle"/>:
+    /// out of the stops' walls and on the land. A place it's sent to (the Pickers' drains, note 592) is one it can reach.
+    /// </summary>
+    public static Double3 Clear(TrainOnLine train, EnemyTuning t, EnemyKind kind, Double3 p)
+    {
+        double r = Radius(t, kind);
+        if (train.Walls is { } walls)
+            for (int pass = 0; pass < 4; pass++)
+            {
+                var was = p;
+                foreach (var w in walls.Near(p))
+                    if (!w.Fort)
+                        p = Out(w, p, r);
+                if (p == was)
+                    break;
+            }
+        if (train.Line.Conditions is { } land)
+        {
+            p = land.Confine(p, r);
+            p = p with { Y = land.Ground(p) };
+        }
+        return p;
+    }
+
     /// <summary>A creature's widest sphere (enemies.json <c>bodies</c>); a little one for a kind with none.</summary>
     static double Radius(EnemyTuning t, EnemyKind kind)
     {

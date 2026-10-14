@@ -53,6 +53,15 @@ public sealed class Crane
     public int Operator { get; internal set; } = -1;
     /// <summary>How fast it runs, of its full speed: its yard's power (level-design D.2), 0 when the power's dead.</summary>
     public double SpeedScale { get; internal set; } = 1;
+    /// <summary>Its gantry brought down (Tower Jaw, note 363): dead for the night, whatever powers it.</summary>
+    public bool Wrecked { get; private set; }
+
+    /// <summary>Brought down: it moves no more.</summary>
+    public void Wreck()
+    {
+        Wrecked = true;
+        SpeedScale = 0;
+    }
     public double Rigging { get; internal set; }
     internal int Rigger = -1;
     bool _releaseWas;
@@ -69,9 +78,14 @@ public sealed class Crane
     public Double3 BridgeEnd(int side) => _at(Bridge, _t.Span[side], Top);
     /// <summary>Where the hook is (world).</summary>
     public Double3 HookAt => _at(Bridge, Trolley, Hook);
-    /// <summary>The control stand, at the foot of the near leg at the gantry's first end; the cab's up over it.</summary>
+    /// <summary>The control stand, at the foot of the near leg at the gantry's first end.</summary>
     public Double3 Controls => _at(_t.Along - 0.5 * _t.Length + 0.8, _t.Span[0] - 0.8, 0);
-    public Double3 Cab => _at(_t.Along - 0.5 * _t.Length + 0.8, _t.Span[0], Top - 1.2);
+    /// <summary>
+    /// The operator's cab, riding the bridge under its far end, outboard of the stack (GDD §18; the director, 14 Oct: "my
+    /// train is blocking the view of the loot"; note 736). It stood on the near leg, across the track from the castings, and
+    /// the cars' roofs hid the ground round them; from here the stack's in front and the car beyond.
+    /// </summary>
+    public Double3 Cab => _at(Bridge, _t.Span[1] + _t.CabOut, Top - 1.2);
 
     /// <summary>The casting's half-height (it hangs this far under the hook, its middle).</summary>
     public double CastingHalf => _t.CastingSize[1] * 0.5;
@@ -127,10 +141,12 @@ public sealed class Crane
         bool clears = local.X - hx >= hatch.Min.X && local.X + hx <= hatch.Max.X && local.Z - hz >= hatch.Min.Z && local.Z + hz <= hatch.Max.Z;
         if (!clears)
             return (false, 0);
-        // What it comes down on: the highest thing under its footprint below the roof, a casting already in included.
+        // What it comes down on: the highest thing under its footprint below the roof as the car is now (an empty car's heap
+        // isn't there, note 708), a casting already in included.
         double floor = 0;
+        var vehicle = train.Vehicles[car];
         foreach (var (x, z) in new[] { (0.0, 0.0), (-hx, -hz), (hx, -hz), (-hx, hz), (hx, hz) })
-            floor = Math.Max(floor, shape.TopAt(local.X + x, local.Z + z, hatch.Min.Y - 0.01)?.Top ?? 0);
+            floor = Math.Max(floor, shape.TopAt(local.X + x, local.Z + z, vehicle, hatch.Min.Y - 0.01)?.Top ?? 0);
         foreach (var c in Castings)
             if (c.State == CastingState.Loaded && c.Car == car && c.At.Y < hatch.Min.Y
                 && Math.Abs(c.At.X - local.X) < 2 * hx && Math.Abs(c.At.Z - local.Z) < 2 * hz)
@@ -174,6 +190,50 @@ public sealed class Crane
         Trolley = Math.Clamp(Trolley + intent.MoveX * _t.TrolleySpeed * dt, _t.Span[0] + 0.5, _t.Span[1] - 0.5);
         double lift = (intent.Has(PlayerButtons.Jump) ? 1 : 0) - (intent.Has(PlayerButtons.Brake) ? 1 : 0);
         Hook = Math.Clamp(Hook + lift * _t.HoistSpeed * dt, Lowest(train), _t.Height);
+        // Note 581 (the director, 9 Oct 2026: "extremely difficult to get loot into the cars, the game should be more
+        // forgiving"): a casting brought low over an open hatch that it overlaps but doesn't clear is eased over the opening,
+        // the bridge and trolley drawn to where it goes in, as a hand on the rope would steady it.
+        if (Hooked is not null && _t.GuideSpeed > 0 && Guided(train) is { } fit)
+        {
+            var (b, x, _) = Over(fit);
+            double step = _t.GuideSpeed * dt;
+            Bridge = Math.Clamp(Bridge + Math.Clamp(b - Bridge, -step, step), _t.Along - 0.5 * _t.Length, _t.Along + 0.5 * _t.Length);
+            Trolley = Math.Clamp(Trolley + Math.Clamp(x - Trolley, -step, step), _t.Span[0] + 0.5, _t.Span[1] - 0.5);
+        }
+    }
+
+    /// <summary>
+    /// Where the hook would put the casting through an open hatch it's low over (within <see cref="CraneTuning.GuideAbove"/>
+    /// of the roof) and overlaps but doesn't clear: the nearest place it clears (world, at the hook's height). Null when it
+    /// clears already, isn't over one, or is too big for it whatever its place.
+    /// </summary>
+    public Double3? Guided(TrainOnLine train)
+    {
+        if (Hooked is null)
+            return null;
+        var hook = HookAt;
+        foreach (var frame in train.Frames)
+        {
+            var shape = frame.Shape;
+            if (shape.Hatch is not { } hatch || !train.Vehicles[frame.Index].DoorOpen(CarShape.HatchBit))
+                continue;
+            var local = frame.ToLocal(hook);
+            if (local.Y - 2 * CastingHalf - shape.RoofHeight > _t.GuideAbove)
+                continue;
+            var (hx, hz) = Footprint(frame);
+            bool over = Math.Abs(local.X - hatch.Centre.X) < hatch.HalfSize.X + hx && Math.Abs(local.Z - hatch.Centre.Z) < hatch.HalfSize.Z + hz;
+            if (!over || hx > hatch.HalfSize.X || hz > hatch.HalfSize.Z)
+                continue;
+            if (local.X - hx >= hatch.Min.X && local.X + hx <= hatch.Max.X && local.Z - hz >= hatch.Min.Z && local.Z + hz <= hatch.Max.Z)
+                return null;
+            // Aimed a little inside the opening's edges: the bridge and trolley put the hook within a few centimetres of a
+            // point (Over's search), so it lands clear of them, not on them.
+            double margin = Math.Min(0.08, Math.Min(hatch.HalfSize.X - hx, hatch.HalfSize.Z - hz));
+            double x = Math.Clamp(local.X, hatch.Min.X + hx + margin, hatch.Max.X - hx - margin);
+            double z = Math.Clamp(local.Z, hatch.Min.Z + hz + margin, hatch.Max.Z - hz - margin);
+            return frame.ToWorld(new Double3(x, local.Y, z));
+        }
+        return null;
     }
 
     /// <summary>
@@ -221,13 +281,21 @@ public sealed class Crane
 
     /// <summary>
     /// Fire, pressed: the hook lets go. Set down (its base near what's under it) over a cargo car with room, it's lashed and
-    /// loaded; on the ground, it lies there to be rigged again. Let go of higher, it falls, and it's lost: the point it
-    /// lands at is returned, for whoever's under it.
+    /// loaded; on the ground, it lies there to be rigged again. Let go of higher, it falls (the point it lands at is returned,
+    /// for whoever's under it) and lands as if set down there. Note 659 (the director, 13 Oct: "it just disappeared ... an
+    /// accidental mouse click means it's essentially lost, which we don't want"): a fall used to lose it.
     /// </summary>
     public (Double3 Landed, bool Fell)? Release(TrainOnLine train)
     {
         if (Hooked is not { } c)
             return null;
+        // Let go low over an open hatch it overlaps but doesn't clear (note 581): it's put through where it does and set down
+        // inside, not kept on the hook with nothing said.
+        if (Guided(train) is { } fit)
+        {
+            (Bridge, Trolley, _) = Over(fit);
+            Hook = Lowest(train);
+        }
         var (car, floor) = Under(train);
         // Hung over an open hatch it won't go in through, it's kept on the hook: set down there, it would stand in the
         // opening (T99).
@@ -236,22 +304,21 @@ public sealed class Crane
         var bottom = HookedBase;
         double above = bottom.Y - floor;
         var landed = bottom with { Y = floor };
-        if (above > _t.DropAbove)
-        {
-            c.State = CastingState.Lost;
-            return (landed, true);
-        }
+        bool fell = above > _t.DropAbove;
         if (car >= 0 && train.Vehicles[car] is { Kind: VehicleKind.Cargo } v && v.Load < 1)
         {
+            double was = v.Load;
             v.Load = Math.Min(1, v.Load + _t.LoadPerCasting);
+            // It lies in the car as itself (note 659), not in its heap.
+            v.Placed += v.Load - was;
             c.State = CastingState.Loaded;
             c.Car = car;
             c.At = train.Frames[car].ToLocal(landed);
-            return (landed, false);
+            return (landed, fell);
         }
         c.State = CastingState.Stacked;
         c.At = car >= 0 ? landed : _at(Bridge, Trolley, 0);
-        return (landed, false);
+        return (landed, fell);
     }
 
     /// <summary>A casting a rigger at the hook could hook on: lying within reach of it, the hook low enough to reach.</summary>
@@ -289,6 +356,48 @@ public sealed class Crane
         c.State = CastingState.Hooked;
         Rigger = -1;
         Rigging = 0;
+    }
+
+    /// <summary>
+    /// A casting on the hook set down on a car (its base within <c>dropAbove</c> of what's under it, the car's floor through
+    /// an open hatch or its roof) that a hand on that car beside the hook could unhook there (note 659, the director, 13 Oct:
+    /// "allowing people to walk up to the casting and unrig it once it's in the car").
+    /// </summary>
+    public bool Unriggable(TrainOnLine train, Double3 rigger)
+    {
+        if (Hooked is null)
+            return false;
+        var (car, floor) = Under(train);
+        if (car < 0 || train.Vehicles[car].Kind != VehicleKind.Cargo || HookedBase.Y - floor > _t.DropAbove)
+            return false;
+        return ((rigger - HookAt) with { Y = 0 }).Length <= _t.RigReach;
+    }
+
+    /// <summary>
+    /// One tick of unrigging (<see cref="Unriggable"/>): a hand on the car holding Use at the hook as long as rigging takes,
+    /// and it's let go of there, as the operator's Fire lets it go (<see cref="Release"/>): loaded into the car. True the tick
+    /// it's done.
+    /// </summary>
+    public bool Unrig(int player, Double3 at, bool holding, TrainOnLine train, double dt)
+    {
+        if (!holding || !Unriggable(train, at))
+        {
+            if (Rigger == player)
+            {
+                Rigger = -1;
+                Rigging = 0;
+            }
+            return false;
+        }
+        if (Rigger >= 0 && Rigger != player)
+            return false;
+        Rigger = player;
+        Rigging += dt / _t.RigSeconds;
+        if (Rigging < 1)
+            return false;
+        Rigger = -1;
+        Rigging = 0;
+        return Release(train) is not null;
     }
 
     /// <summary>The operator's Fire, as a press (held down it lets go once).</summary>

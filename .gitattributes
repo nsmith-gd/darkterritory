@@ -4,3 +4,9 @@
 *.png binary
 *.glb binary
 *.opus binary
+# The shared coordination docs (ARCHITECTURE §8 note 521): every agent appends to them (claims, Done rows, notes, logs), and
+# two appends at once were a conflict to resolve by hand, nearly every merge. Union keeps both sides' lines; what it can't
+# see (two claims of one number) tools/coord/check.py catches on the pull request.
+docs/COORDINATION.md merge=union
+docs/ARCHITECTURE.md merge=union
+docs/log/*.md merge=union

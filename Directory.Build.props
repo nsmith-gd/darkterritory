@@ -8,5 +8,9 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <InvariantGlobalization>true</InvariantGlobalization>
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <!-- Developer builds carry the developer tools (ARCHITECTURE §8 note 514): Ballast.Dev and DarkTerritory.Dev, which the
+         app references only then, and DEVTOOLS for its few hooks into them. A player's build (tools/package.sh, unless it's
+         asked for a dev build) is built with DevTools=false, so none of it is in what players get; `dt build check` proves it of a package. -->
+    <DevTools Condition="'$(DevTools)' == ''">true</DevTools>
   </PropertyGroup>
 </Project>

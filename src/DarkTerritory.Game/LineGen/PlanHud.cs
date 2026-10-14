@@ -58,11 +58,9 @@ public static class PlanHud
         bool profile = rail is not null && page == 0 && rail.Length > 100;
         if (profile)
         {
+            // No key under it (note 671: "we just show the number"): the figures are the cab map's, red where they'd have
+            // you off.
             rows.InsertRange(2, Enumerable.Repeat(("", InkDark), (profileH + line - 1) / line + 1));
-            // The key to the profile's red figures (as the cab's run map keys its own), under it.
-            var why = PostedSpeeds.Of(plan, rail!, rail!.Length).Select(b => b.Why).ToHashSet();
-            var keys = new[] { why.Contains("BRASS") ? "B BRASS" : null, why.Contains("BRIDGE") ? "W WEAK BRIDGE" : null }.OfType<string>();
-            rows.Insert(2 + (profileH + line - 1) / line + 1, (string.Join(". ", keys.Prepend("IN RED: KM/H OR OFF")), Stamp));
         }
         // Wrapped to the sheet; what doesn't fit the screen is cut off at the foot, as a real card is folded.
         int chars = (int)((w - 12) / o.Font.Advance);
@@ -128,17 +126,19 @@ public static class PlanHud
         foreach (var (s0, s1, kmh, why) in bends.OrderBy(b => b.Kmh))
         {
             float b0 = x + (float)(s0 / line.Length) * (w - 1), b1 = x + (float)(s1 / line.Length) * (w - 1);
-            o.Rect(b0, y + h - 2, MathF.Max(1, b1 - b0), 2, Stamp);
-            string figure = why switch { "BRASS" => $"{kmh}B", "BRIDGE" => $"{kmh}W", _ => $"{kmh}" };
+            // The number alone (note 671), as on the cab map: red where it derails, the card's ink where it only costs brass.
+            var ink = PostedSpeeds.Derails(why) ? Stamp : InkDark;
+            o.Rect(b0, y + h - 2, MathF.Max(1, b1 - b0), 2, ink);
+            string figure = PostedSpeeds.Figure(kmh);
             float tw = figure.Length * o.Font.Advance, tx = MathF.Round(Math.Clamp((b0 + b1) / 2 - tw / 2, x, x + w - tw));
             if (printed.Any(p => tx < p.X1 + 2 && tx + tw > p.X0 - 2))
                 continue;
             printed.Add((tx, tx + tw));
             // Above the ground's line there, where it's paper: a white ground under the figure so it reads over the ink.
             float ty = y + 5;
-            o.Rect((b0 + b1) / 2, ty + o.Font.LineHeight - 2, 1, h - (ty + o.Font.LineHeight - 2 - y) - 2, Stamp with { W = 0.6f });
+            o.Rect((b0 + b1) / 2, ty + o.Font.LineHeight - 2, 1, h - (ty + o.Font.LineHeight - 2 - y) - 2, ink with { W = 0.6f });
             o.Rect(tx - 1, ty - 1, tw + 1, o.Font.LineHeight - 1, Paper);
-            o.Text(tx, ty, figure, Stamp, shadow: false);
+            o.Text(tx, ty, figure, ink, shadow: false);
         }
         // Where the train is (note 285), pencilled over the ink: a line down the profile and a mark over it.
         if (at is { } here && line.Length > 0)

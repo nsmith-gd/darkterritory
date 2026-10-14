@@ -1,0 +1,622 @@
+<title>Creature Tweaker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a dispatcher's roster sheet. How the numbers work, the tier tabs, the roster as one editable matrix with its
+   estimate beside it, then the influence grid: what each creature's change does to every other. */
+:root {
+  --bg: #eef0ec; --sheet: #fbfcf9; --ink: #1d2a33; --muted: #5b6a72; --rule: #c9d0cc; --rule-soft: #e2e6e3;
+  --accent: #b5361f; --lamp: #a86f06; --lamp-bg: #fbeed6; --ok: #2f6b45; --ok-bg: #e4efe6;
+  --more: #c4561d; --fewer: #2a6f9e; --field: #ffffff; --focus: #2a6f9e;
+  --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #141b20; --sheet: #1b242a; --ink: #e3e8e4; --muted: #95a3a8; --rule: #33424a; --rule-soft: #26323a;
+  --accent: #e2694f; --lamp: #e5aa3c; --lamp-bg: #3a2c16; --ok: #7cc493; --ok-bg: #1d3326;
+  --more: #f08a4b; --fewer: #6fb3e0; --field: #11181c; --focus: #6fb3e0; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #141b20; --sheet: #1b242a; --ink: #e3e8e4; --muted: #95a3a8; --rule: #33424a; --rule-soft: #26323a;
+  --accent: #e2694f; --lamp: #e5aa3c; --lamp-bg: #3a2c16; --ok: #7cc493; --ok-bg: #1d3326;
+  --more: #f08a4b; --fewer: #6fb3e0; --field: #11181c; --focus: #6fb3e0; color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font: 15px/1.5 var(--body); }
+.wrap { max-width: 1320px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 64px; display: grid; gap: 22px; }
+header { display: grid; gap: 10px; }
+.eyebrow { font: 600 13px/1 var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--accent); }
+h1 { font: 700 clamp(34px, 6vw, 52px)/1 var(--display); margin: 0; letter-spacing: .01em; }
+h2 { font: 700 26px/1.05 var(--display); margin: 0; letter-spacing: .02em; text-wrap: balance; }
+.lede { max-width: 72ch; color: var(--muted); margin: 0; }
+.lede b, .how b { color: var(--ink); font-weight: 600; }
+.panel { background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 16px; display: grid; gap: 12px; min-width: 0; }
+.how ol { margin: 0; padding-left: 1.3em; display: grid; gap: 6px; max-width: 80ch; }
+.how p { margin: 0; max-width: 80ch; color: var(--muted); }
+.bar { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: space-between; }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; }
+.tabs button { font: 600 15px/1 var(--display); letter-spacing: .06em; text-transform: uppercase; padding: 8px 12px; border: 1px solid var(--rule); background: var(--sheet); color: var(--muted); border-radius: 4px; cursor: pointer; }
+.tabs button[aria-selected="true"] { background: var(--ink); color: var(--sheet); border-color: var(--ink); }
+.summary { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font: 600 13px/1.3 var(--body); border: 1px solid var(--rule); color: var(--muted); }
+.chip.wait { background: var(--lamp-bg); color: var(--lamp); border-color: transparent; }
+.chip.ok { background: var(--ok-bg); color: var(--ok); border-color: transparent; }
+.chip b { color: var(--ink); font-family: var(--mono); font-weight: 600; }
+.scroll { overflow-x: auto; border: 1px solid var(--rule); border-radius: 6px; background: var(--sheet); }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th, td { padding: 6px 8px; border-bottom: 1px solid var(--rule-soft); text-align: right; white-space: nowrap; }
+thead th { font: 600 12px/1.2 var(--body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); vertical-align: bottom; background: var(--sheet); position: sticky; top: 0; }
+th.name, td.name { text-align: left; position: sticky; left: 0; background: var(--sheet); z-index: 1; }
+td.name { font: 700 18px/1.1 var(--display); letter-spacing: .02em; }
+td.name small { display: block; font: 12px/1.3 var(--body); color: var(--muted); letter-spacing: 0; white-space: normal; max-width: 26ch; }
+th.group { border-left: 2px solid var(--rule); }
+td.group { border-left: 2px solid var(--rule); }
+td input[type=number] { width: 4.6em; font: 14px/1.2 var(--mono); padding: 4px 6px; border: 1px solid var(--rule); border-radius: 3px; background: var(--field); color: var(--ink); text-align: right; }
+td.changed input { border-color: var(--lamp); background: var(--lamp-bg); }
+td .was { display: block; font: 11px/1.2 var(--mono); color: var(--lamp); min-height: 1.2em; }
+td .na { color: var(--muted); font: 13px var(--body); }
+td.est { font: 600 15px/1.2 var(--mono); }
+td.delta { font: 13px/1.2 var(--mono); }
+.up { color: var(--more); } .down { color: var(--fewer); } .flat { color: var(--muted); }
+.share { display: inline-block; height: 8px; background: var(--ink); opacity: .55; border-radius: 1px; vertical-align: middle; margin-left: 6px; }
+td input[type=checkbox] { width: 18px; height: 18px; accent-color: var(--accent); }
+button.note { font: 600 13px/1 var(--body); padding: 5px 8px; border: 1px solid var(--rule); border-radius: 3px; background: var(--field); color: var(--ink); cursor: pointer; }
+button.note.has { border-color: var(--lamp); color: var(--lamp); }
+tr.noterow td { text-align: left; background: var(--bg); white-space: normal; }
+tr.noterow textarea { width: 100%; max-width: 80ch; box-sizing: border-box; min-height: 64px; font: 14px/1.45 var(--body); padding: 7px 9px; border: 1px solid var(--rule); border-radius: 4px; background: var(--field); color: var(--ink); display: block; }
+.reply { margin-top: 6px; max-width: 80ch; font-size: 14px; border-left: 3px solid var(--ok); padding: 4px 10px; background: var(--ok-bg); }
+tr.waiting td.name { box-shadow: inset 4px 0 0 var(--lamp); }
+tfoot td { font: 600 14px/1.2 var(--mono); border-top: 2px solid var(--rule); border-bottom: 0; }
+.grid-head { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: end; justify-content: space-between; }
+.grid-head label { font: 600 12px/1.2 var(--body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); display: grid; gap: 4px; }
+.grid-head select { font: 15px var(--body); padding: 5px 8px; border: 1px solid var(--rule); border-radius: 4px; background: var(--field); color: var(--ink); }
+table.infl th.col { height: 120px; padding: 4px 2px; vertical-align: bottom; text-align: left; }
+table.infl th.col span { writing-mode: vertical-rl; transform: rotate(180deg); font: 600 13px/1 var(--display); letter-spacing: .04em; text-transform: none; color: var(--ink); }
+table.infl td { padding: 0; width: 38px; min-width: 38px; height: 30px; text-align: center; font: 11px/1 var(--mono); border: 1px solid var(--bg); }
+table.infl td.name { width: auto; padding: 4px 8px; font-size: 15px; }
+table.infl td.self { outline: 2px solid var(--ink); outline-offset: -2px; }
+table.infl td.slot { box-shadow: inset 0 0 0 2px var(--lamp); }
+.swatch.ring { box-shadow: inset 0 0 0 2px var(--lamp); }
+td.name small.slot { color: var(--lamp); }
+table.infl td.all { border-left: 2px solid var(--rule); font-weight: 600; width: 48px; }
+.legend { display: flex; gap: 10px; align-items: center; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+.swatch { display: inline-block; width: 14px; height: 14px; border-radius: 2px; vertical-align: -2px; margin-right: 4px; }
+.foot { font-size: 13px; color: var(--muted); max-width: 90ch; margin: 0; }
+.status { font-size: 13px; color: var(--muted); min-height: 1.3em; }
+.night .knobs { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px 24px; }
+.night .knob { display: grid; grid-row: span 3; grid-template-rows: subgrid; gap: 4px; align-items: end; }
+.night .knob .foot { align-self: start; }
+.night label { font: 600 14px/1.3 var(--body); }
+.night input { width: 5em; font: 14px var(--mono); padding: 4px 6px; border: 1px solid var(--rule); border-radius: 3px; background: var(--field); color: var(--ink); }
+.night input.changed { border-color: var(--lamp); background: var(--lamp-bg); }
+table.scale th { text-align: center; }
+table.scale th.name { text-align: left; }
+table.scale td { text-align: center; padding: 5px 6px; min-width: 64px; border: 1px solid var(--bg); }
+table.scale td b { display: block; font: 600 15px/1.2 var(--mono); }
+table.scale td span { display: block; font: 11px/1.3 var(--body); color: var(--muted); }
+table.scale td.base { outline: 2px solid var(--ink); outline-offset: -2px; }
+table.scale td.moved { box-shadow: inset 0 0 0 2px var(--lamp); }
+table.scale th.long { color: var(--accent); }
+button.primary { font: 600 14px/1 var(--body); padding: 8px 12px; border-radius: 4px; border: 1px solid var(--ink); background: var(--ink); color: var(--sheet); cursor: pointer; }
+input:focus-visible, textarea:focus-visible, button:focus-visible, select:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.ro input, .ro textarea, .ro button.primary { pointer-events: none; opacity: .7; }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Dark Territory · the night's creatures</div>
+    <h1>Creature Tweaker</h1>
+    <p class="lede">Set how each creature comes on a night. <b>Your changes save as you type</b>, and the estimate beside them moves with every change, for every creature. The agents put your values into the game and mark them in. A row waiting for an agent has an amber edge. Anything a number can't say, write in its note and an agent will answer there.</p>
+  </header>
+
+  <section class="panel how" aria-labelledby="how-h">
+    <h2 id="how-h">How the numbers work together</h2>
+    <ol>
+      <li><b>Pressure builds through the night</b>: faster on harder tiers, toward the end, in a long quiet, when the crew is loud, with cargo aboard, and with a bigger crew or a longer train (set under "The whole night").</li>
+      <li><b>When it's high enough, the director picks one creature.</b> Each that could come right now (some need a stop, a fast train, a bridge, a dark car) is weighted by its <b>How often</b> × its <b>tier weight</b>.</li>
+      <li><b>Cost is how long the quiet after it lasts.</b> The pick takes 3 × its cost off the pressure, so after a cost-1 Freight Beetle the next thing comes soon, and after a cost-5 Passenger the night goes quiet for a while. The night also has a budget of cost, but on today's 7 km nights the director spends about 45 of its 360, so the budget never runs out.</li>
+      <li><b>Most in a night</b> and <b>Nights it comes</b> take a creature out once it's reached its cap or on the nights it's not about. Its picks go to the others.</li>
+      <li><b>Five come their own way, not the director's pick:</b> the Pickers when the train stands at a yard with crates about, and the Lodger, the Householder, the Hollow House and the Hanger in the stops' open houses. They take nothing off the pressure, so they don't move the rest. Their "How often" is their share of the houses: more Lodgers means fewer of the other house creatures.</li>
+      <li><b>So every number moves the others.</b> More of one means fewer of the rest. A costlier creature means fewer things all night, for everyone. The grid at the foot shows each creature's effect on every other.</li>
+    </ol>
+  </section>
+
+  <section class="panel night" aria-labelledby="night-h">
+    <h2 id="night-h">The whole night: dawn, the crew and the train</h2>
+    <div class="knobs">
+      <div class="knob">
+        <label for="k-nightFleesSeconds">Night things leave this many seconds before dawn</label>
+        <input type="number" id="k-nightFleesSeconds" min="-1" step="10" inputmode="decimal">
+        <span class="foot" id="g-nightFleesSeconds"></span>
+      </div>
+      <div class="knob">
+        <label for="k-crewScale">Faster for each crewmate over four</label>
+        <input type="number" id="k-crewScale" min="0" step="0.02" inputmode="decimal">
+        <span class="foot" id="g-crewScale"></span>
+      </div>
+      <div class="knob">
+        <label for="k-lengthScale">Faster for each car over eight</label>
+        <input type="number" id="k-lengthScale" min="0" step="0.01" inputmode="decimal">
+        <span class="foot" id="g-lengthScale"></span>
+      </div>
+      <div class="knob">
+        <label for="k-longTrainCars">Two threats on one crewmate from this many cars</label>
+        <input type="number" id="k-longTrainCars" min="0" step="1" inputmode="numeric">
+        <span class="foot" id="g-longTrainCars"></span>
+      </div>
+      <div class="knob">
+        <label for="k-perNightDefault">Most a night, for every creature without its own</label>
+        <input type="number" id="k-perNightDefault" min="1" step="1" inputmode="numeric" placeholder="no cap">
+        <span class="foot" id="g-perNightDefault"></span>
+      </div>
+    </div>
+    <p class="foot">The grid is what those three make. In each square, the large number is how fast the night builds toward its next creature against a crew of four on eight cars (the outlined square, where the estimates above are measured): ×1.5 is half again as often. Below it is how many can be under a threat at once, and the most on one crewmate. Squares your values change from the game's have an amber edge. More comes on a bigger crew or a longer train, but how many can be about at once also limits it, so the creatures a night rise less than the large number says: on 12 Oct, four bots on 18 cars went from 17 to 26 a night.</p>
+    <div class="scroll"><table class="scale" id="scale" aria-label="How fast the night builds and how many at once, by crew and cars"></table></div>
+  </section>
+
+  <div class="bar">
+    <div class="tabs" role="tablist" id="tabs" aria-label="Tier"></div>
+    <div class="summary" id="summary"><span class="chip">Loading the roster…</span></div>
+  </div>
+  <div class="status" id="status" role="status" aria-live="polite"></div>
+
+  <div class="scroll" id="matrix-wrap">
+    <table id="matrix" aria-label="The creatures and their numbers">
+      <thead>
+        <tr>
+          <th class="name" scope="col">Creature</th>
+          <th scope="col" title="Its weight among what could come, times this">How often ×</th>
+          <th scope="col" title="3 × cost comes off the night's pressure when it's sent: the quiet after it">Cost</th>
+          <th scope="col" title="The most the director sends in one night; blank is no cap">Most a night</th>
+          <th scope="col" title="On how many nights it's about at all">Nights it comes %</th>
+          <th scope="col" id="tier-col" title="This tier's weight; creatures without one weigh the same on every tier">Tier weight</th>
+          <th scope="col">Leaves at dawn</th>
+          <th class="group" scope="col" title="The estimate with your values">≈ a night</th>
+          <th scope="col" title="Your values against the game's, both estimated">vs game</th>
+          <th scope="col" title="Measured in the game, on this tier">Measured</th>
+          <th scope="col">Note</th>
+        </tr>
+      </thead>
+      <tbody id="rows"><tr><td class="name" colspan="11">The roster appears here once the page connects to its store.</td></tr></tbody>
+      <tfoot><tr><td class="name">The whole night</td><td colspan="6"></td><td class="group" id="tot-est"></td><td id="tot-delta"></td><td id="tot-meas"></td><td></td></tr></tfoot>
+    </table>
+  </div>
+
+  <section class="panel" aria-labelledby="infl-h">
+    <div class="grid-head">
+      <div style="display:grid;gap:6px;max-width:70ch">
+        <h2 id="infl-h">What one change does to the rest</h2>
+        <p class="foot">Each row is one creature changed and nothing else, from your values on this tier. Each column is how many more (orange) or fewer (blue) of that creature come a night. The outlined square is the creature itself; the last column is the whole night.</p>
+      </div>
+      <label>The change
+        <select id="infl-kind">
+          <option value="weight">How often ×1.5</option>
+          <option value="cost">Cost +1</option>
+          <option value="off">Taken out (Nights it comes 0%)</option>
+        </select>
+      </label>
+    </div>
+    <div class="legend"><span><span class="swatch" style="background:var(--more)"></span>more a night</span><span><span class="swatch" style="background:var(--fewer)"></span>fewer a night</span><span><span class="swatch ring"></span>can't be about together: the real effect is bigger than shown</span><span>Blank: under 0.05.</span></div>
+    <div class="scroll"><table class="infl" id="infl" aria-label="Influence of each creature's change on every other"></table></div>
+  </section>
+
+  <section class="panel" aria-labelledby="measure-h">
+    <h2 id="measure-h">Estimates and measurements</h2>
+    <p class="foot" id="calib">The estimate comes from measured nights.</p>
+    <p class="foot">Creatures that can't be about at once are named on their rows and ringed in the grid. The estimate doesn't count how long one keeps the other out, and it can be all night: on 12 Oct's main, five Knotters a night kept the Hotbox out of every night.</p>
+    <p class="foot">Not in the estimate: creatures sent to answer each other (the director's pairs), a creature sent lately coming on less, one threat on each crewmate at a time, and how the creatures change a night's speed and stops. A measurement plays real nights.</p>
+    <p class="foot">With "Nights it comes" set on many creatures, the estimate samples 256 nights of who's about, the same nights for your values and the game's. It shares each night's creatures among those about, so it shows the pile-up, but less than the game does: the creatures others crowded out when everything was about (the Cinder Hounds, the Tippy Toesie) come far more often in the game on a night when few are about than the estimate says. The Measured column shows what really happens.</p>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+      <button class="primary" id="measure" type="button">Measure my values</button>
+      <span class="foot" id="measure-state"></span>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const TIERS = [["local", "Local"], ["frontier", "Frontier"], ["deadLines", "Dead Lines"], ["deepTerritory", "Deep Territory"]];
+  const FIELDS = ["weight", "cost", "perNight", "nightChance", "abandonAtDawn", "tierWeights"];
+  const $ = id => document.getElementById(id);
+  const say = t => { $("status").textContent = t; };
+  const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+  const r1 = v => (Math.round(v * 10) / 10).toFixed(1);
+  let db = null, readOnly = false, tier = "frontier";
+  try { const t = localStorage.getItem("tweaker-tier"); if (TIERS.some(x => x[0] === t)) tier = t; } catch {}
+  const docs = new Map();         // id -> creature doc
+  const draft = new Map();        // id -> want being edited (saved soon)
+  const chains = new Map(), timers = new Map();
+  let model = null, night = null, request = null;
+
+  function el(tag, attrs = {}, ...kids) {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (k === "class") e.className = v; else if (k === "text") e.textContent = v; else if (v !== false && v != null) e.setAttribute(k, v === true ? "" : v);
+    }
+    for (const k of kids) if (k != null) e.append(k);
+    return e;
+  }
+  const wantOf = id => draft.get(id) || docs.get(id)?.want || {};
+  const gameOf = id => docs.get(id)?.game || {};
+  const tw = (s, t) => s.tierWeights ? (s.tierWeights[t] ?? 1) : 1;
+
+  // ---- The estimate (see "How the numbers work together"). Calibrated per tier from measured nights (model/calibration):
+  // base[k] = how readily k comes when it can (its measured rate over its weights then); relief = the night's pressure, in
+  // cost, the creatures used up; fixed = those that come on their own condition (the Stoker: a firebox held hot).
+  // Above EXACT kinds with a night's chance, the nights are sampled rather than all counted (note 657): SAMPLES of them, the
+  // same nights for any values (each kind draws once a night, in name order), so yours and the game's differ by the values
+  // alone. tools/tweaker/calibrate.py does the same, draw for draw.
+  const EXACT = 10, SAMPLES = 256, SEED = 0x5EED657;
+  function mulberry32(a) {
+    return () => {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1) >>> 0;
+      t = (t ^ (t + (Math.imul(t ^ (t >>> 7), t | 61) >>> 0))) >>> 0;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  function* nights(settings, kinds) {
+    const chancey = kinds.filter(k => (settings[k].nightChance ?? 1) < 1);
+    if (chancey.length <= EXACT) {
+      for (let mask = 0; mask < (1 << chancey.length); mask++) {
+        let p = 1; const absent = new Set();
+        chancey.forEach((k, i) => { const c = settings[k].nightChance ?? 1; if (mask & (1 << i)) p *= c; else { p *= 1 - c; absent.add(k); } });
+        if (p > 0) yield [p, absent];
+      }
+      return;
+    }
+    const rng = mulberry32(SEED), order = [...kinds].sort();
+    for (let i = 0; i < SAMPLES; i++) {
+      const draw = Object.fromEntries(order.map(k => [k, rng()]));
+      yield [1 / SAMPLES, new Set(chancey.filter(k => draw[k] >= (settings[k].nightChance ?? 1)))];
+    }
+  }
+  function estimate(settings, t) {
+    const cal = model?.tiers?.[t];
+    if (!cal) return null;
+    const ids = Object.keys(cal.base).filter(k => settings[k]);
+    const fixed = Object.keys(cal.fixed || {}).filter(k => settings[k]);
+    const out = Object.fromEntries(ids.concat(fixed).map(k => [k, 0]));
+    for (const [p, absent] of nights(settings, ids.concat(fixed))) {
+      const one = night1(settings, cal, ids, fixed, absent, t);
+      for (const k in one) out[k] += p * one[k];
+    }
+    return Object.assign(out, ownEstimate(settings, cal));
+  }
+  // Those that come their own way (the Pickers at a yard, the house creatures in the stops' open houses): not the
+  // director's spend, so they take nothing off the pressure. The houses filled are shared by their weights.
+  function ownEstimate(settings, cal) {
+    const own = Object.keys(cal.own || {}).filter(k => settings[k]);
+    const houses = own.filter(k => model?.own?.[k] === "house");
+    const filled = houses.reduce((s, k) => s + cal.own[k], 0);
+    const raw = Object.fromEntries(houses.map(k => [k, (cal.ownBase?.[k] ?? 0) * (settings[k].weight ?? 1)]));
+    const total = Object.values(raw).reduce((a, b) => a + b, 0);
+    const out = {};
+    for (const k of own) {
+      const n = houses.includes(k) ? (total ? filled * raw[k] / total : 0) : cal.own[k];
+      out[k] = (settings[k].nightChance ?? 1) * Math.min(n, settings[k].perNight ?? Infinity);
+    }
+    return out;
+  }
+  function night1(settings, cal, ids, fixed, absent, t) {
+    const res = {}; let spent = 0;
+    for (const k of fixed) {
+      const s = settings[k], cap = s.perNight ?? Infinity;
+      res[k] = absent.has(k) ? 0 : Math.min(cal.fixed[k], cap);
+      spent += res[k] * (s.cost ?? 0);
+    }
+    const raw = {}; for (const k of ids) raw[k] = absent.has(k) ? 0 : Math.max(0, cal.base[k] * (settings[k].weight ?? 1) * tw(settings[k], t));
+    const alloc = N => {
+      const a = {}; let left = N; let open = ids.filter(k => raw[k] > 0);
+      for (const k of ids) a[k] = 0;
+      for (let guard = 0; guard < 40 && left > 1e-9 && open.length; guard++) {
+        const sum = open.reduce((s, k) => s + raw[k], 0);
+        const next = [];
+        let used = 0;
+        for (const k of open) {
+          const cap = settings[k].perNight ?? Infinity;
+          const want = left * raw[k] / sum;
+          if (a[k] + want >= cap) { used += cap - a[k]; a[k] = cap; } else next.push(k);
+        }
+        if (next.length === open.length) { for (const k of open) a[k] += left * raw[k] / sum; left = 0; break; }
+        left -= used; open = next;
+      }
+      return a;
+    };
+    const cost = a => ids.reduce((s, k) => s + a[k] * (settings[k].cost ?? 0), 0);
+    const target = Math.max(0, cal.relief - spent);
+    let lo = 0, hi = 400;
+    if (cost(alloc(hi)) < target) lo = hi;  // all capped: the pressure has nowhere to go
+    for (let i = 0; i < 50 && hi - lo > 1e-4; i++) { const mid = (lo + hi) / 2; if (cost(alloc(mid)) < target) lo = mid; else hi = mid; }
+    const a = alloc(lo === 400 ? 400 : (lo + hi) / 2);
+    return Object.assign(res, a);
+  }
+  // Two creatures that can't be about at once (the same zone and sense, or the corrupted humans, one at a time; App. B.1's
+  // caps): the estimate can't see it, so the page says so.
+  const slotOf = id => (model?.slots || []).find(s => s.kinds.includes(id));
+  const sharesSlot = (a, b) => a !== b && !!slotOf(a)?.kinds.includes(b);
+  // Each creature's settings, its "Most a night" falling back to the night's own for every creature (note 654).
+  const settingsFrom = (pick, side = "want") => {
+    const def = (side === "game" ? night?.game : nightWant())?.perNightDefault ?? null;
+    return Object.fromEntries([...docs.keys()].map(id => {
+      const s = pick(id);
+      return [id, s.perNight == null && def != null ? { ...s, perNight: def } : s];
+    }));
+  };
+
+  // ---- The matrix
+  function numCell(id, field, value, gameValue, opts) {
+    const input = el("input", { type: "number", id: `${id}-${field}`, inputmode: "decimal", "aria-label": `${docs.get(id).name}: ${opts.label}`, ...opts.attrs });
+    input.value = value ?? "";
+    const td = el("td", {}, input, el("span", { class: "was", text: same(value ?? null, gameValue ?? null) ? "" : `game ${gameValue ?? "–"}` }));
+    if (!same(value ?? null, gameValue ?? null)) td.classList.add("changed");
+    return td;
+  }
+  function waiting(id) {
+    const d = docs.get(id), w = wantOf(id), g = d.game || {};
+    return FIELDS.some(k => !same(w[k], g[k])) || (!!(d.note && d.note.trim()) && (d.noteAt || "") > (d.replyAt || ""));
+  }
+  const ids = () => [...docs.keys()].sort((a, b) => (docs.get(a).order ?? 99) - (docs.get(b).order ?? 99));
+  const openNotes = new Set();
+
+  function renderMatrix() {
+    const active = document.activeElement?.id;
+    const typed = active && $(active)?.tagName === "INPUT" && $(active).type === "number" ? $(active).value : null;
+    const want = estimate(settingsFrom(wantOf), tier), game = estimate(settingsFrom(gameOf, "game"), tier);
+    const totalW = want ? Object.values(want).reduce((a, b) => a + b, 0) : 0;
+    const rows = [];
+    for (const id of ids()) {
+      const d = docs.get(id), w = wantOf(id), g = d.game || {};
+      const tr = el("tr", { class: waiting(id) ? "waiting" : "" });
+      const slot = slotOf(id);
+      const partners = slot ? slot.kinds.filter(k => k !== id && docs.has(k)).map(k => docs.get(k).name.replace(/^The /, "the ")) : [];
+      tr.append(el("td", { class: "name" }, document.createTextNode(d.name || id), el("small", { text: d.blurb || "" }),
+        partners.length ? el("small", { class: "slot", text: `Never about with ${partners.join(", ")} (${slot.why})` }) : null));
+      const own = d.ownWay;
+      tr.append(own === "yard" ? el("td", {}, el("span", { class: "na", text: "–" }))
+        : numCell(id, "weight", w.weight ?? 1, g.weight ?? 1, { label: own ? "how often (its share of the houses)" : "how often", attrs: { min: "0", step: "0.1" } }));
+      tr.append(own ? el("td", {}, el("span", { class: "na", text: "its own way" }))
+        : numCell(id, "cost", w.cost, g.cost, { label: "cost", attrs: { min: "0", step: "1" } }));
+      tr.append(numCell(id, "perNight", w.perNight ?? null, g.perNight ?? null, { label: "most a night", attrs: { min: "0", step: "1", placeholder: nightWant().perNightDefault != null ? `≤ ${nightWant().perNightDefault}` : "no cap" } }));
+      tr.append(numCell(id, "nightChance", Math.round((w.nightChance ?? 1) * 100), Math.round((g.nightChance ?? 1) * 100), { label: "nights it comes, percent", attrs: { min: "0", max: "100", step: "5" } }));
+      tr.append(w.tierWeights ? numCell(id, "tw", w.tierWeights[tier], g.tierWeights?.[tier], { label: "tier weight", attrs: { min: "0", step: "0.25" } }) : el("td", {}, el("span", { class: "na", text: "same" })));
+      if (d.staysAlways) tr.append(el("td", {}, el("span", { class: "na", text: d.staysAlways })));
+      else {
+        const box = el("input", { type: "checkbox", id: `${id}-dawn`, "aria-label": `${d.name}: leaves at dawn` });
+        box.checked = w.abandonAtDawn !== false;
+        const dawnTd = el("td", {}, box, el("span", { class: "was", text: same(w.abandonAtDawn !== false, g.abandonAtDawn !== false) ? "" : (g.abandonAtDawn === false ? "game: stays" : "game: leaves") }));
+        if (!same(w.abandonAtDawn !== false, g.abandonAtDawn !== false)) dawnTd.classList.add("changed");
+        tr.append(dawnTd);
+      }
+      const e = want?.[id], ge = game?.[id];
+      tr.append(el("td", { class: "est group" }, e == null ? el("span", { class: "na", text: "–" }) : document.createTextNode(r1(e)),
+        e == null || !totalW ? null : el("span", { class: "share", style: `width:${Math.round(60 * e / totalW)}px`, title: `${Math.round(100 * e / totalW)}% of the night` })));
+      const dv = e != null && ge != null ? e - ge : null;
+      tr.append(el("td", { class: "delta " + (dv == null || Math.abs(dv) < 0.05 ? "flat" : dv > 0 ? "up" : "down"), text: dv == null ? "" : Math.abs(dv) < 0.05 ? "–" : (dv > 0 ? "+" : "−") + r1(Math.abs(dv)) }));
+      const m = d.measured?.[tier];
+      tr.append(el("td", { class: "delta", title: m ? `${m.nights} nights, ${m.at || ""}` : "" , text: m ? r1(m.perNight) : "" }));
+      const nb = el("button", { type: "button", class: "note" + (d.note ? " has" : ""), "aria-expanded": openNotes.has(id) ? "true" : "false", text: d.reply && (d.replyAt || "") >= (d.noteAt || "") ? "Answered" : d.note ? "Note ✎" : "Add" });
+      nb.addEventListener("click", () => { openNotes.has(id) ? openNotes.delete(id) : openNotes.add(id); renderMatrix(); if (openNotes.has(id)) $(`${id}-note`)?.focus(); });
+      tr.append(el("td", {}, nb));
+      rows.push(tr);
+      if (openNotes.has(id)) {
+        const ta = el("textarea", { id: `${id}-note`, "aria-label": `Note on ${d.name}`, placeholder: "A written answer for the agents: what you want this creature to do, how often, anything else." });
+        ta.value = draft.has(id + ":note") ? draft.get(id + ":note") : d.note || "";
+        rows.push(el("tr", { class: "noterow" }, el("td", { colspan: "11" }, ta, d.reply ? el("div", { class: "reply" }, el("b", { text: "Agent: " }), document.createTextNode(d.reply)) : null)));
+      }
+    }
+    $("rows").replaceChildren(...rows);
+    $("tier-col").textContent = `${TIERS.find(t => t[0] === tier)[1]} weight`;
+    const totalG = game ? Object.values(game).reduce((a, b) => a + b, 0) : 0;
+    $("tot-est").textContent = want ? r1(totalW) : "–";
+    const td = want && game ? totalW - totalG : 0;
+    $("tot-delta").textContent = !want ? "" : Math.abs(td) < 0.05 ? "–" : (td > 0 ? "+" : "−") + r1(Math.abs(td));
+    $("tot-delta").className = Math.abs(td) < 0.05 ? "flat" : td > 0 ? "up" : "down";
+    const meas = ids().map(id => docs.get(id).measured?.[tier]?.perNight).filter(v => v != null);
+    $("tot-meas").textContent = meas.length ? r1(meas.reduce((a, b) => a + b, 0)) : "";
+    if (active && $(active)) { const a = $(active); if (typed !== null) a.value = typed; a.focus(); if (a.setSelectionRange && a.type !== "number") a.setSelectionRange(a.value.length, a.value.length); }
+    renderSummary(totalW, totalG);
+    renderInfluence();
+  }
+
+  function renderSummary(totalW, totalG) {
+    const wait = ids().filter(waiting).length + (night && !same(night.want, night.game) ? 1 : 0);
+    const leaving = ids().filter(id => wantOf(id).abandonAtDawn !== false).length;
+    $("summary").replaceChildren(
+      el("span", { class: "chip " + (wait ? "wait" : "ok"), text: wait ? `${wait} waiting for an agent` : "Everything here is in the game" }),
+      el("span", { class: "chip" }, document.createTextNode("≈ "), el("b", { text: r1(totalW) }), document.createTextNode(` things a night (game ${r1(totalG)})`)),
+      el("span", { class: "chip", text: `${leaving} leave at dawn, ${ids().length - leaving} stay` }));
+  }
+
+  function renderInfluence() {
+    const kind = $("infl-kind").value;
+    const base = settingsFrom(wantOf), list = ids();
+    const b = estimate(base, tier);
+    const tbl = $("infl");
+    if (!b) { tbl.replaceChildren(el("tr", {}, el("td", { class: "name", text: "No measured nights on this tier yet." }))); return; }
+    const short = id => docs.get(id).name.replace(/^The /, "");
+    const head = el("tr", {}, el("th", { class: "name", scope: "col", text: "Changed ↓  ·  effect →" }), ...list.map(id => el("th", { class: "col", scope: "col" }, el("span", { text: short(id) }))), el("th", { class: "col", scope: "col" }, el("span", { text: "All" })));
+    const body = list.map(row => {
+      const s = { ...base, [row]: { ...base[row] } };
+      if (kind === "weight") s[row].weight = (s[row].weight ?? 1) * 1.5;
+      else if (kind === "cost") s[row].cost = (s[row].cost ?? 0) + 1;
+      else s[row].nightChance = 0;
+      const e = estimate(s, tier);
+      let all = 0;
+      const cells = list.map(col => {
+        const d = (e[col] ?? 0) - (b[col] ?? 0); all += d;
+        return cell(d, col === row ? "self" : sharesSlot(row, col) ? "slot" : "", `${docs.get(row).name} changed: ${docs.get(col).name} ${d >= 0 ? "+" : "−"}${Math.abs(d).toFixed(2)} a night`);
+      });
+      return el("tr", {}, el("td", { class: "name", text: docs.get(row).name }), ...cells, cell(all, "all", `the whole night ${all >= 0 ? "+" : "−"}${Math.abs(all).toFixed(2)}`));
+    });
+    tbl.replaceChildren(el("thead", {}, head), el("tbody", {}, ...body));
+  }
+  function cell(d, cls, title) {
+    const a = Math.min(1, Math.abs(d) / 1.5);
+    const td = el("td", { class: cls, title, text: Math.abs(d) < 0.05 ? "" : (d > 0 ? "+" : "−") + Math.abs(d).toFixed(1) });
+    if (Math.abs(d) >= 0.05) {
+      td.style.background = `color-mix(in srgb, var(${d > 0 ? "--more" : "--fewer"}) ${Math.round(12 + 70 * a)}%, transparent)`;
+      if (a > 0.55) td.style.color = "var(--sheet)";
+    }
+    return td;
+  }
+
+  // ---- Editing and saving
+  function readRow(id) {
+    const w = { ...wantOf(id) };
+    const v = f => $(`${id}-${f}`)?.value;
+    if (v("weight") !== undefined) w.weight = v("weight") === "" ? 1 : Number(v("weight"));
+    if (v("cost") !== undefined && v("cost") !== "") w.cost = Number(v("cost"));
+    if (v("perNight") !== undefined) w.perNight = v("perNight") === "" ? null : Number(v("perNight"));
+    if (v("nightChance") !== undefined) w.nightChance = v("nightChance") === "" ? 1 : Math.max(0, Math.min(1, Number(v("nightChance")) / 100));
+    if (w.tierWeights && v("tw") !== undefined && v("tw") !== "") w.tierWeights = { ...w.tierWeights, [tier]: Number(v("tw")) };
+    const box = $(`${id}-dawn`); if (box) w.abandonAtDawn = box.checked;
+    return w;
+  }
+  function save(id) {
+    if (!db || readOnly) return;
+    const d = docs.get(id); if (!d) return;
+    const body = { changedAt: new Date().toISOString() };
+    if (draft.has(id)) body.want = draft.get(id);
+    if (draft.has(id + ":note")) { body.note = draft.get(id + ":note"); body.noteAt = body.changedAt; }
+    const snapshot = { want: draft.get(id), note: draft.get(id + ":note") };
+    const prev = chains.get(id) || Promise.resolve();
+    chains.set(id, prev.then(() => db.collection("creatures").doc(id).update(body)).then(() => {
+      if (draft.get(id) === snapshot.want) draft.delete(id);
+      if (draft.get(id + ":note") === snapshot.note) draft.delete(id + ":note");
+      say(`Saved ${d.name}.`);
+    }, err => {
+      if (err?.code === "invalid_argument") { readOnly = true; document.body.classList.add("ro"); say("This page is read-only for you: only the director's account changes the values."); }
+      else say(`Couldn't save ${d.name} (${err?.code || "error"}). Your edit is still on the page; change it again to retry.`);
+    }));
+  }
+  $("rows").addEventListener("input", e => {
+    const t = e.target, id = t.id.split("-")[0];
+    if (!docs.has(id)) return;
+    if (t.tagName === "TEXTAREA") draft.set(id + ":note", t.value);
+    else draft.set(id, readRow(id));
+    clearTimeout(timers.get(id));
+    timers.set(id, setTimeout(() => save(id), t.tagName === "TEXTAREA" ? 900 : 500));
+    if (t.tagName !== "TEXTAREA") liveUpdate();
+  });
+  $("rows").addEventListener("change", e => { if (e.target.type === "checkbox") { const id = e.target.id.split("-")[0]; draft.set(id, readRow(id)); clearTimeout(timers.get(id)); save(id); renderMatrix(); } });
+  $("rows").addEventListener("focusout", e => { if (e.target.tagName === "INPUT" && e.target.type === "number") setTimeout(() => { if (!$("rows").contains(document.activeElement) || document.activeElement.type !== "number") renderMatrix(); }, 0); });
+  let liveTimer = null;
+  function liveUpdate() { clearTimeout(liveTimer); liveTimer = setTimeout(renderMatrix, 250); }
+  $("infl-kind").addEventListener("change", renderInfluence);
+
+  function renderTabs() {
+    $("tabs").replaceChildren(...TIERS.map(([k, name]) => {
+      const b = el("button", { type: "button", role: "tab", "aria-selected": k === tier ? "true" : "false", text: name });
+      b.addEventListener("click", () => { tier = k; try { localStorage.setItem("tweaker-tier", k); } catch {} renderTabs(); renderMatrix(); });
+      return b;
+    }));
+  }
+
+  // ---- The whole night (settings/night): the dawn setting and the threat's scaling (notes 646, 647, 651). `rules` are
+  // the game's own fixed numbers the grid needs, written by tools/tweaker/apply.py --game-out; the fallbacks are 12 Oct's.
+  const KNOBS = {
+    nightFleesSeconds: g => `In the game: ${g} s. Creatures ticked "Leaves at dawn" let go and are gone then; −1 keeps them all night.`,
+    crewScale: g => `In the game: ${g}. How much faster the night builds for each crewmate over four (slower under): 0 is the same for any crew.`,
+    lengthScale: g => `In the game: ${g}. The same for each car over eight (fewer slows it). 0 is the same for any train.`,
+    longTrainCars: g => `In the game: ${g || "off"}. Shorter trains keep one threat each. 0 is never two.`,
+    perNightDefault: g => `In the game: ${g ?? "no cap"}. On a night with few kinds about, those about come again and again; this holds each one that has no "Most a night" of its own. Blank is no cap.`,
+  };
+  const RULES = { scaleCrew: 4, scaleCars: 8, scaleFloor: 0.5, engagedPerActive: 0.75, engagedPerCar: 0.05, perPlayer: 1, perPlayerLong: 2, maxConcurrentSmallCrew: 4, maxConcurrentLargeCrew: 6 };
+  const CREWS = [1, 2, 3, 4, 6, 8], CARS = [4, 6, 8, 10, 13, 15, 18];
+  const nightDraft = {};
+  const nightWant = () => Object.assign({}, night?.want, nightDraft);
+  // Director.cs and EnemyTuning.cs, line for line: PressureTuning.Scale, OrchestratorTuning.EngagedShare/PerPlayerFor,
+  // Director.EngagedCap/MaxConcurrent.
+  function scaleAt(v, crew, cars) {
+    const r = Object.assign({}, RULES, night?.rules), cs = v.crewScale ?? 0, ls = v.lengthScale ?? 0, lt = v.longTrainCars ?? 0;
+    const mult = Math.max(r.scaleFloor, 1 + cs * (crew - r.scaleCrew)) * Math.max(r.scaleFloor, 1 + ls * (cars - r.scaleCars));
+    const long = lt > 0 && cars >= lt, each = long ? r.perPlayerLong : r.perPlayer;
+    const share = long ? r.perPlayerLong : Math.min(r.perPlayer, r.engagedPerActive + r.engagedPerCar * Math.max(0, cars - r.scaleCars));
+    const hard = Math.round((crew >= 6 ? r.maxConcurrentLargeCrew : r.maxConcurrentSmallCrew) * (each / Math.max(1e-9, r.perPlayer)));
+    const atOnce = Math.min(hard, Math.max(1, Math.min(Math.ceil(crew * share - 1e-9), Math.floor(crew * each + 1e-9))));
+    return { mult, atOnce, each: Math.min(each, atOnce) };
+  }
+  function tint(m) {
+    const d = Math.min(1, Math.abs(Math.log(m)) / Math.log(2));
+    return d < 0.02 ? "" : `color-mix(in srgb, var(${m > 1 ? "--more" : "--fewer"}) ${Math.round(8 + 40 * d)}%, var(--sheet))`;
+  }
+  function paintScale() {
+    const v = nightWant(), g = night?.game || {}, lt = v.longTrainCars ?? 0, r = Object.assign({}, RULES, night?.rules);
+    const head = el("tr", {}, el("th", { class: "name", scope: "col", text: "Crew ↓  cars →" }),
+      ...CARS.map(c => el("th", { scope: "col", class: lt > 0 && c >= lt ? "long" : "", text: lt > 0 && c >= lt ? `${c} · two each` : `${c}` })));
+    const rows = CREWS.map(crew => el("tr", {}, el("th", { class: "name", scope: "row", text: crew === 1 ? "1 (alone)" : `${crew}` }),
+      ...CARS.map(cars => {
+        const a = scaleAt(v, crew, cars), b = scaleAt(g, crew, cars);
+        const moved = night && (Math.abs(a.mult - b.mult) > 0.005 || a.atOnce !== b.atOnce || a.each !== b.each);
+        const td = el("td", { class: [crew === r.scaleCrew && cars === r.scaleCars ? "base" : "", moved ? "moved" : ""].join(" ").trim(),
+          title: moved ? `In the game: ×${b.mult.toFixed(2)}, ${b.atOnce} at once, up to ${b.each} on one` : "" },
+          el("b", { text: `×${a.mult.toFixed(2)}` }), el("span", { text: `${a.atOnce} at once${a.each > 1 ? `, ${a.each} on one` : ""}` }));
+        const t = tint(a.mult); if (t) td.style.background = t;
+        return td;
+      })));
+    $("scale").replaceChildren(el("thead", {}, head), el("tbody", {}, ...rows));
+  }
+  function paintNight() {
+    for (const [k, line] of Object.entries(KNOBS)) {
+      const input = $(`k-${k}`), w = nightWant()[k], g = night?.game?.[k];
+      if (document.activeElement !== input) input.value = w ?? "";
+      input.classList.toggle("changed", !!night && w !== undefined && !same(w, g));
+      $(`g-${k}`).textContent = night && g !== undefined ? line(g) : "";
+    }
+    paintScale();
+  }
+  let nightChain = Promise.resolve(), nightTimer = null;
+  for (const k of Object.keys(KNOBS)) $(`k-${k}`).addEventListener("input", e => {
+    const v = e.target.value === "" ? null : Number(e.target.value);
+    if (v === null ? k !== "perNightDefault" : !Number.isFinite(v)) return;
+    nightDraft[k] = v; e.target.classList.toggle("changed", !!night && !same(v, night.game?.[k])); paintScale();
+    if (k === "perNightDefault" && docs.size) liveUpdate();
+    clearTimeout(nightTimer);
+    nightTimer = setTimeout(() => {
+      if (!db || readOnly || !night) return;
+      const want = nightWant();
+      nightChain = nightChain.then(() => db.doc("settings/night").update({ want, changedAt: new Date().toISOString() }))
+        .then(() => say("Saved the night's settings."), err => say(`Couldn't save the night's settings (${err?.code || "error"}).`));
+    }, 600);
+  });
+
+  function paintCalib() {
+    if (!model) return;
+    const t = model.tiers?.[tier];
+    $("calib").textContent = t
+      ? `The estimate on this tier comes from ${t.nights} measured nights (${model.how}), ${model.at}. Each creature's rate when it can come, and the pressure a night has, are taken from those nights; the estimate then moves them with your values.`
+      : "No measured nights on this tier yet: the estimate is blank here until an agent measures it.";
+  }
+  function paintRequest() {
+    const s = $("measure-state");
+    if (!request) { s.textContent = "Asks an agent to play nights on every tier with your values, and write what came in the Measured column."; return; }
+    s.textContent = request.status === "done" ? `Measured ${request.doneAt || ""}.` : `Asked ${request.at}. An agent will measure it at its next check-in.`;
+  }
+  $("measure").addEventListener("click", async () => {
+    if (!db || readOnly) return;
+    try { await db.doc("requests/measure").set({ at: new Date().toISOString(), status: "open" }); say("Asked the agents to measure your values."); }
+    catch (err) { say(`Couldn't ask (${err?.code || "error"}).`); }
+  });
+
+  renderTabs();
+  (async () => {
+    db = await window.claude?.use?.("db");
+    if (!db) { $("rows").replaceChildren(el("tr", {}, el("td", { class: "name", colspan: "11", text: "The roster lives in this page's store, which isn't available in this view. Open the page on claude.ai, signed in." }))); $("summary").replaceChildren(el("span", { class: "chip", text: "Store not available" })); return; }
+    try { const user = await window.claude.use("user"); if (user && await user.can("data.write") === false) { readOnly = true; document.body.classList.add("ro"); say("Read-only: only the director's account changes the values."); } } catch {}
+    db.collection("creatures").onSnapshot(snap => {
+      for (const s of snap.docs) docs.set(s.id, s.data());
+      for (const ch of snap.docChanges()) if (ch.type === "removed") docs.delete(ch.doc.id);
+      const editing = $("rows").contains(document.activeElement) && document.activeElement.tagName !== "BUTTON";
+      if (!editing) renderMatrix(); else liveUpdate();
+    }, err => say(`Lost the connection to the store (${err.code}). Reload the page.`));
+    db.doc("model/calibration").onSnapshot(s => { model = s.exists ? s.data() : null; paintCalib(); if (docs.size) renderMatrix(); }, () => {});
+    db.doc("settings/night").onSnapshot(s => {
+      night = s.exists ? s.data() : null;
+      for (const k of Object.keys(nightDraft)) if (same(nightDraft[k], night?.want?.[k])) delete nightDraft[k];
+      paintNight();
+      if (docs.size && !$("rows").contains(document.activeElement)) renderMatrix();
+    }, () => {});
+    db.doc("requests/measure").onSnapshot(s => { request = s.exists ? s.data() : null; paintRequest(); }, () => {});
+  })();
+})();
+</script>

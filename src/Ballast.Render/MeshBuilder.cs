@@ -108,7 +108,22 @@ public struct SkinWeights(Vector4 joints, Vector4 weights)
 /// (<see cref="MeshBuilder.Skinned"/>), the GPU poses it (skinned.glsl).</param>
 public sealed class MeshAsset(string name, Vertex[] vertices, SkinWeights[]? skin = null)
 {
-    public string Name { get; } = name;
+    [ThreadStatic]
+    static long t_made;
+
+    /// <summary>
+    /// How many meshes this thread has made: a frame that's only drawing what's there makes none (note 695; a scene that
+    /// built its town's houses again every frame was the director's town crawl). Per thread, so a test's count is its own.
+    /// </summary>
+    public static long MadeOnThisThread => t_made;
+
+    public string Name { get; } = Counted(name);
+
+    static string Counted(string name)
+    {
+        t_made++;
+        return name;
+    }
     public Vertex[] Vertices { get; } = vertices;
     public SkinWeights[]? Skin { get; } = skin is null || skin.Length == vertices.Length ? skin
         : throw new ArgumentException($"{name}: {skin.Length} skin weights for {vertices.Length} vertices");
@@ -138,6 +153,62 @@ public sealed class MeshAsset(string name, Vertex[] vertices, SkinWeights[]? ski
     }
 
     public static MeshAsset From(string name, MeshBuilder built) => new(name, built.Vertices.ToArray());
+
+    /// <summary>
+    /// A distance copy of an unskinned piece (ARCHITECTURE §8 note 479; Ballast.Assets.ModelLod for a skinned model): its
+    /// corners clustered on a grid <paramref name="cell"/> m apart, each material and each light (a lamp's glass) apart from
+    /// the rest, the corner nearest a cluster's middle standing for it; a triangle two of whose corners share a cluster goes.
+    /// </summary>
+    public MeshAsset Clustered(float cell)
+    {
+        if (Skin is not null)
+            throw new InvalidOperationException($"{Name}: skinned (Ballast.Assets.ModelLod clusters those)");
+        var keys = new Dictionary<(int, int, int, float, float, bool), int>();
+        var clusterOf = new int[Vertices.Length];
+        var sums = new List<Vector3>();
+        var counts = new List<int>();
+        for (int i = 0; i < Vertices.Length; i++)
+        {
+            var v = Vertices[i];
+            var q = v.Position / cell;
+            var key = ((int)MathF.Floor(q.X), (int)MathF.Floor(q.Y), (int)MathF.Floor(q.Z), v.Layer, v.Shine, v.Emissive > 0);
+            if (!keys.TryGetValue(key, out int c))
+            {
+                keys[key] = c = sums.Count;
+                sums.Add(Vector3.Zero);
+                counts.Add(0);
+            }
+            clusterOf[i] = c;
+            sums[c] += v.Position;
+            counts[c]++;
+        }
+        var keep = new int[sums.Count];
+        var best = new float[sums.Count];
+        Array.Fill(keep, -1);
+        for (int i = 0; i < Vertices.Length; i++)
+        {
+            int c = clusterOf[i];
+            float d = Vector3.DistanceSquared(Vertices[i].Position, sums[c] / counts[c]);
+            if (keep[c] < 0 || d < best[c])
+                (keep[c], best[c]) = (i, d);
+        }
+        var kept = new List<Vertex>(Vertices.Length / 4);
+        var seen = new HashSet<(int, int, int)>();
+        for (int t = 0; t + 2 < Vertices.Length; t += 3)
+        {
+            int a = clusterOf[t], b = clusterOf[t + 1], c = clusterOf[t + 2];
+            if (a == b || b == c || a == c)
+                continue;
+            var turn = a < b && a < c ? (a, b, c) : b < c ? (b, c, a) : (c, a, b);
+            if (!seen.Add(turn))
+                continue;
+            // Each corner the standing vertex, with this corner's own normal (a face keeps its facing).
+            kept.Add(Vertices[keep[a]] with { Normal = Vertices[t].Normal });
+            kept.Add(Vertices[keep[b]] with { Normal = Vertices[t + 1].Normal });
+            kept.Add(Vertices[keep[c]] with { Normal = Vertices[t + 2].Normal });
+        }
+        return new MeshAsset(Name + ".clustered", [.. kept]);
+    }
 }
 
 /// <summary>
@@ -292,6 +363,20 @@ public sealed class MeshBuilder
     {
         if (count < _vertices.Count)
             _vertices.RemoveRange(count, _vertices.Count - count);
+    }
+
+    /// <summary>
+    /// Moves the vertices added since there were <paramref name="from"/> (<see cref="Count"/> then) by <paramref name="m"/>,
+    /// their normals with them: what was drawn where it stood, then carried with what it belongs to (a sinking house's door).
+    /// </summary>
+    public void Move(int from, in Matrix4x4 m)
+    {
+        var span = CollectionsMarshal.AsSpan(_vertices);
+        for (int i = Math.Max(0, from); i < span.Length; i++)
+        {
+            span[i].Position = Vector3.Transform(span[i].Position, m);
+            span[i].Normal = Vector3.Normalize(Vector3.TransformNormal(span[i].Normal, m));
+        }
     }
 
     /// <summary>Appends a vertex exactly as given (the kit builders make their own UVs and materials).</summary>

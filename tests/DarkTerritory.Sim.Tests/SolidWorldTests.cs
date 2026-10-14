@@ -56,7 +56,7 @@ public class SolidWorldTests
     [Fact]
     public void AShedIsWallsTheCrewGoesInByItsDoorNotThroughItsBack()
     {
-        var (route, train) = Night("frontier:7");
+        var (route, train) = Night("frontier:9");
         var (f, stop, i) = Buildings(route, (s, i) => s.Buildings[i].Kind == BuildingKind.Shed && StopWalls.Doors(s, i, Tuning.Run.Walls).Any()).First();
         var b = stop.Buildings[i];
         var door = StopWalls.Doors(stop, i, Tuning.Run.Walls).First();
@@ -96,7 +96,7 @@ public class SolidWorldTests
     [Fact]
     public void TheYardsShutBuildingsAndWellsAreWalls()
     {
-        var (route, train) = Night("frontier:7");
+        var (route, train) = Night("frontier:9");
         var kinds = new[] { BuildingKind.Powerhouse, BuildingKind.Well, BuildingKind.SignalBox, BuildingKind.WaterTower, BuildingKind.LampRoom, BuildingKind.Lockup };
         int walked = 0;
         foreach (var (f, stop, i) in Buildings(route, (s, i) => kinds.Contains(s.Buildings[i].Kind) && StopWalls.Walled(s, i)).Take(4))
@@ -108,13 +108,13 @@ public class SolidWorldTests
             Assert.True(((end.Position - centre) with { Y = 0 }).Length > Math.Min(b.Length, b.Width) / 2, $"{b.Kind}: walked into it");
             walked++;
         }
-        Assert.True(walked > 0, "frontier:7's stops have a powerhouse, a well or a signal box");
+        Assert.True(walked > 0, "frontier:9's stops have a powerhouse, a well or a signal box");
     }
 
     [Fact]
     public void ATunnelsLiningHoldsWhoeverIsInIt()
     {
-        var (route, train) = Night("deepTerritory:2");
+        var (route, train) = Night("deepTerritory:21");
         var bore = route.Plan!.Structures.First(s => s.Type == StructureType.Tunnel && s.Edge == "main");
         double s = (bore.S0 + bore.S1) / 2;
         var t = train.Line.Sample(s);
@@ -130,7 +130,7 @@ public class SolidWorldTests
 
     /// <summary>Nights deep enough for cuttings, tunnels and decks: the first with what a test needs is used, so a change to the line
     /// generator moves the test with it (note 278's bends took deepTerritory:2's tall cutting).</summary>
-    static readonly string[] Deep = ["deepTerritory:2", "deepTerritory:4", "deadLines:3", "deepTerritory:1", "deadLines:2"];
+    static readonly string[] Deep = ["deadLines:29", "deepTerritory:6", "deepTerritory:8", "deadLines:14", "deepTerritory:2", "deepTerritory:4"];
 
     /// <summary>The first of <see cref="Deep"/> with a main-line cutting at least <paramref name="high"/> m on one side over more than
     /// <paramref name="longer"/> m, no structure within <paramref name="clear"/> of it: its middle and side (+1 right).</summary>
@@ -197,7 +197,7 @@ public class SolidWorldTests
     [Fact]
     public void WhatsLooseIsOutOfTheBuildingsAndOnTheLand()
     {
-        var (route, train) = Night("frontier:7");
+        var (route, train) = Night("frontier:36");
         var (f, stop, i) = Buildings(route, (s, i) => StopWalls.Walled(s, i) && !s.Buildings[i].Open && s.Buildings[i].Kind != BuildingKind.Well).First();
         var centre = Run.Run.StopWorld(train.Line, f, stop.Buildings[i].Centre);
         var ribbit = Ribbit.At(1, 1, centre + Double3.Up * 6, Tuning.Enemies.Ribbits);
@@ -215,7 +215,7 @@ public class SolidWorldTests
     {
         // B4's roost (note 309): asleep in the building, curled up where the stop put it. Awake, it's held out of the walls
         // like anything else that walks: put down in a shut building (every house stands open since note 326; a barn doesn't).
-        var (route, train) = Night("frontier:7");
+        var (route, train) = Night("frontier:36");
         var (f, stop, i) = Buildings(route, (s, i) => StopWalls.Walled(s, i) && !s.Buildings[i].Open && s.Buildings[i].Kind != BuildingKind.Well).First();
         var centre = Run.Run.StopWorld(train.Line, f, stop.Buildings[i].Centre);
         var asleep = Gaunt.Asleep(1, centre, Tuning.Enemies.Gaunt);

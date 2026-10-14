@@ -10,7 +10,8 @@ namespace DarkTerritory.Sim.Tests;
 /// <summary>
 /// T99 (playtest: "a way to open the roofs of cars up so we can use the crane to lower crates in. Crates cannot be lowered
 /// to a point where they block the roof from closing"): a cargo car's roof hatch, opened from the roof, that the crane
-/// lowers a casting in through; one it can't set down under the roof line stays on the hook, and the lid won't shut on one.
+/// lowers a casting in through; one low over its edge is eased in (note 581), one it can't set down under the roof line stays on
+/// the hook, and the lid won't shut on one.
 /// </summary>
 public class HatchTests
 {
@@ -19,10 +20,59 @@ public class HatchTests
     static readonly CraneTuning C = FacilityTests.F.Crane;
     static readonly PlayerIntent Hold = new() { Buttons = PlayerButtons.Use };
 
+    /// <summary>
+    /// On the roof just behind the hatch, off its lid, looking down at it (note 675: from anywhere along it or a metre off its
+    /// ends, looked at, works it).
+    /// </summary>
     static PlayerState AtTheHandle(TrainOnLine train, int car)
     {
-        var handle = train.Frames[car].Shape.Interactables.Single(i => i.Kind == InteractableKind.Hatch);
-        return PlayerMotor.SpawnOnRoof(train, car, handle.Position.Z, P, handle.Position.X);
+        var hatch = train.Frames[car].Shape.Hatch!.Value;
+        return PlayerMotor.SpawnOnRoof(train, car, hatch.Max.Z + 0.5, P, -0.6) with { Pitch = -1.0f };
+    }
+
+    /// <summary>Inside the car on its floor at <paramref name="z"/>, looking <paramref name="pitch"/> (radians, up positive).</summary>
+    static PlayerState Inside(TrainOnLine train, int car, double z, double pitch) => new()
+    {
+        Parent = car,
+        Position = new Double3(0, T.Geometry.Interior!.FloorHeight, z),
+        Surface = Surface.Deck,
+        Pitch = (float)pitch,
+        Health = P.Health,
+        LineHint = train.Cars[car].FrontDistance,
+        Kit = P.StartingKit,
+    };
+
+    [Fact]
+    public void FromTheFloorUnderItLookingUpItOpensAndFromAnywhereAlongItOnTheRoof()
+    {
+        // Note 675 (the director, 13 Oct: "I should be able to open the roof of a car for loading from inside the car ...
+        // opening of the roofs is very inconsistent"): under the hatch, looking up at it, Use held opens it; looking along the
+        // car it doesn't (the floor's where everything else inside is worked). And on the roof, looking down at it from either
+        // end of it; walking the roof looking ahead, a crewmate isn't offered it.
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 3, 0)), new RailLine(new LineDefinition("t", [new TrackSegment(5_000)])), 2_000);
+        var world = new World(train);
+        int car = 1;
+        var hatch = train.Frames[car].Shape.Hatch!.Value;
+        double hold = T.Geometry.Interior!.DoorSeconds + 0.1;
+
+        var along = Inside(train, car, hatch.Centre.Z, 0);
+        Step(world, ref along, Hold, hold);
+        Assert.False(train.Vehicles[car].DoorOpen(CarShape.HatchBit));
+
+        var up = Inside(train, car, hatch.Centre.Z, 1.2);
+        Step(world, ref up, Hold, hold);
+        Assert.True(train.Vehicles[car].DoorOpen(CarShape.HatchBit));
+
+        var ahead = PlayerMotor.SpawnOnRoof(train, car, hatch.Max.Z + 0.6, P, 0.6);
+        Step(world, ref ahead, Hold, hold);
+        Assert.True(train.Vehicles[car].DoorOpen(CarShape.HatchBit));
+        foreach (double z in new[] { hatch.Min.Z - 0.6, hatch.Max.Z + 0.6 })
+        {
+            var roof = PlayerMotor.SpawnOnRoof(train, car, z, P, 0.6) with { Pitch = -1.0f };
+            bool was = train.Vehicles[car].DoorOpen(CarShape.HatchBit);
+            Step(world, ref roof, Hold, hold);
+            Assert.NotEqual(was, train.Vehicles[car].DoorOpen(CarShape.HatchBit));
+        }
     }
 
     [Fact]
@@ -115,17 +165,37 @@ public class HatchTests
     }
 
     [Fact]
-    public void HungOverTheHatchsEdgeItWontGoInAndWontBeLetGo()
+    public void HungOverTheHatchsEdgeItsEasedInAndLetGoThereItGoesIn()
     {
-        // Its middle over the opening's back edge: half of it over the roof.
+        // Its middle over the opening's back edge: half of it over the roof. T99 kept it on the hook there, let go or not,
+        // with nothing said; the director, 9 Oct 2026 (note 581): "There's no way it seems to actually unhook loot when its in
+        // the car finally. Also it's extremely difficult to get loot into the cars, the game should be more forgiving".
         var (stop, crane, car) = OverTheHatch(h => h.Centre with { Z = h.Max.Z });
         var frame = stop.Train.Frames[car];
         stop.Train.Vehicles[car].ToggleDoor(CarShape.HatchBit);
-        // The hook stops over the roof, not down in the car.
+        // Up high, nothing guides it: the hook stops over the roof.
+        Assert.Null(crane.Guided(stop.Train));
         Assert.Equal(frame.ToWorld(frame.ToLocal(crane.HookAt) with { Y = frame.Shape.RoofHeight }).Y, crane.Under(stop.Train).Y, 3);
+        // Brought down onto the roof by the opening, it's eased over it as the operator holds the stick still ...
         crane.Hook = crane.Lowest(stop.Train);
-        Assert.Null(crane.Release(stop.Train));
-        Assert.Equal(CastingState.Hooked, crane.Castings[0].State);
+        Assert.NotNull(crane.Guided(stop.Train));
+        double before = stop.Train.Vehicles[car].Load;
+        for (int i = 0; i < 3 * SimConstants.TickRate; i++)
+            crane.Drive(default, stop.Train, SimConstants.TickSeconds);
+        Assert.True(crane.Guided(stop.Train) is null, $"hook local {frame.ToLocal(crane.HookAt)}, fit {(crane.Guided(stop.Train) is { } g ? frame.ToLocal(g) : default)}, hatch {frame.Shape.Hatch}, bridge {crane.Bridge} trolley {crane.Trolley}");
+        Assert.True(crane.Hatch(stop.Train, car, frame.ToLocal(crane.HookAt)) is { Fits: true }, "eased, and still not clear of the opening");
+
+        // ... and let go at the edge without waiting, it's put through and set down inside, not kept on the hook.
+        var (again, crane2, car2) = OverTheHatch(h => h.Centre with { Z = h.Max.Z });
+        again.Train.Vehicles[car2].ToggleDoor(CarShape.HatchBit);
+        crane2.Hook = crane2.Lowest(again.Train);
+        var landed = crane2.Release(again.Train);
+        Assert.NotNull(landed);
+        Assert.False(landed!.Value.Fell, "dropped through it");
+        Assert.Equal(CastingState.Loaded, crane2.Castings[0].State);
+        Assert.Equal(car2, crane2.Castings[0].Car);
+        Assert.True(crane2.Castings[0].At.Y < again.Train.Frames[car2].Shape.Hatch!.Value.Min.Y, "set down standing in the opening");
+        Assert.Equal(before + C.LoadPerCasting, again.Train.Vehicles[car2].Load, 6);
     }
 
     [Fact]

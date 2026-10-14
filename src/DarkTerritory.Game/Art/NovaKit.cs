@@ -581,23 +581,6 @@ public static class NovaKit
         return k.Build($"wharf-{variant}");
     }
 
-    /// <summary>
-    /// A stretch of stand edge (maritime-rules.md §5, "the spruce wall"): a long two-sided card of packed spruce spires
-    /// facing the line, <paramref name="width"/> along it and <paramref name="height"/> tall, set behind the single
-    /// trees so the forest reads as a mass with a serrated top, not trees dotted on open ground.
-    /// </summary>
-    public static MeshAsset Treeline(Look? look, int variant, float width, float height)
-    {
-        var k = new Kit(look, 3300 + variant);
-        k.Use("treeline_card", Palette.PineDark, 0.3f, 0, tile: 1);
-        k.Baked = 0;
-        k.Tint = new Vector3(0.75f, 0.85f, 0.85f);
-        float u0 = variant * 0.37f % 1;
-        // Its foot runs 3 m into the ground (the solid stand at the card's bottom), so it never floats on a slope.
-        k.Panel(new Vector3(0, height / 2 - 3f, 0), Vector3.UnitX, Vector3.UnitY, width, height + 3, new Vector2(u0, 0), new Vector2(u0 + width / 30, 1), twoSided: true);
-        return k.Build($"treeline-{variant}-{width:0}-{height:0}");
-    }
-
     /// <summary>A level crossing's crossbuck: two white boards in an X on a grey post, the paint gone to the wood in places.</summary>
     public static MeshAsset Crossbuck(Look? look)
     {

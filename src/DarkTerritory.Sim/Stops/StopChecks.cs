@@ -108,34 +108,30 @@ static class StopChecks
         }
         Add("Nothing overlaps", clash == 0, $"{l.Buildings.Count} buildings against each other, the track and the roads");
 
-        // GDD App. D.4, D.14: a Holdout for every site, where D.4 puts it, reachable, lit to the approach, off the loading.
+        // GDD App. D.4, D.14: a Holdout for every site, where D.4 puts it (beside the consist's track, note 650), reachable,
+        // lit to the approach.
         var h = t.Holdouts;
         int want = l.HasYard ? (l.Holdouts.Count(x => x.Second) > 0 ? 2 : 1) : l.Halt is not null ? 1 : 0;
         Add("A Holdout for the site", l.Holdouts.Count == want && want > 0,
             $"{l.Holdouts.Count} ({string.Join(", ", l.Holdouts.Select(x => x.Kind))}) at a {(l.HasYard ? "facility" : "halt")} (App. D.4)");
         var walk = new StopWalk(l.Buildings, l.ZoneLength, cx.MaxLateral, h.WalkCell).From(l.StopPoint);
-        int unreached = 0, unsited = 0, unseen = 0, onWalk = 0;
-        var loading = l.Containers.Where(c => c.Zone == StopZone.Yard).Select(c => c.At).ToList();
-        Pt? nearest = loading.Count > 0 ? loading.MinBy(p => Pt.Distance(p, l.StopPoint)) : null;
+        int unreached = 0, unsited = 0, unseen = 0;
         foreach (var ho in l.Holdouts)
         {
             var b = l.Buildings[ho.Building];
             if (walk.To(ho.Door) is null)
                 unreached++;
-            if (!StopGenerator.Sited(h, b, ho.Site, l.StopPoint))
+            if (!StopGenerator.Sited(h, b, ho.Site, l.StopPoint, g) || ho.Site == HoldoutSite.Facility && !StopGenerator.ClearOfTheLoading(h, b, g))
                 unsited++;
             var board = new Pt(-(ho.Site == HoldoutSite.Facility ? h.Approach.Facility : h.Approach.Halt), 0);
             if (!StopWalk.Seen(board, ho.Lamp, l.Buildings, ho.Building, l.ZoneLength))
                 unseen++;
-            if (ho.Site == HoldoutSite.Facility && !StopGenerator.OffTheLoadingWalk(h, b.Centre, l.StopPoint, nearest, loading))
-                onWalk++;
         }
         Add("Every Holdout is where App. D.4 puts it", unsited == 0,
-            $"a facility's {h.FacilityDistance[0]:0}–{h.FacilityDistance[1]:0} m from the consist; a halt's within {h.HaltDistance:0} m, a dead town's {h.VillageDistance:0} m, of the line");
+            $"beside the consist's track ({h.Beside[0]:0}–{h.Beside[1]:0} m off it), within {h.Along:0} m of where it stops, {h.LoadingClear:0} m clear of the loading; a halt's lockup within {h.HaltDistance:0} m of the line (note 650)");
         Add("Every Holdout can be walked to from the consist", unreached == 0,
             l.Holdouts.Count == 0 ? "none" : $"{string.Join(", ", l.Holdouts.Select(x => $"{x.Walk:0} m"))} on foot (App. D.14)");
         Add("Every Holdout lamp is seen from the approach", unseen == 0, $"from the {(l.HasYard ? "1 km" : "whistle")} board, past every building (App. D.4)");
-        Add("No Holdout on the walk to the loading", onWalk == 0, $"{h.LoadingClear:0} m clear of it, {h.LoadingAngle:0}° off the nearest (App. D.4)");
 
         // GDD B.6: the outside creatures have somewhere to be.
         int warrens = l.Lairs.Count(x => x.Kind == LairKind.Warren), roosts = l.Lairs.Count(x => x.Kind == LairKind.GauntRoost),

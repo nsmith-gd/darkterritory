@@ -59,6 +59,17 @@ sealed partial class LineBuilder
                 else
                     s0 = Math.Max(s0, at + reach);
             }
+            // And round the stops' own ground along the line (their yards' box pads come later, with the stops): a dyke's
+            // fields laid over a yard were the yard's level ground (on the 7 km nights of note 554 the stops are half the line).
+            foreach (var f in _facilities)
+            {
+                if (f.LullEnd + sr.TaperM <= s0 || f.LullStart - sr.TaperM >= s1)
+                    continue;
+                if (f.LullStart - s0 > s1 - f.LullEnd)
+                    s1 = Math.Min(s1, f.LullStart - sr.TaperM);
+                else
+                    s0 = Math.Max(s0, f.LullEnd + sr.TaperM);
+            }
             if (s1 - s0 < sr.MinM)
                 continue;
             // The seaward side: the one no branch or facility spur leaves by here, nor an alternate runs beside the line on

@@ -360,6 +360,60 @@ sealed partial class LineBuilder
         return null;
     }
 
+    /// <summary>
+    /// Whether a dead line runs past a stop near enough the main line to be through its yard or village, on either side (the
+    /// stop is laid later and doesn't know it's there: frontier:7's prison van stood on dead1's rail). Its toe is laid clear
+    /// of that (TryAddDeadLine); this holds it for one laid where an alternate didn't fit.
+    /// </summary>
+    string? ThroughAStop(EdgeDraft e)
+    {
+        if (!_traces.TryGetValue("main", out var main) || !_traces.TryGetValue(e.Id, out var tr) || _facilities.Count == 0)
+            return null;
+        // The stop's whole depth (StopContext.MaxLateral) and the dead line's own formation past it.
+        double reach = _c.Route.StopContext.MaxLateral + 30;
+        foreach (var (s, x, z) in tr.Trace)
+        {
+            if (OffMain(main.Trace, x, z, reach) is not var (along, _))
+                continue;
+            if (_facilities.FirstOrDefault(f => along > f.LullStart && along < f.LullEnd) is { } slot)
+                return $"{e.Id} runs through {slot.Name}'s stop {s:0} m along it, at km {Km(along):0.0}";
+        }
+        return null;
+    }
+
+    /// <summary>A point's nearest place on the main line within <paramref name="reach"/>: how far along, and how far right of it.</summary>
+    (double Along, double Lateral)? OffMain(List<(double S, double X, double Z)> m, double x, double z, double reach)
+    {
+        const double Cell = 50;
+        if (_mainGrid is null || _mainGridOf != m)
+        {
+            _mainGrid = [];
+            _mainGridOf = m;
+            for (int i = 0; i < m.Count; i++)
+            {
+                var key = ((long)Math.Floor(m[i].X / Cell), (long)Math.Floor(m[i].Z / Cell));
+                if (!_mainGrid.TryGetValue(key, out var list))
+                    _mainGrid[key] = list = [];
+                list.Add(i);
+            }
+        }
+        int best = -1;
+        double bestD = reach * reach;
+        int cells = (int)Math.Ceiling(reach / Cell);
+        long cx = (long)Math.Floor(x / Cell), cz = (long)Math.Floor(z / Cell);
+        for (long i = cx - cells; i <= cx + cells; i++)
+            for (long j = cz - cells; j <= cz + cells; j++)
+                if (_mainGrid.TryGetValue((i, j), out var list))
+                    foreach (int k in list)
+                        if ((m[k].X - x) * (m[k].X - x) + (m[k].Z - z) * (m[k].Z - z) is var d2 && d2 < bestD)
+                            (best, bestD) = (k, d2);
+        if (best < 0 || best + 1 >= m.Count)
+            return null;
+        // Right of the main line's way there: (−tz, tx).
+        double tx = m[best + 1].X - m[best].X, tz = m[best + 1].Z - m[best].Z, n = Math.Sqrt(tx * tx + tz * tz);
+        return (m[best].S, ((x - m[best].X) * -tz + (z - m[best].Z) * tx) / Math.Max(1e-9, n));
+    }
+
     Dictionary<(long, long), List<int>>? _mainGrid;
     List<(double S, double X, double Z)>? _mainGridOf;
 

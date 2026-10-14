@@ -216,7 +216,7 @@ public class TwoHandedTests
         Press(stop, 0);
         stop.Step(F.Crates.SettleSeconds + 1.5, [default, default]);
         Assert.Equal(before + F.Crates.Heavy.LoadPerCrate, car.Load, 6);
-        Assert.DoesNotContain(heavy, stop.World.Bodies.All);
+        Assert.True(heavy.Banked, "never loaded"); // note 659: it stays where they put it down
     }
 
     [Fact]

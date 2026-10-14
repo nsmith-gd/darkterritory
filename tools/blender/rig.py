@@ -770,8 +770,13 @@ def fuse(kit, name, parts, voxel, faces, cut=None, lose=0.015, settle=None, rela
     # (QuadriFlow's result isn't the same run to run, a good one or a ruin from the same union: a few tries.)
     for seed in range(4) if ready and quads else ():
         skin.data = dense.copy()
-        bpy.ops.object.quadriflow_remesh(target_faces=faces, use_mesh_symmetry=True, use_preserve_sharp=False,
-                                         use_preserve_boundary=cut is not None, smooth_normals=False, seed=seed)
+        try:
+            bpy.ops.object.quadriflow_remesh(target_faces=faces, use_mesh_symmetry=True, use_preserve_sharp=False,
+                                             use_preserve_boundary=cut is not None, smooth_normals=False, seed=seed)
+        except RuntimeError as e:
+            # (It can refuse a union the checks above pass, "Remeshing failed": the collapse below, as for any other refusal.)
+            print(f"[dt] fuse {name}: QuadriFlow (seed {seed}) refused: {e}")
+            continue
         if len(skin.data.polygons) > faces * 2:
             continue
         got = BVHTree.FromPolygons([v.co for v in skin.data.vertices], [list(f.vertices) for f in skin.data.polygons])

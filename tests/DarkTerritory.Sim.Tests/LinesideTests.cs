@@ -236,7 +236,8 @@ public class LinesideTests
     [Fact]
     public void ACrouchClearsAMouthOnlyIfTunedTo()
     {
-        // Note 260: the spec doesn't say; the kept reading is that it doesn't (a tuning flag says otherwise).
+        // Note 260: the spec doesn't say; the kept reading was that it doesn't (a tuning flag says otherwise; on since note 664).
+        // Standing (no crouch on the key: the world has no movement tuning here), the mouth takes them.
         PlayerState[] Crouched(TrainOnLine train) => [PlayerMotor.SpawnOnRoof(train, 2, 0, P) with { Head = 0.8 }];
         var (_, kept) = Ride(Tunnel(), 12, 1750, Crouched);
         Assert.Equal(DeathCause.Struck, kept[0].Death);
@@ -260,6 +261,41 @@ public class LinesideTests
             PlayerMotor.Step(ref s, crouch, train, P, T, SimConstants.TickSeconds, applyLook: false);
         }
         Assert.True(s.Alive, $"crouched under the mouth: {s.Death}");
+    }
+
+    [Fact]
+    public void CrouchedOnTheKeyARoofRiderGoesUnderTheMouthAndStaysDownTillItsPast()
+    {
+        // Note 664 (D1 for the director: a crouch "fits the body under low clearance"; "release the key and you stand, unless
+        // the clearance above won't let you"): held down to the mouth, let go under it, and still down until it's past.
+        Assert.True(S.RoofWarning.CrouchClearsMouth);
+        var route = Tunnel();
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 5, 1)), route.Build(), 600);
+        var world = new World(train, Tuning.Combat);
+        world.EnableBodies();
+        world.EnableLineside(S, route);
+        world.Hand = P.Hand;
+        world.Movement = P;
+        var s = PlayerMotor.SpawnOnRoof(train, 2, 0, P);
+        bool under = false, past = false;
+        while (train.Dynamics.RearDistance < 1750)
+        {
+            bool inside = world.Lineside!.UnderLowClearance(s, train);
+            under |= inside;
+            past |= under && !inside;
+            var intent = new PlayerIntent { Moves = under ? PlayerMoves.None : PlayerMoves.Crouch };
+            train.Dynamics.Velocity = 12;
+            world.BeginTick();
+            world.CrewAct(ref s, intent, 1);
+            world.Step(new TrainControls { Reverser = 1 });
+            world.ApplyDamage(_ => s, (_, v) => s = v, [1]);
+            PlayerMotor.Step(ref s, intent, train, P, T, SimConstants.TickSeconds, applyLook: false);
+            if (inside)
+                Assert.True(s.Has(PlayerFlags.Crouched), "stood up under the mouth");
+        }
+        Assert.True(under && past, $"under {under}, past {past}");
+        Assert.True(s.Alive, $"crouched under the mouth: {s.Death}");
+        Assert.False(s.Has(PlayerFlags.Crouched), "still down past the tunnel, the key let go");
     }
 
     [Fact]
@@ -483,7 +519,7 @@ public class DropAndPacingTests
     }
 
     /// <summary>A train at speed past a crane with someone in car 2's side door on its side, door open or not, hook out or not.</summary>
-    static (Lineside Lineside, World World) Past(bool open, bool hook, DropKind kind = DropKind.Mail)
+    static (Lineside Lineside, World World) Past(bool open, bool hook, DropKind kind = DropKind.Mail, double speed = 13)
     {
         var route = new Route.Route("t", RouteTier.Frontier, 1, new LineDefinition("t", [new TrackSegment(3000)]), [], new RouteWeather(0.01, false, 0, 0), 3600);
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 0.5)), route.Build(), 600, Tuning.Boiler);
@@ -502,7 +538,7 @@ public class DropAndPacingTests
         var intent = hook ? new PlayerIntent { Buttons = PlayerButtons.Fire } : default;
         while (train.Dynamics.RearDistance < drop.At + 5)
         {
-            train.Dynamics.Velocity = 13;
+            train.Dynamics.Velocity = speed;
             world.BeginTick();
             world.CrewAct(ref s, intent, 1);
             world.Step(new TrainControls { Reverser = 1 });
@@ -524,6 +560,20 @@ public class DropAndPacingTests
         Assert.True(shut.Passed(drop.Id) && !shut.Caught(drop.Id));
         var (idle, _) = Past(open: true, hook: false);
         Assert.True(idle.Passed(drop.Id) && !idle.Caught(drop.Id));
+    }
+
+    [Fact]
+    public void ABagHookedOverTheCranesPostedSpeedTearsAndIsLost()
+    {
+        // The mail catch (queue #461, note 727): the crane's board posts the speed the hook holds a bag at; over it, the bag
+        // tears off and what was in it is gone, so the one at the door calls the driver down for it.
+        Assert.True(S.CatchMaxSpeed > 13);
+        var (torn, world) = Past(open: true, hook: true, speed: S.CatchMaxSpeed + 2);
+        var drop = torn.AllDrops.First();
+        Assert.True(torn.Torn(drop.Id) && torn.Passed(drop.Id) && !torn.Caught(drop.Id));
+        Assert.Equal(0, world.Run!.Mail);
+        var board = Lineside.Boards(S, DarkTerritory.Sim.LineGen.Routes.Generate(DataFile.FindContentRoot(), "frontier:7", 6)).First(b => b.Kind == SignKind.Drop);
+        Assert.Equal((int)(Math.Floor(S.CatchMaxSpeed * 3.6 / 5) * 5), board.LimitKmh);
     }
 
     [Fact]

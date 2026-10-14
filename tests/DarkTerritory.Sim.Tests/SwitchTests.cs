@@ -129,6 +129,30 @@ public class SwitchTests
     }
 
     [Fact]
+    public void ABufferStopRunIntoAtARunningPaceDentsTheEngineButDoesntBreakItDown()
+    {
+        // Note 661 (the director, 13 Oct, at Voss Green: "I hit the stop at the end of the spur too hard or too fast", the
+        // engine broke down and the night was stranded). At the yard's crawl it's nothing; at 5 m/s a dent short of failing;
+        // at a dead line's derailing speed (overspeed.deadEndDerailAbove), still short of it.
+        double Left(double speed)
+        {
+            var train = Train(Line(), front: Toe + 575);
+            train.ThrowSwitch(0, true, 0);
+            train.Restore(train.Capture() with { Rakes = [train.Capture().Rakes[0] with { Path = 0, Velocity = speed }] });
+            for (int i = 0; i < SimConstants.TickRate * 60 && !train.ContactsThisTick.Any(); i++)
+                train.Step(SimConstants.TickSeconds, new TrainControls { Reverser = 1 });
+            Assert.True(train.AtEndOfLine);
+            // Note 663: what knocked it, for the news ("ENGINE FAILING · HIT THE BUFFER STOP AT 18 KM/H").
+            if (train.Vehicles[0].Integrity < 1)
+                Assert.Equal(KnockCause.BufferStop, train.Vehicles[0].Knock.Cause);
+            return train.Vehicles[0].Integrity;
+        }
+        Assert.Equal(1, Left(T.BufferStop.SafeSpeed - 0.1), 6);
+        Assert.InRange(Left(5), T.Failing.Below, 0.95);
+        Assert.True(Left(T.Overspeed.DeadEndDerailAbove) > T.Failing.Below);
+    }
+
+    [Fact]
     public void RakesOnTheBranchAndTheMainOnlyMeetAtThePoints()
     {
         // A rake parked down the dead line, clear of the points; the train runs by on the main line.

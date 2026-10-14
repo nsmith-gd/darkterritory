@@ -30,8 +30,9 @@ public class HouseInteriorArtTests
         // Every item loot.json can deal out has a model of its own and a cell, not the plain bundle.
         var loot = DataFile.Load<LootTuning>(Path.Combine(Content, LootTuning.File));
         var plain = FindKit.Find(null, "nothing", 0.15f).Vertices.Length;
-        // (A creature's trophy, the Gannet's head, isn't a village find: a model of its own, but no cell.)
-        var trophies = loot.Trophies.Values.Select(t => t.Item).ToHashSet();
+        // (A creature's trophy, the Gannet's head, isn't a village find: a model of its own, but no cell. Nor is a comet
+        // fragment, note 718.)
+        var trophies = loot.Trophies.Values.Select(t => t.Item).Append(loot.Comet!.Item).ToHashSet();
         foreach (var item in loot.Items.Keys)
         {
             if (!trophies.Contains(item))
@@ -43,7 +44,7 @@ public class HouseInteriorArtTests
 
     [Theory]
     [InlineData("frontier:7")]
-    [InlineData("deadLines:2")]
+    [InlineData("deadLines:7")]
     public void EveryOpenHouseHasItsDimLightInsideItClearOfTheFurniture(string spec)
     {
         var route = Routes.Generate(Content, spec, 6);
@@ -122,10 +123,11 @@ public class HouseInteriorArtTests
                 new GreyboxScene { Look = look, Route = route, Time = 0.37 }.Build(mesh, train, eye);
                 // (Camera-relative: the eye's at the origin.)
                 Assert.Contains(mesh.Rooms, r => Inside(r, Vector3.Zero));
-                // Its lantern: a light inside its walls, under its eaves. The Gaunt's has none.
+                // Its lantern: a light inside its walls, under its eaves. The Gaunt's has none, and nor has a powerhouse, lit by
+                // its power instead (note 509; with no run here, it's dark).
                 bool Lantern(PointLight l) => StopWalls.InParts(b, Along(l.Position), Across(l.Position))
                     && l.Position.Y > -1.6f && l.Position.Y < WorldArt.OpenShedHeight(b.Kind) - 1.6f;
-                if (StopWalls.Nest(stop, i) is null)
+                if (StopWalls.Nest(stop, i) is null && b.Kind != BuildingKind.Powerhouse)
                 {
                     Assert.Contains(mesh.PointLights, Lantern);
                     seen++;

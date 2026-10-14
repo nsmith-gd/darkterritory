@@ -56,7 +56,8 @@ public static partial class Hud
     /// the yard shows the core controls.</param>
     public static void Build(Overlay o, int width, int height, IPlaySession s, bool crosshair = true,
         IReadOnlyList<(string To, UiStyle.Commendation What, string From)>? commendations = null, IReadOnlyDictionary<int, Still>? stills = null,
-        float pixels = 4, TownTalk? talk = null, double now = 0, bool firstNight = false, IReadOnlyList<string>? captions = null)
+        float pixels = 4, TownTalk? talk = null, double now = 0, bool firstNight = false, IReadOnlyList<string>? captions = null,
+        FigureTalk? figures = null)
     {
         _promptScale = PromptScaleAt(pixels);
         _commendations = commendations;
@@ -66,7 +67,7 @@ public static partial class Hud
         o.Backing = Keys.TextBacking ? new Vector4(0, 0, 0, (float)Math.Clamp(Tuning.TextBacking, 0, 1)) : default;
         try
         {
-            Draw(o, width, height, s, crosshair, talk, now, firstNight, captions);
+            Draw(o, width, height, s, crosshair, talk, now, firstNight, captions, figures);
         }
         finally
         {
@@ -75,7 +76,7 @@ public static partial class Hud
     }
 
     static void Draw(Overlay o, int width, int height, IPlaySession s, bool crosshair, TownTalk? talk, double now,
-        bool firstNight, IReadOnlyList<string>? captions)
+        bool firstNight, IReadOnlyList<string>? captions, FigureTalk? figures = null)
     {
         int line = o.Font.LineHeight;
         var p = s.Player;
@@ -102,7 +103,9 @@ public static partial class Hud
         if (!over)
         {
             TopCentre(o, width, s, memory, line);
-            Situation(o, s);
+            // The news's line is wide enough to run into the top left's fine print (F1, note 663): its few seconds have it.
+            if (NewsUp(s.World) is null)
+                Situation(o, s);
         }
         Alerts(o, width, height, s, line);
         if (captions is { Count: > 0 } && !over)
@@ -115,11 +118,15 @@ public static partial class Hud
             Onboarding.DrawCard(o, width, height, Keys, Fine, 1, Dim, Amber);
         // A fortress town's card (note 281): what somebody's saying to you, or the paper you're reading. While it's open its
         // own foot says what Use does next, so the town's prompt under the crosshair stands down.
-        var townCard = !over && talk is not null && s.World.Town is { } town ? talk.Card(town, now) : null;
+        var townCard = !over && talk is not null && (talk.In ?? s.World.TownOf(p)) is { } town ? talk.Card(town, now) : null;
+        // Dave's card (note 570): what he's saying to you, or to a blow you were near enough to hear.
+        bool figureCard = false;
+        if (townCard is null && !over && figures?.Card(now) is { } said)
+            (townCard, figureCard) = (said, true);
         if (townCard is not null)
             TownCardOn(o, width, height, townCard, line);
         string? prompt = over ? null : Prompt(s);
-        if (prompt is not null && !(townCard is not null && TownTarget(s) is not null))
+        if (prompt is not null && !(townCard is not null && (figureCard ? FigureTalk.Target(s) is not null : TownTarget(s) is not null)))
             PromptPlate(o, width, height, Bound(prompt));
         if (p.Alive && !over)
         {
@@ -238,9 +245,19 @@ public static partial class Hud
         // Of the crew cap (note 254), when there is one.
         o.Text(x, y, $"THE LOBBY: {crew.Count} ABOARD{(link.Cap > 0 ? $" OF {link.Cap}" : "")}", Amber, k);
         y += (line + 3) * k;
-        var lines = crew.Select(c => ($"  {c.Name}{(c.You && c.Name != "YOU" ? " (YOU)" : "")}", c.You ? Ink : Dim)).ToList();
         // The host starts the night; a joiner waits for it (the 4 Oct rehearsal: a joiner was told to drive out).
         bool hosting = link.PingMs is null && !link.Lost;
+        // Note 534: hosting, each crewmate's link beside their name, inked by its worst, so a host sees who's struggling
+        // before driving out (netcode-audit.md gap 3). A column after the longest name.
+        float column = crew.Count == 0 ? 0 : crew.Max(c => o.Measure($"  {c.Name} (YOU)", k)) + 6 * k;
+        foreach (var c in crew)
+        {
+            o.Text(x, y, $"  {c.Name}{(c.You && c.Name != "YOU" ? " (YOU)" : "")}", c.You ? Ink : Dim, k);
+            if (hosting && link.Crew.FirstOrDefault(l => l.Id == c.Id) is { PingMs: > 0 } cl && CrewLinkLine(cl) is var (text, ink))
+                o.Text(Overlay.Snap(x + column, k), y, text, ink, k);
+            y += (line + 1) * k;
+        }
+        var lines = new List<(string, Vector4)>();
         // Hosting at the cap: the lobby's shut (listed FULL, the platform lobby closed) till a place frees. The places taken
         // can be more than the names above: a dropped player's held place, someone waiting to board.
         if (link.Full)
@@ -253,6 +270,15 @@ public static partial class Hud
         }
         else if (hosting)
             lines.Add(("A PRIVATE NIGHT: NOBODY ELSE CAN JOIN", Dim));
+        // Note 532: a host whose frames can't hold the tick rate holds everyone's night to its pace; a joiner whose host is
+        // behind has its own clock stretched to match.
+        if (link.HeldBack)
+            lines.Add((HeldBackLine, Red));
+        else if (link.Paced)
+            lines.Add((PacedLine, Amber));
+        // Note 549: the one thing a crew losing snapshots at once share is this host's upload.
+        if (link.UploadStrained)
+            lines.Add((StrainedLine(link.UpKbps), Red));
         lines.Add((hosting ? "EVERYONE IN? DRIVE OUT OF THE YARD" : "THE HOST DRIVES OUT WHEN EVERYONE'S IN", Ink));
         foreach (var (text, colour) in lines)
         {
@@ -416,12 +442,22 @@ public static partial class Hud
         : link.Refused is { } refused ? $"{refused}   TRY AGAIN : [F5]"
         : link.CanReconnect ? "RECONNECT : [F5]" : null;
 
+    /// <summary>Note 532: said on the host's lobby panel, and in the corner out on the line, while its clock drops time.</summary>
+    public const string HeldBackLine = "YOUR MACHINE IS HOLDING THE CREW BACK";
+    /// <summary>Note 532: a joiner's, while its clock is stretched to a host that's behind.</summary>
+    public const string PacedLine = "THE HOST'S BEHIND: THE NIGHT RUNS AT ITS PACE";
+    /// <summary>A campaign's train taken at dawn (note 632; the director, the inbox, 12 Oct: "the campaign ends").</summary>
+    public const string CampaignOver = "THE COMPANY HAS NO MORE TRAINS FOR YOU";
+    /// <summary>Note 549: the host's, while its upload can't carry the crew: what it's sending, so the figure can be taken to a router.</summary>
+    public static string StrainedLine(double upKbps) => $"YOUR UPLOAD CAN'T CARRY THE CREW: {upKbps:0} KBIT/S OUT";
+
     static void Link(Overlay o, int width, IPlaySession s)
     {
         if (s.Link is not { } link)
             return;
         float k = Fine, right = width - 6;
         int line = o.Font.LineHeight;
+        bool yard = s.World.Run is null or { Phase: Sim.Run.RunPhase.Yard };
         if (link.Lost)
         {
             o.TextRight(right, 5, "NO LINK", Red, 1);
@@ -430,17 +466,125 @@ public static partial class Hud
             return;
         }
         if (link.PingMs is not { } ping)
+        {
+            // Note 540: hosting, out on the line, whose link has gone bad, as a joiner's own is said (the yard's lobby panel
+            // has every crewmate's). Nobody else knows: the host's the one who can wait for them, or warn them.
+            if (!yard)
+            {
+                float y = 5;
+                foreach (var (text, ink) in BadLinks(link, s.Roster()))
+                {
+                    o.TextRight(right, y, text, ink, k);
+                    y += (line + 1) * k;
+                }
+                // Note 532: and whether it's this machine holding them all back (the yard's panel has it).
+                if (link.HeldBack)
+                {
+                    o.TextRight(right, y, HeldBackLine, Red, k);
+                    y += (line + 1) * k;
+                }
+                // Note 549: or its upload that can't carry them.
+                if (link.UploadStrained)
+                    o.TextRight(right, y, StrainedLine(link.UpKbps), Red, k);
+            }
             return;
-        var colour = ping < 80 ? Green : ping < Tuning.PingWarnMs ? Amber : Red;
-        if (s.World.Run is null or { Phase: Sim.Run.RunPhase.Yard })
+        }
+        var colour = PingInk(ping);
+        if (yard)
         {
             // Just the milliseconds at the big size: "PING 100 MS" ran into the route strip at 1280 wide (the 4 Oct rehearsal).
             o.TextRight(right, 5, $"{ping:0} MS", colour, scale: 2);
             o.TextRight(right, 5 + 2 * line + 1, "PING TO HOST", Dim, k);
+            // Note 534: what's getting through and how, under it, so a joiner sees a bad link before the night starts.
+            if (QualityLine(link) is { } quality)
+                o.TextRight(right, 5 + 2 * line + 1 + (line + 1) * k, quality, link.Loss is { } l ? LossInk(l) : Dim, k);
         }
-        else if (ping >= Tuning.PingWarnMs)
-            o.TextRight(right, 5, $"PING {ping:0} MS", colour, k);
+        else
+        {
+            // Out on the line, only what's gone bad (note 285): the ping, the loss, or both.
+            float y = 5;
+            if (ping >= Tuning.PingWarnMs)
+            {
+                o.TextRight(right, y, $"PING {ping:0} MS", colour, k);
+                y += (line + 1) * k;
+            }
+            if (link.Loss is { } loss && loss >= Tuning.LossWarn)
+            {
+                o.TextRight(right, y, $"{Percent(loss)} LOST", LossInk(loss), k);
+                y += (line + 1) * k;
+            }
+            // Note 532: a joiner whose clock is stretched to a host that's behind.
+            if (link.Paced)
+                o.TextRight(right, y, PacedLine, Amber, k);
+        }
     }
+
+    /// <summary>The most crewmates named at once in the host's corner (note 540); past it, "AND n MORE".</summary>
+    const int BadLinksShown = 3;
+
+    /// <summary>
+    /// The host's corner out on the line (note 540): each crewmate whose round trip or loss has gone bad (hud.json
+    /// <c>pingWarnMs</c>, <c>lossWarn</c>), by name, worst first, "PRIYA: 13% LOST" or "SAM: PING 210 MS"; the rest counted.
+    /// </summary>
+    public static List<(string Text, Vector4 Ink)> BadLinks(LinkInfo link, IReadOnlyList<RosterLine> roster)
+    {
+        var bad = link.Crew
+            .Where(c => c.PingMs >= Tuning.PingWarnMs || c.Loss >= Tuning.LossWarn)
+            .OrderByDescending(c => Math.Max(c.PingMs / Tuning.PingWarnMs, (c.Loss ?? 0) / Tuning.LossWarn)).ThenBy(c => c.Id)
+            .ToList();
+        var lines = new List<(string, Vector4)>();
+        foreach (var c in bad.Take(BadLinksShown))
+        {
+            string name = roster.FirstOrDefault(r => r.Id == c.Id).Name is { Length: > 0 } n ? n : $"CREW {c.Id}";
+            bool lossy = c.Loss is { } l && l >= Tuning.LossWarn && l / Tuning.LossWarn >= c.PingMs / Tuning.PingWarnMs;
+            lines.Add(($"{name}: {(lossy ? $"{Percent(c.Loss!.Value)} LOST" : $"PING {c.PingMs:0} MS")}", Red));
+        }
+        if (bad.Count > BadLinksShown)
+            lines.Add(($"AND {bad.Count - BadLinksShown} MORE", Red));
+        return lines;
+    }
+
+    /// <summary>A round trip's ink: good, going (a warning), bad (hud.json <c>pingWarnMs</c>).</summary>
+    static Vector4 PingInk(double ping) => ping < 80 ? Green : ping < Tuning.PingWarnMs ? Amber : Red;
+
+    /// <summary>A loss's ink (note 534): under hud.json <c>lossGood</c> good, from <c>lossWarn</c> bad.</summary>
+    static Vector4 LossInk(double loss) => loss < Tuning.LossGood ? Green : loss < Tuning.LossWarn ? Amber : Red;
+
+    /// <summary>A share as the HUD says it: "0%", "3%", and under one in a hundred but not none, "&lt;1%".</summary>
+    public static string Percent(double share) => share > 0 && share < 0.005 ? "<1%" : $"{Math.Round(share * 100):0}%";
+
+    /// <summary>
+    /// The link's quality in a line (note 534; netcode-audit.md gap 3): what's lost over the window and how the host's
+    /// reached, "2% LOST, VIA STEAM RELAY" or "0% LOST, DIRECT". Null when there's nothing to say yet.
+    /// </summary>
+    public static string? QualityLine(LinkInfo link)
+    {
+        string? loss = link.Loss is { } l ? $"{Percent(l)} LOST" : null;
+        string? via = link.Via is { } v ? Route(v, full: true) : null;
+        return loss is null && via is null ? null : string.Join(", ", new[] { loss, via }.OfType<string>());
+    }
+
+    /// <summary>How a link goes: through a network's relays ("VIA STEAM RELAY", or short, "STEAM RELAY") or "DIRECT".</summary>
+    public static string Route(Ballast.Net.CarrierLink via, bool full) =>
+        !via.Relayed ? "DIRECT"
+        : via.Network is { Length: > 0 } n ? $"{(full ? "VIA " : "")}{n.ToUpperInvariant()} RELAY" : full ? "VIA A RELAY" : "RELAY";
+
+    /// <summary>A crewmate's link on the host's lobby panel (note 534): "42 MS, 1% LOST, DIRECT", and its worst ink.</summary>
+    public static (string Text, Vector4 Ink) CrewLinkLine(CrewLink c)
+    {
+        var parts = new List<string> { $"{c.PingMs:0} MS" };
+        var ink = PingInk(c.PingMs);
+        if (c.Loss is { } loss)
+        {
+            parts.Add($"{Percent(loss)} LOST");
+            ink = Worse(ink, LossInk(loss));
+        }
+        if (c.Via is { } via)
+            parts.Add(Route(via, full: false));
+        return (string.Join(", ", parts), ink);
+    }
+
+    static Vector4 Worse(Vector4 a, Vector4 b) => a == Red || b == Red ? Red : a == Amber || b == Amber ? Amber : a;
 
     /// <summary>An open house's hiding spot as the prompt says it (note 326), or an open barn's or shed's (note 417).</summary>
     static string SpotName(DarkTerritory.Sim.Stops.ContainerKind kind) => kind switch
@@ -490,14 +634,26 @@ public static partial class Hud
             double off = train.Line.Branches[ahead].Toe - train.Line.MainDistance(train.Dynamics.Path, train.Dynamics.Distance);
             // The thrower's limit is a speed figure, which the director keeps (7 Oct): the lever works under it.
             return !lever.Slow ? $"POINTS IN {off:0} M: UNDER {thrower.MaxSpeed * 3.6:0} KM/H"
-                : train.PointsOccupied(ahead, stands.Tuning.PointsLength) ? "POINTS HELD"
+                : PointsHeld(train, ahead, stands.Tuning.PointsLength) is { } onIt ? onIt
                 : $"THROW TO {SwitchTo(world, train, ahead)} : HOLD [E]";
         }
         // Which way it'll go, and when it won't: the points don't move with a wheel on them.
         return stands.InReach(p, train, hand) is not { } branch ? null
-            : train.PointsOccupied(branch, stands.Tuning.PointsLength) ? "POINTS HELD"
+            : PointsHeld(train, branch, stands.Tuning.PointsLength) is { } held ? held
             : $"THROW TO {SwitchTo(world, train, branch)} : HOLD [E]";
     }
+
+    /// <summary>
+    /// What's stopping the points moving, or null: a wheel on them, the train's own or cars standing there (note 665, the
+    /// director: "it says points held ... it's not clear what it's indicating. We should just tell the player at that point
+    /// something is on the track").
+    /// </summary>
+    static string? PointsHeld(TrainOnLine train, int branch, double pointsLength) => train.OnThePoints(branch, pointsLength) switch
+    {
+        null => null,
+        { } r when train.Standing(r) => "CARS ON THE POINTS",
+        _ => "TRAIN ON THE POINTS",
+    };
 
     /// <summary>What the route card calls a generated line's alternate (its known grades: "high line (alt1)"), if it says.</summary>
     static string? CardName(Sim.World world, int branch)
@@ -546,6 +702,11 @@ public static partial class Hud
         return car > 0 ? $"REPAIR KIT: CAR {car}" : car == 0 ? "REPAIR KIT: ON THE ENGINE" : "REPAIR KIT: OFF THE TRAIN";
     }
 
+    /// <summary>Note 594: a hand-sized thing lying in reach, offered to a hand holding another: TAKE it : [E].</summary>
+    static string? TakePrompt(Sim.World world, in PlayerState p, TrainOnLine train, int playerId) =>
+        world.Bodies.InReach(p, train, world.Hand, world.Bodies.RadiosCarried && world.Bodies.HasRadio(playerId), playerId) is { Carrier: < 0 } thing
+        && Bodies.Pocketable(train, thing.Kind) ? $"TAKE {Called(world, thing)} : [E]" : null;
+
     /// <summary>A hand-sized thing by name, for the lockers' prompts.</summary>
     static string Called(Sim.World world, Body b) => b.Kind switch
     {
@@ -561,6 +722,8 @@ public static partial class Hud
             _ => "THE TOY",
         },
         BodyKind.Extinguisher => "THE EXTINGUISHER",
+        // A tool on a locker's shelf (note 649).
+        BodyKind.Tool => $"THE {ToolName(Kit.At(b.Tools, 0))}",
         BodyKind.Loot => world.Run?.FindName(b)?.ToUpperInvariant() ?? "THE FIND",
         // What else is carried, for the hotbar's IN HANDS (note 264).
         BodyKind.Crate or BodyKind.Cargo => "A CRATE",
@@ -630,6 +793,33 @@ public static partial class Hud
     /// it's near), and the cold getting deeper where you are (GDD §22, note 201: how much faster it comes on outside, for a
     /// few seconds as you go into it). The whole night, and where you are in it, is the route card's (C).
     /// </summary>
+    /// <summary>
+    /// Past dawn: with the Wakers up (note 588), how far behind the one on the line is, or that it has the train; without them
+    /// (a mod, v1's dawn), the line gone live.
+    /// </summary>
+    /// <summary>
+    /// The night things going to ground before dawn (note 642; wakers.md §2: "the clearest sign the night's over"), beside the
+    /// dawn clock: from the run's clock, so every machine shows it alike.
+    /// </summary>
+    public static string DawnFlight(Sim.World world) =>
+        world.Enemies?.Wakers is { } w && Sim.Enemies.Waker.NightFleeing(world, w) ? " · THE NIGHT THINGS ARE GOING" : "";
+
+    public static string DawnLine(Sim.World world, Sim.Train.TrainOnLine train)
+    {
+        if (world.Enemies?.Wakers is not { Enabled: true })
+            return "DAWN: THE LINE IS LIVE. GET IN";
+        if (world.ActiveEnemies.OfType<Sim.Enemies.Waker>().FirstOrDefault(w => w.Lead) is not { } waker)
+            return "DAWN: THEY'RE WAKING. GET IN";
+        if (waker.Holds)
+            return "IT HAS THE TRAIN";
+        double behind = train.RearDistance - waker.LineDistance;
+        return waker.Phase == Sim.Enemies.SpinePhase.Telegraph ? $"DAWN: ONE'S UP {behind / 1000:0.0} KM BEHIND. GET IN"
+            : $"A WAKER {Math.Max(0, behind):0} M BEHIND. GET IN";
+    }
+
+    /// <summary>The newest news (note 663), or null.</summary>
+    static NewsEvent? NewsUp(Sim.World world) => world.News.Count > 0 ? world.News[^1] : null;
+
     static void TopCentre(Overlay o, int width, IPlaySession s, Memory m, int line)
     {
         float k = Fine, cx = width / 2f, y = 6;
@@ -638,20 +828,34 @@ public static partial class Hud
         {
             double dawn = run?.DawnIn ?? route.DawnSeconds;
             if (dawn <= 0)
-                o.TextCentred(cx, y, "DAWN: THE LINE IS LIVE. GET IN", Red, 1);
+                o.TextCentred(cx, y, DawnLine(s.World, s.Train), Red, 1);
             else if (dawn <= Tuning.DawnClockSeconds)
-                o.TextCentred(cx, y, $"DAWN {(int)dawn / 60}:{(int)dawn % 60:00}", dawn <= 120 ? Red : Amber, 1);
+                o.TextCentred(cx, y, $"DAWN {(int)dawn / 60}:{(int)dawn % 60:00}{DawnFlight(s.World)}", dawn <= 120 ? Red : Amber, 1);
             if (dawn <= Tuning.DawnClockSeconds)
                 y += line + 4;
+        }
+        // Note 663 (F1's place for it): the news, to everyone alike (the director: "did a coupler break on its own or was that a
+        // creature?"): cars the engine lost and its failing, as it happens and with what did it. Under the clock, which is
+        // the one that kills you; the newest only, fading as a place's name does.
+        if (NewsUp(s.World) is { } news && Shown((s.World.Tick - news.Tick) * SimConstants.TickSeconds, s.World.NewsTuning.Seconds) is > 0 and var n)
+        {
+            foreach (var row in Fitted(o, News.Line(s.World, news), width - 32, 1))
+            {
+                o.TextCentred(cx, y, row, (news.Kind == NewsKind.EngineBroken ? Red : Amber) with { W = n }, 1);
+                y += line;
+            }
+            y += 4;
         }
         if (m.Place is { } place && Shown(Since(s, m.PlaceTick), Tuning.PlaceSeconds) is > 0 and var a)
         {
             double left = place.At - s.Train.Dynamics.Distance;
             o.TextCentred(cx, y, place.Name.ToUpperInvariant(), Ink with { W = a }, 1);
             y += line;
-            o.TextCentred(cx, y, left > 50 ? $"IN {left / 1000:0.0} KM" : "HERE", Dim with { W = a }, k);
+            // The distance alone (note 671): "0.6 KM" under a place's name says how far.
+            o.TextCentred(cx, y, left > 50 ? $"{left / 1000:0.0} KM" : "HERE", Dim with { W = a }, k);
             y += (line + 2) * k;
         }
+        y = MailTop(o, s, m, cx, y, line, k);
         if (s.Player.Alive && Shown(Since(s, m.ColdTick), Tuning.ColdSeconds) is > 0 and var c
             && ColdLine(s.Player, s.Train) is { } cold)
             o.TextCentred(cx, y + 2, cold, Amber with { W = c }, k);
@@ -739,13 +943,19 @@ public static partial class Hud
             {
                 // GDD v1.4 §23.2: nobody died of it, and nobody much cares.
                 Big("STRANDED", Amber);
+                // Note 660: broken down, it's the engine that's said (the last wrench lost too, or it'd have been mended).
+                if (Failing.BrokenDown(world.Train))
+                    Small("THE ENGINE BROKE DOWN", Ink, fine: false);
                 Small(EngineeringKit.Line(r.KitLoss, Repairs.ByWrench(world.Train)), Ink, fine: false);
                 Small($"RECOVERY AT FIRST LIGHT. RECOVERY IS CHARGEABLE: {r.Recovery:0} SCRIP", Dim, fine: false);
             }
             else
             {
                 Big("RUN LOST", Red);
-                Small(r.End switch { RunEnd.Derailed => "DERAILED", RunEnd.CrewLost => "THE WHOLE CREW IS DEAD", _ => "STILL OUT WHEN THE LINE WENT LIVE" }, Ink, fine: false);
+                Small(r.End switch { RunEnd.Derailed => "DERAILED", RunEnd.CrewLost => "THE WHOLE CREW IS DEAD", _ when world.Enemies?.Wakers.Enabled == true => "TAKEN AT DAWN", _ => "STILL OUT WHEN THE LINE WENT LIVE" }, Ink, fine: false);
+                // Note 632 (the director, the inbox, 12 Oct: "the campaign ends"): a campaign's train taken at dawn is its last.
+                if (r.End == RunEnd.DawnMissed && world.DawnEndsCampaign)
+                    Small(CampaignOver, Red, fine: false);
             }
             // GDD v1.4 App. D.12: the incident report, every line in the clerk's voice, under the result; the night's
             // commendations under it.
@@ -807,6 +1017,21 @@ public static partial class Hud
             else if (b.Pressure >= bt.Redline)
                 Small(Bound("PRESSURE IN THE RED   VENT : HOLD [VENT]"), flash ? Red : Amber);
         }
+        // Note 576: a battered shell let go is working itself apart, said where it's felt: in the car, on the engine, and to
+        // the cab for any car of the train (the driver feels it through the couplings).
+        // The news under the dawn clock says the engine's stage (note 663), so the engine's own line here waits it out.
+        bool engineNews = NewsUp(world) is { Kind: NewsKind.EngineFailing or NewsKind.EngineBroken };
+        if (p.Alive)
+            foreach (var (text, worst) in FailingLines(world.Train, p))
+            {
+                if (engineNews && text.StartsWith("THE ENGINE'S", StringComparison.Ordinal))
+                    continue;
+                bool flash = world.Tick / 10 % 2 == 0;
+                if (worst == FailStage.Broken)
+                    Big(text, Red);
+                else
+                    Small(text, worst == FailStage.Breaking ? (flash ? Red : Amber) : Amber);
+            }
         // Note 267: a crewmate's whistle names whose hand is on the cord (GDD §12). The Whistler's has no hand on it, and no
         // line (App. A.4: "the whistle sounds with no hand on the cord" is its tell), so one with no name is the Whistler.
         if (p.Alive && world.WhistleSeconds > 0 && world.WhistleBy >= 0)
@@ -1227,8 +1452,8 @@ public static partial class Hud
         IncidentKind.Derailed or IncidentKind.Stranded => 0,
         IncidentKind.Death => 1,
         IncidentKind.CarLost or IncidentKind.Fire or IncidentKind.Nest or IncidentKind.Aboard or IncidentKind.Runaway or IncidentKind.Points
-            or IncidentKind.Rupture or IncidentKind.Struck => 2,
-        IncidentKind.Rescue or IncidentKind.Slain => 3,
+            or IncidentKind.Rupture or IncidentKind.Struck or IncidentKind.BroughtIn or IncidentKind.Marked => 2,
+        IncidentKind.Rescue or IncidentKind.Slain or IncidentKind.Sang => 3,
         _ => 4,
     };
 
@@ -1289,9 +1514,16 @@ public static partial class Hud
             money.Add($"refunds {r.BodyRefunds:0}");
         if (r.Recovery > 0)
             money.Add($"recovery {r.Recovery:0}");
+        // Note 589: what the town's monster brigade charged for what rode in.
+        if (r.BroughtInFees > 0)
+            money.Add($"brigade fees {r.BroughtInFees:0}");
         money.Add($"running costs {r.CoalCost + r.AmmoCost + r.RepairCost:0}");
         // Wrapped as the lines are (note 347): at a bigger TEXT SIZE it's wider than the plate.
         var sum = Wrap($"{string.Join(", ", money)}. Net {r.Net:0} scrip.", chars).ToList();
+        // Note 718: the night's best finds by what they paid, and who brought the most aboard, over the money (what the clerk
+        // read, kept on the screen: how a crew learns what's worth carrying).
+        if (PrizeLine(r) is { Length: > 0 } prizes)
+            sum.InsertRange(0, Wrap(prizes, chars));
         // The dead's own (D.12 "manual"), a row of stills across, each with when and whom they were following.
         var manual = r.Bookmarks.Where(b => b.Kind == BookmarkKind.Manual).ToList();
         // Each a still with its time and whom it followed at its right.
@@ -1353,6 +1585,21 @@ public static partial class Hud
             o.Text(x + 4, y, row, Ink);
             y += line;
         }
+    }
+
+    /// <summary>
+    /// Note 718: the end screen's line for the night's finds: "Best finds: comet fragment 1080, pocket watch 110, candles 25
+    /// (x3). Light fingers: Dave, 1215." Empty with none home.
+    /// </summary>
+    public static string PrizeLine(RunReport r)
+    {
+        var parts = new List<string>();
+        if (r.Prizes.Count > 0)
+            parts.Add("Best finds: " + string.Join(", ", r.Prizes.Select(p =>
+                $"{char.ToLowerInvariant(p.Name[0])}{p.Name[1..]} {p.Worth:0}{(p.Count > 1 ? $" (x{p.Count})" : "")}")) + ".");
+        if (r.Finder.Length > 0 && r.FinderWorth > 0)
+            parts.Add($"Light fingers: {r.Finder}, {r.FinderWorth:0}.");
+        return string.Join(" ", parts);
     }
 
     /// <summary>Run seconds as the report's timestamp: "1:04:12" over an hour, else "12:04".</summary>
@@ -1541,7 +1788,8 @@ public static partial class Hud
     /// town's (note 281). The app keeps that press from the host (nothing in a town changes the night).
     /// </summary>
     public static TownTarget? TownTarget(IPlaySession s) =>
-        s.World.Town is { } town && town.Target(s.Player, s.Train.Dynamics.Tuning.Pick.EyeHeight) is { } t && Prompt(s) == TownTalk.Prompt(town, t) ? t : null;
+        s.World.TownOf(s.Player) is { } town && town.Target(s.Player, s.Train.Dynamics.Tuning.Pick.EyeHeight) is { } t
+        && Prompt(s) == TownTalk.Prompt(town, t, s.World.WineInReach(s.Player, s.PlayerId)) ? t : null;
 
     /// <summary>
     /// A town card (note 281): a person's line on a plate over the prompt, their name and work above it; a paper as a
@@ -1711,6 +1959,12 @@ public static partial class Hud
         DeathCause.Uncoupled => "TAKEN WITH THE CABOOSE. THE PASSENGER CUT IT LOOSE",
         DeathCause.Trampled => "TRAMPLED BY THE MOOSE. YOU GOT TOO CLOSE, OR TOO LOUD",
         DeathCause.Pecked => "PECKED TO DEATH BY THE GANNET. YOU HIT IT, OR SOMEONE DID",
+        DeathCause.Woken => "TAKEN AT DAWN. THE NIGHT WAS THE SAFE PART",
+        // Dave's last words to them (note 570): the director's own.
+        DeathCause.Dave => "YOU SHOULD BE NICER IN A DARK WORLD.",
+        DeathCause.Fell => "FELL. IT WAS FURTHER DOWN THAN IT LOOKED",
+        // Note 717: a friend's shove, and the landing did the rest.
+        DeathCause.Shoved => "SHOVED OFF. SOME FRIEND",
         DeathCause.None => "",
         _ => cause.ToString().ToUpperInvariant(),
     };
@@ -1786,11 +2040,12 @@ public static partial class Hud
     /// <summary>
     /// Each control by the label of its default key ([E] is Use, [Y] the regulator closing, [K] the car lamp), built from
     /// <see cref="Controls.Defaults"/> so a control added there is bound here too; and the HUD's short names for the keys
-    /// whose own label is long: the mouse buttons and the vent's left Ctrl.
+    /// whose own label is long or whose key moved: the mouse buttons, the vent and the gun's push.
     /// </summary>
     static readonly IReadOnlyDictionary<string, Control> ByDefault = new Dictionary<string, Control>(
         Controls.Defaults.Select(d => KeyValuePair.Create(Controls.KeyLabel(d.Value), d.Key))
-            .Concat([KeyValuePair.Create("LMB", Control.Fire), KeyValuePair.Create("RMB", Control.Throw), KeyValuePair.Create("VENT", Control.Vent)]));
+            .Concat([KeyValuePair.Create("LMB", Control.Fire), KeyValuePair.Create("RMB", Control.Throw), KeyValuePair.Create("VENT", Control.Vent),
+            KeyValuePair.Create("PUSH", Control.Push)]));
 
     /// <summary>[WASD], the four walking keys as the player has them: one keycap where each is a letter (ZQSD), else one each.</summary>
     static string Walk()
@@ -1829,6 +2084,21 @@ public static partial class Hud
             : null;
 
     /// <summary>
+    /// A running conveyor (note 400), as the drive house and the belt say it (note 582): what its head's filling and how full,
+    /// or what's stopping it, as the spout's prompt says its car.
+    /// </summary>
+    static string BeltDoing(Sim.Run.Run run, TrainOnLine train, Site belt, Ballast.Double3 at)
+    {
+        if (belt.Jam >= 0)
+            return $"THE BELT'S JAMMED, {((belt.JamAt - at) with { Y = 0 }).Length:0} M AWAY";
+        if (belt.Grain <= 1e-9)
+            return "THE BELT'S RUNNING   NO GRAIN LEFT";
+        if (run.CarUnderHead(train, belt) is not { } car)
+            return "THE BELT'S RUNNING   NO CAR UNDER ITS HEAD";
+        return car.Load >= 1 - 1e-6 ? "THE BELT'S RUNNING   THE CAR UNDER ITS HEAD IS FULL" : $"LOADING   CAR {car.Load * 100:0}% FULL";
+    }
+
+    /// <summary>
     /// A hold's prompt (GDD §32, note 344): the action and its key, and its progress only once there's some, as the search's
     /// and the generator's say it. A mend kept half done with Use let go (note 301) still shows how far it got.
     /// </summary>
@@ -1839,6 +2109,41 @@ public static partial class Hud
     /// The break in reach and what mends it (note 301): with the wrench in hand, the hold and how far it's got; without, the
     /// break and the key that puts the wrench in hand. Null with no break in reach.
     /// </summary>
+    /// <summary>
+    /// What's failing that this player would feel (note 576): the car they're in or on, coming apart and spilling its freight;
+    /// the engine, from on it; and in the cab, the worst car of the train. Each with how far gone it is.
+    /// </summary>
+    public static List<(string Text, FailStage Stage)> FailingLines(TrainOnLine train, in PlayerState p)
+    {
+        var lines = new List<(string, FailStage)>();
+        if (!train.Dynamics.Tuning.Failing.Enabled || p.Parent < 0 || p.Parent >= train.Vehicles.Count)
+            return lines;
+        var engine = Failing.Stage(train, 0);
+        if (p.Parent == 0 && engine >= FailStage.Failing)
+            lines.Add((engine switch
+            {
+                FailStage.Broken => "THE ENGINE'S BROKEN DOWN",
+                FailStage.Breaking => "THE ENGINE'S BREAKING DOWN",
+                _ => "THE ENGINE'S FAILING",
+            }, engine));
+        if (p.Parent > 0 && Failing.Stage(train, p.Parent) is var here and (FailStage.Failing or FailStage.Breaking))
+        {
+            string spill = train.Vehicles[p.Parent] is { Kind: VehicleKind.Cargo, Load: > 0 } ? "   THE FREIGHT'S SPILLING" : "";
+            lines.Add(((here == FailStage.Breaking ? "THE CAR'S BREAKING UP" : "THE CAR'S COMING APART") + spill, here));
+        }
+        if (p.Parent == 0 && PlayerMotor.InCab(p, train))
+        {
+            int worst = -1;
+            var stage = FailStage.Holding;
+            foreach (var v in train.Dynamics.Consist.Vehicles)
+                if (v.Id > 0 && Failing.Stage(train, v.Id) is var st and (FailStage.Failing or FailStage.Breaking) && st > stage)
+                    (worst, stage) = (v.Id, st);
+            if (worst > 0)
+                lines.Add(($"CAR {worst} {(stage == FailStage.Breaking ? "BREAKING UP" : "COMING APART")}", stage));
+        }
+        return lines;
+    }
+
     public static string? RepairPrompt(in PlayerState p, TrainOnLine train, HandTuning? hand)
     {
         var at = Repairs.At(p, train, hand);
@@ -1849,6 +2154,8 @@ public static partial class Hud
             BreakKind.Breach => "THE CAR'S BREACHED",
             BreakKind.Rupture => "BOILER RUPTURED",
             BreakKind.Lamp => "THE HEADLAMP'S SMASHED",
+            // Note 576: under the failing line, it's no longer a knock: it's going.
+            _ when Failing.Stage(train, p.Parent) >= FailStage.Failing => p.Parent == 0 ? "THE ENGINE'S FAILING" : "THE CAR'S COMING APART",
             _ => "THE CAR'S BATTERED",
         };
         if (!Repairs.WrenchInHand(p))
@@ -1883,6 +2190,9 @@ public static partial class Hud
                     if ((d.WorldPosition(train) - PlayerMotor.WorldPosition(p, train)).Length <= et.Draggers.FreeReach + 1)
                         return "PULL THEM FREE : HOLD [E]";
                 }
+        // A mail crane's last seconds, in the open door on its side (note 673): the hook, before anything else in reach.
+        if (MailPrompt(s) is { } hook)
+            return hook;
         // The repair kit at a Holdout's door: held, Use works the lock (GDD App. D.7), not the hands; at a ruptured boiler's
         // firebox, it mends it (T109).
         if (world.Bodies.CarriedBy(s.PlayerId) is { Kind: BodyKind.RepairKit })
@@ -1907,6 +2217,11 @@ public static partial class Hud
         }
         // Carried, Use puts it down: nothing else in reach is offered. What it is, and how to be rid of it, is the corner's;
         // here only a healing find's use under way (note 272, in note 285's form).
+        // Note 594: a thing in hand from a slot, off the train, a slot free and another hand-sized thing in reach: Use takes it
+        // into a slot (aboard, Use puts the one in hand down).
+        if (world.Bodies.CarriedBy(s.PlayerId) is { Pocket: >= 0 } slotted && p.Parent == PlayerState.World && Kit.SlotFor(p) >= 0
+            && SwitchPrompt(world, p, train, world.Hand) is null && HealPrompt(s, slotted) is null && TakePrompt(world, p, train, s.PlayerId) is { } another)
+            return another;
         if (world.Bodies.CarriedBy(s.PlayerId) is { } inHands)
             return PowderPrompt(s, inHands) ?? SwitchPrompt(world, p, train, world.Hand) ?? HealPrompt(s, inHands);
         // T112: the gun's seat and its own controls.
@@ -1921,7 +2236,8 @@ public static partial class Hud
                 : Guns.Ready(gun, combat.Guns) <= 0 ? Guns.Stowed(train, combat.Guns) > 0 ? "THE RACK'S EMPTY: POWDER FROM THE GUARD VAN" : "NO SHOT"
                 : train.BoilerTuning is not null && train.Boiler.Pressure < combat.Guns.MinPressure ? "NO STEAM"
                 : seated ? null
-                : "SIT : [E]   PUSH ALONG : [E] + WALK";
+                // Note 664: pushing it along is its own key (Use's sitting in it; the director: "a different button").
+                : "SIT : [E]   PUSH : HOLD [PUSH] + WALK";
         }
         // A headset player's prompts follow their reaching hand (T29), as the sim's reach does.
         var hand = world.Hand;
@@ -1942,8 +2258,12 @@ public static partial class Hud
             return "THE CAR'S BREACHED";
         var near = CrewActions.Nearest(p, train, hand);
         // T94: a ladder in reach, and the key that takes you onto it.
-        if (PlayerMotor.LadderInReach(p, train, s.PlayerTuning))
-            return "CLIMB : [F]";
+        // Note 704: a hatch ladder says where it goes, up through the roof or down inside (the cab's, to the cab).
+        if (PlayerMotor.LadderInReachOf(p, train, s.PlayerTuning) is { } reach)
+            return !PlayerMotor.IsHatchLadder(reach.Frame.Shape, reach.Ladder) ? "CLIMB : [F]"
+                : !reach.FromTop ? "UP TO THE ROOF : [F]"
+                : reach.Frame.Shape.Cab is { } cab && cab.ContainsXZ(reach.Ladder.Foot) ? "DOWN INTO THE CAB : [F]"
+                : "DOWN INSIDE : [F]";
         // T91: the coupling is cut with its own key, held, looking down at it.
         if (p.Surface == Surface.Coupler && near != InteractableKind.Door)
             return p.Hand != default ? "CUT THE COUPLING : GRIP"
@@ -1964,7 +2284,9 @@ public static partial class Hud
             case InteractableKind.Firebox when PlayerMotor.InCab(p, train) && !CrewActions.HasShovel(p, train):
                 return Kit.Has(p.Kit, Tool.Shovel) || train.Boiler.ShovelOut ? "THE SHOVEL IS OUT" : "HANDS FULL";
             case InteractableKind.Firebox when PlayerMotor.InCab(p, train):
-                return p.Hand != default && !p.Has(PlayerFlags.Shovelful) ? "SHOVEL EMPTY" : "SHOVEL COAL : HOLD [E]";
+                // Note 717: the coal on the shovel can be thrown instead (horseplay), said while it's there.
+                return p.Hand != default && !p.Has(PlayerFlags.Shovelful) ? "SHOVEL EMPTY"
+                    : p.Has(PlayerFlags.Shovelful) && p.Hand == default ? "SHOVEL COAL : HOLD [E]   THROW IT : [RMB]" : "SHOVEL COAL : HOLD [E]";
             // Only a reaching hand finds the coal face (T29).
             case InteractableKind.Coal when PlayerMotor.InCab(p, train):
                 return p.Has(PlayerFlags.Shovelful) ? "SHOVEL FULL" : "TAKE COAL : GRIP";
@@ -1977,8 +2299,9 @@ public static partial class Hud
                     : "TAKE THE WRENCH : [E]";
             case InteractableKind.Handbrake when p.Surface == Surface.Roof:
                 return "HANDBRAKE : HOLD [E]";
-            // T99: a cargo car's roof hatch, for the crane to lower a casting in through.
-            case InteractableKind.Hatch when p.Surface == Surface.Roof:
+            // T99: a cargo car's roof hatch, for the crane to lower a casting in through; from the roof, or the floor under it
+            // looking up (note 675).
+            case InteractableKind.Hatch when p.Surface is Surface.Roof or Surface.Deck:
                 return train.Vehicles[p.Parent].DoorOpen(CarShape.HatchBit)
                     ? train.HatchBlocked?.Invoke(p.Parent) == true ? "THE CASTING'S IN THE HATCH" : "SHUT THE HATCH : HOLD [E]"
                     : "OPEN THE HATCH : HOLD [E]";
@@ -1994,16 +2317,20 @@ public static partial class Hud
         // A switch stand's lever (queue #94, note 357): Use is the lever's there, so it's offered before what's lying by it.
         if (SwitchPrompt(world, p, train, hand) is { } atStand)
             return atStand;
+        // Dave or Jacob (notes 570, 572): a word with him, before anything lying at his feet.
+        if (FigureTalk.Target(s) is { } figure)
+            return FigureTalk.Prompt(figure);
         // A fortress town (note 281): somebody to talk to, a paper to read, a thing to look at. Before what's lying in reach,
         // so a lamp at somebody's feet doesn't take the press meant for them.
-        if (world.Town is { } town && town.Target(p, train.Dynamics.Tuning.Pick.EyeHeight) is { } there)
-            return TownTalk.Prompt(town, there);
+        if (world.TownOf(p) is { } town && town.Target(p, train.Dynamics.Tuning.Pick.EyeHeight) is { } there)
+            return TownTalk.Prompt(town, there, world.WineInReach(p, s.PlayerId));
         // The powder locker (note 374): a charge for a gun's rack, while there's any.
         if (world.Combat is { } powder && Guns.AtLocker(p, train, powder.Guns) is not null)
             return Guns.Stowed(train, powder.Guns) > 0 ? $"TAKE A CHARGE : [E]   {Guns.Stowed(train, powder.Guns)} ROUNDS" : "THE POWDER LOCKER'S EMPTY";
         bool wearing = world.Bodies.RadiosCarried && world.Bodies.HasRadio(s.PlayerId);
         if (world.Bodies.InReach(p, train, hand, wearing, s.PlayerId) is { } thing)
-            return thing.Kind switch
+            // Note 594: every slot full, a hand-sized thing isn't taken.
+            return Bodies.Pocketable(train, thing.Kind) && Kit.SlotFor(p) < 0 ? "HANDS FULL" : thing.Kind switch
             {
                 BodyKind.Ragdoll => "PICK UP THE BODY : [E]",
                 BodyKind.Radio => "TAKE THE RADIO : [E]",
@@ -2071,8 +2398,13 @@ public static partial class Hud
                 return jammed.Clear > 0 ? $"CLEARING THE JAM ({Math.Min(1, jammed.Clear / belt.ClearSeconds) * 100:0}%)" : "BELT JAMMED : HOLD [E]";
             if (conveyors.StarterInReach(p, train, hand) is { } drive)
                 return drive.Power == Sim.Stops.PowerState.Dead ? "NO POWER : RESTART THE GENERATOR"
-                    : drive.Start > 0 ? $"STARTING THE BELT ({Math.Min(1, drive.Start / belt.StartSeconds) * 100:0}%)"
+                    // Note 582 (the director, 9 Oct: "I started the belt hold and it wasnt clear what was happening"): the hold
+                    // says it's a hold all the way through, as Hold's do.
+                    : drive.Start > 0 ? $"STARTING THE BELT : KEEP HOLDING [E] ({Math.Min(1, drive.Start / belt.StartSeconds) * 100:0}%)"
                     : drive.Jam >= 0 ? "START THE BELT : HOLD [E]   IT'S JAMMED" : "START THE BELT : HOLD [E]";
+            // Once it's started, the drive house says what it's doing: what the head's filling, or why it isn't.
+            if (conveyors.DriveInReach(p, train, hand) is { Running: true } going)
+                return BeltDoing(conveyors, train, going, PlayerMotor.WorldPosition(p, train));
         }
         if (world.Run?.InPen(p, train) is { } pen)
             return pen.Herding ? $"DRIVING THE HERD ({pen.Head} LEFT)"
@@ -2105,6 +2437,9 @@ public static partial class Hud
                 return "THE CRANE : [E]";
             if (p.Parent == PlayerState.World && crane.Riggable(PlayerMotor.WorldPosition(p, train)) is not null)
                 return crane.Rigging > 0 ? $"RIGGING ({crane.Rigging * 100:0}%)" : "RIG THE CASTING : HOLD [E]";
+            // Set down on the car you're on, still on the hook (note 659): unhooked there.
+            if (p.Parent > 0 && crane.Unriggable(train, PlayerMotor.WorldPosition(p, train)))
+                return crane.Rigging > 0 ? $"UNHOOKING ({crane.Rigging * 100:0}%)" : "UNHOOK THE CASTING : HOLD [E]";
         }
         if (world.Run?.HandleInReach(p, train, hand) is not null && world.Run.CurrentSite is { } site)
             // A headset turns the crank round with the hand (T43): which way is how it's worked, so it's said.
@@ -2126,6 +2461,8 @@ public static partial class Hud
             var at = PlayerMotor.WorldPosition(p, train);
             if (beltSite.Jam >= 0)
                 return $"THE BELT'S JAMMED, {((beltSite.JamAt - at) with { Y = 0 }).Length:0} M AWAY";
+            if (beltSite.Running)
+                return BeltDoing(run, train, beltSite, at);
             if (!beltSite.Running && beltSite.Grain > 0 && beltSite.Grain < line.Grain - 1e-6)
                 return "THE BELT'S STALLED : START IT AT THE DRIVE HOUSE";
         }
@@ -2137,6 +2474,12 @@ public static partial class Hud
             if (here.Clamped >= 0)
                 return "A CAR'S CLAMPED IN THE TIPPLE : DON'T MOVE";
         }
+        // Note 717 (horseplay): a crewmate in front within reach, nothing else to do there: the shove's key. With the coal on
+        // the shovel, turned from the fire, it's the throw's.
+        if (p.Has(PlayerFlags.Shovelful) && p.Hand == default)
+            return "THROW THE COAL : [RMB]";
+        if (world.HorseplayTuning.Enabled && Horseplay.ShoveTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning) is not null)
+            return "SHOVE : [LEFT ALT]";
         return null;
     }
 

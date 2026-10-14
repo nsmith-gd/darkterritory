@@ -1,11 +1,12 @@
 using Ballast;
+using Ballast.Render;
 using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Game;
 
 /// <summary>Set pieces for looking at and listening to things headless (screenshots, audio renders, tests).</summary>
-public static class Staging
+public static partial class Staging
 {
     /// <summary>
     /// Where to stand to talk to, read or look at a town's <paramref name="what"/> (person, board, paper, fixture, door; the
@@ -53,11 +54,38 @@ public static class Staging
     }
 
     /// <summary>
+    /// The night's departure town (GDD §3.1) as `dt screenshot --town` makes it, and where the train of
+    /// <paramref name="consistLength"/> stands to leave it (<paramref name="depart"/>); null with no towns in the content.
+    /// </summary>
+    public static Sim.Towns.Town? DepartureTown(string content, Sim.Route.Route route, Sim.Rail.RailLine line, double consistLength, out double depart)
+    {
+        var runTuning = DataFile.Load<Sim.Run.RunTuning>(Path.Combine(content, Sim.Run.RunTuning.File));
+        double gate = route.GateOr(Sim.Route.RouteTuning.Load(content).YardLength);
+        depart = runTuning.DepartFrom(gate, consistLength);
+        if (Sim.Towns.TownContent.Load(content) is not { } towns)
+            return null;
+        var roster = DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(content, Sim.Enemies.EnemyTuning.File)).Director.Roster;
+        return new Sim.Towns.Town(Sim.Towns.TownGenerator.Generate(towns, Sim.Towns.TownSite.Of(route, gate, roster, towns)), towns.Tuning, line, towns.Looks);
+    }
+
+    /// <summary>
     /// Standing in a fortress town (note 281, `dt screenshot --town`): "square" at the way in from the engine, looking over
     /// the centrepiece to the hall; "centre" at the centrepiece, close; "board" before the notice board; "hall" at the
     /// hall's door; "gate" by the gatekeeper, looking back down the yard; "street" out on the track side, the square across
     /// the train.
     /// </summary>
+    /// <summary>
+    /// Side on to a flag flying from its <paramref name="hoist"/> in look.json's wind (blowing away from its <c>from</c>,
+    /// −0.7, 0, −0.4): a little below it and across the wind, so the cloth's face is seen, not its edge (note 674).
+    /// </summary>
+    static Ballast.Render.Camera FlagAcrossTheWind(Double3 hoist)
+    {
+        var down = new Double3(0.7, 0, 0.4).Normalized;
+        var across = new Double3(-down.Z, 0, down.X);
+        var middle = hoist + down * 0.9 - Double3.Up * 0.5;
+        return Ballast.Render.Camera.LookAt(middle + across * 6.5 - Double3.Up * 1.4, middle, 50);
+    }
+
     public static Ballast.Render.Camera TownCamera(Sim.Towns.Town town, string where)
     {
         var plan = town.Plan;
@@ -67,9 +95,20 @@ public static class Staging
         var centre = plan.Fixtures[0];
         var board = plan.Fixtures.First(f => f.Kind == "board");
         var hall = plan.Buildings.First(b => b.Kind == "hall");
+        // A house from out in front of it, along its street a way (note 608): "fires", the first a creature brought in tonight
+        // sets alight (`--arrival fires --patrol`); "burnt", the nearest the gate of a town's burnt houses, come back to.
+        if (where is "fires" or "burnt"
+            && (where == "fires" ? Sim.Towns.TownGenerator.Harmed(plan, 1).FirstOrDefault()
+                : plan.Houses.Where(h => h.Kind == Sim.Towns.HouseKind.Burnt).OrderBy(h => Math.Abs(h.S - plan.Gate)).ThenBy(h => h.Id).FirstOrDefault()) is { } house)
+        {
+            var (fs, fd) = house.Rail(0, 0);
+            var front = town.World(fs, fd);
+            return Ballast.Render.Camera.LookAt(front + town.Direction(fs, 0, -house.Side) * 18 + town.Direction(fs, 1, 0) * 10 + Double3.Up * 3,
+                front + Double3.Up * (where == "fires" ? 5 : 1.5), 62);
+        }
         // A walled town (queue #74): from over the gate looking back over its roofs, down its first street, and from
         // outside the gate as the train leaves, its front wall either side of the gatehouse.
-        if (plan.Bounds is { } wall && where is "over" or "lane" or "outside" or "watch" or "bend" or "crooked" or "crookedover")
+        if (plan.Bounds is { } wall && where is "over" or "lane" or "outside" or "watch" or "bend" or "crooked" or "crookedover" or "towergun")
         {
             var st = wall.Streets.OrderBy(x => Math.Abs(x.D)).ThenBy(x => x.D).First();
             return where switch
@@ -88,10 +127,31 @@ public static class Staging
                 "crooked" when wall.Lanes.OrderBy(l => Math.Abs(l.S - mid)).FirstOrDefault() is { } lane
                     => Ballast.Render.Camera.LookAt(town.World(lane.At(-side * (Math.Abs(st.D) + 12)), -side * (Math.Abs(st.D) + 12), 1.8),
                         town.World(lane.At(-side * (Math.Abs(st.D) + 30)), -side * (Math.Abs(st.D) + 50), 1.4), 70),
+                // Up at the first tower down the far side with a gun on it (note 335), from the street inside the wall.
+                "towergun" when wall.Streets.Where(x => x.D > 0).MaxBy(x => x.D) is { } outer
+                    => Ballast.Render.Camera.LookAt(town.World(wall.Rear + Sim.Run.Fortresses.TowerEvery - 28, outer.At(wall.Rear + Sim.Run.Fortresses.TowerEvery - 28), 1.8),
+                        town.World(wall.Rear + Sim.Run.Fortresses.TowerEvery, wall.Right, 14.5), 40),
                 "crookedover" when wall.Lanes.OrderBy(l => Math.Abs(l.S - mid)).FirstOrDefault() is { } lane
                     => Ballast.Render.Camera.LookAt(town.World(lane.S + 45, -side * 20, 55), town.World(lane.S, -side * 70, 0), 66),
                 _ => Ballast.Render.Camera.LookAt(town.World(mid + 30, st.D, 1.7), town.World(mid - 40, st.D, 1.6), 72),
             };
+        }
+        // The town's flag (note 674): from across the square, up at it on its pole; "flagclose", nearer, the cloth filling the view.
+        if (where is "flag" or "flagclose" && plan.Fixtures.FirstOrDefault(f => f.Kind == "flag") is { } flag)
+        {
+            double top = Sim.Towns.TownFixtures.Size("flag").Height;
+            return where == "flag"
+                ? Ballast.Render.Camera.LookAt(town.World(flag.S + 13, flag.D + side * 4, 1.7), town.World(flag.S, flag.D, top - 2.0), 62)
+                : FlagAcrossTheWind(town.World(flag.S, flag.D, top - 0.9));
+        }
+        // A fishing town's net loft or fish flake (note 490): in the first yard that has one, from beside it, along the back.
+        if (where is "loft" or "flake" && plan.Houses.Select(h => (h, y: h.Yard.FirstOrDefault(y => y.Kind == (where == "loft" ? Sim.Towns.YardKind.Loft : Sim.Towns.YardKind.Flake))))
+            .FirstOrDefault(x => x.y is not null) is ({ } yh, { } yt))
+        {
+            double um = (yt.U0 + yt.U1) / 2, vm = (yt.V0 + yt.V1) / 2;
+            var (ts, td) = yh.Rail(um, vm);
+            var (cs, cd) = yh.Rail(um + (um > 0 ? -6.5 : 6.5), vm - 1.5);
+            return Ballast.Render.Camera.LookAt(town.World(cs, cd, 2.2), town.World(ts, td, where == "loft" ? 2.0 : 0.6), 70);
         }
         // The quiet house by the gate, the council house in the square, a small town's far wall (note 353).
         if (where is "quiet" or "council" or "farwall")
@@ -111,7 +171,7 @@ public static class Staging
         }
         // A walled town's green and its walls (note 353): over the green from the square's side of the street, at its statue,
         // its wall of names, and down the first street to the day painted on the back wall.
-        if (plan.Green is { } green && where is "green" or "statue" or "memorial" or "mural" or "garden")
+        if (plan.Green is { } green && where is "green" or "statue" or "memorial" or "mural" or "garden" or "greenover")
         {
             double gs = (green.S0 + green.S1) / 2, near = side * green.Near, far = side * green.Far, gd = (near + far) / 2;
             var statue = plan.Fixtures.FirstOrDefault(f => f.Kind == "statue");
@@ -124,6 +184,8 @@ public static class Staging
                 "memorial" when names is not null => Ballast.Render.Camera.LookAt(town.World(names.S - 3, names.D - side * 5, 1.7), town.World(names.S, names.D, 1.2), 65),
                 "garden" when garden is not null => Ballast.Render.Camera.LookAt(town.World(garden.S - 3, garden.D - side * 3.5, 1.8), town.World(garden.S, garden.D, 0.5), 65),
                 "mural" when mural is not null => Ballast.Render.Camera.LookAt(town.World(mural.S + 26, mural.D + side * 1.5, 1.7), town.World(mural.S, mural.D, 2.6), 60),
+                // From high over the square, across the green to the row facing it over its far street (note 490: turned to it).
+                "greenover" => Ballast.Render.Camera.LookAt(town.World(gs, near - side * 18, 34), town.World(gs, far + side * 14, 0), 70),
                 _ => Ballast.Render.Camera.LookAt(town.World(green.S0 - 6, near - side * 2, 4.5), town.World(gs + 6, gd, 0.5), 72),
             };
         }
@@ -157,8 +219,10 @@ public static class Staging
             }
         }
         // The houses (note 281): the first open one, its front, its kitchen from the door, its parlour through the partition.
-        var home = plan.Houses.FirstOrDefault(h => h.Layout is not null) ?? plan.Houses.FirstOrDefault();
-        if (home is not null && where is "houses" or "house" or "kitchen" or "parlour" or "sitter" or "range" or "armchair")
+        // (party: Nicki's house, note 571, from her door; partyside, from the street.)
+        var home = (where is "party" or "partyside" or "nicki" ? plan.Houses.FirstOrDefault(h => h.Party) : null)
+            ?? plan.Houses.FirstOrDefault(h => h.Layout is not null) ?? plan.Houses.FirstOrDefault();
+        if (home is not null && where is "houses" or "house" or "kitchen" or "parlour" or "sitter" or "range" or "armchair" or "party" or "partyside" or "nicki")
         {
             var l = home.Layout;
             int k = l?.Kitchen ?? 1;
@@ -170,6 +234,11 @@ public static class Staging
                 "houses" => Ballast.Render.Camera.LookAt(town.World(home.S + 12, home.Side * 4.2, 1.8), town.World(home.S - 26, home.Side * 9.5, 2.8), 70),
                 "house" => Ballast.Render.Camera.LookAt(At(du + 5.5, -3.6, 1.7), At(0, 0, 2.7), 75),
                 "kitchen" => Ballast.Render.Camera.LookAt(At(du - k * 0.1, 0.35, 1.65), At(k * w / 2, home.Depth - 0.6, 0.9), 75),
+                "party" => Ballast.Render.Camera.LookAt(At(du - k * 0.1, -0.9, 1.65), At(k * w / 4, home.Depth * 0.55, 1.1), 80),
+                "partyside" => Ballast.Render.Camera.LookAt(At(-k * (w / 2 - 0.5), home.Depth - 0.6, 1.7), At(k * 0.5, 0.8, 1.0), 85),
+                // Nicki (note 571) face to face, from just inside her door as she waves you in.
+                "nicki" when plan.People.FirstOrDefault(p => p.Hosting) is { } nicki => Ballast.Render.Camera.LookAt(At(du - k * 0.1, 0.45, 1.66),
+                    town.Now(nicki).Feet + Double3.Up * 1.5, 55),
                 // The household's poses close to (note 353): whoever's at the table from the side, at the range from behind
                 // their shoulder, in the parlour's chair from the partition.
                 "sitter" => Ballast.Render.Camera.LookAt(At(k * 0.35, Sim.Towns.HouseLayout.TableV(home.Depth) + 0.6, 1.25), At(k * w / 4, Sim.Towns.HouseLayout.TableV(home.Depth) + 0.6, 0.65), 70),
@@ -256,6 +325,42 @@ public static class Staging
         if (!tunnel && session.World.Lineside is { } lineside)
             speed = Math.Max(speed, lineside.ThrowsAbove(sign, session.Train) + 0.5);
         session.Respawn(Math.Min(2, session.Train.Frames.Count - 1));
+        for (int i = 0; i < Sim.SimConstants.TickRate; i++)
+        {
+            session.Train.Dynamics.Velocity = speed;
+            session.Step(default);
+        }
+        return session;
+    }
+
+    /// <summary>
+    /// A mail crane coming up (note 673, `dt screenshot --hud --mail-crane [s]`): a solo night on <paramref name="route"/>
+    /// with its first crane past the yard about <paramref name="seconds"/> from the second car's side doors, its board read,
+    /// the player in that car: with <paramref name="atDoor"/>, in the open side door on the crane's side, else mid-car.
+    /// </summary>
+    public static PrototypeSession MailCrane(string content, Sim.Route.Route route, int cars, double seconds = 6, bool atDoor = true)
+    {
+        var sight = DataFile.Load<Sim.Route.SightTuning>(Path.Combine(content, Sim.Route.SightTuning.File));
+        var drop = Sim.Route.Lineside.Drops(sight, route).FirstOrDefault(d => d.At > route.Gate + 1500)
+            ?? throw new InvalidOperationException($"{route.Name} has no mail crane past its yard");
+        const double speed = 12;
+        var session = new PrototypeSession(content, route, cars, enemies: false, at: drop.At - speed * (seconds + 1));
+        session.Controls = new Sim.Train.TrainControls { Reverser = 1 };
+        int car = Math.Min(2, session.Train.Frames.Count - 1);
+        var shape = session.Train.Frames[car].Shape;
+        session.Respawn(car);
+        if (shape.Interior is { } room)
+        {
+            if (atDoor && Sim.Bots.StopHand.SideDoor(shape, drop.Side) is { } door && !session.Train.Vehicles[car].DoorOpen(door))
+                session.Train.Vehicles[car].ToggleDoor(door);
+            session.Player = session.Player with
+            {
+                Parent = car,
+                Position = new Double3(atDoor ? drop.Side * (room.HalfSize.X - 0.35) : 0, room.Min.Y, 0),
+                Surface = Sim.Player.Surface.Deck,
+                Yaw = -drop.Side * Math.PI / 2,
+            };
+        }
         for (int i = 0; i < Sim.SimConstants.TickRate; i++)
         {
             session.Train.Dynamics.Velocity = speed;
@@ -434,6 +539,25 @@ public static class Staging
     /// end, one standing by with a crowbar; and on the last gun car, a gunner sat in the cannon's seat.
     /// </summary>
     /// <summary>
+    /// Horseplay (note 717; dt screenshot --view shove | sooted): <c>shove</c>, one crewmate on car 2's roof shoving another
+    /// over its side, the shover's arms out and the shoved lurching back off their feet past the lip; <c>sooted</c>, a crewmate
+    /// with the coal's soot on their face, staggered by it, the next lump on its way past from the thrower at the far end.
+    /// </summary>
+    public static (List<Crewmate> Crew, List<Sim.Player.LumpInFlight> Lumps) Horseplay(TrainOnLine train, string content, string scene)
+    {
+        _ = content;
+        var frame = train.Frames[Math.Min(2, train.Frames.Count - 1)];
+        double roof = frame.Shape.RoofHeight, edge = frame.Shape.HalfWidth;
+        Crewmate On(byte id, double x, double z, double yaw, Art.CrewPose? act, double up = 0, double phase = 0, bool sooted = false) =>
+            new(id, frame.ToWorld(new Double3(x, roof + up, z)), yaw + frame.Heading, true, Act: act, Phase: phase, Sooted: sooted,
+                Holding: Sim.Player.Tool.Crowbar);
+        if (scene == "sooted")
+            return ([On(21, 0, 0, 0, null, sooted: true), On(22, -0.3, -6.5, Math.PI, Art.CrewPose.Shovel)],
+                [new Sim.Player.LumpInFlight(1, 22, frame.ToWorld(new Double3(0.35, roof + 1.5, -0.75)))]);
+        return ([On(21, edge - 1.15, 0, -Math.PI / 2, Art.CrewPose.Push), On(22, edge - 0.05, 0.1, Math.PI / 2, Art.CrewPose.Stagger, up: 0.12, phase: 0.22)], []);
+    }
+
+    /// <summary>
     /// A row of the crew down car 2's roof, each at one of <paramref name="acts"/> (CrewPose names, dt screenshot --act
     /// smash,pry,...: the roof view looks at them), facing the camera; the smash and pry with a crowbar in hand, the lantern
     /// with the hand lamp hung from the fist; each swing further into its blow, with the shovel, crowbar and wrench in turn.
@@ -469,6 +593,29 @@ public static class Staging
         }
         return crew;
     }
+
+    /// <summary>
+    /// Lamp signals at the lineside (note 720; dt screenshot --signal stop,go,back, view lampsignal): a crewmate for each on the
+    /// ballast off car 1's right, a hand lamp in the fist, turned to the trackside camera, <paramref name="seconds"/> into it.
+    /// </summary>
+    public static List<Crewmate> Signallers(TrainOnLine train, IEnumerable<string> signals, double seconds)
+    {
+        var crew = new List<Crewmate>();
+        int i = 0;
+        foreach (var name in signals)
+        {
+            var signal = Enum.Parse<Sim.Player.LampSignal>(name, ignoreCase: true);
+            var feet = Lineside(train, SignalAhead - (i - 1) * 2.4, SignalOut);
+            var to = Lineside(train, SignalAhead, SignalCamera) - feet;
+            crew.Add(new Crewmate((byte)(24 + i), feet, Math.Atan2(-to.X, -to.Z), true, Act: Art.CrewPose.Lantern, Lamp: true,
+                Signal: signal, SignalSeconds: seconds + 0.25 * i));
+            i++;
+        }
+        return crew;
+    }
+
+    /// <summary>Where the staged signallers stand (m): along from the engine's front, out from the line; and the camera, further out.</summary>
+    public const double SignalAhead = -26, SignalOut = 3.8, SignalCamera = 9.5;
 
     /// <summary>
     /// A driver at the engine's controls (note 445; dt screenshot --driver [--whistle] [--reverser s], views fireman, cab):
@@ -533,17 +680,50 @@ public static class Staging
             _ => throw new ArgumentException($"--ribbits {mode}: hop, swell, tongue or devour"),
         };
         var pack = threats.OfType<Ribbit>().ToList();
-        foreach (var r in pack)
+        var leader = pack.MinBy(m => m.Id);
+        var them = Lone(train).Feet;
+        var toLeader = leader is null ? default : ((leader.Local - them) with { Y = 0 }).Normalized;
+        int rank = 0;
+        foreach (var r in pack.OrderBy(m => m.Id))
         {
             var at = r.Local;
-            if (mode == "devour" && r == pack.MinBy(m => m.Id))
+            if (mode == "devour" && r == leader)
             {
-                var them = Lone(train).Feet;
-                at = them + ((at - them) with { Y = 0 }).Normalized * 0.8;
+                // On them, eating (note 558): it holds them, and they're down.
+                r.Restore(phase, 2.5, r.Health, r.Attached, them + toLeader * 0.8, 0, 0, 0, LoneId, 0, holding: LoneId);
+                continue;
+            }
+            if (mode == "devour")
+            {
+                // The others in at them as the sim fans them round (Ribbit.Place: fan degrees either side, by rank), riding COMMIT.
+                int side = (rank / 2 + 1) * (rank % 2 == 0 ? 1 : -1);
+                rank++;
+                double a = Math.Atan2(toLeader.Z, toLeader.X) + side * Fanned.Fan * Math.PI / 180;
+                r.Restore(SpinePhase.Commit, 2.5, r.Health, r.Attached, them + new Double3(Math.Cos(a), 0, Math.Sin(a)) * Fanned.RingOut, 0, 0, 0, LoneId, 0);
+                continue;
             }
             r.Restore(phase, 0.3 + 0.21 * (r.Id - 60), r.Health, r.Attached, at, 0, 0, 0, LoneId, 0);
         }
         return threats;
+    }
+
+    // The pack's places round its catch, as the tuning's defaults have them (content/tuning/enemies.json ribbits).
+    static readonly RibbitTuning Fanned = new();
+
+    /// <summary>
+    /// The staged pack eating crewmate 4 (<c>--ribbits devour</c>, note 558): <c>feast</c> from a few steps off and over
+    /// them, the pack on them, them down and the blood; <c>eaten</c> through their own eyes, down (Eyes.Devoured, gone down).
+    /// </summary>
+    public static Camera FeastCamera(TrainOnLine train, IEnumerable<Enemy> enemies, string view)
+    {
+        var them = Lone(train).Feet;
+        var holder = enemies.OfType<Ribbit>().FirstOrDefault(r => r.Holding == LoneId)?.Local ?? them;
+        var head = ((them - holder) with { Y = 0 }).Normalized;
+        var across = Double3.Cross(Double3.Up, head);
+        if (view == "eaten")
+            return Eyes.Devoured(them, holder, Eyes.GoDown, Camera.LookAt(them + Double3.Up * Eyes.Height, holder, 75) with { Near = 0.05f, Far = 2000 });
+        // From beside their head (they lie toward the train, the pack on their legs from out past their feet), down along them.
+        return Camera.LookAt(them + head * 1.6 - across * 2.6 + Double3.Up * 1.7, them + head * 0.5 + Double3.Up * 0.3, 55);
     }
 
     /// <summary>Crewmate 4, alone on the ground off the second car's left, facing the Ribbits there (they're after them).</summary>
@@ -1018,6 +1198,72 @@ public static class Staging
 
     public const int MooseId = 311;
 
+    /// <summary>The staged Dave's id (note 570).</summary>
+    public const int DaveId = 333;
+
+    /// <summary>
+    /// Dave (note 570; <c>dt screenshot --dave paint|warn|grab</c>): at his easel 18 m up the line from the engine's front and
+    /// 12 m off its left, facing out away from the line. Warned (his telegraph), he's turned to crewmate 4 behind him, who's
+    /// struck him four times; holding them (his grab), they're stood held in front of him.
+    /// </summary>
+    public static List<Enemy> Dave(List<Enemy> threats, TrainOnLine train, string mode)
+    {
+        if (mode.Length == 0)
+            return threats;
+        threats.RemoveAll(e => e is Sim.Enemies.Dave);
+        var phase = mode switch
+        {
+            "paint" => SpinePhase.Dormant,
+            "warn" => SpinePhase.Telegraph,
+            "grab" => SpinePhase.Grab,
+            _ => throw new ArgumentException($"--dave {mode}: paint, warn or grab"),
+        };
+        var at = DaveAt(train);
+        var outward = (Lineside(train, 18, -20) - at) with { Y = 0 };
+        double yaw = Math.Atan2(-outward.X, -outward.Z);
+        var dave = new Sim.Enemies.Dave(DaveId);
+        dave.Restore(phase, 1, 1, Enemy.Loose, at, train.Dynamics.Distance + 18, yaw, 0, mode == "paint" ? 0 : 4, mode == "paint" ? -1 : LoneId,
+            holding: phase == SpinePhase.Grab ? LoneId : -1);
+        threats.Add(dave);
+        return threats;
+    }
+
+    public static Double3 DaveAt(TrainOnLine train) => Lineside(train, 18, -12);
+
+    /// <summary>The staged Jacob's id (note 572).</summary>
+    public const int JacobId = 334;
+
+    /// <summary>
+    /// Jacob (note 572; <c>dt screenshot --jacob fish|blessed</c>): 14 m off the line's right, 20 m up from the engine's
+    /// front, facing out away from it, rod out (wherever the ground is: the staging's not at water). Blessed, the train's
+    /// glow is on.
+    /// </summary>
+    public static List<Enemy> Jacob(List<Enemy> threats, TrainOnLine train, string mode)
+    {
+        if (mode.Length == 0)
+            return threats;
+        threats.RemoveAll(e => e is Sim.Enemies.Jacob);
+        var at = JacobAt(train);
+        var outward = (Lineside(train, 20, 30) - at) with { Y = 0 };
+        var jacob = Sim.Enemies.Jacob.At(JacobId, at, train.Dynamics.Distance + 20, Math.Atan2(-outward.X, -outward.Z));
+        if (mode == "blessed")
+            jacob.Extra = 1;
+        threats.Add(jacob);
+        return threats;
+    }
+
+    public static Double3 JacobAt(TrainOnLine train) => Lineside(train, 20, 14);
+
+    /// <summary>Crewmate 4 behind Dave (<c>--dave warn</c>), the line at their back; held, in front of him, facing him.</summary>
+    public static Crewmate DaveCrewmate(TrainOnLine train, string mode)
+    {
+        var dave = DaveAt(train);
+        var outward = ((Lineside(train, 18, -20) - dave) with { Y = 0 }).Normalized;
+        var at = mode == "grab" ? OnGround(train, dave + outward * 0.55) : OnGround(train, dave - outward * 1.6 + new Double3(outward.Z, 0, -outward.X) * 0.5);
+        var toward = dave - at;
+        return new Crewmate(LoneId, at, Math.Atan2(-toward.X, -toward.Z), true, Act: mode == "grab" ? Art.CrewPose.HeldFrozen : null, Holding: Sim.Player.Tool.Shovel);
+    }
+
     /// <summary>
     /// Where the staged Moose stands and its heading (a player's yaw): grazing, listening or warning, 22 m up the line from
     /// the engine's front and 4.6 m off its left (in the headlamp's cone, clear of the track's clearance), three-quarters on
@@ -1322,8 +1568,32 @@ public static class Staging
             // Only Dave's still aboard by then: the derailment's stills are of whoever it took.
             marks.End(world, end, [crew[0], crew[1] with { State = beside with { Death = Sim.Player.DeathCause.Seized } }]);
         }
+        // Delivered, with two of them ridden into town (note 589, `--report brought`): a night that went well but for that, the
+        // clerk's lines and the brigade's fee.
+        double brigade = 0;
+        if (end == Sim.Run.RunEnd.Delivered)
+        {
+            lines = [.. lines.Where(l => l.Kind is Sim.Run.IncidentKind.Slain or Sim.Run.IncidentKind.Rescue)];
+            var t = run.Tuning.BroughtIn;
+            brigade = Math.Round(t.Fee * run.Tuning.Economy.FeeFor("frontier"));
+            string town = run.Route.Plan?.Terminus.Name ?? "the town";
+            lines.Add(Sim.Run.Run.BroughtInLine(new Sim.Run.BroughtIn(90, EnemyKind.CinderHound, "the Cinder Hound", 2, 1702), town, t, brigade));
+            lines.Add(Sim.Run.Run.BroughtInLine(new Sim.Run.BroughtIn(91, EnemyKind.Grumbler, "the Grumbler", 3, 1706), town, t, brigade));
+        }
         var (marked, shown) = Sim.Run.Run.MarkBookmarks(world, lines);
-        return new Sim.Run.RunReport(end, 1720, 17.2, 4, 1, 2.1, 0, 120, 6, 40, -1416, 1, 3, Deaths: 3, CrewLossFees: 1050) { Lines = marked, Bookmarks = shown };
+        return brigade > 0
+            ? new Sim.Run.RunReport(end, 1720, 17.2, 5, 0, 4.6, 3220, 120, 6, 40, 3220 - 166 - 2 * brigade, 4, 0)
+            {
+                Lines = marked,
+                BroughtIn = 2,
+                BroughtInFees = 2 * brigade,
+                TownHurt = 2 * run.Tuning.BroughtIn.Hurt,
+                // The night's best finds and its light fingers (note 718), as a frontier night's tally reads them.
+                Prizes = [new("cometFragment", "Comet fragment", 1, 1080), new("gauntHand", "The Gaunt's hand", 1, 540), new("pocketWatch", "Pocket watch", 2, 110)],
+                Finder = "Dave",
+                FinderWorth = 1300,
+            }
+            : new Sim.Run.RunReport(end, 1720, 17.2, 4, 1, 2.1, 0, 120, 6, 40, -1416, 1, 3, Deaths: 3, CrewLossFees: 1050) { Lines = marked, Bookmarks = shown };
     }
 
     static readonly Sim.Player.PlayerTuning DefaultPlayer = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(DataFile.FindContentRoot(), Sim.Player.PlayerTuning.File));

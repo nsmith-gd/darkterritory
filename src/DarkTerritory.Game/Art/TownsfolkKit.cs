@@ -132,6 +132,11 @@ public sealed class TownsfolkKit(Look? look)
         "lantern" => "lantern",
         "walk" => lamp ? "lantern_walk" : "walk",
         "talk" when who % 3 == 0 => "point",
+        // Out on the yard to a creature brought in (note 608): pointing their piece at it.
+        "guard" => "point",
+        // Nicki's party (note 571): her guests dancing, Nicki waving you in.
+        "dance" => "dance",
+        "wave" => "wave",
         _ => "idle",
     };
 
@@ -141,12 +146,13 @@ public sealed class TownsfolkKit(Look? look)
     /// <summary>
     /// A townsperson (note 353), their feet at <paramref name="feet"/> (the draw's space) facing <paramref name="facing"/>,
     /// playing <paramref name="clip"/> on their own beat, in their drab, with what they breathe through and a hat. Set down
-    /// on their feet unless <paramref name="seated"/> (crouch_idle's are drawn half a metre up). At home
+    /// on their feet unless <paramref name="seated"/> (crouch_idle's are drawn half a metre up). <paramref name="far"/>: past
+    /// their distance copy's reach (note 479). At home
     /// (<paramref name="home"/>) half have the mask down on the chest and the hats are off but the headscarves. Returns the
     /// figure and where it's placed (to hang a lamp from its fist), or null when the figure isn't built.
     /// </summary>
     public (string Figure, Matrix4x4 At)? Person(CreatureArt creatures, MeshBuilder mesh, Vector3 feet, Vector3 facing, string clip, bool seated,
-        string gear, bool home, int variant, int who, double time, float drab)
+        string gear, bool home, int variant, int who, double time, float drab, bool far = false)
     {
         string figure = Figure(variant, who);
         if (creatures.Get(figure) is null)
@@ -159,12 +165,16 @@ public sealed class TownsfolkKit(Look? look)
         if (!creatures.Draw(mesh, figure, clip, time, true, m, variant, seed: variant * 13,
             adjust: (mat, l) => l with { Colour = l.Colour * new Vector3(drab, drab * 0.95f, drab * 0.9f) * (mat.Emissive > 0 ? 0.15f : 1), Emissive = 0 }))
             return null;
-        bool down = home && (variant + who) % 2 == 0 && gear != "rebreather";
+        // What they wear is drawn where it is (CreatureArt.Wear, note 695). The hoses bend with them, so they're built each
+        // frame, and far off (past the figure's distance copy, note 479; a pixel wide there) they're left off. (At Nicki's
+        // party, note 571, everyone's mask is down.)
+        bool down = home && ((variant + who) % 2 == 0 || clip is "dance" or "wave") && gear != "rebreather";
         creatures.Wear(mesh, Face(gear, down), down ? "spine_03" : "head", m, figure);
         if (Body(gear) is { } body)
             creatures.Wear(mesh, body, "spine_03", m, figure);
-        foreach (var (face, onBody) in Hoses(gear, down))
-            Hose(mesh, creatures.Posed(down ? "spine_03" : "head", face, m, figure), creatures.Posed("spine_03", onBody, m, figure), -back, gear);
+        if (!far)
+            foreach (var (face, onBody) in Hoses(gear, down))
+                Hose(mesh, creatures.Posed(down ? "spine_03" : "head", face, m, figure), creatures.Posed("spine_03", onBody, m, figure), -back, gear);
         int hat = (variant * 7 + who * 3) % Hats;
         if (Hat(hat) is { } piece && (!home || hat == 4))
             creatures.Wear(mesh, piece, "head", m, figure);

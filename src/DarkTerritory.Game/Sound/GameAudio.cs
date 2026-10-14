@@ -35,6 +35,7 @@ public sealed partial class GameAudio
     public GameAudio(string contentRoot)
     {
         Bank = new SoundBank(Path.Combine(contentRoot, "audio", "sounds"));
+        _audioWatch = HotReload.Enabled ? HotReload.Watch(Path.Combine(contentRoot, "audio")) : null;
         _mix = new HotData<MixDef>(Path.Combine(contentRoot, MixDef.File));
         string walls = Path.Combine(contentRoot, WallsTuning.File);
         _walls = File.Exists(walls) ? new HotData<WallsTuning>(walls) : null;
@@ -133,6 +134,12 @@ public sealed partial class GameAudio
         public double Next;
     }
 
+    // The audio content's hot reload (the sounds, the mix, the spaces, the walls; note 687): off in a player's game, and in a
+    // dev one the sound bank lists its 681 files only when the audio folder's watch says something changed (or on its slow
+    // poll). Listing them every frame was some 60,000 calls to the file system a second (note 666).
+    readonly FileWatch? _audioWatch;
+    HotCheck _audioCheck;
+
     /// <summary>
     /// Call once per sim tick (or per frame with the frame's dt). <paramref name="exposed"/>: the listener is
     /// outside (roof, ladder, ground), so hears the wind. <paramref name="space"/>: the enclosed space they're
@@ -144,7 +151,8 @@ public sealed partial class GameAudio
         _time += dt;
         if (_mix.Refresh())
             Mixer.Mix = _mix.Value;
-        Bank.Refresh();
+        if (_audioWatch is not null && _audioCheck.Due(_audioWatch))
+            Bank.Refresh();
         Mixer.Listener = listener;
         MixAround(world, listener);
         var train = world.Train;

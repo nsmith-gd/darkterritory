@@ -40,6 +40,11 @@ public static partial class Hud
         public long PlaceTick = long.MinValue / 2;
         public int ColdStep;
         public long ColdTick = long.MinValue / 2;
+        // The mail crane coming up (note 673), from when its board was read; the last bag caught, and when.
+        public int MailDrop = -1;
+        public long MailTick = long.MinValue / 2;
+        public int CaughtDrop = -1;
+        public long CaughtTick = long.MinValue / 2;
     }
 
     [ThreadStatic] static Memory? _memory;
@@ -48,14 +53,15 @@ public static partial class Hud
     static Memory Observe(IPlaySession s)
     {
         if (_memory is not { Session: { } held } m || !held.TryGetTarget(out var was) || !ReferenceEquals(was, s))
-            _memory = m = new Memory { Session = new(s), Slot = s.Player.HeldSlot, Carrying = s.World.Bodies.CarriedBy(s.PlayerId) is not null };
+            _memory = m = new Memory { Session = new(s), Slot = s.Player.HeldSlot, Carrying = s.World.Bodies.CarriedBy(s.PlayerId) is { Pocket: < 0 } };
         long now = s.Tick;
-        bool carrying = s.World.Bodies.CarriedBy(s.PlayerId) is not null;
+        bool carrying = s.World.Bodies.CarriedBy(s.PlayerId) is { Pocket: < 0 };
         if (s.Player.HeldSlot != m.Slot || carrying != m.Carrying)
             (m.Slot, m.Carrying, m.SlotTick) = (s.Player.HeldSlot, carrying, now);
         if (s.Route is { } route && Ahead(route, s.Train.Dynamics.Distance) is { } next
             && next.At - s.Train.Dynamics.Distance <= Tuning.PlaceAheadMetres && m.Place != next)
             (m.Place, m.PlaceTick) = (next, now);
+        ObserveMail(s, m, now);
         int step = s.Player.Alive ? PlayerMotor.ColdStep(s.Player, s.Train) : 0;
         if (step > m.ColdStep)
             m.ColdTick = now;
@@ -101,34 +107,45 @@ public static partial class Hud
     /// <summary>The side of a hotbar slot, in canvas pixels (60 screen pixels at 1080p).</summary>
     public const float SlotSize = 15;
 
+    /// <summary>A thing carried in a slot (note 594): a sack.</summary>
+    static readonly string[] FindPicture = ["...........", "....###....", ".....#.....", "...#####...", "..#######..", ".#########.",
+        ".#########.", ".#########.", ".#########.", "..#######..", "...........",];
+
+    /// <summary>An empty slot not in hand.</summary>
+    static readonly string[] EmptyPicture = [];
+
     /// <summary>
-    /// The hotbar (T108; note 285): bottom centre, a small square for each slot with a tool in it and for the one in hand
-    /// (empty, your hands), each with its tool's picture and its number; the one in hand lit. The tool's name over it for a
-    /// moment after a change of hands. With something in both hands the slots dim (the corner names what's held). A radio
-    /// you're wearing is a slot of its own at the right, with its key; a broken one's drawn red.
+    /// The hotbar (T108; note 285): bottom centre, a small square for each slot, each with its tool's picture (or a thing's,
+    /// note 594's four shared slots) and its number; the one in hand lit (empty, your hands). The tool's name, or the thing's,
+    /// over it for a moment after a change of hands. With something in both arms the slots dim (the corner names what's held).
+    /// A radio you're wearing is a slot of its own at the right, with its key; a broken one's drawn red.
     /// </summary>
     static void Hotbar(Overlay o, int width, int height, IPlaySession s, Memory m)
     {
         var p = s.Player;
         var bodies = s.World.Bodies;
-        bool carrying = bodies.CarriedBy(s.PlayerId) is not null;
-        var slots = Enumerable.Range(0, Kit.Slots).Where(i => Kit.At(p.Kit, i) != Tool.None || (i == p.HeldSlot && !carrying)).ToList();
+        var slotted = bodies.Slotted(s.PlayerId).ToDictionary(b => b.Pocket);
+        bool carrying = bodies.CarriedBy(s.PlayerId) is { Pocket: < 0 };
         bool radio = bodies.RadiosCarried && bodies.HasRadio(s.PlayerId);
         bool broken = !radio && bodies.All.Any(b => b.Kind == BodyKind.Radio && b.Carrier == s.PlayerId && b.Broken);
         const float Gap = 2, RadioGap = 6;
-        float w = slots.Count * (SlotSize + Gap) - Gap + (radio || broken ? RadioGap + SlotSize : 0);
+        float w = Kit.Slots * (SlotSize + Gap) - Gap + (radio || broken ? RadioGap + SlotSize : 0);
         float x = MathF.Round((width - w) / 2), y = height - SlotSize - 6;
-        foreach (int i in slots)
+        for (int i = 0; i < Kit.Slots; i++)
         {
             bool held = i == p.HeldSlot && !carrying;
-            Slot(o, x, y, Pictures[Kit.At(p.Kit, i)], $"{i + 1}", held, carrying ? 0.45f : 1);
+            var picture = slotted.ContainsKey(i) ? FindPicture : Kit.At(p.Kit, i) != Tool.None || held ? Pictures[Kit.At(p.Kit, i)] : EmptyPicture;
+            Slot(o, x, y, picture, $"{i + 1}", held, carrying ? 0.45f : 1);
             x += SlotSize + Gap;
         }
         if (radio || broken)
             Slot(o, x - Gap + RadioGap, y, RadioPicture, Controls.KeyLabel(Keys.KeyFor(Control.Radio)), false, 1, broken ? Red : null);
         float named = carrying ? 0 : Shown(Since(s, m.SlotTick), Tuning.ToolNameSeconds);
         if (named > 0)
-            o.TextCentred(width / 2f, y - 4 - o.Font.Height * Fine, ToolName(Kit.At(p.Kit, p.HeldSlot)), Ink with { W = named }, Fine);
+        {
+            string name = slotted.TryGetValue(p.HeldSlot, out var thing) ? Called(s.World, thing) : ToolName(Kit.At(p.Kit, p.HeldSlot));
+            o.TextCentred(width / 2f, y - 4 - o.Font.Height * Fine, name, Ink with { W = named }, Fine);
+        }
     }
 
     /// <summary>One slot: a dark square, its edge lit for the one in hand, the picture, and its key small in the corner.</summary>
@@ -194,8 +211,15 @@ public static partial class Hud
                 lines.Add(carried.Lifted ? "PUT IT DOWN : [E]" : "LET GO : [E]");
             else
                 lines.AddRange(["PUT DOWN : [E]", "THROW : [RMB]"]);
+            // Note 720: a hand lamp's signals, its own wheel (what each says is the crew's to learn).
+            if (carried.Kind == BodyKind.Lamp)
+                lines.Add("SIGNAL : HOLD [U]");
             return (Called(world, carried), lines);
         }
+        // Note 649: at a crew locker with a tool in hand, Throw puts it on a shelf (the prompt's line is the locker's Use).
+        if (Kit.Held(p) is var tool && tool != Tool.None && Lockers.Holds(train, BodyKind.Tool) && Lockers.AtHand(p, train, world.Hand) is { } locker
+            && Lockers.FreeSlot(world.Bodies, train, locker.Car, locker.Bay.Index) >= 0)
+            return ($"THE {ToolName(tool)}", ["STOW : [RMB]"]);
         // T112: sat at the gun, its own controls.
         if (world.Combat is { } combat && p.Has(PlayerFlags.Seated) && Guns.MannedGun(p, train, combat.Guns) is { } manned)
         {
@@ -206,7 +230,9 @@ public static partial class Hud
                 lines.Add("FIRE : [LMB]");
             lines.Add("GET UP : [SPACE]");
             // With a rack (note 374): what's at the gun, and what's left down in the locker for every gun.
-            return (combat.Guns.Rack > 0 ? $"THE GUN: {ready} IN THE RACK, {Guns.Stowed(train, combat.Guns)} BELOW" : $"THE GUN: {gun.Ammo} SHOT", lines);
+            // Note 689: endless shot has no count to give.
+            return (combat.Guns.InfiniteAmmo ? "THE GUN"
+                : combat.Guns.Rack > 0 ? $"THE GUN: {ready} IN THE RACK, {Guns.Stowed(train, combat.Guns)} BELOW" : $"THE GUN: {gun.Ammo} SHOT", lines);
         }
         // The crane (T48), from its cab.
         if (p.Has(PlayerFlags.Operating) && world.Run?.CurrentSite?.CraneNear(PlayerMotor.WorldPosition(p, train)) is { } crane)
@@ -220,6 +246,13 @@ public static partial class Hud
         }
         if (CabControls.CanDrive(p, train))
         {
+            // Note 664 (the director, 13 Oct: "the throw into reverse when the train is stopped button readily identifiable"):
+            // stopped, the reverser's the first thing said, which way it throws; on the move only when it's back (forward goes
+            // without saying, and going backwards shouldn't).
+            if (train.Dynamics.Speed < CabControls.ReverserBelow)
+                lines.Add(s.Controls.Reverser < 0 ? "THROW INTO FORWARD : [X]" : "THROW INTO REVERSE : [X]");
+            else if (s.Controls.Reverser < 0)
+                lines.Add("IN REVERSE : [X]");
             // T97: steam drives it. At a stand on the brake, R lets it off; otherwise B brakes (coal and the vent do the rest).
             bool steam = train.BoilerTuning?.SteamDrive == true;
             if (!steam)
@@ -230,9 +263,6 @@ public static partial class Hud
             if (train.BoilerTuning is not null)
                 lines.Add("VENT : HOLD [VENT]");
             lines.Add(world.LampOutSeconds > 0 ? "LAMP SMASHED" : $"LAMP {(world.LampLit ? "OFF" : "ON")} : [L]");
-            // The reverser only when it's back: forward goes without saying, and going backwards shouldn't.
-            if (s.Controls.Reverser < 0)
-                lines.Add("IN REVERSE : [X]");
             // The speed stays a figure (the director, 7 Oct: "keep speed numbers"): it's read against the boards.
             string speed = $"{Math.Abs(train.Dynamics.Speed) * 3.6:0} KM/H";
             return (steam ? speed : $"{speed}  REG {s.Controls.Throttle * 100:0}%", lines);

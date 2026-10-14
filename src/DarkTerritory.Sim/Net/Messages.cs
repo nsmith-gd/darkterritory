@@ -57,7 +57,35 @@ public static class Protocol
     // 42: the run record's sites carry the tipple (its ore, clamp, roll and a re-railing), and the vehicle record whether it's off
     //     its rails, before the char cells (note 423).
     // 43: the Hello carries the private run's password, as its key (note 450), and a Refused can say WRONG PASSWORD.
-    public const int Version = 43;
+    // 44: the vehicle record carries the Brakeman's wound handbrake and Hotbox's seized axle (notes 364, 367), after the tipple's off-rails (protocol 42); and a Knotter's gap (note 365).
+    // 45: the snapshot says how many of the client's inputs the host holds beyond the one it applied, so the client paces
+    //     itself to a host that's behind (note 532).
+    // 46: the input message carries the client's own downlink loss (the host's snapshots it isn't getting), in percent, so the
+    //     host can send a thin link every other snapshot and tell its own player when its upload can't carry the crew; the
+    //     snapshot carries a flags byte after the queued count, bit 0 saying it's one of every other (note 557).
+    // 47: Dave (note 570): an enemy kind of his own, and a death cause.
+    // 48: Jacob (note 572): an enemy kind of his own.
+    // 49: the controls belong to whoever's working them (note 574): the Hello carries a flags byte after the outfit (bit 0, a
+    //     bot), and the controls record carries who holds them and whether that's a bot.
+    // 50: the crew goes on together (note 606): CarryOn, host to client, carries the town the crew's going on from.
+    // 51: the towns remember (notes 608, 612): a town's burnt houses ride on the route spec after its seed, and the
+    // campaign's in the session's setup, so every machine builds both towns with them.
+    // 52: the Pickers and the house creatures (notes 583–586, 592): five enemy kinds of their own.
+    // 53: four shared slots (note 594): the player record's held slot carries the slots holding a thing over it, and the body
+    //     record's locker field a thing's slot and whether it's put away.
+    // 54: a tool on a crew locker's shelf (note 649): a body kind of its own, its tool in the body record's ninth field.
+    // 55: a car's load as what's in it (note 659): the vehicle record carries how much of it is things lying there as
+    //     themselves (its 31st field; the fire cells after it), the rest its heap.
+    // 56: what's lying in a car is solid (note 659): the body record carries a thing's size (its twelfth field, the particles
+    //     after it), so every client walks into the same things.
+    // 57: a third byte of buttons on every intent, after the voice level (note 664: crouch, and pushing the gun on its own key).
+    // 58: the news (note 663): cars lost and the engine failing, with what did it, a record kind of its own.
+    // 59: horseplay (note 717): the player record carries its stagger (its 27th field), the shove rides the third byte of
+    //     buttons, a death and a flag or two of its own, and the knocks and the lumps of coal in flight are record kinds; each
+    //     input frame says the snapshot it was predicted against (a byte back from the message's), for the crowd.
+    //     And voices (note 720): a voice frame's path is two bytes (the speaking tube's its ninth flag) and the tube's far end follows
+    //     it; a lamp signal rides the intent's third byte (bits 2-3), and the crew see it as a record kind of its own.
+    public const int Version = 59;
 }
 
 public enum MessageType : byte
@@ -110,6 +138,12 @@ public enum MessageType : byte
     Outfits = 18,
     /// <summary>Client → host, reliable: the outfit this player puts on (note 298). The host takes it only in the yard.</summary>
     Wear = 19,
+    /// <summary>
+    /// Host → client, reliable, as the host leaves a delivered campaign night (note 606): the crew's going on to the next night
+    /// from this town (<see cref="Towns.TownAt.Spec"/>). The client waits on its card and dials the host again for that night,
+    /// rather than going back to its menu.
+    /// </summary>
+    CarryOn = 20,
 }
 
 /// <summary>Why the host turned a joiner away (note 254).</summary>
@@ -134,9 +168,13 @@ public readonly record struct Refusal(RefusalReason Reason, int Crew, int Cap)
 }
 
 /// <summary>A joiner's first word (note 253): who, the slot it's coming back to, its outfit, and a private run's key (note 450).</summary>
-public readonly record struct Hello(string Name, ulong Token, byte Outfit, byte[]? Key);
+public readonly record struct Hello(string Name, ulong Token, byte Outfit, byte[]? Key, bool Bot = false);
 
-public readonly record struct InputFrame(uint Sequence, PlayerIntent Intent);
+/// <param name="Seen">
+/// Note 717: the newest snapshot the client had when it first predicted this input (0: none), the crowd it was pushed out from
+/// among; the host pushes it out from among the crew as that snapshot had them, so prediction agrees on any link.
+/// </param>
+public readonly record struct InputFrame(uint Sequence, PlayerIntent Intent, uint Seen = 0);
 
 public readonly record struct PlayerSnapshot(byte Id, PlayerState State);
 
@@ -149,25 +187,36 @@ public static class Messages
     /// <summary>How many past inputs each input packet repeats.</summary>
     public const int InputRedundancy = 4;
 
-    public static void WriteInput(NetWriter w, ReadOnlySpan<InputFrame> frames, uint lastSnapshotTick)
+    /// <param name="lossPct">The client's own downlink loss over its window, in percent (note 557); 0 before it has one.</param>
+    public static void WriteInput(NetWriter w, ReadOnlySpan<InputFrame> frames, uint lastSnapshotTick, byte lossPct = 0)
     {
         w.Reset();
         w.U8((byte)MessageType.Input);
         w.U32(lastSnapshotTick);
+        w.U8(lossPct);
         w.U8((byte)frames.Length);
         foreach (var f in frames)
         {
             w.U32(f.Sequence);
+            // Note 717: the snapshot it was predicted against, as a step back from this message's (255: none, or too far back).
+            w.U8(f.Seen == 0 || f.Seen > lastSnapshotTick || lastSnapshotTick - f.Seen >= 255 ? (byte)255 : (byte)(lastSnapshotTick - f.Seen));
             WriteIntent(w, f.Intent);
         }
     }
 
-    public static void ReadInput(ref NetReader r, List<InputFrame> into, out uint lastSnapshotTick)
+    public static void ReadInput(ref NetReader r, List<InputFrame> into, out uint lastSnapshotTick) => ReadInput(ref r, into, out lastSnapshotTick, out _);
+
+    public static void ReadInput(ref NetReader r, List<InputFrame> into, out uint lastSnapshotTick, out byte lossPct)
     {
         lastSnapshotTick = r.U32();
+        lossPct = r.U8();
         int n = r.U8();
         for (int i = 0; i < n; i++)
-            into.Add(new InputFrame(r.U32(), ReadIntent(ref r)));
+        {
+            uint seq = r.U32();
+            byte back = r.U8();
+            into.Add(new InputFrame(seq, ReadIntent(ref r), back == 255 ? 0 : lastSnapshotTick - back));
+        }
     }
 
     static void WriteIntent(NetWriter w, in PlayerIntent i)
@@ -184,6 +233,8 @@ public static class Messages
         bool tool = i.Select != 0 || i.Cycle != 0 || i.Emote != Emote.None;
         w.U8((byte)(tool ? i.Actions | PlayerActions.Tool : i.Actions & ~PlayerActions.Tool));
         w.U8(i.Voice);
+        // Note 664: the third byte (crouch, push the gun along); note 720, a lamp signal in its bits 2-3, on the tick it's given.
+        w.U8((byte)((byte)i.Moves & MovesMask | ((byte)i.Signal & 3) << 2));
         if (i.Watch != 0)
             w.U8(i.Watch);
         // A hotbar choice (T108), only on the tick it's made: the slot in the low nibble, the wheel's step in the high; an
@@ -210,6 +261,9 @@ public static class Messages
         }
     }
 
+    /// <summary>The intent's third byte's bits that are <see cref="PlayerMoves"/>; bits 2-3 are the lamp signal (note 720).</summary>
+    const byte MovesMask = 0b1111_0011;
+
     static short Centimetres(float metres) => (short)Math.Round(Math.Clamp(float.IsFinite(metres) ? metres : 0, -300, 300) * 100);
 
     static PlayerIntent ReadIntent(ref NetReader r)
@@ -227,6 +281,9 @@ public static class Messages
         i.Lamp = (LampSwitch)((notch >> 5) & 3);
         i.Actions = (PlayerActions)r.U8();
         i.Voice = r.U8();
+        byte moves = r.U8();
+        i.Moves = (PlayerMoves)(moves & MovesMask);
+        i.Signal = (LampSignal)((moves >> 2) & 3);
         if ((notch & 0x80) != 0)
             i.Watch = r.U8();
         if (i.Has(PlayerActions.Tool))
@@ -257,13 +314,21 @@ public static class Messages
     }
 
     /// <summary>Snapshot: tick, the input it acknowledges, the tick it's a delta against (0 = full), then the records.</summary>
-    public static void WriteSnapshot(NetWriter w, uint tick, uint ackedInput, uint baselineTick, IReadOnlyList<WireRecord> records, IReadOnlyList<WireRecord>? baseline)
+    /// <summary>Note 549: the snapshot's flags byte. Bit 0: this client is being sent every other snapshot (the odd ticks aren't lost).</summary>
+    public const byte SnapshotThinned = 1;
+
+    /// <param name="queued">Inputs from this client the host still holds beyond the one it applied (note 532; at most 255).</param>
+    /// <param name="flags"><see cref="SnapshotThinned"/> and any later ones (note 557).</param>
+    public static void WriteSnapshot(NetWriter w, uint tick, uint ackedInput, uint baselineTick, IReadOnlyList<WireRecord> records, IReadOnlyList<WireRecord>? baseline,
+        int queued = 0, byte flags = 0)
     {
         w.Reset();
         w.U8((byte)MessageType.Snapshot);
         w.U32(tick);
         w.U32(ackedInput);
         w.U32(baselineTick);
+        w.U8((byte)Math.Clamp(queued, 0, 255));
+        w.U8(flags);
         WorldRecords.WriteDelta(w, records, baseline);
     }
 
@@ -279,17 +344,21 @@ public static class Messages
 
     /// <param name="source">For <see cref="VoicePath.Mimic"/>: the Soot Child it's coming from (T40).</param>
     /// <param name="gain">For <see cref="VoicePath.Fading"/>: how much of the voice is left, 0..1.</param>
-    public static void WriteVoiceDown(NetWriter w, byte speaker, ushort sequence, VoicePath path, ReadOnlySpan<byte> opus, int source = 0, double gain = 1)
+    /// <param name="tube">For <see cref="VoicePath.Tube"/>: the speaking tube's end it comes out of (note 720).</param>
+    public static void WriteVoiceDown(NetWriter w, byte speaker, ushort sequence, VoicePath path, ReadOnlySpan<byte> opus, int source = 0, double gain = 1,
+        int tube = 0)
     {
         w.Reset();
         w.U8((byte)MessageType.Voice);
         w.U8(speaker);
         w.U16(sequence);
-        w.U8((byte)path);
+        w.U16((ushort)path);
         if (path.HasFlag(VoicePath.Mimic))
             w.I32(source);
         if (path.HasFlag(VoicePath.Fading))
             w.U8((byte)Math.Round(Math.Clamp(gain, 0, 1) * 255));
+        if (path.HasFlag(VoicePath.Tube))
+            w.U8((byte)Math.Clamp(tube, 0, 255));
         w.Bytes(opus);
     }
 
@@ -346,13 +415,15 @@ public static class Messages
     /// <param name="token">The token from this player's last Welcome, coming back after a drop; 0 for a new joiner (note 253).</param>
     /// <param name="outfit">The outfit they come in (note 298), or <see cref="NoOutfit"/>.</param>
     /// <param name="key">A private run's password as <see cref="PasswordKey"/> makes it (note 450), or null for none.</param>
-    public static void WriteHello(NetWriter w, string name, ulong token = 0, byte outfit = NoOutfit, byte[]? key = null)
+    /// <param name="bot">A bot crewmate (note 574): it never takes the cab's controls off someone playing.</param>
+    public static void WriteHello(NetWriter w, string name, ulong token = 0, byte outfit = NoOutfit, byte[]? key = null, bool bot = false)
     {
         w.Reset();
         w.U8((byte)MessageType.Hello);
         w.Str(CleanName(name));
         w.U64(token);
         w.U8(outfit);
+        w.U8((byte)(bot ? 1 : 0));
         if (key is { Length: KeyLength })
             w.Bytes(key);
     }
@@ -366,7 +437,8 @@ public static class Messages
         string name = CleanName(r.Str());
         ulong token = r.Remaining >= 8 ? r.U64() : 0;
         byte outfit = r.Remaining >= 1 ? r.U8() : NoOutfit;
-        return new(name, token, outfit, r.Remaining >= KeyLength ? r.Rest()[..KeyLength].ToArray() : null);
+        byte flags = r.Remaining >= 1 ? r.U8() : (byte)0;
+        return new(name, token, outfit, r.Remaining >= KeyLength ? r.Rest()[..KeyLength].ToArray() : null, (flags & 1) != 0);
     }
 
     /// <summary>A password's key: SHA-256's length.</summary>
@@ -411,6 +483,17 @@ public static class Messages
         w.U8((byte)MessageType.Wear);
         w.U8(outfit);
     }
+
+    /// <summary>The crew's going on from <paramref name="town"/> (note 606): its <see cref="Towns.TownAt.Spec"/>.</summary>
+    public static void WriteCarryOn(NetWriter w, Towns.TownAt town)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.CarryOn);
+        w.Str(town.Spec);
+    }
+
+    /// <summary>The town a <see cref="MessageType.CarryOn"/> names, or null if it doesn't read as one.</summary>
+    public static Towns.TownAt? ReadCarryOn(ref NetReader r) => Towns.TownAt.Parse(r.Str());
 
     public static void WriteNames(NetWriter w, IEnumerable<KeyValuePair<int, string>> names)
     {

@@ -546,6 +546,28 @@ lantern.key(30, arm_to(over(STAND, head=(-3, 0, 6)), "r", at(LAMP_AT, dz=0.02, d
 lantern.close(60)
 clips.append(lantern)
 
+# --- toolbox: the repair kit (the engineer's toolbox, App. C.4) carried by its handle in the right hand, down at the side,
+# the arm straight with the weight of it and the body leant away from it, the free arm out a little against it; walking,
+# it swings a little against the leg (note 513; it was held out in front in both hands, as a crate is).
+KIT_AT = (0.27, 0.03, 0.79)
+KIT_BODY = over(STAND, pelvis=(0, 0, -3), spine_01=(0, 0, -3), spine_02=(0, 0, -2), neck=(0, 0, 3), head=(0, 0, 2))
+
+
+def toolbox_upper(f, side):
+    a = math.cos(2 * math.pi * f / 30)  # +1 at the right heel's strike: the left arm forward
+    body = over(KIT_BODY, spine_02=(-2, 0, -2 + 1.5 * a))
+    p = arm_to(body, "r", at(KIT_AT, dy=-0.04 * a, dz=-0.01 * abs(a)), grip=95)
+    return arm_to(p, "l", (-0.27, 0.04 + 0.15 * a, 0.9 + 0.02 * abs(a)), grip=30, elbow=(0.35, -0.25, 1.1))
+
+
+clips.append(walking("toolbox_walk", toolbox_upper, cycle=30, short=0.95))
+toolbox = Clip("toolbox")
+toolbox.key(0, arm_to(arm_to(KIT_BODY, "r", KIT_AT, grip=95), "l", (-0.26, 0.04, 0.9), grip=30, elbow=(0.35, -0.25, 1.1)))
+toolbox.key(30, arm_to(arm_to(over(KIT_BODY, head=(-3, 0, 6)), "r", at(KIT_AT, dz=0.01), grip=95), "l", (-0.26, 0.05, 0.91), grip=30,
+                       elbow=(0.35, -0.25, 1.1)))
+toolbox.close(60)
+clips.append(toolbox)
+
 # --- haul: down on a knee, both hands on a friend's coat collar, hauling them back (the rescue, App. A.1) -------------
 HAUL = over(STAND, pelvis__loc=(0, -0.12, 0), pelvis=(-18, 0, 0), spine_01=(-14, 0, 0), spine_02=(-8, 0, 0),
             spine_03=(-4, 0, 0), neck=(18, 0, 0), head=(6, 0, 0),

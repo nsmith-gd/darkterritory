@@ -281,6 +281,21 @@ public sealed class SteamBackend : IOnlineBackend
             SteamNetworkingMessages.CloseSessionWithUser(ref id);
         }
 
+        /// <summary>
+        /// Steam's own view of the session (netcode-audit.md gap 3): relayed through Valve's network or punched through
+        /// direct, its ping, and the share of packets reaching us (quality, 1 = nothing lost).
+        /// </summary>
+        public CarrierLink? Describe(UserId peer)
+        {
+            var id = Identity(peer);
+            var state = SteamNetworkingMessages.GetSessionConnectionInfo(ref id, out var info, out var status);
+            if (state != ESteamNetworkingConnectionState.k_ESteamNetworkingConnectionState_Connected)
+                return null;
+            bool relayed = (info.m_nFlags & Constants.k_nSteamNetworkConnectionInfoFlags_Relayed) != 0;
+            return new CarrierLink("Steam", relayed, status.m_nPing >= 0 ? status.m_nPing : null,
+                status.m_flConnectionQualityLocal >= 0 ? status.m_flConnectionQualityLocal : null);
+        }
+
         static SteamNetworkingIdentity Identity(UserId user)
         {
             var id = new SteamNetworkingIdentity();

@@ -86,7 +86,7 @@ public sealed partial class GameAudio
                 RoomsNear(route, world.Train.Line, listener.Position, _roomsHint, RoomsReach, _roomsNear);
             }
         }
-        Mixer.Space = _spaces.Value.Spaces.GetValueOrDefault(Space);
+        Mixer.Space = _spaces!.Value.Spaces.GetValueOrDefault(Space);
 
         // While the work's under way: from the moment a run leaves the yard until the night's over or the train's off the
         // rails (then it's the opera's, GDD v1.4 App. E.1, or E.9's silence), flat (install.py writes ui- sounds flat), on

@@ -65,6 +65,8 @@ public sealed record AtmosphereTuning
     public ChoirColdTuning? ChoirCold { get; init; }
     /// <summary>What the night's wind does to the foliage: how hard it blows, from where, how gusty.</summary>
     public WindTuning Wind { get; init; } = new();
+    /// <summary>A town's flag in that wind (note 674): its cloth, and how it lifts, ripples and hangs.</summary>
+    public FlagTuning Flag { get; init; } = new();
     /// <summary>The light indoors (queue #211, note 475): a room's own fill, the houses' candles and lamps, the hand lamp, the sheds' lanterns.</summary>
     public InteriorTuning Interiors { get; init; } = new();
 }
@@ -113,6 +115,35 @@ public sealed record WindTuning
 }
 
 /// <summary>
+/// A town's flag in the wind (queue #405, note 674; the director, 13 Oct: "it needs to be waving if it's going to be
+/// there"): its cloth (m), the wind (m/s) it starts to lift in and streams out flat by, how far its fly hangs down when
+/// there's none (rad, at the fly), how far it snakes side to side (rad at the fly, calm to full) and billows up and down
+/// in its own plane (rad at the fly, flying), how fast the ripple runs out along it (rad/s, calm to full) and how many
+/// waves are on it at once.
+/// </summary>
+public sealed record FlagTuning
+{
+    public float Length { get; init; } = 1.8f;
+    public float Height { get; init; } = 1.2f;
+    public float LiftFrom { get; init; } = 1.5f;
+    public float LiftFull { get; init; } = 10f;
+    public float Droop { get; init; } = 1.9f;
+    public float Ripple { get; init; } = 0.22f;
+    public float RippleFull { get; init; } = 0.6f;
+    public float Flutter { get; init; } = 0.22f;
+    public float Pace { get; init; } = 2.2f;
+    public float PaceFull { get; init; } = 10f;
+    public float Waves { get; init; } = 1.6f;
+
+    /// <summary>How far out of its hang the flag's lifted in a wind of <paramref name="speed"/> m/s, 0 (slack) to 1 (flying flat).</summary>
+    public float Lift(float speed)
+    {
+        float t = Math.Clamp((speed - LiftFrom) / Math.Max(1e-3f, LiftFull - LiftFrom), 0, 1);
+        return t * t * (3 - 2 * t);
+    }
+}
+
+/// <summary>
 /// The cold (GDD §26: "frost on windows and metal, breath vapour"): read off the route's weather cold (0..1), so a deep
 /// tier's night is rimed and every mouth smokes, a local one's isn't.
 /// </summary>
@@ -154,6 +185,23 @@ public sealed record DawnTuning
     public float Ambient { get; init; } = 0.3f;
     /// <summary>The glow low on the sky on the sun's side as it comes up (the sky shader's dawn band).</summary>
     public Vector3 HorizonGlow { get; init; } = new(0.28f, 0.16f, 0.11f);
+    /// <summary>The Wakers' stir (note 599): the cold line low behind the train before dawn, where they'll rise.</summary>
+    public StirLook Stir { get; init; } = new();
+}
+
+/// <summary>
+/// The stir's sky (docs/design/creatures/wakers.md §2: "the horizon behind the train goes from black to a bruise to a thin
+/// cold line. The light comes from where the Wakers will rise"; ARCHITECTURE §8 note 599). Over the stir it grows from
+/// nothing, a wide dim <see cref="Bruise"/> low behind the train narrowing to a thin grey <see cref="Line"/> by dawn.
+/// </summary>
+public sealed record StirLook
+{
+    /// <summary>Its colour as it first shows (rgb, added to the sky).</summary>
+    public Vector3 Bruise { get; init; } = new(0.10f, 0.05f, 0.09f);
+    /// <summary>Its colour at dawn.</summary>
+    public Vector3 Line { get; init; } = new(0.34f, 0.37f, 0.42f);
+    /// <summary>How bright it gets, at dawn.</summary>
+    public float Strength { get; init; } = 1;
 }
 
 /// <summary>
@@ -227,6 +275,10 @@ public sealed record LookTuning
     /// <summary>Past this far from the eye (m) a creature with a distance copy (content/art/models/&lt;name&gt;.lod1.glb) draws
     /// that instead (look.json creatureLodMetres; 0: never).</summary>
     public float CreatureLodMetres { get; init; }
+    /// <summary>A model with no distance copy of its own gets one made at load (Ballast.Assets.ModelLod: its vertices clustered
+    /// <see cref="ClusteredLodCell"/> m apart), drawn past this far (m; 0: never). Note 462: a walled town's people.</summary>
+    public float ClusteredLodMetres { get; init; }
+    public float ClusteredLodCell { get; init; } = 0.08f;
     public float Baked { get; init; } = 0.35f;
     /// <summary>The crew's paint by player id, in turn (the flying cap and the scarf: CreatureArt.Crewmate), as multipliers.</summary>
     public float[][] CrewColours { get; init; } = [[1, 1, 1]];
@@ -248,6 +300,42 @@ public sealed record LookTuning
     public WaterTuning Water { get; init; } = new();
     public DamageTuning Damage { get; init; } = new();
     public BiteTuning Bite { get; init; } = new();
+    public WorkLightTuning WorkLight { get; init; } = new();
+    public SpeedFeelTuning SpeedFeel { get; init; } = new();
+}
+
+/// <summary>
+/// GDD §28 "What you came for is lit" (note 705): the work lamps over a loading and the pools round what lies on the ground
+/// to be taken. Mirror of look.json <c>workLight</c>, where each field is documented.
+/// </summary>
+public sealed record WorkLightTuning
+{
+    public float HookIntensity { get; init; } = 2.2f;
+    public float HookRange { get; init; } = 6.5f;
+    public float HookAbove { get; init; } = 1.4f;
+    public float StackIntensity { get; init; } = 1.6f;
+    public float StackRange { get; init; } = 7;
+    public float StackHeight { get; init; } = 3.2f;
+    public float GroundIntensity { get; init; } = 1.1f;
+    public float GroundRange { get; init; } = 3.5f;
+    public float GroundHeight { get; init; } = 1.1f;
+    public float GroundWithin { get; init; } = 30;
+    public int GroundCount { get; init; } = 6;
+}
+
+
+/// <summary>GDD §31 "Speed is felt" (note 709). Mirror of look.json <c>speedFeel</c>, where each field is documented.</summary>
+public sealed record SpeedFeelTuning
+{
+    public double Widen { get; init; }
+    public double FullAt { get; init; } = 20;
+    public double Ease { get; init; } = 1;
+    public double Joint { get; init; } = 12.5;
+    public double Bogies { get; init; } = 8.5;
+    public double Jolt { get; init; }
+    public double JoltWidth { get; init; } = 0.35;
+    public double Sway { get; init; }
+    public double SwayWave { get; init; } = 34;
 }
 
 /// <summary>One entry of content/art/textures/index.json (written by tools/art/textures.py).</summary>
@@ -296,6 +384,9 @@ public sealed class Look
     public SurfaceStyle Style { get; }
     /// <summary>The folder the textures were read from, when they were.</summary>
     public string? TextureRoot { get; init; }
+
+    /// <summary>The towns' flags (content/art/flags.json, note 674): which cell of the flag atlas is whose.</summary>
+    public DarkTerritory.Game.Art.FlagBook Flags { get; init; } = DarkTerritory.Game.Art.FlagBook.Empty;
     /// <summary>
     /// The one doorway (train.json <c>doorway</c>, ARCHITECTURE §8 note 110): the train's doors are built to it, and every
     /// door the art draws, on the train or off it, is this tall (<see cref="Art.Kit.Doorway"/>).
@@ -308,6 +399,8 @@ public sealed class Look
     /// Holdout's shell from <see cref="Sim.Run.StopWalls.Shell"/> with these, so its doors are where you walk in (note 387).
     /// </summary>
     public Sim.Run.WallTuning Walls { get; init; } = new();
+    /// <summary>The signage kit (linegen/signage.json, note 560): a hand-laid line's boards are stood and lettered by it, as a generated line's plan's are.</summary>
+    public Sim.LineGen.SignageFile? Signage { get; init; }
 
     static Dictionary<string, Vector3> PaletteColours() =>
         typeof(Palette).GetFields(BindingFlags.Public | BindingFlags.Static).Where(f => f.FieldType == typeof(Vector3))
@@ -330,10 +423,12 @@ public sealed class Look
         var body = System.IO.File.Exists(vrFile) ? DataFile.Load<VrTuning>(vrFile).Body : new VrBodyTuning();
         string runFile = Path.Combine(content, Sim.Run.RunTuning.File);
         var walls = System.IO.File.Exists(runFile) ? DataFile.Load<Sim.Run.RunTuning>(runFile).Walls : new Sim.Run.WallTuning();
+        string signageFile = Path.Combine(content, "linegen", "signage.json");
+        var signage = System.IO.File.Exists(signageFile) ? DataFile.Load<Sim.LineGen.SignageFile>(signageFile) : null;
         string root = Path.Combine(content, "art", "textures");
         string index = Path.Combine(root, "index.json");
         if (!System.IO.File.Exists(index))
-            return new Look(tuning) { Doorway = doorway, VrBody = body, Walls = walls };
+            return new Look(tuning) { Doorway = doorway, VrBody = body, Walls = walls, Signage = signage };
         var entries = JsonSerializer.Deserialize<List<TextureEntry>>(System.IO.File.ReadAllText(index), DataFile.Options) ?? [];
         // The sourced props' own layers (tools/models writes them beside the library, index.models.json), after it.
         string models = Path.Combine(root, "index.models.json");
@@ -342,7 +437,7 @@ public sealed class Look
         // A texture named in the index but not on disk is skipped (and so is its material's texture): the look degrades
         // to flat colour rather than failing to start.
         entries = [.. entries.Where(e => System.IO.File.Exists(Path.Combine(root, e.Diffuse)))];
-        return new Look(tuning, entries) { TextureRoot = root, Doorway = doorway, VrBody = body, Walls = walls };
+        return new Look(tuning, entries) { TextureRoot = root, Doorway = doorway, VrBody = body, Walls = walls, Signage = signage, Flags = DarkTerritory.Game.Art.FlagBook.Load(content) };
     }
 
     /// <summary>The texture layer called <paramref name="name"/>, or −1 when it isn't there.</summary>
@@ -365,8 +460,29 @@ public sealed class Look
     /// <summary>Loads the look's textures, backdrop, grade and post settings into a renderer.</summary>
     public void Dress(GreyboxRenderer renderer) => renderer.Load(Sky is { } sky ? (_assets ??= Assets()) with { Backdrop = sky } : _assets ??= Assets());
 
+    /// <summary>
+    /// Only <see cref="Sky"/> taken up, on a renderer this look has already dressed (note 517: a batch of screenshots over
+    /// many nights): the far horizon replaced, the material layers left as they are.
+    /// </summary>
+    public void DressSky(GreyboxRenderer renderer) => renderer.LoadBackdrop(Sky ?? (_assets ??= Assets()).Backdrop);
+
     /// <summary>A night's own far horizon in place of the look's band (a generated line's, <see cref="Art.PlanSky"/>); null for the look's.</summary>
     public Image? Sky { get; set; }
+
+    // Every look loaded in a process shares the textures it decodes (about a gigabyte and a quarter of them, note 367): the
+    // tests load a look a class, and each one's own copy, kept for the run, took the Linux CI runner past its memory. A
+    // file that changes on disk (a hot reload, a rebuilt atlas) is read again; nothing writes into a decoded image.
+    static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (DateTime At, long Length, Image Image)> DecodedFiles = new();
+
+    static Image Decoded(string path)
+    {
+        var file = new FileInfo(path);
+        if (DecodedFiles.TryGetValue(path, out var had) && had.At == file.LastWriteTimeUtc && had.Length == file.Length)
+            return had.Image;
+        var image = ImageFile.Load(path);
+        DecodedFiles[path] = (file.LastWriteTimeUtc, file.Length, image);
+        return image;
+    }
 
     /// <summary>Everything the renderer needs: the material maps, the backdrop, the grade and the post settings.</summary>
     public RenderAssets Assets()
@@ -374,26 +490,37 @@ public sealed class Look
         var layers = new List<MaterialLayer>();
         Image? backdrop = null;
         if (TextureRoot is not null)
-            foreach (var t in Textures)
+        {
+            // A texture that won't read (half-written, corrupt) becomes flat grey, keeping every layer where the
+            // materials expect it, rather than stopping the game.
+            static Image Read(string path, Image fallback)
             {
-                // A texture that won't read (half-written, corrupt) becomes flat grey, keeping every layer where the
-                // materials expect it, rather than stopping the game.
-                static Image Read(string path, Image fallback)
+                try { return Decoded(path); }
+                catch (Exception e) when (e is InvalidOperationException or IOException)
                 {
-                    try { return ImageFile.Load(path); }
-                    catch (Exception e) when (e is InvalidOperationException or IOException)
-                    {
-                        Console.Error.WriteLine($"look: {Path.GetFileName(path)} unreadable ({e.Message}); drawing it flat");
-                        return fallback;
-                    }
+                    Console.Error.WriteLine($"look: {Path.GetFileName(path)} unreadable ({e.Message}); drawing it flat");
+                    return fallback;
                 }
-                var diffuse = Read(Path.Combine(TextureRoot, t.Diffuse), Image.Solid(4, 80, 80, 80));
-                var spec = t.Spec is { } s && System.IO.File.Exists(Path.Combine(TextureRoot, s)) ? Read(Path.Combine(TextureRoot, s), Image.Solid(4, 20, 60, 0)) : Image.Solid(4, 20, 60, 0);
-                var normal = t.Normal is { } n && System.IO.File.Exists(Path.Combine(TextureRoot, n)) ? Read(Path.Combine(TextureRoot, n), Image.Solid(4, 128, 128, 255)) : null;
-                layers.Add(new MaterialLayer(t.Name, diffuse, spec, t.AlphaTest, normal));
-                if (t.Family == "sky")
-                    backdrop = diffuse;
             }
+            // Each texture's maps decoded side by side, one texture to a core (note 517), then laid out in the look's order.
+            var textures = Textures.ToList();
+            var read = new MaterialLayer[textures.Count];
+            string root = TextureRoot;
+            Parallel.For(0, textures.Count, i =>
+            {
+                var t = textures[i];
+                var diffuse = Read(Path.Combine(root, t.Diffuse), Image.Solid(4, 80, 80, 80));
+                var spec = t.Spec is { } s && System.IO.File.Exists(Path.Combine(root, s)) ? Read(Path.Combine(root, s), Image.Solid(4, 20, 60, 0)) : Image.Solid(4, 20, 60, 0);
+                var normal = t.Normal is { } n && System.IO.File.Exists(Path.Combine(root, n)) ? Read(Path.Combine(root, n), Image.Solid(4, 128, 128, 255)) : null;
+                read[i] = new MaterialLayer(t.Name, diffuse, spec, t.AlphaTest, normal);
+            });
+            for (int i = 0; i < textures.Count; i++)
+            {
+                layers.Add(read[i]);
+                if (textures[i].Family == "sky")
+                    backdrop = read[i].Diffuse;
+            }
+        }
         return new RenderAssets { LayerSize = Tuning.LayerSize, HeroSize = Tuning.HeroLayerSize, BigHeroSize = Tuning.BigHeroLayerSize, Layers = layers, Backdrop = backdrop, Lut = Tuning.Grade.Bake(), Post = Tuning.Post };
     }
 
@@ -426,6 +553,24 @@ public sealed class Look
     /// <summary>How far the dawn's come up (0 night .. 1 dawn) <paramref name="dawnIn"/> seconds before it (the run's dawn clock).</summary>
     public float DawnOf(double dawnIn) =>
         Tuning.Atmosphere.Dawn is { } d ? (float)Math.Clamp(1 - dawnIn / Math.Max(1, d.LeadSeconds), 0, 1) : 0;
+
+    /// <summary>
+    /// <paramref name="light"/> with the Wakers' stir <paramref name="t"/> of the way to dawn (0..1, note 599), lying low on
+    /// the sky toward <paramref name="from"/> (world, flattened: behind the train, where they'll rise).
+    /// </summary>
+    public FrameLighting Stir(FrameLighting light, float t, Vector3 from)
+    {
+        if (Tuning.Atmosphere.Dawn is not { } d || t <= 0)
+            return light;
+        t = Math.Clamp(t, 0, 1);
+        var flat = new Vector3(from.X, 0, from.Z);
+        if (flat.LengthSquared() < 1e-6f)
+            return light;
+        light.Stir = t * d.Stir.Strength;
+        light.StirDirection = Vector3.Normalize(flat);
+        light.StirColour = Vector3.Lerp(d.Stir.Bruise, d.Stir.Line, t * t);
+        return light;
+    }
 
     /// <summary>
     /// <paramref name="light"/> with the dawn <paramref name="t"/> of the way up (0..1, eased): the fog lightening to the

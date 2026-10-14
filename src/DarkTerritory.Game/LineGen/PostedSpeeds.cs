@@ -11,6 +11,16 @@ namespace DarkTerritory.Game.LineGen;
 /// </summary>
 public static class PostedSpeeds
 {
+    /// <summary>
+    /// What the map and the card print for a posted stretch: the number alone (note 671, the director: "we just show the
+    /// number ... we're trying to give information without tutorializing the whole game all at once"). No unit, no key, no
+    /// word for what it's for: the red says which ones have you off.
+    /// </summary>
+    public static string Figure(int kmh) => kmh.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>A stretch that has the train off the rails (a bend, a weak bridge), inked red; brass only costs the engine.</summary>
+    public static bool Derails(string? why) => why != "BRASS";
+
     public static List<(double S0, double S1, int Kmh, string? Why)> Of(LinePlan plan, RailLine line, double length)
     {
         var bends = new List<(double S0, double S1, int Kmh, string? Why)>();
@@ -35,20 +45,21 @@ public static class PostedSpeeds
             // Signage's own, a bend to a board) is for the sharpest curve in the next 600 m.
             var stretches = demand is null ? [] : plan.Authority.Limits
                 .Where(l => l.Edge == "main" && l.Source == LimitSource.Curve && Math.Abs(l.VMs - b.Value!.Value) < 0.01 && l.S0 >= b.S - 1 && l.S0 <= b.S + 600)
-                .Select(l => (From: l.S0, To: Math.Min(length, l.S1))).ToList();
+                .Select(l => (From: l.S0, To: Math.Min(length, l.S1), Own: true)).ToList();
             if (stretches.Count == 0)
-                stretches.Add((b.S, Math.Min(length, b.S + 600)));
-            foreach (var (from, to) in stretches)
+                stretches.Add((b.S, Math.Min(length, b.S + 600), false));
+            foreach (var (from, to, own) in stretches)
             {
-                double kMax = 0, sMax = from;
-                for (double s = from; s <= to; s += 5)
-                {
-                    double k = Math.Abs(line.Sample(RailLine.MainPath, s).Curvature);
-                    if (k > kMax)
-                        (kMax, sMax) = (k, s);
-                }
+                // A curve limit's bend is the curve it starts on: it can run on over the next curve of an S-bend, and that
+                // one's sharpest point was taken for it, leaving its own bare (note 665: frontier:15 at 7.3 km, a curve
+                // derailing at 69 km/h with no red, its limit's sharpest point the 67 km/h curve after it; the director met
+                // a bend with no red on the map). A board with no limit, the sharpest in its reach, as before.
+                var curves = Curves(line, from, to).ToList();
+                if (curves.Count == 0)
+                    continue;
+                var (sMax, kMax) = own ? curves[0] : curves.MaxBy(c => c.K);
                 // Only a bend this board's figure is for: one that would derail a train within half as much again of it.
-                if (kMax < 1e-6 || Math.Sqrt(plan.Rules.ADerail / kMax) > 1.5 * b.Value!.Value + 1)
+                if (Math.Sqrt(plan.Rules.ADerail / kMax) > 1.5 * b.Value!.Value + 1)
                     continue;
                 // As far either side as it's nearly as sharp.
                 double s0 = sMax, s1 = sMax;
@@ -62,5 +73,30 @@ public static class PostedSpeeds
             }
         }
         return bends;
+    }
+
+    /// <summary>
+    /// The curves on the main line between <paramref name="from"/> and <paramref name="to"/>, each where it's sharpest and how
+    /// sharp: a curve is a run of bend one way, ended by straight track or the bend turning the other way.
+    /// </summary>
+    static IEnumerable<(double S, double K)> Curves(RailLine line, double from, double to)
+    {
+        double kMax = 0, sMax = from;
+        int side = 0;
+        for (double s = from; s <= to; s += 5)
+        {
+            double c = line.Sample(RailLine.MainPath, s).Curvature, k = Math.Abs(c);
+            int now = k < 1e-6 ? 0 : Math.Sign(c);
+            if (now != side && kMax > 0)
+            {
+                yield return (sMax, kMax);
+                kMax = 0;
+            }
+            side = now;
+            if (now != 0 && k > kMax)
+                (kMax, sMax) = (k, s);
+        }
+        if (kMax > 0)
+            yield return (sMax, kMax);
     }
 }

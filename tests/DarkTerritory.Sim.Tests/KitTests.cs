@@ -37,7 +37,7 @@ public class KitTests
         Kit.Select(ref s, new PlayerIntent { Select = 2 });
         Assert.Equal(Tool.Shovel, Kit.Held(s));
         // An empty slot by its key: hands free.
-        Kit.Select(ref s, new PlayerIntent { Select = 6 });
+        Kit.Select(ref s, new PlayerIntent { Select = 4 });
         Assert.Equal(Tool.None, Kit.Held(s));
         // The wheel skips empty slots, both ways, round the end.
         Kit.Select(ref s, new PlayerIntent { Cycle = 1 });

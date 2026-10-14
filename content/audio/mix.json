@@ -37,6 +37,11 @@
   "duckRelease": 0.45,
   // Spec A.7: budget 64 concurrent voices.
   "maxVoices": 64,
+  // Note 667: the speaker's fed from a thread of its own, this far ahead (s): every sound's latency, as the frame-fed
+  // speaker's 60 ms was. Where the device still runs dry (a long collection, a machine with no core to spare) it grows by
+  // 20 ms a gap, up to the most here. Read at startup.
+  "deviceLead": 0.06,
+  "deviceLeadMax": 0.15,
   // Spec A.3 and A.5: car walls are -12 dB and a 900 Hz lowpass; a telegraph never loses more than 6 dB.
   "occlusionDb": -12,
   "occlusionLowpass": 900,

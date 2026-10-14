@@ -8,13 +8,15 @@ namespace DarkTerritory.Sim.Towns;
 /// along the main line, the night's seed, the creatures this edition fields (enemies.json director.roster; empty, all of
 /// them), and the custom of the last town, which this one won't share (App. F.1: "different from the last").
 /// </summary>
-public sealed record TownSite(string Name, string Industry, double Gate, ulong Seed, IReadOnlyList<string> Roster, string? Last = null)
+/// <para><see cref="Burnt"/>: how many of its houses are burnt out (note 608), the nearest its gate (<see cref="TownGenerator.Harmed"/>).</para>
+public sealed record TownSite(string Name, string Industry, double Gate, ulong Seed, IReadOnlyList<string> Roster, string? Last = null, int Burnt = 0)
 {
     /// <summary>The departure fortress of a route: the plan's, or for a hand-laid line one named from the seed.</summary>
     public static TownSite Of(Route.Route route, double gate, IReadOnlyList<string> roster, TownContent content, string? last = null)
     {
+        // The town arrived at last night (note 591) is its own seed's; any other, the route's.
         if (route.Plan?.Fortress is { } f)
-            return new TownSite(f.Name, f.Identity, gate, route.Seed, roster, last);
+            return new TownSite(f.Name, f.Identity, gate, f.TownSeed ?? route.Seed, roster, last, f.TownBurnt);
         var rng = Streams.Rng(route.Seed, "town", "name");
         string[] industries = [.. content.Writing.Industries.Keys.Order(StringComparer.Ordinal)];
         return new TownSite("Fort " + rng.Pick(content.Surnames), industries.Length > 0 ? rng.Pick(industries) : "", gate, route.Seed, roster, last);
@@ -225,11 +227,29 @@ public static partial class TownGenerator
             var (_, nd, _) = TownFixtures.Size("memorial");
             if (Civic("memorial") is { } dead && gap3 - gap2 >= 2 * TownFixtures.Size("memorial").HalfS + 1)
                 Fix("memorial", dead.Title, dead.Text, (gap2 + gap3) / 2, side * (far - nd - 0.05), 0, -side);
+            // And a green of its own (note 490; the board's "a green or a garden for a small town"): grass in the square's
+            // rear end, a tree in its far corner, the lamp garden by the way in, a bench between them to sit and look at it.
+            var small = new TownGreen(s0 + sq.GreenAlong[0], s0 + sq.GreenAlong[1], sq.GreenOut[0], sq.GreenOut[1], side);
+            homes.Green = small;
+            double glen = small.S1 - small.S0, gmid = (small.Near + small.Far) / 2;
+            var trees = Take(w.Civic.GetValueOrDefault("tree") ?? [], 1, Rng("civic.trees"));
+            if (trees.Count > 0)
+                Fix("tree", trees[0].Title, trees[0].Text, small.S0 + 2.5, side * (small.Far - 2.5), 0, -side);
+            var garden = Take(w.Civic.GetValueOrDefault("garden") ?? [], 1, Rng("civic.garden"));
+            if (garden.Count > 0)
+                Fix("garden", garden[0].Title, garden[0].Text, small.S1 - glen * 0.3, side * (gmid - 1), 0, -side);
+            Fix("bench", "a bench", "", small.S0 + glen * 0.4, side * (small.Near + 1.2), 0, side);
         }
         if (homes.Bounds is { } walls)
         {
             // The day, painted on the inside of the back wall at the ends of the first streets, where you see it down them.
-            var murals = Take(w.Civic.GetValueOrDefault("mural") ?? [], 2, Rng("civic.murals"));
+            // Dave's (signed "D.)"; note 570) only on some towns' walls, one at most (towns.json daveMural).
+            var all = w.Civic.GetValueOrDefault("mural") ?? [];
+            bool daves(TownText m) => m.Title.Contains("D.)", StringComparison.Ordinal);
+            var murals = Take([.. all.Where(m => !daves(m))], 2, Rng("civic.murals"));
+            var drng = Rng("civic.dave");
+            if (murals.Count > 0 && drng.Chance(t.DaveMural) && all.Where(daves).ToList() is { Count: > 0 } his)
+                murals[drng.Chance(0.5) ? 0 : murals.Count - 1] = drng.Pick(his);
             for (int i = 0; i < murals.Count && i < walls.Streets.Count; i++)
                 Fix("mural", murals[i].Title, murals[i].Text, walls.Rear + Run.Fortresses.WallHalf + 0.05, walls.Streets[i].At(walls.Rear), 1, 0);
         }
@@ -294,7 +314,9 @@ public static partial class TownGenerator
         foreach (var spot in spots)
         {
             string role = spot.Role.Length > 0 ? spot.Role : spot.House >= 0 ? "home" : rrng.Pick(Folk);
-            string? family = spot.House >= 0 ? homes.Houses[spot.House].Family : null;
+            // Nicki's guests have come from their own houses (note 571); Nicki is just Nicki.
+            bool partying = spot.Part is "host" or "guest";
+            string? family = spot.House >= 0 && !partying ? homes.Houses[spot.House].Family : null;
             if (folk is null)
             {
                 people.Add((role, NewName(family), spot, null));
@@ -304,6 +326,11 @@ public static partial class TownGenerator
             // matrix (their role's a passer-by's).
             string? absent = spot.House >= 0 && homes.Vars(spot.House) is { } hv && hv.TryGetValue("{absent}", out var lost) ? lost : null;
             var mind = folk.Person(people.Count, spot.Street ? "street" : role, spot.Part, spot.House, family, absent, names);
+            if (spot.Part == "host" && homes.Party is { } host)
+            {
+                mind = mind with { Given = host.Name, Surname = "", Byname = "", Heritage = "" };
+                names.Add(mind.Name);
+            }
             people.Add((role, mind.Name, spot, mind));
         }
         string[] everyone = [.. people.Select(p => p.Name)];
@@ -362,10 +389,19 @@ public static partial class TownGenerator
             if (spot.House >= 0)
             {
                 // Their household's story, in their own part, then the custom.
-                foreach (var line in homes.Story(spot.House, spot.Part))
-                    lines.Add(line);
+                // Nicki: the wine first, then two of hers, and nothing else (note 571).
+                if (spot.Part == "host")
+                {
+                    lines.AddRange(homes.Story(spot.House, "offer").Take(1));
+                    lines.AddRange(homes.Story(spot.House, "host"));
+                    want = lines.Count;
+                }
+                else
+                    foreach (var line in homes.Story(spot.House, spot.Part))
+                        lines.Add(line);
                 first = lines.Count;
-                if (!close && cultureLines.Next() is { } town)
+                // At the party, nobody's talking about the custom tonight.
+                if (!close && spot.Part != "guest" && spot.Part != "host" && cultureLines.Next() is { } town)
                     lines.Add(town);
             }
             else
@@ -381,7 +417,7 @@ public static partial class TownGenerator
             }
             // How they carry it (their temperament's line, note 474): the second thing they say, after a household's story
             // or the gate's law.
-            if (mind is not null && TemperDeck(mind.Temperament)?.Next() is { } temper)
+            if (mind is not null && spot.Part != "host" && TemperDeck(mind.Temperament)?.Next() is { } temper)
                 lines.Insert(Math.Min(lines.Count, first), temper);
             if (lines.Count < want && lrng.Chance(t.ScrapShare) && scraps.Next() is { } scrap)
                 lines.Add(scrap);
@@ -399,7 +435,8 @@ public static partial class TownGenerator
             string title = spot.House >= 0 ? homes.Title(spot.House, spot.Part)
                 : role == "hand" ? industry?.Hand ?? "townsman" : w.Roles.TryGetValue(role, out var rt) ? rt.Title : role;
             townsfolk.Add(new Townsperson(i, name, fill.In(title, name, spot.House >= 0 ? homes.Vars(spot.House) : null), role, spot.S, spot.D, spot.Up, spot.FaceS, spot.FaceD,
-                (int)(Streams.Mix(seed, "look", name) % 8), said[i], spot.House, spot.Pose, TownGear.Pick(homes.Gear, Streams.Mix(seed, "gear", name)), mind));
+                (int)(Streams.Mix(seed, "look", name) % 8), said[i], spot.House, spot.Pose, TownGear.Pick(homes.Gear, Streams.Mix(seed, "gear", name)), mind)
+            { Hosting = spot.Part == "host" });
         }
 
         // The plaque: the town, when it was walled, how many live here and how many did.
@@ -433,6 +470,11 @@ public static partial class TownGenerator
         var prng = Rng("papers");
         var board = fixtures.First(f => f.Kind == "board");
         var posted = new List<TownText> { culture.Notes[0] };
+        // Then the town's own notices (note 669; the director, 13 Oct: "actual like custom writing"), two of them, on a
+        // stream of their own so the rest of the board is dealt as it was.
+        var own = new Deck<TownText>(culture.Board, Rng("papers.board"));
+        for (int i = 0; i < t.BoardOwn && own.Next() is { } o; i++)
+            posted.Add(o);
         var more = new Deck<TownText>([.. industry?.Notes ?? [], .. quirks.SelectMany(q => q.Notes), .. w.Notices, .. w.Threads.SelectMany(th => th.Notes)], prng);
         int notices = prng.RangeInclusive(t.Notices[0], t.Notices[1]);
         while (posted.Count < notices && more.Next() is { } p)
@@ -451,9 +493,48 @@ public static partial class TownGenerator
         for (int i = 0; i < looseCount && loose.Next() is { } n; i++)
             papers.Add(new TownPaper(papers.Count, fill.In(n.Title, null), fill.In(n.Text, null), false, lying[i].S, lying[i].D, lying[i].H));
 
-        return new TownPlan(site.Name, population, former, culture.Id, culture.Creature, culture.Law.Replace("{town}", site.Name), culture.Hall,
+        var plan = new TownPlan(site.Name, population, former, culture.Id, culture.Creature, culture.Law.Replace("{town}", site.Name), culture.Hall,
             industry?.Name ?? site.Industry, [.. quirks.Select(q => q.Id)], square, buildings, homes.Houses, townsfolk, papers, fixtures, homes.Character, homes.Bounds,
-            homes.Green, homes.Works);
+            homes.Green, homes.Works)
+        {
+            Gate = site.Gate,
+        };
+        return Remember(plan, site.Burnt, w, Rng("remember"));
+    }
+
+    /// <summary>
+    /// The <paramref name="count"/> houses a creature brought in through the gate burns (note 608): lived-in houses, the
+    /// nearest the gate first (the yard's fight is there), the same ones every time for the same plan. A plan with some
+    /// burnt already gives the next ones, so tonight's fires and the town the crew comes back to agree.
+    /// </summary>
+    public static IReadOnlyList<TownHouse> Harmed(TownPlan plan, int count) =>
+        count <= 0 ? [] : [.. plan.Houses.Where(h => h.Kind == HouseKind.Lived).OrderBy(h => Math.Abs(h.S - plan.Gate)).ThenBy(h => h.Id).Take(count)];
+
+    /// <summary>
+    /// The town remembering what's been brought into it (note 608): its <paramref name="burnt"/> houses (<see cref="Harmed"/>)
+    /// burnt out and shut, nobody home, and its gatekeeper and guards saying so first.
+    /// </summary>
+    static TownPlan Remember(TownPlan plan, int burnt, TownWriting w, Pcg32 rng)
+    {
+        var harmed = Harmed(plan, burnt);
+        if (harmed.Count == 0 || w.BroughtIn is not { } said)
+            return plan;
+        var gone = harmed.Select(h => h.Id).ToHashSet();
+        string Fill(string text, string? family = null) => text.Replace("{town}", plan.Name).Replace("{family}", family ?? "");
+        var houses = plan.Houses.Select(h => gone.Contains(h.Id)
+            ? h with { Kind = HouseKind.Burnt, Layout = null, Text = said.Houses.Length > 0 ? Fill(rng.Pick(said.Houses), h.Family) : h.Text }
+            : h).ToList();
+        var people = plan.People.Select(p =>
+        {
+            var lines = p.Role switch { "gatekeeper" => said.Gate, "guard" => said.Guard, _ => [] };
+            if (lines.Length == 0)
+                return p;
+            var all = p.Lines.ToList();
+            // The gate's law first, as ever; then this.
+            all.Insert(p.Role == "gatekeeper" && all.Count > 0 ? 1 : 0, Fill(rng.Pick(lines)));
+            return p with { Lines = all };
+        }).ToList();
+        return plan with { Houses = houses, People = people, Burnt = harmed.Count };
     }
 
     static List<T> Take<T>(IReadOnlyList<T> from, int count, Pcg32 rng) where T : class

@@ -14,7 +14,7 @@ public class TunnelPlateTests
     {
         var content = DataFile.FindContentRoot();
         int tunnels = 0;
-        foreach (var spec in new[] { "frontier:7", "deadLines:2", "deepTerritory:2", "deepTerritory:5" })
+        foreach (var spec in new[] { "deadLines:1", "deadLines:4", "deepTerritory:20", "deepTerritory:11" })
         {
             var plan = Routes.Generate(content, spec, 10).Plan!;
             foreach (var st in plan.Structures.Where(s => s.Type == StructureType.Tunnel))

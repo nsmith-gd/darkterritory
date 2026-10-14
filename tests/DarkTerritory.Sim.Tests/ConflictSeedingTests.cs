@@ -46,16 +46,16 @@ public class ConflictSeedingTests
     /// <summary>Only these kinds priced (the rest out of reach), no grace, a decision a second.</summary>
     static EnemyTuning Priced(Dictionary<string, double> costs, Func<DirectorTuning, DirectorTuning>? with = null)
     {
-        var d = Tuning.Enemies.Director with
+        var d = EveryKind.Enemies.Director with
         {
             GraceMinSeconds = 0,
             GraceMaxSeconds = 0,
             Pressure = Tuning.Eager,
             Draw = Tuning.Unheld,
             CooldownSeconds = [1, 1],
-            Costs = Tuning.Enemies.Director.Costs.ToDictionary(c => c.Key, c => costs.GetValueOrDefault(c.Key, 1e9)),
+            Costs = EveryKind.Enemies.Director.Costs.ToDictionary(c => c.Key, c => costs.GetValueOrDefault(c.Key, 1e9)),
         };
-        return Tuning.Enemies with { Director = with?.Invoke(d) ?? d };
+        return EveryKind.Enemies with { Director = with?.Invoke(d) ?? d };
     }
 
     [Fact]
@@ -112,11 +112,11 @@ public class ConflictSeedingTests
     [Fact]
     public void TheTableIsInTheTuningAndOnlyNamesThingsThereAre()
     {
-        var d = Tuning.Enemies.Director;
+        var d = EveryKind.Enemies.Director;
         Assert.NotEmpty(d.Conflicts);
         var known = d.Costs.Keys.Concat(["choir", "grade", "facilityLoading", "facilityStop"]).ToHashSet();
         // GDD v1.1 App. B.1's eight pairs, the Moose's four (note 339) and the Gannet's three (note 340).
-        Assert.Equal(15, d.Conflicts.Length);
+        Assert.Equal(25, d.Conflicts.Length);
         Assert.All(d.Conflicts.SelectMany(p => p), side => Assert.Contains(side, known));
         Assert.Equal(1, d.PairsPerRun["frontier"]);
         Assert.Equal(2, d.PairsPerRun["deepTerritory"]);
@@ -126,9 +126,9 @@ public class ConflictSeedingTests
     public void ADraggerNobodyWalksOverLetsGoAndFreesItsPlaceInTheFlank()
     {
         // Under the lip all night, two Draggers held the flank's two places for the whole run (T64): no Climbers, no Gaunt.
-        var world = Night(Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } }, Frontier(), at: 40_000, speed: 12);
+        var world = Night(EveryKind.Enemies with { Director = EveryKind.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } }, Frontier(), at: 40_000, speed: 12);
         var dragger = world.AddEnemy(id => Dragger.Under(id, world.Train, 2, 1, 0));
-        Run(world, Tuning.Enemies.Draggers.LingerSeconds - 5, 12);
+        Run(world, EveryKind.Enemies.Draggers.LingerSeconds - 5, 12);
         Assert.False(dragger.Gone);
         Run(world, 10, 12);
         Assert.True(dragger.Gone);

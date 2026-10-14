@@ -21,7 +21,7 @@
   "couplingSlack": 0.4,
   "couplingBreak": 320,
   // The car that comes off first is thrown off its curve: sideways at this share of its speed, slewing and rolling outward.
-  "kickLateral": 0.3,
+  "kickLateral": 0.45,
   "kickYaw": 0.9,
   "kickRoll": 1.6,
   // Note 330 (#69, the director, 7 Oct: "took a curve going into a yard at 30 kilometers an hour ... glided off the rails ...
@@ -42,9 +42,16 @@
   "jostleMin": 2.5,
   "jostleUp": 2,
   "jostleRoll": 1.4,
-  // The first seconds play slowed (the cinematic beat), then real time.
-  "slowSeconds": 2.5,
-  "slowRate": 0.35,
+  // Note 579 (the director, 9 Oct 2026: "cars basically being blasted off the tracks in a comedic way"): every car, the first
+  // too, is popped up blastUp (m/s, give or take blastSpread of it, each its own draw) as its wheels come off, and set
+  // tumbling end over end and about its length up to blastRoll (rad/s): the train goes up in the air, not only over.
+  "blastUp": 6,
+  "blastSpread": 0.4,
+  "blastRoll": 2.5,
+  // The first seconds play slowed (the cinematic beat), then real time. Note 579 (the director, 9 Oct 2026: "When derailment
+  // happens things need to slow right down"): slowed for slowSeconds of real time at slowRate, which the replay shows again.
+  "slowSeconds": 6,
+  "slowRate": 0.2,
   // Done when every car's under this (m/s and rad/s) for settleHold seconds, or after maxSeconds whatever.
   "settleSpeed": 0.25,
   "settleHold": 1.5,
@@ -104,11 +111,14 @@
   // A player's shot shows the throw into their death and a little after (baseSlow 0.4x easing to peakSlow 0.15x, inside
   // E.10's 0.1-0.5x and 0.05-0.25x; E.5 had 0.25x and 0.1x, too little of the throw in 2 s), framed at shotFill of the
   // frame's height (E.4 O6: 25-60%), its field of view fovMin-fovMax degrees.
+  // Note 579 (the director, 9 Oct 2026: "show the derailment happening in slow motion with people being thrown all over the
+  // place"): to the top of E.10's ranges, fling x2.0, kick 4-6 m/s, spin 4.5-8 rad/s; and slower, baseSlow 0.3x easing to
+  // peakSlow 0.1x (E.10: 0.1-0.5x and 0.05-0.25x).
   // Take 4 (App. F.2: "people mid-task", not arms up): each goes in from what they were doing (on the throttle, at the
   // shovel, in the gun's seat, carrying), the pose held taskHold s of the recording before the brace takes over.
   "film": {
-    "seconds": 6, "substeps": 4, "fling": 1.6, "kickMin": 3, "kickMax": 5, "spin": 7, "spinMin": 3.5, "ejectCap": 30, "minKickSpeed": 6,
-    "bystander": 25, "baseSlow": 0.4, "peakSlow": 0.15, "freezeSeconds": 0.4, "establishingSeconds": 3, "shotSeconds": 4,
+    "seconds": 6, "substeps": 4, "fling": 2.0, "kickMin": 4, "kickMax": 6, "spin": 8, "spinMin": 4.5, "ejectCap": 30, "minKickSpeed": 6,
+    "bystander": 25, "baseSlow": 0.3, "peakSlow": 0.1, "freezeSeconds": 0.4, "establishingSeconds": 3, "shotSeconds": 4,
     "shotMin": 4, "shotCap": 32, "settleSeconds": 3, "causeSeconds": 2, "cameraRadius": 0.3, "minDistance": 2.5,
     "lensClearance": 1.5, "simRadius": 300,
     "seatKick": 6, "seatClear": 0.25, "surviveHits": 2, "mostHits": 3, "certainDeathSpeed": 16, "giveUpSeconds": 2.4, "muscle": 0.25, "reach": 0.03,

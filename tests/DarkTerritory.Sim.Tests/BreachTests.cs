@@ -234,7 +234,8 @@ public class BreachTests
     }
 
     [Theory]
-    [InlineData(true, false)] // lit (and empty): in, but the decision's breach is the unlit car's (climbers.breachLitCars)
+    [InlineData(true, false)] // lit (and empty), shut up tight: passed over, nothing forced (note 633's litShutCarKeepsOut)
+    [InlineData(true, true)] // lit (and empty), a door left open: in that way, the decision's breach is the unlit car's
     [InlineData(false, true)] // a door left open: in that way, nothing forced
     public void ClimbersInThroughNoForcingLeaveItWhole(bool lit, bool doorOpen)
     {
@@ -246,7 +247,10 @@ public class BreachTests
         var c = r.World.AddEnemy(id => Climber.Pacing(id, r.Train, car, 1, E.Climbers));
         r.Run(E.Climbers.PaceSeconds + E.Climbers.ScrabbleSeconds + 20);
         Assert.True(c.Inside);
-        Assert.Equal(car, c.Attached);
+        if (lit && !doorOpen)
+            Assert.NotEqual(car, c.Attached);
+        else
+            Assert.Equal(car, c.Attached);
         Assert.False(r.Train.Vehicles[car].Breached);
     }
 

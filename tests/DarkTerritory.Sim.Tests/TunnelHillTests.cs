@@ -14,10 +14,10 @@ public class TunnelHillTests
     static readonly string Content = DataFile.FindContentRoot();
 
     [Theory]
-    [InlineData("deadLines:3")]
-    [InlineData("deepTerritory:2")]
-    [InlineData("deadLines:8")]
-    [InlineData("deepTerritory:4")]
+    [InlineData("deadLines:1")]
+    [InlineData("deepTerritory:21")]
+    [InlineData("deadLines:12")]
+    [InlineData("deepTerritory:51")]
     public void TheHillOverABoreIsTheLandTheCuttingGoesInto(string spec)
     {
         var route = Routes.Generate(Content, spec, 6);

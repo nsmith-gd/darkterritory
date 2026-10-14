@@ -92,7 +92,7 @@ public static class Combinations
         EnemyKind.TrackDoll, EnemyKind.CinderHound, EnemyKind.CarHugger, EnemyKind.Climber, EnemyKind.Dragger, EnemyKind.Whistler,
         EnemyKind.Stoker, EnemyKind.TippyToesie, EnemyKind.FireFlies, EnemyKind.Ribbit, EnemyKind.Gaunt, EnemyKind.Follower,
         EnemyKind.SootChildren, EnemyKind.Choir, EnemyKind.Passenger, EnemyKind.Switchman, EnemyKind.Grumbler, EnemyKind.Moose,
-        EnemyKind.Gannet,
+        EnemyKind.Gannet, EnemyKind.FreightBeetle,
     ];
 
     /// <summary>
@@ -132,7 +132,7 @@ public static class Combinations
     public static IReadOnlySet<EnemyKind> AtStops { get; } = new HashSet<EnemyKind>
     {
         EnemyKind.Whistler, EnemyKind.Ribbit, EnemyKind.Gaunt, EnemyKind.Follower, EnemyKind.SootChildren, EnemyKind.Passenger, EnemyKind.Grumbler,
-        EnemyKind.Moose,
+        EnemyKind.Moose, EnemyKind.FreightBeetle,
     };
 
     /// <summary>
@@ -188,11 +188,11 @@ public static class Combinations
             tries.AddRange(route.Features.Where(f => f.Kind is FeatureKind.Marsh or FeatureKind.Bridge).Select(f => (f.Start + f.End) * 0.5 - e.CarHugger.LurkAheadMin - lead));
         if (kinds.Contains(EnemyKind.Switchman))
             tries.AddRange(line.Branches.Where(b => b.Kind == Rail.BranchKind.DeadLine).Select(b => b.Toe - e.Switchman.Ahead[0] - lead));
-        for (double s = yard + 400; s < route.Length - 4000; s += 50)
+        for (double s = yard + 400; s < route.RunLength - 4000; s += 50)
             tries.Add(s);
         double best = -1;
         int bestMet = -1;
-        foreach (double s in tries.Where(s => s >= yard + 400 && s < route.Length - 4000))
+        foreach (double s in tries.Where(s => s >= yard + 400 && s < route.RunLength - 4000))
         {
             if (!Clear(s))
                 continue;

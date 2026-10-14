@@ -27,8 +27,17 @@ public sealed record TownTuning
     public required int[] Ring { get; init; }
     public required int[] LinesPerPerson { get; init; }
     public double ScrapShare { get; init; }
+    /// <summary>The share of walled towns with one of Dave's murals on a wall (note 570).</summary>
+    public double DaveMural { get; init; }
+    /// <summary>The share of towns with Nicki's party in an open house, and how many guests she has (note 571).</summary>
+    public double Nicki { get; init; }
+    public int[] NickiGuests { get; init; } = [2, 4];
+    /// <summary>Nicki's wine (note 571): taken by holding Use by her, a glass a crewmate a night.</summary>
+    public NickiWine Wine { get; init; } = new();
     public required int[] Quirks { get; init; }
     public required int[] Notices { get; init; }
+    /// <summary>How many of the board's notices are the town's own (its culture's <c>board</c>; note 669).</summary>
+    public int BoardOwn { get; init; }
     public required int[] LooseNotes { get; init; }
     public required TownReach Reach { get; init; }
     public double TypePerSecond { get; init; } = 45;
@@ -60,6 +69,10 @@ public sealed record SquareTuning
     public double BuildingDepth { get; init; }
     public double HallWidth { get; init; }
     public double OfficeWidth { get; init; }
+    /// <summary>A small town's green (note 490): in its square's rear end, from the end along it and out from the line
+    /// (m), clear of the clerk's office, the stall and the first bench.</summary>
+    public double[] GreenAlong { get; init; } = [5, 17];
+    public double[] GreenOut { get; init; } = [7, 17];
 }
 
 public sealed record ExplorableTuning
@@ -78,6 +91,11 @@ public sealed record StreetTuning
     public double[] GableWidth { get; init; } = [5.4, 7.0];
     public required double[] Depth { get; init; }
     public double FromGate { get; init; } = 30;
+    /// <summary>
+    /// The most houses a town keeps on the line's own street once it has more than that (note 668): the rest stand on
+    /// streets of its own, so a town of forty houses isn't one row down the track.
+    /// </summary>
+    public int LineRow { get; init; } = int.MaxValue;
     public double Burnt { get; init; }
     public double Open { get; init; }
 }
@@ -122,6 +140,11 @@ public sealed record WalledTuning
     public double BendClear { get; init; } = 30;
     /// <summary>How much further back a house may stand than the setback, or nearer (m): the row steps in and out.</summary>
     public double[] SetbackJitter { get; init; } = [0, 0];
+    /// <summary>How far a shut house on a street stands off true (degrees), and how many do (note 490); none when 0.</summary>
+    public double[] Turn { get; init; } = [0, 0];
+    public double TurnChance { get; init; }
+    /// <summary>How far the row facing the green across its far street turns to it at the green's ends (degrees; note 490).</summary>
+    public double Crescent { get; init; }
     /// <summary>The most streets a side.</summary>
     public int MaxStreets { get; init; } = 5;
     /// <summary>
@@ -187,6 +210,19 @@ public sealed record TownWriting
     public Dictionary<string, TownWork[]> Works { get; init; } = [];
     /// <summary>What the people of a walled town say of living inside it (note 353): what becomes of those who rarely leave.</summary>
     public string[] Walled { get; init; } = [];
+    /// <summary>A town that's had a creature brought in through its gate, remembering it (note 608); none, it says nothing of it.</summary>
+    public TownBroughtIn? BroughtIn { get; init; }
+}
+
+/// <summary>
+/// What a town says of the creatures brought in through its gate (note 608), once it's had one: a house it burnt, looked at
+/// ({family}), and what its gatekeeper and its guards say first ({town}).
+/// </summary>
+public sealed record TownBroughtIn
+{
+    public string[] Houses { get; init; } = [];
+    public string[] Gate { get; init; } = [];
+    public string[] Guard { get; init; } = [];
 }
 
 /// <summary>
@@ -227,6 +263,8 @@ public sealed record TownCulture
     public required TownCentrepiece Centrepiece { get; init; }
     public required string[] Lines { get; init; }
     public required TownText[] Notes { get; init; }
+    /// <summary>What only this town pins on its board, in its own voice (note 669): a few each night, after its order.</summary>
+    public TownText[] Board { get; init; } = [];
 }
 
 public sealed record TownCentrepiece(string Kind, string Name, string Text);
@@ -284,4 +322,18 @@ public sealed record TownContent(TownTuning Tuning, TownWriting Writing, IReadOn
             surnames = [.. surnames.Concat(folk.Surnames).Distinct(StringComparer.Ordinal)];
         return new TownContent(DataFile.Load<TownTuning>(tuning), words, surnames) { Looks = HouseLooks.Load(content), Folk = folk };
     }
+}
+
+/// <summary>
+/// tuning/towns.json <c>wine</c> (note 571; the director, 9 Oct: "when Nicki offers wine to the players they should get extra
+/// health for the next run if they take it"). She's only ever in the departure town, before the night sets out, so the run
+/// it's for is the one about to start: <see cref="Health"/> over full, until it's knocked off them like any other.
+/// </summary>
+public sealed record NickiWine
+{
+    /// <summary>How close to her (m), and how long Use is held by her to take a glass (s).</summary>
+    public double Reach { get; init; } = 2.6;
+    public double HoldSeconds { get; init; } = 0.8;
+    /// <summary>The health it's worth, on top of whatever they have.</summary>
+    public int Health { get; init; } = 25;
 }

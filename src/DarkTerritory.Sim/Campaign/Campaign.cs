@@ -1,6 +1,7 @@
 using Ballast;
 using DarkTerritory.Sim.Combat;
 using DarkTerritory.Sim.Enemies;
+using DarkTerritory.Sim.Physics;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Train;
@@ -13,21 +14,15 @@ public sealed record CampaignTuning(int StartingCars, double StartingScrip, int 
 {
     public const string File = "tuning/campaign.json";
     /// <summary>What the board's contracts carry (campaign.json <c>contracts</c>; GDD §9, §19, App. B.9; note 182).</summary>
-    public ContractTuning Contracts { get; init; } = new();
     /// <summary>The departure's stores (campaign.json <c>stores</c>; GDD §9; note 182). Unset, the fortress sells none.</summary>
     public StoresTuning? Stores { get; init; }
     /// <summary>Taking a car off the consist (campaign.json <c>sellCar</c>; GDD §9 "add or remove railcars"). Unset, it can't.</summary>
     public SellCarTuning? SellCar { get; init; }
-}
-
-/// <summary>
-/// campaign.json <c>contracts</c>: the freight the board's ordinary contracts are drawn from, one each by its seed, and whether
-/// the board carries a comet contract besides (App. B.9: "the high-risk contract ... the best freight payout").
-/// </summary>
-public sealed record ContractTuning
-{
-    public IReadOnlyList<CargoKind> Cargo { get; init; } = [];
-    public bool Comet { get; init; }
+    /// <summary>
+    /// A train taken at dawn ends the campaign (campaign.json <c>dawnEndsCampaign</c>; the director, the inbox, 12 Oct, note
+    /// 632: "the campaign ends", roguelike): the save is closed, and the next start is a new crew. Unset, the crew goes on.
+    /// </summary>
+    public bool DawnEndsCampaign { get; init; }
 }
 
 /// <summary>One line of the fortress's stores: its price, how many a night takes at most, and what each holds.</summary>
@@ -58,13 +53,19 @@ public sealed record SpareKitTuning(double Cost, int Most);
 public sealed record TierStep(RouteTier Tier, int FromCars);
 public enum UpgradeSize : byte { Small, Major }
 public sealed record UpgradeDef(string Id, string Name, UpgradeSize Size, double CostShare, Dictionary<string, double> Effect);
-public sealed record StandardCrew(double SmallShare, double MajorShare, int MajorEvery, double LossFraction, double RunningCosts);
+/// <summary>The yardstick crew for <see cref="Campaign.Simulate"/>; <c>Loads</c> is the car-loads a competent delivered night
+/// brings home on each tier (note 636: the train leaves empty, note 575, and a night earns what its stops load), and a tier
+/// it doesn't name loads every car but the guard.</summary>
+public sealed record StandardCrew(double SmallShare, double MajorShare, int MajorEvery, double LossFraction, double RunningCosts,
+    Dictionary<string, double>? Loads = null);
 
 /// <summary>
-/// A night on the board at the fortress: a route, the freight the train leaves with, and what a car of it pays (spec F.1; GDD
-/// §9 "choose freight contracts", §19; note 182). A save from before cargo reads as goods.
+/// A night on the board at the fortress: a route and its tier, and what a car-load pays on it (spec F.1; GDD §9 "choose a
+/// route"; note 637: "Just a route", the director, the inbox, 12 Oct). The train leaves empty (note 575), and what the cars
+/// carry home is whatever its stops load, each car paid by its freight's rate (run.json economy.cargoRates). A save from
+/// when a contract named a freight reads the same: the freight is dropped.
 /// </summary>
-public sealed record Contract(RouteTier Tier, ulong Seed, double PerCar, CargoKind Cargo = CargoKind.Goods)
+public sealed record Contract(RouteTier Tier, ulong Seed, double PerCar)
 {
     /// <summary>The route spec the session builds (<c>frontier:7</c>).</summary>
     public string Route => $"{char.ToLowerInvariant(Tier.ToString()[0])}{Tier.ToString()[1..]}:{Seed}";
@@ -86,6 +87,16 @@ public sealed record CarState(int Id, double Load, double Integrity, double Carg
 public sealed record RakeSave(int[] Vehicles, int Path, double Distance, bool Handbrake, bool Locked);
 
 /// <summary>
+/// A thing aboard at the autosave (note 500): its kind, the car it's in and where its middle is in that car's frame, its size
+/// and how it lies, the locker it's on a shelf of and which shelf (−1: none), and what's its own: a crate's cargo, a find's
+/// owner (which find), an extinguisher's mount and charge, a toy's noise, a radio broken, a shelved tool's tool (note 649),
+/// a crate loaded (in its car's saved load already, note 659).
+/// </summary>
+public sealed record ThingAboard(BodyKind Kind, int Car, Double3 At, double Radius, double Friction, double Bounce, double Yaw = 0, int Locker = -1,
+    int Slot = 0, bool Claimed = true, CargoKind Cargo = CargoKind.None, int Owner = -1, int Home = -1, double Charge = 1,
+    ToyNoise Noise = ToyNoise.None, bool Broken = false, ulong Tools = 0, bool Loaded = false);
+
+/// <summary>
 /// Spec E "autosave per POI, on successful departure": enough of a night to start it again from the facility the
 /// train last left, if the session is lost.
 /// </summary>
@@ -104,6 +115,18 @@ public sealed record RunCheckpoint(string Route, int Facility, double Seconds, d
     /// older save, which rebuilds the train from its own cars.
     /// </summary>
     public RakeSave[]? Rakes { get; init; }
+
+    /// <summary>
+    /// What the night had taken and spent (note 500): its finds stowed and their pay, the mail, the coal and rounds on the
+    /// bill. Null for an older save, whose resumed night counts from the save.
+    /// </summary>
+    public RunTakings? Takings { get; init; }
+
+    /// <summary>
+    /// Everything aboard the train's cars as it left (note 500), put back in place of a fresh stocking: the kit where it was
+    /// put, a rescued child, the lamps, radios, toys and finds. Null for an older save, which stocks the train afresh.
+    /// </summary>
+    public ThingAboard[]? Aboard { get; init; }
 }
 
 /// <summary>What a host owns between nights (spec E: the host owns the campaign). Saved as text, one file a slot.</summary>
@@ -139,6 +162,21 @@ public sealed record CampaignState
     public Stores Stores { get; init; } = new();
     /// <summary>The custom of the last night's departure town (note 281): the next one won't share it. Null before the first.</summary>
     public string? LastTown { get; init; }
+    /// <summary>
+    /// The town the crew's in (note 591): the last night's terminus, if they got there. The next night departs from it. Null
+    /// before the first night, or after one that didn't arrive (the crew's where they were).
+    /// </summary>
+    public Towns.TownAt? Town { get; init; }
+    /// <summary>
+    /// The towns the crew's brought creatures into (note 608), by <see cref="Towns.TownAt.Key"/>: how many of each one's houses
+    /// burnt. Arrived at again, the town's still missing them.
+    /// </summary>
+    public IReadOnlyDictionary<string, int> Burnt { get; init; } = new Dictionary<string, int>();
+    /// <summary>
+    /// The campaign's over (note 632; the director, the inbox, 12 Oct: a train taken at dawn ends it): the company has no more
+    /// trains for this crew. The save is kept to be read, and the slot's next start is a new crew.
+    /// </summary>
+    public bool Over { get; init; }
 }
 
 /// <summary>What a purchase came to: the new state, or why not.</summary>
@@ -167,37 +205,19 @@ public static class Campaign
     public static RouteTier TierFor(CampaignTuning t, int cars) => t.Tiers.Where(x => cars >= x.FromCars).OrderBy(x => x.FromCars).Last().Tier;
 
     /// <summary>
-    /// Tonight's board: the consist's own tier, and one from below if there is one, each carrying a freight drawn from
-    /// campaign.json's list; then, if the board carries one, a comet contract at the consist's tier, the best-paying freight
-    /// there is (App. B.9). The same every time for the same night.
+    /// Tonight's board: routes at the consist's own tier, and one from the tier below if there is one (note 637: a contract
+    /// is just a route). The same every time for the same night. None for a campaign that's over (note 632).
     /// </summary>
     public static IReadOnlyList<Contract> Offers(CampaignTuning t, RunTuning run, CampaignState s)
     {
+        if (s.Over)
+            return [];
         var tier = TierFor(t, s.Cars);
         var tiers = Enumerable.Repeat(tier, Math.Max(1, t.ContractsOffered - (tier > RouteTier.Local ? 1 : 0))).ToList();
         if (tier > RouteTier.Local && t.ContractsOffered > 1)
             tiers.Add(tier - 1);
-        var board = tiers.Select((tr, i) => Offer(run, tr, SeedFor(s, i), CargoFor(t, s, i))).ToList();
-        if (t.Contracts.Comet)
-            board.Add(Offer(run, tier, SeedFor(s, board.Count), CargoKind.Comet));
-        return board;
+        return [.. tiers.Select((tr, i) => new Contract(tr, SeedFor(s, i), PerCar(run, tr)))];
     }
-
-    static Contract Offer(RunTuning run, RouteTier tier, ulong seed, CargoKind cargo) => new(tier, seed, PerCar(run, tier, cargo), cargo);
-
-    /// <summary>An ordinary contract's freight: one of campaign.json's list, by the night and the slot on the board.</summary>
-    static CargoKind CargoFor(CampaignTuning t, CampaignState s, int i)
-    {
-        var pool = t.Contracts.Cargo;
-        if (pool.Count == 0)
-            return CargoKind.Goods;
-        ulong h = s.Seed * 0xD6E8FEB86659FD93UL ^ (ulong)(s.Runs + 1) * 0xA0761D6478BD642FUL ^ (ulong)(i + 1) * 0xE7037ED1A0B428DBUL;
-        h ^= h >> 31;
-        return pool[(int)(h % (ulong)pool.Count)];
-    }
-
-    /// <summary>What a car of <paramref name="cargo"/> pays on <paramref name="tier"/>: the tier's value by the cargo's rate (run.json economy.cargoRates).</summary>
-    public static double PerCar(RunTuning run, RouteTier tier, CargoKind cargo) => Math.Round(PerCar(run, tier) * run.Economy.Rate(cargo));
 
     static ulong SeedFor(CampaignState s, int i)
     {
@@ -206,11 +226,10 @@ public static class Campaign
         return 1 + h % 9999;
     }
 
-    public static double PerCar(RunTuning run, RouteTier tier)
-    {
-        string key = char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..];
-        return run.Economy.PerCar.GetValueOrDefault(key, 700);
-    }
+    public static double PerCar(RunTuning run, RouteTier tier) => run.Economy.PerCar.GetValueOrDefault(Key(tier), 700);
+
+    /// <summary>A tier's key in the tuning files ("deadLines").</summary>
+    static string Key(RouteTier tier) => char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..];
 
     public static Purchase BuyCar(CampaignTuning t, CampaignState s)
     {
@@ -310,16 +329,45 @@ public static class Campaign
         };
     }
 
-    /// <summary>Starts a night on a contract from the board.</summary>
-    public static CampaignState Begin(CampaignState s, Contract c) => s with { Current = c, Checkpoint = null };
+    /// <summary>
+    /// Where a night arrived (note 591): delivered to a town (not a silent settlement), the crew's in it now, and the next
+    /// night departs from it. Anything else, they're where they were.
+    /// </summary>
+    /// <para>The houses its creatures burnt there (note 608) are remembered against the town, with any from an earlier visit,
+    /// and the town the crew's in carries them, so the next night's departure town has them burnt out.</para>
+    public static CampaignState Arrived(CampaignState s, RunReport report, Towns.TownAt? terminus)
+    {
+        if (report.End != RunEnd.Delivered || terminus is null)
+            return s;
+        int burnt = s.Burnt.GetValueOrDefault(terminus.Key) + report.TownBurnt;
+        if (burnt <= 0)
+            return s with { Town = terminus };
+        var all = new SortedDictionary<string, int>(s.Burnt.ToDictionary(), StringComparer.Ordinal) { [terminus.Key] = burnt };
+        return s with { Town = terminus with { Burnt = burnt }, Burnt = all };
+    }
+
+    /// <summary>The route spec a contract's night is played on: from the town the crew's in, if it's in one (note 591).</summary>
+    public static string RouteOf(CampaignState s, Contract c) => Towns.TownAt.With(c.Route, s.Town);
+
+    /// <summary>Starts a night on a contract from the board. A campaign that's over (note 632) has no more nights.</summary>
+    public static CampaignState Begin(CampaignState s, Contract c) =>
+        s.Over ? throw new InvalidOperationException($"{s.Name}'s campaign is over: the company has no more trains for them") : s with { Current = c, Checkpoint = null };
+
+    /// <summary>
+    /// Whether a night that ended this way ends the campaign (note 632; the director, the inbox, 12 Oct): a train taken at dawn
+    /// (<see cref="RunEnd.DawnMissed"/>), with campaign.json <c>dawnEndsCampaign</c>. A derailment, a crew lost or a night
+    /// stranded is settled and the crew goes on.
+    /// </summary>
+    public static bool Ends(CampaignTuning? t, RunEnd end) => end == RunEnd.DawnMissed && t?.DawnEndsCampaign == true;
 
     /// <summary>
     /// GDD §9 arrival: "everything still attached to the locomotive counts". The night's net goes to (or comes out of)
     /// the scrip, and cars left behind are gone from the consist. The spare repair kits are the ones that came home beyond
     /// the train's own (the fortress always issues that one): spares lost in the night are gone, and kits found at a stop
-    /// and brought in are kept (E.12 question 4).
+    /// and brought in are kept (E.12 question 4). A train taken at dawn ends the campaign (<see cref="Ends"/>, note 632): settled
+    /// all the same, so its last night is in the history, and closed.
     /// </summary>
-    public static CampaignState Settle(CampaignState s, RunReport report)
+    public static CampaignState Settle(CampaignState s, RunReport report, CampaignTuning? t = null)
     {
         int cars = Math.Max(2, s.Cars - report.CarsLost);
         double scrip = s.Scrip + report.Net;
@@ -330,7 +378,7 @@ public static class Campaign
         foreach (var (name, look) in report.Identities)
             identities[name] = look;
         // The departure's stores were the night's issue (note 182): spent with it.
-        return s with { Cars = cars, Scrip = scrip, Runs = s.Runs + 1, History = [.. s.History, log], Current = null, Checkpoint = null, SpareKits = spares, Identities = identities, Stores = new() };
+        return s with { Cars = cars, Scrip = scrip, Runs = s.Runs + 1, History = [.. s.History, log], Current = null, Checkpoint = null, SpareKits = spares, Identities = identities, Stores = new(), Over = s.Over || Ends(t, report.End) };
     }
 
     /// <summary>The night's tunings with the crew's spare repair kits aboard (E.12 question 4): stocked in the lockers beside the train's own.</summary>
@@ -411,7 +459,14 @@ public static class Campaign
         return reached;
     }
 
-    /// <summary>Spec F.1: gross on the loaded cars (all but the guard), less running costs and the expected loss.</summary>
-    public static double NetFor(CampaignTuning t, RunTuning run, int cars, StandardCrew crew) =>
-        PerCar(run, TierFor(t, cars)) * (cars - 1) * (1 - crew.RunningCosts) * (1 - crew.LossFraction);
+    /// <summary>Spec F.1: gross on the car-loads a night brings home (note 636: what its stops load, never more than all
+    /// but the guard), less running costs and the expected loss.</summary>
+    public static double NetFor(CampaignTuning t, RunTuning run, int cars, StandardCrew crew)
+    {
+        var tier = TierFor(t, cars);
+        double loads = cars - 1;
+        if (crew.Loads is { } l && l.TryGetValue(Key(tier), out double home))
+            loads = Math.Min(loads, home);
+        return PerCar(run, tier) * loads * (1 - crew.RunningCosts) * (1 - crew.LossFraction);
+    }
 }

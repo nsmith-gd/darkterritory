@@ -117,7 +117,7 @@ public class HardBendTests
         var lg = LineGenContent.Load(Content);
         var c = lg.Config.Tiers.Curves;
         int seen = 0;
-        foreach (var spec in new[] { "deepTerritory:1", "deepTerritory:2", "deepTerritory:3", "deadLines:1", "deadLines:2", "deadLines:4" })
+        foreach (var spec in new[] { "deepTerritory:5", "deepTerritory:33", "deepTerritory:39", "deadLines:14", "deadLines:22", "deadLines:31" })
         {
             var route = Routes.Generate(Content, spec, 6);
             var plan = route.Plan!;
@@ -195,10 +195,14 @@ public class HardBendTests
     public void AFrontierNightAlwaysHasSomewhereToComeOff(ulong seed)
     {
         // Note 265's open call: with the Sleepers gone a Frontier night could have had no point where the train derails.
-        var c = LineGenConfig.Load(Content).Tiers.Curves;
+        // The tier's count of hard bends (three or four on a 24 km night; one or two on the 7 km nights of note 554), and at
+        // least one of them well under the train's top speed.
+        var lg = LineGenContent.Load(Content);
+        var c = lg.Config.Tiers.Curves;
         var route = Routes.Generate(Content, Route.RouteTier.Frontier, seed, 10);
         var bends = HardBends(route, c);
-        Assert.True(bends.Count >= 3, $"frontier:{seed}: {bends.Count} hard bends");
+        var limits = new Limits(lg, RunParameters.Parse($"frontier:{seed}", 10));
+        Assert.True(bends.Count >= Math.Max(1, Math.Floor(limits.Bends[0])), $"frontier:{seed}: {bends.Count} hard bends");
         Assert.Contains(bends, b => Math.Sqrt(c.ADerail / Math.Abs(b.K)) < Tuning.Train.MaxSpeed - 3);
     }
 }

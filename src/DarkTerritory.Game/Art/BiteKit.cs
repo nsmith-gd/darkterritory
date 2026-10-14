@@ -46,6 +46,26 @@ public readonly record struct Bite(float RearZ, float Centre, float Side, float 
         return new Bite(rear, centre, platform + side, w, t.Floor, advance, grip, seed);
     }
 
+    /// <summary>How many bites a Waker takes a car in (note 679): his jaws shut four times over wakers.eatSeconds (waker.py's eat).</summary>
+    public const int WakerBites = 4;
+
+    /// <summary>
+    /// A car a Waker's eating (note 679; the director, 13 Oct 2026: "make the eaten cars get bitten off instead of vanishing"),
+    /// <paramref name="through"/> (0..1) of the way through its eating: bitten off from its rear end a quarter of it at a bite
+    /// (<see cref="WakerBites"/>), the whole of it, underframe and trucks and all, the middle a little deeper than the sides
+    /// where his jaws meet. The last bite takes the rest as the sim has it eaten.
+    /// </summary>
+    public static Bite Waker(CarShape shape, double through, float seed)
+    {
+        float l = (float)shape.HalfLength, w = (float)shape.HalfWidth;
+        float rear = shape.Platform is { } p ? (float)p.Max.Z : l;
+        int bites = (int)Math.Floor(Math.Clamp(through, 0, 1) * WakerBites);
+        if (bites <= 0)
+            return new Bite(rear, 0, 0, w, -100, 0, 0, seed);
+        float depth = (rear + l) * bites / WakerBites;
+        return new Bite(rear, depth, MathF.Max(Step, depth - 0.7f), w, -100, 0, 0, seed);
+    }
+
     /// <summary>A car's bite as it's drawn: off its vehicle (none on the engine), seeded as its scars are.</summary>
     public static Bite For(BiteTuning t, CarShape shape, Vehicle? vehicle, int fallbackId) =>
         Of(t, shape, shape.Cab is null ? vehicle?.Eaten ?? 0 : 0, vehicle?.Integrity ?? 1, ScarSeed(vehicle?.Id ?? fallbackId));

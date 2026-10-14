@@ -137,9 +137,10 @@ public class SwitchAuditTests
         // frontier:7's harness night (8 bots, 9 cars) took both of its Switchmen's dead lines and backed out of each: the
         // driver planned its stop on the bare brake, but with steam driving (T97) the engine pulls against the brake, so it set
         // off for the points too late. Here the dead line's points are thrown 600 m ahead of a train at line speed, as the
-        // Switchman throws them.
+        // Switchman throws them. On the 7 km nights of note 554 frontier:7's dead line leaves past its first stop, too near it
+        // for a run up to line speed; frontier:3's has open line before it.
         var content = DataFile.FindContentRoot();
-        var route = LineGen.Routes.Generate(content, "frontier:7", 9);
+        var route = LineGen.Routes.Generate(content, "frontier:3", 9);
         var line = route.Build();
         var dead = line.Branches.First(b => b.Kind == BranchKind.DeadLine);
         bool thrown = false, tookIt = false;

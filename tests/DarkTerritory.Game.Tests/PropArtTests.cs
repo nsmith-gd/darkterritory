@@ -25,8 +25,12 @@ public class PropArtTests
         {
             var mesh = props.Get(name);
             Assert.NotNull(mesh);
-            // Something there (a lever's handle is only a few dozen; a broken export is none).
-            Assert.True(mesh!.Triangles > 40, $"{name}: {mesh.Triangles} triangles");
+            // Something there (a lever's handle is only a few dozen; a broken export is none). A corrupted tree's distance
+            // copy is its two crossed cards, both faces (note 696): its 8 exactly.
+            if (name.StartsWith("ctree_", StringComparison.Ordinal) && name.EndsWith("_far", StringComparison.Ordinal))
+                Assert.True(mesh!.Triangles == 8, $"{name}: {mesh.Triangles} triangles, not its cards' 8");
+            else
+                Assert.True(mesh!.Triangles > 40, $"{name}: {mesh.Triangles} triangles");
             // Textured with its own maps, not the flat fallback; only pure light (a lamp's bare bulbs) is drawn flat.
             Assert.All(mesh.Vertices, v => Assert.True(v.Layer >= 0 || v.Emissive >= 0.99f, $"{name}: a vertex with no layer"));
             Assert.All(mesh.Vertices, v => Assert.True(float.IsFinite(v.Position.X + v.Position.Y + v.Position.Z)));

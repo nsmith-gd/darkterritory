@@ -149,13 +149,14 @@ public sealed class Stoker(int id) : Enemy(id)
         double reach = ctx.Tuning.Stoker.DoorReach;
         return ctx.Crew.Where(c => c.Player.State.Alive && PlayerMotor.InCab(c.Player.State, ctx.Train)
                 && Flat(c.Player.State.Position - firebox) <= reach)
-            .OrderBy(c => Flat(c.Player.State.Position - firebox)).Select(c => (int?)c.Player.Id).FirstOrDefault();
+            .OrderBy(c => ctx.Weigh(c.Player.Id, Flat(c.Player.State.Position - firebox))).Select(c => (int?)c.Player.Id).FirstOrDefault();
     }
 
     static double Flat(Double3 d) => Math.Sqrt(d.X * d.X + d.Z * d.Z);
 
     /// <summary>
-    /// The hose (note 271): a crewmate in the cab within reach of the fire door, an extinguisher with charge in their hands,
+    /// The hose (note 271; the cab's own since note 648): a crewmate in the cab within reach of the fire door, the cab's hose
+    /// (<see cref="StokerTuning.CabHose"/>) or an extinguisher with charge in their hands,
     /// Fire held for <see cref="StokerTuning.HoseSeconds"/>. The spray opens the door and goes in (no burn: the nozzle's
     /// between them); the Stoker's killed and the fire's left with <see cref="StokerTuning.HoseFireCost"/> of it gone.
     /// </summary>
@@ -170,10 +171,14 @@ public sealed class Stoker(int id) : Enemy(id)
             var s = p.State;
             if (!s.Alive || !intent.Has(PlayerButtons.Fire) || !PlayerMotor.InCab(s, train) || Flat(s.Position - firebox) > reach)
                 continue;
-            if (ctx.World.Bodies.CarriedBy(p.Id) is not { Kind: Physics.BodyKind.Extinguisher, Charge: > 0 } ext)
+            // The cab's own hose (note 648; the director, the inbox, 12 Oct: "b"), off the injector at the door: nothing to
+            // fetch. Without it, an extinguisher with charge stands in.
+            var carried = ctx.World.Bodies.CarriedBy(p.Id);
+            if (!t.CabHose && carried is not { Kind: Physics.BodyKind.Extinguisher, Charge: > 0 })
                 continue;
             any = true;
-            ext.Charge = Math.Max(0, ext.Charge - SimConstants.TickSeconds / ctx.Tuning.CarFire.ChargeSeconds);
+            if (carried is { Kind: Physics.BodyKind.Extinguisher, Charge: > 0 } ext && !t.CabHose)
+                ext.Charge = Math.Max(0, ext.Charge - SimConstants.TickSeconds / ctx.Tuning.CarFire.ChargeSeconds);
             ctx.World.Attribution.Tended(p.Id, ctx.World.Run?.Seconds ?? 0);
         }
         _hosed = any ? _hosed + SimConstants.TickSeconds : 0;

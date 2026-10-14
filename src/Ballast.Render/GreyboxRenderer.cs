@@ -51,6 +51,10 @@ unsafe struct FrameData
     public Vector4 Indoor;
     /// <summary>x <see cref="GreyboxRenderer.HoleSlope"/>, y 1 for <see cref="GreyboxRenderer.ShowUntextured"/>.</summary>
     public Vector4 Probe;
+    /// <summary>xyz towards the stir's line on the horizon (flat), w how strong (<see cref="FrameLighting.Stir"/>).</summary>
+    public Vector4 Stir;
+    /// <summary>rgb its colour.</summary>
+    public Vector4 StirColour;
 }
 
 [StructLayout(LayoutKind.Sequential)]
@@ -511,6 +515,28 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         WriteSets();
     }
 
+    /// <summary>
+    /// Only the far horizon replaced (another night's sky, note 517): the material arrays stay as loaded, so a batch of
+    /// screenshots over many nights loads the look's layers once. Nothing loaded yet: nothing to replace.
+    /// </summary>
+    public void LoadBackdrop(Image? sky)
+    {
+        if (_assets is null)
+            return;
+        Api.vkDeviceWaitIdle();
+        _backdrop.Dispose();
+        _assets = _assets with { Backdrop = sky };
+        _backdrop = UploadBackdrop(_assets);
+        WriteSets();
+    }
+
+    GpuTexture UploadBackdrop(RenderAssets assets)
+    {
+        var sky = assets.Backdrop ?? Image.Solid(4, 0, 0, 0, 0);
+        return new GpuTexture(_gpu, GpuTexture.Kind.Image2D, VkFormat.R8G8B8A8Srgb, sky.Width, sky.Height, [GpuTexture.MipChain(sky)], VkFilter.Linear,
+            VkSamplerAddressMode.Repeat, VkSamplerAddressMode.ClampToEdge, assets.Post.MipBias);
+    }
+
     /// <summary>The loaded material layers kept at full size in the hero arrays (<see cref="RenderAssets.HeroSize"/>).</summary>
     public IEnumerable<string> HeroLayers => _assets is null ? [] : _heroSlot.Select((s, i) => (s, i)).Where(x => x.s >= 0).Select(x => _assets.Layers[x.i].Name);
 
@@ -521,8 +547,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     {
         int size = assets.LayerSize;
         var layers = assets.Layers.Count > 0 ? assets.Layers : [new MaterialLayer("white", Image.Solid(size, 255, 255, 255), Image.Solid(size, 0, 0, 0))];
-        var diffuse = layers.Select(l => (IReadOnlyList<byte[]>)GpuTexture.MipChain(l.Diffuse.Resized(size, size))).ToList();
-        var spec = layers.Select(l => (IReadOnlyList<byte[]>)GpuTexture.MipChain(l.Spec.Resized(size, size))).ToList();
+        var diffuse = GpuTexture.MipChains([.. layers.Select(l => l.Diffuse)], size);
+        var spec = GpuTexture.MipChains([.. layers.Select(l => l.Spec)], size);
         float bias = assets.Post.MipBias;
         // Trilinear and anisotropic: the 2008-2012 look the benchmarks set (BioShock 2, Dead Space). The PS2 comparison
         // mode swaps in the point-sampled, positively biased sampler instead (_crunchy).
@@ -530,9 +556,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             VkSamplerAddressMode.Repeat, VkSamplerAddressMode.Repeat, bias, anisotropy: _gpu.MaxAnisotropy);
         var s = new GpuTexture(_gpu, GpuTexture.Kind.Array2D, VkFormat.R8G8B8A8Unorm, size, size, spec, VkFilter.Linear,
             VkSamplerAddressMode.Repeat, VkSamplerAddressMode.Repeat, bias, anisotropy: _gpu.MaxAnisotropy);
-        var sky = assets.Backdrop ?? Image.Solid(4, 0, 0, 0, 0);
-        var b = new GpuTexture(_gpu, GpuTexture.Kind.Image2D, VkFormat.R8G8B8A8Srgb, sky.Width, sky.Height, [GpuTexture.MipChain(sky)], VkFilter.Linear,
-            VkSamplerAddressMode.Repeat, VkSamplerAddressMode.ClampToEdge, bias);
+        var b = UploadBackdrop(assets);
         var lut = new GpuTexture(_gpu, GpuTexture.Kind.Volume, VkFormat.R8G8B8A8Unorm, ColourGrade.Size, ColourGrade.Size, [[assets.Lut ?? ColourGrade.Identity()]],
             VkFilter.Linear, VkSamplerAddressMode.ClampToEdge, VkSamplerAddressMode.ClampToEdge, depth: ColourGrade.Size);
         return (d, s, b, lut);
@@ -541,11 +565,15 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     /// <summary>
     /// How a layer moves, by its name (the frame's per-layer table; Shaders/frame.glsl <c>motionOf</c>): 1 for the
     /// foliage's cards and boughs, which bend in the wind from their root (scene.vert); 2 for water, whose ripples and
-    /// swell run with the wind and its current (scene.frag; ARCHITECTURE §8 note 424); 0 for everything that stands still.
+    /// swell run with the wind and its current (scene.frag; ARCHITECTURE §8 note 424); 3 for drips, which sag slowly
+    /// from their root and draw back up (scene.vert; the tar tree's, note 696); 4 for a living light whose glow breathes
+    /// (scene.frag; the lantern tree's pods, note 696); 0 for everything that stands still.
     /// </summary>
     public static float Motion(string layer) =>
         layer.EndsWith("_card", StringComparison.Ordinal) || layer.EndsWith("_bough", StringComparison.Ordinal) ? 1
         : layer.StartsWith("water_", StringComparison.Ordinal) ? 2
+        : layer.EndsWith("_drip", StringComparison.Ordinal) ? 3
+        : layer.EndsWith("_pod", StringComparison.Ordinal) ? 4
         : 0;
 
     /// <summary>
@@ -583,7 +611,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             var flat = Image.Solid(at, 128, 128, 255);
             var list = layers.Count > 0 ? layers : [new MaterialLayer("none", Image.Solid(at, 255, 255, 255), Image.Solid(at, 0, 0, 0))];
             GpuTexture Array(Func<MaterialLayer, Image> map, VkFormat format) => new(_gpu, GpuTexture.Kind.Array2D, format, at, at,
-                list.Select(l => (IReadOnlyList<byte[]>)GpuTexture.MipChain(map(l).Resized(at, at))).ToList(), VkFilter.Linear,
+                GpuTexture.MipChains([.. list.Select(map)], at), VkFilter.Linear,
                 VkSamplerAddressMode.Repeat, VkSamplerAddressMode.Repeat, assets.Post.MipBias, anisotropy: _gpu.MaxAnisotropy);
             return (Array(l => l.Diffuse, VkFormat.R8G8B8A8Srgb), Array(l => l.Spec, VkFormat.R8G8B8A8Unorm), Array(l => l.Normal ?? flat, VkFormat.R8G8B8A8Unorm));
         }
@@ -598,7 +626,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         int size = assets.LayerSize;
         var flat = Image.Solid(size, 128, 128, 255);
         var layers = assets.Layers.Count > 0 ? assets.Layers : [new MaterialLayer("white", Image.Solid(size, 255, 255, 255), Image.Solid(size, 0, 0, 0))];
-        var normals = layers.Select(l => (IReadOnlyList<byte[]>)GpuTexture.MipChain((l.Normal ?? flat).Resized(size, size))).ToList();
+        var normals = GpuTexture.MipChains([.. layers.Select(l => l.Normal ?? flat)], size);
         return new GpuTexture(_gpu, GpuTexture.Kind.Array2D, VkFormat.R8G8B8A8Unorm, size, size, normals, VkFilter.Linear,
             VkSamplerAddressMode.Repeat, VkSamplerAddressMode.Repeat, assets.Post.MipBias, anisotropy: _gpu.MaxAnisotropy);
     }
@@ -678,12 +706,18 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             Upload(CollectionsMarshal.AsSpan(_overlayBoth), OverlayVertex.Stride, ref _overlayVertices, ref _overlayMemory, ref _overlayCapacity);
     }
 
+    /// <summary>The meshes the last <see cref="Prepare(MeshBuilder, Overlay?)"/> put on the GPU for the first time, and their
+    /// bytes (a frame's hitch can be its uploads).</summary>
+    public int Uploaded { get; private set; }
+    public long UploadedBytes { get; private set; }
+
     /// <summary>
     /// Uploads geometry, kit instances and lights (and the overlay, if any) for the next <see cref="Record"/>. Call outside
     /// command recording. A multiview renderer given one overlay shows it to both eyes.
     /// </summary>
     public void Prepare(MeshBuilder mesh, Overlay? overlay = null)
     {
+        (Uploaded, UploadedBytes) = (0, 0);
         Upload(mesh.Vertices, (uint)Vertex.Stride, ref _vertices, ref _vertexMemory, ref _vertexCapacity);
         // Now and then, free the GPU copies of pieces nobody holds any more (the line's cells behind the train). Frames
         // are submitted and waited for, so nothing in flight still uses them.
@@ -707,6 +741,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             if (!_meshes.TryGetValue(instance.Asset, out var gpuMesh))
             {
                 var (buffer, memory) = Resident<Vertex>(instance.Asset.Vertices);
+                Uploaded++;
+                UploadedBytes += instance.Asset.Vertices.Length * (long)Vertex.Stride;
                 gpuMesh = new GpuMesh(buffer, memory, instance.Asset.Vertices.Length);
                 if (instance.Asset.Skin is { } skin)
                     (gpuMesh.Skin, gpuMesh.SkinMemory) = Resident<SkinWeights>(skin);
@@ -728,7 +764,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
                 MathF.Max(new Vector3(m.M21, m.M22, m.M23).LengthSquared(), new Vector3(m.M31, m.M32, m.M33).LengthSquared())));
             var sphere = new Vector4(Vector3.Transform(centre, m), radius * scale);
             if (instance.Bones >= 0 && gpuMesh.Skin.IsNotNull)
-                // (Its bind pose's sphere; posed, a limb can reach past it: the hand lamp's cube culls it loosely, SkinSlack.)
+                // (Its bind pose's sphere; posed, a limb can reach past it: the lights' maps cull it loosely, SkinSlack.)
                 _skinDraws.Add((gpuMesh, draw, sphere));
             else
                 _draws.Add((gpuMesh, draw, sphere, instance.Shadowless));
@@ -936,6 +972,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         f->Dawn = new Vector4(lighting.DawnGlow, lighting.Dawn);
         f->Wind = new Vector4(lighting.Wind, lighting.Gusts);
         f->Probe = new Vector4(HoleSlope, ShowUntextured ? 1 : 0, 0, 0);
+        f->Stir = new Vector4(lighting.StirDirection, lighting.Stir);
+        f->StirColour = new Vector4(lighting.StirColour, 0);
         for (int i = 0; i < LayerTable; i++)
             f->MotionOf[i] = i < _motion.Length ? _motion[i] : 0;
     }
@@ -1285,7 +1323,9 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         var offsets = stackalloc ulong[2] { 0, 0 };
         foreach (var (mesh, draw, sphere) in _skinDraws)
         {
-            if (reach > 0 && !Seen(sphere with { W = sphere.W * SkinSlack + 0.5f }, planes, views.Length))
+            // A light's map (the moon's, the headlamp's, the hand lamp's cube) culls them loosely: a town's people behind you
+            // or out of the headlamp's cone are tens of thousands of triangles a pass (note 479). The view itself draws them all.
+            if ((reach > 0 || shadow) && !Seen(sphere with { W = sphere.W * SkinSlack + 0.5f }, planes, views.Length))
                 continue;
             var d = draw;
             Api.vkCmdPushConstants(cmd, _sceneLayout, VkShaderStageFlags.Vertex | VkShaderStageFlags.Fragment, 0, (uint)sizeof(DrawConstants), &d);

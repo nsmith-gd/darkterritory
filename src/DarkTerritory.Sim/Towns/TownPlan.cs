@@ -26,7 +26,14 @@ public sealed record TownPlan(
     string Character = "",
     TownBounds? Bounds = null,
     TownGreen? Green = null,
-    TownWorks? Works = null);
+    TownWorks? Works = null)
+{
+    /// <summary>Its outer gate along the line (the site's), which the houses a creature brought in burns are nearest (note 608).</summary>
+    public double Gate { get; init; }
+
+    /// <summary>How many of its houses were burnt by creatures brought in on earlier nights (note 608).</summary>
+    public int Burnt { get; init; }
+}
 
 /// <summary>
 /// A walled town's green (note 353): across the first street from the square, from <see cref="S0"/> to <see cref="S1"/>
@@ -137,6 +144,9 @@ public sealed record TownSquare(double S0, double S1, int Side, double WallD)
 {
     /// <summary>Whether a point along the line, on a side, is inside the square (a fortress house wouldn't stand there).</summary>
     public bool Holds(double s, int side) => side == Side && s >= S0 && s <= S1;
+
+    /// <summary>This square in the line's frame, for a town standing turned round from <paramref name="turn"/> (note 600).</summary>
+    public TownSquare Turned(double turn) => new(turn - S1, turn - S0, -Side, -WallD);
 }
 
 /// <summary>One of the square's buildings, backed onto its far wall, its front to the line. <see cref="Kind"/>: hall,
@@ -153,7 +163,11 @@ public sealed record TownBuilding(string Kind, string Name, double S, double D, 
 /// temperament and how they came by their name (note 474); null where the content has no townsfolk matrix.
 /// </summary>
 public sealed record Townsperson(int Id, string Name, string Title, string Role, double S, double D, double Up, double FaceS, double FaceD, int Look,
-    IReadOnlyList<string> Lines, int House = -1, string Pose = "idle", string Gear = "respirator", TownPersonality? Personality = null);
+    IReadOnlyList<string> Lines, int House = -1, string Pose = "idle", string Gear = "respirator", TownPersonality? Personality = null)
+{
+    /// <summary>Nicki, the host of the party (note 571): the one with the wine.</summary>
+    public bool Hosting { get; init; }
+}
 
 /// <summary>
 /// A paper to read: a notice on the board (<see cref="OnBoard"/>, read in turn there), or a note left lying about at

@@ -134,9 +134,11 @@ public sealed record FortressTemplate(double DepartureRoadExtraM, double ThroatM
     double LastLightM, double[] DressingTransitionM, double YardSpeed, int[] ThroatSwitches, string[] Identities, double MaxThresholdGrade,
     double ThresholdMinRadius, double PadM = 70);
 
-/// <summary>§11.4: the terminus and arrival.</summary>
+/// <summary>§11.4: the terminus and arrival. <see cref="TownYard"/> (note 600): a terminus that answers is a town, the one
+/// the next night departs from, so its yard is the departure yard's length and its ground the fortress's pad;
+/// <see cref="ArrivalYardM"/> is a silent settlement's (or every terminus's, without it).</summary>
 public sealed record TerminusTemplate(double SkyGlowM, double YardLimitBoardM, double SpawnBanM, double WallsResolveM, double ArrivalYardM,
-    double YardLimitSpeed, RouteTier SilentFromTier, double HomeStraightMinRadius);
+    double YardLimitSpeed, RouteTier SilentFromTier, double HomeStraightMinRadius, bool TownYard = false);
 
 /// <summary>§6.3.</summary>
 public sealed record JunctionRules(double TangentClearM, double MaxGrade, double LampVisibleM, double SeparationM, double SeparationWithinM, double PadM,
@@ -272,10 +274,13 @@ public sealed record BiomesFile(Dictionary<string, BiomeDef> Biomes, Dictionary<
     double TransitionM, Dictionary<string, double> CorruptionNear, ScatterRules Scatter);
 
 /// <summary>A biome (§13.1): what grows, what the ground is, how rough, and which set pieces it favours (§7.5).</summary>
+/// <param name="CorruptedTrees">The share of its trees the Corruption has (note 696; the director, 13 Oct 2026: about three
+/// in ten of all the trees), living or dead.</param>
+/// <param name="CorruptedKinds">Which of the corrupted trees' kinds grow here, by weight (the art's alone: CorruptedTreeArt).</param>
 public sealed record BiomeDef(string Name, string Ground, string[] Materials, double NoiseScale, double TreeDensity, string[] Trees, double DeadTrees,
     double Water, Dictionary<string, double> Pieces, Dictionary<string, double> Flora, double Rocks, string Verge, Dictionary<string, PropRule> Props,
     Dictionary<string, double> Landform, double LakesPerKm, double Shore, string ShoreKind, double SweepChance, bool TidalRivers, double Roads, double[] Colour,
-    string? Ballast = null, double[]? BallastTint = null);
+    string? Ballast = null, double[]? BallastTint = null, double CorruptedTrees = 0, Dictionary<string, double>? CorruptedKinds = null);
 
 /// <summary>A dressing piece a biome stands along the line: per 150 m, its chance, how far out, how many.</summary>
 public sealed record PropRule(double Chance, double[] OutM, int Count);
@@ -312,10 +317,84 @@ public sealed record PoiScale(double[] PadRadiusM, double[] SpurScale);
 // ---------------------------------------------------------------- signage.json
 
 public sealed record SignageFile(Dictionary<string, BoardDef> Boards, double KmPostEveryM, double MinorPostEveryM, double SideOffsetM,
-    Dictionary<string, double> StateWeights, double RepeatBoardGapM, double WhistleBeforeM, double GradientPostMinShare);
+    Dictionary<string, double> StateWeights, double RepeatBoardGapM, double WhistleBeforeM, double GradientPostMinShare)
+{
+    /// <summary>How the lettered boards stand, read and shine (signage.json "billboard", note 560).</summary>
+    public BillboardRules Billboard { get; init; } = new();
+    /// <summary>
+    /// How far past a stop a junction's or facility's far board stands, when the stop comes between it and what it counts to
+    /// (note 702: "J1, one kilometer ... came before the Talbot Foundry stop though, so that's a bit confusing").
+    /// </summary>
+    public double PastStopM { get; init; } = 300;
+}
 
-/// <summary>A kind of lineside board (§9.5, §18 signage kit).</summary>
-public sealed record BoardDef(string Text, double HeightM, double WidthM, double VisibleM, bool Reflective);
+/// <summary>
+/// A kind of lineside board (§9.5, §18 signage kit). <see cref="HeightM"/>: a tunnel plate's top on its portal, a board's
+/// bottom edge over the rail; <see cref="WidthM"/> its least width (a plate's most). Lettered <see cref="LetterM"/> tall, at
+/// most <see cref="LineChars"/> to a line (note 560).
+/// </summary>
+public sealed record BoardDef(string Text, double HeightM, double WidthM, double VisibleM, bool Reflective)
+{
+    public double LetterM { get; init; } = 1;
+    public int LineChars { get; init; } = 9;
+    /// <summary>It warns of what's ahead (a limit, a closed line): moved to be seen, it's only ever moved back toward the train.</summary>
+    public bool Warns { get; init; }
+    /// <summary>
+    /// The side it stands on, if not the billboards' (1 the right, as the train coming sees it): the km posts by the poles,
+    /// low, out of the billboards' way (`pt13-signs`). 0: billboard.side.
+    /// </summary>
+    public int Side { get; init; }
+    /// <summary>It stands where the plan puts it (a km post marks its km): never moved, and the billboards keep clear of it instead.</summary>
+    public bool Fixed { get; init; }
+    /// <summary>
+    /// It stands on the side its sign gives, whatever billboard.side, and never moved across the line: a mail board on its
+    /// crane's side, so the board and its arrow say the same side (the director's evening playtest, line 10: "I have a mail
+    /// sign here that's pointing in the wrong direction"; note 702).
+    /// </summary>
+    public bool SignSide { get; init; }
+    /// <summary>How far its bottom stands over the land at its foot at least (m), if not billboard.overGroundM (0): a km post low, under the eye line.</summary>
+    public double OverGroundM { get; init; }
+}
+
+/// <summary>Mirror of signage.json's <c>billboard</c> (note 560): field docs live in that file.</summary>
+public sealed record BillboardRules
+{
+    public int Side { get; init; } = -1;
+    public double StackM { get; init; } = 60;
+    public double StackGapM { get; init; } = 0.5;
+    public double StackMaxM { get; init; } = 24;
+    public double PostClearM { get; init; } = 20;
+    public double InnerM { get; init; } = 4.5;
+    public double PostsFromM { get; init; } = 6.5;
+    public double OverGroundM { get; init; } = 2.5;
+    public double TowardDeg { get; init; } = 10;
+    public double MarginLetters { get; init; } = 0.3;
+    public double EyeM { get; init; } = 3.2;
+    public double EyeAcrossM { get; init; } = 1.1;
+    public IReadOnlyList<double> CabBlindDeg { get; init; } = [8.6, 14.2, -35.3, -32];
+    public double ClearFromM { get; init; } = 250;
+    /// <summary>How far from the track a board stands back where it can't be read by the line on either side (note 693): past a dead line alongside.</summary>
+    public double BackInnerM { get; init; } = 18;
+    /// <summary>A through truss's sides as the sight test has them (note 686; StructureKit.TrussSpan's): off the centreline, and from under the rail to over it.</summary>
+    public double TrussHalfM { get; init; } = 2.7;
+    public double TrussLowM { get; init; } = -0.55;
+    public double TrussHighM { get; init; } = 7.0;
+    public double ReadToM { get; init; } = 40;
+    public double SightStepM { get; init; } = 15;
+    public double SeenShare { get; init; } = 0.75;
+    public double LampConeDeg { get; init; } = 18;
+    public double StepBackM { get; init; } = 15;
+    public double MaxBackM { get; init; } = 150;
+    public double ClearOfM { get; init; } = 1;
+    public double CrownShare { get; init; } = 0.2;
+    public double DrawM { get; init; } = 400;
+    public double Emissive { get; init; } = 0.9;
+    public double PlainShare { get; init; } = 0.3;
+    public double DarkGlow { get; init; } = 0.06;
+    public double LitGlow { get; init; } = 0.8;
+    public double FarGlow { get; init; } = 2.0;
+    public double GlowConeDeg { get; init; } = 24;
+}
 
 // ---------------------------------------------------------------- names.json
 

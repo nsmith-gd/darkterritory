@@ -279,7 +279,7 @@ public sealed partial class GameAudio
                 return new(HoldKind.Restart, run.Facility, site.Restart / run.PowerTuning.RestartSeconds);
             var cranes = site.Cranes;
             for (int i = 0; i < cranes.Count; i++)
-                if (cranes[i].Rigging > 0 && cranes[i].Riggable(at) is not null)
+                if (cranes[i].Rigging > 0 && (cranes[i].Riggable(at) is not null || me.Parent > 0 && cranes[i].Unriggable(train, at)))
                     return new(HoldKind.Rig, i, cranes[i].Rigging);
             // The conveyor line (note 400): clearing a jam beside it, and its drive house's starter (the HUD's order).
             if (run.FacilityTuning?.Conveyor is { } belt)

@@ -20,17 +20,25 @@ public sealed partial class WorldArt(Look look)
     readonly PropArt _props = PropArt.Of(look);
     readonly Dictionary<string, MeshAsset> _pieces = new();
 
+    // (Locked: a cell of the line can be cooked on a worker while the frame's built, note 479. Made outside the lock, so a
+    // slow piece doesn't hold the frame up; two made at once keep the first.)
     MeshAsset Piece(string key, Func<MeshAsset> make)
     {
-        if (!_pieces.TryGetValue(key, out var p))
-            _pieces[key] = p = make();
-        return p;
+        lock (_pieces)
+            if (_pieces.TryGetValue(key, out var hit))
+                return hit;
+        var made = make();
+        lock (_pieces)
+            return _pieces.TryAdd(key, made) ? made : _pieces[key];
     }
 
     /// <summary>How long a cell of the line is: its ground, track and lineside cooked together (pipeline "20 m cells"; 100 m here, fewer draws).</summary>
     public const double CellLength = 100;
 
     readonly record struct Cell(MeshAsset Soup, (MeshAsset Piece, Matrix4x4 Local)[] Pieces, PointLight[] Lights, Double3 Origin);
+
+    /// <summary>The frame's fog (GreyboxScene.Fog, note 479), or null.</summary>
+    public FrameLighting? Fog { get; set; }
     readonly Dictionary<long, Cell> _cells = new();
     RailLine? _cellLine;
     Route? _cellRoute;
@@ -40,20 +48,52 @@ public sealed partial class WorldArt(Look look)
     /// lineside don't change, so they're built once, relative to each cell's own origin, and drawn by transform). Cells
     /// fall out of the cache once they're well behind.
     /// </summary>
-    public void Cells(MeshBuilder mesh, RailLine line, Route? route, Double3 eye, double from, double to, int seed, float valleyDepth)
+    /// <param name="centre">Along the line, nearest the eye (the middle of <paramref name="from"/> to <paramref name="to"/> when not given).</param>
+    public void Cells(MeshBuilder mesh, RailLine line, Route? route, Double3 eye, double from, double to, int seed, float valleyDepth, double? centre = null)
     {
         if (!ReferenceEquals(line, _cellLine) || !ReferenceEquals(route, _cellRoute))
         {
             _cells.Clear();
+            _cooking.Clear();
+            // (A new line's branches are its own: the last one's pieces go with it.)
+            _branchPieces.Clear();
             (_cellLine, _cellRoute) = (line, route);
         }
         long first = (long)Math.Floor(from / CellLength), last = (long)Math.Floor(Math.Min(to, line.Length - 1e-6) / CellLength);
         foreach (var gone in _cells.Keys.Where(k => k < first - 2 || k > last + 2).ToList())
             _cells.Remove(gone);
+        // Cooked on a worker since the last frame (note 479): kept, one a frame, so two never upload in one frame. (One
+        // that's gone out of reach meanwhile is let go.)
+        foreach (var (i, done) in _cooking.Where(c => c.Value.IsCompleted).OrderBy(c => c.Key).Take(1).ToList())
+        {
+            _cooking.Remove(i);
+            if (i >= first - 2 && i <= last + 2 && done.IsCompletedSuccessfully)
+                _cells[i] = done.Result;
+        }
+        // In the fog (note 479): a cell whose nearest is past what the fog shows of its trees and land isn't wanted this
+        // frame; it's cooked on a worker and drawn when it's done, still in the fog. With no fog given, or within its
+        // reach, it's cooked here and now. (A cell's ground is the line's: it reaches nearest along it.)
+        double near = centre ?? (from + to) / 2;
+        double reach = Fog is { } fog ? fog.FogReach(line.Sample(Math.Clamp(near, 0, line.Length)).Position.Y + CellTop - eye.Y, eye.Y) : double.PositiveInfinity;
         for (long i = first; i <= last; i++)
         {
+            double nearest = Math.Max(0, Math.Max(i * CellLength - near, near - (i + 1) * CellLength));
             if (!_cells.TryGetValue(i, out var cell))
-                _cells[i] = cell = BuildCell(line, route, i, seed, valleyDepth);
+            {
+                if (nearest > reach)
+                {
+                    if (!_cooking.ContainsKey(i) && _cooking.Count < CellCooks)
+                    {
+                        long index = i;
+                        _cooking[i] = Task.Run(() => BuildCell(line, route, index, seed, valleyDepth));
+                    }
+                    continue;
+                }
+                // Wanted now: the worker's, if it's on it (waited for), else cooked here. Either holds the frame up: counted
+                // for its hitches (note 691).
+                FrameCounts.Add(_cooking.ContainsKey(i) ? "cells waited for" : "cells cooked here");
+                _cells[i] = cell = _cooking.Remove(i, out var started) ? started.Result : BuildCell(line, route, i, seed, valleyDepth);
+            }
             var at = Matrix4x4.CreateTranslation(cell.Origin.RelativeTo(eye));
             mesh.Instances.Add(new MeshInstance(cell.Soup, at));
             foreach (var (piece, local) in cell.Pieces)
@@ -67,6 +107,12 @@ public sealed partial class WorldArt(Look look)
             }
         }
     }
+
+    /// <summary>The cells being cooked on workers (note 479), and how many at once.</summary>
+    readonly Dictionary<long, Task<Cell>> _cooking = new();
+    const int CellCooks = 2;
+    /// <summary>The tallest of a cell's things over the line (m): its trees, the cliffs.</summary>
+    const double CellTop = 25;
 
     Cell BuildCell(RailLine line, Route? route, long index, int seed, float valleyDepth)
     {
@@ -523,14 +569,24 @@ public sealed partial class WorldArt(Look look)
     /// from its gate, the town's square and walled extent), for the lineside the sim deals (note 371): nothing of it stands inside.
     /// </summary>
     IReadOnlyList<Sim.Run.Fort> Forts(RailLine line) => Walls is { } w
-        ? [new Sim.Run.Fort(0, w.YardEnd, w.YardEnd, true, true, TownSquare, TownBounds), new Sim.Run.Fort(w.HomeGate, line.Length, w.HomeGate, false, true)]
+        ? [new Sim.Run.Fort(0, w.YardEnd, w.YardEnd, true, true, TownSquare, TownBounds), Terminus(w.HomeGate, line.Length)]
         : [];
+
+    /// <summary>The terminus's town (note 600), standing turned round in its own frame: nothing wild grows inside it either.</summary>
+    public Sim.Towns.Town? Arrival { get; set; }
+
+    /// <summary>The terminus's fortress as the sim stands it: its town's, turned round, if it's one (note 600).</summary>
+    Sim.Run.Fort Terminus(double gate, double end) => Arrival is { Turn: { } turn } a
+        ? new Sim.Run.Fort(gate, end, gate, false, true, a.Plan.Square.Turned(turn), a.Plan.Bounds, turn)
+        : new Sim.Run.Fort(gate, end, gate, false, true);
 
     /// <summary>Inside a fortress's walls (<see cref="Walls"/>, which stand 14.8 m out, or a walled town's), with a little room.</summary>
     bool InsideWalls(double along, double offset) =>
         Walls is { } w && Math.Abs(offset) < 16.5 && (along < w.YardEnd + 2 || along > w.HomeGate - 2)
         || TownSquare is { } sq && Math.Sign(offset) == sq.Side && Math.Abs(offset) < Math.Abs(sq.WallD) + 2 && along > sq.S0 - 2 && along < sq.S1 + 2
-        || TownBounds is { } town && town.Holds(along, offset, 3);
+        || TownBounds is { } town && town.Holds(along, offset, 3)
+        || Arrival is { Turn: { } turn } a && (a.Plan.Bounds?.Holds(turn - along, -offset, 3) == true
+            || a.Plan.Square.Turned(turn) is var asq && Math.Sign(offset) == asq.Side && Math.Abs(offset) < Math.Abs(asq.WallD) + 2 && along > asq.S0 - 2 && along < asq.S1 + 2);
 
     public void Lineside(MeshBuilder mesh, RailLine line, Route? route, Double3 eye, double from, double to, int seed, float valleyDepth)
     {

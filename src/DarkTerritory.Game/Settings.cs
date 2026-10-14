@@ -7,6 +7,12 @@ namespace DarkTerritory.Game;
 public enum HudColours { Standard, Colourblind }
 
 /// <summary>
+/// DISPLAY (T83; note 672): a window, the whole screen borderless (other windows and the system's notices can come over
+/// it), or the whole screen exclusively, at the desktop's own mode (the system holds its notices back).
+/// </summary>
+public enum DisplayMode { Windowed, Borderless, Fullscreen }
+
+/// <summary>
 /// A player's settings (roadmap M6 "settings"): sound, voice, the HUD, VR comfort, the mouse, and the display (T83). One small text
 /// file in the user's app data, beside the save slots; the front end's settings screen writes it as you change things.
 /// </summary>
@@ -110,12 +116,20 @@ public sealed record Settings
     public bool TextBacking { get; init; }
 
     /// <summary>The holds HOLD KEYS can make toggles: run, the brake, talk, the radio and the crew roster.</summary>
-    public static readonly Control[] Toggleable = [Control.Run, Control.Brake, Control.Talk, Control.Radio, Control.Roster];
+    // Note 664: crouch too, a hold that HOLD KEYS on TOGGLE makes a press down and a press up.
+    public static readonly Control[] Toggleable = [Control.Run, Control.Brake, Control.Talk, Control.Radio, Control.Roster, Control.Crouch];
 
     /// <summary>The outfit as the wire has it (note 298): none for −1 or anything off the end.</summary>
     public byte OutfitByte(int outfits) => Outfit >= 0 && Outfit < outfits ? (byte)Outfit : Sim.Net.Messages.NoOutfit;
-    /// <summary>T83: the whole screen (borderless, the desktop's own mode) rather than a window.</summary>
-    public bool Fullscreen { get; init; }
+    /// <summary>
+    /// T83, note 672: a window, or the whole screen, borderless or exclusive. A new install starts on the whole screen,
+    /// exclusive (the director, 13 Oct: "I have notifications popping up that are coming up over the bottom right
+    /// information"); Alt+Enter goes between it and a window.
+    /// </summary>
+    public DisplayMode Display { get; init; } = DisplayMode.Fullscreen;
+
+    /// <summary>Alt+Enter (note 672): a window to the whole screen (exclusive), the whole screen, either way, to a window.</summary>
+    public Settings AltEnter() => this with { Display = Display == DisplayMode.Windowed ? DisplayMode.Fullscreen : DisplayMode.Windowed };
     /// <summary>T83: wait for the monitor between frames (no tearing); off, frames go out as soon as they're drawn.</summary>
     public bool VSync { get; init; } = true;
     /// <summary>T83: the resolution the game draws at (and the window's size, windowed), one of <see cref="Resolutions"/>.</summary>
@@ -231,13 +245,13 @@ public sealed record Settings
         && VrTurn == other.VrTurn && VrVignette == other.VrVignette && MouseSpeed == other.MouseSpeed
         && InvertMouse == other.InvertMouse && FieldOfView == other.FieldOfView && CameraShake == other.CameraShake && Outfit == other.Outfit
         && TextSize == other.TextSize && Colours == other.Colours && FirstNights == other.FirstNights && Captions == other.Captions && ToggleHolds == other.ToggleHolds && TextBacking == other.TextBacking
-        && Fullscreen == other.Fullscreen && VSync == other.VSync && Resolution == other.Resolution && RenderScale == other.RenderScale
+        && Display == other.Display && VSync == other.VSync && Resolution == other.Resolution && RenderScale == other.RenderScale
         && PlayerName == other.PlayerName && PublicLobby == other.PublicLobby && LobbyName == other.LobbyName
         && LobbyPassword == other.LobbyPassword && Mood == other.Mood
         && Keys.Count == other.Keys.Count && Keys.All(k => other.Keys.GetValueOrDefault(k.Key) == k.Value);
 
     public override int GetHashCode() => HashCode.Combine(Mute, PushToTalk, Hud, VrTurn, VrVignette, MouseSpeed, Keys.Count,
-        HashCode.Combine(Fullscreen, VSync, Resolution, RenderScale, PublicLobby, LobbyName, HashCode.Combine(MasterVolume, EffectsVolume, MusicVolume, VoiceVolume, MicDevice, MicLevel),
+        HashCode.Combine(Display, VSync, Resolution, RenderScale, PublicLobby, LobbyName, HashCode.Combine(MasterVolume, EffectsVolume, MusicVolume, VoiceVolume, MicDevice, MicLevel),
             HashCode.Combine(InvertMouse, FieldOfView, CameraShake, Outfit, ControlHints, TextSize, Colours, HashCode.Combine(FirstNights, Captions, ToggleHolds, TextBacking, LobbyPassword, Mood))));
 
     /// <summary>The field of view the eyes are drawn at (note 297): the setting if it's one on offer, else 75.</summary>

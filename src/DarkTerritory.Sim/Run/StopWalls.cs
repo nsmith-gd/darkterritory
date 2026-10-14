@@ -90,10 +90,14 @@ public sealed partial class StopWalls
         || OpenShed(stop.Buildings[building]);
 
     /// <summary>
-    /// A barn, an outbuilding or a dead town's goods shed standing open (note 417, stops.json <c>village.openSheds</c>): its
-    /// walls with a wide door toward the line, its hayloft's or workbench's find inside to search, as a yard's shed is walked.
+    /// A barn, an outbuilding or a dead town's goods shed standing open (note 417, stops.json <c>village.openSheds</c>), or a
+    /// dead town's station (note 493, <c>deadTown.station.open</c>), or a yard's powerhouse (note 509,
+    /// <c>powerhouse.open</c>): its walls with a wide door toward the line, its hayloft's or workbench's find inside to
+    /// search, as a yard's shed is walked (a station's booking office long since rifled: nothing's kept inside the rail
+    /// buffer, P13; a powerhouse's switchboard where the power's restarted).
     /// </summary>
-    public static bool OpenShed(StopBuilding b) => b.Open && b.Kind is BuildingKind.Barn or BuildingKind.Outbuilding or BuildingKind.GoodsShed;
+    public static bool OpenShed(StopBuilding b) =>
+        b.Open && b.Kind is BuildingKind.Barn or BuildingKind.Outbuilding or BuildingKind.GoodsShed or BuildingKind.Station or BuildingKind.Powerhouse;
 
     /// <summary>
     /// Where a find in a walled building is put out (the houses are shut, with no way in to search): on its step, a
@@ -126,6 +130,9 @@ public sealed partial class StopWalls
     /// a cottage's front door, and walls a lamp doesn't shine through.
     /// </summary>
     public const double DoorWidth = 1.2, WallThickness = 0.2;
+
+    /// <summary>Where a small thing lies on a house's floor (note 738), as shares of the room's half sizes out from its middle (along the front, across it).</summary>
+    static readonly (double F, double S)[] LooseCorners = [(-0.85, 0.85), (-0.85, -0.85), (0.8, 0.85), (0.8, -0.85), (-0.2, 0.9), (-0.2, -0.9)];
 
     /// <summary>How far in from a wall's inner face a find lies, at the foot of the cupboard or cabinet against it (m).</summary>
     public const double FindOut = 0.65;
@@ -180,6 +187,8 @@ public sealed partial class StopWalls
             ContainerKind.Cabinet => (-ef * 0.3, es * sign),
             ContainerKind.Cellar => (-ef * 0.4, -es * 0.45 * sign),
             ContainerKind.UnderFloor => (ef * 0.15, es * 0.35 * sign),
+            // (Lying in a corner, the back ones first, then the front's either side of the door: note 738.)
+            ContainerKind.Loose => LooseCorners[index % LooseCorners.Length] is var (cf, cs) ? (ef * cf, es * cs) : default,
             _ => (0.0, 0.0),
         };
         // Along the front's outward direction f, across it s (a quarter turn from it).
@@ -320,6 +329,12 @@ public sealed partial class StopWalls
         return (x + fx * ahead, y + fy * ahead);
     }
 
+    /// <summary>
+    /// Where an open powerhouse's power is restarted (note 509), in its own frame: standing at its switchboard, in front of
+    /// the back wall where a shed's first find would be kept (<see cref="ShedKept"/>, index 0).
+    /// </summary>
+    public static (double X, double Y) Switchboard(StopBuilding b) => ShedFind(b, ContainerKind.Bench, 0);
+
     /// <summary>A barn's hayloft (note 417; the art's): how deep it reaches in from the back wall, and how far its ladder's foot stands out from its edge (m).</summary>
     public const double LoftDepth = 1.6, LadderLean = 0.6;
 
@@ -450,7 +465,9 @@ public sealed partial class StopWalls
 
     /// <summary>
     /// An open shed's workbenches (note 417), as boxes in its own frame (middles and half sizes): one against the back wall
-    /// for each of its finds kept on one. Solid, as a house's cupboards are; a hayloft's ladder is against the wall, not in the way.
+    /// for each of its finds kept on one; an open station's booking-office counter, a bench's size where a first find
+    /// would be kept (note 493); and an open powerhouse's switchboard there and its engine across from it (note 509).
+    /// Solid, as a house's cupboards are; a hayloft's ladder is against the wall, not in the way.
     /// </summary>
     public static IEnumerable<(double X, double Y, double HalfX, double HalfY)> Benches(StopLayout stop, int building)
     {
@@ -460,6 +477,16 @@ public sealed partial class StopWalls
         foreach (var c in stop.Containers.Where(c => c.Building == building && c.Kind == ContainerKind.Bench))
         {
             var (x, y, _, _) = ShedKept(b, c.Index);
+            yield return (x, y, BenchWidth, BenchDepth);
+        }
+        if (b.Kind is BuildingKind.Station or BuildingKind.Powerhouse)
+        {
+            var (x, y, _, _) = ShedKept(b, 0);
+            yield return (x, y, BenchWidth, BenchDepth);
+        }
+        if (b.Kind == BuildingKind.Powerhouse)
+        {
+            var (x, y, _, _) = ShedKept(b, 1);
             yield return (x, y, BenchWidth, BenchDepth);
         }
     }

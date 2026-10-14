@@ -1,0 +1,449 @@
+<title>Director's Inbox</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a dispatcher's order board. A summary strip, then what's waiting as a single column of order forms,
+   each with its own answer at its foot; decided orders and standing orders behind tabs. The lamps are the
+   railway's own signal colours: green clear, red stop, amber caution, lunar white for a call-on. */
+:root {
+  --bg: #e9ecea;          /* signal-box wall */
+  --paper: #f7f8f6;       /* an order form */
+  --ink: #1c2422;
+  --muted: #5a6763;
+  --rule: #c9d0cc;
+  --accent: #b5741a;      /* lamp brass */
+  --accent-ink: #ffffff;
+  --clear: #23784c;
+  --stop: #b23a2e;
+  --caution: #b98612;
+  --lunar: #6f7f94;
+  --chip: #dde3df;
+  --focus: #2a5bd7;
+  --shadow: 0 1px 0 rgba(28, 36, 34, 0.06);
+  --display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --body: "Barlow", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1315; --paper: #161d20; --ink: #e3e8e5; --muted: #93a19c; --rule: #2a3438; --accent: #e0a040;
+    --accent-ink: #1a1305; --clear: #47b47a; --stop: #e0675a; --caution: #e3b23f; --lunar: #a7b6c9; --chip: #222b2f;
+    --focus: #7aa2ff; --shadow: none; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1315; --paper: #161d20; --ink: #e3e8e5; --muted: #93a19c; --rule: #2a3438; --accent: #e0a040;
+  --accent-ink: #1a1305; --clear: #47b47a; --stop: #e0675a; --caution: #e3b23f; --lunar: #a7b6c9; --chip: #222b2f;
+  --focus: #7aa2ff; --shadow: none; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 400 15px/1.5 var(--body); }
+.wrap { max-width: 860px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 64px; display: grid; gap: 20px; }
+header { display: grid; gap: 6px; }
+.eyebrow { font: 500 12px/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+h1 { font: 700 40px/1.05 var(--display); letter-spacing: 0.01em; margin: 0; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); max-width: 62ch; }
+.strip { display: flex; flex-wrap: wrap; gap: 8px 24px; padding-block: 12px; border-block: 1px solid var(--rule); }
+.stat { display: grid; gap: 2px; min-width: 0; }
+.stat b { font: 600 26px/1 var(--display); font-variant-numeric: tabular-nums; }
+.stat span { font: 500 11px/1.2 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.notice { padding: 10px 14px; border: 1px solid var(--rule); background: var(--paper); border-radius: 6px; color: var(--muted); }
+.notice[data-tone="stop"] { border-color: var(--stop); color: var(--ink); }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.tab { font: 600 15px/1 var(--display); letter-spacing: 0.04em; text-transform: uppercase; padding: 9px 14px; border: 1px solid var(--rule);
+  background: transparent; color: var(--muted); border-radius: 4px; cursor: pointer; }
+.tab[aria-selected="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.tab .n { font: 500 12px/1 var(--mono); margin-left: 6px; }
+.find { flex: 1 1 200px; min-width: 0; max-width: 320px; font: 400 14px/1 var(--body); padding: 9px 12px; border: 1px solid var(--rule);
+  border-radius: 4px; background: var(--paper); color: var(--ink); }
+.agents { display: flex; flex-wrap: wrap; gap: 6px; }
+.agent { font: 500 12px/1 var(--mono); padding: 6px 9px; border-radius: 999px; border: 1px solid var(--rule); background: transparent;
+  color: var(--muted); cursor: pointer; }
+.agent[aria-pressed="true"] { background: var(--chip); color: var(--ink); border-color: var(--muted); }
+.list { display: grid; gap: 14px; }
+.order { background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; box-shadow: var(--shadow); display: grid; min-width: 0; }
+.order[data-blocking="true"] { border-left: 4px solid var(--stop); }
+.order > * { padding-inline: 18px; }
+.head { padding-block: 14px 0; display: grid; gap: 6px; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; font: 400 12px/1.3 var(--mono); color: var(--muted); }
+.kind { display: inline-flex; align-items: center; gap: 6px; font: 600 12px/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink); }
+.lamp { width: 9px; height: 9px; border-radius: 50%; background: var(--lunar); box-shadow: 0 0 0 2px var(--chip); flex: none; }
+.lamp.approve { background: var(--clear); } .lamp.choose { background: var(--caution); } .lamp.answer { background: var(--lunar); } .lamp.look { background: var(--accent); }
+.hold { color: var(--stop); font-weight: 500; }
+h2 { font: 600 23px/1.15 var(--display); margin: 0; text-wrap: balance; }
+.body { padding-block: 8px 4px; display: grid; gap: 8px; max-width: 70ch; min-width: 0; overflow-wrap: anywhere; }
+.body p, .body ul { margin: 0; }
+.body ul { padding-left: 20px; display: grid; gap: 4px; }
+.body code { font: 400 13px/1.4 var(--mono); background: var(--chip); padding: 1px 4px; border-radius: 3px; }
+a { color: var(--ink); text-decoration-color: var(--accent); text-underline-offset: 2px; }
+a:hover { color: var(--accent); }
+.links { display: flex; flex-wrap: wrap; gap: 6px 14px; padding-block: 4px; font-size: 14px; }
+.pics { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 8px; padding-block: 6px; }
+.pic { margin: 0; display: grid; gap: 4px; min-width: 0; }
+.pic button { padding: 0; border: 1px solid var(--rule); border-radius: 4px; background: var(--chip); cursor: zoom-in; overflow: hidden; aspect-ratio: 16 / 9; max-width: 100%; }
+.pic img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pic figcaption { font: 400 12px/1.3 var(--body); color: var(--muted); }
+.answer { border-top: 1px dashed var(--rule); margin-top: 10px; padding-block: 14px 16px; display: grid; gap: 10px; }
+.opts { display: grid; gap: 6px; }
+.opt { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: start; padding: 9px 12px; border: 1px solid var(--rule);
+  border-radius: 4px; cursor: pointer; background: var(--bg); }
+.opt:has(input:checked) { border-color: var(--caution); background: var(--chip); }
+.opt input { margin-top: 4px; accent-color: var(--caution); }
+.opt b { font-weight: 600; }
+.opt small { grid-column: 2; color: var(--muted); font-size: 13px; }
+label.why { font: 500 12px/1 var(--mono); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+textarea { width: 100%; min-height: 64px; resize: vertical; font: 400 14px/1.45 var(--body); padding: 9px 11px; border: 1px solid var(--rule);
+  border-radius: 4px; background: var(--bg); color: var(--ink); }
+.acts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.btn { font: 600 15px/1 var(--display); letter-spacing: 0.05em; text-transform: uppercase; padding: 10px 16px; border-radius: 4px;
+  border: 1px solid var(--ink); background: var(--ink); color: var(--bg); cursor: pointer; }
+.btn.clear { background: var(--clear); border-color: var(--clear); color: #fff; }
+.btn.stop { background: transparent; border-color: var(--stop); color: var(--stop); }
+.btn.quiet { background: transparent; color: var(--ink); border-color: var(--rule); }
+.btn:disabled { opacity: 0.5; cursor: default; }
+.status { font: 400 12px/1.3 var(--mono); color: var(--muted); }
+.status[data-tone="stop"] { color: var(--stop); }
+.verdict { display: grid; gap: 6px; border-top: 1px dashed var(--rule); margin-top: 10px; padding-block: 12px 16px; }
+.stamp { display: inline-flex; align-items: center; gap: 8px; font: 700 16px/1 var(--display); letter-spacing: 0.06em; text-transform: uppercase; }
+.stamp.approved, .stamp.looked { color: var(--clear); } .stamp.rejected, .stamp.redo { color: var(--stop); }
+.stamp.chosen { color: var(--caution); } .stamp.answered { color: var(--lunar); }
+.said { margin: 0; white-space: pre-wrap; max-width: 70ch; }
+.rules { display: grid; gap: 10px; }
+.rule { background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 12px 16px; display: grid; gap: 6px; }
+.rule p { margin: 0; white-space: pre-wrap; }
+.newrule { display: grid; gap: 8px; background: var(--paper); border: 1px solid var(--rule); border-radius: 6px; padding: 14px 16px; }
+.newrule input { font: 400 14px/1 var(--body); padding: 9px 11px; border: 1px solid var(--rule); border-radius: 4px; background: var(--bg); color: var(--ink); width: 100%; }
+.empty { padding: 26px 18px; text-align: left; border: 1px dashed var(--rule); border-radius: 6px; color: var(--muted); display: grid; gap: 6px; }
+.empty b { color: var(--ink); font: 600 20px/1.2 var(--display); }
+details.agents-guide { border-top: 1px solid var(--rule); padding-top: 14px; color: var(--muted); }
+details.agents-guide summary { cursor: pointer; font: 600 15px/1 var(--display); letter-spacing: 0.05em; text-transform: uppercase; color: var(--ink); }
+details.agents-guide pre { overflow-x: auto; font: 400 12px/1.5 var(--mono); background: var(--paper); border: 1px solid var(--rule); border-radius: 4px; padding: 12px; color: var(--ink); }
+details.agents-guide p { max-width: 70ch; }
+.lightbox { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.82); display: grid; place-items: center; padding: 16px; z-index: 10; cursor: zoom-out; }
+.lightbox img { max-width: 100%; max-height: 90vh; border-radius: 4px; }
+:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+@media (max-width: 520px) { h1 { font-size: 32px; } .order > * { padding-inline: 14px; } }
+@media (prefers-reduced-motion: no-preference) { .order { transition: border-color 0.2s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Dark Territory · for the director</div>
+    <h1>Director's Inbox</h1>
+    <p class="lede">Everything the agents are waiting on you for, with its pictures and pull request. Each answer is saved
+      with its reason, sent to the agent that asked, and read by every agent before it submits work on the same thing.</p>
+  </header>
+
+  <div class="strip" id="strip" aria-live="polite">
+    <div class="stat"><b id="s-open">–</b><span>waiting</span></div>
+    <div class="stat"><b id="s-hold">–</b><span>holding up work</span></div>
+    <div class="stat"><b id="s-oldest">–</b><span>oldest waiting</span></div>
+    <div class="stat"><b id="s-week">–</b><span>decided this week</span></div>
+  </div>
+
+  <div id="notice" class="notice" hidden></div>
+
+  <div class="controls">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" id="tab-open" aria-selected="true" data-tab="open">Waiting<span class="n" id="n-open"></span></button>
+      <button class="tab" role="tab" id="tab-decided" aria-selected="false" data-tab="decided">Decided<span class="n" id="n-decided"></span></button>
+      <button class="tab" role="tab" id="tab-rules" aria-selected="false" data-tab="rules">Standing orders<span class="n" id="n-rules"></span></button>
+    </div>
+    <input class="find" id="find" type="search" placeholder="Find: a word, an agent, #637, note 542" aria-label="Find">
+  </div>
+  <div class="agents" id="agents" aria-label="Show one agent's"></div>
+
+  <main id="list" class="list">
+    <div class="empty"><b>Loading what's waiting…</b><span>The inbox reads its orders from its store when the page opens.</span></div>
+  </main>
+
+  <details class="agents-guide" id="guide">
+    <summary>For agents: how to ask, and how to read the answers</summary>
+    <p>Ask by writing a document to this artifact's store, collection <code>asks</code>, with the <code>ArtifactData</code> tool
+      (id: your agent id, a dash, a short slug). The director sees it here at once. Read <code>rules</code> and the decided
+      <code>asks</code> whose <code>tags</code> or <code>queue</code> match your work before you submit it. When the director answers,
+      the page sends the answer to the <code>session</code> you gave; read the ask back from the store before acting on it.</p>
+    <pre>asks/D1.3-couplings-in-a-fight
+{
+  "title": "Couplings part in a fight",
+  "from": "D1.3",                       // your agent id (docs/COORDINATION.md, Who's who)
+  "session": "session_01…",             // your Claude Code session, for the answer (get_session)
+  "kind": "choose",                     // approve | choose | answer | look
+  "body": "What you found, plainly.\n\n- a bullet\n- another",
+  "options": [{ "key": "a", "label": "Hold while the train stands", "detail": "…" }],
+  "pictures": [{ "url": "/_blob/…", "caption": "…" }],
+  "links": [{ "label": "Note 542", "url": "https://github.com/…" }],
+  "pr": 681, "queue": 284, "note": 542,
+  "tags": ["couplings", "balance"],
+  "blocking": false,                     // true: you've stopped until it's answered
+  "createdAt": "2026-10-09T10:00:00Z",
+  "status": "open"
+}
+// The director's answer lands on the same document:
+// "status": "decided", "decision": { "verdict": "approved|rejected|chosen|answered|looked|redo",
+//   "choice": "a", "text": "the reason, or the answer", "at": "…", "told": "sent|failed:<code>|no session" }</pre>
+  </details>
+</div>
+
+<script>
+(() => {
+  const INBOX = "https://claude.ai/artifact/U72ospwbR1Bpb1jkbSwjxT";
+  const KIND = { approve: "Yes or no", choose: "Pick one", answer: "Question", look: "Have a look" };
+  const VERDICT = { approved: "Approved", rejected: "Not this", chosen: "Chosen", answered: "Answered", looked: "Looks right", redo: "Needs work" };
+  const REPO = "https://github.com/nsmith-gd/darkterritory";
+  const state = { asks: [], rules: [], tab: "open", agent: null, find: "", ready: false, canWrite: true };
+  const drafts = {};      // ask id -> { text, choice }: what's been typed, kept across live updates
+  const busy = new Set(); // ask ids mid-write
+  const notes = {};       // ask id -> { text, tone }: the last action's outcome
+  let db = null, mcp = null, me = null;
+
+  const $ = (id) => document.getElementById(id);
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+  // Plain text to paragraphs and bullets; links, `code`, #PR and note numbers made live.
+  function inline(s) {
+    let h = esc(s);
+    h = h.replace(/`([^`]+)`/g, "<code>$1</code>");
+    h = h.replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>");
+    h = h.replace(/(https?:\/\/[^\s<)]+)/g, '<a href="$1" target="_blank" rel="noopener">$1</a>');
+    h = h.replace(/(^|[\s(])#(\d{2,5})\b/g, `$1<a href="${REPO}/pull/$2" target="_blank" rel="noopener">#$2</a>`);
+    return h;
+  }
+  function prose(text) {
+    const blocks = String(text ?? "").trim().split(/\n\s*\n/);
+    return blocks.map((b) => {
+      const lines = b.split("\n");
+      if (lines.every((l) => /^\s*[-•]\s/.test(l)))
+        return "<ul>" + lines.map((l) => "<li>" + inline(l.replace(/^\s*[-•]\s/, "")) + "</li>").join("") + "</ul>";
+      return "<p>" + lines.map(inline).join("<br>") + "</p>";
+    }).join("");
+  }
+  function ago(iso) {
+    const t = Date.parse(iso);
+    if (!t) return "";
+    const m = Math.max(0, (Date.now() - t) / 60000);
+    if (m < 60) return Math.round(m) + " min";
+    if (m < 48 * 60) return Math.round(m / 60) + " h";
+    return Math.round(m / 1440) + " days";
+  }
+  const when = (iso) => { const d = new Date(iso); return isNaN(d) ? "" : d.toISOString().slice(0, 16).replace("T", " ") + " UTC"; };
+
+  function matches(a) {
+    if (state.agent && a.from !== state.agent) return false;
+    const q = state.find.trim().toLowerCase();
+    if (!q) return true;
+    const hay = [a.title, a.body, a.from, (a.tags || []).join(" "), a.pr && "#" + a.pr, a.note && "note " + a.note, a.queue && "queue #" + a.queue,
+      a.decision?.text].filter(Boolean).join(" ").toLowerCase();
+    return q.split(/\s+/).every((w) => hay.includes(w));
+  }
+
+  function summary() {
+    const open = state.asks.filter((a) => a.status === "open");
+    const week = Date.now() - 7 * 864e5;
+    $("s-open").textContent = open.length;
+    $("s-hold").textContent = open.filter((a) => a.blocking).length;
+    const oldest = open.map((a) => Date.parse(a.createdAt)).filter(Boolean).sort((x, y) => x - y)[0];
+    $("s-oldest").textContent = oldest ? ago(new Date(oldest).toISOString()) : "–";
+    $("s-week").textContent = state.asks.filter((a) => a.status === "decided" && Date.parse(a.decision?.at) > week).length;
+    $("n-open").textContent = open.length;
+    $("n-decided").textContent = state.asks.filter((a) => a.status === "decided").length;
+    $("n-rules").textContent = state.rules.length;
+    const agents = [...new Set(state.asks.filter((a) => (state.tab === "decided" ? a.status === "decided" : a.status === "open")).map((a) => a.from).filter(Boolean))].sort();
+    $("agents").innerHTML = agents.length > 1 ? agents.map((g) => `<button class="agent" data-agent="${esc(g)}" aria-pressed="${state.agent === g}">${esc(g)}</button>`).join("") : "";
+  }
+
+  function head(a) {
+    const bits = [`<span class="kind"><span class="lamp ${esc(a.kind)}"></span>${esc(KIND[a.kind] || a.kind)}</span>`, `<span>from ${esc(a.from || "?")}</span>`];
+    if (a.queue) bits.push(`<span>queue #${esc(a.queue)}</span>`);
+    if (a.note) bits.push(`<span>note ${esc(a.note)}</span>`);
+    if (a.pr) bits.push(`<a href="${REPO}/pull/${esc(a.pr)}" target="_blank" rel="noopener">#${esc(a.pr)}</a>`);
+    if (a.createdAt) bits.push(`<span title="${esc(when(a.createdAt))}">${esc(ago(a.createdAt))} ago</span>`);
+    if (a.blocking && a.status === "open") bits.push(`<span class="hold">holding up work</span>`);
+    return `<div class="head"><div class="meta">${bits.join("")}</div><h2>${esc(a.title)}</h2></div>`;
+  }
+  function extras(a) {
+    let h = "";
+    if (a.links?.length) h += `<div class="links">${a.links.map((l) => `<a href="${esc(l.url)}" target="_blank" rel="noopener">${esc(l.label || l.url)}</a>`).join("")}</div>`;
+    if (a.pictures?.length) h += `<div class="pics">${a.pictures.map((p, i) => `<figure class="pic"><button data-zoom="${esc(p.url)}" aria-label="Enlarge ${esc(p.caption || "picture " + (i + 1))}"><img src="${esc(p.url)}" alt="${esc(p.caption || "")}" loading="lazy"></button>${p.caption ? `<figcaption>${esc(p.caption)}</figcaption>` : ""}</figure>`).join("")}</div>`;
+    return h;
+  }
+
+  function answerForm(a) {
+    const d = drafts[a.id] || {};
+    const off = !state.canWrite || busy.has(a.id) ? " disabled" : "";
+    const id = esc(a.id);
+    let opts = "", acts = "", label = "Why (the agent reads this with your answer)";
+    if (a.kind === "choose") {
+      opts = `<div class="opts" role="radiogroup" aria-label="Options">${(a.options || []).map((o) => `<label class="opt"><input type="radio" name="opt-${id}" id="opt-${id}-${esc(o.key)}" value="${esc(o.key)}"${d.choice === o.key ? " checked" : ""}${off}><b>${esc(o.label)}</b>${o.detail ? `<small>${inline(o.detail)}</small>` : ""}</label>`).join("")}</div>`;
+      acts = `<button class="btn" data-act="chosen" data-id="${id}"${off}>Choose</button><button class="btn quiet" data-act="answered" data-id="${id}"${off}>None of these: answer instead</button>`;
+    } else if (a.kind === "approve") {
+      acts = `<button class="btn clear" data-act="approved" data-id="${id}"${off}>Approve</button><button class="btn stop" data-act="rejected" data-id="${id}"${off}>Not this</button>`;
+    } else if (a.kind === "look") {
+      acts = `<button class="btn clear" data-act="looked" data-id="${id}"${off}>Looks right</button><button class="btn stop" data-act="redo" data-id="${id}"${off}>Needs work</button>`;
+      label = "What you see (the agent reads this)";
+    } else {
+      acts = `<button class="btn" data-act="answered" data-id="${id}"${off}>Send answer</button>`;
+      label = "Your answer";
+    }
+    const n = notes[a.id];
+    return `<div class="answer">${opts}<label class="why" for="why-${id}">${label}</label><textarea id="why-${id}" data-id="${id}"${off}>${esc(d.text || "")}</textarea><div class="acts">${acts}${n ? `<span class="status" data-tone="${n.tone || ""}">${esc(n.text)}</span>` : ""}</div></div>`;
+  }
+
+  function verdict(a) {
+    const v = a.decision || {};
+    const chose = v.choice ? (a.options || []).find((o) => o.key === v.choice) : null;
+    const told = v.told === "sent" ? "sent to " + (a.from || "the agent") : v.told === "no session" ? "no session given: tell them in their chat" : v.told ? "not sent (" + v.told.replace("failed:", "") + "): tell them in their chat" : "";
+    const n = notes[a.id];
+    return `<div class="verdict"><span class="stamp ${esc(v.verdict)}"><span class="lamp ${v.verdict === "rejected" || v.verdict === "redo" ? "" : esc(a.kind)}"></span>${esc(VERDICT[v.verdict] || v.verdict)}${chose ? ": " + esc(chose.label) : ""}</span>${v.text ? `<p class="said">${esc(v.text)}</p>` : ""}<div class="acts"><span class="status">${esc(when(v.at))}${told ? " · " + esc(told) : ""}</span>${state.canWrite ? `<button class="btn quiet" data-act="reopen" data-id="${esc(a.id)}"${busy.has(a.id) ? " disabled" : ""}>Reopen</button>` : ""}${n ? `<span class="status" data-tone="${n.tone || ""}">${esc(n.text)}</span>` : ""}</div></div>`;
+  }
+
+  function order(a) {
+    return `<article class="order" data-blocking="${!!a.blocking && a.status === "open"}" id="ask-${esc(a.id)}">${head(a)}<div class="body">${prose(a.body)}</div>${extras(a)}${a.status === "open" ? answerForm(a) : verdict(a)}</article>`;
+  }
+
+  function rulesView() {
+    const rows = state.rules.filter((r) => !state.find || (r.text + " " + (r.tags || []).join(" ")).toLowerCase().includes(state.find.toLowerCase()))
+      .sort((x, y) => String(y.at).localeCompare(String(x.at)));
+    const form = state.canWrite ? `<form class="newrule" id="newrule"><label class="why" for="rule-text">A standing order: how you want something done, every time</label><textarea id="rule-text" placeholder="e.g. Never change a creature's look without a Look Review round first."></textarea><label class="why" for="rule-tags">Tags (comma separated: who or what it's about)</label><input id="rule-tags" placeholder="art, look review"><div class="acts"><button class="btn" type="submit">Add the order</button><span class="status" id="rule-status"></span></div></form>` : "";
+    const list = rows.length ? rows.map((r) => `<div class="rule"><div class="meta"><span>${esc(when(r.at))}</span>${(r.tags || []).map((t) => `<span>${esc(t)}</span>`).join("")}</div><p>${esc(r.text)}</p>${state.canWrite ? `<div class="acts"><button class="btn quiet" data-rule-del="${esc(r.id)}">Withdraw</button></div>` : ""}</div>`).join("")
+      : `<div class="empty"><b>No standing orders yet.</b><span>A standing order is a rule every agent reads before submitting work: write one once instead of answering the same question again.</span></div>`;
+    return form + `<div class="rules">${list}</div>`;
+  }
+
+  function render() {
+    // Keep what's being typed, and where, across a live update.
+    const focus = document.activeElement?.id;
+    const sel = focus && document.activeElement.selectionStart != null ? [document.activeElement.selectionStart, document.activeElement.selectionEnd] : null;
+    const ruleText = $("rule-text")?.value, ruleTags = $("rule-tags")?.value;
+    summary();
+    for (const t of document.querySelectorAll(".tab")) t.setAttribute("aria-selected", String(t.dataset.tab === state.tab));
+    const list = $("list");
+    if (!state.ready) return;
+    if (state.tab === "rules") {
+      list.innerHTML = rulesView();
+      if (ruleText != null && $("rule-text")) { $("rule-text").value = ruleText; $("rule-tags").value = ruleTags || ""; }
+    } else {
+      const want = state.tab === "decided" ? "decided" : "open";
+      const rows = state.asks.filter((a) => a.status === want && matches(a)).sort((x, y) => want === "open"
+        ? (Number(!!y.blocking) - Number(!!x.blocking)) || String(x.createdAt).localeCompare(String(y.createdAt))
+        : String(y.decision?.at).localeCompare(String(x.decision?.at)));
+      list.innerHTML = rows.length ? rows.map(order).join("") : want === "open"
+        ? `<div class="empty"><b>${state.asks.some((a) => a.status === "open") ? "Nothing matches." : "Nothing is waiting on you."}</b><span>Agents add their questions here as they hit them; the guide at the foot of the page says how.</span></div>`
+        : `<div class="empty"><b>${state.asks.some((a) => a.status === "decided") ? "Nothing matches." : "Nothing decided yet."}</b><span>Your answers land here with their reasons, for every agent to read before it submits.</span></div>`;
+    }
+    if (focus && $(focus)) { $(focus).focus(); if (sel) try { $(focus).setSelectionRange(sel[0], sel[1]); } catch { } }
+  }
+
+  function notice(text, tone) { const n = $("notice"); n.hidden = !text; n.textContent = text || ""; n.dataset.tone = tone || ""; }
+
+  async function tell(a, decision) {
+    // The answer goes straight to the agent's own chat; the store stays the record it checks.
+    if (!a.session) return "no session";
+    if (!mcp) return "failed:no connector";
+    const chose = decision.choice ? (a.options || []).find((o) => o.key === decision.choice) : null;
+    const msg = [`The director answered in the Director's Inbox (${INBOX}): "${a.title}" (asks/${a.id}).`,
+      `${VERDICT[decision.verdict] || decision.verdict}${chose ? ": " + chose.label : ""}.`,
+      decision.text ? `They said: ${decision.text}` : "",
+      `Read asks/${a.id} in the inbox's store to confirm before acting on it.`].filter(Boolean).join("\n");
+    try {
+      await mcp.callTool("Claude Code Remote", "send_message", { session_id: a.session, message: msg }, { cache: false });
+      return "sent";
+    } catch (e) {
+      return "failed:" + (e?.code || "error");
+    }
+  }
+
+  async function decide(id, verdictKey) {
+    const a = state.asks.find((x) => x.id === id);
+    if (!a || busy.has(id)) return;
+    const d = drafts[id] || {};
+    const text = ($("why-" + id)?.value ?? d.text ?? "").trim();
+    if (verdictKey === "chosen" && !d.choice) { notes[id] = { text: "Pick one of the options first.", tone: "stop" }; return render(); }
+    if ((verdictKey === "answered" || verdictKey === "rejected" || verdictKey === "redo") && !text) {
+      notes[id] = { text: verdictKey === "answered" ? "Write the answer first." : "Say why, so the agent knows what to change.", tone: "stop" };
+      return render();
+    }
+    const decision = { verdict: verdictKey, text, at: new Date().toISOString() };
+    if (verdictKey === "chosen") decision.choice = d.choice;
+    if (me) decision.by = me;
+    busy.add(id); notes[id] = { text: "Saving…" }; render();
+    try {
+      await db.doc("asks/" + id).update({ status: "decided", decision });
+      notes[id] = { text: "Saved. Telling " + (a.from || "the agent") + "…" }; render();
+      const told = await tell(a, decision);
+      await db.doc("asks/" + id).update({ decision: { ...decision, told } });
+      delete drafts[id];
+      notes[id] = null;
+    } catch (e) {
+      notes[id] = { text: e?.code === "invalid_argument" ? "This view can't write the inbox: open it on claude.ai as its owner." : "Couldn't save (" + (e?.code || "error") + "). Try again.", tone: "stop" };
+    } finally { busy.delete(id); render(); }
+  }
+
+  async function reopen(id) {
+    const a = state.asks.find((x) => x.id === id);
+    if (!a || busy.has(id)) return;
+    busy.add(id); render();
+    try {
+      // The old answer is kept, so a change of mind is on the record too.
+      const { id: _id, ...body } = structuredClone(a);
+      await db.doc("asks/" + id).set({ ...body, status: "open", decision: null, history: [...(a.history || []), a.decision].filter(Boolean) });
+      drafts[id] = { text: a.decision?.text || "", choice: a.decision?.choice };
+    } catch (e) { notes[id] = { text: "Couldn't reopen (" + (e?.code || "error") + ").", tone: "stop" }; }
+    finally { busy.delete(id); render(); }
+  }
+
+  document.addEventListener("click", (e) => {
+    const t = e.target.closest("button");
+    if (!t) { if (e.target.closest(".lightbox")) e.target.closest(".lightbox").remove(); return; }
+    if (t.dataset.tab) { state.tab = t.dataset.tab; state.agent = null; render(); }
+    else if (t.dataset.agent) { state.agent = state.agent === t.dataset.agent ? null : t.dataset.agent; render(); }
+    else if (t.dataset.act === "reopen") reopen(t.dataset.id);
+    else if (t.dataset.act) decide(t.dataset.id, t.dataset.act);
+    else if (t.dataset.zoom) { const box = document.createElement("div"); box.className = "lightbox"; box.innerHTML = `<img src="${esc(t.dataset.zoom)}" alt="">`; document.body.append(box); }
+    else if (t.dataset.ruleDel) db?.doc("rules/" + t.dataset.ruleDel).delete().catch(() => notice("Couldn't withdraw that order.", "stop"));
+  });
+  document.addEventListener("input", (e) => {
+    const el = e.target;
+    if (el.id === "find") { state.find = el.value; render(); return; }
+    if (el.tagName === "TEXTAREA" && el.dataset.id) (drafts[el.dataset.id] ||= {}).text = el.value;
+    if (el.type === "radio" && el.name.startsWith("opt-")) (drafts[el.name.slice(4)] ||= {}).choice = el.value;
+  });
+  document.addEventListener("change", (e) => {
+    const el = e.target;
+    if (el.type === "radio" && el.name.startsWith("opt-")) (drafts[el.name.slice(4)] ||= {}).choice = el.value;
+  });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") document.querySelector(".lightbox")?.remove(); });
+  document.addEventListener("submit", async (e) => {
+    if (e.target.id !== "newrule") return;
+    e.preventDefault();
+    const text = $("rule-text").value.trim();
+    if (!text) { $("rule-status").textContent = "Write the order first."; return; }
+    const tags = $("rule-tags").value.split(",").map((s) => s.trim()).filter(Boolean);
+    try {
+      await db.collection("rules").add({ text, tags, at: new Date().toISOString(), ...(me ? { by: me } : {}) });
+      $("rule-text").value = ""; $("rule-tags").value = "";
+    } catch (err) { $("rule-status").textContent = "Couldn't add it (" + (err?.code || "error") + ")."; }
+  });
+
+  async function start() {
+    if (!window.claude?.use) { notice("Open the inbox on claude.ai to see what's waiting and answer it."); return; }
+    db = await window.claude.use("db");
+    if (!db) { notice("The inbox's store isn't reachable in this view. Open it on claude.ai, signed in, to answer.", "stop"); return; }
+    const user = await window.claude.use("user");
+    if (user) {
+      try { me = await user.id(); } catch { me = null; }
+      const can = user.can ? await user.can("data.write") : null;
+      if (can === false) { state.canWrite = false; notice("You can read the inbox here; only its owner answers."); }
+    }
+    mcp = await window.claude.use("mcp");
+    db.collection("asks").onSnapshot((snap) => {
+      state.asks = snap.docs.map((d) => ({ ...d.data(), id: d.id })).filter((a) => a.status !== "withdrawn");
+      state.ready = true; render();
+    }, (err) => notice("The inbox stopped updating (" + err.code + "). Reload the page.", "stop"));
+    db.collection("rules").onSnapshot((snap) => { state.rules = snap.docs.map((d) => ({ ...d.data(), id: d.id })); render(); }, () => { });
+  }
+  start();
+})();
+</script>
