@@ -33,6 +33,32 @@ Bots show the systems run. They cannot show that friends have fun. Nothing below
 
 ---
 
+## 0. The director's calls (14 Oct 2026)
+
+Given on the audit in S1's chat; #999 and #1001 merged the same evening. The work is queue #479–#485 (notes 749–755).
+
+- **R1, incidents travel:** "looks good", and more: **"make the radios part of the default kit ... Hold down right click to
+  use the radio since communication is so important"** (#479). **"A grab should allow players to still use the radio but
+  their voice should be muffle filtered as if the grab is covering their mouth partially."** The news line: #480.
+- **R2, breathing room:** "good. Don't necessarily want a lot of it though" (#481: short).
+- **R3, cliffs into cascades:** asked what it means; explained (the bend throw, the struggle in a crew), waiting on the
+  director.
+- **R4, one can, two do it faster:** "absolutely the right direction" (#482).
+- **R5, the census reads commitment:** "good" (#483).
+- **R6, the comet after #999:** "good" (#485).
+- **R8, the shover's mark:** **"Shovers mark should reset to normal targeting after they are killed"** (#484).
+- **The estimates:** "You can build all this in a night for sure."
+- **Why interdependence shrinks, on purpose:** "we want solo play a bit and solo testing. Its a good intro into 'I like this
+  game but I need my friends to play for it to go farther'. This is what PEAK did really well ... you can make it a few
+  runs and things are slow and the loot isnt necessarily large because you're on your own and have limited time.
+  Eventually the threats become so numerous you succumb to the games systems because friends arent able to help you push
+  further with Scrip needs or monster rescues." So §4's second deficiency reads as a progression curve, not a fault:
+  solo is the way in, and the wall is where friends come in. R4 is that curve's mechanism.
+- **The bots:** "We need our Bots to start simulating more player behaviour. Maybe bots should talk or call out, make
+  jokes, fill dead air." S1's answer (bots hear only what a person would; good crew, middling friends, so a bot crew never
+  erases the wall; voiced callouts and chatter from game state through the same voice paths; seeded personalities) is
+  offered to the director and A1, whose area the bots are.
+
 ## 1. Executive verdict
 
 **Dark Territory has a strong co-op skeleton, and two things keep it from working as a social game.**

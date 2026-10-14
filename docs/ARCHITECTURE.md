@@ -899,4 +899,12 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [741. The driver dies and no bot takes the cab (A1, queue #475; the director, 14 Oct, `docs/playtest/2026-10-14-second.md` line 5)](notes/741.md)
 - [742. Too few kinds of creature in a night (A1, queue #476; the director, 14 Oct, `docs/playtest/2026-10-14-second.md` line 2)](notes/742.md)
 - [743. The dead's cameras: a wide of the train, over a shoulder, the bodies (A1, queue #477; the director, 14 Oct,…](notes/743.md)
+- [748. The social collision audit (S1, queue #478; the director, 14 Oct)](notes/748.md)
+- [749. Radios for everyone, on right-click (S1, queue #479; the director, 14 Oct, on the audit)](notes/749.md)
+- [750. Incidents travel the train (S1, queue #480; the audit's R1)](notes/750.md)
+- [751. A short aftermath, and the facility lull (S1, queue #481; the audit's R2)](notes/751.md)
+- [752. One can, two do it faster (S1, queue #482; the audit's R4)](notes/752.md)
+- [753. The census reads commitment (S1, queue #483; the audit's R5)](notes/753.md)
+- [754. The shover's mark ends at the shover's death (S1, queue #484; the director, 14 Oct)](notes/754.md)
+- [755. A comet fragment most nights, in sight off the line (S1, queue #485; the audit's R6)](notes/755.md)
 <!-- end of the notes index -->
