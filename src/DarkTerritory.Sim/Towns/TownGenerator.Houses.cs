@@ -386,7 +386,7 @@ public static partial class TownGenerator
                 // An open house stands square (its rooms are the rail frame's), so it's narrower by as far as its lot's turn
                 // swings its turned neighbours' corners in.
                 if (i < Math.Min(sizes.Count, open))
-                    width -= 2 * depth * Math.Abs(Math.Sin(form.Lots[i].Turn)) + 0.3;
+                    width -= 2 * depth * Math.Abs(DMath.Sin(form.Lots[i].Turn)) + 0.3;
             }
             var layout = kind == HouseKind.Open ? HouseLayout.For(width, depth, looks.Chance(0.5) ? 1 : -1) : null;
             var design = model is not null && character.Uniform
