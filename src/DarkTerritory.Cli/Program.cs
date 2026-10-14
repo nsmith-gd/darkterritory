@@ -82,6 +82,9 @@ return args switch
     // dt art houses [--character cove|lunenburg|shelburne|farm|company|mixed] [--count n] [--seed n] [--kind lived|boarded|empty|burnt]:
     // a lineup of a town character's houses as the towns draw them (note 281), to judge their variety at a glance.
     ["art", "houses", ..] => Print(ArtHouses(content, args)),
+    // dt art trees [--kind barnacle|lantern|tar|iron|crystal|webbed|thorn|lattice] [--far]: the Corruption's trees, each
+    // kind's three in a row (note 696); --far their cards.
+    ["art", "trees", ..] => Print(ArtTrees(content, args)),
     ["art", "townsfolk", ..] => Print(ArtTownsfolk(content, args)),
     // dt art footprints [--write]: what each kit piece the lineside deals stands on, measured off its mesh (note 389);
     // --write puts it in content/linegen/footprints.json, which the sim stands the walls from.
@@ -2568,6 +2571,60 @@ static object ArtHouses(string content, string[] args)
     string output = Str(args, "--out", $"out/shots/art/houses-{id}-{kind.ToString().ToLowerInvariant()}{(args.Contains("--yard") ? "-yard" : "")}{(args.Contains("--back") ? "-back" : "")}.png");
     PngWriter.Write(output, sheet, w * cols, h * rows, 1);
     return new { path = Path.GetFullPath(output), character = character.Id, character.Name, designs };
+}
+
+// The Corruption's trees (note 696): each kind's three as a lineup, a row a kind, lamp-lit with a cold fill and the
+// moon, as they stand in the woods; --kind barnacle one kind's; --far their cards (what's drawn past
+// CorruptedTreeArt.ModelledWithinM) in place of their models, to judge them against each other; --time s the frame's
+// clock (the tar's drips sag and the lantern's pods breathe with it: a run of these is their animation).
+static object ArtTrees(string content, string[] args)
+{
+    var look = DarkTerritory.Game.Look.Load(content);
+    var props = DarkTerritory.Game.Art.PropArt.Of(look);
+    string only = Str(args, "--kind", "all");
+    string[] kinds = only == "all" ? DarkTerritory.Game.Art.CorruptedTreeArt.Kinds : [only];
+    bool far = args.Contains("--far");
+    int cols = DarkTerritory.Game.Art.CorruptedTreeArt.Variants, rows = kinds.Length;
+    int w = (int)Opt(args, "--width", 360), h = (int)Opt(args, "--height", 480);
+    using var gpu = new GpuContext("dt art trees");
+    using var renderer = new GreyboxRenderer(gpu, w, h);
+    look.Dress(renderer);
+    var sheet = new byte[w * cols * h * rows * 4];
+    var drawn = new List<object>();
+    double yaw = Opt(args, "--yaw", 25) * Math.PI / 180, pitch = 4 * Math.PI / 180;
+    for (int r = 0; r < rows; r++)
+        for (int v = 0; v < cols; v++)
+        {
+            string name = DarkTerritory.Game.Art.CorruptedTreeArt.Prop(kinds[r], v, far);
+            var piece = props.Get(name) ?? throw new FileNotFoundException($"{name}: tools/models/build.sh corrupted_trees");
+            var (min, max) = DarkTerritory.Game.Art.ArtCatalog.Bounds(piece);
+            var target = new Double3(0, max.Y * 0.48, 0);
+            var toward = new Double3(Math.Sin(yaw) * Math.Cos(pitch), Math.Sin(pitch), -Math.Cos(yaw) * Math.Cos(pitch));
+            var eye = target + toward * (max.Y * 1.22);
+            var camera = Camera.LookAt(eye, target, 50);
+            var mesh = new MeshBuilder { Style = look.Style };
+            var o = -new System.Numerics.Vector3((float)eye.X, (float)eye.Y, (float)eye.Z);
+            mesh.Instances.Add(new MeshInstance(piece, System.Numerics.Matrix4x4.CreateTranslation(o)));
+            float f = 40;
+            mesh.Quad(o + new System.Numerics.Vector3(-f, -0.01f, f), o + new System.Numerics.Vector3(f, -0.01f, f), o + new System.Numerics.Vector3(f, -0.01f, -f), o + new System.Numerics.Vector3(-f, -0.01f, -f), DarkTerritory.Game.Palette.Charcoal * 0.6f);
+            // A lamp off to the viewer's right, down at a lantern's height, and a cold fill from high on the left.
+            var side = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(new System.Numerics.Vector3((float)toward.X, 0, (float)toward.Z), System.Numerics.Vector3.UnitY));
+            var front = new System.Numerics.Vector3((float)toward.X, 0, (float)toward.Z) * 7;
+            mesh.PointLights.Add(new PointLight(o + front - side * 4 + new System.Numerics.Vector3(0, 2.5f, 0), DarkTerritory.Game.Palette.LampAmber * 2.6f, 26));
+            mesh.PointLights.Add(new PointLight(o + front + side * 9 + new System.Numerics.Vector3(0, max.Y, 0), new System.Numerics.Vector3(0.35f, 0.42f, 0.55f), 45));
+            var light = look.Apply(FrameLighting.Night);
+            light.FogDensity = 0.002f;
+            light.LampRange = 0.01f;
+            light.Time = Opt(args, "--time", 0);
+            var px = renderer.Render(mesh, camera, light, light.FogColor);
+            int ox = v * w, oy = r * h;
+            for (int y = 0; y < h; y++)
+                px.AsSpan(y * w * 4, w * 4).CopyTo(sheet.AsSpan(((oy + y) * w * cols + ox) * 4));
+            drawn.Add(new { name, triangles = piece.Triangles, height = Math.Round(max.Y, 2) });
+        }
+    string output = Str(args, "--out", $"out/shots/art/trees-{only}{(far ? "-far" : "")}.png");
+    PngWriter.Write(output, sheet, w * cols, h * rows, 1);
+    return new { path = Path.GetFullPath(output), drawn };
 }
 
 // A town's people (note 353): each kind of breathing gear out of doors and at home (the mask down), each in its own hat,
