@@ -35,9 +35,16 @@ public static partial class Hud
         return next;
     }
 
-    /// <summary>A crane's two lines at the top of the screen: what it is, on which side (the board's arrow), and how far.</summary>
-    public static (string Head, string Line) MailLines(Drop drop, double metres) =>
-        (drop.Side > 0 ? "MAIL CRANE >" : "< MAIL CRANE", metres >= 1000 ? $"{metres / 1000:0.0} KM" : $"{Math.Round(metres / 10) * 10:0} M");
+    /// <summary>
+    /// A crane's two lines at the top of the screen: what it is, on which side (the board's arrow), and how far; and, as the
+    /// board posts it, the speed the hook holds a bag at (note 727: over it, it tears), the number alone (note 671).
+    /// </summary>
+    public static (string Head, string Line) MailLines(Drop drop, double metres, int limitKmh = 0) =>
+        (drop.Side > 0 ? "MAIL CRANE >" : "< MAIL CRANE",
+            (metres >= 1000 ? $"{metres / 1000:0.0} KM" : $"{Math.Round(metres / 10) * 10:0} M") + (limitKmh > 0 ? $" / {limitKmh}" : ""));
+
+    /// <summary>A bag hooked over the crane's speed (note 727): it tore off, and what was in it is gone.</summary>
+    public const string TornLine = "THE BAG TORE: TOO FAST";
 
     /// <summary>A bag caught, at the top of the screen: what was in it, and what it's done.</summary>
     public static string CaughtLine(Drop drop) => drop.Kind switch
@@ -63,7 +70,8 @@ public static partial class Hud
         if (ahead == m.MailDrop)
             return;
         // Lineside.Caught is the host's (solo, or hosting): a joiner's copy never hears of a catch, so it says nothing.
-        if (m.MailDrop >= 0 && s.World.Lineside is { } lineside && m.MailDrop < lineside.AllDrops.Count && lineside.Caught(m.MailDrop))
+        if (m.MailDrop >= 0 && s.World.Lineside is { } lineside && m.MailDrop < lineside.AllDrops.Count
+            && (lineside.Caught(m.MailDrop) || lineside.Torn(m.MailDrop)))
             (m.CaughtDrop, m.CaughtTick) = (m.MailDrop, now);
         (m.MailDrop, m.MailTick) = (ahead, now);
     }
@@ -79,7 +87,8 @@ public static partial class Hud
                 a = 1;
             if (a > 0)
             {
-                var (head, distance) = MailLines(mail.Drop, mail.Metres);
+                int limit = s.World.Lineside!.Signs.FirstOrDefault(x => x.Drop?.Id == mail.Drop.Id)?.LimitKmh ?? 0;
+                var (head, distance) = MailLines(mail.Drop, mail.Metres, limit);
                 o.TextCentred(cx, y, head, Ink with { W = a }, 1);
                 y += line;
                 o.TextCentred(cx, y, distance, Dim with { W = a }, k);
@@ -89,7 +98,7 @@ public static partial class Hud
         if (m.CaughtDrop >= 0 && s.World.Lineside is { } lineside && m.CaughtDrop < lineside.AllDrops.Count
             && Shown(Since(s, m.CaughtTick), Tuning.PlaceSeconds) is > 0 and var c)
         {
-            o.TextCentred(cx, y, CaughtLine(lineside.AllDrops[m.CaughtDrop]), Amber with { W = c }, 1);
+            o.TextCentred(cx, y, lineside.Torn(m.CaughtDrop) ? TornLine : CaughtLine(lineside.AllDrops[m.CaughtDrop]), Amber with { W = c }, 1);
             y += line + 2;
         }
         return y;

@@ -117,6 +117,8 @@ public sealed class PrototypeSession : IPlaySession
             _cues.Add((ElapsedSeconds, Board(sign)));
         foreach (var drop in World.Lineside?.CaughtThisTick ?? [])
             _cues.Add((ElapsedSeconds, Caught(drop)));
+        foreach (var _ in World.Lineside?.TornThisTick ?? [])
+            _cues.Add((ElapsedSeconds, "the bag tore off the hook: too fast for the crane"));
         // Grease's telegraph (App. A.2): "lamp reflection off the slicked rail; a sharp chemical smell in the cab".
         if (World.Lineside?.GreaseAhead(Train, World.LampShining) is { } grease && grease != _greaseCued)
         {
@@ -235,7 +237,7 @@ public sealed class PrototypeSession : IPlaySession
     public static string Board(Sign sign) => sign.Kind switch
     {
         SignKind.SpeedLimit => $"board: {sign.LimitKmh} km/h ahead",
-        SignKind.Drop => $"board: a mail crane ahead on the {(sign.Drop!.Side > 0 ? "right" : "left")}: open that side door and hook it (left mouse)",
+        SignKind.Drop => $"board: a mail crane ahead on the {(sign.Drop!.Side > 0 ? "right" : "left")}: open that side door and hook it (left mouse), under {sign.LimitKmh} km/h",
         SignKind.Terminus => "board: the terminus ahead",
         _ => "board: low clearance ahead, off the roofs",
     };

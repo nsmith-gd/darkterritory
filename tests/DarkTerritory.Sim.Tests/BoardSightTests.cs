@@ -312,7 +312,8 @@ public class BoardSightTests
             {
                 mails++;
                 var site = side.SightBoard(sign);
-                Assert.Equal(sign.Drop!.Side > 0 ? "MAIL >" : "< MAIL", site.Text);
+                // Its posted speed for the hook under the word (note 727).
+                Assert.Equal((sign.Drop!.Side > 0 ? "MAIL >" : "< MAIL") + " " + sign.LimitKmh, site.Text);
                 if (site.Side != sign.Drop.Side)
                     across++;
             }

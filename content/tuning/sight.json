@@ -50,6 +50,10 @@
   "dropClear": 80,
   "dropBoardAhead": 400,
   "catchReach": 1.1,
+  // The mail catch (queue #461, note 727; GDD App. F.6): the hook holds a bag only at this speed or under (m/s, 54 km/h,
+  // posted on the crane's board as 50). Over it, the bag tears off and is lost: the one at the door calls the driver down.
+  // The bot driver's cruise (14) is under it.
+  "catchMaxSpeed": 15,
   "dropWeights": { "mail": 0.45, "coal": 0.2, "ammo": 0.2, "spares": 0.15 },
   "mailScrip": [20, 60],
   "coalUnits": 8,

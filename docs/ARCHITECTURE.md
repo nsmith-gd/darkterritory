@@ -884,6 +884,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [709. Speed feel (A1, queue #441; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 20)](notes/709.md)
 - [710. The Wakers take those who ran (G1, queue #442; the director, 14 Oct 2026: "The waker ... eats the train now. It should capture players who…](notes/710.md)
 - [712. Every crane's controls easy to find (D1.5, queue #449; the director, 14 Oct, playing frontier:7: "I've got a crane that doesn't have a…](notes/712.md)
+- [727. The mail catch (K1, queue #461; the director, 14 Oct 2026, GDD App. F.6)](notes/727.md)
 - [733. The friendslop audit and the director's calls of 14 Oct (K1, queue #467)](notes/733.md)
 - [734. The cab's hatch ladder clips and the hatch flickers (A1, queue #468; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 1)](notes/734.md)
 - [735. The cab shakes and rocks; still slow (A1, queue #469; the director, 14 Oct, `docs/playtest/2026-10-14.md` lines 6, 20)](notes/735.md)
