@@ -290,9 +290,15 @@ public sealed class Director
     }
 
     /// <summary>The cargo aboard: what's in the loaded cargo cars of the engine's rake (a cut car on a spur isn't aboard).</summary>
-    public static HashSet<CargoKind> Aboard(World world) =>
-        world.Train.Dynamics.Consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Load > 0.01 && v.Cargo != CargoKind.None)
+    public static HashSet<CargoKind> Aboard(World world)
+    {
+        var aboard = world.Train.Dynamics.Consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Load > 0.01 && v.Cargo != CargoKind.None)
             .Select(v => v.Cargo).ToHashSet();
+        // Note 718: a comet fragment brought aboard from a stop draws as the comet's freight does ("attracts everything", GDD §19).
+        if (Run.Run.CometAboard(world))
+            aboard.Add(CargoKind.Comet);
+        return aboard;
+    }
 
     /// <summary>A tier gate, relaxed by one with comet-derived material aboard (App. B.8).</summary>
     public RouteTier Gate(World world, RouteTier tier) =>

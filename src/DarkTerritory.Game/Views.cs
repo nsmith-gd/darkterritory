@@ -189,6 +189,11 @@ public static class Views
             // note 720), the train behind them.
             "lampsignal" => Camera.LookAt(Staging.Lineside(train, Staging.SignalAhead, Staging.SignalCamera) + Double3.Up * 1.55,
                 Staging.Lineside(train, Staging.SignalAhead, Staging.SignalOut) + Double3.Up * 1.25, 55),
+            // (Not one of Names.) Note 718: from the cab coming into a stop with a comet fragment lying out (the screenshot puts
+            // the train short of it); and stood beside the engine looking down at the creatures' trophies laid out on the
+            // ground off the line's left.
+            "comet" => CabCamera(engine),
+            "trophies" => Camera.LookAt(Staging.Lineside(train, 4.2, -1.6) + Double3.Up * 1.55, Staging.Lineside(train, 7.2, -4.1) + Double3.Up * 0.05, 40),
             // Crouched where the fireman shovels, at the firebox door (what's seen when it's open: the staged Stoker).
             "firebox" => FireboxCamera(engine),
             // The work at the cab's front (note 280): from behind where one person runs it all, forward at the coal on the left,

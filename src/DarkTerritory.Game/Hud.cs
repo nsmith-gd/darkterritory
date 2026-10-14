@@ -1520,6 +1520,10 @@ public static partial class Hud
         money.Add($"running costs {r.CoalCost + r.AmmoCost + r.RepairCost:0}");
         // Wrapped as the lines are (note 347): at a bigger TEXT SIZE it's wider than the plate.
         var sum = Wrap($"{string.Join(", ", money)}. Net {r.Net:0} scrip.", chars).ToList();
+        // Note 718: the night's best finds by what they paid, and who brought the most aboard, over the money (what the clerk
+        // read, kept on the screen: how a crew learns what's worth carrying).
+        if (PrizeLine(r) is { Length: > 0 } prizes)
+            sum.InsertRange(0, Wrap(prizes, chars));
         // The dead's own (D.12 "manual"), a row of stills across, each with when and whom they were following.
         var manual = r.Bookmarks.Where(b => b.Kind == BookmarkKind.Manual).ToList();
         // Each a still with its time and whom it followed at its right.
@@ -1581,6 +1585,21 @@ public static partial class Hud
             o.Text(x + 4, y, row, Ink);
             y += line;
         }
+    }
+
+    /// <summary>
+    /// Note 718: the end screen's line for the night's finds: "Best finds: comet fragment 1080, pocket watch 110, candles 25
+    /// (x3). Light fingers: Dave, 1215." Empty with none home.
+    /// </summary>
+    public static string PrizeLine(RunReport r)
+    {
+        var parts = new List<string>();
+        if (r.Prizes.Count > 0)
+            parts.Add("Best finds: " + string.Join(", ", r.Prizes.Select(p =>
+                $"{char.ToLowerInvariant(p.Name[0])}{p.Name[1..]} {p.Worth:0}{(p.Count > 1 ? $" (x{p.Count})" : "")}")) + ".");
+        if (r.Finder.Length > 0 && r.FinderWorth > 0)
+            parts.Add($"Light fingers: {r.Finder}, {r.FinderWorth:0}.");
+        return string.Join(" ", parts);
     }
 
     /// <summary>Run seconds as the report's timestamp: "1:04:12" over an hour, else "12:04".</summary>

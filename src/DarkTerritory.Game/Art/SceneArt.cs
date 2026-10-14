@@ -794,6 +794,18 @@ public sealed partial class SceneArt(Look look)
             mesh.Instances.Add(new MeshInstance(piece, m, Shadowless: true));
         else
             mesh.Append(piece, m);
+        // A comet fragment (note 718; the director, 14 Oct 2026: "extra valuable loot that players get excited for when they
+        // see"): its sick green light round it, breathing slowly as the comet's freight does, a pool on what it lies on and a
+        // halo over it, so a crew sees it from the line coming in.
+        if (b.Kind == Sim.Physics.BodyKind.Loot && FindItem?.Invoke(b) is { } glowing && FindKit.Glows(glowing))
+        {
+            float breath = 0.8f + 0.2f * MathF.Sin((float)(time * 1.3) + b.Id);
+            var lit = o + u * 0.4f;
+            mesh.PointLights.Add(new PointLight(lit, FindKit.CometGlow * 3f * breath, 10f));
+            mesh.Billboard(o + u * 0.12f, 0.9f * breath, 0, new Vector4(FindKit.CometGlow * 0.4f * breath, 1), -1, FxBlend.Additive);
+            // ... and a wide, faint haze of it in the fog over it, what a crew picks out from the line a stop's length off.
+            mesh.Billboard(o + u * 0.8f, 3.2f * breath, 0, new Vector4(FindKit.CometGlow * 0.25f * breath, 1), -1, FxBlend.Additive);
+        }
         if (b.Kind == Sim.Physics.BodyKind.Lamp)
         {
             // A hand lamp's glow round it, flickering a little (pipeline: "dynamic point lights with flicker curves").

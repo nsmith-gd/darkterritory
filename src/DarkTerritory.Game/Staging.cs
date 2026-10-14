@@ -1588,6 +1588,10 @@ public static partial class Staging
                 BroughtIn = 2,
                 BroughtInFees = 2 * brigade,
                 TownHurt = 2 * run.Tuning.BroughtIn.Hurt,
+                // The night's best finds and its light fingers (note 718), as a frontier night's tally reads them.
+                Prizes = [new("cometFragment", "Comet fragment", 1, 1080), new("gauntHand", "The Gaunt's hand", 1, 540), new("pocketWatch", "Pocket watch", 2, 110)],
+                Finder = "Dave",
+                FinderWorth = 1300,
             }
             : new Sim.Run.RunReport(end, 1720, 17.2, 4, 1, 2.1, 0, 120, 6, 40, -1416, 1, 3, Deaths: 3, CrewLossFees: 1050) { Lines = marked, Bookmarks = shown };
     }

@@ -148,7 +148,10 @@ public static class ArtCatalog
         list.Add(new("loot", SmallProp, () => PropKit.Loot(look, 0.15f)));
         // The village finds, each its own (FindKit; the director, 8 Oct).
         foreach (var item in new[] { "tinnedFood", "treats", "candles", "medicine", "bandages", "morphine", "preserves", "lampOil",
-                     "tools", "valuableTools", "pocketWatch", "lampParts", "rope", "gannetHead" })
+                     "tools", "valuableTools", "pocketWatch", "lampParts", "rope", "gannetHead",
+                     // Note 718: the comet fragment and the team kills' trophies.
+                     "cometFragment", "grumblerJaw", "gauntHand", "climberClaw", "passengerCap", "brakemanWheel", "knotterClaw",
+                     "hotboxPlate", "beetleShovel", "towerJawTooth" })
             list.Add(new($"find-{item}", SmallProp, () => FindKit.Find(look, item, 0.15f)));
         // What the railway left beside its line (note 325, WorldArt.Leavings): every variant the leavings deal.
         for (int v = 0; v < 3; v++)

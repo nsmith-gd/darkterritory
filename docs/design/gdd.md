@@ -33,7 +33,7 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
 - **The orchestrator** (outlined): threats planned against the players active now. Built so far: the budget from the crew alive, and a cap on threats at once by it (B.1, orchestrator.md).
 - **Something to do between stops.** The hound run, a stream of Cinder Hounds a fast train draws for the guns to answer one at a time; and the first upkeep jobs: the hot box, an axle box running dry that's greased from the gap or the ground before it slows the train and catches, a car's lamp guttering, trimmed inside before it goes out, a coupling working loose, knocking in its gap until the wrench tightens it or the rake parts behind it, and powder to the guns: a gun's ready rack of six, refilled by a charge carried up from the guard van's powder locker (B.3, C.3, F.3).
 - **Off the train, a presence of threat.** The crew on foot are watched from the lamp's edge, and outdoor creatures come sooner while anyone's out (B.1, F.3).
-- **Driven off, or killed together.** A creature is driven off by its rule; a coordinated team can kill the Grumbler, the Gaunt, the Passenger, Climbers and the Choir's ghosts (F.1).
+- **Driven off, or killed together.** A creature is driven off by its rule; a coordinated team can kill the Grumbler, the Gaunt, the Passenger, Climbers and the Choir's ghosts (F.1). A team kill sometimes leaves a trophy (§19, note 718).
 - **Damage, Lethal Company style:** a few big hits, never chip damage, rare healing finds, an edge flash (F.1; systems spec B.2).
 - **The wrench repairs, Sea of Thieves style.** Everyone carries one; in hand, Use at a break mends it: the burst boiler, a breach, a battered car. Stranding is to follow the wrench, not the kit: every wrench lost, then a rupture (the director, 8 Oct; §12, §23, §23.2).
 - **Fire is a grid** of cells on a car's floor, walls and roof; the extinguisher puts out the cell you aim at, and burnt cells char (C.5).
@@ -406,6 +406,8 @@ Eventually the crew sees lights. Then walls. Then cannon towers. The gates open 
 
 **The settlement does not mourn.** A yard clerk tallies the run over the radio as the cars come through: cargo by the car, bodies by the body, each fee read out flat, in the same voice as the coal. The town values your friend at 75%, says so, and moves on to the next line. This is the world's indifference, and it is the punchline to every failure that came before it (§23.1).
 
+**The night's best finds, by name** *(the director, 14 Oct 2026; ARCHITECTURE §8 note 718)*. After the salvage, the clerk names the night's three worthiest kinds of find with what each paid, in the same voice ("Find: comet fragment, 1080." "Finds: pocket watch, 2 at 110."), and then whoever brought the most worth aboard: "Light fingers: Dave, 1300." The run-end screen keeps the same line under the incident report. Nothing else ever shows a price (§19): this is how a crew learns, night by night, what's worth carrying. The wallet stays shared (§11); the finder's line is bragging rights, not a share.
+
 ## 10. The consist
 
 | Section | Contains |
@@ -588,6 +590,16 @@ Cargo is physically represented and **changes the run** rather than just scoring
 | Comet-derived material | Attracts everything |
 | Child survivor | The most valuable cargo there is. Carried by hand to a cargo car |
 | Hand-carried loot | Toys, crates, salvage. Stolen, eaten, and traded to monsters. Some toys are noisy: a squeaker, a music box, a wind-up drummer. They feed the crew loudness meter while carried (Appendix C.7) |
+| Comet fragment | Hand-carried, worth more than a car-load of goods. Glows. Attracts everything |
+| Trophy | A piece of a creature the crew killed together. Hand-carried, worth a good deal |
+
+### The night's prizes *(the director, 14 Oct 2026; ARCHITECTURE §8 note 718)*
+
+"I don't want to have a price shown on every single thing that we find. I want players to eventually understand that certain objects are more valuable than others, and that as they play the game more often, they learn what those objects are. I do agree that Comet Cargo needs to be at actual stops and needs to be extra valuable loot that players get excited for when they see. Team killable creatures can sometimes leave trophies."
+
+- **Value you learn.** Every kind of find is always worth the same: a box of candles is the cheapest thing in a cupboard, a pocket watch is worth several of them, and morphine more. Nothing on the screen says so. The clerk's tally names the night's best finds with what they paid (§9), and over nights the crew learns what to carry first. A find's worth is its kind's share of the tier's car-load value, so it is the same on every night of a tier. An outlier house keeps better things (level-design P11).
+- **Comet fragments at the stops.** On some nights, a stop has a fragment or two of the comet lying out in the open: beside a yard's crates, or outside a shed or a house on the side facing the line. They are lumps of black glassy slag split by crystal that glows a sick green, and that light carries through the fog, so a crew coming in sees them from the train. Deeper tiers have them more often: about one local night in six, two frontier nights in five, most deep nights. One person can carry one, and it is worth more than a whole car-load of goods. While one is aboard, in a car or in the hands of someone on the train, it draws everything the comet's freight draws (B.8: every creature weighs more, and the Gaunt's and the Passenger's tier gates relax).
+- **Trophies, sometimes.** About one team kill in three leaves a piece of the creature where it fell: the Grumbler's jaw, the Gaunt's long hand, a Climber's claw, the Passenger's cap with its dead railway's badge, the Brakeman's brake wheel, a Knotter's claw, a Hotbox plate, the Freight Beetle's shovel head, Tower Jaw's tooth. The Choir's ghosts leave nothing. Each trophy is a find with its own worth, and the ones that come several to a night (Climbers, Knotters, Hotboxes) are worth less each. The Gannet's head is still left every time (note 340): one bird, rare, at speed.
 
 **The mail cranes** *(notes 673, 727; the director, 14 Oct 2026, App. F.6)*. Between the stops, mail cranes stand beside the line, each with a board a way ahead saying which side. Someone in a car's open side door on that side, holding the hook out as the car goes by, catches its bag: pay, coal for the tender, rounds for the guns or spares for the worst car. The board posts the speed the hook holds a bag at ("MAIL > 50"), and a bag hooked faster tears off and is lost, so the one at the door calls the driver down for it.
 
@@ -1513,7 +1525,7 @@ SWOOP     lands on its mark (a roof, or the ground within 200 m) → GRAB: pinne
 PECK      4 pecks, 3 s apart, each with a wind-up you can see; the victim can talk
           └ interrupt: 3 blows from friends in the pin → it lets go and climbs; the last to hit it is its mark
 PUNISH    the fourth peck
-GIVE UP   hurt below 4 of its 12 health → it leaves for the run; killed, its head is a trophy (1.5 car-loads)
+GIVE UP   hurt below 4 of its 12 health → it leaves for the run; killed, its head is a trophy (1.5 car-loads), every time (note 718 kept it so)
 BREAK OFF the train under 12 m/s for 6 s, a tunnel, or 60 s with nobody walking the roofs and its mark inside
           → it peels off; back after 3 minutes if the train runs fast again
 ```
