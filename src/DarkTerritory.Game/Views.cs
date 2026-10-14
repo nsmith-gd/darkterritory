@@ -123,7 +123,7 @@ public static class Views
                 + ((Staging.Lineside(train, 26, 14) - Staging.JacobAt(train)) with { Y = 0 }).Normalized * 0.4, Staging.JacobAt(train) + Double3.Up * 1.5, 55),
             // (Not one of Names.) Dawn's Wakers (note 588): back down the line from the guard van at one coming (the screenshot
             // stages it and puts the camera on it; this is only where it looks without one).
-            "waker" or "wakerlift" or "wakerinside" or "wakerrise" or "wakerwall" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(0.6, 2.4, train.Frames[^1].Shape.HalfLength + 1.2)),
+            "waker" or "wakerlift" or "wakerinside" or "wakerrise" or "wakerwall" or "wakerpick" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(0.6, 2.4, train.Frames[^1].Shape.HalfLength + 1.2)),
                 train.Frames[^1].ToWorld(new Double3(0, 9, 120)), 70),
             "jacobblessed" => Camera.LookAt(train.Frames[0].ToWorld(new Double3(6, 4.5, -6)), train.Frames[Math.Min(3, train.Frames.Count - 1)].ToWorld(new Double3(0, 2, 0)), 60),
             // Over crewmate 4's shoulder out in front of the engine, at the staged Moose squaring up to them, coming at them,
@@ -234,6 +234,16 @@ public static class Views
             "cabboard" => CabBoardCamera(train),
             // The run map on the cab's front wall, square on and close enough to read its figures (note 671).
             "cabmap" => MapCamera(engine),
+            // (Not one of Names.) The climber's eye going up the cab's hatch ladder (note 734), at the roof: up through the
+            // opening, not through the roof (the director, 14 Oct: "it looks like we're actually going through").
+            "cabclimb" => CabHatch(engine) is { } climb
+                ? Camera.LookAt(engine.ToWorld(new Double3(climb.Foot.X, climb.Top - 0.1, climb.Foot.Z)), engine.ToWorld(new Double3(climb.Foot.X, climb.Top + 0.6, climb.Foot.Z + 1.5)), 75)
+                : CabCamera(engine),
+            // (Not one of Names.) The cab's hatch from its roof (note 704; the director: "this ladder inside the cab should
+            // actually go up to the roof"): standing open, its lid thrown back, the way down into the cab.
+            "cabhatchroof" => CabHatch(engine) is { } hatch
+                ? Camera.LookAt(engine.ToWorld(new Double3(hatch.Foot.X + 0.9, hatch.Top + 2.6, hatch.Foot.Z - 1.9)), engine.ToWorld(new Double3(hatch.Foot.X, hatch.Top, hatch.Foot.Z - 0.33)), 60)
+                : CabCamera(engine),
             "ahead" => Camera.LookAt(engine.ToWorld(new Double3(1.5, 2.2, -engineHalf - 70)), engine.ToWorld(new Double3(0, 2.2, 0)), 55),
             "gap" => GapCamera(train, car),
             // (Not one of Names.) From a cargo car's right-hand side doorway, down at its steps (the director, 8 Oct: "an
@@ -349,6 +359,14 @@ public static class Views
             if (bunker.Box.ContainsXZ(eye))
                 eye = eye with { X = bunker.Box.Max.X + 0.35 };
         return Camera.LookAt(engine.ToWorld(eye), engine.ToWorld(at + new Double3(0, 1.1, 0)), 70);
+    }
+
+    /// <summary>The cab's hatch ladder, up through the cab roof (note 704), if the engine has one.</summary>
+    static Ladder? CabHatch(in CarFrame engine)
+    {
+        var shape = engine.Shape;
+        return shape.Ladders.Where(l => shape.Cab is { } c && c.ContainsXZ(l.Foot) && DarkTerritory.Sim.Player.PlayerMotor.IsHatchLadder(shape, l))
+            .Select(l => (Ladder?)l).FirstOrDefault();
     }
 
     static Camera CabCamera(in CarFrame engine, int side = 1)

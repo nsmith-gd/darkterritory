@@ -40,6 +40,22 @@ sealed partial class LineBuilder
             _signs.Add(new PlanSign(type, edge, R(s), onSide == 0 ? side : onSide, text, State(required, ref r), required, value, of, to is { } t ? R(t) : null));
         }
 
+        // A junction's or facility's far board with another stop between it and what it counts to stands pastStopM past that
+        // stop, or isn't stood if that's not short of the near board (note 702, the evening playtest: "J1, one kilometer ...
+        // That came before the Talbot Foundry stop though, so that's a bit confusing"). Its words are its distance from there.
+        double? PastStops(double at, double to, double near)
+        {
+            double past = at;
+            foreach (var f in _facilities)
+            {
+                // (Where the train stops for it: a spur's points, where it leaves the main line; else the facility itself.)
+                double stop = f.SpurEdge is { } spur && _edges.TryGetValue(spur, out var e) ? e.Toe : f.S;
+                if (stop > at + 1 && stop < to - 1)
+                    past = Math.Max(past, stop + sg.PastStopM);
+            }
+            return past == at || past <= near - sg.PastStopM ? past : null;
+        }
+
         // Kilometre posts every 1 km, always required: the reference for all paperwork. Minor posts at the half.
         for (double km = 0; _gate + km * 1000 <= _terminus + 1; km += 0.5)
         {
@@ -135,6 +151,12 @@ sealed partial class LineBuilder
                         foreach (double before in new[] { _c.Config.Facilities.Slots.BoardFarM, _c.Config.Facilities.Slots.BoardNearM })
                         {
                             double at = before == _c.Config.Facilities.Slots.BoardFarM ? Math.Min(slot.S - before, board) : slot.S - before;
+                            if (before == _c.Config.Facilities.Slots.BoardFarM)
+                            {
+                                if (PastStops(at, slot.S, slot.S - _c.Config.Facilities.Slots.BoardNearM) is not { } far)
+                                    continue;
+                                at = far;
+                            }
                             Sign("facility", "main", at, $"{slot.Name} {(slot.S - at) / 1000:0.0} KM", true, Math.Round((slot.S - at) / 1000, 1), d.Id, ref rng, to: slot.S);
                         }
                         break;
@@ -145,6 +167,12 @@ sealed partial class LineBuilder
                         foreach (double before in new[] { _t.Junctions.BoardFarM, _t.Junctions.BoardNearM })
                         {
                             double at = before == _t.Junctions.BoardFarM ? Math.Min(d.SReq - before, board) : d.SReq - before;
+                            if (before == _t.Junctions.BoardFarM)
+                            {
+                                if (PastStops(at, d.SReq, d.SReq - _t.Junctions.BoardNearM) is not { } far)
+                                    continue;
+                                at = far;
+                            }
                             Sign("junction", "main", at, $"J{node.Number} {(d.SReq - at) / 1000:0.0} KM", true, Math.Round((d.SReq - at) / 1000, 1), d.Id, ref rng, to: d.SReq);
                         }
                         break;

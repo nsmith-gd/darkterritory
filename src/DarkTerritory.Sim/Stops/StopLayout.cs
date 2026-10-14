@@ -42,7 +42,8 @@ public enum HouseShape : byte { Rect, L, Cross, Pair, Square }
 public enum RoadKind : byte { Through, Street, Lane, Stub }
 
 /// <summary>Container kinds (P14): where loot can be. The economy decides what's in each (loot.json).</summary>
-public enum ContainerKind : byte { CraneBay, CrateStack, Strongroom, Cupboard, Cabinet, Cellar, UnderFloor, Bench, Hayloft }
+/// <summary>Where loot can be kept (P14). <see cref="Loose"/>: a small thing lying on a house's floor, seen and taken at once (note 738).</summary>
+public enum ContainerKind : byte { CraneBay, CrateStack, Strongroom, Cupboard, Cabinet, Cellar, UnderFloor, Bench, Hayloft, Loose }
 
 /// <summary>A point in a stop's rail frame: <see cref="S"/> metres along the main line from the zone's start, <see cref="D"/> to its right.</summary>
 public readonly record struct Pt(double S, double D)
@@ -55,6 +56,9 @@ public readonly record struct Pt(double S, double D)
     /// <summary>This turned a quarter towards +D: along the line, it points to the right.</summary>
     [JsonIgnore] public Pt Normal => new(-D, S);
     public static double Distance(Pt a, Pt b) => (a - b).Length;
+    // The record's own printer walks Unit and Normal, each a Pt with its own: it never ends, and a failed Assert.Equal on
+    // anything holding a Pt took the whole test host down with a stack overflow instead of saying what differed.
+    public override string ToString() => FormattableString.Invariant($"({S:0.###}, {D:0.###})");
 }
 
 /// <summary>A rectangle in a house's own frame (x along its length, y across), for L, cross and paired footprints.</summary>

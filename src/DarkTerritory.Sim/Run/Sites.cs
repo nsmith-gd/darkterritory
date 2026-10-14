@@ -154,6 +154,8 @@ public sealed record CraneTuning
     public double TrolleySpeed { get; init; } = 1.0;
     public double HoistSpeed { get; init; } = 0.8;
     public double ControlsReach { get; init; } = 1.2;
+    /// <summary>Note 736: the cab hangs under the bridge's far end, this far out past it (m).</summary>
+    public double CabOut { get; init; } = 1.4;
     public double RigReach { get; init; } = 1.5;
     public double RigHeight { get; init; } = 2.2;
     public double RigSeconds { get; init; } = 2;
@@ -163,6 +165,19 @@ public sealed record CraneTuning
     public double GuideAbove { get; init; }
     /// <summary>... at this speed (m/s); 0: never.</summary>
     public double GuideSpeed { get; init; }
+    /// <summary>Note 707: the operator's view from the cab (presentation only; the sim never reads it).</summary>
+    public CraneViewTuning View { get; init; } = new();
+}
+
+/// <summary>The crane operator's view (GDD §18, note 707). Field docs in facilities.json <c>crane.view</c>.</summary>
+public sealed record CraneViewTuning
+{
+    public double Fov { get; init; } = 55;
+    public double LowerFrom { get; init; } = 4;
+    public double Down { get; init; }
+    public double Lean { get; init; }
+    public double Ground { get; init; }
+    public double Window { get; init; }
 }
 
 /// <summary>Who works a facility stop (note 261; spec D.2's "Crew" column). Field docs in facilities.json.</summary>

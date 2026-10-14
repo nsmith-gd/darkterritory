@@ -519,7 +519,7 @@ public class DropAndPacingTests
     }
 
     /// <summary>A train at speed past a crane with someone in car 2's side door on its side, door open or not, hook out or not.</summary>
-    static (Lineside Lineside, World World) Past(bool open, bool hook, DropKind kind = DropKind.Mail)
+    static (Lineside Lineside, World World) Past(bool open, bool hook, DropKind kind = DropKind.Mail, double speed = 13)
     {
         var route = new Route.Route("t", RouteTier.Frontier, 1, new LineDefinition("t", [new TrackSegment(3000)]), [], new RouteWeather(0.01, false, 0, 0), 3600);
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 0.5)), route.Build(), 600, Tuning.Boiler);
@@ -538,7 +538,7 @@ public class DropAndPacingTests
         var intent = hook ? new PlayerIntent { Buttons = PlayerButtons.Fire } : default;
         while (train.Dynamics.RearDistance < drop.At + 5)
         {
-            train.Dynamics.Velocity = 13;
+            train.Dynamics.Velocity = speed;
             world.BeginTick();
             world.CrewAct(ref s, intent, 1);
             world.Step(new TrainControls { Reverser = 1 });
@@ -560,6 +560,20 @@ public class DropAndPacingTests
         Assert.True(shut.Passed(drop.Id) && !shut.Caught(drop.Id));
         var (idle, _) = Past(open: true, hook: false);
         Assert.True(idle.Passed(drop.Id) && !idle.Caught(drop.Id));
+    }
+
+    [Fact]
+    public void ABagHookedOverTheCranesPostedSpeedTearsAndIsLost()
+    {
+        // The mail catch (queue #461, note 727): the crane's board posts the speed the hook holds a bag at; over it, the bag
+        // tears off and what was in it is gone, so the one at the door calls the driver down for it.
+        Assert.True(S.CatchMaxSpeed > 13);
+        var (torn, world) = Past(open: true, hook: true, speed: S.CatchMaxSpeed + 2);
+        var drop = torn.AllDrops.First();
+        Assert.True(torn.Torn(drop.Id) && torn.Passed(drop.Id) && !torn.Caught(drop.Id));
+        Assert.Equal(0, world.Run!.Mail);
+        var board = Lineside.Boards(S, DarkTerritory.Sim.LineGen.Routes.Generate(DataFile.FindContentRoot(), "frontier:7", 6)).First(b => b.Kind == SignKind.Drop);
+        Assert.Equal((int)(Math.Floor(S.CatchMaxSpeed * 3.6 / 5) * 5), board.LimitKmh);
     }
 
     [Fact]

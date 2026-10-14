@@ -101,9 +101,13 @@
   },
 
   // App. C.1 GRAB, shared by every enemy that holds someone: a friend pulls a victim free with Use this close (where the
-  // enemy allows it) or hits the holder. Alone (a crew of one), holding Use for soloStruggle seconds breaks the hold:
-  // the GDD has no solo rule (ARCHITECTURE §8 note 92, a tuning flag).
-  "grab": { "pullReach": 1.6, "soloStruggleOn": true, "soloStruggle": 6 },
+  // enemy allows it) or hits the holder. Alone (a crew of one), holding Use for soloStruggle seconds is a try at breaking
+  // the hold (ARCHITECTURE §8 note 92): one try a grab, and it works soloStruggleChance of the time (the director, 13 Oct
+  // 2026, App. C.1: "holding e shouldn't always result in escape it should at best give me a 15% chance of escape"; note
+  // 681). Then raised to a coin flip (the director's playtest, 14 Oct: "hold the struggle when playing solo really should
+  // have a higher rate of success. Damn, yeah, run lost"; note 737): 0.15 to 0.5. soloStruggle is shorter than every
+  // creature's hold (the Householder's grabSeconds, 6, the shortest), so the try comes before the kill.
+  "grab": { "pullReach": 1.6, "soloStruggleOn": true, "soloStruggle": 4, "soloStruggleChance": 0.5 },
 
   // App. C.2 melee with train tools: the shovel, the crowbar and the wrench (GDD §12, §1322) swing; enemy health below is in
   // blows of the crowbar, the tool everyone starts with (player.json kit). App. C.2: "the boiler player's shovel doubling as
@@ -615,11 +619,18 @@
   // riseSeconds, each runs startSpeed rising to topSpeed m/s over rampSeconds (faster than the engine's 22), over everything,
   // and stops stopShort m short of the terminus's gate (the guns). The first one to reach the last car has the train: it
   // drags at dragFactor x the engine's pull, lifts a car every liftSeconds from the rear, and from eatAfter s eats one every
-  // eatSeconds, whoever's in it with it; anyone off the train is taken groundSeconds in. The engine eaten, the run's over:
-  // "taken at dawn". stirSeconds: the tension before dawn (the sky, the ground, their calls; presentation and audio).
+  // eatSeconds, whoever's in it with it. The engine eaten, the run's over: "taken at dawn". stirSeconds: the tension before
+  // dawn (the sky, the ground, their calls; presentation and audio).
+  // Those who ran (note 710; the director, 14 Oct 2026: "It should capture players who escape the train and eat them too"):
+  // while one holds the train, another rises out of the land pickAside m beyond each crewmate off it (up to pickers at once),
+  // over pickRiseSeconds (the telegraph), strides to them at pickSpeed m/s, takes them within pickReach m, lifts them
+  // over pickLiftSeconds to its mouth (pickMouthOut m in front of it, pickMouthHeight m up) and eats them; pickEatSeconds
+  // after, it goes for the next. In under a fort's guns, nobody's taken.
   "wakers": { "enabled": true, "stirSeconds": 180, "count": [1, 1, 2, 3], "riseBehind": 1200, "riseAside": 600, "asideBack": 300,
     "joinSeconds": 90, "riseSeconds": 8, "startSpeed": 6, "topSpeed": 26, "rampSeconds": 45, "stopShort": 300,
-    "dragFactor": 3, "liftSeconds": 2.5, "eatAfter": 6, "eatSeconds": 4, "groundSeconds": 8,
+    "dragFactor": 3, "liftSeconds": 2.5, "eatAfter": 6, "eatSeconds": 4,
+    "pickers": 3, "pickAside": 40, "pickRiseSeconds": 4, "pickSpeed": 12, "pickReach": 18, "pickLiftSeconds": 4,
+    "pickMouthOut": 10, "pickMouthHeight": 22, "pickEatSeconds": 4,
     // wakers.md §2, the night things run (note 635; the director, the inbox, 12 Oct 2026: "creatures should leave all except
     // the knotter and the hotbox who are parasites that have train functions"): nightFleesSeconds before dawn the night's
     // creatures let go and are gone, and the director sends none of them after; negative, they stay. Those staysAtDawn names

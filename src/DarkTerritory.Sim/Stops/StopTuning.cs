@@ -126,6 +126,8 @@ public sealed record VillageTuning
     public required double SecondFindChance { get; init; }
     /// <summary>Note 593: a house with two finds has a third at this chance. Unset, never.</summary>
     public double ThirdFindChance { get; init; }
+    /// <summary>Note 738: small things lying on the floors of the open houses. Unset, none.</summary>
+    public LooseFindTuning? Loose { get; init; }
     public required int[] Outbuildings { get; init; }
     public required double WellChance { get; init; }
     public required double SetbackExtra { get; init; }
@@ -303,3 +305,9 @@ sealed class ChoiceConverter : JsonConverter<Choice>
         writer.WriteEndArray();
     }
 }
+
+/// <summary>
+/// stops.json <c>village.loose</c> (note 738): each plain open house has small things lying on its floor at
+/// <see cref="Chance"/>, <see cref="Count"/> of them; every village with an open house has one at least.
+/// </summary>
+public sealed record LooseFindTuning(double Chance, int[] Count);

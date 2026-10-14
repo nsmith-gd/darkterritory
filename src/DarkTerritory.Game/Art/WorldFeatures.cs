@@ -435,31 +435,25 @@ public sealed partial class WorldArt
         float flicker = 1)
     {
         var local = branch.Local;
-        const double start = 4, step = 5;
-        var k = new Kit(_look, mesh) { SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z)), Baked = 0 };
-        var origin = k.SurfaceOrigin;
-        int ballast = _look.Layer("ballast"), mud = _look.Layer("ground_mud");
-        float tile = ballast >= 0 && _look.Textures[ballast].TileMetres is { } tm ? tm : 1.5f;
-        var tint = ballast >= 0 ? Vector3.One : Palette.Ballast;
-        // Its bed: level with the main line's where they overlap, on a low embankment of its own beyond.
-        float[] lat = [-2.6f, -1.8f, 1.8f, 2.6f];
-        float[] ht = [-0.35f, 0.01f, 0.01f, -0.35f];
-        for (double s = start; s < local.Length; s += step)
+        // Its bed and rails, and its sleepers, never change: cooked once, a piece at a time, and drawn where they are (note
+        // 695: built again every frame they were ~5,000 triangles and 3 ms, a long alternate's sleepers each asked where
+        // they were). The sleepers only near the eye, as before: past ~150 m the fog has them.
+        for (int piece = 0; BranchStart + piece * BranchPieceLength < local.Length; piece++)
         {
-            var a = local.Sample(s);
-            var b = local.Sample(Math.Min(s + step, local.Length));
-            if ((a.Position - eye).Length > drawDistance)
+            double p0 = BranchStart + piece * BranchPieceLength, p1 = Math.Min(local.Length, p0 + BranchPieceLength);
+            double near = double.PositiveInfinity;
+            for (double s = p0; s <= p1; s += (p1 - p0) / 4)
+                near = Math.Min(near, (local.Sample(s).Position - eye).Length);
+            if (near > drawDistance)
                 continue;
-            var ra = Double3.Cross(a.Tangent, Double3.Up).Normalized;
-            var rb = Double3.Cross(b.Tangent, Double3.Up).Normalized;
-            for (int c = 0; c < 3; c++)
+            var (bed, at) = BranchPiece(branch, piece, false, p0, p1);
+            mesh.Instances.Add(new MeshInstance(bed, Matrix4x4.CreateTranslation(at.RelativeTo(eye))));
+            if (near < 150)
             {
-                Vector3 P(TrackSample t, Double3 r, int i) => (t.Position + r * lat[i] + Double3.Up * ht[i]).RelativeTo(eye);
-                var corner = new Corner(tint * (c == 1 ? 1 : 0.8f), c == 1 ? 0 : 0.6f);
-                Quad(mesh, P(a, ra, c), P(a, ra, c + 1), P(b, rb, c + 1), P(b, rb, c), corner, corner, corner, corner, origin, ballast, mud, tile);
+                var (sleepers, from) = BranchPiece(branch, piece, true, p0, p1);
+                mesh.Instances.Add(new MeshInstance(sleepers, Matrix4x4.CreateTranslation(from.RelativeTo(eye))));
             }
         }
-        Rails(k, local, eye, start, local.Length, s => (local.Sample(s).Position - eye).Length < 150, s => (local.Sample(s).Position - eye).Length < drawDistance);
 
         var end = local.Sample(local.Length);
         // An alternate has no end of its own: it runs back into the main line (linegen plan §6.2).
@@ -488,6 +482,56 @@ public sealed partial class WorldArt
         mesh.Billboard(glass, 0.3f, 0, new Vector4(colour * 1.6f, 1), -1, FxBlend.Additive);
         mesh.Billboard(glass, 1.6f, 0, new Vector4(colour * 0.45f, 1), -1, FxBlend.Additive);
         mesh.PointLights.Add(new PointLight(glass, colour * 0.6f, 5));
+    }
+
+    /// <summary>Where a branch's own track starts past its toe, and how long a cooked piece of it is (m).</summary>
+    const double BranchStart = 4, BranchPieceLength = 100;
+
+    /// <summary>A branch's cooked pieces (its bed and rails, or its sleepers), each relative to where it starts; let go with the line.</summary>
+    readonly Dictionary<(int Branch, int Piece, bool Sleepers), (MeshAsset Mesh, Double3 Origin)> _branchPieces = [];
+
+    /// <summary>
+    /// One piece of a branch, [<paramref name="p0"/>, <paramref name="p1"/>] along it: its bed (level with the main line's
+    /// where they overlap, on a low embankment of its own beyond) and rails, or its sleepers; built once.
+    /// </summary>
+    (MeshAsset Mesh, Double3 Origin) BranchPiece(Branch branch, int piece, bool sleepers, double p0, double p1)
+    {
+        if (_branchPieces.TryGetValue((branch.Index, piece, sleepers), out var hit))
+            return hit;
+        var local = branch.Local;
+        var origin = local.Sample(p0).Position;
+        var built = new MeshBuilder();
+        var k = new Kit(_look, built) { SurfaceOrigin = new Vector3(W(origin.X), W(origin.Y), W(origin.Z)), Baked = 0 };
+        if (sleepers)
+            Rails(k, local, origin, p0, p1, _ => true, _ => false);
+        else
+        {
+            const double step = 5;
+            var surface = k.SurfaceOrigin;
+            int ballast = _look.Layer("ballast"), mud = _look.Layer("ground_mud");
+            float tile = ballast >= 0 && _look.Textures[ballast].TileMetres is { } tm ? tm : 1.5f;
+            var tint = ballast >= 0 ? Vector3.One : Palette.Ballast;
+            float[] lat = [-2.6f, -1.8f, 1.8f, 2.6f];
+            float[] ht = [-0.35f, 0.01f, 0.01f, -0.35f];
+            for (double s = p0; s < p1; s += step)
+            {
+                var a = local.Sample(s);
+                var b = local.Sample(Math.Min(s + step, p1));
+                var ra = Double3.Cross(a.Tangent, Double3.Up).Normalized;
+                var rb = Double3.Cross(b.Tangent, Double3.Up).Normalized;
+                for (int c = 0; c < 3; c++)
+                {
+                    Vector3 P(TrackSample t, Double3 r, int i) => (t.Position + r * lat[i] + Double3.Up * ht[i]).RelativeTo(origin);
+                    var corner = new Corner(tint * (c == 1 ? 1 : 0.8f), c == 1 ? 0 : 0.6f);
+                    Quad(built, P(a, ra, c), P(a, ra, c + 1), P(b, rb, c + 1), P(b, rb, c), corner, corner, corner, corner, surface, ballast, mud, tile);
+                }
+            }
+            Rails(k, local, origin, p0, p1, _ => false, _ => true);
+        }
+        FrameCounts.Add("branch pieces built");
+        var made = (MeshAsset.From($"branch-{branch.Index}-{piece}-{(sleepers ? "sleepers" : "bed")}", built), origin);
+        _branchPieces[(branch.Index, piece, sleepers)] = made;
+        return made;
     }
 
     /// <summary>Sleepers (where <paramref name="sleepers"/> says) and rails (where <paramref name="rails"/> says) along a line.</summary>

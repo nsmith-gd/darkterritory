@@ -15,5 +15,11 @@
   // (the usual PCVR floor) draws several million a frame at 90 Hz; this keeps well inside that.
   "maxFrameTriangles": 1500000,
   // In any one pass. Each is a push constant and a vertex buffer bind; a few thousand is nothing to a desktop driver.
-  "maxPassDraws": 1500
+  "maxPassDraws": 1500,
+  // Built again in a frame, at most (note 695; the director, 13 Oct: "things ... being rebuilt in real time, frame by
+  // frame"): what moves or changes by the frame (the figures' hoses, the flames, a Stoker's soot), copied up every frame.
+  // What stays as it is (the houses, the track, the cab's map and levers, what the folk wear) is cooked once and drawn
+  // where it is. RetainedSceneTests holds it standing in a town, on a roof by a facility's spurs and in the cab: 5,400 to
+  // 6,100 there now, 2,900 of it a Stoker's soot.
+  "maxRebuiltTriangles": 8000
 }

@@ -55,6 +55,8 @@ public sealed partial class WorldArt(Look look)
         {
             _cells.Clear();
             _cooking.Clear();
+            // (A new line's branches are its own: the last one's pieces go with it.)
+            _branchPieces.Clear();
             (_cellLine, _cellRoute) = (line, route);
         }
         long first = (long)Math.Floor(from / CellLength), last = (long)Math.Floor(Math.Min(to, line.Length - 1e-6) / CellLength);
@@ -87,7 +89,9 @@ public sealed partial class WorldArt(Look look)
                     }
                     continue;
                 }
-                // Wanted now: the worker's, if it's on it (waited for), else cooked here.
+                // Wanted now: the worker's, if it's on it (waited for), else cooked here. Either holds the frame up: counted
+                // for its hitches (note 691).
+                FrameCounts.Add(_cooking.ContainsKey(i) ? "cells waited for" : "cells cooked here");
                 _cells[i] = cell = _cooking.Remove(i, out var started) ? started.Result : BuildCell(line, route, i, seed, valleyDepth);
             }
             var at = Matrix4x4.CreateTranslation(cell.Origin.RelativeTo(eye));

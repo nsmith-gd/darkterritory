@@ -24,7 +24,11 @@ for rid in "${rids[@]}"; do
   dir="out/dist/$name-$rid"
   rm -rf "$dir" "$dir.zip"
   # Debug info embedded in the assemblies (note 452): a player's crash report names the file and line of every frame.
-  dotnet publish src/DarkTerritory.App -c Release -r "$rid" --self-contained true -o "$dir" -p:DebugType=embedded -p:DevTools=$devtools -nologo -v quiet
+  # ReadyToRun (note 695): the game's code compiled ahead, so the first time something's done in a night (the first
+  # prompt, the first creature) isn't compiled on the spot in that frame: frontier:7's start compiled 819 ms of it on the
+  # first frame and 204 ms on the next, 154 ms and 1 ms precompiled, for 16 MB more.
+  dotnet publish src/DarkTerritory.App -c Release -r "$rid" --self-contained true -o "$dir" -p:DebugType=embedded -p:DevTools=$devtools \
+    -p:PublishReadyToRun=true -nologo -v quiet
   test -f "$dir/content/tuning/train.json" || { echo "no content in $dir" >&2; exit 1; }
   # A player's build has none of the developer tools in it, a test build all of them (note 514).
   dotnet run --project src/DarkTerritory.Cli -c Release -- build check "$dir" $check > "out/dist/$name-$rid.check.json" \

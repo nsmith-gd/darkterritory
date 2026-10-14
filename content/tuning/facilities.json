@@ -82,8 +82,13 @@
     "bridgeSpeed": 1.2,
     "trolleySpeed": 1.0,
     "hoistSpeed": 0.8,
-    // At the controls: within this of the cab's control stand. The cab's at the gantry's near end, up at the top.
+    // At the controls: within this of the control stand, at the foot of the gantry's near leg.
     "controlsReach": 1.2,
+    // The operator's cab rides the bridge, hung under its far end this far out past it, over the stack's side (GDD §18; the
+    // director, 14 Oct: "my train is blocking the view of the loot ... I'm doing a bit of guesswork here"; note 736). On the
+    // near leg, across the track, the cars' roofs hid the ground round the castings. Out past the far legs, so it clears them
+    // at the ends of the bridge's travel.
+    "cabOut": 1.4,
     // Rigging: on the ground, within this of the hook, the hook low enough to reach, for this long.
     "rigReach": 1.5,
     "rigHeight": 2.2,
@@ -96,7 +101,16 @@
     // a casting with its base this low over an open hatch's roof that overlaps the opening but doesn't clear it is eased over
     // it, the bridge and trolley drawn there at guideSpeed (m/s, about the bridge's own speed); let go there, it's put through.
     "guideAbove": 2.5,
-    "guideSpeed": 1.0
+    "guideSpeed": 1.0,
+    // The operator's view from the cab (GDD §18; the director's evening playtest, 13 Oct: "widen the camera angle a little
+    // bit, maybe even go a little more top down"; note 707): this wide (degrees, vertical; it was 55), looking along the
+    // gantry at the trolley. As the hook comes down from the top, over "lowerFrom" m the look tips down toward it, "down" of
+    // the way from the trolley to the hook (0 to 1), and the eye leans "lean" m out toward it (to the cab's window, under its
+    // roof), so with the hook low it looks down over the load into the car. Note 736: the cab rides the bridge over the stack
+    // ("cabOut"), and the look is tipped on down "ground" of the way to the ground under the hook, so the castings under the
+    // cab are in view while the hook's still up; the eye is at the cab's window on the track's side, "window" m in from its
+    // middle (past its floor and platform, which would hide the stack under it).
+    "view": { "fov": 72, "lowerFrom": 4, "down": 0.75, "lean": 0.6, "ground": 0.5, "window": 1.1 }
   },
   // GDD §18's set pieces (WP15, ARCHITECTURE §8 note 185).
   // The grain elevator: "one spout, one car at a time. Endless repositioning and switch calls" (spec D.2's gravity chute,

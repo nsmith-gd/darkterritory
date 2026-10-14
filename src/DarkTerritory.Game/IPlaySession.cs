@@ -205,15 +205,39 @@ public static class Eyes
     public const double Seated = 1.56;
 
     /// <summary>
-    /// Up in the crane's cab while at its controls (T48): looking along the gantry at the bridge and trolley, not down at the
-    /// hook. Spec D.2: "the crane operator cannot see the ground crew", who have to call the position.
+    /// Up in the crane's cab while at its controls (T48): looking along the gantry at the bridge and trolley. Spec D.2: "the
+    /// crane operator cannot see the ground crew", who have to call the position. Note 707 (the director: "widen the camera
+    /// angle a little bit, maybe even go a little more top down"): wider, and as the hook comes down the eye leans out and
+    /// the look tips down after it, so lowering into a car the operator sees the load go in (GDD §18). Note 736: the cab
+    /// rides the bridge on the stack's side (<see cref="Sim.Run.Crane.Cab"/>), so the cars no longer stand between the eye
+    /// and the castings.
     /// </summary>
     public static Camera? Operator(in PlayerState s, Sim.World world)
     {
         if (!s.Has(PlayerFlags.Operating) || world.Run?.CurrentSite?.CraneNear(Sim.Player.PlayerMotor.WorldPosition(s, world.Train)) is not { } crane)
             return null;
-        var trolley = crane.HookAt with { Y = crane.BridgeEnd(0).Y - 0.6 };
-        return Camera.LookAt(crane.Cab + Double3.Up * 0.3, trolley, 55);
+        return Operator(crane);
+    }
+
+    /// <summary>The operator's view of <paramref name="crane"/> where its hook is now (note 707).</summary>
+    public static Camera Operator(Sim.Run.Crane crane)
+    {
+        var view = crane.Tuning.View;
+        double top = crane.BridgeEnd(0).Y - 0.6;
+        var trolley = crane.HookAt with { Y = top };
+        double lowered = view.LowerFrom > 0 ? Math.Clamp((top - crane.HookAt.Y) / view.LowerFrom, 0, 1) : 0;
+        var look = Double3.Lerp(trolley, crane.HookAt, view.Down * lowered);
+        // Note 736: from the cab over the stack, tipped on down toward the ground under the hook, so the castings under it
+        // are in the view while the hook's still up.
+        look = Double3.Lerp(look, crane.HookAt - Double3.Up * crane.Hook, view.Ground);
+        // At the cab's window on the track's side (note 736), out past its floor and platform, so they never hide the stack
+        // under it.
+        var inward = (crane.BridgeEnd(0) - crane.BridgeEnd(1)) with { Y = 0 };
+        var eye = crane.Cab + Double3.Up * 0.3 + (inward.Length > 1e-3 ? inward.Normalized * view.Window : default);
+        var toward = (look - eye) with { Y = 0 };
+        if (toward.Length > 1e-3)
+            eye += toward.Normalized * (view.Lean * lowered);
+        return Camera.LookAt(eye, look, (float)view.Fov);
     }
 
     /// <param name="crouchDrop">

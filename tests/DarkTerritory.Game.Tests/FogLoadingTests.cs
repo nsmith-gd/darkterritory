@@ -184,4 +184,40 @@ public class FogLoadingTests
             Assert.True(draws <= tuning.MaxPassDraws, $"{where}: {draws} draws in a pass (at most {tuning.MaxPassDraws})");
         }
     }
+
+    /// <summary>
+    /// The director's town crawl (13 Oct evening, lines 1 and 3; note 695): standing in frontier:7's first town, its near
+    /// houses were built again and uploaded every frame (27 meshes, ~10 MB), because the terminus's town (note 600), asked
+    /// for its houses every frame too, shared their cache and each let go of the other's. A town's houses are built once.
+    /// </summary>
+    [Fact]
+    public void ATownsHousesAreBuiltOnceNotEveryFrame()
+    {
+        var route = Sim.LineGen.Routes.Generate(Content, "frontier:7", 6);
+        double gate = route.GateOr(Sim.Route.RouteTuning.Load(Content).YardLength);
+        var consist = Consist.Uniform(Trains, 6, 1);
+        var line = route.Build();
+        var town = Staging.DepartureTown(Content, route, line, consist.LengthMetres, out double depart);
+        Assert.NotNull(town);
+        var train = new TrainOnLine(new TrainDynamics(consist), line, depart);
+        var world = new Sim.World(train, DataFile.Load<Sim.Combat.CombatTuning>(Path.Combine(Content, Sim.Combat.CombatTuning.File)));
+        world.EnableRun(DataFile.Load<Sim.Run.RunTuning>(Path.Combine(Content, Sim.Run.RunTuning.File)), route, gate, authority: true);
+        world.EnableTown(Sim.Towns.TownContent.Load(Content)!, route, gate, [],
+            arrival: Sim.Towns.TownAt.Terminus(route, Sim.LineGen.LineGenContent.Cached(Content).Config.Tiers.Fortress.Identities));
+        Assert.NotNull(world.Arrival);
+        var scene = new GreyboxScene { Look = Look, Time = 0.37, Route = route, Run = world.Run, Town = world.Town, Arrival = world.Arrival };
+        var mesh = new MeshBuilder();
+        foreach (var where in new[] { "square", "houses" })
+        {
+            var eye = Staging.TownCamera(world.Town!, where).Position;
+            scene.Build(mesh, train, eye);
+            Assert.Contains("house meshes built", FrameCounts.Take());
+            for (int frame = 0; frame < 4; frame++)
+            {
+                scene.Time += 1 / 60.0;
+                scene.Build(mesh, train, eye);
+                Assert.DoesNotContain("house meshes built", FrameCounts.Take());
+            }
+        }
+    }
 }

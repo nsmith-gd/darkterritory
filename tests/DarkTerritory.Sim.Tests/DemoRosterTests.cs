@@ -306,21 +306,89 @@ public class DemoRosterTests
 
     // ---- Solo (T89): with nobody to help, the held can struggle free.
 
-    [Fact]
-    public void AloneAndHeldYouCanStruggleFree()
+    /// <summary>Alone on the ground beside car 2, two Ribbits at you, until one has you.</summary>
+    static (Night N, Enemy Ribbit) HeldByARibbit(ulong seed = 1, EnemyTuning? enemies = null)
     {
-        var n = new Night(4, speed: 0);
+        var n = new Night(4, speed: 0, seed: seed, enemies: enemies);
         var me = OnGroundBeside(n, 2, 4);
         n.Crew[1] = me;
         var at = PlayerMotor.WorldPosition(me, n.Train);
-        var a = n.World.AddEnemy(id => Ribbit.At(id, id, at + new Double3(9, 0, 0), E.Ribbits));
-        n.World.AddEnemy(id => Ribbit.At(id, a.Id, at + new Double3(9, 0, 1.5), E.Ribbits));
+        var t = enemies ?? E;
+        var a = n.World.AddEnemy(id => Ribbit.At(id, id, at + new Double3(9, 0, 0), t.Ribbits));
+        n.World.AddEnemy(id => Ribbit.At(id, a.Id, at + new Double3(9, 0, 1.5), t.Ribbits));
         UntilGrab(n, a, 8);
         Assert.Equal(SpinePhase.Grab, a.Phase);
+        return (n, a);
+    }
+
+    [Fact]
+    public void AloneAndHeldYouCanStruggleFree()
+    {
+        // The struggle's one try, made to come off (soloStruggleChance 1).
+        var (n, a) = HeldByARibbit(enemies: E with { Grab = E.Grab with { SoloStruggleChance = 1 } });
         Assert.True(E.Grab.SoloStruggle < E.Ribbits.DevourSeconds);
         n.Run(E.Grab.SoloStruggle + 0.3, _ => new PlayerIntent { Buttons = PlayerButtons.Use });
         Assert.NotEqual(SpinePhase.Grab, a.Phase);
         Assert.True(n.Crew[1].Alive);
         Assert.False(n.Crew[1].Has(PlayerFlags.Held));
+    }
+
+    [Fact]
+    public void AStruggleThatFailsHoldsOnAndIsntTriedAgain()
+    {
+        // App. C.1 (the director, 13 Oct: "holding e shouldn't always result in escape"; note 681): one try a grab.
+        var (n, a) = HeldByARibbit(enemies: E with { Grab = E.Grab with { SoloStruggleChance = 0 } });
+        n.Run(E.Grab.SoloStruggle + 0.3, _ => new PlayerIntent { Buttons = PlayerButtons.Use });
+        Assert.Equal(SpinePhase.Grab, a.Phase);
+        Assert.True(a.StruggledOff);
+        Assert.True(n.Crew[1].Has(PlayerFlags.Held));
+    }
+
+    [Fact]
+    public void AloneTheStruggleComesOffAboutHalfTheTime()
+    {
+        // A coin flip (enemies.json grab.soloStruggleChance; it was 15%, and the director, 14 Oct: "really should have a
+        // higher rate of success", note 737): over thirty nights' grabs, about half come off, and never all or none.
+        int free = 0;
+        for (ulong seed = 1; seed <= 30; seed++)
+        {
+            var (n, a) = HeldByARibbit(seed);
+            n.Run(E.Grab.SoloStruggle + 0.3, _ => new PlayerIntent { Buttons = PlayerButtons.Use });
+            if (a.Phase != SpinePhase.Grab)
+                free++;
+        }
+        Assert.Equal(0.5, E.Grab.SoloStruggleChance);
+        Assert.InRange(free, 8, 22);
+    }
+
+    [Fact]
+    public void TheStruggleIsShorterThanEveryHold()
+    {
+        // Note 92's rule, kept with the chance (note 681): the try comes before any creature's kill.
+        Assert.True(E.Grab.SoloStruggle < E.Householder.GrabSeconds);
+        Assert.True(E.Grab.SoloStruggle < E.Hanger.GrabSeconds);
+        Assert.True(E.Grab.SoloStruggle < E.Ribbits.DevourSeconds);
+        Assert.True(E.Grab.SoloStruggle < E.SootChildren.DrainSeconds);
+        Assert.True(E.Grab.SoloStruggle < E.TippyToesie.SuffocateSeconds);
+    }
+
+    [Fact]
+    public void StruggledFreeAloneTheWhistlerIsBackInItsGap()
+    {
+        // App. C.1 (the director, 13 Oct: "monsters like the whistler should not disappear entirely if I hold e to escape").
+        var n = new Night(4, speed: 0, enemies: E with { Grab = E.Grab with { SoloStruggleChance = 1 } });
+        var w = n.World.AddEnemy(id => Whistler.InGap(id, n.Train, 2, E.Whistler));
+        n.Run(E.Whistler.WhistleAfterStop + E.Whistler.WhistleSeconds + 1);
+        n.Crew[1] = InGap(n, 2);
+        n.Run(0.5);
+        Assert.Equal(SpinePhase.Grab, w.Phase);
+        n.Run(E.Grab.SoloStruggle + 0.3, _ => new PlayerIntent { Buttons = PlayerButtons.Use });
+        Assert.NotEqual(SpinePhase.Gone, w.Phase);
+        Assert.Equal(2, w.Attached);
+        Assert.False(n.Crew[1].Has(PlayerFlags.Held));
+        // And, still stopped, it whistles again.
+        n.Crew[1] = OnGroundBeside(n, 0, 8);
+        n.Run(E.Whistler.WhistleAfterStop + 0.5);
+        Assert.Equal(SpinePhase.Telegraph, w.Phase);
     }
 }

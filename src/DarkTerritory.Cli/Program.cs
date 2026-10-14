@@ -82,6 +82,9 @@ return args switch
     // dt art houses [--character cove|lunenburg|shelburne|farm|company|mixed] [--count n] [--seed n] [--kind lived|boarded|empty|burnt]:
     // a lineup of a town character's houses as the towns draw them (note 281), to judge their variety at a glance.
     ["art", "houses", ..] => Print(ArtHouses(content, args)),
+    // dt art trees [--kind barnacle|lantern|tar|iron|crystal|webbed|thorn|lattice] [--far]: the Corruption's trees, each
+    // kind's three in a row (note 696); --far their cards.
+    ["art", "trees", ..] => Print(ArtTrees(content, args)),
     ["art", "townsfolk", ..] => Print(ArtTownsfolk(content, args)),
     // dt art footprints [--write]: what each kit piece the lineside deals stands on, measured off its mesh (note 389);
     // --write puts it in content/linegen/footprints.json, which the sim stands the walls from.
@@ -1098,8 +1101,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         if (site?.Crane is { } shownCrane)
         {
             shownCrane.Castings[0].State = DarkTerritory.Sim.Run.CastingState.Hooked;
-            shownCrane.Hook = 4;
-            shownCrane.Trolley = 3;
+            // --hook h --trolley t: where the hook hangs (m over the ground) and the trolley stands across (m from the track).
+            shownCrane.Hook = Opt(args, "--hook", 4);
+            shownCrane.Trolley = Opt(args, "--trolley", 3);
         }
         if (site is not null)
         {
@@ -1519,6 +1523,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 var side = (site.HoseCar >= 0 && site.HoseCar < train.Frames.Count ? (site.HoseStand - train.Frames[site.HoseCar].Origin) with { Y = 0 } : Out(site.HoseStand)).Normalized;
                 camera = Camera.LookAt(site.HoseStand + (side * 8 + Along() * 7 + Double3.Up * 5) * near, site.HoseStand + Double3.Up * 2.5 - side * 2.5, 62);
             }
+            // --operator: through the crane operator's eyes at the controls (note 707), the hook where --hook puts it.
+            else if (site.Crane is { } operated && args.Contains("--operator"))
+                camera = DarkTerritory.Game.Eyes.Operator(operated);
             else if (site.Crane is { } crane && !args.Contains("--crank"))
             {
                 // High on the near side of the track, past the gantry's end, looking down across the train at the hook and castings.
@@ -2261,7 +2268,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --waker chase|lift: a Waker at dawn (note 588), coming down the line --behind m (150) back of the last car, or holding
     // the train --held s (7) in, the rear cars up in its hands, as the sessions draw it (WakerLift). The waker view looks
     // back at it from the guard van's platform; wakerlift from out beside the line; wakerinside from the roof of the next car
-    // up, a crewmate's eye, lifted with it.
+    // up, a crewmate's eye, lifted with it (wakerlift --near: out beside the car he's biting off, the catch close).
     // --sway r: the cars' lanterns swung that far on their chains (radians), --thud s: a thud of the Wakers' stir (--stir its
     // strength, 0.8) that many seconds ago, coal coming off the bunker (note 599).
     if (Opt(args, "--sway", 0) is var sway and not 0)
@@ -2271,8 +2278,43 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --waker rise (note 599; the wakerrise view): one getting up --rise s into its rise (half of it) --behind m back of the
     // last car (riseBehind), or --aside -1|1 off to that side (riseAside out, asideBack further back), the earth and dust it
     // throws off as the sessions draw them.
-    string wakerMode = Str(args, "--waker", view switch { "waker" => "chase", "wakerlift" or "wakerinside" => "lift", "wakerrise" => "rise", "wakerwall" => "wall", _ => "" });
-    if (wakerMode.Length > 0)
+    string wakerMode = Str(args, "--waker", view switch { "waker" => "chase", "wakerlift" or "wakerinside" => "lift", "wakerrise" => "rise", "wakerwall" => "wall", "wakerpick" => "pick", _ => "" });
+    // --waker pick (note 710; the wakerpick view): a crewmate off the held train out in the field, and the one risen beside them
+    // --pick s into his grab (his hand bringing them up to his mouth; --phase rise|walk|grab|eat for the rest of it).
+    if (wakerMode == "pick")
+    {
+        var wt = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).Wakers;
+        var from = DarkTerritory.Game.Staging.Lineside(train, 30, 26);
+        var picker = DarkTerritory.Sim.Enemies.Waker.Beside(9_101, 2, from, train, wt);
+        string pickPhase = Str(args, "--phase", "grab");
+        double pick = Opt(args, "--pick", wt.PickLiftSeconds * 0.7);
+        var phase = pickPhase switch
+        {
+            "rise" => DarkTerritory.Sim.Enemies.SpinePhase.Telegraph,
+            "walk" => DarkTerritory.Sim.Enemies.SpinePhase.Commit,
+            "eat" => DarkTerritory.Sim.Enemies.SpinePhase.Punish,
+            _ => DarkTerritory.Sim.Enemies.SpinePhase.Grab,
+        };
+        // Stood in reach of them for the grab and after; further off on his way over; where he rose for his rise.
+        var feet = phase == DarkTerritory.Sim.Enemies.SpinePhase.Telegraph ? picker.Local
+            : from + (picker.Local - from).Normalized * (phase == DarkTerritory.Sim.Enemies.SpinePhase.Commit ? 30 : wt.PickReach);
+        double fh = train.Dynamics.Distance;
+        feet = feet with { Y = DarkTerritory.Sim.Player.PlayerMotor.GroundAt(feet, line, ref fh) };
+        picker.Restore(phase, pick, 1, DarkTerritory.Sim.Enemies.Enemy.Loose, feet, picker.LineDistance, picker.Lateral, 0, picker.Extra, picker.Extra2);
+        scene.Enemies = [.. scene.Enemies ?? [], picker];
+        double k = phase == DarkTerritory.Sim.Enemies.SpinePhase.Grab ? Math.Clamp(pick / wt.PickLiftSeconds, 0, 1) : 0;
+        k = k * k * (3 - 2 * k);
+        var inHand = from + (DarkTerritory.Sim.Enemies.Waker.Mouth(feet, picker.Lateral, wt) - from) * k;
+        if (phase != DarkTerritory.Sim.Enemies.SpinePhase.Punish)
+            scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id != 2),
+                new DarkTerritory.Game.Crewmate(2, inHand, picker.Lateral + Math.PI, true,
+                    Act: phase == DarkTerritory.Sim.Enemies.SpinePhase.Grab ? DarkTerritory.Game.Art.CrewPose.HeldPinned : null)];
+        // From along the line, back off the field, at the two of them: up to his mouth.
+        var side = feet - from;
+        var mid = from + side * 0.5 + Double3.Up * 14;
+        camera = Camera.LookAt(mid + Double3.Cross(side.Normalized, Double3.Up) * Opt(args, "--dist", 80) + Double3.Up * 6, mid, 60);
+    }
+    else if (wakerMode.Length > 0)
     {
         var wt = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).Wakers;
         var waker = (DarkTerritory.Sim.Enemies.Waker)DarkTerritory.Sim.Enemies.Enemy.Blank(DarkTerritory.Sim.Enemies.EnemyKind.Waker, 9_100);
@@ -2309,6 +2351,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             // From the guard van's platform back down the line at it getting up (or off to its side, across the land).
             "wakerrise" => Camera.LookAt(rear.ToWorld(new Double3(0.6, 2.4, half + 1.2)), line.Sample(waker.LineDistance) is var w
                 ? w.Position + Double3.Cross(w.Tangent, Double3.Up).Normalized * waker.Lateral + Double3.Up * 8 : default, Math.Abs(aside) > 0 ? 55 : 45),
+            // (--near: out beside the car he's biting off, level with it: the bites, his hands and his face.)
+            "wakerlift" when args.Contains("--near") => lifted.LastOrDefault(f => f.Origin.Y > lifted[0].Origin.Y - 100) is var eating
+                ? Camera.LookAt(eating.Origin + eating.Right * -34 + Double3.Up * 14 + eating.Back * -8, eating.Origin + Double3.Up * 6 + eating.Back * 4, 72)
+                : camera,
             "wakerlift" => Camera.LookAt(train.Frames[next.Index].ToWorld(new Double3(-60, 4, 10)), train.Frames[next.Index].ToWorld(new Double3(0, 9, 12)), 66),
             "wakerinside" => Camera.LookAt(next.ToWorld(new Double3(0.4, next.Shape.Bounds.Max.Y + 1.6, -half * 0.4)), next.ToWorld(new Double3(-1.5, next.Shape.Bounds.Max.Y + 2, half + 14)), 80),
             _ => camera,
@@ -2574,6 +2620,60 @@ static object ArtHouses(string content, string[] args)
     string output = Str(args, "--out", $"out/shots/art/houses-{id}-{kind.ToString().ToLowerInvariant()}{(args.Contains("--yard") ? "-yard" : "")}{(args.Contains("--back") ? "-back" : "")}.png");
     PngWriter.Write(output, sheet, w * cols, h * rows, 1);
     return new { path = Path.GetFullPath(output), character = character.Id, character.Name, designs };
+}
+
+// The Corruption's trees (note 696): each kind's three as a lineup, a row a kind, lamp-lit with a cold fill and the
+// moon, as they stand in the woods; --kind barnacle one kind's; --far their cards (what's drawn past
+// CorruptedTreeArt.ModelledWithinM) in place of their models, to judge them against each other; --time s the frame's
+// clock (the tar's drips sag and the lantern's pods breathe with it: a run of these is their animation).
+static object ArtTrees(string content, string[] args)
+{
+    var look = DarkTerritory.Game.Look.Load(content);
+    var props = DarkTerritory.Game.Art.PropArt.Of(look);
+    string only = Str(args, "--kind", "all");
+    string[] kinds = only == "all" ? DarkTerritory.Game.Art.CorruptedTreeArt.Kinds : [only];
+    bool far = args.Contains("--far");
+    int cols = DarkTerritory.Game.Art.CorruptedTreeArt.Variants, rows = kinds.Length;
+    int w = (int)Opt(args, "--width", 360), h = (int)Opt(args, "--height", 480);
+    using var gpu = new GpuContext("dt art trees");
+    using var renderer = new GreyboxRenderer(gpu, w, h);
+    look.Dress(renderer);
+    var sheet = new byte[w * cols * h * rows * 4];
+    var drawn = new List<object>();
+    double yaw = Opt(args, "--yaw", 25) * Math.PI / 180, pitch = 4 * Math.PI / 180;
+    for (int r = 0; r < rows; r++)
+        for (int v = 0; v < cols; v++)
+        {
+            string name = DarkTerritory.Game.Art.CorruptedTreeArt.Prop(kinds[r], v, far);
+            var piece = props.Get(name) ?? throw new FileNotFoundException($"{name}: tools/models/build.sh corrupted_trees");
+            var (min, max) = DarkTerritory.Game.Art.ArtCatalog.Bounds(piece);
+            var target = new Double3(0, max.Y * 0.48, 0);
+            var toward = new Double3(Math.Sin(yaw) * Math.Cos(pitch), Math.Sin(pitch), -Math.Cos(yaw) * Math.Cos(pitch));
+            var eye = target + toward * (max.Y * 1.22);
+            var camera = Camera.LookAt(eye, target, 50);
+            var mesh = new MeshBuilder { Style = look.Style };
+            var o = -new System.Numerics.Vector3((float)eye.X, (float)eye.Y, (float)eye.Z);
+            mesh.Instances.Add(new MeshInstance(piece, System.Numerics.Matrix4x4.CreateTranslation(o)));
+            float f = 40;
+            mesh.Quad(o + new System.Numerics.Vector3(-f, -0.01f, f), o + new System.Numerics.Vector3(f, -0.01f, f), o + new System.Numerics.Vector3(f, -0.01f, -f), o + new System.Numerics.Vector3(-f, -0.01f, -f), DarkTerritory.Game.Palette.Charcoal * 0.6f);
+            // A lamp off to the viewer's right, down at a lantern's height, and a cold fill from high on the left.
+            var side = System.Numerics.Vector3.Normalize(System.Numerics.Vector3.Cross(new System.Numerics.Vector3((float)toward.X, 0, (float)toward.Z), System.Numerics.Vector3.UnitY));
+            var front = new System.Numerics.Vector3((float)toward.X, 0, (float)toward.Z) * 7;
+            mesh.PointLights.Add(new PointLight(o + front - side * 4 + new System.Numerics.Vector3(0, 2.5f, 0), DarkTerritory.Game.Palette.LampAmber * 2.6f, 26));
+            mesh.PointLights.Add(new PointLight(o + front + side * 9 + new System.Numerics.Vector3(0, max.Y, 0), new System.Numerics.Vector3(0.35f, 0.42f, 0.55f), 45));
+            var light = look.Apply(FrameLighting.Night);
+            light.FogDensity = 0.002f;
+            light.LampRange = 0.01f;
+            light.Time = Opt(args, "--time", 0);
+            var px = renderer.Render(mesh, camera, light, light.FogColor);
+            int ox = v * w, oy = r * h;
+            for (int y = 0; y < h; y++)
+                px.AsSpan(y * w * 4, w * 4).CopyTo(sheet.AsSpan(((oy + y) * w * cols + ox) * 4));
+            drawn.Add(new { name, triangles = piece.Triangles, height = Math.Round(max.Y, 2) });
+        }
+    string output = Str(args, "--out", $"out/shots/art/trees-{only}{(far ? "-far" : "")}.png");
+    PngWriter.Write(output, sheet, w * cols, h * rows, 1);
+    return new { path = Path.GetFullPath(output), drawn };
 }
 
 // A town's people (note 353): each kind of breathing gear out of doors and at home (the mask down), each in its own hat,
@@ -3858,7 +3958,7 @@ static int Usage()
                      [--burnt car,s]   that car gutted by a fire out s seconds ago: charred, smouldering
                      [--route tier:seed --structure girder|truss|trestle|viaduct|causeway|retainingwall]   the night's first of the plan's structures of that type, the train on it, from off its side
                      [--route tier:seed --mail s]   at the night's first mail crane, car 2's door by it; s > 0: the bag caught s seconds ago (its snatch, the arms falling)
-                     [--route tier:seed --site [--crank | --crane | --facility i|kind [--leak] [--settled]]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook; --facility: the route's i-th
+                     [--route tier:seed --site [--crank | --crane | --facility i|kind [--leak] [--settled]]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook [--hook h --trolley t] [--operator: from its cab]; --facility: the route's i-th
              [--route tier:seed --junction i [--diverge] [--through]]   at a switch, set for the branch, run in onto it
              [--route tier:seed --town [square|centre|board|hall|gate|street|houses|house|kitchen|parlour|over|lane]]   the departure fortress's town (note 281), standing in it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)
