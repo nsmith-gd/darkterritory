@@ -873,4 +873,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [694. The townsfolk lookbook (P1, queue #426; the director, 13 Oct 2026, with a lookbook of ten town characters: "We want to create more NPC…](notes/694.md)
 - [695. A top-to-bottom performance audit (A1, queue #427; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` lines 1–3)](notes/695.md)
 - [699. An animation pass on G1's creatures: creepier movement, telegraphs that read (G1, queue #431; the director, 13 Oct: "Continue an animation…](notes/699.md)
+- [696. The Corruption's trees (queue #428, C1; the director, 13 Oct 2026, eight renders: "of all the trees we should have a corruption rate of…](notes/696.md)
 <!-- end of the notes index -->

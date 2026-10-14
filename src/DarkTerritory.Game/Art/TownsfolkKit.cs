@@ -165,18 +165,19 @@ public sealed class TownsfolkKit(Look? look)
         if (!creatures.Draw(mesh, figure, clip, time, true, m, variant, seed: variant * 13,
             adjust: (mat, l) => l with { Colour = l.Colour * new Vector3(drab, drab * 0.95f, drab * 0.9f) * (mat.Emissive > 0 ? 0.15f : 1), Emissive = 0 }))
             return null;
-        // Far off (past the figure's distance copy, note 479) what they wear is drawn as it is, not copied into the frame,
-        // and the hoses (a pixel wide there) left off. (At Nicki's party, note 571, everyone's mask is down.)
+        // What they wear is drawn where it is (CreatureArt.Wear, note 695). The hoses bend with them, so they're built each
+        // frame, and far off (past the figure's distance copy, note 479; a pixel wide there) they're left off. (At Nicki's
+        // party, note 571, everyone's mask is down.)
         bool down = home && ((variant + who) % 2 == 0 || clip is "dance" or "wave") && gear != "rebreather";
-        creatures.Wear(mesh, Face(gear, down), down ? "spine_03" : "head", m, figure, instanced: far);
+        creatures.Wear(mesh, Face(gear, down), down ? "spine_03" : "head", m, figure);
         if (Body(gear) is { } body)
-            creatures.Wear(mesh, body, "spine_03", m, figure, instanced: far);
+            creatures.Wear(mesh, body, "spine_03", m, figure);
         if (!far)
             foreach (var (face, onBody) in Hoses(gear, down))
                 Hose(mesh, creatures.Posed(down ? "spine_03" : "head", face, m, figure), creatures.Posed("spine_03", onBody, m, figure), -back, gear);
         int hat = (variant * 7 + who * 3) % Hats;
         if (Hat(hat) is { } piece && (!home || hat == 4))
-            creatures.Wear(mesh, piece, "head", m, figure, instanced: far);
+            creatures.Wear(mesh, piece, "head", m, figure);
         return (figure, m);
     }
 

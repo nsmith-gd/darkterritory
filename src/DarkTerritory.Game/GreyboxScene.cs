@@ -4560,7 +4560,7 @@ public sealed partial class GreyboxScene
     /// track on a lamp-lit chart, north up, its stops marked (facilities amber, villages pale), and where the train is now
     /// in red, moving along it.
     /// </summary>
-    void CabMap(MeshBuilder mesh, CarFrame frame, Action<Box, Vector3> draw)
+    void CabMap(MeshBuilder mesh, CarFrame frame, Double3 eye, Action<Box, Vector3> draw)
     {
         if (_line is not { } line || frame.Shape.Cab is not { } cab)
             return;
@@ -4599,95 +4599,20 @@ public sealed partial class GreyboxScene
             var (u, v) = Chart(wx, wz);
             return new(x0 + W / 2 + (u - _mapFit.U0) * _mapFit.Scale, y0 + H / 2 + (v - _mapFit.V0) * _mapFit.Scale, z + lift);
         }
-        // Flat ink on paper: no surface treatment (it'd take the paper's colour for stone).
+        // The sheet (all of it but where the train is) is the same every frame: cooked once for the line and the engine, in
+        // the cab's own frame, and drawn where the cab is (note 695: it was 4,400 triangles built again every frame).
+        if (_mapSheet is null || !ReferenceEquals(_mapSheetOf.Line, line) || !ReferenceEquals(_mapSheetOf.Route, Route) || !ReferenceEquals(_mapSheetOf.Shape, frame.Shape))
+        {
+            // Flat ink on paper: no surface treatment (it'd take the paper's colour for stone).
+            var sheet = new MeshBuilder { Emissive = 0.08f };
+            Sheet((b, colour) => sheet.Box(ToF(b.Centre), Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, ToF(b.HalfSize), colour));
+            _mapSheet = MeshAsset.From("cab-map", sheet);
+            _mapSheetOf = (line, Route, frame.Shape);
+            FrameCounts.Add("cab maps built");
+        }
+        mesh.Instances.Add(new MeshInstance(_mapSheet, Art.SceneArt.FrameMatrix(frame, eye)));
         var style = mesh.Style;
         mesh.Style = null;
-        mesh.Emissive = 0.08f;
-        draw(new Box(new Double3(x0, y0, z), new Double3(x0 + W, y0 + H, z + 0.008)), MapPaper);
-        draw(new Box(new Double3(x0 - 0.015, y0 - 0.015, z - 0.002), new Double3(x0 + W + 0.015, y0 + H + 0.015, z + 0.004)), Palette.DeepBrown);
-        MapChart(draw, x0, y0, z, W, H);
-        foreach (var (dx, dz) in _mapDots)
-            draw(Box.FromCentre(On(dx, dz, 0.01), new Double3(0.005, 0.005, 0.002)), MapInk);
-        if (Route is { } route)
-            foreach (var f in route.Features.Where(f => f.Kind is FeatureKind.Facility or FeatureKind.Village))
-            {
-                var p = MapStop(line, f, length);
-                draw(Box.FromCentre(On(p.X, p.Z, 0.012), new Double3(0.009, 0.009, 0.003)), f.Kind == FeatureKind.Facility ? Palette.LampAmber : Palette.BoardEnamel);
-            }
-        // T121 playtest ("on bends on the map put a number there that shows the top speed the bend can be taken"): each
-        // posted stretch inked over in red, and its board's figure in km/h beside it, on the outside of the bend. Where two
-        // would print over each other the slower one wins: it's the one that derails you.
-        // Note 266 (the director, 6 Oct: every point that can derail the train "clearly identifiable on the cab map as a
-        // derailment point with its limit"): those (a bend, a weak bridge) in red; a limit that only costs the engine
-        // (brass) in the map's ink. Note 671 (13 Oct: "we just show the number"): the figure alone, no key and no word
-        // after it; the red says which ones have you off.
-        // What's lettered already: the night's name along the top, the scale's figure bottom right. A figure that'd print
-        // on one of them (or on a slower bend's) goes on the bend's other side, or isn't printed (the red rule stays).
-        var font = BitmapFont.Default;
-        var labelled = new List<(double X0, double Y0, double X1, double Y1)>
-        {
-            (x0 + 0.02, y0 + H - 0.026 - font.Height * MapTitleSize, x0 + 0.028 + font.Measure(MapTitle) * MapTitleSize, y0 + H),
-            (x0 + W * 0.55, y0, x0 + W, y0 + 0.04),
-        };
-        var figured = new List<(double X, double Y)>();
-        foreach (var (s0, s1, kmh, why) in PostedBends(line, length).OrderBy(b => b.Kmh))
-        {
-            bool derails = LineGen.PostedSpeeds.Derails(why);
-            var ink = derails ? MapLimit : MapInk;
-            int steps = Math.Max(2, (int)((s1 - s0) / (length / 180)));
-            for (int i = 0; i <= steps; i++)
-            {
-                var q = line.Sample(RailLine.MainPath, s0 + (s1 - s0) * i / steps).Position;
-                draw(Box.FromCentre(On(q.X, q.Z, 0.011), new Double3(0.006, 0.006, 0.002)), ink);
-            }
-            var a = line.Sample(RailLine.MainPath, s0).Position;
-            var b = line.Sample(RailLine.MainPath, s1).Position;
-            var m = line.Sample(RailLine.MainPath, (s0 + s1) / 2).Position;
-            var mid = On(m.X, m.Z, 0);
-            // Out from the bend: from its chord's middle through the arc's; a straight stretch (a bridge) puts it above.
-            var chord = (On(a.X, a.Z, 0) + On(b.X, b.Z, 0)) * 0.5;
-            var outward = new Double3(mid.X - chord.X, mid.Y - chord.Y, 0);
-            outward = outward.Length > 0.004 ? outward.Normalized : new Double3(0, 1, 0);
-            // A bend hard by one already figured (they come slowest first) shares its figure: the slower one's the one to read.
-            if (figured.Any(f => Math.Abs(f.X - mid.X) < 0.06 && Math.Abs(f.Y - mid.Y) < 0.04))
-                continue;
-            string figure = LineGen.PostedSpeeds.Figure(kmh);
-            const double px = 0.0045;
-            double w = font.Measure(figure) * px, h = font.Height * px;
-            // Out from the bend first, then in, then off its shoulders: the first spot clear of the lettering and of the
-            // line's own ink; failing that, the first clear of the lettering.
-            (double X, double Y)? place = null, crossed = null;
-            var spots = new[] { (outward.X, outward.Y), (-outward.X, -outward.Y), (1.0, 0.0), (-1.0, 0.0), (0.8, -0.6), (-0.8, -0.6), (0.8, 0.6), (-0.8, 0.6) };
-            foreach (var (ox, oy, far) in spots.Select(o => (o.Item1, o.Item2, 1.0)).Concat(spots.Select(o => (o.Item1, o.Item2, 2.0))))
-            {
-                double cx = Math.Clamp(mid.X + ox * (0.012 + w / 2) * far, x0 + w / 2 + 0.015, x0 + W - w / 2 - 0.015);
-                double cy = Math.Clamp(mid.Y + oy * (0.012 + h / 2) * far, y0 + h / 2 + 0.015, y0 + H - h / 2 - 0.015);
-                bool Hits(double px, double py, double pad) => px > cx - w / 2 - pad && px < cx + w / 2 + pad && py > cy - h / 2 - pad && py < cy + h / 2 + pad;
-                if (labelled.Any(l => cx + w / 2 + 0.004 > l.X0 && cx - w / 2 - 0.004 < l.X1 && cy + h / 2 + 0.004 > l.Y0 && cy - h / 2 - 0.004 < l.Y1))
-                    continue;
-                crossed ??= (cx, cy);
-                if (_mapDots.Any(d => On(d.X, d.Z, 0) is var q && Hits(q.X, q.Y, 0.006)))
-                    continue;
-                place = (cx, cy);
-                break;
-            }
-            if ((place ?? crossed) is not { } c)
-                continue;
-            labelled.Add((c.X - w / 2, c.Y - h / 2, c.X + w / 2, c.Y + h / 2));
-            figured.Add((mid.X, mid.Y));
-            MapFigure(draw, figure, c.X - w / 2, c.Y + h / 2, z + 0.013, px, ink);
-        }
-        // A scale bar under it, bottom right: a kilometre (five, if one's too short to read), in ink.
-        double km = _mapFit.Scale * 1000 >= 0.04 ? 1 : 5, bar = _mapFit.Scale * 1000 * km;
-        if (bar < W * 0.4)
-        {
-            double bx1 = x0 + W - 0.03, bx0 = bx1 - bar, by = y0 + 0.022;
-            draw(new Box(new Double3(bx0, by, z + 0.009), new Double3(bx1, by + 0.004, z + 0.011)), MapInk);
-            for (int i = 0; i <= 2; i++)
-                draw(new Box(new Double3(bx0 + bar * i / 2 - 0.0015, by, z + 0.009), new Double3(bx0 + bar * i / 2 + 0.0015, by + (i == 1 ? 0.007 : 0.011), z + 0.011)), MapInk);
-            string label = $"{km:0} KM";
-            MapFigure(draw, label, bx0 - BitmapFont.Default.Measure(label) * 0.004 - 0.008, by + 0.014, z + 0.011, 0.004, MapInk);
-        }
         mesh.Emissive = 1;
         // The engine where it is: its distance is along its own path, which on a spur or an alternate isn't the main line's.
         var at = frame.Origin;
@@ -4695,7 +4620,99 @@ public sealed partial class GreyboxScene
         draw(Box.FromCentre(On(at.X, at.Z, 0.014), new Double3(0.013, 0.013, 0.003)), Palette.SignalRed * pulse);
         mesh.Emissive = 0;
         mesh.Style = style;
+
+        void Sheet(Action<Box, Vector3> draw)
+        {
+            draw(new Box(new Double3(x0, y0, z), new Double3(x0 + W, y0 + H, z + 0.008)), MapPaper);
+            draw(new Box(new Double3(x0 - 0.015, y0 - 0.015, z - 0.002), new Double3(x0 + W + 0.015, y0 + H + 0.015, z + 0.004)), Palette.DeepBrown);
+            MapChart(draw, x0, y0, z, W, H);
+            foreach (var (dx, dz) in _mapDots)
+                draw(Box.FromCentre(On(dx, dz, 0.01), new Double3(0.005, 0.005, 0.002)), MapInk);
+            if (Route is { } route)
+                foreach (var f in route.Features.Where(f => f.Kind is FeatureKind.Facility or FeatureKind.Village))
+                {
+                    var p = MapStop(line, f, length);
+                    draw(Box.FromCentre(On(p.X, p.Z, 0.012), new Double3(0.009, 0.009, 0.003)), f.Kind == FeatureKind.Facility ? Palette.LampAmber : Palette.BoardEnamel);
+                }
+            // T121 playtest ("on bends on the map put a number there that shows the top speed the bend can be taken"): each
+            // posted stretch inked over in red, and its board's figure in km/h beside it, on the outside of the bend. Where two
+            // would print over each other the slower one wins: it's the one that derails you.
+            // Note 266 (the director, 6 Oct: every point that can derail the train "clearly identifiable on the cab map as a
+            // derailment point with its limit"): those (a bend, a weak bridge) in red; a limit that only costs the engine
+            // (brass) in the map's ink. Note 671 (13 Oct: "we just show the number"): the figure alone, no key and no word
+            // after it; the red says which ones have you off.
+            // What's lettered already: the night's name along the top, the scale's figure bottom right. A figure that'd print
+            // on one of them (or on a slower bend's) goes on the bend's other side, or isn't printed (the red rule stays).
+            var font = BitmapFont.Default;
+            var labelled = new List<(double X0, double Y0, double X1, double Y1)>
+        {
+            (x0 + 0.02, y0 + H - 0.026 - font.Height * MapTitleSize, x0 + 0.028 + font.Measure(MapTitle) * MapTitleSize, y0 + H),
+            (x0 + W * 0.55, y0, x0 + W, y0 + 0.04),
+        };
+            var figured = new List<(double X, double Y)>();
+            foreach (var (s0, s1, kmh, why) in PostedBends(line, length).OrderBy(b => b.Kmh))
+            {
+                bool derails = LineGen.PostedSpeeds.Derails(why);
+                var ink = derails ? MapLimit : MapInk;
+                int steps = Math.Max(2, (int)((s1 - s0) / (length / 180)));
+                for (int i = 0; i <= steps; i++)
+                {
+                    var q = line.Sample(RailLine.MainPath, s0 + (s1 - s0) * i / steps).Position;
+                    draw(Box.FromCentre(On(q.X, q.Z, 0.011), new Double3(0.006, 0.006, 0.002)), ink);
+                }
+                var a = line.Sample(RailLine.MainPath, s0).Position;
+                var b = line.Sample(RailLine.MainPath, s1).Position;
+                var m = line.Sample(RailLine.MainPath, (s0 + s1) / 2).Position;
+                var mid = On(m.X, m.Z, 0);
+                // Out from the bend: from its chord's middle through the arc's; a straight stretch (a bridge) puts it above.
+                var chord = (On(a.X, a.Z, 0) + On(b.X, b.Z, 0)) * 0.5;
+                var outward = new Double3(mid.X - chord.X, mid.Y - chord.Y, 0);
+                outward = outward.Length > 0.004 ? outward.Normalized : new Double3(0, 1, 0);
+                // A bend hard by one already figured (they come slowest first) shares its figure: the slower one's the one to read.
+                if (figured.Any(f => Math.Abs(f.X - mid.X) < 0.06 && Math.Abs(f.Y - mid.Y) < 0.04))
+                    continue;
+                string figure = LineGen.PostedSpeeds.Figure(kmh);
+                const double px = 0.0045;
+                double w = font.Measure(figure) * px, h = font.Height * px;
+                // Out from the bend first, then in, then off its shoulders: the first spot clear of the lettering and of the
+                // line's own ink; failing that, the first clear of the lettering.
+                (double X, double Y)? place = null, crossed = null;
+                var spots = new[] { (outward.X, outward.Y), (-outward.X, -outward.Y), (1.0, 0.0), (-1.0, 0.0), (0.8, -0.6), (-0.8, -0.6), (0.8, 0.6), (-0.8, 0.6) };
+                foreach (var (ox, oy, far) in spots.Select(o => (o.Item1, o.Item2, 1.0)).Concat(spots.Select(o => (o.Item1, o.Item2, 2.0))))
+                {
+                    double cx = Math.Clamp(mid.X + ox * (0.012 + w / 2) * far, x0 + w / 2 + 0.015, x0 + W - w / 2 - 0.015);
+                    double cy = Math.Clamp(mid.Y + oy * (0.012 + h / 2) * far, y0 + h / 2 + 0.015, y0 + H - h / 2 - 0.015);
+                    bool Hits(double px, double py, double pad) => px > cx - w / 2 - pad && px < cx + w / 2 + pad && py > cy - h / 2 - pad && py < cy + h / 2 + pad;
+                    if (labelled.Any(l => cx + w / 2 + 0.004 > l.X0 && cx - w / 2 - 0.004 < l.X1 && cy + h / 2 + 0.004 > l.Y0 && cy - h / 2 - 0.004 < l.Y1))
+                        continue;
+                    crossed ??= (cx, cy);
+                    if (_mapDots.Any(d => On(d.X, d.Z, 0) is var q && Hits(q.X, q.Y, 0.006)))
+                        continue;
+                    place = (cx, cy);
+                    break;
+                }
+                if ((place ?? crossed) is not { } c)
+                    continue;
+                labelled.Add((c.X - w / 2, c.Y - h / 2, c.X + w / 2, c.Y + h / 2));
+                figured.Add((mid.X, mid.Y));
+                MapFigure(draw, figure, c.X - w / 2, c.Y + h / 2, z + 0.013, px, ink);
+            }
+            // A scale bar under it, bottom right: a kilometre (five, if one's too short to read), in ink.
+            double km = _mapFit.Scale * 1000 >= 0.04 ? 1 : 5, bar = _mapFit.Scale * 1000 * km;
+            if (bar < W * 0.4)
+            {
+                double bx1 = x0 + W - 0.03, bx0 = bx1 - bar, by = y0 + 0.022;
+                draw(new Box(new Double3(bx0, by, z + 0.009), new Double3(bx1, by + 0.004, z + 0.011)), MapInk);
+                for (int i = 0; i <= 2; i++)
+                    draw(new Box(new Double3(bx0 + bar * i / 2 - 0.0015, by, z + 0.009), new Double3(bx0 + bar * i / 2 + 0.0015, by + (i == 1 ? 0.007 : 0.011), z + 0.011)), MapInk);
+                string label = $"{km:0} KM";
+                MapFigure(draw, label, bx0 - BitmapFont.Default.Measure(label) * 0.004 - 0.008, by + 0.014, z + 0.011, 0.004, MapInk);
+            }
+        }
     }
+
+    MeshAsset? _mapSheet;
+    (RailLine? Line, Route? Route, CarShape? Shape) _mapSheetOf;
 
     /// <summary>
     /// Where the run map marks a stop: where the train stands at it (its layout's stop point: a halt's platform, a yard's
@@ -4798,7 +4815,7 @@ public sealed partial class GreyboxScene
         {
             // Only read from the footplate: from farther off it's a pale square, and not worth its dots in the frame budget.
             if ((frame.Origin - eye).Length < 16)
-                CabMap(mesh, frame, draw);
+                CabMap(mesh, frame, eye, draw);
             mesh.Emissive = 1;
             // The fire, through the firehole: the back of the firebox dull with its light, and the bed of coals along the
             // bottom bright (the firehole's sides frame it, Art/TrainKit).
