@@ -99,6 +99,8 @@ public sealed record FormShape
     public double Wander { get; init; } = 3;
     public double Near { get; init; } = 16.2;
     public bool Packed { get; init; }
+    /// <summary>Whether its wall is a timber palisade (note 692: Timberholds).</summary>
+    public bool Palisade { get; init; }
 }
 
 /// <summary>A town type's words (world/towns.json <c>forms</c>, note 692): its name ("a harbour town") and the names its

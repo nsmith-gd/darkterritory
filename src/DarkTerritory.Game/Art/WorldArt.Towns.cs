@@ -466,7 +466,8 @@ public sealed partial class WorldArt
             // Its outside: to its right (the piece's +X, variant 1) unless the town's middle is.
             int outside = (cs - a.S) * -ed + (cd - a.D) * es < 0 ? 1 : -1;
             float yaw = -(float)Math.Atan2(ed, es);
-            var wall = Piece($"wall-{outside}", () => StructureKit.Wall(_look, outside));
+            // (A timber town's palisade, note 692.)
+            var wall = town.Timber ? Piece($"palisade-{outside}", () => StructureKit.Palisade(_look, outside)) : Piece($"wall-{outside}", () => StructureKit.Wall(_look, outside));
             for (double x = 0; x < len - 0.05; x += bay)
             {
                 double ps = a.S + es * x, pd = a.D + ed * x, run = Math.Min(bay, len - x);
@@ -493,7 +494,7 @@ public sealed partial class WorldArt
                 side = d < 0 ? -1 : 1;
                 if (!Near(s, d))
                     continue;
-                var tower = Piece($"tower-{side}", () => StructureKit.Tower(_look, side));
+                var tower = town.Timber ? Piece($"timbertower-{side}", () => StructureKit.TimberTower(_look, side)) : Piece($"tower-{side}", () => StructureKit.Tower(_look, side));
                 double tlo = low(s, d), thi = high(s, d);
                 mesh.Instances.Add(new MeshInstance(tower, Basis(start.Tangent, P(s, d) + Double3.Up * thi, eye, 0)));
                 if (thi - tlo > 0.3)
@@ -542,7 +543,8 @@ public sealed partial class WorldArt
             if ((P(s, d) - eye).Length > 460)
                 continue;
             double tlo = low(s, d), thi = high(s, d);
-            mesh.Instances.Add(new MeshInstance(Piece($"tower-{side}", () => StructureKit.Tower(_look, side)), Basis(start.Tangent, P(s, d) + Double3.Up * thi, eye, 0)));
+            var tower = town.Timber ? Piece($"timbertower-{side}", () => StructureKit.TimberTower(_look, side)) : Piece($"tower-{side}", () => StructureKit.Tower(_look, side));
+            mesh.Instances.Add(new MeshInstance(tower, Basis(start.Tangent, P(s, d) + Double3.Up * thi, eye, 0)));
             if (thi - tlo > 0.3)
                 mesh.Instances.Add(new MeshInstance(Piece("tower-plinth", () => TowerPlinth(_look)),
                     Matrix4x4.CreateScale(1, (float)(thi - tlo + 0.6), 1) * Basis(start.Tangent, P(s, d) + Double3.Up * (tlo - 0.5), eye, 0)));

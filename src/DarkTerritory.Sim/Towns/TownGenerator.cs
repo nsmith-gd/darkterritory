@@ -738,6 +738,18 @@ public static class TownFixtures
         "seedhouse" => (6.0, 4.0, 6.0),
         // A glasshouse town's great glasshouses (note 692): the works' glasshouse at 2.6 times its size, end on to the line.
         "greathouse" => (9.4, 20.8, 10.1),
+        // The second five town types' landmarks (note 692): a mill stack (SettingKit.Chimney); a foundry's and a sawmill's
+        // sheds (the foundry shed's model, at the works' 0.6 and at 0.5); a stack of logs; a watchtower of logs on legs; a
+        // windpump; a processing shed (the fish shed at 1.6); a keep (a wall's tower at 1.8); a barge (the dory at 4.5).
+        "stack" => (2.2, 2.2, 26),
+        "foundry" => (24.2, 6.9, 9),
+        "sawmill" => (20.2, 5.8, 7.5),
+        "logs" => (5.2, 2.0, 2.4),
+        "timbertower" => (2.7, 2.7, 14.4),
+        "windpump" => (2.4, 2.4, 16),
+        "shed" => (9.0, 6.0, 7.5),
+        "keep" => (4.6, 4.6, 24),
+        "barge" => (3.3, 11.7, 3.5),
         // In the houses (their furniture is the layout's): only the cradle stands on its own feet.
         "cradle" => (0.45, 0.3, 0.7),
         "table" or "letters" or "anklebell" or "timetable" or "boots" or "boards" or "suitcase" or "radio" or "clock"

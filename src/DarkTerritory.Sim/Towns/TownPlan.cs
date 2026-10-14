@@ -135,6 +135,9 @@ public sealed record TownBounds(double Rear, double Gate, double Left, double Ri
     /// outline's runs, a turret either side.
     /// </summary>
     public IReadOnlyList<((double S, double D) A, (double S, double D) B)> Gaps { get; init; } = [];
+
+    /// <summary>Whether its wall is a timber palisade, its towers logs on legs (note 692: Timberholds); else stone.</summary>
+    public bool Timber { get; init; }
 }
 
 /// <summary>

@@ -157,7 +157,12 @@
     "dykeland": ["fenfolk"],
     "quarry": ["pitborn"],
     "tidewater": ["drowned"],
-    "glasshouse": ["gardeners"]
+    "glasshouse": ["gardeners"],
+    "furnace": ["pitborn"],
+    "highline": ["drowned", "breakwater"],
+    "timber": ["fenfolk"],
+    "salt": ["breakwater", "fenfolk"],
+    "crag": ["drowned", "pitborn"]
   },
   // Which characters each trade's towns are drawn from, as often as each is listed (the fortress's identity, linegen
   // tiers.json "identities"). The coast runs past them all, so any of them may be a fishing cove too.

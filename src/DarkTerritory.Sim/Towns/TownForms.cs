@@ -17,7 +17,7 @@ namespace DarkTerritory.Sim.Towns;
 public static class TownForms
 {
     /// <summary>The forms there are, in the order towns.json names them ("" is the street town of note 335).</summary>
-    public static readonly string[] All = ["harbour", "dykeland", "quarry", "tidewater", "glasshouse"];
+    public static readonly string[] All = ["harbour", "dykeland", "quarry", "tidewater", "glasshouse", "furnace", "highline", "timber", "salt", "crag"];
 
     /// <summary>A breakwater's half-width, its round head's radius, and its walk's height over the yard (m; note 692).</summary>
     public const double MoleHalf = 4, MoleHead = 7, MoleLevel = 1.0;
@@ -55,7 +55,9 @@ public static class TownForms
         public TownGreen? Green;
         public TownWorks? Works;
 
-        public TownBounds Bounds(double gate) => new(Entry, gate, Outline.Max(p => -p.D), Outline.Max(p => p.D), Streets, Lanes) { Outline = Outline, Gaps = Gaps };
+        public TownBounds Bounds(double gate) => new(Entry, gate, Outline.Max(p => -p.D), Outline.Max(p => p.D), Streets, Lanes) { Outline = Outline, Gaps = Gaps, Timber = Timber };
+        /// <summary>Whether its wall is a timber palisade, its towers of logs on legs (note 692: Timberholds).</summary>
+        public bool Timber;
         /// <summary>Its wall's open stretches (a harbour's mouth) and its breakwaters (note 692).</summary>
         public readonly List<((double S, double D) A, (double S, double D) B)> Gaps = [];
         public readonly List<IReadOnlyList<(double S, double D)>> Moles = [];
@@ -94,6 +96,11 @@ public static class TownForms
             case "quarry": p.Quarry(); break;
             case "tidewater": p.Tidewater(); break;
             case "glasshouse": p.Glasshouse(); break;
+            case "furnace": p.Furnace(); break;
+            case "highline": p.Highline(); break;
+            case "timber": p.Timber(); break;
+            case "salt": p.Salt(); break;
+            case "crag": p.Crag(); break;
             default: return null;
         }
         return p.Finish();
@@ -138,6 +145,7 @@ public static class TownForms
             _l.Entry = gate - f.Length;
             _l.Margin = f.Margin;
             _l.Packed = f.Packed;
+            _l.Timber = f.Palisade;
             _lots = rngFor("form.lots");
         }
 
@@ -540,77 +548,6 @@ public static class TownForms
         }
 
         /// <summary>
-        /// The street blocks beside the line on one side (<paramref name="side"/>): streets every <paramref name="every"/>
-        /// m from <paramref name="first"/> out to <paramref name="reach"/>, between u0 and u1, a row of lots either side of
-        /// each, lanes across every so often (the walled town's pattern, note 335, kept to a quarter of the town).
-        /// </summary>
-        void Blocks(int side, double first, double every, double reach, double u0, double u1, bool yards = true, double rise = 0)
-        {
-            double width = _t.Walled.Width;
-            var offs = new List<double>();
-            for (double off = first; off <= reach - every / 2; off += every)
-                offs.Add(off);
-            // Terraced (note 692; the director: "the verticality that we're trying to add"): each street's band a tier over
-            // the last, the first (the square's and the green's) the yard's level, a retaining wall along the back line
-            // between two rows' yards, the lanes climbing them as stair streets.
-            double Level(int k) => rise * k;
-            if (rise > 0)
-            {
-                for (int k = 1; k < offs.Count; k++)
-                {
-                    double lo = offs[k] - every / 2, hi = k == offs.Count - 1 ? reach + 80 : offs[k] + every / 2;
-                    District(DistrictKind.Terrace, "tier", Rect(u0 - 6, u1 + 6, side * lo, side * hi), Level(k), named: false);
-                }
-                if (_l.Green is { } g && g.Side == side)
-                    District(DistrictKind.Terrace, "green", Rect(g.S0 - _gate, g.S1 - _gate, side * g.Near, side * g.Far), 0, named: false);
-            }
-            var lanes = new List<double>();
-            for (double u = u0 + _lots.Range(_t.Walled.LaneEvery[0], _t.Walled.LaneEvery[1]) * 0.6; u < u1 - 30; u += _lots.Range(_t.Walled.LaneEvery[0], _t.Walled.LaneEvery[1]) * 0.7)
-                lanes.Add(Math.Round(u, 1));
-            // Never through the square or across the green beyond it (note 353).
-            double q0 = _sq.S0 - _gate - 14, q1 = _sq.S1 - _gate + 14;
-            foreach (double u in lanes)
-            {
-                if (side == _sq.Side && u > q0 && u < q1)
-                    continue;
-                // From the line, or from past the works where they're in the way (a lane runs round a works, not through it).
-                double from = LineClear;
-                if (_l.Works is { } wk && wk.Side == side && _gate + u > wk.S0 - 6 && _gate + u < wk.S1 + 6)
-                    from = wk.Far + 1;
-                if (rise <= 0)
-                {
-                    Lane(u, side > 0 ? from : -reach, side > 0 ? reach : -from, _t.Walled.LaneWidth);
-                    continue;
-                }
-                // A stair street: level along each band, a flight across each back line (a stair's slope, StairSlope).
-                var pts = new List<(double U, double D)> { (u, side * from) };
-                var levels = new List<double> { 0 };
-                double run = rise / StairSlope / 2;
-                for (int k = 0; k + 1 < offs.Count; k++)
-                {
-                    double back = offs[k] + every / 2;
-                    if (back - run <= from)
-                        continue;
-                    pts.Add((u, side * (back - run)));
-                    levels.Add(Level(k));
-                    pts.Add((u, side * (back + run)));
-                    levels.Add(Level(k + 1));
-                }
-                pts.Add((u, side * reach));
-                levels.Add(Level(offs.Count - 1));
-                Way(pts, _t.Walled.LaneWidth, levels: levels);
-            }
-            foreach (double off in offs)
-                Street(side * off, u0, u1, width);
-            foreach (double off in offs)
-            {
-                double d = side * off;
-                // Both rows front the street: the line-side row's lots on the street's line side, the far row's beyond.
-                Lots(u0, d, u1, d, width, side > 0 ? 3 : 3, 0, yards);
-            }
-        }
-
-        /// <summary>
         /// A warren's streets (note 692; the director, 14 Oct, of the first pass: "they don't look like the references"):
         /// on one side of the line, from u0 to u1, street after street out from the yard's wall to <c>Far</c>, each
         /// wandering off straight, a row of houses either side of it shoulder to shoulder, the rows back to back. Each
@@ -643,7 +580,8 @@ public static class TownForms
                 offs.Add(c);
             var phase = offs.Select(_ => (rng.Range(0, Math.PI * 2), rng.Range(0.8, 1.2))).ToList();
             var wr = new Warren(side, u0, u1, _f.Near, far, rise, pitch, offs, phase, stream);
-            if (rise > 0)
+            // (Each band a tier over the last, or under it: a town stepping down to a cliff's edge, note 692.)
+            if (rise != 0)
             {
                 var us = Samples(u0 - 8, u1 + 8, 6);
                 for (int k = 1; k < offs.Count; k++)
@@ -685,7 +623,7 @@ public static class TownForms
                     continue;
                 var pts = new List<(double U, double D)> { (u, side * (LineClear + 1)) };
                 var levels = new List<double> { 0 };
-                double run = wr.Rise / StairSlope / 2;
+                double run = Math.Abs(wr.Rise) / StairSlope / 2;
                 for (int k = 0; k < wr.Offs.Count; k++)
                 {
                     double back = wr.Back(k, u, wander), mid = wr.Street(k, u, wander);
@@ -693,7 +631,7 @@ public static class TownForms
                         break;
                     pts.Add((u, side * mid));
                     levels.Add(wr.Level(k));
-                    if (k + 1 == wr.Offs.Count || wr.Rise <= 0)
+                    if (k + 1 == wr.Offs.Count || wr.Rise == 0)
                         continue;
                     if (!OnBand(u, side * (back + run + 1), wr.Level(k + 1)))
                         break;
@@ -703,7 +641,7 @@ public static class TownForms
                     levels.Add(wr.Level(k + 1));
                 }
                 if (pts.Count > 2)
-                    Way(pts, 3, levels: wr.Rise > 0 ? levels : null);
+                    Way(pts, 3, levels: wr.Rise != 0 ? levels : null);
             }
             // Each street where it's on its own band, inside the wall, then its rows.
             var us = Samples(wr.U0, wr.U1, 8);
@@ -739,7 +677,7 @@ public static class TownForms
         /// rings past that level; spokes up from the yard to the crown, kinked ring by ring, a flight across each back line.
         /// Returns the crown's level.
         /// </summary>
-        double Rings(int side, double cu, double cd, double crown, double aspect, string stream)
+        double Rings(int side, double cu, double cd, double crown, double aspect, string stream, Func<double, double, bool>? keepOut = null)
         {
             var rng = _rngFor("form.rings." + stream);
             double w = _f.StreetWidth, pitch = w + 2 * (_f.Setback + _f.LotDepth) + BandSlack, wander = _f.Wander;
@@ -767,7 +705,7 @@ public static class TownForms
                     Level(k), named: k == climbing - 2);
             District(DistrictKind.Terrace, "head", Ours(Enumerable.Range(0, 48).Select(i => At(crown, i * Math.PI * 2 / 48))), crownLevel);
             bool OnBand(double u, double d, double level) =>
-                Math.Abs(d) >= _f.Near + 1 && Math.Sign(d) == side && InWall(_gate + u, d) && EdgeDistance(_gate + u, d) >= WallPad
+                Math.Abs(d) >= _f.Near + 1 && Math.Sign(d) == side && keepOut?.Invoke(u, d) != true && InWall(_gate + u, d) && EdgeDistance(_gate + u, d) >= WallPad
                 && GroundAt(_gate + u, d) is var (kind, lv) && kind is not (DistrictKind.Water or DistrictKind.Deck or DistrictKind.Plots or DistrictKind.Yard)
                 && Math.Abs(lv - level) < 1e-6;
             // The spokes: from the yard's edge up to the crown, a little off their line ring by ring, toward the yard's side.
@@ -1427,6 +1365,215 @@ public static class TownForms
             for (double u = pu0; u < pu1; u += 32)
                 Way([(u, -16), (u, -wl + 20)], 2.5);
             Landmark("seedhouse", (pu0 + pu1) / 2, -wl + 26, 0, 1);
+        }
+
+        /// <summary>
+        /// A dock basin on the platform's side (note 692): water from <paramref name="d0"/> out to the wall between u0 and u1,
+        /// its mouth through the sea wall to the sea between mu0 and mu1 (the wall's run along <paramref name="wallD"/>), a
+        /// quay along its near edge, piers out over it, a barge moored.
+        /// </summary>
+        void Docks(double u0, double u1, double d0, double wallD, double mu0, double mu1, string stream)
+        {
+            District(DistrictKind.Water, "docks", Rect(u0, u1, d0, wallD - 6), _f.WaterLevel);
+            District(DistrictKind.Water, "mouth", Rect(mu0, mu1, wallD - 8, wallD + 2), _f.WaterLevel, named: false);
+            District(DistrictKind.Water, "mouth", Rect(mu0, mu1, wallD - 2, wallD + 12), _f.WaterLevel, named: false, outside: true, depth: 5);
+            _l.Gaps.Add((P(mu0, wallD), P(mu1, wallD)));
+            District(DistrictKind.Quarter, "quay", Rect(u0, u1, d0 - 10, d0), named: false);
+            Way([(u0 + 4, d0 - 5), (u1 - 4, d0 - 5)], 6);
+            var rng = _rngFor("form.docks." + stream);
+            for (double u = u0 + 18; u < u1 - 16; u += rng.Range(34, 50))
+            {
+                double len = Math.Min(rng.Range(30, 50), wallD - 14 - d0);
+                District(DistrictKind.Deck, "pier", Rect(u - 3, u + 3, d0 - 1, d0 + len), 0.9, named: false);
+                Way([(u, d0), (u, d0 + len)], 5, deck: true, level: 0.9);
+            }
+            Landmark("barge", (u0 + u1) / 2 + 8, d0 + (wallD - d0) * 0.55, 1, 0, pad: 0.5);
+            Landmark("crane", u0 + 10, d0 - 4, 0, 1);
+        }
+
+        /// <summary>
+        /// A foundry town on its sea crag (the director's "Furnace Republic", 14 Oct): the foundry and its stacks on the crown,
+        /// the town in rings round it on the square's side, the slag works down in a pit by the way in, the ore yard on the
+        /// platform's side, the docks in their basin under the sea wall, the sea all round under the rock.
+        /// </summary>
+        public void Furnace()
+        {
+            double L = _f.Length, wl = _f.Left, wr = _f.Right;
+            Wall((-L, -wl * 0.7), (-L + 50, -wl), (-L * 0.55, -wl - 15), (-60, -wl), (0, -wl * 0.6), (0, wr * 0.45), (-45, wr), (-L + 45, wr), (-L, wr * 0.7));
+            double m = _f.Margin;
+            // The crag in its sea: the sea all round, the rock falling to it from under the wall, the line in on its causeway.
+            Sea(Rect(-L - m - 40, m + 40, -wl - m - 60, wr + m + 60), _f.WaterLevel, 6);
+            Land("crag", Blob(-L * 0.5, (wr - wl) / 2, L * 0.62, (wl + wr) * 0.62, 0.08, 28, "crag"), 0, 26);
+            Approach(12);
+            // The slag works down in their pit by the way in: the rings keep off it.
+            double su = -L + 105, sd = -64;
+            bool InPit(double u, double d) => (u - su) * (u - su) / (50.0 * 50) + (d - sd) * (d - sd) / (38.0 * 38) < 1.25;
+            Green(34, 54);
+            double crown = Rings(-1, -L * 0.42, -wl + 22, 46, 1.7, "quarters", InPit);
+            District(DistrictKind.Terrace, "slag", Blob(su, sd, 46, 34, 0.08, 20, "slag"), -_f.TerraceLevel);
+            Landmark("crane", su + 30, sd - 8, 1, 0);
+            Landmark("lift", su - 20, sd + 22, 0, -1);
+            // The foundry on the crown: its sheds and its stacks.
+            Landmark("foundry", -L * 0.42 - 14, -wl + 22, 0, 1);
+            Landmark("foundry", -L * 0.42 + 22, -wl + 30, 0, 1);
+            for (int i = 0; i < 5; i++)
+                Landmark("stack", -L * 0.42 - 34 + i * 15, -wl + 6 + (i % 2) * 8, 0, 1);
+            _ = crown;
+            // The platform's side: the ore yard (the works), the docks under the sea wall, the workers' rows by the way in.
+            Works(-L * 0.5, -40, 14, 58, 1, "foundry");
+            Docks(-L + 60, -L * 0.52 - 6, 66, wr, -L * 0.62, -L * 0.62 + 30, "furnace");
+            Rows(Tiers(1, -L + 24, -L * 0.52 - 8, 56, 0, "workers"));
+        }
+
+        /// <summary>
+        /// A clifftop town (the director's "Highline Settlement", 14 Oct): on the platform's side the town steps down tier by
+        /// tier to the wall on the cliff's edge, the sea far below; on the square's side it climbs in rings to the citadel;
+        /// the lookout out on its sea stack, a stone bridge to it from the cliff.
+        /// </summary>
+        public void Highline()
+        {
+            double L = _f.Length, wl = _f.Left, wr = _f.Right;
+            Wall((-L, -wl * 0.8), (-L + 40, -wl), (-60, -wl), (0, -wl * 0.7), (0, wr * 0.6), (-30, wr), (-L + 30, wr), (-L, wr * 0.6));
+            double m = _f.Margin;
+            // Past the wall on the platform's side the cliff, straight down to the sea; behind the town the wooded hills.
+            Land("cliff", Rect(-L - m - 40, m + 40, wr + 3, wr + m + 60), -_f.TerraceLevel * 2, 0, roll: 0.3);
+            Sea(Rect(-L - m - 40, m + 40, wr + 26, wr + m + 60), -_f.TerraceLevel * 2 - 2, 4);
+            Land("hills", Rect(-L - m - 40, m + 40, -wl - m - 60, -wl - 30), _f.TerraceLevel, 50);
+            Approach(10);
+            Green(34, 54);
+            // Down to the cliff, tier under tier.
+            // (Short of the wall on the cliff: a walk along its top, nothing built over the drop.)
+            Rows(Tiers(1, -L + 22, -14, wr * 0.72, -_f.Rise, "lower"));
+            // Up to the citadel.
+            Rings(-1, -L * 0.4, -wl + 16, 36, 1.8, "upper");
+            Landmark("chapel", -L * 0.4 - 8, -wl + 14, 0, 1);
+            Landmark("keep", -L * 0.4 + 22, -wl + 24, 0, 1);
+            // The lookout: a stone bridge out from the cliff's wall to its stack, its tower on it.
+            Mole("lookout", [(-L * 0.78, wr), (-L * 0.8, wr + 26), (-L * 0.86, wr + 44)], "watchtower");
+            Landmark("crane", -L * 0.3, wr - 14, 0, 1);
+        }
+
+        /// <summary>
+        /// A logging town in its clearing (the director's "Timberholds", 14 Oct): a round timber palisade, its watchtowers on
+        /// legs inside and out over the stumps of the kill zone, the log yards and the sawmill on the platform's side, the
+        /// quarters round the market on the square's.
+        /// </summary>
+        public void Timber()
+        {
+            double L = _f.Length, wl = _f.Left, wr = _f.Right;
+            // Round, but square across the line at its two gates.
+            var round = new List<(double U, double D)> { (-L, -14) };
+            for (int i = 1; i < 16; i++)
+            {
+                double a = Math.PI + i * Math.PI / 16;
+                round.Add((-L / 2 + DMath.Cos(a) * L / 2 * 0.98, DMath.Sin(a) * wl));
+            }
+            round.Add((0, -14));
+            round.Add((0, 14));
+            for (int i = 1; i < 16; i++)
+            {
+                double a = i * Math.PI / 16;
+                round.Add((-L / 2 + DMath.Cos(a) * L / 2 * 0.98, DMath.Sin(a) * wr));
+            }
+            round.Add((-L, 14));
+            Wall([.. round]);
+            double m = _f.Margin;
+            Land("rise", Rect(-L - m - 40, m + 40, -wl - m - 60, -wl - 50), 6, 60);
+            Green(34, 52);
+            // The quarters in rings round the market at the clearing's middle, level (a timber town's rise is none).
+            double market = Rings(-1, -L * 0.5, -wl * 0.42, 24, 1.7, "quarters");
+            Fill(-L * 0.5, -wl * 0.42, 24, 18, market);
+            // The log yards and the sawmill, the platform's side: stacks of logs in rows, the mill and its stacks by the way out.
+            for (double u = -L * 0.82; u < -L * 0.42; u += 34)
+                for (double d = 24; d < wr * 0.7; d += 22)
+                {
+                    District(DistrictKind.Yard, "logs", Rect(u, u + 28, d, d + 16), named: u < -L * 0.81 && d < 25);
+                    Landmark("logs", u + 8, d + 8, 1, 0, pad: 0.3);
+                    Landmark("logs", u + 20, d + 8, 1, 0, pad: 0.3);
+                }
+            Landmark("sawmill", -L * 0.3, 40, 0, -1);
+            Landmark("sawmill", -L * 0.3 + 46, 52, 0, -1);
+            Landmark("stack", -L * 0.3 + 18, 70, 0, -1);
+            Landmark("stack", -L * 0.3 - 22, 66, 0, -1);
+            Rows(Tiers(1, -L * 0.2, -14, wr + 20, 0, "millrows"));
+            // The yard hands' rows past the log yards, toward the palisade.
+            Rows(Tiers(1, -L * 0.86, -L * 0.42, wr + 20, 0, "skidrows"));
+            // The watch: towers on legs in the town, and out in the kill zone past the palisade.
+            Landmark("timbertower", -L * 0.5, -wl * 0.55, 0, 1);
+            Landmark("timbertower", -L * 0.5, wr * 0.8, 0, -1);
+            foreach (var (u, d) in new[] { (-L * 0.25, -wl - 30), (-L * 0.75, -wl - 26), (-L * 0.3, wr + 30), (-L * 0.7, wr + 28) })
+                Landmark("timbertower", u, d, 0, Math.Sign(-d));
+        }
+
+        /// <summary>
+        /// A salt town on its marsh (the director's "Saltwardens", 14 Oct): an eight-sided wall standing in the marsh, the salt
+        /// pans in rows on the platform's side between their dykes, the windpumps that fill them, the cisterns and the
+        /// processing sheds; on the square's side the lagoon the lower ward stands over on its stilts, the living quarters by
+        /// the market.
+        /// </summary>
+        public void Salt()
+        {
+            double L = _f.Length, wl = _f.Left, wr = _f.Right, c = Math.Min(L, wl + wr) * 0.2;
+            Wall((-L, -wl + c), (-L + c, -wl), (-c, -wl), (0, -wl + c), (0, wr - c), (-c, wr), (-L + c, wr), (-L, wr - c));
+            double m = _f.Margin;
+            Sea(Rect(-L - m - 40, m + 40, -wl - m - 60, wr + m + 60), -0.6, 0.6);
+            Approach(5);
+            // The pans: shallow rectangles of brine in rows, a dyke round each, a walk between the rows.
+            double pu0 = -L * 0.82, pu1 = -L * 0.38;
+            for (double u = pu0; u + 26 < pu1; u += 30)
+                for (double d = 22; d + 20 < wr * 0.8; d += 24)
+                    District(DistrictKind.Water, "pans", Rect(u, u + 26, d, d + 20), -0.25, named: u == pu0 && d == 22, depth: 0.3);
+            for (double d = 20; d < wr * 0.8; d += 24)
+                Way([(pu0 - 2, d), (pu1, d)], 2.5);
+            foreach (var (u, d) in new[] { (pu0 + 13, 20.0), (pu0 + 103, 20.0), (pu0 + 43, wr * 0.8 - 2), (pu1 - 17, wr * 0.8 - 2) })
+                Landmark("windpump", u, d, 0, 1, pad: 0.3);
+            // The cisterns: round, walked round, past the pans; the sheds by the way out.
+            for (int i = 0; i < 3; i++)
+            {
+                double u = -L * 0.28 + i * 34 - 34, d = wr * 0.55 + (i % 2) * 18, r = 13;
+                District(DistrictKind.Water, i == 1 ? "cisterns" : "cistern", Circle(u, d, r, r, 20), _f.WaterLevel, named: i == 1);
+                Way(Circle(u, d, r + 3, r + 3, 20).Append((u + r + 3, d)).ToList(), 2.5);
+            }
+            Landmark("shed", -L * 0.2, 30, 0, -1);
+            Landmark("shed", -L * 0.2 + 30, 30, 0, -1);
+            Landmark("shed", -60, 30, 0, -1);
+            // The square's side: the living quarters by the market, the lower ward on its stilts over the lagoon past them.
+            Green(34, 54);
+            Rows(Tiers(-1, -L * 0.42, -12, 72, 0, "living"));
+            var lagoon = Blob(-L * 0.68, -wl * 0.58, L * 0.26, wl * 0.36, 0.06, 20, "lagoon").Select(x => (x.U, Math.Min(x.D, -24.0))).ToList();
+            District(DistrictKind.Water, "lagoon", lagoon, _f.WaterLevel);
+            var srng = _rngFor("form.salt.walks");
+            for (double u = -L * 0.9; u < -L * 0.46; u += srng.Range(40, 56))
+            {
+                var pts = new List<(double U, double D)> { (u, -16), (u + srng.Range(-8, 8), -wl * 0.45), (u + srng.Range(-10, 10), -wl * 0.85) };
+                Boardwalk(pts, StageLevel, jetty: 2, stages: Clusters(Length(pts), srng, FenCluster, FenGap));
+            }
+            Landmark("watchtower", -L * 0.5, -wl + 20, 0, 1);
+        }
+
+        /// <summary>
+        /// A crag fortress (the director's "Craghold", 14 Oct): the town climbing its crag in walled terraces ring on ring to
+        /// the keep and the citadel, the stone lift up its face; on the platform's side the lower ward over the docks in their
+        /// inlet under the sea wall.
+        /// </summary>
+        public void Crag()
+        {
+            double L = _f.Length, wl = _f.Left, wr = _f.Right;
+            Wall((-L, -wl * 0.75), (-L + 50, -wl), (-L * 0.5, -wl - 20), (-50, -wl), (0, -wl * 0.65), (0, wr * 0.5), (-40, wr), (-L + 40, wr), (-L, wr * 0.7));
+            double m = _f.Margin;
+            Land("crag", Rect(-L - m - 40, m + 40, -wl - m - 60, -wl - 25), _f.TerraceLevel * 2, 40);
+            Land("peak", Blob(-L * 0.5, -wl - 70, 130, 50, 0.15, 18, "peak"), _f.TerraceLevel * 3, 45);
+            Sea(Rect(-L - m - 40, m + 40, wr + 3, wr + m + 60), _f.WaterLevel, 6);
+            Approach(14);
+            Green(34, 54);
+            double crown = Rings(-1, -L * 0.52, -wl + 12, 34, 1.6, "terraces");
+            Landmark("keep", -L * 0.52, -wl + 6, 0, 1);
+            Landmark("chapel", -L * 0.52 + 26, -wl + 20, 0, 1);
+            Fill(-L * 0.52, -wl + 12, 34, 22, crown);
+            Landmark("lift", -L * 0.22, -46, 0, 1);
+            // The lower ward over the docks.
+            Docks(-L + 70, -L * 0.42, 70, wr, -L * 0.6, -L * 0.6 + 30, "crag");
+            Rows(Tiers(1, -L + 24, -20, 60, 0, "lower"));
         }
 
         /// <summary>

@@ -529,7 +529,63 @@
         "lanes": ["the Long Houses", "the Gardeners' Rows"] },
       "landmarks": {
         "greathouse": { "title": "the great house of glass", "text": "Three hundred panes to a side, every one washed at the bell. Inside it's summer: the lamps on the rota, the beans up the strings, the warmth coming off the soil. The gardeners sleep in it on the coldest nights. Nobody sleeps near the glass." },
-        "seedhouse": { "title": "the seed house", "text": "The town's every seed, in jars, labelled with the bed and the year and the hand that saved it. The door is barred from inside. Someone is always in there. It's the safest room in the territory, they say, and the loneliest." } } }
+        "seedhouse": { "title": "the seed house", "text": "The town's every seed, in jars, labelled with the bed and the year and the hand that saved it. The door is barred from inside. Someone is always in there. It's the safest room in the territory, they say, and the loneliest." } } },
+    "furnace": { "name": "a foundry town on its crag",
+      "districts": {
+        "quarters": ["the Cinder Rows", "Ironmonger Hill", "the Back of the Works"],
+        "slag": ["the Slag Pit", "the Cinder Hole", "Clinker Bottom"],
+        "docks": ["the Ore Dock", "the Coal Basin", "Bunker Quay"],
+        "workers": ["the Hands' Rows", "Puddler's Lane", "the Company Rows"] },
+      "landmarks": {
+        "foundry": { "title": "the foundry", "text": "The fires haven't been let out since the wall went up. They say a cold furnace takes a week to bring back, and a week is longer than anyone thinks the town has. The men feed it in shifts. Nobody sleeps in the rows downwind." },
+        "stack": { "title": "the stacks", "text": "Five of them, and you can count the town's health by how many smoke. Four tonight. The fifth went cold the winter the fever came through, and they've never lit it since. Birds won't nest in it." },
+        "lift": { "title": "the slag hoist", "text": "A cage on a cable down into the pit, for the ladles. The operator rings once going down, twice coming up. Three rings means something's in the cage that shouldn't be, and he lets go of the brake." },
+        "crane": { "title": "the ladle crane", "text": "It swings the ladles over the slag and tips them, and the pit lights up orange from wall to wall. The children come to watch it from the rows. It's the only warm light there is." },
+        "barge": { "title": "the ore barge", "text": "Flat, black with coal dust, moored bow and stern under the sea wall. It brings the ore in from the shoals when the tide allows. The crew never come ashore. Their food goes down to them in a basket on a rope." } } },
+    "highline": { "name": "a town on the cliff",
+      "districts": {
+        "lower": ["the Ledges", "the Cliff Rows", "Gull's Steps"],
+        "upper": ["the Upper Ward", "the Heights", "Citadel Hill"],
+        "hills": ["the Barrens"],
+        "cliff": ["the Drop"] },
+      "landmarks": {
+        "keep": { "title": "the citadel", "text": "The council sits at the top of the town, as high as you can get from the sea. Every window looks down. There's a rope from the bell in the citadel to every house on the cliff, and a rule: when it rings, you go up, not out." },
+        "chapel": { "title": "the cliff chapel", "text": "Its nave points at the sea. On the wall behind the altar, a board of names, and beside each name a height: how far down they found them. Some heights are crossed out. Not because they were found higher." },
+        "watchtower": { "title": "the lookout", "text": "Out on its stack over the water, a stone bridge to it no wider than a cart. The watch out there is the loneliest post in the town. They ring the hours across to the cliff. If an hour goes unrung, nobody walks out to see why." },
+        "crane": { "title": "the cliff derrick", "text": "It lowers the boats to the sea on a cable two hundred feet long and hauls the catch up the same way. It hasn't lowered a boat in a year. It still hauls something up, most nights, and the derrick men won't say what." } } },
+    "timber": { "name": "a logging town in its clearing",
+      "districts": {
+        "quarters": ["the Camp", "the Bunkhouse Rows", "the Clearing"],
+        "logs": ["the Log Yard", "the Decks", "the Skidway"],
+        "millrows": ["Sawdust Row", "the Mill Rows", "the Slab Town"] },
+      "landmarks": {
+        "sawmill": { "title": "the sawmill", "text": "The big saw runs from first light until the bell. After the bell they leave the blade spinning down on its own, and nobody stands near it. A spinning blade won't stop a thing, but the sound of it does." },
+        "stack": { "title": "the burner", "text": "The slab burner's stack, hot all night with the offcuts. They keep it fed for the light it throws over the kill zone, not the heat. The night it went out, three of the watch came down from the towers without being told to." },
+        "logs": { "title": "the log decks", "text": "Spruce, stacked to the brands, every log marked with its cutter's sign. Logs are counted at the bell. When the count is over, they burn the extra before morning. Nobody cuts a log with a sign they don't know." },
+        "timbertower": { "title": "a watch tower", "text": "Logs on legs, a cabin up top with a lamp and a horn. The stumps out there are cut low and white so you'd see anything moving between them. The watch counts stumps at dusk and again at midnight. It should be the same number." } } },
+    "salt": { "name": "a salt town on its marsh",
+      "districts": {
+        "pans": ["the Pans", "the Salt Flats", "the Brine Beds"],
+        "cisterns": ["the Cisterns", "the Sweetwater Tanks"],
+        "cistern": ["the Cisterns"],
+        "living": ["the Living Quarters", "Saltmarket Rows", "the Dry Ward"],
+        "lagoon": ["the Lower Ward", "the Lagoon", "Pickle Reach"] },
+      "landmarks": {
+        "windpump": { "title": "the windpump", "text": "It lifts the brine into the pans when the wind's up and stands still when it isn't. On still nights it turns anyway. The salt men say that's the tide pushing it. The tide here goes out at night." },
+        "shed": { "title": "the boiling shed", "text": "The salt's raked off the pans and finished here over the coal, white enough to trade for anything. The rakers wear their masks inside even in summer. The steam off the pans carries what's in the marsh, and the marsh has things in it." },
+        "watchtower": { "title": "the marsh watch", "text": "A tower over the lagoon's far end, its lamp turned on the water, not the land. The watch has a long pole with a hook. He's never said what it's for." },
+        "dory": { "title": "a punt at the walk's end", "text": "Flat-bottomed, tarred, pushed along with a pole. The lower ward goes by punt when the boards are slick with salt. You don't trail your hand in the water. Everybody knows someone who did." } } },
+    "crag": { "name": "a fortress on its crag",
+      "districts": {
+        "terraces": ["the Terraces", "the Walls Within", "the Rings"],
+        "lower": ["the Lower Ward", "Dockside", "the Undercroft"],
+        "docks": ["the Inlet", "the Sally Port", "the Water Gate"] },
+      "landmarks": {
+        "keep": { "title": "the keep", "text": "The last walls. If the rest of the town falls, the people climb to it and pull the stair up after them; it's a ladder, and it's never been down in twenty years. There's food for a month in it, and the well goes down through the rock to the sea." },
+        "chapel": { "title": "the citadel chapel", "text": "Cut half into the rock, its back wall the crag itself. Water seeps through and runs down behind the altar into a channel. They say the water's sweet. Nobody drinks it." },
+        "lift": { "title": "the stone lift", "text": "A cage in a stone shaft from the lower ward up the face to the terraces, counterweighted with rock. It takes six to ride it and four to wind it. When it's at the top they lock the shaft door at the bottom from both sides." },
+        "crane": { "title": "the dock crane", "text": "It lifts the boats clear of the water every night and sets them down on the quay. Nothing's left floating in the inlet after dark. The one night they did, the boat was gone by morning, and its mooring rope had been bitten, not cut." },
+        "barge": { "title": "the supply barge", "text": "It runs the coast to the next holdfast every fortnight. Its last three crossings came back with fewer aboard than went. The town still sends it. The holdfast still answers." } } }
   },
 
   // What the town makes (linegen tiers.json fortress "identities"; GDD §3: "one settlement produces coal ...").

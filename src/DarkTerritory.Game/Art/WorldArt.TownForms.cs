@@ -27,6 +27,9 @@ public sealed partial class WorldArt
     /// <summary>The grid a fen's reeds and dead trees are scattered on (m), each a hash of its cell (the same every frame).</summary>
     const double MarshCell = 5;
 
+    /// <summary>The grid a kill zone's stumps are scattered on (m), each a hash of its cell.</summary>
+    const double StumpCell = 7;
+
     /// <summary>A drop taller than this (m) is drawn as rock, not a retaining wall's masonry (note 692): a crag, not a tier.</summary>
     const double RockFace = 6;
 
@@ -163,6 +166,28 @@ public sealed partial class WorldArt
                     mesh.Instances.Add(new MeshInstance(piece, Basis(o.Tangent, at, eye, (h >> 16) % 628 / 100f), Shadowless: !tree));
                 }
         }
+        // A logging town's kill zone (note 692; the director's "Timberholds"): the clearing past the palisade cut to low
+        // stumps, the line's way in and out left clear.
+        if (plan.Form == "timber")
+        {
+            var g = town.Ground;
+            for (double s = Math.Floor(g.S0 / StumpCell) * StumpCell; s < g.S0 + g.Ns; s += StumpCell)
+                for (double d = Math.Floor(g.D0 / StumpCell) * StumpCell; d < g.D0 + g.Nd; d += StumpCell)
+                {
+                    uint h = (uint)((int)Math.Round(s) * 83492791 ^ (int)Math.Round(d) * 2971215073u);
+                    h = (h ^ (h >> 13)) * 0x5bd1e995u;
+                    if ((h >> 8) / 16777216f > 0.16f)
+                        continue;
+                    double js = s + ((h & 0xF) / 15.0 - 0.5) * StumpCell, jd = d + (((h >> 4) & 0xF) / 15.0 - 0.5) * StumpCell;
+                    if (g.Inside(js, jd) || Math.Abs(jd) < 14 || g.Blend(js, jd) < 0.6)
+                        continue;
+                    var at = town.World(js, jd);
+                    if ((at - eye).Length > 260)
+                        continue;
+                    int v = (int)(h >> 24) % 3;
+                    mesh.Instances.Add(new MeshInstance(Piece($"stump-{v}", () => WorldKit.DeadTree(_look, v, 1.1f + v * 0.3f)), Basis(o.Tangent, at, eye, (h >> 16) % 628 / 100f), Shadowless: true));
+                }
+        }
         // The landmarks: the kit's pieces where the form put them.
         foreach (var f in plan.Fixtures)
         {
@@ -170,15 +195,18 @@ public sealed partial class WorldArt
                 continue;
             var at = town.World(f.S, f.D);
             // A boat rides on the water, not its bed (note 692).
-            if (f.Kind == "dory" && town.Ground.Water(f.S, f.D) is { } surface)
+            if (f.Kind is "dory" or "barge" && town.Ground.Water(f.S, f.D) is { } surface)
                 at += Double3.Up * (surface - town.Ground.Level(f.S, f.D));
             if ((at - eye).Length > 460)
                 continue;
             var m = Place(line, eye, at, f.S, f.FaceS, f.FaceD);
-            if (f.Kind is "lift" or "glasshouse" or "seedhouse" && WorksKit.Prop(f.Kind == "lift" ? "headframe" : f.Kind) is { } prop && _props.Get(prop.Name) is { } model)
+            if (f.Kind is "lift" or "glasshouse" or "seedhouse" or "foundry" or "sawmill"
+                && WorksKit.Prop(f.Kind switch { "lift" => "headframe", "foundry" or "sawmill" => "casting", _ => f.Kind }) is { } prop && _props.Get(prop.Name) is { } model)
             {
+                // (A foundry's shed is the works' casting shed; a sawmill's the same at 0.5: note 692.)
+                float size = f.Kind == "sawmill" ? 0.5f / 0.6f : 1;
                 var (middle, _) = prop.Centred ? WorksKit.Footprint(model) : (Vector3.Zero, Vector3.Zero);
-                mesh.Instances.Add(new MeshInstance(model, Matrix4x4.CreateTranslation(-middle) * Matrix4x4.CreateScale(prop.Scale) * Matrix4x4.CreateTranslation(0, -0.3f, 0) * m));
+                mesh.Instances.Add(new MeshInstance(model, Matrix4x4.CreateTranslation(-middle) * Matrix4x4.CreateScale(prop.Scale * size) * Matrix4x4.CreateTranslation(0, -0.3f, 0) * m));
                 continue;
             }
             var (piece, scale) = f.Kind switch
@@ -192,6 +220,15 @@ public sealed partial class WorldArt
                 // A great glasshouse (note 692): the works' glasshouse at 2.6 times its size.
                 "greathouse" => (Piece("works-glasshouse", () => WorksKit.Piece(_look, "glasshouse")), 2.6f),
                 "dory" when ((int)Math.Abs(f.S * 7 + f.D * 13) % 3) is var v => (Piece($"dory-afloat-{v}", () => MaritimeKit.Afloat(_look, v)), 1f),
+                // The second five's (note 692): a barge is a dory at 4.5; a keep a wall's tower at 1.8; a processing shed the
+                // fish shed at 1.6; a windpump the windmill at 0.75; the mill stacks, the log decks and the log towers.
+                "barge" => (Piece("dory-afloat-2", () => MaritimeKit.Afloat(_look, 2)), 4.5f),
+                "keep" => (Piece("tower-1", () => StructureKit.Tower(_look, 1)), 1.8f),
+                "shed" => (Piece("form-shed", () => NovaKit.FishShed(_look, 0)), 1.6f),
+                "windpump" => (Piece("form-windpump", () => TownKit.Windmill(_look)), 0.75f),
+                "stack" when ((int)Math.Abs(f.S * 3 + f.D * 5) % 2) is var v => (Piece($"chimney-{v}", () => SettingKit.Chimney(_look, v)), 1f),
+                "logs" when ((int)Math.Abs(f.S * 3 + f.D * 5) % 2) is var v => (Piece($"logstack-{v}", () => StructureKit.LogStack(_look, v)), 1f),
+                "timbertower" => (Piece("timbertower-1", () => StructureKit.TimberTower(_look, 1)), 1f),
                 _ => (Piece($"works-{(f.Kind == "seedhouse" ? "glasshouse" : f.Kind)}", () => WorksKit.Piece(_look, f.Kind == "seedhouse" ? "glasshouse" : f.Kind)), 1f),
             };
             mesh.Instances.Add(new MeshInstance(piece, Matrix4x4.CreateScale(scale) * m));
@@ -278,7 +315,8 @@ public sealed partial class WorldArt
     }
 
     /// <summary>The landmarks a town type stands (TownForms' kinds) that the square and the works don't draw.</summary>
-    static bool Landmark(string kind) => kind is "lighthouse" or "beacon" or "chapel" or "watchtower" or "lift" or "crane" or "boatshed" or "seedhouse" or "glasshouse" or "greathouse" or "dory";
+    static bool Landmark(string kind) => kind is "lighthouse" or "beacon" or "chapel" or "watchtower" or "lift" or "crane" or "boatshed" or "seedhouse" or "glasshouse" or "greathouse" or "dory"
+        or "stack" or "foundry" or "sawmill" or "logs" or "timbertower" or "windpump" or "shed" or "keep" or "barge";
 
     /// <summary>
     /// A town type's ground as one piece, in its frame from the line's start (−Z along the line, +X across to its right):
