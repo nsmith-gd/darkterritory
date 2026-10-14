@@ -84,7 +84,7 @@ public static class Protocol
     //     fields; the fire cells after them), a beer and a sausage are body kinds of their own, and a crewmate sat in a
     //     Muskoka chair is a player flag; and the band (note 700): an instrument is a body kind (which, its ninth field), a
     //     crewmate playing one a player flag, and the world record carries the band's tune and its first tick (fields 29–30);
-    //     the tiny caboose a body kind (note 713), and an emote's third bit the hotbar byte's fourth (note 714).
+    //     the tiny caboose a body kind (note 713), and an emote's third bit the moves byte's top bit (note 714).
     public const int Version = 59;
 }
 
@@ -223,15 +223,15 @@ public static class Messages
         bool tool = i.Select != 0 || i.Cycle != 0 || i.Emote != Emote.None;
         w.U8((byte)(tool ? i.Actions | PlayerActions.Tool : i.Actions & ~PlayerActions.Tool));
         w.U8(i.Voice);
-        // Note 664: the third byte (crouch, push the gun along).
-        w.U8((byte)i.Moves);
+        // Note 664: the third byte (crouch, push the gun along); its top bit the emote's high bit (note 714's bow, salute and
+        // conga), so the hotbar's slot keeps its nibble.
+        w.U8((byte)((byte)i.Moves & 0x7F | ((byte)i.Emote & 4) << 5));
         if (i.Watch != 0)
             w.U8(i.Watch);
         // A hotbar choice (T108), only on the tick it's made: the slot in the low nibble, the wheel's step in the high; an
         // emote (note 298) in the top two bits, on the tick it's picked.
         if (tool)
-            // (The slot fits three bits, Kit.Slots being four: the fourth is the emote's high bit, note 714's bow, salute and conga.)
-            w.U8((byte)((i.Select & 0x07) | ((byte)i.Emote & 4) << 1 | (i.Cycle > 0 ? 0x10 : i.Cycle < 0 ? 0x20 : 0) | ((byte)i.Emote & 3) << 6));
+            w.U8((byte)((i.Select & 0x0F) | (i.Cycle > 0 ? 0x10 : i.Cycle < 0 ? 0x20 : 0) | ((byte)i.Emote & 3) << 6));
         // A reaching hand (T29) in centimetres, only when there is one: keyboards and bots send nothing more.
         if (i.Has(PlayerButtons.Hand))
         {
@@ -269,15 +269,16 @@ public static class Messages
         i.Lamp = (LampSwitch)((notch >> 5) & 3);
         i.Actions = (PlayerActions)r.U8();
         i.Voice = r.U8();
-        i.Moves = (PlayerMoves)r.U8();
+        byte moves = r.U8();
+        i.Moves = (PlayerMoves)(moves & 0x7F);
         if ((notch & 0x80) != 0)
             i.Watch = r.U8();
         if (i.Has(PlayerActions.Tool))
         {
             byte t = r.U8();
-            i.Select = (byte)(t & 0x07);
+            i.Select = (byte)(t & 0x0F);
             i.Cycle = (sbyte)((t & 0x10) != 0 ? 1 : (t & 0x20) != 0 ? -1 : 0);
-            i.Emote = (Emote)(t >> 6 | (t & 0x08) >> 1);
+            i.Emote = (Emote)(t >> 6 | (moves & 0x80) >> 5);
             i.Actions &= ~PlayerActions.Tool;
         }
         if (i.Has(PlayerButtons.Hand))

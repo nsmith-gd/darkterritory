@@ -114,15 +114,15 @@ public class FunBatchTests
     public void EveryEmoteRidesWithEveryHotbarSlot()
     {
         foreach (var e in Enum.GetValues<Emote>())
-            for (byte select = 0; select < 8; select++)
+            for (byte select = 0; select < 16; select++)
             {
                 var w = new NetWriter();
-                Messages.WriteInput(w, [new InputFrame(7, new PlayerIntent { MoveZ = 1, Emote = e, Select = select })], 0);
+                Messages.WriteInput(w, [new InputFrame(7, new PlayerIntent { MoveZ = 1, Emote = e, Select = select, Moves = PlayerMoves.Crouch | PlayerMoves.Push })], 0);
                 var r = new NetReader(w.Written);
                 r.U8();
                 var frames = new List<InputFrame>();
                 Messages.ReadInput(ref r, frames, out _);
-                Assert.Equal((e, select), (frames[0].Intent.Emote, frames[0].Intent.Select));
+                Assert.Equal((e, select, PlayerMoves.Crouch | PlayerMoves.Push), (frames[0].Intent.Emote, frames[0].Intent.Select, frames[0].Intent.Moves));
             }
     }
 
