@@ -390,6 +390,7 @@ public sealed partial class GreyboxScene
         Cut = Art.SceneArt.Cuts(train);
         Handrails = train.Dynamics.Tuning.Composition.Handrails;
         Dress = train.Dynamics.Tuning.Composition.Dress;
+        CabooseTuning = train.Dynamics.Tuning.Composition.Caboose;
         SwitchThrower = train.Dynamics.Tuning.Composition.SwitchThrower;
         Build(mesh, train.Line, frames ?? train.Frames, train.Dynamics.Distance, eye);
     }

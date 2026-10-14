@@ -22,11 +22,12 @@ namespace DarkTerritory.Sim.Physics;
 /// </summary>
 /// <remarks>A beer and a sausage are the BBQ deck's (note 698): a beer from its cooler, a sausage off its grill, each used up
 /// in the hands as a healing find is (<see cref="Bodies.BeerHeals"/>, <see cref="Bodies.SausageHeals"/>). An instrument is the
-/// band's (note 700): which one is <see cref="Body.Instrument"/>, played with Use held.</remarks>
+/// band's (note 700): which one is <see cref="Body.Instrument"/>, played with Use held. The caboose is the tiny one towed off the
+/// guard van (note 713): never picked up, only dragged.</remarks>
 public enum BodyKind : byte
 {
     Crate = 1, Lamp = 2, Ragdoll = 3, Cargo = 4, Radio = 5, Heavy = 6, Toy = 7, Loot = 8, Child = 9, Extinguisher = 10, RepairKit = 11, Powder = 12, Tool = 13,
-    Beer = 14, Sausage = 15, Instrument = 16
+    Beer = 14, Sausage = 15, Instrument = 16, Caboose = 17
 }
 
 /// <summary>
@@ -104,6 +105,8 @@ public sealed class Body
     public ToyNoise Noise { get; set; }
     /// <summary>Which of the band's instruments this is (band.json <c>instruments</c>; note 700), when it's one.</summary>
     public byte Instrument { get; set; }
+    /// <summary>The tiny caboose off the rails (note 713): which way it's gone over across the line (−1, 1), or 0 on them.</summary>
+    public sbyte Tipped { get; set; }
     /// <summary>
     /// For a ragdoll, the tools its player was carrying when they died (GDD v1.4 App. D.2: the body keeps everything,
     /// the engineering kit included), packed like <see cref="PlayerState.Kit"/>. Whoever lifts the body takes them.
@@ -928,7 +931,7 @@ public sealed class Bodies
         // A heavy crate with one on it is still free at its other end (T43).
         // What's in a locker is the locker's: taken from it with a tap there, not reached for (note 173).
         var free = _bodies.Where(b => !b.Stowed && b.TakenBy < 0 && (b.Carrier < 0 || b.Kind == BodyKind.Heavy && b.Second < 0 && b.Carrier != playerId)
-            && !(wearingRadio && b.Kind == BodyKind.Radio));
+            && !(wearingRadio && b.Kind == BodyKind.Radio) && b.Kind != BodyKind.Caboose);
         if (hand is not null && PlayerMotor.HandWorld(s, train) is { } h)
             return free.Select(b => (b, d: Surface(b, train, h))).Where(x => x.d <= hand.Grab).OrderBy(x => x.d).FirstOrDefault().b;
         var hands = HandsAt(s, train);
@@ -1008,7 +1011,7 @@ public sealed class Bodies
             double carAccel = frame is { } cf ? (train.Rakes.FirstOrDefault(r => r.Consist.Vehicles.Any(v => v.Id == cf.Index))?.Acceleration ?? 0) : 0;
             var gravity = frame is { } f ? f.DirToLocal(Double3.Up * -t.Gravity + f.Back * carAccel) : Double3.Up * -t.Gravity;
             // Asleep, it stays in the frame it fell asleep in: it isn't touching anything new.
-            if (b.Pbd.Asleep && !b.Lifted)
+            if (b.Pbd.Asleep && !b.Lifted && !(b.Kind == BodyKind.Caboose && Taut(b, train, t.Composition.Caboose)))
                 continue;
             int touchedCar = -1;
             var ps = b.Pbd.Particles;
@@ -1017,6 +1020,8 @@ public sealed class Bodies
             for (int i = 0; i < ps.Length; i++)
                 _before[i] = ps[i].Position;
             b.Pbd.Step(Dt, gravity, (pos, r) => Contact(b, frame, pos, r, train, ref touchedCar));
+            if (b.Kind == BodyKind.Caboose)
+                Tow(b, train, t.Composition.Caboose);
             if (frame is { } room && !b.Lifted && train.Wreck is null)
                 KeepInside(b, room.Shape, train.Vehicles[room.Index]);
             if (!b.Lifted && !b.Pbd.Asleep)
@@ -1026,6 +1031,113 @@ public sealed class Bodies
             }
             Reparent(b, train, touchedCar);
         }
+    }
+
+    /// <summary>The tiny caboose (note 713): where its string's tied, on the back of the last car's platform; null with no platform or a wreck.</summary>
+    public static Double3? TowPoint(TrainOnLine train, CabooseTuning c)
+    {
+        if (train.Wreck is not null)
+            return null;
+        for (int i = train.Frames.Count - 1; i >= 0; i--)
+            if (train.Frames[i].Shape.Platform is { } platform)
+                return train.Frames[i].ToWorld(new Double3(0, c.CouplerHeight, platform.Max.Z));
+        return null;
+    }
+
+    static bool Taut(Body b, TrainOnLine train, CabooseTuning c) =>
+        TowPoint(train, c) is { } at && (b.Pbd.Particles[0].Position - at).Length > c.Rope - 1e-3;
+
+    /// <summary>
+    /// The string pulls the caboose's front after the train, never pushes (note 713): past its reach across the ground, the
+    /// front's brought back to it at its own height, and the back to the front. On the rails it keeps to the line's middle;
+    /// on a bend taken faster than it can (its sideways pull past derailAccel) it comes off, over on its side to the outside
+    /// (<see cref="Body.Tipped"/>), and is dragged until somebody puts it back (<see cref="Rerail"/>).
+    /// </summary>
+    void Tow(Body b, TrainOnLine train, CabooseTuning c)
+    {
+        var ps = b.Pbd.Particles;
+        if (b.Parent != PlayerState.World || ps.Length < 2 || TowPoint(train, c) is not { } at)
+            return;
+        var d = ps[0].Position - at;
+        double rise = at.Y - ps[0].Position.Y, reach = Math.Sqrt(Math.Max(0, c.Rope * c.Rope - rise * rise));
+        var across = new Double3(d.X, 0, d.Z);
+        if (across.Length > reach && across.Length > 1e-9)
+        {
+            ps[0].Position = new Double3(at.X, ps[0].Position.Y, at.Z) + across * (reach / across.Length);
+            b.Pbd.Wake();
+        }
+        if (b.Tipped == 0)
+        {
+            // On the rails: both wheels-sets on the line's middle, at their own height.
+            double hint = b.LineHint;
+            for (int i = 0; i < 2; i++)
+            {
+                var (path, along) = train.Line.Nearest(ps[i].Position, ref hint);
+                var on = train.Line.Sample(path, along);
+                var right = Double3.Cross(on.Tangent, Double3.Up);
+                if (right.Length < 1e-9)
+                    continue;
+                right *= 1 / right.Length;
+                double off = Double3.Dot(ps[i].Position - on.Position, right);
+                ps[i].Position -= right * off;
+                ps[i].Previous -= right * off;
+                // Too fast for the bend: off it comes, to the outside. (Towed, it goes at the train's speed.)
+                double v = train.Dynamics.Velocity;
+                if (i == 0 && Math.Abs(on.Curvature) * v * v > c.DerailAccel)
+                {
+                    var ahead = train.Line.Sample(path, along + 1).Tangent;
+                    b.Tipped = Double3.Dot(ahead, right) > 0 ? (sbyte)-1 : (sbyte)1;
+                    b.Pbd.Friction = c.DraggedFriction;
+                }
+            }
+            b.LineHint = hint;
+        }
+        var tail = ps[1].Position - ps[0].Position;
+        if (tail.Length > 1e-9)
+            ps[1].Position = ps[0].Position + tail * (c.Length / tail.Length);
+    }
+
+    /// <summary>
+    /// The tiny caboose back on the rails (note 713): a crewmate's Use within reach of it (<see cref="CabooseTuning.Reach"/>)
+    /// rights it and sets it on the line's middle. False if it's on them already, or out of reach.
+    /// </summary>
+    public bool Rerail(in PlayerState s, TrainOnLine train, CabooseTuning c)
+    {
+        if (_bodies.FirstOrDefault(x => x.Kind == BodyKind.Caboose) is not { Tipped: not 0 } b || (WorldCentre(b, train) - HandsAt(s, train)).Length > c.Reach)
+            return false;
+        b.Tipped = 0;
+        b.Pbd.Friction = c.Friction;
+        b.Pbd.Wake();
+        return true;
+    }
+
+    /// <summary>The tiny caboose, if it's off the rails and within <paramref name="c"/>'s reach of these hands (the HUD's).</summary>
+    public Body? CabooseOff(in PlayerState s, TrainOnLine train, CabooseTuning c) =>
+        _bodies.FirstOrDefault(x => x.Kind == BodyKind.Caboose) is { Tipped: not 0 } b && (WorldCentre(b, train) - HandsAt(s, train)).Length <= c.Reach ? b : null;
+
+    /// <summary>Host: the tiny caboose towed behind the train (note 713), stood on the line behind the last car's platform.</summary>
+    public Body? SpawnCaboose(TrainOnLine train, CabooseTuning c)
+    {
+        if (TowPoint(train, c) is not { } at)
+            return null;
+        var last = train.Frames.Last(f => f.Shape.Platform is not null);
+        var back = last.Back;
+        double hint = last.Index < train.Cars.Count ? train.Cars[last.Index].FrontDistance : train.Dynamics.Distance;
+        Double3 OnGround(Double3 p)
+        {
+            double h = hint;
+            return p with { Y = PlayerMotor.GroundAt(p, train.Line, ref h) + c.Radius };
+        }
+        var front = OnGround(at + back * c.Rope);
+        var rear = OnGround(front + back * c.Length);
+        var pbd = new PbdBody([new Particle(front, 1, c.Radius), new Particle(rear, 1, c.Radius)], [new DistanceConstraint(0, 1, c.Length)])
+        {
+            Friction = c.Friction,
+            Bounce = 0.05,
+        };
+        var b = new Body(_nextId++, BodyKind.Caboose, PlayerState.World, pbd) { LineHint = hint, Claimed = true };
+        _bodies.Add(b);
+        return b;
     }
 
     Double3[] _before = new Double3[11];
@@ -1303,7 +1415,8 @@ public sealed class Bodies
     /// <summary>Touching a car: live in its frame. Off every car for a few steps: the world's.</summary>
     static void Reparent(Body b, TrainOnLine train, int touchedCar)
     {
-        if (b.Lifted)
+        // The tiny caboose is the world's, always (note 713): it's towed, not carried, and bumps the cars it touches.
+        if (b.Lifted || b.Kind == BodyKind.Caboose)
             return;
         if (touchedCar >= 0)
         {

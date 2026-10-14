@@ -176,6 +176,43 @@ public class BandTests
     }
 
     [Fact]
+    public void AnIdleBotJoinsTheBandWithAnInstrumentNearItAndPutsItDownWhenItStops()
+    {
+        // The director (14 Oct): "We do want bots to participate."
+        var w = Night("fiddle");
+        var fiddle = Assert.Single(w.Bodies.All, b => b.Kind == BodyKind.Instrument);
+        var room = w.Train.Frames[fiddle.Parent].Shape.Interior!.Value;
+        // Standing about in the guard van, four metres from it along the floor.
+        var s = PlayerMotor.SpawnInCab(w.Train, P) with { Parent = fiddle.Parent, Position = new Double3(0.1, room.Min.Y + 0.05, fiddle.Centre.Z - 4), Surface = Surface.Deck, HeldSlot = 0 };
+        const int me = 3;
+        void Tick(bool band)
+        {
+            w.Band = band ? new BandState(0, 1) : BandState.Silent;
+            w.BeginTick();
+            var intent = Bots.Heed.Band(default, s, w, me);
+            w.CrewAct(ref s, intent, me);
+            w.Step(new TrainControls { Reverser = 1, Brake = 1 });
+            PlayerMotor.Step(ref s, intent, w.Train, P, w.Train.Dynamics.Tuning, SimConstants.TickSeconds, applyLook: false);
+            var me1 = s;
+            w.Bodies.Step(w.Train, w.Train.Dynamics.Tuning, id => id == me ? me1 : null);
+        }
+        // Quiet: it leaves the fiddle be.
+        for (int i = 0; i < 30; i++)
+            Tick(band: false);
+        Assert.Null(w.Bodies.CarriedBy(me));
+        // The band strikes up: it goes to the fiddle, takes it up and plays.
+        for (int i = 0; i < 8 * SimConstants.TickRate && !s.Has(PlayerFlags.Playing); i++)
+            Tick(band: true);
+        Assert.Equal(BodyKind.Instrument, w.Bodies.CarriedBy(me)?.Kind);
+        Assert.True(s.Has(PlayerFlags.Playing));
+        // It stops: the bot stops, and puts the fiddle down where it is.
+        for (int i = 0; i < 10; i++)
+            Tick(band: false);
+        Assert.False(s.Has(PlayerFlags.Playing));
+        Assert.Null(w.Bodies.CarriedBy(me));
+    }
+
+    [Fact]
     public void WhatTheBandsPlayingIsEveryClients()
     {
         // Protocol 59: the world record carries the tune and its first tick; the body record which instrument it is.

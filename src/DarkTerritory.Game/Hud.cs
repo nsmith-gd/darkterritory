@@ -2230,6 +2230,9 @@ public static partial class Hud
             return another;
         if (world.Bodies.CarriedBy(s.PlayerId) is { } inHands)
             return PowderPrompt(s, inHands) ?? SwitchPrompt(world, p, train, world.Hand) ?? HealPrompt(s, inHands) ?? PartyPrompt(inHands) ?? BandPrompt(s, inHands);
+        // The tiny caboose off the rails within reach (note 713): empty hands put it back.
+        if (world.Bodies.CabooseOff(p, train, train.Dynamics.Tuning.Composition.Caboose) is not null)
+            return "PUT THE CABOOSE BACK ON THE RAILS : [E]";
         // T112: the gun's seat and its own controls.
         if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is { } manned)
         {

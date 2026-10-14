@@ -713,6 +713,32 @@ public sealed partial class SceneArt(Look look)
     /// <summary>How far an extinguisher's model stands up off its body's middle: its foot on the floor, its 0.15 m body.</summary>
     const float ExtinguisherLift = 0.15f;
 
+    /// <summary>
+    /// The tiny caboose (note 713) where its body is: along its two particles, its wheels on the ground; off the rails, over on
+    /// its side (<see cref="Sim.Physics.Body.Tipped"/>) and dragged that way.
+    /// </summary>
+    bool Caboose(MeshBuilder mesh, Sim.Physics.Body b, Double3 eye)
+    {
+        var front = b.Pbd.Particles[0];
+        var rear = b.Pbd.Particles[1];
+        var centre = (front.Position + rear.Position) * 0.5;
+        if ((centre - eye).Length > 150)
+            return true;
+        var along = rear.Position - front.Position;
+        var backDir = along.Length > 1e-6 ? along * (1 / along.Length) : new Double3(0, 0, 1);
+        var u = Vector3.UnitY;
+        var right = Vector3.Normalize(Vector3.Cross(ToF(backDir), u));
+        var back = Vector3.Cross(right, u);
+        var o = centre.RelativeTo(eye);
+        var m = new Matrix4x4(right.X, right.Y, right.Z, 0, u.X, u.Y, u.Z, 0, back.X, back.Y, back.Z, 0, o.X, o.Y, o.Z, 1);
+        float r = (float)front.Radius;
+        // Over on its side about its wheels' edge, roof out the way it went.
+        var lie = b.Tipped == 0 ? Matrix4x4.CreateTranslation(0, -r, 0)
+            : Matrix4x4.CreateTranslation(-b.Tipped * 0.09f, 0, 0) * Matrix4x4.CreateRotationZ(-b.Tipped * 1.45f) * Matrix4x4.CreateTranslation(b.Tipped * 0.09f, -r, 0);
+        mesh.Append(Piece("dress-caboose", () => DressKit.ToyCaboose(Look)), lie * m);
+        return true;
+    }
+
     public bool Body(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Sim.Physics.Body b, Double3 eye, double heavyHalf, double time)
     {
         bool onCar = b.Parent != Sim.Player.PlayerState.World && b.Parent < frames.Count;
@@ -720,6 +746,8 @@ public sealed partial class SceneArt(Look look)
             return true;
         if (b.Kind == Sim.Physics.BodyKind.Ragdoll)
             return Corpse(mesh, frames, b, eye, onCar, time);
+        if (b.Kind == Sim.Physics.BodyKind.Caboose && b.Pbd.Particles.Length >= 2)
+            return Caboose(mesh, b, eye);
         // A hand lamp someone's carrying is drawn in their fist (Crewmate), not where the sim holds it; so is the repair kit,
         // by its handle (note 513).
         if (b.Kind == Sim.Physics.BodyKind.Lamp && b.Carrier >= 0 && LampInHand(b.Carrier, time) is not null)

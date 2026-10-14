@@ -148,7 +148,13 @@ public sealed record CompositionTuning
     public bool Dressed(string id) => Dress.Contains(id);
     /// <summary>What's on it, and what each does.</summary>
     public BbqTuning Bbq { get; init; } = new();
+    /// <summary>The tiny caboose's string and size (note 713).</summary>
+    public CabooseTuning Caboose { get; init; } = new();
 }
+
+/// <summary>The tiny caboose (train.json <c>composition.caboose</c>; ARCHITECTURE §8 note 713). Field docs live in that file.</summary>
+public sealed record CabooseTuning(double Rope = 1.4, double Length = 0.36, double Radius = 0.1, double CouplerHeight = 1.0, double DerailAccel = 0.8,
+    double Friction = 0.15, double DraggedFriction = 0.6, double Reach = 2.0);
 
 /// <summary>The BBQ deck (train.json <c>composition.bbq</c>; ARCHITECTURE §8 note 698). Field docs live in that file.</summary>
 public sealed record BbqTuning

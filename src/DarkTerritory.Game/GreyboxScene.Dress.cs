@@ -18,15 +18,16 @@ public sealed partial class GreyboxScene
     /// <summary>The words on the dressing (content/world/dress.json): the stickers' puns and the towels' monograms.</summary>
     public DressWords? Words { get; set; }
 
-    // How far the tail's turned against the car ahead of it (rad): the tiny caboose comes off on a bend. And the engine
-    // against the car behind: the dice swing out.
-    double _tailTurn, _bend;
+    /// <summary>The tiny caboose's string (train.json composition.caboose; note 713), where it's tied.</summary>
+    public Sim.Train.CabooseTuning CabooseTuning { get; set; } = new();
+
+    // How the engine's turned against the car behind it (rad): the dice swing out on a bend.
+    double _bend;
 
     void Bends(IReadOnlyList<CarFrame> frames)
     {
         static double Turn(in CarFrame a, in CarFrame b) => Math.IEEERemainder(a.Heading - b.Heading, 2 * Math.PI);
         _bend = frames.Count > 1 ? Turn(frames[0], frames[1]) : 0;
-        _tailTurn = frames.Count > 1 ? Turn(frames[^1], frames[^2]) : 0;
     }
 
     bool Dressed(string id) => Dress.Contains(id);
@@ -95,16 +96,24 @@ public sealed partial class GreyboxScene
         }
         if (Dressed("participationRibbon"))
             mesh.Append(art.Piece("dress-ribbon", () => Art.DressKit.Ribbon(Look)), Matrix4x4.CreateTranslation(-1.2f, 2.6f, end + 0.03f) * m);
-        // Towed on its string off the platform: on a bend (or at a lurch) it's off the rails, over on its side, dragged.
-        if (Dressed("tinyCaboose"))
+        // The tiny caboose's string (note 713), from the platform to its nose; the caboose itself is a body, drawn where it is.
+        if (Dressed("tinyCaboose") && Bodies?.FirstOrDefault(b => b.Kind == Sim.Physics.BodyKind.Caboose) is { Pbd.Particles.Length: > 0 } toy)
         {
-            bool off = Math.Abs(_tailTurn) > 0.012 || speed > 0.5f && MathF.Sin(t * 0.37f) > 0.97f;
-            float bump = speed * 0.015f * MathF.Abs(MathF.Sin(t * 13));
-            var tow = off
-                ? Matrix4x4.CreateRotationZ(1.45f * MathF.Sign((float)_tailTurn + 0.0001f)) * Matrix4x4.CreateRotationY(0.25f * MathF.Sin(t * 3)) * Matrix4x4.CreateTranslation(0.25f * MathF.Sign((float)_tailTurn), 0.09f, 0)
-                : Matrix4x4.CreateTranslation(0, bump, 0);
-            mesh.Append(art.Piece("dress-caboose", () => Art.DressKit.ToyCaboose(Look)),
-                tow * Matrix4x4.CreateTranslation(0, 0, (float)platform.Max.Z + 1.0f) * m);
+            var tie = frame.ToWorld(new Double3(0, CabooseTuning.CouplerHeight, platform.Max.Z));
+            var nose = toy.Pbd.Particles[0].Position + Double3.Up * 0.02;
+            var run = nose - tie;
+            if (run.Length > 0.05)
+            {
+                var dir = ToF(run * (1 / run.Length));
+                var side = Vector3.Cross(dir, Vector3.UnitY);
+                side = side.LengthSquared() < 1e-6 ? Vector3.UnitX : Vector3.Normalize(side);
+                var up = Vector3.Cross(side, dir);
+                // The string's −Z along the run, scaled to its length.
+                var o = V(tie, eye);
+                var along = dir * (float)run.Length;
+                mesh.Append(art.Piece("dress-string", () => Art.DressKit.String(Look)),
+                    new Matrix4x4(side.X, side.Y, side.Z, 0, up.X, up.Y, up.Z, 0, -along.X, -along.Y, -along.Z, 0, o.X, o.Y, o.Z, 1));
+            }
         }
         if (shape.Interior is { } room)
             GuardInside(mesh, m, room, eye, frame);

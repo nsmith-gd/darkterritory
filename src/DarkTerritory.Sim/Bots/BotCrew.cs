@@ -163,6 +163,9 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         intent = Heed.Drift(intent, session.Predicted, session.World, me);
         intent = Heed.Gannet(intent, session.Predicted, session.World, me);
         intent = Heed.Heal(intent, session.Predicted, session.World, me);
+        // The band (note 711): a bot with nothing else to do joins in, once every other heed's had its say (never the driver: its intent's the controls).
+        if (bot is RoofWalkerBot or GunnerBot && !hunted)
+            intent = Heed.Band(intent, session.Predicted, session.World, me);
         // Note 659: round what's lying in a car, last, whatever it was going there for.
         intent = Heed.Lying(intent, session.Predicted, session.World, session.PlayerTuning);
         return Vote(intent, session, me);

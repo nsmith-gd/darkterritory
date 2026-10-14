@@ -338,6 +338,10 @@
     "crowdAt": 20, "crowdPerSecond": 25, "closeAt": 12, "closePerSecond": 70,
     "hearVoice": 15, "talkingAbove": 40, "voicePerSecond": 40,
     "trainPassAt": 25, "trainPass": 25, "calmPerSecond": 15,
+    // The band (note 711; the director, 14 Oct: "stopping the moose"): a crewmate playing within bandHears m stops it to
+    // listen, whatever it was doing short of a pin: it forgets its target, stands with its head to the music, and its temper
+    // falls bandCalmPerSecond (0 bandHears: it doesn't care).
+    "bandHears": 30, "bandCalmPerSecond": 30,
     "listenAt": 20, "warnAt": 50,
     "squareUpAt": [12, 30], "squareUpSeconds": 2.5, "huntSpeed": 4.5,
     "chargeSpeed": 11, "overrun": 8, "wheelSeconds": 2.5, "rackSpan": 3.2, "hitReach": 0.5, "snagSeconds": 4, "blockedCharges": 3,
@@ -763,7 +767,10 @@
     // Eleven Q9's "does talking lower its aggro", answered yes for now; false: talk only holds it); calmed under attackAt it
     // stops attacking; calm and talked to for talkedDownSeconds, it leaves empty-handed. Only the gang's blows with someone
     // talking to it take its health; a blow in silence angers it a step.
-    "drivenOff": true, "talkingCalms": true, "talkedDownSeconds": 45
+    "drivenOff": true, "talkingCalms": true, "talkedDownSeconds": 45,
+    // The band (note 711; upgrades.md §8.4, the director, 14 Oct: "the band calming the gaunt"): a crewmate playing within
+    // listenRadius is talking to it, whoever it's after.
+    "bandCalms": true
   },
 
   // MARSH (§22 hazard, formerly the Drift): something in the reeds surges toward motion; stand still stillSeconds and it

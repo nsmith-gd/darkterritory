@@ -14,16 +14,18 @@
   "gapSeconds": 1.5,
   // The instruments the blacksmith sells (campaign.json: one upgrade each, effect "instrument": its index here), each a
   // part of every tune: the tune (melody), chords and bass (rhythm), or the beat (percussion). "octave": up or down from
-  // the tune as written. Two of one instrument play in unison.
+  // the tune as written. Two of one instrument play in unison. "levelDb": its sound's level (band-<id>, tier 4), balanced
+  // on its recordings by `dt audio render --scenario band` (the tune's three about -16 dB round a listener among them on
+  // the roof, the whistle a little under, the guitar and the drums under the tune, every one well over the wind).
   "instruments": [
-    { "id": "fiddle",     "name": "the fiddle",          "part": "melody",     "octave": 0 },
-    { "id": "whistle",    "name": "the tin whistle",     "part": "melody",     "octave": 1 },
-    { "id": "accordion",  "name": "the button accordion", "part": "melody",    "octave": 0 },
-    { "id": "banjo",      "name": "the tenor banjo",     "part": "melody",     "octave": 0 },
-    { "id": "guitar",     "name": "the guitar",          "part": "rhythm",     "octave": -1 },
-    { "id": "bodhran",    "name": "the bodhrán",         "part": "percussion", "octave": 0 },
-    { "id": "spoons",     "name": "the spoons",          "part": "percussion", "octave": 0 },
-    { "id": "uglyStick",  "name": "the ugly stick",      "part": "percussion", "octave": 0 }
+    { "id": "fiddle",     "name": "the fiddle",          "part": "melody",     "octave": 0, "levelDb": 1 },
+    { "id": "whistle",    "name": "the tin whistle",     "part": "melody",     "octave": 1, "levelDb": -5 },
+    { "id": "accordion",  "name": "the button accordion", "part": "melody",    "octave": 0, "levelDb": -4 },
+    { "id": "banjo",      "name": "the tenor banjo",     "part": "melody",     "octave": 0, "levelDb": -7 },
+    { "id": "guitar",     "name": "the guitar",          "part": "rhythm",     "octave": -1, "levelDb": -9 },
+    { "id": "bodhran",    "name": "the bodhrán",         "part": "percussion", "octave": 0, "levelDb": -5.5 },
+    { "id": "spoons",     "name": "the spoons",          "part": "percussion", "octave": 0, "levelDb": 17 },
+    { "id": "uglyStick",  "name": "the ugly stick",      "part": "percussion", "octave": 0, "levelDb": 1 }
   ],
   // The repertoire, in the order it's played: the first to start playing starts the next tune, and it plays round until the
   // last player stops. Traditional, public domain, in our own simple transcriptions (abc notation: L:1/8 units, the key

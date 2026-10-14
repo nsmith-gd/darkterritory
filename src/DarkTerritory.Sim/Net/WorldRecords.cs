@@ -291,6 +291,8 @@ public static class WorldRecords
                 Physics.BodyKind.Toy => (long)body.Noise,
                 // Which of the band's instruments (note 700).
                 Physics.BodyKind.Instrument => body.Instrument,
+                // The tiny caboose (note 713): which way it's over (+1; 1 on the rails).
+                Physics.BodyKind.Caboose => body.Tipped + 1,
                 // Broken, and how far the kit's got mending it (note 201): 0 whole, 1 + ticks broken.
                 Physics.BodyKind.Radio => body.Broken ? 1 + body.MendTicks : 0,
                 // How far its carrier has got using a healing find (note 272), for their HUD.
@@ -576,7 +578,8 @@ public static class WorldRecords
             Charge = (Physics.BodyKind)f[0] == Physics.BodyKind.Extinguisher ? D(f[8], Hint) : 1,
             Tools = (Physics.BodyKind)f[0] is Physics.BodyKind.Ragdoll or Physics.BodyKind.Tool ? (ulong)f[8] : 0,
             Cargo = (Physics.BodyKind)f[0] is Physics.BodyKind.Extinguisher or Physics.BodyKind.Ragdoll or Physics.BodyKind.Toy or Physics.BodyKind.Radio or Physics.BodyKind.Loot or Physics.BodyKind.Tool
-                or Physics.BodyKind.Instrument ? CargoKind.None : (CargoKind)f[8],
+                or Physics.BodyKind.Instrument or Physics.BodyKind.Caboose ? CargoKind.None : (CargoKind)f[8],
+            Tipped = (Physics.BodyKind)f[0] == Physics.BodyKind.Caboose ? (sbyte)(f[8] - 1) : (sbyte)0,
             Instrument = (Physics.BodyKind)f[0] == Physics.BodyKind.Instrument ? (byte)f[8] : (byte)0,
             Noise = (Physics.BodyKind)f[0] == Physics.BodyKind.Toy ? (Physics.ToyNoise)f[8] : Physics.ToyNoise.None,
             Broken = (Physics.BodyKind)f[0] == Physics.BodyKind.Radio && f[8] != 0,

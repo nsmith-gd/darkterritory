@@ -43,6 +43,8 @@ public sealed partial class GameAudio
         PrepareMix(contentRoot);
         Opera = new Opera(contentRoot);
         Clerk = new ClerkVoice(Bank.Samples);
+        // The band's recordings (note 711), where the content has them.
+        Recordings = BandSamples.Load(contentRoot) is { } band ? new BandSamples(band, Bank.Samples) : null;
     }
 
     public SoundBank Bank { get; }

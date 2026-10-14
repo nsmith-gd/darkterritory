@@ -87,6 +87,45 @@ public class BandAudioTests
         }
     }
 
+    static double Pitch(float[] note)
+    {
+        var x = note.Skip(Audio.SampleRate / 8).Take(Audio.SampleRate / 10).ToArray();
+        int best = 0;
+        double most = double.NegativeInfinity;
+        for (int lag = Audio.SampleRate / 1200; lag < Audio.SampleRate / 150; lag++)
+        {
+            double sum = 0;
+            for (int i = 0; i + lag < x.Length; i++)
+                sum += x[i] * x[i + lag];
+            if (sum > most)
+                (most, best) = (sum, lag);
+        }
+        return (double)Audio.SampleRate / best;
+    }
+
+    [Fact]
+    public void TheRecordingsArePlayedAtThePitchAskedAndEveryInstrumentHasThem()
+    {
+        // The director (14 Oct): "let's get recorded instruments in place instead of synthesized ones" (note 711).
+        var manifest = BandSamples.Load(Content);
+        Assert.NotNull(manifest);
+        var audio = new GameAudio(Content);
+        audio.Bank.Samples.InlineBytes = long.MaxValue;
+        var recordings = new BandSamples(manifest, audio.Bank.Samples);
+        Assert.All(B.Instruments, i => Assert.True(recordings.Recorded(i.Id), $"no recordings of the {i.Id}"));
+        // The fiddle's A4 as recorded, and the B flat above it resampled off its nearest note: each at its pitch.
+        foreach (var (midi, hz) in new[] { (69, 440.0), (70, 466.16), (62, 293.66) })
+        {
+            double heard = Pitch(recordings.Render("fiddle", midi, 0.5, 1));
+            Assert.InRange(1200 * Math.Log2(heard / hz), -35, 35);
+        }
+        // A note's as long as it's held, and a breath; a stroke a take of its own.
+        var held = recordings.Render("whistle", 74, 0.3, 1);
+        Assert.InRange(held.Length / (double)Audio.SampleRate, 0.3, 0.45);
+        Assert.NotEqual(recordings.Render("spoons", 0, 0.2, 1, take: 0), recordings.Render("spoons", 0, 0.2, 1, take: 1));
+        Assert.True(recordings.Render("bodhran", 0, 0.2, 1).Max(Math.Abs) > recordings.Render("bodhran", 1, 0.2, 1).Max(Math.Abs) * 0.9);
+    }
+
     [Fact]
     public void EveryInstrumentsNotesAreMadeAtThePitchTheyreAsked()
     {

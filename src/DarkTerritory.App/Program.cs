@@ -996,9 +996,23 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     double smithHeld = 0;
     bool refitWanted = false;
     var smithy = campaignTuning.Upgrades.Length > 0 ? DataFile.Load<DarkTerritory.Sim.Towns.TownTuning>(Path.Combine(content, DarkTerritory.Sim.Towns.TownTuning.File)).Smithy : null;
+#if DEVTOOLS
+    // The blacksmith's unlock (note 712): a developer build's catalogue has a row to make everything free, any tier, any number
+    // of times; on, a choice goes through it, and the refit's the same.
+    var devUnlock = new DarkTerritory.Dev.Smithy.DevUnlock();
+    frontEnd.SmithyMode = () =>
+    {
+        frontEnd.SmithyFree = devUnlock.On;
+        return devUnlock.Row();
+    };
+#endif
     frontEnd.SmithyBuy = net is { Host: not null } && campaign is not null ? id =>
     {
         var bought = Campaign.BuyUpgrade(campaignTuning, campaign!, id);
+#if DEVTOOLS
+        if (devUnlock.On)
+            bought = DarkTerritory.Dev.Smithy.DevUnlock.Buy(campaignTuning, campaign!, id);
+#endif
         if (bought.Ok)
         {
             campaign = bought.State;

@@ -142,7 +142,7 @@ public static class DressKit
         return k.Build($"dress-hubcap-{radius:0.00}");
     }
 
-    /// <summary>The tiny caboose: a red toy caboose 0.45 m long on its wheels, its cupola, a string off its front (−Z) to (0, 0.12, −0.6).</summary>
+    /// <summary>The tiny caboose: a red toy caboose 0.4 m long, its wheels' bottom at (0, 0, 0), its cupola, front to −Z (its string's the scene's).</summary>
     public static MeshAsset ToyCaboose(Look? look)
     {
         var k = new Kit(look, 1714);
@@ -164,8 +164,6 @@ public static class DressKit
         foreach (float z in new[] { -0.13f, 0.13f })
             foreach (float x in new[] { -0.08f, 0.08f })
                 k.Cylinder(new Vector3(x - 0.01f, 0.035f, z), new Vector3(x + 0.01f, 0.035f, z), 0.035f, 8);
-        k.Use("dress_string", White * 0.8f, 0.9f, 0);
-        k.Rod(new Vector3(0, 0.08f, -0.2f), new Vector3(0, 0.12f, -0.6f), 0.002f);
         return k.Build("dress-caboose");
     }
 
@@ -233,6 +231,15 @@ public static class DressKit
             Letter(k, lines[i], new Vector3(0.031f, y, Width(lines[i], px) / 2), -Vector3.UnitZ, -Vector3.UnitY, px);
         }
         return k.Build($"dress-towel-{monogram}-{colour.X:0.00}");
+    }
+
+    /// <summary>A string 1 m long from (0, 0, 0) to −Z, scaled to its length where it's drawn.</summary>
+    public static MeshAsset String(Look? look)
+    {
+        var k = new Kit(look, 1721);
+        k.Use("dress_string", White * 0.8f, 0.9f, 0);
+        k.Rod(Vector3.Zero, new Vector3(0, 0, -1), 0.003f);
+        return k.Build("dress-string");
     }
 
     /// <summary>The towels' rail: a brass rod <paramref name="length"/> long along Z, on two brackets off the wall at +X.</summary>

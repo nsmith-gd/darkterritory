@@ -199,6 +199,15 @@ public sealed class FrontEnd
     /// The host's purchase at the forge (note 697): the app buys it on its own campaign, saves it, and fits it before the gate.
     /// </summary>
     public Func<string, Purchase>? SmithyBuy { get; set; }
+
+    /// <summary>
+    /// The blacksmith's shelves with no prices and no stock rules (a developer build's unlock, note 712, sets it): every upgrade
+    /// is FREE, and one owned can be taken off again.
+    /// </summary>
+    public bool SmithyFree { get; set; }
+
+    /// <summary>A row of its own at the top of the blacksmith's catalogue, and what choosing it does (a developer build's, note 712).</summary>
+    public Func<(MenuItem Item, Action Choose)>? SmithyMode { get; set; }
     public Settings Settings { get; private set; }
     public EditionTuning Edition => _edition;
     /// <summary>
@@ -1405,12 +1414,19 @@ public sealed class FrontEnd
                 Message = $"The host keeps the crew's scrip: ask {shop.Payer ?? "them"} to buy it.";
                 return null;
             }
+            bool had = shop.State.Upgrades.Contains(u.Id);
             var p = buy(u.Id);
             if (p.Ok)
                 Smithy = shop with { State = p.State };
-            Message = p.Ok ? $"{u.Name}: fitted before the gate." : p.Refused;
+            Message = !p.Ok ? p.Refused : had && !p.State.Upgrades.Contains(u.Id) ? $"{u.Name}: taken off before the gate." : $"{u.Name}: fitted before the gate.";
             return null;
-        });
+        }, free: SmithyFree);
+        if (SmithyMode?.Invoke() is { } mode)
+            list.Insert(0, new(mode.Item, () =>
+            {
+                mode.Choose();
+                return null;
+            }));
         list.Add(new(new("DONE", "Back to the yard."), () => { CloseNight(); return null; }, Back: true));
         return list;
     }
@@ -1419,7 +1435,7 @@ public sealed class FrontEnd
     /// The catalogue by what it's for (note 678), for <paramref name="s"/>: the tools first, then the rest of the shelves, each
     /// with its line, and why one isn't for sale (a tier the train doesn't work yet, or a fitting it won't go with).
     /// </summary>
-    List<Entry> CatalogueEntries(CampaignState s, Func<UpgradeDef, Func<Launch?>> select)
+    List<Entry> CatalogueEntries(CampaignState s, Func<UpgradeDef, Func<Launch?>> select, bool free = false)
     {
         var list = new List<Entry>();
         foreach (var kind in new[] { UpgradeKind.Tool, UpgradeKind.Whimsy, UpgradeKind.Fun, UpgradeKind.Silly })
@@ -1432,13 +1448,14 @@ public sealed class FrontEnd
             {
                 bool owned = s.Upgrades.Contains(u.Id);
                 double cost = Campaign.UpgradeCost(_campaign, s, u);
-                string? why = owned ? null : Campaign.Unavailable(_campaign, s, u);
+                string? why = owned || free ? null : Campaign.Unavailable(_campaign, s, u);
                 // The shop says which upgrades the night doesn't model yet (ARCHITECTURE §8 note 29).
                 string detail = u.Line ?? $"{(u.Size == UpgradeSize.Major ? "Major" : "Small")}{(u.Effect.Count == 0 && u.Tally is null ? ", not modelled yet" : "")}.";
-                string label = owned ? $"{u.Name.ToUpperInvariant()}: OWNED"
+                string label = free ? $"{u.Name.ToUpperInvariant()}: {(owned ? "OWNED, TAKE IT OFF" : "FREE")}"
+                    : owned ? $"{u.Name.ToUpperInvariant()}: OWNED"
                     : why is not null && Campaign.TierFor(_campaign, s.Cars) < u.FromTier ? $"{u.Name.ToUpperInvariant()}: {Name(u.FromTier)} AND ON"
                     : $"{u.Name.ToUpperInvariant()}: {cost:0}";
-                list.Add(new(new(label, why is null ? detail : $"{why}.", !owned && why is null), select(u)));
+                list.Add(new(new(label, why is null ? detail : $"{why}.", (free || !owned) && why is null), select(u)));
             }
         }
         return list;

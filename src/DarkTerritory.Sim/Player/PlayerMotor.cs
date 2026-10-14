@@ -1370,4 +1370,5 @@ public static class PlayerMotor
     }
 
     static double GroundHeight(ref PlayerState s, RailLine line) => GroundAt(s.Position, line, ref s.LineHint);
+
 }

@@ -379,8 +379,10 @@ like Celtic folk style songs, because we want to keep in with the East Coast fol
 - **Dancing is a choice.** Nobody's made to dance. The emote wheel's DANCE (note 298) is anyone's; dancing to the band's
   beat is still to do.
 - **The night hears it.** A band is loud: each player playing is as loud to the Choir as a noisy toy, and draws the
-  night's first threat as one (band.json `loudness`). The Gaunt hearing it as talk and the Moose stopping to listen
-  wait on the gramophone and the calliope.
+  night's first threat as one (band.json `loudness`). A Gaunt in earshot hears it as talk and is calmed; the Moose stops
+  to listen (note 711).
+- **Recorded, and the bots play** (note 711): CC0 recordings of each instrument (or the nearest to be had), and a bot with
+  nothing to do joins in when the band's playing.
 
 ### 8.5 The dining car's bar
 

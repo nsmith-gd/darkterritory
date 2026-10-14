@@ -27,7 +27,7 @@ public sealed partial class GameAudio
     // Each player playing, and the bar they came in on.
     readonly Dictionary<int, int> _bandIn = [];
     readonly Dictionary<(int Tune, int Instrument), BandNote[]> _bandParts = [];
-    readonly ConcurrentDictionary<(int Instrument, int Pitch, int Ms, int Velocity), Lazy<AudioClip>> _bandClips = [];
+    readonly ConcurrentDictionary<(int Instrument, int Pitch, int Ms, int Velocity, int Take), Lazy<AudioClip>> _bandClips = [];
 
     /// <summary>The band's tune and where it's got to (s), as heard here; null when it's quiet. The HUD's line, the bench's check.</summary>
     public (BandScore Score, double Seconds)? BandHeard { get; private set; }
@@ -81,7 +81,7 @@ public sealed partial class GameAudio
                 if (when < from || when >= to || when < bar * score.BarSeconds)
                     continue;
                 var clip = BandClip(tuning, held.Instrument, n, score.EighthSeconds);
-                string sound = BandSound(instrument.Id);
+                string sound = BandSound(instrument);
                 Mixer.Play(sound, at)?.Also(v =>
                 {
                     v.Clip = clip;
@@ -104,11 +104,20 @@ public sealed partial class GameAudio
 
     AudioClip BandClip(BandTuning tuning, int instrument, BandNote n, double eighth)
     {
-        var key = (instrument, n.Pitch, (int)Math.Round(n.Length * eighth * 100) * 10, (int)Math.Round(n.Velocity * 20));
+        // A stroke's take, by where it falls: the spoons and the drum don't play one take over and over.
+        var key = (instrument, n.Pitch, (int)Math.Round(n.Length * eighth * 100) * 10, (int)Math.Round(n.Velocity * 20), (int)Math.Round(n.At) % 3);
         string id = tuning.Instruments[instrument].Id;
+        var recordings = Recordings;
         return _bandClips.GetOrAdd(key, k => new Lazy<AudioClip>(() =>
-            new AudioClip(BandSynth.Render(id, k.Pitch, k.Ms / 1000.0, k.Velocity / 20.0), Audio.SampleRate))).Value;
+            new AudioClip(recordings?.Render(id, k.Pitch, k.Ms / 1000.0, k.Velocity / 20.0, k.Take) ?? BandSynth.Render(id, k.Pitch, k.Ms / 1000.0, k.Velocity / 20.0),
+                Audio.SampleRate))).Value;
     }
+
+    /// <summary>
+    /// The band's recordings (content/audio/samples/band, note 711), set by whoever made this from its content (the
+    /// constructor); null plays the synth (<see cref="BandSynth"/>).
+    /// </summary>
+    public BandSamples? Recordings { get; set; }
 
     /// <summary>A player's just started: their part's notes made off the frame loop, ahead of their bar.</summary>
     void Warm(BandTuning tuning, int tune, int instrument)
@@ -117,35 +126,22 @@ public sealed partial class GameAudio
         double eighth = tuning.Scores[tune].EighthSeconds;
         _ = Task.Run(() =>
         {
-            foreach (var n in notes.DistinctBy(n => (n.Pitch, Math.Round(n.Length * eighth * 100), Math.Round(n.Velocity * 20))))
+            foreach (var n in notes.DistinctBy(n => (n.Pitch, Math.Round(n.Length * eighth * 100), Math.Round(n.Velocity * 20), Math.Round(n.At) % 3)))
                 BandClip(tuning, instrument, n, eighth);
         });
     }
 
     /// <summary>
-    /// Each instrument's sound (tier 4, a player's action, as the noisy toys): its own name so the meter has it alone, and its
-    /// level against the others (the drums under the tune, the whistle a touch under the fiddle).
+    /// Each instrument's sound (tier 4, a player's action, as the noisy toys): its own name so the meter has it alone, at its
+    /// level against the others (band.json <c>levelDb</c>).
     /// </summary>
-    string BandSound(string instrument)
+    string BandSound(BandInstrument instrument)
     {
-        string name = "band-" + instrument;
+        string name = "band-" + instrument.Id;
         if (Bank.Get(name) is null)
             Bank.Add(name, new SoundDef(4, [new LayerDef(SourceKind.Sample, 1)],
                 // A melody's note rings into the next and no further; a strum's strings and its bass ring together.
-                MaxInstances: instrument == "guitar" ? 6 : 3, MinDistance: 2, MaxDistance: 40,
-                // Balanced by `dt audio render --scenario band` (a band round the listener on the roof): the tune's three within
-                // a dB or two, the whistle over them by its pitch not its level, the banjo cutting, the guitar and drums under.
-                GainDb: instrument switch
-                {
-                    "fiddle" or "accordion" => -6,
-                    "whistle" => -12,
-                    "banjo" => 1,
-                    "guitar" => -5,
-                    "bodhran" => -3,
-                    "spoons" => 6,
-                    "uglyStick" => 4,
-                    _ => -6,
-                }));
+                MaxInstances: instrument.Part == "rhythm" ? 6 : 3, MinDistance: 2, MaxDistance: 40, GainDb: instrument.LevelDb));
         return name;
     }
 

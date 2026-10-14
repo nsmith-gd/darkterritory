@@ -527,6 +527,9 @@ public sealed class World
     public void Stock()
     {
         MountExtinguishers();
+        // The tiny caboose (note 713), on its string behind the last car.
+        if (Train.Dynamics.Tuning.Composition.Dressed("tinyCaboose"))
+            Bodies.SpawnCaboose(Train, Train.Dynamics.Tuning.Composition.Caboose);
         // The BBQ deck (note 698): its cooler full, its grill cold, what a beer and a sausage give back.
         var bbq = Train.Dynamics.Tuning.Composition.Bbq;
         Bodies.BeerHeals = bbq.BeerHeals;
@@ -600,6 +603,9 @@ public sealed class World
             Bodies.RadiosCarried = true;
         if (RepairKitCar(Train) is not null && !Repairs.ByWrench(Train) && kit.RepairKits + kit.SpareKits > 0)
             KitStocked = true;
+        // The tiny caboose (note 713) isn't aboard to be saved: it's towed behind, stood on the line again.
+        if (Train.Dynamics.Tuning.Composition.Dressed("tinyCaboose"))
+            Bodies.SpawnCaboose(Train, Train.Dynamics.Tuning.Composition.Caboose);
         foreach (var t in things.OrderBy(t => t.Locker < 0 ? 0 : 1).ThenBy(t => t.Car).ThenBy(t => t.Locker).ThenBy(t => t.Slot))
         {
             if (t.Car < 0 || t.Car >= Train.Vehicles.Count)
@@ -1508,6 +1514,9 @@ public sealed class World
             Charge(s, intent, playerId, gunTuning);
         if (cooler is { } fromCooler && handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Beer })
             Train.Vehicles[fromCooler].Beers--;
+        // The tiny caboose off the rails (note 713): empty hands and Use within reach of it put it back on them.
+        if (Authority && !handsTookIt && intent.Has(PlayerButtons.Use) && Bodies.CarriedBy(playerId) is null)
+            Bodies.Rerail(s, Train, Train.Dynamics.Tuning.Composition.Caboose);
         if (handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } lifted)
             Physics.Bodies.TakeTools(ref s, lifted);
         // Searching an open house's hiding spot (note 326), empty-handed, with a Use the hands didn't take.

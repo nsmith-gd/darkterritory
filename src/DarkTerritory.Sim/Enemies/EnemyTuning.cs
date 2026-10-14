@@ -462,6 +462,7 @@ public sealed record GauntTuning
     /// <summary>Note 288: talked down, it leaves; killed only by a gang while someone talks to it. False: the old health fight.</summary>
     public bool DrivenOff { get; init; } = true;
     public bool TalkingCalms { get; init; } = true;
+    public bool BandCalms { get; init; } = true;
     public double TalkedDownSeconds { get; init; } = 45;
 }
 
@@ -1012,6 +1013,8 @@ public sealed record MooseTuning
     public double TrainPassAt { get; init; } = 25;
     public double TrainPass { get; init; } = 25;
     public double CalmPerSecond { get; init; } = 15;
+    public double BandHears { get; init; } = 30;
+    public double BandCalmPerSecond { get; init; } = 30;
     public double ListenAt { get; init; } = 20;
     public double WarnAt { get; init; } = 50;
     public double[] SquareUpAt { get; init; } = [12, 30];

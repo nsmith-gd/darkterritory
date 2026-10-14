@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 namespace DarkTerritory.Sim.Player;
 
 /// <summary>One of the band's instruments (band.json <c>instruments</c>): its part of every tune, and an octave from the tune.</summary>
-public sealed record BandInstrument(string Id, string Name, string Part, int Octave = 0);
+public sealed record BandInstrument(string Id, string Name, string Part, int Octave = 0, double LevelDb = 0);
 
 /// <summary>
 /// A tune in the band's repertoire (band.json <c>repertoire</c>): traditional, in abc notation (L:1/8, its key and mode),

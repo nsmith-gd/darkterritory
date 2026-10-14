@@ -301,6 +301,14 @@
     // warms whoever's within grillReach m (the cold recovers as at the firebox), and its heat and smell are a hot boiler's
     // to the Cinder Hounds (enemies.json director.houndsHotBoilerWeight).
     "bbqDeck": false,
+    // The tiny caboose (note 713; campaign.json tinyCaboose, composition.dress): a toy body of two particles `radius` m round,
+    // `length` m apart, towed on a string `rope` m long from the guard van's platform at couplerHeight. It's a body like any
+    // other (it lands on the ground, stops at a wall, is pushed by the cars it touches); the string only ever pulls, across
+    // the ground. On the rails it keeps to the line's middle; a bend taken with more than derailAccel m/s² of sideways pull at
+    // its speed throws it off, over on its side to the outside, and it's dragged (friction draggedFriction, against its
+    // rolling friction's) until a crewmate within reach m puts it back with Use.
+    "caboose": { "rope": 1.4, "length": 0.36, "radius": 0.1, "couplerHeight": 1.0, "derailAccel": 0.8, "friction": 0.15, "draggedFriction": 0.6,
+      "reach": 2.0 },
     "bbq": { "deckLength": 3.0, "railHeight": 1.0, "beers": 24, "beerWarmth": 30, "beerHeals": 0, "lightSeconds": 0.6, "burnSeconds": 300,
       "grillSeconds": 6, "sausageHeals": 20, "grillReach": 2.0 }
   },
