@@ -83,11 +83,6 @@ def bonk_clang(rng, k):
     return ck.place([(0, ring, 0), (0.002, head, -2)])
 
 
-@recipe(L, "coal-hit", "coat", "A lump of coal off a friend: a hard thud on a coat, soot puffing, the lump breaking",
-        """A fist of coal thrown hard into a crewmate: the lump's own hard knock (a real stone hit, its low end taken out)
-        and the coat's slap, only a touch of the body's weight under them (nothing fleshy, no boom), a puff of soot off
-        the coat, and the lump breaking as it drops off them, its pieces clinking bright and glassy on the way down.""",
-        sources=CLOTH + SOFT + STONES, takes=3, lufs=-20)
 def knock_of_coal(rng, take):
     """The lump itself striking: a hard little rock knock (the packs' stones cut to one hit), no weight under it."""
     stones = ck.get(STONES[take % 3])
@@ -96,6 +91,11 @@ def knock_of_coal(rng, take):
     return ck.norm(hp(ck.cut(stones, a, a + samples(0.06), 0.001, 0.03), 400))
 
 
+@recipe(L, "coal-hit", "coat", "A lump of coal off a friend: a hard thud on a coat, soot puffing, the lump breaking",
+        """A fist of coal thrown hard into a crewmate: the lump's own hard knock (a real stone hit, its low end taken out)
+        and the coat's slap, only a touch of the body's weight under them (nothing fleshy, no boom), a puff of soot off
+        the coat, and the lump breaking as it drops off them, its pieces clinking bright and glassy on the way down.""",
+        sources=CLOTH + SOFT + STONES, takes=3, lufs=-20)
 def coal_hit_coat(rng, k):
     # The coat's slap and the lump's own knock carry it; the body's weight is only a touch under them (the first build's
     # soft thud put half of it under 90 Hz, a squish).
