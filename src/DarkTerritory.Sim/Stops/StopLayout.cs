@@ -56,6 +56,9 @@ public readonly record struct Pt(double S, double D)
     /// <summary>This turned a quarter towards +D: along the line, it points to the right.</summary>
     [JsonIgnore] public Pt Normal => new(-D, S);
     public static double Distance(Pt a, Pt b) => (a - b).Length;
+    // The record's own printer walks Unit and Normal, each a Pt with its own: it never ends, and a failed Assert.Equal on
+    // anything holding a Pt took the whole test host down with a stack overflow instead of saying what differed.
+    public override string ToString() => FormattableString.Invariant($"({S:0.###}, {D:0.###})");
 }
 
 /// <summary>A rectangle in a house's own frame (x along its length, y across), for L, cross and paired footprints.</summary>

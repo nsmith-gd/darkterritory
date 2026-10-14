@@ -287,6 +287,10 @@ public static partial class StopGenerator
         if (cx.DeadTown && halt is { } stationAt && village is not null)
             RailwaySide(g, new Dice(StopSeed.Of(s, StopSeed.DeadTown)), t, tt, stationAt, village.Side, sidings);
 
+        // The small things lying on the open houses' floors (note 738), from their own seed: every other container, find,
+        // toy and kit is where and what it was. Before the yard's stacks, which stay the last containers laid (YardLootTests).
+        PlaceLoose(g, new Dice(StopSeed.Of(s, StopSeed.Loose)), t);
+
         // The yard's power and its powerhouse at the throat (level-design D.2), from their own seed.
         var power = PowerState.Live;
         int powerhouse = -1;
@@ -308,9 +312,6 @@ public static partial class StopGenerator
         var walk = new StopWalk(g.Buildings, zone, cx.MaxLateral, t.Holdouts.WalkCell).From(stopPoint);
         var holdouts = PlaceHoldouts(g, new Dice(StopSeed.Of(s, StopSeed.Holdout)), t, cx, stopPoint, halt, walk);
         var lairs = PlaceLairs(g, new Dice(StopSeed.Of(s, StopSeed.Lair)), t, tt, stopPoint, walk);
-        // And the small things lying on the open houses' floors (note 738), after everything else and from their own seed:
-        // every other container, find, toy and kit is where and what it was.
-        PlaceLoose(g, new Dice(StopSeed.Of(s, StopSeed.Loose)), t);
 
         var layout = new StopLayout
         {
