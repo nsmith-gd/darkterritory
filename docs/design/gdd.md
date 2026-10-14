@@ -1082,6 +1082,11 @@ Lighting is one of the primary style carriers: strong darkness, warm practical l
 
 Lighting should constantly ask: *can I actually tell what I'm looking at?*
 
+**What you came for is lit** *(the director's evening playtest, 13 Oct: "We could use a little bit more lighting around some of the loot. It's sort of just hard to identify what we're even doing"; note 705)*. The dark is for the line and what's out there, not for the job in hand. A crew should see what it's loading and what it's found:
+- **At a gantry:** a work lamp hangs from the crane's trolley, shining down. What's on the hook is lit all the way down into the car, and so is the car's floor under it. Another lamp hangs over the stack of castings still to load.
+- **Crates and finds on the ground:** a low warm light round the nearest few, close enough to see by, small enough that the yard and the village stay dark round them. A find taken up or loaded loses its light.
+- **Never a beacon:** these are a working light's pools, a few metres across. They're kept to the nearest ones and inside the frame's light budget, so a crew still needs its lamps to get there.
+
 | Group | Colours |
 |---|---|
 | **World base** | Charcoal, soot black, deep brown, rust red, dull iron grey, tarnished brass, desaturated blue-grey, muddy olive |
