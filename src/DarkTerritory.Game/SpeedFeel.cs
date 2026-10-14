@@ -6,8 +6,9 @@ namespace DarkTerritory.Game;
 
 /// <summary>
 /// GDD §31 "Speed is felt" (the director's evening playtest, 13 Oct: "it just feels so agonizingly slow"; note 709): aboard
-/// a moving train the view widens with speed, the rail joints knock through the floor and the car sways. Presentation only:
-/// it moves and widens the eye, never the player, and the train's speeds are unchanged.
+/// a moving train the view widens with speed. The rail joints' knock and the car's sway on the eye are here too, off as
+/// shipped (note 735: "the cab is shaking. I don't like that"). Presentation only: it widens (and could move) the eye, never
+/// the player, and the train's speeds are unchanged.
 /// </summary>
 public static class SpeedFeel
 {
@@ -27,7 +28,8 @@ public static class SpeedFeel
     public static Double3 Offset(TrainOnLine train, in PlayerState viewer, SpeedFeelTuning t)
     {
         double share = Share(train, viewer, t);
-        if (share <= 0)
+        // Note 735: off as shipped (the director: "the cab is shaking. I don't like that").
+        if (share <= 0 || t.Jolt <= 0 && t.Sway <= 0)
             return default;
         var frame = train.Frames[viewer.Parent];
         double along = train.Cars[viewer.Parent].FrontDistance;

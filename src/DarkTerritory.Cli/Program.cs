@@ -3119,7 +3119,7 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
     // --menu smithy (note 697): the blacksmith's catalogue over the yard, the slot's campaign (--joined: a joiner's, who asks the host).
     if (screen == DarkTerritory.Game.Screen.Smithy && menu.Open is { } stock)
     {
-        // --dev-unlock (note 712): a developer build's catalogue with its unlock row, turned on.
+        // --dev-unlock (note 747): a developer build's catalogue with its unlock row, turned on.
         if (args.Contains("--dev-unlock"))
         {
             var unlock = new DarkTerritory.Dev.Smithy.DevUnlock { On = true };

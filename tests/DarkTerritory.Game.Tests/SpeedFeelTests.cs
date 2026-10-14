@@ -32,23 +32,19 @@ public class SpeedFeelTests
     }
 
     [Fact]
-    public void TheRailJointsKnockThroughTheFloorAtSpeed()
+    public void AtSpeedTheViewNeverShakes()
     {
+        // Note 735 (the director, 14 Oct: "it seems like the cab is shaking. I don't like that ... the train feels like it's
+        // sort of rocking"): the rail joints' knock and the sway on the eye (note 709) are off. Down a rail's length at full
+        // speed, the eye doesn't move.
         var s = new PrototypeSession(Content, "test-loop", 4);
         var train = s.Train;
         var aboard = PlayerMotor.SpawnOnRoof(train, 1, 0, s.PlayerTuning);
         train.Dynamics.Velocity = T.FullAt;
-        // Down the line a rail's length, a tick at a time: the eye dips at the joints, by up to the jolt.
-        double deepest = 0, shallowest = double.MaxValue;
         for (int i = 0; i < 120; i++)
         {
             train.Step(T.Joint / T.FullAt / 120, default);
-            var frame = train.Frames[1];
-            double dip = -Double3.Dot(SpeedFeel.Offset(train, aboard, T), frame.Up);
-            deepest = Math.Max(deepest, dip);
-            shallowest = Math.Min(shallowest, dip);
+            Assert.Equal(default, SpeedFeel.Offset(train, aboard, T));
         }
-        Assert.True(deepest > T.Jolt * 0.8 && deepest <= T.Jolt + 1e-9, $"deepest knock {deepest:0.0000} m");
-        Assert.True(shallowest < T.Jolt * 0.2, $"between the joints it's quiet: {shallowest:0.0000} m");
     }
 }

@@ -3,7 +3,7 @@ using DarkTerritory.Sim.Campaign;
 namespace DarkTerritory.Dev.Smithy;
 
 /// <summary>
-/// The blacksmith's unlock (ARCHITECTURE §8 note 712; the director, 14 Oct 2026: "add a dev unlock mode where I can just
+/// The blacksmith's unlock (ARCHITECTURE §8 note 747; the director, 14 Oct 2026: "add a dev unlock mode where I can just
 /// infinitely buy whatever I want. From the Smith."): in a developer build, a row at the top of the catalogue turns it on, and
 /// then every upgrade is free, whatever the tier, and as often as you like: one owned is taken off again, and one that won't
 /// go with something fitted takes that off for it. The scrip is never touched. The refit hosts the yard again as for a sale.

@@ -259,17 +259,19 @@
   // look out the front, it just feels so agonizingly slow"; note 709). Presentation only, aboard, never in a headset.
   "speedFeel": {
     // The view widens by up to "widen" degrees, at "fullAt" m/s, eased by (speed / fullAt) ^ "ease" (under 1: felt early).
-    "widen": 8,
+    // Note 735 (the director, 14 Oct: "It still feels a bit slow"): 8 to 12.
+    "widen": 12,
     "fullAt": 20,
     "ease": 0.6,
     // A knock through the floor at each rail joint, "joint" m apart, under each bogie ("bogies" m apart): "jolt" m at full
-    // speed, over "joltWidth" m of travel.
+    // speed, over "joltWidth" m of travel; and the car's sway, "sway" m side to side every "swayWave" m. Note 735 (the
+    // director, 14 Oct: "it seems like the cab is shaking. I don't like that ... the train feels like it's sort of rocking"):
+    // both off. A shaking view reads as the camera, not the train (GDD §31).
     "joint": 12.5,
     "bogies": 8.5,
-    "jolt": 0.012,
+    "jolt": 0,
     "joltWidth": 0.35,
-    // And the car's sway on the track: "sway" m side to side at full speed, a swing every "swayWave" m.
-    "sway": 0.01,
+    "sway": 0,
     "swayWave": 34
   }
 }

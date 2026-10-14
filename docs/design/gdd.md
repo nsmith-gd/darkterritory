@@ -477,7 +477,7 @@ Roles emerge from position. You end up on the cannon because you're standing at 
 - **Going up:** walk to it looking up, or press the ladder key at its foot. Walking past it while working the cab, eyes level, doesn't take it. A car's hatch ladder inside works the same way ("DOWN INSIDE" from its roof).
 - **Going down:** at the open hatch on the roof, the ladder key takes you down into the cab.
 - **What it says:** at the foot, "UP TO THE ROOF"; at the hatch above, "DOWN INTO THE CAB".
-- **How it looks:** the hatch stands open, its lid up on its hinges, and the night shows through it.
+- **How it looks:** the hatch stands open, a real opening cut through the roof round the climber's way up, its lid folded back over the eave, and the night shows through it. The eye comes up through it, never through the roof *(the director's playtest, 14 Oct: "it looks like we're actually going through ... there's a weird sort of texture that's flashing over top of the hole"; note 734)*.
 
 ### Weapons
 
@@ -543,7 +543,7 @@ Not a punishment mechanic — the whole tension of the sequence. The person on t
 |---|---|---|
 | **Coaling tower** | Fuel | Gravity chute. Fast, deafening, fills whether you're ready or not. |
 | **Grain elevator** | Bulk, cheap | One spout, one car at a time. Endless repositioning and switch calls. A conveyor line a car ahead of the spout: started at its drive house, it jams every 30–60 s somewhere along its belt, and someone has to roam it to clear them (spec D.2; note 400). |
-| **Foundry** | Heavy, valuable | Overhead crane run from a gantry. The operator can't see the ground crew. |
+| **Foundry** | Heavy, valuable | Overhead crane run from a gantry. The operator sees the stack but not the car's near side, so the ground crew there call the position. |
 | **Switchyard** | Mixed | Cars scattered across six sidings. A live track puzzle solved by shouting. |
 | **Wreck yard** | Salvage, high value | Pull cargo off derailed trains. Unstable, unlit, already occupied. |
 | **Slaughterhouse** | Livestock, food | Animals are loud, and something already lives here. |
@@ -555,7 +555,9 @@ Each stop of a kind has the module it's named for and two to four in all, drawn 
 
 **The car's roof hatch keeps out of the crane's way** *(the director's evening playtest, 13 Oct: "The roof hatch is actually in the way. I cannot see the loot that I'm loading because of that roof hatch"; note 706)*. A foundry's castings go down into a cargo car through its roof hatch. Open, its two leaves fold right back, flat onto the roof either side, so nothing stands up between the crane's cab and the opening, or between a crewmate and what's going down. Shut, they meet over it as before.
 
-**The crane operator's view** *(the director's evening playtest, 13 Oct: "Camera angle for lowering things in when you get close does not make a lot of sense ... widen the camera angle a little bit, maybe even go a little more top down"; note 707)*. At the controls, the operator looks from the crane's cab along the gantry, wide enough to see the bridge, the trolley and the car under them. As the hook comes down, the operator leans to the cab's window and the view tips down after it, until with the hook low the operator looks down over what's on it into the car. The ground crew round the stack and the car's side are still out of sight, and still have to call the position (spec D.2).
+**The crane operator's view** *(the director's evening playtest, 13 Oct: "Camera angle for lowering things in when you get close does not make a lot of sense ... widen the camera angle a little bit, maybe even go a little more top down"; note 707)*. At the controls, the operator looks from the crane's cab along the gantry, wide enough to see the bridge, the trolley and the car under them. As the hook comes down, the operator leans to the cab's window and the view tips down after it, until with the hook low the operator looks down over what's on it into the car.
+
+**The cab rides the bridge, on the stack's side** *(the director's playtest, 14 Oct: "Again, my train is blocking the view of the loot, so I can't actually see where it is effectively ... So I'm doing a bit of guesswork here"; note 736)*. The cab used to stand on the gantry's near leg, across the track from the castings, so the operator looked over the cars at the stack and their roofs hid the ground round it. Now it hangs under the bridge's far end, outboard of the stack, and travels with the bridge. The castings lie under and in front of the operator, with nothing between, and the car stands clear beyond them, its open hatch seen from above. The control stand is still at the foot of the near leg, where the crew can reach it. The car's near side, behind the car from the cab, is out of sight, and so is anyone ducked under the bridge's girders. Crewmates there still have to call the position (spec D.2).
 
 **A load let go comes down** *(the director's evening playtest, 13 Oct: "It did unhook, but it sort of just stays there in the air, doesn't fall"; note 708)*. A casting unhooked or let go over a car comes down onto what's really under it: the car's floor through an open hatch, the load already in it, or its roof. It never rests on a heap that isn't there (an empty car has none), and the hook lowers it all the way down. Let go of high, it falls and crushes whoever's under it, as before.
 
@@ -578,6 +580,8 @@ Cargo is physically represented and **changes the run** rather than just scoring
 | Comet-derived material | Attracts everything |
 | Child survivor | The most valuable cargo there is. Carried by hand to a cargo car |
 | Hand-carried loot | Toys, crates, salvage. Stolen, eaten, and traded to monsters. Some toys are noisy: a squeaker, a music box, a wind-up drummer. They feed the crew loudness meter while carried (Appendix C.7) |
+
+**The mail cranes** *(notes 673, 727; the director, 14 Oct 2026, App. F.6)*. Between the stops, mail cranes stand beside the line, each with a board a way ahead saying which side. Someone in a car's open side door on that side, holding the hook out as the car goes by, catches its bag: pay, coal for the tender, rounds for the guns or spares for the worst car. The board posts the speed the hook holds a bag at ("MAIL > 50"), and a bag hooked faster tears off and is lost, so the one at the door calls the driver down for it.
 
 ---
 
@@ -1133,11 +1137,10 @@ Clear and slightly rough, never hyper-smooth.
 **VFX supports readability rather than overwhelming it:** steam venting, sparks, smoke trails, cannon flash and powder smoke, cinders, lantern sway, rail grit, furnace flare, drifting fog, subtle corruption particulate. Mechanical first, supernatural second.
 
 **Speed is felt, not just read off the gauge** *(the director's evening playtest, 13 Oct: "It says we're going 27 kilometers an hour. I think by world standards we are, but when I look out the front, it just feels so agonizingly slow"; note 709)*. The train's speeds are what they are; what changes is how they feel aboard:
-- **The view widens with speed:** a few degrees at a walking pace, up to about eight at the line's full speed, eased so the first gain is the one felt.
-- **The rail joints come through the floor:** a small knock at each rail length, two bogies apiece, so the beat quickens as the train does.
-- **The car sways** gently on the track, more as it goes faster.
+- **The view widens with speed:** a few degrees at a walking pace, up to about twelve at the line's full speed, eased so the first gain is the one felt.
+- **The view never shakes for speed** *(the director's playtest, 14 Oct: "it seems like the cab is shaking. I don't like that ... the train feels like it's sort of rocking a little bit as well"; note 735)*. A knock at each rail joint and a sway on the eye were tried (note 709) and taken out: a shaking view reads as the camera, not the train. The rails' rhythm is heard (the rumble by speed), and what passes the window carries the rest.
 
-All of it is aboard only, never in a headset (the view's widening would make a rider sick), and the settings' CAMERA SHAKE turns the knock and the sway down to none.
+All of it is aboard only, and never in a headset (the view's widening would make a rider sick).
 
 ## 32. Art serves the voice channel
 
@@ -2670,6 +2673,27 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on 
 # APPENDIX F — BUILD REVIEWS
 
 *Added October 2026. A running log of the director's play-tests and reviews of a build: what was said (the point, not verbatim), tracked against the design. Newest entry first. Each entry gives the date, the build number and what was played, then the notes grouped by area. Each note carries a status: **open**, **in progress** (with its task), **fixed in PR …**, or **design change → §/note** for a note that changed the design. Praise and observations that need no work are marked **keep** or **noted**. When a review decides something about the design, a **Decided** line names the section it changed, and that section carries the date of the decision; engineering detail goes in the numbered notes of `docs/ARCHITECTURE.md`.*
+
+## F.6 2026-10-14 — the friendslop audit, and the director's calls
+
+**Reviewed:** K1's audit of main 0f47f04 against Bartle's eight types and Rational Game Design, and its proposals for
+closing the gap (docs/design/friendslop.md; ARCHITECTURE §8 note 733). The director: "We are chasing the friendslop
+genre ... It's extremely important that friends exceeds our target meaningfully."
+
+**Decided**
+- **The cab is the crew car**, "the captain's quarters, shared by all": about 11 m of the engine's 20, the boiler shorter
+  ("the boiler is just a long tube"). The controls stay as they are, for one player. Behind them the cab map on a table,
+  tracking the train and its route; a gallery of raised benches, "more of a social space"; and a back wall with "some fun,
+  cute gimmicks". *Queue #450, note 716.*
+- **The shove, in full effect, as a trial:** on a car's roof a shove can put you off, and at speed it kills. *Queue #451,
+  note 717.*
+- **Coal thrown** from the shovelling as it is. *Queue #451.*
+- **Not taken:** the toy slipped into a pocket; a price on every find (value is learned by playing); the dead's haunt (the
+  dead never see what the living don't and help them). Sound-only cues in the world instead. *Queue #452, #466.*
+- **Singing does not fight the Choir.** *Queue #454.*
+- **Comet cargo at real stops, extra valuable and exciting to see; trophies sometimes from team kills; very big finds take
+  two.** *Queue #452, #453.*
+- The rest of docs/design/friendslop.md §3 goes ahead (queue #450–#466).
 
 ## F.5 2026-10-13 — the creature gym, Test build 21 (ca0d37e)
 

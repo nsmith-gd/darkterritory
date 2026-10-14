@@ -5,7 +5,7 @@ using DarkTerritory.Sim.Campaign;
 namespace DarkTerritory.Dev.Tests;
 
 /// <summary>
-/// The blacksmith's unlock (ARCHITECTURE §8 note 712; the director, 14 Oct 2026: "a dev unlock mode where I can just
+/// The blacksmith's unlock (ARCHITECTURE §8 note 747; the director, 14 Oct 2026: "a dev unlock mode where I can just
 /// infinitely buy whatever I want. From the Smith."): free, any tier, as often as you like, and off again.
 /// </summary>
 public class DevUnlockTests

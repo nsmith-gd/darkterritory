@@ -2123,6 +2123,8 @@ public sealed partial class World
                 Beats.Add($"caught:{d.Kind}");
             foreach (var d in lineside.MissedThisTick)
                 Beats.Add($"missed:{d.Kind}");
+            foreach (var d in lineside.TornThisTick)
+                Beats.Add($"torn:{d.Kind}");
         }
         if (Run is { } run && run.Phase != _lastPhase)
         {

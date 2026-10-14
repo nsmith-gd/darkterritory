@@ -201,12 +201,12 @@ public sealed class FrontEnd
     public Func<string, Purchase>? SmithyBuy { get; set; }
 
     /// <summary>
-    /// The blacksmith's shelves with no prices and no stock rules (a developer build's unlock, note 712, sets it): every upgrade
+    /// The blacksmith's shelves with no prices and no stock rules (a developer build's unlock, note 747, sets it): every upgrade
     /// is FREE, and one owned can be taken off again.
     /// </summary>
     public bool SmithyFree { get; set; }
 
-    /// <summary>A row of its own at the top of the blacksmith's catalogue, and what choosing it does (a developer build's, note 712).</summary>
+    /// <summary>A row of its own at the top of the blacksmith's catalogue, and what choosing it does (a developer build's, note 747).</summary>
     public Func<(MenuItem Item, Action Choose)>? SmithyMode { get; set; }
     public Settings Settings { get; private set; }
     public EditionTuning Edition => _edition;

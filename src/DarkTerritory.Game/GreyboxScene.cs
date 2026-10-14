@@ -4400,7 +4400,7 @@ public sealed partial class GreyboxScene
         Beam(trolley - Double3.Up * 0.3, trolley + Double3.Up * 0.3, 0.35f, Palette.IronGrey);
         Beam(trolley, hook, 0.02f, Palette.SootBlack);
         Beam(hook, hook - Double3.Up * 0.3, 0.07f, Palette.TarnishedBrass);
-        // The cab up at the near end, and its control stand at the foot of the leg.
+        // The cab riding the bridge's far end (note 736), and the control stand at the foot of the near leg.
         var cab = crane.Cab;
         mesh.Box(V(cab, eye), Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, new Vector3(0.9f, 0.8f, 0.9f), Palette.DeepBrown);
         mesh.Emissive = 1;
