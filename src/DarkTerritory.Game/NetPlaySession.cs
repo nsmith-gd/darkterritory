@@ -95,6 +95,12 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     /// Every machine's world is built with it (<see cref="World.CrewMischief"/>); the host's changes in the yard follow it.
     /// </summary>
     public bool Mischief { get; init; } = true;
+    /// <summary>
+    /// The crew's sigil (GDD §29; note 731), from the campaign save: a stencil from 1, 0 for none. Presentation only, left out
+    /// when unset; every machine's world is built with it (<see cref="World.CrewSigil"/>).
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public int Sigil { get; init; }
     /// <summary>A public lobby (note 724): anyone aboard can call the vote to put a player off. Every machine's roster says so.</summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public bool VoteKicks { get; init; }
@@ -210,6 +216,7 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
             WreckTuning = DataFile.Load<WreckTuning>(Path.Combine(content, WreckTuning.File)),
             DawnEndsCampaign = CampaignNight && DataFile.Load<Sim.Campaign.CampaignTuning>(Path.Combine(content, Sim.Campaign.CampaignTuning.File)).DawnEndsCampaign,
             CrewMischief = Mischief,
+            CrewSigil = (byte)Math.Clamp(Sigil, 0, Sim.Player.MaskPaint.Max - 1),
         };
         if (route is not null)
         {
@@ -615,7 +622,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         }
         var (clientWorld, _) = setup.Build(content);
         var clientTransport = Pumped(UdpTransport.Connect(new IPEndPoint(IPAddress.Loopback, udp.Port), options), playerTuning);
-        var client = new ClientSession(clientTransport, clientWorld, trainTuning, playerTuning) { Name = LocalName(lobby), Outfit = Outfit, PasswordKey = key, SnapshotLoss = new(Hud.Tuning.LossWindowTicks) };
+        var client = new ClientSession(clientTransport, clientWorld, trainTuning, playerTuning) { Name = LocalName(lobby), Outfit = Outfit, Paint = Paint, PasswordKey = key, SnapshotLoss = new(Hud.Tuning.LossWindowTicks) };
         // The host's own player comes aboard before anyone else can: first aboard takes the cab.
         var clock = System.Diagnostics.Stopwatch.StartNew();
         while (client.PlayerId is null && clock.Elapsed.TotalSeconds < 5)
@@ -882,7 +889,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 if (e.Kind == TransportEventKind.Connected)
                 {
                     var hello = new NetWriter();
-                    Messages.WriteHello(hello, LocalName(lobby), outfit: Outfit, key: key);
+                    Messages.WriteHello(hello, LocalName(lobby), outfit: Outfit, key: key, paint: Paint);
                     transport.Send(PeerId.Host, hello.Written, Delivery.ReliableOrdered);
                 }
                 if (e.Kind == TransportEventKind.Disconnected)
@@ -930,7 +937,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         }
         var client = new ClientSession(new Replay(transport, early), world,
             setup.Loadout(content).Train, DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)))
-        { Name = LocalName(lobby), Outfit = Outfit, PasswordKey = key, SnapshotLoss = new(Hud.Tuning.LossWindowTicks) };
+        { Name = LocalName(lobby), Outfit = Outfit, Paint = Paint, PasswordKey = key, SnapshotLoss = new(Hud.Tuning.LossWindowTicks) };
         return new NetPlaySession(null, null, null, client, transport, setup, route, lobby) { Redial = redial };
     }
 
@@ -1553,6 +1560,12 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// the gate (<see cref="CanWear"/>).
     /// </summary>
     public void Wear(byte outfit) => Client.Wear(outfit);
+
+    /// <summary>The mask's paint set in the settings (note 731; the app sets it at start), or none.</summary>
+    public static Sim.Player.MaskPaint Paint { get; set; }
+
+    /// <summary>Paints the mask (note 731), the yard's PAINT YOUR MASK: asked of the host, which takes it only in the yard.</summary>
+    public void PaintMask(Sim.Player.MaskPaint paint) => Client.PaintMask(paint);
 
     /// <summary>In the yard, where outfits are tried on (GDD §9; note 298).</summary>
     public bool CanWear => World.Run is null or { Phase: Sim.Run.RunPhase.Yard };
