@@ -4,7 +4,7 @@ using DarkTerritory.Sim.Enemies;
 namespace DarkTerritory.Game.Sound;
 
 /// <summary>
-/// The Pickers heard (queue #499, note 769; G1's #315, note 592; pickers.md §4): each read off its record (its
+/// The Pickers heard (queue #501, note 771; G1's #315, note 592; pickers.md §4): each read off its record (its
 /// <see cref="PickerMode"/> in Height). Coming up out of its drain, the grating shoved aside and a chitter (the tell); its
 /// small feet scuttling while it's about, and a chitter now and then; a crate knocked and scraped along with a chattering pant
 /// as it carries; a snap and a hiss as it bites; a burst of squeals as they bolt; the grating rattling as one goes down; a

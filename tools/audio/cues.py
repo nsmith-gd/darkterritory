@@ -942,7 +942,7 @@ CUES = {
         L("haul", "The haul: a ratcheting creak of the rafters, a wet reel"),
         O("retreat", "Letting go: a hiss and a scuttle back into the roof", vars=2),
     ],
-    # The Pickers (queue #499, note 769; G1's #315, note 592; pickers.md §4, "a request to the audio chat"): knee-high
+    # The Pickers (queue #501, note 771; G1's #315, note 592; pickers.md §4, "a request to the audio chat"): knee-high
     # scavengers up out of a yard's drains, racing the crew for the loose crates. Small and quick, heard across a yard over
     # the standing train: never a rat's squeak in a cartoon, never the Ribbits' wet hop.
     "tell-pickers": [
@@ -957,7 +957,7 @@ CUES = {
         O("down", "Down its drain: the grating rattling as it squeezes through", vars=3),
         O("hit", "One killed by a blow: a squeal cut short", vars=3),
     ],
-    # The Wakers (queue #500, note 770; note 588, docs/design/creatures/wakers.md §2-§5, §8.4 "the sounds to AU1"): what
+    # The Wakers (queue #502, note 772; note 588, docs/design/creatures/wakers.md §2-§5, §8.4 "the sounds to AU1"): what
     # gets up at dawn. Hill-sized: heard from a kilometre and more, the stir's thuds and calls below the night creatures'
     # range so they never mask a tell (spec A.3). Their footfalls are the land's, never a crewmate's step made big.
     "tell-wakers": [

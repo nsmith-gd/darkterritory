@@ -12,7 +12,7 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Game.Tests;
 
 /// <summary>
-/// The Wakers heard (queue #500, note 770; wakers.md §2-§5): the stir's thuds on the tremor's beat and its calls, the land
+/// The Wakers heard (queue #502, note 772; wakers.md §2-§5): the stir's thuds on the tremor's beat and its calls, the land
 /// getting up, its footfalls and roars as it runs a standing train down, the last car seized, and each car torn up and eaten.
 /// </summary>
 public class WakerSoundTests : IDisposable

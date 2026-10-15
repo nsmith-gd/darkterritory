@@ -1074,7 +1074,7 @@ public class CreatureSoundTests
         Assert.False(scene.Playing("cs-hanger.haul"));
     }
 
-    // ---- The Pickers (queue #499, note 769) -------------------------------------------------------------------------------
+    // ---- The Pickers (queue #501, note 771) -------------------------------------------------------------------------------
 
     [Fact]
     public void ThePickersComeUpScuttleCarryBiteAndGoAndTheGroupIsHeardOnceAtATime()
@@ -1120,7 +1120,7 @@ public class CreatureSoundTests
         Assert.Contains("cs-pickers.hit", scene.Tick());
     }
 
-    // ---- The Wakers (queue #500, note 770) --------------------------------------------------------------------------------
+    // ---- The Wakers (queue #502, note 772) --------------------------------------------------------------------------------
 
     [Fact]
     public void AWakerRisenBesideOneWhoRanStridesOverTakesThemAndSwallows()

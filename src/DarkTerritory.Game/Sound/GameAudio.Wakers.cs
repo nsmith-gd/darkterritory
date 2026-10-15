@@ -5,7 +5,7 @@ using DarkTerritory.Sim.Enemies;
 namespace DarkTerritory.Game.Sound;
 
 /// <summary>
-/// The Wakers heard (queue #500, note 770; note 588, docs/design/creatures/wakers.md §2-§5). In the stir, far-off thuds on
+/// The Wakers heard (queue #502, note 772; note 588, docs/design/creatures/wakers.md §2-§5). In the stir, far-off thuds on
 /// the same beat as the train's tremor and the lamps' swing (<see cref="DawnStir.Thud"/>), stronger and closer together as
 /// dawn comes, and long low calls from behind the hills. At dawn, the land getting up; its footfalls as it runs the train
 /// down, on its own gait (<see cref="WakerGait"/>), and its roars; the last car seized, the train dragged to a stand, each car

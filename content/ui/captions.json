@@ -184,7 +184,7 @@
     "cs-hanger.grab": "A STICKY SNAP",
     "cs-hanger.haul": "HAULED UP, RAFTERS CREAKING",
     "cs-hanger.retreat": "A HISS, A SCUTTLE OVERHEAD",
-    // The Pickers (note 769): small and many, out of the yard's drains.
+    // The Pickers (note 771): small and many, out of the yard's drains.
     "tell-pickers.emerge": "A GRATING SCRAPED ASIDE, CHITTERING",
     "tell-pickers.feet": "SMALL FEET SCUTTLING",
     "tell-pickers.chitter": "CHITTERING",
@@ -193,7 +193,7 @@
     "cs-pickers.scatter": "SQUEALING, SCATTERING",
     "cs-pickers.down": "A GRATING RATTLING",
     "cs-pickers.hit": "A SQUEAL CUT SHORT",
-    // The Wakers (note 770): dawn's, hill-sized; heard by what they do to the land and the train, never named.
+    // The Wakers (note 772): dawn's, hill-sized; heard by what they do to the land and the train, never named.
     "tell-wakers.thud": "A FAR-OFF THUD THROUGH THE GROUND",
     "tell-wakers.call": "A LONG, LOW CALL, FAR OFF",
     "tell-wakers.rise": "THE GROUND TEARING OPEN",
