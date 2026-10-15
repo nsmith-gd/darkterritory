@@ -1437,6 +1437,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         if (args.Contains("--close"))
             camera = Camera.LookAt(there + ((eye - there) with { Y = 0 }).Normalized * 3.5 + Double3.Up * 1.6, there, 55);
     }
+    // --close (note 818): the handcar's lift from beside the near lifter.
+    if (view == "handcarlift" && args.Contains("--close"))
+        camera = Staging.HandcarCamera(train, view, close: true);
     if (town is not null && !args.Contains("--view"))
         camera = Staging.TownCamera(town, args.Contains("--arrival") ? Str(args, "--where", "square") : Str(args, "--town", "square"));
     // --bell rope (note 730): stood at the council house's bell rope, as a crewmate about to pull it sees it.
@@ -2037,7 +2040,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         look.Art.ReverserThrown = Opt(args, "--reverser", 0.4);
     var horseplay = Str(args, "--horseplay", view switch { "shove" => "shove", "sooted" => "sooted", _ => "" }) is { Length: > 0 } horse
         ? Staging.Horseplay(train, content, horse) : ((List<Crewmate> Crew, List<DarkTerritory.Sim.Player.LumpInFlight> Lumps)?)null;
-    // --rescue handup|carryfriend (the views handup and carryfriend, note 723): a friend hauled up into a side door; one carried.
+    // --rescue handup|carryfriend|throwoff (the views handup and carryfriend, note 723): a friend hauled up into a side door; one
+    // carried; one just thrown off the shoulder (note 818, with --view carryfriend).
     if (Str(args, "--rescue", view switch { "handup" => "handup", "carryfriend" => "carryfriend", _ => "" }) is { Length: > 0 } rescued)
         horseplay = (Staging.Rescue(train, content, rescued), []);
     // --emotes highfive|danceoff|sitedge|leanout (the views of the same names, note 722): the emotes for two, and the edges.
@@ -2277,6 +2281,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             scene.Self = you;
         }
     }
+    // --scorch [m] (note 821; with --threats, the fire view): a crewmate in the burning car m from its hottest cell (1.4),
+    // the fire's heat on them as the host reckons it, smoking.
+    if (args.Contains("--scorch") && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.CarFire>().FirstOrDefault() is { Heat.Length: > 0 } burning)
+        scene.Crew = [.. scene.Crew ?? [], Staging.Scorched(train, burning, stagedFire ?? new DarkTerritory.Sim.Enemies.CarFireTuning(),
+            Array.IndexOf(args, "--scorch") is var sc && sc + 1 < args.Length
+                && double.TryParse(args[sc + 1], System.Globalization.CultureInfo.InvariantCulture, out double scorchFrom) ? scorchFrom : 1.4)];
     // --hugger swallow: the one it has in its mouth at the rear car's end door (App. A.3; Staging.Swallowed).
     if (Str(args, "--hugger", "") == "swallow" && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.CarHugger>().FirstOrDefault() is { Holding: >= 0 })
         scene.Crew = [.. scene.Crew ?? [], Staging.Swallowed(train), .. args.Contains("--rescue") ? [Staging.SwallowRescuer(train)] : Array.Empty<Crewmate>()];
@@ -3929,6 +3939,10 @@ static object HudShot(string content, string[] args)
     var hud = new Overlay();
     string photoFile = Str(args, "--photo", "");
     var photoStill = BookmarkAlbum.ReadPhoto(photoFile);
+    // --heat [h]: a car fire h hot on the player (note 821), the heat glow round the view.
+    if (args.Contains("--heat"))
+        Hud.StagedHeat = Array.IndexOf(args, "--heat") is var he && he + 1 < args.Length
+            && double.TryParse(args[he + 1], System.Globalization.CultureInfo.InvariantCulture, out double heat) ? heat : 0.3;
     // --hurt [s]: just hit (GDD App. F.1's damage model; note 272), the red edge flash at strength s (a heavy hit is 1).
     if (args.Contains("--hurt"))
         Hud.StagedHurt = Array.IndexOf(args, "--hurt") is var hu && hu + 1 < args.Length
