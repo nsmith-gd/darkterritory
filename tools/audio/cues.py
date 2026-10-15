@@ -429,6 +429,11 @@ CUES = {
     # was a loop.
     "state-coupling-loose": [
         O("knock", "The pin knocking in its knuckle: a dull iron clank with a ring over it", vars=4),
+        # What jumped it (queue #518, note 785; K1's #1034, note 732; the 14 Oct playtest's line 12: "the reason's"), heard at
+        # the pin the moment it jumps, the knock straight after.
+        O("jump-brake", "Jumped by a run-in: the slack slamming in down the train and the pin jumping in its knuckle", vars=3),
+        O("jump-coupled", "Jumped by a hard coupling: a coupler's clash and the pin knocked up in its knuckle", vars=3),
+        O("jump-bend", "Jumped on a bend: the cars lurching, a frame's groan and the pin jumping", vars=3),
     ],
     "state-derail": [
         L("flange-scream", "Flanges screaming on a curve taken too fast (the warning)"),
@@ -912,6 +917,18 @@ CUES = {
     ],
     "tell-householder": [
         L("house", "Its house, from the door: a stove's tick and crackle, a clock, a kettle at the edge of the boil"),
+        # Note 785 (note 732): one of its things lifted with nothing left on its table to pay for it, it shifts in its chair.
+        O("shift", "It shifts in its chair: the chair moved on the boards, the cutlery stilled", vars=3),
+    ],
+    # Sound cues in the world (queue #518, note 785; K1's #1034, note 732; GDD §32): the world sounding before it bites.
+    "tell-house": [
+        O("creak", "A house where something waits: a floorboard or a rafter taking a weight in the dark", vars=4),
+    ],
+    "world-bell": [
+        O("far", "Something lost out there: a stop's bell rung once or twice, a long way off", vars=3),
+    ],
+    "world-dog": [
+        O("bark", "Something at the lamps' edge: a farm dog barking far off at it", vars=3),
     ],
     "tell-householder-rise": [
         O("rise", "Rising (1.5 s): the chair scraped back hard on the boards, cutlery rattling on the table", vars=2),
