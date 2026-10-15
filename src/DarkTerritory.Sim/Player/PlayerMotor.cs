@@ -85,6 +85,11 @@ public enum PlayerMoves : byte
     /// it ("We need a different button for push and walk").
     /// </summary>
     Push = 2,
+    /// <summary>
+    /// Shove the crewmate you're looking at (note 717, horseplay; LeftAlt): sent while held, acted on the press. Never a bot's.
+    /// </summary>
+    Shove = 16,
+    // (On the wire the byte's bits 2-3 carry the intent's lamp signal, note 720: the moves keep the other bits.)
 }
 
 /// <summary>
@@ -95,6 +100,16 @@ public enum Emote : byte { None, Dance, Wave, Point }
 
 /// <summary>An emote as the crew see it (note 298): unique for the night (its record's key), the host tick it began, whose, which.</summary>
 public readonly record struct EmoteEvent(int Id, uint Tick, int By, Emote Kind);
+
+/// <summary>
+/// A lamp signal (GDD §12; the director's calls of 14 Oct 2026, friendslop.md queue #454; note 720), given with a hand lamp in
+/// the fist: swung across the line (<see cref="Stop"/>), raised and lowered (<see cref="Go"/>), a circle (<see cref="Back"/>).
+/// The crew see the lamp's motion and its light; the bot driver obeys it when it can see it. Sent once, on the pick.
+/// </summary>
+public enum LampSignal : byte { None, Stop, Go, Back }
+
+/// <summary>A lamp signal as the crew see it (note 720): unique for the night (its record's key), the host tick it began, whose, which.</summary>
+public readonly record struct SignalEvent(int Id, uint Tick, int By, LampSignal Kind);
 
 /// <summary>The forward lamp's switch in the cab (T52): set it on or off (a setting, not a toggle, so a held key or a resent intent is harmless).</summary>
 public enum LampSwitch : byte { None, On, Off }
@@ -154,6 +169,11 @@ public struct PlayerIntent
     public float Head;
     /// <summary>Note 664: the third byte (<see cref="PlayerMoves"/>): crouch, and pushing the gun along.</summary>
     public PlayerMoves Moves;
+    /// <summary>
+    /// Note 720: a lamp signal given this tick (its wheel let go), or none: honoured from someone with a hand lamp in their
+    /// fist. Like an emote it moves no player or train state itself; the host keeps it for the crew to see.
+    /// </summary>
+    public LampSignal Signal;
 
     public readonly bool Has(PlayerButtons b) => (Buttons & b) != 0;
     public readonly bool Has(PlayerActions a) => (Actions & a) != 0;
@@ -218,7 +238,9 @@ public enum DeathCause : byte
     // GDD §8 (note 588): still out at dawn, and a Waker caught the train.
     Woken,
     // Note 573: came down from too high (off a bridge's deck, down a bank's drop).
-    Fell
+    Fell,
+    // Note 717: shoved off by a crewmate, and the landing (the train's speed, or the height) killed them; the report names who.
+    Shoved
 }
 
 /// <summary>Conditions a player carries.</summary>
@@ -258,9 +280,9 @@ public enum PlayerFlags : ushort
     /// </summary>
     RepairKit = 128,
     /// <summary>
-    /// In the air off the ground's own footing (note 573): over the lip of a dip or down a bank on open ground, not off
-    /// anything moving. Its landing counts none of the crewmate's own run (spec B.3's knock is for leaving the train), only
-    /// what's over it. Set as they leave their footing, cleared once they have one again.
+    /// In the air off the ground's own footing (note 573): over the lip of a dip or down a bank on open ground, or (note 717)
+    /// off a train standing still, not off anything moving. Its landing counts none of the crewmate's own run (spec B.3's knock
+    /// is for leaving a moving train), only what's over it. Set as they leave their footing, cleared once they have one again.
     /// </summary>
     OffTheGround = 256,
     /// <summary>
@@ -268,6 +290,13 @@ public enum PlayerFlags : ushort
     /// once let go and there's the headroom (<see cref="DarkTerritory.Sim.World.Crouching"/>).
     /// </summary>
     Crouched = 512,
+    /// <summary>
+    /// Off their feet from a crewmate's shove (note 717), till they have footing again: a landing that kills is the shove's
+    /// (<see cref="DeathCause.Shoved"/>), and the shove itself never hurts (its own speed isn't counted in the landing's knock).
+    /// </summary>
+    Shoved = 1024,
+    /// <summary>A lump of coal in the face (note 717): sooty for the rest of the night. Nothing in the sim reads it; the crew see it.</summary>
+    Sooted = 2048,
 }
 
 /// <summary>
@@ -323,6 +352,12 @@ public struct PlayerState
     /// keeps it with the things themselves), so a tool taken up or the wheel's step sees them on a predicting client too.
     /// </summary>
     public byte Pockets;
+    /// <summary>
+    /// Ticks of stagger left (note 717): knocked by a crewmate's shove, a lump of coal or a tool's bonk, they can look and talk
+    /// and nothing else (<see cref="Horseplay.Staggered"/>). The host sets it; the motor counts it down, here and on a
+    /// predicting client alike.
+    /// </summary>
+    public byte Stagger;
 
     public readonly bool Alive => Death == DeathCause.None;
     public readonly bool Has(PlayerFlags flag) => (Flags & flag) != 0;
@@ -531,21 +566,36 @@ public static class PlayerMotor
 
     /// <summary>Advances one tick. Call after the train has stepped this tick.</summary>
     /// <param name="applyLook">False when look was already applied this tick (the world's crew step does it).</param>
-    public static void Step(ref PlayerState s, in PlayerIntent input, TrainOnLine train, PlayerTuning p, TrainTuning t, double dt, bool applyLook = true)
+    /// <param name="self">This player's id, among <paramref name="crowd"/>.</param>
+    /// <param name="crowd">
+    /// Note 717: the rest of the crew as they stood at the start of the tick (<see cref="Horseplay.Crowd"/>), who push this player
+    /// out from among them; null for nobody (a lone player, a test's).
+    /// </param>
+    public static void Step(ref PlayerState s, in PlayerIntent input, TrainOnLine train, PlayerTuning p, TrainTuning t, double dt, bool applyLook = true,
+        int self = 0, IReadOnlyList<Shoulder>? crowd = null)
     {
-        // Note 573: what they're leaving, if they leave it this tick: the ground's own footing, or something else.
-        bool onGround = s.Parent == PlayerState.World && s.Surface == Surface.Ground;
+        // Note 573: what they're leaving, if they leave it this tick: the ground's own footing, or something else. Note 717 (the
+        // director's 14 Oct playtest, line 7: "Whenever I step off the train, I get like a little vignette red flash"): a train
+        // standing still is footing like the ground's, its speed no part of the landing.
+        bool onGround = s.Parent == PlayerState.World && s.Surface == Surface.Ground
+            || s.Grounded && s.Parent >= 0 && s.Parent < train.Frames.Count && Math.Abs(train.RakeOf(s.Parent).Speed) < p.Landing.StandBelow;
         bool aloft = s.Surface == Surface.Air;
-        Move(ref s, input, train, p, t, dt, applyLook);
+        Move(ref s, input, train, p, t, dt, applyLook, self, crowd);
         if (s.Surface != Surface.Air)
-            s.Flags &= ~PlayerFlags.OffTheGround;
+            s.Flags &= ~(PlayerFlags.OffTheGround | PlayerFlags.Shoved);
         else if (!aloft)
             s.Flags = onGround ? s.Flags | PlayerFlags.OffTheGround : s.Flags & ~PlayerFlags.OffTheGround;
+        // Note 717: a stagger wears off a tick at a time, here and on a predicting client alike.
+        if (s.Stagger > 0)
+            s.Stagger--;
     }
 
-    static void Move(ref PlayerState s, in PlayerIntent input, TrainOnLine train, PlayerTuning p, TrainTuning t, double dt, bool applyLook)
+    static void Move(ref PlayerState s, in PlayerIntent input, TrainOnLine train, PlayerTuning p, TrainTuning t, double dt, bool applyLook, int self,
+        IReadOnlyList<Shoulder>? crowd)
     {
-        var intent = input;
+        // Staggered (note 717): look and talk, nothing else. The sessions strip the intent before anything acts on it; a caller
+        // that doesn't still gets a body that won't walk.
+        var intent = Horseplay.Staggered(s, input);
         if (!s.Alive)
             return;
         Player.Kit.Select(ref s, intent);
@@ -590,7 +640,9 @@ public static class PlayerMotor
             var wish = WishDirection(s.Yaw, intent) * speed;
             // GDD §22 wind on a roof (note 201): a sideways push across the car, on top of where you're going.
             double wind = WindPush(s, intent, train, p, t);
-            s.Velocity = new Double3(wish.X + wind, 0, wish.Z);
+            // Note 717: and the crowd's, out from among the others (the edge holds it as it does the wind: it isn't meant).
+            var jostle = crowd is { Count: > 0 } ? Horseplay.Push(s, self, crowd, train, p, dt) * (1 / dt) : default;
+            s.Velocity = new Double3(wish.X + wind + jostle.X, 0, wish.Z + jostle.Z);
             // Jump in the gun's seat is getting up out of it (T112), not a leap off the carriage.
             if (s.Has(PlayerFlags.Seated))
             {
@@ -657,8 +709,9 @@ public static class PlayerMotor
     /// T128 (build 1121: "far too easy to fall off the train"; note 273): on a roof or a coupler plate, a step that would take
     /// your feet within <see cref="EdgeTuning.Lip"/> of where the footing ends is held there, across the car and along it
     /// separately (so you slide along the edge). Over the side only if you mean it: walking at it within
-    /// <see cref="EdgeTuning.StepOffDegrees"/> of straight out. Off an end only by a jump or a ladder, unless there's more of
-    /// the train under it to step down onto (a coupler plate, a platform, the tender). The wind (unless
+    /// <see cref="EdgeTuning.StepOffDegrees"/> of straight out. Off an end the same way with <see cref="EdgeTuning.WalkOff"/>
+    /// (note 717, the director's 14 Oct playtest: "let people walk off the top of the cars"); without it, only by a jump or a
+    /// ladder, unless there's more of the train under it to step down onto (a coupler plate, a platform, the tender). The wind (unless
     /// <see cref="EdgeTuning.WindOverLip"/>) brings you to the lip and no further. A pull, a throw or a jump isn't walking: they
     /// put you in the air and this never sees them.
     /// </summary>
@@ -679,8 +732,15 @@ public static class PlayerMotor
             if (!meant)
                 v = v with { X = e.WindOverLip && Math.Sign(wind) == Math.Sign(v.X) ? wind : 0 };
         }
+        // Off an end (note 717; the director's 14 Oct playtest, line 4: "let people walk off the top of the cars"): with walkOff,
+        // as off a side, walking at it on purpose.
         if (v.Z != 0 && !Footing(train, frame, at + new Double3(0, 0, v.Z * dt + Math.Sign(v.Z) * e.Lip), e.CatchDrop))
-            v = v with { Z = 0 };
+        {
+            double length = Math.Sqrt(wish.X * wish.X + wish.Z * wish.Z);
+            bool meant = e.WalkOff && length > 1e-6 && wish.Z * Math.Sign(v.Z) >= DMath.Cos(e.StepOffDegrees * Math.PI / 180) * length;
+            if (!meant)
+                v = v with { Z = 0 };
+        }
         s.Velocity = v;
     }
 
@@ -1113,12 +1173,16 @@ public static class PlayerMotor
         if (s.Has(PlayerFlags.OffTheGround))
             horizontal = Math.Max(0, horizontal - p.Run);
         var l = p.Landing;
+        // Note 717: off their feet from a friend's shove, a landing that kills is the shove's (the report names the shover); the
+        // shove's own speed knocks nobody (a shove on the flat, or off a roof at a stand, is no hurt), only the train's or the drop.
+        bool shoved = s.Has(PlayerFlags.Shoved);
+        double knocked = shoved ? Math.Max(0, horizontal - p.Horseplay.Shove.Speed) : horizontal;
         // Note 573: and by the height it came down from (the speed it lands at): whichever knock is the worse.
         double fell = worldVelocity.Y < 0 ? worldVelocity.Y * worldVelocity.Y / (2 * p.Gravity) : 0;
         if (l.FallLethalFrom > 0 && fell >= l.FallLethalFrom)
         {
             s.Health = 0;
-            s.Death = DeathCause.Fell;
+            s.Death = shoved ? DeathCause.Shoved : DeathCause.Fell;
             return;
         }
         int fallKnock = l.FallLethalFrom > l.FallHurtFrom && fell >= l.FallHurtFrom
@@ -1127,14 +1191,14 @@ public static class PlayerMotor
         if (horizontal > lethal)
         {
             s.Health = 0;
-            s.Death = DeathCause.JumpedAtSpeed;
+            s.Death = shoved ? DeathCause.Shoved : DeathCause.JumpedAtSpeed;
         }
         else
         {
             int damage = fallKnock;
-            if (horizontal > l.RollAbove)
+            if (knocked > l.RollAbove)
             {
-                double k = Math.Clamp((horizontal - l.RollAbove) / Math.Max(1e-6, lethal - l.RollAbove), 0, 1);
+                double k = Math.Clamp((knocked - l.RollAbove) / Math.Max(1e-6, lethal - l.RollAbove), 0, 1);
                 damage = Math.Max(damage, (int)Math.Round(l.RollDamage + (Math.Max(l.DamageAtLethal, l.RollDamage) - l.RollDamage) * k));
             }
             if (damage > 0)

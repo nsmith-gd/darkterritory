@@ -170,7 +170,11 @@ public class OpenHouseTests
                 Assert.NotEmpty(loose);
             }
             var finds = StopLoot.Village(loot, stop, route.Seed, i, perCar);
-            double kept = finds.Where(f => stop.Containers[f.Container].Kind != ContainerKind.Loose).Select(f => f.Value).DefaultIfEmpty(0).Average();
+            // Smaller bits (note 738), with every kind worth what it is (note 718): what lies on a floor is worth no more than the
+            // middle of what a village's cupboards, cellars and boards can keep.
+            var keptWorths = loot.Kinds.Where(k => k.Key != "loose").SelectMany(k => k.Value.Items).Distinct()
+                .Select(item => loot.WorthOf(item, perCar)).Order().ToList();
+            double kept = keptWorths[keptWorths.Count / 2];
             foreach (var c in loose)
             {
                 lying++;
@@ -184,7 +188,7 @@ public class OpenHouseTests
                     Assert.True(Math.Sqrt((x - way.X) * (x - way.X) + (y - way.Y) * (y - way.Y)) >= 1.0, $"{spec}: a find in house {c.Building}'s doorway ({b.Shape})");
                 var find = finds.Single(f => f.Container == c.Index);
                 Assert.Contains(find.Item, loot.Of(ContainerKind.Loose).Items);
-                Assert.True(find.Value <= kept, $"{spec}: {find.Item} worth {find.Value}, a kept find {kept:0}");
+                Assert.True(find.Value <= kept, $"{spec}: {find.Item} worth {find.Value}, the middle of a kept find's {kept:0}");
             }
         }
         Assert.True(villages > 0 && lying >= villages, $"{spec}: {lying} things lying in {villages} villages");

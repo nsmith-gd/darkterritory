@@ -1,6 +1,7 @@
 using Ballast;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Tests;
 
@@ -83,7 +84,7 @@ public class LandingTests
     }
 
     [Fact]
-    public void AJumpOnOpenGroundIsOffTheGroundAndOffACarIsnt()
+    public void AJumpOnOpenGroundOrAStoodTrainIsOffTheGroundAndOffAMovingCarIsnt()
     {
         var n = new Night(4, 0);
         double along = n.Train.Cars[1].FrontDistance;
@@ -92,10 +93,40 @@ public class LandingTests
         PlayerMotor.Step(ref s, new PlayerIntent { Buttons = PlayerButtons.Jump }, n.Train, P, n.Train.Dynamics.Tuning, SimConstants.TickSeconds);
         Assert.Equal(Surface.Air, s.Surface);
         Assert.True(s.Has(PlayerFlags.OffTheGround));
-        var roof = PlayerMotor.SpawnOnRoof(n.Train, 1, 0, P);
-        PlayerMotor.Step(ref roof, new PlayerIntent { Buttons = PlayerButtons.Jump }, n.Train, P, n.Train.Dynamics.Tuning, SimConstants.TickSeconds);
+        // Off a moving car it's the train's speed (spec B.3's table); off one standing still, its footing is the ground's (note
+        // 717, the director's 14 Oct playtest, line 7).
+        var moving = new Night(4, 5);
+        var roof = PlayerMotor.SpawnOnRoof(moving.Train, 1, 0, P);
+        PlayerMotor.Step(ref roof, new PlayerIntent { Buttons = PlayerButtons.Jump }, moving.Train, P, moving.Train.Dynamics.Tuning, SimConstants.TickSeconds);
         Assert.Equal(Surface.Air, roof.Surface);
         Assert.False(roof.Has(PlayerFlags.OffTheGround));
+        var stood = PlayerMotor.SpawnOnRoof(n.Train, 1, 0, P);
+        PlayerMotor.Step(ref stood, new PlayerIntent { Buttons = PlayerButtons.Jump }, n.Train, P, n.Train.Dynamics.Tuning, SimConstants.TickSeconds);
+        Assert.Equal(Surface.Air, stood.Surface);
+        Assert.True(stood.Has(PlayerFlags.OffTheGround));
+    }
+
+    [Fact]
+    public void WalkingOffAStandingCarsRoofIsNoKnock()
+    {
+        // Note 717 (the director's 14 Oct playtest, line 7: "Whenever I step off the train, I get like a little vignette red
+        // flash"): off a train standing still, a crewmate's own walk or run is no knock, and a roof's 4 m is under the fall knock.
+        var n = new Night(4, 0);
+        var s = PlayerMotor.SpawnOnRoof(n.Train, 1, 0, P) with { Yaw = -Math.PI / 2 };
+        for (int i = 0; i < 4 * SimConstants.TickRate && (s.Parent != PlayerState.World || s.Surface == Surface.Air); i++)
+            PlayerMotor.Step(ref s, new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Run }, n.Train, P, n.Train.Dynamics.Tuning, SimConstants.TickSeconds);
+        Assert.Equal((PlayerState.World, Surface.Ground), (s.Parent, s.Surface));
+        Assert.Equal(P.Health, s.Health);
+        // Off a moving one it's the table as ever (OffAMovingCarItsTheTableAsEver): the knock is the train's speed.
+        var m = new Night(4, 6);
+        var r = PlayerMotor.SpawnOnRoof(m.Train, 1, 0, P) with { Yaw = -Math.PI / 2 };
+        for (int i = 0; i < 6 * SimConstants.TickRate && (r.Parent != PlayerState.World || r.Surface == Surface.Air); i++)
+        {
+            m.Train.Step(SimConstants.TickSeconds, new TrainControls { Reverser = 1 });
+            m.Train.Dynamics.Velocity = 6;
+            PlayerMotor.Step(ref r, new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Run }, m.Train, P, m.Train.Dynamics.Tuning, SimConstants.TickSeconds);
+        }
+        Assert.True(r.Health < P.Health, $"{r.Health}");
     }
 
     [Fact]

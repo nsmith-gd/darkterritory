@@ -121,10 +121,10 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
         {
             if (!CrewSense.OnGround(p.State) || CrewSense.Group(ctx, p.Id, t.GroupRadius).Count >= size)
                 continue;
-            double d = ((w - centre) with { Y = 0 }).Length;
-            if (d <= t.GiveUpBeyond && d < best)
+            double d = ((w - centre) with { Y = 0 }).Length, weighed = ctx.Weigh(p.Id, d);
+            if (d <= t.GiveUpBeyond && weighed < best)
             {
-                best = d;
+                best = weighed;
                 pick = p.Id;
             }
         }
@@ -357,7 +357,10 @@ public sealed class Gaunt(int id) : Enemy(id)
     /// </summary>
     bool TalkedDown(EnemyContext ctx, GauntTuning t, bool talked)
     {
-        _talk = talked ? _talk + SimConstants.TickSeconds : 0;
+        // Note 720 (GDD §14): a crew singing together near it talks it down faster, its anger's steps and its calm alike.
+        bool sung = talked && Sung(ctx, t);
+        double pace = sung ? Math.Max(1, t.SingingTalks) : 1;
+        _talk = talked ? _talk + SimConstants.TickSeconds * pace : 0;
         if (_talk >= t.SilenceSeconds)
         {
             _talk = 0;
@@ -365,13 +368,33 @@ public sealed class Gaunt(int id) : Enemy(id)
         }
         if (Phase == SpinePhase.Commit && Extra2 < t.AttackAt)
             Enter(ctx, SpinePhase.Telegraph);
-        _calm = talked && Extra2 <= 0 && Phase == SpinePhase.Telegraph ? _calm + SimConstants.TickSeconds : Extra2 > 0 ? 0 : _calm;
+        _calm = talked && Extra2 <= 0 && Phase == SpinePhase.Telegraph ? _calm + SimConstants.TickSeconds * pace : Extra2 > 0 ? 0 : _calm;
         if (_calm < t.TalkedDownSeconds)
             return false;
         Extra = -1; // carrying nothing
         ctx.World.DrivenOff.Add(Kind);
         Enter(ctx, SpinePhase.BreakOff);
+        // Sung off (note 720): the report names the singers near it.
+        if (sung && ctx.World.Run is not null)
+        {
+            var at = WorldPosition(ctx.Train);
+            var singers = ctx.Crew.Where(c => c.Player.State.Alive && ctx.World.Singers.Contains(c.Player.Id)
+                && (PlayerMotor.WorldPosition(c.Player.State, ctx.Train) - at).Length <= t.ListenRadius).Select(c => (int)c.Player.Id).OrderBy(id => id).ToList();
+            string names = string.Join(", ", singers.Select(id => Run.IncidentLog.NameOf(ctx.World, id)));
+            ctx.World.Attribution.Add(Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Sang, $"Sang {Called} off", singers.Count > 0 ? singers[0] : -1,
+                singers.Count > 0 ? $"Singing: {names}." : "", at));
+        }
         return true;
+    }
+
+    /// <summary>Note 720: a crewmate singing together with someone (<see cref="World.Singers"/>) within its listening radius.</summary>
+    bool Sung(EnemyContext ctx, GauntTuning t)
+    {
+        if (ctx.World.Singers.Count == 0)
+            return false;
+        var at = WorldPosition(ctx.Train);
+        return ctx.Crew.Any(c => c.Player.State.Alive && ctx.World.Singers.Contains(c.Player.Id)
+            && (PlayerMotor.WorldPosition(c.Player.State, ctx.Train) - at).Length <= t.ListenRadius);
     }
 
     /// <summary>
@@ -552,7 +575,7 @@ public sealed class Gaunt(int id) : Enemy(id)
     {
         var at = WorldPosition(ctx.Train);
         var near = ctx.LivingCrew().Where(c => (c.World - at).Length <= t.Reach && !c.Player.State.Has(PlayerFlags.Held))
-            .OrderBy(c => (c.World - at).Length).Select(c => ((int)c.Player.Id, c.Player.State.Health)).FirstOrDefault();
+            .OrderBy(c => ctx.Weigh(c.Player.Id, (c.World - at).Length)).Select(c => ((int)c.Player.Id, c.Player.State.Health)).FirstOrDefault();
         _hit += SimConstants.TickSeconds;
         if (near == default || _hit < t.HitEvery)
             return;

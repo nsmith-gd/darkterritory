@@ -2,7 +2,7 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Run;
 
-public enum NewsKind : byte { CarsLost, EngineFailing, EngineBroken }
+public enum NewsKind : byte { CarsLost, EngineFailing, EngineBroken, Marked }
 
 /// <summary>
 /// A piece of the night's news (note 663): cars the engine's lost, or the engine failing or broken down, and what did it.
@@ -40,6 +40,10 @@ public static class News
     /// </summary>
     public static string Line(World world, NewsEvent e)
     {
+        // Note 717: a shove that killed marks the shover, and everyone's told: "MARKED: DAVE (SHOVED PRIYA OFF AT 58 KM/H)".
+        if (e.Kind == NewsKind.Marked)
+            return $"MARKED: {IncidentLog.NameOf(world, e.Who).ToUpperInvariant()} (SHOVED {IncidentLog.NameOf(world, e.Cars.Length > 0 ? e.Cars[0] : -1).ToUpperInvariant()} OFF"
+                + (e.Speed >= 1 ? $" AT {Kmh(e.Speed)})" : ")");
         if (e.Kind != NewsKind.CarsLost)
             return $"{(e.Kind == NewsKind.EngineBroken ? "ENGINE BROKEN DOWN" : "ENGINE FAILING")} · {Knock((KnockCause)e.Cause, e.Speed)}";
         string cars = Cars(e.Cars);
