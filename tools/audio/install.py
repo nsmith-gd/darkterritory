@@ -280,7 +280,10 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 "tell-pickers.emerge": "grate", "cs-pickers.scatter": "squeals",
                 # Note 772: the Wakers from the packs' real things (thunder, rock, iron) first, the models candidates.
                 "tell-wakers.thud": "ground", "tell-wakers.stride": "ground", "tell-wakers.roar": "throat",
-                "cs-wakers.grab": "seized", "cs-wakers.drag": "skid", "cs-wakers.lift": "torn"}
+                "cs-wakers.grab": "seized", "cs-wakers.drag": "skid", "cs-wakers.lift": "torn",
+                # Note 773: Dave's hum modelled (the real one is cut from a roar, and may read as a growl); Jacob's line and
+                # his blessing from the packs' real reel and glass.
+                "figures.dave-paint": "easel", "figures.jacob-fish": "reel", "figures.jacob-bless": "glass"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the

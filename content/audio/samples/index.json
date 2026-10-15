@@ -11910,6 +11910,164 @@
   "takes": 1,
   "sha": "16bf15dea60a8bf9"
  },
+ "figures/dave-grab": {
+  "cue": "figures.dave-grab",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The snap as he takes someone by the neck: a hand landing on a collar, the cloth wrenched tight, a sharp breath in",
+    "key": "collar",
+    "sources": [
+     "kenney_rpg-audio:dropLeather",
+     "sfx_100_v2:misc_05",
+     "kenney_impact-sounds:impactSoft_medium_000",
+     "kenney_impact-sounds:impactSoft_medium_001",
+     "kenney_impact-sounds:impactSoft_medium_002",
+     "kenney_impact-sounds:impactSoft_medium_003",
+     "kenney_impact-sounds:impactSoft_medium_004",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "8a5a50b9943bdcc3"
+ },
+ "figures/dave-laugh": {
+  "cue": "figures.dave-laugh",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A breath of a laugh as he's struck: a soft, warm, amused 'hm' and air out through the nose",
+    "key": "breath",
+    "sources": [
+     "sfx_100_v2:misc_05",
+     "sfx_100_v2:misc_24"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "5442e0e87259c522"
+ },
+ "figures/dave-paint": {
+  "cue": "figures.dave-paint",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Dave at his easel, modelled: bristles slipping over a canvas's weave, dabs, a palette's tap, a man humming low",
+    "key": "easel",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "91ca7bf0a3d982c4"
+ },
+ "figures/dave-turn": {
+  "cue": "figures.dave-turn",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "His last warning: the brush set down on the easel's ledge with a small wooden tap, his stool scraped round",
+    "key": "ledge",
+    "sources": [
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak3",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "e8ec0f007846103b"
+ },
+ "figures/jacob-bless": {
+  "cue": "figures.jacob-bless",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Jacob's blessing: a soft, rising shimmer of bowed glass and chimes, a breath of warm air, down the cars",
+    "key": "glass",
+    "sources": [
+     "sfx_100_v2:glass_05",
+     "sfx_100_v2:glass_02",
+     "sfx_100_v2:glass_01",
+     "sfx_100_v2:glass_04",
+     "sfx_100_v2:glass_06",
+     "kenney_impact-sounds:impactGlass_light_000",
+     "kenney_impact-sounds:impactGlass_light_001",
+     "kenney_impact-sounds:impactGlass_light_002",
+     "kenney_impact-sounds:impactGlass_light_003",
+     "kenney_impact-sounds:impactGlass_light_004",
+     "sfx_100_v2:misc_05"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "b1718410805e7283"
+ },
+ "figures/jacob-fish": {
+  "cue": "figures.jacob-fish",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Jacob at the water's edge: water lapping at the stones, his rod's swish, the reel ticking out, wound slowly in",
+    "key": "reel",
+    "sources": [
+     "sfx_100_v2:loop_water_01",
+     "sfx_100_v2:loop_water_02",
+     "sfx_100_v2:air_03",
+     "sfx_100_v2:air_01",
+     "sfx_100_v2:misc_28",
+     "sfx_100_v2:misc_20",
+     "sfx_100_v2:lock_open_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "ed267ad5db646612"
+ },
+ "figures/party": {
+  "cue": "figures.party",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Nicki's party through the walls, modelled: a fiddle's jig kept low over reeds, talk and laughter, glasses, feet",
+    "key": "fiddle",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "8f9cdeaadf5229c2"
+ },
  "place-breach/board": {
   "cue": "place-breach.board",
   "surface": null,
