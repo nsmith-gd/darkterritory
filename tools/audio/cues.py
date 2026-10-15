@@ -47,7 +47,7 @@ MATERIALS = {
     "cobbles": "Cobbles and stone setts (towns, yards)",
 }
 DROP = ["wood", "grate", "ground", "concrete"]
-FEET = ["wood", "grate", "plate", "roof", "coal", "ballast", "dirt", "grass", "mud", "cobbles", "concrete"]
+FEET = ["wood", "grate", "plate", "roof", "coal", "ballast", "dirt", "grass", "mud", "cobbles", "concrete", "water"]
 
 # The director's note (2 Oct): the bottle-opening/fizz sound was overdone, and used where it made no sense. Fine where a
 # fizz belongs; not as a default texture. Most of it came from these two files (air_01 in 10 earlier references, 7 marked
@@ -1161,6 +1161,13 @@ CUES = {
         O("fist-bump", "Two gloved fists bumping: a dull, soft knuckle knock", vars=3),
         O("sit", "Sat down on an edge, legs over: the coat settling, a boot knocking the side", vars=3),
         O("lean", "Leant out of a doorway: a gloved hand on the frame, its small creak", vars=3),
+    ],
+    # A friend on the crane's hook (queue #525, note 798; K1's #1046, note 726): the cable under a rider, and a cry coming off it.
+    "crew-hoist": [
+        L("creak", "The cable under a crewmate riding the hook: the swivel's iron and the loaded rope creaking as it sways"),
+        O("yelp", "Coming off the hook up in the air (shaken off, or letting go high): a startled cry as the drop takes them", vars=3),
+        # Note 802 (the director, 15 Oct): the drop is "a silly gag, not a big grief", so the landing's comic.
+        O("land", "Down on the ground after coming off the hook: a padded thump and a comic 'oof!', never a body falling dead", vars=3),
     ],
     # Odd outcomes to find (queue #519, note 786; K1's #1038, note 730): small strange things in the towns and dead villages,
     # by design and unexplained. Heard once each, where they happen.
