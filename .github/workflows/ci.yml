@@ -46,6 +46,25 @@ jobs:
         if: runner.os == 'Linux'
       - run: dotnet build Ballast.slnx -c Release
       - run: dotnet test --solution Ballast.slnx -c Release --no-build
+        if: runner.os != 'Linux'
+      # On Linux the Sim suite runs on its own after the rest (note 692): beside the Game tests (lavapipe, the town forms'
+      # towns) the ubuntu runner ran out of memory and was shut down mid-run. The rest still run together.
+      - name: Tests (the Sim suite after the rest)
+        if: runner.os == 'Linux'
+        run: |
+          mkdir -p out/tests
+          pids=()
+          for p in tests/*/; do
+            n=$(basename "$p")
+            [ "$n" = DarkTerritory.Sim.Tests ] && continue
+            dotnet test --project "$p" -c Release --no-build > "out/tests/$n.log" 2>&1 &
+            pids+=($!)
+          done
+          fail=0
+          for pid in "${pids[@]}"; do wait "$pid" || fail=1; done
+          cat out/tests/*.log
+          [ "$fail" = 0 ]
+          dotnet test --project tests/DarkTerritory.Sim.Tests -c Release --no-build
       - run: dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- train table
       - run: dotnet run --project src/DarkTerritory.Cli -c Release --no-build -- art check
       # The gallery (tools/review/gallery.txt), drawn in one process with one dressed renderer (note 517: the look's layers
