@@ -151,7 +151,11 @@ public sealed partial class WorldArt
     /// heath, the dykeland's marsh, mud elsewhere.</summary>
     static string FormTopTexture(string form) => form switch
     {
-        "quarry" => "granite_lichen", "tidewater" => "cobbles", "harbour" => "ground_heath", "dykeland" => "marsh", _ => "ground_mud",
+        "quarry" => "granite_lichen",
+        "tidewater" => "cobbles",
+        "harbour" => "ground_heath",
+        "dykeland" => "marsh",
+        _ => "ground_mud",
     };
 
     /// <summary>A town type's ways on the ground (note 692): a harbour's and a tidewater town's paved, the rest beaten strips.</summary>

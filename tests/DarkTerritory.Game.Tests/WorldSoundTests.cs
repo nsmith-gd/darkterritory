@@ -1143,7 +1143,10 @@ public class WorldSoundTests
             var feet = crane.RiderFeet(0, 1);
             return PlayerMotor.SpawnOnGround(feet, world.Train.Line, 0, audio.PlayerTuning!) with
             {
-                Position = feet, Surface = Surface.Air, Flags = on ? PlayerFlags.Hoisted : PlayerFlags.None, Placed = placed,
+                Position = feet,
+                Surface = Surface.Air,
+                Flags = on ? PlayerFlags.Hoisted : PlayerFlags.None,
+                Placed = placed,
             };
         }
         audio.CrewStates = [(2, Rider(5, true, 1))];

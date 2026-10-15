@@ -689,8 +689,13 @@ public class CrewAudioTests
         // A running jump along the ground (left on foot: OffTheGround), at a run.
         var at = b.Train.Line.Sample(4_000).Position;
         var ground = PlayerMotor.SpawnOnGround(at, b.Train.Line, 4_000, P);
-        var jumping = ground with { Surface = Surface.Air, Flags = PlayerFlags.OffTheGround, Velocity = new Double3(P.Run, -1, 0),
-            Position = ground.Position + Double3.Up * 0.3 };
+        var jumping = ground with
+        {
+            Surface = Surface.Air,
+            Flags = PlayerFlags.OffTheGround,
+            Velocity = new Double3(P.Run, -1, 0),
+            Position = ground.Position + Double3.Up * 0.3
+        };
         b.Step((2, ground));
         b.Step((2, jumping));
         b.Step((2, ground));
