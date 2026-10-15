@@ -1053,7 +1053,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // stages it gnawing, the tower leaning over the line; towerjawfall, the tower down across it.
     string towerJawMode = Str(args, "--towerjaw", view switch { "towerjaw" => "lean", "towerjawfall" => "wreck", _ => "" });
     // --route tier:seed generates the night in memory; --coaling stops the train at its coaling tower, chute pouring.
-    Route? generated = Str(args, "--route", towerJawMode.Length > 0 ? "frontier:3" : Staging.IsHouseView(view) || view is "comet" or "trophies" or "crewphoto" or "lostcrews" or "jackpot" or "jackpothouse" or "looseloot" ? "frontier:7" : "") is { Length: > 0 } spec
+    Route? generated = Str(args, "--route", towerJawMode.Length > 0 ? "frontier:3" : Staging.IsHouseView(view) || view is "comet" or "trophies" or "crewphoto" or "lostcrews" or "jackpot" or "jackpothouse" or "looseloot" ? "frontier:7" : view == "oddities" ? "deadLines:9" : "") is { Length: > 0 } spec
         ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars)
         : null;
     var line = generated?.Build() ?? RailLine.Load(Path.Combine(content, "lines", lineName + ".json"));
@@ -1198,6 +1198,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             towns.Tuning, line, towns.Looks);
         // --clock s: that far into the night, the town's people on their rounds (note 353).
         town.Clock = Opt(args, "--clock", 0);
+        // --bell: its council house's bell just rung (note 730), everyone within earshot stopped and looking up at it.
+        if (args.Contains("--bell") && town.BellRope is { } rope)
+        {
+            var bell = runTuning.Oddities.Bell;
+            foreach (var p in town.Plan.People)
+                if (((town.Feet(p) - rope) with { Y = 0 }).Length <= bell.EarshotM)
+                    town.React(p.Id, town.Clock, bell.LookSeconds, rope + Double3.Up * 6, "idle");
+        }
     }
     // --arrival [square|centre|gate|over|outside|...]: the terminus's town (note 600), the one the next night departs from,
     // the train stopped home inside its gate, the camera standing in it as --town's does in the departure's (TownCamera,
@@ -1396,6 +1404,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     }
     if (town is not null && !args.Contains("--view"))
         camera = Staging.TownCamera(town, args.Contains("--arrival") ? Str(args, "--where", "square") : Str(args, "--town", "square"));
+    // --bell rope (note 730): stood at the council house's bell rope, as a crewmate about to pull it sees it.
+    if (town?.BellRope is { } ropeAt && Str(args, "--bell", "") == "rope" && town.Plan.Buildings.FirstOrDefault(b => b.Style == "council") is { } hall)
+    {
+        var outward = ((ropeAt - town.World(hall.S, hall.D)) with { Y = 0 }).Normalized;
+        var along = Double3.Cross(outward, Double3.Up);
+        camera = Camera.LookAt(ropeAt + outward * 2.6 + along * 1.2 + Double3.Up * 1.65, ropeAt + Double3.Up * 1.6, 60);
+    }
     if (arrival is not null && !args.Contains("--view"))
         camera = Str(args, "--arrival", "square") == "brought"
             // --arrival brought --patrol (note 589): hounds ridden in on car 2, the town's guns on them, seen from the square's
@@ -1414,6 +1429,32 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             return t.Position + right * p[1] + Double3.Up * p[2];
         }
         camera = Camera.LookAt(At(cam), At(Str(args, "--target", cam)), (float)Opt(args, "--fov", 65));
+    }
+    // --odd well|can|scarecrow|postbox (the oddities view: a scarecrow, on deadLines:9): the night's first odd thing of that
+    // oddThing at a stop (note 730), every chance of one taken, the camera stood off its front looking at it; --turned, a
+    // scarecrow found turned to the line.
+    DarkTerritory.Sim.Run.Oddities? oddities = null;
+    if (Str(args, "--odd", view == "oddities" ? "scarecrow" : "") is { Length: > 0 } oddKind && generated is not null)
+    {
+        var ot = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)).Oddities;
+        oddities = DarkTerritory.Sim.Run.Oddities.Of(ot with
+        {
+            Enabled = true,
+            Can = ot.Can with { Chance = 1 },
+            Scarecrow = ot.Scarecrow with { Chance = 1 },
+            Postbox = ot.Postbox with { Chance = 1 },
+        }, generated, line);
+        var oddThing = Enum.Parse<DarkTerritory.Sim.Run.OddThingKind>(oddKind, ignoreCase: true);
+        if (oddities?.Things.FirstOrDefault(x => x.Kind == oddThing) is not { } thing)
+            return Print(new { error = "no " + oddThing + " on this night" });
+        if (args.Contains("--turned"))
+            oddities.Finish(thing.Index);
+        var front = oddities.Facing(thing.Index, line);
+        var aside = Double3.Cross(front, Double3.Up).Normalized;
+        bool can = oddThing == DarkTerritory.Sim.Run.OddThingKind.Can;
+        double back = can ? 1.6 : oddThing == DarkTerritory.Sim.Run.OddThingKind.Well ? 6 : 4.2;
+        camera = Camera.LookAt(thing.At + front * back + aside * (back * 0.35) + Double3.Up * (can ? 0.9 : 1.6),
+            thing.At + Double3.Up * (can ? 0.05 : 1.1), (float)Opt(args, "--fov", 55));
     }
     // --tower (with --coaling): the coaling tower from across the track, along it a way, up at its chute where it pours
     // (note 422); --tower side: from out past the tower on its own side, the trestle and the bunker.
@@ -1955,6 +1996,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --rescue handup|carryfriend (the views handup and carryfriend, note 723): a friend hauled up into a side door; one carried.
     if (Str(args, "--rescue", view switch { "handup" => "handup", "carryfriend" => "carryfriend", _ => "" }) is { Length: > 0 } rescued)
         horseplay = (Staging.Rescue(train, content, rescued), []);
+    // --emotes highfive|danceoff|sitedge|leanout (the views of the same names, note 722): the emotes for two, and the edges.
+    if (Str(args, "--emotes", Staging.EmoteViews.Contains(view) ? view : "") is { Length: > 0 } emoting)
+        horseplay = (Staging.Emotes(train, content, emoting), []);
     // The staged fire's cells as the game cuts them (enemies.json carFire.cellSize), so its flames and char draw (note 763).
     var stagedFire = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).CarFire;
     var scene = new GreyboxScene
@@ -2004,6 +2048,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // mask (note 731); the views masks, maskface and sigil have the anchor.
         CrewSigil = Str(args, "--sigil", view is "masks" or "maskface" or "maskside" or "sigil" ? "anchor" : "") is { Length: > 0 } sigil
             ? int.TryParse(sigil, out int sigilNumber) ? sigilNumber : Array.IndexOf(look?.Tuning.MaskStencils ?? [], sigil) + 1 : 0,
+        Oddities = oddities,
         Crew = horseplay is { } hc ? hc.Crew
             // The handcar views (note 729): two pumping at its handle, or two lifting it down off the van.
             : view is "handcar" or "handcarlift" ? Staging.HandcarCrew(train, view)

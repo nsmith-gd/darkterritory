@@ -180,6 +180,9 @@ public static class Views
             // Note 723 (Staging.Rescue): out on the ballast ahead of a cargo car's open side door, back at the crewmate in it hauling
             // up the friend running beside it; and close along car 2's roof at a friend carried over the shoulder.
             "handup" => HandUpCamera(train),
+            // (Not one of Names.) Note 722 (Staging.Emotes): off the train's side about 6 m out, at the emotes for two on car 2's
+            // roof, a dance-off there, a roof edge and a door sill sat on, and a doorway leant out of.
+            "highfive" or "danceoff" or "sitedge" or "leanout" => Staging.EmoteCamera(train, name),
             "carryfriend" => Camera.LookAt(target.ToWorld(new Double3(1.6, roof + 1.9, -4.4)), target.ToWorld(new Double3(-0.3, roof + 1.2, -1.0)), 50),
             "crewside" => Camera.LookAt(target.ToWorld(new Double3(2.6, roof + 1.9, -4.2)), target.ToWorld(new Double3(-0.8, roof + 1.45, -5.6)), 45),
             // (Not one of Names.) Down on the roof round the first two of the staged crew (dt screenshot --act lantern,...), close
@@ -223,6 +226,9 @@ public static class Views
             // (Not one of Names.) Note 729: the handcar on the line at night, two at its handle, from up the line off its lamp end;
             // and lifted down off the guard van's back, from the ballast behind it (Staging.Handcar).
             "handcar" or "handcarlift" => Staging.HandcarCamera(train, name),
+            // (Not one of Names.) Note 730: a stop's odd thing (dt screenshot --view oddities stages it and stands its own
+            // camera off it); off the engine's side until then.
+            "oddities" => Camera.LookAt(engine.ToWorld(new Double3(9, 1.6, -4)), engine.ToWorld(new Double3(3, 1.4, -2)), 40),
             "trophies" => Camera.LookAt(Staging.Lineside(train, 4.2, -1.6) + Double3.Up * 1.55, Staging.Lineside(train, 7.2, -4.1) + Double3.Up * 0.05, 40),
             // (Not one of Names.) Note 719, the big finds: two crewmates carrying a safe off the line's left (Staging.Jackpot puts
             // the camera beside them), a jackpot house from its street (Staging.JackpotHouse), and the finds slid in a car after
