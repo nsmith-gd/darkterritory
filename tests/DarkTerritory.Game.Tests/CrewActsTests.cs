@@ -35,9 +35,8 @@ public class CrewActsTests
         {
             // The emotes (note 298) wait on their clips (the art checklist's crew-emotes row): until then EmoteArms poses
             // them over the walk and the idle, so a missing one is a stand-in, not a gap. A clip of theirs is used as it lands.
-            // (Note 722's the same: the high five, the fist bump, the dance-off, the sit and the lean, E1's to make.)
-            if (pose is CrewPose.Dance or CrewPose.Wave or CrewPose.Point or CrewPose.HighFive or CrewPose.FistBump or CrewPose.DanceOff
-                or CrewPose.SitEdge or CrewPose.LeanOut && !crew!.Clips.ContainsKey(CreatureArt.ClipOf(pose)))
+            // (Note 722's emotes for two have theirs: note 807.)
+            if (pose is CrewPose.Dance or CrewPose.Wave or CrewPose.Point && !crew!.Clips.ContainsKey(CreatureArt.ClipOf(pose)))
                 continue;
             string clip = CreatureArt.ClipOf(pose);
             Assert.True(pose == CrewPose.Idle || clip != "idle", $"{pose} has no clip of its own");
@@ -54,6 +53,14 @@ public class CrewActsTests
         Assert.Equal(CrewPose.Held, CrewActs.Of(s with { Flags = PlayerFlags.Held }, 1, w));
         Assert.Equal(CrewPose.Climb, CrewActs.Of(s with { Surface = Surface.Ladder }, 1, w));
         Assert.Equal(CrewPose.Push, CrewActs.Of(s with { Flags = PlayerFlags.Pushing }, 1, w));
+        // Note 808: a crewmate who's shoved someone, from the host's knock for the shove's 0.45 s (and a friend thrown off the shoulder).
+        w.Tick = 300;
+        w.Horseplays.Add(new HorseplayEvent(1, 290, 1, KnockKind.Shove, 2));
+        Assert.Equal(CrewPose.Shove, CrewActs.Of(s, 1, w));
+        Assert.Null(CrewActs.Of(s, 2, w));
+        w.Tick = 290 + (uint)Math.Ceiling(CrewActs.ShoveSeconds * SimConstants.TickRate);
+        Assert.Null(CrewActs.Of(s, 1, w));
+        w.Horseplays.Clear();
         Assert.Equal(CrewPose.Lever, CrewActs.Of(s with { Flags = PlayerFlags.Operating }, 1, w));
         // Note 664: crouched on the key, down; a headset rider's body crouches with their head instead.
         Assert.Equal(CrewPose.Crouch, CrewActs.Of(s with { Flags = PlayerFlags.Crouched }, 1, w));

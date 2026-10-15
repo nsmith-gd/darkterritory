@@ -137,6 +137,8 @@ public sealed partial class SceneArt(Look look)
             // (Note 717: a crewmate's knock is the sim's, from when it began; a staged one says how far into it they are.)
             CrewPose.Stagger => c.Phase > 0 ? c.Phase : time - Math.Max(_staggered.GetValueOrDefault(c.Id, since.Time), since.Time),
             CrewPose.FireDoor => FireDoorSince >= 0 ? FireDoorSince : time - since.Time,
+            // (Note 808: a shove from the host's knock, which began the pose; a staged one says how far into it they are.)
+            CrewPose.Shove => c.Phase > 0 ? c.Phase : time - since.Time,
             // A staged swing (dt screenshot --act swing) says how far into it they are; a played one, from its blow.
             CrewPose.Swing => swung >= 0 ? swung + SwingHitAt : c.Phase,
             // The reload's beats follow the gun's own progress, not a clock (CrewActs.ReloadPhase).

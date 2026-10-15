@@ -33,7 +33,7 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
             "handbrake", "hatch", "uncouple", "vent", "lever", "push", "held", "gunner", "fall", "mend", "fp_hold", "fp_walk",
             // (Note 375's stumble; note 378's rescues by the grab; note 407's prisoner's shuffle; note 807's emotes for two.)
             "stumble", "pull_mouth", "pry_off", "haul_down", "shuffle", "dance_off_cheer", "sit_edge", "lean_out", "lean_out_left"],
-            ["dead", "swing", "fp_swing", "jump", "high_five", "high_five_met", "fist_bump", "fist_bump_met", "dance_off"]),
+            ["dead", "swing", "fp_swing", "jump", "high_five", "high_five_met", "fist_bump", "fist_bump_met", "dance_off", "shove"]),
         // The crew figure gone wrong (the Climbers and the Deadman): the crew's own rig and clips.
         ["husk"] = new(2500, 9000, 20, 60, ["idle", "walk", "run", "climb", "shovel", "crouch_idle"], ["dead"]),
         ["switchman"] = new(2000, 9000, 20, 60, ["wait", "flee", "grip"], ["throw"]),

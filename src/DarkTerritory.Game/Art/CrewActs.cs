@@ -111,7 +111,7 @@ public static class CrewActs
     /// </summary>
     const double ShoulderTurn = Math.PI / 2, ShoulderBack = 0.1, ShoulderLift = 0.55;
 
-    /// <summary>How long a shove's arm is out (s): the shover drawn pushing (note 717), from the host's knock.</summary>
+    /// <summary>How long a shove's arms are out (s): the shover drawn shoving (note 717; crew_clips' shove, note 808), from the host's knock.</summary>
     public const double ShoveSeconds = 0.45;
 
     /// <summary>Whether <paramref name="id"/> shoved someone in the last <see cref="ShoveSeconds"/> (note 717, World.Horseplays).</summary>
@@ -509,7 +509,7 @@ public static class CrewActs
         if (s.Stagger > 0)
             return CrewPose.Stagger;
         if (Shoving(id, world))
-            return CrewPose.Push;
+            return CrewPose.Shove;
         // Carrying a friend over the shoulder (note 723), as a body is carried (App. C.4).
         if (s.Has(PlayerFlags.Carrying))
             return CrewPose.Shoulder;

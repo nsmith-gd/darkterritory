@@ -44,6 +44,8 @@ public enum CrewPose
     // "dance_off" and its "_cheer", "sit_edge", "lean_out" and "_left"), picked and timed by what the emote's at
     // (CreatureArt.EmoteClip); a build short of them stands them idle.
     HighFive, FistBump, DanceOff, SitEdge, LeanOut,
+    // A crewmate shoved (note 717; note 808): off the back foot into a lunge, both palms thrown out, played once from the knock.
+    Shove,
 }
 
 /// <summary>
@@ -829,6 +831,7 @@ public sealed partial class CreatureArt
         CrewPose.DanceOff => "dance_off",
         CrewPose.SitEdge => "sit_edge",
         CrewPose.LeanOut => "lean_out",
+        CrewPose.Shove => "shove",
         _ => "idle",
     };
 
@@ -868,6 +871,8 @@ public sealed partial class CreatureArt
                 : clip == "hurry" && has.Model.Clips.ContainsKey("run") ? "run" : clip == "reload" && has.Model.Clips.ContainsKey("gunner") ? "gunner"
                 : clip == "spray" && has.Model.Clips.ContainsKey("extinguish") ? "extinguish" : clip == "hang_up" && has.Model.Clips.ContainsKey("take_down") ? "take_down"
                 : clip is "toolbox" or "toolbox_walk" && has.Model.Clips.ContainsKey("carry") ? clip == "toolbox" ? "carry" : "carry_walk"
+                // (A shove without its own clip: the gun's push, as note 717 drew it.)
+                : clip == "shove" && has.Model.Clips.ContainsKey("push") ? "push"
                 // An emote with no clip of its own (note 298): the dance steps on the spot, the wave and the point stand.
                 : clip is "dance" or "shuffle" && has.Model.Clips.ContainsKey("walk") ? "walk" : "idle";
         // ... and the arms are posed over it (EmoteArms).
@@ -884,7 +889,7 @@ public sealed partial class CreatureArt
         // a blow of the tool in hand (note 275: without it a swing was put off by the variant's beat, up to 2.9 s into a
         // 0.8 s clip, and most of the crew were drawn at its end).
         bool fromStart = pose is CrewPose.GetUp or CrewPose.TakeDown or CrewPose.HangUp or CrewPose.Stagger or CrewPose.Reload or CrewPose.FireDoor
-            or CrewPose.Swing or CrewPose.Jump;
+            or CrewPose.Swing or CrewPose.Jump or CrewPose.Shove;
         fromStart |= emoteClip;
         _skinner.Evaluate(m.Model, c, fromStart ? time : time + offset, pose is not (CrewPose.Dead or CrewPose.Swing) && !fromStart, m.Pose);
         if (body is { } vr)

@@ -64,6 +64,7 @@ What each is for (CrewActs, from the sim's state; GDD/spec where the act is):
   dance_off, dance_off_cheer
                       a dance-off's lead, a move a turn (the windmill, the sprinkler, the knees), each ended pointing at
                       whoever's next; the rest clapping it, a "whoa!", hands rubbed ready for their go (note 807)
+  shove               a crewmate shoved (note 717): off the back foot into a lunge, both palms thrown out at the chest, held
   sit_edge            sat on a roof's or a landing's edge, the legs hanging over and swinging, a lean back on the hands
   lean_out, lean_out_left
                       hung out of a doorway off the jamb ahead, the outside on the right (on the left, mirrored), pointing
@@ -1918,8 +1919,40 @@ for f, pose, interp in lean_out.keys:
     lean_out_left.key(f, swap(pose), interp)
 clips.append(lean_out_left)
 
+# --- shove: a crewmate shoved (note 717; queue #536, note 808) -------------------------------------------------------------
+# Played once from the host's knock (CrewActs.ShoveSeconds, 0.45 s): the sim knocks on the press, so the clip is already
+# coming forward at its start. Loaded back on the right foot, the palms up at the chest; driven off it, a lunge onto the left
+# with the hips going through and both arms thrown out straight at chest height, the head down behind them; held a beat as
+# the weight lands on the front foot; and back.
+def shove_legs(k):
+    """The lunge `k` of the way in (0: square, loaded back; 1: on the bent front knee, the back leg straight and on its toe)."""
+    return {"pelvis@loc": (0, -0.04 + 0.18 * k, -0.03 - 0.05 * k), "pelvis": (0, 0, -6 * k),
+            "thigh_l": (8 + 30 * k, 0, 0), "calf_l": (-8 - 26 * k, 0, 0), "foot_l": (2 - 6 * k, 0, 6),
+            "thigh_r": (-4 - 22 * k, 0, 0), "calf_r": (-12 + 4 * k, 0, 0), "foot_r": (-10 - 22 * k, 0, -6)}
+
+
+def shoving(k, reach, lift=0.0):
+    """The body `k` into the lunge and the palms `reach` m out ahead of the chest, up and open."""
+    body = over(STAND, spine_01=(-2 - 10 * k, 0, 4 * k), spine_02=(-3 - 9 * k, 0, 2 * k), spine_03=(-5 - 4 * k, 0, 0),
+                neck=(8 + 10 * k, 0, 0), head=(-3 - 2 * k, 0, 0), **shove_legs(k))
+    ch = rig.pose_points(sk, body, [("spine_03", "head")])[0]
+    p = hands(body, (0.18, ch.y + 0.24 + reach, ch.z + 0.06 + lift), (-0.18, ch.y + 0.24 + reach, ch.z + 0.06 + lift), fist=False,
+              elbow=(0.42, -0.2, ch.z - 0.2))
+    for s_ in ("r", "l"):
+        p = open_hand(palm(p, s_, 0, -90, 90), s_, 4)
+    return p
+
+
+shove = Clip("shove", loop=False)
+shove.key(0, shoving(0.15, 0.0))
+shove.key(3, shoving(0.75, 0.28), "LINEAR")
+shove.key(5, shoving(1.0, 0.42, lift=0.02))
+shove.key(8, shoving(1.0, 0.4, lift=-0.01))
+shove.key(14, shoving(0.25, 0.08, lift=-0.12))
+clips.append(shove)
+
 kit.build()
-rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"wave", "point", "dance", "paint", "drink", "grill", "eat", "bow", "salute", "conga", "high_five", "high_five_met", "fist_bump", "fist_bump_met", "dance_off",
+rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"wave", "point", "dance", "paint", "drink", "grill", "eat", "bow", "salute", "conga", "shove", "high_five", "high_five_met", "fist_bump", "fist_bump_met", "dance_off",
                                                         "dance_off_cheer", "lean_out", "lean_out_left", "carry", "carry_walk", "drag", "drag_fwd", "shovel", "door", "handbrake", "hatch",
                                                         "uncouple", "vent", "lever", "push", "swing", "mend",
                                                         "gap", "extinguish", "spray", "lantern", "lantern_walk", "haul",
