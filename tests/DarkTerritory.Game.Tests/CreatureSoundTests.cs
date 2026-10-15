@@ -1073,4 +1073,50 @@ public class CreatureSoundTests
         Assert.Equal(["cs-hanger.grab", "cs-hanger.haul", "cs-hanger.retreat"], heard);
         Assert.False(scene.Playing("cs-hanger.haul"));
     }
+
+    // ---- The Pickers (queue #499, note 769) -------------------------------------------------------------------------------
+
+    [Fact]
+    public void ThePickersComeUpScuttleCarryBiteAndGoAndTheGroupIsHeardOnceAtATime()
+    {
+        // Note 592: up out of its drain on its first tick, the grating and a chitter; its feet while it scuttles and a
+        // chitter now and then; the crate and its pant while it carries; the bite; then a scatter's squeals and the drains'
+        // rattle once for the two of them; a squeal cut short when a blow kills one.
+        using var scene = new Scene(2, "tell-pickers.emerge", "tell-pickers.feet~", "tell-pickers.chitter", "cs-pickers.carry~",
+            "cs-pickers.bite", "cs-pickers.scatter", "cs-pickers.down", "cs-pickers.hit", "creature-crumble");
+        var drain = scene.Train.Frames[2].ToWorld(new Double3(-12, 0, 0));
+        Picker P(int id, PickerMode mode, Double3 at) =>
+            Record(new Picker(id), SpinePhase.Telegraph, 0, 1, Enemy.Loose, at, height: (double)mode, extra: -1);
+        Assert.Equal(["tell-pickers.emerge"], scene.Tick(P(90, PickerMode.Emerge, drain)));
+        var heard = new List<string>();
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(P(90, PickerMode.Emerge, drain)));
+        Assert.Empty(heard);
+        // Ten seconds scuttling across the yard at 2 m/s.
+        var at = drain;
+        var step = new Double3(2.0 / SimConstants.TickRate, 0, 0);
+        for (int i = 0; i < 10 * SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(P(90, PickerMode.Scuttle, at += step)));
+        Assert.True(scene.Playing("tell-pickers.feet"));
+        Assert.InRange(heard.Count(h => h == "tell-pickers.chitter"), 1, 5);
+        Assert.DoesNotContain("tell-pickers.emerge", heard);
+        // Carrying a crate home: the crate and the pant, not its feet.
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            scene.Tick(P(90, PickerMode.Carry, at -= step));
+        Assert.True(scene.Playing("cs-pickers.carry"));
+        Assert.False(scene.Playing("tell-pickers.feet"));
+        // A crewmate comes right up: it bites, drops the crate, and it and another near it bolt and go down together.
+        var other = at + new Double3(1, 0, 0);
+        Assert.Equal(["cs-pickers.bite"], scene.Tick(P(90, PickerMode.Bite, at), P(91, PickerMode.Scuttle, other)));
+        Assert.Equal(["cs-pickers.scatter"], scene.Tick(P(90, PickerMode.Scatter, at), P(91, PickerMode.Scatter, other)));
+        for (int i = 0; i < SimConstants.TickRate / 2; i++)
+            scene.Tick(P(90, PickerMode.Scatter, at), P(91, PickerMode.Scatter, other));
+        Assert.False(scene.Playing("cs-pickers.carry"));
+        Assert.Equal(["cs-pickers.down"], scene.Tick(P(90, PickerMode.Down, drain), P(91, PickerMode.Down, drain)));
+        // Another is clubbed: the blow kills it, and its record goes with it.
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            scene.Tick(P(92, PickerMode.Scuttle, at));
+        scene.World.Hits.Add(new HitConfirm(1, scene.World.Tick, 92, EnemyKind.Pickers, 1, HitSource.Melee, at, Double3.Up, true));
+        Assert.Contains("cs-pickers.hit", scene.Tick());
+    }
 }

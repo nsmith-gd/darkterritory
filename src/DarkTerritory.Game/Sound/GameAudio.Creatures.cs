@@ -126,8 +126,10 @@ public sealed partial class GameAudio
                 Heard(world, e, was, at, space, dt);
             else
             {
-                // First sight: nothing has changed yet, so nothing plays; a car already cut loose has been heard going.
+                // First sight: nothing has changed yet, so nothing plays; a car already cut loose has been heard going. But a
+                // Picker's first tick is its coming up out of its drain (note 769).
                 _creatures[e.Id] = was = new Creature { Id = e.Id, CutAway = e.Attached >= 0 && Cut(train, e.Attached) };
+                PickerFirstSeen(e, at, space);
             }
             was.Take(e, at, space);
         }
@@ -252,6 +254,9 @@ public sealed partial class GameAudio
             case Gannet g:
                 GannetSounds(world, g, was, at, occ, dt);
                 Pained("cs-gannet-strike.hit", e, at, occ, struck);
+                break;
+            case Picker p:
+                PickerSounds(p, was, at, occ, dt);
                 break;
             default:
                 SixSounds(world, e, was, at, occ, struck, dt);
@@ -904,6 +909,9 @@ public sealed partial class GameAudio
                 break;
             case EnemyKind.Ribbit when killed:
                 Cue("cs-ribbits.hit", c.At, occ);
+                break;
+            case EnemyKind.Pickers:
+                PickerGone(c, killed, occ);
                 break;
             case EnemyKind.Choir when killed:
                 Cue("cs-choir.hit", c.At, occ);

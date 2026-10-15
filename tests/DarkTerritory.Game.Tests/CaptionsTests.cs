@@ -60,6 +60,9 @@ public class CaptionsTests
     [InlineData("cs-hollow-house.slam")]
     [InlineData("tell-hanger.rafters")]
     [InlineData("tell-hanger-strands.hum")]
+    // Note 769: the Pickers coming up out of the drains, and taking a crate.
+    [InlineData("tell-pickers.emerge")]
+    [InlineData("cs-pickers.carry")]
     public void TheTellsAndCallsSinceCaptionsAreCaptioned(string sound)
     {
         // Note 391: the signs as they play since note 342, the Moose's and the Gannet's tells (notes 334, 384), and the jobs
