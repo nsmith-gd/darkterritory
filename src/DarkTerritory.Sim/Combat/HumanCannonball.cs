@@ -100,6 +100,115 @@ public static class HumanCannonball
         s.Velocity = default;
     }
 
+    /// <summary>A crewmate fired (note 746): who, by whom, from where (the world), at what velocity, to land where.</summary>
+    public readonly record struct Launch(int Who, int By, int Gun, Double3 From, Double3 Velocity, Double3 Landing);
+
+    /// <summary>
+    /// The seated gunner's Fire at the guard van's gun with a crewmate in it (note 746): the same gates as a round (ready, cooled,
+    /// steam, the aim in its arc) and the same reload after, but no ball: the crewmate, to a landing point along the aim
+    /// (<see cref="LandingPoint"/>). Null otherwise; a gun with nobody in it fires its ball (<see cref="Guns.TryFire"/>).
+    /// </summary>
+    public static Launch? TryFire(in PlayerState s, in PlayerIntent intent, TrainOnLine train, GunTuning guns, CannonballTuning t,
+        ref ChoirState choir, ChoirTuning ct, uint tick, int shooter, IEnumerable<(int Id, PlayerState State)> crew, double gravity)
+    {
+        if (!intent.Has(PlayerButtons.Fire) || !s.Has(PlayerFlags.Seated) || Guns.MannedGun(s, train, guns) is not { } g || !Takes(train, g)
+            || Inside(g, crew) is not { } who)
+            return null;
+        ref var gun = ref train.Vehicles[g].Gun;
+        if (gun.Jammed || Guns.Ready(gun, guns) <= 0 || gun.Cooldown > 0 || gun.ReloadNeeded > 0)
+            return null;
+        if (train.BoilerTuning is not null && train.Boiler.Pressure < guns.MinPressure)
+            return null;
+        var frame = train.Frames[g];
+        var mount = Guns.Mount(train, g)!.Value;
+        var aimLocal = Guns.BarrelAim(mount, gun);
+        if (Guns.CheckAim(mount, aimLocal, guns) != AimResult.Ok)
+            return null;
+        gun.Cooldown = guns.TicksPerRound;
+        gun.LastShotTick = tick;
+        gun.ReloadNeeded = Guns.Ready(gun, guns) > 0 ? guns.ReloadSteps : 0;
+        gun.ReloadProgress = 0;
+        choir.RoundFired(ct, 1);
+        var from = frame.ToWorld(Muzzle(train, g, t));
+        var aim = frame.DirToWorld(aimLocal);
+        var level = new Double3(aim.X, 0, aim.Z);
+        level = level.Length > 1e-6 ? level.Normalized : frame.DirToWorld(mount.Facing);
+        var landing = LandingPoint(train, from, level, t);
+        // Level at speed to it, and up enough that gravity alone (the motor's air step) brings them down there.
+        double across = Flat(landing - from).Length, time = Math.Max(0.4, across / t.Speed);
+        var velocity = Flat(landing - from) * (1 / time) + Double3.Up * ((landing.Y - from.Y + 0.5 * gravity * time * time) / time);
+        return new Launch(who, shooter, g, from, velocity, landing);
+    }
+
+    /// <summary>
+    /// Where a crewmate fired along <paramref name="level"/> from <paramref name="origin"/> comes down (note 746, the director: "Don't
+    /// ever allow a player to be fired off the map"): <see cref="CannonballTuning.Range"/> m out, stepped back toward the gun
+    /// until it's dry ground beside the line (not water, within the map's width and the line's room there, between its ends).
+    /// The ground's height there.
+    /// </summary>
+    public static Double3 LandingPoint(TrainOnLine train, Double3 origin, Double3 level, CannonballTuning t)
+    {
+        var line = train.Line;
+        double hint = train.Dynamics.Distance;
+        for (double d = t.Range; d >= t.Step; d -= t.Step)
+        {
+            var p = origin + level * d;
+            var (path, along) = line.Nearest(p, ref hint);
+            if (along <= 1 || along >= line.PathLength(path) - 1)
+                continue;
+            var rail = line.Sample(path, along).Position;
+            double off = Flat(p - rail).Length;
+            if (off > t.MapHalfWidth || line.Conditions is { } c && off > c.LateralRoom(path, along))
+                continue;
+            double ground = PlayerMotor.GroundAt(p, line, ref hint);
+            if (Guns.Water(train, p) is { } w && w > ground)
+                continue;
+            return p with { Y = ground };
+        }
+        // Nowhere out there: down at the gun's foot, beside the van.
+        double g0 = PlayerMotor.GroundAt(origin, line, ref hint);
+        return origin with { Y = g0 };
+    }
+
+    /// <summary>
+    /// The host's: a launch put on its crewmate (note 746), if they're still in the gun: out of it, in the world's frame at the
+    /// muzzle, flying, <see cref="PlayerFlags.Fired"/>.
+    /// </summary>
+    public static bool Fire(ref PlayerState s, in Launch launch)
+    {
+        if (!s.Alive || !s.Has(PlayerFlags.InCannon))
+            return false;
+        s.Flags = (s.Flags & ~(PlayerFlags.InCannon | PlayerFlags.Seated | PlayerFlags.Crouched)) | PlayerFlags.Fired;
+        s.Parent = PlayerState.World;
+        s.Position = launch.From;
+        s.Velocity = launch.Velocity;
+        s.Surface = Surface.Air;
+        return true;
+    }
+
+    /// <summary>
+    /// In the air from the cannon (note 746, the director: "The fired player needs to be facing the impact location when they
+    /// are flying through the air"): the view on where they'll come down, from where they are and how they're going, the
+    /// ground under them for its height; the same on every machine.
+    /// </summary>
+    public static void Face(ref PlayerState s, TrainOnLine train, double gravity)
+    {
+        var at = s.Parent == PlayerState.World ? s.Position : train.Frames[s.Parent].ToWorld(s.Position);
+        var v = s.Velocity;
+        double hint = train.Dynamics.Distance;
+        double ground = PlayerMotor.GroundAt(at, train.Line, ref hint);
+        // When it reaches that height again: y + vy t - g t² / 2 = ground.
+        double a = 0.5 * gravity, b = -v.Y, c = ground - at.Y;
+        double disc = b * b - 4 * a * c;
+        double time = disc > 0 ? (-b + Math.Sqrt(disc)) / (2 * a) : 0.5;
+        var landing = new Double3(at.X + v.X * time, ground, at.Z + v.Z * time);
+        var to = landing - at;
+        if (Flat(to).Length < 1e-3)
+            return;
+        s.Yaw = DMath.Atan2(-to.X, -to.Z);
+        s.Pitch = DMath.Atan2(to.Y, Flat(to).Length);
+    }
+
     /// <summary>Who's in this vehicle's gun, of these crewmates, or null.</summary>
     public static int? Inside(int vehicle, IEnumerable<(int Id, PlayerState State)> crew) =>
         crew.Where(c => c.State.Has(PlayerFlags.InCannon) && c.State.Parent == vehicle).Select(c => (int?)c.Id).FirstOrDefault();

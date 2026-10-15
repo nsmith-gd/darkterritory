@@ -267,6 +267,30 @@ public sealed partial class World
             set(k.Target, s);
         }
         _knocks.Clear();
+        // The human cannonball (note 746): fired from the gun, if they're still in it; in the air, a creature hit stops them dead
+        // (they drop, unhurt); landed, the flight's over.
+        foreach (var launch in _launches)
+            if (get(launch.Who) is { } s && HumanCannonball.Fire(ref s, launch))
+            {
+                set(launch.Who, s);
+                _flights[launch.Who] = launch.By;
+                _flightHit.Remove(launch.Who);
+            }
+        _launches.Clear();
+        foreach (int id in _flights.Keys.ToList())
+        {
+            if (get(id) is not { } s || !s.Has(PlayerFlags.Fired))
+            {
+                _flights.Remove(id);
+                _flightHit.Remove(id);
+                continue;
+            }
+            if (_flightHit.Contains(id) && (s.Velocity.X != 0 || s.Velocity.Z != 0))
+            {
+                s.Velocity = new Ballast.Double3(0, Math.Min(s.Velocity.Y, 0), 0);
+                set(id, s);
+            }
+        }
     }
 
     /// <summary>How many steps a lump's flight is cut into each tick, so a fast one doesn't pass through a body between two.</summary>

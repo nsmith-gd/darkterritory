@@ -98,4 +98,97 @@ public class CannonballTests
         w.Train.Vehicles[Van(w)].Gun.ReloadNeeded = 3;
         Assert.Null(HumanCannonball.AtTheMuzzle(s, w.Train, Tuning.Combat.Guns, Tuning.Combat.Cannonball));
     }
+
+    /// <summary>
+    /// A host's tick of a gunner (1) and whoever's in the gun (2), in the host's order (HostSession.Step): everyone acts, the
+    /// world steps, what's owed lands (the launch), everyone's feet move, then the bodies.
+    /// </summary>
+    static void Tick(World w, ref PlayerState gunner, PlayerIntent fire, ref PlayerState inside)
+    {
+        w.BeginTick();
+        w.CrewAct(ref gunner, fire, 1);
+        w.CrewAct(ref inside, default, 2);
+        w.Step(new TrainControls { Reverser = 1, Brake = 1 });
+        var crew = new Dictionary<int, PlayerState> { [1] = gunner, [2] = inside };
+        w.ApplyDamage(id => crew.TryGetValue(id, out var x) ? x : null, (id, x) => crew[id] = x, [1, 2]);
+        (gunner, inside) = (crew[1], crew[2]);
+        PlayerMotor.Step(ref gunner, fire, w.Train, P, w.Train.Dynamics.Tuning, SimConstants.TickSeconds, applyLook: false);
+        PlayerMotor.Step(ref inside, default, w.Train, P, w.Train.Dynamics.Tuning, SimConstants.TickSeconds, applyLook: false);
+        w.StepBodies([(1, gunner), (2, inside)]);
+    }
+
+    /// <summary>The van's gunner seated at its gun, and a crewmate in it, the gun loaded with them.</summary>
+    static (PlayerState Gunner, PlayerState Inside) Loaded(World w)
+    {
+        int van = Van(w);
+        var inside = AtTheMuzzle(w);
+        Act(w, ref inside, Use, Tuning.Combat.Cannonball.ClimbSeconds + 0.1);
+        Assert.True(inside.Has(PlayerFlags.InCannon));
+        var mount = Guns.Mount(w.Train, van)!.Value;
+        var gunner = PlayerMotor.SpawnOnRoof(w.Train, van, 0, P);
+        gunner = gunner with { Position = new Double3(mount.Position.X, gunner.Position.Y, mount.Position.Z), Flags = gunner.Flags | PlayerFlags.Seated };
+        w.StepBodies([(1, gunner), (2, inside)]);
+        return (gunner, inside);
+    }
+
+    [Fact]
+    public void FiredTheyFlyAlongTheAimFacingWhereTheyLandAndLandUnhurt()
+    {
+        var w = World(dressed: true);
+        w.EnableBodies();
+        w.Movement = P;
+        var (gunner, inside) = Loaded(w);
+        int health = inside.Health;
+        var fire = new PlayerIntent { Buttons = PlayerButtons.Fire };
+        Tick(w, ref gunner, fire, ref inside);
+        Assert.True(inside.Has(PlayerFlags.Fired), "not fired");
+        Assert.False(inside.Has(PlayerFlags.InCannon));
+        Assert.Equal(Tuning.Combat.Guns.ReloadSteps, w.Train.Vehicles[Van(w)].Gun.ReloadNeeded);
+        // Through the air, facing where they come down (the look a tick behind the flight, so near enough).
+        bool faced = true;
+        for (int i = 0; i < 10 * SimConstants.TickRate && inside.Surface == Surface.Air; i++)
+        {
+            Tick(w, ref gunner, default, ref inside);
+            if (inside.Surface != Surface.Air)
+                break;
+            var v = inside.Velocity;
+            double yaw = Math.Atan2(-v.X, -v.Z);
+            faced &= Math.Abs(Math.IEEERemainder(inside.Yaw - yaw, 2 * Math.PI)) < 0.05;
+        }
+        Assert.NotEqual(Surface.Air, inside.Surface);
+        Assert.True(faced, "looked away from where they were going");
+        Assert.True(inside.Alive, $"died of {inside.Death}");
+        Assert.Equal(health, inside.Health);
+        Assert.False(inside.Has(PlayerFlags.Fired));
+        // Out where the gun pointed, the range away (on a plain line: nothing stepped it back).
+        var muzzle = w.Train.Frames[Van(w)].ToWorld(HumanCannonball.Muzzle(w.Train, Van(w), Tuning.Combat.Cannonball));
+        var landed = PlayerMotor.WorldPosition(inside, w.Train);
+        double out_ = Math.Sqrt((landed.X - muzzle.X) * (landed.X - muzzle.X) + (landed.Z - muzzle.Z) * (landed.Z - muzzle.Z));
+        Assert.InRange(out_, Tuning.Combat.Cannonball.Range - 4, Tuning.Combat.Cannonball.Range + 4);
+    }
+
+    [Fact]
+    public void TheLandingIsNeverOffTheMapOrPastTheLinesEnd()
+    {
+        var w = World(dressed: true);
+        var t = Tuning.Combat.Cannonball with { MapHalfWidth = 10 };
+        var from = w.Train.Frames[Van(w)].Origin;
+        // Straight out sideways, past a map 10 m wide: brought back to it.
+        var side = HumanCannonball.LandingPoint(w.Train, from, new Double3(1, 0, 0), t);
+        Assert.InRange(Math.Abs(side.X - from.X), 0, 10.01);
+        // Back down the line, its start 5-30 m behind the van: brought in short of the end, on the line's own ground.
+        var line = new RailLine(new LineDefinition("t", [new TrackSegment(20_000)]));
+        double hint = 0;
+        TrainOnLine? near = null;
+        for (double head = 40; head < 400 && near is null; head += 2)
+        {
+            var tr = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 4, 1)), line, head, Tuning.Boiler);
+            if (line.Nearest(tr.Frames[^1].Origin, ref hint).Distance is >= 5 and <= 30)
+                near = tr;
+        }
+        Assert.NotNull(near);
+        var tail = near.Frames[^1];
+        var back = HumanCannonball.LandingPoint(near, tail.Origin, tail.DirToWorld(new Double3(0, 0, 1)), Tuning.Combat.Cannonball);
+        Assert.InRange(line.Nearest(back, ref hint).Distance, 1, 20_000);
+    }
 }

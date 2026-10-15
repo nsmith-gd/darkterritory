@@ -376,6 +376,11 @@ public enum PlayerFlags : uint
     /// barrel, still, till the gunner fires it or Jump climbs out (<see cref="DarkTerritory.Sim.Combat.HumanCannonball"/>).
     /// </summary>
     InCannon = 262144,
+    /// <summary>
+    /// Fired from the guard van's cannon (note 746): in the air, the stick does nothing, the view's held on where they'll come
+    /// down, and the landing never hurts ("we're going for fun in this one"). Cleared on landing.
+    /// </summary>
+    Fired = 524288,
 }
 
 /// <summary>
@@ -661,7 +666,7 @@ public static class PlayerMotor
         bool aloft = s.Surface == Surface.Air;
         Move(ref s, input, train, p, t, dt, applyLook, self, crowd);
         if (s.Surface != Surface.Air)
-            s.Flags &= ~(PlayerFlags.OffTheGround | PlayerFlags.Shoved);
+            s.Flags &= ~(PlayerFlags.OffTheGround | PlayerFlags.Shoved | PlayerFlags.Fired);
         else if (!aloft)
             s.Flags = onGround ? s.Flags | PlayerFlags.OffTheGround : s.Flags & ~PlayerFlags.OffTheGround;
         // Note 717: a stagger wears off a tick at a time, here and on a predicting client alike.
@@ -681,6 +686,13 @@ public static class PlayerMotor
 
         if (applyLook)
             Look(ref s, intent);
+        // Fired from the cannon (note 746): the flight's the cannon's, facing where it comes down.
+        if (s.Has(PlayerFlags.Fired) && s.Surface == Surface.Air)
+        {
+            intent.MoveX = intent.MoveZ = 0;
+            intent.Buttons &= ~(PlayerButtons.Jump | PlayerButtons.Run);
+            Combat.HumanCannonball.Face(ref s, train, p.Gravity);
+        }
 
         StepCold(ref s, train, p, dt);
         if (!s.Alive)
@@ -1267,6 +1279,9 @@ public static class PlayerMotor
     /// </summary>
     static void Land(ref PlayerState s, Double3 worldVelocity, PlayerTuning p, TrainTuning t)
     {
+        // Fired from the cannon (note 746, the director: "Make sure the player doesn't die when they are fired"): a roll, unhurt.
+        if (s.Has(PlayerFlags.Fired))
+            return;
         double horizontal = Math.Sqrt(worldVelocity.X * worldVelocity.X + worldVelocity.Z * worldVelocity.Z);
         // Note 573: off the ground's own footing (a dip, a bank on open ground), the knock is for what's over their own run, not
         // the run: spec B.3's table is for leaving the train, at its speed. frontier:7 seed 4's driver, running beside the train

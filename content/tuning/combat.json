@@ -103,8 +103,12 @@
   "fumes": { "cars": 1, "gasM": 8, "damage": 150 },
   // The human cannonball (note 746; docs/design/upgrades.md §8.3; campaign.json humanCannonball): on the guard van's gun, packed
   // and waiting on its ball, a crewmate within climbReach m of the muzzle (muzzle m out along the barrel from the pivot), nearer
-  // it than the pivot, holding Use climbSeconds, climbs in instead of the ball. Jump climbs out.
-  "cannonball": { "climbReach": 1.0, "climbSeconds": 1.5, "muzzle": 1.5 },
+  // it than the pivot, holding Use climbSeconds, climbs in instead of the ball. Jump climbs out. The gunner's shot flies them at
+  // speed m/s (level) to a point range m along the gun's aim, stepped back step m at a time until it's dry ground on the map
+  // (within mapHalfWidth m of the line, and the line's own room there); the landing never hurts. A creature within hitRadius
+  // m of them in the air takes the ball's hit (guns.damagePerRound) once, and they drop there.
+  "cannonball": { "climbReach": 1.0, "climbSeconds": 1.5, "muzzle": 1.5, "range": 40, "speed": 22, "step": 2, "mapHalfWidth": 300,
+    "hitRadius": 1.2 },
   "hits": {
     "keepSeconds": 1,
     "impactKeepSeconds": 8

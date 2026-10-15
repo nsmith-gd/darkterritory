@@ -1829,7 +1829,21 @@ public sealed partial class World
         // A Muskoka chair on the BBQ deck (note 698): sat in with the same press, got up from with it again.
         Bbq.Sit(ref s, intent, Train, LastCrew.Where(c => c.Id != playerId).Select(c => c.State), Hand);
         var targets = viewTick is { } vt && _targetHistory.TryGetValue(vt, out var then) ? then : Targets;
-        if (Combat is { } c && Guns.TryFire(s, intent, Train, c.Guns, ref Choir, c.Choir, targets, Tick, playerId) is { } shot)
+        // The human cannonball (note 746): a crewmate in the guard van's gun is what it fires, not a ball (the host's crew list).
+        bool manned = false;
+        if (Combat is { } hc && Guns.MannedGun(s, Train, hc.Guns) is { } mg && HumanCannonball.Takes(Train, mg)
+            && HumanCannonball.Inside(mg, LastCrew) is not null)
+        {
+            manned = true;
+            if (HumanCannonball.TryFire(s, intent, Train, hc.Guns, hc.Cannonball, ref Choir, hc.Choir, Tick, playerId, LastCrew,
+                    Movement?.Gravity ?? 9.81) is { } launch && Hosting)
+            {
+                _launches.Add(launch);
+                CreditChoir(playerId, hc.Choir.RoundLoudness * hc.Choir.WindowSeconds);
+                Drew(DrawCause.Cannon, playerId, Director?.Tuning.Draw.Weight(DrawCause.Cannon) ?? 0);
+            }
+        }
+        if (!manned && Combat is { } c && Guns.TryFire(s, intent, Train, c.Guns, ref Choir, c.Choir, targets, Tick, playerId) is { } shot)
         {
             Shots.Add(shot);
             // A good shot at a switch stand throws it (note 595), the host's say as a hand on it is.
@@ -1981,6 +1995,11 @@ public sealed partial class World
     readonly HashSet<int> _lampWas = new();
     /// <summary>Note 752: the pairs of hands on each gun's reload this tick, by its vehicle. Looked up, never iterated.</summary>
     readonly Dictionary<int, int> _gunHands = new();
+    /// <summary>The human cannonball's launches this tick (note 746), put on their crewmates once everyone's acted.</summary>
+    readonly List<HumanCannonball.Launch> _launches = new();
+    /// <summary>Who's in the air from the cannon, and who fired them (for a creature they hit); and who's hit one already.</summary>
+    readonly Dictionary<int, int> _flights = new();
+    readonly HashSet<int> _flightHit = new();
     /// <summary>Note 752: who worked which job (a breach, the burst boiler) this tick, and last tick: two at one work it faster.</summary>
     List<(BreakKind Kind, int Vehicle, int Player)> _jobsNow = [], _jobsThen = [];
 
@@ -2614,6 +2633,25 @@ public sealed partial class World
                     struck.Hit(ctx, shot.Shooter, c.Guns.DamagePerRound);
                     Confirm(struck, shot.Shooter, HitSource.Cannon, shot.Impact, shot.Direction);
                 }
+
+        // The human cannonball (note 746, the director: "If a player is fired into a monster they need to do damage to it"): a
+        // creature within cannonball.hitRadius of someone in the air from the cannon takes the ball's hit, once a flight.
+        if (Combat is { } cb)
+            foreach (var (player, _) in ctx.Crew)
+            {
+                if (!player.State.Has(PlayerFlags.Fired) || !_flights.TryGetValue(player.Id, out int by) || _flightHit.Contains(player.Id))
+                    continue;
+                var at = PlayerMotor.WorldPosition(player.State, Train) + Ballast.Double3.Up * 0.9;
+                foreach (var target in Targets)
+                    if ((target.Position - at).Length <= target.Radius + cb.Cannonball.HitRadius
+                        && _enemies.FirstOrDefault(e => e.Id == target.Id) is { Exposed: true } struck)
+                    {
+                        struck.Hit(ctx, by, cb.Guns.DamagePerRound);
+                        Confirm(struck, by, HitSource.Cannon, target.Position, player.State.Velocity.Length > 1e-6 ? player.State.Velocity.Normalized : Ballast.Double3.Up);
+                        _flightHit.Add(player.Id);
+                        break;
+                    }
+            }
 
         // How long the cab's been empty (the Track Doll's tampering; and a cab left empty is how a firebox door's left open).
         CabEmptySeconds = ctx.Crew.Any(c => c.Player.State.Alive && PlayerMotor.InCab(c.Player.State, Train)) ? 0 : CabEmptySeconds + SimConstants.TickSeconds;
