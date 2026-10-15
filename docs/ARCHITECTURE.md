@@ -941,4 +941,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [779. A car and the engine coming apart, each stage its own look (C1, queue #509; the art checklist's `failing-stages`: "each stage needs a look…](notes/779.md)
 - [780. Each night its own lineside: the art's dressing dealt from the night's own seed, not the same at the same km every night (queue #510, B1;…](notes/780.md)
 - [791. The crew's clips for the upgrades: sat back in a Muskoka chair, a beer and a cheers, a sausage turned and eaten, the bow, the salute and…](notes/791.md)
+- [793. The town flag's flutter never races (C1, queue #520; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 2: "The flag blowing in the…](notes/793.md)
 <!-- end of the notes index -->
