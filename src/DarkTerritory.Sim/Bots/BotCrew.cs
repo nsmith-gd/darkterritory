@@ -26,6 +26,22 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
             _owned.Add(owned);
     }
 
+    /// <summary>Bots that left the crew (note 724): a friend took their seat, or the host put them off.</summary>
+    public int Retired { get; private set; }
+
+    /// <summary>
+    /// Note 724: the bot playing <paramref name="id"/> leaves the crew (a joiner took its seat, or it was put off): it's no
+    /// longer stepped, and the host has already hung up on its link. Its transport goes with the crew, as ever.
+    /// </summary>
+    public void Retire(byte id)
+    {
+        int i = _bots.FindIndex(b => b.Session.PlayerId == id);
+        if (i < 0)
+            return;
+        _bots.RemoveAt(i);
+        Retired++;
+    }
+
     public void Dispose()
     {
         foreach (var o in _owned)
@@ -169,6 +185,9 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         // engine's roof (out of reach from inside it), the driver never came back, and the fire went out under it.
         if (!hunted && !(bot is ConductorBot { Driving: true } && session.Train.Dynamics.Speed > Net.CabControls.StandingBelow))
             intent = Heed.Rescue(intent, session.Predicted, session.World, me, others);
+        // Note 723: a crewmate playing, running beside the moving car within a hand-up's reach: hauled up.
+        if (!hunted && bot is not ConductorBot)
+            intent = Heed.HandUp(intent, session.Predicted, session.World, me, others, calls, session.PlayerTuning.Rescue);
         // Note 658: the Ribbits near, clubbed by whoever's on the ground (a rescue alone only evens the count).
         if (!hunted)
             intent = Heed.Ribbits(intent, session.Predicted, session.World, me);
@@ -183,6 +202,8 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         intent = Heed.Drift(intent, session.Predicted, session.World, me);
         intent = Heed.Gannet(intent, session.Predicted, session.World, me);
         intent = Heed.Heal(intent, session.Predicted, session.World, me);
+        // Note 729: the other end of the handcar's handle, for a crewmate playing at one.
+        intent = Heed.Handcar(intent, session.Predicted, session.World, me, others, calls);
         // Note 659: round what's lying in a car, last, whatever it was going there for.
         intent = Heed.Lying(intent, session.Predicted, session.World, session.PlayerTuning);
         // Note 740 (GDD §17): aboard after the horn, "Aboard!", once: the crew see who's called back.
@@ -191,6 +212,8 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
             intent.Emote = Emote.Aboard;
             calls.CallBack(me);
         }
+        // Note 716: and round the big cab's chart table and benches, down the ways either side of them.
+        intent = Heed.CabFurniture(intent, session.Predicted, session.World, session.PlayerTuning);
         return Vote(intent, session, me);
     }
 

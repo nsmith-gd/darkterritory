@@ -35,7 +35,7 @@ public static class Solidity
                 {
                     var was = p;
                     foreach (var w in walls.Near(p))
-                        if (!w.Fort)
+                        if (!w.Fort && !w.Trestle)
                             p = Out(w, p, r);
                     if (p == was)
                         break;
@@ -65,7 +65,7 @@ public static class Solidity
             {
                 var was = p;
                 foreach (var w in walls.Near(p))
-                    if (!w.Fort)
+                    if (!w.Fort && !w.Trestle)
                         p = Out(w, p, r);
                 if (p == was)
                     break;

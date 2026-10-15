@@ -42,6 +42,60 @@ public static class PngWriter
         Chunk(output, "IEND"u8, []);
     }
 
+    /// <summary>
+    /// Reads back a PNG this writer wrote (8-bit RGBA, unfiltered rows): a kept photo shown again (Dark Territory's logbook,
+    /// note 721). Null for a file it can't read or any other kind of PNG; it's not a general decoder.
+    /// </summary>
+    public static (int Width, int Height, byte[] Rgba)? Read(string path)
+    {
+        try
+        {
+            var bytes = File.ReadAllBytes(path);
+            if (bytes.Length < 33 || bytes[1] != 0x50 || bytes[2] != 0x4E || bytes[3] != 0x47)
+                return null;
+            int at = 8, width = 0, height = 0;
+            using var idat = new MemoryStream();
+            while (at + 8 <= bytes.Length)
+            {
+                int length = BinaryPrimitives.ReadInt32BigEndian(bytes.AsSpan(at));
+                var type = System.Text.Encoding.ASCII.GetString(bytes, at + 4, 4);
+                if (length < 0 || at + 12 + length > bytes.Length)
+                    return null;
+                var data = bytes.AsSpan(at + 8, length);
+                if (type == "IHDR")
+                {
+                    width = BinaryPrimitives.ReadInt32BigEndian(data);
+                    height = BinaryPrimitives.ReadInt32BigEndian(data[4..]);
+                    if (data[8] != 8 || data[9] != 6 || data[12] != 0)
+                        return null;
+                }
+                else if (type == "IDAT")
+                    idat.Write(data);
+                else if (type == "IEND")
+                    break;
+                at += 12 + length;
+            }
+            if (width <= 0 || height <= 0 || width > 8192 || height > 8192)
+                return null;
+            idat.Position = 0;
+            using var z = new ZLibStream(idat, CompressionMode.Decompress);
+            var rgba = new byte[width * height * 4];
+            var row = new byte[1 + width * 4];
+            for (int y = 0; y < height; y++)
+            {
+                z.ReadExactly(row);
+                if (row[0] != 0)
+                    return null;
+                row.AsSpan(1).CopyTo(rgba.AsSpan(y * width * 4));
+            }
+            return (width, height, rgba);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidDataException)
+        {
+            return null;
+        }
+    }
+
     static void Chunk(Stream s, ReadOnlySpan<byte> type, ReadOnlySpan<byte> data)
     {
         Span<byte> len = stackalloc byte[4];

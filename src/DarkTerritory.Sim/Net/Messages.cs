@@ -88,7 +88,18 @@ public static class Protocol
     // 60: an emote past the hotbar byte's two bits (note 740: "Aboard!"): both wheel-step bits set say the emote, and the
     //     step, follow in a byte of their own.
     // 61: pings (note 739): a record kind of their own; the ping itself rides the intent's moves byte (bit 5).
-    public const int Version = 61;
+    // 62: sessions (note 724): the crew's save sent to everyone aboard as a night's settled (CrewSave, in chunks); kick and the
+    //     public lobby's vote to put a player off (Kick, KickVote, Kicked; a Refused can say the crew put you off); and the
+    //     lobby's crew mischief switch (Mischief), changed in the yard.
+    // 63: the sense table (note 728): the body record's ninth field carries a toy playing where it lies (its noise | 0x100) and
+    //     a thrown lamp broken and burning (1).
+    // 64: bringing them home (note 723): two player flags (carried over a friend's shoulder, and carrying one) and a knock of
+    //     its own (a friend thrown off the shoulder).
+    // 65: the big finds (note 719): a find's body record carries a fragile one's knocks over its use ticks (its ninth field,
+    //     bits 16 up), and the doors' record the jackpot houses' locks being picked after the doors shut (key, progress pairs).
+    // 66: the handcar (note 729): a vehicle kind of its own and a Handcar record (hung or on the rails, the handle's swing, the
+    //     pumpers' drive, the brake, a lift under way, how many at the handle); a player's flags carry Pumping.
+    public const int Version = 66;
 }
 
 public enum MessageType : byte
@@ -147,6 +158,22 @@ public enum MessageType : byte
     /// rather than going back to its menu.
     /// </summary>
     CarryOn = 20,
+    /// <summary>
+    /// Host → everyone aboard, reliable, as the host settles a campaign night into the save (note 724): one chunk of the crew's
+    /// save, its JSON compressed, in order. Each machine keeps it among the crews it's ridden with, and any of them can host it.
+    /// </summary>
+    CrewSave = 21,
+    /// <summary>
+    /// Client → host, reliable (note 724): put this crewmate off. From the host's own player it's done; in a public lobby from
+    /// anyone else it calls the vote, or says yes to the one open on them.
+    /// </summary>
+    Kick = 22,
+    /// <summary>Host → everyone, reliable (note 724): the vote to put someone off as it stands (who, yes, needed, until), or none.</summary>
+    KickVote = 23,
+    /// <summary>Host → the one put off, reliable (note 724): they're off the run; the host hangs up crew.refuseLingerSeconds later.</summary>
+    Kicked = 24,
+    /// <summary>Host → everyone, reliable (note 724): the lobby's crew mischief switch, on a Welcome and whenever the host changes it.</summary>
+    Mischief = 25,
 }
 
 /// <summary>Why the host turned a joiner away (note 254).</summary>
@@ -156,6 +183,8 @@ public enum RefusalReason : byte
     CrewFull = 1,
     /// <summary>A private run (note 450), and the Hello's password wasn't its own (or there was none).</summary>
     Password = 2,
+    /// <summary>Put off this run (note 724), by the host or the crew's vote: they can't come back to it.</summary>
+    Kicked = 3,
 }
 
 /// <summary>A host's refusal as the joiner reads it: why, and the crew against the cap at the time.</summary>
@@ -166,8 +195,19 @@ public readonly record struct Refusal(RefusalReason Reason, int Crew, int Cap)
     {
         RefusalReason.CrewFull => $"CREW FULL ({Crew}/{Cap})",
         RefusalReason.Password => "WRONG PASSWORD",
+        RefusalReason.Kicked => Messages.PutOff,
         _ => $"TURNED AWAY ({Reason})",
     };
+}
+
+/// <summary>
+/// The vote to put a crewmate off (note 724) as the host counts it: on whom, the yes so far and how many it needs, and the
+/// host's tick it closes at. <see cref="None"/> (target 0): no vote open.
+/// </summary>
+public readonly record struct KickVote(byte Target, int Yes, int Needed, uint Until)
+{
+    public static readonly KickVote None = default;
+    public bool Open => Target != 0;
 }
 
 /// <summary>A joiner's first word (note 253): who, the slot it's coming back to, its outfit, and a private run's key (note 450).</summary>
@@ -619,6 +659,48 @@ public static class Messages
         using var json = new MemoryStream();
         z.CopyTo(json);
         return json.ToArray();
+    }
+
+    /// <summary>The crew's save (note 724), as the host's machine writes it (its JSON), in chunks: any size to 255 KB packed.</summary>
+    public static List<byte[]> CrewSaveMessages(byte[] save) => Chunked(MessageType.CrewSave, save);
+
+    /// <summary>The crew's save's bytes once every chunk is in, else null.</summary>
+    public static byte[]? ReadCrewSave(IReadOnlyDictionary<int, byte[]> chunks, int count) => Unchunk(chunks, count);
+
+    /// <summary>What the one put off is told, on the menu (note 724; the director's line).</summary>
+    public const string PutOff = "THE CREW PUT YOU OFF AT THE NEXT STOP";
+
+    public static void WriteKick(NetWriter w, byte target)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Kick);
+        w.U8(target);
+    }
+
+    public static void WriteKickVote(NetWriter w, KickVote v)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.KickVote);
+        w.U8(v.Target);
+        w.U8((byte)Math.Clamp(v.Yes, 0, 255));
+        w.U8((byte)Math.Clamp(v.Needed, 0, 255));
+        w.U32(v.Until);
+    }
+
+    /// <summary>Reads a KickVote after its type byte.</summary>
+    public static KickVote ReadKickVote(ref NetReader r) => new(r.U8(), r.U8(), r.U8(), r.U32());
+
+    public static void WriteKicked(NetWriter w)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Kicked);
+    }
+
+    public static void WriteMischief(NetWriter w, bool on)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Mischief);
+        w.Bool(on);
     }
 
     /// <summary>A bookmark (D.12): where its still is taken from. Small, so one message, its JSON.</summary>

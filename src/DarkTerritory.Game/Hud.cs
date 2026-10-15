@@ -52,16 +52,19 @@ public static partial class Hud
     /// <param name="talk">This machine's talking and reading in a fortress town (note 281), and <paramref name="now"/> the
     /// app's seconds, for its card.</param>
     /// <param name="captions">CAPTIONS (note 349): what's heard now and where, <see cref="Captions.Lines"/>; null with it off.</param>
+    /// <param name="photo">The crew photo at the gate taken on this machine tonight (note 721): a delivered night's end card
+    /// shows it as a print.</param>
     /// <param name="firstNight">One of this player's first nights with FIRST NIGHTS on (note 350, <see cref="Onboarding.FirstNight"/>):
     /// the yard shows the core controls.</param>
     public static void Build(Overlay o, int width, int height, IPlaySession s, bool crosshair = true,
         IReadOnlyList<(string To, UiStyle.Commendation What, string From)>? commendations = null, IReadOnlyDictionary<int, Still>? stills = null,
         float pixels = 4, TownTalk? talk = null, double now = 0, bool firstNight = false, IReadOnlyList<string>? captions = null,
-        FigureTalk? figures = null)
+        FigureTalk? figures = null, Still? photo = null)
     {
         _promptScale = PromptScaleAt(pixels);
         _commendations = commendations;
         _stills = stills;
+        _photo = photo;
         o.Clear();
         // TEXT BACKING (note 404): a band behind the print in play, for this build only (the menus over it are on their plate).
         o.Backing = Keys.TextBacking ? new Vector4(0, 0, 0, (float)Math.Clamp(Tuning.TextBacking, 0, 1)) : default;
@@ -317,20 +320,73 @@ public static partial class Hud
     /// alive: GDD v1.4 made roll call verbal (open question 2). <paramref name="heard"/>: seconds since a crewmate's voice
     /// last came in, null for never.
     /// </summary>
-    public static void Roster(Overlay o, int width, int height, IReadOnlyList<RosterLine> lines, Func<byte, double?>? heard)
+    /// <param name="keys">
+    /// Note 724: what the roster's keys do, under the names (<see cref="RosterKeys"/>): each crewmate but you numbered for them.
+    /// Null, the roll call alone.
+    /// </param>
+    public static void Roster(Overlay o, int width, int height, IReadOnlyList<RosterLine> lines, Func<byte, double?>? heard, string? keys = null)
     {
         using var plate = UiStyle.OnPlate(o);
         const string title = "THE CREW. ROLL CALL IS SHOUTED";
         float k = Fine;
-        float names = lines.Count == 0 ? 0 : lines.Max(l => o.Measure(l.Name, k));
-        var (x, y, w) = Panel(o, width, height, title, Math.Max(o.Measure(title, k), names + 12 * k + o.Measure("SPEAKING", k)), lines.Count, Ink, k);
-        foreach (var l in lines)
+        var names = RosterNames(lines, keys is not null);
+        float widest = names.Count == 0 ? 0 : names.Max(n => o.Measure(n, k));
+        float content = Math.Max(o.Measure(title, k), widest + 12 * k + o.Measure("SPEAKING", k));
+        if (keys is not null)
+            content = Math.Max(content, UiStyle.MeasureKeyed(o, keys, k));
+        var (x, y, w) = Panel(o, width, height, title, content, lines.Count + (keys is null ? 0 : 1), Ink, k);
+        for (int i = 0; i < lines.Count; i++)
         {
-            o.Text(x + PanelPad * k, y, l.Name, Ink, k);
-            if (!l.You && heard?.Invoke(l.Id) is < 2)
+            var l = lines[i];
+            o.Text(x + PanelPad * k, y, names[i], Ink, k);
+            // Heard lately, they're speaking; muted on this machine (note 724), they're never heard here, and it says so.
+            if (!l.You && l.Muted)
+                o.Text(Overlay.Snap(x + w - PanelPad * k - o.Measure("MUTED", k), k), y, "MUTED", Dim, k);
+            else if (!l.You && heard?.Invoke(l.Id) is < 2)
                 o.Text(Overlay.Snap(x + w - PanelPad * k - o.Measure("SPEAKING", k), k), y, "SPEAKING", Green, k);
             y += PanelRow(o, k);
         }
+        if (keys is not null)
+            UiStyle.Keyed(o, x + PanelPad * k, y, keys, Dim, k);
+    }
+
+    /// <summary>The roster's names, each crewmate but you numbered for its keys when there are any (note 724).</summary>
+    public static List<string> RosterNames(IReadOnlyList<RosterLine> lines, bool numbered)
+    {
+        var names = new List<string>(lines.Count);
+        int n = 0;
+        foreach (var l in lines)
+            names.Add(!numbered ? l.Name : l.You ? $"   {l.Name}" : $"{(++n <= 9 ? n.ToString(System.Globalization.CultureInfo.InvariantCulture) : " ")}  {l.Name}");
+        return names;
+    }
+
+    /// <summary>
+    /// The roster's keys (note 724): a number mutes or unmutes that crewmate on this machine; with Shift, the host puts them off
+    /// and, in a public lobby, anyone else calls the crew's vote on them (or agrees to it). Fixed keys, as the ballot's numbers are.
+    /// </summary>
+    public static string RosterKeys(bool host, bool vote) =>
+        host ? "MUTE : [1-9]   PUT OFF : [SHIFT] [1-9]" : vote ? "MUTE : [1-9]   VOTE TO PUT OFF : [SHIFT] [1-9]" : "MUTE : [1-9]";
+
+    /// <summary>
+    /// The crew's vote to put someone off (note 724), across the top while it's open: on whom, how it stands and how long it has,
+    /// and how to agree. Null with no vote open.
+    /// </summary>
+    public static string? KickVoteLine(KickVote vote, string name, bool onYou, double seconds, int number)
+    {
+        if (!vote.Open)
+            return null;
+        string count = $"{vote.Yes} OF {vote.Needed} · {Math.Ceiling(seconds):0} S";
+        return onYou ? $"THE CREW IS VOTING TO PUT YOU OFF · {count}"
+            : $"PUT {name} OFF AT THE NEXT STOP? {count}{(number is >= 1 and <= 9 ? $"   YES : [Q] [SHIFT] [{number}]" : "")}";
+    }
+
+    /// <summary>The vote's line (<see cref="KickVoteLine"/>), across the top, in amber.</summary>
+    public static void KickVoteBanner(Overlay o, int width, int height, string line)
+    {
+        using var plate = UiStyle.OnPlate(o);
+        float k = Fine;
+        float w = UiStyle.MeasureKeyed(o, line, k);
+        UiStyle.Keyed(o, Overlay.Snap((width - w) / 2, k), MathF.Round(height * 0.12f), line, Amber, k);
     }
 
     const float PanelPad = 6;
@@ -727,6 +783,8 @@ public static partial class Hud
         BodyKind.Loot => world.Run?.FindName(b)?.ToUpperInvariant() ?? "THE FIND",
         // What else is carried, for the hotbar's IN HANDS (note 264).
         BodyKind.Crate or BodyKind.Cargo => "A CRATE",
+        // A two-person jackpot (note 719), by what it is: "AN END OF THE SAFE".
+        BodyKind.Heavy when world.Run?.FindName(b) is { } jackpot => $"AN END OF THE {jackpot.ToUpperInvariant()}",
         BodyKind.Heavy => "AN END OF THE HEAVY CRATE",
         BodyKind.Ragdoll => "A BODY",
         BodyKind.Child => "THE CHILD",
@@ -956,6 +1014,9 @@ public static partial class Hud
             {
                 Big("DELIVERED", Green);
                 Small($"{r.CarsDelivered} CARS, {r.CarsLost} LOST. {r.Net:0} SCRIP. CREW HOME {r.CrewHome}", Ink, fine: false);
+                // Note 721: the town photographer's print, as this machine took it.
+                if (_photo is { } print)
+                    Print(o, print);
             }
             else if (r.End == RunEnd.Stranded)
             {
@@ -2222,6 +2283,12 @@ public static partial class Hud
                     if ((d.WorldPosition(train) - PlayerMotor.WorldPosition(p, train)).Length <= et.Draggers.FreeReach + 1)
                         return "PULL THEM FREE : HOLD [E]";
                 }
+        // Note 723: over a friend's shoulder, or carrying one, the keys are the corner's (Hints); nothing else is offered.
+        if (p.Has(PlayerFlags.Carried) || p.Has(PlayerFlags.Carrying))
+            return null;
+        // The hand-up (note 723): a friend running beside the moving car, in reach of the door you stand in, before the door.
+        if (world.Bodies.CarriedBy(s.PlayerId) is null && Rescue.HandUpTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning.Rescue) is not null)
+            return "HAUL UP : HOLD [E]";
         // A mail crane's last seconds, in the open door on its side (note 673): the hook, before anything else in reach.
         if (MailPrompt(s) is { } hook)
             return hook;
@@ -2255,7 +2322,7 @@ public static partial class Hud
             && SwitchPrompt(world, p, train, world.Hand) is null && HealPrompt(s, slotted) is null && TakePrompt(world, p, train, s.PlayerId) is { } another)
             return another;
         if (world.Bodies.CarriedBy(s.PlayerId) is { } inHands)
-            return PowderPrompt(s, inHands) ?? SwitchPrompt(world, p, train, world.Hand) ?? HealPrompt(s, inHands);
+            return PowderPrompt(s, inHands) ?? SwitchPrompt(world, p, train, world.Hand) ?? BandagePrompt(s, inHands) ?? HealPrompt(s, inHands);
         // T112: the gun's seat and its own controls.
         if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is { } manned)
         {
@@ -2352,6 +2419,9 @@ public static partial class Hud
         // Dave or Jacob (notes 570, 572): a word with him, before anything lying at his feet.
         if (FigureTalk.Target(s) is { } figure)
             return FigureTalk.Prompt(figure);
+        // The crew's logbook on its shelf (note 721): this machine's to open, before what's lying by it.
+        if (LogbookReader.Facing(p, train, Remembering.Logbook, train.Dynamics.Tuning.Pick.EyeHeight))
+            return LogbookReader.Prompt;
         // A fortress town (note 281): somebody to talk to, a paper to read, a thing to look at. Before what's lying in reach,
         // so a lamp at somebody's feet doesn't take the press meant for them.
         if (world.TownOf(p) is { } town && town.Target(p, train.Dynamics.Tuning.Pick.EyeHeight) is { } there)
@@ -2369,6 +2439,10 @@ public static partial class Hud
                 BodyKind.RepairKit => "TAKE THE REPAIR KIT : [E]",
                 BodyKind.Loot => $"TAKE {world.Run?.FindName(thing)?.ToUpperInvariant() ?? "IT"} : [E]",
                 // A reaching hand takes its end with both hands on it (T43).
+                // A two-person jackpot (note 719) says what it is: it takes two, as a heavy crate does.
+                BodyKind.Heavy when world.Run?.FindName(thing) is { } jackpot => thing.Carrier >= 0
+                    ? $"TAKE THE OTHER END OF THE {jackpot.ToUpperInvariant()} : {(p.Hand != default ? "GRIP" : "[E]")}"
+                    : $"TAKE AN END OF THE {jackpot.ToUpperInvariant()} : {(p.Hand != default ? "GRIP" : "[E]")}   IT TAKES TWO",
                 BodyKind.Heavy when thing.Carrier >= 0 => p.Hand != default ? "TAKE THE OTHER END : GRIP" : "TAKE THE OTHER END : [E]",
                 BodyKind.Heavy => p.Hand != default ? "TAKE AN END : GRIP" : "TAKE AN END : [E]",
                 _ => "PICK UP : [E]",
@@ -2380,7 +2454,11 @@ public static partial class Hud
                 : $"SEARCH THE {SpotName(spot.Container.Kind)} : HOLD [E]";
         // An open house's door (note 401), empty-handed, as the hands and the search leave it.
         if (world.Bodies.CarriedBy(s.PlayerId) is null && world.DoorInReach(p) is { } door)
-            return train.Walls!.Shut(door.Key) ? "OPEN THE DOOR : HOLD [E]" : "SHUT THE DOOR : HOLD [E]";
+            // A jackpot house's locked door (note 719): the wrench picks it, held, and how far it's got.
+            return train.Walls!.Locked(door.Key)
+                ? train.Walls.Picking(door.Key) is > 0 and var picked ? $"PICKING THE LOCK ({picked * 100:0}%)"
+                    : Repairs.WrenchInHand(p) ? "PICK THE LOCK : HOLD [E]" : "LOCKED : THE WRENCH OPENS IT"
+                : train.Walls.Shut(door.Key) ? "OPEN THE DOOR : HOLD [E]" : "SHUT THE DOOR : HOLD [E]";
         if (world.Run?.LeverInReach(p, train, hand) == true)
             return "CHUTE LEVER : HOLD [E]";
         // GDD §18's set pieces (note 185). How full the car under the spout is is what you read to let go.
@@ -2473,6 +2551,9 @@ public static partial class Hud
             if (p.Parent > 0 && crane.Unriggable(train, PlayerMotor.WorldPosition(p, train)))
                 return crane.Rigging > 0 ? $"UNHOOKING ({crane.Rigging * 100:0}%)" : "UNHOOK THE CASTING : HOLD [E]";
         }
+        // The handcar (note 729): at its handle, which stroke's in time now; at an end of it, take it; beside it, lift it.
+        if (HandcarPrompt(world, p, train) is { } handcar)
+            return handcar;
         if (world.Run?.HandleInReach(p, train, hand) is not null && world.Run.CurrentSite is { } site)
             // A headset turns the crank round with the hand (T43): which way is how it's worked, so it's said.
             return site.OutOfRhythm ? "OUT OF RHYTHM"
@@ -2510,9 +2591,31 @@ public static partial class Hud
         // the shovel, turned from the fire, it's the throw's.
         if (p.Has(PlayerFlags.Shovelful) && p.Hand == default)
             return "THROW THE COAL : [T]";
-        if (world.HorseplayTuning.Enabled && Horseplay.ShoveTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning) is not null)
-            return "SHOVE : [LEFT ALT]";
-        return null;
+        // Note 723: a friend in front, empty-handed with nothing else in reach: lifted onto the shoulder with Use held.
+        bool carry = world.Bodies.CarriedBy(s.PlayerId) is null && near is null && Rescue.LiftTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning.Rescue, s.PlayerTuning) is not null;
+        bool shove = world.MischiefOn && Horseplay.ShoveTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning) is not null;
+        return carry && shove ? "CARRY : HOLD [E]   SHOVE : [LEFT ALT]" : carry ? "CARRY : HOLD [E]" : shove ? "SHOVE : [LEFT ALT]" : null;
+    }
+
+    /// <summary>
+    /// Note 723: a healing find in hand and a hurt friend in front: it goes on them, and heals them half again as much. The
+    /// find's own verb (bandages are put on, medicine and morphine given), and whose; how far it's got once it's under way.
+    /// </summary>
+    public static string? BandagePrompt(IPlaySession s, Body carried)
+    {
+        if (carried.Kind != BodyKind.Loot || s.World.Run is not { Healing: { } h } run || run.HealOf(carried) <= 0
+            || CrewActions.NearestInteractable(s.Player, s.Train, s.World.Hand) is not null
+            || Rescue.Patient(s.Player, s.PlayerId, s.CrewStates(1), s.Train, s.PlayerTuning.Rescue, s.PlayerTuning, s.PlayerTuning.Health) is not { } patient)
+            return null;
+        string name = s.World.Names.TryGetValue(patient.Id, out var n) && n.Length > 0 ? n.ToUpperInvariant() : "THEM";
+        string verb = run.FindOf(carried)?.Item switch
+        {
+            "bandages" => $"BANDAGE {name}",
+            "medicine" => $"GIVE {name} THE MEDICINE",
+            "morphine" => $"GIVE {name} THE MORPHINE",
+            _ => $"PATCH {name} UP",
+        };
+        return Hold(verb, carried.MendTicks * Sim.SimConstants.TickSeconds / h.UseSeconds);
     }
 
     /// <summary>What a Holdout is, for the dead player in it (App. D.4 "fiction and art").</summary>

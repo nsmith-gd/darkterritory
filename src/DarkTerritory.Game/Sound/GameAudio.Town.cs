@@ -22,6 +22,9 @@ public sealed partial class GameAudio
     // and how often what's near is looked up again (the town doesn't move; its people, on their rounds, slowly).
     const double TownReach = 40, TownFolkReach = 30, TownLook = 0.25;
     const int TownFires = 4, TownRoomThings = 3;
+    // Nicki's party carries further than a house's range or clock (music, a crowd), and holds by the house's own id.
+    const double TownPartyReach = 70;
+    const int TownPartyId = 90_000;
     // A house's walls between the ear and a sound on the other side of them (a range heard from the street, the square's
     // fires from a kitchen): the doors and windows are shut, more than a stop's broken-open room (walls.json roomWall).
     const float TownWall = 0.6f;
@@ -110,6 +113,10 @@ public sealed partial class GameAudio
             _townNear.Add((id, "place-town.fire", at, -1));
         foreach (var (_, id, cue, at, house) in rooms.OrderBy(x => x.D).Take(TownRoomThings))
             _townNear.Add((id, cue, at, house));
+        // Nicki's party (note 571; note 773): the one house up late, heard through its walls from further than a range.
+        foreach (var h in town.Plan.Houses)
+            if (h.Party && town.World(h.S, h.D, 1.5) is var party && (party - ear).Length <= TownPartyReach)
+                _townNear.Add((TownPartyId + h.Id, "figures.party", party, h.Id));
         // The folk out of doors for the murmur; and on their rounds (note 446), the nearest within earshot of a step, the
         // nearest out of doors close enough to breathe on you, and the watch with their lanterns. Each one's feet found once.
         var near = new List<(Townsperson P, double D)>();

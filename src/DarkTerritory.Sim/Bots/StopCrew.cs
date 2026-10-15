@@ -1541,7 +1541,7 @@ public sealed class StopDriver(CrewCalls calls)
                         return Hold(world);
                     }
                     // A switchyard's cars standing at the end (note 187): onto them at a crawl, so they couple, as onto a cut.
-                    var standing = train.Rakes.FirstOrDefault(r => r.Path == p.Spur.Index && train.Standing(r));
+                    var standing = train.Rakes.FirstOrDefault(r => r.Path == p.Spur.Index && train.Standing(r) && !TrainOnLine.IsHandcar(r));
                     if (standing is not null)
                     {
                         var g = engine.Tuning.Geometry;
@@ -2982,8 +2982,11 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
             intent = GetDown(self, train, Math.Sign(across));
             return true;
         }
-        // Just beyond the lever from the track, in reach of it.
-        var stand = TrackPoint(train.Line, RailLine.MainPath, along, Math.Sign(across) * (Math.Abs(across) + 0.5));
+        // Just beyond the lever from the track, in reach of it. Up to it between the train and the tower (note 758: the
+        // trestle's posts stand 3.5 m off the line, solid, the lever just past its end), and out to it once abreast.
+        var (a, x) = TrackCoords(train.Line, RailLine.MainPath, self.Position, self.LineHint);
+        bool abreast = Math.Abs(a - along) < 0.75 || Math.Abs(x) > Clear + 0.3 && Math.Abs(a - along) < 2;
+        var stand = TrackPoint(train.Line, RailLine.MainPath, along, Math.Sign(across) * (abreast ? Math.Abs(across) + 0.5 : Clear));
         var (step, there) = WalkTo(self, train.Line, RailLine.MainPath, stand, null);
         if (!there)
         {
@@ -3907,11 +3910,14 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         {
             Doing = "out of the cab";
             double door = CabDoorZ(train);
-            // The coal bunker stands along the left wall at the cab's front (note 280): on that side, back down the floor
-            // clear of it to the doorway's height first, then out.
-            var bunker = EnginePlan.Of(train.Dynamics.Tuning.Geometry).Bunker;
-            if (side < 0 && PlayerMotor.InCab(self, train) && Math.Abs(self.Position.Z - door) > 0.25)
-                return Edge(self, new Double3(bunker.Max.X + 0.4, self.Position.Y, door), facing);
+            // Back down the cab to abreast of the doorway first, at a walk (the stroll's for the step off), by the way down that
+            // side: note 716's big cab has its doorways at its back, 10 m behind the controls, past the chart table and up over
+            // the gallery (and the coal bunker along the left wall at the front, note 280, is passed clear of it).
+            if (PlayerMotor.InCab(self, train) && Math.Abs(self.Position.Z - door) > 0.25)
+            {
+                var lane = new Double3(side * EnginePlan.Of(train.Dynamics.Tuning.Geometry).Lane, self.Position.Y, door);
+                return WarmUp.SteerCab(self, train, lane, facing).Step;
+            }
             // Out across the running board in front of the doorway (note 559) and off its edge, the last of it at a shuffle so
             // the drop's straight down: on a bridge the deck's no wider than 2.6 m from the track (note 552), the board's edge
             // is 2.35, and stepped off at a stroll a hand landed 2.75 out, walked back along the train out there, and went

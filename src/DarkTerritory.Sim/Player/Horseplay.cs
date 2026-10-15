@@ -6,9 +6,10 @@ namespace DarkTerritory.Sim.Player;
 /// <summary>
 /// What knocked a crewmate (note 717, horseplay): a friend's shove, a shove passed on through them (a bump), a lump of coal off
 /// the shovel, a tool's bonk. Staggers, soot and knocks only: none of it is damage (the director's rule for all of it, 14 Oct
-/// 2026); a death comes only through the world's own rules (a fall, the jump off at speed).
+/// 2026); a death comes only through the world's own rules (a fall, the jump off at speed). Note 723: <see cref="Throw"/>, a
+/// friend thrown off the shoulder (the crew mischief switch on).
 /// </summary>
-public enum KnockKind : byte { Shove = 1, Bump = 2, Coal = 3, Bonk = 4 }
+public enum KnockKind : byte { Shove = 1, Bump = 2, Coal = 3, Bonk = 4, Throw = 5 }
 
 /// <summary>
 /// A crewmate knocked by another (note 717), as the crew see it: the host's, kept as long as a swing is and replicated, so the
@@ -39,9 +40,10 @@ public static class Horseplay
     /// <summary>
     /// Solid to the others (the crowd): alive, on their feet, and not on a ladder, in a gun's seat, at a crane's controls or in
     /// something's grip. A ladder is passed on (a hatch's ladder comes up through a crowded roof), and the air jumped through.
+    /// Nor over a friend's shoulder (note 723): the carrier's the one who's solid.
     /// </summary>
     public static bool Solid(in PlayerState s) =>
-        s.Alive && s.Grounded && !s.Has(PlayerFlags.Seated) && !s.Has(PlayerFlags.Operating) && !s.Has(PlayerFlags.Held);
+        s.Alive && s.Grounded && !s.Has(PlayerFlags.Seated) && !s.Has(PlayerFlags.Operating) && !s.Has(PlayerFlags.Held) && !s.Has(PlayerFlags.Carried);
 
     /// <summary>The crew as they stand, for <see cref="Push"/>: everyone solid, in id order (so every machine walks the same list).</summary>
     public static List<Shoulder> Crowd(IEnumerable<(int Id, PlayerState State)> crew)
@@ -120,10 +122,13 @@ public static class Horseplay
     /// <summary>Whether a crewmate can be shoved: on their feet, and not on a ladder, in a gun's seat, at a crane or held.</summary>
     public static bool Shoveable(in PlayerState s) => Solid(s);
 
-    /// <summary>Whether <paramref name="s"/> can shove at all: alive, steady, hands free of the shovel, their feet their own.</summary>
+    /// <summary>
+    /// Whether <paramref name="s"/> can shove at all: alive, steady, hands free of the shovel and of a friend (note 723: carrying
+    /// one, or carried), their feet their own.
+    /// </summary>
     public static bool CanShove(in PlayerState s) =>
         s.Alive && s.Stagger == 0 && !s.Has(PlayerFlags.Shovelful) && !s.Has(PlayerFlags.Held) && !s.Has(PlayerFlags.Seated)
-        && !s.Has(PlayerFlags.Operating) && s.Surface != Surface.Ladder;
+        && !s.Has(PlayerFlags.Operating) && s.Surface != Surface.Ladder && !s.Has(PlayerFlags.Carried) && !s.Has(PlayerFlags.Carrying);
 
     /// <summary>
     /// The crewmate a shove from <paramref name="s"/> would land on (note 717): the nearest shoveable one in front, within
@@ -212,6 +217,8 @@ public static class Horseplay
 public sealed record HorseplayTuning
 {
     public bool Enabled { get; init; } = true;
+    /// <summary>Note 724: a public lobby FEELING COMPETITIVE starts with the crew mischief switch off (player.json <c>horseplay.competitiveOff</c>).</summary>
+    public bool CompetitiveOff { get; init; } = true;
     public CrowdTuning Crowd { get; init; } = new();
     public ShoveTuning Shove { get; init; } = new();
     public CoalTuning Coal { get; init; } = new();

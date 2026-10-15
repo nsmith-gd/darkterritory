@@ -471,6 +471,8 @@ public sealed partial class World
                 Attribution.Add(Sim.Run.IncidentLog.Death(this, id, s, body, crew));
         IssueRadios(crew);
         Bodies.Step(Train, Train.Dynamics.Tuning, id => crew.FirstOrDefault(c => c.Id == id) is { State: var s } pair && pair.Id == id ? s : null);
+        // Thrown things do what they are (note 728): a lamp breaks into fire, a crate on the rail knocks.
+        Thrown();
         Train.Lying = Bodies.Lying(Train);
         Recover();
         BreakRadios(crew);
@@ -620,7 +622,8 @@ public sealed partial class World
         {
             var p = b.Pbd.Particles[0];
             return new Campaign.ThingAboard(b.Kind, b.Parent, p.Position, p.Radius, b.Pbd.Friction, b.Pbd.Bounce, b.Yaw, b.Locker, b.Slot, b.Claimed,
-                b.Cargo, b.Owner, b.Home, b.Charge, b.Noise, b.Broken, b.Tools, b.Banked && b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy);
+                b.Cargo, b.Owner, b.Home, b.Charge, b.Noise, b.Broken, b.Tools,
+                b.Banked && b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy && !Sim.Run.Run.IsJackpot(b)) { Knocks = b.Knocks };
         })];
 
     /// <summary>
@@ -651,6 +654,8 @@ public sealed partial class World
             b.Broken = t.Broken;
             // A tool left on a locker's shelf (note 649) is which tool it is.
             b.Tools = t.Tools;
+            // A fragile find as knocked as it was (note 719).
+            b.Knocks = t.Knocks;
             // A crate loaded (note 659): its share's in its car's saved load, so it isn't loaded again.
             b.Banked = t.Loaded;
             // A full shelf (the save's from a train with other lockers) leaves it where it lay: at its shelf, out of the way.
@@ -875,10 +880,12 @@ public sealed partial class World
         Bookmarks.Tuning = tuning.Bookmarks;
         Forts = Sim.Run.Fortresses.Of(route, Train.Line, yardLength, tuning.TerminusZone);
         _walls = tuning.Walls;
-        Train.Walls = LinesideToo(Sim.Run.StopWalls.Of(route, Train.Line, Forts, _walls), route);
+        Train.Walls = StopsWalls(route);
         if (facilities is not null)
         {
             Run.EnableSites(facilities, Train.Line);
+            // Their buildings beyond the machinery, solid where the art stands them (note 758): down from the sites' middles.
+            Train.Walls.AddFacilities(route, Train.Line, Run.Sites);
             // The switchyards' cars on their sidings (GDD §18; note 187), alike on the host and every client: so from the
             // route alone, not from anything one machine has and another mightn't (route.json's 12 m points).
             Run.StandCars(Train);
@@ -891,6 +898,13 @@ public sealed partial class World
             // GDD App. F.1's rare healing loot (note 272): which finds heal, and how long one takes to use.
             Bodies.Heals = Run.HealOf;
             Bodies.HealSeconds = loot.Healing?.UseSeconds ?? Bodies.HealSeconds;
+            // Note 723: and how much more one heals put on a friend.
+            Bodies.OnAFriend = loot.Healing?.OnAFriend ?? Bodies.OnAFriend;
+            // Note 719: the fragile finds' knocks, and loose things riding in the cars.
+            Bodies.Fragility = loot.Fragile;
+            Bodies.Ride = loot.Ride;
+            // Note 719: each stop's jackpot house locked up, alike on the host and every client (from the route and the seed).
+            Train.Walls.Lock(Run.LockedDoors());
         }
         Train.Walls = ClearSiteWork(Train.Walls);
         Authority |= authority;
@@ -900,6 +914,23 @@ public sealed partial class World
     /// Note 371: a generated line's trees, boulders and telegraph poles stand beside the stops' walls, out to
     /// run.json <c>walls.linesideReachM</c> from the line, none inside a fort (<see cref="Sim.Run.LinesideProps"/>).
     /// </summary>
+    /// <summary>
+    /// The line's walls: the stops' and the forts' (note 279), the lineside's (note 371), the coaling towers' standing beside
+    /// the line as they're drawn until Tower Jaw brings one down, and the facilities' buildings where the art stands them (note
+    /// 758; once the sites are laid out).
+    /// </summary>
+    Sim.Run.StopWalls StopsWalls(Route.Route route)
+    {
+        var walls = LinesideToo(Sim.Run.StopWalls.Of(route, Train.Line, Forts, _walls), route);
+        if (Run is { } run)
+        {
+            walls.AddTowers(run.Facilities, Train.Line);
+            if (run.Sites.Count > 0)
+                walls.AddFacilities(route, Train.Line, run.Sites);
+        }
+        return walls;
+    }
+
     Sim.Run.StopWalls LinesideToo(Sim.Run.StopWalls walls, Route.Route route)
     {
         if (Sim.Run.LinesideProps.Of(route, Train.Line) is { } side && _walls is { LinesideReachM: > 0 } t)
@@ -947,7 +978,10 @@ public sealed partial class World
             Arrival = there;
             Forts = [both[0], both[1] with { Square = there.Plan.Square.Turned(turn), Bounds = there.Plan.Bounds, Turn = turn }, .. both.Skip(2)];
         }
-        Train.Walls = ClearSiteWork(LinesideToo(Sim.Run.StopWalls.Of(route, Train.Line, Forts, _walls), route));
+        Train.Walls = ClearSiteWork(StopsWalls(route));
+        // Note 719: built again, the jackpot houses are locked again.
+        if (Run is { } run)
+            Train.Walls.Lock(run.LockedDoors());
         Train.Walls.Add(Town.Walls);
         if (Arrival is not null)
             Train.Walls.Add(Arrival.Walls);
@@ -1131,18 +1165,36 @@ public sealed partial class World
             radio.Broken = false;
     }
 
-    void DoorAct(in PlayerState s, in PlayerIntent intent, int playerId, bool emptyHanded)
+    /// <param name="picks">Note 719: the wrench is in hand (or the repair kit, where it's the repair tool), which opens a
+    /// jackpot house's locked door, held at it <c>jackpotHouse.unlockSeconds</c>, quietly, as at a Holdout's lock (D.7).</param>
+    void DoorAct(in PlayerState s, in PlayerIntent intent, int playerId, bool emptyHanded, bool picks = false)
     {
-        if (!emptyHanded || !intent.Has(PlayerButtons.Use) || intent.MoveZ > 0.5 || DoorInReach(s) is not { } door)
+        var walls = Train.Walls;
+        var door = intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5 ? DoorInReach(s) : null;
+        bool locked = door is { } d && walls!.Locked(d.Key);
+        if (door is null || (locked ? !picks : !emptyHanded))
         {
-            _atDoor.Remove(playerId);
+            if (_atDoor.Remove(playerId, out var left) && walls is not null)
+                walls.SetPicking(left.Key, 0);
             return;
         }
-        var (key, held, done) = _atDoor.TryGetValue(playerId, out var was) && was.Key == door.Key ? was : (door.Key, 0.0, false);
+        var (key, held, done) = _atDoor.TryGetValue(playerId, out var was) && was.Key == door.Value.Key ? was : (door.Value.Key, 0.0, false);
         held += SimConstants.TickSeconds;
-        if (!done && held >= (_walls ?? new Sim.Run.WallTuning()).HouseDoorSeconds - 1e-9)
+        if (locked)
         {
-            Train.Walls!.SetShut(key, !Train.Walls.Shut(key));
+            // Picking the lock (note 719): how far it's got, on the doors' record for the HUD; done, it's open, and unlocked.
+            double seconds = Run?.UnlockSeconds ?? 6;
+            walls!.SetPicking(key, Math.Min(1, held / seconds));
+            if (held >= seconds - 1e-9)
+            {
+                walls.SetShut(key, false);
+                walls.SetPicking(key, 0);
+                done = true;
+            }
+        }
+        else if (!done && held >= (_walls ?? new Sim.Run.WallTuning()).HouseDoorSeconds - 1e-9)
+        {
+            walls!.SetShut(key, !walls.Shut(key));
             done = true;
         }
         _atDoor[playerId] = (key, held, done);
@@ -1490,7 +1542,7 @@ public sealed partial class World
     {
         if (Movement is not { } p)
             return;
-        bool can = s.Alive && s.Surface != Surface.Ladder && !s.Has(PlayerFlags.Seated) && !s.Has(PlayerFlags.Operating) && !s.Has(PlayerFlags.Held);
+        bool can = s.Alive && s.Surface != Surface.Ladder && !s.Has(PlayerFlags.Seated) && !s.Has(PlayerFlags.Operating) && !s.Has(PlayerFlags.Pumping) && !s.Has(PlayerFlags.Held);
         bool down = can && (intent.Has(PlayerMoves.Crouch) || s.Head > 0 && s.Head <= p.Crouch.HeadsetBelow);
         if (down)
             s.Flags |= PlayerFlags.Crouched;
@@ -1509,7 +1561,8 @@ public sealed partial class World
         // hold e and when next to the firebox it will also shovel coal into the firebox, we need input prioritization"):
         // nothing else in reach takes it, the coal, a door, a lever, a body. Prediction runs this too, so a client's held
         // player works nothing either (note 681).
-        var intent = asked;
+        // Over a friend's shoulder (note 723): look, talk and wriggle, and nothing else.
+        var intent = Rescue.CarriedIntent(s, asked);
         if (s.Has(PlayerFlags.Held))
             intent.Buttons &= ~PlayerButtons.Use;
         PlayerMotor.Look(ref s, intent);
@@ -1519,6 +1572,9 @@ public sealed partial class World
         CoalAct(ref s, ref intent, playerId);
         if (Hosting)
             ShoveAct(s, intent, playerId);
+        // Bringing them home (note 723), the host's: a hand-up, a friend lifted, put down, thrown or wriggled out of, before the
+        // hands and the levers see Use; and the hurt friend a healing find in the hands goes on.
+        int patient = Hosting ? RescueAct(s, ref intent, playerId) : -1;
         // The lamp switch in the cab (T52, "lamps down"): a predicting client sets it too, so the lamp goes out at once.
         if (intent.Lamp != LampSwitch.None && Net.CabControls.CanDrive(s, Train))
         {
@@ -1553,8 +1609,10 @@ public sealed partial class World
         // lever, which takes Use whatever's in your hands (queue #94, note 357): the lamp you carried out to a stand stays lit
         // in your hand while you throw it, and a crate lying by it stays down.
         bool lever = Authority && Switches?.InReach(s, Train, Hand) is not null;
+        // Note 719: the kit in hand at a jackpot house's locked door is picking its lock, not being put down.
+        bool atLock = kit && DoorInReach(s) is { } lockedDoor && Train.Walls!.Locked(lockedDoor.Key);
         bool handsTookIt = Authority && Bodies.Handle(ref s, intent, playerId, Train, Hand,
-            keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)) || charging, lever: lever, fetch: fetch);
+            keep: kit && (breaching || atLock || CrewActions.AtTheRupture(s, Train, Hand)) || charging, lever: lever, fetch: fetch, patient: patient);
         if (charging && gunTuning is not null)
             Charge(s, intent, playerId, gunTuning);
         if (handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } lifted)
@@ -1565,7 +1623,7 @@ public sealed partial class World
         // Nicki's wine (note 571), then an open house's door (note 401): empty-handed, with a Use neither the hands nor a hiding
         // spot took. (She waves you in at her door: by her, a held Use is a glass, not the door shut in her face.)
         if (Authority && !WineAct(ref s, intent, playerId, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null))
-            DoorAct(s, intent, playerId, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null);
+            DoorAct(s, intent, playerId, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null, picks: picks && !handsTookIt);
         JacobAct(s, intent, playerId);
         // A healing find used up in the hands this tick (GDD App. F.1; note 272): its health back, up to full.
         if (Authority && Bodies.TakeDose(playerId) is > 0 and var dose && s.Alive)
@@ -1577,14 +1635,19 @@ public sealed partial class World
             foreach (var crane in site.Cranes)
                 operating |= crane.Operates(s, intent, Train);
         s.Flags = operating ? s.Flags | PlayerFlags.Operating : s.Flags & ~PlayerFlags.Operating;
+        // The handcar (note 729): its handle taken or let go, a stroke, the brake lever, a hand to lift it.
+        HandcarAct(ref s, intent, playerId, handsTookIt);
         if (Authority)
         {
             // Freight in your arms slows you and keeps you off ladders (spec B.2); the motor reads the flag.
             // GDD v1.4 App. C.4 and D.9 (note 181): hand-carried loot is carried the same way: a toy, a find, the child, a body.
             // Note 594: in the hands; one put away in a slot doesn't slow you (Lethal Company's slots: "grab a few pieces of loot").
-            bool heavy = Bodies.All.Any(b => b.HeldBy(playerId) && !b.Stashed && b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy
+            // Note 723: and a friend over the shoulder, carried as a body is.
+            bool carrying = s.Alive && CarriedBy(playerId) is not null;
+            bool heavy = carrying || Bodies.All.Any(b => b.HeldBy(playerId) && !b.Stashed && b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy
                 or Physics.BodyKind.Toy or Physics.BodyKind.Loot or Physics.BodyKind.Child or Physics.BodyKind.Ragdoll);
             s.Flags = heavy ? s.Flags | PlayerFlags.Heavy : s.Flags & ~PlayerFlags.Heavy;
+            s.Flags = carrying ? s.Flags | PlayerFlags.Carrying : s.Flags & ~PlayerFlags.Carrying;
             // D.9's solo remainer: the last one alive, with a body, may still climb (slowly).
             bool solo = s.Alive && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } && LastCrew.Count(c => c.State.Alive && c.Id != playerId) == 0;
             s.Flags = solo ? s.Flags | PlayerFlags.SoloCarry : s.Flags & ~PlayerFlags.SoloCarry;
@@ -1994,6 +2057,8 @@ public sealed partial class World
         var overspeed = Train.Dynamics.Tuning.Overspeed;
         if (Authority)
             DeadEndWarnSeconds = Sim.Train.DeadEnds.Assess(Train, overspeed).Warning ? DeadEndWarnSeconds + SimConstants.TickSeconds : 0;
+        if (Authority)
+            StepHandcar();
         Train.Step(SimConstants.TickSeconds, applied);
         if (Authority && !Derailed)
         {
@@ -2074,6 +2139,9 @@ public sealed partial class World
             Answer = Answer with { Seconds = Math.Max(0, Answer.Seconds - SimConstants.TickSeconds) };
         if (Authority && Watcher.Showing)
             Watcher = Watcher with { Seconds = Math.Max(0, Watcher.Seconds - SimConstants.TickSeconds) };
+        // The toys playing and the lamps burning (note 728), before anything listens or looks this tick.
+        if (Authority)
+            StepSenses();
         // Singing together (note 720), heard before the meter, the livestock and the creatures listen this tick.
         if (Authority && _context is { } heard)
             StepSinging(heard);
@@ -2255,13 +2323,23 @@ public sealed partial class World
                     if (draw is { VoiceFloor: < 1 } && intent.Voice / 255.0 > draw.VoiceFloor)
                         Drew(DrawCause.Voices, p.Id, draw.Weight(DrawCause.Voices) * (intent.Voice / 255.0 - draw.VoiceFloor) / (1 - draw.VoiceFloor) * dt);
                 }
-        // A squeaker, a music box, a wind-up drummer: noisy in the hands that carry it.
+        // A squeaker, a music box, a wind-up drummer: noisy in the hands that carry it. Note 728 (senses.json
+        // answers.choir.lyingToysCount): a wound one set down or thrown plays on where it lies, and counts as it would carried, in
+        // the name of the last one to hold it, while it's within its own sound's reach of a living crewmate.
+        bool lying = Senses.Answers.Choir.LyingToysCount;
         foreach (var b in Bodies.All)
-            if (b is { Kind: Physics.BodyKind.Toy, Carrier: >= 0 } && b.Noise != Physics.ToyNoise.None)
-            {
-                Add(b.Carrier, t.Toys.Of(b.Noise));
-                Drew(DrawCause.Toy, b.Carrier, (draw?.Weight(DrawCause.Toy) ?? 0) * dt);
-            }
+        {
+            if (b.Kind != Physics.BodyKind.Toy || b.Noise == Physics.ToyNoise.None || b.Stowed)
+                continue;
+            int by = b.Carrier;
+            if (by < 0 && !(lying && b.Playing && HeardByCrew(b)))
+                continue;
+            if (by < 0)
+                by = b.LastHeld;
+            Add(by, t.Toys.Of(b.Noise));
+            if (by >= 0)
+                Drew(DrawCause.Toy, by, (draw?.Weight(DrawCause.Toy) ?? 0) * dt);
+        }
         if (WhistleSeconds > 0)
         {
             Add(WhistleBy, t.WhistleLoudness);
@@ -2496,6 +2574,7 @@ public sealed partial class World
                 e.Step(ctx);
         // The world is solid (note 279): nothing loose in it stands in a building or a tunnel's lining, and what walks is on the land.
         Sim.Enemies.Solidity.Settle(_enemies, Train, t);
+        FellTowers();
         // GDD §9, T128 (note 273): no creature comes into a fort. One that does (riding the train in, running down a crewmate
         // who got back inside the gate, put down there by a spawn) is driven off: it lets go and is gone.
         // The gym's safe ring (note 676) the same.
@@ -2717,6 +2796,20 @@ public sealed partial class World
         _enemies.Clear();
         _enemies.AddRange(enemies);
         ExposedBodies(Targets);
+        FellTowers();
+    }
+
+    /// <summary>
+    /// Note 758: a coaling tower Tower Jaw's brought down no longer stands as walls. Seen once (its wreck where the tower
+    /// stood: on the host as it falls, on a client in the snapshot that carries it), it's down the rest of the night.
+    /// </summary>
+    void FellTowers()
+    {
+        if (Train.Walls is not { } walls)
+            return;
+        foreach (var e in _enemies)
+            if (e is Sim.Enemies.TowerJaw { Mode: Sim.Enemies.TowerJawMode.Wreck } jaw)
+                walls.Fell(jaw.WorldPosition(Train));
     }
 
     /// <summary>Every creature's body in the open, as a ball finds it (enemies.json <c>bodies</c>; note 290).</summary>

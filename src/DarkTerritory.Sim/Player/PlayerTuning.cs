@@ -55,6 +55,11 @@ public sealed record PlayerTuning(
     /// shovel, a tool's bonk. Field docs live in player.json <c>horseplay</c>.
     /// </summary>
     public HorseplayTuning Horseplay { get; init; } = new();
+    /// <summary>
+    /// Bringing them home (note 723; the director, 14 Oct 2026, GDD App. F.6): the hand-up onto a moving car, carrying a living
+    /// friend, a bandage on someone else. Field docs live in player.json <c>rescue</c>.
+    /// </summary>
+    public RescueTuning Rescue { get; init; } = new();
     /// Voices as tools (the friendslop audit's Friends goal; the director, 14 Oct 2026; note 720): the speaking tube, singing
     /// together, and lamp signals. Field docs live in player.json <c>voices</c>.
     /// </summary>
@@ -106,7 +111,20 @@ public sealed record LinkTuning(double TimeoutSeconds = 15, double KeepaliveSeco
 public sealed record CrewTuning(int Cap = 8, double RefuseLingerSeconds = 3)
 {
     public int Places => Math.Max(1, Cap);
+    /// <summary>
+    /// GDD §33.1 (note 724): a human joining a night that bots crew takes a bot's place where it stands (its body, slots,
+    /// health and post) rather than waiting for a stop or the Holdouts' queue, or being turned away from a full crew.
+    /// </summary>
+    public bool JoinTakesBotSeat { get; init; } = true;
+    /// <summary>GDD §33.1 (note 724): putting a player off the run. Docs in player.json <c>crew.kick</c>.</summary>
+    public KickTuning Kick { get; init; } = new();
 }
+
+/// <summary>
+/// Note 724: a public lobby's vote to put a player off: open for <paramref name="VoteSeconds"/>, carried by more than
+/// <paramref name="Majority"/> of the living humans aboard (the one voted on not counted).
+/// </summary>
+public sealed record KickTuning(double VoteSeconds = 30, double Majority = 0.5);
 /// <summary>
 /// How long each emote lasts (note 298), in seconds, unless its player moves first. Field docs live in player.json
 /// <c>emotes</c>. Presentation only: the host keeps the event this long for the crew to see; nothing in the sim acts on it.
