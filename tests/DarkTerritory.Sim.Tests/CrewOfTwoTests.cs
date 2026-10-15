@@ -41,7 +41,8 @@ public class CrewOfTwoTests
     }
 
     /// <summary>A crew (of two, unless said) on a route, as `dt harness --insist` runs it (the combination sweep's night by hand).</summary>
-    /// <param name="cranes">The mail cranes up (false: none, every other board as it is).</param>
+    /// <param name="cranes">The mail cranes up, as these nights were found (sight.json mailCranes on for the night: the mail is
+    /// cut for now, note 803); false: none, every other board as it is.</param>
     /// <summary>The departure load these nights were found with (run.json departureLoad before note 575).</summary>
     internal const double AsFound = 0.5;
 
@@ -70,7 +71,7 @@ public class CrewOfTwoTests
             Run = Tuning.Run with { DepartureLoad = AsFound },
             Facilities = DataFile.Load<Run.FacilityTuning>(Path.Combine(Content, Run.FacilityTuning.File)),
             Sight = DataFile.Load<Route.SightTuning>(Path.Combine(Content, Route.SightTuning.File)) is var sight && !cranes
-                ? sight with { DropFrom = double.MaxValue } : sight,
+                ? sight with { MailCranes = false } : sight with { MailCranes = true },
             YardLength = gate,
             Upkeep = upkeep,
             Holdouts = Tuning.Holdouts,
