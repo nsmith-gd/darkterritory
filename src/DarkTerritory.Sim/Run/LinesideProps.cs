@@ -268,8 +268,8 @@ public sealed partial class LinesideProps
     /// what's within it is the same either way.</param>
     public IEnumerable<LinesideProp> Props(double from, double to, double reach = double.MaxValue) =>
         // The boards' sight lines are kept clear (note 560): what would stand in one isn't there. Nor does a tree grow up
-        // through the railway's leavings (note 794).
-        Dealt(from, to, reach).Where(p => !Hidden(p) && !InALeaving(p));
+        // through the railway's leavings (note 794), or through a building (note 800).
+        Dealt(from, to, reach).Where(p => !Hidden(p) && !InALeaving(p) && !InABuilding(p));
 
     IEnumerable<LinesideProp> Dealt(double from, double to, double reach)
     {
@@ -366,8 +366,8 @@ public sealed partial class LinesideProps
     /// Everything along the line, stood as walls (notes 371, 389): a trunk as the box round its radius, to its top; a boulder
     /// as its lump's box (footprints.json's), turned as it lies, its top where its sinking leaves it (one sunk to under a step
     /// is stepped over, as PlayerMotor steps anything that low); a pole round its foot; a kit piece on its footprint's boxes
-    /// (none for a burying ground or a wharf, which are walked through). Owner 0: a facility's module clears what stands on
-    /// its work point (<see cref="StopWalls.Clear"/>).
+    /// (a burying ground on each of its stones and its fence's runs, note 797; none for a wharf, walked out over the water).
+    /// Owner 0: a facility's module clears what stands on its work point (<see cref="StopWalls.Clear"/>).
     /// </summary>
     /// <param name="forts">The night's fortresses (<see cref="Fortresses.Of"/>), the departure one's town square on it once there's a town: nothing stands inside.</param>
     /// <param name="reach">How far out from the line they're solid (run.json <c>walls.linesideReachM</c>): where the crew and what hunts them go.</param>

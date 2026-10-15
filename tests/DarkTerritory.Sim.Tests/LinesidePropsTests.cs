@@ -229,6 +229,71 @@ public class LinesidePropsTests
     }
 
     [Fact]
+    public void TheWoodsKeepOffTheBuildings()
+    {
+        // Note 800 (note 797's "not yet"): the woods were dealt without asking where the lineside's buildings stand, and a
+        // spruce grew up through a barn or a burying ground's stones. No trunk, nor a boulder's lump, is inside a building's
+        // wall; a tree between its walls (in a burying ground's rows) stands.
+        foreach (var spec in new[] { "local:4", "deadLines:49", "deepTerritory:2", "local:1" })
+        {
+            var (_, train, side, _) = Night(spec);
+            var all = side.Props(0, train.Line.Length).ToList();
+            var buildings = all.Where(p => p.Kind == LinesideKind.Piece).Select(p => (Piece: p, Walls: side.WallsOf(p).ToList())).Where(b => b.Walls.Count > 0).ToList();
+            Assert.Contains(buildings, b => b.Piece.Species is "saltbox" or "barn" or "tank" or "buryingGround");
+            foreach (var p in all.Where(p => p.Kind is LinesideKind.Tree or LinesideKind.Rock))
+            {
+                double reach = p.Kind == LinesideKind.Tree ? p.Radius : side.Extent(p);
+                var at = Foot(train, p);
+                foreach (var (b, walls) in buildings.Where(b => Math.Abs(b.Piece.Along - p.Along) < 60))
+                    foreach (var w in walls)
+                    {
+                        var local = w.ToLocal(at);
+                        Assert.False(Math.Abs(local.X) < w.HalfLength + reach && Math.Abs(local.Z) < w.HalfWidth + reach,
+                            $"{spec}: a {p.Species} at {p.Along:0.0} m, {p.Lateral:0.0} out, stands in a {b.Species} at {b.Along:0.0}, {b.Lateral:0.0}");
+                    }
+            }
+        }
+    }
+
+    [Fact]
+    public void TheBuildingsKeepOffEachOther()
+    {
+        // Note 808 (note 800's "not yet"): the road's, the shore's and the biomes' buildings were dealt without asking where
+        // each other stood, and a church stood half inside a house. No building's wall is inside another's (a stone wall's
+        // lengths run on into each other as they're laid; a leaving's pieces stand together).
+        foreach (var spec in new[] { "deadLines:3", "deadLines:49", "deepTerritory:2", "deadLines:2" })
+        {
+            var (_, train, side, _) = Night(spec);
+            var buildings = side.Props(0, train.Line.Length).Where(p => p.Kind == LinesideKind.Piece && !Leavings.PieceNames.Contains(p.Species))
+                .Select(p => (Piece: p, Walls: side.WallsOf(p).ToList())).Where(b => b.Walls.Count > 0).ToList();
+            Assert.Contains(buildings, b => b.Piece.Species is "church" or "saltbox");
+            for (int i = 0; i < buildings.Count; i++)
+                for (int j = i + 1; j < buildings.Count; j++)
+                {
+                    var (a, b) = (buildings[i], buildings[j]);
+                    if (Math.Abs(a.Piece.Along - b.Piece.Along) > 80 || (a.Piece.Species == "stoneWall" && b.Piece.Species == "stoneWall"))
+                        continue;
+                    Assert.False(a.Walls.Any(w => b.Walls.Any(v => Inside(w, v))),
+                        $"{spec}: a {a.Piece.Species} at {a.Piece.Along:0.0}, {a.Piece.Lateral:0.0} and a {b.Piece.Species} at {b.Piece.Along:0.0}, {b.Piece.Lateral:0.0} stand in each other");
+                }
+        }
+    }
+
+    /// <summary>Whether two walls' boxes overlap on the ground (separating axes: each one's along and across).</summary>
+    static bool Inside(Wall a, Wall b)
+    {
+        double dx = b.Centre.X - a.Centre.X, dz = b.Centre.Z - a.Centre.Z;
+        foreach (var (nx, nz) in new[] { (a.Axis.X, a.Axis.Z), (-a.Axis.Z, a.Axis.X), (b.Axis.X, b.Axis.Z), (-b.Axis.Z, b.Axis.X) })
+        {
+            double ra = a.HalfLength * Math.Abs(a.Axis.X * nx + a.Axis.Z * nz) + a.HalfWidth * Math.Abs(-a.Axis.Z * nx + a.Axis.X * nz);
+            double rb = b.HalfLength * Math.Abs(b.Axis.X * nx + b.Axis.Z * nz) + b.HalfWidth * Math.Abs(-b.Axis.Z * nx + b.Axis.X * nz);
+            if (Math.Abs(dx * nx + dz * nz) >= ra + rb)
+                return false;
+        }
+        return true;
+    }
+
+    [Fact]
     public void AHomesteadStopsACrewmateWalkingAtIt()
     {
         // Note 389: a house by the country road stands on its footprint, the box round its walls and roof, turned to face
@@ -267,7 +332,7 @@ public class LinesidePropsTests
     {
         // Every kind of piece is dealt somewhere across the tiers, and stands as its footprint has it: a house, a car, a shed
         // one box; a church its nave and its tower; a tank round; a headframe on its four legs and its stay, open between; a
-        // burying ground and a wharf walked through.
+        // burying ground its stones and its fence's runs, open between its rows (note 797); a wharf walked through.
         var seen = new HashSet<string>();
         foreach (var spec in new[] { "local:4", "deadLines:49", "deepTerritory:2", "local:1", "deadLines:3" })
         {
@@ -282,12 +347,18 @@ public class LinesidePropsTests
                 {
                     case "church": Assert.Equal(2, walls.Count); break;
                     case "tank": Assert.Equal(2, walls.Count); break;
-                    case "wharf" or "buryingGround": Assert.Empty(walls); break;
+                    case "wharf": Assert.Empty(walls); break;
                     case "headframe":
                         Assert.Equal(5, walls.Count);
                         // Its foot, under the frame between the legs, is open ground.
                         var foot = Foot(train, p) + Double3.Up;
                         Assert.DoesNotContain(walls, w => Math.Abs(w.ToLocal(foot).X) < w.HalfLength && Math.Abs(w.ToLocal(foot).Z) < w.HalfWidth);
+                        break;
+                    case "buryingGround":
+                        // A wall to every stone and every run of the fence; its middle, between two rows of stones, is open.
+                        Assert.InRange(walls.Count, 20, 45);
+                        var middle = Foot(train, p) + Double3.Up;
+                        Assert.DoesNotContain(walls, w => Math.Abs(w.ToLocal(middle).X) < w.HalfLength && Math.Abs(w.ToLocal(middle).Z) < w.HalfWidth);
                         break;
                 }
                 foreach (var w in walls)
