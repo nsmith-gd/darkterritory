@@ -57,7 +57,11 @@ public readonly record struct OwnView(float Yaw, float Pitch, CrewPose? Act, boo
 /// is for; a Passenger's line has the id of the face it wears (App. A.7 "appears on the roster"), so it sits beside theirs,
 /// and it is not <paramref name="Voiced"/>: the voice heard under that id is the real crewmate's, never the thing's.
 /// </summary>
-public readonly record struct RosterLine(byte Id, string Name, string Where, bool Alive, bool You = false, bool Voiced = true);
+public readonly record struct RosterLine(byte Id, string Name, string Where, bool Alive, bool You = false, bool Voiced = true)
+{
+    /// <summary>Their voice is muted on this machine (note 724): the roster says so beside the name.</summary>
+    public bool Muted { get; init; }
+}
 
 /// <summary>What the app plays: the single-player prototype, or a networked session (host or client).</summary>
 public interface IPlaySession

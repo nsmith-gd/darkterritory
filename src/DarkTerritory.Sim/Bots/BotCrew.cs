@@ -26,6 +26,22 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
             _owned.Add(owned);
     }
 
+    /// <summary>Bots that left the crew (note 724): a friend took their seat, or the host put them off.</summary>
+    public int Retired { get; private set; }
+
+    /// <summary>
+    /// Note 724: the bot playing <paramref name="id"/> leaves the crew (a joiner took its seat, or it was put off): it's no
+    /// longer stepped, and the host has already hung up on its link. Its transport goes with the crew, as ever.
+    /// </summary>
+    public void Retire(byte id)
+    {
+        int i = _bots.FindIndex(b => b.Session.PlayerId == id);
+        if (i < 0)
+            return;
+        _bots.RemoveAt(i);
+        Retired++;
+    }
+
     public void Dispose()
     {
         foreach (var o in _owned)

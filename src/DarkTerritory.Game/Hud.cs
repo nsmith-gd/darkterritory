@@ -320,20 +320,73 @@ public static partial class Hud
     /// alive: GDD v1.4 made roll call verbal (open question 2). <paramref name="heard"/>: seconds since a crewmate's voice
     /// last came in, null for never.
     /// </summary>
-    public static void Roster(Overlay o, int width, int height, IReadOnlyList<RosterLine> lines, Func<byte, double?>? heard)
+    /// <param name="keys">
+    /// Note 724: what the roster's keys do, under the names (<see cref="RosterKeys"/>): each crewmate but you numbered for them.
+    /// Null, the roll call alone.
+    /// </param>
+    public static void Roster(Overlay o, int width, int height, IReadOnlyList<RosterLine> lines, Func<byte, double?>? heard, string? keys = null)
     {
         using var plate = UiStyle.OnPlate(o);
         const string title = "THE CREW. ROLL CALL IS SHOUTED";
         float k = Fine;
-        float names = lines.Count == 0 ? 0 : lines.Max(l => o.Measure(l.Name, k));
-        var (x, y, w) = Panel(o, width, height, title, Math.Max(o.Measure(title, k), names + 12 * k + o.Measure("SPEAKING", k)), lines.Count, Ink, k);
-        foreach (var l in lines)
+        var names = RosterNames(lines, keys is not null);
+        float widest = names.Count == 0 ? 0 : names.Max(n => o.Measure(n, k));
+        float content = Math.Max(o.Measure(title, k), widest + 12 * k + o.Measure("SPEAKING", k));
+        if (keys is not null)
+            content = Math.Max(content, UiStyle.MeasureKeyed(o, keys, k));
+        var (x, y, w) = Panel(o, width, height, title, content, lines.Count + (keys is null ? 0 : 1), Ink, k);
+        for (int i = 0; i < lines.Count; i++)
         {
-            o.Text(x + PanelPad * k, y, l.Name, Ink, k);
-            if (!l.You && heard?.Invoke(l.Id) is < 2)
+            var l = lines[i];
+            o.Text(x + PanelPad * k, y, names[i], Ink, k);
+            // Heard lately, they're speaking; muted on this machine (note 724), they're never heard here, and it says so.
+            if (!l.You && l.Muted)
+                o.Text(Overlay.Snap(x + w - PanelPad * k - o.Measure("MUTED", k), k), y, "MUTED", Dim, k);
+            else if (!l.You && heard?.Invoke(l.Id) is < 2)
                 o.Text(Overlay.Snap(x + w - PanelPad * k - o.Measure("SPEAKING", k), k), y, "SPEAKING", Green, k);
             y += PanelRow(o, k);
         }
+        if (keys is not null)
+            UiStyle.Keyed(o, x + PanelPad * k, y, keys, Dim, k);
+    }
+
+    /// <summary>The roster's names, each crewmate but you numbered for its keys when there are any (note 724).</summary>
+    public static List<string> RosterNames(IReadOnlyList<RosterLine> lines, bool numbered)
+    {
+        var names = new List<string>(lines.Count);
+        int n = 0;
+        foreach (var l in lines)
+            names.Add(!numbered ? l.Name : l.You ? $"   {l.Name}" : $"{(++n <= 9 ? n.ToString(System.Globalization.CultureInfo.InvariantCulture) : " ")}  {l.Name}");
+        return names;
+    }
+
+    /// <summary>
+    /// The roster's keys (note 724): a number mutes or unmutes that crewmate on this machine; with Shift, the host puts them off
+    /// and, in a public lobby, anyone else calls the crew's vote on them (or agrees to it). Fixed keys, as the ballot's numbers are.
+    /// </summary>
+    public static string RosterKeys(bool host, bool vote) =>
+        host ? "MUTE : [1-9]   PUT OFF : [SHIFT] [1-9]" : vote ? "MUTE : [1-9]   VOTE TO PUT OFF : [SHIFT] [1-9]" : "MUTE : [1-9]";
+
+    /// <summary>
+    /// The crew's vote to put someone off (note 724), across the top while it's open: on whom, how it stands and how long it has,
+    /// and how to agree. Null with no vote open.
+    /// </summary>
+    public static string? KickVoteLine(KickVote vote, string name, bool onYou, double seconds, int number)
+    {
+        if (!vote.Open)
+            return null;
+        string count = $"{vote.Yes} OF {vote.Needed} · {Math.Ceiling(seconds):0} S";
+        return onYou ? $"THE CREW IS VOTING TO PUT YOU OFF · {count}"
+            : $"PUT {name} OFF AT THE NEXT STOP? {count}{(number is >= 1 and <= 9 ? $"   YES : [Q] [SHIFT] [{number}]" : "")}";
+    }
+
+    /// <summary>The vote's line (<see cref="KickVoteLine"/>), across the top, in amber.</summary>
+    public static void KickVoteBanner(Overlay o, int width, int height, string line)
+    {
+        using var plate = UiStyle.OnPlate(o);
+        float k = Fine;
+        float w = UiStyle.MeasureKeyed(o, line, k);
+        UiStyle.Keyed(o, Overlay.Snap((width - w) / 2, k), MathF.Round(height * 0.12f), line, Amber, k);
     }
 
     const float PanelPad = 6;
@@ -2487,7 +2540,7 @@ public static partial class Hud
         // the shovel, turned from the fire, it's the throw's.
         if (p.Has(PlayerFlags.Shovelful) && p.Hand == default)
             return "THROW THE COAL : [RMB]";
-        if (world.HorseplayTuning.Enabled && Horseplay.ShoveTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning) is not null)
+        if (world.MischiefOn && Horseplay.ShoveTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning) is not null)
             return "SHOVE : [LEFT ALT]";
         return null;
     }

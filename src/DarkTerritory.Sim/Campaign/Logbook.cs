@@ -37,10 +37,11 @@ public sealed record CrewLog(string Key, string Name)
 public static class Logbook
 {
     /// <summary>
-    /// A campaign's key, the same on every machine (the setup carries it): its crew's name and its seed, so two crews both
-    /// called "The Crew" on different hosts keep two logbooks.
+    /// A campaign's key, the same on every machine (the setup carries it): the crew's own id (<see cref="CampaignState.CrewId"/>,
+    /// note 724), the one its travelling save is kept under, so two crews both called "The Crew" on different hosts keep two
+    /// logbooks, and a crew hosted by another member keeps writing the same one.
     /// </summary>
-    public static string Key(CampaignState s) => $"{s.Name}#{s.Seed:x16}";
+    public static string Key(CampaignState s) => s.CrewId;
 
     /// <summary>How a night ended, in the end card's capitals.</summary>
     /// <param name="wakers">The Wakers were out (a train out at dawn is taken by them, not just late).</param>

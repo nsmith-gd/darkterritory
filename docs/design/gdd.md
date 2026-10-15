@@ -441,6 +441,8 @@ Successful deliveries earn money. Money buys capability. Capability allows more 
 
 **One wallet.** The whole crew shares a single wallet for every purchase and upgrade. Nobody holds their own money. More crew means more hands and more loot, faster, which is why getting people back into a run matters (Appendix D).
 
+**The crew's save travels** *(the director, 14 Oct 2026; ARCHITECTURE §8 note 724)*. The campaign is the crew's, not the host's machine's. Each time a night is settled into the save, the host sends it to everyone aboard, and each keeps it among the **crews they've ridden with** (never over their own slots). Under the slots the campaign screen lists them, *"CREW OWLS · NIGHT 8 · LAST HOSTED BY DAVE"*, and any member can host the crew's next night from there, so the crew carries on whoever turns up. Two copies of a crew that differ: the one with more nights settled wins; with as many, the newest settlement. A train taken at dawn (§8) closes every copy: it stays listed, ended.
+
 ### Route tiers
 
 | Tier | Description |
@@ -988,7 +990,7 @@ Friends mess with each other. The game lets them, cheaply and recoverably, and k
 - **Coal off the shovel.** Hold Use at the firebox and the coal is on the shovel halfway through the stroke; keep Use held and turn away, and it's still there. Throw throws it along your view. A friend it hits is staggered and sooty-faced for the rest of the night; a creature takes a quarter of a blow. The fire is a shovelful short (it came out of the tender). Bots never throw coal at the crew.
 - **The bonk.** A tool's swing that meets a crewmate before a creature lands on them: a clang, a short stagger, no damage. The report counts them for anyone bonked often enough: *"Bonked 14 times, mostly by Priya."*
 - **Kill a friend with a shove and the dark comes for you.** *The director, 14 Oct 2026: "With shoving if a player ever shoves another player and that results in their death all the monsters in the game should target more heavily the murderer player so they are heavily likely to die (even if they rescue the player from a holdout)."* The shover is marked for the rest of the night: the victim's return through a Holdout, a rescue, the shover's own death and return, none of it clears it. Every creature choosing whom to go for counts them six times nearer and twenty metres nearer again, so anything that can reach them prefers them; a creature whose rule picks for it keeps its rule (the Choir still takes the loudest, the mark its tiebreak; the Moose hears a marked voice louder). The director sends its next threat at their post, what they do draws the dark harder, and the pressure builds faster while they're on foot. The news and the report say it, *"Marked: Dave (shoved Priya off at 58 km/h)"*; there's no marker on anyone's HUD. `horseplay.marked`.
-- **The switch.** `horseplay.enabled` turns the shove, the bonk and coal at the crew off, for the lobby's "crew mischief" option to come. Crewmates stay solid either way. All the numbers are in `player.json horseplay`.
+- **The switch: CREW MISCHIEF** *(the director, 14 Oct 2026; ARCHITECTURE §8 note 724)*. A lobby option the host sets on the host screen or the fortress board, or in the yard from the night's menu: ON or OFF for the run. Off, the shove, the bonk and coal thrown at the crew land on nobody; crewmates stay solid either way. It starts on among friends (a private run) and in **Here for Laughs** runs, off in a public run that's **Feeling Competitive** (§33.1), where strangers meet. Every machine has it with the night's setup, and again whenever the host changes it. `horseplay.enabled` turns it all off for every lobby. All the numbers are in `player.json horseplay`.
 
 ## 24. Decoupling
 
@@ -1271,6 +1273,16 @@ One player's machine hosts (a listen server, like *Lethal Company* and *PEAK*). 
 - **Public and private.** A public run is listed for anyone to join. A private run is listed too, with a lock, and needs its password. The host's Steam friends get in without it, as an invite would let them.
 - **Every row shows its ping.** "--" until it's measured.
 - **The run's mood.** One setting, on the host and join screens alike: **Here for Laughs** (sociable, not super competitive), **Feeling Competitive** (out for the longest runs you can make), or either. A host's run is listed with it. Joining, runs of your mood come first, nearest first.
+
+#### Sessions *(the director, 14 Oct 2026; App. F.6; ARCHITECTURE §8 note 724)*
+
+Friend groups break on friction: uneven attendance, slow joins, strangers in public games. Mischief is fine among friends; a public lobby needs kick and mute so horseplay (§23.4) can ship there.
+
+- **The crew's save travels** (§11): any member can host the crew's next night.
+- **A friend takes a bot's seat.** Bots crewing the night, a friend joining mid-night doesn't wait for a stop or the Holdouts' queue (App. D.3), and isn't turned away from a full crew: they take a bot's place where it stands, its body, its slots and what it carries, its health and its post. The bot leaves. Which bot: a living one, the one the director's census rates least busy, else the newest; the one at the cab's controls last. No bot aboard, it's the old way. (`player.json crew.joinTakesBotSeat`.)
+- **Mute,** on your own machine: hold the roster (Q) and press a crewmate's number. MUTED beside their name, and nothing of their voice is played to you, near, on the radio, down the speaking tube or from a Soot Child's mouth.
+- **Kick.** The host puts a player off from the roster: Q held, Shift and their number. In a **public** run anyone aboard can do the same to call the crew's vote, open 30 seconds, carried by a majority of the living humans aboard (not counting the one voted on); others agree the same way, and the vote's said across the top of every screen. Put off, a player goes back to the menu with *"THE CREW PUT YOU OFF AT THE NEXT STOP"*, and can't come back to that run. A private or friends-only run: the host's kick only. (`player.json crew.kick`.)
+- **CREW MISCHIEF** on or off (§23.4).
 
 ## 34. Agent verification harness
 

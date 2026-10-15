@@ -182,6 +182,21 @@ public sealed record CampaignState
     /// save can still be read. Every player's profile keeps its own copy (<see cref="CrewLog"/>).
     /// </summary>
     public IReadOnlyList<LogPage> Logbook { get; init; } = [];
+    /// <summary>
+    /// The crew's own id (GDD §11, note 724): the same on every machine its save has travelled to, so each keeps one copy of it
+    /// among the crews it's ridden with. Empty in a save from before it: <see cref="CrewId"/> reads the campaign's seed.
+    /// </summary>
+    public string Crew { get; init; } = "";
+    /// <summary>The crew's id: <see cref="Crew"/>, or for an older save its seed's (random to each campaign, kept in the save).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string CrewId => Crew.Length > 0 ? Crew : $"{Seed:x16}";
+    /// <summary>Who last hosted a night of it and settled it (note 724): the front end's "LAST HOSTED BY DAVE". Empty before.</summary>
+    public string LastHost { get; init; } = "";
+    /// <summary>
+    /// When its last night was settled (note 724), Unix milliseconds by the settling host's clock: the tie-break between two
+    /// copies with as many nights. 0 before.
+    /// </summary>
+    public long SettledAt { get; init; }
 }
 
 /// <summary>What a purchase came to: the new state, or why not.</summary>
@@ -384,6 +399,17 @@ public static class Campaign
             identities[name] = look;
         // The departure's stores were the night's issue (note 182): spent with it.
         return s with { Cars = cars, Scrip = scrip, Runs = s.Runs + 1, History = [.. s.History, log], Current = null, Checkpoint = null, SpareKits = spares, Identities = identities, Stores = new(), Over = s.Over || Ends(t, report.End) };
+    }
+
+    /// <summary>
+    /// Two copies of one crew's save (GDD §11, note 724): the one with more nights settled wins; with as many, the newer
+    /// settlement; with that too, the one already held (<paramref name="held"/>). A campaign over (note 632) closes every copy:
+    /// whichever wins is over if either is. Deterministic: no clock read here, only what each copy says.
+    /// </summary>
+    public static CampaignState Prefer(CampaignState held, CampaignState incoming)
+    {
+        var win = incoming.Runs > held.Runs || incoming.Runs == held.Runs && incoming.SettledAt > held.SettledAt ? incoming : held;
+        return win.Over || !(held.Over || incoming.Over) ? win : win with { Over = true };
     }
 
     /// <summary>The night's tunings with the crew's spare repair kits aboard (E.12 question 4): stocked in the lockers beside the train's own.</summary>

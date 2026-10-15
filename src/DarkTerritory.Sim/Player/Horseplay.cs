@@ -212,6 +212,8 @@ public static class Horseplay
 public sealed record HorseplayTuning
 {
     public bool Enabled { get; init; } = true;
+    /// <summary>Note 724: a public lobby FEELING COMPETITIVE starts with the crew mischief switch off (player.json <c>horseplay.competitiveOff</c>).</summary>
+    public bool CompetitiveOff { get; init; } = true;
     public CrowdTuning Crowd { get; init; } = new();
     public ShoveTuning Shove { get; init; } = new();
     public CoalTuning Coal { get; init; } = new();

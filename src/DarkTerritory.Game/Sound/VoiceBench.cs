@@ -31,10 +31,11 @@ public static class VoiceBench
     /// <param name="speakerCar">Car the speaker stands on (0 = in the cab); the listener is on car 3's roof.</param>
     /// <param name="space">Hear it as if in this space (a tunnel: GDD §22's compressed, close voice); null, where the listener is.</param>
     /// <param name="dieAt">Seconds into the speech the speaker dies, mid-word (the hard-cut's check).</param>
+    /// <param name="muted">The listener has the speaker muted (note 724): nothing of theirs should be heard, on any path.</param>
     /// <param name="tube">The speaking tube (note 720): the speaker at the cab's mouthpiece, the listener in the guard van a few
     /// metres from its horn, the length of the train away (<paramref name="speakerCar"/> and <paramref name="speakerZ"/> unused).</param>
     public static VoiceBenchReport Run(string content, int speakerCar, double speakerZ, bool radio, double seconds = 2, LinkConditions? link = null,
-        string? space = null, double? dieAt = null, float micLevel = 1, bool tube = false)
+        string? space = null, double? dieAt = null, float micLevel = 1, bool tube = false, bool muted = false)
     {
         var trainTuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
         var playerTuning = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
@@ -47,7 +48,8 @@ public static class VoiceBench
 
         var audio = new GameAudio(content) { SpaceOverride = space };
         audio.Bank.Samples.InlineBytes = long.MaxValue; // offline: the same every run
-        var ears = new VoiceChat(audio.Mixer);
+        // Note 724: the listener muted the speaker on their roster.
+        var ears = new VoiceChat(audio.Mixer) { Muted = muted ? id => id == speaker.PlayerId : null };
         var mouth = new VoiceChat(new Mixer(new SoundBank(), audio.Mixer.Mix)) { RadioHeld = radio, MicLevel = micLevel };
         var speech = SyntheticSpeech.Generate(seconds);
         int perTick = VoiceFormat.SampleRate / SimConstants.TickRate;

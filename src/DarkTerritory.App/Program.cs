@@ -137,6 +137,8 @@ var musicBags = new MusicBagFile(args.Contains("--saves") ? Path.Combine(saves.D
 var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", Settings.DefaultPath), edition: EditionTuning.Load(content))
 {
     Protocol = DarkTerritory.Sim.Net.Protocol.Version,
+    // Note 724: where the CREW MISCHIEF switch starts by mood.
+    Horseplay = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)).Horseplay,
     DefaultPlayerName = steam?.NameOf(steam.Me) ?? Environment.UserName,
     // GDD v1.4 App. E.6: the credits screen lists every track's performers (note 194).
     Music = DarkTerritory.Sim.Music.MusicManifest.Load(content).Tracks,
@@ -651,7 +653,7 @@ static string Doing(Launch chosen) => chosen switch
             {
                 // Spec E: the host owns the campaign, and picks a slot. The night is the contract picked from the board, with
                 // the slot's cars and upgrades; hosting takes friends as usual.
-                var campaign = saves.Load(night.Slot) ?? Campaign.New(campaignTuning, night.Slot, $"Crew {night.Slot}", (ulong)Random.Shared.Next(1, 100000));
+                var campaign = saves.Load(night.Slot, night.Crew) ?? Campaign.New(campaignTuning, night.Slot, $"Crew {night.Slot}", (ulong)Random.Shared.Next(1, 100000));
                 // Resuming: the night that was under way, from the last facility it left (spec E "crash: rolls back to last POI autosave").
                 var resume = night.Resume && campaign.Current is not null ? campaign.Checkpoint : null;
                 var contract = night.Resume && campaign.Current is not null ? campaign.Current : Campaign.Offers(campaignTuning, runTuning, campaign)[Math.Max(0, night.Contract)];
@@ -669,7 +671,7 @@ static string Doing(Launch chosen) => chosen switch
                 if (night.Bots > 0)
                     Console.WriteLine($"a crew of {night.Bots} bot{(night.Bots == 1 ? "" : "s")} aboard");
                 return (NetPlaySession.HostGame(content, setup, port, online: night.Host ? steam : null, resume: resume, bots: night.Bots,
-                    listed: frontEnd.Settings.PublicLobby || password is not null, lobbyName: frontEnd.LobbyName, password: password, mood: frontEnd.Settings.Mood), campaign);
+                    listed: frontEnd.Settings.PublicLobby || password is not null, lobbyName: frontEnd.LobbyName, password: password, mood: frontEnd.Settings.Mood, mischief: frontEnd.Mischief), campaign);
             }
         // From the menu always the real night (T110: with no bots too, it's the same game alone); the bare prototype is the
         // command line's, for a route or line on its own.
@@ -685,7 +687,7 @@ static string Doing(Launch chosen) => chosen switch
                     FirstChildReal = profile.FirstChildReal,
                 };
                 var session = NetPlaySession.HostGame(content, setup, port, online: hosted.Host ? steam : null, bots: hosted.Bots,
-                    listed: hosted.Public, lobbyName: hosted.LobbyName, password: hosted.Password, mood: hosted.Mood);
+                    listed: hosted.Public, lobbyName: hosted.LobbyName, password: hosted.Password, mood: hosted.Mood, mischief: hosted.Mischief);
                 if (hosted.Bots > 0)
                     Console.WriteLine($"a crew of {hosted.Bots} bot{(hosted.Bots == 1 ? "" : "s")} aboard");
                 if (port is not null)
@@ -756,6 +758,9 @@ while (!window.CloseRequested && !QuitNow())
             Thread.Sleep(15);
         }
     }
+    // Note 724: a crew's save that came in as the night ended, kept before the session goes.
+    if (session is NetPlaySession { Host: null } rode && rode.TakeCrewSave() is { } lastSave)
+        saves.Keep(lastSave);
     // Left: nothing of the night follows into the menus (its bed, its loops, a hold's tick).
     sound.EndNight();
     // What the crew commended you for tonight, on the PROFILE page from now (note 293).
@@ -790,10 +795,17 @@ while (!window.CloseRequested && !QuitNow())
     // Started from the command line: done when the night is. Otherwise, back to where it was chosen.
     if (fromCommandLine)
         break;
-    if (leaving is Launch.CampaignNight night)
-        frontEnd.ShowFortress(night.Slot, campaign is { Over: true } ? $"TAKEN AT DAWN. {Hud.CampaignOver}."
-            : campaign?.History.LastOrDefault() is { } log && campaign.Current is null
-            ? $"{log.End}: {(log.Net >= 0 ? "+" : "")}{log.Net:0} scrip" : null);
+    string? howItWent = campaign is { Over: true } ? $"TAKEN AT DAWN. {Hud.CampaignOver}."
+        : campaign?.History.LastOrDefault() is { } log && campaign.Current is null
+        ? $"{log.End}: {(log.Net >= 0 ? "+" : "")}{log.Net:0} scrip" : null;
+    // Note 724: put off by the crew, the menu says so.
+    if (session is NetPlaySession { Kicked: true })
+        frontEnd.NightOver(DarkTerritory.Sim.Net.Messages.PutOff);
+    // Note 724: a crew ridden with, hosted from its copy: back to its board.
+    else if (leaving is Launch.CampaignNight { Crew: { } rodeWith })
+        frontEnd.ShowCrew(rodeWith, howItWent);
+    else if (leaving is Launch.CampaignNight night)
+        frontEnd.ShowFortress(night.Slot, howItWent);
     else
         frontEnd.NightOver();
 }
@@ -813,7 +825,7 @@ return 0;
     bool follow = chosen is Launch.Follow;
     string? town = chosen switch
     {
-        Launch.CampaignNight { Resume: false } from => saves.Load(from.Slot)?.Town?.Name,
+        Launch.CampaignNight { Resume: false } from => saves.Load(from.Slot, from.Crew)?.Town?.Name,
         Launch.Follow after => after.Going.Town.Name,
         _ => null,
     };
@@ -896,7 +908,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     }
     if (proto is not null)
         proto.Controls.Throttle = double.Parse(Arg("--throttle", "0"));
-    var voice = net is null ? null : new VoiceChat(sound.Mixer) { PushToTalk = settings.PushToTalk || args.Contains("--push-to-talk") };
+    var voice = net is null ? null : new VoiceChat(sound.Mixer) { PushToTalk = settings.PushToTalk || args.Contains("--push-to-talk"), Muted = net.IsMuted };
     // The radio's own clicks, squelch and static (voice-radio-sfx) follow what it's doing.
     sound.Voice = voice;
     using var mic = voice is null || settings.Mute || args.Contains("--mute") || args.Contains("--no-mic") ? null
@@ -1043,7 +1055,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Invites: net?.Lobby is { Status: Ballast.Online.Lobby.State.Open } && session.Link is not { Full: true },
         JoinAt: session.Link?.JoinAt,
         Over: session.World.Run?.Over == true,
-        Yard: net is { CanWear: true });
+        Yard: net is { CanWear: true })
+    {
+        // Note 724: the host's CREW MISCHIEF switch, in the yard.
+        Mischief = net is { Host: not null, CanWear: true } ? net.Mischief : null,
+    };
     // The emote wheel (note 298): held on its key, the mouse picks; let go, it's sent on the next tick.
     var wheel = new EmoteWheel();
     var pendingEmote = Emote.None;
@@ -1128,6 +1144,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 TakeUp(frontEnd.Settings);
             if (chosen is Launch.Invite)
                 net?.ShowInviteDialog();
+            // Note 724: the host's CREW MISCHIEF switch, from the in-night menu in the yard.
+            if (chosen is Launch.SetMischief switched)
+                net?.SetMischief(switched.On);
             if (chosen is Launch.Leave)
             {
                 frontEnd.CloseNight();
@@ -1151,6 +1170,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
 #endif
         // The crew goes on together (note 606): the host's left for the next night; this joiner goes after it.
         if (net is { Lost: true, GoingOn: not null })
+            break;
+        // Note 724: the crew put this player off; back to the menu, where it's said.
+        if (net is { Kicked: true })
             break;
         // The night's over: Enter goes back (to the fortress, for a campaign night).
         if (session.World.Run?.Over == true && Pressed(Key.Enter))
@@ -1238,8 +1260,28 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             pendingSeat = true;
         // The hotbar (T108): a number key picks its slot, the wheel steps through the tools (not while they're the ballot's).
         for (var k = Key.D1; k < Key.D1 + Kit.Slots; k++)
-            if (Pressed(k) && net is not { Voting: true })
+            if (Pressed(k) && net is not { Voting: true } && !(net is not null && Held(Control.Roster)))
                 pendingSelect = (byte)(k - Key.D1 + 1);
+        // Note 724: the roster out (Q held), a number mutes or unmutes that crewmate on this machine; with Shift the host puts
+        // them off, and in a public lobby anyone else calls the crew's vote on them, or agrees to it.
+        if (net is not null && Held(Control.Roster))
+        {
+            var others = net.Roster().Where(l => !l.You).ToList();
+            for (var k = Key.D1; k < Key.D1 + Math.Min(9, others.Count); k++)
+            {
+                if (!Pressed(k))
+                    continue;
+                var who = others[k - Key.D1];
+                if (input.Down(Key.LeftShift) || input.Down(Key.RightShift))
+                {
+                    if (net.CanKick)
+                        net.Kick(who.Id);
+                }
+                else
+                    net.ToggleMute(who.Id);
+                sound.Ui(UiCue.Select);
+            }
+        }
         if (window.MouseCaptured && !inMenu)
             pendingCycle += input.Wheel;
         // Held until a tick sends them: at a high frame rate a key press can land on a frame with no tick.
@@ -1401,6 +1443,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             }
             if (campaign is not null && session is NetPlaySession played)
                 campaign = Autosave(saves, campaign, played, content);
+            // Note 724: the crew's save, as the host settled tonight into it, kept among the crews this player's ridden with.
+            if (net?.TakeCrewSave() is { } crewSave && saves.Keep(crewSave) is { } keptCrew)
+                Console.WriteLine($"campaign: the crew's save kept, {keptCrew.Name} after {keptCrew.Runs} nights{(keptCrew.Over ? ", over" : "")}");
             // The ears are where the eyes were last frame; audio follows the sim tick so no shot is missed.
             // Watching a crewmate (App. D.10), you hear what they hear: their shelter, their space.
             var ears = session.Viewpoint;
@@ -1713,9 +1758,19 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             signalWheel.Draw(overlay, UiWidth, UiHeight, Hud.PromptScaleAt((float)renderer.Height / UiHeight));
             // Q held: the crew roster (T69), with who's been heard.
             if (Held(Control.Roster))
-                Hud.Roster(overlay, UiWidth, UiHeight, session.Roster(), voice is null ? null : voice.SinceHeard);
+                Hud.Roster(overlay, UiWidth, UiHeight, session.Roster(), voice is null ? null : voice.SinceHeard,
+                    net is null ? null : Hud.RosterKeys(net.Host is not null, net.CanKick));
             else if (showSupplies && session.World.Run?.Over != true)
                 Hud.Supplies(overlay, UiWidth, UiHeight, session);
+            // Note 724: the crew's vote to put someone off, across the top while it's open.
+            if (net is { KickVote.Open: true } voting)
+            {
+                var others = voting.Roster().Where(l => !l.You).ToList();
+                int number = others.FindIndex(l => l.Id == voting.KickVote.Target) + 1;
+                string name = others.FirstOrDefault(l => l.Id == voting.KickVote.Target).Name ?? "";
+                if (Hud.KickVoteLine(voting.KickVote, name, voting.KickVote.Target == voting.PlayerId, voting.KickVoteSeconds, number) is { } line)
+                    Hud.KickVoteBanner(overlay, UiWidth, UiHeight, line);
+            }
             if (session.Route?.Plan is { } shown)
             {
                 if (cardPage >= 0)
@@ -1867,7 +1922,16 @@ static CampaignState Autosave(SaveSlots saves, CampaignState campaign, NetPlaySe
         if (session.Route is { } arrived)
             settled = Campaign.Arrived(settled, report, DarkTerritory.Sim.Towns.TownAt.Terminus(arrived,
                 DarkTerritory.Sim.LineGen.LineGenContent.Cached(content).Config.Tiers.Fortress.Identities));
+        // Note 724: the crew's save travels: who settled it and when (the tie-break between two copies), and off to everyone
+        // aboard, who each keep it among the crews they've ridden with and can host it from there.
+        settled = settled with
+        {
+            Crew = settled.CrewId,
+            LastHost = session.World.Names.GetValueOrDefault(session.PlayerId) is { Length: > 0 } me ? me : NetPlaySession.PlayerName,
+            SettledAt = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+        };
         saves.Save(settled);
+        session.ShareSave(SaveSlots.Bytes(settled));
         Console.WriteLine($"campaign: {report.End}, net {report.Net:0} scrip; now {settled.Cars} cars and {settled.Scrip:0} scrip after {settled.Runs} nights");
         return settled;
     }

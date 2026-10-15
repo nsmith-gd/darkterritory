@@ -90,6 +90,14 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     public string? CrewKey { get; init; }
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public int Night { get; init; }
+    /// <summary>
+    /// The lobby's CREW MISCHIEF switch (GDD §23.4; note 724): the shove, the bonk and coal at the crew, on or off for the night.
+    /// Every machine's world is built with it (<see cref="World.CrewMischief"/>); the host's changes in the yard follow it.
+    /// </summary>
+    public bool Mischief { get; init; } = true;
+    /// <summary>A public lobby (note 724): anyone aboard can call the vote to put a player off. Every machine's roster says so.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public bool VoteKicks { get; init; }
     /// <summary>The host's line's fingerprint: a joiner whose own generated line differs (another generator version) is refused.</summary>
     public string? PlanPrint { get; init; }
     /// <summary>The host's terrain's fingerprint (linegen plan §17.3): a joiner whose ground comes out differently is refused.</summary>
@@ -201,6 +209,7 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
         {
             WreckTuning = DataFile.Load<WreckTuning>(Path.Combine(content, WreckTuning.File)),
             DawnEndsCampaign = CampaignNight && DataFile.Load<Sim.Campaign.CampaignTuning>(Path.Combine(content, Sim.Campaign.CampaignTuning.File)).DawnEndsCampaign,
+            CrewMischief = Mischief,
         };
         if (route is not null)
         {
@@ -524,11 +533,14 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// <param name="tap">Told of the night (note 515): a developer build's recorder. Null for <see cref="Tap"/>'s.</param>
     public static NetPlaySession HostGame(string content, SessionSetup setup, int? port = DefaultPort, int expectedCrew = 4, IOnlineBackend? online = null,
         Sim.Campaign.RunCheckpoint? resume = null, int bots = 0, bool listed = true, string? lobbyName = null, LanBeacon? beacon = null,
-        string? password = null, RunMood mood = RunMood.Either, IHostTap? tap = null, DatagramOptions? options = null)
+        string? password = null, RunMood mood = RunMood.Either, IHostTap? tap = null, DatagramOptions? options = null, bool? mischief = null)
     {
         tap ??= Tap;
         var key = Messages.PasswordKey(password);
         var playerTuning = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
+        // Note 724: a public lobby (listed, no password, others can reach it) puts a player off by the crew's vote; and the
+        // crew mischief switch starts where the run's mood and visibility have it, unless the host chose.
+        bool open = listed && key is null && (online is not null || port is not null);
         // Bots hold crewmates, so they count against the cap (note 254); the host's own player always has a place.
         int cap = playerTuning.Crew.Places;
         bots = Math.Clamp(bots, 0, cap - 1);
@@ -538,6 +550,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             Mods = ContentMods.MountedIn(content),
             Start = resume?.Front ?? setup.Start,
             Plan = resume?.Plan is { } saved ? Sim.LineGen.LinePlan.Decompress(saved) : setup.Plan,
+            Mischief = mischief ?? (setup.Mischief && Moods.MischiefByDefault(mood, !open, playerTuning.Horseplay)),
+            VoteKicks = open,
         };
         // Planned for who'll be there: alone with bots, them and you; hosted online, the friends expected too (T115: a
         // local night alone was planned for four).
@@ -571,7 +585,12 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         // they came in on (a LAN or address joiner has none, and needs it).
         if (online is not null && hostTransport is HostGroup group)
             host.Trusted = peer => group.Route(peer) is (OnlineTransport over, var at) && over.TryGetAddress(at, out var user) && online.IsFriend(user);
+        // Note 724: who a link is, to bar someone put off: their account, or a LAN joiner's address.
+        host.VoteKicks = setup.VoteKicks;
+        host.Identity = peer => IdentityOf(hostTransport, peer);
         tap?.Hosted(host, night);
+        // Note 724: the night's own crew comes aboard as it always has; a friend takes a bot's seat only after.
+        host.BotSeatsOpen = false;
         // The bot crew aboard first, so one of them has the cab. Their clients take the host's plan, not a fresh generation.
         BotCrew? crew = null;
         if (bots > 0)
@@ -605,6 +624,10 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             client.Step(default);
             Thread.Sleep(1);
         }
+        // Note 724: a friend who takes a bot's seat (or a bot put off) takes that bot out of the crew this machine runs.
+        if (crew is not null)
+            host.BotLeft = crew.Retire;
+        host.BotSeatsOpen = true;
         if (!listed)
             beacon?.Dispose();
         return new NetPlaySession(host, hostTransport, port is null ? null : udp, client, clientTransport, setup, route, lobby)
@@ -929,7 +952,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public bool CanReconnect => Lost && Redialable && !_dialing && Attempt >= Attempts;
     /// <summary>A joiner, with a host to go back to: not hosting, and the host hasn't left its lobby (spec E: that ends it).</summary>
     /// (Not once the host's said it's going on to the next night, note 606: that's a new night to join, not this one to rejoin.)
-    bool Redialable => Redial is not null && Lobby is not { HostLeft: true } && Client.CarryingOn is null;
+    bool Redialable => Redial is not null && Lobby is not { HostLeft: true } && Client.CarryingOn is null && !Kicked;
 
     /// <summary>
     /// The crew goes on together (note 606), the host's end: tells the crew it's going on to the next night from
@@ -1294,19 +1317,107 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         foreach (byte id in Client.RemoteIds)
             if (Client.TryGetRemote(id, 1, out var s))
                 remotes.Add((id, s));
-        return RosterOf((byte)(Client.PlayerId ?? 0), Player, remotes, World);
+        return RosterOf((byte)(Client.PlayerId ?? 0), Player, remotes, World, IsMuted);
     }
+
+    // ---- Sessions (GDD §33.1, ARCHITECTURE §8 note 724) ----
+
+    /// <summary>
+    /// Who a link is beyond its connection (note 724): a platform account, or a LAN joiner's address (not this machine's own
+    /// loopback, where the host's player and the bots are). Null: by name, then.
+    /// </summary>
+    static string? IdentityOf(ITransport host, PeerId peer)
+    {
+        var (t, p) = host is HostGroup g && g.Route(peer) is { } r ? r : (host, peer);
+        return t switch
+        {
+            OnlineTransport o when o.TryGetAddress(p, out var user) => $"user:{user}",
+            UdpTransport u when u.TryGetAddress(p, out var at) && at is IPEndPoint ip && !IPAddress.IsLoopback(ip.Address) => $"ip:{ip.Address}",
+            _ => null,
+        };
+    }
+
+    /// <summary>
+    /// Muted on this machine (note 724), by name, for as long as the game's open: a crewmate muted on one night is muted on the
+    /// next with the same crew. Never sent anywhere.
+    /// </summary>
+    public static HashSet<string> MutedNames { get; } = new(StringComparer.OrdinalIgnoreCase);
+    readonly HashSet<byte> _muted = [];
+
+    /// <summary>Whether this crewmate's voice is kept from this machine's ears (note 724): every path, the tube and the radio too.</summary>
+    public bool IsMuted(byte id) => id != PlayerId && (_muted.Contains(id) || World.Names.TryGetValue(id, out var n) && n.Length > 0 && MutedNames.Contains(n));
+
+    /// <summary>MUTE / UNMUTE beside a name on the roster (note 724): on this machine only.</summary>
+    public void ToggleMute(byte id)
+    {
+        if (id == PlayerId)
+            return;
+        bool now = !IsMuted(id);
+        string? name = World.Names.TryGetValue(id, out var n) && n.Length > 0 ? n : null;
+        if (now)
+        {
+            _muted.Add(id);
+            if (name is not null)
+                MutedNames.Add(name);
+        }
+        else
+        {
+            _muted.Remove(id);
+            if (name is not null)
+                MutedNames.Remove(name);
+        }
+    }
+
+    /// <summary>The host: put a crewmate off outright. A joiner in a public lobby: call the crew's vote on them, or agree to it (note 724).</summary>
+    public void Kick(byte id)
+    {
+        if (id != PlayerId)
+            Client.Kick(id);
+    }
+
+    /// <summary>Whether this player can put someone off from the roster (note 724): the host, or anyone in a public lobby.</summary>
+    public bool CanKick => Host is not null || Setup.VoteKicks;
+
+    /// <summary>The crew's vote to put someone off, as it stands (note 724), or none.</summary>
+    public KickVote KickVote => Client.KickVote;
+
+    /// <summary>Seconds left on the open vote, by the host's clock.</summary>
+    public double KickVoteSeconds => KickVote.Open ? Math.Max(0, (long)KickVote.Until - (long)Client.NewestSnapshotTick) * SimConstants.TickSeconds : 0;
+
+    /// <summary>The crew put this player off (note 724): the night's over for them, and there's no redialling it.</summary>
+    public bool Kicked => Client.Kicked || Client.Refused is { Reason: RefusalReason.Kicked };
+
+    /// <summary>The lobby's crew mischief switch as this machine has it (note 724).</summary>
+    public bool Mischief => World.CrewMischief;
+
+    /// <summary>The host, in the yard: CREW MISCHIEF ON or OFF (note 724), to every machine.</summary>
+    public void SetMischief(bool on)
+    {
+        if (Host is { } host && World.Run is null or { Phase: Sim.Run.RunPhase.Yard })
+            host.Mischief = on;
+    }
+
+    /// <summary>
+    /// The host, settling a campaign night (note 724): the crew's save to everyone aboard, who each keep it among the crews
+    /// they've ridden with.
+    /// </summary>
+    public void ShareSave(byte[] save) => Host?.ShareSave(save);
+
+    /// <summary>A joiner: the crew's save, if the host's sent one since the last take (note 724). The host's own is its slot's.</summary>
+    public byte[]? TakeCrewSave() => Client.TakeCrewSave() is { } save && Host is null ? save : null;
 
     /// <summary>
     /// The roster's lines: you and the rest of the session's crew, by name, in player-id order. GDD v1.4 (open question 2)
     /// made roll call verbal: "there is no aboard indicator for the conductor or anyone else", so a line says nothing of
     /// where anyone is or whether they're alive, and the Passenger isn't on it: its only tell is silence, heard by ear.
     /// </summary>
-    public static IReadOnlyList<RosterLine> RosterOf(byte me, in PlayerState mine, IEnumerable<(byte Id, PlayerState State)> crew, World world)
+    /// <param name="muted">Who's muted on this machine (note 724): the roster says MUTED beside them.</param>
+    public static IReadOnlyList<RosterLine> RosterOf(byte me, in PlayerState mine, IEnumerable<(byte Id, PlayerState State)> crew, World world,
+        Func<byte, bool>? muted = null)
     {
         var lines = new List<RosterLine> { new(me, NameOr(world, me, "YOU").ToUpperInvariant(), "", true, You: true) };
         foreach (var (id, _) in crew)
-            lines.Add(new RosterLine(id, NameOr(world, id, $"CREW {id}").ToUpperInvariant(), "", true));
+            lines.Add(new RosterLine(id, NameOr(world, id, $"CREW {id}").ToUpperInvariant(), "", true) { Muted = muted?.Invoke(id) == true });
         return [.. lines.OrderBy(l => l.Id)];
     }
 

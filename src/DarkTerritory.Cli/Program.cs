@@ -3603,7 +3603,10 @@ static object HudShot(string content, string[] args)
     if (args.Contains("--roster"))
     {
         var (lines, heard) = Staging.Roster(session.Train, content);
-        Hud.Roster(hud, width, height, lines, heard);
+        // Note 724: as a host in a public run has it: Reyes muted, the keys under the names, and a vote open on Okafor.
+        Hud.Roster(hud, width, height, [.. lines.Select(l => l.Id == 3 ? l with { Muted = true } : l)], heard, Hud.RosterKeys(host: true, vote: true));
+        if (Hud.KickVoteLine(new DarkTerritory.Sim.Net.KickVote(2, 1, 2, 0), "OKAFOR", onYou: false, 21, 2) is { } vote)
+            Hud.KickVoteBanner(hud, width, height, vote);
     }
     // --card: the generated line's route card over it; --overlay: the designer's overlay (linegen plan §9.7, §20.2).
     if (session.Route?.Plan is { } plan)
