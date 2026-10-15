@@ -226,3 +226,11 @@ launches are AU1.1, AU1.2, …. Entries are UTC; those before 12:55 on 7 Oct wer
   is #967's own), plus `crew-gun-lay`'s verdict. No new verdicts tonight; the Voice Booth has none either.
 - **The weak-sound check on tonight's installs:** every impact and footfall is under the squish line. The rest of the
   flags are the far and low ones by design: the Wakers' thuds and calls, the comet's hum, the guns far off.
+
+## 15 Oct, ~06:40 UTC: #1025 merged; #507, a ping heard
+
+- **Merged #1025:** #501-#504 and #506, and #505's candidates.
+- **#507 (note 777), A1's #1024 pings:** they were seen by everyone but made no sound.
+  - Each ping is now heard once, by everyone, as a roger beep on the radio. Pings already standing when an ear joins are
+    not replayed.
+  - 2 candidates built and uploaded; a new `ui-pings` row at L1; a test.

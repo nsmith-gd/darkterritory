@@ -920,6 +920,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [760. What a find's kept in is furniture: a cupboard's a kitchen dresser, a cabinet's a sideboard, and searched they're opened, not blacked out…](notes/760.md)
 - [761. The eyes in the dark have something under them: a sign is the thing that lives here, a dark shape at the lamp's edge with its eyes in its…](notes/761.md)
 - [762. No light pops in or out as the eye moves: the light budget faded at its edge, and the hand lamp's shadows held (C1, queue #492; the…](notes/762.md)
+- [758. What's drawn at a stop is what's walked into: the coaling tower's trestle and the facilities' buildings (C1, queue #488; the director, 14…](notes/758.md)
 - [763. The char a fire leaves, as burnt boards (C1, queue #493; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 28:…](notes/763.md)
 - [767. The house creatures heard (AU1, queue #497; G1's #316-#319, notes 583-586; their design docs' §4)](notes/767.md)
 - [768. Horseplay heard (AU1, queue #498; K1's #451, note 717)](notes/768.md)
@@ -929,4 +930,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [774. K1's merged asks heard (AU1, queue #504; K1's comment on #1012; notes 718, 720 and 727)](notes/774.md)
 - [775. U1's upgrades heard (AU1, queue #505; U1's #967, notes 678, 697, 698, 700 and 711)](notes/775.md)
 - [776. K1's crew car and crew memory heard (AU1, queue #506; K1's #1016, notes 716 and 721; K1's asks on #1012)](notes/776.md)
+- [777. A ping heard (AU1, queue #507; A1's #1024, note 739)](notes/777.md)
 <!-- end of the notes index -->
