@@ -2058,6 +2058,8 @@ public static partial class Hud
         DeathCause.Fell => "FELL. IT WAS FURTHER DOWN THAN IT LOOKED",
         // Note 717: a friend's shove, and the landing did the rest.
         DeathCause.Shoved => "SHOVED OFF. SOME FRIEND",
+        // Note 726: off the crane's hook after a friend lifted you.
+        DeathCause.Dropped => "DROPPED FROM THE CRANE. YOU DID ASK",
         DeathCause.None => "",
         _ => cause.ToString().ToUpperInvariant(),
     };
@@ -2550,6 +2552,9 @@ public static partial class Hud
             // Set down on the car you're on, still on the hook (note 659): unhooked there.
             if (p.Parent > 0 && crane.Unriggable(train, PlayerMotor.WorldPosition(p, train)))
                 return crane.Rigging > 0 ? $"UNHOOKING ({crane.Rigging * 100:0}%)" : "UNHOOK THE CASTING : HOLD [E]";
+            // An empty hook in reach (note 726): stand on it and ride it.
+            if (world.HookInReach(p, s.PlayerId) is not null)
+                return "HOLD ON : HOLD [E]";
         }
         // The handcar (note 729): at its handle, which stroke's in time now; at an end of it, take it; beside it, lift it.
         if (HandcarPrompt(world, p, train) is { } handcar)

@@ -895,6 +895,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [721. Crew memory (K1, queue #455; the director, 14 Oct 2026, `docs/design/friendslop.md` §3, GDD App. F.6)](notes/721.md)
 - [723. Bringing them home (K1, queue #457; the director, 14 Oct 2026, `docs/design/friendslop.md` §3, GDD App. F.6)](notes/723.md)
 - [724. Sessions (K1, queue #458; the director, 14 Oct 2026, `docs/design/friendslop.md`, GDD App. F.6)](notes/724.md)
+- [726. Hoist a friend on the crane's hook (K1, queue #460; the director, 14 Oct 2026, `docs/design/friendslop.md`, GDD App. F.6)](notes/726.md)
 - [727. The mail catch (K1, queue #461; the director, 14 Oct 2026, GDD App. F.6)](notes/727.md)
 - [728. The sense table, and thrown things do what they are (K1, queue #462; the director, 14 Oct 2026, `docs/design/friendslop.md`, GDD App. F.6;…](notes/728.md)
 - [729. The handcar (K1, queue #463; the director, 14 Oct 2026, `docs/design/friendslop.md`, GDD App. F.6)](notes/729.md)

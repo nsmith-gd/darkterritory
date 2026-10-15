@@ -229,6 +229,9 @@ public static class Eyes
         return Operator(crane);
     }
 
+    /// <summary>How far over the hook a rider's middle is (m, note 726).</summary>
+    const double RiderMiddle = 0.9;
+
     /// <summary>The operator's view of <paramref name="crane"/> where its hook is now (note 707).</summary>
     public static Camera Operator(Sim.Run.Crane crane)
     {
@@ -236,7 +239,9 @@ public static class Eyes
         double top = crane.BridgeEnd(0).Y - 0.6;
         var trolley = crane.HookAt with { Y = top };
         double lowered = view.LowerFrom > 0 ? Math.Clamp((top - crane.HookAt.Y) / view.LowerFrom, 0, 1) : 0;
-        var look = Double3.Lerp(trolley, crane.HookAt, view.Down * lowered);
+        // A friend stood on the hook (note 726) is the load the eye follows down: their middle, not the hook under their boots.
+        var load = crane.Riders > 0 ? crane.HookAt + Double3.Up * RiderMiddle : crane.HookAt;
+        var look = Double3.Lerp(trolley, load, view.Down * lowered);
         // Note 736: from the cab over the stack, tipped on down toward the ground under the hook, so the castings under it
         // are in the view while the hook's still up.
         look = Double3.Lerp(look, crane.HookAt - Double3.Up * crane.Hook, view.Ground);

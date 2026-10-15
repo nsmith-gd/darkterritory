@@ -246,7 +246,10 @@ public enum DeathCause : byte
     // Note 573: came down from too high (off a bridge's deck, down a bank's drop).
     Fell,
     // Note 717: shoved off by a crewmate, and the landing (the train's speed, or the height) killed them; the report names who.
-    Shoved
+    Shoved,
+    // Note 726: let go of the crane's hook (or shaken off it) after the operator lifted them, and the fall killed them; the
+    // report names the operator.
+    Dropped
 }
 
 /// <summary>Conditions a player carries.</summary>
@@ -315,6 +318,11 @@ public enum PlayerFlags : ushort
     /// still, W pushes your end down and S pulls it up; the brake key's the brake lever; Jump lets go.
     /// </summary>
     Pumping = 16384,
+    /// <summary>
+    /// Riding a crane's hook (note 726, hoisting a friend): stood on it, a hand on its cable, the feet the hook's, so the motor
+    /// leaves them be; they look, talk and let go (Jump). Set by the host each tick from who's on which hook (World.StepHoist).
+    /// </summary>
+    Hoisted = 32768,
 }
 
 /// <summary>
@@ -625,8 +633,9 @@ public static class PlayerMotor
         if (!s.Alive)
             return;
 
-        // Carried over a friend's shoulder (note 723): your feet are theirs; the host puts you where they go.
-        if (s.Has(PlayerFlags.Carried))
+        // Carried over a friend's shoulder (note 723): your feet are theirs; the host puts you where they go. Riding a crane's
+        // hook (note 726), they're the hook's.
+        if (s.Has(PlayerFlags.Carried) || s.Has(PlayerFlags.Hoisted))
             return;
 
         // Held (App. A.1 GRAB): your feet are the thing's now. What moves you is what holds you.

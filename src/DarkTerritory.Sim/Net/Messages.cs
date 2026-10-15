@@ -99,7 +99,9 @@ public static class Protocol
     //     bits 16 up), and the doors' record the jackpot houses' locks being picked after the doors shut (key, progress pairs).
     // 66: the handcar (note 729): a vehicle kind of its own and a Handcar record (hung or on the rails, the handle's swing, the
     //     pumpers' drive, the brake, a lift under way, how many at the handle); a player's flags carry Pumping.
-    public const int Version = 66;
+    // 67: a friend on the crane's hook (note 726): the Crane record's last field counts the riders, a player's flags carry
+    //     Hoisted, and a death of its own (dropped from the crane).
+    public const int Version = 67;
 }
 
 public enum MessageType : byte

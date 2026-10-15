@@ -167,6 +167,22 @@ public sealed record CraneTuning
     public double GuideSpeed { get; init; }
     /// <summary>Note 707: the operator's view from the cab (presentation only; the sim never reads it).</summary>
     public CraneViewTuning View { get; init; } = new();
+    /// <summary>Note 726: a crewmate riding the hook.</summary>
+    public HoistTuning Hoist { get; init; } = new();
+}
+
+/// <summary>A friend on the crane's hook (GDD §18, note 726). Field docs in facilities.json <c>crane.hoist</c>.</summary>
+public sealed record HoistTuning
+{
+    public bool Enabled { get; init; } = true;
+    public double Reach { get; init; } = 1.2;
+    public double[] Height { get; init; } = [-0.4, 1.9];
+    public double GrabSeconds { get; init; } = 0.6;
+    public int Riders { get; init; } = 2;
+    public double FeetAbove { get; init; } = 0.05;
+    public double Spread { get; init; } = 0.45;
+    public double Headroom { get; init; } = 1.7;
+    public bool ShakeOff { get; init; } = true;
 }
 
 /// <summary>The crane operator's view (GDD §18, note 707). Field docs in facilities.json <c>crane.view</c>.</summary>

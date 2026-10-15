@@ -1053,7 +1053,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // stages it gnawing, the tower leaning over the line; towerjawfall, the tower down across it.
     string towerJawMode = Str(args, "--towerjaw", view switch { "towerjaw" => "lean", "towerjawfall" => "wreck", _ => "" });
     // --route tier:seed generates the night in memory; --coaling stops the train at its coaling tower, chute pouring.
-    Route? generated = Str(args, "--route", towerJawMode.Length > 0 ? "frontier:3" : Staging.IsHouseView(view) || view is "comet" or "trophies" or "crewphoto" or "lostcrews" or "jackpot" or "jackpothouse" or "looseloot" ? "frontier:7" : "") is { Length: > 0 } spec
+    Route? generated = Str(args, "--route", towerJawMode.Length > 0 ? "frontier:3" : Staging.IsHouseView(view) || view is "comet" or "trophies" or "crewphoto" or "lostcrews" or "jackpot" or "jackpothouse" or "looseloot" or "hoist" ? "frontier:7" : "") is { Length: > 0 } spec
         ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars)
         : null;
     var line = generated?.Build() ?? RailLine.Load(Path.Combine(content, "lines", lineName + ".json"));
@@ -1087,7 +1087,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     }
     // --site: stop at the first facility with loading modules (spec D), crates out and the winch sled part-hauled.
     DarkTerritory.Sim.Run.Site? site = null;
-    if (args.Contains("--site") && generated is not null)
+    // The hoist view (note 726): a crane's facility, a friend on its hook.
+    bool hoist = view == "hoist";
+    List<Crewmate>? hoistCrew = null;
+    if ((args.Contains("--site") || hoist) && generated is not null)
     {
         run = new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated);
         var facilities = DataFile.Load<DarkTerritory.Sim.Run.FacilityTuning>(Path.Combine(content, DarkTerritory.Sim.Run.FacilityTuning.File));
@@ -1105,9 +1108,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             return Print(new { error = $"{Str(args, "--route", "")} has no {wantKind}", has = run.Sites.Where(x => x is not null).Select(x => x!.Feature.Facility.ToString()) });
         site = kindPick is { } k ? run.Sites.First(x => x?.Feature.Facility == k)
             : pick >= 0 && pick < run.Sites.Count ? run.Sites[pick]
-            : args.Contains("--crane") ? run.Sites.FirstOrDefault(x => x?.Crane is not null)
+            : args.Contains("--crane") || hoist ? run.Sites.FirstOrDefault(x => x?.Crane is not null)
             : run.Sites.FirstOrDefault(x => x is not null && x.Has(DarkTerritory.Sim.Run.ModuleKind.Winch)) ?? run.Sites.FirstOrDefault(x => x is not null);
-        if (site?.Crane is { } shownCrane)
+        // (--hook h: how high the hook with the friend on it hangs, 2.4 m.)
+        if (hoist && site?.Crane is { } hoistCrane)
+            hoistCrew = Staging.Hoist(hoistCrane, Opt(args, "--hook", 2.4));
+        else if (site?.Crane is { } shownCrane)
         {
             shownCrane.Castings[0].State = DarkTerritory.Sim.Run.CastingState.Hooked;
             // --hook h --trolley t: where the hook hangs (m over the ground) and the trolley stands across (m from the track).
@@ -1579,6 +1585,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 var side = (site.HoseCar >= 0 && site.HoseCar < train.Frames.Count ? (site.HoseStand - train.Frames[site.HoseCar].Origin) with { Y = 0 } : Out(site.HoseStand)).Normalized;
                 camera = Camera.LookAt(site.HoseStand + (side * 8 + Along() * 7 + Double3.Up * 5) * near, site.HoseStand + Double3.Up * 2.5 - side * 2.5, 62);
             }
+            // The hoist view (note 726): from the ground off the hook's side, looking up at the friend stood on it.
+            else if (site.Crane is { } hoisted && hoist && !args.Contains("--operator"))
+                camera = Staging.HoistCamera(hoisted);
             // --operator: through the crane operator's eyes at the controls (note 707), the hook where --hook puts it.
             else if (site.Crane is { } operated && args.Contains("--operator"))
                 camera = DarkTerritory.Game.Eyes.Operator(operated);
@@ -2003,6 +2012,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Crew = horseplay is { } hc ? hc.Crew
             // The handcar views (note 729): two pumping at its handle, or two lifting it down off the van.
             : view is "handcar" or "handcarlift" ? Staging.HandcarCrew(train, view)
+            // The hoist view (note 726): a friend on the crane's hook, --hook h m up (2.4), another waving up at them.
+            : hoistCrew is not null ? hoistCrew
             : args.Contains("--act") ? Staging.Acts(train, content, Str(args, "--act", "").Split(','),
                 Enum.Parse<DarkTerritory.Game.Art.Survivor>(Str(args, "--survivor", "none"), ignoreCase: true))
             // --vr-body: three headset crewmates on car 2's roof, leaning, crouched and mid-step (T82; views crew, crewside).

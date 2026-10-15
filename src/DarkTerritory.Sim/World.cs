@@ -1572,6 +1572,10 @@ public sealed partial class World
         CoalAct(ref s, ref intent, playerId);
         if (Hosting)
             ShoveAct(s, intent, playerId);
+        // A friend on the crane's hook (note 726), the host's: the hook taken hold of, or let go of, before the rescues, the hands
+        // and the levers see Use.
+        if (Hosting)
+            HoistAct(s, ref intent, playerId);
         // Bringing them home (note 723), the host's: a hand-up, a friend lifted, put down, thrown or wriggled out of, before the
         // hands and the levers see Use; and the hurt friend a healing find in the hands goes on.
         int patient = Hosting ? RescueAct(s, ref intent, playerId) : -1;
