@@ -715,6 +715,8 @@ public sealed partial class GameAudio
                 var casting = crane.Castings[c];
                 var was = _castings.TryGetValue((key, c), out var w) ? w : casting.State;
                 _castings[(key, c)] = casting.State;
+                if (primed)
+                    LostDown(was, casting.State, casting.At, outside);
                 if (!primed || was != CastingState.Hooked || casting.State == CastingState.Hooked)
                     continue;
                 bool onCar = casting.State == CastingState.Loaded && casting.Car >= 0 && casting.Car < train.Frames.Count;
@@ -917,14 +919,10 @@ public sealed partial class GameAudio
                 if (Cue($"voice-prisoner-sets.{(kind < 9 ? "call" : "shout")}.set{set}", inside, 0.35f) is null)
                     Mixer.Play("holdout-shout", inside)?.Also(v => v.Occlusion = 0.35f);
             }
-            else if (!HasCue("voice-callout.bang"))
+            // A call's banging is one bout: each take is a whole frantic bout of blows, as the synthesised stand-in is
+            // (note 810; they were played two to four at once, 0.3 s apart, as if each were one blow).
+            else if (Cue("voice-callout.bang", inside, 0.35f) is null)
                 Mixer.Play("holdout-bang", inside)?.Also(v => v.Occlusion = 0.35f);
-            else
-            {
-                int bangs = 2 + (int)(roll / 20 % 3);
-                for (int b = 0; b < bangs; b++)
-                    CueLater(b * (0.28 + 0.06 * (b % 2)), "voice-callout.bang", inside, 0.35f, b == 0 ? 1 : 0.85f);
-            }
         }
     }
 
