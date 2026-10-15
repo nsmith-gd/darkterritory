@@ -44,14 +44,16 @@ public static class Controls
         [Control.Jump] = "Space",
         [Control.Use] = "E",
         [Control.Fire] = "MouseLeft",
-        [Control.Throw] = "MouseRight",
+        // Note 749 (the director, 14 Oct 2026: "Hold down right click to use the radio since communication is so important";
+        // "swap input conflict there so right click is radio call. Throw is so rarely used"): Throw took the radio's old T.
+        [Control.Throw] = "T",
         [Control.RegulatorOpen] = "R",
         [Control.RegulatorClose] = "Y",
         [Control.Brake] = "B",
         [Control.Reverser] = "X",
         [Control.Lamp] = "L",
         [Control.Talk] = "V",
-        [Control.Radio] = "T",
+        [Control.Radio] = "MouseRight",
         [Control.Roster] = "Q",
         [Control.RouteCard] = "C",
         [Control.Chase] = "Tab",
@@ -105,6 +107,20 @@ public static class Controls
         Control.Shove => "SHOVE A CREWMATE",
         Control.Signal => "LAMP SIGNAL (HOLD, THE MOUSE PICKS)",
         _ => c.ToString().ToUpperInvariant(),
+    };
+
+    /// <summary>
+    /// A key's name where there's only a slot's corner for it (the hotbar's radio, note 749): the mouse buttons short, as the
+    /// HUD's prompts write them; anything else as the menu says it.
+    /// </summary>
+    public static string ShortKeyLabel(string key) => key switch
+    {
+        "MouseLeft" => "LMB",
+        "MouseRight" => "RMB",
+        "MouseMiddle" => "MMB",
+        "Mouse4" => "M4",
+        "Mouse5" => "M5",
+        _ => KeyLabel(key),
     };
 
     /// <summary>A key's name as the menu shows it.</summary>

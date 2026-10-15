@@ -462,10 +462,40 @@ public sealed partial class World
         foreach (var (id, s, body) in Bodies.OnDeaths(Train, crew))
             if (Run is not null && !_countedAhead.Remove(id))
                 Attribution.Add(Sim.Run.IncidentLog.Death(this, id, s, body, crew));
+        IssueRadios(crew);
         Bodies.Step(Train, Train.Dynamics.Tuning, id => crew.FirstOrDefault(c => c.Id == id) is { State: var s } pair && pair.Id == id ? s : null);
         Train.Lying = Bodies.Lying(Train);
         Recover();
         BreakRadios(crew);
+    }
+
+    /// <summary>
+    /// Note 749 (GDD §12; the director, 14 Oct 2026: "make the radios part of the default kit"; "Radio is part of uniform and
+    /// doesnt take inventory space"): with train.json <c>kit.radioEach</c>, every living crewmate wears a radio: one put on
+    /// the belt of anyone alive without one (the night's first tick, a joiner, one back from a Holdout, a bot), and the dead's
+    /// taken off them, so they come back with a working set. In crew order, so the bodies' ids are the same on every run.
+    /// From the tick the train's stocked.
+    /// </summary>
+    void IssueRadios(IReadOnlyCollection<(int Id, PlayerState State)> crew)
+    {
+        // Once the train's stocked (Stock, Restock): a world that never was keeps the radio a button everyone has.
+        if (!Train.Dynamics.Tuning.Kit.RadioEach || !Bodies.RadiosCarried)
+            return;
+        foreach (var (id, s) in crew)
+        {
+            var worn = Bodies.All.FirstOrDefault(b => b.Kind == Physics.BodyKind.Radio && b.Carrier == id);
+            if (!s.Alive)
+            {
+                if (worn is not null)
+                    Bodies.Remove(worn);
+                continue;
+            }
+            if (worn is not null)
+                continue;
+            var radio = Bodies.SpawnItem(PlayerMotor.WorldPosition(s, Train) + Ballast.Double3.Up * 1.0, s.LineHint, Physics.BodyKind.Radio);
+            radio.Carrier = id;
+            radio.Claimed = true;
+        }
     }
 
     readonly Dictionary<int, (int Health, bool Held)> _wasHurt = [];
@@ -536,7 +566,11 @@ public sealed partial class World
         // The radios (T41, train.json kit): one on the cab floor against its back wall right of the middle, out of the reach
         // of a crewmate arriving in the cab and of all the work at its front (note 280), and against the plate over the
         // boiler's end, clear of the corridor in beside it (note 338); the rest in the guard van.
-        int radios = Train.Dynamics.Tuning.Kit.Radios;
+        // Note 749: with a radio each (kit.radioEach) they're the crew's uniform, put on each crewmate (StepBodies), and none
+        // lies loose.
+        int radios = Train.Dynamics.Tuning.Kit.RadioEach ? 0 : Train.Dynamics.Tuning.Kit.Radios;
+        if (Train.Dynamics.Tuning.Kit.RadioEach)
+            Bodies.RadiosCarried = true;
         if (radios > 0 && Train.Frames[0].Shape.Cab is { } cab)
         {
             Bodies.RadiosCarried = true;
@@ -573,8 +607,9 @@ public sealed partial class World
     /// are all back), nor anything a creature's carrying off.
     /// </summary>
     public Campaign.ThingAboard[] Aboard() =>
+        // Not a uniform's radio (note 749): it's the crewmate's, and a resumed night's crew are given theirs again.
         [.. Bodies.All.Where(b => b.Kind != Physics.BodyKind.Ragdoll && b.TakenBy < 0 && b.Parent >= 0 && b.Parent < Train.Vehicles.Count
-            && b.Pbd.Particles.Length == 1).Select(b =>
+            && b.Pbd.Particles.Length == 1 && !(b.Kind == Physics.BodyKind.Radio && b.Carrier >= 0 && Train.Dynamics.Tuning.Kit.RadioEach)).Select(b =>
         {
             var p = b.Pbd.Particles[0];
             return new Campaign.ThingAboard(b.Kind, b.Parent, p.Position, p.Radius, b.Pbd.Friction, b.Pbd.Bounce, b.Yaw, b.Locker, b.Slot, b.Claimed,
@@ -590,7 +625,7 @@ public sealed partial class World
     public void Restock(IEnumerable<Campaign.ThingAboard> things)
     {
         var kit = Train.Dynamics.Tuning.Kit;
-        if (kit.Radios > 0 && Train.Frames[0].Shape.Cab is not null)
+        if (kit.RadioEach || kit.Radios > 0 && Train.Frames[0].Shape.Cab is not null)
             Bodies.RadiosCarried = true;
         if (RepairKitCar(Train) is not null && !Repairs.ByWrench(Train) && kit.RepairKits + kit.SpareKits > 0)
             KitStocked = true;
@@ -799,6 +834,25 @@ public sealed partial class World
 
     /// <summary>The crew with their ids as the host last stepped bodies with them: who a night's end bookmarks.</summary>
     internal IReadOnlyList<(int Id, PlayerState State)> LastCrew { get; private set; } = [];
+
+    /// <summary>
+    /// The chance a held player's one struggle frees them (App. C.1), or null when a friend is near enough to be the help:
+    /// alone, grab.soloStruggleChance; in a crew with no living crewmate within grab.crewStruggleBeyond of them,
+    /// grab.crewStruggleChance (note 756). Distances from the whole crew as it acted last tick.
+    /// </summary>
+    double? StruggleChance(GrabTuning t, int playerId, in PlayerState s)
+    {
+        var others = _crewActed.Where(c => c.Id != playerId && c.State.Alive).ToList();
+        if (others.Count == 0)
+            return t.SoloStruggleChance;
+        if (t.CrewStruggleBeyond <= 0)
+            return null;
+        var at = PlayerMotor.WorldPosition(s, Train);
+        foreach (var c in others)
+            if ((PlayerMotor.WorldPosition(c.State, Train) - at).Length <= t.CrewStruggleBeyond)
+                return null;
+        return t.CrewStruggleChance;
+    }
 
     /// <summary>The session's names for its crew by player id (the host's from each joiner's hello; clients are sent them).</summary>
     public Dictionary<int, string> Names { get; } = [];
@@ -1541,7 +1595,7 @@ public sealed partial class World
             // Note 619: the doors as they were, to say who opened one (only a Use works a door).
             var doors = Authority && intent.Buttons.HasFlag(PlayerButtons.Use) ? Train.Vehicles.Select(v => v.DoorsOpen).ToArray() : null;
             int partings = Train.Partings.Count;
-            CrewActions.Apply(ref s, intent, Train, SimConstants.TickSeconds, Hand);
+            CrewActions.Apply(ref s, intent, Train, SimConstants.TickSeconds, Hand, (kind, vehicle) => Pace(playerId, kind, vehicle));
             // Note 663: whose hand cut it, for the news.
             for (int i = partings; i < Train.Partings.Count; i++)
                 if (Train.Partings[i] is { Cause: Parting.Crew, Who: < 0 } cut)
@@ -1583,8 +1637,16 @@ public sealed partial class World
             if (Authority && c.Fumes is not null)
                 _fumes.Add(shot);
         }
-        if (Combat is { } cr)
-            Guns.Reload(s, intent, Train, cr.Guns, SimConstants.TickSeconds);
+        // The reload (note 752: the gunner in the seat, or a loader beside it while the gunner aims): each pair of hands on it
+        // this tick, counted, so two together work it at combat.json loaderRate whoever's turn comes first. Standing, a hand
+        // meant for something looked at (a locker, a handbrake) is that thing's, not the gun's.
+        if (Combat is { } cr && Guns.Working(s, intent, Train, cr.Guns) is { } worked
+            && (s.Has(PlayerFlags.Seated) || CrewActions.LookedAt(s, Train) is null))
+        {
+            int hands = _gunHands.GetValueOrDefault(worked) + 1;
+            _gunHands[worked] = hands;
+            Guns.Reload(Train, worked, cr.Guns, SimConstants.TickSeconds, hands);
+        }
         // Pushing the gun along its roof rail (T93), worked out alike everywhere so a client predicts it: the motor moves it.
         bool pushing = Combat is { } cp && Guns.Pushing(s, intent, Train, cp.Guns);
         s.Flags = pushing ? s.Flags | PlayerFlags.Pushing : s.Flags & ~PlayerFlags.Pushing;
@@ -1646,10 +1708,12 @@ public sealed partial class World
             bool idle = moving < ec.Tuning.TippyToesie.IdleBelow && asked.MoveX == 0 && asked.MoveZ == 0 && asked.Buttons == PlayerButtons.None
                 && asked.Actions == PlayerActions.None && !driving;
             IdleSeconds[playerId] = idle ? IdleSeconds.GetValueOrDefault(playerId) + SimConstants.TickSeconds : 0;
-            // Alone, there's no friend to act: at a crew of one the held can struggle free (the solo rule, T89).
-            if (s.Has(PlayerFlags.Held) && asked.Has(PlayerButtons.Use) && ec.Tuning.Grab.SoloStruggleOn && _context.Crew.Count(x => x.Player.State.Alive) <= 1)
+            // No friend to act: at a crew of one the held can struggle free (the solo rule, T89), and in a crew so can one held
+            // with no living crewmate within grab.crewStruggleBeyond (the director, 14 Oct: "Approved for Grabbed"; note 756),
+            // at the crew's lower chance.
+            if (s.Has(PlayerFlags.Held) && asked.Has(PlayerButtons.Use) && ec.Tuning.Grab.SoloStruggleOn && StruggleChance(ec.Tuning.Grab, playerId, s) is { } chance)
                 foreach (var holder in _enemies.Where(e => e.Phase == SpinePhase.Grab && e.Holding == playerId).ToList())
-                    holder.Struggle(ec, SimConstants.TickSeconds);
+                    holder.Struggle(ec, SimConstants.TickSeconds, chance);
         }
         _context?.Crew.Add((new PlayerSnapshot((byte)playerId, s), intent));
         if (Authority)
@@ -1698,6 +1762,23 @@ public sealed partial class World
         return (local - near).Length;
     }
     readonly HashSet<int> _lampWas = new();
+    /// <summary>Note 752: the pairs of hands on each gun's reload this tick, by its vehicle. Looked up, never iterated.</summary>
+    readonly Dictionary<int, int> _gunHands = new();
+    /// <summary>Note 752: who worked which job (a breach, the burst boiler) this tick, and last tick: two at one work it faster.</summary>
+    List<(BreakKind Kind, int Vehicle, int Player)> _jobsNow = [], _jobsThen = [];
+
+    /// <summary>
+    /// Note 752 (GDD §12, one can, two do it faster): how fast <paramref name="player"/> works <paramref name="kind"/> on
+    /// <paramref name="vehicle"/> this tick: train.json repair.pairRate with a crewmate at the same job last tick (so it's
+    /// the same whoever acts first), else 1. Noted as working it now. A predicting client knows only its own hands, so it
+    /// works alone till the host's word comes back (the job's progress only; nobody moves by it).
+    /// </summary>
+    double Pace(int player, BreakKind kind, int vehicle)
+    {
+        _jobsNow.Add((kind, vehicle, player));
+        double pair = Train.Dynamics.Tuning.Repair.PairRate;
+        return pair > 1 && _jobsThen.Any(j => j.Kind == kind && j.Vehicle == vehicle && j.Player != player) ? pair : 1;
+    }
 
     /// <summary>
     /// A tool's swing (App. C.2): the nearest thing in front within reach that can be struck takes a blow. The host decides,
@@ -1786,6 +1867,10 @@ public sealed partial class World
         if (Hosting)
             TellNews();
         Train.Partings.Clear();
+        // Note 752: the guns' hands and the crew's jobs start the tick afresh; last tick's jobs say who's working beside whom.
+        _gunHands.Clear();
+        (_jobsThen, _jobsNow) = (_jobsNow, _jobsThen);
+        _jobsNow.Clear();
         Shots.Clear();
         SwitchThrows.Clear();
         EnemyEvents.Clear();
@@ -1794,8 +1879,15 @@ public sealed partial class World
         _fumes.Clear();
         Beats.Clear();
         if (Authority && Enemies is { } t)
+        {
+            // The whole crew as it acted last tick, before this tick's actions fill the new context one by one (note 756:
+            // whether a held player has a friend near reads everyone, not just those who've acted so far this tick).
+            _crewActed = _context is { } last ? [.. last.Crew.Select(x => ((int)x.Player.Id, x.Player.State))] : [];
             _context = new EnemyContext { Tuning = t, World = this, RecentRounds = _recentRounds };
+        }
     }
+
+    IReadOnlyList<(int Id, PlayerState State)> _crewActed = [];
 
     /// <summary>Advances the train and the world systems after everyone's crew actions.</summary>
     /// <summary>
@@ -1844,6 +1936,10 @@ public sealed partial class World
 
     public void Step(in TrainControls controls)
     {
+        // Note 752: a gun waiting on its reload that no hand worked this tick starts the step again (the host's say; a client
+        // has it from the snapshot, its own hands being all it knows of, and a crewmate's reload is drawn and heard from it).
+        if (Authority && Combat is not null)
+            Guns.Unworked(Train, _gunHands.ContainsKey);
         Controls = controls;
         Train.HeldInYard = SafeYard;
         Train.HomeAt = Run?.TownHome(Train) ?? double.PositiveInfinity;

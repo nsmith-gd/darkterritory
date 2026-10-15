@@ -34,8 +34,9 @@
     "candles": 0.025, "treats": 0.035, "tinnedFood": 0.04, "preserves": 0.05, "rope": 0.05, "lampParts": 0.05,
     "tools": 0.06, "lampOil": 0.06, "bandages": 0.07, "medicine": 0.1, "valuableTools": 0.1, "pocketWatch": 0.12,
     "morphine": 0.14,
-    // A comet fragment (`comet`): more than a car-load of goods in one pair of arms. (The trophies' are in `trophies`.)
-    "cometFragment": 1.2
+    // A comet fragment (`comet`): more than two car-loads of goods in one pair of arms (2.5 since note 755, the audit's R6:
+    // worth a detour the crew argues about; note 718's was 1.2). (The trophies' are in `trophies`.)
+    "cometFragment": 2.5
   },
   // The village finds' `worth` times this on a tier's nights (unlisted: 1): the deep tiers' villages are fewer and their houses
   // keep worthier things, so a night's finds there come to what the old budgets dealt (about 2 and 3 car-loads a night).
@@ -145,10 +146,23 @@
   // carries one; it pays worth.cometFragment (more than a car of goods, five times any find), and while one's aboard (lying
   // in a car on the engine, or in the hands of someone aboard) the comet's director weights are on (enemies.json
   // cargoWeights.comet, cometRelaxesGates: "attracts everything").
+  // Note 755 (GDD §19; the social collision audit's R6, the director, 14 Oct 2026: "good"): one a night, most nights, out where
+  // the cab sees it. With perNight set, `chance` and `count` are unread: the night holds fragments at nightChance (by tier:
+  // most frontier nights, fewer local ones, nearly every deep one), perNight of them at most, each at a stop of its own (the
+  // seed's pick, else the next down the line). It lies offLine metres (least, most) out from the main line, the village's side
+  // first, on dry ground clear of the buildings, where the headlamp coming in has it in its cone (sightCone degrees off the
+  // line ahead, the lamp as drawn; within sightRange m) with no building and no land between: tries places at a stop, and
+  // with none sighted the first open one (the glow carries). perNight 0: note 718's, each stop's chance beside its things.
   "comet": {
     "item": "cometFragment",
     "chance": { "local": 0.06, "frontier": 0.1, "deadLines": 0.15, "deepTerritory": 0.22 },
-    "count": [1, 2]
+    "count": [1, 2],
+    "perNight": 1,
+    "nightChance": { "local": 0.4, "frontier": 0.6, "deadLines": 0.7, "deepTerritory": 0.8 },
+    "offLine": [40, 90],
+    "sightCone": 18,
+    "sightRange": 300,
+    "tries": 24
   },
 
   // Note 718: the clerk's tally (GDD §9) names the night's best finds by what they're worth, this many kinds of them, and the

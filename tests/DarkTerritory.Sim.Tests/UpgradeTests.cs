@@ -172,6 +172,8 @@ public class UpgradeTests
         int Heard(TrainTuning t, double fromMouth)
         {
             var net = new LoopbackNetwork();
+            // The loose sets (note 749's radio each off), handed to the two of them below.
+            t = t with { Kit = t.Kit with { RadioEach = false } };
             TrainOnLine Train() => new(new TrainDynamics(Consist.Uniform(t, 12, 1)), line, 1_000);
             var world = new World(Train());
             world.EnableBodies();
