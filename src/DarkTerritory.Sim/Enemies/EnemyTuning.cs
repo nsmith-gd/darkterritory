@@ -743,6 +743,14 @@ public sealed record DirectorTuning(
     public OrchestratorTuning Orchestrator { get; init; } = new();
     /// <summary>The last this many spawns: each of a kind among them halves that kind's weight (variety).</summary>
     public int VarietyWindow { get; init; } = 4;
+    /// <summary>A kind about tonight but not yet sent weighs this many times as much (note 742: variety across the night).</summary>
+    public double UnseenWeight { get; init; } = 1;
+    /// <summary>Each one of a kind sent tonight (its own way too) multiplies its weight by this (note 742); 1, no night-long rule.</summary>
+    public double NightRepeat { get; init; } = 1;
+    /// <summary>
+    /// A kind come this many times tonight waits, unless pressed, while another about tonight hasn't come (note 742); 0, never.
+    /// </summary>
+    public int RepeatHold { get; init; }
     /// <summary>
     /// The most of a kind the director sends a night (note 635; the director, the inbox, 12 Oct 2026, of the Knotter: "once or
     /// twice a run"), by its name in <see cref="Costs"/>; a kind not named has no cap.
@@ -1220,6 +1228,8 @@ public sealed record DwellingsTuning
     public bool Enabled { get; init; } = true;
     public Dictionary<string, double> Share { get; init; } = new() { ["local"] = 0.2, ["frontier"] = 0.25, ["deadLines"] = 0.33, ["deepTerritory"] = 0.5 };
     public Dictionary<string, double> Weights { get; init; } = new() { ["lodger"] = 3, ["householder"] = 2, ["hollowHouse"] = 1.5, ["hanger"] = 3 };
+    /// <summary>A stop's jackpot house's share is its tier's times this, never past 1 (note 719).</summary>
+    public double JackpotShare { get; init; } = 1;
     public double PlaceWithin { get; init; } = 500;
     public double ForgetPast { get; init; } = 800;
 

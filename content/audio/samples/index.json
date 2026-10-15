@@ -1105,6 +1105,59 @@
   "takes": 3,
   "sha": "0d350b86810d4a18"
  },
+ "crew-car/cuckoo": {
+  "cue": "crew-car.cuckoo",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The cuckoo clock before dawn: its little door clacks, the works whirr, two reedy wooden pipes call 'cuck-oo'",
+    "key": "bellows",
+    "sources": [
+     "sfx_100_v2:misc_12",
+     "sfx_100_v2:misc_05",
+     "sfx_100_v2:air_03",
+     "sfx_100_v2:misc_28",
+     "sfx_100_v2:air_01",
+     "sfx_100_v2:misc_20",
+     "sfx_100_v2:lock_open_01",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "kenney_ui-audio:click3",
+     "kenney_ui-audio:click4",
+     "kenney_ui-audio:click5",
+     "kenney_rpg-audio:metalClick",
+     "sfx_100_v2:misc_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "42a7fbbaff9ab088"
+ },
+ "crew-car/kettle": {
+  "cue": "crew-car.kettle",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The kettle singing: a real glass's two close partials held as a whistle, beating, shrill, the jet's air round it",
+    "key": "spout",
+    "sources": [
+     "sfx_100_v2:glass_01",
+     "sfx_100_v2:air_01",
+     "sfx_100_v2:loop_water_01",
+     "sfx_100_v2:loop_water_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "90e12cc8cb8b6470"
+ },
  "crew-carry/body-land/concrete": {
   "cue": "crew-carry.body-land",
   "surface": "concrete",
@@ -5844,6 +5897,93 @@
   "takes": 3,
   "sha": "1938e96238f513c3"
  },
+ "crew-mail/catch": {
+  "cue": "crew-mail.catch",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The bag snatched into the catcher arm at speed: a hard canvas thwack, the iron arm's clank and rattle, its weight",
+    "key": "sack",
+    "sources": [
+     "kenney_rpg-audio:dropLeather",
+     "sfx_100_v2:metal_hit_01",
+     "sfx_100_v2:misc_37",
+     "kenney_rpg-audio:bookPlace1",
+     "kenney_rpg-audio:bookPlace2",
+     "kenney_rpg-audio:bookPlace3",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth4",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:door_02",
+     "sfx_100_v2:door_04",
+     "sfx_100_v2:door_05",
+     "sfx_100_v2:metal_03",
+     "kenney_impact-sounds:impactPunch_medium_000",
+     "kenney_impact-sounds:impactPunch_medium_001",
+     "kenney_impact-sounds:impactPunch_medium_002",
+     "kenney_impact-sounds:impactPunch_medium_003",
+     "kenney_impact-sounds:impactPunch_medium_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "kenney_rpg-audio:bookFlip1",
+     "kenney_rpg-audio:bookFlip2",
+     "kenney_rpg-audio:bookFlip3"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "e81ffb03cf25fa8c"
+ },
+ "crew-mail/tear": {
+  "cue": "crew-mail.tear",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Hooked too fast: the canvas ripping open in one tear, the bag torn off the hook, letters fluttering off",
+    "key": "rip",
+    "sources": [
+     "kenney_rpg-audio:dropLeather",
+     "sfx_100_v2:metal_hit_01",
+     "sfx_100_v2:misc_37",
+     "kenney_rpg-audio:clothBelt2",
+     "kenney_rpg-audio:bookPlace1",
+     "kenney_rpg-audio:bookPlace2",
+     "kenney_rpg-audio:bookPlace3",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:door_02",
+     "sfx_100_v2:door_04",
+     "sfx_100_v2:door_05",
+     "sfx_100_v2:metal_03",
+     "kenney_rpg-audio:handleSmallLeather2",
+     "kenney_rpg-audio:drawKnife2",
+     "kenney_rpg-audio:bookFlip1",
+     "kenney_rpg-audio:bookFlip2",
+     "kenney_rpg-audio:bookFlip3"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "e0ad1c7906d95d57"
+ },
  "crew-melee/crowbar-drop/concrete": {
   "cue": "crew-melee.crowbar-drop",
   "surface": "concrete",
@@ -6907,6 +7047,112 @@
   ],
   "takes": 4,
   "sha": "6e4b6fc2f3de92ea"
+ },
+ "crew-memory/flash": {
+  "cue": "crew-memory.flash",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The crew photo: flash powder going off with a sharp 'fffump' and a fizz, the big camera's shutter snapping",
+    "key": "powder",
+    "sources": [
+     "sfx_100_v2:misc_03",
+     "sfx_100_v2:misc_32",
+     "sfx_100_v2:air_03",
+     "sfx_100_v2:air_01",
+     "sfx_100_v2:misc_17",
+     "sfx_100_v2:switch_01",
+     "sfx_100_v2:switch_02",
+     "sfx_100_v2:misc_02",
+     "sfx_100_v2:stones_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "26a18529387a9a09"
+ },
+ "crew-memory/open": {
+  "cue": "crew-memory.open",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The logbook opened: its spine creaking, the heavy leather cover thumped back on the bench, pages riffling",
+    "key": "leather",
+    "sources": [
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:dropLeather",
+     "kenney_rpg-audio:handleSmallLeather",
+     "kenney_rpg-audio:handleSmallLeather2",
+     "kenney_rpg-audio:bookPlace1",
+     "kenney_rpg-audio:bookPlace2",
+     "kenney_rpg-audio:bookPlace3",
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004",
+     "kenney_rpg-audio:bookFlip1",
+     "kenney_rpg-audio:bookFlip2",
+     "kenney_rpg-audio:bookFlip3"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "cc0417a86ca35a9a"
+ },
+ "crew-memory/page": {
+  "cue": "crew-memory.page",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A logbook page turned: dry heavy paper lifted at its corner, crackling as it bends, swept over and laid down",
+    "key": "sheet",
+    "sources": [
+     "kenney_rpg-audio:bookFlip1",
+     "kenney_rpg-audio:bookFlip2",
+     "kenney_rpg-audio:bookFlip3",
+     "kenney_rpg-audio:bookPlace1",
+     "kenney_rpg-audio:bookPlace2",
+     "kenney_rpg-audio:bookPlace3",
+     "kenney_rpg-audio:clothBelt2",
+     "sfx_100_v2:misc_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "0a07a29f04346cd9"
+ },
+ "crew-memory/shut": {
+  "cue": "crew-memory.shut",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The logbook shut: the pages' air pushed out, the heavy cover clapped down on them, a dull, papery thud",
+    "key": "clap",
+    "sources": [
+     "sfx_100_v2:air_03",
+     "sfx_100_v2:air_01",
+     "kenney_rpg-audio:bookClose",
+     "kenney_rpg-audio:dropLeather",
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:bookPlace1",
+     "kenney_rpg-audio:bookPlace2",
+     "kenney_rpg-audio:bookPlace3",
+     "kenney_rpg-audio:handleSmallLeather",
+     "kenney_rpg-audio:handleSmallLeather2"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "c57bdec7a2913508"
  },
  "crew-mishaps/bare-slap": {
   "cue": "crew-mishaps.bare-slap",
@@ -8106,6 +8352,24 @@
   ],
   "takes": 4,
   "sha": "9f58af356316c299"
+ },
+ "crew-speaking-tube/call": {
+  "cue": "crew-speaking-tube.call",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The far end's whistle-plug shrilling as someone blows down the tube: thin, breathy, wobbling, out of a brass pipe",
+    "key": "blown",
+    "sources": [
+     "sfx_100_v2:glass_01",
+     "sfx_100_v2:misc_05"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "1dc54a2edc9fd783"
  },
  "crew-switch/lever-latch": {
   "cue": "crew-switch.lever-latch",
@@ -9630,6 +9894,291 @@
   "takes": 4,
   "sha": "7ba98e926322d946"
  },
+ "cs-hanger/grab": {
+  "cue": "cs-hanger.grab",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The grab: a coat walks into a strand, a sticky snap, the strand pulled tight and the rafters taking the weight",
+    "key": "snare",
+    "sources": [
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4",
+     "sfx_100_v2:switch_01",
+     "sfx_100_v2:switch_02",
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_03",
+     "kenney_rpg-audio:handleCoins",
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "kenney_rpg-audio:doorOpen_1",
+     "kenney_rpg-audio:doorOpen_2",
+     "kenney_rpg-audio:handleSmallLeather2",
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "fdcffb61fbe39b1e"
+ },
+ "cs-hanger/haul": {
+  "cue": "cs-hanger.haul",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The haul: the rafters creaking catch by catch like a ratchet, a wet reel, the strand drawn taut, heave on heave",
+    "key": "reel",
+    "sources": [
+     "kenney_rpg-audio:doorOpen_1",
+     "kenney_rpg-audio:doorOpen_2",
+     "kenney_rpg-audio:creak3",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_03",
+     "kenney_rpg-audio:handleCoins",
+     "kenney_rpg-audio:handleSmallLeather2",
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "8995127618ff24ed"
+ },
+ "cs-hanger/retreat": {
+  "cue": "cs-hanger.retreat",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Letting go: the strand whipped up into the roof, a wet hiss, many thin legs scuttling away up the rafters",
+    "key": "scuttle",
+    "sources": [
+     "sfx_100_v2:switch_01",
+     "sfx_100_v2:switch_02",
+     "sfx_100_v2:misc_05",
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_03",
+     "kenney_rpg-audio:handleCoins",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "kenney_impact-sounds:footstep_wood_000",
+     "kenney_impact-sounds:footstep_wood_001",
+     "kenney_impact-sounds:footstep_wood_002",
+     "kenney_impact-sounds:footstep_wood_003",
+     "kenney_impact-sounds:footstep_wood_004",
+     "kenney_rpg-audio:doorOpen_1",
+     "kenney_rpg-audio:doorOpen_2",
+     "kenney_rpg-audio:creak3",
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "4aa331e6817fbbbb"
+ },
+ "cs-hollow-house/collapse": {
+  "cue": "cs-hollow-house.collapse",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The house coming down: a last scream of the frame, a beam going, the roof falling in, slates, glass, brick, walls",
+    "key": "crash",
+    "sources": [
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "kenney_rpg-audio:doorOpen_1",
+     "kenney_rpg-audio:doorOpen_2",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:thunder_01",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "sfx_100_v2:door_03",
+     "sfx_100_v2:misc_36",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:glass_01",
+     "sfx_100_v2:glass_04",
+     "sfx_100_v2:glass_06",
+     "sfx_100_v2:misc_26",
+     "sfx_100_v2:misc_27",
+     "sfx_100_v2:glass_03",
+     "kenney_impact-sounds:impactMining_000",
+     "kenney_impact-sounds:impactMining_001",
+     "kenney_impact-sounds:impactMining_002",
+     "kenney_impact-sounds:impactMining_003",
+     "kenney_impact-sounds:impactMining_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "kenney_impact-sounds:impactMining_000",
+     "kenney_impact-sounds:impactMining_001",
+     "kenney_impact-sounds:impactMining_002",
+     "kenney_impact-sounds:impactMining_003",
+     "kenney_impact-sounds:impactMining_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:glass_01",
+     "sfx_100_v2:glass_02",
+     "sfx_100_v2:glass_03",
+     "sfx_100_v2:glass_04",
+     "sfx_100_v2:glass_05",
+     "sfx_100_v2:glass_06"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "c82039b432b0be7d"
+ },
+ "cs-hollow-house/sink": {
+  "cue": "cs-hollow-house.sink",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The house sinking: its timbers screaming as the frame racks, fibres popping, the earth heaving round its base",
+    "key": "timber",
+    "sources": [
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "kenney_rpg-audio:doorOpen_1",
+     "kenney_rpg-audio:doorOpen_2",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:misc_10",
+     "sfx_100_v2:thunder_01",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "kenney_impact-sounds:impactMining_000",
+     "kenney_impact-sounds:impactMining_001",
+     "kenney_impact-sounds:impactMining_002",
+     "kenney_impact-sounds:impactMining_003",
+     "kenney_impact-sounds:impactMining_004",
+     "sfx_100_v2:glass_01",
+     "sfx_100_v2:glass_04",
+     "sfx_100_v2:glass_06"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "f2571b1193288cb1"
+ },
+ "cs-hollow-house/slam": {
+  "cue": "cs-hollow-house.slam",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A heavy house door thrown shut by nobody: no hand, a bang with no give, the sneck slammed down, the frame shaking",
+    "key": "thrown",
+    "sources": [
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "sfx_100_v2:door_03",
+     "sfx_100_v2:misc_36",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "sfx_100_v2:door_02",
+     "sfx_100_v2:door_04",
+     "sfx_100_v2:door_05",
+     "kenney_rpg-audio:metalLatch",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "sfx_100_v2:glass_01",
+     "sfx_100_v2:glass_04",
+     "sfx_100_v2:glass_06",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "51b85e2694aa4874"
+ },
  "cs-hounds/bite": {
   "cue": "cs-hounds.bite",
   "surface": null,
@@ -9882,6 +10431,228 @@
   ],
   "takes": 3,
   "sha": "5c5612499b2f28ff"
+ },
+ "cs-householder/breath": {
+  "cue": "cs-householder.breath",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Hunting: a dry, rasping breath, even as a clock",
+    "key": "rasp",
+    "sources": [
+     "sfx_100_v2:misc_05"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "b0ed19cf04a8d82c"
+ },
+ "cs-householder/creak": {
+  "cue": "cs-householder.creak",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Watching: its chair creaking, and its neck creaking as its head follows you",
+    "key": "chair",
+    "sources": [
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "23faeb960dada34d"
+ },
+ "cs-householder/grab": {
+  "cue": "cs-householder.grab",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The grab: a hand slammed onto a coat and the cloth wrenched up in a fist, and a grunt",
+    "key": "clutch",
+    "sources": [
+     "kenney_rpg-audio:dropLeather",
+     "kenney_impact-sounds:impactSoft_medium_000",
+     "kenney_impact-sounds:impactSoft_medium_001",
+     "kenney_impact-sounds:impactSoft_medium_002",
+     "kenney_impact-sounds:impactSoft_medium_003",
+     "kenney_impact-sounds:impactSoft_medium_004",
+     "kenney_impact-sounds:impactSoft_heavy_000",
+     "kenney_impact-sounds:impactSoft_heavy_001",
+     "kenney_impact-sounds:impactSoft_heavy_002",
+     "kenney_impact-sounds:impactSoft_heavy_003",
+     "kenney_impact-sounds:impactSoft_heavy_004",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4",
+     "kenney_rpg-audio:clothBelt",
+     "kenney_rpg-audio:beltHandle2",
+     "sfx_100_v2:misc_25",
+     "sfx_100_v2:misc_24"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "c429ab237b8e9eef"
+ },
+ "cs-householder/settle": {
+  "cue": "cs-householder.settle",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Going home: the thing set back down on the table, the chair drawn in, its weight settling",
+    "key": "home",
+    "sources": [
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "kenney_rpg-audio:bookPlace1",
+     "kenney_rpg-audio:bookPlace2",
+     "kenney_impact-sounds:impactGlass_light_000",
+     "kenney_impact-sounds:impactGlass_light_001",
+     "kenney_impact-sounds:impactGlass_light_002",
+     "kenney_impact-sounds:impactGlass_light_003",
+     "kenney_impact-sounds:impactGlass_light_004",
+     "sfx_100_v2:glass_01",
+     "sfx_100_v2:glass_04",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4",
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06",
+     "sfx_100_v2:metal_05"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "3cf36140167e4529"
+ },
+ "cs-householder/step": {
+  "cue": "cs-householder.step",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Hunting: a stiff, even tread in old leather shoes, flat-footed, the leather creaking",
+    "key": "shoes",
+    "sources": [
+     "kenney_impact-sounds:footstep_wood_000",
+     "kenney_impact-sounds:footstep_wood_001",
+     "kenney_impact-sounds:footstep_wood_002",
+     "kenney_impact-sounds:footstep_wood_003",
+     "kenney_impact-sounds:footstep_wood_004",
+     "kenney_rpg-audio:bookPlace1",
+     "kenney_rpg-audio:bookPlace2",
+     "kenney_rpg-audio:handleSmallLeather",
+     "kenney_rpg-audio:handleSmallLeather2",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "c61bb76923bd61a8"
+ },
+ "cs-lodger/break": {
+  "cue": "cs-lodger.break",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A shut door battered in: heavy blows on the planks, the boards splitting, the latch torn out, the door slammed back",
+    "key": "boards",
+    "sources": [
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "sfx_100_v2:door_03",
+     "sfx_100_v2:misc_36",
+     "kenney_impact-sounds:impactSoft_medium_000",
+     "kenney_impact-sounds:impactSoft_medium_001",
+     "kenney_impact-sounds:impactSoft_medium_002",
+     "kenney_impact-sounds:impactSoft_medium_003",
+     "kenney_impact-sounds:impactSoft_medium_004",
+     "kenney_impact-sounds:impactSoft_heavy_000",
+     "kenney_impact-sounds:impactSoft_heavy_001",
+     "kenney_impact-sounds:impactSoft_heavy_002",
+     "kenney_impact-sounds:impactSoft_heavy_003",
+     "kenney_impact-sounds:impactSoft_heavy_004",
+     "kenney_rpg-audio:metalLatch",
+     "kenney_rpg-audio:metalClick",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "cddd6e5c34ce6bc9"
+ },
+ "cs-lodger/lunge": {
+  "cue": "cs-lodger.lunge",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The lunge: bare feet thumping off the boards and landing hard, skin slapping wood",
+    "key": "soles",
+    "sources": [
+     "kenney_rpg-audio:bookPlace1",
+     "kenney_rpg-audio:bookPlace2",
+     "kenney_impact-sounds:impactSoft_medium_000",
+     "kenney_impact-sounds:impactSoft_medium_001",
+     "kenney_impact-sounds:impactSoft_medium_002",
+     "kenney_impact-sounds:impactSoft_medium_003",
+     "kenney_impact-sounds:impactSoft_medium_004",
+     "kenney_impact-sounds:impactSoft_heavy_000",
+     "kenney_impact-sounds:impactSoft_heavy_001",
+     "kenney_impact-sounds:impactSoft_heavy_002",
+     "kenney_impact-sounds:impactSoft_heavy_003",
+     "kenney_impact-sounds:impactSoft_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "4765d786422c9b81"
  },
  "cs-moose-ram/boom": {
   "cue": "cs-moose-ram.boom",
@@ -10192,6 +10963,208 @@
   ],
   "takes": 1,
   "sha": "34a4f80ee1802260"
+ },
+ "cs-pickers/bite": {
+  "cue": "cs-pickers.bite",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A snap of small hard teeth and a hiss: it hurts, but it's small",
+    "key": "snap",
+    "sources": [
+     "sfx_100_v2:switch_01",
+     "sfx_100_v2:switch_02",
+     "sfx_100_v2:misc_05",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "1cc1a5ef1313d87f"
+ },
+ "cs-pickers/carry": {
+  "cue": "cs-pickers.carry",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Carrying: a crate knocked and dragged over the gravel as it's jostled, a chattering pant under it",
+    "key": "crate",
+    "sources": [
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:stones_03",
+     "kenney_rpg-audio:creak1",
+     "sfx_100_v2:misc_05",
+     "sfx_100_v2:misc_25",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "ad2a8eb14c6ef79c"
+ },
+ "cs-pickers/down": {
+  "cue": "cs-pickers.down",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Down its drain: the grating rattling in its frame as it squeezes through, a scrabble, a hollow knock from the pipe",
+    "key": "drain",
+    "sources": [
+     "sfx_100_v2:metal_03",
+     "sfx_100_v2:door_02",
+     "sfx_100_v2:door_04",
+     "sfx_100_v2:door_05",
+     "kenney_rpg-audio:drawKnife1",
+     "kenney_rpg-audio:drawKnife2",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "sfx_100_v2:metal_hit_01",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:misc_25",
+     "sfx_100_v2:misc_05",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "60141262a0b477cd"
+ },
+ "cs-pickers/hit": {
+  "cue": "cs-pickers.hit",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "One killed by a blow: a squeal cut short, the blow's small crack on top of it",
+    "key": "blow",
+    "sources": [
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "sfx_100_v2:misc_25",
+     "sfx_100_v2:misc_05",
+     "sfx_100_v2:misc_33",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "kenney_impact-sounds:impactPunch_medium_000",
+     "kenney_impact-sounds:impactPunch_medium_001",
+     "kenney_impact-sounds:impactPunch_medium_002",
+     "kenney_impact-sounds:impactPunch_medium_003",
+     "kenney_impact-sounds:impactPunch_medium_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "56badd1bb5c6994d"
+ },
+ "cs-pickers/scatter": {
+  "cue": "cs-pickers.scatter",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A burst of squeals as they bolt for their drains: several shrill, hoarse, falling squeals, feet scrabbling off",
+    "key": "squeals",
+    "sources": [
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "sfx_100_v2:misc_25",
+     "sfx_100_v2:misc_05",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "d2888e853869a2f6"
  },
  "cs-ribbits/feed": {
   "cue": "cs-ribbits.feed",
@@ -10831,6 +11804,264 @@
   "takes": 1,
   "sha": "0c48b71d7021914b"
  },
+ "cs-wakers/drag": {
+  "cue": "cs-wakers.drag",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The train dragged to a stand: wheels locked and screaming on the rails, steel grinding, flanges shrieking",
+    "key": "skid",
+    "sources": [
+     "sfx_100_v2:misc_10",
+     "kenney_impact-sounds:impactBell_heavy_000",
+     "kenney_impact-sounds:impactBell_heavy_001",
+     "kenney_impact-sounds:impactBell_heavy_002",
+     "kenney_impact-sounds:impactPlate_light_000",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "46e6a262e96e3b29"
+ },
+ "cs-wakers/eat": {
+  "cue": "cs-wakers.eat",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A car eaten: steel and timber crushed in its jaws, planks splintering, glass bursting, a deep crunch",
+    "key": "crunch",
+    "sources": [
+     "sfx_100_v2:thunder_01",
+     "sfx_100_v2:misc_10",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:misc_26",
+     "sfx_100_v2:misc_27",
+     "sfx_100_v2:glass_03",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:metal_01",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06",
+     "sfx_100_v2:glass_01",
+     "sfx_100_v2:glass_02",
+     "sfx_100_v2:glass_03",
+     "sfx_100_v2:glass_04",
+     "sfx_100_v2:glass_05",
+     "sfx_100_v2:glass_06"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "1af6bdde4a58b2fd"
+ },
+ "cs-wakers/grab": {
+  "cue": "cs-wakers.grab",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The last car seized: a blow through the whole train, steel shrieking as a hand closes, couplings snatching taut",
+    "key": "seized",
+    "sources": [
+     "sfx_100_v2:metal_hit_01",
+     "sfx_100_v2:misc_36",
+     "sfx_100_v2:misc_10",
+     "sfx_100_v2:thunder_01",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "kenney_impact-sounds:impactBell_heavy_000",
+     "kenney_impact-sounds:impactBell_heavy_001",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "d7f6198f6d6affff"
+ },
+ "cs-wakers/lift": {
+  "cue": "cs-wakers.lift",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A car torn up off the rails: its frame groaning and twisting, its trucks scraping off the rail, couplings snapping",
+    "key": "torn",
+    "sources": [
+     "sfx_100_v2:metal_hit_02",
+     "sfx_100_v2:misc_10",
+     "sfx_100_v2:metal_03",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:switch_01",
+     "sfx_100_v2:switch_02",
+     "kenney_rpg-audio:doorOpen_1",
+     "kenney_rpg-audio:doorOpen_2",
+     "kenney_impact-sounds:impactMining_000",
+     "kenney_impact-sounds:impactMining_001",
+     "kenney_impact-sounds:impactMining_002",
+     "kenney_impact-sounds:impactMining_003",
+     "kenney_impact-sounds:impactMining_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:metal_01",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "9d7ba90d4861f3ef"
+ },
+ "cs-wakers/swallow": {
+  "cue": "cs-wakers.swallow",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Eaten: a crunch overhead and a long wet swallow, enormous",
+    "key": "gulp",
+    "sources": [
+     "sfx_100_v2:loop_water_01",
+     "sfx_100_v2:misc_25",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_02",
+     "sfx_100_v2:footstep_wet_03",
+     "kenney_rpg-audio:handleCoins"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "d2556821ef9fb8b9"
+ },
+ "cs-wakers/take": {
+  "cue": "cs-wakers.take",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "One who ran, taken in its hand: the ground struck as the hand comes down, a great grip closing, earth spilling",
+    "key": "grip",
+    "sources": [
+     "sfx_100_v2:thunder_01",
+     "kenney_rpg-audio:dropLeather",
+     "kenney_impact-sounds:impactMining_000",
+     "kenney_impact-sounds:impactMining_001",
+     "kenney_impact-sounds:impactMining_002",
+     "kenney_impact-sounds:impactMining_003",
+     "kenney_impact-sounds:impactMining_004",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "kenney_rpg-audio:handleSmallLeather",
+     "kenney_rpg-audio:handleSmallLeather2"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "611face313fb9308"
+ },
  "cs-whistler/death": {
   "cue": "cs-whistler.death",
   "surface": null,
@@ -10942,6 +12173,164 @@
   ],
   "takes": 1,
   "sha": "16bf15dea60a8bf9"
+ },
+ "figures/dave-grab": {
+  "cue": "figures.dave-grab",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The snap as he takes someone by the neck: a hand landing on a collar, the cloth wrenched tight, a sharp breath in",
+    "key": "collar",
+    "sources": [
+     "kenney_rpg-audio:dropLeather",
+     "sfx_100_v2:misc_05",
+     "kenney_impact-sounds:impactSoft_medium_000",
+     "kenney_impact-sounds:impactSoft_medium_001",
+     "kenney_impact-sounds:impactSoft_medium_002",
+     "kenney_impact-sounds:impactSoft_medium_003",
+     "kenney_impact-sounds:impactSoft_medium_004",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "8a5a50b9943bdcc3"
+ },
+ "figures/dave-laugh": {
+  "cue": "figures.dave-laugh",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A breath of a laugh as he's struck: a soft, warm, amused 'hm' and air out through the nose",
+    "key": "breath",
+    "sources": [
+     "sfx_100_v2:misc_05",
+     "sfx_100_v2:misc_24"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "5442e0e87259c522"
+ },
+ "figures/dave-paint": {
+  "cue": "figures.dave-paint",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Dave at his easel, modelled: bristles slipping over a canvas's weave, dabs, a palette's tap, a man humming low",
+    "key": "easel",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "91ca7bf0a3d982c4"
+ },
+ "figures/dave-turn": {
+  "cue": "figures.dave-turn",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "His last warning: the brush set down on the easel's ledge with a small wooden tap, his stool scraped round",
+    "key": "ledge",
+    "sources": [
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak3",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "e8ec0f007846103b"
+ },
+ "figures/jacob-bless": {
+  "cue": "figures.jacob-bless",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Jacob's blessing: a soft, rising shimmer of bowed glass and chimes, a breath of warm air, down the cars",
+    "key": "glass",
+    "sources": [
+     "sfx_100_v2:glass_05",
+     "sfx_100_v2:glass_02",
+     "sfx_100_v2:glass_01",
+     "sfx_100_v2:glass_04",
+     "sfx_100_v2:glass_06",
+     "kenney_impact-sounds:impactGlass_light_000",
+     "kenney_impact-sounds:impactGlass_light_001",
+     "kenney_impact-sounds:impactGlass_light_002",
+     "kenney_impact-sounds:impactGlass_light_003",
+     "kenney_impact-sounds:impactGlass_light_004",
+     "sfx_100_v2:misc_05"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "b1718410805e7283"
+ },
+ "figures/jacob-fish": {
+  "cue": "figures.jacob-fish",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Jacob at the water's edge: water lapping at the stones, his rod's swish, the reel ticking out, wound slowly in",
+    "key": "reel",
+    "sources": [
+     "sfx_100_v2:loop_water_01",
+     "sfx_100_v2:loop_water_02",
+     "sfx_100_v2:air_03",
+     "sfx_100_v2:air_01",
+     "sfx_100_v2:misc_28",
+     "sfx_100_v2:misc_20",
+     "sfx_100_v2:lock_open_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "ed267ad5db646612"
+ },
+ "figures/party": {
+  "cue": "figures.party",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Nicki's party through the walls, modelled: a fiddle's jig kept low over reeds, talk and laughter, glasses, feet",
+    "key": "fiddle",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "8f9cdeaadf5229c2"
  },
  "place-breach/board": {
   "cue": "place-breach.board",
@@ -14244,6 +15633,83 @@
   "takes": 2,
   "sha": "38296945ded2afc2"
  },
+ "tell-hanger-strands/hum": {
+  "cue": "tell-hanger-strands.hum",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Its strands quivering: a thin, taut hum like a wire in the wind, six strands beating, trembling, never a tone",
+    "key": "wire",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "ee46a7e943e9747b"
+ },
+ "tell-hanger/rafters": {
+  "cue": "tell-hanger.rafters",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Overhead in the house: a faint creak of the rafters as something shifts its weight, a soft wet clicking",
+    "key": "beams",
+    "sources": [
+     "kenney_rpg-audio:doorOpen_1",
+     "kenney_rpg-audio:doorOpen_2",
+     "kenney_rpg-audio:creak3",
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_03",
+     "kenney_rpg-audio:handleCoins",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "2165f20e992f0239"
+ },
+ "tell-hollow-house/rumble": {
+  "cue": "tell-hollow-house.rumble",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The ground rumbling under the house: a low groan up through the floor, the house rattling, grit sifting down",
+    "key": "ground",
+    "sources": [
+     "sfx_100_v2:thunder_01",
+     "kenney_rpg-audio:doorOpen_1",
+     "kenney_rpg-audio:doorOpen_2",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "sfx_100_v2:door_02",
+     "sfx_100_v2:door_04",
+     "sfx_100_v2:door_05",
+     "sfx_100_v2:glass_01",
+     "sfx_100_v2:glass_04",
+     "sfx_100_v2:glass_06",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "800223a8e5d043b3"
+ },
  "tell-hotbox/grind": {
   "cue": "tell-hotbox.grind",
   "surface": null,
@@ -14348,6 +15814,76 @@
   "takes": 4,
   "sha": "7203545c12e11cdf"
  },
+ "tell-householder-rise/rise": {
+  "cue": "tell-householder-rise.rise",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Rising: the chair scraped back hard on the boards, the cutlery and plate rattling on the table",
+    "key": "scrape",
+    "sources": [
+     "kenney_rpg-audio:bookPlace1",
+     "kenney_rpg-audio:bookPlace2",
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06",
+     "sfx_100_v2:metal_05",
+     "sfx_100_v2:metal_03",
+     "kenney_impact-sounds:impactGlass_light_000",
+     "kenney_impact-sounds:impactGlass_light_001",
+     "kenney_impact-sounds:impactGlass_light_002",
+     "kenney_impact-sounds:impactGlass_light_003",
+     "kenney_impact-sounds:impactGlass_light_004",
+     "sfx_100_v2:glass_01",
+     "sfx_100_v2:glass_04",
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "ab90ca620c1dcc30"
+ },
+ "tell-householder/house": {
+  "cue": "tell-householder.house",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Its house from the door: a stove's tick and crackle, a wall clock, a kettle at the edge of the boil",
+    "key": "kitchen",
+    "sources": [
+     "kenney_rpg-audio:metalClick",
+     "sfx_100_v2:misc_01",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "sfx_100_v2:loop_water_02",
+     "kenney_rpg-audio:metalPot1",
+     "kenney_rpg-audio:metalPot2",
+     "kenney_rpg-audio:metalPot3"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "622b305f39581f82"
+ },
  "tell-knotter/creep": {
   "cue": "tell-knotter.creep",
   "surface": null,
@@ -14403,6 +15939,52 @@
   ],
   "takes": 2,
   "sha": "7ef39345c6070776"
+ },
+ "tell-lodger-breathing/breathing": {
+  "cue": "tell-lodger-breathing.breathing",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Slow, deep, wet breathing from a long chest in a dark back room: real air, a phlegm rattle, spit, lips fluttering",
+    "key": "lungs",
+    "sources": [
+     "sfx_100_v2:misc_05",
+     "sfx_100_v2:loop_water_02",
+     "sfx_100_v2:loop_water_03",
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_02",
+     "sfx_100_v2:footstep_wet_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "ad0b99958b21e849"
+ },
+ "tell-lodger-shriek/shriek": {
+  "cue": "tell-lodger-shriek.shriek",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A shrill, climbing shriek from a jaw unhinged wide: real cries held out, pulled up two octaves, torn rough",
+    "key": "wail",
+    "sources": [
+     "sfx_100_v2:misc_25",
+     "sfx_100_v2:misc_24",
+     "sfx_100_v2:misc_05",
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_02",
+     "sfx_100_v2:footstep_wet_03",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "11ac20f9c260fe4c"
  },
  "tell-marsh/reeds": {
   "cue": "tell-marsh.reeds",
@@ -14698,6 +16280,96 @@
   "takes": 1,
   "sha": "de70def04e492398"
  },
+ "tell-pickers/chitter": {
+  "cue": "tell-pickers.chitter",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A chitter now and then as they go about: quick, dry syllables of small throats and teeth, a few voices",
+    "key": "jaws",
+    "sources": [
+     "sfx_100_v2:misc_25",
+     "sfx_100_v2:misc_05",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_33",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "b75b0a4cb1ff81d6"
+ },
+ "tell-pickers/emerge": {
+  "cue": "tell-pickers.emerge",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Out of a drain: a cast-iron grating shoved over its kerb and dropped with a clank, and a chitter of small teeth",
+    "key": "grate",
+    "sources": [
+     "sfx_100_v2:misc_10",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:metal_hit_01",
+     "sfx_100_v2:misc_25",
+     "sfx_100_v2:misc_05",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:metal_03",
+     "sfx_100_v2:door_02",
+     "sfx_100_v2:door_04",
+     "sfx_100_v2:door_05",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "9571b4e5dd0f7429"
+ },
+ "tell-pickers/feet": {
+  "cue": "tell-pickers.feet",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "One of them scuttling: many small quick feet on gravel and cinders, little stones ticking away after them",
+    "key": "cinders",
+    "sources": [
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "6e18d562f9b7a19a"
+ },
  "tell-ribbits/swell": {
   "cue": "tell-ribbits.swell",
   "surface": null,
@@ -14909,6 +16581,166 @@
   "takes": 1,
   "sha": "83555e6e9b3e2225"
  },
+ "tell-wakers/call": {
+  "cue": "tell-wakers.call",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The stir: a long, low call from behind the hills, an enormous slow voice moaning and bending down",
+    "key": "groan",
+    "sources": [
+     "sfx_100_v2:misc_24",
+     "sfx_100_v2:misc_25",
+     "sfx_100_v2:misc_05",
+     "kenney_rpg-audio:doorOpen_1",
+     "kenney_rpg-audio:doorOpen_2"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "abf1233ed24caeee"
+ },
+ "tell-wakers/rise": {
+  "cue": "tell-wakers.rise",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The land getting up: earth and rock torn open in three surges, roots and stones popping, a groan rising, debris",
+    "key": "earth",
+    "sources": [
+     "sfx_100_v2:thunder_01",
+     "sfx_100_v2:misc_25",
+     "kenney_impact-sounds:impactMining_000",
+     "kenney_impact-sounds:impactMining_001",
+     "kenney_impact-sounds:impactMining_002",
+     "kenney_impact-sounds:impactMining_003",
+     "kenney_impact-sounds:impactMining_004",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "kenney_rpg-audio:doorOpen_1",
+     "kenney_rpg-audio:doorOpen_2",
+     "kenney_impact-sounds:impactMining_000",
+     "kenney_impact-sounds:impactMining_001",
+     "kenney_impact-sounds:impactMining_002",
+     "kenney_impact-sounds:impactMining_003",
+     "kenney_impact-sounds:impactMining_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "990e9597b2ca994e"
+ },
+ "tell-wakers/roar": {
+  "cue": "tell-wakers.roar",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A roar as it runs the train down, or stood at the walls: huge, harsh and slow, a throat the size of a house",
+    "key": "throat",
+    "sources": [
+     "sfx_100_v2:misc_24",
+     "sfx_100_v2:misc_25",
+     "sfx_100_v2:misc_05",
+     "sfx_100_v2:thunder_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "54cc6372f74d25b0"
+ },
+ "tell-wakers/stride": {
+  "cue": "tell-wakers.stride",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Its footfall as it comes down the line: the ground struck, a crack of rock, stones jumping and landing, earth",
+    "key": "ground",
+    "sources": [
+     "sfx_100_v2:thunder_01",
+     "kenney_impact-sounds:impactMining_000",
+     "kenney_impact-sounds:impactMining_001",
+     "kenney_impact-sounds:impactMining_002",
+     "kenney_impact-sounds:impactMining_003",
+     "kenney_impact-sounds:impactMining_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "kenney_rpg-audio:doorOpen_1",
+     "kenney_rpg-audio:doorOpen_2"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "10a2296ab853cffe"
+ },
+ "tell-wakers/thud": {
+  "cue": "tell-wakers.thud",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The stir: a far-off thud through the land, felt more than heard, a crack of rock in it, the land rumbling on",
+    "key": "ground",
+    "sources": [
+     "sfx_100_v2:thunder_01",
+     "kenney_impact-sounds:impactMining_000",
+     "kenney_impact-sounds:impactMining_001",
+     "kenney_impact-sounds:impactMining_002",
+     "kenney_impact-sounds:impactMining_003",
+     "kenney_impact-sounds:impactMining_004",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "2fc9fc65ae287eff"
+ },
  "tell-whistler/whistle": {
   "cue": "tell-whistler.whistle",
   "surface": null,
@@ -14929,6 +16761,61 @@
   ],
   "takes": 2,
   "sha": "78ddafcefa93f7f3"
+ },
+ "town-guns/fire": {
+  "cue": "town-guns.fire",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A gun on the town's walls firing over them: the boom and the roll, the crack dulled",
+    "key": "tower",
+    "sources": [
+     "sfx_100_v2:thunder_01",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "763ed8cf758597c1"
+ },
+ "town-guns/hit": {
+  "cue": "town-guns.hit",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A ball landing on a Waker's back 300 m out: a deep dull whump into a hill of meat",
+    "key": "meat",
+    "sources": [
+     "kenney_impact-sounds:impactSoft_heavy_000",
+     "kenney_impact-sounds:impactSoft_heavy_001",
+     "kenney_impact-sounds:impactSoft_heavy_002",
+     "kenney_impact-sounds:impactSoft_heavy_003",
+     "kenney_impact-sounds:impactSoft_heavy_004",
+     "kenney_rpg-audio:dropLeather",
+     "kenney_rpg-audio:bookPlace2",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_02",
+     "sfx_100_v2:footstep_wet_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "96991caac1075ec0"
  },
  "ui-dead-phase/bookmark": {
   "cue": "ui-dead-phase.bookmark",
@@ -15192,6 +17079,28 @@
   "takes": 3,
   "sha": "404c744600cc3b70"
  },
+ "ui-pings/mark": {
+  "cue": "ui-pings.mark",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A ping: the radio keyed, a quick rising two-note beep through its speaker, the key let go",
+    "key": "roger",
+    "sources": [
+     "kenney_ui-audio:switch2",
+     "kenney_ui-audio:switch13",
+     "kenney_ui-audio:click3",
+     "kenney_ui-audio:click4",
+     "kenney_ui-audio:switch27",
+     "kenney_ui-audio:switch28"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "9e017351a7ea283f"
+ },
  "ui-prompts/cancel": {
   "cue": "ui-prompts.cancel",
   "surface": null,
@@ -15446,8 +17355,8 @@
     "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
    }
   ],
-  "takes": 215,
-  "sha": "34f3caafe35120cc"
+  "takes": 251,
+  "sha": "cb1cb563a83bca54"
  },
  "voice-prisoner-sets/call/set1": {
   "cue": "voice-prisoner-sets.call",
@@ -15970,6 +17879,26 @@
   ],
   "takes": 1,
   "sha": "a95a2ac729bbb6cb"
+ },
+ "world-comet/hum": {
+  "cue": "world-comet.hum",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A comet fragment: a real glass's ring dropped five octaves into a low, wrong hum, its doublets beating, a faint fizz",
+    "key": "glass",
+    "sources": [
+     "sfx_100_v2:glass_05",
+     "sfx_100_v2:glass_02",
+     "sfx_100_v2:misc_26",
+     "sfx_100_v2:misc_27"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "72abea5308d8475b"
  },
  "world-debris-hit/hit-fast": {
   "cue": "world-debris-hit.hit-fast",

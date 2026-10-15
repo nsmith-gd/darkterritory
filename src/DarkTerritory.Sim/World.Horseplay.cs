@@ -54,8 +54,18 @@ public sealed partial class World
     /// <summary>This night's horseplay (player.json <c>horseplay</c>, the sessions' <see cref="Movement"/>).</summary>
     public HorseplayTuning HorseplayTuning => Movement?.Horseplay ?? NoHorseplay;
 
+    /// <summary>
+    /// The lobby's CREW MISCHIEF switch (GDD §23.4; ARCHITECTURE §8 note 724): set on every machine from the night's setup
+    /// (<c>SessionSetup.Mischief</c>), and on a client again whenever the host changes it in the yard. Off, a shove, a bonk
+    /// and coal thrown at the crew land on nobody, as player.json <c>horseplay.enabled: false</c> does; crewmates stay solid.
+    /// </summary>
+    public bool CrewMischief { get; set; } = true;
+
+    /// <summary>Whether horseplay lands on the crew tonight: the content allows it (<c>horseplay.enabled</c>) and the lobby has it on.</summary>
+    public bool MischiefOn => HorseplayTuning.Enabled && CrewMischief;
+
     /// <summary>Whether <paramref name="by"/>'s mischief lands on the crew: horseplay's on, and they're not a bot.</summary>
-    bool Mischief(int by) => HorseplayTuning.Enabled && !BotIds.Contains(by) && Mates.Count > 0;
+    bool Mischief(int by) => MischiefOn && !BotIds.Contains(by) && Mates.Count > 0;
 
     /// <summary>Who last shoved <paramref name="player"/> (or bumped them on with a shove), and the train's speed then; null for nobody.</summary>
     public (int By, double Speed)? ShovedBy(int player) => _shovedBy.TryGetValue(player, out var s) ? s : null;
@@ -184,6 +194,7 @@ public sealed partial class World
         var away = Horseplay.Away(from, at, PlayerMotor.WorldYaw(s, Train));
         _knocks.Add(new Knock(target.Id, playerId, KnockKind.Shove, away));
         _shovedBy[target.Id] = (playerId, SpeedUnder(target.State));
+        _thrown.Remove(target.Id);
         // Into whoever's just beyond them (a chain bump, one deep): off their feet more gently, the shove's all the same.
         foreach (var (id, o) in Mates)
         {
@@ -194,6 +205,7 @@ public sealed partial class World
                 continue;
             _knocks.Add(new Knock(id, playerId, KnockKind.Bump, Horseplay.Away(at, at + beyond, 0)));
             _shovedBy[id] = (playerId, SpeedUnder(o));
+            _thrown.Remove(id);
         }
         Horseplays.Add(new HorseplayEvent(_nextFx, Tick, playerId, KnockKind.Shove, target.Id));
         _nextFx = _nextFx % 0xFFFFFF + 1;
@@ -330,8 +342,12 @@ public sealed partial class World
                 if (solid.Present(vehicle) && solid.BoxIn(vehicle).Contains(local))
                     return true;
         }
-        // The ground.
-        return lump.At.Y <= PlayerMotor.GroundAt(lump.At, Train.Line, ref lump.Hint);
+        // The ground; on the rails, a knock what hunts by vibration hears (note 728).
+        if (lump.At.Y > PlayerMotor.GroundAt(lump.At, Train.Line, ref lump.Hint))
+            return false;
+        if (OnRail(lump.At, lump.Hint))
+            KnockRail(lump.At, lump.By);
+        return true;
     }
 
     /// <summary>A client's copy of the host's horseplay (note 717): the knocks seen lately, and the lumps in flight.</summary>

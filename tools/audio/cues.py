@@ -896,6 +896,163 @@ CUES = {
         L("sizzle", "The glow: the knock gone ragged and wet, a sizzle"),
         L("grind", "Seized: a long grinding scrape"),
     ],
+    # The house creatures (queue #497, note 767; G1's #316-#319, notes 583-586; their design docs' §4, "a request to the audio
+    # chat"). Each its own sound, none like another's tell, none like the crew's own doors and steps (the Hollow House's
+    # slams are a house's doors thrown by nobody; the Lodger breaks a door in, never opens one). The lines are G1's on the
+    # Audio Checklist (12 Oct): the Lodger's two tells apart, the Householder's rising apart, the Hanger's strands apart.
+    "tell-lodger-breathing": [
+        L("breathing", "Folded in a dark corner of a village house: slow, wet breathing, heard from the next room"),
+    ],
+    "tell-lodger-shriek": [
+        O("shriek", "Its telegraph: a shrill, rising shriek, a second and a half, the loudest thing in a village", vars=3),
+    ],
+    "cs-lodger": [
+        O("lunge", "The lunge: a thump of bare feet on the boards", vars=3),
+        O("break", "A shut door in its way: splintering blows as it breaks it in", vars=3),
+    ],
+    "tell-householder": [
+        L("house", "Its house, from the door: a stove's tick and crackle, a clock, a kettle at the edge of the boil"),
+    ],
+    "tell-householder-rise": [
+        O("rise", "Rising (1.5 s): the chair scraped back hard on the boards, cutlery rattling on the table", vars=2),
+    ],
+    "cs-householder": [
+        O("creak", "Watching: its chair creaking, its neck as its head follows you", vars=3),
+        O("step", "Hunting: a stiff, even tread that never hurries", vars=4),
+        L("breath", "Hunting: a dry, rasping breath"),
+        O("grab", "The grab: a hard clutch on a coat and a grunt", vars=2),
+        O("settle", "Going home: the thing set back down, the chair drawn in", vars=2),
+    ],
+    "tell-hollow-house": [
+        L("rumble", "The tell: a low groan through the floor, grit falling from the ceiling, the house shaking"),
+    ],
+    "cs-hollow-house": [
+        O("slam", "Its doors slamming shut one after another, by nobody", vars=3),
+        L("sink", "Sinking: timber screaming, earth heaving round its base"),
+        O("collapse", "The roof and walls coming down", vars=2),
+    ],
+    "tell-hanger": [
+        L("rafters", "Its house, once you're inside: a faint creak of the rafters, a soft wet clicking overhead"),
+    ],
+    "tell-hanger-strands": [
+        L("hum", "Its strands quivering (the telegraph): a thin, taut hum like a wire in wind"),
+    ],
+    "cs-hanger": [
+        O("grab", "The grab: a sticky snap and the strand pulled tight", vars=3),
+        L("haul", "The haul: a ratcheting creak of the rafters, a wet reel"),
+        O("retreat", "Letting go: a hiss and a scuttle back into the roof", vars=2),
+    ],
+    # The Pickers (queue #501, note 771; G1's #315, note 592; pickers.md §4, "a request to the audio chat"): knee-high
+    # scavengers up out of a yard's drains, racing the crew for the loose crates. Small and quick, heard across a yard over
+    # the standing train: never a rat's squeak in a cartoon, never the Ribbits' wet hop.
+    "tell-pickers": [
+        O("emerge", "Out of a drain: the grating's iron shoved aside and a chitter", vars=3),
+        L("feet", "One of them scuttling: many small quick feet on gravel"),
+        O("chitter", "A chitter now and then as they go about the yard", vars=4),
+    ],
+    "cs-pickers": [
+        L("carry", "Carrying: a crate knocking and scraping along the ground, a chattering pant"),
+        O("bite", "A snap and a hiss (a hurt, never a kill)", vars=3),
+        O("scatter", "A burst of squeals as they bolt for their drains", vars=3),
+        O("down", "Down its drain: the grating rattling as it squeezes through", vars=3),
+        O("hit", "One killed by a blow: a squeal cut short", vars=3),
+    ],
+    # The Wakers (queue #502, note 772; note 588, docs/design/creatures/wakers.md §2-§5, §8.4 "the sounds to AU1"): what
+    # gets up at dawn. Hill-sized: heard from a kilometre and more, the stir's thuds and calls below the night creatures'
+    # range so they never mask a tell (spec A.3). Their footfalls are the land's, never a crewmate's step made big.
+    "tell-wakers": [
+        O("thud", "The stir: a far-off thud through the land, felt more than heard, stronger as dawn comes", vars=4),
+        O("call", "The stir: a long, low call from behind the hills", vars=3),
+        O("rise", "The land getting up: earth and rock torn open, a long groan, in surges", vars=2),
+        O("stride", "Its footfall as it comes down the line: the ground struck, stones jumping", vars=4),
+        O("roar", "A roar as it runs the train down, or stood at the walls under the guns", vars=3),
+    ],
+    "cs-wakers": [
+        O("grab", "The last car seized: a blow through the whole train, steel shrieking", vars=2),
+        L("drag", "The train dragged to a stand against it: wheels locked and screaming on the rails"),
+        O("lift", "A car torn up off the rails: its couplings snapping, its frame groaning", vars=3),
+        O("eat", "A car eaten: steel and timber crushed in its jaws", vars=3),
+        O("take", "One who ran taken in its hand: the ground struck, a grip closing", vars=2),
+        O("swallow", "Eaten: a crunch and a long swallow overhead", vars=2),
+    ],
+    # The town's guns at the walls (queue #502, note 772; note 599, wakers.md §4): firing over the wall at a Waker stood
+    # stopShort out, on the beat the scene draws them (Effects.WallGunBeat), and at whatever's brought into the town.
+    "town-guns": [
+        O("fire", "A gun on the town's walls firing over them at what stands outside: the boom and the land's roll", vars=3),
+        O("hit", "A ball landing on a Waker's back far out: a deep dull whump into a hill of meat", vars=3),
+    ],
+    # The figures (queue #503, note 773; P1's notes 570, 571, 489; asked of AU1 in #569): Dave at his easel past a stop, Nicki's
+    # party in the one house up late, Jacob fishing at the water's edge. People, not creatures: warm, small, human.
+    "figures": [
+        L("dave-paint", "Dave at his easel: a brush on canvas, his low, tuneless humming"),
+        O("dave-laugh", "A breath of a laugh as he's struck (his kind words are text)", vars=3),
+        O("dave-turn", "His last warning: the brush set down, his stool scraped round", vars=2),
+        O("dave-grab", "The snap as he takes someone by the neck", vars=2),
+        L("party", "Nicki's party, the one house up late: music kept low, laughing, glasses"),
+        L("jacob-fish", "Jacob at the water's edge: his line cast, the reel's tick, the water lapping"),
+        O("jacob-bless", "Jacob's blessing: a soft rising shimmer down the cars as the train is made new", vars=2),
+    ],
+    # K1's merged asks (queue #504, note 774; K1 on #1012): the mail catch at a lineside crane (note 727), a comet fragment's
+    # hum (note 718), the speaking tube's whistle-call (note 720).
+    "crew-mail": [
+        O("catch", "The bag snatched off the crane into the catcher arm: a canvas thwack, the arm's iron clank", vars=3),
+        O("tear", "Hooked too fast: canvas ripping, the bag torn off the hook and gone, letters scattering", vars=3),
+    ],
+    "world-comet": [
+        L("hum", "A comet fragment: a low, wrong hum, felt in the teeth, as it glows sick and green"),
+    ],
+    "crew-speaking-tube": [
+        O("call", "A voice coming down the tube after a quiet: its whistle shrilling at the far end first", vars=3),
+    ],
+    # K1's crew car and crew memory (queue #506, note 776; K1's #1016, notes 716 and 721; K1's asks on #1012). Built ahead
+    # of #1016 for the director to judge; hooked when it lands.
+    "crew-car": [
+        L("kettle", "The kettle on the cab's back wall singing as the gauge nears the redline: a breathy whistle rising to a shrill"),
+        O("cuckoo", "The cuckoo clock before dawn: its little door, the bird's two-note call, the works whirring it back in", vars=3),
+    ],
+    "crew-memory": [
+        O("flash", "The crew photo at the gate: a flash-powder whump and the shutter's click", vars=3),
+        O("open", "The logbook opened on the bench: a heavy cover thumped back, the spine creaking", vars=3),
+        O("page", "A logbook page turned: dry paper lifted and laid over", vars=4),
+        O("shut", "The logbook shut: the cover clapped down on its pages", vars=3),
+    ],
+    # A ping (queue #507, note 777; A1's #1024, note 739): the crew's pings, seen by everyone on the HUD and the world's
+    # mark, heard by everyone once each. Through the radios every uniform has (note 749), so flat, as the set in your hand.
+    "ui-pings": [
+        O("mark", "A ping marked for the crew: a quick two-note chirp on everyone's radio, never anything alive", vars=3),
+    ],
+    # U1's upgrades (queue #505, note 775; U1's #967, notes 678, 697, 698; the checklist's up- rows, U1's requests of 13 Oct).
+    # Built ahead of #967 for the director to judge; hooked when it lands.
+    "up-forge": [
+        L("hearth", "The town blacksmith's forge: its hearth roaring low, coals ticking, heard from the cab"),
+        O("anvil", "A hammer on the anvil now and then: a ring and a bounce", vars=4),
+        O("bellows", "The bellows worked: a long wheeze and the fire roaring up", vars=3),
+        O("quench", "Hot iron in the quench barrel: a hiss and a boil", vars=3),
+    ],
+    "up-horns": [
+        O("honk", "The bulb horn where the whistle was: a clown's honk on every pull", vars=3),
+        O("gold-start", "The gold-plated whistle sounding: brighter and a quarter louder than the plain one", vars=2),
+        L("gold", "The gold-plated whistle held"),
+        O("gold-stop", "The gold-plated whistle let go", vars=2),
+    ],
+    "up-tells": [
+        O("recorder-bell", "The speed recorder's bell: a small bright ting, early, never the overspeed's alarm", vars=2),
+        O("precut", "Pre-cut boards going up: quick, light hammering, half the work", vars=3),
+        O("rammer", "The gun rammer seating the ball: a clean mechanical clack", vars=3),
+        O("booster", "The booster cutting in: a second exhaust beat under the chuff", vars=2),
+        O("composition", "Composition brake shoes on a descent: a lesser, duller shriek", vars=2),
+        O("oilers", "The oilers at work: the axle's knock slower and softer, a drip of oil", vars=2),
+        O("horseshoe", "The lucky horseshoe's glint: a tiny bright chime", vars=2),
+    ],
+    "up-bbq": [
+        O("light", "The grill lit: a whump of charcoal catching", vars=2),
+        L("grill", "The grill burning: sizzle and crackle, fat spitting"),
+        O("turn", "A sausage turned: the tongs' clack and a spit of fat", vars=3),
+        O("cooler", "The cooler's lid lifted, ice shifting", vars=2),
+        O("can", "A can cracked open and a swig", vars=3),
+        O("cheers", "Cans clinked: cheers", vars=2),
+        O("chair", "A Muskoka chair creaking as you sit down or get up", vars=3),
+    ],
     # Signs off the train (D1.1's note 327; queue #79, note 342): a crewmate afoot is shown a pair of eyes at the lamp's edge,
     # toward where a creature lives here. Its sound says something's out there, never that it's coming: quieter than its
     # tell and nothing like it (GameAudio.Watched plays "sign.<kind>", Director.Key's names). The Gaunt and the Followers

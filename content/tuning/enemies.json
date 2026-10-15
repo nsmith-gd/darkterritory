@@ -434,10 +434,13 @@
   // building: nothing else's change), never the Gaunt's roost; what lives there by "weights" (a Householder only in a house
   // with something to find). Put in their houses, asleep, once the train's within placeWithin m of the stop, and gone once
   // it's forgetPast m past it. Not the director's: they cost it nothing ("enabled" off: none).
+  // Note 719 (queue #453, the big finds): a stop's jackpot house (loot.json jackpotHouse), locked up with its better things,
+  // rolls against its share times jackpotShare (never past 1): weighted, not certain.
   "dwellings": {
     "enabled": true,
     "share": { "local": 0.2, "frontier": 0.25, "deadLines": 0.33, "deepTerritory": 0.5 },
     "weights": { "lodger": 3, "householder": 2, "hollowHouse": 1.5, "hanger": 3 },
+    "jackpotShare": 2,
     "placeWithin": 500, "forgetPast": 800
   },
   // THE LODGER · sound · outside (note 583; docs/design/creatures/lodger.md). Folded in the house's darkest corner (the spot
@@ -1124,6 +1127,14 @@
     // App. B.1's to pay for it. A kind among the last varietyWindow spawns has its weight halved for each.
     "pacedCost": 3,
     "varietyWindow": 4,
+    // And across the whole night (note 742; the director's second playtest, 14 Oct: "not enough variety of monsters ... I saw
+    // the cinder hounds like three times"): a kind about tonight that hasn't been sent yet weighs unseenWeight times as
+    // much, and each one of a kind sent tonight (the director's or come its own way) multiplies it by nightRepeat.
+    "unseenWeight": 2.5,
+    "nightRepeat": 0.6,
+    // And a kind come repeatHold times tonight waits (unless the director's pressed: a long quiet) while one about tonight
+    // hasn't come yet: the moving train lets few kinds in, the stops and towns most, so it saves up for those.
+    "repeatHold": 2,
     // The most of a kind the director sends a night, and the chance it's about at all tonight (drawn from the seed), by the
     // names in "costs"; a kind not named has no cap and is always about. Note 635, the director, the inbox, 12 Oct 2026, of
     // the Knotter: "They should show up once or twice a run. Sometimes never. We need more monster variety." Every kind's

@@ -1,0 +1,20 @@
+// The town's guns at the walls: A ball landing on a Waker's back far out: a deep dull whump into a hill of meat. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 4,
+ "loop": false,
+ "maxInstances": 12,
+ "minDistance": 60,
+ "maxDistance": 2000,
+ "rolloff": 0.7,
+ "gainDb": 2,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "town-guns/hit",
+   "gain": 1,
+   "pitchJitter": 0.4,
+   "gainJitter": 1.0
+  }
+ ]
+}

@@ -141,3 +141,96 @@ launches are AU1.1, AU1.2, …. Entries are UTC; those before 12:55 on 7 Oct wer
 - 2026-10-14 22:10 UTC · AU1 · #125's nine lines installed by the audio-build workflow (14140f21: 25 cues, the Brakeman's steps split good/bad as takes 0, 2 and 1, 3), captioned. A survey of main's other features: the house creatures, the Wakers, the Pickers, Dave and Jacob are silent; horseplay's thrown lump is heard as stoking. Claimed queue #497 (note 767, the house creatures heard) and #498 (note 768, horseplay heard) on the claims branch.
 - 2026-10-14 21:44 UTC · AU1 · Merged [#1009](https://github.com/nsmith-gd/darkterritory/pull/1009) (queue #125, G1's six heard, note 388): all three checks green.
 - 2026-10-14 22:40 UTC · AU1 · Queue #498 (note 768): horseplay heard and the thrown lump no longer heard as stoking; the audio-build workflow takes a fresh line in one pass and sends its previews back (the proxy refuses run artifacts here). Four builds: the coal hit and the tin landing were squishy (half under 95 Hz), a helper had slipped under a recipe's decorator, cloth rumble high-passed out. The checklist's new `crew-horseplay` line. Opened [#1012](https://github.com/nsmith-gd/darkterritory/pull/1012).
+
+## 15 Oct, ~01:50 UTC: the house creatures heard (queue #497, note 767)
+
+- **Merged #1012:** horseplay (#498, note 768). Main moved twice under it; merged main in twice (the union on
+  COORDINATION.md is local only: GitHub calls it a conflict).
+- **#497, the Lodger, the Householder, the Hollow House and the Hanger:**
+  - Hooked off their records, with 4 tests.
+  - 40 candidates built here.
+  - The squish taken out of their footfalls and blows (75-83% under 150 Hz at first, now under 45%; the shoes 5-17%).
+  - Fitted to G1's 11 checklist rows, the moved cues rebuilt and re-uploaded.
+  - Installed (real recordings first), captioned (20), the rows at L1.
+- **K1's asks on #1012** (the speaking tube, the comet's hum, the torn mail bag, the cab's kettle and cuckoo, the crew
+  photo, the logbook page) are queued next.
+
+## 15 Oct, ~02:30 UTC: claims #501-#505; the Pickers, the Wakers, the figures, K1's asks
+
+- **The director:** "Continue on tasks ... declare in coordination.md. We need to get through the audio artifact."
+- **The checklist:**
+  - 177 lines at L1 in review, 9 done.
+  - The 9 Redos all have newer candidates waiting on a verdict; `crew-gun-lay` waits on one too.
+  - Still missing: the Pickers (2), `figures`, and U1's six `up-` rows.
+  - K1's merged asks aren't on it yet.
+- **Claimed** (claims branch, then the rows here):
+  - #501 the Pickers (note 771);
+  - #502 the Wakers' dawn (772);
+  - #503 the figures (773);
+  - #504 K1's merged asks (774);
+  - #505 U1's upgrades (775), after #967.
+- **The renumbering:** A1's #1015 took #499, #500, 769 and 770 on main seventy seconds before AU1's claim files. AU1
+  moved to the next free numbers and handed those claim files to A1.
+- **The Pickers:**
+  - Hooked, with a test.
+  - 16 candidates built (a recipe agent), uploaded, installed (the grating and the squeals from real recordings).
+  - G1's two rows to L1.
+- **The Wakers:**
+  - Hooked (the stir's thuds on DawnStir's beat via the app's stir clock; the footfalls on WakerGait; each car lifted and
+    eaten).
+  - A whole-dawn test, captions, and their range (heard from 1.2 km).
+  - Candidates being built.
+- **The figures and K1's asks:** hooked, tested and captioned (Dave, Jacob, Nicki's party; the mail catch and tear, the
+  comet's hum, the speaking tube's whistle-call). Candidates being built.
+
+## 15 Oct, ~03:10 UTC: the Wakers, the figures and K1's asks installed; the next PR
+
+- **The Wakers:**
+  - 20 candidates built (a recipe agent), uploaded.
+  - Installed: the ground's thud and stride, the throat's roar, the seized grab, the skid and the torn lift.
+  - Two new rows, `tell-wakers` and `cs-wakers`, at L1.
+- **The figures:**
+  - 14 candidates built (a recipe agent), uploaded.
+  - Installed: the easel, the reel and the glass blessing.
+  - The `figures` row at L1.
+- **K1's asks:**
+  - 8 candidates built (a recipe agent), uploaded.
+  - Installed: the sack's snatch, the rip, the glass hum and the blown whistle-call.
+  - Three new rows (`crew-mail`, `world-comet`, `crew-speaking-tube`) at L1.
+- **The clerk:** the bank gained 36 words (U1's tally words and the night's prizes), ahead of #967.
+- **U1's upgrades (#505):** the six `up-` lines are in `cues.py`. Two recipe agents are building the forge, BBQ, horns
+  and tells candidates. The hooks wait on #967.
+- **Flagged by a recipe agent:** `g1_train.tones()` builds its phase in float32, which may click at a loop's seam on a
+  long take. The Brakeman's squeal measured clean; worth a look when that file is next touched.
+- **The town's guns at the walls (#502's last piece):**
+  - The scene's gun beat is now shared (`Effects.WallGunBeat`), and each gun is heard firing on it.
+  - Each ball is heard landing on the Waker's back its flight later. Creatures brought in through the gate are heard
+    under the same guns.
+  - 4 candidates built, the first installed, a new `town-guns` row at L1, a test.
+- **U1's upgrades (#505):** the forge and the BBQ deck (22 candidates) and the horns and the tells (22), each pair from a
+  recipe agent, uploaded; their four rows filled at L0, waiting on #967. The clerk's words row to L1. The band is #967's.
+- **The checklist:** a line for S1's covered voice (`voice-held`, note 749's ask), at L1 in review.
+- **Claimed #506 (note 776):** K1's #1016, the crew car's kettle and cuckoo, the crew photo's flash, the logbook's pages.
+  The cue lines are in, and a recipe agent is building the candidates ahead of the merge.
+
+## 15 Oct, ~04:50 UTC: #1020 merged; #1025 open; K1's crew car heard (#506)
+
+- **Merged #1020** (the house creatures, the claims). The next PR, #1025 (#501-#504 and #505's candidates), opened on
+  the new main and merged main once more when K1's #1016 landed under it.
+- **#506, K1's crew car and crew memory:** #1016 merged at 04:20, so it's done in #1025 too:
+  - the kettle and the cuckoo heard off the crew car's own reckoning;
+  - the photo's flash where it goes off;
+  - the logbook's own open, page and shut;
+  - the candidates installed, the two rows at L1, a test, three captions.
+- **The checklist:** every row now has candidates. Only U1's four `up-` rows still sit at L0, waiting on #967 (the band's
+  is #967's own), plus `crew-gun-lay`'s verdict. No new verdicts tonight; the Voice Booth has none either.
+- **The weak-sound check on tonight's installs:** every impact and footfall is under the squish line. The rest of the
+  flags are the far and low ones by design: the Wakers' thuds and calls, the comet's hum, the guns far off.
+
+## 15 Oct, ~06:40 UTC: #1025 merged; #507, a ping heard
+
+- **Merged #1025:** #501-#504 and #506, and #505's candidates.
+- **#507 (note 777), A1's #1024 pings:** they were seen by everyone but made no sound.
+  - Each ping is now heard once, by everyone, as a roger beep on the radio. Pings already standing when an ear joins are
+    not replayed.
+  - 2 candidates built and uploaded; a new `ui-pings` row at L1; a test.

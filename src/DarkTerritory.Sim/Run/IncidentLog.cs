@@ -175,9 +175,11 @@ public static class IncidentLog
                 {
                     // Note 717: a crewmate's shove, and the landing the world's rules made of it: who, and how fast the train
                     // was going under them ("Shoved off by Dave at 58 km/h"); at a stand, the drop did it.
+                    // Note 723: thrown off a friend's shoulder, the same rule, and said so ("Thrown off by Dave at 40 km/h").
                     var (by, speed) = world.ShovedBy(victim) ?? (-1, 0);
                     actor = by;
-                    action = speed >= 1 ? $"Shoved off by {{actor}} at {Kmh(speed)}." : "Shoved off by {actor}.";
+                    string how = world.WasThrown(victim) ? "Thrown" : "Shoved";
+                    action = speed >= 1 ? $"{how} off by {{actor}} at {Kmh(speed)}." : $"{how} off by {{actor}}.";
                     break;
                 }
             case DeathCause.Cold when !aboard:

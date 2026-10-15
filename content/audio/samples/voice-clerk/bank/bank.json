@@ -1,6 +1,21 @@
 // The clerk's vocabulary (tools/audio/clerk.py; note 240): each phrase or word, its take, and how long it runs.
 {
  "entries": {
+  "a climber's claw": {
+   "file": "a-climber-s-claw",
+   "said": "a climber's claw",
+   "seconds": 0.921
+  },
+  "a hotbox plate": {
+   "file": "a-hotbox-plate",
+   "said": "a hotbox plate",
+   "seconds": 0.833
+  },
+  "a knotter's claw": {
+   "file": "a-knotter-s-claw",
+   "said": "a knotter's claw",
+   "seconds": 0.719
+  },
   "abattoir": {
    "file": "abattoir",
    "said": "abattoir",
@@ -35,6 +50,16 @@
    "file": "at",
    "said": "at",
    "seconds": 0.193
+  },
+  "bandages": {
+   "file": "bandages",
+   "said": "bandages",
+   "seconds": 0.598
+  },
+  "barbecue": {
+   "file": "barbecue",
+   "said": "barbecue",
+   "seconds": 0.517
   },
   "bend": {
    "file": "bend",
@@ -75,6 +100,11 @@
    "file": "brook",
    "said": "brook",
    "seconds": 0.311
+  },
+  "candles": {
+   "file": "candles",
+   "said": "candles",
+   "seconds": 0.466
   },
   "car": {
    "file": "car",
@@ -161,10 +191,25 @@
    "said": "Coom",
    "seconds": 0.29
   },
+  "comedic": {
+   "file": "comedic",
+   "said": "comedic",
+   "seconds": 0.487
+  },
+  "comet fragment": {
+   "file": "comet-fragment",
+   "said": "comet fragment",
+   "seconds": 0.826
+  },
   "comet-derived material": {
    "file": "comet-derived-material",
    "said": "comet-derived material",
    "seconds": 1.301
+  },
+  "commendation": {
+   "file": "commendation",
+   "said": "commendation",
+   "seconds": 0.689
   },
   "consist derailed": {
    "file": "consist-derailed",
@@ -205,6 +250,11 @@
    "file": "crossing",
    "said": "crossing",
    "seconds": 0.462
+  },
+  "deck": {
+   "file": "deck",
+   "said": "deck",
+   "seconds": 0.245
   },
   "depot": {
    "file": "depot",
@@ -291,6 +341,16 @@
    "said": "finch",
    "seconds": 0.398
   },
+  "find": {
+   "file": "find",
+   "said": "find",
+   "seconds": 0.343
+  },
+  "finds": {
+   "file": "finds",
+   "said": "finds",
+   "seconds": 0.43
+  },
   "firebox last tended": {
    "file": "firebox-last-tended",
    "said": "firebox last tended",
@@ -346,6 +406,11 @@
    "said": "fourteen",
    "seconds": 0.504
   },
+  "framed": {
+   "file": "framed",
+   "said": "framed",
+   "seconds": 0.395
+  },
   "freight": {
    "file": "freight",
    "said": "freight",
@@ -390,6 +455,11 @@
    "file": "girders",
    "said": "girders",
    "seconds": 0.452
+  },
+  "gold": {
+   "file": "gold",
+   "said": "gold",
+   "seconds": 0.35
   },
   "goods": {
    "file": "goods",
@@ -456,6 +526,16 @@
    "said": "holt",
    "seconds": 0.349
   },
+  "horn": {
+   "file": "horn",
+   "said": "horn",
+   "seconds": 0.336
+  },
+  "horseshoe": {
+   "file": "horseshoe",
+   "said": "horseshoe",
+   "seconds": 0.466
+  },
   "hundred": {
    "file": "hundred",
    "said": "hundred",
@@ -500,6 +580,21 @@
    "file": "kilometres-an-hour",
    "said": "kilometres an hour",
    "seconds": 0.847
+  },
+  "lamp oil": {
+   "file": "lamp-oil",
+   "said": "lamp oil",
+   "seconds": 0.606
+  },
+  "lamp parts": {
+   "file": "lamp-parts",
+   "said": "lamp parts",
+   "seconds": 0.664
+  },
+  "light fingers": {
+   "file": "light-fingers",
+   "said": "light fingers",
+   "seconds": 0.702
   },
   "lindqvist": {
    "file": "lindqvist",
@@ -595,6 +690,11 @@
    "file": "moreau",
    "said": "Mor-oh",
    "seconds": 0.496
+  },
+  "morphine": {
+   "file": "morphine",
+   "said": "morphine",
+   "seconds": 0.564
   },
   "morrow": {
    "file": "morrow",
@@ -706,10 +806,20 @@
    "said": "petrov",
    "seconds": 0.584
   },
+  "pocket watch": {
+   "file": "pocket-watch",
+   "said": "pocket watch",
+   "seconds": 0.689
+  },
   "powder and shot": {
    "file": "powder-and-shot",
    "said": "powder and shot",
    "seconds": 0.767
+  },
+  "preserves": {
+   "file": "preserves",
+   "said": "preserves",
+   "seconds": 0.551
   },
   "pritchard": {
    "file": "pritchard",
@@ -786,6 +896,11 @@
    "said": "rooke",
    "seconds": 0.27
   },
+  "rope": {
+   "file": "rope",
+   "said": "rope",
+   "seconds": 0.268
+  },
   "sallow": {
    "file": "sallow",
    "said": "sallow",
@@ -846,6 +961,11 @@
    "said": "stage",
    "seconds": 0.39
   },
+  "still up": {
+   "file": "still-up",
+   "said": "still up",
+   "seconds": 0.464
+  },
   "stroud": {
    "file": "stroud",
    "said": "stroud",
@@ -880,6 +1000,36 @@
    "file": "the",
    "said": "the",
    "seconds": 0.187
+  },
+  "the beetle's shovel": {
+   "file": "the-beetle-s-shovel",
+   "said": "the beetle's shovel",
+   "seconds": 0.79
+  },
+  "the brakeman's wheel": {
+   "file": "the-brakeman-s-wheel",
+   "said": "the brakeman's wheel",
+   "seconds": 0.784
+  },
+  "the gannet's head": {
+   "file": "the-gannet-s-head",
+   "said": "the gannet's head",
+   "seconds": 0.702
+  },
+  "the gaunt's hand": {
+   "file": "the-gaunt-s-hand",
+   "said": "the gaunt's hand",
+   "seconds": 0.693
+  },
+  "the grumbler's jaw": {
+   "file": "the-grumbler-s-jaw",
+   "said": "the grumbler's jaw",
+   "seconds": 0.876
+  },
+  "the passenger's cap": {
+   "file": "the-passenger-s-cap",
+   "said": "the passenger's cap",
+   "seconds": 0.928
   },
   "the stoker ran away with it": {
    "file": "the-stoker-ran-away-with-it",
@@ -936,6 +1086,11 @@
    "said": "timber",
    "seconds": 0.401
   },
+  "tinned food": {
+   "file": "tinned-food",
+   "said": "tinned food",
+   "seconds": 0.552
+  },
   "tolley": {
    "file": "tolley",
    "said": "tolley",
@@ -951,10 +1106,25 @@
    "said": "took the",
    "seconds": 0.338
   },
+  "tools": {
+   "file": "tools",
+   "said": "tools",
+   "seconds": 0.46
+  },
   "tor": {
    "file": "tor",
    "said": "tor",
    "seconds": 0.31
+  },
+  "tower jaw's tooth": {
+   "file": "tower-jaw-s-tooth",
+   "said": "tower jaw's tooth",
+   "seconds": 0.959
+  },
+  "treats": {
+   "file": "treats",
+   "said": "treats",
+   "seconds": 0.434
   },
   "trestle": {
    "file": "trestle",
@@ -991,6 +1161,11 @@
    "said": "unattended",
    "seconds": 0.576
   },
+  "valuable tools": {
+   "file": "valuable-tools",
+   "said": "valuable tools",
+   "seconds": 0.864
+  },
   "vane": {
    "file": "vane",
    "said": "vane",
@@ -1015,6 +1190,11 @@
    "file": "wexley",
    "said": "wexley",
    "seconds": 0.454
+  },
+  "whistle": {
+   "file": "whistle",
+   "said": "whistle",
+   "seconds": 0.381
   },
   "whitlow": {
    "file": "whitlow",

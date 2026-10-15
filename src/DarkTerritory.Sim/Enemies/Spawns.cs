@@ -24,7 +24,7 @@ public sealed class SpawnContext(World world, EnemyTuning tuning, Director direc
     public Double3? CalledAt { get; init; }
     public int? CrewAs { get; init; }
     public IEnumerable<(int Id, PlayerState State)> Living => World.CrewThisTick.Where(c => c.State.Alive).Select(c => ((int)c.Id, c.State));
-    public IEnumerable<(int Id, PlayerState State)> OnGround => Living.Where(c => CrewSense.OnGround(c.State));
+    public IEnumerable<(int Id, PlayerState State)> OnGround => Living.Where(c => CrewSense.Afoot(c.State, Train));
     public bool AtFacility => World.Run is { Phase: RunPhase.AtFacility };
     public bool Stopped => Train.Dynamics.Speed < 0.3;
     public RouteTier Tier => World.Route?.Tier ?? RouteTier.Frontier;
@@ -579,7 +579,8 @@ public static class Spawns
     /// With <see cref="FireFliesTuning.ShutCarKeepsOut"/>, only those with a way in: a door or the hatch open, or a breach
     /// (boarding-first, note 286: a car shut up tight keeps them off its lamp).</summary>
     static List<int> LitCars(SpawnContext c) =>
-        [.. c.Train.Dynamics.Consist.Vehicles.Where(v => v.Id > 0 && v.LampLit && c.Train.Frames[v.Id].Shape.Interior is not null
+        // Note 728: a hand lamp lying lit in a car lights it as its own lamps do (World.CarLit).
+        [.. c.Train.Dynamics.Consist.Vehicles.Where(v => v.Id > 0 && c.World.CarLit(v.Id) && c.Train.Frames[v.Id].Shape.Interior is not null
             && !(c.Tuning.FireFlies.ShutCarKeepsOut && Boarding.ShutUp(c.Train, v.Id))).Select(v => v.Id)];
 
     /// <summary>

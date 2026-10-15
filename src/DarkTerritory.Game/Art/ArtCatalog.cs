@@ -153,6 +153,15 @@ public static class ArtCatalog
                      "cometFragment", "grumblerJaw", "gauntHand", "climberClaw", "passengerCap", "brakemanWheel", "knotterClaw",
                      "hotboxPlate", "beetleShovel", "towerJawTooth" })
             list.Add(new($"find-{item}", SmallProp, () => FindKit.Find(look, item, 0.15f)));
+        // Note 719: the fragile valuables, whole, knocked and smashed; and the two-person jackpots.
+        foreach (var item in new[] { "glassware", "decanter", "mantelClock" })
+            for (int knocks = 0; knocks <= 2; knocks++)
+            {
+                int k = knocks;
+                list.Add(new($"find-{item}-{k}", SmallProp, () => FindKit.Find(look, item, 0.15f, k)));
+            }
+        foreach (var (item, radius) in new[] { ("safe", 0.42f), ("churchBell", 0.45f), ("figurehead", 0.42f) })
+            list.Add(new($"jackpot-{item}", SmallProp, () => FindKit.Jackpot(look, item, radius)));
         // What the railway left beside its line (note 325, WorldArt.Leavings): every variant the leavings deal.
         for (int v = 0; v < 3; v++)
         {

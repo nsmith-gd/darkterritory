@@ -33,7 +33,7 @@ public sealed class Dwelling
                 foreach (var house in byStop.OrderBy(h => h.Index))
                     // Not about tonight, or its night's cap reached (note 644; the director's Creature Tweaker): the house
                     // stands empty.
-                    if (Lives(route, stop, house, dt, director) is { } kind && director.Tonight(kind, world))
+                    if (Lives(route, stop, house, dt, director, world.Run?.LockedAt(house.Feature) == house.Building) is { } kind && director.Tonight(kind, world))
                     {
                         into.Add(Put(kind, nextId++, house, walls, t));
                         director.Counted(kind);
@@ -51,12 +51,13 @@ public sealed class Dwelling
     }
 
     /// <summary>What lives in <paramref name="house"/>, from its own dice, or null for nothing.</summary>
-    public static EnemyKind? Lives(Route.Route route, Stops.StopLayout stop, StopWalls.OpenHouse house, DwellingsTuning t, Director? director)
+    /// <param name="jackpot">It's the stop's jackpot house (note 719): its share's times <c>jackpotShare</c>, never past 1.</param>
+    public static EnemyKind? Lives(Route.Route route, Stops.StopLayout stop, StopWalls.OpenHouse house, DwellingsTuning t, Director? director, bool jackpot = false)
     {
         if (stop.Lairs.Any(l => l.Kind == Stops.LairKind.GauntRoost && l.Building == house.Building))
             return null;
         var dice = new Pcg32(route.Seed ^ ((ulong)(uint)house.Feature << 20 | (uint)house.Building), 0x44_5745_4C4CUL);
-        if (dice.NextDouble() >= t.ShareFor(route.Tier))
+        if (dice.NextDouble() >= Math.Min(1, t.ShareFor(route.Tier) * (jackpot ? t.JackpotShare : 1)))
             return null;
         bool finds = stop.Containers.Any(c => c.Building == house.Building);
         var kinds = new (EnemyKind Kind, string Key)[] { (EnemyKind.Lodger, "lodger"), (EnemyKind.Householder, "householder"), (EnemyKind.HollowHouse, "hollowHouse"), (EnemyKind.Hanger, "hanger") }
@@ -119,7 +120,7 @@ public static class HouseWays
             var p = a + d * ((double)i / steps) + Double3.Up * 1.0;
             foreach (var w in walls.Near(p))
             {
-                if (w.Fort)
+                if (w.Fort || w.Trestle)
                     continue;
                 var l = w.ToLocal(p);
                 if (Math.Abs(l.X) <= w.HalfLength && Math.Abs(l.Z) <= w.HalfWidth && l.Y >= w.Bottom && l.Y <= w.Top)

@@ -102,6 +102,12 @@ def bots():
 PRIZE_PHRASES = ["light fingers"]
 PRIZE_WORDS = ["find", "finds"]
 
+# The upgrades read into every night's tally (U1's #967, note 678; queue #505, note 775; the checklist's up-clerk-words):
+# "Whistle: gold." "Horn: comedic." "Horseshoe: still up." "Commendation: framed." "Deck: barbecue." More come with each silly
+# upgrade (campaign.json upgrades' "tally").
+UPGRADE_PHRASES = ["still up"]
+UPGRADE_WORDS = ["whistle", "gold", "horn", "comedic", "horseshoe", "commendation", "framed", "deck", "barbecue"]
+
 
 def finds():
     """Every find's and trophy's name (loot.json items), as the clerk says it mid-line: "pocket watch", "the gaunt's hand"."""
@@ -110,7 +116,8 @@ def finds():
 
 def vocabulary():
     seen, out = set(), []
-    for w in PHRASES + CAUSE_PHRASES + PRIZE_PHRASES + finds() + WORDS + CAUSE_WORDS + PRIZE_WORDS + bots() + places():
+    for w in (PHRASES + CAUSE_PHRASES + PRIZE_PHRASES + UPGRADE_PHRASES + finds() + WORDS + CAUSE_WORDS + PRIZE_WORDS
+              + UPGRADE_WORDS + bots() + places()):
         if w not in seen:
             seen.add(w)
             out.append(w)

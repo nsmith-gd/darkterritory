@@ -86,7 +86,10 @@
     // F.3 "removes the ground excursion at junctions": points thrown from the cab (train.json composition.thrower).
     { "id": "poweredSwitchThrower", "name": "Powered switch thrower", "size": "major", "costShare": 1.6, "effect": { "switchThrower": 1 } },
     // F.3 "uncouple under load": cutting a working train's coupling takes no longer than a slack one (6 s to 3 s).
-    { "id": "reinforcedCouplings", "name": "Reinforced couplings", "size": "major", "costShare": 1.8, "effect": { "underLoad": 0.5 } }
+    { "id": "reinforcedCouplings", "name": "Reinforced couplings", "size": "major", "costShare": 1.8, "effect": { "underLoad": 0.5 } },
+    // The handcar (GDD §24.1; the director, 14 Oct 2026, App. F.6; note 729): a pump trolley hung on the back of the guard van
+    // (train.json handcar), for a friend left behind, a branch scouted or a race. Not in F.3; priced as its small upgrades are.
+    { "id": "handcar", "name": "The handcar", "size": "small", "costShare": 0.25, "effect": { "handcar": 1 } }
   ],
   // GDD v1.4 App. E.12 question 4 had the fortress sell spare repair kits ("spareKit": { "cost": 325, "most": 3 }: each
   // started the night in a crew locker, and losing every kit stranded a ruptured night, §23.2). Note 301 (queue #39, the
