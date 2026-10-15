@@ -1164,7 +1164,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         at = line.Branches[junction].Toe - (args.Contains("--through") ? 10 : 25);
     // --mail [s]: at the night's first mail crane, car 2's side door by it; s > 0, the bag caught s seconds ago (its snatch
     // and the arms falling).
-    Drop? mail = args.Contains("--mail") && generated is not null ? DarkTerritory.Sim.Route.Lineside.Drops(DataFile.Load<SightTuning>(Path.Combine(content, SightTuning.File)), generated).FirstOrDefault() : null;
+    // (The mail's cut for now, note 803: the view turns sight.json's mailCranes back on for itself, so the crane's still seen.)
+    var mailSight = DataFile.Load<SightTuning>(Path.Combine(content, SightTuning.File)) with { MailCranes = true };
+    Drop? mail = args.Contains("--mail") && generated is not null ? DarkTerritory.Sim.Route.Lineside.Drops(mailSight, generated).FirstOrDefault() : null;
     if (mail is not null)
         at = mail.At + t.Geometry.EngineLength + t.Geometry.CarLength * 1.5 + t.Geometry.CouplingGap * 2;
     // --structure type: the night's first of the plan's structures of that type on the main line (a girder, truss, trestle
@@ -2043,6 +2045,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Town = town,
         Arrival = arrival,
         DropCaught = mail is not null ? id => id == mail.Id && Opt(args, "--mail", 0) > 0 : null,
+        Signs = mail is not null && generated is not null ? [.. DarkTerritory.Sim.Route.Lineside.Boards(mailSight, generated)] : null,
         StagedCatch = Opt(args, "--mail", 0),
         StagedCold = args.Contains("--cold") ? Opt(args, "--cold", 0) : null,
         StagedWind = args.Contains("--wind") ? Opt(args, "--wind", 0) : null, // the towns' flags fly in it (note 674)

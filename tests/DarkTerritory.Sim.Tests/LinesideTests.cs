@@ -501,21 +501,42 @@ public class DropAndPacingTests
     static readonly TrainTuning T = Tuning.Train;
     static readonly PlayerTuning P = Tuning.Player;
     static readonly SightTuning S = DataFile.Load<SightTuning>(Path.Combine(DataFile.FindContentRoot(), SightTuning.File));
+    // The mail's cut for now (note 803): its tests turn the switch back on for themselves, so it's still tested for its return.
+    static readonly SightTuning M = S with { MailCranes = true };
+
+    [Fact]
+    public void WithTheMailCutANightHasNoCranesAndNoBoardsForThem()
+    {
+        // Queue #530, note 803 (the director, 15 Oct 2026: "Lets cut for now"): the shipped tuning places no crane on any
+        // line, so nothing downstream (the boards, the catch, the HUD, the bots, the pay) has one to show.
+        Assert.False(S.MailCranes);
+        // The line's prop boards, the linegen map and a screenshot's boards read SightTuning's defaults: they mirror the file.
+        Assert.Equal(S.MailCranes, new SightTuning().MailCranes);
+        foreach (var name in (string[])["local:3", "frontier:7", "deadLines:3", "deepTerritory:7"])
+        {
+            var generated = DarkTerritory.Sim.LineGen.Routes.Generate(DataFile.FindContentRoot(), name, 6);
+            Assert.Empty(Lineside.Drops(S, generated));
+            Assert.DoesNotContain(Lineside.Boards(S, generated), b => b.Kind == SignKind.Drop);
+            Assert.Empty(new Lineside(S, generated).AllDrops);
+            // And on, they're back where they were.
+            Assert.NotEmpty(Lineside.Drops(M, generated));
+        }
+    }
 
     [Fact]
     public void CranesStandAlongTheLineClearOfItsStructuresEachWithABoard()
     {
         var route = RouteGenerator.Generate(Tuning.Route, RouteTier.Frontier, 7);
-        var drops = Lineside.Drops(S, route).ToList();
-        Assert.True(drops.Count >= route.Length / S.DropSpacing[1] * 0.6, $"{drops.Count} cranes on {route.Length:0} m");
+        var drops = Lineside.Drops(M, route).ToList();
+        Assert.True(drops.Count >= route.Length / M.DropSpacing[1] * 0.6, $"{drops.Count} cranes on {route.Length:0} m");
         for (int i = 1; i < drops.Count; i++)
-            Assert.True(drops[i].At - drops[i - 1].At >= S.DropSpacing[0] - 1e-6);
+            Assert.True(drops[i].At - drops[i - 1].At >= M.DropSpacing[0] - 1e-6);
         Assert.All(drops, d => Assert.DoesNotContain(route.Features, f => f.Kind is FeatureKind.Tunnel or FeatureKind.Bridge or FeatureKind.Facility && f.Contains(d.At)));
-        var boards = Lineside.Boards(S, route).Where(s => s.Kind == SignKind.Drop).ToList();
+        var boards = Lineside.Boards(M, route).Where(s => s.Kind == SignKind.Drop).ToList();
         Assert.Equal(drops.Count, boards.Count);
-        Assert.Equal(3, Lineside.Boards(S, route).Count(s => s.Kind == SignKind.Terminus));
+        Assert.Equal(3, Lineside.Boards(M, route).Count(s => s.Kind == SignKind.Terminus));
         // Every machine has the same cranes.
-        Assert.Equal(drops, Lineside.Drops(S, route).ToList());
+        Assert.Equal(drops, Lineside.Drops(M, route).ToList());
     }
 
     /// <summary>A train at speed past a crane with someone in car 2's side door on its side, door open or not, hook out or not.</summary>
@@ -526,7 +547,7 @@ public class DropAndPacingTests
         var world = new World(train, Tuning.Combat);
         world.EnableBodies();
         world.EnableRun(Tuning.Run, route, Tuning.Route.YardLength, authority: true);
-        world.EnableLineside(S, route);
+        world.EnableLineside(M, route);
         var lineside = world.Lineside!;
         var drop = lineside.AllDrops.First();
         var shape = train.Frames[2].Shape;
@@ -567,13 +588,13 @@ public class DropAndPacingTests
     {
         // The mail catch (queue #461, note 727): the crane's board posts the speed the hook holds a bag at; over it, the bag
         // tears off and what was in it is gone, so the one at the door calls the driver down for it.
-        Assert.True(S.CatchMaxSpeed > 13);
-        var (torn, world) = Past(open: true, hook: true, speed: S.CatchMaxSpeed + 2);
+        Assert.True(M.CatchMaxSpeed > 13);
+        var (torn, world) = Past(open: true, hook: true, speed: M.CatchMaxSpeed + 2);
         var drop = torn.AllDrops.First();
         Assert.True(torn.Torn(drop.Id) && torn.Passed(drop.Id) && !torn.Caught(drop.Id));
         Assert.Equal(0, world.Run!.Mail);
-        var board = Lineside.Boards(S, DarkTerritory.Sim.LineGen.Routes.Generate(DataFile.FindContentRoot(), "frontier:7", 6)).First(b => b.Kind == SignKind.Drop);
-        Assert.Equal((int)(Math.Floor(S.CatchMaxSpeed * 3.6 / 5) * 5), board.LimitKmh);
+        var board = Lineside.Boards(M, DarkTerritory.Sim.LineGen.Routes.Generate(DataFile.FindContentRoot(), "frontier:7", 6)).First(b => b.Kind == SignKind.Drop);
+        Assert.Equal((int)(Math.Floor(M.CatchMaxSpeed * 3.6 / 5) * 5), board.LimitKmh);
     }
 
     [Fact]

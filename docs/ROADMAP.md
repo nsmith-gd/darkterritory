@@ -240,7 +240,7 @@ M3 is done but for a test with eight people.
 **Pacing (after the 100-night playtest: "a reward or a problem every 30 s at most, ideally 20"):**
 - The world logs each moment (a threat showing itself, a board, a bag), and counts the quiet out on the line. `dt harness` reports it.
 - At 18 s of quiet the director sends something, cooldown or not. It prefers kinds it hasn't sent lately, and its caps count only threats that are engaged.
-- Mail cranes line the route with a board before each. Hook a bag from an open cargo side door as it passes: pay, coal, rounds or spares.
+- Mail cranes line the route with a board before each. Hook a bag from an open cargo side door as it passes: pay, coal, rounds or spares. *Cut for now (the director, 15 Oct 2026; note 803): kept behind sight.json `mailCranes`.*
 - Nights measured in the harness: longest quiet 21–26 s, typical 12–16 s.
 
 **Trouble inside the cars (after the 100-night playtest):**
