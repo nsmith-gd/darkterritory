@@ -15234,6 +15234,117 @@
   "takes": 3,
   "sha": "383301d821e6ff00"
  },
+ "state-coupling-loose/jump-bend": {
+  "cue": "state-coupling-loose.jump-bend",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Jumped on a bend: the car lurching, its wooden frame groaning as it twists, the pin jumping at the height of it",
+    "key": "groan",
+    "sources": [
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_rpg-audio:doorOpen_1",
+     "kenney_rpg-audio:doorOpen_2",
+     "sfx_100_v2:misc_10",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "3307f4548cf5a76f"
+ },
+ "state-coupling-loose/jump-brake": {
+  "cue": "state-coupling-loose.jump-brake",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Jumped by a run-in: couplers slamming in down the train, one gap after another, the pin jumping in its knuckle",
+    "key": "slack",
+    "sources": [
+     "sfx_100_v2:metal_hit_01",
+     "sfx_100_v2:misc_36",
+     "sfx_100_v2:misc_30",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "df4637370d445ae5"
+ },
+ "state-coupling-loose/jump-coupled": {
+  "cue": "state-coupling-loose.jump-coupled",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Jumped by a hard coupling: the knuckles' big iron clash, the pin knocked up in its knuckle, the cars shoved",
+    "key": "clash",
+    "sources": [
+     "sfx_100_v2:metal_hit_01",
+     "sfx_100_v2:misc_36",
+     "sfx_100_v2:misc_30",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_rpg-audio:metalLatch",
+     "sfx_100_v2:door_02",
+     "sfx_100_v2:door_04",
+     "sfx_100_v2:door_05"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "19b87fb6dd79c1af"
+ },
  "state-coupling-loose/knock": {
   "cue": "state-coupling-loose.knock",
   "surface": null,
@@ -16476,6 +16587,34 @@
   "takes": 4,
   "sha": "7203545c12e11cdf"
  },
+ "tell-house/creak": {
+  "cue": "tell-house.creak",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A house where something waits: old boards creaking under a slow weight in the dark, sometimes a rafter overhead",
+    "key": "board",
+    "sources": [
+     "kenney_rpg-audio:doorOpen_1",
+     "kenney_rpg-audio:doorOpen_2",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "f8c082c69fa90a38"
+ },
  "tell-householder-rise/rise": {
   "cue": "tell-householder-rise.rise",
   "surface": null,
@@ -16545,6 +16684,42 @@
   ],
   "takes": 1,
   "sha": "622b305f39581f82"
+ },
+ "tell-householder/shift": {
+  "cue": "tell-householder.shift",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "It shifts in its chair: its chair's joints creaking, the legs moved an inch on the boards, the cutlery rattling once",
+    "key": "chair",
+    "sources": [
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06",
+     "sfx_100_v2:metal_05",
+     "sfx_100_v2:metal_03",
+     "kenney_impact-sounds:impactGlass_light_000",
+     "kenney_impact-sounds:impactGlass_light_001",
+     "kenney_impact-sounds:impactGlass_light_002",
+     "kenney_impact-sounds:impactGlass_light_003",
+     "kenney_impact-sounds:impactGlass_light_004",
+     "sfx_100_v2:glass_01",
+     "sfx_100_v2:glass_04",
+     "kenney_rpg-audio:dropLeather"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "4ff4e9e9a78db680"
  },
  "tell-knotter/creep": {
   "cue": "tell-knotter.creep",
@@ -18405,6 +18580,21 @@
   "takes": 3,
   "sha": "14eb94104cd51fa6"
  },
+ "world-bell/far": {
+  "cue": "world-bell.far",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Something lost out there, modelled: a small bronze bell's hum and minor-third tierce ringing a long way off",
+    "key": "partials",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "425c2352b3b40621"
+ },
  "world-brass/cut": {
   "cue": "world-brass.cut",
   "surface": null,
@@ -18668,6 +18858,21 @@
   ],
   "takes": 3,
   "sha": "30f544d4274dc8d4"
+ },
+ "world-dog/bark": {
+  "cue": "world-dog.bark",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Something at the lamps' edge: a farm dog barking at it across the fields at night, two to four urgent barks",
+    "key": "collie",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "36ac11339e0272ed"
  },
  "world-livestock/cattle": {
   "cue": "world-livestock.cattle",

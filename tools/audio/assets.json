@@ -3804,6 +3804,36 @@
   "url": "/_blob/e7ce2e2f4be130933f5b0586e347126e",
   "sha": "6faa9b9a3a7b65dd"
  },
+ "previews/state-coupling-loose--jump-bend--frame.mp4": {
+  "id": "8cd9eeb295088c536ce5e5f30ec93300",
+  "url": "/_blob/8cd9eeb295088c536ce5e5f30ec93300",
+  "sha": "5a2cd7800a474912"
+ },
+ "previews/state-coupling-loose--jump-bend--groan.mp4": {
+  "id": "e085fda92ab21ea82f8ac95790003986",
+  "url": "/_blob/e085fda92ab21ea82f8ac95790003986",
+  "sha": "4a5b60898be0fcc7"
+ },
+ "previews/state-coupling-loose--jump-brake--cast.mp4": {
+  "id": "963f3c2482eca09de30466dd3f60d9fc",
+  "url": "/_blob/963f3c2482eca09de30466dd3f60d9fc",
+  "sha": "604ed8456151e2bb"
+ },
+ "previews/state-coupling-loose--jump-brake--slack.mp4": {
+  "id": "ee9e338dc45d278c784903d029eb0c34",
+  "url": "/_blob/ee9e338dc45d278c784903d029eb0c34",
+  "sha": "1821358579b11287"
+ },
+ "previews/state-coupling-loose--jump-coupled--cast.mp4": {
+  "id": "22bb0c004650f16d0c14da3626f675a2",
+  "url": "/_blob/22bb0c004650f16d0c14da3626f675a2",
+  "sha": "85cf57aea7706224"
+ },
+ "previews/state-coupling-loose--jump-coupled--clash.mp4": {
+  "id": "273bae5ad177b8068b153e3a059eb424",
+  "url": "/_blob/273bae5ad177b8068b153e3a059eb424",
+  "sha": "4487202f497f3450"
+ },
  "previews/state-coupling-loose--knock--casting.mp4": {
   "id": "e3fc724e9f6bf7f36bca12ecc15fed25",
   "url": "/_blob/e3fc724e9f6bf7f36bca12ecc15fed25",
@@ -4194,6 +4224,16 @@
   "url": "/_blob/e54520bf20e68d98de2b63c59683fc96",
   "sha": "8b2367e6b13ce4e0"
  },
+ "previews/tell-house--creak--board.mp4": {
+  "id": "6bba727a2e5c29988e26a3a01c47ac8c",
+  "url": "/_blob/6bba727a2e5c29988e26a3a01c47ac8c",
+  "sha": "e64afb5e7e2ee5fa"
+ },
+ "previews/tell-house--creak--slip.mp4": {
+  "id": "cbd3ec68c7bde4f31ace1c254c888fcd",
+  "url": "/_blob/cbd3ec68c7bde4f31ace1c254c888fcd",
+  "sha": "fb7d49737be3b3d8"
+ },
  "previews/tell-householder--house--kitchen.mp4": {
   "id": "8ddd07c4cbeb63a0281484d780798080",
   "url": "/_blob/8ddd07c4cbeb63a0281484d780798080",
@@ -4203,6 +4243,16 @@
   "id": "1963ea0afd3b36886471a9ffbf885a35",
   "url": "/_blob/1963ea0afd3b36886471a9ffbf885a35",
   "sha": "bce8e9f7dab9bfb5"
+ },
+ "previews/tell-householder--shift--chair.mp4": {
+  "id": "fd43b7dd874a3879df79965911470d8d",
+  "url": "/_blob/fd43b7dd874a3879df79965911470d8d",
+  "sha": "ddb6838e1c55c584"
+ },
+ "previews/tell-householder--shift--joints.mp4": {
+  "id": "3114c2f85daff1c90ad1cb552defd5e8",
+  "url": "/_blob/3114c2f85daff1c90ad1cb552defd5e8",
+  "sha": "657c9d6ebaefc73f"
  },
  "previews/tell-householder-rise--rise--judder.mp4": {
   "id": "5558ace0e8b6bf5cb91c7e7a7d257d46",
@@ -5119,6 +5169,16 @@
   "url": "/_blob/88fd0e6bc9ec2e79e0eee1c45c655bd5",
   "sha": "802eb551d0ee89a5"
  },
+ "previews/world-bell--far--partials.mp4": {
+  "id": "b0b8299e93db62d96582cf67bad4e5c5",
+  "url": "/_blob/b0b8299e93db62d96582cf67bad4e5c5",
+  "sha": "0ac371a9dabc2e86"
+ },
+ "previews/world-bell--far--rung.mp4": {
+  "id": "8236fda3886c77aa0e2fc25544f088bd",
+  "url": "/_blob/8236fda3886c77aa0e2fc25544f088bd",
+  "sha": "b2935dec835cfd93"
+ },
  "previews/world-brass--cut--pilot.mp4": {
   "id": "27f90667783aea8af2f6eaf1cd8b2bfa",
   "url": "/_blob/27f90667783aea8af2f6eaf1cd8b2bfa",
@@ -5163,6 +5223,16 @@
   "id": "5f2800cfe1282a7df0b936b401771301",
   "url": "/_blob/5f2800cfe1282a7df0b936b401771301",
   "sha": "3861396d50f804e2"
+ },
+ "previews/world-dog--bark--collie.mp4": {
+  "id": "51764922f2860a01c0d31fd786b3685c",
+  "url": "/_blob/51764922f2860a01c0d31fd786b3685c",
+  "sha": "0d973fff6fa01fa7"
+ },
+ "previews/world-dog--bark--roar.mp4": {
+  "id": "79f7bdf3faf0c4033b5085b6685dafe7",
+  "url": "/_blob/79f7bdf3faf0c4033b5085b6685dafe7",
+  "sha": "2fcb7a5fdefa3be9"
  },
  "previews/world-livestock--cattle--stock-car.mp4": {
   "id": "48f0aca0e2c55b810d04da6aa6c4cdde",

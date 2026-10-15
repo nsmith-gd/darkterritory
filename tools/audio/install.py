@@ -304,7 +304,13 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 "crew-rescue.haul": "boards", "crew-rescue.lift": "coats", "crew-rescue.set": "boards", "crew-rescue.throw": "swing",
                 "loot-jackpot.lift-iron": "boards", "loot-jackpot.lift-bell": "boards", "loot-jackpot.lift-wood": "boards",
                 "loot-jackpot.set-iron": "boards", "loot-jackpot.set-wood": "oak", "loot-jackpot.bell": "bronze",
-                "loot-fragile.glass": "crate", "loot-fragile.decanter": "cut", "loot-fragile.clock": "mantel"}
+                "loot-fragile.glass": "crate", "loot-fragile.decanter": "cut", "loot-fragile.clock": "mantel",
+                # Note 785: the packs' real slams, iron, creaks and chair first; the far bell's proper minor-third partials
+                # (the packs' real bell is a small gong-like one) and the modelled farm dog (the roar sped up may read as
+                # something not quite a dog: never a creature).
+                "state-coupling-loose.jump-brake": "slack", "state-coupling-loose.jump-coupled": "clash",
+                "state-coupling-loose.jump-bend": "groan", "tell-house.creak": "board", "tell-householder.shift": "chair",
+                "world-bell.far": "partials", "world-dog.bark": "collie"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the
