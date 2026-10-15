@@ -220,7 +220,7 @@ The towns are where the world is built. They tell the story of what happened and
 - grey cedar shingle or painted clapboard, in teal, butter yellow, periwinkle, barn red, maroon, ochre or white;
 - white or coloured trim, a bright door, shutters, Victorian brackets.
 
-Each town has a character too: a fishing cove of shingled gable-fronts, an old town of painted bumps, a loyalist row on the water, a farm town of capes and ells, a company town of one double house in many paints, or a town of all sorts.
+Each town has a character too: a fishing cove of shingled gable-fronts, an old town of painted bumps, a loyalist row on the water, a farm town of capes and ells, a company town built to the company's few plans in runs down its streets, in many paints, or a town of all sorts. And no house is its neighbour's twin (queue #543, note 815; the director, 13 Oct: "A lot of the house models are too same same"): over the years the families have changed them. A porch has been added or closed in, a lean-to built on the side, a dormer cut into the roof. A house has been shingled over its clapboard, shutters hung, a stovepipe put through where the chimney was, or a storey built up. A company's houses most of all, built alike and lived in apart.
 
 **Every house has its yard.** On a street, a picket fence along the front with its gate at the door; a board fence at the back; and behind the house what a yard keeps: the woodpile under a sheet of roofing, a shed, the privy, lobster traps, a dory turned over on its blocks, a rain barrel, the washing pegged out and left out after dark. A cove's yards are traps and dories, a farm town's woodpiles and sheds, a company row's the same fence and privy at every house. You go in by the gate, and the fences stop you.
 
