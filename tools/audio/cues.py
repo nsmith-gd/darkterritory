@@ -587,6 +587,8 @@ CUES = {
         L("lantern", "The watch's lantern swinging on its bail as they walk"),
         # The council house's bell rope pulled (queue #519, note 786; K1's #1038, note 730): everyone near stops and looks up.
         O("bell", "The council house's cracked bell rung: two to four sour, buzzing strokes across the square", vars=3),
+        # A harbour town's Hope Tower (B2's #1091, note 819; queue #554, note 826): its Flame, a coal fire 80 m up in the wind.
+        L("flame", "The Flame of Hope: a great coal fire in an iron basket high on the Hope Tower, roaring in the wind off the sea"),
     ],
     "place-mine": [
         L("underground", "Underground at the mine head"),

@@ -24,7 +24,10 @@ public sealed partial class GameAudio
     const int TownFires = 4, TownRoomThings = 3;
     // Nicki's party carries further than a house's range or clock (music, a crowd), and holds by the house's own id.
     const double TownPartyReach = 70;
-    const int TownPartyId = 90_000, TownForgeId = 91_000;
+    const int TownPartyId = 90_000, TownForgeId = 91_000, TownFlameId = 92_000;
+    // A harbour town's Hope Tower (B2's #1091, note 819; queue #554, note 826): its Flame burns in an iron basket on the
+    // tower's top, a little over the basket's brim (TownFixtures' "lighthouse" height), and is heard far out over the town.
+    const double FlameOverBrim = 2.5, FlameReach = 800;
     // A house's walls between the ear and a sound on the other side of them (a range heard from the street, the square's
     // fires from a kitchen): the doors and windows are shut, more than a stop's broken-open room (walls.json roomWall).
     const float TownWall = 0.6f;
@@ -115,6 +118,15 @@ public sealed partial class GameAudio
         var rooms = new List<(double D, int Id, string Cue, Double3 At, int House)>();
         foreach (var f in town.Plan.Fixtures)
         {
+            // The Flame of Hope, high over everything: heard from anywhere in the town and out along the line, never through
+            // a house's things' short reach.
+            if (f.Kind == "lighthouse" && f.House < 0)
+            {
+                var flame = town.World(f.S, f.D, TownFixtures.Size(f.Kind).Height + FlameOverBrim);
+                if (HasCue("place-town.flame") && (flame - ear).Length <= FlameReach)
+                    _townNear.Add((TownFlameId + f.Id, "place-town.flame", flame, -1));
+                continue;
+            }
             string? cue = f.Kind switch
             {
                 "barrel" or "brazier" => "place-town.fire",

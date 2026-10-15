@@ -375,3 +375,7 @@ The director asked for the last three friendslop features to be heard. Two were 
 
 - [#1104](https://github.com/nsmith-gd/darkterritory/pull/1104) merged on green CI: the band gives way to a tell.
 - **The clerk's words:** #967's 42 upgrade tally lines are read into every night's tally, and the bank had only the first ten's words, so the set broke up over "Fiddle: in tune, mostly." and the rest. `tools/audio/clerk.py` reads them off `campaign.json` now; 68 new takes; `ClerkVoiceTests` holds every line. The checklist's `up-clerk-words` says so.
+## 15 Oct, ~22:50 UTC: #554, the Hope Tower's Flame heard
+
+- Main's new features since the last look: B2's Hope Tower (#1091, note 819) puts an 80 m stone tower with a coal fire on top in every harbour town, and it was silent. Claimed queue #554, note 826.
+- `place-town.flame`: two candidates (`basket`, `tongues`), both under 4.5 kHz so the town's light is never a car alight; `basket` installed; held on the tower's top within 800 m (`GameAudio.Town`); `WorldSoundTests`. The `place-town` row on the Audio Checklist has them.

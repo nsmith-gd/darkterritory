@@ -1002,4 +1002,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [817. What's solid holds you up (queue #545, B1; note 797's "not yet"; GDD App. F.1, the director: "The world is solid")](notes/817.md)
 - [819. A harbour town's Hope Tower and its Flame of Hope (queue #547, B2; the World Building board's Cultures tab, the director, 12 Oct:…](notes/819.md)
 - [820. The bot driver holds its speed without pulsing the full brake (B3, queue #532; AU1's audio audit, note 801's night)](notes/820.md)
+- [826. The Hope Tower's Flame of Hope heard (AU1, queue #554; B2's #1091, note 819)](notes/826.md)
 <!-- end of the notes index -->
