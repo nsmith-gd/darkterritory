@@ -9,7 +9,8 @@ in the texture library, baked by group into one 1024 atlas and sooted.
 A Style's hooks: `head(objs, centre)` deforms the scan after its mouth is closed; `dress` overrides DRESS entries (kit
 material prefix: (layer, repeats a metre, tint, roughness, subdivision)); `shapes` adds to a kit material's sculpt (its
 displacement, metres along the normal); `masks` are painted on the high copy and baked (overbake.Atlas.bake);
-`grade(base, atlas, face)` has the last word on the atlas's colour.
+`grade(base, atlas, face)` has the last word on the atlas's colour. `figure="dave"` is Dave's body (tools/blender/davebody.py,
+bare-headed like "bare"), his waistcoats the extra parts it bakes (`baked`, sculpted as `shells`).
 """
 import math
 import os
@@ -28,7 +29,8 @@ from overbake import bell, fine, smooth01
 class Style:
     def __init__(self, head=None, dress=None, shapes=None, masks=None, grade=None, preview="CREW_PREVIEW",
                  what="the crew's clothes and kit, modelled over tools/blender/crew.py", lamp=True, mask=None, figure="helm",
-                 gear=None, views=None, hats=True, low_shapes=None):
+                 gear=None, views=None, hats=True, low_shapes=None, baked=(), shells=("coat",), buttons=None, laces=True,
+                 grime=1.0, size=1024, detail=None, reshape=()):
         self.head, self.dress, self.shapes = head, dress or {}, shapes or {}
         # Displacement of a game part itself before its high copy's made from it (note 407: the silhouette, which the
         # bake's normals can't give): {part: fn(positions, normals) -> metres}, the coat's shell signed as its sculpt is.
@@ -50,6 +52,33 @@ class Style:
         self.hats = hats
         # The preview's views, [(name, direction, target, distance)], in place of the default five.
         self.views = views
+        # Parts baked beside the body's own (a figure's variants: Dave's waistcoats), and which parts are two-sided
+        # shells, sculpted their outer side's way.
+        self.baked, self.shells = tuple(baked), tuple(shells)
+        # The coat's buttons, (x, z) cast onto its front (None: the crew's double row), and the boots' laces.
+        self.buttons, self.laces = buttons, laces
+        # How much of the line's dirt is on them (the ballast's mud, the smoke settled, the face's sallow and soot): 1 the
+        # crew's, less for someone who isn't out in it every night. And the atlas's size.
+        self.grime, self.size = grime, size
+        # Modelled detail only the bake reads, on the parts' high copies: detail(highs, make) adds to highs[part] (Dave's
+        # buttons and pockets, on each waistcoat's own).
+        self.detail = detail
+        # Kit materials whose sculpt `shapes` replaces rather than adds to (Dave's trousers aren't bunched over boots).
+        self.reshape = tuple(reshape)
+
+
+def place_scan(head, head_c):
+    """Lee Perry-Smith's scan (cook.load's objects) where the egg of a head was: its crown at the egg's crown, centred
+    over the neck, the face as far forward as the egg's. Returns its bounds. (tools/models/recipes/dave_kit.py fits
+    Dave's hats to it.)"""
+    cook.fit(head, height=0.46)
+    cook.rotate(head, 180)
+    cook.cut(head, lambda c: c.z > 0.2)
+    S = 0.93
+    cook.transform(head, Matrix.Scale(S, 4))
+    lo, hi = cook.bounds(head)
+    cook.move(head, (-(lo.x + hi.x) / 2, head_c.y + 0.006 - (lo.y + hi.y) / 2, head_c.z + 0.118 - hi.z))
+    return cook.bounds(head)
 
 
 def _shell(centre, radii, keep, material, segments, rings, name):
@@ -228,8 +257,8 @@ def build(name, style):
     # The crew as tools/blender builds it, its export held back until the game mesh wears the bake (tools/models overbake).
     os.environ["DT_CREW"] = style.figure
     kit, g, arm, parts = overbake.hold("crew.py")
-    scan = style.figure == "bare"
-    hats = ("hat_cap", "hat_helmet") if scan else ()
+    scan = style.figure in ("bare", "dave")
+    hats = tuple(n for n in ("hat_cap", "hat_helmet") if n in parts) if scan else ()
     if not style.hats:
         for n in hats:
             bpy.data.objects.remove(parts.pop(n))
@@ -262,16 +291,7 @@ def build(name, style):
         for o in head:
             o.data.materials.clear()
             o.data.materials.append(skin)
-        cook.fit(head, height=0.46)
-        cook.rotate(head, 180)
-        cook.cut(head, lambda c: c.z > 0.2)
-        lo, hi = cook.bounds(head)
-        # Crown at the egg's crown, centred over the neck, the face as far forward as the egg's was.
-        S = 0.93
-        cook.transform(head, Matrix.Scale(S, 4))
-        lo, hi = cook.bounds(head)
-        cook.move(head, (-(lo.x + hi.x) / 2, HEAD_C.y + 0.006 - (lo.y + hi.y) / 2, HEAD_C.z + 0.118 - hi.z))
-        lo, hi = cook.bounds(head)
+        lo, hi = place_scan(head, HEAD_C)
         print("[dt] head", tuple(round(c, 3) for c in lo), tuple(round(c, 3) for c in hi))
 
 
@@ -507,9 +527,10 @@ def build(name, style):
 
     # Which highs bake onto which game part (a cap never shadows the helmet it isn't worn with).
     # (The frame, crewbody's modelled body, bakes from its own dense union; the coat's shells from their subdivision.)
-    BAKED = ["body", "frame", "coat"] + ([*hats, "scarf"] if scan else ["visor_up", "visor_down", "scarf"])
+    BAKED = (["body", "frame", "coat"] + [n for n in ([*hats, "scarf"] if scan else ["visor_up", "visor_down", "scarf"]) if n in parts]
+             + list(style.baked))
     for k, fn in style.shapes.items():
-        SHAPE[k] = (lambda f, base: (lambda p, n: base(p, n) + f(p, n)) if base else f)(fn, SHAPE.get(k))
+        SHAPE[k] = (lambda f, base: (lambda p, n: base(p, n) + f(p, n)) if base else f)(fn, None if k in style.reshape else SHAPE.get(k))
     # The coat's shells are two-sided: each side sculpted the outer side's way (along its normal the lining would move
     # against it, and where a fold sinks the outside the lining would come out through it).
     def shell(fn):
@@ -519,18 +540,19 @@ def build(name, style):
         return signed
     SHELL = {k: shell(f) for k, f in SHAPE.items()}
     for part, fn in style.low_shapes.items():
-        overbake.displace(parts[part], shell(fn) if part == "coat" else fn)
-    highs = {part: overbake.high_of(parts[part], dress, SHELL if part == "coat" else SHAPE) for part in BAKED if part != "frame"}
+        overbake.displace(parts[part], shell(fn) if part in style.shells else fn)
+    highs = {part: overbake.high_of(parts[part], dress, SHELL if part in style.shells else SHAPE) for part in BAKED if part != "frame"}
     highs["frame"] = overbake.high_of(g["FRAME_HIGH"], dress, SHAPE, dense=True)
     # The respirator and goggles (Style.mask), modelled on the scan's landmarks, their game mesh on the head bone.
     if style.mask and scan:
-        mask_high, mask_low = respirator(style.mask, TIP, make)
+        # (A callable is face kit of the figure's own: Dave's glasses, (tip, the scan, make) -> (high, low).)
+        mask_high, mask_low = style.mask(TIP, head, make) if callable(style.mask) else respirator(style.mask, TIP, make)
         head += mask_high
         mat = bpy.data.materials.new("crew_mask")
         for o in mask_low:
             o.data.materials.clear()
             o.data.materials.append(mat)
-            g_ = o.vertex_groups.new(name="head" if style.mask == "on" else "spine_03")
+            g_ = o.vertex_groups.new(name="spine_03" if style.mask == "torn" else "head")
             g_.add(list(range(len(o.data.vertices))), 1.0, "REPLACE")
         bpy.ops.object.select_all(action="DESELECT")
         for o in mask_low:
@@ -553,15 +575,15 @@ def build(name, style):
     trees = [BVHTree.FromObject(h, bpy.context.evaluated_depsgraph_get()) for part in ("frame", "coat") for h in highs[part]
              if h["dt_kind"].startswith("crew_atlas.coat")]
     BUTTON = make.lib("paint_black", 8.0, (0.6, 0.55, 0.5), 0.4)
-    for z in (0.8, 0.9, 1.13, 1.23, 1.33, 1.43):
-        hits = [hit for hit in (t.ray_cast(Vector((0.07, 0.5, z)), Vector((0, -1, 0))) for t in trees) if hit[0] is not None]
+    for bx, z in style.buttons or [(0.07, z) for z in (0.8, 0.9, 1.13, 1.23, 1.33, 1.43)]:
+        hits = [hit for hit in (t.ray_cast(Vector((bx, 0.5, z)), Vector((0, -1, 0))) for t in trees) if hit[0] is not None]
         if hits:
             at, nrm = min(hits, key=lambda hit: hit[3])[:2]
             highs["body"].append(make.cyl(at - nrm * 0.002, at + nrm * 0.005, 0.011, BUTTON, n=12, bevel=0.002, name="button",
                                           r1=0.009, low=0))
     # Laces up the front of each boot, crossing between eyelets.
     LACE = make.lib("leather", 8.0, (0.35, 0.3, 0.26), 0.6)
-    for sx in (-1, 1):
+    for sx in (-1, 1) if style.laces else ():
         x = sx * 0.105
         for k in range(5):
             z = 0.125 + k * 0.03
@@ -578,6 +600,8 @@ def build(name, style):
         bpy.context.view_layer.objects.active = rim
         bpy.ops.object.transform_apply(scale=True)
         highs["hat_helmet"].append(rim)
+    if style.detail is not None:
+        style.detail(highs, make)
     print(f"[dt] {name} highs", {k: sum(len(h.data.polygons) for h in v) for k, v in highs.items()})
 
     if os.environ.get(style.preview):
@@ -605,7 +629,7 @@ def build(name, style):
         for part, hs in highs.items():
             for h in hs:
                 shown = (BAKED[4] if variant in ("helmet", "tall", "down") else BAKED[3]) if hats else None
-                h.hide_render = part not in ("body", "frame", "coat", shown) or variant == "none" and part not in ("body", "frame", "coat")
+                h.hide_render = part not in ("body", "frame", "coat", shown, variant) or variant == "none" and part not in ("body", "frame", "coat")
         for view, d, c, dist in style.views or (("front", (0.2, 1, 0.1), (0, 0, 0.95), 4.2), ("back", (-0.3, -1, 0.1), (0, 0, 0.95), 4.2),
                                  ("head", (0.4, 1, 0.15), (0, 0.02, 1.68 if not scan else 1.62), 1.0 if scan else 1.2), ("hand", (0.2, 0.6, 1), (0.75, 0, 1.44), 0.7),
                                  ("profile", (1, 0.12, 0.08), (0, 0.03, 1.66), 1.0), ("nape", (-0.5, -1, 0.25), (0, 0.0, 1.66), 1.0),
@@ -646,7 +670,7 @@ def build(name, style):
             loop[uvl].uv = (u * 0.62, (loop.vert.co.z - 1.5) * 1.0)
 
 
-    atlas = overbake.Atlas(name, parts, BAKED, kind)
+    atlas = overbake.Atlas(name, parts, BAKED, kind, size=style.size)
     atlas.unwrap(boosts={FACE: 3.5, HANDS: 1.8, MASK: 2.5, HELM: 2.2, PAINT: 2.2}, special={FACE: head_uv} if scan else {})
     # Each part bakes from its own high copy (a cap never shadows the helmet it isn't worn with). The head bakes as a group
     # of its own, from the scan, with a tight cage: the cloth's high copy is subdivided in from its game mesh by a
@@ -678,9 +702,9 @@ def build(name, style):
     base = atlas.base(soot=soot, gentle=face)
     z = atlas.height()
     mud = np.array([0.05, 0.04, 0.03], np.float32)
-    low_down = np.clip((0.55 - z) / 0.5, 0, 1) ** 1.5 * 0.55
+    low_down = np.clip((0.55 - z) / 0.5, 0, 1) ** 1.5 * 0.55 * style.grime
     base = base * (1 - low_down)[..., None] + mud * low_down[..., None]
-    settled = np.clip((z - 1.35) / 0.4, 0, 1) * 0.2
+    settled = np.clip((z - 1.35) / 0.4, 0, 1) * 0.2 * style.grime
     base = base * (1 - settled)[..., None] + soot * settled[..., None]
     # The skin: the scan's is a clean, warm studio face. Out here it's sallow with cold and smoke, soot worked into it in
     # smudges (the atlas's own noise: the head's one island takes it as blotches across the face).
@@ -692,7 +716,7 @@ def build(name, style):
     grey = base.mean(-1, keepdims=True)
     sallow = (base * 0.55 + grey * 0.45) * tone
     sallow = sallow * (1 - 0.55 * smudge)[..., None] + soot * (0.55 * smudge)[..., None]
-    base = np.where(face[..., None], sallow, base)
+    base = np.where(face[..., None], base * (1 - style.grime) + sallow * style.grime, base)
     if not scan:
         base = helm_grade(base, atlas)
     if style.grade is not None:
