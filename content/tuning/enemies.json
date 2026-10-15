@@ -781,9 +781,11 @@
 
   // FOLLOWERS · scent · outside (App. A.6, B.6). Latches onto a player's back over latchSeconds on facility grounds; off
   // the train, it crawls at crawlSpeed to the car with the most loot and nests over nestSeconds, then eats eatPerSecond.
+  // Aboard, it drops off its host's back to the floor under it first, falling at dropGravity (player.json's gravity: it
+  // falls as anything does), about half a second, before it crawls (note 504).
   "followers": {
     "latchSeconds": 3, "crawlSpeed": 0.8, "nestSeconds": 60, "eatPerSecond": 0.003, "health": 1, "nestHealth": 3,
-    "lingerSeconds": 900, "maxActive": 2, "perGroundWeight": 1
+    "lingerSeconds": 900, "maxActive": 2, "perGroundWeight": 1, "dropGravity": 9.81
   },
 
   // THE PASSENGER · absence · corrupted (App. A.8, B.8). Boards at a facility and walks at walkSpeed; a player alone
