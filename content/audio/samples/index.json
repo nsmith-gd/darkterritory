@@ -18657,8 +18657,8 @@
   "picked": "first",
   "candidates": [
    {
-    "label": "Banging on a Holdout's walls from inside, heard outside: fists, kicks, a tin on iron, frantic and uneven",
-    "key": "walls",
+    "label": "Banging on a Holdout's door from inside, heard at the door: fists, kicks, a tin on iron, frantic and uneven, each blow plain",
+    "key": "door",
     "sources": [
      "kenney_impact-sounds:impactWood_heavy_000",
      "kenney_impact-sounds:impactWood_heavy_001",
@@ -18679,17 +18679,17 @@
      "kenney_impact-sounds:impactMetal_medium_002",
      "kenney_impact-sounds:impactMetal_medium_003",
      "kenney_impact-sounds:impactMetal_medium_004",
-     "kenney_impact-sounds:impactSoft_medium_000",
-     "kenney_impact-sounds:impactSoft_medium_001",
-     "kenney_impact-sounds:impactSoft_medium_002",
-     "kenney_impact-sounds:impactSoft_medium_003",
-     "kenney_impact-sounds:impactSoft_medium_004"
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004"
     ],
     "licence": "CC0"
    }
   ],
   "takes": 4,
-  "sha": "286b12b5c5326929"
+  "sha": "39df8eb25a58e0ca"
  },
  "voice-clerk/bank": {
   "cue": "voice-clerk.bank",

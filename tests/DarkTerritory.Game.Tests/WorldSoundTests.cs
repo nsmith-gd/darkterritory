@@ -103,6 +103,8 @@ public class WorldSoundTests
                 ears.Tick(ear, SimConstants.TickRate);
                 var heard = ears.Started.Skip(before).Where(v => v.Name.StartsWith("voice-")).ToList();
                 Assert.NotEmpty(heard);
+                // Note 810: a call's banging is one bout (each take is a whole frantic bout), never bouts piled up.
+                Assert.True(heard.Count(v => v.Name == "voice-callout.bang") <= 1, $"{heard.Count(v => v.Name == "voice-callout.bang")} bouts in one call");
                 Assert.All(heard, v => Assert.True((v.Position - h.Inside).Length < 2, $"{v.Name} away from the Holdout"));
                 foreach (var v in heard.Where(v => v.Name.StartsWith("voice-prisoner-sets.")))
                     (sets.TryGetValue(prisoner, out var s) ? s : sets[prisoner] = []).Add(v.Name[^4..]);

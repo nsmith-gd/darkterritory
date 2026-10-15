@@ -328,7 +328,9 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 # the models candidates; the casting's thud the real one, which has the weight.
                 "tell-mouse-moose.creep": "cinders", "tell-mouse-moose.squeak": "hinge", "cs-mouse-moose.bite": "iron",
                 "cs-mouse-moose.drag": "gravel", "cs-mouse-moose.bolt": "squeal", "cs-mouse-moose.dig": "earth",
-                "cs-mouse-moose.lost": "thud"}
+                "cs-mouse-moose.lost": "thud",
+                # Note 810: a Holdout's banging heard at its door, each blow's crack carrying ('walls' cuts the top at 1.6 kHz).
+                "voice-callout.bang": "door"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the

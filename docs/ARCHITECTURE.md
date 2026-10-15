@@ -978,4 +978,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [805. A running jump heard as a jump off the train (AU1, queue #533; AU1's audio audit)](notes/805.md)
 - [806. U1's whimsies, pets and new emotes heard: candidates, ahead of #967 (AU1, queue #534; U1's #967, notes 714, 715, 745; U1's ask on #1040)](notes/806.md)
 - [809. The Mouse Moose heard (AU1, queue #537; A1's #1042, note 790's "Left: 2. Its sounds (AU1)")](notes/809.md)
+- [810. A Holdout's banging heard as one frantic bout (AU1, queue #538; AU1's weak-sound sweep)](notes/810.md)
 <!-- end of the notes index -->

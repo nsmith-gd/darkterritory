@@ -320,3 +320,13 @@ The director asked for the last three friendslop features to be heard. Two were 
   - Fourteen candidates from a recipe agent, two a cue; the packs' real ones installed. Two new checklist rows, captions, two tests.
 - **#534 (note 806), U1's whimsies, pets and new emotes:** their 18 candidates (canary, calliope, gramophone, cat, dog, bow, salute, conga) are on the checklist: new rows `up-whimsy` and `up-pets`, and three cues on `crew-emotes`. Hooked when #967 lands, with #505.
 - **Voice Booth:** still no verdicts.
+
+## 15 Oct, ~17:00 UTC: a weak-sound sweep, and #538 (a Holdout's banging)
+
+- **The sweep:** every installed sample folder (775) checked for clipping, duplicate takes and energy below 150 Hz (raw, then A-weighted, and by centre).
+  - The sets it flags that the director kept (the Ribbits' hop landings, the Passenger's steps, which are the crew's own by design, Tippy's grab) stay as kept.
+  - Most heavy first picks are heavy by nature (the comet's hum, the drone, a strained car's groan, bodies falling).
+- **#538 (note 810):** the worst was a call. A Holdout's banging (one call in three or so) played two to four of its takes 0.3 s apart, but each take is already a whole bout, so a call was up to 32 blows piled up.
+  - Now one bout a call.
+  - A new `door` candidate, installed: each blow's crack carries over the boards' boom, where `walls` was a dull thud (cut at 1.6 kHz).
+  - The prisoner-call test holds it (it failed on the old hook: "3 bouts in one call").
