@@ -815,7 +815,8 @@ public sealed partial class CreatureArt
     /// the hands are reached for from where the shoulders have gone.</param>
     public bool Crewmate(MeshBuilder mesh, in Matrix4x4 model, CrewPose pose, double time, int variant,
         Vector3? left = null, Vector3? right = null, Vector3 leftPole = default, Vector3 rightPole = default, MeshAsset? inHand = null,
-        MeshAsset? hanging = null, string figure = "crew", VrBodyPose? body = null, MeshAsset? carried = null, bool sooted = false)
+        MeshAsset? hanging = null, string figure = "crew", VrBodyPose? body = null, MeshAsset? carried = null, bool sooted = false,
+        MaskLook mask = default)
     {
         if (!_models.ContainsKey(figure))
             figure = "crew";
@@ -854,7 +855,10 @@ public sealed partial class CreatureArt
             Reach(m, "r", r, rightPole);
         Emit(mesh, m, clip, model, variant, 1, variant, Paint);
         if (figure == "crew")
+        {
             Marks(mesh, m, model, variant);
+            Mask(mesh, m, model, mask, variant);
+        }
         // A lump of coal in the face (note 717): sooty for the night.
         if (sooted)
             Soot(mesh, m, model);
@@ -1198,6 +1202,53 @@ public sealed partial class CreatureArt
         int on = kit == 0 ? hip : back;
         if (on >= 0)
             mesh.Append(_marks[1 + kit], m.Pose.World[on] * model);
+    }
+
+    /// <summary>
+    /// What's painted on a crewmate's gas mask (note 731): their own paint, the crew's sigil (a stencil from 1, 0 none) and
+    /// their number for the "number" stencil.
+    /// </summary>
+    public readonly record struct MaskLook(Sim.Player.MaskPaint Paint, int Sigil = 0, int Number = 1);
+
+    readonly MeshAsset?[] _maskCoat = new MeshAsset?[2];
+    readonly Dictionary<(string Key, int Number, bool Sigil, bool Visor), MeshAsset> _maskStencils = new();
+
+    /// <summary>The welder's visor is down over the face (tools/blender/crew.py welder_visor; crew.glb's visor_down: variants 1 and 3).</summary>
+    public static bool VisorDown(int variant) => (variant & 3) is 1 or 3;
+
+    /// <summary>
+    /// The paint on a crewmate's gas mask (GDD §29 "Painted masks"; note 731), on the head bone (Art.MaskKit): a coat in their
+    /// colour over the mask's front, their stencil on it in its colour, and the crew's sigil small on the hood's right side. The sigil
+    /// in the wearer's own stencil colour when they've a coat (it's what they chose to show on it), else the crew's.
+    /// </summary>
+    void Mask(MeshBuilder mesh, Entry m, in Matrix4x4 model, MaskLook mask, int variant)
+    {
+        var t = Look.Tuning;
+        var paint = mask.Paint;
+        if (!paint.Painted && mask.Sigil <= 0)
+            return;
+        int head = m.Model.Skeleton.IndexOf("head");
+        if (head < 0)
+            return;
+        var at = m.Pose.World[head] * model;
+        var coat = t.MaskPaint(paint.Colour);
+        var ink = t.MaskPaint(paint.Ink > 0 ? paint.Ink : t.MaskInk) ?? Vector3.One;
+        // With the welder's visor down, the face is the visor's: the paint goes on it.
+        bool visor = VisorDown(variant);
+        if (coat is { } c)
+            mesh.Append(_maskCoat[visor ? 1 : 0] ??= MaskKit.Coat(Look, visor), at, c);
+        if (t.MaskStencil(paint.Stencil) is { } key)
+            mesh.Append(MaskStencil(key, mask.Number, sigil: false, visor), at, ink);
+        if (t.MaskStencil(mask.Sigil) is { } sigil)
+            mesh.Append(MaskStencil(sigil, 0, sigil: true, false), at, coat is not null ? ink : t.MaskPaint(t.SigilInk) ?? Vector3.One);
+    }
+
+    MeshAsset MaskStencil(string key, int number, bool sigil, bool visor)
+    {
+        var at = (key, key == "number" ? number : 0, sigil, visor);
+        if (!_maskStencils.TryGetValue(at, out var piece))
+            _maskStencils[at] = piece = sigil ? MaskKit.SigilOnTheMask(Look, key) : MaskKit.OnTheMask(Look, key, at.Item2, visor);
+        return piece;
     }
 
     MeshAsset? _soot, _sootChest;

@@ -28,6 +28,8 @@ public class HoldoutTests
         public readonly Route.Route Route;
         public readonly List<(int Id, PlayerState State)> Crew = [];
         public readonly List<HoldoutEvent> Events = [];
+        /// <summary>The sound cues in the world made (note 732), each once.</summary>
+        public readonly List<WorldCue> Cues = [];
         public PlayerIntent[] Intents = [];
 
         /// <param name="wrench">Note 301's <c>repair.wrench</c>: the wrench in hand opens a lock quietly. Off, the repair kit does (D.7).</param>
@@ -92,6 +94,7 @@ public class HoldoutTests
                 World.Step(new TrainControls { Reverser = 1 });
                 World.StepBodies(Crew);
                 Events.AddRange(World.StepHoldouts(Crew, (id, s) => Crew[id] = (id, s)));
+                Cues.AddRange(World.Cues.Where(c => !Cues.Any(x => x.Id == c.Id)));
             }
         }
 
@@ -282,6 +285,10 @@ public class HoldoutTests
             n.Step(1, speed: 30);
         Assert.Equal(HoldoutState.Dormant, h.State);
         Assert.Contains(n.Events, e => e.Kind == HoldoutEventKind.Released && e.PlayerId == dead);
+        // Note 732: a far bell from the Holdout left with them in it.
+        var bell = Assert.Single(n.Cues, c => c.Kind == CueKind.Bell);
+        Assert.Equal((byte)BellFor.HoldoutLeft, bell.Of);
+        Assert.True(((bell.At - h.Inside) with { Y = 0 }).Length < 0.01);
         Assert.Equal(dead, n.World.Holdouts!.Queue[0].PlayerId);
         // Back into the zone: it takes them again (D.5 "if the crew comes back for them").
         while (engine.Distance > n.Site.End - 20)

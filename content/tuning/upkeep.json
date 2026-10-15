@@ -44,9 +44,12 @@
   // Oct: "There should always be a clear identifiable cause of a decouple"): a run-in, the engine's rake slowing at
   // runInShare of its whole brake or more for runInSeconds, from runInAbove m/s (an emergency application held: the cars
   // run in on the engine and one gap's pin jumps; a tap to hold a speed isn't one), or a knock, rakes meeting faster than
-  // knockAbove m/s (coupling up too hard, past the stop driver's crawl: the pin where they met). None in the yard or a
-  // fort, none while a hound pack is aboard, and never more loose than there are crewmates
-  // alive. It knocks at the gap, faster as it goes, and it's called out as every break is (the tell). The wrench in hand,
+  // knockAbove m/s (coupling up too hard, past the stop driver's crawl: the pin where they met), or a bend taken too fast,
+  // the engine's rake lurching over its board (sight.json lurchOver) for bendSeconds (note 732; the director's playtest of
+  // 14 Oct, line 12: "The reason's not obvious"; once a bend, 0 never). None in the yard or a fort, none while a hound pack
+  // is aboard, and never more loose than there are crewmates alive. What did it is on the car's record: the moment the pin
+  // jumps is heard as what jumped it (a run-in's slam, a knock's clash, a bend's lurch), then it knocks at the gap from that
+  // moment, faster and harder as it goes, and it's called out as every break is (the tell). The wrench in hand,
   // Use held tightenSeconds with the hands within reach m of the pin (from the plate in the gap, an end ladder over it, the
   // ground beside), it's tight. Left partAfter seconds of running the pin drops and the rake parts behind it (§24's cut-car
   // rules), and the clerk names what worked it loose and who was driving. With holds, a loose pin holds while the train
@@ -57,6 +60,7 @@
     "runInAbove": 5,
     "runInSeconds": 1.5,
     "knockAbove": 1.2,
+    "bendSeconds": 2,
     "holds": true,
     "partAfter": 90,
     "tightenSeconds": 4,

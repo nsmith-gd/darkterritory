@@ -52,7 +52,11 @@ public sealed record LogbookTuning
 }
 
 /// <summary>Someone in the crew photo (note 721): who, alive or not, the emote they're holding, and a sooty face (note 717).</summary>
-public readonly record struct Sitter(byte Id, string Name, bool Alive, Emote Emote = Emote.None, bool Sooted = false, int? Looks = null);
+public readonly record struct Sitter(byte Id, string Name, bool Alive, Emote Emote = Emote.None, bool Sooted = false, int? Looks = null)
+{
+    /// <summary>The paint on their mask (note 731): the photo shows it.</summary>
+    public MaskPaint Paint { get; init; }
+}
 
 /// <summary>
 /// What's in the photo besides the crew (note 721): the crate at the line's end with the dead's caps on it (each in its
@@ -84,7 +88,7 @@ public static class CrewPhoto
         [.. crew.Where(c => c.Id is >= 0 and <= byte.MaxValue).DistinctBy(c => c.Id).OrderBy(c => c.State.Alive ? 0 : 1).ThenBy(c => c.Id).Select(c =>
             new Sitter((byte)c.Id, IncidentLog.NameOf(world, c.Id), c.State.Alive,
                 c.State.Alive ? Art.CrewActs.EmoteOf(c.Id, c.State with { Velocity = default }, world).Kind : Emote.None,
-                c.State.Has(PlayerFlags.Sooted), world.OutfitOf(c.Id) is var outfit && outfit != c.Id ? outfit : null))];
+                c.State.Has(PlayerFlags.Sooted), world.OutfitOf(c.Id) is var outfit && outfit != c.Id ? outfit : null) { Paint = world.PaintOf(c.Id) })];
 
     /// <summary>
     /// The slate's chalk (note 721): the line's name, the night's number, and the net. "FRONTIER 7" / "NIGHT 3" / "NET 1450".
@@ -144,7 +148,7 @@ public static class CrewPhoto
             var feet = Across((i - (living.Count - 1) / 2.0) * t.Spacing, t.Out);
             var c = living[i];
             figures.Add(new Crewmate(c.Id, feet, Facing(feet, lens), true, Looks: c.Looks, Emote: c.Emote,
-                EmoteSeconds: c.Emote == Emote.None ? 0 : t.EmoteAt, Sooted: c.Sooted));
+                EmoteSeconds: c.Emote == Emote.None ? 0 : t.EmoteAt, Sooted: c.Sooted, Paint: c.Paint));
         }
         // The crate at the line's right-hand end, the slate on the left in front.
         var crate = Across((Math.Max(1, living.Count) - 1) / 2.0 * t.Spacing + t.CrateGap, t.Out);

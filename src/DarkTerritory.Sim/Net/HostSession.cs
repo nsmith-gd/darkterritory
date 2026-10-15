@@ -499,6 +499,7 @@ public sealed partial class HostSession
         public string Name = "";
         public ulong Token;
         public byte Outfit = Messages.NoOutfit;
+        public MaskPaint Paint;
         public byte[]? Key;
         public bool Bot;
     }
@@ -605,6 +606,7 @@ public sealed partial class HostSession
             byte id = back ?? Join(g.Peer);
             Name(id, g.Name);
             Wear(id, g.Outfit, any: true);
+            PaintMask(id, g.Paint, any: true);
             Botness(id, g.Bot);
         }
     }
@@ -869,6 +871,9 @@ public sealed partial class HostSession
             Messages.WriteOutfits(_writer, World.Outfits);
             foreach (var p in peers)
                 _transport.Send(p, _writer.Written, Delivery.ReliableOrdered);
+            Messages.WritePaints(_writer, World.Paints);
+            foreach (var p in peers)
+                _transport.Send(p, _writer.Written, Delivery.ReliableOrdered);
         }
         // D.12: each bookmark as it's made, so every machine takes its still from the world as it is now.
         for (; _bookmarksSent < World.Bookmarks.All.Count; _bookmarksSent++)
@@ -953,12 +958,13 @@ public sealed partial class HostSession
             {
                 var hr = new NetReader(payload);
                 hr.U8();
-                var (name, token, outfit, key, bot) = Messages.ReadHello(ref hr);
+                var (name, token, outfit, key, bot, paint) = Messages.ReadHello(ref hr);
                 // Note 253: a joiner's first word, before it's welcomed. It's let in in the order it connected (first aboard
                 // takes the cab), so it waits its turn in the greeting line.
                 if (_greeting.Find(g => g.Peer == peer) is { } greeting)
                 {
                     (greeting.Said, greeting.Name, greeting.Token, greeting.Outfit, greeting.Key, greeting.Bot) = (true, name, token, outfit, key, bot);
+                    greeting.Paint = paint;
                     return;
                 }
                 int id = _crew.Find(x => x.Peer == peer)?.Id ?? _waiting.Where(w => w.Peer == peer).Select(w => (int)w.Id).DefaultIfEmpty(-1).First();
@@ -966,6 +972,7 @@ public sealed partial class HostSession
                 {
                     Name(id, name);
                     Wear(id, outfit, any: true);
+                    PaintMask(id, paint, any: true);
                     Botness(id, bot);
                 }
             }
@@ -987,6 +994,12 @@ public sealed partial class HostSession
         if (payload.Length == 2 && payload[0] == (byte)MessageType.Wear)
         {
             Wear(c.Id, payload[1], any: false);
+            return;
+        }
+        // Note 731: painting a mask, in the yard.
+        if (payload.Length == 4 && payload[0] == (byte)MessageType.Paint)
+        {
+            PaintMask(c.Id, new MaskPaint(payload[1], payload[2], payload[3]), any: false);
             return;
         }
         try
@@ -1051,6 +1064,29 @@ public sealed partial class HostSession
 
     /// <summary>The outfits there can be (note 298): the art draws as many as it has looks, round again past them.</summary>
     public const int MaxOutfits = 64;
+
+    /// <summary>
+    /// A player's mask paint (note 731), as <see cref="Wear"/> takes an outfit: the paint they came in (<paramref name="any"/>,
+    /// from their Hello), or one tried on, which only takes in the yard before the gate (GDD §9). Each part past
+    /// <see cref="MaskPaint.Max"/> is none; none at all, the mask's unpainted.
+    /// </summary>
+    void PaintMask(int id, MaskPaint paint, bool any)
+    {
+        if (!any && World.Run is { Phase: not Sim.Run.RunPhase.Yard })
+            return;
+        paint = paint.Clamped();
+        bool had = World.Paints.TryGetValue(id, out var was);
+        if (!paint.Painted)
+        {
+            if (had && World.Paints.Remove(id))
+                _namesChanged = true;
+            return;
+        }
+        if (had && was == paint)
+            return;
+        World.Paints[id] = paint;
+        _namesChanged = true;
+    }
 
     readonly NetWriter _voiceWriter = new();
 

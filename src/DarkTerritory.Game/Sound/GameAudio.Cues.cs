@@ -52,6 +52,7 @@ public sealed partial class GameAudio
         EndNightMix();
         EndNightUi();
         EndNightRoofWarning();
+        EndNightWorldCues();
     }
 
     void Cues(World world)
@@ -63,6 +64,7 @@ public sealed partial class GameAudio
         TrainSounds(world);
         OutsideSounds(world);
         FaultSounds(world);
+        WorldCueSounds(world);
         // A held loop nobody held this tick has stopped (its owner went away, or its state ended).
         foreach (var key in _held.Keys.Where(k => !_heldNow.Contains(k)).ToList())
         {
