@@ -1350,8 +1350,11 @@ public sealed partial class SceneArt(Look look)
     /// <param name="utility">A utility car (GDD §10): its crew fit-out in place of a load (<see cref="TrainKit.UtilityFit"/>).</param>
     /// <param name="taggedLockers">Crew lockers with something on their shelves (note 264): a tag hangs off a shut one's handle.</param>
     /// <param name="handrails">The train has roof handrails (spec F.3, note 184): drawn along a car's roof edges.</param>
+    /// <param name="failing">How far it's working itself apart (note 576's <see cref="FailStage"/>; note 779): a failing car's
+    /// boards sprung and a door hanging askew, a breaking one's plate peeled back and its frame sagging.</param>
     public bool Car(MeshBuilder mesh, in CarFrame frame, Double3 eye, Vehicle? vehicle, bool emergency, long tick = -1, int cutEnds = 0,
-        float charred = 0, bool utility = false, uint openLockers = 0, bool handrails = false, bool dark = false, uint taggedLockers = 0)
+        float charred = 0, bool utility = false, uint openLockers = 0, bool handrails = false, bool dark = false, uint taggedLockers = 0,
+        FailStage failing = FailStage.Holding)
     {
         // Its lamps out: its lit windows (the guard van's) go dark with them, as under emergency lighting.
         float lamps = emergency || dark ? 0.06f : 1;
@@ -1369,8 +1372,16 @@ public sealed partial class SceneArt(Look look)
         bool loadApart = !engine && vehicle is not null;
         // The engine's drivers and rods are drawn apart, turning (Gear), where their modelled parts are there to turn.
         bool turning = engine && GearParts is not null;
-        var body = Piece(loadApart ? key + ":empty" : turning ? key + ":turning" : key,
+        string bodyKey = loadApart ? key + ":empty" : turning ? key + ":turning" : key;
+        var body = Piece(bodyKey,
             () => engine ? TrainKit.Engine(Look, shape, 0, gear: !turning) : TrainKit.Car(Look, shape, livery, variant, load: !loadApart, wheel: false));
+        // Breaking, its frame sags between the bogies (note 779), under the floor only: what's walked on stays put.
+        float sag = engine ? 0 : DamageKit.SagOf(failing);
+        if (sag > 0)
+        {
+            var whole = body;
+            body = Piece($"{bodyKey}:sag{sag:0.00}", () => DamageKit.Sagged(whole, shape, sag));
+        }
         // Wear and tear off the car's integrity (look.json "damage"): the scar mask over the body and doors, seeded by
         // the car so its scars stay where they are, and past the first state the torn plate the mask can't draw.
         // What a Car Hugger ate of it (App. A.3 FEED) is gone, not battered: the scars and torn plate are the rest of the loss.
@@ -1540,6 +1551,18 @@ public sealed partial class SceneArt(Look look)
         if (state > 0)
             mesh.Instances.Add(new MeshInstance(Piece($"damage:{ShapeKey(shape)}:{state}:{seed}",
                 () => engine ? DamageKit.Engine(Look, shape, state, seed) : DamageKit.Car(Look, shape, state, seed)), m, Scar: scar, Bite: cut, BiteFloor: floor));
+        // Working itself apart (note 779): boards sprung, and breaking, a plate peeled back on the load and a truss rod hanging;
+        // the engine's casing plates sprung, and breaking down, one torn open on the boiler (in its own plate).
+        if (failing >= FailStage.Failing)
+        {
+            var at = failing >= FailStage.Breaking ? FailStage.Breaking : FailStage.Failing;
+            var plate = engine ? TrainKit.Livery.Steel : livery;
+            mesh.Instances.Add(new MeshInstance(Piece($"failing:{ShapeKey(shape)}:{plate}:{(int)at}:{seed}:{sag:0.00}",
+                () => sag > 0 ? DamageKit.Sagged(DamageKit.Failing(Look, shape, plate, at, seed), shape, sag) : DamageKit.Failing(Look, shape, plate, at, seed)),
+                m, Scar: scar, Bite: cut, BiteFloor: floor));
+        }
+        // One side door's dropped off its top runner at one end (the car seeds which), and hangs askew out of its opening.
+        int askew = !engine && failing >= FailStage.Failing ? DamageKit.AskewDoor(shape, seed) : -1;
         if (bite.Any)
             mesh.Instances.Add(new MeshInstance(Piece($"bite:{ShapeKey(shape)}:{livery}:{seed}:{bite.Centre:0.00}:{bite.Side:0.00}",
                 () => bite.Edge(Look, shape, livery, seed)), m, Scar: scar));
@@ -1566,7 +1589,10 @@ public sealed partial class SceneArt(Look look)
             var size = new Vector3((float)(box.Max.X - box.Min.X), (float)(box.Max.Y - box.Min.Y), (float)(box.Max.Z - box.Min.Z));
             var leaf = Piece($"door:{side}:{size.X:0.##}x{size.Y:0.##}x{size.Z:0.##}", () => TrainKit.Door(Look, size, side));
             var c = box.Centre;
-            mesh.Instances.Add(new MeshInstance(leaf, Matrix4x4.CreateTranslation((float)c.X, (float)c.Y, (float)c.Z) * m, Scar: scar));
+            var placed = Matrix4x4.CreateTranslation((float)c.X, (float)c.Y, (float)c.Z);
+            if (door.Index == askew)
+                placed = DamageKit.Askew(placed, size, box.Min.X < 0 ? -1 : 1, failing, seed);
+            mesh.Instances.Add(new MeshInstance(leaf, placed * m, Scar: scar));
         }
         // The crew lockers (note 173): the row's cabinets in the car's frame, and each door on its hinge, shut or swung out
         // into the aisle, lettered with its grade.

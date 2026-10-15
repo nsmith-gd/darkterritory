@@ -24,11 +24,7 @@ public static class DamageKit
         float w = (float)shape.HalfWidth, l = (float)shape.HalfLength, h = (float)shape.RoofHeight;
         float floor = shape.Interior is { } room ? (float)room.Min.Y + 0.1f : h * 0.35f;
         // Side doors by side (−1, +1) and their span along the car.
-        var doors = shape.DoorList
-            .Select(d => d.Box)
-            .Where(b => b.Max.Z - b.Min.Z > b.Max.X - b.Min.X)
-            .Select(b => (Side: b.Min.X < 0 ? -1 : 1, Z0: (float)b.Min.Z - 0.15f, Z1: (float)b.Max.Z + 0.15f))
-            .ToArray();
+        var doors = SideDoors(shape);
 
         // One generator per state, so the damaged state's marks are the same ones under the wrecked state's.
         for (int s = 1; s <= Math.Min(state, 2); s++)
@@ -207,6 +203,275 @@ public static class DamageKit
     }
 
     static float Lerp(float a, float b, float t) => a + (b - a) * t;
+
+    /// <summary>A car's side doors by side (−1, +1) and their span along the car, with a margin: marks keep off them.</summary>
+    static (int Side, float Z0, float Z1)[] SideDoors(CarShape shape) => shape.DoorList
+        .Select(d => d.Box)
+        .Where(b => b.Max.Z - b.Min.Z > b.Max.X - b.Min.X)
+        .Select(b => (Side: b.Min.X < 0 ? -1 : 1, Z0: (float)b.Min.Z - 0.15f, Z1: (float)b.Max.Z + 0.15f))
+        .ToArray();
+
+    /// <summary>
+    /// A car working itself apart (note 576's stages; note 779, the art checklist's <c>failing-stages</c>: "each stage needs a
+    /// look of its own that reads from the roof, the cab and the lineside at night"), over what its integrity's torn
+    /// (<see cref="Car"/>). <see cref="FailStage.Failing"/>: boards and plates sprung off its sides, nailed at one end and
+    /// bowed out at the other, the dark of the gap each left behind it and their split backs pale, and a roof sheet lifted at
+    /// its eave against the sky. <see cref="FailStage.Breaking"/> and on: twice as many, sprung further, a plate peeled back
+    /// off a great hole with the load inside it showing, and under the car a truss rod snapped and hanging toward the sleepers
+    /// (the frame's sag is <see cref="Sagged"/>'s). In the car's <paramref name="livery"/>, so what's come off it is its own
+    /// plate; <paramref name="seed"/> (the car) chooses where, the same way every time, and breaking keeps failing's boards
+    /// where they were. The engine (a shape with a boiler) failing and breaking down: its casing's plates sprung off the boiler
+    /// behind the cab, scraped bright behind, and breaking down one torn open on the lagging; nothing on its walked top or
+    /// among its drivers.
+    /// </summary>
+    public static MeshAsset Failing(Look? look, CarShape shape, TrainKit.Livery livery, FailStage stage, int seed)
+    {
+        var k = new Kit(look, 950 + seed);
+        float w = (float)shape.HalfWidth, l = (float)shape.HalfLength, h = (float)shape.RoofHeight;
+        float floor = shape.Interior is { } room ? (float)room.Min.Y + 0.1f : h * 0.35f;
+        var doors = SideDoors(shape);
+        // The engine's side sheets, as Engine's marks find them: its cab's walls and its armoured hood's.
+        bool engine = shape.Solids.Any(x => x.Part == PartKind.Boiler);
+        var plates = engine ? EngineSheets(shape) : [new Box(new Ballast.Double3(-w, floor, -l + 0.7), new Ballast.Double3(w, h, l - 0.7))];
+        if (plates.Length == 0)
+            return k.Build("failing-none");
+        bool breaking = stage >= FailStage.Breaking;
+        // One generator per stage, as Car's per state: failing's boards are the first ones breaking springs.
+        for (int s = 0; s <= (breaking ? 1 : 0); s++)
+        {
+            var rng = new Random(5300 + seed * 17 + s * 11);
+            (float W, (int Side, float Z, float Y) At) Spot(float halfWidth, float halfHeight)
+            {
+                for (int tries = 0; ; tries++)
+                {
+                    var b = plates[rng.Next(plates.Length)];
+                    int side = b.Max.X > 0.3 && b.Min.X < -0.3 ? rng.Next(2) * 2 - 1 : b.Centre.X >= 0 ? 1 : -1;
+                    float z = Lerp((float)b.Min.Z + MathF.Min(halfWidth, (float)(b.Max.Z - b.Min.Z) / 2), (float)b.Max.Z - MathF.Min(halfWidth, (float)(b.Max.Z - b.Min.Z) / 2), (float)rng.NextDouble());
+                    float y = Lerp((float)b.Min.Y + halfHeight + 0.2f, (float)b.Max.Y - halfHeight - 0.25f, (float)rng.NextDouble());
+                    if (tries > 20 || !doors.Any(d => d.Side == side && z + halfWidth > d.Z0 && z - halfWidth < d.Z1))
+                        return ((float)(side > 0 ? b.Max.X : -b.Min.X), (side, z, y));
+                }
+            }
+            for (int i = 0; i < (engine ? 3 : 4); i++)
+            {
+                var (sw, at) = Spot(engine ? 0.9f : 1.2f, 0.12f);
+                Sprung(k, livery, sw, at, rng, breaking ? 1.5f : 1, iron: engine || livery == TrainKit.Livery.Steel);
+            }
+            if (!engine)
+                RoofLifted(k, livery, shape, rng, breaking ? 1.5f : 1);
+            if (s == 1)
+            {
+                var (pw, pat) = Spot(engine ? 0.45f : 0.6f, 0.5f);
+                Peeled(k, livery, pw, pat, rng, engine);
+                if (!engine)
+                    TrussRod(k, shape, floor, rng);
+            }
+        }
+        return k.Build($"failing-{(int)stage}");
+    }
+
+    /// <summary>The engine's side sheets tall and long enough to mark: its cab's walls and its hood's (or tender's) sides.</summary>
+    static Box[] EngineSheets(CarShape shape) => shape.Solids
+        .Where(x => x.Part is PartKind.CabWall or PartKind.Tender && x.Box.Max.Y - x.Box.Min.Y > 1)
+        .Select(x => x.Box)
+        .Where(b => b.Max.Z - b.Min.Z > 1.2)
+        .ToArray();
+
+    /// <summary>
+    /// A board or a strip of plate sprung off the car's side: still nailed at one end, the rest bowed out from the wall and
+    /// sagging at its free end, the wall's dark showing where it lay. <paramref name="how"/> scales how far it's gone.
+    /// </summary>
+    static void Sprung(Kit k, TrainKit.Livery livery, float w, (int Side, float Z, float Y) at, Random rng, float how, bool iron)
+    {
+        float len = 1.8f + 0.8f * (float)rng.NextDouble(), wide = 0.18f + 0.08f * (float)rng.NextDouble();
+        int dir = rng.Next(2) * 2 - 1;
+        float z0 = at.Z - dir * len / 2;
+        // Out far enough to break the car's line from along the train (the roof, the cab), not only from the lineside.
+        float lift = (0.26f + 0.14f * (float)rng.NextDouble()) * how, droop = (0.06f + 0.08f * (float)rng.NextDouble()) * how;
+        float wall = at.Side * (w + 0.05f);
+        // Where it came off: the black of the wall behind.
+        k.Use("rust_heavy", Palette.SootBlack, 0.3f, 0).Shade(0.1f);
+        k.Panel(new Vector3(wall, at.Y, at.Z), new Vector3(at.Side, 0, 0), Vector3.UnitY, len, wide);
+        // The board itself, bowed out off its nailed end: its face in the car's livery, its sawn edge and back in the lining.
+        const int Steps = 5;
+        Vector3 Along(float t, float dy) => new(wall + at.Side * (0.012f + lift * MathF.Pow(t, 1.6f)), at.Y + dy - droop * t * t, z0 + dir * len * t);
+        TrainKit.Outside(k, livery);
+        for (int j = 0; j < Steps; j++)
+        {
+            float t0 = j / (float)Steps, t1 = (j + 1) / (float)Steps;
+            k.Quad(Along(t0, -wide / 2), Along(t1, -wide / 2), Along(t1, wide / 2), Along(t0, wide / 2), twoSided: true);
+        }
+        // Its back and edge fresh: split wood pale, or plate scraped bright, where the paint and the weather never reached; what
+        // catches a lamp at night.
+        if (iron)
+            k.Use("iron_plate", Palette.IronGrey, 0.3f, 0.5f).Shade(1.6f);
+        else
+            k.Use("wood_grey", Palette.BoardEnamel, 0.8f, 0, 1f).Shade(1.7f);
+        for (int j = 0; j < Steps; j++)
+        {
+            float t0 = j / (float)Steps, t1 = (j + 1) / (float)Steps;
+            var back = new Vector3(-at.Side * 0.03f, 0, 0);
+            k.Quad(Along(t0, wide / 2), Along(t1, wide / 2), Along(t1, wide / 2) + back, Along(t0, wide / 2) + back, twoSided: true);
+        }
+        // Its nails, torn out, bright where they bent.
+        k.Use("iron_plate", Palette.IronGrey, 0.1f, 0.5f).Shade(1.2f);
+        for (int j = 1; j <= 3; j++)
+            k.Rod(Along(j / 4f, 0) - new Vector3(at.Side * 0.012f, 0, 0), Along(j / 4f, 0) - new Vector3(at.Side * 0.06f, 0.01f, 0), 0.004f, 3);
+    }
+
+    /// <summary>
+    /// A great sheet of plate peeled back off the side on its edge, curled outward, the hole it left open on the load: the
+    /// freight's boards and sacking in the car's dark, the rim's torn lips bright. On the engine (<paramref name="lagging"/>),
+    /// the boiler's grey lagging in the hole.
+    /// </summary>
+    static void Peeled(Kit k, TrainKit.Livery livery, float w, (int Side, float Z, float Y) at, Random rng, bool lagging)
+    {
+        float hw = 0.75f + 0.2f * (float)rng.NextDouble(), hh = 0.5f + 0.12f * (float)rng.NextDouble();
+        float wall = at.Side * (w + 0.05f);
+        var n = new Vector3(at.Side, 0, 0);
+        // The load inside, dark: crates and sacks behind the hole.
+        if (lagging)
+            k.Use("plaster_ruin", Palette.BoardEnamel * 0.6f, 0.9f, 0).Shade(0.3f);
+        else
+            k.Use("wood_crate", Palette.DeepBrown, 0.7f, 0, 0.9f).Shade(0.6f);
+        k.Panel(new Vector3(wall - at.Side * 0.03f, at.Y, at.Z), n, Vector3.UnitY, hw * 2, hh * 2);
+        k.Use("rust_heavy", Palette.SootBlack, 0.3f, 0).Shade(0.08f);
+        foreach (int e in (ReadOnlySpan<int>)[-1, 1])
+        {
+            k.Panel(new Vector3(wall, at.Y + e * (hh - 0.04f), at.Z), n, Vector3.UnitY, hw * 2, 0.08f);
+            k.Panel(new Vector3(wall, at.Y, at.Z + e * (hw - 0.04f)), n, Vector3.UnitY, 0.08f, hh * 2);
+        }
+        // The sheet: hinged on its upright edge at one end, peeled out past square and curling round as it goes, narrowing
+        // a little toward its torn edge.
+        int dir = rng.Next(2) * 2 - 1;
+        float hinge = at.Z - dir * hw, curl = (95 + 35 * (float)rng.NextDouble()) * MathF.PI / 180;
+        Vector3 Sheet(float t, float y)
+        {
+            float a = curl * t, r = hw * 2 * t;
+            return new Vector3(wall + at.Side * r * MathF.Sin(a) * 0.55f, at.Y + y * (1 - 0.12f * t) - 0.08f * t, hinge + dir * r * MathF.Cos(a) * 0.9f);
+        }
+        TrainKit.Outside(k, livery);
+        const int Steps = 6;
+        for (int j = 0; j < Steps; j++)
+        {
+            float t0 = j / (float)Steps, t1 = (j + 1) / (float)Steps;
+            k.Quad(Sheet(t0, -hh), Sheet(t1, -hh), Sheet(t1, hh), Sheet(t0, hh));
+        }
+        // Its back, curled round to face out: bright scraped iron, never painted.
+        k.Use("iron_plate", Palette.IronGrey, 0.4f, 0.4f).Shade(1.5f);
+        for (int j = 0; j < Steps; j++)
+        {
+            float t0 = j / (float)Steps, t1 = (j + 1) / (float)Steps;
+            k.Quad(Sheet(t0, hh), Sheet(t1, hh), Sheet(t1, -hh), Sheet(t0, -hh));
+        }
+        k.Use("iron_plate", Palette.IronGrey, 0.1f, 0.5f).Shade(1.2f);
+        k.Rod(new Vector3(wall + at.Side * 0.004f, at.Y - hh, at.Z - hw), new Vector3(wall + at.Side * 0.004f, at.Y - hh, at.Z + hw), 0.012f, 3);
+        k.Rod(new Vector3(wall + at.Side * 0.004f, at.Y + hh, at.Z - hw), new Vector3(wall + at.Side * 0.004f, at.Y + hh, at.Z + hw), 0.012f, 3);
+    }
+
+    /// <summary>
+    /// A sheet of the roof lifted at its eave: nailed along its inner edge by the roof walk, its outer edge bent up off the
+    /// carlines, a dark slot under it. Against the sky from the lineside, and in the way of anyone walking the roof.
+    /// </summary>
+    static void RoofLifted(Kit k, TrainKit.Livery livery, CarShape shape, Random rng, float how)
+    {
+        float w = (float)shape.HalfWidth, l = (float)shape.HalfLength, h = (float)shape.RoofHeight;
+        int side = rng.Next(2) * 2 - 1;
+        float len = 1.1f + 0.5f * (float)rng.NextDouble();
+        float z = Lerp(-l + 1 + len / 2, l - 1 - len / 2, (float)rng.NextDouble());
+        if (shape.Hatch is { } hatch && z + len / 2 > hatch.Min.Z - 0.2f && z - len / 2 < hatch.Max.Z + 0.2f)
+            z = hatch.Max.Z + 0.3f + len / 2 < l - 0.5f ? (float)hatch.Max.Z + 0.3f + len / 2 : (float)hatch.Min.Z - 0.3f - len / 2;
+        float inner = 0.42f, lift = (0.22f + 0.12f * (float)rng.NextDouble()) * how;
+        // Up off the arched roof, from the walk's edge out past the eave.
+        Vector3 At(float t, float dz)
+        {
+            float x = inner + (w + 0.07f - inner) * t, roof = h - 0.035f * (x / w) * (x / w) + 0.012f;
+            return new Vector3(side * x, roof + lift * t * t, z + dz * (1 + 0.04f * t));
+        }
+        k.Use("rust_heavy", Palette.SootBlack, 0.3f, 0).Shade(0.1f);
+        k.Quad(At(0, -len / 2) - Vector3.UnitY * 0.008f, At(0, len / 2) - Vector3.UnitY * 0.008f,
+            new Vector3(side * (w + 0.07f), h - 0.03f, z + len / 2), new Vector3(side * (w + 0.07f), h - 0.03f, z - len / 2), twoSided: true);
+        const int Steps = 4;
+        k.Use(livery == TrainKit.Livery.Planked ? "corrugated_iron" : "iron_plate", Palette.IronGrey, 0.9f, 0.3f, tile: 1.2f);
+        for (int j = 0; j < Steps; j++)
+        {
+            float t0 = j / (float)Steps, t1 = (j + 1) / (float)Steps;
+            k.Quad(At(t0, -len / 2), At(t0, len / 2), At(t1, len / 2), At(t1, -len / 2), twoSided: true);
+        }
+        // Its torn edge bright where it bent.
+        k.Use("iron_plate", Palette.IronGrey, 0.1f, 0.5f).Shade(1.4f);
+        k.Rod(At(1, -len / 2), At(1, len / 2), 0.01f, 3);
+    }
+
+    /// <summary>
+    /// Under a breaking car, one of the frame's truss rods snapped: from its anchor at the bolster, down to the queen post,
+    /// then its broken half hanging toward the sleepers, swinging clear of the rails.
+    /// </summary>
+    static void TrussRod(Kit k, CarShape shape, float floor, Random rng)
+    {
+        int side = rng.Next(2) * 2 - 1;
+        float l = (float)shape.HalfLength, x = side * (float)shape.HalfWidth * 0.55f;
+        float under = floor - 0.32f;
+        int end = rng.Next(2) * 2 - 1;
+        var anchor = new Vector3(x, under + 0.18f, end * l * 0.55f);
+        var post = new Vector3(x, under - 0.32f, end * l * 0.18f);
+        var hang = post + new Vector3(side * 0.08f, -(0.35f + 0.15f * (float)rng.NextDouble()), -end * (0.55f + 0.25f * (float)rng.NextDouble()));
+        // Down toward the sleepers, but never on them: it'd drag, and it's not dragging yet.
+        hang.Y = MathF.Max(hang.Y, 0.3f);
+        k.Use("rust_heavy", Palette.IronGrey * 0.7f, 0.9f, 0.3f);
+        k.Rod(anchor, post, 0.018f, 4);
+        k.Rod(post, hang, 0.018f, 4);
+        k.Rod(post + new Vector3(0, -0.02f, 0), post + new Vector3(0, 0.3f, 0), 0.03f, 4);
+    }
+
+    /// <summary>How far a car's frame has sagged at its middle (m): breaking, and come apart on the line.</summary>
+    public const float BreakingSag = 0.16f, ApartSag = 0.24f;
+
+    public static float SagOf(FailStage stage) => stage switch { FailStage.Breaking => BreakingSag, FailStage.Broken => ApartSag, _ => 0 };
+
+    /// <summary>Which of a car's side doors hangs askew once it's failing (the car chooses), or −1 if it has none.</summary>
+    public static int AskewDoor(CarShape shape, int seed)
+    {
+        var sides = shape.DoorList.Where(d => d.Box.Max.Z - d.Box.Min.Z > d.Box.Max.X - d.Box.Min.X).Select(d => d.Index).ToArray();
+        return sides.Length == 0 ? -1 : sides[(int)((uint)(seed * 7 + 3) % (uint)sides.Length)];
+    }
+
+    /// <summary>
+    /// A side door (<paramref name="placed"/>, at its middle in the car's frame) dropped off its top runner at one end: hanging
+    /// on its lower corner at the other, out of its opening, further the further gone the car is.
+    /// </summary>
+    public static Matrix4x4 Askew(Matrix4x4 placed, Vector3 size, int side, FailStage stage, int seed)
+    {
+        float degrees = stage switch { FailStage.Failing => 6, FailStage.Breaking => 11, _ => 16 };
+        float outward = stage switch { FailStage.Failing => 0.05f, FailStage.Breaking => 0.09f, _ => 0.12f };
+        int end = (seed & 1) == 0 ? 1 : -1;
+        var pivot = new Vector3(0, -size.Y / 2, end * size.Z / 2);
+        return Matrix4x4.CreateTranslation(-pivot) * Matrix4x4.CreateRotationX(-end * degrees * MathF.PI / 180) * Matrix4x4.CreateTranslation(pivot)
+            * Matrix4x4.CreateTranslation(side * outward, 0, 0) * placed;
+    }
+
+    /// <summary>
+    /// A car's body (or what's drawn over it) with its frame sagging: under the floor, between the bogies (a fifth of the
+    /// way in from each end), bowed down by as much as <paramref name="sag"/> at its middle, and nothing above the floor
+    /// moved, so whoever's stood in it or walking its roof is still on what's drawn. Cooked once per body and sag.
+    /// </summary>
+    public static MeshAsset Sagged(MeshAsset body, CarShape shape, float sag)
+    {
+        float floor = shape.Interior is { } room ? (float)room.Min.Y : (float)shape.RoofHeight * 0.35f;
+        float bogie = (float)shape.HalfLength * 0.6f;
+        var v = (Vertex[])body.Vertices.Clone();
+        for (int i = 0; i < v.Length; i++)
+            v[i].Position.Y -= Sag(v[i].Position, floor, bogie, sag);
+        return new MeshAsset(body.Name + "-sagged", v);
+    }
+
+    /// <summary>How far down the sag has a point in the car's frame: the frame's bow between the bogies, faded in under the floor.</summary>
+    public static float Sag(Vector3 p, float floor, float bogie, float sag)
+    {
+        float along = Math.Clamp(1 - p.Z / bogie * (p.Z / bogie), 0, 1);
+        float below = Math.Clamp((floor - p.Y) / 0.45f, 0, 1);
+        return sag * along * below;
+    }
 
     /// <summary>Three parallel slashes raked down the plate (a cinder hound going up the side): black, with bright torn lips.</summary>
     static void Gouge(Kit k, float w, (int Side, float Z, float Y) at, Random rng)
