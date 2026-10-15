@@ -962,8 +962,11 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [783. Big finds heard (AU1, queue #513; K1's #1026, note 719's "left for later")](notes/783.md)
 - [784. The handcar heard (AU1, queue #514; K1's #1026, note 729's "left for later": "the sim's state says when")](notes/784.md)
 - [785. Sound cues in the world heard (AU1, queue #518; K1's #1034, note 732's "left for later": "The sounds, for AU1"; note 731)](notes/785.md)
+- [786. K1's #1038 heard: the odd outcomes and emotes for two (AU1, queue #519; notes 730 and 722's "for AU1")](notes/786.md)
+- [790. The Mouse Moose (A1, queue #515; the director, 15 Oct 2026, in A1's chat)](notes/790.md)
 - [791. The crew's clips for the upgrades: sat back in a Muskoka chair, a beer and a cheers, a sausage turned and eaten, the bow, the salute and…](notes/791.md)
 - [792. The railway's leavings beside the line solid: dealt by the sim, stood on their footprints, drawn from its list (queue #517, B1; GDD App.…](notes/792.md)
 - [793. The town flag's flutter never races (C1, queue #520; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 2: "The flag blowing in the…](notes/793.md)
+- [794. The woods keep off the railway's leavings (queue #521, B1; note 792's "not yet")](notes/794.md)
 - [802. A drop off the crane's hook is a gag (K1, queue #529; the director, 15 Oct 2026, on note 726)](notes/802.md)
 <!-- end of the notes index -->

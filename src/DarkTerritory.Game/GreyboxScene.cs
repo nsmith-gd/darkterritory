@@ -853,7 +853,7 @@ public sealed partial class GreyboxScene
                     // creatures' (notes 574, 583, 584), and what they did before; Tower Jaw's tower, once it's down, lies across
                     // the line at its spout.
                     bool outside = e.Kind is EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw or EnemyKind.Pickers
-                        or EnemyKind.Lodger or EnemyKind.Householder;
+                        or EnemyKind.Lodger or EnemyKind.Householder or EnemyKind.MouseMoose;
                     if (outside)
                     {
                         modeSeconds = ModeSince(e, out int? before);
@@ -2642,7 +2642,7 @@ public sealed partial class GreyboxScene
             back = Double3.Cross(right, Double3.Up).Normalized;
         }
         else if (e.Kind is EnemyKind.Moose or EnemyKind.Gannet or EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw
-                     or EnemyKind.Pickers or EnemyKind.Lodger or EnemyKind.Householder or EnemyKind.Waker && e.Attached == Enemy.Loose)
+                     or EnemyKind.Pickers or EnemyKind.Lodger or EnemyKind.Householder or EnemyKind.MouseMoose or EnemyKind.Waker && e.Attached == Enemy.Loose)
         {
             // The Moose goes its own way (note 339): it faces its heading (Moose.Yaw, a player's yaw: −Z at 0), not the train.
             // So does a Gannet down on someone on the ground (note 340), and the Mourners, the Freight Beetle and Tower Jaw
@@ -2793,6 +2793,17 @@ public sealed partial class GreyboxScene
                     Draw(0, 0.36, -0.3, 0.04, 0.03, 0.06, Palette.IronGrey * 0.5f);
                     foreach (double x in new[] { -0.11, 0.11 })
                         Draw(carrying ? x * 3.6 : x, carrying ? 0.6 : 0.2, carrying ? 0 : -0.15, 0.02, 0.2, 0.02, Palette.SootBlack);
+                    break;
+                }
+            case EnemyKind.MouseMoose:
+                {
+                    // A dog-sized grey-brown rat with a little pair of antlers (note 790). Down its hole: nothing.
+                    if (e is Sim.Enemies.MouseMoose { Mode: Sim.Enemies.MouseMooseMode.Hide })
+                        break;
+                    Draw(0, 0.33, 0.05, 0.2, 0.17, 0.38, Palette.DeepBrown * 0.7f);
+                    Draw(0, 0.36, -0.45, 0.12, 0.1, 0.14, Palette.DeepBrown * 0.7f);
+                    foreach (double x in new[] { -0.17, 0.17 })
+                        Draw(x, 0.56, -0.42, 0.07, 0.03, 0.01, Palette.TarnishedBrass * 0.6f);
                     break;
                 }
             case EnemyKind.Lodger:

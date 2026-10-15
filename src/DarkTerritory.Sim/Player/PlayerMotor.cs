@@ -360,7 +360,7 @@ public enum PlayerFlags : uint
     /// till they have footing again. A landing on the ground knocks by the height fallen alone, at most player.json
     /// <c>landing.offTheHook.maxKnock</c>, and never kills (<see cref="OffTheHookTuning"/>). Set by the host as they come off
     /// (World.LetGo, a host move), cleared by the motor on footing, here and on a predicting client alike. The first bit past
-    /// the old ushort's: protocol 72 widened the flags to a uint.
+    /// the old ushort's: protocol 73 widened the flags to a uint.
     /// </summary>
     OffTheHook = 65536,
 }
