@@ -156,6 +156,9 @@ public static class CrewActs
             return (Emote.None, 0);
         if (LatestEmote(id, world) is not { } at)
             return (Emote.None, 0);
+        // A step away ends it (note 298), but the conga's danced walking (note 714).
+        if (at.Kind != Emote.Conga && s.Velocity.X * s.Velocity.X + s.Velocity.Z * s.Velocity.Z > EmoteStill * EmoteStill)
+            return (Emote.None, 0);
         // (Note 722: a high five met lasts emotes.met from the meet, not its offer's length.)
         var (age, up) = world.EmoteTuning.Age(at, world.Tick);
         return up ? (at.Kind, age) : (Emote.None, 0);
