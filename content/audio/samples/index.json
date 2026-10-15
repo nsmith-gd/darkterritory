@@ -10700,6 +10700,208 @@
   "takes": 1,
   "sha": "34a4f80ee1802260"
  },
+ "cs-pickers/bite": {
+  "cue": "cs-pickers.bite",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A snap of small hard teeth and a hiss: it hurts, but it's small",
+    "key": "snap",
+    "sources": [
+     "sfx_100_v2:switch_01",
+     "sfx_100_v2:switch_02",
+     "sfx_100_v2:misc_05",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "1cc1a5ef1313d87f"
+ },
+ "cs-pickers/carry": {
+  "cue": "cs-pickers.carry",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Carrying: a crate knocked and dragged over the gravel as it's jostled, a chattering pant under it",
+    "key": "crate",
+    "sources": [
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:stones_03",
+     "kenney_rpg-audio:creak1",
+     "sfx_100_v2:misc_05",
+     "sfx_100_v2:misc_25",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "ad2a8eb14c6ef79c"
+ },
+ "cs-pickers/down": {
+  "cue": "cs-pickers.down",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Down its drain: the grating rattling in its frame as it squeezes through, a scrabble, a hollow knock from the pipe",
+    "key": "drain",
+    "sources": [
+     "sfx_100_v2:metal_03",
+     "sfx_100_v2:door_02",
+     "sfx_100_v2:door_04",
+     "sfx_100_v2:door_05",
+     "kenney_rpg-audio:drawKnife1",
+     "kenney_rpg-audio:drawKnife2",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "sfx_100_v2:metal_hit_01",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:misc_25",
+     "sfx_100_v2:misc_05",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "60141262a0b477cd"
+ },
+ "cs-pickers/hit": {
+  "cue": "cs-pickers.hit",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "One killed by a blow: a squeal cut short, the blow's small crack on top of it",
+    "key": "blow",
+    "sources": [
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "sfx_100_v2:misc_25",
+     "sfx_100_v2:misc_05",
+     "sfx_100_v2:misc_33",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "kenney_impact-sounds:impactPunch_medium_000",
+     "kenney_impact-sounds:impactPunch_medium_001",
+     "kenney_impact-sounds:impactPunch_medium_002",
+     "kenney_impact-sounds:impactPunch_medium_003",
+     "kenney_impact-sounds:impactPunch_medium_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "56badd1bb5c6994d"
+ },
+ "cs-pickers/scatter": {
+  "cue": "cs-pickers.scatter",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A burst of squeals as they bolt for their drains: several shrill, hoarse, falling squeals, feet scrabbling off",
+    "key": "squeals",
+    "sources": [
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "sfx_100_v2:misc_25",
+     "sfx_100_v2:misc_05",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "d2888e853869a2f6"
+ },
  "cs-ribbits/feed": {
   "cue": "cs-ribbits.feed",
   "surface": null,
@@ -15397,6 +15599,96 @@
   ],
   "takes": 1,
   "sha": "de70def04e492398"
+ },
+ "tell-pickers/chitter": {
+  "cue": "tell-pickers.chitter",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A chitter now and then as they go about: quick, dry syllables of small throats and teeth, a few voices",
+    "key": "jaws",
+    "sources": [
+     "sfx_100_v2:misc_25",
+     "sfx_100_v2:misc_05",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_33",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "b75b0a4cb1ff81d6"
+ },
+ "tell-pickers/emerge": {
+  "cue": "tell-pickers.emerge",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Out of a drain: a cast-iron grating shoved over its kerb and dropped with a clank, and a chitter of small teeth",
+    "key": "grate",
+    "sources": [
+     "sfx_100_v2:misc_10",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:metal_hit_01",
+     "sfx_100_v2:misc_25",
+     "sfx_100_v2:misc_05",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:metal_03",
+     "sfx_100_v2:door_02",
+     "sfx_100_v2:door_04",
+     "sfx_100_v2:door_05",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "9571b4e5dd0f7429"
+ },
+ "tell-pickers/feet": {
+  "cue": "tell-pickers.feet",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "One of them scuttling: many small quick feet on gravel and cinders, little stones ticking away after them",
+    "key": "cinders",
+    "sources": [
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "6e18d562f9b7a19a"
  },
  "tell-ribbits/swell": {
   "cue": "tell-ribbits.swell",

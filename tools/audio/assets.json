@@ -2609,6 +2609,56 @@
   "url": "/_blob/f1a4e5164ea69e91d9f178ef85367db3",
   "sha": "725811859e83c8f6"
  },
+ "previews/cs-pickers--bite--snap.mp4": {
+  "id": "c29bc9c8826cbbf93feae4d62f4764ac",
+  "url": "/_blob/c29bc9c8826cbbf93feae4d62f4764ac",
+  "sha": "63bd377595d47831"
+ },
+ "previews/cs-pickers--bite--teeth.mp4": {
+  "id": "f862c72bcc0ebeae4f00213c785438e0",
+  "url": "/_blob/f862c72bcc0ebeae4f00213c785438e0",
+  "sha": "59c39b65f1fc06f8"
+ },
+ "previews/cs-pickers--carry--crate.mp4": {
+  "id": "115df9c2f2c43f8bcad28d58d236649f",
+  "url": "/_blob/115df9c2f2c43f8bcad28d58d236649f",
+  "sha": "22cc6fa695ba9b90"
+ },
+ "previews/cs-pickers--carry--slats.mp4": {
+  "id": "6fef2ecd13be3fd635607ba8b68c2d56",
+  "url": "/_blob/6fef2ecd13be3fd635607ba8b68c2d56",
+  "sha": "7b447118de44c961"
+ },
+ "previews/cs-pickers--down--drain.mp4": {
+  "id": "ac2d509ab51208a1ed0539e0ae049fd1",
+  "url": "/_blob/ac2d509ab51208a1ed0539e0ae049fd1",
+  "sha": "d1e2b2fbc3c2004a"
+ },
+ "previews/cs-pickers--down--pipe.mp4": {
+  "id": "56cdb7eb03f562af3d716061bad66250",
+  "url": "/_blob/56cdb7eb03f562af3d716061bad66250",
+  "sha": "4741252f44f3baf6"
+ },
+ "previews/cs-pickers--hit--blow.mp4": {
+  "id": "55bcda70b961cacbba2b3534dd6295d8",
+  "url": "/_blob/55bcda70b961cacbba2b3534dd6295d8",
+  "sha": "244ff3f1dbc26446"
+ },
+ "previews/cs-pickers--hit--cut.mp4": {
+  "id": "f3eb79152e660b1e0772e398092accfa",
+  "url": "/_blob/f3eb79152e660b1e0772e398092accfa",
+  "sha": "f697175d9c23f957"
+ },
+ "previews/cs-pickers--scatter--bolt.mp4": {
+  "id": "ba31556000d6eb05de08c629b91167b5",
+  "url": "/_blob/ba31556000d6eb05de08c629b91167b5",
+  "sha": "f1b2924e1d309670"
+ },
+ "previews/cs-pickers--scatter--squeals.mp4": {
+  "id": "7612f5aa7c939a2e1ffd349174d80b61",
+  "url": "/_blob/7612f5aa7c939a2e1ffd349174d80b61",
+  "sha": "bde349dcf68acf22"
+ },
  "previews/cs-ribbits--feed--frenzy.mp4": {
   "id": "745ac72f89fbdc5ccb9f9709b25cdca5",
   "url": "/_blob/745ac72f89fbdc5ccb9f9709b25cdca5",
@@ -3883,6 +3933,36 @@
   "id": "d8b993a897b4252e09474725add6164d",
   "url": "/_blob/d8b993a897b4252e09474725add6164d",
   "sha": "f2c42ba594fb2f7a"
+ },
+ "previews/tell-pickers--chitter--jaws.mp4": {
+  "id": "50c77a26f87c025769532dbd7f022ba5",
+  "url": "/_blob/50c77a26f87c025769532dbd7f022ba5",
+  "sha": "1be130b193343068"
+ },
+ "previews/tell-pickers--chitter--throats.mp4": {
+  "id": "7160969054147a1c8296392301dc22bc",
+  "url": "/_blob/7160969054147a1c8296392301dc22bc",
+  "sha": "d4246d616cf52b8f"
+ },
+ "previews/tell-pickers--emerge--bars.mp4": {
+  "id": "e18c6760e7055d278929ec2300f5d4ca",
+  "url": "/_blob/e18c6760e7055d278929ec2300f5d4ca",
+  "sha": "28348f11ace40414"
+ },
+ "previews/tell-pickers--emerge--grate.mp4": {
+  "id": "b6008a0dc450ec3d3fbbe1e1bbc5a722",
+  "url": "/_blob/b6008a0dc450ec3d3fbbe1e1bbc5a722",
+  "sha": "1ebe2f772df50653"
+ },
+ "previews/tell-pickers--feet--cinders.mp4": {
+  "id": "89c60166e33bcb5e5daee78a105e24a6",
+  "url": "/_blob/89c60166e33bcb5e5daee78a105e24a6",
+  "sha": "40519b015f6acabe"
+ },
+ "previews/tell-pickers--feet--claws.mp4": {
+  "id": "01659507137002f82aae43469a1a6222",
+  "url": "/_blob/01659507137002f82aae43469a1a6222",
+  "sha": "054e8533845d460c"
  },
  "previews/tell-soot-children--call--boy.mp4": {
   "id": "99cf8ac7f5758e6a0587c38bd927b0fe",
