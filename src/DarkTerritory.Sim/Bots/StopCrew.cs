@@ -473,6 +473,16 @@ public sealed partial class CrewCalls
         if (!_fireHands.TryGetValue(car, out var hands))
             _fireHands[car] = hands = [];
         hands.RemoveAll(h => h.Who != who && tick - h.Seen > SimConstants.TickRate);
+        // Note 739: the bot sent to this fire by a ping is its first hand, ahead of whoever claimed it first (a gunner's legs
+        // at their gun on that car claim it and sit on: the pinged walker came second and stayed out).
+        if (OrderOf(who) is { Kind: Player.PingKind.Fire, Target: var pinged } && pinged == car)
+        {
+            hands.RemoveAll(h => h.Who == who);
+            hands.Insert(0, (who, tick));
+            if (hands.Count > 2)
+                hands.RemoveRange(2, hands.Count - 2);
+            return 1;
+        }
         int at = hands.FindIndex(h => h.Who == who);
         if (at >= 0)
         {

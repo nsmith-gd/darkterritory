@@ -87,10 +87,11 @@ public static class Protocol
     //     it; a lamp signal rides the intent's third byte (bits 2-3), and the crew see it as a record kind of its own.
     // 60: an emote past the hotbar byte's two bits (note 740: "Aboard!"): both wheel-step bits set say the emote, and the
     //     step, follow in a byte of their own.
-    // 61: sessions (note 724): the crew's save sent to everyone aboard as a night's settled (CrewSave, in chunks); kick and the
+    // 61: pings (note 739): a record kind of their own; the ping itself rides the intent's moves byte (bit 5).
+    // 62: sessions (note 724): the crew's save sent to everyone aboard as a night's settled (CrewSave, in chunks); kick and the
     //     public lobby's vote to put a player off (Kick, KickVote, Kicked; a Refused can say the crew put you off); and the
     //     lobby's crew mischief switch (Mischief), changed in the yard.
-    public const int Version = 61;
+    public const int Version = 62;
 }
 
 public enum MessageType : byte

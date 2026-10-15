@@ -284,35 +284,9 @@ public sealed class CreatureGym
     /// <summary>How far in from the screen's edge the pointer's arrow stands (UI pixels).</summary>
     const float Edge = 14;
 
-    /// <summary>
-    /// Where <paramref name="at"/> falls on a <paramref name="width"/> by <paramref name="height"/> screen through
-    /// <paramref name="camera"/>: on it, or (behind the eye, or past an edge) the point on a frame <paramref name="inset"/> in
-    /// from the edge in its direction, with that direction (screen space, +X right, +Y down).
-    /// </summary>
-    public static (bool OnScreen, float X, float Y, float DirX, float DirY) Point(in Camera camera, Double3 at, float width, float height, float inset)
-    {
-        var rel = at - camera.Position;
-        var clip = Vector4.Transform(new Vector4((float)rel.X, (float)rel.Y, (float)rel.Z, 1), camera.ViewProjection(width / height));
-        float cx = width / 2, cy = height / 2;
-        if (clip.W > 1e-3f)
-        {
-            float x = (clip.X / clip.W * 0.5f + 0.5f) * width, y = (clip.Y / clip.W * 0.5f + 0.5f) * height;
-            if (x >= inset && x <= width - inset && y >= inset && y <= height - inset)
-                return (true, x, y, 0, 0);
-        }
-        // In front, the way it lies on the screen. Behind the eye, the side it's on (the way to turn to it), at the edge's
-        // middle; straight behind, the bottom.
-        float dx = clip.X, dy = clip.Y;
-        if (clip.W <= 1e-3f)
-            (dx, dy) = Math.Abs(clip.X) < 1e-3f * Math.Abs(clip.W) + 1e-4f ? (0f, 1f) : (Math.Sign(clip.X), 0f);
-        float len = MathF.Sqrt(dx * dx + dy * dy);
-        dx /= len;
-        dy /= len;
-        // Out from the middle along it to the inset frame.
-        float sx = dx == 0 ? float.MaxValue : (cx - inset) / Math.Abs(dx), sy = dy == 0 ? float.MaxValue : (cy - inset) / Math.Abs(dy);
-        float s = Math.Min(sx, sy);
-        return (false, cx + dx * s, cy + dy * s, dx, dy);
-    }
+    /// <summary>Where <paramref name="at"/> falls on the screen (<see cref="ScreenPoint.Of"/>).</summary>
+    public static (bool OnScreen, float X, float Y, float DirX, float DirY) Point(in Camera camera, Double3 at, float width, float height, float inset) =>
+        ScreenPoint.Of(camera, at, width, height, inset);
 
     /// <summary>The panel, top left: the picked kind, where it comes from and what answers it, the keys, and what was last said.</summary>
     public void Draw(Overlay overlay, int width, int height, double now)

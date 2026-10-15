@@ -44,6 +44,8 @@ public sealed record PlayerTuning(
 
     /// <summary>The emotes' lengths (GDD §9's yard, "dance"; note 298). Field docs live in player.json <c>emotes</c>.</summary>
     public EmoteTuning Emotes { get; init; } = new();
+    /// <summary>The bots' pings (note 739). Field docs live in player.json <c>pings</c>.</summary>
+    public PingTuning Pings { get; init; } = new();
     public NewsTuning News { get; init; } = new();
     /// <summary>Note 750: a crewmate held or killed out of voice reach, a line for the living (player.json <c>crewNews</c>).</summary>
     public Run.CrewNewsTuning CrewNews { get; init; } = new();
