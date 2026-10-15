@@ -1420,6 +1420,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         if (args.Contains("--close"))
             camera = Camera.LookAt(there + ((eye - there) with { Y = 0 }).Normalized * 3.5 + Double3.Up * 1.6, there, 55);
     }
+    // --close (note 818): the handcar's lift from beside the near lifter.
+    if (view == "handcarlift" && args.Contains("--close"))
+        camera = Staging.HandcarCamera(train, view, close: true);
     if (town is not null && !args.Contains("--view"))
         camera = Staging.TownCamera(town, args.Contains("--arrival") ? Str(args, "--where", "square") : Str(args, "--town", "square"));
     // --bell rope (note 730): stood at the council house's bell rope, as a crewmate about to pull it sees it.
@@ -2020,7 +2023,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         look.Art.ReverserThrown = Opt(args, "--reverser", 0.4);
     var horseplay = Str(args, "--horseplay", view switch { "shove" => "shove", "sooted" => "sooted", _ => "" }) is { Length: > 0 } horse
         ? Staging.Horseplay(train, content, horse) : ((List<Crewmate> Crew, List<DarkTerritory.Sim.Player.LumpInFlight> Lumps)?)null;
-    // --rescue handup|carryfriend (the views handup and carryfriend, note 723): a friend hauled up into a side door; one carried.
+    // --rescue handup|carryfriend|throwoff (the views handup and carryfriend, note 723): a friend hauled up into a side door; one
+    // carried; one just thrown off the shoulder (note 818, with --view carryfriend).
     if (Str(args, "--rescue", view switch { "handup" => "handup", "carryfriend" => "carryfriend", _ => "" }) is { Length: > 0 } rescued)
         horseplay = (Staging.Rescue(train, content, rescued), []);
     // --emotes highfive|danceoff|sitedge|leanout (the views of the same names, note 722): the emotes for two, and the edges.

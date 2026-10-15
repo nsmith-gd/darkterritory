@@ -605,13 +605,29 @@ public static partial class Staging
                     Act: Art.CrewPose.HeldCarried), Sim.Player.PlayerMotor.WorldPosition(carrier, train), Sim.Player.PlayerMotor.WorldYaw(carrier, train), 31),
             ];
         }
+        if (scene == "throwoff")
+        {
+            // Note 818: the same carry a moment after the throw (dt screenshot --view carryfriend --rescue throwoff): the carrier
+            // up on their toes pushing, the friend off the shoulder ahead of them along their view, flailing.
+            var frame = train.Frames[Math.Min(2, train.Frames.Count - 1)];
+            var carrier = Sim.Player.PlayerMotor.SpawnOnRoof(train, frame.Index, -1.0, player, -0.3) with { Yaw = Math.PI - 1.45 };
+            var feet = Sim.Player.PlayerMotor.WorldPosition(carrier, train);
+            double yaw = Sim.Player.PlayerMotor.WorldYaw(carrier, train);
+            var ahead = new Double3(-Math.Sin(yaw), 0, -Math.Cos(yaw));
+            return
+            [
+                new Crewmate(31, feet, yaw, true, Act: Art.CrewPose.ThrowOff, Phase: 0.2),
+                new Crewmate(32, feet + ahead * 1.5 + Double3.Up * 0.8, yaw + 2.4, true, Act: Art.CrewPose.Flail),
+            ];
+        }
         int car = SideDoorCar(train);
         var at = train.Frames[car];
         train.Vehicles[car].DoorsOpen |= 1 << 3;
         double w = at.Shape.HalfWidth, floor = at.Shape.Interior?.Min.Y + 0.1 ?? 1.1;
         var helper = new Crewmate(31, at.ToWorld(new Double3(w - 0.25, floor, 0)), -Math.PI / 2 + at.Heading, true, Act: Art.CrewPose.HandUp);
-        var runner = new Crewmate(32, at.ToWorld(new Double3(w + 1.0, 0, 0.45)), at.Heading + 0.25, true, Act: Art.CrewPose.LanternWalk, Lamp: true);
-        return [helper, runner];
+        var runner = new Crewmate(32, at.ToWorld(new Double3(w + 1.0, 0, 0.45)), at.Heading + 0.25, true, Act: Art.CrewPose.Run, Lamp: true);
+        // Note 818: running alongside with a hand up to the helper's, the two hands on one point.
+        return [Art.CrewActs.HandsMeet(helper, runner.Feet, helping: true), Art.CrewActs.HandsMeet(runner, helper.Feet, helping: false, helper.Yaw)];
     }
 
     /// <summary>

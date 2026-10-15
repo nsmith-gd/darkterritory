@@ -60,8 +60,137 @@ public static class CrewActs
         // On a crane's hook (note 726): stood on it, holding on to its cable.
         if (s.Alive && s.Has(PlayerFlags.Hoisted) && world.Run?.CurrentSite?.CraneNear(feet) is { } crane)
             drawn = OnTheHook(drawn, crane.HookAt);
+        // Under the handcar as it comes off the van or goes back on (note 818): both hands under its side as it's drawn.
+        if (act == CrewPose.Heave && world.Train.Handcar is { } handcar && handcar.Id < frames.Count)
+            drawn = Heaving(drawn, world.Train.HandcarLiftedTo() is { } to ? GreyboxScene.Lifted(frames[handcar.Id], to, handcar.Lift) : frames[handcar.Id],
+                world.Train.Dynamics.Tuning.Handcar);
+        // A hand-up (note 723): the hand held down from a moving car's door and the runner's raised to it, on one point (note 818).
+        // A headset player's hands are their own.
+        if (s.Alive && others is not null && world.Movement is { } movement && drawn.Hand == default && drawn.Other == default)
+            drawn = HandsUp(drawn, s, world, frames, others, movement.Rescue);
         return drawn;
     }
+
+    /// <summary>
+    /// Note 818: whether <paramref name="s"/> is drawn lifting the handcar (note 729): on their feet within its lift reach
+    /// (<see cref="World.CanLiftHandcar"/>) while it's part-way off the van or onto it. Who's holding Use to lift it is the host's
+    /// alone, so whoever's by it while it moves is.
+    /// </summary>
+    public static bool Lifting(in PlayerState s, World world) =>
+        world.Train.Handcar is { Lift: > 0 } && s.Alive && s.Surface != Surface.Air && world.CanLiftHandcar(s);
+
+    /// <summary>Note 818: crew_clips' heave, posed by how high the hands are: squatted under it at the clip's start, stood holding it overhead at its end (m).</summary>
+    public const double HeaveLow = 0.35, HeaveHigh = 2.15;
+
+    /// <summary>The heave clip's length (s): crew_clips.py's 30 frames, from <see cref="HeaveLow"/> to <see cref="HeaveHigh"/>.</summary>
+    public const double HeaveSeconds = 1;
+
+    /// <summary>Note 818: how far into crew_clips' heave a lifter whose hands are <paramref name="height"/> m over their feet is.</summary>
+    public static double HeavePhase(double height) => Math.Clamp((height - HeaveLow) / (HeaveHigh - HeaveLow), 0, 1) * HeaveSeconds;
+
+    /// <summary>How far apart a lifter's hands are under the handcar (m), either side of where they stand along it.</summary>
+    const double HeaveHands = 0.6;
+
+    /// <summary>
+    /// Note 818: a crewmate lifting the handcar (note 729), as they're drawn: turned to the trolley where it's drawn
+    /// (<paramref name="car"/>: GreyboxScene.Lifted), both hands under the edge of its deck (its side, or the end they're off),
+    /// either side of where they stand, and posed by how high that is over their feet (<see cref="HeavePhase"/>).
+    /// </summary>
+    public static Crewmate Heaving(Crewmate c, CarFrame car, HandcarTuning t)
+    {
+        var at = car.ToLocal(c.Feet);
+        double halfW = t.Width / 2, halfL = t.Length / 2, under = t.DeckHeight * 0.5;
+        Double3 a, b;
+        if (Math.Abs(at.X) * halfL >= Math.Abs(at.Z) * halfW)
+        {
+            double side = at.X < 0 ? -1 : 1, along = Math.Clamp(at.Z, -(halfL - 0.4), halfL - 0.4);
+            (a, b) = (new Double3(side * halfW, under, along - HeaveHands / 2), new Double3(side * halfW, under, along + HeaveHands / 2));
+        }
+        else
+        {
+            double end = at.Z < 0 ? -1 : 1, across = Math.Clamp(at.X, -(halfW - 0.35), halfW - 0.35);
+            (a, b) = (new Double3(across - HeaveHands / 2, under, end * halfL), new Double3(across + HeaveHands / 2, under, end * halfL));
+        }
+        var (wa, wb) = (car.ToWorld(a), car.ToWorld(b));
+        var mid = (wa + wb) * 0.5;
+        var to = (mid - c.Feet) with { Y = 0 };
+        double yaw = to.Length > 0.05 ? Math.Atan2(-to.X, -to.Z) : c.Yaw;
+        return c with
+        {
+            Act = CrewPose.Heave,
+            Yaw = yaw,
+            Reach = (Facing(wa, c.Feet, yaw), Facing(wb, c.Feet, yaw)),
+            Phase = HeavePhase(mid.Y - c.Feet.Y),
+        };
+    }
+
+    /// <summary>A world point in a crewmate's own frame: from their feet, as they face (x right, y up, z behind).</summary>
+    static Double3 Facing(Double3 world, Double3 feet, double yaw)
+    {
+        var d = world - feet;
+        return new Double3(d.X * Math.Cos(yaw) - d.Z * Math.Sin(yaw), d.Y, d.X * Math.Sin(yaw) + d.Z * Math.Cos(yaw));
+    }
+
+    /// <summary>
+    /// Note 818: where crew_clips' hand_up has the helper's reaching hand (m, from their feet as they face: right, up, ahead), and
+    /// how high a runner's raised hand goes (m over their feet), toward the helper.
+    /// </summary>
+    static readonly Double3 HandDown = new(0.23, 0.75, 0.85);
+    const double HandRaised = 1.95, HandRaisedToward = 0.25;
+
+    /// <summary>
+    /// Note 818: where a hand-up's two hands meet (world): half way from the helper's reaching hand, as hand_up has it, to
+    /// the runner's raised toward them. Each reaches it as far as an arm goes.
+    /// </summary>
+    public static Double3 HandUpMeet(Double3 helperFeet, double helperYaw, Double3 runnerFeet)
+    {
+        var forward = new Double3(-Math.Sin(helperYaw), 0, -Math.Cos(helperYaw));
+        var right = new Double3(Math.Cos(helperYaw), 0, -Math.Sin(helperYaw));
+        var down = helperFeet + right * HandDown.X + Double3.Up * HandDown.Y + forward * HandDown.Z;
+        var toHelper = (helperFeet - runnerFeet) with { Y = 0 };
+        var raised = runnerFeet + Double3.Up * HandRaised + (toHelper.Length > 1e-3 ? toHelper.Normalized * HandRaisedToward : default);
+        return Double3.Lerp(down, raised, 0.5);
+    }
+
+    /// <summary>
+    /// Note 818: the hand-up's two hands (note 723), put on one point (<see cref="HandUpMeet"/>): the helper's, held down from a
+    /// moving car's door, to the runner it's for (<see cref="Sim.Player.Rescue.HandUpTarget"/>); a runner's, raised to the
+    /// helper whose hand-up it is. The other hand stays with the clip. Whether it's taken hold of is the host's alone.
+    /// </summary>
+    static Crewmate HandsUp(Crewmate c, in PlayerState s, World world, IReadOnlyList<CarFrame> frames, IReadOnlyList<PlayerState> others,
+        RescueTuning rescue)
+    {
+        var mates = others.Select((o, i) => (i, o)).ToList();
+        if (c.Act == CrewPose.HandUp)
+            return Sim.Player.Rescue.HandUpTarget(s, -1, mates, world.Train, rescue) is { } runner
+                ? HandsMeet(c, Eyes.World(runner.State, frames).Feet, helping: true) : c;
+        if (c.Act is not null || s.Parent != PlayerState.World)
+            return c;
+        var me = s;
+        foreach (var o in others)
+        {
+            if (!o.Alive || o.Parent == PlayerState.World || o.Equals(me)
+                || Sim.Player.Rescue.HandUpTarget(o, -1, mates, world.Train, rescue) is not { } target || !target.State.Equals(me))
+                continue;
+            var (helperFeet, helperYaw) = Eyes.World(o, frames);
+            return HandsMeet(c, helperFeet, helping: false, helperYaw);
+        }
+        return c;
+    }
+
+    /// <summary>
+    /// Note 818: one half of a hand-up's hands on <see cref="HandUpMeet"/>: the helper's (<paramref name="helping"/>; the other
+    /// is the runner, stood at <paramref name="other"/>), held a few centimetres over it, or the runner's (the other the helper,
+    /// stood at <paramref name="other"/> facing <paramref name="otherYaw"/>), a few under it, their palms together.
+    /// </summary>
+    public static Crewmate HandsMeet(Crewmate c, Double3 other, bool helping, double otherYaw = 0)
+    {
+        var meet = helping ? HandUpMeet(c.Feet, c.Yaw, other) : HandUpMeet(other, otherYaw, c.Feet);
+        return c with { Hand = Facing(meet + Double3.Up * (helping ? HandsApart : -HandsApart), c.Feet, c.Yaw) };
+    }
+
+    /// <summary>Half the gap between the two wrists of a hand-up's grip (m): a hand's thickness, palm to palm.</summary>
+    const double HandsApart = 0.04;
 
     /// <summary>How far behind the cable a rider on the hook is drawn (m, note 726): stood on its far lip, the cable at their chest.</summary>
     const double CableAhead = 0.2;
@@ -138,12 +267,19 @@ public static class CrewActs
     /// <summary>How long a shove's arms are out (s): the shover drawn shoving (note 717; crew_clips' shove, note 808), from the host's knock.</summary>
     public const double ShoveSeconds = 0.45;
 
+    /// <summary>How long a throw off the shoulder is drawn (s): the thrower's drive up and the beat after (note 818; crew_clips' throw_off).</summary>
+    public const double ThrowSeconds = 0.67;
+
     /// <summary>Whether <paramref name="id"/> shoved someone in the last <see cref="ShoveSeconds"/> (note 717, World.Horseplays).</summary>
-    public static bool Shoving(int id, World world)
+    public static bool Shoving(int id, World world) => Knocked(id, world, KnockKind.Shove, ShoveSeconds);
+
+    /// <summary>Whether <paramref name="id"/> threw a friend off the shoulder in the last <see cref="ThrowSeconds"/> (note 723's throw, note 818).</summary>
+    public static bool Throwing(int id, World world) => Knocked(id, world, KnockKind.Throw, ThrowSeconds);
+
+    static bool Knocked(int id, World world, KnockKind kind, double seconds)
     {
-        // (Note 723: a friend thrown off the shoulder is the same push.)
         foreach (var h in world.Horseplays)
-            if (h.By == id && h.Kind is KnockKind.Shove or KnockKind.Throw && ((double)world.Tick - h.Tick) * SimConstants.TickSeconds is >= 0 and < ShoveSeconds)
+            if (h.By == id && h.Kind == kind && ((double)world.Tick - h.Tick) * SimConstants.TickSeconds is >= 0 and var age && age < seconds)
                 return true;
         return false;
     }
@@ -552,6 +688,9 @@ public static class CrewActs
             return CrewPose.Stagger;
         if (Shoving(id, world))
             return CrewPose.Shove;
+        // A friend thrown off the shoulder (note 723): the drive up pushing them off (note 818).
+        if (Throwing(id, world))
+            return CrewPose.ThrowOff;
         // Carrying a friend over the shoulder (note 723), both arms round their legs (note 812).
         if (s.Has(PlayerFlags.Carrying))
             return CrewPose.Fireman;
@@ -597,6 +736,9 @@ public static class CrewActs
                 BodyKind.RepairKit => CrewPose.Toolbox,
                 _ => CrewPose.Carry,
             };
+        // Lifting the handcar off the guard van or onto it (note 729), hands free: heaving it (note 818; Heaving draws it).
+        if (Lifting(s, world))
+            return CrewPose.Heave;
         // The wrench at work on a break (note 301): down at it, mending.
         if (s.ActionProgress > 0 && Repairs.WrenchInHand(s) && Repairs.ByWrench(train) && Repairs.At(s, train) != BreakKind.None)
             return CrewPose.Mend;
