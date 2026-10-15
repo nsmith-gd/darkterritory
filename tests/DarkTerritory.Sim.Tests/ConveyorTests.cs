@@ -109,6 +109,35 @@ public class ConveyorTests
         Assert.Equal(integrity, cars[0].Integrity, 9);
     }
 
+    [Fact]
+    public void ACarStoodUnderTheHeadOffItsMiddleIsStillUnderIt()
+    {
+        // Queue #499, note 769 (the director, 14 Oct: "the belt is running, but no car is under its head. But I clearly have car
+        // one positioned underneath. Maybe it needs to be positioned more, like in the center"): a car counted only with its
+        // middle within 1.5 m of the head. Now anywhere its open top is under the head, short of its end walls.
+        var (stop, cars) = AtTheConveyor();
+        var site = stop.Site;
+        var run = stop.World.Run!;
+        double reach = stop.Train.Frames[cars[0].Id].Shape.HalfLength - F.Conveyor.EndMargin;
+        Assert.True(reach > 4, $"a cargo car's open top is only {2 * reach:0.0} m");
+        stop.Step(F.Conveyor.StartSeconds + 0.1, [Hold]);
+        Assert.True(site.Running);
+        foreach (double off in new[] { 3.0, -3.0, reach - 0.2, -(reach - 0.2) })
+        {
+            stop.StandAt(stop.FrontFor(cars[0].Id, site.ConveyorAlong) + off);
+            Assert.Same(cars[0], run.CarUnderHead(stop.Train, site));
+        }
+        // Stood 3 m off its middle, it fills, and the HUD's belt says so.
+        stop.StandAt(stop.FrontFor(cars[0].Id, site.ConveyorAlong) + 3);
+        double before = cars[0].Load;
+        stop.Step(5, [default]);
+        Assert.True(site.Carrying);
+        Assert.InRange(cars[0].Load - before, F.Conveyor.PerSecond * 4.5, F.Conveyor.PerSecond * 5.5);
+        // Over its end wall, or the gap to the next car, it isn't under the head: what comes down would miss it.
+        stop.StandAt(stop.FrontFor(cars[0].Id, site.ConveyorAlong) + reach + 0.4);
+        Assert.Null(run.CarUnderHead(stop.Train, site));
+    }
+
     /// <summary>
     /// Starts it and runs it till it jams (as long as the longest wait for one, and a little more), the car under its head kept
     /// empty so it's carrying all the while (a car fills in 25 s, and it only jams while it's carrying).

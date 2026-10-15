@@ -452,6 +452,24 @@ public sealed partial class Run
     /// The facility the engine is stopped at: on its spur, for one with a spur (GDD §17: the machinery is down there,
     /// not on the main line); in its zone on the main line, for the coaling tower. Down a dead line is nowhere.
     /// </summary>
+    /// <summary>
+    /// The facility the train stands at for the creatures (note 795), or −1: down its spur (<see cref="RunPhase.AtFacility"/>),
+    /// or standing on the main line beside it, some of the consist within its span. A crew that stops on the main at a yard or
+    /// its village and walks in is at that stop as far as what lives there is concerned, though its loading waits for the spur.
+    /// </summary>
+    public int StandsAt(TrainOnLine train)
+    {
+        if (Phase == RunPhase.AtFacility)
+            return Facility;
+        if (Phase != RunPhase.Underway || !train.OnMain || train.Dynamics.Speed >= Tuning.StopBelowSpeed)
+            return -1;
+        double front = train.Dynamics.Distance, rear = front - train.Dynamics.Consist.LengthMetres;
+        for (int i = 0; i < _facilities.Count; i++)
+            if (front >= _facilities[i].Start && rear <= _facilities[i].End)
+                return i;
+        return -1;
+    }
+
     int StoppedAt(TrainOnLine train, double front)
     {
         int path = train.Dynamics.Path;

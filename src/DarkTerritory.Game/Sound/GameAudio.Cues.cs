@@ -119,6 +119,8 @@ public sealed partial class GameAudio
         ["dirt"] = ["ground", "grass", "mud"],
         ["grass"] = ["dirt", "ground"],
         ["mud"] = ["dirt", "ground"],
+        // Waded through (note 799): the bog's squelch nearest, for what has no splash of its own.
+        ["water"] = ["mud", "dirt", "ground"],
         ["cobbles"] = ["concrete", "ground"],
         ["concrete"] = ["cobbles", "ground"],
         ["ground"] = ["dirt", "ballast", "grass"],
