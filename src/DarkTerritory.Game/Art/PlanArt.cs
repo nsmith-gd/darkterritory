@@ -323,6 +323,31 @@ public sealed partial class WorldArt
             return (Matrix4x4.CreateScale(stretch ?? Vector3.One * scale) * Matrix4x4.CreateRotationY(yaw) * m, slope);
         }
         bool Free(double s, double lateral) => !onBranch(s, lateral) && !p.InClearing(s, lateral) && PlanClear(route, line, s, lateral);
+        // How far a tree beside the line stands from the nearest track's middle: the main line's, or a branch's it's nearer
+        // (note 778: local:4's and local:12's dead lines had the main line's woods' boughs over them).
+        double Room(double s, double lateral)
+        {
+            var t = line.Sample(Math.Clamp(s, 0, line.Length));
+            return Math.Min(Math.Abs(lateral), NearestTrack(p, t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * lateral));
+        }
+        // A deadfall's trunk lies along or away from the line, never in across it (note 778). Laid at any yaw from its root
+        // 7 m out with only the root's spot asked, one pointing in reached over the rails, up to 1.5 m past the main line's
+        // middle: "trees lying across the tracks", passed through without a touch (the director, 14 Oct, playtest line 19).
+        // Pointing in, it's turned to point out (its yaw mirrored); then wherever along it lies a branch's bed, a clearing
+        // or a place the line keeps clear, there's none. Its tip is at the root's lateral less its reach by the yaw's sine
+        // (the trunk lies down the model's −Z; Place stands +X out to the right).
+        bool Deadfall(double s, double lateral, ref float yaw, double reach)
+        {
+            if (Math.Sign(lateral - reach * Math.Sin(yaw)) != Math.Sign(lateral) || Math.Abs(lateral - reach * Math.Sin(yaw)) < FloorNear)
+                yaw = -yaw;
+            for (int i = 1; i <= 3; i++)
+            {
+                double f = reach * i / 3;
+                if (!Free(s + f * Math.Cos(yaw), lateral - f * Math.Sin(yaw)))
+                    return false;
+            }
+            return true;
+        }
         // Near the line (within the chase camera's and a roof's reach), the spruce is modelled like the pine; out in the fog,
         // the crossed cards.
         MeshAsset Tree(string kind, int v, bool near, NovaKit.TreeForm form) => kind switch
@@ -387,15 +412,15 @@ public sealed partial class WorldArt
             if (prop.Species == "fieldSpruce")
             {
                 // Pasture spruce (maritime-rules.md §5): an old field grown in solid, all of an age and a height.
-                mesh.Append(Piece($"spruce-{variant}", () => NovaKit.Conifer(_look, variant, 12, 0.3f)), Place(along, offset, yaw, height / 12, (float)prop.Sink).M,
-                    new Vector3(0.85f, 0.95f, 0.9f));
+                var field = Piece($"spruce-{variant}", () => NovaKit.Conifer(_look, variant, 12, 0.3f));
+                mesh.Append(field, CutBack(Place(along, offset, yaw, height / 12, (float)prop.Sink).M, field, height / 12, Room(along, offset)), new Vector3(0.85f, 0.95f, 0.9f));
                 continue;
             }
             if (prop.Species == "apple")
             {
                 // An orchard gone to ruin: small, gnarled dead apple trees in their rows.
-                mesh.Append(Piece($"dead-{variant}", () => WorldKit.DeadTree(_look, variant, 10)), Place(along, offset, yaw, height / 10, (float)prop.Sink).M,
-                    new Vector3(0.9f, 0.85f, 0.8f));
+                var apple = Piece($"dead-{variant}", () => WorldKit.DeadTree(_look, variant, 10));
+                mesh.Append(apple, CutBack(Place(along, offset, yaw, height / 10, (float)prop.Sink).M, apple, height / 10, Room(along, offset)), new Vector3(0.9f, 0.85f, 0.8f));
                 continue;
             }
             bool dead = prop.Dead, corrupted = prop.Corrupted;
@@ -411,19 +436,21 @@ public sealed partial class WorldArt
                 var (cm, _) = Place(along, offset, yaw, height / CorruptedTreeArt.BuiltHeight, 0.15f);
                 if (lean.Angle > 0)
                     cm = Matrix4x4.CreateRotationZ(lean.Angle) * Matrix4x4.CreateRotationY(lean.Toward) * cm;
-                mesh.Append(blighted, cm, new Vector3(0.85f + 0.3f * (float)rng.NextDouble()));
+                mesh.Append(blighted, CutBack(cm, blighted, height / CorruptedTreeArt.BuiltHeight, Room(along, offset)), new Vector3(0.85f + 0.3f * (float)rng.NextDouble()));
                 continue;
             }
             MeshAsset piece = dead
                 ? rng.Next(2) == 0 ? Piece($"ghost-{variant}", () => NovaKit.GhostSpruce(_look, variant)) : Piece($"dead-{variant % 2}", () => WorldKit.DeadTree(_look, variant % 2, 10))
                 : Tree(kind, variant, Math.Abs(offset) < NearSpruce, form);
+            float scale = height / 12;
             if (dead)
-                (m, _) = Place(along, offset, yaw, height / (piece.Name.StartsWith("ghost") ? 8 + variant * 2.5f : 10) * 0.9f, 0.15f);
+                (m, _) = Place(along, offset, yaw, scale = height / (piece.Name.StartsWith("ghost") ? 8 + variant * 2.5f : 10) * 0.9f, 0.15f);
             if (kind == "birch" && !dead)
-                (m, _) = Place(along, offset, yaw, height / 11, 0.1f);
+                (m, _) = Place(along, offset, yaw, scale = height / 11, 0.1f);
             // Leant, about its foot (where the Sim's wall stands): a few degrees, any way.
             if (lean.Angle > 0)
                 m = Matrix4x4.CreateRotationZ(lean.Angle) * Matrix4x4.CreateRotationY(lean.Toward) * m;
+            m = CutBack(m, piece, scale, Room(along, offset));
             // Tamarack goes gold in the fall, before its needles drop (the bog's one colour).
             var tint = kind == "tamarack" && !dead ? new Vector3(1.55f, 1.2f, 0.55f) * (0.85f + 0.3f * (float)rng.NextDouble()) : new Vector3(0.8f + 0.3f * (float)rng.NextDouble());
             // A corrupted tree whose kind isn't built (tools/models/build.sh corrupted_trees) is drawn as they were before
@@ -481,13 +508,22 @@ public sealed partial class WorldArt
                             float tall = th * (0.72f + 0.28f * (float)rng.NextDouble());
                             int sv = (tv + k * 3) % 8;
                             var (tm, _) = Place(along + dAlong, lateral + sideOf * dOut, (float)(rng.NextDouble() * Math.Tau), tall / 12, 0.5f);
+                            // Each of them off a branch's bed and its crown off its track, as the single trees are (note 778):
+                            // only the stand's middle was asked, and a dead line running out through a stand's depth had its
+                            // spruces and cards stood over its rails (local:12's, 75 m out; deadLines:6's, 140 m).
+                            double sAt = along + dAlong, outAt = lateral + sideOf * dOut;
+                            if (!Free(sAt, outAt))
+                                continue;
                             // As many of the stands' trees the Corruption's as of the woods' (note 696): its cards, which
                             // cost less than the spruce's.
-                            if (CorruptedTreeArt.Blighted(along + dAlong, lateral + sideOf * dOut, def.CorruptedTrees) is { } blightSeed
+                            if (CorruptedTreeArt.Blighted(sAt, outAt, def.CorruptedTrees) is { } blightSeed
                                 && CorruptedTreeArt.Pick(blightSeed, def) is var (bk, bkv) && _props.Get(CorruptedTreeArt.Prop(bk, bkv, far: true)) is { } cards)
-                                mesh.Append(cards, tm, new Vector3(tint));
+                                mesh.Append(cards, CutBack(tm, cards, tall / 12, Room(sAt, outAt)), new Vector3(tint));
                             else
-                                mesh.Append(Piece($"spruce-{sv}", () => NovaKit.Conifer(_look, sv, 12, 0.3f)), tm, new Vector3(tint));
+                            {
+                                var spruce = Piece($"spruce-{sv}", () => NovaKit.Conifer(_look, sv, 12, 0.3f));
+                                mesh.Append(spruce, CutBack(tm, spruce, tall / 12, Room(sAt, outAt)), new Vector3(tint));
+                            }
                         }
                     }
         }
@@ -512,6 +548,8 @@ public sealed partial class WorldArt
                 int v = rng.Next(3);
                 float yaw = (float)rng.NextDouble() * 6.28f, scale = 0.85f + 0.3f * (float)rng.NextDouble();
                 if (!Free(along, offset))
+                    continue;
+                if (kind == NovaKit.FloorKind.Deadfall && Deadfall(along, offset, ref yaw, (NovaKit.DeadfallLength(v) + 0.6) * scale) is false)
                     continue;
                 var (m, slope) = Place(along, offset, yaw, scale, kind == NovaKit.FloorKind.Deadfall ? 0.12f : 0.04f);
                 if (slope < 0.7f)
@@ -796,6 +834,18 @@ public sealed partial class WorldArt
         return OnTriangle(a, b, c, w) ?? OnTriangle(a, c, d, w) ?? (a.Y + b.Y + c.Y + d.Y) / 4;
     }
 
+    /// <summary>How far <paramref name="w"/> is off the main line (right positive), within the reach of its land; null out past it or off its ends.</summary>
+    static double? MainLateral(PlanScene p, Double3 w)
+    {
+        foreach (var n in p.Terrain.Nearby(w.X, w.Z, 310))
+            if (n.Edge == p.Main && !n.Past)
+                return n.Lateral;
+        return null;
+    }
+
+    /// <summary>A branch's land keeps this clear of the main line's middle (m): its ballast's foot (2.6 m) and a little (note 778).</summary>
+    const double BranchClearOfMainM = 3;
+
     /// <summary>The height of a triangle's plane over (w.X, w.Z) if that's inside the triangle seen from above (a little slack at its edges).</summary>
     static double? OnTriangle(Double3 a, Double3 b, Double3 c, Double3 w)
     {
@@ -853,8 +903,9 @@ public sealed partial class WorldArt
         var surface = new Vector3(W(origin.X), W(origin.Y), W(origin.Z));
         int columns = BranchLateral.Length;
         var end = local.Sample(local.Length);
-        // Past a dead line's buffer stop (s over its length): on along its last heading, the bed left behind.
-        Vector3 Ground(double s, float lateral)
+        // Past a dead line's buffer stop (s over its length): on along its last heading, the bed left behind. With it, how far
+        // the spot is off the main line (right positive), within the main line's land's reach.
+        (Vector3 P, double? Main) Ground(double s, float lateral)
         {
             var t = s <= local.Length ? local.Sample(s) : end with { Position = end.Position + end.Tangent * (s - local.Length) };
             var w = t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * lateral;
@@ -863,9 +914,26 @@ public sealed partial class WorldArt
             double h = s > local.Length || a > 3.7f ? p.Terrain.Height(w.X, w.Z) : t.Position.Y - (a < 3 ? 0.37 : 0.35);
             if (MainOver(p, route, w) is { } over)
                 h = Math.Min(h, over - BranchTuck);
-            return (w with { Y = h }).RelativeTo(origin);
+            return ((w with { Y = h }).RelativeTo(origin), MainLateral(p, w));
         }
-        Vector3[] Row(double s, int side) => [.. BranchLateral.Select(l => Ground(s, side * l))];
+        (Vector3 P, double? Main)[] Row(double s, int side) => [.. BranchLateral.Select(l => Ground(s, side * l))];
+        // A quad of the branch's land that spans the main line, or comes up to its rails, is left out (note 778): where a
+        // dead line runs within its land's 78 m of the main line, a quad of it lay over the main line's cutting, its corners
+        // tucked under the main line's land either side and its middle up over the rails (frontier:7 at 3.7 km, 1.2 m up).
+        // The main line's land is kept there (BranchTakes never gives its bed away), so nothing opens.
+        static bool OverMain((Vector3 P, double? Main) a, (Vector3 P, double? Main) b, (Vector3 P, double? Main) c, (Vector3 P, double? Main) d)
+        {
+            bool left = false, right = false;
+            foreach (var m in new[] { a.Main, b.Main, c.Main, d.Main })
+                if (m is { } l)
+                {
+                    if (Math.Abs(l) < BranchClearOfMainM)
+                        return true;
+                    left |= l < 0;
+                    right |= l > 0;
+                }
+            return left && right;
+        }
         // Its rows every 5 m, and the last at the cell's end: a branch's length isn't a multiple of 5, and its land stopped
         // short of its end by up to that, open there (note 498).
         var rows = new List<double>();
@@ -880,11 +948,13 @@ public sealed partial class WorldArt
                 var next = Row(s, side);
                 for (int c = 0; c + 1 < columns; c++)
                 {
+                    if (OverMain(prev[c], prev[c + 1], next[c + 1], next[c]))
+                        continue;
                     float lat = (BranchLateral[c] + BranchLateral[c + 1]) / 2;
                     var (la, lb, band) = GroundLayers(lat);
                     var colour = la >= 0 ? Vector3.One : Palette.MuddyOlive;
                     Corner Make(float l, double at) => new(colour * GroundShade(l, at), GroundBlend(band, l, at));
-                    Quad(built, prev[c], prev[c + 1], next[c + 1], next[c], Make(BranchLateral[c], s - 5), Make(BranchLateral[c + 1], s - 5),
+                    Quad(built, prev[c].P, prev[c + 1].P, next[c + 1].P, next[c].P, Make(BranchLateral[c], s - 5), Make(BranchLateral[c + 1], s - 5),
                         Make(BranchLateral[c + 1], s), Make(BranchLateral[c], s), surface, la, lb, la >= 0 && _look.Textures[la].TileMetres is { } tm ? tm : 2);
                 }
                 prev = next;
@@ -901,11 +971,13 @@ public sealed partial class WorldArt
                 var next = across.Select(l => Ground(s, l)).ToArray();
                 for (int c = 0; c + 1 < across.Length; c++)
                 {
+                    if (OverMain(prev[c], prev[c + 1], next[c + 1], next[c]))
+                        continue;
                     float lat = MathF.Max(MathF.Abs(across[c]), MathF.Abs(across[c + 1]));
                     var (la, lb, band) = GroundLayers(lat);
                     var colour = la >= 0 ? Vector3.One : Palette.MuddyOlive;
                     Corner Make(float l, double at) => new(colour * GroundShade(MathF.Abs(l), at), GroundBlend(band, MathF.Max(MathF.Abs(l), 3.7f), at));
-                    Quad(built, prev[c], prev[c + 1], next[c + 1], next[c], Make(across[c], s - 5), Make(across[c + 1], s - 5),
+                    Quad(built, prev[c].P, prev[c + 1].P, next[c + 1].P, next[c].P, Make(across[c], s - 5), Make(across[c + 1], s - 5),
                         Make(across[c + 1], s), Make(across[c], s), surface, la, lb, la >= 0 && _look.Textures[la].TileMetres is { } tm ? tm : 2);
                 }
                 prev = next;
@@ -919,7 +991,8 @@ public sealed partial class WorldArt
                 var w = (t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * tree.Lateral) with { Y = tree.Ground };
                 var piece = Piece($"pine-{tree.Variant}", () => WorldKit.Pine(_look, tree.Variant, 12));
                 var m = Matrix4x4.CreateScale((float)(tree.Height / 12)) * Matrix4x4.CreateRotationY((float)tree.Yaw) * Matrix4x4.CreateTranslation(w.RelativeTo(origin));
-                built.Instances.Add(new MeshInstance(piece, m));
+                // Its crown off the branch's track, as the main line's trees are off its (note 778: local:4's dead line at 262 m).
+                built.Instances.Add(new MeshInstance(piece, CutBack(m, piece, (float)(tree.Height / 12), Math.Min(Math.Abs(tree.Lateral), NearestTrack(p, w)))));
             }
         return new Cell(MeshAsset.From($"branch-{branch}-{index}", built), [.. built.Instances.Select(x => (x.Asset, x.Model))], [.. built.PointLights], origin);
     }
@@ -1019,6 +1092,43 @@ public sealed partial class WorldArt
 
     /// <summary>How far out from the line the forest floor's pieces start (m): past the walk beside the train.</summary>
     const double FloorNear = 7;
+
+    /// <summary>How far <paramref name="w"/> is from the middle of the nearest of the plan's tracks (m; the main line's or any branch's), out to <paramref name="reach"/>.</summary>
+    static double NearestTrack(PlanScene p, Double3 w, double reach = 24)
+    {
+        double near = reach;
+        foreach (var n in p.Terrain.Nearby(w.X, w.Z, reach))
+            if (!n.Past)
+                near = Math.Min(near, Math.Abs(n.Lateral));
+        return near;
+    }
+
+    /// <summary>A tree's boughs stop this far from the line's middle (m): the ballast's foot, the line's cut-back (note 778).</summary>
+    const float BoughClearM = 2.6f;
+
+    /// <summary>How far out from its trunk a piece reaches at its widest (m, as built). Cells are cooked on workers too (note 479).</summary>
+    readonly System.Collections.Concurrent.ConcurrentDictionary<string, float> _spread = new();
+    float Spread(MeshAsset piece) => _spread.GetOrAdd(piece.Name, _ =>
+    {
+        float most = 0;
+        foreach (var v in piece.Vertices)
+            most = MathF.Max(most, MathF.Sqrt(v.Position.X * v.Position.X + v.Position.Z * v.Position.Z));
+        return most;
+    });
+
+    /// <summary>
+    /// A tree beside the line laid by <paramref name="m"/> (its piece at <paramref name="scale"/>), its crown drawn in to keep
+    /// its boughs off the track (note 778). The woods are planted from 6 m out (Sim.Run.LinesideProps), and a 20 m spruce's
+    /// lowest boughs spread 4-6 m: over the rails, where the train ran through them (frontier:7 at 4.3 and 7.5 km; "trees
+    /// lying across the tracks", the director, 14 Oct, playtest line 19). A crown that would reach within
+    /// <see cref="BoughClearM"/> of the line's middle is narrowed to stop there, its height kept: the line's cut-back. Its
+    /// trunk stays where the sim stands its wall.
+    /// </summary>
+    Matrix4x4 CutBack(Matrix4x4 m, MeshAsset piece, float scale, double clear)
+    {
+        float room = (float)clear - BoughClearM, reach = Spread(piece) * scale;
+        return reach <= room ? m : Matrix4x4.CreateScale(MathF.Max(0.2f, room / reach), 1, MathF.Max(0.2f, room / reach)) * m;
+    }
 
     /// <summary>
     /// A tree's form and lean (note 395), from a stream of its own off its art seed (LinesideProp.Seed): mostly plain; on the
@@ -1388,8 +1498,12 @@ public sealed partial class WorldArt
     /// <summary>Past a dead line's buffer stop: from its heading out, under the stop's own land there (<see cref="BranchPastEndM"/>).</summary>
     static readonly double[] BranchPastLateral = [0, .. BranchFarLateral];
     static readonly double[] BranchPastRise = [-3, .. BranchFarRise];
-    /// <summary>A branch's far land asks of the tracks within this (m) whether a quad of it spans one (<c>FarLandCell</c>'s <c>Spans</c>).</summary>
-    const double BranchSpanM = 150;
+    /// <summary>
+    /// A branch's far land asks of the tracks within this (m) whether a quad of it spans one (<c>FarLandCell</c>'s <c>Spans</c>): as
+    /// far as its columns reach across (240 m between its 560 m and 800 m ones). At 150 m a quad of deepTerritory:3's first dead line's
+    /// far land, two corners just one side of its second dead line and the third 240 m off the other, lay over it (note 778).
+    /// </summary>
+    const double BranchSpanM = 600;
 
     /// <summary>
     /// A line's far land from <paramref name="from"/> to <paramref name="to"/> (<paramref name="edge"/> -1 the main line's),
@@ -1451,7 +1565,7 @@ public sealed partial class WorldArt
             var at = t.Position + r * (side * lateral);
             double h = (level ?? terrain.Height(at.X, at.Z)) + rise;
             bool wide = main && p.FarBranches.Length > 0 && p.NearFarBranch(at.X, at.Z, spans);
-            var near = terrain.Nearby(at.X, at.Z, wide ? spans : corridor + 40);
+            var near = terrain.Nearby(at.X, at.Z, wide ? spans : main ? corridor + 40 : Math.Max(corridor + 40, BranchSpanM));
             if (near.Any(n => Math.Abs(n.Lateral) < corridor + 30))
                 h = Math.Min(h, terrain.Height(at.X, at.Z) - 2);
             (int, double)[] far = wide ? [.. near.Where(n => !n.Past && Math.Abs(n.Lateral) < spans && Array.IndexOf(p.FarBranches, n.Edge) >= 0).Select(n => (n.Edge, n.Lateral))]
