@@ -94,7 +94,9 @@ public static class Protocol
     //     a thrown lamp broken and burning (1).
     // 63: bringing them home (note 723): two player flags (carried over a friend's shoulder, and carrying one) and a knock of
     //     its own (a friend thrown off the shoulder).
-    public const int Version = 63;
+    // 64: the big finds (note 719): a find's body record carries a fragile one's knocks over its use ticks (its ninth field,
+    //     bits 16 up), and the doors' record the jackpot houses' locks being picked after the doors shut (key, progress pairs).
+    public const int Version = 64;
 }
 
 public enum MessageType : byte

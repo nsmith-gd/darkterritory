@@ -158,11 +158,13 @@ public sealed partial class StopHand
 
     /// <summary>
     /// The houses something lives in (the house creatures, notes 583–586): the bots keep out of them, as they keep out of the
-    /// Gaunt's (note 413). They search the rest.
+    /// Gaunt's (note 413). They search the rest. And a jackpot house still locked (note 719): no way in for a bot (the wrench
+    /// is the crew's to bring).
     /// </summary>
     static HashSet<int> Lived(World world) =>
         [.. world.ActiveEnemies.Where(e => !e.Gone && e.Kind is Enemies.EnemyKind.Lodger or Enemies.EnemyKind.Householder or Enemies.EnemyKind.HollowHouse or Enemies.EnemyKind.Hanger)
-            .Select(e => (int)e.Extra2)];
+            .Select(e => (int)e.Extra2),
+            .. world.Train.Walls is { } walls ? walls.OpenHouses.Where(h => walls.LockedHouse(h.Index)).Select(h => h.Index) : []];
 
     static bool InLived(World world, HashSet<int> lived, Double3 at) =>
         lived.Count > 0 && world.Train.Walls is { } walls && walls.HouseAt(at + Double3.Up * 0.3) is var h and >= 0 && lived.Contains(h);

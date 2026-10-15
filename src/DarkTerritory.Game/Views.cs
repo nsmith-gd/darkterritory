@@ -207,6 +207,12 @@ public static class Views
             // engine's side until then.
             "crewphoto" or "lostcrews" => Camera.LookAt(engine.ToWorld(new Double3(9, 1.6, -4)), engine.ToWorld(new Double3(3, 1.4, -2)), 40),
             "trophies" => Camera.LookAt(Staging.Lineside(train, 4.2, -1.6) + Double3.Up * 1.55, Staging.Lineside(train, 7.2, -4.1) + Double3.Up * 0.05, 40),
+            // (Not one of Names.) Note 719, the big finds: two crewmates carrying a safe off the line's left (Staging.Jackpot puts
+            // the camera beside them), a jackpot house from its street (Staging.JackpotHouse), and the finds slid in a car after
+            // a bend, from its front end (the screenshot frames the car it simulates); until then, off the engine's left.
+            "jackpot" => Camera.LookAt(Staging.Lineside(train, 4, -8) + Double3.Up * 1.55, Staging.Lineside(train, 9, -4.2) + Double3.Up * 0.8, 52),
+            "jackpothouse" => Camera.LookAt(engine.ToWorld(new Double3(-9, 2.6, 5)), engine.ToWorld(new Double3(-30, 2, 0)), 60),
+            "looseloot" => Camera.LookAt(target.ToWorld(new Double3(-0.3, Floor(train) + 1.75, -target.Shape.HalfLength + 0.7)), target.ToWorld(new Double3(0, Floor(train) + 0.2, 1.2)), 70),
             // Crouched where the fireman shovels, at the firebox door (what's seen when it's open: the staged Stoker).
             "firebox" => FireboxCamera(engine),
             // The work at the cab's front (note 280): from behind where one person runs it all, forward at the coal on the left,

@@ -32,13 +32,23 @@ public class HouseInteriorArtTests
         var plain = FindKit.Find(null, "nothing", 0.15f).Vertices.Length;
         // (A creature's trophy, the Gannet's head, isn't a village find: a model of its own, but no cell. Nor is a comet
         // fragment, note 718.)
-        var trophies = loot.Trophies.Values.Select(t => t.Item).Append(loot.Comet!.Item).ToHashSet();
+        // Note 719: nor are the fragile valuables (glass, walnut and brass: the kit's own stock, not the atlas's) nor the two-person
+        // jackpots (drawn by FindKit.Jackpot, as big as they are).
+        var trophies = loot.Trophies.Values.Select(t => t.Item).Append(loot.Comet!.Item).Concat(loot.Fragile!.Items.Keys).ToHashSet();
+        var jackpots = loot.Jackpots!.Items;
         foreach (var item in loot.Items.Keys)
         {
-            if (!trophies.Contains(item))
+            if (!trophies.Contains(item) && !jackpots.ContainsKey(item))
                 Assert.Contains(item, FindKit.Cells);
-            var model = FindKit.Find(null, item, 0.15f);
+            var model = jackpots.TryGetValue(item, out var big) ? FindKit.Jackpot(null, item, (float)big.Radius) : FindKit.Find(null, item, 0.15f);
             Assert.True(model.Vertices.Length > 0 && model.Vertices.Length != plain, $"{item} is the plain bundle");
+        }
+        // A fragile find knocked looks it: cracked, then smashed, each a model of its own.
+        foreach (var item in loot.Fragile.Items.Keys)
+        {
+            var whole = FindKit.Find(null, item, 0.15f, 0).Vertices.Length;
+            Assert.NotEqual(whole, FindKit.Find(null, item, 0.15f, 1).Vertices.Length);
+            Assert.NotEqual(FindKit.Find(null, item, 0.15f, 1).Vertices.Length, FindKit.Find(null, item, 0.15f, 2).Vertices.Length);
         }
     }
 

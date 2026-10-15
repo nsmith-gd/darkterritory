@@ -4254,11 +4254,38 @@ public sealed partial class GreyboxScene
             var face = Vector3.Cross(up, along);
             float width = Half * 2 - 0.08f, height = Lintel - 0.04f;
             Vector3 On(float a, float h, float off = 0) => V(hingeAt + ToD(along * a + face * off) + new Double3(0, h, 0), eye);
-            mesh.Box(On(width / 2, height / 2), face, up, along, new Vector3(Thick, height / 2, width / 2), wood);
-            // Its ledges, top and bottom, and the brace between, on the room's side.
+            // The jackpot house (note 719): a better door than the rest, locked or not, panelled and painted oxblood, a brass
+            // knob and knocker; and a lamp left burning in the window beside it, seen from the line.
+            bool better = Run?.LockedAt(feature) == building;
+            var leaf = better ? new Vector3(0.3f, 0.06f, 0.05f) : wood;
+            mesh.Box(On(width / 2, height / 2), face, up, along, new Vector3(Thick, height / 2, width / 2), leaf);
             float inside = Vector3.Dot(face, -outward) >= 0 ? 1 : -1;
+            if (better)
+            {
+                // Four raised panels on its outside, the brass knob and the knocker.
+                foreach (float a in new[] { width * 0.28f, width * 0.72f })
+                    foreach (float h in new[] { height * 0.28f, height * 0.7f })
+                        mesh.Box(On(a, h, -inside * (Thick + 0.008f)), face, up, along, new Vector3(0.008f, height * 0.17f, width * 0.17f), leaf * 1.25f);
+                var brass = new Vector3(0.75f, 0.58f, 0.25f);
+                mesh.Box(On(width - 0.1f, 1.0f, -inside * (Thick + 0.03f)), face, up, along, new Vector3(0.03f, 0.03f, 0.03f), brass);
+                mesh.Box(On(width / 2, 1.5f, -inside * (Thick + 0.015f)), face, up, along, new Vector3(0.015f, 0.06f, 0.04f), brass);
+                var sill = new Double3(d.At.X, floor, d.At.Z) + ToD(side * 1.75f + outward * 0.02f);
+                var pane = V(sill + new Double3(0, 1.45, 0), eye);
+                // Its frame, and the pane lit from within.
+                mesh.Box(pane, side, up, outward, new Vector3(0.42f, 0.52f, 0.025f), new Vector3(0.12f, 0.1f, 0.08f));
+                float emissive = mesh.Emissive;
+                mesh.Emissive = 1;
+                mesh.Box(pane + outward * 0.02f, side, up, outward, new Vector3(0.35f, 0.45f, 0.01f), Palette.LampAmber * 1.4f);
+                mesh.Emissive = emissive;
+                mesh.Box(pane + outward * 0.035f, side, up, outward, new Vector3(0.02f, 0.45f, 0.008f), new Vector3(0.12f, 0.1f, 0.08f));
+                mesh.Box(pane + outward * 0.035f, side, up, outward, new Vector3(0.35f, 0.02f, 0.008f), new Vector3(0.12f, 0.1f, 0.08f));
+                float flicker = 0.9f + 0.1f * MathF.Sin((float)(Time * 3.1) + d.Key);
+                mesh.PointLights.Add(new PointLight(pane + outward * 0.6f, Palette.LampAmber * 1.2f * flicker, 7f));
+                mesh.Billboard(pane + outward * 0.1f, 0.9f * flicker, 0, new Vector4(Palette.LampAmber * 0.35f * flicker, 1), -1, FxBlend.Additive);
+            }
+            // Its ledges, top and bottom, and the brace between, on the room's side.
             foreach (float h in new[] { 0.3f, height - 0.3f })
-                mesh.Box(On(width / 2, h, inside * (Thick + 0.012f)), face, up, along, new Vector3(0.012f, 0.06f, width / 2 - 0.04f), wood * 0.8f);
+                mesh.Box(On(width / 2, h, inside * (Thick + 0.012f)), face, up, along, new Vector3(0.012f, 0.06f, width / 2 - 0.04f), leaf * 0.8f);
             if (moved.Moved != Matrix4x4.Identity)
                 mesh.Move(start, moved.Moved);
             if (slammed >= 0 && Look is not null)

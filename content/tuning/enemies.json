@@ -430,10 +430,13 @@
   // building: nothing else's change), never the Gaunt's roost; what lives there by "weights" (a Householder only in a house
   // with something to find). Put in their houses, asleep, once the train's within placeWithin m of the stop, and gone once
   // it's forgetPast m past it. Not the director's: they cost it nothing ("enabled" off: none).
+  // Note 719 (queue #453, the big finds): a stop's jackpot house (loot.json jackpotHouse), locked up with its better things,
+  // rolls against its share times jackpotShare (never past 1): weighted, not certain.
   "dwellings": {
     "enabled": true,
     "share": { "local": 0.2, "frontier": 0.25, "deadLines": 0.33, "deepTerritory": 0.5 },
     "weights": { "lodger": 3, "householder": 2, "hollowHouse": 1.5, "hanger": 3 },
+    "jackpotShare": 2,
     "placeWithin": 500, "forgetPast": 800
   },
   // THE LODGER · sound · outside (note 583; docs/design/creatures/lodger.md). Folded in the house's darkest corner (the spot

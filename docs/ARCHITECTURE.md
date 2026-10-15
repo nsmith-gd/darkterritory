@@ -889,6 +889,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [716. The big cab, the crew car (K1, queue #450; the director, 14 Oct 2026, `docs/design/friendslop.md`)](notes/716.md)
 - [717. Horseplay (K1, queue #451; the director, 14 Oct 2026, `docs/design/friendslop.md`; and the 14 Oct playtest, `docs/playtest/2026-10-14.md`…](notes/717.md)
 - [718. The night's prizes (K1, queue #452; the director, 14 Oct 2026, `docs/design/friendslop.md`)](notes/718.md)
+- [719. Big finds (K1, queue #453; the director, 14 Oct 2026, `docs/design/friendslop.md`)](notes/719.md)
 - [720. Voices: the speaking tube, the whistle codes, singing together, lamp signals (K1, queue #454; the director's calls of 14 Oct 2026,…](notes/720.md)
 - [721. Crew memory (K1, queue #455; the director, 14 Oct 2026, `docs/design/friendslop.md` §3, GDD App. F.6)](notes/721.md)
 - [723. Bringing them home (K1, queue #457; the director, 14 Oct 2026, `docs/design/friendslop.md` §3, GDD App. F.6)](notes/723.md)

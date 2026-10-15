@@ -258,11 +258,13 @@ public static class WorldRecords
                     list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Search, k),
                         [done.Count, .. done.Select(c => (long)c), .. under.SelectMany(u => new long[] { u.Container, Q(u.Progress, Fine) })]));
                 }
-        // The village houses' doors shut (note 401): a count, then each door's key. One record, while there are doors.
+        // The village houses' doors shut (note 401): a count, then each door's key. One record, while there are doors. Then
+        // the jackpot houses' locks being picked (note 719): key and how far, pairs.
         if (world.Train.Walls is { HouseDoors.Count: > 0 } doored)
         {
             var shut = doored.ShutDoors.ToList();
-            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Door, 0), [shut.Count, .. shut.Select(k => (long)k)]));
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Door, 0), [shut.Count, .. shut.Select(k => (long)k),
+                .. doored.PickingDoors.SelectMany(p => new long[] { p.Key, Q(p.Progress, Fine) })]));
         }
         // GDD App. D: each Holdout's state, who's in it and how far the breach is, and whether it's the repair kit's (the
         // lamps and the HUD).
@@ -298,8 +300,9 @@ public static class WorldRecords
                 Physics.BodyKind.Lamp => body.Broken ? 1 : 0,
                 // Broken, and how far the kit's got mending it (note 201): 0 whole, 1 + ticks broken.
                 Physics.BodyKind.Radio => body.Broken ? 1 + body.MendTicks : 0,
-                // How far its carrier has got using a healing find (note 272), for their HUD.
-                Physics.BodyKind.Loot => body.MendTicks,
+                // How far its carrier has got using a healing find (note 272), for their HUD; over it, a fragile one's knocks
+                // (note 719), so it's drawn cracked or dented.
+                Physics.BodyKind.Loot => body.MendTicks + ((long)body.Knocks << 16),
                 _ => (long)body.Cargo,
             };
             // On a locker's shelf (note 173), or in a carrier's slot and whether it's put away (note 594: −2 − 2 × slot − stashed).
@@ -509,7 +512,9 @@ public static class WorldRecords
                         Enumerable.Range(0, (f.Length - 1 - searched) / 2).Select(i => ((int)f[1 + searched + i * 2], D(f[2 + searched + i * 2], Fine))));
                     break;
                 case RecordKind.Door when !world.Authority && world.Train.Walls is { } doorWalls && f.Length > 0:
-                    doorWalls.MirrorShut(f.Skip(1).Take((int)Math.Min(f[0], f.Length - 1)).Select(k => (int)k));
+                    int shutCount = (int)Math.Min(f[0], f.Length - 1);
+                    doorWalls.MirrorShut(f.Skip(1).Take(shutCount).Select(k => (int)k));
+                    doorWalls.MirrorPicking(Enumerable.Range(0, (f.Length - 1 - shutCount) / 2).Select(i => ((int)f[1 + shutCount + i * 2], D(f[2 + shutCount + i * 2], Fine))));
                     break;
                 case RecordKind.Holdout when !world.Authority && world.Holdouts is { } queue && r.Id == QueueRecord:
                     queue.MirrorQueue(Enumerable.Range(0, f.Length / 2).Select(i => ((int)f[i * 2], f[i * 2 + 1] != 0)));
@@ -599,7 +604,8 @@ public static class WorldRecords
             Noise = (Physics.BodyKind)f[0] == Physics.BodyKind.Toy ? (Physics.ToyNoise)(f[8] & 0xFF) : Physics.ToyNoise.None,
             Playing = (Physics.BodyKind)f[0] == Physics.BodyKind.Toy && (f[8] & 0x100) != 0,
             Broken = (Physics.BodyKind)f[0] is Physics.BodyKind.Radio or Physics.BodyKind.Lamp && f[8] != 0,
-            MendTicks = (Physics.BodyKind)f[0] == Physics.BodyKind.Radio && f[8] > 1 ? (int)(f[8] - 1) : (Physics.BodyKind)f[0] == Physics.BodyKind.Loot ? (int)f[8] : 0,
+            MendTicks = (Physics.BodyKind)f[0] == Physics.BodyKind.Radio && f[8] > 1 ? (int)(f[8] - 1) : (Physics.BodyKind)f[0] == Physics.BodyKind.Loot ? (int)(f[8] & 0xFFFF) : 0,
+            Knocks = (Physics.BodyKind)f[0] == Physics.BodyKind.Loot ? (int)(f[8] >> 16) : 0,
             Locker = f[9] < 0 ? -1 : (int)(f[9] / 256),
             Slot = f[9] < 0 ? 0 : (int)(f[9] % 256),
             Pocket = f[9] <= -2 ? (int)((-f[9] - 2) / 2) : -1,

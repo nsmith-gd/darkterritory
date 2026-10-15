@@ -783,6 +783,8 @@ public static partial class Hud
         BodyKind.Loot => world.Run?.FindName(b)?.ToUpperInvariant() ?? "THE FIND",
         // What else is carried, for the hotbar's IN HANDS (note 264).
         BodyKind.Crate or BodyKind.Cargo => "A CRATE",
+        // A two-person jackpot (note 719), by what it is: "AN END OF THE SAFE".
+        BodyKind.Heavy when world.Run?.FindName(b) is { } jackpot => $"AN END OF THE {jackpot.ToUpperInvariant()}",
         BodyKind.Heavy => "AN END OF THE HEAVY CRATE",
         BodyKind.Ragdoll => "A BODY",
         BodyKind.Child => "THE CHILD",
@@ -2409,6 +2411,10 @@ public static partial class Hud
                 BodyKind.RepairKit => "TAKE THE REPAIR KIT : [E]",
                 BodyKind.Loot => $"TAKE {world.Run?.FindName(thing)?.ToUpperInvariant() ?? "IT"} : [E]",
                 // A reaching hand takes its end with both hands on it (T43).
+                // A two-person jackpot (note 719) says what it is: it takes two, as a heavy crate does.
+                BodyKind.Heavy when world.Run?.FindName(thing) is { } jackpot => thing.Carrier >= 0
+                    ? $"TAKE THE OTHER END OF THE {jackpot.ToUpperInvariant()} : {(p.Hand != default ? "GRIP" : "[E]")}"
+                    : $"TAKE AN END OF THE {jackpot.ToUpperInvariant()} : {(p.Hand != default ? "GRIP" : "[E]")}   IT TAKES TWO",
                 BodyKind.Heavy when thing.Carrier >= 0 => p.Hand != default ? "TAKE THE OTHER END : GRIP" : "TAKE THE OTHER END : [E]",
                 BodyKind.Heavy => p.Hand != default ? "TAKE AN END : GRIP" : "TAKE AN END : [E]",
                 _ => "PICK UP : [E]",
@@ -2420,7 +2426,11 @@ public static partial class Hud
                 : $"SEARCH THE {SpotName(spot.Container.Kind)} : HOLD [E]";
         // An open house's door (note 401), empty-handed, as the hands and the search leave it.
         if (world.Bodies.CarriedBy(s.PlayerId) is null && world.DoorInReach(p) is { } door)
-            return train.Walls!.Shut(door.Key) ? "OPEN THE DOOR : HOLD [E]" : "SHUT THE DOOR : HOLD [E]";
+            // A jackpot house's locked door (note 719): the wrench picks it, held, and how far it's got.
+            return train.Walls!.Locked(door.Key)
+                ? train.Walls.Picking(door.Key) is > 0 and var picked ? $"PICKING THE LOCK ({picked * 100:0}%)"
+                    : Repairs.WrenchInHand(p) ? "PICK THE LOCK : HOLD [E]" : "LOCKED : THE WRENCH OPENS IT"
+                : train.Walls.Shut(door.Key) ? "OPEN THE DOOR : HOLD [E]" : "SHUT THE DOOR : HOLD [E]";
         if (world.Run?.LeverInReach(p, train, hand) == true)
             return "CHUTE LEVER : HOLD [E]";
         // GDD §18's set pieces (note 185). How full the car under the spout is is what you read to let go.

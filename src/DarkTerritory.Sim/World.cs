@@ -580,7 +580,8 @@ public sealed partial class World
         {
             var p = b.Pbd.Particles[0];
             return new Campaign.ThingAboard(b.Kind, b.Parent, p.Position, p.Radius, b.Pbd.Friction, b.Pbd.Bounce, b.Yaw, b.Locker, b.Slot, b.Claimed,
-                b.Cargo, b.Owner, b.Home, b.Charge, b.Noise, b.Broken, b.Tools, b.Banked && b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy);
+                b.Cargo, b.Owner, b.Home, b.Charge, b.Noise, b.Broken, b.Tools,
+                b.Banked && b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy && !Sim.Run.Run.IsJackpot(b)) { Knocks = b.Knocks };
         })];
 
     /// <summary>
@@ -611,6 +612,8 @@ public sealed partial class World
             b.Broken = t.Broken;
             // A tool left on a locker's shelf (note 649) is which tool it is.
             b.Tools = t.Tools;
+            // A fragile find as knocked as it was (note 719).
+            b.Knocks = t.Knocks;
             // A crate loaded (note 659): its share's in its car's saved load, so it isn't loaded again.
             b.Banked = t.Loaded;
             // A full shelf (the save's from a train with other lockers) leaves it where it lay: at its shelf, out of the way.
@@ -834,6 +837,11 @@ public sealed partial class World
             Bodies.HealSeconds = loot.Healing?.UseSeconds ?? Bodies.HealSeconds;
             // Note 723: and how much more one heals put on a friend.
             Bodies.OnAFriend = loot.Healing?.OnAFriend ?? Bodies.OnAFriend;
+            // Note 719: the fragile finds' knocks, and loose things riding in the cars.
+            Bodies.Fragility = loot.Fragile;
+            Bodies.Ride = loot.Ride;
+            // Note 719: each stop's jackpot house locked up, alike on the host and every client (from the route and the seed).
+            Train.Walls.Lock(Run.LockedDoors());
         }
         Train.Walls = ClearSiteWork(Train.Walls);
         Authority |= authority;
@@ -891,6 +899,9 @@ public sealed partial class World
             Forts = [both[0], both[1] with { Square = there.Plan.Square.Turned(turn), Bounds = there.Plan.Bounds, Turn = turn }, .. both.Skip(2)];
         }
         Train.Walls = ClearSiteWork(LinesideToo(Sim.Run.StopWalls.Of(route, Train.Line, Forts, _walls), route));
+        // Note 719: built again, the jackpot houses are locked again.
+        if (Run is { } run)
+            Train.Walls.Lock(run.LockedDoors());
         Train.Walls.Add(Town.Walls);
         if (Arrival is not null)
             Train.Walls.Add(Arrival.Walls);
@@ -1074,18 +1085,36 @@ public sealed partial class World
             radio.Broken = false;
     }
 
-    void DoorAct(in PlayerState s, in PlayerIntent intent, int playerId, bool emptyHanded)
+    /// <param name="picks">Note 719: the wrench is in hand (or the repair kit, where it's the repair tool), which opens a
+    /// jackpot house's locked door, held at it <c>jackpotHouse.unlockSeconds</c>, quietly, as at a Holdout's lock (D.7).</param>
+    void DoorAct(in PlayerState s, in PlayerIntent intent, int playerId, bool emptyHanded, bool picks = false)
     {
-        if (!emptyHanded || !intent.Has(PlayerButtons.Use) || intent.MoveZ > 0.5 || DoorInReach(s) is not { } door)
+        var walls = Train.Walls;
+        var door = intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5 ? DoorInReach(s) : null;
+        bool locked = door is { } d && walls!.Locked(d.Key);
+        if (door is null || (locked ? !picks : !emptyHanded))
         {
-            _atDoor.Remove(playerId);
+            if (_atDoor.Remove(playerId, out var left) && walls is not null)
+                walls.SetPicking(left.Key, 0);
             return;
         }
-        var (key, held, done) = _atDoor.TryGetValue(playerId, out var was) && was.Key == door.Key ? was : (door.Key, 0.0, false);
+        var (key, held, done) = _atDoor.TryGetValue(playerId, out var was) && was.Key == door.Value.Key ? was : (door.Value.Key, 0.0, false);
         held += SimConstants.TickSeconds;
-        if (!done && held >= (_walls ?? new Sim.Run.WallTuning()).HouseDoorSeconds - 1e-9)
+        if (locked)
         {
-            Train.Walls!.SetShut(key, !Train.Walls.Shut(key));
+            // Picking the lock (note 719): how far it's got, on the doors' record for the HUD; done, it's open, and unlocked.
+            double seconds = Run?.UnlockSeconds ?? 6;
+            walls!.SetPicking(key, Math.Min(1, held / seconds));
+            if (held >= seconds - 1e-9)
+            {
+                walls.SetShut(key, false);
+                walls.SetPicking(key, 0);
+                done = true;
+            }
+        }
+        else if (!done && held >= (_walls ?? new Sim.Run.WallTuning()).HouseDoorSeconds - 1e-9)
+        {
+            walls!.SetShut(key, !walls.Shut(key));
             done = true;
         }
         _atDoor[playerId] = (key, held, done);
@@ -1500,8 +1529,10 @@ public sealed partial class World
         // lever, which takes Use whatever's in your hands (queue #94, note 357): the lamp you carried out to a stand stays lit
         // in your hand while you throw it, and a crate lying by it stays down.
         bool lever = Authority && Switches?.InReach(s, Train, Hand) is not null;
+        // Note 719: the kit in hand at a jackpot house's locked door is picking its lock, not being put down.
+        bool atLock = kit && DoorInReach(s) is { } lockedDoor && Train.Walls!.Locked(lockedDoor.Key);
         bool handsTookIt = Authority && Bodies.Handle(ref s, intent, playerId, Train, Hand,
-            keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)) || charging, lever: lever, fetch: fetch, patient: patient);
+            keep: kit && (breaching || atLock || CrewActions.AtTheRupture(s, Train, Hand)) || charging, lever: lever, fetch: fetch, patient: patient);
         if (charging && gunTuning is not null)
             Charge(s, intent, playerId, gunTuning);
         if (handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } lifted)
@@ -1512,7 +1543,7 @@ public sealed partial class World
         // Nicki's wine (note 571), then an open house's door (note 401): empty-handed, with a Use neither the hands nor a hiding
         // spot took. (She waves you in at her door: by her, a held Use is a glass, not the door shut in her face.)
         if (Authority && !WineAct(ref s, intent, playerId, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null))
-            DoorAct(s, intent, playerId, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null);
+            DoorAct(s, intent, playerId, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null, picks: picks && !handsTookIt);
         JacobAct(s, intent, playerId);
         // A healing find used up in the hands this tick (GDD App. F.1; note 272): its health back, up to full.
         if (Authority && Bodies.TakeDose(playerId) is > 0 and var dose && s.Alive)

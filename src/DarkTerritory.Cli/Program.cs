@@ -1053,7 +1053,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // stages it gnawing, the tower leaning over the line; towerjawfall, the tower down across it.
     string towerJawMode = Str(args, "--towerjaw", view switch { "towerjaw" => "lean", "towerjawfall" => "wreck", _ => "" });
     // --route tier:seed generates the night in memory; --coaling stops the train at its coaling tower, chute pouring.
-    Route? generated = Str(args, "--route", towerJawMode.Length > 0 ? "frontier:3" : Staging.IsHouseView(view) || view is "comet" or "trophies" or "crewphoto" or "lostcrews" ? "frontier:7" : "") is { Length: > 0 } spec
+    Route? generated = Str(args, "--route", towerJawMode.Length > 0 ? "frontier:3" : Staging.IsHouseView(view) || view is "comet" or "trophies" or "crewphoto" or "lostcrews" or "jackpot" or "jackpothouse" or "looseloot" ? "frontier:7" : "") is { Length: > 0 } spec
         ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars)
         : null;
     var line = generated?.Build() ?? RailLine.Load(Path.Combine(content, "lines", lineName + ".json"));
@@ -1250,6 +1250,24 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         s += Double3.Dot(prizes.All.First(DarkTerritory.Sim.Run.Run.IsComet).Pbd.Particles[0].Position - by.Position, by.Tangent);
         at = s + Opt(args, "--comet", -22);
     }
+    // Note 719 (queue #453, the big finds): jackpot, two crewmates carrying a safe off the line's left ahead of the engine;
+    // jackpothouse, the night's first stop's jackpot house from its street, locked (--inside: opened, stood in its doorway, its
+    // things out); looseloot, the finds put down in a car's middle, ridden round the line's tightest bend at 20 m/s (--speed) for --seconds 4,
+    // where they slid to, from the car's front end. Every stop given a jackpot house and a safe for them.
+    var bigLoot = view is "jackpot" or "jackpothouse" or "looseloot" && generated is not null
+        ? Staging.Jackpotted(DataFile.Load<LootTuning>(Path.Combine(content, LootTuning.File)), generated.Tier, "safe") : null;
+    int bigStop = -1;
+    if (bigLoot is not null && view is "jackpot" or "jackpothouse")
+    {
+        run ??= new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated!);
+        run.EnableLoot(bigLoot, line, null);
+        bigStop = Enumerable.Range(0, run.Stops.Count).FirstOrDefault(k => run.LockedHouse(k) >= 0 && run.JackpotsAt(k).Count > 0, -1);
+        // The jackpot house's stop: the train just past it, so it's built round the camera.
+        if (view == "jackpothouse" && bigStop >= 0 && !args.Contains("--at"))
+            at = run.Stops[bigStop].End + 40;
+    }
+    if (bigLoot is not null && view == "looseloot" && !args.Contains("--at"))
+        at = Staging.Bend(line);
     var train = new TrainOnLine(new TrainDynamics(consist), line, at);
     if (site is { Spur: >= 0 })
     {
@@ -1843,6 +1861,70 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         for (int i = 0; i < kinds.Count; i++)
             prizes.SpawnLoot(Staging.Lineside(train, 5 + i % 5 * 1.1, -3.6 - i / 5 * 1.0), train.Dynamics.Distance, DarkTerritory.Sim.Run.Run.TrophyOwner(kinds[i]), lt.Radius);
     }
+    List<Crewmate>? carriers = null;
+    Camera? bigCamera = null;
+    if (bigLoot is not null && run is not null && bigStop >= 0 && view == "jackpot")
+    {
+        var (bigCarried, crew, carryCamera) = Staging.Jackpot(train, DarkTerritory.Sim.Run.Run.LootOwner(bigStop, DarkTerritory.Sim.Run.Run.JackpotContainer),
+            bigLoot.Jackpots!.Items["safe"].Radius);
+        prizes = bigCarried;
+        carriers = crew;
+        bigCamera = carryCamera;
+    }
+    if (bigLoot is not null && run is not null && bigStop >= 0 && view == "jackpothouse" && args.Contains("--inside"))
+    {
+        prizes ??= new();
+        run.Stock(prizes, bigStop, searched: true);
+    }
+    // looseloot: the night simulated on a train of its own at the same place (a world with the loot's riding on), the finds and
+    // the safe put down in the middle of its first car with a room, ridden round the bend; what's drawn is where they lie in
+    // that car's frame, on the screenshot's train.
+    if (bigLoot is not null && view == "looseloot")
+    {
+        var simTrain = new TrainOnLine(new TrainDynamics(Consist.Uniform(t, cars, 1)), line, at, DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)));
+        var sim = new World(simTrain);
+        sim.EnableBodies();
+        sim.EnableRun(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated!, 600, authority: true,
+            null, bigLoot with { Ride = bigLoot.Ride! with { Enabled = true } });
+        run = sim.Run!;
+        foreach (var b in sim.Bodies.All.ToList())
+            sim.Bodies.Remove(b);
+        // A plain car (no crew lockers down its side), so the floor across it shows where they went.
+        int looseCar = simTrain.Vehicles.First(v => v.Kind == VehicleKind.Cargo && simTrain.Frames[v.Id].Shape is { Interior: not null, Lockers.Count: 0 }).Id;
+        var looseRoom = simTrain.Frames[looseCar].Shape.Interior!.Value;
+        int k = Enumerable.Range(0, run.Stops.Count).First(i => run.Stops[i].Stop!.Containers.Count(c => c.Zone == StopZone.Village) >= 6);
+        var owners = run.Stops[k].Stop!.Containers.Where(c => c.Zone == StopZone.Village).Take(9).Select(c => DarkTerritory.Sim.Run.Run.LootOwner(k, c.Index)).ToList();
+        for (int i = 0; i < owners.Count; i++)
+        {
+            // A loose pile in the aisle's middle, a few on top of others.
+            var put = sim.Bodies.Put(simTrain, looseCar, DarkTerritory.Sim.Physics.BodyKind.Loot,
+                new Double3(-0.35 + i % 3 * 0.35, looseRoom.Min.Y + 0.3 + i / 3 * 0.3, -0.4 + i / 3 * 0.12), 0.15, 0.4, 0.05);
+            put.Owner = owners[i];
+            put.Yaw = i * 1.3;
+        }
+        var jackpot = sim.Bodies.Put(simTrain, looseCar, DarkTerritory.Sim.Physics.BodyKind.Heavy, new Double3(0.1, looseRoom.Min.Y + 0.5, 1.4), bigLoot.Jackpots!.Items["safe"].Radius, 0.35, 0.05);
+        jackpot.Owner = DarkTerritory.Sim.Run.Run.LootOwner(Enumerable.Range(0, run.Stops.Count).First(i => run.JackpotsAt(i).Count > 0), DarkTerritory.Sim.Run.Run.JackpotContainer);
+        void Ride(double speed, double seconds)
+        {
+            for (int i = 0; i < seconds * SimConstants.TickRate; i++)
+            {
+                simTrain.Dynamics.Velocity = speed;
+                sim.BeginTick();
+                sim.Step(new TrainControls { Reverser = 1, Brake = speed > 0 ? 0 : 1 });
+                sim.StepBodies([]);
+                sim.StepRun([]);
+            }
+        }
+        Ride(0, 1);
+        Ride(Opt(args, "--speed", 20), Opt(args, "--seconds", 4));
+        prizes = sim.Bodies;
+        if (Str(args, "--cam", "") is not { Length: > 0 })
+        {
+            var f = train.Frames[looseCar];
+            // Stood in the aisle a few steps short of where they were put down, looking down across the car at where they went.
+            bigCamera = Camera.LookAt(f.ToWorld(new Double3(0.7, looseRoom.Min.Y + 1.85, -3.4)), f.ToWorld(new Double3(-0.8, looseRoom.Min.Y + 0.1, 0.4)), 68);
+        }
+    }
     if (look is not null && args.Contains("--reverser"))
         look.Art.ReverserThrown = Opt(args, "--reverser", 0.4);
     var horseplay = Str(args, "--horseplay", view switch { "shove" => "shove", "sooted" => "sooted", _ => "" }) is { Length: > 0 } horse
@@ -2181,6 +2263,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         scene.Bodies = [.. scene.Bodies ?? [], .. searched.All];
     if (prizes is not null)
         scene.Bodies = [.. scene.Bodies ?? [], .. prizes.All];
+    if (carriers is not null)
+        scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id is not (Staging.JackpotFront or Staging.JackpotBack)), .. carriers];
     // The village houses' doors (note 401), hanging open; --doors-shut: every one shut.
     if (generated is not null)
     {
@@ -2188,7 +2272,22 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         if (args.Contains("--doors-shut"))
             foreach (var d in scene.Walls.HouseDoors)
                 scene.Walls.SetShut(d.Key, true);
+        // Note 719: the jackpot houses locked, as the run locks them (opened for jackpothouse --inside).
+        if (bigLoot is not null && run is not null)
+        {
+            scene.Walls.Lock(run.LockedDoors());
+            if (view == "jackpothouse" && bigStop >= 0)
+            {
+                int door = run.LockedDoors(bigStop).First();
+                if (args.Contains("--inside"))
+                    scene.Walls.SetShut(door, false);
+                if (Str(args, "--cam", "") is not { Length: > 0 })
+                    camera = Staging.JackpotHouse(scene.Walls, door, args.Contains("--inside"));
+            }
+        }
     }
+    if (bigCamera is { } bigView && Str(args, "--cam", "") is not { Length: > 0 })
+        camera = bigView;
     // G1's house creatures (notes 584-586; Staging.House) in the night's first plain open house (frontier:7 unless --route says;
     // --house n the nth such): the hanger view's Hanger hidden in its roof space over its strands, hangergrab's hauling crewmate
     // 4 up on one (--hanger mode: hidden, grab, haul, hold, hit, retreat); the hollowhouse view's Hollow House sinking,

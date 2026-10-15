@@ -148,6 +148,24 @@ public sealed class Body
     /// taken out of the world). Host only. What takes loot passes it over (<see cref="Bodies.Prey"/>), as it did when it was gone.
     /// </summary>
     public bool Banked { get; set; }
+    /// <summary>
+    /// A fragile find's knocks (note 719; loot.json <c>fragile</c>): each a hard change in its speed (dropped from high,
+    /// thrown, struck, slid into a car's end, off the train onto the ballast), each costing it a share of its worth. On the body
+    /// record, so every client draws it cracked or dented; never more than 15.
+    /// </summary>
+    public int Knocks { get; set; }
+    /// <summary>Note 719: a find whose kind is fragile, so its knocks are counted. Host only; the run says so (<see cref="Run.Run.IsFragile"/>).</summary>
+    public bool Fragile { get; set; }
+    /// <summary>
+    /// Note 719 (loose loot rides the train): its slide across its car's floor, in the car's frame (m/s, level), over and above
+    /// the physics' own motion, which floor friction otherwise stops dead. Host only.
+    /// </summary>
+    public Double3 Slide { get; internal set; }
+    // The way out of what it was lying on, when that was another thing (a stack), this step; ticks till it can be knocked again;
+    // how hard its slide struck something this step (m/s).
+    internal Double3? RestingOn;
+    internal int KnockCool;
+    internal double Struck;
     internal int Airborne;
     internal double LineHint;
     public Double3 Centre => Pbd.Centre;
@@ -950,9 +968,90 @@ public sealed class Bodies
         b.Pbd.Wake();
     }
 
+    /// <summary>
+    /// Note 719: the fragile finds' knocks (loot.json <c>fragile</c>): a body <see cref="Body.Fragile"/> whose speed changes
+    /// by more than its knock speed in a tick is knocked. Unset, nothing is.
+    /// </summary>
+    public Stops.FragileTuning? Fragility { get; set; }
+
+    /// <summary>
+    /// Note 719 (the director, App. F, 9 Oct 2026: "poor stacking becomes an obstacle ... lethal company style"): loose things in
+    /// the cars feel the car's moving and slide, stack and topple (loot.json <c>ride</c>). Unset or off, they lie as they lay.
+    /// </summary>
+    public Stops.RideTuning? Ride { get; set; }
+
+    bool RideOn => Ride is { Enabled: true };
+
+    // Note 719, by car (vehicle id): what's felt in its frame this tick (level, m/s²), its frame's velocity last tick and
+    // whether there was one; the things riding loose in it; how many of those are moving this tick.
+    Double3[] _felt = [], _lastVelocity = [];
+    bool[] _hadVelocity = [];
+    List<Body>?[] _riders = [];
+    int[] _moving = [];
+
+    /// <summary>What a car's riders feel this tick (note 719), in its frame, level; zero when riding's off or it's no car.</summary>
+    public Double3 Felt(int car) => car >= 0 && car < _felt.Length ? _felt[car] : Double3.Zero;
+
+    /// <summary>
+    /// Note 719: a thing that rides loose in its car: a find, a jackpot, freight, a stores crate, a toy or a powder bag, lying
+    /// in a car's room (not in hands, on a shelf or being carried off), nor anything about to be wrecked. What's hung on its
+    /// mount or kept in its place (an extinguisher, a lamp, a radio, the kit, a shelved tool), a child and the dead stay as they
+    /// were.
+    /// </summary>
+    /// <remarks>Inside the car's room, or still sliding out of it (over a door's sill): one lying on a roof stays put.</remarks>
+    static bool Rides(Body b, CarFrame? frame, TrainOnLine train) =>
+        frame is { Shape.Interior: { } room } && b.Kind is BodyKind.Loot or BodyKind.Heavy or BodyKind.Cargo or BodyKind.Crate or BodyKind.Toy or BodyKind.Powder
+        && b.Pbd.Particles.Length == 1 && b.Carrier < 0 && b.TakenBy < 0 && !b.Stowed && train.Wreck is null
+        && (b.Slide != Double3.Zero || room.Contains(b.Pbd.Particles[0].Position));
+
+    /// <summary>
+    /// Note 719: each car's felt acceleration this tick, from its frame's velocity against last tick's: the other way from the
+    /// car's own (on a bend, outward; braking, forward), level, capped at <c>ride.maxFelt</c>. A frame put somewhere new (a tool
+    /// or a test moving the train, a change faster than any brake or buffer: 3 m/s in a tick) is felt as nothing.
+    /// </summary>
+    void Feel(TrainOnLine train, Stops.RideTuning ride)
+    {
+        int n = train.Frames.Count;
+        if (_felt.Length != n)
+        {
+            _felt = new Double3[n];
+            _lastVelocity = new Double3[n];
+            _hadVelocity = new bool[n];
+            _riders = new List<Body>?[n];
+            _moving = new int[n];
+        }
+        for (int i = 0; i < n; i++)
+        {
+            var f = train.Frames[i];
+            var felt = Double3.Zero;
+            var change = f.Velocity - _lastVelocity[i];
+            if (_hadVelocity[i] && change.Length < 3)
+            {
+                var local = f.DirToLocal(change * (-1 / Dt));
+                local = local with { Y = 0 };
+                double m = local.Length;
+                felt = m > ride.MaxFelt ? local * (ride.MaxFelt / m) : local;
+            }
+            _felt[i] = felt;
+            _lastVelocity[i] = f.Velocity;
+            _hadVelocity[i] = true;
+            _riders[i]?.Clear();
+            _moving[i] = 0;
+        }
+        foreach (var b in _bodies)
+            if (b.Parent > 0 && b.Parent < n && Rides(b, train.Frames[b.Parent], train))
+                (_riders[b.Parent] ??= []).Add(b);
+    }
+
+    /// <summary>How hard a riding thing grips what it lies on before it slides (m/s², note 719): a jackpot better.</summary>
+    double Grip(Body b, double gravity) => Ride!.Grip * gravity * (b.Kind == BodyKind.Heavy ? Ride.HeavyGrip : 1);
+
     /// <summary>Host: one physics step for everything loose, after the train and players have moved.</summary>
     public void Step(TrainOnLine train, TrainTuning t, Func<int, PlayerState?> player)
     {
+        var ride = RideOn ? Ride : null;
+        if (ride is not null)
+            Feel(train, ride);
         // A hard stop or a collision throws loose things about: wake anything aboard.
         if (Math.Abs(train.Dynamics.Acceleration) > 1.0)
             foreach (var b in _bodies)
@@ -970,9 +1069,40 @@ public sealed class Bodies
             if (b.Parent != PlayerState.World && b.Parent >= train.Frames.Count)
                 ToWorld(b, train, b.Parent);
             var frame = b.Parent == PlayerState.World ? (CarFrame?)null : train.Frames[b.Parent];
-            // In a car's frame, its braking or pulling is felt as a push the other way.
-            double carAccel = frame is { } cf ? (train.Rakes.FirstOrDefault(r => r.Consist.Vehicles.Any(v => v.Id == cf.Index))?.Acceleration ?? 0) : 0;
-            var gravity = frame is { } f ? f.DirToLocal(Double3.Up * -t.Gravity + f.Back * carAccel) : Double3.Up * -t.Gravity;
+            bool rides = ride is not null && !b.Lifted && Rides(b, frame, train);
+            Double3 gravity;
+            if (rides)
+                // Note 719: all the car's moving is felt, its turning on a bend as well as its braking and pulling.
+                gravity = frame!.Value.DirToLocal(Double3.Up * -t.Gravity) + _felt[b.Parent];
+            else
+            {
+                // In a car's frame, its braking or pulling is felt as a push the other way.
+                double carAccel = frame is { } cf ? (train.Rakes.FirstOrDefault(r => r.Consist.Vehicles.Any(v => v.Id == cf.Index))?.Acceleration ?? 0) : 0;
+                gravity = frame is { } f ? f.DirToLocal(Double3.Up * -t.Gravity + f.Back * carAccel) : Double3.Up * -t.Gravity;
+            }
+            // No longer riding (picked up, off the car), a slide it had goes on as the physics' own motion.
+            if (!rides && b.Slide != Double3.Zero)
+            {
+                if (b.Carrier < 0 && b.TakenBy < 0)
+                    b.Pbd.Particles[0].Previous -= b.Slide * Dt;
+                b.Slide = Double3.Zero;
+                b.Pbd.Wake();
+            }
+            // Note 719: lying still in a car, felt past its grip, it wakes to slide; no more than ride.liveCap at once in a car
+            // (in body order), the rest held as they lie till those are still.
+            if (rides && (!b.Pbd.Asleep || _felt[b.Parent].Length > Grip(b, t.Gravity)))
+            {
+                if (_moving[b.Parent] >= ride!.LiveCap)
+                {
+                    if (!b.Pbd.Asleep)
+                        b.Pbd.Sleep();
+                    b.Slide = Double3.Zero;
+                    continue;
+                }
+                _moving[b.Parent]++;
+                if (b.Pbd.Asleep)
+                    b.Pbd.Wake();
+            }
             // Asleep, it stays in the frame it fell asleep in: it isn't touching anything new.
             if (b.Pbd.Asleep && !b.Lifted)
                 continue;
@@ -982,9 +1112,18 @@ public sealed class Bodies
                 _before = new Double3[ps.Length];
             for (int i = 0; i < ps.Length; i++)
                 _before[i] = ps[i].Position;
-            b.Pbd.Step(Dt, gravity, (pos, r) => Contact(b, frame, pos, r, train, ref touchedCar));
+            // Note 719: what it was doing before this step, for a knock.
+            bool counts = b.Fragile && Fragility is not null && !b.Lifted && b.Carrier < 0 && b.TakenBy < 0 && ps.Length == 1;
+            var was = counts ? ps[0].Velocity(Dt) + b.Slide : Double3.Zero;
+            b.RestingOn = null;
+            b.Struck = 0;
+            b.Pbd.Step(Dt, gravity, (pos, r) => Contact(b, frame, pos, r, train, ref touchedCar, rides));
+            if (rides)
+                SlideOn(b, frame!.Value, train, gravity, t.Gravity);
             if (frame is { } room && !b.Lifted && train.Wreck is null)
                 KeepInside(b, room.Shape, train.Vehicles[room.Index]);
+            if (counts)
+                Knock(b, was, gravity);
             if (!b.Lifted && !b.Pbd.Asleep)
             {
                 b.Yaw += b.Spin * Dt;
@@ -997,9 +1136,128 @@ public sealed class Bodies
     Double3[] _before = new Double3[11];
 
     /// <summary>
+    /// Note 719: a riding thing's slide this step. Lying on something (the floor, a bench, another thing), whatever the car
+    /// makes it feel along the level (and, lying on another thing, the slope it lies on) over its grip sets it sliding, and the
+    /// slide's own friction slows it till it stops (and it isn't pushed on past its grip). It moves by its slide, unless what
+    /// it'd go into stops it there: the car's solids and shut doors and the other things riding in it (which it shoves along a
+    /// little, and wakes). The room's walls stop it after (<see cref="KeepInside"/>). Off what it lay on (over the edge of a
+    /// stack, out of a door), it flies on at its slide's speed, the physics' now.
+    /// </summary>
+    void SlideOn(Body b, CarFrame frame, TrainOnLine train, Double3 gravity, double g)
+    {
+        var ride = Ride!;
+        ref var p = ref b.Pbd.Particles[0];
+        if (!p.Contact)
+        {
+            if (b.Slide != Double3.Zero)
+            {
+                p.Previous -= b.Slide * Dt;
+                b.Slide = Double3.Zero;
+            }
+            return;
+        }
+        var push = gravity with { Y = 0 };
+        double grip = Grip(b, g);
+        if (b.RestingOn is { } n)
+        {
+            // On another thing: the slope it's lying on pulls it off (the level part of gravity along the slope).
+            var down = Double3.Up * -g;
+            push += (down - n * Double3.Dot(down, n)) with { Y = 0 };
+            grip = ride.StackGrip * g;
+        }
+        var slide = b.Slide;
+        double friction = ride.Slide * g;
+        if (slide.Length < 1e-6)
+            slide = push.Length > grip ? (push - push.Normalized * friction) * Dt : Double3.Zero;
+        else
+        {
+            var next = slide + (push - slide.Normalized * friction) * Dt;
+            slide = Double3.Dot(next, slide) <= 0 && push.Length <= grip ? Double3.Zero : next;
+        }
+        slide = slide with { Y = 0 };
+        if (slide == Double3.Zero)
+        {
+            b.Slide = slide;
+            return;
+        }
+        // What it'd go into, where its slide takes it: stopped at it, the way into it gone.
+        var to = p.Position + slide * Dt;
+        var vehicle = train.Vehicles[frame.Index];
+        foreach (var (normal, other) in Blocks(b, frame, vehicle, to, p.Radius))
+        {
+            double into = Double3.Dot(slide, normal);
+            if (into >= 0)
+                continue;
+            b.Struck = Math.Max(b.Struck, -into);
+            if (other is not null)
+            {
+                // A shove: half of it goes on in what it struck, woken.
+                other.Slide += (normal * (into * 0.5)) with { Y = 0 };
+                other.Struck = Math.Max(other.Struck, -into);
+                other.Pbd.Wake();
+            }
+            slide -= normal * into;
+        }
+        b.Slide = slide;
+        p.Position += slide * Dt;
+        p.Previous += slide * Dt;
+        b.Pbd.Wake();
+    }
+
+    /// <summary>
+    /// Note 719: what a riding thing would go into at <paramref name="at"/> in its car: the way out of each (level) and the
+    /// thing it is, if it's another rider (null for the car's solids and shut doors). Not the floor under it.
+    /// </summary>
+    IEnumerable<(Double3 Normal, Body? Other)> Blocks(Body b, CarFrame frame, Vehicle vehicle, Double3 at, double r)
+    {
+        foreach (var solid in frame.Shape.Solids)
+            if (solid.Present(vehicle) && Collide.SphereBox(at, r, solid.BoxIn(vehicle).Min, solid.BoxIn(vehicle).Max) is { } hit
+                && (hit.Normal with { Y = 0 }).Length > 0.5)
+                yield return ((hit.Normal with { Y = 0 }).Normalized, null);
+        foreach (var door in frame.Shape.DoorList)
+            if (!vehicle.DoorOpen(door.Index) && Collide.SphereBox(at, r, door.Box.Min, door.Box.Max) is { } hit && (hit.Normal with { Y = 0 }).Length > 0.5)
+                yield return ((hit.Normal with { Y = 0 }).Normalized, null);
+        if (frame.Index < _riders.Length && _riders[frame.Index] is { } others)
+            foreach (var o in others)
+            {
+                if (o == b)
+                    continue;
+                var q = o.Pbd.Particles[0];
+                var d = (at - q.Position) with { Y = 0 };
+                double reach = r + q.Radius, dist = d.Length;
+                // Level with it (not one lying on the other) and closer than they're big.
+                if (dist >= reach || dist < 1e-9 || Math.Abs(at.Y - q.Position.Y) > Math.Max(r, q.Radius))
+                    continue;
+                yield return (d * (1 / dist), o);
+            }
+    }
+
+    /// <summary>
+    /// Note 719: a fragile find knocked: its speed this step changed by more than <c>fragile.knockSpeed</c> beyond what gravity
+    /// and its car made of it (a landing from high, a throw's end, the ballast at line speed), or its slide struck something at
+    /// more than <c>slideKnock</c>. Once a <c>knockSeconds</c> at most, and never past 15.
+    /// </summary>
+    void Knock(Body b, Double3 was, Double3 gravity)
+    {
+        var f = Fragility!;
+        if (b.KnockCool > 0)
+        {
+            b.KnockCool--;
+            return;
+        }
+        var now = b.Pbd.Particles[0].Velocity(Dt) + b.Slide;
+        double change = (now - was - gravity * Dt).Length;
+        if ((change > f.KnockSpeed || b.Struck > f.SlideKnock) && b.Knocks < 15)
+        {
+            b.Knocks++;
+            b.KnockCool = (int)Math.Round(f.KnockSeconds / Dt);
+        }
+    }
+
+    /// <summary>
     /// What was in a car's room stays in it, but out through an opening (note 173): a particle that this step went past a
     /// wall (pushed out of its far side, or through it between ticks at a throw's speed) is stopped inside it, its speed
-    /// out of the room gone.
+    /// out of the room gone (and a riding thing's slide that way: note 719, how hard it struck counted).
     /// </summary>
     void KeepInside(Body b, CarShape shape, Vehicle vehicle)
     {
@@ -1011,9 +1269,15 @@ public sealed class Bodies
                 continue;
             // The way it was moving, but not out through the wall: the stopped axis keeps no speed.
             var v = p.Position - p.Previous;
-            v = new Double3(held.X != p.Position.X ? 0 : v.X, held.Y != p.Position.Y ? 0 : v.Y, held.Z != p.Position.Z ? 0 : v.Z);
+            bool x = held.X != p.Position.X, y = held.Y != p.Position.Y, z = held.Z != p.Position.Z;
+            v = new Double3(x ? 0 : v.X, y ? 0 : v.Y, z ? 0 : v.Z);
             p.Previous = held - v;
             p.Position = held;
+            if (b.Slide != Double3.Zero)
+            {
+                b.Struck = Math.Max(b.Struck, Math.Max(x ? Math.Abs(b.Slide.X) : 0, z ? Math.Abs(b.Slide.Z) : 0));
+                b.Slide = new Double3(x ? 0 : b.Slide.X, 0, z ? 0 : b.Slide.Z);
+            }
             b.Pbd.Wake();
         }
     }
@@ -1202,11 +1466,31 @@ public sealed class Bodies
     }
 
     /// <summary>What a particle hits: car solids and shut doors of any car nearby, and the ground.</summary>
-    Contact? Contact(Body b, CarFrame? frame, Double3 pos, double r, TrainOnLine train, ref int touchedCar)
+    /// <param name="rides">Note 719: it's riding loose in its car, so the other things riding there are solid to it (a stack).</param>
+    Contact? Contact(Body b, CarFrame? frame, Double3 pos, double r, TrainOnLine train, ref int touchedCar, bool rides = false)
     {
         var world = frame is { } f ? f.ToWorld(pos) : pos;
         Contact? best = null;
         double bestDepth = 0;
+        // Note 719: the things riding in its car, ball against ball; lying on one, the way off it is what it rests on (for a
+        // stack's slope: SlideOn).
+        Double3? resting = null;
+        if (rides && frame is { } rf && rf.Index < _riders.Length && _riders[rf.Index] is { } others)
+            foreach (var o in others)
+            {
+                if (o == b)
+                    continue;
+                var q = o.Pbd.Particles[0];
+                var d = pos - q.Position;
+                double reach = r + q.Radius, dist = d.Length;
+                if (dist >= reach || dist < 1e-9 || reach - dist <= bestDepth && best is not null)
+                    continue;
+                var n = d * (1 / dist);
+                best = new Contact(rf.ToWorld(q.Position + n * reach), rf.DirToWorld(n));
+                bestDepth = reach - dist;
+                touchedCar = rf.Index;
+                resting = n.Y > 0.3 ? n : null;
+            }
         foreach (var g in train.Frames)
         {
             if ((g.Origin - world).Length > NearbyCar)
@@ -1251,6 +1535,8 @@ public sealed class Bodies
         }
         if (best is not { } hit)
             return null;
+        if (resting is { } on && touchedCar == frame?.Index && Math.Abs(Double3.Dot(frame.Value.DirToLocal(hit.Normal), on) - 1) < 1e-9)
+            b.RestingOn = on;
         return frame is { } fr ? new Contact(fr.ToLocal(hit.Position), fr.DirToLocal(hit.Normal)) : hit;
     }
 

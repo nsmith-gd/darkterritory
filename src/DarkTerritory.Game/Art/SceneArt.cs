@@ -783,6 +783,9 @@ public sealed partial class SceneArt(Look look)
             Sim.Physics.BodyKind.Cargo => props.Get(Freight(b)) ?? Piece("prop-cargo", () => PropKit.Cargo(Look)),
             Sim.Physics.BodyKind.Toy => props.Get(ToyModel(b.Id, b.Noise)) ?? PropArt.Of(Look).Get("hand_lantern")
                 ?? Piece("prop-lantern", () => PropKit.Lantern(Look)),
+            // A two-person jackpot (note 719): a heavy crate's ball, drawn as what it is (a safe, a church bell, a figurehead).
+            Sim.Physics.BodyKind.Heavy when FindItem?.Invoke(b) is { } jackpot => Piece($"jackpot-{jackpot}-{b.Pbd.Particles[0].Radius:0.00}",
+                () => FindKit.Jackpot(Look, jackpot, (float)b.Pbd.Particles[0].Radius)),
             Sim.Physics.BodyKind.Heavy => props.Get("heavy_crate") ?? Piece($"prop-heavy-{heavyHalf:0.00}", () => PropKit.Heavy(Look, (float)heavyHalf)),
             Sim.Physics.BodyKind.Crate => props.Get("stores_crate") ?? Piece("prop-crate", () => PropKit.Crate(Look)),
             Sim.Physics.BodyKind.Radio => props.Get("field_radio") ?? Piece("prop-radio", () => PropKit.Radio(Look)),
@@ -793,7 +796,8 @@ public sealed partial class SceneArt(Look look)
             // A tool left on a locker's shelf (note 649): its own model, as it's drawn in hand.
             Sim.Physics.BodyKind.Tool when ToolProp(Sim.Player.Kit.At(b.Tools, 0)) is { } tool => tool,
             // A village find as what it is (FindKit; the director, 8 Oct: finds that stand out by their texture).
-            Sim.Physics.BodyKind.Loot when FindItem?.Invoke(b) is { } item => Piece($"find-{item}", () => FindKit.Find(Look, item, 0.15f)),
+            // (A fragile one as knocked as it is, note 719: cracked, dented, smashed.)
+            Sim.Physics.BodyKind.Loot when FindItem?.Invoke(b) is { } item => Piece($"find-{item}-{Math.Min(b.Knocks, 2)}", () => FindKit.Find(Look, item, 0.15f, Math.Min(b.Knocks, 2))),
             Sim.Physics.BodyKind.Loot => Piece("prop-loot", () => PropKit.Loot(Look, 0.15f)),
             // The hand lamp: the sourced lantern (tools/models hand_lantern) where it's built.
             _ => PropArt.Of(Look).Get("hand_lantern") ?? Piece("prop-lantern", () => PropKit.Lantern(Look)),
