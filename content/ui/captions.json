@@ -213,6 +213,11 @@
     "figures.party": "MUSIC AND LAUGHTER, MUFFLED",
     "figures.jacob-fish": "A REEL TICKING, WATER LAPPING",
     "figures.jacob-bless": "A SOFT SHIMMER",
+    // K1's merged asks (note 774): the mail catch, a comet fragment, the speaking tube's call.
+    "crew-mail.catch": "A MAIL BAG SNATCHED",
+    "crew-mail.tear": "CANVAS RIPPING, THE BAG LOST",
+    "world-comet.hum": "A LOW, WRONG HUM",
+    "crew-speaking-tube.call": "A WHISTLE DOWN THE TUBE",
     "cs-grumbler.feral": "A RAGGED BELLOW, TEETH GNASHING",
     "cs-grumbler.eat": "SLATS SPLITTING, GNAWING",
     "cs-choir.arrive": "BELLS SWELLING INTO SONG",

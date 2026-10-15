@@ -72,6 +72,9 @@ public class CaptionsTests
     [InlineData("figures.dave-paint")]
     [InlineData("figures.party")]
     [InlineData("figures.jacob-fish")]
+    // Note 774: the speaking tube's call, the mail bag torn.
+    [InlineData("crew-speaking-tube.call")]
+    [InlineData("crew-mail.tear")]
     public void TheTellsAndCallsSinceCaptionsAreCaptioned(string sound)
     {
         // Note 391: the signs as they play since note 342, the Moose's and the Gannet's tells (notes 334, 384), and the jobs
