@@ -80,4 +80,50 @@ public class CrewGoesOnTests
             Assert.Equal(next.World.Town!.Plan.Name, joined.World.Town!.Plan.Name);
         }
     }
+
+    [Fact]
+    public void TheCrewFollowsWithTheRunsNewPasswordWhenTheHostChangedIt()
+    {
+        // Note 535: a private run's host changed its password in the night. The crew going on with it are given the new key
+        // as it goes, so the next night (hosted with the new password, as the settings now have it) lets them in.
+        const int beacon = 27489;
+        var first = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: false), port: 0, listed: true,
+            password: "lantern", beacon: new Ballast.Net.LanBeacon(beacon, [IPAddress.Loopback]));
+        int port = first.Port;
+        var at = new IPEndPoint(IPAddress.Loopback, port);
+        using var a = NetPlaySession.Join(Content, at, () => first.Step(default), password: "lantern");
+        for (int t = 0; t < SimConstants.TickRate; t++)
+        {
+            first.Step(default);
+            a.Step(default);
+        }
+        first.ChangePassword("tinder");
+        var town = Assert.IsType<TownAt>(TownAt.Terminus(first.Route!, LineGenContent.Cached(Content).Config.Tiers.Fortress.Identities));
+        first.CarryOn(town);
+        for (int t = 0; t < SimConstants.TickRate / 2; t++)
+        {
+            first.Step(default);
+            a.Step(default);
+        }
+        first.Dispose();
+        for (int t = 0; t < SimConstants.TickRate * 30 && !a.Lost; t++)
+        {
+            a.Step(default);
+            Thread.Sleep(1);
+        }
+        var going = a.GoingOn!;
+        Assert.Equal(Sim.Net.Messages.PasswordKey("tinder"), going.Key);
+
+        using var next = NetPlaySession.HostGame(Content, new SessionSetup(Route: TownAt.With("frontier:3", town), Cars: 4, Enemies: false), port: port,
+            listed: true, password: "tinder", beacon: new Ballast.Net.LanBeacon(beacon, [IPAddress.Loopback]));
+        var quick = P with { Rejoin = P.Rejoin with { RetrySeconds = 0.1, FollowSeconds = 60 } };
+        using var followed = NetPlaySession.Follow(Content, going, () => next.Step(default), quick);
+        for (int t = 0; t < SimConstants.TickRate; t++)
+        {
+            next.Step(default);
+            followed.Step(default);
+        }
+        Assert.True(followed.Client.Connected);
+        Assert.Equal(2, next.Host!.Players.Count());
+    }
 }

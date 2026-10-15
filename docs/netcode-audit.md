@@ -222,6 +222,8 @@ fine; the second is a queue item of a week.
 
 ### Gap 7. Note 450's "not yet" (N1 or an agent; small)
 
+*Done as note 535 (B3, queue #275).*
+
 The host can't change the password or the mood once the lobby's open; a password guesser isn't slowed beyond a
 connection per guess; nothing lists a crew's record distance beside a competitive run. All small, all in N1's area.
 
