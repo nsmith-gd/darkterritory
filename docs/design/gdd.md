@@ -402,6 +402,16 @@ Until the train passes the outer gate, the fortress yard and the lobby are a saf
 
 The run, and every consequence in it, begins as the train goes through the gate (run.json `yardIsSafe`). Emotes (a dance, a wave, a point) and outfits to try on are ARCHITECTURE §8 note 298. In the yard each player can also paint their mask (PAINT YOUR MASK, on the night's menu and in the settings): the crew see the new paint at once. Past the gate, a change waits for the next night (§29 "Painted masks"; the director, 14 Oct 2026; ARCHITECTURE §8 note 731).
 
+**Emotes for two, and more of them** *(the director, 14 Oct 2026, App. F.6; ARCHITECTURE §8 note 722)*. Emotes that need a second person are a friend's thing by definition. The emote wheel (hold J) has twelve places round the crosshair like a clock: DANCE at the top, WAVE to the left, POINT to the right, ABOARD at the bottom, as before; HIGH FIVE and FIST BUMP up beside the dance; SIT and LEAN OUT down beside the point. Three places are kept for the bow, the salute and the conga (the "more emotes" upgrade), and one is free. Anywhere, yard or night, and none of them moves anything:
+
+- **The high five.** Pick it and your hand goes up, offered, for up to 3 s. A crewmate within 1.5 m, the two of you facing each other, who picks it too answers it: the hands meet with a slap, both of you on the same tick. Left unanswered, the hand hangs there, sagging a little, till it runs out. Bots answer one held up to them (they turn to you, stop, and slap it a beat later); bots never offer.
+- **The fist bump.** The same, a fist held out low, with a knock.
+- **The dance-off.** Two or more dancing within 3 m, facing each other, are a dance-off: one leads with the big moves while the rest clap along, and the lead goes round them every 2 s.
+- **Sitting on the edge.** On a car's roof by its side, on a door landing or a running board by its edge, or in an open side door (the edge across the sill and the landing), you sit with your legs over. You stay sat in the car's frame, at any speed, while you look about; any move or a jump stands you up. A shove still puts you off (at speed, that can kill: §23.4), and a friend who picks you up lifts you off the edge.
+- **Leaning out.** In a car's open side door or the cab's doorway, you lean out with a hand on the jamb, your head free to look where you look. You stand up the same way.
+
+Over a friend's shoulder you can't emote at all (§23.5). `player.json emotes`.
+
 ### Arrival
 Eventually the crew sees lights. Then walls. Then cannon towers. The gates open and the train crosses back into civilization.
 

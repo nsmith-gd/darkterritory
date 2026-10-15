@@ -106,7 +106,9 @@ public static class Protocol
     //     a coupling's pin loose on its car's record (the wound and seized byte's bits 2 up), a bend taken too fast among them.
     // 69: odd outcomes (note 730): what they did (RecordKind.Odd) and the stops' odd things' state (RecordKind.Oddity), and the
     //     report's letters (IncidentKind.Letter).
-    public const int Version = 69;
+    // 70: emotes for two (note 722): an emote record carries the tick a high five's or fist bump's hands met and with whom;
+    //     the emote byte (protocol 60) carries the new emotes 5-8 (the high five, the fist bump, the sit, the lean) as it is.
+    public const int Version = 70;
 }
 
 public enum MessageType : byte

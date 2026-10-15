@@ -893,6 +893,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [719. Big finds (K1, queue #453; the director, 14 Oct 2026, `docs/design/friendslop.md`)](notes/719.md)
 - [720. Voices: the speaking tube, the whistle codes, singing together, lamp signals (K1, queue #454; the director's calls of 14 Oct 2026,…](notes/720.md)
 - [721. Crew memory (K1, queue #455; the director, 14 Oct 2026, `docs/design/friendslop.md` §3, GDD App. F.6)](notes/721.md)
+- [722. Emotes for two, and more of them (K1, queue #456; the director, 14 Oct 2026, `docs/design/friendslop.md` §3, GDD App. F.6)](notes/722.md)
 - [723. Bringing them home (K1, queue #457; the director, 14 Oct 2026, `docs/design/friendslop.md` §3, GDD App. F.6)](notes/723.md)
 - [724. Sessions (K1, queue #458; the director, 14 Oct 2026, `docs/design/friendslop.md`, GDD App. F.6)](notes/724.md)
 - [727. The mail catch (K1, queue #461; the director, 14 Oct 2026, GDD App. F.6)](notes/727.md)
