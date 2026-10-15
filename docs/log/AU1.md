@@ -212,3 +212,17 @@ launches are AU1.1, AU1.2, …. Entries are UTC; those before 12:55 on 7 Oct wer
 - **The checklist:** a line for S1's covered voice (`voice-held`, note 749's ask), at L1 in review.
 - **Claimed #506 (note 776):** K1's #1016, the crew car's kettle and cuckoo, the crew photo's flash, the logbook's pages.
   The cue lines are in, and a recipe agent is building the candidates ahead of the merge.
+
+## 15 Oct, ~04:50 UTC: #1020 merged; #1025 open; K1's crew car heard (#506)
+
+- **Merged #1020** (the house creatures, the claims). The next PR, #1025 (#501-#504 and #505's candidates), opened on
+  the new main and merged main once more when K1's #1016 landed under it.
+- **#506, K1's crew car and crew memory:** #1016 merged at 04:20, so it's done in #1025 too:
+  - the kettle and the cuckoo heard off the crew car's own reckoning;
+  - the photo's flash where it goes off;
+  - the logbook's own open, page and shut;
+  - the candidates installed, the two rows at L1, a test, three captions.
+- **The checklist:** every row now has candidates. Only U1's four `up-` rows still sit at L0, waiting on #967 (the band's
+  is #967's own), plus `crew-gun-lay`'s verdict. No new verdicts tonight; the Voice Booth has none either.
+- **The weak-sound check on tonight's installs:** every impact and footfall is under the squish line. The rest of the
+  flags are the far and low ones by design: the Wakers' thuds and calls, the comet's hum, the guns far off.
