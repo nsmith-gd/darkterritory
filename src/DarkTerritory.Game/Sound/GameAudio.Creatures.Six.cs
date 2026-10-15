@@ -51,6 +51,9 @@ public sealed partial class GameAudio
             case Hotbox h:
                 HotboxSounds(world, h, was, at, occ, dt);
                 break;
+            default:
+                HouseSounds(world, e, was, at, struck);
+                break;
         }
     }
 

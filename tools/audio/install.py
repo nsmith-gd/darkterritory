@@ -270,7 +270,12 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 # Note 444: the truss Dragger's whole weight on the roof (limbs, lighter, a candidate).
                 "cs-draggers.drop": "slam",
                 # Note 388: the Brakeman's iron heel and hobnails from real recordings, the modelled plank a candidate.
-                "tell-brakeman.step": "hob"}
+                "tell-brakeman.step": "hob",
+                # Note 767: the house creatures from the packs' real things where the first by name is the model; the
+                # strands' hum the model, a wire's wake (the struck metal frozen into a whine a candidate).
+                "tell-lodger-breathing.breathing": "lungs", "tell-lodger-shriek.shriek": "wail", "cs-lodger.lunge": "soles",
+                "tell-householder-rise.rise": "scrape", "cs-householder.breath": "rasp", "tell-hollow-house.rumble": "ground",
+                "cs-hollow-house.slam": "thrown", "cs-hollow-house.sink": "timber", "tell-hanger-strands.hum": "wire"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the
