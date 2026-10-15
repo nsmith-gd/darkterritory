@@ -47,6 +47,9 @@ public class CaptionsTests
     [InlineData("tell-knotter.creep")]
     [InlineData("cs-freight-beetle.push.ground")]
     [InlineData("tell-hotbox.knock")]
+    // Note 768: horseplay, a reader told what a hearing player is.
+    [InlineData("crew-horseplay.bonk")]
+    [InlineData("crew-horseplay.coal-land.roof")]
     public void TheTellsAndCallsSinceCaptionsAreCaptioned(string sound)
     {
         // Note 391: the signs as they play since note 342, the Moose's and the Gannet's tells (notes 334, 384), and the jobs

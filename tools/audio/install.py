@@ -225,8 +225,9 @@ def candidates(line, cue, stored):
     out = []
     for k in stored.get("cands") or []:
         k = dict(k)
-        if k["src"] in by_url:
-            e = by_url[k["src"]]
+        if k["src"] in by_url or k["src"].startswith("built:") and k["src"][6:] in man:
+            # A candidate on the page, or one just built for a line the page doesn't have yet (ci_build.py's fresh).
+            e = by_url.get(k["src"]) or man[k["src"][6:]]
             k.update(built=True, line=e["line"], cue=e["cue"], key=e["key"], mat=e["mat"])
         elif k.get("old") or k["src"].startswith("audio/"):
             k["old"] = True
