@@ -975,6 +975,12 @@ CUES = {
         O("take", "One who ran taken in its hand: the ground struck, a grip closing", vars=2),
         O("swallow", "Eaten: a crunch and a long swallow overhead", vars=2),
     ],
+    # The town's guns at the walls (queue #502, note 772; note 599, wakers.md §4): firing over the wall at a Waker stood
+    # stopShort out, on the beat the scene draws them (Effects.WallGunBeat), and at whatever's brought into the town.
+    "town-guns": [
+        O("fire", "A gun on the town's walls firing over them at what stands outside: the boom and the land's roll", vars=3),
+        O("hit", "A ball landing on a Waker's back far out: a deep dull whump into a hill of meat", vars=3),
+    ],
     # The figures (queue #503, note 773; P1's notes 570, 571, 489; asked of AU1 in #569): Dave at his easel past a stop, Nicki's
     # party in the one house up late, Jacob fishing at the water's edge. People, not creatures: warm, small, human.
     "figures": [
