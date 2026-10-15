@@ -911,6 +911,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [743. The dead's cameras: a wide of the train, over a shoulder, the bodies (A1, queue #477; the director, 14 Oct,…](notes/743.md)
 - [744. The whimsies, second round (U1, queue #447; the director, 14 Oct 2026: "keep going with fun batches and whimsies"; docs/design/upgrades.md…](notes/744.md)
 - [745. The whimsies, third round: the yard cat, the dog and the tennis-ball launcher (U1, queue #447; the director, 14 Oct 2026: "keep going with…](notes/745.md)
+- [746. The human cannonball (U1, queue #447; docs/design/upgrades.md §8.3; the director, 15 Oct 2026: "the reload flow to be powder, pack, then…](notes/746.md)
 - [747. The blacksmith's dev unlock (U1, queue #444; the director, 14 Oct 2026: "I want you to add a dev unlock mode where I can just infinitely…](notes/747.md)
 - [767. The house creatures heard (AU1, queue #497; G1's #316-#319, notes 583-586; their design docs' §4)](notes/767.md)
 - [768. Horseplay heard (AU1, queue #498; K1's #451, note 717)](notes/768.md)
