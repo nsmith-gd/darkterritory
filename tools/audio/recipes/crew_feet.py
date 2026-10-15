@@ -22,7 +22,7 @@ from dsp import samples, lp, hp, env, mix
 from recipes import crew_kit as ck
 from recipes.crew_kit import recipe
 
-FEET = ["wood", "grate", "plate", "roof", "coal", "ballast", "dirt", "grass", "mud", "cobbles", "concrete"]
+FEET = ["wood", "grate", "plate", "roof", "coal", "ballast", "dirt", "grass", "mud", "cobbles", "concrete", "water"]
 BOOTS = [f"kenney_rpg-audio:footstep0{i}" for i in range(10)]
 CONCRETE = [f"kenney_impact-sounds:footstep_concrete_00{i}" for i in range(5)]
 GRASS = [f"kenney_impact-sounds:footstep_grass_00{i}" for i in range(5)]
@@ -35,6 +35,7 @@ TIN = [f"kenney_impact-sounds:impactTin_medium_00{i}" for i in range(5)]
 STONES = ["sfx_100_v2:stones_01", "sfx_100_v2:stones_02", "sfx_100_v2:stones_03"]
 CRUNCH = ["sfx_100_v2:footstep_01", "sfx_100_v2:footstep_02"]
 WET = ["sfx_100_v2:footstep_wet_01", "sfx_100_v2:footstep_wet_02", "sfx_100_v2:footstep_wet_03"]
+WATER = ["sfx_100_v2:loop_water_01", "sfx_100_v2:loop_water_02", "sfx_100_v2:loop_water_03"]
 
 
 # ---- The boots ----------------------------------------------------------------------------------------------------------------
@@ -204,6 +205,49 @@ def on_mud(rng, boot, s, part, take):
     return hp(y, 80, 4)
 
 
+def churned(rng, length, take):
+    """A slice of the packs' real running water, gated to a contact: the water a shin pushes through, its low end out."""
+    src = ck.get(WATER[(take + int(rng.integers(3))) % 3])
+    i = int(rng.integers(0, max(1, len(src) - samples(length + 0.1))))
+    x = ck.norm(hp(src[i:i + samples(length)], 300, 2))
+    return x * env([(0, 0), (0.015, 1), (length * 0.4, 0.6), (length, 0)], length)
+
+
+def on_water(rng, boot, s, part, take):
+    """Wading, ankle to knee deep (a town's marsh and shallows, note 799): the foot going in (the packs' real wet steps,
+    their splash kept, their squelch's low end out), the water churned round the shin (a slice of the packs' real running
+    water), the bed's dull thud under it; and on the toe the boot coming up out of it, the water closing over with a few
+    bubbles. No boot click: the sole's under water."""
+    wet = ck.get(ck.one(WET, take + (part == "toe")))
+    h = ck.hits(wet, floor_db=-10, gap=0.03)
+    a = h[int(rng.integers(len(h)))][0] if h else 0
+    wet = ck.norm(hp(ck.cut(ck.denoise(wet), a - samples(0.005), a + samples(0.2), 0.003, 0.06), 350, 2))
+    if part == "heel":
+        y = mix(wet * 0.75 * s, churned(rng, 0.28, take) * 0.5 * s, ck.pad(rng, 0.08, 170) * 0.3 * s)
+    else:
+        lift = mix(churned(rng, 0.22, take + 1) * 0.6, synth.bubbles(0.2, 30, 400, 1600, rng, rise=(0.1, 0.4)) * 0.35)
+        y = mix(wet * 0.35 * s, lift * s)
+    return hp(y, 90, 4)
+
+
+def on_wade(rng, boot, s, part, take):
+    """Wading, modelled: the shin shoving the water ahead of it (a swell of noise through the band a body of water sounds
+    in, opening and closing as the leg drives through), the splash's spray where the foot breaks the surface, the small
+    bubbles it drags down ringing; on the toe the boot lifting clear, the water pouring off it."""
+    L = rng.uniform(0.22, 0.3)
+    n = synth.noise(L, rng, "pink")
+    fc = env([(0, 400), (L * 0.3, rng.uniform(1600, 2200)), (L, 500)], L, curve="exp")
+    surge = ck.norm(dsp.sweep_filter(n, "lp", fc, q=1.2)) * env([(0, 0), (0.02, 1), (L * 0.5, 0.7), (L, 0)], L)
+    if part == "heel":
+        spray = ck.norm(hp(synth.noise(0.04, rng, "white"), 1500, 2)) * env([(0, 1), (0.04, 0)], 0.04)
+        y = mix(surge * 0.7 * s, spray * 0.35 * s, synth.bubbles(L, 45, 350, 1400, rng) * 0.35 * s, ck.pad(rng, 0.07, 160) * 0.2 * s)
+    else:
+        pour = mix(ck.norm(hp(synth.noise(0.25, rng, "pink"), 900, 2)) * env([(0, 0), (0.03, 0.6), (0.25, 0)], 0.25),
+                   synth.bubbles(0.25, 60, 600, 2200, rng, rise=(0.15, 0.4)) * 0.5)
+        y = mix(surge * 0.4 * s, ck.norm(pour) * 0.5 * s)
+    return hp(y, 90, 4)
+
+
 DEAL = [520, 980, 1650]                              # a deal floorboard's knock: broad, woody, never a pitch
 
 
@@ -275,7 +319,8 @@ def on_concrete(rng, boot, s, part, take):
 
 
 SURF = dict(wood=on_wood, grate=on_grate, plate=on_plate, roof=on_roof, coal=on_coal, ballast=on_ballast, dirt=on_dirt,
-            grass=on_grass, mud=on_mud, cobbles=on_cobbles, concrete=on_concrete, planks=on_planks, tin=on_tin)
+            grass=on_grass, mud=on_mud, cobbles=on_cobbles, concrete=on_concrete, planks=on_planks, tin=on_tin,
+            water=on_water, wade=on_wade)
 ROOM = dict(wood=lambda y: dsp.room(y, "car", wet=0.14, rng=np.random.default_rng(11)),
             planks=lambda y: dsp.room(y, "car", wet=0.08, rng=np.random.default_rng(11)),
             plate=lambda y: dsp.room(y, "cab", wet=0.12, rng=np.random.default_rng(11)),
@@ -371,6 +416,8 @@ SCRAPE = {
     "dirt": ((400, 4000), 210, 0.7, (160, 2500, 9000)),
     "grass": ((900, 6000), 0, 0.0, (0, 0, 0)),
     "mud": ((180, 1100), 0, 0.0, (0, 0, 0)),
+    "water": ((300, 2400), 0, 0.0, (0, 0, 0)),
+    "wade": ((300, 2400), 0, 0.0, (0, 0, 0)),
     "cobbles": ((600, 5000), 280, 0.6, (140, 3000, 9000)),
     "concrete": ((600, 5000), 300, 0.6, (100, 3000, 9000)),
 }
@@ -386,6 +433,13 @@ def scrape(rng, mat, L, s):
         y = mix(sw, ck.norm(synth.rustle(L, 1400, rng, f=(lo, hi), ticks=0.6) * shape) * 0.5)
     elif mat == "mud":
         y = ck.slurp(rng, L, lo, hi)
+    elif mat in ("water", "wade"):
+        # A foot swept through the water: the shin's wash and the bubbles it drags (the real water for one, the model's
+        # swell for the other).
+        wash = churned(rng, L, int(rng.integers(3))) if mat == "water" else \
+            dsp.sweep_filter(synth.noise(L, rng, "pink"), "lp", env([(0, lo), (L * 0.4, hi), (L, lo)], L, curve="exp"), q=1.2) * shape
+        # (The swell's pink noise is mostly under 150 Hz before this: water dragged, not a rumble.)
+        y = hp(mix(ck.norm(wash), synth.bubbles(L, 40, 350, 1500, rng) * 0.3), 220, 2)
     else:
         y = ck.friction(rng, L, rate * rng.uniform(0.85, 1.15), lo, hi, rough, shape)
         if gn:
@@ -418,6 +472,8 @@ WHAT = {
     "dirt": ("boots on packed dirt and forest floor", BOOTS + WOODSTEP),
     "grass": ("boots in grass and heath", BOOTS + GRASS),
     "mud": ("boots in mud and bog", BOOTS + WET),
+    "water": ("boots wading through shallow water, ankle to knee deep", WET + WATER),
+    "wade": ("boots wading through shallow water, modelled", []),
     "cobbles": ("boots on cobbles and stone setts, outdoors", BOOTS),
     "concrete": ("boots on an indoor concrete floor", BOOTS),
     "planks": ("boots on a car's plank floor: a hard boot on deal", BOOTS),
@@ -448,6 +504,13 @@ HOW = {
         the boot lowpassed as the soft ground under it.""",
     "mud": """The packs' wet steps darkened and cut to their squelch, a lower synthesised suction squelch and a dull heavy
         pad as the boot sinks, and on the toe the suck of the sole pulling out.""",
+    "water": """Wading (note 799: a town's marsh and shallows, a basin's edge): each heel the packs' real wet step cut to its
+        splash (its squelch's low end out) with a slice of their real running water churned round the shin and the bed's
+        dull thud under it; each toe the boot coming up out of it, the water closing over with a few bubbles. No boot click:
+        the sole's under water. Outdoors, dry.""",
+    "wade": """Modelled: the shin shoving the water ahead (a swell of pink noise whose lowpass opens to 1.6-2.2 kHz and closes
+        as the leg drives through), the spray where the foot breaks the surface and the small bubbles it drags down; each
+        toe the boot lifting clear and the water pouring off it.""",
     "cobbles": """Hard boots on stone, rebuilt after the director's "super weird squishy footstep" (8 Oct; the packs' concrete
         steps were soft soles, a low wobble): each heel and toe the sole's crack on rock (a few ms of noise from 1.5 kHz
         up), the stone's dead knock (broad modes at 0.4-2.3 kHz, gone in 20 ms), a short thump of weight, the boot's sole
@@ -497,7 +560,7 @@ def _register():
 
 # The alternates (note 419): a new candidate on an existing surface's cues, built as its own surface, so the director can
 # hear the old and the new side by side and keep one.
-ALTERNATES = {"planks": "wood", "tin": "roof"}
+ALTERNATES = {"planks": "wood", "tin": "roof", "wade": "water"}
 
 
 def _register_alternates():

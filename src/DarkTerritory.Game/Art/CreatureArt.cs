@@ -67,7 +67,7 @@ public sealed partial class CreatureArt
     public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
         "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker", "follower", "climber", "fire_fly", "passenger",
         "survivor_prisoner", "survivor_wildlander", "sheep", "moose", "gannet", "mourner", "freight_beetle", "tower_jaw", "brakeman", "knotter", "hotbox", "hanger",
-        "picker", "lodger", "householder", "waker", DaveArt.Figure];
+        "picker", "lodger", "householder", "waker", "mouse_moose", DaveArt.Figure];
 
     /// <summary>
     /// The figure a crewmate plays as (GDD App. D.8): the crew's own, or, freed from a Holdout, its occupant's for the rest
@@ -450,30 +450,15 @@ public sealed partial class CreatureArt
         ContentRoot = contentRoot!;
         foreach (var name in Names)
         {
-            var path = Path.Combine(ContentRoot, Folder, name + ".glb");
-            if (!File.Exists(path))
+            if (Figure(ContentRoot, name, look.Tuning.ClusteredLodMetres > 0 ? look.Tuning.ClusteredLodCell : null) is not { } figure)
                 continue;
-            var model = ModelLoader.Load(path);
-            // Clips authored apart from the baked mesh (tools/blender/crew_clips.py: the crew's actions), on the same skeleton.
-            // They win over the mesh's own clips of the same name: a clip reworked there (the crew's climb and shovel,
-            // Look Review notes) needn't re-bake the mesh.
-            var extra = Path.Combine(ContentRoot, Folder, name + "_clips.glb");
-            if (File.Exists(extra))
-                model = ModelLoader.WithClips(model, ModelLoader.Load(extra), replace: true);
-            // The survivors and Dave are the crew figure redressed: the crew's actions are theirs too (his painting's there).
-            var crewClips = Path.Combine(ContentRoot, Folder, "crew_clips.glb");
-            if ((name.StartsWith("survivor_", StringComparison.Ordinal) || name == DaveArt.Figure) && File.Exists(crewClips))
-                model = ModelLoader.WithClips(model, ModelLoader.Load(crewClips), replace: true);
+            var (model, authored, far) = figure;
             float wear = WearOf.GetValueOrDefault(name, 0.5f);
-            // Its distance copy: its own, else (the survivors, the crew: a town's people are hundreds of thousands of
-            // triangles, note 479) one clustered from it at load, drawn only where a figure is a few pixels tall.
-            var authored = LoadLod(Path.Combine(ContentRoot, Folder, name + ".lod1.glb"), model);
-            var far = authored ?? (look.Tuning.ClusteredLodMetres > 0 ? ModelLod.Clustered(model, look.Tuning.ClusteredLodCell) : null);
             _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear))])
             {
                 Lod = far is null ? null : new Entry(far, [.. far.Materials.Select(m => Resolve(m, wear))]),
                 // (The Waker's drawn thirty times his size: his distance copy from thirty times as far, note 679.)
-                LodFrom = (authored is not null ? look.Tuning.CreatureLodMetres : look.Tuning.ClusteredLodMetres) * (name == "waker" ? WakerGait.Scale : 1),
+                LodFrom = (authored ? look.Tuning.CreatureLodMetres : look.Tuning.ClusteredLodMetres) * (name == "waker" ? WakerGait.Scale : 1),
             };
         }
         Dress(DaveKit.Figure, DaveKit.Clothes);
@@ -503,6 +488,47 @@ public sealed partial class CreatureArt
 
     /// <summary>Whether <paramref name="name"/> is a figure modelled for it (its own file), not one dressed from the survivors'.</summary>
     public bool Modelled(string name) => _models.ContainsKey(name) && !_dressed.Contains(name);
+
+    /// <summary>
+    /// A figure's model as its files make it (its own clips and the crew's merged in) and its distance copy, read once a
+    /// process and shared by every <see cref="CreatureArt"/> (ARCHITECTURE §8 note 804): the tests make one a class, and each
+    /// one's own copy of every figure (a hundred megabytes or so of them, and the clustering's seconds), kept for the run,
+    /// added up past the Linux CI runner's memory, as the look's decoded textures had (Look.Decoded). Nothing writes into a loaded
+    /// model; a file that changes on disk (a rebuilt figure, a hot reload) is read again.
+    /// </summary>
+    static (Model Model, bool Authored, Model? Far)? Figure(string contentRoot, string name, float? clusterCell)
+    {
+        var path = Path.Combine(contentRoot, Folder, name + ".glb");
+        if (!File.Exists(path))
+            return null;
+        // Clips authored apart from the baked mesh (tools/blender/crew_clips.py: the crew's actions), on the same skeleton.
+        var extra = Path.Combine(contentRoot, Folder, name + "_clips.glb");
+        // The survivors and Dave are the crew figure redressed: the crew's actions are theirs too (his painting's there).
+        var crewClips = Path.Combine(contentRoot, Folder, "crew_clips.glb");
+        bool crews = name.StartsWith("survivor_", StringComparison.Ordinal) || name == DaveArt.Figure;
+        var lodPath = Path.Combine(contentRoot, Folder, name + ".lod1.glb");
+        string stamp = string.Join("|", new[] { path, extra, crews ? crewClips : null, lodPath }.Select(f =>
+            f is not null && File.Exists(f) ? $"{File.GetLastWriteTimeUtc(f).Ticks}:{new FileInfo(f).Length}" : "-"));
+        var key = (Path.GetFullPath(path), clusterCell);
+        if (LoadedModels.TryGetValue(key, out var had) && had.Stamp == stamp)
+            return had.Built;
+        var model = ModelLoader.Load(path);
+        // They win over the mesh's own clips of the same name: a clip reworked there (the crew's climb and shovel, Look
+        // Review notes) needn't re-bake the mesh.
+        if (File.Exists(extra))
+            model = ModelLoader.WithClips(model, ModelLoader.Load(extra), replace: true);
+        if (crews && File.Exists(crewClips))
+            model = ModelLoader.WithClips(model, ModelLoader.Load(crewClips), replace: true);
+        // Its distance copy: its own, else (the survivors, the crew: a town's people are hundreds of thousands of
+        // triangles, note 479) one clustered from it at load, drawn only where a figure is a few pixels tall.
+        var authored = LoadLod(lodPath, model);
+        var far = authored ?? (clusterCell is { } cell ? ModelLod.Clustered(model, cell) : null);
+        var built = (model, authored is not null, far);
+        LoadedModels[key] = (stamp, built);
+        return built;
+    }
+
+    static readonly System.Collections.Concurrent.ConcurrentDictionary<(string Path, float? Cell), (string Stamp, (Model, bool, Model?) Built)> LoadedModels = new();
 
     /// <summary>A model's distance copy (tools/models overbake `lod`), its joints renumbered by name to the full model's so
     /// the full model's pose skins it; null when there's none or a bone of it isn't the full model's.</summary>

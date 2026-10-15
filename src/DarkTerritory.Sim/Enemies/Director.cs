@@ -543,8 +543,10 @@ public sealed class Director
             return Held("building");
         if (_cooldown > 0 && !due)
             return Held("cooldown");
-        // The hound run's runners count: they're engaged with the crew like anything else (note 336).
-        int total = active.Count(Engaged);
+        // The hound run's runners count: they're engaged with the crew like anything else (note 336). With everyone off the
+        // train, what nobody's near doesn't (note 795).
+        var holding = Holding(world, active);
+        int total = holding.Count;
         if (total >= EngagedCap)
             return Held("at the cap");
         double available = Allowance(s) - _spent;
@@ -555,7 +557,7 @@ public sealed class Director
             foreach (var rule in Spawns.Rules)
             {
                 // Killed by the crew together tonight (note 288): it's done for the night.
-                if (!Allows(rule.Kind) || !Tonight(rule.Kind, world) || world.Slain.Contains(rule.Kind) || !Room(rule.Kind, active) || rule.Weight(ctx) is not { } w || w <= 0)
+                if (!Allows(rule.Kind) || !Tonight(rule.Kind, world) || world.Slain.Contains(rule.Kind) || !Room(rule.Kind, holding) || rule.Weight(ctx) is not { } w || w <= 0)
                     continue;
                 options.Add((rule.Kind, w * _t.Weights.GetValueOrDefault(Key(rule.Kind), 1)));
             }
@@ -1435,17 +1437,37 @@ public sealed class Director
             // Dormant but on the move is pressure too (a Climber pacing the train); only what lies in wait isn't.
             || e.Phase == SpinePhase.Dormant && e.Kind is not (EnemyKind.Dragger or EnemyKind.Whistler or EnemyKind.CarHugger or EnemyKind.Gaunt or EnemyKind.TippyToesie
                 // A grazing Moose (note 339) only waits to be bothered.
-                or EnemyKind.Moose));
+                or EnemyKind.Moose
+                // Nor what lies in wait in a village house (notes 583-586), until it's after someone (note 795: asleep in their
+                // houses, a Householder or a Hanger held a crew of one's place all night).
+                or EnemyKind.Lodger or EnemyKind.Householder or EnemyKind.Hanger or EnemyKind.HollowHouse));
+
+    /// <summary>
+    /// What's engaged that holds the caps (note 795; the director, 15 Oct 2026: "Even when testing alone I'm not running into
+    /// monsters in yards or abandoned villages"): everything <see cref="Engaged"/>, but with every living crewmate off the
+    /// train (afoot in a yard or a village), not what none of them is within <c>capNear</c> of and that has nobody in its
+    /// grip. A hound pack aboard or a Knotter in a coupling left behind held a crew of one's single place all night, and
+    /// nothing came where they walked. Aboard, everything counts as before.
+    /// </summary>
+    public List<Enemy> Holding(World world, IReadOnlyList<Enemy> active)
+    {
+        var engaged = active.Where(Engaged).ToList();
+        var train = world.Train;
+        var living = world.CrewThisTick.Where(c => c.State.Alive).ToList();
+        if (_t.CapNear <= 0 || living.Count == 0 || !living.All(c => CrewSense.Afoot(c.State, train)))
+            return engaged;
+        var crew = living.Select(c => PlayerMotor.WorldPosition(c.State, train)).ToList();
+        return [.. engaged.Where(e => e.Holding >= 0 || e.WorldPosition(train) is var at && crew.Any(p => (p - at).Length <= _t.CapNear))];
+    }
 
     /// <summary>
     /// App. B.1's hard caps, on what's engaged: two at a time in the flank, the interior and outside (the middle is
     /// uncoverable; three is unfair), one corrupted human, and one of a tell type at once (tells must stay distinguishable).
     /// The total cap is checked before this.
     /// </summary>
-    bool Room(EnemyKind kind, IReadOnlyList<Enemy> active)
+    bool Room(EnemyKind kind, IReadOnlyList<Enemy> engaged)
     {
         var (zone, sense) = Profile(kind);
-        var engaged = active.Where(Engaged).ToList();
         int cap = zone == PressureZone.Corrupted ? _t.MaxCorrupted : _t.MaxConcurrentZone;
         if (engaged.Count(e => e.Zone == zone) >= cap)
             return false;
