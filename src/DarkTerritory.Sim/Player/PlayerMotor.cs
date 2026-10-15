@@ -89,6 +89,11 @@ public enum PlayerMoves : byte
     /// Shove the crewmate you're looking at (note 717, horseplay; LeftAlt): sent while held, acted on the press. Never a bot's.
     /// </summary>
     Shove = 16,
+    /// <summary>
+    /// Ping what you're looking at for the bots (note 739; the middle mouse, pressed): sent on the press. Held at a gun the
+    /// same button is <see cref="Push"/>, and a ping isn't made there.
+    /// </summary>
+    Ping = 32,
     // (On the wire the byte's bits 2-3 carry the intent's lamp signal, note 720: the moves keep the other bits.)
 }
 

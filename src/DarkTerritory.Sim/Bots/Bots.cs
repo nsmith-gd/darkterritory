@@ -544,6 +544,9 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     {
         if (_relief is null)
             _sawDriver |= calls.Has(StopJob.Driver);
+        // Note 739 (GDD §12): the controls pinged for this bot (whoever held them let them go): forward to take them.
+        if (calls.OrderOf(Me) is { Kind: PingKind.Cab } && world.ControlsHolder < 0)
+            return true;
         if (world.ControlsHolder >= 0 && !world.ControlsHolderBot && world.ControlsHolder != Me)
             return false;
         return _relief is not null || _sawDriver && !calls.Has(StopJob.Driver);
@@ -855,10 +858,13 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         _hands.Clear();
         _second = null;
         var me = self;
+        // Note 739 (GDD §12): a fire pinged for this bot comes first, ahead of nearer trouble.
+        int? pingedFire = Calls?.OrderOf(Me) is { Kind: PingKind.Fire, Target: var pinged } ? pinged : null;
         _trouble = tend ? world.ActiveEnemies.Where(e => !e.Gone && e.Attached > 0 && (e is Incident && !(e is CarFire && (e.Extra > WellAlight && e.Attached != inside && Calls is null || e.Phase == SpinePhase.Punish && !fireFit))
                 && !(e is CarFire && Boarded(world, e.Attached))
                 || e is FireFlies && e.Attached < train0.Vehicles.Count && train0.Vehicles[e.Attached].LampLit))
-            .OrderBy(e => Covered(e, here) ? 1 : 0).ThenBy(e => e is CarFire ? 0 : 1).ThenBy(e => Math.Abs(e.Attached - here))
+            .OrderBy(e => e is CarFire && e.Attached == pingedFire ? 0 : 1)
+            .ThenBy(e => Covered(e, here) ? 1 : 0).ThenBy(e => e is CarFire ? 0 : 1).ThenBy(e => Math.Abs(e.Attached - here))
             .ThenBy(e => e.Id).FirstOrDefault(e => Hand(world, me, e, here) > 0) : null;
         var train = world.Train;
         // Otherwise a bag on a crane ahead, its board read: into a car with a side door that side, and the hook out.

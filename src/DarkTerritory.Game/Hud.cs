@@ -1054,6 +1054,9 @@ public static partial class Hud
         // line (App. A.4: "the whistle sounds with no hand on the cord" is its tell), so one with no name is the Whistler.
         if (p.Alive && world.WhistleSeconds > 0 && world.WhistleBy >= 0)
             Small(world.WhistleBy == s.PlayerId ? "THE WHISTLE: YOUR HAND'S ON THE CORD" : $"THE WHISTLE: {IncidentLog.NameOf(world, world.WhistleBy).ToUpperInvariant()} ON THE CORD", Dim);
+        // Note 739: the crew's pings, whose and on what (their marks are drawn on the world: PingMarks).
+        foreach (var pinged in PingMarks.Lines(world, s.PlayerId))
+            Small(pinged, Ink);
         // Note 740: "Aboard!" called back to the horn, and the driver's roll of it.
         if (p.Alive)
             foreach (var (text, good) in AboardLines(world, s.PlayerId, PlayerMotor.InCab(p, world.Train), s.Roster()))
