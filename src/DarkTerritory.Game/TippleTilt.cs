@@ -31,7 +31,7 @@ public static class TippleTilt
                 frames[site.Clamped] = Roll(frames[site.Clamped], Angle(site, frames[site.Clamped], tp));
             for (int i = 0; i < frames.Count && i < train.Vehicles.Count; i++)
                 if (train.Vehicles[i].OffRails && run.OffRailsAt(train, site) == train.Vehicles[i])
-                    frames[i] = Off(frames[i], ToBin(site, frames[i]));
+                    frames[i] = Off(frames[i], ToBin(site, frames[i]), OffLean, OffSlew, OffDrop);
         }
     }
 
@@ -51,13 +51,16 @@ public static class TippleTilt
         return f with { Origin = pivot - up * AxisHeight, Right = right, Up = up };
     }
 
-    /// <summary>A car off its rails: over toward <paramref name="side"/> about that rail, slewed round and dropped onto the sleepers.</summary>
-    static CarFrame Off(in CarFrame f, int side)
+    /// <summary>
+    /// A car off its rails: over toward <paramref name="side"/> about that rail by <paramref name="leanDegrees"/>, slewed round
+    /// by <paramref name="slewDegrees"/> and dropped onto the sleepers by <paramref name="drop"/> (m). (<see cref="ComeApart"/>'s too.)
+    /// </summary>
+    public static CarFrame Off(in CarFrame f, int side, double leanDegrees, double slewDegrees, double drop)
     {
-        var lean = CarLean.Lean(f, side * OffLean * Math.PI / 180);
-        double c = Math.Cos(OffSlew * Math.PI / 180), s = Math.Sin(OffSlew * Math.PI / 180);
+        var lean = CarLean.Lean(f, side * leanDegrees * Math.PI / 180);
+        double c = Math.Cos(slewDegrees * Math.PI / 180), s = Math.Sin(slewDegrees * Math.PI / 180);
         var right = lean.Right * c + lean.Back * s;
         var back = lean.Back * c - lean.Right * s;
-        return lean with { Origin = lean.Origin - Double3.Up * OffDrop, Right = right, Back = back };
+        return lean with { Origin = lean.Origin - Double3.Up * drop, Right = right, Back = back };
     }
 }

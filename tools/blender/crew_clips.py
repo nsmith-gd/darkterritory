@@ -51,6 +51,13 @@ What each is for (CrewActs, from the sim's state; GDD/spec where the act is):
   paint               Dave at his easel (note 491): dabs and a stroke at the canvas, the brush to the palette, a step back to look
   wave, point, dance  the yard's emotes (GDD §9, note 298's wheel): a wave over the shoulder, a point straight ahead at the
                       shoulder's height, a workman's jig (queue #44, note 306)
+  bow, salute, conga  #967's emotes (note 714): a courtier's bow, a salute at the brow, the conga's one-two-three-kick
+                      with the hands on the shoulders in front (note 791)
+  lounge, lounge_drink, cheers
+                      sat back in a Muskoka chair on the BBQ deck (note 698), its seat at the deck's 0.34 m: the forearms
+                      along its arms, a beer on the right one; a pull from it, the head back; held out to the next chair
+  drink, eat, grill   stood: a beer drunk, a sausage bitten and chewed, sausages turned on the barrel grill with the tongs
+  hammock             lying back in the guard van's hammock (note 744), the hands behind the head, a knee up
 In place, 30 fps, like crew.py's; the root never travels (the sim moves the crewmate).
 
     blender -b --python tools/blender/crew_clips.py -- content/art/models/crew_clips.glb
@@ -1406,8 +1413,226 @@ paint.key(114, paint_key(SPOT + Vector((0.02, -0.12, 0.0)), lean=0.4))
 paint.close(120)
 clips.append(paint)
 
+# --- the upgrades' acts (U1's #967, notes 698, 714 and 744; the art checklist's crew-lounge; note 791) -------------------
+# In a Muskoka chair (#967's TrainKit.MuskokaChair): the sitter's root under the seat, its slats sloping down from 0.38 m
+# at the front edge (0.3 m ahead) to 0.31 m at the back, the back raked 23° behind, the broad arms 0.63 m up and 0.42 m
+# out either side. Low and slung: the knees come up over the hips, the back's against the slats, the forearms lie along
+# the arms, a beer stood on the right one.
+
+
+def mouth(pose):
+    """Where the mouth is in `pose` (armature space): the head's base, a hand's breadth forward of it as the head's turned."""
+    return rig.pose_points(sk, pose, [("head", "head")])[0] + rig.world_rotation(sk, pose, "head") @ Vector((0, 0.1, -0.01))
+
+
+CHAIR_ARM = 0.63 + 0.05                         # the forearm's on the chair's arm
+LOUNGE = over(STAND, pelvis__loc=(0, -0.1, 0.42 - 0.955), pelvis=(24, 0, 0), spine_01=(4, 0, 0), spine_02=(2, 0, 0),
+              spine_03=(0, 0, 0), neck=(-12, 0, 0), head=(-8, 0, 0))
+LOUNGE = leg_to(leg_to(LOUNGE, "r", (0.2, 0.48, 0.09), knee=(0.2, 0.3, 0.8)), "l", (-0.17, 0.54, 0.09), knee=(0.2, 0.3, 0.8))
+LOUNGE["foot_r"], LOUNGE["foot_l"] = (-20, 0, -8), (-20, 0, 8)
+CAN_REST = (0.42, 0.06, CHAIR_ARM + 0.01)       # the can stood on the chair's arm in the right fist
+DRAPE = (-0.43, 0.18, CHAIR_ARM - 0.02)         # the left hand hung over the arm's front end
+NEIGHBOUR = (1.3, 0.5, 0.95)                    # whoever's in the next chair, to the right
+
+
+def lounge_hands(pose, can=CAN_REST, left=DRAPE):
+    p = arm_to(pose, "r", can, grip=70, elbow=(0.44, -0.3, 0.62))
+    p = arm_to(p, "l", left, fist=False, elbow=(0.44, -0.3, 0.62))
+    p["fingers_l"], p["thumb_l"] = (0, -25, 0), (0, -10, 0)
+    return p
+
+
+def to_mouth(pose, dx=0.04, dy=0.09, dz=-0.1):
+    """The right fist held so the can (or the sausage) in it is at the mouth as `pose` has the head."""
+    m = mouth(pose)
+    return (m.x + dx, m.y + dy, m.z + dz)
+
+
+# Lounge (4 s, loop): sat back, the can on the chair's arm; a look round at whoever's in the next chair and back, settling.
+lounge = Clip("lounge")
+lounge.key(0, lounge_hands(LOUNGE))
+lounge.key(40, lounge_hands(look_at(over(LOUNGE, spine_03=(1, 0, 4)), NEIGHBOUR), can=at(CAN_REST, dz=0.02)))
+lounge.key(70, lounge_hands(look_at(LOUNGE, NEIGHBOUR)))
+lounge.key(95, lounge_hands(over(LOUNGE, spine_03=(2, 0, 0), head=(-6, 0, -4)), left=at(DRAPE, dy=0.02)))
+lounge.close(120)
+clips.append(lounge)
+
+# Lounge_drink (2.5 s): from the chair's arm to the mouth, the head tipped back for a long pull, and down again.
+lounge_drink = Clip("lounge_drink")
+lounge_drink.key(0, lounge_hands(LOUNGE))
+SIP = over(LOUNGE, neck=(-2, 0, 0), head=(2, 0, 0))
+lounge_drink.key(16, lounge_hands(SIP, can=to_mouth(SIP, dx=0.06, dy=0.13)))
+PULL = over(LOUNGE, neck=(6, 0, 0), head=(12, 0, 0))
+lounge_drink.key(30, lounge_hands(PULL, can=to_mouth(PULL, dx=0.06, dy=0.13, dz=-0.07)))
+lounge_drink.key(44, lounge_hands(PULL, can=to_mouth(PULL, dx=0.06, dy=0.13, dz=-0.06)))
+lounge_drink.key(60, lounge_hands(LOUNGE))
+lounge_drink.close(75)
+clips.append(lounge_drink)
+
+# Cheers (1.5 s): the can held out to whoever's in the next chair, a clink, and a swallow to it.
+cheers = Clip("cheers")
+cheers.key(0, lounge_hands(LOUNGE))
+TOAST = look_at(over(LOUNGE, spine_02=(-4, 0, -6), spine_03=(-4, 0, -6)), NEIGHBOUR)
+cheers.key(12, lounge_hands(TOAST, can=(0.6, 0.42, 0.95)))
+cheers.key(16, lounge_hands(TOAST, can=(0.66, 0.46, 0.97)), "LINEAR")
+cheers.key(20, lounge_hands(TOAST, can=(0.6, 0.42, 0.95)))
+cheers.key(30, lounge_hands(SIP, can=to_mouth(SIP, dx=0.06, dy=0.13)))
+cheers.close(45)
+clips.append(cheers)
+
+# Drink (2 s): stood, a can drunk from: up from the chest to the mouth, the head back for the pull, down again; the left
+# hand on the hip.
+DRINK_BODY = over(STAND, pelvis=(0, 0, -4), spine_03=(-2, 0, 0))
+CHEST_CAN = (0.2, 0.28, 1.1)
+
+
+def standing(pose, r, grip=70, elbow=(0.4, -0.15, 1.15)):
+    p = arm_to(pose, "r", r, grip=grip, elbow=elbow)
+    return arm_to(p, "l", HIP_L, grip=40, elbow=(0.45, -0.2, 1.15))
+
+
+drink = Clip("drink")
+drink.key(0, standing(DRINK_BODY, CHEST_CAN))
+D_SIP = over(DRINK_BODY, neck=(14, 0, 0), head=(10, 0, 0))
+drink.key(14, standing(D_SIP, to_mouth(D_SIP)))
+D_PULL = over(DRINK_BODY, spine_03=(4, 0, 0), neck=(24, 0, 0), head=(16, 0, 0))
+drink.key(28, standing(D_PULL, to_mouth(D_PULL, dz=-0.07)))
+drink.key(38, standing(D_PULL, to_mouth(D_PULL, dz=-0.06)))
+drink.key(50, standing(DRINK_BODY, CHEST_CAN))
+drink.close(60)
+clips.append(drink)
+
+# Grill (3 s, loop): stood at the barrel grill (#967's TrainKit.Grill: the drum's grate about 0.95 m up, its near edge
+# 0.35 m ahead), the tongs in the right hand turning one sausage then another, the head down over the smoke, a beer held
+# at the side in the left.
+GRILL_BODY = look_at(over(STAND, spine_01=(-4, 0, 0), spine_02=(-6, 0, 0), spine_03=(-4, 0, 0)), (0.0, 0.5, 0.95))
+GRATE = (0.08, 0.5, 1.0)
+
+
+def grilling(pose, tongs, roll=0):
+    p = arm_to(pose, "r", tongs, grip=85, elbow=(0.45, -0.1, 1.1))
+    p = arm_to(p, "l", (-0.24, 0.12, 1.0), grip=70, elbow=(0.45, -0.2, 1.15))
+    p["hand_r"] = (0, 6, roll)
+    return p
+
+
+grill = Clip("grill")
+grill.key(0, grilling(GRILL_BODY, GRATE))
+grill.key(12, grilling(GRILL_BODY, at(GRATE, dz=-0.04)))
+grill.key(20, grilling(GRILL_BODY, at(GRATE, dz=0.03), roll=-70), "LINEAR")
+grill.key(28, grilling(GRILL_BODY, at(GRATE, dz=-0.03), roll=-80))
+grill.key(45, grilling(look_at(GRILL_BODY, (-0.15, 0.5, 0.95)), at(GRATE, dx=-0.16)))
+grill.key(55, grilling(GRILL_BODY, at(GRATE, dx=-0.16, dz=-0.04)))
+grill.key(63, grilling(GRILL_BODY, at(GRATE, dx=-0.16, dz=0.03), roll=-70), "LINEAR")
+grill.key(71, grilling(GRILL_BODY, at(GRATE, dx=-0.16, dz=-0.03), roll=-80))
+grill.close(90)
+clips.append(grill)
+
+# Eat (2 s): stood, a sausage in the right hand brought up, bitten (the head forward to it), pulled away, chewed.
+eat = Clip("eat")
+eat.key(0, standing(DRINK_BODY, (0.16, 0.32, 1.15), grip=60))
+BITE = over(DRINK_BODY, spine_03=(-4, 0, 0), neck=(2, 0, 0), head=(-4, 0, 0))
+eat.key(12, standing(BITE, to_mouth(BITE, dx=0.0, dy=0.07, dz=-0.04), grip=60))
+CHEW = over(DRINK_BODY, neck=(10, 0, 0), head=(4, 0, 0))
+eat.key(18, standing(CHEW, at(to_mouth(CHEW, dx=0.02, dz=-0.06), dy=0.08), grip=60), "LINEAR")
+for f, nod in ((26, 1), (32, 0), (38, 1), (44, 0)):
+    eat.key(f, standing(over(CHEW, head=(4 - 3 * nod, 0, 0)), (0.17, 0.32, 1.2), grip=60))
+eat.close(60)
+clips.append(eat)
+
+# Bow (2 s, loop): a courtier's bow, the right hand swept out low before him and the left arm out behind, deep from the
+# waist, held, and up. (Across the belly the coat keeps the forearm off it: the arm's kept out of the body.)
+bow = Clip("bow")
+bow.key(0, hands(STAND, (0.24, 0.06, 0.92), (-0.24, 0.06, 0.92), grip=30))
+ACROSS = dict(grip=30, elbow=(0.34, 0.02, 1.05))
+BOWED = over(STAND, pelvis=(-14, 0, 0), spine_01=(-14, 0, 0), spine_02=(-12, 0, 0), spine_03=(-8, 0, 0), neck=(-8, 0, 0),
+             head=(-6, 0, 0), thigh_r=(-8, 0, 0), thigh_l=(-8, 0, 0))
+BOW_R, BOW_L = (-0.04, 0.34, 0.9), (-0.5, -0.22, 1.02)
+bow.key(10, arm_to(arm_to(over(STAND, spine_03=(-2, 0, 0)), "r", (-0.03, 0.22, 1.04), **ACROSS), "l", (-0.48, -0.1, 1.08), grip=30))
+bow.key(22, arm_to(arm_to(BOWED, "r", BOW_R, **ACROSS), "l", BOW_L, grip=30))
+bow.key(38, arm_to(arm_to(BOWED, "r", at(BOW_R, dz=-0.01), **ACROSS), "l", at(BOW_L, dz=0.02), grip=30))
+bow.key(50, arm_to(arm_to(STAND, "r", (-0.03, 0.22, 1.04), **ACROSS), "l", (-0.36, -0.04, 0.98), grip=30))
+bow.close(60)
+clips.append(bow)
+
+# Salute (2 s, loop: a hold): heels together, stood straight, chin up, the right hand flat with its fingertips at the brow,
+# the elbow out at the shoulder's height.
+SALUTE_BODY = over(STAND, spine_01=(0, 0, 0), spine_02=(1, 0, 0), spine_03=(0, 0, 0), neck=(10, 0, 0), head=(0, 0, 0),
+                   thigh_r=(0, 0, 2), thigh_l=(0, 0, -2))
+
+
+def saluting(pose, k=0.0):
+    p = arm_to(pose, "r", (SHOULDER_R.x + 0.1, SHOULDER_R.y + 0.1, SHOULDER_R.z + 0.17 + 0.005 * k), fist=False,
+               elbow=(0.55, 0.0, SHOULDER_R.z))
+    p["hand_r"] = (0, 0, 35)
+    p["fingers_r"], p["thumb_r"] = (0, 0, 0), (0, 0, 0)
+    p = arm_to(p, "l", (-0.22, 0.02, 0.9), grip=60, elbow=(0.4, -0.2, 1.2))
+    return p
+
+
+salute = Clip("salute")
+salute.key(0, saluting(SALUTE_BODY))
+salute.key(30, saluting(over(SALUTE_BODY, spine_03=(1, 0, 0)), 1.0))
+salute.close(60)
+clips.append(salute)
+
+
+# Conga (4 s, loop): in the line, the hands on the shoulders of whoever's in front; one, two, three, kick: three steps on
+# the beat and a kick out to the side on the fourth, then the bar again from the other foot. The hips swing with it.
+def conga_step(side, k):
+    """The weight on the other foot as `side`'s steps through (k 0..1 over the beat)."""
+    lift = math.sin(math.pi * k)
+    return {f"thigh_{side}": (28 * lift - 6, 0, 0), f"calf_{side}": (-48 * lift, 0, 0), f"foot_{side}": (10 * lift, 0, 0)}
+
+
+def conga_kick(side, k):
+    """`side`'s leg kicked out to the side and forward, the foot pointed, on the fourth beat."""
+    s = 1 if side == "r" else -1
+    out = math.sin(math.pi * k)
+    return {f"thigh_{side}": (24 * out, 0, -30 * out * s), f"calf_{side}": (-8 * out, 0, 0), f"foot_{side}": (-20 * out, 0, 0)}
+
+
+CONGA_BODY = over(STAND, spine_02=(-4, 0, 0), spine_03=(-6, 0, 0), neck=(10, 0, 0))
+conga = Clip("conga")
+for f in range(0, 120, 5):
+    bar, beat, k = (f // 60), (f % 60) // 15, (f % 15) / 15
+    first, other = ("r", "l") if bar == 0 else ("l", "r")
+    side = [first, other, first, other][beat]
+    legs = conga_kick(side, k) if beat == 3 else conga_step(side, k)
+    sway = math.sin(math.pi * (f % 30) / 15) * (1 if (f // 15) % 2 == 0 else -1)
+    p = over(CONGA_BODY, **{"pelvis@loc": (0.03 * sway, 0, -0.02 * math.sin(math.pi * k)), "pelvis": (0, 0, 9 * sway),
+                            "spine_02": (-4, 0, -5 * sway), "neck": (10, 0, 3 * sway)}, **legs)
+    p = hands(p, (0.2, 0.6, 1.36), (-0.2, 0.6, 1.36), fist=False, elbow=(0.3, 0.2, 1.2))
+    p["hand_r"], p["hand_l"] = (0, 0, -30), (0, 0, 30)
+    p["fingers_r"], p["fingers_l"] = (0, 30, 0), (0, -30, 0)
+    conga.key(f, p, "LINEAR" if beat == 3 else "BEZIER")
+conga.close(120)
+clips.append(conga)
+
+# Hammock (4 s, loop): lying back in the hammock across the guard van's end (#967's note 744: its sag 0.55 m over the
+# floor), the body in its curve, head and feet up, the hands behind the head and the elbows out, one knee up, the foot
+# of the other waggling. Along the clip's own forward axis, the head behind: the game turns the crewmate to the hammock.
+HAMMOCK = over(STAND, pelvis__loc=(0, 0, 0.62 - 0.955), pelvis=(78, 0, 0), spine_01=(-10, 0, 0), spine_02=(-8, 0, 0),
+               spine_03=(-6, 0, 0), neck=(-18, 0, 0), head=(-10, 0, 0))
+HAMMOCK = leg_to(leg_to(HAMMOCK, "r", (0.12, 0.8, 0.74), knee=(0.14, 0.45, 0.8)),
+                 "l", (-0.12, 0.5, 0.7), knee=(-0.14, 0.4, 1.1))
+HEAD_REST = rig.pose_points(sk, HAMMOCK, [("head", "head")])[0]
+
+
+def hammock_pose(waggle=0.0, breath=0.0):
+    p = over(HAMMOCK, spine_02=(-8 + 1.5 * breath, 0, 0), foot_r=(-10 + 14 * waggle, 0, -8))
+    return hands(p, (HEAD_REST.x + 0.1, HEAD_REST.y - 0.08, HEAD_REST.z + 0.04),
+                 (HEAD_REST.x - 0.1, HEAD_REST.y - 0.08, HEAD_REST.z + 0.04), grip=40, elbow=(0.42, -0.1, HEAD_REST.z + 0.1))
+
+
+hammock = Clip("hammock")
+for f, w, b in ((0, 0.0, 0.0), (30, 1.0, 1.0), (60, 0.0, 0.0), (75, 1.0, 0.5), (90, 0.0, 1.0)):
+    hammock.key(f, hammock_pose(w, b))
+hammock.close(120)
+clips.append(hammock)
+
 kit.build()
-rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"wave", "point", "dance", "paint", "carry", "carry_walk", "drag", "drag_fwd", "shovel", "door", "handbrake", "hatch",
+rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"wave", "point", "dance", "paint", "drink", "grill", "eat", "bow", "salute", "conga", "carry", "carry_walk", "drag", "drag_fwd", "shovel", "door", "handbrake", "hatch",
                                                         "uncouple", "vent", "lever", "push", "swing", "mend",
                                                         "gap", "extinguish", "spray", "lantern", "lantern_walk", "haul",
                                                         "haul_up", "drive", "whistle", "smash", "pry", "pick", "take_down", "hang_up",

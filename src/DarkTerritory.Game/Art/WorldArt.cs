@@ -362,6 +362,11 @@ public sealed partial class WorldArt(Look look)
                     }
                     continue;
                 }
+                // A town type's shaped ground is the town's to draw (note 692): the land's quad is left out where all of it is.
+                if (MathF.Abs(lat) > 6 && (Departure is not null || Arrival is not null)
+                    && TownHole(left[c].X + eye.X, left[c].Z + eye.Z) && TownHole(left[c + 1].X + eye.X, left[c + 1].Z + eye.Z)
+                    && TownHole(right[c].X + eye.X, right[c].Z + eye.Z) && TownHole(right[c + 1].X + eye.X, right[c + 1].Z + eye.Z))
+                    continue;
                 // Where an alternate or a dead line runs out on this land, its own land is drawn instead (note 498).
                 if (plan is not null && BranchTakes(plan, (long)Math.Floor((s + s1) / 2 / RowM), OwnColumn(lat)))
                     continue;
@@ -473,7 +478,7 @@ public sealed partial class WorldArt(Look look)
         var lateral = plan is null ? Lateral : PlanLateral;
         int columns = lateral.Length;
         float[] own = [.. Enumerable.Range(0, columns * 2 - 1).Select(c => c < columns - 1 ? -lateral[columns - 1 - c] : lateral[c - (columns - 1)])];
-        var bands = plan?.LakeBands.Where(b => b.S0 < to && b.S1 > from).ToArray() ?? [];
+        var bands = (plan?.LakeBands.Where(b => b.S0 < to && b.S1 > from) ?? []).Concat(TownBands().Where(b => b.S0 < to && b.S1 > from)).ToArray();
         var extra = new SortedSet<float>();
         float edge = lateral[^1];
         foreach (var b in bands)
@@ -577,12 +582,12 @@ public sealed partial class WorldArt(Look look)
         ? [new Sim.Run.Fort(0, w.YardEnd, w.YardEnd, true, true, TownSquare, TownBounds), Terminus(w.HomeGate, line.Length)]
         : [];
 
-    /// <summary>The terminus's town (note 600), standing turned round in its own frame: nothing wild grows inside it either.</summary>
+    /// <summary>The terminus's town (notes 600, 692), standing in its own frame: nothing wild grows inside it either.</summary>
     public Sim.Towns.Town? Arrival { get; set; }
 
-    /// <summary>The terminus's fortress as the sim stands it: its town's, turned round, if it's one (note 600).</summary>
-    Sim.Run.Fort Terminus(double gate, double end) => Arrival is { Turn: { } turn } a
-        ? new Sim.Run.Fort(gate, end, gate, false, true, a.Plan.Square.Turned(turn), a.Plan.Bounds, turn)
+    /// <summary>The terminus's fortress as the sim stands it: its town's, in its own frame, if it's one (notes 600, 692).</summary>
+    Sim.Run.Fort Terminus(double gate, double end) => Arrival is { Origin: { } origin } a
+        ? new Sim.Run.Fort(gate, end, gate, false, true, a.Plan.Square.From(origin), a.Plan.Bounds, origin)
         : new Sim.Run.Fort(gate, end, gate, false, true);
 
     /// <summary>Inside a fortress's walls (<see cref="Walls"/>, which stand 14.8 m out, or a walled town's), with a little room.</summary>
@@ -590,8 +595,8 @@ public sealed partial class WorldArt(Look look)
         Walls is { } w && Math.Abs(offset) < 16.5 && (along < w.YardEnd + 2 || along > w.HomeGate - 2)
         || TownSquare is { } sq && Math.Sign(offset) == sq.Side && Math.Abs(offset) < Math.Abs(sq.WallD) + 2 && along > sq.S0 - 2 && along < sq.S1 + 2
         || TownBounds is { } town && town.Holds(along, offset, 3)
-        || Arrival is { Turn: { } turn } a && (a.Plan.Bounds?.Holds(turn - along, -offset, 3) == true
-            || a.Plan.Square.Turned(turn) is var asq && Math.Sign(offset) == asq.Side && Math.Abs(offset) < Math.Abs(asq.WallD) + 2 && along > asq.S0 - 2 && along < asq.S1 + 2);
+        || Arrival is { Origin: { } origin } a && (a.Plan.Bounds?.Holds(along - origin, offset, 3) == true
+            || a.Plan.Square.From(origin) is var asq && Math.Sign(offset) == asq.Side && Math.Abs(offset) < Math.Abs(asq.WallD) + 2 && along > asq.S0 - 2 && along < asq.S1 + 2);
 
     public void Lineside(MeshBuilder mesh, RailLine line, Route? route, Double3 eye, double from, double to, int seed, float valleyDepth)
     {

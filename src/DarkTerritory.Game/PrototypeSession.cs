@@ -48,11 +48,19 @@ public sealed class PrototypeSession : IPlaySession
             DataFile.Load<Sim.Stops.LootTuning>(Path.Combine(contentRoot, Sim.Stops.LootTuning.File)));
         World.EnableLineside(DataFile.Load<SightTuning>(Path.Combine(contentRoot, SightTuning.File)), route);
         // The departure fortress's town (note 281): the customs of the creatures this edition fields.
-        if (Sim.Towns.TownContent.Load(contentRoot) is { } towns)
+        if (Sim.Towns.TownContent.Load(contentRoot) is { } loaded)
+        {
+            // `dt screenshot --form`: every town the one type (towns.json forms.force, note 692).
+            var towns = TownForm is { } form ? loaded with { Tuning = loaded.Tuning with { Forms = loaded.Tuning.Forms with { Force = form } } } : loaded;
             World.EnableTown(towns, route, route.GateOr(routeTuning.YardLength),
                 DataFile.Load<EnemyTuning>(Path.Combine(contentRoot, EnemyTuning.File)).Director.Roster,
                 arrival: Sim.Towns.TownAt.Terminus(route, Sim.LineGen.LineGenContent.Cached(contentRoot).Config.Tiers.Fortress.Identities));
+        }
     }
+
+    /// <summary>The town type every town a session made here is (`dt screenshot --form`, note 692; "street" the street
+    /// town), or null for each its own. A developer's knob for looking at one type: the CLI sets it once per process.</summary>
+    public static string? TownForm { get; set; }
 
     PrototypeSession(string contentRoot, RailLine line, Route? route, int cars, double start)
     {
@@ -203,6 +211,7 @@ public sealed class PrototypeSession : IPlaySession
         _lean.Apply(_renderFrames, Train, Route?.Plan?.Rules, (Tick + alpha) * SimConstants.TickSeconds);
         // And a car in the mine head's tipple rolled over toward its bin, or off its rails (note 423): drawn only.
         TippleTilt.Apply(_renderFrames, Train, World.Run);
+        ComeApart.Apply(_renderFrames, Train, World.Run);
         // And the cars a Waker has at dawn, lifted from the rear with whoever's in them (note 588): drawn only.
         WakerLift.Apply(_renderFrames, Train, World);
         return _renderFrames;
