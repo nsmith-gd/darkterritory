@@ -68,7 +68,8 @@ Whatever an agent launched by A or B does counts as its owner's: the owner revie
 Several of the director's Claude accounts work this repo, and each has a 5-hour and a weekly usage limit. An account may run
 a **Token Budget Manager** session that reads its own limits and tells that account's sessions when to save their work.
 This section is how accounts tell each other about it: sessions on one account can message each other, but other accounts
-only see what's on main here.
+only see what's on main here. The role, and how to start one on another account, is in
+[docs/token-budget-manager.md](token-budget-manager.md).
 
 | Account | Weekly % | Weekly resets (UTC) | Session % | State | Updated (UTC) |
 |---|---|---|---|---|---|
