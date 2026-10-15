@@ -34,6 +34,8 @@
     "candles": 0.025, "treats": 0.035, "tinnedFood": 0.04, "preserves": 0.05, "rope": 0.05, "lampParts": 0.05,
     "tools": 0.06, "lampOil": 0.06, "bandages": 0.07, "medicine": 0.1, "valuableTools": 0.1, "pocketWatch": 0.12,
     "morphine": 0.14,
+    // Note 719's fragile valuables (`fragile`): worth more than most finds whole, and less once knocked.
+    "glassware": 0.09, "decanter": 0.11, "mantelClock": 0.13,
     // A comet fragment (`comet`): more than two car-loads of goods in one pair of arms (2.5 since note 755, the audit's R6:
     // worth a detour the crew argues about; note 718's was 1.2). (The trophies' are in `trophies`.)
     "cometFragment": 2.5
@@ -86,11 +88,13 @@
   // rare loot." A find in `heals` is used, not just sold: carried, with Use held standing for useSeconds (a tap still puts
   // it down), it gives its carrier that much health back, up to full (player.json health), and it's gone, its scrip with
   // it. A bot uses one it's carrying below botBelow. Not in the spec's numbers: a bandage is about a hit (enemies.json
-  // damage), medicine more, morphine near the whole bar.
+  // damage), medicine more, morphine near the whole bar. Note 723 (the director, 14 Oct 2026, GDD App. F.6): put on someone
+  // else (Use held looking at a hurt crewmate, player.json rescue.bandage), a find heals onAFriend times as much, up to full.
   "healing": {
     "useSeconds": 2,
     "heals": { "bandages": 30, "medicine": 50, "morphine": 80 },
-    "botBelow": 50
+    "botBelow": 50,
+    "onAFriend": 1.5
   },
 
   // What each kind of container can hold (drawn evenly from the list, so an item named twice is twice as likely). Note 718:
@@ -106,9 +110,9 @@
       "lampOil", "lampOil", "lampOil", "lampOil", "lampOil", "lampOil", "lampOil", "pocketWatch",
       "pocketWatch", "pocketWatch", "pocketWatch", "pocketWatch", "pocketWatch", "treats", "treats",
       "treats", "treats", "treats", "treats", "treats", "treats", "tinnedFood", "tinnedFood", "tinnedFood",
-      "tinnedFood", "rope", "rope", "rope", "rope", "lampParts", "lampParts"] },
-    "cellar":     { "items": ["preserves", "treats", "tools"] },
-    "underFloor": { "items": ["valuableTools", "pocketWatch", "preserves"] },
+      "tinnedFood", "rope", "rope", "rope", "rope", "lampParts", "lampParts", "decanter", "decanter", "mantelClock"] },
+    "cellar":     { "items": ["preserves", "treats", "tools", "preserves", "treats", "tools", "glassware"] },
+    "underFloor": { "items": ["valuableTools", "pocketWatch", "preserves", "valuableTools", "pocketWatch", "preserves", "mantelClock"] },
     "bench":      { "items": ["tools", "lampParts"] },
     "hayloft":    { "items": ["tools", "lampOil", "rope"] },
     "loose":      { "items": ["candles", "candles", "treats", "tinnedFood", "lampOil"] }
@@ -165,6 +169,78 @@
     "tries": 24
   },
 
+  // BIG FINDS (queue #453, ARCHITECTURE §8 note 719; the director, 14 Oct 2026: "Very big value things should take two to
+  // carry. That is a good idea"; App. F, 9 Oct: loot that stays put, so "poor stacking becomes an obstacle ... lethal company
+  // style").
+  //
+  // Fragile valuables: a find of one of these kinds loses worth each time it's knocked: a change in its speed of more than
+  // knockSpeed m/s in a tick (dropped from higher than about a man's height, thrown, hit by something, slid hard into a
+  // car's end under the brakes, or off a moving train onto the ballast), no more than one knock every knockSeconds. Each
+  // knock leaves it `keep` of its worth (rounded to fives, never less than the least a find is). Nothing on the screen says
+  // so but the thing itself (a crack across the glass, a dented case) and the clerk, who names it by its damage in the
+  // tally: "Find: mantel clock, dented, 60." The words, by knocks (the last for any more). Put down from the hands, a find
+  // falls about a metre: 4.4 m/s, under knockSpeed. Sliding loose across a car's floor (`ride`), it's knocked striking the
+  // car's end, a wall or another thing faster than slideKnock m/s (a hard brake application with it lying loose at the far
+  // end of a car). The comet's fragments and the trophies aren't fragile.
+  "fragile": {
+    "items": { "glassware": ["cracked", "smashed"], "decanter": ["chipped", "broken"], "mantelClock": ["dented", "smashed"] },
+    "knockSpeed": 5.5,
+    "slideKnock": 3,
+    "knockSeconds": 0.3,
+    "keep": 0.5
+  },
+
+  // Two-person jackpots: finds too heavy for one, carried by two as a heavy crate is (spec D.2, T43: either end, the span,
+  // the heavy pace, never thrown). Each worth about a car-load of goods (in the tier's car-loads, run.json economy.perCar, as
+  // the comet's fragment is: not `findsByTier`), more than anything one person carries but the fragment, and paid as a find
+  // is, lying still in any car at the gate. Its ball's radius (m): a safe, a church bell off its frame, a ship's figurehead
+  // off a wreck. A stop's chance of one lying out by tier (in a yard by its strongroom or crate stack, or on an open house's
+  // floor), and the jackpot house's chance of one inside it (`house`); never more than `most` at a stop.
+  "jackpots": {
+    "items": {
+      "safe": { "worth": 1.0, "radius": 0.42 },
+      "churchBell": { "worth": 0.85, "radius": 0.45 },
+      "figurehead": { "worth": 1.1, "radius": 0.42 }
+    },
+    "chance": { "local": 0.08, "frontier": 0.1, "deadLines": 0.12, "deepTerritory": 0.15 },
+    "house": 0.4,
+    "most": 2
+  },
+
+  // The jackpot house: at a stop with a village, its biggest open house (not the Gaunt's roost, a Holdout or a pair of
+  // cottages) is locked up at `chance` by tier, from the run's seed. Its door is shut and stays shut to a held Use; the
+  // wrench in hand (or the repair kit, where it's the repair tool) held there unlockSeconds opens it, quietly, as it opens a
+  // Holdout's lock (GDD App. D.7, holdouts.json open: 6 s). Once open, it's a door like any other. Inside, its kept finds are
+  // each drawn `draws` times and the worthiest kept (an outlier house's are drawn outlierDraws), and `extra` more of
+  // `items` lie on its floor; it's likelier to hold a jackpot (`jackpots.house`) and a house creature (enemies.json
+  // dwellings.jackpotShare). Seen from outside by its door (painted, panelled, a brass knob) and a lamp left burning in its
+  // window.
+  "jackpotHouse": {
+    "chance": { "local": 0.25, "frontier": 0.3, "deadLines": 0.35, "deepTerritory": 0.4 },
+    "unlockSeconds": 6,
+    "draws": 3,
+    "extra": [2, 3],
+    "items": ["pocketWatch", "valuableTools", "mantelClock", "decanter", "glassware", "morphine", "medicine", "lampParts"]
+  },
+
+  // Loose loot rides the train: what's put down in a car stays a thing, and feels the car's moving. On a bend the car's
+  // turning throws it outward; under the brakes, forward; pulling away, back. Whatever's felt sideways and along over `grip`
+  // g sets it sliding (on another thing, `stackGrip` g, the slope it lies on counted: a thing balanced badly on another
+  // topples off it), and it slides till `slide` g of friction stops it, into the car's end or a wall or out through an open
+  // side door onto the line. A jackpot grips `heavyGrip` times better. Things lie on things (a stack), and push one another;
+  // no more than liveCap move at once in a car (the rest lie still till they're done), and a thing lying still is asleep
+  // and costs nothing. What's felt is capped at maxFelt m/s² (a jolt of the couplings). Off, things lie as they lay (the
+  // brakes nudge them; nothing slides on a bend), as before.
+  "ride": {
+    "enabled": true,
+    "grip": 0.05,
+    "stackGrip": 0.3,
+    "slide": 0.03,
+    "heavyGrip": 2.0,
+    "liveCap": 12,
+    "maxFelt": 12
+  },
+
   // Note 718: the clerk's tally (GDD §9) names the night's best finds by what they're worth, this many kinds of them, and the
   // crewmate who brought the most worth aboard ("Light fingers"; the wallet stays shared, §11).
   "tally": { "best": 3, "finder": true },
@@ -177,6 +253,8 @@
     "gannetHead": "The Gannet's head", "cometFragment": "Comet fragment", "grumblerJaw": "The Grumbler's jaw",
     "gauntHand": "The Gaunt's hand", "climberClaw": "A Climber's claw", "passengerCap": "The Passenger's cap",
     "brakemanWheel": "The Brakeman's wheel", "knotterClaw": "A Knotter's claw", "hotboxPlate": "A Hotbox plate",
-    "beetleShovel": "The Beetle's shovel", "towerJawTooth": "Tower Jaw's tooth"
+    "beetleShovel": "The Beetle's shovel", "towerJawTooth": "Tower Jaw's tooth",
+    "glassware": "Crate of glass", "decanter": "Cut-glass decanter", "mantelClock": "Mantel clock",
+    "safe": "Safe", "churchBell": "Church bell", "figurehead": "Ship's figurehead"
   }
 }

@@ -34,6 +34,9 @@ public enum TowerJawTarget : byte { CoalingTower, Gantry }
 public sealed class TowerJaw(int id) : Enemy(id)
 {
     double _modeSeconds, _awayFor;
+    // Note 728: how long it keeps listening to the last knock on the rail (s), and where that was.
+    double _listen;
+    Double3 _knock;
     readonly List<uint> _blows = [];
     // Its structure: which facility, what kind, its support (where it gnaws), and where it falls (the line's distance the
     // wreck closes, on the main path; NaN for one that closes no line).
@@ -195,6 +198,24 @@ public sealed class TowerJaw(int id) : Enemy(id)
                 SetMode(TowerJawMode.Lunge);
                 Enter(ctx, SpinePhase.Telegraph);
             }
+            return;
+        }
+        // Note 728 (senses.json answers.towerJaw): a knock on the rail within its reach, and it stops gnawing, turns to it and
+        // rears (its threat, at no one) a while.
+        var a = world.Senses.Answers.TowerJaw;
+        if (a.KnocksTurn && world.Loudest(Sense.Vibration, me, e => e.Kind == EmitterKind.Knock) is { } knock)
+        {
+            _listen = a.ListenSeconds;
+            _knock = knock.At;
+        }
+        else
+            _listen = Math.Max(0, _listen - dt);
+        if (_listen > 0)
+        {
+            Lateral = Yaw(_knock - me);
+            SetMode(TowerJawMode.Threat);
+            if (Phase is SpinePhase.Dormant or SpinePhase.Telegraph)
+                Enter(ctx, SpinePhase.Alert);
             return;
         }
         if (Mode is TowerJawMode.Threat or TowerJawMode.Lunge)

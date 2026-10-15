@@ -194,6 +194,7 @@ public sealed partial class World
         var away = Horseplay.Away(from, at, PlayerMotor.WorldYaw(s, Train));
         _knocks.Add(new Knock(target.Id, playerId, KnockKind.Shove, away));
         _shovedBy[target.Id] = (playerId, SpeedUnder(target.State));
+        _thrown.Remove(target.Id);
         // Into whoever's just beyond them (a chain bump, one deep): off their feet more gently, the shove's all the same.
         foreach (var (id, o) in Mates)
         {
@@ -204,6 +205,7 @@ public sealed partial class World
                 continue;
             _knocks.Add(new Knock(id, playerId, KnockKind.Bump, Horseplay.Away(at, at + beyond, 0)));
             _shovedBy[id] = (playerId, SpeedUnder(o));
+            _thrown.Remove(id);
         }
         Horseplays.Add(new HorseplayEvent(_nextFx, Tick, playerId, KnockKind.Shove, target.Id));
         _nextFx = _nextFx % 0xFFFFFF + 1;
@@ -340,8 +342,12 @@ public sealed partial class World
                 if (solid.Present(vehicle) && solid.BoxIn(vehicle).Contains(local))
                     return true;
         }
-        // The ground.
-        return lump.At.Y <= PlayerMotor.GroundAt(lump.At, Train.Line, ref lump.Hint);
+        // The ground; on the rails, a knock what hunts by vibration hears (note 728).
+        if (lump.At.Y > PlayerMotor.GroundAt(lump.At, Train.Line, ref lump.Hint))
+            return false;
+        if (OnRail(lump.At, lump.Hint))
+            KnockRail(lump.At, lump.By);
+        return true;
     }
 
     /// <summary>A client's copy of the host's horseplay (note 717): the knocks seen lately, and the lumps in flight.</summary>

@@ -1228,6 +1228,8 @@ public sealed record DwellingsTuning
     public bool Enabled { get; init; } = true;
     public Dictionary<string, double> Share { get; init; } = new() { ["local"] = 0.2, ["frontier"] = 0.25, ["deadLines"] = 0.33, ["deepTerritory"] = 0.5 };
     public Dictionary<string, double> Weights { get; init; } = new() { ["lodger"] = 3, ["householder"] = 2, ["hollowHouse"] = 1.5, ["hanger"] = 3 };
+    /// <summary>A stop's jackpot house's share is its tier's times this, never past 1 (note 719).</summary>
+    public double JackpotShare { get; init; } = 1;
     public double PlaceWithin { get; init; } = 500;
     public double ForgetPast { get; init; } = 800;
 
