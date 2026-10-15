@@ -534,7 +534,7 @@ public class CarFireTests
     }
 
     [Theory]
-    [InlineData(3)]
+    [InlineData(2)]
     [InlineData(5)]
     public void AtAStopTheNearestHandPutsTheFireFliesLampOutWhateverItsPart(int seed)
     {
@@ -550,7 +550,9 @@ public class CarFireTests
         // on. On the 7 km nights of note 554 frontier:7 is another line (its first stop a foundry again): seeds 3 and 5 had
         // the Fire Flies come to a car at a stop. With the bots shutting the doors behind them (note 633) no seed of 1 to 16
         // has them come at all, so the swarm is put on: ten seconds into the first stand, on the first lit car in the engine's
-        // rake, its door left open, as the director would have dealt it.
+        // rake, its door left open, as the director would have dealt it. Note 716's big cab reshuffled the nights (the crew's
+        // walks in and out of the cab are other lengths): seed 3 is seed 2 now, its hands all at the winch and the crane
+        // 30 m off when the swarm came to car 1.
         EnemyKind[] six = [EnemyKind.Mourners, EnemyKind.TowerJaw, EnemyKind.Brakeman, EnemyKind.Knotter, EnemyKind.FreightBeetle, EnemyKind.Hotbox,
             // And the yard's and the houses' (notes 583–586, 592): a stop's own, they change what the bots do there.
             EnemyKind.Pickers, EnemyKind.Lodger, EnemyKind.Householder, EnemyKind.HollowHouse, EnemyKind.Hanger];

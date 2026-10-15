@@ -410,9 +410,15 @@ Eventually the crew sees lights. Then walls. Then cannon towers. The gates open 
 
 | Section | Contains |
 |---|---|
-| **Engine car** | Conductor, boiler, forward cannon. Heat, light, the throttle. |
+| **Engine car** | The big cab, the crew car (the footplate's controls and fire, the chart table, the gallery, the warm back wall), a short boiler behind it, the forward cannon on the cab roof. Heat, light, the throttle. |
 | **Cargo cars** | The middle. Growing. Unarmed. |
 | **Guard car** | Rear cannon, tool storage, the back door. |
+
+**The cab is the crew car** *(the director, 14 Oct 2026: "the cab itself becomes the crew car. It becomes the place where players hang out together. It becomes the place where coordinated driving happens. It becomes, in essence, the captain's quarters, shared by all"; ARCHITECTURE §8 note 716)*. The boiler doesn't have to be a real one's length ("The boiler is just a long tube ... it can still feel that way without having an accurate long boiler"), so the cab takes 11 m of the engine's 20 and the boiler the 8 behind it. Front to back:
+- **The footplate** (its first 2.5 m), exactly as it was: the coal bunker front left, the firebox beside it, the driver's console under the right window, the levers, the whistle cord, the vent, the tool rack. One person stood there still reaches the coal, the fire and the controls without turning round ("we are going to have this game playable by a single player").
+- **The chart table**, standing height, in the middle behind the footplate: the run map lies on it under a hooded lamp, the train's place on it moving, the bends with their speeds and the stops marked, as on the plate it used to hang on. Along its front edge, a small lamp for each crewmate: lit while they're aboard, dark when they're down on the ground or dead, so whoever has the table sees who's missing. There's room to walk by it on either side.
+- **The gallery**, a raised floor a step up (0.45 m, a tread half way), its benches down the middle facing forward, long windows down its sides. From up there everyone sees the line out of the front windows over the heads at the controls: "Everybody wants to be where they can see the tracks, because making people feel comfortable is seeing where they're going."
+- **The back wall**, the boiler's end, warm with it: the doors out to the running boards on either side, the ways along the boiler, and its gimmicks: a kettle on the warming shelf that starts to sing as the boiler nears its redline; a cuckoo clock whose bird comes out once a minute over the last three minutes before dawn; a rail of empty frames for the crew's photos; a trophy shelf; a hook for each crewmate, their cap on it while they're off the train; and a shelf kept for the gramophone.
 
 Early crews run **engine plus one or two cars.** Experienced crews run **engine, armour, cannons, utility cars and many freight cars.**
 
@@ -470,6 +476,8 @@ You aren't picking a difficulty level. You're travelling farther from civilizati
 **The kit stays on the body** (Appendix D.2). When the engineer dies, nobody goes looking for the engineering kit. They go looking for the engineer, and the dead player watches them do it.
 
 Roles emerge from position. You end up on the cannon because you're standing at the cannon.
+
+**The cab is where the crew drives the train together** *(the director, 14 Oct 2026; note 716)*. Five jobs, every one optional: the **driver** at the controls, the **fireman** at the coal and the fire beside them, the **navigator** at the chart table calling the bends and the stops and counting the lamps, the **lookout** up on the gallery watching the line over everyone's heads, and the **gunner** up the ladder at the forward cannon. A crew of five can split them; a crew of one does all of them from the footplate, as before.
 
 **The cab's ladder goes up to the roof** *(the director's evening playtest, 13 Oct: "This ladder inside the cab should actually go up to the roof so that I can access the roof quickly and vice versa"; note 704)*. Behind the coal bunker, a ladder runs from the cab floor up through an open hatch onto the cab roof, by the forward gun. It's the quick way between the driver's place and the gun.
 - **Going up:** walk to it looking up, or press the ladder key at its foot. Walking past it while working the cab, eyes level, doesn't take it. A car's hatch ladder inside works the same way ("DOWN INSIDE" from its roof).

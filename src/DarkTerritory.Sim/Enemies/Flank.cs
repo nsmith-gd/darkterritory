@@ -710,7 +710,7 @@ public sealed class Climber(int id) : Enemy(id)
         {
             // The engine: down into the cab.
             Attached = 0;
-            Local = train.Frames[0].Shape.Cab!.Value.Centre;
+            Local = train.Frames[0].Shape.FootplateMiddle; // (onto the footplate: note 716)
             Extra = -1;
             // Coming over the tender into the cab, it smashes the forward lamp for a while (§23 "lights fail", note 183).
             ctx.World.SmashLamp(t.LampOutSeconds);

@@ -1584,6 +1584,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.Tick = session.HostTick;
         scene.Pressure = (float)(session.Train.BoilerTuning is { } pt ? session.Train.Boiler.Pressure / pt.PressureMax : 0.78);
         scene.Tender = (float)(session.Train.BoilerTuning is { TenderCapacity: > 0 } tt ? Math.Clamp(session.Train.Boiler.Tender / tt.TenderCapacity, 0, 1) : 0.72);
+        // The crew car's back wall (note 716): the kettle singing as the gauge nears the redline, the cuckoo before dawn.
+        var crewCar = session.Train.Dynamics.Tuning.Geometry.Engine.CrewCar;
+        scene.KettleSong = session.Train.BoilerTuning is { } kt ? DarkTerritory.Sim.Train.CrewCar.KettleSong(session.Train.Boiler.Pressure, kt, crewCar) : 0;
+        scene.Cuckoo = session.World.Run is { } cuckooRun && session.World.Enemies?.Wakers is { } cuckooDawn
+            ? DarkTerritory.Sim.Train.CrewCar.Cuckoo(cuckooRun.DawnIn, cuckooDawn.StirSeconds, crewCar) : null;
         scene.LampLit = session.World.LampShining && scene.LampsOut < session.Train.Frames.Count;
         scene.Venting = session.Train.Boiler.Vented;
         scene.SafetyValve = session.Train.Boiler.SafetyValveLifting;
