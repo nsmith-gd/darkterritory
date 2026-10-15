@@ -717,13 +717,29 @@ public static partial class Staging
                     Act: Art.CrewPose.HeldCarried), Sim.Player.PlayerMotor.WorldPosition(carrier, train), Sim.Player.PlayerMotor.WorldYaw(carrier, train), 31),
             ];
         }
+        if (scene == "throwoff")
+        {
+            // Note 818: the same carry a moment after the throw (dt screenshot --view carryfriend --rescue throwoff): the carrier
+            // up on their toes pushing, the friend off the shoulder ahead of them along their view, flailing.
+            var frame = train.Frames[Math.Min(2, train.Frames.Count - 1)];
+            var carrier = Sim.Player.PlayerMotor.SpawnOnRoof(train, frame.Index, -1.0, player, -0.3) with { Yaw = Math.PI - 1.45 };
+            var feet = Sim.Player.PlayerMotor.WorldPosition(carrier, train);
+            double yaw = Sim.Player.PlayerMotor.WorldYaw(carrier, train);
+            var ahead = new Double3(-Math.Sin(yaw), 0, -Math.Cos(yaw));
+            return
+            [
+                new Crewmate(31, feet, yaw, true, Act: Art.CrewPose.ThrowOff, Phase: 0.2),
+                new Crewmate(32, feet + ahead * 1.5 + Double3.Up * 0.8, yaw + 2.4, true, Act: Art.CrewPose.Flail),
+            ];
+        }
         int car = SideDoorCar(train);
         var at = train.Frames[car];
         train.Vehicles[car].DoorsOpen |= 1 << 3;
         double w = at.Shape.HalfWidth, floor = at.Shape.Interior?.Min.Y + 0.1 ?? 1.1;
         var helper = new Crewmate(31, at.ToWorld(new Double3(w - 0.25, floor, 0)), -Math.PI / 2 + at.Heading, true, Act: Art.CrewPose.HandUp);
-        var runner = new Crewmate(32, at.ToWorld(new Double3(w + 1.0, 0, 0.45)), at.Heading + 0.25, true, Act: Art.CrewPose.LanternWalk, Lamp: true);
-        return [helper, runner];
+        var runner = new Crewmate(32, at.ToWorld(new Double3(w + 1.0, 0, 0.45)), at.Heading + 0.25, true, Act: Art.CrewPose.Run, Lamp: true);
+        // Note 818: running alongside with a hand up to the helper's, the two hands on one point.
+        return [Art.CrewActs.HandsMeet(helper, runner.Feet, helping: true), Art.CrewActs.HandsMeet(runner, helper.Feet, helping: false, helper.Yaw)];
     }
 
     /// <summary>
@@ -1972,6 +1988,23 @@ public static partial class Staging
     /// over it caught, cooling away along the car, out toward the ends as far as its <paramref name="spread"/>; and its car's
     /// char under the worst of it.
     /// </summary>
+    /// <summary>
+    /// Note 821 (dt screenshot --threats --view fire --scorch [m]): a crewmate on the burning car's floor <paramref name="from"/>
+    /// m along it from its hottest cell, toward the camera's end, facing it, the fire's heat on them as the host burns them
+    /// (<see cref="CarFire.HeatOn(Double3, FireGrid, IReadOnlyList{double}, CarFireTuning)"/>).
+    /// </summary>
+    public static Crewmate Scorched(TrainOnLine train, CarFire fire, CarFireTuning t, double from)
+    {
+        var car = train.Frames[fire.Attached];
+        var grid = FireGrid.Of(train, fire.Attached, t.CellSize)!;
+        int hottest = 0;
+        for (int i = 1; i < grid.Count && i < fire.Heat.Length; i++)
+            if (fire.Heat[i] > fire.Heat[hottest])
+                hottest = i;
+        var feet = new Double3(0.35, grid.Room.Min.Y + FireGrid.FloorPad, grid.Centre[hottest].Z + from);
+        return new Crewmate(34, car.ToWorld(feet), car.Heading, true, Car: fire.Attached, Local: feet, Scorch: CarFire.HeatOn(feet, grid, fire.Heat, t));
+    }
+
     public static void Cells(TrainOnLine train, CarFire fire, double extra, double spread, CarFireTuning? tuning = null)
     {
         if (FireGrid.Of(train, fire.Attached, (tuning ?? new CarFireTuning()).CellSize) is not { } grid)
