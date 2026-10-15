@@ -694,6 +694,26 @@
   "url": "/_blob/592844582c1aab8326eca57fcddc7113",
   "sha": "8114cc1d6338b918"
  },
+ "previews/crew-emotes--bow--coat.mp4": {
+  "id": "75e46916f616779917ff56497ee2c29f",
+  "url": "/_blob/75e46916f616779917ff56497ee2c29f",
+  "sha": "8f35c760f03397e3"
+ },
+ "previews/crew-emotes--bow--wool.mp4": {
+  "id": "d285ce43dd916a1b7790d639f8f47ddf",
+  "url": "/_blob/d285ce43dd916a1b7790d639f8f47ddf",
+  "sha": "eee6e986fe078b9a"
+ },
+ "previews/crew-emotes--conga--boots.mp4": {
+  "id": "aa8fbf5667537772a9188337c49824a8",
+  "url": "/_blob/aa8fbf5667537772a9188337c49824a8",
+  "sha": "6b23e2be2516d59b"
+ },
+ "previews/crew-emotes--conga--planks.mp4": {
+  "id": "fd3678796876fdf43edd9d914eb2b18d",
+  "url": "/_blob/fd3678796876fdf43edd9d914eb2b18d",
+  "sha": "80d2293f47dd12cb"
+ },
  "previews/crew-emotes--dance--jig.mp4": {
   "id": "bc704c20fbfda7b4e7b9ac5e79b06089",
   "url": "/_blob/bc704c20fbfda7b4e7b9ac5e79b06089",
@@ -738,6 +758,16 @@
   "id": "2f3012d853d93ed993ed033cf3e3e767",
   "url": "/_blob/2f3012d853d93ed993ed033cf3e3e767",
   "sha": "3d62afcf5ad9767c"
+ },
+ "previews/crew-emotes--salute--block.mp4": {
+  "id": "faf4f84c6e0e080390e579c4596d4d13",
+  "url": "/_blob/faf4f84c6e0e080390e579c4596d4d13",
+  "sha": "68dbcde9d27d3806"
+ },
+ "previews/crew-emotes--salute--heels.mp4": {
+  "id": "c82083156fbabbfeb3bfa23c699e3943",
+  "url": "/_blob/c82083156fbabbfeb3bfa23c699e3943",
+  "sha": "00fd64cfee285a5e"
  },
  "previews/crew-emotes--sit--coat.mp4": {
   "id": "cfb68ec1b8b9eda83a489e275e45e3c4",
@@ -5094,6 +5124,36 @@
   "url": "/_blob/7869f60fe0ceb2638ecb7968993b4c5b",
   "sha": "113337055d19bca1"
  },
+ "previews/up-pets--bark--throat.mp4": {
+  "id": "c952ef3230bc0ae460548e759893a61b",
+  "url": "/_blob/c952ef3230bc0ae460548e759893a61b",
+  "sha": "b986660707adfb20"
+ },
+ "previews/up-pets--bark--tract.mp4": {
+  "id": "be1902b1c6cf06393abaf135040d3edf",
+  "url": "/_blob/be1902b1c6cf06393abaf135040d3edf",
+  "sha": "7c26c18a3d6df31f"
+ },
+ "previews/up-pets--hiss--gasp.mp4": {
+  "id": "4433c3728942d67003b6a4dbc07599dd",
+  "url": "/_blob/4433c3728942d67003b6a4dbc07599dd",
+  "sha": "c75013acc25eeb40"
+ },
+ "previews/up-pets--hiss--spit.mp4": {
+  "id": "6cac16678589f6ad085d0eafe4aa5d65",
+  "url": "/_blob/6cac16678589f6ad085d0eafe4aa5d65",
+  "sha": "a75cc48e9e94c79b"
+ },
+ "previews/up-pets--meow--throat.mp4": {
+  "id": "3fbee428a6d08c3017a7639f7b5ff779",
+  "url": "/_blob/3fbee428a6d08c3017a7639f7b5ff779",
+  "sha": "b735de7eced38528"
+ },
+ "previews/up-pets--meow--tract.mp4": {
+  "id": "dac7a1467a289aa3435b6fa9d6029aff",
+  "url": "/_blob/dac7a1467a289aa3435b6fa9d6029aff",
+  "sha": "f3d2602522ae93c8"
+ },
  "previews/up-tells--booster--beats.mp4": {
   "id": "f611e62084fa0fc3d1ecf0fa7527ba14",
   "url": "/_blob/f611e62084fa0fc3d1ecf0fa7527ba14",
@@ -5163,6 +5223,36 @@
   "id": "f7aa6af558a05e89e1dd40ba5d0d498a",
   "url": "/_blob/f7aa6af558a05e89e1dd40ba5d0d498a",
   "sha": "3c4b6a319514103f"
+ },
+ "previews/up-whimsy--calliope--pipe.mp4": {
+  "id": "82d900793241a154313cd53ff3acbc11",
+  "url": "/_blob/82d900793241a154313cd53ff3acbc11",
+  "sha": "a57d0c271534ba18"
+ },
+ "previews/up-whimsy--calliope--steam.mp4": {
+  "id": "04f99cdeb2c411eaffe5ee86d37e580b",
+  "url": "/_blob/04f99cdeb2c411eaffe5ee86d37e580b",
+  "sha": "21ae8537d5e95ed3"
+ },
+ "previews/up-whimsy--song--syrinx.mp4": {
+  "id": "91cf3d0422f6ed5b15bad974e0c75210",
+  "url": "/_blob/91cf3d0422f6ed5b15bad974e0c75210",
+  "sha": "5837da60c2b0dcb4"
+ },
+ "previews/up-whimsy--song--tours.mp4": {
+  "id": "bd2911956e24455ac6ce36dab18a858d",
+  "url": "/_blob/bd2911956e24455ac6ce36dab18a858d",
+  "sha": "ef907d46c30acbcb"
+ },
+ "previews/up-whimsy--wind--pawl.mp4": {
+  "id": "69e879d645de27694dc2e85733930a50",
+  "url": "/_blob/69e879d645de27694dc2e85733930a50",
+  "sha": "4b89403457d0c59c"
+ },
+ "previews/up-whimsy--wind--ratchet.mp4": {
+  "id": "33ba14debdca58fdfb0e16ba2f0c09e4",
+  "url": "/_blob/33ba14debdca58fdfb0e16ba2f0c09e4",
+  "sha": "24c87337d8033e87"
  },
  "previews/voice-callout--bang--walls.mp4": {
   "id": "492a0f77d14cc7561b0ff06486a278b0",
