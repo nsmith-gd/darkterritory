@@ -2982,8 +2982,11 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
             intent = GetDown(self, train, Math.Sign(across));
             return true;
         }
-        // Just beyond the lever from the track, in reach of it.
-        var stand = TrackPoint(train.Line, RailLine.MainPath, along, Math.Sign(across) * (Math.Abs(across) + 0.5));
+        // Just beyond the lever from the track, in reach of it. Up to it between the train and the tower (note 758: the
+        // trestle's posts stand 3.5 m off the line, solid, the lever just past its end), and out to it once abreast.
+        var (a, x) = TrackCoords(train.Line, RailLine.MainPath, self.Position, self.LineHint);
+        bool abreast = Math.Abs(a - along) < 0.75 || Math.Abs(x) > Clear + 0.3 && Math.Abs(a - along) < 2;
+        var stand = TrackPoint(train.Line, RailLine.MainPath, along, Math.Sign(across) * (abreast ? Math.Abs(across) + 0.5 : Clear));
         var (step, there) = WalkTo(self, train.Line, RailLine.MainPath, stand, null);
         if (!there)
         {

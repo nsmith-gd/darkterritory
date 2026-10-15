@@ -1,0 +1,20 @@
+// The Wakers: the stir and the run: The land getting up: earth and rock torn open, a long groan, in surges. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 1,
+ "loop": false,
+ "maxInstances": 12,
+ "minDistance": 200,
+ "maxDistance": 4000,
+ "rolloff": 0.6,
+ "gainDb": 8,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "tell-wakers/rise",
+   "gain": 1,
+   "pitchJitter": 0.4,
+   "gainJitter": 1.0
+  }
+ ]
+}

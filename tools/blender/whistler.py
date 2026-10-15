@@ -6,16 +6,18 @@ thin legs down its length and a pair of long hooked forelegs at its front. It li
 bridge plate between two cars, grub-white where the plates part, the plates the yellowed grey of old ivory, all of it
 streaked with the couplers' black grease. It has no eyes and no face. Its front is a smooth blunt wedge, two feelers
 twitching off it, and out of the wedge a siphon: a long fleshy tube with a puckered lip at its end and stops along its
-top like a flute's, which open and close. That is what whistles. Pulling the cord, it rears straight up out of the gap
-three metres, the forelegs hooked over the cord along the eaves. It runs too fast, rippling, with someone held in its
-forelegs under its front.
+top like a flute's, which open and close. That is what whistles: it blows your whistle's note through it, with no hand on
+the cord. Whistling, it rears up out of the gap from the coupler, its tail wound on the coupler's head and the rest of it
+straight up between the cars' ends, four metres, its front and the siphon stood up over the roofs and the forelegs up over
+its head, jerking down with each blast (note 759: seen at it from the cab and the roofs). It runs too fast, rippling, with
+someone held in its forelegs under its front.
 
 SK_Whistler: root, the body's ten segments (seg_01 at the tail to seg_10 behind the head), the head, the siphon's three,
 the feelers, the twenty legs' two bones each (femur out and up from the segment, tibia down to the hook). Faces +Y (the
 engine's -Z). Its origin is the gap's (the sim's GapLocal, 0.6 m over the rail): CreatureArt drops it to the rail.
 Clips (GDD §31: still, then too fast): fold (coiled under the plate, the front laid on top of the coil looking out,
-breathing; once a ripple down the legs), whistle (reared up out of the gap, the forelegs yanking the cord twice, the
-siphon swelling, its stops opening), watch (the front lifted at the gap's mouth, swaying and stopping in jerks), run
+breathing; once a ripple down the legs), whistle (reared up out of the gap over the roofs, the forelegs jerking down
+twice, the siphon swelling, its stops opening), watch (the front lifted at the gap's mouth, swaying and stopping in jerks), run
 (straightened out and gone, the body snaking, the legs in waves), carry (the same run with its front reared up, someone held
 in its forelegs under it), hit (struck, once). Sockets hook_r and hook_l: the forelegs' tips.
 
@@ -280,26 +282,28 @@ for f, w in ((126, 0), (128, 1), (130, 2), (132, 3), (134, 4), (136, 5), (140, -
     fold.key(f, FOLD | rip | flick, "CONSTANT")
 fold.close(150)
 
-# Whistle (2.5 s, loop for as long as it blows): reared straight up out of the gap, the tail coiled on the rail under it,
-# the forelegs up over the cord along the eaves and yanking it down, twice, hard; the siphon pointed up at the sky, its
+# Whistle (2.5 s, loop for as long as it blows): reared straight up out of the gap over the roofs (note 759), the tail
+# wound on the coupler's head under it (CreatureArt stands it there) and the rest of it upright, its front and the siphon
+# over the roofline; the forelegs up over its head and jerking down, twice, hard; the siphon pointed up at the sky, its
 # root swelling and the stops opening as it blows; the legs down its upright length all stirring.
 REAR = coil(40, 6)
-REAR = {n: v for n, v in REAR.items() if int(n[-2:]) <= 4} | {"seg_05": (52, 0, 4), "seg_06": (38, 0, 0), "seg_07": (4, 0, 0), "seg_08": (0, 0, 0),
+REAR = {n: v for n, v in REAR.items() if int(n[-2:]) <= 2} | {"seg_03": (52, 0, 4), "seg_04": (38, 0, 0), "seg_05": (2, 0, 0), "seg_06": (0, 0, 0),
+                                                             "seg_07": (4, 0, 0), "seg_08": (0, 0, 0),
                                                              "seg_09": (-2, 0, 0), "seg_10": (-6, 0, 0), "head": (-10, 0, 0),
                                                              "siphon_01": (30, 0, 0), "siphon_02": (16, 0, 0), "siphon_03": (8, 0, 0)}
 
 
 def uplegs(ph):
     """Down its upright length the legs hang curled in towards it, stirring out of step, each on its own."""
-    return legs_pose(swing=lambda k: (-10 + 22 * math.sin(ph + k * 1.7)) if k >= 5 else 0,
-                     lift=lambda k: (-35 + 18 * math.sin(ph * 1.3 + k * 2.3)) if k >= 5 else 0, tuck=0.35)
+    return legs_pose(swing=lambda k: (-10 + 22 * math.sin(ph + k * 1.7)) if k >= 3 else 0,
+                     lift=lambda k: (-35 + 18 * math.sin(ph * 1.3 + k * 2.3)) if k >= 3 else 0, tuck=0.35)
 
 
 UPLEGS = uplegs(0.0)
 
 
 def reach_up(p, pull):
-    """The forelegs up over its head, hooked over the cord, pulled down `pull` (0..1)."""
+    """The forelegs up over its head, jerked down `pull` (0..1)."""
     return p | mirror({f"femur_{N:02d}r": (0, -60 + 40 * pull, 50), f"tibia_{N:02d}r": (0, -40 + 50 * pull, 0)})
 
 
