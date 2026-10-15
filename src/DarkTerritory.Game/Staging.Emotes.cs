@@ -38,24 +38,25 @@ public static partial class Staging
             case "highfive":
                 return
                 [
-                    // Met, a hair after the slap (their right hands, the middle of the 1.1 m between them).
-                    OnRoof(40, 0.15, -0.55, Math.PI, Emote.HighFive, 1.1, new EmoteDetail(Met: true, SinceMeet: 0.08, Gap: 1.1)),
-                    OnRoof(41, -0.15, 0.55, 0, Emote.HighFive, 0.9, new EmoteDetail(Met: true, SinceMeet: 0.08, Gap: 1.1)),
+                    // Met, the slap held (their right hands, the middle of the 1.14 m between them, 0.3 m of it to each one's right).
+                    OnRoof(40, 0.15, -0.55, Math.PI, Emote.HighFive, 1.1, new EmoteDetail(Met: true, SinceMeet: 0.13, Gap: 1.14, Across: 0.3)),
+                    OnRoof(41, -0.15, 0.55, 0, Emote.HighFive, 0.9, new EmoteDetail(Met: true, SinceMeet: 0.13, Gap: 1.14, Across: 0.3)),
                     // A fist bump ahead of them, the same.
-                    OnRoof(42, 0.15, -4.4, Math.PI, Emote.FistBump, 1.0, new EmoteDetail(Met: true, SinceMeet: 0.08, Gap: 1.0)),
-                    OnRoof(43, -0.15, -3.4, 0, Emote.FistBump, 0.8, new EmoteDetail(Met: true, SinceMeet: 0.08, Gap: 1.0)),
+                    OnRoof(42, 0.15, -4.4, Math.PI, Emote.FistBump, 1.0, new EmoteDetail(Met: true, SinceMeet: 0.13, Gap: 1.04, Across: 0.3)),
+                    OnRoof(43, -0.15, -3.4, 0, Emote.FistBump, 0.8, new EmoteDetail(Met: true, SinceMeet: 0.13, Gap: 1.04, Across: 0.3)),
                     // Behind them, one offered to nobody, still up, sagging.
                     OnRoof(44, 0.2, 4.2, -Math.PI / 2, Emote.HighFive, 2.6),
                 ];
             case "danceoff":
                 {
-                    // Three in a ring 1.8 m across, each facing its middle; the first leads.
+                    // Three in a ring 1.8 m across, each facing its middle; the first leads, half a second into the turn's move (the
+                    // windmill's arm over the top), the other two clapping it.
                     var ring = new List<Crewmate>();
                     for (int i = 0; i < 3; i++)
                     {
                         double a = i * Math.Tau / 3 + 0.4;
                         double x = 0.55 * Math.Sin(a), z = 0.9 * Math.Cos(a);
-                        ring.Add(OnRoof((byte)(45 + i), x, z, Math.Atan2(x, z), Emote.Dance, 1.3 + 0.37 * i, new EmoteDetail(Dancers: 3, Leading: i == 0)));
+                        ring.Add(OnRoof((byte)(45 + i), x, z, Math.Atan2(x, z), Emote.Dance, 1.3 + 0.37 * i, new EmoteDetail(Dancers: 3, Leading: i == 0, OnBeat: 0.53)));
                     }
                     return ring;
                 }

@@ -225,4 +225,53 @@ public sealed class NightMenuTests : IDisposable
         m.Back();
         Assert.Equal([UiCue.Select, UiCue.Move, UiCue.Back], heard);
     }
+
+    [Fact]
+    public void AListedRunsHostChangesItsMoodAndPasswordFromTheMenu()
+    {
+        // Note 535 (note 450's "not yet"): the host of a listed run has MOOD and PASSWORD on the in-night menu; a joiner, or a
+        // night nobody can find on a list, doesn't.
+        var m = Menu();
+        m.OpenNight(new NightMenu(Others: 2));
+        Assert.DoesNotContain(Labels(m), l => l.StartsWith("MOOD", StringComparison.Ordinal) || l.StartsWith("PASSWORD", StringComparison.Ordinal));
+        m.CloseNight();
+        m.OpenNight(new NightMenu(Hosting: false, Others: 2, Lobby: null));
+        Assert.DoesNotContain(Labels(m), l => l.StartsWith("MOOD", StringComparison.Ordinal));
+        m.CloseNight();
+
+        m.OpenNight(new NightMenu(Others: 2, Lobby: new HostLobby(RunMood.Laughs, Locked: false)));
+        Assert.Equal(["RESUME", "SETTINGS", "MOOD: HERE FOR LAUGHS", "PASSWORD: NONE", "END THE NIGHT"], Labels(m));
+        // MOOD steps from the run's own, into the settings the app hands the run.
+        int mood = m.Items.ToList().FindIndex(i => i.Label.StartsWith("MOOD", StringComparison.Ordinal));
+        while (m.Selected != mood)
+            m.Down();
+        m.Right();
+        Assert.Equal(RunMood.Competitive, m.Settings.Mood);
+
+        // PASSWORD types a new one from blank; Esc keeps the old (nothing changes), Enter locks the run with it.
+        var before = m.Settings;
+        Choose(m, "PASSWORD");
+        Assert.Equal(TextField.NightPassword, m.Editing);
+        m.Type("tinder");
+        Assert.Equal("PASSWORD: TINDER_", m.Items[m.Selected].Label);
+        m.Back();
+        Assert.Null(m.Editing);
+        Assert.Equal(before, m.Settings);
+        Choose(m, "PASSWORD");
+        Assert.Equal("", m.NightPassword);
+        m.Type("tinder");
+        m.Select();
+        Assert.Equal(("TINDER", false), (m.Settings.LobbyPassword, m.Settings.PublicLobby));
+        // Enter on nothing typed changes nothing.
+        Choose(m, "PASSWORD");
+        m.Select();
+        Assert.Equal(("TINDER", false), (m.Settings.LobbyPassword, m.Settings.PublicLobby));
+
+        // Locked, the words aren't on the screen (it may be streamed), and OPEN THE RUN takes the lock off.
+        m.RefreshNight(new NightMenu(Others: 2, Lobby: new HostLobby(RunMood.Competitive, Locked: true)));
+        Assert.Contains("PASSWORD: SET", Labels(m));
+        Assert.DoesNotContain(Labels(m), l => l.Contains("TINDER", StringComparison.Ordinal));
+        Assert.Null(Choose(m, "OPEN THE RUN"));
+        Assert.True(m.Settings.PublicLobby);
+    }
 }

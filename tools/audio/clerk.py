@@ -108,6 +108,11 @@ PRIZE_WORDS = ["find", "finds"]
 UPGRADE_PHRASES = ["still up"]
 UPGRADE_WORDS = ["whistle", "gold", "horn", "comedic", "horseshoe", "commendation", "framed", "deck", "barbecue"]
 
+# The tally's costs and a night in the red (note 766; Radio.Tally, Radio.Costliest): "Recovery: 900.", "Brigade fees: 120.",
+# "Net: -1607. Most of it the crew lost, 1500. Next." Each cost is named as the ledger names it ("the recovery", "the brigade").
+LEDGER_PHRASES = ["most of it", "the crew lost", "brigade fees"]
+LEDGER_WORDS = ["recovery", "brigade"]
+
 
 def finds():
     """Every find's and trophy's name (loot.json items), as the clerk says it mid-line: "pocket watch", "the gaunt's hand"."""
@@ -122,8 +127,8 @@ def damage():
 
 def vocabulary():
     seen, out = set(), []
-    for w in (PHRASES + CAUSE_PHRASES + PRIZE_PHRASES + UPGRADE_PHRASES + finds() + damage() + WORDS + CAUSE_WORDS + PRIZE_WORDS
-              + UPGRADE_WORDS + bots() + places()):
+    for w in (PHRASES + CAUSE_PHRASES + PRIZE_PHRASES + UPGRADE_PHRASES + LEDGER_PHRASES + finds() + damage() + WORDS
+              + CAUSE_WORDS + PRIZE_WORDS + UPGRADE_WORDS + LEDGER_WORDS + bots() + places()):
         if w not in seen:
             seen.add(w)
             out.append(w)

@@ -1164,7 +1164,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         at = line.Branches[junction].Toe - (args.Contains("--through") ? 10 : 25);
     // --mail [s]: at the night's first mail crane, car 2's side door by it; s > 0, the bag caught s seconds ago (its snatch
     // and the arms falling).
-    Drop? mail = args.Contains("--mail") && generated is not null ? DarkTerritory.Sim.Route.Lineside.Drops(DataFile.Load<SightTuning>(Path.Combine(content, SightTuning.File)), generated).FirstOrDefault() : null;
+    // (The mail's cut for now, note 803: the view turns sight.json's mailCranes back on for itself, so the crane's still seen.)
+    var mailSight = DataFile.Load<SightTuning>(Path.Combine(content, SightTuning.File)) with { MailCranes = true };
+    Drop? mail = args.Contains("--mail") && generated is not null ? DarkTerritory.Sim.Route.Lineside.Drops(mailSight, generated).FirstOrDefault() : null;
     if (mail is not null)
         at = mail.At + t.Geometry.EngineLength + t.Geometry.CarLength * 1.5 + t.Geometry.CouplingGap * 2;
     // --structure type: the night's first of the plan's structures of that type on the main line (a girder, truss, trestle
@@ -2043,6 +2045,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Town = town,
         Arrival = arrival,
         DropCaught = mail is not null ? id => id == mail.Id && Opt(args, "--mail", 0) > 0 : null,
+        Signs = mail is not null && generated is not null ? [.. DarkTerritory.Sim.Route.Lineside.Boards(mailSight, generated)] : null,
         StagedCatch = Opt(args, "--mail", 0),
         StagedCold = args.Contains("--cold") ? Opt(args, "--cold", 0) : null,
         StagedWind = args.Contains("--wind") ? Opt(args, "--wind", 0) : null, // the towns' flags fly in it (note 674)
@@ -3125,6 +3128,15 @@ static object ArtClip(string content, string name, string clip, string[] args)
         }
         else
             art.Draw(mesh, name, clip, time, loop, placed, (int)Opt(args, "--variant", 0));
+        // (--with clip [--with-at x,z,yaw]: a second of them at the same time, at that clip, there (model space; yaw in degrees):
+        // a pair to look at together, a friend over the shoulder (note 812) at the same feet, a high five's other half facing.)
+        if (Str(args, "--with", "") is { Length: > 0 } other)
+        {
+            var pair = Str(args, "--with-at", "0,0,0").Split(',').Select(double.Parse).ToArray();
+            var there = System.Numerics.Matrix4x4.CreateRotationY((float)(pair[2] * Math.PI / 180))
+                * System.Numerics.Matrix4x4.CreateTranslation(new System.Numerics.Vector3((float)pair[0], 0, (float)pair[1]) - e);
+            art.Draw(mesh, name, other, time, loop, there, (int)Opt(args, "--variant", 0) + 1);
+        }
         var light = look.Apply(FrameLighting.Night);
         light.FogDensity = 0.004f;
         light.LampRange = 0.01f;
@@ -3395,10 +3407,11 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
         new DarkTerritory.Game.Settings { MaskColour = 3, MaskStencil = 12, MaskInk = 1 }.Save(Path.Combine(dir, "settings.json"));
     var menu = new DarkTerritory.Game.FrontEnd(ct, rt, saves, Path.Combine(dir, "settings.json"), () => 7, edition);
     menu.DefaultPlayerName = "Nick";
-    // --menu profile (note 293): a tally as a few nights' crews would leave it, one badge not given yet.
+    // --menu profile (note 293): a tally as a few nights' crews would leave it, one badge not given yet; and a record (note 535).
     menu.Profile = new DarkTerritory.Game.PlayerProfile.Data
     {
         Commendations = new() { ["Came Back For Me"] = 3, ["Held the Switch"] = 1, ["Kept the Fire"] = 5, ["Brought Them Home"] = 2 },
+        RecordKm = 212.4,
     };
     menu.StillsFolder = "C:/Users/Nick/AppData/Local/DarkTerritory/bookmarks";
     menu.Music = DarkTerritory.Sim.Music.MusicManifest.Load(content).Tracks;
@@ -3430,10 +3443,21 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
     if (screen is DarkTerritory.Game.Screen.Fortress or DarkTerritory.Game.Screen.Upgrades or DarkTerritory.Game.Screen.Stores or DarkTerritory.Game.Screen.DeleteCrew)
         menu.ShowFortress((int)Opt(args, "--slot", 1));
     // --menu night|leave (note 292): the in-night menu over a night hosted on the network for --others n (3), or with
-    // --joined, someone else's.
+    // --joined, someone else's. --listed: a listed run's host, with its MOOD and PASSWORD rows (note 535); --locked behind a
+    // password, its mood --mood's; --typing: a new password half typed.
     if (screen is DarkTerritory.Game.Screen.Night or DarkTerritory.Game.Screen.Leave)
-        menu.OpenNight(new(Hosting: !args.Contains("--joined"), Others: (int)Opt(args, "--others", 3), JoinAt: "192.168.1.20:27960"));
+        menu.OpenNight(new(Hosting: !args.Contains("--joined"), Others: (int)Opt(args, "--others", 3), JoinAt: "192.168.1.20:27960",
+            Lobby: args.Contains("--listed") && !args.Contains("--joined")
+                ? new DarkTerritory.Game.HostLobby(DarkTerritory.Game.Moods.Parse(Str(args, "--mood", "")), args.Contains("--locked")) : null));
     menu.Show(screen);
+    if (screen == DarkTerritory.Game.Screen.Night && args.Contains("--typing"))
+    {
+        int field = menu.Items.ToList().FindIndex(i => i.Label.StartsWith("PASSWORD", StringComparison.Ordinal));
+        for (int i = 0; i < field; i++)
+            menu.Down();
+        menu.Select();
+        menu.Type("tind");
+    }
     // --night-over: back at the title after a night, with the edition's word (the demo's end card).
     if (args.Contains("--night-over"))
         menu.NightOver();
@@ -3455,18 +3479,19 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
 /// </summary>
 static IReadOnlyList<DarkTerritory.Game.ListedGame> DemoLobbies(int protocol, int cap)
 {
-    Ballast.Net.LanGame Lan(string ip, string host, string name, int aboard, string tier, double ping, int protocol, string mood = "", bool locked = false) =>
+    Ballast.Net.LanGame Lan(string ip, string host, string name, int aboard, string tier, double ping, int protocol, string mood = "", bool locked = false, string record = "") =>
         new(new System.Net.IPEndPoint(System.Net.IPAddress.Parse(ip), DarkTerritory.Game.NetPlaySession.DefaultPort), host, $"{tier.ToUpperInvariant()}:7, 6 CARS, IN THE YARD", aboard, protocol,
             DarkTerritory.Game.NetPlaySession.Game)
-        { Name = name, Max = cap, Tier = tier, PingMs = ping, Mood = mood, Locked = locked };
+        { Name = name, Max = cap, Tier = tier, PingMs = ping, Mood = mood, Locked = locked, Record = record };
     var cloud = new Ballast.Online.FakeOnline();
     var me = cloud.SignIn("me");
-    var hosts = new (string Name, string Run, string Tier, (double, double) Where, Ballast.Online.LobbyVisibility Visibility, int Crew, string Mood)[]
+    // Their records (note 535): how far each host's crews have gone, beside the mood.
+    var hosts = new (string Name, string Run, string Tier, (double, double) Where, Ballast.Online.LobbyVisibility Visibility, int Crew, string Mood, string Record)[]
     {
-        ("PRIYA", "PRIYA'S RUN", "DeadLines", (30, 34), Ballast.Online.LobbyVisibility.Public, 3, "competitive"),
-        ("hollowman", "NO SLEEP TILL HOLLIN", "DeepTerritory", (90, 110), Ballast.Online.LobbyVisibility.Public, cap, "competitive"),
-        ("ash", "LOCALS ONLY", "Local", (60, 20), Ballast.Online.LobbyVisibility.Public, 5, "laughs"),
-        ("secret", "SECRET RUN", "Frontier", (5, 5), Ballast.Online.LobbyVisibility.FriendsOnly, 2, ""),
+        ("PRIYA", "PRIYA'S RUN", "DeadLines", (30, 34), Ballast.Online.LobbyVisibility.Public, 3, "competitive", "412"),
+        ("hollowman", "NO SLEEP TILL HOLLIN", "DeepTerritory", (90, 110), Ballast.Online.LobbyVisibility.Public, cap, "competitive", "1206"),
+        ("ash", "LOCALS ONLY", "Local", (60, 20), Ballast.Online.LobbyVisibility.Public, 5, "laughs", "38"),
+        ("secret", "SECRET RUN", "Frontier", (5, 5), Ballast.Online.LobbyVisibility.FriendsOnly, 2, "", ""),
     };
     var lobbies = new List<Ballast.Online.Lobby>();
     foreach (var h in hosts)
@@ -3478,6 +3503,7 @@ static IReadOnlyList<DarkTerritory.Game.ListedGame> DemoLobbies(int protocol, in
                 [DarkTerritory.Game.NetPlaySession.TierKey] = h.Tier,
                 [DarkTerritory.Game.NetPlaySession.RunKey] = $"{h.Tier.ToUpperInvariant()}:12, 6 CARS, IN THE YARD",
                 [DarkTerritory.Game.NetPlaySession.MoodKey] = h.Mood,
+                [DarkTerritory.Game.NetPlaySession.RecordKey] = h.Record,
             });
         lobby.Poll();
         DarkTerritory.Game.NetPlaySession.Advertise(lobby, h.Crew, cap);
@@ -3488,8 +3514,9 @@ static IReadOnlyList<DarkTerritory.Game.ListedGame> DemoLobbies(int protocol, in
     browser.Poll(0, events, search: true);
     me.Poll(events);
     browser.Poll(0, events, search: false);
-    Ballast.Net.LanGame[] lan = [Lan("192.168.1.20", "nick-pc", "THE NIGHT SHIFT", 2, "Frontier", 1.8, protocol, "laughs", locked: true),
-        Lan("192.168.1.31", "sam", "SAM'S RUN", 1, "Frontier", 3.2, protocol + 1), Lan("192.168.1.44", "jo", "JO'S RUN", cap, "DeadLines", 2.4, protocol, "laughs")];
+    Ballast.Net.LanGame[] lan = [Lan("192.168.1.20", "nick-pc", "THE NIGHT SHIFT", 2, "Frontier", 1.8, protocol, "laughs", locked: true, record: "96"),
+        Lan("192.168.1.31", "sam", "SAM'S RUN", 1, "Frontier", 3.2, protocol + 1), Lan("192.168.1.44", "jo", "JO'S RUN", cap, "DeadLines", 2.4, protocol, "laughs"),
+        Lan("192.168.1.52", "mara", "LONG HAUL", 4, "DeepTerritory", 4.1, protocol, "competitive", record: "1873")];
     var games = lan.Select(DarkTerritory.Game.ListedGame.From).Concat(browser.Games);
     foreach (var l in lobbies)
         l.Dispose();
@@ -3579,10 +3606,18 @@ static object HudShot(string content, string[] args)
             ? Staging.MailCrane(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "frontier:7", cars), cars, craneSeconds, atDoor: !args.Contains("--mid-car"))
             : roofWarning == "bend-cab"
             ? Staging.BendWarning(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "deadLines:1", cars), cars, Array.IndexOf(args, "--bend-warning") is var bw && bw + 1 < args.Length && double.TryParse(args[bw + 1], System.Globalization.CultureInfo.InvariantCulture, out double bws) ? bws : 4)
+            // --terminus approach|inside|home (note 765): the last town coming up, in through its gate, or the train all in and rolling.
+            : Str(args, "--terminus", "") is { Length: > 0 } terminusAt
+            ? Staging.Terminus(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "frontier:7", cars), cars, terminusAt)
+            // --spur-stop [s] (note 764): stopped by a facility down a spur, the dawn clock s seconds out (150).
+            : args.Contains("--spur-stop")
+            ? Staging.SpurStop(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "frontier:7", cars), cars,
+                Array.IndexOf(args, "--spur-stop") is var sp && sp + 1 < args.Length && double.TryParse(args[sp + 1], System.Globalization.CultureInfo.InvariantCulture, out double dawnIn) ? dawnIn : 150)
             : roofWarning.Length > 0
             ? Staging.RoofWarning(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "deadLines:1", cars), cars, roofWarning)
             : generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: false);
-        if (roofWarning.Length == 0 && mailCrane is null)
+        bool setUp = roofWarning.Length > 0 || mailCrane is not null || args.Contains("--spur-stop") || args.Contains("--terminus");
+        if (!setUp)
             solo.Controls.Throttle = Opt(args, "--throttle", args.Contains("--talk") ? 0 : 0.6);
         // (--news: out of the yard and under way, where cars are lost.)
         if (args.Contains("--news"))
@@ -3591,7 +3626,7 @@ static object HudShot(string content, string[] args)
         if (Str(args, "--hazards", "") is { Length: > 0 } hz)
             DarkTerritory.Sim.Net.HazardConditions.Apply(solo.Train.Line,
                 DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Combinations.HazardSets.First(h => h.Name == hz));
-        for (int i = 0; i < (roofWarning.Length > 0 || mailCrane is not null ? 1 : Opt(args, "--seconds", 6) * SimConstants.TickRate); i++)
+        for (int i = 0; i < (setUp ? 1 : Opt(args, "--seconds", 6) * SimConstants.TickRate); i++)
             solo.Step(new PlayerIntent { LookPitch = i == 0 ? (float)Opt(args, "--pitch", 0) : 0, LookYaw = i == 0 ? (float)Opt(args, "--yaw", 0) : 0 });
         // --mend [t]: the repair kit in hand and a broken radio on the belt (GDD §23; note 201), t seconds into mending it.
         if (args.Contains("--mend"))
@@ -3884,13 +3919,17 @@ static object HudShot(string content, string[] args)
         wheel.Update(true, -60, 0);
         wheel.Draw(hud, width, height, Hud.PromptScaleAt(scale));
     }
-    // --radio manifest|tally [s]: the fortress on the radio (GDD §9; note 178), staged from this night and a delivered report,
-    // --radio-at s into the reading.
+    // --radio manifest|tally|red [s]: the fortress on the radio (GDD §9; note 178), staged from this night and a delivered report
+    // (red: one delivered in the red, three of the crew lost, the clerk saying what cost most; note 766), --radio-at s into the
+    // reading.
     if (Str(args, "--radio", "") is { Length: > 0 } reading)
     {
-        var lines = reading == "tally"
-            ? DarkTerritory.Sim.Run.Radio.Tally(Staging.Report(session.World, DarkTerritory.Sim.Run.RunEnd.Delivered))
-            : DarkTerritory.Sim.Run.Radio.Manifest(session.World, [0, 1, 2, 3]);
+        var lines = reading switch
+        {
+            "tally" => DarkTerritory.Sim.Run.Radio.Tally(Staging.Report(session.World, DarkTerritory.Sim.Run.RunEnd.Delivered)),
+            "red" => DarkTerritory.Sim.Run.Radio.Tally(Staging.InTheRed(session.World)),
+            _ => DarkTerritory.Sim.Run.Radio.Manifest(session.World, [0, 1, 2, 3]),
+        };
         Hud.RadioCard(hud, width, height, lines, Opt(args, "--radio-at", 6), session.World.Run?.Tuning.Radio ?? new());
     }
     // --supplies: the supplies aboard (the director's decision of 2026-10-06; note 264), as I toggles it on.
@@ -4351,7 +4390,7 @@ static int Usage()
           trailer [--route tier:seed] [--fps n] [--width w --height h] [--short] [--beats i,j] [--ffmpeg path] [--crf n]   the trailer cut from the game itself, heard through the game's mixer: frames, trailer.wav and its spectrogram to out/trailer, ffmpeg to trailer.mp4 and contact.png
           art clearance [--only crew] [--clips a,b] [--limit m] [--allow clip:pair,..]   a figure's clips checked for limbs through its body
           art reel [--only a,b] [--clips c,d] [--fps n] [--width w --height h]   every animated model's every clip as frame strips + reel.json in out/reel (the Look Review's animations)
-          art clip <creature> <clip> [--frames n] [--at x,y,z --dist m --yaw deg --pitch deg] [--lift m] [--variant n] [--once]   a clip as a lit contact sheet
+          art clip <creature> <clip> [--frames n] [--at x,y,z --dist m --yaw deg --pitch deg] [--lift m] [--variant n] [--once] [--with clip [--with-at x,z,yaw]]   a clip as a lit contact sheet (--with: a second of them beside it, a pair)
           screenshot [--view trackside|roof|cab|chase|ahead] [--line name] [--cars n] [--at s] [--car i] [--cut n]
                      [--cam s,lateral,height --target s,lateral,height --fov deg]   camera by line coordinates
                      [--width w] [--height h] [--scale k] [--out file.png] [--threats]   --threats stages one of each enemy

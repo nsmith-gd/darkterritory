@@ -49,4 +49,30 @@ public class PlayerProfileTests
             File.Delete(path);
         }
     }
+
+    [Fact]
+    public void TheRecordIsTheFurthestAnyCrewHasGone()
+    {
+        // Note 535: what a run its host lists is said with. A crew going further raises it; one that hasn't, doesn't.
+        string path = Path.Combine(Path.GetTempPath(), $"dt-profile-{Guid.NewGuid():N}.json");
+        try
+        {
+            var profile = new PlayerProfile(path);
+            Assert.Equal(0, profile.Load().RecordKm);
+            profile.Reach(212.4);
+            profile.Reach(40);
+            Assert.Equal(212.4, new PlayerProfile(path).Load().RecordKm);
+            profile.CountNight();
+            Assert.Equal(212.4, new PlayerProfile(path).Load().RecordKm);
+            Assert.Equal("212", NetPlaySession.Record(new PlayerProfile(path).Load().RecordKm));
+            Assert.Equal("", NetPlaySession.Record(0.4));
+            Assert.Equal((int?)212, ListedGame.ParseRecord("212"));
+            Assert.Null(ListedGame.ParseRecord(""));
+            Assert.Null(ListedGame.ParseRecord("far"));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
 }

@@ -105,10 +105,10 @@ public static partial class Hud
         Link(o, width, s);
         if (!over)
         {
-            TopCentre(o, width, s, memory, line);
+            var band = TopCentre(o, width, s, memory, line);
             // The news's line is wide enough to run into the top left's fine print (F1, note 663): its few seconds have it.
             if (NewsUp(s.World) is null)
-                Situation(o, s);
+                Situation(o, s, band, width);
         }
         Alerts(o, width, height, s, line);
         if (captions is { Count: > 0 } && !over)
@@ -891,17 +891,59 @@ public static partial class Hud
     /// <summary>The newest news (note 663), or null.</summary>
     static NewsEvent? NewsUp(Sim.World world) => world.News.Count > 0 ? world.News[^1] : null;
 
-    static void TopCentre(Overlay o, int width, IPlaySession s, Memory m, int line)
+    /// <summary>Under the last town's name as it comes up (note 765).</summary>
+    public const string EndOfTheRun = "END OF THE RUN";
+
+    /// <summary>The place coming up is the night's last town, its gate (note 765).</summary>
+    static bool IsTerminus(Route? route, (string Name, double At) place) =>
+        route?.Plan?.Terminus is { } t && place.Name == t.Name && Math.Abs(place.At - t.GateM) < 0.5;
+
+    /// <summary>
+    /// Note 765: in through the last town's gate (or onto a silent settlement's last stretch), what ends the run: the whole
+    /// train in, then stopped anywhere (run.json homeInsideGateM; the end of the line, short of the buffers, at a silent one).
+    /// Coming in, "KEEP COMING: THE WHOLE TRAIN INSIDE"; all of it in and still rolling, "STOP ANYWHERE: THE RUN ENDS HERE"
+    /// (Stop). Null before the gate, or once the run's over.
+    /// </summary>
+    public static (string Text, bool Stop)? EndLine(Route? route, Sim.World world, TrainOnLine train)
     {
-        float k = Fine, cx = width / 2f, y = 6;
+        if (world.Run is not { Over: false, Phase: not Sim.Run.RunPhase.Yard } run || route?.Plan?.Terminus is not { } t)
+            return null;
+        double front = Sim.Run.Run.EngineFront(train), home = run.HomeFront(train);
+        if (front < Math.Min(t.GateM, home))
+            return null;
+        if (front < home)
+            return (t.Silent ? "KEEP COMING: TO THE END OF THE LINE" : "KEEP COMING: THE WHOLE TRAIN INSIDE", false);
+        return Math.Abs(Sim.Run.Run.EngineSpeed(train)) >= run.Tuning.StopBelowSpeed ? ("STOP ANYWHERE: THE RUN ENDS HERE", true) : null;
+    }
+
+    /// <summary>
+    /// What the top centre's lines took (note 764): how far down they go, and the widest one's half width (0: nothing there).
+    /// The top left's lines keep out of it.
+    /// </summary>
+    public readonly record struct TopBand(float Bottom, float Half);
+
+    /// <summary>The space the top left keeps from the top centre's widest line (note 764), canvas pixels. Not a design number.</summary>
+    const float TopGap = 10;
+    /// <summary>The narrowest the top left's column beside the top centre goes (note 764): any less, a line starts under it.</summary>
+    const float TopColumn = 96;
+
+    static TopBand TopCentre(Overlay o, int width, IPlaySession s, Memory m, int line)
+    {
+        float k = Fine, cx = width / 2f, y = 6, half = 0;
+        // Each line centred, and how wide the widest was.
+        void Centred(string text, Vector4 ink, float scale, float at)
+        {
+            o.TextCentred(cx, at, text, ink, scale);
+            half = Math.Max(half, o.Measure(text, scale) / 2);
+        }
         var run = s.World.Run;
         if (s.Route is { } route && run is not { Phase: Sim.Run.RunPhase.Yard })
         {
             double dawn = run?.DawnIn ?? route.DawnSeconds;
             if (dawn <= 0)
-                o.TextCentred(cx, y, DawnLine(s.World, s.Train), Red, 1);
+                Centred(DawnLine(s.World, s.Train), Red, 1, y);
             else if (dawn <= Tuning.DawnClockSeconds)
-                o.TextCentred(cx, y, $"DAWN {(int)dawn / 60}:{(int)dawn % 60:00}{DawnFlight(s.World)}", dawn <= 120 ? Red : Amber, 1);
+                Centred($"DAWN {(int)dawn / 60}:{(int)dawn % 60:00}{DawnFlight(s.World)}", dawn <= 120 ? Red : Amber, 1, y);
             if (dawn <= Tuning.DawnClockSeconds)
                 y += line + 4;
         }
@@ -912,7 +954,7 @@ public static partial class Hud
         {
             foreach (var row in Fitted(o, News.Line(s.World, news), width - 32, 1))
             {
-                o.TextCentred(cx, y, row, (news.Kind == NewsKind.EngineBroken ? Red : Amber) with { W = n }, 1);
+                Centred(row, (news.Kind == NewsKind.EngineBroken ? Red : Amber) with { W = n }, 1, y);
                 y += line;
             }
             y += 4;
@@ -928,16 +970,33 @@ public static partial class Hud
         if (m.Place is { } place && Shown(Since(s, m.PlaceTick), Tuning.PlaceSeconds) is > 0 and var a)
         {
             double left = place.At - s.Train.Dynamics.Distance;
-            o.TextCentred(cx, y, place.Name.ToUpperInvariant(), Ink with { W = a }, 1);
+            Centred(place.Name.ToUpperInvariant(), Ink with { W = a }, 1, y);
             y += line;
             // The distance alone (note 671): "0.6 KM" under a place's name says how far.
-            o.TextCentred(cx, y, left > 50 ? $"{left / 1000:0.0} KM" : "HERE", Dim with { W = a }, k);
+            Centred(left > 50 ? $"{left / 1000:0.0} KM" : "HERE", Dim with { W = a }, k, y);
+            y += (line + 2) * k;
+            // Note 765: the last town is where the run ends, and says so as it comes up.
+            if (IsTerminus(s.Route, place))
+            {
+                Centred(EndOfTheRun, Dim with { W = a }, k, y);
+                y += (line + 2) * k;
+            }
+        }
+        // Note 765 (the director, 13 Oct: "It's unclear if I have to go right to the end of the line or if I can just stop the
+        // train inside the town"): in through the last town's gate, what ends the run, until it's ended.
+        if (EndLine(s.Route, s.World, s.Train) is { } end)
+        {
+            Centred(end.Text, end.Stop ? Amber : Ink, k, y);
             y += (line + 2) * k;
         }
-        y = MailTop(o, s, m, cx, y, line, k);
+        y = MailTop(o, s, m, cx, y, line, k, ref half);
         if (s.Player.Alive && Shown(Since(s, m.ColdTick), Tuning.ColdSeconds) is > 0 and var c
             && ColdLine(s.Player, s.Train) is { } cold)
-            o.TextCentred(cx, y + 2, cold, Amber with { W = c }, k);
+        {
+            Centred(cold, Amber with { W = c }, k, y + 2);
+            y += 2 + (line + 2) * k;
+        }
+        return y > 6 ? new TopBand(y, half) : new TopBand(6, 0);
     }
 
     /// <summary>
@@ -1603,19 +1662,11 @@ public static partial class Hud
         }
         if (r.Lines.Count == 0)
             blocks.Add(([("Nothing to report.", Dim)], [], line, 0));
-        var money = new List<string> { $"Gross {r.Gross:0}" };
-        if (r.CrewLossFees > 0)
-            money.Add($"crew-loss fees {r.CrewLossFees:0}");
-        if (r.BodyRefunds > 0)
-            money.Add($"refunds {r.BodyRefunds:0}");
-        if (r.Recovery > 0)
-            money.Add($"recovery {r.Recovery:0}");
-        // Note 589: what the town's monster brigade charged for what rode in.
-        if (r.BroughtInFees > 0)
-            money.Add($"brigade fees {r.BroughtInFees:0}");
-        money.Add($"running costs {r.CoalCost + r.AmmoCost + r.RepairCost:0}");
-        // Wrapped as the lines are (note 347): at a bigger TEXT SIZE it's wider than the plate.
-        var sum = Wrap($"{string.Join(", ", money)}. Net {r.Net:0} scrip.", chars).ToList();
+        // Note 766 (the director, 13 Oct: "net negative 1607. So I need a better understanding as to why I got net negative"):
+        // every figure that made the net, signed, so it adds up on the screen; in the red, what cost most.
+        var money = Radio.Ledger(r).Select(i => $"{char.ToUpperInvariant(i.Name[0])}{i.Name[1..]} {i.Amount:+0;-0}").ToList();
+        string lead = r.Net < 0 && Radio.Costliest(r) is var (what, _) ? $": most of it {what}" : "";
+        var sum = Wrap($"{(money.Count > 0 ? string.Join(", ", money) + ". " : "")}Net {r.Net:+0;-0;0} scrip{lead}.", chars).ToList();
         // Note 718: the night's best finds by what they paid, and who brought the most aboard, over the money (what the clerk
         // read, kept on the screen: how a crew learns what's worth carrying).
         if (PrizeLine(r) is { Length: > 0 } prizes)
@@ -2645,7 +2696,12 @@ public static partial class Hud
     /// a Holdout lit), and alone in the yard, the way out. Not the route's name, the next place or the clock: the route card
     /// has the night, and the top centre says a place as it comes up and the dawn when it's near.
     /// </summary>
-    static void Situation(Overlay o, IPlaySession s)
+    /// <remarks>
+    /// Note 764 (the director, 14 Oct: "Wreck yard is down the spur. It overlaps with Dawn"): beside the top centre's lines
+    /// (<paramref name="band"/>) a line keeps to the left of them, wrapped between its words, or starts under them where
+    /// there's no room for one; under them it has the frame's width.
+    /// </remarks>
+    static void Situation(Overlay o, IPlaySession s, TopBand band, int width)
     {
         // Hosting or joining in the yard, the lobby says it.
         bool lobby = s.Link is { Lost: false } && s.World.Run is { Phase: Sim.Run.RunPhase.Yard };
@@ -2660,13 +2716,36 @@ public static partial class Hud
             // A stop's long list, a line to each thing it's waiting on.
             .SelectMany(t => t.Split("; ", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             .ToList();
-        float k = Fine, y = 6;
+        TopLeft(o, [.. parts.Select(t => (t.ToUpperInvariant(), t.StartsWith("STOPPED", StringComparison.Ordinal) ? Amber : Dim))], band, width, Fine);
+    }
+
+    /// <summary>
+    /// The top left's fine print (note 764): from the corner down, beside the top centre's <paramref name="band"/> kept to the
+    /// left of it (wrapped between words; where that leaves too narrow a column, <see cref="TopColumn"/>, or no room for a
+    /// word, the line starts under the band), under it the frame's width less the corners. <paramref name="k"/>: the fine
+    /// print's scale. Returns where the last line ended.
+    /// </summary>
+    public static float TopLeft(Overlay o, IReadOnlyList<(string Text, Vector4 Ink)> lines, TopBand band, int width, float k)
+    {
+        float x = 6, y = 6;
         int line = o.Font.LineHeight;
-        foreach (var t in parts)
+        float beside = width / 2f - band.Half - TopGap - x, under = width - 2 * x;
+        foreach (var (text, ink) in lines)
         {
-            o.Text(6, y, t.ToUpperInvariant(), t.StartsWith("STOPPED", StringComparison.Ordinal) ? Amber : Dim, k);
-            y += (line + 1) * k;
+            bool inBand = band.Half > 0 && y < band.Bottom;
+            // No room beside the centre for a column, or for this line's longest word: it goes under the band.
+            if (inBand && (beside < TopColumn || text.Split(' ').Max(w => o.Measure(w, k)) > beside))
+            {
+                y = Math.Max(y, band.Bottom + 2);
+                inBand = false;
+            }
+            foreach (var row in Fitted(o, text, inBand ? beside : under, k))
+            {
+                o.Text(x, y, row, ink, k);
+                y += (line + 1) * k;
+            }
         }
+        return y;
     }
 
     /// <summary>
