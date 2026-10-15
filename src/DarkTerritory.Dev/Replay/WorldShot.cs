@@ -128,7 +128,7 @@ public sealed class WorldShot : IDisposable
         s.LampLit = world.LampShining;
         s.Cut = SceneArt.Cuts(train);
         var states = crew.Select(c => c.State).ToList();
-        s.Crew = [.. crew.Where(c => c.Id != hide).Select(c => CrewActs.Crewmate(c.Id, c.State, world, train.Frames, states))];
+        s.Crew = [.. crew.Where(c => c.Id != hide).Select(c => CrewActs.Crewmate(c.Id, c.State, world, train.Frames, states, [.. crew.Select(x => ((int)x.Id, x.State))]))];
         s.Build(_mesh, train, camera.Position);
         _overlay.Clear();
         return _renderer.Render(_mesh, camera, lighting, lighting.FogColor, _overlay);

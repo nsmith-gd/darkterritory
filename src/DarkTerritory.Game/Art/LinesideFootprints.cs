@@ -34,8 +34,11 @@ public static class LinesideFootprints
         Cells,
     }
 
-    /// <summary>A kind of piece: the sim's name, the art's cache name for a variant, how many, how it's built, how it stands.</summary>
-    public sealed record Kind(string Name, Func<int, string> Cached, int Variants, Func<Look?, int, MeshAsset> Make, Shape Shape, bool Instanced);
+    /// <summary>
+    /// A kind of piece: the sim's name, the art's cache name for a variant, how many, how it's built, how it stands; and
+    /// whether it's built from the content's sourced models (a crate, a sandbag wall), so measured with them.
+    /// </summary>
+    public sealed record Kind(string Name, Func<int, string> Cached, int Variants, Func<Look?, int, MeshAsset> Make, Shape Shape, bool Instanced, bool Modelled = false);
 
     /// <summary>Every piece, in the sim's names (biomes.json's props, and the road's and the shore's own).</summary>
     public static readonly Kind[] Kinds =
@@ -62,7 +65,28 @@ public static class LinesideFootprints
         // own (StopWalls.AddTowers).
         .. Enum.GetValues<Sim.Route.FacilityKind>().Where(k => k != Sim.Route.FacilityKind.CoalingTower).Select(k =>
             new Kind(FacilityName(k), v => $"facility-{k}-{(v == 0 ? -1 : 1)}", 2, (l, v) => StructureKit.Facility(l, k, v == 0 ? -1 : 1), Shape.Cells, true)),
+        // The railway's leavings beside the line (note 792; E1's, note 325): Sim.Run.Leavings deals each as a cluster of these.
+        new("junkTies", v => $"junk-ties-{v}", 3, JunkKit.Ties, Shape.Bounds, true),
+        new("junkRails", v => $"junk-rails-{v}", 2, JunkKit.Rails, Shape.Bounds, true),
+        new("junkDrums", v => $"junk-drums-{v}", 3, JunkKit.Drums, Shape.Bounds, true),
+        new("junkReel", _ => "junk-reel", 1, (l, _) => JunkKit.Reel(l), Shape.Bounds, true),
+        new("junkMilepost", v => $"junk-milepost-{v}", 2, JunkKit.Milepost, Shape.Bounds, true),
+        new("junkHut", v => $"junk-hut-{v}", 2, JunkKit.Hut, Shape.Bounds, true),
+        new("junkWheelset", _ => "junk-wheelset", 1, (l, _) => JunkKit.Wheelset(l), Shape.Bounds, true),
+        new("junkCoal", v => $"junk-coal-{v}", 2, JunkKit.Coal, Shape.Bounds, true),
+        new("junkCamp", v => $"junk-camp-{v}", 2, JunkKit.Camp, Shape.Bounds, true),
+        new("junkTrolley", _ => "junk-trolley", 1, (l, _) => JunkKit.Trolley(l), Shape.Bounds, true),
+        new("junkGrave", v => $"junk-grave-{v}", 2, JunkKit.Grave, Shape.Bounds, true),
+        // A dead signal stands on its post: its arm is over a crewmate's head.
+        new("deadSignal", _ => "signal-False", 1, (l, _) => WorldKit.Signal(l, lit: false), Shape.Post, true),
+        .. new[] { ("heavyCrate", "heavy_crate"), ("storesCrate", "stores_crate"), ("freightTimber", "freight_timber"), ("freightSacks", "freight_sacks"),
+            ("freightCarboys", "freight_carboys"), ("sandbags", "sandbags") }.Select(p =>
+            new Kind(p.Item1, _ => $"prop-{p.Item2}", 1, (l, _) => Prop(l, p.Item2), Shape.Bounds, true, Modelled: true)),
     ];
+
+    /// <summary>A sourced model the leavings use (content/art/models, PropArt).</summary>
+    static MeshAsset Prop(Look? look, string name) =>
+        (look is null ? null : PropArt.Of(look).Get(name)) ?? throw new InvalidOperationException($"the {name} model isn't in the content (tools/models)");
 
     /// <summary>The sim's name for a facility's kit (footprints.json's): its two variants are its left side and its right.</summary>
     public static string FacilityName(Sim.Route.FacilityKind kind) => Sim.Run.StopWalls.FacilityPiece(kind);
@@ -90,7 +114,7 @@ public static class LinesideFootprints
     {
         var all = new SortedDictionary<string, double[][][]>(StringComparer.Ordinal);
         foreach (var kind in Kinds)
-            all[kind.Name] = [.. Enumerable.Range(0, kind.Variants).Select(v => Boxes(kind.Make(kind.Shape == Shape.Cells ? models ?? look : look, v), kind.Shape))];
+            all[kind.Name] = [.. Enumerable.Range(0, kind.Variants).Select(v => Boxes(kind.Make(kind.Shape == Shape.Cells || kind.Modelled ? models ?? look : look, v), kind.Shape))];
         return all;
     }
 

@@ -213,6 +213,10 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
             intent.Emote = Emote.Aboard;
             calls.CallBack(me);
         }
+        // Note 722: a high five or fist bump held up to it, answered (not by the driver of a moving train).
+        if (!(bot is ConductorBot { Driving: true } && session.Train.Dynamics.Speed > Net.CabControls.StandingBelow))
+            intent = Heed.HighFive(intent, session.Predicted, session.World, me,
+                (bot as RoofWalkerBot)?.Crew ?? (bot as GunnerBot)?.Crew ?? (bot as ConductorBot)?.Crew ?? []);
         // Note 716: and round the big cab's chart table and benches, down the ways either side of them.
         intent = Heed.CabFurniture(intent, session.Predicted, session.World, session.PlayerTuning);
         return Vote(intent, session, me);
