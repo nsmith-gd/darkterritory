@@ -8,7 +8,7 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Net;
 
-public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13, Hit = 14, Impact = 15, Heap = 16, Swing = 17, Emote = 18, Search = 19, Door = 20, News = 21, Horseplay = 22, Lump = 23, Signal = 24, Ping = 25, Handcar = 26 }
+public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13, Hit = 14, Impact = 15, Heap = 16, Swing = 17, Emote = 18, Search = 19, Door = 20, News = 21, Horseplay = 22, Lump = 23, Signal = 24, Ping = 25, Handcar = 26, Cue = 27 }
 
 /// <summary>One replicated thing as fixed-point integers. <see cref="Key"/> is kind in the top byte, id below.</summary>
 public readonly record struct WireRecord(uint Key, long[] Fields)
@@ -96,8 +96,9 @@ public static class WorldRecords
                     v.Gun.Rack,
                     // Off its rails at the tipple (note 423): it holds its rake, and every client predicts the train held.
                     v.OffRails ? 1 : 0,
-                    // Its handbrake wound on by the Brakeman (note 364), an axle seized by Hotbox (note 367): drag every client feels.
-                    (v.Wound ? 1 : 0) | (v.Seized ? 2 : 0),
+                    // Its handbrake wound on by the Brakeman (note 364), an axle seized by Hotbox (note 367): drag every client feels;
+                    // and what worked the coupling behind it loose (note 732), so every client hears the moment as what did it.
+                    (v.Wound ? 1L : 0L) | (v.Seized ? 2L : 0L) | ((long)v.LooseCause << 2),
                     // How far a Knotter's forced the coupling behind it apart (note 365): every client lays the cars out so.
                     Q(v.Knot, Fine),
                     // How much of its load is things lying in it as themselves (note 659): the rest is its heap, every client's.
@@ -153,6 +154,10 @@ public static class WorldRecords
         // Lamp signals (note 720): who, which, and when it began.
         foreach (var e in world.Signals)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Signal, e.Id), [e.Tick, e.By, (long)e.Kind]));
+        // Sound cues in the world (note 732): what, when, where, what it's of and how near, for every client to hear once.
+        foreach (var c in world.Cues)
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Cue, c.Id),
+                [c.Tick, (long)c.Kind, Q(c.At.X, Pos), Q(c.At.Y, Pos), Q(c.At.Z, Pos), c.Subject, c.Of, Q(c.Strength, Fine)]));
         // The news (note 663): what was lost or broke, and what did it, for every crewmate's line; then the cars lost.
         foreach (var e in world.News)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.News, e.Id),
@@ -368,6 +373,7 @@ public static class WorldRecords
         var horseplay = new List<HorseplayEvent>();
         var lumps = new List<LumpInFlight>();
         var signals = new List<SignalEvent>();
+        var cues = new List<WorldCue>();
         var news = new List<NewsEvent>();
         var impacts = new List<CannonImpact>();
         foreach (var r in records)
@@ -417,7 +423,7 @@ public static class WorldRecords
                         [.. CarFire.Unpack(f, 31).Select(c => (byte)Math.Round(c * ((1 << CarFire.Bits) - 1)))],
                         f.Length > 23 ? D(f[23], Fine) : 0, f.Length > 24 ? D(f[24], Fine) : 0, f.Length > 25 ? D(f[25], Fine) : 0,
                         f.Length > 28 && (f[28] & 1) != 0, f.Length > 28 && (f[28] & 2) != 0, f.Length > 29 ? D(f[29], Fine) : 0,
-                        f.Length > 27 && f[27] != 0, f.Length > 30 ? D(f[30], Fine) : 0));
+                        f.Length > 27 && f[27] != 0, f.Length > 30 ? D(f[30], Fine) : 0, f.Length > 28 ? (LooseCause)((f[28] >> 2) & 0xFF) : LooseCause.None));
                     break;
                 case RecordKind.World:
                     world.Choir = new ChoirState
@@ -503,6 +509,9 @@ public static class WorldRecords
                 case RecordKind.Signal when !world.Authority:
                     signals.Add(new SignalEvent(r.Id, (uint)f[0], (int)f[1], (LampSignal)f[2]));
                     break;
+                case RecordKind.Cue when !world.Authority:
+                    cues.Add(new WorldCue(r.Id, (uint)f[0], (CueKind)f[1], new Double3(D(f[2], Pos), D(f[3], Pos), D(f[4], Pos)), (int)f[5], (byte)f[6], D(f[7], Fine)));
+                    break;
                 case RecordKind.News when !world.Authority:
                     news.Add(new NewsEvent(r.Id, (uint)f[0], (NewsKind)f[1], [.. f.Skip(6).Select(c => (int)c)], (byte)f[2], (byte)f[3], (int)f[4], D(f[5], Fine)));
                     break;
@@ -584,6 +593,7 @@ public static class WorldRecords
         {
             world.MirrorEnemies(enemies);
             world.MirrorHits(hits, impacts, swings, emotes, news, signals, pings);
+            world.MirrorCues(cues);
             world.MirrorHorseplay(horseplay, lumps);
             world.Bodies.Mirror(bodies);
             world.Train.Lying = world.Bodies.Lying(world.Train);

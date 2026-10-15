@@ -2000,6 +2000,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // (--survivor prisoner|wildlander: all of them freed survivors' figures, App. D.8.)
         // --horseplay shove|sooted (the views shove and sooted, note 717): a shove over car 2's side; a crewmate's sooted face.
         Lumps = horseplay is { } hp ? hp.Lumps : null,
+        // --sigil anchor (a look.json maskStencils key, or its number from 1): the crew's sigil on the engine's side and every
+        // mask (note 731); the views masks, maskface and sigil have the anchor.
+        CrewSigil = Str(args, "--sigil", view is "masks" or "maskface" or "maskside" or "sigil" ? "anchor" : "") is { Length: > 0 } sigil
+            ? int.TryParse(sigil, out int sigilNumber) ? sigilNumber : Array.IndexOf(look?.Tuning.MaskStencils ?? [], sigil) + 1 : 0,
         Crew = horseplay is { } hc ? hc.Crew
             // The handcar views (note 729): two pumping at its handle, or two lifting it down off the van.
             : view is "handcar" or "handcarlift" ? Staging.HandcarCrew(train, view)
@@ -2013,6 +2017,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             // lampsignal); --signal-at s: how far into it.
             : args.Contains("--signal") ? Staging.Signallers(train, Str(args, "--signal", "stop,go,back").Split(','), Opt(args, "--signal-at", 0.9))
             // --cabcrew: the crew in the big cab (note 716), and two off the train (its chart table's lamps, its hooks' caps).
+            // --masks: eight crewmates' painted masks in a row off the engine's front (note 731; views masks, maskface).
+            : args.Contains("--masks") || view is "masks" or "maskface" or "maskside" ? Staging.Masks(train)
             : args.Contains("--cabcrew") ? Staging.CabCrew(train)
             : args.Contains("--vr-body") ? Staging.Headsets(train, content)
             : args.Contains("--working") ? Staging.Working(train, content)
@@ -3274,6 +3280,9 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
             PublicLobby = !args.Contains("--private"),
             LobbyPassword = args.Contains("--private") ? "NIGHT OWLS" : "",
         }.Save(Path.Combine(dir, "settings.json"));
+    // --menu paint (note 731): PAINT YOUR MASK with a mask painted, signal red with an anchor in bone.
+    if (screen == DarkTerritory.Game.Screen.Paint)
+        new DarkTerritory.Game.Settings { MaskColour = 3, MaskStencil = 12, MaskInk = 1 }.Save(Path.Combine(dir, "settings.json"));
     var menu = new DarkTerritory.Game.FrontEnd(ct, rt, saves, Path.Combine(dir, "settings.json"), () => 7, edition);
     menu.DefaultPlayerName = "Nick";
     // --menu profile (note 293): a tally as a few nights' crews would leave it, one badge not given yet; and a record (note 535).

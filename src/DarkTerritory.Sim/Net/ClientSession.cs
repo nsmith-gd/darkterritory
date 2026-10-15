@@ -63,6 +63,22 @@ public sealed class ClientSession
         _transport.Send(PeerId.Host, _writer.Written, Delivery.ReliableOrdered);
     }
 
+    /// <summary>The paint on this player's mask (note 731), sent with the name; none for an unpainted one.</summary>
+    public MaskPaint Paint { get; set; }
+
+    /// <summary>
+    /// Paints the mask (note 731), as <see cref="Wear"/> tries an outfit on: asked of the host, which takes it only in the
+    /// yard; the crew see it once it's sent back. Kept for the next Hello, too.
+    /// </summary>
+    public void PaintMask(MaskPaint paint)
+    {
+        Paint = paint;
+        if (!_helloSent)
+            return;
+        Messages.WritePaint(_writer, paint);
+        _transport.Send(PeerId.Host, _writer.Written, Delivery.ReliableOrdered);
+    }
+
     readonly Dictionary<int, byte[]> _reportChunks = [];
     int _reportCount;
     readonly Dictionary<int, byte[]> _filmChunks = [];
@@ -236,7 +252,7 @@ public sealed class ClientSession
         if (_helloSent)
             return;
         _helloSent = true;
-        Messages.WriteHello(_writer, Name, Token, Outfit, PasswordKey, Bot);
+        Messages.WriteHello(_writer, Name, Token, Outfit, PasswordKey, Bot, Paint);
         _transport.Send(PeerId.Host, _writer.Written, Delivery.ReliableOrdered);
     }
     /// <summary>A private run's password as its key (note 450), said in every Hello; null for an open run.</summary>
@@ -480,6 +496,9 @@ public sealed class ClientSession
                     break;
                 case MessageType.Outfits:
                     Messages.ReadOutfits(ref r, World.Outfits);
+                    break;
+                case MessageType.Paints:
+                    Messages.ReadPaints(ref r, World.Paints);
                     break;
                 case MessageType.Ballot:
                     if (Ballot is null)

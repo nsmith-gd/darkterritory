@@ -175,7 +175,9 @@ public sealed partial class SceneArt(Look look)
         // The repair kit by its handle (note 513): drawn in the fist, not where the sim holds it (Body skips it).
         var kit = pose is CrewPose.Toolbox or CrewPose.ToolboxWalk ? PropArt.Of(Look).Get("repair_kit") : null;
         bool drawn = Creatures.Crewmate(mesh, m, pose, clipTime, c.Variant, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)), ToolProp(c.Holding),
-            hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor), body: HeadsetBody(c, pose, time), carried: kit, sooted: c.Sooted);
+            hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor), body: HeadsetBody(c, pose, time), carried: kit, sooted: c.Sooted,
+            // (A Passenger's id is 200 and the face it wears, GreyboxScene.AsCrewmate: it wears that crewmate's number too.)
+            mask: new CreatureArt.MaskLook(c.Paint, CrewSigil, (c.Id >= 200 ? c.Id - 200 : c.Id) % 9 + 1));
         if (drawn && kit is not null)
             _kitHands[c.Id] = time;
         else
@@ -236,6 +238,12 @@ public sealed partial class SceneArt(Look look)
 
     /// <summary>How much a breath shows tonight, 0..1 (look.json atmosphere.cold, GreyboxScene.Cold).</summary>
     public float Breath { get; set; }
+
+    /// <summary>
+    /// The crew's sigil (note 731; World.CrewSigil, look.json maskStencils from 1, 0 none), small on every mask and on the
+    /// engine's side. GreyboxScene sets it each frame.
+    /// </summary>
+    public int CrewSigil { get; set; }
 
     /// <summary>
     /// A car of livestock (GDD §19 "makes noise constantly", the slaughterhouse's): sheep packed down the load side in its
@@ -1510,6 +1518,13 @@ public sealed partial class SceneArt(Look look)
         if (!engine && Look.Layer("stencil_numerals") >= 0)
             mesh.Instances.Add(new MeshInstance(Piece($"number:{ShapeKey(shape)}:{number}", () => TrainKit.CarNumber(Look, shape, number)), m,
                 emergency ? 0.06f : 1, Scar: scar, Bite: cut, BiteFloor: floor));
+        // The crew's sigil on the hood's sides (note 731; World.CrewSigil).
+        if (engine && Look.Tuning.MaskStencil(CrewSigil) is { } sigil)
+        {
+            var ink = Look.Tuning.MaskPaint(Look.Tuning.SigilInk) ?? Vector3.One;
+            mesh.Instances.Add(new MeshInstance(Piece($"sigil:{ShapeKey(shape)}:{sigil}:{Look.Tuning.SigilInk}", () => MaskKit.EngineSigil(Look, shape, sigil, ink)), m,
+                emergency ? 0.06f : 1, Tint: soot, Scar: scar, Bite: cut, BiteFloor: floor));
+        }
         int state = damage.StateOf(integrity);
         if (state > 0)
             mesh.Instances.Add(new MeshInstance(Piece($"damage:{ShapeKey(shape)}:{state}:{seed}",
