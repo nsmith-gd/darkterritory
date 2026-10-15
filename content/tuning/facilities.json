@@ -117,8 +117,8 @@
   // read for grain). The spout hangs over the track this far back from its buffer stop (or as far back as the standing track
   // allows, short of 4 m from its start), this high; the lever stands "leverAlong" on from it, "leverLateral" out on the
   // site's side. Grain comes down while someone holds the lever (within "leverReach"), "pourPerSecond" car-loads a second
-  // out of a bin of "bin" car-loads, into the cargo car whose middle is within "tolerance" of it. No car there, it's on the
-  // ballast; a full one there overflows, and each car-load over strains the car by "overfillDamagePerLoad" (spec D.2:
+  // out of a bin of "bin" car-loads, into the cargo car it hangs over (its open top, "endMargin" in from either end: note
+  // 769). No car there, it's on the ballast; a full one there overflows, and each car-load over strains the car by "overfillDamagePerLoad" (spec D.2:
   // "overfill damages car and spills"). The machinery's loud while it runs (combat.json machineryLoudness).
   "spout": {
     "back": 80,
@@ -126,7 +126,7 @@
     "leverAlong": 2.0,
     "leverLateral": 3.4,
     "leverReach": 1.2,
-    "tolerance": 1.5,
+    "endMargin": 1.0,
     "pourPerSecond": 0.05,
     "bin": 3.0,
     "overfillDamagePerLoad": 0.6
@@ -175,9 +175,9 @@
   // "steamReach" of the chute (the first three cars behind it come under the chute in reach; the rest are the winch's and the
   // crates'). With someone holding the lever, the engine in reach and its vent held open in the cab, the vented steam winds the
   // skip up the shaft instead of into the air: each point of pressure vented (boiler.json ventRate, 12 a second) is
-  // 1/"steamPerSkip" of a wind. Wound, the skip tips "perSkip" of a car-load of ore down the chute, into the cargo car whose middle
-  // is within "tolerance" of it (none there, it's on the ballast; a full one overflows and strains, "overfillDamagePerLoad" a
-  // car-load, as the spout's), out of "ore" car-loads down the shaft. A full boiler winds about four skips (a car); then the fire
+  // 1/"steamPerSkip" of a wind. Wound, the skip tips "perSkip" of a car-load of ore down the chute, into the cargo car it hangs over
+  // (its open top, "endMargin" in from either end: note 769; none there, it's on the ballast; a full one overflows and
+  // strains, "overfillDamagePerLoad" a car-load, as the spout's), out of "ore" car-loads down the shaft. A full boiler winds about four skips (a car); then the fire
   // has to make the steam again (a standing engine's full firebox about 1.8 a second, so a skip in about 11 s), and the engine
   // pulls nothing till it's back over boiler.json powerFloor. The winding engine's loud while it runs (combat.json
   // machineryLoudness), as the other machinery is.
@@ -191,7 +191,7 @@
     "steamReach": 56,
     "steamPerSkip": 20,
     "perSkip": 0.25,
-    "tolerance": 1.5,
+    "endMargin": 1.0,
     "ore": 3.0,
     "overfillDamagePerLoad": 0.6
   },
@@ -204,8 +204,8 @@
   // along the track toward the elevator's bins, out to its tail "tailLateral" out, where its drive
   // house is: the starter "starterAlong" on past the tail and "starterLateral" out, held within "starterReach" for
   // "startSeconds" to start it (loud: "startRounds" a second while it's held, as the powerhouse restart is). Running, it
-  // carries grain into the cargo car whose middle is within "tolerance" of the head at "perSecond" car-loads a second (the
-  // head's gate opens only over a car with room), out of "grain" car-loads; Low power runs it at power.lowSpeed, and a dead
+  // carries grain into the cargo car the head hangs over (its open top, "endMargin" in from either end: note 769) at
+  // "perSecond" car-loads a second (the head's gate opens only over a car with room), out of "grain" car-loads; Low power runs it at power.lowSpeed, and a dead
   // yard's powerhouse has to be restarted before it'll start. Every "jamEvery" seconds of carrying (drawn from the night's
   // seed) the belt jams somewhere along its low run ("jamFrom".."jamTo" of the way from the tail to the knee) and carries
   // nothing; held within "clearReach" of the jam (on the ground beside it) for "clearSeconds", it's free. A jam left
@@ -225,7 +225,7 @@
     "starterReach": 1.4,
     "startSeconds": 4,
     "startRounds": 0.25,
-    "tolerance": 1.5,
+    "endMargin": 1.0,
     "perSecond": 0.04,
     "grain": 3.0,
     "jamEvery": [30, 60],
