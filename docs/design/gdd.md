@@ -319,6 +319,10 @@ A very few people live outside the walls and aren't anybody's prey. They are rar
 - **What it doesn't touch.** The cargo and what it's worth, the finds, the coal in the tender and the powder: they're supplies, not the train's condition, and the night's tally stays the crew's. A car already lost stays lost.
 - **Once a night.** After that he says so ("There. She'll run like the morning she was built. Go on, now, before the tide turns.").
 
+### 3.3 Odd things *(the director, 14 Oct 2026, App. F.6; ARCHITECTURE §8 note 730)*
+
+Odd things happen in the towns and at the stops, by design, unexplained. A few things in the world answer when they're poked, and nothing in the game or the Wiki says which or how: crews find them, tell each other, and argue about what they mean. None hurts anyone or solves a creature. What they are is kept for the team in note 730, and nowhere a player reads.
+
 ## 4. The player's place in it
 
 The players are freight crews. Not elite soldiers. Not monster hunters. Not chosen heroes.
@@ -402,6 +406,16 @@ Until the train passes the outer gate, the fortress yard and the lobby are a saf
 - the train doesn't move off unless someone in the cab lets the brake off and drives it out through the gate.
 
 The run, and every consequence in it, begins as the train goes through the gate (run.json `yardIsSafe`). Emotes (a dance, a wave, a point) and outfits to try on are ARCHITECTURE §8 note 298. In the yard each player can also paint their mask (PAINT YOUR MASK, on the night's menu and in the settings): the crew see the new paint at once. Past the gate, a change waits for the next night (§29 "Painted masks"; the director, 14 Oct 2026; ARCHITECTURE §8 note 731).
+
+**Emotes for two, and more of them** *(the director, 14 Oct 2026, App. F.6; ARCHITECTURE §8 note 722)*. Emotes that need a second person are a friend's thing by definition. The emote wheel (hold J) has twelve places round the crosshair like a clock: DANCE at the top, WAVE to the left, POINT to the right, ABOARD at the bottom, as before; HIGH FIVE and FIST BUMP up beside the dance; SIT and LEAN OUT down beside the point. Three places are kept for the bow, the salute and the conga (the "more emotes" upgrade), and one is free. Anywhere, yard or night, and none of them moves anything:
+
+- **The high five.** Pick it and your hand goes up, offered, for up to 3 s. A crewmate within 1.5 m, the two of you facing each other, who picks it too answers it: the hands meet with a slap, both of you on the same tick. Left unanswered, the hand hangs there, sagging a little, till it runs out. Bots answer one held up to them (they turn to you, stop, and slap it a beat later); bots never offer.
+- **The fist bump.** The same, a fist held out low, with a knock.
+- **The dance-off.** Two or more dancing within 3 m, facing each other, are a dance-off: one leads with the big moves while the rest clap along, and the lead goes round them every 2 s.
+- **Sitting on the edge.** On a car's roof by its side, on a door landing or a running board by its edge, or in an open side door (the edge across the sill and the landing), you sit with your legs over. You stay sat in the car's frame, at any speed, while you look about; any move or a jump stands you up. A shove still puts you off (at speed, that can kill: §23.4), and a friend who picks you up lifts you off the edge.
+- **Leaning out.** In a car's open side door or the cab's doorway, you lean out with a hand on the jamb, your head free to look where you look. You stand up the same way.
+
+Over a friend's shoulder you can't emote at all (§23.5). `player.json emotes`.
 
 ### Arrival
 Eventually the crew sees lights. Then walls. Then cannon towers. The gates open and the train crosses back into civilization.
@@ -2892,6 +2906,7 @@ genre ... It's extremely important that friends exceeds our target meaningfully.
   two.** *Queue #452, #453.*
 - The rest of docs/design/friendslop.md §3 goes ahead (queue #450–#466). Among it, **bringing them home**: the hand-up onto
   a moving car (§17), carrying a living friend and a bandage on someone else (§23.5). *Queue #457, note 723.*
+- **Odd outcomes to find,** about ten, never in the Wiki: odd things happen in the towns and at the stops, unexplained (§3.3). *Queue #464, note 730.*
 
 ## F.5 2026-10-13 — the creature gym, Test build 21 (ca0d37e)
 

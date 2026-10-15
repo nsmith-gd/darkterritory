@@ -745,7 +745,7 @@ public sealed partial class GameAudio
         Gestures(world);
     }
 
-    readonly HashSet<int> _heardHits = [], _heardImpacts = [], _heardEmotes = [];
+    readonly HashSet<int> _heardHits = [], _heardImpacts = [], _heardEmotes = [], _heardMeets = [];
     readonly Dictionary<int, byte> _outfitsHeard = [];
     bool _strikesPrimed, _gesturesPrimed;
 
@@ -759,6 +759,15 @@ public sealed partial class GameAudio
         bool primed = _gesturesPrimed;
         foreach (var e in world.Emotes)
         {
+            // Note 722: a high five's slap, or a fist bump's knock, the moment the hands meet: once a pair (on the record of the
+            // lower id of the two), at the hands, about head height between them. Until AU1's own takes ("crew-emotes.high-five",
+            // "crew-emotes.fist-bump") come, the bare-handed slap and the body's knock.
+            if (e.Met && e.By < e.With && _heardMeets.Add(e.Id) && primed && Crewmate(e.By) is { } a && At(world.Train, a) is { } here)
+            {
+                var there = Crewmate(e.With) is { } b && At(world.Train, b) is { } p ? p : here;
+                Cue(e.Kind == Emote.HighFive ? "crew-mishaps.bare-slap" : "crew-mishaps.body-knock", (here + there) * 0.5 + Double3.Up * (e.Kind == Emote.HighFive ? 1.8 : 1.2),
+                    OccludedAt(world.Train, a.Parent, a.Position));
+            }
             if (!_heardEmotes.Add(e.Id) || !primed)
                 continue;
             string? cue = e.Kind switch
@@ -773,6 +782,8 @@ public sealed partial class GameAudio
         }
         if (_heardEmotes.Count > 64)
             _heardEmotes.IntersectWith(world.Emotes.Select(e => e.Id));
+        if (_heardMeets.Count > 64)
+            _heardMeets.IntersectWith(world.Emotes.Select(e => e.Id));
         foreach (var (id, outfit) in world.Outfits)
         {
             if (_outfitsHeard.TryGetValue(id, out byte was) && was != outfit && Crewmate(id) is { } s && At(world.Train, s) is { } at)
@@ -886,6 +897,7 @@ public sealed partial class GameAudio
         _heardHits.Clear();
         _heardImpacts.Clear();
         _heardEmotes.Clear();
+        _heardMeets.Clear();
         _outfitsHeard.Clear();
         _strikesPrimed = _gesturesPrimed = false;
         _cooling = null;

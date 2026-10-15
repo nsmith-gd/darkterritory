@@ -39,6 +39,10 @@ public enum CrewPose
     // A friend hauled free by what has them (App. A.1's rescue, note 378): out of the Car Hugger's mouth, the Tippy Toesie's
     // fingers prised off, hauled down from the Whistler or the Choir.
     PullMouth, PryOff, HaulDown,
+    // Note 722, the emotes for two and the edges: a high five, a fist bump, a dance-off's moves (by who leads), sat on an
+    // edge legs over, leant out of a doorway. Clips of their own when crew_clips has them ("high_five", "fist_bump",
+    // "dance_off", "sit_edge", "lean_out": E1's); until then posed by IK over the standing or stepping clip (EmoteArms).
+    HighFive, FistBump, DanceOff, SitEdge, LeanOut,
 }
 
 /// <summary>
@@ -793,6 +797,11 @@ public sealed partial class CreatureArt
         CrewPose.PullMouth => "pull_mouth",
         CrewPose.PryOff => "pry_off",
         CrewPose.HaulDown => "haul_down",
+        CrewPose.HighFive => "high_five",
+        CrewPose.FistBump => "fist_bump",
+        CrewPose.DanceOff => "dance_off",
+        CrewPose.SitEdge => "sit_edge",
+        CrewPose.LeanOut => "lean_out",
         _ => "idle",
     };
 
@@ -816,7 +825,7 @@ public sealed partial class CreatureArt
     public bool Crewmate(MeshBuilder mesh, in Matrix4x4 model, CrewPose pose, double time, int variant,
         Vector3? left = null, Vector3? right = null, Vector3 leftPole = default, Vector3 rightPole = default, MeshAsset? inHand = null,
         MeshAsset? hanging = null, string figure = "crew", VrBodyPose? body = null, MeshAsset? carried = null, bool sooted = false,
-        MaskLook mask = default)
+        MaskLook mask = default, EmoteDetail emote = default)
     {
         if (!_models.ContainsKey(figure))
             figure = "crew";
@@ -833,9 +842,11 @@ public sealed partial class CreatureArt
                 : clip == "spray" && has.Model.Clips.ContainsKey("extinguish") ? "extinguish" : clip == "hang_up" && has.Model.Clips.ContainsKey("take_down") ? "take_down"
                 : clip is "toolbox" or "toolbox_walk" && has.Model.Clips.ContainsKey("carry") ? clip == "toolbox" ? "carry" : "carry_walk"
                 // An emote with no clip of its own (note 298): the dance steps on the spot, the wave and the point stand.
-                : clip is "dance" or "shuffle" && has.Model.Clips.ContainsKey("walk") ? "walk" : "idle";
+                // (Note 722: a dance-off steps as the dance does; the rest stand.)
+                : clip is "dance" or "dance_off" or "shuffle" && has.Model.Clips.ContainsKey("walk") ? "walk" : "idle";
         // ... and the arms are posed over it (EmoteArms).
-        bool emoteByHand = pose is CrewPose.Dance or CrewPose.Wave or CrewPose.Point && clip != ClipOf(pose);
+        bool emoteByHand = pose is CrewPose.Dance or CrewPose.Wave or CrewPose.Point or CrewPose.HighFive or CrewPose.FistBump or CrewPose.DanceOff
+            or CrewPose.SitEdge or CrewPose.LeanOut && clip != ClipOf(pose);
         var Paint = PaintOf(variant);
         if (!_models.TryGetValue(figure, out var m) || !m.Model.Clips.TryGetValue(clip, out var c))
             return false;
@@ -848,7 +859,7 @@ public sealed partial class CreatureArt
         if (body is { } vr)
             HeadsetBody(m, vr);
         if (emoteByHand)
-            EmoteArms(m, pose, time);
+            EmoteArms(m, pose, time, emote);
         if (left is { } l)
             Reach(m, "l", l, leftPole);
         if (right is { } r)
@@ -1524,11 +1535,78 @@ public sealed partial class CreatureArt
     /// over the head in turn; the wave a hand up high, rocking side to side; the point an arm straight out ahead at the
     /// shoulder. Placeholders for the art pass's clips, in the crew's stiff, heavy manner (GDD §31).
     /// </summary>
-    static void EmoteArms(Entry m, CrewPose pose, double time)
+    /// <remarks>
+    /// Note 722's, the same way: the high five a hand up and a little forward while offered (drooping, and the head tipping,
+    /// the longer it hangs), then slapped forward to the middle of the gap between the two, leant into when the gap's wide, and
+    /// let down; the fist bump the same at the chest; a dance-off's lead the jig bigger, the hips swung and the fists thrown
+    /// high, the rest clapping it on the beat; sat on an edge, let down onto the seat with the thighs out over it, the shins
+    /// hanging and the hands on the edge by the hips; leant out of a doorway, the body tipped out from the feet, one hand on the
+    /// jamb, the other loose, the head turned to where they look.
+    /// </remarks>
+    static void EmoteArms(Entry m, CrewPose pose, double time, EmoteDetail detail = default)
     {
         float t = (float)time;
         switch (pose)
         {
+            case CrewPose.HighFive:
+            case CrewPose.FistBump:
+                {
+                    bool five = pose == CrewPose.HighFive;
+                    if (!detail.Met)
+                    {
+                        // Held up, offered; hanging there it sags a little and the head tips, waiting.
+                        float wait = Math.Clamp((t - 1.2f) / 1.5f, 0, 1);
+                        var offered = five ? new Vector3(0.27f, 1.98f - 0.12f * wait, -0.3f) : new Vector3(0.16f, 1.24f - 0.06f * wait, -0.46f);
+                        Bend(m, "neck", Matrix4x4.CreateRotationZ(-0.22f * wait));
+                        Reach(m, "r", offered + new Vector3(0, 0.015f * MathF.Sin(t * MathF.Tau * 1.4f), 0), new Vector3(1, -0.6f, 0.4f));
+                        break;
+                    }
+                    // Met: to the middle of the gap, leant into it when the arm alone won't reach, then let down.
+                    float half = (float)Math.Max(0.2, detail.Gap / 2);
+                    float lean = Math.Clamp((half - 0.5f) * 0.9f, 0, 0.3f);
+                    float since = (float)detail.SinceMeet, down = Math.Clamp((since - 0.3f) / 0.5f, 0, 1);
+                    Bend(m, "spine_01", Matrix4x4.CreateRotationX(-lean * (1 - down)));
+                    var meet = five ? new Vector3(0.05f, 1.84f, -Math.Min(half, 0.66f)) : new Vector3(0.05f, 1.22f, -Math.Min(half, 0.62f));
+                    var after = five ? new Vector3(0.3f, 1.55f, -0.2f) : new Vector3(0.24f, 1.05f, -0.25f);
+                    Reach(m, "r", Vector3.Lerp(meet, after, down), new Vector3(1, -0.6f, 0.3f));
+                    break;
+                }
+            case CrewPose.DanceOff when detail.Leading:
+                {
+                    // The lead: the jig thrown bigger, the hips swung, the fists right up in turn.
+                    float beat = MathF.Sin(t * MathF.Tau * 1.3f);
+                    Bend(m, "spine_01", Matrix4x4.CreateRotationZ(0.24f * beat) * Matrix4x4.CreateRotationY(0.3f * beat));
+                    Reach(m, "l", new Vector3(-0.3f - 0.1f * beat, 1.98f + 0.12f * beat, -0.1f), new Vector3(-1, -0.4f, 0.2f));
+                    Reach(m, "r", new Vector3(0.3f - 0.1f * beat, 1.98f - 0.12f * beat, -0.1f), new Vector3(1, -0.4f, 0.2f));
+                    break;
+                }
+            case CrewPose.DanceOff:
+                {
+                    // Answering it: a clap on the beat, hands in front, bobbing.
+                    float clap = MathF.Abs(MathF.Sin(t * MathF.PI * 2.6f));
+                    Bend(m, "spine_01", Matrix4x4.CreateRotationX(-0.08f * clap));
+                    Reach(m, "l", new Vector3(-0.03f - 0.17f * clap, 1.32f, -0.36f), new Vector3(-1, -0.5f, 0.2f));
+                    Reach(m, "r", new Vector3(0.03f + 0.17f * clap, 1.32f, -0.36f), new Vector3(1, -0.5f, 0.2f));
+                    break;
+                }
+            case CrewPose.SitEdge:
+                SitOnEdge(m, t);
+                break;
+            case CrewPose.LeanOut:
+                {
+                    // Side on in the doorway, tipped out from the feet past the jamb (its side, detail.Out), the inner hand on the
+                    // jamb ahead, the outer arm loose out in the air; the head to the look.
+                    float side = detail.Out < 0 ? -1 : 1;
+                    string inner = side > 0 ? "l" : "r", outer = side > 0 ? "r" : "l";
+                    Skinner.Place(m.Model, m.Pose, Matrix4x4.CreateRotationZ(-0.38f * side));
+                    Bend(m, "spine_02", Matrix4x4.CreateRotationZ(-0.16f * side));
+                    Reach(m, inner, new Vector3(side * 0.2f, 1.62f, -0.38f), new Vector3(-side, -0.3f, 0.4f));
+                    Reach(m, outer, new Vector3(side * 0.95f, 1.05f + 0.03f * MathF.Sin(t * 1.7f), -0.15f), new Vector3(side, -0.5f, 0.3f));
+                    float turn = (float)Math.Clamp(detail.Turn, -1.2, 1.2);
+                    if (MathF.Abs(turn) > 1e-3f)
+                        Bend(m, "neck", Matrix4x4.CreateRotationY(turn));
+                    break;
+                }
             case CrewPose.Dance:
                 {
                     float beat = MathF.Sin(t * MathF.Tau * 1.1f);
@@ -1545,6 +1623,33 @@ public sealed partial class CreatureArt
                 break;
         }
     }
+
+    /// <summary>
+    /// Sat on an edge, legs over (note 722): the figure let down until the pelvis is <see cref="SeatOver"/> over its feet' floor
+    /// (the edge it sits on), the thighs out level over it, the shins hanging down past it and swinging a little, a foot each
+    /// side; the hands on the edge by the hips, the back a little bowed.
+    /// </summary>
+    static void SitOnEdge(Entry m, float t)
+    {
+        var sk = m.Model.Skeleton;
+        int pelvis = sk.IndexOf("pelvis");
+        if (pelvis < 0)
+            return;
+        float hip = m.Pose.World[pelvis].M42;
+        Skinner.Place(m.Model, m.Pose, Matrix4x4.CreateTranslation(0, SeatOver - hip, 0));
+        Bend(m, "spine_02", Matrix4x4.CreateRotationX(-0.12f));
+        foreach (int side in new[] { -1, 1 })
+        {
+            string s = side < 0 ? "l" : "r";
+            float swing = 0.05f * MathF.Sin(t * 1.6f + side);
+            var foot = new Vector3(side * 0.14f, SeatOver - 0.62f, -0.5f + swing);
+            Reach(m, "thigh_" + s, "calf_" + s, "foot_" + s, foot, new Vector3(side * 0.1f, 0.6f, -1));
+            Reach(m, s, new Vector3(side * 0.3f, 0.05f, 0.04f), new Vector3(side, 0.2f, 0.4f));
+        }
+    }
+
+    /// <summary>How high the pelvis bone sits over the seat it's sat on (m): a body's seat below its hip joint.</summary>
+    const float SeatOver = 0.1f;
 
     /// <summary>How many joints a ragdoll has (Sim.Physics.Bodies' skeleton), in the order <see cref="Corpse"/> reads them.</summary>
     public const int RagdollJoints = 11;

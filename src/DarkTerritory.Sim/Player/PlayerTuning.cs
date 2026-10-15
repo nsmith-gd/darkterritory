@@ -132,10 +132,46 @@ public sealed record KickTuning(double VoteSeconds = 30, double Majority = 0.5);
 /// <summary>Note 663: how long a line of news is up, and how fast the train runs before a crewmate's own cut is news.</summary>
 public sealed record NewsTuning(double Seconds = 5, double CutToldAbove = 1.5);
 
-public sealed record EmoteTuning(double Dance = 8, double Wave = 2.5, double Point = 2.5, double Cooldown = 0.5, double Aboard = 3)
+/// <summary>
+/// Note 722 (the emotes for two, and the edges): how long a high five or fist bump is held up offered (<paramref name="HighFive"/>,
+/// <paramref name="FistBump"/>) and lasts once met (<paramref name="Met"/>); how near (<paramref name="Reach"/>, m, feet to
+/// feet) and how square to each other (<paramref name="FacingDegrees"/>) two must be for it to be answered; a dance-off's reach
+/// and beat; how near a side the edge emotes are taken (<paramref name="EdgeReach"/>) and the drop under a sill that makes it
+/// one to sit on (<paramref name="EdgeDrop"/>), and how far out through a doorway its edge may be (<paramref name="SillReach"/>); and a bot's beat before it answers (<paramref name="BotAnswer"/>). Field docs
+/// live in player.json <c>emotes</c>.
+/// </summary>
+public sealed record EmoteTuning(double Dance = 8, double Wave = 2.5, double Point = 2.5, double Cooldown = 0.5, double Aboard = 3,
+    double HighFive = 3, double FistBump = 3, double Met = 0.8, double Reach = 1.5, double FacingDegrees = 50,
+    double DanceOffReach = 3, double DanceOffFacingDegrees = 70, double DanceOffBeat = 2, double EdgeReach = 0.6, double EdgeDrop = 0.5, double SillReach = 1.2,
+    double BotAnswer = 0.4)
 {
-    public double Seconds(Emote e) => e switch { Emote.Dance => Dance, Emote.Wave => Wave, Emote.Point => Point, Emote.Aboard => Aboard, _ => 0 };
-    public double Longest => Math.Max(Math.Max(Dance, Aboard), Math.Max(Wave, Point));
+    /// <summary>
+    /// How long <paramref name="e"/> lasts unmet (s). The sit and the lean are held (<see cref="double.PositiveInfinity"/>):
+    /// they end when their crewmate moves, not on a clock.
+    /// </summary>
+    public double Seconds(Emote e) => e switch
+    {
+        Emote.Dance => Dance,
+        Emote.Wave => Wave,
+        Emote.Point => Point,
+        Emote.Aboard => Aboard,
+        Emote.HighFive => HighFive,
+        Emote.FistBump => FistBump,
+        Emote.SitEdge or Emote.LeanOut => double.PositiveInfinity,
+        _ => 0,
+    };
+
+    /// <summary>Whether <paramref name="e"/> is still up at <paramref name="tick"/>: its length from its start, or, met, <see cref="Met"/> from the meet.</summary>
+    public bool Lasts(in EmoteEvent e, long tick) =>
+        e.Met ? tick - e.Meet <= Met * SimConstants.TickRate : tick - e.Tick <= Seconds(e.Kind) * SimConstants.TickRate;
+
+    /// <summary>How far into <paramref name="e"/> it is at <paramref name="tick"/> (s), and whether it's still up (as <see cref="Lasts"/>).</summary>
+    public (double Age, bool Up) Age(in EmoteEvent e, long tick)
+    {
+        double age = (tick - (double)e.Tick) * SimConstants.TickSeconds;
+        double end = e.Met ? (e.Meet - (double)e.Tick) * SimConstants.TickSeconds + Met : Seconds(e.Kind);
+        return (age, age >= 0 && age < end);
+    }
 }
 /// <param name="LethalAbove">Speed over the ground on landing that kills (spec B.3 after T90); 0 for the train's jump-off band.</param>
 /// <param name="DamageAtLethal">A landing's knock rises from <paramref name="RollDamage"/> to this at the lethal edge.</param>
