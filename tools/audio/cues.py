@@ -942,6 +942,21 @@ CUES = {
         L("haul", "The haul: a ratcheting creak of the rafters, a wet reel"),
         O("retreat", "Letting go: a hiss and a scuttle back into the roof", vars=2),
     ],
+    # The Pickers (queue #499, note 769; G1's #315, note 592; pickers.md §4, "a request to the audio chat"): knee-high
+    # scavengers up out of a yard's drains, racing the crew for the loose crates. Small and quick, heard across a yard over
+    # the standing train: never a rat's squeak in a cartoon, never the Ribbits' wet hop.
+    "tell-pickers": [
+        O("emerge", "Out of a drain: the grating's iron shoved aside and a chitter", vars=3),
+        L("feet", "One of them scuttling: many small quick feet on gravel"),
+        O("chitter", "A chitter now and then as they go about the yard", vars=4),
+    ],
+    "cs-pickers": [
+        L("carry", "Carrying: a crate knocking and scraping along the ground, a chattering pant"),
+        O("bite", "A snap and a hiss (a hurt, never a kill)", vars=3),
+        O("scatter", "A burst of squeals as they bolt for their drains", vars=3),
+        O("down", "Down its drain: the grating rattling as it squeezes through", vars=3),
+        O("hit", "One killed by a blow: a squeal cut short", vars=3),
+    ],
     # Signs off the train (D1.1's note 327; queue #79, note 342): a crewmate afoot is shown a pair of eyes at the lamp's edge,
     # toward where a creature lives here. Its sound says something's out there, never that it's coming: quieter than its
     # tell and nothing like it (GameAudio.Watched plays "sign.<kind>", Director.Key's names). The Gaunt and the Followers
