@@ -457,7 +457,7 @@ You aren't picking a difficulty level. You're travelling farther from civilizati
 ### What a crew keeps *(the director, 14 Oct 2026, App. F.6; ARCHITECTURE §8 note 721)*
 
 A crew remembers. In-jokes need somewhere to live, and a campaign the Wakers end should be a story to keep, not a reset.
-- **The logbook.** A fat ledger lying on the big cab's chart table, at its back corner by the gallery, as a ship's log lies on the chart table (§12). Use opens it as a full page in the paper's style, one page a night: the night's number, the line, the date, how it ended, the crew photo if it was delivered and this machine took it, the incident report's cause-of-death lines (and the train's own end), the commendations, and the net. The walking keys turn the pages; Use shuts it.
+- **The logbook.** A fat ledger lying on the big cab's front bench, at its end just behind the chart table (§12). Use opens it as a full page in the paper's style, one page a night: the night's number, the line, the date, how it ended, the crew photo if it was delivered and this machine took it, the incident report's cause-of-death lines (and the train's own end), the commendations, and the net. The walking keys turn the pages; Use shuts it.
 - **Where it's kept.** The host's campaign save keeps the book with the campaign. Every player's own profile keeps a copy too, written on their machine at each night's end from the report it was sent, so everyone keeps their crew's logbook after the campaign ends or the host's save is gone. Quick nights are no campaign's and keep no page.
 - **The board of lost crews.** A campaign ended at dawn is posted, in that player's profile, on the board of lost crews in every fortress town's square (§3.1).
 

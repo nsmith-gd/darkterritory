@@ -25,15 +25,16 @@ public sealed class LogbookReader
 
     /// <summary>
     /// Where the book lies, in its car's frame (note 721), which way its front faces (yaw: 0 faces −Z) and whether it's on
-    /// its own little shelf. "cab": shut on the big cab's chart table (note 716), at its back corner by the gallery, as a
-    /// ship's log lies on the chart table; it falls back to the lockers on an engine without the table. "lockers": on a small
+    /// its own little shelf. "cab": shut on the seat of the big cab's front bench (note 716), at its right-hand end, just
+    /// behind the chart table (the table's top is the run map's, kept clear); it falls back to the lockers on an engine
+    /// without the benches. "lockers": on a small
     /// shelf on the wall across the aisle from the kit locker in car one (the lockers' tops are up under the roof), at chest
     /// height, its front to the aisle. Null on a train with neither.
     /// </summary>
     public static (int Car, Double3 Local, double Yaw, bool OnShelf)? Shelf(TrainOnLine train, LogbookTuning t)
     {
-        if (t.Place == "cab" && train.Frames.Count > 0 && CrewCar.Table(train.Frames[0].Shape) is { } table)
-            return (0, new Double3(table.Max.X - TableInset - BookHalf.X, table.Max.Y + 0.006, table.Max.Z - TableInset - BookHalf.Z), 0, false);
+        if (t.Place == "cab" && train.Frames.Count > 0 && CrewCar.FrontBench(train.Frames[0].Shape) is { } bench)
+            return (0, new Double3(bench.Max.X - SeatInset - BookHalf.X, bench.Max.Y + 0.006, (bench.Min.Z + bench.Max.Z) / 2), 0, false);
         if (World.KitLocker(train) is not { } locker || train.Frames[locker.Car].Shape.Interior is not { } room)
             return null;
         var box = locker.Bay.Box;
@@ -45,14 +46,14 @@ public sealed class LogbookReader
     }
 
     /// <summary>
-    /// Where a reader stands to read it (feet, in its car's frame): on the cab's floor behind the chart table, at the gallery's
-    /// foot, over the book; or in car one's aisle at the kit locker, across from its shelf. Null without a book.
+    /// Where a reader stands to read it (feet, in its car's frame): on the gallery in the lane beside the front bench, by the
+    /// book; or in car one's aisle at the kit locker, across from its shelf. Null without a book.
     /// </summary>
     public static Double3? ReadFrom(TrainOnLine train, (int Car, Double3 Local, double Yaw, bool OnShelf) book)
     {
         if (!book.OnShelf)
-            return CrewCar.Table(train.Frames[book.Car].Shape) is { } table
-                ? new Double3(book.Local.X, table.Min.Y, table.Max.Z + ReaderBack)
+            return CrewCar.FrontBench(train.Frames[book.Car].Shape) is { } bench
+                ? new Double3(bench.Max.X + ReaderOut, bench.Min.Y, book.Local.Z)
                 : null;
         if (World.KitLocker(train) is not { } locker)
             return null;
@@ -60,13 +61,13 @@ public sealed class LogbookReader
         return new Double3(bay.Front.X + bay.Facing * 0.75, bay.Front.Y, bay.Front.Z);
     }
 
-    /// <summary>How far behind the chart table's back edge a reader stands (m): in the gap before the gallery's first tread.</summary>
-    public const double ReaderBack = 0.3;
+    /// <summary>How far out from the bench's end a reader stands (m): in the lane beside it.</summary>
+    public const double ReaderOut = 0.35;
 
     /// <summary>The shut book's half size across and along (m), for laying it inside the table's edge.</summary>
     public static readonly Double3 BookHalf = new(0.17, 0.035, 0.12);
-    /// <summary>How far in from the chart table's edges the book lies (m): past its rim, clear of the lamps' rail.</summary>
-    public const double TableInset = 0.08;
+    /// <summary>How far in from the bench's end the book lies (m).</summary>
+    public const double SeatInset = 0.06;
 
     /// <summary>How far the book's middle stands off its wall (m): the shelf's half depth and a little.</summary>
     public const double ShelfDepth = 0.17;

@@ -195,19 +195,23 @@ public class CrewMemoryTests
     }
 
     [Fact]
-    public void TheLogbookLiesOnTheBigCabsChartTableAndOffersItselfToAReaderBehindIt()
+    public void TheLogbookLiesOnTheBigCabsFrontBenchOffTheMapAndOffersItselfToAReaderBesideIt()
     {
         var s = Night();
         Assert.Equal("cab", Tuning.Logbook.Place);
         var book = LogbookReader.Shelf(s.Train, Tuning.Logbook)!.Value;
-        var table = Sim.Train.CrewCar.Table(s.Train.Frames[0].Shape)!.Value;
-        // In the engine, lying on the table top (no shelf of its own), inside its edges.
+        var shape = s.Train.Frames[0].Shape;
+        var bench = Sim.Train.CrewCar.FrontBench(shape)!.Value;
+        var table = Sim.Train.CrewCar.Table(shape)!.Value;
+        // In the engine, lying on the bench's seat (no shelf of its own), inside its ends, and off the chart table (its top is
+        // the run map's).
         Assert.Equal(0, book.Car);
         Assert.False(book.OnShelf);
-        Assert.InRange(book.Local.Y - table.Max.Y, 0, 0.02);
-        Assert.InRange(book.Local.X, table.Min.X + LogbookReader.BookHalf.X, table.Max.X - LogbookReader.BookHalf.X);
-        Assert.InRange(book.Local.Z, table.Min.Z + LogbookReader.BookHalf.Z, table.Max.Z - LogbookReader.BookHalf.Z);
-        // Stood behind the table at the gallery's foot, looking down at it: its prompt; looking up the line, no.
+        Assert.InRange(book.Local.Y - bench.Max.Y, 0, 0.02);
+        Assert.InRange(book.Local.X, bench.Min.X + LogbookReader.BookHalf.X, bench.Max.X - LogbookReader.BookHalf.X);
+        Assert.InRange(book.Local.Z, bench.Min.Z + LogbookReader.BookHalf.Z, bench.Max.Z - LogbookReader.BookHalf.Z);
+        Assert.True(book.Local.Z - LogbookReader.BookHalf.Z > table.Max.Z);
+        // Stood in the lane beside the bench, looking down at it: its prompt; looking up the line, no.
         var feet = LogbookReader.ReadFrom(s.Train, book)!.Value;
         var to = book.Local - (feet + Double3.Up * s.Train.Dynamics.Tuning.Pick.EyeHeight);
         s.Player = s.Player with

@@ -9,7 +9,7 @@ rule 9), saying so in the item's row and their log.
 - #451 horseplay with the shove's mark, #452 the night's prizes, #454 voices, #459's coupling test (#999; notes 717, 718,
   720, 725). Protocol 59.
 - In review from `ccr-f72c055b-195xp3`: #450 the big cab (note 716; with #459's lamp per crewmate aboard), #455 crew
-  memory (note 721; the logbook on the cab's chart table), #458 sessions (note 724; protocol 60).
+  memory (note 721; the logbook on the cab's front bench), #458 sessions (note 724; protocol 60).
 
 ## Work in progress, saved as patches here
 Each `*.wip.patch` is a builder's uncommitted work, taken with `git diff --cached --binary HEAD` in its worktree. Apply it
