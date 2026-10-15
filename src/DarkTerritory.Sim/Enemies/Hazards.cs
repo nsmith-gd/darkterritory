@@ -27,7 +27,7 @@ public sealed class Sleepers(int id) : Enemy(id)
         if (!ctx.Train.Line.OnMain(engine.Path, LineDistance))
             return;
         double ahead = LineDistance - engine.Distance;
-        if (Phase == SpinePhase.Dormant && (ctx.World.LampShining && ahead <= t.LampRevealDistance || ahead <= BraceAt(t, engine)) && ahead > 0)
+        if (Phase == SpinePhase.Dormant && (ctx.World.LampShining && ahead <= t.LampRevealDistance * engine.Tuning.HeadlampReach || ahead <= BraceAt(t, engine)) && ahead > 0)
             Enter(ctx, SpinePhase.Telegraph);
         if (ahead > 0.5)
             return;

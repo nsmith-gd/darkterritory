@@ -613,9 +613,17 @@ public sealed class Gaunt(int id) : Enemy(id)
 /// </remarks>
 public sealed class Follower(int id) : Enemy(id)
 {
+    /// <summary>How high on its host's back it rides, over their feet (m: between the shoulder blades).</summary>
+    public const double BackUp = 1.35;
+
     int _car = -1;
     /// <summary>Who brought it aboard on their back (host only: for the report, C.9 "who carried it aboard").</summary>
     int _carriedBy = -1;
+    /// <summary>Where it let go of its host's back, in their car's frame, and the floor under it there (host only).</summary>
+    double _dropFrom = double.NaN, _landAt = double.NaN;
+
+    /// <summary>How long its drop off a back takes (s): from <see cref="BackUp"/> to the floor at the tuning's gravity.</summary>
+    public static double DropSeconds(FollowerTuning t) => Math.Sqrt(2 * BackUp / t.DropGravity);
 
     public override EnemyKind Kind => EnemyKind.Follower;
     public override PressureZone Zone => PressureZone.Outside;
@@ -644,7 +652,7 @@ public sealed class Follower(int id) : Enemy(id)
 
     void Ride(TrainOnLine train, in PlayerState s)
     {
-        var back = new Double3(DMath.Sin(s.Yaw), 0, DMath.Cos(s.Yaw)) * 0.2 + Double3.Up * 1.35;
+        var back = new Double3(DMath.Sin(s.Yaw), 0, DMath.Cos(s.Yaw)) * 0.2 + Double3.Up * BackUp;
         if (s.Parent >= 0)
         {
             Attached = s.Parent;
@@ -654,7 +662,7 @@ public sealed class Follower(int id) : Enemy(id)
         {
             Attached = Loose;
             double yaw = PlayerMotor.WorldYaw(s, train);
-            Local = PlayerMotor.WorldPosition(s, train) + new Double3(DMath.Sin(yaw), 0, DMath.Cos(yaw)) * 0.2 + Double3.Up * 1.35;
+            Local = PlayerMotor.WorldPosition(s, train) + new Double3(DMath.Sin(yaw), 0, DMath.Cos(yaw)) * 0.2 + Double3.Up * BackUp;
         }
     }
 
@@ -689,6 +697,9 @@ public sealed class Follower(int id) : Enemy(id)
                         _car = car;
                         _carriedBy = Carrier;
                         Extra = -1;
+                        // DROP: it lets go where it rode, in its host's car, and falls to the floor under them.
+                        _dropFrom = Local.Y;
+                        _landAt = Local.Y - BackUp;
                     }
                     return;
                 }
@@ -721,13 +732,19 @@ public sealed class Follower(int id) : Enemy(id)
             .Where(x => x.Worth > 0.01).OrderByDescending(x => x.Worth).ThenBy(x => x.Id).Select(x => (int?)x.Id).FirstOrDefault();
     }
 
-    /// <summary>Off its host and along the train to its car, then the nest.</summary>
+    /// <summary>Off its host (a drop to the floor under them, in their car), and along the train to its car, then the nest.</summary>
     void Crawl(EnemyContext ctx, FollowerTuning t)
     {
         var train = ctx.Train;
         if (_car < 0 || _car >= train.Frames.Count || train.Dynamics.Consist.IndexOf(_car) < 0)
         {
             Enter(ctx, SpinePhase.Gone);
+            return;
+        }
+        // Falling, still in the car it dropped in (its frame: the train's speed is the car's), till it's down.
+        if (Attached >= 0 && Local.Y > _landAt)
+        {
+            Local = Local with { Y = Math.Max(_landAt, _dropFrom - 0.5 * t.DropGravity * PhaseSeconds * PhaseSeconds) };
             return;
         }
         var goal = train.Frames[_car].Shape.Interior!.Value;

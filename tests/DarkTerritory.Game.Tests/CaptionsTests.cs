@@ -39,6 +39,14 @@ public class CaptionsTests
     [InlineData("crew-house-door.shut")]
     [InlineData("crew-house-door.open")]
     [InlineData("cs-choir.bang-door.wood")]
+    // Note 388: G1's six, by the sounds a reader would hear first of each.
+    [InlineData("tell-mourners.keening")]
+    [InlineData("tell-tower-jaw.gnaw")]
+    [InlineData("tell-brakeman.step.good")]
+    [InlineData("tell-brakeman.squeal")]
+    [InlineData("tell-knotter.creep")]
+    [InlineData("cs-freight-beetle.push.ground")]
+    [InlineData("tell-hotbox.knock")]
     public void TheTellsAndCallsSinceCaptionsAreCaptioned(string sound)
     {
         // Note 391: the signs as they play since note 342, the Moose's and the Gannet's tells (notes 334, 384), and the jobs
