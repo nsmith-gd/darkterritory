@@ -261,6 +261,9 @@ public sealed partial class GameAudio
             case Picker p:
                 PickerSounds(p, was, at, occ, dt);
                 break;
+            case MouseMoose mm:
+                MouseMooseSounds(mm, was, at, occ, dt);
+                break;
             case Waker w:
                 WakerSounds(world, w, was, at);
                 break;
@@ -905,6 +908,10 @@ public sealed partial class GameAudio
                     Cue("cs-track-doll.take-toy", c.At, occ);
                 else if (c.Extra > 0.5 && killed)
                     Cue("cs-track-doll.crack", c.At, occ);
+                break;
+            case EnemyKind.MouseMoose when (MouseMooseMode)(int)c.Height == MouseMooseMode.Flee:
+                // The train gone from its yard, it bolts for its hole and is gone there (MouseMoose.Leave): down it.
+                Cue("cs-mouse-moose.dig", c.At, occ);
                 break;
             case EnemyKind.CarHugger:
                 BreakAway(train, c.Attached, c, c.At);
