@@ -3407,9 +3407,12 @@ public sealed partial class GreyboxScene
                         Along(mesh, line, eye, s, 0.9, 0, 0.12, 1.5, 0.28, Palette.Corrupted);
                     break;
                 case FeatureKind.Grease:
+                    // On the rail heads in 10 m lengths, as the decks are: laid as one length the whole stretch long (113 m on
+                    // deepTerritory:3), its chord left the rails on any grade or curve, over them on a sag (note 778).
                     mesh.Emissive = 0.15f;
-                    foreach (double side in new[] { -0.72, 0.72 })
-                        Along(mesh, line, eye, a, b - a, side, 0.19, 0.05, 0.02, Palette.GreaseSheen);
+                    for (double s = a; s < b; s += 10)
+                        foreach (double side in new[] { -0.72, 0.72 })
+                            Along(mesh, line, eye, s, Math.Min(10, b - s), side, 0.19, 0.05, 0.02, Palette.GreaseSheen);
                     mesh.Emissive = 0;
                     break;
                 case FeatureKind.Junction:

@@ -16,7 +16,6 @@ namespace DarkTerritory.Game.Tests;
 public class BranchLandTests
 {
     static readonly string Content = DataFile.FindContentRoot();
-    static readonly Look Look = Look.Load(Content);
 
     [Theory]
     [InlineData("frontier:5")]
@@ -32,7 +31,9 @@ public class BranchLandTests
         var line = route.Build();
         var plan = route.Plan!;
         var tuning = DataFile.Load<TrainTuning>(Path.Combine(Content, TrainTuning.File));
-        var scene = new GreyboxScene { DrawDistance = 400, Look = Look, Route = route, Time = 0.37 };
+        // A Look of its own, let go after: a static one held its art's cells and pieces for the whole run, beside every
+        // other class's, and the suite's host ran out of memory.
+        var scene = new GreyboxScene { DrawDistance = 400, Look = Look.Load(Content), Route = route, Time = 0.37 };
         var problems = new List<string>();
         int places = 0;
         foreach (var b in line.Branches.Where(b => b.Kind is BranchKind.Alternate or BranchKind.DeadLine))
@@ -89,7 +90,9 @@ public class BranchLandTests
             var route = Routes.Generate(Content, spec, 6);
             var line = route.Build();
             var plan = route.Plan!;
-            var scene = new GreyboxScene { DrawDistance = 400, Look = Look, Route = route, Time = 0.37 };
+            // A Look of its own, let go after: a static one held its art's cells and pieces for the whole run, beside every
+            // other class's, and the suite's host ran out of memory.
+            var scene = new GreyboxScene { DrawDistance = 400, Look = Look.Load(Content), Route = route, Time = 0.37 };
             foreach (var b in line.Branches.Where(b => b.Kind is BranchKind.Alternate or BranchKind.DeadLine))
             {
                 string edge = plan.Alignment.First(a => a.Branch == b.Index && a.Role is EdgeRole.Alternate or EdgeRole.DeadLine).Edge;
