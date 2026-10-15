@@ -185,15 +185,32 @@ public static class CrewActs
         {
             case Emote.HighFive or Emote.FistBump when LatestEmote(id, world) is { Met: true } met:
                 {
-                    double gap = t.Reach * 0.6;
+                    double gap = t.Reach * 0.6, across = 0;
                     if (crew is not null)
                         foreach (var (other, o) in crew)
                             if (other == met.With && EmoteRules.Apart(s, o, train) is var d && double.IsFinite(d))
+                            {
                                 gap = d;
-                    return c with { EmoteWith = new EmoteDetail(Met: true, SinceMeet: Math.Max(0, ((double)world.Tick - met.Meet) * SimConstants.TickSeconds), Gap: gap) };
+                                // How much of it is to their right (note 807), so both hands go to the one point between them.
+                                var to = PlayerMotor.WorldPosition(o, train) - PlayerMotor.WorldPosition(s, train);
+                                double yaw = PlayerMotor.WorldYaw(s, train);
+                                across = to.X * Math.Cos(yaw) - to.Z * Math.Sin(yaw);
+                            }
+                    return c with
+                    {
+                        EmoteWith = new EmoteDetail(Met: true, SinceMeet: Math.Max(0, ((double)world.Tick - met.Meet) * SimConstants.TickSeconds), Gap: gap, Across: across)
+                    };
                 }
             case Emote.Dance when crew is not null && EmoteRules.DanceOff(id, world.Emotes, crew, train, t, world.Tick) is { } off:
-                return c with { EmoteWith = new EmoteDetail(Dancers: off.Count, Leading: off.Leader == id) };
+                {
+                    // Which turn and how far into it, the host's tick over the beat as EmoteRules.DanceOff has the lead (note 807).
+                    long beat = Math.Max(1, (long)Math.Round(t.DanceOffBeat * SimConstants.TickRate));
+                    return c with
+                    {
+                        EmoteWith = new EmoteDetail(Dancers: off.Count, Leading: off.Leader == id, Round: (int)(world.Tick / beat),
+                            OnBeat: world.Tick % beat * SimConstants.TickSeconds)
+                    };
+                }
             case Emote.SitEdge when s.Parent >= 0 && s.Parent < frames.Count && EmoteRules.SitAt(s, train, t) is { } edge:
                 return SatOn(c, s, edge, train, frames, t);
             case Emote.LeanOut when s.Parent >= 0 && s.Parent < frames.Count && EmoteRules.LeanAt(s, train, t) is { } door:
@@ -220,24 +237,68 @@ public static class CrewActs
         return c with { Feet = frame.ToWorld(local), Yaw = yaw + frame.Heading, Local = local };
     }
 
-    /// <summary>How far in from the edge a sitter's feet (the model's origin, under the pelvis) are drawn (m): the seat on it, the knees over.</summary>
-    const double SitBack = 0.14;
+    /// <summary>How far in from the edge a sitter's feet (the model's origin, under the pelvis) are drawn (m): the seat on it, the backs of
+    /// the knees just over it (crew_clips' sit_edge, SIT_BACK).</summary>
+    const double SitBack = 0.3;
 
     /// <summary>
-    /// Leant out of a doorway (note 722), as they're drawn: on its sill, just inside the jamb, facing out through it, the head
-    /// turned to where they look (as far as a neck goes: CreatureArt clamps it).
+    /// Leant out of a doorway (note 722), as they're drawn: on its sill, facing along the car the way they look, the head turned
+    /// to where they look (as far as a neck goes: CreatureArt clamps it). Note 807: along the sill to <see cref="JambAhead"/> short
+    /// of the doorway's jamb ahead of them, where crew_clips' lean_out has its hand round it (<see cref="JambFrom"/>).
     /// </summary>
     public static Crewmate LeantOut(Crewmate c, in PlayerState s, Edge door, TrainOnLine train, IReadOnlyList<CarFrame> frames)
     {
         var frame = frames[s.Parent];
         var room = PlayerMotor.InCab(s, train) ? frame.Shape.Cab!.Value : frame.Shape.Interior!.Value;
-        var local = s.Position with { X = door.Side > 0 ? room.Max.X - LeanIn : room.Min.X + LeanIn };
         // Facing along the car the way they look (up the line or down it), so the lean out reads side on from the lineside.
         double body = -DMath.Cos(s.Yaw) <= 0 ? 0 : Math.PI;
         int outward = door.Side * (body == 0 ? 1 : -1);
         double turn = Math.IEEERemainder(s.Yaw - body, 2 * Math.PI);
+        double z = JambFrom(s, door.Side, body == 0 ? -1 : 1, train) is { } jamb ? jamb : s.Position.Z;
+        var local = s.Position with { X = door.Side > 0 ? room.Max.X - LeanIn : room.Min.X + LeanIn, Z = z };
         return c with { Feet = frame.ToWorld(local), Yaw = body + frame.Heading, Local = local, EmoteWith = new EmoteDetail(Turn: turn, Out: outward) };
     }
+
+    /// <summary>
+    /// Where along the car (its Z) a leaner stands to have the doorway's jamb <see cref="JambAhead"/> ahead of them, going
+    /// <paramref name="ahead"/> (−1 the car's −Z): out through the doorway at the knee and the chest (as <see cref="EmoteRules.LeanAt"/>
+    /// tests it) a step at a time until the car's in the way. Kept a step inside the jamb behind them in a narrow doorway;
+    /// null with no jamb within <see cref="JambSearch"/>.
+    /// </summary>
+    public static double? JambFrom(in PlayerState s, int side, int ahead, TrainOnLine train)
+    {
+        var at = s.Position;
+        int car = s.Parent;
+        double front = Edge(ahead);
+        if (double.IsNaN(front))
+            return null;
+        double back = Edge(-ahead);
+        // Short of the jamb by JambAhead, or as far back as the doorway goes (less a hand's breadth) when it's narrower.
+        double from = Math.Max(front - JambAhead, double.IsNaN(back) ? front - JambAhead : -back + 0.1);
+        return at.Z + ahead * Math.Min(from, front);
+
+        double Edge(int way)
+        {
+            var frame = train.Frames[car];
+            for (double d = JambStep; d <= JambSearch; d += JambStep)
+            {
+                double z = at.Z + way * d;
+                foreach (double up in (ReadOnlySpan<double>)[0.5, 1.3])
+                {
+                    var from = frame.ToWorld(new Double3(at.X, at.Y + up, z));
+                    var to = frame.ToWorld(new Double3(at.X + side * 0.8, at.Y + up, z));
+                    if (!Sim.Player.Rescue.Clear(train, car, from, to))
+                        return d - JambStep / 2;
+                }
+            }
+            return double.NaN;
+        }
+    }
+
+    /// <summary>How far ahead of a leaner's feet the jamb's face is (m): crew_clips' lean_out, JAMB_AHEAD; and how far along the
+    /// sill it's looked for (m), in steps of (m).</summary>
+    public const double JambAhead = 0.45;
+    const double JambSearch = 2.5, JambStep = 0.05;
 
     /// <summary>How far past the doorway's inner face the leaner stands (m): out on the sill, in the door's slot, toes at its edge.</summary>
     const double LeanIn = -0.06;

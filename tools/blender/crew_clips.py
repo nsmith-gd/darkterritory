@@ -58,6 +58,16 @@ What each is for (CrewActs, from the sim's state; GDD/spec where the act is):
                       along its arms, a beer on the right one; a pull from it, the head back; held out to the next chair
   drink, eat, grill   stood: a beer drunk, a sausage bitten and chewed, sausages turned on the barrel grill with the tongs
   hammock             lying back in the guard van's hammock (note 744), the hands behind the head, a knee up
+  high_five, fist_bump  note 722's emotes for two, offered: the palm up (the fist out), held, sagging when no one comes
+  high_five_met, fist_bump_met
+                      met: in to the point between the two (CreatureArt.Meet puts the hand there), the follow-through, down
+  dance_off, dance_off_cheer
+                      a dance-off's lead, a move a turn (the windmill, the sprinkler, the knees), each ended pointing at
+                      whoever's next; the rest clapping it, a "whoa!", hands rubbed ready for their go (note 807)
+  sit_edge            sat on a roof's or a landing's edge, the legs hanging over and swinging, a lean back on the hands
+  lean_out, lean_out_left
+                      hung out of a doorway off the jamb ahead, the outside on the right (on the left, mirrored), pointing
+                      up the line, then the arm loose in the air
 In place, 30 fps, like crew.py's; the root never travels (the sim moves the crewmate).
 
     blender -b --python tools/blender/crew_clips.py -- content/art/models/crew_clips.glb
@@ -1631,8 +1641,286 @@ for f, w, b in ((0, 0.0, 0.0), (30, 1.0, 1.0), (60, 0.0, 0.0), (75, 1.0, 0.5), (
 hammock.close(120)
 clips.append(hammock)
 
+# --- the emotes for two, and the edges (note 722; queue #535, note 807) ----------------------------------------------------
+# K1's friendslop moments (GDD App. F.6, docs/design/friendslop.md §3), each with what CreatureArt needs to draw it over the
+# sim's records: a high five and a fist bump offered (played from the offer: up, held, sagging when no one comes) and met
+# (from the meet tick: in, the hands together on CONTACT, the follow-through, down; CreatureArt.Meet puts the hand on the
+# point between the two either side of it); a dance-off's lead (three moves, two seconds a turn, each ended pointing at
+# whoever goes next) and the rest cheering it; sat on an edge, legs over; leant out of a doorway, a hand on its jamb.
+
+def palm(pose, side, rx, ry, rz):
+    """`side`'s hand turned to the world rotation rot(rx, ry, rz) (the right's; mirrored for the left). From the rest's
+    fingers out along the arm's T and the palm down: (0, -90, 90) is fingers up and the palm forward, (0, 0, 90) a fist's
+    knuckles forward, (90, 0, 90) the palm in to the middle, fingers ahead."""
+    k = 1 if side == "r" else -1
+    p = dict(pose)
+    p[f"hand_{side}"] = rig.hang(sk, p, f"hand_{side}", rx, ry * k, rz * k)
+    return p
+
+
+def open_hand(pose, side, curl=6):
+    k = 1 if side == "r" else -1
+    p = dict(pose)
+    p[f"fingers_{side}"], p[f"thumb_{side}"] = (0, curl * k, 0), (0, 4 * k, 0)
+    return p
+
+
+DOWN_R, DOWN_L = (0.27, 0.06, 0.9), (-0.27, 0.06, 0.9)     # a hand let down by the side, off the coat's skirt
+
+
+def by_side(pose, side):
+    return arm_to(pose, side, DOWN_R if side == "r" else DOWN_L, grip=30, elbow=(0.4, -0.2, 1.2))
+
+
+# The meet, as CreatureArt.Meet has it: the two a nominal 1.1 m apart and 0.2 m across (their right hands in line), so the
+# point between them is 0.1 m to the right and 0.55 m ahead; the high five's palms there at 1.76 m (up over the head when nearer), the wrist 3 cm short of it;
+# the fist bump's knuckles at 1.24 m, the wrist 10 cm short. CONTACT frame 3 (0.1 s), held to frame 5.
+FIVE_AT, BUMP_AT = (0.1, 0.5, 1.76), (0.1, 0.45, 1.24)
+CONTACT = 3
+OFFER = over(STAND, spine_02=(-3, 0, 2), spine_03=(-4, 0, 2), neck=(10, 0, 0), head=(-2, 0, 0), pelvis=(0, 0, -3))
+
+
+def five_up(pose, wrist, tip=0, curl=6):
+    p = arm_to(pose, "r", wrist, fist=False, elbow=(0.5, -0.1, 1.45))
+    return open_hand(palm(p, "r", tip, -90, 90), "r", curl)
+
+
+def fist_out(pose, wrist):
+    p = arm_to(pose, "r", wrist, grip=95, elbow=(0.42, -0.1, 1.1))
+    return palm(p, "r", 0, 30, 90)
+
+
+# High five (3 s, once: the offer's length, emotes.highFive): the hand up, the palm out to whoever's coming, a beckon of the
+# fingers; then, left hanging from 1.2 s, the hand sagging, the shoulders going and the head tipped, a look round for someone.
+high_five = Clip("high_five", loop=False)
+high_five.key(0, by_side(by_side(STAND, "r"), "l"))
+high_five.key(7, by_side(five_up(OFFER, (0.27, 0.36, 1.95)), "l"))
+high_five.key(16, by_side(five_up(OFFER, (0.27, 0.37, 1.96), curl=30), "l"))
+high_five.key(24, by_side(five_up(OFFER, (0.27, 0.37, 1.96)), "l"))
+high_five.key(36, by_side(five_up(OFFER, (0.27, 0.36, 1.95), curl=24), "l"))
+WAITING = over(OFFER, spine_02=(-6, 4, 2), spine_03=(-7, 4, 2), neck=(4, 10, 0), head=(-4, 8, 0))
+high_five.key(60, by_side(five_up(WAITING, (0.29, 0.26, 1.9), tip=-10), "l"))
+LOOKING = look_at(over(WAITING, spine_03=(-8, 4, 10)), (-2.0, 1.5, 1.6))
+high_five.key(78, by_side(five_up(LOOKING, (0.3, 0.22, 1.84), tip=-20, curl=20), "l"))
+high_five.key(90, by_side(five_up(over(WAITING, neck=(-2, 12, 0)), (0.31, 0.2, 1.8), tip=-26, curl=20), "l"))
+clips.append(high_five)
+
+# High five, met (0.8 s, once from the meet: emotes.met): from cocked back over the shoulder, slapped in to the point
+# between, leant into it; the hand bounced back up off it, a point at them on the way down ("yes!"), and let down.
+INTO = over(STAND, spine_01=(-4, 0, 0), spine_02=(-5, 0, -4), spine_03=(-5, 0, -4), neck=(10, 0, 0), thigh_r=(6, 0, 0), calf_r=(-10, 0, 0))
+high_five_met = Clip("high_five_met", loop=False)
+high_five_met.key(0, by_side(five_up(over(STAND, spine_03=(-2, 0, 4), neck=(10, 0, 0)), (0.34, 0.12, 1.92)), "l"))
+high_five_met.key(CONTACT, by_side(five_up(INTO, FIVE_AT), "l"), "LINEAR")
+high_five_met.key(5, by_side(five_up(INTO, at(FIVE_AT, dy=-0.01)), "l"))
+UP_BACK = over(STAND, spine_02=(-1, 0, 4), spine_03=(0, 0, 6), neck=(14, 0, 0), head=(2, 0, 0))
+high_five_met.key(10, by_side(five_up(UP_BACK, (0.4, 0.18, 2.02), curl=0), "l"))
+POINTING = over(INTO, spine_03=(-4, 0, 0), neck=(8, 0, 0))
+pt = arm_to(POINTING, "r", (0.16, 0.5, 1.4), fist=False, elbow=(0.4, -0.1, 1.3))
+pt["fingers_r"], pt["thumb_r"] = (0, 75, 0), (0, -20, 0)
+high_five_met.key(16, by_side(palm(pt, "r", 0, 0, 90), "l"))
+high_five_met.key(24, by_side(by_side(STAND, "r"), "l"))
+clips.append(high_five_met)
+
+# Fist bump (3 s, once: emotes.fistBump): the fist out at the chest, held; left hanging, it droops, and the head tips.
+fist_bump = Clip("fist_bump", loop=False)
+fist_bump.key(0, by_side(by_side(STAND, "r"), "l"))
+fist_bump.key(7, by_side(fist_out(OFFER, (0.18, 0.4, 1.26)), "l"))
+fist_bump.key(20, by_side(fist_out(OFFER, (0.18, 0.42, 1.27)), "l"))
+fist_bump.key(36, by_side(fist_out(OFFER, (0.18, 0.41, 1.25)), "l"))
+fist_bump.key(60, by_side(fist_out(WAITING, (0.2, 0.36, 1.18)), "l"))
+fist_bump.key(78, by_side(fist_out(LOOKING, (0.22, 0.32, 1.12)), "l"))
+fist_bump.key(90, by_side(fist_out(over(WAITING, neck=(-2, 12, 0)), (0.24, 0.3, 1.08)), "l"))
+clips.append(fist_bump)
+
+# Fist bump, met (0.8 s, once from the meet): the fist in to the knuckles between, and blown up: the hand thrown open and up
+# with a wiggle of the fingers, and down.
+fist_bump_met = Clip("fist_bump_met", loop=False)
+fist_bump_met.key(0, by_side(fist_out(OFFER, (0.2, 0.3, 1.24)), "l"))
+fist_bump_met.key(CONTACT, by_side(fist_out(INTO, BUMP_AT), "l"), "LINEAR")
+fist_bump_met.key(5, by_side(fist_out(INTO, at(BUMP_AT, dy=-0.01)), "l"))
+for f, x in ((10, 0.0), (13, 1.0), (16, -1.0)):
+    blown = arm_to(UP_BACK, "r", (0.36 + 0.03 * x, 0.26, 1.6 + 0.04 * (f - 10) / 6), fist=False, elbow=(0.45, -0.2, 1.2))
+    fist_bump_met.key(f, by_side(open_hand(palm(blown, "r", 0, -90, 90 - 18 * x), "r", 0), "l"))
+fist_bump_met.key(24, by_side(by_side(STAND, "r"), "l"))
+clips.append(fist_bump_met)
+
+# Dance-off (6 s, played a move at a time: CreatureArt plays the lead's move for the turn, emotes.danceOffBeat's 2 s, from the
+# turn's start): three moves in the jig's heavy boots, each ended on frame 48 pointing both hands at whoever's next ("your go").
+#   0-2 s  the windmill: the right arm round over the top, the left fist pumping, stomping on the beat
+#   2-4 s  the sprinkler: the left hand behind the head, the right arm out ahead ratcheted round, and swept back
+#   4-6 s  the knees: hands on the knees, knocking them in and out on the way down, then up with the arms in a V
+HEAD_AT = rig.pose_points(sk, STAND, [("head", "head")])[0]
+
+
+def your_go(pose):
+    p = hands(over(pose, spine_02=(-6, 0, 0), spine_03=(-6, 0, 0), neck=(12, 0, 0), head=(0, 6, 0)), (0.16, 0.52, 1.42),
+              (-0.12, 0.52, 1.46), fist=False, elbow=(0.42, -0.1, 1.3))
+    for s in ("r", "l"):
+        k = 1 if s == "r" else -1
+        p[f"fingers_{s}"], p[f"thumb_{s}"] = (0, 75 * k, 0), (0, -20 * k, 0)
+        p = palm(p, s, 0, 0, 90)
+    return p
+
+
+def stomp(f, side_first="r"):
+    """The legs on the dance's beat (2 a second): a knee up between beats, stomped down on them, weight in the knees."""
+    beat = (f % 15) / 15
+    down = 0.5 + 0.5 * math.cos(2 * math.pi * beat)
+    side = side_first if (f // 15) % 2 == 0 else ("l" if side_first == "r" else "r")
+    lift = math.sin(math.pi * beat) ** 1.5
+    return over(bounce(DANCE, 0.45 * down), **{f"thigh_{side}": (44 * lift, 0, 0), f"calf_{side}": (-64 * lift, 0, 0),
+                                                f"foot_{side}": (10 * lift, 0, 0)})
+
+
+dance_off = Clip("dance_off", loop=False)
+for f in range(0, 48, 3):
+    a = 2 * math.pi * f / 32 - math.pi / 2                 # the right arm round 1.5 times, up the front and over
+    r = (0.36, 0.12 + 0.42 * math.cos(a), 1.6 + 0.42 * math.sin(a))
+    pump = math.sin(math.pi * (f % 15) / 15)
+    p = over(stomp(f), spine_02=(-4, 6, 0), neck=(10, -6, 4 * math.sin(2 * math.pi * f / 15)))
+    p = arm_to(p, "r", r, grip=90, elbow=(0.6, -0.1, 1.5))
+    p = arm_to(p, "l", (-0.3, 0.16, 1.2 + 0.28 * pump), grip=95, elbow=(0.5, -0.2, 1.2))
+    dance_off.key(f, p, "LINEAR")
+dance_off.key(48, your_go(DANCE))
+dance_off.hold(59)
+BEHIND_HEAD = (HEAD_AT.x - 0.18, HEAD_AT.y - 0.14, HEAD_AT.z + 0.06)
+for i, f in enumerate(range(60, 102, 6)):
+    # Ratcheted round to the right in four jerks, then swept back across in one.
+    turn = (min(i, 5) / 5) if i < 6 else 0.0
+    r = (0.18 + 0.5 * math.sin(1.2 * turn), 0.62 * math.cos(1.2 * turn), 1.42)
+    p = over(bounce(DANCE, 0.4 if i % 2 else 0.1), spine_02=(-4, 0, -12 * turn), spine_03=(-4, 0, -10 * turn), neck=(10, 0, -12 * turn),
+             thigh_r=(20, 0, 0), calf_r=(-34, 0, 0))
+    p = arm_to(p, "l", BEHIND_HEAD, grip=40, elbow=(0.6, -0.12, HEAD_AT.z + 0.04))
+    p = arm_to(p, "r", r, fist=False, elbow=(0.4, -0.2, 1.4))
+    p = open_hand(palm(p, "r", 0, 0, 90 - 70 * turn), "r", 10)
+    dance_off.key(f, p, "CONSTANT" if i < 5 else "LINEAR")
+# (The hand off the back of the head out to the side first, so the arm comes round, not through the chest.)
+dance_off.key(104, open_hand(hands(over(DANCE, neck=(10, 0, 0)), (0.55, 0.2, 1.5), (-0.55, 0.2, 1.55), fist=False,
+                                   elbow=(0.6, -0.1, 1.5)), "r", 0))
+dance_off.key(110, your_go(DANCE))
+dance_off.hold(119)
+KNEES = over(STAND, pelvis__loc=(0, 0.04, -0.2), pelvis=(-18, 0, 0), spine_01=(-14, 0, 0), spine_02=(-8, 0, 0), spine_03=(-4, 0, 0),
+             neck=(28, 0, 0), head=(6, 0, 0))
+for f in range(120, 156, 3):
+    k = (f - 120) / 36
+    knock = 0.5 + 0.5 * math.sin(2 * math.pi * (f - 120) / 12)   # in and out, 2.5 times a second: out wide, in to touching
+    p = over(KNEES, **{"pelvis@loc": (0, 0.04, -0.2 - 0.12 * k), "thigh_r": (54 + 20 * k, 0, -14 + 14 * knock), "calf_r": (-80 - 30 * k, 0, 0),
+                       "foot_r": (26 + 10 * k, 0, -6), "thigh_l": (54 + 20 * k, 0, 14 - 14 * knock), "calf_l": (-80 - 30 * k, 0, 0),
+                       "foot_l": (26 + 10 * k, 0, 6)})
+    kr, kl = rig.pose_points(sk, p, [("calf_r", "head"), ("calf_l", "head")])
+    p = hands(p, (kr.x + 0.02, kr.y + 0.04, kr.z + 0.06), (kl.x - 0.02, kl.y + 0.04, kl.z + 0.06), fist=False, elbow=(0.45, -0.2, 0.9))
+    dance_off.key(f, p, "LINEAR")
+V_UP = over(STAND, spine_02=(2, 0, 0), spine_03=(4, 0, 0), neck=(16, 0, 0), head=(4, 0, 0))
+dance_off.key(162, open_hand(hands(V_UP, (0.5, 0.12, 2.05), (-0.5, 0.12, 2.05), fist=False, elbow=(0.6, -0.1, 1.6)), "r", 0))
+dance_off.key(168, your_go(DANCE))
+dance_off.hold(179)
+clips.append(dance_off)
+
+# Dance-off, cheering it (2 s, loop on the turn): clapping on the beat, bobbing; a "whoa!" at the lead's best bit, leant back
+# with the hands up by the head; and the hands rubbed together, ready, as the lead points it over.
+CHEER = over(STAND, spine_02=(-4, 0, 0), spine_03=(-5, 0, 0), neck=(10, 0, 0))
+
+
+def clapping(pose, apart):
+    p = hands(pose, (0.06 + apart, 0.34, 1.3), (-0.06 - apart, 0.34, 1.3), fist=False, elbow=(0.4, -0.15, 1.15))
+    return open_hand(palm(open_hand(palm(p, "r", 90, 0, 90), "r", 4), "l", 90, 0, 90), "l", 4)
+
+
+dance_off_cheer = Clip("dance_off_cheer")
+for f in range(0, 36, 3):
+    beat = (f % 15) / 15
+    apart = 0.12 * math.sin(math.pi * beat)
+    dance_off_cheer.key(f, clapping(bounce(CHEER, 0.3 * (0.5 + 0.5 * math.cos(2 * math.pi * beat))), apart), "LINEAR")
+WHOA = over(STAND, spine_01=(4, 0, 0), spine_02=(6, 0, 0), spine_03=(4, 0, 0), neck=(14, 0, 0), head=(6, 0, 0))
+whoa = open_hand(hands(WHOA, (0.3, 0.14, 1.78), (-0.3, 0.14, 1.78), fist=False, elbow=(0.5, -0.2, 1.5)), "r", 2)
+dance_off_cheer.key(40, open_hand(palm(palm(whoa, "r", 0, -90, 90), "l", 0, -90, 90), "l", 2))
+dance_off_cheer.hold(46)
+READY = over(CHEER, spine_02=(-8, 0, 0), spine_03=(-6, 0, 0), neck=(18, 0, 0))
+for f, x in ((51, 1.0), (54, -1.0), (57, 1.0)):
+    dance_off_cheer.key(f, hands(READY, (0.07, 0.3 + 0.03 * x, 1.2), (-0.07, 0.3 - 0.03 * x, 1.2), grip=30, elbow=(0.4, -0.15, 1.1)))
+dance_off_cheer.close(60)
+clips.append(dance_off_cheer)
+
+# Sat on an edge, legs over (6 s, loop): CrewActs.SatOn puts the root SIT_BACK in from the edge, facing out; the seat on its
+# top (the pelvis 0.1 m over it), the backs of the knees just past it, the shins hanging and swinging, a foot at a time,
+# heels never back against the side under it. Hands on the edge beside the thighs; a lean back onto them, a look up the
+# train; forward again and a look down between the knees at the drop; out again.
+SIT_BACK = 0.3
+SIT = over(STAND, pelvis__loc=(0, 0, 0.1 - 0.955), pelvis=(0, 0, 0), spine_01=(-4, 0, 0), spine_02=(-6, 0, 0), spine_03=(-4, 0, 0),
+           neck=(8, 0, 0), head=(0, 0, 0))
+GRIP_EDGE, BEHIND = (0.27, SIT_BACK - 0.06, 0.07), (0.25, -0.22, 0.06)
+
+
+def sat(f):
+    t = f / 30
+    back = min(1.0, max(0.0, (t - 1.8) / 0.6)) * (1 - min(1.0, max(0.0, (t - 4.2) / 0.6)))
+    look_down = math.sin(math.pi * min(1.0, max(0.0, (t - 4.6) / 1.0)))
+    p = over(SIT, spine_01=(-4 + 10 * back - 6 * look_down, 0, 0), spine_02=(-6 + 8 * back - 4 * look_down, 0, 0),
+             spine_03=(-4 + 4 * back, 0, 0), neck=(8 + 10 * back - 30 * look_down, 0, 22 * math.sin(2 * math.pi * t / 6) * (1 - back)),
+             head=(2 * back - 10 * look_down, 0, -16 * back))
+    for side, ph in (("r", 0.0), ("l", math.pi)):
+        k = 1 if side == "r" else -1
+        swing = 0.5 + 0.5 * math.sin(2 * math.pi * t / 1.5 + ph)     # forward of plumb only: off the side under the edge
+        p = leg_to(p, side, (0.13 * k, SIT_BACK + 0.12 + 0.16 * swing, -0.33 + 0.07 * swing), knee=(0.13, SIT_BACK + 0.2, 0.4))
+        p[f"foot_{side}"] = (-14 + 10 * swing, 0, -8 * k)
+    lift = math.sin(math.pi * min(1.0, max(0.0, (t - 1.8) / 0.6 if t < 3 else (t - 4.2) / 0.6)))
+    for side in ("r", "l"):
+        k = 1 if side == "r" else -1
+        g = tuple(a + (b - a) * back for a, b in zip(GRIP_EDGE, BEHIND))
+        p = arm_to(p, side, (g[0] * k, g[1], g[2] + 0.1 * lift), grip=55, elbow=(0.45, -0.25, 0.5))
+    return p
+
+
+sit_edge = Clip("sit_edge")
+for f in range(0, 180, 6):
+    sit_edge.key(f, sat(f))
+sit_edge.close(180)
+clips.append(sit_edge)
+
+# Leant out of a doorway (4 s, loop), the outside on the right (lean_out_left the same mirrored): CrewActs.LeantOut stands the
+# root on the sill, side on, with the jamb ahead JAMB_AHEAD; the left hand round it at the shoulder's height, the weight hung
+# off it and tipped out from the feet, the right arm out pointing up the line, then let hang loose out in the air, swaying
+# with the car, and up again.
+JAMB_AHEAD = 0.45
+JAMB = (0.03, JAMB_AHEAD - 0.06, 1.5)
+LEAN = over(STAND, pelvis__loc=(0.16, 0, -0.04), pelvis=(0, 12, 0), spine_01=(-2, 16, 0), spine_02=(-2, 16, 0), spine_03=(0, 12, 0),
+            neck=(8, -20, 0), head=(0, -14, 0))
+LEAN = leg_to(leg_to(LEAN, "r", (0.12, 0.08, 0.09), knee=(0.4, 0.3, 0.5)), "l", (-0.14, -0.1, 0.09), knee=(0.1, 0.3, 0.5))
+
+
+def leant(f):
+    t = f / 30
+    loose = math.sin(math.pi * min(1.0, max(0.0, (t - 1.4) / 1.8)))
+    sway = math.sin(2 * math.pi * t / 2)
+    p = over(LEAN, spine_02=(-2, 16 + 2 * sway, 0), spine_03=(0, 12 + 3 * loose, 0), neck=(8 - 14 * loose, -20, -6 * loose), head=(0, -14, 0))
+    p = arm_to(p, "l", JAMB, grip=80, elbow=(0.3, -0.1, 1.2))
+    p = palm(p, "l", -20, -90, 90)
+    sh = rig.pose_points(sk, p, [("upperarm_r", "head")])[0]
+    ahead = (sh.x + 0.28, sh.y + 0.48, sh.z + 0.12 + 0.03 * sway)
+    hang_out = (0.62 + 0.04 * sway, 0.12 + 0.06 * sway, 0.98)
+    r = tuple(a + (b - a) * loose for a, b in zip(ahead, hang_out))
+    p = arm_to(p, "r", r, fist=False, elbow=(0.9 - 0.3 * loose, -0.1, 1.2 - 0.1 * loose))
+    # Pointing up the line, the finger out; let go loose, the hand as it hangs.
+    if loose < 0.5:
+        p = palm(p, "r", 0, 0, 90)
+        p["fingers_r"], p["thumb_r"] = (0, 75, 0), (0, -20, 0)
+        return p
+    return open_hand(p, "r", 40)
+
+
+lean_out = Clip("lean_out")
+for f in range(0, 120, 6):
+    lean_out.key(f, leant(f))
+lean_out.close(120)
+clips.append(lean_out)
+lean_out_left = Clip("lean_out_left")
+for f, pose, interp in lean_out.keys:
+    lean_out_left.key(f, swap(pose), interp)
+clips.append(lean_out_left)
+
 kit.build()
-rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"wave", "point", "dance", "paint", "drink", "grill", "eat", "bow", "salute", "conga", "carry", "carry_walk", "drag", "drag_fwd", "shovel", "door", "handbrake", "hatch",
+rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"wave", "point", "dance", "paint", "drink", "grill", "eat", "bow", "salute", "conga", "high_five", "high_five_met", "fist_bump", "fist_bump_met", "dance_off",
+                                                        "dance_off_cheer", "lean_out", "lean_out_left", "carry", "carry_walk", "drag", "drag_fwd", "shovel", "door", "handbrake", "hatch",
                                                         "uncouple", "vent", "lever", "push", "swing", "mend",
                                                         "gap", "extinguish", "spray", "lantern", "lantern_walk", "haul",
                                                         "haul_up", "drive", "whistle", "smash", "pry", "pick", "take_down", "hang_up",
