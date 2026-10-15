@@ -10,14 +10,18 @@ namespace DarkTerritory.Sim.Run;
 /// fortress (GDD §3.1; note 281) has its <see cref="Square"/>: the wall on that side steps back round it (the town's own
 /// walls), and no tower stands in it; its houses are the town's own (Towns.TownHouse), so the village's aren't stood. A
 /// walled town (queue #74, note 335) has its <see cref="Bounds"/>: the wall goes round the town, the line through its gate.
-/// A terminus's town (note 600) stands turned round, its frame laid back from <see cref="Turn"/> (<see cref="RailLine.Turned"/>):
-/// its <see cref="Bounds"/> are in that frame, its <see cref="Square"/> in the line's, as every other fort's.
+/// A terminus's town (notes 600, 692) stands in its own frame from <see cref="Origin"/> along the line, the same way round
+/// as when the next night leaves it (<see cref="RailLine.From"/>): its <see cref="Bounds"/> are in that frame, its
+/// <see cref="Square"/> in the line's, as every other fort's.
 /// </summary>
 public readonly record struct Fort(double Start, double End, double Gate, bool Platform, bool Lived, Towns.TownSquare? Square = null,
-    Towns.TownBounds? Bounds = null, double? Turn = null)
+    Towns.TownBounds? Bounds = null, double? Origin = null)
 {
-    /// <summary>A point beside the line (along it, out to its right) in the town's own frame: turned round from <see cref="Turn"/>.</summary>
-    public (double Along, double Offset) Local(double along, double offset) => Turn is { } t ? (t - along, -offset) : (along, offset);
+    /// <summary>A town type's ground (note 692): its wall stands on it, from the lower side up past the higher.</summary>
+    public Towns.TownGround? Ground { get; init; }
+
+    /// <summary>A point beside the line (along it, out to its right) in the town's own frame: from <see cref="Origin"/> on.</summary>
+    public (double Along, double Offset) Local(double along, double offset) => Origin is { } o ? (along - o, offset) : (along, offset);
 
     /// <summary>Whether a point beside the line is inside the fort's walled town, give or take <paramref name="pad"/>.</summary>
     public bool InTown(double along, double offset, double pad)
@@ -46,6 +50,13 @@ public static class Fortresses
     public const double WallWalk = 8.0;
     /// <summary>A gun tower every 120 m of wall, its half-width over the plinth, and its height to the parapet's top.</summary>
     public const double TowerEvery = 120, TowerHalf = 2.7, TowerHeight = 14.4;
+    /// <summary>
+    /// A town type's turrets between its gun towers (note 692; the director's renders: a tower every few dozen metres), as
+    /// far apart as this at most and no nearer a tower than <see cref="TurretClear"/>: the tower's piece, no gun on it.
+    /// </summary>
+    public const double TurretEvery = 45, TurretClear = 18;
+    /// <summary>The yard's walls in a town type's warren (note 692; TownPlan.Wards): half-thick and high (the art's StructureKit.Wall at 0.7).</summary>
+    public const double WardHalf = 0.6, WardHeight = 6.2;
     /// <summary>The gatehouse's two towers, from the line out (each side), their half-depth along it, height; the arch between them over the line.</summary>
     public const double GateInner = 3.5, GateOuter = 8.5, GateHalf = 3.5, GateHeight = 14.9, ArchBottom = 7.8, ArchTop = 13;
     /// <summary>How far apart the houses inside the walls stand along the line, and how far out from it.</summary>
@@ -132,7 +143,7 @@ public static class Fortresses
         }
         if (fort.Bounds is { } town)
         {
-            foreach (var w in fort.Turn is { } turn ? Round(town, Turned(line.Sample(turn))) : Round(town, line))
+            foreach (var w in Round(town, Anchor(line, fort.Origin ?? 0, town.Rear), fort.Ground))
                 yield return w;
         }
         else
@@ -183,35 +194,182 @@ public static class Fortresses
     /// shut), a tower at each corner and every <see cref="TowerEvery"/> down the sides. Each an upright box on the rail's
     /// height at the yard's start, which is level (linegen's fortress segment) and straight.
     /// </summary>
-    public static IEnumerable<Wall> Round(Towns.TownBounds town, RailLine line) => Round(town, line.Sample(0));
+    public static IEnumerable<Wall> Round(Towns.TownBounds town, RailLine line) => Round(town, Anchor(line, 0, town.Rear));
 
-    /// <summary>A rail sample facing the other way: where a terminus's town's frame starts (note 600).</summary>
-    public static TrackSample Turned(TrackSample t) => t with { Tangent = t.Tangent * -1 };
+    /// <summary>
+    /// A walled town's straight frame (note 692; <see cref="Towns.Town.Anchor"/>): the rail sample at its frame's 0 (main
+    /// <paramref name="origin"/>) on the straight through its way in (<paramref name="rear"/> along its frame).
+    /// </summary>
+    public static TrackSample Anchor(RailLine line, double origin, double rear)
+    {
+        double entry = Math.Max(0, rear);
+        var t = line.Sample(Math.Clamp(origin + entry, 0, line.Length));
+        var along = new Double3(t.Tangent.X, 0, t.Tangent.Z).Normalized;
+        return t with { Position = t.Position - along * entry };
+    }
 
     /// <summary>A walled town's wall (<see cref="Round(Towns.TownBounds, RailLine)"/>) from its frame's start, <paramref name="start"/>.</summary>
-    public static IEnumerable<Wall> Round(Towns.TownBounds town, TrackSample start)
+    public static IEnumerable<Wall> Round(Towns.TownBounds town, TrackSample start, Towns.TownGround? ground = null)
     {
         var tangent = new Double3(start.Tangent.X, 0, start.Tangent.Z).Normalized;
         var right = Double3.Cross(tangent, Double3.Up).Normalized;
         double y = start.Position.Y;
         // A point in the rail frame (the yard is straight, so behind its start too).
         Double3 P(double s, double d) => (start.Position + tangent * s + right * d) with { Y = 0 };
-        Wall Along(double s0, double s1, double d) => new(P((s0 + s1) / 2, d), tangent, (s1 - s0) / 2 + 0.05, WallHalf, y - 3, y + WallHeight);
-        Wall Across(double s, double d0, double d1) => new(P(s, (d0 + d1) / 2), right, (d1 - d0) / 2 + 0.05, WallHalf, y - 3, y + WallHeight);
-        Wall Tower(double s, double d) => new(P(s, d), tangent, TowerHalf, TowerHalf, y - 3, y + TowerHeight);
-        foreach (var (d, sd) in new[] { (-town.Left, -1), (town.Right, 1) })
+        // Where a town type's wall stands on its ground (note 692): from the lower of the ground either side of it, up to its
+        // height over the higher (a wall on a terrace's edge or a cliff's).
+        var (low, high) = Footing(town, ground);
+        Wall Tower(double s, double d) => new(P(s, d), tangent, TowerHalf, TowerHalf, y + low(s, d) - 3, y + high(s, d) + TowerHeight);
+        // Each run of wall a bay at a time, along its own way (a town type's wall goes round its outline, note 692).
+        foreach (var (a, b) in Runs(town))
         {
-            for (double s = town.Rear; s < town.Gate; s += WallBay)
-                yield return Along(s, Math.Min(s + WallBay, town.Gate), d);
-            foreach (double s in new[] { town.Rear, town.Gate })
-                yield return Tower(s, d);
-            for (double s = town.Rear + TowerEvery; s < town.Gate - TowerEvery / 2; s += TowerEvery)
-                yield return Tower(s, d);
-            // The front wall from the gatehouse's tower out to the corner.
-            double inner = sd * GateOuter;
-            yield return Across(town.Gate, Math.Min(inner, d), Math.Max(inner, d));
+            double es = b.S - a.S, ed = b.D - a.D, len = Math.Sqrt(es * es + ed * ed);
+            if (len < 0.05)
+                continue;
+            var axis = (tangent * (es / len) + right * (ed / len)).Normalized;
+            for (double x = 0; x < len; x += WallBay)
+            {
+                double x1 = Math.Min(len, x + WallBay), m = (x + x1) / 2 / len, ms = a.S + es * m, md = a.D + ed * m;
+                yield return new Wall(P(ms, md), axis, (x1 - x) / 2 + 0.05, WallHalf, y + low(ms, md) - 3, y + high(ms, md) + WallHeight);
+            }
         }
-        // The rear wall, straight across, the line's way out the back shut.
-        yield return Across(town.Rear, -town.Left, town.Right);
+        foreach (var (s, d) in Towers(town).Concat(Turrets(town)))
+            yield return Tower(s, d);
+        // The gatehouse at the way in from the last night (note 692; the way out's is the fort's own, Solids): its two
+        // towers either side of the line and the arch over it, as the way out's.
+        double mid = (GateInner + GateOuter) / 2, half = (GateOuter - GateInner) / 2;
+        foreach (int side in new[] { -1, 1 })
+            yield return new Wall(P(town.Rear, side * mid), tangent, GateHalf, half, y - 3, y + GateHeight);
+        yield return new Wall(P(town.Rear, 0), tangent, GateHalf, GateInner, y + ArchBottom, y + ArchTop);
     }
+
+    /// <summary>
+    /// The lower and the higher of a town type's ground either side of its wall at a point on it (note 692), m over the yard:
+    /// a step in from the wall toward the town's middle, and out from it. Zero both for a town on the yard's level.
+    /// </summary>
+    public static (Func<double, double, double> Low, Func<double, double, double> High) Footing(Towns.TownBounds town, Towns.TownGround? ground)
+    {
+        if (ground is null || ground.Flat)
+            return ((_, _) => 0, (_, _) => 0);
+        var o = Outline(town);
+        double cs = o.Average(p => p.S), cd = o.Average(p => p.D);
+        (double In, double Out) Sides(double s, double d)
+        {
+            double vs = cs - s, vd = cd - d, len = Math.Max(1e-6, Math.Sqrt(vs * vs + vd * vd));
+            (vs, vd) = (vs / len, vd / len);
+            const double step = 2.5;
+            double inside = ground.Level(s + vs * step, d + vd * step), outside = ground.Bed(s - vs * step, d - vd * step);
+            return (inside, outside);
+        }
+        return ((s, d) => Sides(s, d) is var x ? Math.Min(x.In, x.Out) : 0, (s, d) => Sides(s, d) is var x ? Math.Max(x.In, x.Out) : 0);
+    }
+
+    /// <summary>
+    /// A walled town's wall as runs in its rail frame (along, across): round its outline (a town type's, note 692) or its
+    /// rectangle, open where it crosses the line at its two gates, the way in from the last night (<see cref="Towns.TownBounds.Rear"/>)
+    /// and the way out to the next (<see cref="Towns.TownBounds.Gate"/>), between the gatehouses' outer faces.
+    /// </summary>
+    public static IEnumerable<((double S, double D) A, (double S, double D) B)> Runs(Towns.TownBounds town)
+    {
+        var o = Outline(town);
+        for (int i = 0; i < o.Count; i++)
+        {
+            var (a, b) = (o[i], o[(i + 1) % o.Count]);
+            // A run across the line is open between the gatehouse's towers.
+            if (a.D < 0 != b.D < 0 && Math.Abs(b.D - a.D) > 1e-9)
+            {
+                double k0 = (-GateOuter - a.D) / (b.D - a.D), k1 = (GateOuter - a.D) / (b.D - a.D);
+                (k0, k1) = (Math.Min(k0, k1), Math.Max(k0, k1));
+                (double, double) At(double k) => (a.S + (b.S - a.S) * k, a.D + (b.D - a.D) * k);
+                if (k0 > 0)
+                    foreach (var piece in Open(town, a, At(k0)))
+                        yield return piece;
+                if (k1 < 1)
+                    foreach (var piece in Open(town, At(k1), b))
+                        yield return piece;
+                continue;
+            }
+            foreach (var piece in Open(town, a, b))
+                yield return piece;
+        }
+    }
+
+    /// <summary>A run of wall less the stretches of it left open (<see cref="Towns.TownBounds.Gaps"/>: a harbour's mouth, note 692).</summary>
+    static IEnumerable<((double S, double D) A, (double S, double D) B)> Open(Towns.TownBounds town, (double S, double D) a, (double S, double D) b)
+    {
+        double es = b.S - a.S, ed = b.D - a.D, len2 = es * es + ed * ed;
+        var cuts = new List<(double K0, double K1)>();
+        foreach (var (g0, g1) in town.Gaps)
+        {
+            // A gap on this run: both its ends on the run's line, within it.
+            double Along((double S, double D) p) => len2 < 1e-9 ? 0 : ((p.S - a.S) * es + (p.D - a.D) * ed) / len2;
+            double Off((double S, double D) p) => len2 < 1e-9 ? double.MaxValue : Math.Abs((p.S - a.S) * ed - (p.D - a.D) * es) / Math.Sqrt(len2);
+            double k0 = Along(g0), k1 = Along(g1);
+            if (Off(g0) > 0.5 || Off(g1) > 0.5 || Math.Max(k0, k1) <= 0 || Math.Min(k0, k1) >= 1)
+                continue;
+            cuts.Add((Math.Clamp(Math.Min(k0, k1), 0, 1), Math.Clamp(Math.Max(k0, k1), 0, 1)));
+        }
+        double at = 0;
+        (double, double) P(double k) => (a.S + es * k, a.D + ed * k);
+        foreach (var (k0, k1) in cuts.OrderBy(c => c.K0))
+        {
+            if (k0 > at)
+                yield return (P(at), P(k0));
+            at = Math.Max(at, k1);
+        }
+        if (at < 1)
+            yield return (P(at), b);
+    }
+
+    /// <summary>A walled town's towers (rail frame): one at each corner of its wall, and every <see cref="TowerEvery"/> along its runs.</summary>
+    public static IEnumerable<(double S, double D)> Towers(Towns.TownBounds town)
+    {
+        var o = Outline(town);
+        for (int i = 0; i < o.Count; i++)
+        {
+            var (a, b) = (o[i], o[(i + 1) % o.Count]);
+            yield return a;
+            double len = Math.Sqrt((b.S - a.S) * (b.S - a.S) + (b.D - a.D) * (b.D - a.D));
+            // Not on a run across the line (the gatehouses are its towers).
+            if (a.D < 0 != b.D < 0)
+                continue;
+            int n = (int)Math.Floor(len / TowerEvery + 0.5);
+            for (int k = 1; k < n; k++)
+                yield return (a.S + (b.S - a.S) * k / n, a.D + (b.D - a.D) * k / n);
+        }
+    }
+
+    /// <summary>
+    /// A town type's turrets (rail frame; note 692): along each run of its wall between its towers, every
+    /// <see cref="TurretEvery"/> at most, none nearer a tower or a gatehouse than <see cref="TurretClear"/>. The street town has none.
+    /// </summary>
+    public static IEnumerable<(double S, double D)> Turrets(Towns.TownBounds town)
+    {
+        if (town.Outline is not { Count: > 2 })
+            yield break;
+        // Either side of an opening (a harbour's mouth), its turrets.
+        foreach (var (g0, g1) in town.Gaps)
+        {
+            yield return g0;
+            yield return g1;
+        }
+        var towers = Towers(town).ToList();
+        foreach (var (a, b) in Runs(town))
+        {
+            double len = Math.Sqrt((b.S - a.S) * (b.S - a.S) + (b.D - a.D) * (b.D - a.D));
+            int n = (int)Math.Ceiling(len / TurretEvery);
+            for (int k = 1; k < n; k++)
+            {
+                var p = (S: a.S + (b.S - a.S) * k / n, D: a.D + (b.D - a.D) * k / n);
+                bool clear = towers.All(t => (t.S - p.S) * (t.S - p.S) + (t.D - p.D) * (t.D - p.D) >= TurretClear * TurretClear)
+                    && Math.Abs(p.D) > GateOuter + TurretClear * 0.5;
+                if (clear)
+                    yield return p;
+            }
+        }
+    }
+
+    /// <summary>The wall's corners in order round it: a town type's outline, or the street town's rectangle (note 335).</summary>
+    static IReadOnlyList<(double S, double D)> Outline(Towns.TownBounds town) => town.Outline is { Count: > 2 } o ? o :
+        [(town.Rear, -town.Left), (town.Gate, -town.Left), (town.Gate, town.Right), (town.Rear, town.Right)];
 }

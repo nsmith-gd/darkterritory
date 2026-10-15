@@ -352,6 +352,11 @@ public sealed partial class GreyboxScene
     public IReadOnlyList<BreakCallout>? Breaks { get; set; }
     /// <summary>The cars and engine battered and let go, working themselves apart (note 576: <see cref="Sim.Train.Failing.Of"/>). Null, none.</summary>
     public IReadOnlyList<FailingCar>? Failings { get; set; }
+    /// <summary>The failing rule (train.json <c>failing</c>, note 576), so each car's drawn as far gone as it is (note 779). Null, none.</summary>
+    public FailingTuning? FailTuning { get; set; }
+    FailStage StageOf(Vehicle? v) => FailTuning is { } t && v is not null ? Sim.Train.Failing.Stage(t, v) : FailStage.Holding;
+    /// <summary>The engine broken down (note 576): no power, so its stack's as dead as a ruptured boiler's (note 779).</summary>
+    bool BrokenDown => Vehicles is { Count: > 0 } fleet && StageOf(fleet[0]) == FailStage.Broken;
     public IReadOnlySet<int>? Mending { get; set; }
     /// <summary>Each car's strain on a bend taken too fast and its outer rail (BendStrain.PerCar): flange sparks off it.</summary>
     public IReadOnlyList<(float Stress, int Outer)>? BendStrain { get; set; }
@@ -556,10 +561,10 @@ public sealed partial class GreyboxScene
             Lap(mesh, "route");
             // (Where the sim stands their solids, T124.)
             foreach (var fort in Sim.Run.Fortresses.Of(Route, line, yard, terminus))
-                // The terminus that's a town (note 600) is drawn as the departure's is, in its own frame turned round: the
-                // window and its gate measured back from where that frame starts.
-                if (fort.Start > 0 && fort.Lived && Arrival is { Turn: { } turn } arrival)
-                    Fortress(mesh, arrival.Line, eye, turn - to, turn - from, 0, turn - fort.Gate, gateAt: turn - fort.Gate, town: arrival);
+                // The terminus that's a town (notes 600, 692) is drawn as the departure's is, in its own frame from where that
+                // starts, the same way round: the window along it, its way out at the far end of its yard.
+                if (fort.Start > 0 && fort.Lived && Arrival is { Origin: { } origin } arrival)
+                    Fortress(mesh, arrival.Line, eye, from - origin, to - origin, 0, arrival.Plan.Gate, gateAt: arrival.Plan.Gate, town: arrival);
                 else
                     Fortress(mesh, line, eye, from, to, fort.Start, fort.End, gateAt: fort.Gate, lit: fort.Lived);
             Lap(mesh, "fortresses and towns");
@@ -642,7 +647,7 @@ public sealed partial class GreyboxScene
             IReadOnlyList<CarFrame> trainFrames = HandcarNow is { } hc ? [.. frames.Where(f => f.Index != hc.Id)] : frames;
             Look.Art.Effects.Train(mesh, trainFrames, eye, Time, Controls, FireGlow, Emergency, Venting && !Ruptured, SafetyValve && !Ruptured,
                 trainFrames.Count == 0 ? default : Look.Art.BiteOf(trainFrames[^1].Shape, Vehicles is { } fleet && trainFrames[^1].Index < fleet.Count ? fleet[trainFrames[^1].Index] : null, trainFrames[^1].Index),
-                whistle: !Ruptured && (CordPulled || Enemies?.Any(e => e is Sim.Enemies.Whistler { Whistling: true } && !e.Gone) == true), dead: Ruptured, lamp: LampLit,
+                whistle: !Ruptured && (CordPulled || Enemies?.Any(e => e is Sim.Enemies.Whistler { Whistling: true } && !e.Gone) == true), dead: Ruptured || BrokenDown, lamp: LampLit,
                 reach: (float)LampReach);
             // (And the crew on a straining car stumble: SceneArt.Crewmate, drawn after.)
             Look.Art.BendStrain = BendStrain;
@@ -2296,21 +2301,19 @@ public sealed partial class GreyboxScene
     }
 
     /// <summary>
-    /// The guns that bear on the walls of a walled terminus town (note 600): on its gatehouse's towers, the corner towers
-    /// either side of its front wall, and the next tower back down each side (<see cref="Sim.Run.Fortresses.Round(Sim.Towns.TownBounds, TrackSample)"/>).
+    /// The guns that bear on the way in of a walled terminus town (notes 600, 692), where the train comes in from the night:
+    /// on its gatehouse's towers, and the wall's towers nearest it either side (<see cref="Sim.Run.Fortresses.Towers"/>).
     /// </summary>
     public static List<Vector3> WallGuns(Sim.Towns.Town town, Double3 eye)
     {
         var guns = new List<Vector3>();
         if (town.Plan.Bounds is not { } b)
             return guns;
-        double mid = (Sim.Run.Fortresses.GateInner + Sim.Run.Fortresses.GateOuter) / 2, every = Sim.Run.Fortresses.TowerEvery;
+        double mid = (Sim.Run.Fortresses.GateInner + Sim.Run.Fortresses.GateOuter) / 2;
         foreach (int side in new[] { -1, 1 })
-            guns.Add(V(town.World(b.Gate, side * mid, Sim.Run.Fortresses.GateHeight + 1), eye));
-        // The last of the side towers before the gate (Round stands one every TowerEvery from the rear, none within half of it of the gate).
-        double back = b.Rear + Math.Floor((b.Gate - every / 2 - b.Rear - 1e-6) / every) * every;
-        foreach (var (d, s) in new[] { (-b.Left, b.Gate), (b.Right, b.Gate), (-b.Left, back), (b.Right, back) })
-            if (s > b.Rear)
+            guns.Add(V(town.World(b.Rear, side * mid, Sim.Run.Fortresses.GateHeight + 1), eye));
+        foreach (int side in new[] { -1, 1 })
+            foreach (var (s, d) in Sim.Run.Fortresses.Towers(b).Where(x => Math.Sign(x.D) == side).OrderBy(x => x.S - b.Rear + Math.Abs(x.D) * 0.2).Take(2))
                 guns.Add(V(town.World(s, d, Sim.Run.Fortresses.TowerHeight + 1), eye));
         return guns;
     }
@@ -3078,6 +3081,7 @@ public sealed partial class GreyboxScene
                 Look.Art.World.Walls = (Run?.YardLength ?? 600, Route.Plan?.Terminus.GateM ?? line.Length - (Run?.Tuning.TerminusZone ?? 400) - 200);
             Look.Art.World.TownSquare = Town?.Plan.Square;
             Look.Art.World.TownBounds = Town?.Plan.Bounds;
+            Look.Art.World.Departure = Town;
             Look.Art.World.Fog = Fog;
             Look.Art.World.Arrival = Arrival;
             Look.Art.World.Cells(mesh, line, Route, eye, from, to, ArtSeed, (float)ValleyDepth, centre);
@@ -3726,13 +3730,15 @@ public sealed partial class GreyboxScene
         {
             // The departure fortress is a town (note 281): its square, and its people where note 107's folk stood.
             town ??= start == 0 && lit ? Town : null;
-            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit, Time, town?.Plan.Square, town?.Plan.Bounds);
+            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit, Time, town?.Plan.Square, town?.Plan.Bounds, town?.Ground);
             Lap(mesh, "fortress walls");
             if (town is not null)
             {
                 Look.Art.World.Square(mesh, line, eye, town, from, to);
                 Look.Art.World.Civic(mesh, line, eye, town, from, to, Look.Tuning.Atmosphere.Wind.Of(Wind), Look.Tuning.Atmosphere.Wind.Gusts, Time);
                 Look.Art.World.Works(mesh, line, eye, town, from, to);
+                // A town type's own ground, water and landmarks (note 692).
+                Look.Art.World.Forms(mesh, line, eye, town, from, to, Time, Route);
                 Lap(mesh, "town square, green, works");
                 Look.Art.World.Houses(mesh, line, eye, town, from, to);
                 if (town == Arrival)
@@ -4736,7 +4742,8 @@ public sealed partial class GreyboxScene
                 if (b.Stowed && b.Parent == frame.Index && b.Locker < 32)
                     tagged |= 1u << b.Locker;
         if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Emergency, Tick, CutEnds(frame.Index), burnt?.Char ?? 0, utility, openLockers, Handrails,
-            dark: frame.Shape.Cab is null && (CarDark(frame.Index) || frame.Index >= (Vehicles?.Count ?? int.MaxValue) - LampsOut), taggedLockers: tagged))
+            dark: frame.Shape.Cab is null && (CarDark(frame.Index) || frame.Index >= (Vehicles?.Count ?? int.MaxValue) - LampsOut), taggedLockers: tagged,
+            failing: StageOf(vehicle)))
         {
             if (engine)
                 Look.Art.Gear(mesh, frame, eye, _travelled, Emergency ? 0.06f : 1);

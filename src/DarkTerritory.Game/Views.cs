@@ -28,6 +28,10 @@ public static class Views
             // Off the car's left side on the ballast, level with it: what it is from the lineside (note 184: the crew car's lit
             // windows and stovepipe, an armoured car's plate, a guard car's gun).
             "side" => Camera.LookAt(target.ToWorld(new Double3(-9, 2.6, 5)), target.ToWorld(new Double3(0, 2.4, -1)), 60),
+            // Broadside off the car's left or right (broadsider) on the ballast, the whole car in frame and its underframe against
+            // the sleepers: how far gone it is (note 779, with --integrity and --apart).
+            "broadside" or "broadsider" => Camera.LookAt(target.ToWorld(new Double3((name == "broadside" ? -1 : 1) * (target.Shape.HalfWidth + 12), 1.5, 2.5)),
+                target.ToWorld(new Double3(0, 1.4, 0)), 55),
             // Inside the car, at its front end, looking back down the aisle past the cargo.
             // Note 301: a battered car's dent on its left wall and a breach in its rear end wall, their callouts (with
             // --integrity and --breached).
