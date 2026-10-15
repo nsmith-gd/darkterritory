@@ -25,8 +25,11 @@ public static class LinesideFootprints
         Feet,
         /// <summary>The church: its nave, and the tower and steeple in front of it.</summary>
         NaveAndTower,
-        /// <summary>Walked through: a wharf's deck out over the water (it would want a floor to walk out on, not a wall).</summary>
-        Passable,
+        /// <summary>
+        /// A wharf (note 817), walked out on: its deck one box at the planks' height, the cribs under it; each of its steps up
+        /// from the shore at its own height; the traps stacked on the deck.
+        /// </summary>
+        Wharf,
         /// <summary>
         /// Each thing standing on its own: a burying ground's stones, each its own box round however it leans, and its fence's
         /// pickets in runs, open where they're down (note 797). Things nearer each other than a crewmate is wide are one.
@@ -64,7 +67,7 @@ public static class LinesideFootprints
         new("fencePost", v => $"fencepost-{v}", 1, WorldKit.FencePost, Shape.Post, false),
         new("car", v => $"car-{v}", 4, NovaKit.Car, Shape.Bounds, true),
         new("pole", v => $"pole-{v}", 3, WorldKit.Pole, Shape.Post, true),
-        new("wharf", v => $"wharf-{v}", 2, NovaKit.Wharf, Shape.Passable, true),
+        new("wharf", v => $"wharf-{v}", 2, NovaKit.Wharf, Shape.Wharf, true),
         new("lighthouse", v => $"lighthouse-{v}", 2, NovaKit.Lighthouse, Shape.Bounds, true),
         new("rock", v => $"rock-{v}", 3, (l, v) => WorldKit.Rock(l, v, 1), Shape.Bounds, false),
         // A facility's buildings beyond its machinery (StructureKit.Facility; note 758), its two variants its kit on the left of
@@ -133,7 +136,7 @@ public static class LinesideFootprints
         float top = points.Max(p => p.Y);
         return shape switch
         {
-            Shape.Passable => [],
+            Shape.Wharf => Wharf(points),
             Shape.Bounds => [Box(points, top)],
             Shape.Post => [Box([.. points.Where(p => p.Y < PostHigh)], top)],
             Shape.Round => Round(points, top),
@@ -168,6 +171,21 @@ public static class LinesideFootprints
     {
         float r = MathF.Max(-points.Min(p => p.Z), points.Max(p => p.Z));
         return [[0, 0, R(r), R(r), 0, R(top)], [0, 0, R(r), R(r), R(MathF.PI / 4), R(top)]];
+    }
+
+    /// <summary>
+    /// A wharf (NovaKit.Wharf): the deck, the box round everything within its planks' reach up to their top (the cribs under
+    /// them, the planks themselves); the steps landward of its end, each at its own height (their tops are the steps); the
+    /// traps stacked on the deck, one box round them all, as high as their highest (the deck's other side is left clear).
+    /// </summary>
+    static double[][] Wharf(Vector3[] points)
+    {
+        const float Hair = 0.005f;
+        var deck = Box([.. points.Where(p => MathF.Abs(p.X) <= NovaKit.WharfHalfWidth + Hair && p.Z <= NovaKit.WharfLandEnd + Hair && p.Y <= NovaKit.WharfDeck + Hair)], NovaKit.WharfDeck);
+        var steps = points.Where(p => p.Z > NovaKit.WharfLandEnd + Hair && p.Y > 0).GroupBy(p => MathF.Round(p.Y, 3)).OrderBy(g => g.Key)
+            .Select(g => Box([.. g], g.Key));
+        var traps = points.Where(p => p.Z <= NovaKit.WharfLandEnd + Hair && p.Y > NovaKit.WharfDeck + Hair).ToArray();
+        return traps.Length > 0 ? [deck, .. steps, Box(traps, traps.Max(p => p.Y))] : [deck, .. steps];
     }
 
     /// <summary>What stands on the ground under the frame, each foot its own box: points within a metre of each other are one foot.</summary>

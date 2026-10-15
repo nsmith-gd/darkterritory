@@ -203,7 +203,11 @@ public sealed partial class LinesideProps
                         if (Free(along, lateral * 0.85))
                             found.Add(PieceOf("fishShed", along, lateral, seaward + (turns[i] - 0.5) * 0.4, 1, 0.9, i % Variants("fishShed"), GroundAt(along, lateral)));
                     }
-                    found.Add(PieceOf("wharf", s + 4, sh.Side * (e + 1), seaward + Math.PI, 1, 0, wharf, GroundAt(s + 4, sh.Side * (e + 1))));
+                    // The wharf a shed's room past the last of them (note 817): run out from among them, a shed stood over its
+                    // land end, where its steps come up from the shore.
+                    double pier = s + (sheds - sheds / 2.0) * 9, foot = sh.Side * (_terrain.ShoreEdge(sh, pier) + 1);
+                    if (Free(pier, foot - sh.Side * 2))
+                        found.Add(PieceOf("wharf", pier, foot, seaward + Math.PI, 1, 0, wharf, GroundAt(pier, foot)));
                 }
                 else if (e < e0 && e <= e1 && sh.Kind == ShoreKind.Sea && headland < 0.18)
                 {

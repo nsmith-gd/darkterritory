@@ -1069,13 +1069,15 @@ public static class PlayerMotor
     /// <summary>
     /// Note 279: a step that would take someone up land steeper than <see cref="PlayerTuning.ClimbSlope"/> isn't climbed.
     /// What's left of it goes across the slope (along its contour) while that stays walkable, else nowhere. Down is free.
+    /// Climbed from where they stand (note 817): up on a wall's top, a wharf's deck over a bed rising to the shore is walked
+    /// along, and land higher than the deck is no easier to step up onto from it.
     /// </summary>
     static Double3 Walkable(Double3 to, Double3 from, ITrackConditions land, PlayerTuning p)
     {
         double dx = to.X - from.X, dz = to.Z - from.Z, run = Math.Sqrt(dx * dx + dz * dz);
         if (run < 1e-6)
             return to;
-        double here = land.Ground(from);
+        double here = Math.Max(land.Ground(from), from.Y);
         if (land.Ground(to) - here <= p.ClimbSlope * run + 1e-4)
             return to;
         const double H = 0.25;
@@ -1226,6 +1228,20 @@ public static class PlayerMotor
             }
         }
 
+        // Note 817: afoot, what's solid holds you up as a car's solids do: a wall's top is stepped up onto, or landed on from
+        // a jump or a fall (a crate, a stone wall, a boulder, a wharf's deck), and its edge walked off. Riding, it's the train
+        // underfoot (T107): nobody is lifted off a moving car by a wall it passes.
+        bool onTop = false;
+        if (!riding && train.Walls is { } walls)
+            foreach (var w in walls.Near(world))
+            {
+                if (w.Top <= bestTop || world.Y > w.Top + snap || world.Y < w.Top - below || !w.Box.ContainsXZ(w.ToLocal(world)))
+                    continue;
+                bestTop = w.Top;
+                bestParent = PlayerState.World;
+                onTop = true;
+            }
+
         if (double.IsNegativeInfinity(bestTop) && underGround)
             bestTop = groundY; // nothing of the train underfoot either: the earth, however far up it is
         if (double.IsNegativeInfinity(bestTop))
@@ -1242,7 +1258,7 @@ public static class PlayerMotor
                 Land(ref s, worldVelocity, p, t);
             s.Parent = PlayerState.World;
             s.Surface = Surface.Ground;
-            s.Position = world with { Y = groundY };
+            s.Position = world with { Y = onTop ? bestTop : groundY };
             s.Velocity = default;
             return;
         }

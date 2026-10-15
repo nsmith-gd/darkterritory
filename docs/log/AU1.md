@@ -361,3 +361,12 @@ The director asked for the last three friendslop features to be heard. Two were 
 
 - U1's #967 is on main (bdc6158be). AU1's hooks, built on it, are rebuilt on main (`claude/relaxed-cerf-r4pvh7`, AU1's changes over #967's last head applied to main) and in review in [#1096](https://github.com/nsmith-gd/darkterritory/pull/1096): the whimsies, pets and new emotes (#534), the horns, forge and BBQ deck (#505). Build, format and the audio and upgrade test classes pass.
 - Rows #534 (in review) and #505 (in progress: the tools' tells still wait on a design call); notes 806 and 775's handoffs say so.
+
+## 15 Oct, ~21:40 UTC: #1096 merged
+
+- [#1096](https://github.com/nsmith-gd/darkterritory/pull/1096) merged (d3c4cf8) on green CI (both systems, packaging, crossplay): #534 done; #505's horns, forge and BBQ deck in. #505 stays open for the tools' tells, which wait on the tools (#967's "still to build"), and the band against the mix.
+- The six checklist rows (`up-whimsy`, `up-pets`, `crew-emotes`, `up-horns`, `up-forge`, `up-bbq`) at L1.
+
+## 15 Oct, ~21:55 UTC: the band against the mix (#505)
+
+- #1098 merged (rows #534 done, #505's handoff). `dt audio render --scenario chaos+band` (new: maximum chaos with all eight of the band's instruments round the listener on the roof): six tells fell under spec A.3's 6 dB over the bed, the Dragger to -4.4 dB. The band now drops a further 18 dB under any tell (`mix.json`, a sound-duck rule on tier 1 and `band-*`), as the music gives way; every tell clears (the Dragger by 6.3 dB). `AudioTests` holds it.

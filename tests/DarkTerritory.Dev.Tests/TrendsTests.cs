@@ -191,7 +191,7 @@ public class TrendsTests
         var m = line.Metrics;
         string[] expected = ["balance.km", "balance.deaths", "balance.delivered", "balance.carsLost", "balance.carsDelivered", "balance.cargo",
             "balance.net", "balance.crewHome", "balance.grabs", "balance.fairness", "pacing.beatsPerMinute", "pacing.longestQuietSeconds",
-            "net.downKbps", "net.maxCorrectionM", "sim.cpuMsPerTick"];
+            "driving.brakesPerMinute", "driving.brakeTaps", "net.downKbps", "net.maxCorrectionM", "sim.cpuMsPerTick"];
         foreach (string name in expected)
             Assert.Contains(name, m.Keys);
         Assert.DoesNotContain(m.Keys, k => k.StartsWith("moments.", StringComparison.Ordinal));
