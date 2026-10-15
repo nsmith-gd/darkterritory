@@ -185,8 +185,32 @@ public sealed record EmoteTuning(double Dance = 8, double Wave = 2.5, double Poi
 /// The director's 14 Oct playtest, line 7 (note 717): off a train going slower than this (m/s), as off the ground's own footing,
 /// a crewmate's own run is no knock (spec B.3's speed table is for leaving a moving train); 0 for the old rule.
 /// </param>
+/// <param name="OffTheHook">Note 802: a landing after coming off a crane's hook, the gag's knock; null for its defaults.</param>
 public sealed record LandingTuning(double RollAbove, int RollDamage, double LethalAbove = 0, int DamageAtLethal = 0, double FallHurtFrom = 0,
-    double FallLethalFrom = 0, double StandBelow = 0);
+    double FallLethalFrom = 0, double StandBelow = 0, OffTheHookTuning? OffTheHook = null);
+
+/// <summary>
+/// Note 802 (the director, 15 Oct 2026, on hoisting a friend: "a silly gag not a big grief"): a landing after letting go of a
+/// crane's hook, or being shaken off it, knocks nothing from a drop of <see cref="From"/> m or less, rising evenly to
+/// <see cref="MaxKnock"/> at <see cref="FullAt"/> m and no more however far, and never kills. Mirror of player.json
+/// <c>landing.offTheHook</c>, where each field is documented.
+/// </summary>
+public sealed record OffTheHookTuning
+{
+    public static readonly OffTheHookTuning Default = new();
+    public int MaxKnock { get; init; } = 10;
+    public double From { get; init; } = 1.0;
+    public double FullAt { get; init; } = 6.0;
+
+    /// <summary>The knock for a landing after a drop of <paramref name="height"/> m (by the speed it lands at): 0 to <see cref="MaxKnock"/>.</summary>
+    public int Knock(double height)
+    {
+        if (MaxKnock <= 0 || height <= From)
+            return 0;
+        double k = FullAt > From ? Math.Min(1, (height - From) / (FullAt - From)) : 1;
+        return (int)Math.Round(MaxKnock * k);
+    }
+}
 public sealed record LadderTuning(double GrabRange, double GrabMaxRelativeSpeed, double HatchLookUpDegrees = 25);
 /// <summary>A VR player's reaching hand (T29). Field docs live in player.json.</summary>
 public sealed record HandTuning(double Arm, double Overhead, double Grab);

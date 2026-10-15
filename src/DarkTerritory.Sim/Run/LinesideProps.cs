@@ -365,8 +365,9 @@ public sealed partial class LinesideProps
     /// <summary>
     /// Everything along the line, stood as walls (notes 371, 389): a trunk as the box round its radius, to its top; a boulder
     /// as its lump's box (footprints.json's), turned as it lies, its top where its sinking leaves it (one sunk to under a step
-    /// is stepped over, as PlayerMotor steps anything that low); a pole round its foot; a kit piece on its footprint's boxes
-    /// (a burying ground on each of its stones and its fence's runs, note 797; none for a wharf, walked out over the water).
+    /// is stepped up onto, as PlayerMotor steps onto any wall's top that low, note 817); a pole round its foot; a kit piece on
+    /// its footprint's boxes (a burying ground on each of its stones and its fence's runs, note 797; a wharf its deck, its traps
+    /// and its steps, walked up and out along over the water, note 817).
     /// Owner 0: a facility's module clears what stands on its work point (<see cref="StopWalls.Clear"/>).
     /// </summary>
     /// <param name="forts">The night's fortresses (<see cref="Fortresses.Of"/>), the departure one's town square on it once there's a town: nothing stands inside.</param>

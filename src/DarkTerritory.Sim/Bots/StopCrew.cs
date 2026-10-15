@@ -1320,6 +1320,11 @@ public sealed class StopDriver(CrewCalls calls)
     /// <summary>The speed it runs up to a stop at (the driver's cruise).</summary>
     public double CruiseSpeed { get; set; } = 14;
     /// <summary>
+    /// How far either side of <see cref="CruiseSpeed"/> the run in to a stop is held out on its open stretch (note 820): the
+    /// driver's own band when its cruise is the open line's (<c>ConductorBot.OnTheOpenLine</c>), else 0, as it was.
+    /// </summary>
+    public double CruiseBand { get; set; }
+    /// <summary>
     /// The most the run home is reckoned at: the driver's open-line cruise. A cruise put up for a few seconds to drive away
     /// from Fire Flies (note 188) isn't the night's pace.
     /// </summary>
@@ -1386,7 +1391,7 @@ public sealed class StopDriver(CrewCalls calls)
                     if (SwitchPlan.Ahead(world) is { } wrong && wrong.Hold <= engine.Distance + StoppingDistance(train) + 80)
                     {
                         BeginSwitch(wrong, Leg.ToSwitch);
-                        return Toward(world, wrong.Hold, +1, CruiseSpeed);
+                        return Toward(world, wrong.Hold, +1, CruiseSpeed, band: CruiseBand);
                     }
                     // Every stop is optional (GDD §18): only one there's time for before the dawn, after the run to the end of
                     // the line. The tender's the exception once it's low: without coal there's no getting there at all.
@@ -1424,7 +1429,7 @@ public sealed class StopDriver(CrewCalls calls)
                         _stopStart = _ticks;
                         _tenderAtStart = train.Boiler.Tender;
                         Begin(Leg.ToCoal);
-                        return Toward(world, coal.Hold, +1, CruiseSpeed);
+                        return Toward(world, coal.Hold, +1, CruiseSpeed, band: CruiseBand);
                     }
                     if (plan is null || plan.Hold > reach)
                         return null;
@@ -1433,7 +1438,7 @@ public sealed class StopDriver(CrewCalls calls)
                     _stopStart = _ticks;
                     _sledsAtStart = plan.Site.SledsLeft;
                     Begin(Leg.Approach);
-                    return Toward(world, plan.Hold, +1, CruiseSpeed);
+                    return Toward(world, plan.Hold, +1, CruiseSpeed, band: CruiseBand);
                 }
             case Leg.ToSwitch:
                 {
@@ -1448,7 +1453,7 @@ public sealed class StopDriver(CrewCalls calls)
                         Begin(Leg.SetBack);
                         return Hold(world);
                     }
-                    return engine.Distance > w.Hold + HoldOver && (still || engine.Velocity < 0) ? Toward(world, w.Hold, -1, 1) : Toward(world, w.Hold, +1, CruiseSpeed);
+                    return engine.Distance > w.Hold + HoldOver && (still || engine.Velocity < 0) ? Toward(world, w.Hold, -1, 1) : Toward(world, w.Hold, +1, CruiseSpeed, band: CruiseBand);
                 }
             case Leg.OffDeadLine:
                 {
@@ -1480,7 +1485,7 @@ public sealed class StopDriver(CrewCalls calls)
                         return Hold(world);
                     }
                     // A little past it (or short and stopped): creep to it.
-                    return engine.Distance > c.Hold + 0.5 && (still || engine.Velocity < 0) ? Toward(world, c.Hold, -1, 1) : Toward(world, c.Hold, +1, CruiseSpeed);
+                    return engine.Distance > c.Hold + 0.5 && (still || engine.Velocity < 0) ? Toward(world, c.Hold, -1, 1) : Toward(world, c.Hold, +1, CruiseSpeed, band: CruiseBand);
                 }
             case Leg.Coaling:
                 {
@@ -1500,7 +1505,7 @@ public sealed class StopDriver(CrewCalls calls)
                         return Hold(world);
                     }
                     // Overran it: back up to it (the points won't go over with a wheel on them).
-                    return engine.Distance > p.Hold + HoldOver && (still || engine.Velocity < 0) ? Toward(world, p.Hold, -1, 1) : Toward(world, p.Hold, +1, CruiseSpeed);
+                    return engine.Distance > p.Hold + HoldOver && (still || engine.Velocity < 0) ? Toward(world, p.Hold, -1, 1) : Toward(world, p.Hold, +1, CruiseSpeed, band: CruiseBand);
                 }
             case Leg.Held:
                 {
@@ -1935,8 +1940,21 @@ public sealed class StopDriver(CrewCalls calls)
     /// <summary>Note 609: further short of its points than this (m), back from such a chase, the engine runs up to them again.</summary>
     public const double ChaseBackShort = 20;
 
+    /// <summary>
+    /// A shunt out on its open stretch is held this far either side of its top (m/s; note 820). The brake's all or nothing,
+    /// and with steam driving (T97) the engine pulls at full effort the moment it's off: held to 0.2 over the top and let off
+    /// at once, a 6 m/s set-back was on and off every tick (AU1's audit: 1,247 of a bot night's 1,471 applications, each heard).
+    /// </summary>
+    public const double ShuntBand = 1;
+
+    /// <summary>On the curve to its mark, how far under the speed it wants (m/s) a brake that's on is let off (note 820): a
+    /// third of it, from 0.3 at a crawl (coupling up as gently as ever) to 2.</summary>
+    public static double LetOffUnder(double wanted) => Math.Clamp(wanted / 3, 0.3, 2);
+
     /// <param name="away">How fast the target itself is going on the way we're going (m/s): rolling cars to catch up.</param>
-    public static PlayerIntent Toward(World world, double target, int direction, double top, bool rear = false, double away = 0)
+    /// <param name="band">Out on the open stretch, held this far either side of <paramref name="top"/> on a line plan (note 820);
+    /// 0: a shunt's <see cref="ShuntBand"/> at a shunt's top, else held to 0.2 over the speed wanted.</param>
+    public static PlayerIntent Toward(World world, double target, int direction, double top, bool rear = false, double away = 0, double band = 0)
     {
         var engine = world.Train.Dynamics;
         var controls = world.Controls;
@@ -1952,10 +1970,21 @@ public sealed class StopDriver(CrewCalls calls)
             return Hold(world);
         // Closing on it at what stops us there, over its own speed: braking for a target that moves away from under the curve,
         // the engine settled a couple of metres behind rolling cars at their speed and never touched them (note 188).
-        double wanted = Math.Min(top, Math.Max(0, away) + Math.Sqrt(2 * BrakeRate(world.Train) * left));
+        double curve = Math.Max(0, away) + Math.Sqrt(2 * BrakeRate(world.Train) * left);
+        double wanted = Math.Min(top, curve);
         double speed = engine.Velocity * direction;
-        return speed < wanted - 0.3 ? new PlayerIntent { ThrottleNotch = Notch(controls, 0.5) }
-            : speed > wanted + 0.2 ? Hold(world)
+        // A brake that's on is held (note 820). Out on its open stretch, the curve to its mark well above, about its top: on
+        // over it, off under it, so it runs at its top on the whole (T110: a slower shunt was agonizing). On the curve, till
+        // well under it (LetOffUnder). On a line plan, as every night the game runs has: the hand-built lines' nights were
+        // found on the driver as it was. Not a chase: a cut rolling away down the grade is caught at once or not at all
+        // (RollBackTests).
+        bool plan = world.TrackPlan is not null && away <= 0;
+        double b = band > 0 ? band : top <= SetBackTop ? ShuntBand : 0;
+        bool open = plan && b > 0 && curve >= top + b;
+        double under = !plan ? 0 : open ? b : LetOffUnder(wanted);
+        bool held = under > 0 && controls.Brake > 0 && engine.Speed >= Net.CabControls.StandingBelow && speed > wanted - under;
+        return speed < wanted - 0.3 && !held ? new PlayerIntent { ThrottleNotch = Notch(controls, 0.5) }
+            : speed > wanted + (open ? b : 0.2) || held ? Hold(world)
             : new PlayerIntent { ThrottleNotch = Notch(controls, 0) };
     }
 }

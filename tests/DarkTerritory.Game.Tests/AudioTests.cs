@@ -15,11 +15,13 @@ public class AudioTests
     [Theory]
     [InlineData("chaos")]
     [InlineData("tells")]
+    [InlineData("chaos+band")]
     public void EveryTellCutsThroughTheBedForWhoeverHasToHearIt(string scenario)
     {
         // Spec A.3: "Tier 1 is inviolable... the agent harness should test it by generating maximum-chaos
         // states and verifying tell audibility." Chaos: 20 cars at 22 m/s, regulator and brake surging, the
-        // valve lifting, the guard gun firing, the Choir in full swarm, and every demo tell at once.
+        // valve lifting, the guard gun firing, the Choir in full swarm, and every demo tell at once. And all that with the
+        // crew's whole band playing round the listener on the roof (note 775): their own music mustn't bury a tell.
         var sweep = AudioBench.Sweep(Content, scenario, cars: 20, speed: 22, seconds: 4);
         Assert.Equal(AudioBench.TellBands.Count, sweep.Audit.Count);
         Assert.All(sweep.Audit, a => Assert.True(a.WorstOverBedDb >= 6, $"{a.Sound} is only {a.WorstOverBedDb} dB over the bed at the {a.WorstListener}"));
