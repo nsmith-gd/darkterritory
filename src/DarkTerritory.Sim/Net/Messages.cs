@@ -120,7 +120,8 @@ public static class Protocol
     //     record's band tune and first tick, and the whimsies' state; the emotes Bow, Salute and Conga (9-11, the places note 722 kept).
     // 75: deaths named for what did them (note 682): DeathCause's byte gains Lodger, Hanger, Householder, HollowHouse,
     //     Brakeman, Hotbox, TowerJaw, Grumbler and Pickers, after Dropped.
-    public const int Version = 75;
+    // 76: the human cannonball (note 746): the player flags InCannon (262144) and Fired (524288).
+    public const int Version = 76;
 }
 
 public enum MessageType : byte
