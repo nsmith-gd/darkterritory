@@ -118,6 +118,10 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         // The Waker (note 679): a large monster (GDD §27: 8-16k) drawn sixty metres tall, on its own SK_Waker: a jaw, a mouth
         // socket, the rope's end, four three-boned fingers a hand.
         ["waker"] = new(8000, 16000, 50, 60, ["lie", "walk", "run", "lift", "eat", "stand"], ["rise", "grab", "roar"]),
+        // The Mouse Moose (notes 790, 796): a beast's (GDD §27: 2-8k), one at a yard; its own rig (SK_MouseMoose: a jaw, the
+        // ears, the throat's bell, six bones down the tail); a clip for each of its modes and the dive and the scramble between
+        // them, and its flinch. Never a death: nothing kills it.
+        ["mouse_moose"] = new(4000, 8000, 30, 36, ["idle", "creep", "drag", "flee", "hide"], ["bite", "dive", "emerge", "hit"]),
     };
 
     public static TheoryData<string> Models() => [.. CreatureArt.Names];
@@ -223,6 +227,12 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         // The Lodger (lodger.md): about 2.1 m stood up; the Householder tall and thin, about 1.95 m.
         Assert.InRange(Height(Get("lodger")), 2.0f, 2.2f);
         Assert.InRange(Height(Get("householder")), 1.88f, 2.02f);
+        // The Mouse Moose (mouse-moose.md): a rat the size of a dog, about half a metre at its hunched back and its little
+        // antlers just over that, a metre nose to rump and its tail as long again behind; its head forward (−Z).
+        var mouseMoose = Get("mouse_moose");
+        Assert.InRange(Height(mouseMoose), 0.5f, 0.75f);
+        Assert.InRange(mouseMoose.Max.Z - mouseMoose.Min.Z, 1.6f, 2.0f);
+        Assert.True(mouseMoose.Min.Z < -0.55f && mouseMoose.Max.Z > 1.0f, "the mouse moose's snout forward (−Z), its tail behind");
         // The Waker (GDD §8 "A titan"): modelled a man about 2.07 m tall, drawn thirty times that, at least three times the
         // greybox stand-in's 17 m; his head forward (−Z).
         var waker = Get("waker");
@@ -335,7 +345,7 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
     }
 
     /// <summary>
-    /// The Pickers, the Lodger and the Householder (notes 574, 583, 584): no part of one through another beyond touching in
+    /// The Pickers, the Lodger, the Householder and the Mouse Moose (notes 574, 583, 584, 796): no part of one through another beyond touching in
     /// any clip (Clearance.Mesh, as the demo's), and a distance copy two fifths or so of it on the same bones (a group of
     /// Pickers is eight at once).
     /// </summary>
@@ -343,6 +353,7 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
     [InlineData("picker")]
     [InlineData("lodger")]
     [InlineData("householder")]
+    [InlineData("mouse_moose")]
     public void TheYardAndHouseCreaturesStayOutOfThemselvesAndHaveADistanceCopy(string name)
     {
         var full = Get(name);
@@ -356,8 +367,9 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
     }
 
     /// <summary>
-    /// Every mode the sim gives a Picker, the Lodger and the Householder has a clip of its own (CreatureArt.PickerClip,
-    /// LodgerClip, HouseholderClip), and is drawn from the enemy's own state; a Picker down its drain isn't drawn.
+    /// Every mode the sim gives a Picker, the Lodger, the Householder and the Mouse Moose has a clip of its own
+    /// (CreatureArt.PickerClip, LodgerClip, HouseholderClip, MouseMooseClip), and is drawn from the enemy's own state; a Picker
+    /// down its drain isn't drawn.
     /// </summary>
     [Fact]
     public void TheYardAndHouseCreaturesDrawEveryModeFromTheSimsState()
@@ -375,6 +387,21 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
                 Assert.Contains(CreatureArt.LodgerClip(mode, t, 3).Clip, Get("lodger").ClipNames);
         foreach (var mode in Enum.GetValues<HouseholderMode>())
             Assert.Contains(CreatureArt.HouseholderClip(mode, 0.5).Clip, Get("householder").ClipNames);
+        // The Mouse Moose (note 796): out of its hole it scrambles, into it (from a bolt, or with the casting) it dives, then
+        // peers out; stood still creeping, it sniffs; the drag's heaves come quicker dragging away.
+        var mouseMoose = Get("mouse_moose");
+        foreach (var mode in Enum.GetValues<MouseMooseMode>())
+            foreach (MouseMooseMode? was in Enum.GetValues<MouseMooseMode>().Select(m => (MouseMooseMode?)m).Append(null))
+                foreach (double t in new[] { 0.0, 0.2, 3.0 })
+                    foreach (float pace in new[] { 0f, 0.15f, 0.5f, 1.2f, 5f })
+                        Assert.Contains(CreatureArt.MouseMooseClip(mode, was, t, pace).Clip, mouseMoose.ClipNames);
+        Assert.Equal("emerge", CreatureArt.MouseMooseClip(MouseMooseMode.Creep, MouseMooseMode.Hide, 0.1, 1.2f).Clip);
+        Assert.Equal("creep", CreatureArt.MouseMooseClip(MouseMooseMode.Creep, MouseMooseMode.Hide, 1.0, 1.2f).Clip);
+        Assert.Equal("dive", CreatureArt.MouseMooseClip(MouseMooseMode.Hide, MouseMooseMode.Flee, 0.2, 0).Clip);
+        Assert.Equal("dive", CreatureArt.MouseMooseClip(MouseMooseMode.Hide, MouseMooseMode.Drag, 0.2, 0).Clip);
+        Assert.Equal(("hide", 0.0, true), CreatureArt.MouseMooseClip(MouseMooseMode.Hide, MouseMooseMode.Flee, CreatureArt.MouseMooseDiveSeconds, 0));
+        Assert.Equal("hide", CreatureArt.MouseMooseClip(MouseMooseMode.Hide, null, 0.2, 0).Clip);
+        Assert.True(CreatureArt.MouseMooseClip(MouseMooseMode.Drag, null, 1, 0.5f).Time > CreatureArt.MouseMooseClip(MouseMooseMode.Drag, null, 1, 0.15f).Time);
 
         var mesh = new MeshBuilder();
         var model = Matrix4x4.CreateTranslation(0, 0, -6);
@@ -401,6 +428,12 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
             var h = new Householder(3);
             h.Restore(SpinePhase.Alert, 0.6, 1, Enemy.Loose, default, 0, 0, (double)mode, -1, 0);
             Assert.True(Drawn(h) > 0, $"householder {mode}");
+        }
+        foreach (var mode in Enum.GetValues<MouseMooseMode>())
+        {
+            var mm = new MouseMoose(4);
+            mm.Restore(SpinePhase.Telegraph, 0.6, 1, Enemy.Loose, default, 0, 0, (double)mode, 0, 0);
+            Assert.True(Drawn(mm) > 0, $"mouse moose {mode}");
         }
     }
 

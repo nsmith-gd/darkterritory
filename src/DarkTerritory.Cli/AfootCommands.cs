@@ -71,8 +71,25 @@ static class AfootCommands
                 return [Math.Round(h, 1), Math.Round(Double3.Dot(p - r.Position, right), 2), Math.Round(p.Y - r.Position.Y, 2)];
             }
             double died = -1;
+            // Note 795: why the director sent nothing, a second at a time, what held its cap, and which kinds' rules would have
+            // let them come then (tonight's, their own gates).
+            var held = new Dictionary<string, int>();
+            var capped = new Dictionary<string, int>();
+            var could = new Dictionary<string, int>();
             for (int i = 0; i < seconds * SimConstants.TickRate; i++)
             {
+                if (i % SimConstants.TickRate == 0 && world.Director is { } dd && world.Enemies is { } et)
+                {
+                    string why = dd.HeldBecause ?? "sent";
+                    held[why] = held.GetValueOrDefault(why) + 1;
+                    if (why == "at the cap")
+                        foreach (var e in world.ActiveEnemies.Where(Director.Engaged))
+                            capped[$"{e.Kind}:{e.Phase}"] = capped.GetValueOrDefault($"{e.Kind}:{e.Phase}") + 1;
+                    var ctx = new SpawnContext(world, et, dd);
+                    foreach (var rule in Spawns.Rules)
+                        if (dd.Allows(rule.Kind) && dd.Tonight(rule.Kind, world) && rule.Weight(ctx) is > 0)
+                            could[rule.Kind.ToString()] = could.GetValueOrDefault(rule.Kind.ToString()) + 1;
+                }
                 if (session.Player.Alive && session.Player.Parent == PlayerState.World
                     && !world.ActiveEnemies.Any(e => e.Phase is SpinePhase.Grab or SpinePhase.Punish))
                 {
@@ -106,6 +123,13 @@ static class AfootCommands
                 spawns = d.Log.Select(l => $"{l.Kind} at {At(l.Tick).ToString("0", CultureInfo.InvariantCulture)} s").ToArray(),
                 engaged = engaged.Select(e => $"{e.Kind} at {At(e.Tick).ToString("0", CultureInfo.InvariantCulture)} s").ToArray(),
                 grabs = events.Count(e => e.To == SpinePhase.Grab),
+                held,
+                capped,
+                could,
+                // What the stop is to the director's rules, and which kinds are about tonight (director.nightChance).
+                atFacility = world.Run is { Phase: DarkTerritory.Sim.Run.RunPhase.AtFacility },
+                inSettlement = world.InSettlement,
+                tonight = Spawns.Rules.Where(r => d.Tonight(r.Kind, world)).Select(r => r.Kind.ToString()).ToArray(),
                 shown,
                 died = died < 0 ? (double?)null : Math.Round(died),
                 death = died < 0 ? null : session.Player.Death.ToString(),
@@ -115,6 +139,8 @@ static class AfootCommands
         {
             route = spec,
             km = Math.Round(stop.Start / 1000, 2),
+            stop = $"{stop.Kind} {stop.Facility} {stop.Start:0}-{stop.End:0} at {stop.Start + stop.Stop!.StopPoint.S:0}",
+            tags = route.Plan?.Director.Tags.Where(t => t.Edge == "main" && t.S1 >= stop.Start - 500 && t.S0 <= stop.End + 500).Select(t => $"{t.Tag} {t.S0:0}-{t.S1:0}").ToArray(),
             houses = stop.Stop!.Buildings.Count(b => b.Kind == BuildingKind.House && b.Zone == StopZone.Village),
             lairs = stop.Stop.Lairs.GroupBy(l => l.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()),
             seconds,

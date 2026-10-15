@@ -153,8 +153,20 @@ public sealed partial class CreatureArt
                 }
             case EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw or EnemyKind.Pickers or EnemyKind.Lodger or EnemyKind.Householder:
                 return false;
+            case EnemyKind.MouseMoose when _models.ContainsKey("mouse_moose"):
+                {
+                    // THE MOUSE MOOSE (notes 790, 796; tools/blender/mouse_moose.py; CreatureArt.MouseMoose.cs): creeping in low,
+                    // sniffing; its teeth in a casting and tugging it back; bolting flat out; down its hole, its antlers and its
+                    // eyes over the earth.
+                    var mode = _mouseMooseMode ?? MouseMooseModeOf(phase);
+                    var was = ModeWas is { } w ? (MouseMooseMode?)w : null;
+                    var (clip, at, loop) = MouseMooseClip(mode, was, since, _outsidePace);
+                    if (clip is "hide" or "dive" or "emerge")
+                        MouseMooseHole(mesh, model, clip == "emerge" ? (float)(_outsidePace * since) : 0);
+                    return Draw(mesh, "mouse_moose", clip, at, loop, model, seed: 796);
+                }
             case EnemyKind.MouseMoose:
-                // THE MOUSE MOOSE (note 790; CreatureArt.MouseMoose.cs): its boxes, until it's modelled.
+                // (Its boxes, where its model isn't there: CreatureArt.MouseMoose.cs.)
                 return MouseMooseStandIn(mesh, model, _mouseMooseMode ?? MouseMooseModeOf(phase), since);
             case EnemyKind.Waker when _models.ContainsKey("waker"):
                 // THE WAKER, the Peat Man (note 679; tools/blender/waker.py; CreatureArt.Waker.cs).

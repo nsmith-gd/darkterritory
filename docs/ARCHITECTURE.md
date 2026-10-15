@@ -975,4 +975,9 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [804. The Game test suite's memory, found and cut; the town forms back in the trades' rotation (T1, queue #531; note 692's "off for now": with…](notes/804.md)
 - [805. A running jump heard as a jump off the train (AU1, queue #533; AU1's audio audit)](notes/805.md)
 - [807. The emotes for two, their own clips: a high five and a fist bump that meet, a dance-off taken in turns, sat on the edge legs over, hung out…](notes/807.md)
+- [805. A running jump heard as a jump off the train (AU1, queue #533; AU1's audio audit)](notes/805.md)
+- [794. The woods keep off the railway's leavings (queue #521, B1; note 792's "not yet")](notes/794.md)
+- [795. Something at the stops, alone too (A1, queue #522; the director, 15 Oct 2026)](notes/795.md)
+- [804. The Game test suite's memory, found and cut; the town forms back in the trades' rotation (T1, queue #531; note 692's "off for now": with…](notes/804.md)
+- [796. The Mouse Moose modelled and rigged (queue #523, C1; the director, 15 Oct 2026: "We have a new asset added by gameplay, you need to do a…](notes/796.md)
 <!-- end of the notes index -->
