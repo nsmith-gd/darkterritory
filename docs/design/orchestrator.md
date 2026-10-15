@@ -85,6 +85,11 @@ final approach.
 3. **Each one's slack**: seconds since that player last had something to answer. They answer something when they're
    engaged with a threat, a threat targets their post, or an upkeep job at their post is open. Slack grows only while the
    train is out on the line (not in the forts, the grace or the final approach).
+4. **Each one's commitment** (**built, note 753**; the social collision audit's R5): whether their hands hold them to a
+   job, from state that's already there. At a crane's controls, carrying something heavy, a timed Use job under way
+   (grease, a coupling, a breach, a mend, the shovel), seated mid-reload, on a stop's module (a winch handle, a lever, the
+   herd, a crane's rigging) or breaking into a Holdout. The census counts posts, threats and commitment at stops as on the
+   run (it always did; only slack waits for the run).
 
 ### 3.2 What it does with the census
 
@@ -109,7 +114,15 @@ final approach.
    (note 345).**
 5. **Solo and crew 2.** `active` 1: one threat at a time, never two. `active` 2: two, never both on one player. The
    per-player cap means note 305's crew-2 answers still hold. **Built (note 336):** the hound run waits while the crew
-   is at its cap.
+   is at its cap. From `longTrainCars` (8) a crewmate may have two on them (note 647), so solo on a long train meets two.
+6. **Collisions** (**built, note 753**). A kind that would come at or beside a committed crewmate with nothing on them
+   (their post answers it, or it comes to a post that does within `committedNearM`, 20 m) weighs ×`collisionWeight`
+   (1.75) when a free crewmate's post answers it within `collisionReachM` (60 m): the free one chooses between their own
+   post and the friend's job. Never with nobody free in reach, never at a crew of one; only which kind, never when or how
+   many. "Facility loading" in the conflict table is the loading going on (machinery running, or someone on a module), and
+   a pair made tonight weighs ÷`pairRepeat` (2) for each time it's been made. The answers table has the seven later
+   creatures (Gannet, Brakeman, Knotter, Hotbox on the walkers; Moose, Tower Jaw, Freight Beetle, Hotbox at a stand on the
+   ground).
 
 ### 3.3 Tuning (enemies.json `director.orchestrator`, first pass)
 
@@ -120,7 +133,7 @@ final approach.
 
 Built: `on`, `liveCrew`, `engagedPerActive` and `perPlayer` (note 336); the rest (note 345), with `census` (steering on
 or off), `minCrew` (2: a crew of one is App. B.1's as it was), `onRadius`, `drivingAbove`, `minSlack` and the `answers`
-table.
+table; `commitment`, `collisionWeight`, `committedNearM`, `collisionReachM` and `pairRepeat` (note 753).
 
 ## 4. Pacing targets
 
@@ -138,7 +151,7 @@ director's spawn log and note 270's beats). First pass; each is a `balance.json`
 | P5 | A night kept hot and never stopped gets | at least 3 hound runs (§6.1) on a 24 km frontier line |
 | P6 | Stops stay the peaks: share of grabs at stops and slowings | ≥ 50 % (App. F.1: "slowing opens the doors") |
 | P7 | The terminus approach | silent, 500 m out (App. B.1, unchanged) |
-| P8 | Solo: threats engaged at once | never more than 1 |
+| P8 | Solo: threats engaged at once | never more than 1 on a train under 8 cars; 2 from 8 cars (`longTrainCars`, note 647) |
 
 ## 5. Things to do between stops
 

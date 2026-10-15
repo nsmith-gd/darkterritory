@@ -151,6 +151,37 @@ public class BreachTests
         Assert.Equal(0, r.Train.Vehicles[car].DoorsOpen);
     }
 
+    /// <summary>Seconds <paramref name="hands"/> crewmates at the hole, Use held, take to board it up.</summary>
+    static double Boarding(int hands, TrainTuning? train = null)
+    {
+        var r = new Rig(speed: 0, train: train);
+        const int car = 2;
+        var room = r.Train.Frames[car].Shape.Interior!.Value;
+        r.Train.Vehicles[car].Breach(Breaches.EndWall(r.Train.Frames[car].Shape)!.Value);
+        for (int i = 1; i <= hands; i++)
+            r.Crew[i] = r.Inside(car, room.Max.Z - 0.7 - 0.1 * i);
+        int ticks = 0;
+        while (r.Train.Vehicles[car].Breached && ticks < 30 * SimConstants.TickRate)
+        {
+            r.Run(SimConstants.TickSeconds, _ => Use);
+            ticks++;
+        }
+        return ticks * SimConstants.TickSeconds;
+    }
+
+    [Fact]
+    public void TwoAtTheHoleBoardItUpAtThePairRateAndOneAsEver()
+    {
+        // Note 752 (GDD §12, one can, two do it faster): alone, spec B.9's 8 s; two, each at repair.pairRate (a tick to see
+        // each other); a third adds nothing; pairRate 1 (off), two as one.
+        double board = T.Breach.BoardSeconds, pair = T.Repair.PairRate, tick = SimConstants.TickSeconds;
+        Assert.True(pair > 1);
+        Assert.InRange(Boarding(1), board, board + 2 * tick);
+        Assert.InRange(Boarding(2), board / pair, board / pair + 3 * tick);
+        Assert.Equal(Boarding(2), Boarding(3));
+        Assert.InRange(Boarding(2, T with { Repair = T.Repair with { PairRate = 1 } }), board, board + 2 * tick);
+    }
+
     [Fact]
     public void FromTheRoofOverItTheHoleIsntBoardedUp()
     {

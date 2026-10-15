@@ -159,6 +159,103 @@ public class CensusTests
         Assert.Null(d.Next);
     }
 
+    /// <summary>
+    /// A foundry's crane (note 753's stop), crewmate 1 pressed in at its controls, crewmate 2 on the roof of the car nearest
+    /// them (or <paramref name="walkerCar"/>); the census counted, the director spending nothing of its own.
+    /// </summary>
+    static (FacilityTests.Stop Stop, Director D) AtTheCrane(EnemyTuning? enemies = null, int? walkerCar = null, bool walker = true)
+    {
+        var stop = new FacilityTests.Stop(Run.ModuleKind.Crane);
+        stop.World.EnableEnemies(enemies ?? Q, null, 1, crew: 4, authority: true);
+        var crane = stop.Site.Crane!;
+        stop.Crew.Add(stop.OnTheGround(crane.Controls));
+        if (walker)
+        {
+            int car = walkerCar ?? stop.Train.Frames.MinBy(f => (f.Origin - crane.Controls).Length)!.Index;
+            stop.Crew.Add(PlayerMotor.SpawnOnRoof(stop.Train, car, 0, P));
+        }
+        PlayerIntent[] none = [.. stop.Crew.Select(_ => default(PlayerIntent))];
+        stop.Step(SimConstants.TickSeconds, [new PlayerIntent { Actions = PlayerActions.Seat }, .. none.Skip(1)]);
+        Assert.True(stop.Crew[0].Has(PlayerFlags.Operating));
+        stop.Step(1.1, none);
+        return (stop, stop.World.Director!);
+    }
+
+    static CensusEntry Of(Director d, int player) => d.Posts.Entries.Single(e => e.Player == player);
+
+    [Fact]
+    public void ACraneOperatorIsCommittedAtTheStopAndTheFacilityIsLoading()
+    {
+        // Note 753: the census counts at a stop too (only slack waits for the run), and reads who's committed to a job.
+        var (stop, d) = AtTheCrane();
+        Assert.True(O.Commitment);
+        Assert.Equal(Post.Ground, Of(d, 1).Post);
+        Assert.True(Of(d, 1).Committed);
+        Assert.Equal(Post.Walker, Of(d, 2).Post);
+        Assert.False(Of(d, 2).Committed);
+        // "facilityLoading" is the loading going on: someone at the crane's controls.
+        Assert.True(Director.Loading(stop.World));
+        // Heavy, a timed job, a reload: committed too; standing about, not.
+        var idle = stop.Crew[1];
+        Assert.False(Census.IsCommitted(stop.World, 2, idle));
+        Assert.True(Census.IsCommitted(stop.World, 2, idle with { Flags = PlayerFlags.Heavy }));
+        Assert.True(Census.IsCommitted(stop.World, 2, idle with { ActionProgress = 1.2 }));
+        // Off, nobody's committed (the census as before note 753).
+        var (_, off) = AtTheCrane(Q with { Director = Q.Director with { Orchestrator = O with { Commitment = false } } });
+        Assert.False(Of(off, 1).Committed);
+    }
+
+    [Fact]
+    public void AThreatNearABusyCrewmateThatAFreeOneAnswersWeighsUp()
+    {
+        // The operator's committed at the crane on the ground; the walker on the roof of the car beside them is free. Draggers
+        // (the walkers') come to the walker, beside the operator's work: the walker chooses. The Freight Beetle (the ground's)
+        // comes at the operator, and nobody free on the ground answers it: no weight (no pile-on).
+        var (stop, d) = AtTheCrane();
+        Assert.True((Of(d, 2).At - Of(d, 1).At).Length <= O.CommittedNearM);
+        Assert.Null(d.Next); // no slack at a fresh stop: only the collision weighs
+        List<(EnemyKind Kind, double Weight)> options = [(EnemyKind.Dragger, 1), (EnemyKind.FreightBeetle, 1), (EnemyKind.TrackDoll, 1)];
+        var w = d.WhoseNext(options).ToDictionary(o => o.Kind, o => o.Weight);
+        Assert.Equal(O.CollisionWeight, w[EnemyKind.Dragger]);
+        Assert.Equal(1, w[EnemyKind.FreightBeetle]);
+        Assert.Equal(1, w[EnemyKind.TrackDoll]); // nobody busy where it comes, and its rule's the empty cab: as before
+        // The walker far down the train (out of reach of the operator): nothing weighs up.
+        var (_, far) = AtTheCrane(walkerCar: stop.Train.Frames.MaxBy(f => (f.Origin - stop.Site.Crane!.Controls).Length)!.Index);
+        Assert.True((Of(far, 2).At - Of(far, 1).At).Length > O.CommittedNearM);
+        w = far.WhoseNext(options).ToDictionary(o => o.Kind, o => o.Weight);
+        Assert.Equal(1, w[EnemyKind.Dragger]);
+        Assert.Equal(1, w[EnemyKind.FreightBeetle]);
+        // Off: as before.
+        var (_, off) = AtTheCrane(Q with { Director = Q.Director with { Orchestrator = O with { Commitment = false } } });
+        Assert.Equal(1, off.WhoseNext(options).Single(o => o.Kind == EnemyKind.Dragger).Weight);
+    }
+
+    [Fact]
+    public void ABusyCrewmateAloneIsLeftAsAppBHasIt()
+    {
+        // A crew of one at the crane: committed, but there's nobody free, and a crew of one is App. B.1's (minCrew 2).
+        var (_, d) = AtTheCrane(walker: false);
+        Assert.True(Of(d, 1).Committed);
+        List<(EnemyKind Kind, double Weight)> options = [(EnemyKind.Dragger, 1), (EnemyKind.FreightBeetle, 1)];
+        Assert.Equal(options, d.WhoseNext(options));
+    }
+
+    [Fact]
+    public void APairMadeTonightWeighsLessToBeMadeAgain()
+    {
+        // Note 753 (seed 2 frontier drew whistler+facilityStop three times): ÷pairRepeat for each time it's been made.
+        var (stop, d) = AtTheCrane();
+        Assert.Equal(2, O.PairRepeat);
+        List<(EnemyKind Kind, double Weight)> options = [(EnemyKind.Whistler, 1), (EnemyKind.Ribbit, 1)];
+        Assert.Equal(options, d.PairRepeats(options, stop.World, []));
+        d.Pairs.Add("whistler+facilityStop");
+        var w = d.PairRepeats(options, stop.World, []).ToDictionary(o => o.Kind, o => o.Weight);
+        Assert.Equal(1 / O.PairRepeat, w[EnemyKind.Whistler]);
+        Assert.Equal(1, w[EnemyKind.Ribbit]);
+        d.Pairs.Add("whistler+facilityStop");
+        Assert.Equal(1 / (O.PairRepeat * O.PairRepeat), d.PairRepeats(options, stop.World, []).First().Weight);
+    }
+
     [Fact]
     public void ACrewOfOneIsAppBsAsItWas()
     {
