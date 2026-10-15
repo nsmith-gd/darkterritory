@@ -9,7 +9,8 @@ namespace DarkTerritory.Sim.Net;
 /// </summary>
 public static class CabControls
 {
-    public static bool CanDrive(in PlayerState s, TrainOnLine train) => s.Alive && PlayerMotor.InCab(s, train);
+    /// <summary>Whether a crewmate stands at the cab's controls to work them: alive, in the cab, on their own feet (note 723: not carried).</summary>
+    public static bool CanDrive(in PlayerState s, TrainOnLine train) => s.Alive && !s.Has(PlayerFlags.Carried) && PlayerMotor.InCab(s, train);
 
     /// <summary>Below this a train on its brake is standing on it, and stays on it until let off (T97).</summary>
     public const double StandingBelow = 0.1;

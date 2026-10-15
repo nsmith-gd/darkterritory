@@ -44,5 +44,7 @@
 --integrity 0.3,1,0.8,0.55,0.3,0.1 --cam 1126,-5.5,2.4 --target 1116,0,2.0 --fov 55 --out out/shots/damage.png
 --view shove --out out/shots/shove.png
 --view sooted --out out/shots/sooted.png
+--view handup --out out/shots/handup.png
+--view carryfriend --out out/shots/carryfriend.png
 --view crewphoto --out out/shots/crewphoto.png
 --view lostcrews --out out/shots/lostcrews.png

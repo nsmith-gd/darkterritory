@@ -120,6 +120,27 @@ public sealed class CarFire(int id) : Incident(id)
         new(id) { Attached = car, Local = At(train, car, along), Extra = t.StartIntensity, _startHeat = t.StartIntensity };
 
     /// <summary>
+    /// A thrown lamp's oil (note 728, senses.json <c>thrown.lampFireHeat</c>): alight at <paramref name="heat"/> in the cell
+    /// nearest <paramref name="local"/> (the car's frame), where it broke: the floor, a wall or the roof.
+    /// </summary>
+    public static CarFire Kindled(int id, int car, Double3 local, double heat) =>
+        new(id) { Attached = car, Local = local, Extra = heat, _startHeat = heat, _kindle = local };
+
+    /// <summary>More oil on it (note 728): the cell nearest <paramref name="local"/> at least <paramref name="heat"/>.</summary>
+    public void Kindle(FireGrid grid, Double3 local, double heat)
+    {
+        if (Heat.Length != grid.Count)
+        {
+            _startHeat = Math.Max(_startHeat, heat);
+            return;
+        }
+        int cell = grid.Nearest(local);
+        Heat[cell] = Math.Max(Heat[cell], heat);
+    }
+
+    Double3? _kindle;
+
+    /// <summary>
     /// Already well alight when it's found (a set piece, a test): every cell within <paramref name="span"/> m along the car of
     /// where it was set, at <paramref name="heat"/>. Before its first tick.
     /// </summary>
@@ -294,7 +315,7 @@ public sealed class CarFire(int id) : Incident(id)
         int top = (1 << Bits) - 1;
         for (int i = 0; i < grid.Count; i++)
             _fuel[i] = car.Char.Length == grid.Count ? 1 - car.Char[i] / (double)top : 1;
-        Heat[grid.FloorAt(Local)] = _startHeat;
+        Heat[_kindle is { } at ? grid.Nearest(at) : grid.FloorAt(Local)] = _startHeat;
         if (_span >= 0)
             for (int i = 0; i < grid.Count; i++)
                 if (Math.Abs(grid.Centre[i].Z - Local.Z) <= _span)

@@ -94,7 +94,11 @@ public sealed record RakeSave(int[] Vehicles, int Path, double Distance, bool Ha
 /// </summary>
 public sealed record ThingAboard(BodyKind Kind, int Car, Double3 At, double Radius, double Friction, double Bounce, double Yaw = 0, int Locker = -1,
     int Slot = 0, bool Claimed = true, CargoKind Cargo = CargoKind.None, int Owner = -1, int Home = -1, double Charge = 1,
-    ToyNoise Noise = ToyNoise.None, bool Broken = false, ulong Tools = 0, bool Loaded = false);
+    ToyNoise Noise = ToyNoise.None, bool Broken = false, ulong Tools = 0, bool Loaded = false)
+{
+    /// <summary>A fragile find's knocks (note 719), so it comes back as knocked as it was.</summary>
+    public int Knocks { get; init; }
+}
 
 /// <summary>
 /// Spec E "autosave per POI, on successful departure": enough of a night to start it again from the facility the
@@ -453,6 +457,8 @@ public static class Campaign
                     "repair" => l with { Boiler = l.Boiler with { RepairSeconds = l.Boiler.RepairSeconds * k } },
                     "radioReach" => l with { Train = l.Train with { Kit = l.Train.Kit with { RadioReach = l.Train.Kit.RadioReach + k } } },
                     "switchThrower" => Fit(l, c => c with { SwitchThrower = c.SwitchThrower || k > 0 }),
+                    // The handcar (note 729), hung on the guard van's back.
+                    "handcar" => Fit(l, c => c with { Handcar = c.Handcar || k > 0 }),
                     _ => l,
                 };
         }
