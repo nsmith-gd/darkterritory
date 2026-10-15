@@ -66,10 +66,11 @@ public static class TownForms
     /// <summary>Which form a town of <paramref name="trade"/> is (towns.json <c>forms.byTrade</c>); "" the street town.</summary>
     public static string Pick(FormTuning forms, string trade, Pcg32 rng)
     {
-        if (!forms.Enabled)
-            return "";
+        // (A forced form first: one type to play or look at, whether or not the forms are in the trades' rotation.)
         if (forms.Force is { } force)
             return force;
+        if (!forms.Enabled)
+            return "";
         if (!forms.ByTrade.TryGetValue(trade, out var weights) && !forms.ByTrade.TryGetValue("any", out weights))
             return "";
         var keys = weights.Keys.Order(StringComparer.Ordinal).ToList();

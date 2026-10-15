@@ -243,10 +243,12 @@ public class TownFormTests
             Assert.Equal(a.Districts.Select(d => (d.Kind, d.Id, d.Name, d.Level, d.Outline.Count)), b.Districts.Select(d => (d.Kind, d.Id, d.Name, d.Level, d.Outline.Count)));
             Assert.Equal(TownGround.Of(a).Edges(), TownGround.Of(b).Edges());
         }
+        // (With the forms in the trades' rotation, as towns.json forms.enabled puts them.)
+        var rotation = Towns with { Tuning = Towns.Tuning with { Forms = Towns.Tuning.Forms with { Enabled = true } } };
         var seen = new HashSet<string>();
         string[] trades = ["coal", "farm", "foundry"];
         for (ulong seed = 1; seed <= 200; seed++)
-            seen.Add(TownGenerator.Generate(Towns, new TownSite("Fort Boudreau", trades[(int)(seed % 3)], 1180, seed, [])).Form);
+            seen.Add(TownGenerator.Generate(rotation, new TownSite("Fort Boudreau", trades[(int)(seed % 3)], 1180, seed, [])).Form);
         foreach (var form in TownForms.All.Append(""))
             Assert.Contains(form, seen);
     }
