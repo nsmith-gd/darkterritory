@@ -199,8 +199,8 @@ for s, sx in (("r", 1), ("l", -1)):
 flesh.limb([H("neck") + Vector((0, -0.03, 0.0)), H("neck").lerp(T("neck"), 0.5), T("neck") + Vector((0, 0.015, -0.005))],
            [0.085, 0.072, 0.064], 0.05, FUR, trunk_w)
 flesh.blob((0, 0.375, 0.37), (0.068, 0.075, 0.06), 0.04, FUR, head_w, around=18, rings=10)          # the skull
-flesh.blob((0, 0.47, 0.32), (0.043, 0.09, 0.04), 0.035, FUR, head_w, rot=R(rx=-16), around=18, rings=8)  # the snout
-flesh.blob((0, 0.555, 0.288), (0.024, 0.022, 0.021), 0.015, PINK, head_w)                            # the nose
+flesh.blob((0, 0.47, 0.32), (0.049, 0.09, 0.043), 0.035, FUR, head_w, rot=R(rx=-16), around=18, rings=8)  # the snout
+flesh.blob((0, 0.557, 0.289), (0.028, 0.024, 0.024), 0.015, PINK, head_w)                            # the nose
 for sx in (1, -1):
     flesh.blob((sx * 0.042, 0.43, 0.31), (0.03, 0.055, 0.03), 0.025, FUR, head_w)                     # the cheek
     flesh.blob((sx * 0.04, 0.4, 0.375), (0.022, 0.03, 0.018), 0.015, FUR, head_w)                     # the brow
@@ -262,9 +262,9 @@ for sx in (1, -1):
 # The eyes: black beads in the orbits, wet; they keep their own lit glass and throw the lamp back red.
 EYES = {}
 for s, sx in (("r", 1), ("l", -1)):
-    c = Vector((sx * 0.046, 0.42, 0.36))
+    c = Vector((sx * 0.049, 0.42, 0.36))
     EYES[s] = c
-    fine.blob(c, (0.011, 0.012, 0.01), 10, 6, EYE, "head")
+    fine.blob(c, (0.014, 0.015, 0.013), 10, 6, EYE, "head")
 
 # The whiskers: long and stiff off the sides of the snout, fanned, drooping a little (3 sides each: they're hair).
 for s, sx in (("r", 1), ("l", -1)):
@@ -622,15 +622,19 @@ for f, k in ((0, 1), (2, 0.2), (4, -1), (6, -0.2)):
     flee.key(f, bound(k), "LINEAR")
 flee.close(8)
 
-# Hide (3 s, loop): down its hole, sunk to the ground: over the earth only the antlers, the ears laid back, the eyes and
-# the nose; the head turning slowly to look round, a twitch, a duck down out of sight (the antlers' tips still showing), and
-# up again.
-SUNK = -0.31
+# Hide (3 s, loop): down its hole (at the origin: the sim's hole), up it nose first and steep, the body down in the earth and
+# only the head over it: the antlers, the ears laid back, the eyes and the nose; the head turning slowly to look round, a
+# twitch, a duck down out of sight (the antlers' tips still showing), and up again.
+SUNK_PITCH, SUNK_AT = 80, (0, 0.14, -0.26)
 
 
 def peering(yaw=0.0, up=0.0, sniff=0.0, down=0.0):
-    return with_(STAND, {"root@loc": (0, -0.04, SUNK - down), "neck": (4 + up * 0.4, 0, yaw * 0.4), "head": (10 + up * 0.6 + sniff, 0, yaw * 0.6),
-                         "ear_r": (30, 0, 26), "ear_l": (30, 0, -26), "jaw": (-2, 0, 0)}, tail_pose(-20, 0))
+    x, y, z = SUNK_AT
+    return with_(STAND, {"root": (SUNK_PITCH, 0, 0), "root@loc": (x, y, z - down),
+                         "neck": (-42 + up * 0.4, 0, yaw * 0.4), "head": (-18 + up * 0.6 + sniff, 0, yaw * 0.6),
+                         "ear_r": (30, 0, 26), "ear_l": (30, 0, -26), "jaw": (-2, 0, 0),
+                         "upperarm_r": (-40, 0, 0), "upperarm_l": (-40, 0, 0), "thigh_r": (30, 0, 0), "thigh_l": (30, 0, 0)},
+                 tail_pose(-10, 0))
 
 
 hide = Clip("hide")
@@ -641,28 +645,42 @@ for f, pose_, ip in ((0, peering(), "BEZIER"), (14, peering(28, 2), "BEZIER"), (
     hide.key(f, pose_, ip)
 hide.close(90)
 
-# Dive (0.5 s): at its hole at a run: nose down into it, the body after it, the hind legs kicking it in; then it turns in
-# the hole and peers back out.
+
+def diving(pitch, at, fore=0.0, kick=0.0):
+    """Going down the hole (at the origin) nose first: pitched down `pitch` about `at` (the root's place), the forelegs
+    reaching down ahead (`fore`, degrees), the hind legs kicking (`kick`)."""
+    return with_(STAND, look(0, -20, 0, -1.6), {"root": (-pitch, 0, 0), "root@loc": at, "jaw": (-6, 0, 0),
+                                                "upperarm_r": (fore, 0, 0), "upperarm_l": (fore * 0.9, 0, 0),
+                                                "lowerarm_r": (-fore * 0.4, 0, 0), "lowerarm_l": (-fore * 0.4, 0, 0),
+                                                "thigh_r": (-kick, 0, 0), "thigh_l": (-kick * 0.6, 0, 0),
+                                                "calf_r": (kick * 0.8, 0, 0), "calf_l": (kick * 0.5, 0, 0)},
+                 tail_pose(-6, 6))
+
+
+# Dive (0.5 s): at its hole at a bound: nose down into it, the body after it, the hind legs kicking it in, the tail last;
+# turned round in the earth (out of sight), it peers back out.
 dive = Clip("dive", loop=False)
-dive.key(0, bound(1), "LINEAR")
-dive.key(4, with_(STAND, look(0, -40, 0, -1.6), {"root@loc": (0, 0.1, -0.14), "pelvis": (-40, 0, 0), "spine_01": (-14, 0, 0),
-                                                "upperarm_r": (70, 0, 0), "upperarm_l": (70, 0, 0), "thigh_r": (-30, 0, 0),
-                                                "thigh_l": (-30, 0, 0)}, tail_pose(-30, 0)), "LINEAR")
-dive.key(8, with_(STAND, look(0, -50, 0, -1.6), {"root@loc": (0, 0.12, -0.5), "pelvis": (-70, 0, 0), "spine_01": (-14, 0, 0),
-                                                "upperarm_r": (80, 0, 0), "upperarm_l": (80, 0, 0), "thigh_r": (40, 0, 0),
-                                                "thigh_l": (10, 0, 0), "calf_r": (-30, 0, 0)}, tail_pose(-50, 6)), "LINEAR")
-dive.key(10, peering(0, 0, 0, 0.4), "CONSTANT")
+dive.key(0, with_(bound(1), {"root@loc": (0, -0.62, 0.03)}), "LINEAR")
+dive.key(3, diving(35, (0, -0.48, 0.0), 50, 10), "LINEAR")
+dive.key(6, diving(72, (0, -0.4, 0.02), 70, 40), "LINEAR")
+dive.key(9, diving(84, (0, -0.4, -0.32), 70, -20), "LINEAR")
+dive.key(11, diving(88, (0, -0.4, -0.8), 70, 30), "CONSTANT")
+dive.key(12, peering(0, 0, 0, 0.4), "BEZIER")
 dive.key(15, peering(), "BEZIER")
 
-# Emerge (0.8 s): up out of its hole: the antlers and the eyes first, a look round, frozen; then out in a scramble.
+# Emerge (0.8 s): up out of its hole: the antlers and the eyes first, a look round, frozen; then out in a scramble, the
+# forepaws over the rim and the body hauled up after them.
 emerge = Clip("emerge", loop=False)
 emerge.key(0, peering(0, 0, 0, 0.3), "LINEAR")
 emerge.key(6, peering(0, 4), "LINEAR")
 emerge.key(8, peering(26, 4, 2), "CONSTANT")
 emerge.key(14, peering(26, 4), "LINEAR")
-emerge.key(19, with_(STAND, look(10, 10, 0, 0.4), {"root@loc": (0, 0.0, -0.12), "pelvis": (24, 0, 0), "upperarm_r": (40, 0, 0),
-                                                   "upperarm_l": (30, 0, 0), "thigh_r": (-20, 0, 0), "thigh_l": (-20, 0, 0)},
-                     tail_pose(-30, 0)), "LINEAR")
+emerge.key(17, with_(STAND, look(10, 6, 0, 0.4), {"root": (40, 0, 0), "root@loc": (0, -0.1, -0.24), "upperarm_r": (60, 0, 0),
+                                                  "upperarm_l": (50, 0, 0), "lowerarm_r": (-30, 0, 0), "lowerarm_l": (-20, 0, 0),
+                                                  "thigh_r": (40, 0, 0), "thigh_l": (40, 0, 0)}, tail_pose(-20, 0)), "LINEAR")
+emerge.key(20, with_(STAND, look(4, -4, 0, 0.3), {"root": (16, 0, 0), "root@loc": (0, -0.12, -0.08), "upperarm_r": (20, 0, 0),
+                                                  "upperarm_l": (30, 0, 0), "thigh_r": (30, 0, 0), "thigh_l": (10, 0, 0)},
+                     tail_pose(-10, 0)), "LINEAR")
 emerge.key(24, standing(look(0, -10, 0, 0.3)), "BEZIER")
 
 # Hit (0.4 s): a blow: flinched in on itself, the head down and away, a squeal (the jaw wide), the ears flat; it bolts.
@@ -678,7 +696,7 @@ CLIPS = [idle, creep, bite, drag, flee, dive, hide, emerge, hit]
 if os.environ.get("DT_POSES"):
     # A quick look at the clips' keys without building the mesh: where the feet, the snout and the hind feet are.
     want = [(f"{b}_{s}", "tail") for b in ("fingers", "toe") for s in ("r", "l")] + [("head", "tail"), ("jaw", "tail"), ("pelvis", "head")]
-    want += [("lowerarm_r", "head"), ("neck", "head")]
+    want += [("lowerarm_r", "head"), ("neck", "head"), ("spine_02", "head"), ("ear_r", "tail"), ("tail_06", "tail")]
     for clip in CLIPS:
         for frame, pose, _ in clip.keys:
             P = pts(pose, want)

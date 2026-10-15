@@ -72,7 +72,7 @@ def ridged(p, seed, scale):
 def mange_of(p):
     """Bare patches where the fur's gone: on the flanks, the haunches and the back of the neck most, the head least."""
     where = 0.6 + 0.4 * smooth01(0.38, 0.3, p[:, 1])
-    return smooth01(0.3, 0.62, cook.noise_np(p, 7901, 6.0) * where)
+    return smooth01(0.36, 0.68, cook.noise_np(p, 7901, 6.0) * where)
 
 
 def scabs_of(p):
@@ -150,7 +150,7 @@ def kind_of(m):
         return overbake.Atlas.KEEP
     if k in ("mm_antler", "mm_velvet"):
         return ANTLERS
-    return FACE if k in ("mm_pink", "mm_ear", "mm_mouth", "mm_tooth", "mm_claw", "mm_whisker") else 0
+    return FACE if k in ("mm_pink", "mm_ear", "mm_mouth", "mm_tooth", "mm_claw") else 0
 
 
 atlas = overbake.Atlas("mouse_moose", parts, BAKED, kind_of, size=S)
@@ -240,13 +240,13 @@ base[is_("mm_whisker")] = np.array((0.06, 0.055, 0.05), np.float32)
 # the palms' rims worn through to pale bone. The shreds themselves: wet dark red inside, the velvet's grey-brown outside.
 bone = is_("mm_antler")
 shred = is_("mm_velvet")
-velvet = smooth01(0.15, 0.55, noise(7981, 9.0) + 0.35 * smooth01(0.0, -0.6, up))
+velvet = smooth01(-0.35, 0.1, noise(7981, 9.0) + 0.35 * smooth01(0.0, -0.6, up))
 tipd = np.min(np.stack([np.linalg.norm(P - t, axis=-1) for t in TIPS], 0), 0)
 worn = smooth01(0.02, 0.006, tipd)
 torn = np.min(np.stack([np.linalg.norm(P - t, axis=-1) for t in VELVET_AT], 0), 0)
 base = paint(base, (0.62, 0.55, 0.44), bone * (0.9 + 0.1 * noise(7982, 40.0)))                       # bone
 base = paint(base, (0.35, 0.28, 0.2), bone * smooth01(0.5, 0.9, noise(7983, 30.0)) * 0.5)               # stained
-base = paint(base, (0.2, 0.17, 0.14), bone * velvet * (1 - worn) * 0.9)                                # the velvet
+base = paint(base, (0.24, 0.2, 0.16), bone * velvet * (1 - worn) * 0.92)                               # the velvet
 edge = smooth01(0.3, 0.45, velvet) * smooth01(0.6, 0.45, velvet)
 base = paint(base, (0.42, 0.06, 0.05), bone * edge * 0.8)                                             # raw at its torn edge
 base = paint(base, (0.3, 0.04, 0.035), bone * smooth01(0.06, 0.0, torn + 0.04 * noise(7984, 30.0)) * (1 - worn) * 0.65)  # bled

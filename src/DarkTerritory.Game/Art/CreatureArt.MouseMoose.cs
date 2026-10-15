@@ -42,8 +42,8 @@ public sealed partial class CreatureArt
 
     /// <summary>
     /// Its hole, under a Mouse Moose down it at <paramref name="model"/> (or climbing out of it, <paramref name="behind"/> m
-    /// back along the way it's going): the black mouth of it, and the earth it's dug out heaped round it, most on the side
-    /// it comes and goes by.
+    /// back along the way it's going): the black mouth of it, and the earth it's dug out heaped round it, most behind it, so
+    /// the head peering out over the low front rim is seen against the heap.
     /// </summary>
     static void MouseMooseHole(MeshBuilder mesh, in Matrix4x4 model, float behind)
     {
@@ -54,22 +54,23 @@ public sealed partial class CreatureArt
             var r = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitX, model));
             var u = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, model));
             var b = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, model));
-            var o = model.Translation + b * behind;
+            // (Its body goes down the hole steep but leant back, so the mouth's a little behind where its head comes up.)
+            var o = model.Translation + b * (behind + 0.08f);
             mesh.Box(o + u * 0.004f, r, u, b, new Vector3(0.19f, 0.004f, 0.22f), MouseHoleDark);
             for (int k = 0; k < 9; k++)
             {
-                // A ring of turned clods round the mouth, heaped up in front (the way out, −Z) where it's thrown the spoil.
+                // A ring of turned clods round the mouth, the spoil heaped up behind it (+Z), low in front where it looks out.
                 float a = k / 9f * MathF.Tau + 0.3f * Hash01(k, 796);
-                float front = MathF.Max(0, -MathF.Cos(a));
-                float rad = 0.27f + 0.06f * front + 0.03f * Hash01(k, 797);
+                float back = MathF.Max(0, MathF.Cos(a));
+                float rad = 0.27f + 0.06f * back + 0.03f * Hash01(k, 797);
                 var at = o + r * (MathF.Sin(a) * rad) + b * (MathF.Cos(a) * rad);
                 var outward = Vector3.Normalize(r * MathF.Sin(a) + b * MathF.Cos(a));
                 var along = Vector3.Cross(u, outward);
                 // Tipped back off the hole, as dug earth lies.
                 var up = Vector3.Normalize(u + outward * 0.45f);
                 var outN = Vector3.Normalize(outward - u * 0.45f);
-                float h = 0.035f + 0.05f * front + 0.015f * Hash01(k, 798);
-                mesh.Box(at + u * (h * 0.6f), along, up, outN, new Vector3(0.1f + 0.04f * Hash01(k, 799), h, 0.07f + 0.03f * front),
+                float h = 0.022f + 0.06f * back + 0.012f * Hash01(k, 798);
+                mesh.Box(at + u * (h * 0.6f), along, up, outN, new Vector3(0.1f + 0.04f * Hash01(k, 799), h, 0.07f + 0.03f * back),
                     MouseEarth * (0.85f + 0.3f * Hash01(k, 800)));
             }
         }
