@@ -215,4 +215,21 @@ public class VoiceTests
             Assert.True(r.AfterCutDb < -150, $"{(radio ? "radio" : "near")}: {r.AfterCutDb} dB after the death");
         }
     }
+
+    [Fact]
+    public void AHeldSpeakerIsMuffledUnderAHandInTheAirAndOnTheRadioNotCut()
+    {
+        // Note 749 (App. C.8; the director, 14 Oct 2026: "A grab should allow players to still use the radio but their voice
+        // should be muffle filtered as if the grab is covering their mouth partially"): held, every frame still arrives and is
+        // still heard, a few dB down, with the top of the voice gone.
+        var free = VoiceBench.Run(Content, speakerCar: 3, speakerZ: 4, radio: true);
+        var held = VoiceBench.Run(Content, speakerCar: 3, speakerZ: 4, radio: true, held: true);
+        Assert.Equal(held.FramesSent, held.FramesHeard);
+        Assert.True(held.NearDb > -30 && held.RadioDb > -30, $"held: near {held.NearDb} dB, radio {held.RadioDb} dB");
+        Assert.InRange(free.NearDb - held.NearDb, 4, 15);
+        Assert.InRange(free.RadioDb - held.RadioDb, 4, 15);
+        // The low-pass: the voice's top falls further than its body (the radio's band already stops at 3 kHz).
+        Assert.True(free.NearHighDb - held.NearHighDb > free.NearDb - held.NearDb + 4, $"air over 2 kHz {free.NearHighDb} -> {held.NearHighDb}");
+        Assert.True(free.RadioHighDb - held.RadioHighDb > free.RadioDb - held.RadioDb + 2, $"radio over 1.8 kHz {free.RadioHighDb} -> {held.RadioHighDb}");
+    }
 }
