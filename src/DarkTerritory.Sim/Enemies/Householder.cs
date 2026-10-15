@@ -230,7 +230,7 @@ public sealed class Householder(int id) : Enemy(id)
         SetMode(HouseholderMode.Return);
     }
 
-    protected override void Punish(EnemyContext ctx, int victim) => Kill(ctx, victim, DeathCause.Seized);
+    protected override void Punish(EnemyContext ctx, int victim) => Kill(ctx, victim, DeathCause.Householder);
 
     static Double3 Way(double yaw) => new(-DMath.Sin(yaw), 0, -DMath.Cos(yaw));
 }

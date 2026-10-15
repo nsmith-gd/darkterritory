@@ -1,0 +1,20 @@
+// The whistle's upgrades: the honk, the gold whistle: The gold-plated whistle let go. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 1,
+ "loop": false,
+ "maxInstances": 12,
+ "minDistance": 20,
+ "maxDistance": 1500,
+ "rolloff": 0.45,
+ "gainDb": 1,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "up-horns/gold-stop",
+   "gain": 1,
+   "pitchJitter": 0.4,
+   "gainJitter": 1.0
+  }
+ ]
+}

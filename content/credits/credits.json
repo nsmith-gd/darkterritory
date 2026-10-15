@@ -20,7 +20,13 @@
     "kenney_impact-sounds": "Impact Sounds, by Kenney (kenney.nl)",
     "kenney_rpg-audio": "RPG Audio, by Kenney (kenney.nl)",
     "kenney_ui-audio": "UI Audio, by Kenney (kenney.nl)",
-    "sfx_100_v2": "SFX 100, volume 2"
+    "sfx_100_v2": "SFX 100, volume 2",
+    // The band's instruments (tools/audio/band_intake.py; queue #443, note 711).
+    "vcsl": "Versilian Community Sample Library, by Versilian Studios (github.com/sgossner/VCSL)",
+    "vsco2ce": "VS Chamber Orchestra: Community Edition, by Versilian Studios (github.com/sgossner/VSCO-2-CE)",
+    "shinyguitar": "Shinyguitar, by D. Smolken, Karoryfer Samples (github.com/sfzinstruments/karoryfer.shinyguitar)",
+    "ganjo": "ganjo (6-string banjo), by itsclipping (github.com/sfzinstruments/ganjo)",
+    "bodypercussion": "Body percussion (github.com/sfzinstruments/body_percussion)"
   },
   // Every licence a source names, by the name it gives. A test fails a licence in the indexes that isn't here.
   "licences": {

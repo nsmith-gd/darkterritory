@@ -116,7 +116,8 @@ public static class Spawns
             var h = c.Tuning.CinderHounds;
             if (c.Train.Dynamics.Speed < h.MinTrainSpeed || c.Train.Dynamics.Consist.CarCount < 1 || !c.None(EnemyKind.CinderHound))
                 return null;
-            return c.Train.BoilerTuning is { } b && c.Train.Boiler.Pressure > b.WorkingBandMax ? c.Director.Tuning.HoundsHotBoilerWeight : 1;
+            // ... and to the BBQ deck's grill lit (note 698): its heat and its smell.
+            return c.Train.BoilerTuning is { } b && c.Train.Boiler.Pressure > b.WorkingBandMax || Train.Bbq.AnyLit(c.Train) ? c.Director.Tuning.HoundsHotBoilerWeight : 1;
         }, c =>
         {
             var t = c.Tuning.CinderHounds;
@@ -520,8 +521,8 @@ public static class Spawns
             c.Add(i => Follower.On(i, c.Train, s, on, c.Tuning.Followers));
             return true;
         }),
-        // B.6 · Soot Children: near facilities and dead settlements; crew of two or more; a true 50/50 with a real child (a
-        // host's first-ever call always real).
+        // B.6 · Soot Children: near facilities and dead settlements; any crew, alone too (enemies.json minCrew, note 770); a
+        // true 50/50 with a real child (a host's first-ever call always real).
         new(EnemyKind.SootChildren, c =>
         {
             var t = c.Tuning.SootChildren;

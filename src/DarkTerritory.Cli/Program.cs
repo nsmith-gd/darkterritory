@@ -638,7 +638,7 @@ object CampaignCommand(string content, string verb, string[] args)
         contracts = DarkTerritory.Sim.Campaign.Campaign.Offers(t, runTuning, s).Select((c, i) => new { index = i, route = c.Route, perCar = c.PerCar }),
         stores = s.Stores,
         sellBack = DarkTerritory.Sim.Campaign.Campaign.SellBack(t, s),
-        shop = t.Upgrades.Where(u => !s.Upgrades.Contains(u.Id)).Select(u => new { u.Id, u.Name, size = u.Size.ToString(), cost = DarkTerritory.Sim.Campaign.Campaign.UpgradeCost(t, s, u), modelled = u.Effect.Count > 0 }),
+        shop = t.Upgrades.Where(u => !s.Upgrades.Contains(u.Id)).Select(u => new { u.Id, u.Name, kind = u.Kind.ToString(), size = u.Size.ToString(), cost = DarkTerritory.Sim.Campaign.Campaign.UpgradeCost(t, s, u), modelled = u.Effect.Count > 0 || u.Tally is not null, refused = DarkTerritory.Sim.Campaign.Campaign.Unavailable(t, s, u) }),
         underway = s.Current?.Route,
         autosave = s.Checkpoint is { } c ? $"left facility {c.Facility} at {c.Seconds / 60:0.0} min" : null,
         s.History,
@@ -1056,7 +1056,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // stages it gnawing, the tower leaning over the line; towerjawfall, the tower down across it.
     string towerJawMode = Str(args, "--towerjaw", view switch { "towerjaw" => "lean", "towerjawfall" => "wreck", _ => "" });
     // --route tier:seed generates the night in memory; --coaling stops the train at its coaling tower, chute pouring.
-    Route? generated = Str(args, "--route", towerJawMode.Length > 0 ? "frontier:3" : Staging.IsHouseView(view) || view is "comet" or "trophies" or "crewphoto" or "lostcrews" or "jackpot" or "jackpothouse" or "looseloot" or "hoist" ? "frontier:7" : view == "oddities" ? "deadLines:9" : "") is { Length: > 0 } spec
+    Route? generated = Str(args, "--route", towerJawMode.Length > 0 ? "frontier:3" : Staging.IsHouseView(view) || view is "comet" or "trophies" or "crewphoto" or "lostcrews" or "jackpot" or "jackpothouse" or "looseloot" or "hoist" or "photographer" or "yardphoto" ? "frontier:7" : view == "oddities" ? "deadLines:9" : "") is { Length: > 0 } spec
         ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars)
         : null;
     var line = generated?.Build() ?? RailLine.Load(Path.Combine(content, "lines", lineName + ".json"));
@@ -1087,6 +1087,16 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         at = run.ChuteAt(tower, line).SpoutAlong + EnginePlan.Of(t.Geometry).CoalFromFront;
         int index = generated.Of(FeatureKind.Facility).ToList().IndexOf(tower);
         run.Mirror(DarkTerritory.Sim.Run.RunPhase.AtFacility, DarkTerritory.Sim.Run.RunEnd.None, 900, index, true, [.. Enumerable.Repeat(200.0, run.FacilityCount)]);
+    }
+    // The yard photographer (note 714; `--upgrades yardPhotographer`): the train stood in the yard short of the gate, him
+    // past it (photographer); or the picture he takes as she passes it, from his lens, flash and sepia (yardphoto).
+    double photoGate = 0;
+    if (view is "photographer" or "yardphoto" && generated is not null && run is null)
+    {
+        photoGate = generated.GateOr(DarkTerritory.Sim.Route.RouteTuning.Load(content).YardLength);
+        run = new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated) { YardLength = photoGate };
+        if (!args.Contains("--at"))
+            at = view == "yardphoto" ? photoGate + YardPhotographer.PastGate - YardPhotographer.ShootAt : photoGate - 8;
     }
     // --site: stop at the first facility with loading modules (spec D), crates out and the winch sled part-hauled.
     DarkTerritory.Sim.Run.Site? site = null;
@@ -1379,7 +1389,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --gannet soar|circle|hang|fold|dive|stuck|tearfree|climb|bank|swoop|pin|windup|peck: the staged Gannet (note 340;
     // Staging.Gannet) over the second car's roof, after crewmate 4 walking it; the train running at --speed (20 m/s: it only
     // rides a fast train), its smoke laid back. The gannet views stage it soaring, diving, stuck and pinning unless told.
-    string gannetMode = Str(args, "--gannet", view switch { "gannet" => "soar", "gannetfold" => "dive", "gannetstuck" => "stuck", "gannetpin" => "pin", _ => "" });
+    string gannetMode = Str(args, "--gannet", view switch { "gannet" => "soar", "gannetfold" => "dive", "gannetstuck" => "stuck", "gannetpin" => "pin", "gannetgerald" => "carry", _ => "" });
     if (gannetMode.Length > 0 && !args.Contains("--ruptured") && !args.Contains("--wreck"))
     {
         train.Dynamics.Velocity = Opt(args, "--speed", 20);
@@ -1408,6 +1418,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     var outro = DataFile.Load<WreckTuning>(Path.Combine(content, WreckTuning.File)).Stranded;
     var camera = strandedAt >= 0 && !args.Contains("--view") ? Views.Stranded(train, outro, strandedAt)
         : train.Wreck is { } shown && !args.Contains("--view") ? Views.Wreck(shown, shown.RealSeconds) : Views.Get(view, train, (int)Opt(args, "--car", 2));
+    if (view == "yardphoto" && photoGate > 0)
+        camera = YardPhotographer.Lens(train.Line, photoGate, train);
+    else if (view == "photographer" && photoGate > 0)
+    {
+        var (feet, facing) = YardPhotographer.Stand(train.Line, photoGate);
+        camera = Camera.LookAt(feet - facing * 2.6 + Double3.Up * 2.1 + Double3.Cross(facing, Double3.Up) * 1.2, feet + facing * 9 + Double3.Up * 1.4, 60);
+    }
     // The comet view (note 718): the driver leaning out of the cab on the side the fragment lies, looking up the line at it.
     if (view == "comet" && prizes?.All.FirstOrDefault(DarkTerritory.Sim.Run.Run.IsComet) is { } fragment)
     {
@@ -2041,6 +2058,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         VrBody = look is null ? DataFile.Load<VrTuning>(Path.Combine(content, VrTuning.File)).Body : null,
         Route = route,
         Run = run,
+        // The words on the dressing (note 701): the stickers' puns, the towels' monograms, a staged crew's names on them.
+        Words = DataFile.Load<DarkTerritory.Game.DressWords>(Path.Combine(content, DarkTerritory.Game.DressWords.File)),
+        CrewNames = ["Dave", "Nicki", "Jacob"],
+        // --engine-name (note 714): the nameplate's.
+        EngineName = Str(args, "--engine-name", "") is { Length: > 0 } engineName ? engineName : null,
+        // --whimsy taken:3,canary:dead,playing (note 715): which of Gerald (bit 0) and the gnomes the Gannet's had, the canary's
+        // mood, the gramophone going.
+        WhimsyNow = Staging.Whimsy(Str(args, "--whimsy", "")) is var whimsyStaged ? () => whimsyStaged : null,
         Holdouts = holdouts,
         Town = town,
         Arrival = arrival,
@@ -2170,6 +2195,34 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 own == "none" ? Tool.None : Enum.Parse<Tool>(own, true))
             : null,
     };
+    // --bbq (note 698; with --upgrades bbqDeck): the party at the front, the grill lit, a beer and a sausage going.
+    if (args.Contains("--bbq") && Staging.BbqParty(train, content) is var (party, partyBodies))
+    {
+        train.Vehicles[0].Grill = 120;
+        scene.Vehicles = train.Vehicles;
+        scene.Crew = party;
+        scene.Bodies = partyBodies;
+    }
+    // --pet-mood idle|walk|sleep|warn|fetch (note 745; with --upgrades yardCat,dog --stocked): the cat and the dog so.
+    if (Str(args, "--pet-mood", "") is { Length: > 0 } petMood && scene.Bodies is { } petBodies)
+        foreach (var pet in petBodies.Where(b => b.Kind is DarkTerritory.Sim.Physics.BodyKind.Cat or DarkTerritory.Sim.Physics.BodyKind.Dog))
+            pet.Tipped = (sbyte)Enum.Parse<DarkTerritory.Sim.PetMood>(petMood, ignoreCase: true);
+    // --lounge (note 744; with --upgrades hammock,hotTub): someone in the hammock, two in the hot tub.
+    if (args.Contains("--lounge") && Staging.Lounging(train) is var (loungers, loungeBodies))
+    {
+        scene.Crew = [.. scene.Crew ?? [], .. loungers];
+        scene.Bodies = [.. scene.Bodies ?? [], .. loungeBodies];
+    }
+    // --band (note 700): the crew on a roof, each playing one of the band's instruments.
+    if (args.Contains("--band") && Staging.Band(train, content, (int)Opt(args, "--car", 2)) is var (players, instruments))
+    {
+        scene.Crew = [.. scene.Crew ?? [], .. players];
+        scene.Bodies = [.. scene.Bodies ?? [], .. instruments];
+        scene.Band = DataFile.Load<DarkTerritory.Sim.Player.BandTuning>(Path.Combine(content, DarkTerritory.Sim.Player.BandTuning.File));
+    }
+    // --hats (note 714): every staged crewmate in one of the hat rack's hats, in turn.
+    if (args.Contains("--hats") && scene.Crew is { } hatted)
+        scene.Crew = [.. hatted.Select((c, i) => c with { Hat = i % 4 + 1 })];
     if (cameBack is { } risen)
         scene.Crew = [.. scene.Crew ?? [], risen];
     // Note 301's callouts, every break the crew can mend: --breached i[,j,...] those cars' end walls eaten through (dents are
@@ -2701,6 +2754,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         camera = HeldShot.Frame(victim.Feet, holder.WorldPosition(train), eyesThere, inside, HeldShot.Size(holder.Kind),
             (x, z) => PlayerMotor.GroundAt(new Double3(x, 0, z), train.Line, ref heldHint));
     }
+    scene.PhotoFlash = view == "yardphoto" ? 1 : 0;
     // Note 721: the crew photo at the gate, staged beside the engine on the yard's open side (CrewPhoto.YardSide) and taken
     // from its own lens (--night n, --net s: the slate's); --side 1|-1 a side of the track of your own.
     if (view == "crewphoto")
@@ -2775,6 +2829,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         lighting.Wetness = 0;
     }
     var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor);
+    // The yard photographer's print (note 714): as the app keeps it, cropped, shrunk and sepia.
+    if (view == "yardphoto")
+    {
+        var print = BookmarkStills.Shrink(pixels, width, height, YardPhotographer.Width, YardPhotographer.Height);
+        YardPhotographer.Sepia(print.Rgba);
+        (pixels, width, height) = (print.Rgba, print.Width, print.Height);
+    }
     PngWriter.Write(output, pixels, width, height, scale);
     return new
     {
@@ -3440,8 +3501,24 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
         reports.Write(new InvalidOperationException("the boiler burst"), new DateTime(2026, 10, 8, 3, 15, 22));
         menu.Crash = DarkTerritory.Game.CrashReports.Unseen(reports.Directory);
     }
-    if (screen is DarkTerritory.Game.Screen.Fortress or DarkTerritory.Game.Screen.Upgrades or DarkTerritory.Game.Screen.Stores or DarkTerritory.Game.Screen.DeleteCrew)
+    if (screen is DarkTerritory.Game.Screen.Fortress or DarkTerritory.Game.Screen.Upgrades or DarkTerritory.Game.Screen.Stores or DarkTerritory.Game.Screen.DeleteCrew
+        or DarkTerritory.Game.Screen.Smithy)
         menu.ShowFortress((int)Opt(args, "--slot", 1));
+    // --menu smithy (note 697): the blacksmith's catalogue over the yard, the slot's campaign (--joined: a joiner's, who asks the host).
+    if (screen == DarkTerritory.Game.Screen.Smithy && menu.Open is { } stock)
+    {
+        // --dev-unlock (note 747): a developer build's catalogue with its unlock row, turned on.
+        if (args.Contains("--dev-unlock"))
+        {
+            var unlock = new DarkTerritory.Dev.Smithy.DevUnlock { On = true };
+            menu.SmithyMode = () =>
+            {
+                menu.SmithyFree = unlock.On;
+                return unlock.Row();
+            };
+        }
+        menu.OpenSmithy(new(Yard: true), new DarkTerritory.Game.SmithyShop("Archie MacNeil", stock, !args.Contains("--joined"), "the host"));
+    }
     // --menu night|leave (note 292): the in-night menu over a night hosted on the network for --others n (3), or with
     // --joined, someone else's. --listed: a listed run's host, with its MOOD and PASSWORD rows (note 535); --locked behind a
     // password, its mood --mood's; --typing: a new password half typed.
@@ -3798,6 +3875,8 @@ static object HudShot(string content, string[] args)
     {
         Route = session.Route,
         Run = session.World.Run,
+        Band = session.World.BandTuning,
+        Words = DataFile.Load<DarkTerritory.Game.DressWords>(Path.Combine(content, DarkTerritory.Game.DressWords.File)),
         Holdouts = session.World.Holdouts,
         Town = session.World.Town,
         Arrival = session.World.Arrival,

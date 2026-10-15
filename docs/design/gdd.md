@@ -251,6 +251,15 @@ The council's laws are posted by the clerk's door (in a walled town, the council
 
 Each piece can be looked at, and a few of the town's hands are at work there all night, talking about the work.
 
+**The rail yard behind the platform** (queue #239, note 502; "rail yards and warehouses" above). Behind a walled town's home platform, where the first street's near row would have stood, is the town's yard. Its siding runs down it, its points lifted the winter the town shut its gate, a buffer stop at each end. What was standing in it then is still there: a sealed van, a van wired shut and lettered DO NOT OPEN UNTIL CALLED FOR, a flat wagon with a dory on it. Along the siding stand:
+- the goods sheds, their docks at the stock's side: the old one from before the wall, and the one the town still packs for the train;
+- freight stacked and tagged for towns down the line that stopped answering years ago;
+- the yard office, its clerk's lamp lit all night over a timetable with every train ticked as arrived;
+- the weighbridge, whose ledger has a third column with no heading;
+- a handcart, and old sleepers stacked to dry.
+
+The town's lamp posts light the siding. Two porters work the yard all night, and everything can be looked at.
+
 **People.** Text only, no voices, as many as the town is big:
 - the gatekeeper says the town's law first;
 - the keeper of the custom's building and the folk round the centrepiece talk about the custom;
@@ -394,7 +403,7 @@ FORTRESS → WILDERNESS → FACILITY → WILDERNESS → TERMINUS
 ```
 
 ### Departure
-Inside the walls: purchase equipment, repair or upgrade the train, choose a contract, add or remove railcars, stock coal, powder and shot, lamps, repair supplies and tools. A contract is just a route *(the director, the inbox, 12 Oct: "Just a route"; note 637)*: the route and its tier, and about what a car-load pays there. The train leaves empty, and what its cars carry home is whatever its stops load, each car paid by its freight.
+Inside the walls: purchase equipment, repair or upgrade the train (the train's upgrades from the town's blacksmith, at the forge beside the engine in the yard: Use held on them opens their catalogue, and what's bought is fitted before the gate; note 697), choose a contract, add or remove railcars, stock coal, powder and shot, lamps, repair supplies and tools. A contract is just a route *(the director, the inbox, 12 Oct: "Just a route"; note 637)*: the route and its tier, and about what a car-load pays there. The train leaves empty, and what its cars carry home is whatever its stops load, each car paid by its freight.
 
 Then the gates open. ~~The yard dispatcher reads the crew out over the radio by name, as a manifest, with the same tone used for the coal.~~ *Director's decision of 2026-10-06: no reading at the gates; the night starts as the train moves off.*
 
@@ -465,6 +474,8 @@ That familiarity matters because the train gets more complex over time. **Progre
 Successful deliveries earn money. Money buys capability. Capability allows more freight. More freight means more railcars — and more weight, slower acceleration, longer braking, more vulnerable cargo, more distance between players, more blind spots, more repair problems, harder facility loading, greater exposure.
 
 **Difficulty is produced by success rather than selected from a menu.**
+
+**The fortress's catalogue** *(the director, 13 Oct 2026: "Some upgrades need to be simply for fun, some purchases need to be silly, some purchases need to have comedic whimsy, and some purchases need to be legitimate tools that will push runs further"; note 678, docs/design/upgrades.md)*. The shop shelves upgrades by what they're for. **Tools** push a run further, each stocked from the tier whose trouble it answers (a town on local work doesn't sell gun rammers) and taking a share of that trouble, never all of it. **Whimsy** works and is funny: the honk, a clown's bulb horn where the whistle was, quieter to the Choir. **Fun** is the train as home: paint, a nameplate, lanterns in the yard. **Silly** is bought because it's silly: a gold-plated whistle that costs more than a car, and a framed commendation the yard clerk reads into every tally, flat, forever. The flagship whimsy is **the BBQ deck** *(the director, 13 Oct: "its the BBQ Dads at the end of the world"; note 698)*: a railed deck on an extended cowcatcher out front, walked to along the running boards, with two Muskoka chairs to sit in, a cooler of beers (one takes the edge off the cold) and a BBQ on a stand that's lit, cooks a sausage that heals, warms whoever's round it, and brings the Cinder Hounds like a hot boiler. Everything's priced off the next car, so it all competes with growing the train; and it all goes down with the train at dawn (note 632).
 
 **One wallet.** The whole crew shares a single wallet for every purchase and upgrade. Nobody holds their own money. More crew means more hands and more loot, faster, which is why getting people back into a run matters (Appendix D).
 
@@ -811,6 +822,7 @@ A child calling for help. Half the time it's a real survivor, the most valuable 
 > **RULE: check the eyes from five metres.**
 Black eyes and blackened hands mean a Soot Child. Get within five metres and it pins you and drinks. Your cries for help get quieter.
 *(The director, 13 Oct 2026, from the creature gym, App. F.5.)* A real survivor, picked up, is carried in both arms in front of you, plainly a child being carried, for you and the crew to see: it should feel like a rescue. A Soot Child gives one clear tell in the last second before it pins you, a last chance to read it and get away.
+*(The director, 15 Oct 2026, after "I also haven't seen like a rescue child ever"; note 770.)* **Alone, you hear it too.** The call used to come only to a crew of two or more, so a solo night never had a child in it. Now it comes to anyone: a real child is yours to carry home, and a Soot Child is a struggle on your own (App. C.1: one try a grab, a coin flip).
 
 **THE MOURNERS** · *wherever a crewmate fell off the train* *(the director's brief, 2026-10-08)*
 A huddle of grey, stooping things with long hooked fingers, picking their way toward your dead.
@@ -2240,7 +2252,7 @@ At least one pair per run on Frontier and above. Two on Deep Territory.
 | **Ribbits** | Yards and villages | Any tier · pack capped at crew size | Weight up per player on the ground |
 | **The Gaunt** | Asleep in villages and yards | Frontier+ (first pass) · once per run | Weight up on long facility stops |
 | **Followers** | Facility grounds; latches onto a disembarked player | Requires an excursion · any tier | Weight up per additional player on the ground |
-| **Soot Children** | Near facilities and dead settlements | Crew ≥2 | True 50/50 with a real child survivor; a host player's first-ever call is always a real child |
+| **Soot Children** | Near facilities and dead settlements | Any crew, alone too *(the director, 15 Oct 2026; note 770)* | True 50/50 with a real child survivor; a host player's first-ever call is always a real child |
 | **The Moose** | Grazing beside a stop, 30–60 m out; beside the line on the run (2–5 per 10 km by tier, the line's own, costing the director nothing) | **Every tier** · one about at a time · never within the track's clearance | ×1 Local, ×1.5 Frontier, ×2 Dead Lines, ×2.5 Deep Territory; ×2 bog, ×1.5 barrens and tar ponds, less in towns and coal country; up per player on the ground |
 | **The Mourners** | Beside a crewmate's body off the train, 15 s after the death | **Every tier** (G1's call) · only after a death · one group a body · never in a fort or a car of the train · not the director's (no cost, no cap) | Their number by tier: 3 Local, 4 Frontier, 5 Dead Lines, 6 Deep Territory |
 | **Tower Jaw** | At a facility's coaling tower (or crane gantry), at work as the train comes within 800 m or stands there | **Every tier** (G1's call) · never a bridge · one at a stop · not at a structure already down | ×1 Local, ×1.5 Frontier, ×2 Dead Lines, ×2 Deep Territory |
@@ -2589,7 +2601,7 @@ Shown on the run-end screen. It lists:
 - **what the dead voted for**
 - **bookmarks**, manual and automatic
 
-**Cause-of-death lines** are written in the settlement clerk's voice (§9): flat, procedural, and specific. Each one names the failure, the contributing action and who made it, and sits next to the itemised fee and refund for that death.
+**Cause-of-death lines** are written in the settlement clerk's voice (§9): flat, procedural, and specific. Each one names the failure, the contributing action and who made it, and sits next to the itemised fee and refund for that death. Every death is named for what did it, on the death screen and in the report: no creature borrows another's line *(the director, 13 Oct 2026, App. F.5: "householder grabbed me and it said seized by the choir"; ARCHITECTURE §8 note 682)*.
 
 > *Struck by own consist at Mile 4 Halt. Throttle: Dave, 38 km/h. Fee 350. Body recovered. Refund 263.*
 > *Taken by the Choir on the roof of car three. Loudest on the line: Priya. Fee 350. Body not recovered.*
@@ -2949,7 +2961,7 @@ genre ... It's extremely important that friends exceeds our target meaningfully.
 - The Gannet doesn't dive consistently, or come round again for another attack. *In progress (queue #412, note 680): at a standing train it left after one pass; in the gym it stays (§34.1).*
 - The Waker is the right idea, but it should be a huge lumbering beast, at least three times the size of the current model, a titan on two legs. The train should struggle to outrun it because of its enormous stride, not because it's fast. *Open; design change → §8.*
 - The Lodger made no sound, and its tell was a little too short. *Open.*
-- The Householder grabbed the director, and the death said "seized by the Choir". *Open.*
+- The Householder grabbed the director, and the death said "seized by the Choir". *In progress (queue #414, ARCHITECTURE §8 note 682): it borrowed the Choir's cause, as the Lodger borrowed the hounds' and the Hanger the Passenger's; each now has its own (D.12).*
 - The abandoned villages' houses don't seem to have doors, though there's an open and shut prompt and a collider. A house's doors and windows need to shut and be escapable, so the house can show what it's about to do. *Open; design change → the Hollow House (§21).* (The director named the Householder; the doors slamming shut one after another are the Hollow House's tell.)
 - The house that should come down didn't: the model doesn't collapse. *Open.* (The Hollow House.)
 - Pulled up by a Hanger without seeing one, and with no tell. *In progress (queue #415, ARCHITECTURE §8 note 683): the strands drawn to read in a dim house, and quivering while anyone's in its house (§21); its sounds (hanger.md §4) are the audio chat's.*

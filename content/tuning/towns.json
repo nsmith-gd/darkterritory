@@ -61,7 +61,16 @@
     // Nothing ruled straight (note 490): "turnChance" of the shut houses on the streets stand "turn" degrees off true one way
     // or the other (their yards keep to their lots); the row across the second street from the green turns to it, up to
     // "crescent" degrees at its ends, a crescent round it. Each turned no further than its lot has room for.
-    "turn": [1, 4], "turnChance": 0.75, "crescent": 16 },
+    "turn": [1, 4], "turnChance": 0.75, "crescent": 16,
+    // The town's rail yard (queue #239, note 502; GDD §3 "rail yards and warehouses"): behind the home platform, between it
+    // and the first street, from "yardBefore" m before the square's rear end to its gate end, where the first street's near
+    // row would have stood (no lane crosses it, and that street runs straight beside it). Its siding "yardSiding" m out from
+    // the line, its points long lifted: a buffer stop "yardMargin" m in from each end; its pieces (world/towns.json "yard",
+    // in order from the gate end) fronting the siding, "yardMargin" m in from their street, "yardGap" m apart; "yardStock"
+    // of world/towns.json's "stock" left standing in the siding, "yardLamps" m apart down it; "yardHands" of the town's
+    // porters at work there at night. A town of fewer than "yardPeople" has none: its first street's houses are all it has
+    // on that side.
+    "yardPeople": 400, "yardBefore": 90, "yardSiding": 14, "yardMargin": 1.5, "yardGap": 4, "yardStock": [2, 4], "yardLamps": 28, "yardHands": 2 },
 
   // The square (GDD §3.1): where the walls step back on the side away from the platform (side -1, left of the way out)
   // for the town's heart, beside the engine as the night starts (run.json departShortOfGateM). fromGate: where it runs
@@ -91,6 +100,12 @@
   // run if they take it"; never said in the Wiki): hold Use within "reach" m of her for "holdSeconds", a glass a crewmate a
   // night, and "health" on top of what they have for the night that's about to set out (she's only ever in the departure town).
   "wine": { "reach": 2.6, "holdSeconds": 0.8, "health": 25 },
+  // The blacksmith, who does the trains (note 697; the director, 13 Oct: "Upgrades need to be purchasable in the fortress
+  // towns from a vendor who is clearly marked as the vendor blacksmith of the town who does train upgrades"). The forge
+  // "fromGate" m along the line from the gate (into the yard: beside the cab as the engine stands 8 m short of the gate,
+  // run.json departShortOfGateM), "out" m off the line on the town's side; the smith "stand" m in front of it. Use held on
+  // them "holdSeconds" opens the catalogue (campaign.json upgrades).
+  "smithy": { "fromGate": -18, "out": 8.5, "stand": 2.2, "holdSeconds": 0.6 },
   // Quirks a town has on top of its culture, and its board: notices pinned up, and notes left lying about the square.
   // Of the board's notices, after the custom's own order, "boardOwn" are the town's own, written for it (note 669).
   "quirks": [1, 2],

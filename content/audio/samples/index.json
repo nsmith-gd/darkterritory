@@ -1,4 +1,186 @@
 {
+ "band/accordion": {
+  "cue": "band.accordion",
+  "surface": null,
+  "picked": "intake",
+  "candidates": [
+   {
+    "label": "The band's accordion: A chromatic harmonica (Hohner Super 64), doubled a few cents sharp for an accordion's musette (tools/audio/band_intake.py)",
+    "key": "intake",
+    "sources": [
+     "vcsl:Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Normal/Hohner-Super64_Normal _C3.wav",
+     "vcsl:Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Normal/Hohner-Super64_Normal _C4.wav",
+     "vcsl:Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Normal/Hohner-Super64_Normal _C5.wav",
+     "vcsl:Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Normal/Hohner-Super64_Normal _E3.wav",
+     "vcsl:Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Normal/Hohner-Super64_Normal _E4.wav",
+     "vcsl:Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Normal/Hohner-Super64_Normal _G3.wav",
+     "vcsl:Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Normal/Hohner-Super64_Normal _G4.wav"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 7,
+  "sha": "0d89947ede0d96cb"
+ },
+ "band/banjo": {
+  "cue": "band.banjo",
+  "surface": null,
+  "picked": "intake",
+  "candidates": [
+   {
+    "label": "The band's banjo: A 6-string banjo, picked (tools/audio/band_intake.py)",
+    "key": "intake",
+    "sources": [
+     "ganjo:Common/Banjo_Common - A#3.wav",
+     "ganjo:Common/Banjo_Common - A4.wav",
+     "ganjo:Common/Banjo_Common - B5.wav",
+     "ganjo:Common/Banjo_Common - C5.wav",
+     "ganjo:Common/Banjo_Common - D#5.wav",
+     "ganjo:Common/Banjo_Common - E4.wav",
+     "ganjo:Common/Banjo_Common - G5.wav"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 7,
+  "sha": "678d29f69f1d701f"
+ },
+ "band/bodhran": {
+  "cue": "band.bodhran",
+  "surface": null,
+  "picked": "intake",
+  "candidates": [
+   {
+    "label": "The band's bodhran: Frame drums: a large one struck for the down stroke, a small damped one for the tipper (tools/audio/band_intake.py)",
+    "key": "intake",
+    "sources": [
+     "vcsl:Membranophones/Struck Membranophones/Frame Drum/HDrumL_HitMuted_v3_rr1_Sum.wav",
+     "vcsl:Membranophones/Struck Membranophones/Frame Drum/HDrumL_Hit_v3_rr1_Sum.wav",
+     "vcsl:Membranophones/Struck Membranophones/Frame Drum/HDrumL_Hit_v3_rr2_Sum.wav",
+     "vcsl:Membranophones/Struck Membranophones/Frame Drum/HDrumS_HitMuted_v3_rr1_Sum.wav",
+     "vcsl:Membranophones/Struck Membranophones/Frame Drum/HDrumS_Hit_v3_rr1_Sum.wav",
+     "vcsl:Membranophones/Struck Membranophones/Frame Drum/HDrumS_Hit_v3_rr2_Sum.wav"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 6,
+  "sha": "898b76552adca5f7"
+ },
+ "band/fiddle": {
+  "cue": "band.fiddle",
+  "surface": null,
+  "picked": "intake",
+  "candidates": [
+   {
+    "label": "The band's fiddle: A solo violin, bowed (arco, vibrato, forte) (tools/audio/band_intake.py)",
+    "key": "intake",
+    "sources": [
+     "vsco2ce:Strings/Solo Violin/Arco Vib/LLVln_ArcoVib_A4_f.wav",
+     "vsco2ce:Strings/Solo Violin/Arco Vib/LLVln_ArcoVib_C4_f.wav",
+     "vsco2ce:Strings/Solo Violin/Arco Vib/LLVln_ArcoVib_C5_f.wav",
+     "vsco2ce:Strings/Solo Violin/Arco Vib/LLVln_ArcoVib_C6_f.wav",
+     "vsco2ce:Strings/Solo Violin/Arco Vib/LLVln_ArcoVib_E4_f.wav",
+     "vsco2ce:Strings/Solo Violin/Arco Vib/LLVln_ArcoVib_E5_f.wav",
+     "vsco2ce:Strings/Solo Violin/Arco Vib/LLVln_ArcoVib_E6_f.wav",
+     "vsco2ce:Strings/Solo Violin/Arco Vib/LLVln_ArcoVib_G3_f.wav",
+     "vsco2ce:Strings/Solo Violin/Arco Vib/LLVln_ArcoVib_G5_f.wav"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 9,
+  "sha": "3f60e952b3439df9"
+ },
+ "band/guitar": {
+  "cue": "band.guitar",
+  "surface": null,
+  "picked": "intake",
+  "candidates": [
+   {
+    "label": "The band's guitar: An archtop guitar, acoustic, plucked (tools/audio/band_intake.py)",
+    "key": "intake",
+    "sources": [
+     "shinyguitar:Samples/acoustic/a2_vl3_rr1_1.wav",
+     "shinyguitar:Samples/acoustic/a3_vl3_rr1_1.wav",
+     "shinyguitar:Samples/acoustic/a4_vl3_rr1_1.wav",
+     "shinyguitar:Samples/acoustic/c3_vl3_rr1_1.wav",
+     "shinyguitar:Samples/acoustic/c4_vl3_rr1_1.wav",
+     "shinyguitar:Samples/acoustic/e2_vl3_rr1_1.wav",
+     "shinyguitar:Samples/acoustic/eb4_vl3_rr1_1.wav",
+     "shinyguitar:Samples/acoustic/eb5_vl3_rr1_1.wav",
+     "shinyguitar:Samples/acoustic/gb3_vl3_rr1_1.wav"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 9,
+  "sha": "09fce0e7f3dc5362"
+ },
+ "band/spoons": {
+  "cue": "band.spoons",
+  "surface": null,
+  "picked": "intake",
+  "candidates": [
+   {
+    "label": "The band's spoons: Spoons, played: single clacks cut from one take (tools/audio/band_intake.py)",
+    "key": "intake",
+    "sources": [
+     "vsco2ce:Miscellania Raw/Misc 2/spoons_fun.wav"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 6,
+  "sha": "8730057601373e74"
+ },
+ "band/uglyStick": {
+  "cue": "band.uglyStick",
+  "surface": null,
+  "picked": "intake",
+  "candidates": [
+   {
+    "label": "The band's uglyStick: A boot stomped on a wooden floor, and a tambourine's jingles for the bottle caps (tools/audio/band_intake.py)",
+    "key": "intake",
+    "sources": [
+     "bodypercussion:Samples/body/stomp_l_vl2_rr3.wav",
+     "bodypercussion:Samples/body/stomp_r_vl2_rr3.wav",
+     "bodypercussion:Samples/body/stomp_r_vl2_rr5.wav",
+     "vsco2ce:Miscellania Raw/Misc 2/tamb3_1.wav",
+     "vsco2ce:Miscellania Raw/Misc 2/tamb3_3.wav",
+     "vsco2ce:Miscellania Raw/Misc 2/tamb3_7.wav"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 6,
+  "sha": "0dfccd6fecdb2d19"
+ },
+ "band/whistle": {
+  "cue": "band.whistle",
+  "surface": null,
+  "picked": "intake",
+  "candidates": [
+   {
+    "label": "The band's whistle: A baroque soprano recorder, sustained (stands in for the D whistle) (tools/audio/band_intake.py)",
+    "key": "intake",
+    "sources": [
+     "vcsl:Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_A#4_rr1_Main.wav",
+     "vcsl:Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_A#5_rr1_Main.wav",
+     "vcsl:Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_C5_rr1_Main.wav",
+     "vcsl:Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_D4_rr1_Main.wav",
+     "vcsl:Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_D5_rr1_Main.wav",
+     "vcsl:Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_E4_rr1_Main.wav",
+     "vcsl:Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_E5_rr1_Main.wav",
+     "vcsl:Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_F#4_rr1_Main.wav",
+     "vcsl:Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_F#5_rr1_Main.wav"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 9,
+  "sha": "a4961da5ca60f20c"
+ },
  "bed-boiler-roar/roar-high": {
   "cue": "bed-boiler-roar.roar-high",
   "surface": null,
@@ -2822,6 +3004,69 @@
   "takes": 3,
   "sha": "1c09e3bd5a75fcdc"
  },
+ "crew-emotes/bow": {
+  "cue": "crew-emotes.bow",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A low bow: the coat creasing as they bend, a boot drawn back over the boards, the coat falling straight after",
+    "key": "coat",
+    "sources": [
+     "kenney_rpg-audio:footstep00",
+     "kenney_rpg-audio:footstep01",
+     "kenney_rpg-audio:footstep02",
+     "kenney_rpg-audio:footstep03",
+     "kenney_rpg-audio:footstep04",
+     "kenney_rpg-audio:footstep05",
+     "kenney_rpg-audio:footstep06",
+     "kenney_rpg-audio:footstep07",
+     "kenney_rpg-audio:footstep08",
+     "kenney_rpg-audio:footstep09",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4",
+     "kenney_rpg-audio:handleSmallLeather",
+     "kenney_rpg-audio:handleSmallLeather2",
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "22f33146a7807b92"
+ },
+ "crew-emotes/conga": {
+  "cue": "crew-emotes.conga",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The conga line: boots in step on the boards, a kick every fourth beat, the leader humming 'da-da-da-da-da-DA'",
+    "key": "boots",
+    "sources": [
+     "kenney_rpg-audio:footstep00",
+     "kenney_rpg-audio:footstep01",
+     "kenney_rpg-audio:footstep02",
+     "kenney_rpg-audio:footstep03",
+     "kenney_rpg-audio:footstep04",
+     "kenney_rpg-audio:footstep05",
+     "kenney_rpg-audio:footstep06",
+     "kenney_rpg-audio:footstep07",
+     "kenney_rpg-audio:footstep08",
+     "kenney_rpg-audio:footstep09",
+     "kenney_rpg-audio:cloth3",
+     "sfx_100_v2:misc_24"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "95939b5230318070"
+ },
  "crew-emotes/dance": {
   "cue": "crew-emotes.dance",
   "surface": null,
@@ -2969,6 +3214,40 @@
   ],
   "takes": 3,
   "sha": "3b441fe6674b9646"
+ },
+ "crew-emotes/salute": {
+  "cue": "crew-emotes.salute",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A salute: boot heels brought together with a clack, the sleeve snapped up to the brim",
+    "key": "heels",
+    "sources": [
+     "kenney_rpg-audio:footstep00",
+     "kenney_rpg-audio:footstep01",
+     "kenney_rpg-audio:footstep02",
+     "kenney_rpg-audio:footstep03",
+     "kenney_rpg-audio:footstep04",
+     "kenney_rpg-audio:footstep05",
+     "kenney_rpg-audio:footstep06",
+     "kenney_rpg-audio:footstep07",
+     "kenney_rpg-audio:footstep08",
+     "kenney_rpg-audio:footstep09",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4",
+     "kenney_rpg-audio:bookPlace2"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "9500eef18d0b5353"
  },
  "crew-emotes/sit": {
   "cue": "crew-emotes.sit",
@@ -18650,6 +18929,522 @@
   ],
   "takes": 3,
   "sha": "25add95cbf2900b0"
+ },
+ "up-bbq/can": {
+  "cue": "up-bbq.can",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A can cracked open: the tab's click and crack, its fizz, a swig",
+    "key": "crack",
+    "sources": [
+     "kenney_rpg-audio:metalClick",
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004",
+     "sfx_100_v2:air_02",
+     "sfx_100_v2:air_03",
+     "sfx_100_v2:loop_machine_02",
+     "sfx_100_v2:misc_05",
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_02",
+     "sfx_100_v2:footstep_wet_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "d601dca367943607"
+ },
+ "up-bbq/chair": {
+  "cue": "up-bbq.chair",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A Muskoka chair creaking as someone sits down in it, gets up out of it, or leans back",
+    "key": "creak",
+    "sources": [
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "kenney_impact-sounds:impactSoft_medium_000",
+     "kenney_impact-sounds:impactSoft_medium_001",
+     "kenney_impact-sounds:impactSoft_medium_002",
+     "kenney_impact-sounds:impactSoft_medium_003",
+     "kenney_impact-sounds:impactSoft_medium_004",
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "0ee43bf1277c6425"
+ },
+ "up-bbq/cheers": {
+  "cue": "up-bbq.cheers",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Cans clinked: cheers. Two full cans of beer tapped together, dull aluminium, never glass",
+    "key": "clink",
+    "sources": [
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004",
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:loop_machine_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "dadbca60e05fa25e"
+ },
+ "up-bbq/cooler": {
+  "cue": "up-bbq.cooler",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The cooler opened: its catch, the lid unsticking and lifted, ice shifting and clinking",
+    "key": "lid",
+    "sources": [
+     "kenney_rpg-audio:metalLatch",
+     "kenney_rpg-audio:bookOpen",
+     "kenney_rpg-audio:bookClose",
+     "kenney_rpg-audio:creak3",
+     "sfx_100_v2:glass_01",
+     "sfx_100_v2:glass_04",
+     "sfx_100_v2:glass_06",
+     "kenney_impact-sounds:impactGlass_light_000",
+     "kenney_impact-sounds:impactGlass_light_001",
+     "kenney_impact-sounds:impactGlass_light_002",
+     "kenney_impact-sounds:impactGlass_light_003",
+     "kenney_impact-sounds:impactGlass_light_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:loop_water_02",
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "53d7f1541a729196"
+ },
+ "up-bbq/grill": {
+  "cue": "up-bbq.grill",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The grill burning: sausages sizzling, charcoal crackling and tinkling, fat spitting",
+    "key": "sausages",
+    "sources": [
+     "sfx_100_v2:loop_water_03",
+     "sfx_100_v2:loop_water_01",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:glass_01",
+     "sfx_100_v2:glass_04",
+     "sfx_100_v2:glass_06",
+     "kenney_impact-sounds:impactGlass_light_000",
+     "kenney_impact-sounds:impactGlass_light_001",
+     "kenney_impact-sounds:impactGlass_light_002",
+     "kenney_impact-sounds:impactGlass_light_003",
+     "kenney_impact-sounds:impactGlass_light_004",
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_02",
+     "sfx_100_v2:footstep_wet_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "ad60feff8886aa21"
+ },
+ "up-bbq/light": {
+  "cue": "up-bbq.light",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The grill lit: a match struck and tossed in, the lighter fluid catching with a whump",
+    "key": "whump",
+    "sources": [
+     "kenney_rpg-audio:drawKnife1",
+     "kenney_rpg-audio:drawKnife2",
+     "kenney_rpg-audio:metalLatch",
+     "sfx_100_v2:loop_water_03",
+     "sfx_100_v2:misc_32",
+     "sfx_100_v2:loop_water_01",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "kenney_impact-sounds:impactPlate_light_000",
+     "kenney_impact-sounds:impactPlate_light_001",
+     "kenney_impact-sounds:impactPlate_light_002",
+     "kenney_impact-sounds:impactPlate_light_003",
+     "kenney_impact-sounds:impactPlate_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "5be9b9778f81b197"
+ },
+ "up-bbq/turn": {
+  "cue": "up-bbq.turn",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A sausage turned: the tongs' clack on the grate, the sausage rolled over, a spit of fat",
+    "key": "tongs",
+    "sources": [
+     "sfx_100_v2:metal_02",
+     "sfx_100_v2:metal_06",
+     "kenney_impact-sounds:impactPlate_light_000",
+     "kenney_impact-sounds:impactPlate_light_001",
+     "kenney_impact-sounds:impactPlate_light_002",
+     "kenney_impact-sounds:impactPlate_light_003",
+     "kenney_impact-sounds:impactPlate_light_004",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_02",
+     "sfx_100_v2:footstep_wet_03",
+     "kenney_rpg-audio:drawKnife1",
+     "kenney_rpg-audio:drawKnife2",
+     "sfx_100_v2:loop_water_03",
+     "sfx_100_v2:loop_water_01",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "752e1847cb0214b2"
+ },
+ "up-forge/anvil": {
+  "cue": "up-forge.anvil",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A hammer on the anvil: a hard steel tak, the anvil's long bright ring, the hammer's bounce",
+    "key": "ring",
+    "sources": [
+     "sfx_100_v2:misc_19",
+     "kenney_impact-sounds:impactBell_heavy_000",
+     "kenney_impact-sounds:impactBell_heavy_001",
+     "kenney_impact-sounds:impactBell_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "a4bc9af5f34c5bce"
+ },
+ "up-forge/bellows": {
+  "cue": "up-forge.bellows",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The bellows worked: the leather's long wheeze, the board's creak, the fire roaring up",
+    "key": "leather",
+    "sources": [
+     "sfx_100_v2:misc_05",
+     "sfx_100_v2:loop_water_01",
+     "sfx_100_v2:misc_32",
+     "kenney_rpg-audio:dropLeather",
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "kenney_rpg-audio:handleSmallLeather",
+     "kenney_rpg-audio:handleSmallLeather2",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "c37667123b1ccf81"
+ },
+ "up-forge/hearth": {
+  "cue": "up-forge.hearth",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The blacksmith's hearth from across the yard: its low roar breathing, coals ticking and settling",
+    "key": "coals",
+    "sources": [
+     "sfx_100_v2:loop_water_01",
+     "sfx_100_v2:loop_water_03",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:glass_01",
+     "sfx_100_v2:glass_04",
+     "sfx_100_v2:glass_06",
+     "kenney_impact-sounds:impactGlass_light_000",
+     "kenney_impact-sounds:impactGlass_light_001",
+     "kenney_impact-sounds:impactGlass_light_002",
+     "kenney_impact-sounds:impactGlass_light_003",
+     "kenney_impact-sounds:impactGlass_light_004",
+     "kenney_rpg-audio:metalClick",
+     "sfx_100_v2:misc_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "4e3c107d4e6fecc5"
+ },
+ "up-forge/quench": {
+  "cue": "up-forge.quench",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Hot iron in the quench barrel: a sharp hiss of steam and a boil of water",
+    "key": "hiss",
+    "sources": [
+     "sfx_100_v2:loop_water_03",
+     "sfx_100_v2:misc_22",
+     "sfx_100_v2:loop_machine_02",
+     "sfx_100_v2:loop_water_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "ba1ad4f13ca1c6d9"
+ },
+ "up-horns/gold": {
+  "cue": "up-horns.gold",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The gold-plated whistle held, its bells blown by real steam: the same bright, brassy chord, an exact 3 s cycle",
+    "key": "steam",
+    "sources": [
+     "sfx_100_v2:loop_water_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "85644b8f262d83c9"
+ },
+ "up-horns/gold-start": {
+  "cue": "up-horns.gold-start",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The gold-plated whistle sounding, its bells blown by real steam: the chord brighter, brassier, a quarter louder",
+    "key": "steam",
+    "sources": [
+     "sfx_100_v2:loop_water_03",
+     "sfx_100_v2:misc_22"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "eee566607d75daaa"
+ },
+ "up-horns/gold-stop": {
+  "cue": "up-horns.gold-stop",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The gold-plated whistle let go: the bright chord sagging flat, thinning, the real steam hissing off",
+    "key": "steam",
+    "sources": [
+     "sfx_100_v2:loop_water_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "4dc2ec9b9c66db62"
+ },
+ "up-horns/honk": {
+  "cue": "up-horns.honk",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The bulb horn where the whistle was: a clown's honk, buzzy and nasal, scooping up and sagging, from a real reed",
+    "key": "horn",
+    "sources": [
+     "sfx_100_v2:misc_12",
+     "kenney_rpg-audio:handleSmallLeather",
+     "kenney_rpg-audio:handleSmallLeather2"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "56480f4b5f18ca13"
+ },
+ "up-pets/bark": {
+  "cue": "up-pets.bark",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The guard van's dog barking an alarm: a medium dog's sharp bark, close, in the van, from a real throat",
+    "key": "throat",
+    "sources": [
+     "sfx_100_v2:misc_24",
+     "sfx_100_v2:misc_05"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "0d4534975fc75873"
+ },
+ "up-pets/hiss": {
+  "cue": "up-pets.hiss",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The yard cat hissing at something aboard: a sharp spit, then breath forced out through bared teeth, its back up",
+    "key": "gasp",
+    "sources": [
+     "sfx_100_v2:misc_05",
+     "sfx_100_v2:air_02",
+     "sfx_100_v2:misc_24"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "1e9c5c8b2d49eef4"
+ },
+ "up-pets/meow": {
+  "cue": "up-pets.meow",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The yard cat's meow: an ordinary cat's 'mi-a-ow', a little hoarse, from a real throat shrunk to a cat's",
+    "key": "throat",
+    "sources": [
+     "sfx_100_v2:misc_24",
+     "sfx_100_v2:misc_05"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "8cef9fa26a43a7a8"
+ },
+ "up-whimsy/calliope": {
+  "cue": "up-whimsy.calliope",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The steam calliope's note (C5), blown by real steam: a real valve's chiff, a wavering pipe",
+    "key": "steam",
+    "sources": [
+     "sfx_100_v2:loop_water_03",
+     "sfx_100_v2:air_03",
+     "sfx_100_v2:misc_22"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "495ce525836bfaca"
+ },
+ "up-whimsy/song": {
+  "cue": "up-whimsy.song",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The canary singing in its cage: tours of trills, rolls, warbles, whistles and chips",
+    "key": "tours",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 6,
+  "sha": "cb14cb1d5d93a81f"
+ },
+ "up-whimsy/wind": {
+  "cue": "up-whimsy.wind",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The gramophone wound: the crank's real ratchet clicking evenly, the spring tightening",
+    "key": "ratchet",
+    "sources": [
+     "sfx_100_v2:misc_20",
+     "sfx_100_v2:lock_open_01",
+     "kenney_rpg-audio:metalClick",
+     "sfx_100_v2:metal_04",
+     "sfx_100_v2:misc_28",
+     "kenney_rpg-audio:creak1"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "42836cf8272d67c1"
  },
  "voice-callout/bang": {
   "cue": "voice-callout.bang",

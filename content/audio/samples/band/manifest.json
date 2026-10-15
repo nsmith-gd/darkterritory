@@ -1,0 +1,306 @@
+// The band's recorded instruments (tools/audio/band_intake.py; queue #443, note 711). Melodic instruments:
+// each note's file and its pitch (measured, and resampled onto that semitone); the game plays a note by
+// resampling the nearest. Percussion: each stroke's takes. gainDb: a per-instrument trim so the eight sit
+// at a similar level (the RMS of each file's first 300 ms, brought to the eight's median; held to -12..+6 dB).
+// "source": the libraries each is made from ("sources"). All CC0 1.0; provenance.json has every file's origin.
+{
+ "instruments": {
+  "fiddle": {
+   "notes": [
+    {
+     "file": "fiddle/G3.opus",
+     "midi": 55
+    },
+    {
+     "file": "fiddle/C4.opus",
+     "midi": 60
+    },
+    {
+     "file": "fiddle/E4.opus",
+     "midi": 64
+    },
+    {
+     "file": "fiddle/A4.opus",
+     "midi": 69
+    },
+    {
+     "file": "fiddle/C5.opus",
+     "midi": 72
+    },
+    {
+     "file": "fiddle/E5.opus",
+     "midi": 76
+    },
+    {
+     "file": "fiddle/G5.opus",
+     "midi": 79
+    },
+    {
+     "file": "fiddle/C6.opus",
+     "midi": 84
+    },
+    {
+     "file": "fiddle/E6.opus",
+     "midi": 88
+    }
+   ],
+   "gainDb": -3.0,
+   "source": [
+    "vsco2ce"
+   ]
+  },
+  "whistle": {
+   "notes": [
+    {
+     "file": "whistle/D5.opus",
+     "midi": 74
+    },
+    {
+     "file": "whistle/E5.opus",
+     "midi": 76
+    },
+    {
+     "file": "whistle/Fs5.opus",
+     "midi": 78
+    },
+    {
+     "file": "whistle/As5.opus",
+     "midi": 82
+    },
+    {
+     "file": "whistle/C6.opus",
+     "midi": 84
+    },
+    {
+     "file": "whistle/D6.opus",
+     "midi": 86
+    },
+    {
+     "file": "whistle/E6.opus",
+     "midi": 88
+    },
+    {
+     "file": "whistle/Fs6.opus",
+     "midi": 90
+    },
+    {
+     "file": "whistle/As6.opus",
+     "midi": 94
+    }
+   ],
+   "gainDb": -8.0,
+   "source": [
+    "vcsl"
+   ]
+  },
+  "accordion": {
+   "notes": [
+    {
+     "file": "accordion/C4.opus",
+     "midi": 60
+    },
+    {
+     "file": "accordion/E4.opus",
+     "midi": 64
+    },
+    {
+     "file": "accordion/G4.opus",
+     "midi": 67
+    },
+    {
+     "file": "accordion/C5.opus",
+     "midi": 72
+    },
+    {
+     "file": "accordion/E5.opus",
+     "midi": 76
+    },
+    {
+     "file": "accordion/G5.opus",
+     "midi": 79
+    },
+    {
+     "file": "accordion/C6.opus",
+     "midi": 84
+    }
+   ],
+   "gainDb": 0.0,
+   "source": [
+    "vcsl"
+   ]
+  },
+  "banjo": {
+   "notes": [
+    {
+     "file": "banjo/As2.opus",
+     "midi": 46
+    },
+    {
+     "file": "banjo/E3.opus",
+     "midi": 52
+    },
+    {
+     "file": "banjo/A3.opus",
+     "midi": 57
+    },
+    {
+     "file": "banjo/C4.opus",
+     "midi": 60
+    },
+    {
+     "file": "banjo/E4.opus",
+     "midi": 64
+    },
+    {
+     "file": "banjo/G4.opus",
+     "midi": 67
+    },
+    {
+     "file": "banjo/B4.opus",
+     "midi": 71
+    }
+   ],
+   "gainDb": 0.5,
+   "source": [
+    "ganjo"
+   ]
+  },
+  "guitar": {
+   "notes": [
+    {
+     "file": "guitar/E2.opus",
+     "midi": 40
+    },
+    {
+     "file": "guitar/A2.opus",
+     "midi": 45
+    },
+    {
+     "file": "guitar/C3.opus",
+     "midi": 48
+    },
+    {
+     "file": "guitar/Fs3.opus",
+     "midi": 54
+    },
+    {
+     "file": "guitar/A3.opus",
+     "midi": 57
+    },
+    {
+     "file": "guitar/C4.opus",
+     "midi": 60
+    },
+    {
+     "file": "guitar/Ds4.opus",
+     "midi": 63
+    },
+    {
+     "file": "guitar/A4.opus",
+     "midi": 69
+    },
+    {
+     "file": "guitar/Ds5.opus",
+     "midi": 75
+    }
+   ],
+   "gainDb": -2.0,
+   "source": [
+    "shinyguitar"
+   ]
+  },
+  "bodhran": {
+   "strokes": {
+    "down": [
+     "bodhran/down1.opus",
+     "bodhran/down2.opus",
+     "bodhran/down3.opus"
+    ],
+    "tip": [
+     "bodhran/tip1.opus",
+     "bodhran/tip2.opus",
+     "bodhran/tip3.opus"
+    ]
+   },
+   "gainDb": 5.0,
+   "source": [
+    "vcsl"
+   ]
+  },
+  "spoons": {
+   "strokes": {
+    "clack": [
+     "spoons/clack1.opus",
+     "spoons/clack2.opus",
+     "spoons/clack3.opus"
+    ],
+    "light": [
+     "spoons/light1.opus",
+     "spoons/light2.opus",
+     "spoons/light3.opus"
+    ]
+   },
+   "gainDb": 6.0,
+   "source": [
+    "vsco2ce"
+   ]
+  },
+  "uglyStick": {
+   "strokes": {
+    "boot": [
+     "uglyStick/boot1.opus",
+     "uglyStick/boot2.opus",
+     "uglyStick/boot3.opus"
+    ],
+    "caps": [
+     "uglyStick/caps1.opus",
+     "uglyStick/caps2.opus",
+     "uglyStick/caps3.opus"
+    ]
+   },
+   "gainDb": 0.0,
+   "source": [
+    "bodypercussion",
+    "vsco2ce"
+   ]
+  }
+ },
+ "source": {
+  "name": "5 CC0 sample libraries on GitHub (see \"sources\"; each instrument's \"source\" names its own)",
+  "url": "https://github.com/sgossner/VCSL",
+  "licence": "CC0 1.0",
+  "commit": "bodypercussion@4ac9d8966679c648b62fa10a188179e186b97f24, ganjo@ccff5cd5cd3b513873a48994c07724d9d3c39e1c, shinyguitar@57243cca85277dbcc120ce17c6178032f93c80f3, vcsl@c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e, vsco2ce@440300901dfe9275fd84e0b7763af1f8443ae62e"
+ },
+ "sources": {
+  "bodypercussion": {
+   "name": "Body percussion, sfzinstruments",
+   "url": "https://github.com/sfzinstruments/body_percussion",
+   "licence": "CC0 1.0",
+   "commit": "4ac9d8966679c648b62fa10a188179e186b97f24"
+  },
+  "ganjo": {
+   "name": "ganjo (SX 6-string banjo), recorded by itsclipping",
+   "url": "https://github.com/sfzinstruments/ganjo",
+   "licence": "CC0 1.0",
+   "commit": "ccff5cd5cd3b513873a48994c07724d9d3c39e1c"
+  },
+  "shinyguitar": {
+   "name": "Shinyguitar (archtop guitar, microphone), by D. Smolken, Karoryfer Samples",
+   "url": "https://github.com/sfzinstruments/karoryfer.shinyguitar",
+   "licence": "CC0 1.0",
+   "commit": "57243cca85277dbcc120ce17c6178032f93c80f3"
+  },
+  "vcsl": {
+   "name": "Versilian Community Sample Library, by Versilian Studios",
+   "url": "https://github.com/sgossner/VCSL",
+   "licence": "CC0 1.0",
+   "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e"
+  },
+  "vsco2ce": {
+   "name": "VS Chamber Orchestra: Community Edition, by Versilian Studios (Sam Gossner, Simon Dalzell)",
+   "url": "https://github.com/sgossner/VSCO-2-CE",
+   "licence": "CC0 1.0",
+   "commit": "440300901dfe9275fd84e0b7763af1f8443ae62e"
+  }
+ }
+}

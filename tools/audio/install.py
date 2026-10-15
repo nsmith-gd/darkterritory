@@ -330,7 +330,19 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 "cs-mouse-moose.drag": "gravel", "cs-mouse-moose.bolt": "squeal", "cs-mouse-moose.dig": "earth",
                 "cs-mouse-moose.lost": "thud",
                 # Note 810: a Holdout's banging heard at its door, each blow's crack carrying ('walls' cuts the top at 1.6 kHz).
-                "voice-callout.bang": "door"}
+                "voice-callout.bang": "door",
+                # Note 806: U1's whimsies, pets and new emotes from the packs' real things where there's one (the steam, the
+                # crank's ratchet, a real throat for the cat and the dog, the coat, the heels, the boots), the models
+                # candidates; the canary is modelled both ways (the packs have no birds), its tours first.
+                "up-whimsy.song": "tours", "up-whimsy.calliope": "steam", "up-whimsy.wind": "ratchet",
+                "up-pets.hiss": "gasp", "up-pets.meow": "throat", "up-pets.bark": "throat",
+                "crew-emotes.bow": "coat", "crew-emotes.salute": "heels", "crew-emotes.conga": "boots",
+                # Note 775: U1's upgrades from the packs' real things where there's one (the reed, the steam, the coals, the
+                # anvil's ring, the leather, the hiss, the whump, the sizzle, the tongs, the lid, the can, the clink, the creak).
+                "up-horns.honk": "horn", "up-horns.gold-start": "steam", "up-horns.gold": "steam", "up-horns.gold-stop": "steam",
+                "up-forge.hearth": "coals", "up-forge.anvil": "ring", "up-forge.bellows": "leather", "up-forge.quench": "hiss",
+                "up-bbq.light": "whump", "up-bbq.grill": "sausages", "up-bbq.turn": "tongs", "up-bbq.cooler": "lid",
+                "up-bbq.can": "crack", "up-bbq.cheers": "clink", "up-bbq.chair": "creak"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the
@@ -442,7 +454,7 @@ SWAP_GAIN_DB = {"boiler-tick": -4, "cannon-impact": -1, "cannon-splash": -4, "do
 # Lines whose candidates are alternatives the game uses all of, one per instance (a prisoner's whole voice).
 SETS_LINES = {"voice-prisoner-sets"}
 # Folders a full install leaves alone: the clerk's word bank (clerk.py), which the checklist doesn't pick.
-KEEP_SAMPLES = {"voice-clerk"}
+KEEP_SAMPLES = {"voice-clerk", "band"}
 # Voices read by Piper's LibriTTS model (recipes/voices.py, children.py; clerk.py): not CC0, they carry its credit.
 TTS_CUES = {("voice-prisoner-sets", "call"), ("voice-prisoner-sets", "shout"), ("tell-soot-children", "call")}
 TTS_LICENCE = "CC BY 4.0: LibriTTS, Zen et al. 2019"
@@ -454,6 +466,9 @@ VOICE_LINES = {"voice-prisoner-sets", "voice-callout"}
 # ui-prompts.hold: the hold-to-interact loop hurries as the held action gets there (GameAudio.Ui.cs sets "progress", 0-1).
 LAYER_EXTRAS = {
     "ui-prompts.hold": {"rate": {"param": "progress", "points": [[0, 1], [1, 1.4]]}},
+    # The calliope's one pipe (note 806), recorded at C5, played at the tune's note an octave down: GameAudio.Calliope sets
+    # "pitch" (the rate); no jitter, a tune's notes stay in tune (the takes waver a little of their own).
+    "up-whimsy.calliope": {"rate": {"param": "pitch", "points": [[0.25, 0.25], [4, 4]]}, "pitchJitter": 0},
     # A derelict's flat wheels thump once a turn, built at 1.2 s a turn (a 0.9 m wheel at 2.4 m/s): faster or slower with
     # the car (GameAudio.BedWheels sets "speed"; note 322).
     "place-derelict.roll": {"rate": {"param": "speed", "points": [[0.6, 0.6], [2.4, 1.0], [4.0, 1.35]]}},
@@ -583,6 +598,36 @@ CUE_DEF = {
     "crew-hoist.creak": {"minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
     "crew-hoist.yelp": {"minDistance": 2, "maxDistance": 90, "rolloff": 1.0},
     "crew-hoist.land": {"minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
+    # Note 806: U1's whimsies and pets at the tier and reach #967 gave its own made sounds (GameAudio.Whimsy); the calliope's
+    # note is the whistle (a tell: the Choir hears it), so it has the whistle's tier, reach and level (-20 LUFS +5 dB there,
+    # -16 LUFS +1 dB here).
+    "up-whimsy.calliope": {"tier": 1, "minDistance": 20, "maxDistance": 1500, "rolloff": 0.45, "gainDb": 1},
+    "up-whimsy.song": {"tier": 4, "minDistance": 1, "maxDistance": 18, "rolloff": 1.0},
+    "up-whimsy.wind": {"tier": 4, "minDistance": 2, "maxDistance": 30, "rolloff": 1.0},
+    "up-pets.hiss": {"tier": 3, "minDistance": 1.5, "maxDistance": 22, "rolloff": 1.0},
+    "up-pets.meow": {"tier": 3, "minDistance": 1.5, "maxDistance": 22, "rolloff": 1.0},
+    "up-pets.bark": {"tier": 3, "minDistance": 1.5, "maxDistance": 60, "rolloff": 1.0},
+    # Note 775: the horns are the whistle (the crew's signal; the Choir hears them), at its tier. The gold-plated one at its
+    # reach, a quarter louder (its takes -13 LUFS, +1 dB here: 3 dB over the plain whistle's -20 +5); the honk a bulb horn,
+    # shorter-reaching and a little under the whistle.
+    "up-horns.honk": {"tier": 1, "minDistance": 5, "maxDistance": 400, "rolloff": 0.8, "gainDb": -2},
+    "up-horns.gold-start": {"tier": 1, "minDistance": 20, "maxDistance": 1500, "rolloff": 0.45, "gainDb": 1},
+    "up-horns.gold": {"tier": 1, "minDistance": 20, "maxDistance": 1500, "rolloff": 0.45, "gainDb": 1,
+                      # A looping tell wanders (spec A.4 rule 4); a whistle's a little, as steam does.
+                      "drift": {"semitones": 0.2, "db": 1.0, "seconds": 2.5}},
+    "up-horns.gold-stop": {"tier": 1, "minDistance": 20, "maxDistance": 1500, "rolloff": 0.45, "gainDb": 1},
+    # The forge heard from the cab beside it, the anvil's ring further; the deck's party close to.
+    "up-forge.hearth": {"minDistance": 3, "maxDistance": 60, "rolloff": 1.0},
+    "up-forge.anvil": {"minDistance": 3, "maxDistance": 120, "rolloff": 0.9},
+    "up-forge.bellows": {"minDistance": 2, "maxDistance": 40, "rolloff": 1.0},
+    "up-forge.quench": {"minDistance": 2, "maxDistance": 40, "rolloff": 1.0},
+    "up-bbq.light": {"minDistance": 2, "maxDistance": 30, "rolloff": 1.0},
+    "up-bbq.grill": {"minDistance": 1.5, "maxDistance": 25, "rolloff": 1.0},
+    "up-bbq.turn": {"minDistance": 1, "maxDistance": 15, "rolloff": 1.0},
+    "up-bbq.cooler": {"minDistance": 1, "maxDistance": 15, "rolloff": 1.0},
+    "up-bbq.can": {"minDistance": 1, "maxDistance": 12, "rolloff": 1.0},
+    "up-bbq.cheers": {"minDistance": 1, "maxDistance": 15, "rolloff": 1.0},
+    "up-bbq.chair": {"minDistance": 1, "maxDistance": 15, "rolloff": 1.0},
 }
 
 

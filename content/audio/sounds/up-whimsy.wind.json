@@ -1,0 +1,20 @@
+// The whimsies: the canary, the calliope, the gramophone: The gramophone wound in the guard van: the crank's ratchet turning the spring, a few turns. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 4,
+ "loop": false,
+ "maxInstances": 12,
+ "minDistance": 2,
+ "maxDistance": 30,
+ "rolloff": 1.0,
+ "gainDb": 6,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "up-whimsy/wind",
+   "gain": 1,
+   "pitchJitter": 0.4,
+   "gainJitter": 1.0
+  }
+ ]
+}

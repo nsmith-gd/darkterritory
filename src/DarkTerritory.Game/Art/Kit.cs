@@ -44,6 +44,11 @@ public sealed class Kit(Look? look, float seed = 0)
     public Look? Look { get; } = look;
     /// <summary>Multiplies the texture (or is the colour, untextured).</summary>
     public Vector3 Tint { get; set; } = Vector3.One;
+    /// <summary>
+    /// The train's livery over its painted iron (note 714): the plate's and the cars' outsides take it on top of their weathering
+    /// (TrainKit's Plate, Iron and a car's outside). One for the works' rust.
+    /// </summary>
+    public Vector3 Paint { get; set; } = Vector3.One;
     public float Emissive { get; set; }
     /// <summary>How much darker the bottoms of boxes are: the baked shadow and the grime that collects low.</summary>
     public float Baked { get; set; } = 0.3f;
