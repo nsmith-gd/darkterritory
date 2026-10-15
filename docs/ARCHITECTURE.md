@@ -999,4 +999,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [816. The handcar modelled: its deck, frame and post, wheels that turn by the distance run, the see-saw handle, and the chains it hangs by (C1,…](notes/816.md)
 - [817. What's solid holds you up (queue #545, B1; note 797's "not yet"; GDD App. F.1, the director: "The world is solid")](notes/817.md)
 - [820. The bot driver holds its speed without pulsing the full brake (B3, queue #532; AU1's audio audit, note 801's night)](notes/820.md)
+- [824. Ruins: the beginnings of fortress towns the Wakers stamped flat, out beside the line (queue #551, B2; the World Building board's Cultures…](notes/824.md)
 <!-- end of the notes index -->

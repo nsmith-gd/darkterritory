@@ -351,6 +351,8 @@ public sealed partial class LinesideProps
             "buryingGround" => (face + jitter * 0.3, 0.1),
             "fishShed" => (face + jitter * 0.8, 0.2),
             "ruin" => (face + jitter, 0.2),
+            // A fortress begun and stamped flat (note 824): its front wall along the line, near enough.
+            "fortRuin" => (face + jitter * 0.3, 0.3),
             "chimney" => (jitter, 0.3),
             "tank" => (jitter * 6, 0.3),
             "headframe" => (face + jitter * 0.4, 0.3),
