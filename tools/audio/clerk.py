@@ -114,9 +114,15 @@ def finds():
     return [n.lower() for n in jsonc("content", "tuning", "loot.json")["items"].values()]
 
 
+def damage():
+    """A fragile find's damage as the tally reads it (note 719; queue #513, note 783): "Find: mantel clock, smashed, 30.", each
+    word by its knocks (loot.json fragile.items)."""
+    return [w.lower() for words in (jsonc("content", "tuning", "loot.json").get("fragile") or {}).get("items", {}).values() for w in words]
+
+
 def vocabulary():
     seen, out = set(), []
-    for w in (PHRASES + CAUSE_PHRASES + PRIZE_PHRASES + UPGRADE_PHRASES + finds() + WORDS + CAUSE_WORDS + PRIZE_WORDS
+    for w in (PHRASES + CAUSE_PHRASES + PRIZE_PHRASES + UPGRADE_PHRASES + finds() + damage() + WORDS + CAUSE_WORDS + PRIZE_WORDS
               + UPGRADE_WORDS + bots() + places()):
         if w not in seen:
             seen.add(w)

@@ -39,7 +39,7 @@ public sealed partial class WorldArt
             return built;
         if (TownWay(town, s, lateralMain) is { } way)
             return way;
-        if (arrival is { Turn: { } turn } && TownWay(arrival, turn - s, -lateralMain) is { } there)
+        if (arrival is { Origin: { } origin } && TownWay(arrival, s - origin, lateralMain) is { } there)
             return there;
         // A bridge's deck (Bridge: a timber trestle where it's weak, a masonry viaduct's ballasted top where it's sound); down
         // off it, the gorge's floor.

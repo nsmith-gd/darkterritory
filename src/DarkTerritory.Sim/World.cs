@@ -997,14 +997,14 @@ public sealed partial class World
         Town = new Towns.Town(plan, content.Tuning, Train.Line, content.Looks);
         // The departure fortress is the town's: its walls stand back round the square (note 281), so they're built again.
         if (Forts is { Count: > 0 } forts)
-            Forts = [forts[0] with { Square = plan.Square, Bounds = plan.Bounds }, .. forts.Skip(1)];
+            Forts = [forts[0] with { Square = plan.Square, Bounds = plan.Bounds, Ground = Towns.TownGround.Of(plan) }, .. forts.Skip(1)];
         // The terminus is the town the next night departs from (note 600): its own site as that night's departure has it
         // (its gate as far from its yard's far end as this one's from its start, and this town's custom the one it won't
         // share), so the same plan, laid out in the line turned round from there and come into through its gate.
-        if (Towns.Town.AtTerminus(content, route, Train.Line, gate, roster, plan.Culture, arrival) is { Turn: { } turn } there && Forts is { Count: > 1 } both)
+        if (Towns.Town.AtTerminus(content, route, Train.Line, gate, roster, plan.Culture, arrival) is { Origin: { } origin } there && Forts is { Count: > 1 } both)
         {
             Arrival = there;
-            Forts = [both[0], both[1] with { Square = there.Plan.Square.Turned(turn), Bounds = there.Plan.Bounds, Turn = turn }, .. both.Skip(2)];
+            Forts = [both[0], both[1] with { Square = there.Plan.Square.From(origin), Bounds = there.Plan.Bounds, Origin = origin, Ground = there.Ground }, .. both.Skip(2)];
         }
         Train.Walls = ClearSiteWork(StopsWalls(route));
         // Note 719: built again, the jackpot houses are locked again.
@@ -1013,6 +1013,9 @@ public sealed partial class World
         Train.Walls.Add(Town.Walls);
         if (Arrival is not null)
             Train.Walls.Add(Arrival.Walls);
+        // A town type's ground laid over the land (note 692): its terraces, benches, decks and water are what's stood on.
+        Town.Lay(Train.Line);
+        Arrival?.Lay(Train.Line);
     }
 
     /// <summary>
@@ -1604,6 +1607,10 @@ public sealed partial class World
         CoalAct(ref s, ref intent, playerId);
         if (Hosting)
             ShoveAct(s, intent, playerId);
+        // A friend on the crane's hook (note 726), the host's: the hook taken hold of, or let go of, before the rescues, the hands
+        // and the levers see Use.
+        if (Hosting)
+            HoistAct(s, ref intent, playerId);
         // Bringing them home (note 723), the host's: a hand-up, a friend lifted, put down, thrown or wriggled out of, before the
         // hands and the levers see Use; and the hurt friend a healing find in the hands goes on.
         int patient = Hosting ? RescueAct(s, ref intent, playerId) : -1;

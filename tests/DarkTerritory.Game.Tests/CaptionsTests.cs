@@ -80,6 +80,20 @@ public class CaptionsTests
     [InlineData("crew-car.kettle")]
     [InlineData("crew-car.cuckoo")]
     [InlineData("crew-memory.flash")]
+    // Notes 781-784: a knock on the rails, a lamp breaking, a hound doused, a friend hauled aboard, glass breaking, the bell,
+    // the handcar set down.
+    [InlineData("world-rail-knock.knock")]
+    [InlineData("crew-lamp-broken.smash")]
+    [InlineData("cs-hounds-doused.doused")]
+    [InlineData("crew-rescue.haul")]
+    [InlineData("loot-fragile.glass")]
+    [InlineData("loot-jackpot.bell")]
+    [InlineData("crew-handcar.set")]
+    // Note 785: what jumped a pin, a house's boards, a far bell and a far dog.
+    [InlineData("state-coupling-loose.jump-brake")]
+    [InlineData("tell-house.creak")]
+    [InlineData("world-bell.far")]
+    [InlineData("world-dog.bark")]
     public void TheTellsAndCallsSinceCaptionsAreCaptioned(string sound)
     {
         // Note 391: the signs as they play since note 342, the Moose's and the Gannet's tells (notes 334, 384), and the jobs

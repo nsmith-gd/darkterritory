@@ -82,6 +82,9 @@ public sealed partial class GameAudio
         _dropsHeard.Clear();
         _dropsPrimed = false;
         _cuckooOut = null;
+        _handcarWas = null;
+        _picked.Clear();
+        _pickMoved.Clear();
         _castings.Clear();
         _beltStarted.Clear();
         _jamWas.Clear();
@@ -133,6 +136,7 @@ public sealed partial class GameAudio
         TownSounds(world, ear, dt);
         MailAndCometSounds(world, ear);
         CrewCarSounds(world);
+        HandcarSounds(world);
         if (_places is { } places)
         {
             WorldNight(world, run, ear, tunnel, underground, dt);
@@ -321,6 +325,9 @@ public sealed partial class GameAudio
             cars.Clear();
             foreach (var v in rake.Consist.Vehicles)
             {
+                // Half a tonne of handcar doesn't sound a bridge (note 784).
+                if (v.IsHandcar)
+                    continue;
                 var pose = train.Cars[v.Id];
                 double centre = pose.FrontDistance - pose.Length / 2;
                 var (edge, s) = places.Plan is { } plan ? TrackRules.Locate(plan, places.Line, rake.Path, centre) : ("main", places.Line.MainDistance(rake.Path, centre));
@@ -697,7 +704,8 @@ public sealed partial class GameAudio
                 HoldLevel("place-crane.motor", key, crane.Cab, outside, 1);
             if (hook > 1e-4)
                 HoldLevel("place-crane.chain", key, crane.HookAt, outside, 1);
-            if (Flipped("place-crane.running", key, running, primed) != 0 && crane.Hooked is not null)
+            // Note 726: a friend on the hook swings as a casting does.
+            if (Flipped("place-crane.running", key, running, primed) != 0 && crane.Loaded)
                 Cue("place-crane.load-swing", crane.HookAt, outside);
             for (int c = 0; c < crane.Castings.Length; c++)
             {
@@ -816,12 +824,35 @@ public sealed partial class GameAudio
         foreach (var d in walls.HouseDoors)
             if (Flipped("crew-house-door", d.Key, walls.Shut(d.Key), primed) is not 0 and var flip)
             {
+                // The jackpot house's lock picked open (note 783): it gives as the door swings.
+                if (flip < 0 && _picked.GetValueOrDefault(d.Key) > 0)
+                    Cue("place-breach.pick-give", DoorSound(d), DoorOcclusion(d));
                 // Thrown by a house creature (note 767): the Hollow House's slam, the Lodger's last blow, when they're installed.
                 var by = HouseDoorBy(world, d, flip > 0);
                 AtADoor(by is not null && HasCue(by) ? Cue(by, DoorSound(d), DoorOcclusion(d))
                     : Cue(flip > 0 ? "crew-house-door.shut" : "crew-house-door.open", DoorSound(d), DoorOcclusion(d)));
             }
+        // The jackpot house's lock being picked with the wrench (note 783; note 719's StopWalls.Picking, on the doors' record):
+        // worked quietly at the door as a Holdout's lock is (D.7's wrench), held while it moves. The tick it's done the door's
+        // open and the picking's gone, so what was being picked is kept a tick for the give above.
+        var picking = walls.PickingDoors.ToList();
+        foreach (var (key, progress) in picking)
+        {
+            if (progress > _picked.GetValueOrDefault(key))
+                _pickMoved[key] = _time;
+            if (_time - _pickMoved.GetValueOrDefault(key, double.NegativeInfinity) >= BreachStill)
+                continue;
+            foreach (var d in walls.HouseDoors)
+                if (d.Key == key)
+                    HoldLevel("place-breach.pick", -1 - key, DoorSound(d), DoorOcclusion(d), 1);
+        }
+        _picked.Clear();
+        foreach (var (key, progress) in picking)
+            _picked[key] = progress;
     }
+
+    /// <summary>The jackpot house's locks being picked as last heard (note 783): each door's key and how far, and when it last moved.</summary>
+    readonly Dictionary<int, double> _picked = [], _pickMoved = [];
 
     /// <summary>
     /// Where a house door is heard (note 409): its leaf, a hand's height up, half a metre in from the doorway's outside edge

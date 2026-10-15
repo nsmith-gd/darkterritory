@@ -556,10 +556,10 @@ public sealed partial class GreyboxScene
             Lap(mesh, "route");
             // (Where the sim stands their solids, T124.)
             foreach (var fort in Sim.Run.Fortresses.Of(Route, line, yard, terminus))
-                // The terminus that's a town (note 600) is drawn as the departure's is, in its own frame turned round: the
-                // window and its gate measured back from where that frame starts.
-                if (fort.Start > 0 && fort.Lived && Arrival is { Turn: { } turn } arrival)
-                    Fortress(mesh, arrival.Line, eye, turn - to, turn - from, 0, turn - fort.Gate, gateAt: turn - fort.Gate, town: arrival);
+                // The terminus that's a town (notes 600, 692) is drawn as the departure's is, in its own frame from where that
+                // starts, the same way round: the window along it, its way out at the far end of its yard.
+                if (fort.Start > 0 && fort.Lived && Arrival is { Origin: { } origin } arrival)
+                    Fortress(mesh, arrival.Line, eye, from - origin, to - origin, 0, arrival.Plan.Gate, gateAt: arrival.Plan.Gate, town: arrival);
                 else
                     Fortress(mesh, line, eye, from, to, fort.Start, fort.End, gateAt: fort.Gate, lit: fort.Lived);
             Lap(mesh, "fortresses and towns");
@@ -1946,7 +1946,9 @@ public sealed partial class GreyboxScene
     void CraneLamps(MeshBuilder mesh, Sim.Run.Crane crane, IReadOnlyList<CarFrame> frames, Double3 eye)
     {
         var w = WorkLight;
-        var lamp = V(crane.HookAt + Double3.Up * w.HookAbove, eye);
+        // A friend stood on the hook (note 726) is its load: the lamp on the cable hangs over their head, not in their chest.
+        double above = crane.Riders > 0 ? Math.Max(w.HookAbove, crane.Tuning.Hoist.FeetAbove + RiderHeadroom) : w.HookAbove;
+        var lamp = V(crane.HookAt + Double3.Up * above, eye);
         mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * w.HookIntensity, w.HookRange));
         mesh.Billboard(lamp, 0.12f, 0, new Vector4(Palette.LampAmber * 1.4f, 1), -1, FxBlend.Additive);
         Double3 sum = default;
@@ -1960,6 +1962,9 @@ public sealed partial class GreyboxScene
         if (stacked > 0)
             mesh.PointLights.Add(new PointLight(V(sum * (1.0 / stacked) + Double3.Up * w.StackHeight, eye), Palette.LampAmber * w.StackIntensity, w.StackRange));
     }
+
+    /// <summary>A crewmate's height and a hand's breadth over it (m): where the hook's lamp hangs over a rider (note 726).</summary>
+    const double RiderHeadroom = 2.0;
 
     readonly List<(double Distance, Double3 At)> _groundFinds = [];
 
@@ -2291,21 +2296,19 @@ public sealed partial class GreyboxScene
     }
 
     /// <summary>
-    /// The guns that bear on the walls of a walled terminus town (note 600): on its gatehouse's towers, the corner towers
-    /// either side of its front wall, and the next tower back down each side (<see cref="Sim.Run.Fortresses.Round(Sim.Towns.TownBounds, TrackSample)"/>).
+    /// The guns that bear on the way in of a walled terminus town (notes 600, 692), where the train comes in from the night:
+    /// on its gatehouse's towers, and the wall's towers nearest it either side (<see cref="Sim.Run.Fortresses.Towers"/>).
     /// </summary>
     public static List<Vector3> WallGuns(Sim.Towns.Town town, Double3 eye)
     {
         var guns = new List<Vector3>();
         if (town.Plan.Bounds is not { } b)
             return guns;
-        double mid = (Sim.Run.Fortresses.GateInner + Sim.Run.Fortresses.GateOuter) / 2, every = Sim.Run.Fortresses.TowerEvery;
+        double mid = (Sim.Run.Fortresses.GateInner + Sim.Run.Fortresses.GateOuter) / 2;
         foreach (int side in new[] { -1, 1 })
-            guns.Add(V(town.World(b.Gate, side * mid, Sim.Run.Fortresses.GateHeight + 1), eye));
-        // The last of the side towers before the gate (Round stands one every TowerEvery from the rear, none within half of it of the gate).
-        double back = b.Rear + Math.Floor((b.Gate - every / 2 - b.Rear - 1e-6) / every) * every;
-        foreach (var (d, s) in new[] { (-b.Left, b.Gate), (b.Right, b.Gate), (-b.Left, back), (b.Right, back) })
-            if (s > b.Rear)
+            guns.Add(V(town.World(b.Rear, side * mid, Sim.Run.Fortresses.GateHeight + 1), eye));
+        foreach (int side in new[] { -1, 1 })
+            foreach (var (s, d) in Sim.Run.Fortresses.Towers(b).Where(x => Math.Sign(x.D) == side).OrderBy(x => x.S - b.Rear + Math.Abs(x.D) * 0.2).Take(2))
                 guns.Add(V(town.World(s, d, Sim.Run.Fortresses.TowerHeight + 1), eye));
         return guns;
     }
@@ -3073,6 +3076,7 @@ public sealed partial class GreyboxScene
                 Look.Art.World.Walls = (Run?.YardLength ?? 600, Route.Plan?.Terminus.GateM ?? line.Length - (Run?.Tuning.TerminusZone ?? 400) - 200);
             Look.Art.World.TownSquare = Town?.Plan.Square;
             Look.Art.World.TownBounds = Town?.Plan.Bounds;
+            Look.Art.World.Departure = Town;
             Look.Art.World.Fog = Fog;
             Look.Art.World.Arrival = Arrival;
             Look.Art.World.Cells(mesh, line, Route, eye, from, to, ArtSeed, (float)ValleyDepth, centre);
@@ -3721,13 +3725,15 @@ public sealed partial class GreyboxScene
         {
             // The departure fortress is a town (note 281): its square, and its people where note 107's folk stood.
             town ??= start == 0 && lit ? Town : null;
-            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit, Time, town?.Plan.Square, town?.Plan.Bounds);
+            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit, Time, town?.Plan.Square, town?.Plan.Bounds, town?.Ground);
             Lap(mesh, "fortress walls");
             if (town is not null)
             {
                 Look.Art.World.Square(mesh, line, eye, town, from, to);
                 Look.Art.World.Civic(mesh, line, eye, town, from, to, Look.Tuning.Atmosphere.Wind.Of(Wind), Look.Tuning.Atmosphere.Wind.Gusts, Time);
                 Look.Art.World.Works(mesh, line, eye, town, from, to);
+                // A town type's own ground, water and landmarks (note 692).
+                Look.Art.World.Forms(mesh, line, eye, town, from, to, Time, Route);
                 Lap(mesh, "town square, green, works");
                 Look.Art.World.Houses(mesh, line, eye, town, from, to);
                 if (town == Arrival)

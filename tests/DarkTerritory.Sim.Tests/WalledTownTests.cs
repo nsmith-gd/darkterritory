@@ -19,10 +19,11 @@ public class WalledTownTests
     static readonly TownContent Towns = TownContent.Load(Content)!;
     static readonly PlayerTuning P = Tuning.Player;
 
-    /// <summary>A night on <paramref name="spec"/> with a town of <paramref name="people"/>, as World.EnableTown stands it.</summary>
+    /// <summary>A night on <paramref name="spec"/> with a town of <paramref name="people"/>, as World.EnableTown stands it: the
+    /// street town of note 335 (these are its streets, lanes and rows; the town types are TownFormTests', note 692).</summary>
     static (World World, Town Town) Night(string spec, int people)
     {
-        var content = Towns with { Tuning = Towns.Tuning with { Population = [people, people] } };
+        var content = Towns with { Tuning = Towns.Tuning with { Population = [people, people], Forms = Towns.Tuning.Forms with { Force = "" } } };
         var route = Routes.Generate(Content, spec, 6);
         double gate = route.GateOr(RouteTuning.Load(Content).YardLength);
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 6, 1)), route.Build(), gate - 8);
@@ -232,10 +233,16 @@ public class WalledTownTests
         double Flat(Double3 a, Double3 c) => ((a - c) with { Y = 0 }).Length;
         foreach (var d in new[] { -b.Left, b.Right })
             Assert.Contains(walls, w => w.HalfWidth == Fortresses.WallHalf && Flat(town.World(b.Rear + 55, d), w.Centre) < 6);
-        // The rear wall across the line (behind the yard's start, where the line runs straight on, so measured from it).
+        // The rear wall across the line (behind the yard's start, where the line runs straight on, so measured from it), out
+        // from the gatehouse at the way in from the last night (note 692) to each corner, the gatehouse's arch over the line.
         var start = world.Train.Line.Sample(0);
-        var back = start.Position + new Double3(start.Tangent.X, 0, start.Tangent.Z).Normalized * b.Rear;
-        Assert.Contains(walls, w => Flat(back, w.Centre) < 5 && w.HalfLength > b.Left);
+        var along = new Double3(start.Tangent.X, 0, start.Tangent.Z).Normalized;
+        var across = Double3.Cross(along, Double3.Up).Normalized;
+        Double3 Back(double d) => start.Position + along * b.Rear + across * d;
+        foreach (var d in new[] { -b.Left / 2, b.Right / 2 })
+            Assert.Contains(walls, w => w.HalfWidth == Fortresses.WallHalf && Flat(Back(d), w.Centre) < 6);
+        Assert.Contains(walls, w => Flat(Back(0), w.Centre) < 1 && w.Bottom > start.Position.Y + 5);
+        Assert.DoesNotContain(walls, w => w.HalfWidth == Fortresses.WallHalf && Flat(Back(0), w.Centre) < Fortresses.GateInner);
         // And no corridor wall down the yard any more.
         Assert.DoesNotContain(walls, w => w.HalfWidth == Fortresses.WallHalf && Flat(town.World(b.Gate - 205, 14.8), w.Centre) < 6);
     }

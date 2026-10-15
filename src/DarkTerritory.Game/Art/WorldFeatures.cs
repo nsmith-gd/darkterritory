@@ -195,14 +195,14 @@ public sealed partial class WorldArt
     /// <param name="square">The town's square (note 281): the walls on its side step back round it (<see cref="Square"/>
     /// draws those), and the town's houses are its own (<see cref="Houses"/>), not note 107's village.</param>
     public void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt, bool platform, bool lit = true,
-        double time = 0, TownSquare? square = null, TownBounds? bounds = null)
+        double time = 0, TownSquare? square = null, TownBounds? bounds = null, TownGround? ground = null)
     {
         double a = Math.Max(start, from), b = Math.Min(end, to);
         if (a >= b)
             return;
         // A walled town's wall goes round it (queue #74, note 335); the gatehouse and the platform are the yard's still.
         if (bounds is not null)
-            TownWall(mesh, line, eye, bounds, from, to, lit, time);
+            TownWall(mesh, line, eye, bounds, from, to, lit, time, ground);
         else
         {
             foreach (int side in new[] { -1, 1 })

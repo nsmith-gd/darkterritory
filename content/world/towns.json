@@ -472,6 +472,122 @@
       "notes": [{ "title": "From the book of last words", "text": "'Who left this here?' 'I'll only be a minute.' 'It's fine, it's one of ours.' 'Shh.'" }] }
   ],
 
+  // The town types (note 692; the director, 13 Oct 2026: "different town types that give the world a bit more flavor and
+  // a bit more meaning ... more traditional East Coast-y sounding names that keep with our Maritimes Canada aesthetic"):
+  // what each is called, the names its quarters go by (one drawn a town), and its landmarks' words.
+  "forms": {
+    "harbour": { "name": "a harbour town",
+      "districts": {
+        "harbour": ["the Inner Harbour", "the Basin", "the Gut"],
+        "breakwater": ["the Breakwater", "the Mole", "Long Wall"],
+        "wharf": ["the Wharf", "Front Street Wharf", "the Hard"],
+        "slip": ["the Slip", "the Boatyard", "Keel Hard"],
+        "head": ["the Head", "Gallows Head", "Lantern Hill"],
+        "lanes": ["the Lanes", "Upper Town", "the Back Lanes"] },
+      "landmarks": {
+        "lighthouse": { "title": "the {town} light", "text": "Still lit, every night, though no boat has come in since the wall went up. The keeper says it isn't for boats. He won't say what it's for. The lamp turns the wrong way round, and has done since the second winter." },
+        "beacon": { "title": "the breakwater light", "text": "A lamp at the end of the mole in a cage of iron. Somebody walks out to trim it at the bell, on a rope tied off at the sea wall. The rope is new. The one before it is still out there, in the water, going down." },
+        "boatshed": { "title": "the boat shed", "text": "A dory half built on the stocks, ribs and no planks. It's been half built for three years. They work on it in the day and take a plank off at night, so it's never finished and nobody has to go out in it." },
+        "chapel": { "title": "the seamen's chapel", "text": "Every pew carved with a boat's name. Some names have a date after them. A few have two dates, the second added in a different hand, years after the boat went down: the night it was seen again." } } },
+    "dykeland": { "name": "a dykeland town",
+      "districts": {
+        "marsh": ["the Salt Marsh", "the Flats", "the Hay Marsh"],
+        "dyke": ["the Aboiteau", "the Dyke", "the Old Dyke"],
+        "market": ["Market Hummock", "the Hummock", "Church Island"],
+        "upper": ["the High Hummock", "Grand Pré", "the Upland"],
+        "lower": ["the Low Marsh", "Bas-Marais", "the Reeds"],
+        "landing": ["the Landing", "the Boat Landing", "Ferry Steps"] },
+      "landmarks": {
+        "dory": { "title": "a punt at the landing", "text": "Flat-bottomed, tarred, a pole along its thwarts. They pole between the walks in the dark rather than cross the open boards. The punt doesn't creak. The boards do." },
+        "chapel": { "title": "the chapel on the hummock", "text": "Built on the only ground that never floods. The graves are in the walls, not under the floor: the marsh gives back what you put in it. Names on every stone, and a mark for the tide that night." },
+        "watchtower": { "title": "the marsh watch", "text": "A tower on stilts over the reeds, a man in it all night with a lamp and a bell. He doesn't watch the land. He watches the water, for the place where the reeds lie down the wrong way." } } },
+    "quarry": { "name": "a quarry town",
+      "districts": {
+        "benches": ["the Benches", "the Steps", "the Terraces"],
+        "floor": ["the Pit Floor", "the Bottom", "the Sump"],
+        "founders": ["Founders' Row", "the Rim", "Owners' Row"],
+        "cranes": ["the Crane Yard", "the Dressing Floor", "the Sheds"] },
+      "landmarks": {
+        "lift": { "title": "the lift", "text": "A cage on cables down the face to the pit floor, for the stone and the men. The operator sits at the top all night with his hand on the brake. When the cage comes up on its own, he lets it. He doesn't open it till morning." },
+        "crane": { "title": "the derrick", "text": "A timber derrick over the benches, its boom swung out over the drop and chained. A block of granite still hangs from it, two years now. Nobody will lower it. Nobody will walk under it either." } } },
+    "tidewater": { "name": "a tidewater town",
+      "districts": {
+        "drowned": ["the Drowned Ward", "Low Town", "the Flood"],
+        "wharves": ["the Wharves", "Salvage Wharf", "the Islands"],
+        "chapel": ["Chapel Hill", "the High Ground", "Sanctuary"],
+        "high": ["the High Ward", "Upper Town", "the Ramparts"] },
+      "landmarks": {
+        "dory": { "title": "a dory at the jetty", "text": "Tied fore and aft, bailed dry, the oars shipped and a lantern in the bow. Whoever lives at the end of the walk keeps it ready. When the tide comes up through the planks you don't wait for the causeway." },
+        "chapel": { "title": "the chapel on the hill", "text": "Built when the tide first came in and didn't all go out. A line is cut in the doorpost for each year's highest water. They're getting closer to the step. The bell rings at the turn of every tide, so the drowned ward knows." },
+        "watchtower": { "title": "the tide watch", "text": "A tower over the high ward with a board on it, chalked: TIDE IN, TIDE OUT, and a third column nobody explains, with a tally in it." },
+        "crane": { "title": "the salvage crane", "text": "What the wharves bring up from the drowned ward goes on the hook and into the yard to be counted. Furniture, mostly. A pram. A door with its own number still on it, from a street that's under the water now." } } },
+    "glasshouse": { "name": "a glasshouse town",
+      "districts": {
+        "reservoir": ["the Reservoirs", "the Tanks", "the Cisterns"],
+        "tank": ["the Tanks"],
+        "beds": ["the Beds", "the Plots", "the Orchard Rows"],
+        "lanes": ["the Long Houses", "the Gardeners' Rows"] },
+      "landmarks": {
+        "greathouse": { "title": "the great house of glass", "text": "Three hundred panes to a side, every one washed at the bell. Inside it's summer: the lamps on the rota, the beans up the strings, the warmth coming off the soil. The gardeners sleep in it on the coldest nights. Nobody sleeps near the glass." },
+        "seedhouse": { "title": "the seed house", "text": "The town's every seed, in jars, labelled with the bed and the year and the hand that saved it. The door is barred from inside. Someone is always in there. It's the safest room in the territory, they say, and the loneliest." } } },
+    "furnace": { "name": "a foundry town on its crag",
+      "districts": {
+        "quarters": ["the Cinder Rows", "Ironmonger Hill", "the Back of the Works"],
+        "slag": ["the Slag Pit", "the Cinder Hole", "Clinker Bottom"],
+        "docks": ["the Ore Dock", "the Coal Basin", "Bunker Quay"],
+        "workers": ["the Hands' Rows", "Puddler's Lane", "the Company Rows"] },
+      "landmarks": {
+        "foundry": { "title": "the foundry", "text": "The fires haven't been let out since the wall went up. They say a cold furnace takes a week to bring back, and a week is longer than anyone thinks the town has. The men feed it in shifts. Nobody sleeps in the rows downwind." },
+        "stack": { "title": "the stacks", "text": "Five of them, and you can count the town's health by how many smoke. Four tonight. The fifth went cold the winter the fever came through, and they've never lit it since. Birds won't nest in it." },
+        "lift": { "title": "the slag hoist", "text": "A cage on a cable down into the pit, for the ladles. The operator rings once going down, twice coming up. Three rings means something's in the cage that shouldn't be, and he lets go of the brake." },
+        "crane": { "title": "the ladle crane", "text": "It swings the ladles over the slag and tips them, and the pit lights up orange from wall to wall. The children come to watch it from the rows. It's the only warm light there is." },
+        "barge": { "title": "the ore barge", "text": "Flat, black with coal dust, moored bow and stern under the sea wall. It brings the ore in from the shoals when the tide allows. The crew never come ashore. Their food goes down to them in a basket on a rope." } } },
+    "highline": { "name": "a town on the cliff",
+      "districts": {
+        "lower": ["the Ledges", "the Cliff Rows", "Gull's Steps"],
+        "upper": ["the Upper Ward", "the Heights", "Citadel Hill"],
+        "hills": ["the Barrens"],
+        "cliff": ["the Drop"] },
+      "landmarks": {
+        "keep": { "title": "the citadel", "text": "The council sits at the top of the town, as high as you can get from the sea. Every window looks down. There's a rope from the bell in the citadel to every house on the cliff, and a rule: when it rings, you go up, not out." },
+        "chapel": { "title": "the cliff chapel", "text": "Its nave points at the sea. On the wall behind the altar, a board of names, and beside each name a height: how far down they found them. Some heights are crossed out. Not because they were found higher." },
+        "watchtower": { "title": "the lookout", "text": "Out on its stack over the water, a stone bridge to it no wider than a cart. The watch out there is the loneliest post in the town. They ring the hours across to the cliff. If an hour goes unrung, nobody walks out to see why." },
+        "crane": { "title": "the cliff derrick", "text": "It lowers the boats to the sea on a cable two hundred feet long and hauls the catch up the same way. It hasn't lowered a boat in a year. It still hauls something up, most nights, and the derrick men won't say what." } } },
+    "timber": { "name": "a logging town in its clearing",
+      "districts": {
+        "quarters": ["the Camp", "the Bunkhouse Rows", "the Clearing"],
+        "logs": ["the Log Yard", "the Decks", "the Skidway"],
+        "millrows": ["Sawdust Row", "the Mill Rows", "the Slab Town"] },
+      "landmarks": {
+        "sawmill": { "title": "the sawmill", "text": "The big saw runs from first light until the bell. After the bell they leave the blade spinning down on its own, and nobody stands near it. A spinning blade won't stop a thing, but the sound of it does." },
+        "stack": { "title": "the burner", "text": "The slab burner's stack, hot all night with the offcuts. They keep it fed for the light it throws over the kill zone, not the heat. The night it went out, three of the watch came down from the towers without being told to." },
+        "logs": { "title": "the log decks", "text": "Spruce, stacked to the brands, every log marked with its cutter's sign. Logs are counted at the bell. When the count is over, they burn the extra before morning. Nobody cuts a log with a sign they don't know." },
+        "timbertower": { "title": "a watch tower", "text": "Logs on legs, a cabin up top with a lamp and a horn. The stumps out there are cut low and white so you'd see anything moving between them. The watch counts stumps at dusk and again at midnight. It should be the same number." } } },
+    "salt": { "name": "a salt town on its marsh",
+      "districts": {
+        "pans": ["the Pans", "the Salt Flats", "the Brine Beds"],
+        "cisterns": ["the Cisterns", "the Sweetwater Tanks"],
+        "cistern": ["the Cisterns"],
+        "living": ["the Living Quarters", "Saltmarket Rows", "the Dry Ward"],
+        "lagoon": ["the Lower Ward", "the Lagoon", "Pickle Reach"] },
+      "landmarks": {
+        "windpump": { "title": "the windpump", "text": "It lifts the brine into the pans when the wind's up and stands still when it isn't. On still nights it turns anyway. The salt men say that's the tide pushing it. The tide here goes out at night." },
+        "shed": { "title": "the boiling shed", "text": "The salt's raked off the pans and finished here over the coal, white enough to trade for anything. The rakers wear their masks inside even in summer. The steam off the pans carries what's in the marsh, and the marsh has things in it." },
+        "watchtower": { "title": "the marsh watch", "text": "A tower over the lagoon's far end, its lamp turned on the water, not the land. The watch has a long pole with a hook. He's never said what it's for." },
+        "dory": { "title": "a punt at the walk's end", "text": "Flat-bottomed, tarred, pushed along with a pole. The lower ward goes by punt when the boards are slick with salt. You don't trail your hand in the water. Everybody knows someone who did." } } },
+    "crag": { "name": "a fortress on its crag",
+      "districts": {
+        "terraces": ["the Terraces", "the Walls Within", "the Rings"],
+        "lower": ["the Lower Ward", "Dockside", "the Undercroft"],
+        "docks": ["the Inlet", "the Sally Port", "the Water Gate"] },
+      "landmarks": {
+        "keep": { "title": "the keep", "text": "The last walls. If the rest of the town falls, the people climb to it and pull the stair up after them; it's a ladder, and it's never been down in twenty years. There's food for a month in it, and the well goes down through the rock to the sea." },
+        "chapel": { "title": "the citadel chapel", "text": "Cut half into the rock, its back wall the crag itself. Water seeps through and runs down behind the altar into a channel. They say the water's sweet. Nobody drinks it." },
+        "lift": { "title": "the stone lift", "text": "A cage in a stone shaft from the lower ward up the face to the terraces, counterweighted with rock. It takes six to ride it and four to wind it. When it's at the top they lock the shaft door at the bottom from both sides." },
+        "crane": { "title": "the dock crane", "text": "It lifts the boats clear of the water every night and sets them down on the quay. Nothing's left floating in the inlet after dark. The one night they did, the boat was gone by morning, and its mooring rope had been bitten, not cut." },
+        "barge": { "title": "the supply barge", "text": "It runs the coast to the next holdfast every fortnight. Its last three crossings came back with fewer aboard than went. The town still sends it. The holdfast still answers." } } }
+  },
+
   // What the town makes (linegen tiers.json fortress "identities"; GDD §3: "one settlement produces coal ...").
   "industries": {
     "coal": { "hand": "pit hand", "name": "a pit town",
@@ -914,6 +1030,26 @@
       { "kind": "casting", "title": "the casting shed", "text": "The cupola's lit and the windows are orange all night. They cast what the town needs: pans, hinges, firebars, the bell. They never let the fire go out. The last time it went out, the bell they cast didn't ring true, and they hung it anyway. The stack is the tallest thing inside the wall; the children say it's how the town breathes out." },
       { "kind": "slag", "title": "the slag", "text": "Slag tipped out still glowing, crusted over in black glass. In the cold it ticks, like something settling." },
       { "kind": "pigs", "title": "pig iron", "text": "Pig iron stacked like loaves, each stamped with the town's mark and a number. The numbers go back years. A few are missing, and their gaps are left in the stack." }
+    ],
+    "harbour": [
+      { "kind": "warehouse", "title": "the fish store", "text": "Salt cod in stacks to the rafters, the smell of it on everything in the town. The tally on the door is of barrels, and under it a second tally, of the boats that brought them. It hasn't changed in years." },
+      { "kind": "warehouse", "title": "the salt store", "text": "Salt in sacks, salt in barrels, salt poured in a line across the doorway. They say it's to keep the damp off the fish. They renew the line every night, damp or no." },
+      { "kind": "cellar", "title": "the ice house", "text": "Sawdust and ice cut from the pond last winter, under a turf roof. Something on the shelves under a sheet. The sheet is frosted to it." }
+    ],
+    "dykeland": [
+      { "kind": "warehouse", "title": "the hay barn", "text": "Salt hay off the marsh, cut at low tide by people roped together. It keeps the cattle and it keeps the town. A scythe by the door with a name burnt into the handle and a date. It's not been used since the date." },
+      { "kind": "cellar", "title": "the sluice house", "text": "The aboiteau's gate, that lets the fresh water out and keeps the tide from coming in. A man sits by the wheel all night. If the gate fails, the town floods by morning. He has never once been asked to turn it. He keeps his hand on it anyway." }
+    ],
+    "tidewater": [
+      { "kind": "warehouse", "title": "the salvage yard", "text": "Everything the wharves bring up out of the drowned ward, dried out on racks and labelled with the house it came from. Some labels say NOT OURS. Those are kept apart, under a tarpaulin, and nobody claims them." },
+      { "kind": "coal", "title": "the drying heap", "text": "Coal brought up out of a flooded cellar, spread to dry. It burns blue and hisses. The children call it drowned coal and won't sit near it." }
+    ],
+    "glasshouse": [
+      { "kind": "glasshouse", "title": "a long glasshouse", "text": "Tomatoes under lamps, rows and rows of them, the glass whitewashed so the light stays in. A gardener walks the rows all night with a watering can and a hand bell. If the bell stops, the others come." },
+      { "kind": "glasshouse", "title": "a long glasshouse", "text": "Apple trees in tubs, the Valley's old orchards brought in under glass, one tree a family. The name of the farm each came from is painted on its tub. Most of the farms aren't there any more. The trees still fruit." },
+      { "kind": "glasshouse", "title": "the vine house", "text": "Grapes, of all things. Nicki's, they say, though nobody's sure who Nicki is. The door's open and it's warm and it smells of earth." },
+      { "kind": "glasshouse", "title": "a long glasshouse", "text": "Beans and kale, and a cot at the end of every row for whoever's sitting up with them. Nobody leaves the plants alone in the dark." },
+      { "kind": "watertower", "title": "the pump tower", "text": "Water from the reservoirs to the glass, by hand, at every bell. A waterline painted round the tank, and under it, in white: ENOUGH." }
     ],
     "any": [
       { "kind": "warehouse", "title": "the warehouse", "text": "Where what the train brings is kept and what it takes is counted out. Chalked on the door, what came last: salt, lamp oil, nails, and one crate unmarked. NOT OPENED." },

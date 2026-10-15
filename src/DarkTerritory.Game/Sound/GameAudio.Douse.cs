@@ -45,6 +45,8 @@ public sealed partial class GameAudio
                 HoldLevel("crew-extinguisher.on-fire", body, train.Frames[fire.Attached].ToWorld(grid.Centre[cell]), Occlusion(fire.Attached),
                     0.6 + 0.4 * Math.Clamp(fire.Heat[cell], 0, 1));
         }
+        // The jet on a hound (note 781): the same sprayers, by the spray's own reach and cone.
+        HoundsDoused(world);
         _jets.Clear();
         // Cells knocked out under the jet: alight as last heard, nothing now, with a jet on its car lately.
         foreach (var fire in fires)
