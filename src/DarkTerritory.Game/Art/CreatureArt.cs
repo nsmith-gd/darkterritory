@@ -67,7 +67,7 @@ public sealed partial class CreatureArt
     public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
         "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker", "follower", "climber", "fire_fly", "passenger",
         "survivor_prisoner", "survivor_wildlander", "sheep", "moose", "gannet", "mourner", "freight_beetle", "tower_jaw", "brakeman", "knotter", "hotbox", "hanger",
-        "picker", "lodger", "householder", "waker", DaveArt.Figure];
+        "picker", "lodger", "householder", "waker", "mouse_moose", DaveArt.Figure];
 
     /// <summary>
     /// The figure a crewmate plays as (GDD App. D.8): the crew's own, or, freed from a Holdout, its occupant's for the rest

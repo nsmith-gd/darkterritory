@@ -5,15 +5,79 @@ using DarkTerritory.Sim.Enemies;
 namespace DarkTerritory.Game.Art;
 
 /// <summary>
-/// The Mouse Moose (GDD §21; the director, 15 Oct 2026: "a mutant rat with little tiny moose antlers"; ARCHITECTURE §8 note
-/// 790): drawn from boxes until a modelled one comes (a line on the art checklist), by the sim's mode (replicated in its
-/// Height) and how long it's been in it. A dog-sized rat, hunched and mangy, its pink tail behind it, and on its head a little
-/// pair of moose's palmate antlers. Creeping, low and slow; its teeth in a casting, braced back on its haunches and tugging;
-/// bolting, stretched out flat; down its hole, only its antlers' tips and its eyes over the earth.
+/// The Mouse Moose (GDD §21; the director, 15 Oct 2026: "a mutant rat with little tiny moose antlers"; ARCHITECTURE §8 notes
+/// 790, 796): its model (tools/blender/mouse_moose.py) by the sim's mode (replicated in its Height) and how long it's been in
+/// it, or, where that isn't there, its boxes. A dog-sized rat, hunched and mangy, its pink tail behind it, and on its head a
+/// little pair of moose's palmate antlers. Creeping, low and slow; its teeth in a casting, braced back on its haunches and
+/// tugging; bolting, stretched out flat; down its hole, only its antlers, its ears and its eyes over the earth.
 /// </summary>
 public sealed partial class CreatureArt
 {
     MouseMooseMode? _mouseMooseMode;
+
+    // Its clips' lengths (tools/blender/mouse_moose.py): the dive into its hole; the emerge out of it, of which a creep
+    // plays the scramble (from its peering, the sim already moving it); the pace (m/s) its drag's heaves are made for (the
+    // sim's drag), played faster when it's dragging the casting away (dragAway) but no more than so.
+    public const double MouseMooseDiveSeconds = 0.5, MouseMooseEmergeSeconds = 0.8, MouseMooseScrambleFrom = 0.47;
+    const float MouseMooseDragPace = 0.15f, MouseMooseDragFastest = 2.2f;
+
+    /// <summary>
+    /// The clip the Mouse Moose plays, how far into it, and whether it loops: by its mode (the sim's), what it was doing before
+    /// (out of its hole it scrambles; into it, from a bolt or with a casting, it dives), how long it's been at it and how fast
+    /// it's going (stood still creeping, it sniffs; the drag's heaves come quicker as it drags faster).
+    /// </summary>
+    public static (string Clip, double Time, bool Loop) MouseMooseClip(MouseMooseMode mode, MouseMooseMode? was, double modeSeconds, float pace) => mode switch
+    {
+        MouseMooseMode.Creep when was == MouseMooseMode.Hide && modeSeconds < MouseMooseEmergeSeconds - MouseMooseScrambleFrom
+            => ("emerge", MouseMooseScrambleFrom + modeSeconds, false),
+        MouseMooseMode.Creep => pace > 0.3f ? ("creep", modeSeconds, true) : ("idle", modeSeconds, true),
+        MouseMooseMode.Bite => ("bite", modeSeconds, false),
+        MouseMooseMode.Drag => ("drag", modeSeconds * Math.Clamp(pace / MouseMooseDragPace, 1f, MouseMooseDragFastest), true),
+        MouseMooseMode.Flee => ("flee", modeSeconds, true),
+        MouseMooseMode.Hide when was is MouseMooseMode.Flee or MouseMooseMode.Drag && modeSeconds < MouseMooseDiveSeconds
+            => ("dive", modeSeconds, false),
+        MouseMooseMode.Hide when was is MouseMooseMode.Flee or MouseMooseMode.Drag => ("hide", modeSeconds - MouseMooseDiveSeconds, true),
+        _ => ("hide", modeSeconds, true),
+    };
+
+    /// <summary>
+    /// Its hole, under a Mouse Moose down it at <paramref name="model"/> (or climbing out of it, <paramref name="behind"/> m
+    /// back along the way it's going): the black mouth of it, and the earth it's dug out heaped round it, most on the side
+    /// it comes and goes by.
+    /// </summary>
+    static void MouseMooseHole(MeshBuilder mesh, in Matrix4x4 model, float behind)
+    {
+        var style = mesh.Style;
+        mesh.Style = null;
+        try
+        {
+            var r = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitX, model));
+            var u = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitY, model));
+            var b = Vector3.Normalize(Vector3.TransformNormal(Vector3.UnitZ, model));
+            var o = model.Translation + b * behind;
+            mesh.Box(o + u * 0.004f, r, u, b, new Vector3(0.19f, 0.004f, 0.22f), MouseHoleDark);
+            for (int k = 0; k < 9; k++)
+            {
+                // A ring of turned clods round the mouth, heaped up in front (the way out, −Z) where it's thrown the spoil.
+                float a = k / 9f * MathF.Tau + 0.3f * Hash01(k, 796);
+                float front = MathF.Max(0, -MathF.Cos(a));
+                float rad = 0.27f + 0.06f * front + 0.03f * Hash01(k, 797);
+                var at = o + r * (MathF.Sin(a) * rad) + b * (MathF.Cos(a) * rad);
+                var outward = Vector3.Normalize(r * MathF.Sin(a) + b * MathF.Cos(a));
+                var along = Vector3.Cross(u, outward);
+                // Tipped back off the hole, as dug earth lies.
+                var up = Vector3.Normalize(u + outward * 0.45f);
+                var outN = Vector3.Normalize(outward - u * 0.45f);
+                float h = 0.035f + 0.05f * front + 0.015f * Hash01(k, 798);
+                mesh.Box(at + u * (h * 0.6f), along, up, outN, new Vector3(0.1f + 0.04f * Hash01(k, 799), h, 0.07f + 0.03f * front),
+                    MouseEarth * (0.85f + 0.3f * Hash01(k, 800)));
+            }
+        }
+        finally
+        {
+            mesh.Style = style;
+        }
+    }
 
     /// <summary>The Mouse Moose's mode as its phase has it, for a draw without the sim's (a test's, the greybox's).</summary>
     public static MouseMooseMode MouseMooseModeOf(SpinePhase phase) => phase switch
@@ -26,7 +90,8 @@ public sealed partial class CreatureArt
     // Its colours: grey-brown fur gone patchy, the bare pink of a rat's tail, ears and nose, yellow teeth, a red eye-shine,
     // and the antlers' bone.
     static readonly Vector3 MouseFur = new(0.20f, 0.17f, 0.14f), MouseMange = new(0.30f, 0.25f, 0.21f), MousePink = new(0.55f, 0.33f, 0.33f),
-        MouseTooth = new(0.62f, 0.55f, 0.30f), MouseEye = new(1.6f, 0.25f, 0.12f), MouseAntler = new(0.52f, 0.46f, 0.36f), MouseEarth = new(0.07f, 0.06f, 0.05f);
+        MouseTooth = new(0.62f, 0.55f, 0.30f), MouseEye = new(1.6f, 0.25f, 0.12f), MouseAntler = new(0.52f, 0.46f, 0.36f), MouseEarth = new(0.07f, 0.06f, 0.05f),
+        MouseHoleDark = new(0.008f, 0.007f, 0.006f);
 
     /// <summary>
     /// A Mouse Moose at <paramref name="model"/> (its feet at the origin, facing −Z) in <paramref name="mode"/>,
