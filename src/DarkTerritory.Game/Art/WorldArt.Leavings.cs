@@ -19,17 +19,43 @@ public sealed partial class WorldArt
         {
             if (!clear(l.Slot * LeavingsEvery) || onBranch(l.Along, l.Lateral) || onBranch(l.Along, l.Lateral + Math.Sign(l.Lateral) * 3))
                 continue;
-            foreach (var (piece, offset, lift, turn) in Leaving(l.Kind, l.Variant))
+            var pieces = Leaving(l.Kind, l.Variant).Where(p => p.Piece is not null).ToList();
+            // Clear of the cars going by (note 780): a stack of ties leans one out 3 m to its right, and laid left of the
+            // line 3.9 m out it reached over the near rail (deepTerritory:3 at 4 km, once each night dealt its own). One that
+            // would come within LeavingClearM of the line's middle is turned round; if it still would, it isn't left there.
+            float yaw = l.Yaw;
+            if (Nearest(pieces, l.Lateral, yaw) < LeavingClearM && Nearest(pieces, l.Lateral, yaw += MathF.PI) < LeavingClearM)
+                continue;
+            foreach (var (piece, offset, lift, turn) in pieces)
             {
-                if (piece is null)
-                    continue;
                 // The offset turns with the piece: a cluster keeps its shape whichever way it's laid.
-                var o = Vector3.Transform(offset, Matrix4x4.CreateRotationY(l.Yaw));
-                var m = place(l.Along - o.Z, l.Lateral + o.X, l.Yaw + turn, 1, 0.03f);
-                mesh.Instances.Add(new MeshInstance(piece, Matrix4x4.CreateTranslation(0, lift, 0) * m));
+                var o = Vector3.Transform(offset, Matrix4x4.CreateRotationY(yaw));
+                var m = place(l.Along - o.Z, l.Lateral + o.X, yaw + turn, 1, 0.03f);
+                mesh.Instances.Add(new MeshInstance(piece!, Matrix4x4.CreateTranslation(0, lift, 0) * m));
             }
         }
     }
+
+    /// <summary>
+    /// How near the line's middle a leaving laid <paramref name="lateral"/> out at <paramref name="yaw"/> comes (m, on its own
+    /// side; less than nothing across it): every vertex of every piece of it, as it's placed (a piece's +X out to the right).
+    /// </summary>
+    static double Nearest(List<(MeshAsset? Piece, Vector3 Offset, float Lift, float Turn)> pieces, double lateral, float yaw)
+    {
+        double near = double.MaxValue;
+        int side = Math.Sign(lateral);
+        foreach (var (piece, offset, _, turn) in pieces)
+        {
+            float ox = Vector3.Transform(offset, Matrix4x4.CreateRotationY(yaw)).X;
+            var spin = Matrix4x4.CreateRotationY(yaw + turn);
+            foreach (var v in piece!.Vertices)
+                near = Math.Min(near, side * (lateral + ox + Vector3.Transform(v.Position, spin).X));
+        }
+        return near;
+    }
+
+    /// <summary>How near the line's middle no leaving comes (m): outside the cars' sides (train.json roofWidth 3, 1.5 a side) by half a metre.</summary>
+    const double LeavingClearM = 2;
 
     /// <summary>
     /// Where the leavings lie between <paramref name="from"/> and <paramref name="to"/>, before the line's own ground

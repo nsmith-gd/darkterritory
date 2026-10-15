@@ -22,7 +22,22 @@ public sealed partial class GreyboxScene
     /// past its reach are cooked a few a frame instead of all at once. Null: everything in <see cref="DrawDistance"/> now.
     /// </summary>
     public FrameLighting? Fog { get; set; }
-    public int Seed { get; init; } = 7;
+    /// <summary>
+    /// The art's own seed, for what it alone dresses the land with (the forest floor, the stands, the verge, the shrines and
+    /// the railway's leavings): set, it's that; unset, a generated night's own (<see cref="ArtSeedOf"/>), else 7.
+    /// </summary>
+    public int? Seed { get; init; }
+
+    /// <summary>
+    /// The seed the art dresses this scene's land from (note 780). It was 7 on every night, and what the art alone lays out
+    /// fell at the same distances on every night whose country reached there: note 778 found the same fallen trunk at 1.5 km
+    /// on three nights, and the leavings came round in the same order. The trees were already the night's own (the sim's
+    /// LinesideProps, from the plan's seed); the rest is now too, and the same on the host and every client.
+    /// </summary>
+    public int ArtSeed => Seed ?? (Route?.Plan is { } plan ? ArtSeedOf(plan.Seed) : 7);
+
+    /// <summary>A generated night's art seed, from its plan's seed (unique to its tier and number, where the route's own seed isn't).</summary>
+    public static int ArtSeedOf(string planSeed) => (int)(Sim.LineGen.Streams.Mix(Sim.LineGen.Streams.Hash(planSeed), "lineside-art") & 0x7FFFFFFF);
     /// <summary>How hot the firebox is, 0..1: the glow in the cab is how the Boiler reads the fire.</summary>
     public float FireGlow { get; set; } = 0.7f;
 
@@ -2996,7 +3011,7 @@ public sealed partial class GreyboxScene
             Look.Art.World.TownBounds = Town?.Plan.Bounds;
             Look.Art.World.Fog = Fog;
             Look.Art.World.Arrival = Arrival;
-            Look.Art.World.Cells(mesh, line, Route, eye, from, to, Seed, (float)ValleyDepth, centre);
+            Look.Art.World.Cells(mesh, line, Route, eye, from, to, ArtSeed, (float)ValleyDepth, centre);
             return;
         }
         const double step = 5, gauge = 0.72, sleeperPitch = 0.75;
@@ -3063,7 +3078,7 @@ public sealed partial class GreyboxScene
             if (Route is not null && (Route.InTunnel(s) || Route.BridgeAt(s) is not null))
                 continue;
             // A fixed hash, not HashCode.Combine: that one's seeded afresh every process, and the pines would move.
-            var rng = new Random(unchecked(Seed * 73856093 ^ (int)(s / 12) * 19349663));
+            var rng = new Random(unchecked(ArtSeed * 73856093 ^ (int)(s / 12) * 19349663));
             mesh.Seed = (float)(s / 12 % 997);
             for (int k = 0; k < 3; k++)
             {
