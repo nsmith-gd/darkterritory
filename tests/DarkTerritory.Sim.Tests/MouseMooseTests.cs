@@ -140,6 +140,27 @@ public class MouseMooseTests
     }
 
     [Fact]
+    public void ABotOnFootNearItsCastingGoesAtItAndItBolts()
+    {
+        var n = Standing();
+        var (crane, moose) = Stage(n);
+        n.Run(Flat(moose.Local - crane.Castings[0].At) / M.Creep + M.BiteSeconds + 3);
+        Assert.Equal(MouseMooseMode.Drag, moose.Mode);
+        // A bot on the ground 20 m off, along the line from the casting: it goes at it, and it lets go and bolts.
+        var off = crane.Castings[0].At + n.Train.Line.Sample(n.Train.Dynamics.Distance).Tangent * 20;
+        n.Crew[2] = Ground(n, off);
+        bool bolted = false;
+        for (int i = 0; i < 40 && !bolted; i++)
+        {
+            n.Run(0.25, id => Bots.Heed.MouseMoose(default, n.Crew[id], n.World));
+            bolted = moose.Mode == MouseMooseMode.Flee;
+        }
+        Assert.True(bolted, $"the Mouse Moose is {moose.Mode}");
+        Assert.Equal(CastingState.Stacked, crane.Castings[0].State);
+        Assert.Equal(P.Health, n.Crew[2].Health);
+    }
+
+    [Fact]
     public void ItGoesWhenTheTrainLeavesTheYard()
     {
         var n = Standing();

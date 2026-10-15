@@ -615,11 +615,13 @@
   // Note 623: a body the Mourners are about is carried home into a car (up its side door's steps) when the foot of one's
   // within mournersCarryWithin m, and only while the dawn's time in hand covers mournersCarrySeconds and sixDawnMargin s and
   // the loading's not called done; else it's left (D1: "a body never costs the night"), and put down if it's in the arms.
+  // Note 790: on foot within mouseMooseWithin m of the Mouse Moose at a casting (creeping in, its teeth in it, dragging it), it
+  // goes at it and clubs it: it bolts long before (mouseMoose.scareWithin), and the casting's kept.
   "crewBots": {
     "mournersWithin": 30, "mournersLeash": 20, "towerJawWithin": 25, "towerJawClearFrom": 0.9, "towerJawClearBy": 2.5,
     "wreckWithin": 250, "wreckStopShort": 15, "wreckHoldWithin": 60, "beetleWithin": 15, "ribbitWithin": 12, "brakemanStandOff": 1.5,
     "brakemanWaitPast": 1, "standGiveUp": 240, "gateClearShort": 30, "gateClearWithin": 1500, "gateClearGiveUp": 240, "gateClearMargin": 45,
-    "sixDawnMargin": 45, "mournersCarryWithin": 60, "mournersCarrySeconds": 60
+    "sixDawnMargin": 45, "mournersCarryWithin": 60, "mournersCarrySeconds": 60, "mouseMooseWithin": 30
   },
 
   // DAVE (GDD §3.2; the director, 8 Oct 2026: "a special NPC that shows up randomly in places ... If a player hits Dave 5
