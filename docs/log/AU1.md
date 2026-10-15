@@ -207,6 +207,8 @@ launches are AU1.1, AU1.2, …. Entries are UTC; those before 12:55 on 7 Oct wer
   - Each ball is heard landing on the Waker's back its flight later. Creatures brought in through the gate are heard
     under the same guns.
   - 4 candidates built, the first installed, a new `town-guns` row at L1, a test.
-- **The forge and the BBQ deck (#505):** 22 candidates from a recipe agent, uploaded; rows filled at L0, waiting on #967.
+- **U1's upgrades (#505):** the forge and the BBQ deck (22 candidates) and the horns and the tells (22), each pair from a
+  recipe agent, uploaded; their four rows filled at L0, waiting on #967. The clerk's words row to L1. The band is #967's.
+- **The checklist:** a line for S1's covered voice (`voice-held`, note 749's ask), at L1 in review.
 - **Claimed #506 (note 776):** K1's #1016, the crew car's kettle and cuckoo, the crew photo's flash, the logbook's pages.
   The cue lines are in, and a recipe agent is building the candidates ahead of the merge.
