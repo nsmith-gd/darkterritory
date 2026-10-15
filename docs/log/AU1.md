@@ -330,3 +330,7 @@ The director asked for the last three friendslop features to be heard. Two were 
   - Now one bout a call.
   - A new `door` candidate, installed: each blow's crack carries over the boards' boom, where `walls` was a dull thud (cut at 1.6 kHz).
   - The prisoner-call test holds it (it failed on the old hook: "3 bouts in one call").
+## 15 Oct, ~18:00 UTC: PREPARE HANDOFF (the Token Budget Manager)
+
+- nathaniel2's weekly limit is at 60%, on pace to run out ~16 Oct 08:00 UTC. AU1 confirmed and is writing its handoffs (COORDINATION rule 11): Handoff blocks for #42 (note 304, the Voice Booth), #505 (note 775, U1's upgrades) and #534 (note 806, U1's whimsies), in the shape COORDINATION's "Accounts and usage limits" gives. #537 and #538 are done in #1064.
+- The Voice Booth's last two fixes (`booth.py`'s preview clip guard, the clerk's kit-lost phrases in `script.json`) had stayed on `au1-booth` since 7 Oct; they land with the handoff.
