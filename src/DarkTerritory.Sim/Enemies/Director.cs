@@ -143,6 +143,7 @@ public sealed class Director
     public void Count(World world, double elapsed, IReadOnlyList<Enemy> active, double noSpawnFinal)
     {
         _cars = world.Train.Dynamics.Consist.CarCount;
+        _world = world;
         if (world.CrewThisTick.Count > 0)
             Active = world.CrewThisTick.Count(c => c.State.Alive);
         // Counted whenever the orchestrator's on (the harness reads it); census steers only with its own flag (Steering).
@@ -290,9 +291,15 @@ public sealed class Director
     }
 
     /// <summary>The cargo aboard: what's in the loaded cargo cars of the engine's rake (a cut car on a spur isn't aboard).</summary>
-    public static HashSet<CargoKind> Aboard(World world) =>
-        world.Train.Dynamics.Consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Load > 0.01 && v.Cargo != CargoKind.None)
+    public static HashSet<CargoKind> Aboard(World world)
+    {
+        var aboard = world.Train.Dynamics.Consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Load > 0.01 && v.Cargo != CargoKind.None)
             .Select(v => v.Cargo).ToHashSet();
+        // Note 718: a comet fragment brought aboard from a stop draws as the comet's freight does ("attracts everything", GDD §19).
+        if (Run.Run.CometAboard(world))
+            aboard.Add(CargoKind.Comet);
+        return aboard;
+    }
 
     /// <summary>A tier gate, relaxed by one with comet-derived material aboard (App. B.8).</summary>
     public RouteTier Gate(World world, RouteTier tier) =>
@@ -425,8 +432,9 @@ public sealed class Director
             for (int i = 0; i < options.Count; i++)
             {
                 double w = options[i].Weight;
+                // Note 720: the crew singing settles the beasts, and they draw the hounds less (voices.singing.calmsLivestock).
                 if (aboard.Contains(CargoKind.Livestock) && options[i].Kind == EnemyKind.CinderHound)
-                    w *= _t.HoundsLivestockWeight;
+                    w *= 1 + (_t.HoundsLivestockWeight - 1) * (1 - world.LivestockCalm);
                 foreach (var cargo in aboard)
                     if (_t.CargoWeights.GetValueOrDefault(char.ToLowerInvariant(cargo.ToString()[0]) + cargo.ToString()[1..]) is { } table)
                         w *= table.GetValueOrDefault(Key(options[i].Kind), 1) * table.GetValueOrDefault("*", 1);
@@ -513,9 +521,17 @@ public sealed class Director
     }
 
     /// <summary>The crewmate the census would send the next threat to (note 345): the free one with the most slack, past minSlack.</summary>
-    public CensusEntry? Next => Steering
-        ? Posts.Entries.Where(c => c.On == 0 && c.Post != Post.LeftBehind && c.Slack >= _t.Orchestrator.MinSlack).OrderByDescending(c => c.Slack).ThenBy(c => c.Player).FirstOrDefault()
-        : null;
+    /// <remarks>
+    /// Note 717: a crewmate marked for a shove that killed (<see cref="World.IsMarked"/>) is the next threat's first choice while
+    /// they're about (not left behind, which has its own hunts): their slack needn't be past minSlack, nor are they spared for
+    /// having a threat on them already; among the marked, the most slack.
+    /// </remarks>
+    public CensusEntry? Next => !Steering ? null
+        : Posts.Entries.Where(c => _world?.IsMarked(c.Player) == true && c.Post != Post.LeftBehind).OrderByDescending(c => c.Slack).ThenBy(c => c.Player).FirstOrDefault()
+        ?? Posts.Entries.Where(c => c.On == 0 && c.Post != Post.LeftBehind && c.Slack >= _t.Orchestrator.MinSlack).OrderByDescending(c => c.Slack).ThenBy(c => c.Player).FirstOrDefault();
+
+    /// <summary>The world the director last counted (note 717: who's marked).</summary>
+    World? _world;
 
     /// <summary>
     /// Who's next (note 345; orchestrator.md §3.2 2, 3): a kind answered at the post of the free crewmate with the most slack
@@ -608,6 +624,9 @@ public sealed class Director
         double busy = 1 / (1 + p.Busy * engaged * Math.Max(0, 1 - p.BusyFade * Math.Clamp(progress, 0, 1)));
         // Note 327 (App. F.3): the crew off the train, on foot, draw it on: the share of the living afoot (Watch, this second).
         double afoot = _t.Afoot.On ? _t.Afoot.PerSecond * AfootShare : 0;
+        // Note 717: and a crewmate marked for a shove that killed, on foot (player.json horseplay.marked.pressurePerSecond).
+        if (world.MarkedAfoot)
+            afoot += world.HorseplayTuning.Marked.PressurePerSecond;
         // By the crew in the night (who joined it, alive or not: the relief valve has the dead) and the cars the engine
         // pulls (note 646).
         double scale = p.Scale(Math.Max(1, Crew), world.Train.Dynamics.Consist.CarCount);

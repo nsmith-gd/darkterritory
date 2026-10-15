@@ -104,9 +104,10 @@
   // enemy allows it) or hits the holder. Alone (a crew of one), holding Use for soloStruggle seconds is a try at breaking
   // the hold (ARCHITECTURE §8 note 92): one try a grab, and it works soloStruggleChance of the time (the director, 13 Oct
   // 2026, App. C.1: "holding e shouldn't always result in escape it should at best give me a 15% chance of escape"; note
-  // 681). soloStruggle is shorter than every creature's hold (the Householder's grabSeconds, 6, the shortest), so the try
-  // comes before the kill.
-  "grab": { "pullReach": 1.6, "soloStruggleOn": true, "soloStruggle": 4, "soloStruggleChance": 0.15 },
+  // 681). Then raised to a coin flip (the director's playtest, 14 Oct: "hold the struggle when playing solo really should
+  // have a higher rate of success. Damn, yeah, run lost"; note 737): 0.15 to 0.5. soloStruggle is shorter than every
+  // creature's hold (the Householder's grabSeconds, 6, the shortest), so the try comes before the kill.
+  "grab": { "pullReach": 1.6, "soloStruggleOn": true, "soloStruggle": 4, "soloStruggleChance": 0.5 },
 
   // App. C.2 melee with train tools: the shovel, the crowbar and the wrench (GDD §12, §1322) swing; enemy health below is in
   // blows of the crowbar, the tool everyone starts with (player.json kit). App. C.2: "the boiler player's shovel doubling as
@@ -763,7 +764,10 @@
     // Eleven Q9's "does talking lower its aggro", answered yes for now; false: talk only holds it); calmed under attackAt it
     // stops attacking; calm and talked to for talkedDownSeconds, it leaves empty-handed. Only the gang's blows with someone
     // talking to it take its health; a blow in silence angers it a step.
-    "drivenOff": true, "talkingCalms": true, "talkedDownSeconds": 45
+    "drivenOff": true, "talkingCalms": true, "talkedDownSeconds": 45,
+    // Note 720 (GDD §14; the director, 14 Oct 2026): a crew singing together near it (player.json voices.singing) talks it
+    // down this many times as fast: its anger's steps and its calm both come on at this pace.
+    "singingTalks": 3
   },
 
   // MARSH (§22 hazard, formerly the Drift): something in the reeds surges toward motion; stand still stillSeconds and it

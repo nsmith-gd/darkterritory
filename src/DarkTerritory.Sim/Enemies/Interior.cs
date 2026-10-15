@@ -149,7 +149,7 @@ public sealed class Stoker(int id) : Enemy(id)
         double reach = ctx.Tuning.Stoker.DoorReach;
         return ctx.Crew.Where(c => c.Player.State.Alive && PlayerMotor.InCab(c.Player.State, ctx.Train)
                 && Flat(c.Player.State.Position - firebox) <= reach)
-            .OrderBy(c => Flat(c.Player.State.Position - firebox)).Select(c => (int?)c.Player.Id).FirstOrDefault();
+            .OrderBy(c => ctx.Weigh(c.Player.Id, Flat(c.Player.State.Position - firebox))).Select(c => (int?)c.Player.Id).FirstOrDefault();
     }
 
     static double Flat(Double3 d) => Math.Sqrt(d.X * d.X + d.Z * d.Z);

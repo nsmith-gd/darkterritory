@@ -1020,7 +1020,7 @@ public static partial class Hud
         // Note 576: a battered shell let go is working itself apart, said where it's felt: in the car, on the engine, and to
         // the cab for any car of the train (the driver feels it through the couplings).
         // The news under the dawn clock says the engine's stage (note 663), so the engine's own line here waits it out.
-        bool engineNews = NewsUp(world) is { Kind: not NewsKind.CarsLost };
+        bool engineNews = NewsUp(world) is { Kind: NewsKind.EngineFailing or NewsKind.EngineBroken };
         if (p.Alive)
             foreach (var (text, worst) in FailingLines(world.Train, p))
             {
@@ -1456,8 +1456,8 @@ public static partial class Hud
         IncidentKind.Derailed or IncidentKind.Stranded => 0,
         IncidentKind.Death => 1,
         IncidentKind.CarLost or IncidentKind.Fire or IncidentKind.Nest or IncidentKind.Aboard or IncidentKind.Runaway or IncidentKind.Points
-            or IncidentKind.Rupture or IncidentKind.Struck or IncidentKind.BroughtIn => 2,
-        IncidentKind.Rescue or IncidentKind.Slain => 3,
+            or IncidentKind.Rupture or IncidentKind.Struck or IncidentKind.BroughtIn or IncidentKind.Marked => 2,
+        IncidentKind.Rescue or IncidentKind.Slain or IncidentKind.Sang => 3,
         _ => 4,
     };
 
@@ -1524,6 +1524,10 @@ public static partial class Hud
         money.Add($"running costs {r.CoalCost + r.AmmoCost + r.RepairCost:0}");
         // Wrapped as the lines are (note 347): at a bigger TEXT SIZE it's wider than the plate.
         var sum = Wrap($"{string.Join(", ", money)}. Net {r.Net:0} scrip.", chars).ToList();
+        // Note 718: the night's best finds by what they paid, and who brought the most aboard, over the money (what the clerk
+        // read, kept on the screen: how a crew learns what's worth carrying).
+        if (PrizeLine(r) is { Length: > 0 } prizes)
+            sum.InsertRange(0, Wrap(prizes, chars));
         // The dead's own (D.12 "manual"), a row of stills across, each with when and whom they were following.
         var manual = r.Bookmarks.Where(b => b.Kind == BookmarkKind.Manual).ToList();
         // Each a still with its time and whom it followed at its right.
@@ -1585,6 +1589,21 @@ public static partial class Hud
             o.Text(x + 4, y, row, Ink);
             y += line;
         }
+    }
+
+    /// <summary>
+    /// Note 718: the end screen's line for the night's finds: "Best finds: comet fragment 1080, pocket watch 110, candles 25
+    /// (x3). Light fingers: Dave, 1215." Empty with none home.
+    /// </summary>
+    public static string PrizeLine(RunReport r)
+    {
+        var parts = new List<string>();
+        if (r.Prizes.Count > 0)
+            parts.Add("Best finds: " + string.Join(", ", r.Prizes.Select(p =>
+                $"{char.ToLowerInvariant(p.Name[0])}{p.Name[1..]} {p.Worth:0}{(p.Count > 1 ? $" (x{p.Count})" : "")}")) + ".");
+        if (r.Finder.Length > 0 && r.FinderWorth > 0)
+            parts.Add($"Light fingers: {r.Finder}, {r.FinderWorth:0}.");
+        return string.Join(" ", parts);
     }
 
     /// <summary>Run seconds as the report's timestamp: "1:04:12" over an hour, else "12:04".</summary>
@@ -1948,6 +1967,8 @@ public static partial class Hud
         // Dave's last words to them (note 570): the director's own.
         DeathCause.Dave => "YOU SHOULD BE NICER IN A DARK WORLD.",
         DeathCause.Fell => "FELL. IT WAS FURTHER DOWN THAN IT LOOKED",
+        // Note 717: a friend's shove, and the landing did the rest.
+        DeathCause.Shoved => "SHOVED OFF. SOME FRIEND",
         DeathCause.None => "",
         _ => cause.ToString().ToUpperInvariant(),
     };
@@ -2267,7 +2288,9 @@ public static partial class Hud
             case InteractableKind.Firebox when PlayerMotor.InCab(p, train) && !CrewActions.HasShovel(p, train):
                 return Kit.Has(p.Kit, Tool.Shovel) || train.Boiler.ShovelOut ? "THE SHOVEL IS OUT" : "HANDS FULL";
             case InteractableKind.Firebox when PlayerMotor.InCab(p, train):
-                return p.Hand != default && !p.Has(PlayerFlags.Shovelful) ? "SHOVEL EMPTY" : "SHOVEL COAL : HOLD [E]";
+                // Note 717: the coal on the shovel can be thrown instead (horseplay), said while it's there.
+                return p.Hand != default && !p.Has(PlayerFlags.Shovelful) ? "SHOVEL EMPTY"
+                    : p.Has(PlayerFlags.Shovelful) && p.Hand == default ? "SHOVEL COAL : HOLD [E]   THROW IT : [RMB]" : "SHOVEL COAL : HOLD [E]";
             // Only a reaching hand finds the coal face (T29).
             case InteractableKind.Coal when PlayerMotor.InCab(p, train):
                 return p.Has(PlayerFlags.Shovelful) ? "SHOVEL FULL" : "TAKE COAL : GRIP";
@@ -2455,6 +2478,12 @@ public static partial class Hud
             if (here.Clamped >= 0)
                 return "A CAR'S CLAMPED IN THE TIPPLE : DON'T MOVE";
         }
+        // Note 717 (horseplay): a crewmate in front within reach, nothing else to do there: the shove's key. With the coal on
+        // the shovel, turned from the fire, it's the throw's.
+        if (p.Has(PlayerFlags.Shovelful) && p.Hand == default)
+            return "THROW THE COAL : [RMB]";
+        if (world.HorseplayTuning.Enabled && Horseplay.ShoveTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning) is not null)
+            return "SHOVE : [LEFT ALT]";
         return null;
     }
 

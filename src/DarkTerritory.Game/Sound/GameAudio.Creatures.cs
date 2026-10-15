@@ -139,6 +139,7 @@ public sealed partial class GameAudio
         Mauled(world);
         ChoirSwarm(world);
         SwitchmanThrows(world);
+        SixSoundsAfter(world);
     }
 
     /// <summary>One enemy's record this tick against last tick's.</summary>
@@ -251,6 +252,9 @@ public sealed partial class GameAudio
             case Gannet g:
                 GannetSounds(world, g, was, at, occ, dt);
                 Pained("cs-gannet-strike.hit", e, at, occ, struck);
+                break;
+            default:
+                SixSounds(world, e, was, at, occ, struck, dt);
                 break;
         }
     }

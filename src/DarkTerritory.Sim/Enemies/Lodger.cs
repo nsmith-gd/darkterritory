@@ -112,7 +112,7 @@ public sealed class Lodger(int id) : Enemy(id)
                     var close = living.Where(c => HouseWays.Flat(c.World - me) <= t.ShriekWithin && !HouseWays.Blocked(walls, me, c.World)).ToList();
                     if (_rest > 0 || (close.Count == 0 && (_noticed < t.NoticeSeconds || inside.Count == 0)))
                         return;
-                    var pick = (close.Count > 0 ? close : inside).OrderBy(c => HouseWays.Flat(c.World - me)).ThenBy(c => c.Player.Id).First();
+                    var pick = (close.Count > 0 ? close : inside).OrderBy(c => ctx.Weigh(c.Player.Id, HouseWays.Flat(c.World - me))).ThenBy(c => c.Player.Id).First();
                     Shriek(ctx, pick.Player.Id);
                     return;
                 }

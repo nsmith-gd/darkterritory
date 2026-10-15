@@ -114,7 +114,8 @@ public sealed partial class Run
             var engine = train.Frames[0];
             var local = engine.ToLocal(at);
             double ahead = -local.Z - engine.Shape.HalfLength;
-            if (ahead > 0 && ahead <= w.BeamLength && Math.Abs(local.X) <= 2 + ahead * w.BeamSpread)
+            // As far as this train's headlamp reaches (note 506: the lamp brightness upgrade lights more of the wreck).
+            if (ahead > 0 && ahead <= w.BeamLength * train.Dynamics.Tuning.HeadlampReach && Math.Abs(local.X) <= 2 + ahead * w.BeamSpread)
                 return true;
         }
         return world.Bodies.All.Any(b => b.Kind == Physics.BodyKind.Lamp && Flat(Physics.Bodies.WorldCentre(b, train) - at) <= w.LampReach);

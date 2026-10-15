@@ -211,6 +211,9 @@ public static partial class Hud
                 lines.Add(carried.Lifted ? "PUT IT DOWN : [E]" : "LET GO : [E]");
             else
                 lines.AddRange(["PUT DOWN : [E]", "THROW : [RMB]"]);
+            // Note 720: a hand lamp's signals, its own wheel (what each says is the crew's to learn).
+            if (carried.Kind == BodyKind.Lamp)
+                lines.Add("SIGNAL : HOLD [U]");
             return (Called(world, carried), lines);
         }
         // Note 649: at a crew locker with a tool in hand, Throw puts it on a shelf (the prompt's line is the locker's Use).
