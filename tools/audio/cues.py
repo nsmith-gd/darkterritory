@@ -998,6 +998,18 @@ CUES = {
     "crew-speaking-tube": [
         O("call", "A voice coming down the tube after a quiet: its whistle shrilling at the far end first", vars=3),
     ],
+    # K1's crew car and crew memory (queue #506, note 776; K1's #1016, notes 716 and 721; K1's asks on #1012). Built ahead
+    # of #1016 for the director to judge; hooked when it lands.
+    "crew-car": [
+        L("kettle", "The kettle on the cab's back wall singing as the gauge nears the redline: a breathy whistle rising to a shrill"),
+        O("cuckoo", "The cuckoo clock before dawn: its little door, the bird's two-note call, the works whirring it back in", vars=3),
+    ],
+    "crew-memory": [
+        O("flash", "The crew photo at the gate: a flash-powder whump and the shutter's click", vars=3),
+        O("open", "The logbook opened on the bench: a heavy cover thumped back, the spine creaking", vars=3),
+        O("page", "A logbook page turned: dry paper lifted and laid over", vars=4),
+        O("shut", "The logbook shut: the cover clapped down on its pages", vars=3),
+    ],
     # U1's upgrades (queue #505, note 775; U1's #967, notes 678, 697, 698; the checklist's up- rows, U1's requests of 13 Oct).
     # Built ahead of #967 for the director to judge; hooked when it lands.
     "up-forge": [
