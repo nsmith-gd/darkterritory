@@ -47,12 +47,16 @@ public class CrewAudioTests
 
         public TrainOnLine Train => World.Train;
 
+        /// <summary>Run each tick after the world's step and before what's heard (a client's copy of the host's records).</summary>
+        public Action? Mirror;
+
         /// <summary>One tick: the world, then what's heard with this crew aboard.</summary>
         public void Step(params (int Id, PlayerState State)[] crew)
         {
             World.BeginTick();
             World.Step(World.Controls);
             World.StepBodies(crew);
+            Mirror?.Invoke();
             Audio.CrewStates = crew;
             Audio.Update(World, World.Controls, Listener.At(Train.Frames[1].Origin + Double3.Up * 2, 0), exposed: true, Dt);
             // The crew's (and the old gunshot), not the train's bed going on underneath.
@@ -1038,5 +1042,76 @@ public class CrewAudioTests
         Assert.Equal(1, b.Count("crew-coupling.knuckle-release"));
         Assert.Equal(1, b.Count("crew-coupling.hose-part"));
         Assert.Equal(0, b.Count("crew-coupling.knuckle-close"));
+    }
+
+    // ---- Horseplay (queue #498, note 768) ---------------------------------------------------------------------------------
+
+    static (int, PlayerState) OnRoof(int id, int car, double z) =>
+        (id, new PlayerState { Parent = car, Position = new Double3(0, 3.9, z), Surface = Surface.Roof, Health = P.Health });
+
+    [Fact]
+    public void ALumpFlungAtAFriendIsntHeardAsStokingAndAShovelfulInIs()
+    {
+        // Note 768: a lump off the shovel takes a unit of the tender (note 717), and the stoking hook heard that as a
+        // shovelful into the fire. The fire door's clock is what a shovelful starts, every one (Boiler.Shovel).
+        var b = new Bench("crew-melee.shovel-swing");
+        var crew = new[] { OnRoof(1, 0, 2), OnRoof(2, 1, 0) };
+        b.Train.Boiler.Tender = 10;
+        b.Step(crew);
+        b.Train.Boiler.Tender -= 1;
+        b.Mirror = () => b.World.MirrorHorseplay([new HorseplayEvent(7, b.World.Tick, 1, KnockKind.Coal, -1)], []);
+        b.Step(crew);
+        b.Step(crew);
+        Assert.Equal(0, b.Count("crew-shovel.throw"));
+        Assert.Equal(1, b.Count("crew-melee.shovel-swing"));
+        b.Mirror = null;
+        // What Boiler.Shovel does with a shovelful (the bench's boiler has no firebox to take it).
+        b.Train.Boiler.Tender -= 1;
+        b.Train.Boiler.Firebox += 1;
+        b.Train.Boiler.FireDoorOpen = true;
+        b.Step(crew);
+        Assert.Equal(1, b.Count("crew-shovel.throw"));
+    }
+
+    [Fact]
+    public void EachKnockIsHeardOnceOnWhomItLandedAndALumpWhereItCameDown()
+    {
+        // Note 768: a shove, a bump, a bonk and a lump off a coat, each once (the knocks are kept a while and sent every
+        // snapshot), at the friend it landed on; a lump gone out of the air with nobody hit came down on the train or the
+        // ground, and is heard on what it came down on.
+        var b = new Bench("crew-horseplay.shove", "crew-horseplay.bump", "crew-horseplay.bonk", "crew-horseplay.coal-hit",
+            "crew-horseplay.coal-land.roof", "crew-horseplay.coal-land.wood", "crew-horseplay.coal-land.ground");
+        var crew = new[] { OnRoof(1, 1, 3), OnRoof(2, 1, -3) };
+        var knocks = new List<HorseplayEvent>();
+        var lumps = new List<LumpInFlight>();
+        b.Mirror = () => b.World.MirrorHorseplay(knocks, lumps);
+        b.Step(crew);
+        knocks.Add(new HorseplayEvent(10, b.World.Tick, 1, KnockKind.Shove, 2));
+        knocks.Add(new HorseplayEvent(11, b.World.Tick, 2, KnockKind.Bump, 1));
+        for (int i = 0; i < 5; i++)
+            b.Step(crew);
+        knocks.Add(new HorseplayEvent(12, b.World.Tick, 1, KnockKind.Bonk, 2));
+        knocks.Add(new HorseplayEvent(13, b.World.Tick, 1, KnockKind.Coal, 2));
+        for (int i = 0; i < 5; i++)
+            b.Step(crew);
+        foreach (var cue in new[] { "crew-horseplay.shove", "crew-horseplay.bump", "crew-horseplay.bonk", "crew-horseplay.coal-hit" })
+            Assert.Equal(1, b.Count(cue));
+        var head = b.Heard.First(h => h.Name == "crew-horseplay.bonk").At;
+        var friend = PlayerMotor.WorldPosition(crew[1].Item2, b.Train);
+        Assert.InRange(head.Y - friend.Y, 1.5, 1.8);
+        // A lump on the roof of car 2, then gone with nobody hit: the tin; one over the ground beside the line: the ground.
+        var roof = b.Train.Frames[2].ToWorld(new Double3(0, b.Train.Frames[2].Shape.RoofHeight + 0.1, 0));
+        lumps.Add(new LumpInFlight(40, 1, roof));
+        b.Step(crew);
+        lumps.Clear();
+        b.Step(crew);
+        Assert.Equal(1, b.Count("crew-horseplay.coal-land.roof"));
+        var beside = b.Train.Frames[2].ToWorld(new Double3(6, 0.1, 0));
+        lumps.Add(new LumpInFlight(41, 1, beside));
+        b.Step(crew);
+        lumps.Clear();
+        b.Step(crew);
+        Assert.Equal(1, b.Count("crew-horseplay.coal-land.ground"));
+        Assert.Equal(0, b.Count("crew-horseplay.coal-land.wood"));
     }
 }

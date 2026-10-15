@@ -68,6 +68,9 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
             Enter(ctx, SpinePhase.Gone);
             return;
         }
+        // Note 728 (playtest 13 Oct evening, line 24): the extinguisher's cold on a hound aboard drives it back.
+        if (Attached >= 0 && Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab && Doused(ctx))
+            return;
         switch (Phase)
         {
             case SpinePhase.Dormant:
@@ -626,6 +629,66 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         ctx.World.PackFires++;
     }
 
+    // Note 728: the ticks it's been sprayed lately, how long it keeps off yet, and where (its car's z) the spray came from.
+    readonly List<uint> _sprayed = [];
+    double _repel, _sprayFrom;
+
+    /// <summary>Being driven back by the extinguisher's spray (note 728): it keeps off this long yet (s).</summary>
+    public double Repelled => _repel;
+
+    /// <summary>
+    /// The extinguisher's spray (heat masked: senses.json <c>answers.cinderHounds</c>; GDD App. A.3; note 728; the director's
+    /// playtest of 13 Oct evening, line 24: "they still got me, even though I was using it on them. That should have
+    /// worked"): aimed at it within the spray's reach and cone, from the same side of a car's walls, it lets go of whoever it
+    /// holds, can't bite, and backs off along its car away from the sprayer, and keeps off a while after. Sprayed long enough
+    /// in a short while, it leaps off the train. True while it's backing off (it does nothing else this tick).
+    /// </summary>
+    bool Doused(EnemyContext ctx)
+    {
+        var a = ctx.World.Senses.Answers.CinderHounds;
+        if (!a.SprayRepels)
+            return false;
+        var train = ctx.Train;
+        double dt = SimConstants.TickSeconds;
+        var at = WorldPosition(train) + Double3.Up * 0.4;
+        var spray = ctx.World.Sprayed(at, e => ctx.Crew.Any(c => c.Player.Id == e.By && Reaches(train, c.Player.State)));
+        if (spray is { } e)
+        {
+            _sprayed.Add(ctx.Tick);
+            _sprayed.RemoveAll(k => (ctx.Tick - k) * dt > a.DriveOffWindow);
+            _repel = a.RepelSeconds;
+            _sprayFrom = train.Frames[Attached].ToLocal(e.At).Z;
+            if (Phase == SpinePhase.Grab)
+                Rescued(ctx, e.By);
+            if (_sprayed.Count * dt >= a.DriveOffSeconds - 1e-9)
+            {
+                // Off the train, into the dark: driven off, as by its other rules.
+                ctx.World.DrivenOff.Add(Kind);
+                Enter(ctx, SpinePhase.BreakOff);
+                Enter(ctx, SpinePhase.Gone);
+                return true;
+            }
+        }
+        else
+            _repel = Math.Max(0, _repel - dt);
+        if (_repel <= 0)
+            return false;
+        _biteTimer = 0;
+        // Backing off along its car, away from where the spray came from, to the end of its roof (or its room).
+        var shape = train.Frames[Attached].Shape;
+        double lo, hi;
+        if (Inside(train))
+            (lo, hi) = (shape.Interior!.Value.Min.Z + RoomEnd, shape.Interior!.Value.Max.Z - RoomEnd);
+        else
+            (lo, hi) = (-(shape.HalfLength - RoofEnd), shape.HalfLength - RoofEnd);
+        _dir = Local.Z >= _sprayFrom ? 1 : -1;
+        if (_dir * Local.Z < (_dir > 0 ? hi : -lo) - 1e-6)
+            Walk(ctx, a.BackOffSpeed, lo, hi);
+        else
+            SetMode(HoundMode.Still, _dir < 0 ? 1 : 0);
+        return true;
+    }
+
     /// <summary>A runner killed on the line (note 328: a ball on it) is counted for the run's report.</summary>
     public override void Struck(EnemyContext ctx, int by, double damage)
     {
@@ -681,6 +744,44 @@ public sealed class CarHugger(int id) : Enemy(id)
     public override double DragAbove => _cap;
     public override double DragFactor => _factor;
 
+    // Note 728: how long it stays drawn to the last knock it heard (s), where that was along the line, and its side.
+    double _drawn, _knockAt;
+
+    /// <summary>Lurking, drawn off to a knock on the rail (note 728): it latches onto nothing while it is.</summary>
+    public bool Decoyed => _drawn > 0;
+
+    /// <summary>
+    /// A knock on the rail within its reach (vibration, its sense; senses.json <c>answers.carHugger</c>; note 728): it crawls to
+    /// it along the line (<c>crawlSpeed</c>) and out off the formation's edge (<c>lateral</c>), and while it's drawn
+    /// (<c>drawnSeconds</c> from the last knock) the train going by is nothing to it. Then it settles where it is, lurking.
+    /// True while it's drawn.
+    /// </summary>
+    bool Drawn(EnemyContext ctx)
+    {
+        var a = ctx.World.Senses.Answers.CarHugger;
+        if (!a.KnocksDraw)
+            return false;
+        var train = ctx.Train;
+        double dt = SimConstants.TickSeconds;
+        var at = WorldPosition(train);
+        if (ctx.World.Loudest(Sense.Vibration, at, e => e.Kind == EmitterKind.Knock) is { } knock)
+        {
+            double hint = LineDistance;
+            var (_, along) = train.Line.Nearest(knock.At, ref hint);
+            _knockAt = along;
+            _drawn = a.DrawnSeconds;
+        }
+        else
+            _drawn = Math.Max(0, _drawn - dt);
+        if (_drawn <= 0)
+            return false;
+        double step = a.CrawlSpeed * dt, gap = _knockAt - LineDistance;
+        LineDistance += Math.Clamp(gap, -step, step);
+        double side = Math.Sign(Lateral) is var sign && sign != 0 ? sign : 1;
+        Lateral = side * Math.Min(Math.Abs(Lateral) + step, Math.Max(Math.Abs(Lateral), a.Lateral));
+        return true;
+    }
+
     /// <summary>Beside the track at a low spot ahead of the train.</summary>
     public static CarHugger Lurking(int id, double along, int side, CarHuggerTuning t) =>
         new(id) { LineDistance = along, Lateral = side * 2.6, Height = -0.3, Health = t.Health, _cap = t.SpeedCap, _factor = t.DragFactor };
@@ -714,6 +815,9 @@ public sealed class CarHugger(int id) : Enemy(id)
         _factor = t.DragFactor;
         if (Phase == SpinePhase.Dormant)
         {
+            // Note 728: a knock on the rail draws it off to it, and drawn, it latches onto nothing.
+            if (Drawn(ctx))
+                return;
             // LURK until the rear car passes, then LATCH: the grinding, and the cap.
             if (train.Dynamics.RearDistance > LineDistance + 2 || train.Dynamics.Distance < LineDistance)
                 return;
@@ -765,7 +869,7 @@ public sealed class CarHugger(int id) : Enemy(id)
         // SWALLOW: in front of its mouth, the rear platform's end.
         var mouth = WorldPosition(train);
         var victim = ctx.LivingCrew().Where(c => (c.World - mouth).Length <= t.MouthReach && !c.Player.State.Has(PlayerFlags.Held))
-            .OrderBy(c => (c.World - mouth).Length).Select(c => (int?)c.Player.Id).FirstOrDefault();
+            .OrderBy(c => ctx.Weigh(c.Player.Id, (c.World - mouth).Length)).Select(c => (int?)c.Player.Id).FirstOrDefault();
         if (victim is { } v)
             Grab(ctx, v, t.SwallowSeconds);
     }

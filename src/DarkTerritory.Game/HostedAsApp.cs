@@ -36,6 +36,12 @@ public static class HostedAsApp
             LastTown = s.LastTown,
             Burnt = s.Burnt.Count > 0 ? s.Burnt : null,
             CampaignNight = true,
+            // Note 721: whose logbook the night goes in, and which night it is.
+            Crew = s.Name,
+            CrewKey = Sim.Campaign.Logbook.Key(s),
+            Night = s.Runs + 1,
+            // Note 731: the crew's sigil, on the engine's side and every mask.
+            Sigil = s.Sigil,
         };
 
     /// <summary>The harness's arguments for <paramref name="setup"/>'s night with <paramref name="bots"/> bots, for up to

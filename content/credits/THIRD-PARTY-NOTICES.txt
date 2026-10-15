@@ -39,7 +39,7 @@ Cut up, recombined and rebaked for the game.
 - Glass Hurricane Candle Holder, Eric Chadwick for Wayfair (Khronos glTF sample assets), CC BY 4.0
   CC BY 4.0. From github.com/KhronosGroup/glTF-Sample-Assets. In: portrait room.
 - Infinite, 3D Head Scan by Lee Perry-Smith (ir-ltd.net), CC BY 3.0, based on a work at triplegangers.com
-  CC BY 3.0. From github.com/mrdoob/three.js. In: clinger, husk, survivor prisoner, survivor wildlander, switchman, wall face.
+  CC BY 3.0. From github.com/mrdoob/three.js. In: clinger, dave, husk, survivor prisoner, survivor wildlander, switchman, wall face.
 - Interior Scene by Allay Design (sketchfab.com/Alister.Dsouza), CC BY 4.0
   CC BY 4.0. From github.com/gkjohnson/3d-demo-data. In: wake room.
 - Antique Camera, Maximillan Kamps for UX3D (Khronos glTF sample assets), CC0
@@ -65,13 +65,13 @@ Cut, layered and processed for the game.
 - LibriTTS, Zen et al. 2019
   CC BY 4.0. Spoken through Piper, LibriTTS en-us high (rhasspy/piper v0.0.2). In: tell soot children, voice clerk, voice prisoner sets.
 - Impact Sounds, by Kenney (kenney.nl)
-  CC0 1.0. In 326 of the game's sounds.
+  CC0 1.0. In 375 of the game's sounds.
 - RPG Audio, by Kenney (kenney.nl)
-  CC0 1.0. In 247 of the game's sounds.
+  CC0 1.0. In 297 of the game's sounds.
 - SFX 100, volume 2
-  CC0 1.0. In 290 of the game's sounds.
+  CC0 1.0. In 364 of the game's sounds.
 - UI Audio, by Kenney (kenney.nl)
-  CC0 1.0. In 6 of the game's sounds.
+  CC0 1.0. In 8 of the game's sounds.
 
 THE TEXTURES
 Graded, tiled and rebaked for the game.

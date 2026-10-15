@@ -216,11 +216,18 @@ def candidates(line, cue, stored):
         u = assets.url_for(e["preview"])
         if u:
             by_url[u] = e
+    # Rebuilt elsewhere (the audio-build workflow, note 667), a preview's encoding can come out a byte different from the
+    # copy that went up, though the takes are its recipe's own (seeded): the page's candidate is the one recorded for it.
+    recorded = assets.load()
+    for e in man.values():
+        if (a := recorded.get(e["preview"])) and a["url"] not in by_url:
+            by_url[a["url"]] = e
     out = []
     for k in stored.get("cands") or []:
         k = dict(k)
-        if k["src"] in by_url:
-            e = by_url[k["src"]]
+        if k["src"] in by_url or k["src"].startswith("built:") and k["src"][6:] in man:
+            # A candidate on the page, or one just built for a line the page doesn't have yet (ci_build.py's fresh).
+            e = by_url.get(k["src"]) or man[k["src"][6:]]
             k.update(built=True, line=e["line"], cue=e["cue"], key=e["key"], mat=e["mat"])
         elif k.get("old") or k["src"].startswith("audio/"):
             k["old"] = True
@@ -231,6 +238,11 @@ def candidates(line, cue, stored):
         out.append(k)
     return out
 
+
+# A cue whose takes are two sounds the game fires by turns: each part its own folder of the takes it names (by index) and
+# its own definition, <line>.<cue>.<part>, beside the whole cue's. The Brakeman's steps limp only if the good leg's takes
+# and the bad leg's alternate on his long-short beat (note 388; recipes/g1_train.py LAME), so GameAudio fires them so.
+TAKE_SPLITS = {"tell-brakeman.step": {"good": (0, 2), "bad": (1, 3)}}
 
 # Which candidate plays while nothing's kept, where the director's brief already says which (rather than the first): the
 # tunnel's hit is to be a bonk, not a thock (3 Oct), and the clean bonk is the one that says so. The bend's stress is to be
@@ -256,7 +268,30 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 # Note 431: the joint's crack, short and hard under 2 kHz; the old clack and the battered joint candidates.
                 "bed-wheel-rail.joint": "crack",
                 # Note 444: the truss Dragger's whole weight on the roof (limbs, lighter, a candidate).
-                "cs-draggers.drop": "slam"}
+                "cs-draggers.drop": "slam",
+                # Note 388: the Brakeman's iron heel and hobnails from real recordings, the modelled plank a candidate.
+                "tell-brakeman.step": "hob",
+                # Note 767: the house creatures from the packs' real things where the first by name is the model; the
+                # strands' hum the model, a wire's wake (the struck metal frozen into a whine a candidate).
+                "tell-lodger-breathing.breathing": "lungs", "tell-lodger-shriek.shriek": "wail", "cs-lodger.lunge": "soles",
+                "tell-householder-rise.rise": "scrape", "cs-householder.breath": "rasp", "tell-hollow-house.rumble": "ground",
+                "cs-hollow-house.slam": "thrown", "cs-hollow-house.sink": "timber", "tell-hanger-strands.hum": "wire",
+                # Note 771: the Pickers' grating and their squeals from the packs' real things, the models candidates.
+                "tell-pickers.emerge": "grate", "cs-pickers.scatter": "squeals",
+                # Note 772: the Wakers from the packs' real things (thunder, rock, iron) first, the models candidates.
+                "tell-wakers.thud": "ground", "tell-wakers.stride": "ground", "tell-wakers.roar": "throat",
+                "cs-wakers.grab": "seized", "cs-wakers.drag": "skid", "cs-wakers.lift": "torn",
+                # Note 773: Dave's hum modelled (the real one is cut from a roar, and may read as a growl); Jacob's line and
+                # his blessing from the packs' real reel and glass.
+                "figures.dave-paint": "easel", "figures.jacob-fish": "reel", "figures.jacob-bless": "glass",
+                # Note 774: the mail bag's real sack; the comet's real glass (the model's even beat may read as a tremolo).
+                "crew-mail.catch": "sack", "world-comet.hum": "glass",
+                # Note 772: the town's guns the gun car's own shot and the cannon's own impact, put at their distance.
+                "town-guns.fire": "tower", "town-guns.hit": "meat",
+                # Note 776: the crew car's and the logbook's real things first (the glass's ring, the powder, the leather,
+                # the sheet, the clap), the models candidates.
+                "crew-car.kettle": "spout", "crew-memory.flash": "powder", "crew-memory.open": "leather",
+                "crew-memory.page": "sheet", "crew-memory.shut": "clap"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the
@@ -462,6 +497,23 @@ CUE_DEF = {
     "place-tipple.derail": {"tier": 3, "minDistance": 4, "maxDistance": 250, "rolloff": 0.8},
     "place-tipple.rerail": {"minDistance": 1, "maxDistance": 40, "rolloff": 1.0},
     "place-tipple.rerailed": {"minDistance": 2, "maxDistance": 80, "rolloff": 1.0},
+    # The Wakers (note 772): hill-sized, heard from where they rise, 1.2 km behind and more (the stir placed 700 m out). A
+    # rise there about -10 dB, a footfall about -19 dB and full by 50 m; the catch at the train itself.
+    **{f"tell-wakers.{c}": {"minDistance": m, "maxDistance": 4000, "rolloff": r}
+       for c, m, r in (("thud", 200, 0.6), ("call", 200, 0.6), ("rise", 200, 0.6), ("stride", 50, 0.7), ("roar", 100, 0.6))},
+    **{f"cs-wakers.{c}": {"minDistance": 20, "maxDistance": 1500, "rolloff": 0.8}
+       for c in ("grab", "lift", "eat", "take", "swallow")},
+    "cs-wakers.drag": {"minDistance": 10, "maxDistance": 600, "rolloff": 0.8},
+    # The town's guns at the walls (note 772): on its towers, 20-200 m from a crew in the yard; the ball landing on a Waker's
+    # back 300 m out and forty up, heard across the yard.
+    "town-guns.fire": {"minDistance": 30, "maxDistance": 1500, "rolloff": 0.8},
+    "town-guns.hit": {"minDistance": 60, "maxDistance": 2000, "rolloff": 0.7},
+    # K1's crew car (note 776): the kettle and the cuckoo on the big cab's back wall, heard about the cab; the photo's flash
+    # at the gate, out in the open; the logbook's pages this machine's own, flat as the panels are.
+    "crew-car.kettle": {"minDistance": 1, "maxDistance": 12, "rolloff": 1.0},
+    "crew-car.cuckoo": {"minDistance": 1, "maxDistance": 18, "rolloff": 1.0},
+    "crew-memory.flash": {"minDistance": 3, "maxDistance": 80, "rolloff": 1.0},
+    **{f"crew-memory.{c}": {"flat": True, "tier": 4} for c in ("open", "page", "shut")},
 }
 
 
@@ -583,6 +635,12 @@ def tell_sounds(chosen):
                 print(f"{name}: now the takes of {', '.join(fo for fo, _ in folders)}")
 
 
+def _sha(folder):
+    """A folder's takes (its files, not its parts' folders) as one short hash."""
+    files = sorted(f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f)))
+    return hashlib.sha256(b"".join(open(os.path.join(folder, f), "rb").read() for f in files)).hexdigest()[:16]
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     store = sys.argv[sys.argv.index("--from") + 1]
@@ -657,14 +715,25 @@ def main():
                            f"// {item['name']}: {cue['event']}" + (f" ({C.MATERIALS.get(mat, mat)})" if mat else "") +
                            f". Written by tools/audio/install.py from the audio checklist ({why}); edit the cue, not this.\n",
                            sound_def(item, cue, rel, line))
-                index[rel] = {"cue": f"{line}.{cue['id']}", "surface": mat, "picked": why,
-                              "candidates": [{"label": k.get("label"), "key": k.get("key") or k.get("libkey") or k["src"],
-                                              "sources": k.get("sources") or ([k["libkey"]] if k.get("libkey") else []),
-                                              "licence": "Sonniss GDC" if k.get("restricted")
-                                              else TTS_LICENCE if (line, cue["id"]) in TTS_CUES else "CC0"} for k in chosen],
-                              "takes": len(takes),
-                              "sha": hashlib.sha256(b"".join(open(os.path.join(folder, f), "rb").read()
-                                                             for f in sorted(os.listdir(folder)))).hexdigest()[:16]}
+                provenance = [{"label": k.get("label"), "key": k.get("key") or k.get("libkey") or k["src"],
+                               "sources": k.get("sources") or ([k["libkey"]] if k.get("libkey") else []),
+                               "licence": "Sonniss GDC" if k.get("restricted")
+                               else TTS_LICENCE if (line, cue["id"]) in TTS_CUES else "CC0"} for k in chosen]
+                index[rel] = {"cue": f"{line}.{cue['id']}", "surface": mat, "picked": why, "candidates": provenance,
+                              "takes": len(takes), "sha": _sha(folder)}
+                for part, which in TAKE_SPLITS.get(f"{line}.{cue['id']}", {}).items():
+                    sub = [takes[i] for i in which if i < len(takes)]
+                    if not sub:
+                        continue
+                    for i, x in enumerate(sub):
+                        encode(x, os.path.join(folder, part, f"{i:02d}.opus"))
+                    _write_def(os.path.join(SOUNDS, f"{name}.{part}.json"),
+                               f"// {item['name']}: {cue['event']} ({part}: takes {', '.join(map(str, which))}). Written by "
+                               f"tools/audio/install.py from the audio checklist ({why}, TAKE_SPLITS); edit the cue, not this.\n",
+                               sound_def(item, cue, f"{rel}/{part}", line))
+                    index[f"{rel}/{part}"] = {"cue": f"{line}.{cue['id']}", "surface": mat, "part": part, "picked": why,
+                                              "candidates": provenance, "takes": len(sub),
+                                              "sha": _sha(os.path.join(folder, part))}
     if not dry:
         os.makedirs(SAMPLES, exist_ok=True)
         json.dump(dict(sorted(index.items())), open(index_path, "w"), indent=1)

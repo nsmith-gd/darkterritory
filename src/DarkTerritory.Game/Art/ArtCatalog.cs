@@ -64,6 +64,10 @@ public static class ArtCatalog
             return k.Build("guard-armoured");
         }));
         list.Add(new("roof-handrails", SmallProp, () => TrainKit.RoofHandrails(look, cargo)));
+        // The voice's fittings (note 720): the speaking tube's horn and its pipe down to the floor, and the whistle codes' card.
+        list.Add(new("speaking-tube", SmallProp, () => VoiceKit.TubeEnd(look, (float)SpeakingTube.MouthHeight + 0.1f)));
+        list.Add(new("whistle-card", MediumProp, () => VoiceKit.WhistleCard(look, "WHISTLE CODES",
+            ["ONE LONG - STOPPING", "TWO LONG - GOING", "THREE SHORT - BACKING", "FOUR SHORT - HELP", "TWO SHORT - HEARD YOU"])));
         // A car's damage rides on its body (the car class's budget, what the body leaves of it: the kit's are 9-11k).
         list.Add(new("hatch-lid", SmallProp, () => TrainKit.HatchLid(look, new System.Numerics.Vector3(1.4f, 0.15f, 2.4f))));
         list.Add(new("utility-fit", MediumProp, () => TrainKit.UtilityFit(look, cargo)));
@@ -144,8 +148,20 @@ public static class ArtCatalog
         list.Add(new("loot", SmallProp, () => PropKit.Loot(look, 0.15f)));
         // The village finds, each its own (FindKit; the director, 8 Oct).
         foreach (var item in new[] { "tinnedFood", "treats", "candles", "medicine", "bandages", "morphine", "preserves", "lampOil",
-                     "tools", "valuableTools", "pocketWatch", "lampParts", "rope", "gannetHead" })
+                     "tools", "valuableTools", "pocketWatch", "lampParts", "rope", "gannetHead",
+                     // Note 718: the comet fragment and the team kills' trophies.
+                     "cometFragment", "grumblerJaw", "gauntHand", "climberClaw", "passengerCap", "brakemanWheel", "knotterClaw",
+                     "hotboxPlate", "beetleShovel", "towerJawTooth" })
             list.Add(new($"find-{item}", SmallProp, () => FindKit.Find(look, item, 0.15f)));
+        // Note 719: the fragile valuables, whole, knocked and smashed; and the two-person jackpots.
+        foreach (var item in new[] { "glassware", "decanter", "mantelClock" })
+            for (int knocks = 0; knocks <= 2; knocks++)
+            {
+                int k = knocks;
+                list.Add(new($"find-{item}-{k}", SmallProp, () => FindKit.Find(look, item, 0.15f, k)));
+            }
+        foreach (var (item, radius) in new[] { ("safe", 0.42f), ("churchBell", 0.45f), ("figurehead", 0.42f) })
+            list.Add(new($"jackpot-{item}", SmallProp, () => FindKit.Jackpot(look, item, radius)));
         // What the railway left beside its line (note 325, WorldArt.Leavings): every variant the leavings deal.
         for (int v = 0; v < 3; v++)
         {

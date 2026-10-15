@@ -74,6 +74,55 @@ public class WakersTests
     }
 
     [Fact]
+    public void WhoeverRanIsPickedUpByAnotherRisenBesideThemAndEaten()
+    {
+        // Note 710 (the director, 14 Oct 2026: "It should capture players who escape the train and eat them too"): the train
+        // held, a crewmate off it out in the field has a Waker rise beside them (the telegraph), stride over, take them in its
+        // hand, lift them to its mouth and eat them, long before the train's eaten down to the engine.
+        var n = new Night(front: 4000);
+        n.Step(W.RiseSeconds + 80);
+        Assert.True(n.Lead!.Holds);
+        var f = n.World.Train.Frames[0];
+        var out_ = f.ToWorld(new Ballast.Double3(f.Shape.HalfWidth + 30, 0, 0));
+        n.Player = PlayerMotor.SpawnOnGround(out_, n.World.Train.Line, n.World.Train.Dynamics.Distance, Tuning.Player);
+        n.Step(0.5);
+        var picker = Assert.Single(n.World.ActiveEnemies.OfType<Waker>(), w => w.Picker);
+        Assert.Equal(1, picker.Quarry);
+        Assert.Equal(SpinePhase.Telegraph, picker.Phase);
+        Assert.True(((picker.Local - out_) with { Y = 0 }).Length >= W.PickAside - 1, "it rises beside them, out in the field");
+        Assert.True(n.Player.Alive);
+        // Up (no sooner than anyone can react), across, and in its hand.
+        n.Step(Math.Max(E.MinReactionSeconds, W.PickRiseSeconds) + (W.PickAside - W.PickReach) / W.PickSpeed + 1);
+        Assert.Equal(SpinePhase.Grab, picker.Phase);
+        Assert.Equal(1, picker.Holding);
+        Assert.True(n.Player.Has(PlayerFlags.Held));
+        // Lifted to its mouth...
+        n.Step(W.PickLiftSeconds * 0.9);
+        double ground = n.World.Train.Line.Sample(n.World.Train.Dynamics.Path, n.World.Train.Dynamics.Distance).Position.Y;
+        Assert.True(n.Player.Position.Y - ground > W.PickMouthHeight * 0.6, $"{n.Player.Position.Y - ground:0} m up");
+        // ...and eaten, while the train's still being eaten from the rear.
+        n.Step(W.PickLiftSeconds * 0.2);
+        Assert.False(n.Player.Alive);
+        Assert.Equal(DeathCause.Woken, n.Player.Death);
+        Assert.False(n.World.TakenAtDawn);
+    }
+
+    [Fact]
+    public void NobodyOffTheTrainBeforeItsHeldIsTakenAndNoneRiseForThem()
+    {
+        // Note 710: the pickers are the held train's: off it with the Wakers still coming, nothing rises for you yet.
+        var n = new Night(front: 4000);
+        n.Step(W.RiseSeconds + 10);
+        Assert.False(n.Lead!.Holds);
+        var f = n.World.Train.Frames[0];
+        n.Player = PlayerMotor.SpawnOnGround(f.ToWorld(new Ballast.Double3(f.Shape.HalfWidth + 30, 0, 0)), n.World.Train.Line,
+            n.World.Train.Dynamics.Distance, Tuning.Player);
+        n.Step(5);
+        Assert.DoesNotContain(n.World.ActiveEnemies.OfType<Waker>(), w => w.Picker);
+        Assert.True(n.Player.Alive);
+    }
+
+    [Fact]
     public void TheyCatchAStandingTrainInAboutAMinuteAndNotBefore()
     {
         // wakers.md §6: stood still at dawn, caught in about 70 s; a lead that's honest, since a crew can see it coming.

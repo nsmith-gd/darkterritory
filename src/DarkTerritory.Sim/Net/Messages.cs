@@ -80,7 +80,31 @@ public static class Protocol
     //     after it), so every client walks into the same things.
     // 57: a third byte of buttons on every intent, after the voice level (note 664: crouch, and pushing the gun on its own key).
     // 58: the news (note 663): cars lost and the engine failing, with what did it, a record kind of its own.
-    public const int Version = 58;
+    // 59: horseplay (note 717): the player record carries its stagger (its 27th field), the shove rides the third byte of
+    //     buttons, a death and a flag or two of its own, and the knocks and the lumps of coal in flight are record kinds; each
+    //     input frame says the snapshot it was predicted against (a byte back from the message's), for the crowd.
+    //     And voices (note 720): a voice frame's path is two bytes (the speaking tube's its ninth flag) and the tube's far end follows
+    //     it; a lamp signal rides the intent's third byte (bits 2-3), and the crew see it as a record kind of its own.
+    // 60: an emote past the hotbar byte's two bits (note 740: "Aboard!"): both wheel-step bits set say the emote, and the
+    //     step, follow in a byte of their own.
+    // 61: pings (note 739): a record kind of their own; the ping itself rides the intent's moves byte (bit 5).
+    // 62: sessions (note 724): the crew's save sent to everyone aboard as a night's settled (CrewSave, in chunks); kick and the
+    //     public lobby's vote to put a player off (Kick, KickVote, Kicked; a Refused can say the crew put you off); and the
+    //     lobby's crew mischief switch (Mischief), changed in the yard.
+    // 63: the sense table (note 728): the body record's ninth field carries a toy playing where it lies (its noise | 0x100) and
+    //     a thrown lamp broken and burning (1).
+    // 64: bringing them home (note 723): two player flags (carried over a friend's shoulder, and carrying one) and a knock of
+    //     its own (a friend thrown off the shoulder).
+    // 65: the big finds (note 719): a find's body record carries a fragile one's knocks over its use ticks (its ninth field,
+    //     bits 16 up), and the doors' record the jackpot houses' locks being picked after the doors shut (key, progress pairs).
+    // 66: the handcar (note 729): a vehicle kind of its own and a Handcar record (hung or on the rails, the handle's swing, the
+    //     pumpers' drive, the brake, a lift under way, how many at the handle); a player's flags carry Pumping.
+    // 67: painted masks (note 731): the Hello carries the mask's paint (colour, stencil, its ink) in three bytes after its flags,
+    //     the host's Paints and a client's Paint, apart from the outfit's byte.
+    // 68: sound cues in the world (note 732): a record kind of their own (boards creaking where a house creature waits, the
+    //     Householder shifting in its chair, a far bell for what's been lost, a dog barking at the lamps' edge), and what worked
+    //     a coupling's pin loose on its car's record (the wound and seized byte's bits 2 up), a bend taken too fast among them.
+    public const int Version = 68;
 }
 
 public enum MessageType : byte
@@ -139,6 +163,26 @@ public enum MessageType : byte
     /// rather than going back to its menu.
     /// </summary>
     CarryOn = 20,
+    /// <summary>
+    /// Host → everyone aboard, reliable, as the host settles a campaign night into the save (note 724): one chunk of the crew's
+    /// save, its JSON compressed, in order. Each machine keeps it among the crews it's ridden with, and any of them can host it.
+    /// </summary>
+    CrewSave = 21,
+    /// <summary>
+    /// Client → host, reliable (note 724): put this crewmate off. From the host's own player it's done; in a public lobby from
+    /// anyone else it calls the vote, or says yes to the one open on them.
+    /// </summary>
+    Kick = 22,
+    /// <summary>Host → everyone, reliable (note 724): the vote to put someone off as it stands (who, yes, needed, until), or none.</summary>
+    KickVote = 23,
+    /// <summary>Host → the one put off, reliable (note 724): they're off the run; the host hangs up crew.refuseLingerSeconds later.</summary>
+    Kicked = 24,
+    /// <summary>Host → everyone, reliable (note 724): the lobby's crew mischief switch, on a Welcome and whenever the host changes it.</summary>
+    Mischief = 25,
+    /// <summary>Host → client, reliable: everyone's mask paint (GDD §29; note 731), by id, whenever it changes, as Outfits.</summary>
+    Paints = 26,
+    /// <summary>Client → host, reliable: the paint this player puts on their mask (note 731). The host takes it only in the yard.</summary>
+    Paint = 27,
 }
 
 /// <summary>Why the host turned a joiner away (note 254).</summary>
@@ -148,6 +192,8 @@ public enum RefusalReason : byte
     CrewFull = 1,
     /// <summary>A private run (note 450), and the Hello's password wasn't its own (or there was none).</summary>
     Password = 2,
+    /// <summary>Put off this run (note 724), by the host or the crew's vote: they can't come back to it.</summary>
+    Kicked = 3,
 }
 
 /// <summary>A host's refusal as the joiner reads it: why, and the crew against the cap at the time.</summary>
@@ -158,14 +204,32 @@ public readonly record struct Refusal(RefusalReason Reason, int Crew, int Cap)
     {
         RefusalReason.CrewFull => $"CREW FULL ({Crew}/{Cap})",
         RefusalReason.Password => "WRONG PASSWORD",
+        RefusalReason.Kicked => Messages.PutOff,
         _ => $"TURNED AWAY ({Reason})",
     };
 }
 
-/// <summary>A joiner's first word (note 253): who, the slot it's coming back to, its outfit, and a private run's key (note 450).</summary>
-public readonly record struct Hello(string Name, ulong Token, byte Outfit, byte[]? Key, bool Bot = false);
+/// <summary>
+/// The vote to put a crewmate off (note 724) as the host counts it: on whom, the yes so far and how many it needs, and the
+/// host's tick it closes at. <see cref="None"/> (target 0): no vote open.
+/// </summary>
+public readonly record struct KickVote(byte Target, int Yes, int Needed, uint Until)
+{
+    public static readonly KickVote None = default;
+    public bool Open => Target != 0;
+}
 
-public readonly record struct InputFrame(uint Sequence, PlayerIntent Intent);
+/// <summary>
+/// A joiner's first word (note 253): who, the slot it's coming back to, its outfit, a private run's key (note 450), and its
+/// mask's paint (note 731).
+/// </summary>
+public readonly record struct Hello(string Name, ulong Token, byte Outfit, byte[]? Key, bool Bot = false, MaskPaint Paint = default);
+
+/// <param name="Seen">
+/// Note 717: the newest snapshot the client had when it first predicted this input (0: none), the crowd it was pushed out from
+/// among; the host pushes it out from among the crew as that snapshot had them, so prediction agrees on any link.
+/// </param>
+public readonly record struct InputFrame(uint Sequence, PlayerIntent Intent, uint Seen = 0);
 
 public readonly record struct PlayerSnapshot(byte Id, PlayerState State);
 
@@ -189,6 +253,8 @@ public static class Messages
         foreach (var f in frames)
         {
             w.U32(f.Sequence);
+            // Note 717: the snapshot it was predicted against, as a step back from this message's (255: none, or too far back).
+            w.U8(f.Seen == 0 || f.Seen > lastSnapshotTick || lastSnapshotTick - f.Seen >= 255 ? (byte)255 : (byte)(lastSnapshotTick - f.Seen));
             WriteIntent(w, f.Intent);
         }
     }
@@ -201,7 +267,11 @@ public static class Messages
         lossPct = r.U8();
         int n = r.U8();
         for (int i = 0; i < n; i++)
-            into.Add(new InputFrame(r.U32(), ReadIntent(ref r)));
+        {
+            uint seq = r.U32();
+            byte back = r.U8();
+            into.Add(new InputFrame(seq, ReadIntent(ref r), back == 255 ? 0 : lastSnapshotTick - back));
+        }
     }
 
     static void WriteIntent(NetWriter w, in PlayerIntent i)
@@ -218,14 +288,25 @@ public static class Messages
         bool tool = i.Select != 0 || i.Cycle != 0 || i.Emote != Emote.None;
         w.U8((byte)(tool ? i.Actions | PlayerActions.Tool : i.Actions & ~PlayerActions.Tool));
         w.U8(i.Voice);
-        // Note 664: the third byte (crouch, push the gun along).
-        w.U8((byte)i.Moves);
+        // Note 664: the third byte (crouch, push the gun along); note 720, a lamp signal in its bits 2-3, on the tick it's given.
+        w.U8((byte)((byte)i.Moves & MovesMask | ((byte)i.Signal & 3) << 2));
         if (i.Watch != 0)
             w.U8(i.Watch);
         // A hotbar choice (T108), only on the tick it's made: the slot in the low nibble, the wheel's step in the high; an
         // emote (note 298) in the top two bits, on the tick it's picked.
         if (tool)
-            w.U8((byte)((i.Select & 0x0F) | (i.Cycle > 0 ? 0x10 : i.Cycle < 0 ? 0x20 : 0) | ((byte)i.Emote & 3) << 6));
+        {
+            byte step = (byte)(i.Cycle > 0 ? 0x10 : i.Cycle < 0 ? 0x20 : 0);
+            // Note 740: an emote past the two bits ("Aboard!") is said by both step bits (never both a step), and it and the
+            // step follow in a byte of their own.
+            if ((byte)i.Emote > 3)
+            {
+                w.U8((byte)((i.Select & 0x0F) | 0x30));
+                w.U8((byte)((byte)i.Emote & 0x3F | step << 2));
+            }
+            else
+                w.U8((byte)((i.Select & 0x0F) | step | ((byte)i.Emote & 3) << 6));
+        }
         // A reaching hand (T29) in centimetres, only when there is one: keyboards and bots send nothing more.
         if (i.Has(PlayerButtons.Hand))
         {
@@ -246,6 +327,9 @@ public static class Messages
         }
     }
 
+    /// <summary>The intent's third byte's bits that are <see cref="PlayerMoves"/>; bits 2-3 are the lamp signal (note 720).</summary>
+    const byte MovesMask = 0b1111_0011;
+
     static short Centimetres(float metres) => (short)Math.Round(Math.Clamp(float.IsFinite(metres) ? metres : 0, -300, 300) * 100);
 
     static PlayerIntent ReadIntent(ref NetReader r)
@@ -263,15 +347,26 @@ public static class Messages
         i.Lamp = (LampSwitch)((notch >> 5) & 3);
         i.Actions = (PlayerActions)r.U8();
         i.Voice = r.U8();
-        i.Moves = (PlayerMoves)r.U8();
+        byte moves = r.U8();
+        i.Moves = (PlayerMoves)(moves & MovesMask);
+        i.Signal = (LampSignal)((moves >> 2) & 3);
         if ((notch & 0x80) != 0)
             i.Watch = r.U8();
         if (i.Has(PlayerActions.Tool))
         {
             byte t = r.U8();
             i.Select = (byte)(t & 0x0F);
-            i.Cycle = (sbyte)((t & 0x10) != 0 ? 1 : (t & 0x20) != 0 ? -1 : 0);
-            i.Emote = (Emote)(t >> 6);
+            if ((t & 0x30) == 0x30)
+            {
+                byte e = r.U8();
+                i.Emote = (Emote)(e & 0x3F);
+                i.Cycle = (sbyte)((e & 0x40) != 0 ? 1 : (e & 0x80) != 0 ? -1 : 0);
+            }
+            else
+            {
+                i.Cycle = (sbyte)((t & 0x10) != 0 ? 1 : (t & 0x20) != 0 ? -1 : 0);
+                i.Emote = (Emote)(t >> 6);
+            }
             i.Actions &= ~PlayerActions.Tool;
         }
         if (i.Has(PlayerButtons.Hand))
@@ -324,17 +419,21 @@ public static class Messages
 
     /// <param name="source">For <see cref="VoicePath.Mimic"/>: the Soot Child it's coming from (T40).</param>
     /// <param name="gain">For <see cref="VoicePath.Fading"/>: how much of the voice is left, 0..1.</param>
-    public static void WriteVoiceDown(NetWriter w, byte speaker, ushort sequence, VoicePath path, ReadOnlySpan<byte> opus, int source = 0, double gain = 1)
+    /// <param name="tube">For <see cref="VoicePath.Tube"/>: the speaking tube's end it comes out of (note 720).</param>
+    public static void WriteVoiceDown(NetWriter w, byte speaker, ushort sequence, VoicePath path, ReadOnlySpan<byte> opus, int source = 0, double gain = 1,
+        int tube = 0)
     {
         w.Reset();
         w.U8((byte)MessageType.Voice);
         w.U8(speaker);
         w.U16(sequence);
-        w.U8((byte)path);
+        w.U16((ushort)path);
         if (path.HasFlag(VoicePath.Mimic))
             w.I32(source);
         if (path.HasFlag(VoicePath.Fading))
             w.U8((byte)Math.Round(Math.Clamp(gain, 0, 1) * 255));
+        if (path.HasFlag(VoicePath.Tube))
+            w.U8((byte)Math.Clamp(tube, 0, 255));
         w.Bytes(opus);
     }
 
@@ -392,7 +491,8 @@ public static class Messages
     /// <param name="outfit">The outfit they come in (note 298), or <see cref="NoOutfit"/>.</param>
     /// <param name="key">A private run's password as <see cref="PasswordKey"/> makes it (note 450), or null for none.</param>
     /// <param name="bot">A bot crewmate (note 574): it never takes the cab's controls off someone playing.</param>
-    public static void WriteHello(NetWriter w, string name, ulong token = 0, byte outfit = NoOutfit, byte[]? key = null, bool bot = false)
+    /// <param name="paint">Their mask's paint (note 731), or none.</param>
+    public static void WriteHello(NetWriter w, string name, ulong token = 0, byte outfit = NoOutfit, byte[]? key = null, bool bot = false, MaskPaint paint = default)
     {
         w.Reset();
         w.U8((byte)MessageType.Hello);
@@ -400,13 +500,14 @@ public static class Messages
         w.U64(token);
         w.U8(outfit);
         w.U8((byte)(bot ? 1 : 0));
+        WritePaintBytes(w, paint);
         if (key is { Length: KeyLength })
             w.Bytes(key);
     }
 
     /// <summary>
-    /// Reads a Hello after its type byte: the name, the token (0 when it has none), the outfit (note 298) and the password's
-    /// key (note 450; null when there's none).
+    /// Reads a Hello after its type byte: the name, the token (0 when it has none), the outfit (note 298), the mask's paint
+    /// (note 731) and the password's key (note 450; null when there's none).
     /// </summary>
     public static Hello ReadHello(ref NetReader r)
     {
@@ -414,7 +515,8 @@ public static class Messages
         ulong token = r.Remaining >= 8 ? r.U64() : 0;
         byte outfit = r.Remaining >= 1 ? r.U8() : NoOutfit;
         byte flags = r.Remaining >= 1 ? r.U8() : (byte)0;
-        return new(name, token, outfit, r.Remaining >= KeyLength ? r.Rest()[..KeyLength].ToArray() : null, (flags & 1) != 0);
+        var paint = r.Remaining >= 3 ? ReadPaintBytes(ref r) : default;
+        return new(name, token, outfit, r.Remaining >= KeyLength ? r.Rest()[..KeyLength].ToArray() : null, (flags & 1) != 0, paint);
     }
 
     /// <summary>A password's key: SHA-256's length.</summary>
@@ -459,6 +561,48 @@ public static class Messages
         w.U8((byte)MessageType.Wear);
         w.U8(outfit);
     }
+
+    static void WritePaintBytes(NetWriter w, MaskPaint paint)
+    {
+        w.U8(paint.Colour);
+        w.U8(paint.Stencil);
+        w.U8(paint.Ink);
+    }
+
+    static MaskPaint ReadPaintBytes(ref NetReader r) => new(r.U8(), r.U8(), r.U8());
+
+    /// <summary>Everyone's mask paint (note 731), by id, as <see cref="WriteOutfits"/>.</summary>
+    public static void WritePaints(NetWriter w, IEnumerable<KeyValuePair<int, MaskPaint>> paints)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Paints);
+        var list = paints.Where(n => n.Key is >= 0 and < 256).OrderBy(n => n.Key).ToList();
+        w.U8((byte)list.Count);
+        foreach (var (id, paint) in list)
+        {
+            w.U8((byte)id);
+            WritePaintBytes(w, paint);
+        }
+    }
+
+    public static void ReadPaints(ref NetReader r, IDictionary<int, MaskPaint> into)
+    {
+        into.Clear();
+        int n = r.U8();
+        for (int i = 0; i < n; i++)
+            into[r.U8()] = ReadPaintBytes(ref r);
+    }
+
+    /// <summary>The paint a player puts on their mask in the yard (note 731).</summary>
+    public static void WritePaint(NetWriter w, MaskPaint paint)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Paint);
+        WritePaintBytes(w, paint);
+    }
+
+    /// <summary>A <see cref="MessageType.Paint"/>'s paint, after its type byte.</summary>
+    public static MaskPaint ReadPaint(ref NetReader r) => ReadPaintBytes(ref r);
 
     /// <summary>The crew's going on from <paramref name="town"/> (note 606): its <see cref="Towns.TownAt.Spec"/>.</summary>
     public static void WriteCarryOn(NetWriter w, Towns.TownAt town)
@@ -572,6 +716,48 @@ public static class Messages
         using var json = new MemoryStream();
         z.CopyTo(json);
         return json.ToArray();
+    }
+
+    /// <summary>The crew's save (note 724), as the host's machine writes it (its JSON), in chunks: any size to 255 KB packed.</summary>
+    public static List<byte[]> CrewSaveMessages(byte[] save) => Chunked(MessageType.CrewSave, save);
+
+    /// <summary>The crew's save's bytes once every chunk is in, else null.</summary>
+    public static byte[]? ReadCrewSave(IReadOnlyDictionary<int, byte[]> chunks, int count) => Unchunk(chunks, count);
+
+    /// <summary>What the one put off is told, on the menu (note 724; the director's line).</summary>
+    public const string PutOff = "THE CREW PUT YOU OFF AT THE NEXT STOP";
+
+    public static void WriteKick(NetWriter w, byte target)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Kick);
+        w.U8(target);
+    }
+
+    public static void WriteKickVote(NetWriter w, KickVote v)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.KickVote);
+        w.U8(v.Target);
+        w.U8((byte)Math.Clamp(v.Yes, 0, 255));
+        w.U8((byte)Math.Clamp(v.Needed, 0, 255));
+        w.U32(v.Until);
+    }
+
+    /// <summary>Reads a KickVote after its type byte.</summary>
+    public static KickVote ReadKickVote(ref NetReader r) => new(r.U8(), r.U8(), r.U8(), r.U32());
+
+    public static void WriteKicked(NetWriter w)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Kicked);
+    }
+
+    public static void WriteMischief(NetWriter w, bool on)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Mischief);
+        w.Bool(on);
     }
 
     /// <summary>A bookmark (D.12): where its still is taken from. Small, so one message, its JSON.</summary>

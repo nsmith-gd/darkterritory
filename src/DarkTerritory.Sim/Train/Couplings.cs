@@ -24,6 +24,12 @@ public sealed record LooseTuning
     /// stop driver's crawl onto a cut (up to about 1, note 630), under the couplers' <c>coupleMaxSpeed</c>.
     /// </summary>
     public double KnockAbove { get; init; } = 1.2;
+    /// <summary>
+    /// s the engine's rake has lurched on a posted bend taken too fast (sight.json <c>lurchOver</c> over its board, the cargo
+    /// thrown about) before one gap's pin works loose: a third cause the crew can name (queue #466, note 732; the director's
+    /// playtest of 14 Oct, line 12). Once a bend; 0 never.
+    /// </summary>
+    public double BendSeconds { get; init; } = 2;
     /// <summary>A pin holds while the train stands (the director, the inbox, 9 Oct) and while a hound pack is aboard (12 Oct).</summary>
     public bool Holds { get; init; } = true;
     public double PartAfter { get; init; } = 90;
@@ -31,13 +37,18 @@ public sealed record LooseTuning
     public double Reach { get; init; } = 2.2;
 }
 
-/// <summary>What worked a pin loose (note 640): the clerk names it.</summary>
-public enum LooseCause : byte { None, RunIn, Knock }
+/// <summary>
+/// What worked a pin loose (note 640): the clerk names it, and (note 732) it's on the car's record, so every client hears the
+/// moment it jumped as what jumped it.
+/// </summary>
+public enum LooseCause : byte { None, RunIn, Knock, Bend }
 
 /// <summary>
 /// A coupling working loose (orchestrator.md §5.1 U2, notes 356 and 640). A pin works loose only from something the crew can
 /// see and name: a run-in (the driver's emergency brake at speed: the cars behind run in on the engine, and one gap's pin
-/// jumps) or a knock (rakes meeting harder than <see cref="LooseTuning.KnockAbove"/>, the pin at the coupling they met at).
+/// jumps), a knock (rakes meeting harder than <see cref="LooseTuning.KnockAbove"/>, the pin at the coupling they met at) or a
+/// bend taken too fast (the rake lurching over its board for <see cref="LooseTuning.BendSeconds"/>, note 732). What did it is
+/// on the car's record (<see cref="Vehicle.LooseCause"/>), so the moment it jumped is heard as what jumped it.
 /// Never while a hound pack is aboard (the director, the inbox, 12 Oct). It knocks, faster as it goes
 /// (<see cref="Vehicle.Loose"/> on the car ahead of the gap, the seconds it's been at it), and it's called out as every break
 /// is. The wrench in the gap, Use held <see cref="LooseTuning.TightenSeconds"/>, tightens it (<see cref="CrewActions"/>,
@@ -51,7 +62,8 @@ public sealed class Couplings(LooseTuning tuning, ulong seed)
     /// <summary>The engine's rake's speed over the last <see cref="LooseTuning.RunInSeconds"/>, a tick at a time (a ring).</summary>
     double[]? _speeds;
     int _tick;
-    bool _runningIn;
+    bool _runningIn, _bent;
+    double _lurched;
 
     public LooseTuning Tuning => tuning;
     /// <summary>How many worked loose, and how many parted, so far tonight (host; for the tests).</summary>
@@ -94,6 +106,9 @@ public sealed class Couplings(LooseTuning tuning, ulong seed)
             var v = train.Vehicles[i];
             if (v.Loose > 0 && !Runs(train, i))
                 v.Loose = 0;
+            // Tight again (the wrench, or the pin dropped): nothing's working it.
+            if (v.Loose <= 0)
+                v.LooseCause = LooseCause.None;
             if (v.Loose > 0 && !holding && (v.Loose += SimConstants.TickSeconds) >= tuning.PartAfter)
             {
                 v.Loose = 0;
@@ -120,6 +135,11 @@ public sealed class Couplings(LooseTuning tuning, ulong seed)
         bool runInNow = runIn && !_runningIn;
         _runningIn = runIn;
 
+        // A bend taken too fast (note 732): the rake lurching over its board long enough jumps one gap's pin, once a bend.
+        _lurched = train.Lurching ? _lurched + SimConstants.TickSeconds : 0;
+        bool bendNow = tuning.BendSeconds > 0 && _lurched >= tuning.BendSeconds && !_bent;
+        _bent = train.Lurching && (_bent || bendNow);
+
         // A knock: rakes meeting too hard, the pin at the coupling they met at if it's the engine's rake's and can work.
         int knocked = -1;
         double knockSpeed = 0;
@@ -134,12 +154,15 @@ public sealed class Couplings(LooseTuning tuning, ulong seed)
             Loose(train, knocked, LooseCause.Knock, knockSpeed);
         else if (runInNow)
             Loose(train, tight[(int)(_rng.NextDouble() * tight.Count) % tight.Count], LooseCause.RunIn, before);
+        else if (bendNow)
+            Loose(train, tight[(int)(_rng.NextDouble() * tight.Count) % tight.Count], LooseCause.Bend, speed);
         return parted;
     }
 
     void Loose(TrainOnLine train, int car, LooseCause cause, double speed)
     {
         train.Vehicles[car].Loose = SimConstants.TickSeconds;
+        train.Vehicles[car].LooseCause = cause;
         Loosened = (car, cause, speed);
         Came++;
     }

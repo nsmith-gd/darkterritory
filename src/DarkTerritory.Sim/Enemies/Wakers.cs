@@ -18,6 +18,13 @@ namespace DarkTerritory.Sim.Enemies;
 /// then): the lift and the eating are read from it, on clients too (<see cref="Lifted"/>, <see cref="EatenCars"/>).
 /// <see cref="Enemy.Extra2"/> is which it is (0 the one on the line, which decides the catch; ±1 the ones off to the sides).
 /// Its place is a function of the seconds since dawn and where the train's rear was then: no randomness, no pathing.
+/// <para>
+/// The ones that take whoever ran (note 710; the director, 14 Oct 2026: "It should capture players who escape the train and eat
+/// them too"): while one holds the train, another rises out of the land beside each crewmate off it (<see cref="Beside"/>,
+/// <see cref="Enemy.Extra2"/> <see cref="PickerMark"/>), loose (<see cref="Enemy.Local"/> its feet, <see cref="Enemy.Lateral"/>
+/// its heading), its quarry's id its <see cref="Enemy.Extra"/> (−1 with none). Up (the telegraph), it strides to them, takes
+/// them in its hand (the spine's grab), lifts them to its mouth and eats them; then the next, if anyone else ran.
+/// </para>
 /// </remarks>
 public sealed class Waker(int id) : Enemy(id)
 {
@@ -32,7 +39,14 @@ public sealed class Waker(int id) : Enemy(id)
     /// <summary>The one on the line: its catch is the train's.</summary>
     public bool Lead => Extra2 == 0;
     /// <summary>It has the train (the lift and the eating, <see cref="Enemy.Extra"/> seconds in).</summary>
-    public bool Holds => Phase == SpinePhase.Punish;
+    public bool Holds => Phase == SpinePhase.Punish && !Picker;
+
+    /// <summary>Its <see cref="Enemy.Extra2"/> as one risen beside a crewmate off the train (note 710).</summary>
+    public const double PickerMark = 2;
+    /// <summary>One risen beside a crewmate who ran (note 710): it takes them, not the train.</summary>
+    public bool Picker => Extra2 == PickerMark;
+    /// <summary>The crewmate a <see cref="Picker"/> is after (its <see cref="Enemy.Extra"/>), or −1.</summary>
+    public int Quarry => Picker ? (int)Math.Round(Extra) : -1;
 
     /// <summary>
     /// The night's creatures are going to ground (<see cref="WakersTuning.NightFleesSeconds"/> or less to dawn, or past it),
@@ -64,6 +78,41 @@ public sealed class Waker(int id) : Enemy(id)
         Extra2 = side,
         _start = rearAlong - t.RiseBehind - Math.Abs(side) * t.AsideBack,
     };
+
+    /// <summary>
+    /// One rising out of the land <c>pickAside</c> m beyond <paramref name="quarry"/> (out from the line from where they stand at
+    /// <paramref name="at"/>), facing them (note 710).
+    /// </summary>
+    public static Waker Beside(int id, int quarry, Double3 at, Train.TrainOnLine train, WakersTuning t)
+    {
+        double hint = train.Dynamics.Distance;
+        var (path, d) = train.Line.Nearest(at, ref hint);
+        var near = train.Line.Sample(path, d);
+        var out_ = (at - near.Position) with { Y = 0 };
+        if (out_.Length < 1e-3)
+            out_ = Double3.Cross(near.Tangent, Double3.Up) with { Y = 0 };
+        var feet = at + out_.Normalized * t.PickAside;
+        feet = feet with { Y = PlayerMotor.GroundAt(feet, train.Line, ref hint) };
+        return new Waker(id)
+        {
+            Attached = Loose,
+            Local = feet,
+            LineDistance = hint,
+            Lateral = Heading(at - feet),
+            Extra = quarry,
+            Extra2 = PickerMark,
+        };
+    }
+
+    /// <summary>A heading toward <paramref name="way"/>, as a player's yaw (−Z forward).</summary>
+    static double Heading(Double3 way) => DMath.Atan2(-way.X, -way.Z);
+
+    /// <summary>
+    /// Where a <see cref="Picker"/> holds what it took, up at its mouth (note 710): <c>pickMouthOut</c> m in front of its feet
+    /// and <c>pickMouthHeight</c> m up. The art bows his mouth onto it (CreatureArt.WakerReach), as it does onto a car.
+    /// </summary>
+    public static Double3 Mouth(Double3 feet, double heading, WakersTuning t) =>
+        feet + new Double3(-DMath.Sin(heading), 0, -DMath.Cos(heading)) * t.PickMouthOut + Double3.Up * t.PickMouthHeight;
 
     /// <summary>How far it's come in <paramref name="seconds"/> since it rose: <c>startSpeed</c> up to <c>topSpeed</c> over <c>rampSeconds</c>.</summary>
     public static double Covered(double seconds, WakersTuning t)
@@ -182,6 +231,11 @@ public sealed class Waker(int id) : Enemy(id)
     {
         var t = ctx.Tuning.Wakers;
         var train = ctx.Train;
+        if (Picker)
+        {
+            Pick(ctx, t);
+            return;
+        }
         switch (Phase)
         {
             case SpinePhase.Dormant:
@@ -215,24 +269,127 @@ public sealed class Waker(int id) : Enemy(id)
                     var cars = train.Dynamics.Consist.Vehicles;
                     LineDistance = train.RearDistance;
                     int eaten = EatenCars(t, cars.Count);
-                    // Whoever's in an eaten car goes with it; whoever's off the train is taken by the rest of them.
+                    // Whoever's in an eaten car goes with it; whoever's off the train is taken by the rest of them, one risen
+                    // beside each (note 710).
                     var gone = new HashSet<int>();
                     for (int i = 0; i < eaten; i++)
                         gone.Add(cars[cars.Count - 1 - i].Id);
                     foreach (var (p, _) in ctx.Crew)
                     {
                         var s = p.State;
-                        if (!s.Alive)
-                            continue;
-                        if (gone.Contains(s.Parent) || s.Parent < 0 && PhaseSeconds >= t.GroundSeconds)
+                        if (s.Alive && gone.Contains(s.Parent))
                             ctx.Harm(p.Id, int.MaxValue / 2, DeathCause.Woken);
                     }
+                    RaisePickers(ctx, t);
                     if (eaten >= cars.Count)
                         ctx.World.TakenAtDawn = true;
                     return;
                 }
         }
     }
+
+    /// <summary>A crewmate a picker may take: alive, off the train, free of any other's grip, and not in under a fort's guns.</summary>
+    static bool Takeable(EnemyContext ctx, in PlayerState s) =>
+        CrewSense.Afoot(s, ctx.Train) && !ctx.World.InFort(PlayerMotor.WorldPosition(s, ctx.Train));
+
+    /// <summary>
+    /// Note 710: a Waker beside each crewmate off the held train who hasn't one after them (up to <c>pickers</c> at once; the
+    /// rest wait for one to finish), in the crew's order.
+    /// </summary>
+    void RaisePickers(EnemyContext ctx, WakersTuning t)
+    {
+        var pickers = ctx.World.ActiveEnemies.OfType<Waker>().Where(w => w.Picker && !w.Gone).ToList();
+        foreach (var (p, _) in ctx.Crew)
+        {
+            if (pickers.Count >= t.Pickers)
+                return;
+            if (!Takeable(ctx, p.State) || pickers.Any(w => w.Quarry == p.Id))
+                continue;
+            var at = PlayerMotor.WorldPosition(p.State, ctx.Train);
+            pickers.Add(ctx.World.AddEnemy(id => Beside(id, p.Id, at, ctx.Train, t)));
+        }
+    }
+
+    /// <summary>
+    /// A picker's step (note 710): up out of the land (the telegraph), across to its quarry, the grab, the lift to its mouth
+    /// (<see cref="Mouth"/>), and the eating; then the next who ran and has no one after them, or it stands.
+    /// </summary>
+    void Pick(EnemyContext ctx, WakersTuning t)
+    {
+        switch (Phase)
+        {
+            case SpinePhase.Dormant:
+                Enter(ctx, SpinePhase.Telegraph);
+                return;
+            case SpinePhase.Telegraph:
+                if (PhaseSeconds >= Math.Max(ctx.Tuning.MinReactionSeconds, t.PickRiseSeconds))
+                    Enter(ctx, SpinePhase.Commit);
+                return;
+            case SpinePhase.Commit:
+                {
+                    int found = Quarry < 0 ? -1 : ctx.Crew.FindIndex(c => c.Player.Id == Quarry);
+                    if (found < 0 || !Takeable(ctx, ctx.Crew[found].Player.State))
+                    {
+                        Extra = Next(ctx);
+                        return;
+                    }
+                    var quarry = ctx.Crew[found].Player;
+                    var at = PlayerMotor.WorldPosition(quarry.State, ctx.Train);
+                    var way = (at - Local) with { Y = 0 };
+                    if (way.Length > 1e-6)
+                        Lateral = Heading(way);
+                    if (way.Length <= t.PickReach + 0.05) // (it strides up to just its reach)
+                    {
+                        _from = at;
+                        Grab(ctx, quarry.Id, t.PickLiftSeconds);
+                        return;
+                    }
+                    double hint = LineDistance;
+                    var next = Local + way.Normalized * Math.Min(way.Length - t.PickReach, t.PickSpeed * SimConstants.TickSeconds);
+                    Local = next with { Y = PlayerMotor.GroundAt(next, ctx.Train.Line, ref hint) };
+                    LineDistance = hint;
+                    return;
+                }
+            case SpinePhase.Grab:
+                {
+                    // In its hand, up off the ground to its mouth.
+                    double k = Math.Clamp(PhaseSeconds / Math.Max(1e-6, GrabWindow), 0, 1);
+                    k = k * k * (3 - 2 * k);
+                    ctx.Lift(Holding, _from + (Mouth(Local, Lateral, t) - _from) * k);
+                    return;
+                }
+            case SpinePhase.Punish:
+                // Eaten; once it's swallowed, after the next who ran.
+                if (PhaseSeconds >= t.PickEatSeconds && Next(ctx) is var next2 && next2 >= 0)
+                {
+                    Extra = next2;
+                    Enter(ctx, SpinePhase.Commit);
+                }
+                return;
+        }
+    }
+
+    Double3 _from;
+
+    /// <summary>The nearest crewmate a picker could take who has no other picker after them, or −1 (by id on a tie).</summary>
+    int Next(EnemyContext ctx)
+    {
+        var taken = ctx.World.ActiveEnemies.OfType<Waker>().Where(w => w != this && w.Picker && !w.Gone).Select(w => w.Quarry).ToHashSet();
+        int best = -1;
+        double bestD = double.MaxValue;
+        foreach (var (p, _) in ctx.Crew)
+        {
+            if (!Takeable(ctx, p.State) || taken.Contains(p.Id))
+                continue;
+            double d = ctx.Weigh(p.Id, ((PlayerMotor.WorldPosition(p.State, ctx.Train) - Local) with { Y = 0 }).Length);
+            if (d < bestD || d == bestD && p.Id < best)
+                (best, bestD) = (p.Id, d);
+        }
+        return best;
+    }
+
+    /// <summary>A picker eats who it took (note 710): the spine's punish, after the lift to its mouth.</summary>
+    protected override void Punish(EnemyContext ctx, int victim) => Kill(ctx, victim, DeathCause.Woken);
 }
 
 /// <summary>enemies.json <c>wakers</c> (note 588): what gets up at dawn. Field docs live there.</summary>
@@ -255,7 +412,16 @@ public sealed record WakersTuning
     public double LiftSeconds { get; init; } = 2.5;
     public double EatAfter { get; init; } = 6;
     public double EatSeconds { get; init; } = 4;
-    public double GroundSeconds { get; init; } = 8;
+    // Those who ran (note 710): see enemies.json.
+    public int Pickers { get; init; } = 3;
+    public double PickAside { get; init; } = 40;
+    public double PickRiseSeconds { get; init; } = 4;
+    public double PickSpeed { get; init; } = 12;
+    public double PickReach { get; init; } = 18;
+    public double PickLiftSeconds { get; init; } = 4;
+    public double PickMouthOut { get; init; } = 10;
+    public double PickMouthHeight { get; init; } = 22;
+    public double PickEatSeconds { get; init; } = 4;
     /// <summary>
     /// wakers.md §2, the night things run (note 635; the director, the inbox, 12 Oct 2026): this many seconds before dawn the
     /// night's creatures go to ground, and the director sends none of them after. Negative: they stay (v1).

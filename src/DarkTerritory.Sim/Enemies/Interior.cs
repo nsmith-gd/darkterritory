@@ -149,7 +149,7 @@ public sealed class Stoker(int id) : Enemy(id)
         double reach = ctx.Tuning.Stoker.DoorReach;
         return ctx.Crew.Where(c => c.Player.State.Alive && PlayerMotor.InCab(c.Player.State, ctx.Train)
                 && Flat(c.Player.State.Position - firebox) <= reach)
-            .OrderBy(c => Flat(c.Player.State.Position - firebox)).Select(c => (int?)c.Player.Id).FirstOrDefault();
+            .OrderBy(c => ctx.Weigh(c.Player.Id, Flat(c.Player.State.Position - firebox))).Select(c => (int?)c.Player.Id).FirstOrDefault();
     }
 
     static double Flat(Double3 d) => Math.Sqrt(d.X * d.X + d.Z * d.Z);
@@ -412,15 +412,21 @@ public sealed class FireFlies(int id) : Enemy(id)
     {
         var t = ctx.Tuning.FireFlies;
         var train = ctx.Train;
+        // Note 728: drawn off to a lamp lying lit out in the world, they're its, not the car's.
+        if (Attached == Loose || Lured(ctx) is { } lamp && Attached > 0 && Phase is SpinePhase.Dormant or SpinePhase.Telegraph && Draw(ctx, lamp))
+        {
+            OnLoose(ctx, t);
+            return;
+        }
         if (Attached <= 0 || Attached >= train.Frames.Count || train.Dynamics.Consist.IndexOf(Attached) < 0)
         {
             Enter(ctx, SpinePhase.Gone);
             return;
         }
-        var car = train.Vehicles[Attached];
         _fast = train.Dynamics.Speed >= t.PullAwaySpeed ? _fast + SimConstants.TickSeconds : 0;
-        // BREAK OFF: the lamp out, or the train pulling away from them: under way again (note 269).
-        if (!car.LampLit || _fast >= t.PullAwaySeconds)
+        // BREAK OFF: the lamp out, or the train pulling away from them: under way again (note 269). Note 728: a hand lamp
+        // lying lit in the car is a lamp (World.CarLit).
+        if (!ctx.World.CarLit(Attached) || _fast >= t.PullAwaySeconds)
         {
             Enter(ctx, SpinePhase.BreakOff);
             Enter(ctx, SpinePhase.Gone);
@@ -440,6 +446,64 @@ public sealed class FireFlies(int id) : Enemy(id)
                 var (lit, drawn) = Run.IncidentLog.FireFliesDrawn(ctx.World, into);
                 ctx.World.Attribution.Add(Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Fire, $"Fire Flies set car {into} alight", lit, drawn, into));
             }
+            Enter(ctx, SpinePhase.BreakOff);
+            Enter(ctx, SpinePhase.Gone);
+        }
+    }
+
+    // Note 728: the lamp out in the world they've been drawn off to (its body's id), −1 none.
+    int _lamp = -1;
+
+    /// <summary>
+    /// A lit hand lamp lying out of every car within <c>answers.fireFlies.lureRadius</c> of them (senses.json; note 728): its light
+    /// reaches them, and it's the strongest light that does that isn't a car's. Null for none.
+    /// </summary>
+    Physics.Body? Lured(EnemyContext ctx)
+    {
+        var a = ctx.World.Senses.Answers.FireFlies;
+        var at = WorldPosition(ctx.Train);
+        var light = ctx.World.Loudest(Sense.Light, at, e => e.Kind is EmitterKind.HandLamp && e.Car < 0 && (e.At - at).Length <= a.LureRadius
+            && ctx.World.Bodies.All.Any(b => b.Id == e.Source && b.Carrier < 0));
+        return light is { } l ? ctx.World.Bodies.All.FirstOrDefault(b => b.Id == l.Source) : null;
+    }
+
+    /// <summary>Off the car's lamp to the lamp lying out there: loose in the world from where they are, after it.</summary>
+    bool Draw(EnemyContext ctx, Physics.Body lamp)
+    {
+        Local = WorldPosition(ctx.Train);
+        Attached = Loose;
+        _lamp = lamp.Id;
+        // Drifting over (no longer the glow about a lamp): the telegraph starts again at the new one.
+        Enter(ctx, SpinePhase.Alert);
+        return true;
+    }
+
+    /// <summary>
+    /// Drawn to a lamp lying out in the world (note 728): they drift to it (<c>lureSpeed</c>) and swarm on it (the telegraph, as on
+    /// a car's lamp); lingering their while there, its oil catches and the lamp breaks into a short burn where it lies
+    /// (thrown.groundBurnSeconds), and they're gone. The lamp picked up, put out or gone first: they scatter.
+    /// </summary>
+    void OnLoose(EnemyContext ctx, FireFliesTuning t)
+    {
+        var a = ctx.World.Senses.Answers.FireFlies;
+        if (ctx.World.Bodies.All.FirstOrDefault(b => b.Id == _lamp) is not { Kind: Physics.BodyKind.Lamp, Broken: false, Carrier: < 0, Stashed: false } lamp
+            || lamp.Parent != PlayerState.World)
+        {
+            Enter(ctx, SpinePhase.BreakOff);
+            Enter(ctx, SpinePhase.Gone);
+            return;
+        }
+        var to = lamp.Centre + Double3.Up * 0.3 - Local;
+        double step = a.LureSpeed * SimConstants.TickSeconds;
+        Local = to.Length <= step ? lamp.Centre + Double3.Up * 0.3 : Local + to * (step / to.Length);
+        if (to.Length > 1)
+            return;
+        if (Phase is SpinePhase.Dormant or SpinePhase.Alert)
+            Enter(ctx, SpinePhase.Telegraph); // the glow and the buzzing about the lamp
+        if (Phase == SpinePhase.Telegraph && PhaseSeconds >= t.IgniteSeconds && Enter(ctx, SpinePhase.Commit))
+        {
+            lamp.Broken = true;
+            lamp.Burns = ctx.World.Senses.Thrown.GroundBurnSeconds;
             Enter(ctx, SpinePhase.BreakOff);
             Enter(ctx, SpinePhase.Gone);
         }

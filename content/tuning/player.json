@@ -47,12 +47,20 @@
     // From fallHurtFrom down it's the speed table alone: a car's roof is 4 m over the ballast and a jump's apex 1.2 more, so
     // the leap off the train stays B.3's; a 1.5 m step off a landing is nothing.
     "fallHurtFrom": 5.5,
-    "fallLethalFrom": 7.5
+    "fallLethalFrom": 7.5,
+    // Note 717 (the director's 14 Oct playtest, line 7: "Whenever I step off the train, I get like a little vignette red flash
+    // ... I shouldn't take damage unless I like fully jump as high as I can go off the top of the train"): off a train going
+    // slower than standBelow (m/s), a stood train's footing is the ground's (note 573's off the ground): a crewmate's own walk
+    // or run is no knock, only the drop is (a car's roof and a jump's apex over it, 5.2 m, is under fallHurtFrom).
+    "standBelow": 0.5
   },
   "ladder": {
     "grabRange": 0.7,
     // You can only grab a ladder moving past you slower than this: "if you could catch it".
-    "grabMaxRelativeSpeed": 3.5
+    "grabMaxRelativeSpeed": 3.5,
+    // Note 704 (the director's playtest: the cab's ladder "should actually go up to the roof"): walking into a hatch ladder
+    // indoors (the cab's, a car's) takes hold of it only looking up it at least this far; level, you walk past it working.
+    "hatchLookUpDegrees": 25
   },
   // A VR player's reaching hand (T29; the spec has no VR numbers). Reach is tested from the hand instead of the body:
   // a hand is on a grip (a lever, a handle, a ladder, a crate) within grab of it. The host believes a hand no farther
@@ -105,11 +113,15 @@
   // steeper than climbSlope (rise over run; 1.25 is about 51°). A cutting's walls (2:1), a ledge's upslope and a cliff
   // over the sea stop you; the line plan's walkable ground (§12.6, slope 1 with its noise) never does.
   "climbSlope": 1.25,
+  // walkOff (note 717; the director's 14 Oct playtest, line 4: "I think we want to let people walk off the top of the cars"):
+  // a roof's ends let a walker off as its sides do, walking at it within stepOffDegrees of straight off; the lip still holds a
+  // glance aside, a turn with the key held, and the wind. false: off an end only by a jump, a ladder or the train below.
   "edge": {
     "lip": 0.3,
     "stepOffDegrees": 30,
     "catchDrop": 3.5,
-    "windOverLip": false
+    "windOverLip": false,
+    "walkOff": true
   },
   // Spec E drop-out, GDD v1.4 App. D.2 (ARCHITECTURE §8 note 253): a player whose link drops mid-night leaves an inert body
   // (no bot takes over), and the host holds their place (id, name, a token issued at the welcome) for reserveSeconds.
@@ -167,17 +179,44 @@
   // patch (`{"$patch": true, "crew": {"cap": 12}}`): everyone in a game runs the same content, so they agree on it. The net
   // budget (ARCHITECTURE §6) has headroom to 12; past that is untested. refuseLingerSeconds: how long the host keeps a
   // refused link open for the refusal to get there before it hangs up (the client hangs up itself on reading it).
+  //
+  // Sessions (GDD §33.1; ARCHITECTURE §8 note 724; the director, 14 Oct 2026, App. F.6). joinTakesBotSeat: a human joining a
+  // night that bots crew, who'd otherwise wait for a stop, go into the Holdouts' queue or be turned away from a full crew,
+  // takes a bot's place where it stands (its body, its slots and what it carries, its health, its post): a living bot's, the
+  // director's census's least busy, else the newest, the one at the cab's controls last. The bot leaves. false: the old way.
+  // kick: the host puts a player off from the roster (Q held, Shift and their number); in a public lobby (listed, no password)
+  // anyone aboard can call the crew's vote on someone, open voteSeconds, carried by more than `majority` of the living humans
+  // aboard (the one voted on not counted). Put off, a player's told THE CREW PUT YOU OFF AT THE NEXT STOP and can't come back
+  // to that run (barred by their account or address, or by name on a LAN that has none). A private or friends-only run: the
+  // host's kick only.
   "crew": {
     "cap": 8,
-    "refuseLingerSeconds": 3
+    "refuseLingerSeconds": 3,
+    "joinTakesBotSeat": true,
+    "kick": {
+      "voteSeconds": 30,
+      "majority": 0.5
+    }
   },
   // Emotes (GDD §9: the yard's a safe space where "the crew wait for friends, hang out, dance"; ARCHITECTURE §8 note 298).
   // Seconds each lasts, unless its player moves first: the host keeps the event this long for the crew to see. cooldown:
   // how soon after one another can be picked. Presentation only: nothing in the sim acts on an emote.
+  // GDD §12 "Ping the bots" (note 739; the director, 14 Oct 2026: "use my middle mouse button to create some sort of context
+  // ping"): what's nearest the middle of the view within coneDegrees and range m is pinged; the crew see it seconds s, and a
+  // bot that takes it keeps to it orderSeconds at most. One a pinger each cooldown s.
+  "pings": {
+    "range": 60,
+    "coneDegrees": 12,
+    "seconds": 20,
+    "orderSeconds": 120,
+    "cooldown": 0.5
+  },
   "emotes": {
     "dance": 8,
     "wave": 2.5,
     "point": 2.5,
+    // Note 740 (GDD §17): "Aboard!", called back to the horn, a hand up and the crew told who said it.
+    "aboard": 3,
     "cooldown": 0.5
   },
   // The news (ARCHITECTURE §8 note 663; the director: "did a coupler break on its own or was that a creature?"): cars the
@@ -187,5 +226,122 @@
   "news": {
     "seconds": 5,
     "cutToldAbove": 1.5
+  },
+  // Incidents travel the train (GDD open question 2 and App. D.6; ARCHITECTURE §8 note 750; the social collision audit's R1,
+  // the director, 14 Oct 2026: "looks good"). Roll call stays verbal, but an emergency is shown: a crewmate held, or killed,
+  // further than beyondMetres from you (voice's reach, spec A.5's 26 m: nearer, you hear it) is a line under the news, who
+  // and where, never what: "PRIYA - CAR 4 ROOF" for as long as they're held, "PRIYA IS GONE - CAR 4" for deathSeconds.
+  // Each machine works it out for its own player from the snapshots. Never shown to the dead. Off: nothing shown.
+  "crewNews": { "on": true, "beyondMetres": 26, "deathSeconds": 4 },
+  // Horseplay (GDD §23.4; ARCHITECTURE §8 note 717). The director, 14 Oct 2026: "The griefer ideas are funny"; "if we're
+  // going to allow shoving, then we need shoving to be in full effect, which means if you're standing on top of a car, you
+  // can be shoved off of it. And at speed, it kills you"; and the lump of coal "is going to need to be able to work with the
+  // current coal shoveling system". Nothing a crewmate does to another is damage: staggers, soot and knocks only, and a death
+  // only through the world's own rules (the landing, by the train's speed or the height), so the report names who.
+  // enabled: false turns the shove, the bonk and coal at the crew off for every lobby; crewmates stay solid to each other
+  // either way. The lobby's CREW MISCHIEF switch (note 724, GDD §23.4) turns it off for one run: the host sets it on the host
+  // screen or the fortress board, or in the yard from the night's menu. It starts on, but in a public run FEELING COMPETITIVE
+  // with competitiveOff (strangers meet there; among friends and for laughs it's on).
+  "horseplay": {
+    "enabled": true,
+    "competitiveOff": true,
+    // Crewmates are solid to each other: two shoulders of `radius` (m) each, on the ground or in a car, out of each other at
+    // `share` of the overlap a tick each, no faster than maxSpeed (m/s, over a run, so nobody runs through anybody): soft, so
+    // whoever stands in a doorway is squeezed past, pushed along at half the pace of whoever walks into them (an edge holds
+    // them as it holds the wind: walking into a friend never puts them off a roof; a shove does). Not on a ladder (a hatch's
+    // comes up through a crowded roof), in a gun's seat or in the air.
+    "crowd": { "radius": 0.25, "share": 0.75, "maxSpeed": 6.0 },
+    // The shove (its own key, LeftAlt): looking at a crewmate within `reach` (m, chest to chest) and coneDegrees of where you
+    // face, hands off the shovel. They go off their feet the way you shoved, at `speed` (m/s) and `lift` (m/s) up, staggered
+    // staggerSeconds (they can look and talk, nothing else), and you can't shove again for cooldownSeconds. On a roof, from
+    // within a metre or so of its side, that's over the edge (the lip holds a walker, note 273, not a shove), and the landing
+    // is spec B.3's: faster over the ground than landing.lethalAbove (16.5 m/s) kills, and the report says "Shoved off by Dave at
+    // 58 km/h". The shove's own speed knocks nobody. A crewmate within chainReach (m) beyond the one shoved takes a bump: off
+    // their feet at chainShare of the speed, staggered chainStaggerSeconds. Until they have footing again, a landing that kills
+    // is the shove's.
+    "shove": {
+      "reach": 1.2,
+      "coneDegrees": 45,
+      "speed": 3.0,
+      "lift": 1.5,
+      "staggerSeconds": 0.6,
+      "cooldownSeconds": 1.5,
+      "chainReach": 0.8,
+      "chainShare": 0.5,
+      "chainStaggerSeconds": 0.3
+    },
+    // Coal off the shovel: with a shovelful on it (boiler.json scoopSeconds into a stroke at the firebox, or a hand at the coal
+    // face), Throw throws the lump along the view at `speed` (m/s) and `lift` up, on top of the thrower's own motion; the fire
+    // goes a unit short (out of the tender). A crewmate it hits (a ball of `radius` against their body) is staggered
+    // staggerSeconds and sooty-faced for the night; a creature takes `blow` of a crowbar's blow (enemies.json melee). Gone
+    // after lifeSeconds, or on whatever it hits.
+    "coal": { "speed": 12, "lift": 1.0, "radius": 0.08, "staggerSeconds": 0.35, "blow": 0.25, "lifeSeconds": 3 },
+    // A tool's swing that meets a crewmate before a creature: a clang, staggerSeconds of stagger, and no damage. The report
+    // counts the bonks of anyone bonked reportFrom times or more ("Bonked 14 times, mostly by Priya").
+    "bonk": { "staggerSeconds": 0.3, "reportFrom": 5 },
+    // The director, 14 Oct 2026: "With shoving if a player ever shoves another player and that results in their death all the
+    // monsters in the game should target more heavily the murderer player so they are heavily likely to die (even if they rescue
+    // the player from a holdout)". A shove that kills marks the shover for the rest of the night (a Holdout's return, a rescue:
+    // neither clears it), until the shover dies: the director, 14 Oct 2026, "Shovers mark should reset to normal targeting
+    // after they are killed" (GDD §23.4, note 754). endsAtDeath: false keeps it through their death and return too. Every creature choosing whom to go for counts them targetWeight times
+    // nearer and allowanceM (m) nearer again, so one that can reach them prefers them over someone closer; the Choir takes the
+    // loudest still, the mark its tiebreak; the Moose hears a marked voice targetWeight times louder; the director sends its next
+    // threat at their post, and what they do draws the dark targetWeight times harder; and while they're on foot the pressure
+    // builds pressurePerSecond faster (enemies.json pressure's terms are of that order). The news and the report say so:
+    // "Marked: Dave (shoved Priya off at 58 km/h)." No marker on anyone's HUD. enabled: false, no mark.
+    "marked": { "enabled": true, "targetWeight": 6, "allowanceM": 20, "pressurePerSecond": 0.1, "endsAtDeath": true }
+  },
+  // Bringing them home (GDD §17, §23.5; ARCHITECTURE §8 note 723; the friendslop audit's pillar "nobody gets left", approved by
+  // the director, 14 Oct 2026): the physical verbs that answer "the engine can leave without you".
+  "rescue": {
+    // The hand-up: a crewmate on a car (in its open door, on its end platform or its steps) holds Use looking at a friend on
+    // foot beside it, within `reach` (m, from the helper's chest to any of the friend, shins to crown; the hands' reach) and
+    // coneDegrees of their view, nothing of the car between; the car going at least fromSpeed (m/s; at a stand the steps are
+    // there to climb), and the two moving within maxRelativeSpeed (m/s) of each other along the ground (a runner's sprint and a
+    // little: a friend standing still isn't snatched off the ballast at speed). Held `seconds` with the friend in reach, they're
+    // hauled up, landing in the car's frame landInboard (m) in from the helper, away from the side they came up (where the helper
+    // stands if that isn't clear). While it's held, Use is the hand-up's: the door the helper stands in isn't worked. On a train
+    // going reportFrom (m/s) or faster, the report says so: "Hauled aboard in car 3 at km 4. Hauled up by Dave at 40 km/h."
+    "handUp": { "enabled": true, "reach": 1.6, "coneDegrees": 40, "maxRelativeSpeed": 7, "fromSpeed": 1.0, "seconds": 0.6, "landInboard": 0.45, "reportFrom": 2 },
+    // Carrying a friend: empty-handed, a press of Use looking at a living crewmate on their feet in the same frame, within
+    // `reach` (m, chest to chest) and coneDegrees of where you face, with nothing Use works in reach, held liftSeconds, puts them
+    // over your shoulder (shoulderUp over your feet, shoulderBack behind; the body-carry's hold, App. C.4): you go at carryHeavy
+    // and climb nothing, they look and talk, and their Jump wriggles free to your feet. Use puts them down at your feet. Throw,
+    // with the crew mischief switch on, throws them along your view at throwSpeed and throwLift (m/s) up on your own motion: off
+    // their feet as a shove puts them (the landing is the world's: the train's speed or the drop), and the report says "Thrown
+    // off by Dave"; with the switch off, Throw puts them down. Safe from nothing: whatever grabs or knocks you drops them. Bots
+    // can be carried, and never carry anyone.
+    "carry": { "enabled": true, "reach": 1.2, "coneDegrees": 30, "liftSeconds": 1.0, "shoulderUp": 0.7, "shoulderBack": 0.15, "throwSpeed": 4, "throwLift": 1.5 },
+    // A bandage on a friend: a healing find in your hands (loot.json healing) and Use held looking at a hurt crewmate within
+    // `reach` (m, chest to chest) and coneDegrees: it goes on them, healing loot.json healing.onAFriend times as much.
+    "bandage": { "enabled": true, "reach": 1.4, "coneDegrees": 40 }
+  },
+  // Voices as tools (GDD §12, §14, App. C.8; the friendslop audit's Friends goal; the director, 14 Oct 2026; ARCHITECTURE
+  // §8 note 720).
+  "voices": {
+    // The speaking tube, a brass pipe from the cab (its left wall, a step behind the hatch ladder) to the guard van (its
+    // front right corner): said within mouthReach (m, across the floor) of one mouthpiece, it comes out of the other's horn,
+    // tinny, heard within heardWithin (m) of it. The near crew hear the speaker as ever. However long the train is.
+    "tube": { "mouthReach": 1.0, "heardWithin": 10 },
+    // Singing together (§14): two or more living crewmates within earshot (m) of each other whose voices (the intent's level,
+    // 0-255) rise and fall together over windowSeconds: each over floor on average, each moving by at least swing (its spread,
+    // so a held drone isn't a song), and the two in time (their correlation at least inTime). While a crew sings: with
+    // feedsChoir false their voices don't feed the loudness meter (the director: "Singing does not fight the choir"); the
+    // livestock aboard settle, their floor under the meter and the hounds' pull to them eased by calmsLivestock (a share);
+    // and a Gaunt near them is talked down faster (enemies.json gaunt.singingTalks).
+    "singing": { "windowSeconds": 4, "earshot": 12, "floor": 40, "swing": 12, "inTime": 0.6, "feedsChoir": false, "calmsLivestock": 0.6 },
+    // Lamp signals (§12): a crewmate holding a hand lamp swings it across (STOP), raises and lowers it (GO) or circles it
+    // (BACK UP); the crew see it for `seconds`, and another may follow after `cooldown`. The bot driver reads one shown within
+    // seenWithin (m) of the cab or the van's rear: STOP, it brakes to a stand and stands up to standSeconds (or till GO);
+    // GO, it releases and goes on; BACK UP, at a stand it sets back backMetres at backSpeed (m/s) and stands. A STOP shown
+    // to a moving train that stands within stoppedWithin (s) is named in the incident report.
+    "lampSignals": { "seconds": 3, "cooldown": 0.5, "seenWithin": 60, "standSeconds": 90, "backMetres": 40, "backSpeed": 1.5, "stoppedWithin": 40 },
+    // A hand over the mouth (GDD App. C.8; note 749; the director, 14 Oct 2026: "A grab should allow players to still use the
+    // radio but their voice should be muffle filtered as if the grab is covering their mouth partially"). While a crewmate is
+    // held, each listener's client plays their voice in the air and on the radio muffled, not cut: gainDb quieter, and
+    // through the sounds' own low-pass on their "covered" parameter (voice.json and voice-radio.json, 1.4 kHz). A creature
+    // that does its own thing to the voice keeps it, alone: Tippy Toesie's hand (muffled) and a Soot Child's draining
+    // (fading). Off: a held voice as it was.
+    "covered": { "on": true, "gainDb": -6 }
   }
 }

@@ -45,6 +45,22 @@ public class HudTests
     }
 
     [Fact]
+    public void TheCabsHatchLadderSaysItGoesUpToTheRoofAndDownIntoTheCab()
+    {
+        // Note 704 (the director: the cab's ladder "should actually go up to the roof ... and vice versa"): at its foot the
+        // prompt says where it goes, and at the open hatch on the roof, where that goes.
+        var s = new PrototypeSession(Content, "test-loop", 4);
+        var engine = s.Train.Frames[0];
+        var hatch = engine.Shape.Ladders.Single(l => engine.Shape.Cab!.Value.ContainsXZ(l.Foot) && PlayerMotor.IsHatchLadder(engine.Shape, l));
+        s.Player = PlayerMotor.SpawnInCab(s.Train, s.PlayerTuning);
+        s.Player.Position = hatch.Foot - hatch.Inward * 0.3;
+        Assert.Equal("UP TO THE ROOF : [F]", Hud.Prompt(s));
+        s.Player = PlayerMotor.SpawnOnRoof(s.Train, 0, hatch.Foot.Z - 0.3, s.PlayerTuning, hatch.Foot.X);
+        Assert.Equal(hatch.Top, s.Player.Position.Y, 1);
+        Assert.Equal("DOWN INTO THE CAB : [F]", Hud.Prompt(s));
+    }
+
+    [Fact]
     public void ARackRunDryAndThePowderLockerSayWhereThePowderIs()
     {
         // Note 374: the gun's rack empty, the prompt says where its powder is; at the guard van's locker, take a charge; with
@@ -73,7 +89,9 @@ public class HudTests
         // GDD §23: at a fouled gun, clear it by hand.
         var mount = train.Frames[0].Shape.Gun!.Value;
         s.Player = PlayerMotor.SpawnOnRoof(train, 0, mount.Position.Z - mount.Facing.Z * 0.7, s.PlayerTuning);
-        Assert.Equal("SIT : [E]   PUSH : HOLD [O] + WALK", Hud.Prompt(s));
+        Assert.Equal("SIT : [E]   PUSH : HOLD [PUSH] + WALK", Hud.Prompt(s));
+        // Note 703: by the mouse, not on O.
+        Assert.Equal("SIT : [E]   PUSH : HOLD [MIDDLE MOUSE] + WALK", Hud.Bound(Hud.Prompt(s)!));
         train.Vehicles[0].Gun.Jammed = true;
         // Note 344: nothing done yet, no percentage; part done, how far.
         Assert.Equal("CLEAR THE GUN : HOLD [E]", Hud.Prompt(s));
@@ -112,6 +130,10 @@ public class HudTests
         }
         s.Player = At(InteractableKind.Firebox);
         Assert.Equal("SHOVEL COAL : HOLD [E]", Hud.Prompt(s));
+        // Note 717: coal on the shovel can be thrown instead; the shove's key reads as bound.
+        s.Player = At(InteractableKind.Firebox) with { Flags = PlayerFlags.Shovelful };
+        Assert.Equal("SHOVEL COAL : HOLD [E]   THROW IT : [T]", Hud.Prompt(s));
+        Assert.Equal("SHOVE : [LEFT ALT]", Hud.Bound("SHOVE : [LEFT ALT]"));
         s.Player = At(InteractableKind.Vent);
         Assert.Equal("VENT STEAM : HOLD [E]", Hud.Prompt(s));
         // At the controls looking at nothing (note 285): nothing at the crosshair; driving them is the corner's.
@@ -167,8 +189,8 @@ public class HudTests
         s.Controls.Reverser = 1;
         Assert.DoesNotContain(Hud.Hints(s).Lines, l => l.Contains("REVERSE"));
         s.Train.Dynamics.Velocity = 0;
-        // Note 664: the vent's on N (LeftCtrl's the crouch).
-        Assert.Contains("VENT : HOLD [N]", Hud.Bound(string.Join("   ", lines)));
+        // Note 664: the vent's its own key (LeftCtrl's the crouch); note 703: Caps Lock, by A.
+        Assert.Contains("VENT : HOLD [CAPS LOCK]", Hud.Bound(string.Join("   ", lines)));
         // The corner's head is the speed, for the driver to read against the boards.
         Assert.Equal($"{Math.Abs(s.Train.Dynamics.Speed) * 3.6:0} KM/H", head?.Split("  ")[0]);
         s.Train.Boiler.Vented = true;
@@ -296,7 +318,7 @@ public class HudTests
         AssertShort(Hud.Prompt(s));
         Assert.All(Hud.Hints(s).Lines, AssertShort);
         // Note 649: and the corner says it can be left there.
-        Assert.Contains("STOW : [RMB]", Hud.Hints(s).Lines);
+        Assert.Contains("STOW : [T]", Hud.Hints(s).Lines);
     }
 
     [Fact]
@@ -670,7 +692,8 @@ public class HudTests
         var s = new PrototypeSession(Content, "test-loop", 4);
         s.Player = PlayerMotor.SpawnOnRoof(s.Train, 2, 3, s.PlayerTuning);
         var bodies = s.World.Bodies;
-        var radio = bodies.All.First(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.Radio);
+        // The uniform's radio (note 749), as the host's first step puts it on.
+        var radio = bodies.SpawnCrate(s.Train, 2, default, DarkTerritory.Sim.Physics.BodyKind.Radio);
         (radio.Carrier, radio.Broken) = (1, true);
         Assert.Null(Hud.Prompt(s)); // the crowbar in hand
         s.Player = s.Player with { HeldSlot = 1 };
@@ -860,7 +883,7 @@ public class HudTests
         // Whole: a find like any other.
         Assert.False(Hud.CanHeal(s, find));
         Assert.Null(Hud.Prompt(s));
-        Assert.Equal(["PUT DOWN : [E]", "THROW : [RMB]"], Hud.Hints(s).Lines);
+        Assert.Equal(["PUT DOWN : [E]", "THROW : [T]"], Hud.Hints(s).Lines);
         // Hurt, out on the ballast beside the train (at nothing Use works).
         double along = s.Train.Dynamics.Distance - 20, hint = along;
         var t = s.Train.Line.Sample(along);
@@ -868,7 +891,7 @@ public class HudTests
         s.Player = PlayerMotor.SpawnOnGround(at with { Y = PlayerMotor.GroundAt(at, s.Train.Line, ref hint) }, s.Train.Line, along, s.PlayerTuning) with { Health = 40 };
         Assert.Null(CrewActions.NearestInteractable(s.Player, s.Train, s.World.Hand));
         Assert.True(Hud.CanHeal(s, find));
-        Assert.Equal(["USE : HOLD [E]", "PUT DOWN : [E]", "THROW : [RMB]"], Hud.Hints(s).Lines);
+        Assert.Equal(["USE : HOLD [E]", "PUT DOWN : [E]", "THROW : [T]"], Hud.Hints(s).Lines);
         Assert.Null(Hud.Prompt(s));
         find.MendTicks = (int)(DarkTerritory.Sim.SimConstants.TickRate * run.Healing!.UseSeconds / 2);
         Assert.Equal("USING IT (50%)", Hud.Prompt(s));

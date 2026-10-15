@@ -35,6 +35,7 @@ public sealed record SightTuning
     public double DropClear { get; init; } = 80;
     public double DropBoardAhead { get; init; } = 400;
     public double CatchReach { get; init; } = 1.1;
+    public double CatchMaxSpeed { get; init; } = 15;
     public Dictionary<string, double> DropWeights { get; init; } = new() { ["mail"] = 0.45, ["coal"] = 0.2, ["ammo"] = 0.2, ["spares"] = 0.15 };
     public double[] MailScrip { get; init; } = [20, 60];
     public double CoalUnits { get; init; } = 8;
@@ -134,10 +135,18 @@ public sealed class Lineside
     public IReadOnlyList<Drop> AllDrops => _drops;
     /// <summary>A drop's bag caught (host only: the crane's arm is empty on a client that didn't see it go).</summary>
     public bool Caught(int drop) => _dropped[drop] == 1;
+
+    /// <summary>
+    /// Whether a crane's bag was hooked too fast and tore off the hook (queue #461, note 727): the train went by over
+    /// <see cref="SightTuning.CatchMaxSpeed"/>, so its catch is lost. The host's, as <see cref="Caught"/> is.
+    /// </summary>
+    public bool Torn(int drop) => _dropped[drop] == 3;
     /// <summary>A drop the whole train has gone by (caught or not).</summary>
     public bool Passed(int drop) => _dropped[drop] != 0;
     /// <summary>Bags caught this tick, and cranes the train went by with nobody at a door (the pacing log, the HUD).</summary>
     public List<Drop> CaughtThisTick { get; } = new();
+    /// <summary>The bags hooked this tick at a speed that tore them off (note 727): what's in them is lost.</summary>
+    public List<Drop> TornThisTick { get; } = new();
     public List<Drop> MissedThisTick { get; } = new();
 
     /// <summary>
@@ -191,8 +200,8 @@ public sealed class Lineside
     /// <summary>Boards first read this tick (the HUD's cue, the pacing log).</summary>
     public List<Sign> ReadThisTick { get; } = new();
 
-    /// <summary>How far a board can be read from, lamp lit or not.</summary>
-    public double SignRange(bool lamp) => lamp ? Tuning.LampSignRange : Tuning.DarkSignRange;
+    /// <summary>How far a board can be read from, lamp lit or not; lit, as far as this train's headlamp reaches (note 506).</summary>
+    public double SignRange(bool lamp, double reach = 1) => lamp ? Tuning.LampSignRange * reach : Tuning.DarkSignRange;
 
     /// <summary>Every board on a route: before each sharp curve and weak bridge, a speed; before each tunnel, the clearance.</summary>
     public static IEnumerable<Sign> Boards(SightTuning t, Route route) => Boards(t, route, [.. Drops(t, route)]);
@@ -231,7 +240,7 @@ public sealed class Lineside
         foreach (var tunnel in route.Of(FeatureKind.Tunnel))
             zones.Add((SignKind.LowClearance, tunnel.Start, tunnel.End, 0, false));
         var boards = zones.Select(z => new Sign(0, z.Kind, Math.Max(0, z.Start - t.BoardAhead), z.Start, z.End, z.Limit) { Bridge = z.Bridge })
-            .Concat(drops.Select(d => new Sign(0, SignKind.Drop, Math.Max(0, d.At - t.DropBoardAhead), d.At, d.At) { Drop = d }))
+            .Concat(drops.Select(d => new Sign(0, SignKind.Drop, Math.Max(0, d.At - t.DropBoardAhead), d.At, d.At, t.CatchMaxSpeed) { Drop = d }))
             .Append(new Sign(0, SignKind.Terminus, Math.Max(0, route.RunLength - t.TerminusBoard), route.RunLength, route.RunLength))
             // And the home signal and the platform's board, close in: the last run in has its moments too.
             .Append(new Sign(0, SignKind.Terminus, Math.Max(0, route.RunLength - t.HomeSignal), route.RunLength, route.RunLength))
@@ -249,7 +258,7 @@ public sealed class Lineside
     {
         ReadThisTick.Clear();
         var engine = train.Dynamics;
-        double front = engine.Distance, range = SignRange(lamp);
+        double front = engine.Distance, range = SignRange(lamp, engine.Tuning.HeadlampReach);
         bool main = engine.Path == RailLine.MainPath;
         for (int i = 0; i < _signs.Count; i++)
             if (!_read[i] && main && (lamp ? _signs[i].Board : _signs[i].Start) - front <= range && _signs[i].End > front)
@@ -371,7 +380,7 @@ public sealed class Lineside
     /// <summary>Grease on the rail ahead that the lamp (or the eye, lamps down) can make out: its start, if any.</summary>
     public double? GreaseAhead(TrainOnLine train, bool lamp)
     {
-        double front = train.Dynamics.Distance, range = lamp ? Tuning.LampGreaseRange : Tuning.DarkGreaseRange;
+        double front = train.Dynamics.Distance, range = lamp ? Tuning.LampGreaseRange * train.Dynamics.Tuning.HeadlampReach : Tuning.DarkGreaseRange;
         return _route.Features.Where(f => f.Kind == FeatureKind.Grease && f.End > front && f.Start - front <= range)
             .Select(f => (double?)f.Start).Min();
     }
@@ -386,6 +395,7 @@ public sealed class Lineside
         var train = world.Train;
         double dt = SimConstants.TickSeconds;
         Catch(world, crew);
+        train.Lurching = false;
         foreach (var sign in _signs)
         {
             if (sign.Kind is SignKind.Drop or SignKind.Terminus)
@@ -409,6 +419,8 @@ public sealed class Lineside
                         // The frames strain (repairs, spec F.1) and the loads shift about.
                         v.Integrity = Math.Max(0, v.Integrity - Tuning.StrainPerSecond * over * dt);
                         v.Knock = (KnockCause.Bend, rake.Speed);
+                        // The engine's rake thrown about: held, it jumps a pin (note 732).
+                        train.Lurching |= rake == train.Dynamics;
                         if (v.Kind == VehicleKind.Cargo)
                             v.CargoIntegrity = Math.Max(0, v.CargoIntegrity - Tuning.CargoDamagePerSecond * over * dt);
                     }
@@ -466,6 +478,7 @@ public sealed class Lineside
     {
         CaughtThisTick.Clear();
         MissedThisTick.Clear();
+        TornThisTick.Clear();
         var train = world.Train;
         var engine = train.Dynamics;
         if (engine.Path != RailLine.MainPath)
@@ -492,6 +505,14 @@ public sealed class Lineside
                 bool caught = crew.Any(c => c.State.Parent == v.Id && c.Intent.Has(PlayerButtons.Fire) && AtTheDoor(c.State, train, d));
                 if (!caught)
                     continue;
+                // The mail catch (queue #461, note 727; the director, 14 Oct, GDD App. F.6): a bag hooked over the crane's
+                // posted speed tears off the hook and is lost, so the one at the door has to call the driver down for it.
+                if (engine.Speed > Tuning.CatchMaxSpeed)
+                {
+                    _dropped[d.Id] = 3;
+                    TornThisTick.Add(d);
+                    break;
+                }
                 _dropped[d.Id] = 1;
                 CaughtThisTick.Add(d);
                 Reward(world, d);

@@ -9,32 +9,36 @@
 // capitals of 2.8 m are made out by 250 m and read from 150 m on; a speed's figures of 3.2 m from 250 m.
 {
   "boards": {
-    "kmPost":        { "text": "{value}",          "heightM": 0.8,  "widthM": 1.2, "visibleM": 150, "reflective": true, "letterM": 1.4,  "lineChars": 6, "warns": false, "side": 1, "fixed": true, "overGroundM": 0.5 },
-    "minorPost":     { "text": "{value}",          "heightM": 0.8,  "widthM": 0.9, "visibleM": 110, "reflective": true, "letterM": 1.0,  "lineChars": 6, "warns": false, "side": 1, "fixed": true, "overGroundM": 0.5 },
-    "speedBoard":    { "text": "{value}",          "heightM": 3.5,  "widthM": 5,   "visibleM": 300, "reflective": true, "letterM": 3.2,  "lineChars": 4, "warns": true, "side": 0, "fixed": false, "overGroundM": 0 },
-    "resumeBoard":   { "text": "{value}",          "heightM": 3.5,  "widthM": 5,   "visibleM": 300, "reflective": true, "letterM": 3.2,  "lineChars": 4, "warns": false, "side": 0, "fixed": false, "overGroundM": 0 },
-    "restricted":    { "text": "R",                "heightM": 3.5,  "widthM": 5,   "visibleM": 300, "reflective": true, "letterM": 3.2,  "lineChars": 6, "warns": true, "side": 0, "fixed": false, "overGroundM": 0 },
-    "endRestricted": { "text": "END R",            "heightM": 3.5,  "widthM": 5,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 6, "warns": false, "side": 0, "fixed": false, "overGroundM": 0 },
-    "gradientPost":  { "text": "{value}",          "heightM": 3.0,  "widthM": 3,   "visibleM": 200, "reflective": true, "letterM": 1.8,  "lineChars": 7, "warns": false, "side": 0, "fixed": false, "overGroundM": 0 },
-    "whistle":       { "text": "W",                "heightM": 3.5,  "widthM": 4,   "visibleM": 250, "reflective": true, "letterM": 3.2,  "lineChars": 4, "warns": true, "side": 0, "fixed": false, "overGroundM": 0 },
-    "junction":      { "text": "{name} {value}",   "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 8, "warns": false, "side": 0, "fixed": false, "overGroundM": 0 },
-    "facility":      { "text": "{name} {value}",   "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 8, "warns": false, "side": 0, "fixed": false, "overGroundM": 0 },
-    "bridge":        { "text": "{name}",           "heightM": 3.5,  "widthM": 6,   "visibleM": 250, "reflective": true, "letterM": 2.4,  "lineChars": 8, "warns": true, "side": 0, "fixed": false, "overGroundM": 0 },
-    "bridgeLimit":   { "text": "MAX {value} CARS", "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 6, "warns": true, "side": 0, "fixed": false, "overGroundM": 0 },
+    "kmPost":        { "text": "{value}",          "heightM": 0.8,  "widthM": 1.2, "visibleM": 150, "reflective": true, "letterM": 1.4,  "lineChars": 6, "warns": false, "side": 1, "fixed": true, "overGroundM": 0.5, "signSide": false },
+    "minorPost":     { "text": "{value}",          "heightM": 0.8,  "widthM": 0.9, "visibleM": 110, "reflective": true, "letterM": 1.0,  "lineChars": 6, "warns": false, "side": 1, "fixed": true, "overGroundM": 0.5, "signSide": false },
+    "speedBoard":    { "text": "{value}",          "heightM": 3.5,  "widthM": 5,   "visibleM": 300, "reflective": true, "letterM": 3.2,  "lineChars": 4, "warns": true, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
+    "resumeBoard":   { "text": "{value}",          "heightM": 3.5,  "widthM": 5,   "visibleM": 300, "reflective": true, "letterM": 3.2,  "lineChars": 4, "warns": false, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
+    "restricted":    { "text": "R",                "heightM": 3.5,  "widthM": 5,   "visibleM": 300, "reflective": true, "letterM": 3.2,  "lineChars": 6, "warns": true, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
+    "endRestricted": { "text": "END R",            "heightM": 3.5,  "widthM": 5,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 6, "warns": false, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
+    "gradientPost":  { "text": "{value}",          "heightM": 3.0,  "widthM": 3,   "visibleM": 200, "reflective": true, "letterM": 1.8,  "lineChars": 7, "warns": false, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
+    "whistle":       { "text": "W",                "heightM": 3.5,  "widthM": 4,   "visibleM": 250, "reflective": true, "letterM": 3.2,  "lineChars": 4, "warns": true, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
+    "junction":      { "text": "{name} {value}",   "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 8, "warns": false, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
+    "facility":      { "text": "{name} {value}",   "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 8, "warns": false, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
+    "bridge":        { "text": "{name}",           "heightM": 3.5,  "widthM": 6,   "visibleM": 250, "reflective": true, "letterM": 2.4,  "lineChars": 8, "warns": true, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
+    "bridgeLimit":   { "text": "MAX {value} CARS", "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 6, "warns": true, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
     // What a speed board that isn't for a bend is for, on its own post just past it (note 265, build 1121: "20" boards on
     // straight track read as speed traps): BRASS for a brass field's cutting speed. A bend's board stands alone, as ever.
-    "limitReason":   { "text": "{name}",           "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 8, "warns": true, "side": 0, "fixed": false, "overGroundM": 0 },
-    "lineClosed":    { "text": "LINE CLOSED",      "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 6, "warns": true, "side": 0, "fixed": false, "overGroundM": 0 },
-    "yardLimit":     { "text": "YARD LIMIT",       "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 6, "warns": true, "side": 0, "fixed": false, "overGroundM": 0 },
-    "stationName":   { "text": "{name}",           "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 9, "warns": false, "side": 0, "fixed": false, "overGroundM": 0 },
+    "limitReason":   { "text": "{name}",           "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 8, "warns": true, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
+    "lineClosed":    { "text": "LINE CLOSED",      "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 6, "warns": true, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
+    "yardLimit":     { "text": "YARD LIMIT",       "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 6, "warns": true, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
+    "stationName":   { "text": "{name}",           "heightM": 3.5,  "widthM": 6,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 9, "warns": false, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
     // The sim's own boards (sight.json, Lineside.Boards, drawn by SceneArt.LinesideBoard): the mail crane's (MAIL and an
     // arrow to its side); and the weak bridge's car count on a hand-laid line (WorldFeatures; a generated line's is the
     // plan's bridgeLimit).
-    "mailDrop":      { "text": "MAIL",             "heightM": 3.5,  "widthM": 5,   "visibleM": 300, "reflective": true, "letterM": 2.8,  "lineChars": 6, "warns": true, "side": 0, "fixed": false, "overGroundM": 0 },
+    // Note 702 (the director's evening playtest, lines 10 and 12): "I have a mail sign here that's pointing in the wrong
+    // direction"; "The mail signs are a bit too large". A mail board stands on its crane's side (signSide), so the board
+    // and its arrow say the same side, and its letters are 2.3 m, a fifth smaller: still read from 150 m like every name
+    // board's (BoardSightTests), 11 s at 50 km/h with 400 m to the crane.
+    "mailDrop":      { "text": "MAIL",             "heightM": 3.5,  "widthM": 5,   "visibleM": 300, "reflective": true, "letterM": 2.3,  "lineChars": 6, "warns": true, "side": 0, "fixed": false, "overGroundM": 0, "signSide": true },
     // A tunnel's name over each portal's arch (§13.3; the arch's crown is 7.5 m up, the portal's face 11.5 m and 20 m
     // across): no post, as big as fits across the portal over the arch, standing up off its coping, its number over its name.
-    "tunnelPlate":   { "text": "{name}",           "heightM": 12.8, "widthM": 19.6, "visibleM": 250, "reflective": true, "letterM": 2.0, "lineChars": 24, "warns": false, "side": 0, "fixed": false, "overGroundM": 0 },
-    "deadSignal":    { "text": "",                 "heightM": 5.0,  "widthM": 0.5, "visibleM": 120, "reflective": false, "letterM": 1, "lineChars": 1, "warns": false, "side": 0, "fixed": false, "overGroundM": 0 }
+    "tunnelPlate":   { "text": "{name}",           "heightM": 12.8, "widthM": 19.6, "visibleM": 250, "reflective": true, "letterM": 2.0, "lineChars": 24, "warns": false, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false },
+    "deadSignal":    { "text": "",                 "heightM": 5.0,  "widthM": 0.5, "visibleM": 120, "reflective": false, "letterM": 1, "lineChars": 1, "warns": false, "side": 0, "fixed": false, "overGroundM": 0, "signSide": false }
   },
   // How a board stands, is seen and shines (note 560). On side (-1 the left, as the train coming sees it; 0 the plan's
   // side): across the line from the telegraph poles (4.5 m right, every 50 m), which stood in every right-hand board's
@@ -86,6 +90,11 @@
   // driver's side. Non-required signage survives by the tier's rate; what doesn't is fallen or missing by these weights.
   // A repeat board this far before the first; whistle boards this far before tunnels and dead settlements; a gradient
   // post where a climb comes within this share of g_main.
+  // Note 702 (the evening playtest, line 11: "J1, one kilometer ... came before the Talbot Foundry stop though, so that's a
+  // bit confusing"): a junction's or facility's far board with a stop between it and what it counts to stands pastStopM
+  // past the stop (a board's reach in the lamp, so it isn't read from before the stop), saying its own distance from
+  // there, or isn't stood if that's not short of the near board.
+  "pastStopM": 300,
   "kmPostEveryM": 1000,
   "minorPostEveryM": 500,
   "sideOffsetM": 3.2,

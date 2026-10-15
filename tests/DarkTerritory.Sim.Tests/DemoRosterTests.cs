@@ -345,9 +345,10 @@ public class DemoRosterTests
     }
 
     [Fact]
-    public void AloneTheStruggleComesOffAboutOneTimeInSeven()
+    public void AloneTheStruggleComesOffAboutHalfTheTime()
     {
-        // At best a 15% chance (enemies.json grab.soloStruggleChance): over thirty nights' grabs, a handful come off.
+        // A coin flip (enemies.json grab.soloStruggleChance; it was 15%, and the director, 14 Oct: "really should have a
+        // higher rate of success", note 737): over thirty nights' grabs, about half come off, and never all or none.
         int free = 0;
         for (ulong seed = 1; seed <= 30; seed++)
         {
@@ -356,8 +357,47 @@ public class DemoRosterTests
             if (a.Phase != SpinePhase.Grab)
                 free++;
         }
-        Assert.Equal(0.15, E.Grab.SoloStruggleChance);
-        Assert.InRange(free, 1, 10);
+        Assert.Equal(0.5, E.Grab.SoloStruggleChance);
+        Assert.InRange(free, 8, 22);
+    }
+
+    // ---- In a crew with nobody near (the audit's R3; the director, 14 Oct: "Approved for Grabbed"; note 756).
+
+    [Fact]
+    public void InACrewWithNobodyNearTheHeldCanStruggleFree()
+    {
+        var (n, a) = HeldByARibbit(enemies: E with { Grab = E.Grab with { CrewStruggleChance = 1 } });
+        // A crewmate up by the engine, out of reach and out of earshot.
+        n.Crew[2] = OnGroundBeside(n, 0, 4, along: -6);
+        Assert.True((PlayerMotor.WorldPosition(n.Crew[2], n.Train) - PlayerMotor.WorldPosition(n.Crew[1], n.Train)).Length > E.Grab.CrewStruggleBeyond);
+        n.Run(E.Grab.SoloStruggle + 0.3, id => id == 1 ? new PlayerIntent { Buttons = PlayerButtons.Use } : default);
+        Assert.NotEqual(SpinePhase.Grab, a.Phase);
+        Assert.True(n.Crew[1].Alive);
+    }
+
+    [Fact]
+    public void WithAFriendNearTheHeldCantStruggleAndAFriendIsTheHelp()
+    {
+        var (n, a) = HeldByARibbit(enemies: E with { Grab = E.Grab with { CrewStruggleChance = 1 } });
+        // A crewmate near enough to come (within earshot), but beyond the Ribbits' groupRadius, so they don't count as the
+        // crew crowding it off: the struggle isn't the held's to try (the friend is the help).
+        n.Crew[2] = OnGroundBeside(n, 2, 4, along: 18);
+        Assert.True((PlayerMotor.WorldPosition(n.Crew[2], n.Train) - PlayerMotor.WorldPosition(n.Crew[1], n.Train)).Length <= E.Grab.CrewStruggleBeyond);
+        n.Run(E.Grab.SoloStruggle + 0.3, id => id == 1 ? new PlayerIntent { Buttons = PlayerButtons.Use } : default);
+        Assert.Equal(SpinePhase.Grab, a.Phase);
+        Assert.False(a.StruggledOff);
+    }
+
+    [Fact]
+    public void InACrewTheStruggleIsLessLikelyThanAlone()
+    {
+        Assert.True(E.Grab.CrewStruggleChance < E.Grab.SoloStruggleChance);
+        Assert.Equal(26, E.Grab.CrewStruggleBeyond);
+        // Off (crewStruggleBeyond 0), a crew's held can't struggle wherever their friends are: as before note 756.
+        var (n, a) = HeldByARibbit(enemies: E with { Grab = E.Grab with { CrewStruggleChance = 1, CrewStruggleBeyond = 0 } });
+        n.Crew[2] = OnGroundBeside(n, 0, 4, along: -6);
+        n.Run(E.Grab.SoloStruggle + 0.3, id => id == 1 ? new PlayerIntent { Buttons = PlayerButtons.Use } : default);
+        Assert.Equal(SpinePhase.Grab, a.Phase);
     }
 
     [Fact]

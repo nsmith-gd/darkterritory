@@ -78,9 +78,14 @@ public sealed class Crane
     public Double3 BridgeEnd(int side) => _at(Bridge, _t.Span[side], Top);
     /// <summary>Where the hook is (world).</summary>
     public Double3 HookAt => _at(Bridge, Trolley, Hook);
-    /// <summary>The control stand, at the foot of the near leg at the gantry's first end; the cab's up over it.</summary>
+    /// <summary>The control stand, at the foot of the near leg at the gantry's first end.</summary>
     public Double3 Controls => _at(_t.Along - 0.5 * _t.Length + 0.8, _t.Span[0] - 0.8, 0);
-    public Double3 Cab => _at(_t.Along - 0.5 * _t.Length + 0.8, _t.Span[0], Top - 1.2);
+    /// <summary>
+    /// The operator's cab, riding the bridge under its far end, outboard of the stack (GDD §18; the director, 14 Oct: "my
+    /// train is blocking the view of the loot"; note 736). It stood on the near leg, across the track from the castings, and
+    /// the cars' roofs hid the ground round them; from here the stack's in front and the car beyond.
+    /// </summary>
+    public Double3 Cab => _at(Bridge, _t.Span[1] + _t.CabOut, Top - 1.2);
 
     /// <summary>The casting's half-height (it hangs this far under the hook, its middle).</summary>
     public double CastingHalf => _t.CastingSize[1] * 0.5;
@@ -136,10 +141,12 @@ public sealed class Crane
         bool clears = local.X - hx >= hatch.Min.X && local.X + hx <= hatch.Max.X && local.Z - hz >= hatch.Min.Z && local.Z + hz <= hatch.Max.Z;
         if (!clears)
             return (false, 0);
-        // What it comes down on: the highest thing under its footprint below the roof, a casting already in included.
+        // What it comes down on: the highest thing under its footprint below the roof as the car is now (an empty car's heap
+        // isn't there, note 708), a casting already in included.
         double floor = 0;
+        var vehicle = train.Vehicles[car];
         foreach (var (x, z) in new[] { (0.0, 0.0), (-hx, -hz), (hx, -hz), (-hx, hz), (hx, hz) })
-            floor = Math.Max(floor, shape.TopAt(local.X + x, local.Z + z, hatch.Min.Y - 0.01)?.Top ?? 0);
+            floor = Math.Max(floor, shape.TopAt(local.X + x, local.Z + z, vehicle, hatch.Min.Y - 0.01)?.Top ?? 0);
         foreach (var c in Castings)
             if (c.State == CastingState.Loaded && c.Car == car && c.At.Y < hatch.Min.Y
                 && Math.Abs(c.At.X - local.X) < 2 * hx && Math.Abs(c.At.Z - local.Z) < 2 * hz)

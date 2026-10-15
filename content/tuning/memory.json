@@ -1,0 +1,51 @@
+// Crew memory (GDD §9 Arrival, §11 "What a crew keeps", §3.1; the director, 14 Oct 2026, App. F.6; ARCHITECTURE §8 note
+// 721): the crew photo at the gate on a delivered night, the logbook a page a night, the town's board of lost crews.
+// Presentation only: every number here is how a machine draws what the replicated world and the report already say.
+{
+  // The town photographer's group shot, taken as the train stands in at the terminus (GDD §9): the living in a line
+  // beside the engine, the dead's caps on a crate at the line's end, the night's tally chalked on a slate on an easel.
+  "photo": {
+    // The print's size in the album (pixels), and the lens (vertical degrees).
+    "width": 640,
+    "height": 360,
+    "fov": 46,
+    // Seconds after the report is in (the clerk's tally under way) that the shutter goes: the train stood, the crew
+    // gathered. And how long the white flash fades over the screen.
+    "delaySeconds": 1.2,
+    "flashSeconds": 0.6,
+    // The line-up, measured off the engine (metres): along it from its middle toward its front, out from the track's
+    // centre on the yard's open side (away from the town's square: its platform canopy's posts stand on that side), and
+    // between shoulders.
+    "ahead": 2.5,
+    "out": 3.0,
+    "spacing": 0.95,
+    // The crate the dead's caps sit on stands this far past the line's right-hand end (as the lens sees it).
+    "crateGap": 1.0,
+    // The camera: out from the line, along it toward the front (for the three-quarter view of the engine's face), the
+    // lens's height, and where it's aimed (height over the line's feet).
+    "cameraOut": 5.6,
+    "cameraAhead": 3.0,
+    "cameraHeight": 1.6,
+    "lookHeight": 1.5,
+    // The slate on its easel: in front of the line toward the camera, and out past the line's left-hand end (the caps'
+    // crate is at its right), so it's near enough the lens to read and stands in front of nobody.
+    "slateOut": 1.6,
+    "slateAside": 0.7,
+    // How far into an emote someone holding one is caught (seconds): mid-wave, not the wind-up.
+    "emoteAt": 0.8,
+    // The photographer's flash, the light the photo is lit by: its reach (metres) and strength.
+    "flashRange": 18,
+    "flashStrength": 2.0
+  },
+  // The logbook (GDD §11): a book on a shelf, Use opens it as a page a night, the movement keys turn them.
+  "logbook": {
+    // Where it's kept: "cab", shut on the seat of the big cab's front bench at its right-hand end, just behind the chart
+    // table (GDD §12, note 716; the table's top is the run map's, kept clear); or "lockers", on a shelf on the wall across the aisle from the kit locker in car
+    // one (the lockers' tops are up under the roof). And the lockers' shelf's height over the floor (metres): chest height.
+    "place": "cab",
+    "height": 1.25,
+    // Reach (metres from the eye to the book) and how near the view's centre it has to be (degrees).
+    "reach": 1.9,
+    "lookDegrees": 22
+  }
+}

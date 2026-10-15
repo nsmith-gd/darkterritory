@@ -122,6 +122,17 @@ public sealed class TrainDynamics
         UpdateFade(dt, brake, track.GradePercent * travelDir);
     }
 
+    /// <summary>
+    /// Runs on at <paramref name="velocity"/> for a tick, worked out by something else's rules (the handcar's pumpers, note 729):
+    /// its speed, the distance and the acceleration as <see cref="Step"/> leaves them.
+    /// </summary>
+    internal void Roll(double velocity, double dt)
+    {
+        Acceleration = (velocity - Velocity) / dt;
+        Velocity = velocity;
+        Distance += velocity * dt;
+    }
+
     void UpdateFade(double dt, double brake, double gradeInTravelDirection)
     {
         var f = Tuning.BrakeFade;

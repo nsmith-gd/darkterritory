@@ -15,7 +15,8 @@ namespace DarkTerritory.Sim.Net;
 /// </summary>
 /// <param name="Source">For a <see cref="VoicePath.Mimic"/> frame, the enemy it comes from (T40); 0 otherwise.</param>
 /// <param name="Gain">With <see cref="VoicePath.Fading"/>: how much of the speaker's voice is left, 0..1 (App. C.8).</param>
-public readonly record struct VoiceFrame(byte Speaker, ushort Sequence, VoicePath Path, byte[] Opus, int Source = 0, double Gain = 1);
+/// <param name="Tube">With <see cref="VoicePath.Tube"/>: the speaking tube's end it comes out of (note 720, <see cref="SpeakingTube.Ends"/>).</param>
+public readonly record struct VoiceFrame(byte Speaker, ushort Sequence, VoicePath Path, byte[] Opus, int Source = 0, double Gain = 1, int Tube = 0);
 
 public sealed class ClientSession
 {
@@ -28,7 +29,7 @@ public sealed class ClientSession
     readonly List<TransportEvent> _events = new();
     readonly List<PlayerSnapshot> _players = new();
     readonly NetWriter _writer = new();
-    readonly (uint Seq, PlayerIntent Intent, PlayerState After)[] _history = new (uint, PlayerIntent, PlayerState)[HistoryLength];
+    readonly (uint Seq, PlayerIntent Intent, PlayerState After, uint Seen)[] _history = new (uint, PlayerIntent, PlayerState, uint)[HistoryLength];
     readonly InputFrame[] _redundant = new InputFrame[Messages.InputRedundancy];
     readonly List<(uint Tick, PlayerSnapshot[] Players)> _snapshots = new();
 
@@ -62,6 +63,22 @@ public sealed class ClientSession
         _transport.Send(PeerId.Host, _writer.Written, Delivery.ReliableOrdered);
     }
 
+    /// <summary>The paint on this player's mask (note 731), sent with the name; none for an unpainted one.</summary>
+    public MaskPaint Paint { get; set; }
+
+    /// <summary>
+    /// Paints the mask (note 731), as <see cref="Wear"/> tries an outfit on: asked of the host, which takes it only in the
+    /// yard; the crew see it once it's sent back. Kept for the next Hello, too.
+    /// </summary>
+    public void PaintMask(MaskPaint paint)
+    {
+        Paint = paint;
+        if (!_helloSent)
+            return;
+        Messages.WritePaint(_writer, paint);
+        _transport.Send(PeerId.Host, _writer.Written, Delivery.ReliableOrdered);
+    }
+
     readonly Dictionary<int, byte[]> _reportChunks = [];
     int _reportCount;
     readonly Dictionary<int, byte[]> _filmChunks = [];
@@ -72,6 +89,7 @@ public sealed class ClientSession
         World = world;
         // How long the host keeps an emote is how long it's drawn (note 298).
         world.EmoteTuning = playerTuning.Emotes;
+        world.PingTuning = playerTuning.Pings;
         world.NewsTuning = playerTuning.News;
         // Clients mirror enemies; only the host simulates them.
         _transport = transport;
@@ -151,6 +169,39 @@ public sealed class ClientSession
     /// <summary>The host turned this connection away instead of welcoming it (a full crew, note 254); null otherwise.</summary>
     public Refusal? Refused { get; private set; }
 
+    readonly Dictionary<int, byte[]> _saveChunks = [];
+    int _saveCount;
+    /// <summary>The crew's save as the host last sent it (note 724), its bytes; null till one's come. <see cref="TakeCrewSave"/> takes it.</summary>
+    public byte[]? CrewSave { get; private set; }
+    /// <summary>How many of the crew's saves have come in this session.</summary>
+    public int CrewSaves { get; private set; }
+
+    /// <summary>The crew's save that's come in since the last take, or null: the game keeps it (note 724).</summary>
+    public byte[]? TakeCrewSave()
+    {
+        var save = CrewSave;
+        CrewSave = null;
+        return save;
+    }
+
+    /// <summary>The vote to put someone off as the host last said it (note 724), or none.</summary>
+    public KickVote KickVote { get; private set; }
+
+    /// <summary>The crew put this player off the run (note 724): the host hangs up in a moment, and they can't come back to it.</summary>
+    public bool Kicked { get; private set; }
+
+    /// <summary>
+    /// Note 724: put <paramref name="target"/> off. The host's own player does it outright; in a public lobby anyone else calls
+    /// the vote on them, or says yes to the one open on them. The host decides.
+    /// </summary>
+    public void Kick(byte target)
+    {
+        if (PlayerId is null)
+            return;
+        Messages.WriteKick(_writer, target);
+        _transport.Send(PeerId.Host, _writer.Written, Delivery.ReliableOrdered);
+    }
+
     /// <summary>
     /// Note 254: the player's quitting on purpose. Tells the host, so their place frees now rather than being held for a
     /// rejoin (note 253), then hangs up (the session's done: don't step it again). If the word's lost on the way, the host
@@ -187,6 +238,7 @@ public sealed class ClientSession
         _helloSent = false;
         _decoded.Clear();
         _snapshots.Clear();
+        _crowds.Clear();
         Reconnects++;
     }
 
@@ -198,7 +250,7 @@ public sealed class ClientSession
         if (_helloSent)
             return;
         _helloSent = true;
-        Messages.WriteHello(_writer, Name, Token, Outfit, PasswordKey, Bot);
+        Messages.WriteHello(_writer, Name, Token, Outfit, PasswordKey, Bot, Paint);
         _transport.Send(PeerId.Host, _writer.Written, Delivery.ReliableOrdered);
     }
     /// <summary>A private run's password as its key (note 450), said in every Hello; null for an open run.</summary>
@@ -279,15 +331,16 @@ public sealed class ClientSession
             return;
 
         _sequence++;
-        Predict(intent);
-        _history[_sequence % HistoryLength] = (_sequence, intent, Predicted);
+        Predict(intent, _newestSnapshotTick);
+        _history[_sequence % HistoryLength] = (_sequence, intent, Predicted, _newestSnapshotTick);
         SendInputs();
     }
 
-    void Predict(in PlayerIntent given)
+    void Predict(in PlayerIntent given, uint seen)
     {
-        // Off the rails, the wreck has you till its hit kills you (App. E.2 step 1), as the host has it.
-        var intent = World.Wrecked(Predicted) ? World.WreckedIntent(given) : given;
+        // Off the rails, the wreck has you till its hit kills you (App. E.2 step 1), as the host has it; staggered (note 717),
+        // you look and talk and nothing else.
+        var intent = Horseplay.Staggered(Predicted, World.Wrecked(Predicted) ? World.WreckedIntent(given) : given);
         World.BeginTick();
         // The host clears the brake every tick and re-applies whoever is holding it. If we're the one in
         // the cab it's almost certainly us, so do the same; otherwise assume whoever was braking still is.
@@ -305,7 +358,7 @@ public sealed class ClientSession
         World.CrewAct(ref Predicted, intent, PlayerId ?? 0);
         World.Step(Controls);
         if (!World.Wrecked(Predicted))
-            PlayerMotor.Step(ref Predicted, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false);
+            PlayerMotor.Step(ref Predicted, intent, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false, PlayerId ?? 0, CrowdAt(seen));
         // The host snaps its world to the replication grid every tick; do the same so we match it exactly. The hand
         // isn't replicated (the next intent brings it), but this machine's HUD reads it between ticks, so it stays.
         _quantise.Clear();
@@ -315,6 +368,27 @@ public sealed class ClientSession
     }
 
     readonly List<PlayerSnapshot> _quantise = new();
+    /// <summary>
+    /// Note 717: the crew as each recent snapshot had them, by its tick: an input's crowd is the one it was first predicted
+    /// against (sent with it), which the host pushes it out from among too, so the two agree whatever the link.
+    /// </summary>
+    readonly Dictionary<uint, List<Shoulder>> _crowds = new();
+
+    List<Shoulder>? CrowdAt(uint tick)
+    {
+        if (_crowds.TryGetValue(tick, out var crowd))
+            return crowd;
+        foreach (var (t, players) in _snapshots)
+            if (t == tick)
+            {
+                _crowds[tick] = crowd = Horseplay.Crowd(players.Select(p => ((int)p.Id, p.State)));
+                if (_crowds.Count > SnapshotBuffer)
+                    foreach (var old in _crowds.Keys.Where(k => k + SnapshotBuffer < tick).ToList())
+                        _crowds.Remove(old);
+                return crowd;
+            }
+        return null;
+    }
     readonly Dictionary<uint, List<WireRecord>> _decoded = new();
     const int DecodedHistory = 64;
 
@@ -324,7 +398,7 @@ public sealed class ClientSession
         for (int i = 0; i < n; i++)
         {
             uint seq = _sequence - (uint)(n - 1 - i);
-            _redundant[i] = new InputFrame(seq, _history[seq % HistoryLength].Intent);
+            _redundant[i] = new InputFrame(seq, _history[seq % HistoryLength].Intent, _history[seq % HistoryLength].Seen);
         }
         Messages.WriteInput(_writer, _redundant.AsSpan(0, n), _newestSnapshotTick, (byte)ReportedLossPct);
         _transport.Send(PeerId.Host, _writer.Written, Delivery.Unreliable);
@@ -363,13 +437,37 @@ public sealed class ClientSession
                 case MessageType.Voice:
                     byte speaker = r.U8();
                     ushort vseq = r.U16();
-                    var path = (VoicePath)r.U8();
+                    var path = (VoicePath)r.U16();
                     int source = path.HasFlag(VoicePath.Mimic) ? r.I32() : 0;
                     double gain = path.HasFlag(VoicePath.Fading) ? r.U8() / 255.0 : 1;
-                    VoiceFrames.Enqueue(new VoiceFrame(speaker, vseq, path, r.Rest().ToArray(), source, gain));
+                    int tube = path.HasFlag(VoicePath.Tube) ? r.U8() : 0;
+                    VoiceFrames.Enqueue(new VoiceFrame(speaker, vseq, path, r.Rest().ToArray(), source, gain, tube));
                     break;
                 case MessageType.Wait:
                     WaitingReason = r.Str();
+                    break;
+                case MessageType.CrewSave:
+                    {
+                        // Note 724: the crew's save, settled on the host's machine, kept among the crews this player rides with.
+                        int index = r.U8();
+                        _saveCount = r.U8();
+                        _saveChunks[index] = r.Rest().ToArray();
+                        if (Messages.ReadCrewSave(_saveChunks, _saveCount) is { } save)
+                        {
+                            CrewSave = save;
+                            CrewSaves++;
+                            _saveChunks.Clear();
+                        }
+                        break;
+                    }
+                case MessageType.KickVote:
+                    KickVote = Messages.ReadKickVote(ref r);
+                    break;
+                case MessageType.Kicked:
+                    Kicked = true;
+                    break;
+                case MessageType.Mischief:
+                    World.CrewMischief = r.Bool();
                     break;
                 case MessageType.CarryOn:
                     CarryingOn = Messages.ReadCarryOn(ref r);
@@ -396,6 +494,9 @@ public sealed class ClientSession
                     break;
                 case MessageType.Outfits:
                     Messages.ReadOutfits(ref r, World.Outfits);
+                    break;
+                case MessageType.Paints:
+                    Messages.ReadPaints(ref r, World.Paints);
                     break;
                 case MessageType.Ballot:
                     if (Ballot is null)
@@ -515,7 +616,7 @@ public sealed class ClientSession
             ref var h = ref _history[seq % HistoryLength];
             if (h.Seq != seq)
                 continue;
-            Predict(h.Intent);
+            Predict(h.Intent, h.Seen);
             h.After = Predicted;
         }
     }

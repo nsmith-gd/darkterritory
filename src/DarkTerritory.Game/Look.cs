@@ -292,6 +292,30 @@ public sealed record LookTuning
         return new System.Numerics.Vector3(c[0], c[1], c[2]);
     }
 
+    /// <summary>The mask paints (note 731): multipliers over the pale paint, and their names on PAINT YOUR MASK, in turn.</summary>
+    public float[][] MaskPaints { get; init; } = [];
+    public string[] MaskPaintNames { get; init; } = [];
+    /// <summary>The stencils by key (Art.MaskKit draws them), in the menu's order.</summary>
+    public string[] MaskStencils { get; init; } = [];
+    /// <summary>A stencil's colour when none's picked, and the crew sigil's (both from 1).</summary>
+    public int MaskInk { get; init; } = 1;
+    public int SigilInk { get; init; } = 1;
+
+    /// <summary>A mask paint by its number from 1 (round again past the list), or null for 0: none.</summary>
+    public System.Numerics.Vector3? MaskPaint(int paint)
+    {
+        if (paint <= 0 || MaskPaints.Length == 0)
+            return null;
+        var c = MaskPaints[(paint - 1) % MaskPaints.Length];
+        return new System.Numerics.Vector3(c[0], c[1], c[2]);
+    }
+
+    /// <summary>A stencil's key by its number from 1 (round again past the list), or null for 0: none.</summary>
+    public string? MaskStencil(int stencil) => stencil <= 0 || MaskStencils.Length == 0 ? null : MaskStencils[(stencil - 1) % MaskStencils.Length];
+
+    /// <summary>A stencil's name on the menus: its key in capitals ("x-eyes", X EYES).</summary>
+    public static string StencilName(string key) => key.Replace('-', ' ').ToUpperInvariant();
+
     /// <summary>By <see cref="Palette"/> colour name.</summary>
     public Dictionary<string, MaterialTuning> Materials { get; init; } = new();
     public ColourGrade Grade { get; init; } = new();
@@ -300,6 +324,42 @@ public sealed record LookTuning
     public WaterTuning Water { get; init; } = new();
     public DamageTuning Damage { get; init; } = new();
     public BiteTuning Bite { get; init; } = new();
+    public WorkLightTuning WorkLight { get; init; } = new();
+    public SpeedFeelTuning SpeedFeel { get; init; } = new();
+}
+
+/// <summary>
+/// GDD §28 "What you came for is lit" (note 705): the work lamps over a loading and the pools round what lies on the ground
+/// to be taken. Mirror of look.json <c>workLight</c>, where each field is documented.
+/// </summary>
+public sealed record WorkLightTuning
+{
+    public float HookIntensity { get; init; } = 2.2f;
+    public float HookRange { get; init; } = 6.5f;
+    public float HookAbove { get; init; } = 1.4f;
+    public float StackIntensity { get; init; } = 1.6f;
+    public float StackRange { get; init; } = 7;
+    public float StackHeight { get; init; } = 3.2f;
+    public float GroundIntensity { get; init; } = 1.1f;
+    public float GroundRange { get; init; } = 3.5f;
+    public float GroundHeight { get; init; } = 1.1f;
+    public float GroundWithin { get; init; } = 30;
+    public int GroundCount { get; init; } = 6;
+}
+
+
+/// <summary>GDD §31 "Speed is felt" (note 709). Mirror of look.json <c>speedFeel</c>, where each field is documented.</summary>
+public sealed record SpeedFeelTuning
+{
+    public double Widen { get; init; }
+    public double FullAt { get; init; } = 20;
+    public double Ease { get; init; } = 1;
+    public double Joint { get; init; } = 12.5;
+    public double Bogies { get; init; } = 8.5;
+    public double Jolt { get; init; }
+    public double JoltWidth { get; init; } = 0.35;
+    public double Sway { get; init; }
+    public double SwayWave { get; init; } = 34;
 }
 
 /// <summary>One entry of content/art/textures/index.json (written by tools/art/textures.py).</summary>

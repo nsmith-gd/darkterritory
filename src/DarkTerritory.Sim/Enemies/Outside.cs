@@ -119,12 +119,12 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
         double best = double.MaxValue;
         foreach (var (p, w) in ctx.LivingCrew())
         {
-            if (!CrewSense.OnGround(p.State) || CrewSense.Group(ctx, p.Id, t.GroupRadius).Count >= size)
+            if (!CrewSense.Afoot(p.State, ctx.Train) || CrewSense.Group(ctx, p.Id, t.GroupRadius).Count >= size)
                 continue;
-            double d = ((w - centre) with { Y = 0 }).Length;
-            if (d <= t.GiveUpBeyond && d < best)
+            double d = ((w - centre) with { Y = 0 }).Length, weighed = ctx.Weigh(p.Id, d);
+            if (d <= t.GiveUpBeyond && weighed < best)
             {
-                best = d;
+                best = weighed;
                 pick = p.Id;
             }
         }
@@ -314,7 +314,11 @@ public sealed class Gaunt(int id) : Enemy(id)
                         return;
                     // LISTEN: silence near it, and the anger climbs; a voice holds it where it is (and talks it down: TalkedDown).
                     bool talked = Talked(ctx, t);
-                    _silence = talked ? 0 : _silence + SimConstants.TickSeconds;
+                    // Note 728 (senses.json answers.gaunt): a toy playing near it isn't silence, though only a voice talks it down.
+                    var heard = ctx.World.Senses.Answers.Gaunt;
+                    bool toy = (heard.ToyHoldsSilence || heard.ToyTalksDown) && ToyNear(ctx, t);
+                    _silence = talked || toy && heard.ToyHoldsSilence ? 0 : _silence + SimConstants.TickSeconds;
+                    talked |= toy && heard.ToyTalksDown;
                     if (_silence >= t.SilenceSeconds)
                     {
                         _silence = 0;
@@ -339,6 +343,14 @@ public sealed class Gaunt(int id) : Enemy(id)
         }
     }
 
+    /// <summary>A noisy toy playing (in the hands or lying wound) within its listening radius this tick (note 728).</summary>
+    bool ToyNear(EnemyContext ctx, GauntTuning t)
+    {
+        var at = WorldPosition(ctx.Train);
+        return ctx.World.Emitters(Sense.Sound, at).Any(e => e.Kind is EmitterKind.Squeaker or EmitterKind.MusicBox or EmitterKind.Drummer
+            && (e.At - at).Length <= t.ListenRadius);
+    }
+
     /// <summary>LISTEN: someone (its waker, unless <c>anyVoiceCounts</c>) talking within its listening radius this tick.</summary>
     bool Talked(EnemyContext ctx, GauntTuning t)
     {
@@ -357,7 +369,10 @@ public sealed class Gaunt(int id) : Enemy(id)
     /// </summary>
     bool TalkedDown(EnemyContext ctx, GauntTuning t, bool talked)
     {
-        _talk = talked ? _talk + SimConstants.TickSeconds : 0;
+        // Note 720 (GDD §14): a crew singing together near it talks it down faster, its anger's steps and its calm alike.
+        bool sung = talked && Sung(ctx, t);
+        double pace = sung ? Math.Max(1, t.SingingTalks) : 1;
+        _talk = talked ? _talk + SimConstants.TickSeconds * pace : 0;
         if (_talk >= t.SilenceSeconds)
         {
             _talk = 0;
@@ -365,13 +380,33 @@ public sealed class Gaunt(int id) : Enemy(id)
         }
         if (Phase == SpinePhase.Commit && Extra2 < t.AttackAt)
             Enter(ctx, SpinePhase.Telegraph);
-        _calm = talked && Extra2 <= 0 && Phase == SpinePhase.Telegraph ? _calm + SimConstants.TickSeconds : Extra2 > 0 ? 0 : _calm;
+        _calm = talked && Extra2 <= 0 && Phase == SpinePhase.Telegraph ? _calm + SimConstants.TickSeconds * pace : Extra2 > 0 ? 0 : _calm;
         if (_calm < t.TalkedDownSeconds)
             return false;
         Extra = -1; // carrying nothing
         ctx.World.DrivenOff.Add(Kind);
         Enter(ctx, SpinePhase.BreakOff);
+        // Sung off (note 720): the report names the singers near it.
+        if (sung && ctx.World.Run is not null)
+        {
+            var at = WorldPosition(ctx.Train);
+            var singers = ctx.Crew.Where(c => c.Player.State.Alive && ctx.World.Singers.Contains(c.Player.Id)
+                && (PlayerMotor.WorldPosition(c.Player.State, ctx.Train) - at).Length <= t.ListenRadius).Select(c => (int)c.Player.Id).OrderBy(id => id).ToList();
+            string names = string.Join(", ", singers.Select(id => Run.IncidentLog.NameOf(ctx.World, id)));
+            ctx.World.Attribution.Add(Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Sang, $"Sang {Called} off", singers.Count > 0 ? singers[0] : -1,
+                singers.Count > 0 ? $"Singing: {names}." : "", at));
+        }
         return true;
+    }
+
+    /// <summary>Note 720: a crewmate singing together with someone (<see cref="World.Singers"/>) within its listening radius.</summary>
+    bool Sung(EnemyContext ctx, GauntTuning t)
+    {
+        if (ctx.World.Singers.Count == 0)
+            return false;
+        var at = WorldPosition(ctx.Train);
+        return ctx.Crew.Any(c => c.Player.State.Alive && ctx.World.Singers.Contains(c.Player.Id)
+            && (PlayerMotor.WorldPosition(c.Player.State, ctx.Train) - at).Length <= t.ListenRadius);
     }
 
     /// <summary>
@@ -552,7 +587,7 @@ public sealed class Gaunt(int id) : Enemy(id)
     {
         var at = WorldPosition(ctx.Train);
         var near = ctx.LivingCrew().Where(c => (c.World - at).Length <= t.Reach && !c.Player.State.Has(PlayerFlags.Held))
-            .OrderBy(c => (c.World - at).Length).Select(c => ((int)c.Player.Id, c.Player.State.Health)).FirstOrDefault();
+            .OrderBy(c => ctx.Weigh(c.Player.Id, (c.World - at).Length)).Select(c => ((int)c.Player.Id, c.Player.State.Health)).FirstOrDefault();
         _hit += SimConstants.TickSeconds;
         if (near == default || _hit < t.HitEvery)
             return;
@@ -590,9 +625,17 @@ public sealed class Gaunt(int id) : Enemy(id)
 /// </remarks>
 public sealed class Follower(int id) : Enemy(id)
 {
+    /// <summary>How high on its host's back it rides, over their feet (m: between the shoulder blades).</summary>
+    public const double BackUp = 1.35;
+
     int _car = -1;
     /// <summary>Who brought it aboard on their back (host only: for the report, C.9 "who carried it aboard").</summary>
     int _carriedBy = -1;
+    /// <summary>Where it let go of its host's back, in their car's frame, and the floor under it there (host only).</summary>
+    double _dropFrom = double.NaN, _landAt = double.NaN;
+
+    /// <summary>How long its drop off a back takes (s): from <see cref="BackUp"/> to the floor at the tuning's gravity.</summary>
+    public static double DropSeconds(FollowerTuning t) => Math.Sqrt(2 * BackUp / t.DropGravity);
 
     public override EnemyKind Kind => EnemyKind.Follower;
     public override PressureZone Zone => PressureZone.Outside;
@@ -621,7 +664,7 @@ public sealed class Follower(int id) : Enemy(id)
 
     void Ride(TrainOnLine train, in PlayerState s)
     {
-        var back = new Double3(DMath.Sin(s.Yaw), 0, DMath.Cos(s.Yaw)) * 0.2 + Double3.Up * 1.35;
+        var back = new Double3(DMath.Sin(s.Yaw), 0, DMath.Cos(s.Yaw)) * 0.2 + Double3.Up * BackUp;
         if (s.Parent >= 0)
         {
             Attached = s.Parent;
@@ -631,7 +674,7 @@ public sealed class Follower(int id) : Enemy(id)
         {
             Attached = Loose;
             double yaw = PlayerMotor.WorldYaw(s, train);
-            Local = PlayerMotor.WorldPosition(s, train) + new Double3(DMath.Sin(yaw), 0, DMath.Cos(yaw)) * 0.2 + Double3.Up * 1.35;
+            Local = PlayerMotor.WorldPosition(s, train) + new Double3(DMath.Sin(yaw), 0, DMath.Cos(yaw)) * 0.2 + Double3.Up * BackUp;
         }
     }
 
@@ -666,6 +709,9 @@ public sealed class Follower(int id) : Enemy(id)
                         _car = car;
                         _carriedBy = Carrier;
                         Extra = -1;
+                        // DROP: it lets go where it rode, in its host's car, and falls to the floor under them.
+                        _dropFrom = Local.Y;
+                        _landAt = Local.Y - BackUp;
                     }
                     return;
                 }
@@ -698,13 +744,19 @@ public sealed class Follower(int id) : Enemy(id)
             .Where(x => x.Worth > 0.01).OrderByDescending(x => x.Worth).ThenBy(x => x.Id).Select(x => (int?)x.Id).FirstOrDefault();
     }
 
-    /// <summary>Off its host and along the train to its car, then the nest.</summary>
+    /// <summary>Off its host (a drop to the floor under them, in their car), and along the train to its car, then the nest.</summary>
     void Crawl(EnemyContext ctx, FollowerTuning t)
     {
         var train = ctx.Train;
         if (_car < 0 || _car >= train.Frames.Count || train.Dynamics.Consist.IndexOf(_car) < 0)
         {
             Enter(ctx, SpinePhase.Gone);
+            return;
+        }
+        // Falling, still in the car it dropped in (its frame: the train's speed is the car's), till it's down.
+        if (Attached >= 0 && Local.Y > _landAt)
+        {
+            Local = Local with { Y = Math.Max(_landAt, _dropFrom - 0.5 * t.DropGravity * PhaseSeconds * PhaseSeconds) };
             return;
         }
         var goal = train.Frames[_car].Shape.Interior!.Value;
@@ -789,8 +841,8 @@ public sealed class SootChildren(int id) : Enemy(id)
                 return;
             case SpinePhase.Telegraph:
                 {
-                    var near = ctx.LivingCrew().Where(c => CrewSense.OnGround(c.Player.State)).OrderBy(c => (c.World - here).Length).FirstOrDefault();
-                    bool someone = ctx.LivingCrew().Any(c => CrewSense.OnGround(c.Player.State) && c.Player.Id == near.Player.Id);
+                    var near = ctx.LivingCrew().Where(c => CrewSense.Afoot(c.Player.State, ctx.Train)).OrderBy(c => (c.World - here).Length).FirstOrDefault();
+                    bool someone = ctx.LivingCrew().Any(c => CrewSense.Afoot(c.Player.State, ctx.Train) && c.Player.Id == near.Player.Id);
                     if (!someone || (near.World - here).Length > (Soot ? t.LungeWithin : 1.5))
                     {
                         if (PhaseSeconds >= t.IgnoredSeconds)

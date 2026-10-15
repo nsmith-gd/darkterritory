@@ -147,6 +147,7 @@ public static class IncidentLog
         DeathCause.Woken => "Taken at dawn by a Waker",
         DeathCause.Dave => "Struck Dave once too often",
         DeathCause.Fell => "Fell to their death",
+        DeathCause.Shoved => "Shoved off the train",
         _ => cause.ToString(),
     };
 
@@ -170,6 +171,17 @@ public static class IncidentLog
                 actor = victim;
                 action = $"The train at {Kmh(train.Dynamics.Speed)}.";
                 break;
+            case DeathCause.Shoved:
+                {
+                    // Note 717: a crewmate's shove, and the landing the world's rules made of it: who, and how fast the train
+                    // was going under them ("Shoved off by Dave at 58 km/h"); at a stand, the drop did it.
+                    // Note 723: thrown off a friend's shoulder, the same rule, and said so ("Thrown off by Dave at 40 km/h").
+                    var (by, speed) = world.ShovedBy(victim) ?? (-1, 0);
+                    actor = by;
+                    string how = world.WasThrown(victim) ? "Thrown" : "Shoved";
+                    action = speed >= 1 ? $"{how} off by {{actor}} at {Kmh(speed)}." : $"{how} off by {{actor}}.";
+                    break;
+                }
             case DeathCause.Cold when !aboard:
                 {
                     // Left behind (B.2's cold off the train): how far from the train, to its nearest end, not a car's middle (an
@@ -362,6 +374,21 @@ public static class IncidentLog
             }
             else
                 lines.Add(new ReportLine(i.Kind, who, $"{i.What} {i.Where}. {action}".Trim()) { Seconds = i.Seconds, Victim = i.Victim });
+        }
+        // Note 717: the marked, a shove of theirs having killed: "Marked: Dave (shoved Priya off at 58 km/h)."
+        foreach (var (shover, victim, speed) in world.Marks)
+            lines.Add(new ReportLine(IncidentKind.Marked, NameOf(world, shover),
+                $"Marked: {NameOf(world, shover)} (shoved {NameOf(world, victim)} off{(speed >= 1 ? $" at {Kmh(speed)}" : "")}).")
+            { Victim = victim });
+        // Note 717: the bonks, for anyone who took horseplay.bonk.reportFrom or more: how many, and whose tool most of them were.
+        int from = world.HorseplayTuning.Bonk.ReportFrom;
+        foreach (var (victim, by) in world.Bonks)
+        {
+            int count = by.Values.Sum();
+            if (from <= 0 || count < from)
+                continue;
+            int most = by.OrderByDescending(b => b.Value).ThenBy(b => b.Key).First().Key;
+            lines.Add(new ReportLine(IncidentKind.Bonked, NameOf(world, victim), $"Bonked {count} times, mostly by {NameOf(world, most)}.") { Victim = victim });
         }
         // D.12 "what the dead voted for", hidden from the living till now (D.11): each creature voted for, and by whom.
         if (world.Director is { } director)

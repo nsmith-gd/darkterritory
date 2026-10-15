@@ -18,6 +18,10 @@ namespace DarkTerritory.Game.Sound;
 /// the frames are replayed, so they'd be stale to that crewmate's own decoder. It plays from where the thing is, at one
 /// loudness however far (voice-mimic.json): the tell.
 /// </para>
+/// <para>
+/// The speaking tube (note 720; App. C.8): what's said into one mouthpiece comes on the speaker's tube stream, from the far
+/// end's horn (the host says which end), tinny and close (voice-tube.json), beside their voice in the air.
+/// </para>
 /// </summary>
 public sealed class VoiceChat
 {
@@ -31,6 +35,8 @@ public sealed class VoiceChat
     int _filled;
     ushort _sequence;
     double _clock;
+    /// <summary>A voice down the speaking tube after this long quiet (s) is a fresh call, heard first as its whistle.</summary>
+    const double TubeCallQuiet = 6;
 
     public VoiceChat(Mixer mixer) => _mixer = mixer;
 
@@ -57,8 +63,13 @@ public sealed class VoiceChat
         public readonly byte Id = id;
         public readonly VoiceDecoder Decoder = new();
         public readonly JitterBuffer<VoiceFrame> Order = new();
-        public readonly StreamBuffer Near = new(), Radio = new(), Dead = new(), Mimic = new();
-        public SoundInstance? NearVoice, RadioVoice, DeadVoice, MimicVoice;
+        public readonly StreamBuffer Near = new(), Radio = new(), Dead = new(), Mimic = new(), Tube = new();
+        public SoundInstance? NearVoice, RadioVoice, DeadVoice, MimicVoice, TubeVoice;
+        /// <summary>The speaking tube's end their voice last came out of (note 720), for where its horn is.</summary>
+        public int TubeEnd;
+        /// <summary>Their voice coming down the tube now, and since when it's been quiet (note 774: the whistle-call).</summary>
+        public bool TubeOn;
+        public double TubeQuiet = double.NegativeInfinity;
         public double RadioKeyed;
         /// <summary>Their radio as of last update: keyed (the click and the static), and when it last broke up.</summary>
         public bool Keyed;
@@ -77,9 +88,22 @@ public sealed class VoiceChat
         /// the Holdout, whatever the cut says.
         /// </summary>
         public Ballast.Double3? LiveMic;
+        /// <summary>
+        /// Note 749 (App. C.8): held by something, as the snapshots say, so a hand's partly over their mouth; and whether the
+        /// host's last frame of theirs carried a creature's own effect (Tippy Toesie's hand, a Soot Child's draining), which
+        /// is theirs alone.
+        /// </summary>
+        public bool Held, Creature;
+        /// <summary>The hand's share of their voice in the air (1 uncovered), for <see cref="Decode"/>'s volume.</summary>
+        public float HandGain = 1;
     }
 
     public IEnumerable<byte> Speakers => _speakers.Keys;
+
+    /// <summary>Who's muted on this machine (note 724, the roster's MUTE): their frames are dropped as they come, on every path.</summary>
+    public Func<byte, bool>? Muted { get; set; }
+    /// <summary>Frames dropped for a mute.</summary>
+    public int FramesMuted { get; private set; }
 
     /// <summary>
     /// Seconds since a crewmate was last heard (near or on the radio), or null if never: the roster's speaking marks, which
@@ -121,6 +145,13 @@ public sealed class VoiceChat
         _clock += dt;
         while (client.VoiceFrames.TryDequeue(out var f))
         {
+            // Muted on this machine (note 724): nothing of theirs is played here, near, on the radio, down the speaking tube, on
+            // the dead channel or in a Soot Child's mouth. A death's hard-cut still lands, so nothing's left buffered.
+            if (Muted?.Invoke(f.Speaker) == true && !f.Path.HasFlag(VoicePath.Cut))
+            {
+                FramesMuted++;
+                continue;
+            }
             if (f.Path.HasFlag(VoicePath.Mimic))
             {
                 if (!_mimics.TryGetValue(f.Source, out var m))
@@ -156,6 +187,10 @@ public sealed class VoiceChat
                 }
         foreach (var s in _speakers.Values)
             s.LiveMic = client.World.Holdouts?.LiveMicOf(s.Id)?.Inside;
+        // Note 749: who's held, from the snapshots (no word on the wire): their voice goes through a hand over the mouth.
+        var covered = client.PlayerTuning.Voices.Covered;
+        foreach (var s in _speakers.Values)
+            s.Held = covered.On && client.TryGetRemote(s.Id, 1, out var them) && them.Alive && them.Has(Sim.Player.PlayerFlags.Held);
         foreach (var s in _speakers.Values)
             s.Order.Drain(_clock, (_, f) => Decode(s, f));
         foreach (var (source, m) in _mimics.ToList())
@@ -171,6 +206,7 @@ public sealed class VoiceChat
                 _mimics.Remove(source);
             }
         }
+        var tubeEnds = Sim.Train.SpeakingTube.Ends(client.Train);
         foreach (var s in _speakers.Values)
         {
             s.NearVoice ??= Stream("voice", s.Near);
@@ -178,6 +214,18 @@ public sealed class VoiceChat
             s.NearVoice?.Params.Set("tunnel", inTunnel ? 1 : 0);
             s.RadioVoice ??= Stream("voice-radio", s.Radio);
             s.DeadVoice ??= Stream("voice-dead", s.Dead);
+            // The speaking tube (note 720): from the far end's horn, wherever the train has it now.
+            s.TubeVoice ??= Stream("voice-tube", s.Tube);
+            var tubeHorn = Sim.Train.SpeakingTube.Horn(client.Train, tubeEnds, s.TubeEnd);
+            if (s.TubeVoice is not null && tubeHorn is { } horn)
+                s.TubeVoice.Position = horn;
+            // The whistle-call (note 774; K1's ask on #1012): the old way to call down a speaking tube was to blow its whistle,
+            // so the first of a voice down it after a quiet shrills at the far end's horn before the words.
+            if (s.Tube.Playing && !s.TubeOn && _clock - s.TubeQuiet >= TubeCallQuiet && tubeHorn is { } callAt)
+                _mixer.Play("crew-speaking-tube.call", callAt);
+            if (!s.Tube.Playing && s.TubeOn)
+                s.TubeQuiet = _clock;
+            s.TubeOn = s.Tube.Playing;
             if (s.LiveMic is { } holdout && s.NearVoice is not null)
                 s.NearVoice.Position = holdout + Double3.Up * 1.4;
             else
@@ -186,6 +234,17 @@ public sealed class VoiceChat
                         s.NearVoice.Position = c.Feet + Double3.Up * 1.6;
             s.RadioKeyed = Math.Max(0, s.RadioKeyed - dt);
             s.RadioVoice?.Params.Set("keyed", s.RadioKeyed > 0 || s.Radio.Playing ? 1 : 0);
+            // Note 749 (App. C.8): held, a hand partly over the mouth, in the air and on the radio: muffled, never cut. A
+            // creature's own effect on the voice is left alone (Decode).
+            bool hand = s.Held && !s.Creature;
+            float handGain = hand ? Audio.DbToGain(covered.GainDb) : 1f;
+            s.NearVoice?.Params.Set("covered", hand ? 1 : 0);
+            if (s.RadioVoice is not null)
+            {
+                s.RadioVoice.Params.Set("covered", hand ? 1 : 0);
+                s.RadioVoice.Volume = handGain;
+            }
+            s.HandGain = handGain;
             RadioSet(s);
         }
         // Whoever's left the session goes quiet.
@@ -195,6 +254,7 @@ public sealed class VoiceChat
             s.NearVoice?.Stop();
             s.RadioVoice?.Stop();
             s.DeadVoice?.Stop();
+            s.TubeVoice?.Stop();
             s.Static?.Stop();
             _speakers.Remove(id);
         }
@@ -237,6 +297,7 @@ public sealed class VoiceChat
         // Whatever of theirs is still waiting in the jitter buffer goes too (Decode strips it of air and radio).
         s.Near.Clear();
         s.Radio.Clear();
+        s.Tube.Clear();
         s.RadioKeyed = 0;
         // And the voice in the air itself, filters and all, so not even the tunnel filters' ring outlives the word (note 183);
         // a fresh one starts next update for the Live Mic or the freed.
@@ -247,11 +308,16 @@ public sealed class VoiceChat
     /// <summary>The cut's tests: whether this speaker's air and radio voices hold anything now.</summary>
     public (int Near, int Radio) Buffered(byte speaker) => _speakers.TryGetValue(speaker, out var s) ? (s.Near.Buffered, s.Radio.Buffered) : (0, 0);
 
+    /// <summary>Note 720: where a speaker's voice through the speaking tube is played from (its far horn), or null.</summary>
+    public Double3? TubeAt(byte speaker) => _speakers.TryGetValue(speaker, out var s) ? s.TubeVoice?.Position : null;
+
     static void Decode(Speaker s, VoiceFrame f)
     {
         // Frames from before the death, arriving late, are cut with the rest: only the dead channel plays on.
         if (s.Cut)
-            f = f with { Path = f.Path & ~(s.LiveMic is null ? VoicePath.Proximity | VoicePath.Radio : VoicePath.Radio) };
+            f = f with { Path = f.Path & ~(s.LiveMic is null ? VoicePath.Proximity | VoicePath.Radio | VoicePath.Tube : VoicePath.Radio | VoicePath.Tube) };
+        if (f.Path.HasFlag(VoicePath.Tube))
+            s.TubeEnd = f.Tube;
         if (f.Path.HasFlag(VoicePath.Radio))
             s.RadioKeyed = 0.15;
         if (s.NearVoice is not null)
@@ -259,8 +325,9 @@ public sealed class VoiceChat
             // A hand over the mouth (Tippy Toesie, GDD v1.1 App. C.8) muffles like a wall; a Soot Child drinking fades the
             // cries for help, as the host says how much is left.
             bool muffled = f.Path.HasFlag(VoicePath.Muffled);
+            s.Creature = muffled || f.Path.HasFlag(VoicePath.Fading);
             s.NearVoice.Occlusion = f.Path.HasFlag(VoicePath.Occluded) || muffled ? 1 : 0;
-            s.NearVoice.Volume = (float)((muffled ? 0.45 : 1) * (f.Path.HasFlag(VoicePath.Fading) ? f.Gain : 1));
+            s.NearVoice.Volume = (float)((muffled ? 0.45 : 1) * (f.Path.HasFlag(VoicePath.Fading) ? f.Gain : 1) * (s.Creature ? 1 : s.HandGain));
         }
         if (s.MimicVoice is not null)
             s.MimicVoice.Occlusion = f.Path.HasFlag(VoicePath.Occluded) ? 1 : 0;
@@ -277,6 +344,8 @@ public sealed class VoiceChat
                 s.Radio.Write(pcm);
             if (f.Path.HasFlag(VoicePath.Dead))
                 s.Dead.Write(pcm);
+            if (f.Path.HasFlag(VoicePath.Tube))
+                s.Tube.Write(pcm);
         });
     }
 

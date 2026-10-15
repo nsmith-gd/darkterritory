@@ -25,6 +25,10 @@ public enum Control
     Emote,
     // Note 664 (the director's playtest, 13 Oct): crouch, held; and pushing the gun along, its own key (Use is sitting in it).
     Crouch, Push,
+    // Note 717 (horseplay; the director, 14 Oct 2026: "For shoving, we can try adding it in"): shove the crewmate you look at.
+    Shove,
+    // Note 720 (GDD §12): with a hand lamp in the fist, held, the lamp signals' wheel; let go, the one the mouse is on.
+    Signal,
 }
 
 /// <summary>The default key for each control, by the key's name (Ballast.Platform's <c>Key</c>), and how the menu says it.</summary>
@@ -40,14 +44,16 @@ public static class Controls
         [Control.Jump] = "Space",
         [Control.Use] = "E",
         [Control.Fire] = "MouseLeft",
-        [Control.Throw] = "MouseRight",
+        // Note 749 (the director, 14 Oct 2026: "Hold down right click to use the radio since communication is so important";
+        // "swap input conflict there so right click is radio call. Throw is so rarely used"): Throw took the radio's old T.
+        [Control.Throw] = "T",
         [Control.RegulatorOpen] = "R",
         [Control.RegulatorClose] = "Y",
         [Control.Brake] = "B",
         [Control.Reverser] = "X",
         [Control.Lamp] = "L",
         [Control.Talk] = "V",
-        [Control.Radio] = "T",
+        [Control.Radio] = "MouseRight",
         [Control.Roster] = "Q",
         [Control.RouteCard] = "C",
         [Control.Chase] = "Tab",
@@ -57,13 +63,22 @@ public static class Controls
         [Control.Uncouple] = "Z",
         [Control.Ladder] = "F",
         [Control.Bookmark] = "P",
-        // Note 664: the genre's crouch key is LeftCtrl, and the vent (cab only, rare) went to N: one key doing two things in
-        // two places is what the director flagged for E.
-        [Control.Vent] = "N",
+        // Note 664: the genre's crouch key is LeftCtrl, and the vent (cab only, rare) went to its own key: one key doing two
+        // things in two places is what the director flagged for E. Note 703 (the director, 13 Oct evening: "I don't like N
+        // being the button ... it should be a different button that is more accessible than the WASD"): Caps Lock, by A
+        // under the little finger.
+        [Control.Vent] = "CapsLock",
         [Control.Supplies] = "I",
         [Control.Emote] = "J",
         [Control.Crouch] = "LeftCtrl",
-        [Control.Push] = "O",
+        // Note 703 (the director: "Push O to walk doesn't make any sense. It's not something that is near the mouse, and
+        // it's not something that's near the left hand"): the middle mouse button, held while walking.
+        [Control.Push] = "MouseMiddle",
+        // Note 717: the shove, under the left thumb beside the jump (every key near the left hand being taken, note 703, and
+        // the director wanting keys by the hands, not across the keyboard).
+        [Control.Shove] = "LeftAlt",
+        // Note 720: beside the emote wheel's J, by the lamp-carrying hand's other keys (the car lamp's K).
+        [Control.Signal] = "U",
     };
 
     /// <summary>Keys nothing can be bound to: the menus' own.</summary>
@@ -89,7 +104,23 @@ public static class Controls
         Control.Emote => "EMOTE (HOLD, THE MOUSE PICKS)",
         Control.Crouch => "CROUCH (HOLD)",
         Control.Push => "PUSH THE GUN ALONG (HOLD, WALKING)",
+        Control.Shove => "SHOVE A CREWMATE",
+        Control.Signal => "LAMP SIGNAL (HOLD, THE MOUSE PICKS)",
         _ => c.ToString().ToUpperInvariant(),
+    };
+
+    /// <summary>
+    /// A key's name where there's only a slot's corner for it (the hotbar's radio, note 749): the mouse buttons short, as the
+    /// HUD's prompts write them; anything else as the menu says it.
+    /// </summary>
+    public static string ShortKeyLabel(string key) => key switch
+    {
+        "MouseLeft" => "LMB",
+        "MouseRight" => "RMB",
+        "MouseMiddle" => "MMB",
+        "Mouse4" => "M4",
+        "Mouse5" => "M5",
+        _ => KeyLabel(key),
     };
 
     /// <summary>A key's name as the menu shows it.</summary>

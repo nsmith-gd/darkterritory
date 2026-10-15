@@ -154,6 +154,8 @@ public sealed record CraneTuning
     public double TrolleySpeed { get; init; } = 1.0;
     public double HoistSpeed { get; init; } = 0.8;
     public double ControlsReach { get; init; } = 1.2;
+    /// <summary>Note 736: the cab hangs under the bridge's far end, this far out past it (m).</summary>
+    public double CabOut { get; init; } = 1.4;
     public double RigReach { get; init; } = 1.5;
     public double RigHeight { get; init; } = 2.2;
     public double RigSeconds { get; init; } = 2;
@@ -163,6 +165,19 @@ public sealed record CraneTuning
     public double GuideAbove { get; init; }
     /// <summary>... at this speed (m/s); 0: never.</summary>
     public double GuideSpeed { get; init; }
+    /// <summary>Note 707: the operator's view from the cab (presentation only; the sim never reads it).</summary>
+    public CraneViewTuning View { get; init; } = new();
+}
+
+/// <summary>The crane operator's view (GDD §18, note 707). Field docs in facilities.json <c>crane.view</c>.</summary>
+public sealed record CraneViewTuning
+{
+    public double Fov { get; init; } = 55;
+    public double LowerFrom { get; init; } = 4;
+    public double Down { get; init; }
+    public double Lean { get; init; }
+    public double Ground { get; init; }
+    public double Window { get; init; }
 }
 
 /// <summary>Who works a facility stop (note 261; spec D.2's "Crew" column). Field docs in facilities.json.</summary>
@@ -861,6 +876,16 @@ public sealed class Site
     public double Restart { get; internal set; }
     /// <summary>Who's at the powerhouse restarting it this tick (−1 for nobody). Host only.</summary>
     internal int Restarter = -1;
+
+    /// <summary>
+    /// Whether <paramref name="player"/> has their hands on one of this site's modules this tick (note 753, the census's
+    /// commitment): a winch handle, a lever (spout, lift, tipple), the conveyor's starter or its jam, the herd, the powerhouse,
+    /// a crane's controls or its rigging. Host only: these are the hands the run reads, set as the crew act and cleared as it
+    /// steps.
+    /// </summary>
+    internal bool Works(int player) => player >= 0 && (Cranking[0] == player || Cranking[1] == player || Pourer == player || Winder == player
+        || Starter == player || Clearer == player || Tippler == player || Restarter == player || Herders.Contains(player)
+        || Cranes.Any(c => c.Operator == player || c.Rigger == player));
 
     public SiteState State => new(Stocked, Progress, SledsLeft, Turning, OutOfRhythm, Crank, Power, Restart)
     {

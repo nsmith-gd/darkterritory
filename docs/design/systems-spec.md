@@ -196,7 +196,7 @@ The bands fall out of the 4:1 ratio, and they define what's possible at each spe
 | **Jump-off survivable** | <16.5 m/s | A knock on landing: 10 just above 1.5 m/s, rising to 80 at the lethal edge (T90 playtest) |
 | **Jump-off lethal** | >16.5 m/s (3× run) | Death. Was 4.0 m/s, which made every step off a moving train fatal. Being *pulled* off (Draggers) still kills above 4.0 m/s |
 | **Fall** | ≥5.5 m down | A knock by the height fallen: 10 at 5.5 m, rising to death at **7.5 m** (off a bridge's deck, 8 m to the river bank). Under 5.5 m (a car's roof and a jump's apex over the ballast) it's the speed rows alone; the worse of the two knocks counts (note 573) |
-| **Off the ground** | — | Off open ground's own footing (over a dip, down a bank) a crewmate's own run is no knock: only what's over the run speed counts (note 573) |
+| **Off the ground** | — | Off open ground's own footing (over a dip, down a bank), or off a train standing still (under 0.5 m/s, `landing.standBelow`; the director's 14 Oct playtest, note 717), a crewmate's own run is no knock: only what's over the run speed counts (note 573) |
 | **Slow** | 6 m/s | Roof work comfortable |
 | **Working** | 10–14 m/s | Standard transit |
 | **Cruise** | 14 m/s | Target efficiency |
@@ -334,6 +334,7 @@ A breach is a car's shell giving way to the outside (decided 1 Oct): a door forc
 | Car Hugger through the end wall | Every 0.1 of the shell eaten (25 s of feeding at 0.004/s), boarded up or not |
 | Climbers forcing their way in | Into a car with every door and its hatch shut, and unlit, through the roof (the hatch, on a cargo car) |
 | Boarding up | 8 s of Use held inside the car within 1.5 m of the hole; let go and that board starts over |
+| Two boarding up | Each works it 1.8× as fast, 4.4 s; a third adds nothing (train.json `repair.pairRate`; GDD §12 Fluidity, note 752) |
 | Needs the repair kit | No: anyone's hands (train.json `breach.needsKit`, true to need the kit carried) |
 | Inside a breached car | No shelter from the cold (as with a door open, it builds at ¼ rate), no muffling, no shelter from the Choir |
 
@@ -359,6 +360,8 @@ A breach is a car's shell giving way to the outside (decided 1 Oct): a door forc
 | **Relief valve** | × (alive ÷ crew)² × (1 − 0.25 × share of the living under 35 health) |
 | Busy | × 1 ÷ (1 + 0.5 × threats engaged × (1 − progress)): engaged is telegraphing, committing, grabbing or punishing; late in the night it stops waiting for the crew |
 | Post-spawn cooldown | 25–45 s (gives way when pressed) |
+| Facility lull (note 751) | 20 s from the first second stood at a facility: nothing of the director's own |
+| Aftermath (note 751) | 12 s after a death, cars lost (told), a grab broken with the one held alive, a Holdout freed: nothing of the director's own, pressed or not |
 | **The first threat's draw** (note 287) | Each crewmate's draws on a ledger halving every 30 s: whistle 1.5 /s, raised voice 0.5 /s at full (above 40% of the mic), noisy toy 0.15 /s, firebox 0.25 /s at full (above 4.5 of 6), engine 0.03 /s at 20 m/s; a cannon round 3, a car lamp lit 2, cargo aboard 4 a car-load × its value |
 | Answered | One crewmate's draw of one kind at **3**, after the grace: a call from 60 m ahead, 12 m off the line, eyes there for 7 s; the first threat **5 s** later, pressed for |
 | Listening | No draw that big: past the threshold the first threat waits up to pressure 16, then the biggest draw standing takes it |

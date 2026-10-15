@@ -31,8 +31,22 @@ public sealed record TrainTuning
     public PickTuning Pick { get; init; } = new();
     /// <summary>A bend taken too fast: its warning, its stress, and the lead it must give (train.json <c>overspeed</c>; note 265).</summary>
     public OverspeedTuning Overspeed { get; init; } = new();
+    /// <summary>
+    /// How far the engine's headlamp reaches, over the night's own ranges (train.json <c>headlampReach</c>; queue #243, note
+    /// 506): the boards read (sight.json <c>lampSignRange</c>), the grease and the debris on the rail (<c>lampGreaseRange</c>),
+    /// the Track Doll's face (enemies.json <c>lampRevealDistance</c>), the wreck yard's beam (facilities.json
+    /// <c>wreck.beamLength</c>) and the drawn beam. 1 as the fortress issues it; spec F.3's lamp brightness raises it.
+    /// </summary>
+    public double HeadlampReach { get; init; } = 1;
+
     /// <summary>What running into a branch's buffer stop does (train.json <c>bufferStop</c>; note 661).</summary>
     public BufferStopTuning BufferStop { get; init; } = new();
+
+    /// <summary>The handcar (train.json <c>handcar</c>; GDD §24.1, note 729): what it is and how it runs, when the night has one.</summary>
+    public HandcarTuning Handcar { get; init; } = new();
+
+    /// <summary>The night has a handcar (note 729): bought (campaign.json's <c>handcar</c> upgrade) or <c>handcar.always</c>.</summary>
+    public bool HasHandcar => Composition.Handcar || Handcar.Always;
 
     public const string File = "tuning/train.json";
 }
@@ -103,6 +117,11 @@ public sealed record RepairTuning
     public double DentReach { get; init; } = 1.3;
     public double EngineDentBehind { get; init; } = 2.5;
     public double LampMendRate { get; init; } = 6;
+    /// <summary>
+    /// Note 752 (GDD §12, one can, two do it faster): each of two (or more) crewmates boarding up the same breach, or mending
+    /// the same burst boiler, works it this many times as fast. 1 (or less): each alone, as before.
+    /// </summary>
+    public double PairRate { get; init; } = 1;
 }
 
 /// <summary>
@@ -135,6 +154,8 @@ public sealed record CompositionTuning
     public bool SwitchThrower { get; init; }
     /// <summary>How far ahead it reaches, and how slow the train has to be.</summary>
     public ThrowerTuning Thrower { get; init; } = new();
+    /// <summary>The handcar (GDD §24.1, note 729), hung on the back of the guard van: campaign.json's <c>handcar</c> upgrade.</summary>
+    public bool Handcar { get; init; }
 }
 
 /// <summary>
@@ -159,7 +180,14 @@ public sealed record HandrailTuning(double DraggerGrab = 0.6, double DraggerHang
 /// <summary>The train's kit from the fortress (train.json <c>kit</c>).</summary>
 public sealed record KitTuning
 {
+    /// <summary>The loose radio sets the train leaves with (T41): one in the cab, the rest in the guard van. None with <see cref="RadioEach"/>.</summary>
     public int Radios { get; init; }
+    /// <summary>
+    /// Note 749 (GDD §12; the director, 14 Oct 2026: "make the radios part of the default kit"; "Radio is part of uniform and
+    /// doesnt take inventory space"): every living crewmate wears a radio from the start of the night, a joiner and one back
+    /// from a Holdout too, and it never comes off the belt. Off, the train carries <see cref="Radios"/> loose sets as before.
+    /// </summary>
+    public bool RadioEach { get; init; }
     /// <summary>Note 266: the forward lamp a Climber smashed comes back lit once its glass is in (train.json kit).</summary>
     public bool RelightSmashedLamp { get; init; } = true;
     /// <summary>GDD §23 "radio breaks" (note 183): the chance a radio on your belt smashes, per point of damage you take.</summary>
@@ -301,6 +329,33 @@ public sealed record EngineLayout(double DeckHeight, double BoilerHalfWidth, dou
     public double RunningBoardAhead { get; init; } = 1.0;
     /// <summary>The sandboxes on the running boards: this far behind the cab, over the drivers.</summary>
     public double SandboxBehind { get; init; } = 2.5;
+    /// <summary>The big cab behind the footplate (ARCHITECTURE §8 note 716): the chart table, the gallery, the back wall.</summary>
+    public CrewCarLayout CrewCar { get; init; } = new();
+}
+
+/// <summary>
+/// The cab as the crew car (ARCHITECTURE §8 note 716; the director, 14 Oct 2026: "the cab itself becomes the crew car"),
+/// train.json <c>geometry.engine.crewCar</c>. Every place is how far behind the cab's front (m). Field docs live in that file.
+/// </summary>
+public sealed record CrewCarLayout
+{
+    public double FootplateLength { get; init; } = 2.5;
+    public double TableFrom { get; init; } = 2.9;
+    public double TableLength { get; init; } = 1.75;
+    public double TableWidth { get; init; } = 0.9;
+    public double TableHeight { get; init; } = 1.0;
+    public double GalleryFrom { get; init; } = 5.1;
+    public double GalleryTo { get; init; } = 8.4;
+    public double GalleryRise { get; init; } = 0.45;
+    public double GalleryStep { get; init; } = 0.45;
+    public double GalleryWaist { get; init; } = 1.1;
+    public IReadOnlyList<double> BenchRows { get; init; } = [5.9, 7.3];
+    public double BenchWidth { get; init; } = 1.0;
+    public double BenchDepth { get; init; } = 0.45;
+    public double BenchHeight { get; init; } = 0.45;
+    public double KettleFrom { get; init; } = 10;
+    public double CuckooEvery { get; init; } = 60;
+    public double CuckooOutSeconds { get; init; } = 3;
 }
 public sealed record MassTuning(double EngineTonnes, double EmptyCarTonnes, double LoadedCarTonnes);
 public sealed record PerformanceRow(int Cars, double Accel, double Brake);

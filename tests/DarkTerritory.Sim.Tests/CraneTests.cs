@@ -37,6 +37,30 @@ public class CraneTests
         new() { MoveX = x, MoveZ = z, Buttons = also };
 
     [Fact]
+    public void TheCabLooksAtTheStackWithNoCarBetween()
+    {
+        // Note 736 (the director, 14 Oct: "my train is blocking the view of the loot ... I'm doing a bit of guesswork here"):
+        // the cab rides the bridge on the stack's side, so wherever the bridge is, every car on the track stands beyond the
+        // castings from it, never between, and it travels with the bridge.
+        var (stop, crane) = AtTheCrane();
+        var train = stop.World.Train;
+        Assert.Contains(train.Frames, f => ((f.Origin - crane.HookAt) with { Y = 0 }).Length < C.Length + 20);
+        foreach (double along in new[] { -1.0, 0, 1 })
+        {
+            stop.Step(2, [Drive(z: (float)along)]);
+            foreach (var casting in crane.Castings)
+                foreach (var frame in train.Frames.Where(f => ((f.Origin - crane.HookAt) with { Y = 0 }).Length < C.Length + 20))
+                {
+                    double cab = frame.ToLocal(crane.Cab).X, stack = frame.ToLocal(casting.At).X;
+                    Assert.True(Math.Sign(cab) == Math.Sign(stack) && Math.Abs(cab) > Math.Abs(stack) && Math.Abs(stack) > frame.Shape.HalfWidth,
+                        $"car {frame.Index}: the cab at {cab:0.0} m across, the casting at {stack:0.0} m");
+                }
+            double fromBridgeEnd = ((crane.Cab - crane.BridgeEnd(1)) with { Y = 0 }).Length;
+            Assert.Equal(C.CabOut, fromBridgeEnd, 3);
+        }
+    }
+
+    [Fact]
     public void TheOperatorDrivesItFromTheControlsAndStaysPut()
     {
         // The director, 8 Oct: "Cranes should also enter with E and exit with E, it shouldn't be a hold function".
@@ -171,6 +195,35 @@ public class CraneTests
         Assert.Equal(before + C.LoadPerCasting, car.Load, 6);
         Assert.Equal(car.Load - before, car.Placed, 6); // lying there as itself, not in the heap
         Assert.Equal(0, crane.Rigging);
+    }
+
+    [Theory]
+    [InlineData(0.3)]
+    [InlineData(2.5)]
+    public void LetGoInAnEmptyCarsOpenHatchItComesDownOnTheFloor(double aboveRoof)
+    {
+        // Note 708 (the director's evening playtest, 13 Oct: "It did unhook, but it sort of just stays there in the air, doesn't
+        // fall"): an empty cargo car's heap isn't there (nothing poured in), but a casting let go in its open hatch came to
+        // rest on it at its full height, 1.3 m over the floor. It comes down on the floor, and the hook lowers it that far.
+        var (stop, crane) = AtTheCrane();
+        var casting = crane.Castings[0];
+        casting.State = CastingState.Hooked;
+        var car = stop.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && stop.Train.Frames[v.Id].Shape.Hatch is not null)
+            .OrderBy(v => Math.Abs(stop.Train.Frames[v.Id].ToLocal(crane.HookAt).Z)).First();
+        Assert.True(car.Bulk <= Solid.HeapFrom, "an empty car");
+        car.DoorsOpen |= (byte)(1 << CarShape.HatchBit);
+        var frame = stop.Train.Frames[car.Id];
+        var hatch = frame.Shape.Hatch!.Value;
+        (crane.Bridge, crane.Trolley, _) = crane.Over(frame.ToWorld(hatch.Centre));
+        double ground = crane.HookAt.Y - crane.Hook;
+        double floor = frame.Shape.Interior!.Value.Min.Y + 0.1;
+        // The hook goes down until the casting's base is just over the floor (it stopped over the heap's top).
+        Assert.Equal(frame.ToWorld(new Double3(0, floor, 0)).Y, ground + crane.Lowest(stop.Train) - C.CastingSize[1] - 0.05, 1);
+        crane.Hook = frame.ToWorld(new Double3(0, frame.Shape.RoofHeight, 0)).Y - ground + aboveRoof + C.CastingSize[1];
+        Assert.NotNull(crane.Release(stop.Train));
+        Assert.Equal(CastingState.Loaded, casting.State);
+        Assert.Equal(car.Id, casting.Car);
+        Assert.Equal(floor, casting.At.Y, 1);
     }
 
     [Fact]

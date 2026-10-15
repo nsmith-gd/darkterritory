@@ -27,6 +27,9 @@ public sealed partial class StopWalls
     // Shared by every copy of these walls (Clear makes one): the doors, the houses they're doors of, which are shut, and the
     // houses with every door shut (worked out when one changes).
     HashSet<int> _shut = [];
+    // Note 719: the jackpot houses' doors, locked (and shut) till the wrench opens them, and how far each is picked.
+    HashSet<int> _locked = [];
+    Dictionary<int, double> _picking = [];
     List<HouseDoor> _doors = [];
     List<HouseSpace> _houses = [];
     List<int> _sealed = [];
@@ -100,16 +103,62 @@ public sealed partial class StopWalls
     /// <summary>The doors shut, in key order (for the wire).</summary>
     public IEnumerable<int> ShutDoors => _shut.Order();
 
-    /// <summary>Shuts or opens a door (the host's crew act). True if that changed it.</summary>
+    /// <summary>Shuts or opens a door (the host's crew act). True if that changed it. Opened, a locked door's lock is gone (note 719).</summary>
     public bool SetShut(int key, bool shut)
     {
+        if (!shut)
+            _locked.Remove(key);
         if (!_doors.Any(d => d.Key == key) || (shut ? !_shut.Add(key) : !_shut.Remove(key)))
             return false;
         Seal();
         return true;
     }
 
-    /// <summary>Client side: the host's doors shut.</summary>
+    /// <summary>
+    /// Note 719 (the jackpot house): these doors shut and locked, as every machine builds the walls (<see cref="Run.LockedDoors"/>).
+    /// A held Use doesn't open a locked door; the wrench does (<see cref="World"/>'s door act), and then it's a door like any other.
+    /// </summary>
+    public void Lock(IEnumerable<int> keys)
+    {
+        foreach (int key in keys)
+            if (_doors.Any(d => d.Key == key))
+            {
+                _locked.Add(key);
+                _shut.Add(key);
+            }
+        Seal();
+    }
+
+    /// <summary>Whether a door's shut and locked (note 719).</summary>
+    public bool Locked(int key) => _locked.Contains(key) && _shut.Contains(key);
+
+    /// <summary>How far the wrench has got picking a locked door's lock, 0..1 (note 719; the host's, mirrored for the HUD).</summary>
+    public double Picking(int key) => _picking.GetValueOrDefault(key);
+
+    /// <summary>The locks being picked and how far, in key order (for the wire).</summary>
+    public IEnumerable<(int Key, double Progress)> PickingDoors => _picking.OrderBy(p => p.Key).Select(p => (p.Key, p.Value));
+
+    /// <summary>Host: how far a lock's been picked (0: nobody's at it).</summary>
+    public void SetPicking(int key, double progress)
+    {
+        if (progress <= 0)
+            _picking.Remove(key);
+        else
+            _picking[key] = progress;
+    }
+
+    /// <summary>Client side: the host's locks being picked.</summary>
+    public void MirrorPicking(IEnumerable<(int Key, double Progress)> picking)
+    {
+        _picking.Clear();
+        foreach (var (key, progress) in picking)
+            _picking[key] = progress;
+    }
+
+    /// <summary>Whether open house <paramref name="house"/> (its index) is locked up: a door of it locked (note 719).</summary>
+    public bool LockedHouse(int house) => _locked.Count > 0 && _doors.Any(d => d.House == house && Locked(d.Key));
+
+    /// <summary>Client side: the host's doors shut. A locked door seen open was unlocked (note 719): its lock's gone here too.</summary>
     public void MirrorShut(IEnumerable<int> shut)
     {
         var now = shut.Where(k => _doors.Any(d => d.Key == k)).ToHashSet();
@@ -117,6 +166,7 @@ public sealed partial class StopWalls
             return;
         _shut.Clear();
         _shut.UnionWith(now);
+        _locked.RemoveWhere(k => !_shut.Contains(k));
         Seal();
     }
 
@@ -209,10 +259,14 @@ public sealed partial class StopWalls
             _houses.Add(new HouseSpace(b, origin, ex.Normalized, ey.Normalized, [.. keys]));
     }
 
-    /// <summary>A copy of these walls (<see cref="Clear"/>) shares their doors, and which are shut.</summary>
+    /// <summary>A copy of these walls (<see cref="Clear"/>) shares their doors, and which are shut; and their towers, and which are down.</summary>
     void KeepDoors(StopWalls from)
     {
         _shut = from._shut;
+        _locked = from._locked;
+        _picking = from._picking;
+        _felled = from._felled;
+        _towers = from._towers;
         _doors = from._doors;
         _houses = from._houses;
         _sealed = from._sealed;

@@ -292,6 +292,62 @@ public class BoardSightTests
     }
 
     [Fact]
+    public void AMailBoardStandsOnItsCranesSideAndIsSmallerThanANamesBoard()
+    {
+        // Note 702, the director's evening playtest: "I have a mail sign here that's pointing in the wrong direction" (a
+        // board on the left saying MAIL > for a crane on the right); "The mail signs are a bit too large". A mail board
+        // stands on its crane's side, its arrow and its place saying the same side, unless it's read from nowhere there
+        // (frontier:7's at 4010, a rock wall on its crane's side: then it's read across the line); its letters smaller
+        // than a name board's, still read from 150 m (ANamesCapitalsAreReadFromWellUpTheLine).
+        var signage = DataFile.Load<SignageFile>(Path.Combine(Content, "linegen", "signage.json"));
+        Assert.True(signage.Boards["mailDrop"].LetterM < signage.Boards["facility"].LetterM);
+        int mails = 0;
+        foreach (var spec in Nights.Append("local:3"))
+        {
+            var route = Routes.Generate(Content, spec, 6);
+            var side = LinesideProps.Of(route, route.Build())!;
+            var drops = Route.Lineside.Boards(new Route.SightTuning(), route).Where(b => b.Kind == Route.SignKind.Drop).ToList();
+            int across = 0;
+            foreach (var sign in drops)
+            {
+                mails++;
+                var site = side.SightBoard(sign);
+                // Its posted speed for the hook under the word (note 727).
+                Assert.Equal((sign.Drop!.Side > 0 ? "MAIL >" : "< MAIL") + " " + sign.LimitKmh, site.Text);
+                if (site.Side != sign.Drop.Side)
+                    across++;
+            }
+            Assert.True(across <= 1, $"{spec}: {across} of {drops.Count} mail boards across the line from their cranes");
+        }
+        Assert.True(mails > 20);
+    }
+
+    [Fact]
+    public void ADistanceBoardDoesntStandBeforeAStopOnTheWayToWhatItCountsTo()
+    {
+        // Note 702, the director's evening playtest: "J1, one kilometer. Okay. That came before the Talbot Foundry stop
+        // though, so that's a bit confusing." No junction's or facility's distance board stands before a stop (a spur's
+        // points, or a facility on the main line) that comes between it and what it counts to: the far board stands far
+        // enough past the stop not to be read from before it (signage.json pastStopM), saying its own distance from there,
+        // or isn't stood (frontier:7's J1: only its near board, past Talbot Foundry's points).
+        foreach (var spec in Nights.Append("local:3"))
+        {
+            var route = Routes.Generate(Content, spec, 6);
+            var line = route.Build();
+            var side = LinesideProps.Of(route, line)!;
+            var stops = route.Plan!.Pois.Select(p => p.SpurEdge is { } spur ? line.Branches[route.Plan.Edge(spur).Branch].Toe : p.S).ToList();
+            foreach (var (sign, site) in side.PlanBoards.Where(b => b.Key is { State: SignState.Intact, To: not null, Edge: "main" }))
+            {
+                foreach (double stop in stops)
+                    Assert.False(site.Along < stop - 1e-6 && stop < sign.To!.Value - 1e-6,
+                        $"{spec}: {site.Text} at {site.Along:0} stands before the stop at {stop:0} on its way to {sign.To:0}");
+            }
+            if (spec == "frontier:7")
+                Assert.Equal(["J1 0.4 KM"], side.PlanBoards.Where(b => b.Key is { State: SignState.Intact, Type: "junction" }).Select(b => b.Value.Text));
+        }
+    }
+
+    [Fact]
     public void TheKmPostsStandAtTheirKmAndABridgesNameIsStoodOnce()
     {
         // A km post marks its km (signage.json's `fixed`): nudged a step or two to be seen, never shoved along by the

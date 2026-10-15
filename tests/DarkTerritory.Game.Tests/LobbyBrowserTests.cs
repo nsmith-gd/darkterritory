@@ -73,6 +73,8 @@ public class LobbyBrowserTests
         using var browser = new LobbyBrowser(new LanBrowser(port), online: null);
         using var host = NetPlaySession.HostGame(Content, Night, port: 0, listed: true, bots: 1, beacon: new LanBeacon(port, [IPAddress.Loopback]));
         Cap(host, 2);
+        // Note 724: a joiner would take the bot's seat (crew.joinTakesBotSeat); this is the cap's refusal, so the old way.
+        host.Host!.PlayerTuning = host.Host.PlayerTuning with { Crew = host.Host.PlayerTuning.Crew with { JoinTakesBotSeat = false } };
         Browse(browser, games => games is [{ Full: true }], null, host);
         var full = Assert.Single(browser.Games);
         Assert.Equal((2, 2, true), (full.Aboard, full.Max, full.Full));
