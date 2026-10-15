@@ -349,6 +349,7 @@ public sealed record FollowerTuning
     public double LingerSeconds { get; init; } = 900;
     public int MaxActive { get; init; } = 2;
     public double PerGroundWeight { get; init; } = 1;
+    public double DropGravity { get; init; } = 9.81;
 }
 
 /// <summary>The Passenger (App. A.7, B.7). Field docs live in enemies.json.</summary>

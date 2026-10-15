@@ -959,8 +959,9 @@ public static partial class Staging
 
     /// <summary>
     /// The staged Follower (<c>dt screenshot --follower</c>): <c>back</c> on crewmate 4's back (App. A.6 RIDE; <see cref="Lone"/>,
-    /// whose shoulder the <c>pack</c> view looks over), <c>crawl</c> off them on the ground making for the train, <c>nest</c>
-    /// built in car 2's aisle (the <c>inside</c> view), <c>nest:p</c> that far into building it (note 460). The Ribbits are put away.
+    /// whose shoulder the <c>pack</c> view looks over), <c>crawl</c> off them on the ground making for the train, <c>drop:s</c>
+    /// s seconds into its drop off a back aboard (note 504), <c>nest</c> built in car 2's aisle (the <c>inside</c> view),
+    /// <c>nest:p</c> that far into building it (note 460). The Ribbits are put away.
     /// </summary>
     public static List<Enemy> Follower(List<Enemy> threats, TrainOnLine train, string mode)
     {
@@ -977,6 +978,16 @@ public static partial class Staging
             case "crawl":
                 f.Restore(SpinePhase.Commit, 2, f.Health, Enemy.Loose, side.ToWorld(new Double3(-(side.Shape.HalfWidth + 1.6), 0, -0.9)), 0, 0, 0, -1, 0);
                 break;
+            // drop:s: s seconds into its drop off a back aboard (note 504), falling in car 2's aisle (the inside view).
+            case var dropping when dropping.StartsWith("drop", StringComparison.Ordinal):
+                {
+                    double s = dropping.Length > 5 && double.TryParse(dropping[5..], System.Globalization.CultureInfo.InvariantCulture, out double at) ? at : 0.25;
+                    double deck = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 0;
+                    double g = DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(DataFile.FindContentRoot(), Sim.Enemies.EnemyTuning.File)).Followers.DropGravity;
+                    double y = Math.Max(deck, deck + Sim.Enemies.Follower.BackUp - 0.5 * g * s * s);
+                    f.Restore(SpinePhase.Commit, s, f.Health, car, new Double3(-0.45, y, -side.Shape.HalfLength + 3.0), 0, 0, 0, -1, 0);
+                    break;
+                }
             case "nest":
                 double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 0;
                 f.Restore(SpinePhase.Punish, 30, f.Health, car, new Double3(-0.45, floor, -side.Shape.HalfLength + 3.0), 0, 0, 0, -1, 1);
@@ -987,7 +998,7 @@ public static partial class Staging
                 f.Restore(SpinePhase.Commit, 30, f.Health, car, new Double3(-0.45, under, -side.Shape.HalfLength + 3.0), 0, 0, 0, -1, Math.Clamp(built, 0.01, 1));
                 break;
             default:
-                throw new ArgumentException($"--follower {mode}: back, crawl, nest or nest:p");
+                throw new ArgumentException($"--follower {mode}: back, crawl, drop[:s], nest or nest:p");
         }
         return threats;
     }

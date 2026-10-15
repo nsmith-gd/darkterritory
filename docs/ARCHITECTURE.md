@@ -703,6 +703,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [500. A resumed night keeps what it earned and what's aboard (A1, queue #237; note 481's "not yet"; spec E "Crash: Session lost. Campaign rolls…](notes/500.md)
 - [501. The coupler's knuckle heard opening, a clank not a thud (AU1, queue #238; the weak-sounds audit)](notes/501.md)
 - [503. Weak sounds: a body on the grating, and a crate set on concrete (AU1, queue #240; the weak-sounds audit, dull one-shots)](notes/503.md)
+- [504. The Follower drops off its carrier aboard (queue #241, C1; the art checklist's `followers-anim` "still to do: the drop off its carrier…](notes/504.md)
 - [505. The Gaunt carries off what it took (queue #242, E1; the art checklist's `gaunt-anim`; GDD App. A.6 "it carries the body out at walking…](notes/505.md)
 - [506. The lamp brightness upgrade lights the line (A1, queue #243; spec F.3 "Lamp brightness"; note 196: "a purchase that does nothing is a bug")](notes/506.md)
 - [508. Bodies on the grating heard on steel (AU1, queue #245; the weak-sounds audit; note 503's fault in three more cues)](notes/508.md)
