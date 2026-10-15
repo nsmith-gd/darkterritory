@@ -971,4 +971,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [794. The woods keep off the railway's leavings (queue #521, B1; note 792's "not yet")](notes/794.md)
 - [797. A burying ground's stones and fence solid (queue #524, B1; note 389's "not yet"; GDD App. F.1, the director: "The world is solid")](notes/797.md)
 - [800. The woods keep off the lineside's buildings (queue #527, B1; note 797's "not yet"; GDD App. F.1, the director: "The world is solid")](notes/800.md)
+- [808. The lineside's buildings keep off each other (queue #536, B1; note 800's "not yet"; GDD App. F.1, the director: "The world is solid")](notes/808.md)
 <!-- end of the notes index -->

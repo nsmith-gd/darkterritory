@@ -256,6 +256,44 @@ public class LinesidePropsTests
     }
 
     [Fact]
+    public void TheBuildingsKeepOffEachOther()
+    {
+        // Note 808 (note 800's "not yet"): the road's, the shore's and the biomes' buildings were dealt without asking where
+        // each other stood, and a church stood half inside a house. No building's wall is inside another's (a stone wall's
+        // lengths run on into each other as they're laid; a leaving's pieces stand together).
+        foreach (var spec in new[] { "deadLines:3", "deadLines:49", "deepTerritory:2", "deadLines:2" })
+        {
+            var (_, train, side, _) = Night(spec);
+            var buildings = side.Props(0, train.Line.Length).Where(p => p.Kind == LinesideKind.Piece && !Leavings.PieceNames.Contains(p.Species))
+                .Select(p => (Piece: p, Walls: side.WallsOf(p).ToList())).Where(b => b.Walls.Count > 0).ToList();
+            Assert.Contains(buildings, b => b.Piece.Species is "church" or "saltbox");
+            for (int i = 0; i < buildings.Count; i++)
+                for (int j = i + 1; j < buildings.Count; j++)
+                {
+                    var (a, b) = (buildings[i], buildings[j]);
+                    if (Math.Abs(a.Piece.Along - b.Piece.Along) > 80 || (a.Piece.Species == "stoneWall" && b.Piece.Species == "stoneWall"))
+                        continue;
+                    Assert.False(a.Walls.Any(w => b.Walls.Any(v => Inside(w, v))),
+                        $"{spec}: a {a.Piece.Species} at {a.Piece.Along:0.0}, {a.Piece.Lateral:0.0} and a {b.Piece.Species} at {b.Piece.Along:0.0}, {b.Piece.Lateral:0.0} stand in each other");
+                }
+        }
+    }
+
+    /// <summary>Whether two walls' boxes overlap on the ground (separating axes: each one's along and across).</summary>
+    static bool Inside(Wall a, Wall b)
+    {
+        double dx = b.Centre.X - a.Centre.X, dz = b.Centre.Z - a.Centre.Z;
+        foreach (var (nx, nz) in new[] { (a.Axis.X, a.Axis.Z), (-a.Axis.Z, a.Axis.X), (b.Axis.X, b.Axis.Z), (-b.Axis.Z, b.Axis.X) })
+        {
+            double ra = a.HalfLength * Math.Abs(a.Axis.X * nx + a.Axis.Z * nz) + a.HalfWidth * Math.Abs(-a.Axis.Z * nx + a.Axis.X * nz);
+            double rb = b.HalfLength * Math.Abs(b.Axis.X * nx + b.Axis.Z * nz) + b.HalfWidth * Math.Abs(-b.Axis.Z * nx + b.Axis.X * nz);
+            if (Math.Abs(dx * nx + dz * nz) >= ra + rb)
+                return false;
+        }
+        return true;
+    }
+
+    [Fact]
     public void AHomesteadStopsACrewmateWalkingAtIt()
     {
         // Note 389: a house by the country road stands on its footprint, the box round its walls and roof, turned to face
