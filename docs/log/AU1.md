@@ -234,3 +234,27 @@ launches are AU1.1, AU1.2, …. Entries are UTC; those before 12:55 on 7 Oct wer
   - Each ping is now heard once, by everyone, as a roger beep on the radio. Pings already standing when an ear joins are
     not replayed.
   - 2 candidates built and uploaded; a new `ui-pings` row at L1; a test.
+
+## 15 Oct, ~11:45 UTC: K1's #1026 and #1034 heard (#511-#514, #518)
+
+- **K1's #1026 merged with four features silent:** the sense table, bringing friends home, big finds and the handcar.
+  Claimed #511-#514 (notes 781-784). All four are now heard off what every machine sees:
+  - **The sense table:** the rail's knock; a thrown lamp's glass, oil and small fire; a hound in the extinguisher's jet.
+  - **Bringing friends home:** the haul aboard, the lift onto the shoulder, the put-down and the throw.
+  - **Big finds:** each jackpot's own lift and set-down, the bell's ring, fragile finds breaking at each knock, and the
+    jackpot house's lock (the wrench's own pick).
+  - **The handcar:** set down and hung back, its wheels' roll and joints, the brake shoe, the handle's creak at each end
+    of its swing. The train's wheels and bridges leave it out.
+  - The clerk's bank gained the new finds' names and their damage words.
+- **K1's #1034 merged with seven hooks waiting on AU1:** claimed #518 (note 785). Built and installed:
+  - the three causes of a coupling pin jumping;
+  - a house's boards where something waits, and the Householder's shift in its chair;
+  - a far bell for what's lost, and a far dog at the lamps' edge;
+  - a mask painted in the yard, heard as an outfit tried on.
+- **82 candidates from four recipe agents:**
+  - all uploaded, with the first picks installed;
+  - 12 rows on the checklist, all at L1;
+  - captions for each.
+- **Found on the way:** two loop helpers leave a seam the ear may catch: `world_kit.squeal` sums its phase in single
+  precision, and `world_bed.src_loop`'s last tile isn't faded. They're in loops already installed (the flange, the brake
+  drag, the fast roll). That's the next weak-sounds item.
