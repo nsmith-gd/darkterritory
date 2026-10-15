@@ -1702,6 +1702,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         for (int i = 0; i < train.Vehicles.Count; i++)
             train.Vehicles[i].Integrity = Math.Clamp(each[Math.Min(i, each.Length - 1)], 0, 1);
     }
+    // --apart i[,j,...]: those cars come apart on the line (note 576's Failing.Apart: worn to nothing and off their rails),
+    // drawn as ComeApart has them (note 779).
+    if (Str(args, "--apart", "") is { Length: > 0 } apart)
+        foreach (int i in apart.Split(',').Select(int.Parse))
+            if (i > 0 && i < train.Vehicles.Count)
+                (train.Vehicles[i].Integrity, train.Vehicles[i].OffRails) = (0, true);
     // --cargo a[,b,...]: each cargo car's cargo, front to back, the last repeating (CargoKind: its load's cases, TrainKit.Load).
     if (Str(args, "--cargo", "") is { Length: > 0 } cargoes)
     {
@@ -2187,6 +2193,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         scene.Breaks = breaks;
         // Note 576: the cars and engine --integrity has put under the failing line, shedding as they go.
         scene.Failings = Failing.Of(train);
+        scene.FailTuning = train.Dynamics.Tuning.Failing;
         if (args.Contains("--mending"))
             scene.Mending = Enumerable.Range(0, breaks.Count).ToHashSet();
     }
@@ -2670,6 +2677,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     {
         var tilted = new List<CarFrame>(leaned ?? train.Frames);
         DarkTerritory.Game.TippleTilt.Apply(tilted, train, run);
+        leaned = tilted;
+    }
+    // And a car come apart on the line, or the engine broken down (note 779; --apart, --integrity 0), as the sessions draw it.
+    if (train.Vehicles.Any(v => v.OffRails) || Failing.BrokenDown(train))
+    {
+        var tilted = new List<CarFrame>(leaned ?? train.Frames);
+        DarkTerritory.Game.ComeApart.Apply(tilted, train, run);
         leaned = tilted;
     }
     // --held (note 580): the staged grab (a creature whose Holding is a staged crewmate: --hugger swallow, --moose pin,

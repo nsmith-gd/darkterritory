@@ -97,4 +97,27 @@ public class FlagTests
             Assert.True((a.Top - b.Top).Length() + (a.Bottom - b.Bottom).Length() > 0.05f, $"wind {w}: the fly didn't move in a quarter second");
         }
     }
+
+    [Fact]
+    public void ItNeverRacesAsTheGustsComeAndGoLateInTheNight()
+    {
+        // (The 14 Oct playtest, line 2: "It's a little fast sometimes".) Drawn at 60 fps through a gusting wind three
+        // quarters of an hour in, the fly's corner never moves faster than a flag's does: its ripple's pace, which rises and
+        // falls with the gusts, runs it on from where it was, not from the night's start.
+        var wind = new WindTuning();
+        var skin = new Matrix4x4[FlagKit.Bones];
+        var clock = new FlagClock();
+        Vector3? last = null;
+        float fastest = 0;
+        for (int i = 0; i < 60 * 20; i++)
+        {
+            double time = 2700 + i / 60.0;
+            FlagKit.Pose(Tuning, wind.Of(0.6f), 0.7f, time, 1.3f, skin, clock);
+            var top = Vector3.Transform(new Vector3(Tuning.Length, 0, 0), skin[FlagKit.Bones - 1]);
+            if (last is { } was)
+                fastest = MathF.Max(fastest, (top - was).Length() * 60);
+            last = top;
+        }
+        Assert.True(fastest < 9, $"the fly's corner moved at {fastest:0.0} m/s");
+    }
 }

@@ -352,6 +352,11 @@ public sealed partial class GreyboxScene
     public IReadOnlyList<BreakCallout>? Breaks { get; set; }
     /// <summary>The cars and engine battered and let go, working themselves apart (note 576: <see cref="Sim.Train.Failing.Of"/>). Null, none.</summary>
     public IReadOnlyList<FailingCar>? Failings { get; set; }
+    /// <summary>The failing rule (train.json <c>failing</c>, note 576), so each car's drawn as far gone as it is (note 779). Null, none.</summary>
+    public FailingTuning? FailTuning { get; set; }
+    FailStage StageOf(Vehicle? v) => FailTuning is { } t && v is not null ? Sim.Train.Failing.Stage(t, v) : FailStage.Holding;
+    /// <summary>The engine broken down (note 576): no power, so its stack's as dead as a ruptured boiler's (note 779).</summary>
+    bool BrokenDown => Vehicles is { Count: > 0 } fleet && StageOf(fleet[0]) == FailStage.Broken;
     public IReadOnlySet<int>? Mending { get; set; }
     /// <summary>Each car's strain on a bend taken too fast and its outer rail (BendStrain.PerCar): flange sparks off it.</summary>
     public IReadOnlyList<(float Stress, int Outer)>? BendStrain { get; set; }
@@ -642,7 +647,7 @@ public sealed partial class GreyboxScene
             IReadOnlyList<CarFrame> trainFrames = HandcarNow is { } hc ? [.. frames.Where(f => f.Index != hc.Id)] : frames;
             Look.Art.Effects.Train(mesh, trainFrames, eye, Time, Controls, FireGlow, Emergency, Venting && !Ruptured, SafetyValve && !Ruptured,
                 trainFrames.Count == 0 ? default : Look.Art.BiteOf(trainFrames[^1].Shape, Vehicles is { } fleet && trainFrames[^1].Index < fleet.Count ? fleet[trainFrames[^1].Index] : null, trainFrames[^1].Index),
-                whistle: !Ruptured && (CordPulled || Enemies?.Any(e => e is Sim.Enemies.Whistler { Whistling: true } && !e.Gone) == true), dead: Ruptured, lamp: LampLit,
+                whistle: !Ruptured && (CordPulled || Enemies?.Any(e => e is Sim.Enemies.Whistler { Whistling: true } && !e.Gone) == true), dead: Ruptured || BrokenDown, lamp: LampLit,
                 reach: (float)LampReach);
             // (And the crew on a straining car stumble: SceneArt.Crewmate, drawn after.)
             Look.Art.BendStrain = BendStrain;
@@ -4737,7 +4742,8 @@ public sealed partial class GreyboxScene
                 if (b.Stowed && b.Parent == frame.Index && b.Locker < 32)
                     tagged |= 1u << b.Locker;
         if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Emergency, Tick, CutEnds(frame.Index), burnt?.Char ?? 0, utility, openLockers, Handrails,
-            dark: frame.Shape.Cab is null && (CarDark(frame.Index) || frame.Index >= (Vehicles?.Count ?? int.MaxValue) - LampsOut), taggedLockers: tagged))
+            dark: frame.Shape.Cab is null && (CarDark(frame.Index) || frame.Index >= (Vehicles?.Count ?? int.MaxValue) - LampsOut), taggedLockers: tagged,
+            failing: StageOf(vehicle)))
         {
             if (engine)
                 Look.Art.Gear(mesh, frame, eye, _travelled, Emergency ? 0.06f : 1);

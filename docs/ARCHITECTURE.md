@@ -955,6 +955,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [776. K1's crew car and crew memory heard (AU1, queue #506; K1's #1016, notes 716 and 721; K1's asks on #1012)](notes/776.md)
 - [777. A ping heard (AU1, queue #507; A1's #1024, note 739)](notes/777.md)
 - [778. Nothing lies across the track: the boughs, the deadfall, a boulder, the yards' racks of rail, the stands' trees, a dead line's land and the…](notes/778.md)
+- [779. A car and the engine coming apart, each stage its own look (C1, queue #509; the art checklist's `failing-stages`: "each stage needs a look…](notes/779.md)
 - [780. Each night its own lineside: the art's dressing dealt from the night's own seed, not the same at the same km every night (queue #510, B1;…](notes/780.md)
 - [790. The Mouse Moose (A1, queue #515; the director, 15 Oct 2026, in A1's chat)](notes/790.md)
 - [781. The sense table heard (AU1, queue #511; K1's #1026, note 728's "left for later": "Sounds (AU1's)")](notes/781.md)
@@ -962,6 +963,10 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [783. Big finds heard (AU1, queue #513; K1's #1026, note 719's "left for later")](notes/783.md)
 - [784. The handcar heard (AU1, queue #514; K1's #1026, note 729's "left for later": "the sim's state says when")](notes/784.md)
 - [785. Sound cues in the world heard (AU1, queue #518; K1's #1034, note 732's "left for later": "The sounds, for AU1"; note 731)](notes/785.md)
+- [786. K1's #1038 heard: the odd outcomes and emotes for two (AU1, queue #519; notes 730 and 722's "for AU1")](notes/786.md)
+- [791. The crew's clips for the upgrades: sat back in a Muskoka chair, a beer and a cheers, a sausage turned and eaten, the bow, the salute and…](notes/791.md)
 - [792. The railway's leavings beside the line solid: dealt by the sim, stood on their footprints, drawn from its list (queue #517, B1; GDD App.…](notes/792.md)
 - [796. The Mouse Moose modelled and rigged (queue #523, C1; the director, 15 Oct 2026: "We have a new asset added by gameplay, you need to do a…](notes/796.md)
+- [793. The town flag's flutter never races (C1, queue #520; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 2: "The flag blowing in the…](notes/793.md)
+- [794. The woods keep off the railway's leavings (queue #521, B1; note 792's "not yet")](notes/794.md)
 <!-- end of the notes index -->

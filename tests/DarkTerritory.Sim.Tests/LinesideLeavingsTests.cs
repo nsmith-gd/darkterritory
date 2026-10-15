@@ -15,7 +15,7 @@ namespace DarkTerritory.Sim.Tests;
 public class LinesideLeavingsTests
 {
     static readonly string Content = DataFile.FindContentRoot();
-    static readonly HashSet<string> Pieces = [.. Leavings.Kinds.SelectMany(k => Enumerable.Range(0, 6).SelectMany(v => Leavings.Cluster(k.Name, v))).Select(p => p.Name)];
+    static readonly IReadOnlySet<string> Pieces = Leavings.PieceNames;
 
     static (Route.Route Route, RailLine Line, LinesideProps Side) Night(string spec)
     {
@@ -52,6 +52,28 @@ public class LinesideLeavingsTests
                     Assert.True(Math.Sign(p.Lateral) * centre - spread >= LinesideProps.LeavingClearM - 1e-6,
                         $"{spec}: {p.Species} at {p.Along:0} m, {p.Lateral:0.0} out, reaches {Math.Sign(p.Lateral) * centre - spread:0.00} m off the middle");
                 }
+        }
+    }
+
+    [Fact]
+    public void TheWoodsKeepOffTheLeavings()
+    {
+        // Note 794 (note 792's "not yet"): the woods and the biomes' props were dealt without asking where the leavings lie,
+        // and a lineside tree could grow up through a gangs' hut. Nothing of the rest of the lineside stands within a leaving
+        // piece's reach (its footprint round its foot), its own trunk's or reach added.
+        foreach (string spec in new[] { "frontier:7", "local:12", "deadLines:2" })
+        {
+            var (_, line, side) = Night(spec);
+            var all = side.Props(0, line.Length).ToList();
+            var leavings = all.Where(p => p.Kind == LinesideKind.Piece && Pieces.Contains(p.Species)).ToList();
+            Assert.NotEmpty(leavings);
+            foreach (var p in all.Where(p => p.Kind != LinesideKind.Pole && !(p.Kind == LinesideKind.Piece && Pieces.Contains(p.Species))))
+            {
+                double reach = p.Kind == LinesideKind.Tree ? p.Radius : side.Extent(p);
+                foreach (var l in leavings.Where(l => Math.Abs(l.Along - p.Along) < 20))
+                    Assert.True(double.Hypot(l.Along - p.Along, l.Lateral - p.Lateral) >= side.Extent(l) + reach,
+                        $"{spec}: a {p.Species} at {p.Along:0.0} m, {p.Lateral:0.0} out, stands in a {l.Species} at {l.Along:0.0}, {l.Lateral:0.0}");
+            }
         }
     }
 
