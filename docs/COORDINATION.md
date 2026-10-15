@@ -74,6 +74,7 @@ only see what's on main here. The role, and how to start one on another account,
 | Account | Weekly % | Weekly resets (UTC) | Session % | State | Updated (UTC) |
 |---|---|---|---|---|---|
 | nathaniel2 | 59 | Wed 21 Oct 20:00 | 20 (resets 21:00 UTC) | ACTIVE; at the last day's pace the weekly limit is reached ~16 Oct 08:30 UTC, so plan to hand off by then | 2026-10-15 17:30 |
+| nathaniel1 | 92 | Sun 18 Oct 17:00 | 16 (resets 19:50 UTC) | LIMITED until Sun 18 Oct 17:00 UTC (weekly 92%); its sessions are idle and their handoffs are on main (#1059; docs/handoff/k1) | 2026-10-15 17:38 |
 
 - **State:** ACTIVE (working); PAUSED until *time* (the 5-hour limit: its sessions are waiting with their work intact, so
   its items aren't abandoned: don't take them); LIMITED until *weekly reset* (the weekly limit: its items are handed off).
