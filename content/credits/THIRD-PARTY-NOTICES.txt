@@ -39,7 +39,7 @@ Cut up, recombined and rebaked for the game.
 - Glass Hurricane Candle Holder, Eric Chadwick for Wayfair (Khronos glTF sample assets), CC BY 4.0
   CC BY 4.0. From github.com/KhronosGroup/glTF-Sample-Assets. In: portrait room.
 - Infinite, 3D Head Scan by Lee Perry-Smith (ir-ltd.net), CC BY 3.0, based on a work at triplegangers.com
-  CC BY 3.0. From github.com/mrdoob/three.js. In: clinger, husk, survivor prisoner, survivor wildlander, switchman, wall face.
+  CC BY 3.0. From github.com/mrdoob/three.js. In: clinger, dave, husk, survivor prisoner, survivor wildlander, switchman, wall face.
 - Interior Scene by Allay Design (sketchfab.com/Alister.Dsouza), CC BY 4.0
   CC BY 4.0. From github.com/gkjohnson/3d-demo-data. In: wake room.
 - Antique Camera, Maximillan Kamps for UX3D (Khronos glTF sample assets), CC0

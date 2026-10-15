@@ -63,7 +63,7 @@ public sealed partial class CreatureArt
     public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
         "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker", "follower", "climber", "fire_fly", "passenger",
         "survivor_prisoner", "survivor_wildlander", "sheep", "moose", "gannet", "mourner", "freight_beetle", "tower_jaw", "brakeman", "knotter", "hotbox", "hanger",
-        "picker", "lodger", "householder", "waker"];
+        "picker", "lodger", "householder", "waker", DaveArt.Figure];
 
     /// <summary>
     /// The figure a crewmate plays as (GDD App. D.8): the crew's own, or, freed from a Holdout, its occupant's for the rest
@@ -456,9 +456,9 @@ public sealed partial class CreatureArt
             var extra = Path.Combine(ContentRoot, Folder, name + "_clips.glb");
             if (File.Exists(extra))
                 model = ModelLoader.WithClips(model, ModelLoader.Load(extra), replace: true);
-            // The survivors are the crew figure redressed: the crew's actions are theirs too.
+            // The survivors and Dave are the crew figure redressed: the crew's actions are theirs too (his painting's there).
             var crewClips = Path.Combine(ContentRoot, Folder, "crew_clips.glb");
-            if (name.StartsWith("survivor_", StringComparison.Ordinal) && File.Exists(crewClips))
+            if ((name.StartsWith("survivor_", StringComparison.Ordinal) || name == DaveArt.Figure) && File.Exists(crewClips))
                 model = ModelLoader.WithClips(model, ModelLoader.Load(crewClips), replace: true);
             float wear = WearOf.GetValueOrDefault(name, 0.5f);
             // Its distance copy: its own, else (the survivors, the crew: a town's people are hundreds of thousands of
@@ -492,7 +492,13 @@ public sealed partial class CreatureArt
         var model = Redress.Of(figure.Model, name, clothes, shape, growths);
         float wear = WearOf.GetValueOrDefault("survivor_prisoner", 0.5f);
         _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear))]);
+        _dressed.Add(name);
     }
+
+    readonly HashSet<string> _dressed = [];
+
+    /// <summary>Whether <paramref name="name"/> is a figure modelled for it (its own file), not one dressed from the survivors'.</summary>
+    public bool Modelled(string name) => _models.ContainsKey(name) && !_dressed.Contains(name);
 
     /// <summary>A model's distance copy (tools/models overbake `lod`), its joints renumbered by name to the full model's so
     /// the full model's pose skins it; null when there's none or a bone of it isn't the full model's.</summary>
@@ -2335,12 +2341,18 @@ public sealed partial class CreatureArt
             case EnemyKind.Dave when _models.ContainsKey(DaveKit.Figure):
                 {
                     // DAVE (note 570): his figure in a hat, waistcoat, glasses and sandals, at his easel (GreyboxScene.Painter
-                    // draws him so in the world, turned to whoever he's warned; here, as he is in this phase).
+                    // draws him so in the world, turned to whoever he's warned; here, as he is in this phase). Modelled (note
+                    // 491), it's his own, painting at the canvas.
                     _dave ??= new DaveKit(Look);
                     var (hat, vest) = DaveKit.Outfit(extra2 * 1000);
+                    mesh.Append(_dave.Easel(0), model);
+                    if (Modelled(DaveArt.Figure))
+                    {
+                        var (clip, painting) = DaveArt.Act(phase);
+                        return DaveArt.Draw(Look, mesh, painting ? DaveArt.AtCanvas(model) : model, clip, t, hat, vest, painting);
+                    }
                     if (!Draw(mesh, DaveKit.Figure, DaveKit.Clip(phase), t, true, model, 2, seed: 47))
                         return false;
-                    mesh.Append(_dave.Easel(0), model);
                     _dave.Dress(this, mesh, model, hat, vest);
                     return true;
                 }
