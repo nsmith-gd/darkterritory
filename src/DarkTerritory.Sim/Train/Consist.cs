@@ -182,6 +182,11 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     /// <summary>Seconds the coupling behind it has been working loose (note 356, <see cref="Couplings"/>); 0 tight.</summary>
     public double Loose { get; set; }
     /// <summary>
+    /// What worked the coupling behind it loose (note 640), while it's <see cref="Loose"/>: on its record (note 732) so every
+    /// client hears the moment the pin jumped as what jumped it, a run-in's slam, a knock's clash or a bend's lurch.
+    /// </summary>
+    public LooseCause LooseCause { get; set; }
+    /// <summary>
     /// Its handbrake wound on by the Brakeman (note 364): in the engine's rake, its own handbrake's drag on the train (train.json
     /// <c>handbrakeDecel</c> of its mass), until a crewmate unwinds it at its wheel.
     /// </summary>

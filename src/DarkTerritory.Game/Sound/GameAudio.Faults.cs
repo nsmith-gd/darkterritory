@@ -39,6 +39,11 @@ public sealed partial class GameAudio
 
     /// <summary>A loose pin's knocks a second, just come loose and about to drop: D1's synth's pace (note 356).</summary>
     const double KnockFrom = 1.4, KnockTo = 5.5;
+    /// <summary>
+    /// Presentation (note 732): a pin's first knock this soon after the moment it jumped, so the knocking is plainly what the
+    /// slam, the clash or the lurch began; and its loudness, from a clear knock just loose to full about to drop.
+    /// </summary>
+    const double FirstKnockAfter = 0.6, KnockGainFrom = 0.7;
 
     /// <summary>A hot box that goes cool this near its catching (or nearer) caught: its car's fire is the sound, not a greasing.</summary>
     const double CaughtWithin = 1.0;
@@ -215,13 +220,20 @@ public sealed partial class GameAudio
     /// <summary>
     /// A loose coupling (note 356; queue #122, note 385): the pin knocking in its gap, a take a knock, faster and harder as it
     /// works out (<see cref="KnockFrom"/> to <see cref="KnockTo"/> a second over its <see cref="LooseTuning.PartAfter"/>), or
-    /// D1's synth loop where no knock's installed. Gone tight with a crewmate's wrench on it a moment ago, the pin seated
+    /// D1's synth loop where no knock's installed; from the moment it jumped, heard as what jumped it (<see cref="PinJumped"/>,
+    /// note 732), the first knock straight after. Gone tight with a crewmate's wrench on it a moment ago, the pin seated
     /// home; left to drop, the parting is the knuckle's and the hoses' (CrewCouplings).
     /// </summary>
     void LooseSounds(TrainOnLine train, Vehicle v, FaultCar c, float outside)
     {
         if (train.Loose is not { } lt)
             return;
+        // The moment it jumped (note 732), heard as what jumped it; the knocking follows straight on.
+        if (v.Loose > 0 && c.Loose <= 0 && v.LooseCause != LooseCause.None)
+        {
+            PinJumped(train, v, outside);
+            c.NextKnock = _time + FirstKnockAfter;
+        }
         if (v.Loose > 0)
         {
             double loose = Math.Clamp(v.Loose / lt.PartAfter, 0, 1);
@@ -230,7 +242,7 @@ public sealed partial class GameAudio
             else if (_time >= c.NextKnock)
             {
                 if (c.NextKnock > 0)
-                    Cue("state-coupling-loose.knock", Pin(train, v.Id), outside, (float)(0.55 + 0.45 * loose));
+                    Cue("state-coupling-loose.knock", Pin(train, v.Id), outside, (float)(KnockGainFrom + (1 - KnockGainFrom) * loose));
                 // A little uneven, as iron working in a knuckle is: never a metronome.
                 c.NextKnock = _time + (0.85 + 0.3 * _creatureRng.Next()) / (KnockFrom + (KnockTo - KnockFrom) * loose);
             }
@@ -240,6 +252,32 @@ public sealed partial class GameAudio
         if (c.Loose > 0 && v.Loose <= 0 && _time - c.TightenedAt <= FaultHoldGrace + SimConstants.TickSeconds)
             Cue("crew-upkeep.tightened", Pin(train, v.Id), outside);
         c.Loose = v.Loose;
+    }
+
+    /// <summary>
+    /// A pin jumping loose (note 732; the director's playtest of 14 Oct, line 12: "We still have this coupling is loose for no
+    /// reason issue. The reason's not obvious"): at the gap, the moment heard as what did it, from the car's record
+    /// (<see cref="Vehicle.LooseCause"/>). Each cause's own cue where AU1 has installed it (<c>state-coupling-loose.jump-brake</c>,
+    /// <c>.jump-coupled</c>, <c>.jump-bend</c>); till then the train's own sounds stand in: the slack running in hard (a
+    /// run-in), the frame's creak (a bend's lurch), and for each the pin lifting in its knuckle. A knock's clash is the coupling
+    /// up's own (CrewCouplings).
+    /// </summary>
+    void PinJumped(TrainOnLine train, Vehicle v, float outside)
+    {
+        var pin = Pin(train, v.Id);
+        string own = v.LooseCause switch
+        {
+            LooseCause.RunIn => "state-coupling-loose.jump-brake",
+            LooseCause.Bend => "state-coupling-loose.jump-bend",
+            _ => "state-coupling-loose.jump-coupled",
+        };
+        if (Cue(own, pin, outside) is not null)
+            return;
+        if (v.LooseCause == LooseCause.RunIn)
+            Cue("bed-slack.run-in", pin, outside);
+        else if (v.LooseCause == LooseCause.Bend)
+            Cue("bed-groan.creak", pin, outside);
+        Cue("crew-coupling.pin-lift", pin, outside);
     }
 
     /// <summary>

@@ -22,7 +22,22 @@ public sealed partial class GreyboxScene
     /// past its reach are cooked a few a frame instead of all at once. Null: everything in <see cref="DrawDistance"/> now.
     /// </summary>
     public FrameLighting? Fog { get; set; }
-    public int Seed { get; init; } = 7;
+    /// <summary>
+    /// The art's own seed, for what it alone dresses the land with (the forest floor, the stands, the verge, the shrines and
+    /// the railway's leavings): set, it's that; unset, a generated night's own (<see cref="ArtSeedOf"/>), else 7.
+    /// </summary>
+    public int? Seed { get; init; }
+
+    /// <summary>
+    /// The seed the art dresses this scene's land from (note 780). It was 7 on every night, and what the art alone lays out
+    /// fell at the same distances on every night whose country reached there: note 778 found the same fallen trunk at 1.5 km
+    /// on three nights, and the leavings came round in the same order. The trees were already the night's own (the sim's
+    /// LinesideProps, from the plan's seed); the rest is now too, and the same on the host and every client.
+    /// </summary>
+    public int ArtSeed => Seed ?? (Route?.Plan is { } plan ? ArtSeedOf(plan.Seed) : 7);
+
+    /// <summary>A generated night's art seed, from its plan's seed (unique to its tier and number, where the route's own seed isn't).</summary>
+    public static int ArtSeedOf(string planSeed) => (int)(Sim.LineGen.Streams.Mix(Sim.LineGen.Streams.Hash(planSeed), "lineside-art") & 0x7FFFFFFF);
     /// <summary>How hot the firebox is, 0..1: the glow in the cab is how the Boiler reads the fire.</summary>
     public float FireGlow { get; set; } = 0.7f;
 
@@ -156,6 +171,10 @@ public sealed partial class GreyboxScene
     public IReadOnlyList<Sim.Player.LumpInFlight>? Lumps { get; set; }
     /// <summary>Everyone's outfit (note 298), for the Passenger wearing one of the crew's faces.</summary>
     public IReadOnlyDictionary<int, byte>? Outfits { get; set; }
+    /// <summary>Everyone's mask paint (note 731), for the Passenger wearing one of the crew's faces: it wears their paint too.</summary>
+    public IReadOnlyDictionary<int, Sim.Player.MaskPaint>? Paints { get; set; }
+    /// <summary>The crew's sigil (note 731; World.CrewSigil): a stencil from 1, 0 none, on the engine's side and every mask.</summary>
+    public int CrewSigil { get; set; }
     /// <summary>Where cannonballs came down lately (World.Impacts, T121): each one's explosion, by <see cref="Tick"/>.</summary>
     public IReadOnlyList<Sim.Combat.CannonImpact>? Impacts { get; set; }
 
@@ -422,6 +441,8 @@ public sealed partial class GreyboxScene
             _travelled += _speed * (Time - then);
         _wheelClock = Time;
         // (And as the Choir comes, everyone's breath shows: the cold comes with it, App. A.7.)
+        if (Look is not null)
+            Look.Art.CrewSigil = CrewSigil;
         if (Look is not null)
             Look.Art.Breath = Math.Max(Look.Tuning.Atmosphere.Cold.Breath(Cold),
                 ChoirGathering > ChoirFrostFrom ? (ChoirGathering - ChoirFrostFrom) / (1 - ChoirFrostFrom) : 0);
@@ -761,7 +782,7 @@ public sealed partial class GreyboxScene
                 else if (e is Sim.Enemies.Passenger passenger)
                 {
                     // One of the crew, to look at (App. A.7 BLEND): drawn exactly as they are, their face and all.
-                    if (!e.Gone && AsCrewmate(passenger, frames, Outfits) is { } double_ && Look?.Art.Crewmate(mesh, double_, eye, Time) != true)
+                    if (!e.Gone && AsCrewmate(passenger, frames, Outfits, Paints) is { } double_ && Look?.Art.Crewmate(mesh, double_, eye, Time) != true)
                         DrawCrewmate(mesh, double_, eye);
                 }
                 else if (!e.Gone)
@@ -1899,7 +1920,8 @@ public sealed partial class GreyboxScene
     }
 
     /// <param name="outfits">Everyone's outfits (note 298): the face it wears comes in its owner's outfit.</param>
-    public static Crewmate? AsCrewmate(Sim.Enemies.Passenger p, IReadOnlyList<CarFrame> frames, IReadOnlyDictionary<int, byte>? outfits = null)
+    public static Crewmate? AsCrewmate(Sim.Enemies.Passenger p, IReadOnlyList<CarFrame> frames, IReadOnlyDictionary<int, byte>? outfits = null,
+        IReadOnlyDictionary<int, Sim.Player.MaskPaint>? paints = null)
     {
         if (p.Attached < 0 || p.Attached >= frames.Count)
             return null;
@@ -1907,7 +1929,7 @@ public sealed partial class GreyboxScene
         var forward = frame.DirToWorld(new Double3(-Math.Sin(p.Extra2), 0, -Math.Cos(p.Extra2)));
         int looks = outfits is not null && outfits.TryGetValue(p.Looks, out byte worn) ? worn : p.Looks;
         return new Crewmate((byte)(200 + p.Looks), frame.ToWorld(p.Local), Math.Atan2(-forward.X, -forward.Z), true, Looks: looks,
-            Car: p.Attached, Local: p.Local);
+            Car: p.Attached, Local: p.Local, Paint: paints?.GetValueOrDefault(p.Looks) ?? default);
     }
 
     static Double3? BodyWorld(Sim.Physics.Body b, IReadOnlyList<CarFrame> frames, Double3 local) =>
@@ -3040,7 +3062,7 @@ public sealed partial class GreyboxScene
             Look.Art.World.Departure = Town;
             Look.Art.World.Fog = Fog;
             Look.Art.World.Arrival = Arrival;
-            Look.Art.World.Cells(mesh, line, Route, eye, from, to, Seed, (float)ValleyDepth, centre);
+            Look.Art.World.Cells(mesh, line, Route, eye, from, to, ArtSeed, (float)ValleyDepth, centre);
             return;
         }
         const double step = 5, gauge = 0.72, sleeperPitch = 0.75;
@@ -3107,7 +3129,7 @@ public sealed partial class GreyboxScene
             if (Route is not null && (Route.InTunnel(s) || Route.BridgeAt(s) is not null))
                 continue;
             // A fixed hash, not HashCode.Combine: that one's seeded afresh every process, and the pines would move.
-            var rng = new Random(unchecked(Seed * 73856093 ^ (int)(s / 12) * 19349663));
+            var rng = new Random(unchecked(ArtSeed * 73856093 ^ (int)(s / 12) * 19349663));
             mesh.Seed = (float)(s / 12 % 997);
             for (int k = 0; k < 3; k++)
             {

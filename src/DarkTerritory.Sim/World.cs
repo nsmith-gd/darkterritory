@@ -150,6 +150,16 @@ public sealed partial class World
     /// <summary>The host's every piece of news this night, told or not (a cut at a stand): what the report reads.</summary>
     public List<Sim.Run.NewsEvent> NewsLog { get; } = new();
     public NewsTuning NewsTuning { get; set; } = new();
+    /// <summary>
+    /// The sound cues in the world lately (queue #466, note 732): boards creaking where a house creature waits, a far bell for
+    /// what's been lost, a dog barking at the lamps' edge. The host's, kept <see cref="Sim.Run.SoundCuesTuning.KeepSeconds"/>
+    /// and replicated, so every client hears each once where it is.
+    /// </summary>
+    public List<Sim.Run.WorldCue> Cues { get; } = new();
+    /// <summary>The sound cues' tuning: enemies.json <c>soundCues</c> where the night has its creatures, else the defaults.</summary>
+    public Sim.Run.SoundCuesTuning SoundCuesTuning => Enemies?.SoundCues ?? DefaultSoundCues;
+    static readonly Sim.Run.SoundCuesTuning DefaultSoundCues = new();
+    Sim.Run.SoundCues? _soundCues;
     /// <summary>The engine's stage last told (−1 not yet looked at: a night begun failing isn't news).</summary>
     int _engineTold = -1;
     int _nextFx = 1;
@@ -398,6 +408,22 @@ public sealed partial class World
 
     /// <summary>The look a player is drawn in (note 298): their outfit if they've one, else their id.</summary>
     public int OutfitOf(int id) => Outfits.TryGetValue(id, out byte o) ? o : id;
+
+    /// <summary>
+    /// Each player's mask paint (GDD §29; note 731), by id: chosen in the settings and tried on in the yard, as an outfit is.
+    /// The host's, sent on change. A player missing from it wears an unpainted mask.
+    /// </summary>
+    public Dictionary<int, MaskPaint> Paints { get; } = [];
+
+    /// <summary>The paint on a player's mask (note 731), or none.</summary>
+    public MaskPaint PaintOf(int id) => Paints.TryGetValue(id, out var p) ? p : MaskPaint.None;
+
+    /// <summary>
+    /// The crew's sigil (GDD §29; note 731): a stencil (look.json maskStencils, from 1; 0 none) the host picked at the fortress,
+    /// kept in the campaign save. Painted on the engine's side and small on every crewmate's mask. Every machine's world is
+    /// built with it (<c>SessionSetup.Sigil</c>). Presentation only.
+    /// </summary>
+    public byte CrewSigil { get; set; }
 
     /// <summary>The host's: the campaign's looks by player name, going into the night.</summary>
     public IReadOnlyDictionary<string, string> LooksByName { get; set; } = new Dictionary<string, string>();
@@ -1220,6 +1246,10 @@ public sealed partial class World
         if (!Authority || Holdouts is not { } h || Run is not { Phase: not Sim.Run.RunPhase.Yard } run)
             return [];
         var events = h.Step(this, crew, set, SimConstants.TickSeconds);
+        // Note 732: a Holdout left with a friend still in it, the train gone on: a far bell from it.
+        if (SoundCuesTuning is { Enabled: true, Bell: { Enabled: true, HoldoutsLeft: true } bell })
+            foreach (var e in events.Where(e => e.Kind == Sim.Run.HoldoutEventKind.Released && e.PlayerId >= 0))
+                Cue(Sim.Run.CueKind.Bell, h.All[e.Holdout].Inside + Ballast.Double3.Up * bell.Height, e.Holdout, (byte)Sim.Run.BellFor.HoldoutLeft, 1);
         // D.12: rescues, with who freed whom and at which site.
         foreach (var e in events.Where(e => e.Kind == Sim.Run.HoldoutEventKind.Freed))
         {
@@ -1953,6 +1983,7 @@ public sealed partial class World
             Signals.RemoveAll(e => Tick - e.Tick > VoicesTuning.LampSignals.Seconds * SimConstants.TickRate);
             Impacts.RemoveAll(i => Tick - i.Tick > keep.ImpactKeepSeconds * SimConstants.TickRate);
             News.RemoveAll(e => Tick - e.Tick > NewsTuning.Seconds * SimConstants.TickRate);
+            Cues.RemoveAll(c => Tick - c.Tick > SoundCuesTuning.KeepSeconds * SimConstants.TickRate);
         }
         BeginHorseplay((Combat?.Hits ?? new HitTuning()).KeepSeconds);
         if (Hosting)
@@ -2233,6 +2264,8 @@ public sealed partial class World
             }
         if (Authority && _context is { } ctx)
             StepEnemies(ctx);
+        if (Authority && !Derailed)
+            StepSoundCues();
         Pace();
         Tick++;
         // The town's people go about their rounds on the night's clock (note 353).
@@ -2869,6 +2902,31 @@ public sealed partial class World
                 News.Add(e);
             _nextFx = _nextFx % 0xFFFFFF + 1;
         }
+    }
+
+    /// <summary>
+    /// Host, after the creatures' step (note 732): the sound cues in the world, from where the living crew stand. Nothing here
+    /// changes a player or the train.
+    /// </summary>
+    void StepSoundCues()
+    {
+        _soundCues ??= new Sim.Run.SoundCues();
+        var living = _actors.Where(a => a.State.Alive).OrderBy(a => a.Id).Select(a => (a.Id, PlayerMotor.WorldPosition(a.State, Train))).ToList();
+        _soundCues.Step(this, living, Cue);
+    }
+
+    /// <summary>A sound cue in the world, on the host (note 732): heard once by every client.</summary>
+    void Cue(Sim.Run.CueKind kind, Ballast.Double3 at, int subject, byte of, double strength)
+    {
+        Cues.Add(new Sim.Run.WorldCue(_nextFx, Tick, kind, at, subject, of, strength));
+        _nextFx = _nextFx % 0xFFFFFF + 1;
+    }
+
+    /// <summary>Client side: the host's recent sound cues in the world (note 732), as the snapshot has them.</summary>
+    public void MirrorCues(IEnumerable<Sim.Run.WorldCue> cues)
+    {
+        Cues.Clear();
+        Cues.AddRange(cues);
     }
 
     /// <summary>Client side: the host's recent hits and impacts (T121), as the snapshot has them.</summary>
