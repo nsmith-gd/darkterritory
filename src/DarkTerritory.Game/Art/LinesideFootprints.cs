@@ -25,8 +25,13 @@ public static class LinesideFootprints
         Feet,
         /// <summary>The church: its nave, and the tower and steeple in front of it.</summary>
         NaveAndTower,
-        /// <summary>Walked through: a burying ground's thin stones and half-down fence, a wharf's deck out over the water.</summary>
+        /// <summary>Walked through: a wharf's deck out over the water (it would want a floor to walk out on, not a wall).</summary>
         Passable,
+        /// <summary>
+        /// Each thing standing on its own: a burying ground's stones, each its own box round however it leans, and its fence's
+        /// pickets in runs, open where they're down (note 797). Things nearer each other than a crewmate is wide are one.
+        /// </summary>
+        Uprights,
         /// <summary>
         /// A whole facility's kit (note 758): the ground under whatever it draws at a crewmate's height, cell by cell, merged
         /// into boxes: its sheds, silos, stacks and works each where they stand, the open ground between them open.
@@ -46,7 +51,7 @@ public static class LinesideFootprints
         new("saltbox", v => $"saltbox-{v}", 8, NovaKit.Saltbox, Shape.Bounds, true),
         new("barn", v => $"barn-{v}", 2, NovaKit.Barn, Shape.Bounds, true),
         new("church", _ => "nova-church", 1, (l, _) => NovaKit.Church(l), Shape.NaveAndTower, true),
-        new("buryingGround", v => $"burying-{v}", 3, NovaKit.BuryingGround, Shape.Passable, true),
+        new("buryingGround", v => $"burying-{v}", 3, NovaKit.BuryingGround, Shape.Uprights, true),
         new("fishShed", v => $"fishshed-{v}", 3, NovaKit.FishShed, Shape.Bounds, true),
         new("ruin", v => $"ruin-{v}", 3, SettingKit.RuinWall, Shape.Bounds, true),
         new("chimney", v => $"chimney-{v}", 3, SettingKit.Chimney, Shape.Bounds, true),
@@ -103,6 +108,8 @@ public static class LinesideFootprints
     const float PostHigh = 2;
     /// <summary>A foot is what of a frame stands below this, and it stands this tall.</summary>
     const float FootHigh = 2.5f;
+    /// <summary>How near two uprights stand to be one (m): a crewmate's width (player.json radius 0.3, a side), so no gap a body could pass is closed.</summary>
+    const float UprightJoin = 0.6f;
 
     /// <summary>
     /// Every piece's footprint, each variant's boxes as [centre x, centre z, half x, half z, turn, top] in the piece's own
@@ -129,6 +136,7 @@ public static class LinesideFootprints
             Shape.Post => [Box([.. points.Where(p => p.Y < PostHigh)], top)],
             Shape.Round => Round(points, top),
             Shape.Feet => [.. Feet(points)],
+            Shape.Uprights => [.. Uprights(points)],
             Shape.NaveAndTower => NaveAndTower(points, top),
             Shape.Cells => Cells(mesh),
             _ => throw new ArgumentOutOfRangeException(nameof(shape)),
@@ -161,13 +169,23 @@ public static class LinesideFootprints
     }
 
     /// <summary>What stands on the ground under the frame, each foot its own box: points within a metre of each other are one foot.</summary>
-    static IEnumerable<double[]> Feet(Vector3[] points)
+    static IEnumerable<double[]> Feet(Vector3[] points) =>
+        Clusters([.. points.Where(p => p.Y < FootHigh)], 1).Select(f => Box([.. f], FootHigh)).OrderBy(b => b[0]).ThenBy(b => b[1]);
+
+    /// <summary>
+    /// Each upright on its own (<see cref="Shape.Uprights"/>): a stone, its box round all of it (a leaning stone's foot and its
+    /// head), as tall as it stands; a run of pickets nearer each other than <see cref="UprightJoin"/>, broken where one's down.
+    /// </summary>
+    static IEnumerable<double[]> Uprights(Vector3[] points) =>
+        Clusters([.. points], UprightJoin).Select(u => Box([.. u], u.Max(p => p.Y))).OrderBy(b => b[0]).ThenBy(b => b[1]);
+
+    /// <summary>The points as clusters: points nearer than <paramref name="join"/> to one of a cluster's, across and along, are in it.</summary>
+    static List<List<Vector3>> Clusters(List<Vector3> points, float join)
     {
-        var low = points.Where(p => p.Y < FootHigh).ToList();
         var feet = new List<List<Vector3>>();
-        foreach (var p in low)
+        foreach (var p in points)
         {
-            var near = feet.Where(f => f.Any(q => MathF.Abs(q.X - p.X) < 1 && MathF.Abs(q.Z - p.Z) < 1)).ToList();
+            var near = feet.Where(f => f.Any(q => MathF.Abs(q.X - p.X) < join && MathF.Abs(q.Z - p.Z) < join)).ToList();
             if (near.Count == 0)
                 feet.Add([p]);
             else
@@ -180,7 +198,7 @@ public static class LinesideFootprints
                 }
             }
         }
-        return feet.Select(f => Box([.. f], FootHigh)).OrderBy(b => b[0]).ThenBy(b => b[1]);
+        return feet;
     }
 
     /// <summary>
