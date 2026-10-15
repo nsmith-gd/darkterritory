@@ -285,7 +285,9 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 # his blessing from the packs' real reel and glass.
                 "figures.dave-paint": "easel", "figures.jacob-fish": "reel", "figures.jacob-bless": "glass",
                 # Note 774: the mail bag's real sack; the comet's real glass (the model's even beat may read as a tremolo).
-                "crew-mail.catch": "sack", "world-comet.hum": "glass"}
+                "crew-mail.catch": "sack", "world-comet.hum": "glass",
+                # Note 772: the town's guns the gun car's own shot and the cannon's own impact, put at their distance.
+                "town-guns.fire": "tower", "town-guns.hit": "meat"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the
@@ -498,6 +500,10 @@ CUE_DEF = {
     **{f"cs-wakers.{c}": {"minDistance": 20, "maxDistance": 1500, "rolloff": 0.8}
        for c in ("grab", "lift", "eat", "take", "swallow")},
     "cs-wakers.drag": {"minDistance": 10, "maxDistance": 600, "rolloff": 0.8},
+    # The town's guns at the walls (note 772): on its towers, 20-200 m from a crew in the yard; the ball landing on a Waker's
+    # back 300 m out and forty up, heard across the yard.
+    "town-guns.fire": {"minDistance": 30, "maxDistance": 1500, "rolloff": 0.8},
+    "town-guns.hit": {"minDistance": 60, "maxDistance": 2000, "rolloff": 0.7},
 }
 
 

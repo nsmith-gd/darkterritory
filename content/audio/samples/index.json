@@ -16603,6 +16603,61 @@
   "takes": 2,
   "sha": "78ddafcefa93f7f3"
  },
+ "town-guns/fire": {
+  "cue": "town-guns.fire",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A gun on the town's walls firing over them: the boom and the roll, the crack dulled",
+    "key": "tower",
+    "sources": [
+     "sfx_100_v2:thunder_01",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "763ed8cf758597c1"
+ },
+ "town-guns/hit": {
+  "cue": "town-guns.hit",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A ball landing on a Waker's back 300 m out: a deep dull whump into a hill of meat",
+    "key": "meat",
+    "sources": [
+     "kenney_impact-sounds:impactSoft_heavy_000",
+     "kenney_impact-sounds:impactSoft_heavy_001",
+     "kenney_impact-sounds:impactSoft_heavy_002",
+     "kenney_impact-sounds:impactSoft_heavy_003",
+     "kenney_impact-sounds:impactSoft_heavy_004",
+     "kenney_rpg-audio:dropLeather",
+     "kenney_rpg-audio:bookPlace2",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_02",
+     "sfx_100_v2:footstep_wet_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "96991caac1075ec0"
+ },
  "ui-dead-phase/bookmark": {
   "cue": "ui-dead-phase.bookmark",
   "surface": null,

@@ -4264,6 +4264,26 @@
   "url": "/_blob/6c9b510f0fc9604beaa6ce8110c81228",
   "sha": "6447579f79982772"
  },
+ "previews/town-guns--fire--swivel.mp4": {
+  "id": "f3a7b34b7c0d11954bec019488464945",
+  "url": "/_blob/f3a7b34b7c0d11954bec019488464945",
+  "sha": "d9a076ba39bffcdf"
+ },
+ "previews/town-guns--fire--tower.mp4": {
+  "id": "32478f4399a7fa6370a2e1c01ccb5899",
+  "url": "/_blob/32478f4399a7fa6370a2e1c01ccb5899",
+  "sha": "86fba6cf6732064b"
+ },
+ "previews/town-guns--hit--mass.mp4": {
+  "id": "1666da83b36c53a496ba8693cc4d9020",
+  "url": "/_blob/1666da83b36c53a496ba8693cc4d9020",
+  "sha": "1199610c54e571f1"
+ },
+ "previews/town-guns--hit--meat.mp4": {
+  "id": "41bb137917e8ee2ac2829a72fa09d4e0",
+  "url": "/_blob/41bb137917e8ee2ac2829a72fa09d4e0",
+  "sha": "e3bec0326bc45282"
+ },
  "previews/ui-dead-phase--bookmark--fold.mp4": {
   "id": "b556cf832a1c8a48db60d2dea59f1ff6",
   "url": "/_blob/b556cf832a1c8a48db60d2dea59f1ff6",
@@ -4453,6 +4473,116 @@
   "id": "73325f67f498e3c6cf237c77fee55551",
   "url": "/_blob/73325f67f498e3c6cf237c77fee55551",
   "sha": "df6256e3d2adf28d"
+ },
+ "previews/up-bbq--can--crack.mp4": {
+  "id": "1805a00930d11010abb2ae4be8d3fe3d",
+  "url": "/_blob/1805a00930d11010abb2ae4be8d3fe3d",
+  "sha": "6615778954733aed"
+ },
+ "previews/up-bbq--can--pop.mp4": {
+  "id": "d26879ff9962c1521bbc52e25f57a2dd",
+  "url": "/_blob/d26879ff9962c1521bbc52e25f57a2dd",
+  "sha": "417c63a50819464a"
+ },
+ "previews/up-bbq--chair--creak.mp4": {
+  "id": "146dff23a5a309497797da5aedf8c550",
+  "url": "/_blob/146dff23a5a309497797da5aedf8c550",
+  "sha": "04dbd0855f64b87a"
+ },
+ "previews/up-bbq--chair--slats.mp4": {
+  "id": "62702d68a03cf6279e9cc56fb4bada9d",
+  "url": "/_blob/62702d68a03cf6279e9cc56fb4bada9d",
+  "sha": "ecfa5059695dd126"
+ },
+ "previews/up-bbq--cheers--clink.mp4": {
+  "id": "7ac78aa8cff5098a388e6020982aef4b",
+  "url": "/_blob/7ac78aa8cff5098a388e6020982aef4b",
+  "sha": "ba85336ef50914d8"
+ },
+ "previews/up-bbq--cheers--tunk.mp4": {
+  "id": "d38e208e169f8767a9fccf5c515d7b83",
+  "url": "/_blob/d38e208e169f8767a9fccf5c515d7b83",
+  "sha": "74f2b90f09047b26"
+ },
+ "previews/up-bbq--cooler--ice.mp4": {
+  "id": "8c8ede008c228960aeb84026a30408fb",
+  "url": "/_blob/8c8ede008c228960aeb84026a30408fb",
+  "sha": "7bc6362c6c00b859"
+ },
+ "previews/up-bbq--cooler--lid.mp4": {
+  "id": "70d6494b4a70ffb61f7dc0c52a987972",
+  "url": "/_blob/70d6494b4a70ffb61f7dc0c52a987972",
+  "sha": "633226bf1c3a7bd2"
+ },
+ "previews/up-bbq--grill--embers.mp4": {
+  "id": "75ac399a5de78e55459c687d6991190c",
+  "url": "/_blob/75ac399a5de78e55459c687d6991190c",
+  "sha": "f40dacdab3d849b5"
+ },
+ "previews/up-bbq--grill--sausages.mp4": {
+  "id": "e5b091c2fde281725f4458af05f99a81",
+  "url": "/_blob/e5b091c2fde281725f4458af05f99a81",
+  "sha": "408ee62403ff0fbb"
+ },
+ "previews/up-bbq--light--flare.mp4": {
+  "id": "1ca2165ab8068261d2cb62c3956c8bd7",
+  "url": "/_blob/1ca2165ab8068261d2cb62c3956c8bd7",
+  "sha": "7bb0ced0f74aafde"
+ },
+ "previews/up-bbq--light--whump.mp4": {
+  "id": "29a204053075a16cf76b7e0802286182",
+  "url": "/_blob/29a204053075a16cf76b7e0802286182",
+  "sha": "0656e5475ea47de8"
+ },
+ "previews/up-bbq--turn--flip.mp4": {
+  "id": "2c5b1d6f6b2d148bd69c3443ee9b3f0d",
+  "url": "/_blob/2c5b1d6f6b2d148bd69c3443ee9b3f0d",
+  "sha": "b25e54cd6bea2296"
+ },
+ "previews/up-bbq--turn--tongs.mp4": {
+  "id": "71f82a5420fc6bbe28f48f7352250d02",
+  "url": "/_blob/71f82a5420fc6bbe28f48f7352250d02",
+  "sha": "d60be01971fbe1ba"
+ },
+ "previews/up-forge--anvil--modal.mp4": {
+  "id": "db50c78f542228fd7eaefbcf8e7e5d0b",
+  "url": "/_blob/db50c78f542228fd7eaefbcf8e7e5d0b",
+  "sha": "996b23155f8deeca"
+ },
+ "previews/up-forge--anvil--ring.mp4": {
+  "id": "6a8c3b9d3fd119e424aa52003a547e26",
+  "url": "/_blob/6a8c3b9d3fd119e424aa52003a547e26",
+  "sha": "6733b444e1b75442"
+ },
+ "previews/up-forge--bellows--leather.mp4": {
+  "id": "ba79c7dd2894feec6ed628f5fb4ed261",
+  "url": "/_blob/ba79c7dd2894feec6ed628f5fb4ed261",
+  "sha": "20fd2e998e89d1f7"
+ },
+ "previews/up-forge--bellows--wheeze.mp4": {
+  "id": "83e0dfb517ae1d70073c58541ab4a26b",
+  "url": "/_blob/83e0dfb517ae1d70073c58541ab4a26b",
+  "sha": "bf040048c6fc21af"
+ },
+ "previews/up-forge--hearth--coals.mp4": {
+  "id": "508435be9c009735090c48c34f8713b4",
+  "url": "/_blob/508435be9c009735090c48c34f8713b4",
+  "sha": "f379510b780f4fdb"
+ },
+ "previews/up-forge--hearth--draught.mp4": {
+  "id": "45bffd9d0aa3fdd34b115b1c9334c8bb",
+  "url": "/_blob/45bffd9d0aa3fdd34b115b1c9334c8bb",
+  "sha": "b28ae34c6c271dac"
+ },
+ "previews/up-forge--quench--boil.mp4": {
+  "id": "ebe3b77446febcc0854956e97c5a266b",
+  "url": "/_blob/ebe3b77446febcc0854956e97c5a266b",
+  "sha": "cc29ca47f4810ad5"
+ },
+ "previews/up-forge--quench--hiss.mp4": {
+  "id": "1ff69e866578f0fc2e998bb3b3510fe0",
+  "url": "/_blob/1ff69e866578f0fc2e998bb3b3510fe0",
+  "sha": "bf7a5df2ec236740"
  },
  "previews/voice-callout--bang--walls.mp4": {
   "id": "492a0f77d14cc7561b0ff06486a278b0",
