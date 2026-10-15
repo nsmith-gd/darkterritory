@@ -425,6 +425,13 @@ public static class Views
             // From the rear gun's seat, back down the line at the staged hound run (note 328, --run).
             "run" => RunCamera(train),
             "cannonside" => CannonCamera(train, side: true),
+            // (Not one of Names.) The human cannonball (note 746; --upgrades humanCannonball --cannonball): the guard van's gun
+            // off its side, someone crouched in its mouth and its gunner behind.
+            "cannonball" => Enumerable.Range(0, train.Vehicles.Count).LastOrDefault(i => train.Vehicles[i].HasGun, -1) is var cv and >= 0
+                && Sim.Combat.Guns.Mount(train, cv) is { } cm
+                ? Camera.LookAt(train.Frames[cv].ToWorld(cm.Position + new Double3(5.5, 1.2, cm.Facing.Z * 3.5)),
+                    train.Frames[cv].ToWorld(cm.Position + new Double3(0, -0.2, cm.Facing.Z * 0.9)), 50)
+                : CannonCamera(train, side: true),
             // (Not one of Names.) From the engine's forward gun's seat, down the line ahead in the headlamp: the lane ahead
             // (note 405; dt screenshot --run-ahead --view lane).
             "lane" => LaneCamera(train),
