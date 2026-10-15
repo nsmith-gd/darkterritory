@@ -1016,6 +1016,11 @@ CUES = {
         O("page", "A logbook page turned: dry paper lifted and laid over", vars=4),
         O("shut", "The logbook shut: the cover clapped down on its pages", vars=3),
     ],
+    # A ping (queue #507, note 777; A1's #1024, note 739): the crew's pings, seen by everyone on the HUD and the world's
+    # mark, heard by everyone once each. Through the radios every uniform has (note 749), so flat, as the set in your hand.
+    "ui-pings": [
+        O("mark", "A ping marked for the crew: a quick two-note chirp on everyone's radio, never anything alive", vars=3),
+    ],
     # U1's upgrades (queue #505, note 775; U1's #967, notes 678, 697, 698; the checklist's up- rows, U1's requests of 13 Oct).
     # Built ahead of #967 for the director to judge; hooked when it lands.
     "up-forge": [
