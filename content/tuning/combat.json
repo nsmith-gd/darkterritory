@@ -40,7 +40,8 @@
     // powder locker and the tally charges no powder. The reload below is the cost, and the noise (the Choir hears every
     // shot). false: the night's stock of ammo and the rack (note 374).
     "infiniteAmmo": true,
-    // App. C.3: "a full manual reload (powder, ball, ram, fire)": after each shot, this many steps of Use held at the gun,
+    // App. C.3: "a full manual reload (powder, ball, ram, fire)", in the order note 746 gives it: powder, pack it, the ball (or, on
+    // the guard van's human cannonball, a crewmate climbing in). After each shot, this many steps of Use held at the gun,
     // each this long. Fire is the trigger.
     "reloadSteps": 3,
     "reloadStepSeconds": 1.5,

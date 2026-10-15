@@ -2037,9 +2037,12 @@ public static partial class Hud
             yield return line.ToString();
     }
 
-    /// <summary>The reload's step under way (GDD v1.1 App. C.3: powder, ball, ram), for the prompt.</summary>
+    /// <summary>
+    /// The reload's step under way, for the prompt: powder, then pack it, then the ball (the director, 15 Oct 2026, note 746:
+    /// "the reload flow to be powder, pack, then either a ball or a player jumps in"; App. C.3's powder, ball, ram before).
+    /// </summary>
     static string LoadStep(in GunState gun, GunTuning t) =>
-        (t.ReloadSteps - gun.ReloadNeeded) switch { 0 => "LOAD POWDER", 1 => "LOAD BALL", _ => "RAM IT" };
+        (t.ReloadSteps - gun.ReloadNeeded) switch { 0 => "LOAD POWDER", var d when d < t.ReloadSteps - 1 => "PACK IT", _ => "LOAD BALL" };
 
     /// <summary>
     /// The roof warning's two lines (note 260), or null: nothing coming, or it isn't for you (sight.json <c>roofWarning.roofOnly</c>:

@@ -19,7 +19,7 @@ public sealed record FumesTuning(int Cars = 1, double GasM = 8, int Damage = 150
 
 /// <summary>
 /// The crude cannons (GDD v1.1 §12, App. C.3): arc-limited, loud, and every shot a timed decision. After each shot a full
-/// manual reload (powder, ball, ram) at the gun before it fires again. Field docs live in combat.json.
+/// manual reload (powder, pack, ball: note 746) at the gun before it fires again. Field docs live in combat.json.
 /// </summary>
 /// <summary>Which way a gun faces at rest: ahead (the engine's forward gun) or back down the train (every car's).</summary>
 public enum GunMountFacing : byte { Ahead, Back }
@@ -28,7 +28,7 @@ public sealed record GunTuning(double RoundsPerSecond, double Range, double Trav
     double MinPitchDegrees, double MaxPitchDegrees, int Ammo, double Reach, double DamagePerRound, double MinPressure)
 {
     public int TicksPerRound => (int)Math.Round(SimConstants.TickRate / RoundsPerSecond);
-    /// <summary>The reload's steps: powder, ball, ram (0: the old magazine gun, no reload).</summary>
+    /// <summary>The reload's steps: powder, pack, ball (note 746; 0: the old magazine gun, no reload).</summary>
     public int ReloadSteps { get; init; } = 3;
     /// <summary>Seconds of Use held at the gun per step.</summary>
     public double ReloadStepSeconds { get; init; } = 1.5;
