@@ -658,6 +658,7 @@ public sealed partial class GreyboxScene
             Strikes(mesh, Look.Art.Effects, line, hint, frames, eye);
         }
         Coal(mesh, eye);
+        Memory(mesh, frames, eye);
         Lap(mesh, "effects");
         mesh.Seed = 0;
         // When the firehole's door last moved, and where it is: whoever's at it then swings it (Art/SceneArt.Crewmate).

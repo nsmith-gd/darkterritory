@@ -30,6 +30,12 @@ public static partial class Staging
                     var b = plan.Fixtures.First(f => f.Kind == "board");
                     return (town.World(b.S, b.D) + Out(b.S, b.FaceS, b.FaceD, 1.6), town.World(b.S, b.D, 1.55));
                 }
+            case "lostcrews":
+                {
+                    // The board of lost crews (note 721), read close up as the notices are.
+                    var b = plan.Fixtures.First(f => f.Kind == "lostcrews");
+                    return (town.World(b.S, b.D) + Out(b.S, b.FaceS, b.FaceD, 1.6), town.World(b.S, b.D, 1.55));
+                }
             case "paper":
                 {
                     var loose = plan.Papers.Where(p => !p.OnBoard).ToList();
@@ -250,6 +256,9 @@ public static partial class Staging
         return where switch
         {
             "board" => Ballast.Render.Camera.LookAt(town.World(board.S - 1.2, board.D - side * 2.2, 1.65), town.World(board.S, board.D, 1.5), 60),
+            // Note 721: the board of lost crews beside it, square on, near enough to read its cards.
+            "lostcrews" when plan.Fixtures.FirstOrDefault(f => f.Kind == "lostcrews") is { } lost =>
+                Ballast.Render.Camera.LookAt(town.World(lost.S, lost.D - side * 2.0, 1.6), town.World(lost.S, lost.D, 1.5), 55),
             "hall" => Ballast.Render.Camera.LookAt(town.World(hall.S - 7, hall.D - side * (hall.Depth / 2 + 9), 1.7), town.World(hall.S, hall.D, 3), 65),
             "gate" => Ballast.Render.Camera.LookAt(town.World(plan.People[0].S + 2.5, plan.People[0].D + 1.6, 1.7), town.World(plan.People[0].S - 30, side * 8, 1.5), 65),
             "centre" => Ballast.Render.Camera.LookAt(town.World(centre.S + 5, centre.D - side * 5, 1.8), town.World(centre.S, centre.D, 1.2), 60),

@@ -177,6 +177,11 @@ public sealed record CampaignState
     /// trains for this crew. The save is kept to be read, and the slot's next start is a new crew.
     /// </summary>
     public bool Over { get; init; }
+    /// <summary>
+    /// The crew's logbook (GDD §11; the director, 14 Oct 2026; note 721): a page a night, kept after the campaign's over so the
+    /// save can still be read. Every player's profile keeps its own copy (<see cref="CrewLog"/>).
+    /// </summary>
+    public IReadOnlyList<LogPage> Logbook { get; init; } = [];
 }
 
 /// <summary>What a purchase came to: the new state, or why not.</summary>

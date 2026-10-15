@@ -52,16 +52,19 @@ public static partial class Hud
     /// <param name="talk">This machine's talking and reading in a fortress town (note 281), and <paramref name="now"/> the
     /// app's seconds, for its card.</param>
     /// <param name="captions">CAPTIONS (note 349): what's heard now and where, <see cref="Captions.Lines"/>; null with it off.</param>
+    /// <param name="photo">The crew photo at the gate taken on this machine tonight (note 721): a delivered night's end card
+    /// shows it as a print.</param>
     /// <param name="firstNight">One of this player's first nights with FIRST NIGHTS on (note 350, <see cref="Onboarding.FirstNight"/>):
     /// the yard shows the core controls.</param>
     public static void Build(Overlay o, int width, int height, IPlaySession s, bool crosshair = true,
         IReadOnlyList<(string To, UiStyle.Commendation What, string From)>? commendations = null, IReadOnlyDictionary<int, Still>? stills = null,
         float pixels = 4, TownTalk? talk = null, double now = 0, bool firstNight = false, IReadOnlyList<string>? captions = null,
-        FigureTalk? figures = null)
+        FigureTalk? figures = null, Still? photo = null)
     {
         _promptScale = PromptScaleAt(pixels);
         _commendations = commendations;
         _stills = stills;
+        _photo = photo;
         o.Clear();
         // TEXT BACKING (note 404): a band behind the print in play, for this build only (the menus over it are on their plate).
         o.Backing = Keys.TextBacking ? new Vector4(0, 0, 0, (float)Math.Clamp(Tuning.TextBacking, 0, 1)) : default;
@@ -938,6 +941,9 @@ public static partial class Hud
             {
                 Big("DELIVERED", Green);
                 Small($"{r.CarsDelivered} CARS, {r.CarsLost} LOST. {r.Net:0} SCRIP. CREW HOME {r.CrewHome}", Ink, fine: false);
+                // Note 721: the town photographer's print, as this machine took it.
+                if (_photo is { } print)
+                    Print(o, print);
             }
             else if (r.End == RunEnd.Stranded)
             {
@@ -2320,6 +2326,9 @@ public static partial class Hud
         // Dave or Jacob (notes 570, 572): a word with him, before anything lying at his feet.
         if (FigureTalk.Target(s) is { } figure)
             return FigureTalk.Prompt(figure);
+        // The crew's logbook on its shelf (note 721): this machine's to open, before what's lying by it.
+        if (LogbookReader.Facing(p, train, Remembering.Logbook, train.Dynamics.Tuning.Pick.EyeHeight))
+            return LogbookReader.Prompt;
         // A fortress town (note 281): somebody to talk to, a paper to read, a thing to look at. Before what's lying in reach,
         // so a lamp at somebody's feet doesn't take the press meant for them.
         if (world.TownOf(p) is { } town && town.Target(p, train.Dynamics.Tuning.Pick.EyeHeight) is { } there)

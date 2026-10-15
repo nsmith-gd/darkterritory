@@ -1037,6 +1037,12 @@ static int ScreenshotBatch(TrainTuning t, string content, string file, bool chec
 static object Screenshot(TrainTuning t, string content, string[] args)
 {
     string view = Str(args, "--view", "trackside");
+    // Note 721: the crew photo at the gate (crewphoto: a delivered night stood home at its terminus, four of the crew, one
+    // dead, Staging.PhotoCrew) and the departure town's board of lost crews (lostcrews: two crews' cards, Staging.LostCrews).
+    if (view == "crewphoto" && !args.Contains("--arrival"))
+        args = [.. args, "--arrival", "photo"];
+    if (view == "lostcrews" && !args.Contains("--town"))
+        args = [.. args, "--town", "lostcrews"];
     string lineName = Str(args, "--line", "test-loop");
     int cars = (int)Opt(args, "--cars", 6);
     int width = (int)Opt(args, "--width", 1280), height = (int)Opt(args, "--height", 720), scale = (int)Opt(args, "--scale", 1);
@@ -1047,7 +1053,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // stages it gnawing, the tower leaning over the line; towerjawfall, the tower down across it.
     string towerJawMode = Str(args, "--towerjaw", view switch { "towerjaw" => "lean", "towerjawfall" => "wreck", _ => "" });
     // --route tier:seed generates the night in memory; --coaling stops the train at its coaling tower, chute pouring.
-    Route? generated = Str(args, "--route", towerJawMode.Length > 0 ? "frontier:3" : Staging.IsHouseView(view) || view is "comet" or "trophies" ? "frontier:7" : "") is { Length: > 0 } spec
+    Route? generated = Str(args, "--route", towerJawMode.Length > 0 ? "frontier:3" : Staging.IsHouseView(view) || view is "comet" or "trophies" or "crewphoto" or "lostcrews" ? "frontier:7" : "") is { Length: > 0 } spec
         ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars)
         : null;
     var line = generated?.Build() ?? RailLine.Load(Path.Combine(content, "lines", lineName + ".json"));
@@ -2434,6 +2440,24 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         camera = HeldShot.Frame(victim.Feet, holder.WorldPosition(train), eyesThere, inside, HeldShot.Size(holder.Kind),
             (x, z) => PlayerMotor.GroundAt(new Double3(x, 0, z), train.Line, ref heldHint));
     }
+    // Note 721: the crew photo at the gate, staged beside the engine on the yard's open side (CrewPhoto.YardSide) and taken
+    // from its own lens (--night n, --net s: the slate's); --side 1|-1 a side of the track of your own.
+    if (view == "crewphoto")
+    {
+        var memoryTuning = DataFile.Load<MemoryTuning>(Path.Combine(content, MemoryTuning.File));
+        var staged = CrewPhoto.Stage(train.Frames[0], (int)Opt(args, "--side", CrewPhoto.YardSide(arrival?.Plan.Square.Side)), Staging.PhotoCrew(),
+            CrewPhoto.Chalk(CrewPhoto.RouteName(Str(args, "--route", "frontier:7")), (int)Opt(args, "--night", 3), Opt(args, "--net", 1450)), memoryTuning.Photo);
+        (scene.Crew, scene.Photo) = (staged.Crew, staged.Props);
+        camera = staged.Camera;
+    }
+    // Note 721: the departure town's board of lost crews, two crews' cards on it (Staging.LostCrews), from in front of it;
+    // every other shot's board bare (a batch's renderer, and its look, is shared).
+    if (look is not null)
+        look.Art.World.LostCrews = view == "lostcrews" ? Staging.LostCrews() : [];
+    if (view == "lostcrews" && town is not null)
+        camera = Staging.TownCamera(town, "lostcrews");
+    // The crew's logbook on its shelf in car one, as every night has it (note 721; the lockers view sees it).
+    scene.Logbook = LogbookReader.Shelf(train, new LogbookTuning());
     scene.Build(mesh, train, camera.Position, leaned);
     // How long a frame's scene takes to build on the CPU, warm (the first build cooks the kit's pieces).
     var buildClock = Stopwatch.StartNew();
@@ -3327,6 +3351,24 @@ static object HudShot(string content, string[] args)
             if (Str(args, "--carrying", "") == "kit" && solo.World.Bodies.All.FirstOrDefault(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.RepairKit) is { } kit)
                 (kit.Carrier, kit.Locker) = (((IPlaySession)solo).PlayerId, -1);
         }
+        // --shelf (note 721): stood in car one's aisle at the kit locker, looking up at the crew's logbook on its top, where Use
+        // opens it.
+        if (args.Contains("--shelf") && LogbookReader.Shelf(solo.Train, new LogbookTuning()) is { } shelf
+            && DarkTerritory.Sim.World.KitLocker(solo.Train) is { } shelfLocker)
+        {
+            var bay = shelfLocker.Bay;
+            var feet = new Double3(bay.Front.X + bay.Facing * 0.75, bay.Front.Y, bay.Front.Z);
+            var to = shelf.Local - (feet + Double3.Up * solo.Train.Dynamics.Tuning.Pick.EyeHeight);
+            solo.Player = solo.Player with
+            {
+                Parent = shelf.Car,
+                Surface = DarkTerritory.Sim.Player.Surface.Deck,
+                Position = feet,
+                Yaw = Math.Atan2(-to.X, -to.Z),
+                Pitch = Math.Atan2(to.Y, Math.Sqrt(to.X * to.X + to.Z * to.Z)),
+                Velocity = default,
+            };
+        }
         // --full-car (note 324): inside the first cargo car, loaded full, a crate from the first stop in hand.
         if (args.Contains("--full-car") && solo.World.Run is { } stocked)
         {
@@ -3372,7 +3414,8 @@ static object HudShot(string content, string[] args)
     if (Str(args, "--talk", "") is { Length: > 0 } talked && session is PrototypeSession here
         && (args.Contains("--arrival") ? here.World.Arrival : here.World.Town) is { } town)
     {
-        talk = new TownTalk();
+        // (The board of lost crews, note 721, with two crews' cards on it: Staging.LostCrews.)
+        talk = new TownTalk { LostCrews = talked == "lostcrews" ? Staging.LostCrews() : [] };
         var (stand, lookAt) = Staging.TownStand(town, talked, (int)Opt(args, "--who", 0));
         var eyeAt = stand + Double3.Up * here.Train.Dynamics.Tuning.Pick.EyeHeight;
         var to = lookAt - eyeAt;
@@ -3446,6 +3489,8 @@ static object HudShot(string content, string[] args)
         Time = 0.37,
         Look = look,
         Crew = crew,
+        // The crew's logbook on its shelf (note 721).
+        Logbook = LogbookReader.Shelf(session.Train, Hud.Remembering.Logbook),
     };
     // The rest of the crew, but not the one whose eyes these are (as the app draws it).
     Scene([.. session.Crew(frames, 1).Where(c => c.Id != session.Watching)]).Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
@@ -3481,6 +3526,8 @@ static object HudShot(string content, string[] args)
             kept = new BookmarkAlbum(dir, DateTime.Now, session.Route?.Name ?? "night").Save(staged, stills.Stills, session.World);
     }
     var hud = new Overlay();
+    string photoFile = Str(args, "--photo", "");
+    var photoStill = BookmarkAlbum.ReadPhoto(photoFile);
     // --hurt [s]: just hit (GDD App. F.1's damage model; note 272), the red edge flash at strength s (a heavy hit is 1).
     if (args.Contains("--hurt"))
         Hud.StagedHurt = Array.IndexOf(args, "--hurt") is var hu && hu + 1 < args.Length
@@ -3517,10 +3564,21 @@ static object HudShot(string content, string[] args)
     }
     else
     {
-        Hud.Build(hud, width, height, session, pixels: scale, firstNight: args.Contains("--first-night"), captions: captioned, commendations: args.Contains("--commend")
+        // --photo f.png (note 721): the crew photo at the gate (`dt screenshot --view crewphoto`'s) as tonight's, the end card's print.
+        Hud.Build(hud, width, height, session, pixels: scale, firstNight: args.Contains("--first-night"), captions: captioned, photo: photoStill, commendations: args.Contains("--commend")
             ? [("Dave", UiStyle.Commendation.CameBackForMe, "Okafor"), ("Priya", UiStyle.Commendation.KeptTheFire, "Dave"),
                 ("Okafor", UiStyle.Commendation.HeldTheSwitch, "Priya"), ("Dunmore", UiStyle.Commendation.LastOneStanding, "Dave")]
             : null, stills: stills.Stills, talk: talk, now: talkNow);
+    }
+    // --logbook [n] (note 721): the crew's logbook open at its nth page (the last, 3, if not said): three nights of a crew's,
+    // the last with --photo's print pasted in (Staging.LogPages); --logbook 0 an empty book.
+    if (args.Contains("--logbook"))
+    {
+        int open = (int)Opt(args, "--logbook", 3);
+        var pages = open <= 0 ? [] : Staging.LogPages(photoFile);
+        var shown = pages.Count > 0 ? pages[Math.Clamp(open - 1, 0, pages.Count - 1)] : null;
+        Hud.LogbookPage(hud, width, height, "The Night Mail", pages, Math.Clamp(open - 1, 0, Math.Max(0, pages.Count - 1)),
+            shown is { Photo.Length: > 0 } ? BookmarkAlbum.ReadPhoto(shown.Photo) : null);
     }
     // --emote-wheel: the emote wheel held, the mouse leant toward the wave (note 298).
     if (args.Contains("--emote-wheel"))

@@ -79,6 +79,17 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public bool CampaignNight { get; init; }
+    /// <summary>
+    /// The campaign's crew, its key (<see cref="Sim.Campaign.Logbook.Key"/>) and the night's number (note 721), so every
+    /// machine keeps the night's page in that crew's logbook and the photo's slate says which night. Presentation only (like
+    /// <see cref="CampaignNight"/>, left out when unset: an older peer reads past it).
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public string? Crew { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public string? CrewKey { get; init; }
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public int Night { get; init; }
     /// <summary>The host's line's fingerprint: a joiner whose own generated line differs (another generator version) is refused.</summary>
     public string? PlanPrint { get; init; }
     /// <summary>The host's terrain's fingerprint (linegen plan §17.3): a joiner whose ground comes out differently is refused.</summary>

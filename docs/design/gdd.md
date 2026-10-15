@@ -199,6 +199,7 @@ The towns are where the world is built. They tell the story of what happened and
 - the clerk's office and the stores, lit;
 - the custom's centrepiece in the middle: the felted bell, the waiting post, the tally board with one mark too many;
 - a notice board, a plaque at the way in, market stalls shut for the night, benches, fire barrels and lamps.
+- beside the notice board, the company's **board of lost crews** *(the director, 14 Oct 2026; ARCHITECTURE §8 note 721)*: a card for every campaign this player rode with that ended (a train taken at dawn): the crew's name, how many nights it ran, how it ended, and the cause line of its last night. It's the player's own (§11, "What a crew keeps"), so each crewmate reads their own crews on it; with none posted, the board says what it's for.
 
 **The houses.** Down the yard's street from the square, both sides, fronts to the line, and in a walled town down its streets, the lived-in ones nearest the square and the lost at the edges:
 - the households' houses, nearest the square. Painted clapboard (barn red, ochre, slate blue, sage, white) with white trim on a fieldstone foundation, in the Maritime forms: a storey and a half with a gable over the door, a saltbox, a gambrel, a two-storey house with a Lunenburg bump. A lamp burns by every lived-in door, and lamplight shows in some windows (none where the custom keeps them dark). A knock is answered through the door, or not.
@@ -408,6 +409,8 @@ Eventually the crew sees lights. Then walls. Then cannon towers. The gates open 
 
 **The night's best finds, by name** *(the director, 14 Oct 2026; ARCHITECTURE §8 note 718)*. After the salvage, the clerk names the night's three worthiest kinds of find with what each paid, in the same voice ("Find: comet fragment, 1080." "Finds: pocket watch, 2 at 110."), and then whoever brought the most worth aboard: "Light fingers: Dave, 1300." The run-end screen keeps the same line under the incident report. Nothing else ever shows a price (§19): this is how a crew learns, night by night, what's worth carrying. The wallet stays shared (§11); the finder's line is bragging rights, not a share.
 
+**The crew photo at the gate** *(the director, 14 Oct 2026; ARCHITECTURE §8 note 721)*. On a delivered night, as the train stands in at the terminus and the clerk tallies, the town photographer's flash: a group shot of the crew in the yard beside the engine, on the side away from the square. The living stand in a line, each in whatever emote they're holding (or stood; a sooty face from the coal shows, §23.4), bots too; the dead are their caps on a crate at the line's end, each in its crewmate's colours; the night's tally is chalked on a slate on an easel (the line, the night's number, the net). The screen flashes white with a camera's click. The photo is kept in the night's bookmark folder with a text sidecar (who stood where, whose caps, the slate), shown on the end card as a small framed print, and pasted into the night's page of the logbook (§11). Every machine stages it the same way from what it was sent, so every crewmate has the same photo. A departure photo at the gate (the yard photographer upgrade) takes the same shot.
+
 ## 10. The consist
 
 | Section | Contains |
@@ -448,6 +451,13 @@ Successful deliveries earn money. Money buys capability. Capability allows more 
 | **Deep territory** | Old industrial regions where Corruption is far more severe: the most creatures and the densest line |
 
 You aren't picking a difficulty level. You're travelling farther from civilization.
+
+### What a crew keeps *(the director, 14 Oct 2026, App. F.6; ARCHITECTURE §8 note 721)*
+
+A crew remembers. In-jokes need somewhere to live, and a campaign the Wakers end should be a story to keep, not a reset.
+- **The logbook.** A fat ledger on a shelf in car one, across the aisle from the kit locker (it moves to the cab's back wall with the crew car). Use opens it as a full page in the paper's style, one page a night: the night's number, the line, the date, how it ended, the crew photo if it was delivered and this machine took it, the incident report's cause-of-death lines (and the train's own end), the commendations, and the net. The walking keys turn the pages; Use shuts it.
+- **Where it's kept.** The host's campaign save keeps the book with the campaign. Every player's own profile keeps a copy too, written on their machine at each night's end from the report it was sent, so everyone keeps their crew's logbook after the campaign ends or the host's save is gone. Quick nights are no campaign's and keep no page.
+- **The board of lost crews.** A campaign ended at dawn is posted, in that player's profile, on the board of lost crews in every fortress town's square (§3.1).
 
 **Every night is the same length** *(the director's decision, 2026-10-06)*: "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." Every route is one length to the same dawn (systems spec B.8: 7 km, dawn in 24 minutes, the transit's 15 and three minutes for each of the three stops; the director's shorter nights of 9 Oct 2026, note 554, were 24 km and 51 minutes). A deeper tier sends more creatures over it and packs more into each kilometre: harder grades and bends, junctions, washouts, weak bridges and brass. Every tier has the same three stops, since a stop is time.
 
