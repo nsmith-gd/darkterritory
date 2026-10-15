@@ -2969,6 +2969,56 @@
   "url": "/_blob/450f41555bbdc8775bef06d4761fc901",
   "sha": "8fcf74daeaed4465"
  },
+ "previews/cs-mouse-moose--bite--grip.mp4": {
+  "id": "b104ae40ef66cbe08b80981e1f2f48e5",
+  "url": "/_blob/b104ae40ef66cbe08b80981e1f2f48e5",
+  "sha": "570f1add9bff7ee5"
+ },
+ "previews/cs-mouse-moose--bite--iron.mp4": {
+  "id": "43d704605905e0a73240c31a02169317",
+  "url": "/_blob/43d704605905e0a73240c31a02169317",
+  "sha": "af02138abe3e93ee"
+ },
+ "previews/cs-mouse-moose--bolt--scrabble.mp4": {
+  "id": "18df35083e23a1dbeffa7d627b1107cd",
+  "url": "/_blob/18df35083e23a1dbeffa7d627b1107cd",
+  "sha": "730ba818ff0dd935"
+ },
+ "previews/cs-mouse-moose--bolt--squeal.mp4": {
+  "id": "075b36112cdc88ffe8639191ac831b3f",
+  "url": "/_blob/075b36112cdc88ffe8639191ac831b3f",
+  "sha": "6aeacf63c565ae0f"
+ },
+ "previews/cs-mouse-moose--dig--earth.mp4": {
+  "id": "6da6b4265892af28f9df100245f899d0",
+  "url": "/_blob/6da6b4265892af28f9df100245f899d0",
+  "sha": "e3cfa5557bfec204"
+ },
+ "previews/cs-mouse-moose--dig--rake.mp4": {
+  "id": "ec3542434a9daba1c9ac2063f00b1d2e",
+  "url": "/_blob/ec3542434a9daba1c9ac2063f00b1d2e",
+  "sha": "cedab2c0fc2b1977"
+ },
+ "previews/cs-mouse-moose--drag--gravel.mp4": {
+  "id": "b6ab28fcd626788d3014f7ae33050a78",
+  "url": "/_blob/b6ab28fcd626788d3014f7ae33050a78",
+  "sha": "3e295002a37aecd4"
+ },
+ "previews/cs-mouse-moose--drag--judder.mp4": {
+  "id": "80219d8f13f9dbc387cc04073b1c2345",
+  "url": "/_blob/80219d8f13f9dbc387cc04073b1c2345",
+  "sha": "fb834c4b96b88952"
+ },
+ "previews/cs-mouse-moose--lost--drop.mp4": {
+  "id": "a932a29ee25ee906070809df3b2c40d9",
+  "url": "/_blob/a932a29ee25ee906070809df3b2c40d9",
+  "sha": "02e2dd8a51acdf0a"
+ },
+ "previews/cs-mouse-moose--lost--thud.mp4": {
+  "id": "d7cad620281dfae5cbf1099671f62072",
+  "url": "/_blob/d7cad620281dfae5cbf1099671f62072",
+  "sha": "13acc397f904637b"
+ },
  "previews/cs-passenger--drag--ankles--wood.mp4": {
   "id": "bb36a4c78f4e699bda28d8e505df7139",
   "url": "/_blob/bb36a4c78f4e699bda28d8e505df7139",
@@ -4583,6 +4633,26 @@
   "id": "d8b993a897b4252e09474725add6164d",
   "url": "/_blob/d8b993a897b4252e09474725add6164d",
   "sha": "f2c42ba594fb2f7a"
+ },
+ "previews/tell-mouse-moose--creep--cinders.mp4": {
+  "id": "594280da9d3d344ceef6ab28dd72790d",
+  "url": "/_blob/594280da9d3d344ceef6ab28dd72790d",
+  "sha": "90978ac160705a64"
+ },
+ "previews/tell-mouse-moose--creep--claws.mp4": {
+  "id": "a7aab54fce940a37eb7fe901ebfa9809",
+  "url": "/_blob/a7aab54fce940a37eb7fe901ebfa9809",
+  "sha": "1230062bb2b98d99"
+ },
+ "previews/tell-mouse-moose--squeak--hinge.mp4": {
+  "id": "52ce03a1c8b32ec0b1ef1a2f28940063",
+  "url": "/_blob/52ce03a1c8b32ec0b1ef1a2f28940063",
+  "sha": "19bc140e5d798a19"
+ },
+ "previews/tell-mouse-moose--squeak--throat.mp4": {
+  "id": "bf7f21bb68b893adac67ca38a0a56cec",
+  "url": "/_blob/bf7f21bb68b893adac67ca38a0a56cec",
+  "sha": "9a58581736a79826"
  },
  "previews/tell-pickers--chitter--jaws.mp4": {
   "id": "50c77a26f87c025769532dbd7f022ba5",

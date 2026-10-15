@@ -311,3 +311,12 @@ The director asked for the last three friendslop features to be heard. Two were 
 **The mail is cut for now** (K1's #530, note 803). The checklist page gained a **Parked** status: off the board's work like a cut line, but not struck through, with its level kept. `crew-mail` is parked; its sounds stay installed.
 
 **Checks:** the tell audit (`dt audio render --listener all`, chaos at 20 cars and 22 m/s) has every tell at least 6 dB over the bed at its worst listener. The whistle is the tightest at 6.2. The audio test classes pass (213).
+
+## 15 Oct, ~16:45 UTC: the Mouse Moose heard (#537), and U1's whimsies' candidates (#534)
+
+- **#537 (note 809), A1's Mouse Moose (#1042):** the yard's casting thief was silent.
+  - Hooked off its record, as the Pickers are: its claws while it creeps in and a squeak now and then (the tell), the bite, the drag (louder once the hook can't reach the casting and it speeds up), the bolt when it's scared off, the dig into its hole.
+  - A casting dragged all the way is heard tipping in, off the crane's own record, so a client hears it even without the creature.
+  - Fourteen candidates from a recipe agent, two a cue; the packs' real ones installed. Two new checklist rows, captions, two tests.
+- **#534 (note 806), U1's whimsies, pets and new emotes:** their 18 candidates (canary, calliope, gramophone, cat, dog, bow, salute, conga) are on the checklist: new rows `up-whimsy` and `up-pets`, and three cues on `crew-emotes`. Hooked when #967 lands, with #505.
+- **Voice Booth:** still no verdicts.

@@ -323,7 +323,12 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 # thinner), and the crew's throat through the real gasp, its coat flapping.
                 "crew-hoist.creak": "swivel", "crew-hoist.yelp": "whoa",
                 # Note 802's gag: the modelled flop, whose thump lands plainly before its oof (the real drop's onset is soft).
-                "crew-hoist.land": "flop"}
+                "crew-hoist.land": "flop",
+                # Note 809: the Mouse Moose from the packs' real things (gravel, a hinge's squeal, a rat's iron tink, earth),
+                # the models candidates; the casting's thud the real one, which has the weight.
+                "tell-mouse-moose.creep": "cinders", "tell-mouse-moose.squeak": "hinge", "cs-mouse-moose.bite": "iron",
+                "cs-mouse-moose.drag": "gravel", "cs-mouse-moose.bolt": "squeal", "cs-mouse-moose.dig": "earth",
+                "cs-mouse-moose.lost": "thud"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the
