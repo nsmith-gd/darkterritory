@@ -46,6 +46,29 @@ public class NightCallsTests
     }
 
     [Fact]
+    public void WhatHasntComeTonightComesOnMoreAndEachOneSentWeighsItsKindDown()
+    {
+        // Note 742 (the director's second playtest, 14 Oct: "very one note ... the cinder hounds like three times"): across the
+        // whole night, an unseen kind weighs more and every one of a kind already come weighs it down, its own way too.
+        Assert.InRange(E.Director.UnseenWeight, 1.5, 4);
+        Assert.InRange(E.Director.NightRepeat, 0.3, 0.9);
+        var d = new Director(E.Director with { NightChance = [] }, null, 1, 6, 4);
+        Assert.Equal(E.Director.UnseenWeight, d.NightVariety(EnemyKind.CinderHound));
+        for (int i = 0; i < 3; i++)
+            d.Log.Add(new DirectorSpawn((uint)i, EnemyKind.CinderHound, 2, 0, 0, 0));
+        Assert.Equal(Math.Pow(E.Director.NightRepeat, 3), d.NightVariety(EnemyKind.CinderHound), 9);
+        // Against a kind that hasn't come, three hounds in: the hound weighs a tenth or less of what it did.
+        Assert.True(d.NightVariety(EnemyKind.CinderHound) / d.NightVariety(EnemyKind.Moose) < 0.1);
+        d.Counted(EnemyKind.Householder);
+        Assert.Equal(E.Director.NightRepeat, d.NightVariety(EnemyKind.Householder), 9);
+        // Off (both 1), it's as it was.
+        var off = new Director(E.Director with { NightChance = [], UnseenWeight = 1, NightRepeat = 1 }, null, 1, 6, 4);
+        off.Log.Add(new DirectorSpawn(0, EnemyKind.CinderHound, 2, 0, 0, 0));
+        Assert.Equal(1, off.NightVariety(EnemyKind.CinderHound));
+        Assert.Equal(1, off.NightVariety(EnemyKind.Moose));
+    }
+
+    [Fact]
     public void TheDirectorSendsNoMoreKnottersThanItsNightsCap()
     {
         var n = new Night(dawn: 3600);

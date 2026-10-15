@@ -89,6 +89,23 @@ public sealed class Director
     /// <summary>Those come their own way tonight, by kind (<see cref="Counted"/>).</summary>
     public IReadOnlyDictionary<EnemyKind, int> OwnWay => _ownWay;
 
+    /// <summary>A kind about tonight (and on this tier, not slain, under its cap) that hasn't come yet (note 742).</summary>
+    bool Unseen(World world) =>
+        Spawns.Rules.Any(r => Allows(r.Kind) && Tonight(r.Kind, world) && !world.Slain.Contains(r.Kind) && SentTonight(r.Kind) == 0);
+
+    /// <summary>How many of <paramref name="kind"/> have come tonight: the director's sends and those come their own way.</summary>
+    public int SentTonight(EnemyKind kind) => Log.Count(l => l.Kind == kind) + _ownWay.GetValueOrDefault(kind);
+
+    /// <summary>
+    /// What tonight's sends so far make of <paramref name="kind"/>'s weight (note 742): ×<see cref="DirectorTuning.UnseenWeight"/>
+    /// before its first, ×<see cref="DirectorTuning.NightRepeat"/> for each one since.
+    /// </summary>
+    public double NightVariety(EnemyKind kind) => SentTonight(kind) switch
+    {
+        0 => _t.UnseenWeight,
+        int n => DMath.Pow(_t.NightRepeat, n),
+    };
+
     /// <summary>The kind's not about tonight (<see cref="DirectorTuning.NightChance"/>'s roll).</summary>
     public bool OutTonight(EnemyKind kind) => _outTonight.Contains(Key(kind));
 
@@ -100,7 +117,7 @@ public sealed class Director
     public bool Tonight(EnemyKind kind, World world)
     {
         string key = Key(kind);
-        if (_outTonight.Contains(key) || _t.CapFor(key) is int cap && Log.Count(l => l.Kind == kind) + _ownWay.GetValueOrDefault(kind) >= cap)
+        if (_outTonight.Contains(key) || _t.CapFor(key) is int cap && SentTonight(kind) >= cap)
             return false;
         return world.Enemies is not { } et || !et.Wakers.Flees(kind) || !Waker.NightFleeing(world, et.Wakers);
     }
@@ -596,6 +613,14 @@ public sealed class Director
                 options[i] = (options[i].Kind, options[i].Weight * calls.GetValueOrDefault(Key(options[i].Kind), 1));
         if (options.Count == 0)
             return Held("nothing fits");
+        // Variety across the night (note 742): a kind come repeatHold times tonight waits while one about tonight hasn't come
+        // at all; the director saves up for the stop, the town or the stretch that lets the new one in. Pressed, it sends.
+        if (!due && _t.RepeatHold > 0 && options.Any(o => SentTonight(o.Kind) >= _t.RepeatHold) && Unseen(world))
+        {
+            options.RemoveAll(o => SentTonight(o.Kind) >= _t.RepeatHold);
+            if (options.Count == 0)
+                return Held("saving for something new");
+        }
         // App. B.1 contradiction seeding: "the director draws pairs from a conflict table rather than spawning
         // independently". Whatever would make a pair with what's about now is weighted up, and more so past halfway on a
         // run that hasn't had its pairs yet.
@@ -611,6 +636,9 @@ public sealed class Director
         // Variety: a kind sent lately comes on less (the Lamplighters were half of everything in the playtest).
         var recent = Log.TakeLast(_t.VarietyWindow).Select(l => l.Kind).ToList();
         options = [.. options.Select(o => (o.Kind, o.Weight / DMath.Pow(2, recent.Count(k => k == o.Kind))))];
+        // And across the night (note 742: "very one note ... the cinder hounds like three times"): what hasn't come yet tonight
+        // comes on more, and each one of a kind that has (the director's or its own way) weighs it down again.
+        options = [.. options.Select(o => (o.Kind, o.Weight * NightVariety(o.Kind)))];
         // Note 327: with crew afoot off the train, what comes for them out there (the outside creatures, and whatever lives at
         // the stops' sites) weighs more, by their share: more of the night is met off the train.
         if (_t.Afoot.On && AfootShare > 0 && _t.Afoot.OutsideWeight != 1)
