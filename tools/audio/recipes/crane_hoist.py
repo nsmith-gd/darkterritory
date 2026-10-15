@@ -8,6 +8,8 @@ What each is decides the build:
   load, the block's sheave ticking. A seamless 10 s loop, outdoors at a yard, held while anyone rides.
 - The yelp: a crewmate coming off the hook up in the air (shaken off by the operator, or letting go high): a short,
   startled cry, an 'aah!' or a 'whoa!' as the drop takes them, the coat flapping. Each take a different crewmate.
+- The landing: down off the hook, which the director made "a silly gag, not a big grief" (15 Oct, note 802: at most 10
+  health, by the height): a padded thump and a comic 'oof!', the wind knocked out of them, never a body falling dead.
 
 Each cue has two candidates. The creak's first is the packs' real creaks pitched down to iron and rope, with real loose
 iron for the block; the second is modelled stick-slip through an iron body. The yelp's first is the crew's modelled throat
@@ -18,14 +20,15 @@ import numpy as np
 
 import dsp
 import synth
-from dsp import samples, hp, env, mix
+from dsp import samples, hp, lp, env, mix
 from recipes import crew_kit as ck
 from recipes.beasts import unit
 from recipes.crew_items import hit_of
 from recipes.crew_kit import recipe
-from recipes.rescue_finds import effort, VOICES, GASP, CREAKS, RATTLE, SWISH
+from recipes.rescue_finds import effort, VOICES, GASP, CREAKS, RATTLE, SWISH, DROP
 
 L_ = "crew-hoist"
+SOFT = [f"kenney_impact-sounds:impactSoft_heavy_00{i}" for i in range(5)]   # real soft heavy impacts: a body on the ground
 CYCLE = 10.0
 
 
@@ -111,3 +114,49 @@ def yelp_whoa(rng, k):
         higher and quicker than the other candidate's, cut off as they land on nothing yet.""", takes=3, lufs=-18)
 def yelp_aah(rng, k):
     return cry(rng, VOICES[k % 3], None, rng.uniform(0.34, 0.42), rng.uniform(2.0, 2.2))
+
+
+def oof(rng, voice, real, L, top):
+    """The wind knocked out of them, played for the laugh: a short, pressed 'oof' starting high and dropping away."""
+    return effort(rng, voice, L, [(0, top), (0.03, top * 0.96), (L * 0.5, top * 0.82), (L, top * 0.66)],
+                  [(0, "u"), (0.03, "o"), (L * 0.6, "o"), (L, "h")],
+                  [(0, 0), (0.005, 1), (L * 0.45, 0.75), (L, 0)], press=0.38, rough=0.25, voiced=0.7, real=real)
+
+
+def thumped(thump, rng, voice, real, top):
+    """The landing, then the 'oof' a beat after it (the comic timing: the body first, the breath it knocks out second)."""
+    v = oof(rng, voice, real, rng.uniform(0.22, 0.3), top)
+    gap = np.zeros(samples(rng.uniform(0.05, 0.09)), np.float32)
+    # the body heard landing first and plainly: the voice under it, not over it
+    return unit(mix(unit(thump) * 1.4, np.concatenate([gap, v]) * 0.5))
+
+
+@recipe(L_, "land", "whump", "Down off the hook, a gag: a padded thump on the ground and a comic 'oof!' a beat after it",
+        """The director's call (15 Oct, note 802): a drop off the hook is "a silly gag, not a big grief". The packs' real
+        soft heavy impact (a body on the ground) with their heavy leather drop over it (the coat), pitched down a little,
+        the boom taken out so it lands soft, not dead; then, a beat later, the crew's modelled throat (each take a different crewmate) breathing a short
+        pressed 'oof!' through the packs' real gasp, high and dropping away.""", sources=SOFT + [DROP, GASP], takes=3, lufs=-17)
+def land_whump(rng, k):
+    n = samples(0.35)
+    body = unit(ck.align(dsp.vari(ck.get(SOFT[(k + int(rng.integers(5))) % 5]), rng.uniform(-3, 0))))[:n]
+    coat = unit(ck.align(dsp.vari(ck.get(DROP), rng.uniform(-4, -1))))[:n]
+    body = np.pad(body, (0, n - len(body)))
+    coat = np.pad(coat, (0, n - len(coat)))
+    # (the soft impacts are mostly under 150 Hz as recorded: a landing that's a gag thumps, it doesn't boom)
+    thump = unit(hp(mix(body, coat * 0.5), 180, 4))
+    return thumped(thump, rng, VOICES[k % 3], GASP, rng.uniform(1.15, 1.3))
+
+
+@recipe(L_, "land", "flop", "Down off the hook, modelled: a soft flop on the ground and a sillier, higher 'oof!'",
+        """Modelled: a soft body's flop (a short burst of dark noise through a padded thud's modes, the coat's slap on top,
+        nothing booming under it) and the crew's modelled throat on its own breath, an 'oof!' pitched higher and
+        squeezed shorter than the other candidate's, for more of a cartoon.""", takes=3, lufs=-17)
+def land_flop(rng, k):
+    L = 0.18
+    body = synth.noise(L, rng, "pink") * env([(0, 1), (0.012, 0.6), (L, 0)], L)
+    thud = synth.creak(L, env([(0, 30), (L, 30)], L), rng, body=[160, 290, 520], q=4, jitter=0.1,
+                       shape=env([(0, 1), (0.03, 0.4), (L, 0)], L))
+    slap = hp(synth.noise(0.04, rng, "white"), 1800, 2) * env([(0, 1), (0.04, 0)], 0.04)
+    thump = unit(hp(mix(unit(lp(body, 900, 2)), unit(thud) * 0.6, np.concatenate([unit(slap) * 0.3, np.zeros(samples(L - 0.04), np.float32)])), 150, 2))
+    return thumped(thump, rng, VOICES[k % 3], None, rng.uniform(1.35, 1.5))
+

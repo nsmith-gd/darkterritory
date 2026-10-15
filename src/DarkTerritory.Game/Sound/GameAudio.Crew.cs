@@ -97,6 +97,8 @@ public sealed partial class GameAudio
         public int Health;
         public byte Placed;
         public bool Alive, Moving, Shovelful, LeftTrain, BreathIn = true;
+        /// <summary>Come off a crane's hook with a drop under them, not yet down (note 802's gag landing).</summary>
+        public bool OffHook;
         public PlayerFlags Flags;
         public Tool Held;
         public Double3 AirVelocity;
@@ -334,7 +336,8 @@ public sealed partial class GameAudio
                 double rollAbove = tuning?.Landing.RollAbove ?? 1.5;
                 landedHard = s.Health < c.Health;
                 double knock = Knock(c, across, onTrain, tuning);
-                if (c.Surface == Surface.Air || knock > rollAbove)
+                // Down after a drop off a crane's hook, the gag's landing in place of this one (note 802).
+                if (!HoistLanding(c, feet, occlusion) && (c.Surface == Surface.Air || knock > rollAbove))
                 {
                     if (knock > rollAbove)
                     {

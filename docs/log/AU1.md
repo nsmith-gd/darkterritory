@@ -300,3 +300,14 @@ launches are AU1.1, AU1.2, …. Entries are UTC; those before 12:55 on 7 Oct wer
 - **Found:**
   - **#533 (note 805):** every running jump between roofs played the hit of a jump off a moving train (34 of them), and a running jump on open ground would add a tumble and scattered pockets. Fixed: the audio now reckons the knock as the sim does.
   - **#532 (open, for the bots' owner):** the bot driver holds its speed by pulsing the full brake: 9 ticks on and 13 off on a descent, and every tick or two near the end of the line. That made 1,481 brake applications and 1,314 slack run-ins in 8 minutes. The sounds are faithful; the fix belongs to the driver (or a brake that builds in the sim).
+
+## 15 Oct, ~15:55 UTC: the last of K1's friendslop heard, and the mail parked
+
+The director asked for the last three friendslop features to be heard. Two were already on main: emotes for two and the odd outcomes were merged in #1048 at 15:07, each sound installed and played as its own. The third, the crane:
+- **The creak** is louder while the crane moves them.
+- **The landing** after a drop off the hook is a comic thump and an "oof" (the director's gag, K1's note 802), in place of the landing's own sound. Two candidates; the modelled flop is installed. It's derived from the Hoisted flag, as the yell is, so it needs nothing from note 802's sim flag (not on main yet).
+- These go in #1054 with the rest of #525.
+
+**The mail is cut for now** (K1's #530, note 803). The checklist page gained a **Parked** status: off the board's work like a cut line, but not struck through, with its level kept. `crew-mail` is parked; its sounds stay installed.
+
+**Checks:** the tell audit (`dt audio render --listener all`, chaos at 20 cars and 22 m/s) has every tell at least 6 dB over the bed at its worst listener. The whistle is the tightest at 6.2. The audio test classes pass (213).

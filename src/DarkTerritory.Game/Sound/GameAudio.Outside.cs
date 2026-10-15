@@ -705,8 +705,8 @@ public sealed partial class GameAudio
                 HoldLevel("place-crane.motor", key, crane.Cab, outside, 1);
             if (hook > 1e-4)
                 HoldLevel("place-crane.chain", key, crane.HookAt, outside, 1);
-            // Note 798: the cable creaking under a friend riding the hook.
-            HoistCreak(crane, key, outside);
+            // Note 798: the cable creaking under a friend riding the hook, louder while the crane moves them.
+            HoistCreak(crane, key, outside, running);
             // Note 726: a friend on the hook swings as a casting does.
             if (Flipped("place-crane.running", key, running, primed) != 0 && crane.Loaded)
                 Cue("place-crane.load-swing", crane.HookAt, outside);

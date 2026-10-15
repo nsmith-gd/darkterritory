@@ -5545,6 +5545,21 @@
   "takes": 1,
   "sha": "29aea85e00aed752"
  },
+ "crew-hoist/land": {
+  "cue": "crew-hoist.land",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Down off the hook, modelled: a soft flop on the ground and a sillier, higher 'oof!'",
+    "key": "flop",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "a71cd577fca055fe"
+ },
  "crew-hoist/yelp": {
   "cue": "crew-hoist.yelp",
   "surface": null,

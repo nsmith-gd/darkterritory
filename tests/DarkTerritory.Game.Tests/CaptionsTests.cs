@@ -87,6 +87,7 @@ public class CaptionsTests
     [InlineData("cs-hounds-doused.doused")]
     [InlineData("crew-rescue.haul")]
     [InlineData("crew-hoist.yelp")]
+    [InlineData("crew-hoist.land")]
     [InlineData("loot-fragile.glass")]
     [InlineData("loot-jackpot.bell")]
     [InlineData("crew-handcar.set")]

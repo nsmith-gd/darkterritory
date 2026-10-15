@@ -321,7 +321,9 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 "crew-emotes.fist-bump": "gloves", "crew-emotes.sit": "coat", "crew-emotes.lean": "frame",
                 # Note 798: the packs' real creaks pitched down to the hook's iron and rope (the model's stick-slip is
                 # thinner), and the crew's throat through the real gasp, its coat flapping.
-                "crew-hoist.creak": "swivel", "crew-hoist.yelp": "whoa"}
+                "crew-hoist.creak": "swivel", "crew-hoist.yelp": "whoa",
+                # Note 802's gag: the modelled flop, whose thump lands plainly before its oof (the real drop's onset is soft).
+                "crew-hoist.land": "flop"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the
@@ -573,6 +575,7 @@ CUE_DEF = {
     # A friend on the crane's hook (note 798): the cable's creak about the gantry; the cry off it across the yard.
     "crew-hoist.creak": {"minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
     "crew-hoist.yelp": {"minDistance": 2, "maxDistance": 90, "rolloff": 1.0},
+    "crew-hoist.land": {"minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
 }
 
 

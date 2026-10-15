@@ -1103,21 +1103,26 @@ public class WorldSoundTests
     }
 
     [Fact]
-    public void AFriendOnTheCranesHookIsHeardOnTheCableAndYellingOffItHighUp()
+    public void AFriendOnTheCranesHookIsHeardOnTheCableAndYellingOffItHighUpAndLandingAsAGag()
     {
         // K1's friend on the hook (note 726), heard (queue #525, note 798), off what a client has: the crane's riders (its
-        // record) and the rider's Hoisted flag. The cable creaks where the hook is while anyone rides it; coming off it alive
-        // high up (shaken off, or let go), a yell where they are, once; let go a step off the ground, nothing.
+        // record) and the rider's Hoisted flag. The cable creaks where the hook is while anyone rides it, louder while the
+        // crane moves them; coming off it alive high up (shaken off, or let go), a yell where they are, once, and down on the
+        // ground a comic thump and an oof in place of the landing (the director's gag, note 802); let go a step off the
+        // ground, no yell and an ordinary landing.
         var (world, foundry) = Night(f => f.Facility == FacilityKind.Foundry, from: 20);
         var audio = new GameAudio(Content) { PlayerTuning = DataFile.Load<PlayerTuning>(Path.Combine(Content, PlayerTuning.File)) };
         Held(audio, "crew-hoist.creak");
-        Stand(audio, "crew-hoist.yelp");
+        Stand(audio, "crew-hoist.yelp", "crew-hoist.land");
+        string[] feet = ["wood", "grate", "plate", "roof", "coal", "ballast", "dirt", "grass", "mud", "cobbles", "concrete", "water", "ground"];
+        Stand(audio, [.. feet.Select(m => $"crew-footsteps.land.{m}")]);
         var run = world.Run!;
         run.EnableSites(DataFile.Load<FacilityTuning>(Path.Combine(Content, FacilityTuning.File)), world.Train.Line);
         var site = run.Sites[run.Route.Of(FeatureKind.Facility).ToList().IndexOf(foundry)]!;
         var crane = Assert.Single(site.Cranes);
         var ears = new Ears(audio, world);
         Double3 Beside() => crane.HookAt + new Double3(4, 0, 4);
+        int Landings() => ears.Started.Count(v => v.Name.StartsWith("crew-footsteps.land."));
         // The hook this high over what's under it (a car's roof, or the ground), and who rides it.
         void Hook(double above, int riders)
         {
@@ -1132,6 +1137,14 @@ public class WorldSoundTests
         ears.Tick(Beside(), 5);
         var creak = audio.Mixer.Voices.Single(v => v.Name == "crew-hoist.creak" && !v.Finished);
         Assert.True((creak.Position - crane.HookAt).Length < 1e-6);
+        float still = creak.Volume;
+        // The crane running them up: louder while it moves.
+        for (int i = 0; i < 5; i++)
+        {
+            crane.Mirror(crane.Bridge, crane.Trolley, crane.Hook + 0.02, 0, [], 1);
+            ears.Tick(Beside());
+        }
+        Assert.True(creak.Volume > still * 1.5, $"{creak.Volume:0.00} moving, {still:0.00} still");
         Hook(5, 0);
         ears.Tick(Beside(), SimConstants.TickRate);
         Assert.False(Playing(audio, "crew-hoist.creak"));
@@ -1149,18 +1162,28 @@ public class WorldSoundTests
                 Placed = placed,
             };
         }
+        PlayerState Down(byte placed) =>
+            PlayerMotor.SpawnOnGround(crane.RiderFeet(0, 1), world.Train.Line, 0, audio.PlayerTuning!) with { Placed = placed };
         audio.CrewStates = [(2, Rider(5, true, 1))];
         ears.Tick(Beside(), 3);
-        var feet = crane.RiderFeet(0, 1);
+        var at = crane.RiderFeet(0, 1);
         audio.CrewStates = [(2, Rider(5, false, 2))];
         ears.Tick(Beside(), 3);
         var yelp = Assert.Single(ears.Started, v => v.Name == "crew-hoist.yelp");
-        Assert.True((yelp.Position - feet).Length < 2, $"{(yelp.Position - feet).Length:0.0} m off her feet");
+        Assert.True((yelp.Position - at).Length < 2, $"{(yelp.Position - at).Length:0.0} m off her feet");
+        audio.CrewStates = [(2, Down(2))];
+        ears.Tick(Beside(), 3);
+        Assert.Single(ears.Started, v => v.Name == "crew-hoist.land");
+        Assert.Equal(0, Landings());
         audio.CrewStates = [(2, Rider(1, true, 3))];
         ears.Tick(Beside(), 3);
         audio.CrewStates = [(2, Rider(1, false, 4))];
         ears.Tick(Beside(), 3);
+        audio.CrewStates = [(2, Down(4))];
+        ears.Tick(Beside(), 3);
         Assert.Single(ears.Started, v => v.Name == "crew-hoist.yelp");
+        Assert.Single(ears.Started, v => v.Name == "crew-hoist.land");
+        Assert.Equal(1, Landings());
     }
 
     [Fact]
