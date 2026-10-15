@@ -384,6 +384,6 @@ public class SessionsTests
         r = new NetReader(w.Written);
         r.U8();
         Assert.Equal(RefusalReason.Kicked, Messages.ReadRefused(ref r).Reason);
-        Assert.Equal(60, Protocol.Version);
+        Assert.Equal(61, Protocol.Version);
     }
 }
