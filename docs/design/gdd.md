@@ -2607,7 +2607,7 @@ Shown on the run-end screen. It lists:
 - **what the dead voted for**
 - **bookmarks**, manual and automatic
 
-**Cause-of-death lines** are written in the settlement clerk's voice (§9): flat, procedural, and specific. Each one names the failure, the contributing action and who made it, and sits next to the itemised fee and refund for that death.
+**Cause-of-death lines** are written in the settlement clerk's voice (§9): flat, procedural, and specific. Each one names the failure, the contributing action and who made it, and sits next to the itemised fee and refund for that death. Every death is named for what did it, on the death screen and in the report: no creature borrows another's line *(the director, 13 Oct 2026, App. F.5: "householder grabbed me and it said seized by the choir"; ARCHITECTURE §8 note 682)*.
 
 > *Struck by own consist at Mile 4 Halt. Throttle: Dave, 38 km/h. Fee 350. Body recovered. Refund 263.*
 > *Taken by the Choir on the roof of car three. Loudest on the line: Priya. Fee 350. Body not recovered.*
@@ -2967,7 +2967,7 @@ genre ... It's extremely important that friends exceeds our target meaningfully.
 - The Gannet doesn't dive consistently, or come round again for another attack. *In progress (queue #412, note 680): at a standing train it left after one pass; in the gym it stays (§34.1).*
 - The Waker is the right idea, but it should be a huge lumbering beast, at least three times the size of the current model, a titan on two legs. The train should struggle to outrun it because of its enormous stride, not because it's fast. *Open; design change → §8.*
 - The Lodger made no sound, and its tell was a little too short. *Open.*
-- The Householder grabbed the director, and the death said "seized by the Choir". *Open.*
+- The Householder grabbed the director, and the death said "seized by the Choir". *In progress (queue #414, ARCHITECTURE §8 note 682): it borrowed the Choir's cause, as the Lodger borrowed the hounds' and the Hanger the Passenger's; each now has its own (D.12).*
 - The abandoned villages' houses don't seem to have doors, though there's an open and shut prompt and a collider. A house's doors and windows need to shut and be escapable, so the house can show what it's about to do. *Open; design change → the Hollow House (§21).* (The director named the Householder; the doors slamming shut one after another are the Hollow House's tell.)
 - The house that should come down didn't: the model doesn't collapse. *Open.* (The Hollow House.)
 - Pulled up by a Hanger without seeing one, and with no tell. *In progress (queue #415, ARCHITECTURE §8 note 683): the strands drawn to read in a dim house, and quivering while anyone's in its house (§21); its sounds (hanger.md §4) are the audio chat's.*
