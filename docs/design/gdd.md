@@ -266,6 +266,11 @@ The town's lamp posts light the siding. Two porters work the yard all night, and
 - **Seen from far off:** it stands over the whole town. Its Flame is the first thing a crew sees of the town through the fog, a kilometre and more out.
 - **Its keeper** stands at its door all night, between the hours' tubs of coal hauled up its side.
 
+**The night market** *(the director's playtest of 14 Oct, line 3: "Still a bit basic"; queue #552, ARCHITECTURE §8 note 825)*.
+- **Where:** a row of stalls on the square, lit and open, between the hall and the centrepiece. A small town has four, a big one up to eight.
+- **What's on them:** what the town makes, and what a walled town trades for at night: salt cod with the eyes taken out, candles nobody lights after midnight, single boots never a pair, clocks kept a quarter of an hour fast, a loaf put by for whoever's coming in on the train.
+- **Who keeps them:** each stall has its lantern under its awning and a stallholder behind its counter to talk to.
+
 **People.** Text only, no voices, as many as the town is big:
 - the gatekeeper says the town's law first;
 - the keeper of the custom's building and the folk round the centrepiece talk about the custom;
