@@ -272,6 +272,9 @@ public sealed partial class GameAudio
             double speed = rake.Speed;
             foreach (var v in rake.Consist.Vehicles)
             {
+                // The handcar's little wheels are its own (GameAudio.Handcar, note 784), not a car's.
+                if (v.IsHandcar)
+                    continue;
                 var frame = train.Frames[v.Id];
                 var pose = train.Cars[v.Id];
                 double length = pose.Length, centre = pose.FrontDistance - length / 2;

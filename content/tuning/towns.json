@@ -40,7 +40,8 @@
   // side, their fronts "setback" back from it on lots of "lot" frontage; lanes across every "laneEvery" m, "laneWidth"
   // wide, the way from the line to the streets; the rows from "from" m up from the yard's start to "toGate" m inside the
   // gate. The wall stands "margin" past the last row's backs, down both sides, across the front from the gatehouse and
-  // across the back "rear" m along from the yard's start (behind it). Linegen levels the ground for it (tiers.json
+  // across the back "rear" m along from the yard's start, its gate there the way in from the last night (0, at the yard's
+  // start: note 692, so an arrival's way out is at the end of its line, a yard's length past the terminus's gate). Linegen levels the ground for it (tiers.json
   // fortress padM). A town whose houses fit the line's street keeps the yard's walls (note 274).
   // The streets bend (note 353; the director, 8 Oct: "Towns dont feel like they have a natural layout to them"): each
   // side's swing out and back on one wave "bendWavelength" m long, the first street "bendBase" m and each further out
@@ -49,7 +50,7 @@
   // A lane runs crooked: where it meets each street it turns "laneJog" m along the line, one way or the other, straight
   // between (never into the square or across its green).
   "walled": { "first": 34.5, "every": 30, "width": 6, "setback": 3.5, "lot": [13, 17], "laneEvery": [90, 130], "laneWidth": 8, "laneJog": [3, 10],
-    "from": 22, "toGate": 22, "margin": 7, "rear": -8, "maxStreets": 5,
+    "from": 22, "toGate": 22, "margin": 7, "rear": 0, "maxStreets": 5,
     "bendBase": 3.0, "bendStep": 0.6, "bendMax": 5.4, "bendWavelength": [220, 320], "bendClear": 30, "setbackJitter": [0, 1.2],
     // The town's works (queue #90, note 353; GDD §3 "furnaces, rail yards and warehouses"): its trade at work across the
     // line from the green, between the far side's first and second streets, from "worksBefore" m before the square's rear
@@ -110,5 +111,51 @@
   // "slots" of "slot" seconds, their own post and somewhere about the square in turn (a bench, a fire barrel, the board,
   // a stall, the centrepiece, a neighbour), a pacer "pace" m either way of their post; at home, a household goes round
   // its rooms' places, "homeSlot" seconds at each. They walk between at "walk" m/s, and stop for whoever talks to them.
-  "rounds": { "slot": 45, "slots": 4, "homeSlot": 38, "walk": 1.2, "pace": 3.5, "street": [10, 24] }
+  "rounds": { "slot": 45, "slots": 4, "homeSlot": 38, "walk": 1.2, "pace": 3.5, "street": [10, 24] },
+
+  // The town types (queue #424, ARCHITECTURE §8 note 692; the director, 13 Oct 2026, with five renders of town layouts:
+  // "we want for the world building to have multiple different town types ... interesting culture, interesting looks,
+  // interesting development", "the towns don't necessarily need to be this big ... they still need to be able to fit the
+  // twenty-car maximum train length for the yard, but it's okay if the towns stretch a little bit more", "a town needs a
+  // gate that is the entrance from the previous run, and then it also needs a gate that is the exit to the next run").
+  // Off, every town is the street town of note 335. Each town's form is drawn from its trade (byTrade: trade -> form ->
+  // weight; "" the street town) on its own stream, so the town arrived at and the town left from are the same.
+  // yardM: the longest consist (train.json: an engine of 20 m, 20 cars of 14 m, 1.5 m between: 330 m), which stands in
+  // the yard back from shortOfGate m inside the way out (run.json departShortOfGateM) and every form's length holds with
+  // room to spare. shapes: each form's length between its two gates, its wall's reach left (the square's side) and right
+  // (the platform's), its lots' frontage, depth and setback from their way, its water's level and its terraces' rise
+  // (m against the yard's level) and depth (past 0.75 m it's railed off, TownGround.Wade; a marsh's is waded), a
+  // quarry's benches; each street band's rise over the last (a terraced town's tiers, stair streets between: note 692's
+  // verticality; the director, 13 Oct: "it's lacking some of the verticality ... integrating the layout of the town with
+  // the layout of the landscape"), and how far past the wall it shapes the land it stands in (margin: its landform, the
+  // headland, the sea, the mesa, the valley, easing into the line's land over the margin's outer 40%), and roll: how far its
+  // landforms swell up and down (m, either way; a ridge reads as land, not a plateau; inside the wall stays level). All inside the yard's level pad (linegen fortress padM, 200).
+  "forms": {
+    // Whether the trades draw their towns' forms (byTrade below); off, every town is the street town but where force
+    // says otherwise. Off for now (note 692): with the forms in the rotation the Game test suite, which already grows to
+    // the CI machine's memory on main, ran it out; on again once that's found.
+    "enabled": false,
+    // Every town this form ("harbour", "dykeland", "quarry", "tidewater", "glasshouse"; "" the street town), to play or
+    // look at one type; null, each town its own.
+    "force": null,
+    "yardM": 330,
+    "shortOfGate": 8,
+    "byTrade": {
+      "coal": { "quarry": 3, "harbour": 1, "crag": 2, "highline": 1, "timber": 1, "": 2 },
+      "farm": { "glasshouse": 2, "dykeland": 2, "harbour": 1, "salt": 2, "timber": 2, "highline": 1, "": 2 },
+      "foundry": { "tidewater": 2, "harbour": 1, "quarry": 1, "furnace": 3, "crag": 1, "": 2 }
+    },
+    "shapes": {
+      "harbour":    { "length": 560, "left": 150, "right": 175, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -2.4, "terraceLevel": 16, "rise": 4, "margin": 190, "roll": 5, "packed": true },
+      "dykeland":   { "length": 540, "left": 160, "right": 160, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -0.6, "waterDepth": 0.5, "terraceLevel": 0, "margin": 110, "packed": true },
+      "quarry":     { "length": 600, "left": 190, "right": 120, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -2.0, "terraceLevel": 5, "benches": 3, "margin": 110, "roll": 3, "packed": true },
+      "tidewater":  { "length": 560, "left": 160, "right": 180, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -1.4, "terraceLevel": 14, "rise": 4, "margin": 170, "roll": 6, "packed": true },
+      "glasshouse": { "length": 450, "left": 120, "right": 130, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -1.8, "terraceLevel": 0, "margin": 170, "roll": 6, "packed": true },
+      "furnace":    { "length": 560, "left": 150, "right": 160, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -3.0, "waterDepth": 1.6, "terraceLevel": 6, "rise": 12, "margin": 170, "roll": 4, "packed": true },
+      "highline":   { "length": 560, "left": 160, "right": 150, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -2.0, "terraceLevel": 14, "rise": 12, "margin": 170, "roll": 5, "packed": true },
+      "timber":     { "length": 540, "left": 160, "right": 160, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -1.0, "terraceLevel": 4, "rise": 4, "margin": 150, "roll": 2, "packed": true, "palisade": true, "wander": 4 },
+      "salt":       { "length": 540, "left": 150, "right": 150, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -0.6, "waterDepth": 0.5, "terraceLevel": 0, "margin": 110, "packed": true },
+      "crag":       { "length": 560, "left": 160, "right": 160, "lot": [6.5, 9.5], "lotDepth": 7,  "setback": 0.6, "waterLevel": -3.0, "waterDepth": 1.6, "terraceLevel": 16, "rise": 12, "margin": 190, "roll": 5, "packed": true }
+    }
+  }
 }

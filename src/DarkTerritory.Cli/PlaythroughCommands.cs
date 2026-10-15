@@ -88,6 +88,7 @@ static class PlaythroughCommands
             Couplings.Callouts(train, breaks);
             scene.Breaks = breaks;
             scene.Failings = Failing.Of(train);
+            scene.FailTuning = train.Dynamics.Tuning.Failing;
             scene.BendStrain = world.TrackPlan is { } bent ? DarkTerritory.Game.BendStrain.PerCar(train, bent.Rules) : null;
             scene.DriversLocked = scene.Ruptured && train.BoilerTuning is { } rt && train.Dynamics.Speed > rt.RuptureCoastBelow;
             scene.SinceShovel = train.Boiler.SinceShovel;

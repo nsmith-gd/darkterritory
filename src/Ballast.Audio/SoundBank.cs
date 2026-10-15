@@ -37,6 +37,9 @@ public sealed class SoundBank
         CheckSamples(name, def);
     }
 
+    /// <summary>Takes a sound out (a bench that hears what plays without it); true if it was there.</summary>
+    public bool Remove(string name) => _sounds.Remove(name);
+
     /// <summary>
     /// Decodes every take a sound's sample layers could pick now, on this thread, rather than on its first play. Takes
     /// decode at about fifty times real time (managed Opus). A sound edited on disk afterwards decodes lazily again.

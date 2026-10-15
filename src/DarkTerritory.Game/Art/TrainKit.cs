@@ -2131,6 +2131,24 @@ public static partial class TrainKit
     /// <paramref name="wheel"/> false leaves the brake wheel off (the scene draws it, turned as the car's brake is wound:
     /// <see cref="BrakeWheelPiece"/>).
     /// </summary>
+    /// <summary>
+    /// A car's outer face in its <paramref name="livery"/>, weathered, for what's drawn next (and what's sprung or peeled off
+    /// its sides, DamageKit.Failing, so it's the car's own plate).
+    /// </summary>
+    public static void Outside(Kit k, Livery livery)
+    {
+        (string Texture, Vector3 Fallback, float Tile) outside = livery switch
+        {
+            // (Its boards sheeted over in patched plate: note 338.)
+            Livery.Planked => ("iron_plate", Palette.IronGrey * 0.75f, 1.3f),
+            Livery.Steel => ("paint_oxide", Palette.RustRed, 1.5f),
+            _ => ("paint_olive", Palette.MuddyOlive, 1.5f),
+        };
+        k.Use(outside.Texture, outside.Fallback, 0.9f, 0.2f, outside.Tile);
+        // Every livery rusted dark, the engine's iron (note 338, the director's reference).
+        k.Tint *= livery switch { Livery.Planked => IronTint, Livery.Steel => PlateTint, _ => new Vector3(0.62f, 0.55f, 0.45f) };
+    }
+
     public static MeshAsset Car(Look? look, CarShape shape, Livery livery, int variant, bool load = true, bool wheel = true)
     {
         var k = new Kit(look, 7 + variant * 3 + (int)livery);
@@ -2139,20 +2157,7 @@ public static partial class TrainKit
         float floor = (float)interior.Min.Y + 0.1f, ceiling = (float)interior.Max.Y, t = w - (float)interior.Max.X;
         bool guard = shape.Gun is not null;
 
-        (string Texture, Vector3 Fallback, float Tile) outside = livery switch
-        {
-            // (Its boards sheeted over in patched plate: note 338.)
-            Livery.Planked => ("iron_plate", Palette.IronGrey * 0.75f, 1.3f),
-            Livery.Steel => ("paint_oxide", Palette.RustRed, 1.5f),
-            _ => ("paint_olive", Palette.MuddyOlive, 1.5f),
-        };
-        // Every livery rusted dark, the engine's iron (note 338, the director's reference).
-        var weather = livery switch { Livery.Planked => IronTint, Livery.Steel => PlateTint, _ => new Vector3(0.62f, 0.55f, 0.45f) };
-        void Outside()
-        {
-            k.Use(outside.Texture, outside.Fallback, 0.9f, 0.2f, outside.Tile);
-            k.Tint *= weather;
-        }
+        void Outside() => TrainKit.Outside(k, livery);
         void Lining() => k.Use("wood_grey", Palette.DeepBrown, 0.8f, 0, 1f);
 
         // Walls: the outer face in the livery, every other face in the lining.
