@@ -286,7 +286,8 @@ public enum DeathCause : byte
     // Note 717: shoved off by a crewmate, and the landing (the train's speed, or the height) killed them; the report names who.
     Shoved,
     // Note 726: let go of the crane's hook (or shaken off it) after the operator lifted them, and the fall killed them; the
-    // report names the operator.
+    // report names the operator. Note 802 (the director, 15 Oct 2026: "a silly gag not a big grief"): a drop off the hook no
+    // longer kills (PlayerFlags.OffTheHook), so nothing sets it now; kept, as it's on the wire and in old recordings.
     Dropped,
     // Note 682 (the director, 13 Oct, GDD App. F.5: "householder grabbed me and it said seized by the choir"): each of these
     // had borrowed another's cause (the Choir's, the hounds', the Passenger's, a dropped load's). Appended: it's a byte on the wire.
@@ -371,6 +372,14 @@ public enum PlayerFlags : uint
     Lounging = 65536,
     /// <summary>Playing the band's instrument in their hands (note 700): every machine hears it, on the band's tune.</summary>
     Playing = 131072,
+    /// <summary>
+    /// Off a crane's hook (note 802; the director, 15 Oct 2026: "It's a silly gag not a big grief"): let go of it or shaken off,
+    /// till they have footing again. A landing on the ground knocks by the height fallen alone, at most player.json
+    /// <c>landing.offTheHook.maxKnock</c>, and never kills (<see cref="OffTheHookTuning"/>). Set by the host as they come off
+    /// (World.LetGo, a host move), cleared by the motor on footing, here and on a predicting client alike. Past main's Lounging
+    /// and Playing (protocol 74 widened the flags to a uint), at protocol 76.
+    /// </summary>
+    OffTheHook = 262144,
 }
 
 /// <summary>
@@ -656,7 +665,7 @@ public static class PlayerMotor
         bool aloft = s.Surface == Surface.Air;
         Move(ref s, input, train, p, t, dt, applyLook, self, crowd);
         if (s.Surface != Surface.Air)
-            s.Flags &= ~(PlayerFlags.OffTheGround | PlayerFlags.Shoved);
+            s.Flags &= ~(PlayerFlags.OffTheGround | PlayerFlags.Shoved | PlayerFlags.OffTheHook);
         else if (!aloft)
             s.Flags = onGround ? s.Flags | PlayerFlags.OffTheGround : s.Flags & ~PlayerFlags.OffTheGround;
         // Note 717: a stagger wears off a tick at a time, here and on a predicting client alike.
@@ -1278,13 +1287,25 @@ public static class PlayerMotor
     /// </summary>
     static void Land(ref PlayerState s, Double3 worldVelocity, PlayerTuning p, TrainTuning t)
     {
+        var l = p.Landing;
+        // Note 802 (the director, 15 Oct 2026: "the player can only lose 10 health at most from a drop and then scale that based
+        // on height. It's a silly gag not a big grief"): off a crane's hook, the knock is the gag's, by the height fallen alone
+        // (the speed it lands at). The hook's own run and the fall and speed tables aren't counted, and it never kills.
+        if (s.Has(PlayerFlags.OffTheHook))
+        {
+            double drop = worldVelocity.Y < 0 ? worldVelocity.Y * worldVelocity.Y / (2 * p.Gravity) : 0;
+            int gag = (l.OffTheHook ?? OffTheHookTuning.Default).Knock(drop);
+            if (gag > 0 && s.Health > 1)
+                s.Health = Math.Max(1, s.Health - gag);
+            s.Flags &= ~PlayerFlags.OffTheHook;
+            return;
+        }
         double horizontal = Math.Sqrt(worldVelocity.X * worldVelocity.X + worldVelocity.Z * worldVelocity.Z);
         // Note 573: off the ground's own footing (a dip, a bank on open ground), the knock is for what's over their own run, not
         // the run: spec B.3's table is for leaving the train, at its speed. frontier:7 seed 4's driver, running beside the train
         // at a stand, took 29 coming down off a dip on the bank. Off a car, a ladder or a platform it's as ever.
         if (s.Has(PlayerFlags.OffTheGround))
             horizontal = Math.Max(0, horizontal - p.Run);
-        var l = p.Landing;
         // Note 717: off their feet from a friend's shove, a landing that kills is the shove's (the report names the shover); the
         // shove's own speed knocks nobody (a shove on the flat, or off a roof at a stand, is no hurt), only the train's or the drop.
         bool shoved = s.Has(PlayerFlags.Shoved);

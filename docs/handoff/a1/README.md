@@ -8,6 +8,8 @@ first would make the PRs conflict.
 
 ## Queue #529, note 802: a drop off the crane's hook is a gag
 
+**Finished:** merged in [#1066](https://github.com/nsmith-gd/darkterritory/pull/1066) (15 Oct), protocol 76 (main took 73 for note 535, 74 for the train upgrades and 75 for deaths named meanwhile). Nothing left to pick up.
+
 - **From:** nathaniel2, A1, 2026-10-15 17:44 UTC, prepare handoff (weekly 60%). K1 built it (K1.16) before its own limit; A1 carries it on.
 - **Branch and last commit:** `a1-hoist-gag`, 6b63c46d (pushed). PR [#1066](https://github.com/nsmith-gd/darkterritory/pull/1066).
 - **Goal:** the director, 15 Oct: "the player can only lose 10 health at most from a drop and then scale that based on height. It's a silly gag not a big grief."
@@ -20,6 +22,8 @@ first would make the PRs conflict.
 - **Claimed by:** —
 
 ## Queue #530, note 803: the mail cut for now
+
+**Finished:** merged in [#1083](https://github.com/nsmith-gd/darkterritory/pull/1083) (15 Oct). The director's calls left in note 803: the pay (about 60–62 runs to 20 cars against 56) and the quiet between threats (175 s on local:3). Nothing left to pick up.
 
 - **From:** nathaniel2, A1, 2026-10-15 17:44 UTC, prepare handoff (weekly 60%). K1 built it (K1.17); A1 carries it on.
 - **Branch and last commit:** `a1-mail-cut`, 231c8a97 (pushed). No PR yet.
