@@ -68,6 +68,10 @@ public class CaptionsTests
     [InlineData("tell-wakers.rise")]
     [InlineData("tell-wakers.stride")]
     [InlineData("cs-wakers.grab")]
+    // Note 773: the figures, by what a reader would hear of each.
+    [InlineData("figures.dave-paint")]
+    [InlineData("figures.party")]
+    [InlineData("figures.jacob-fish")]
     public void TheTellsAndCallsSinceCaptionsAreCaptioned(string sound)
     {
         // Note 391: the signs as they play since note 342, the Moose's and the Gannet's tells (notes 334, 384), and the jobs

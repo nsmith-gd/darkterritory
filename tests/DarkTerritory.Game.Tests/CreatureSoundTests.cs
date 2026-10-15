@@ -1142,4 +1142,47 @@ public class CreatureSoundTests
             scene.Tick(K(SpinePhase.Grab, feet));
         Assert.Equal(["cs-wakers.swallow"], scene.Tick(K(SpinePhase.Punish, feet)));
     }
+
+    // ---- The figures (queue #503, note 773) -------------------------------------------------------------------------------
+
+    [Fact]
+    public void DavePaintsLaughsOffEachBlowTurnsAtTheLastWarningAndTakesTheNext()
+    {
+        // Note 570: painting at his easel; a breath of a laugh at each blow before his last warning; at the last warning the
+        // brush set down as he turns (no laugh: he isn't laughing now); the snap of his grab on the blow after it.
+        using var scene = new Scene(2, "figures.dave-paint~", "figures.dave-laugh", "figures.dave-turn", "figures.dave-grab");
+        var t = DataFile.Load<EnemyTuning>(Path.Combine(Content, EnemyTuning.File)).Dave;
+        var easel = scene.Train.Frames[2].ToWorld(new Double3(-20, 0, 0));
+        Dave D(SpinePhase phase, int blows) =>
+            Record(new Dave(97), phase, 0, 1, Enemy.Loose, easel, extra: blows, extra2: blows > 0 ? 1 : -1, holding: phase == SpinePhase.Grab ? 1 : -1);
+        scene.Tick(D(SpinePhase.Dormant, 0));
+        var heard = new List<string>();
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(D(SpinePhase.Dormant, 0)));
+        Assert.Equal(["figures.dave-paint"], heard);
+        heard.Clear();
+        for (int n = 1; n < t.Blows - 1; n++)
+            for (int i = 0; i < SimConstants.TickRate / 2; i++)
+                heard.AddRange(scene.Tick(D(SpinePhase.Dormant, n)));
+        Assert.Equal(Enumerable.Repeat("figures.dave-laugh", t.Blows - 2), heard);
+        Assert.Equal(["figures.dave-turn"], scene.Tick(D(SpinePhase.Telegraph, t.Blows - 1)));
+        Assert.False(scene.Playing("figures.dave-paint"));
+        Assert.Equal(["figures.dave-grab"], scene.Tick(D(SpinePhase.Grab, t.Blows)));
+    }
+
+    [Fact]
+    public void JacobFishesAndHisBlessingRunsDownEveryCarOnce()
+    {
+        // Note 489: his line at the water's edge, held; World.Bless mends the train, heard down it from the engine, once.
+        using var scene = new Scene(2, "figures.jacob-fish~", "figures.jacob-bless");
+        var shore = scene.Train.Frames[0].ToWorld(new Double3(-25, 0, 0));
+        Jacob J(double blessed) => Record(new Jacob(98), SpinePhase.Dormant, 0, 1, Enemy.Loose, shore, extra: blessed);
+        scene.Tick(J(0));
+        Assert.Equal(["figures.jacob-fish"], scene.Tick(J(0)));
+        var heard = new List<string>();
+        for (int i = 0; i < 3 * SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(J(1)));
+        Assert.Equal(scene.Train.Dynamics.Consist.Vehicles.Count, heard.Count(h => h == "figures.jacob-bless"));
+        Assert.True(scene.Playing("figures.jacob-fish"));
+    }
 }
