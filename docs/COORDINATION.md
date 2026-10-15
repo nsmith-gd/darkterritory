@@ -38,6 +38,8 @@ source of truth for who owns what**; chat with one session isn't seen by the oth
    55 at once). `Messages.Version` (`src/DarkTerritory.Sim/Net/Messages.cs`) can merge cleanly with a stale number. Right
    before you merge, re-read main's, set yours to one past it, fix the tests that pin it, and re-run the netcode tests on
    the merge. Two wire formats must never share a number.
+11. **Usage limits** (the director, 15 Oct 2026): when a session named "Token Budget Manager" messages you, do what it asks
+   and reply to confirm (*Accounts and usage limits* below). A handoff is rule 9's Handoff block, in that section's shape.
 
 ## Who's who
 
@@ -60,6 +62,44 @@ source of truth for who owns what**; chat with one session isn't seen by the oth
 | **S** | S1; its agents S1.1, S1.2, … | Claude Code, the director's **social collision** session (14 Oct): the audit of how the train makes situations between people (`docs/design/social-collision-audit.md`, note 748) and the changes the director approved from it, queue #478–#486: radios for everyone on right-click, incidents told down the train, a short aftermath, "one can, two do it faster", the census reading commitment, the shover's mark ending at the shover's death, the comet fragment in sight, the struggle in a crew. Bot behaviour stays A1's; sounds stay AU1's | [docs/log/S1.md](log/S1.md) |
 
 Whatever an agent launched by A or B does counts as its owner's: the owner reviews it and opens the PR.
+
+## Accounts and usage limits (the director, 15 Oct 2026)
+
+Several of the director's Claude accounts work this repo, and each has a 5-hour and a weekly usage limit. An account may run
+a **Token Budget Manager** session that reads its own limits and tells that account's sessions when to save their work.
+This section is how accounts tell each other about it: sessions on one account can message each other, but other accounts
+only see what's on main here.
+
+| Account | Weekly % | Weekly resets (UTC) | Session % | State | Updated (UTC) |
+|---|---|---|---|---|---|
+| nathaniel2 | — | — | — | ACTIVE | 2026-10-15 16:00 |
+
+- **State:** ACTIVE (working); PAUSED until *time* (the 5-hour limit: its sessions are waiting with their work intact, so
+  its items aren't abandoned: don't take them); LIMITED until *weekly reset* (the weekly limit: its items are handed off).
+  Each account edits only its own row, and only when its state changes or once a day. This file merges as a union, so a
+  merge can leave two rows for one account: keep the one with the later *Updated*.
+- **Items stay in the queue.** There's no second task list: an item's queue row is its task row (rule 9). When an account is
+  paused, its rows say `paused (account limit, back <time UTC>)`. When it hands off, they say `open for pick-up` with a
+  link to the handoff, as #529 and #530 do.
+- **A handoff** is the Handoff block in the item's note (`docs/notes/<n>.md`, rule 9), or a `docs/handoff/<agent>/` README
+  when it covers several items. It's on main, with the branch pushed, and detailed enough for a fresh session with none of
+  your context:
+  - From: account and agent id, time (UTC), reason (e.g. "weekly at 93%")
+  - Branch and last commit (pushed)
+  - Goal
+  - Done so far (commits, PRs)
+  - Next steps, in order
+  - Decisions made and why
+  - Gotchas and open questions
+  - Files touched
+  - How to verify (the commands)
+  - Claimed by: — (whoever picks it up writes their account, agent id and the time here, and their name in the row)
+- **Picking up:** an account under 60% of its weekly limit may take the oldest `open for pick-up` item. Claim it in the row
+  and in the handoff's *Claimed by*, in a docs PR that merges first (rule 1).
+- **When the Token Budget Manager messages you** (sessions on its own account): at **checkpoint**, commit and push your WIP
+  and bring your row and handoff block up to date. At **prepare handoff**, finish the small step you're on, push, and write
+  the handoff. At **execute handoff**, start nothing new, land the handoff on main and set your rows to `open for pick-up`.
+  At **pause**, stop at a clean point and wait for the reset; don't hand off. Reply to confirm each time.
 
 ## Direction (the director, 5–7 Oct 2026)
 
@@ -729,8 +769,8 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 521 | **The woods keep off the railway's leavings (note 792's "not yet"):** the sim deals the woods' trees and boulders and the biomes' props without asking where the leavings lie, so now and then a lineside tree grows up through a gangs' hut or a stack of stores, a trunk's wall inside the hut's. Nothing the lineside stands where a leaving's pieces are (their footprints and a little round them); a test holds it on a few nights. **Overlaps:** none (the lineside and the leavings are B1's, notes 371, 389, 792) | B1 | `claude/level-design-derailment-terrain-93awvc`, [#1049](https://github.com/nsmith-gd/darkterritory/pull/1049) | 794 | done |
 | 524 | **A burying ground's stones and fence solid (note 389's "not yet"; GDD App. F.1, the director: "The world is solid"):** the biomes' burying grounds stand nothing: a crewmate, a creature or a cannon ball goes through their stones and their picket fence alike. Each stone stands its own wall round however it leans, and the fence stands in runs, open where its pickets are down (a gap a body could pass is never closed), measured off the burying ground's own mesh as the lineside's pieces are (content/linegen/footprints.json, `dt art footprints`). A test holds the walls to the stones and the fence, and the ground between the rows open. **Overlaps:** none (the lineside's footprints are B1's, notes 371, 389) | B1 | `claude/level-design-derailment-terrain-93awvc` | 797 | claimed |
 | 527 | **The woods keep off the lineside's buildings (note 797's "not yet"):** the woods' trees and boulders are dealt without asking where the road's homesteads, the shore's sheds and lighthouses and the biomes' houses, barns, tanks, churches and burying grounds stand, so 11-32 trees a night grow up through a barn's roof or stand in a tank or a burying ground's stones, a trunk's wall inside the building's. No trunk nor boulder stands inside a building's wall; one among its walls (between a burying ground's rows) stays. A test holds it on a few nights. **Overlaps:** none (the lineside is B1's, notes 371, 389, 794) | B1 | `claude/level-design-derailment-terrain-93awvc` | 800 | claimed |
-| 529 | **A drop off the crane's hook is a gag (the director, 15 Oct, on note 726: "If we're hoisting a player and dropping them lets make it so the player can only lose 10 health at most from a drop and then scale that based on height. It's a silly gag not a big grief."):** a landing after coming off the hook (let go or shaken off) knocks at most 10, by the height fallen, and never kills; predicted like any landing (a player flag, `PlayerFlags` widened to `uint`). **Overlaps:** note 573's fall rules (untouched for every other fall) | K1 | `ccr-f72c055b-195xp3` | 802 | open for pick-up: built (K1.16), builds clean, tests not finished when K1 hit its weekly limit; the patch and the steps are in [docs/handoff/k1/README.md](handoff/k1/README.md) |
-| 530 | **The mail cut for now (the director, 15 Oct: "Im soft on the mail. I dont like it so far. Lets cut for now."):** no lineside mail cranes or their boards on any night, no HUD line, no catch; the code kept behind one switch so it can come back. **Overlaps:** F1's note 673 (the mail cranes) and K1's note 727 (the catch speed); AU1's #504 (the bag's sounds, parked); the economy (App. F.4) | K1 | `ccr-f72c055b-195xp3` | 803 | open for pick-up: built (K1.17), builds clean, tests not finished and `docs/notes/803.md` not written when K1 hit its weekly limit; the patch and the steps are in [docs/handoff/k1/README.md](handoff/k1/README.md) |
+| 529 | **A drop off the crane's hook is a gag (the director, 15 Oct, on note 726: "If we're hoisting a player and dropping them lets make it so the player can only lose 10 health at most from a drop and then scale that based on height. It's a silly gag not a big grief."):** a landing after coming off the hook (let go or shaken off) knocks at most 10, by the height fallen, and never kills; predicted like any landing (a player flag, `PlayerFlags` widened to `uint`). **Overlaps:** note 573's fall rules (untouched for every other fall) | A1 (carrying on K1's K1.16 work) | `a1-hoist-gag` | 802 | claimed: A1 carries on K1's patch from [docs/handoff/k1/README.md](handoff/k1/README.md) |
+| 530 | **The mail cut for now (the director, 15 Oct: "Im soft on the mail. I dont like it so far. Lets cut for now."):** no lineside mail cranes or their boards on any night, no HUD line, no catch; the code kept behind one switch so it can come back. **Overlaps:** F1's note 673 (the mail cranes) and K1's note 727 (the catch speed); AU1's #504 (the bag's sounds, parked); the economy (App. F.4) | A1 (carrying on K1's K1.17 work) | `a1-mail-cut` | 803 | claimed: A1 carries on K1's patch from [docs/handoff/k1/README.md](handoff/k1/README.md) |
 
 The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished from main's docs/design/gdd.md on 8 Oct at
 00:20 UTC (D1, main at e345c64, version 18), with G1's open #247 (the Moose) merged on top, as the live page already
