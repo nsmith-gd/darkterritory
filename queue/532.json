@@ -1,0 +1,1 @@
+{"agent": "AU1", "title": "Open (found by AU1's audio audit, for the bots' owner): the bot driver holds its speed by pulsing the full brake (9 ticks on, 13 off; at its speed, every other tick), so a bot night is a brake applied and let off three times a second, and a slack run-in each time", "at": "2026-10-15T15:20:00Z"}
