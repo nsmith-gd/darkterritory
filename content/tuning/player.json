@@ -272,6 +272,31 @@
     // "Marked: Dave (shoved Priya off at 58 km/h)." No marker on anyone's HUD. enabled: false, no mark.
     "marked": { "enabled": true, "targetWeight": 6, "allowanceM": 20, "pressurePerSecond": 0.1 }
   },
+  // Bringing them home (GDD §17, §23.5; ARCHITECTURE §8 note 723; the friendslop audit's pillar "nobody gets left", approved by
+  // the director, 14 Oct 2026): the physical verbs that answer "the engine can leave without you".
+  "rescue": {
+    // The hand-up: a crewmate on a car (in its open door, on its end platform or its steps) holds Use looking at a friend on
+    // foot beside it, within `reach` (m, from the helper's chest to any of the friend, shins to crown; the hands' reach) and
+    // coneDegrees of their view, nothing of the car between; the car going at least fromSpeed (m/s; at a stand the steps are
+    // there to climb), and the two moving within maxRelativeSpeed (m/s) of each other along the ground (a runner's sprint and a
+    // little: a friend standing still isn't snatched off the ballast at speed). Held `seconds` with the friend in reach, they're
+    // hauled up, landing in the car's frame landInboard (m) in from the helper, away from the side they came up (where the helper
+    // stands if that isn't clear). While it's held, Use is the hand-up's: the door the helper stands in isn't worked. On a train
+    // going reportFrom (m/s) or faster, the report says so: "Hauled aboard in car 3 at km 4. Hauled up by Dave at 40 km/h."
+    "handUp": { "enabled": true, "reach": 1.6, "coneDegrees": 40, "maxRelativeSpeed": 7, "fromSpeed": 1.0, "seconds": 0.6, "landInboard": 0.45, "reportFrom": 2 },
+    // Carrying a friend: empty-handed, a press of Use looking at a living crewmate on their feet in the same frame, within
+    // `reach` (m, chest to chest) and coneDegrees of where you face, with nothing Use works in reach, held liftSeconds, puts them
+    // over your shoulder (shoulderUp over your feet, shoulderBack behind; the body-carry's hold, App. C.4): you go at carryHeavy
+    // and climb nothing, they look and talk, and their Jump wriggles free to your feet. Use puts them down at your feet. Throw,
+    // with the crew mischief switch on, throws them along your view at throwSpeed and throwLift (m/s) up on your own motion: off
+    // their feet as a shove puts them (the landing is the world's: the train's speed or the drop), and the report says "Thrown
+    // off by Dave"; with the switch off, Throw puts them down. Safe from nothing: whatever grabs or knocks you drops them. Bots
+    // can be carried, and never carry anyone.
+    "carry": { "enabled": true, "reach": 1.2, "coneDegrees": 30, "liftSeconds": 1.0, "shoulderUp": 0.7, "shoulderBack": 0.15, "throwSpeed": 4, "throwLift": 1.5 },
+    // A bandage on a friend: a healing find in your hands (loot.json healing) and Use held looking at a hurt crewmate within
+    // `reach` (m, chest to chest) and coneDegrees: it goes on them, healing loot.json healing.onAFriend times as much.
+    "bandage": { "enabled": true, "reach": 1.4, "coneDegrees": 40 }
+  },
   // Voices as tools (GDD §12, §14, App. C.8; the friendslop audit's Friends goal; the director, 14 Oct 2026; ARCHITECTURE
   // §8 note 720).
   "voices": {

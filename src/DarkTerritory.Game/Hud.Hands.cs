@@ -197,6 +197,12 @@ public static partial class Hud
         var lines = new List<string>();
         if (!p.Alive || world.Run?.Report is not null)
             return (null, lines);
+        // Note 723: over a friend's shoulder, the way off it; carrying one, the two ways to be rid of them (the throw only with
+        // the crew mischief switch on).
+        if (p.Has(PlayerFlags.Carried))
+            return ("CARRIED", ["WRIGGLE FREE : [SPACE]"]);
+        if (p.Has(PlayerFlags.Carrying))
+            return ("A FRIEND ON YOUR SHOULDER", world.MischiefOn ? ["PUT DOWN : [E]", "THROW : [RMB]"] : ["PUT DOWN : [E]"]);
         // Carried in both hands (spec D.2, note 264): what it is, and how to be rid of it. What it's for is learned.
         if (world.Bodies.CarriedBy(s.PlayerId) is { } carried)
         {

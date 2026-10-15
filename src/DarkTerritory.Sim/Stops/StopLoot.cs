@@ -94,6 +94,8 @@ public sealed record HealingTuning
     /// <summary>Health each healing find gives back, by item key (looked up, never iterated).</summary>
     public Dictionary<string, int> Heals { get; init; } = [];
     public int BotBelow { get; init; } = 50;
+    /// <summary>Note 723: a find put on someone else heals this many times as much (capped at their full health).</summary>
+    public double OnAFriend { get; init; } = 1.5;
 
     public int Of(string item) => Heals.GetValueOrDefault(item);
 }

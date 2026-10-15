@@ -173,6 +173,8 @@ public sealed partial class HostSession
                 c.ThisTick = World.WreckedIntent(c.ThisTick);
             // Staggered by a crewmate (note 717): look and talk, nothing else, the cab's controls included.
             c.ThisTick = Horseplay.Staggered(c.State, c.ThisTick);
+            // Carried over a friend's shoulder (note 723): look, talk and wriggle free, nothing else.
+            c.ThisTick = Rescue.CarriedIntent(c.State, c.ThisTick);
         }
 
         World.BeginTick();
@@ -216,6 +218,8 @@ public sealed partial class HostSession
             if (!World.Wrecked(c.State))
                 PlayerMotor.Step(ref c.State, c.ThisTick, Train, PlayerTuning, TrainTuning, SimConstants.TickSeconds, applyLook: false, c.Id,
                     c.Seen > 0 ? _crowds.GetValueOrDefault(c.Seen, crowd) : crowd);
+        // Note 723: the hand-ups, lifts and throws of the tick, and every carried friend where their carrier now is.
+        World.StepRescue(id => _crew.FirstOrDefault(c => c.Id == id)?.State, (id, s) => _crew.First(c => c.Id == id).State = s);
         World.StepBodies([.. _crew.Select(c => ((int)c.Id, c.State))]);
         if (World.Holdouts is { } holdouts)
             holdouts.StartingKit = PlayerTuning.StartingKit;

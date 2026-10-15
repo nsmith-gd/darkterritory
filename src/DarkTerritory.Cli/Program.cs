@@ -1847,6 +1847,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         look.Art.ReverserThrown = Opt(args, "--reverser", 0.4);
     var horseplay = Str(args, "--horseplay", view switch { "shove" => "shove", "sooted" => "sooted", _ => "" }) is { Length: > 0 } horse
         ? Staging.Horseplay(train, content, horse) : ((List<Crewmate> Crew, List<DarkTerritory.Sim.Player.LumpInFlight> Lumps)?)null;
+    // --rescue handup|carryfriend (the views handup and carryfriend, note 723): a friend hauled up into a side door; one carried.
+    if (Str(args, "--rescue", view switch { "handup" => "handup", "carryfriend" => "carryfriend", _ => "" }) is { Length: > 0 } rescued)
+        horseplay = (Staging.Rescue(train, content, rescued), []);
     var scene = new GreyboxScene
     {
         // --upgrades lampBrightness: the beam as far as the headlamp reaches (note 506).

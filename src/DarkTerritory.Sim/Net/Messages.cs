@@ -90,7 +90,9 @@ public static class Protocol
     //     lobby's crew mischief switch (Mischief), changed in the yard.
     // 61: the sense table (note 728): the body record's ninth field carries a toy playing where it lies (its noise | 0x100) and
     //     a thrown lamp broken and burning (1).
-    public const int Version = 61;
+    // 62: bringing them home (note 723): two player flags (carried over a friend's shoulder, and carrying one) and a knock of
+    //     its own (a friend thrown off the shoulder).
+    public const int Version = 62;
 }
 
 public enum MessageType : byte

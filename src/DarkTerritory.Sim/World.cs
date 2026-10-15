@@ -832,6 +832,8 @@ public sealed partial class World
             // GDD App. F.1's rare healing loot (note 272): which finds heal, and how long one takes to use.
             Bodies.Heals = Run.HealOf;
             Bodies.HealSeconds = loot.Healing?.UseSeconds ?? Bodies.HealSeconds;
+            // Note 723: and how much more one heals put on a friend.
+            Bodies.OnAFriend = loot.Healing?.OnAFriend ?? Bodies.OnAFriend;
         }
         Train.Walls = ClearSiteWork(Train.Walls);
         Authority |= authority;
@@ -1450,7 +1452,8 @@ public sealed partial class World
         // hold e and when next to the firebox it will also shovel coal into the firebox, we need input prioritization"):
         // nothing else in reach takes it, the coal, a door, a lever, a body. Prediction runs this too, so a client's held
         // player works nothing either (note 681).
-        var intent = asked;
+        // Over a friend's shoulder (note 723): look, talk and wriggle, and nothing else.
+        var intent = Rescue.CarriedIntent(s, asked);
         if (s.Has(PlayerFlags.Held))
             intent.Buttons &= ~PlayerButtons.Use;
         PlayerMotor.Look(ref s, intent);
@@ -1460,6 +1463,9 @@ public sealed partial class World
         CoalAct(ref s, ref intent, playerId);
         if (Hosting)
             ShoveAct(s, intent, playerId);
+        // Bringing them home (note 723), the host's: a hand-up, a friend lifted, put down, thrown or wriggled out of, before the
+        // hands and the levers see Use; and the hurt friend a healing find in the hands goes on.
+        int patient = Hosting ? RescueAct(s, ref intent, playerId) : -1;
         // The lamp switch in the cab (T52, "lamps down"): a predicting client sets it too, so the lamp goes out at once.
         if (intent.Lamp != LampSwitch.None && Net.CabControls.CanDrive(s, Train))
         {
@@ -1495,7 +1501,7 @@ public sealed partial class World
         // in your hand while you throw it, and a crate lying by it stays down.
         bool lever = Authority && Switches?.InReach(s, Train, Hand) is not null;
         bool handsTookIt = Authority && Bodies.Handle(ref s, intent, playerId, Train, Hand,
-            keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)) || charging, lever: lever, fetch: fetch);
+            keep: kit && (breaching || CrewActions.AtTheRupture(s, Train, Hand)) || charging, lever: lever, fetch: fetch, patient: patient);
         if (charging && gunTuning is not null)
             Charge(s, intent, playerId, gunTuning);
         if (handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } lifted)
@@ -1523,9 +1529,12 @@ public sealed partial class World
             // Freight in your arms slows you and keeps you off ladders (spec B.2); the motor reads the flag.
             // GDD v1.4 App. C.4 and D.9 (note 181): hand-carried loot is carried the same way: a toy, a find, the child, a body.
             // Note 594: in the hands; one put away in a slot doesn't slow you (Lethal Company's slots: "grab a few pieces of loot").
-            bool heavy = Bodies.All.Any(b => b.HeldBy(playerId) && !b.Stashed && b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy
+            // Note 723: and a friend over the shoulder, carried as a body is.
+            bool carrying = s.Alive && CarriedBy(playerId) is not null;
+            bool heavy = carrying || Bodies.All.Any(b => b.HeldBy(playerId) && !b.Stashed && b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy
                 or Physics.BodyKind.Toy or Physics.BodyKind.Loot or Physics.BodyKind.Child or Physics.BodyKind.Ragdoll);
             s.Flags = heavy ? s.Flags | PlayerFlags.Heavy : s.Flags & ~PlayerFlags.Heavy;
+            s.Flags = carrying ? s.Flags | PlayerFlags.Carrying : s.Flags & ~PlayerFlags.Carrying;
             // D.9's solo remainer: the last one alive, with a body, may still climb (slowly).
             bool solo = s.Alive && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } && LastCrew.Count(c => c.State.Alive && c.Id != playerId) == 0;
             s.Flags = solo ? s.Flags | PlayerFlags.SoloCarry : s.Flags & ~PlayerFlags.SoloCarry;

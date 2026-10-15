@@ -51,6 +51,11 @@ public sealed record PlayerTuning(
     /// shovel, a tool's bonk. Field docs live in player.json <c>horseplay</c>.
     /// </summary>
     public HorseplayTuning Horseplay { get; init; } = new();
+    /// <summary>
+    /// Bringing them home (note 723; the director, 14 Oct 2026, GDD App. F.6): the hand-up onto a moving car, carrying a living
+    /// friend, a bandage on someone else. Field docs live in player.json <c>rescue</c>.
+    /// </summary>
+    public RescueTuning Rescue { get; init; } = new();
     /// Voices as tools (the friendslop audit's Friends goal; the director, 14 Oct 2026; note 720): the speaking tube, singing
     /// together, and lamp signals. Field docs live in player.json <c>voices</c>.
     /// </summary>

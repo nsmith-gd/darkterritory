@@ -85,11 +85,13 @@
   // rare loot." A find in `heals` is used, not just sold: carried, with Use held standing for useSeconds (a tap still puts
   // it down), it gives its carrier that much health back, up to full (player.json health), and it's gone, its scrip with
   // it. A bot uses one it's carrying below botBelow. Not in the spec's numbers: a bandage is about a hit (enemies.json
-  // damage), medicine more, morphine near the whole bar.
+  // damage), medicine more, morphine near the whole bar. Note 723 (the director, 14 Oct 2026, GDD App. F.6): put on someone
+  // else (Use held looking at a hurt crewmate, player.json rescue.bandage), a find heals onAFriend times as much, up to full.
   "healing": {
     "useSeconds": 2,
     "heals": { "bandages": 30, "medicine": 50, "morphine": 80 },
-    "botBelow": 50
+    "botBelow": 50,
+    "onAFriend": 1.5
   },
 
   // What each kind of container can hold (drawn evenly from the list, so an item named twice is twice as likely). Note 718:

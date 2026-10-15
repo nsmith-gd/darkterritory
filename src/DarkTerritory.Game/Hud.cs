@@ -2249,6 +2249,12 @@ public static partial class Hud
                     if ((d.WorldPosition(train) - PlayerMotor.WorldPosition(p, train)).Length <= et.Draggers.FreeReach + 1)
                         return "PULL THEM FREE : HOLD [E]";
                 }
+        // Note 723: over a friend's shoulder, or carrying one, the keys are the corner's (Hints); nothing else is offered.
+        if (p.Has(PlayerFlags.Carried) || p.Has(PlayerFlags.Carrying))
+            return null;
+        // The hand-up (note 723): a friend running beside the moving car, in reach of the door you stand in, before the door.
+        if (world.Bodies.CarriedBy(s.PlayerId) is null && Rescue.HandUpTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning.Rescue) is not null)
+            return "HAUL UP : HOLD [E]";
         // A mail crane's last seconds, in the open door on its side (note 673): the hook, before anything else in reach.
         if (MailPrompt(s) is { } hook)
             return hook;
@@ -2282,7 +2288,7 @@ public static partial class Hud
             && SwitchPrompt(world, p, train, world.Hand) is null && HealPrompt(s, slotted) is null && TakePrompt(world, p, train, s.PlayerId) is { } another)
             return another;
         if (world.Bodies.CarriedBy(s.PlayerId) is { } inHands)
-            return PowderPrompt(s, inHands) ?? SwitchPrompt(world, p, train, world.Hand) ?? HealPrompt(s, inHands);
+            return PowderPrompt(s, inHands) ?? SwitchPrompt(world, p, train, world.Hand) ?? BandagePrompt(s, inHands) ?? HealPrompt(s, inHands);
         // T112: the gun's seat and its own controls.
         if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is { } manned)
         {
@@ -2540,9 +2546,31 @@ public static partial class Hud
         // the shovel, turned from the fire, it's the throw's.
         if (p.Has(PlayerFlags.Shovelful) && p.Hand == default)
             return "THROW THE COAL : [RMB]";
-        if (world.MischiefOn && Horseplay.ShoveTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning) is not null)
-            return "SHOVE : [LEFT ALT]";
-        return null;
+        // Note 723: a friend in front, empty-handed with nothing else in reach: lifted onto the shoulder with Use held.
+        bool carry = world.Bodies.CarriedBy(s.PlayerId) is null && near is null && Rescue.LiftTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning.Rescue, s.PlayerTuning) is not null;
+        bool shove = world.MischiefOn && Horseplay.ShoveTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning) is not null;
+        return carry && shove ? "CARRY : HOLD [E]   SHOVE : [LEFT ALT]" : carry ? "CARRY : HOLD [E]" : shove ? "SHOVE : [LEFT ALT]" : null;
+    }
+
+    /// <summary>
+    /// Note 723: a healing find in hand and a hurt friend in front: it goes on them, and heals them half again as much. The
+    /// find's own verb (bandages are put on, medicine and morphine given), and whose; how far it's got once it's under way.
+    /// </summary>
+    public static string? BandagePrompt(IPlaySession s, Body carried)
+    {
+        if (carried.Kind != BodyKind.Loot || s.World.Run is not { Healing: { } h } run || run.HealOf(carried) <= 0
+            || CrewActions.NearestInteractable(s.Player, s.Train, s.World.Hand) is not null
+            || Rescue.Patient(s.Player, s.PlayerId, s.CrewStates(1), s.Train, s.PlayerTuning.Rescue, s.PlayerTuning, s.PlayerTuning.Health) is not { } patient)
+            return null;
+        string name = s.World.Names.TryGetValue(patient.Id, out var n) && n.Length > 0 ? n.ToUpperInvariant() : "THEM";
+        string verb = run.FindOf(carried)?.Item switch
+        {
+            "bandages" => $"BANDAGE {name}",
+            "medicine" => $"GIVE {name} THE MEDICINE",
+            "morphine" => $"GIVE {name} THE MORPHINE",
+            _ => $"PATCH {name} UP",
+        };
+        return Hold(verb, carried.MendTicks * Sim.SimConstants.TickSeconds / h.UseSeconds);
     }
 
     /// <summary>What a Holdout is, for the dead player in it (App. D.4 "fiction and art").</summary>

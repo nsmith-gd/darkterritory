@@ -35,7 +35,7 @@ public static class CrewActs
         int outfit = world.OutfitOf(id);
         bool lamp = world.Bodies.CarriedBy(id) is { Kind: BodyKind.Lamp };
         var (signal, signalSeconds) = lamp ? SignalOf(id, s, world) : (LampSignal.None, 0);
-        return new Crewmate(id, feet, yaw, s.Alive, s.Hand, s.OtherHand, Looks: outfit != id ? outfit : null, Act: act, Holding: Sim.Player.Kit.Held(s),
+        var drawn = new Crewmate(id, feet, yaw, s.Alive, s.Hand, s.OtherHand, Looks: outfit != id ? outfit : null, Act: act, Holding: Sim.Player.Kit.Held(s),
             Reach: act is CrewPose.Drive or CrewPose.Whistle ? AtTheControls(world, frames, feet, yaw, act == CrewPose.Whistle) : null,
             Lamp: lamp, Survivor: SurvivorOf(id, world),
             Stressed: s.Alive && Stressed(world, PlayerMotor.WorldPosition(s, world.Train)), Health: s.Health,
@@ -43,7 +43,41 @@ public static class CrewActs
             Headset: s.Head > 0 ? new HeadsetBody(s.Head, s.Pitch, s.Parent, s.Position, s.Yaw) : null,
             Car: placed.Parent != PlayerState.World && placed.Parent < frames.Count ? placed.Parent : PlayerState.World, Local: placed.Position,
             Emote: emote, EmoteSeconds: emoteSeconds, Sooted: s.Has(PlayerFlags.Sooted), Signal: signal, SignalSeconds: signalSeconds);
+        // Over a friend's shoulder (note 723): laid across it, the way the one carrying them faces.
+        if (s.Alive && s.Has(PlayerFlags.Carried) && others is not null && CarrierOf(s, others) is { } carrier)
+            drawn = OnTheShoulder(drawn, Eyes.World(carrier, frames).Yaw);
+        return drawn;
     }
+
+    /// <summary>The crewmate carrying <paramref name="s"/> (note 723): the nearest carrying one in their frame, under them.</summary>
+    static PlayerState? CarrierOf(in PlayerState s, IReadOnlyList<PlayerState> others)
+    {
+        PlayerState? best = null;
+        double bestD = 1.0;
+        foreach (var o in others)
+            if (o.Alive && o.Has(PlayerFlags.Carrying) && o.Parent == s.Parent && ((o.Position - s.Position) with { Y = 0 }).Length is var d && d < bestD)
+                (best, bestD) = (o, d);
+        return best;
+    }
+
+    /// <summary>
+    /// A friend carried over the shoulder (note 723), as they're drawn: on their back across it (the pinned clip, its body lying
+    /// along its yaw), square to the way the carrier faces, their middle on the shoulder where the sim has them.
+    /// </summary>
+    public static Crewmate OnTheShoulder(Crewmate c, double carrierYaw) =>
+        c with
+        {
+            Act = CrewPose.HeldPinned,
+            Yaw = carrierYaw + ShoulderTurn,
+            Feet = c.Feet + new Double3(DMath.Sin(carrierYaw), 0, DMath.Cos(carrierYaw)) * ShoulderBack + Double3.Up * ShoulderLift,
+        };
+
+    /// <summary>
+    /// How the carried are turned from the carrier's facing (radians: across the shoulders); how much further behind the
+    /// carrier's neck they're drawn (m); and how much higher than the sim's shoulder point (m: the pinned clip lies about its
+    /// root, a little over it, and the sim's point is about the carrier's chest).
+    /// </summary>
+    const double ShoulderTurn = Math.PI / 2, ShoulderBack = 0.1, ShoulderLift = 0.55;
 
     /// <summary>How long a shove's arm is out (s): the shover drawn pushing (note 717), from the host's knock.</summary>
     public const double ShoveSeconds = 0.45;
@@ -51,8 +85,9 @@ public static class CrewActs
     /// <summary>Whether <paramref name="id"/> shoved someone in the last <see cref="ShoveSeconds"/> (note 717, World.Horseplays).</summary>
     public static bool Shoving(int id, World world)
     {
+        // (Note 723: a friend thrown off the shoulder is the same push.)
         foreach (var h in world.Horseplays)
-            if (h.By == id && h.Kind == KnockKind.Shove && ((double)world.Tick - h.Tick) * SimConstants.TickSeconds is >= 0 and < ShoveSeconds)
+            if (h.By == id && h.Kind is KnockKind.Shove or KnockKind.Throw && ((double)world.Tick - h.Tick) * SimConstants.TickSeconds is >= 0 and < ShoveSeconds)
                 return true;
         return false;
     }
@@ -269,11 +304,17 @@ public static class CrewActs
         var train = world.Train;
         if (s.Has(PlayerFlags.Held))
             return HeldBy(id, world);
+        // Over a friend's shoulder (note 723; Crewmate lays them across it).
+        if (s.Has(PlayerFlags.Carried))
+            return CrewPose.HeldPinned;
         // Knocked by a crewmate (note 717): rocked back, arms out, while the stagger lasts; and the shover's arms out at them.
         if (s.Stagger > 0)
             return CrewPose.Stagger;
         if (Shoving(id, world))
             return CrewPose.Push;
+        // Carrying a friend over the shoulder (note 723), as a body is carried (App. C.4).
+        if (s.Has(PlayerFlags.Carrying))
+            return CrewPose.Shoulder;
         // At a Holdout's door while it's breached (App. D.7): smashing its lock, prying its barricade, or picking the lock
         // with the repair kit. (Who's breaching isn't sent; whoever stands at the door is at it.)
         if (Breaching(s, world) is { } breach)
@@ -337,6 +378,10 @@ public static class CrewActs
         // below (a Dragger's, App. A.4), stood leaning back hauling them up.
         if (others is not null && HeldNear(s, others) is { } friend)
             return Rescue(friend, s, world);
+        // In a moving car's door, looking at a friend running beside it in a hand-up's reach (note 723): hauling them up.
+        if (others is not null && world.Movement is { } movement
+            && Sim.Player.Rescue.HandUpTarget(s, -1, others.Select((o, i) => (i, o)), train, movement.Rescue) is not null)
+            return CrewPose.HaulUp;
         var near = CrewActions.Nearest(s, train);
         // Something timed under way (CrewActions: the progress resets the moment it stops).
         if (s.ActionProgress > 0)

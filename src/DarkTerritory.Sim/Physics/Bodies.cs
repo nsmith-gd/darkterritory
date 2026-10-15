@@ -171,8 +171,8 @@ public sealed class Bodies
     // (a tap puts the kit down; a hold mends).
     readonly Dictionary<int, (int Radio, int Ticks)> _mending = new();
     // Who's holding Use on a healing find in their hands (note 272): which find, and for how many ticks from the press (a tap
-    // puts it down; a hold uses it).
-    readonly Dictionary<int, (int Find, int Ticks)> _dosing = new();
+    // puts it down; a hold uses it); and on whom (note 723: a friend looked at, or themselves).
+    readonly Dictionary<int, (int Find, int Ticks, int Patient)> _dosing = new();
     // Health given back this tick by a find used up (host), by player, for the world to add (World.CrewAct).
     readonly Dictionary<int, int> _doses = new();
     int _nextId = 1;
@@ -191,8 +191,13 @@ public sealed class Bodies
     public double HealSeconds { get; set; } = 2;
     /// <summary>A player's full health (player.json <c>health</c>): a find isn't used on a player who's whole.</summary>
     public int FullHealth { get; set; } = 100;
+    /// <summary>Note 723: a find put on someone else heals this many times as much (loot.json <c>healing.onAFriend</c>).</summary>
+    public double OnAFriend { get; set; } = 1.5;
 
-    /// <summary>Host: the health a find used up this tick gives <paramref name="playerId"/> (0 for none), taken once.</summary>
+    /// <summary>
+    /// Host: the health a find used up gives <paramref name="playerId"/> (0 for none), taken once: their own, or (note 723) one a
+    /// friend put on them, which waits for them to take it if they'd already acted that tick.
+    /// </summary>
     public int TakeDose(int playerId) => _doses.Remove(playerId, out int amount) ? amount : 0;
 
     /// <summary>
@@ -602,8 +607,9 @@ public sealed class Bodies
     public bool Handle(PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand = null, bool keep = false,
         bool lever = false, BodyKind? fetch = null) => Handle(ref s, intent, playerId, train, hand, keep, lever, fetch);
 
+    /// <param name="patient">Note 723: a hurt friend looked at, whom a healing find in the hands goes on instead (−1: nobody).</param>
     public bool Handle(ref PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand = null, bool keep = false,
-        bool lever = false, BodyKind? fetch = null)
+        bool lever = false, BodyKind? fetch = null, int patient = -1)
     {
         SyncSlots(ref s, playerId);
         bool use = intent.Has(PlayerButtons.Use), thrown = intent.Has(PlayerButtons.Throw);
@@ -681,7 +687,7 @@ public sealed class Bodies
         _doorHeld.Remove(playerId);
         if (Mend(s, intent, playerId, train, hand, carried, use, usePressed, throwPressed))
             return false;
-        if (Dose(s, intent, playerId, train, hand, carried, use, usePressed, throwPressed))
+        if (Dose(s, intent, playerId, train, hand, carried, use, usePressed, throwPressed, patient))
             return false;
         // Note 594: a find in hand off the train and another hand-sized thing in reach, with a slot free: Use takes it into that
         // slot, the one in hand put away (Lethal Company's E). Aboard, Use puts the find down, as it always has: that's where
@@ -805,14 +811,17 @@ public sealed class Bodies
     /// short of full health, not at anything Use works. Use held there, standing, for <see cref="HealSeconds"/> uses it up:
     /// the find's gone and its health is the carrier's (<see cref="TakeDose"/>); moving starts it over. Like the kit at a
     /// radio, the hands wait for the release: a tap still puts it down. Returns whether it had the hands this tick.
+    /// <para>Note 723: on a hurt friend looked at (<paramref name="patient"/>), it's theirs, and heals <see cref="OnAFriend"/>
+    /// times as much: "a bandage put on someone else heals half again as much". A friend looked away from starts it over.</para>
     /// </summary>
     bool Dose(in PlayerState s, in PlayerIntent intent, int playerId, TrainOnLine train, HandTuning? hand, Body? carried,
-        bool use, bool usePressed, bool throwPressed)
+        bool use, bool usePressed, bool throwPressed, int patient = -1)
     {
-        var find = carried is { Kind: BodyKind.Loot } && !throwPressed && s.Health < FullHealth && Heals?.Invoke(carried) > 0
+        int on = patient >= 0 && patient != playerId ? patient : playerId;
+        var find = carried is { Kind: BodyKind.Loot } && !throwPressed && (on != playerId || s.Health < FullHealth) && Heals?.Invoke(carried) > 0
             && CrewActions.NearestInteractable(s, train, hand) is null ? carried : null;
         bool had = _dosing.TryGetValue(playerId, out var was);
-        if (had && (find is null || find.Id != was.Find))
+        if (had && (find is null || find.Id != was.Find || on != was.Patient))
         {
             _dosing.Remove(playerId);
             if (_bodies.FirstOrDefault(b => b.Id == was.Find) is { } left)
@@ -822,9 +831,9 @@ public sealed class Bodies
         if (find is null)
             return false;
         if (usePressed)
-            _dosing[playerId] = (find.Id, 1);
+            _dosing[playerId] = (find.Id, 1, on);
         else if (use && had)
-            _dosing[playerId] = (find.Id, was.Ticks + 1);
+            _dosing[playerId] = (find.Id, was.Ticks + 1, on);
         else if (!use && had)
         {
             _dosing.Remove(playerId);
@@ -840,7 +849,10 @@ public sealed class Bodies
         find.MendTicks = still ? find.MendTicks + 1 : 0;
         if (find.MendTicks * Dt >= HealSeconds - Dt / 2)
         {
-            _doses[playerId] = _doses.GetValueOrDefault(playerId) + Heals!(find);
+            int heal = Heals!(find);
+            if (on != playerId)
+                heal = (int)Math.Round(heal * OnAFriend);
+            _doses[on] = _doses.GetValueOrDefault(on) + heal;
             _dosing.Remove(playerId);
             Remove(find);
         }

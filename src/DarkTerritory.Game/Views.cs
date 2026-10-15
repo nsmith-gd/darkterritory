@@ -177,6 +177,10 @@ public static class Views
             // crewmate's sooted face, close.
             "shove" => Camera.LookAt(target.ToWorld(new Double3(-0.6, roof + 1.7, -4.4)), target.ToWorld(new Double3(target.Shape.HalfWidth - 0.4, roof + 0.9, 0)), 55),
             "sooted" => Camera.LookAt(target.ToWorld(new Double3(0.5, roof + 1.7, -1.9)), target.ToWorld(new Double3(0, roof + 1.35, 0)), 45),
+            // Note 723 (Staging.Rescue): out on the ballast ahead of a cargo car's open side door, back at the crewmate in it hauling
+            // up the friend running beside it; and close along car 2's roof at a friend carried over the shoulder.
+            "handup" => HandUpCamera(train),
+            "carryfriend" => Camera.LookAt(target.ToWorld(new Double3(1.6, roof + 1.9, -4.4)), target.ToWorld(new Double3(-0.3, roof + 1.2, -1.0)), 50),
             "crewside" => Camera.LookAt(target.ToWorld(new Double3(2.6, roof + 1.9, -4.2)), target.ToWorld(new Double3(-0.8, roof + 1.45, -5.6)), 45),
             // (Not one of Names.) Down on the roof round the first two of the staged crew (dt screenshot --act lantern,...), close
             // over their feet: what the hand lamp's light falls on and the shadows it throws (note 436).
@@ -539,6 +543,14 @@ public static class Views
             3 => Camera.LookAt(dave + outward * 1.1 + across * 1.1 + Double3.Up * 1.65, dave + Double3.Up * 1.45, 40),
             _ => Camera.LookAt(dave + across * 3.6 - outward * 0.4 + Double3.Up * 1.6, dave + Double3.Up * 1.2 - outward * 0.3, 55),
         };
+    }
+
+    /// <summary>Note 723's hand-up (Staging.Rescue): from the ballast behind the runner and out, at the two against the lit door.</summary>
+    static Camera HandUpCamera(TrainOnLine train)
+    {
+        var at = train.Frames[Staging.SideDoorCar(train)];
+        double w = at.Shape.HalfWidth;
+        return Camera.LookAt(at.ToWorld(new Double3(w + 4.2, 1.5, 3.6)), at.ToWorld(new Double3(w + 0.2, 1.5, -0.4)), 55);
     }
 
     static Camera MooseCamera(TrainOnLine train)
