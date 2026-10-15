@@ -1780,6 +1780,21 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Double3 At(double x, double y, double up) => DarkTerritory.Sim.Run.Run.StopWorld(line, f, DarkTerritory.Sim.Run.StopWalls.InHouse(b, x, y), up);
         camera = Camera.LookAt(At(inside.X, inside.Y, 1.75), At(-inside.X * 0.8, -inside.Y * 0.8, 1.0), 80);
     }
+    // --kept n: the night's nth cupboard or cabinet in an open village house (note 760), from a couple of metres in front of
+    // it and to one side at a crewmate's eye (with --searched, as it's left once searched; --lantern for a hand lamp).
+    if (Opt(args, "--kept", -1) is var keptAt and >= 0 && generated is not null)
+    {
+        var pieces = generated.Features.Where(f => f.Stop is not null)
+            .SelectMany(f => f.Stop!.Containers.Where(c => c.Kind is DarkTerritory.Sim.Stops.ContainerKind.Cupboard or DarkTerritory.Sim.Stops.ContainerKind.Cabinet
+                && c.Building >= 0 && f.Stop.Buildings[c.Building].Open && DarkTerritory.Sim.Run.StopWalls.Walled(f.Stop, c.Building)).Select(c => (Feature: f, Container: c))).ToList();
+        if (pieces.Count == 0)
+            return Print(new { error = $"{Str(args, "--route", "")} has no cupboards" });
+        var (f, c) = pieces[(int)keptAt % pieces.Count];
+        var b = f.Stop!.Buildings[c.Building];
+        var (x, y, fx, fy) = DarkTerritory.Sim.Run.StopWalls.Kept(b, c.Kind, c.Index);
+        Double3 At(double px, double py, double up) => DarkTerritory.Sim.Run.Run.StopWorld(line, f, DarkTerritory.Sim.Run.StopWalls.InHouse(b, px, py), up);
+        camera = Camera.LookAt(At(x + fx * 2.1 - fy * 0.7, y + fy * 2.1 + fx * 0.7, 1.65), At(x, y, 0.95), 70);
+    }
     // --gun-laid yaw,pitch (degrees): every gun turned and elevated so, as a seated gunner lays it (T112).
     if (Str(args, "--gun-laid", "") is { Length: > 0 } laid)
     {
