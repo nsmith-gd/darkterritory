@@ -365,17 +365,74 @@ public static partial class Staging
     }
 
     /// <summary>
+    /// Pulled up by a facility down a spur with dawn near (note 764, `dt screenshot --hud --spur-stop [s]`): a solo night on
+    /// <paramref name="route"/> stopped on the main line in its first spur facility's zone, so the top left says what's down
+    /// the spur and how much of the train it takes, with the dawn clock <paramref name="dawnIn"/> seconds out at the top centre
+    /// (the director's 14 Oct playtest, line 24: "Wreck yard is down the spur. It overlaps with Dawn").
+    /// </summary>
+    public static PrototypeSession SpurStop(string content, Sim.Route.Route route, int cars, double dawnIn = 150)
+    {
+        var probe = new PrototypeSession(content, route, cars, enemies: false);
+        var run = probe.World.Run ?? throw new InvalidOperationException($"{route.Name} has no run");
+        var facilities = route.Of(Sim.Route.FeatureKind.Facility).ToList();
+        int i = Enumerable.Range(0, run.FacilityCount).FirstOrDefault(f => run.SpurOf(f) >= 0, -1);
+        if (i < 0)
+            throw new InvalidOperationException($"{route.Name} has no facility down a spur");
+        var zone = facilities[i];
+        var session = new PrototypeSession(content, route, cars, enemies: false, at: zone.Start + Math.Min(40, (zone.End - zone.Start) / 2));
+        session.Controls = new Sim.Train.TrainControls { Reverser = 1, Brake = 1 };
+        session.World.Run!.Resume(route.DawnSeconds - dawnIn, -1, session.Train.Boiler.Tender, session.Train.Vehicles.Sum(v => v.Gun.Ammo));
+        for (int t = 0; t < Sim.SimConstants.TickRate; t++)
+        {
+            session.Train.Dynamics.Velocity = 0;
+            session.Step(default);
+        }
+        return session;
+    }
+
+    /// <summary>
+    /// The last town (note 765, `dt screenshot --hud --terminus approach|inside|home`): a solo night on
+    /// <paramref name="route"/> under way at <paramref name="speed"/> m/s with its engine's front 600 m short of the terminus's
+    /// gate (approach), just in through it (inside), or with the whole train in and still rolling (home).
+    /// </summary>
+    public static PrototypeSession Terminus(string content, Sim.Route.Route route, int cars, string where, double speed = 4)
+    {
+        var gate = route.Plan?.Terminus.GateM ?? throw new InvalidOperationException($"{route.Name} has no terminus");
+        var probe = new PrototypeSession(content, route, cars, enemies: false);
+        double home = probe.World.Run!.HomeFront(probe.Train);
+        double at = where switch
+        {
+            "approach" => gate - 600,
+            "inside" => Math.Min(gate + 15, home - 5),
+            "home" => home + 2,
+            _ => throw new ArgumentException($"--terminus {where}: approach, inside or home"),
+        };
+        // Settled a second short of it, so the frames have a tick to draw from.
+        var session = new PrototypeSession(content, route, cars, enemies: false, at: at - speed);
+        session.Controls = new Sim.Train.TrainControls { Reverser = 1 };
+        session.World.Run!.Resume(route.DawnSeconds * 0.8, -1, session.Train.Boiler.Tender, session.Train.Vehicles.Sum(v => v.Gun.Ammo));
+        for (int t = 0; t < Sim.SimConstants.TickRate; t++)
+        {
+            session.Train.Dynamics.Velocity = speed;
+            session.Step(default);
+        }
+        return session;
+    }
+
+    /// <summary>
     /// A mail crane coming up (note 673, `dt screenshot --hud --mail-crane [s]`): a solo night on <paramref name="route"/>
     /// with its first crane past the yard about <paramref name="seconds"/> from the second car's side doors, its board read,
     /// the player in that car: with <paramref name="atDoor"/>, in the open side door on the crane's side, else mid-car.
     /// </summary>
     public static PrototypeSession MailCrane(string content, Sim.Route.Route route, int cars, double seconds = 6, bool atDoor = true)
     {
-        var sight = DataFile.Load<Sim.Route.SightTuning>(Path.Combine(content, Sim.Route.SightTuning.File));
+        // The mail's cut for now (note 803): the staged night turns sight.json's mailCranes back on for itself.
+        var sight = DataFile.Load<Sim.Route.SightTuning>(Path.Combine(content, Sim.Route.SightTuning.File)) with { MailCranes = true };
         var drop = Sim.Route.Lineside.Drops(sight, route).FirstOrDefault(d => d.At > route.Gate + 1500)
             ?? throw new InvalidOperationException($"{route.Name} has no mail crane past its yard");
         const double speed = 12;
         var session = new PrototypeSession(content, route, cars, enemies: false, at: drop.At - speed * (seconds + 1));
+        session.World.EnableLineside(sight, route);
         session.Controls = new Sim.Train.TrainControls { Reverser = 1 };
         int car = Math.Min(2, session.Train.Frames.Count - 1);
         var shape = session.Train.Frames[car].Shape;
@@ -585,7 +642,7 @@ public static partial class Staging
         if (scene == "sooted")
             return ([On(21, 0, 0, 0, null, sooted: true), On(22, -0.3, -6.5, Math.PI, Art.CrewPose.Shovel)],
                 [new Sim.Player.LumpInFlight(1, 22, frame.ToWorld(new Double3(0.35, roof + 1.5, -0.75)))]);
-        return ([On(21, edge - 1.15, 0, -Math.PI / 2, Art.CrewPose.Push), On(22, edge - 0.05, 0.1, Math.PI / 2, Art.CrewPose.Stagger, up: 0.12, phase: 0.22)], []);
+        return ([On(21, edge - 1.15, 0, -Math.PI / 2, Art.CrewPose.Shove, phase: 0.17), On(22, edge - 0.05, 0.1, Math.PI / 2, Art.CrewPose.Stagger, up: 0.12, phase: 0.22)], []);
     }
 
     /// <summary>The first car with sliding doors in its sides (a cargo car's; note 723's hand-up), or car 2.</summary>
@@ -615,16 +672,16 @@ public static partial class Staging
             return
             [
                 new Crewmate(31, Sim.Player.PlayerMotor.WorldPosition(carrier, train), Sim.Player.PlayerMotor.WorldYaw(carrier, train), true,
-                    Act: Art.CrewPose.ShoulderWalk, Holding: Sim.Player.Tool.Crowbar),
+                    Act: Art.CrewPose.Fireman, Holding: Sim.Player.Tool.Crowbar),
                 Art.CrewActs.OnTheShoulder(new Crewmate(32, Sim.Player.PlayerMotor.WorldPosition(carried, train), Sim.Player.PlayerMotor.WorldYaw(carried, train), true,
-                    Act: Art.CrewPose.HeldCarried), Sim.Player.PlayerMotor.WorldYaw(carrier, train)),
+                    Act: Art.CrewPose.HeldCarried), Sim.Player.PlayerMotor.WorldPosition(carrier, train), Sim.Player.PlayerMotor.WorldYaw(carrier, train), 31),
             ];
         }
         int car = SideDoorCar(train);
         var at = train.Frames[car];
         train.Vehicles[car].DoorsOpen |= 1 << 3;
         double w = at.Shape.HalfWidth, floor = at.Shape.Interior?.Min.Y + 0.1 ?? 1.1;
-        var helper = new Crewmate(31, at.ToWorld(new Double3(w - 0.25, floor, 0)), -Math.PI / 2 + at.Heading, true, Act: Art.CrewPose.HaulUp);
+        var helper = new Crewmate(31, at.ToWorld(new Double3(w - 0.25, floor, 0)), -Math.PI / 2 + at.Heading, true, Act: Art.CrewPose.HandUp);
         var runner = new Crewmate(32, at.ToWorld(new Double3(w + 1.0, 0, 0.45)), at.Heading + 0.25, true, Act: Art.CrewPose.LanternWalk, Lamp: true);
         return [helper, runner];
     }
@@ -1722,6 +1779,7 @@ public static partial class Staging
             lines.Add(Sim.Run.Run.BroughtInLine(new Sim.Run.BroughtIn(91, EnemyKind.Grumbler, "the Grumbler", 3, 1706), town, t, brigade));
         }
         var (marked, shown) = Sim.Run.Run.MarkBookmarks(world, lines);
+        // Each net is its figures summed, as a real night's is (note 766: the report's ledger shows them adding up).
         return brigade > 0
             ? new Sim.Run.RunReport(end, 1720, 17.2, 5, 0, 4.6, 3220, 120, 6, 40, 3220 - 166 - 2 * brigade, 4, 0)
             {
@@ -1734,7 +1792,17 @@ public static partial class Staging
                 Finder = "Dave",
                 FinderWorth = 1300,
             }
-            : new Sim.Run.RunReport(end, 1720, 17.2, 4, 1, 2.1, 0, 120, 6, 40, -1416, 1, 3, Deaths: 3, CrewLossFees: 1050) { Lines = marked, Bookmarks = shown };
+            : new Sim.Run.RunReport(end, 1720, 17.2, 4, 1, 2.1, 0, 120, 6, 40, -1216, 1, 3, Deaths: 3, CrewLossFees: 1050) { Lines = marked, Bookmarks = shown };
+    }
+
+    /// <summary>
+    /// A night delivered in the red (note 766; the director's of 13 Oct): <see cref="Report"/>'s three of the crew lost and its
+    /// costs, with a little cargo home, so the clerk's tally ends on what cost most.
+    /// </summary>
+    public static Sim.Run.RunReport InTheRed(Sim.World world)
+    {
+        var lost = Report(world, Sim.Run.RunEnd.CrewLost);
+        return lost with { End = Sim.Run.RunEnd.Delivered, Gross = 640, Net = lost.Net + 640 };
     }
 
     static readonly Sim.Player.PlayerTuning DefaultPlayer = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(DataFile.FindContentRoot(), Sim.Player.PlayerTuning.File));

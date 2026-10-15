@@ -508,7 +508,7 @@ public sealed partial class GreyboxScene
                     foreach (var crane in site?.Cranes ?? [])
                         if ((crane.HookAt - eye).Length < DrawDistance)
                         {
-                            if (Look?.Art.Crane(mesh, crane, frames, eye) != true)
+                            if (Look?.Art.Crane(mesh, crane, frames, eye, Time) != true)
                                 Crane(mesh, crane, frames, eye);
                             CraneLamps(mesh, crane, frames, eye);
                         }
@@ -1953,7 +1953,7 @@ public sealed partial class GreyboxScene
         var w = WorkLight;
         // A friend stood on the hook (note 726) is its load: the lamp on the cable hangs over their head, not in their chest.
         double above = crane.Riders > 0 ? Math.Max(w.HookAbove, crane.Tuning.Hoist.FeetAbove + RiderHeadroom) : w.HookAbove;
-        var lamp = V(crane.HookAt + Double3.Up * above, eye);
+        var lamp = V(crane.HookAt + (crane.Riders > 0 ? Art.CrewActs.HookSway(Time) : default) + Double3.Up * above, eye);
         mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * w.HookIntensity, w.HookRange));
         mesh.Billboard(lamp, 0.12f, 0, new Vector4(Palette.LampAmber * 1.4f, 1), -1, FxBlend.Additive);
         Double3 sum = default;
