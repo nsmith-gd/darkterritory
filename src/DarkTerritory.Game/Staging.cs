@@ -409,11 +409,13 @@ public static partial class Staging
     /// </summary>
     public static PrototypeSession MailCrane(string content, Sim.Route.Route route, int cars, double seconds = 6, bool atDoor = true)
     {
-        var sight = DataFile.Load<Sim.Route.SightTuning>(Path.Combine(content, Sim.Route.SightTuning.File));
+        // The mail's cut for now (note 803): the staged night turns sight.json's mailCranes back on for itself.
+        var sight = DataFile.Load<Sim.Route.SightTuning>(Path.Combine(content, Sim.Route.SightTuning.File)) with { MailCranes = true };
         var drop = Sim.Route.Lineside.Drops(sight, route).FirstOrDefault(d => d.At > route.Gate + 1500)
             ?? throw new InvalidOperationException($"{route.Name} has no mail crane past its yard");
         const double speed = 12;
         var session = new PrototypeSession(content, route, cars, enemies: false, at: drop.At - speed * (seconds + 1));
+        session.World.EnableLineside(sight, route);
         session.Controls = new Sim.Train.TrainControls { Reverser = 1 };
         int car = Math.Min(2, session.Train.Frames.Count - 1);
         var shape = session.Train.Frames[car].Shape;
@@ -623,7 +625,7 @@ public static partial class Staging
         if (scene == "sooted")
             return ([On(21, 0, 0, 0, null, sooted: true), On(22, -0.3, -6.5, Math.PI, Art.CrewPose.Shovel)],
                 [new Sim.Player.LumpInFlight(1, 22, frame.ToWorld(new Double3(0.35, roof + 1.5, -0.75)))]);
-        return ([On(21, edge - 1.15, 0, -Math.PI / 2, Art.CrewPose.Push), On(22, edge - 0.05, 0.1, Math.PI / 2, Art.CrewPose.Stagger, up: 0.12, phase: 0.22)], []);
+        return ([On(21, edge - 1.15, 0, -Math.PI / 2, Art.CrewPose.Shove, phase: 0.17), On(22, edge - 0.05, 0.1, Math.PI / 2, Art.CrewPose.Stagger, up: 0.12, phase: 0.22)], []);
     }
 
     /// <summary>The first car with sliding doors in its sides (a cargo car's; note 723's hand-up), or car 2.</summary>
@@ -653,16 +655,16 @@ public static partial class Staging
             return
             [
                 new Crewmate(31, Sim.Player.PlayerMotor.WorldPosition(carrier, train), Sim.Player.PlayerMotor.WorldYaw(carrier, train), true,
-                    Act: Art.CrewPose.ShoulderWalk, Holding: Sim.Player.Tool.Crowbar),
+                    Act: Art.CrewPose.Fireman, Holding: Sim.Player.Tool.Crowbar),
                 Art.CrewActs.OnTheShoulder(new Crewmate(32, Sim.Player.PlayerMotor.WorldPosition(carried, train), Sim.Player.PlayerMotor.WorldYaw(carried, train), true,
-                    Act: Art.CrewPose.HeldCarried), Sim.Player.PlayerMotor.WorldYaw(carrier, train)),
+                    Act: Art.CrewPose.HeldCarried), Sim.Player.PlayerMotor.WorldPosition(carrier, train), Sim.Player.PlayerMotor.WorldYaw(carrier, train), 31),
             ];
         }
         int car = SideDoorCar(train);
         var at = train.Frames[car];
         train.Vehicles[car].DoorsOpen |= 1 << 3;
         double w = at.Shape.HalfWidth, floor = at.Shape.Interior?.Min.Y + 0.1 ?? 1.1;
-        var helper = new Crewmate(31, at.ToWorld(new Double3(w - 0.25, floor, 0)), -Math.PI / 2 + at.Heading, true, Act: Art.CrewPose.HaulUp);
+        var helper = new Crewmate(31, at.ToWorld(new Double3(w - 0.25, floor, 0)), -Math.PI / 2 + at.Heading, true, Act: Art.CrewPose.HandUp);
         var runner = new Crewmate(32, at.ToWorld(new Double3(w + 1.0, 0, 0.45)), at.Heading + 0.25, true, Act: Art.CrewPose.LanternWalk, Lamp: true);
         return [helper, runner];
     }
