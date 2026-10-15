@@ -43,7 +43,8 @@ public static class CrewActs
             Phase: act == CrewPose.Reload ? ReloadPhase(s, world) : 0, Death: s.Death,
             Headset: s.Head > 0 ? new HeadsetBody(s.Head, s.Pitch, s.Parent, s.Position, s.Yaw) : null,
             Car: placed.Parent != PlayerState.World && placed.Parent < frames.Count ? placed.Parent : PlayerState.World, Local: placed.Position,
-            Emote: emote, EmoteSeconds: emoteSeconds, Sooted: s.Has(PlayerFlags.Sooted), Signal: signal, SignalSeconds: signalSeconds);
+            Emote: emote, EmoteSeconds: emoteSeconds, Sooted: s.Has(PlayerFlags.Sooted), Signal: signal, SignalSeconds: signalSeconds,
+            Paint: world.PaintOf(id));
         // Over a friend's shoulder (note 723): laid across it, the way the one carrying them faces.
         if (s.Alive && s.Has(PlayerFlags.Carried) && others is not null && CarrierOf(s, others) is { } carrier)
             drawn = OnTheShoulder(drawn, Eyes.World(carrier, frames).Yaw);

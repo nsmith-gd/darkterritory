@@ -11,6 +11,7 @@ in the fog a crewmate is a lamp, two dim eyes and a coloured cap.
 
 Variants (CreatureArt `variant % 4`): 0 visor up, 1 visor down, 2 up + scarf, 3 down + scarf.
 DT_CREW=bare builds the figure bare-headed instead, the cap or the steel helmet for the stacks (the husk's source).
+DT_CREW=dave builds Dave, the wandering painter, bare-headed in his shirt sleeves and a waistcoat (tools/blender/davebody.py).
 Clips (30 fps): idle, walk (1.4 m/s, in place), run (4 m/s), climb, shovel (with the shovel prop), crouch_idle, dead.
 
     blender -b --python tools/blender/crew.py -- content/art/models/crew.glb
@@ -102,7 +103,10 @@ HEAD_C = Vector((0, 0.02, 1.675))
 # concepts, tools/models/concepts/crew_headgear.py "welder"): masked, so nothing to lip-sync and no eyes to animate, and
 # with some fun to it. DT_CREW=bare builds the bare-headed figure in a cap or a helmet instead, for what the crew become
 # (tools/models/recipes/husk.py).
-HELM = os.environ.get("DT_CREW", "helm") != "bare"
+HELM = os.environ.get("DT_CREW", "helm") not in ("bare", "dave")
+# Dave (ARCHITECTURE §8 note 491): the bare figure in his own clothes, no chest lamp and no scarf; his body is
+# davebody's (a shirt over a belly, sleeves rolled, bare forearms, sandals), his five waistcoats its variants.
+DAVE = os.environ.get("DT_CREW") == "dave"
 MASK_C = Vector((0, 0.014, 1.674))     # the gas hood, round the head
 CAP_C = Vector((0, 0.004, 1.698))      # the flying cap over it
 PIVOT = Vector((0, 0.012, 1.702))      # the welder's visor turns about its own centre, on its temple pivots
@@ -270,13 +274,16 @@ else:
 # materials): the coat, the sleeves, the gloves, the belt, the bandolier and the satchel, the trousers and the boots.
 
 # The chest lamp, clipped to the strap: iron box, amber lens. It's emissive: the one warm point on a crewmate.
-body.box((-0.04, 0.178, 1.315), (0.038, 0.026, 0.048), IRON, "spine_02")
-body.box((-0.04, 0.203, 1.315), (0.03, 0.004, 0.036), LAMP, "spine_02",
-         uv=lambda ax, sg, l: in_cell("lantern_glass", 0.5 + l.x / 0.07, 0.55 - l.z / 0.08))
-body.box((-0.04, 0.178, 1.372), (0.02, 0.018, 0.01), IRON, "spine_02")
+if not DAVE:
+    body.box((-0.04, 0.178, 1.315), (0.038, 0.026, 0.048), IRON, "spine_02")
+    body.box((-0.04, 0.203, 1.315), (0.03, 0.004, 0.036), LAMP, "spine_02",
+             uv=lambda ax, sg, l: in_cell("lantern_glass", 0.5 + l.x / 0.07, 0.55 - l.z / 0.08))
+    body.box((-0.04, 0.178, 1.372), (0.02, 0.018, 0.01), IRON, "spine_02")
 
 # --- hats and scarf (variants) -------------------------------------------------------------------------------
-if not HELM:
+if DAVE:
+    pass    # His hats are props on the head bone (tools/models/recipes/dave_kit.py); his variants are his waistcoats.
+elif not HELM:
     cap = kit.part("hat_cap", variants=(0, 2))
     cap.tube([(0, 0.012, 1.728), (0, 0.012, 1.762), (0, 0.006, 1.795), (0, 0.004, 1.808)],
              [(0.097, 0.108), (0.1, 0.111), (0.112, 0.12), (0.098, 0.106)], 12, CAP, "head", cap1=True,
@@ -294,16 +301,17 @@ if not HELM:
 else:
     welder_visor()
 
-scarf = kit.part("scarf", variants=(2, 3))
-# Wool wound round the coat's stood-up collar (lower at the front, over the collarbones), the end hanging down the
-# left of the chest, clear of the lamp and the hose.
-ring = [(math.sin(a) * 0.158, 0.012 + math.cos(a) * 0.148, 1.558 - 0.03 * math.cos(a))
-        for a in [2 * math.pi * k / 16 for k in range(16)]]
-scarf.tube(ring, [(0.028, 0.034)] * 16, 8, SCARF, along("z", [(1.5, "spine_03"), (1.6, "neck")]),
-           ref=[Vector((0, 0, 1))] * 16, loop=True, uv=lambda i, j, uf, vf, p: in_cell("scarf", vf, uf))
-scarf.tube([(-0.098, 0.168, 1.535), (-0.112, 0.19, 1.49), (-0.122, 0.198, 1.44), (-0.128, 0.196, 1.395)],
-           [(0.034, 0.017), (0.036, 0.016), (0.035, 0.014), (0.03, 0.01)], 8, SCARF, TORSO, ref=(0, 1, 0), cap1=True,
-           uv=lambda i, j, uf, vf, p: in_cell("scarf", uf, vf))
+if not DAVE:
+    scarf = kit.part("scarf", variants=(2, 3))
+    # Wool wound round the coat's stood-up collar (lower at the front, over the collarbones), the end hanging down the
+    # left of the chest, clear of the lamp and the hose.
+    ring = [(math.sin(a) * 0.158, 0.012 + math.cos(a) * 0.148, 1.558 - 0.03 * math.cos(a))
+            for a in [2 * math.pi * k / 16 for k in range(16)]]
+    scarf.tube(ring, [(0.028, 0.034)] * 16, 8, SCARF, along("z", [(1.5, "spine_03"), (1.6, "neck")]),
+               ref=[Vector((0, 0, 1))] * 16, loop=True, uv=lambda i, j, uf, vf, p: in_cell("scarf", vf, uf))
+    scarf.tube([(-0.098, 0.168, 1.535), (-0.112, 0.19, 1.49), (-0.122, 0.198, 1.44), (-0.128, 0.196, 1.395)],
+               [(0.034, 0.017), (0.036, 0.016), (0.035, 0.014), (0.03, 0.01)], 8, SCARF, TORSO, ref=(0, 1, 0), cap1=True,
+               uv=lambda i, j, uf, vf, p: in_cell("scarf", uf, vf))
 
 # --- the shovel (only in the shovel clip) --------------------------------------------------------------------
 # Held in the right fist across the palm (bind: along Y), blade forward. The left hand takes the D-grip in the clip.
@@ -500,7 +508,11 @@ dead.key(1, DEAD, "CONSTANT")
 CLIPS = [idle, walk, run, climb, shovel_clip, crouch, dead]
 
 kit.build()
-import crewbody  # noqa: E402
-crewbody.build(globals())
+if DAVE:
+    import davebody  # noqa: E402
+    davebody.build(globals())
+else:
+    import crewbody  # noqa: E402
+    crewbody.build(globals())
 rig.bake(sk, CLIPS, plant=rig.feet_planter(sk, clips={"idle", "walk", "crouch_idle", "shovel"}))
 rig.export(rig.args()[0] if rig.args() else "crew.glb", kit)
