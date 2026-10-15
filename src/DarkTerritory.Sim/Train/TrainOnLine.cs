@@ -26,7 +26,14 @@ public readonly record struct VehicleState(int Id, double Load, double Integrity
     bool OffRails = false, double Placed = 0);
 
 /// <summary>Everything about the train that the host owns and clients re-simulate from.</summary>
-public sealed record TrainState(RakeState[] Rakes, VehicleState[] Vehicles, Boiler Boiler);
+public sealed record TrainState(RakeState[] Rakes, VehicleState[] Vehicles, Boiler Boiler)
+{
+    /// <summary>The handcar's own state (note 729), when the night has one; unset, a restore leaves it as it is.</summary>
+    public HandcarState? Handcar { get; init; }
+}
+
+/// <summary>What the handcar is doing (note 729; <see cref="Train.Handcar"/>), as the host has it.</summary>
+public readonly record struct HandcarState(bool Carried, double Phase, double Drive, double Brake, double Lift, int Pumpers);
 
 /// <summary>
 /// All rolling stock on a line: one or more rakes, each a 1D body with its own speed. The rake with the
@@ -84,6 +91,10 @@ public sealed class TrainOnLine
         OwnVehicles = _vehicles.Length;
         _poses = new CarPose[_vehicles.Length];
         _frames = new CarFrame[_vehicles.Length];
+        // The handcar (note 729), bought or always: its vehicle after the train's own, so every machine numbers it alike, and
+        // a yard's standing cars after it.
+        if (dynamics.Tuning.HasHandcar)
+            AddHandcar();
         _diverging = new bool[line.Branches.Count];
         for (int i = 0; i < _diverging.Length; i++)
             _diverging[i] = line.Branches[i].Definition.StartsDiverging;
@@ -104,6 +115,195 @@ public sealed class TrainOnLine
     /// (<see cref="Stand"/>), which nobody boards at the start.
     /// </summary>
     public int OwnVehicles { get; }
+
+    /// <summary>
+    /// The handcar (GDD §24.1; note 729), when the night has one (train.json <c>handcar</c>, campaign.json's upgrade): a vehicle of
+    /// its own kind in a rake of its own, hung on the back of the guard van until it's set on the rails at a stand. On the rails
+    /// it runs as any rake does, through the points as they're set, but couples to nothing and can't pass the train.
+    /// </summary>
+    public Handcar? Handcar { get; private set; }
+
+    void AddHandcar()
+    {
+        int id = _vehicles.Length;
+        var consist = new Consist(Tuning);
+        consist.Add(new Vehicle(id, VehicleKind.Handcar, 0) { LampLit = false });
+        Array.Resize(ref _vehicles, id + 1);
+        Array.Resize(ref _poses, id + 1);
+        Array.Resize(ref _frames, id + 1);
+        _vehicles[id] = consist.Vehicles[0];
+        _rakes.Add(new TrainDynamics(consist) { Path = _engineRake.Path, Distance = _engineRake.Distance, PreviousDistance = _engineRake.Distance, Handbrake = true, FrontCouplerLocked = true });
+        Handcar = new Handcar(id);
+    }
+
+    /// <summary>The handcar's rake (note 729), or null without one.</summary>
+    public TrainDynamics? HandcarRake => Handcar is { } h ? RakeOf(h.Id) : null;
+
+    /// <summary>A rake that's the handcar (note 729): never coupled, so it's always the one vehicle.</summary>
+    public static bool IsHandcar(TrainDynamics rake) => rake.Consist.Vehicles is [{ IsHandcar: true }];
+
+    /// <summary>The handcar's rake while it's hung on the van (note 729): not on the rails, laid out on the van's back.</summary>
+    bool Hung(TrainDynamics rake) => Handcar is { Carried: true } && IsHandcar(rake);
+
+    /// <summary>
+    /// The vehicle the handcar hangs on (note 729): the guard van at the back (the last guard car), else the engine's rake's
+    /// last vehicle. Fixed by the train's make-up, so every machine has it alike.
+    /// </summary>
+    public int HandcarHost
+    {
+        get
+        {
+            for (int i = OwnVehicles - 1; i > 0; i--)
+                if (_vehicles[i] is { Kind: VehicleKind.Guard })
+                    return i;
+            return _engineRake.Consist.Vehicles[^1].Id;
+        }
+    }
+
+    /// <summary>Where the handcar is set on the rails behind the van (note 729): its path and front's distance, or null where it can't go.</summary>
+    public (int Path, double Front)? HandcarPlace()
+    {
+        if (Handcar is null)
+            return null;
+        var ht = Tuning.Handcar;
+        var host = RakeOf(HandcarHost);
+        double front = host.RearDistance - Tuning.Geometry.PlatformDepth - ht.SetBehind;
+        if (front - ht.Length < 0)
+            return null;
+        // Nothing else on the rails there: a cut standing close behind, a yard's cars.
+        var centre = Line.Sample(host.Path, front - ht.Length / 2).Position;
+        foreach (var r in _rakes)
+        {
+            if (r == host || IsHandcar(r))
+                continue;
+            foreach (var v in r.Consist.Vehicles)
+            {
+                var f = _frames[v.Id];
+                double dx = f.Origin.X - centre.X, dz = f.Origin.Z - centre.Z;
+                if (Math.Sqrt(dx * dx + dz * dz) < f.Shape.HalfLength + ht.Length / 2 + 0.5)
+                    return null;
+            }
+        }
+        return (host.Path, front);
+    }
+
+    /// <summary>
+    /// Whether a lift would go now (note 729): hung, the train standing and room on the rails behind it; on the rails, both
+    /// standing and it near enough the van's back. Riders aboard it are the caller's to check.
+    /// </summary>
+    public bool HandcarCanGo()
+    {
+        var t = Tuning.Handcar;
+        return Handcar switch
+        {
+            { Carried: true } => RakeOf(HandcarHost).Speed < t.StandBelow && HandcarPlace() is not null,
+            { Carried: false } h => RakeOf(HandcarHost).Speed < t.StandBelow && RakeOf(h.Id).Speed < t.StandBelow && HandcarFromHome() <= t.StowReach,
+            _ => false,
+        };
+    }
+
+    /// <summary>
+    /// Sets the hung handcar on the rails behind the van (note 729): only with the train standing (handcar.standBelow), and
+    /// where there's track and room. Returns whether it went down.
+    /// </summary>
+    public bool SetHandcarOnRails()
+    {
+        if (Handcar is not { Carried: true } h || !HandcarCanGo() || HandcarPlace() is not { } place)
+            return false;
+        var rake = RakeOf(h.Id);
+        rake.Path = place.Path;
+        rake.Distance = rake.PreviousDistance = place.Front;
+        rake.Velocity = 0;
+        h.Carried = false;
+        h.Drive = 0;
+        h.Brake = 0;
+        Readdress(rake);
+        UpdatePoses();
+        return true;
+    }
+
+    /// <summary>
+    /// How far the handcar on the rails is from its place on the van (note 729): its middle to the back of the van's rear
+    /// platform, across the ground. Infinity when it's hung, or without one.
+    /// </summary>
+    public double HandcarFromHome()
+    {
+        if (Handcar is not { Carried: false } h)
+            return double.PositiveInfinity;
+        var van = _frames[HandcarHost];
+        double back = van.Shape.Platform is { } p ? p.Max.Z : van.Shape.HalfLength;
+        var home = van.ToWorld(new Double3(0, 0, back));
+        var at = _frames[h.Id].Origin;
+        double dx = at.X - home.X, dz = at.Z - home.Z;
+        return Math.Sqrt(dx * dx + dz * dz);
+    }
+
+    /// <summary>
+    /// Hangs the handcar back on the van (note 729): both standing, it within handcar.stowReach of the van's back. Whoever's
+    /// riding it is the caller's to check. Returns whether it went up.
+    /// </summary>
+    public bool StowHandcar()
+    {
+        if (Handcar is not { Carried: false } h || !HandcarCanGo())
+            return false;
+        h.Carried = true;
+        h.Drive = 0;
+        h.Brake = 0;
+        HangHandcar();
+        UpdatePoses();
+        return true;
+    }
+
+    /// <summary>The hung handcar's rake kept where its van is (note 729): anything reading where a rake is finds it there.</summary>
+    void HangHandcar()
+    {
+        if (Handcar is not { Carried: true } h)
+            return;
+        var rake = RakeOf(h.Id);
+        var host = RakeOf(HandcarHost);
+        rake.Path = host.Path;
+        rake.Distance = host.Distance;
+        rake.PreviousDistance = host.PreviousDistance;
+        rake.Velocity = 0;
+    }
+
+    /// <summary>
+    /// Where a lift under way is taking the handcar (note 729), for drawing it part-way: hung, its frame set on the rails
+    /// behind the van; on the rails, its frame hung on the van. Null without one, or with nowhere to set it.
+    /// </summary>
+    public CarFrame? HandcarLiftedTo()
+    {
+        if (Handcar is not { } h)
+            return null;
+        if (!h.Carried)
+            return _frames[HandcarHost].Shape is null ? null : Handcar.Hung(Tuning.Handcar, Tuning.Geometry, _frames[HandcarHost], h.Id);
+        if (HandcarPlace() is not { } place)
+            return null;
+        double length = Tuning.Handcar.Length, inset = length * 0.2;
+        var fb = Line.Sample(place.Path, place.Front - inset).Position;
+        var rb = Line.Sample(place.Path, place.Front - length + inset).Position;
+        var forward = (fb - rb).Normalized;
+        return CarFrame.From(new CarPose(h.Id, Double3.Lerp(fb, rb, 0.5), forward, length, place.Front), 0, Shape(Tuning.Geometry, VehicleKind.Handcar, false, false));
+    }
+
+    /// <summary>The handcar's state as the host has it (note 729), or null without one.</summary>
+    public HandcarState? HandcarNow => Handcar is { } h ? new HandcarState(h.Carried, h.Phase, h.Drive, h.Brake, h.Lift, h.Pumpers) : null;
+
+    /// <summary>Adopts the handcar's state from the host (note 729).</summary>
+    public void MirrorHandcar(HandcarState s)
+    {
+        if (Handcar is not { } h)
+            return;
+        h.Carried = s.Carried;
+        h.Phase = s.Phase;
+        h.Drive = s.Drive;
+        h.Brake = s.Brake;
+        h.Lift = s.Lift;
+        h.Pumpers = s.Pumpers;
+    }
+
+    /// <summary>A crewmate stood on the handcar on the rails (note 729): out on the open line, not aboard the train.</summary>
+    public bool OnHandcar(int parent) => Handcar is { Carried: false } h && parent == h.Id;
 
     /// <summary>
     /// Puts a rake of a switchyard's cars standing on a siding (GDD §18; WP15b, note 187), its front <paramref name="distance"/>
@@ -152,8 +352,9 @@ public sealed class TrainOnLine
     /// not in it. Not part of the train until it's coupled up, so not "cars left behind" either. Derelicts alone (note 294)
     /// are never the train's, wherever they've been put away.
     /// </summary>
+    /// <remarks>The handcar's rake (note 729) too: it's never the train's, wherever it is, and never cars lost.</remarks>
     public bool Standing(TrainDynamics rake) =>
-        !rake.Consist.HasEngine && (rake.Consist.Vehicles.All(v => v.Derelict)
+        IsHandcar(rake) || !rake.Consist.HasEngine && (rake.Consist.Vehicles.All(v => v.Derelict)
             || rake.Path >= 0 && rake.Path < Line.Branches.Count && Line.Branches[rake.Path].Kind == BranchKind.Spur && rake.Consist.Vehicles.All(v => v.YardCar));
 
     /// <summary>A vehicle in a rake still standing as the night found it (note 187).</summary>
@@ -191,7 +392,7 @@ public sealed class TrainOnLine
         {
             if (Tuning.Geometry.Interior is null)
                 return null;
-            var cars = _vehicles.Where(v => v is not null && !v.IsEngine && !v.YardCar).Select(v => v.Id).Order().ToList();
+            var cars = _vehicles.Where(v => v is not null && !v.IsEngine && !v.YardCar && !v.IsHandcar).Select(v => v.Id).Order().ToList();
             if (cars.Count == 0)
                 return null;
             int want = Tuning.Kit.RepairKitCar;
@@ -376,7 +577,8 @@ public sealed class TrainOnLine
     public TrainState Capture() => new(
         _rakes.Select(r => new RakeState(r.Consist.Vehicles.Select(v => v.Id).ToArray(), r.Distance, r.Velocity, r.BrakeEfficiency, r.Handbrake, r.FrontCouplerLocked, r.Path)).ToArray(),
         _vehicles.Select(v => new VehicleState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun, v.DoorsOpen, v.Cargo, v.LampLit, v.Eaten, v.LockersOpen, v.Breached, v.BreachAt, v.Char, v.HotBox, v.Gutter, v.Loose, v.Wound, v.Seized, v.Knot, v.OffRails, v.Placed)).ToArray(),
-        Boiler);
+        Boiler)
+    { Handcar = HandcarNow };
 
     /// <summary>Adopts host state and rebuilds rakes and poses; clients then re-simulate forward from it.</summary>
     public void Restore(TrainState state)
@@ -405,6 +607,8 @@ public sealed class TrainOnLine
             vehicle.OffRails = v.OffRails;
             vehicle.Placed = v.Placed;
         }
+        if (state.Handcar is { } hs)
+            MirrorHandcar(hs);
         Rebuild(state.Rakes);
         Boiler = state.Boiler;
         UpdatePoses();
@@ -420,6 +624,12 @@ public sealed class TrainOnLine
     {
         var seen = new bool[_vehicles.Length];
         int engines = 0;
+        // The handcar (note 729) is hung on the van again on a resumed night, whatever the save had (or if it had none).
+        if (Handcar is { } handcar)
+        {
+            rakes = [.. rakes.Select(r => r with { Vehicles = r.Vehicles?.Where(id => id != handcar.Id).ToArray() ?? [] }).Where(r => r.Vehicles.Length > 0)];
+            seen[handcar.Id] = true;
+        }
         foreach (var r in rakes)
         {
             if (r.Vehicles is not { Length: > 0 } || r.Path < RailLine.MainPath || r.Path >= Line.Branches.Count)
@@ -435,7 +645,15 @@ public sealed class TrainOnLine
         }
         if (engines != 1 || seen.Any(s => !s))
             return false;
+        var hung = HandcarRake;
         Rebuild(rakes.Select(r => r with { Velocity = 0, BrakeEfficiency = 1 }));
+        if (hung is not null && Handcar is { } h)
+        {
+            _rakes.Add(hung);
+            h.Carried = true;
+            h.Drive = h.Brake = h.Lift = 0;
+            HangHandcar();
+        }
         foreach (var rake in _rakes)
             rake.PreviousDistance = rake.Distance;
         UpdatePoses();
@@ -501,6 +719,9 @@ public sealed class TrainOnLine
 
         foreach (var rake in _rakes)
         {
+            // Hung on the van (note 729), the handcar isn't on the rails: it goes where the van goes (laid out after).
+            if (Hung(rake))
+                continue;
             if (rake == _engineRake)
             {
                 var effective = controls;
@@ -533,6 +754,14 @@ public sealed class TrainOnLine
                 rake.Step(dt, effective, Conditions(rake));
                 BrakeShock(rake, before, dt);
             }
+            else if (IsHandcar(rake) && Handcar is { } h)
+            {
+                // The handcar on the rails (note 729): its pumpers' drive, its brake, the grade, its own rolling and air.
+                var ht = Tuning.Handcar;
+                double v = Handcar.Step(ht, rake.Velocity, h.Drive, h.Brake, AverageGrade(rake), Tuning.Gravity, CreatureDrag(rake), dt);
+                rake.Roll(v, dt);
+                h.Phase = Handcar.Swing(ht, h.Phase, v * dt);
+            }
             else
             {
                 var parked = new TrainControls { Brake = rake.Handbrake ? 1 : 0, Reverser = 1 };
@@ -558,9 +787,12 @@ public sealed class TrainOnLine
         ResolveContacts();
         foreach (var rake in _rakes)
         {
+            if (Hung(rake))
+                continue;
             TakeSwitches(rake); // shoved through the points by a collision
             Readdress(rake);
         }
+        HangHandcar();
         // Battered shells let go work themselves apart as they run (note 576), on every machine alike.
         Failing.Step(this, _rakes, _engineRake, _pulling, dt);
         UpdatePoses();
@@ -742,6 +974,8 @@ public sealed class TrainOnLine
 
     Occupancy? On(TrainDynamics r, int piece)
     {
+        if (Hung(r))
+            return null;
         double front = r.Distance, rear = r.RearDistance;
         double f = double.MinValue, b = double.MaxValue;
         bool found = false, frontHere = false, rearHere = false;
@@ -805,7 +1039,9 @@ public sealed class TrainOnLine
             double ma = a.Consist.MassTonnes, mb = b.Consist.MassTonnes;
             int frontId = a.Consist.Vehicles[^1].Id, rearId = b.Consist.Vehicles[0].Id;
             double damage = 0;
-            if (closing > c.SafeContactSpeed)
+            // The handcar (note 729) couples to nothing, and half a tonne of trolley dents no car: it's bumped along (or stopped).
+            bool handcar = IsHandcar(a) || IsHandcar(b);
+            if (closing > c.SafeContactSpeed && !handcar)
             {
                 damage = (closing - c.SafeContactSpeed) * (closing - c.SafeContactSpeed) * c.DamagePerSpeedSquared;
                 Damage(_vehicles[frontId], damage, KnockCause.Collision, closing);
@@ -813,7 +1049,8 @@ public sealed class TrainOnLine
                 foreach (var v in a.Consist.Vehicles.Concat(b.Consist.Vehicles))
                     v.CargoIntegrity = Math.Max(0, v.CargoIntegrity - damage * c.CargoDamageShare);
             }
-            Jolt(a.Consist.Vehicles.Concat(b.Consist.Vehicles), closing, damage);
+            if (!handcar)
+                Jolt(a.Consist.Vehicles.Concat(b.Consist.Vehicles), closing, damage);
             if (closing > 0)
             {
                 double v = (ma * a.Velocity + mb * b.Velocity) / (ma + mb);
@@ -824,7 +1061,7 @@ public sealed class TrainOnLine
             on[i + 1] = ob;
 
             // b's front is off down another route (or a's tail is): it can foul the points but not couple on this track.
-            bool couple = ob.FrontHere && oa.RearHere && !b.FrontCouplerLocked && closing <= c.CoupleMaxSpeed;
+            bool couple = ob.FrontHere && oa.RearHere && !b.FrontCouplerLocked && closing <= c.CoupleMaxSpeed && !handcar;
             _contacts.Add(new RakeContact(frontId, rearId, Math.Max(0, closing), couple, damage));
             if (!couple)
             {
@@ -909,6 +1146,8 @@ public sealed class TrainOnLine
         var g = Tuning.Geometry;
         foreach (var rake in _rakes)
         {
+            if (Hung(rake))
+                continue;
             double front = rake.PreviousDistance + (rake.Distance - rake.PreviousDistance) * alpha;
             var vehicles = rake.Consist.Vehicles;
             for (int i = 0; i < vehicles.Count; i++)
@@ -938,9 +1177,17 @@ public sealed class TrainOnLine
                     var right = Double3.Cross(up, back).Normalized;
                     frames[b.Vehicle] = new CarFrame(f.Index, L(b.PrevOrigin, b.Origin), right, Double3.Cross(back, right).Normalized, back, b.Velocity, f.Shape);
                 }
+        // The handcar hung on the van (note 729): stood on its end behind the rear platform, wherever the van is (its wreck too).
+        if (Handcar is { Carried: true } hung && frames[HandcarHost].Shape is not null)
+        {
+            var f = Handcar.Hung(Tuning.Handcar, g, frames[HandcarHost], hung.Id);
+            frames[hung.Id] = f;
+            poses[hung.Id] = new CarPose(hung.Id, f.Origin, f.Back * -1, Tuning.Handcar.Length, poses[HandcarHost].FrontDistance);
+        }
     }
 
     readonly Dictionary<(VehicleKind, bool, bool, int), CarShape> _shapes = new();
+    CarShape? _handcarShape;
     GeometryTuning? _shapeGeometry;
     int? _kitCar;
 
@@ -953,6 +1200,8 @@ public sealed class TrainOnLine
             _shapes.Clear();
             _shapeGeometry = g;
         }
+        if (kind == VehicleKind.Handcar)
+            return _handcarShape ??= Handcar.Shape(Tuning.Handcar, onRails: true);
         lockers &= Tuning.Kit.Lockers is { Names.Count: > 0 };
         // (Its body across the gap, to a tenth of a metre: a handful of shapes while it forces the cars apart.)
         int tenths = hasCarBehind ? (int)Math.Round(knot * 10) : 0;

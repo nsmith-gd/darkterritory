@@ -91,9 +91,17 @@ public static class Protocol
     // 62: sessions (note 724): the crew's save sent to everyone aboard as a night's settled (CrewSave, in chunks); kick and the
     //     public lobby's vote to put a player off (Kick, KickVote, Kicked; a Refused can say the crew put you off); and the
     //     lobby's crew mischief switch (Mischief), changed in the yard.
-    // 63: a lobby changed once it's open (note 535): CarryOn carries the run's key as it is when the host goes on, after the
+    // 63: the sense table (note 728): the body record's ninth field carries a toy playing where it lies (its noise | 0x100) and
+    //     a thrown lamp broken and burning (1).
+    // 64: bringing them home (note 723): two player flags (carried over a friend's shoulder, and carrying one) and a knock of
+    //     its own (a friend thrown off the shoulder).
+    // 65: the big finds (note 719): a find's body record carries a fragile one's knocks over its use ticks (its ninth field,
+    //     bits 16 up), and the doors' record the jackpot houses' locks being picked after the doors shut (key, progress pairs).
+    // 66: the handcar (note 729): a vehicle kind of its own and a Handcar record (hung or on the rails, the handle's swing, the
+    //     pumpers' drive, the brake, a lift under way, how many at the handle); a player's flags carry Pumping.
+    // 67: a lobby changed once it's open (note 535): CarryOn carries the run's key as it is when the host goes on, after the
     //     town (a flag byte, then the key).
-    public const int Version = 63;
+    public const int Version = 67;
 }
 
 public enum MessageType : byte

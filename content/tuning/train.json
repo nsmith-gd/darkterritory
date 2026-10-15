@@ -290,6 +290,27 @@
   // 25 km/h (overspeed.deadEndDerailAbove) 0.39: a dent the wrench mends, short of failing (failing.below).
   "bufferStop": { "safeSpeed": 2.5, "damagePerSpeedSquared": 0.02 },
 
+  // The handcar (GDD §24.1; the director, 14 Oct 2026, App. F.6; ARCHITECTURE §8 note 729): a pump trolley hung on its end on
+  // the back of the guard van, bought at the fortress (campaign.json's "handcar"; `always` gives every night one, for the
+  // tests and the views). At a stand, held Use beside it lifts it down onto the rails setBehind metres behind the van's
+  // platform (two lifters in liftSeconds, one alone soloLiftScale times as long), and back from within stowReach. On the
+  // rails it's a rake of its own: through the points as they're set, coupling to nothing, never past the train.
+  // - The handle's a see-saw geared to the wheels, a full swing every strokeMetres. At an end of it (Use takes it, within
+  //   handleReach), W pushes your end down and S pulls it up: in time with the swing it drives the car on, against it it
+  //   brakes or fights your mate. Each pumper pushes pumpAccel at a walk, falling off past pumpPower / pumpAccel m/s (their
+  //   power): two in time make about 8 m/s on the level, one about 6, two out of time less; a 2% bank takes two down to
+  //   about 6.5, and down one it runs on to maxSpeed with nobody on the brake (brakeDecel, the brake key).
+  // - floor: a stroke's least purchase, at the top and bottom of the swing, so a car stopped at dead centre still starts.
+  // - parked: with nobody aboard its brake's latched on, so one left standing stays where it was left.
+  "handcar": {
+    "always": false,
+    "length": 3.0, "width": 1.7, "deckHeight": 0.55, "stepHeight": 0.28, "massTonnes": 0.5,
+    "strokeMetres": 5.0, "pumpAccel": 0.9, "pumpPower": 1.8, "pumpers": 2, "floor": 0.3,
+    "rolling": 0.04, "air": 0.005, "maxSpeed": 14.0, "brakeDecel": 3.0, "parked": true,
+    "liftSeconds": 4.0, "soloLiftScale": 3.0, "liftReach": 2.5, "setBehind": 1.5, "standBelow": 0.3, "stowReach": 6.0,
+    "handleReach": 1.0
+  },
+
   // A bend taken too fast (ARCHITECTURE §8 note 265; build 1121: "we'll want to telegraph using sound design that the train
   // is going under stress and it's getting close to derailment"). Linegen plan §8.5's numbers stand: a bend derails above
   // √(aDerail R) and is boarded at √(aPost R) (linegen/tiers.json "curves"). What's here is how it's told and when it may

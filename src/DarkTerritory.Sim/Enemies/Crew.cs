@@ -97,6 +97,12 @@ public static class CrewSense
     /// <summary>A player on the ground (off the train: the yards, the facilities, beside a stopped train).</summary>
     public static bool OnGround(in PlayerState s) => s.Alive && s.Parent == PlayerState.World;
 
+    /// <summary>
+    /// A player out on the open line (note 729): on the ground, or riding the handcar, which the lineside creatures treat as on
+    /// foot (exposed, a body in reach) however fast it goes.
+    /// </summary>
+    public static bool Afoot(in PlayerState s, TrainOnLine train) => OnGround(s) || s.Alive && train.OnHandcar(s.Parent);
+
     /// <summary>Someone living is inside that car (standing in its room, doors shut or not).</summary>
     public static bool Occupied(EnemyContext ctx, int car) =>
         ctx.Crew.Any(c => c.Player.State is { Alive: true, Surface: Surface.Deck } s && s.Parent == car

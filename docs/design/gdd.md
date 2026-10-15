@@ -593,6 +593,8 @@ Not a punishment mechanic — the whole tension of the sequence. The person on t
 - **The horn at a stand is the call.** Someone at the controls pulls the cord with the train standing, and every bot off the train drops what it's doing (its stop's work, a house it's searching, an errand on the ground) and comes aboard. It holds until the train moves off. The Whistler's whistle (no hand on the cord) calls nobody.
 - **"Aboard!" is called, not shown.** A bot that's aboard after the horn calls "Aboard!" once: its hand goes up and the crew see it said, with its name. Someone playing calls it the same way, from the emote wheel's fourth spoke (ABOARD), or out loud. In the cab, the driver keeps the roll of who's called since the horn, and is told when every living crewmate has. Nobody is counted for you: whoever hasn't called hasn't been heard from, aboard or not, so roll call is still something the crew does, not something the game knows (open question 2).
 
+**The hand-up** *(the director, 14 Oct 2026, App. F.6; ARCHITECTURE §8 note 723)*. Nobody gets left if a friend is at the door. Run beside a moving car, and a crewmate standing in its open door, on its end platform or on its steps can haul you aboard: they look at you and hold Use (**HAUL UP : HOLD [E]**), and with you in reach for 0.6 s you're up, standing just inside the door. It works while the two of you move within 7 m/s of each other, a runner's sprint and a little: a friend standing on the ballast isn't snatched up at 40 km/h. Not through a shut door, and not at a stand (the steps are there to climb). While it's held, Use is the hand-up's, so the door the helper stands in isn't worked. A bot on the car does it for a crewmate playing who comes alongside. On a moving train the report says who came back for you, *"Hauled aboard in car 3 at km 4. Hauled up by Dave at 40 km/h"*: what the run-end screen's *Came Back For Me* (App. D.12) is for. `player.json rescue.handUp`.
+
 ## 18. Facility roster
 
 | Facility | Cargo | The coordination problem |
@@ -638,6 +640,8 @@ Cargo is physically represented and **changes the run** rather than just scoring
 | Hand-carried loot | Toys, crates, salvage. Stolen, eaten, and traded to monsters. Some toys are noisy: a squeaker, a music box, a wind-up drummer. They feed the crew loudness meter while carried (Appendix C.7) |
 | Comet fragment | Hand-carried, worth more than two car-loads of goods. Glows. Attracts everything. Most nights, one, out off the line |
 | Trophy | A piece of a creature the crew killed together. Hand-carried, worth a good deal |
+| Jackpot | A safe, a church bell, a ship's figurehead. Takes two to carry, worth about a car-load of goods |
+| Fragile valuable | A crate of glass, a cut-glass decanter, a mantel clock. Worth less every time it's knocked |
 
 ### The night's prizes *(the director, 14 Oct 2026; ARCHITECTURE §8 note 718)*
 
@@ -646,6 +650,15 @@ Cargo is physically represented and **changes the run** rather than just scoring
 - **Value you learn.** Every kind of find is always worth the same: a box of candles is the cheapest thing in a cupboard, a pocket watch is worth several of them, and morphine more. Nothing on the screen says so. The clerk's tally names the night's best finds with what they paid (§9), and over nights the crew learns what to carry first. A find's worth is its kind's share of the tier's car-load value, so it is the same on every night of a tier. An outlier house keeps better things (level-design P11).
 - **Comet fragments at the stops.** Most nights, one stop has a fragment of the comet lying out off the line, 40 to 90 metres from the track, past the stop's own ground: in among the village's houses, or out beyond the yard. It lies where the headlamp finds it coming in, with no building and no hill between. It is a lump of black glassy slag split by crystal that glows a sick green, and that light carries through the fog, so a crew sees it from the cab and has to decide whether it's worth the walk. Deeper tiers have one more often: four local nights in ten, six frontier nights in ten, seven on the dead lines, eight in the deep territory. Never more than one a night. One person can carry it, and it is worth two and a half car-loads of goods, but only if the night is delivered. *The director, 14 Oct 2026, on the social collision audit's R6 (one fragment, most nights, in sight off the line, worth more): "good"* (note 755; it was note 718's chance at every stop, one or two, beside the stop's things, worth 1.2 car-loads). While one is aboard, in a car or in the hands of someone on the train, it draws everything the comet's freight draws (B.8: every creature weighs more, and the Gaunt's and the Passenger's tier gates relax).
 - **Trophies, sometimes.** About one team kill in three leaves a piece of the creature where it fell: the Grumbler's jaw, the Gaunt's long hand, a Climber's claw, the Passenger's cap with its dead railway's badge, the Brakeman's brake wheel, a Knotter's claw, a Hotbox plate, the Freight Beetle's shovel head, Tower Jaw's tooth. The Choir's ghosts leave nothing. Each trophy is a find with its own worth, and the ones that come several to a night (Climbers, Knotters, Hotboxes) are worth less each. The Gannet's head is still left every time (note 340): one bird, rare, at speed.
+
+### Big finds *(the director, 14 Oct 2026; ARCHITECTURE §8 note 719)*
+
+"Very big value things should take two to carry. That is a good idea." And on 9 Oct (App. F): loot that stays where it's put, so "poor stacking becomes an obstacle ... lethal company style".
+
+- **Two-person jackpots.** Now and then a stop has something too heavy for one: a safe, a church bell off its frame, a ship's figurehead off a wreck. Each is worth about a car-load of goods, more than anything one person carries but a comet fragment. It's carried as a heavy crate is (spec D.2): one takes an end and it stays where it lies; the second takes the other and it comes up between them, at the heavy pace, and nobody throws it. Either lets go and it's down. Put down in any car and left still, it pays at the gate like a find. About one a frontier night, by a yard's crates or on an open house's floor, and likelier in the jackpot house. Never more than two at a stop.
+- **Fragile valuables.** A crate of glass, a cut-glass decanter, a mantel clock: worth more than most finds whole, and less every time they're knocked. A knock is anything that stops it hard: dropped from higher than a man's head, thrown, hit, slid hard into a car's end, or off a moving train onto the ballast. Putting one down from the hands doesn't knock it. Each knock halves what it's worth. Nothing on the screen says so. The thing itself shows it (a crack across the glass, a dented case, a broken neck and the shards by it), and so does the clerk, who names it by its damage in the tally: "Find: mantel clock, dented, 60."
+- **The jackpot house.** At some stops (a third of frontier stops, more deeper in), the village's biggest house is locked up. Its door is panelled and painted, not plank like the rest, and a lamp burns in its window, so it's seen from the line. A held Use doesn't open it. The wrench does: held at the lock six seconds, quietly, as it opens a Holdout's lock (App. D.7). Inside, it keeps better things than any other house: its cupboards and boards turn up the best of what they could hold, two or three more finds lie on its floor, and two in five hold a jackpot. Something is likelier to live in it, too (the house creatures' odds, doubled).
+- **Loose loot rides the train.** What's put down in a car stays a thing, and feels the car moving. On a bend it slides outward; under the brakes, forward; pulling away, back. It slides till it stops against the car's side or end, or another thing, or goes out through an open side door onto the line, lost unless someone goes back for it. Things lie on things, and one balanced badly on another topples off. A fragile find that slides hard into the end of the car is knocked. A car's stowed finds are paid only for what's still in it at the gate. Stack carefully, and shut the doors.
 
 **The mail cranes** *(notes 673, 727; the director, 14 Oct 2026, App. F.6)*. Between the stops, mail cranes stand beside the line, each with a board a way ahead saying which side. Someone in a car's open side door on that side, holding the hook out as the car goes by, catches its bag: pay, coal for the tender, rounds for the guns or spares for the worst car. The board posts the speed the hook holds a bag at ("MAIL > 50"), and a bag hooked faster tears off and is lost, so the one at the door calls the driver down for it.
 
@@ -677,6 +690,8 @@ The learnability rules from v1.0 — the rule fits in six words, one death teach
 ## 21. Roster — 30 enemies
 
 Demo ships with **five**: Track Doll, Car Hugger, Whistler, Tippy Toesie and Ribbits, with the Choir running underneath as the ambient system. If the Foundry is one of the two demo facilities, the Grumbler replaces the Ribbits.
+
+**The crew's things speak the creatures' senses** (the director, 14 Oct 2026; ARCHITECTURE §8 note 728). Every creature hunts by one sense (App. A.1), and every item the crew carries gives off or masks one of them, by a fixed table (`content/tuning/senses.json`): a lamp is light, a noisy toy is sound, the extinguisher's spray is cold (it masks heat), a crate dropped or a lump of coal thrown on the rail is a knock (vibration), food is scent, a body is what the Mourners come for. A creature answers a thing only through its own sense, the way it answers anything else, so the roster is a toybox without a tutorial: a music box thrown into the field draws the Moose to it, the extinguisher drives a Cinder Hound back, a lamp left lit in a car or out in the dark draws the Fire Flies, a knock on the rail draws the Car Hugger off and turns Tower Jaw from its post. **Thrown things do what they are:** a lamp thrown hard breaks and its oil lights the fire grid where it lands (on the ground, it burns a while); a powder keg brought up short goes up; set down by hand, neither does. Nothing thrown hurts a crewmate; fire and a keg's blast are the world's own rules.
 
 ### FORWARD — the brakes answer
 
@@ -1016,6 +1031,14 @@ Friends mess with each other. The game lets them, cheaply and recoverably, and k
 - **Kill a friend with a shove and the dark comes for you.** *The director, 14 Oct 2026: "With shoving if a player ever shoves another player and that results in their death all the monsters in the game should target more heavily the murderer player so they are heavily likely to die (even if they rescue the player from a holdout)."* The shover is marked for the rest of the night: the victim's return through a Holdout or a rescue doesn't clear it. The shover's own death does. *The director, 14 Oct 2026: "Shovers mark should reset to normal targeting after they are killed"* (note 754): back through a Holdout they're weighed like anyone, and the news and the report keep the line. Every creature choosing whom to go for counts them six times nearer and twenty metres nearer again, so anything that can reach them prefers them; a creature whose rule picks for it keeps its rule (the Choir still takes the loudest, the mark its tiebreak; the Moose hears a marked voice louder). The director sends its next threat at their post, what they do draws the dark harder, and the pressure builds faster while they're on foot. The news and the report say it, *"Marked: Dave (shoved Priya off at 58 km/h)"*; there's no marker on anyone's HUD. `horseplay.marked`.
 - **The switch: CREW MISCHIEF** *(the director, 14 Oct 2026; ARCHITECTURE §8 note 724)*. A lobby option the host sets on the host screen or the fortress board, or in the yard from the night's menu: ON or OFF for the run. Off, the shove, the bonk and coal thrown at the crew land on nobody; crewmates stay solid either way. It starts on among friends (a private run) and in **Here for Laughs** runs, off in a public run that's **Feeling Competitive** (§33.1), where strangers meet. Every machine has it with the night's setup, and again whenever the host changes it. `horseplay.enabled` turns it all off for every lobby. All the numbers are in `player.json horseplay`.
 
+### 23.5 Bringing them home *(the director, 14 Oct 2026, App. F.6; ARCHITECTURE §8 note 723)*
+
+The friendslop audit's pillar for friends: nobody gets left. Alongside the hand-up onto a moving car (§17), friends have physical ways to get each other home.
+
+- **Carry a friend.** Empty-handed, look at a living crewmate in front of you and hold Use for a second (**CARRY : HOLD [E]**), with nothing else Use works in reach: they're over your shoulder, carried as a body is (App. C.4): you go at a carry's pace and climb nothing; they can look about and talk, and Jump wriggles free to your feet. Use puts them down at your feet. **Throw** throws them a short way along your view: off their feet as a shove puts them, so the landing is the world's rule (the train's speed or the drop, §23.4), and the report says *"Thrown off by Dave at 65 km/h."* A throw that kills marks the thrower as a shove does. Throwing a friend is mischief: with the CREW MISCHIEF switch off (§23.4), Throw puts them down. A carried friend is safe from nothing: whatever grabs or knocks the carrier (a creature, a shove) drops them, and they can be grabbed off the shoulder. Bots can be carried; bots never carry anyone. `player.json rescue.carry`.
+- **A bandage on a friend.** With a healing find in your hands (App. F.1's rare healing loot), look at a hurt crewmate and hold Use (**BANDAGE PRIYA : HOLD [E]**; medicine and morphine are given) for the find's use time: it goes on them and heals half again as much, up to their full health. Used on yourself, it heals what it always did. `loot.json healing.onAFriend` (1.5).
+- **Helping a knocked friend up** is not built: there's no knocked-down state to get up from. A fall's knock (spec B.3) is health only, and the crew are never left lying (note 573).
+
 ## 24. Decoupling
 
 Leaving something behind is a defining choice of the world. A damaged car. Burning cargo. A stranded player. A valuable shipment. A monster-infested section.
@@ -1029,6 +1052,19 @@ The railway makes these choices physical. **Once the coupler releases, whatever 
 Sometimes the Territory decides for you. The Passenger uncouples the caboose to eat in peace, and a Car Hugger can leave you no choice but to cut the rear car.
 
 **Cuts you can get back** *(the director, 14 Oct 2026, App. F.6; ARCHITECTURE §8 note 725)*. A coupling cut is a choice, not always an ending. Cars cut at a stand are parked, handbrakes wound on, and stay where they are; cars cut at speed roll free behind the engine and slow on their own. Either can be had back: the engine backs gently into parked cars, or eases off and lets a rolling cut close on it at a walking pace, and the couplers take (train.json `couplings.coupleMaxSpeed`, 1.5 m/s; faster, it's a collision that dents both ends). Until a cut is more than 400 m from every living crewmate, nothing is lost (§23.2). The chart table in the cab keeps a lamp for each crewmate, lit while they're aboard, so cutting a friend loose is something a crew chooses rather than finds out (§10).
+
+### 24.1 The handcar *(the director, 14 Oct 2026, App. F.6; ARCHITECTURE §8 note 729)*
+
+> Go back for a player or keep moving? Send two of them back on the handcar.
+
+A pump trolley the fortress sells (campaign.json's `handcar`, a small upgrade), hung on its end on the back of the guard van, behind the rear platform's rail. It's railway slapstick, and it answers the questions above: a way back for a friend left behind, a scout down a branch past the points without risking the train, and a race back to the train before it pulls away.
+
+- **Down onto the rails.** At a stand (the train slower than `handcar.standBelow`), held Use beside it lifts it off the van and sets it on the rails a step behind the platform. Two lift it in `liftSeconds`; one alone takes `soloLiftScale` times as long. At speed it stays where it is, however long anyone heaves.
+- **Its own rake.** On the rails it runs as any car does: down the line's paths, through the points as they're set (and back out through them with no choice, as a train does). It couples to nothing, half a tonne of it dents no car, and it can't pass the train: run into the van's back, it's stopped there.
+- **Pumping.** The handle is a see-saw geared to the wheels, so it swings faster the faster the car runs (a full swing every `strokeMetres`). At either end of it (Use takes it, Use or Jump lets go), W pushes your end down and S pulls it up. In time with the swing, pushing your end as it comes down and pulling it as it goes up, the car's driven on; against it, the stroke brakes it or fights your mate. Two in time make about 8 m/s on the level, one about 6, two out of time less, and holding W does nothing at all. Standing, a push starts it one way and a pull the other: that's reverse. Grades tell: a 2% bank takes two down to about 6.5 m/s, and down one it runs away to `maxSpeed` unless someone holds the brake lever (the brake key, anyone aboard). Left with nobody aboard, its brake latches on and it stays where it was left.
+- **Back aboard.** Standing within `stowReach` of the van's back, the train standing and nobody on it, held Use beside it puts it back on its hooks. Or it's left where it is: it's never the train's, so it's never a car lost.
+- **The open line.** Its riders are out in the Territory as much as anyone on foot: the lineside creatures treat them as on foot, the hunts for the left behind follow them, and the Wakers take them at dawn like anything else. The Gannet's fast train isn't the handcar: it doesn't come for it. A driver bot sets back for a crewmate out on it, as for one on the ballast.
+- **Bots** never take it out on their own. With a friend at one end of the handle and the other end free, the nearest bot on the ground at the stand climbs aboard and takes the other end, pumps in time the way the car's going, and lets go when its mate does.
 
 ---
 
@@ -1471,6 +1507,22 @@ DORMANT ──[sense trigger]──► ALERT ──[tell fires]──► TELEGRA
 
 **Sense triggers** are one of: sound, light, heat, movement, scent, vibration, sight, absence. Enemies sharing a trigger in the same zone must have tells that stay distinguishable by ear and by eye.
 
+**The sense table** (the director, 14 Oct 2026; ARCHITECTURE §8 note 728). What the crew's things give off, in the same eight senses, is one table (`content/tuning/senses.json`), and every creature reads it through one query (`World.Emitters(sense, at)`): each entry a sense, how far it carries and how strong it is (on a voice's scale, its level / 255), or a negative strength for what masks a sense.
+
+| Thing | Sense | Reach | Notes |
+|---|---|---|---|
+| Hand lamp (carried or set down; dark only put away in a slot) | light | 12 m | lying lit in a car, it's that car's lamp |
+| A car's lamps | light | 10 m | App. A.5's "a lit lamp inside a car" |
+| Squeaker | sound | 15 m | only squeezed in the hands |
+| Music box, wind-up drummer | sound | 30 m, 35 m | wound: set down or thrown, they play on where they lie (90 s, 30 s) |
+| The extinguisher's spray (Fire held) | heat, masked | 3.5 m, a 25° cone | spent only on what it reaches |
+| A knock on the rail (a coal lump, anything heavy dropped onto it at 3 m/s or more) | vibration | 40 m | heard 2 s |
+| A thrown lamp burning on the ground | light, heat | 10 m, 3 m | 25 s |
+| Food among the finds (treats, tinned food, preserves) | scent | 15 m | |
+| A body | absence | 20 m | the Mourners read the bodies themselves (note 362) |
+
+A creature answers only its own sense: a lamp is nothing to the Moose, a music box nothing to the Fire Flies. The Knotter and Hotbox (vibration) answer the train's own running, never a knock; the Switchman, a train on its switch. Each answer is in its entry below and in the table's `answers`.
+
 *All timings below are first pass, built for feel-testing.*
 
 ---
@@ -1506,12 +1558,16 @@ LEAP      within 30m → jump for the rear car
 BOARD     on success → PACK FIGHT
 PACK FIGHT several hounds; each takes several bludgeons; bites hard
 BREAK OFF rear cannon hit, or train exceeds their sustainable speed
+SPRAYED   aboard, the extinguisher's cold on it (heat masked) → lets go, can't bite, backs off down its car;
+          keeps off 3 s after; sprayed 4 s within 10 s → leaps off the train
 ```
-**Every cannon shot feeds the loudness meter.** This pair with the Choir is the roster's central tension.
+**Every cannon shot feeds the loudness meter.** *The extinguisher* (the director, 14 Oct 2026; ARCHITECTURE §8 note 728)*, the director's playtest of 13 Oct evening, line 24: "I'm pretty sure I can take a fire extinguisher and use them on the cinder hounds, can't I? ... That should have worked"): a hound's sense is heat, and the spray's cold masks it. It's a deterrent, weaker than a gun's suppression (which sends a running pack off at once): it reaches only the hounds aboard, within the spray's 3.5 m, and a hound backed out of its reach has to be followed down the roof to be driven off. Numbers in senses.json `answers.cinderHounds`.* This pair with the Choir is the roster's central tension.
 
 ### CAR HUGGER · vibration
 ```
 LURK      beside the track on low ground
+          └ a knock on the rail within 40 m → crawls to it, off the formation's edge; drawn (15 s from the last
+            knock), it latches onto nothing (note 728)
 LATCH     rear car passes → clamps on
           └ TELEGRAPH: heavy grinding from the rear; top speed capped
 FEED      eats the car's shell and loot steadily
@@ -1629,8 +1685,10 @@ It naturally targets the conductor and boiler player. At crew 2, shorten its rea
 ### FIRE FLIES · light
 ```
 DRIFT     lineside in dark sections
-SWARM     a lit lamp inside a car → they gather on it
+SWARM     a lit lamp inside a car → they gather on it (a hand lamp lying lit in a car is a lamp: note 728)
           └ TELEGRAPH: glow and buzzing around the lamp
+LURED     a lit hand lamp lying out in the world within 30 m → they drift off the car to it; igniting, the lamp
+          breaks into a short burn where it lies, and no car's alight (note 728)
 IGNITE    linger ~20s → the car catches fire
 SPREAD    fire grows and jumps couplings over time
 BREAK OFF lamp turned off, or the train pulls away at speed
@@ -1664,11 +1722,12 @@ WAKE      a player comes too close
 FOLLOW    trails its waker at arm's length; boards the train with them
 LISTEN    every 5s of silence near it → aggro +1
           └ TELEGRAPH: it leans in closer and tilts its head as aggro climbs
+          └ a noisy toy playing within 8 m isn't silence (aggro holds), but only a voice talks it down (note 728)
 ATTACK    aggro at threshold → heavy attacks on the nearest player
 COUNTER   kill it (a group job; it hits hard)
           OR lead it to a car → it takes the most valuable item → leaves for the run
 ```
-Talking only holds it off. **It punishes silence while the Choir punishes noise**, so players must chat to it quietly. Whose voice counts, and whether talking lowers aggro, are open questions (Part Eleven).
+Talking only holds it off. **It punishes silence while the Choir punishes noise**, so players must chat to it quietly. *A wound music box left by it holds it where it is (the director, 14 Oct 2026; ARCHITECTURE §8 note 728)), and feeds the Choir while it plays: the contradiction, in a toy.* Whose voice counts, and whether talking lowers aggro, are open questions (Part Eleven).
 
 **A body is an item.** It ranks at its refund value (D.9), so the Gaunt will sometimes pass over the medicine and leave with a dead crew member. It carries the body out at walking pace, in full view, and the crew can still chase it down before it clears the train.
 
@@ -1707,7 +1766,10 @@ GRAB      charges someone already hurt (40 or less) → pins them under the rack
           └ interrupt: a friend's blow → it lets go and goes for the friend
 PUNISH    trampled
 SEARCH    out of sight → where it last saw or heard them; a voice within 15 m gives anyone away;
-          25 s without them → gives up
+          25 s without them → gives up; a toy louder than any voice it hears is where it searches (note 728)
+LURED     unriled, a noisy toy playing within its reach and louder than any voice there (a music box at 30 m)
+          → walks over (2.5 m/s, inside its 80 m leash) and stands 3 m off it, listening (aggro held at
+          listenAt: on edge, never past); the toy runs down → home. A toy is nobody: it never riles it
 RAM       lost at a car they're aboard → rams it every 3 s for 15 s (a boom and a shudder, nothing more), gives up
 GIVES UP  also past 80 m from its ground, or after three charges into what it can't get into → walks home and grazes
 TRAIN     the train pulling away ends it
@@ -1752,6 +1814,8 @@ GNAW      at a stop with a wooden or light structure (not a bridge) → it's gna
           comes; the structure's strength falls (it comes down in 150 s of gnawing; faster at harder tiers)
           └ TELEGRAPH: the chiselling; chips; then the creak and the lean (from half gnawed), the groan (the last 5 s)
 NOTICE    a crewmate within 10 m → it turns, rears and slaps its tail (THREAT, 1.5 s)
+          └ nobody near, a knock on the rail within 40 m → it stops gnawing, turns to the knock and rears at it,
+            4 s from the last knock (note 728): a lump of coal a knock, so a decoy costs the tender
           ├ they come within 3 m → LUNGE: a bite (35, never a kill); then back to the post
           └ they back off → back to gnawing
 HIT       blows: 4 in 15 s DRIVE IT OFF (it lopes away for 120 s, then comes back to the same post, its gnawing kept)
@@ -1799,6 +1863,8 @@ DISPERSE  quiet held → they leave
 LIMIT     one crew member taken → the Choir is gone for the rest of the run
 ```
 **Fully preventable by hushing in time.** Fighting it is possible and almost always a mistake.
+
+*A wound music box or drummer set down or thrown plays on where it lies, and counts on the meter as it would carried, in the name of the last one to hold it, while it's within its own reach of a living crewmate (the director, 14 Oct 2026; ARCHITECTURE §8 note 728)).*
 
 **Loudest first is the blame rule.** Among exposed players, the Choir takes whoever contributed most to the meter during BUILD: their voice, a cannon they fired, the whistle they pulled, a squeaker in their hands. It stays fair because loudness is entirely player-controlled, and a player behind a closed door is safe however loud they were. The one shouting at everyone to shut up is usually the one it takes.
 
@@ -2196,8 +2262,8 @@ The roster depends on nine systems. Each is shared by several enemies, so each i
    **In a crew, with nobody near** *(the director, 14 Oct 2026, on the social collision audit: "Approved for Grabbed"; ARCHITECTURE §8 note 756)*: a held player with no living crewmate within 26 m (`grab.crewStruggleBeyond`: proximity voice's reach, nobody near enough to hear and come) can struggle the same way, one try a grab, at a lower chance (`grab.crewStruggleChance`, 20%), since a friend may still come. With a crewmate nearer than that, the friend is the help, and Use pulls nothing. The HUD says STRUGGLE only when it's yours to try.
 2. **Melee.** The core verb. The tools already on the train are the weapons: shovel, wrench, crowbar. The boiler player's shovel doubling as the crew's best club is intended tension. *(Note 664, the director, 13 Oct: "Every crew member should be able to shovel coal regardless of having the shovel in their hand": coal goes on without it, and the shovel's a club on the cab's rack. `boiler.json shovelInHand` false.)* Server-authoritative hits with lag compensation.
 3. **Cannons.** Bullets and guns are rare in this world; crude cannons and crude gunpowder are not. Each mounted cannon has a full manual reload (powder, ball, ram, fire), so every shot is a timed decision. Powder and shot are stocked at departure. *A gun fires what's in its ready rack, six rounds; the rest of the night's powder is in the guard van's powder locker, the engine gun's share too, and comes up a charge at a time, carried by hand to the gun (ARCHITECTURE §8 note 374; [orchestrator.md](orchestrator.md) §5.1 U4). In a wave a gun is a two-person job: a gunner, and someone bringing the powder. A bot crew splits it the same way (note 377).*
-4. **Hand-carried loot.** Small items players carry alongside car-level freight: toys (for the Track Doll), crates (the Grumbler), salvage, and a rescued child. Carrying runs at 2.8 m/s with no climbing, per the systems spec. **Some toys are noisy** (a squeaker, a music box, a wind-up drummer). They emit sound while carried or jostled and feed the loudness meter in the carrier's name (C.7). They are worth more than quiet toys, and the Track Doll likes them just as much.
-5. **Fire and firefighting.** Fire grows and jumps couplings. Every car has a wall-mounted extinguisher that players grab, use and put back. Each holds limited charge and recharges slowly on its mount. Bigger fires need more extinguishers at once.
+4. **Hand-carried loot.** Small items players carry alongside car-level freight: toys (for the Track Doll), crates (the Grumbler), salvage, and a rescued child. Carrying runs at 2.8 m/s with no climbing, per the systems spec. **Some toys are noisy** (a squeaker, a music box, a wind-up drummer). They emit sound while carried or jostled and feed the loudness meter in the carrier's name (C.7). They are worth more than quiet toys, and the Track Doll likes them just as much. *Wound, a music box (90 s) or a drummer (30 s) set down or thrown keeps playing where it lies: a lure for what hunts by sound, and still the setter's on the meter (the director, 14 Oct 2026; ARCHITECTURE §8 note 728)).* **Thrown things do what they are:** a hand lamp brought up short at 6 m/s or more (a throw, a fall off a roof; set down from the hands it's about 4.5) breaks: on or in a car, its oil lights the car's fire grid at the cell nearest where it broke (0.35 heat; C.9 records whoever threw it); anywhere else it burns where it lies 25 s, light and heat. A powder keg brought up short goes up, as it always has (§18–19). Anything heavy landing hard on the rails is a knock (A.1's table). Nothing thrown hurts a crewmate (§23.1).
+5. **Fire and firefighting.** Fire grows and jumps couplings. Every car has a wall-mounted extinguisher that players grab, use and put back. Each holds limited charge and recharges slowly on its mount. Bigger fires need more extinguishers at once. *Its spray is cold (A.1's table): on a Cinder Hound aboard it drives the hound back (A.3); the charge goes only as the spray's spent on fire or a creature (the director, 14 Oct 2026; ARCHITECTURE §8 note 728)).*
 6. **Group counting.** Players within 8m of each other count as a group — the full-clarity voice radius. Used by Ribbits and Climbers.
 7. **The crew loudness meter.** Combined loudness from voices, cannons, the whistle and machinery, measured over a few seconds so single shouts don't count. It drives the Choir and is fed by livestock and noisy loot. **The meter keeps a per-player share**: each player's voice, the cannon they fired, the whistle they pulled and anything noisy they carry. Machinery, livestock and a whistle blown by the Whistler belong to nobody. The Choir uses the shares from its BUILD phase to pick who it takes first (A.7). **A crew singing together feeds none of it** *(the director, 14 Oct 2026; note 720)*: two or more within earshot whose voices rise and fall in time over four seconds are singing, and their voices are left out of the meter while they do (§14). Livestock aboard while the crew sings make a lower floor.
 8. **Voice effects on the server.** Tippy Toesie muffles its victim; Soot Child victims fade as they're drained; the Gaunt listens for silence; the Passenger never speaks. All live in the existing voice layer. Two more, added in v1.3:
@@ -2795,7 +2861,8 @@ genre ... It's extremely important that friends exceeds our target meaningfully.
 - **Singing does not fight the Choir.** *Queue #454.*
 - **Comet cargo at real stops, extra valuable and exciting to see; trophies sometimes from team kills; very big finds take
   two.** *Queue #452, #453.*
-- The rest of docs/design/friendslop.md §3 goes ahead (queue #450–#466).
+- The rest of docs/design/friendslop.md §3 goes ahead (queue #450–#466). Among it, **bringing them home**: the hand-up onto
+  a moving car (§17), carrying a living friend and a bandage on someone else (§23.5). *Queue #457, note 723.*
 
 ## F.5 2026-10-13 — the creature gym, Test build 21 (ca0d37e)
 
@@ -2878,7 +2945,7 @@ genre ... It's extremely important that friends exceeds our target meaningfully.
 - The world's set dressing repeats: "the same three things over and over again". More art assets to dress the world. *Open (queue #64, note 325, E1).*
 
 **Level design**
-- The villages have no explorable interiors. They should be searchable for finds. This is where crews decide whether to split up for more loot, or work the yard together, or the village together, which takes more time. *In (queue #65, note 326, B4): the village houses stand open, and what they keep in a cupboard, cabinet, cellar or under the boards comes out only to a crewmate who holds Use there a few seconds. A searched cupboard stands open, a cellar's hatch up, and the cupboards and cabinets are solid. Every house stands open, the L, cross and paired ones too. A bot crew splits up too: once the yard's crates are in (its own site's, then the rest of the yard's on foot, note 403), half its crate hands go to search the houses and bring the finds aboard. The bigger houses have rooms: an L's wing and a long house's back room through an inner doorway, often the dark one. And their doors shut (note 401): a house with its door shut is behind a closed door, so the Choir passes over whoever's in it (a pair of cottages is two homes, each behind its own door: note 453). A bot out among the houses when the Choir gathers shuts itself into the nearest one and comes out once it's quiet (note 413). The barns, outbuildings and a dead town's goods shed stand open too, a hayloft's or a workbench's find inside to search (note 417).*
+- The villages have no explorable interiors. They should be searchable for finds. This is where crews decide whether to split up for more loot, or work the yard together, or the village together, which takes more time. *In (queue #65, note 326, B4): the village houses stand open, and what they keep in a cupboard, cabinet, cellar or under the boards comes out only to a crewmate who holds Use there a few seconds. A searched cupboard stands open, a cellar's hatch up, and the cupboards and cabinets are solid. Every house stands open, the L, cross and paired ones too. A bot crew splits up too: once the yard's crates are in (its own site's, then the rest of the yard's on foot, note 403), half its crate hands go to search the houses and bring the finds aboard. The bigger houses have rooms: an L's wing and a long house's back room through an inner doorway, often the dark one. And their doors shut (note 401): a house with its door shut is behind a closed door, so the Choir passes over whoever's in it (a pair of cottages is two homes, each behind its own door: note 453). A bot out among the houses when the Choir gathers shuts itself into the nearest one and comes out once it's quiet (note 413). The barns, outbuildings and a dead town's goods shed stand open too, a hayloft's or a workbench's find inside to search (note 417). And at some stops the biggest house is locked up, a lamp in its window: the wrench opens it, and it keeps more and better than the rest, often a jackpot that takes two to carry (§19, the director, 14 Oct 2026; note 719).*
   - *The director, 8 Oct, on the first interiors:* "These interiors are looking good but a few things: they need some lighting inside, dim to keep it scary, I like that they look worn down; sometimes a monster should be nesting in there; they need procedurally generated furniture scattered about, like the place has been ransacked many times before; loot needs to be discoverable in there, that's the whole point of this. They need a bit of a brighter more unique look to them so that they stand out from the background as interactable objects. Do this with good texture work, not VFX." *(B4, under queue #65. In: a dim candle or lamp in each house, the night kept out; each kind of find its own model in bright printed stock, and the toys found with them re-painted to stand out the same way (C1, note 372). Every house ransacked, heavy furniture against its walls and things underfoot; the Gaunt's house dark, its nest on the floor. A barn, outbuilding or yard shed it sleeps in is dark the same way, its lantern out and, in a barn, its nest on the boards (note 488).)*
 
 **Encounters**
@@ -3014,7 +3081,7 @@ Further decisions (the director, 6 Oct 2026):
 **Decided** (the director, 6 Oct 2026, later the same day):
 - **The Track Doll escalates if ignored.** She's no problem at first: she haunts, plays with and admires things in the car. Left alone, she moves on to the controls, and in the end she can let a standing train off its brake. It's a consequence of the crew's inattention and of not getting her off the train, never sudden. *Done (note 268).*
 - **Stoker v3.** It's drawn by heat and boards at the coal bunker with a telegraph, and can be driven off on the way in. In the firebox it's territorial: opening the door while it's in gets you a heavy burn, and a second kills. That's the mistake you learn from. The counter is to vent and starve the fire below a set heat; it then leaves the way it came, and a break of two to three minutes follows, so the crew can fire up again. Cooling costs time and speed. A water hose through the open door kills it, at the cost of much of the fire. No chip damage: a crew that knows the rule never gets hurt. *Done (note 271): the boarding half in note 263, the firebox half in 271; the hose is an extinguisher for now.*
-- **Damage model: Lethal Company style.** Health exists, but damage comes in a few big hits, never chip damage. Healing items are rare loot. Damage feedback is minimal: an edge flash and a sound. Creatures mostly don't take damage; they're driven off by their rules. Genre fans arrive already knowing this. *Done (note 272; systems spec B.2): big hits only, rare healing finds, the edge flash. Caveat: creature health is not yet reworked; note 272 lists which creatures still die to blows, for the director.*
+- **Damage model: Lethal Company style.** Health exists, but damage comes in a few big hits, never chip damage. Healing items are rare loot. Damage feedback is minimal: an edge flash and a sound. Creatures mostly don't take damage; they're driven off by their rules. Genre fans arrive already knowing this. *Done (note 272; systems spec B.2): big hits only, rare healing finds, the edge flash. Caveat: creature health is not yet reworked; note 272 lists which creatures still die to blows, for the director.* *A healing find put on a friend heals half again as much (the director, 14 Oct 2026, App. F.6; note 723; §23.5).*
   - **Driven off, or killed together** *(the director, 7 Oct 2026)*: "They should be driven off by rules but they should also be able to be killed like in Lethal Company if the team coordinates effectively." Following a creature's rule drives it off (the normal answer, a break: it can come back); a coordinated team can kill it, which takes several of the crew striking at once with the setup its rule asks for, and a lone player swinging never gets there. Killing is riskier and costlier than driving off, and rewarded: it doesn't come back that night, and the incident report names the gang. *Done for the Grumbler, the Gaunt, the Passenger, Climbers and the Choir's ghosts (note 288; enemies.json `coordinatedKill` and each one's `drivenOff`).*
 - **Fire is a grid.** Each car's surfaces (floor, walls, roof; never mid-air) are cut into large cells of 1–2 m. Fire spreads cell to cell, the extinguisher puts out the cell you aim at, and burnt cells char the textures. *Done (note 267; systems spec B.11).*
 

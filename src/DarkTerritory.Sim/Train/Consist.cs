@@ -4,9 +4,11 @@ namespace DarkTerritory.Sim.Train;
 
 /// <summary>
 /// What a vehicle is for (GDD §10): engine at the front, guard car with the rear gun at the back, and a crew car (the
-/// GDD's "utility car": stores and a stove, warm and lamp-lit, §26) if the crew have bought one (note 184).
+/// GDD's "utility car": stores and a stove, warm and lamp-lit, §26) if the crew have bought one (note 184). And the
+/// <see cref="Handcar"/>: the pump trolley (note 729), a rake of its own on the rails or hung on the guard van's back; never
+/// coupled, never cargo, never the train's.
 /// </summary>
-public enum VehicleKind : byte { Engine, Cargo, Guard, Utility }
+public enum VehicleKind : byte { Engine, Cargo, Guard, Utility, Handcar }
 
 /// <summary>
 /// A mounted gun's state (spec B.7). Lives on the vehicle whose roof rail it's on (T93): a gun slides along the rail and
@@ -84,6 +86,8 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     public int Id { get; } = id;
     public VehicleKind Kind { get; set; } = kind;
     public bool IsEngine => Kind == VehicleKind.Engine;
+    /// <summary>The handcar (note 729): a vehicle of its own kind, never one of the train's cars.</summary>
+    public bool IsHandcar => Kind == VehicleKind.Handcar;
     /// <summary>The mounted gun's state, if this vehicle carries one (the engine's and guard van's to begin with; T93).</summary>
     public GunState Gun;
     public bool HasGun => Gun.Mounted;
@@ -243,9 +247,10 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
 
     public double MassTonnes(TrainTuning t) =>
         IsEngine ? t.Mass.EngineTonnes
+            : IsHandcar ? t.Handcar.MassTonnes
             : t.Mass.EmptyCarTonnes + Load * (t.Mass.LoadedCarTonnes - t.Mass.EmptyCarTonnes) + (Armoured ? t.Composition.ArmourTonnes : 0);
 
-    public double Length(TrainTuning t) => IsEngine ? t.Geometry.EngineLength : t.Geometry.CarLength;
+    public double Length(TrainTuning t) => IsEngine ? t.Geometry.EngineLength : IsHandcar ? t.Handcar.Length : t.Geometry.CarLength;
 }
 
 /// <summary>
