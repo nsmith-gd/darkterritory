@@ -2470,6 +2470,14 @@ public static partial class Hud
         // The tiny caboose off the rails within reach (note 713): empty hands put it back.
         if (world.Bodies.CabooseOff(p, train, train.Dynamics.Tuning.Composition.Caboose) is not null)
             return "PUT THE CABOOSE BACK ON THE RAILS : [E]";
+        // The human cannonball (note 746): in the guard van's gun, or at its muzzle with it packed.
+        if (world.Combat is { } cannon)
+        {
+            if (p.Has(PlayerFlags.InCannon))
+                return "IN THE CANNON   CLIMB OUT : [SPACE]";
+            if (HumanCannonball.AtTheMuzzle(p, train, cannon.Guns, cannon.Cannonball) is { } muzzle)
+                return Hold("CLIMB IN", train.Vehicles[muzzle].Gun.ReloadProgress / cannon.Cannonball.ClimbSeconds);
+        }
         // T112: the gun's seat and its own controls.
         if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is { } manned)
         {

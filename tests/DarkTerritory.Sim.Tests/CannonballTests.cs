@@ -144,6 +144,8 @@ public class CannonballTests
         Assert.True(inside.Has(PlayerFlags.Fired), "not fired");
         Assert.False(inside.Has(PlayerFlags.InCannon));
         Assert.Equal(Tuning.Combat.Guns.ReloadSteps, w.Train.Vehicles[Van(w)].Gun.ReloadNeeded);
+        // In the night's report, by the gunner.
+        Assert.Contains(w.Attribution.Log, i => i.Kind == Run.IncidentKind.Whimsy && i.What.Contains("fired from the rear cannon") && i.Actor == 1);
         // Through the air, facing where they come down (the look a tick behind the flight, so near enough).
         bool faced = true;
         for (int i = 0; i < 10 * SimConstants.TickRate && inside.Surface == Surface.Air; i++)

@@ -274,6 +274,9 @@ public sealed partial class World
             {
                 set(launch.Who, s);
                 _flights[launch.Who] = launch.By;
+                // The report (note 746): "Sam fired from the rear cannon. Fired by Dave."
+                Attribution.Add(Sim.Run.IncidentLog.Event(this, Sim.Run.IncidentKind.Whimsy,
+                    $"{Sim.Run.IncidentLog.NameOf(this, launch.Who)} fired from the rear cannon", launch.By, "Fired by {actor}.", launch.From));
                 _flightHit.Remove(launch.Who);
             }
         _launches.Clear();
