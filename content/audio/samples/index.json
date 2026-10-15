@@ -5089,6 +5089,111 @@
   "takes": 3,
   "sha": "37b374b91b382f98"
  },
+ "crew-horseplay/bonk": {
+  "cue": "crew-horseplay.bonk",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A tool's swing landing on a friend's head: the tool's clang and the head's hollow bonk",
+    "key": "clang",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "fe667f5ac3ba4e2c"
+ },
+ "crew-horseplay/bump": {
+  "cue": "crew-horseplay.bump",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A shoulder knocked in passing: a coat's thump and a grunt",
+    "key": "shoulder",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "28acd0a80314583e"
+ },
+ "crew-horseplay/coal-hit": {
+  "cue": "crew-horseplay.coal-hit",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A lump of coal off a friend: a hard thud on a coat, soot puffing, the lump breaking",
+    "key": "coat",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "ecd4013271612dc8"
+ },
+ "crew-horseplay/coal-land/ground": {
+  "cue": "crew-horseplay.coal-land",
+  "surface": "ground",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A thrown lump of coal landing in the ballast",
+    "key": "ballast",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "121e28e15998ee09"
+ },
+ "crew-horseplay/coal-land/roof": {
+  "cue": "crew-horseplay.coal-land",
+  "surface": "roof",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A thrown lump of coal landing on a car roof's tin and breaking",
+    "key": "tin",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "6588e3e542fe300f"
+ },
+ "crew-horseplay/coal-land/wood": {
+  "cue": "crew-horseplay.coal-land",
+  "surface": "wood",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A thrown lump of coal landing on a car's boards and breaking",
+    "key": "boards",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "276f0f272cff7709"
+ },
+ "crew-horseplay/shove": {
+  "cue": "crew-horseplay.shove",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Both hands shoved into a friend: palms slapping a coat, the breath knocked out, a stumble",
+    "key": "palms",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "e89076b6300bc224"
+ },
  "crew-house-door/open": {
   "cue": "crew-house-door.open",
   "surface": null,
