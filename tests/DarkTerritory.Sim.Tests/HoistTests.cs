@@ -301,7 +301,7 @@ public class HoistTests
     [Fact]
     public void OffTheHookCrossesTheWirePastTheOldSixteenBits()
     {
-        // Note 802: PlayerFlags widened to a uint for OffTheHook (bit 16); a snapshot carries it, with Hoisted's bit, whole.
+        // Note 802: PlayerFlags is a uint, OffTheHook bit 18 (past Lounging and Playing); a snapshot carries it, with Hoisted's bit, whole.
         var y = new Yard();
         y.HookOverGround(1.2);
         y.FriendBesideTheHook();

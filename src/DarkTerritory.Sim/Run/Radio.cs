@@ -45,9 +45,11 @@ public static class Radio
 
     /// <summary>
     /// The clerk at the terminus: the cars and their cargo, then each death body by body (its fee, and the refund if the body
-    /// came home), the mail, the costs, and the net. Every figure as flat as the last.
+    /// came home), the mail, the costs, and the net. Every figure as flat as the last. <paramref name="owned"/> are what the
+    /// crew's catalogue purchases have the clerk say (note 678; <see cref="Campaign.Campaign.TallyLines"/>): a gold whistle
+    /// read like the coal, before the costs.
     /// </summary>
-    public static List<string> Tally(RunReport report)
+    public static List<string> Tally(RunReport report, IReadOnlyList<string>? owned = null)
     {
         var lines = new List<string> { "Yard clerk. Consist received. Tally follows." };
         // Note 766: the cargo alone; the mail, the finds and a child home are read on their own lines, not in it too.
@@ -65,6 +67,8 @@ public static class Radio
             lines.Add($"Mail: {report.Mail:0}.");
         if (report.Scavenged > 0)
             lines.Add($"Salvage: {report.Scavenged:0}.");
+        if (owned is not null)
+            lines.AddRange(owned);
         // Note 718 (the director, 14 Oct 2026: "as they play the game more often, they learn what those objects are"): the
         // night's best finds by name with what each paid, as flat as the coal, and who brought the most aboard.
         lines.AddRange(Prizes(report));

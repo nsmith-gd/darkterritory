@@ -107,22 +107,66 @@ public sealed class FrontEndTests : IDisposable
         Assert.NotNull(m.Message);
         Assert.Equal(C.StartingCars + 1, Saves.Load(1)!.Cars);
 
-        // Upgrades: bought once, then owned and greyed out.
+        // Upgrades (note 697): the fortress's UPGRADES is the blacksmith's shelves to look at; they're bought at the forge.
         Saves.Save(m.Open! with { Scrip = 10_000 });
         m.ShowFortress(1);
         Choose(m, "UPGRADES");
         Assert.Equal(Screen.Upgrades, m.Screen);
         var first = C.Upgrades[0];
         Choose(m, first.Name.ToUpperInvariant());
-        Assert.Contains(first.Id, Saves.Load(1)!.Upgrades);
-        var owned = m.Items.Single(i => i.Label.StartsWith(first.Name.ToUpperInvariant(), StringComparison.Ordinal));
-        Assert.EndsWith("OWNED", owned.Label);
-        Assert.False(owned.Enabled);
+        Assert.DoesNotContain(first.Id, Saves.Load(1)!.Upgrades);
+        Assert.Contains("blacksmith", m.Message);
         // Every upgrade the fortress sells does something tonight (note 196): none says it isn't modelled.
         Assert.All(C.Upgrades, u => Assert.DoesNotContain("not modelled",
             m.Items.Single(i => i.Label.StartsWith(u.Name.ToUpperInvariant(), StringComparison.Ordinal)).Detail ?? ""));
         m.Back();
         Assert.Equal(Screen.Fortress, m.Screen);
+    }
+
+    [Fact]
+    public void TheBlacksmithSellsTheCatalogueOverTheYardAndOnlyTheHostPays()
+    {
+        // Note 687: Use held on the town's blacksmith in the yard opens their catalogue over the night. The host buys on the
+        // campaign (saved at once, fitted before the gate); a joiner's told who keeps the scrip.
+        var m = Menu();
+        var crew = Campaign.New(C, 1, "Crew 1", 5) with { Scrip = 10_000 };
+        Saves.Save(crew);
+        var first = C.Upgrades[0];
+        string label = first.Name.ToUpperInvariant();
+        string? bought = null;
+        m.SmithyBuy = id =>
+        {
+            var p = Campaign.BuyUpgrade(C, Saves.Load(1)!, id);
+            if (p.Ok)
+            {
+                Saves.Save(p.State);
+                bought = id;
+            }
+            return p;
+        };
+        m.OpenSmithy(new NightMenu(Yard: true), new SmithyShop("Archie MacNeil", crew, CanBuy: true));
+        Assert.Equal(Screen.Smithy, m.Screen);
+        Assert.Contains(m.Items, i => i is { Heading: true, Label: "TOOLS" });
+        Assert.Null(Choose(m, label));
+        Assert.Equal(first.Id, bought);
+        Assert.Contains(first.Id, Saves.Load(1)!.Upgrades);
+        Assert.Contains("fitted before the gate", m.Message);
+        var owned = m.Items.Single(i => i.Label.StartsWith(label, StringComparison.Ordinal));
+        Assert.EndsWith("OWNED", owned.Label);
+        Assert.False(owned.Enabled);
+        // DONE (or Escape) and it's the night again.
+        Choose(m, "DONE");
+        Assert.Null(m.Night);
+        Assert.Null(m.Smithy);
+
+        // A joiner: the same shelves, and the host to ask.
+        bought = null;
+        m.OpenSmithy(new NightMenu(Hosting: false, Yard: true), new SmithyShop("Archie MacNeil", crew, CanBuy: false, "Sam"));
+        Choose(m, C.Upgrades[1].Name.ToUpperInvariant());
+        Assert.Null(bought);
+        Assert.Contains("ask Sam", m.Message);
+        m.Back();
+        Assert.Null(m.Night);
     }
 
     [Fact]

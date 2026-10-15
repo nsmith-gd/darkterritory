@@ -58,6 +58,8 @@ public abstract record Launch
     /// </summary>
     public sealed record CampaignNight(int Slot, int Contract, bool Resume, bool Host) : Launch
     {
+        /// <summary>The same night again from its yard, the train as the blacksmith's just fitted it (note 697).</summary>
+        public bool Refit { get; init; }
         /// <summary>
         /// The crew's bots (note 611; T89): the fortress board's CREW, or <c>--bots</c>. The host going on to the next night
         /// from the town (note 606) keeps them: the board's next contract carries the same.
@@ -124,7 +126,14 @@ public sealed record NightMenu(bool Hosting = true, int Others = 0, bool Campaig
 /// <summary>A listed run's lobby as its host has it now (note 535): its mood, and whether it's behind a password.</summary>
 public sealed record HostLobby(RunMood Mood, bool Locked);
 
-public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile, DeleteCrew, Mods, Crashed, Password, Paint }
+public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile, DeleteCrew, Mods, Crashed, Password, Paint, Smithy }
+
+/// <summary>
+/// The blacksmith's catalogue, open over the yard (ARCHITECTURE §8 note 697): who's selling, the crew's campaign as it stands
+/// (its scrip, its cars, what's fitted), and whether this player pays (the host owns the campaign and its wallet, spec E;
+/// otherwise <paramref name="Payer"/> is who to ask).
+/// </summary>
+public sealed record SmithyShop(string Smith, CampaignState State, bool CanBuy, string? Payer = null);
 
 /// <summary>A mod laid over the game (note 323), as the MODS screen lists it: the app's scan of what's installed.</summary>
 public sealed record InstalledMod(string Name, string Version, string? Description);
@@ -137,7 +146,7 @@ public sealed record MenuItem(string Label, string? Detail = null, bool Enabled 
 /// The front end's text fields (note 264, the director's notes on build 1121: "when I go to name of lobby, it just starts
 /// automatically typing"). None takes typing on being chosen: Enter or a click starts editing, Enter or Esc ends it.
 /// </summary>
-public enum TextField { LobbyName, Address, PlayerName, CrewName, LobbyPassword, JoinPassword, NightPassword }
+public enum TextField { LobbyName, Address, PlayerName, CrewName, LobbyPassword, JoinPassword, NightPassword, EngineName }
 
 /// <summary>Where a pointer is over the front end (note 264): an item, and on a value's row, its arrows (−1, +1) or the row (0).</summary>
 public readonly record struct MenuHit(int Item, int Step = 0);
@@ -220,6 +229,21 @@ public sealed class FrontEnd
     public string? Message { get; private set; }
     /// <summary>The campaign open at the fortress.</summary>
     public CampaignState? Open { get; private set; }
+    /// <summary>The blacksmith's catalogue open over the yard (note 697), or null.</summary>
+    public SmithyShop? Smithy { get; private set; }
+    /// <summary>
+    /// The host's purchase at the forge (note 697): the app buys it on its own campaign, saves it, and fits it before the gate.
+    /// </summary>
+    public Func<string, Purchase>? SmithyBuy { get; set; }
+
+    /// <summary>
+    /// The blacksmith's shelves with no prices and no stock rules (a developer build's unlock, note 747, sets it): every upgrade
+    /// is FREE, and one owned can be taken off again.
+    /// </summary>
+    public bool SmithyFree { get; set; }
+
+    /// <summary>A row of its own at the top of the blacksmith's catalogue, and what choosing it does (a developer build's, note 747).</summary>
+    public Func<(MenuItem Item, Action Choose)>? SmithyMode { get; set; }
     public Settings Settings { get; private set; }
     public EditionTuning Edition => _edition;
     /// <summary>
@@ -384,6 +408,9 @@ public sealed class FrontEnd
         // A crew's name erased to nothing is its slot's again (note 320).
         if (Editing == TextField.CrewName && Open is { } crew && crew.Name.Trim().Length == 0)
             SaveCrew(crew with { Name = DefaultCrewName(crew.Slot) });
+        // An engine's name erased to nothing is unnamed again.
+        if (Editing == TextField.EngineName && Open is { } engine && (engine.EngineName ?? "").Trim().Length == 0 && engine.EngineName is not null)
+            SaveCrew(engine with { EngineName = null });
         Editing = null;
         _blankName = false;
         Cue?.Invoke(UiCue.Select);
@@ -426,8 +453,9 @@ public sealed class FrontEnd
         // From the title there's nowhere to back out to.
         if (Screen != Screen.Title)
             Cue?.Invoke(UiCue.Back);
-        // In a night (note 292): Escape on the menu's first page closes it, as Escape opened it; the rest back up to it.
-        if (Night is not null && Screen == Screen.Night)
+        // In a night (note 292): Escape on the menu's first page closes it, as Escape opened it; the rest back up to it. The
+        // blacksmith's catalogue (note 697) is a first page of its own.
+        if (Night is not null && Screen is Screen.Night or Screen.Smithy)
         {
             CloseNight();
             return;
@@ -510,6 +538,7 @@ public sealed class FrontEnd
     {
         TextField.PlayerName => Settings.PlayerName,
         TextField.CrewName => Open?.Name ?? "",
+        TextField.EngineName => Open?.EngineName ?? "",
         TextField.Address => Address,
         TextField.LobbyPassword => Settings.LobbyPassword,
         TextField.JoinPassword => JoinPassword,
@@ -553,6 +582,16 @@ public sealed class FrontEnd
                 NightPassword = typed;
             else
                 JoinPassword = typed;
+            return;
+        }
+        // The engine's name (the nameplate, note 714): the crew's name's letters and length.
+        if (Editing == TextField.EngineName && Open is { } named)
+        {
+            string name = named.EngineName ?? "";
+            foreach (char c in text)
+                if ((char.IsLetterOrDigit(c) || c is ' ' or '\'' or '.' or '-' or '!' or '?') && name.Length < MaxCrewName && c < 0x7f)
+                    name += c;
+            SaveCrew(named with { EngineName = name.TrimStart() });
             return;
         }
         if (Editing == TextField.CrewName && Open is { } crew)
@@ -623,6 +662,11 @@ public sealed class FrontEnd
             SaveCrew(crew with { Name = crew.Name[..^1] });
             return;
         }
+        if (Editing == TextField.EngineName && Open is { EngineName.Length: > 0 } engine)
+        {
+            SaveCrew(engine with { EngineName = engine.EngineName[..^1] });
+            return;
+        }
         if (Editing == TextField.Address && Address.Length > 0)
             Address = Address[..^1];
     }
@@ -630,7 +674,7 @@ public sealed class FrontEnd
     public void Show(Screen screen)
     {
         // The in-night menu's pages are only there over a night (note 292).
-        if (screen is Screen.Night or Screen.Leave && Night is null)
+        if (screen is Screen.Night or Screen.Leave && Night is null || screen is Screen.Smithy && (Night is null || Smithy is null))
             screen = Screen.Title;
         if (screen is Screen.DeleteCrew && Open is null)
             screen = Screen.Slots;
@@ -687,12 +731,27 @@ public sealed class FrontEnd
             Selected = Math.Max(0, count - 1);
     }
 
+    /// <summary>
+    /// Opens the blacksmith's catalogue over the yard (note 697): Use held on the town's blacksmith. It's the in-night menu's
+    /// kind of page, the night going on behind it, and Escape or DONE shuts it.
+    /// </summary>
+    public void OpenSmithy(NightMenu night, SmithyShop shop)
+    {
+        _before ??= (Screen, Selected, Message);
+        Night = night;
+        Smithy = shop;
+        Message = null;
+        Show(Screen.Smithy);
+        Cue?.Invoke(UiCue.Select);
+    }
+
     /// <summary>Shuts the in-night menu (RESUME, or Escape on its first page): back to the night.</summary>
     public void CloseNight()
     {
         if (Night is null)
             return;
         Night = null;
+        Smithy = null;
         Editing = null;
         Capturing = null;
         if (_before is var (screen, selected, message))
@@ -717,6 +776,8 @@ public sealed class FrontEnd
         // In the yard (GDD §9: the crew "try on outfits"; note 298): put one on, and the crew see it.
         if (n.Yard)
             list.Add(OutfitEntry("Left and right to try one on: the crew see it."));
+        if (n.Yard && HatNames.Count > 0)
+            list.Add(HatEntry("From the hat rack: left and right to try one on."));
         // Note 731: and paint the mask, on its own page.
         if (n.Yard)
             list.Add(PaintEntry("Its colour and a stencil, tried on at once: the crew see it."));
@@ -1101,6 +1162,7 @@ public sealed class FrontEnd
         Screen.Fortress => FortressEntries(),
         Screen.Paint => PaintEntries(),
         Screen.Upgrades => UpgradeEntries(),
+        Screen.Smithy when Smithy is { } shop => SmithyEntries(shop),
         Screen.Stores => StoreEntries(),
         Screen.QuickNight =>
         [
@@ -1334,6 +1396,17 @@ public sealed class FrontEnd
     /// </summary>
     public IReadOnlyList<string> OutfitNames { get; set; } = ["RED", "BLUE", "OCHRE", "TEAL", "GREEN", "VIOLET", "ORANGE", "WHITE"];
 
+    /// <summary>The hat rack's hats by name (note 714; look.json crewHats): the app sets them when the train has the rack, else none.</summary>
+    public IReadOnlyList<string> HatNames { get; set; } = [];
+
+    /// <summary>HAT (note 714): none, then each of the rack's in turn, round again; offered only with the rack aboard.</summary>
+    Entry HatEntry(string detail)
+    {
+        int n = HatNames.Count, now = Math.Clamp(Settings.Hat, 0, n);
+        return new(new($"HAT: {(now == 0 ? "NONE" : HatNames[now - 1].ToUpperInvariant())}", detail), Toggle(s => s with { Hat = (now + 1) % (n + 1) }),
+            by => Change(Settings with { Hat = ((now + by) % (n + 1) + n + 1) % (n + 1) }));
+    }
+
     /// <summary>The mask paints by name (note 731; look.json maskPaintNames), in order (the app sets them).</summary>
     public IReadOnlyList<string> MaskPaintNames { get; set; } = ["BONE", "SOOT", "SIGNAL RED", "OXBLOOD", "OCHRE", "LEAF GREEN", "SEA BLUE", "SLATE", "PLUM", "PITCH PINE"];
     /// <summary>The stencils by name (note 731; look.json maskStencils), in order (the app sets them).</summary>
@@ -1532,7 +1605,8 @@ public sealed class FrontEnd
         }
         if (_campaign.Stores is not null)
             list.Add(new(new("STORES", StoresLine(s.Stores), s.Current is null), () => { Show(Screen.Stores); return null; }));
-        list.Add(new(new("UPGRADES", null, s.Current is null), () => { Show(Screen.Upgrades); return null; }));
+        // Bought from the town's blacksmith, in the yard (note 697): here, what's on their shelves, to plan the night's buying.
+        list.Add(new(new("UPGRADES", "What the blacksmith sells. Buy it at their forge, in the yard.", s.Current is null), () => { Show(Screen.Upgrades); return null; }));
         // Note 731: the crew's sigil, picked by whoever hosts from here: on the engine's side and every mask, kept in the save.
         list.Add(SigilEntry(s));
         list.Add(new(new($"PLAY: {(_host ? "HOST FOR FRIENDS" : "ALONE")}", "Left and right to change."), () => { _host = !_host; return null; }, _ => _host = !_host));
@@ -1549,6 +1623,15 @@ public sealed class FrontEnd
         bool naming = Editing == TextField.CrewName;
         list.Add(new(new($"{NameLabel}{(naming ? s.Name : CrewName(s)).ToUpperInvariant()}{(naming ? "_" : "")}",
             naming ? "Type the name; Enter or Esc when it's done." : "Enter to rename the crew."), Field: TextField.CrewName));
+        // The nameplate (note 714): the engine's name, once its plates are bought.
+        if (s.Upgrades.Contains("nameplate"))
+        {
+            bool christening = Editing == TextField.EngineName;
+            string engineName = s.EngineName is { Length: > 0 } en ? en : christening ? "" : "UNNAMED";
+            list.Add(new(new($"ENGINE: {engineName.ToUpperInvariant()}{(christening ? "_" : "")}",
+                christening ? "Type her name; Enter or Esc when it's done." : "Enter to name the engine: it's cast in her plates, and the clerk reads it."),
+                Field: TextField.EngineName));
+        }
         list.Add(new(new("DELETE THIS CREW", $"Slot {s.Slot} emptied for a new crew. It asks first."), Go(Screen.DeleteCrew)));
         list.Add(BackTo(Screen.Slots));
         return list;
@@ -1579,19 +1662,82 @@ public sealed class FrontEnd
     {
         if (Open is not { } s)
             return [BackTo(Screen.Fortress)];
-        var list = new List<Entry>();
-        foreach (var u in _campaign.Upgrades)
-        {
-            bool owned = s.Upgrades.Contains(u.Id);
-            double cost = Campaign.UpgradeCost(_campaign, s, u);
-            // The shop says which upgrades the night doesn't model yet (ARCHITECTURE §8 note 29).
-            string detail = $"{(u.Size == UpgradeSize.Major ? "Major" : "Small")}{(u.Effect.Count == 0 ? ", not modelled yet" : "")}.";
-            list.Add(new(new(owned ? $"{u.Name.ToUpperInvariant()}: OWNED" : $"{u.Name.ToUpperInvariant()}: {cost:0}", detail, !owned),
-                () => Buy(Campaign.BuyUpgrade(_campaign, s, u.Id), $"{u.Name} bought.")));
-        }
+        // Note 687: bought from the town's blacksmith, not the menu; here it's to look at.
+        var list = CatalogueEntries(s, _ => () => { Message = "Buy it from the blacksmith, at the forge in the yard."; return null; });
         list.Add(BackTo(Screen.Fortress));
         return list;
     }
+
+    /// <summary>The blacksmith's catalogue (note 697): the shelves as the menu's, bought on the host's word.</summary>
+    List<Entry> SmithyEntries(SmithyShop shop)
+    {
+        var list = CatalogueEntries(shop.State, u => () =>
+        {
+            if (!shop.CanBuy || SmithyBuy is not { } buy)
+            {
+                Message = $"The host keeps the crew's scrip: ask {shop.Payer ?? "them"} to buy it.";
+                return null;
+            }
+            bool had = shop.State.Upgrades.Contains(u.Id);
+            var p = buy(u.Id);
+            if (p.Ok)
+                Smithy = shop with { State = p.State };
+            Message = !p.Ok ? p.Refused : had && !p.State.Upgrades.Contains(u.Id) ? $"{u.Name}: taken off before the gate."
+                : had ? $"{u.Name}: painted before the gate." : $"{u.Name}: fitted before the gate.";
+            return null;
+        }, free: SmithyFree);
+        if (SmithyMode?.Invoke() is { } mode)
+            list.Insert(0, new(mode.Item, () =>
+            {
+                mode.Choose();
+                return null;
+            }));
+        list.Add(new(new("DONE", "Back to the yard."), () => { CloseNight(); return null; }, Back: true));
+        return list;
+    }
+
+    /// <summary>
+    /// The catalogue by what it's for (note 678), for <paramref name="s"/>: the tools first, then the rest of the shelves, each
+    /// with its line, and why one isn't for sale (a tier the train doesn't work yet, or a fitting it won't go with).
+    /// </summary>
+    List<Entry> CatalogueEntries(CampaignState s, Func<UpgradeDef, Func<Launch?>> select, bool free = false)
+    {
+        var list = new List<Entry>();
+        foreach (var kind in new[] { UpgradeKind.Tool, UpgradeKind.Whimsy, UpgradeKind.Fun, UpgradeKind.Silly })
+        {
+            var shelf = _campaign.Upgrades.Where(u => u.Kind == kind).ToList();
+            if (shelf.Count == 0)
+                continue;
+            list.Add(new(new(KindHeading(kind), Heading: true)));
+            foreach (var u in shelf)
+            {
+                bool owned = s.Upgrades.Contains(u.Id);
+                double cost = Campaign.UpgradeCost(_campaign, s, u);
+                string? why = owned || free ? null : Campaign.Unavailable(_campaign, s, u);
+                // The shop says which upgrades the night doesn't model yet (ARCHITECTURE §8 note 29).
+                string detail = u.Line ?? $"{(u.Size == UpgradeSize.Major ? "Major" : "Small")}{(u.Effect.Count == 0 && u.Tally is null ? ", not modelled yet" : "")}.";
+                // A livery owned is picked by choosing it again (note 714): the train's in the last picked.
+                bool livery = u.Effect.ContainsKey("livery");
+                bool painted = livery && owned && Campaign.LiveryOf(_campaign, s) == u.Id;
+                string label = free ? $"{u.Name.ToUpperInvariant()}: {(owned ? "OWNED, TAKE IT OFF" : "FREE")}"
+                    : painted ? $"{u.Name.ToUpperInvariant()}: ON THE TRAIN"
+                    : livery && owned ? $"{u.Name.ToUpperInvariant()}: OWNED, PAINT HER IN IT"
+                    : owned ? $"{u.Name.ToUpperInvariant()}: OWNED"
+                    : why is not null && Campaign.TierFor(_campaign, s.Cars) < u.FromTier ? $"{u.Name.ToUpperInvariant()}: {Name(u.FromTier)} AND ON"
+                    : $"{u.Name.ToUpperInvariant()}: {cost:0}";
+                list.Add(new(new(label, why is null ? detail : $"{why}.", (free || !owned || livery && !painted) && why is null), select(u)));
+            }
+        }
+        return list;
+    }
+
+    static string KindHeading(UpgradeKind kind) => kind switch
+    {
+        UpgradeKind.Tool => "TOOLS",
+        UpgradeKind.Whimsy => "WHIMSY",
+        UpgradeKind.Fun => "FUN",
+        _ => "SILLY",
+    };
 
     static string StoresLine(Stores st) => st.Any
         ? $"Bought for tonight: {st.Powder} powder, {st.Lamps} lamps, {st.Extinguishers} extinguishers."
@@ -1798,6 +1944,8 @@ public sealed class FrontEnd
             Screen.Fortress or Screen.Upgrades or Screen.Stores when Open is { } s =>
                 $"{CrewName(s).ToUpperInvariant()}{(s.Town is { } town ? $" IN {town.Name.ToUpperInvariant()}" : "")}: {s.Cars} CARS, {s.Scrip:0} SCRIP, NIGHT {s.Runs + 1}, {Name(Campaign.TierFor(_campaign, s.Cars))}",
             Screen.Upgrades => "UPGRADES",
+            // Note 687: who's selling, and what the crew has to spend.
+            Screen.Smithy when Smithy is { } shop => $"{shop.Smith.ToUpperInvariant()}, BLACKSMITH: TRAIN UPGRADES. {shop.State.Scrip:0} SCRIP",
             Screen.QuickNight => "QUICK NIGHT",
             Screen.Join => "JOIN",
             Screen.Password when _locked is { } locked => $"{locked.Name.ToUpperInvariant()} IS PRIVATE",
@@ -1821,11 +1969,17 @@ public sealed class FrontEnd
             o.Text(x, y, Clip(o, $"LAST NIGHT: {last.Route.ToUpperInvariant()}, {last.End.ToString().ToUpperInvariant()}, {(last.Net >= 0 ? "+" : "")}{last.Net:0} SCRIP", width - x - 8), Faint);
             y += 10;
         }
-        if (Screen == Screen.Upgrades)
-        {
-            o.Text(x, y, "UPGRADES COST A SHARE OF THE NEXT CAR", Faint);
-            y += 10;
-        }
+        // (Wrapped, as the heading is, at a bigger TEXT SIZE: note 347.)
+        string? under = Screen == Screen.Upgrades ? "BOUGHT FROM THE BLACKSMITH, AT THE FORGE IN THE YARD"
+            : Screen == Screen.Smithy && Smithy is { } selling
+                ? selling.CanBuy ? "A SHARE OF THE NEXT CAR. FITTED BEFORE THE GATE" : $"THE HOST PAYS: ASK {(selling.Payer ?? "THEM").ToUpperInvariant()}"
+            : null;
+        if (under is not null)
+            foreach (var row in UiStyle.Wrap(o, under, width - x - 8))
+            {
+                o.Text(x, y, row, Faint);
+                y += 10;
+            }
         if (Screen == Screen.Stores)
         {
             o.Text(x, y, "STORES FOR TONIGHT: SPENT WITH THE NIGHT", Faint);

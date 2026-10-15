@@ -33,6 +33,8 @@ public enum CrewPose
     // Emotes (GDD §9's yard, note 298): a dance, a wave, a point. Clips of their own when crew_clips has them ("dance",
     // "wave", "point"); until then posed by the arms' IK over a stepping or standing clip (CreatureArt.EmoteArms).
     Dance, Wave, Point,
+    // The "more emotes" upgrade's (note 714): a bow from the waist, a salute to the brow, the conga's hands-on-shoulders shuffle.
+    Bow, Salute, Conga,
     // Off the roof on a jump, rising, the leap between cars (the checklist's crew-gap: "a jump between roofs"); stood on a
     // car straining on a bend taken too fast, fighting for footing (App. F.1's overspeed telegraph; note 375).
     Jump, Stumble,
@@ -771,6 +773,9 @@ public sealed partial class CreatureArt
         CrewPose.Dance => "dance",
         CrewPose.Wave => "wave",
         CrewPose.Point => "point",
+        CrewPose.Bow => "bow",
+        CrewPose.Salute => "salute",
+        CrewPose.Conga => "conga",
         CrewPose.Walk => "walk",
         CrewPose.Run => "run",
         CrewPose.Climb => "climb",
@@ -894,9 +899,11 @@ public sealed partial class CreatureArt
                 : clip == "hand_up" && has.Model.Clips.ContainsKey("haul_up") ? "haul_up"
                 : clip is "on_hook" or "pump" && has.Model.Clips.ContainsKey("lever") ? "lever" : clip == "flail" && has.Model.Clips.ContainsKey("fall") ? "fall"
                 // An emote with no clip of its own (note 298): the dance steps on the spot, the wave and the point stand.
-                : clip is "dance" or "shuffle" && has.Model.Clips.ContainsKey("walk") ? "walk" : "idle";
+                : clip is "dance" or "shuffle" or "conga" && has.Model.Clips.ContainsKey("walk") ? "walk" : "idle";
         // ... and the arms are posed over it (EmoteArms).
-        bool emoteByHand = pose is CrewPose.Dance or CrewPose.Wave or CrewPose.Point && clip != ClipOf(pose);
+        bool emoteByHand = pose is CrewPose.Dance or CrewPose.Wave or CrewPose.Point
+            or CrewPose.Bow or CrewPose.Salute or CrewPose.Conga && clip != ClipOf(pose);
+        // (Note 714: the bow, salute and conga, by hand till C1's clips for them are on main.)
         // Note 807: the emotes for two and the edges, each half its own clip on its own clock (EmoteClip).
         bool emoteClip = false;
         if (pose is CrewPose.HighFive or CrewPose.FistBump or CrewPose.DanceOff or CrewPose.SitEdge or CrewPose.LeanOut
@@ -1625,6 +1632,27 @@ public sealed partial class CreatureArt
             case CrewPose.Point:
                 Reach(m, "r", new Vector3(0.17f, 1.47f, -0.66f), new Vector3(0.6f, -1, 0));
                 break;
+            case CrewPose.Bow:
+                {
+                    // Down from the waist and up again, the right hand across the chest.
+                    float dip = MathF.Sin(MathF.Min(1, t / 2.0f) * MathF.PI) * 0.6f;
+                    Bend(m, "spine_01", Matrix4x4.CreateRotationX(-dip));
+                    Reach(m, "r", new Vector3(-0.02f, 1.32f - dip * 0.25f, -0.2f - dip * 0.3f), new Vector3(1, -0.5f, 0.3f));
+                    break;
+                }
+            case CrewPose.Salute:
+                // The right hand's edge to the brow.
+                Reach(m, "r", new Vector3(0.1f, 1.72f, -0.13f), new Vector3(1, 0, 0.4f));
+                break;
+            case CrewPose.Conga:
+                {
+                    // Both hands out on the shoulders ahead, the hips kicking out on the beat.
+                    float kick = MathF.Sin(t * MathF.Tau * 1.0f);
+                    Bend(m, "spine_01", Matrix4x4.CreateRotationZ(0.12f * kick));
+                    Reach(m, "l", new Vector3(-0.2f, 1.42f, -0.55f), new Vector3(-1, -0.5f, 0));
+                    Reach(m, "r", new Vector3(0.2f, 1.42f, -0.55f), new Vector3(1, -0.5f, 0));
+                    break;
+                }
         }
     }
 

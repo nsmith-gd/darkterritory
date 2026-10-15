@@ -138,13 +138,13 @@ public sealed record NewsTuning(double Seconds = 5, double CutToldAbove = 1.5);
 /// <paramref name="FistBump"/>) and lasts once met (<paramref name="Met"/>); how near (<paramref name="Reach"/>, m, feet to
 /// feet) and how square to each other (<paramref name="FacingDegrees"/>) two must be for it to be answered; a dance-off's reach
 /// and beat; how near a side the edge emotes are taken (<paramref name="EdgeReach"/>) and the drop under a sill that makes it
-/// one to sit on (<paramref name="EdgeDrop"/>), and how far out through a doorway its edge may be (<paramref name="SillReach"/>); and a bot's beat before it answers (<paramref name="BotAnswer"/>). Field docs
-/// live in player.json <c>emotes</c>.
+/// one to sit on (<paramref name="EdgeDrop"/>), and how far out through a doorway its edge may be (<paramref name="SillReach"/>); and a bot's beat before it answers (<paramref name="BotAnswer"/>).
+/// Note 714: the "more emotes" upgrade's bow, salute and conga, each its length. Field docs live in player.json <c>emotes</c>.
 /// </summary>
 public sealed record EmoteTuning(double Dance = 8, double Wave = 2.5, double Point = 2.5, double Cooldown = 0.5, double Aboard = 3,
     double HighFive = 3, double FistBump = 3, double Met = 0.8, double Reach = 1.5, double FacingDegrees = 50,
     double DanceOffReach = 3, double DanceOffFacingDegrees = 70, double DanceOffBeat = 2, double EdgeReach = 0.6, double EdgeDrop = 0.5, double SillReach = 1.2,
-    double BotAnswer = 0.4)
+    double BotAnswer = 0.4, double Bow = 2.5, double Salute = 2.5, double Conga = 30)
 {
     /// <summary>
     /// How long <paramref name="e"/> lasts unmet (s). The sit and the lean are held (<see cref="double.PositiveInfinity"/>):
@@ -159,6 +159,9 @@ public sealed record EmoteTuning(double Dance = 8, double Wave = 2.5, double Poi
         Emote.HighFive => HighFive,
         Emote.FistBump => FistBump,
         Emote.SitEdge or Emote.LeanOut => double.PositiveInfinity,
+        Emote.Bow => Bow,
+        Emote.Salute => Salute,
+        Emote.Conga => Conga,
         _ => 0,
     };
 

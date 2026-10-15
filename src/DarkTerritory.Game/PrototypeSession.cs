@@ -77,6 +77,7 @@ public sealed class PrototypeSession : IPlaySession
             start = runTuning.DepartFrom(route.GateOr(DataFile.Load<RouteTuning>(Path.Combine(contentRoot, RouteTuning.File)).YardLength), consist.LengthMetres);
         Train = new TrainOnLine(new TrainDynamics(consist), line, start, _boilerTuning.Value);
         World = new World(Train, _combatTuning.Value);
+        World.EnableBand(DataFile.Load<Sim.Player.BandTuning>(Path.Combine(contentRoot, Sim.Player.BandTuning.File)));
         World.EnableBodies();
         World.Stock();
         // With steam driving (T97), the train stands at the gate on its brake.

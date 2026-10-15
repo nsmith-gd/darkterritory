@@ -99,7 +99,8 @@ public enum PlayerMoves : byte
 
 /// <summary>
 /// A crewmate's emote (GDD §9: in the yard "the crew wait for friends, hang out, dance"; note 298), sent on the press. The
-/// crew see it; nothing in the sim acts on it.
+/// crew see it; nothing in the sim acts on it. Note 740: "Aboard!", the call back to the horn (GDD §17); past the hotbar
+/// byte's two bits, an emote rides a byte of its own.
 /// </summary>
 /// <summary>Note 298's emotes; note 740: "Aboard!", the call back to the horn (GDD §17); note 722, the emotes for two and the edges.</summary>
 /// <remarks>
@@ -125,7 +126,13 @@ public enum Emote : byte
     SitEdge,
     /// <summary>Note 722: leant out of a car's open side door or the cab's doorway, a hand on the rail (<see cref="EmoteRules.LeanAt"/>); held as the sit is.</summary>
     LeanOut,
-    // 9, 10, 11: U1's bow, salute and conga (the wheel keeps their slots: EmoteWheel.Kept).
+    /// <summary>
+    /// Note 714: the "more emotes" upgrade's (9-11, the places note 722 kept): the host takes them only from a train that
+    /// has it. The conga's a dance its players walk in, each following whoever started before them (the client's own steering).
+    /// </summary>
+    Bow = 9,
+    Salute = 10,
+    Conga = 11,
 }
 
 /// <summary>
@@ -356,13 +363,20 @@ public enum PlayerFlags : uint
     /// </summary>
     Hoisted = 32768,
     /// <summary>
+    /// Sat in one of the BBQ deck's Muskoka chairs (note 698): still, low, looking down the line. Jump, or Use again, gets you
+    /// up. Not <see cref="Seated"/>, which is a gun's (the census, the Gannet and the bots read that as on the gun).
+    /// </summary>
+    Lounging = 65536,
+    /// <summary>Playing the band's instrument in their hands (note 700): every machine hears it, on the band's tune.</summary>
+    Playing = 131072,
+    /// <summary>
     /// Off a crane's hook (note 802; the director, 15 Oct 2026: "It's a silly gag not a big grief"): let go of it or shaken off,
     /// till they have footing again. A landing on the ground knocks by the height fallen alone, at most player.json
     /// <c>landing.offTheHook.maxKnock</c>, and never kills (<see cref="OffTheHookTuning"/>). Set by the host as they come off
-    /// (World.LetGo, a host move), cleared by the motor on footing, here and on a predicting client alike. The first bit past
-    /// the old ushort's: protocol 74 widened the flags to a uint.
+    /// (World.LetGo, a host move), cleared by the motor on footing, here and on a predicting client alike. Past main's Lounging
+    /// and Playing (protocol 74 widened the flags to a uint), at protocol 75.
     /// </summary>
-    OffTheHook = 65536,
+    OffTheHook = 262144,
 }
 
 /// <summary>
@@ -706,7 +720,7 @@ public static class PlayerMotor
                 speed = Math.Min(speed, p.CarryHeavy);
             if (s.Has(PlayerFlags.Pushing))
                 speed = Math.Min(speed, p.PushGun);
-            if (s.Has(PlayerFlags.Operating) || s.Has(PlayerFlags.Seated) || s.Has(PlayerFlags.Pumping))
+            if (s.Has(PlayerFlags.Operating) || s.Has(PlayerFlags.Seated) || s.Has(PlayerFlags.Pumping) || s.Has(PlayerFlags.Lounging))
                 speed = 0;
             var wish = WishDirection(s.Yaw, intent) * speed;
             // GDD §22 wind on a roof (note 201): a sideways push across the car, on top of where you're going.
@@ -720,6 +734,12 @@ public static class PlayerMotor
                 // And at the handcar's handle (note 729), Jump lets go of it.
                 if (intent.Has(PlayerButtons.Jump))
                     s.Flags &= ~(PlayerFlags.Seated | PlayerFlags.Pumping);
+            }
+            // Out of a Muskoka chair the same way (note 698): up, and a step forward out of it.
+            else if (s.Has(PlayerFlags.Lounging))
+            {
+                if (intent.Has(PlayerButtons.Jump))
+                    Bbq.GetUp(ref s);
             }
             else if (intent.Has(PlayerButtons.Jump) && !s.Has(PlayerFlags.Heavy) && !s.Has(PlayerFlags.Operating) && !crouched)
             {
@@ -896,6 +916,9 @@ public static class PlayerMotor
         // (spec F.3 car insulation, note 184: a car with the steam gone cold as well). GDD §22 deep cold (note 183): faster
         // the colder it is where they are (the night's cold, high ground, exposed track).
         double deep = 1 + c.PerColdStep * ColdStep(s, train);
+        // Swinging in the hammock (note 744): warm-ish, the cold coming on slower.
+        if (Bbq.LoungingIn(s, train) is { Kind: LoungeKind.Hammock })
+            deep *= train.Dynamics.Tuning.Composition.Whimsy.HammockCold;
         s.Cold += (Indoors(s, train) ? dt * c.IndoorsRate * train.Dynamics.Tuning.Composition.Insulation : dt) * deep;
         if (s.Cold >= c.DeathSeconds)
         {
@@ -958,8 +981,11 @@ public static class PlayerMotor
     /// <summary>Warm enough to recover: see <see cref="StepCold"/>.</summary>
     public static bool NearHeat(in PlayerState s, TrainOnLine train)
     {
-        if (BesideStove(s, train))
+        if (BesideStove(s, train) || Bbq.ByTheGrill(s, train))
             return true;
+        // In the hot tub (note 744): warm while the boiler's steam feeds it; gone cold with it.
+        if (Bbq.LoungingIn(s, train) is { Kind: LoungeKind.HotTub })
+            return train.BoilerTuning is null || train.Boiler.Pressure > 0;
         int space = Space(s, train);
         if (space == Outside)
             return false;
@@ -1510,4 +1536,5 @@ public static class PlayerMotor
     }
 
     static double GroundHeight(ref PlayerState s, RailLine line) => GroundAt(s.Position, line, ref s.LineHint);
+
 }

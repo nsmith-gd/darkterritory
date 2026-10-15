@@ -186,6 +186,9 @@ public sealed partial class GreyboxScene
         ? Palette.SignalGreen * (0.5f + 0.8f * scale) : Palette.FurnaceOrange * scale;
     /// <summary>Tonight's run, for facility machinery (the coaling chute pouring).</summary>
     public Sim.Run.Run? Run { get; set; }
+
+    /// <summary>The band's instruments (note 700), so each is drawn as itself.</summary>
+    public Sim.Player.BandTuning? Band { get; set; }
     /// <summary>The route's Holdouts (GDD App. D): each one's lamp burns while somebody waits in it.</summary>
     public Sim.Run.Holdouts? Holdouts { get; set; }
     /// <summary>The departure fortress's town (GDD §3.1; note 281): its square, and its people where the town's folk stand.</summary>
@@ -425,6 +428,10 @@ public sealed partial class GreyboxScene
         TubeEnds = Sim.Train.SpeakingTube.Ends(train);
         Cut = Art.SceneArt.Cuts(train);
         Handrails = train.Dynamics.Tuning.Composition.Handrails;
+        Dress = train.Dynamics.Tuning.Composition.Dress;
+        WhimsyTuning = train.Dynamics.Tuning.Composition.Whimsy;
+        Livery = train.Dynamics.Tuning.Composition.Livery;
+        CabooseTuning = train.Dynamics.Tuning.Composition.Caboose;
         SwitchThrower = train.Dynamics.Tuning.Composition.SwitchThrower;
         HandcarFrom(train);
         Build(mesh, train.Line, frames ?? train.Frames, train.Dynamics.Distance, eye);
@@ -435,6 +442,7 @@ public sealed partial class GreyboxScene
     public void Build(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, double hint, Double3 eye)
     {
         mesh.Clear();
+        Bends(frames);
         (_shadowLampWas, _shadowLamp) = (_shadowLamp, -1);
         _speed = frames.Count == 0 ? 0 : Vector3.Dot(ToF(frames[0].Velocity), ToF(frames[0].Back * -1));
         // The headlamp as the lineside boards' reflective paint sees it (note 560).
@@ -567,6 +575,7 @@ public sealed partial class GreyboxScene
                     Fortress(mesh, arrival.Line, eye, from - origin, to - origin, 0, arrival.Plan.Gate, gateAt: arrival.Plan.Gate, town: arrival);
                 else
                     Fortress(mesh, line, eye, from, to, fort.Start, fort.End, gateAt: fort.Gate, lit: fort.Lived);
+            Photographer(mesh, line, eye);
             Lap(mesh, "fortresses and towns");
         }
         // Practical lights first, so everything built after is lit by them: each car's lamps, the firebox,
@@ -835,6 +844,7 @@ public sealed partial class GreyboxScene
                     double modeSeconds = e is Sim.Enemies.Moose moose ? MooseSince(moose) : -1;
                     if (e is Sim.Enemies.Gannet gannet)
                     {
+                        Carrying(mesh, gannet, frames, eye);
                         var (since, before) = GannetSince(gannet);
                         modeSeconds = since;
                         if (Look?.Art.Creatures is { } flock)
@@ -920,6 +930,8 @@ public sealed partial class GreyboxScene
                 }
                 if (Look is not null)
                     Look.Art.FindItem ??= body => Run?.FindOf(body)?.Item;
+                if (Look is not null)
+                    Look.Art.InstrumentOf ??= body => Band is { } band && body.Instrument < band.Instruments.Length ? band.Instruments[body.Instrument].Id : null;
                 if (Look?.Art.Body(mesh, frames, b, eye, heavyHalf, Time) != true)
                     DrawBody(mesh, frames, b, eye, heavyHalf);
                 if (held)
@@ -4727,6 +4739,14 @@ public sealed partial class GreyboxScene
         // A wound brake's shoes and a seized axle's dragged wheel (notes 364, 367).
         TrainCar(mesh, frame, vehicle, eye);
         bool utility = Utility?.Invoke(frame.Index) == true || vehicle is { Kind: VehicleKind.Utility };
+        // The BBQ deck's grill lit (note 698): smoke off its chimney, and its glow on the deck and whoever's round it.
+        if (Look is not null && frame.Shape.Bbq is not null && vehicle is { Grill: > 0 })
+        {
+            var chimney = Art.TrainKit.GrillChimney(frame.Shape);
+            Look.Art.Effects.StoveSmoke(mesh, o + right * chimney.X + up * chimney.Y + back * chimney.Z, up, back, (float)_speed, Time, frame.Index + 97);
+            var glow = chimney - new Vector3(0.24f, 0.45f, 0.1f);
+            mesh.PointLights.Add(new PointLight(o + right * glow.X + up * glow.Y + back * glow.Z, Palette.FurnaceOrange * 1.6f, 5));
+        }
         // A lived-in car's stove smoking through its pipe: a utility car's, and the guard van's (TrainKit).
         if (Look is not null && frame.Shape.Interior is { } inside && frame.Shape.Cab is null && (utility || frame.Shape.Gun is not null))
         {
@@ -4742,7 +4762,7 @@ public sealed partial class GreyboxScene
                 if (b.Stowed && b.Parent == frame.Index && b.Locker < 32)
                     tagged |= 1u << b.Locker;
         if (Look is not null && Look.Art.Car(mesh, frame, eye, vehicle, Emergency, Tick, CutEnds(frame.Index), burnt?.Char ?? 0, utility, openLockers, Handrails,
-            dark: frame.Shape.Cab is null && (CarDark(frame.Index) || frame.Index >= (Vehicles?.Count ?? int.MaxValue) - LampsOut), taggedLockers: tagged,
+            dark: frame.Shape.Cab is null && (CarDark(frame.Index) || frame.Index >= (Vehicles?.Count ?? int.MaxValue) - LampsOut), taggedLockers: tagged, paint: Livery,
             failing: StageOf(vehicle)))
         {
             if (engine)
@@ -4753,6 +4773,7 @@ public sealed partial class GreyboxScene
             if (engine && !LampLit)
                 Look.Art.HeadlampOut(mesh, frame, eye);
             CarWorkings(mesh, frame, eye, Draw);
+            Dressing(mesh, frame, eye);
             if (engine)
             {
                 // The dials: pressure from the boiler, heat from the fire, the water glass (no water model yet: steady),
