@@ -699,6 +699,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [495. Nobody goes into a burning guard van for powder (queue #232, D1.2; found on #221's hot runs, note 484)](notes/495.md)
 - [496. The nearest hand puts out the Fire Flies' lamp at a stop, whatever its part (queue #233, D1.3 for D1; D1's data: 4-bot full nights losing…](notes/496.md)
 - [497. The breach's blows and boards heard on their beats (AU1, queue #234; C1's #200, note 464: "AU1: the strikes' and the boards' sounds are…](notes/497.md)
+- [498. Holes off the main line: the alternates, the dead lines and the stops close up (queue #235, B1; note 433's "not yet"; the director, 8 Oct,…](notes/498.md)
 - [499. The Track Doll's restlessness heard (AU1, queue #236; note 268's "not yet": "the doll has no recorded 'restless' sound of her own (the…](notes/499.md)
 - [500. A resumed night keeps what it earned and what's aboard (A1, queue #237; note 481's "not yet"; spec E "Crash: Session lost. Campaign rolls…](notes/500.md)
 - [501. The coupler's knuckle heard opening, a clank not a thud (AU1, queue #238; the weak-sounds audit)](notes/501.md)

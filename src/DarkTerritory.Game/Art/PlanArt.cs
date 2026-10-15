@@ -28,7 +28,58 @@ public sealed partial class WorldArt
             Washouts = [.. Plan.Structures.Where(s => s.Type == StructureType.Washout && s.Edge == "main").Select(s => (s.S0, s.S1))];
             Villages = [.. route.Of(FeatureKind.Village).Where(f => f.Stop is not null).Select(f => (f.Start, f.End))];
             Clearings = [.. route.Features.Where(f => f.Stop is not null).Select(f => Clearing(f.Start, f.End, f.Stop!))];
+            Branches = [.. Plan.Alignment.Select((a, i) => (a, i)).Where(x => x.a.Role is EdgeRole.Alternate or EdgeRole.DeadLine).Select(x => x.i)];
+            FarBranches = [.. Branches.Where(e =>
+            {
+                var local = Line.Branches[Plan.Alignment[e].Branch].Local;
+                for (double s = 0; s <= local.Length; s += 50)
+                {
+                    var q = local.Sample(s).Position;
+                    if (!Terrain.Nearby(q.X, q.Z, MainFarM + 50).Any(n => n.Edge == Main && !n.Past && Math.Abs(n.Lateral) < MainFarM))
+                        return true;
+                }
+                return false;
+            })];
         }
+
+        /// <summary>A branch further than this from the main line (m) is out past its land, and has far land of its own (note 498).</summary>
+        public const double MainFarM = 250;
+
+        /// <summary>The alternates and dead lines that go out past the main line's land somewhere: each has far land of its own along it.</summary>
+        public int[] FarBranches { get; }
+
+        /// <summary>Whether (x, z) is within <paramref name="margin"/> of the box round any of <see cref="FarBranches"/>' tracks.</summary>
+        public bool NearFarBranch(double x, double z, double margin)
+        {
+            _farBounds ??= [.. FarBranches.Select(e =>
+            {
+                var local = BranchLine(e);
+                double x0 = double.MaxValue, z0 = double.MaxValue, x1 = double.MinValue, z1 = double.MinValue;
+                for (double s = 0; s <= local.Length + 50; s += 50)
+                {
+                    var q = local.Sample(Math.Min(s, local.Length)).Position;
+                    (x0, z0, x1, z1) = (Math.Min(x0, q.X), Math.Min(z0, q.Z), Math.Max(x1, q.X), Math.Max(z1, q.Z));
+                }
+                return (x0, z0, x1, z1);
+            })];
+            foreach (var (x0, z0, x1, z1) in _farBounds)
+                if (x > x0 - margin && x < x1 + margin && z > z0 - margin && z < z1 + margin)
+                    return true;
+            return false;
+        }
+        (double X0, double Z0, double X1, double Z1)[]? _farBounds;
+
+        public RailLine BranchLine(int edge) => Line.Branches[Plan.Alignment[edge].Branch].Local;
+
+        /// <summary>The alternates' and dead lines' indices among the terrain field's edges: the tracks with land of their own.</summary>
+        public int[] Branches { get; }
+
+        /// <summary>
+        /// Each corner of the main line's land (its 5 m row, its own column) that has an alternate or a dead line within
+        /// reach: which, and how far out from it (right positive). See <see cref="BranchTakes"/>. Concurrent: the main line's
+        /// cells are cooked on workers as well as on the frame (note 479), and each asks it.
+        /// </summary>
+        public System.Collections.Concurrent.ConcurrentDictionary<(long Row, int Column), (int Edge, double Lateral)[]> BranchCorners { get; } = new();
 
         /// <summary>A stop's ground, cleared of the woods: its zone, out on each side past the last thing it built there.</summary>
         static (double S0, double S1, double Left, double Right) Clearing(double s0, double s1, StopLayout stop)
@@ -615,6 +666,8 @@ public sealed partial class WorldArt
         Banks(mesh, p, route, eye, drawDistance);
         Water(mesh, p, eye, drawDistance);
         FarLand(mesh, p, line, eye, centre, drawDistance);
+        foreach (var e in p.FarBranches)
+            BranchFarLand(mesh, p, e, eye, drawDistance);
         Places(mesh, p, eye, drawDistance);
         Glow(mesh, p, line, eye, centre);
     }
@@ -629,7 +682,131 @@ public sealed partial class WorldArt
 
     // ------------------------------------------------------------------ alternates' and dead lines' land
 
-    static readonly float[] BranchLateral = [3.7f, 5.5f, 8, 12, 17, 24, 33, 45, 60, 78];
+    /// <summary>
+    /// A branch's land across its track: from just under its ballast's edge (WorldFeatures.Branch, 2.6 m) out past its
+    /// cutting or its bank. It began at 3.7 m, a metre clear of the ballast, and the land under it showed through all the
+    /// way along every alternate and dead line (note 498).
+    /// </summary>
+    static readonly float[] BranchLateral = [2.5f, 3.7f, 5.5f, 8, 12, 17, 24, 33, 45, 60, 78];
+
+    /// <summary>How far a dead line's land goes on past its buffer stop (m), the width of its land either side.</summary>
+    const double BranchPastEndM = 80;
+
+    /// <summary>A main-line quad with a corner this near a branch's track (m) is the branch's land (<see cref="BranchTakes"/>).</summary>
+    const double BranchOwnM = 20;
+    /// <summary>The main line's bed and ditches (m out): always its own land.</summary>
+    const float MainBedM = 12;
+    /// <summary>How far under the main line's land a branch's is laid where they overlap (m): never through it, never level with it.</summary>
+    const float BranchTuck = 0.3f;
+
+    /// <summary>The main line's own column interval a lateral is in: OwnColumns[i] to OwnColumns[i + 1].</summary>
+    static int OwnColumn(double lateral)
+    {
+        int i = 0;
+        while (i < OwnColumns.Length - 2 && OwnColumns[i + 1] <= lateral)
+            i++;
+        return i;
+    }
+
+    /// <summary>
+    /// Whether a quad of the main line's land (a 5 m row <paramref name="row"/>, between its own columns
+    /// <paramref name="column"/> and the next) is an alternate's or a dead line's instead (note 498): a corner within
+    /// <see cref="BranchOwnM"/> of the branch's track, or corners either side of it, and none on the main line's bed.
+    /// Out past 60 m the main line's columns are 22-50 m apart, wider than a branch's bed and its cutting, and its land
+    /// spanned straight over them: a roof over the cutting, the bed open to the sky under it. The branch's own land,
+    /// across its own track (<see cref="BranchCell"/>), is drawn there instead; it reaches 78 m out, and a quad it takes
+    /// reaches at most 20 m and a quad's width (50 m) and length past the track.
+    /// </summary>
+    static bool BranchTakes(PlanScene p, long row, int column)
+    {
+        if (p.Branches.Length == 0 || column < 0 || column >= OwnColumns.Length - 1
+            || MathF.Min(MathF.Abs(OwnColumns[column]), MathF.Abs(OwnColumns[column + 1])) < MainBedM)
+            return false;
+        var corners = (Corner(row, column), Corner(row, column + 1), Corner(row + 1, column + 1), Corner(row + 1, column));
+        foreach (var e in p.Branches)
+        {
+            // Only a quad beside the branch, every corner of it: past an alternate's rejoin or a dead line's end, the
+            // branch's land doesn't go, and a quad reaching on past it was left open there.
+            int left = 0, right = 0, beside = 0;
+            bool near = false;
+            foreach (var corner in new[] { corners.Item1, corners.Item2, corners.Item3, corners.Item4 })
+                foreach (var (edge, lateral) in corner)
+                {
+                    if (edge != e)
+                        continue;
+                    beside++;
+                    near |= Math.Abs(lateral) < BranchOwnM;
+                    if (lateral < 0)
+                        left++;
+                    else
+                        right++;
+                }
+            if (beside == 4 && (near || left > 0 && right > 0))
+                return true;
+        }
+        return false;
+
+        (int Edge, double Lateral)[] Corner(long r, int c)
+        {
+            if (p.BranchCorners.TryGetValue((r, c), out var found))
+                return found;
+            var t = p.Line.Sample(Math.Clamp(r * RowM, 0, p.Line.Length));
+            var w = t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * OwnColumns[c];
+            var list = new List<(int, double)>();
+            foreach (var n in p.Terrain.Nearby(w.X, w.Z, 100))
+                if (!n.Past && Array.IndexOf(p.Branches, n.Edge) >= 0 && Math.Abs(n.Lateral) < 100)
+                    list.Add((n.Edge, n.Lateral));
+            return p.BranchCorners[(r, c)] = [.. list];
+        }
+    }
+
+    /// <summary>The main line's land's rows are this far apart (m), from 0: <see cref="Track"/>'s step.</summary>
+    const double RowM = 5;
+
+    /// <summary>
+    /// Under a branch's land at <paramref name="w"/>, the main line's own (note 498): the height of its surface there, on
+    /// its quad's two triangles as <see cref="Track"/> lays them, or null where there's none (past its 300 m, or the
+    /// quad's the branch's, <see cref="BranchTakes"/>).
+    /// </summary>
+    static double? MainOver(PlanScene p, Route route, Double3 w)
+    {
+        TerrainField.Near? main = null;
+        foreach (var n in p.Terrain.Nearby(w.X, w.Z, 310))
+            if (n.Edge == p.Main)
+                main = n;
+        if (main is not { Past: false } m || Math.Abs(m.Lateral) >= PlanLateral[^1])
+            return null;
+        long row = (long)Math.Floor(m.S / RowM);
+        int column = OwnColumn(m.Lateral);
+        if (BranchTakes(p, row, column))
+            return null;
+        Double3 At(long r, int c)
+        {
+            double s = Math.Clamp(r * RowM, 0, p.Line.Length);
+            var t = p.Line.Sample(s);
+            float lat = OwnColumns[c];
+            return t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * lat + Double3.Up * Ground(route, s, lat, 0);
+        }
+        // Track's quad (a, b, c, d) = (row's column, row's next, next row's next, next row's column), as triangles abc and acd.
+        var a = At(row, column);
+        var b = At(row, column + 1);
+        var c = At(row + 1, column + 1);
+        var d = At(row + 1, column);
+        return OnTriangle(a, b, c, w) ?? OnTriangle(a, c, d, w) ?? (a.Y + b.Y + c.Y + d.Y) / 4;
+    }
+
+    /// <summary>The height of a triangle's plane over (w.X, w.Z) if that's inside the triangle seen from above (a little slack at its edges).</summary>
+    static double? OnTriangle(Double3 a, Double3 b, Double3 c, Double3 w)
+    {
+        double det = (b.Z - c.Z) * (a.X - c.X) + (c.X - b.X) * (a.Z - c.Z);
+        if (Math.Abs(det) < 1e-9)
+            return null;
+        double u = ((b.Z - c.Z) * (w.X - c.X) + (c.X - b.X) * (w.Z - c.Z)) / det;
+        double v = ((c.Z - a.Z) * (w.X - c.X) + (a.X - c.X) * (w.Z - c.Z)) / det;
+        double k = 1 - u - v;
+        const double slack = -1e-3;
+        return u >= slack && v >= slack && k >= slack ? u * a.Y + v * b.Y + k * c.Y : null;
+    }
 
     void BranchLand(MeshBuilder mesh, PlanScene p, Route route, Double3 eye, float drawDistance)
     {
@@ -661,8 +838,11 @@ public sealed partial class WorldArt
     }
 
     /// <summary>
-    /// One 100 m cell of a branch's land either side of its bed, out to 78 m, where the main line's own land doesn't
-    /// already reach (it runs 300 m out); a stand of pines on it where the sim stands them (LinesideProps.BranchTrees).
+    /// One 100 m cell of a branch's land either side of its bed, out to 78 m; a stand of pines on it where the sim stands
+    /// them (LinesideProps.BranchTrees). Out on the main line's own land (300 m each side) it's the branch's where
+    /// <see cref="BranchTakes"/> gives it the main line's quads, and laid <see cref="BranchTuck"/> under the main line's
+    /// surface where it doesn't (note 498): it used to be left out under all of the main line's land, whose quads out there
+    /// spanned the branch's cutting.
     /// </summary>
     Cell BranchCell(PlanScene p, Route route, int branch, RailLine local, long index)
     {
@@ -671,42 +851,61 @@ public sealed partial class WorldArt
         var built = new MeshBuilder();
         var surface = new Vector3(W(origin.X), W(origin.Y), W(origin.Z));
         int columns = BranchLateral.Length;
-        bool Covered(Double3 w)
+        var end = local.Sample(local.Length);
+        // Past a dead line's buffer stop (s over its length): on along its last heading, the bed left behind.
+        Vector3 Ground(double s, float lateral)
         {
-            foreach (var n in p.Terrain.Nearby(w.X, w.Z, 300))
-                if (n.Edge == p.Main)
-                    return Math.Abs(n.Lateral) < 290;
-            return false;
+            var t = s <= local.Length ? local.Sample(s) : end with { Position = end.Position + end.Tangent * (s - local.Length) };
+            var w = t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * lateral;
+            float a = MathF.Abs(lateral);
+            // The bed level with the ballast's foot (a little under its edge), then the land.
+            double h = s > local.Length || a > 3.7f ? p.Terrain.Height(w.X, w.Z) : t.Position.Y - (a < 3 ? 0.37 : 0.35);
+            if (MainOver(p, route, w) is { } over)
+                h = Math.Min(h, over - BranchTuck);
+            return (w with { Y = h }).RelativeTo(origin);
         }
-        (Vector3 P, bool Covered)[] Row(double s, int side)
-        {
-            var t = local.Sample(s);
-            var r = Double3.Cross(t.Tangent, Double3.Up).Normalized;
-            var row = new (Vector3, bool)[columns];
-            for (int c = 0; c < columns; c++)
-            {
-                var w = t.Position + r * (side * BranchLateral[c]);
-                double h = c == 0 ? t.Position.Y - 0.35 : p.Terrain.Height(w.X, w.Z);
-                row[c] = ((w with { Y = h }).RelativeTo(origin), Covered(w));
-            }
-            return row;
-        }
+        Vector3[] Row(double s, int side) => [.. BranchLateral.Select(l => Ground(s, side * l))];
+        // Its rows every 5 m, and the last at the cell's end: a branch's length isn't a multiple of 5, and its land stopped
+        // short of its end by up to that, open there (note 498).
+        var rows = new List<double>();
+        for (double s = a + 5; s < b - 0.5; s += 5)
+            rows.Add(s);
+        rows.Add(b);
         foreach (int side in new[] { -1, 1 })
         {
             var prev = Row(a, side);
-            for (double s = a + 5; s <= b + 1e-6; s += 5)
+            foreach (double s in rows)
             {
-                var next = Row(Math.Min(s, b), side);
+                var next = Row(s, side);
                 for (int c = 0; c + 1 < columns; c++)
                 {
-                    if (prev[c].Covered && prev[c + 1].Covered && next[c].Covered && next[c + 1].Covered)
-                        continue;
                     float lat = (BranchLateral[c] + BranchLateral[c + 1]) / 2;
                     var (la, lb, band) = GroundLayers(lat);
                     var colour = la >= 0 ? Vector3.One : Palette.MuddyOlive;
                     Corner Make(float l, double at) => new(colour * GroundShade(l, at), GroundBlend(band, l, at));
-                    Quad(built, prev[c].P, prev[c + 1].P, next[c + 1].P, next[c].P, Make(BranchLateral[c], s - 5), Make(BranchLateral[c + 1], s - 5),
+                    Quad(built, prev[c], prev[c + 1], next[c + 1], next[c], Make(BranchLateral[c], s - 5), Make(BranchLateral[c + 1], s - 5),
                         Make(BranchLateral[c + 1], s), Make(BranchLateral[c], s), surface, la, lb, la >= 0 && _look.Textures[la].TileMetres is { } tm ? tm : 2);
+                }
+                prev = next;
+            }
+        }
+        // Past a dead line's buffer stop, its land goes on (note 498): it ended at the stop, and where a dead line runs out
+        // to the far land's edge (frontier:7's first, 1.6 km off the main line) there was nothing past it but the sky.
+        if (!p.Line.Branches[branch].Rejoins && index == (long)Math.Floor(Math.Max(0, local.Length - 1e-6) / CellLength))
+        {
+            float[] across = [.. BranchLateral.Reverse().Select(l => -l), .. BranchLateral];
+            var prev = across.Select(l => Ground(local.Length, l)).ToArray();
+            for (double s = local.Length + 5; s <= local.Length + BranchPastEndM + 1e-6; s += 5)
+            {
+                var next = across.Select(l => Ground(s, l)).ToArray();
+                for (int c = 0; c + 1 < across.Length; c++)
+                {
+                    float lat = MathF.Max(MathF.Abs(across[c]), MathF.Abs(across[c + 1]));
+                    var (la, lb, band) = GroundLayers(lat);
+                    var colour = la >= 0 ? Vector3.One : Palette.MuddyOlive;
+                    Corner Make(float l, double at) => new(colour * GroundShade(MathF.Abs(l), at), GroundBlend(band, MathF.Max(MathF.Abs(l), 3.7f), at));
+                    Quad(built, prev[c], prev[c + 1], next[c + 1], next[c], Make(across[c], s - 5), Make(across[c + 1], s - 5),
+                        Make(across[c + 1], s), Make(across[c], s), surface, la, lb, la >= 0 && _look.Textures[la].TileMetres is { } tm ? tm : 2);
                 }
                 prev = next;
             }
@@ -1138,7 +1337,8 @@ public sealed partial class WorldArt
 
     /// <summary>How long a cell of the far land is along the line (m): cooked once, drawn by transform (note 479).</summary>
     const double FarCell = 400;
-    readonly Dictionary<long, (MeshAsset Soup, Double3 Origin)> _farCells = new();
+    /// <summary>The far land's cooked cells: the main line's under edge -1, a far branch's under its own edge (note 498).</summary>
+    readonly Dictionary<(int Edge, long Index), (MeshAsset Soup, Double3 Origin)> _farCells = new();
     PlanScene? _farScene;
     RailLine? _farLine;
 
@@ -1155,57 +1355,162 @@ public sealed partial class WorldArt
             (_farScene, _farLine) = (p, line);
         }
         const double reach = 900;
-        double from = Math.Max(0, centre - drawDistance - reach), to = Math.Min(line.Length, centre + drawDistance + reach);
+        FarCells(mesh, p, -1, line, line.Length, eye, Math.Max(0, centre - drawDistance - reach), Math.Min(line.Length, centre + drawDistance + reach), _ => (FarLateral, FarRise));
+    }
+
+    /// <summary>
+    /// An alternate's or a dead line's own far land, where it goes out past the main line's land (note 498): the main line's
+    /// stops 1.7 km out, its columns there 550 m apart, and a dead line 4 km out had nothing past its own 78 m but the sky,
+    /// one 1.4 km out a sheet of the main line's far hills over it. Out from its own land's edge (tucked under it) to the
+    /// main line's far land's reach, along it and, past a dead line's buffer stop, on along its last heading.
+    /// </summary>
+    void BranchFarLand(MeshBuilder mesh, PlanScene p, int edge, Double3 eye, float drawDistance)
+    {
+        const double reach = 900;
+        var local = p.BranchLine(edge);
+        double hint = 0;
+        local.Nearest(eye, ref hint);
+        double centre = hint, off = (local.Sample(centre).Position - eye).Length;
+        if (off > drawDistance + reach + FarLateral[^1])
+            return;
+        bool deadEnd = !p.Line.Branches[p.Plan.Alignment[edge].Branch].Rejoins;
+        double end = local.Length + (deadEnd ? reach : 0);
+        FarCells(mesh, p, edge, local, end, eye, Math.Max(0, centre - drawDistance - reach), Math.Min(end, centre + drawDistance + reach),
+            // Any row reaching past the buffer stop takes the far land in to the line, under the stop's own land there: its rows
+            // are 20 m apart, and one starting short of the end of that land left the gap open.
+            s1 => s1 > local.Length ? (BranchPastLateral, BranchPastRise) : (BranchFarLateral, BranchFarRise));
+    }
+
+    /// <summary>A branch's far land: from under its own land's edge (78 m), the first columns tucked under the land anyway.</summary>
+    static readonly double[] BranchFarLateral = [70, 120, 200, .. FarLateral];
+    static readonly double[] BranchFarRise = [-3, -3, -3, .. FarRise];
+    /// <summary>Past a dead line's buffer stop: from its heading out, under the stop's own land there (<see cref="BranchPastEndM"/>).</summary>
+    static readonly double[] BranchPastLateral = [0, .. BranchFarLateral];
+    static readonly double[] BranchPastRise = [-3, .. BranchFarRise];
+    /// <summary>A branch's far land asks of the tracks within this (m) whether a quad of it spans one (<c>FarLandCell</c>'s <c>Spans</c>).</summary>
+    const double BranchSpanM = 150;
+
+    /// <summary>
+    /// A line's far land from <paramref name="from"/> to <paramref name="to"/> (<paramref name="edge"/> -1 the main line's),
+    /// its cells cooked as they're first wanted and let go once well behind or ahead; <paramref name="end"/> is how far
+    /// along it the far land goes (past a dead line's buffer stop, on along its heading).
+    /// </summary>
+    void FarCells(MeshBuilder mesh, PlanScene p, int edge, RailLine line, double end, Double3 eye, double from, double to, Func<double, (double[] Lats, double[] Rises)> columns)
+    {
         long first = (long)Math.Floor(from / FarCell), last = (long)Math.Floor(Math.Max(from, to - 1e-6) / FarCell);
-        foreach (var gone in _farCells.Keys.Where(k => k < first - 1 || k > last + 1).ToList())
+        foreach (var gone in _farCells.Keys.Where(c => c.Edge == edge && (c.Index < first - 1 || c.Index > last + 1)).ToList())
             _farCells.Remove(gone);
         for (long i = first; i <= last; i++)
         {
-            if (!_farCells.TryGetValue(i, out var cell))
-                _farCells[i] = cell = FarLandCell(p, line, i);
+            if (!_farCells.TryGetValue((edge, i), out var cell))
+                _farCells[(edge, i)] = cell = FarLandCell(p, edge, line, i, end, columns);
             if (cell.Soup.Triangles > 0)
                 mesh.Instances.Add(new MeshInstance(cell.Soup, Matrix4x4.CreateTranslation(cell.Origin.RelativeTo(eye))));
         }
     }
 
-    /// <summary>One <see cref="FarCell"/> of the far land, relative to its start on the line.</summary>
-    (MeshAsset Soup, Double3 Origin) FarLandCell(PlanScene p, RailLine line, long index)
+    /// <summary>
+    /// One <see cref="FarCell"/> of a line's far land, relative to its start on the line (past its end, on along its last
+    /// heading), its laterals and rises for each row by where the row ends. The main line's (<paramref name="edge"/> -1) leaves
+    /// out its quads near a branch that has far land of its own (<see cref="PlanScene.FarBranches"/>): a quad with a corner
+    /// within 150 m of it, or corners either side of it; out there its columns are 240-550 m apart, and a quad spanning a
+    /// branch was a roof of hills over it (note 498). The branch's far land, out to 1.7 km from it, covers what's left out.
+    /// </summary>
+    (MeshAsset Soup, Double3 Origin) FarLandCell(PlanScene p, int edge, RailLine line, long index, double end, Func<double, (double[] Lats, double[] Rises)> columns)
     {
-        double a0 = index * FarCell, a1 = Math.Min((index + 1) * FarCell, line.Length);
-        var origin = line.Sample(Math.Clamp(a0, 0, line.Length)).Position;
+        bool main = edge < 0;
+        double a0 = index * FarCell, a1 = Math.Min((index + 1) * FarCell, end);
+        var endSample = line.Sample(line.Length);
+        TrackSample At(double s) => s <= line.Length ? line.Sample(s) : endSample with { Position = endSample.Position + endSample.Tangent * (s - line.Length) };
+        var origin = At(Math.Max(0, a0)).Position;
         var built = new MeshBuilder();
         var k = new Kit(_look, built) { SurfaceOrigin = new Vector3(W(origin.X), W(origin.Y), W(origin.Z)), Baked = 0 };
         k.Use(_look?.Layer("ground_forest") >= 0 ? "ground_forest" : "tar", Palette.MuddyOlive, 0.95f, 0.02f, tile: 40);
         k.Tint = new Vector3(0.55f, 0.55f, 0.5f);
         var terrain = p.Terrain;
         double corridor = p.Plan.Rules.Terrain.CorridorM, taper = p.Plan.Rules.Terrain.Shore.TaperM;
-        const double step = FarStep;
+        const double step = FarStep, spans = 600;
         // The shore (not a river: that has its banks in the corridor) on a side at s, if any.
         PlanShore? ShoreAt(double s, int side) => p.Plan.Shores.FirstOrDefault(sh => sh.Kind != ShoreKind.River && sh.Side == side
             && p.EdgeLine(sh.Edge) == line && s >= sh.S0 - taper && s <= sh.S1 + taper);
         // A point of the far land: on the hills' profile, but never over another corridor's own ground (a branch out there
-        // keeps its land, and its track on it), where it tucks under that land instead.
-        Vector3 Point(TrackSample t, Double3 r, int side, double lateral, double? level, double rise)
+        // keeps its land, and its track on it), where it tucks under that land instead. With it, for the main line's, where
+        // it lies from each branch that has far land of its own.
+        // Each point's shared by the quads either side of it, along and across: worked out once.
+        var memo = new Dictionary<(double, int, double, double?, double), (Vector3, (int, double)[])>();
+        (Vector3 P, (int Edge, double Lateral)[] Far) Point(TrackSample t, Double3 r, int side, double lateral, double? level, double rise)
+        {
+            var key = (t.Distance + (t.Distance >= line.Length ? Double3.Dot(t.Position - endSample.Position, endSample.Tangent) : 0), side, lateral, level, rise);
+            if (memo.TryGetValue(key, out var known))
+                return known;
+            return memo[key] = Work(t, r, side, lateral, level, rise);
+        }
+        (Vector3 P, (int Edge, double Lateral)[] Far) Work(TrackSample t, Double3 r, int side, double lateral, double? level, double rise)
         {
             var at = t.Position + r * (side * lateral);
             double h = (level ?? terrain.Height(at.X, at.Z)) + rise;
-            var near = terrain.Nearby(at.X, at.Z, corridor + 40);
+            bool wide = main && p.FarBranches.Length > 0 && p.NearFarBranch(at.X, at.Z, spans);
+            var near = terrain.Nearby(at.X, at.Z, wide ? spans : corridor + 40);
             if (near.Any(n => Math.Abs(n.Lateral) < corridor + 30))
                 h = Math.Min(h, terrain.Height(at.X, at.Z) - 2);
-            return new Double3(at.X, h, at.Z).RelativeTo(origin);
+            (int, double)[] far = wide ? [.. near.Where(n => !n.Past && Math.Abs(n.Lateral) < spans && Array.IndexOf(p.FarBranches, n.Edge) >= 0).Select(n => (n.Edge, n.Lateral))]
+                : main ? [] : [.. near.Where(n => !n.Past && Math.Abs(n.Lateral) < BranchSpanM).Select(n => (n.Edge, n.Lateral))];
+            return (new Double3(at.X, h, at.Z).RelativeTo(origin), far);
+        }
+        // Whether a quad of a branch's far land spans a track, its corners either side of it: its own further along (a dead
+        // line curving back in), another branch's, or the main line's. frontier:5's dead line, 274 m off the main line where it
+        // curves back in, had its own far land 12 m over it there: a quad 92 m across (its corners under the land, as they
+        // are), from where it ran 545 m out, spanning its hollow (note 498). That track's own land covers what's left out.
+        bool Spans((Vector3 P, (int Edge, double Lateral)[] Far)[] q)
+        {
+            foreach (var corner in q)
+                foreach (var (e, _) in corner.Far)
+                {
+                    bool left = false, right = false;
+                    foreach (var other in q)
+                        foreach (var (e2, lateral) in other.Far)
+                            if (e2 == e)
+                            {
+                                left |= lateral < -1;
+                                right |= lateral > 1;
+                            }
+                    if (left && right)
+                        return true;
+                }
+            return false;
+        }
+        // Whether a quad of the main line's far land is a far branch's (see above).
+        bool Branch((Vector3 P, (int Edge, double Lateral)[] Far)[] q)
+        {
+            foreach (var e in p.FarBranches)
+            {
+                bool left = false, right = false;
+                foreach (var corner in q)
+                    foreach (var (e2, lateral) in corner.Far)
+                        if (e2 == e)
+                        {
+                            if (Math.Abs(lateral) < 150)
+                                return true;
+                            left |= lateral < 0;
+                            right |= lateral > 0;
+                        }
+                if (left && right)
+                    return true;
+            }
+            return false;
         }
         for (double s = a0; s < a1; s += step)
         {
             double s1 = Math.Min(s + step, a1);
-            var a = line.Sample(s);
-            var b = line.Sample(s1);
+            var a = At(s);
+            var b = At(s1);
             var ra = Double3.Cross(a.Tangent, Double3.Up).Normalized;
             var rb = Double3.Cross(b.Tangent, Double3.Up).Normalized;
             foreach (int side in new[] { -1, 1 })
             {
                 // How high the hills run here: slowly up and down along the line, each side its own.
                 float Hills(double at) => 0.55f + 0.9f * Noise((float)(at * 0.0011) + side * 31.7f, side * 5.3f);
-                double[] lats = FarLateral, rises = FarRise;
+                var (lats, rises) = columns(s1);
                 double? levelA = null, levelB = null;
                 if (ShoreAt(s, side) is { } sh)
                 {
@@ -1220,15 +1525,18 @@ public sealed partial class WorldArt
                 {
                     // Over the land (or the water), the hills coming and going along the line; a far shore's beach level.
                     double RiseAt(int i, double at, double? level) => level is not null && i < 2 ? rises[i] : rises[i] * Hills(at);
-                    var q0 = Point(a, ra, side, lats[c], levelA, RiseAt(c, s, levelA));
-                    var q1 = Point(a, ra, side, lats[c + 1], levelA, RiseAt(c + 1, s, levelA));
-                    var q2 = Point(b, rb, side, lats[c + 1], levelB, RiseAt(c + 1, s1, levelB));
-                    var q3 = Point(b, rb, side, lats[c], levelB, RiseAt(c, s1, levelB));
-                    k.Quad(q0, q1, q2, q3, new Vector2(q0.X, q0.Z), new Vector2(q1.X, q1.Z), new Vector2(q2.X, q2.Z), new Vector2(q3.X, q3.Z), twoSided: true);
+                    (Vector3 P, (int, double)[] Far)[] q = [Point(a, ra, side, lats[c], levelA, RiseAt(c, s, levelA)), Point(a, ra, side, lats[c + 1], levelA, RiseAt(c + 1, s, levelA)),
+                        Point(b, rb, side, lats[c + 1], levelB, RiseAt(c + 1, s1, levelB)), Point(b, rb, side, lats[c], levelB, RiseAt(c, s1, levelB))];
+                    if (main ? p.FarBranches.Length > 0 && Branch(q) : Spans(q))
+                        continue;
+                    Lay(q[0].P, q[1].P, q[2].P, q[3].P);
                 }
             }
         }
-        return (MeshAsset.From($"farland-{index}", built), origin);
+        return (MeshAsset.From(main ? $"farland-{index}" : $"farland-{edge}-{index}", built), origin);
+
+        void Lay(Vector3 q0, Vector3 q1, Vector3 q2, Vector3 q3) =>
+            k.Quad(q0, q1, q2, q3, new Vector2(q0.X, q0.Z), new Vector2(q1.X, q1.Z), new Vector2(q2.X, q2.Z), new Vector2(q3.X, q3.Z), twoSided: true);
     }
 
     // ------------------------------------------------------------------ halts and towns

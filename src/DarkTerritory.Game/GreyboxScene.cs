@@ -435,7 +435,7 @@ public sealed partial class GreyboxScene
         HouseCreatures(mesh, line, eye);
         Track(mesh, line, eye, from, to, centre);
         foreach (var branch in line.Branches)
-            if (branch.Toe < to && branch.End > from)
+            if (branch.Toe < to && branch.End > from || BranchInReach(branch, eye))
                 Branch(mesh, line, branch, eye);
         Lap(mesh, "track");
         Lineside(mesh, line, eye, from, to);
@@ -3062,6 +3062,30 @@ public sealed partial class GreyboxScene
             }
         }
     }
+
+    /// <summary>
+    /// Whether any of a branch's track is within the draw distance of the eye, by the box round it (note 498). By the main
+    /// line's distances alone (its toe to its end) a dead line running back alongside the main line, or out a kilometre
+    /// from it, wasn't drawn from its own track: its land was, and the bed between open to the sky (`dt holes --edges
+    /// branches`, deadLines:8's dead lines 135 m and 1.4 km off the main line).
+    /// </summary>
+    bool BranchInReach(Branch branch, Double3 eye)
+    {
+        var box = _branchBoxes.GetValue(branch, b =>
+        {
+            double x0 = double.MaxValue, z0 = double.MaxValue, x1 = double.MinValue, z1 = double.MinValue;
+            for (double s = 0; s <= b.Local.Length + 25; s += 25)
+            {
+                var q = b.Local.Sample(Math.Min(s, b.Local.Length)).Position;
+                (x0, z0, x1, z1) = (Math.Min(x0, q.X), Math.Min(z0, q.Z), Math.Max(x1, q.X), Math.Max(z1, q.Z));
+            }
+            return new double[] { x0, z0, x1, z1 };
+        });
+        double dx = Math.Max(0, Math.Max(box[0] - eye.X, eye.X - box[2])), dz = Math.Max(0, Math.Max(box[1] - eye.Z, eye.Z - box[3]));
+        return dx * dx + dz * dz < (double)DrawDistance * DrawDistance;
+    }
+
+    readonly System.Runtime.CompilerServices.ConditionalWeakTable<Branch, double[]> _branchBoxes = new();
 
     /// <summary>
     /// A branch off the main line (GDD §17, App. A.7): its own ballast, rails and sleepers from the points, the
