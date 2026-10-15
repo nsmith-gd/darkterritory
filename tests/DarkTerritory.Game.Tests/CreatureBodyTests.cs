@@ -52,10 +52,31 @@ public class CreatureBodyTests
         Assert.True(body.Max(s => s.Height + s.Radius) >= 0.6 * top, $"{kind}'s body stops at {body.Max(s => s.Height + s.Radius):0.00} m of its {top:0.00}");
     }
 
+    /// <summary>Kinds drawn from boxes until they're modelled (the Mouse Moose, note 790): their body's checked against that.</summary>
+    static readonly EnemyKind[] StandIns = [EnemyKind.MouseMoose];
+
     [Fact]
     public void EveryCreatureWithABodyIsDrawn()
     {
-        var drawn = Drawn().Select(r => r.Data.Item1).OrderBy(k => k);
+        var drawn = Drawn().Select(r => r.Data.Item1).Concat(StandIns).OrderBy(k => k);
         Assert.Equal(drawn, E.Bodies.Keys.Select(k => Enum.Parse<EnemyKind>(k, true)).OrderBy(k => k));
+    }
+
+    [Fact]
+    public void AStandInsBodyStandsInsideWhatsDrawn()
+    {
+        foreach (var kind in StandIns)
+        {
+            var mesh = new Ballast.Render.MeshBuilder();
+            Assert.True(Art.Enemy(mesh, System.Numerics.Matrix4x4.Identity, kind, SpinePhase.Telegraph, 0.5, 0));
+            var ys = mesh.Vertices.ToArray().Select(v => v.Position.Y).ToList();
+            var across = mesh.Vertices.ToArray().Select(v => MathF.Max(MathF.Abs(v.Position.X), MathF.Abs(v.Position.Z))).Max();
+            foreach (var (radius, height) in E.Body(kind))
+            {
+                Assert.InRange(height, ys.Min() - 0.01, ys.Max() + 0.01);
+                Assert.InRange(radius, 0.1, across + 0.15);
+            }
+            Assert.True(E.Body(kind).Max(s => s.Height + s.Radius) >= 0.6 * ys.Max(), $"{kind}'s body is short of what's drawn");
+        }
     }
 }

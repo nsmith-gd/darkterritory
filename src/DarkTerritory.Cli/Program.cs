@@ -2314,6 +2314,18 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             paces[id] = pace;
         scene.StagedPaces = paces;
     }
+    // --mousemoose yard|drag: the staged Mouse Moose off the line's left (note 790; Staging.MouseMoose): creeping in, tugging a
+    // load off, down its hole (the mousemoose view's); close to the one tugging (mousemoosedrag's).
+    if (Str(args, "--mousemoose", view switch { "mousemoose" or "mousemooseface" => "yard", "mousemoosedrag" => "drag", _ => "" }) is { Length: > 0 } mouseMode)
+    {
+        scene.Enemies = Staging.MouseMoose(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, content, mouseMode,
+            out var loads, out var mousePaces);
+        scene.Bodies = [.. scene.Bodies ?? [], .. loads.All];
+        var paces = new Dictionary<int, float>(scene.StagedPaces ?? new Dictionary<int, float>());
+        foreach (var (id, pace) in mousePaces)
+            paces[id] = pace;
+        scene.StagedPaces = paces;
+    }
     // --lodger hidden|shriek|lunge|chase|break|return: the staged Lodger off the line's left (note 583; Staging.Lodger): folded
     // in its crouch (the lodger view's), shrieking (lodgershriek's).
     if (Str(args, "--lodger", view switch { "lodger" => "hidden", "lodgershriek" => "shriek", _ => "" }) is { Length: > 0 } lodgerMode)
