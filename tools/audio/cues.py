@@ -1021,6 +1021,48 @@ CUES = {
     "ui-pings": [
         O("mark", "A ping marked for the crew: a quick two-note chirp on everyone's radio, never anything alive", vars=3),
     ],
+    # The sense table heard (queue #511, note 781; K1's #1026, note 728): what the crew's things now do to the creatures,
+    # heard as the things themselves. A knock on the rail is what the Car Hugger and Tower Jaw answer.
+    "world-rail-knock": [
+        O("knock", "Something heavy landing on the rails: a ringing clank that runs off down the rail", vars=3),
+    ],
+    "crew-lamp-broken": [
+        O("smash", "A thrown lamp breaking: its glass shattering and the oil going up with a whump", vars=3),
+        L("burn", "A broken lamp's oil burning where it lies: a small fire's crackle and flutter"),
+    ],
+    "cs-hounds-doused": [
+        O("doused", "A hound caught in the extinguisher's spray: a hiss off its hot hide and a yelp", vars=3),
+    ],
+    # Bringing them home (queue #512, note 782; note 723): a friend hauled aboard a moving car, carried over the shoulder,
+    # put down, or thrown. People, not things: the effort in the voice, the coats and boots.
+    "crew-rescue": [
+        O("haul", "A friend hauled up into a moving car: a grunt of effort and their boots landing on the boards", vars=3),
+        O("lift", "A friend heaved onto the shoulder: a strained grunt and coats rustling", vars=3),
+        O("set", "A friend put down off the shoulder: their boots landing, a breath let out", vars=3),
+        O("throw", "A friend thrown: a big heave and a whoosh of coats", vars=3),
+    ],
+    # Big finds (queue #513, note 783; note 719): the two-person jackpots, and the fragile finds that break as they're knocked.
+    # The jackpot house's lock is the wrench's own (place-breach.pick, pick-give).
+    "loot-jackpot": [
+        O("lift", "A jackpot lifted between two: a heave each end and the weight coming up off the floor", vars=3),
+        O("set-iron", "The safe set down: a dead heavy iron thud, its door rattling in its frame", vars=3),
+        O("set-wood", "The figurehead or the bell's headstock set down: heavy oak laid down, a creak", vars=3),
+        O("bell", "The church bell knocked or set down: a dull, short bronze ring, the clapper's knock", vars=3),
+    ],
+    "loot-fragile": [
+        O("glass", "A crate of glass knocked: bottles breaking inside it, straw rustling", vars=3),
+        O("decanter", "A cut-glass decanter knocked: a bright crack, a chip or its neck snapping off", vars=3),
+        O("clock", "A mantel clock knocked: its dial glass cracking, the works jangling, the gong humming", vars=3),
+    ],
+    # The handcar (queue #514, note 784; note 729): the trolley hung on the van, set down on the rails, pumped along.
+    "crew-handcar": [
+        O("creak", "The handle's see-saw at the top or bottom of its stroke: a wooden creak and the pivot's iron knock", vars=4),
+        O("joint", "The handcar's small wheels over a rail joint: a light click", vars=4),
+        L("roll", "The handcar rolling: small wheels humming on the rail, the frame rattling"),
+        L("brake", "The handcar's brake shoe on the wheels: a thin squeal and a grind"),
+        O("set", "The handcar set down on the rails: its wheels dropping on with a thud and a clank", vars=2),
+        O("hang", "The handcar hung back on the van: its hooks and chains clanking, the frame knocking the van", vars=2),
+    ],
     # U1's upgrades (queue #505, note 775; U1's #967, notes 678, 697, 698; the checklist's up- rows, U1's requests of 13 Oct).
     # Built ahead of #967 for the director to judge; hooked when it lands.
     "up-forge": [
