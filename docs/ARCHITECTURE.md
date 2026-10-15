@@ -909,7 +909,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [753. The census reads commitment (S1, queue #483; the audit's R5)](notes/753.md)
 - [754. The shover's mark ends at the shover's death (S1, queue #484; the director, 14 Oct)](notes/754.md)
 - [755. A comet fragment most nights, in sight off the line (S1, queue #485; the audit's R6)](notes/755.md)
-- [756. Grabbed with nobody near: the struggle in a crew (S1, queue #486; the audit's R3)](notes/756.md)
+- [756. Grabbed with nobody near: the struggle in a crew (S1, queue #486; the social collision audit's R3)](notes/756.md)
 - [763. The char a fire leaves, as burnt boards (C1, queue #493; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 28:…](notes/763.md)
 - [767. The house creatures heard (AU1, queue #497; G1's #316-#319, notes 583-586; their design docs' §4)](notes/767.md)
 - [768. Horseplay heard (AU1, queue #498; K1's #451, note 717)](notes/768.md)
@@ -918,4 +918,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [773. 773. **The figures heard (AU1, queue #503; P1's notes 570, 571 and 489; the Audio Checklist's `figures`, asked of AU1 by](notes/773.md)
 - [774. K1's merged asks heard (AU1, queue #504; K1's comment on #1012; notes 718, 720 and 727)](notes/774.md)
 - [775. 775. **U1's upgrades heard (AU1, queue #505; U1's #967, notes 678, 697, 698, 700 and 711; the Audio Checklist's six](notes/775.md)
+- [776. K1's crew car and crew memory heard (AU1, queue #506; K1's #1016, notes 716 and 721; K1's asks on #1012)](notes/776.md)
 <!-- end of the notes index -->
