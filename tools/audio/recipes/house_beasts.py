@@ -541,10 +541,11 @@ def slam_thrown(rng, k):
 @recipe("cs-hollow-house", "slam", "leaf",
         "A heavy house door thrown shut by nobody, modelled: a ledged plank leaf struck into its jamb, the latch bouncing",
         """Modelled: the air of the swing and the strap hinges' iron yelping (stick-slip, fast), then the leaf into its
-        frame (a heavy ledged deal door struck all over at once: a wooden plate's modes from about 100 Hz, its planks' own,
+        frame (a heavy ledged deal door struck all over at once: a wooden plate's modes, its planks' own,
         the jamb post's bar modes, the hard edge of the meeting and the weight behind it, driven), the sneck's iron bar
         slammed down and bouncing in its keeper, the leaf shuddering against its stops (small deal knocks dying away),
-        the frame's boom and grit clicking down. Same three performances as 'thrown'. Held to 80 Hz-4 kHz.""",
+        the frame's boom and grit clicking down. Same three performances as 'thrown'. Cut below 150 Hz, the leaf's
+        fundamental kept under its planks: whole, it was half the slam, a squish.""",
         takes=3, band=SLAM, lufs=SLAM_LUFS)
 def slam_leaf(rng, k):
     return slam(rng, k, False)

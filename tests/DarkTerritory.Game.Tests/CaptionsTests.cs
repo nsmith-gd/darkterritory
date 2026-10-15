@@ -50,6 +50,16 @@ public class CaptionsTests
     // Note 768: horseplay, a reader told what a hearing player is.
     [InlineData("crew-horseplay.bonk")]
     [InlineData("crew-horseplay.coal-land.roof")]
+    // Note 767: the house creatures' tells, and the doors they slam and break in.
+    [InlineData("tell-lodger-breathing.breathing")]
+    [InlineData("tell-lodger-shriek.shriek")]
+    [InlineData("cs-lodger.break")]
+    [InlineData("tell-householder.house")]
+    [InlineData("tell-householder-rise.rise")]
+    [InlineData("tell-hollow-house.rumble")]
+    [InlineData("cs-hollow-house.slam")]
+    [InlineData("tell-hanger.rafters")]
+    [InlineData("tell-hanger-strands.hum")]
     public void TheTellsAndCallsSinceCaptionsAreCaptioned(string sound)
     {
         // Note 391: the signs as they play since note 342, the Moose's and the Gannet's tells (notes 334, 384), and the jobs
