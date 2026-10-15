@@ -26,6 +26,7 @@ public static class HostedAsApp
         new(Route: Sim.Campaign.Campaign.RouteOf(s, contract), Cars: s.Cars, Enemies: enemies)
         {
             Upgrades = s.Upgrades,
+            EngineName = s.EngineName,
             SpareKits = s.SpareKits,
             MusicBag = s.Music,
             Identities = s.Identities,
@@ -36,6 +37,7 @@ public static class HostedAsApp
             LastTown = s.LastTown,
             Burnt = s.Burnt.Count > 0 ? s.Burnt : null,
             CampaignNight = true,
+            Scrip = s.Scrip,
             // Note 721: whose logbook the night goes in, and which night it is.
             Crew = s.Name,
             CrewKey = Sim.Campaign.Logbook.Key(s),

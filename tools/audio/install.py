@@ -442,7 +442,7 @@ SWAP_GAIN_DB = {"boiler-tick": -4, "cannon-impact": -1, "cannon-splash": -4, "do
 # Lines whose candidates are alternatives the game uses all of, one per instance (a prisoner's whole voice).
 SETS_LINES = {"voice-prisoner-sets"}
 # Folders a full install leaves alone: the clerk's word bank (clerk.py), which the checklist doesn't pick.
-KEEP_SAMPLES = {"voice-clerk"}
+KEEP_SAMPLES = {"voice-clerk", "band"}
 # Voices read by Piper's LibriTTS model (recipes/voices.py, children.py; clerk.py): not CC0, they carry its credit.
 TTS_CUES = {("voice-prisoner-sets", "call"), ("voice-prisoner-sets", "shout"), ("tell-soot-children", "call")}
 TTS_LICENCE = "CC BY 4.0: LibriTTS, Zen et al. 2019"
