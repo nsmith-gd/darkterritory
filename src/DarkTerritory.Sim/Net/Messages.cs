@@ -104,7 +104,13 @@ public static class Protocol
     // 68: sound cues in the world (note 732): a record kind of their own (boards creaking where a house creature waits, the
     //     Householder shifting in its chair, a far bell for what's been lost, a dog barking at the lamps' edge), and what worked
     //     a coupling's pin loose on its car's record (the wound and seized byte's bits 2 up), a bend taken too fast among them.
-    public const int Version = 68;
+    // 69: odd outcomes (note 730): what they did (RecordKind.Odd) and the stops' odd things' state (RecordKind.Oddity), and the
+    //     report's letters (IncidentKind.Letter).
+    // 70: emotes for two (note 722): an emote record carries the tick a high five's or fist bump's hands met and with whom;
+    //     the emote byte (protocol 60) carries the new emotes 5-8 (the high five, the fist bump, the sit, the lean) as it is.
+    // 71: a friend on the crane's hook (note 726): the Crane record's last field counts the riders, a player's flags carry
+    //     Hoisted, and a death of its own (dropped from the crane).
+    public const int Version = 71;
 }
 
 public enum MessageType : byte

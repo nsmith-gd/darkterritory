@@ -66,6 +66,19 @@ public sealed class Crane
     internal int Rigger = -1;
     bool _releaseWas;
 
+    /// <summary>
+    /// How many crewmates ride the hook (note 726): the host's (World's hoist), replicated in the Crane record, so every machine
+    /// counts them as the hook's load.
+    /// </summary>
+    public int Riders { get; internal set; }
+    /// <summary>Who drove it last tick (−1 for nobody), kept past <see cref="Operator"/>'s reset: whose lift a rider's height is (note 726).</summary>
+    public int LastDriver { get; internal set; } = -1;
+    /// <summary>The operator's Fire, pressed with nothing hooked and someone on the hook (note 726): who pressed it, till the hoist sees it.</summary>
+    internal int ShakeOffBy = -1;
+
+    /// <summary>Something on the hook: a casting, or a crewmate riding it (note 726: a friend counts as a load for its lamp and its view).</summary>
+    public bool Loaded => Hooked is not null || Riders > 0;
+
     public Casting? Hooked => Castings.FirstOrDefault(c => c.State == CastingState.Hooked);
     public int Left => Castings.Count(c => c.State is CastingState.Stacked or CastingState.Hooked);
 
@@ -189,7 +202,8 @@ public sealed class Crane
         Bridge = Math.Clamp(Bridge + intent.MoveZ * _t.BridgeSpeed * dt, _t.Along - 0.5 * _t.Length, _t.Along + 0.5 * _t.Length);
         Trolley = Math.Clamp(Trolley + intent.MoveX * _t.TrolleySpeed * dt, _t.Span[0] + 0.5, _t.Span[1] - 0.5);
         double lift = (intent.Has(PlayerButtons.Jump) ? 1 : 0) - (intent.Has(PlayerButtons.Brake) ? 1 : 0);
-        Hook = Math.Clamp(Hook + lift * _t.HoistSpeed * dt, Lowest(train), _t.Height);
+        double lowest = Lowest(train);
+        Hook = Math.Clamp(Hook + lift * _t.HoistSpeed * dt, lowest, Math.Max(lowest, Highest));
         // Note 581 (the director, 9 Oct 2026: "extremely difficult to get loot into the cars, the game should be more
         // forgiving"): a casting brought low over an open hatch that it overlaps but doesn't clear is eased over the opening,
         // the bridge and trolley drawn to where it goes in, as a hand on the rope would steady it.
@@ -276,6 +290,38 @@ public sealed class Crane
         return floor - _at(Bridge, Trolley, 0).Y + (Hooked is null ? 0.3 : 2 * CastingHalf + 0.05);
     }
 
+    /// <summary>
+    /// The highest the hook goes: the gantry's top, or with a crewmate stood on it (note 726), crane.hoist.headroom lower, so their
+    /// head stays under the bridge and the trolley.
+    /// </summary>
+    public double Highest => Riders > 0 ? _t.Height - _t.Hoist.Headroom : _t.Height;
+
+    /// <summary>
+    /// Note 726: whether a crewmate with their feet at <paramref name="feet"/> (world) could take hold of the hook: it's empty
+    /// (no casting on it, room for one more rider) and the crane's whole and working, within crane.hoist.reach of them across
+    /// the ground, and between crane.hoist.height's low and high over their feet (in arm's reach).
+    /// </summary>
+    public bool Grabbable(Double3 feet)
+    {
+        var h = _t.Hoist;
+        if (!h.Enabled || Wrecked || Hooked is not null || Riders >= h.Riders)
+            return false;
+        var hook = HookAt;
+        double up = hook.Y - feet.Y;
+        return ((hook - feet) with { Y = 0 }).Length <= h.Reach && up >= h.Height[0] && up <= h.Height[1];
+    }
+
+    /// <summary>
+    /// Where rider <paramref name="slot"/> of <paramref name="count"/> stands on the hook (note 726; world, their feet):
+    /// crane.hoist.feetAbove over it, side by side crane.hoist.spread apart across the bridge.
+    /// </summary>
+    public Double3 RiderFeet(int slot, int count)
+    {
+        var across = (BridgeEnd(1) - BridgeEnd(0)) with { Y = 0 };
+        var side = across.Length > 1e-6 ? across.Normalized : new Double3(1, 0, 0);
+        return HookAt + Double3.Up * _t.Hoist.FeetAbove + side * (_t.Hoist.Spread * (slot - (count - 1) * 0.5));
+    }
+
     /// <summary>The ground point under a casting on the hook.</summary>
     public Double3 HookedBase => HookAt - Double3.Up * (2 * CastingHalf);
 
@@ -325,7 +371,8 @@ public sealed class Crane
     public Casting? Riggable(Double3 rigger)
     {
         var hook = HookAt;
-        if (Hooked is not null || hook.Y - _at(Bridge, Trolley, 0).Y > _t.RigHeight)
+        // A crewmate riding it (note 726): there's no rigging a casting under their feet.
+        if (Hooked is not null || Riders > 0 || hook.Y - _at(Bridge, Trolley, 0).Y > _t.RigHeight)
             return null;
         if (((rigger - hook) with { Y = 0 }).Length > _t.RigReach)
             return null;
@@ -409,12 +456,13 @@ public sealed class Crane
     }
 
     /// <summary>Client side: adopts the host's crane (the Crane record).</summary>
-    public void Mirror(double bridge, double trolley, double hook, double rigging, IReadOnlyList<(CastingState State, int Car, Double3 At)> castings)
+    public void Mirror(double bridge, double trolley, double hook, double rigging, IReadOnlyList<(CastingState State, int Car, Double3 At)> castings, int riders = 0)
     {
         Bridge = bridge;
         Trolley = trolley;
         Hook = hook;
         Rigging = rigging;
+        Riders = riders;
         for (int i = 0; i < Math.Min(castings.Count, Castings.Length); i++)
             (Castings[i].State, Castings[i].Car, Castings[i].At) = castings[i];
     }
