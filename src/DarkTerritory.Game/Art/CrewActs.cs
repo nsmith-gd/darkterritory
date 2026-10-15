@@ -82,8 +82,33 @@ public static class CrewActs
             var d = at - feet;
             return new Double3(d.X * Math.Cos(c.Yaw) - d.Z * Math.Sin(c.Yaw), d.Y, d.X * Math.Sin(c.Yaw) + d.Z * Math.Cos(c.Yaw));
         }
-        return c with { Feet = feet, Act = CrewPose.Lever, Reach = (Local(cable + Double3.Up * 1.75), Local(cable + Double3.Up * 1.4)) };
+        return c with { Feet = feet, Act = CrewPose.OnHook, Reach = (Local(cable + Double3.Up * 1.75), Local(cable + Double3.Up * 1.4)) };
     }
+
+    /// <summary>
+    /// Note 813: in the air under a crane's hook, below it and within <see cref="OffTheHookReach"/> of its cable: off it (let go,
+    /// or shaken off by the operator; who did it is the host's alone, so whoever's falling from under it is).
+    /// </summary>
+    static bool OffTheHook(in PlayerState s, World world)
+    {
+        var feet = PlayerMotor.WorldPosition(s, world.Train);
+        return world.Run?.CurrentSite?.CraneNear(feet) is { } crane && feet.Y < crane.HookAt.Y + 0.5
+            && ((crane.HookAt - feet) with { Y = 0 }).Length < OffTheHookReach;
+    }
+
+    /// <summary>How far across the ground from a crane's hook someone falling has come off it (m): the hook's spread and a step.</summary>
+    const double OffTheHookReach = 1.5;
+
+    /// <summary>
+    /// Note 813: how far a crane's hook with someone on it is swung off plumb at <paramref name="time"/> (the scene's clock), and
+    /// so they with it: a slow swing under their weight, a little each way across and along (m, horizontal). The same for the
+    /// hook, its cable, its lamp and its riders, drawn on one clock.
+    /// </summary>
+    public static Double3 HookSway(double time) =>
+        new(HookSwayReach * Math.Sin(time * 2 * Math.PI / HookSwayPeriod), 0, 0.6 * HookSwayReach * Math.Sin(time * 2 * Math.PI / HookSwayPeriod * 1.13 + 1.0));
+
+    /// <summary>How far a loaded hook swings off plumb (m), and its swing's period (s: a few metres of cable's).</summary>
+    const double HookSwayReach = 0.09, HookSwayPeriod = 3.4;
 
     /// <summary>The crewmate carrying <paramref name="s"/> (note 723): the nearest carrying one in their frame, under them.</summary>
     static PlayerState? CarrierOf(in PlayerState s, IReadOnlyList<PlayerState> others)
@@ -501,9 +526,9 @@ public static class CrewActs
         // Over a friend's shoulder (note 723; Crewmate lays them across it).
         if (s.Has(PlayerFlags.Carried))
             return CrewPose.HeldPinned;
-        // Stood on a crane's hook (note 726), both hands up on its cable (OnTheHook).
+        // Stood on a crane's hook (note 726), both hands up on its cable (OnTheHook; note 813's clip).
         if (s.Has(PlayerFlags.Hoisted))
-            return CrewPose.Lever;
+            return CrewPose.OnHook;
         // Knocked by a crewmate (note 717): rocked back, arms out, while the stagger lasts; and the shover's arms out at them.
         if (s.Stagger > 0)
             return CrewPose.Stagger;
@@ -524,8 +549,10 @@ public static class CrewActs
         if (s.Surface == Surface.Ladder)
             return s.Has(PlayerFlags.SoloCarry) ? CrewPose.ClimbCarry : CrewPose.Climb;
         // In the air: going up off a jump, the leap (note 375; SceneArt holds it over the top); coming down hard, falling.
+        // (Note 813: off a crane's hook, let go or shaken off, or off their feet by a shove or a throw, flailing all the way.)
         if (s.Surface == Surface.Air)
-            return s.Velocity.Y < -Falling ? CrewPose.Fall : s.Velocity.Y > Rising ? CrewPose.Jump : null;
+            return s.Has(PlayerFlags.Shoved) || OffTheHook(s, world) ? CrewPose.Flail
+                : s.Velocity.Y < -Falling ? CrewPose.Fall : s.Velocity.Y > Rising ? CrewPose.Jump : null;
         if (s.Has(PlayerFlags.Pushing))
             return CrewPose.Push;
         if (s.Has(PlayerFlags.Operating))

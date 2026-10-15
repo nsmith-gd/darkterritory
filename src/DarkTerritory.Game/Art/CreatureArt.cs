@@ -50,6 +50,9 @@ public enum CrewPose
     // stood and walking; the friend draped over it, posed on the carrier's keys and drawn at the carrier's feet on their clock
     // (CrewActs.OnTheShoulder); and in a moving car's door, leant out reaching down for a friend running beside it.
     Fireman, FiremanWalk, Carried, CarriedWalk, HandUp,
+    // A friend on the crane's hook (note 726; note 813): stood on its lip, both hands up the cable, swaying with it; and off
+    // it (let go, shaken off) or off their feet (shoved, thrown), flailing all the way down.
+    OnHook, Flail,
 }
 
 /// <summary>
@@ -841,6 +844,8 @@ public sealed partial class CreatureArt
         CrewPose.Carried => "carried",
         CrewPose.CarriedWalk => "carried_walk",
         CrewPose.HandUp => "hand_up",
+        CrewPose.OnHook => "on_hook",
+        CrewPose.Flail => "flail",
         _ => "idle",
     };
 
@@ -884,6 +889,7 @@ public sealed partial class CreatureArt
                 : clip == "shove" && has.Model.Clips.ContainsKey("push") ? "push"
                 : clip is "fireman" or "fireman_walk" && has.Model.Clips.ContainsKey("shoulder") ? clip == "fireman" ? "shoulder" : "shoulder_walk"
                 : clip == "hand_up" && has.Model.Clips.ContainsKey("haul_up") ? "haul_up"
+                : clip == "on_hook" && has.Model.Clips.ContainsKey("lever") ? "lever" : clip == "flail" && has.Model.Clips.ContainsKey("fall") ? "fall"
                 // An emote with no clip of its own (note 298): the dance steps on the spot, the wave and the point stand.
                 : clip is "dance" or "shuffle" && has.Model.Clips.ContainsKey("walk") ? "walk" : "idle";
         // ... and the arms are posed over it (EmoteArms).

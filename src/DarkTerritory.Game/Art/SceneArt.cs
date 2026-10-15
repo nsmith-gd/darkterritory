@@ -159,7 +159,9 @@ public sealed partial class SceneArt(Look look)
         };
         var right = new Vector3((float)Math.Cos(c.Yaw), 0, (float)-Math.Sin(c.Yaw));
         var back = new Vector3((float)Math.Sin(c.Yaw), 0, (float)Math.Cos(c.Yaw));
-        var m = CreatureArt.Basis(c.Feet.RelativeTo(eye), right, Vector3.UnitY, back);
+        // On a crane's hook (note 813): swung with it, on the scene's clock as the hook is (CrewActs.HookSway).
+        var feet = pose == CrewPose.OnHook ? c.Feet + CrewActs.HookSway(time) : c.Feet;
+        var m = CreatureArt.Basis(feet.RelativeTo(eye), right, Vector3.UnitY, back);
         // A headset player's hands where they are (T47), the same way GreyboxScene's figure has them; the other arm (and
         // everyone's, on a keyboard) stays with the clip's swing.
         Vector3? left = null, rightHand = null;

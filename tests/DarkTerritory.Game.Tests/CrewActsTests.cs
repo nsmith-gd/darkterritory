@@ -89,6 +89,29 @@ public class CrewActsTests
             }
     }
 
+    /// <summary>
+    /// Note 813: a friend on a crane's hook is drawn stood on its lip behind the cable in on_hook, the hands on the cable; and the
+    /// loaded hook's sway, which the hook, its cable, its lamp and its riders all take on the scene's one clock, is a little one
+    /// (a tenth of a metre or so), level, and the same every time for the same time.
+    /// </summary>
+    [Fact]
+    public void AFriendOnTheHookStandsOnItAndSwaysWithIt()
+    {
+        var hook = new Double3(10, 3, -4);
+        var rider = CrewActs.OnTheHook(new Crewmate(3, hook, 0.3, true), hook);
+        Assert.Equal(CrewPose.OnHook, rider.Act);
+        Assert.NotNull(rider.Reach);
+        Assert.InRange(((rider.Feet - hook) with { Y = 0 }).Length, 0.15, 0.25);
+        for (double t = 0; t < 10; t += 0.37)
+        {
+            var sway = CrewActs.HookSway(t);
+            Assert.Equal(0, sway.Y);
+            Assert.InRange(sway.Length, 0, 0.11);
+            Assert.Equal(sway, CrewActs.HookSway(t));
+        }
+        Assert.True(CrewActs.HookSway(0.9).Length > 0.03, "it does swing");
+    }
+
     [Fact]
     public void TheActIsReadOffTheirState()
     {
@@ -115,6 +138,9 @@ public class CrewActsTests
         Assert.Equal(CrewPose.Jump, CrewActs.Of(s with { Surface = Surface.Air, Velocity = new Double3(0, 3, 0) }, 1, w));
         Assert.Null(CrewActs.Of(s with { Surface = Surface.Air, Velocity = new Double3(0, -1, 0) }, 1, w));
         Assert.Equal(CrewPose.Fall, CrewActs.Of(s with { Surface = Surface.Air, Velocity = new Double3(0, -6, 0) }, 1, w));
+        // Note 813: on a crane's hook, stood on it; off their feet by a shove or a throw, flailing all the way down.
+        Assert.Equal(CrewPose.OnHook, CrewActs.Of(s with { Flags = PlayerFlags.Hoisted }, 1, w));
+        Assert.Equal(CrewPose.Flail, CrewActs.Of(s with { Surface = Surface.Air, Velocity = new Double3(0, -6, 0), Flags = PlayerFlags.Shoved }, 1, w));
         // Dead, they're drawn as their body.
         Assert.Null(CrewActs.Of(s with { Death = DeathCause.Struck, Flags = PlayerFlags.Held }, 1, w));
     }

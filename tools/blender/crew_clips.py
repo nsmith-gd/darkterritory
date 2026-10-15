@@ -69,6 +69,8 @@ What each is for (CrewActs, from the sim's state; GDD/spec where the act is):
                       friend draped on their belly, head and arms down the carrier's back, looking about, keyed on the carrier's
                       own keys so the two stay as one
   hand_up             in a moving car's door, leant out and down, reaching for a friend running beside it (note 723)
+  on_hook             stood on a crane's hook (note 726), both hands up its cable, a little sway, a look round
+  flail               off the hook, or off their feet (shoved, thrown): in the air, arms windmilling, legs running at nothing
   shove               a crewmate shoved (note 717): off the back foot into a lunge, both palms thrown out at the chest, held
   sit_edge            sat on a roof's or a landing's edge, the legs hanging over and swinging, a lean back on the hands
   lean_out, lean_out_left
@@ -2051,6 +2053,44 @@ for f, grab in ((0, 0.0), (10, 1.0), (16, 0.6), (28, 0.0), (38, 1.0), (44, 0.6))
     hand_up.key(f, look_at(p, RUNNER), "LINEAR" if grab == 1.0 else "BEZIER")
 hand_up.close(48)
 clips.append(hand_up)
+
+# --- a friend on the crane's hook (notes 726, 802; queue #541, note 813) ------------------------------------------------------
+# On the hook: stood on its lip, the cable a step ahead (CrewActs.CableAhead, 0.2 m), both hands up it one over the other
+# (CrewActs.OnTheHook puts the hands on the cable as it hangs; these are where it hangs straight), feet together, knees soft,
+# leant back off it on the arms; a little sway at the hips as the hook swings, a look down at the ground and round. Flail: off the hook
+# (let go, shaken off) or off their feet (shoved, thrown), in the air: arms windmilling, legs running at nothing, head back.
+CABLE = 0.2
+ON_HOOK = over(STAND, pelvis__loc=(0, -0.04, 0), pelvis=(4, 0, 0), spine_01=(4, 0, 0), spine_02=(3, 0, 0), spine_03=(0, 0, 0),
+               neck=(2, 0, 0), thigh_r=(2, 0, 4), calf_r=(-10, 0, 0), thigh_l=(2, 0, -4), calf_l=(-10, 0, 0))
+
+
+def hooked(sway, look):
+    body = over(ON_HOOK, pelvis__loc=(0.03 * sway, -0.04, -0.02), pelvis=(4, 0, 4 * sway), spine_02=(3, -3 * sway, 0), spine_03=(0, -2 * sway, 0))
+    p = arm_to(body, "r", (0.02, CABLE - 0.04, 1.75), grip=95, elbow=(0.35, 0.1, 1.5))
+    p = arm_to(p, "l", (-0.02, CABLE - 0.04, 1.42), grip=95, elbow=(0.38, 0.0, 1.2))
+    return look_at(p, look)
+
+
+on_hook = Clip("on_hook")
+for f, sway, look in ((0, 0.0, (1.2, 2.0, -0.5)), (22, 1.0, (2.0, 0.4, 0.2)), (45, 0.0, (0.4, 2.4, -1.2)), (68, -1.0, (-2.0, 0.6, 0.4))):
+    on_hook.key(f, hooked(sway, look))
+on_hook.close(90)
+clips.append(on_hook)
+
+FLAIL = over(STAND, pelvis=(10, 0, 0), spine_01=(8, 0, 0), spine_02=(6, 0, 0), spine_03=(4, 0, 0), neck=(18, 0, 0), head=(10, 0, 0))
+flail = Clip("flail")
+for f in range(0, 24, 3):
+    a = 2 * math.pi * f / 12                                 # the arms round twice a cycle, opposite each other
+    sh_r, sh_l = SHOULDER_R, SHOULDER_L
+    r = (sh_r.x + 0.2, sh_r.y + 0.42 * math.cos(a), sh_r.z + 0.38 * math.sin(a) + 0.1)
+    l = (sh_l.x - 0.2, sh_l.y - 0.42 * math.cos(a), sh_l.z - 0.38 * math.sin(a) + 0.1)
+    run = math.sin(2 * math.pi * f / 24)
+    p = over(FLAIL, **{"thigh_r": (40 + 34 * run, 0, 6), "calf_r": (-70 + 30 * run, 0, 0), "thigh_l": (40 - 34 * run, 0, -6),
+                       "calf_l": (-70 - 30 * run, 0, 0), "foot_r": (10, 0, -6), "foot_l": (10, 0, 6)})
+    p = arm_to(arm_to(p, "r", r, fist=False, elbow=(0.6, -0.1, 1.5)), "l", l, fist=False, elbow=(0.6, -0.1, 1.5))
+    flail.key(f, open_hand(open_hand(p, "r", 0), "l", 0), "LINEAR")
+flail.close(24)
+clips.append(flail)
 
 kit.build()
 rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"wave", "point", "dance", "paint", "drink", "grill", "eat", "bow", "salute", "conga", "shove", "fireman", "hand_up", "high_five", "high_five_met", "fist_bump", "fist_bump_met", "dance_off",
