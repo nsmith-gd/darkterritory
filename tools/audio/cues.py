@@ -1061,7 +1061,10 @@ CUES = {
     # Big finds (queue #513, note 783; note 719): the two-person jackpots, and the fragile finds that break as they're knocked.
     # The jackpot house's lock is the wrench's own (place-breach.pick, pick-give).
     "loot-jackpot": [
-        O("lift", "A jackpot lifted between two: a heave each end and the weight coming up off the floor", vars=3),
+        # Each find's own lift (the safe's door, the bell's clapper, the figurehead's oak as it comes up), the pair varying.
+        O("lift-iron", "The safe lifted between two: a heave each end, its weight off the floor, its door knocking once", vars=3),
+        O("lift-bell", "The church bell lifted between two: a heave each end, its weight off the floor, its clapper knocking", vars=3),
+        O("lift-wood", "The figurehead lifted between two: a heave each end, its weight off the floor, its oak creaking", vars=3),
         O("set-iron", "The safe set down: a dead heavy iron thud, its door rattling in its frame", vars=3),
         O("set-wood", "The figurehead or the bell's headstock set down: heavy oak laid down, a creak", vars=3),
         O("bell", "The church bell knocked or set down: a dull, short bronze ring, the clapper's knock", vars=3),

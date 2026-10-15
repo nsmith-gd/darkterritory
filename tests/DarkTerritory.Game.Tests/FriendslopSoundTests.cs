@@ -36,7 +36,7 @@ public class FriendslopSoundTests
     [
         "world-rail-knock.knock", "crew-lamp-broken.smash", "crew-lamp-broken.burn~", "cs-hounds-doused.doused",
         "crew-rescue.haul", "crew-rescue.lift", "crew-rescue.set", "crew-rescue.throw",
-        "loot-jackpot.lift", "loot-jackpot.set-iron", "loot-jackpot.set-wood", "loot-jackpot.bell",
+        "loot-jackpot.lift-iron", "loot-jackpot.lift-bell", "loot-jackpot.lift-wood", "loot-jackpot.set-iron", "loot-jackpot.set-wood", "loot-jackpot.bell",
         "loot-fragile.glass", "loot-fragile.decanter", "loot-fragile.clock", "place-breach.pick~", "place-breach.pick-give",
         "crew-house-door.open", "crew-handcar.creak", "crew-handcar.joint", "crew-handcar.roll~", "crew-handcar.brake~",
         "crew-handcar.set", "crew-handcar.hang", "crew-carry.lamp-set", "crew-carry.crate-lift", "crew-carry.crate-set",
@@ -284,9 +284,9 @@ public class FriendslopSoundTests
     }
 
     [Theory]
-    [InlineData("safe", "loot-jackpot.set-iron", false)]
-    [InlineData("churchBell", "loot-jackpot.set-wood", true)]
-    public void AJackpotIsHeftedBetweenTwoAndSetDownAsWhatItIs(string item, string set, bool rings)
+    [InlineData("safe", "loot-jackpot.lift-iron", "loot-jackpot.set-iron", false)]
+    [InlineData("churchBell", "loot-jackpot.lift-bell", "loot-jackpot.set-wood", true)]
+    public void AJackpotIsHeftedBetweenTwoAndSetDownAsWhatItIs(string item, string lift, string set, bool rings)
     {
         var (b, k) = AtAJackpotHouse(item);
         b.World.Run!.Stock(b.World.Bodies, k);
@@ -308,7 +308,8 @@ public class FriendslopSoundTests
         Assert.True(jackpot.Lifted, "up between the two");
         jackpot.Carrier = jackpot.Second = -1;
         b.Run(2, crew);
-        Assert.Equal(1, b.Count("loot-jackpot.lift"));
+        Assert.Equal(1, b.Count(lift));
+        Assert.Equal(1, b.Heard.Count(h => h.Name.StartsWith("loot-jackpot.lift", StringComparison.Ordinal)));
         Assert.Equal(0, b.Count("crew-carry.crate-lift"));
         Assert.Equal(1, b.Count(set));
         Assert.Equal(0, b.Count("crew-carry.crate-set"));

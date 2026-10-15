@@ -1934,6 +1934,46 @@
   "url": "/_blob/ff2535c1b2aef258379f9214991daafc",
   "sha": "54f5884d70c0564d"
  },
+ "previews/crew-rescue--haul--boards.mp4": {
+  "id": "a6baf13ac2800f23e01e9e4e033aeb1f",
+  "url": "/_blob/a6baf13ac2800f23e01e9e4e033aeb1f",
+  "sha": "2744c9224ebb5eb6"
+ },
+ "previews/crew-rescue--haul--stumble.mp4": {
+  "id": "8965cb741a632f6269e76aed85200927",
+  "url": "/_blob/8965cb741a632f6269e76aed85200927",
+  "sha": "ba192863680e7d27"
+ },
+ "previews/crew-rescue--lift--coats.mp4": {
+  "id": "93aea06657af41e0e4b4d5ebe94f2e0b",
+  "url": "/_blob/93aea06657af41e0e4b4d5ebe94f2e0b",
+  "sha": "ebfd1dfb77a394d6"
+ },
+ "previews/crew-rescue--lift--wool.mp4": {
+  "id": "4a61f4d19cff08df7b0a28b4b5da19b2",
+  "url": "/_blob/4a61f4d19cff08df7b0a28b4b5da19b2",
+  "sha": "1c45f62a797bcf67"
+ },
+ "previews/crew-rescue--set--boards.mp4": {
+  "id": "b99a1bdaccb3f886c88b046b7b6446d9",
+  "url": "/_blob/b99a1bdaccb3f886c88b046b7b6446d9",
+  "sha": "95b81484d85e45c9"
+ },
+ "previews/crew-rescue--set--plank.mp4": {
+  "id": "e3de34302e148f32af8ca029842c603c",
+  "url": "/_blob/e3de34302e148f32af8ca029842c603c",
+  "sha": "f63d8020ce92e377"
+ },
+ "previews/crew-rescue--throw--flap.mp4": {
+  "id": "08f4c6a43116edb867bdbe5846da834d",
+  "url": "/_blob/08f4c6a43116edb867bdbe5846da834d",
+  "sha": "7590ee45bd912da2"
+ },
+ "previews/crew-rescue--throw--swing.mp4": {
+  "id": "6ae22c69e54600a048468fb527eb9aac",
+  "url": "/_blob/6ae22c69e54600a048468fb527eb9aac",
+  "sha": "6a6eb3f8c2be36bd"
+ },
  "previews/crew-search--bench--tools.mp4": {
   "id": "eaa06c4e02ebf2ac3c076b95bdbd1c40",
   "url": "/_blob/eaa06c4e02ebf2ac3c076b95bdbd1c40",
@@ -3183,6 +3223,96 @@
   "id": "ee9d7d516b07e1267c4218d553fa2744",
   "url": "/_blob/ee9d7d516b07e1267c4218d553fa2744",
   "sha": "4d99a56ed1a1d90e"
+ },
+ "previews/loot-fragile--clock--mantel.mp4": {
+  "id": "d3bbc746bd61fc50c346a277986eec56",
+  "url": "/_blob/d3bbc746bd61fc50c346a277986eec56",
+  "sha": "1ff420787cf2ce74"
+ },
+ "previews/loot-fragile--clock--works.mp4": {
+  "id": "2486908bd985e1a74d89492f5c4ed101",
+  "url": "/_blob/2486908bd985e1a74d89492f5c4ed101",
+  "sha": "4e328eb3bdcc7e99"
+ },
+ "previews/loot-fragile--decanter--cut.mp4": {
+  "id": "f43390ba9c14122c66cc7a3e1e193d95",
+  "url": "/_blob/f43390ba9c14122c66cc7a3e1e193d95",
+  "sha": "58593b9bec1c4d0c"
+ },
+ "previews/loot-fragile--decanter--lead.mp4": {
+  "id": "cfa604d00c4568f2f6c8975ae3f1271d",
+  "url": "/_blob/cfa604d00c4568f2f6c8975ae3f1271d",
+  "sha": "f95eea3c6a14afb2"
+ },
+ "previews/loot-fragile--glass--crate.mp4": {
+  "id": "e07b967c297c1ec003f225c49b195fdb",
+  "url": "/_blob/e07b967c297c1ec003f225c49b195fdb",
+  "sha": "4385b9246ef9af9c"
+ },
+ "previews/loot-fragile--glass--shards.mp4": {
+  "id": "a7e6a66d32b48a362b49d71726c40e8f",
+  "url": "/_blob/a7e6a66d32b48a362b49d71726c40e8f",
+  "sha": "60128727584d929f"
+ },
+ "previews/loot-jackpot--bell--bronze.mp4": {
+  "id": "4a3b2f9d9c15f6f982e41c9405d93f4a",
+  "url": "/_blob/4a3b2f9d9c15f6f982e41c9405d93f4a",
+  "sha": "a9a09b4dc509bb86"
+ },
+ "previews/loot-jackpot--bell--partials.mp4": {
+  "id": "e1151693e67cf3f094e075badbe98cbc",
+  "url": "/_blob/e1151693e67cf3f094e075badbe98cbc",
+  "sha": "26d4ad8d66356109"
+ },
+ "previews/loot-jackpot--lift-bell--boards.mp4": {
+  "id": "e492f0c1700a460bc815ee3e78262d74",
+  "url": "/_blob/e492f0c1700a460bc815ee3e78262d74",
+  "sha": "f6b9ee5d36e66e48"
+ },
+ "previews/loot-jackpot--lift-bell--model.mp4": {
+  "id": "7703169739803a95e6298b8dddd7e5cb",
+  "url": "/_blob/7703169739803a95e6298b8dddd7e5cb",
+  "sha": "74d3633b5947be71"
+ },
+ "previews/loot-jackpot--lift-iron--boards.mp4": {
+  "id": "e45cc8d270f4ea4a2324efa4c5402688",
+  "url": "/_blob/e45cc8d270f4ea4a2324efa4c5402688",
+  "sha": "3ce7b1cd6e478d32"
+ },
+ "previews/loot-jackpot--lift-iron--model.mp4": {
+  "id": "f337dd9a2ad27c7c9aaacfb400934c55",
+  "url": "/_blob/f337dd9a2ad27c7c9aaacfb400934c55",
+  "sha": "31d66d00c8d4b003"
+ },
+ "previews/loot-jackpot--lift-wood--boards.mp4": {
+  "id": "05b6bf01947740e4618b58363c29778c",
+  "url": "/_blob/05b6bf01947740e4618b58363c29778c",
+  "sha": "128a584bd315bb75"
+ },
+ "previews/loot-jackpot--lift-wood--model.mp4": {
+  "id": "1d546d59bbb563a2b807642c4c71f49b",
+  "url": "/_blob/1d546d59bbb563a2b807642c4c71f49b",
+  "sha": "47d7d7ee25ec7703"
+ },
+ "previews/loot-jackpot--set-iron--boards.mp4": {
+  "id": "bed59fc15b6d0068bd0d0ba9cb049485",
+  "url": "/_blob/bed59fc15b6d0068bd0d0ba9cb049485",
+  "sha": "1109f9b87f896bb7"
+ },
+ "previews/loot-jackpot--set-iron--model.mp4": {
+  "id": "a34249cdb2b4d485ad2986f5361d7e6b",
+  "url": "/_blob/a34249cdb2b4d485ad2986f5361d7e6b",
+  "sha": "216c2f1f3271a158"
+ },
+ "previews/loot-jackpot--set-wood--model.mp4": {
+  "id": "bbc68766cb4b352d9bf4a0ca2b8b7c58",
+  "url": "/_blob/bbc68766cb4b352d9bf4a0ca2b8b7c58",
+  "sha": "fa282167e30bb0fe"
+ },
+ "previews/loot-jackpot--set-wood--oak.mp4": {
+  "id": "7911a4340cdbd7f61c54e9df99a3a318",
+  "url": "/_blob/7911a4340cdbd7f61c54e9df99a3a318",
+  "sha": "e0f7fccee772915d"
  },
  "previews/place-breach--board--torn.mp4": {
   "id": "1dcff941a9ac638bd3bbfe0869734f58",

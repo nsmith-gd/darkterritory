@@ -1270,8 +1270,13 @@ public sealed partial class GameAudio
                 {
                     // A powder keg (GDD §18-19; note 185's kegs, note 245): the cask's own, the powder shifting in it.
                     BodyKind.Cargo or BodyKind.Heavy when b.Cargo == CargoKind.Ammunition => "crew-carry.keg-lift",
-                    // A two-person jackpot (note 783; note 719): a heave each end and its weight coming up.
-                    BodyKind.Heavy when Sim.Run.Run.IsJackpot(b) => "loot-jackpot.lift",
+                    // A two-person jackpot (note 783; note 719): a heave each end and its weight coming up, as what it is.
+                    BodyKind.Heavy when Sim.Run.Run.IsJackpot(b) => world.Run?.FindOf(b)?.Item switch
+                    {
+                        "safe" => "loot-jackpot.lift-iron",
+                        "churchBell" => "loot-jackpot.lift-bell",
+                        _ => "loot-jackpot.lift-wood",
+                    },
                     BodyKind.Crate or BodyKind.Cargo or BodyKind.Heavy => "crew-carry.crate-lift",
                     BodyKind.Lamp => "crew-carry.lamp-lift",
                     BodyKind.Toy => "crew-carry.toy-lift",

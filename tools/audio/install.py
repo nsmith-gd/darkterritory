@@ -298,7 +298,13 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 "world-rail-knock.knock": "clank", "crew-lamp-broken.smash": "shatter", "crew-lamp-broken.burn": "crackle",
                 "cs-hounds-doused.doused": "steam", "crew-handcar.creak": "pivot", "crew-handcar.joint": "tick",
                 "crew-handcar.roll": "rumble", "crew-handcar.brake": "shoe", "crew-handcar.set": "iron",
-                "crew-handcar.hang": "chains"}
+                "crew-handcar.hang": "chains",
+                # Notes 782 and 783: the kitbashed ones first (the packs' real boards, leather, iron, oak, glass and bell
+                # round the crew's modelled voices), the models candidates.
+                "crew-rescue.haul": "boards", "crew-rescue.lift": "coats", "crew-rescue.set": "boards", "crew-rescue.throw": "swing",
+                "loot-jackpot.lift-iron": "boards", "loot-jackpot.lift-bell": "boards", "loot-jackpot.lift-wood": "boards",
+                "loot-jackpot.set-iron": "boards", "loot-jackpot.set-wood": "oak", "loot-jackpot.bell": "bronze",
+                "loot-fragile.glass": "crate", "loot-fragile.decanter": "cut", "loot-fragile.clock": "mantel"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the
