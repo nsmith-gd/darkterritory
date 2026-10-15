@@ -93,15 +93,23 @@ public sealed partial class GreyboxScene
             return;
         var (drift, flicker) = Look is null ? (Vector3.Zero, 1f) : (Art.SceneArt.FlameDrift(Time, id), Art.SceneArt.Flicker(Time, id));
         var light = new PointLight(V(at, eye) + drift, Palette.LampAmber * Interiors.HandLamp * flicker, Interiors.HandLampRange);
-        if (mesh.ShadowLight is { } nearer && nearer.Position.LengthSquared() <= light.Position.LengthSquared())
+        // Which casts the shadows holds it until another's clearly nearer (note 762): two lamps about as near as each other
+        // (a crewmate's beside yours in the cab) would otherwise swap it from frame to frame, and the shadows flash.
+        float Near(PointLight l, int lamp) => l.Position.Length() - (lamp == _shadowLampWas ? ShadowHoldM : 0);
+        if (mesh.ShadowLight is { } nearer && Near(nearer, _shadowLamp) <= Near(light, id))
             mesh.PointLights.Add(light);
         else
         {
             if (mesh.ShadowLight is { } farther)
                 mesh.PointLights.Add(farther);
             mesh.ShadowLight = light;
+            _shadowLamp = id;
         }
     }
+
+    // The lamp casting the shadows this frame, and the last. How much nearer another must be to take them (m): not a design number.
+    int _shadowLamp = -1, _shadowLampWas = -1;
+    const float ShadowHoldM = 0.75f;
 
     bool CarDark(int index) => Vehicles is { } fleet && index < fleet.Count && (!fleet[index].LampLit || Sputtered(fleet[index], index));
 
@@ -402,6 +410,7 @@ public sealed partial class GreyboxScene
     public void Build(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, double hint, Double3 eye)
     {
         mesh.Clear();
+        (_shadowLampWas, _shadowLamp) = (_shadowLamp, -1);
         _speed = frames.Count == 0 ? 0 : Vector3.Dot(ToF(frames[0].Velocity), ToF(frames[0].Back * -1));
         // The headlamp as the lineside boards' reflective paint sees it (note 560).
         if (Look is not null && frames.Count > 0)
