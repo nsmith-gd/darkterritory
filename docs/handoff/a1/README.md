@@ -23,6 +23,8 @@ first would make the PRs conflict.
 
 ## Queue #530, note 803: the mail cut for now
 
+**Finished:** merged in [#1083](https://github.com/nsmith-gd/darkterritory/pull/1083) (15 Oct). The director's calls left in note 803: the pay (about 60–62 runs to 20 cars against 56) and the quiet between threats (175 s on local:3). Nothing left to pick up.
+
 - **From:** nathaniel2, A1, 2026-10-15 17:44 UTC, prepare handoff (weekly 60%). K1 built it (K1.17); A1 carries it on.
 - **Branch and last commit:** `a1-mail-cut`, 231c8a97 (pushed). No PR yet.
 - **Goal:** the director, 15 Oct: "Im soft on the mail. I dont like it so far. Lets cut for now." One switch, `sight.json` `mailCranes` false; the code stays.

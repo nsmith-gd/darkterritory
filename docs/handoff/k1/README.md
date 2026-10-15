@@ -21,6 +21,7 @@ Every item of queue #450–#467 is merged. Two of the director's calls of 15 Oct
 its weekly limit (2026-10-15 ~15:45 UTC). Anyone may pick them up: put your id on the queue row first (COORDINATION
 rule 1), then:
 
+- **Finished by A1** (15 Oct): #529 in [#1066](https://github.com/nsmith-gd/darkterritory/pull/1066) (protocol 74), #530 in [#1083](https://github.com/nsmith-gd/darkterritory/pull/1083) (note 803 with the pay measured). The two entries below are kept as they were handed off.
 - **#529, note 802: a drop off the crane's hook is a gag** (the director: "the player can only lose 10 health at most
   from a drop and then scale that based on height. It's a silly gag not a big grief."). `patches/529-hoist-gag.patch`,
   made on main a7dde418 (`git checkout -b <yours> a7dde418 && git apply docs/handoff/k1/patches/529-hoist-gag.patch`,
