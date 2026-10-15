@@ -709,6 +709,7 @@ public sealed partial class GreyboxScene
             Strikes(mesh, Look.Art.Effects, line, hint, frames, eye);
         }
         Coal(mesh, eye);
+        OddThings(mesh, line, eye);
         Memory(mesh, frames, eye);
         Lap(mesh, "effects");
         mesh.Seed = 0;
