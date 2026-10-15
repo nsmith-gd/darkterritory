@@ -63,6 +63,11 @@ public class CaptionsTests
     // Note 769: the Pickers coming up out of the drains, and taking a crate.
     [InlineData("tell-pickers.emerge")]
     [InlineData("cs-pickers.carry")]
+    // Note 770: dawn coming, and coming for the train.
+    [InlineData("tell-wakers.thud")]
+    [InlineData("tell-wakers.rise")]
+    [InlineData("tell-wakers.stride")]
+    [InlineData("cs-wakers.grab")]
     public void TheTellsAndCallsSinceCaptionsAreCaptioned(string sound)
     {
         // Note 391: the signs as they play since note 342, the Moose's and the Gannet's tells (notes 334, 384), and the jobs

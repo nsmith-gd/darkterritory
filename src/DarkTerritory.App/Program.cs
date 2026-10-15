@@ -1496,6 +1496,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         var stirWorld = session.World;
         scene.LampSwayOf = car => DawnStir.LampSway(stirWorld, stirAt, car);
         scene.StirThud = DawnStir.Thud(stirWorld, stirAt);
+        sound.StirClock = stirAt;   // the stir's thuds heard on the beat they're felt (note 770)
         scene.LampRange = outro ? 400 : 60;
         scene.RoofGlow = outro;
         // On the engine with the boiler in the red, it shakes you (T109).

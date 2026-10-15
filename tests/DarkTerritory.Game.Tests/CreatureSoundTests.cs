@@ -1119,4 +1119,27 @@ public class CreatureSoundTests
         scene.World.Hits.Add(new HitConfirm(1, scene.World.Tick, 92, EnemyKind.Pickers, 1, HitSource.Melee, at, Double3.Up, true));
         Assert.Contains("cs-pickers.hit", scene.Tick());
     }
+
+    // ---- The Wakers (queue #500, note 770) --------------------------------------------------------------------------------
+
+    [Fact]
+    public void AWakerRisenBesideOneWhoRanStridesOverTakesThemAndSwallows()
+    {
+        // Note 710: up out of the land beside them (its first tick), its walk's footfalls as it strides over, its grip on
+        // them, the swallow at its mouth.
+        using var scene = new Scene(2, "tell-wakers.rise", "tell-wakers.stride", "cs-wakers.take", "cs-wakers.swallow");
+        var feet = scene.Train.Frames[2].ToWorld(new Double3(-60, 0, 0));
+        Waker K(SpinePhase phase, Double3 at) =>
+            Record(new Waker(95), phase, 0, 1, Enemy.Loose, at, height: 0, extra: 1, extra2: Waker.PickerMark, holding: phase is SpinePhase.Grab ? 1 : -1);
+        Assert.Equal(["tell-wakers.rise"], scene.Tick(K(SpinePhase.Telegraph, feet)));
+        var heard = new List<string>();
+        var step = new Double3(12.0 / SimConstants.TickRate, 0, 0);
+        for (int i = 0; i < 4 * SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(K(SpinePhase.Commit, feet += step)));
+        Assert.Equal(2, heard.Count(h => h == "tell-wakers.stride"));
+        Assert.Equal(["cs-wakers.take"], scene.Tick(K(SpinePhase.Grab, feet)));
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            scene.Tick(K(SpinePhase.Grab, feet));
+        Assert.Equal(["cs-wakers.swallow"], scene.Tick(K(SpinePhase.Punish, feet)));
+    }
 }

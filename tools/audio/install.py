@@ -481,6 +481,13 @@ CUE_DEF = {
     "place-tipple.derail": {"tier": 3, "minDistance": 4, "maxDistance": 250, "rolloff": 0.8},
     "place-tipple.rerail": {"minDistance": 1, "maxDistance": 40, "rolloff": 1.0},
     "place-tipple.rerailed": {"minDistance": 2, "maxDistance": 80, "rolloff": 1.0},
+    # The Wakers (note 770): hill-sized, heard from where they rise, 1.2 km behind and more (the stir placed 700 m out). A
+    # rise there about -10 dB, a footfall about -19 dB and full by 50 m; the catch at the train itself.
+    **{f"tell-wakers.{c}": {"minDistance": m, "maxDistance": 4000, "rolloff": r}
+       for c, m, r in (("thud", 200, 0.6), ("call", 200, 0.6), ("rise", 200, 0.6), ("stride", 50, 0.7), ("roar", 100, 0.6))},
+    **{f"cs-wakers.{c}": {"minDistance": 20, "maxDistance": 1500, "rolloff": 0.8}
+       for c in ("grab", "lift", "eat", "take", "swallow")},
+    "cs-wakers.drag": {"minDistance": 10, "maxDistance": 600, "rolloff": 0.8},
 }
 
 

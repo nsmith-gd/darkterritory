@@ -957,6 +957,24 @@ CUES = {
         O("down", "Down its drain: the grating rattling as it squeezes through", vars=3),
         O("hit", "One killed by a blow: a squeal cut short", vars=3),
     ],
+    # The Wakers (queue #500, note 770; note 588, docs/design/creatures/wakers.md §2-§5, §8.4 "the sounds to AU1"): what
+    # gets up at dawn. Hill-sized: heard from a kilometre and more, the stir's thuds and calls below the night creatures'
+    # range so they never mask a tell (spec A.3). Their footfalls are the land's, never a crewmate's step made big.
+    "tell-wakers": [
+        O("thud", "The stir: a far-off thud through the land, felt more than heard, stronger as dawn comes", vars=4),
+        O("call", "The stir: a long, low call from behind the hills", vars=3),
+        O("rise", "The land getting up: earth and rock torn open, a long groan, in surges", vars=2),
+        O("stride", "Its footfall as it comes down the line: the ground struck, stones jumping", vars=4),
+        O("roar", "A roar as it runs the train down, or stood at the walls under the guns", vars=3),
+    ],
+    "cs-wakers": [
+        O("grab", "The last car seized: a blow through the whole train, steel shrieking", vars=2),
+        L("drag", "The train dragged to a stand against it: wheels locked and screaming on the rails"),
+        O("lift", "A car torn up off the rails: its couplings snapping, its frame groaning", vars=3),
+        O("eat", "A car eaten: steel and timber crushed in its jaws", vars=3),
+        O("take", "One who ran taken in its hand: the ground struck, a grip closing", vars=2),
+        O("swallow", "Eaten: a crunch and a long swallow overhead", vars=2),
+    ],
     # Signs off the train (D1.1's note 327; queue #79, note 342): a crewmate afoot is shown a pair of eyes at the lamp's edge,
     # toward where a creature lives here. Its sound says something's out there, never that it's coming: quieter than its
     # tell and nothing like it (GameAudio.Watched plays "sign.<kind>", Director.Key's names). The Gaunt and the Followers

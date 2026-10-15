@@ -127,9 +127,10 @@ public sealed partial class GameAudio
             else
             {
                 // First sight: nothing has changed yet, so nothing plays; a car already cut loose has been heard going. But a
-                // Picker's first tick is its coming up out of its drain (note 769).
+                // Picker's first tick is its coming up out of its drain (note 769), and a Waker's its rise (note 770).
                 _creatures[e.Id] = was = new Creature { Id = e.Id, CutAway = e.Attached >= 0 && Cut(train, e.Attached) };
                 PickerFirstSeen(e, at, space);
+                WakerFirstSeen(e, at);
             }
             was.Take(e, at, space);
         }
@@ -142,6 +143,7 @@ public sealed partial class GameAudio
         ChoirSwarm(world);
         SwitchmanThrows(world);
         SixSoundsAfter(world);
+        StirSounds(world);
     }
 
     /// <summary>One enemy's record this tick against last tick's.</summary>
@@ -257,6 +259,9 @@ public sealed partial class GameAudio
                 break;
             case Picker p:
                 PickerSounds(p, was, at, occ, dt);
+                break;
+            case Waker w:
+                WakerSounds(world, w, was, at);
                 break;
             default:
                 SixSounds(world, e, was, at, occ, struck, dt);
