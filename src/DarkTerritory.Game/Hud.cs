@@ -1246,9 +1246,15 @@ public static partial class Hud
         var p = s.Player;
         var world = s.World;
         var rows = new List<(string Text, Vector4 Colour)> { (DeathLine(p.Death), Ink) };
-        // App. D.10: the dead watch the living, through their eyes. Networked only: alone, there's nobody.
+        // App. D.10: the dead watch the living, through their eyes, or the bodies of the dead (note 743), and from the view
+        // they choose. Networked only: alone, there's nobody.
         if (s.Watching >= 0)
-            rows.Add((Bound($"WATCHING CREW {s.Watching}   NEXT : [LMB] OR [D]   BACK : [A]"), Ink));
+        {
+            string who = IncidentLog.NameOf(world, s.Watching).ToUpperInvariant() + (s.Viewpoint.Alive ? "" : " (BODY)");
+            var view = s.DeadView == DeadView.Eyes && !s.Viewpoint.Alive ? DeadView.Shoulder : s.DeadView;
+            rows.Add((Bound($"WATCHING {who}   NEXT : [LMB] OR [D]   BACK : [A]"), Ink));
+            rows.Add((Bound($"VIEW : {DeadViews.Name(view)}   [TAB] TO CHANGE"), Dim));
+        }
         else if (s.Link is not null && world.Run is not { Over: true })
             rows.Add(("NOBODY LEFT ALIVE TO WATCH", Dim));
         // D.10's Bookmark (D.12): a still of what you're watching, for the run-end screen; how many are left, and the last.
