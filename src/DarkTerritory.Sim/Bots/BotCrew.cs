@@ -106,6 +106,17 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         // Note 258: it says it's a bot, so the driver can tell the crew playing from the bots.
         if (session.PlayerId is { } bid)
             calls?.Bot(bid);
+        // Note 740 (GDD §17): the horn pulled by someone playing with the train standing calls the crew aboard; it holds
+        // till the train moves off. The Whistler's (nobody's hand) calls nobody.
+        if (calls is not null)
+        {
+            var heard = session.World;
+            bool standing = session.Train.Dynamics.Speed < Net.CabControls.StandingBelow;
+            if (standing && heard.WhistleSeconds > 0 && heard.WhistleBy >= 0 && !calls.IsBot(heard.WhistleBy))
+                calls.CallAboard(true);
+            else if (!standing && calls.CalledAboard)
+                calls.CallAboard(false);
+        }
         // Who else is aboard, and where (T96: the driver stops for a crewmate left behind); and which of them are people playing
         // (note 259: one in the cab minds it while the driver's out breaching a Holdout).
         if (bot is ConductorBot cb)
@@ -133,7 +144,9 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         // Holdout's door, a creature to club or a crewmate held. On frontier:7 seed 3 two hands on 4 and 11 in the cab were taken
         // down out of it at a stand by a stop's errand, and up car 1's ladder into the pack on its roof.
         bool hunted = (bot as RoofWalkerBot)?.Hunted ?? (bot as GunnerBot)?.Hunted ?? false;
-        if (!hunted)
+        // Note 740: called aboard by the horn, no errand off the train: back aboard (a rescue, after, still beats it).
+        bool called = calls?.CalledAboard == true;
+        if (!hunted && !called)
             intent = Heed.Holdouts(intent, session.Predicted, session.World, me, calls, (bot as RoofWalkerBot)?.Job ?? (bot as GunnerBot)?.Job);
         intent = Heed.HotBox(intent, session.Predicted, session.World);
         intent = Heed.Coupling(intent, session.Predicted, session.World);
@@ -142,7 +155,7 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         // slack, a Hotbox prised out and its axle freed, the Brakeman cornered and his brakes unwound. A rescue (after) beats them.
         var others = (bot as RoofWalkerBot)?.Crew ?? (bot as GunnerBot)?.Crew ?? [];
         // And the driver that's handed someone playing the controls (the director, 9 Oct 2026): out working the train as a walker.
-        if (bot is RoofWalkerBot { Relieving: false } or GunnerBot or ConductorBot { HandedOver: true } && !hunted)
+        if (bot is RoofWalkerBot { Relieving: false } or GunnerBot or ConductorBot { HandedOver: true } && !hunted && !called)
         {
             var hand = (bot as RoofWalkerBot)?.Job ?? (bot as GunnerBot)?.Job;
             // Note 627: not the guttering lamp's hand: the ground's errands are the rest of the crew's while it's in at the lamp
@@ -184,6 +197,12 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         intent = Heed.Heal(intent, session.Predicted, session.World, me);
         // Note 659: round what's lying in a car, last, whatever it was going there for.
         intent = Heed.Lying(intent, session.Predicted, session.World, session.PlayerTuning);
+        // Note 740 (GDD §17): aboard after the horn, "Aboard!", once: the crew see who's called back.
+        if (called && calls is not null && session.Predicted is { Alive: true, Parent: >= 0 } && !calls.HasCalledAboard(me))
+        {
+            intent.Emote = Emote.Aboard;
+            calls.CallBack(me);
+        }
         // Note 716: and round the big cab's chart table and benches, down the ways either side of them.
         intent = Heed.CabFurniture(intent, session.Predicted, session.World, session.PlayerTuning);
         return Vote(intent, session, me);

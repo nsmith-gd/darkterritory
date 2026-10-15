@@ -96,7 +96,8 @@ public enum PlayerMoves : byte
 /// A crewmate's emote (GDD §9: in the yard "the crew wait for friends, hang out, dance"; note 298), sent on the press. The
 /// crew see it; nothing in the sim acts on it.
 /// </summary>
-public enum Emote : byte { None, Dance, Wave, Point }
+/// <summary>Note 298's emotes; note 740: "Aboard!", the call back to the horn (GDD §17).</summary>
+public enum Emote : byte { None, Dance, Wave, Point, Aboard }
 
 /// <summary>An emote as the crew see it (note 298): unique for the night (its record's key), the host tick it began, whose, which.</summary>
 public readonly record struct EmoteEvent(int Id, uint Tick, int By, Emote Kind);

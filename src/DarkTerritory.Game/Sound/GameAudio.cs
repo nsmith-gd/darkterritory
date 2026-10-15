@@ -764,7 +764,7 @@ public sealed partial class GameAudio
             string? cue = e.Kind switch
             {
                 Emote.Dance => "crew-emotes.dance",
-                Emote.Wave => "crew-emotes.wave",
+                Emote.Wave or Emote.Aboard => "crew-emotes.wave",
                 Emote.Point => "crew-emotes.point",
                 _ => null,
             };

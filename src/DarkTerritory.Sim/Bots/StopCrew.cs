@@ -211,7 +211,32 @@ public sealed partial class CrewCalls
     /// hands put nothing more in, shut up behind them and come aboard; deadLines:2's two kept fetching crates through the
     /// whole aboard wait.
     /// </summary>
-    public bool Leaving { get; private set; }
+    public bool Leaving => _leaving || CalledAboard;
+    bool _leaving;
+
+    /// <summary>
+    /// Note 740 (the director, 14 Oct: "When I pull the horn, the bots should understand that they need to get back on the
+    /// train"; GDD §17): someone playing pulled the horn with the train standing. Everyone comes aboard, as at
+    /// <see cref="Leaving"/>, and each calls "Aboard!" once it is (<see cref="HasCalledAboard"/>). It holds until the train
+    /// moves off.
+    /// </summary>
+    public bool CalledAboard { get; private set; }
+    readonly SortedSet<int> _calledBack = [];
+
+    /// <summary>The horn heard (true), or the train moved off after it (false): a fresh call starts a fresh roll.</summary>
+    public void CallAboard(bool on)
+    {
+        if (on != CalledAboard)
+            Heard(-1, "call aboard", -1, on, () =>
+            {
+                CalledAboard = on;
+                _calledBack.Clear();
+            });
+    }
+    /// <summary>"Aboard!": this member's called back to the horn.</summary>
+    public void CallBack(int member) => Heard(member, "aboard", member, true, () => _calledBack.Add(member));
+    /// <summary>Whether this member's called back since the horn.</summary>
+    public bool HasCalledAboard(int member) => _calledBack.Contains(member);
 
     /// <summary>
     /// Note 650: the driver's at a stop with loading to do and still on its moves before it (the approach, held for the
@@ -256,7 +281,7 @@ public sealed partial class CrewCalls
     /// <summary>Anyone alive out at the houses.</summary>
     public bool Scavenging => _out.Any(Alive);
     bool Alive(int member) => !_crew.TryGetValue(member, out var c) || c.Alive;
-    public void Leave(bool leaving) => Heard(-1, "leave", -1, leaving, () => Leaving = leaving);
+    public void Leave(bool leaving) => Heard(-1, "leave", -1, leaving, () => _leaving = leaving);
 
     /// <summary>
     /// Note 609: the driver's call that the cars left waiting at a stop are lost, run away down the grade (note 261): the

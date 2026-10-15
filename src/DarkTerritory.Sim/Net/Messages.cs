@@ -85,14 +85,16 @@ public static class Protocol
     //     input frame says the snapshot it was predicted against (a byte back from the message's), for the crowd.
     //     And voices (note 720): a voice frame's path is two bytes (the speaking tube's its ninth flag) and the tube's far end follows
     //     it; a lamp signal rides the intent's third byte (bits 2-3), and the crew see it as a record kind of its own.
-    // 60: sessions (note 724): the crew's save sent to everyone aboard as a night's settled (CrewSave, in chunks); kick and the
+    // 60: an emote past the hotbar byte's two bits (note 740: "Aboard!"): both wheel-step bits set say the emote, and the
+    //     step, follow in a byte of their own.
+    // 61: sessions (note 724): the crew's save sent to everyone aboard as a night's settled (CrewSave, in chunks); kick and the
     //     public lobby's vote to put a player off (Kick, KickVote, Kicked; a Refused can say the crew put you off); and the
     //     lobby's crew mischief switch (Mischief), changed in the yard.
-    // 61: the sense table (note 728): the body record's ninth field carries a toy playing where it lies (its noise | 0x100) and
+    // 62: the sense table (note 728): the body record's ninth field carries a toy playing where it lies (its noise | 0x100) and
     //     a thrown lamp broken and burning (1).
-    // 62: bringing them home (note 723): two player flags (carried over a friend's shoulder, and carrying one) and a knock of
+    // 63: bringing them home (note 723): two player flags (carried over a friend's shoulder, and carrying one) and a knock of
     //     its own (a friend thrown off the shoulder).
-    public const int Version = 62;
+    public const int Version = 63;
 }
 
 public enum MessageType : byte
@@ -276,7 +278,18 @@ public static class Messages
         // A hotbar choice (T108), only on the tick it's made: the slot in the low nibble, the wheel's step in the high; an
         // emote (note 298) in the top two bits, on the tick it's picked.
         if (tool)
-            w.U8((byte)((i.Select & 0x0F) | (i.Cycle > 0 ? 0x10 : i.Cycle < 0 ? 0x20 : 0) | ((byte)i.Emote & 3) << 6));
+        {
+            byte step = (byte)(i.Cycle > 0 ? 0x10 : i.Cycle < 0 ? 0x20 : 0);
+            // Note 740: an emote past the two bits ("Aboard!") is said by both step bits (never both a step), and it and the
+            // step follow in a byte of their own.
+            if ((byte)i.Emote > 3)
+            {
+                w.U8((byte)((i.Select & 0x0F) | 0x30));
+                w.U8((byte)((byte)i.Emote & 0x3F | step << 2));
+            }
+            else
+                w.U8((byte)((i.Select & 0x0F) | step | ((byte)i.Emote & 3) << 6));
+        }
         // A reaching hand (T29) in centimetres, only when there is one: keyboards and bots send nothing more.
         if (i.Has(PlayerButtons.Hand))
         {
@@ -326,8 +339,17 @@ public static class Messages
         {
             byte t = r.U8();
             i.Select = (byte)(t & 0x0F);
-            i.Cycle = (sbyte)((t & 0x10) != 0 ? 1 : (t & 0x20) != 0 ? -1 : 0);
-            i.Emote = (Emote)(t >> 6);
+            if ((t & 0x30) == 0x30)
+            {
+                byte e = r.U8();
+                i.Emote = (Emote)(e & 0x3F);
+                i.Cycle = (sbyte)((e & 0x40) != 0 ? 1 : (e & 0x80) != 0 ? -1 : 0);
+            }
+            else
+            {
+                i.Cycle = (sbyte)((t & 0x10) != 0 ? 1 : (t & 0x20) != 0 ? -1 : 0);
+                i.Emote = (Emote)(t >> 6);
+            }
             i.Actions &= ~PlayerActions.Tool;
         }
         if (i.Has(PlayerButtons.Hand))
