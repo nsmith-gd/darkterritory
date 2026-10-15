@@ -512,8 +512,8 @@ public static class Spawns
             c.Add(i => Follower.On(i, c.Train, s, on, c.Tuning.Followers));
             return true;
         }),
-        // B.6 · Soot Children: near facilities and dead settlements; crew of two or more; a true 50/50 with a real child (a
-        // host's first-ever call always real).
+        // B.6 · Soot Children: near facilities and dead settlements; any crew, alone too (enemies.json minCrew, note 770); a
+        // true 50/50 with a real child (a host's first-ever call always real).
         new(EnemyKind.SootChildren, c =>
         {
             var t = c.Tuning.SootChildren;

@@ -709,10 +709,11 @@
 
   // SOOT CHILDREN · sound · outside (App. A.6, B.6). Calling from callOut m every callEvery s. realChance of a real
   // survivor (a host's first-ever call is always real). A Soot Child lunges at anyone within lungeWithin m and drinks for
-  // drainSeconds, gaining healthPerSecond blows a second while it does. Ignored for ignoredSeconds, it gives up.
+  // drainSeconds, gaining healthPerSecond blows a second while it does. Ignored for ignoredSeconds, it gives up. minCrew 1
+  // (the director, 15 Oct, note 770; was 2): alone, the call comes too, the only way a solo night has a child in it.
   "sootChildren": {
     "callOut": 45, "callEvery": 6, "lungeWithin": 5, "drainSeconds": 14, "health": 2, "healthPerSecond": 0.35, "realChance": 0.5,
-    "ignoredSeconds": 120, "minCrew": 2, "nearFacility": 400
+    "ignoredSeconds": 120, "minCrew": 1, "nearFacility": 400
   },
 
   // DRAGGERS · movement · flank (App. A.4, B.4). A roof-walker within grabRange of the edge (x fastGrabScale at fastAt m/s)

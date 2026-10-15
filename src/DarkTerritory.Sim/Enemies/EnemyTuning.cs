@@ -625,7 +625,7 @@ public sealed record SootChildrenTuning
     public double HealthPerSecond { get; init; } = 0.35;
     public double RealChance { get; init; } = 0.5;
     public double IgnoredSeconds { get; init; } = 120;
-    public int MinCrew { get; init; } = 2;
+    public int MinCrew { get; init; } = 1;
     public double NearFacility { get; init; } = 400;
 }
 
