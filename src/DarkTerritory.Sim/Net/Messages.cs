@@ -110,7 +110,9 @@ public static class Protocol
     //     the emote byte (protocol 60) carries the new emotes 5-8 (the high five, the fist bump, the sit, the lean) as it is.
     // 71: a friend on the crane's hook (note 726): the Crane record's last field counts the riders, a player's flags carry
     //     Hoisted, and a death of its own (dropped from the crane).
-    public const int Version = 71;
+    // 72: a drop off the crane's hook is a gag (note 802): a player's flags are a uint, past Hoisted the new OffTheHook (bit 16),
+    //     which a predicting client's landing reads.
+    public const int Version = 72;
 }
 
 public enum MessageType : byte

@@ -52,7 +52,15 @@
     // ... I shouldn't take damage unless I like fully jump as high as I can go off the top of the train"): off a train going
     // slower than standBelow (m/s), a stood train's footing is the ground's (note 573's off the ground): a crewmate's own walk
     // or run is no knock, only the drop is (a car's roof and a jump's apex over it, 5.2 m, is under fallHurtFrom).
-    "standBelow": 0.5
+    "standBelow": 0.5,
+    // ARCHITECTURE §8 note 802 (the director, 15 Oct 2026, on hoisting a friend, note 726: "If we're hoisting a player and
+    // dropping them lets make it so the player can only lose 10 health at most from a drop and then scale that based on
+    // height. It's a silly gag not a big grief"): a landing on the ground after letting go of a crane's hook, or being shaken
+    // off it, lift or no lift, knocks by the height fallen alone (m, by the speed it lands at): nothing from "from" or less
+    // (a step down off a low hook), rising evenly to "maxKnock" at "fullAt" (the foundry's gantry tops a rider's feet out at
+    // 6.35 m, so its top is the full knock) and no more however high. Never a death, and never below 1 health. The fall and
+    // speed rules above don't count. A landing on a car's roof is no knock, as for any drop onto the train.
+    "offTheHook": { "maxKnock": 10, "from": 1.0, "fullAt": 6.0 }
   },
   "ladder": {
     "grabRange": 0.7,

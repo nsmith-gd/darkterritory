@@ -117,10 +117,10 @@
     // reach), holds Use for "grabSeconds" (HOLD ON : HOLD [E]) and is on it: stood on it, a hand on the cable, "feetAbove" m
     // over the hook, up to "riders" at once, "spread" m apart across it. The operator lifts, runs and lowers them as a load,
     // but with someone on it the hook stops "headroom" m short of its top (crane.height), so their head stays under the bridge
-    // and the trolley: on the foundry's 8 m gantry their feet top out at 6.35 m. Jump lets go, and the fall is the world's
-    // (player.json landing: from 5.5 m a knock, from 7.5 m death), so off the top of this gantry it's a hard knock, not a death;
-    // a taller one kills. A let-go after a lift that hurts or kills is the operator's in the report ("Dropped from the crane by
-    // Dave, 6 m up."). With "shakeOff" and the CREW MISCHIEF switch on (note 724), the operator's Fire with nothing hooked
+    // and the trolley: on the foundry's 8 m gantry their feet top out at 6.35 m. Jump lets go, and the drop is a gag (note 802,
+    // the director, 15 Oct 2026: "a silly gag not a big grief"): player.json landing.offTheHook, a knock by the height of at
+    // most 10, never a death, from any gantry. A let-go after a lift that hurts is the operator's in the report ("Dropped from
+    // the crane by Dave, 6 m up."). With "shakeOff" and the CREW MISCHIEF switch on (note 724), the operator's Fire with nothing hooked
     // shakes them off. Bots never take hold. "enabled": false, nobody does.
     "hoist": { "enabled": true, "reach": 1.2, "height": [-0.4, 1.9], "grabSeconds": 0.6, "riders": 2, "feetAbove": 0.05, "spread": 0.45, "headroom": 1.7, "shakeOff": true }
   },
