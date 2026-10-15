@@ -101,7 +101,18 @@ public sealed partial class Effects
     }
 
     /// <summary>How often each of the town's guns fires on a Waker at the walls (s), and the shot's speed (m/s).</summary>
-    const double WallGunEvery = 4.2, WallShotSpeed = 260;
+    public const double WallGunEvery = 4.2, WallShotSpeed = 260;
+
+    /// <summary>
+    /// Gun <paramref name="gun"/>'s beat on <paramref name="seed"/>'s target (note 599): how long since it last fired (s),
+    /// and that shot's own number. From <paramref name="time"/> alone, so what draws the guns (<see cref="WallGuns"/>) and
+    /// what hears them (GameAudio's, note 772) keep the one beat.
+    /// </summary>
+    public static (double Since, long Shot) WallGunBeat(double time, long seed, int gun)
+    {
+        float off = Hash(seed % 53 + gun * 2.9f) * (float)WallGunEvery;
+        return ((time + off) % WallGunEvery, (long)Math.Floor((time + off) / WallGunEvery) * 31 + gun);
+    }
 
     /// <summary>
     /// The town's guns at the walls (note 599; docs/design/creatures/wakers.md §4: "the Wakers stop stopShort metres out and
@@ -118,9 +129,7 @@ public sealed partial class Effects
     {
         for (int g = 0; g < guns.Count; g++)
         {
-            float off = Hash(seed % 53 + g * 2.9f) * (float)WallGunEvery;
-            double since = (time + off) % WallGunEvery;
-            long shot = (long)Math.Floor((time + off) / WallGunEvery) * 31 + g;
+            var (since, shot) = WallGunBeat(time, seed, g);
             var to = target - guns[g];
             float dist = to.Length();
             var along = to / Math.Max(dist, 1e-3f);

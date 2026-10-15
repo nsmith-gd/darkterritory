@@ -144,6 +144,7 @@ public sealed partial class GameAudio
         SwitchmanThrows(world);
         SixSoundsAfter(world);
         StirSounds(world);
+        WallGunSounds(world);
     }
 
     /// <summary>One enemy's record this tick against last tick's.</summary>

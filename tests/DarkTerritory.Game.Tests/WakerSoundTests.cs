@@ -87,4 +87,51 @@ public class WakerSoundTests : IDisposable
         Assert.Equal(vehicles, Count("cs-wakers.eat", grab));
         Assert.True(heard.Where(h => h.Name == "cs-wakers.eat").All(h => h.At >= grab + W.EatAfter - 0.1));
     }
+
+    [Fact]
+    public void StoodAtTheWallsTheTownsGunsAreHeardFiringOnItAndEachBallLanding()
+    {
+        // Pulled in just inside the gate at dawn (WakersTests.UnderTheTerminusGunsTheyStopShortAndTheCrewIsHome): the lead
+        // stands stopShort out, and each of the gatehouse's and towers' guns fires on it on its own beat (Effects.WallGunBeat,
+        // as the scene draws them), every ball landing on its back its flight later. Nothing fires before it's stood there.
+        var runTuning = DataFile.Load<RunTuning>(Path.Combine(Content, RunTuning.File));
+        var route = RouteGenerator.Generate(RouteTuning.Load(Content), RouteTier.Frontier, 7) with { DawnSeconds = 3 };
+        double gate = route.Length - runTuning.TerminusZone;
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), route.Build(), gate - 20);
+        var world = new World(train, C);
+        world.EnableRun(runTuning, route, 600, authority: true);
+        world.EnableEnemies(E with { Director = E.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } }, null, 1, crew: 1, authority: true);
+        var player = PlayerMotor.SpawnInCab(train, P);
+        var audio = Audio("town-guns.fire", "town-guns.hit", "gunshot", "tell-wakers.rise", "tell-wakers.stride", "tell-wakers.roar");
+        double wall = GreyboxScene.WakerWall(train.Line, route, world.Run, W), t = 0, stood = -1;
+        var heard = new List<(double At, string Name)>();
+        while (t < W.RiseSeconds + 150 && world.Run?.Over != true)
+        {
+            world.BeginTick();
+            world.CrewAct(ref player, default, 1);
+            world.Step(new TrainControls { Reverser = 1, Brake = 1 });
+            world.StepRun([player]);
+            var ear = train.Frames[0].ToWorld(new Double3(0, 2.5, 0));
+            audio.Update(world, world.Controls, Listener.At(ear, train.Frames[0].Heading), exposed: true, SimConstants.TickSeconds);
+            t += SimConstants.TickSeconds;
+            if (stood < 0 && world.ActiveEnemies.OfType<Waker>().Any(w => w.Lead && w.Phase == SpinePhase.Commit && w.LineDistance >= wall - 1))
+                stood = t;
+            heard.AddRange(audio.Mixer.Voices.Where(v => _heard.Add(v.Id)).Select(v => (t, v.Name)));
+        }
+        Assert.False(world.Run!.Over);
+        Assert.True(stood > 0, "the lead never stood at the walls");
+        var lead = world.ActiveEnemies.OfType<Waker>().Single(w => w.Lead);
+        Assert.Equal(wall, lead.LineDistance, 1.0);
+        int guns = (world.Arrival is { Plan.Bounds: not null } walled ? GreyboxScene.WallGuns(walled, Double3.Zero)
+            : GreyboxScene.WallGuns(train.Line, wall + W.StopShort, Double3.Zero)).Count;
+        Assert.True(guns >= 2);
+        int fired = heard.Count(h => h.Name == "town-guns.fire"), landed = heard.Count(h => h.Name == "town-guns.hit");
+        Assert.DoesNotContain(heard, h => h.Name.StartsWith("town-guns.") && h.At < stood);
+        // Each gun once every WallGunEvery, give or take its first and last; each ball landing (but those still in the air).
+        double standing = t - stood;
+        Assert.True(standing > 60, $"stood under the guns {standing:0} s");
+        Assert.InRange(fired, guns * (standing / Art.Effects.WallGunEvery - 1), guns * (standing / Art.Effects.WallGunEvery + 1));
+        Assert.InRange(landed, fired - guns, fired);
+        Assert.DoesNotContain(heard, h => h.Name == "gunshot");
+    }
 }

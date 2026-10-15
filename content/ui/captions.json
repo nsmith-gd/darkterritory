@@ -205,6 +205,8 @@
     "cs-wakers.eat": "STEEL AND TIMBER CRUNCHING",
     "cs-wakers.take": "A GREAT GRIP CLOSING",
     "cs-wakers.swallow": "A CRUNCH, A LONG SWALLOW",
+    "town-guns.fire": "GUNS FIRING FROM THE WALLS",
+    "town-guns.hit": "A SHOT STRIKING SOMETHING HUGE, FAR OFF",
     // The figures (note 773): people out there, heard as people; never named (their names are creatures' kinds in the sim).
     "figures.dave-paint": "A BRUSH ON CANVAS, SOMEONE HUMMING",
     "figures.dave-laugh": "A SOFT LAUGH",

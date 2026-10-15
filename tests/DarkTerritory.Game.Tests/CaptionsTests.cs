@@ -60,14 +60,15 @@ public class CaptionsTests
     [InlineData("cs-hollow-house.slam")]
     [InlineData("tell-hanger.rafters")]
     [InlineData("tell-hanger-strands.hum")]
-    // Note 769: the Pickers coming up out of the drains, and taking a crate.
+    // Note 771: the Pickers coming up out of the drains, and taking a crate.
     [InlineData("tell-pickers.emerge")]
     [InlineData("cs-pickers.carry")]
-    // Note 770: dawn coming, and coming for the train.
+    // Note 772: dawn coming, and coming for the train; the town's guns on it at the walls.
     [InlineData("tell-wakers.thud")]
     [InlineData("tell-wakers.rise")]
     [InlineData("tell-wakers.stride")]
     [InlineData("cs-wakers.grab")]
+    [InlineData("town-guns.fire")]
     // Note 773: the figures, by what a reader would hear of each.
     [InlineData("figures.dave-paint")]
     [InlineData("figures.party")]

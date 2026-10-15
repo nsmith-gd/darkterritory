@@ -1,4 +1,6 @@
+using System.Numerics;
 using Ballast;
+using DarkTerritory.Game.Art;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Enemies;
 
@@ -9,7 +11,8 @@ namespace DarkTerritory.Game.Sound;
 /// the same beat as the train's tremor and the lamps' swing (<see cref="DawnStir.Thud"/>), stronger and closer together as
 /// dawn comes, and long low calls from behind the hills. At dawn, the land getting up; its footfalls as it runs the train
 /// down, on its own gait (<see cref="WakerGait"/>), and its roars; the last car seized, the train dragged to a stand, each car
-/// torn off the rails and each eaten. Those who ran (note 710): one rising beside them, striding over, a grip, a swallow.
+/// torn off the rails and each eaten. Stood at the walls, the town's guns firing on it (<see cref="WallGunSounds"/>). Those
+/// who ran (note 710): one rising beside them, striding over, a grip, a swallow.
 /// </summary>
 public sealed partial class GameAudio
 {
@@ -25,6 +28,77 @@ public sealed partial class GameAudio
     /// <summary>The app's clock for the stir (its <c>timer</c>), so the thuds land with the tremor it draws; headless, ours.</summary>
     public double? StirClock { get; set; }
     double _stirSince = double.PositiveInfinity, _wakerCall;
+
+    /// <summary>The app's clock as the town's guns were last heard by: a shot is heard when its beat fell since.</summary>
+    double _gunsHeardTo = double.NaN;
+    /// <summary>The town's guards' pieces among the guns (note 608) are rifles: heard this much under the walls' guns.</summary>
+    const float YardGunVolume = 0.7f;
+
+    /// <summary>
+    /// The town's guns heard (note 772; note 599, wakers.md §4): each gun on the gatehouse and the towers firing on a Waker
+    /// stood at the walls, and the ball landing on its back a moment after; and the walls' guns with the guards' pieces on
+    /// whatever was brought in through the gate (note 589, 608). On the beat the scene draws them by
+    /// (<see cref="Effects.WallGunBeat"/>, the app's clock), so each flash is heard.
+    /// </summary>
+    void WallGunSounds(World world)
+    {
+        double now = StirClock ?? _time, was = _gunsHeardTo;
+        _gunsHeardTo = now;
+        // A first tick, or a clock that jumped (a pause, a rejoin): nothing to catch up on.
+        if (double.IsNaN(was) || now <= was || now - was > 1 || world.Enemies is null)
+            return;
+        var (line, frames) = (world.Train.Line, world.Train.Frames);
+        var route = world.Route ?? world.Run?.Route;
+        foreach (var e in world.ActiveEnemies)
+        {
+            if (e.Gone)
+                continue;
+            if (e is Waker { Picker: false } w)
+            {
+                if (w.Phase != SpinePhase.Commit || world.Enemies.Wakers is not { } t)
+                    continue;
+                double wall = GreyboxScene.WakerWall(line, route, world.Run, t);
+                if (w.LineDistance < wall - 1)
+                    continue;
+                var guns = world.Arrival is { Plan.Bounds: not null } walled ? GreyboxScene.WallGuns(walled, Double3.Zero)
+                    : GreyboxScene.WallGuns(line, wall + t.StopShort, Double3.Zero);
+                var at = line.Sample(w.LineDistance);
+                var feet = at.Position + Double3.Cross(at.Tangent, Double3.Up).Normalized * w.Lateral + Double3.Up * w.Height;
+                Volley(guns, guns.Count, feet + Double3.Up * GreyboxScene.WakerBack, w.Id, was, now);
+            }
+            else if (e.Kind is not (EnemyKind.Waker or EnemyKind.Passenger) && world.Arrival is { } town
+                && (e.Attached >= 0 && e.Attached < frames.Count ? frames[e.Attached].ToWorld(e.Local) : e.Local) is var inside
+                && GreyboxScene.InTheTown(line, route, inside))
+            {
+                var walls = GreyboxScene.WallGuns(town, Double3.Zero);
+                Volley([.. walls, .. GreyboxScene.YardGuns(town, Double3.Zero)], walls.Count, inside + Double3.Up * 1.2, e.Id, was, now);
+            }
+        }
+    }
+
+    /// <summary>
+    /// The shots fired and landed between <paramref name="was"/> and <paramref name="now"/>: a gun's report at its muzzle (the
+    /// first <paramref name="walls"/> of them the walls' guns, the rest the guards' rifles), and each wall gun's ball landing
+    /// on <paramref name="target"/> its flight later.
+    /// </summary>
+    void Volley(IReadOnlyList<Vector3> guns, int walls, Double3 target, long seed, double was, double now)
+    {
+        for (int g = 0; g < guns.Count; g++)
+        {
+            var muzzle = new Double3(guns[g].X, guns[g].Y, guns[g].Z);
+            var (since, _) = Effects.WallGunBeat(now, seed, g);
+            if (since < now - was)
+            {
+                if (g < walls)
+                    Cue("town-guns.fire", muzzle, 0);
+                else
+                    Cue("gunshot", muzzle, 0, YardGunVolume);
+            }
+            double flight = (target - muzzle).Length / Effects.WallShotSpeed;
+            if (g < walls && since >= flight && since - (now - was) < flight)
+                Cue("town-guns.hit", target, 0);
+        }
+    }
 
     /// <summary>The stir, before any of them is up and running: its thuds and its calls.</summary>
     void StirSounds(World world)

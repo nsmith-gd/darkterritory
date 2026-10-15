@@ -2074,8 +2074,11 @@ public sealed partial class GreyboxScene
 
     /// <summary>Where <paramref name="e"/> stands in the world: in its car's frame aboard, as it is loose.</summary>
     /// <summary>Where the Wakers stop short of the terminus's gate (note 588): under the town's guns.</summary>
-    double WakerWall(RailLine line, Sim.Enemies.WakersTuning t) =>
-        (Route?.Plan?.Terminus.GateM ?? line.Length - (Run?.Tuning.TerminusZone ?? 400)) - t.StopShort;
+    double WakerWall(RailLine line, Sim.Enemies.WakersTuning t) => WakerWall(line, Route, Run, t);
+
+    /// <summary>Where along the line a Waker stops short of the terminus's gate and stands under its guns (wakers.md §4).</summary>
+    public static double WakerWall(RailLine line, Route? route, Sim.Run.Run? run, Sim.Enemies.WakersTuning t) =>
+        (route?.Plan?.Terminus.GateM ?? line.Length - (run?.Tuning.TerminusZone ?? 400)) - t.StopShort;
 
     /// <summary>
     /// The car the Waker holding the train is eating (note 679): the rearmost car he hasn't finished (an eaten one's drawn far
@@ -2178,7 +2181,7 @@ public sealed partial class GreyboxScene
     }
 
     /// <summary>How high a Waker's back is over his feet stood (m): where the town's shots land on him.</summary>
-    const double WakerBack = 40;
+    public const double WakerBack = 40;
 
     /// <summary>
     /// The terminus's guns that bear on what's stopped outside its gate (note 599): one on each of the gatehouse's towers and on
@@ -2224,7 +2227,7 @@ public sealed partial class GreyboxScene
     }
 
     /// <summary>The town's guards out on the yard (note 608), their pieces at shoulder height: they fire with the walls' guns.</summary>
-    static IEnumerable<Vector3> YardGuns(Sim.Towns.Town town, Double3 eye) =>
+    public static IEnumerable<Vector3> YardGuns(Sim.Towns.Town town, Double3 eye) =>
         town.Fight is null ? [] : town.Plan.People.Where(Sim.Towns.Town.Guards).Select(p => town.Now(p)).Select(n => V(n.Feet + n.Facing * 0.6 + Double3.Up * 1.45, eye));
 
     /// <summary>The creatures seen brought into the arrival town this night (note 608), by id: each sets houses alight.</summary>
@@ -2279,9 +2282,12 @@ public sealed partial class GreyboxScene
     const float BroughtInSpread = 0.15f;
 
     /// <summary>In through the terminus town's gate (note 589): along the main line past it.</summary>
-    bool InTheTown(RailLine line, Double3 at)
+    bool InTheTown(RailLine line, Double3 at) => InTheTown(line, Route, at);
+
+    /// <summary>Whether <paramref name="at"/> is inside the terminus town's gate (note 589): past it along the line.</summary>
+    public static bool InTheTown(RailLine line, Route? route, Double3 at)
     {
-        if (Route?.Plan?.Terminus is not { Silent: false } t)
+        if (route?.Plan?.Terminus is not { Silent: false } t)
             return false;
         double hint = t.GateM;
         line.Nearest(at, ref hint);
