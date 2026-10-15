@@ -137,6 +137,11 @@ public static class Views
             // and at the staged Freight Beetle shoving a crate (Staging.Beetle); at Tower Jaw's coaling tower (Staging.TowerJaw:
             // the screenshot puts the camera there, at the night's tower; this is only where it looks without one).
             "mourners" => Staging.MournersCamera(train),
+            // (Not one of Names.) The sense table (note 728): a crewmate's eye beside the engine, out at a music box playing in
+            // the field and the Moose come over to it (Staging.MusicBox); side on to the extinguisher's jet on a Cinder Hound
+            // backing off down a roof (Staging.ExtinguisherHound).
+            "musicbox" => Staging.MusicBoxCamera(train),
+            "extinguisherhound" => Staging.ExtinguisherHoundCamera(train),
             "beetle" => Staging.BeetleCamera(train),
             // (Not one of Names.) The staged Pickers in the headlamp's spill off the line's left (Staging.Pickers), and close to
             // the ones under their crates; the Lodger folded in its crouch and shrieking (Staging.Lodger); the Householder at
@@ -172,6 +177,10 @@ public static class Views
             // crewmate's sooted face, close.
             "shove" => Camera.LookAt(target.ToWorld(new Double3(-0.6, roof + 1.7, -4.4)), target.ToWorld(new Double3(target.Shape.HalfWidth - 0.4, roof + 0.9, 0)), 55),
             "sooted" => Camera.LookAt(target.ToWorld(new Double3(0.5, roof + 1.7, -1.9)), target.ToWorld(new Double3(0, roof + 1.35, 0)), 45),
+            // Note 723 (Staging.Rescue): out on the ballast ahead of a cargo car's open side door, back at the crewmate in it hauling
+            // up the friend running beside it; and close along car 2's roof at a friend carried over the shoulder.
+            "handup" => HandUpCamera(train),
+            "carryfriend" => Camera.LookAt(target.ToWorld(new Double3(1.6, roof + 1.9, -4.4)), target.ToWorld(new Double3(-0.3, roof + 1.2, -1.0)), 50),
             "crewside" => Camera.LookAt(target.ToWorld(new Double3(2.6, roof + 1.9, -4.2)), target.ToWorld(new Double3(-0.8, roof + 1.45, -5.6)), 45),
             // (Not one of Names.) Down on the roof round the first two of the staged crew (dt screenshot --act lantern,...), close
             // over their feet: what the hand lamp's light falls on and the shadows it throws (note 436).
@@ -197,7 +206,16 @@ public static class Views
             // own lens, CrewPhoto.Stage) and the town's board of lost crews (--view lostcrews, Staging.TownCamera); off the
             // engine's side until then.
             "crewphoto" or "lostcrews" => Camera.LookAt(engine.ToWorld(new Double3(9, 1.6, -4)), engine.ToWorld(new Double3(3, 1.4, -2)), 40),
+            // (Not one of Names.) Note 729: the handcar on the line at night, two at its handle, from up the line off its lamp end;
+            // and lifted down off the guard van's back, from the ballast behind it (Staging.Handcar).
+            "handcar" or "handcarlift" => Staging.HandcarCamera(train, name),
             "trophies" => Camera.LookAt(Staging.Lineside(train, 4.2, -1.6) + Double3.Up * 1.55, Staging.Lineside(train, 7.2, -4.1) + Double3.Up * 0.05, 40),
+            // (Not one of Names.) Note 719, the big finds: two crewmates carrying a safe off the line's left (Staging.Jackpot puts
+            // the camera beside them), a jackpot house from its street (Staging.JackpotHouse), and the finds slid in a car after
+            // a bend, from its front end (the screenshot frames the car it simulates); until then, off the engine's left.
+            "jackpot" => Camera.LookAt(Staging.Lineside(train, 4, -8) + Double3.Up * 1.55, Staging.Lineside(train, 9, -4.2) + Double3.Up * 0.8, 52),
+            "jackpothouse" => Camera.LookAt(engine.ToWorld(new Double3(-9, 2.6, 5)), engine.ToWorld(new Double3(-30, 2, 0)), 60),
+            "looseloot" => Camera.LookAt(target.ToWorld(new Double3(-0.3, Floor(train) + 1.75, -target.Shape.HalfLength + 0.7)), target.ToWorld(new Double3(0, Floor(train) + 0.2, 1.2)), 70),
             // Crouched where the fireman shovels, at the firebox door (what's seen when it's open: the staged Stoker).
             "firebox" => FireboxCamera(engine),
             // The work at the cab's front (note 280): from behind where one person runs it all, forward at the coal on the left,
@@ -540,6 +558,14 @@ public static class Views
             3 => Camera.LookAt(dave + outward * 1.1 + across * 1.1 + Double3.Up * 1.65, dave + Double3.Up * 1.45, 40),
             _ => Camera.LookAt(dave + across * 3.6 - outward * 0.4 + Double3.Up * 1.6, dave + Double3.Up * 1.2 - outward * 0.3, 55),
         };
+    }
+
+    /// <summary>Note 723's hand-up (Staging.Rescue): from the ballast behind the runner and out, at the two against the lit door.</summary>
+    static Camera HandUpCamera(TrainOnLine train)
+    {
+        var at = train.Frames[Staging.SideDoorCar(train)];
+        double w = at.Shape.HalfWidth;
+        return Camera.LookAt(at.ToWorld(new Double3(w + 4.2, 1.5, 3.6)), at.ToWorld(new Double3(w + 0.2, 1.5, -0.4)), 55);
     }
 
     static Camera MooseCamera(TrainOnLine train)

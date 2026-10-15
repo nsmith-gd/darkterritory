@@ -49,6 +49,27 @@ public sealed record LootTuning
     public CometLootTuning? Comet { get; init; }
     /// <summary>What the clerk's tally says of the night's finds (note 718).</summary>
     public LootTallyTuning Tally { get; init; } = new();
+    /// <summary>The finds that lose worth when knocked (note 719). Unset, none do.</summary>
+    public FragileTuning? Fragile { get; init; }
+    /// <summary>The two-person finds (note 719). Unset, none.</summary>
+    public JackpotTuning? Jackpots { get; init; }
+    /// <summary>A stop's locked house of better things (note 719). Unset, none.</summary>
+    public JackpotHouseTuning? JackpotHouse { get; init; }
+    /// <summary>Loose things riding in the cars (note 719). Unset or off, they lie as they lay.</summary>
+    public RideTuning? Ride { get; init; }
+
+    /// <summary>
+    /// What a find of <paramref name="item"/> knocked <paramref name="knocks"/> times pays (note 719): its whole worth times
+    /// <c>fragile.keep</c> once a knock, rounded to fives, never less than <see cref="LeastWorth"/>. Not fragile, its worth.
+    /// </summary>
+    public double Knocked(string item, double whole, int knocks) =>
+        knocks <= 0 || Fragile is not { } f || !f.Items.ContainsKey(item) ? whole
+            : Math.Max(LeastWorth, Math.Round(whole * Ballast.DMath.Pow(f.Keep, knocks) / LeastWorth) * LeastWorth);
+
+    /// <summary>A find's name as the clerk reads it in the tally (note 719): a knocked fragile one with its damage ("Mantel clock, dented").</summary>
+    public string Named(string item, int knocks) =>
+        knocks > 0 && Fragile is { } f && f.Items.TryGetValue(item, out var words) && words.Length > 0
+            ? $"{Name(item)}, {words[Math.Min(knocks, words.Length) - 1]}" : Name(item);
 
     /// <summary>The least a find is worth, in scrip: finds are rounded to fives, and none is worth nothing.</summary>
     public const double LeastWorth = 5;
@@ -94,6 +115,8 @@ public sealed record HealingTuning
     /// <summary>Health each healing find gives back, by item key (looked up, never iterated).</summary>
     public Dictionary<string, int> Heals { get; init; } = [];
     public int BotBelow { get; init; } = 50;
+    /// <summary>Note 723: a find put on someone else heals this many times as much (capped at their full health).</summary>
+    public double OnAFriend { get; init; } = 1.5;
 
     public int Of(string item) => Heals.GetValueOrDefault(item);
 }
@@ -143,10 +166,63 @@ public sealed record CometLootTuning
 /// <summary>loot.json <c>tally</c> (note 718): how many kinds of the night's finds the clerk names, and whether the finder's line is read.</summary>
 public sealed record LootTallyTuning(int Best = 3, bool Finder = true);
 
+/// <summary>loot.json <c>fragile</c> (note 719): which finds lose worth knocked, and the words for it; how hard a knock; what's kept.</summary>
+public sealed record FragileTuning
+{
+    /// <summary>The damage's words by knocks, by item key (looked up, never iterated).</summary>
+    public Dictionary<string, string[]> Items { get; init; } = new();
+    public double KnockSpeed { get; init; } = 5.5;
+    /// <summary>A slide across a car's floor (note 719's riding) struck into something faster than this (m/s) is a knock too.</summary>
+    public double SlideKnock { get; init; } = 3;
+    public double KnockSeconds { get; init; } = 0.3;
+    public double Keep { get; init; } = 0.5;
+}
+
+/// <summary>loot.json <c>jackpots.items</c>' one (note 719): its worth in the tier's car-loads, and its ball's radius (m).</summary>
+public sealed record JackpotItem(double Worth, double Radius);
+
+/// <summary>loot.json <c>jackpots</c> (note 719): the two-person finds, each stop's chance of one by tier, the jackpot house's, and the most at a stop.</summary>
+public sealed record JackpotTuning
+{
+    /// <summary>By item key. Iterated only sorted by key (<see cref="Keys"/>), so every machine draws the same.</summary>
+    public Dictionary<string, JackpotItem> Items { get; init; } = new();
+    /// <summary>By tier key, looked up, never iterated.</summary>
+    public Dictionary<string, double> Chance { get; init; } = new();
+    public double House { get; init; }
+    public int Most { get; init; } = 2;
+
+    /// <summary>The items' keys in a fixed order (ordinal), for drawing one.</summary>
+    public IReadOnlyList<string> Keys => [.. Items.Keys.Order(StringComparer.Ordinal)];
+}
+
+/// <summary>loot.json <c>jackpotHouse</c> (note 719). Field docs live in that file.</summary>
+public sealed record JackpotHouseTuning
+{
+    /// <summary>By tier key, looked up, never iterated.</summary>
+    public Dictionary<string, double> Chance { get; init; } = new();
+    public double UnlockSeconds { get; init; } = 6;
+    public int Draws { get; init; } = 1;
+    public int[] Extra { get; init; } = [0, 0];
+    public string[] Items { get; init; } = [];
+}
+
+/// <summary>loot.json <c>ride</c> (note 719): loose things sliding in the cars. Field docs live in that file.</summary>
+public sealed record RideTuning
+{
+    public bool Enabled { get; init; }
+    public double Grip { get; init; } = 0.05;
+    public double StackGrip { get; init; } = 0.3;
+    public double Slide { get; init; } = 0.03;
+    public double HeavyGrip { get; init; } = 2;
+    public int LiveCap { get; init; } = 12;
+    public double MaxFelt { get; init; } = 12;
+}
+
 /// <summary>
 /// A village find (P12, P14): which container it's in, what it is, and what it pays in scrip (its kind's worth: note 718).
+/// <paramref name="Knocks"/>: how many times a fragile one's been knocked (note 719), its <paramref name="Value"/> less for it.
 /// </summary>
-public readonly record struct LootFind(int Container, string Item, double Value);
+public readonly record struct LootFind(int Container, string Item, double Value, int Knocks = 0);
 
 /// <summary>
 /// The economy's half of P14: turns a stop's village containers into finds. The layout decides where; this decides what
@@ -155,7 +231,9 @@ public readonly record struct LootFind(int Container, string Item, double Value)
 public static class StopLoot
 {
     /// <param name="perCar">The tier's contract value per delivered car (run.json economy.perCar): the unit of a find's worth.</param>
-    public static IReadOnlyList<LootFind> Village(LootTuning t, StopLayout stop, ulong routeSeed, int feature, double perCar)
+    /// <param name="locked">The stop's jackpot house (<see cref="JackpotHouse"/>), or −1: its kept finds are drawn
+    /// <c>jackpotHouse.draws</c> times, the worthiest kept (note 719), on a stream of their own.</param>
+    public static IReadOnlyList<LootFind> Village(LootTuning t, StopLayout stop, ulong routeSeed, int feature, double perCar, int locked = -1)
     {
         var rng = new Ballast.Pcg32(StopSeed.Of(StopSeed.Of(routeSeed, StopSeed.Loot, (ulong)feature), stop.Seed));
         var containers = stop.Containers.Where(c => c.Zone == StopZone.Village && c.Kind != ContainerKind.Loose).ToList();
@@ -167,6 +245,8 @@ public static class StopLoot
             rng.NextDouble();
             // An outlier's other draws (P11), on a stream of their own for the same reason.
             var outlier = new Ballast.Pcg32(StopSeed.Of(StopSeed.Of(routeSeed, StopSeed.Outlier, (ulong)feature), stop.Seed));
+            // The jackpot house's better draws (note 719), likewise.
+            var better = new Ballast.Pcg32(StopSeed.Of(StopSeed.Of(routeSeed, StopSeed.Better, (ulong)feature), stop.Seed));
             finds.AddRange(containers.Select(c =>
             {
                 var kind = t.Of(c.Kind);
@@ -174,6 +254,12 @@ public static class StopLoot
                 for (int draw = 1; c.Outlier && draw < t.OutlierDraws; draw++)
                 {
                     string other = kind.Items[(int)(outlier.NextDouble() * kind.Items.Length)];
+                    if (t.WorthOf(other, perCar) > t.WorthOf(item, perCar))
+                        item = other;
+                }
+                for (int draw = 1; locked >= 0 && c.Building == locked && draw < (t.JackpotHouse?.Draws ?? 1); draw++)
+                {
+                    string other = kind.Items[(int)(better.NextDouble() * kind.Items.Length)];
                     if (t.WorthOf(other, perCar) > t.WorthOf(item, perCar))
                         item = other;
                 }
@@ -219,6 +305,76 @@ public static class StopLoot
             places.RemoveAt(pick);
         }
         return at;
+    }
+
+    /// <summary>
+    /// Note 719 (queue #453, the big finds): the stop's jackpot house, its building's index, or −1 for none: at loot.json
+    /// <c>jackpotHouse.chance</c> by tier, from the run's seed on a stream of its own, the village's biggest open house of one
+    /// door (not a pair of cottages, a Holdout or the Gaunt's roost). Alike on every machine, so each locks the same door.
+    /// </summary>
+    public static int JackpotHouse(LootTuning t, StopLayout stop, ulong routeSeed, int feature, RouteTier tier)
+    {
+        if (t.JackpotHouse is not { } jh || jh.Chance.GetValueOrDefault(TierKey(tier)) is not (> 0 and var chance))
+            return -1;
+        var rng = new Ballast.Pcg32(StopSeed.Of(StopSeed.Of(routeSeed, StopSeed.Locked, (ulong)feature), stop.Seed));
+        if (rng.NextDouble() >= chance)
+            return -1;
+        int best = -1;
+        double most = 0;
+        for (int i = 0; i < stop.Buildings.Count; i++)
+        {
+            var b = stop.Buildings[i];
+            if (b.Kind != BuildingKind.House || !b.Open || b.Zone != StopZone.Village || b.Shape == HouseShape.Pair || !Run.StopWalls.Walled(stop, i)
+                || Run.StopWalls.Doorways(b).Count() != 1 || stop.Lairs.Any(l => l.Kind == LairKind.GauntRoost && l.Building == i))
+                continue;
+            double area = b.Parts.Count > 0 ? b.Parts.Sum(p => p.Length * p.Width) : b.Length * b.Width;
+            if (area > most + 1e-9)
+                (best, most) = (i, area);
+        }
+        return best;
+    }
+
+    /// <summary>
+    /// Note 719: what lies on the jackpot house's floor besides what it keeps: loot.json <c>jackpotHouse.extra</c> of its
+    /// <c>items</c>, from the run's seed on a stream of its own. None without a jackpot house.
+    /// </summary>
+    public static IReadOnlyList<string> Extras(LootTuning t, StopLayout stop, ulong routeSeed, int feature, int locked)
+    {
+        if (locked < 0 || t.JackpotHouse is not { Items.Length: > 0 } jh)
+            return [];
+        var rng = new Ballast.Pcg32(StopSeed.Of(StopSeed.Of(routeSeed, StopSeed.Extra, (ulong)feature), stop.Seed));
+        int n = rng.RangeInclusive(jh.Extra[0], jh.Extra[^1]);
+        return [.. Enumerable.Range(0, n).Select(_ => jh.Items[Math.Min(jh.Items.Length - 1, (int)(rng.NextDouble() * jh.Items.Length))])];
+    }
+
+    /// <summary>
+    /// Note 719 (the director, 14 Oct 2026: "Very big value things should take two to carry"): a stop's two-person jackpots, each
+    /// its item and the container it lies beside (−1: on the jackpot house's floor). From the run's seed on a stream of its own:
+    /// the jackpot house's at <c>jackpots.house</c>, and one more at the tier's <c>jackpots.chance</c>, beside a yard's crate
+    /// stack or strongroom or in an open house (<paramref name="placeable"/>); never more than <c>jackpots.most</c>.
+    /// </summary>
+    public static IReadOnlyList<(string Item, int Beside)> Jackpots(LootTuning t, StopLayout stop, ulong routeSeed, int feature, RouteTier tier, int locked,
+        Func<StopContainer, bool> placeable)
+    {
+        if (t.Jackpots is not { Items.Count: > 0 } jp || jp.Most <= 0)
+            return [];
+        var keys = jp.Keys;
+        var rng = new Ballast.Pcg32(StopSeed.Of(StopSeed.Of(routeSeed, StopSeed.Jackpot, (ulong)feature), stop.Seed));
+        string Pick() => keys[Math.Min(keys.Count - 1, (int)(rng.NextDouble() * keys.Count))];
+        var list = new List<(string, int)>();
+        double house = rng.NextDouble(), roll = rng.NextDouble();
+        if (locked >= 0 && house < jp.House)
+            list.Add((Pick(), -1));
+        if (roll < jp.Chance.GetValueOrDefault(TierKey(tier)) && list.Count < jp.Most)
+        {
+            var places = stop.Containers.OrderBy(c => c.Index).Where(c => c.Building != locked || locked < 0).Where(placeable).ToList();
+            if (places.Count > 0)
+            {
+                var at = places[Math.Min(places.Count - 1, (int)(rng.NextDouble() * places.Count))];
+                list.Add((Pick(), at.Index));
+            }
+        }
+        return list;
     }
 
     /// <summary>

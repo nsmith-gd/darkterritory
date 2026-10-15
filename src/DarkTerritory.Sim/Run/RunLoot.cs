@@ -39,6 +39,12 @@ public sealed partial class Run
     readonly List<IReadOnlyList<Pt>> _comets = [];
     /// <summary>A resumed night's banked finds' owners (<see cref="RunTakings.Banked"/>): their bodies bank without paying again.</summary>
     readonly List<int> _alreadyBanked = [];
+    /// <summary>Note 719: each stop's jackpot house (its building, or −1), in <see cref="_stopLoot"/>'s order.</summary>
+    readonly List<int> _locked = [];
+    /// <summary>Note 719: what lies on each stop's jackpot house's floor besides what it keeps, by item.</summary>
+    readonly List<IReadOnlyList<string>> _extras = [];
+    /// <summary>Note 719: each stop's two-person jackpots, each its item and the container it's by (−1: in the jackpot house).</summary>
+    readonly List<IReadOnlyList<(string Item, int Beside)>> _jackpots = [];
 
     /// <summary>Scrip for the finds stowed aboard so far (paid with the cargo on delivery).</summary>
     public double Scavenged { get; private set; }
@@ -70,6 +76,22 @@ public sealed partial class Run
         b.Kind == Physics.BodyKind.Loot && b.Owner >> 12 != TrophyStop && (b.Owner & 0xFFF) >= CometContainer;
 
     /// <summary>
+    /// Note 719: the "container" a stop's jackpot house's first extra find names, the next the next (past any layout's own
+    /// containers and short of the jackpots'); and a stop's first two-person jackpot's.
+    /// </summary>
+    public const int ExtraContainer = 0xD00, JackpotContainer = 0xE00;
+
+    /// <summary>
+    /// Whether a body is a two-person jackpot (note 719): a heavy crate (it takes two, T43) that's a find, its owner naming the
+    /// stop and which. From the body alone, the same on every machine. A yard's heavy crates have no owner.
+    /// </summary>
+    public static bool IsJackpot(Physics.Body b) =>
+        b.Kind == Physics.BodyKind.Heavy && b.Owner >= 0 && (b.Owner & 0xFFF) is >= JackpotContainer and < CometContainer;
+
+    /// <summary>Whether a body is a find the run pays for (a stop's, a trophy, a comet fragment, or a jackpot: note 719).</summary>
+    static bool Findable(Physics.Body b) => b.Kind == Physics.BodyKind.Loot || IsJackpot(b);
+
+    /// <summary>
     /// Fills the stops from the economy and builds their yards' cranes. Host and clients both do this (after
     /// <see cref="EnableSites"/>), so a client can name a find from its body.
     /// </summary>
@@ -80,10 +102,20 @@ public sealed partial class Run
         _stopLoot.Clear();
         // A find's worth is its kind's share of the tier's value per car, the deep tiers' more (loot.json findsByTier; note 718).
         double unit = Tuning.Economy.PerCar.GetValueOrDefault(StopLoot.TierKey(_route.Tier), 700) * t.FindsByTier.GetValueOrDefault(StopLoot.TierKey(_route.Tier), 1);
+        _locked.Clear();
+        _extras.Clear();
+        _jackpots.Clear();
         for (int i = 0; i < _route.Features.Count; i++)
             if (_route.Features[i].Stop is { } stop)
-                _stopLoot.Add((_route.Features[i], i, stop, StopLoot.Village(t, stop, _route.Seed, i, unit), StopLoot.Kits(t, stop, _route.Seed, i),
+            {
+                // Note 719: the stop's jackpot house first, for its better draws.
+                int locked = StopLoot.JackpotHouse(t, stop, _route.Seed, i, _route.Tier);
+                _locked.Add(locked);
+                _extras.Add(StopLoot.Extras(t, stop, _route.Seed, i, locked));
+                _jackpots.Add(StopLoot.Jackpots(t, stop, _route.Seed, i, _route.Tier, locked, c => JackpotAt(stop, c) is not null));
+                _stopLoot.Add((_route.Features[i], i, stop, StopLoot.Village(t, stop, _route.Seed, i, unit, locked), StopLoot.Kits(t, stop, _route.Seed, i),
                     StopLoot.Toys(t, stop, _route.Seed, i)));
+            }
         _stocked = new bool[_stopLoot.Count];
         FindHidingSpots();
         PlaceComets(t, line);
@@ -127,11 +159,35 @@ public sealed partial class Run
         }
     }
 
-    /// <summary>What a find is and what it pays, from its body (null for anything else).</summary>
+    /// <summary>
+    /// What a find is and what it pays, from its body (null for anything else). A fragile one knocked (note 719) pays less for
+    /// each knock, and says how many.
+    /// </summary>
     public LootFind? FindOf(Physics.Body b)
     {
-        if (b.Kind != Physics.BodyKind.Loot)
+        if (Whole(b) is not { } f)
             return null;
+        return b.Knocks > 0 && _loot is { Fragile: { } fragile } t && fragile.Items.ContainsKey(f.Item)
+            ? f with { Value = t.Knocked(f.Item, f.Value, b.Knocks), Knocks = b.Knocks } : f;
+    }
+
+    /// <summary>Whether a find's body is one that loses worth knocked (note 719: loot.json <c>fragile</c>).</summary>
+    public bool IsFragile(Physics.Body b) => _loot?.Fragile is { } f && b.Kind == Physics.BodyKind.Loot && Whole(b) is { } find && f.Items.ContainsKey(find.Item);
+
+    LootFind? Whole(Physics.Body b)
+    {
+        if (!Findable(b))
+            return null;
+        // A two-person jackpot (note 719): its kind's worth in the tier's car-loads, rounded to fives, as the fragment's is.
+        if (IsJackpot(b))
+        {
+            int at = b.Owner >> 12, which = (b.Owner & 0xFFF) - JackpotContainer;
+            return at >= 0 && at < _jackpots.Count && which < _jackpots[at].Count && _loot?.Jackpots is { } jp
+                && jp.Items.TryGetValue(_jackpots[at][which].Item, out var item)
+                ? new LootFind(b.Owner & 0xFFF, _jackpots[at][which].Item, Math.Max(LootTuning.LeastWorth,
+                    Math.Round(item.Worth * Tuning.Economy.PerCar.GetValueOrDefault(StopLoot.TierKey(_route.Tier), 700) / LootTuning.LeastWorth) * LootTuning.LeastWorth))
+                : null;
+        }
         int stop = b.Owner >> 12, container = b.Owner & 0xFFF;
         // A creature's trophy (the director, 7 Oct 2026: "a dead Gannet can be worth a good deal"; note 340): loot.json
         // trophies, by the kind, paying its share of the tier's car-load. The same on every machine.
@@ -141,6 +197,12 @@ public sealed partial class Run
                 : null;
         if (stop < 0 || stop >= _stopLoot.Count)
             return null;
+        // What lies on the jackpot house's floor (note 719): a village find, worth its kind's at the tier.
+        if (container is >= ExtraContainer and < JackpotContainer)
+            return _loot is { } lt && stop < _extras.Count && container - ExtraContainer < _extras[stop].Count && _extras[stop][container - ExtraContainer] is var extra
+                ? new LootFind(container, extra, lt.WorthOf(extra, Tuning.Economy.PerCar.GetValueOrDefault(StopLoot.TierKey(_route.Tier), 700)
+                    * lt.FindsByTier.GetValueOrDefault(StopLoot.TierKey(_route.Tier), 1)))
+                : null;
         // A comet fragment (note 718): worth its kind's, as every find is.
         if (container >= CometContainer)
             return _loot?.Comet is { } comet && stop < _comets.Count && container - CometContainer < _comets[stop].Count
@@ -215,6 +277,62 @@ public sealed partial class Run
             if (Seen(p))
                 return p;
         return null;
+    }
+
+    /// <summary>
+    /// Where a two-person jackpot lies by a stop's container (note 719): beside a yard's crate stack or strongroom, along the
+    /// stop from it clear of its crates and of a fragment's place; out on the floor in the middle of an open house's biggest
+    /// room. Null for anything else (a shed's bench, a shut house, a crane's bay).
+    /// </summary>
+    static Pt? JackpotAt(StopLayout stop, StopContainer c)
+    {
+        if (c.Kind is ContainerKind.CrateStack or ContainerKind.Strongroom)
+            return c.At + new Pt(1.8, 0);
+        if (c.Zone != StopZone.Village || c.Building < 0 || c.Building >= stop.Buildings.Count)
+            return null;
+        var b = stop.Buildings[c.Building];
+        return b.Kind == BuildingKind.House && b.Open && StopWalls.Walled(stop, c.Building) ? HouseFloor(b) : null;
+    }
+
+    /// <summary>The middle of an open house's floor (its biggest room's, in an L or a cross), in the stop's frame (note 719).</summary>
+    static Pt HouseFloor(StopBuilding b)
+    {
+        var part = b.Parts.Count > 0 ? b.Parts.OrderByDescending(q => q.Length * q.Width).ThenBy(q => q.X).ThenBy(q => q.Y).First() : new FootprintPart(0, 0, b.Length, b.Width);
+        return StopWalls.InHouse(b, part.X, part.Y);
+    }
+
+    /// <summary>Note 719: stop <paramref name="stop"/>'s jackpot house, its building's index, or −1 (for tools, tests and the walls).</summary>
+    public int LockedHouse(int stop) => stop >= 0 && stop < _locked.Count ? _locked[stop] : -1;
+
+    /// <summary>Note 719: the jackpot house's building at the route's feature <paramref name="feature"/>, or −1.</summary>
+    public int LockedAt(int feature)
+    {
+        for (int k = 0; k < _stopLoot.Count && k < _locked.Count; k++)
+            if (_stopLoot[k].Index == feature)
+                return _locked[k];
+        return -1;
+    }
+
+    /// <summary>How long the wrench is held at a jackpot house's lock to open it (note 719: loot.json <c>jackpotHouse.unlockSeconds</c>).</summary>
+    public double UnlockSeconds => _loot?.JackpotHouse?.UnlockSeconds ?? 6;
+
+    /// <summary>Note 719: stop <paramref name="stop"/>'s two-person jackpots, each its item and the container it's by (−1: in the jackpot house).</summary>
+    public IReadOnlyList<(string Item, int Beside)> JackpotsAt(int stop) => stop >= 0 && stop < _jackpots.Count ? _jackpots[stop] : [];
+
+    /// <summary>Note 719: what lies on stop <paramref name="stop"/>'s jackpot house's floor besides what it keeps.</summary>
+    public IReadOnlyList<string> ExtrasAt(int stop) => stop >= 0 && stop < _extras.Count ? _extras[stop] : [];
+
+    /// <summary>
+    /// Note 719: every jackpot house's doors' keys (<see cref="StopWalls.DoorKey"/>), for the walls to lock (alike on every
+    /// machine: from the route and the run's seed).
+    /// </summary>
+    /// <param name="stop">Only stop <paramref name="stop"/>'s (−1: every stop's).</param>
+    public IEnumerable<int> LockedDoors(int stop = -1)
+    {
+        for (int k = 0; k < _stopLoot.Count && k < _locked.Count; k++)
+            if (_locked[k] >= 0 && (stop < 0 || k == stop))
+                foreach (int door in Enumerable.Range(0, StopWalls.Doorways(_stopLoot[k].Stop.Buildings[_locked[k]]).Count()))
+                    yield return StopWalls.DoorKey(_stopLoot[k].Index, _locked[k], door);
     }
 
     /// <summary>
@@ -389,19 +507,23 @@ public sealed partial class Run
         // stop's finds: other hand loot, the salvage the Gaunt and the Followers go for, stays a body.) One on a crew locker's
         // shelf stays there, and pays at the gates if its car's still on the train (note 649: LockerFinds).
         var present = new HashSet<int>();
-        foreach (var b in world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Loot).ToList())
+        foreach (var b in world.Bodies.All.Where(Findable).ToList())
         {
             if (FindOf(b) is not { } find)
                 continue;
             present.Add(b.Id);
+            // Note 719: whether it's knocked about for its worth (the bodies' physics counts the knocks).
+            b.Fragile = _loot?.Fragile is { } fragile && b.Kind == Physics.BodyKind.Loot && fragile.Items.ContainsKey(find.Item);
             // Whose hands it's in (note 718): whoever puts it down in a car brought it aboard.
             if (b.Carrier >= 0)
                 _carriedBy[b.Id] = b.Carrier;
             bool aboard = !b.Stowed && b.Carrier < 0 && b.TakenBy < 0 && b.Parent > 0 && b.Parent < train.Vehicles.Count
                 && train.Frames[b.Parent].Shape.Interior is { } room && room.Contains(b.Pbd.Particles[0].Position);
-            if (_banked.ContainsKey(b.Id))
+            if (_banked.TryGetValue(b.Id, out var was))
             {
-                if (!aboard)
+                // Out of the car, or knocked since it was banked (note 719: worth less now): it's unbanked, and banks again
+                // at its new worth once it's lying still aboard.
+                if (!aboard || was.Find != find)
                 {
                     Unbank(b.Id);
                     b.Banked = false;
@@ -517,6 +639,30 @@ public sealed partial class Run
             {
                 var put = _comets[k][i];
                 bodies.SpawnLoot(Lying(line, f, put), f.Start + put.S, LootOwner(k, CometContainer + i), t.Radius);
+            }
+        // Note 719: the jackpot house's extra finds, lying in its floor's corners clear of what's lying there already (note 738),
+        // in the open; and the two-person jackpots, a heavy crate's ball each, on the floor of the house they're in or beside a
+        // yard's crates, nobody's until they're lifted.
+        if (k < _locked.Count && _locked[k] >= 0)
+        {
+            var b = stop.Buildings[_locked[k]];
+            var used = stop.Containers.Where(c => c.Kind == ContainerKind.Loose && c.Building == _locked[k]).Select(c => c.Index % 6).ToHashSet();
+            var corners = Enumerable.Range(0, 6).Where(i => !used.Contains(i)).Concat(used.Order()).ToList();
+            for (int i = 0; i < _extras[k].Count; i++)
+            {
+                var (x, y) = StopWalls.InsideLocal(b, ContainerKind.Loose, StopWalls.Composite(b) ? i + 1 : corners[i % corners.Count]);
+                var put = StopWalls.InHouse(b, x, y);
+                bodies.SpawnLoot(StopWorld(line, f, put), f.Start + put.S, LootOwner(k, ExtraContainer + i), t.Radius);
+            }
+        }
+        if (k < _jackpots.Count && t.Jackpots is { } jp)
+            for (int i = 0; i < _jackpots[k].Count; i++)
+            {
+                var (item, beside) = _jackpots[k][i];
+                Pt? put = beside < 0 ? HouseFloor(stop.Buildings[_locked[k]]) : JackpotAt(stop, stop.Containers[beside]);
+                if (put is not { } at || !jp.Items.TryGetValue(item, out var size))
+                    continue;
+                bodies.SpawnCargo(StopWorld(line, f, at + new Pt(0.3 * i, 0)), f.Start + at.S, size.Radius).Owner = LootOwner(k, JackpotContainer + i);
             }
     }
 }

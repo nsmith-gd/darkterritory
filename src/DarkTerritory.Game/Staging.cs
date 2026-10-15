@@ -566,6 +566,47 @@ public static partial class Staging
         return ([On(21, edge - 1.15, 0, -Math.PI / 2, Art.CrewPose.Push), On(22, edge - 0.05, 0.1, Math.PI / 2, Art.CrewPose.Stagger, up: 0.12, phase: 0.22)], []);
     }
 
+    /// <summary>The first car with sliding doors in its sides (a cargo car's; note 723's hand-up), or car 2.</summary>
+    public static int SideDoorCar(TrainOnLine train)
+    {
+        for (int c = 1; c < train.Frames.Count; c++)
+            if (train.Frames[c].Shape.DoorList.Count >= 4)
+                return c;
+        return Math.Min(2, train.Frames.Count - 1);
+    }
+
+    /// <summary>
+    /// Bringing them home (note 723; dt screenshot --view handup | carryfriend): <c>handup</c>, a crewmate in a cargo car's open
+    /// side door leaning out hauling at a friend running on the ballast beside it, a hand lamp in their fist; <c>carryfriend</c>, a crewmate on car 2's roof
+    /// with a living friend over their shoulder, the friend looking about.
+    /// </summary>
+    public static List<Crewmate> Rescue(TrainOnLine train, string content, string scene)
+    {
+        var player = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(content, Sim.Player.PlayerTuning.File));
+        var rescue = player.Rescue;
+        if (scene == "carryfriend")
+        {
+            var frame = train.Frames[Math.Min(2, train.Frames.Count - 1)];
+            var carrier = Sim.Player.PlayerMotor.SpawnOnRoof(train, frame.Index, -1.0, player, -0.3) with { Yaw = Math.PI - 0.5 };
+            var shoulder = Sim.Player.Rescue.Shoulder(carrier, rescue);
+            var carried = carrier with { Position = shoulder, Flags = Sim.Player.PlayerFlags.Carried, Yaw = 1.2 };
+            return
+            [
+                new Crewmate(31, Sim.Player.PlayerMotor.WorldPosition(carrier, train), Sim.Player.PlayerMotor.WorldYaw(carrier, train), true,
+                    Act: Art.CrewPose.ShoulderWalk, Holding: Sim.Player.Tool.Crowbar),
+                Art.CrewActs.OnTheShoulder(new Crewmate(32, Sim.Player.PlayerMotor.WorldPosition(carried, train), Sim.Player.PlayerMotor.WorldYaw(carried, train), true,
+                    Act: Art.CrewPose.HeldCarried), Sim.Player.PlayerMotor.WorldYaw(carrier, train)),
+            ];
+        }
+        int car = SideDoorCar(train);
+        var at = train.Frames[car];
+        train.Vehicles[car].DoorsOpen |= 1 << 3;
+        double w = at.Shape.HalfWidth, floor = at.Shape.Interior?.Min.Y + 0.1 ?? 1.1;
+        var helper = new Crewmate(31, at.ToWorld(new Double3(w - 0.25, floor, 0)), -Math.PI / 2 + at.Heading, true, Act: Art.CrewPose.HaulUp);
+        var runner = new Crewmate(32, at.ToWorld(new Double3(w + 1.0, 0, 0.45)), at.Heading + 0.25, true, Act: Art.CrewPose.LanternWalk, Lamp: true);
+        return [helper, runner];
+    }
+
     /// <summary>
     /// A row of the crew down car 2's roof, each at one of <paramref name="acts"/> (CrewPose names, dt screenshot --act
     /// smash,pry,...: the roof view looks at them), facing the camera; the smash and pry with a crowbar in hand, the lantern

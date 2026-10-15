@@ -1258,6 +1258,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (Hit(Control.Use) && (session.Player.Has(PlayerFlags.Operating)
             || session.World.Run?.CurrentSite?.Cranes.Any(c => c.AtStand(session.Player, session.Train)) == true))
             pendingSeat = true;
+        // The handcar's handle (note 729): Use pressed at an end of it takes it, and pressed again lets it go, as at the crane.
+        if (Hit(Control.Use) && (session.Player.Has(PlayerFlags.Pumping) || session.World.AtHandle(session.Player) is not null))
+            pendingSeat = true;
         // The hotbar (T108): a number key picks its slot, the wheel steps through the tools (not while they're the ballot's).
         for (var k = Key.D1; k < Key.D1 + Kit.Slots; k++)
             if (Pressed(k) && net is not { Voting: true } && !(net is not null && Held(Control.Roster)))
@@ -1689,6 +1692,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.Cuckoo = session.World.Run is { } cuckooRun && session.World.Enemies?.Wakers is { } cuckooDawn
             ? DarkTerritory.Sim.Train.CrewCar.Cuckoo(cuckooRun.DawnIn, cuckooDawn.StirSeconds, crewCar) : null;
         scene.LampLit = session.World.LampShining && scene.LampsOut < session.Train.Frames.Count;
+        // The handcar (note 729): where it is, its handle's swing, a lift under way.
+        scene.HandcarFrom(session.Train);
         scene.Venting = session.Train.Boiler.Vented;
         scene.SafetyValve = session.Train.Boiler.SafetyValveLifting;
         scene.Ruptured = session.Train.Boiler.Ruptured;

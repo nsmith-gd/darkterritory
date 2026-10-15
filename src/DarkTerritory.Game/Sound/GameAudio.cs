@@ -287,7 +287,7 @@ public sealed partial class GameAudio
     /// <summary>
     /// A noisy toy in someone's hands (GDD v1.4 §19, App. C item 4): its squeak, tune or drum for as long as it's carried, in
     /// the carrier's car (and in the carrier's name on the Choir's meter, host-side), and a moment as it's jostled landing.
-    /// Lying still, it's quiet.
+    /// Lying still, a squeaker's quiet; a wound music box or drummer plays on until it runs down (note 728).
     /// </summary>
     void Toys(World world, TrainOnLine train)
     {
@@ -295,7 +295,8 @@ public sealed partial class GameAudio
         foreach (var b in world.Bodies.All)
         {
             bool jostled = _jostled.TryGetValue(b.Id, out double until) && _time < until;
-            if (b.Kind != Sim.Physics.BodyKind.Toy || b.Carrier < 0 && !jostled || b.Noise == Sim.Physics.ToyNoise.None)
+            // Note 728: a wound music box or drummer set down or thrown plays on where it lies (Body.Playing, the host's).
+            if (b.Kind != Sim.Physics.BodyKind.Toy || b.Carrier < 0 && !jostled && !b.Playing || b.Noise == Sim.Physics.ToyNoise.None)
                 continue;
             carried.Add(b.Id);
             if (!_toys.TryGetValue(b.Id, out var voice) || voice.Finished)
