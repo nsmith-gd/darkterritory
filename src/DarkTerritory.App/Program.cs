@@ -152,6 +152,10 @@ var frontEnd = new FrontEnd(campaignTuning, runTuning, saves, Arg("--settings", 
     MicDevices = args.Contains("--mute") || args.Contains("--no-mic") ? [] : AudioIn.Devices(),
     // OUTFIT (note 298): the crew's looks by name.
     OutfitNames = look?.Tuning.CrewColourNames is { Length: > 0 } outfits ? outfits : ["RED", "BLUE", "OCHRE", "TEAL", "GREEN", "VIOLET", "ORANGE", "WHITE"],
+    // PAINT YOUR MASK and the fortress's CREW SIGIL (note 731): the paints and the stencils by name.
+    MaskPaintNames = look?.Tuning.MaskPaintNames is { Length: > 0 } paints ? paints : ["BONE", "SOOT", "SIGNAL RED", "OXBLOOD", "OCHRE", "LEAF GREEN", "SEA BLUE", "SLATE", "PLUM", "PITCH PINE"],
+    StencilNames = look?.Tuning.MaskStencils is { Length: > 0 } stencils ? [.. stencils.Select(LookTuning.StencilName)] : ["STRIPE", "CROSS", "TEETH", "STAR", "NUMBER", "MOUSTACHE", "HEART", "CROW", "BOLT", "SMILE", "X EYES", "ANCHOR"],
+    MaskInk = look?.Tuning.MaskInk ?? 1,
     // The PROFILE page (note 293): the commendations kept in the profile, and where the nights' stills go (note 203).
     Profile = profile.Load(),
     StillsFolder = BookmarkAlbum.DefaultDirectory,
@@ -726,6 +730,7 @@ while (!window.CloseRequested && !QuitNow())
     // settings' before it starts (the name was only set once the first night was under way).
     NetPlaySession.PlayerName = frontEnd.Settings.PlayerName;
     NetPlaySession.Outfit = frontEnd.Settings.OutfitByte(frontEnd.OutfitNames.Count);
+    NetPlaySession.Paint = frontEnd.Settings.MaskPaint(frontEnd.MaskPaintNames.Count, frontEnd.StencilNames.Count);
     if (Starting(launch) is not { } begun)
     {
         if (fromCommandLine)
@@ -951,6 +956,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Swings = session.World.Swings,
         Lumps = session.World.Lumps,
         Outfits = session.World.Outfits,
+        Paints = session.World.Paints,
+        CrewSigil = session.World.CrewSigil,
         Impacts = session.World.Impacts,
         Run = session.World.Run,
         Holdouts = session.World.Holdouts,
@@ -1044,6 +1051,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         {
             NetPlaySession.Outfit = outfit;
             net.Wear(outfit);
+        }
+        // The mask painted (note 731), the same way: the host takes it in the yard.
+        var paint = now.MaskPaint(frontEnd.MaskPaintNames.Count, frontEnd.StencilNames.Count);
+        if (net is not null && paint != NetPlaySession.Paint)
+        {
+            NetPlaySession.Paint = paint;
+            net.PaintMask(paint);
         }
         ApplyDisplay();
     }

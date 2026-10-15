@@ -19,7 +19,8 @@ namespace DarkTerritory.Game.Art;
 /// <item>his sandals, cork and buckled straps, on bare feet.</item>
 /// </list>
 /// Which hat and which vest are the night's (<see cref="Outfit"/>), so the crews who meet him more than once rarely see him
-/// dressed the same. He stands at a tall easel with a lantern hung from its top, lit, so he's a warm point and a hat's
+/// dressed the same. Where his own figure's modelled (<see cref="DaveArt"/>, note 491: all of the above in the model, his
+/// hats and his brush and palette as props), that's drawn in this one's place, in the same hat and waistcoat. He stands at a tall easel with a lantern hung from its top, lit, so he's a warm point and a hat's
 /// silhouette from across the ground. On the easel is the world as it was: <see cref="Landscape"/>, in the same hand as his
 /// murals in the towns (<see cref="CivicKit"/>'s variant 3 and up), signed in the corner with a red D.
 /// </summary>
@@ -75,6 +76,9 @@ public sealed class DaveKit(Look? look)
     /// <summary>The easel in front of him (his frame: he faces −Z), its lantern's flame there, and how far out it stands.</summary>
     public static readonly Vector3 Flame = new(0.42f, 1.86f, -0.78f);
     const float EaselOut = 0.78f;
+
+    /// <summary>How far before him the canvas's picture is, facing him (where <see cref="DaveArt"/>'s brush paints).</summary>
+    public const float Picture = EaselOut - 0.03f;
 
     /// <summary>The clip he plays: at his canvas the brush arm out; turned on someone, still; with them by the neck, both hands out.</summary>
     public static string Clip(Sim.Enemies.SpinePhase phase) => phase switch

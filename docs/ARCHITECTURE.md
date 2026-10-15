@@ -693,6 +693,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [488. The Gaunt's barn or shed is dark too (B4, queue #225; note 475's lanterns; level-design H.2 "the Gaunt's roost"; GDD §28)](notes/488.md)
 - [489. The hounds' patrol heard by its moves (AU1, queue #226; D1's #208, note 472, the mode replicated as `CinderHound.Aboard`; E1's #213 clips,…](notes/489.md)
 - [490. Towns, a third pass: nothing ruled straight, a small town's green, the town seen from outside, a fishing town's yards, the guns on the…](notes/490.md)
+- [491. Dave modelled, dressed as the director's photographs have him (queue #228, C1; the art checklist's `dave` "for the art sessions: a modelled…](notes/491.md)
 - [492. A bot crew takes a hand lamp out to the wreck yard's dark heaps (A1, queue #229; note 187's "not yet"; GDD §18 wreck yard "unstable, unlit")](notes/492.md)
 - [493. A dead town's station stands open (B4, queue #230; note 417's "not yet": "the station, the derelicts and the powerhouse stay shut"; linegen…](notes/493.md)
 - [494. The Grumbler's healing heard (AU1, queue #231; E1's #224, note 487, its healing seen; GDD App. A.8 "REGEN heals if only one player has hit…](notes/494.md)
@@ -898,6 +899,8 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [727. The mail catch (K1, queue #461; the director, 14 Oct 2026, GDD App. F.6)](notes/727.md)
 - [728. The sense table, and thrown things do what they are (K1, queue #462; the director, 14 Oct 2026, `docs/design/friendslop.md`, GDD App. F.6;…](notes/728.md)
 - [729. The handcar (K1, queue #463; the director, 14 Oct 2026, `docs/design/friendslop.md`, GDD App. F.6)](notes/729.md)
+- [731. Painted masks (K1, queue #465; the director, 14 Oct 2026, `docs/design/friendslop.md`, GDD App. F.6)](notes/731.md)
+- [732. Sound cues in the world: what waits in a house, what's about to go, what's been hit (K1, queue #466; the director's calls of 14 Oct 2026,…](notes/732.md)
 - [733. The friendslop audit and the director's calls of 14 Oct (K1, queue #467)](notes/733.md)
 - [734. The cab's hatch ladder clips and the hatch flickers (A1, queue #468; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 1)](notes/734.md)
 - [735. The cab shakes and rocks; still slow (A1, queue #469; the director, 14 Oct, `docs/playtest/2026-10-14.md` lines 6, 20)](notes/735.md)
@@ -936,4 +939,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [777. A ping heard (AU1, queue #507; A1's #1024, note 739)](notes/777.md)
 - [778. Nothing lies across the track: the boughs, the deadfall, a boulder, the yards' racks of rail, the stands' trees, a dead line's land and the…](notes/778.md)
 - [779. A car and the engine coming apart, each stage its own look (C1, queue #509; the art checklist's `failing-stages`: "each stage needs a look…](notes/779.md)
+- [780. Each night its own lineside: the art's dressing dealt from the night's own seed, not the same at the same km every night (queue #510, B1;…](notes/780.md)
 <!-- end of the notes index -->

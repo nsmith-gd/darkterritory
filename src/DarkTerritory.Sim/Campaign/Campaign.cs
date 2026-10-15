@@ -201,6 +201,11 @@ public sealed record CampaignState
     /// copies with as many nights. 0 before.
     /// </summary>
     public long SettledAt { get; init; }
+    /// <summary>
+    /// The crew's sigil (GDD §29; note 731): a stencil from look.json maskStencils (from 1; 0, none yet), picked by the host at
+    /// the fortress. Painted on the engine's side and small on every crewmate's mask; it travels with the save (note 724).
+    /// </summary>
+    public int Sigil { get; init; }
 }
 
 /// <summary>What a purchase came to: the new state, or why not.</summary>

@@ -206,6 +206,20 @@ public static class Views
             // the train short of it); and stood beside the engine looking down at the creatures' trophies laid out on the
             // ground off the line's left.
             "comet" => CabCamera(engine),
+            // (Not one of Names.) Note 731: the staged row of painted masks (Staging.Masks) from 5 m, as a crewmate sees the crew
+            // by the hand lamp; and close on the middle two, their paint; and the sigil on the earflap.
+            "masks" => Camera.LookAt(Staging.Lineside(train, Staging.MaskAhead, Staging.MaskCamera) + Double3.Up * 1.6,
+                Staging.Lineside(train, Staging.MaskAhead, Staging.MaskOut) + Double3.Up * 1.25, 55),
+            // (Not one of Names.) Note 731: the crew's sigil on the engine's left side (dt screenshot --view sigil [--sigil key]),
+            // from the ballast 6 m out and a little ahead.
+            "sigil" => Art.MaskKit.SigilSpot(engine.Shape, -1) is var (spot, _)
+                ? Camera.LookAt(engine.ToWorld(new Double3(spot.X - 6, 1.9, spot.Z - 2.5)), engine.ToWorld(new Double3(spot.X, spot.Y, spot.Z)), 55)
+                : Camera.LookAt(engine.ToWorld(new Double3(-8.5, 2.2, 1.5)), engine.ToWorld(new Double3(0, 2.0, 0)), 60),
+            // ... and from beside the fifth (the crew's sigil on its earflap).
+            "maskside" => Camera.LookAt(Staging.Lineside(train, Staging.MaskAhead + 0.5 * Staging.MaskSpacing + 1.7, Staging.MaskOut + 0.9) + Double3.Up * 1.65,
+                Staging.Lineside(train, Staging.MaskAhead + 0.5 * Staging.MaskSpacing, Staging.MaskOut) + Double3.Up * 1.6, 35),
+            "maskface" => Camera.LookAt(Staging.Lineside(train, Staging.MaskAhead - 0.1, Staging.MaskOut + 1.25) + Double3.Up * 1.62,
+                Staging.Lineside(train, Staging.MaskAhead, Staging.MaskOut) + Double3.Up * 1.55, 40),
             // (Not one of Names.) Note 721: the crew photo at the gate (dt screenshot --view crewphoto stages it and takes its
             // own lens, CrewPhoto.Stage) and the town's board of lost crews (--view lostcrews, Staging.TownCamera); off the
             // engine's side until then.
