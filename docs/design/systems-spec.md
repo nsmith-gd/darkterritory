@@ -690,6 +690,17 @@ Armoured car conversion · second guard car (a **third gun**, but it costs a car
 
 **The core tension:** every upgrade slot competes with a car, and every car makes you richer and more vulnerable. A crew that buys guns and brakes instead of cars stays small, safe and poor.
 
+**The catalogue** *(the director, 13 Oct 2026; note 678, docs/design/upgrades.md)*. Upgrades come in four kinds: **tools**
+(the above, and more priced in the same bands), **whimsy** (works and is funny: 1–15%), **fun** (looks and sounds, no
+gameplay: 2–8%) and **silly** (bought because it's silly; any price, the gold whistle's 250% being its joke, and the yard
+clerk reads it into every tally). A tool is stocked from the tier whose trouble it answers (campaign.json `fromTier`), and
+takes a share of that trouble, never all of it:
+
+Frontier: speed recorder (+50% bend warning) · composition brake shoes (−50% fade) · pre-cut boards (−50% boarding a
+breach) · big extinguishers (+50% spray, −50% recharge). Dead lines: axle oilers (Hotbox +50% before seizing, −50% to
+mend) · feedwater heater (−50% cold off the boiler) · gun rammers (−20% reload step) · trailing-truck booster (major, +20%
+pull). From Local: sprung cradles (−60% fragile spoilage) · spare radios (+2).
+
 ## F.4 Progression shape
 
 | Phase | Consist | Tier | Runs |

@@ -91,6 +91,12 @@
   // run if they take it"; never said in the Wiki): hold Use within "reach" m of her for "holdSeconds", a glass a crewmate a
   // night, and "health" on top of what they have for the night that's about to set out (she's only ever in the departure town).
   "wine": { "reach": 2.6, "holdSeconds": 0.8, "health": 25 },
+  // The blacksmith, who does the trains (note 697; the director, 13 Oct: "Upgrades need to be purchasable in the fortress
+  // towns from a vendor who is clearly marked as the vendor blacksmith of the town who does train upgrades"). The forge
+  // "fromGate" m along the line from the gate (into the yard: beside the cab as the engine stands 8 m short of the gate,
+  // run.json departShortOfGateM), "out" m off the line on the town's side; the smith "stand" m in front of it. Use held on
+  // them "holdSeconds" opens the catalogue (campaign.json upgrades).
+  "smithy": { "fromGate": -18, "out": 8.5, "stand": 2.2, "holdSeconds": 0.6 },
   // Quirks a town has on top of its culture, and its board: notices pinned up, and notes left lying about the square.
   // Of the board's notices, after the custom's own order, "boardOwn" are the town's own, written for it (note 669).
   "quirks": [1, 2],

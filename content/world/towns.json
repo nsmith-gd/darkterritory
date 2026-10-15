@@ -617,6 +617,9 @@
   },
 
   // The jobs people do about the square, each with what the job makes them say.
+  // The forge (note 697): the blacksmith's, beside the engine in every town's yard. Its board is lettered to read from the
+  // cab (the art's); this is what it says read close to.
+  "forge": { "title": "the blacksmith's forge", "text": "A board over the forge, lettered by hand in white: BLACKSMITH. TRAIN UPGRADES. FITTED BEFORE THE GATE. Under it, smaller: NO CREDIT. NOT EVEN FOR YOU." },
   "roles": {
     "gatekeeper": { "title": "gatekeeper", "lines": [
       "Gate opens when your wheels turn. Not before. Not for anyone. Not for anyone who asks nicely, either.",
@@ -648,6 +651,14 @@
       "I'd sell you luck if I had any. Sold the last of it to the crew before you.",
       "Matches, plenty. Lamp oil, some. Powder, ask me tomorrow.",
       "Everything in here's been on a train once. Most of it twice. Some of it came back on its own." ] },
+    "blacksmith": { "title": "blacksmith", "lines": [
+      "Train work. That's all I do now. Horses don't come back through the gate.",
+      "Bring her in, tell me what you want on her, and it's on her before the gate opens. Scrip first.",
+      "I fitted a gold whistle once. Crew never came back. Nothing to do with the whistle. Probably.",
+      "Everything I put on a train is a share of what a car costs. Don't ask me why. Ask the council.",
+      "I can make her stop faster, shoot faster, burn longer. I can't make her come back.",
+      "Somebody asked me for chairs on the front. Chairs. And a grill. I did it. It's the best work I've done.",
+      "The clerk reads out what I fit, every night. I've never heard him sound impressed. I live in hope." ] },
     "fitter": { "title": "fitter", "lines": [
       "Your boiler's sound. Sound as anything round here. Don't let it sit at the red.",
       "The engineering kit lives in the fitter's locker. If it's not there, it's somewhere worse.",

@@ -245,6 +245,12 @@ public sealed partial class WorldArt
                 mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0, 1.3f, 0), m), Palette.FurnaceOrange * 1.1f, 7));
             if (f.Kind == "barrel")
                 mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0, 1.4f, 0), m), Palette.FurnaceOrange * 2.0f, 11));
+            // The blacksmith's forge (note 697): the hearth's glow under the hood, and the lantern on the board out front.
+            if (f.Kind == "forge")
+            {
+                mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0, 1.3f, (float)f.SolidD - 0.8f), m), Palette.FurnaceOrange * 2.4f, 9));
+                mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0, 1.9f, -(float)f.SolidD - 0.5f), m), Palette.LampAmber * 1.2f, 6));
+            }
             if (f.Kind == "lamps")
                 mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0, 1.8f, -0.6f), m), Palette.LampAmber * 0.4f, 4));
         }

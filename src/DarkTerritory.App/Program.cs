@@ -443,6 +443,8 @@ LobbyId? Invited(NetPlaySession? net)
 bool menuOpened = false;
 // Note 604: after a delivered campaign night, the town the crew arrived in, behind the front end in place of the stand-in yard.
 TownBackdrop? inTown = null;
+// The blacksmith's fitted something in the yard (note 697): the night's hosted again from its yard, the train as it's fitted.
+bool refitting = false;
 bool QuitNow() => quitAfter > 0 && timer.Elapsed.TotalSeconds >= quitAfter;
 
 // The town the crew's in behind the menus and the loading card (notes 604, 606): built into the mesh, the view and light its.
@@ -731,7 +733,7 @@ while (!window.CloseRequested && !QuitNow())
     // Who you are and what you wear go in your Hello as the night's joined or hosted (notes 267, 298), so they're the
     // settings' before it starts (the name was only set once the first night was under way).
     NetPlaySession.PlayerName = frontEnd.Settings.PlayerName;
-    NetPlaySession.Outfit = frontEnd.Settings.OutfitByte(frontEnd.OutfitNames.Count);
+    NetPlaySession.Outfit = frontEnd.Settings.OutfitByte(frontEnd.OutfitNames.Count, frontEnd.HatNames.Count);
     NetPlaySession.Paint = frontEnd.Settings.MaskPaint(frontEnd.MaskPaintNames.Count, frontEnd.StencilNames.Count);
     if (Starting(launch) is not { } begun)
     {
@@ -755,6 +757,18 @@ while (!window.CloseRequested && !QuitNow())
     inTown = (leaving is Launch.CampaignNight && campaign?.Town is not null || following is not null) && delivered
         && session.Route is { } arrivedOn && session.World.Arrival is { } arrival
         ? new TownBackdrop(arrivedOn, session.Train, session.World.Run, arrival, session.World.Town) : null;
+    // Note 687: the blacksmith's refit. The crew's told, as for the next night (note 606), and follows the host back into the
+    // same yard, the train as it's now fitted.
+    if (refitting && leaving is Launch.CampaignNight && session is NetPlaySession { Host: not null } refitHost)
+    {
+        refitHost.CarryOn(DarkTerritory.Sim.Towns.TownAt.Split(refitHost.Setup.Route ?? "").From
+            ?? new DarkTerritory.Sim.Towns.TownAt(session.World.Town?.Plan.Name ?? "the fortress", "", 0));
+        for (var told = Stopwatch.StartNew(); told.Elapsed.TotalSeconds < NetPlaySession.CarryOnSeconds;)
+        {
+            window.PumpEvents();
+            Thread.Sleep(15);
+        }
+    }
     // Note 606: the host's going on from the town; its crew's told, and given a moment to hear it before it hangs up.
     if (leaving is Launch.CampaignNight && delivered && campaign?.Town is { } goingOn && session is NetPlaySession { Host: not null } goingHost)
     {
@@ -791,6 +805,14 @@ while (!window.CloseRequested && !QuitNow())
         fromCommandLine = false;
         continue;
     }
+    // Note 687: the same night again from its yard, fitted (its contract's the campaign's Current: Resume takes it).
+    if (refitting && leaving is Launch.CampaignNight refitted)
+    {
+        refitting = false;
+        launch = refitted with { Resume = true, Refit = true };
+        continue;
+    }
+    refitting = false;
     // Note 606: after the host, to its next night, on the town's card over the town (no menu in between).
     if (following is not null)
     {
@@ -833,9 +855,12 @@ static string? LobbyPassword(Settings s) => s.PublicLobby ? null : s.LobbyPasswo
     // Note 604: a campaign night from the town the crew's in is that town's card: its name, the night ahead; a joiner
     // following its host (note 606) has the same card, the host picking the night meanwhile.
     bool follow = chosen is Launch.Follow;
+    // Note 687: the blacksmith's fitting the train, and it's the same yard again.
+    bool refit = chosen is Launch.CampaignNight { Refit: true } or Launch.Follow { Going.Refit: true };
     string? town = chosen switch
     {
         Launch.CampaignNight { Resume: false } from => saves.Load(from.Slot, from.Crew)?.Town?.Name,
+        Launch.CampaignNight { Refit: true } fitting => saves.Load(fitting.Slot, fitting.Crew)?.Town?.Name ?? "the yard",
         Launch.Follow after => after.Going.Town.Name,
         _ => null,
     };
@@ -850,7 +875,7 @@ static string? LobbyPassword(Settings s) => s.PublicLobby ? null : s.LobbyPasswo
         // Note 350: with FIRST NIGHTS on, the night's tip under it (a new one each of the player's nights).
         if (town is not null)
         {
-            var (heading, under) = TownBackdrop.Card(town, null, follow);
+            var (heading, under) = TownBackdrop.Card(town, null, follow, refit);
             Onboarding.DrawLoading(overlay, UiWidth, UiHeight, heading, under + dots, Onboarding.Tip(onboarding, frontEnd.Settings, nightsOver));
         }
         else
@@ -949,6 +974,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // --ride (linegen plan §20.2): the train drives itself by the line's authority, the camera outside, for looking a
     // generated line over in minutes.
     bool ride = args.Contains("--ride");
+    // The hat rack (note 714): its hats on OUTFIT's HAT row on a night whose train has it.
+    frontEnd.HatNames = session.Train.Dynamics.Tuning.Composition.Dressed("hatRack") && look?.Tuning.CrewHats is { Length: > 0 } hats ? hats : [];
     var scene = new GreyboxScene
     {
         Look = look,
@@ -965,6 +992,12 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         CrewSigil = session.World.CrewSigil,
         Impacts = session.World.Impacts,
         Run = session.World.Run,
+        Band = session.World.BandTuning,
+        // The whimsies (note 715): Gerald and the gnomes, the canary, the gramophone, as the host has them.
+        WhimsyNow = () => session.World.Whimsy,
+        // The engine's name on its plates (note 714), the host's campaign's.
+        EngineName = (session as NetPlaySession)?.Setup.EngineName,
+        Words = DataFile.Load<DarkTerritory.Game.DressWords>(Path.Combine(content, DarkTerritory.Game.DressWords.File)),
         Holdouts = session.World.Holdouts,
         Town = session.World.Town,
         Arrival = session.World.Arrival,
@@ -990,6 +1023,37 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // Talking and reading in the fortress town (note 281): on this machine alone. A press the town took isn't sent to the
     // host while the key's still down (nothing in a town changes the night; a lamp at somebody's feet stays where it is).
     var townTalk = new TownTalk();
+    // The blacksmith (note 697): how long Use's been held on them (-1: their catalogue's been opened by this hold), and whether
+    // something's been bought to fit. The host's purchase is the campaign's, saved at once; the yard's hosted again to fit it.
+    double smithHeld = 0;
+    bool refitWanted = false;
+    var smithy = campaignTuning.Upgrades.Length > 0 ? DataFile.Load<DarkTerritory.Sim.Towns.TownTuning>(Path.Combine(content, DarkTerritory.Sim.Towns.TownTuning.File)).Smithy : null;
+#if DEVTOOLS
+    // The blacksmith's unlock (note 747): a developer build's catalogue has a row to make everything free, any tier, any number
+    // of times; on, a choice goes through it, and the refit's the same.
+    var devUnlock = new DarkTerritory.Dev.Smithy.DevUnlock();
+    frontEnd.SmithyMode = () =>
+    {
+        frontEnd.SmithyFree = devUnlock.On;
+        return devUnlock.Row();
+    };
+#endif
+    frontEnd.SmithyBuy = net is { Host: not null } && campaign is not null ? id =>
+    {
+        var bought = Campaign.BuyUpgrade(campaignTuning, campaign!, id);
+#if DEVTOOLS
+        if (devUnlock.On)
+            bought = DarkTerritory.Dev.Smithy.DevUnlock.Buy(campaignTuning, campaign!, id);
+#endif
+        if (bought.Ok)
+        {
+            campaign = bought.State;
+            saves.Save(campaign);
+            refitWanted = true;
+        }
+        return bought;
+    }
+    : null;
     // Dave's words and his card (note 570): on this machine, as a town's are.
     var figureTalk = new FigureTalk();
     bool useKept = false;
@@ -1051,7 +1115,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             voice.MicLevel = (float)now.MicLevel;
         }
         // An outfit tried on (note 298): asked of the host, which takes it in the yard (and keeps it for the next Hello).
-        byte outfit = now.OutfitByte(frontEnd.OutfitNames.Count);
+        byte outfit = now.OutfitByte(frontEnd.OutfitNames.Count, frontEnd.HatNames.Count);
         if (net is not null && outfit != NetPlaySession.Outfit)
         {
             NetPlaySession.Outfit = outfit;
@@ -1097,6 +1161,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // D.12, D.13 (note 203): and kept past the run-end screen, in the user's app data, a folder for the night.
     var album = new BookmarkAlbum(BookmarkAlbum.DefaultDirectory, DateTime.Now, session.Route?.Name ?? "night");
     bool albumSaid = false;
+    // Note 714: the yard photographer's picture of the crew as she leaves the yard, kept in the same folder.
+    var photographer = new YardPhotographer();
     FrameLighting lighting = default;
     window.MouseCaptured = true;
     window.TextInput = false;
@@ -1189,6 +1255,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 window.TextInput = false;
                 if (net is not null && session.World.Run?.Over == true && session.World.Commendations.Count > 0)
                     profile.Record(session.World.Commendations, net.PlayerId);
+                break;
+            }
+            // The blacksmith's done (note 697): what was bought is fitted, the yard hosted again with it.
+            if (frontEnd.Night is null && refitWanted)
+            {
+                window.TextInput = false;
+                refitting = true;
                 break;
             }
             // RESUME, or Escape on the menu's first page: back in the night, the mouse its again.
@@ -1284,11 +1357,42 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (turn != 0 && crewMemory.Reader.Turn(turn, crewMemory.Pages().Count))
                 sound.Ui(UiCue.LogbookPage);
         }
+        // The blacksmith (note 697): Use held on them opens their catalogue over the yard. Only a campaign night's yard sells.
+        if (!inMenu && smithy is not null && Held(Control.Use) && TownTalk.Selling(session) && session.World.TownOf(session.Player) is { } forgeTown
+            && Hud.TownTarget(session) is { Kind: DarkTerritory.Sim.Towns.TownTargetKind.Person } smithT && TownTalk.IsSmith(forgeTown.Plan.People[smithT.Index]))
+        {
+            if (smithHeld >= 0 && (smithHeld += dt) >= smithy.HoldSeconds)
+            {
+                smithHeld = -1;
+                var smith = forgeTown.Plan.People[smithT.Index];
+                var stock = campaign ?? (net is not null ? Campaign.New(campaignTuning, 0, "", 1) with
+                {
+                    Cars = net.Setup.Cars,
+                    Scrip = net.Setup.Scrip,
+                    Upgrades = net.Setup.Upgrades,
+                } : null);
+                if (stock is not null)
+                {
+                    townTalk.Close();
+                    frontEnd.OpenSmithy(NightNow(), new SmithyShop(smith.Name, stock, frontEnd.SmithyBuy is not null, "the host"));
+                    window.MouseCaptured = false;
+                    window.CaptureOnClick = false;
+                    inMenu = true;
+                }
+            }
+        }
+        else if (!Held(Control.Use))
+            smithHeld = 0;
         // The gun's seat (T112): Use pressed standing still at a loaded gun sits you in it (Use held at one waiting on its
         // reload loads it, walking with it pushes it). Seated, Jump gets you up.
         if (Hit(Control.Use) && !session.Player.Has(PlayerFlags.Seated) && session.World.Combat is { } gc
             && DarkTerritory.Sim.Combat.Guns.MannedGun(session.Player, session.Train, gc.Guns) is { } atGun && session.Train.Vehicles[atGun].Gun.ReloadNeeded <= 0
             && !Held(Control.Forward) && !Held(Control.Back) && !Held(Control.Left) && !Held(Control.Right))
+            pendingSeat = true;
+        // A Muskoka chair on the BBQ deck (note 698): Use pressed at one sits you in it (a beer in hand stays there), and pressed
+        // again with empty hands gets you up (the gun's seat's press, Bbq.Sit); sat with a beer, Use held drinks it.
+        if (Hit(Control.Use) && (session.Player.Has(PlayerFlags.Lounging) ? session.World.Bodies.CarriedBy(session.PlayerId) is null
+            : CrewActions.Nearest(session.Player, session.Train, session.World.Hand) is { } seat && Bbq.IsSeat(seat)))
             pendingSeat = true;
         // The crane's controls (T48): Use pressed at its stand takes them, and pressed again lets them go (the director, 8 Oct:
         // "enter with E and exit with E, it shouldn't be a hold function"), the same press as the gun's seat (Crane.Operates).
@@ -1376,6 +1480,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
 
         // Held, the emote wheel takes the mouse (note 298); let go, what it was on goes with the next tick.
+        // The bow, the salute and the conga (note 714), on a train with the upgrade.
+        wheel.More = session.Train.Dynamics.Tuning.Composition.Dressed("moreEmotes");
         if (wheel.Update(Held(Control.Emote) && session.Player.Alive, input.MouseDX, input.MouseDY) is var let && let != Emote.None)
             pendingEmote = let;
         bool lampInHand = session.World.Bodies.CarriedBy(session.PlayerId) is { Kind: DarkTerritory.Sim.Physics.BodyKind.Lamp, Stashed: false };
@@ -1450,6 +1556,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 Emote = pendingEmote,
                 Signal = pendingSignal,
             };
+            // In a conga line (note 714), with the stick still, the feet follow whoever started before you.
+            if (intent.MoveX == 0 && intent.MoveZ == 0 && Conga.Follow(session.PlayerId, session.Player, session.World, GameAudio.CrewOf(session)) is { } step)
+                (intent.MoveX, intent.MoveZ, intent.LookYaw) = (step.MoveX, step.MoveZ, step.LookYaw);
             pendingSelect = 0;
             pendingEmote = Emote.None;
             pendingSignal = LampSignal.None;
@@ -1506,6 +1615,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             sound.OwnIntent = intent;
             // The crew's clips' clock, the scene's: the breach's blows land as the lock jumps (note 497).
             sound.SceneClock = now;
+            // The band's clock, the host's (note 700).
+            sound.HostTick = session.HostTick;
             sound.Update(session.World, session.Controls, Listener.At(camera.Position, camera.Yaw), exposed, SimConstants.TickSeconds,
                 PlayerMotor.Space(ears, session.Train));
             // Your own interface sounds (your hold, the night's end, the queue while dead), whoever you're watching.
@@ -1756,6 +1867,21 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // The night's fog as it's drawn: what's past it is cooked off the frame (note 479).
         scene.Fog = lighting;
         frameWatch.Mark("audio, hud");
+        // Note 714: as she passes the gate, the yard photographer's flash, and the crew's picture from his lens (everyone, this
+        // machine's player too, lit by it), kept small and sepia, shown a while over the HUD and put in the night's folder.
+        if (photographer.Due(session, scene.Dress) && session.World.Run is { } photoRun)
+        {
+            var (shownCrew, shownOwn, shownHeld) = (scene.Crew, scene.Own, scene.HeldHere);
+            (scene.Own, scene.HeldHere, scene.PhotoFlash) = (null, null, 1);
+            scene.Crew = BookmarkStills.Figures(session, frames, clock.Alpha, -1);
+            var lens = YardPhotographer.Lens(session.Train.Line, photoRun.YardLength, session.Train);
+            scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, lens.Position);
+            photographer.Keep(renderer.Render(mesh, lens, lighting, lighting.FogColor), renderer.Width, renderer.Height, now);
+            (scene.Crew, scene.Own, scene.HeldHere) = (shownCrew, shownOwn, shownHeld);
+            if (photographer.Save(album.Night) is { } photoFile)
+                Console.WriteLine($"yard photographer: the crew's picture is kept in {photoFile}");
+        }
+        scene.PhotoFlash = photographer.Flash(now);
         scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
         frameWatch.Mark("scene");
         // GDD v1.4 App. D.12: a bookmark that's due is drawn from its camera now, off screen, with what this machine has of
@@ -1816,6 +1942,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 // The first nights' card gives way to a panel opened over it (note 351: it showed through the supplies).
                 firstNight: firstNight && !cardHidden && !Held(Control.Roster) && !showSupplies && cardPage < 0 && !showPlan,
                 captions: frontEnd.Settings.Captions ? captions.Lines() : null);
+            Hud.Photograph(overlay, UiWidth, UiHeight, photographer, now, session);
             wheel.Draw(overlay, UiWidth, UiHeight, Hud.PromptScaleAt((float)renderer.Height / UiHeight));
             signalWheel.Draw(overlay, UiWidth, UiHeight, Hud.PromptScaleAt((float)renderer.Height / UiHeight));
             // Q held: the crew roster (T69), with who's been heard.

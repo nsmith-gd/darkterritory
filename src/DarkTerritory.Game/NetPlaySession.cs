@@ -22,6 +22,9 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
 {
     /// <summary>The campaign's upgrades (spec F.3). Every machine applies the same list to the same content.</summary>
     public IReadOnlyList<string> Upgrades { get; init; } = [];
+    /// <summary>The engine's name (the nameplate, note 714): its plates and the tally's line, on every machine.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? EngineName { get; init; }
     /// <summary>
     /// The campaign's spare repair kits (GDD v1.4 App. E.12 question 4): each starts the night in a crew locker beside the
     /// train's own. Every machine builds the same train from it.
@@ -79,6 +82,11 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public bool CampaignNight { get; init; }
+    /// <summary>
+    /// The crew's scrip as the night was hosted (note 697): what the blacksmith's catalogue shows a joiner (the host owns the
+    /// wallet, spec E, so only the host buys).
+    /// </summary>
+    public double Scrip { get; init; }
     /// <summary>
     /// The campaign's crew, its key (<see cref="Sim.Campaign.Logbook.Key"/>) and the night's number (note 721), so every
     /// machine keeps the night's page in that crew's logbook and the photo's slate says which night. Presentation only (like
@@ -218,6 +226,8 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
             CrewMischief = Mischief,
             CrewSigil = (byte)Math.Clamp(Sigil, 0, Sim.Player.MaskPaint.Max - 1),
         };
+        // The band's instruments and tunes (note 700), host and clients alike: a client plays the tune the host names.
+        world.EnableBand(DataFile.Load<Sim.Player.BandTuning>(Path.Combine(content, Sim.Player.BandTuning.File)));
         if (route is not null)
         {
             var routeTuning = RouteTuning.Load(content);
@@ -313,6 +323,17 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         Route = route;
         Lobby = lobby;
     }
+
+    /// <summary>
+    /// What the crew's catalogue purchases have the yard clerk add to the tally (note 678): the gold whistle, read like the
+    /// coal. The same on every machine, from the setup's upgrades.
+    /// </summary>
+    public IReadOnlyList<string> OwnedTally { get; init; } = [];
+
+    static IReadOnlyList<string> TallyOf(string content, SessionSetup setup) => setup.Upgrades.Count == 0 ? []
+        : [.. Sim.Campaign.Campaign.TallyLines(DataFile.Load<Sim.Campaign.CampaignTuning>(Path.Combine(content, Sim.Campaign.CampaignTuning.File)), setup.Upgrades)
+            // The engine's name in its line (the nameplate, note 714): the clerk breaks up over it, as over any name typed.
+            .Select(line => line.Replace("{engine}", setup.EngineName is { Length: > 0 } n ? n : "unnamed", StringComparison.Ordinal))];
 
     /// <summary>The platform lobby this game is hosted in or was joined through, if any.</summary>
     public Lobby? Lobby { get; }
@@ -509,7 +530,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             _bulletinSeconds += SimConstants.TickSeconds;
         if (_tally is null && run.Report is { End: Sim.Run.RunEnd.Delivered } report)
         {
-            _tally = Sim.Run.Radio.Tally(report);
+            _tally = Sim.Run.Radio.Tally(report, OwnedTally);
             _tallyTimes = RadioTimesOf(_tally);
             _tallySeconds = 0;
         }
@@ -647,6 +668,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             BotCrew = crew,
             Listed = listed,
             LobbyName = name,
+            OwnedTally = TallyOf(content, setup),
             Tier = tier,
             Locked = key is not null,
             Mood = mood,
@@ -992,7 +1014,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         var client = new ClientSession(new Replay(transport, early), world,
             setup.Loadout(content).Train, DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)))
         { Name = LocalName(lobby), Outfit = Outfit, Paint = Paint, PasswordKey = key, SnapshotLoss = new(Hud.Tuning.LossWindowTicks) };
-        return new NetPlaySession(null, null, null, client, transport, setup, route, lobby) { Redial = redial };
+        return new NetPlaySession(null, null, null, client, transport, setup, route, lobby) { Redial = redial, OwnedTally = TallyOf(content, setup) };
     }
 
     /// <summary>A new link to the host this joiner reached (by address, or through the lobby), for coming back after a drop.</summary>
@@ -1026,11 +1048,13 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public const double CarryOnSeconds = 0.5;
 
     /// <summary>Who a joiner dials to follow its host to the next night (note 606): the same host, the same way, with the run's key.</summary>
-    public sealed record Following(Func<ITransport> Dial, byte[]? Key, string? Left, Sim.Towns.TownAt Town);
+    /// <param name="Fitted">How many upgrades the night left had (note 697): a refit's night is the same route, fitted with one more.</param>
+    /// <param name="Refit">The host left the yard for the blacksmith's refit (note 697), not for the next night.</param>
+    public sealed record Following(Func<ITransport> Dial, byte[]? Key, string? Left, Sim.Towns.TownAt Town, int Fitted = 0, bool Refit = false);
 
     /// <summary>A joiner told its host is going on (note 606), with a host to dial: whom, and from which town; else null.</summary>
     /// <remarks>The run's key is the one the host said as it went (note 535: it may have changed the password since).</remarks>
-    public Following? GoingOn => Host is null && Redial is { } dial && Client.CarryingOn is { } town ? new Following(dial, Client.CarryKey, Setup.Route, town) : null;
+    public Following? GoingOn => Host is null && Redial is { } dial && Client.CarryingOn is { } town ? new Following(dial, Client.CarryKey, Setup.Route, town, Setup.Upgrades.Count, World.Run is { Over: false }) : null;
 
     /// <summary>
     /// The crew goes on together (note 606), a joiner's end: dials the host it followed until the host's next night welcomes
@@ -1047,7 +1071,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             try
             {
                 var joined = Connect(content, going.Dial(), "the host", null, whileWaiting, going.Dial, going.Key);
-                if (joined.Setup.Route != going.Left)
+                // The next night's a new route; the blacksmith's refit (note 697) is the same one with an upgrade more.
+                if (joined.Setup.Route != going.Left || joined.Setup.Upgrades.Count != going.Fitted)
                     return joined;
                 joined.Dispose();
             }

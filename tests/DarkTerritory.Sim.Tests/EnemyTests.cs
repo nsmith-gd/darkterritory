@@ -18,11 +18,12 @@ sealed class Night
     public TrainControls Controls = new() { Reverser = 1 };
 
     /// <param name="front">Where the engine's front stands (m along the line); by default 2 km in, or 400 m on a route.</param>
+    /// <param name="trainTuning">The train as the campaign's upgrades make it (the whimsies' tests); the plain one by default.</param>
     public Night(int cars, double speed, Route.Route? route = null, bool boiler = false, ulong seed = 1, EnemyTuning? enemies = null, RailLine? line = null,
-        double? front = null)
+        double? front = null, TrainTuning? trainTuning = null)
     {
         line ??= route?.Build() ?? new RailLine(new LineDefinition("t", [new TrackSegment(40_000)]));
-        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, cars, 1)), line, front ?? (route is null ? 2_000 : 400), boiler ? Tuning.Boiler : null);
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(trainTuning ?? Tuning.Train, cars, 1)), line, front ?? (route is null ? 2_000 : 400), boiler ? Tuning.Boiler : null);
         train.Dynamics.Velocity = speed;
         World = new World(train, Tuning.Combat);
         World.EnableEnemies(enemies ?? Tuning.Enemies, route, seed, crew: 4, authority: true);

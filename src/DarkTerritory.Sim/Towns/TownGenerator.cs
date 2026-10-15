@@ -333,6 +333,12 @@ public static partial class TownGenerator
                 or "elevator" or "warehouse").DistinctBy(f => f.Kind).Take(t.Walled.WorksHands))
                 spots.Add(new("hand", f.S, f.D + f.FaceD * (f.SolidD + 1.2), -f.FaceS, -f.FaceD, 0));
 
+        // The town's blacksmith, who does the trains (note 697; the director, 13 Oct 2026: "a vendor who is clearly marked as
+        // the vendor blacksmith of the town who does train upgrades"): every town has one, at the forge beside the engine as it
+        // stands in the yard. Last of everyone, so who everybody else is and what they're called is as it was.
+        if (t.Smithy is { } smithy)
+            spots.Add(new("blacksmith", site.Gate + smithy.FromGate, side * (smithy.Out - smithy.Stand), 0, -side, 0));
+
         // Who they are: a name each, a household's sharing its surname.
         var names = new HashSet<string>();
         var nrng = Rng("names");
@@ -534,6 +540,10 @@ public static partial class TownGenerator
         for (int i = 0; i < looseCount && loose.Next() is { } n; i++)
             papers.Add(new TownPaper(papers.Count, fill.In(n.Title, null), fill.In(n.Text, null), false, lying[i].S, lying[i].D, lying[i].H));
 
+        // The forge, last of the fixtures (so every other one's number is as it was): its board lettered to read from the cab.
+        if (t.Smithy is { } forge)
+            Fix("forge", w.Forge?.Title ?? "the forge", fill.In(w.Forge?.Text ?? "", null), site.Gate + forge.FromGate, side * forge.Out, 0, -side);
+
         var plan = new TownPlan(site.Name, population, former, culture.Id, culture.Creature, culture.Law.Replace("{town}", site.Name), culture.Hall,
             industry?.Name ?? site.Industry, [.. quirks.Select(q => q.Id)], square, buildings, homes.Houses, townsfolk, papers, fixtures, homes.Character, homes.Bounds,
             homes.Green, homes.Works)
@@ -689,6 +699,8 @@ public static class TownFixtures
     public static (double HalfS, double HalfD, double Height) Size(string kind) => kind switch
     {
         "bell" => (1.3, 0.9, 3.6),
+        // Note 687: the blacksmith's forge, its hood and its board (the chimney's above).
+        "forge" => (1.7, 1.1, 3.4),
         "post" => (0.35, 0.35, 2.4),
         "tally" => (1.2, 0.25, 2.4),
         "lamps" => (1.6, 0.45, 2.2),

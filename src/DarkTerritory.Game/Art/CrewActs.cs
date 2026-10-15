@@ -32,7 +32,8 @@ public static class CrewActs
         IReadOnlyList<(int Id, PlayerState State)>? crew = null)
     {
         var act = Of(s, id, world, others);
-        var placed = act is CrewPose.Gunner or CrewPose.Reload && Guns.Mount(world.Train, s.Parent) is { } gun ? Seated(s, gun) : s;
+        var placed = s.Has(PlayerFlags.Lounging) ? Lounging(s, world.Train)
+            : act is CrewPose.Gunner or CrewPose.Reload && Guns.Mount(world.Train, s.Parent) is { } gun ? Seated(s, gun) : s;
         var (feet, yaw) = Eyes.World(placed, frames);
         var (emote, emoteSeconds) = act is null ? EmoteOf(id, s, world) : (Emote.None, 0);
         int outfit = world.OutfitOf(id);
@@ -47,7 +48,7 @@ public static class CrewActs
             Headset: s.Head > 0 ? new HeadsetBody(s.Head, s.Pitch, s.Parent, s.Position, s.Yaw) : null,
             Car: placed.Parent != PlayerState.World && placed.Parent < frames.Count ? placed.Parent : PlayerState.World, Local: placed.Position,
             Emote: emote, EmoteSeconds: emoteSeconds, Sooted: s.Has(PlayerFlags.Sooted), Signal: signal, SignalSeconds: signalSeconds,
-            Paint: world.PaintOf(id));
+            Paint: world.PaintOf(id), Hat: world.HatOf(id));
         if (emote != Emote.None)
             drawn = WithEmote(drawn, id, s, world, frames, crew);
         // Over a friend's shoulder (note 723): draped over it, where the one carrying them is and on their clock (note 812).
@@ -311,9 +312,12 @@ public static class CrewActs
     /// </summary>
     public static (Emote Kind, double Seconds) EmoteOf(int id, in PlayerState s, World world)
     {
-        if (!s.Alive || s.Velocity.X * s.Velocity.X + s.Velocity.Z * s.Velocity.Z > EmoteStill * EmoteStill)
+        if (!s.Alive)
             return (Emote.None, 0);
         if (LatestEmote(id, world) is not { } at)
+            return (Emote.None, 0);
+        // A step away ends it (note 298), but the conga's danced walking (note 714).
+        if (at.Kind != Emote.Conga && s.Velocity.X * s.Velocity.X + s.Velocity.Z * s.Velocity.Z > EmoteStill * EmoteStill)
             return (Emote.None, 0);
         // (Note 722: a high five met lasts emotes.met from the meet, not its offer's length.)
         var (age, up) = world.EmoteTuning.Age(at, world.Tick);
@@ -603,6 +607,27 @@ public static class CrewActs
         };
     }
 
+    /// <summary>
+    /// <paramref name="s"/> sat in a Muskoka chair (note 698): the seated clip's pan let down to the chair's slung seat
+    /// (<see cref="ChairPan"/> over its feet), facing down the line as the chair does.
+    /// </summary>
+    public static PlayerState Lounging(in PlayerState s, TrainOnLine train)
+    {
+        double pan = Bbq.LoungingIn(s, train)?.Kind switch
+        {
+            LoungeKind.Hammock => HammockPan,
+            LoungeKind.HotTub => TubPan,
+            _ => ChairPan,
+        };
+        return s with { Position = s.Position with { Y = s.Position.Y + pan - GunnerPan } };
+    }
+
+    /// <summary>How high the hammock's sag and the hot tub's bench are over the floor or the roof under them (m; note 744).</summary>
+    public const double HammockPan = 0.55, TubPan = 0.25;
+
+    /// <summary>How high a Muskoka chair's seat is over the deck under it (m): low and slung, TrainKit.MuskokaChair's.</summary>
+    public const double ChairPan = 0.34;
+
     /// <summary>How close a crewmate who's held has to be for someone to be hauling at them (m).</summary>
     const double HaulReach = 1.6;
 
@@ -718,6 +743,9 @@ public static class CrewActs
         // (note 814: by its swing, PumpPhase).
         if (s.Has(PlayerFlags.Pumping))
             return CrewPose.Pump;
+        // Sat back in a Muskoka chair on the BBQ deck (note 698), a beer in hand or not: the gunner's seated clip, in the chair.
+        if (s.Has(PlayerFlags.Lounging))
+            return CrewPose.Gunner;
         if (world.Bodies.CarriedBy(id) is { } carried)
             return carried.Kind switch
             {

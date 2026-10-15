@@ -105,10 +105,10 @@ public static partial class Hud
         Link(o, width, s);
         if (!over)
         {
-            TopCentre(o, width, s, memory, line);
+            var band = TopCentre(o, width, s, memory, line);
             // The news's line is wide enough to run into the top left's fine print (F1, note 663): its few seconds have it.
             if (NewsUp(s.World) is null)
-                Situation(o, s);
+                Situation(o, s, band, width);
         }
         Alerts(o, width, height, s, line);
         if (captions is { Count: > 0 } && !over)
@@ -791,6 +791,18 @@ public static partial class Hud
         BodyKind.Heavy => "AN END OF THE HEAVY CRATE",
         BodyKind.Ragdoll => "A BODY",
         BodyKind.Child => "THE CHILD",
+        // The BBQ deck's (note 698).
+        BodyKind.Beer => "A BEER",
+        BodyKind.Sausage => "A SAUSAGE",
+        // The fishing rod's (note 744).
+        BodyKind.FishingRod => "THE FISHING ROD",
+        BodyKind.Fish => "A FISH",
+        BodyKind.GrilledFish => "A GRILLED FISH",
+        // The yard cat (note 745): it can be picked up. The dog can't.
+        BodyKind.Cat => "THE CAT",
+        BodyKind.TennisBall => "A TENNIS BALL",
+        // The band's (note 700): band.json's name for it.
+        BodyKind.Instrument => world.BandTuning is { } band && b.Instrument < band.Instruments.Length ? band.Instruments[b.Instrument].Name.ToUpperInvariant() : "THE INSTRUMENT",
         _ => "IT",
     };
 
@@ -891,17 +903,59 @@ public static partial class Hud
     /// <summary>The newest news (note 663), or null.</summary>
     static NewsEvent? NewsUp(Sim.World world) => world.News.Count > 0 ? world.News[^1] : null;
 
-    static void TopCentre(Overlay o, int width, IPlaySession s, Memory m, int line)
+    /// <summary>Under the last town's name as it comes up (note 765).</summary>
+    public const string EndOfTheRun = "END OF THE RUN";
+
+    /// <summary>The place coming up is the night's last town, its gate (note 765).</summary>
+    static bool IsTerminus(Route? route, (string Name, double At) place) =>
+        route?.Plan?.Terminus is { } t && place.Name == t.Name && Math.Abs(place.At - t.GateM) < 0.5;
+
+    /// <summary>
+    /// Note 765: in through the last town's gate (or onto a silent settlement's last stretch), what ends the run: the whole
+    /// train in, then stopped anywhere (run.json homeInsideGateM; the end of the line, short of the buffers, at a silent one).
+    /// Coming in, "KEEP COMING: THE WHOLE TRAIN INSIDE"; all of it in and still rolling, "STOP ANYWHERE: THE RUN ENDS HERE"
+    /// (Stop). Null before the gate, or once the run's over.
+    /// </summary>
+    public static (string Text, bool Stop)? EndLine(Route? route, Sim.World world, TrainOnLine train)
     {
-        float k = Fine, cx = width / 2f, y = 6;
+        if (world.Run is not { Over: false, Phase: not Sim.Run.RunPhase.Yard } run || route?.Plan?.Terminus is not { } t)
+            return null;
+        double front = Sim.Run.Run.EngineFront(train), home = run.HomeFront(train);
+        if (front < Math.Min(t.GateM, home))
+            return null;
+        if (front < home)
+            return (t.Silent ? "KEEP COMING: TO THE END OF THE LINE" : "KEEP COMING: THE WHOLE TRAIN INSIDE", false);
+        return Math.Abs(Sim.Run.Run.EngineSpeed(train)) >= run.Tuning.StopBelowSpeed ? ("STOP ANYWHERE: THE RUN ENDS HERE", true) : null;
+    }
+
+    /// <summary>
+    /// What the top centre's lines took (note 764): how far down they go, and the widest one's half width (0: nothing there).
+    /// The top left's lines keep out of it.
+    /// </summary>
+    public readonly record struct TopBand(float Bottom, float Half);
+
+    /// <summary>The space the top left keeps from the top centre's widest line (note 764), canvas pixels. Not a design number.</summary>
+    const float TopGap = 10;
+    /// <summary>The narrowest the top left's column beside the top centre goes (note 764): any less, a line starts under it.</summary>
+    const float TopColumn = 96;
+
+    static TopBand TopCentre(Overlay o, int width, IPlaySession s, Memory m, int line)
+    {
+        float k = Fine, cx = width / 2f, y = 6, half = 0;
+        // Each line centred, and how wide the widest was.
+        void Centred(string text, Vector4 ink, float scale, float at)
+        {
+            o.TextCentred(cx, at, text, ink, scale);
+            half = Math.Max(half, o.Measure(text, scale) / 2);
+        }
         var run = s.World.Run;
         if (s.Route is { } route && run is not { Phase: Sim.Run.RunPhase.Yard })
         {
             double dawn = run?.DawnIn ?? route.DawnSeconds;
             if (dawn <= 0)
-                o.TextCentred(cx, y, DawnLine(s.World, s.Train), Red, 1);
+                Centred(DawnLine(s.World, s.Train), Red, 1, y);
             else if (dawn <= Tuning.DawnClockSeconds)
-                o.TextCentred(cx, y, $"DAWN {(int)dawn / 60}:{(int)dawn % 60:00}{DawnFlight(s.World)}", dawn <= 120 ? Red : Amber, 1);
+                Centred($"DAWN {(int)dawn / 60}:{(int)dawn % 60:00}{DawnFlight(s.World)}", dawn <= 120 ? Red : Amber, 1, y);
             if (dawn <= Tuning.DawnClockSeconds)
                 y += line + 4;
         }
@@ -912,7 +966,7 @@ public static partial class Hud
         {
             foreach (var row in Fitted(o, News.Line(s.World, news), width - 32, 1))
             {
-                o.TextCentred(cx, y, row, (news.Kind == NewsKind.EngineBroken ? Red : Amber) with { W = n }, 1);
+                Centred(row, (news.Kind == NewsKind.EngineBroken ? Red : Amber) with { W = n }, 1, y);
                 y += line;
             }
             y += 4;
@@ -928,16 +982,33 @@ public static partial class Hud
         if (m.Place is { } place && Shown(Since(s, m.PlaceTick), Tuning.PlaceSeconds) is > 0 and var a)
         {
             double left = place.At - s.Train.Dynamics.Distance;
-            o.TextCentred(cx, y, place.Name.ToUpperInvariant(), Ink with { W = a }, 1);
+            Centred(place.Name.ToUpperInvariant(), Ink with { W = a }, 1, y);
             y += line;
             // The distance alone (note 671): "0.6 KM" under a place's name says how far.
-            o.TextCentred(cx, y, left > 50 ? $"{left / 1000:0.0} KM" : "HERE", Dim with { W = a }, k);
+            Centred(left > 50 ? $"{left / 1000:0.0} KM" : "HERE", Dim with { W = a }, k, y);
+            y += (line + 2) * k;
+            // Note 765: the last town is where the run ends, and says so as it comes up.
+            if (IsTerminus(s.Route, place))
+            {
+                Centred(EndOfTheRun, Dim with { W = a }, k, y);
+                y += (line + 2) * k;
+            }
+        }
+        // Note 765 (the director, 13 Oct: "It's unclear if I have to go right to the end of the line or if I can just stop the
+        // train inside the town"): in through the last town's gate, what ends the run, until it's ended.
+        if (EndLine(s.Route, s.World, s.Train) is { } end)
+        {
+            Centred(end.Text, end.Stop ? Amber : Ink, k, y);
             y += (line + 2) * k;
         }
-        y = MailTop(o, s, m, cx, y, line, k);
+        y = MailTop(o, s, m, cx, y, line, k, ref half);
         if (s.Player.Alive && Shown(Since(s, m.ColdTick), Tuning.ColdSeconds) is > 0 and var c
             && ColdLine(s.Player, s.Train) is { } cold)
-            o.TextCentred(cx, y + 2, cold, Amber with { W = c }, k);
+        {
+            Centred(cold, Amber with { W = c }, k, y + 2);
+            y += 2 + (line + 2) * k;
+        }
+        return y > 6 ? new TopBand(y, half) : new TopBand(6, 0);
     }
 
     /// <summary>
@@ -1603,19 +1674,11 @@ public static partial class Hud
         }
         if (r.Lines.Count == 0)
             blocks.Add(([("Nothing to report.", Dim)], [], line, 0));
-        var money = new List<string> { $"Gross {r.Gross:0}" };
-        if (r.CrewLossFees > 0)
-            money.Add($"crew-loss fees {r.CrewLossFees:0}");
-        if (r.BodyRefunds > 0)
-            money.Add($"refunds {r.BodyRefunds:0}");
-        if (r.Recovery > 0)
-            money.Add($"recovery {r.Recovery:0}");
-        // Note 589: what the town's monster brigade charged for what rode in.
-        if (r.BroughtInFees > 0)
-            money.Add($"brigade fees {r.BroughtInFees:0}");
-        money.Add($"running costs {r.CoalCost + r.AmmoCost + r.RepairCost:0}");
-        // Wrapped as the lines are (note 347): at a bigger TEXT SIZE it's wider than the plate.
-        var sum = Wrap($"{string.Join(", ", money)}. Net {r.Net:0} scrip.", chars).ToList();
+        // Note 766 (the director, 13 Oct: "net negative 1607. So I need a better understanding as to why I got net negative"):
+        // every figure that made the net, signed, so it adds up on the screen; in the red, what cost most.
+        var money = Radio.Ledger(r).Select(i => $"{char.ToUpperInvariant(i.Name[0])}{i.Name[1..]} {i.Amount:+0;-0}").ToList();
+        string lead = r.Net < 0 && Radio.Costliest(r) is var (what, _) ? $": most of it {what}" : "";
+        var sum = Wrap($"{(money.Count > 0 ? string.Join(", ", money) + ". " : "")}Net {r.Net:+0;-0;0} scrip{lead}.", chars).ToList();
         // Note 718: the night's best finds by what they paid, and who brought the most aboard, over the money (what the clerk
         // read, kept on the screen: how a crew learns what's worth carrying).
         if (PrizeLine(r) is { Length: > 0 } prizes)
@@ -1706,6 +1769,32 @@ public static partial class Hud
     }
 
     /// <summary>A bookmark's still in a thin frame; a dark plate where this machine has none (it joined after).</summary>
+    /// <summary>
+    /// The yard photographer's picture (note 714): his flash white over the screen a moment, then the print up in the top
+    /// right on its cream card, the crew's names under it, until it's had its while (<see cref="YardPhotographer.Shown"/>).
+    /// </summary>
+    public static void Photograph(Overlay o, int width, int height, YardPhotographer p, double now, IPlaySession s)
+    {
+        double flash = p.Flash(now);
+        if (flash > 0)
+            o.Rect(0, 0, width, height, new Vector4(1, 0.98f, 0.94f, (float)(0.85 * flash)));
+        if (!p.Shown(now) || p.Photo is not { } photo)
+            return;
+        const int w = 150, h = w * YardPhotographer.Height / YardPhotographer.Width;
+        float x = width - w - 14, y = 16;
+        // Slid in from the right as the flash goes, out again at the end.
+        double age = now - p.TakenAt, left = YardPhotographer.ShowSeconds - age;
+        x += (float)(Math.Max(0, 0.4 - age) / 0.4 * (w + 20) + Math.Max(0, 0.4 - left) / 0.4 * (w + 20));
+        var cream = new Vector4(0.93f, 0.9f, 0.82f, 1);
+        o.Rect(x - 5, y - 5, w + 10, h + 22, cream);
+        o.Image(x, y, w, h, photo.Rgba, photo.Width, photo.Height, w * 2, h * 2, levels: 32);
+        var ink = new Vector4(0.22f, 0.16f, 0.1f, 1);
+        string names = string.Join(", ", s.Roster().Select(r => r.Name).Take(4));
+        o.TextCentred(x + w / 2f, y + h + 4, "THE CREW, LEAVING THE YARD", ink);
+        if (names.Length > 0)
+            o.TextCentred(x + w / 2f, y + h + 11, names.ToUpperInvariant(), ink with { W = 0.7f });
+    }
+
     static void Thumb(Overlay o, float x, float y, Still? still, int w = ThumbWidth, int h = ThumbHeight)
     {
         o.Rect(x - 1, y - 1, w + 2, h + 2, UiStyle.Lit with { W = 0.6f });
@@ -1885,7 +1974,7 @@ public static partial class Hud
     /// </summary>
     public static TownTarget? TownTarget(IPlaySession s) =>
         s.World.TownOf(s.Player) is { } town && town.Target(s.Player, s.Train.Dynamics.Tuning.Pick.EyeHeight) is { } t
-        && Prompt(s) == TownTalk.Prompt(town, t, s.World.WineInReach(s.Player, s.PlayerId)) ? t : null;
+        && Prompt(s) == TownTalk.Prompt(town, t, s.World.WineInReach(s.Player, s.PlayerId), TownTalk.Selling(s)) ? t : null;
 
     /// <summary>
     /// A town card (note 281): a person's line on a plate over the prompt, their name and work above it; a paper as a
@@ -2176,6 +2265,39 @@ public static partial class Hud
             : Hold("FILL THE RACK", carried.MendTicks * Sim.SimConstants.TickSeconds / combat.Guns.ChargeSeconds);
     }
 
+    /// <summary>The BBQ deck's beer or sausage in hand (note 698): had with Use held, as a healing find's used.</summary>
+    static string? PartyPrompt(Body carried) => carried.Kind switch
+    {
+        BodyKind.Beer => carried.MendTicks > 0 ? "DRINKING" : "DRINK : HOLD [E]",
+        BodyKind.Sausage or BodyKind.GrilledFish => carried.MendTicks > 0 ? "EATING" : "EAT : HOLD [E]",
+        _ => null,
+    };
+
+    /// <summary>
+    /// The fishing rod in hand at the water's edge (note 744), or a fish at the grill: what Use held does. Null otherwise.
+    /// </summary>
+    static string? AnglerPrompt(IPlaySession s, Body carried) => carried.Kind switch
+    {
+        BodyKind.FishingRod when s.World.Angling(s.Player, s.PlayerId) => "FISH : HOLD [E]",
+        BodyKind.Fish when CrewActions.Nearest(s.Player, s.Train, s.World.Hand) == InteractableKind.Grill
+            && s.Train.Dynamics.Tuning.Composition.Bbq is var bbq => Hold("GRILL THE FISH", s.Player.ActionProgress / bbq.GrillSeconds),
+        _ => null,
+    };
+
+    /// <summary>
+    /// The band's instrument in hand (note 700): Use held plays it; playing, the tune the band's on (the first player's), so
+    /// whoever joins knows what they're in.
+    /// </summary>
+    static string? BandPrompt(IPlaySession s, Body carried)
+    {
+        if (carried.Kind != BodyKind.Instrument)
+            return null;
+        if (!s.Player.Has(PlayerFlags.Playing))
+            return "PLAY : HOLD [E]";
+        return s.World.BandTuning is { } band && s.World.Band.Tune is >= 0 and var tune && tune < band.Repertoire.Length
+            ? $"PLAYING: {band.Repertoire[tune].Title.ToUpperInvariant()}" : "PLAYING";
+    }
+
     public static string? HealPrompt(IPlaySession s, Body carried) =>
         CanHeal(s, carried) && carried.MendTicks > 0 && s.World.Run?.Healing is { } h
             ? $"USING IT ({Math.Min(1, carried.MendTicks * Sim.SimConstants.TickSeconds / h.UseSeconds) * 100:0}%)"
@@ -2330,7 +2452,11 @@ public static partial class Hud
         if (WellPrompt(s) is { } well)
             return well;
         if (world.Bodies.CarriedBy(s.PlayerId) is { } inHands)
-            return PowderPrompt(s, inHands) ?? SwitchPrompt(world, p, train, world.Hand) ?? BandagePrompt(s, inHands) ?? HealPrompt(s, inHands);
+            return PowderPrompt(s, inHands) ?? SwitchPrompt(world, p, train, world.Hand) ?? BandagePrompt(s, inHands) ?? HealPrompt(s, inHands) ?? PartyPrompt(inHands)
+                ?? AnglerPrompt(s, inHands) ?? BandPrompt(s, inHands);
+        // The tiny caboose off the rails within reach (note 713): empty hands put it back.
+        if (world.Bodies.CabooseOff(p, train, train.Dynamics.Tuning.Composition.Caboose) is not null)
+            return "PUT THE CABOOSE BACK ON THE RAILS : [E]";
         // T112: the gun's seat and its own controls.
         if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is { } manned)
         {
@@ -2363,6 +2489,9 @@ public static partial class Hud
                 : Repairs.WrenchKey(p) is var wrench and > 0 ? $"THE COUPLING'S LOOSE   WRENCH : [{wrench}]" : "THE COUPLING'S LOOSE   NO WRENCH";
         if (p.Parent > 0 && p.Parent < train.Frames.Count && train.Vehicles[p.Parent].Breached && PlayerMotor.Indoors(p, train))
             return "THE CAR'S BREACHED";
+        // Sat in a Muskoka chair on the BBQ deck (note 698): getting up is all there is to do.
+        if (p.Has(PlayerFlags.Lounging))
+            return "GET UP : [E]";
         var near = CrewActions.Nearest(p, train, hand);
         // T94: a ladder in reach, and the key that takes you onto it.
         // Note 704: a hatch ladder says where it goes, up through the roof or down inside (the cab's, to the cab).
@@ -2420,6 +2549,25 @@ public static partial class Hud
             // Spec F.3's powered switch thrower (note 196).
             case InteractableKind.Points when SwitchPrompt(world, p, train, hand) is { } cabLever:
                 return cabLever;
+            // The BBQ deck (note 698): a chair, the cooler, the grill.
+            case InteractableKind.Chair:
+                return "SIT : [E]";
+            // The hammock and the hot tub (note 744).
+            case InteractableKind.Hammock:
+                return "LIE IN THE HAMMOCK : [E]";
+            case InteractableKind.HotTub:
+                return "GET IN THE HOT TUB : [E]";
+            // The tennis-ball launcher (note 745).
+            case InteractableKind.Launcher:
+                return "FIRE A BALL : [E]";
+            case InteractableKind.Cooler:
+                return train.Vehicles[p.Parent].Beers is > 0 and var beers ? $"A BEER : [E]   {beers} LEFT" : "THE COOLER'S EMPTY";
+            // The gramophone (note 715).
+            case InteractableKind.Gramophone:
+                return world.Whimsy.Playing ? "LIFT THE NEEDLE : [E]" : "WIND THE GRAMOPHONE : [E]";
+            case InteractableKind.Grill when train.Dynamics.Tuning.Composition.Bbq is var bbq:
+                return Bbq.Lit(train.Vehicles[p.Parent]) ? Hold("GRILL A SAUSAGE", p.ActionProgress / bbq.GrillSeconds)
+                    : Hold("LIGHT THE GRILL", p.ActionProgress / bbq.LightSeconds);
         }
         // A switch stand's lever (queue #94, note 357): Use is the lever's there, so it's offered before what's lying by it.
         if (SwitchPrompt(world, p, train, hand) is { } atStand)
@@ -2436,7 +2584,7 @@ public static partial class Hud
         // A fortress town (note 281): somebody to talk to, a paper to read, a thing to look at. Before what's lying in reach,
         // so a lamp at somebody's feet doesn't take the press meant for them.
         if (world.TownOf(p) is { } town && town.Target(p, train.Dynamics.Tuning.Pick.EyeHeight) is { } there)
-            return TownTalk.Prompt(town, there, world.WineInReach(p, s.PlayerId));
+            return TownTalk.Prompt(town, there, world.WineInReach(p, s.PlayerId), TownTalk.Selling(s));
         // The powder locker (note 374): a charge for a gun's rack, while there's any.
         if (world.Combat is { } powder && Guns.AtLocker(p, train, powder.Guns) is not null)
             return Guns.Stowed(train, powder.Guns) > 0 ? $"TAKE A CHARGE : [E]   {Guns.Stowed(train, powder.Guns)} ROUNDS" : "THE POWDER LOCKER'S EMPTY";
@@ -2645,7 +2793,12 @@ public static partial class Hud
     /// a Holdout lit), and alone in the yard, the way out. Not the route's name, the next place or the clock: the route card
     /// has the night, and the top centre says a place as it comes up and the dawn when it's near.
     /// </summary>
-    static void Situation(Overlay o, IPlaySession s)
+    /// <remarks>
+    /// Note 764 (the director, 14 Oct: "Wreck yard is down the spur. It overlaps with Dawn"): beside the top centre's lines
+    /// (<paramref name="band"/>) a line keeps to the left of them, wrapped between its words, or starts under them where
+    /// there's no room for one; under them it has the frame's width.
+    /// </remarks>
+    static void Situation(Overlay o, IPlaySession s, TopBand band, int width)
     {
         // Hosting or joining in the yard, the lobby says it.
         bool lobby = s.Link is { Lost: false } && s.World.Run is { Phase: Sim.Run.RunPhase.Yard };
@@ -2660,13 +2813,36 @@ public static partial class Hud
             // A stop's long list, a line to each thing it's waiting on.
             .SelectMany(t => t.Split("; ", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
             .ToList();
-        float k = Fine, y = 6;
+        TopLeft(o, [.. parts.Select(t => (t.ToUpperInvariant(), t.StartsWith("STOPPED", StringComparison.Ordinal) ? Amber : Dim))], band, width, Fine);
+    }
+
+    /// <summary>
+    /// The top left's fine print (note 764): from the corner down, beside the top centre's <paramref name="band"/> kept to the
+    /// left of it (wrapped between words; where that leaves too narrow a column, <see cref="TopColumn"/>, or no room for a
+    /// word, the line starts under the band), under it the frame's width less the corners. <paramref name="k"/>: the fine
+    /// print's scale. Returns where the last line ended.
+    /// </summary>
+    public static float TopLeft(Overlay o, IReadOnlyList<(string Text, Vector4 Ink)> lines, TopBand band, int width, float k)
+    {
+        float x = 6, y = 6;
         int line = o.Font.LineHeight;
-        foreach (var t in parts)
+        float beside = width / 2f - band.Half - TopGap - x, under = width - 2 * x;
+        foreach (var (text, ink) in lines)
         {
-            o.Text(6, y, t.ToUpperInvariant(), t.StartsWith("STOPPED", StringComparison.Ordinal) ? Amber : Dim, k);
-            y += (line + 1) * k;
+            bool inBand = band.Half > 0 && y < band.Bottom;
+            // No room beside the centre for a column, or for this line's longest word: it goes under the band.
+            if (inBand && (beside < TopColumn || text.Split(' ').Max(w => o.Measure(w, k)) > beside))
+            {
+                y = Math.Max(y, band.Bottom + 2);
+                inBand = false;
+            }
+            foreach (var row in Fitted(o, text, inBand ? beside : under, k))
+            {
+                o.Text(x, y, row, ink, k);
+                y += (line + 1) * k;
+            }
         }
+        return y;
     }
 
     /// <summary>

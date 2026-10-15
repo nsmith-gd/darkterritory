@@ -249,7 +249,12 @@
     "edgeDrop": 0.5,
     "sillReach": 1.2,
     // A bot answers a high five or fist bump offered to it after botAnswer s (bots never offer).
-    "botAnswer": 0.4
+    "botAnswer": 0.4,
+    // The "more emotes" upgrade's (note 714): a bow, a salute, and the conga, which lasts while its line keeps going (each
+    // in it follows whoever started before them; one who stops dancing, or steers off, drops out).
+    "bow": 2.5,
+    "salute": 2.5,
+    "conga": 30
   },
   // The news (ARCHITECTURE §8 note 663; the director: "did a coupler break on its own or was that a creature?"): cars the
   // engine loses and its failing or breaking down, told to everyone as it happens, with what did it, on one line for
