@@ -738,6 +738,14 @@ public sealed record DirectorTuning(
     public OrchestratorTuning Orchestrator { get; init; } = new();
     /// <summary>The last this many spawns: each of a kind among them halves that kind's weight (variety).</summary>
     public int VarietyWindow { get; init; } = 4;
+    /// <summary>A kind about tonight but not yet sent weighs this many times as much (note 742: variety across the night).</summary>
+    public double UnseenWeight { get; init; } = 1;
+    /// <summary>Each one of a kind sent tonight (its own way too) multiplies its weight by this (note 742); 1, no night-long rule.</summary>
+    public double NightRepeat { get; init; } = 1;
+    /// <summary>
+    /// A kind come this many times tonight waits, unless pressed, while another about tonight hasn't come (note 742); 0, never.
+    /// </summary>
+    public int RepeatHold { get; init; }
     /// <summary>
     /// The most of a kind the director sends a night (note 635; the director, the inbox, 12 Oct 2026, of the Knotter: "once or
     /// twice a run"), by its name in <see cref="Costs"/>; a kind not named has no cap.
