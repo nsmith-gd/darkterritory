@@ -1,5 +1,6 @@
 // Walkie-talkie (spec A.5), tier 2: flat, no falloff, band-limited 300 Hz-3 kHz, a static floor while
-// keyed, and crushed like the cheap set it is (spec A.6).
+// keyed, and crushed like the cheap set it is (spec A.6). Note 749 (App. C.8): "covered" 1 while the speaker's held, a
+// hand partly over the mouth on a keyed set: the band closes to 1.4 kHz (player.json voices.covered).
 {
   "tier": 2, "loop": true, "flat": true, "maxInstances": 16,
   "crush": { "bits": 8, "rate": 11025 },
@@ -7,7 +8,8 @@
     { "source": "stream", "gain": 1.4,
       "filters": [{ "type": "highPass", "frequency": 300 }, { "type": "highPass", "frequency": 300 },
                   { "type": "lowPass", "frequency": 3000 }, { "type": "lowPass", "frequency": 3000 },
-                  { "type": "peak", "frequency": 1800, "q": 1, "gainDb": 4 }] },
+                  { "type": "peak", "frequency": 1800, "q": 1, "gainDb": 4 },
+                  { "type": "lowPass", "frequency": { "param": "covered", "points": [[0, 20000], [1, 1400]] } }] },
     { "source": "noise", "gain": { "param": "keyed", "points": [[0, 0], [1, 0.02]] },
       "filters": [{ "type": "bandPass", "frequency": 2000, "q": 0.8 }] }
   ]

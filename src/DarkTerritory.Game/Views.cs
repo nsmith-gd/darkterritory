@@ -207,6 +207,12 @@ public static class Views
             // 196; dt screenshot --upgrades poweredSwitchThrower --view points).
             "points" => SideCamera(engine, InteractableKind.Points, -1),
             "chase" => ChaseCamera(train),
+            // (Not one of Names.) The dead's views (App. D.10, note 743): the wide of the whole train from beside the line;
+            // over the shoulder of the first of the staged crew on car 2's roof (--crew); over the staged body on car 3's (--bodies).
+            "deadwide" => DeadViews.Wide(Train(train.Frames, train.StandingCar)),
+            "deadshoulder" => StagedShoulder(train),
+            "deadbody" => DeadViews.OverBody(train.Frames[Math.Min(3, train.Frames.Count - 1)].ToWorld(new Double3(0, train.Frames[Math.Min(3, train.Frames.Count - 1)].Shape.RoofHeight, -2)),
+                train.Frames[0].Back * -1),
             // On the line 47 m ahead of the engine, at the staged Switchman by its lever 8 m on (Staging.Threats).
             "switchman" => Camera.LookAt(engine.ToWorld(new Double3(1.6, 1.8, -engineHalf - 50.5)), engine.ToWorld(new Double3(3.8, 1.1, -engineHalf - 55)), 50),
             // (Not one of Names.) Off the engine's right side ahead of it, the whole of it three-quarters on (note 276, the cab
@@ -764,6 +770,15 @@ public static class Views
     /// <summary>E.9: how many of the train's lamps are out, from the last car forward (the engine's last of all).</summary>
     public static int StrandedLampsOut(int cars, Sim.Train.StrandedOutroTuning t, double seconds) =>
         seconds <= t.RackSeconds ? 0 : (int)Math.Floor(Math.Clamp((seconds - t.RackSeconds) / t.PullBackSeconds, 0, 1) * (cars + 0.999));
+
+    // Over the shoulder of Staging.Crew's first crewmate, on car 2's roof facing back down it.
+    static Camera StagedShoulder(TrainOnLine train)
+    {
+        var car = train.Frames[Math.Min(2, train.Frames.Count - 1)];
+        var s = new Sim.Player.PlayerState { Parent = car.Index, Position = new Double3(-0.9, car.Shape.RoofHeight, -5), Yaw = Math.PI + 0.3 };
+        var (feet, yaw) = Eyes.World(s, train.Frames);
+        return DeadViews.Shoulder(feet, yaw);
+    }
 
     static Camera ChaseCamera(TrainOnLine train) => Chase(Train(train.Frames, train.StandingCar));
 

@@ -344,12 +344,12 @@ public abstract class Enemy
     static IEnumerable<(int Id, PlayerState State)> CrewOf(EnemyContext ctx) => ctx.Crew.Select(c => ((int)c.Player.Id, c.Player.State));
 
     /// <summary>
-    /// The held player's own struggle, counted by the world at a crew of one (the solo rule): Use held. One try a grab, and a
+    /// The held player's own struggle, counted by the world when no friend is near (the solo rule; in a crew, note 756): Use held. One try a grab, and a
     /// chance at best (App. C.1; the director, 13 Oct: "holding e shouldn't always result in escape it should at best give me
     /// a 15% chance of escape"; note 681): rolled on the night's seed, this creature and the tick it took hold, so the host
     /// rolls it the same however the night is replayed.
     /// </summary>
-    internal void Struggle(EnemyContext ctx, double amount)
+    internal void Struggle(EnemyContext ctx, double amount, double chance)
     {
         if (Phase != SpinePhase.Grab || _struggled)
             return;
@@ -358,7 +358,7 @@ public abstract class Enemy
             return;
         _struggled = true;
         var dice = new Pcg32((ctx.World.Director?.Seed ?? 0) ^ (ulong)Id * 0x9E3779B97F4A7C15UL, 0x5357_0000UL + _grabbedAt);
-        if (dice.NextDouble() < ctx.Tuning.Grab.SoloStruggleChance)
+        if (dice.NextDouble() < chance)
             Rescued(ctx, Holding);
     }
 
