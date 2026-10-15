@@ -27,6 +27,11 @@ public static class LinesideFootprints
         NaveAndTower,
         /// <summary>Walked through: a burying ground's thin stones and half-down fence, a wharf's deck out over the water.</summary>
         Passable,
+        /// <summary>
+        /// A whole facility's kit (note 758): the ground under whatever it draws at a crewmate's height, cell by cell, merged
+        /// into boxes: its sheds, silos, stacks and works each where they stand, the open ground between them open.
+        /// </summary>
+        Cells,
     }
 
     /// <summary>A kind of piece: the sim's name, the art's cache name for a variant, how many, how it's built, how it stands.</summary>
@@ -52,10 +57,24 @@ public static class LinesideFootprints
         new("wharf", v => $"wharf-{v}", 2, NovaKit.Wharf, Shape.Passable, true),
         new("lighthouse", v => $"lighthouse-{v}", 2, NovaKit.Lighthouse, Shape.Bounds, true),
         new("rock", v => $"rock-{v}", 3, (l, v) => WorldKit.Rock(l, v, 1), Shape.Bounds, false),
+        // A facility's buildings beyond its machinery (StructureKit.Facility; note 758), its two variants its kit on the left of
+        // its track and on the right; measured off the modelled pieces (Measure's models). The coaling tower's trestle is its
+        // own (StopWalls.AddTowers).
+        .. Enum.GetValues<Sim.Route.FacilityKind>().Where(k => k != Sim.Route.FacilityKind.CoalingTower).Select(k =>
+            new Kind(FacilityName(k), v => $"facility-{k}-{(v == 0 ? -1 : 1)}", 2, (l, v) => StructureKit.Facility(l, k, v == 0 ? -1 : 1), Shape.Cells, true)),
     ];
+
+    /// <summary>The sim's name for a facility's kit (footprints.json's): its two variants are its left side and its right.</summary>
+    public static string FacilityName(Sim.Route.FacilityKind kind) => Sim.Run.StopWalls.FacilityPiece(kind);
 
     public static readonly IReadOnlyDictionary<string, Kind> ByName = Kinds.ToDictionary(k => k.Name);
 
+    /// <summary>The band a body fills, for <see cref="Shape.Cells"/> (m over the kit's ground): above a step, below the head.</summary>
+    const float CellLow = 0.3f, CellHigh = 1.8f;
+    /// <summary>The grid <see cref="Shape.Cells"/> lays the drawn pieces on (m): a body's width.</summary>
+    const float Cell = 0.5f;
+    /// <summary>The most cells a side of one of <see cref="Shape.Cells"/>'s boxes: 4 m.</summary>
+    const int CellsMost = 8;
     /// <summary>A post's height: a crewmate's head, about (what's over it, a crossarm, is out of reach).</summary>
     const float PostHigh = 2;
     /// <summary>A foot is what of a frame stands below this, and it stands this tall.</summary>
@@ -65,11 +84,13 @@ public static class LinesideFootprints
     /// Every piece's footprint, each variant's boxes as [centre x, centre z, half x, half z, turn, top] in the piece's own
     /// frame (its mesh's: x across, z along, turned about y as the art turns it; the top over its origin).
     /// </summary>
-    public static SortedDictionary<string, double[][][]> Measure(Look? look)
+    /// <param name="models">What a facility's kit is measured with: the content's modelled pieces, as the game draws it (the
+    /// lineside's own pieces are code, measured with <paramref name="look"/>).</param>
+    public static SortedDictionary<string, double[][][]> Measure(Look? look, Look? models = null)
     {
         var all = new SortedDictionary<string, double[][][]>(StringComparer.Ordinal);
         foreach (var kind in Kinds)
-            all[kind.Name] = [.. Enumerable.Range(0, kind.Variants).Select(v => Boxes(kind.Make(look, v), kind.Shape))];
+            all[kind.Name] = [.. Enumerable.Range(0, kind.Variants).Select(v => Boxes(kind.Make(kind.Shape == Shape.Cells ? models ?? look : look, v), kind.Shape))];
         return all;
     }
 
@@ -85,6 +106,7 @@ public static class LinesideFootprints
             Shape.Round => Round(points, top),
             Shape.Feet => [.. Feet(points)],
             Shape.NaveAndTower => NaveAndTower(points, top),
+            Shape.Cells => Cells(mesh),
             _ => throw new ArgumentOutOfRangeException(nameof(shape)),
         };
     }
@@ -135,6 +157,115 @@ public static class LinesideFootprints
             }
         }
         return feet.Select(f => Box([.. f], FootHigh)).OrderBy(b => b[0]).ThenBy(b => b[1]);
+    }
+
+    /// <summary>
+    /// The ground under every triangle of <paramref name="asset"/> where it passes through the band (clipped to it, laid flat:
+    /// an upright wall's face is the line of cells along its foot), merged into as few boxes as cover it, in the kit's frame
+    /// (x across, z along), each as tall as what stands on it.
+    /// </summary>
+    static double[][] Cells(MeshAsset asset)
+    {
+        var cells = new Dictionary<(int X, int Z), float>();
+        var v = asset.Vertices;
+        Span<Vector3> poly = stackalloc Vector3[9], next = stackalloc Vector3[9];
+        for (int t = 0; t + 2 < v.Length; t += 3)
+        {
+            Vector3 a = v[t].Position, b = v[t + 1].Position, c = v[t + 2].Position;
+            float lo = MathF.Min(a.Y, MathF.Min(b.Y, c.Y)), hi = MathF.Max(a.Y, MathF.Max(b.Y, c.Y));
+            if (hi < CellLow || lo > CellHigh)
+                continue;
+            poly[0] = a;
+            poly[1] = b;
+            poly[2] = c;
+            int n = Clip(poly, 3, next, CellLow, above: true);
+            n = Clip(next, n, poly, CellHigh, above: false);
+            if (n < 2)
+                continue;
+            float top = hi;
+            // Its edges, walked a quarter cell at a time (an upright face lies flat as a line), and the cells whose middles it covers.
+            for (int i = 0; i < n; i++)
+            {
+                var p = poly[i];
+                var q = poly[(i + 1) % n];
+                int steps = Math.Max(1, (int)MathF.Ceiling(MathF.Sqrt((q.X - p.X) * (q.X - p.X) + (q.Z - p.Z) * (q.Z - p.Z)) / (Cell / 4)));
+                for (int s = 0; s <= steps; s++)
+                    Mark(cells, Vector3.Lerp(p, q, s / (float)steps), top);
+            }
+            float x0 = float.MaxValue, x1 = float.MinValue, z0 = float.MaxValue, z1 = float.MinValue;
+            for (int i = 0; i < n; i++)
+                (x0, x1, z0, z1) = (MathF.Min(x0, poly[i].X), MathF.Max(x1, poly[i].X), MathF.Min(z0, poly[i].Z), MathF.Max(z1, poly[i].Z));
+            for (int cx = Index(x0); cx <= Index(x1); cx++)
+                for (int cz = Index(z0); cz <= Index(z1); cz++)
+                    if (Inside(poly[..n], (cx + 0.5f) * Cell, (cz + 0.5f) * Cell))
+                        Raise(cells, (cx, cz), top);
+        }
+        return Merge(cells);
+    }
+
+    static int Index(float m) => (int)MathF.Floor(m / Cell);
+
+    static void Mark(Dictionary<(int, int), float> cells, Vector3 p, float top) => Raise(cells, (Index(p.X), Index(p.Z)), top);
+
+    static void Raise(Dictionary<(int, int), float> cells, (int, int) key, float top) =>
+        cells[key] = cells.TryGetValue(key, out var was) ? MathF.Max(was, top) : top;
+
+    /// <summary>The part of a convex polygon above (or below) a height.</summary>
+    static int Clip(ReadOnlySpan<Vector3> src, int n, Span<Vector3> dst, float y, bool above)
+    {
+        int m = 0;
+        for (int i = 0; i < n; i++)
+        {
+            var p = src[i];
+            var q = src[(i + 1) % n];
+            bool pin = above ? p.Y >= y : p.Y <= y, qin = above ? q.Y >= y : q.Y <= y;
+            if (pin)
+                dst[m++] = p;
+            if (pin != qin)
+                dst[m++] = Vector3.Lerp(p, q, (y - p.Y) / (q.Y - p.Y));
+        }
+        return m;
+    }
+
+    static bool Inside(ReadOnlySpan<Vector3> poly, float x, float z)
+    {
+        bool inside = false;
+        for (int i = 0, j = poly.Length - 1; i < poly.Length; j = i++)
+            if ((poly[i].Z > z) != (poly[j].Z > z) && x < (poly[j].X - poly[i].X) * (z - poly[i].Z) / (poly[j].Z - poly[i].Z) + poly[i].X)
+                inside = !inside;
+        return inside;
+    }
+
+    /// <summary>
+    /// The cells as boxes: each run along z widened across x while the next column's run matches it, none more than
+    /// <see cref="CellsMost"/> cells a side, so where a site's module is worked inside a drawn building (StopWalls.Clear) only
+    /// the ground round it gives way, not the whole shed.
+    /// </summary>
+    static double[][] Merge(Dictionary<(int X, int Z), float> cells)
+    {
+        var left = new HashSet<(int X, int Z)>(cells.Keys);
+        var boxes = new List<double[]>();
+        foreach (var start in cells.Keys.OrderBy(k => k.X).ThenBy(k => k.Z))
+        {
+            if (!left.Contains(start))
+                continue;
+            int z1 = start.Z;
+            while (z1 - start.Z + 1 < CellsMost && left.Contains((start.X, z1 + 1)))
+                z1++;
+            int x1 = start.X;
+            while (x1 - start.X + 1 < CellsMost && Enumerable.Range(start.Z, z1 - start.Z + 1).All(z => left.Contains((x1 + 1, z))))
+                x1++;
+            float top = 0;
+            for (int x = start.X; x <= x1; x++)
+                for (int z = start.Z; z <= z1; z++)
+                {
+                    left.Remove((x, z));
+                    top = MathF.Max(top, cells[(x, z)]);
+                }
+            float bx0 = start.X * Cell, bx1 = (x1 + 1) * Cell, bz0 = start.Z * Cell, bz1 = (z1 + 1) * Cell;
+            boxes.Add([R((bx0 + bx1) / 2), R((bz0 + bz1) / 2), R((bx1 - bx0) / 2), R((bz1 - bz0) / 2), 0, R(MathF.Ceiling(top * 2) / 2)]);
+        }
+        return [.. boxes];
     }
 
     /// <summary>To the centimetre: enough for a wall, and the same file on every machine that writes it.</summary>

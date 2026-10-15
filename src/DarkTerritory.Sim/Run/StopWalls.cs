@@ -15,6 +15,16 @@ public readonly record struct Wall(Double3 Centre, Double3 Axis, double HalfLeng
     /// </summary>
     public bool Fort { get; init; }
 
+    /// <summary>
+    /// Part of a coaling tower's trestle (note 758): the crew, the bots and the balls meet it, but a
+    /// creature isn't held out of it, as a fort's isn't: Tower Jaw gnaws the trestle's leg from where it stands, and a lattice
+    /// is seen through.
+    /// </summary>
+    public bool Trestle { get; init; }
+
+    /// <summary>Which coaling tower it's part of (1 up; 0 for none): it stands only while the tower does (<see cref="StopWalls.Fell"/>).</summary>
+    public int Tower { get; init; }
+
     /// <summary>Which stop building it's part of (1 up, alike on every machine; 0 for none): all of a building's walls share its axis.</summary>
     public int Owner { get; init; }
 
@@ -65,12 +75,12 @@ public sealed partial class StopWalls
 
     /// <summary>
     /// The walls that may touch a point (its cell's: each wall is listed in every cell it reaches). An open house's door is
-    /// one of them only while it's shut (note 401).
+    /// one of them only while it's shut (note 401), a coaling tower's only while it stands (note 758).
     /// </summary>
     public IEnumerable<Wall> Near(Double3 p)
     {
         foreach (int i in _cells.TryGetValue(CellOf(p.X, p.Z), out var list) ? list : None)
-            if (_walls[i].Door == 0 || _shut.Contains(_walls[i].Door))
+            if ((_walls[i].Door == 0 || _shut.Contains(_walls[i].Door)) && (_walls[i].Tower == 0 || !_felled.Contains(_walls[i].Tower)))
                 yield return _walls[i];
     }
 
