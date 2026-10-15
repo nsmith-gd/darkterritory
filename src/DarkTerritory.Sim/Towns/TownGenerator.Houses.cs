@@ -262,7 +262,10 @@ public static partial class TownGenerator
                             break;
                         double mid = s + lot / 2;
                         bool lane = InLane(mid, lot, sd, row);
-                        bool inSquare = sd == side && mid > square.S0 - 6 && mid < square.S1 + 6 && Math.Abs(d) - depthMax / 2 < Math.Abs(square.WallD) + 3;
+                        // (A lot reaching into the square's ends is in it too, however far its middle is: its house's wing could
+                        // stand in the square.)
+                        bool inSquare = sd == side && (mid > square.S0 - 6 && mid < square.S1 + 6 || mid + lot / 2 > square.S0 && mid - lot / 2 < square.S1)
+                            && Math.Abs(d) - depthMax / 2 < Math.Abs(square.WallD) + 3;
                         // The green (note 353): the first street's far row and the next street's near one, across from the square.
                         bool onGreen = sd == side && row is 2 or 3 && mid + lot / 2 > square.S0 + GreenIn && mid - lot / 2 < square.S1 - GreenIn;
                         // The works (note 353): the same rows on the line's other side, a little past the square's ends.
