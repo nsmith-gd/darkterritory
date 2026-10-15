@@ -585,7 +585,9 @@ public class CarFireTests
         // 30 m off when the swarm came to car 1.
         EnemyKind[] six = [EnemyKind.Mourners, EnemyKind.TowerJaw, EnemyKind.Brakeman, EnemyKind.Knotter, EnemyKind.FreightBeetle, EnemyKind.Hotbox,
             // And the yard's and the houses' (notes 583–586, 592): a stop's own, they change what the bots do there.
-            EnemyKind.Pickers, EnemyKind.Lodger, EnemyKind.Householder, EnemyKind.HollowHouse, EnemyKind.Hanger];
+            EnemyKind.Pickers, EnemyKind.Lodger, EnemyKind.Householder, EnemyKind.HollowHouse, EnemyKind.Hanger,
+            // And the Mouse Moose at the crane (note 790).
+            EnemyKind.MouseMoose];
         var enemies = Tuning.Enemies with
         {
             Director = Tuning.Enemies.Director with { Roster = [.. Enum.GetValues<EnemyKind>().Except(six).Select(Director.Key)] },

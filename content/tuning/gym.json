@@ -75,6 +75,7 @@
     "jacob": { "from": "Fishing at the water's edge", "answer": "Hold Use by him: he mends the train, once" },
     "waker": { "from": "Rising far behind the train, at dawn", "answer": "Run: nothing else answers it" },
     "pickers": { "from": "Up out of the drains, for loose crates", "answer": "Guard the crates: they run off with them" },
+    "mouseMoose": { "from": "Out of its hole, for the crane's castings (in the yard: walk towards them first)", "answer": "Stand within 6 m of the casting it wants: it runs, and comes back for it" },
     "lodger": { "from": "In the darkest corner of a house", "answer": "Don't go in; or go in and don't linger" },
     "householder": { "from": "In its chair in its house", "answer": "Don't carry its things out unpaid" },
     "hollowHouse": { "from": "The house itself", "answer": "Don't stay in it: it shuts and sinks" },

@@ -417,8 +417,12 @@ public sealed class WreckHeap(int index, Double3 centre, double yaw, int salvage
 /// <summary>A wreck heap's replicated state.</summary>
 public readonly record struct HeapState(int Salvage, bool Found, double Stability, double Groan, int Shifts);
 
-/// <summary>Where a crane's casting is (T48): on the ground where it was stacked, on the hook, or lashed on a car.</summary>
-public enum CastingState : byte { Stacked, Hooked, Loaded, Lost }
+/// <summary>
+/// Where a crane's casting is (T48): on the ground where it was stacked, on the hook, or lashed on a car. Taken: dragged off by
+/// the Mouse Moose out of the hook's reach, lying where it was left or still being dragged, and nobody's to load (note 790);
+/// Lost: gone for good.
+/// </summary>
+public enum CastingState : byte { Stacked, Hooked, Loaded, Lost, Taken }
 
 /// <summary>A site's replicated state (the Run record), for a client to adopt.</summary>
 public readonly record struct SiteState(bool Stocked, double Progress, int SledsLeft, bool Turning, bool OutOfRhythm, double Crank,

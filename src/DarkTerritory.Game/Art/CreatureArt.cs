@@ -3036,7 +3036,8 @@ public sealed partial class CreatureArt
                 // Face back down the line at the train, turned in towards the track.
                 m = Matrix4x4.CreateRotationY(MathF.PI - Math.Sign(e.Lateral) * 0.6f) * model;
                 break;
-            case EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw or EnemyKind.Pickers or EnemyKind.Lodger or EnemyKind.Householder:
+            case EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw or EnemyKind.Pickers or EnemyKind.Lodger or EnemyKind.Householder
+                or EnemyKind.MouseMoose:
                 // What it's doing (the sim's mode) and how fast it's going (CreatureArt.Outside.cs).
                 m = OutsideIn(e, model, pace);
                 break;

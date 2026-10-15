@@ -104,7 +104,8 @@ public static class Protocol
     // 68: sound cues in the world (note 732): a record kind of their own (boards creaking where a house creature waits, the
     //     Householder shifting in its chair, a far bell for what's been lost, a dog barking at the lamps' edge), and what worked
     //     a coupling's pin loose on its car's record (the wound and seized byte's bits 2 up), a bend taken too fast among them.
-    public const int Version = 68;
+    // 69: the Mouse Moose (note 790): an enemy kind of its own, and a casting state (Taken: dragged out of the hook's reach).
+    public const int Version = 69;
 }
 
 public enum MessageType : byte

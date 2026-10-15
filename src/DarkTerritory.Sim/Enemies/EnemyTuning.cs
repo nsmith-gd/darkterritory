@@ -32,6 +32,7 @@ public sealed record EnemyTuning(
     public GannetTuning Gannet { get; init; } = new();
     public MournersTuning Mourners { get; init; } = new();
     public PickersTuning Pickers { get; init; } = new();
+    public MouseMooseTuning MouseMoose { get; init; } = new();
     public DwellingsTuning Dwellings { get; init; } = new();
     public LodgerTuning Lodger { get; init; } = new();
     public HouseholderTuning Householder { get; init; } = new();
@@ -1295,6 +1296,25 @@ public sealed record HangerTuning
     public double Health { get; init; } = 3;
 }
 
+/// <summary>The Mouse Moose (GDD §21; the director, 15 Oct 2026; ARCHITECTURE §8 note 790). Field docs live in enemies.json.</summary>
+public sealed record MouseMooseTuning
+{
+    public double ScareWithin { get; init; } = 6;
+    public int ScaresToGiveUp { get; init; } = 5;
+    public double HideSeconds { get; init; } = 25;
+    public double Creep { get; init; } = 1.2;
+    public double Run { get; init; } = 5;
+    public double Drag { get; init; } = 0.15;
+    public double DragAway { get; init; } = 0.5;
+    public double BiteSeconds { get; init; } = 1.5;
+    public double Grip { get; init; } = 0.7;
+    public double HoleOut { get; init; } = 22;
+    public double AtHole { get; init; } = 0.5;
+    public int ReachEvery { get; init; } = 15;
+    public double LeaveBeyond { get; init; } = 300;
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.25, ["deadLines"] = 1.5, ["deepTerritory"] = 1.5 };
+}
+
 /// <summary>The Freight Beetle (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 366). Field docs live in enemies.json.</summary>
 public sealed record FreightBeetleTuning
 {
@@ -1433,6 +1453,7 @@ public sealed record CrewBotsTuning
     public double WreckStopShort { get; init; } = 15;
     public double WreckHoldWithin { get; init; } = 60;
     public double BeetleWithin { get; init; } = 15;
+    public double MouseMooseWithin { get; init; } = 30;
     /// <summary>Note 658: a Ribbit this near (m, flat), a bot on the ground goes at it and clubs it.</summary>
     public double RibbitWithin { get; init; } = 12;
     public double BrakemanStandOff { get; init; } = 1.5;
