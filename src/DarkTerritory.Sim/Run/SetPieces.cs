@@ -41,11 +41,26 @@ public sealed partial class Run
 
     static double Flat(Double3 d) => (d with { Y = 0 }).Length;
 
-    /// <summary>The cargo car (in any rake) whose middle is under the spout, within the spout's tolerance; null if none.</summary>
+    /// <summary>The cargo car (in any rake) the spout hangs over (<see cref="CarUnder"/>); null if none.</summary>
     public Vehicle? CarUnderSpout(TrainOnLine train, Site site) =>
-        _facilityTuning is not { } t || !site.Has(ModuleKind.Spout) ? null
-        : train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Id < train.Frames.Count && Flat(train.Frames[v.Id].Origin - site.Spout) <= t.Spout.Tolerance)
-            .OrderBy(v => Flat(train.Frames[v.Id].Origin - site.Spout)).FirstOrDefault();
+        _facilityTuning is not { } t || !site.Has(ModuleKind.Spout) ? null : CarUnder(train, site.Spout, t.Spout.EndMargin);
+
+    /// <summary>
+    /// The cargo car (in any rake) whose open top <paramref name="head"/> hangs over: along its own body, at least
+    /// <paramref name="endMargin"/> in from either end, and within its width; of two, the one whose middle is nearer. Queue
+    /// #499, note 769 (the director, 14 Oct: "I clearly have car one positioned underneath. Maybe it needs to be positioned
+    /// more, like in the center"): a car used to count only with its middle within 1.5 m of the head, so one stood plainly under
+    /// it but off its middle was "no car". What comes down a head falls where it is, so a car is under it wherever its top is.
+    /// </summary>
+    static Vehicle? CarUnder(TrainOnLine train, Double3 head, double endMargin) =>
+        train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Id < train.Frames.Count && HangsOver(train.Frames[v.Id], head, endMargin))
+            .OrderBy(v => Flat(train.Frames[v.Id].Origin - head)).FirstOrDefault();
+
+    static bool HangsOver(in CarFrame car, Double3 head, double endMargin)
+    {
+        var local = car.ToLocal(head);
+        return Math.Abs(local.Z) <= car.Shape.HalfLength - endMargin && Math.Abs(local.X) <= car.Shape.HalfWidth;
+    }
 
     /// <summary>A spout with grain in it, within reach of its lever (on foot).</summary>
     public Site? SpoutLeverInReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null)
@@ -60,11 +75,9 @@ public sealed partial class Run
         return null;
     }
 
-    /// <summary>The cargo car (in any rake) whose middle is under the steam lift's chute, within its tolerance; null if none.</summary>
+    /// <summary>The cargo car (in any rake) the steam lift's chute hangs over (<see cref="CarUnder"/>); null if none.</summary>
     public Vehicle? CarUnderChute(TrainOnLine train, Site site) =>
-        _facilityTuning is not { } t || !site.Has(ModuleKind.Lift) ? null
-        : train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Id < train.Frames.Count && Flat(train.Frames[v.Id].Origin - site.LiftChute) <= t.Lift.Tolerance)
-            .OrderBy(v => Flat(train.Frames[v.Id].Origin - site.LiftChute)).FirstOrDefault();
+        _facilityTuning is not { } t || !site.Has(ModuleKind.Lift) ? null : CarUnder(train, site.LiftChute, t.Lift.EndMargin);
 
     /// <summary>A steam lift with ore left down its shaft, within reach of its lever (on foot).</summary>
     public Site? LiftLeverInReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null)
@@ -87,11 +100,9 @@ public sealed partial class Run
         _facilityTuning is { } t && site.Has(ModuleKind.Lift) && train.Vehicles.FirstOrDefault(v => v.Kind == VehicleKind.Engine) is { } engine
         && engine.Id < train.Frames.Count && Flat(train.Frames[engine.Id].Origin - site.LiftChute) <= t.Lift.SteamReach;
 
-    /// <summary>The cargo car (in any rake) whose middle is under the conveyor's head, within its tolerance; null if none.</summary>
+    /// <summary>The cargo car (in any rake) the conveyor's head hangs over (<see cref="CarUnder"/>); null if none.</summary>
     public Vehicle? CarUnderHead(TrainOnLine train, Site site) =>
-        _facilityTuning is not { } t || !site.Has(ModuleKind.Conveyor) ? null
-        : train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Id < train.Frames.Count && Flat(train.Frames[v.Id].Origin - site.ConveyorHead) <= t.Conveyor.Tolerance)
-            .OrderBy(v => Flat(train.Frames[v.Id].Origin - site.ConveyorHead)).FirstOrDefault();
+        _facilityTuning is not { } t || !site.Has(ModuleKind.Conveyor) ? null : CarUnder(train, site.ConveyorHead, t.Conveyor.EndMargin);
 
     /// <summary>A conveyor line with grain left, stopped, within reach of its drive house's starter (on foot).</summary>
     public Site? StarterInReach(in PlayerState s, TrainOnLine train, HandTuning? hand = null)
