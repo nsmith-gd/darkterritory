@@ -1187,6 +1187,38 @@ public class WorldSoundTests
     }
 
     [Fact]
+    public void ACastingTheMouseMooseDragsDownItsHoleIsHeardTippingInAndOneSetDownOffTheHookIsNot()
+    {
+        // Note 809: the Mouse Moose's casting dragged to its hole (Stacked or Taken to Lost) tips in where it lies, off the
+        // crane's record, so a client hears it whether or not its creature's record is still about. A casting the hook set
+        // down off the line (Hooked to Lost) is the crane's own set-down, not this.
+        var (world, foundry) = Night(f => f.Facility == FacilityKind.Foundry, from: 20);
+        var audio = new GameAudio(Content);
+        Stand(audio, "cs-mouse-moose.lost", "place-crane.load-set.ground", "place-crane.load-set.wood");
+        var run = world.Run!;
+        run.EnableSites(DataFile.Load<FacilityTuning>(Path.Combine(Content, FacilityTuning.File)), world.Train.Line);
+        var site = run.Sites[run.Route.Of(FeatureKind.Facility).ToList().IndexOf(foundry)]!;
+        var crane = Assert.Single(site.Cranes);
+        var ears = new Ears(audio, world);
+        var hole = crane.Castings[0].At + new Double3(18, 0, 6);
+        var near = crane.HookAt + new Double3(4, -3, 4);
+        void Castings(params (CastingState, int, Double3)[] cs) => crane.Mirror(crane.Bridge, crane.Trolley, crane.Hook, 0, cs);
+        Castings((CastingState.Stacked, -1, crane.Castings[0].At), (CastingState.Stacked, -1, crane.Castings[1].At));
+        ears.Tick(near, 3);
+        Castings((CastingState.Taken, -1, hole), (CastingState.Stacked, -1, crane.Castings[1].At));
+        ears.Tick(near, 3);
+        Assert.DoesNotContain(ears.Started, v => v.Name == "cs-mouse-moose.lost");
+        Castings((CastingState.Lost, -1, hole), (CastingState.Hooked, -1, crane.Castings[1].At));
+        ears.Tick(near, 3);
+        var lost = Assert.Single(ears.Started, v => v.Name == "cs-mouse-moose.lost");
+        Assert.True((lost.Position - hole).Length < 1e-6);
+        Castings((CastingState.Lost, -1, hole), (CastingState.Lost, -1, crane.HookAt));
+        ears.Tick(near, 3);
+        Assert.Single(ears.Started, v => v.Name == "cs-mouse-moose.lost");
+        Assert.Single(ears.Started, v => v.Name.StartsWith("place-crane.load-set"));
+    }
+
+    [Fact]
     public void TheFoundrysFurnaceBurnsInItsShedWithNobodyToTendIt()
     {
         // C1's casting shed (note 420), heard (queue #161, note 425): the cupola banked and roaring under its own draught,

@@ -1120,6 +1120,63 @@ public class CreatureSoundTests
         Assert.Contains("cs-pickers.hit", scene.Tick());
     }
 
+    // ---- The Mouse Moose (queue #537, note 809) ---------------------------------------------------------------------------
+
+    [Fact]
+    public void TheMouseMooseCreepsInSqueakingBitesDragsAndBoltsForItsHole()
+    {
+        // Note 790's pest, heard off its record: its claws while it creeps in and a squeak now and then (the tell); its teeth
+        // in the casting; the drag, louder once it's out of the hook's reach and going faster; scared off, a squeal and a
+        // scrabble, and the earth kicked back as it goes down its hole. Back out for the casting, a squeak soon after.
+        using var scene = new Scene(2, "tell-mouse-moose.creep~", "tell-mouse-moose.squeak", "cs-mouse-moose.bite", "cs-mouse-moose.drag~",
+            "cs-mouse-moose.bolt", "cs-mouse-moose.dig", "cs-mouse-moose.lost");
+        var hole = scene.Train.Frames[2].ToWorld(new Double3(-20, 0, 0));
+        MouseMoose M(MouseMooseMode mode, Double3 at) =>
+            Record(new MouseMoose(97), SpinePhase.Telegraph, 0, 1, Enemy.Loose, at, height: (double)mode, extra: 0);
+        var heard = new List<string>();
+        var at = hole;
+        // Twelve seconds creeping in at 1.2 m/s.
+        var step = new Double3(1.2 / SimConstants.TickRate, 0, 0);
+        for (int i = 0; i < 12 * SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(M(MouseMooseMode.Creep, at += step)));
+        Assert.True(scene.Playing("tell-mouse-moose.creep"));
+        Assert.InRange(heard.Count(h => h == "tell-mouse-moose.squeak"), 1, 5);
+        // Its teeth in it: the bite once, and its claws stop.
+        heard.Clear();
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(M(MouseMooseMode.Bite, at)));
+        Assert.Equal(["cs-mouse-moose.bite"], heard.Where(h => h != "tell-mouse-moose.squeak"));
+        Assert.False(scene.Playing("tell-mouse-moose.creep"));
+        // Dragging it off at 0.15 m/s, then at 0.5 once the hook can't reach it: louder.
+        float Drag(double speed)
+        {
+            var back = new Double3(-speed / SimConstants.TickRate, 0, 0);
+            for (int i = 0; i < SimConstants.TickRate; i++)
+                scene.Tick(M(MouseMooseMode.Drag, at += back));
+            return scene.Audio.Mixer.Voices.Single(v => v.Name == "cs-mouse-moose.drag" && !v.Stopped).Volume;
+        }
+        float slow = Drag(0.15), away = Drag(0.5);
+        Assert.True(away > slow * 1.2, $"{away:0.00} out of reach, {slow:0.00} in it");
+        // A crewmate comes up: it lets go and bolts, the drag stops; down its hole, the dig. No casting's lost.
+        heard.Clear();
+        heard.AddRange(scene.Tick(M(MouseMooseMode.Flee, at)));
+        Assert.Equal(["cs-mouse-moose.bolt"], heard);
+        for (int i = 0; i < SimConstants.TickRate / 2; i++)
+            heard.AddRange(scene.Tick(M(MouseMooseMode.Flee, at = (at + hole) * 0.5)));
+        Assert.False(scene.Playing("cs-mouse-moose.drag"));
+        Assert.Equal(["cs-mouse-moose.dig"], scene.Tick(M(MouseMooseMode.Hide, hole)));
+        heard.Clear();
+        for (int i = 0; i < 5 * SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(M(MouseMooseMode.Hide, hole)));
+        Assert.Empty(heard);
+        // Back out for it: a squeak within the first second, its claws as it comes.
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(M(MouseMooseMode.Creep, at = hole + step * (i + 1))));
+        Assert.Equal(["tell-mouse-moose.creep", "tell-mouse-moose.squeak"], heard.Order());
+        Assert.True(scene.Playing("tell-mouse-moose.creep"));
+        Assert.DoesNotContain("cs-mouse-moose.lost", heard);
+    }
+
     // ---- The Wakers (queue #502, note 772) --------------------------------------------------------------------------------
 
     [Fact]

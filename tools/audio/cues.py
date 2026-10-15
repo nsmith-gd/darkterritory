@@ -976,6 +976,20 @@ CUES = {
         O("down", "Down its drain: the grating rattling as it squeezes through", vars=3),
         O("hit", "One killed by a blow: a squeal cut short", vars=3),
     ],
+    # The Mouse Moose (queue #537, note 809; A1's #1042, note 790, docs/design/creatures/mouse-moose.md): a mutant rat the size
+    # of a dog with little moose antlers, that drags a yard crane's castings off out of the hook's reach, very slowly, when
+    # nobody's near. Never hurts anyone, nothing kills it: a pest, heard as one. Its creep is how it's noticed.
+    "tell-mouse-moose": [
+        L("creep", "Creeping in toward a casting: big claws ticking slowly over gravel and cinders, a wet snuffling sniff"),
+        O("squeak", "A rat's squeak now and then, too big a rat, with a chatter of teeth after it", vars=4),
+    ],
+    "cs-mouse-moose": [
+        O("bite", "Its teeth fastened on a casting: incisors scraping on iron and a grunt as it braces", vars=3),
+        L("drag", "Dragging a casting off, very slowly: the iron grinding over gravel in short tugs, the rat's straining squeaks"),
+        O("bolt", "Scared off: a shrill squeal and a scrabble of claws bolting away, the casting let go", vars=3),
+        O("dig", "Into its hole: earth scrabbled and kicked back, the antlers knocking on the hole's rim", vars=3),
+        O("lost", "A casting dragged down its hole: the iron tipping over the edge and thudding into the earth", vars=2),
+    ],
     # The Wakers (queue #502, note 772; note 588, docs/design/creatures/wakers.md §2-§5, §8.4 "the sounds to AU1"): what
     # gets up at dawn. Hill-sized: heard from a kilometre and more, the stir's thuds and calls below the night creatures'
     # range so they never mask a tell (spec A.3). Their footfalls are the land's, never a crewmate's step made big.

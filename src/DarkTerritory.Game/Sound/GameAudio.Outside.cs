@@ -715,6 +715,8 @@ public sealed partial class GameAudio
                 var casting = crane.Castings[c];
                 var was = _castings.TryGetValue((key, c), out var w) ? w : casting.State;
                 _castings[(key, c)] = casting.State;
+                if (primed)
+                    LostDown(was, casting.State, casting.At, outside);
                 if (!primed || was != CastingState.Hooked || casting.State == CastingState.Hooked)
                     continue;
                 bool onCar = casting.State == CastingState.Loaded && casting.Car >= 0 && casting.Car < train.Frames.Count;
