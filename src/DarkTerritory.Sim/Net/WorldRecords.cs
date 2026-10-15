@@ -8,7 +8,7 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Net;
 
-public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13, Hit = 14, Impact = 15, Heap = 16, Swing = 17, Emote = 18, Search = 19, Door = 20, News = 21, Horseplay = 22, Lump = 23, Signal = 24 }
+public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13, Hit = 14, Impact = 15, Heap = 16, Swing = 17, Emote = 18, Search = 19, Door = 20, News = 21, Horseplay = 22, Lump = 23, Signal = 24, Handcar = 25 }
 
 /// <summary>One replicated thing as fixed-point integers. <see cref="Key"/> is kind in the top byte, id below.</summary>
 public readonly record struct WireRecord(uint Key, long[] Fields)
@@ -67,6 +67,11 @@ public static class WorldRecords
         }
         for (int i = 0; i < train.Line.Branches.Count; i++)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Switch, i), [train.Diverging(i) ? 1 : 0]));
+        // The handcar (note 729): hung or on the rails, its handle's swing, the pumpers' drive and the brake every machine runs it
+        // on, a lift under way, and how many are at the handle.
+        if (train.HandcarNow is { } hc)
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Handcar, 0),
+                [hc.Carried ? 1 : 0, Q(hc.Phase, Fine), Q(hc.Drive, Fine), Q(hc.Brake, Fine), Q(hc.Lift, Fine), hc.Pumpers]));
         foreach (var v in train.Vehicles)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Vehicle, v.Id),
                 [Q(v.Load, Fine), Q(v.Integrity, Fine), Q(v.CargoIntegrity, Fine), v.Gun.Ammo, v.Gun.Cooldown, v.Gun.Jammed ? 1 : 0, v.Gun.LastShotTick, v.DoorsOpen, (long)v.Cargo,
@@ -376,6 +381,9 @@ public static class WorldRecords
                     break;
                 case RecordKind.Switch:
                     train.MirrorSwitch(r.Id, f[0] != 0);
+                    break;
+                case RecordKind.Handcar when f.Length >= 6:
+                    train.MirrorHandcar(new HandcarState(f[0] != 0, D(f[1], Fine), D(f[2], Fine), D(f[3], Fine), D(f[4], Fine), (int)f[5]));
                     break;
                 case RecordKind.Wreck when !world.Authority:
                     wrecked.Add((r.Id, new Ballast.Double3(D(f[0], Pos), D(f[1], Pos), D(f[2], Pos)),

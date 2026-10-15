@@ -36,7 +36,8 @@ public static class CrewActs
         bool lamp = world.Bodies.CarriedBy(id) is { Kind: BodyKind.Lamp };
         var (signal, signalSeconds) = lamp ? SignalOf(id, s, world) : (LampSignal.None, 0);
         var drawn = new Crewmate(id, feet, yaw, s.Alive, s.Hand, s.OtherHand, Looks: outfit != id ? outfit : null, Act: act, Holding: Sim.Player.Kit.Held(s),
-            Reach: act is CrewPose.Drive or CrewPose.Whistle ? AtTheControls(world, frames, feet, yaw, act == CrewPose.Whistle) : null,
+            Reach: act is CrewPose.Drive or CrewPose.Whistle ? AtTheControls(world, frames, feet, yaw, act == CrewPose.Whistle)
+                : s.Has(PlayerFlags.Pumping) ? AtTheHandle(world.Train, frames, feet, yaw, s) : null,
             Lamp: lamp, Survivor: SurvivorOf(id, world),
             Stressed: s.Alive && Stressed(world, PlayerMotor.WorldPosition(s, world.Train)), Health: s.Health,
             Phase: act == CrewPose.Reload ? ReloadPhase(s, world) : 0, Death: s.Death,
@@ -197,6 +198,29 @@ public static class CrewActs
     static (Double3, Double3)? AtTheControls(World world, IReadOnlyList<CarFrame> frames, Double3 feet, double yaw, bool whistling) =>
         AtTheControls(world.Controls, frames, feet, yaw, whistling);
 
+    /// <summary>
+    /// A pumper's hands on the handcar's handle (note 729): its grip bar at their end, each hand to its side, where the swing has
+    /// it now; in their frame (from the feet, as they face), as the controls' are.
+    /// </summary>
+    public static (Double3, Double3)? AtTheHandle(TrainOnLine train, IReadOnlyList<CarFrame> frames, Double3 feet, double yaw, in PlayerState s)
+    {
+        if (train.Handcar is not { } h || h.Id >= frames.Count)
+            return null;
+        return AtTheHandle(train.Dynamics.Tuning.Handcar, frames[h.Id], h.Phase, Sim.Train.Handcar.EndAt(s.Position.Z), feet, yaw);
+    }
+
+    /// <summary>The same, for a handle as given (a staged pumper: Staging.Pumpers).</summary>
+    public static (Double3, Double3) AtTheHandle(HandcarTuning t, CarFrame car, double phase, int end, Double3 feet, double yaw)
+    {
+        Double3 Local(Double3 inCar)
+        {
+            var d = car.ToWorld(inCar) - feet;
+            return new Double3(d.X * Math.Cos(yaw) - d.Z * Math.Sin(yaw), d.Y, d.X * Math.Sin(yaw) + d.Z * Math.Cos(yaw));
+        }
+        // Facing the handle down the car, their left hand's on the grip's far side from the car's left.
+        return (Local(GreyboxScene.HandleGrip(t, phase, end, -end)), Local(GreyboxScene.HandleGrip(t, phase, end, end)));
+    }
+
     /// <summary>The same, for the controls as given (a staged driver: Staging.Driver).</summary>
     public static (Double3, Double3)? AtTheControls(TrainControls c, IReadOnlyList<CarFrame> frames, Double3 feet, double yaw, bool whistling)
     {
@@ -332,6 +356,9 @@ public static class CrewActs
         if (s.Has(PlayerFlags.Pushing))
             return CrewPose.Push;
         if (s.Has(PlayerFlags.Operating))
+            return CrewPose.Lever;
+        // At the handcar's handle (note 729): both hands on its grip bar, going up and down with it (AtTheHandle).
+        if (s.Has(PlayerFlags.Pumping))
             return CrewPose.Lever;
         if (world.Bodies.CarriedBy(id) is { } carried)
             return carried.Kind switch

@@ -2418,9 +2418,10 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         // on his own roofs). Only someone stood on the ground: in the air is a hop between roofs. And anywhere from behind
         // the rear up to the engine: walking beside the rear car at the train's pace, two of that crew were out of the old
         // window (10 m past the rear) as often as in it, and walked 2.5 km at 2 m/s till one died of the cold.
+        // And someone out on the handcar (note 729): on the open line as much as on foot, wherever it's taken them.
         var behind = atAStop || Crewmates is null ? null : Crewmates
-            .Where(c => c.Alive && c.Parent == PlayerState.World && c.Surface == Surface.Ground)
-            .Select(c => (c, along: AlongTheTrain(train, c.Position)))
+            .Where(c => c.Alive && (c.Parent == PlayerState.World && c.Surface == Surface.Ground || train.OnHandcar(c.Parent)))
+            .Select(c => (c, along: AlongTheTrain(train, PlayerMotor.WorldPosition(c, train))))
             .Where(x => x.along < d.Distance + 5 && d.RearDistance - x.along < SetBackFor)
             .OrderBy(x => d.RearDistance - x.along).Select(x => ((PlayerState c, double along)?)x).FirstOrDefault();
         if (behind is not { } them || _waitedForBoarder > 120)

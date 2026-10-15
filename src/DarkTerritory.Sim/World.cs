@@ -1516,7 +1516,7 @@ public sealed partial class World
     {
         if (Movement is not { } p)
             return;
-        bool can = s.Alive && s.Surface != Surface.Ladder && !s.Has(PlayerFlags.Seated) && !s.Has(PlayerFlags.Operating) && !s.Has(PlayerFlags.Held);
+        bool can = s.Alive && s.Surface != Surface.Ladder && !s.Has(PlayerFlags.Seated) && !s.Has(PlayerFlags.Operating) && !s.Has(PlayerFlags.Pumping) && !s.Has(PlayerFlags.Held);
         bool down = can && (intent.Has(PlayerMoves.Crouch) || s.Head > 0 && s.Head <= p.Crouch.HeadsetBelow);
         if (down)
             s.Flags |= PlayerFlags.Crouched;
@@ -1609,6 +1609,8 @@ public sealed partial class World
             foreach (var crane in site.Cranes)
                 operating |= crane.Operates(s, intent, Train);
         s.Flags = operating ? s.Flags | PlayerFlags.Operating : s.Flags & ~PlayerFlags.Operating;
+        // The handcar (note 729): its handle taken or let go, a stroke, the brake lever, a hand to lift it.
+        HandcarAct(ref s, intent, playerId, handsTookIt);
         if (Authority)
         {
             // Freight in your arms slows you and keeps you off ladders (spec B.2); the motor reads the flag.
@@ -2011,6 +2013,8 @@ public sealed partial class World
         var overspeed = Train.Dynamics.Tuning.Overspeed;
         if (Authority)
             DeadEndWarnSeconds = Sim.Train.DeadEnds.Assess(Train, overspeed).Warning ? DeadEndWarnSeconds + SimConstants.TickSeconds : 0;
+        if (Authority)
+            StepHandcar();
         Train.Step(SimConstants.TickSeconds, applied);
         if (Authority && !Derailed)
         {

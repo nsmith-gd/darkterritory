@@ -457,6 +457,8 @@ public static class Campaign
                     "repair" => l with { Boiler = l.Boiler with { RepairSeconds = l.Boiler.RepairSeconds * k } },
                     "radioReach" => l with { Train = l.Train with { Kit = l.Train.Kit with { RadioReach = l.Train.Kit.RadioReach + k } } },
                     "switchThrower" => Fit(l, c => c with { SwitchThrower = c.SwitchThrower || k > 0 }),
+                    // The handcar (note 729), hung on the guard van's back.
+                    "handcar" => Fit(l, c => c with { Handcar = c.Handcar || k > 0 }),
                     _ => l,
                 };
         }

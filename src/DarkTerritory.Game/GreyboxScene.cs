@@ -394,6 +394,7 @@ public sealed partial class GreyboxScene
         Cut = Art.SceneArt.Cuts(train);
         Handrails = train.Dynamics.Tuning.Composition.Handrails;
         SwitchThrower = train.Dynamics.Tuning.Composition.SwitchThrower;
+        HandcarFrom(train);
         Build(mesh, train.Line, frames ?? train.Frames, train.Dynamics.Distance, eye);
     }
 
@@ -556,6 +557,12 @@ public sealed partial class GreyboxScene
         {
             if ((frame.Origin - eye).Length > LampRange)
                 continue;
+            // The handcar's lantern (note 729): its only light.
+            if (IsHandcar(frame.Index))
+            {
+                HandcarLamp(mesh, frame, eye);
+                continue;
+            }
             // A car whose lamps are out (the crew's put them out against the Fire Flies, a creature's done it, or a
             // switchyard's car standing as the night found them, note 187) is dark inside.
             bool dark = frame.Index >= frames.Count - LampsOut || CarDark(frame.Index);
@@ -591,16 +598,20 @@ public sealed partial class GreyboxScene
         if (Look is not null)
             Look.Art.Onlookers = Onlook ? [eye, .. (Crew ?? []).Where(c => c.Alive).Select(c => c.Feet + new Double3(0, 1.5, 0))] : null;
         foreach (var frame in frames)
-            if (CutAway?.Contains(frame.Index) != true)
+            if (IsHandcar(frame.Index))
+                HandcarModel(mesh, frame, eye);
+            else if (CutAway?.Contains(frame.Index) != true)
                 Car(mesh, frame, eye);
             else
                 CutFloor(mesh, frame, eye);
         Lap(mesh, "cars");
         if (Look is not null)
         {
-            // The art pass's effects (Art/Effects): smoke, steam, sparks, the lamp's beam, and fog banks along the line.
-            Look.Art.Effects.Train(mesh, frames, eye, Time, Controls, FireGlow, Emergency, Venting && !Ruptured, SafetyValve && !Ruptured,
-                frames.Count == 0 ? default : Look.Art.BiteOf(frames[^1].Shape, Vehicles is { } fleet && frames[^1].Index < fleet.Count ? fleet[frames[^1].Index] : null, frames[^1].Index),
+            // The art pass's effects (Art/Effects): smoke, steam, sparks, the lamp's beam, and fog banks along the line. The train's
+            // own frames: the tail lamp's on its last car, not on the handcar (note 729).
+            IReadOnlyList<CarFrame> trainFrames = HandcarNow is { } hc ? [.. frames.Where(f => f.Index != hc.Id)] : frames;
+            Look.Art.Effects.Train(mesh, trainFrames, eye, Time, Controls, FireGlow, Emergency, Venting && !Ruptured, SafetyValve && !Ruptured,
+                trainFrames.Count == 0 ? default : Look.Art.BiteOf(trainFrames[^1].Shape, Vehicles is { } fleet && trainFrames[^1].Index < fleet.Count ? fleet[trainFrames[^1].Index] : null, trainFrames[^1].Index),
                 whistle: !Ruptured && (CordPulled || Enemies?.Any(e => e is Sim.Enemies.Whistler { Whistling: true } && !e.Gone) == true), dead: Ruptured, lamp: LampLit,
                 reach: (float)LampReach);
             // (And the crew on a straining car stumble: SceneArt.Crewmate, drawn after.)

@@ -146,7 +146,7 @@ public sealed class Moose(int id) : Enemy(id)
             double d = Flat(at - here);
             double add = 0;
             // Crowding is what it sees (round a corner or behind the train, you're not crowding it); voices it hears anyway.
-            bool crowds = CrewSense.OnGround(p.State) && d <= t.CrowdAt && Clear(ctx.Train, here + Double3.Up * 1.8, at + Double3.Up * 1.2);
+            bool crowds = CrewSense.Afoot(p.State, ctx.Train) && d <= t.CrowdAt && Clear(ctx.Train, here + Double3.Up * 1.8, at + Double3.Up * 1.2);
             if (crowds && d <= t.CloseAt)
                 add += t.ClosePerSecond;
             else if (crowds)
@@ -402,7 +402,7 @@ public sealed class Moose(int id) : Enemy(id)
                     _charged += step;
                     foreach (var (p, _) in ctx.Crew)
                     {
-                        if (!CrewSense.OnGround(p.State) || _hitThisCharge.Contains(p.Id))
+                        if (!CrewSense.Afoot(p.State, ctx.Train) || _hitThisCharge.Contains(p.Id))
                             continue;
                         var at = PlayerMotor.WorldPosition(p.State, ctx.Train);
                         var off = (at - Local) with { Y = 0 };
@@ -509,7 +509,7 @@ public sealed class Moose(int id) : Enemy(id)
 
     /// <summary>On the ground, within its sight, and nothing between (a building, a car).</summary>
     bool Sees(EnemyContext ctx, MooseTuning t, in PlayerState s, Double3 at) =>
-        CrewSense.OnGround(s) && Flat(at - Local) <= t.SightRange && Clear(ctx.Train, Local + Double3.Up * 1.8, at + Double3.Up * 1.2);
+        CrewSense.Afoot(s, ctx.Train) && Flat(at - Local) <= t.SightRange && Clear(ctx.Train, Local + Double3.Up * 1.8, at + Double3.Up * 1.2);
 
     /// <summary>
     /// The loudest thing it hears, when that's a noisy toy (note 728, senses.json <c>answers.moose.toysLure</c>): a squeaker, a

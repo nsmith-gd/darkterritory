@@ -1531,7 +1531,7 @@ public sealed class StopDriver(CrewCalls calls)
                         return Hold(world);
                     }
                     // A switchyard's cars standing at the end (note 187): onto them at a crawl, so they couple, as onto a cut.
-                    var standing = train.Rakes.FirstOrDefault(r => r.Path == p.Spur.Index && train.Standing(r));
+                    var standing = train.Rakes.FirstOrDefault(r => r.Path == p.Spur.Index && train.Standing(r) && !TrainOnLine.IsHandcar(r));
                     if (standing is not null)
                     {
                         var g = engine.Tuning.Geometry;

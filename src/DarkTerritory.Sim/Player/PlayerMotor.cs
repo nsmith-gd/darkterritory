@@ -305,6 +305,11 @@ public enum PlayerFlags : ushort
     Carried = 4096,
     /// <summary>Carrying a friend over the shoulder (note 723): with <see cref="Heavy"/>'s pace and no climbing. The host's.</summary>
     Carrying = 8192,
+    /// <summary>
+    /// At the handcar's handle (note 729): taken and let go with a press of Use at an end of it, like the crane's stand. Feet
+    /// still, W pushes your end down and S pulls it up; the brake key's the brake lever; Jump lets go.
+    /// </summary>
+    Pumping = 16384,
 }
 
 /// <summary>
@@ -647,7 +652,7 @@ public static class PlayerMotor
                 speed = Math.Min(speed, p.CarryHeavy);
             if (s.Has(PlayerFlags.Pushing))
                 speed = Math.Min(speed, p.PushGun);
-            if (s.Has(PlayerFlags.Operating) || s.Has(PlayerFlags.Seated))
+            if (s.Has(PlayerFlags.Operating) || s.Has(PlayerFlags.Seated) || s.Has(PlayerFlags.Pumping))
                 speed = 0;
             var wish = WishDirection(s.Yaw, intent) * speed;
             // GDD §22 wind on a roof (note 201): a sideways push across the car, on top of where you're going.
@@ -656,10 +661,11 @@ public static class PlayerMotor
             var jostle = crowd is { Count: > 0 } ? Horseplay.Push(s, self, crowd, train, p, dt) * (1 / dt) : default;
             s.Velocity = new Double3(wish.X + wind + jostle.X, 0, wish.Z + jostle.Z);
             // Jump in the gun's seat is getting up out of it (T112), not a leap off the carriage.
-            if (s.Has(PlayerFlags.Seated))
+            if (s.Has(PlayerFlags.Seated) || s.Has(PlayerFlags.Pumping))
             {
+                // And at the handcar's handle (note 729), Jump lets go of it.
                 if (intent.Has(PlayerButtons.Jump))
-                    s.Flags &= ~PlayerFlags.Seated;
+                    s.Flags &= ~(PlayerFlags.Seated | PlayerFlags.Pumping);
             }
             else if (intent.Has(PlayerButtons.Jump) && !s.Has(PlayerFlags.Heavy) && !s.Has(PlayerFlags.Operating) && !crouched)
             {

@@ -1046,6 +1046,19 @@ Sometimes the Territory decides for you. The Passenger uncouples the caboose to 
 
 **Cuts you can get back** *(the director, 14 Oct 2026, App. F.6; ARCHITECTURE §8 note 725)*. A coupling cut is a choice, not always an ending. Cars cut at a stand are parked, handbrakes wound on, and stay where they are; cars cut at speed roll free behind the engine and slow on their own. Either can be had back: the engine backs gently into parked cars, or eases off and lets a rolling cut close on it at a walking pace, and the couplers take (train.json `couplings.coupleMaxSpeed`, 1.5 m/s; faster, it's a collision that dents both ends). Until a cut is more than 400 m from every living crewmate, nothing is lost (§23.2). The chart table in the cab keeps a lamp for each crewmate, lit while they're aboard, so cutting a friend loose is something a crew chooses rather than finds out (§10).
 
+### 24.1 The handcar *(the director, 14 Oct 2026, App. F.6; ARCHITECTURE §8 note 729)*
+
+> Go back for a player or keep moving? Send two of them back on the handcar.
+
+A pump trolley the fortress sells (campaign.json's `handcar`, a small upgrade), hung on its end on the back of the guard van, behind the rear platform's rail. It's railway slapstick, and it answers the questions above: a way back for a friend left behind, a scout down a branch past the points without risking the train, and a race back to the train before it pulls away.
+
+- **Down onto the rails.** At a stand (the train slower than `handcar.standBelow`), held Use beside it lifts it off the van and sets it on the rails a step behind the platform. Two lift it in `liftSeconds`; one alone takes `soloLiftScale` times as long. At speed it stays where it is, however long anyone heaves.
+- **Its own rake.** On the rails it runs as any car does: down the line's paths, through the points as they're set (and back out through them with no choice, as a train does). It couples to nothing, half a tonne of it dents no car, and it can't pass the train: run into the van's back, it's stopped there.
+- **Pumping.** The handle is a see-saw geared to the wheels, so it swings faster the faster the car runs (a full swing every `strokeMetres`). At either end of it (Use takes it, Use or Jump lets go), W pushes your end down and S pulls it up. In time with the swing, pushing your end as it comes down and pulling it as it goes up, the car's driven on; against it, the stroke brakes it or fights your mate. Two in time make about 8 m/s on the level, one about 6, two out of time less, and holding W does nothing at all. Standing, a push starts it one way and a pull the other: that's reverse. Grades tell: a 2% bank takes two down to about 6.5 m/s, and down one it runs away to `maxSpeed` unless someone holds the brake lever (the brake key, anyone aboard). Left with nobody aboard, its brake latches on and it stays where it was left.
+- **Back aboard.** Standing within `stowReach` of the van's back, the train standing and nobody on it, held Use beside it puts it back on its hooks. Or it's left where it is: it's never the train's, so it's never a car lost.
+- **The open line.** Its riders are out in the Territory as much as anyone on foot: the lineside creatures treat them as on foot, the hunts for the left behind follow them, and the Wakers take them at dawn like anything else. The Gannet's fast train isn't the handcar: it doesn't come for it. A driver bot sets back for a crewmate out on it, as for one on the ballast.
+- **Bots** never take it out on their own. With a friend at one end of the handle and the other end free, the nearest bot on the ground at the stand climbs aboard and takes the other end, pumps in time the way the car's going, and lets go when its mate does.
+
 ---
 
 # PART EIGHT — ART DIRECTION

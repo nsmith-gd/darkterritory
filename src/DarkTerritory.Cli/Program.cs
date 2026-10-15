@@ -1063,6 +1063,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         t = DarkTerritory.Sim.Campaign.Campaign.Apply(DataFile.Load<DarkTerritory.Sim.Campaign.CampaignTuning>(Path.Combine(content, DarkTerritory.Sim.Campaign.CampaignTuning.File)),
             upgrades.Split(','), new DarkTerritory.Sim.Campaign.Loadout(t, DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)),
                 DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)), null)).Train;
+    // --handcar (note 729; the handcar and handcarlift views): the night has the handcar (train.json handcar.always).
+    bool handcar = view is "handcar" or "handcarlift" || args.Contains("--handcar");
+    if (handcar)
+        t = t with { Handcar = t.Handcar with { Always = true } };
     var consist = Consist.Uniform(t, cars, 1);
     DarkTerritory.Sim.Run.Run? run = null;
     double at = Opt(args, "--at", 1200);
@@ -1269,6 +1273,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     if (bigLoot is not null && view == "looseloot" && !args.Contains("--at"))
         at = Staging.Bend(line);
     var train = new TrainOnLine(new TrainDynamics(consist), line, at);
+    // The handcar views (note 729): set on the rails and run --handcar-back m (40) back down the line, its handle swung
+    // --handcar-swing radians (0.9); or hung, a lift --lift of the way through (0.45).
+    if (handcar)
+        Staging.Handcar(train, view, Opt(args, "--handcar-back", 40), Opt(args, "--lift", 0.45), Opt(args, "--handcar-swing", 0.9));
     if (site is { Spur: >= 0 })
     {
         var state = train.Capture();
@@ -1280,7 +1288,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     {
         run.StandCars(train);
         if (site.Has(DarkTerritory.Sim.Run.ModuleKind.Rakes)
-            && run.YardTracks(site.Index).Select(b => train.Rakes.FirstOrDefault(r => r.Path == b && train.Standing(r))).FirstOrDefault(r => r is not null) is { } standing)
+            && run.YardTracks(site.Index).Select(b => train.Rakes.FirstOrDefault(r => r.Path == b && train.Standing(r) && !TrainOnLine.IsHandcar(r))).FirstOrDefault(r => r is not null) is { } standing)
         {
             var state = train.Capture();
             int engine = Array.FindIndex(state.Rakes, r => r.Vehicles.Contains(0));
@@ -1487,7 +1495,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             // half as far back along the line (note 410).
             double near = args.Contains("--close") ? 0.5 : 1;
             // The switchyard (note 187): across the gap between the engine and the cars it's coupling up to, from the open side.
-            var waiting = site.Has(DarkTerritory.Sim.Run.ModuleKind.Rakes) ? train.Rakes.FirstOrDefault(r => r.Path == train.Dynamics.Path && train.Standing(r)) : null;
+            var waiting = site.Has(DarkTerritory.Sim.Run.ModuleKind.Rakes) ? train.Rakes.FirstOrDefault(r => r.Path == train.Dynamics.Path && train.Standing(r) && !TrainOnLine.IsHandcar(r)) : null;
             // --building [m]: its buildings instead of its machinery (the modelled ones, note 381), from across the track and
             // back along it at a crewman's eye, up at whatever stands m out on its side (19 by default: the grain elevator's
             // silos). Where GreyboxScene puts them: 25 m short of the layout down a spur, at it on the main line.
@@ -1978,6 +1986,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // --horseplay shove|sooted (the views shove and sooted, note 717): a shove over car 2's side; a crewmate's sooted face.
         Lumps = horseplay is { } hp ? hp.Lumps : null,
         Crew = horseplay is { } hc ? hc.Crew
+            // The handcar views (note 729): two pumping at its handle, or two lifting it down off the van.
+            : view is "handcar" or "handcarlift" ? Staging.HandcarCrew(train, view)
             : args.Contains("--act") ? Staging.Acts(train, content, Str(args, "--act", "").Split(','),
                 Enum.Parse<DarkTerritory.Game.Art.Survivor>(Str(args, "--survivor", "none"), ignoreCase: true))
             // --vr-body: three headset crewmates on car 2's roof, leaning, crouched and mid-step (T82; views crew, crewside).

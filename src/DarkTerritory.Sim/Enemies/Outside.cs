@@ -119,7 +119,7 @@ public sealed class Ribbit(int id, int pack) : Enemy(id)
         double best = double.MaxValue;
         foreach (var (p, w) in ctx.LivingCrew())
         {
-            if (!CrewSense.OnGround(p.State) || CrewSense.Group(ctx, p.Id, t.GroupRadius).Count >= size)
+            if (!CrewSense.Afoot(p.State, ctx.Train) || CrewSense.Group(ctx, p.Id, t.GroupRadius).Count >= size)
                 continue;
             double d = ((w - centre) with { Y = 0 }).Length, weighed = ctx.Weigh(p.Id, d);
             if (d <= t.GiveUpBeyond && weighed < best)
@@ -841,8 +841,8 @@ public sealed class SootChildren(int id) : Enemy(id)
                 return;
             case SpinePhase.Telegraph:
                 {
-                    var near = ctx.LivingCrew().Where(c => CrewSense.OnGround(c.Player.State)).OrderBy(c => (c.World - here).Length).FirstOrDefault();
-                    bool someone = ctx.LivingCrew().Any(c => CrewSense.OnGround(c.Player.State) && c.Player.Id == near.Player.Id);
+                    var near = ctx.LivingCrew().Where(c => CrewSense.Afoot(c.Player.State, ctx.Train)).OrderBy(c => (c.World - here).Length).FirstOrDefault();
+                    bool someone = ctx.LivingCrew().Any(c => CrewSense.Afoot(c.Player.State, ctx.Train) && c.Player.Id == near.Player.Id);
                     if (!someone || (near.World - here).Length > (Soot ? t.LungeWithin : 1.5))
                     {
                         if (PhaseSeconds >= t.IgnoredSeconds)

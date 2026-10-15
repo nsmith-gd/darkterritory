@@ -2548,6 +2548,9 @@ public static partial class Hud
             if (p.Parent > 0 && crane.Unriggable(train, PlayerMotor.WorldPosition(p, train)))
                 return crane.Rigging > 0 ? $"UNHOOKING ({crane.Rigging * 100:0}%)" : "UNHOOK THE CASTING : HOLD [E]";
         }
+        // The handcar (note 729): at its handle, which stroke's in time now; at an end of it, take it; beside it, lift it.
+        if (HandcarPrompt(world, p, train) is { } handcar)
+            return handcar;
         if (world.Run?.HandleInReach(p, train, hand) is not null && world.Run.CurrentSite is { } site)
             // A headset turns the crank round with the hand (T43): which way is how it's worked, so it's said.
             return site.OutOfRhythm ? "OUT OF RHYTHM"

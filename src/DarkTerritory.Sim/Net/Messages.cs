@@ -96,7 +96,9 @@ public static class Protocol
     //     its own (a friend thrown off the shoulder).
     // 64: the big finds (note 719): a find's body record carries a fragile one's knocks over its use ticks (its ninth field,
     //     bits 16 up), and the doors' record the jackpot houses' locks being picked after the doors shut (key, progress pairs).
-    public const int Version = 64;
+    // 65: the handcar (note 729): a vehicle kind of its own and a Handcar record (hung or on the rails, the handle's swing, the
+    //     pumpers' drive, the brake, a lift under way, how many at the handle); a player's flags carry Pumping.
+    public const int Version = 65;
 }
 
 public enum MessageType : byte
