@@ -1726,15 +1726,9 @@ public sealed partial class World
             }
         }
         if (intent.Has(PlayerActions.CarLamp)) _lampWas.Add(playerId); else _lampWas.Remove(playerId);
-        // An emote (note 298): the crew see it, and that's all. Not while something has hold of you, and not on top of the
-        // last one picked.
-        if (Hosting && intent.Emote != Emote.None && s.Alive && !s.Has(PlayerFlags.Held)
-            && !Emotes.Any(e => e.By == playerId && (Tick - e.Tick) * SimConstants.TickSeconds < EmoteTuning.Cooldown))
-        {
-            Emotes.RemoveAll(e => e.By == playerId);
-            Emotes.Add(new EmoteEvent(_nextFx, Tick, playerId, intent.Emote));
-            _nextFx = _nextFx % 0xFFFFFF + 1;
-        }
+        // An emote (note 298): the crew see it, and that's all (note 722: a high five answered, a sit held; World.Emote.cs).
+        if (Hosting)
+            EmoteAct(s, intent, playerId);
         // A ping (note 739): what the pinger's looking at, for the crew to see and a bot to take. Not while held, not at a gun
         // (the button's the push there), not on top of the last.
         if (Hosting && intent.Moves.HasFlag(PlayerMoves.Ping) && !_pingWas.Contains(playerId) && s.Alive && !s.Has(PlayerFlags.Held)
@@ -1926,7 +1920,7 @@ public sealed partial class World
             var keep = Combat?.Hits ?? new HitTuning();
             Hits.RemoveAll(h => Tick - h.Tick > keep.KeepSeconds * SimConstants.TickRate);
             Swings.RemoveAll(w => Tick - w.Tick > keep.KeepSeconds * SimConstants.TickRate);
-            Emotes.RemoveAll(e => Tick - e.Tick > EmoteTuning.Seconds(e.Kind) * SimConstants.TickRate);
+            Emotes.RemoveAll(e => !EmoteTuning.Lasts(e, Tick));
             Pings.RemoveAll(e => Tick - e.Tick > PingTuning.Seconds * SimConstants.TickRate);
             Signals.RemoveAll(e => Tick - e.Tick > VoicesTuning.LampSignals.Seconds * SimConstants.TickRate);
             Impacts.RemoveAll(i => Tick - i.Tick > keep.ImpactKeepSeconds * SimConstants.TickRate);

@@ -77,13 +77,14 @@ public sealed record PhotoStaging(Camera Camera, IReadOnlyList<Crewmate> Crew, P
 public static class CrewPhoto
 {
     /// <summary>
-    /// Who's in the photo, from the replicated crew: the living by id (each holding the emote they're at, sooty if sooted),
+    /// Who's in the photo, from the replicated crew: the living by id (each holding the emote they're at, sooty if sooted; the
+    /// sit and the lean aside, note 722: stood in a line, there's no edge to sit on),
     /// then the dead by id. Bots stand in like anyone.
     /// </summary>
     public static IReadOnlyList<Sitter> Sitters(World world, IEnumerable<(int Id, PlayerState State)> crew) =>
         [.. crew.Where(c => c.Id is >= 0 and <= byte.MaxValue).DistinctBy(c => c.Id).OrderBy(c => c.State.Alive ? 0 : 1).ThenBy(c => c.Id).Select(c =>
             new Sitter((byte)c.Id, IncidentLog.NameOf(world, c.Id), c.State.Alive,
-                c.State.Alive ? Art.CrewActs.EmoteOf(c.Id, c.State with { Velocity = default }, world).Kind : Emote.None,
+                c.State.Alive && Art.CrewActs.EmoteOf(c.Id, c.State with { Velocity = default }, world).Kind is var held && !EmoteRules.Held(held) ? held : Emote.None,
                 c.State.Has(PlayerFlags.Sooted), world.OutfitOf(c.Id) is var outfit && outfit != c.Id ? outfit : null))];
 
     /// <summary>

@@ -26,7 +26,10 @@ public static class CrewActs
     /// The crewmate <paramref name="id"/> as they're drawn this frame: where they are and what they're doing. At a gun they're
     /// sat on its seat, facing its way (note 137's cannon: the seat 0.75 m behind the pivot, on the roof under it).
     /// </summary>
-    public static Crewmate Crewmate(byte id, in PlayerState s, World world, IReadOnlyList<CarFrame> frames, IReadOnlyList<PlayerState>? others = null)
+    /// <param name="crew">Everyone by id (themselves too), for note 722's emotes for two: how far a high five's partner stands,
+    /// who's in a dance-off. Without it a met high five is drawn at a middling gap and nobody dances off.</param>
+    public static Crewmate Crewmate(byte id, in PlayerState s, World world, IReadOnlyList<CarFrame> frames, IReadOnlyList<PlayerState>? others = null,
+        IReadOnlyList<(int Id, PlayerState State)>? crew = null)
     {
         var act = Of(s, id, world, others);
         var placed = act is CrewPose.Gunner or CrewPose.Reload && Guns.Mount(world.Train, s.Parent) is { } gun ? Seated(s, gun) : s;
@@ -44,6 +47,8 @@ public static class CrewActs
             Headset: s.Head > 0 ? new HeadsetBody(s.Head, s.Pitch, s.Parent, s.Position, s.Yaw) : null,
             Car: placed.Parent != PlayerState.World && placed.Parent < frames.Count ? placed.Parent : PlayerState.World, Local: placed.Position,
             Emote: emote, EmoteSeconds: emoteSeconds, Sooted: s.Has(PlayerFlags.Sooted), Signal: signal, SignalSeconds: signalSeconds);
+        if (emote != Emote.None)
+            drawn = WithEmote(drawn, id, s, world, frames, crew);
         // Over a friend's shoulder (note 723): laid across it, the way the one carrying them faces.
         if (s.Alive && s.Has(PlayerFlags.Carried) && others is not null && CarrierOf(s, others) is { } carrier)
             drawn = OnTheShoulder(drawn, Eyes.World(carrier, frames).Yaw);
@@ -122,15 +127,94 @@ public static class CrewActs
     {
         if (!s.Alive || s.Velocity.X * s.Velocity.X + s.Velocity.Z * s.Velocity.Z > EmoteStill * EmoteStill)
             return (Emote.None, 0);
+        if (LatestEmote(id, world) is not { } at)
+            return (Emote.None, 0);
+        // (Note 722: a high five met lasts emotes.met from the meet, not its offer's length.)
+        var (age, up) = world.EmoteTuning.Age(at, world.Tick);
+        return up ? (at.Kind, age) : (Emote.None, 0);
+    }
+
+    /// <summary>The latest emote of <paramref name="id"/>'s the world holds, up or not.</summary>
+    static EmoteEvent? LatestEmote(int id, World world)
+    {
         EmoteEvent? latest = null;
         foreach (var e in world.Emotes)
             if (e.By == id && (latest is null || e.Tick > latest.Value.Tick))
                 latest = e;
-        if (latest is not { } at)
-            return (Emote.None, 0);
-        double age = ((double)world.Tick - at.Tick) * SimConstants.TickSeconds;
-        return age >= 0 && age < world.EmoteTuning.Seconds(at.Kind) ? (at.Kind, age) : (Emote.None, 0);
+        return latest;
     }
+
+    /// <summary>
+    /// Note 722: a crewmate at an emote, with what its drawing needs beyond the kind (<see cref="EmoteDetail"/>): a high five
+    /// or fist bump met, how long ago and how far apart the two stand; a dance, whether it's a dance-off and who leads
+    /// (<see cref="EmoteRules.DanceOff"/>); the sit, put on the edge facing out from it (<see cref="SatOn"/>); the lean, at the
+    /// doorway facing out of it, the head to where they look (<see cref="LeantOut"/>). An edge emote away from its edge (a
+    /// snapshot's lag) isn't drawn.
+    /// </summary>
+    public static Crewmate WithEmote(Crewmate c, int id, in PlayerState s, World world, IReadOnlyList<CarFrame> frames, IReadOnlyList<(int Id, PlayerState State)>? crew)
+    {
+        var t = world.EmoteTuning;
+        var train = world.Train;
+        switch (c.Emote)
+        {
+            case Emote.HighFive or Emote.FistBump when LatestEmote(id, world) is { Met: true } met:
+                {
+                    double gap = t.Reach * 0.6;
+                    if (crew is not null)
+                        foreach (var (other, o) in crew)
+                            if (other == met.With && EmoteRules.Apart(s, o, train) is var d && double.IsFinite(d))
+                                gap = d;
+                    return c with { EmoteWith = new EmoteDetail(Met: true, SinceMeet: Math.Max(0, ((double)world.Tick - met.Meet) * SimConstants.TickSeconds), Gap: gap) };
+                }
+            case Emote.Dance when crew is not null && EmoteRules.DanceOff(id, world.Emotes, crew, train, t, world.Tick) is { } off:
+                return c with { EmoteWith = new EmoteDetail(Dancers: off.Count, Leading: off.Leader == id) };
+            case Emote.SitEdge when s.Parent >= 0 && s.Parent < frames.Count && EmoteRules.SitAt(s, train, t) is { } edge:
+                return SatOn(c, s, edge, train, frames, t);
+            case Emote.LeanOut when s.Parent >= 0 && s.Parent < frames.Count && EmoteRules.LeanAt(s, train, t) is { } door:
+                return LeantOut(c, s, door, train, frames);
+            case Emote.SitEdge or Emote.LeanOut:
+                return c with { Emote = Emote.None, EmoteSeconds = 0 };
+        }
+        return c;
+    }
+
+    /// <summary>
+    /// Sat on an edge (note 722), as they're drawn: out from where they stand to the last of the footing at their height (the
+    /// roof's side, the sill's), <see cref="SitBack"/> in from it, facing out over it. The sim leaves them where they stood.
+    /// </summary>
+    public static Crewmate SatOn(Crewmate c, in PlayerState s, Edge edge, TrainOnLine train, IReadOnlyList<CarFrame> frames, EmoteTuning t)
+    {
+        var frame = frames[s.Parent];
+        int side = edge.Side;
+        var (x, _) = EmoteRules.EdgeX(s, train, side, t.EdgeReach + t.SillReach);
+        // At the edge's height (a running board's a step under the cab's floor).
+        var under = frame.Shape.TopAt(x, s.Position.Z, train.Vehicles[s.Parent], s.Position.Y + 0.05);
+        var local = new Double3(x - side * SitBack, under?.Top ?? s.Position.Y, s.Position.Z);
+        double yaw = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+        return c with { Feet = frame.ToWorld(local), Yaw = yaw + frame.Heading, Local = local };
+    }
+
+    /// <summary>How far in from the edge a sitter's feet (the model's origin, under the pelvis) are drawn (m): the seat on it, the knees over.</summary>
+    const double SitBack = 0.14;
+
+    /// <summary>
+    /// Leant out of a doorway (note 722), as they're drawn: on its sill, just inside the jamb, facing out through it, the head
+    /// turned to where they look (as far as a neck goes: CreatureArt clamps it).
+    /// </summary>
+    public static Crewmate LeantOut(Crewmate c, in PlayerState s, Edge door, TrainOnLine train, IReadOnlyList<CarFrame> frames)
+    {
+        var frame = frames[s.Parent];
+        var room = PlayerMotor.InCab(s, train) ? frame.Shape.Cab!.Value : frame.Shape.Interior!.Value;
+        var local = s.Position with { X = door.Side > 0 ? room.Max.X - LeanIn : room.Min.X + LeanIn };
+        // Facing along the car the way they look (up the line or down it), so the lean out reads side on from the lineside.
+        double body = -DMath.Cos(s.Yaw) <= 0 ? 0 : Math.PI;
+        int outward = door.Side * (body == 0 ? 1 : -1);
+        double turn = Math.IEEERemainder(s.Yaw - body, 2 * Math.PI);
+        return c with { Feet = frame.ToWorld(local), Yaw = body + frame.Heading, Local = local, EmoteWith = new EmoteDetail(Turn: turn, Out: outward) };
+    }
+
+    /// <summary>How far past the doorway's inner face the leaner stands (m): out on the sill, in the door's slot, toes at its edge.</summary>
+    const double LeanIn = -0.06;
 
     /// <summary>How near a waking threat has to be for a crewmate's run to be a hurried one (m).</summary>
     public const double StressRange = 30;

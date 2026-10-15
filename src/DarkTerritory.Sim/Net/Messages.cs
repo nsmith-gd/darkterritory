@@ -99,7 +99,9 @@ public static class Protocol
     //     bits 16 up), and the doors' record the jackpot houses' locks being picked after the doors shut (key, progress pairs).
     // 66: the handcar (note 729): a vehicle kind of its own and a Handcar record (hung or on the rails, the handle's swing, the
     //     pumpers' drive, the brake, a lift under way, how many at the handle); a player's flags carry Pumping.
-    public const int Version = 66;
+    // 67: emotes for two (note 722): an emote record carries the tick a high five's or fist bump's hands met and with whom;
+    //     the emote byte (protocol 60) carries the new emotes 5-8 (the high five, the fist bump, the sit, the lean) as it is.
+    public const int Version = 67;
 }
 
 public enum MessageType : byte

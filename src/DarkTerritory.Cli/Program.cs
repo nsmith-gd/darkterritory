@@ -1940,6 +1940,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --rescue handup|carryfriend (the views handup and carryfriend, note 723): a friend hauled up into a side door; one carried.
     if (Str(args, "--rescue", view switch { "handup" => "handup", "carryfriend" => "carryfriend", _ => "" }) is { Length: > 0 } rescued)
         horseplay = (Staging.Rescue(train, content, rescued), []);
+    // --emotes highfive|danceoff|sitedge|leanout (the views of the same names, note 722): the emotes for two, and the edges.
+    if (Str(args, "--emotes", Staging.EmoteViews.Contains(view) ? view : "") is { Length: > 0 } emoting)
+        horseplay = (Staging.Emotes(train, content, emoting), []);
     // The staged fire's cells as the game cuts them (enemies.json carFire.cellSize), so its flames and char draw (note 763).
     var stagedFire = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).CarFire;
     var scene = new GreyboxScene

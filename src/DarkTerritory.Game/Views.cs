@@ -180,6 +180,9 @@ public static class Views
             // Note 723 (Staging.Rescue): out on the ballast ahead of a cargo car's open side door, back at the crewmate in it hauling
             // up the friend running beside it; and close along car 2's roof at a friend carried over the shoulder.
             "handup" => HandUpCamera(train),
+            // (Not one of Names.) Note 722 (Staging.Emotes): off the train's side about 6 m out, at the emotes for two on car 2's
+            // roof, a dance-off there, a roof edge and a door sill sat on, and a doorway leant out of.
+            "highfive" or "danceoff" or "sitedge" or "leanout" => Staging.EmoteCamera(train, name),
             "carryfriend" => Camera.LookAt(target.ToWorld(new Double3(1.6, roof + 1.9, -4.4)), target.ToWorld(new Double3(-0.3, roof + 1.2, -1.0)), 50),
             "crewside" => Camera.LookAt(target.ToWorld(new Double3(2.6, roof + 1.9, -4.2)), target.ToWorld(new Double3(-0.8, roof + 1.45, -5.6)), 45),
             // (Not one of Names.) Down on the roof round the first two of the staged crew (dt screenshot --act lantern,...), close
