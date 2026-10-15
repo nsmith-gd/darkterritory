@@ -1,0 +1,20 @@
+// The handcar: The handle's see-saw at the top or bottom of its stroke: a wooden creak and the pivot's iron knock. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 4,
+ "loop": false,
+ "maxInstances": 12,
+ "minDistance": 2,
+ "maxDistance": 120,
+ "rolloff": 0.9,
+ "gainDb": 2,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "crew-handcar/creak",
+   "gain": 1,
+   "pitchJitter": 0.4,
+   "gainJitter": 1.0
+  }
+ ]
+}

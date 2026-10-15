@@ -54,6 +54,10 @@ public sealed partial class GameAudio
                 case KnockKind.Bonk when Victim(train, h.Target, 1.65) is { } at:
                     Cue("crew-horseplay.bonk", at, outside);
                     break;
+                // A friend thrown off the shoulder (note 782; note 723's Rescue.Throw, crew mischief on): the thrower's heave.
+                case KnockKind.Throw when Victim(train, h.By, 1.3) is { } at:
+                    Cue("crew-rescue.throw", at, outside);
+                    break;
                 case KnockKind.Coal when h.Target < 0:
                     // Flung off the shovel: the blade swung (the shovelful never reaches the fire, so nothing's heard there).
                     if (Victim(train, h.By, 1.2) is { } hands)
@@ -73,7 +77,11 @@ public sealed partial class GameAudio
             if (throwers.Contains(lump.By)
                 || world.ActiveEnemies.Any(e => !e.Gone && (e.WorldPosition(train) - lump.Position).Length <= LumpOnCreature))
                 continue;
-            Cue("crew-horseplay.coal-land", LumpLandsOn(world, lump.Position), lump.Position, outside);
+            var on = LumpLandsOn(world, lump.Position);
+            Cue("crew-horseplay.coal-land", on, lump.Position, outside);
+            // On the ground by the rails, a knock (note 781; World.Horseplay's lump on the rails): any lump that comes down there.
+            if (on is not ("roof" or "wood"))
+                RailKnock(world, lump.Position, double.PositiveInfinity, train.Dynamics.Distance, outside);
         }
         foreach (var l in world.Lumps)
             _lumpsSeen[l.Id] = l;

@@ -223,6 +223,32 @@
     "crew-memory.flash": "A FLASH GOING OFF, A SHUTTER CLICKING",
     "world-comet.hum": "A LOW, WRONG HUM",
     "crew-speaking-tube.call": "A WHISTLE DOWN THE TUBE",
+    // The sense table (note 781): what the crew's things do now, heard as the things themselves.
+    "world-rail-knock.knock": "A CLANG RINGING DOWN THE RAILS",
+    "crew-lamp-broken.smash": "GLASS BREAKING, OIL CATCHING",
+    "crew-lamp-broken.burn": "A SMALL FIRE CRACKLING",
+    "cs-hounds-doused.doused": "A HISS AND A YELP",
+    // Bringing them home (note 782).
+    "crew-rescue.haul": "SOMEONE HAULED ABOARD",
+    "crew-rescue.lift": "A GRUNT, SOMEONE HEAVED UP",
+    "crew-rescue.set": "SOMEONE SET DOWN",
+    "crew-rescue.throw": "A HEAVE, SOMEONE THROWN",
+    // Big finds (note 783): the bell's ring and the fragile finds breaking (the lock's the wrench's own).
+    "loot-jackpot.bell": "A BELL'S DULL RING",
+    "loot-fragile.glass": "GLASS BREAKING",
+    "loot-fragile.decanter": "GLASS SHATTERING",
+    "loot-fragile.clock": "A CLOCK SMASHING",
+    // The handcar (note 784).
+    "crew-handcar.set": "A HANDCAR DROPPED ONTO THE RAILS",
+    "crew-handcar.brake": "A HANDCAR'S BRAKE SQUEALING",
+    // Sound cues in the world (note 785): what jumped a coupling's pin; the world sounding before it bites.
+    "state-coupling-loose.jump-brake": "COUPLINGS SLAMMING, A PIN JUMPING",
+    "state-coupling-loose.jump-coupled": "A COUPLER CLASHING, A PIN JUMPING",
+    "state-coupling-loose.jump-bend": "CARS LURCHING, A PIN JUMPING",
+    "tell-house.creak": "BOARDS CREAKING INSIDE",
+    "tell-householder.shift": "A CHAIR SHIFTING",
+    "world-bell.far": "A BELL, FAR OFF",
+    "world-dog.bark": "A DOG BARKING, FAR OFF",
     "cs-grumbler.feral": "A RAGGED BELLOW, TEETH GNASHING",
     "cs-grumbler.eat": "SLATS SPLITTING, GNAWING",
     "cs-choir.arrive": "BELLS SWELLING INTO SONG",

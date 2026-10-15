@@ -18,15 +18,16 @@ public static class Rescue
     /// </summary>
     public static bool CanHelp(in PlayerState s) =>
         s.Alive && s.Stagger == 0 && s.Grounded && !s.Has(PlayerFlags.Held) && !s.Has(PlayerFlags.Seated) && !s.Has(PlayerFlags.Operating)
-        && !s.Has(PlayerFlags.Carried) && !s.Has(PlayerFlags.Carrying);
+        && !s.Has(PlayerFlags.Carried) && !s.Has(PlayerFlags.Carrying) && !s.Has(PlayerFlags.Hoisted);
 
     /// <summary>
     /// Note 723: a carried crewmate's intent: they look, talk and wriggle (Jump), and nothing else, the cab's controls included
-    /// (their feet aren't theirs). The dead's own keys stay, as a stagger's do.
+    /// (their feet aren't theirs). The dead's own keys stay, as a stagger's do. Note 726: and one riding a crane's hook, whose
+    /// Jump lets go of it.
     /// </summary>
     public static PlayerIntent CarriedIntent(in PlayerState s, in PlayerIntent intent)
     {
-        if (!s.Has(PlayerFlags.Carried) || !s.Alive)
+        if (!s.Has(PlayerFlags.Carried) && !s.Has(PlayerFlags.Hoisted) || !s.Alive)
             return intent;
         return intent with
         {
@@ -89,7 +90,7 @@ public static class Rescue
         double bestD = double.MaxValue;
         foreach (var (id, o) in mates)
         {
-            if (id == self || !o.Alive || o.Parent != PlayerState.World || o.Has(PlayerFlags.Held) || o.Has(PlayerFlags.Carried) || o.Surface == Surface.Ladder)
+            if (id == self || !o.Alive || o.Parent != PlayerState.World || o.Has(PlayerFlags.Held) || o.Has(PlayerFlags.Carried) || o.Has(PlayerFlags.Hoisted) || o.Surface == Surface.Ladder)
                 continue;
             var feet = o.Position;
             double d = FromBody(chest, feet);

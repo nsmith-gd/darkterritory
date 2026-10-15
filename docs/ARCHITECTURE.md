@@ -906,6 +906,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [722. Emotes for two, and more of them (K1, queue #456; the director, 14 Oct 2026, `docs/design/friendslop.md` §3, GDD App. F.6)](notes/722.md)
 - [723. Bringing them home (K1, queue #457; the director, 14 Oct 2026, `docs/design/friendslop.md` §3, GDD App. F.6)](notes/723.md)
 - [724. Sessions (K1, queue #458; the director, 14 Oct 2026, `docs/design/friendslop.md`, GDD App. F.6)](notes/724.md)
+- [726. Hoist a friend on the crane's hook (K1, queue #460; the director, 14 Oct 2026, `docs/design/friendslop.md`, GDD App. F.6)](notes/726.md)
 - [727. The mail catch (K1, queue #461; the director, 14 Oct 2026, GDD App. F.6)](notes/727.md)
 - [728. The sense table, and thrown things do what they are (K1, queue #462; the director, 14 Oct 2026, `docs/design/friendslop.md`, GDD App. F.6;…](notes/728.md)
 - [729. The handcar (K1, queue #463; the director, 14 Oct 2026, `docs/design/friendslop.md`, GDD App. F.6)](notes/729.md)
@@ -955,5 +956,10 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [778. Nothing lies across the track: the boughs, the deadfall, a boulder, the yards' racks of rail, the stands' trees, a dead line's land and the…](notes/778.md)
 - [790. The Mouse Moose (A1, queue #515; the director, 15 Oct 2026, in A1's chat)](notes/790.md)
 - [780. Each night its own lineside: the art's dressing dealt from the night's own seed, not the same at the same km every night (queue #510, B1;…](notes/780.md)
+- [781. The sense table heard (AU1, queue #511; K1's #1026, note 728's "left for later": "Sounds (AU1's)")](notes/781.md)
+- [782. Bringing them home heard (AU1, queue #512; K1's #1026, note 723's "left for later")](notes/782.md)
+- [783. Big finds heard (AU1, queue #513; K1's #1026, note 719's "left for later")](notes/783.md)
+- [784. The handcar heard (AU1, queue #514; K1's #1026, note 729's "left for later": "the sim's state says when")](notes/784.md)
+- [785. Sound cues in the world heard (AU1, queue #518; K1's #1034, note 732's "left for later": "The sounds, for AU1"; note 731)](notes/785.md)
 - [792. The railway's leavings beside the line solid: dealt by the sim, stood on their footprints, drawn from its list (queue #517, B1; GDD App.…](notes/792.md)
 <!-- end of the notes index -->
