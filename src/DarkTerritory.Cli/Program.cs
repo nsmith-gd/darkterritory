@@ -3606,10 +3606,18 @@ static object HudShot(string content, string[] args)
             ? Staging.MailCrane(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "frontier:7", cars), cars, craneSeconds, atDoor: !args.Contains("--mid-car"))
             : roofWarning == "bend-cab"
             ? Staging.BendWarning(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "deadLines:1", cars), cars, Array.IndexOf(args, "--bend-warning") is var bw && bw + 1 < args.Length && double.TryParse(args[bw + 1], System.Globalization.CultureInfo.InvariantCulture, out double bws) ? bws : 4)
+            // --terminus approach|inside|home (note 765): the last town coming up, in through its gate, or the train all in and rolling.
+            : Str(args, "--terminus", "") is { Length: > 0 } terminusAt
+            ? Staging.Terminus(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "frontier:7", cars), cars, terminusAt)
+            // --spur-stop [s] (note 764): stopped by a facility down a spur, the dawn clock s seconds out (150).
+            : args.Contains("--spur-stop")
+            ? Staging.SpurStop(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "frontier:7", cars), cars,
+                Array.IndexOf(args, "--spur-stop") is var sp && sp + 1 < args.Length && double.TryParse(args[sp + 1], System.Globalization.CultureInfo.InvariantCulture, out double dawnIn) ? dawnIn : 150)
             : roofWarning.Length > 0
             ? Staging.RoofWarning(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "deadLines:1", cars), cars, roofWarning)
             : generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: false);
-        if (roofWarning.Length == 0 && mailCrane is null)
+        bool setUp = roofWarning.Length > 0 || mailCrane is not null || args.Contains("--spur-stop") || args.Contains("--terminus");
+        if (!setUp)
             solo.Controls.Throttle = Opt(args, "--throttle", args.Contains("--talk") ? 0 : 0.6);
         // (--news: out of the yard and under way, where cars are lost.)
         if (args.Contains("--news"))
@@ -3618,7 +3626,7 @@ static object HudShot(string content, string[] args)
         if (Str(args, "--hazards", "") is { Length: > 0 } hz)
             DarkTerritory.Sim.Net.HazardConditions.Apply(solo.Train.Line,
                 DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Combinations.HazardSets.First(h => h.Name == hz));
-        for (int i = 0; i < (roofWarning.Length > 0 || mailCrane is not null ? 1 : Opt(args, "--seconds", 6) * SimConstants.TickRate); i++)
+        for (int i = 0; i < (setUp ? 1 : Opt(args, "--seconds", 6) * SimConstants.TickRate); i++)
             solo.Step(new PlayerIntent { LookPitch = i == 0 ? (float)Opt(args, "--pitch", 0) : 0, LookYaw = i == 0 ? (float)Opt(args, "--yaw", 0) : 0 });
         // --mend [t]: the repair kit in hand and a broken radio on the belt (GDD §23; note 201), t seconds into mending it.
         if (args.Contains("--mend"))
@@ -3911,13 +3919,17 @@ static object HudShot(string content, string[] args)
         wheel.Update(true, -60, 0);
         wheel.Draw(hud, width, height, Hud.PromptScaleAt(scale));
     }
-    // --radio manifest|tally [s]: the fortress on the radio (GDD §9; note 178), staged from this night and a delivered report,
-    // --radio-at s into the reading.
+    // --radio manifest|tally|red [s]: the fortress on the radio (GDD §9; note 178), staged from this night and a delivered report
+    // (red: one delivered in the red, three of the crew lost, the clerk saying what cost most; note 766), --radio-at s into the
+    // reading.
     if (Str(args, "--radio", "") is { Length: > 0 } reading)
     {
-        var lines = reading == "tally"
-            ? DarkTerritory.Sim.Run.Radio.Tally(Staging.Report(session.World, DarkTerritory.Sim.Run.RunEnd.Delivered))
-            : DarkTerritory.Sim.Run.Radio.Manifest(session.World, [0, 1, 2, 3]);
+        var lines = reading switch
+        {
+            "tally" => DarkTerritory.Sim.Run.Radio.Tally(Staging.Report(session.World, DarkTerritory.Sim.Run.RunEnd.Delivered)),
+            "red" => DarkTerritory.Sim.Run.Radio.Tally(Staging.InTheRed(session.World)),
+            _ => DarkTerritory.Sim.Run.Radio.Manifest(session.World, [0, 1, 2, 3]),
+        };
         Hud.RadioCard(hud, width, height, lines, Opt(args, "--radio-at", 6), session.World.Run?.Tuning.Radio ?? new());
     }
     // --supplies: the supplies aboard (the director's decision of 2026-10-06; note 264), as I toggles it on.
