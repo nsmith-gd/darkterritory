@@ -233,6 +233,7 @@ public sealed record MarkedTuning
     public double TargetWeight { get; init; } = 6;
     public double AllowanceM { get; init; } = 20;
     public double PressurePerSecond { get; init; } = 0.1;
+    public bool EndsAtDeath { get; init; } = true;
 }
 
 /// <summary>Crewmates solid to each other (note 717). Docs in player.json <c>horseplay.crowd</c>.</summary>

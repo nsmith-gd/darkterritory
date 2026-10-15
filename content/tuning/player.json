@@ -217,6 +217,12 @@
     "seconds": 5,
     "cutToldAbove": 1.5
   },
+  // Incidents travel the train (GDD open question 2 and App. D.6; ARCHITECTURE §8 note 750; the social collision audit's R1,
+  // the director, 14 Oct 2026: "looks good"). Roll call stays verbal, but an emergency is shown: a crewmate held, or killed,
+  // further than beyondMetres from you (voice's reach, spec A.5's 26 m: nearer, you hear it) is a line under the news, who
+  // and where, never what: "PRIYA - CAR 4 ROOF" for as long as they're held, "PRIYA IS GONE - CAR 4" for deathSeconds.
+  // Each machine works it out for its own player from the snapshots. Never shown to the dead. Off: nothing shown.
+  "crewNews": { "on": true, "beyondMetres": 26, "deathSeconds": 4 },
   // Horseplay (GDD §23.4; ARCHITECTURE §8 note 717). The director, 14 Oct 2026: "The griefer ideas are funny"; "if we're
   // going to allow shoving, then we need shoving to be in full effect, which means if you're standing on top of a car, you
   // can be shoved off of it. And at speed, it kills you"; and the lump of coal "is going to need to be able to work with the
@@ -265,14 +271,15 @@
     "bonk": { "staggerSeconds": 0.3, "reportFrom": 5 },
     // The director, 14 Oct 2026: "With shoving if a player ever shoves another player and that results in their death all the
     // monsters in the game should target more heavily the murderer player so they are heavily likely to die (even if they rescue
-    // the player from a holdout)". A shove that kills marks the shover for the rest of the night (a Holdout's return, a rescue,
-    // their own death and return: none of it clears it). Every creature choosing whom to go for counts them targetWeight times
+    // the player from a holdout)". A shove that kills marks the shover for the rest of the night (a Holdout's return, a rescue:
+    // neither clears it), until the shover dies: the director, 14 Oct 2026, "Shovers mark should reset to normal targeting
+    // after they are killed" (GDD §23.4, note 754). endsAtDeath: false keeps it through their death and return too. Every creature choosing whom to go for counts them targetWeight times
     // nearer and allowanceM (m) nearer again, so one that can reach them prefers them over someone closer; the Choir takes the
     // loudest still, the mark its tiebreak; the Moose hears a marked voice targetWeight times louder; the director sends its next
     // threat at their post, and what they do draws the dark targetWeight times harder; and while they're on foot the pressure
     // builds pressurePerSecond faster (enemies.json pressure's terms are of that order). The news and the report say so:
     // "Marked: Dave (shoved Priya off at 58 km/h)." No marker on anyone's HUD. enabled: false, no mark.
-    "marked": { "enabled": true, "targetWeight": 6, "allowanceM": 20, "pressurePerSecond": 0.1 }
+    "marked": { "enabled": true, "targetWeight": 6, "allowanceM": 20, "pressurePerSecond": 0.1, "endsAtDeath": true }
   },
   // Bringing them home (GDD §17, §23.5; ARCHITECTURE §8 note 723; the friendslop audit's pillar "nobody gets left", approved by
   // the director, 14 Oct 2026): the physical verbs that answer "the engine can leave without you".
@@ -318,6 +325,13 @@
     // seenWithin (m) of the cab or the van's rear: STOP, it brakes to a stand and stands up to standSeconds (or till GO);
     // GO, it releases and goes on; BACK UP, at a stand it sets back backMetres at backSpeed (m/s) and stands. A STOP shown
     // to a moving train that stands within stoppedWithin (s) is named in the incident report.
-    "lampSignals": { "seconds": 3, "cooldown": 0.5, "seenWithin": 60, "standSeconds": 90, "backMetres": 40, "backSpeed": 1.5, "stoppedWithin": 40 }
+    "lampSignals": { "seconds": 3, "cooldown": 0.5, "seenWithin": 60, "standSeconds": 90, "backMetres": 40, "backSpeed": 1.5, "stoppedWithin": 40 },
+    // A hand over the mouth (GDD App. C.8; note 749; the director, 14 Oct 2026: "A grab should allow players to still use the
+    // radio but their voice should be muffle filtered as if the grab is covering their mouth partially"). While a crewmate is
+    // held, each listener's client plays their voice in the air and on the radio muffled, not cut: gainDb quieter, and
+    // through the sounds' own low-pass on their "covered" parameter (voice.json and voice-radio.json, 1.4 kHz). A creature
+    // that does its own thing to the voice keeps it, alone: Tippy Toesie's hand (muffled) and a Soot Child's draining
+    // (fading). Off: a held voice as it was.
+    "covered": { "on": true, "gainDb": -6 }
   }
 }

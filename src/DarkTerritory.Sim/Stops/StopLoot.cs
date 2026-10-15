@@ -141,13 +141,26 @@ public sealed record LootKindTuning
 /// <summary>
 /// loot.json <c>comet</c> (note 718; the director, 14 Oct 2026: comet cargo "needs to be at actual stops"): each stop's chance
 /// of a comet fragment or few, by tier key; how many; the find it is (a body of a find's <see cref="LootTuning.Radius"/>).
+/// Note 755 (the social collision audit's R6): with <see cref="PerNight"/> set, a night's chance of fragments instead, that
+/// many at most, each at a stop of its own, out off the line in the headlamp's sight.
 /// </summary>
 public sealed record CometLootTuning
 {
     public string Item { get; init; } = "cometFragment";
-    /// <summary>By tier key (run.json's), looked up, never iterated.</summary>
+    /// <summary>By tier key (run.json's), looked up, never iterated. Each stop's, when <see cref="PerNight"/> is 0.</summary>
     public Dictionary<string, double> Chance { get; init; } = new();
     public int[] Count { get; init; } = [1, 1];
+    /// <summary>Note 755: how many a night holds when it holds any (each at a different stop); 0, note 718's per stop.</summary>
+    public int PerNight { get; init; }
+    /// <summary>Note 755: a night's chance of its fragments, by tier key, looked up, never iterated.</summary>
+    public Dictionary<string, double> NightChance { get; init; } = new();
+    /// <summary>Note 755: how far off the main line one lies (m), least and most.</summary>
+    public double[] OffLine { get; init; } = [40, 90];
+    /// <summary>Note 755: the headlamp's cone (degrees off the line ahead) and its reach (m), for a fragment to be in its sight.</summary>
+    public double SightCone { get; init; } = 18;
+    public double SightRange { get; init; } = 300;
+    /// <summary>Note 755: places tried at a stop before the next stop down the line is tried.</summary>
+    public int Tries { get; init; } = 24;
 }
 
 /// <summary>loot.json <c>tally</c> (note 718): how many kinds of the night's finds the clerk names, and whether the finder's line is read.</summary>
@@ -277,7 +290,7 @@ public static class StopLoot
     /// </summary>
     public static IReadOnlyList<int> Comets(LootTuning t, StopLayout stop, ulong routeSeed, int feature, RouteTier tier, Func<StopContainer, bool> lyingOut)
     {
-        if (t.Comet is not { } comet || comet.Chance.GetValueOrDefault(TierKey(tier)) is not (> 0 and var chance))
+        if (t.Comet is not { PerNight: <= 0 } comet || comet.Chance.GetValueOrDefault(TierKey(tier)) is not (> 0 and var chance))
             return [];
         var rng = new Ballast.Pcg32(StopSeed.Of(StopSeed.Of(routeSeed, StopSeed.Comet, (ulong)feature), stop.Seed));
         if (rng.NextDouble() >= chance)
@@ -362,6 +375,19 @@ public static class StopLoot
             }
         }
         return list;
+    }
+
+    /// <summary>
+    /// Whether tonight holds comet fragments (note 755; loot.json <c>comet.nightChance</c> by tier), from the run's seed on a
+    /// stream of its own, and that stream to place them with: null on a night without (or with <c>perNight</c> 0, note 718's
+    /// stops' own chances).
+    /// </summary>
+    public static Ballast.Pcg32? CometNight(LootTuning t, ulong routeSeed, RouteTier tier)
+    {
+        if (t.Comet is not { PerNight: > 0 } comet || comet.NightChance.GetValueOrDefault(TierKey(tier)) is not (> 0 and var chance))
+            return null;
+        var rng = new Ballast.Pcg32(StopSeed.Of(routeSeed, StopSeed.Comet, 0xC0_4E_7Eul));
+        return rng.NextDouble() < chance ? rng : null;
     }
 
     /// <summary>

@@ -9,6 +9,11 @@ static class Tuning
     static readonly string Content = DataFile.FindContentRoot();
     public static readonly TrainTuning Train = DataFile.Load<TrainTuning>(Path.Combine(Content, TrainTuning.File));
     public static readonly PlayerTuning Player = DataFile.Load<PlayerTuning>(Path.Combine(Content, PlayerTuning.File));
+    /// <summary>
+    /// The train with its loose radio sets (T41) rather than one on every crewmate (note 749's <c>kit.radioEach</c> off): for
+    /// the tests of picking one up, passing it on and the kit mending one lying loose.
+    /// </summary>
+    public static readonly TrainTuning LooseRadios = Train with { Kit = Train.Kit with { RadioEach = false } };
     public static readonly DarkTerritory.Sim.Route.RouteTuning Route = DarkTerritory.Sim.Route.RouteTuning.Load(Content);
     public static readonly DarkTerritory.Sim.Combat.CombatTuning Combat = DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(Content, DarkTerritory.Sim.Combat.CombatTuning.File));
     public static readonly DarkTerritory.Sim.Enemies.EnemyTuning Enemies = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(Content, DarkTerritory.Sim.Enemies.EnemyTuning.File));

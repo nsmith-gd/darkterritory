@@ -83,6 +83,14 @@ public sealed class VoiceChat
         /// the Holdout, whatever the cut says.
         /// </summary>
         public Ballast.Double3? LiveMic;
+        /// <summary>
+        /// Note 749 (App. C.8): held by something, as the snapshots say, so a hand's partly over their mouth; and whether the
+        /// host's last frame of theirs carried a creature's own effect (Tippy Toesie's hand, a Soot Child's draining), which
+        /// is theirs alone.
+        /// </summary>
+        public bool Held, Creature;
+        /// <summary>The hand's share of their voice in the air (1 uncovered), for <see cref="Decode"/>'s volume.</summary>
+        public float HandGain = 1;
     }
 
     public IEnumerable<byte> Speakers => _speakers.Keys;
@@ -174,6 +182,10 @@ public sealed class VoiceChat
                 }
         foreach (var s in _speakers.Values)
             s.LiveMic = client.World.Holdouts?.LiveMicOf(s.Id)?.Inside;
+        // Note 749: who's held, from the snapshots (no word on the wire): their voice goes through a hand over the mouth.
+        var covered = client.PlayerTuning.Voices.Covered;
+        foreach (var s in _speakers.Values)
+            s.Held = covered.On && client.TryGetRemote(s.Id, 1, out var them) && them.Alive && them.Has(Sim.Player.PlayerFlags.Held);
         foreach (var s in _speakers.Values)
             s.Order.Drain(_clock, (_, f) => Decode(s, f));
         foreach (var (source, m) in _mimics.ToList())
@@ -209,6 +221,17 @@ public sealed class VoiceChat
                         s.NearVoice.Position = c.Feet + Double3.Up * 1.6;
             s.RadioKeyed = Math.Max(0, s.RadioKeyed - dt);
             s.RadioVoice?.Params.Set("keyed", s.RadioKeyed > 0 || s.Radio.Playing ? 1 : 0);
+            // Note 749 (App. C.8): held, a hand partly over the mouth, in the air and on the radio: muffled, never cut. A
+            // creature's own effect on the voice is left alone (Decode).
+            bool hand = s.Held && !s.Creature;
+            float handGain = hand ? Audio.DbToGain(covered.GainDb) : 1f;
+            s.NearVoice?.Params.Set("covered", hand ? 1 : 0);
+            if (s.RadioVoice is not null)
+            {
+                s.RadioVoice.Params.Set("covered", hand ? 1 : 0);
+                s.RadioVoice.Volume = handGain;
+            }
+            s.HandGain = handGain;
             RadioSet(s);
         }
         // Whoever's left the session goes quiet.
@@ -289,8 +312,9 @@ public sealed class VoiceChat
             // A hand over the mouth (Tippy Toesie, GDD v1.1 App. C.8) muffles like a wall; a Soot Child drinking fades the
             // cries for help, as the host says how much is left.
             bool muffled = f.Path.HasFlag(VoicePath.Muffled);
+            s.Creature = muffled || f.Path.HasFlag(VoicePath.Fading);
             s.NearVoice.Occlusion = f.Path.HasFlag(VoicePath.Occluded) || muffled ? 1 : 0;
-            s.NearVoice.Volume = (float)((muffled ? 0.45 : 1) * (f.Path.HasFlag(VoicePath.Fading) ? f.Gain : 1));
+            s.NearVoice.Volume = (float)((muffled ? 0.45 : 1) * (f.Path.HasFlag(VoicePath.Fading) ? f.Gain : 1) * (s.Creature ? 1 : s.HandGain));
         }
         if (s.MimicVoice is not null)
             s.MimicVoice.Occlusion = f.Path.HasFlag(VoicePath.Occluded) ? 1 : 0;

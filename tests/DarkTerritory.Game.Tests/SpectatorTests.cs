@@ -63,8 +63,19 @@ public class SpectatorTests
         server.SetPlayerState((byte)host.PlayerId, host.Player with { Health = 0, Death = DeathCause.Mauled });
         Step(SimConstants.TickRate / 2);
         Assert.Equal(b.PlayerId, a.Watching);
-        // Nobody left: your own eyes, and the HUD says so.
+        // Nobody left alive: their bodies, where they fell (note 743), and a step goes round them.
         server.SetPlayerState((byte)b.PlayerId, b.Player with { Health = 0, Death = DeathCause.Mauled });
+        Step(SimConstants.TickRate / 2);
+        Assert.Contains(a.Watching, new[] { host.PlayerId, b.PlayerId });
+        Assert.False(a.Viewpoint.Alive);
+        Assert.NotNull(DeadViews.BodyOf(a));
+        int first = a.Watching;
+        Step(1, new PlayerIntent { Buttons = PlayerButtons.Fire });
+        Step(1);
+        Assert.NotEqual(first, a.Watching);
+        // No bodies either: your own eyes, and the HUD says so.
+        foreach (var body in server.World.Bodies.All.Where(x => x.Kind == DarkTerritory.Sim.Physics.BodyKind.Ragdoll).ToList())
+            server.World.Bodies.Remove(body);
         Step(SimConstants.TickRate / 2);
         Assert.Equal(-1, a.Watching);
         Assert.Equal(a.Player, a.Viewpoint);

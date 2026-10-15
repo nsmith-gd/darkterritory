@@ -377,6 +377,36 @@ public class CarFireTests
     }
 
     [Fact]
+    public void TwoExtinguishersOnOneCellCoolItTwiceAsFast()
+    {
+        // Note 752 (GDD §12, one can, two do it faster): each sprayer cools the cell it's aimed at by its own sprayPerSecond,
+        // so two on one cell already put it out twice as fast; pinned here.
+        double Drop(int sprayers)
+        {
+            var (n, fire, _, room) = Armed();
+            fire.Ablaze(0.97);
+            var grid = FireGrid.Of(n.Train, 2, Tuning.Enemies.CarFire.CellSize)!;
+            int cell = grid.FloorAt(fire.Local);
+            var at = grid.Centre[cell];
+            n.Crew[1] = Aim(n.Crew[1] with { Position = new Double3(room.Centre.X, room.Min.Y, at.Z - 2) }, at);
+            if (sprayers > 1)
+            {
+                var second = n.World.Bodies.SpawnCrate(n.Train, 2, new Double3(room.Centre.X - 0.3, room.Min.Y, at.Z - 2.2), BodyKind.Extinguisher);
+                second.Carrier = 2;
+                second.Claimed = true;
+                n.Crew[2] = Aim(n.Crew[1] with { Position = new Double3(room.Centre.X - 0.3, room.Min.Y, at.Z - 2.2) }, at);
+            }
+            n.Run(SimConstants.TickSeconds);
+            double was = fire.Heat[cell];
+            n.Run(0.25, _ => new PlayerIntent { Buttons = PlayerButtons.Fire });
+            Assert.True(fire.Heat[cell] > 0, "still alight: the drop isn't cut short at nothing");
+            return was - fire.Heat[cell];
+        }
+        double one = Drop(1), two = Drop(2), spray = Tuning.Enemies.CarFire.SprayPerSecond * 0.25;
+        Assert.InRange(two - one, 0.85 * spray, 1.15 * spray);
+    }
+
+    [Fact]
     public void HeldOnTheFloorAheadTheSprayPutsOutTheWholeStretchRoundTheCarThere()
     {
         // Note 662 (the director, 13 Oct: "point at it ... one grid ahead of me ... hold. And it should dissipate within five

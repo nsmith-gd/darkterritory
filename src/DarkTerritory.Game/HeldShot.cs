@@ -77,14 +77,7 @@ public static class HeldShot
         var at = target + side * back - axis * (back * 0.35) + Double3.Up * (0.6 + 0.5 * size);
         if (car is { Shape.Interior: { } room } frame)
         {
-            // In the car with you: the room's inside, a hand's width off its walls, floor and ceiling.
-            const double Margin = 0.2;
-            var local = frame.ToLocal(at);
-            local = new Double3(
-                Math.Clamp(local.X, room.Min.X + Margin, room.Max.X - Margin),
-                Math.Clamp(local.Y, room.Min.Y + 1.0, room.Max.Y - Margin),
-                Math.Clamp(local.Z, room.Min.Z + Margin, room.Max.Z - Margin));
-            var kept = frame.ToWorld(local);
+            var kept = InRoom(frame, room, at);
             // Pushed in off a wall, the camera's nearer you than it framed for: look at you, and past you at it.
             if ((kept - at).Length > 0.05)
                 target = you + Double3.Up * 0.9 + (holder - you) * 0.3;
@@ -93,6 +86,21 @@ public static class HeldShot
         else if (ground is not null)
             at = at with { Y = Math.Max(at.Y, ground(at.X, at.Z) + 1.2) };
         return Camera.LookAt(at, target, Fov) with { Near = eyes.Near, Far = eyes.Far };
+    }
+
+    /// <summary>
+    /// A camera kept in a car's room (<paramref name="room"/>, its <see cref="CarShape.Interior"/>): a hand's width off its
+    /// walls and ceiling, a metre off its floor. The held shot's, and the dead's over a shoulder (note 743).
+    /// </summary>
+    public static Double3 InRoom(CarFrame frame, Box room, Double3 at)
+    {
+        const double Margin = 0.2;
+        var local = frame.ToLocal(at);
+        local = new Double3(
+            Math.Clamp(local.X, room.Min.X + Margin, room.Max.X - Margin),
+            Math.Clamp(local.Y, room.Min.Y + 1.0, room.Max.Y - Margin),
+            Math.Clamp(local.Z, room.Min.Z + Margin, room.Max.Z - Margin));
+        return frame.ToWorld(local);
     }
 
     /// <summary>Your own figure, drawn while the shot's on you (it isn't round your eyes otherwise).</summary>

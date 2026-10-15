@@ -35,8 +35,8 @@ public sealed partial class Run
     readonly Dictionary<int, int> _carriedBy = new();
     /// <summary>Who brought each of <see cref="Stowed"/> aboard, in step with it (−1: nobody known, a resumed night's older save's).</summary>
     readonly List<int> _finders = [];
-    /// <summary>Each stop's comet fragments (note 718), by the container each lies beside, in <see cref="_stopLoot"/>'s order.</summary>
-    readonly List<IReadOnlyList<int>> _comets = [];
+    /// <summary>Each stop's comet fragments (notes 718, 755), where each lies in the stop's rail frame, in <see cref="_stopLoot"/>'s order.</summary>
+    readonly List<IReadOnlyList<Pt>> _comets = [];
     /// <summary>A resumed night's banked finds' owners (<see cref="RunTakings.Banked"/>): their bodies bank without paying again.</summary>
     readonly List<int> _alreadyBanked = [];
     /// <summary>Note 719: each stop's jackpot house (its building, or −1), in <see cref="_stopLoot"/>'s order.</summary>
@@ -118,10 +118,7 @@ public sealed partial class Run
             }
         _stocked = new bool[_stopLoot.Count];
         FindHidingSpots();
-        // Note 718: the stops' comet fragments, each beside something lying out in the open, to be seen from the line.
-        _comets.Clear();
-        foreach (var (_, index, stop, _, _, _) in _stopLoot)
-            _comets.Add(StopLoot.Comets(t, stop, _route.Seed, index, _route.Tier, c => CometAt(stop, c) is not null));
+        PlaceComets(t, line);
         if (facilities is not null)
             BuildYardCranes(facilities.Crane);
     }
@@ -338,13 +335,132 @@ public sealed partial class Run
                     yield return StopWalls.DoorKey(_stopLoot[k].Index, _locked[k], door);
     }
 
+    /// <summary>
+    /// The night's comet fragments. Note 718's (loot.json <c>comet.perNight</c> 0): each stop's chance, beside something lying
+    /// out in the open. Note 755 (the social collision audit's R6, the director, 14 Oct 2026: "good"): a night's chance, at
+    /// most <c>perNight</c>, each at a stop of its own (the seed picks the first stop tried, then on down the line and round),
+    /// out off the line in the headlamp's sight. Host and clients alike, from the seed and the line, so every machine agrees.
+    /// </summary>
+    void PlaceComets(LootTuning t, RailLine line)
+    {
+        _comets.Clear();
+        if (t.Comet is { PerNight: > 0 } comet)
+        {
+            foreach (var _ in _stopLoot)
+                _comets.Add([]);
+            if (_stopLoot.Count == 0 || StopLoot.CometNight(t, _route.Seed, _route.Tier) is not { } night)
+                return;
+            var rng = night;
+            int first = (int)(rng.NextDouble() * _stopLoot.Count), placed = 0;
+            for (int j = 0; j < _stopLoot.Count && placed < comet.PerNight; j++)
+            {
+                int k = (first + j) % _stopLoot.Count;
+                if (OffLine(line, _stopLoot[k].Feature, _stopLoot[k].Stop, comet, ref rng) is { } p)
+                {
+                    _comets[k] = [p];
+                    placed++;
+                }
+            }
+            return;
+        }
+        // Note 718: the stops' comet fragments, each beside something lying out in the open, to be seen from the line.
+        foreach (var (_, index, stop, _, _, _) in _stopLoot)
+            _comets.Add([.. StopLoot.Comets(t, stop, _route.Seed, index, _route.Tier, c => CometAt(stop, c) is not null)
+                .Select((c, i) => (CometAt(stop, stop.Containers[c]) ?? StopWalls.FindAt(stop, stop.Containers[c])) + new Pt(-0.7 * i, 0))]);
+    }
+
+    /// <summary>
+    /// Note 755: where a comet fragment lies off the line at a stop, <c>offLine</c> metres out (the village's side first: past
+    /// the stop's own ground, in among the houses, or out beyond the yard), on dry ground clear of any building, and in the
+    /// headlamp's sight: somewhere on the way in, the lamp's cone (<c>sightCone</c>, <c>sightRange</c>) finds it with nothing
+    /// built and no land between. A stop with nowhere sighted takes the first open place tried (out on the far side, in the
+    /// band, unsighted: the glow carries); one with none at all, none.
+    /// </summary>
+    static Pt? OffLine(RailLine line, RouteFeature f, StopLayout stop, CometLootTuning c, ref Pcg32 rng)
+    {
+        double near = c.OffLine[0], far = c.OffLine[^1];
+        int side = stop.VillageSide != 0 ? stop.VillageSide : stop.YardSide != 0 ? stop.YardSide : rng.NextDouble() < 0.5 ? -1 : 1;
+        Pt? open = null;
+        for (int i = 0; i < c.Tries; i++)
+        {
+            // Half the tries on the village's side, then the other.
+            var p = new Pt(rng.Range(0.1, 0.9) * stop.ZoneLength, (i < (c.Tries + 1) / 2 ? side : -side) * rng.Range(near, far));
+            if (stop.Buildings.Any(b => Plan.Inside(p, b, 2)))
+                continue;
+            var at = Lying(line, f, p);
+            if (WaterAt(line, at) is not null)
+                continue;
+            open ??= p;
+            if (InTheLamp(line, f, stop, p, at, c))
+                return p;
+        }
+        return open;
+    }
+
+    /// <summary>A point in a stop's rail frame on the ground there (the land's, off a generated line's formation).</summary>
+    static Double3 Lying(RailLine line, RouteFeature f, Pt p)
+    {
+        var at = StopWorld(line, f, p);
+        double hint = f.Start + p.S;
+        return at with { Y = Player.PlayerMotor.GroundAt(at, line, ref hint) };
+    }
+
+    static double? WaterAt(RailLine line, Double3 p) =>
+        (line.Conditions is Net.HazardConditions h ? h.Inner : line.Conditions) is LineGen.PlanConditions plan ? plan.Terrain.WaterAt(p.X, p.Z) : null;
+
+    /// <summary>
+    /// Note 755: whether the engine's headlamp, coming in along the line, has a fragment lying at <paramref name="p"/> in its
+    /// cone within its reach with no building and no land between (the land's height under the ray, every few metres).
+    /// </summary>
+    static bool InTheLamp(RailLine line, RouteFeature f, StopLayout stop, Pt p, Double3 at, CometLootTuning c)
+    {
+        double cos = DMath.Cos(c.SightCone * Math.PI / 180);
+        var lump = at + Double3.Up * 0.5;
+        for (double back = 10; back <= c.SightRange; back += 10)
+        {
+            double s = f.Start + p.S - back;
+            if (s < 0)
+                break;
+            var t = line.Sample(s);
+            var lamp = t.Position + Double3.Up * World.LampHeight;
+            var to = lump - lamp;
+            double reach = to.Length;
+            if (reach > c.SightRange)
+                break;
+            if (Double3.Dot(to, t.Tangent) < cos * reach)
+                continue;
+            bool clear = true;
+            int steps = Math.Max(2, (int)(reach / 4));
+            var from = new Pt(p.S - back, 0);
+            for (int k = 1; k < steps && clear; k++)
+            {
+                double u = k / (double)steps;
+                var q = Double3.Lerp(lamp, lump, u);
+                var flat = new Pt(from.S + (p.S - from.S) * u, p.D * u);
+                clear = line.Conditions is not { } ground || ground.Ground(q) <= q.Y + 0.1;
+                clear &= !stop.Buildings.Any(b => Plan.Inside(flat, b, 0.3));
+            }
+            if (clear)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Whether comet fragment <paramref name="i"/> at stop <paramref name="stop"/> lies in the headlamp's sight coming in (note
+    /// 755), for tools and tests.
+    /// </summary>
+    public bool CometInSight(int stop, int i) =>
+        _loot?.Comet is { } c && _lootLine is { } line && stop >= 0 && stop < _comets.Count && i >= 0 && i < _comets[stop].Count
+        && InTheLamp(line, _stopLoot[stop].Feature, _stopLoot[stop].Stop, _comets[stop][i], Lying(line, _stopLoot[stop].Feature, _comets[stop][i]), c);
+
     /// <summary>Who last had a find in their hands (note 718), or −1 (host only).</summary>
     public int FinderOf(Physics.Body b) => _carriedBy.GetValueOrDefault(b.Id, -1);
 
     /// <summary>
-    /// The comet fragments at stop <paramref name="stop"/> (note 718), by the container each lies beside, for tools and tests.
+    /// The comet fragments at stop <paramref name="stop"/> (notes 718, 755), where each lies in the stop's rail frame, for tools and tests.
     /// </summary>
-    public IReadOnlyList<int> CometsAt(int stop) => stop >= 0 && stop < _comets.Count ? _comets[stop] : [];
+    public IReadOnlyList<Pt> CometsAt(int stop) => stop >= 0 && stop < _comets.Count ? _comets[stop] : [];
 
     /// <summary>
     /// Whether a comet fragment is aboard (note 718; GDD §19's "attracts everything"): lying in a car of the engine's rake, or
@@ -517,12 +633,12 @@ public sealed partial class Run
         }
         // Note 718: a comet fragment or two, lying out in the open beside what they're by (a yard's crate stack or strongroom,
         // back along the stop from it, clear of its crates; outside a shed or a house, off its side nearest the line), glowing
-        // for the crew to see from the line.
+        // for the crew to see from the line. Note 755: or the night's one, out off the line in the lamp's sight, on the land.
         if (t.Comet is not null && k < _comets.Count)
             for (int i = 0; i < _comets[k].Count; i++)
             {
-                var put = (CometAt(stop, stop.Containers[_comets[k][i]]) ?? StopWalls.FindAt(stop, stop.Containers[_comets[k][i]])) + new Pt(-0.7 * i, 0);
-                bodies.SpawnLoot(StopWorld(line, f, put), f.Start + put.S, LootOwner(k, CometContainer + i), t.Radius);
+                var put = _comets[k][i];
+                bodies.SpawnLoot(Lying(line, f, put), f.Start + put.S, LootOwner(k, CometContainer + i), t.Radius);
             }
         // Note 719: the jackpot house's extra finds, lying in its floor's corners clear of what's lying there already (note 738),
         // in the open; and the two-person jackpots, a heavy crate's ball each, on the floor of the house they're in or beside a
