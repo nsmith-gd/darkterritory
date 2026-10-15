@@ -42,6 +42,47 @@ public class HouseInteriorArtTests
         }
     }
 
+    /// <summary>
+    /// What a find's kept in (note 760; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 21: "Cupboards that definitely
+    /// need a redesign"): a cupboard's a kitchen dresser and a cabinet a sideboard, not a plain box. They're made of their
+    /// parts (doors, frames, knobs, hinges), their doors painted and their carcass stained, and they stand in the sim's box for
+    /// them (StopWalls.Furniture), all but the worktop's and the cornice's lip and the knobs, a few centimetres out of their
+    /// face.
+    /// </summary>
+    [Theory]
+    [InlineData(ContainerKind.Cupboard, 1.9, 300)]
+    [InlineData(ContainerKind.Cabinet, 1.0, 150)]
+    public void ACupboardIsADresserAndACabinetASideboardInTheSimsBoxForThem(ContainerKind kind, double top, int least)
+    {
+        var look = Look.Load(Content);
+        var route = Routes.Generate(Content, "frontier:7", 6);
+        var (b, c) = route.Features.Where(f => f.Stop is not null).SelectMany(f => f.Stop!.Containers
+            .Where(c => c.Kind == kind && c.Building >= 0 && f.Stop.Buildings[c.Building].Open && StopWalls.Walled(f.Stop, c.Building))
+            .Select(c => (f.Stop.Buildings[c.Building], c))).First();
+        Vertex[] House(IEnumerable<StopContainer> kept)
+        {
+            var k = new Kit(look, 0);
+            TownKit.OpenHouse(k, b, kept);
+            return k.Build("house").Vertices;
+        }
+        // What's drawn for it is what's drawn after the empty house.
+        var empty = House([]);
+        var piece = House([c])[empty.Length..];
+        Assert.True(piece.Length / 3 >= least, $"a {kind} of {piece.Length / 3} triangles");
+        // Painted, stained, iron: more than one finish.
+        Assert.True(piece.Select(v => v.Color).Distinct().Count() >= 4);
+        // In the sim's box (the kit's frame is the building's turned: TownKit.OpenHouse's K), but a few centimetres.
+        var box = StopWalls.Furniture(b, [c]).Single();
+        const double Floor = 0.17, Proud = 0.04 + 1e-3;
+        foreach (var v in piece)
+        {
+            double x = -v.Position.Z, y = v.Position.X;
+            Assert.InRange(Math.Abs(x - box.X), 0, box.HalfX + Proud);
+            Assert.InRange(Math.Abs(y - box.Y), 0, box.HalfY + Proud);
+            Assert.InRange(v.Position.Y, Floor - 1e-3, Floor + top + 1e-3);
+        }
+    }
+
     [Theory]
     [InlineData("frontier:7")]
     [InlineData("deadLines:7")]

@@ -17079,6 +17079,28 @@
   "takes": 3,
   "sha": "404c744600cc3b70"
  },
+ "ui-pings/mark": {
+  "cue": "ui-pings.mark",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A ping: the radio keyed, a quick rising two-note beep through its speaker, the key let go",
+    "key": "roger",
+    "sources": [
+     "kenney_ui-audio:switch2",
+     "kenney_ui-audio:switch13",
+     "kenney_ui-audio:click3",
+     "kenney_ui-audio:click4",
+     "kenney_ui-audio:switch27",
+     "kenney_ui-audio:switch28"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "9e017351a7ea283f"
+ },
  "ui-prompts/cancel": {
   "cue": "ui-prompts.cancel",
   "surface": null,

@@ -14,11 +14,12 @@ the texture library's layers (tools/models/treekit.py), the hangings in mat_blig
   iron      spikes driven in all over, the bark split on raw meat round them and the rust bleeding down; split open its
             length and stapled across; barbed wire bitten in; burls of scar with iron out of them; rebar for limbs
   crystal   bone and quartz: clusters bursting from the trunk and every fork, a crown of them, a clump at every limb's
-            end, a ring of big ones broken up out of the ground; milk white and smoked violet
+            end, a ring of big ones broken up out of the ground; milk white and smoked violet, lit a little from within
   webbed    a birch clump with skin webbed between its limbs, in its crotches and between its stems, a cord of flesh
-            along each web's hanging edge, skin grown over its bark in sleeves, its holes split on the meat
-  thorn     a twisted trunk throwing claw-curved limbs, spiked, red skin webbed between them, cocoons hung off them, a
-            few sprays of needles left; veins and blisters on it
+            along each web's hanging edge, skin grown over its bark in sleeves, its holes split on the meat, its veins
+            lit dimly through the skin
+  thorn     a twisted trunk throwing claw-curved limbs, spiked, red skin webbed between them, cocoons hung off them lit
+            from inside, a few sprays of needles left; veins and blisters on it
   lattice   a trunk of roots woven round nothing, you see through it; skin in the gaps, knots of flesh, dead leaves
 
   blender -b --factory-startup --python tools/models/recipes/corrupted_trees.py [-- barnacle_0 lattice ...]
@@ -593,8 +594,10 @@ def crystal(t: Tree, v: int):
     white, some smoked grey-violet; a few red nodules and its hollows left."""
     rng = t.rng
     bone = t.mat("wood_grey", (1.75, 1.7, 1.55), 0.12)
-    milk = t.mat("quartz", (1.1, 1.2, 1.4), 0.75)
-    smoke = t.mat("quartz", (0.75, 0.72, 0.95), 0.8)
+    # Lit a little from within (the director, 14 Oct: "the crystal tree ... We could maybe have that glow a little bit";
+    # note 757): dead ivory, the smoked ones a bruised violet, faint enough that it's the tree you see, not a lamp.
+    milk = t.mat("quartz", (1.1, 1.2, 1.4), 0.75, emissive=0.15)
+    smoke = t.mat("quartz", (0.75, 0.72, 0.95), 0.8, emissive=0.3)
     nodule = t.mat("flesh", (1.0, 0.5, 0.4), 0.45)
     dark = t.mat("tar", (0.22, 0.16, 0.14), 0.0)
     tall = H * (0.84, 0.94, 0.78)[v]
@@ -675,7 +678,8 @@ def webbed(t: Tree, v: int):
     cord = t.mat("flesh", (1.25, 0.92, 0.88), 0.5)
     meat = t.mat("wound", (1.0, 0.95, 0.95), 0.6)
     tumour = t.mat("flesh", (1.15, 0.88, 0.84), 0.45)
-    vein = t.mat("flesh", (0.85, 0.48, 0.5), 0.55)
+    # Its veins lit through the skin, dimly, as a hand over a lamp is (note 757).
+    vein = t.mat("flesh", (0.85, 0.48, 0.5), 0.55, emissive=0.26)
     ichor = t.mat("wound", (0.6, 0.5, 0.5), 0.7)
     leaf = t.mat("leaf_card", (1.0, 1.0, 1.0), 0.05)
     stems = (1, 2, 3)[v]
@@ -750,7 +754,9 @@ def thorn(t: Tree, v: int):
     bark = t.mat("pine_bark", (0.45, 0.36, 0.34), 0.1)
     skin = t.mat("membrane_web", (0.9, 0.55, 0.55), 0.5)
     cord = t.mat("flesh", (0.8, 0.45, 0.42), 0.5)
-    pod = t.mat("sac", (1.05, 0.86, 0.66), 0.35)
+    # Its cocoons lit from inside by what's in them (note 757: "a few more like bioluminescent corruptions"), dim and warm
+    # through the sac, so the claws are hung with them in the dark.
+    pod = t.mat("sac", (1.05, 0.86, 0.66), 0.35, emissive=0.32)
     needles = t.mat("pine_bough", (0.75, 0.78, 0.7), 0.25)
     thread = t.mat("sac", (0.8, 0.7, 0.6), 0.3)
     vein = t.mat("flesh", (0.7, 0.36, 0.38), 0.5)
