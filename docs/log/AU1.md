@@ -141,3 +141,44 @@ launches are AU1.1, AU1.2, …. Entries are UTC; those before 12:55 on 7 Oct wer
 - 2026-10-14 22:10 UTC · AU1 · #125's nine lines installed by the audio-build workflow (14140f21: 25 cues, the Brakeman's steps split good/bad as takes 0, 2 and 1, 3), captioned. A survey of main's other features: the house creatures, the Wakers, the Pickers, Dave and Jacob are silent; horseplay's thrown lump is heard as stoking. Claimed queue #497 (note 767, the house creatures heard) and #498 (note 768, horseplay heard) on the claims branch.
 - 2026-10-14 21:44 UTC · AU1 · Merged [#1009](https://github.com/nsmith-gd/darkterritory/pull/1009) (queue #125, G1's six heard, note 388): all three checks green.
 - 2026-10-14 22:40 UTC · AU1 · Queue #498 (note 768): horseplay heard and the thrown lump no longer heard as stoking; the audio-build workflow takes a fresh line in one pass and sends its previews back (the proxy refuses run artifacts here). Four builds: the coal hit and the tin landing were squishy (half under 95 Hz), a helper had slipped under a recipe's decorator, cloth rumble high-passed out. The checklist's new `crew-horseplay` line. Opened [#1012](https://github.com/nsmith-gd/darkterritory/pull/1012).
+
+## 15 Oct, ~01:50 UTC: the house creatures heard (queue #497, note 767)
+
+- **Merged #1012:** horseplay (#498, note 768). Main moved twice under it; merged main in twice (the union on
+  COORDINATION.md is local only: GitHub calls it a conflict).
+- **#497, the Lodger, the Householder, the Hollow House and the Hanger:**
+  - Hooked off their records, with 4 tests.
+  - 40 candidates built here.
+  - The squish taken out of their footfalls and blows (75-83% under 150 Hz at first, now under 45%; the shoes 5-17%).
+  - Fitted to G1's 11 checklist rows, the moved cues rebuilt and re-uploaded.
+  - Installed (real recordings first), captioned (20), the rows at L1.
+- **K1's asks on #1012** (the speaking tube, the comet's hum, the torn mail bag, the cab's kettle and cuckoo, the crew
+  photo, the logbook page) are queued next.
+
+## 15 Oct, ~02:30 UTC: claims #501-#505; the Pickers, the Wakers, the figures, K1's asks
+
+- **The director:** "Continue on tasks ... declare in coordination.md. We need to get through the audio artifact."
+- **The checklist:**
+  - 177 lines at L1 in review, 9 done.
+  - The 9 Redos all have newer candidates waiting on a verdict; `crew-gun-lay` waits on one too.
+  - Still missing: the Pickers (2), `figures`, and U1's six `up-` rows.
+  - K1's merged asks aren't on it yet.
+- **Claimed** (claims branch, then the rows here):
+  - #501 the Pickers (note 771);
+  - #502 the Wakers' dawn (772);
+  - #503 the figures (773);
+  - #504 K1's merged asks (774);
+  - #505 U1's upgrades (775), after #967.
+- **The renumbering:** A1's #1015 took #499, #500, 769 and 770 on main seventy seconds before AU1's claim files. AU1
+  moved to the next free numbers and handed those claim files to A1.
+- **The Pickers:**
+  - Hooked, with a test.
+  - 16 candidates built (a recipe agent), uploaded, installed (the grating and the squeals from real recordings).
+  - G1's two rows to L1.
+- **The Wakers:**
+  - Hooked (the stir's thuds on DawnStir's beat via the app's stir clock; the footfalls on WakerGait; each car lifted and
+    eaten).
+  - A whole-dawn test, captions, and their range (heard from 1.2 km).
+  - Candidates being built.
+- **The figures and K1's asks:** hooked, tested and captioned (Dave, Jacob, Nicki's party; the mail catch and tear, the
+  comet's hum, the speaking tube's whistle-call). Candidates being built.

@@ -896,6 +896,52 @@ CUES = {
         L("sizzle", "The glow: the knock gone ragged and wet, a sizzle"),
         L("grind", "Seized: a long grinding scrape"),
     ],
+    # The house creatures (queue #497, note 767; G1's #316-#319, notes 583-586; their design docs' §4, "a request to the audio
+    # chat"). Each its own sound, none like another's tell, none like the crew's own doors and steps (the Hollow House's
+    # slams are a house's doors thrown by nobody; the Lodger breaks a door in, never opens one). The lines are G1's on the
+    # Audio Checklist (12 Oct): the Lodger's two tells apart, the Householder's rising apart, the Hanger's strands apart.
+    "tell-lodger-breathing": [
+        L("breathing", "Folded in a dark corner of a village house: slow, wet breathing, heard from the next room"),
+    ],
+    "tell-lodger-shriek": [
+        O("shriek", "Its telegraph: a shrill, rising shriek, a second and a half, the loudest thing in a village", vars=3),
+    ],
+    "cs-lodger": [
+        O("lunge", "The lunge: a thump of bare feet on the boards", vars=3),
+        O("break", "A shut door in its way: splintering blows as it breaks it in", vars=3),
+    ],
+    "tell-householder": [
+        L("house", "Its house, from the door: a stove's tick and crackle, a clock, a kettle at the edge of the boil"),
+    ],
+    "tell-householder-rise": [
+        O("rise", "Rising (1.5 s): the chair scraped back hard on the boards, cutlery rattling on the table", vars=2),
+    ],
+    "cs-householder": [
+        O("creak", "Watching: its chair creaking, its neck as its head follows you", vars=3),
+        O("step", "Hunting: a stiff, even tread that never hurries", vars=4),
+        L("breath", "Hunting: a dry, rasping breath"),
+        O("grab", "The grab: a hard clutch on a coat and a grunt", vars=2),
+        O("settle", "Going home: the thing set back down, the chair drawn in", vars=2),
+    ],
+    "tell-hollow-house": [
+        L("rumble", "The tell: a low groan through the floor, grit falling from the ceiling, the house shaking"),
+    ],
+    "cs-hollow-house": [
+        O("slam", "Its doors slamming shut one after another, by nobody", vars=3),
+        L("sink", "Sinking: timber screaming, earth heaving round its base"),
+        O("collapse", "The roof and walls coming down", vars=2),
+    ],
+    "tell-hanger": [
+        L("rafters", "Its house, once you're inside: a faint creak of the rafters, a soft wet clicking overhead"),
+    ],
+    "tell-hanger-strands": [
+        L("hum", "Its strands quivering (the telegraph): a thin, taut hum like a wire in wind"),
+    ],
+    "cs-hanger": [
+        O("grab", "The grab: a sticky snap and the strand pulled tight", vars=3),
+        L("haul", "The haul: a ratcheting creak of the rafters, a wet reel"),
+        O("retreat", "Letting go: a hiss and a scuttle back into the roof", vars=2),
+    ],
     # Signs off the train (D1.1's note 327; queue #79, note 342): a crewmate afoot is shown a pair of eyes at the lamp's edge,
     # toward where a creature lives here. Its sound says something's out there, never that it's coming: quieter than its
     # tell and nothing like it (GameAudio.Watched plays "sign.<kind>", Director.Key's names). The Gaunt and the Followers

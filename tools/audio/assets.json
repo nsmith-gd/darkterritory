@@ -2294,6 +2294,66 @@
   "url": "/_blob/2d6c5db1f7a10f6218da56d537797021",
   "sha": "d6c0e0c411f819fc"
  },
+ "previews/cs-hanger--grab--snare.mp4": {
+  "id": "38315d81c9ad70693674e40bf188d2a6",
+  "url": "/_blob/38315d81c9ad70693674e40bf188d2a6",
+  "sha": "4b69a661507d8db2"
+ },
+ "previews/cs-hanger--grab--tack.mp4": {
+  "id": "50f0f8cfc55b46bd6654d6ee644a2452",
+  "url": "/_blob/50f0f8cfc55b46bd6654d6ee644a2452",
+  "sha": "2b4a2413def8d8dd"
+ },
+ "previews/cs-hanger--haul--reel.mp4": {
+  "id": "a7168a4786cd6a492dba0f6fec5ba7cb",
+  "url": "/_blob/a7168a4786cd6a492dba0f6fec5ba7cb",
+  "sha": "cd8dda69749a7057"
+ },
+ "previews/cs-hanger--haul--winch.mp4": {
+  "id": "535197a53fc2056e2466fddcef004f44",
+  "url": "/_blob/535197a53fc2056e2466fddcef004f44",
+  "sha": "1ea0cd7caf7f9969"
+ },
+ "previews/cs-hanger--retreat--scuttle.mp4": {
+  "id": "f748c2f8d89574a3d542a09a2f908ffb",
+  "url": "/_blob/f748c2f8d89574a3d542a09a2f908ffb",
+  "sha": "305bdfbe33e4e1ba"
+ },
+ "previews/cs-hanger--retreat--skitter.mp4": {
+  "id": "e70fe893781964ceabdd51e0baed86d1",
+  "url": "/_blob/e70fe893781964ceabdd51e0baed86d1",
+  "sha": "faf8990f4440799a"
+ },
+ "previews/cs-hollow-house--collapse--crash.mp4": {
+  "id": "39536a8b048207c1acddd472eed78871",
+  "url": "/_blob/39536a8b048207c1acddd472eed78871",
+  "sha": "48809aecd85c531f"
+ },
+ "previews/cs-hollow-house--collapse--fall.mp4": {
+  "id": "31c70def0ed1382a1e2be88e3afd9db4",
+  "url": "/_blob/31c70def0ed1382a1e2be88e3afd9db4",
+  "sha": "acad83408390ab5d"
+ },
+ "previews/cs-hollow-house--sink--racking.mp4": {
+  "id": "441b65bcaaa046e5ce314ea119642502",
+  "url": "/_blob/441b65bcaaa046e5ce314ea119642502",
+  "sha": "726dd82145c05eb3"
+ },
+ "previews/cs-hollow-house--sink--timber.mp4": {
+  "id": "40c973f49ab1231e8cf30a5c072f68b5",
+  "url": "/_blob/40c973f49ab1231e8cf30a5c072f68b5",
+  "sha": "23aaa532a6078c02"
+ },
+ "previews/cs-hollow-house--slam--leaf.mp4": {
+  "id": "d7512a30b36b0d5df75640ac52e2957b",
+  "url": "/_blob/d7512a30b36b0d5df75640ac52e2957b",
+  "sha": "a21a4f7da0fa2fc6"
+ },
+ "previews/cs-hollow-house--slam--thrown.mp4": {
+  "id": "a6b46bd4e0db9ca8526f13be1e7c65d4",
+  "url": "/_blob/a6b46bd4e0db9ca8526f13be1e7c65d4",
+  "sha": "e60508ba69e14559"
+ },
  "previews/cs-hounds--bite--jaws.mp4": {
   "id": "95b4c9e0ee1be02ec7989debe394c6dd",
   "url": "/_blob/95b4c9e0ee1be02ec7989debe394c6dd",
@@ -2383,6 +2443,76 @@
   "id": "4a75b61059287609e5e0f700a01c0ebe",
   "url": "/_blob/4a75b61059287609e5e0f700a01c0ebe",
   "sha": "5df52383d1a026eb"
+ },
+ "previews/cs-householder--breath--fry.mp4": {
+  "id": "742d7663721f78a9de7cf27809d6aeaa",
+  "url": "/_blob/742d7663721f78a9de7cf27809d6aeaa",
+  "sha": "c21c514f0e8915d6"
+ },
+ "previews/cs-householder--breath--rasp.mp4": {
+  "id": "3a52ea739be3ac56d060db13eac88b7f",
+  "url": "/_blob/3a52ea739be3ac56d060db13eac88b7f",
+  "sha": "55f6e1bfd53042fa"
+ },
+ "previews/cs-householder--creak--chair.mp4": {
+  "id": "36bd50589a80d833226abe1f88bb3d28",
+  "url": "/_blob/36bd50589a80d833226abe1f88bb3d28",
+  "sha": "76a83c3f8451a20a"
+ },
+ "previews/cs-householder--creak--sinew.mp4": {
+  "id": "a542fbf77d73ee528a0d8f8ecf3eb705",
+  "url": "/_blob/a542fbf77d73ee528a0d8f8ecf3eb705",
+  "sha": "d104c6089a2d1901"
+ },
+ "previews/cs-householder--grab--clutch.mp4": {
+  "id": "ef027ae3f9afcb8faf3ba888c1980c4a",
+  "url": "/_blob/ef027ae3f9afcb8faf3ba888c1980c4a",
+  "sha": "6e61a6d785d2d148"
+ },
+ "previews/cs-householder--grab--grunt.mp4": {
+  "id": "bd0f00ae901d18bc305f8ef2cb633dc2",
+  "url": "/_blob/bd0f00ae901d18bc305f8ef2cb633dc2",
+  "sha": "787a1ca2010ae621"
+ },
+ "previews/cs-householder--settle--home.mp4": {
+  "id": "178cf34c00f58304f2a5f8305a2c9fc4",
+  "url": "/_blob/178cf34c00f58304f2a5f8305a2c9fc4",
+  "sha": "ac7003df8c145066"
+ },
+ "previews/cs-householder--settle--sit.mp4": {
+  "id": "087bce98460c49e5ab87335f4537f90e",
+  "url": "/_blob/087bce98460c49e5ab87335f4537f90e",
+  "sha": "15b8e2bc6f07971e"
+ },
+ "previews/cs-householder--step--shoes.mp4": {
+  "id": "d67784a90acda4f7bf9003fbddaa65c3",
+  "url": "/_blob/d67784a90acda4f7bf9003fbddaa65c3",
+  "sha": "cea9216d41844e35"
+ },
+ "previews/cs-householder--step--stiff.mp4": {
+  "id": "6e00cf04d8185304adae149ed7edd7e8",
+  "url": "/_blob/6e00cf04d8185304adae149ed7edd7e8",
+  "sha": "cd4069e2ceb33e60"
+ },
+ "previews/cs-lodger--break--boards.mp4": {
+  "id": "4bd6fb1f1a4b8e52642f43026f9d87e5",
+  "url": "/_blob/4bd6fb1f1a4b8e52642f43026f9d87e5",
+  "sha": "a6b8e1d8a21ce8e0"
+ },
+ "previews/cs-lodger--break--splits.mp4": {
+  "id": "60ece3d476505f80f7285402ca1aee27",
+  "url": "/_blob/60ece3d476505f80f7285402ca1aee27",
+  "sha": "46a53d9bec8aa607"
+ },
+ "previews/cs-lodger--lunge--pads.mp4": {
+  "id": "7f3ded5e76cc286fa7e3cb3ef0a45ec5",
+  "url": "/_blob/7f3ded5e76cc286fa7e3cb3ef0a45ec5",
+  "sha": "4d198d1b7dd2b01c"
+ },
+ "previews/cs-lodger--lunge--soles.mp4": {
+  "id": "8e651198dd66122587c4c8e749811284",
+  "url": "/_blob/8e651198dd66122587c4c8e749811284",
+  "sha": "9ef4e1c1a19eb61b"
  },
  "previews/cs-moose-ram--boom--hull.mp4": {
   "id": "7016ee671eac2f43f6150848fe592f7c",
@@ -3489,6 +3619,36 @@
   "url": "/_blob/0c4c66ac27ff89d82ae7b9967653e64f",
   "sha": "1f9484c42e13f5e4"
  },
+ "previews/tell-hanger--rafters--beams.mp4": {
+  "id": "bded770373a57a4d3483f0a313ba5653",
+  "url": "/_blob/bded770373a57a4d3483f0a313ba5653",
+  "sha": "9379c109145dca5f"
+ },
+ "previews/tell-hanger--rafters--sac.mp4": {
+  "id": "2c61e0918d0e1a3d053195c998139a25",
+  "url": "/_blob/2c61e0918d0e1a3d053195c998139a25",
+  "sha": "0cb19612aca3d173"
+ },
+ "previews/tell-hanger-strands--hum--held.mp4": {
+  "id": "4a5cf5554111a24fdb1d28edc21dc740",
+  "url": "/_blob/4a5cf5554111a24fdb1d28edc21dc740",
+  "sha": "6558f81a4cd425fc"
+ },
+ "previews/tell-hanger-strands--hum--wire.mp4": {
+  "id": "4a62f8731fad52c40bedc7d91dcab57f",
+  "url": "/_blob/4a62f8731fad52c40bedc7d91dcab57f",
+  "sha": "5043f8eae980b70b"
+ },
+ "previews/tell-hollow-house--rumble--frame.mp4": {
+  "id": "b4cf1d4ac9ace547a9fb556defa684e8",
+  "url": "/_blob/b4cf1d4ac9ace547a9fb556defa684e8",
+  "sha": "050a855b3680c7f6"
+ },
+ "previews/tell-hollow-house--rumble--ground.mp4": {
+  "id": "5508a51f55cf6efe0e8850675aeea3ea",
+  "url": "/_blob/5508a51f55cf6efe0e8850675aeea3ea",
+  "sha": "33740bea42efc42a"
+ },
  "previews/tell-hotbox--grind--rasp.mp4": {
   "id": "75b0899e8354d92ad22076dd14764575",
   "url": "/_blob/75b0899e8354d92ad22076dd14764575",
@@ -3544,6 +3704,26 @@
   "url": "/_blob/e54520bf20e68d98de2b63c59683fc96",
   "sha": "8b2367e6b13ce4e0"
  },
+ "previews/tell-householder--house--kitchen.mp4": {
+  "id": "8ddd07c4cbeb63a0281484d780798080",
+  "url": "/_blob/8ddd07c4cbeb63a0281484d780798080",
+  "sha": "d0c34f906027669d"
+ },
+ "previews/tell-householder--house--parlour.mp4": {
+  "id": "1963ea0afd3b36886471a9ffbf885a35",
+  "url": "/_blob/1963ea0afd3b36886471a9ffbf885a35",
+  "sha": "bce8e9f7dab9bfb5"
+ },
+ "previews/tell-householder-rise--rise--judder.mp4": {
+  "id": "5558ace0e8b6bf5cb91c7e7a7d257d46",
+  "url": "/_blob/5558ace0e8b6bf5cb91c7e7a7d257d46",
+  "sha": "b4839ef47ea3559c"
+ },
+ "previews/tell-householder-rise--rise--scrape.mp4": {
+  "id": "9091e9ea5ec2d7f6a91fb43cb1370c96",
+  "url": "/_blob/9091e9ea5ec2d7f6a91fb43cb1370c96",
+  "sha": "198d6bfd473d40a6"
+ },
  "previews/tell-knotter--creep--fibre.mp4": {
   "id": "9f6b60088965cd8a9a6373ad7c6626d0",
   "url": "/_blob/9f6b60088965cd8a9a6373ad7c6626d0",
@@ -3578,6 +3758,26 @@
   "id": "4df522ab3b3dfff78572aa28a99c272a",
   "url": "/_blob/4df522ab3b3dfff78572aa28a99c272a",
   "sha": "a515ae6634ba2d35"
+ },
+ "previews/tell-lodger-breathing--breathing--gurgle.mp4": {
+  "id": "e79c6fba9e8f2b35f4398c751d21c53b",
+  "url": "/_blob/e79c6fba9e8f2b35f4398c751d21c53b",
+  "sha": "1b842020e0b2cf1a"
+ },
+ "previews/tell-lodger-breathing--breathing--lungs.mp4": {
+  "id": "d9481c2ce90e4585b5b580cc7ac95842",
+  "url": "/_blob/d9481c2ce90e4585b5b580cc7ac95842",
+  "sha": "71a55151badbebc6"
+ },
+ "previews/tell-lodger-shriek--shriek--throat.mp4": {
+  "id": "3eee21c214b190b308e148cee86c1701",
+  "url": "/_blob/3eee21c214b190b308e148cee86c1701",
+  "sha": "bf663c88a09a506b"
+ },
+ "previews/tell-lodger-shriek--shriek--wail.mp4": {
+  "id": "04a0887fe98e81a71cf3dd8e47074730",
+  "url": "/_blob/04a0887fe98e81a71cf3dd8e47074730",
+  "sha": "5844372c89fb4821"
  },
  "previews/tell-marsh--reeds--parting.mp4": {
   "id": "9eef6b2f527ed69408f9f9b109c5ed4d",
