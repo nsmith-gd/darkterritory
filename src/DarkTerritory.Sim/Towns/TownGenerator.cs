@@ -143,6 +143,8 @@ public static partial class TownGenerator
         string formId = site.Form ?? TownForms.Pick(t.Forms, site.Industry, Rng("form"));
         var form = TownForms.Make(t, w, formId, site.Gate, square, Rng);
         var homes = Houses(content, site, square, population, former, Rng, folk, form);
+        // What its people believe, by its houses' character (note 822, the Flooders'): heard with its custom, posted after it.
+        var creed = homes.Creed is { } creedId ? w.Creeds.FirstOrDefault(c => c.Id == creedId) : null;
 
         // The council's laws posted by the clerk's door, and the town's flag in the square; a walled town's green across the
         // street with its statue, its wall of names, its bandstand, its garden under lamps and its trees; and the day painted
@@ -392,6 +394,8 @@ public static partial class TownGenerator
         // Each person's lines. A household's say their own story first; the folk round the centrepiece and the keeper talk
         // about the custom; the people at work about the work; then perhaps a scrap of a thread, and what anybody says.
         var cultureLines = new Deck<string>(culture.Lines, Rng("lines.culture"));
+        // The creed (note 822): heard once the custom's lines are spoken for, before the town's other habits.
+        var creedLines = new Deck<string>(creed?.Lines ?? [], Rng("lines.creed"));
         var spare = new Deck<string>([.. quirks.SelectMany(q => q.Lines)], Rng("lines.spare"));
         var trade = new Deck<string>(industry?.Lines ?? [], Rng("lines.trade"));
         var scraps = new Deck<string>([.. w.Threads.SelectMany(th => th.Lines)], Rng("lines.scraps"));
@@ -443,12 +447,13 @@ public static partial class TownGenerator
                         lines.Add(line);
                 first = lines.Count;
                 // At the party, nobody's talking about the custom tonight.
-                if (!close && spot.Part != "guest" && spot.Part != "host" && cultureLines.Next() is { } town)
+                if (!close && spot.Part != "guest" && spot.Part != "host" && (cultureLines.Next() ?? creedLines.Next()) is { } town)
                     lines.Add(town);
             }
             else
             {
-                string? job = JobDeck(role).Next(), town = (street ? inside.Next() : close ? null : cultureLines.Next()) ?? spare.Next() ?? trade.Next();
+                string? job = JobDeck(role).Next(), town = (street ? inside.Next() : close ? null : cultureLines.Next() ?? creedLines.Next()) ?? spare.Next()
+                    ?? trade.Next();
                 // The gatekeeper says the town's law first, as you come in (the first thing anyone in a town tells you).
                 if (role == "gatekeeper" && w.Welcome.Length > 0)
                     lines.Add(Rng("welcome").Pick(w.Welcome));
@@ -522,7 +527,11 @@ public static partial class TownGenerator
         var own = new Deck<TownText>(culture.Board, Rng("papers.board"));
         for (int i = 0; i < t.BoardOwn && own.Next() is { } o; i++)
             posted.Add(o);
-        var more = new Deck<TownText>([.. industry?.Notes ?? [], .. quirks.SelectMany(q => q.Notes), .. w.Notices, .. w.Threads.SelectMany(th => th.Notes)], prng);
+        // And the creed's first (note 822: the Flooders' Water Book), after the town's own.
+        if (creed is { Notes.Length: > 0 })
+            posted.Add(creed.Notes[0]);
+        var more = new Deck<TownText>([.. industry?.Notes ?? [], .. quirks.SelectMany(q => q.Notes), .. creed?.Notes.Skip(1) ?? [], .. w.Notices,
+            .. w.Threads.SelectMany(th => th.Notes)], prng);
         int notices = prng.RangeInclusive(t.Notices[0], t.Notices[1]);
         while (posted.Count < notices && more.Next() is { } p)
             posted.Add(p);

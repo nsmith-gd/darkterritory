@@ -222,6 +222,11 @@ The towns are where the world is built. They tell the story of what happened and
 
 Each town has a character too: a fishing cove of shingled gable-fronts, an old town of painted bumps, a loyalist row on the water, a farm town of capes and ells, a company town of one double house in many paints, or a town of all sorts.
 
+**The Flooders** *(the World Building board's Cultures tab, the director, 12 Oct; queue #549, ARCHITECTURE §8 note 822)*. "Towns made entirely of houseboats on stilts ... a cult who insist the comet that brought the pestilence ... was an act of God and God will cleanse the Earth with a great flood once again."
+- **Where:** some of the marsh and salt-flat towns are theirs.
+- **Their houses:** every shut house is a scow's hull with the house built on its deck, up on stilts over the marsh, a ladder to its door.
+- **Their creed:** the comet was sent, and the creatures were sent to thin us out before the water. They say it at their tables and post it on their board, beside the water mark they paint on the stilts each morning.
+
 **Every house has its yard.** On a street, a picket fence along the front with its gate at the door; a board fence at the back; and behind the house what a yard keeps: the woodpile under a sheet of roofing, a shed, the privy, lobster traps, a dory turned over on its blocks, a rain barrel, the washing pegged out and left out after dark. A cove's yards are traps and dories, a farm town's woodpiles and sheds, a company row's the same fence and privy at every house. You go in by the gate, and the fences stop you.
 
 **A town that's lived in.** Smoke rises from the chimneys of the houses people live in, and the watch walk the wall with their lanterns, up and back between the towers all night.

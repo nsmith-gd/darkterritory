@@ -17,6 +17,8 @@ public static partial class TownGenerator
         public readonly List<Spot> Residents = [];
         /// <summary>The town's character (houses.json), its houses' designs drawn by it.</summary>
         public string Character = "";
+        /// <summary>The creed its people keep, by its houses' character (note 822), or null.</summary>
+        public string? Creed;
         /// <summary>What the town breathes through (its character's <see cref="HouseCharacter.Gear"/>).</summary>
         public IReadOnlyDictionary<string, double> Gear = new Dictionary<string, double> { ["respirator"] = 1 };
         /// <summary>A walled town's extent and streets (queue #74), or null where its houses are the line's street's alone.</summary>
@@ -350,7 +352,9 @@ public static partial class TownGenerator
         var character = HouseDesigner.Character(content.Looks, site.Industry, ref drng, form?.Form ?? "");
         // How sooted each is (note 692), on a stream of its own so the designs are as they were.
         var grng = rngFor("houses.grime");
+        var hullRng = rngFor("houses.hull");
         homes.Character = character.Id;
+        homes.Creed = character.Creed;
         homes.Gear = character.Gear;
         HouseDesign? model = null;
         var knocks = new Deck<string>(w.HouseKnocks, rngFor("houses.knocks"));
@@ -405,6 +409,10 @@ public static partial class TownGenerator
                 model ??= design;
             if (character.Grime > 0)
                 design = design with { Grime = Math.Clamp(character.Grime + grng.Range(-character.GrimeSpread, character.GrimeSpread), 0, 1) };
+            // A Flooder's house is a houseboat (note 822): a hull under it, up on stilts. Never an open one: its rooms are on
+            // the Sim's floor. On a stream of its own, so every other house is as it was.
+            if (character.Hull > 0 && layout is null && hullRng.Chance(character.Hull))
+                design = design with { Hull = true };
             var fl = row < 0 ? form!.Lots[i] : null;
             var house = new TownHouse(i, s, d0, sd, width, depth, kind, design, family, text, layout)
             { Party = i == partyAt && layout is not null, Level = fl?.Level ?? 0, Turn = layout is null ? fl?.Turn ?? 0 : 0 };

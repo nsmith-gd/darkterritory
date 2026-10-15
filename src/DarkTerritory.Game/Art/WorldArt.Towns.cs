@@ -474,7 +474,7 @@ public sealed partial class WorldArt
         // A lived-in house's lamp by its door, its light on the siding and the ground in front (a custom that keeps the
         // windows dark keeps it low).
         if (h.Kind == HouseKind.Lived)
-            Porch(mesh, m, h, lit);
+            Porch(mesh, h.Design.Hull ? Matrix4x4.CreateTranslation(0, MaritimeKit.HullLift, 0) * m : m, h, lit);
         if (h.Layout is null)
             return;
         // An open house's lamps inside, and the light out of its open door onto the step.
