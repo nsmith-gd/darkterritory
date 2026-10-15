@@ -120,9 +120,6 @@
     // Breaches (spec B.9; the Car Hugger and the Climbers, more of both on every tier down): boarded up in 4 s, not 8.
     { "id": "precutBoards", "name": "Pre-cut boards", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "boardUp": 0.5 },
       "line": "Planks cut to a breach's size, stacked in every car. Boarded up in half the time." },
-    // GDD §15: "half the crew can't hear the other half". Two more radios in the guard van.
-    { "id": "spareRadios", "name": "Spare radios", "size": "small", "costShare": 0.15, "effect": { "radios": 2 },
-      "line": "Two more sets in the guard van, for a train too long to shout down." },
     // The Hotbox (App. A.3; weighted up each tier, enemies.json hotbox.tierWeights): its axle knocks and glows half again
     // as long before it seizes, and is mended in half the time.
     { "id": "axleOilers", "name": "Axle oilers", "size": "small", "costShare": 0.2, "fromTier": "deadLines", "effect": { "hotboxKnock": 1.5, "hotboxMend": 0.5 },

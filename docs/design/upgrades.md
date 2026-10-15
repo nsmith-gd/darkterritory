@@ -69,7 +69,7 @@ deeper tiers grow:
 | **Composition brake shoes** | small 0.2 | Frontier | Brakes fade half as fast on a descent (spec B.5) | Harder grades |
 | **Sprung cradles** | small 0.15 | Local | Knocks and hard braking spoil 40% of what they did of medicine | Fragile cargo (§19) |
 | **Pre-cut boards** | small 0.15 | Frontier | A breach boarded up in 4 s, not 8 (spec B.9) | The Car Hugger and the Climbers |
-| **Spare radios** | small 0.15 | Local | Two more radios in the guard van | "Half the crew can't hear the other half" (§15) |
+| ~~**Spare radios**~~ | small 0.15 | Local | Retired (15 Oct): S1's note 749 makes the radio every crewmate's, with no loose sets to add to | "Half the crew can't hear the other half" (§15) |
 | **Big extinguishers** | small 0.2 | Frontier | Half again the spray, full again on the bracket in half the time | Car fires; powder and chemicals (App. C.5) |
 | **Axle oilers** | small 0.2 | Dead lines | A Hotbox's axle knocks and glows half again as long before it seizes, and is mended in half the time | The Hotbox, weighted up each tier |
 | **Feedwater heater** | small 0.25 | Dead lines | Each step of the cold costs the boiler half the steam it did | The cold |

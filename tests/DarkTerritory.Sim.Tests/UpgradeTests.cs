@@ -54,7 +54,6 @@ public class UpgradeTests
         Assert.Equal(train.BrakeFade.FadePerSecond * 0.5, With("compositionShoes").Train.BrakeFade.FadePerSecond, 9);
         Assert.Equal(train.Fragile!.ShockShare * 0.4, With("sprungCradles").Train.Fragile!.ShockShare, 9);
         Assert.Equal(train.Breach.BoardSeconds * 0.5, With("precutBoards").Train.Breach.BoardSeconds, 9);
-        Assert.Equal(train.Kit.Radios + 2, With("spareRadios").Train.Kit.Radios);
         Assert.Equal(Tuning.Enemies.Hotbox.KnockSeconds * 1.5, With("axleOilers").Enemies!.Hotbox.KnockSeconds, 9);
         Assert.Equal(Tuning.Enemies.Hotbox.GlowSeconds * 1.5, With("axleOilers").Enemies!.Hotbox.GlowSeconds, 9);
         Assert.Equal(Tuning.Enemies.Hotbox.RepairSeconds * 0.5, With("axleOilers").Enemies!.Hotbox.RepairSeconds, 9);
@@ -70,20 +69,6 @@ public class UpgradeTests
     }
 
     [Fact]
-    public void SpareRadiosRideInTheGuardVan()
-    {
-        int Radios(Loadout l)
-        {
-            var line = new RailLine(new LineDefinition("t", [new TrackSegment(5_000)]));
-            var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(l.Train, 4, 1)), line, 1_000));
-            world.EnableBodies();
-            world.Stock();
-            return world.Bodies.All.Count(b => b.Kind == BodyKind.Radio);
-        }
-        Assert.Equal(Radios(Base) + 2, Radios(With("spareRadios")));
-    }
-
-    [Fact]
     public void ToolsAreStockedFromTheTierTheyAnswer()
     {
         // Note 678: the town stocks what the line needs. A three-car crew on local work can't buy a speed recorder or gun
@@ -92,7 +77,7 @@ public class UpgradeTests
         var refused = Campaign.Campaign.BuyUpgrade(C, rich, "speedRecorder");
         Assert.False(refused.Ok);
         Assert.Contains("frontier", refused.Refused);
-        Assert.True(Campaign.Campaign.BuyUpgrade(C, rich, "spareRadios").Ok);
+        Assert.True(Campaign.Campaign.BuyUpgrade(C, rich, "sprungCradles").Ok);
         Assert.True(Campaign.Campaign.BuyUpgrade(C, rich with { Cars = 6 }, "speedRecorder").Ok);
         Assert.False(Campaign.Campaign.BuyUpgrade(C, rich with { Cars = 6 }, "gunRammers").Ok);
         Assert.True(Campaign.Campaign.BuyUpgrade(C, rich with { Cars = 11 }, "gunRammers").Ok);
