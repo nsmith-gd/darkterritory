@@ -82,6 +82,7 @@
     "fitter": ["{first} Spanner"],
     "lampman": ["Lamp {first}", "{first} the Wick"],
     "porter": ["{first} the Bag"],
+    "flamekeeper": ["{first} the Flame", "Hope {first}"],
     "driver": ["Steam {first}", "{first} the Engine"],
     "widow": ["Widow {first}"],
     "cook": ["{first} the Pot"],

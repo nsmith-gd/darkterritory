@@ -3757,6 +3757,9 @@ public sealed partial class GreyboxScene
                     float far = (float)Math.Clamp(((at - eye).Length - 120) / 500, 0, 1);
                     mesh.Billboard(V(at, eye), size, 0, new Vector4(colour * strength * (0.06f + 1.2f * far), 1), -1, FxBlend.Additive);
                 }
+                // A harbour town's Flame of Hope on its tower (note 819).
+                foreach (var (fire, seed, near) in Art.WorldArt.Flames(line, eye, town))
+                    Look.Art.Effects.Beacon(mesh, fire, Art.HopeKit.BasketTop, Time, seed, near);
                 // And the works' (note 353): the foundry's stack and the winding house's chimney, thicker.
                 foreach (var (top, seed) in Look.Art.World.Stacks(line, eye, town, 420))
                     for (int plume = 0; plume < 3; plume++)

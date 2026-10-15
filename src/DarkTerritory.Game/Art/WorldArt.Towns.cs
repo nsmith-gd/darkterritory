@@ -135,6 +135,11 @@ public sealed partial class WorldArt
                         yield return (town.World(s, st.At(s), GlowUp - 6), 105, Palette.LampAmber, 0.55f * lit);
         foreach (var f in plan.Fixtures.Where(f => f.Kind == "casting"))
             yield return (town.World(f.S, f.D, GlowUp - 14), 60, Palette.FurnaceOrange, 0.9f);
+        // A harbour town's Flame of Hope (note 819): over its tower, the brightest thing in the fog for a kilometre round, so a
+        // crew coming in finds it before the town (the director: "for the world to find in the darkness").
+        if (plan.Form.Length > 0)
+            foreach (var f in plan.Fixtures.Where(f => f.Kind == "lighthouse"))
+                yield return (town.World(f.S, f.D, HopeKit.Fire.Y + 5), 95, Vector3.Lerp(Palette.FurnaceOrange, Palette.LampAmber, 0.4f), 1.6f);
     }
 
     /// <summary>How high over the ground a town's glow hangs (m): well over its wall and its roofs.</summary>
@@ -229,6 +234,10 @@ public sealed partial class WorldArt
                 continue;
             // The green's and the walls' pieces are drawn with the green (Civic), wherever they are.
             if (CivicKit.Draws(f.Kind) || WorksKit.Draws(f.Kind))
+                continue;
+            // And a town type's landmarks with its form (Forms; note 692), or each would stand in a box of its own size too
+            // (the chapel's beside its steeple; note 819 found it round the Hope Tower).
+            if (plan.Form.Length > 0 && Landmark(f.Kind) && !(plan.Works is { } wk && wk.Holds(f.S, f.D, 1)))
                 continue;
             var m = Place(line, eye, town.World(f.S, f.D), f.S, f.FaceS, f.FaceD);
             int count = f.Kind switch { "board" => notices, "line" => (int)(sq.S1 - sq.S0 - 8), _ => 0 };

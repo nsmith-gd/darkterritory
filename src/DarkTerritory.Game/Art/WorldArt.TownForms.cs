@@ -197,7 +197,8 @@ public sealed partial class WorldArt
             // A boat rides on the water, not its bed (note 692).
             if (f.Kind is "dory" or "barge" && town.Ground.Water(f.S, f.D) is { } surface)
                 at += Double3.Up * (surface - town.Ground.Level(f.S, f.D));
-            if ((at - eye).Length > 460)
+            // (A Hope Tower stands over everything round it, and is drawn as far as the town is: note 819.)
+            if ((at - eye).Length > (f.Kind == "lighthouse" ? HopeFar : 460))
                 continue;
             var m = Place(line, eye, at, f.S, f.FaceS, f.FaceD);
             if (f.Kind is "lift" or "glasshouse" or "seedhouse" or "foundry" or "sawmill"
@@ -211,7 +212,8 @@ public sealed partial class WorldArt
             }
             var (piece, scale) = f.Kind switch
             {
-                "lighthouse" => (Piece("form-lighthouse", () => NovaKit.Lighthouse(_look, 0)), 1f),
+                // The harbour's light on its head is its Hope Tower (queue #547, note 819), its Flame Effects.Beacon's.
+                "lighthouse" => (Piece("hope-tower", () => HopeKit.Tower(_look)), 1f),
                 "beacon" => (Piece("form-lighthouse-1", () => NovaKit.Lighthouse(_look, 1)), 0.35f),
                 "chapel" => (Piece("form-chapel", () => NovaKit.Church(_look)), 1f),
                 "watchtower" => (Piece("tower-1", () => StructureKit.Tower(_look, 1)), 1.1f),
@@ -232,17 +234,12 @@ public sealed partial class WorldArt
                 _ => (Piece($"works-{(f.Kind == "seedhouse" ? "glasshouse" : f.Kind)}", () => WorksKit.Piece(_look, f.Kind == "seedhouse" ? "glasshouse" : f.Kind)), 1f),
             };
             mesh.Instances.Add(new MeshInstance(piece, Matrix4x4.CreateScale(scale) * m));
-            if (f.Kind is "lighthouse" or "beacon")
+            if (f.Kind == "beacon")
             {
-                // The light: lit, every night, turning (the lighthouse's words), a beam over the town and the water.
-                var lamp = Vector3.Transform(new Vector3(0, f.Kind == "beacon" ? 6.5f : 19.5f, 0), m);
-                mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * 2.2f, f.Kind == "beacon" ? 10 : 24));
-                mesh.Billboard(lamp, f.Kind == "beacon" ? 1.2f : 3.2f, 0, new Vector4(Palette.LampAmber, 1), -1, FxBlend.Additive);
-                if (f.Kind == "lighthouse")
-                {
-                    float a = (float)(time * 0.45);
-                    Effects.Beam(mesh, lamp, Vector3.Normalize(new Vector3(MathF.Cos(a), -0.06f, MathF.Sin(a))), 3.5f, 180, Palette.LampAmber * 0.18f);
-                }
+                // The breakwater's light: lit, every night, in its iron cage at the mole's head.
+                var lamp = Vector3.Transform(new Vector3(0, 6.5f, 0), m);
+                mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * 2.2f, 10));
+                mesh.Billboard(lamp, 1.2f, 0, new Vector4(Palette.LampAmber, 1), -1, FxBlend.Additive);
             }
         }
     }
@@ -319,6 +316,30 @@ public sealed partial class WorldArt
                 k.Quad(pa, pb, pc, pd, new(pa.X, pa.Z), new(pb.X, pb.Z), new(pc.X, pc.Z), new(pd.X, pd.Z));
             }
         return k.Build($"town-land-{town.Plan.Name}-{s0:0}-{d0:0}");
+    }
+
+    /// <summary>How far off a Hope Tower is drawn (m; note 819): as far as its town is, near enough.</summary>
+    const double HopeFar = 1500;
+
+    /// <summary>
+    /// Where a town's Hope Towers' Flames burn (queue #547, note 819), relative to the eye, each seeded by its tower, and how
+    /// near it is (1 within 300 m, 0 by <see cref="HopeFar"/>): the scene draws each with Effects.Beacon.
+    /// </summary>
+    public static IEnumerable<(Vector3 Fire, int Seed, float Near)> Flames(RailLine line, Double3 eye, Town town)
+    {
+        if (town.Plan.Form.Length == 0)
+            yield break;
+        foreach (var f in town.Plan.Fixtures)
+        {
+            if (f.Kind != "lighthouse")
+                continue;
+            var at = town.World(f.S, f.D);
+            double far = (at - eye).Length;
+            if (far > HopeFar)
+                continue;
+            var m = Place(line, eye, at, f.S, f.FaceS, f.FaceD);
+            yield return (Vector3.Transform(HopeKit.Fire, m), 3331 + (int)Math.Abs(f.S * 7 + f.D * 13), (float)Math.Clamp((HopeFar - far) / (HopeFar - 300), 0, 1));
+        }
     }
 
     /// <summary>The landmarks a town type stands (TownForms' kinds) that the square and the works don't draw.</summary>

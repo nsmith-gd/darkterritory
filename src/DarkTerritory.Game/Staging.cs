@@ -147,6 +147,23 @@ public static partial class Staging
                 _ => Ballast.Render.Camera.LookAt(town.World(mid + 30, stD, 1.7), town.World(mid - 40, stD, 1.6), 72),
             };
         }
+        // A harbour town's Hope Tower (queue #547, note 819): "hope" up at its Flame from the lanes below it, toward the line;
+        // "hopeover" from over the head, level with its fire basket; "hopefar" from the line far out past the town's gate,
+        // where a crew coming in sees the Flame over the fog before anything else of the town.
+        if (where is "hope" or "hopeover" or "hopefar" && plan.Fixtures.FirstOrDefault(f => f.Kind == "lighthouse") is { } tower)
+        {
+            var foot = town.World(tower.S, tower.D);
+            var flame = foot + Double3.Up * Sim.Towns.TownFixtures.Size("lighthouse").Height;
+            var along = town.Direction(tower.S, 1, 0);
+            var toward = town.Direction(tower.S, 0, -Math.Sign(tower.D));
+            return where switch
+            {
+                // (Over the roofs of the rings below it: from their streets the terraces' walls stand in the way.)
+                "hope" => Ballast.Render.Camera.LookAt(foot + toward * 95 + along * 12 + Double3.Up * 14, flame - Double3.Up * 10, 62),
+                "hopeover" => Ballast.Render.Camera.LookAt(flame + along * 50 + toward * 35 + Double3.Up * 10, foot + Double3.Up * ((flame - foot).Length * 0.6), 60),
+                _ => Ballast.Render.Camera.LookAt(town.World(plan.Gate + 900, 0, 3), flame, 50),
+            };
+        }
         // The town's flag (note 674): from across the square, up at it on its pole; "flagclose", nearer, the cloth filling the view.
         if (where is "flag" or "flagclose" && plan.Fixtures.FirstOrDefault(f => f.Kind == "flag") is { } flag)
         {
