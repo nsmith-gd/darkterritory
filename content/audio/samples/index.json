@@ -3788,6 +3788,28 @@
   "takes": 3,
   "sha": "d9ee419cf61a6c6f"
  },
+ "crew-footsteps/jump/water": {
+  "cue": "crew-footsteps.jump",
+  "surface": "water",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Push-off into a jump: boots wading through shallow water, ankle to knee deep",
+    "key": "boots",
+    "sources": [
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_02",
+     "sfx_100_v2:footstep_wet_03",
+     "sfx_100_v2:loop_water_01",
+     "sfx_100_v2:loop_water_02",
+     "sfx_100_v2:loop_water_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "d7e188389558a7ea"
+ },
  "crew-footsteps/jump/wood": {
   "cue": "crew-footsteps.jump",
   "surface": "wood",
@@ -4126,6 +4148,28 @@
   ],
   "takes": 3,
   "sha": "349b5b2d61388c85"
+ },
+ "crew-footsteps/land/water": {
+  "cue": "crew-footsteps.land",
+  "surface": "water",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Landing from a jump or drop: boots wading through shallow water, ankle to knee deep",
+    "key": "boots",
+    "sources": [
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_02",
+     "sfx_100_v2:footstep_wet_03",
+     "sfx_100_v2:loop_water_01",
+     "sfx_100_v2:loop_water_02",
+     "sfx_100_v2:loop_water_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "b24241de47c6bdfd"
  },
  "crew-footsteps/land/wood": {
   "cue": "crew-footsteps.land",
@@ -4466,6 +4510,28 @@
   "takes": 6,
   "sha": "6ab60fe9a83fbfbc"
  },
+ "crew-footsteps/run/water": {
+  "cue": "crew-footsteps.run",
+  "surface": "water",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Running: boots wading through shallow water, ankle to knee deep",
+    "key": "boots",
+    "sources": [
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_02",
+     "sfx_100_v2:footstep_wet_03",
+     "sfx_100_v2:loop_water_01",
+     "sfx_100_v2:loop_water_02",
+     "sfx_100_v2:loop_water_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 6,
+  "sha": "0af39536357bbcd4"
+ },
  "crew-footsteps/run/wood": {
   "cue": "crew-footsteps.run",
   "surface": "wood",
@@ -4805,6 +4871,28 @@
   "takes": 3,
   "sha": "a5965c13ce8416c0"
  },
+ "crew-footsteps/scuff/water": {
+  "cue": "crew-footsteps.scuff",
+  "surface": "water",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Turning or stopping short: boots wading through shallow water, ankle to knee deep",
+    "key": "boots",
+    "sources": [
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_02",
+     "sfx_100_v2:footstep_wet_03",
+     "sfx_100_v2:loop_water_01",
+     "sfx_100_v2:loop_water_02",
+     "sfx_100_v2:loop_water_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "c7768b2555fcecc2"
+ },
  "crew-footsteps/scuff/wood": {
   "cue": "crew-footsteps.scuff",
   "surface": "wood",
@@ -5143,6 +5231,28 @@
   ],
   "takes": 6,
   "sha": "3e38882989e91899"
+ },
+ "crew-footsteps/walk/water": {
+  "cue": "crew-footsteps.walk",
+  "surface": "water",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Walking: boots wading through shallow water, ankle to knee deep",
+    "key": "boots",
+    "sources": [
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_02",
+     "sfx_100_v2:footstep_wet_03",
+     "sfx_100_v2:loop_water_01",
+     "sfx_100_v2:loop_water_02",
+     "sfx_100_v2:loop_water_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 6,
+  "sha": "64a4fa010bd758f0"
  },
  "crew-footsteps/walk/wood": {
   "cue": "crew-footsteps.walk",

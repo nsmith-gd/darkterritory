@@ -47,7 +47,7 @@ MATERIALS = {
     "cobbles": "Cobbles and stone setts (towns, yards)",
 }
 DROP = ["wood", "grate", "ground", "concrete"]
-FEET = ["wood", "grate", "plate", "roof", "coal", "ballast", "dirt", "grass", "mud", "cobbles", "concrete"]
+FEET = ["wood", "grate", "plate", "roof", "coal", "ballast", "dirt", "grass", "mud", "cobbles", "concrete", "water"]
 
 # The director's note (2 Oct): the bottle-opening/fizz sound was overdone, and used where it made no sense. Fine where a
 # fizz belongs; not as a default texture. Most of it came from these two files (air_01 in 10 earlier references, 7 marked

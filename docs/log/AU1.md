@@ -276,3 +276,13 @@ launches are AU1.1, AU1.2, …. Entries are UTC; those before 12:55 on 7 Oct wer
   - **the cable's creak:** the hook's swivel and loaded rope at each turn of a slow, uneven sway, held where the hook is while the crane's record says anyone rides it, louder with two;
   - **the yell:** a startled "whoa!" from a crewmate coming off the hook alive with at least 2.5 m under them. The operator's shake-off is the host's alone, so a high let-go and a shake are heard alike, and letting go at the ground is quiet.
   - Four candidates (real creaks pitched down and a modelled stick-slip; the crew's throat through the real gasp and on its own), uploaded; the real swivel and the "whoa" installed. A new `crew-hoist` row at L1, a caption for the yell, and a test for both.
+
+## 15 Oct, ~14:45 UTC: #526, wading and the town types underfoot
+
+- **#525:** the whole Game test project passed here (1159, one VR skip).
+- **#526 (note 799), off T1's #1003 (the town types, note 692):** claimed on `claims`.
+  - **Wading:** feet under standing water (a town type's marsh and shallows, the line's lakes and marshes) step on "water", a new footstep surface. It has ten candidates: the real wet steps and running water (installed), and a modelled wade.
+  - **Underfoot:** a form's decks, ways, terraces and the land past its wall now sound as the art draws them. The art and the footing share the three texture helpers.
+  - **The town's water:** it laps near the ear as a lake does.
+  - Tests on a fen town and a quarry town.
+- **Found on the way:** my row-filling script didn't carry the director's verdicts over (`cues.carry_verdicts`). None of tonight's refilled rows had any, so nothing was lost, and it carries them now.
