@@ -14,6 +14,8 @@ namespace DarkTerritory.Game.Art;
 public sealed partial class WorldArt
 {
     readonly Matrix4x4[] _flagPose = new Matrix4x4[FlagKit.Bones];
+    /// <summary>Each town's flag's ripple, run on from frame to frame (<see cref="FlagClock"/>).</summary>
+    readonly Dictionary<string, FlagClock> _flagClocks = [];
 
     /// <summary>
     /// The town's own flag on its pole (queue #405, note 674): its custom's charge on its trade's field (<see cref="FlagBook.For"/>),
@@ -24,7 +26,9 @@ public sealed partial class WorldArt
         var tuning = _look.Tuning.Atmosphere.Flag;
         var cell = _look.Flags.For(town.Plan.Culture, town.Plan.Industry, town.Plan.Name);
         var cloth = Piece($"flag-cloth-{cell?.Cell ?? -1}", () => FlagKit.Cloth(_look, cell, _look.Flags, tuning));
-        FlagKit.Pose(tuning, wind, gusts, time, town.Plan.Name.Length * 0.37f, _flagPose);
+        if (!_flagClocks.TryGetValue(town.Plan.Name, out var clock))
+            _flagClocks[town.Plan.Name] = clock = new FlagClock();
+        FlagKit.Pose(tuning, wind, gusts, time, town.Plan.Name.Length * 0.37f, _flagPose, clock);
         mesh.Skinned(cloth, Matrix4x4.CreateTranslation(hoist), _flagPose);
     }
 
