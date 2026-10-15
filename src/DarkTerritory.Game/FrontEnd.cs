@@ -119,7 +119,7 @@ public sealed record NightMenu(bool Hosting = true, int Others = 0, bool Campaig
     public bool? Mischief { get; init; }
 }
 
-public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile, DeleteCrew, Mods, Crashed, Password }
+public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile, DeleteCrew, Mods, Crashed, Password, Paint }
 
 /// <summary>A mod laid over the game (note 323), as the MODS screen lists it: the app's scan of what's installed.</summary>
 public sealed record InstalledMod(string Name, string Version, string? Description);
@@ -441,6 +441,8 @@ public sealed class FrontEnd
             Screen.Password => Screen.Join,
             Screen.Title => Screen.Title,
             Screen.Leave or Screen.Settings when Night is not null => Screen.Night,
+            // Note 731: back to where PAINT YOUR MASK was chosen (the settings, or the yard's menu).
+            Screen.Paint => PaintBack,
             _ => Screen.Title,
         });
     }
@@ -695,6 +697,9 @@ public sealed class FrontEnd
         // In the yard (GDD §9: the crew "try on outfits"; note 298): put one on, and the crew see it.
         if (n.Yard)
             list.Add(OutfitEntry("Left and right to try one on: the crew see it."));
+        // Note 731: and paint the mask, on its own page.
+        if (n.Yard)
+            list.Add(PaintEntry("Its colour and a stencil, tried on at once: the crew see it."));
         // Note 724: the host's CREW MISCHIEF, in the yard: every machine has it as it's set.
         if (n.Mischief is { } on)
             list.Add(new(new($"CREW MISCHIEF: {(on ? "ON" : "OFF")}", on ? "Shoves, bonks and coal at the crew land." : "Shoves, bonks and coal at the crew land on nobody."),
@@ -1043,6 +1048,7 @@ public sealed class FrontEnd
         ],
         Screen.Slots => [.. _saves.List().Select(x => SlotEntry(x.Slot, x.State)), .. CrewEntries(), BackTo(Screen.Title)],
         Screen.Fortress => FortressEntries(),
+        Screen.Paint => PaintEntries(),
         Screen.Upgrades => UpgradeEntries(),
         Screen.Stores => StoreEntries(),
         Screen.QuickNight =>
@@ -1128,6 +1134,7 @@ public sealed class FrontEnd
                 Editing == TextField.PlayerName ? "Type your name; Enter or Esc when it's done. Erased, it's your Steam or system name."
                     : "Enter to type the name the crew and the report know you by."), Field: TextField.PlayerName)],
             OutfitEntry(Night is null ? "Left and right to change: what the crew see you in." : "Tried on in the yard; past the gate, from the next night."),
+            PaintEntry(Night is null ? "Your gas mask's colour and a stencil: what the crew see on it." : "Tried on in the yard; past the gate, from the next night."),
             Heading("SOUND AND VOICE"),
             new(new($"SOUND: {(Settings.Mute ? "OFF" : "ON")}"), Toggle(s => s with { Mute = !s.Mute }), _ => Change(Settings with { Mute = !Settings.Mute })),
             new(new($"VOICE: {(Settings.PushToTalk ? $"PUSH TO TALK ({(Settings.ToggleHolds ? "TAP" : "HOLD")} {Controls.KeyLabel(Settings.KeyFor(Control.Talk))})" : "OPEN MIC")}"), Toggle(s => s with { PushToTalk = !s.PushToTalk }), _ => Change(Settings with { PushToTalk = !Settings.PushToTalk })),
@@ -1274,6 +1281,76 @@ public sealed class FrontEnd
     /// </summary>
     public IReadOnlyList<string> OutfitNames { get; set; } = ["RED", "BLUE", "OCHRE", "TEAL", "GREEN", "VIOLET", "ORANGE", "WHITE"];
 
+    /// <summary>The mask paints by name (note 731; look.json maskPaintNames), in order (the app sets them).</summary>
+    public IReadOnlyList<string> MaskPaintNames { get; set; } = ["BONE", "SOOT", "SIGNAL RED", "OXBLOOD", "OCHRE", "LEAF GREEN", "SEA BLUE", "SLATE", "PLUM", "PITCH PINE"];
+    /// <summary>The stencils by name (note 731; look.json maskStencils), in order (the app sets them).</summary>
+    public IReadOnlyList<string> StencilNames { get; set; } = ["STRIPE", "CROSS", "TEETH", "STAR", "NUMBER", "MOUSTACHE", "HEART", "CROW", "BOLT", "SMILE", "X EYES", "ANCHOR"];
+    /// <summary>A stencil's colour when none's picked (look.json maskInk, from 1).</summary>
+    public int MaskInk { get; set; } = 1;
+
+    /// <summary>Where PAINT YOUR MASK goes back to: the settings, or the yard's menu (note 731).</summary>
+    Screen _paintBack = Screen.Settings;
+    Screen PaintBack => _paintBack is Screen.Night && Night is null ? Screen.Settings : _paintBack;
+
+    /// <summary>PAINT YOUR MASK (note 731): the settings' and the yard menu's way onto its page, saying what's on it now.</summary>
+    Entry PaintEntry(string detail)
+    {
+        var p = Settings.MaskPaint(MaskPaintNames.Count, StencilNames.Count);
+        string now = !p.Painted ? "UNPAINTED"
+            : p.Stencil == 0 ? MaskPaintNames[p.Colour - 1]
+            : $"{(p.Colour == 0 ? "BARE" : MaskPaintNames[p.Colour - 1])}, {StencilNames[p.Stencil - 1]}";
+        return new(new($"PAINT YOUR MASK: {now}", detail), () =>
+        {
+            _paintBack = Screen;
+            Show(Screen.Paint);
+            return null;
+        });
+    }
+
+    /// <summary>
+    /// PAINT YOUR MASK's page (note 731, GDD §29): the coat, the stencil and the stencil's colour, each left and right round
+    /// its list (the coat and the stencil through none). In the yard each change is tried on at once (the app sends it as the
+    /// outfit's is); past the gate it's kept for the next night.
+    /// </summary>
+    List<Entry> PaintEntries()
+    {
+        int paints = MaskPaintNames.Count, stencils = StencilNames.Count;
+        var p = Settings.MaskPaint(paints, stencils);
+        int ink = p.Ink > 0 ? p.Ink : Math.Clamp(MaskInk, 1, Math.Max(1, paints));
+        string tried = Night is { Yard: true } ? "The crew see it at once." : Night is not null ? "Past the gate: from the next night." : "What the crew see on your mask.";
+        // Round a list from 1 with none (0) among it, or without.
+        static int Round(int now, int by, int count, bool none) =>
+            none ? ((now + by) % (count + 1) + count + 1) % (count + 1) : ((now - 1 + by) % count + count) % count + 1;
+        var list = new List<Entry>
+        {
+            new(new($"COAT: {(p.Colour == 0 ? "UNPAINTED" : MaskPaintNames[p.Colour - 1])}", $"The mask's colour. {tried}"),
+                Toggle(s => s with { MaskColour = Round(p.Colour, 1, paints, true) }), by => Change(Settings with { MaskColour = Round(p.Colour, by, paints, true) })),
+            new(new($"STENCIL: {(p.Stencil == 0 ? "NONE" : StencilNames[p.Stencil - 1])}", $"Painted over the coat. {tried}"),
+                Toggle(s => s with { MaskStencil = Round(p.Stencil, 1, stencils, true) }), by => Change(Settings with { MaskStencil = Round(p.Stencil, by, stencils, true) })),
+        };
+        if (p.Stencil > 0 && paints > 0)
+            list.Add(new(new($"STENCIL COLOUR: {MaskPaintNames[ink - 1]}", $"The stencil's paint: pick one that shows on the coat. {tried}"),
+                Toggle(s => s with { MaskInk = Round(ink, 1, paints, false) }), by => Change(Settings with { MaskInk = Round(ink, by, paints, false) })));
+        list.Add(new(new("DONE"), () => { Show(PaintBack); return null; }, Back: true));
+        return list;
+    }
+
+    /// <summary>
+    /// The fortress board's CREW SIGIL (note 731): none, then each stencil in turn. Saved with the crew at once; whoever hosts
+    /// from this board takes it into the night, on the engine's side and small on every mask.
+    /// </summary>
+    Entry SigilEntry(CampaignState s)
+    {
+        int n = StencilNames.Count, now = Math.Clamp(s.Sigil, 0, n);
+        Launch? Set(int by)
+        {
+            SaveCrew(s with { Sigil = ((now + by) % (n + 1) + n + 1) % (n + 1) });
+            return null;
+        }
+        return new(new($"CREW SIGIL: {(now == 0 ? "NONE" : StencilNames[now - 1])}", "Your crew's mark, painted on the engine's side and small on every mask."),
+            () => Set(1), by => Set(by));
+    }
+
     /// <summary>OUTFIT (note 298): the crew's pick (your place's look), then each look in turn, round again.</summary>
     Entry OutfitEntry(string detail)
     {
@@ -1403,6 +1480,8 @@ public sealed class FrontEnd
         if (_campaign.Stores is not null)
             list.Add(new(new("STORES", StoresLine(s.Stores), s.Current is null), () => { Show(Screen.Stores); return null; }));
         list.Add(new(new("UPGRADES", null, s.Current is null), () => { Show(Screen.Upgrades); return null; }));
+        // Note 731: the crew's sigil, picked by whoever hosts from here: on the engine's side and every mask, kept in the save.
+        list.Add(SigilEntry(s));
         list.Add(new(new($"PLAY: {(_host ? "HOST FOR FRIENDS" : "ALONE")}", "Left and right to change."), () => { _host = !_host; return null; }, _ => _host = !_host));
         // Note 724: hosting, the run's CREW MISCHIEF, as on the host screen.
         if (_host)
@@ -1658,6 +1737,7 @@ public sealed class FrontEnd
             Screen.Password when _locked is { } locked => $"{locked.Name.ToUpperInvariant()} IS PRIVATE",
             Screen.Host => "HOST",
             Screen.Settings => "SETTINGS",
+            Screen.Paint => "PAINT YOUR MASK",
             Screen.Controls => "CONTROLS",
             Screen.Credits => "CREDITS",
             Screen.Mods => ModsOff ? "MODS: OFF, STARTED WITH --NO-MODS" : "MODS, IN THE ORDER THEY'RE LAID OVER THE GAME",

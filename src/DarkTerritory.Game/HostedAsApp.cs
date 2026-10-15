@@ -40,6 +40,8 @@ public static class HostedAsApp
             Crew = s.Name,
             CrewKey = Sim.Campaign.Logbook.Key(s),
             Night = s.Runs + 1,
+            // Note 731: the crew's sigil, on the engine's side and every mask.
+            Sigil = s.Sigil,
         };
 
     /// <summary>The harness's arguments for <paramref name="setup"/>'s night with <paramref name="bots"/> bots, for up to

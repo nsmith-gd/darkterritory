@@ -42,6 +42,8 @@ public sealed record EnemyTuning(
     public BrakemanTuning Brakeman { get; init; } = new();
     public HotboxTuning Hotbox { get; init; } = new();
     public KnotterTuning Knotter { get; init; } = new();
+    /// <summary>The sound cues in the world (queue #466, note 732): what waits in a house, what's been hit, what moves at the lamps' edge.</summary>
+    public Run.SoundCuesTuning SoundCues { get; init; } = new();
     public TowerJawTuning TowerJaw { get; init; } = new();
     /// <summary>How the crew bots answer the six creatures of 8 Oct (notes 362–367; note 367). Field docs live in enemies.json.</summary>
     public CrewBotsTuning CrewBots { get; init; } = new();

@@ -2000,6 +2000,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // (--survivor prisoner|wildlander: all of them freed survivors' figures, App. D.8.)
         // --horseplay shove|sooted (the views shove and sooted, note 717): a shove over car 2's side; a crewmate's sooted face.
         Lumps = horseplay is { } hp ? hp.Lumps : null,
+        // --sigil anchor (a look.json maskStencils key, or its number from 1): the crew's sigil on the engine's side and every
+        // mask (note 731); the views masks, maskface and sigil have the anchor.
+        CrewSigil = Str(args, "--sigil", view is "masks" or "maskface" or "maskside" or "sigil" ? "anchor" : "") is { Length: > 0 } sigil
+            ? int.TryParse(sigil, out int sigilNumber) ? sigilNumber : Array.IndexOf(look?.Tuning.MaskStencils ?? [], sigil) + 1 : 0,
         Crew = horseplay is { } hc ? hc.Crew
             // The handcar views (note 729): two pumping at its handle, or two lifting it down off the van.
             : view is "handcar" or "handcarlift" ? Staging.HandcarCrew(train, view)
@@ -2013,6 +2017,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             // lampsignal); --signal-at s: how far into it.
             : args.Contains("--signal") ? Staging.Signallers(train, Str(args, "--signal", "stop,go,back").Split(','), Opt(args, "--signal-at", 0.9))
             // --cabcrew: the crew in the big cab (note 716), and two off the train (its chart table's lamps, its hooks' caps).
+            // --masks: eight crewmates' painted masks in a row off the engine's front (note 731; views masks, maskface).
+            : args.Contains("--masks") || view is "masks" or "maskface" or "maskside" ? Staging.Masks(train)
             : args.Contains("--cabcrew") ? Staging.CabCrew(train)
             : args.Contains("--vr-body") ? Staging.Headsets(train, content)
             : args.Contains("--working") ? Staging.Working(train, content)
@@ -2176,7 +2182,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     if (Str(args, "--dave", view switch { "dave" or "davefar" or "daveface" => "paint", "davewarn" => "warn", _ => "" }) is { Length: > 0 } daveMode)
     {
         scene.Enemies = Staging.Dave(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, daveMode);
-        // --outfit h,v: which of his hats and waistcoats (0-4 each), whatever the night's.
+        // --outfit h,v: which of his hats and waistcoats (0-5 each), whatever the night's.
         if (Str(args, "--outfit", "") is { Length: > 0 } outfit && outfit.Split(',') is [var h, var v])
             DarkTerritory.Game.Art.DaveKit.Wearing = (int.Parse(h), int.Parse(v));
         if (daveMode != "paint")
@@ -3023,6 +3029,20 @@ static object ArtClip(string content, string name, string clip, string[] args)
             art.Crewmate(mesh, placed, pose, pose is DarkTerritory.Game.Art.CrewPose.Swing or DarkTerritory.Game.Art.CrewPose.GetUp
                     or DarkTerritory.Game.Art.CrewPose.TakeDown ? time : time - ((int)Opt(args, "--variant", 0) & 7) * 0.41, (int)Opt(args, "--variant", 0),
                 inHand: DarkTerritory.Game.Art.PropArt.Of(look).Get(tool));
+        else if (name == DarkTerritory.Game.Art.DaveArt.Figure)
+        {
+            // Dave (note 491) in his hat and waistcoat (--hat h --vest v: DaveKit's order), his brush and palette in his hands at
+            // his canvas, a board where the easel stands it (the brush's tip on its face).
+            bool painting = clip == DarkTerritory.Game.Art.DaveArt.Painting;
+            DarkTerritory.Game.Art.DaveArt.Draw(look, mesh, placed, clip, time, (int)Opt(args, "--hat", 0), (int)Opt(args, "--vest", 0), painting);
+            if (painting)
+            {
+                float cw = DarkTerritory.Game.Art.DaveArt.CanvasHalfWidth, cz = -DarkTerritory.Game.Art.DaveArt.CanvasOut;
+                float c0 = DarkTerritory.Game.Art.DaveArt.CanvasFoot, c1 = DarkTerritory.Game.Art.DaveArt.CanvasTop;
+                mesh.Quad(new System.Numerics.Vector3(-cw, c0, cz) - e, new System.Numerics.Vector3(cw, c0, cz) - e,
+                    new System.Numerics.Vector3(cw, c1, cz) - e, new System.Numerics.Vector3(-cw, c1, cz) - e, DarkTerritory.Game.Palette.BoardEnamel);
+            }
+        }
         else
             art.Draw(mesh, name, clip, time, loop, placed, (int)Opt(args, "--variant", 0));
         var light = look.Apply(FrameLighting.Night);
@@ -3062,10 +3082,11 @@ static object ArtReel(string content, string[] args)
     {
         if (cut.Contains(name) || only is not null && !only.Contains(name) || art.Get(name) is not { } model)
             continue;
-        bool survivor = name.StartsWith("survivor_", StringComparison.Ordinal);
+        bool survivor = name.StartsWith("survivor_", StringComparison.Ordinal), dave = name == DarkTerritory.Game.Art.DaveArt.Figure;
         foreach (var clipName in model.Clips.Keys.Order())
         {
-            if (survivor && clipName is not ("idle" or "walk") || clipsOnly is not null && !clipsOnly.Contains(clipName))
+            if (survivor && clipName is not ("idle" or "walk") || dave && clipName is not ("idle" or "walk" or DarkTerritory.Game.Art.DaveArt.Painting)
+                || clipsOnly is not null && !clipsOnly.Contains(clipName))
                 continue;
             // The crew's acts are drawn as the game draws them, with what's in their hands: the reload's powder, rammer and
             // pick, the hand lamp hung from the fist, the bar or the wrench (CreatureArt.Crewmate; a Look Review note).
@@ -3173,6 +3194,9 @@ static object ArtReel(string content, string[] args)
                     var hand = art.Joints(name, clipName, time, loop).ElementAt(handL);
                     mesh.Append(extinguisher, System.Numerics.Matrix4x4.CreateTranslation(hand - new System.Numerics.Vector3(0, extTop - 0.02f, 0) - e));
                 }
+                else if (dave)
+                    DarkTerritory.Game.Art.DaveArt.Draw(look, mesh, System.Numerics.Matrix4x4.CreateTranslation(-e), clipName, time, 0, 0,
+                        clipName == DarkTerritory.Game.Art.DaveArt.Painting);
                 else
                     art.Draw(mesh, name, clipName, time, loop, System.Numerics.Matrix4x4.CreateTranslation(-e));
                 var light = look.Apply(FrameLighting.Night);
@@ -3286,6 +3310,9 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
             PublicLobby = !args.Contains("--private"),
             LobbyPassword = args.Contains("--private") ? "NIGHT OWLS" : "",
         }.Save(Path.Combine(dir, "settings.json"));
+    // --menu paint (note 731): PAINT YOUR MASK with a mask painted, signal red with an anchor in bone.
+    if (screen == DarkTerritory.Game.Screen.Paint)
+        new DarkTerritory.Game.Settings { MaskColour = 3, MaskStencil = 12, MaskInk = 1 }.Save(Path.Combine(dir, "settings.json"));
     var menu = new DarkTerritory.Game.FrontEnd(ct, rt, saves, Path.Combine(dir, "settings.json"), () => 7, edition);
     menu.DefaultPlayerName = "Nick";
     // --menu profile (note 293): a tally as a few nights' crews would leave it, one badge not given yet.

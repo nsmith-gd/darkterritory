@@ -8,16 +8,14 @@ rule 9), saying so in the item's row and their log.
 - #467 the audit and the calls (#991, note 733) · #461 the mail catch (#992, note 727)
 - #451 horseplay with the shove's mark, #452 the night's prizes, #454 voices, #459's coupling test (#999; notes 717, 718,
   720, 725). Protocol 59.
-- In review from `ccr-f72c055b-195xp3`: #450 the big cab (note 716; with #459's lamp per crewmate aboard), #455 crew
-  memory (note 721; the logbook on the cab's front bench), #458 sessions (note 724; protocol 62) (#1016, merged). In review
-  next: #462 the sense table (note 728; protocol 63), #457 bringing them home (note 723; 64), #453 big finds (note 719; 65)
-  and #463 the handcar (note 729; 66).
+- From `ccr-f72c055b-195xp3`: #450 the big cab (note 716; with #459's lamp per crewmate aboard), #455 crew
+  memory (note 721; the logbook on the cab's front bench), #458 sessions (note 724; protocol 62) (#1016, merged). Then #462 the sense
+  table (note 728; protocol 63), #457 bringing them home (note 723; 64), #453 big finds (note 719; 65) and #463 the handcar
+  (note 729; 66) (#1026, merged). In review next: #465 painted masks (note 731; 67), #466 sound cues (note 732; 68).
 
-## Not started (specs in `specs/`, each with `specs/preamble.md`'s rules)
-#456 emotes for two (needs #454's
-lamp-signal wheel, merged) · #460 hoist a friend (D1.5 holds the crane's
-controls, #449) · #463 the handcar (building) · #464 odd outcomes · #465 painted masks (building) · #466 sound cues in the world (and the
-loose coupling's cause, 14 Oct playtest line 12).
+## Building or not started (specs in `specs/`, each with `specs/preamble.md`'s rules)
+#456 emotes for two (K1.14 building) · #464 odd outcomes (K1.13 building) · #460 hoist a friend (not started; D1.5 holds
+the crane's controls, #449).
 
 ## Open threads
 - The director questioned the mail (14 Oct playtest line 18): #461's speed post stands until they decide.

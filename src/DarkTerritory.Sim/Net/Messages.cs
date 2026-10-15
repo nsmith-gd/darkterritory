@@ -99,8 +99,13 @@ public static class Protocol
     //     bits 16 up), and the doors' record the jackpot houses' locks being picked after the doors shut (key, progress pairs).
     // 66: the handcar (note 729): a vehicle kind of its own and a Handcar record (hung or on the rails, the handle's swing, the
     //     pumpers' drive, the brake, a lift under way, how many at the handle); a player's flags carry Pumping.
-    // 67: the Mouse Moose (note 790): an enemy kind of its own, and a casting state (Taken: dragged out of the hook's reach).
-    public const int Version = 67;
+    // 67: painted masks (note 731): the Hello carries the mask's paint (colour, stencil, its ink) in three bytes after its flags,
+    //     the host's Paints and a client's Paint, apart from the outfit's byte.
+    // 68: sound cues in the world (note 732): a record kind of their own (boards creaking where a house creature waits, the
+    //     Householder shifting in its chair, a far bell for what's been lost, a dog barking at the lamps' edge), and what worked
+    //     a coupling's pin loose on its car's record (the wound and seized byte's bits 2 up), a bend taken too fast among them.
+    // 69: the Mouse Moose (note 790): an enemy kind of its own, and a casting state (Taken: dragged out of the hook's reach).
+    public const int Version = 69;
 }
 
 public enum MessageType : byte
@@ -175,6 +180,10 @@ public enum MessageType : byte
     Kicked = 24,
     /// <summary>Host → everyone, reliable (note 724): the lobby's crew mischief switch, on a Welcome and whenever the host changes it.</summary>
     Mischief = 25,
+    /// <summary>Host → client, reliable: everyone's mask paint (GDD §29; note 731), by id, whenever it changes, as Outfits.</summary>
+    Paints = 26,
+    /// <summary>Client → host, reliable: the paint this player puts on their mask (note 731). The host takes it only in the yard.</summary>
+    Paint = 27,
 }
 
 /// <summary>Why the host turned a joiner away (note 254).</summary>
@@ -211,8 +220,11 @@ public readonly record struct KickVote(byte Target, int Yes, int Needed, uint Un
     public bool Open => Target != 0;
 }
 
-/// <summary>A joiner's first word (note 253): who, the slot it's coming back to, its outfit, and a private run's key (note 450).</summary>
-public readonly record struct Hello(string Name, ulong Token, byte Outfit, byte[]? Key, bool Bot = false);
+/// <summary>
+/// A joiner's first word (note 253): who, the slot it's coming back to, its outfit, a private run's key (note 450), and its
+/// mask's paint (note 731).
+/// </summary>
+public readonly record struct Hello(string Name, ulong Token, byte Outfit, byte[]? Key, bool Bot = false, MaskPaint Paint = default);
 
 /// <param name="Seen">
 /// Note 717: the newest snapshot the client had when it first predicted this input (0: none), the crowd it was pushed out from
@@ -480,7 +492,8 @@ public static class Messages
     /// <param name="outfit">The outfit they come in (note 298), or <see cref="NoOutfit"/>.</param>
     /// <param name="key">A private run's password as <see cref="PasswordKey"/> makes it (note 450), or null for none.</param>
     /// <param name="bot">A bot crewmate (note 574): it never takes the cab's controls off someone playing.</param>
-    public static void WriteHello(NetWriter w, string name, ulong token = 0, byte outfit = NoOutfit, byte[]? key = null, bool bot = false)
+    /// <param name="paint">Their mask's paint (note 731), or none.</param>
+    public static void WriteHello(NetWriter w, string name, ulong token = 0, byte outfit = NoOutfit, byte[]? key = null, bool bot = false, MaskPaint paint = default)
     {
         w.Reset();
         w.U8((byte)MessageType.Hello);
@@ -488,13 +501,14 @@ public static class Messages
         w.U64(token);
         w.U8(outfit);
         w.U8((byte)(bot ? 1 : 0));
+        WritePaintBytes(w, paint);
         if (key is { Length: KeyLength })
             w.Bytes(key);
     }
 
     /// <summary>
-    /// Reads a Hello after its type byte: the name, the token (0 when it has none), the outfit (note 298) and the password's
-    /// key (note 450; null when there's none).
+    /// Reads a Hello after its type byte: the name, the token (0 when it has none), the outfit (note 298), the mask's paint
+    /// (note 731) and the password's key (note 450; null when there's none).
     /// </summary>
     public static Hello ReadHello(ref NetReader r)
     {
@@ -502,7 +516,8 @@ public static class Messages
         ulong token = r.Remaining >= 8 ? r.U64() : 0;
         byte outfit = r.Remaining >= 1 ? r.U8() : NoOutfit;
         byte flags = r.Remaining >= 1 ? r.U8() : (byte)0;
-        return new(name, token, outfit, r.Remaining >= KeyLength ? r.Rest()[..KeyLength].ToArray() : null, (flags & 1) != 0);
+        var paint = r.Remaining >= 3 ? ReadPaintBytes(ref r) : default;
+        return new(name, token, outfit, r.Remaining >= KeyLength ? r.Rest()[..KeyLength].ToArray() : null, (flags & 1) != 0, paint);
     }
 
     /// <summary>A password's key: SHA-256's length.</summary>
@@ -547,6 +562,48 @@ public static class Messages
         w.U8((byte)MessageType.Wear);
         w.U8(outfit);
     }
+
+    static void WritePaintBytes(NetWriter w, MaskPaint paint)
+    {
+        w.U8(paint.Colour);
+        w.U8(paint.Stencil);
+        w.U8(paint.Ink);
+    }
+
+    static MaskPaint ReadPaintBytes(ref NetReader r) => new(r.U8(), r.U8(), r.U8());
+
+    /// <summary>Everyone's mask paint (note 731), by id, as <see cref="WriteOutfits"/>.</summary>
+    public static void WritePaints(NetWriter w, IEnumerable<KeyValuePair<int, MaskPaint>> paints)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Paints);
+        var list = paints.Where(n => n.Key is >= 0 and < 256).OrderBy(n => n.Key).ToList();
+        w.U8((byte)list.Count);
+        foreach (var (id, paint) in list)
+        {
+            w.U8((byte)id);
+            WritePaintBytes(w, paint);
+        }
+    }
+
+    public static void ReadPaints(ref NetReader r, IDictionary<int, MaskPaint> into)
+    {
+        into.Clear();
+        int n = r.U8();
+        for (int i = 0; i < n; i++)
+            into[r.U8()] = ReadPaintBytes(ref r);
+    }
+
+    /// <summary>The paint a player puts on their mask in the yard (note 731).</summary>
+    public static void WritePaint(NetWriter w, MaskPaint paint)
+    {
+        w.Reset();
+        w.U8((byte)MessageType.Paint);
+        WritePaintBytes(w, paint);
+    }
+
+    /// <summary>A <see cref="MessageType.Paint"/>'s paint, after its type byte.</summary>
+    public static MaskPaint ReadPaint(ref NetReader r) => ReadPaintBytes(ref r);
 
     /// <summary>The crew's going on from <paramref name="town"/> (note 606): its <see cref="Towns.TownAt.Spec"/>.</summary>
     public static void WriteCarryOn(NetWriter w, Towns.TownAt town)
