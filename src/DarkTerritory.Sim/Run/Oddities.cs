@@ -253,7 +253,7 @@ public sealed record OddityTuning
     public bool Enabled { get; init; } = true;
     /// <summary>How long a happening stays on the wire (s), for a dropped snapshot not to lose it.</summary>
     public double KeepSeconds { get; init; } = 4;
-    public BellTuning Bell { get; init; } = new();
+    public TownBellTuning Bell { get; init; } = new();
     public WaveTuning Wave { get; init; } = new();
     public PaintingTuning Painting { get; init; } = new();
     public WellTuning Well { get; init; } = new();
@@ -264,7 +264,7 @@ public sealed record OddityTuning
     public LurchTuning Lurch { get; init; } = new();
 }
 
-public sealed record BellTuning(double HoldSeconds = 1.2, double Reach = 1.3, double EarshotM = 90, double LookSeconds = 6, double EverySeconds = 20);
+public sealed record TownBellTuning(double HoldSeconds = 1.2, double Reach = 1.3, double EarshotM = 90, double LookSeconds = 6, double EverySeconds = 20);
 public sealed record WaveTuning(double ReachM = 12, double ConeDegrees = 30, double Seconds = 2.5);
 public sealed record PaintingTuning(double HoldSeconds = 10, double Reach = 3, string Item = "davePainting", double PerCar = 0.08);
 public sealed record WellTuning(double Reach = 1.6, double SplashSeconds = 2.8, double CoinSeconds = 6, string CoinItem = "oldCoin", double CoinPerCar = 0.04,
