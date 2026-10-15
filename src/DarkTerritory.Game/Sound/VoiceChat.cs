@@ -35,6 +35,8 @@ public sealed class VoiceChat
     int _filled;
     ushort _sequence;
     double _clock;
+    /// <summary>A voice down the speaking tube after this long quiet (s) is a fresh call, heard first as its whistle.</summary>
+    const double TubeCallQuiet = 6;
 
     public VoiceChat(Mixer mixer) => _mixer = mixer;
 
@@ -65,6 +67,9 @@ public sealed class VoiceChat
         public SoundInstance? NearVoice, RadioVoice, DeadVoice, MimicVoice, TubeVoice;
         /// <summary>The speaking tube's end their voice last came out of (note 720), for where its horn is.</summary>
         public int TubeEnd;
+        /// <summary>Their voice coming down the tube now, and since when it's been quiet (note 774: the whistle-call).</summary>
+        public bool TubeOn;
+        public double TubeQuiet = double.NegativeInfinity;
         public double RadioKeyed;
         /// <summary>Their radio as of last update: keyed (the click and the static), and when it last broke up.</summary>
         public bool Keyed;
@@ -199,8 +204,16 @@ public sealed class VoiceChat
             s.DeadVoice ??= Stream("voice-dead", s.Dead);
             // The speaking tube (note 720): from the far end's horn, wherever the train has it now.
             s.TubeVoice ??= Stream("voice-tube", s.Tube);
-            if (s.TubeVoice is not null && Sim.Train.SpeakingTube.Horn(client.Train, tubeEnds, s.TubeEnd) is { } horn)
+            var tubeHorn = Sim.Train.SpeakingTube.Horn(client.Train, tubeEnds, s.TubeEnd);
+            if (s.TubeVoice is not null && tubeHorn is { } horn)
                 s.TubeVoice.Position = horn;
+            // The whistle-call (note 774; K1's ask on #1012): the old way to call down a speaking tube was to blow its whistle,
+            // so the first of a voice down it after a quiet shrills at the far end's horn before the words.
+            if (s.Tube.Playing && !s.TubeOn && _clock - s.TubeQuiet >= TubeCallQuiet && tubeHorn is { } callAt)
+                _mixer.Play("crew-speaking-tube.call", callAt);
+            if (!s.Tube.Playing && s.TubeOn)
+                s.TubeQuiet = _clock;
+            s.TubeOn = s.Tube.Playing;
             if (s.LiveMic is { } holdout && s.NearVoice is not null)
                 s.NearVoice.Position = holdout + Double3.Up * 1.4;
             else

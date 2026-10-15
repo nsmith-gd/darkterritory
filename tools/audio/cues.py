@@ -986,6 +986,18 @@ CUES = {
         L("jacob-fish", "Jacob at the water's edge: his line cast, the reel's tick, the water lapping"),
         O("jacob-bless", "Jacob's blessing: a soft rising shimmer down the cars as the train is made new", vars=2),
     ],
+    # K1's merged asks (queue #504, note 774; K1 on #1012): the mail catch at a lineside crane (note 727), a comet fragment's
+    # hum (note 718), the speaking tube's whistle-call (note 720).
+    "crew-mail": [
+        O("catch", "The bag snatched off the crane into the catcher arm: a canvas thwack, the arm's iron clank", vars=3),
+        O("tear", "Hooked too fast: canvas ripping, the bag torn off the hook and gone, letters scattering", vars=3),
+    ],
+    "world-comet": [
+        L("hum", "A comet fragment: a low, wrong hum, felt in the teeth, as it glows sick and green"),
+    ],
+    "crew-speaking-tube": [
+        O("call", "A voice coming down the tube after a quiet: its whistle shrilling at the far end first", vars=3),
+    ],
     # Signs off the train (D1.1's note 327; queue #79, note 342): a crewmate afoot is shown a pair of eyes at the lamp's edge,
     # toward where a creature lives here. Its sound says something's out there, never that it's coming: quieter than its
     # tell and nothing like it (GameAudio.Watched plays "sign.<kind>", Director.Key's names). The Gaunt and the Followers
