@@ -76,6 +76,10 @@ public class CaptionsTests
     // Note 774: the speaking tube's call, the mail bag torn.
     [InlineData("crew-speaking-tube.call")]
     [InlineData("crew-mail.tear")]
+    // Note 776: the crew car's kettle and cuckoo, the crew photo's flash.
+    [InlineData("crew-car.kettle")]
+    [InlineData("crew-car.cuckoo")]
+    [InlineData("crew-memory.flash")]
     public void TheTellsAndCallsSinceCaptionsAreCaptioned(string sound)
     {
         // Note 391: the signs as they play since note 342, the Moose's and the Gannet's tells (notes 334, 384), and the jobs

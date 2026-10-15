@@ -81,6 +81,7 @@ public sealed partial class GameAudio
         _craneMoved.Clear();
         _dropsHeard.Clear();
         _dropsPrimed = false;
+        _cuckooOut = null;
         _castings.Clear();
         _beltStarted.Clear();
         _jamWas.Clear();
@@ -131,6 +132,7 @@ public sealed partial class GameAudio
         RoofGust(train);
         TownSounds(world, ear, dt);
         MailAndCometSounds(world, ear);
+        CrewCarSounds(world);
         if (_places is { } places)
         {
             WorldNight(world, run, ear, tunnel, underground, dt);

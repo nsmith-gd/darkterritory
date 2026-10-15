@@ -29,6 +29,10 @@ public static class UiCue
     public const string PanelOpen = "ui-panels.open";
     public const string PanelClose = "ui-panels.close";
     public const string PanelPage = "ui-panels.page";
+    // crew-memory: the crew's logbook on the big cab's bench (note 721), opened, paged and shut on this machine only (note 776).
+    public const string LogbookOpen = "crew-memory.open";
+    public const string LogbookPage = "crew-memory.page";
+    public const string LogbookShut = "crew-memory.shut";
     /// <summary>This player's own film skipped (note 315).</summary>
     public const string FilmSkip = "ui-film.skip";
     // ui-prompts: a hold-to-interact action (GameAudio.Interface).
