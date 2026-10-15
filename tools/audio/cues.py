@@ -975,6 +975,17 @@ CUES = {
         O("take", "One who ran taken in its hand: the ground struck, a grip closing", vars=2),
         O("swallow", "Eaten: a crunch and a long swallow overhead", vars=2),
     ],
+    # The figures (queue #503, note 773; P1's notes 570, 571, 489; asked of AU1 in #569): Dave at his easel past a stop, Nicki's
+    # party in the one house up late, Jacob fishing at the water's edge. People, not creatures: warm, small, human.
+    "figures": [
+        L("dave-paint", "Dave at his easel: a brush on canvas, his low, tuneless humming"),
+        O("dave-laugh", "A breath of a laugh as he's struck (his kind words are text)", vars=3),
+        O("dave-turn", "His last warning: the brush set down, his stool scraped round", vars=2),
+        O("dave-grab", "The snap as he takes someone by the neck", vars=2),
+        L("party", "Nicki's party, the one house up late: music kept low, laughing, glasses"),
+        L("jacob-fish", "Jacob at the water's edge: his line cast, the reel's tick, the water lapping"),
+        O("jacob-bless", "Jacob's blessing: a soft rising shimmer down the cars as the train is made new", vars=2),
+    ],
     # Signs off the train (D1.1's note 327; queue #79, note 342): a crewmate afoot is shown a pair of eyes at the lamp's edge,
     # toward where a creature lives here. Its sound says something's out there, never that it's coming: quieter than its
     # tell and nothing like it (GameAudio.Watched plays "sign.<kind>", Director.Key's names). The Gaunt and the Followers

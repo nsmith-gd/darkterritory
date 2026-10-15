@@ -263,6 +263,12 @@ public sealed partial class GameAudio
             case Waker w:
                 WakerSounds(world, w, was, at);
                 break;
+            case Dave d:
+                DaveSounds(world, d, was, at);
+                break;
+            case Jacob j:
+                JacobSounds(world, j, was, at);
+                break;
             default:
                 SixSounds(world, e, was, at, occ, struck, dt);
                 break;
