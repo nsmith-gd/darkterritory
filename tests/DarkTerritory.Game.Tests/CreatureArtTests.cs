@@ -35,8 +35,8 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
             "stumble", "pull_mouth", "pry_off", "haul_down", "shuffle", "dance_off_cheer", "sit_edge", "lean_out", "lean_out_left",
             // (Note 812's carry and hand-up.)
             "fireman", "fireman_walk", "carried", "carried_walk", "hand_up",
-            // (Note 813's hook rider and flail.)
-            "on_hook", "flail"],
+            // (Note 813's hook rider and flail; note 814's pump.)
+            "on_hook", "flail", "pump"],
             ["dead", "swing", "fp_swing", "jump", "high_five", "high_five_met", "fist_bump", "fist_bump_met", "dance_off", "shove"]),
         // The crew figure gone wrong (the Climbers and the Deadman): the crew's own rig and clips.
         ["husk"] = new(2500, 9000, 20, 60, ["idle", "walk", "run", "climb", "shovel", "crouch_idle"], ["dead"]),

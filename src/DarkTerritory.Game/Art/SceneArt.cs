@@ -144,6 +144,8 @@ public sealed partial class SceneArt(Look look)
             CrewPose.Shove => c.Phase > 0 ? c.Phase : time - since.Time,
             // (Note 812: over the shoulder, on the carrier's clock: their beat less this one's, CrewActs.OnTheShoulder.)
             CrewPose.Carried or CrewPose.CarriedWalk => time + c.Phase,
+            // (Note 814: the handle's swing has the pump, not a clock: CrewActs.PumpPhase.)
+            CrewPose.Pump => c.Phase,
             // A staged swing (dt screenshot --act swing) says how far into it they are; a played one, from its blow.
             CrewPose.Swing => swung >= 0 ? swung + SwingHitAt : c.Phase,
             // The reload's beats follow the gun's own progress, not a clock (CrewActs.ReloadPhase).

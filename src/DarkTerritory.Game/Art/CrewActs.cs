@@ -43,7 +43,7 @@ public static class CrewActs
                 : s.Has(PlayerFlags.Pumping) ? AtTheHandle(world.Train, frames, feet, yaw, s) : null,
             Lamp: lamp, Survivor: SurvivorOf(id, world),
             Stressed: s.Alive && Stressed(world, PlayerMotor.WorldPosition(s, world.Train)), Health: s.Health,
-            Phase: act == CrewPose.Reload ? ReloadPhase(s, world) : 0, Death: s.Death,
+            Phase: act == CrewPose.Reload ? ReloadPhase(s, world) : act == CrewPose.Pump ? PumpPhase(s, world.Train) : 0, Death: s.Death,
             Headset: s.Head > 0 ? new HeadsetBody(s.Head, s.Pitch, s.Parent, s.Position, s.Yaw) : null,
             Car: placed.Parent != PlayerState.World && placed.Parent < frames.Count ? placed.Parent : PlayerState.World, Local: placed.Position,
             Emote: emote, EmoteSeconds: emoteSeconds, Sooted: s.Has(PlayerFlags.Sooted), Signal: signal, SignalSeconds: signalSeconds,
@@ -404,6 +404,24 @@ public static class CrewActs
         return AtTheHandle(train.Dynamics.Tuning.Handcar, frames[h.Id], h.Phase, Sim.Train.Handcar.EndAt(s.Position.Z), feet, yaw);
     }
 
+    /// <summary>
+    /// Note 814: how far into crew_clips' pump a pumper at <paramref name="s"/>'s end of the handcar's handle is, by its swing
+    /// (<see cref="Sim.Train.Handcar.EndHeight"/>): the clip's one swing over <see cref="PumpSeconds"/> starts with their own
+    /// end at the top, which is the front end's at a swing of 0 and the back end's half a swing on.
+    /// </summary>
+    public static double PumpPhase(in PlayerState s, TrainOnLine train) =>
+        train.Handcar is { } h ? PumpPhase(h.Phase, Sim.Train.Handcar.EndAt(s.Position.Z)) : 0;
+
+    /// <summary>The same, for a swing and an end as given (a staged pumper).</summary>
+    public static double PumpPhase(double swing, int end)
+    {
+        double turn = (swing + (end > 0 ? Math.PI : 0)) / (2 * Math.PI);
+        return (turn - Math.Floor(turn)) * PumpSeconds;
+    }
+
+    /// <summary>The pump clip's one swing of the handle (s; crew_clips.py's 60 frames at 30 fps).</summary>
+    public const double PumpSeconds = 2;
+
     /// <summary>The same, for a handle as given (a staged pumper: Staging.Pumpers).</summary>
     public static (Double3, Double3) AtTheHandle(HandcarTuning t, CarFrame car, double phase, int end, Double3 feet, double yaw)
     {
@@ -557,9 +575,10 @@ public static class CrewActs
             return CrewPose.Push;
         if (s.Has(PlayerFlags.Operating))
             return CrewPose.Lever;
-        // At the handcar's handle (note 729): both hands on its grip bar, going up and down with it (AtTheHandle).
+        // At the handcar's handle (note 729): both hands on its grip bar, going up and down with it (AtTheHandle), pumping it
+        // (note 814: by its swing, PumpPhase).
         if (s.Has(PlayerFlags.Pumping))
-            return CrewPose.Lever;
+            return CrewPose.Pump;
         if (world.Bodies.CarriedBy(id) is { } carried)
             return carried.Kind switch
             {

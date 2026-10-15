@@ -71,6 +71,7 @@ What each is for (CrewActs, from the sim's state; GDD/spec where the act is):
   hand_up             in a moving car's door, leant out and down, reaching for a friend running beside it (note 723)
   on_hook             stood on a crane's hook (note 726), both hands up its cable, a little sway, a look round
   flail               off the hook, or off their feet (shoved, thrown): in the air, arms windmilling, legs running at nothing
+  pump                at the handcar's handle (note 729), played by its swing: bent over it driving it down, hauled back up
   shove               a crewmate shoved (note 717): off the back foot into a lunge, both palms thrown out at the chest, held
   sit_edge            sat on a roof's or a landing's edge, the legs hanging over and swinging, a lean back on the hands
   lean_out, lean_out_left
@@ -2092,8 +2093,39 @@ for f in range(0, 24, 3):
 flail.close(24)
 clips.append(flail)
 
+# --- pump: at the handcar's handle (note 729; queue #542, note 814) ---------------------------------------------------------
+# Played by the handle's swing, not a clock (CrewActs.PumpPhase): one swing over 2 s, the pumper's own end at the top at its
+# start, pushed down to the bottom at 1 s, pulled back up. Stood at the end facing the post (Handcar.Place: 1.05 m out on the
+# 3 m deck), the grip bar a quarter metre ahead, 0.95 m over the deck on its 0.8 m arm, up and down 0.28 of it (GreyboxScene's
+# HandleGrip): bent over it and driving it down from the shoulders and the knees, then hauled up with the back, upright at
+# the top. CrewActs still puts the hands on the bar as the sim has it.
+PUMP_OUT, PUMP_POST, PUMP_ARM, PUMP_LIFT = 1.05, 0.95, 0.8, 0.28
+
+
+def pump_grip(h):
+    tilt = math.atan2(h * PUMP_LIFT, PUMP_ARM)
+    return PUMP_OUT - PUMP_ARM * math.cos(tilt), PUMP_POST + PUMP_ARM * math.sin(tilt)
+
+
+pump = Clip("pump")
+for f in range(0, 60, 5):
+    h = math.cos(2 * math.pi * f / 60)                       # the pumper's end: 1 at the top, -1 at the bottom
+    going_down = f < 30
+    down = (1 - h) / 2                                       # 0 at the top, 1 at the bottom
+    ahead, height = pump_grip(h)
+    lean = -10 - 26 * down - (4 if going_down else -2)       # over the bar on the push, a little back on the haul
+    body = over(STAND, **{"pelvis@loc": (0, -0.03 * down, -0.12 * down), "pelvis": (lean * 0.3, 0, 0),
+                          "spine_01": (lean * 0.35, 0, 0), "spine_02": (lean * 0.35, 0, 0), "spine_03": (lean * 0.2, 0, 0),
+                          "neck": (-lean * 0.6, 0, 0), "head": (-lean * 0.2, 0, 0),
+                          "thigh_r": (12 + 30 * down, 0, 2), "calf_r": (-18 - 44 * down, 0, 0), "foot_r": (6 + 14 * down, 0, -6),
+                          "thigh_l": (-4 + 24 * down, 0, -2), "calf_l": (-10 - 36 * down, 0, 0), "foot_l": (4 + 12 * down, 0, 6)})
+    p = hands(body, (0.3, ahead, height), (-0.3, ahead, height), grip=90, elbow=(0.42, -0.25, height - 0.15))
+    pump.key(f, p)
+pump.close(60)
+clips.append(pump)
+
 kit.build()
-rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"wave", "point", "dance", "paint", "drink", "grill", "eat", "bow", "salute", "conga", "shove", "fireman", "hand_up", "high_five", "high_five_met", "fist_bump", "fist_bump_met", "dance_off",
+rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"wave", "point", "dance", "paint", "drink", "grill", "eat", "bow", "salute", "conga", "shove", "pump", "fireman", "hand_up", "high_five", "high_five_met", "fist_bump", "fist_bump_met", "dance_off",
                                                         "dance_off_cheer", "lean_out", "lean_out_left", "carry", "carry_walk", "drag", "drag_fwd", "shovel", "door", "handbrake", "hatch",
                                                         "uncouple", "vent", "lever", "push", "swing", "mend",
                                                         "gap", "extinguish", "spray", "lantern", "lantern_walk", "haul",

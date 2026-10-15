@@ -112,6 +112,28 @@ public class CrewActsTests
         Assert.True(CrewActs.HookSway(0.9).Length > 0.03, "it does swing");
     }
 
+    /// <summary>
+    /// Note 814: a pumper's pump is played by the handle's swing, not a clock: at their own end's top (the front end's at a swing
+    /// of 0, the back end's half a swing on) the clip's at its start, at their end's bottom half way through, and once round it's
+    /// back where it began; the two ends are always half a pump apart.
+    /// </summary>
+    [Fact]
+    public void ThePumpIsPlayedByTheHandlesSwing()
+    {
+        Assert.Equal(0, CrewActs.PumpPhase(0, -1), 9);
+        Assert.Equal(CrewActs.PumpSeconds / 2, CrewActs.PumpPhase(Math.PI, -1), 9);
+        Assert.Equal(CrewActs.PumpSeconds / 2, CrewActs.PumpPhase(0, 1), 9);
+        for (double swing = -7; swing < 14; swing += 0.7)
+        {
+            Assert.InRange(CrewActs.PumpPhase(swing, -1), 0, CrewActs.PumpSeconds);
+            double apart = Math.Abs(CrewActs.PumpPhase(swing, -1) - CrewActs.PumpPhase(swing, 1));
+            Assert.Equal(CrewActs.PumpSeconds / 2, apart, 6);
+            // Its end at the top (EndHeight 1) at the clip's start, at the bottom half way: the clip's own swing.
+            double turn = CrewActs.PumpPhase(swing, -1) / CrewActs.PumpSeconds * 2 * Math.PI;
+            Assert.Equal(Sim.Train.Handcar.EndHeight(swing, -1), Math.Cos(turn), 6);
+        }
+    }
+
     [Fact]
     public void TheActIsReadOffTheirState()
     {
@@ -140,6 +162,8 @@ public class CrewActsTests
         Assert.Equal(CrewPose.Fall, CrewActs.Of(s with { Surface = Surface.Air, Velocity = new Double3(0, -6, 0) }, 1, w));
         // Note 813: on a crane's hook, stood on it; off their feet by a shove or a throw, flailing all the way down.
         Assert.Equal(CrewPose.OnHook, CrewActs.Of(s with { Flags = PlayerFlags.Hoisted }, 1, w));
+        // Note 814: at the handcar's handle, pumping it.
+        Assert.Equal(CrewPose.Pump, CrewActs.Of(s with { Flags = PlayerFlags.Pumping }, 1, w));
         Assert.Equal(CrewPose.Flail, CrewActs.Of(s with { Surface = Surface.Air, Velocity = new Double3(0, -6, 0), Flags = PlayerFlags.Shoved }, 1, w));
         // Dead, they're drawn as their body.
         Assert.Null(CrewActs.Of(s with { Death = DeathCause.Struck, Flags = PlayerFlags.Held }, 1, w));
