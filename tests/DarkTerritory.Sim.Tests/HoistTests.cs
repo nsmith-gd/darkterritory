@@ -10,7 +10,8 @@ namespace DarkTerritory.Sim.Tests;
 /// <summary>
 /// A friend on the crane's hook (GDD §18; ARCHITECTURE §8 note 726; the friendslop audit's griefers, the director, 14 Oct 2026:
 /// "The griefer ideas are funny"): a crewmate takes hold of the empty hook and rides it, the operator lifts, runs and lowers
-/// them as a load, Jump lets go and the world's fall rules take over, and the report names the operator for a drop that hurt.
+/// them as a load, Jump lets go, the drop is a gag (note 802; the director, 15 Oct 2026: "It's a silly gag not a big grief": at
+/// most 10 health by its height, never a death), and the report names the operator for a drop that hurt.
 /// </summary>
 public class HoistTests
 {
@@ -183,26 +184,47 @@ public class HoistTests
         Assert.DoesNotContain(IncidentLog.Lines(y.World, 0, 0, _ => false), l => l.Victim == Friend);
     }
 
-    [Fact]
-    public void LetGoFromTheTopItsAKnockAndTheReportNamesWhoLiftedThem()
+    /// <summary>Note 802: the gag's knock for a drop of <paramref name="height"/> m, worked from player.json's numbers here.</summary>
+    static int Gag(double height)
     {
-        // Note 573's fall by height: the foundry's gantry tops a rider's feet out at 6.35 m, between fallHurtFrom (5.5) and
-        // fallLethalFrom (7.5): a hard knock, the operator's in the report.
+        var g = P.Landing.OffTheHook!;
+        return height <= g.From ? 0 : (int)Math.Round(g.MaxKnock * Math.Min(1, (height - g.From) / (g.FullAt - g.From)));
+    }
+
+    [Fact]
+    public void TheGagsNumbersAreTheDirectors()
+    {
+        // Note 802 (the director, 15 Oct 2026): "the player can only lose 10 health at most from a drop and then scale that based
+        // on height".
+        var g = Assert.IsType<OffTheHookTuning>(P.Landing.OffTheHook);
+        Assert.Equal(10, g.MaxKnock);
+        Assert.Equal(0, g.Knock(g.From));
+        Assert.Equal(g.MaxKnock / 2, g.Knock((g.From + g.FullAt) / 2));
+        Assert.Equal(g.MaxKnock, g.Knock(g.FullAt));
+        Assert.Equal(g.MaxKnock, g.Knock(100));
+    }
+
+    [Fact]
+    public void LetGoFromTheTopItsTheGagsFullKnockAndTheReportNamesWhoLiftedThem()
+    {
+        // Note 802: the foundry's gantry tops a rider's feet out at 6.35 m, past landing.offTheHook.fullAt: the full knock of 10,
+        // no more (note 573's fall table would have taken about 48), and the operator's in the report.
         var y = new Yard();
         y.HookOverGround(1.2);
         y.FriendBesideTheHook();
         y.TakeHold();
         y.Run(C.Height / C.HoistSpeed + 1, id => id == Operator ? Up : default);
         double feet = y.At(Friend).Y - (y.Crane.HookAt.Y - y.Crane.Hook);
-        Assert.InRange(feet, P.Landing.FallHurtFrom, P.Landing.FallLethalFrom);
+        Assert.True(feet > P.Landing.OffTheHook!.FullAt, $"feet {feet:0.00} m up");
         y.Run(Dt, id => id == Friend ? Jump : default);
+        Assert.True(y.Players[Friend].Has(PlayerFlags.OffTheHook));
         Assert.Equal(Operator, y.World.DroppedBy(Friend));
         y.Run(2);
         var her = y.Players[Friend];
         Assert.True(her.Alive);
         Assert.Equal(Surface.Ground, her.Surface);
-        int knock = (int)Math.Round(P.Landing.RollDamage + (P.Health - P.Landing.RollDamage) * (feet - P.Landing.FallHurtFrom) / (P.Landing.FallLethalFrom - P.Landing.FallHurtFrom));
-        Assert.InRange(P.Health - her.Health, knock - 6, knock + 6);
+        Assert.False(her.Has(PlayerFlags.OffTheHook));
+        Assert.Equal(P.Landing.OffTheHook.MaxKnock, P.Health - her.Health);
         var line = Assert.Single(IncidentLog.Lines(y.World, 0, 0, _ => false), l => l.Victim == Friend);
         Assert.Equal("Priya", line.Who);
         Assert.Matches(@"^Dropped from the crane .+\. Dropped from the crane by Dave, 6 m up\.$", line.Text);
@@ -210,8 +232,9 @@ public class HoistTests
     }
 
     [Fact]
-    public void OffATallerGantryTheDropKillsAndTheDeathIsTheOperators()
+    public void OffATallerGantryItsStillTheGagNeverADeath()
     {
+        // Note 802: an 11 m gantry puts a rider's feet past note 573's fallLethalFrom; off the hook it's still the gag's 10.
         var tall = FacilityTests.F with { Crane = C with { Height = 11 } };
         var y = new Yard(tall);
         y.HookOverGround(1.2);
@@ -222,11 +245,100 @@ public class HoistTests
         y.Run(Dt, id => id == Friend ? Jump : default);
         y.Run(2.5);
         var her = y.Players[Friend];
-        Assert.False(her.Alive);
-        Assert.Equal(DeathCause.Dropped, her.Death);
-        var death = Assert.Single(y.World.Attribution.Of(IncidentKind.Death));
-        Assert.Equal((Friend, Operator, "Dropped from the crane"), (death.Victim, death.Actor, death.What));
-        Assert.Equal("Dropped from the crane by {actor}, 9 m up.", death.Action);
+        Assert.True(her.Alive);
+        Assert.Equal(DeathCause.None, her.Death);
+        Assert.Equal(Surface.Ground, her.Surface);
+        Assert.Equal(P.Landing.OffTheHook!.MaxKnock, P.Health - her.Health);
+        Assert.Empty(y.World.Attribution.Of(IncidentKind.Death));
+        var line = Assert.Single(IncidentLog.Lines(y.World, 0, 0, _ => false), l => l.Victim == Friend);
+        Assert.EndsWith("Dropped from the crane by Dave, 9 m up.", line.Text);
+    }
+
+    [Fact]
+    public void ALowDropIsASmallKnockByItsHeight()
+    {
+        // Note 802: lifted to about 2 m over the ground and let go, the knock is the gag's for that height (a couple of health).
+        var y = new Yard();
+        y.HookOverGround(1.2);
+        y.FriendBesideTheHook();
+        y.TakeHold();
+        y.Run(1, id => id == Operator ? Up : default);
+        y.Run(Dt);
+        double feet = y.At(Friend).Y - (y.Crane.HookAt.Y - y.Crane.Hook);
+        Assert.InRange(feet, 1.7, 2.4);
+        y.Run(Dt, id => id == Friend ? Jump : default);
+        y.Run(1.5);
+        var her = y.Players[Friend];
+        Assert.Equal(Surface.Ground, her.Surface);
+        int knock = P.Health - her.Health;
+        Assert.InRange(knock, 1, P.Landing.OffTheHook!.MaxKnock / 2);
+        Assert.InRange(knock, Gag(feet) - 1, Gag(feet) + 1);
+        Assert.Contains(IncidentLog.Lines(y.World, 0, 0, _ => false), l => l.Victim == Friend);
+    }
+
+    [Fact]
+    public void LetGoWithNoLiftItsStillTheGagAndNobodysFault()
+    {
+        // Taken hold of as high as a crewmate can reach and let go without anyone lifting them: still off the hook, so the gag's
+        // knock by the height (a little, from about 1.9 m), and nobody's in the report.
+        var y = new Yard();
+        y.HookOverGround(H.Height[1] - 0.05);
+        y.FriendBesideTheHook();
+        y.TakeHold();
+        double feet = y.At(Friend).Y - (y.Crane.HookAt.Y - y.Crane.Hook);
+        Assert.True(feet > P.Landing.OffTheHook!.From + 0.5, $"feet {feet:0.00} m up");
+        y.Run(Dt, id => id == Friend ? Jump : default);
+        Assert.Null(y.World.DroppedBy(Friend));
+        Assert.True(y.Players[Friend].Has(PlayerFlags.OffTheHook));
+        y.Run(2);
+        var her = y.Players[Friend];
+        Assert.True(her.Alive);
+        Assert.Equal(Surface.Ground, her.Surface);
+        Assert.InRange(P.Health - her.Health, Math.Max(1, Gag(feet) - 1), Gag(feet) + 1);
+        Assert.DoesNotContain(IncidentLog.Lines(y.World, 0, 0, _ => false), l => l.Victim == Friend);
+    }
+
+    [Fact]
+    public void OffTheHookCrossesTheWirePastTheOldSixteenBits()
+    {
+        // Note 802: PlayerFlags is a uint, OffTheHook bit 18 (past Lounging and Playing); a snapshot carries it, with Hoisted's bit, whole.
+        var y = new Yard();
+        y.HookOverGround(1.2);
+        y.FriendBesideTheHook();
+        y.TakeHold();
+        y.Run(2, id => id == Operator ? Up : default);
+        y.Run(Dt, id => id == Friend ? Jump : default);
+        var flags = y.Players[Friend].Flags | PlayerFlags.Hoisted | PlayerFlags.Sooted;
+        Assert.True(flags.HasFlag(PlayerFlags.OffTheHook));
+        Assert.True((uint)flags > ushort.MaxValue);
+        var records = WorldRecords.Capture(y.World, new TrainControls(), [new PlayerSnapshot(Friend, y.Players[Friend] with { Flags = flags })]);
+        var w = new Ballast.Net.NetWriter();
+        WorldRecords.WriteDelta(w, records, null);
+        var r = new Ballast.Net.NetReader(w.Written);
+        var read = WorldRecords.ReadDelta(ref r, null);
+        var client = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 0)), y.Train.Line, 1000, Tuning.Boiler));
+        client.EnableRun(Tuning.Run, y.World.Run!.Route, 600, authority: false, FacilityTests.F);
+        var controls = new TrainControls();
+        var players = new List<PlayerSnapshot>();
+        WorldRecords.Apply(read, client, ref controls, players);
+        Assert.Equal(flags, Assert.Single(players, p => p.Id == Friend).State.Flags);
+    }
+
+    [Fact]
+    public void TheGagNeverTakesTheLastHealth()
+    {
+        // Note 802: on 5 health, the full knock off the top leaves them on 1, not dead.
+        var y = new Yard();
+        y.HookOverGround(1.2);
+        y.FriendBesideTheHook();
+        y.TakeHold();
+        y.Run(C.Height / C.HoistSpeed + 1, id => id == Operator ? Up : default);
+        y.Players[Friend] = y.Players[Friend] with { Health = 5 };
+        y.Run(Dt, id => id == Friend ? Jump : default);
+        y.Run(2);
+        var her = y.Players[Friend];
+        Assert.True(her.Alive);
+        Assert.Equal(1, her.Health);
     }
 
     [Fact]

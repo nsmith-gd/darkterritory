@@ -366,3 +366,12 @@ The director asked for the last three friendslop features to be heard. Two were 
 
 - [#1096](https://github.com/nsmith-gd/darkterritory/pull/1096) merged (d3c4cf8) on green CI (both systems, packaging, crossplay): #534 done; #505's horns, forge and BBQ deck in. #505 stays open for the tools' tells, which wait on the tools (#967's "still to build"), and the band against the mix.
 - The six checklist rows (`up-whimsy`, `up-pets`, `crew-emotes`, `up-horns`, `up-forge`, `up-bbq`) at L1.
+
+## 15 Oct, ~21:55 UTC: the band against the mix (#505)
+
+- #1098 merged (rows #534 done, #505's handoff). `dt audio render --scenario chaos+band` (new: maximum chaos with all eight of the band's instruments round the listener on the roof): six tells fell under spec A.3's 6 dB over the bed, the Dragger to -4.4 dB. The band now drops a further 18 dB under any tell (`mix.json`, a sound-duck rule on tier 1 and `band-*`), as the music gives way; every tell clears (the Dragger by 6.3 dB). `AudioTests` holds it.
+
+## 15 Oct, ~22:35 UTC: #1104 merged; the clerk's words for every upgrade (#505)
+
+- [#1104](https://github.com/nsmith-gd/darkterritory/pull/1104) merged on green CI: the band gives way to a tell.
+- **The clerk's words:** #967's 42 upgrade tally lines are read into every night's tally, and the bank had only the first ten's words, so the set broke up over "Fiddle: in tune, mostly." and the rest. `tools/audio/clerk.py` reads them off `campaign.json` now; 68 new takes; `ClerkVoiceTests` holds every line. The checklist's `up-clerk-words` says so.
