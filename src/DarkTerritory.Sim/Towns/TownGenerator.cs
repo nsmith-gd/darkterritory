@@ -344,6 +344,10 @@ public static partial class TownGenerator
         // stands in the yard. Last of everyone, so who everybody else is and what they're called is as it was.
         if (t.Smithy is { } smithy)
             spots.Add(new("blacksmith", site.Gate + smithy.FromGate, side * (smithy.Out - smithy.Stand), 0, -side, 0));
+        // A harbour town's keeper of the Flame (queue #547, note 819), at the Hope Tower's door all night, looking out over
+        // the town between the hours' tubs of coal.
+        foreach (var f in fixtures.Where(f => f.Kind == "lighthouse" && f.House < 0).Take(1))
+            spots.Add(new("flamekeeper", f.S + f.FaceS * (f.SolidS + 1.2), f.D + f.FaceD * (f.SolidD + 1.2), f.FaceS, f.FaceD, 0));
 
         // Who they are: a name each, a household's sharing its surname.
         var names = new HashSet<string>();
@@ -808,7 +812,9 @@ public static class TownFixtures
         "watertower" => (2.2, 3.2, 10.2),
         // The town types' landmarks (note 692): the harbour's lighthouse on its head and the beacon at the breakwater's end,
         // its boat shed on the slip; a chapel on a hummock or a hill; a watch tower; a quarry's lift and crane; the seed house.
-        "lighthouse" => (3.2, 3.2, 22),
+        // The harbour's light is its Hope Tower (queue #547, note 819; HopeKit): its plinth and the coal bay under its hoist,
+        // and up to its fire basket's brim.
+        "lighthouse" => (8.4, 8.4, 84),
         "beacon" => (1.2, 1.2, 6),
         "boatshed" => (9.0, 6.0, 7.5),
         "chapel" => (5.5, 9.0, 12),
