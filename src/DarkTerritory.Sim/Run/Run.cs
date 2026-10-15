@@ -44,6 +44,9 @@ public sealed record RunTuning(double StopBelowSpeed, double TerminusZone, doubl
     /// <summary>The dispatcher and the clerk on the radio (GDD §9): run.json <c>radio</c>.</summary>
     public RadioTuning Radio { get; init; } = new();
 
+    /// <summary>Odd outcomes to find (queue #464, ARCHITECTURE §8 note 730): run.json <c>oddities</c>.</summary>
+    public OddityTuning Oddities { get; init; } = new();
+
     /// <summary>
     /// Where a night's engine starts: its front just short of the gate, ready to depart (the whole train still in the yard,
     /// so the run begins as it moves off), or as far back as the consist needs to fit on the line.
@@ -839,6 +842,13 @@ public sealed partial class Run
 
     // Who has a hand on the lever, and for how long (the ground isn't part of the train, so not ActionProgress).
     readonly Dictionary<int, double> _lever = new();
+
+    /// <summary>
+    /// Where the coal's falling, while the chute's open (note 730: whoever's under it comes out sooted): the spout's point on
+    /// the main line under it, as every machine has it (the chute's state is mirrored); null while it's shut.
+    /// </summary>
+    public Double3? Pouring(RailLine line) =>
+        ChuteOpen && Facility >= 0 && Facility < _facilities.Count ? line.Sample(ChuteAt(_facilities[Facility], line).SpoutAlong).Position : null;
 
     /// <summary>Coal falls while the chute's open: into the tender if it's under the spout, onto the ballast if not.</summary>
     void Pour(TrainOnLine train, double dt)
