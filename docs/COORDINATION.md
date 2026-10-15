@@ -103,6 +103,30 @@ only see what's on main here. The role, and how to start one on another account,
   the handoff. At **execute handoff**, start nothing new, land the handoff on main and set your rows to `open for pick-up`.
   At **pause**, stop at a clean point and wait for the reset; don't hand off. Reply to confirm each time.
 
+## Playtest builds (the director, 15 Oct 2026)
+
+"Every evening I want a build at 5pm so I can play test at 7pm and I want a build at 7am so I can play test at 9am. Not
+every token budget manager needs to push a build, only one of them needs to claim the task at a time."
+
+GitHub makes the builds on its own: `.github/workflows/tonight.yml` at 5 pm and 7 am Montreal time (21:00 and 11:00 UTC
+in summer, 22:00 and 12:00 in winter). Each build is main with every open green PR that merges cleanly on top, a Windows
+dev build zipped with TEST-PLAN.md (note 523). **Build duty** is seeing each one through, and one Token Budget Manager holds
+it at a time:
+
+| Duty | Account | Claimed (UTC) |
+|---|---|---|
+| Playtest builds | nathaniel2 | 2026-10-15 18:00 |
+
+- **Claim it** by putting your account in the row (a docs PR) when it's empty, or when its account is LIMITED or PAUSED in
+  *Accounts and usage limits*. An account going LIMITED clears its own claim first. With nothing in the row, whoever's
+  ACTIVE takes it.
+- **The duty, each build:** about 30 minutes after it starts, read the run (Actions > Tonight's build). If it's red, find out
+  why, and fix it or leave out the PR that broke it. Then run it again by hand (workflow_dispatch), so a green build is
+  ready well before 7 pm or 9 am. Then send the director the build's link and its TEST-PLAN: what's new in it, how to check
+  each thing, and what was left out and why.
+- **Before the build,** remind the account's sessions an hour ahead: a PR that's green by 5 pm (or 7 am) is in the build;
+  one that isn't, isn't.
+
 ## Direction (the director, 5–7 Oct 2026)
 
 - Work through the queue below, in order. The source for each item is GDD App. F (the director's notes and decisions of
@@ -936,7 +960,7 @@ renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's 
 | Review packets: every PR's CI draws the whole gallery in one process (37 shots in under 2 minutes, from 14.5) and compares it with main's at its base: changed shots as strips and the train table and triangle budgets number by number, in the run's summary and the review-packet artifact; the texture load faster everywhere | [#690](https://github.com/nsmith-gd/darkterritory/pull/690) | 517 |
 | The director's inbox: everything waiting on the director in one place (claude.ai/artifact/U72ospwbR1Bpb1jkbSwjxT), each answer kept on its ask with the reason, for every agent to read; standing orders; seeded with the 14 questions waiting on 9 Oct | [#694](https://github.com/nsmith-gd/darkterritory/pull/694) | 520 |
 | Coordination as data: numbers taken on a `claims` branch where two agents can't take one (tools/coord/claim.py), ARCHITECTURE §8 one file per note in docs/notes/ with §8 their index (tools/coord/notes.py), the Coordination check on main after each merge | [#684](https://github.com/nsmith-gd/darkterritory/pull/684), [#694](https://github.com/nsmith-gd/darkterritory/pull/694) | 521 |
-| Tonight's build (every night at 7:30 pm Montreal time: main with the green PRs on top, a dev build with TEST-PLAN.md) and the trends (D1's full bot nights and dt perf's counts per main commit, falls commented on their PR, tools/trends/bisect.sh) | [#694](https://github.com/nsmith-gd/darkterritory/pull/694) | 523 |
+| Tonight's build (every night at 7:30 pm Montreal time, since 15 Oct at 5 pm and 7 am (*Playtest builds*): main with the green PRs on top, a dev build with TEST-PLAN.md) and the trends (D1's full bot nights and dt perf's counts per main commit, falls commented on their PR, tools/trends/bisect.sh) | [#694](https://github.com/nsmith-gd/darkterritory/pull/694) | 523 |
 | Live control: `dt mcp`, an MCP server agents drive a headless night or a replay with, step by step, and shots framed on a subject (`subject:gaunt`, `car:3`), in `dt replay` too | [#694](https://github.com/nsmith-gd/darkterritory/pull/694) | 524 |
 | Fire-fighters don't walk into a car that's well alight (queue #281, D1.2 for D1) | [#679](https://github.com/nsmith-gd/darkterritory/pull/679) | 539 |
 | Why couplings part with a bot crew (queue #284, D1.3): all 12 on seeds 1–18 went in a fight (car fires 11, a Knotter 8), none at a stop's loading; no bot change; the pin's pace put to the director | [#670](https://github.com/nsmith-gd/darkterritory/pull/670) | 542 |
