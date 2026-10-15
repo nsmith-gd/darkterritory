@@ -3516,11 +3516,24 @@ static object HudShot(string content, string[] args)
     }
     else
     {
+        // --ping: the crew's pings (note 739): Priya's on car 2 (as if afire) and on the controls, and one of yours on car 3.
+        if (args.Contains("--ping"))
+        {
+            var pinged = session.World;
+            pinged.Names[90] = "Priya";
+            var f = session.Train.Frames;
+            Double3 Mid(int car) => f[Math.Min(car, f.Count - 1)].ToWorld(new Double3(0, f[Math.Min(car, f.Count - 1)].Shape.RoofHeight * 0.5, 0));
+            pinged.Pings.Add(new PingEvent(9001, (uint)session.HostTick, 90, PingKind.Fire, 2, Mid(2)));
+            pinged.Pings.Add(new PingEvent(9002, (uint)session.HostTick, 90, PingKind.Cab, 0, f[0].ToWorld(f[0].Shape.Levers?.Regulator ?? default)));
+            pinged.Pings.Add(new PingEvent(9003, (uint)session.HostTick, session.PlayerId, PingKind.Fire, 3, Mid(3)));
+        }
         Hud.Build(hud, width, height, session, pixels: scale, firstNight: args.Contains("--first-night"), captions: captioned, commendations: args.Contains("--commend")
             ? [("Dave", UiStyle.Commendation.CameBackForMe, "Okafor"), ("Priya", UiStyle.Commendation.KeptTheFire, "Dave"),
                 ("Okafor", UiStyle.Commendation.HeldTheSwitch, "Priya"), ("Dunmore", UiStyle.Commendation.LastOneStanding, "Dave")]
             : null, stills: stills.Stills, talk: talk, now: talkNow);
     }
+    if (args.Contains("--ping"))
+        PingMarks.Draw(hud, width, height, camera, session.World);
     // --emote-wheel: the emote wheel held, the mouse leant toward the wave (note 298).
     if (args.Contains("--emote-wheel"))
     {

@@ -1328,7 +1328,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 // Note 664: crouch and pushing the gun along, each its own key, held (a headset rider crouches for real).
                 Moves = (Held(Control.Crouch) ? PlayerMoves.Crouch : 0) | (Held(Control.Push) ? PlayerMoves.Push : 0)
                     // Note 717: the shove (the host acts on the press).
-                    | (Held(Control.Shove) ? PlayerMoves.Shove : 0),
+                    | (Held(Control.Shove) ? PlayerMoves.Shove : 0)
+                    // Note 739: the ping is the push's button, made on the press away from a gun (the host's to tell).
+                    | (Held(Control.Push) ? PlayerMoves.Ping : 0),
                 Select = pendingSelect,
                 // Scrolled up is the previous slot, down the next, as in most games.
                 Cycle = (sbyte)(pendingCycle >= 1 ? -1 : pendingCycle <= -1 ? 1 : 0),
@@ -1701,6 +1703,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 gym.Pointer(overlay, UiWidth, UiHeight, camera, session.World);
         }
 #endif
+        // Note 739: the crew's pings marked on the world.
+        if (showHud && !menuShown && vr is null)
+            PingMarks.Draw(overlay, UiWidth, UiHeight, camera, session.World);
         if (vr is null)
         {
             renderer.Prepare(mesh, showHud || menuShown ? overlay : null);
