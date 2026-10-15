@@ -241,6 +241,14 @@
     // The handcar (note 784).
     "crew-handcar.set": "A HANDCAR DROPPED ONTO THE RAILS",
     "crew-handcar.brake": "A HANDCAR'S BRAKE SQUEALING",
+    // Sound cues in the world (note 785): what jumped a coupling's pin; the world sounding before it bites.
+    "state-coupling-loose.jump-brake": "COUPLINGS SLAMMING, A PIN JUMPING",
+    "state-coupling-loose.jump-coupled": "A COUPLER CLASHING, A PIN JUMPING",
+    "state-coupling-loose.jump-bend": "CARS LURCHING, A PIN JUMPING",
+    "tell-house.creak": "BOARDS CREAKING INSIDE",
+    "tell-householder.shift": "A CHAIR SHIFTING",
+    "world-bell.far": "A BELL, FAR OFF",
+    "world-dog.bark": "A DOG BARKING, FAR OFF",
     "cs-grumbler.feral": "A RAGGED BELLOW, TEETH GNASHING",
     "cs-grumbler.eat": "SLATS SPLITTING, GNAWING",
     "cs-choir.arrive": "BELLS SWELLING INTO SONG",

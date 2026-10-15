@@ -89,6 +89,11 @@ public class CaptionsTests
     [InlineData("loot-fragile.glass")]
     [InlineData("loot-jackpot.bell")]
     [InlineData("crew-handcar.set")]
+    // Note 785: what jumped a pin, a house's boards, a far bell and a far dog.
+    [InlineData("state-coupling-loose.jump-brake")]
+    [InlineData("tell-house.creak")]
+    [InlineData("world-bell.far")]
+    [InlineData("world-dog.bark")]
     public void TheTellsAndCallsSinceCaptionsAreCaptioned(string sound)
     {
         // Note 391: the signs as they play since note 342, the Moose's and the Gannet's tells (notes 334, 384), and the jobs

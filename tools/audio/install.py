@@ -430,6 +430,8 @@ LAYER_EXTRAS = {
     # The scream climbs as the bend pulls harder (note 265: the stress telegraph; GameAudio.BedWheels sets "stress", the
     # scream's share of the stress's last half): two semitones from where it starts to where the train comes off.
     "state-derail.flange-scream": {"rate": {"param": "stress", "points": [[0, 0.94], [1, 1.06]]}},
+    # The handcar's roll, built at a moderate run (about 6 m/s), up and down with its speed (GameAudio.Handcar sets "speed").
+    "crew-handcar.roll": {"rate": {"param": "speed", "points": [[1, 0.8], [6, 1.0], [12, 1.2]]}},
 }
 
 
@@ -514,6 +516,21 @@ CUE_DEF = {
     "crew-car.cuckoo": {"minDistance": 1, "maxDistance": 18, "rolloff": 1.0},
     "crew-memory.flash": {"minDistance": 3, "maxDistance": 80, "rolloff": 1.0},
     **{f"crew-memory.{c}": {"flat": True, "tier": 4} for c in ("open", "page", "shut")},
+    # The sense table (note 781): a knock on the rails rings down them, heard along the line; a lamp's glass and oil carry
+    # across a yard, its small fire about it.
+    "world-rail-knock.knock": {"tier": 4, "minDistance": 4, "maxDistance": 200, "rolloff": 0.8},
+    "crew-lamp-broken.smash": {"minDistance": 2, "maxDistance": 80, "rolloff": 1.0},
+    "crew-lamp-broken.burn": {"minDistance": 1, "maxDistance": 30, "rolloff": 1.0},
+    # Big finds (note 783): the bell's ring carries; glass breaking across a house and its street.
+    "loot-jackpot.bell": {"minDistance": 3, "maxDistance": 120, "rolloff": 0.9},
+    **{f"loot-fragile.{c}": {"minDistance": 2, "maxDistance": 50, "rolloff": 1.0} for c in ("glass", "decanter", "clock")},
+    # The handcar (note 784): out on the open line, heard from the train up the line behind it.
+    **{f"crew-handcar.{c}": {"minDistance": 2, "maxDistance": 120, "rolloff": 0.9} for c in ("roll", "brake", "creak", "joint", "set", "hang")},
+    # Sound cues in the world (note 785): a house's boards from its door and its street; what's lost far off, a bell from
+    # where it was lost; a dog at the lamps' edge and beyond it.
+    "tell-house.creak": {"minDistance": 1, "maxDistance": 30, "rolloff": 1.0},
+    "world-bell.far": {"tier": 4, "minDistance": 60, "maxDistance": 2000, "rolloff": 0.5},
+    "world-dog.bark": {"tier": 4, "minDistance": 20, "maxDistance": 600, "rolloff": 0.7},
 }
 
 
