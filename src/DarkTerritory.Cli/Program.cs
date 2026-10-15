@@ -1996,6 +1996,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         scene.Crew = party;
         scene.Bodies = partyBodies;
     }
+    // --pet-mood idle|walk|sleep|warn|fetch (note 745; with --upgrades yardCat,dog --stocked): the cat and the dog so.
+    if (Str(args, "--pet-mood", "") is { Length: > 0 } petMood && scene.Bodies is { } petBodies)
+        foreach (var pet in petBodies.Where(b => b.Kind is DarkTerritory.Sim.Physics.BodyKind.Cat or DarkTerritory.Sim.Physics.BodyKind.Dog))
+            pet.Tipped = (sbyte)Enum.Parse<DarkTerritory.Sim.PetMood>(petMood, ignoreCase: true);
     // --lounge (note 744; with --upgrades hammock,hotTub): someone in the hammock, two in the hot tub.
     if (args.Contains("--lounge") && Staging.Lounging(train) is var (loungers, loungeBodies))
     {

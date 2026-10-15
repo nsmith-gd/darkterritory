@@ -327,9 +327,16 @@
     // keeps whoever's in it warm while the boiler has steam, and each bather draws tubSteam of its pressure a second. The
     // fishing rod: stood on dry ground, a line in water within fishReach m ahead, a bite comes in fishSeconds (from the first
     // to the second, by when it's cast), and a fish grilled on the BBQ deck's grill heals fishHeals.
+    // Note 745: the yard cat walks at catSpeed m/s and the dog at dogSpeed, each staying put wander s (from the first to the
+    // second) between strolls. The cat hisses at a creature aboard its car or within catWarnCars of it; the dog barks at one
+    // aboard anywhere, or in the open within dogHears m and coming. The dog takes a toy within fetch m and drops it within drop
+    // m of whoever it's bringing it to. The launcher fires a ball at launchSpeed m/s, at most every launchEvery s; a Cinder
+    // Hound chasing the train goes for a ball on the ground within ballSeen m, has it within ballTake m, and stands worrying it
+    // ballWorry s before it comes on again.
     "whimsy": { "gnomes": 5, "canaryCars": 1, "canaryGasM": 10, "canaryFumesSeconds": 20, "gramophoneHears": 22,
       "gramophoneLoudness": 0.25, "calliopeHears": 80, "hammockCold": 0.5, "tubSteam": 0.15, "fishReach": 4, "fishSeconds": [12, 30],
-      "fishHeals": 40 }
+      "fishHeals": 40, "catSpeed": 1.1, "dogSpeed": 1.8, "wander": [4, 10], "catWarnCars": 1, "dogHears": 40, "fetch": 0.45,
+      "drop": 1.2, "launchSpeed": 14, "launchEvery": 2, "ballSeen": 70, "ballTake": 1.5, "ballWorry": 4 }
   },
   // GDD §19 "medicine: fragile, high value" (note 182). A car of medicine takes the knocks the rest of the train shrugs off:
   // any contact (coupling, a collision, a buffer stop) closing faster than safeContactSpeed spoils it by

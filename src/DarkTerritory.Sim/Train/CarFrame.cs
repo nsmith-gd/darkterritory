@@ -106,7 +106,7 @@ public readonly record struct Ladder(Double3 Foot, double Top, Double3 Inward, d
 /// <see cref="Chair"/>, <see cref="Cooler"/> and <see cref="Grill"/> are on the BBQ deck (note 698): a Muskoka chair to sit in
 /// (<see cref="Interactable.Index"/> which), the cooler of beers, the BBQ on its stand.
 /// </remarks>
-public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal, Sandbox, Hatch, ToolRack, Locker, Points, Whistle, Chair, Cooler, Grill, Gramophone, Hammock, HotTub }
+public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal, Sandbox, Hatch, ToolRack, Locker, Points, Whistle, Chair, Cooler, Grill, Gramophone, Hammock, HotTub, Launcher }
 
 /// <summary>
 /// A thing a player uses by standing near it and holding Use. <see cref="Index"/> says which door. <see cref="Aim"/> is how
@@ -423,6 +423,18 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         }
         return shape with { Lounges = lounges, Interactables = interactables };
     }
+
+    /// <summary>
+    /// The guard van with the tennis-ball launcher (note 745) on its rear platform's rail: worked from the platform with a Use
+    /// press, it fires a ball off the back, up the line behind.
+    /// </summary>
+    public static CarShape WithLauncher(CarShape shape) =>
+        shape.Platform is { } p
+            ? shape with { Interactables = [.. shape.Interactables, new Interactable(InteractableKind.Launcher, Launcher(p), 0.9, Aim: 1.0)] }
+            : shape;
+
+    /// <summary>Where a crewmate stands at the launcher: the platform's middle, on its grating.</summary>
+    public static Double3 Launcher(Box platform) => new((platform.Min.X + platform.Max.X) / 2, platform.Max.Y, (platform.Min.Z + platform.Max.Z) / 2);
 
     /// <summary>Where the hot tub sits on the engine's hood (its middle, m along the engine's frame), and its half-size across and along.</summary>
     public const double TubZ = 0.8, TubHalf = 0.85;

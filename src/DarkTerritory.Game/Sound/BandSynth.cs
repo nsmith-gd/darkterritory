@@ -145,6 +145,49 @@ public static class BandSynth
         return o;
     }
 
+    /// <summary>The yard cat's hiss (note 745): a long breathy rasp, its top bright, swelling and cut off.</summary>
+    public static float[] Hiss(int seed)
+    {
+        var noise = new Noise((uint)(seed * 7 + 3));
+        var o = new float[Samples(0.9)];
+        var band = new Biquad();
+        band.Set(FilterType.BandPass, 4200, 0.9);
+        for (int i = 0; i < o.Length; i++)
+        {
+            double t = (double)i / Rate;
+            o[i] = band.Process(noise.Next()) * (float)(Math.Min(1, t / 0.08) * Math.Max(0, 1 - Math.Max(0, t - 0.7) / 0.2));
+        }
+        Normalise(o, 0.6f);
+        return o;
+    }
+
+    /// <summary>The yard cat's meow (note 745): a rising then falling cry, nasal.</summary>
+    public static float[] Meow(int seed)
+    {
+        var o = new float[Samples(0.75)];
+        double hz = 520 + seed % 3 * 60;
+        Harmonics(o, hz, k => 1.0 / (k * 0.8), t => 1 + 0.35 * Math.Sin(Math.PI * Math.Min(1, t / 0.6)), t => Held(t, 0.6, 0.06, 0.12), 0.8);
+        Filter(o, (FilterType.Peak, 1600, 1.5, 8), (FilterType.HighPass, 300, 0.7, 0));
+        Normalise(o, 0.5f);
+        return o;
+    }
+
+    /// <summary>The dog's bark (note 745): a short gruff "wuff", a pitch drop under a noisy chest.</summary>
+    public static float[] Bark(int seed)
+    {
+        var noise = new Noise((uint)(seed * 13 + 5));
+        var o = new float[Samples(0.3)];
+        double hz = 210 + seed % 3 * 25;
+        Harmonics(o, hz, k => 1.0 / k, t => 1.25 - 0.5 * Math.Min(1, t / 0.18), t => Held(t, 0.16, 0.01, 0.1), 0.8);
+        var chest = new Biquad();
+        chest.Set(FilterType.BandPass, 900, 1.2);
+        for (int i = 0; i < o.Length; i++)
+            o[i] += chest.Process(noise.Next()) * 0.5f * (float)Held((double)i / Rate, 0.12, 0.005, 0.08);
+        Filter(o, (FilterType.Peak, 700, 1.0, 6), (FilterType.LowPass, 3500, 0.7, 0));
+        Normalise(o, 0.7f);
+        return o;
+    }
+
     static void Normalise(float[] o, float to)
     {
         float peak = 1e-6f;

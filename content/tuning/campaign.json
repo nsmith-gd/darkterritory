@@ -291,6 +291,19 @@
     { "id": "fishingRod", "name": "The fishing rod", "kind": "whimsy", "size": "small", "costShare": 0.05, "effect": { "dress:fishingRod": 1 },
       "line": "A rod in the guard van. Stand at the water's edge, hold Use, wait. Grilled on the deck it's better than a sausage.",
       "tally": "Rod: aboard." },
+    // The yard cat, in the cab: it wanders the car it's in, sleeps on the warm backhead, and hisses at what's aboard near it
+    // (note 745).
+    { "id": "yardCat", "name": "The yard cat", "kind": "whimsy", "size": "small", "costShare": 0.06, "effect": { "dress:yardCat": 1 },
+      "line": "A ginger tom who came with the yard. Sleeps on the backhead. Hisses at things you can't see yet.",
+      "tally": "Cat: aboard." },
+    // The dog, in the guard van: it barks at what's aboard or coming up behind, and fetches a toy to whoever's near (note 745).
+    { "id": "dog", "name": "The dog", "kind": "whimsy", "size": "small", "costShare": 0.08, "effect": { "dress:dog": 1 },
+      "line": "A sheepdog for the guard van. Barks at what's behind the train. Brings you things.",
+      "tally": "Dog: good." },
+    // The tennis-ball launcher on the guard van's platform: a ball off the back, and the Cinder Hounds go for it (note 745).
+    { "id": "tennisBalls", "name": "The tennis-ball launcher", "kind": "whimsy", "size": "small", "costShare": 0.07, "effect": { "dress:tennisBalls": 1 },
+      "line": "A sprung launcher on the van's back rail and a bucket of balls. The hounds are hounds.",
+      "tally": "Balls: thrown." },
     // Does nothing at all, and the clerk says so, every night, for good.
     { "id": "commendation", "name": "Framed commendation", "kind": "silly", "size": "small", "costShare": 0.5, "effect": { },
       "line": "\"For Services to the Railway\", signed by a council nobody's met, framed, for the cab. Read into every tally.",

@@ -483,6 +483,7 @@ public sealed partial class World
             if (Run is not null && !_countedAhead.Remove(id))
                 Attribution.Add(Sim.Run.IncidentLog.Death(this, id, s, body, crew));
         Bodies.Step(Train, Train.Dynamics.Tuning, id => crew.FirstOrDefault(c => c.Id == id) is { State: var s } pair && pair.Id == id ? s : null);
+        StepPets(crew);
         Train.Lying = Bodies.Lying(Train);
         Recover();
         BreakRadios(crew);
@@ -579,6 +580,8 @@ public sealed partial class World
         }
         StowRepairKits();
         var guard = Train.Dynamics.Consist.Vehicles.LastOrDefault(v => v.Kind == VehicleKind.Guard);
+        // The yard cat and the dog (note 745).
+        StockPets(guard?.Id ?? -1);
         if (guard is null || Train.Frames[guard.Id].Shape.Interior is not { } room)
             return;
         double floor = room.Min.Y + 0.1;
@@ -1559,6 +1562,8 @@ public sealed partial class World
             Bodies.Rerail(s, Train, Train.Dynamics.Tuning.Composition.Caboose);
         // The gramophone (note 715): a Use press at it, whatever's in your hands, winds it or lifts the needle off.
         WindGramophone(s, intent, playerId);
+        // The tennis-ball launcher (note 745), the same press on the guard van's platform.
+        Launch(s, intent, playerId);
         if (handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } lifted)
             Physics.Bodies.TakeTools(ref s, lifted);
         // Searching an open house's hiding spot (note 326), empty-handed, with a Use the hands didn't take.

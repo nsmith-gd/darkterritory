@@ -840,6 +840,10 @@ public sealed partial class SceneArt(Look look)
             Sim.Physics.BodyKind.FishingRod => Piece("whimsy-fishing-rod", () => WhimsyKit.FishingRod(Look)),
             Sim.Physics.BodyKind.Fish => Piece("whimsy-fish", () => WhimsyKit.Fish(Look, false)),
             Sim.Physics.BodyKind.GrilledFish => Piece("whimsy-grilled-fish", () => WhimsyKit.Fish(Look, true)),
+            // The yard cat, the dog (by their mood) and a tennis ball (note 745).
+            Sim.Physics.BodyKind.Cat => Piece($"whimsy-cat-{(int)b.Tipped}", () => WhimsyKit.Cat(Look, b.Tipped)),
+            Sim.Physics.BodyKind.Dog => Piece($"whimsy-dog-{(int)b.Tipped}", () => WhimsyKit.Dog(Look, b.Tipped)),
+            Sim.Physics.BodyKind.TennisBall => Piece("whimsy-tennis-ball", () => WhimsyKit.TennisBall(Look)),
             // The band's (note 700).
             Sim.Physics.BodyKind.Instrument when (InstrumentOf?.Invoke(b) ?? "fiddle") is var id => Piece($"prop-band-{id}", () => PropKit.Instrument(Look, id)),
             // The hand lamp: the sourced lantern (tools/models hand_lantern) where it's built.

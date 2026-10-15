@@ -168,8 +168,13 @@ public sealed record CompositionTuning
 /// <summary>The whimsies (train.json <c>composition.whimsy</c>; ARCHITECTURE §8 note 715). Field docs live in that file.</summary>
 public sealed record WhimsyTuning(int Gnomes = 5, int CanaryCars = 1, double CanaryGasM = 10, double CanaryFumesSeconds = 20,
     double GramophoneHears = 22, double GramophoneLoudness = 0.25, double CalliopeHears = 80, double HammockCold = 0.5, double TubSteam = 0.15,
-    double FishReach = 4, double[]? FishSeconds = null, int FishHeals = 40)
+    double FishReach = 4, double[]? FishSeconds = null, int FishHeals = 40, double CatSpeed = 1.1, double DogSpeed = 1.8, double[]? Wander = null,
+    int CatWarnCars = 1, double DogHears = 40, double Fetch = 0.45, double Drop = 1.2, double LaunchSpeed = 14, double LaunchEvery = 2,
+    double BallSeen = 70, double BallTake = 1.5, double BallWorry = 4)
 {
+    /// <summary>How long the cat and the dog stay put before wandering on (s), from the first to the second.</summary>
+    public double[] Idle => Wander ?? [4, 10];
+
     /// <summary>How long a line in the water waits for a bite (s), from the first to the second, by the tick it's cast.</summary>
     public double[] Bite => FishSeconds ?? [12, 30];
 }

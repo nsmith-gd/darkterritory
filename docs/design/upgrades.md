@@ -345,8 +345,10 @@ gallery is still to come).
 clerk reads it out), the canary (quiet while something's aboard, dead in fumes), the steam calliope (a note a pull; a Moose
 stops for it) and the gramophone (wound with Use; the Gaunt hears it as talk, a Moose stops for it). **Built (note 744):**
 the hammock (warm-ish), the hot tub on the engine's hood (warm while there's steam, and it eats steam) and the fishing rod (a
-fish at the water's edge; grilled on the deck, a better meal than a sausage). Next: the yard cat, the dog and the tennis-ball
-launcher; the human cannonball.
+fish at the water's edge; grilled on the deck, a better meal than a sausage). **Built (note 745):** the yard cat (sleeps on
+the warm backhead, hisses at what's aboard near it), the dog (barks at what's aboard or coming up behind, fetches a toy to
+whoever's near) and the tennis-ball launcher (a ball off the back, and a Cinder Hound goes for it, worries it, and brings it
+back). Next: the human cannonball.
 
 ### 8.3 The human cannonball: consent and feedback
 

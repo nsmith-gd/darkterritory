@@ -267,6 +267,144 @@ public static class WhimsyKit
         return k.Build(grilled ? "whimsy-grilled-fish" : "whimsy-fish");
     }
 
+    /// <summary>
+    /// The yard cat (note 745), a ginger tom, by its mood: sat up (idle), walking, curled asleep (on the backhead), or arched,
+    /// its fur and tail up, hissing (warning of what's aboard). Its middle at (0, 0, 0) as its body has it, its feet at −0.15,
+    /// facing −Z.
+    /// </summary>
+    public static MeshAsset Cat(Look? look, int mood)
+    {
+        var k = new Kit(look, 1741 + mood);
+        var fur = new Vector3(0.78f, 0.45f, 0.18f);
+        const float foot = -0.15f;
+        k.Use("dress_fur", fur, 0.9f, 0);
+        switch (mood)
+        {
+            case 2: // asleep: a loaf, the tail round it, the head down on the paws
+                k.With(Matrix4x4.CreateScale(1.1f, 0.6f, 1.4f) * Kit.At(0, foot + 0.09f, 0), () => Ball(k, Vector3.Zero, 0.12f, 10));
+                Ball(k, new Vector3(0, foot + 0.08f, -0.17f), 0.065f, 8);
+                k.Cylinder(new Vector3(0.1f, foot + 0.03f, 0.12f), new Vector3(0.12f, foot + 0.03f, -0.12f), 0.025f, 6);
+                break;
+            case 3: // arched, hissing
+                k.With(Matrix4x4.CreateScale(0.8f, 1.0f, 1.5f) * Kit.At(0, foot + 0.24f, 0), () => Ball(k, Vector3.Zero, 0.11f, 10));
+                foreach (float x in new[] { -0.05f, 0.05f })
+                    foreach (float z in new[] { -0.12f, 0.12f })
+                        k.Cylinder(new Vector3(x, foot, z), new Vector3(x, foot + 0.2f, z * 0.6f), 0.018f, 5);
+                Ball(k, new Vector3(0, foot + 0.2f, -0.2f), 0.06f, 8);
+                k.Cylinder(new Vector3(0, foot + 0.26f, 0.14f), new Vector3(0, foot + 0.48f, 0.18f), 0.035f, 6, radiusB: 0.02f);
+                k.Use("dress_paint", new Vector3(0.75f, 0.25f, 0.25f), 0.4f, 0.4f);
+                k.Box(new Vector3(-0.02f, foot + 0.17f, -0.262f), new Vector3(0.02f, foot + 0.19f, -0.255f));
+                k.Use("dress_fur", fur, 0.9f, 0);
+                break;
+            default: // sat up, or walking
+                bool sat = mood == 0;
+                k.With(Matrix4x4.CreateScale(0.75f, 0.85f, 1.35f) * Kit.At(0, foot + (sat ? 0.13f : 0.16f), sat ? 0.04f : 0), () => Ball(k, Vector3.Zero, 0.1f, 10));
+                foreach (float x in new[] { -0.045f, 0.045f })
+                {
+                    k.Cylinder(new Vector3(x, foot, -0.08f), new Vector3(x, foot + 0.14f, -0.08f), 0.017f, 5);
+                    if (!sat)
+                        k.Cylinder(new Vector3(x, foot, 0.1f), new Vector3(x, foot + 0.14f, 0.1f), 0.017f, 5);
+                }
+                Ball(k, new Vector3(0, foot + (sat ? 0.27f : 0.24f), -0.12f), 0.06f, 8);
+                k.Cylinder(new Vector3(0, foot + 0.12f, 0.14f), new Vector3(0, sat ? foot + 0.02f : foot + 0.3f, sat ? 0.22f : 0.26f), 0.02f, 6);
+                break;
+        }
+        // The ears, and the eyes: green, catching the light.
+        if (mood != 2)
+        {
+            float hy = mood == 3 ? foot + 0.2f : mood == 0 ? foot + 0.27f : foot + 0.24f, hz = mood == 3 ? -0.2f : -0.12f;
+            k.Use("dress_fur", fur * 0.8f, 0.9f, 0);
+            foreach (float x in new[] { -0.03f, 0.03f })
+                k.Cylinder(new Vector3(x, hy + 0.04f, hz), new Vector3(x * 1.4f, hy + 0.1f, hz + 0.005f), 0.02f, 4, radiusB: 0.002f);
+            k.Use("dress_glass", new Vector3(0.6f, 0.95f, 0.35f), 0.05f, 0.9f);
+            k.Emissive = 0.6f;
+            foreach (float x in new[] { -0.022f, 0.022f })
+                Ball(k, new Vector3(x, hy + 0.01f, hz - 0.05f), 0.009f, 5);
+            k.Emissive = 0;
+        }
+        return k.Build($"whimsy-cat-{mood}");
+    }
+
+    /// <summary>
+    /// The dog (note 745), a black-and-white sheepdog, by its mood: sat, walking (or fetching), lying down, or braced and barking
+    /// at what's aboard. Its middle at (0, 0, 0) as its body has it, its feet at −0.25, facing −Z.
+    /// </summary>
+    public static MeshAsset Dog(Look? look, int mood)
+    {
+        var k = new Kit(look, 1746 + mood);
+        var black = new Vector3(0.08f, 0.08f, 0.09f);
+        var white = new Vector3(0.85f, 0.84f, 0.8f);
+        const float foot = -0.25f;
+        bool lying = mood == 2, barking = mood == 3, sat = mood == 0;
+        float body = lying ? foot + 0.14f : sat ? foot + 0.3f : foot + 0.38f;
+        k.Use("dress_fur", black, 0.9f, 0);
+        k.With(Matrix4x4.CreateScale(0.85f, 0.85f, 1.7f) * Kit.At(0, body, sat ? 0.08f : 0), () => Ball(k, Vector3.Zero, 0.14f, 10));
+        if (!lying)
+            foreach (float x in new[] { -0.07f, 0.07f })
+            {
+                k.Use("dress_fur", white, 0.9f, 0);
+                k.Cylinder(new Vector3(x, foot, barking ? -0.2f : -0.16f), new Vector3(x, body, -0.14f), 0.03f, 6);
+                if (!sat)
+                    k.Cylinder(new Vector3(x, foot, 0.2f), new Vector3(x, body, 0.17f), 0.03f, 6);
+            }
+        // The head, white-blazed, the muzzle out; the ears; the tail.
+        float hy = lying ? foot + 0.17f : barking ? body + 0.08f : body + 0.16f, hz = lying ? -0.3f : -0.28f;
+        k.Use("dress_fur", black, 0.9f, 0);
+        Ball(k, new Vector3(0, hy, hz), 0.085f, 10);
+        k.Use("dress_fur", white, 0.9f, 0);
+        k.Cylinder(new Vector3(0, hy - 0.02f, hz - 0.05f), new Vector3(0, hy - 0.03f, hz - 0.15f), 0.045f, 8, radiusB: 0.03f);
+        k.Use("dress_paint", black * 0.5f, 0.3f, 0.6f);
+        Ball(k, new Vector3(0, hy - 0.02f, hz - 0.16f), 0.015f, 5);
+        if (barking)
+        {
+            k.Use("dress_paint", new Vector3(0.7f, 0.25f, 0.28f), 0.4f, 0.3f);
+            k.Box(new Vector3(-0.025f, hy - 0.08f, hz - 0.15f), new Vector3(0.025f, hy - 0.06f, hz - 0.05f));
+        }
+        k.Use("dress_fur", black, 0.9f, 0);
+        foreach (float x in new[] { -0.06f, 0.06f })
+            k.Cylinder(new Vector3(x, hy + 0.05f, hz + 0.02f), new Vector3(x * 1.6f, hy + (barking ? 0.12f : 0.03f), hz + 0.05f), 0.025f, 4, radiusB: 0.008f);
+        k.Cylinder(new Vector3(0, body + 0.04f, 0.22f), new Vector3(0, body + (lying ? 0 : 0.18f), 0.36f), 0.03f, 6, radiusB: 0.015f);
+        return k.Build($"whimsy-dog-{mood}");
+    }
+
+    /// <summary>A tennis ball (note 745): yellow-green felt, 0.035 m round its middle at (0, 0, 0), its seam white.</summary>
+    public static MeshAsset TennisBall(Look? look)
+    {
+        var k = new Kit(look, 1752);
+        k.Use("dress_felt", new Vector3(0.8f, 0.92f, 0.2f), 0.9f, 0);
+        Ball(k, Vector3.Zero, 0.035f, 10);
+        k.Use("dress_paint", new Vector3(0.95f, 0.95f, 0.9f), 0.6f, 0.1f);
+        for (int i = 0; i < 12; i++)
+        {
+            float a0 = MathF.Tau * i / 12, a1 = MathF.Tau * (i + 1) / 12;
+            Vector3 P(float a) => new(0.0355f * MathF.Cos(a), 0.012f * MathF.Sin(2 * a), 0.0355f * MathF.Sin(a));
+            k.Rod(P(a0), P(a1), 0.0025f, 3);
+        }
+        return k.Build("whimsy-tennis-ball");
+    }
+
+    /// <summary>
+    /// The tennis-ball launcher (note 745): a spring-loaded tube on a post clamped to the rear platform's rail, pointed up and
+    /// back over the line, a bucket of balls beside it. Its foot (the platform under it) at (0, 0, 0); back is +Z.
+    /// </summary>
+    public static MeshAsset Launcher(Look? look)
+    {
+        var k = new Kit(look, 1753);
+        k.Use("dress_paint", new Vector3(0.15f, 0.3f, 0.55f), 0.4f, 0.4f);
+        k.Cylinder(new Vector3(0, 0, 0.3f), new Vector3(0, 0.9f, 0.3f), 0.035f, 8);
+        k.Cylinder(new Vector3(0, 0.85f, 0.05f), new Vector3(0, 1.15f, 0.62f), 0.06f, 12);
+        k.Use("dress_paint", new Vector3(0.9f, 0.85f, 0.2f), 0.4f, 0.4f);
+        k.Cylinder(new Vector3(0, 1.15f, 0.62f), new Vector3(0, 1.17f, 0.66f), 0.065f, 12);
+        k.Use("dress_brass", Brass * 0.6f, 0.4f, 0.8f);
+        k.Rod(new Vector3(0, 0.84f, 0.02f), new Vector3(0, 0.75f, -0.12f), 0.012f);
+        k.Use("dress_paint", new Vector3(0.7f, 0.2f, 0.15f), 0.6f, 0.2f);
+        k.Cylinder(new Vector3(0.4f, 0, 0.1f), new Vector3(0.4f, 0.26f, 0.1f), 0.13f, 12, radiusB: 0.15f, capB: false);
+        k.Use("dress_felt", new Vector3(0.8f, 0.92f, 0.2f), 0.9f, 0);
+        foreach (var b in new[] { new Vector3(0.36f, 0.26f, 0.06f), new Vector3(0.44f, 0.27f, 0.12f), new Vector3(0.4f, 0.27f, 0.17f) })
+            Ball(k, b, 0.035f, 8);
+        return k.Build("whimsy-launcher");
+    }
+
     /// <summary>A white fleck on the record, put where it's got to as it turns (the record playing).</summary>
     public static MeshAsset Label(Look? look)
     {

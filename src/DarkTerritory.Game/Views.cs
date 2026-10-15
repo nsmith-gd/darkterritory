@@ -273,6 +273,16 @@ public static class Views
                 train.Frames[^1].ToWorld(new Double3(-0.2, Floor(train) + 0.6, train.Frames[^1].Shape.HalfLength - 1.0)), 65),
             "hottub" => Camera.LookAt(engine.ToWorld(new Double3(2.6, engine.Shape.RoofHeight + 2.4, Sim.Train.CarShape.TubZ - 3.6)),
                 engine.ToWorld(new Double3(0, engine.Shape.RoofHeight + 0.6, Sim.Train.CarShape.TubZ)), 55),
+            // The yard cat and the dog (note 745; `--upgrades yardCat,dog --stocked [--pet-mood warn|sleep]`): the cab from its back
+            // corner, the cat by the backhead; the guard van from its middle down to its back end, the dog there; the launcher on
+            // the van's platform from behind, off its side (`--upgrades tennisBalls`).
+            "cat" => engine.Shape.Cab is { } catCab
+                ? Camera.LookAt(engine.ToWorld(new Double3(catCab.Max.X - 0.4, catCab.Min.Y + 1.5, catCab.Max.Z - 0.3)), engine.ToWorld(new Double3(catCab.Min.X + 0.8, catCab.Min.Y + 0.2, catCab.Max.Z - 1.2)), 70)
+                : Camera.LookAt(engine.ToWorld(new Double3(0, 3, 0)), engine.ToWorld(new Double3(0, 2, -1)), 60),
+            "dog" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(0.8, Floor(train) + 1.3, train.Frames[^1].Shape.HalfLength - 4.6)),
+                train.Frames[^1].ToWorld(new Double3(-0.4, Floor(train) + 0.3, train.Frames[^1].Shape.HalfLength - 2.0)), 60),
+            "launcher" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(3.2, 2.4, train.Frames[^1].Shape.HalfLength + 4.5)),
+                train.Frames[^1].ToWorld(new Double3(0.2, 1.6, train.Frames[^1].Shape.HalfLength + 0.6)), 50),
             "gerald" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(3.0, train.Frames[^1].Shape.RoofHeight + 1.6, -train.Frames[^1].Shape.HalfLength + 5.5)),
                 train.Frames[^1].ToWorld(new Double3(0.8, train.Frames[^1].Shape.RoofHeight + 0.9, -train.Frames[^1].Shape.HalfLength + 1.6)), 50),
             "gnomes" => Camera.LookAt(train.Frames[1].ToWorld(new Double3(-2.4, train.Frames[1].Shape.RoofHeight + 1.6, -train.Frames[1].Shape.HalfLength - 1.5)),

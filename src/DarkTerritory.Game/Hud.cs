@@ -737,6 +737,9 @@ public static partial class Hud
         BodyKind.FishingRod => "THE FISHING ROD",
         BodyKind.Fish => "A FISH",
         BodyKind.GrilledFish => "A GRILLED FISH",
+        // The yard cat (note 745): it can be picked up. The dog can't.
+        BodyKind.Cat => "THE CAT",
+        BodyKind.TennisBall => "A TENNIS BALL",
         // The band's (note 700): band.json's name for it.
         BodyKind.Instrument => world.BandTuning is { } band && b.Instrument < band.Instruments.Length ? band.Instruments[b.Instrument].Name.ToUpperInvariant() : "THE INSTRUMENT",
         _ => "IT",
@@ -2395,6 +2398,9 @@ public static partial class Hud
                 return "LIE IN THE HAMMOCK : [E]";
             case InteractableKind.HotTub:
                 return "GET IN THE HOT TUB : [E]";
+            // The tennis-ball launcher (note 745).
+            case InteractableKind.Launcher:
+                return "FIRE A BALL : [E]";
             case InteractableKind.Cooler:
                 return train.Vehicles[p.Parent].Beers is > 0 and var beers ? $"A BEER : [E]   {beers} LEFT" : "THE COOLER'S EMPTY";
             // The gramophone (note 715).

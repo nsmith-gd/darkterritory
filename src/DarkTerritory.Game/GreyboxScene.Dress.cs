@@ -243,6 +243,10 @@ public sealed partial class GreyboxScene
                     mesh.Billboard(puff, 0.5f + rise * 0.9f, i, new Vector4(new Vector3(0.75f, 0.76f, 0.78f) * (0.22f * (1 - rise)), 1), -1, FxBlend.Additive);
                 }
         }
+        // The tennis-ball launcher on the guard van's platform (note 745).
+        if (Dressed("tennisBalls") && frame.Shape.Platform is { } platform && index == _frames.Count - 1)
+            mesh.Append(art.Piece("whimsy-launcher", () => Art.WhimsyKit.Launcher(Look)),
+                Matrix4x4.CreateTranslation(ToF(Sim.Train.CarShape.Launcher(platform)) + new Vector3(0.35f, 0, -0.25f)) * m);
         if (Dressed("calliope") && index == 0)
             mesh.Append(art.Piece("whimsy-calliope", () => Art.WhimsyKit.Calliope(Look)),
                 Matrix4x4.CreateTranslation(0, (float)frame.Shape.RoofHeight, -2.4f) * m);

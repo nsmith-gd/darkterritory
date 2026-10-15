@@ -30,6 +30,8 @@ public enum BodyKind : byte
     Beer = 14, Sausage = 15, Instrument = 16, Caboose = 17,
     // The fishing rod, a fish caught with it, and the fish grilled (note 744).
     FishingRod = 18, Fish = 19, GrilledFish = 20,
+    // The yard cat, the dog and a tennis ball off the launcher (note 745).
+    Cat = 21, Dog = 22, TennisBall = 23,
 }
 
 /// <summary>
@@ -321,7 +323,14 @@ public sealed class Bodies
     public Body SpawnCrate(TrainOnLine train, int car, Double3 local, BodyKind kind = BodyKind.Crate)
     {
         // The toolbox is a flat thing (train_stores.py's repair_kit, 0.2 m high): it lies on the floor, not a hand over it.
-        double radius = kind switch { BodyKind.Crate or BodyKind.Child => 0.35, BodyKind.RepairKit => 0.1, _ => 0.15 };
+        double radius = kind switch
+        {
+            BodyKind.Crate or BodyKind.Child => 0.35,
+            BodyKind.RepairKit => 0.1,
+            BodyKind.Dog => 0.25,
+            BodyKind.TennisBall => 0.035,
+            _ => 0.15,
+        };
         var pbd = new PbdBody([new Particle(local + Double3.Up * radius, 1, radius)]) { Friction = 0.2, Bounce = 0.1 };
         // Stocked aboard: the crew's from the start.
         var b = new Body(_nextId++, kind, car, pbd) { LineHint = train.Cars[Math.Max(0, car)].FrontDistance, Claimed = true };
@@ -937,7 +946,7 @@ public sealed class Bodies
         // A heavy crate with one on it is still free at its other end (T43).
         // What's in a locker is the locker's: taken from it with a tap there, not reached for (note 173).
         var free = _bodies.Where(b => !b.Stowed && b.TakenBy < 0 && (b.Carrier < 0 || b.Kind == BodyKind.Heavy && b.Second < 0 && b.Carrier != playerId)
-            && !(wearingRadio && b.Kind == BodyKind.Radio) && b.Kind != BodyKind.Caboose);
+            && !(wearingRadio && b.Kind == BodyKind.Radio) && b.Kind is not (BodyKind.Caboose or BodyKind.Dog));
         if (hand is not null && PlayerMotor.HandWorld(s, train) is { } h)
             return free.Select(b => (b, d: Surface(b, train, h))).Where(x => x.d <= hand.Grab).OrderBy(x => x.d).FirstOrDefault().b;
         var hands = HandsAt(s, train);
@@ -1422,7 +1431,8 @@ public sealed class Bodies
     static void Reparent(Body b, TrainOnLine train, int touchedCar)
     {
         // The tiny caboose is the world's, always (note 713): it's towed, not carried, and bumps the cars it touches.
-        if (b.Lifted || b.Kind == BodyKind.Caboose)
+        // The cat and the dog (note 745) walk where they walk: the host puts them in their car's frame (World.StepPets).
+        if (b.Lifted || b.Kind is BodyKind.Caboose or BodyKind.Cat or BodyKind.Dog)
             return;
         if (touchedCar >= 0)
         {
@@ -1457,6 +1467,23 @@ public sealed class Bodies
         var f = train.Frames[car];
         b.Pbd.Transform(f.ToLocal, f.VelocityToLocal, Dt);
         b.Parent = car;
+    }
+
+    /// <summary>
+    /// Puts <paramref name="b"/> at <paramref name="local"/> in <paramref name="car"/>'s frame, standing still there (note 745:
+    /// the cat and the dog, walked by the host; a ball in a hound's jaws).
+    /// </summary>
+    public static void PlaceIn(Body b, int car, Double3 local)
+    {
+        b.Parent = car;
+        var ps = b.Pbd.Particles;
+        var off = local - ps[0].Position;
+        for (int i = 0; i < ps.Length; i++)
+        {
+            ps[i].Position += off;
+            ps[i].Previous = ps[i].Position;
+        }
+        b.Pbd.Wake();
     }
 
     public static Double3 WorldCentre(Body b, TrainOnLine train) =>

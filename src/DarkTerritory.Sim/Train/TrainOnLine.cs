@@ -965,7 +965,8 @@ public sealed class TrainOnLine
         bool gramophone = kind == VehicleKind.Guard && !hasCarBehind && Tuning.Composition.Dressed("gramophone");
         bool hammock = kind == VehicleKind.Guard && !hasCarBehind && Tuning.Composition.Dressed("hammock");
         bool tub = kind == VehicleKind.Engine && Tuning.Composition.Dressed("hotTub");
-        bool extras = bbq || gramophone || hammock || tub;
+        bool launcher = kind == VehicleKind.Guard && !hasCarBehind && Tuning.Composition.Dressed("tennisBalls");
+        bool extras = bbq || gramophone || hammock || tub || launcher;
         if (!_shapes.TryGetValue((kind, hasCarBehind, lockers, tenths, extras), out var shape))
         {
             shape = CarShape.Build(g, kind, hasCarBehind, lockers ? Tuning.Kit.Lockers : null);
@@ -979,6 +980,8 @@ public sealed class TrainOnLine
                 shape = CarShape.WithHammock(shape);
             if (tub)
                 shape = CarShape.WithHotTub(shape);
+            if (launcher)
+                shape = CarShape.WithLauncher(shape);
             _shapes[(kind, hasCarBehind, lockers, tenths, extras)] = shape;
         }
         return shape;

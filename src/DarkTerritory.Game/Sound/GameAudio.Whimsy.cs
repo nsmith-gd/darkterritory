@@ -22,6 +22,50 @@ public sealed partial class GameAudio
     {
         Canary(world, train);
         Gramophone(world, train);
+        Pets(world, train);
+    }
+
+    // Each pet's mood when last heard, and when it last made a sound (this machine's clock).
+    readonly Dictionary<int, (sbyte Mood, double At)> _petHeard = [];
+    readonly Dictionary<string, AudioClip> _petClips = [];
+
+    /// <summary>
+    /// The yard cat and the dog (note 745): the tells. Warning of what's aboard, the cat hisses (again every few seconds while it
+    /// lasts) and the dog barks, a bark every ~0.6 s; otherwise the cat meows now and then.
+    /// </summary>
+    void Pets(World world, TrainOnLine train)
+    {
+        foreach (var b in world.Bodies.All)
+        {
+            if (b.Kind is not (Sim.Physics.BodyKind.Cat or Sim.Physics.BodyKind.Dog))
+                continue;
+            bool cat = b.Kind == Sim.Physics.BodyKind.Cat;
+            var mood = (PetMood)b.Tipped;
+            var was = _petHeard.GetValueOrDefault(b.Id, ((sbyte)-1, -100));
+            double every = mood == PetMood.Warn ? (cat ? 2.5 : 0.6) : cat ? 23 : double.MaxValue;
+            bool fresh = mood == PetMood.Warn && was.Mood != (sbyte)PetMood.Warn;
+            if (!fresh && _time - was.At < every || mood is PetMood.Sleep || !cat && mood != PetMood.Warn)
+            {
+                _petHeard[b.Id] = (b.Tipped, was.At);
+                continue;
+            }
+            int take = (int)(_time * 7) % 3;
+            string name = cat ? mood == PetMood.Warn ? "hiss" : "meow" : "bark";
+            if (!_petClips.TryGetValue($"{name}{take}", out var clip))
+                _petClips[$"{name}{take}"] = clip = new AudioClip(name switch
+                {
+                    "hiss" => BandSynth.Hiss(take),
+                    "meow" => BandSynth.Meow(take),
+                    _ => BandSynth.Bark(take),
+                }, Audio.SampleRate);
+            var at = Sim.Physics.Bodies.WorldCentre(b, train) + Double3.Up * 0.2;
+            Mixer.Play(WhimsySound($"whimsy-{name}", 3, 1.5, cat ? 22 : 60, cat ? -2 : 0), at)?.Also(v =>
+            {
+                v.Clip = clip;
+                v.Occlusion = Occlusion(PlayerMotor.Space(new PlayerState { Parent = b.Parent, Position = b.Centre }, train));
+            });
+            _petHeard[b.Id] = (b.Tipped, _time);
+        }
     }
 
     /// <summary>
