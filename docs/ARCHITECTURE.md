@@ -940,4 +940,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [778. Nothing lies across the track: the boughs, the deadfall, a boulder, the yards' racks of rail, the stands' trees, a dead line's land and the…](notes/778.md)
 - [780. Each night its own lineside: the art's dressing dealt from the night's own seed, not the same at the same km every night (queue #510, B1;…](notes/780.md)
 - [792. The railway's leavings beside the line solid: dealt by the sim, stood on their footprints, drawn from its list (queue #517, B1; GDD App.…](notes/792.md)
+- [794. The woods keep off the railway's leavings (queue #521, B1; note 792's "not yet")](notes/794.md)
 <!-- end of the notes index -->

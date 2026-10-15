@@ -267,8 +267,9 @@ public sealed partial class LinesideProps
     /// <param name="reach">Only what stands within this of the line (m): the rest is dealt and passed over unchecked, so
     /// what's within it is the same either way.</param>
     public IEnumerable<LinesideProp> Props(double from, double to, double reach = double.MaxValue) =>
-        // The boards' sight lines are kept clear (note 560): what would stand in one isn't there.
-        Dealt(from, to, reach).Where(p => !Hidden(p));
+        // The boards' sight lines are kept clear (note 560): what would stand in one isn't there. Nor does a tree grow up
+        // through the railway's leavings (note 794).
+        Dealt(from, to, reach).Where(p => !Hidden(p) && !InALeaving(p));
 
     IEnumerable<LinesideProp> Dealt(double from, double to, double reach)
     {
