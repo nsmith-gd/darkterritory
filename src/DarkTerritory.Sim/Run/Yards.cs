@@ -93,7 +93,7 @@ public sealed partial class Run
 
     /// <summary>A switchyard's cars still standing on one of its sidings, as the night found them (note 187); not derelicts.</summary>
     public static int StandingOn(TrainOnLine train, int branch) =>
-        train.Rakes.Where(r => r.Path == branch && train.Standing(r)).Sum(r => r.Consist.Vehicles.Count(v => !v.Derelict));
+        train.Rakes.Where(r => r.Path == branch && train.Standing(r)).Sum(r => r.Consist.Vehicles.Count(v => !v.Derelict && !v.IsHandcar));
 
     /// <summary>Derelict cars still on a siding (level-design D.2; note 294): what has to come out before it's any use.</summary>
     public static int DerelictsOn(TrainOnLine train, int branch) =>

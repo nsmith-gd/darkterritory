@@ -102,15 +102,28 @@ def bots():
 PRIZE_PHRASES = ["light fingers"]
 PRIZE_WORDS = ["find", "finds"]
 
+# The upgrades read into every night's tally (U1's #967, note 678; queue #505, note 775; the checklist's up-clerk-words):
+# "Whistle: gold." "Horn: comedic." "Horseshoe: still up." "Commendation: framed." "Deck: barbecue." More come with each silly
+# upgrade (campaign.json upgrades' "tally").
+UPGRADE_PHRASES = ["still up"]
+UPGRADE_WORDS = ["whistle", "gold", "horn", "comedic", "horseshoe", "commendation", "framed", "deck", "barbecue"]
+
 
 def finds():
     """Every find's and trophy's name (loot.json items), as the clerk says it mid-line: "pocket watch", "the gaunt's hand"."""
     return [n.lower() for n in jsonc("content", "tuning", "loot.json")["items"].values()]
 
 
+def damage():
+    """A fragile find's damage as the tally reads it (note 719; queue #513, note 783): "Find: mantel clock, smashed, 30.", each
+    word by its knocks (loot.json fragile.items)."""
+    return [w.lower() for words in (jsonc("content", "tuning", "loot.json").get("fragile") or {}).get("items", {}).values() for w in words]
+
+
 def vocabulary():
     seen, out = set(), []
-    for w in PHRASES + CAUSE_PHRASES + PRIZE_PHRASES + finds() + WORDS + CAUSE_WORDS + PRIZE_WORDS + bots() + places():
+    for w in (PHRASES + CAUSE_PHRASES + PRIZE_PHRASES + UPGRADE_PHRASES + finds() + damage() + WORDS + CAUSE_WORDS + PRIZE_WORDS
+              + UPGRADE_WORDS + bots() + places()):
         if w not in seen:
             seen.add(w)
             out.append(w)

@@ -137,6 +137,8 @@ public sealed partial class WorldArt(Look look)
     static readonly float[] Lateral = [0, 1.55f, 2.35f, 2.95f, 3.7f, 5.5f, 8, 12, 17, 24, 33, 45, 60, 78, 100, 130, 170, 220, 280, 360];
     /// <summary>A generated line's land runs on out to its terrain corridor's edge (linegen plan §12.2), where it falls away under the fog.</summary>
     static readonly float[] PlanLateral = [.. Lateral[..15], 130, 165, 205, 250, 300];
+    /// <summary>A generated line's own columns across it, left to right (<see cref="PlanLateral"/> both sides): its land's grid (note 498).</summary>
+    static readonly float[] OwnColumns = [.. PlanLateral.Skip(1).Reverse().Select(l => -l), .. PlanLateral];
     static readonly float[] Profile = [0.0f, 0.0f, -0.24f, -0.3f, -0.06f, -0.02f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
     const double Wrap = 4096;
@@ -246,7 +248,7 @@ public sealed partial class WorldArt(Look look)
     {
         var k = new Kit(_look, mesh) { SurfaceOrigin = new Vector3(W(eye.X), W(eye.Y), W(eye.Z)), Baked = 0 };
         var origin = k.SurfaceOrigin;
-        const double step = 5;
+        const double step = RowM;
         var plan = Scene(route);
         // Across the line: from the far left to the far right, both sides of one profile, finer where a lake wants it.
         var (lats, real, before, after) = Columns(plan, from, to);
@@ -360,6 +362,14 @@ public sealed partial class WorldArt(Look look)
                     }
                     continue;
                 }
+                // A town type's shaped ground is the town's to draw (note 692): the land's quad is left out where all of it is.
+                if (MathF.Abs(lat) > 6 && (Departure is not null || Arrival is not null)
+                    && TownHole(left[c].X + eye.X, left[c].Z + eye.Z) && TownHole(left[c + 1].X + eye.X, left[c + 1].Z + eye.Z)
+                    && TownHole(right[c].X + eye.X, right[c].Z + eye.Z) && TownHole(right[c + 1].X + eye.X, right[c + 1].Z + eye.Z))
+                    continue;
+                // Where an alternate or a dead line runs out on this land, its own land is drawn instead (note 498).
+                if (plan is not null && BranchTakes(plan, (long)Math.Floor((s + s1) / 2 / RowM), OwnColumn(lat)))
+                    continue;
                 var (a, b, band) = GroundLayers(lat);
                 bool bridge = (gorgeLeft > 0.5f || gorgeRight > 0.5f) && MathF.Abs(lat) < 3.7f;
                 if (hill && MathF.Abs(lat) < 12)
@@ -468,7 +478,7 @@ public sealed partial class WorldArt(Look look)
         var lateral = plan is null ? Lateral : PlanLateral;
         int columns = lateral.Length;
         float[] own = [.. Enumerable.Range(0, columns * 2 - 1).Select(c => c < columns - 1 ? -lateral[columns - 1 - c] : lateral[c - (columns - 1)])];
-        var bands = plan?.LakeBands.Where(b => b.S0 < to && b.S1 > from).ToArray() ?? [];
+        var bands = (plan?.LakeBands.Where(b => b.S0 < to && b.S1 > from) ?? []).Concat(TownBands().Where(b => b.S0 < to && b.S1 > from)).ToArray();
         var extra = new SortedSet<float>();
         float edge = lateral[^1];
         foreach (var b in bands)
@@ -572,12 +582,12 @@ public sealed partial class WorldArt(Look look)
         ? [new Sim.Run.Fort(0, w.YardEnd, w.YardEnd, true, true, TownSquare, TownBounds), Terminus(w.HomeGate, line.Length)]
         : [];
 
-    /// <summary>The terminus's town (note 600), standing turned round in its own frame: nothing wild grows inside it either.</summary>
+    /// <summary>The terminus's town (notes 600, 692), standing in its own frame: nothing wild grows inside it either.</summary>
     public Sim.Towns.Town? Arrival { get; set; }
 
-    /// <summary>The terminus's fortress as the sim stands it: its town's, turned round, if it's one (note 600).</summary>
-    Sim.Run.Fort Terminus(double gate, double end) => Arrival is { Turn: { } turn } a
-        ? new Sim.Run.Fort(gate, end, gate, false, true, a.Plan.Square.Turned(turn), a.Plan.Bounds, turn)
+    /// <summary>The terminus's fortress as the sim stands it: its town's, in its own frame, if it's one (notes 600, 692).</summary>
+    Sim.Run.Fort Terminus(double gate, double end) => Arrival is { Origin: { } origin } a
+        ? new Sim.Run.Fort(gate, end, gate, false, true, a.Plan.Square.From(origin), a.Plan.Bounds, origin)
         : new Sim.Run.Fort(gate, end, gate, false, true);
 
     /// <summary>Inside a fortress's walls (<see cref="Walls"/>, which stand 14.8 m out, or a walled town's), with a little room.</summary>
@@ -585,8 +595,8 @@ public sealed partial class WorldArt(Look look)
         Walls is { } w && Math.Abs(offset) < 16.5 && (along < w.YardEnd + 2 || along > w.HomeGate - 2)
         || TownSquare is { } sq && Math.Sign(offset) == sq.Side && Math.Abs(offset) < Math.Abs(sq.WallD) + 2 && along > sq.S0 - 2 && along < sq.S1 + 2
         || TownBounds is { } town && town.Holds(along, offset, 3)
-        || Arrival is { Turn: { } turn } a && (a.Plan.Bounds?.Holds(turn - along, -offset, 3) == true
-            || a.Plan.Square.Turned(turn) is var asq && Math.Sign(offset) == asq.Side && Math.Abs(offset) < Math.Abs(asq.WallD) + 2 && along > asq.S0 - 2 && along < asq.S1 + 2);
+        || Arrival is { Origin: { } origin } a && (a.Plan.Bounds?.Holds(along - origin, offset, 3) == true
+            || a.Plan.Square.From(origin) is var asq && Math.Sign(offset) == asq.Side && Math.Abs(offset) < Math.Abs(asq.WallD) + 2 && along > asq.S0 - 2 && along < asq.S1 + 2);
 
     public void Lineside(MeshBuilder mesh, RailLine line, Route? route, Double3 eye, double from, double to, int seed, float valleyDepth)
     {
@@ -644,9 +654,9 @@ public sealed partial class WorldArt(Look look)
         // A generated line is dressed by its biomes (PlanArt), round its stops.
         if (Scene(route) is { } plan)
         {
+            // (The railway's leavings are the sim's on a generated line, note 792: PlanDressing draws them from its list.)
             PlanDressing(mesh, line, route!, plan, eye, from, to, seed, OnBranch);
             Shrines(mesh, from, to, seed, Clear, OnBranch, Place);
-            Leavings(mesh, from, to, seed, Clear, OnBranch, Place);
             Stops(mesh, line, route, eye, from, to, valleyDepth);
             return;
         }

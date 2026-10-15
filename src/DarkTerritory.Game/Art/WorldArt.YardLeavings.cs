@@ -34,8 +34,12 @@ public sealed partial class WorldArt
             }
     }
 
-    /// <summary>A pile in a stop's yard: where (world, and in its building's frame), facing, and what's in it.</summary>
-    public readonly record struct YardPile(Double3 World, Vector3 Local, float Yaw, string Kind, int Variant);
+    /// <summary>
+    /// A pile in a stop's yard: where (world, and in its building's frame), facing, and what's in it; and where its ends lie
+    /// (world): a rack of rail's 4.6 m out either way along it, a stack of ties' 3 m to its right and 1.5 m to its left,
+    /// anything else's where it stands.
+    /// </summary>
+    public readonly record struct YardPile(Double3 World, Vector3 Local, float Yaw, string Kind, int Variant, Double3 EndA, Double3 EndB);
 
     /// <summary>
     /// The piles round building <paramref name="index"/> of stop <paramref name="f"/> (<see cref="YardLeavings"/>'s spots,
@@ -84,8 +88,22 @@ public sealed partial class WorldArt
             var world = at + ToDouble(Vector3.Transform(spots[j].At, frame));
             if (!ClearOfTracks(line, world, along))
                 continue;
-            yield return new YardPile(world, spots[j].At, spots[j].Yaw + (Hash(slot * 2.71f) - 0.5f) * 0.5f,
-                YardKinds[deck[slot % deck.Length]], (int)(Hash(slot * 4.17f + seed * 0.031f) * 6));
+            // And its ends (note 778): a rack of rail at a gable end lies along the building, and where the building stands
+            // end on to a track its 9 m lengths reached out over the rails (frontier:7's and local:3's stops). Not there. A
+            // stack of ties leans one out 3 m to its right (note 780), as far as its spot is kept from a track.
+            float yaw = spots[j].Yaw + (Hash(slot * 2.71f) - 0.5f) * 0.5f;
+            string kind = YardKinds[deck[slot % deck.Length]];
+            var turned = Matrix4x4.CreateRotationY(yaw);
+            Double3 Out(Vector3 local) => ToDouble(Vector3.TransformNormal(Vector3.TransformNormal(local, turned), frame));
+            var (endA, endB) = kind switch
+            {
+                "rails" => (world + Out(Vector3.UnitZ * RailRackReach), world - Out(Vector3.UnitZ * RailRackReach)),
+                "ties" => (world + Out(Vector3.UnitX * TieLeanReach), world - Out(Vector3.UnitX * TieStackReach)),
+                _ => (world, world),
+            };
+            if ((endA != world && !ClearOfTracks(line, endA, along)) || (endB != world && !ClearOfTracks(line, endB, along)))
+                continue;
+            yield return new YardPile(world, spots[j].At, yaw, kind, (int)(Hash(slot * 4.17f + seed * 0.031f) * 6), endA, endB);
         }
     }
 
@@ -119,6 +137,12 @@ public sealed partial class WorldArt
 
     /// <summary>How far a pile stands from the centre of any track (m): the loading gauge's half and a step.</summary>
     public const double YardTrackClear = 3.2;
+
+    /// <summary>How far a rack of rail reaches either way from its middle (m): half its 9 m lengths and a bent one's swing (JunkKit.Rails).</summary>
+    const float RailRackReach = 4.6f;
+
+    /// <summary>How far a stack of ties reaches (m, JunkKit.Ties): its leant tie 3 m out to its right, its stack 1.44 m to its left.</summary>
+    const float TieLeanReach = 3.05f, TieStackReach = 1.5f;
 
     /// <summary>The kinds a yard's piles are dealt from (the leavings' that belong by a building, not out on the line).</summary>
     static readonly string[] YardKinds = ["ties", "rails", "drums", "reel", "wheelset", "coal", "stores", "freight", "sandbags"];

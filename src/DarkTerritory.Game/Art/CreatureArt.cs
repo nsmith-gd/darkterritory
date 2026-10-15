@@ -39,6 +39,10 @@ public enum CrewPose
     // A friend hauled free by what has them (App. A.1's rescue, note 378): out of the Car Hugger's mouth, the Tippy Toesie's
     // fingers prised off, hauled down from the Whistler or the Choir.
     PullMouth, PryOff, HaulDown,
+    // Note 722, the emotes for two and the edges: a high five, a fist bump, a dance-off's moves (by who leads), sat on an
+    // edge legs over, leant out of a doorway. Clips of their own when crew_clips has them ("high_five", "fist_bump",
+    // "dance_off", "sit_edge", "lean_out": E1's); until then posed by IK over the standing or stepping clip (EmoteArms).
+    HighFive, FistBump, DanceOff, SitEdge, LeanOut,
 }
 
 /// <summary>
@@ -63,7 +67,7 @@ public sealed partial class CreatureArt
     public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
         "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker", "follower", "climber", "fire_fly", "passenger",
         "survivor_prisoner", "survivor_wildlander", "sheep", "moose", "gannet", "mourner", "freight_beetle", "tower_jaw", "brakeman", "knotter", "hotbox", "hanger",
-        "picker", "lodger", "householder", "waker"];
+        "picker", "lodger", "householder", "waker", DaveArt.Figure];
 
     /// <summary>
     /// The figure a crewmate plays as (GDD App. D.8): the crew's own, or, freed from a Holdout, its occupant's for the rest
@@ -456,9 +460,9 @@ public sealed partial class CreatureArt
             var extra = Path.Combine(ContentRoot, Folder, name + "_clips.glb");
             if (File.Exists(extra))
                 model = ModelLoader.WithClips(model, ModelLoader.Load(extra), replace: true);
-            // The survivors are the crew figure redressed: the crew's actions are theirs too.
+            // The survivors and Dave are the crew figure redressed: the crew's actions are theirs too (his painting's there).
             var crewClips = Path.Combine(ContentRoot, Folder, "crew_clips.glb");
-            if (name.StartsWith("survivor_", StringComparison.Ordinal) && File.Exists(crewClips))
+            if ((name.StartsWith("survivor_", StringComparison.Ordinal) || name == DaveArt.Figure) && File.Exists(crewClips))
                 model = ModelLoader.WithClips(model, ModelLoader.Load(crewClips), replace: true);
             float wear = WearOf.GetValueOrDefault(name, 0.5f);
             // Its distance copy: its own, else (the survivors, the crew: a town's people are hundreds of thousands of
@@ -492,7 +496,13 @@ public sealed partial class CreatureArt
         var model = Redress.Of(figure.Model, name, clothes, shape, growths);
         float wear = WearOf.GetValueOrDefault("survivor_prisoner", 0.5f);
         _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear))]);
+        _dressed.Add(name);
     }
+
+    readonly HashSet<string> _dressed = [];
+
+    /// <summary>Whether <paramref name="name"/> is a figure modelled for it (its own file), not one dressed from the survivors'.</summary>
+    public bool Modelled(string name) => _models.ContainsKey(name) && !_dressed.Contains(name);
 
     /// <summary>A model's distance copy (tools/models overbake `lod`), its joints renumbered by name to the full model's so
     /// the full model's pose skins it; null when there's none or a bone of it isn't the full model's.</summary>
@@ -517,6 +527,13 @@ public sealed partial class CreatureArt
     /// <summary>A Cinder Hound's board onto the rear car (tools/blender/cinder_hound.py "board", 33 frames at 30).</summary>
     const double HoundBoardSeconds = 1.1;
     Sim.Enemies.WhistlerTuning? _whistler;
+    double? _couplerHeight;
+    /// <summary>How far a whistling Whistler leans out of its gap toward someone beside the train (rad; note 759): its front
+    /// out past the cars' sides. The art's, not a design number.</summary>
+    public const float WhistlerLean = 0.5f;
+
+    /// <summary>How high the couplers' heads are over the rail (m; train.json couplerHeight): where a whistling Whistler stands.</summary>
+    public double CouplerHeight => _couplerHeight ??= DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(ContentRoot, Sim.Train.TrainTuning.File)).Geometry.CouplerHeight;
     Sim.Enemies.CarFireTuning? _carFire;
     /// <summary>The car fire's tuning, as the content has it (its grid's cell size, its spread clock; note 267).</summary>
     public Sim.Enemies.CarFireTuning CarFire => _carFire ??= DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(ContentRoot, Sim.Enemies.EnemyTuning.File)).CarFire;
@@ -635,7 +652,12 @@ public sealed partial class CreatureArt
     {
         var mats = m.Model.Materials;
         for (int i = 0; i < mats.Length; i++)
+        {
             m.Scratch[i] = adjust is null ? m.Looks[i] : adjust(mats[i], m.Looks[i]);
+            // (A watcher's shape, CreatureArt.Watching: the whole of it dark.)
+            if (_shade < 1)
+                m.Scratch[i] = m.Scratch[i] with { Colour = m.Scratch[i].Colour * _shade, Emissive = m.Scratch[i].Emissive * _shade };
+        }
         var seedOffset = new Vector3(MathF.Sin(seed * 12.9898f), MathF.Sin(seed * 78.233f), MathF.Sin(seed * 37.719f)) * 97;
         var settings = new EmitSettings(variant % Math.Max(1, m.Model.VariantCount), clip, _texels, seedOffset);
         mesh.Skinned(Bound(m, settings, arms), at, skin ?? m.Pose.Skin, glow, seedOffset * _texels);
@@ -775,6 +797,11 @@ public sealed partial class CreatureArt
         CrewPose.PullMouth => "pull_mouth",
         CrewPose.PryOff => "pry_off",
         CrewPose.HaulDown => "haul_down",
+        CrewPose.HighFive => "high_five",
+        CrewPose.FistBump => "fist_bump",
+        CrewPose.DanceOff => "dance_off",
+        CrewPose.SitEdge => "sit_edge",
+        CrewPose.LeanOut => "lean_out",
         _ => "idle",
     };
 
@@ -797,7 +824,8 @@ public sealed partial class CreatureArt
     /// the hands are reached for from where the shoulders have gone.</param>
     public bool Crewmate(MeshBuilder mesh, in Matrix4x4 model, CrewPose pose, double time, int variant,
         Vector3? left = null, Vector3? right = null, Vector3 leftPole = default, Vector3 rightPole = default, MeshAsset? inHand = null,
-        MeshAsset? hanging = null, string figure = "crew", VrBodyPose? body = null, MeshAsset? carried = null, bool sooted = false)
+        MeshAsset? hanging = null, string figure = "crew", VrBodyPose? body = null, MeshAsset? carried = null, bool sooted = false,
+        MaskLook mask = default, EmoteDetail emote = default)
     {
         if (!_models.ContainsKey(figure))
             figure = "crew";
@@ -814,9 +842,11 @@ public sealed partial class CreatureArt
                 : clip == "spray" && has.Model.Clips.ContainsKey("extinguish") ? "extinguish" : clip == "hang_up" && has.Model.Clips.ContainsKey("take_down") ? "take_down"
                 : clip is "toolbox" or "toolbox_walk" && has.Model.Clips.ContainsKey("carry") ? clip == "toolbox" ? "carry" : "carry_walk"
                 // An emote with no clip of its own (note 298): the dance steps on the spot, the wave and the point stand.
-                : clip is "dance" or "shuffle" && has.Model.Clips.ContainsKey("walk") ? "walk" : "idle";
+                // (Note 722: a dance-off steps as the dance does; the rest stand.)
+                : clip is "dance" or "dance_off" or "shuffle" && has.Model.Clips.ContainsKey("walk") ? "walk" : "idle";
         // ... and the arms are posed over it (EmoteArms).
-        bool emoteByHand = pose is CrewPose.Dance or CrewPose.Wave or CrewPose.Point && clip != ClipOf(pose);
+        bool emoteByHand = pose is CrewPose.Dance or CrewPose.Wave or CrewPose.Point or CrewPose.HighFive or CrewPose.FistBump or CrewPose.DanceOff
+            or CrewPose.SitEdge or CrewPose.LeanOut && clip != ClipOf(pose);
         var Paint = PaintOf(variant);
         if (!_models.TryGetValue(figure, out var m) || !m.Model.Clips.TryGetValue(clip, out var c))
             return false;
@@ -829,14 +859,17 @@ public sealed partial class CreatureArt
         if (body is { } vr)
             HeadsetBody(m, vr);
         if (emoteByHand)
-            EmoteArms(m, pose, time);
+            EmoteArms(m, pose, time, emote);
         if (left is { } l)
             Reach(m, "l", l, leftPole);
         if (right is { } r)
             Reach(m, "r", r, rightPole);
         Emit(mesh, m, clip, model, variant, 1, variant, Paint);
         if (figure == "crew")
+        {
             Marks(mesh, m, model, variant);
+            Mask(mesh, m, model, mask, variant);
+        }
         // A lump of coal in the face (note 717): sooty for the night.
         if (sooted)
             Soot(mesh, m, model);
@@ -1182,6 +1215,53 @@ public sealed partial class CreatureArt
             mesh.Append(_marks[1 + kit], m.Pose.World[on] * model);
     }
 
+    /// <summary>
+    /// What's painted on a crewmate's gas mask (note 731): their own paint, the crew's sigil (a stencil from 1, 0 none) and
+    /// their number for the "number" stencil.
+    /// </summary>
+    public readonly record struct MaskLook(Sim.Player.MaskPaint Paint, int Sigil = 0, int Number = 1);
+
+    readonly MeshAsset?[] _maskCoat = new MeshAsset?[2];
+    readonly Dictionary<(string Key, int Number, bool Sigil, bool Visor), MeshAsset> _maskStencils = new();
+
+    /// <summary>The welder's visor is down over the face (tools/blender/crew.py welder_visor; crew.glb's visor_down: variants 1 and 3).</summary>
+    public static bool VisorDown(int variant) => (variant & 3) is 1 or 3;
+
+    /// <summary>
+    /// The paint on a crewmate's gas mask (GDD §29 "Painted masks"; note 731), on the head bone (Art.MaskKit): a coat in their
+    /// colour over the mask's front, their stencil on it in its colour, and the crew's sigil small on the hood's right side. The sigil
+    /// in the wearer's own stencil colour when they've a coat (it's what they chose to show on it), else the crew's.
+    /// </summary>
+    void Mask(MeshBuilder mesh, Entry m, in Matrix4x4 model, MaskLook mask, int variant)
+    {
+        var t = Look.Tuning;
+        var paint = mask.Paint;
+        if (!paint.Painted && mask.Sigil <= 0)
+            return;
+        int head = m.Model.Skeleton.IndexOf("head");
+        if (head < 0)
+            return;
+        var at = m.Pose.World[head] * model;
+        var coat = t.MaskPaint(paint.Colour);
+        var ink = t.MaskPaint(paint.Ink > 0 ? paint.Ink : t.MaskInk) ?? Vector3.One;
+        // With the welder's visor down, the face is the visor's: the paint goes on it.
+        bool visor = VisorDown(variant);
+        if (coat is { } c)
+            mesh.Append(_maskCoat[visor ? 1 : 0] ??= MaskKit.Coat(Look, visor), at, c);
+        if (t.MaskStencil(paint.Stencil) is { } key)
+            mesh.Append(MaskStencil(key, mask.Number, sigil: false, visor), at, ink);
+        if (t.MaskStencil(mask.Sigil) is { } sigil)
+            mesh.Append(MaskStencil(sigil, 0, sigil: true, false), at, coat is not null ? ink : t.MaskPaint(t.SigilInk) ?? Vector3.One);
+    }
+
+    MeshAsset MaskStencil(string key, int number, bool sigil, bool visor)
+    {
+        var at = (key, key == "number" ? number : 0, sigil, visor);
+        if (!_maskStencils.TryGetValue(at, out var piece))
+            _maskStencils[at] = piece = sigil ? MaskKit.SigilOnTheMask(Look, key) : MaskKit.OnTheMask(Look, key, at.Item2, visor);
+        return piece;
+    }
+
     MeshAsset? _soot, _sootChest;
 
     /// <summary>
@@ -1455,11 +1535,78 @@ public sealed partial class CreatureArt
     /// over the head in turn; the wave a hand up high, rocking side to side; the point an arm straight out ahead at the
     /// shoulder. Placeholders for the art pass's clips, in the crew's stiff, heavy manner (GDD §31).
     /// </summary>
-    static void EmoteArms(Entry m, CrewPose pose, double time)
+    /// <remarks>
+    /// Note 722's, the same way: the high five a hand up and a little forward while offered (drooping, and the head tipping,
+    /// the longer it hangs), then slapped forward to the middle of the gap between the two, leant into when the gap's wide, and
+    /// let down; the fist bump the same at the chest; a dance-off's lead the jig bigger, the hips swung and the fists thrown
+    /// high, the rest clapping it on the beat; sat on an edge, let down onto the seat with the thighs out over it, the shins
+    /// hanging and the hands on the edge by the hips; leant out of a doorway, the body tipped out from the feet, one hand on the
+    /// jamb, the other loose, the head turned to where they look.
+    /// </remarks>
+    static void EmoteArms(Entry m, CrewPose pose, double time, EmoteDetail detail = default)
     {
         float t = (float)time;
         switch (pose)
         {
+            case CrewPose.HighFive:
+            case CrewPose.FistBump:
+                {
+                    bool five = pose == CrewPose.HighFive;
+                    if (!detail.Met)
+                    {
+                        // Held up, offered; hanging there it sags a little and the head tips, waiting.
+                        float wait = Math.Clamp((t - 1.2f) / 1.5f, 0, 1);
+                        var offered = five ? new Vector3(0.27f, 1.98f - 0.12f * wait, -0.3f) : new Vector3(0.16f, 1.24f - 0.06f * wait, -0.46f);
+                        Bend(m, "neck", Matrix4x4.CreateRotationZ(-0.22f * wait));
+                        Reach(m, "r", offered + new Vector3(0, 0.015f * MathF.Sin(t * MathF.Tau * 1.4f), 0), new Vector3(1, -0.6f, 0.4f));
+                        break;
+                    }
+                    // Met: to the middle of the gap, leant into it when the arm alone won't reach, then let down.
+                    float half = (float)Math.Max(0.2, detail.Gap / 2);
+                    float lean = Math.Clamp((half - 0.5f) * 0.9f, 0, 0.3f);
+                    float since = (float)detail.SinceMeet, down = Math.Clamp((since - 0.3f) / 0.5f, 0, 1);
+                    Bend(m, "spine_01", Matrix4x4.CreateRotationX(-lean * (1 - down)));
+                    var meet = five ? new Vector3(0.05f, 1.84f, -Math.Min(half, 0.66f)) : new Vector3(0.05f, 1.22f, -Math.Min(half, 0.62f));
+                    var after = five ? new Vector3(0.3f, 1.55f, -0.2f) : new Vector3(0.24f, 1.05f, -0.25f);
+                    Reach(m, "r", Vector3.Lerp(meet, after, down), new Vector3(1, -0.6f, 0.3f));
+                    break;
+                }
+            case CrewPose.DanceOff when detail.Leading:
+                {
+                    // The lead: the jig thrown bigger, the hips swung, the fists right up in turn.
+                    float beat = MathF.Sin(t * MathF.Tau * 1.3f);
+                    Bend(m, "spine_01", Matrix4x4.CreateRotationZ(0.24f * beat) * Matrix4x4.CreateRotationY(0.3f * beat));
+                    Reach(m, "l", new Vector3(-0.3f - 0.1f * beat, 1.98f + 0.12f * beat, -0.1f), new Vector3(-1, -0.4f, 0.2f));
+                    Reach(m, "r", new Vector3(0.3f - 0.1f * beat, 1.98f - 0.12f * beat, -0.1f), new Vector3(1, -0.4f, 0.2f));
+                    break;
+                }
+            case CrewPose.DanceOff:
+                {
+                    // Answering it: a clap on the beat, hands in front, bobbing.
+                    float clap = MathF.Abs(MathF.Sin(t * MathF.PI * 2.6f));
+                    Bend(m, "spine_01", Matrix4x4.CreateRotationX(-0.08f * clap));
+                    Reach(m, "l", new Vector3(-0.03f - 0.17f * clap, 1.32f, -0.36f), new Vector3(-1, -0.5f, 0.2f));
+                    Reach(m, "r", new Vector3(0.03f + 0.17f * clap, 1.32f, -0.36f), new Vector3(1, -0.5f, 0.2f));
+                    break;
+                }
+            case CrewPose.SitEdge:
+                SitOnEdge(m, t);
+                break;
+            case CrewPose.LeanOut:
+                {
+                    // Side on in the doorway, tipped out from the feet past the jamb (its side, detail.Out), the inner hand on the
+                    // jamb ahead, the outer arm loose out in the air; the head to the look.
+                    float side = detail.Out < 0 ? -1 : 1;
+                    string inner = side > 0 ? "l" : "r", outer = side > 0 ? "r" : "l";
+                    Skinner.Place(m.Model, m.Pose, Matrix4x4.CreateRotationZ(-0.38f * side));
+                    Bend(m, "spine_02", Matrix4x4.CreateRotationZ(-0.16f * side));
+                    Reach(m, inner, new Vector3(side * 0.2f, 1.62f, -0.38f), new Vector3(-side, -0.3f, 0.4f));
+                    Reach(m, outer, new Vector3(side * 0.95f, 1.05f + 0.03f * MathF.Sin(t * 1.7f), -0.15f), new Vector3(side, -0.5f, 0.3f));
+                    float turn = (float)Math.Clamp(detail.Turn, -1.2, 1.2);
+                    if (MathF.Abs(turn) > 1e-3f)
+                        Bend(m, "neck", Matrix4x4.CreateRotationY(turn));
+                    break;
+                }
             case CrewPose.Dance:
                 {
                     float beat = MathF.Sin(t * MathF.Tau * 1.1f);
@@ -1476,6 +1623,33 @@ public sealed partial class CreatureArt
                 break;
         }
     }
+
+    /// <summary>
+    /// Sat on an edge, legs over (note 722): the figure let down until the pelvis is <see cref="SeatOver"/> over its feet' floor
+    /// (the edge it sits on), the thighs out level over it, the shins hanging down past it and swinging a little, a foot each
+    /// side; the hands on the edge by the hips, the back a little bowed.
+    /// </summary>
+    static void SitOnEdge(Entry m, float t)
+    {
+        var sk = m.Model.Skeleton;
+        int pelvis = sk.IndexOf("pelvis");
+        if (pelvis < 0)
+            return;
+        float hip = m.Pose.World[pelvis].M42;
+        Skinner.Place(m.Model, m.Pose, Matrix4x4.CreateTranslation(0, SeatOver - hip, 0));
+        Bend(m, "spine_02", Matrix4x4.CreateRotationX(-0.12f));
+        foreach (int side in new[] { -1, 1 })
+        {
+            string s = side < 0 ? "l" : "r";
+            float swing = 0.05f * MathF.Sin(t * 1.6f + side);
+            var foot = new Vector3(side * 0.14f, SeatOver - 0.62f, -0.5f + swing);
+            Reach(m, "thigh_" + s, "calf_" + s, "foot_" + s, foot, new Vector3(side * 0.1f, 0.6f, -1));
+            Reach(m, s, new Vector3(side * 0.3f, 0.05f, 0.04f), new Vector3(side, 0.2f, 0.4f));
+        }
+    }
+
+    /// <summary>How high the pelvis bone sits over the seat it's sat on (m): a body's seat below its hip joint.</summary>
+    const float SeatOver = 0.1f;
 
     /// <summary>How many joints a ragdoll has (Sim.Physics.Bodies' skeleton), in the order <see cref="Corpse"/> reads them.</summary>
     public const int RagdollJoints = 11;
@@ -2037,6 +2211,24 @@ public sealed partial class CreatureArt
                         SpinePhase.BreakOff => "run",
                         _ => "watch",
                     };
+                    if (clip == "whistle")
+                    {
+                        // Its breath out of the siphon's lip as it blows (note 759): a plume over the roofs that marks
+                        // which gap the whistle came from, as the whistle's own does the engine.
+                        bool whistled = Draw(mesh, "whistler", clip, t, true, model, seed: 41);
+                        if (whistled)
+                        {
+                            var root = BoneAt("whistler", "siphon_02", model);
+                            var end = BoneAt("whistler", "siphon_03", model);
+                            var along = end - root;
+                            if (along.LengthSquared() > 1e-8f)
+                            {
+                                _fx.WhistlerBreath(mesh, end + along, Vector3.Normalize(along), t, 59);
+                                Breaths.Add((end + along, Vector3.Normalize(along)));
+                            }
+                        }
+                        return whistled;
+                    }
                     if (clip == "carry" && Draw(mesh, "whistler", clip, t, true, model, seed: 41))
                     {
                         _clutch = ((BoneAt("whistler", "hook_r", model) + BoneAt("whistler", "hook_l", model)) / 2,
@@ -2254,12 +2446,18 @@ public sealed partial class CreatureArt
             case EnemyKind.Dave when _models.ContainsKey(DaveKit.Figure):
                 {
                     // DAVE (note 570): his figure in a hat, waistcoat, glasses and sandals, at his easel (GreyboxScene.Painter
-                    // draws him so in the world, turned to whoever he's warned; here, as he is in this phase).
+                    // draws him so in the world, turned to whoever he's warned; here, as he is in this phase). Modelled (note
+                    // 491), it's his own, painting at the canvas.
                     _dave ??= new DaveKit(Look);
                     var (hat, vest) = DaveKit.Outfit(extra2 * 1000);
+                    mesh.Append(_dave.Easel(0), model);
+                    if (Modelled(DaveArt.Figure))
+                    {
+                        var (clip, painting) = DaveArt.Act(phase);
+                        return DaveArt.Draw(Look, mesh, painting ? DaveArt.AtCanvas(model) : model, clip, t, hat, vest, painting);
+                    }
                     if (!Draw(mesh, DaveKit.Figure, DaveKit.Clip(phase), t, true, model, 2, seed: 47))
                         return false;
-                    mesh.Append(_dave.Easel(0), model);
                     _dave.Dress(this, mesh, model, hat, vest);
                     return true;
                 }
@@ -2658,6 +2856,12 @@ public sealed partial class CreatureArt
     /// </summary>
     public Dictionary<int, (Vector3 At, Vector3 Forward, bool Hung)> Clutches { get; } = new();
 
+    /// <summary>
+    /// Where each Whistler drawn this frame blowing has its siphon's lip, and the way its breath goes out of it
+    /// (<see cref="Effects.WhistlerBreath"/>; note 759): eye-relative. GreyboxScene clears it each frame.
+    /// </summary>
+    public List<(Vector3 Lip, Vector3 Out)> Breaths { get; } = [];
+
     /// <summary>How far in front of the Car Hugger's mouth someone it's swallowing stands: their head in it
     /// (crew_clips.py held_mouth, bent double, the head 0.62-0.82 m ahead of their feet).</summary>
     public const float SwallowReach = 0.72f;
@@ -2863,10 +3067,19 @@ public sealed partial class CreatureArt
                         }
                         break;
                     }
-                    m = Matrix4x4.CreateTranslation(0, -(float)e.Local.Y, 0) * model;
+                    // Whistling, it stands on the coupler's head, not the rail, so its front and siphon are up over the
+                    // roofs (whistler.py whistle; note 759): seen at it from the cab and from the roofs.
+                    bool whistling = e is Sim.Enemies.Whistler { Whistling: true };
+                    float perch = whistling ? (float)CouplerHeight : 0;
+                    m = Matrix4x4.CreateTranslation(0, perch - (float)e.Local.Y, 0) * model;
                     if (Matrix4x4.Invert(model, out var toModel))
                     {
                         var eye = Vector3.Transform(Vector3.Zero, toModel);
+                        // Whistling, it leans out of the gap toward whoever's beside the train (from the cab's window
+                        // looking back, from the ground), so its front's out past the cars' sides where they can see it;
+                        // from the roofs it stands straight up over them.
+                        if (whistling)
+                            m = Matrix4x4.CreateRotationZ(-MathF.Sign(eye.X) * WhistlerLean * SmoothStep(0.8f, 2.0f, MathF.Abs(eye.X))) * m;
                         if (eye.X * eye.X + eye.Z * eye.Z > 1e-6f)
                             m = Matrix4x4.CreateRotationY(MathF.Atan2(-eye.X, -eye.Z)) * m;
                     }
@@ -2928,7 +3141,8 @@ public sealed partial class CreatureArt
                 // Face back down the line at the train, turned in towards the track.
                 m = Matrix4x4.CreateRotationY(MathF.PI - Math.Sign(e.Lateral) * 0.6f) * model;
                 break;
-            case EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw or EnemyKind.Pickers or EnemyKind.Lodger or EnemyKind.Householder:
+            case EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw or EnemyKind.Pickers or EnemyKind.Lodger or EnemyKind.Householder
+                or EnemyKind.MouseMoose:
                 // What it's doing (the sim's mode) and how fast it's going (CreatureArt.Outside.cs).
                 m = OutsideIn(e, model, pace);
                 break;

@@ -110,7 +110,19 @@
     // ("cabOut"), and the look is tipped on down "ground" of the way to the ground under the hook, so the castings under the
     // cab are in view while the hook's still up; the eye is at the cab's window on the track's side, "window" m in from its
     // middle (past its floor and platform, which would hide the stack under it).
-    "view": { "fov": 72, "lowerFrom": 4, "down": 0.75, "lean": 0.6, "ground": 0.5, "window": 1.1 }
+    "view": { "fov": 72, "lowerFrom": 4, "down": 0.75, "lean": 0.6, "ground": 0.5, "window": 1.1 },
+    // A friend on the hook (GDD §18; the friendslop audit's griefers, approved by the director, 14 Oct 2026: "The griefer ideas
+    // are funny"; ARCHITECTURE §8 note 726). With the hook empty and no casting to rig in reach, a crewmate with empty hands
+    // within "reach" of it across the ground (m), the hook between "height" [low, high] over their feet (m: within arm's
+    // reach), holds Use for "grabSeconds" (HOLD ON : HOLD [E]) and is on it: stood on it, a hand on the cable, "feetAbove" m
+    // over the hook, up to "riders" at once, "spread" m apart across it. The operator lifts, runs and lowers them as a load,
+    // but with someone on it the hook stops "headroom" m short of its top (crane.height), so their head stays under the bridge
+    // and the trolley: on the foundry's 8 m gantry their feet top out at 6.35 m. Jump lets go, and the fall is the world's
+    // (player.json landing: from 5.5 m a knock, from 7.5 m death), so off the top of this gantry it's a hard knock, not a death;
+    // a taller one kills. A let-go after a lift that hurts or kills is the operator's in the report ("Dropped from the crane by
+    // Dave, 6 m up."). With "shakeOff" and the CREW MISCHIEF switch on (note 724), the operator's Fire with nothing hooked
+    // shakes them off. Bots never take hold. "enabled": false, nobody does.
+    "hoist": { "enabled": true, "reach": 1.2, "height": [-0.4, 1.9], "grabSeconds": 0.6, "riders": 2, "feetAbove": 0.05, "spread": 0.45, "headroom": 1.7, "shakeOff": true }
   },
   // GDD §18's set pieces (WP15, ARCHITECTURE §8 note 185).
   // The grain elevator: "one spout, one car at a time. Endless repositioning and switch calls" (spec D.2's gravity chute,

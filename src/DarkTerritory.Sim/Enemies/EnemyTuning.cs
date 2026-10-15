@@ -32,6 +32,7 @@ public sealed record EnemyTuning(
     public GannetTuning Gannet { get; init; } = new();
     public MournersTuning Mourners { get; init; } = new();
     public PickersTuning Pickers { get; init; } = new();
+    public MouseMooseTuning MouseMoose { get; init; } = new();
     public DwellingsTuning Dwellings { get; init; } = new();
     public LodgerTuning Lodger { get; init; } = new();
     public HouseholderTuning Householder { get; init; } = new();
@@ -41,6 +42,8 @@ public sealed record EnemyTuning(
     public BrakemanTuning Brakeman { get; init; } = new();
     public HotboxTuning Hotbox { get; init; } = new();
     public KnotterTuning Knotter { get; init; } = new();
+    /// <summary>The sound cues in the world (queue #466, note 732): what waits in a house, what's been hit, what moves at the lamps' edge.</summary>
+    public Run.SoundCuesTuning SoundCues { get; init; } = new();
     public TowerJawTuning TowerJaw { get; init; } = new();
     /// <summary>How the crew bots answer the six creatures of 8 Oct (notes 362–367; note 367). Field docs live in enemies.json.</summary>
     public CrewBotsTuning CrewBots { get; init; } = new();
@@ -314,6 +317,10 @@ public sealed record GrabTuning
     /// then 14 Oct: "really should have a higher rate of success" (note 737), a coin flip.
     /// </summary>
     public double SoloStruggleChance { get; init; } = 0.5;
+    /// <summary>In a crew, a held player with no living crewmate within this (m) can struggle too (note 756); 0: alone only.</summary>
+    public double CrewStruggleBeyond { get; init; } = 26;
+    /// <summary>That struggle's chance: lower than alone's, since a friend can still come (note 756).</summary>
+    public double CrewStruggleChance { get; init; } = 0.2;
 }
 
 /// <summary>The Drift (App. A.4, B.4). Field docs live in enemies.json.</summary>
@@ -739,6 +746,14 @@ public sealed record DirectorTuning(
     public OrchestratorTuning Orchestrator { get; init; } = new();
     /// <summary>The last this many spawns: each of a kind among them halves that kind's weight (variety).</summary>
     public int VarietyWindow { get; init; } = 4;
+    /// <summary>A kind about tonight but not yet sent weighs this many times as much (note 742: variety across the night).</summary>
+    public double UnseenWeight { get; init; } = 1;
+    /// <summary>Each one of a kind sent tonight (its own way too) multiplies its weight by this (note 742); 1, no night-long rule.</summary>
+    public double NightRepeat { get; init; } = 1;
+    /// <summary>
+    /// A kind come this many times tonight waits, unless pressed, while another about tonight hasn't come (note 742); 0, never.
+    /// </summary>
+    public int RepeatHold { get; init; }
     /// <summary>
     /// The most of a kind the director sends a night (note 635; the director, the inbox, 12 Oct 2026, of the Knotter: "once or
     /// twice a run"), by its name in <see cref="Costs"/>; a kind not named has no cap.
@@ -795,6 +810,20 @@ public sealed record DirectorTuning(
     public VoteTuning Vote { get; init; } = new();
     /// <summary>What draws the night's first threat, and the dark's answer (enemies.json director.draw; note 287).</summary>
     public DrawTuning Draw { get; init; } = new();
+    /// <summary>A short hold after a crisis (GDD App. B.1 "Aftermath"; note 751): enemies.json director.aftermath.</summary>
+    public AftermathTuning Aftermath { get; init; } = new();
+}
+
+/// <summary>
+/// The aftermath (GDD App. B.1 Pacing rules; note 751; the director, 14 Oct 2026: "The breathing room is good. Don't
+/// necessarily want a lot of it though"): after one of <see cref="Events"/> the director sends nothing of its own for
+/// <see cref="Seconds"/>, pressed or not. Mirror of enemies.json <c>director.aftermath</c>; field docs live there.
+/// </summary>
+public sealed record AftermathTuning
+{
+    public bool On { get; init; } = true;
+    public double Seconds { get; init; } = 12;
+    public string[] Events { get; init; } = ["death", "carLost", "rescue", "holdoutFreed"];
 }
 
 /// <summary>
@@ -921,6 +950,17 @@ public sealed record OrchestratorTuning
     public double SlackPerSecond { get; init; } = 0.05;
     public bool PerTarget { get; init; } = true;
     public Dictionary<string, string[]> Answers { get; init; } = new();
+    // The census reads commitment (note 753; orchestrator.md §3.1 4, §3.2 6; GDD App. B.1 "The orchestrator").
+    /// <summary>
+    /// Who's committed to a job is read (<see cref="CensusEntry.Committed"/>), a facility's loading is its machinery going or a
+    /// crewmate working it, and the pick weighs a collision ×<see cref="CollisionWeight"/>. Off: as before note 753.
+    /// </summary>
+    public bool Commitment { get; init; }
+    public double CollisionWeight { get; init; } = 1;
+    public double CommittedNearM { get; init; } = 20;
+    public double CollisionReachM { get; init; } = 60;
+    /// <summary>A conflict pair made tonight weighs ÷ this for each time it's been made, when it would be made again; 1: off.</summary>
+    public double PairRepeat { get; init; } = 1;
 }
 
 /// <summary>
@@ -1191,6 +1231,8 @@ public sealed record DwellingsTuning
     public bool Enabled { get; init; } = true;
     public Dictionary<string, double> Share { get; init; } = new() { ["local"] = 0.2, ["frontier"] = 0.25, ["deadLines"] = 0.33, ["deepTerritory"] = 0.5 };
     public Dictionary<string, double> Weights { get; init; } = new() { ["lodger"] = 3, ["householder"] = 2, ["hollowHouse"] = 1.5, ["hanger"] = 3 };
+    /// <summary>A stop's jackpot house's share is its tier's times this, never past 1 (note 719).</summary>
+    public double JackpotShare { get; init; } = 1;
     public double PlaceWithin { get; init; } = 500;
     public double ForgetPast { get; init; } = 800;
 
@@ -1252,6 +1294,25 @@ public sealed record HangerTuning
     public double GrabSeconds { get; init; } = 10;
     public double RetreatSeconds { get; init; } = 25;
     public double Health { get; init; } = 3;
+}
+
+/// <summary>The Mouse Moose (GDD §21; the director, 15 Oct 2026; ARCHITECTURE §8 note 790). Field docs live in enemies.json.</summary>
+public sealed record MouseMooseTuning
+{
+    public double ScareWithin { get; init; } = 6;
+    public int ScaresToGiveUp { get; init; } = 5;
+    public double HideSeconds { get; init; } = 25;
+    public double Creep { get; init; } = 1.2;
+    public double Run { get; init; } = 5;
+    public double Drag { get; init; } = 0.15;
+    public double DragAway { get; init; } = 0.5;
+    public double BiteSeconds { get; init; } = 1.5;
+    public double Grip { get; init; } = 0.7;
+    public double HoleOut { get; init; } = 22;
+    public double AtHole { get; init; } = 0.5;
+    public int ReachEvery { get; init; } = 15;
+    public double LeaveBeyond { get; init; } = 300;
+    public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.25, ["deadLines"] = 1.5, ["deepTerritory"] = 1.5 };
 }
 
 /// <summary>The Freight Beetle (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 366). Field docs live in enemies.json.</summary>
@@ -1392,6 +1453,7 @@ public sealed record CrewBotsTuning
     public double WreckStopShort { get; init; } = 15;
     public double WreckHoldWithin { get; init; } = 60;
     public double BeetleWithin { get; init; } = 15;
+    public double MouseMooseWithin { get; init; } = 30;
     /// <summary>Note 658: a Ribbit this near (m, flat), a bot on the ground goes at it and clubs it.</summary>
     public double RibbitWithin { get; init; } = 12;
     public double BrakemanStandOff { get; init; } = 1.5;

@@ -287,7 +287,7 @@ public sealed partial class GameAudio
     /// <summary>
     /// A noisy toy in someone's hands (GDD v1.4 §19, App. C item 4): its squeak, tune or drum for as long as it's carried, in
     /// the carrier's car (and in the carrier's name on the Choir's meter, host-side), and a moment as it's jostled landing.
-    /// Lying still, it's quiet.
+    /// Lying still, a squeaker's quiet; a wound music box or drummer plays on until it runs down (note 728).
     /// </summary>
     void Toys(World world, TrainOnLine train)
     {
@@ -295,7 +295,8 @@ public sealed partial class GameAudio
         foreach (var b in world.Bodies.All)
         {
             bool jostled = _jostled.TryGetValue(b.Id, out double until) && _time < until;
-            if (b.Kind != Sim.Physics.BodyKind.Toy || b.Carrier < 0 && !jostled || b.Noise == Sim.Physics.ToyNoise.None)
+            // Note 728: a wound music box or drummer set down or thrown plays on where it lies (Body.Playing, the host's).
+            if (b.Kind != Sim.Physics.BodyKind.Toy || b.Carrier < 0 && !jostled && !b.Playing || b.Noise == Sim.Physics.ToyNoise.None)
                 continue;
             carried.Add(b.Id);
             if (!_toys.TryGetValue(b.Id, out var voice) || voice.Finished)
@@ -744,8 +745,9 @@ public sealed partial class GameAudio
         Gestures(world);
     }
 
-    readonly HashSet<int> _heardHits = [], _heardImpacts = [], _heardEmotes = [];
+    readonly HashSet<int> _heardHits = [], _heardImpacts = [], _heardEmotes = [], _heardMeets = [];
     readonly Dictionary<int, byte> _outfitsHeard = [];
+    readonly Dictionary<int, MaskPaint> _paintsHeard = [];
     bool _strikesPrimed, _gesturesPrimed;
 
     /// <summary>
@@ -758,13 +760,26 @@ public sealed partial class GameAudio
         bool primed = _gesturesPrimed;
         foreach (var e in world.Emotes)
         {
+            // Note 722: a high five's slap, or a fist bump's knock, the moment the hands meet: once a pair (on the record of the
+            // lower id of the two), at the hands, about head height between them. Their own (queue #519, note 786), else the
+            // bare-handed slap and the body's knock stand in.
+            if (e.Met && e.By < e.With && _heardMeets.Add(e.Id) && primed && Crewmate(e.By) is { } a && At(world.Train, a) is { } here)
+            {
+                var there = Crewmate(e.With) is { } b && At(world.Train, b) is { } p ? p : here;
+                Cue(e.Kind == Emote.HighFive ? OwnOr("crew-emotes.high-five", "crew-mishaps.bare-slap") : OwnOr("crew-emotes.fist-bump", "crew-mishaps.body-knock"),
+                    (here + there) * 0.5 + Double3.Up * (e.Kind == Emote.HighFive ? 1.8 : 1.2),
+                    OccludedAt(world.Train, a.Parent, a.Position));
+            }
             if (!_heardEmotes.Add(e.Id) || !primed)
                 continue;
             string? cue = e.Kind switch
             {
                 Emote.Dance => "crew-emotes.dance",
-                Emote.Wave => "crew-emotes.wave",
+                Emote.Wave or Emote.Aboard => "crew-emotes.wave",
                 Emote.Point => "crew-emotes.point",
+                // Sat down on an edge, or leant out of a doorway (note 722; queue #519, note 786): the coat settling, a hand on the frame.
+                Emote.SitEdge => "crew-emotes.sit",
+                Emote.LeanOut => "crew-emotes.lean",
                 _ => null,
             };
             if (cue is not null && Crewmate(e.By) is { } s && At(world.Train, s) is { } at)
@@ -772,11 +787,20 @@ public sealed partial class GameAudio
         }
         if (_heardEmotes.Count > 64)
             _heardEmotes.IntersectWith(world.Emotes.Select(e => e.Id));
+        if (_heardMeets.Count > 64)
+            _heardMeets.IntersectWith(world.Emotes.Select(e => e.Id));
         foreach (var (id, outfit) in world.Outfits)
         {
             if (_outfitsHeard.TryGetValue(id, out byte was) && was != outfit && Crewmate(id) is { } s && At(world.Train, s) is { } at)
                 Cue("crew-emotes.outfit", at + Double3.Up * 1.2, OccludedAt(world.Train, s.Parent, s.Position));
             _outfitsHeard[id] = outfit;
+        }
+        // A mask painted afresh in the yard (note 731; queue #518, note 785): tried on as an outfit is, heard the same.
+        foreach (var (id, paint) in world.Paints)
+        {
+            if (_paintsHeard.TryGetValue(id, out var was) && was != paint && Crewmate(id) is { } s && At(world.Train, s) is { } at)
+                Cue("crew-emotes.outfit", at + Double3.Up * 1.2, OccludedAt(world.Train, s.Parent, s.Position));
+            _paintsHeard[id] = paint;
         }
         _gesturesPrimed = true;
     }
@@ -885,7 +909,9 @@ public sealed partial class GameAudio
         _heardHits.Clear();
         _heardImpacts.Clear();
         _heardEmotes.Clear();
+        _heardMeets.Clear();
         _outfitsHeard.Clear();
+        _paintsHeard.Clear();
         _strikesPrimed = _gesturesPrimed = false;
         _cooling = null;
         _lampsOut = 0;

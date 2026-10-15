@@ -85,7 +85,7 @@ public sealed partial class LinesideProps
         _seed = ulong.TryParse(_plan.Seed.StartsWith("0x", StringComparison.OrdinalIgnoreCase) ? _plan.Seed[2..] : _plan.Seed,
             System.Globalization.NumberStyles.HexNumber, null, out var s) ? s : Streams.Mix(0, _plan.Seed);
         _stopGround = StopGround(route);
-        _clearings = [.. route.Features.Where(f => f.Stop is not null).Select(f => Clearing(f.Start, f.End, f.Stop!))];
+        _clearings = [.. route.Features.Where(f => f.Stop is not null).Select(f => Clearing(f.Start, f.End, f.Stop!)), .. TowerClearings(route)];
         _main = _plan.Alignment.Select((a, i) => (a.Role, i)).First(x => x.Role == EdgeRole.Main).i;
         // Where along the main line water could be within the forest's reach: a river, a tidal reach or a shore on the main
         // line, with room; anything on a branch, the branch's whole stretch. Lakes are asked by their own extent.
@@ -262,13 +262,14 @@ public sealed partial class LinesideProps
     /// Everything beside the line whose slot, cell or block starts in [<paramref name="from"/>, <paramref name="to"/>): so
     /// neighbouring stretches (the art's cells) share nothing and miss nothing. The woods' trees and boulders by their slot,
     /// the telegraph poles; the road's homesteads, poles and cars by its cells, a shore's sheds and rocks by its, the biomes'
-    /// props by the block (note 389). The same for the same night on every machine.
+    /// props by the block (note 389), the railway's leavings by their stretch (note 792). The same for the same night on every machine.
     /// </summary>
     /// <param name="reach">Only what stands within this of the line (m): the rest is dealt and passed over unchecked, so
     /// what's within it is the same either way.</param>
     public IEnumerable<LinesideProp> Props(double from, double to, double reach = double.MaxValue) =>
-        // The boards' sight lines are kept clear (note 560): what would stand in one isn't there.
-        Dealt(from, to, reach).Where(p => !Hidden(p));
+        // The boards' sight lines are kept clear (note 560): what would stand in one isn't there. Nor does a tree grow up
+        // through the railway's leavings (note 794).
+        Dealt(from, to, reach).Where(p => !Hidden(p) && !InALeaving(p));
 
     IEnumerable<LinesideProp> Dealt(double from, double to, double reach)
     {
@@ -283,6 +284,8 @@ public sealed partial class LinesideProps
         foreach (var p in Shores(from, to, reach))
             yield return p;
         foreach (var p in Blocks(from, to, reach))
+            yield return p;
+        foreach (var p in LineLeavings(from, to))
             yield return p;
     }
 
@@ -408,6 +411,20 @@ public sealed partial class LinesideProps
     }
 
     /// <summary>A stop's ground, cleared of the woods: its zone, out on each side past the last thing it built there.</summary>
+    /// <summary>
+    /// A coaling tower's ground (note 758), which has no stop of its own to clear it: the woods stand back from its trestle
+    /// (StopWalls.AddTowers, 7 m off the line on its side, 9 m along and 7 m across) by a few metres all round, so no pine
+    /// grows up through it. The art's woods (PlanArt) clear the same ground.
+    /// </summary>
+    public static IEnumerable<(double S0, double S1, double Left, double Right)> TowerClearings(Route.Route route) =>
+        route.Features.Where(f => f.Kind == Route.FeatureKind.Facility && f.Facility == Route.FacilityKind.CoalingTower && f.Stop is null)
+            .Select(f => ((f.Start + f.End) / 2, f.Side == 0 ? 1 : f.Side) is var (mid, side)
+                ? (mid - TowerClearAlongM, mid + TowerClearAlongM, side < 0 ? TowerClearOutM : 0.0, side > 0 ? TowerClearOutM : 0.0)
+                : default);
+
+    // The tower's trestle (4.5 m either side of its middle, out to 10.5 m) and a few metres round it. Not design numbers: the model's.
+    const double TowerClearAlongM = 10, TowerClearOutM = 15;
+
     static (double S0, double S1, double Left, double Right) Clearing(double s0, double s1, StopLayout stop)
     {
         double left = 12, right = 12;

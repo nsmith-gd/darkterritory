@@ -20,6 +20,15 @@ public sealed class TownTalk
     /// <summary>How many times each person has been talked to (by town and id): the next line is theirs to say, round again.</summary>
     readonly Dictionary<(string Town, int Id), int> _heard = [];
 
+    /// <summary>
+    /// The cards on the board of lost crews (GDD §3.1, §11; note 721): this player's ended campaigns from their profile
+    /// (<see cref="Sim.Campaign.Logbook.Card"/>), the last ended first. The app sets it; empty, the board says nothing's posted.
+    /// </summary>
+    public IReadOnlyList<(string Title, string Text)> LostCrews { get; set; } = [];
+
+    /// <summary>Whether a town target is the board of lost crews (note 721).</summary>
+    public static bool IsLostCrews(Town town, TownTarget t) => t.Kind == TownTargetKind.Fixture && town.Plan.Fixtures[t.Index].Kind == "lostcrews";
+
     /// <summary>What's being read or listened to; null for nothing.</summary>
     public TownTarget? Open { get; private set; }
     /// <summary>The town it's in (the departure's, or the terminus's once the night's delivered, note 603); null for nothing open.</summary>
@@ -42,6 +51,7 @@ public sealed class TownTalk
         TownTargetKind.Paper => $"{town.Plan.Papers[t.Index].Title.ToUpperInvariant()}   READ : [E]",
         TownTargetKind.Door => $"{town.Plan.Buildings[t.Index].Name.ToUpperInvariant()}   KNOCK : [E]",
         TownTargetKind.House => $"{HouseName(town.Plan.Houses[t.Index]).ToUpperInvariant()}   {(town.Plan.Houses[t.Index].Kind == HouseKind.Lived ? "KNOCK" : "LOOK")} : [E]",
+        TownTargetKind.Fixture when IsLostCrews(town, t) => "THE BOARD OF LOST CREWS   READ : [E]",
         _ => $"{town.Plan.Fixtures[t.Index].Name.ToUpperInvariant()}   LOOK : [E]",
     };
 
@@ -70,6 +80,9 @@ public sealed class TownTalk
                     Page = Next(town, town.Plan.People[t.Index]);
                     return true;
                 case TownTargetKind.Board when Page + 1 < town.Notices.Count:
+                    Page++;
+                    return true;
+                case TownTargetKind.Fixture when IsLostCrews(town, t) && Page + 1 < LostCrews.Count:
                     Page++;
                     return true;
                 default:
@@ -134,6 +147,15 @@ public sealed class TownTalk
                     string footer = Page + 1 < notices.Count ? $"({Page + 1}/{notices.Count})   NEXT : [E]" : $"({Page + 1}/{notices.Count})   DONE : [E]";
                     return new TownCard(TownCardKind.Paper, n.Title, n.Text, footer);
                 }
+            case TownTargetKind.Fixture when IsLostCrews(town, t) && LostCrews.Count > 0:
+                {
+                    // Note 721: each lost crew's card in turn, read close up as a notice is.
+                    var (title, text) = LostCrews[Math.Clamp(Page, 0, LostCrews.Count - 1)];
+                    string footer = Page + 1 < LostCrews.Count ? $"({Page + 1}/{LostCrews.Count})   NEXT : [E]" : $"({Page + 1}/{LostCrews.Count})   DONE : [E]";
+                    return new TownCard(TownCardKind.Paper, title, text, footer);
+                }
+            case TownTargetKind.Fixture when IsLostCrews(town, t):
+                return new TownCard(TownCardKind.Paper, town.Plan.Fixtures[t.Index].Name, town.Plan.Fixtures[t.Index].Text, "DONE : [E]");
             case TownTargetKind.Paper:
                 {
                     var n = town.Plan.Papers[t.Index];

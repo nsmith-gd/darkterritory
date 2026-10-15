@@ -24,7 +24,7 @@ public sealed class SpawnContext(World world, EnemyTuning tuning, Director direc
     public Double3? CalledAt { get; init; }
     public int? CrewAs { get; init; }
     public IEnumerable<(int Id, PlayerState State)> Living => World.CrewThisTick.Where(c => c.State.Alive).Select(c => ((int)c.Id, c.State));
-    public IEnumerable<(int Id, PlayerState State)> OnGround => Living.Where(c => CrewSense.OnGround(c.State));
+    public IEnumerable<(int Id, PlayerState State)> OnGround => Living.Where(c => CrewSense.Afoot(c.State, Train));
     public bool AtFacility => World.Run is { Phase: RunPhase.AtFacility };
     public bool Stopped => Train.Dynamics.Speed < 0.3;
     public RouteTier Tier => World.Route?.Tier ?? RouteTier.Frontier;
@@ -397,6 +397,24 @@ public static class Spawns
             c.Add(i => FreightBeetle.At(i, spot, hint, yaw, t));
             return true;
         }),
+        // The Mouse Moose (note 790): stopped at a facility whose crane (its own or a yard's) still has a casting to take in
+        // the hook's reach; every tier, more the harder; one at a stop. It comes out of its hole, out past the castings.
+        new(EnemyKind.MouseMoose, c =>
+        {
+            if (!c.Stopped || !c.AtFacility || !c.None(EnemyKind.MouseMoose) || MouseMooseCranes(c).Count == 0)
+                return null;
+            return MooseTuning.ByTier(c.Tuning.MouseMoose.TierWeights, c.Tier);
+        }, c =>
+        {
+            var cranes = MouseMooseCranes(c);
+            if (cranes.Count == 0)
+                return false;
+            var (crane, castings) = cranes[(int)c.Director.NextRange(0, cranes.Count - 1e-9)];
+            int on = castings[(int)c.Director.NextRange(0, castings.Count - 1e-9)];
+            var (hole, hint) = MouseMoose.HoleFor(c.World, crane.Castings[on].At, c.Tuning.MouseMoose);
+            c.Add(i => MouseMoose.At(i, crane, on, hole, hint));
+            return true;
+        }),
         // B.8 · The Brakeman (note 364): up at the far end of a moving train; never with a crew of one; every tier, more the
         // harder, the longer the train and with a climb ahead.
         new(EnemyKind.Brakeman, c =>
@@ -575,11 +593,20 @@ public static class Spawns
         }),
     ];
 
+    /// <summary>
+    /// The cranes at the stop the train's standing at with castings the Mouse Moose could take (note 790), each with those
+    /// castings: in the order the site has them.
+    /// </summary>
+    static List<(Crane Crane, List<int> Castings)> MouseMooseCranes(SpawnContext c) =>
+        c.World.Run?.CurrentSite is not { } site ? []
+            : [.. site.Cranes.Where(k => !k.Wrecked).Select(k => (k, MouseMoose.Takeable(k, k.Controls).OrderBy(i => i).ToList())).Where(x => x.Item2.Count > 0)];
+
     /// <summary>Cars in the engine's rake with a room and their lamp lit (the Fire Flies' light).
     /// With <see cref="FireFliesTuning.ShutCarKeepsOut"/>, only those with a way in: a door or the hatch open, or a breach
     /// (boarding-first, note 286: a car shut up tight keeps them off its lamp).</summary>
     static List<int> LitCars(SpawnContext c) =>
-        [.. c.Train.Dynamics.Consist.Vehicles.Where(v => v.Id > 0 && v.LampLit && c.Train.Frames[v.Id].Shape.Interior is not null
+        // Note 728: a hand lamp lying lit in a car lights it as its own lamps do (World.CarLit).
+        [.. c.Train.Dynamics.Consist.Vehicles.Where(v => v.Id > 0 && c.World.CarLit(v.Id) && c.Train.Frames[v.Id].Shape.Interior is not null
             && !(c.Tuning.FireFlies.ShutCarKeepsOut && Boarding.ShutUp(c.Train, v.Id))).Select(v => v.Id)];
 
     /// <summary>

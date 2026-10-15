@@ -786,12 +786,9 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             }
             Upload(CollectionsMarshal.AsSpan(_handSoup), (uint)Vertex.Stride, ref _handSoupVertices, ref _handSoupMemory, ref _handSoupCapacity);
         }
-        if (_lights.Count > FrameData.MaxLights)
-        {
-            // The nearest win: past the budget, a light far off lights little you can see.
-            _lights.Sort((a, b) => (a.Position.LengthSquared() - a.Range * a.Range * 0.25f).CompareTo(b.Position.LengthSquared() - b.Range * b.Range * 0.25f));
-            _lights.RemoveRange(FrameData.MaxLights, _lights.Count - FrameData.MaxLights);
-        }
+        // The nearest win: past the budget, a light far off lights little you can see; the last kept fade toward the cut, so
+        // none pops as the eye moves (LightBudget).
+        LightBudget.Fit(_lights, FrameData.MaxLights);
         // Effects: smoke and dust sorted far to near (they're blended), then the additive glows (order doesn't matter).
         _fx.Clear();
         var alpha = CollectionsMarshal.AsSpan(mesh.AlphaFx);

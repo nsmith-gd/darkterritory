@@ -167,6 +167,22 @@ public sealed record CraneTuning
     public double GuideSpeed { get; init; }
     /// <summary>Note 707: the operator's view from the cab (presentation only; the sim never reads it).</summary>
     public CraneViewTuning View { get; init; } = new();
+    /// <summary>Note 726: a crewmate riding the hook.</summary>
+    public HoistTuning Hoist { get; init; } = new();
+}
+
+/// <summary>A friend on the crane's hook (GDD §18, note 726). Field docs in facilities.json <c>crane.hoist</c>.</summary>
+public sealed record HoistTuning
+{
+    public bool Enabled { get; init; } = true;
+    public double Reach { get; init; } = 1.2;
+    public double[] Height { get; init; } = [-0.4, 1.9];
+    public double GrabSeconds { get; init; } = 0.6;
+    public int Riders { get; init; } = 2;
+    public double FeetAbove { get; init; } = 0.05;
+    public double Spread { get; init; } = 0.45;
+    public double Headroom { get; init; } = 1.7;
+    public bool ShakeOff { get; init; } = true;
 }
 
 /// <summary>The crane operator's view (GDD §18, note 707). Field docs in facilities.json <c>crane.view</c>.</summary>
@@ -417,8 +433,12 @@ public sealed class WreckHeap(int index, Double3 centre, double yaw, int salvage
 /// <summary>A wreck heap's replicated state.</summary>
 public readonly record struct HeapState(int Salvage, bool Found, double Stability, double Groan, int Shifts);
 
-/// <summary>Where a crane's casting is (T48): on the ground where it was stacked, on the hook, or lashed on a car.</summary>
-public enum CastingState : byte { Stacked, Hooked, Loaded, Lost }
+/// <summary>
+/// Where a crane's casting is (T48): on the ground where it was stacked, on the hook, or lashed on a car. Taken: dragged off by
+/// the Mouse Moose out of the hook's reach, lying where it was left or still being dragged, and nobody's to load (note 790);
+/// Lost: gone for good.
+/// </summary>
+public enum CastingState : byte { Stacked, Hooked, Loaded, Lost, Taken }
 
 /// <summary>A site's replicated state (the Run record), for a client to adopt.</summary>
 public readonly record struct SiteState(bool Stocked, double Progress, int SledsLeft, bool Turning, bool OutOfRhythm, double Crank,
@@ -876,6 +896,16 @@ public sealed class Site
     public double Restart { get; internal set; }
     /// <summary>Who's at the powerhouse restarting it this tick (−1 for nobody). Host only.</summary>
     internal int Restarter = -1;
+
+    /// <summary>
+    /// Whether <paramref name="player"/> has their hands on one of this site's modules this tick (note 753, the census's
+    /// commitment): a winch handle, a lever (spout, lift, tipple), the conveyor's starter or its jam, the herd, the powerhouse,
+    /// a crane's controls or its rigging. Host only: these are the hands the run reads, set as the crew act and cleared as it
+    /// steps.
+    /// </summary>
+    internal bool Works(int player) => player >= 0 && (Cranking[0] == player || Cranking[1] == player || Pourer == player || Winder == player
+        || Starter == player || Clearer == player || Tippler == player || Restarter == player || Herders.Contains(player)
+        || Cranes.Any(c => c.Operator == player || c.Rigger == player));
 
     public SiteState State => new(Stocked, Progress, SledsLeft, Turning, OutOfRhythm, Crank, Power, Restart)
     {

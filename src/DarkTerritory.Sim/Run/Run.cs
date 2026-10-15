@@ -44,6 +44,9 @@ public sealed record RunTuning(double StopBelowSpeed, double TerminusZone, doubl
     /// <summary>The dispatcher and the clerk on the radio (GDD §9): run.json <c>radio</c>.</summary>
     public RadioTuning Radio { get; init; } = new();
 
+    /// <summary>Odd outcomes to find (queue #464, ARCHITECTURE §8 note 730): run.json <c>oddities</c>.</summary>
+    public OddityTuning Oddities { get; init; } = new();
+
     /// <summary>
     /// Where a night's engine starts: its front just short of the gate, ready to depart (the whole train still in the yard,
     /// so the run begins as it moves off), or as far back as the consist needs to fit on the line.
@@ -535,7 +538,8 @@ public sealed partial class Run
         // A crate put down (or thrown) inside a cargo car's walls, and lying still there, is loaded: it stays where it lies (note
         // 659), its share in the car's load for as long as it's there. Picked up, thrown out, carried off, blown up or its car
         // gone, it's unloaded. One put back by a resumed night (Banked already) is in the saved load, and only kept track of.
-        foreach (var b in world.Bodies.All.Where(b => b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy).ToList())
+        // (A two-person jackpot is a heavy crate's ball but a find, paid as finds are: note 719.)
+        foreach (var b in world.Bodies.All.Where(b => b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy && !IsJackpot(b)).ToList())
         {
             bool inside = b.Carrier < 0 && b.TakenBy < 0 && b.Parent > 0 && b.Parent < train.Vehicles.Count && train.Vehicles[b.Parent].Kind == VehicleKind.Cargo
                 && train.Frames[b.Parent].Shape.Interior is { } room && room.Contains(b.Pbd.Particles[0].Position);
@@ -632,11 +636,19 @@ public sealed partial class Run
         if (crane.Operator >= 0)
         {
             crane.Drive(_craneIntent, world.Train, dt);
-            if (crane.Pressed(_craneIntent.Has(PlayerButtons.Fire)) && crane.Release(world.Train) is { Fell: true } drop)
-                _drop = (drop.Landed, crane.Tuning.CrushRadius);
+            if (crane.Pressed(_craneIntent.Has(PlayerButtons.Fire)))
+            {
+                // Nothing hooked and a friend on it (note 726): the press is for the hoist to answer (a shake, mischief on).
+                if (crane.Hooked is null && crane.Riders > 0)
+                    crane.ShakeOffBy = crane.Operator;
+                else if (crane.Release(world.Train) is { Fell: true } drop)
+                    _drop = (drop.Landed, crane.Tuning.CrushRadius);
+            }
         }
         else
             crane.Pressed(false);
+        // Whose hands moved it this tick (note 726): a rider's height is the lift of whoever drove it.
+        crane.LastDriver = crane.Operator;
         crane.Operator = -1;
     }
 
@@ -839,6 +851,13 @@ public sealed partial class Run
     // Who has a hand on the lever, and for how long (the ground isn't part of the train, so not ActionProgress).
     readonly Dictionary<int, double> _lever = new();
 
+    /// <summary>
+    /// Where the coal's falling, while the chute's open (note 730: whoever's under it comes out sooted): the spout's point on
+    /// the main line under it, as every machine has it (the chute's state is mirrored); null while it's shut.
+    /// </summary>
+    public Double3? Pouring(RailLine line) =>
+        ChuteOpen && Facility >= 0 && Facility < _facilities.Count ? line.Sample(ChuteAt(_facilities[Facility], line).SpoutAlong).Position : null;
+
     /// <summary>Coal falls while the chute's open: into the tender if it's under the spout, onto the ballast if not.</summary>
     void Pour(TrainOnLine train, double dt)
     {
@@ -908,6 +927,7 @@ public sealed partial class Run
         {
             LooseCause.RunIn => $"A hard brake at {Kmh(speed)} worked the coupling's pin loose, and it parted.{driving} ",
             LooseCause.Knock => $"Coupled up at {Kmh(speed)}, the knock worked the coupling's pin loose, and it parted.{driving} ",
+            LooseCause.Bend => $"A bend taken at {Kmh(speed)} worked the coupling's pin loose, and it parted.{driving} ",
             _ => "The coupling worked loose and parted. ",
         };
     }
@@ -1025,8 +1045,9 @@ public sealed partial class Run
         foreach (var b in world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Loot && b.Stowed && attached.Contains(b.Parent)))
             if (FindOf(b) is { } f)
                 finds.Add((f, FinderOf(b)));
-        var prizes = finds.GroupBy(x => x.Find.Item).Select(g => new Prize(g.Key, t.Name(g.Key), g.Count(), g.Max(x => x.Find.Value)))
-            .OrderByDescending(p => p.Worth).ThenBy(p => p.Item, StringComparer.Ordinal).Take(Math.Max(0, t.Tally.Best)).ToList();
+        // Note 719: a fragile find knocked is its own line, named by its damage ("Find: mantel clock, dented, 60.").
+        var prizes = finds.GroupBy(x => (x.Find.Item, x.Find.Knocks)).Select(g => new Prize(g.Key.Item, t.Named(g.Key.Item, g.Key.Knocks), g.Count(), g.Max(x => x.Find.Value)))
+            .OrderByDescending(p => p.Worth).ThenBy(p => p.Item, StringComparer.Ordinal).ThenBy(p => p.Name, StringComparer.Ordinal).Take(Math.Max(0, t.Tally.Best)).ToList();
         if (!t.Tally.Finder)
             return (prizes, -1, 0);
         var best = finds.Where(x => x.By >= 0).GroupBy(x => x.By).Select(g => (By: g.Key, Worth: g.Sum(x => x.Find.Value)))

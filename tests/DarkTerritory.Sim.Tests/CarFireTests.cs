@@ -377,6 +377,36 @@ public class CarFireTests
     }
 
     [Fact]
+    public void TwoExtinguishersOnOneCellCoolItTwiceAsFast()
+    {
+        // Note 752 (GDD §12, one can, two do it faster): each sprayer cools the cell it's aimed at by its own sprayPerSecond,
+        // so two on one cell already put it out twice as fast; pinned here.
+        double Drop(int sprayers)
+        {
+            var (n, fire, _, room) = Armed();
+            fire.Ablaze(0.97);
+            var grid = FireGrid.Of(n.Train, 2, Tuning.Enemies.CarFire.CellSize)!;
+            int cell = grid.FloorAt(fire.Local);
+            var at = grid.Centre[cell];
+            n.Crew[1] = Aim(n.Crew[1] with { Position = new Double3(room.Centre.X, room.Min.Y, at.Z - 2) }, at);
+            if (sprayers > 1)
+            {
+                var second = n.World.Bodies.SpawnCrate(n.Train, 2, new Double3(room.Centre.X - 0.3, room.Min.Y, at.Z - 2.2), BodyKind.Extinguisher);
+                second.Carrier = 2;
+                second.Claimed = true;
+                n.Crew[2] = Aim(n.Crew[1] with { Position = new Double3(room.Centre.X - 0.3, room.Min.Y, at.Z - 2.2) }, at);
+            }
+            n.Run(SimConstants.TickSeconds);
+            double was = fire.Heat[cell];
+            n.Run(0.25, _ => new PlayerIntent { Buttons = PlayerButtons.Fire });
+            Assert.True(fire.Heat[cell] > 0, "still alight: the drop isn't cut short at nothing");
+            return was - fire.Heat[cell];
+        }
+        double one = Drop(1), two = Drop(2), spray = Tuning.Enemies.CarFire.SprayPerSecond * 0.25;
+        Assert.InRange(two - one, 0.85 * spray, 1.15 * spray);
+    }
+
+    [Fact]
     public void HeldOnTheFloorAheadTheSprayPutsOutTheWholeStretchRoundTheCarThere()
     {
         // Note 662 (the director, 13 Oct: "point at it ... one grid ahead of me ... hold. And it should dissipate within five
@@ -534,7 +564,7 @@ public class CarFireTests
     }
 
     [Theory]
-    [InlineData(3)]
+    [InlineData(2)]
     [InlineData(5)]
     public void AtAStopTheNearestHandPutsTheFireFliesLampOutWhateverItsPart(int seed)
     {
@@ -550,10 +580,14 @@ public class CarFireTests
         // on. On the 7 km nights of note 554 frontier:7 is another line (its first stop a foundry again): seeds 3 and 5 had
         // the Fire Flies come to a car at a stop. With the bots shutting the doors behind them (note 633) no seed of 1 to 16
         // has them come at all, so the swarm is put on: ten seconds into the first stand, on the first lit car in the engine's
-        // rake, its door left open, as the director would have dealt it.
+        // rake, its door left open, as the director would have dealt it. Note 716's big cab reshuffled the nights (the crew's
+        // walks in and out of the cab are other lengths): seed 3 is seed 2 now, its hands all at the winch and the crane
+        // 30 m off when the swarm came to car 1.
         EnemyKind[] six = [EnemyKind.Mourners, EnemyKind.TowerJaw, EnemyKind.Brakeman, EnemyKind.Knotter, EnemyKind.FreightBeetle, EnemyKind.Hotbox,
             // And the yard's and the houses' (notes 583–586, 592): a stop's own, they change what the bots do there.
-            EnemyKind.Pickers, EnemyKind.Lodger, EnemyKind.Householder, EnemyKind.HollowHouse, EnemyKind.Hanger];
+            EnemyKind.Pickers, EnemyKind.Lodger, EnemyKind.Householder, EnemyKind.HollowHouse, EnemyKind.Hanger,
+            // And the Mouse Moose at the crane (note 790).
+            EnemyKind.MouseMoose];
         var enemies = Tuning.Enemies with
         {
             Director = Tuning.Enemies.Director with { Roster = [.. Enum.GetValues<EnemyKind>().Except(six).Select(Director.Key)] },

@@ -126,8 +126,11 @@ public sealed partial class GameAudio
                 Heard(world, e, was, at, space, dt);
             else
             {
-                // First sight: nothing has changed yet, so nothing plays; a car already cut loose has been heard going.
+                // First sight: nothing has changed yet, so nothing plays; a car already cut loose has been heard going. But a
+                // Picker's first tick is its coming up out of its drain (note 771), and a Waker's its rise (note 772).
                 _creatures[e.Id] = was = new Creature { Id = e.Id, CutAway = e.Attached >= 0 && Cut(train, e.Attached) };
+                PickerFirstSeen(e, at, space);
+                WakerFirstSeen(e, at);
             }
             was.Take(e, at, space);
         }
@@ -140,6 +143,8 @@ public sealed partial class GameAudio
         ChoirSwarm(world);
         SwitchmanThrows(world);
         SixSoundsAfter(world);
+        StirSounds(world);
+        WallGunSounds(world);
     }
 
     /// <summary>One enemy's record this tick against last tick's.</summary>
@@ -252,6 +257,18 @@ public sealed partial class GameAudio
             case Gannet g:
                 GannetSounds(world, g, was, at, occ, dt);
                 Pained("cs-gannet-strike.hit", e, at, occ, struck);
+                break;
+            case Picker p:
+                PickerSounds(p, was, at, occ, dt);
+                break;
+            case Waker w:
+                WakerSounds(world, w, was, at);
+                break;
+            case Dave d:
+                DaveSounds(world, d, was, at);
+                break;
+            case Jacob j:
+                JacobSounds(world, j, was, at);
                 break;
             default:
                 SixSounds(world, e, was, at, occ, struck, dt);
@@ -904,6 +921,9 @@ public sealed partial class GameAudio
                 break;
             case EnemyKind.Ribbit when killed:
                 Cue("cs-ribbits.hit", c.At, occ);
+                break;
+            case EnemyKind.Pickers:
+                PickerGone(c, killed, occ);
                 break;
             case EnemyKind.Choir when killed:
                 Cue("cs-choir.hit", c.At, occ);

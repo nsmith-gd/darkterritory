@@ -324,6 +324,26 @@
   "url": "/_blob/18e32ff389df7b8c4cdf447fb8561fd4",
   "sha": "13ceeb57379132db"
  },
+ "previews/crew-car--cuckoo--bellows.mp4": {
+  "id": "ec1bfb03ccf73f6e20ac243a05957a1a",
+  "url": "/_blob/ec1bfb03ccf73f6e20ac243a05957a1a",
+  "sha": "1a2566b0cf90973f"
+ },
+ "previews/crew-car--cuckoo--flue.mp4": {
+  "id": "f5293ecd6c5b72431d45246dbfbbe853",
+  "url": "/_blob/f5293ecd6c5b72431d45246dbfbbe853",
+  "sha": "c754e9af36f29b84"
+ },
+ "previews/crew-car--kettle--jet.mp4": {
+  "id": "b279a1fb5e04f15653582c2f894a0657",
+  "url": "/_blob/b279a1fb5e04f15653582c2f894a0657",
+  "sha": "9236d5167e7fca1b"
+ },
+ "previews/crew-car--kettle--spout.mp4": {
+  "id": "f42ab30b0cc7b89e18253b839b121b52",
+  "url": "/_blob/f42ab30b0cc7b89e18253b839b121b52",
+  "sha": "152aea6669f6d250"
+ },
  "previews/crew-carry--body-land--body--concrete.mp4": {
   "id": "c8b66ecc7ee3d8fd279030287d91cbf1",
   "url": "/_blob/c8b66ecc7ee3d8fd279030287d91cbf1",
@@ -679,6 +699,36 @@
   "url": "/_blob/bc704c20fbfda7b4e7b9ac5e79b06089",
   "sha": "8c1f57c8a131c82f"
  },
+ "previews/crew-emotes--fist-bump--gloves.mp4": {
+  "id": "a58407ec8b6a85008997ab844c244d34",
+  "url": "/_blob/a58407ec8b6a85008997ab844c244d34",
+  "sha": "b4fb03d44ca460c4"
+ },
+ "previews/crew-emotes--fist-bump--knuckles.mp4": {
+  "id": "801a771f77d22de4fc257bd53f20442d",
+  "url": "/_blob/801a771f77d22de4fc257bd53f20442d",
+  "sha": "64958ffa01363398"
+ },
+ "previews/crew-emotes--high-five--leather.mp4": {
+  "id": "c29ae2a40578ad552db41b4024753036",
+  "url": "/_blob/c29ae2a40578ad552db41b4024753036",
+  "sha": "b3c576913ae0dbf8"
+ },
+ "previews/crew-emotes--high-five--palms.mp4": {
+  "id": "5f8522862739203e7488252b1d32c61d",
+  "url": "/_blob/5f8522862739203e7488252b1d32c61d",
+  "sha": "2179a4456a894df3"
+ },
+ "previews/crew-emotes--lean--frame.mp4": {
+  "id": "67710ce999501b43b1d5dce537c419bc",
+  "url": "/_blob/67710ce999501b43b1d5dce537c419bc",
+  "sha": "3e28e636dc73b0e0"
+ },
+ "previews/crew-emotes--lean--grip.mp4": {
+  "id": "243c61a343717f01e8224ead5ef21e0a",
+  "url": "/_blob/243c61a343717f01e8224ead5ef21e0a",
+  "sha": "3edbb2d2b34c4a02"
+ },
  "previews/crew-emotes--outfit--coat.mp4": {
   "id": "623c19046ae83b904d998940681be33c",
   "url": "/_blob/623c19046ae83b904d998940681be33c",
@@ -688,6 +738,16 @@
   "id": "2f3012d853d93ed993ed033cf3e3e767",
   "url": "/_blob/2f3012d853d93ed993ed033cf3e3e767",
   "sha": "3d62afcf5ad9767c"
+ },
+ "previews/crew-emotes--sit--coat.mp4": {
+  "id": "cfb68ec1b8b9eda83a489e275e45e3c4",
+  "url": "/_blob/cfb68ec1b8b9eda83a489e275e45e3c4",
+  "sha": "81c9c13283422bed"
+ },
+ "previews/crew-emotes--sit--wool.mp4": {
+  "id": "619662c18529ec2e4179c841964c8ab4",
+  "url": "/_blob/619662c18529ec2e4179c841964c8ab4",
+  "sha": "fb622dfe79eb3a93"
  },
  "previews/crew-emotes--wave--sleeve.mp4": {
   "id": "c7a3fa3070e0c59bd75a4dcf3c471f9f",
@@ -1134,6 +1194,66 @@
   "url": "/_blob/d1f0d89a1194ce115e9c360c10e7f980",
   "sha": "cc3d7ac4761e959a"
  },
+ "previews/crew-handcar--brake--scrape.mp4": {
+  "id": "7acf56ae3177ff01b56cdb9b55358b81",
+  "url": "/_blob/7acf56ae3177ff01b56cdb9b55358b81",
+  "sha": "b9ab6a408733aa98"
+ },
+ "previews/crew-handcar--brake--shoe.mp4": {
+  "id": "e55dfe0e3bccdd2b5f822c581b5c5583",
+  "url": "/_blob/e55dfe0e3bccdd2b5f822c581b5c5583",
+  "sha": "e59bc3843362aab2"
+ },
+ "previews/crew-handcar--creak--lash.mp4": {
+  "id": "5e806b89d3e49e62496fbdd34558834e",
+  "url": "/_blob/5e806b89d3e49e62496fbdd34558834e",
+  "sha": "8b179b77ac99a543"
+ },
+ "previews/crew-handcar--creak--pivot.mp4": {
+  "id": "4edfebc0300b3f42fbf00695da996d55",
+  "url": "/_blob/4edfebc0300b3f42fbf00695da996d55",
+  "sha": "0a79671012e15b30"
+ },
+ "previews/crew-handcar--hang--chains.mp4": {
+  "id": "7967826725eb4a63396171e181cf7d87",
+  "url": "/_blob/7967826725eb4a63396171e181cf7d87",
+  "sha": "53a03b1fe5832ed4"
+ },
+ "previews/crew-handcar--hang--hooks.mp4": {
+  "id": "d9b71c6e041758bb8a3d1f6a62f59c03",
+  "url": "/_blob/d9b71c6e041758bb8a3d1f6a62f59c03",
+  "sha": "112eee9ab17760de"
+ },
+ "previews/crew-handcar--joint--click.mp4": {
+  "id": "ff545d435fb81e55721a4d6e8729cac1",
+  "url": "/_blob/ff545d435fb81e55721a4d6e8729cac1",
+  "sha": "f49c3cd5a861522a"
+ },
+ "previews/crew-handcar--joint--tick.mp4": {
+  "id": "8699a5d72ff1bb860131b476ca1b91e3",
+  "url": "/_blob/8699a5d72ff1bb860131b476ca1b91e3",
+  "sha": "57280c18345258d8"
+ },
+ "previews/crew-handcar--roll--hum.mp4": {
+  "id": "9f24be0cbff64b56947370bb475ab9e7",
+  "url": "/_blob/9f24be0cbff64b56947370bb475ab9e7",
+  "sha": "f6b3f6beb25a63d2"
+ },
+ "previews/crew-handcar--roll--rumble.mp4": {
+  "id": "d1e9427f49d1ec5a116d29f495f0f724",
+  "url": "/_blob/d1e9427f49d1ec5a116d29f495f0f724",
+  "sha": "13e547d50c48f814"
+ },
+ "previews/crew-handcar--set--drop.mp4": {
+  "id": "7482d06b2374230ef3ee2d6264713261",
+  "url": "/_blob/7482d06b2374230ef3ee2d6264713261",
+  "sha": "944873a198a71982"
+ },
+ "previews/crew-handcar--set--iron.mp4": {
+  "id": "654298bae0d4063b1935b8874b9d7e51",
+  "url": "/_blob/654298bae0d4063b1935b8874b9d7e51",
+  "sha": "ccaa66446782aed8"
+ },
  "previews/crew-heal--apply--cork--medicine.mp4": {
   "id": "6be123ba3529eef4a9ba3f9d22b3409b",
   "url": "/_blob/6be123ba3529eef4a9ba3f9d22b3409b",
@@ -1173,6 +1293,41 @@
   "id": "a5114855623af9018a39ad933cddaab8",
   "url": "/_blob/a5114855623af9018a39ad933cddaab8",
   "sha": "95d857d979e45bb5"
+ },
+ "previews/crew-horseplay--bonk--clang.mp4": {
+  "id": "52b1420ced4bc09d530f21ef622fd875",
+  "url": "/_blob/52b1420ced4bc09d530f21ef622fd875",
+  "sha": "3c1395ec150ba8d9"
+ },
+ "previews/crew-horseplay--bump--shoulder.mp4": {
+  "id": "dd78d0161c71a121808672ca64b32d68",
+  "url": "/_blob/dd78d0161c71a121808672ca64b32d68",
+  "sha": "f02b42052dfbbd03"
+ },
+ "previews/crew-horseplay--coal-hit--coat.mp4": {
+  "id": "bea64d1c2b118b4a3b042477349c0692",
+  "url": "/_blob/bea64d1c2b118b4a3b042477349c0692",
+  "sha": "2ad751c0e9105fa7"
+ },
+ "previews/crew-horseplay--coal-land--ballast--ground.mp4": {
+  "id": "2ce9fbb0e1272000ed52005287b0ff4f",
+  "url": "/_blob/2ce9fbb0e1272000ed52005287b0ff4f",
+  "sha": "1868de4bbaa409be"
+ },
+ "previews/crew-horseplay--coal-land--boards--wood.mp4": {
+  "id": "3330bafb2dcae467341681cfe340df98",
+  "url": "/_blob/3330bafb2dcae467341681cfe340df98",
+  "sha": "822cfa186c41e553"
+ },
+ "previews/crew-horseplay--coal-land--tin--roof.mp4": {
+  "id": "c0e117a6164cb387143ad4f04917efdc",
+  "url": "/_blob/c0e117a6164cb387143ad4f04917efdc",
+  "sha": "00f6e629a8930e16"
+ },
+ "previews/crew-horseplay--shove--palms.mp4": {
+  "id": "95e8ff3f59d64704d4c9ae09c390959b",
+  "url": "/_blob/95e8ff3f59d64704d4c9ae09c390959b",
+  "sha": "9af979ea83ad218e"
  },
  "previews/crew-house-door--open--creak.mp4": {
   "id": "a7ac0b36055ae6b9c3b4a56224633deb",
@@ -1274,6 +1429,26 @@
   "url": "/_blob/8919c6ad7c8c20a2d5a6fba3817bf6d2",
   "sha": "5edad87676fa8531"
  },
+ "previews/crew-lamp-broken--burn--crackle.mp4": {
+  "id": "317375678a4c34f2680f6467a1b63c9c",
+  "url": "/_blob/317375678a4c34f2680f6467a1b63c9c",
+  "sha": "304d24e89b3a6591"
+ },
+ "previews/crew-lamp-broken--burn--flame.mp4": {
+  "id": "52455fe91f0e090e38f924b1772b943f",
+  "url": "/_blob/52455fe91f0e090e38f924b1772b943f",
+  "sha": "e421521d6e7c8a4d"
+ },
+ "previews/crew-lamp-broken--smash--shatter.mp4": {
+  "id": "fd024b83e13b3dc1bb1ffd89b8c59c4c",
+  "url": "/_blob/fd024b83e13b3dc1bb1ffd89b8c59c4c",
+  "sha": "6e28997927fef6ae"
+ },
+ "previews/crew-lamp-broken--smash--struck.mp4": {
+  "id": "1272c5a9f6fe3bcef211c5f3672cf82f",
+  "url": "/_blob/1272c5a9f6fe3bcef211c5f3672cf82f",
+  "sha": "9e985a2b81b9271c"
+ },
  "previews/crew-lamps--cab-lamp--switch.mp4": {
   "id": "c391c73c2a286e5ad01dcb07b551bd58",
   "url": "/_blob/c391c73c2a286e5ad01dcb07b551bd58",
@@ -1298,6 +1473,26 @@
   "id": "ee6d2d45fb829f956470b82bc7715662",
   "url": "/_blob/ee6d2d45fb829f956470b82bc7715662",
   "sha": "748ed1aea496b781"
+ },
+ "previews/crew-mail--catch--arm.mp4": {
+  "id": "524b440c67651c8f230c740c458e2df3",
+  "url": "/_blob/524b440c67651c8f230c740c458e2df3",
+  "sha": "707628bf476629f5"
+ },
+ "previews/crew-mail--catch--sack.mp4": {
+  "id": "ff7d7fa5b9f88af2ee6cefdcf2cd2ac5",
+  "url": "/_blob/ff7d7fa5b9f88af2ee6cefdcf2cd2ac5",
+  "sha": "81de8cc3c13f0bd1"
+ },
+ "previews/crew-mail--tear--rip.mp4": {
+  "id": "a8fb68a188055c70eb3dbb2b304cc581",
+  "url": "/_blob/a8fb68a188055c70eb3dbb2b304cc581",
+  "sha": "e4870d03b614d06f"
+ },
+ "previews/crew-mail--tear--threads.mp4": {
+  "id": "f9ec562b84657508ebfe988188f9fb96",
+  "url": "/_blob/f9ec562b84657508ebfe988188f9fb96",
+  "sha": "5621fb101237b229"
  },
  "previews/crew-melee--crowbar-drop--clatter--concrete.mp4": {
   "id": "c56d9e021c8d56ba294609bafc3cfc7d",
@@ -1458,6 +1653,46 @@
   "id": "b2fdea2cf092f77137107ef79d21b4ba",
   "url": "/_blob/b2fdea2cf092f77137107ef79d21b4ba",
   "sha": "2b414e5f9b7940d8"
+ },
+ "previews/crew-memory--flash--magnesium.mp4": {
+  "id": "a57b475f6aff58b84d205772612a41da",
+  "url": "/_blob/a57b475f6aff58b84d205772612a41da",
+  "sha": "0c12242fd3f03b18"
+ },
+ "previews/crew-memory--flash--powder.mp4": {
+  "id": "1d133f1f3c2492d08fbdd846040c8b0f",
+  "url": "/_blob/1d133f1f3c2492d08fbdd846040c8b0f",
+  "sha": "69c9ea093329dd6a"
+ },
+ "previews/crew-memory--open--board.mp4": {
+  "id": "7eac8cd14c2a5d16b8b623a59db50769",
+  "url": "/_blob/7eac8cd14c2a5d16b8b623a59db50769",
+  "sha": "ade5c0b02a66aa5f"
+ },
+ "previews/crew-memory--open--leather.mp4": {
+  "id": "12db46ef39aa9497f415d679ddc48f7d",
+  "url": "/_blob/12db46ef39aa9497f415d679ddc48f7d",
+  "sha": "8ab7c35378023185"
+ },
+ "previews/crew-memory--page--rag.mp4": {
+  "id": "6b1f2a2658d6d650da310e92eb8864c7",
+  "url": "/_blob/6b1f2a2658d6d650da310e92eb8864c7",
+  "sha": "d7ac4eeaf26548e0"
+ },
+ "previews/crew-memory--page--sheet.mp4": {
+  "id": "3cb41f1510002dc877e23d3a88a902c1",
+  "url": "/_blob/3cb41f1510002dc877e23d3a88a902c1",
+  "sha": "de55317fd401c6ae"
+ },
+ "previews/crew-memory--shut--block.mp4": {
+  "id": "6cc29cfbfb9d4925f7fd7f236990bea9",
+  "url": "/_blob/6cc29cfbfb9d4925f7fd7f236990bea9",
+  "sha": "2773b747a4a1a672"
+ },
+ "previews/crew-memory--shut--clap.mp4": {
+  "id": "29e53eaff135fcfb7db799c551535438",
+  "url": "/_blob/29e53eaff135fcfb7db799c551535438",
+  "sha": "e1e29cca17dd0163"
  },
  "previews/crew-mishaps--bare-slap--pat.mp4": {
   "id": "7489cf38a1dff19385711c1c30f0f81b",
@@ -1739,6 +1974,46 @@
   "url": "/_blob/ff2535c1b2aef258379f9214991daafc",
   "sha": "54f5884d70c0564d"
  },
+ "previews/crew-rescue--haul--boards.mp4": {
+  "id": "a6baf13ac2800f23e01e9e4e033aeb1f",
+  "url": "/_blob/a6baf13ac2800f23e01e9e4e033aeb1f",
+  "sha": "2744c9224ebb5eb6"
+ },
+ "previews/crew-rescue--haul--stumble.mp4": {
+  "id": "8965cb741a632f6269e76aed85200927",
+  "url": "/_blob/8965cb741a632f6269e76aed85200927",
+  "sha": "ba192863680e7d27"
+ },
+ "previews/crew-rescue--lift--coats.mp4": {
+  "id": "93aea06657af41e0e4b4d5ebe94f2e0b",
+  "url": "/_blob/93aea06657af41e0e4b4d5ebe94f2e0b",
+  "sha": "ebfd1dfb77a394d6"
+ },
+ "previews/crew-rescue--lift--wool.mp4": {
+  "id": "4a61f4d19cff08df7b0a28b4b5da19b2",
+  "url": "/_blob/4a61f4d19cff08df7b0a28b4b5da19b2",
+  "sha": "1c45f62a797bcf67"
+ },
+ "previews/crew-rescue--set--boards.mp4": {
+  "id": "b99a1bdaccb3f886c88b046b7b6446d9",
+  "url": "/_blob/b99a1bdaccb3f886c88b046b7b6446d9",
+  "sha": "95b81484d85e45c9"
+ },
+ "previews/crew-rescue--set--plank.mp4": {
+  "id": "e3de34302e148f32af8ca029842c603c",
+  "url": "/_blob/e3de34302e148f32af8ca029842c603c",
+  "sha": "f63d8020ce92e377"
+ },
+ "previews/crew-rescue--throw--flap.mp4": {
+  "id": "08f4c6a43116edb867bdbe5846da834d",
+  "url": "/_blob/08f4c6a43116edb867bdbe5846da834d",
+  "sha": "7590ee45bd912da2"
+ },
+ "previews/crew-rescue--throw--swing.mp4": {
+  "id": "6ae22c69e54600a048468fb527eb9aac",
+  "url": "/_blob/6ae22c69e54600a048468fb527eb9aac",
+  "sha": "6a6eb3f8c2be36bd"
+ },
  "previews/crew-search--bench--tools.mp4": {
   "id": "eaa06c4e02ebf2ac3c076b95bdbd1c40",
   "url": "/_blob/eaa06c4e02ebf2ac3c076b95bdbd1c40",
@@ -1793,6 +2068,16 @@
   "id": "948833f92a3404c382bcacdae9e2a156",
   "url": "/_blob/948833f92a3404c382bcacdae9e2a156",
   "sha": "977c11d72559d868"
+ },
+ "previews/crew-speaking-tube--call--blown.mp4": {
+  "id": "0a5fb44e3667a94ac37c687d501ace16",
+  "url": "/_blob/0a5fb44e3667a94ac37c687d501ace16",
+  "sha": "ba44994e4704a08c"
+ },
+ "previews/crew-speaking-tube--call--edge.mp4": {
+  "id": "2a595b90f6926139cd83f29d15768b64",
+  "url": "/_blob/2a595b90f6926139cd83f29d15768b64",
+  "sha": "35e4882946d97bf7"
  },
  "previews/crew-switch--lever-latch--stand.mp4": {
   "id": "5c432f58358afccb141a2dee1d7daac3",
@@ -2259,6 +2544,66 @@
   "url": "/_blob/2d6c5db1f7a10f6218da56d537797021",
   "sha": "d6c0e0c411f819fc"
  },
+ "previews/cs-hanger--grab--snare.mp4": {
+  "id": "38315d81c9ad70693674e40bf188d2a6",
+  "url": "/_blob/38315d81c9ad70693674e40bf188d2a6",
+  "sha": "4b69a661507d8db2"
+ },
+ "previews/cs-hanger--grab--tack.mp4": {
+  "id": "50f0f8cfc55b46bd6654d6ee644a2452",
+  "url": "/_blob/50f0f8cfc55b46bd6654d6ee644a2452",
+  "sha": "2b4a2413def8d8dd"
+ },
+ "previews/cs-hanger--haul--reel.mp4": {
+  "id": "a7168a4786cd6a492dba0f6fec5ba7cb",
+  "url": "/_blob/a7168a4786cd6a492dba0f6fec5ba7cb",
+  "sha": "cd8dda69749a7057"
+ },
+ "previews/cs-hanger--haul--winch.mp4": {
+  "id": "535197a53fc2056e2466fddcef004f44",
+  "url": "/_blob/535197a53fc2056e2466fddcef004f44",
+  "sha": "1ea0cd7caf7f9969"
+ },
+ "previews/cs-hanger--retreat--scuttle.mp4": {
+  "id": "f748c2f8d89574a3d542a09a2f908ffb",
+  "url": "/_blob/f748c2f8d89574a3d542a09a2f908ffb",
+  "sha": "305bdfbe33e4e1ba"
+ },
+ "previews/cs-hanger--retreat--skitter.mp4": {
+  "id": "e70fe893781964ceabdd51e0baed86d1",
+  "url": "/_blob/e70fe893781964ceabdd51e0baed86d1",
+  "sha": "faf8990f4440799a"
+ },
+ "previews/cs-hollow-house--collapse--crash.mp4": {
+  "id": "39536a8b048207c1acddd472eed78871",
+  "url": "/_blob/39536a8b048207c1acddd472eed78871",
+  "sha": "48809aecd85c531f"
+ },
+ "previews/cs-hollow-house--collapse--fall.mp4": {
+  "id": "31c70def0ed1382a1e2be88e3afd9db4",
+  "url": "/_blob/31c70def0ed1382a1e2be88e3afd9db4",
+  "sha": "acad83408390ab5d"
+ },
+ "previews/cs-hollow-house--sink--racking.mp4": {
+  "id": "441b65bcaaa046e5ce314ea119642502",
+  "url": "/_blob/441b65bcaaa046e5ce314ea119642502",
+  "sha": "726dd82145c05eb3"
+ },
+ "previews/cs-hollow-house--sink--timber.mp4": {
+  "id": "40c973f49ab1231e8cf30a5c072f68b5",
+  "url": "/_blob/40c973f49ab1231e8cf30a5c072f68b5",
+  "sha": "23aaa532a6078c02"
+ },
+ "previews/cs-hollow-house--slam--leaf.mp4": {
+  "id": "d7512a30b36b0d5df75640ac52e2957b",
+  "url": "/_blob/d7512a30b36b0d5df75640ac52e2957b",
+  "sha": "a21a4f7da0fa2fc6"
+ },
+ "previews/cs-hollow-house--slam--thrown.mp4": {
+  "id": "a6b46bd4e0db9ca8526f13be1e7c65d4",
+  "url": "/_blob/a6b46bd4e0db9ca8526f13be1e7c65d4",
+  "sha": "e60508ba69e14559"
+ },
  "previews/cs-hounds--bite--jaws.mp4": {
   "id": "95b4c9e0ee1be02ec7989debe394c6dd",
   "url": "/_blob/95b4c9e0ee1be02ec7989debe394c6dd",
@@ -2348,6 +2693,86 @@
   "id": "4a75b61059287609e5e0f700a01c0ebe",
   "url": "/_blob/4a75b61059287609e5e0f700a01c0ebe",
   "sha": "5df52383d1a026eb"
+ },
+ "previews/cs-hounds-doused--doused--cinder.mp4": {
+  "id": "448dd9e38ec0baef1597561036066f7f",
+  "url": "/_blob/448dd9e38ec0baef1597561036066f7f",
+  "sha": "b8d8359aba962eef"
+ },
+ "previews/cs-hounds-doused--doused--steam.mp4": {
+  "id": "71e44e6c16597dcc974ffb71bacd92ef",
+  "url": "/_blob/71e44e6c16597dcc974ffb71bacd92ef",
+  "sha": "ba8e73cc1b3b9bb5"
+ },
+ "previews/cs-householder--breath--fry.mp4": {
+  "id": "742d7663721f78a9de7cf27809d6aeaa",
+  "url": "/_blob/742d7663721f78a9de7cf27809d6aeaa",
+  "sha": "c21c514f0e8915d6"
+ },
+ "previews/cs-householder--breath--rasp.mp4": {
+  "id": "3a52ea739be3ac56d060db13eac88b7f",
+  "url": "/_blob/3a52ea739be3ac56d060db13eac88b7f",
+  "sha": "55f6e1bfd53042fa"
+ },
+ "previews/cs-householder--creak--chair.mp4": {
+  "id": "36bd50589a80d833226abe1f88bb3d28",
+  "url": "/_blob/36bd50589a80d833226abe1f88bb3d28",
+  "sha": "76a83c3f8451a20a"
+ },
+ "previews/cs-householder--creak--sinew.mp4": {
+  "id": "a542fbf77d73ee528a0d8f8ecf3eb705",
+  "url": "/_blob/a542fbf77d73ee528a0d8f8ecf3eb705",
+  "sha": "d104c6089a2d1901"
+ },
+ "previews/cs-householder--grab--clutch.mp4": {
+  "id": "ef027ae3f9afcb8faf3ba888c1980c4a",
+  "url": "/_blob/ef027ae3f9afcb8faf3ba888c1980c4a",
+  "sha": "6e61a6d785d2d148"
+ },
+ "previews/cs-householder--grab--grunt.mp4": {
+  "id": "bd0f00ae901d18bc305f8ef2cb633dc2",
+  "url": "/_blob/bd0f00ae901d18bc305f8ef2cb633dc2",
+  "sha": "787a1ca2010ae621"
+ },
+ "previews/cs-householder--settle--home.mp4": {
+  "id": "178cf34c00f58304f2a5f8305a2c9fc4",
+  "url": "/_blob/178cf34c00f58304f2a5f8305a2c9fc4",
+  "sha": "ac7003df8c145066"
+ },
+ "previews/cs-householder--settle--sit.mp4": {
+  "id": "087bce98460c49e5ab87335f4537f90e",
+  "url": "/_blob/087bce98460c49e5ab87335f4537f90e",
+  "sha": "15b8e2bc6f07971e"
+ },
+ "previews/cs-householder--step--shoes.mp4": {
+  "id": "d67784a90acda4f7bf9003fbddaa65c3",
+  "url": "/_blob/d67784a90acda4f7bf9003fbddaa65c3",
+  "sha": "cea9216d41844e35"
+ },
+ "previews/cs-householder--step--stiff.mp4": {
+  "id": "6e00cf04d8185304adae149ed7edd7e8",
+  "url": "/_blob/6e00cf04d8185304adae149ed7edd7e8",
+  "sha": "cd4069e2ceb33e60"
+ },
+ "previews/cs-lodger--break--boards.mp4": {
+  "id": "4bd6fb1f1a4b8e52642f43026f9d87e5",
+  "url": "/_blob/4bd6fb1f1a4b8e52642f43026f9d87e5",
+  "sha": "a6b8e1d8a21ce8e0"
+ },
+ "previews/cs-lodger--break--splits.mp4": {
+  "id": "60ece3d476505f80f7285402ca1aee27",
+  "url": "/_blob/60ece3d476505f80f7285402ca1aee27",
+  "sha": "46a53d9bec8aa607"
+ },
+ "previews/cs-lodger--lunge--pads.mp4": {
+  "id": "7f3ded5e76cc286fa7e3cb3ef0a45ec5",
+  "url": "/_blob/7f3ded5e76cc286fa7e3cb3ef0a45ec5",
+  "sha": "4d198d1b7dd2b01c"
+ },
+ "previews/cs-lodger--lunge--soles.mp4": {
+  "id": "8e651198dd66122587c4c8e749811284",
+  "url": "/_blob/8e651198dd66122587c4c8e749811284",
+  "sha": "9ef4e1c1a19eb61b"
  },
  "previews/cs-moose-ram--boom--hull.mp4": {
   "id": "7016ee671eac2f43f6150848fe592f7c",
@@ -2443,6 +2868,56 @@
   "id": "f1a4e5164ea69e91d9f178ef85367db3",
   "url": "/_blob/f1a4e5164ea69e91d9f178ef85367db3",
   "sha": "725811859e83c8f6"
+ },
+ "previews/cs-pickers--bite--snap.mp4": {
+  "id": "c29bc9c8826cbbf93feae4d62f4764ac",
+  "url": "/_blob/c29bc9c8826cbbf93feae4d62f4764ac",
+  "sha": "63bd377595d47831"
+ },
+ "previews/cs-pickers--bite--teeth.mp4": {
+  "id": "f862c72bcc0ebeae4f00213c785438e0",
+  "url": "/_blob/f862c72bcc0ebeae4f00213c785438e0",
+  "sha": "59c39b65f1fc06f8"
+ },
+ "previews/cs-pickers--carry--crate.mp4": {
+  "id": "115df9c2f2c43f8bcad28d58d236649f",
+  "url": "/_blob/115df9c2f2c43f8bcad28d58d236649f",
+  "sha": "22cc6fa695ba9b90"
+ },
+ "previews/cs-pickers--carry--slats.mp4": {
+  "id": "6fef2ecd13be3fd635607ba8b68c2d56",
+  "url": "/_blob/6fef2ecd13be3fd635607ba8b68c2d56",
+  "sha": "7b447118de44c961"
+ },
+ "previews/cs-pickers--down--drain.mp4": {
+  "id": "ac2d509ab51208a1ed0539e0ae049fd1",
+  "url": "/_blob/ac2d509ab51208a1ed0539e0ae049fd1",
+  "sha": "d1e2b2fbc3c2004a"
+ },
+ "previews/cs-pickers--down--pipe.mp4": {
+  "id": "56cdb7eb03f562af3d716061bad66250",
+  "url": "/_blob/56cdb7eb03f562af3d716061bad66250",
+  "sha": "4741252f44f3baf6"
+ },
+ "previews/cs-pickers--hit--blow.mp4": {
+  "id": "55bcda70b961cacbba2b3534dd6295d8",
+  "url": "/_blob/55bcda70b961cacbba2b3534dd6295d8",
+  "sha": "244ff3f1dbc26446"
+ },
+ "previews/cs-pickers--hit--cut.mp4": {
+  "id": "f3eb79152e660b1e0772e398092accfa",
+  "url": "/_blob/f3eb79152e660b1e0772e398092accfa",
+  "sha": "f697175d9c23f957"
+ },
+ "previews/cs-pickers--scatter--bolt.mp4": {
+  "id": "ba31556000d6eb05de08c629b91167b5",
+  "url": "/_blob/ba31556000d6eb05de08c629b91167b5",
+  "sha": "f1b2924e1d309670"
+ },
+ "previews/cs-pickers--scatter--squeals.mp4": {
+  "id": "7612f5aa7c939a2e1ffd349174d80b61",
+  "url": "/_blob/7612f5aa7c939a2e1ffd349174d80b61",
+  "sha": "bde349dcf68acf22"
  },
  "previews/cs-ribbits--feed--frenzy.mp4": {
   "id": "745ac72f89fbdc5ccb9f9709b25cdca5",
@@ -2629,6 +3104,66 @@
   "url": "/_blob/077bc73abd994ac542d83ed0155b822a",
   "sha": "e6c001c52b4454e7"
  },
+ "previews/cs-wakers--drag--locked.mp4": {
+  "id": "b80791a68d2ce17350fa7e3f19cce3ec",
+  "url": "/_blob/b80791a68d2ce17350fa7e3f19cce3ec",
+  "sha": "29d18afeb4d30793"
+ },
+ "previews/cs-wakers--drag--skid.mp4": {
+  "id": "02ac563fa5beaf61b2b514873a31085a",
+  "url": "/_blob/02ac563fa5beaf61b2b514873a31085a",
+  "sha": "fb0a56b006344817"
+ },
+ "previews/cs-wakers--eat--crunch.mp4": {
+  "id": "42f78230367db60fb6a464fe3de75d70",
+  "url": "/_blob/42f78230367db60fb6a464fe3de75d70",
+  "sha": "0957025be6a7f220"
+ },
+ "previews/cs-wakers--eat--jaws.mp4": {
+  "id": "7faf5d400dd7809b6b78a2e67b38907f",
+  "url": "/_blob/7faf5d400dd7809b6b78a2e67b38907f",
+  "sha": "67fc209ec0a91aa6"
+ },
+ "previews/cs-wakers--grab--hand.mp4": {
+  "id": "23b7a001131b7a46882c52d2235ce97d",
+  "url": "/_blob/23b7a001131b7a46882c52d2235ce97d",
+  "sha": "92115001f40ecbea"
+ },
+ "previews/cs-wakers--grab--seized.mp4": {
+  "id": "9071d22a26c2c8967fd985c1e9074b8d",
+  "url": "/_blob/9071d22a26c2c8967fd985c1e9074b8d",
+  "sha": "58eb0ab0d02cba02"
+ },
+ "previews/cs-wakers--lift--frame.mp4": {
+  "id": "a45b945c90cf1469d04573c14ac667fe",
+  "url": "/_blob/a45b945c90cf1469d04573c14ac667fe",
+  "sha": "caed3440b6fd9c71"
+ },
+ "previews/cs-wakers--lift--torn.mp4": {
+  "id": "0cc22245f49066b58973fd4c8e0554d3",
+  "url": "/_blob/0cc22245f49066b58973fd4c8e0554d3",
+  "sha": "4642178333f95475"
+ },
+ "previews/cs-wakers--swallow--gulp.mp4": {
+  "id": "d639a7437e1acd511ebf41708d607939",
+  "url": "/_blob/d639a7437e1acd511ebf41708d607939",
+  "sha": "f27d84eebd86b6d3"
+ },
+ "previews/cs-wakers--swallow--throat.mp4": {
+  "id": "4b1be7e00a5c1a138c86a9dd6d9bae36",
+  "url": "/_blob/4b1be7e00a5c1a138c86a9dd6d9bae36",
+  "sha": "d1d662584ba333dc"
+ },
+ "previews/cs-wakers--take--grip.mp4": {
+  "id": "285c302b08b5be900fbfd18e73f99071",
+  "url": "/_blob/285c302b08b5be900fbfd18e73f99071",
+  "sha": "c7ab43e072f995da"
+ },
+ "previews/cs-wakers--take--hand.mp4": {
+  "id": "aaefca435e1b2c1aeb946d1cc48befac",
+  "url": "/_blob/aaefca435e1b2c1aeb946d1cc48befac",
+  "sha": "1ce635e540053f92"
+ },
  "previews/cs-whistler--death--coil.mp4": {
   "id": "06aea238d65fadc2f6cf7248d7984fae",
   "url": "/_blob/06aea238d65fadc2f6cf7248d7984fae",
@@ -2658,6 +3193,166 @@
   "id": "3d8db06c8bc340f8a66698de46abdae8",
   "url": "/_blob/3d8db06c8bc340f8a66698de46abdae8",
   "sha": "c86ac8740c73a472"
+ },
+ "previews/figures--dave-grab--collar.mp4": {
+  "id": "233d5d46513882a0f5a39ff3cc2d3040",
+  "url": "/_blob/233d5d46513882a0f5a39ff3cc2d3040",
+  "sha": "f1e12fd3ee9e26de"
+ },
+ "previews/figures--dave-grab--grip.mp4": {
+  "id": "bbe669cb6258d8fd7e9af1e32f9b5e37",
+  "url": "/_blob/bbe669cb6258d8fd7e9af1e32f9b5e37",
+  "sha": "ab1ef2898957e8a4"
+ },
+ "previews/figures--dave-laugh--breath.mp4": {
+  "id": "7aad2ab091cb7eb11573765e668f9a01",
+  "url": "/_blob/7aad2ab091cb7eb11573765e668f9a01",
+  "sha": "998769516c9a47d7"
+ },
+ "previews/figures--dave-laugh--chuckle.mp4": {
+  "id": "379bce90819df612d845b1d247606f70",
+  "url": "/_blob/379bce90819df612d845b1d247606f70",
+  "sha": "2f70ebfd0d112569"
+ },
+ "previews/figures--dave-paint--canvas.mp4": {
+  "id": "754837571cc525d5e88c4785d504c213",
+  "url": "/_blob/754837571cc525d5e88c4785d504c213",
+  "sha": "44ea8329eb87c5ff"
+ },
+ "previews/figures--dave-paint--easel.mp4": {
+  "id": "de50647c0e0cb923e0becc0a5af4deb2",
+  "url": "/_blob/de50647c0e0cb923e0becc0a5af4deb2",
+  "sha": "96a649155cdb586f"
+ },
+ "previews/figures--dave-turn--ledge.mp4": {
+  "id": "e28cba75a1ff595b06b6966375f3d889",
+  "url": "/_blob/e28cba75a1ff595b06b6966375f3d889",
+  "sha": "ab34e75f5892315b"
+ },
+ "previews/figures--dave-turn--stool.mp4": {
+  "id": "e809ca3324ec88453aaa1d8d70080609",
+  "url": "/_blob/e809ca3324ec88453aaa1d8d70080609",
+  "sha": "b46263ec2e03c018"
+ },
+ "previews/figures--jacob-bless--chimes.mp4": {
+  "id": "9cc917851c3ce3a8f11ab89dea30138f",
+  "url": "/_blob/9cc917851c3ce3a8f11ab89dea30138f",
+  "sha": "d4d0d3e702a5b7cd"
+ },
+ "previews/figures--jacob-bless--glass.mp4": {
+  "id": "3fc622432c3fbab6563e2dde3634d34a",
+  "url": "/_blob/3fc622432c3fbab6563e2dde3634d34a",
+  "sha": "836cc496f6ab0c1f"
+ },
+ "previews/figures--jacob-fish--line.mp4": {
+  "id": "f33268858d78dcc6752bc80ae0ddaa01",
+  "url": "/_blob/f33268858d78dcc6752bc80ae0ddaa01",
+  "sha": "a72a3164bcbed77d"
+ },
+ "previews/figures--jacob-fish--reel.mp4": {
+  "id": "f4b792523abf4fa065575557f1389483",
+  "url": "/_blob/f4b792523abf4fa065575557f1389483",
+  "sha": "fa12b7b52c514a1e"
+ },
+ "previews/figures--party--fiddle.mp4": {
+  "id": "eee986fa014bc05bc4aabf8bdaa5c8ad",
+  "url": "/_blob/eee986fa014bc05bc4aabf8bdaa5c8ad",
+  "sha": "d36c73459d782114"
+ },
+ "previews/figures--party--squeezebox.mp4": {
+  "id": "ee9d7d516b07e1267c4218d553fa2744",
+  "url": "/_blob/ee9d7d516b07e1267c4218d553fa2744",
+  "sha": "4d99a56ed1a1d90e"
+ },
+ "previews/loot-fragile--clock--mantel.mp4": {
+  "id": "d3bbc746bd61fc50c346a277986eec56",
+  "url": "/_blob/d3bbc746bd61fc50c346a277986eec56",
+  "sha": "1ff420787cf2ce74"
+ },
+ "previews/loot-fragile--clock--works.mp4": {
+  "id": "2486908bd985e1a74d89492f5c4ed101",
+  "url": "/_blob/2486908bd985e1a74d89492f5c4ed101",
+  "sha": "4e328eb3bdcc7e99"
+ },
+ "previews/loot-fragile--decanter--cut.mp4": {
+  "id": "f43390ba9c14122c66cc7a3e1e193d95",
+  "url": "/_blob/f43390ba9c14122c66cc7a3e1e193d95",
+  "sha": "58593b9bec1c4d0c"
+ },
+ "previews/loot-fragile--decanter--lead.mp4": {
+  "id": "cfa604d00c4568f2f6c8975ae3f1271d",
+  "url": "/_blob/cfa604d00c4568f2f6c8975ae3f1271d",
+  "sha": "f95eea3c6a14afb2"
+ },
+ "previews/loot-fragile--glass--crate.mp4": {
+  "id": "e07b967c297c1ec003f225c49b195fdb",
+  "url": "/_blob/e07b967c297c1ec003f225c49b195fdb",
+  "sha": "4385b9246ef9af9c"
+ },
+ "previews/loot-fragile--glass--shards.mp4": {
+  "id": "a7e6a66d32b48a362b49d71726c40e8f",
+  "url": "/_blob/a7e6a66d32b48a362b49d71726c40e8f",
+  "sha": "60128727584d929f"
+ },
+ "previews/loot-jackpot--bell--bronze.mp4": {
+  "id": "4a3b2f9d9c15f6f982e41c9405d93f4a",
+  "url": "/_blob/4a3b2f9d9c15f6f982e41c9405d93f4a",
+  "sha": "a9a09b4dc509bb86"
+ },
+ "previews/loot-jackpot--bell--partials.mp4": {
+  "id": "e1151693e67cf3f094e075badbe98cbc",
+  "url": "/_blob/e1151693e67cf3f094e075badbe98cbc",
+  "sha": "26d4ad8d66356109"
+ },
+ "previews/loot-jackpot--lift-bell--boards.mp4": {
+  "id": "e492f0c1700a460bc815ee3e78262d74",
+  "url": "/_blob/e492f0c1700a460bc815ee3e78262d74",
+  "sha": "f6b9ee5d36e66e48"
+ },
+ "previews/loot-jackpot--lift-bell--model.mp4": {
+  "id": "7703169739803a95e6298b8dddd7e5cb",
+  "url": "/_blob/7703169739803a95e6298b8dddd7e5cb",
+  "sha": "74d3633b5947be71"
+ },
+ "previews/loot-jackpot--lift-iron--boards.mp4": {
+  "id": "e45cc8d270f4ea4a2324efa4c5402688",
+  "url": "/_blob/e45cc8d270f4ea4a2324efa4c5402688",
+  "sha": "3ce7b1cd6e478d32"
+ },
+ "previews/loot-jackpot--lift-iron--model.mp4": {
+  "id": "f337dd9a2ad27c7c9aaacfb400934c55",
+  "url": "/_blob/f337dd9a2ad27c7c9aaacfb400934c55",
+  "sha": "31d66d00c8d4b003"
+ },
+ "previews/loot-jackpot--lift-wood--boards.mp4": {
+  "id": "05b6bf01947740e4618b58363c29778c",
+  "url": "/_blob/05b6bf01947740e4618b58363c29778c",
+  "sha": "128a584bd315bb75"
+ },
+ "previews/loot-jackpot--lift-wood--model.mp4": {
+  "id": "1d546d59bbb563a2b807642c4c71f49b",
+  "url": "/_blob/1d546d59bbb563a2b807642c4c71f49b",
+  "sha": "47d7d7ee25ec7703"
+ },
+ "previews/loot-jackpot--set-iron--boards.mp4": {
+  "id": "bed59fc15b6d0068bd0d0ba9cb049485",
+  "url": "/_blob/bed59fc15b6d0068bd0d0ba9cb049485",
+  "sha": "1109f9b87f896bb7"
+ },
+ "previews/loot-jackpot--set-iron--model.mp4": {
+  "id": "a34249cdb2b4d485ad2986f5361d7e6b",
+  "url": "/_blob/a34249cdb2b4d485ad2986f5361d7e6b",
+  "sha": "216c2f1f3271a158"
+ },
+ "previews/loot-jackpot--set-wood--model.mp4": {
+  "id": "bbc68766cb4b352d9bf4a0ca2b8b7c58",
+  "url": "/_blob/bbc68766cb4b352d9bf4a0ca2b8b7c58",
+  "sha": "fa282167e30bb0fe"
+ },
+ "previews/loot-jackpot--set-wood--oak.mp4": {
+  "id": "7911a4340cdbd7f61c54e9df99a3a318",
+  "url": "/_blob/7911a4340cdbd7f61c54e9df99a3a318",
+  "sha": "e0f7fccee772915d"
  },
  "previews/place-breach--board--torn.mp4": {
   "id": "1dcff941a9ac638bd3bbfe0869734f58",
@@ -2964,6 +3659,16 @@
   "url": "/_blob/b29394ff350ee7441ef6151145b66443",
   "sha": "2f91fa7419e305bd"
  },
+ "previews/place-town--bell--cast.mp4": {
+  "id": "f21acf6f21a4bf3b5e4254ed217abb20",
+  "url": "/_blob/f21acf6f21a4bf3b5e4254ed217abb20",
+  "sha": "3408372edac868e5"
+ },
+ "previews/place-town--bell--rung.mp4": {
+  "id": "79f19342fde63243aeba71cff2d2671d",
+  "url": "/_blob/79f19342fde63243aeba71cff2d2671d",
+  "sha": "1fd4ee58712b9964"
+ },
  "previews/place-town--clock--case.mp4": {
   "id": "15ffa4c35aea6f313283713fbdf30125",
   "url": "/_blob/15ffa4c35aea6f313283713fbdf30125",
@@ -3148,6 +3853,36 @@
   "id": "e7ce2e2f4be130933f5b0586e347126e",
   "url": "/_blob/e7ce2e2f4be130933f5b0586e347126e",
   "sha": "6faa9b9a3a7b65dd"
+ },
+ "previews/state-coupling-loose--jump-bend--frame.mp4": {
+  "id": "8cd9eeb295088c536ce5e5f30ec93300",
+  "url": "/_blob/8cd9eeb295088c536ce5e5f30ec93300",
+  "sha": "5a2cd7800a474912"
+ },
+ "previews/state-coupling-loose--jump-bend--groan.mp4": {
+  "id": "e085fda92ab21ea82f8ac95790003986",
+  "url": "/_blob/e085fda92ab21ea82f8ac95790003986",
+  "sha": "4a5b60898be0fcc7"
+ },
+ "previews/state-coupling-loose--jump-brake--cast.mp4": {
+  "id": "963f3c2482eca09de30466dd3f60d9fc",
+  "url": "/_blob/963f3c2482eca09de30466dd3f60d9fc",
+  "sha": "604ed8456151e2bb"
+ },
+ "previews/state-coupling-loose--jump-brake--slack.mp4": {
+  "id": "ee9e338dc45d278c784903d029eb0c34",
+  "url": "/_blob/ee9e338dc45d278c784903d029eb0c34",
+  "sha": "1821358579b11287"
+ },
+ "previews/state-coupling-loose--jump-coupled--cast.mp4": {
+  "id": "22bb0c004650f16d0c14da3626f675a2",
+  "url": "/_blob/22bb0c004650f16d0c14da3626f675a2",
+  "sha": "85cf57aea7706224"
+ },
+ "previews/state-coupling-loose--jump-coupled--clash.mp4": {
+  "id": "273bae5ad177b8068b153e3a059eb424",
+  "url": "/_blob/273bae5ad177b8068b153e3a059eb424",
+  "sha": "4487202f497f3450"
  },
  "previews/state-coupling-loose--knock--casting.mp4": {
   "id": "e3fc724e9f6bf7f36bca12ecc15fed25",
@@ -3454,6 +4189,36 @@
   "url": "/_blob/0c4c66ac27ff89d82ae7b9967653e64f",
   "sha": "1f9484c42e13f5e4"
  },
+ "previews/tell-hanger--rafters--beams.mp4": {
+  "id": "bded770373a57a4d3483f0a313ba5653",
+  "url": "/_blob/bded770373a57a4d3483f0a313ba5653",
+  "sha": "9379c109145dca5f"
+ },
+ "previews/tell-hanger--rafters--sac.mp4": {
+  "id": "2c61e0918d0e1a3d053195c998139a25",
+  "url": "/_blob/2c61e0918d0e1a3d053195c998139a25",
+  "sha": "0cb19612aca3d173"
+ },
+ "previews/tell-hanger-strands--hum--held.mp4": {
+  "id": "4a5cf5554111a24fdb1d28edc21dc740",
+  "url": "/_blob/4a5cf5554111a24fdb1d28edc21dc740",
+  "sha": "6558f81a4cd425fc"
+ },
+ "previews/tell-hanger-strands--hum--wire.mp4": {
+  "id": "4a62f8731fad52c40bedc7d91dcab57f",
+  "url": "/_blob/4a62f8731fad52c40bedc7d91dcab57f",
+  "sha": "5043f8eae980b70b"
+ },
+ "previews/tell-hollow-house--rumble--frame.mp4": {
+  "id": "b4cf1d4ac9ace547a9fb556defa684e8",
+  "url": "/_blob/b4cf1d4ac9ace547a9fb556defa684e8",
+  "sha": "050a855b3680c7f6"
+ },
+ "previews/tell-hollow-house--rumble--ground.mp4": {
+  "id": "5508a51f55cf6efe0e8850675aeea3ea",
+  "url": "/_blob/5508a51f55cf6efe0e8850675aeea3ea",
+  "sha": "33740bea42efc42a"
+ },
  "previews/tell-hotbox--grind--rasp.mp4": {
   "id": "75b0899e8354d92ad22076dd14764575",
   "url": "/_blob/75b0899e8354d92ad22076dd14764575",
@@ -3509,6 +4274,46 @@
   "url": "/_blob/e54520bf20e68d98de2b63c59683fc96",
   "sha": "8b2367e6b13ce4e0"
  },
+ "previews/tell-house--creak--board.mp4": {
+  "id": "6bba727a2e5c29988e26a3a01c47ac8c",
+  "url": "/_blob/6bba727a2e5c29988e26a3a01c47ac8c",
+  "sha": "e64afb5e7e2ee5fa"
+ },
+ "previews/tell-house--creak--slip.mp4": {
+  "id": "cbd3ec68c7bde4f31ace1c254c888fcd",
+  "url": "/_blob/cbd3ec68c7bde4f31ace1c254c888fcd",
+  "sha": "fb7d49737be3b3d8"
+ },
+ "previews/tell-householder--house--kitchen.mp4": {
+  "id": "8ddd07c4cbeb63a0281484d780798080",
+  "url": "/_blob/8ddd07c4cbeb63a0281484d780798080",
+  "sha": "d0c34f906027669d"
+ },
+ "previews/tell-householder--house--parlour.mp4": {
+  "id": "1963ea0afd3b36886471a9ffbf885a35",
+  "url": "/_blob/1963ea0afd3b36886471a9ffbf885a35",
+  "sha": "bce8e9f7dab9bfb5"
+ },
+ "previews/tell-householder--shift--chair.mp4": {
+  "id": "fd43b7dd874a3879df79965911470d8d",
+  "url": "/_blob/fd43b7dd874a3879df79965911470d8d",
+  "sha": "ddb6838e1c55c584"
+ },
+ "previews/tell-householder--shift--joints.mp4": {
+  "id": "3114c2f85daff1c90ad1cb552defd5e8",
+  "url": "/_blob/3114c2f85daff1c90ad1cb552defd5e8",
+  "sha": "657c9d6ebaefc73f"
+ },
+ "previews/tell-householder-rise--rise--judder.mp4": {
+  "id": "5558ace0e8b6bf5cb91c7e7a7d257d46",
+  "url": "/_blob/5558ace0e8b6bf5cb91c7e7a7d257d46",
+  "sha": "b4839ef47ea3559c"
+ },
+ "previews/tell-householder-rise--rise--scrape.mp4": {
+  "id": "9091e9ea5ec2d7f6a91fb43cb1370c96",
+  "url": "/_blob/9091e9ea5ec2d7f6a91fb43cb1370c96",
+  "sha": "198d6bfd473d40a6"
+ },
  "previews/tell-knotter--creep--fibre.mp4": {
   "id": "9f6b60088965cd8a9a6373ad7c6626d0",
   "url": "/_blob/9f6b60088965cd8a9a6373ad7c6626d0",
@@ -3543,6 +4348,26 @@
   "id": "4df522ab3b3dfff78572aa28a99c272a",
   "url": "/_blob/4df522ab3b3dfff78572aa28a99c272a",
   "sha": "a515ae6634ba2d35"
+ },
+ "previews/tell-lodger-breathing--breathing--gurgle.mp4": {
+  "id": "e79c6fba9e8f2b35f4398c751d21c53b",
+  "url": "/_blob/e79c6fba9e8f2b35f4398c751d21c53b",
+  "sha": "1b842020e0b2cf1a"
+ },
+ "previews/tell-lodger-breathing--breathing--lungs.mp4": {
+  "id": "d9481c2ce90e4585b5b580cc7ac95842",
+  "url": "/_blob/d9481c2ce90e4585b5b580cc7ac95842",
+  "sha": "71a55151badbebc6"
+ },
+ "previews/tell-lodger-shriek--shriek--throat.mp4": {
+  "id": "3eee21c214b190b308e148cee86c1701",
+  "url": "/_blob/3eee21c214b190b308e148cee86c1701",
+  "sha": "bf663c88a09a506b"
+ },
+ "previews/tell-lodger-shriek--shriek--wail.mp4": {
+  "id": "04a0887fe98e81a71cf3dd8e47074730",
+  "url": "/_blob/04a0887fe98e81a71cf3dd8e47074730",
+  "sha": "5844372c89fb4821"
  },
  "previews/tell-marsh--reeds--parting.mp4": {
   "id": "9eef6b2f527ed69408f9f9b109c5ed4d",
@@ -3649,6 +4474,36 @@
   "url": "/_blob/d8b993a897b4252e09474725add6164d",
   "sha": "f2c42ba594fb2f7a"
  },
+ "previews/tell-pickers--chitter--jaws.mp4": {
+  "id": "50c77a26f87c025769532dbd7f022ba5",
+  "url": "/_blob/50c77a26f87c025769532dbd7f022ba5",
+  "sha": "1be130b193343068"
+ },
+ "previews/tell-pickers--chitter--throats.mp4": {
+  "id": "7160969054147a1c8296392301dc22bc",
+  "url": "/_blob/7160969054147a1c8296392301dc22bc",
+  "sha": "d4246d616cf52b8f"
+ },
+ "previews/tell-pickers--emerge--bars.mp4": {
+  "id": "e18c6760e7055d278929ec2300f5d4ca",
+  "url": "/_blob/e18c6760e7055d278929ec2300f5d4ca",
+  "sha": "28348f11ace40414"
+ },
+ "previews/tell-pickers--emerge--grate.mp4": {
+  "id": "b6008a0dc450ec3d3fbbe1e1bbc5a722",
+  "url": "/_blob/b6008a0dc450ec3d3fbbe1e1bbc5a722",
+  "sha": "1ebe2f772df50653"
+ },
+ "previews/tell-pickers--feet--cinders.mp4": {
+  "id": "89c60166e33bcb5e5daee78a105e24a6",
+  "url": "/_blob/89c60166e33bcb5e5daee78a105e24a6",
+  "sha": "40519b015f6acabe"
+ },
+ "previews/tell-pickers--feet--claws.mp4": {
+  "id": "01659507137002f82aae43469a1a6222",
+  "url": "/_blob/01659507137002f82aae43469a1a6222",
+  "sha": "054e8533845d460c"
+ },
  "previews/tell-soot-children--call--boy.mp4": {
   "id": "99cf8ac7f5758e6a0587c38bd927b0fe",
   "url": "/_blob/99cf8ac7f5758e6a0587c38bd927b0fe",
@@ -3738,6 +4593,76 @@
   "id": "61cfccfedab423c476bb88669287f32a",
   "url": "/_blob/61cfccfedab423c476bb88669287f32a",
   "sha": "e9abffc6817c95ff"
+ },
+ "previews/tell-wakers--call--groan.mp4": {
+  "id": "4fd47324d1f016ce4ce9133cfaaa52eb",
+  "url": "/_blob/4fd47324d1f016ce4ce9133cfaaa52eb",
+  "sha": "f186444a60097236"
+ },
+ "previews/tell-wakers--call--throat.mp4": {
+  "id": "26062909687a6385c578c27ad7454fd2",
+  "url": "/_blob/26062909687a6385c578c27ad7454fd2",
+  "sha": "9c7506946a3559d3"
+ },
+ "previews/tell-wakers--rise--earth.mp4": {
+  "id": "f5e8d73463da11edb41c4d4177b097a5",
+  "url": "/_blob/f5e8d73463da11edb41c4d4177b097a5",
+  "sha": "ab17af70c8890438"
+ },
+ "previews/tell-wakers--rise--heave.mp4": {
+  "id": "af66fbe7f37264a4da040a27db3feaa9",
+  "url": "/_blob/af66fbe7f37264a4da040a27db3feaa9",
+  "sha": "c1e00ee6fa10d8a3"
+ },
+ "previews/tell-wakers--roar--bellows.mp4": {
+  "id": "9f056642f46a2a52e7a3ca26f100f360",
+  "url": "/_blob/9f056642f46a2a52e7a3ca26f100f360",
+  "sha": "1f0fcc39eb8e1342"
+ },
+ "previews/tell-wakers--roar--throat.mp4": {
+  "id": "a8f841121704ff3d4649326b05e54029",
+  "url": "/_blob/a8f841121704ff3d4649326b05e54029",
+  "sha": "a2381418b027607c"
+ },
+ "previews/tell-wakers--stride--blow.mp4": {
+  "id": "4757eca96365c15d6cf59354c9c6a73f",
+  "url": "/_blob/4757eca96365c15d6cf59354c9c6a73f",
+  "sha": "80c8bc2441704c24"
+ },
+ "previews/tell-wakers--stride--ground.mp4": {
+  "id": "87e9ae56555235afdebbc0b6daa5f2d6",
+  "url": "/_blob/87e9ae56555235afdebbc0b6daa5f2d6",
+  "sha": "269353c207dfbb2d"
+ },
+ "previews/tell-wakers--thud--blow.mp4": {
+  "id": "3ae981f28114b6945a70498ff1d4a11a",
+  "url": "/_blob/3ae981f28114b6945a70498ff1d4a11a",
+  "sha": "c810397ffff87dcc"
+ },
+ "previews/tell-wakers--thud--ground.mp4": {
+  "id": "6c9b510f0fc9604beaa6ce8110c81228",
+  "url": "/_blob/6c9b510f0fc9604beaa6ce8110c81228",
+  "sha": "6447579f79982772"
+ },
+ "previews/town-guns--fire--swivel.mp4": {
+  "id": "f3a7b34b7c0d11954bec019488464945",
+  "url": "/_blob/f3a7b34b7c0d11954bec019488464945",
+  "sha": "d9a076ba39bffcdf"
+ },
+ "previews/town-guns--fire--tower.mp4": {
+  "id": "32478f4399a7fa6370a2e1c01ccb5899",
+  "url": "/_blob/32478f4399a7fa6370a2e1c01ccb5899",
+  "sha": "86fba6cf6732064b"
+ },
+ "previews/town-guns--hit--mass.mp4": {
+  "id": "1666da83b36c53a496ba8693cc4d9020",
+  "url": "/_blob/1666da83b36c53a496ba8693cc4d9020",
+  "sha": "1199610c54e571f1"
+ },
+ "previews/town-guns--hit--meat.mp4": {
+  "id": "41bb137917e8ee2ac2829a72fa09d4e0",
+  "url": "/_blob/41bb137917e8ee2ac2829a72fa09d4e0",
+  "sha": "e3bec0326bc45282"
  },
  "previews/ui-dead-phase--bookmark--fold.mp4": {
   "id": "b556cf832a1c8a48db60d2dea59f1ff6",
@@ -3859,6 +4784,16 @@
   "url": "/_blob/d7949b8ff529db95ad8359ff217db89e",
   "sha": "2adaf4a232c77d2b"
  },
+ "previews/ui-pings--mark--roger.mp4": {
+  "id": "64b8f2012be9504af793557d4c6f4921",
+  "url": "/_blob/64b8f2012be9504af793557d4c6f4921",
+  "sha": "1cc666c91a546175"
+ },
+ "previews/ui-pings--mark--sounder.mp4": {
+  "id": "772e781f6f5a7551ac41dbb6e4f6de09",
+  "url": "/_blob/772e781f6f5a7551ac41dbb6e4f6de09",
+  "sha": "03adf925deb71216"
+ },
  "previews/ui-prompts--cancel--slip.mp4": {
   "id": "ea8a4b9fda6794eec29d9d10bdc56e2e",
   "url": "/_blob/ea8a4b9fda6794eec29d9d10bdc56e2e",
@@ -3928,6 +4863,226 @@
   "id": "73325f67f498e3c6cf237c77fee55551",
   "url": "/_blob/73325f67f498e3c6cf237c77fee55551",
   "sha": "df6256e3d2adf28d"
+ },
+ "previews/up-bbq--can--crack.mp4": {
+  "id": "1805a00930d11010abb2ae4be8d3fe3d",
+  "url": "/_blob/1805a00930d11010abb2ae4be8d3fe3d",
+  "sha": "6615778954733aed"
+ },
+ "previews/up-bbq--can--pop.mp4": {
+  "id": "d26879ff9962c1521bbc52e25f57a2dd",
+  "url": "/_blob/d26879ff9962c1521bbc52e25f57a2dd",
+  "sha": "417c63a50819464a"
+ },
+ "previews/up-bbq--chair--creak.mp4": {
+  "id": "146dff23a5a309497797da5aedf8c550",
+  "url": "/_blob/146dff23a5a309497797da5aedf8c550",
+  "sha": "04dbd0855f64b87a"
+ },
+ "previews/up-bbq--chair--slats.mp4": {
+  "id": "62702d68a03cf6279e9cc56fb4bada9d",
+  "url": "/_blob/62702d68a03cf6279e9cc56fb4bada9d",
+  "sha": "ecfa5059695dd126"
+ },
+ "previews/up-bbq--cheers--clink.mp4": {
+  "id": "7ac78aa8cff5098a388e6020982aef4b",
+  "url": "/_blob/7ac78aa8cff5098a388e6020982aef4b",
+  "sha": "ba85336ef50914d8"
+ },
+ "previews/up-bbq--cheers--tunk.mp4": {
+  "id": "d38e208e169f8767a9fccf5c515d7b83",
+  "url": "/_blob/d38e208e169f8767a9fccf5c515d7b83",
+  "sha": "74f2b90f09047b26"
+ },
+ "previews/up-bbq--cooler--ice.mp4": {
+  "id": "8c8ede008c228960aeb84026a30408fb",
+  "url": "/_blob/8c8ede008c228960aeb84026a30408fb",
+  "sha": "7bc6362c6c00b859"
+ },
+ "previews/up-bbq--cooler--lid.mp4": {
+  "id": "70d6494b4a70ffb61f7dc0c52a987972",
+  "url": "/_blob/70d6494b4a70ffb61f7dc0c52a987972",
+  "sha": "633226bf1c3a7bd2"
+ },
+ "previews/up-bbq--grill--embers.mp4": {
+  "id": "75ac399a5de78e55459c687d6991190c",
+  "url": "/_blob/75ac399a5de78e55459c687d6991190c",
+  "sha": "f40dacdab3d849b5"
+ },
+ "previews/up-bbq--grill--sausages.mp4": {
+  "id": "e5b091c2fde281725f4458af05f99a81",
+  "url": "/_blob/e5b091c2fde281725f4458af05f99a81",
+  "sha": "408ee62403ff0fbb"
+ },
+ "previews/up-bbq--light--flare.mp4": {
+  "id": "1ca2165ab8068261d2cb62c3956c8bd7",
+  "url": "/_blob/1ca2165ab8068261d2cb62c3956c8bd7",
+  "sha": "7bb0ced0f74aafde"
+ },
+ "previews/up-bbq--light--whump.mp4": {
+  "id": "29a204053075a16cf76b7e0802286182",
+  "url": "/_blob/29a204053075a16cf76b7e0802286182",
+  "sha": "0656e5475ea47de8"
+ },
+ "previews/up-bbq--turn--flip.mp4": {
+  "id": "2c5b1d6f6b2d148bd69c3443ee9b3f0d",
+  "url": "/_blob/2c5b1d6f6b2d148bd69c3443ee9b3f0d",
+  "sha": "b25e54cd6bea2296"
+ },
+ "previews/up-bbq--turn--tongs.mp4": {
+  "id": "71f82a5420fc6bbe28f48f7352250d02",
+  "url": "/_blob/71f82a5420fc6bbe28f48f7352250d02",
+  "sha": "d60be01971fbe1ba"
+ },
+ "previews/up-forge--anvil--modal.mp4": {
+  "id": "db50c78f542228fd7eaefbcf8e7e5d0b",
+  "url": "/_blob/db50c78f542228fd7eaefbcf8e7e5d0b",
+  "sha": "996b23155f8deeca"
+ },
+ "previews/up-forge--anvil--ring.mp4": {
+  "id": "6a8c3b9d3fd119e424aa52003a547e26",
+  "url": "/_blob/6a8c3b9d3fd119e424aa52003a547e26",
+  "sha": "6733b444e1b75442"
+ },
+ "previews/up-forge--bellows--leather.mp4": {
+  "id": "ba79c7dd2894feec6ed628f5fb4ed261",
+  "url": "/_blob/ba79c7dd2894feec6ed628f5fb4ed261",
+  "sha": "20fd2e998e89d1f7"
+ },
+ "previews/up-forge--bellows--wheeze.mp4": {
+  "id": "83e0dfb517ae1d70073c58541ab4a26b",
+  "url": "/_blob/83e0dfb517ae1d70073c58541ab4a26b",
+  "sha": "bf040048c6fc21af"
+ },
+ "previews/up-forge--hearth--coals.mp4": {
+  "id": "508435be9c009735090c48c34f8713b4",
+  "url": "/_blob/508435be9c009735090c48c34f8713b4",
+  "sha": "f379510b780f4fdb"
+ },
+ "previews/up-forge--hearth--draught.mp4": {
+  "id": "45bffd9d0aa3fdd34b115b1c9334c8bb",
+  "url": "/_blob/45bffd9d0aa3fdd34b115b1c9334c8bb",
+  "sha": "b28ae34c6c271dac"
+ },
+ "previews/up-forge--quench--boil.mp4": {
+  "id": "ebe3b77446febcc0854956e97c5a266b",
+  "url": "/_blob/ebe3b77446febcc0854956e97c5a266b",
+  "sha": "cc29ca47f4810ad5"
+ },
+ "previews/up-forge--quench--hiss.mp4": {
+  "id": "1ff69e866578f0fc2e998bb3b3510fe0",
+  "url": "/_blob/1ff69e866578f0fc2e998bb3b3510fe0",
+  "sha": "bf7a5df2ec236740"
+ },
+ "previews/up-horns--gold--gilt.mp4": {
+  "id": "9f9e21407e128c701022a86116dbffd7",
+  "url": "/_blob/9f9e21407e128c701022a86116dbffd7",
+  "sha": "ba778c9214ed7611"
+ },
+ "previews/up-horns--gold--steam.mp4": {
+  "id": "dd0993ab0fcac2296d1a59751d7c072d",
+  "url": "/_blob/dd0993ab0fcac2296d1a59751d7c072d",
+  "sha": "dee9c4f89d8edb58"
+ },
+ "previews/up-horns--gold-start--gilt.mp4": {
+  "id": "22c151991459242398374ce905e32a94",
+  "url": "/_blob/22c151991459242398374ce905e32a94",
+  "sha": "7b1b83a07c60fca9"
+ },
+ "previews/up-horns--gold-start--steam.mp4": {
+  "id": "334a61091c9ce6c4fdc8a2d312b26a19",
+  "url": "/_blob/334a61091c9ce6c4fdc8a2d312b26a19",
+  "sha": "e734fdfa95dbeb20"
+ },
+ "previews/up-horns--gold-stop--gilt.mp4": {
+  "id": "6d616ddcba24f463b20682664d59e2d8",
+  "url": "/_blob/6d616ddcba24f463b20682664d59e2d8",
+  "sha": "26144b34d0d3e5fb"
+ },
+ "previews/up-horns--gold-stop--steam.mp4": {
+  "id": "504d8ec522bc03c08a590dd0433e70af",
+  "url": "/_blob/504d8ec522bc03c08a590dd0433e70af",
+  "sha": "2986e0a9c20df959"
+ },
+ "previews/up-horns--honk--horn.mp4": {
+  "id": "7398b1efdf9949a1ca26055b7974facb",
+  "url": "/_blob/7398b1efdf9949a1ca26055b7974facb",
+  "sha": "4a0c341d96d72c80"
+ },
+ "previews/up-horns--honk--reed.mp4": {
+  "id": "7869f60fe0ceb2638ecb7968993b4c5b",
+  "url": "/_blob/7869f60fe0ceb2638ecb7968993b4c5b",
+  "sha": "113337055d19bca1"
+ },
+ "previews/up-tells--booster--beats.mp4": {
+  "id": "f611e62084fa0fc3d1ecf0fa7527ba14",
+  "url": "/_blob/f611e62084fa0fc3d1ecf0fa7527ba14",
+  "sha": "58ed1cd5877bd089"
+ },
+ "previews/up-tells--booster--puffs.mp4": {
+  "id": "bc0329934533fbd225c7aabea10a9e0e",
+  "url": "/_blob/bc0329934533fbd225c7aabea10a9e0e",
+  "sha": "f9bfadcf5c08399e"
+ },
+ "previews/up-tells--composition--scrape.mp4": {
+  "id": "0784d16f3ff6e3f2042ef61ce80eff88",
+  "url": "/_blob/0784d16f3ff6e3f2042ef61ce80eff88",
+  "sha": "3c12b12c186b3732"
+ },
+ "previews/up-tells--composition--shoes.mp4": {
+  "id": "8d45bb6574fb89eff5c7324fd25e0734",
+  "url": "/_blob/8d45bb6574fb89eff5c7324fd25e0734",
+  "sha": "802159dc3ca7a31f"
+ },
+ "previews/up-tells--horseshoe--glint.mp4": {
+  "id": "3897c191b59060d6e333ca30635f2185",
+  "url": "/_blob/3897c191b59060d6e333ca30635f2185",
+  "sha": "26e4e0e6b69d09f8"
+ },
+ "previews/up-tells--horseshoe--shoe.mp4": {
+  "id": "865b63074a143f75b6a823e8cf11a27a",
+  "url": "/_blob/865b63074a143f75b6a823e8cf11a27a",
+  "sha": "9fc5bdce5a111992"
+ },
+ "previews/up-tells--oilers--cups.mp4": {
+  "id": "e2ad6a20148119f1cd43bcfce5c5bc85",
+  "url": "/_blob/e2ad6a20148119f1cd43bcfce5c5bc85",
+  "sha": "7700de388657d974"
+ },
+ "previews/up-tells--oilers--drip.mp4": {
+  "id": "bffae74f43f01e49699878b649b74b54",
+  "url": "/_blob/bffae74f43f01e49699878b649b74b54",
+  "sha": "5b35420c861e2403"
+ },
+ "previews/up-tells--precut--nails.mp4": {
+  "id": "60ad21fe1a44836d1dc3aff18ef69619",
+  "url": "/_blob/60ad21fe1a44836d1dc3aff18ef69619",
+  "sha": "2a457f01e908675f"
+ },
+ "previews/up-tells--precut--planks.mp4": {
+  "id": "e947fab1944d0a562bde166fba48c586",
+  "url": "/_blob/e947fab1944d0a562bde166fba48c586",
+  "sha": "a10b74e6c5c0ea36"
+ },
+ "previews/up-tells--rammer--clack.mp4": {
+  "id": "28c8439b783c0d4c4d841a2408dd2fe9",
+  "url": "/_blob/28c8439b783c0d4c4d841a2408dd2fe9",
+  "sha": "45f0d019a4b0f534"
+ },
+ "previews/up-tells--rammer--spring.mp4": {
+  "id": "49ca20989395b12156d3d5ac67b671c7",
+  "url": "/_blob/49ca20989395b12156d3d5ac67b671c7",
+  "sha": "3fcff8df60ecc8ee"
+ },
+ "previews/up-tells--recorder-bell--gong.mp4": {
+  "id": "79fbe38f381cef2bb21847668c17f0ab",
+  "url": "/_blob/79fbe38f381cef2bb21847668c17f0ab",
+  "sha": "cf350c23da9862bf"
+ },
+ "previews/up-tells--recorder-bell--steel.mp4": {
+  "id": "f7aa6af558a05e89e1dd40ba5d0d498a",
+  "url": "/_blob/f7aa6af558a05e89e1dd40ba5d0d498a",
+  "sha": "3c4b6a319514103f"
  },
  "previews/voice-callout--bang--walls.mp4": {
   "id": "492a0f77d14cc7561b0ff06486a278b0",
@@ -4064,6 +5219,16 @@
   "url": "/_blob/88fd0e6bc9ec2e79e0eee1c45c655bd5",
   "sha": "802eb551d0ee89a5"
  },
+ "previews/world-bell--far--partials.mp4": {
+  "id": "b0b8299e93db62d96582cf67bad4e5c5",
+  "url": "/_blob/b0b8299e93db62d96582cf67bad4e5c5",
+  "sha": "0ac371a9dabc2e86"
+ },
+ "previews/world-bell--far--rung.mp4": {
+  "id": "8236fda3886c77aa0e2fc25544f088bd",
+  "url": "/_blob/8236fda3886c77aa0e2fc25544f088bd",
+  "sha": "b2935dec835cfd93"
+ },
  "previews/world-brass--cut--pilot.mp4": {
   "id": "27f90667783aea8af2f6eaf1cd8b2bfa",
   "url": "/_blob/27f90667783aea8af2f6eaf1cd8b2bfa",
@@ -4089,6 +5254,16 @@
   "url": "/_blob/39d0242d08f28d45e4d554b2fc0353b1",
   "sha": "354a15d9b92fbc5e"
  },
+ "previews/world-comet--hum--beat.mp4": {
+  "id": "259c7c731b2e4f31986dab7490ed4300",
+  "url": "/_blob/259c7c731b2e4f31986dab7490ed4300",
+  "sha": "6c005233394abed4"
+ },
+ "previews/world-comet--hum--glass.mp4": {
+  "id": "0dbb6820debea0d35a0c6450d6146835",
+  "url": "/_blob/0dbb6820debea0d35a0c6450d6146835",
+  "sha": "afd5e6b3d8bbad0b"
+ },
  "previews/world-debris-hit--hit-fast--pilot.mp4": {
   "id": "53ce7760711443fc831b4fde005c3550",
   "url": "/_blob/53ce7760711443fc831b4fde005c3550",
@@ -4098,6 +5273,16 @@
   "id": "5f2800cfe1282a7df0b936b401771301",
   "url": "/_blob/5f2800cfe1282a7df0b936b401771301",
   "sha": "3861396d50f804e2"
+ },
+ "previews/world-dog--bark--collie.mp4": {
+  "id": "51764922f2860a01c0d31fd786b3685c",
+  "url": "/_blob/51764922f2860a01c0d31fd786b3685c",
+  "sha": "0d973fff6fa01fa7"
+ },
+ "previews/world-dog--bark--roar.mp4": {
+  "id": "79f7bdf3faf0c4033b5085b6685dafe7",
+  "url": "/_blob/79f7bdf3faf0c4033b5085b6685dafe7",
+  "sha": "2fcb7a5fdefa3be9"
  },
  "previews/world-livestock--cattle--stock-car.mp4": {
   "id": "48f0aca0e2c55b810d04da6aa6c4cdde",
@@ -4128,6 +5313,116 @@
   "id": "cac032114fbccdec2ffdf01edc795653",
   "url": "/_blob/cac032114fbccdec2ffdf01edc795653",
   "sha": "101223d6fd2912b8"
+ },
+ "previews/world-odd--bark--chest.mp4": {
+  "id": "7589ba4e09bd3e7fbb00203a6ea56742",
+  "url": "/_blob/7589ba4e09bd3e7fbb00203a6ea56742",
+  "sha": "689692314a1db283"
+ },
+ "previews/world-odd--bark--throat.mp4": {
+  "id": "ee697bbcb3d53b3a0d0ec1d2ba100e4e",
+  "url": "/_blob/ee697bbcb3d53b3a0d0ec1d2ba100e4e",
+  "sha": "fdc91cfdbad614a4"
+ },
+ "previews/world-odd--can-kick--clatter.mp4": {
+  "id": "4afecb6cdadb2a6d8e1912f540e39401",
+  "url": "/_blob/4afecb6cdadb2a6d8e1912f540e39401",
+  "sha": "4c4607dd7cb2b985"
+ },
+ "previews/world-odd--can-kick--tin.mp4": {
+  "id": "0dc11f31a2ae51a786f0020e3eb3513a",
+  "url": "/_blob/0dc11f31a2ae51a786f0020e3eb3513a",
+  "sha": "82fecd15a7efb20c"
+ },
+ "previews/world-odd--coin--clink.mp4": {
+  "id": "4324de5e0b887eb2537c2d098335b2f8",
+  "url": "/_blob/4324de5e0b887eb2537c2d098335b2f8",
+  "sha": "0e11fd53700f0e62"
+ },
+ "previews/world-odd--coin--spin.mp4": {
+  "id": "f95f48a978fbc3e076741fba43a06af2",
+  "url": "/_blob/f95f48a978fbc3e076741fba43a06af2",
+  "sha": "724e5d6d0a5c8355"
+ },
+ "previews/world-odd--letter--paper.mp4": {
+  "id": "77b67e64d6bca6110578882031e44618",
+  "url": "/_blob/77b67e64d6bca6110578882031e44618",
+  "sha": "3117cfee7084c78c"
+ },
+ "previews/world-odd--letter--pillar.mp4": {
+  "id": "f87177d09a1517b27a3770406de39d8a",
+  "url": "/_blob/f87177d09a1517b27a3770406de39d8a",
+  "sha": "a34ba7d23db4e215"
+ },
+ "previews/world-odd--lurch--points.mp4": {
+  "id": "2e6821a31f504ac7d28b0c5b1f767c70",
+  "url": "/_blob/2e6821a31f504ac7d28b0c5b1f767c70",
+  "sha": "a4ca7e9d526579e7"
+ },
+ "previews/world-odd--lurch--rail.mp4": {
+  "id": "7d8d0e8b98287264125d9450866b7808",
+  "url": "/_blob/7d8d0e8b98287264125d9450866b7808",
+  "sha": "7b81b7c78e6c7b1c"
+ },
+ "previews/world-odd--painting--canvas.mp4": {
+  "id": "6a1f08d293e4785b45482a6d534c1623",
+  "url": "/_blob/6a1f08d293e4785b45482a6d534c1623",
+  "sha": "6cf8910a111fcdeb"
+ },
+ "previews/world-odd--painting--frame.mp4": {
+  "id": "764a998bf5f448d9f3a1b617e4a60632",
+  "url": "/_blob/764a998bf5f448d9f3a1b617e4a60632",
+  "sha": "dfcda8b6a5fcce87"
+ },
+ "previews/world-odd--scarecrow--post.mp4": {
+  "id": "cb81ee6c11721eb52a97f951074d2b95",
+  "url": "/_blob/cb81ee6c11721eb52a97f951074d2b95",
+  "sha": "96b744e9b461ee46"
+ },
+ "previews/world-odd--scarecrow--twist.mp4": {
+  "id": "2432fffe9a73e6fb700bdb5907239c6f",
+  "url": "/_blob/2432fffe9a73e6fb700bdb5907239c6f",
+  "sha": "ddcfdbab905f394c"
+ },
+ "previews/world-odd--sooted--dust.mp4": {
+  "id": "4ac843a365558b1bd39c318f7bf1cc8e",
+  "url": "/_blob/4ac843a365558b1bd39c318f7bf1cc8e",
+  "sha": "da791731da4be831"
+ },
+ "previews/world-odd--sooted--lungs.mp4": {
+  "id": "d54601e13bb2baa80bcd5d50f0fbf2f7",
+  "url": "/_blob/d54601e13bb2baa80bcd5d50f0fbf2f7",
+  "sha": "9419d92aad08a086"
+ },
+ "previews/world-odd--wash--bucket.mp4": {
+  "id": "06a922869ac922c01871f88e590741b0",
+  "url": "/_blob/06a922869ac922c01871f88e590741b0",
+  "sha": "e352441b2477768f"
+ },
+ "previews/world-odd--wash--stream.mp4": {
+  "id": "2ee0333a477e7d475c020ce32a5864da",
+  "url": "/_blob/2ee0333a477e7d475c020ce32a5864da",
+  "sha": "15cc24586e4746fd"
+ },
+ "previews/world-odd--well-splash--gloop.mp4": {
+  "id": "46c53116b6c958da60bbecb1894d1dc8",
+  "url": "/_blob/46c53116b6c958da60bbecb1894d1dc8",
+  "sha": "e2bc91728a862f15"
+ },
+ "previews/world-odd--well-splash--plunk.mp4": {
+  "id": "164d7a8428543f8a7df92a6e55025fa5",
+  "url": "/_blob/164d7a8428543f8a7df92a6e55025fa5",
+  "sha": "7b64a4cfe9f5902f"
+ },
+ "previews/world-rail-knock--knock--clank.mp4": {
+  "id": "d5d0321de4565d8cd9d0448f1f8e6818",
+  "url": "/_blob/d5d0321de4565d8cd9d0448f1f8e6818",
+  "sha": "378639b1c0869d4b"
+ },
+ "previews/world-rail-knock--knock--modes.mp4": {
+  "id": "e3b1cbd0380bbcc300c5725cc6093aa8",
+  "url": "/_blob/e3b1cbd0380bbcc300c5725cc6093aa8",
+  "sha": "e58790f3019c0f45"
  },
  "previews/world-rain--rain-out--ground.mp4": {
   "id": "87c286f7d59e64b8b95f9bd3eb2acbcd",

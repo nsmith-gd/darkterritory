@@ -107,7 +107,11 @@
   // 681). Then raised to a coin flip (the director's playtest, 14 Oct: "hold the struggle when playing solo really should
   // have a higher rate of success. Damn, yeah, run lost"; note 737): 0.15 to 0.5. soloStruggle is shorter than every
   // creature's hold (the Householder's grabSeconds, 6, the shortest), so the try comes before the kill.
-  "grab": { "pullReach": 1.6, "soloStruggleOn": true, "soloStruggle": 4, "soloStruggleChance": 0.5 },
+  // In a crew, a held player with no living crewmate within crewStruggleBeyond m (proximity voice's reach: nobody near enough
+  // to hear and come) can struggle the same way, at crewStruggleChance: lower than alone's, since a friend may still come
+  // (the audit's R3, the director, 14 Oct: "Approved for Grabbed"; note 756). crewStruggleBeyond 0: alone only, as before.
+  "grab": { "pullReach": 1.6, "soloStruggleOn": true, "soloStruggle": 4, "soloStruggleChance": 0.5, "crewStruggleBeyond": 26,
+    "crewStruggleChance": 0.2 },
 
   // App. C.2 melee with train tools: the shovel, the crowbar and the wrench (GDD §12, §1322) swing; enemy health below is in
   // blows of the crowbar, the tool everyone starts with (player.json kit). App. C.2: "the boiler player's shovel doubling as
@@ -149,6 +153,8 @@
     "mourners": [[0.35, 0.45], [0.3, 0.9]],
     // Knee-high, a crate over its head when it carries (note 592).
     "pickers": [[0.3, 0.3]],
+    // A dog-sized rat, low to the ground (note 790).
+    "mouseMoose": [[0.35, 0.3]],
     // The house creatures (notes 583–586): the Lodger and the Householder man-sized; the Hanger's sac, up in the roof.
     "lodger": [[0.35, 0.5], [0.3, 1.2]],
     "householder": [[0.35, 0.5], [0.3, 1.3]],
@@ -239,7 +245,8 @@
   "solidity": {
     "climbM": 2.5, "airClearM": 0.2,
     "kinds": { "ribbit": "ground", "gaunt": "ground", "grumbler": "ground", "choir": "air", "whistler": "none", "follower": "none", "sootChildren": "none",
-      "mourners": "ground", "freightBeetle": "ground", "towerJaw": "ground", "pickers": "ground" }
+      "mourners": "ground", "freightBeetle": "ground", "towerJaw": "ground", "pickers": "ground",
+      "mouseMoose": "ground" }
   },
 
   // TIPPY TOESIE · absence · interior (App. A.5, B.5). Picks a player idle (moving under idleBelow m/s) for idleSeconds with
@@ -424,16 +431,39 @@
     "scatterWithin": 10, "scatterSeconds": 6, "leaveSeconds": 12, "health": 1
   },
 
+  // THE MOUSE MOOSE · sight · outside (GDD §21; the director, 15 Oct 2026: "a creature that wanders yards stealing loot. It
+  // does so very slowly, and once it gets out of position so that the crane can't reach it, then you can't get it as a
+  // player"; ARCHITECTURE §8 note 790; docs/design/creatures/mouse-moose.md). A mutant rat with little moose antlers. It comes
+  // out of its hole (holeOut m out past a casting, away from the track) and creeps in (creep m/s) to one of the castings a
+  // crane at the stop still has to load, gets its teeth in it on the hole's side (stood grip m off its face, its snout's
+  // length) for biteSeconds (the reaction window), and drags it back toward its hole at drag m/s: very slowly. Once the hook
+  // can no longer be put within the crane's rigReach of it (asked every reachEvery ticks), the casting is taken: nobody can
+  // load it, and it's dragged on
+  // at dragAway m/s; at its hole (within atHole m) it's gone. A living crewmate within scareWithin m (as the crow flies: the
+  // crane's operator up in the cab is no guard), or a blow, and it lets go and bolts for its hole (run m/s), hides there
+  // hideSeconds and comes back for the same casting; the scaresToGiveUp-th scare off one, and it goes for another (the nearest
+  // it can take). It never hurts anyone, and nothing kills it. It goes when the train's more than leaveBeyond m from its
+  // crane, or there's nothing left to take. Spawns: stopped at a facility whose crane (its own or a yard's) has a casting
+  // stacked; every tier, tierWeights; one at a stop.
+  "mouseMoose": {
+    "scareWithin": 6, "scaresToGiveUp": 5, "hideSeconds": 25, "creep": 1.2, "run": 5, "drag": 0.15, "dragAway": 0.5,
+    "biteSeconds": 1.5, "grip": 0.7, "holeOut": 22, "atHole": 0.5, "reachEvery": 15, "leaveBeyond": 300,
+    "tierWeights": { "local": 1, "frontier": 1.25, "deadLines": 1.5, "deepTerritory": 1.5 }
+  },
+
   // THE HOUSE CREATURES (GDD §21; the director, 9 Oct 2026: "Every time I go into a house, it should feel like there could
   // be something lurking in there that wants to kill me, wants to chase me"; ARCHITECTURE §8 notes 583–586). Which of a
   // stop's open houses something lives in: "share" of them by tier, each house's own dice (the route's seed, the stop and the
   // building: nothing else's change), never the Gaunt's roost; what lives there by "weights" (a Householder only in a house
   // with something to find). Put in their houses, asleep, once the train's within placeWithin m of the stop, and gone once
   // it's forgetPast m past it. Not the director's: they cost it nothing ("enabled" off: none).
+  // Note 719 (queue #453, the big finds): a stop's jackpot house (loot.json jackpotHouse), locked up with its better things,
+  // rolls against its share times jackpotShare (never past 1): weighted, not certain.
   "dwellings": {
     "enabled": true,
     "share": { "local": 0.2, "frontier": 0.25, "deadLines": 0.33, "deepTerritory": 0.5 },
     "weights": { "lodger": 3, "householder": 2, "hollowHouse": 1.5, "hanger": 3 },
+    "jackpotShare": 2,
     "placeWithin": 500, "forgetPast": 800
   },
   // THE LODGER · sound · outside (note 583; docs/design/creatures/lodger.md). Folded in the house's darkest corner (the spot
@@ -472,6 +502,27 @@
   // still reach you). Freed, it draws back into the roof for retreatSeconds. Blows hurt it (health).
   "hanger": {
     "strands": 6, "touchWithin": 0.35, "haulSeconds": 2.5, "haulTo": 0.7, "grabSeconds": 10, "retreatSeconds": 25, "health": 3
+  },
+  // SOUND CUES IN THE WORLD (GDD §32 "Sound cues in the world", App. A.1; queue #466, ARCHITECTURE §8 note 732; the director,
+  // 14 Oct 2026: "I do like the idea of using sound-only cues in the design of the environment"). For the living: heard where
+  // they are, never on the HUD, each before what it tells of. Host-made, kept on the wire keepSeconds.
+  // creak: boards taking a weight where a house creature waits (the Lodger in its corner, the Hanger in the roof), the first as
+  // soon as anyone living is within `within` m (flat) of it (the Hanger: of one of its strands), then every everyFar s,
+  // quickening to everyNear by `near` m: so a creak comes a few seconds before the Lodger's shriekWithin or a strand's touch.
+  // The Householder shifts in its chair once as one of its things is lifted with nothing on its table to pay for it, and its
+  // chair creaks the same way as the carrier nears its door (`within` of it), before it rises.
+  // bell: a far bell (height m up, where a stop's bell would hang) where something of the crew's is lost out of their sight:
+  // carsTaken, a car of theirs taken with nobody living within unseenBeyond m; cutsLost, a cut of theirs every living crewmate
+  // is further from than run.json stranded.kitLostBeyond (§23.2: the night has it); holdoutsLeft, a Holdout released with a
+  // friend still in it (App. D.5: the train gone on without them).
+  // bark: a dog barking far off, `beyond` m out past a creature moving faster than movingAbove m/s between edgeFrom and edgeTo
+  // m (flat) of the engine's rake and the living (the lamps' edge); not at the same creature for everyCreature s, nor at
+  // anything for atMost s.
+  "soundCues": {
+    "enabled": true, "keepSeconds": 1,
+    "creak": { "enabled": true, "within": 10, "near": 2, "everyFar": 2.4, "everyNear": 0.7 },
+    "bell": { "enabled": true, "carsTaken": true, "cutsLost": true, "holdoutsLeft": true, "unseenBeyond": 60, "height": 6 },
+    "bark": { "enabled": true, "edgeFrom": 30, "edgeTo": 55, "movingAbove": 0.8, "beyond": 120, "everyCreature": 30, "atMost": 8 }
   },
 
   // TOWER JAW · vibration · outside (GDD §21, App. A.6, B.6; the director's brief of 8 Oct 2026; ARCHITECTURE §8 note 363;
@@ -585,11 +636,13 @@
   // Note 623: a body the Mourners are about is carried home into a car (up its side door's steps) when the foot of one's
   // within mournersCarryWithin m, and only while the dawn's time in hand covers mournersCarrySeconds and sixDawnMargin s and
   // the loading's not called done; else it's left (D1: "a body never costs the night"), and put down if it's in the arms.
+  // Note 790: on foot within mouseMooseWithin m of the Mouse Moose at a casting (creeping in, its teeth in it, dragging it), it
+  // goes at it and clubs it: it bolts long before (mouseMoose.scareWithin), and the casting's kept.
   "crewBots": {
     "mournersWithin": 30, "mournersLeash": 20, "towerJawWithin": 25, "towerJawClearFrom": 0.9, "towerJawClearBy": 2.5,
     "wreckWithin": 250, "wreckStopShort": 15, "wreckHoldWithin": 60, "beetleWithin": 15, "ribbitWithin": 12, "brakemanStandOff": 1.5,
     "brakemanWaitPast": 1, "standGiveUp": 240, "gateClearShort": 30, "gateClearWithin": 1500, "gateClearGiveUp": 240, "gateClearMargin": 45,
-    "sixDawnMargin": 45, "mournersCarryWithin": 60, "mournersCarrySeconds": 60
+    "sixDawnMargin": 45, "mournersCarryWithin": 60, "mournersCarrySeconds": 60, "mouseMooseWithin": 30
   },
 
   // DAVE (GDD §3.2; the director, 8 Oct 2026: "a special NPC that shows up randomly in places ... If a player hits Dave 5
@@ -996,8 +1049,9 @@
     // the crew active now, not the crew the night started with, so a crew that's lost players spends like the smaller crew
     // it is (the relief valve's alive-share squared still applies on top). on: the engaged cap is the least of App. B.1's flat
     // cap (maxConcurrentSmallCrew / LargeCrew), ceil(active × engagedPerActive) and perPlayer × active, and at least 1: 1 at
-    // crew 1, 2 at crew 2, 3 at crew 3 and 4, 6 at crew 8. The hound run (below) waits while the crew is at it, so a crew of
-    // one never meets two things at once. The left-behind's hunts and the Stoker stay outside it, as before.
+    // crew 1, 2 at crew 2, 3 at crew 3 and 4, 6 at crew 8 (on a train shorter than longTrainCars; from it, two each, below:
+    // a crew of one on 8 cars or more can meet two things at once, note 647). The hound run (below) waits while the crew is
+    // at the cap. The left-behind's hunts and the Stoker stay outside it, as before.
     "orchestrator": {
       "on": true, "liveCrew": true, "engagedPerActive": 0.75, "perPlayer": 1,
       // A longer train has more of the crew under a threat at once (note 646; the director, 9 Oct: "Scale by both"):
@@ -1027,13 +1081,32 @@
       "census": true, "minCrew": 2, "onRadius": 20, "drivingAbove": 0.5, "slackWeight": 2, "emptyPostWeight": 0.5, "emptyPostExempt": ["trackDoll"],
       "minSlack": 30, "slackPress": 150, "slackPerSecond": 0.05, "perTarget": true,
       // Which post answers what (orchestrator.md §3.1's table), by the names in "costs" (carFire: the trouble in the cars).
+      // Note 753 filled in the seven App. A's later creatures had no row for: the Gannet dives on whoever walks the roofs, the
+      // Brakeman is chased along them, the Knotter is the coupling (walked, and killed at a stand), all the walkers'; Hotbox
+      // is the walkers' on the run and the ground's at a stand (prised out of its truck from beside it); the Moose, Tower Jaw
+      // and the Freight Beetle are met on the ground.
       "answers": {
         "cab": ["trackDoll", "switchman", "stoker"],
         "gunner": ["cinderHounds", "climbers", "trackDoll", "switchman"],
-        "walker": ["climbers", "draggers", "fireFlies", "whistler", "carHugger", "cinderHounds", "carFire"],
+        "walker": ["climbers", "draggers", "fireFlies", "whistler", "carHugger", "cinderHounds", "carFire", "gannet", "brakeman", "knotter", "hotbox"],
         "rider": ["tippyToesie", "fireFlies", "passenger", "carHugger", "carFire"],
-        "ground": ["ribbits", "gaunt", "followers", "sootChildren", "grumbler"]
-      }
+        "ground": ["ribbits", "gaunt", "followers", "sootChildren", "grumbler", "moose", "towerJaw", "freightBeetle", "hotbox"]
+      },
+      // The census reads commitment (note 753; the audit's R5 and §7; orchestrator.md §3.1 4, §3.2 6; GDD App. B.1 "The
+      // orchestrator"). commitment: each crewmate counted is committed while their hands hold them to a job: at a crane's
+      // controls, carrying something heavy, a timed Use job under way (grease, a coupling tightened, a breach boarded, a mend,
+      // the shovel), seated at a gun mid-reload or clearing its bore, on one of a stop's modules (a winch handle, a lever, the
+      // herd, a crane's rigging), or breaking into a Holdout; read at stops as on the run (the census counts there; only slack
+      // waits for the run). And "facilityLoading" in the conflict table is then the loading going on (the machinery running,
+      // or a crewmate on a module), not only stood at the facility. With census steering (minCrew 2 or more): a kind that
+      // would come at or near a committed crewmate with nothing on them yet (their own post answers it, or it comes to a post
+      // that does within committedNearM m of them) and that a free crewmate's post answers within collisionReachM m of them
+      // weighs ×collisionWeight: the free one chooses between their post and their friend's job. Free: nothing on them, not
+      // committed, not left behind. Never with nobody free in reach. Only which kind, never when or how many. false: as
+      // before (collisionWeight 1 turns only the weight off).
+      // pairRepeat: a conflict pair made tonight weighs ÷pairRepeat for each time it's been made, when it would be made again
+      // (seed 2 frontier drew whistler+facilityStop three times); 1: off.
+      "commitment": true, "collisionWeight": 1.75, "committedNearM": 20, "collisionReachM": 60, "pairRepeat": 2
     },
     // Note 327 (GDD App. F.3, the director, 7 Oct 2026: "ideally, we want people to be feeling like when they leave, there is
     // this presence of threat at all times"). Not in the spec. A crewmate alive on the ground further than fromTrainM (m) from
@@ -1100,6 +1173,14 @@
     // App. B.1's to pay for it. A kind among the last varietyWindow spawns has its weight halved for each.
     "pacedCost": 3,
     "varietyWindow": 4,
+    // And across the whole night (note 742; the director's second playtest, 14 Oct: "not enough variety of monsters ... I saw
+    // the cinder hounds like three times"): a kind about tonight that hasn't been sent yet weighs unseenWeight times as
+    // much, and each one of a kind sent tonight (the director's or come its own way) multiplies it by nightRepeat.
+    "unseenWeight": 2.5,
+    "nightRepeat": 0.6,
+    // And a kind come repeatHold times tonight waits (unless the director's pressed: a long quiet) while one about tonight
+    // hasn't come yet: the moving train lets few kinds in, the stops and towns most, so it saves up for those.
+    "repeatHold": 2,
     // The most of a kind the director sends a night, and the chance it's about at all tonight (drawn from the seed), by the
     // names in "costs"; a kind not named has no cap and is always about. Note 635, the director, the inbox, 12 Oct 2026, of
     // the Knotter: "They should show up once or twice a run. Sometimes never. We need more monster variety." Every kind's
@@ -1112,14 +1193,26 @@
       "cinderHounds": 0.7, "fireFlies": 0.42, "carHugger": 0.51, "whistler": 0.65, "trackDoll": 0.22,
       "tippyToesie": 0.7, "stoker": 0.4, "switchman": 0.12, "followers": 0.66, "ribbits": 0.66, "gaunt": 0.21,
       "sootChildren": 0.36, "grumbler": 0.11, "passenger": 0.1, "moose": 0.19, "gannet": 0.72, "freightBeetle": 0.63,
-      "towerJaw": 0.53, "pickers": 0.28, "lodger": 0.06, "householder": 0.68, "hollowHouse": 0.13, "hanger": 0.53 },
+      "towerJaw": 0.53, "pickers": 0.28, "lodger": 0.06, "householder": 0.68, "hollowHouse": 0.13, "hanger": 0.53,
+      "mouseMoose": 0.5 },
     // How often each kind comes against the rest: its weight among what could come, times this (×1 not named).
     "weights": {},
     // The in-car incidents' weight each (the others weigh 1): trouble in the cars is some of the night, not most of it.
     "incidentWeight": 0.5,
     // ...at full weight with this many hands besides the driver, proportionally less with fewer (a crew of two: a third).
     "incidentFullCrew": 3,
+    // (incidentWeight and incidentFullCrew are v1.1's in-car incidents' and are read by nothing yet: note 751.)
+    // GDD App. B.1 "Facility lull" (note 751): the first facilityLullSeconds the train stands at a facility, the director
+    // sends nothing of its own (calm on arrival; the pressure builds through it). Once a facility: shunting its yard doesn't
+    // start it again. 0: none.
     "facilityLullSeconds": 20,
+    // GDD App. B.1 "Aftermath" (note 751; the director, 14 Oct 2026: "The breathing room is good. Don't necessarily want a
+    // lot of it though"): after one of events the director sends nothing of its own for seconds, pressed or not (the
+    // pressure builds through it). death: a crewmate who was alive is dead; carLost: cars the engine lost that the crew are
+    // told of (note 663's news; a cut at a stand isn't one); rescue: a grab let go with the one held alive and not punished
+    // (a friend's pull or blow, or their own struggle); holdoutFreed: someone broken out of a Holdout. Short on purpose.
+    // on false: none, as before.
+    "aftermath": { "on": true, "seconds": 12, "events": ["death", "carLost", "rescue", "holdoutFreed"] },
     // GDD App. B.1 "Post-event cooldown" (design decision, 2026-10): the least trough after a spawn; the pressure's relief
     // makes the rest of it, and well past the threshold (pressAt) it gives way.
     "cooldownSeconds": [25, 45],
@@ -1136,7 +1229,8 @@
     // App. B.1 v1.1's cost table (the Choir costs nothing: it isn't spawned; hazards are level content).
     "costs": { "followers": 2, "draggers": 2, "fireFlies": 2, "switchman": 2, "trackDoll": 3, "cinderHounds": 3, "climbers": 3,
       "whistler": 3, "stoker": 3, "ribbits": 3, "carHugger": 4, "tippyToesie": 4, "gaunt": 4, "sootChildren": 4, "grumbler": 4,
-      "passenger": 5, "moose": 3, "gannet": 4, "freightBeetle": 1, "towerJaw": 3, "brakeman": 3, "hotbox": 2, "knotter": 3 },
+      "passenger": 5, "moose": 3, "gannet": 4, "freightBeetle": 1, "towerJaw": 3, "brakeman": 3, "hotbox": 2, "knotter": 3,
+      "mouseMoose": 2 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5,
@@ -1158,7 +1252,8 @@
       "wreckYard": { "draggers": 3, "gaunt": 2 }
     },
     // App. B.1 "contradiction seeding": the v1.1 conflict table, as the tuning's names (and conditions: "choir", gathering or
-    // here; "grade", a climb or fall just ahead; "facilityLoading" and "facilityStop", at a facility). Ambiguity (ARCHITECTURE §8): "draws
+    // here; "grade", a climb or fall just ahead; "facilityStop", at a facility; "facilityLoading", at one with its loading
+    // going on, the machinery running or a crewmate on a module, with orchestrator.commitment, note 753). Ambiguity (ARCHITECTURE §8): "draws
     // pairs from a conflict table": read as a spawn that would complete a pair with what's there now weighing this much
     // more, and this much more again past halfway on a run short of its pairs.
     "conflicts": [

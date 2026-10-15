@@ -141,6 +141,25 @@ public class CorruptedTreeArtTests
     /// Which kind is the biome's to weigh: a kind it gives no weight never grows there, the rest about as often as their
     /// weights; with no weights, all eight alike; and all three of a kind turn up. The same seed is the same tree every time.
     /// </summary>
+    /// <summary>
+    /// Their light (note 757; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 5: "we're going to want a few more like
+    /// bioluminescent corruptions because they really stand out in the night. Oh, the crystal tree ... We could maybe have
+    /// that glow a little bit"). Besides the lantern tree's pods and the barnacle's mouth: the crystal tree's crystals, the
+    /// thorn tree's cocoons and the webbed birch's veins glow, and faintly (GDD §28: "Less is more"), less than the pods.
+    /// The iron and the tar trees don't.
+    /// </summary>
+    [Fact]
+    public void TheCrystalsTheCocoonsAndTheVeinsGlowFaintlyAndTheLanternsPodsMost()
+    {
+        float Most(string kind) => Enumerable.Range(0, CorruptedTreeArt.Variants)
+            .Max(v => Props.Get(CorruptedTreeArt.Prop(kind, v, far: false))!.Vertices.Max(x => x.Emissive));
+        float pods = Most("lantern");
+        foreach (var kind in new[] { "crystal", "thorn", "webbed" })
+            Assert.InRange(Most(kind), 0.1f, MathF.Min(0.45f, pods));
+        Assert.Equal(0, Most("iron"));
+        Assert.Equal(0, Most("tar"));
+    }
+
     [Fact]
     public void WhichKindIsTheBiomesToWeigh()
     {

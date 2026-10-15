@@ -132,7 +132,7 @@ public class HudTests
         Assert.Equal("SHOVEL COAL : HOLD [E]", Hud.Prompt(s));
         // Note 717: coal on the shovel can be thrown instead; the shove's key reads as bound.
         s.Player = At(InteractableKind.Firebox) with { Flags = PlayerFlags.Shovelful };
-        Assert.Equal("SHOVEL COAL : HOLD [E]   THROW IT : [RMB]", Hud.Prompt(s));
+        Assert.Equal("SHOVEL COAL : HOLD [E]   THROW IT : [T]", Hud.Prompt(s));
         Assert.Equal("SHOVE : [LEFT ALT]", Hud.Bound("SHOVE : [LEFT ALT]"));
         s.Player = At(InteractableKind.Vent);
         Assert.Equal("VENT STEAM : HOLD [E]", Hud.Prompt(s));
@@ -318,7 +318,7 @@ public class HudTests
         AssertShort(Hud.Prompt(s));
         Assert.All(Hud.Hints(s).Lines, AssertShort);
         // Note 649: and the corner says it can be left there.
-        Assert.Contains("STOW : [RMB]", Hud.Hints(s).Lines);
+        Assert.Contains("STOW : [T]", Hud.Hints(s).Lines);
     }
 
     [Fact]
@@ -692,7 +692,8 @@ public class HudTests
         var s = new PrototypeSession(Content, "test-loop", 4);
         s.Player = PlayerMotor.SpawnOnRoof(s.Train, 2, 3, s.PlayerTuning);
         var bodies = s.World.Bodies;
-        var radio = bodies.All.First(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.Radio);
+        // The uniform's radio (note 749), as the host's first step puts it on.
+        var radio = bodies.SpawnCrate(s.Train, 2, default, DarkTerritory.Sim.Physics.BodyKind.Radio);
         (radio.Carrier, radio.Broken) = (1, true);
         Assert.Null(Hud.Prompt(s)); // the crowbar in hand
         s.Player = s.Player with { HeldSlot = 1 };
@@ -882,7 +883,7 @@ public class HudTests
         // Whole: a find like any other.
         Assert.False(Hud.CanHeal(s, find));
         Assert.Null(Hud.Prompt(s));
-        Assert.Equal(["PUT DOWN : [E]", "THROW : [RMB]"], Hud.Hints(s).Lines);
+        Assert.Equal(["PUT DOWN : [E]", "THROW : [T]"], Hud.Hints(s).Lines);
         // Hurt, out on the ballast beside the train (at nothing Use works).
         double along = s.Train.Dynamics.Distance - 20, hint = along;
         var t = s.Train.Line.Sample(along);
@@ -890,7 +891,7 @@ public class HudTests
         s.Player = PlayerMotor.SpawnOnGround(at with { Y = PlayerMotor.GroundAt(at, s.Train.Line, ref hint) }, s.Train.Line, along, s.PlayerTuning) with { Health = 40 };
         Assert.Null(CrewActions.NearestInteractable(s.Player, s.Train, s.World.Hand));
         Assert.True(Hud.CanHeal(s, find));
-        Assert.Equal(["USE : HOLD [E]", "PUT DOWN : [E]", "THROW : [RMB]"], Hud.Hints(s).Lines);
+        Assert.Equal(["USE : HOLD [E]", "PUT DOWN : [E]", "THROW : [T]"], Hud.Hints(s).Lines);
         Assert.Null(Hud.Prompt(s));
         find.MendTicks = (int)(DarkTerritory.Sim.SimConstants.TickRate * run.Healing!.UseSeconds / 2);
         Assert.Equal("USING IT (50%)", Hud.Prompt(s));

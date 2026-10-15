@@ -290,7 +290,7 @@ public sealed class Waker(int id) : Enemy(id)
 
     /// <summary>A crewmate a picker may take: alive, off the train, free of any other's grip, and not in under a fort's guns.</summary>
     static bool Takeable(EnemyContext ctx, in PlayerState s) =>
-        s.Alive && s.Parent < 0 && !ctx.World.InFort(PlayerMotor.WorldPosition(s, ctx.Train));
+        CrewSense.Afoot(s, ctx.Train) && !ctx.World.InFort(PlayerMotor.WorldPosition(s, ctx.Train));
 
     /// <summary>
     /// Note 710: a Waker beside each crewmate off the held train who hasn't one after them (up to <c>pickers</c> at once; the

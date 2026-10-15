@@ -26,7 +26,10 @@ public static class CrewActs
     /// The crewmate <paramref name="id"/> as they're drawn this frame: where they are and what they're doing. At a gun they're
     /// sat on its seat, facing its way (note 137's cannon: the seat 0.75 m behind the pivot, on the roof under it).
     /// </summary>
-    public static Crewmate Crewmate(byte id, in PlayerState s, World world, IReadOnlyList<CarFrame> frames, IReadOnlyList<PlayerState>? others = null)
+    /// <param name="crew">Everyone by id (themselves too), for note 722's emotes for two: how far a high five's partner stands,
+    /// who's in a dance-off. Without it a met high five is drawn at a middling gap and nobody dances off.</param>
+    public static Crewmate Crewmate(byte id, in PlayerState s, World world, IReadOnlyList<CarFrame> frames, IReadOnlyList<PlayerState>? others = null,
+        IReadOnlyList<(int Id, PlayerState State)>? crew = null)
     {
         var act = Of(s, id, world, others);
         var placed = act is CrewPose.Gunner or CrewPose.Reload && Guns.Mount(world.Train, s.Parent) is { } gun ? Seated(s, gun) : s;
@@ -35,15 +38,78 @@ public static class CrewActs
         int outfit = world.OutfitOf(id);
         bool lamp = world.Bodies.CarriedBy(id) is { Kind: BodyKind.Lamp };
         var (signal, signalSeconds) = lamp ? SignalOf(id, s, world) : (LampSignal.None, 0);
-        return new Crewmate(id, feet, yaw, s.Alive, s.Hand, s.OtherHand, Looks: outfit != id ? outfit : null, Act: act, Holding: Sim.Player.Kit.Held(s),
-            Reach: act is CrewPose.Drive or CrewPose.Whistle ? AtTheControls(world, frames, feet, yaw, act == CrewPose.Whistle) : null,
+        var drawn = new Crewmate(id, feet, yaw, s.Alive, s.Hand, s.OtherHand, Looks: outfit != id ? outfit : null, Act: act, Holding: Sim.Player.Kit.Held(s),
+            Reach: act is CrewPose.Drive or CrewPose.Whistle ? AtTheControls(world, frames, feet, yaw, act == CrewPose.Whistle)
+                : s.Has(PlayerFlags.Pumping) ? AtTheHandle(world.Train, frames, feet, yaw, s) : null,
             Lamp: lamp, Survivor: SurvivorOf(id, world),
             Stressed: s.Alive && Stressed(world, PlayerMotor.WorldPosition(s, world.Train)), Health: s.Health,
             Phase: act == CrewPose.Reload ? ReloadPhase(s, world) : 0, Death: s.Death,
             Headset: s.Head > 0 ? new HeadsetBody(s.Head, s.Pitch, s.Parent, s.Position, s.Yaw) : null,
             Car: placed.Parent != PlayerState.World && placed.Parent < frames.Count ? placed.Parent : PlayerState.World, Local: placed.Position,
-            Emote: emote, EmoteSeconds: emoteSeconds, Sooted: s.Has(PlayerFlags.Sooted), Signal: signal, SignalSeconds: signalSeconds);
+            Emote: emote, EmoteSeconds: emoteSeconds, Sooted: s.Has(PlayerFlags.Sooted), Signal: signal, SignalSeconds: signalSeconds,
+            Paint: world.PaintOf(id));
+        if (emote != Emote.None)
+            drawn = WithEmote(drawn, id, s, world, frames, crew);
+        // Over a friend's shoulder (note 723): laid across it, the way the one carrying them faces.
+        if (s.Alive && s.Has(PlayerFlags.Carried) && others is not null && CarrierOf(s, others) is { } carrier)
+            drawn = OnTheShoulder(drawn, Eyes.World(carrier, frames).Yaw);
+        // On a crane's hook (note 726): stood on it, holding on to its cable.
+        if (s.Alive && s.Has(PlayerFlags.Hoisted) && world.Run?.CurrentSite?.CraneNear(feet) is { } crane)
+            drawn = OnTheHook(drawn, crane.HookAt);
+        return drawn;
     }
+
+    /// <summary>How far behind the cable a rider on the hook is drawn (m, note 726): stood on its far lip, the cable at their chest.</summary>
+    const double CableAhead = 0.2;
+
+    /// <summary>
+    /// A crewmate stood on a crane's hook (note 726), as they're drawn: their feet on the hook's lip a step behind its cable (the
+    /// sim has them on the hook itself), both hands up on the cable over it, one over the other.
+    /// </summary>
+    public static Crewmate OnTheHook(Crewmate c, Double3 hook)
+    {
+        var forward = new Double3(-DMath.Sin(c.Yaw), 0, -DMath.Cos(c.Yaw));
+        var cable = hook with { Y = c.Feet.Y };
+        var toCable = (cable - c.Feet) with { Y = 0 };
+        // Two side by side keep where they stand; one alone is put behind the cable, facing it.
+        var feet = toCable.Length < 0.05 ? cable - forward * CableAhead : c.Feet;
+        Double3 Local(Double3 at)
+        {
+            var d = at - feet;
+            return new Double3(d.X * Math.Cos(c.Yaw) - d.Z * Math.Sin(c.Yaw), d.Y, d.X * Math.Sin(c.Yaw) + d.Z * Math.Cos(c.Yaw));
+        }
+        return c with { Feet = feet, Act = CrewPose.Lever, Reach = (Local(cable + Double3.Up * 1.75), Local(cable + Double3.Up * 1.4)) };
+    }
+
+    /// <summary>The crewmate carrying <paramref name="s"/> (note 723): the nearest carrying one in their frame, under them.</summary>
+    static PlayerState? CarrierOf(in PlayerState s, IReadOnlyList<PlayerState> others)
+    {
+        PlayerState? best = null;
+        double bestD = 1.0;
+        foreach (var o in others)
+            if (o.Alive && o.Has(PlayerFlags.Carrying) && o.Parent == s.Parent && ((o.Position - s.Position) with { Y = 0 }).Length is var d && d < bestD)
+                (best, bestD) = (o, d);
+        return best;
+    }
+
+    /// <summary>
+    /// A friend carried over the shoulder (note 723), as they're drawn: on their back across it (the pinned clip, its body lying
+    /// along its yaw), square to the way the carrier faces, their middle on the shoulder where the sim has them.
+    /// </summary>
+    public static Crewmate OnTheShoulder(Crewmate c, double carrierYaw) =>
+        c with
+        {
+            Act = CrewPose.HeldPinned,
+            Yaw = carrierYaw + ShoulderTurn,
+            Feet = c.Feet + new Double3(DMath.Sin(carrierYaw), 0, DMath.Cos(carrierYaw)) * ShoulderBack + Double3.Up * ShoulderLift,
+        };
+
+    /// <summary>
+    /// How the carried are turned from the carrier's facing (radians: across the shoulders); how much further behind the
+    /// carrier's neck they're drawn (m); and how much higher than the sim's shoulder point (m: the pinned clip lies about its
+    /// root, a little over it, and the sim's point is about the carrier's chest).
+    /// </summary>
+    const double ShoulderTurn = Math.PI / 2, ShoulderBack = 0.1, ShoulderLift = 0.55;
 
     /// <summary>How long a shove's arm is out (s): the shover drawn pushing (note 717), from the host's knock.</summary>
     public const double ShoveSeconds = 0.45;
@@ -51,8 +117,9 @@ public static class CrewActs
     /// <summary>Whether <paramref name="id"/> shoved someone in the last <see cref="ShoveSeconds"/> (note 717, World.Horseplays).</summary>
     public static bool Shoving(int id, World world)
     {
+        // (Note 723: a friend thrown off the shoulder is the same push.)
         foreach (var h in world.Horseplays)
-            if (h.By == id && h.Kind == KnockKind.Shove && ((double)world.Tick - h.Tick) * SimConstants.TickSeconds is >= 0 and < ShoveSeconds)
+            if (h.By == id && h.Kind is KnockKind.Shove or KnockKind.Throw && ((double)world.Tick - h.Tick) * SimConstants.TickSeconds is >= 0 and < ShoveSeconds)
                 return true;
         return false;
     }
@@ -86,15 +153,94 @@ public static class CrewActs
     {
         if (!s.Alive || s.Velocity.X * s.Velocity.X + s.Velocity.Z * s.Velocity.Z > EmoteStill * EmoteStill)
             return (Emote.None, 0);
+        if (LatestEmote(id, world) is not { } at)
+            return (Emote.None, 0);
+        // (Note 722: a high five met lasts emotes.met from the meet, not its offer's length.)
+        var (age, up) = world.EmoteTuning.Age(at, world.Tick);
+        return up ? (at.Kind, age) : (Emote.None, 0);
+    }
+
+    /// <summary>The latest emote of <paramref name="id"/>'s the world holds, up or not.</summary>
+    static EmoteEvent? LatestEmote(int id, World world)
+    {
         EmoteEvent? latest = null;
         foreach (var e in world.Emotes)
             if (e.By == id && (latest is null || e.Tick > latest.Value.Tick))
                 latest = e;
-        if (latest is not { } at)
-            return (Emote.None, 0);
-        double age = ((double)world.Tick - at.Tick) * SimConstants.TickSeconds;
-        return age >= 0 && age < world.EmoteTuning.Seconds(at.Kind) ? (at.Kind, age) : (Emote.None, 0);
+        return latest;
     }
+
+    /// <summary>
+    /// Note 722: a crewmate at an emote, with what its drawing needs beyond the kind (<see cref="EmoteDetail"/>): a high five
+    /// or fist bump met, how long ago and how far apart the two stand; a dance, whether it's a dance-off and who leads
+    /// (<see cref="EmoteRules.DanceOff"/>); the sit, put on the edge facing out from it (<see cref="SatOn"/>); the lean, at the
+    /// doorway facing out of it, the head to where they look (<see cref="LeantOut"/>). An edge emote away from its edge (a
+    /// snapshot's lag) isn't drawn.
+    /// </summary>
+    public static Crewmate WithEmote(Crewmate c, int id, in PlayerState s, World world, IReadOnlyList<CarFrame> frames, IReadOnlyList<(int Id, PlayerState State)>? crew)
+    {
+        var t = world.EmoteTuning;
+        var train = world.Train;
+        switch (c.Emote)
+        {
+            case Emote.HighFive or Emote.FistBump when LatestEmote(id, world) is { Met: true } met:
+                {
+                    double gap = t.Reach * 0.6;
+                    if (crew is not null)
+                        foreach (var (other, o) in crew)
+                            if (other == met.With && EmoteRules.Apart(s, o, train) is var d && double.IsFinite(d))
+                                gap = d;
+                    return c with { EmoteWith = new EmoteDetail(Met: true, SinceMeet: Math.Max(0, ((double)world.Tick - met.Meet) * SimConstants.TickSeconds), Gap: gap) };
+                }
+            case Emote.Dance when crew is not null && EmoteRules.DanceOff(id, world.Emotes, crew, train, t, world.Tick) is { } off:
+                return c with { EmoteWith = new EmoteDetail(Dancers: off.Count, Leading: off.Leader == id) };
+            case Emote.SitEdge when s.Parent >= 0 && s.Parent < frames.Count && EmoteRules.SitAt(s, train, t) is { } edge:
+                return SatOn(c, s, edge, train, frames, t);
+            case Emote.LeanOut when s.Parent >= 0 && s.Parent < frames.Count && EmoteRules.LeanAt(s, train, t) is { } door:
+                return LeantOut(c, s, door, train, frames);
+            case Emote.SitEdge or Emote.LeanOut:
+                return c with { Emote = Emote.None, EmoteSeconds = 0 };
+        }
+        return c;
+    }
+
+    /// <summary>
+    /// Sat on an edge (note 722), as they're drawn: out from where they stand to the last of the footing at their height (the
+    /// roof's side, the sill's), <see cref="SitBack"/> in from it, facing out over it. The sim leaves them where they stood.
+    /// </summary>
+    public static Crewmate SatOn(Crewmate c, in PlayerState s, Edge edge, TrainOnLine train, IReadOnlyList<CarFrame> frames, EmoteTuning t)
+    {
+        var frame = frames[s.Parent];
+        int side = edge.Side;
+        var (x, _) = EmoteRules.EdgeX(s, train, side, t.EdgeReach + t.SillReach);
+        // At the edge's height (a running board's a step under the cab's floor).
+        var under = frame.Shape.TopAt(x, s.Position.Z, train.Vehicles[s.Parent], s.Position.Y + 0.05);
+        var local = new Double3(x - side * SitBack, under?.Top ?? s.Position.Y, s.Position.Z);
+        double yaw = side > 0 ? -Math.PI / 2 : Math.PI / 2;
+        return c with { Feet = frame.ToWorld(local), Yaw = yaw + frame.Heading, Local = local };
+    }
+
+    /// <summary>How far in from the edge a sitter's feet (the model's origin, under the pelvis) are drawn (m): the seat on it, the knees over.</summary>
+    const double SitBack = 0.14;
+
+    /// <summary>
+    /// Leant out of a doorway (note 722), as they're drawn: on its sill, just inside the jamb, facing out through it, the head
+    /// turned to where they look (as far as a neck goes: CreatureArt clamps it).
+    /// </summary>
+    public static Crewmate LeantOut(Crewmate c, in PlayerState s, Edge door, TrainOnLine train, IReadOnlyList<CarFrame> frames)
+    {
+        var frame = frames[s.Parent];
+        var room = PlayerMotor.InCab(s, train) ? frame.Shape.Cab!.Value : frame.Shape.Interior!.Value;
+        var local = s.Position with { X = door.Side > 0 ? room.Max.X - LeanIn : room.Min.X + LeanIn };
+        // Facing along the car the way they look (up the line or down it), so the lean out reads side on from the lineside.
+        double body = -DMath.Cos(s.Yaw) <= 0 ? 0 : Math.PI;
+        int outward = door.Side * (body == 0 ? 1 : -1);
+        double turn = Math.IEEERemainder(s.Yaw - body, 2 * Math.PI);
+        return c with { Feet = frame.ToWorld(local), Yaw = body + frame.Heading, Local = local, EmoteWith = new EmoteDetail(Turn: turn, Out: outward) };
+    }
+
+    /// <summary>How far past the doorway's inner face the leaner stands (m): out on the sill, in the door's slot, toes at its edge.</summary>
+    const double LeanIn = -0.06;
 
     /// <summary>How near a waking threat has to be for a crewmate's run to be a hurried one (m).</summary>
     public const double StressRange = 30;
@@ -161,6 +307,29 @@ public static class CrewActs
     /// </summary>
     static (Double3, Double3)? AtTheControls(World world, IReadOnlyList<CarFrame> frames, Double3 feet, double yaw, bool whistling) =>
         AtTheControls(world.Controls, frames, feet, yaw, whistling);
+
+    /// <summary>
+    /// A pumper's hands on the handcar's handle (note 729): its grip bar at their end, each hand to its side, where the swing has
+    /// it now; in their frame (from the feet, as they face), as the controls' are.
+    /// </summary>
+    public static (Double3, Double3)? AtTheHandle(TrainOnLine train, IReadOnlyList<CarFrame> frames, Double3 feet, double yaw, in PlayerState s)
+    {
+        if (train.Handcar is not { } h || h.Id >= frames.Count)
+            return null;
+        return AtTheHandle(train.Dynamics.Tuning.Handcar, frames[h.Id], h.Phase, Sim.Train.Handcar.EndAt(s.Position.Z), feet, yaw);
+    }
+
+    /// <summary>The same, for a handle as given (a staged pumper: Staging.Pumpers).</summary>
+    public static (Double3, Double3) AtTheHandle(HandcarTuning t, CarFrame car, double phase, int end, Double3 feet, double yaw)
+    {
+        Double3 Local(Double3 inCar)
+        {
+            var d = car.ToWorld(inCar) - feet;
+            return new Double3(d.X * Math.Cos(yaw) - d.Z * Math.Sin(yaw), d.Y, d.X * Math.Sin(yaw) + d.Z * Math.Cos(yaw));
+        }
+        // Facing the handle down the car, their left hand's on the grip's far side from the car's left.
+        return (Local(GreyboxScene.HandleGrip(t, phase, end, -end)), Local(GreyboxScene.HandleGrip(t, phase, end, end)));
+    }
 
     /// <summary>The same, for the controls as given (a staged driver: Staging.Driver).</summary>
     public static (Double3, Double3)? AtTheControls(TrainControls c, IReadOnlyList<CarFrame> frames, Double3 feet, double yaw, bool whistling)
@@ -269,11 +438,20 @@ public static class CrewActs
         var train = world.Train;
         if (s.Has(PlayerFlags.Held))
             return HeldBy(id, world);
+        // Over a friend's shoulder (note 723; Crewmate lays them across it).
+        if (s.Has(PlayerFlags.Carried))
+            return CrewPose.HeldPinned;
+        // Stood on a crane's hook (note 726), both hands up on its cable (OnTheHook).
+        if (s.Has(PlayerFlags.Hoisted))
+            return CrewPose.Lever;
         // Knocked by a crewmate (note 717): rocked back, arms out, while the stagger lasts; and the shover's arms out at them.
         if (s.Stagger > 0)
             return CrewPose.Stagger;
         if (Shoving(id, world))
             return CrewPose.Push;
+        // Carrying a friend over the shoulder (note 723), as a body is carried (App. C.4).
+        if (s.Has(PlayerFlags.Carrying))
+            return CrewPose.Shoulder;
         // At a Holdout's door while it's breached (App. D.7): smashing its lock, prying its barricade, or picking the lock
         // with the repair kit. (Who's breaching isn't sent; whoever stands at the door is at it.)
         if (Breaching(s, world) is { } breach)
@@ -291,6 +469,9 @@ public static class CrewActs
         if (s.Has(PlayerFlags.Pushing))
             return CrewPose.Push;
         if (s.Has(PlayerFlags.Operating))
+            return CrewPose.Lever;
+        // At the handcar's handle (note 729): both hands on its grip bar, going up and down with it (AtTheHandle).
+        if (s.Has(PlayerFlags.Pumping))
             return CrewPose.Lever;
         if (world.Bodies.CarriedBy(id) is { } carried)
             return carried.Kind switch
@@ -337,6 +518,10 @@ public static class CrewActs
         // below (a Dragger's, App. A.4), stood leaning back hauling them up.
         if (others is not null && HeldNear(s, others) is { } friend)
             return Rescue(friend, s, world);
+        // In a moving car's door, looking at a friend running beside it in a hand-up's reach (note 723): hauling them up.
+        if (others is not null && world.Movement is { } movement
+            && Sim.Player.Rescue.HandUpTarget(s, -1, others.Select((o, i) => (i, o)), train, movement.Rescue) is not null)
+            return CrewPose.HaulUp;
         var near = CrewActions.Nearest(s, train);
         // Something timed under way (CrewActions: the progress resets the moment it stops).
         if (s.ActionProgress > 0)

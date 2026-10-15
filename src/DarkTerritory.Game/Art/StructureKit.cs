@@ -448,6 +448,83 @@ public static class StructureKit
         return k.Build($"wall-{side}");
     }
 
+    /// <summary>
+    /// Ten metres of timber palisade (note 692; the director's "Timberholds"): the stone wall's footprint and height (the
+    /// Sim's wall is the same), its face upright logs sharpened at their tops, a plank walk behind them on its posts.
+    /// </summary>
+    public static MeshAsset Palisade(Look? look, int side)
+    {
+        var k = new Kit(look, 960 + side);
+        const float h = 8, t = 1.6f, len = 10, r = 0.26f;
+        float face = side > 0 ? t / 2 - r : -t / 2 + r;
+        k.Use("pine_bark", Palette.DeepBrown, 0.9f, 0.05f, tile: 0.8f);
+        for (float z = -r; z > -len; z -= 2 * r)
+        {
+            float top = h + 0.4f + 0.3f * MathF.Sin(z * 7.3f);
+            k.Cylinder(new Vector3(face, -0.5f, z), new Vector3(face, top, z), r, 6, caps: false, smooth: false);
+            k.Cylinder(new Vector3(face, top, z), new Vector3(face, top + 0.7f, z), r, 6, caps: false, smooth: false, radiusB: 0.02f);
+        }
+        // The walk behind, on its posts, the length of the bay.
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0.05f, tile: 2);
+        float walk0 = side > 0 ? -t / 2 : face + r, walk1 = side > 0 ? face - r : t / 2;
+        k.Box(new Vector3(walk0, h - 1.4f, -len), new Vector3(walk1, h - 1.2f, 0), Kit.Faces.PosY | Kit.Faces.NegY | Kit.Faces.Sides);
+        foreach (float z in new[] { -1.5f, -5f, -8.5f })
+            k.Rod(new Vector3((walk0 + walk1) / 2, -0.5f, z), new Vector3((walk0 + walk1) / 2, h - 1.4f, z), 0.12f);
+        return k.Build($"palisade-{side}");
+    }
+
+    /// <summary>
+    /// A watchtower of logs (note 692; Timberholds): the stone tower's footprint and height, on four log legs braced
+    /// across, a plank cabin up top under a shingled roof, its lamp toward the line.
+    /// </summary>
+    public static MeshAsset TimberTower(Look? look, int side)
+    {
+        var k = new Kit(look, 970 + side);
+        const float half = 2.4f, h = 13;
+        k.Use("pine_bark", Palette.DeepBrown, 0.9f, 0.05f, tile: 0.8f);
+        foreach (var (x, z) in new[] { (-1f, -1f), (1f, -1f), (1f, 1f), (-1f, 1f) })
+            k.Cylinder(new Vector3(x * (half - 0.2f), -0.5f, z * (half - 0.2f)), new Vector3(x * (half - 0.5f), h - 3, z * (half - 0.5f)), 0.28f, 6, caps: false, smooth: false);
+        foreach (float y in new[] { 2.5f, 6.5f })
+            for (int i = 0; i < 4; i++)
+            {
+                var (ax, az) = i switch { 0 => (-1f, -1f), 1 => (1f, -1f), 2 => (1f, 1f), _ => (-1f, 1f) };
+                var (bx, bz) = i switch { 0 => (1f, -1f), 1 => (1f, 1f), 2 => (-1f, 1f), _ => (-1f, -1f) };
+                k.Rod(new Vector3(ax * (half - 0.3f), y, az * (half - 0.3f)), new Vector3(bx * (half - 0.3f), y + 2.5f, bz * (half - 0.3f)), 0.1f);
+            }
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0.05f, tile: 2);
+        k.Box(new Vector3(-half, h - 3, -half), new Vector3(half, h - 2.8f, half));
+        k.Box(new Vector3(-half, h - 2.8f, -half), new Vector3(half, h - 1.6f, half), Kit.Faces.Sides);
+        foreach (var (x, z) in new[] { (-1f, -1f), (1f, -1f), (1f, 1f), (-1f, 1f) })
+            k.Rod(new Vector3(x * (half - 0.1f), h - 1.6f, z * (half - 0.1f)), new Vector3(x * (half - 0.1f), h, z * (half - 0.1f)), 0.1f);
+        k.Use("shingle_cedar", Palette.DeepBrown, 0.9f, 0.05f, tile: 1);
+        k.Lathe(new Vector3(0, h, 0), [new(half + 0.6f, 0), new(0, 1.8f)], 4, smooth: false);
+        k.Use("window_lit", Palette.LampAmber, 0.1f, 0.3f, tile: 1);
+        k.Panel(new Vector3(-side * (half + 0.02f), h - 2.2f, 0), new Vector3(-side, 0, 0), Vector3.UnitY, 0.5f, 0.4f, Vector2.Zero, Vector2.One);
+        return k.Build($"timbertower-{side}");
+    }
+
+    /// <summary>
+    /// A deck of logs (note 692; Timberholds' log yards): spruce, eight metres long, stacked four, three, two and one high
+    /// across a pair of skids, their cut ends pale.
+    /// </summary>
+    public static MeshAsset LogStack(Look? look, int variant)
+    {
+        var k = new Kit(look, 980 + variant);
+        const float r = 0.34f, len = 4.2f;
+        k.Use("wood_sleeper", Palette.DeepBrown, 0.9f, 0.05f, tile: 1);
+        foreach (float x in new[] { -1.6f, 1.6f })
+            k.Box(new Vector3(-1.6f, 0, x - 0.15f), new Vector3(1.6f, 0.25f, x + 0.15f));
+        k.Use("pine_bark", Palette.DeepBrown, 0.9f, 0.05f, tile: 0.6f);
+        int rows = 4 - variant % 2;
+        for (int row = 0; row < rows; row++)
+            for (int i = 0; i < rows - row; i++)
+            {
+                float x = (i - (rows - row - 1) / 2f) * 2 * r, y = 0.25f + r + row * r * 1.72f;
+                k.Cylinder(new Vector3(x, y, -len), new Vector3(x, y, len), r, 7, caps: true, smooth: true);
+            }
+        return k.Build($"logstack-{variant}");
+    }
+
     /// <summary>A gun tower on the wall: square, taller than the wall, crenellated, a lit loophole and a lamp towards the line.</summary>
     public static MeshAsset Tower(Look? look, int side)
     {

@@ -151,6 +151,9 @@ public static class NovaKit
     /// </summary>
     public enum FloorKind : byte { Deadfall, Stump, Juniper, Blueberry }
 
+    /// <summary>A deadfall's trunk length (m) by its variant, unscaled: where it's laid beside the line keeps it off the track (note 778).</summary>
+    public static float DeadfallLength(int variant) => 5 + variant * 1.2f;
+
     public static MeshAsset Floor(Look? look, FloorKind kind, int variant)
     {
         var k = new Kit(look, 2400 + (int)kind * 16 + variant);
@@ -160,7 +163,7 @@ public static class NovaKit
             case FloorKind.Deadfall:
                 {
                     // Down along −Z: the trunk lying a little off the ground at its root end, the root plate stood on edge.
-                    float len = 5 + variant * 1.2f, r = 0.16f + 0.03f * variant;
+                    float len = DeadfallLength(variant), r = 0.16f + 0.03f * variant;
                     k.Use("wood_grey", Palette.BlueGrey, 0.9f, 0.05f, tile: 1);
                     k.Tint = new Vector3(0.95f, 0.92f, 0.88f);
                     k.Cylinder(new Vector3(0, r + 0.12f, 0), new Vector3(0.15f, r * 0.8f, -len), r, 6, caps: true, radiusB: r * 0.35f);

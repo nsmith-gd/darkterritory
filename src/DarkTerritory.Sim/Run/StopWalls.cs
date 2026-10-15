@@ -15,6 +15,16 @@ public readonly record struct Wall(Double3 Centre, Double3 Axis, double HalfLeng
     /// </summary>
     public bool Fort { get; init; }
 
+    /// <summary>
+    /// Part of a coaling tower's trestle (note 758): the crew, the bots and the balls meet it, but a
+    /// creature isn't held out of it, as a fort's isn't: Tower Jaw gnaws the trestle's leg from where it stands, and a lattice
+    /// is seen through.
+    /// </summary>
+    public bool Trestle { get; init; }
+
+    /// <summary>Which coaling tower it's part of (1 up; 0 for none): it stands only while the tower does (<see cref="StopWalls.Fell"/>).</summary>
+    public int Tower { get; init; }
+
     /// <summary>Which stop building it's part of (1 up, alike on every machine; 0 for none): all of a building's walls share its axis.</summary>
     public int Owner { get; init; }
 
@@ -65,12 +75,12 @@ public sealed partial class StopWalls
 
     /// <summary>
     /// The walls that may touch a point (its cell's: each wall is listed in every cell it reaches). An open house's door is
-    /// one of them only while it's shut (note 401).
+    /// one of them only while it's shut (note 401), a coaling tower's only while it stands (note 758).
     /// </summary>
     public IEnumerable<Wall> Near(Double3 p)
     {
         foreach (int i in _cells.TryGetValue(CellOf(p.X, p.Z), out var list) ? list : None)
-            if (_walls[i].Door == 0 || _shut.Contains(_walls[i].Door))
+            if ((_walls[i].Door == 0 || _shut.Contains(_walls[i].Door)) && (_walls[i].Tower == 0 || !_felled.Contains(_walls[i].Tower)))
                 yield return _walls[i];
     }
 
@@ -130,6 +140,9 @@ public sealed partial class StopWalls
     /// a cottage's front door, and walls a lamp doesn't shine through.
     /// </summary>
     public const double DoorWidth = 1.2, WallThickness = 0.2;
+
+    /// <summary>Half a village well's stone ring across, square (m): WorldArt draws it 0.9 m round (note 730). Not a design number.</summary>
+    public const double WellHalf = 0.95;
 
     /// <summary>Where a small thing lies on a house's floor (note 738), as shares of the room's half sizes out from its middle (along the front, across it).</summary>
     static readonly (double F, double S)[] LooseCorners = [(-0.85, 0.85), (-0.85, -0.85), (0.8, 0.85), (0.8, -0.85), (-0.2, 0.9), (-0.2, -0.9)];
@@ -441,8 +454,10 @@ public sealed partial class StopWalls
                         ? OpenWalls(b).Concat(Furniture(b, stop.Containers.Where(c => c.Building == index)).Select(x => (x.X, x.Y, x.HalfX, x.HalfY)))
                             .Concat(ClutterOf(stop, index).Where(x => x.Solid).Select(x => (x.X, x.Y, x.Box.HalfX, x.Box.HalfY)))
                             .Select(w => (w.X, w.Y, w.HalfX, w.HalfY, t.TopM))
+                        // A well is its stone ring (WorldArt's, 0.9 m round), not its 5 m plot: note 730's well is walked up to.
+                        : b.Kind == BuildingKind.Well ? [(0, 0, WellHalf, WellHalf, t.WellTopM)]
                         : (b.Parts.Count > 0 ? b.Parts : [new FootprintPart(0, 0, b.Length, b.Width)])
-                            .Select(p => (p.X, p.Y, p.Length / 2, p.Width / 2, b.Kind == BuildingKind.Well ? t.WellTopM : t.TopM));
+                            .Select(p => (p.X, p.Y, p.Length / 2, p.Width / 2, t.TopM));
                 Wall Placed(double x, double y, double hx, double hy, double top)
                 {
                     var centre = Plan.World(b, x, y);

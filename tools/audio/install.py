@@ -225,8 +225,9 @@ def candidates(line, cue, stored):
     out = []
     for k in stored.get("cands") or []:
         k = dict(k)
-        if k["src"] in by_url:
-            e = by_url[k["src"]]
+        if k["src"] in by_url or k["src"].startswith("built:") and k["src"][6:] in man:
+            # A candidate on the page, or one just built for a line the page doesn't have yet (ci_build.py's fresh).
+            e = by_url.get(k["src"]) or man[k["src"][6:]]
             k.update(built=True, line=e["line"], cue=e["cue"], key=e["key"], mat=e["mat"])
         elif k.get("old") or k["src"].startswith("audio/"):
             k["old"] = True
@@ -269,7 +270,55 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 # Note 444: the truss Dragger's whole weight on the roof (limbs, lighter, a candidate).
                 "cs-draggers.drop": "slam",
                 # Note 388: the Brakeman's iron heel and hobnails from real recordings, the modelled plank a candidate.
-                "tell-brakeman.step": "hob"}
+                "tell-brakeman.step": "hob",
+                # Note 767: the house creatures from the packs' real things where the first by name is the model; the
+                # strands' hum the model, a wire's wake (the struck metal frozen into a whine a candidate).
+                "tell-lodger-breathing.breathing": "lungs", "tell-lodger-shriek.shriek": "wail", "cs-lodger.lunge": "soles",
+                "tell-householder-rise.rise": "scrape", "cs-householder.breath": "rasp", "tell-hollow-house.rumble": "ground",
+                "cs-hollow-house.slam": "thrown", "cs-hollow-house.sink": "timber", "tell-hanger-strands.hum": "wire",
+                # Note 771: the Pickers' grating and their squeals from the packs' real things, the models candidates.
+                "tell-pickers.emerge": "grate", "cs-pickers.scatter": "squeals",
+                # Note 772: the Wakers from the packs' real things (thunder, rock, iron) first, the models candidates.
+                "tell-wakers.thud": "ground", "tell-wakers.stride": "ground", "tell-wakers.roar": "throat",
+                "cs-wakers.grab": "seized", "cs-wakers.drag": "skid", "cs-wakers.lift": "torn",
+                # Note 773: Dave's hum modelled (the real one is cut from a roar, and may read as a growl); Jacob's line and
+                # his blessing from the packs' real reel and glass.
+                "figures.dave-paint": "easel", "figures.jacob-fish": "reel", "figures.jacob-bless": "glass",
+                # Note 774: the mail bag's real sack; the comet's real glass (the model's even beat may read as a tremolo).
+                "crew-mail.catch": "sack", "world-comet.hum": "glass",
+                # Note 772: the town's guns the gun car's own shot and the cannon's own impact, put at their distance.
+                "town-guns.fire": "tower", "town-guns.hit": "meat",
+                # Note 776: the crew car's and the logbook's real things first (the glass's ring, the powder, the leather,
+                # the sheet, the clap), the models candidates.
+                "crew-car.kettle": "spout", "crew-memory.flash": "powder", "crew-memory.open": "leather",
+                "crew-memory.page": "sheet", "crew-memory.shut": "clap",
+                # Notes 781 and 784: the real things first (the packs' iron ring, glass and tin, a real crackle, the train's own
+                # rumble pitched up for small wheels); the hound's steam leading its yelp, so the spray's heard working; the
+                # handcar's modelled shoe, whose squeal keeps more of itself under the tells' band than the real scrape's grind.
+                "world-rail-knock.knock": "clank", "crew-lamp-broken.smash": "shatter", "crew-lamp-broken.burn": "crackle",
+                "cs-hounds-doused.doused": "steam", "crew-handcar.creak": "pivot", "crew-handcar.joint": "tick",
+                "crew-handcar.roll": "rumble", "crew-handcar.brake": "shoe", "crew-handcar.set": "iron",
+                "crew-handcar.hang": "chains",
+                # Notes 782 and 783: the kitbashed ones first (the packs' real boards, leather, iron, oak, glass and bell
+                # round the crew's modelled voices), the models candidates.
+                "crew-rescue.haul": "boards", "crew-rescue.lift": "coats", "crew-rescue.set": "boards", "crew-rescue.throw": "swing",
+                "loot-jackpot.lift-iron": "boards", "loot-jackpot.lift-bell": "boards", "loot-jackpot.lift-wood": "boards",
+                "loot-jackpot.set-iron": "boards", "loot-jackpot.set-wood": "oak", "loot-jackpot.bell": "bronze",
+                "loot-fragile.glass": "crate", "loot-fragile.decanter": "cut", "loot-fragile.clock": "mantel",
+                # Note 785: the packs' real slams, iron, creaks and chair first; the far bell's proper minor-third partials
+                # (the packs' real bell is a small gong-like one) and the modelled farm dog (the roar sped up may read as
+                # something not quite a dog: never a creature).
+                "state-coupling-loose.jump-brake": "slack", "state-coupling-loose.jump-coupled": "clash",
+                "state-coupling-loose.jump-bend": "groan", "tell-house.creak": "board", "tell-householder.shift": "chair",
+                "world-bell.far": "partials", "world-dog.bark": "collie",
+                # Note 786: the real things where the packs have them (the coins, the pillar box, the frame, the rail's blades, the
+                # gloves, the coat), the models where the packs' stand-ins are thin (the well's water, the pour, the can, the
+                # bell's ring, which the packs' small bell leaves dark); the too-deep throat for what answers the can.
+                "place-town.bell": "cast", "world-odd.well-splash": "plunk", "world-odd.coin": "clink",
+                "world-odd.wash": "stream", "world-odd.can-kick": "tin", "world-odd.bark": "throat",
+                "world-odd.scarecrow": "post", "world-odd.letter": "pillar", "world-odd.painting": "frame",
+                "world-odd.sooted": "dust", "world-odd.lurch": "rail", "crew-emotes.high-five": "leather",
+                "crew-emotes.fist-bump": "gloves", "crew-emotes.sit": "coat", "crew-emotes.lean": "frame"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the
@@ -408,6 +457,8 @@ LAYER_EXTRAS = {
     # The scream climbs as the bend pulls harder (note 265: the stress telegraph; GameAudio.BedWheels sets "stress", the
     # scream's share of the stress's last half): two semitones from where it starts to where the train comes off.
     "state-derail.flange-scream": {"rate": {"param": "stress", "points": [[0, 0.94], [1, 1.06]]}},
+    # The handcar's roll, built at a moderate run (about 6 m/s), up and down with its speed (GameAudio.Handcar sets "speed").
+    "crew-handcar.roll": {"rate": {"param": "speed", "points": [[1, 0.8], [6, 1.0], [12, 1.2]]}},
 }
 
 
@@ -475,6 +526,47 @@ CUE_DEF = {
     "place-tipple.derail": {"tier": 3, "minDistance": 4, "maxDistance": 250, "rolloff": 0.8},
     "place-tipple.rerail": {"minDistance": 1, "maxDistance": 40, "rolloff": 1.0},
     "place-tipple.rerailed": {"minDistance": 2, "maxDistance": 80, "rolloff": 1.0},
+    # The Wakers (note 772): hill-sized, heard from where they rise, 1.2 km behind and more (the stir placed 700 m out). A
+    # rise there about -10 dB, a footfall about -19 dB and full by 50 m; the catch at the train itself.
+    **{f"tell-wakers.{c}": {"minDistance": m, "maxDistance": 4000, "rolloff": r}
+       for c, m, r in (("thud", 200, 0.6), ("call", 200, 0.6), ("rise", 200, 0.6), ("stride", 50, 0.7), ("roar", 100, 0.6))},
+    **{f"cs-wakers.{c}": {"minDistance": 20, "maxDistance": 1500, "rolloff": 0.8}
+       for c in ("grab", "lift", "eat", "take", "swallow")},
+    "cs-wakers.drag": {"minDistance": 10, "maxDistance": 600, "rolloff": 0.8},
+    # The town's guns at the walls (note 772): on its towers, 20-200 m from a crew in the yard; the ball landing on a Waker's
+    # back 300 m out and forty up, heard across the yard.
+    "town-guns.fire": {"minDistance": 30, "maxDistance": 1500, "rolloff": 0.8},
+    "town-guns.hit": {"minDistance": 60, "maxDistance": 2000, "rolloff": 0.7},
+    # K1's crew car (note 776): the kettle and the cuckoo on the big cab's back wall, heard about the cab; the photo's flash
+    # at the gate, out in the open; the logbook's pages this machine's own, flat as the panels are.
+    "crew-car.kettle": {"minDistance": 1, "maxDistance": 12, "rolloff": 1.0},
+    "crew-car.cuckoo": {"minDistance": 1, "maxDistance": 18, "rolloff": 1.0},
+    "crew-memory.flash": {"minDistance": 3, "maxDistance": 80, "rolloff": 1.0},
+    **{f"crew-memory.{c}": {"flat": True, "tier": 4} for c in ("open", "page", "shut")},
+    # The sense table (note 781): a knock on the rails rings down them, heard along the line; a lamp's glass and oil carry
+    # across a yard, its small fire about it.
+    "world-rail-knock.knock": {"tier": 4, "minDistance": 4, "maxDistance": 200, "rolloff": 0.8},
+    "crew-lamp-broken.smash": {"minDistance": 2, "maxDistance": 80, "rolloff": 1.0},
+    "crew-lamp-broken.burn": {"minDistance": 1, "maxDistance": 30, "rolloff": 1.0},
+    # Big finds (note 783): the bell's ring carries; glass breaking across a house and its street.
+    "loot-jackpot.bell": {"minDistance": 3, "maxDistance": 120, "rolloff": 0.9},
+    **{f"loot-fragile.{c}": {"minDistance": 2, "maxDistance": 50, "rolloff": 1.0} for c in ("glass", "decanter", "clock")},
+    # The handcar (note 784): out on the open line, heard from the train up the line behind it.
+    **{f"crew-handcar.{c}": {"minDistance": 2, "maxDistance": 120, "rolloff": 0.9} for c in ("roll", "brake", "creak", "set", "hang")},
+    # Its joints under the riders' feet, each axle's: built at -21 LUFS, kept nearer the train's own clack (-27 to -29).
+    "crew-handcar.joint": {"minDistance": 2, "maxDistance": 120, "rolloff": 0.9, "gainDb": -3},
+    # Sound cues in the world (note 785): a house's boards from its door and its street; what's lost far off, a bell from
+    # where it was lost; a dog at the lamps' edge and beyond it.
+    "tell-house.creak": {"minDistance": 1, "maxDistance": 30, "rolloff": 1.0},
+    "world-bell.far": {"tier": 4, "minDistance": 60, "maxDistance": 2000, "rolloff": 0.5},
+    "world-dog.bark": {"tier": 4, "minDistance": 20, "maxDistance": 600, "rolloff": 0.7},
+    # Odd outcomes (note 786): the council bell across the town; the well, the coin, the letter, the painting and the soot
+    # where they are, close; the can down the road; what answers it 90 m out in the dark; the scarecrow barely.
+    "place-town.bell": {"tier": 4, "minDistance": 10, "maxDistance": 400, "rolloff": 0.7},
+    **{f"world-odd.{c}": {"tier": 4, "minDistance": lo, "maxDistance": hi, "rolloff": 1.0}
+       for c, lo, hi in (("well-splash", 2, 40), ("coin", 1, 25), ("wash", 1, 25), ("can-kick", 2, 80), ("scarecrow", 1, 15),
+                         ("letter", 1, 15), ("painting", 1, 20), ("sooted", 1, 30), ("lurch", 2, 40))},
+    "world-odd.bark": {"tier": 4, "minDistance": 20, "maxDistance": 600, "rolloff": 0.7},
 }
 
 

@@ -108,6 +108,32 @@ public sealed partial class Effects
     }
 
     /// <summary>
+    /// The Whistler's breath as it blows your whistle's note through its siphon (GDD v1.2 §21, App. A.4; note 759): a jet
+    /// off the siphon's lip at <paramref name="lip"/>, the way it points (<paramref name="out"/>, up at the sky), opening into
+    /// a plume the cold air holds over the roofs, as the whistle's own jet is off its cap: so the eye that turns at the
+    /// whistle finds which gap it came from.
+    /// </summary>
+    public void WhistlerBreath(MeshBuilder mesh, Vector3 lip, Vector3 @out, double t, float seed)
+    {
+        if (_steam < 0)
+            return;
+        var side = Vector3.Normalize(Vector3.Cross(@out, MathF.Abs(@out.Y) < 0.95f ? Vector3.UnitY : Vector3.UnitX));
+        var other = Vector3.Cross(@out, side);
+        for (int k = 0; k < 24; k++)
+        {
+            float h = Hash(k * 3.71f + seed), h2 = Hash(k * 1.13f + seed * 0.5f);
+            float period = 0.7f + h * 0.5f;
+            float age = (float)((t * 1.3 + h * 4) % period);
+            float u = age / period;
+            // A hard jet out along the siphon as the whistle's off its cap, slowing as it opens into a plume the cold air
+            // holds up over the roofs.
+            var p = lip + @out * (age * 8f - age * age * 3.5f) + Vector3.UnitY * (age * age * 1.2f)
+                + (side * (h - 0.5f) + other * (h2 - 0.5f)) * (age * 1.2f);
+            mesh.Billboard(p, 0.2f + u * 2.4f, h * 6.28f, new Vector4(0.86f, 0.87f, 0.9f, 0.9f * (1 - u)), _steam, FxBlend.Alpha, (int)(u * 15.99f), 4);
+        }
+    }
+
+    /// <summary>
     /// The cold the Choir bring (GDD v1.2 §21, App. A.7; §26 "not neon"): about each bell, at <paramref name="bell"/>, a
     /// faint mist sinking off it the way cold air sinks, and frost glittering down out of it, a few motes at a time, so
     /// that before you hear them sing you see your lamp catch something falling. Swooping (<paramref name="swooping"/>)

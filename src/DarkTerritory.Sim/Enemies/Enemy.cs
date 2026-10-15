@@ -37,7 +37,9 @@ public enum EnemyKind : byte
     // The Pickers (GDD §21, the director's pick to prototype, 9 Oct 2026; note 592).
     Pickers = 42,
     // The house creatures (GDD §21, the director, 9 Oct 2026; notes 583–586).
-    Lodger = 43, Householder = 44, HollowHouse = 45, Hanger = 46
+    Lodger = 43, Householder = 44, HollowHouse = 45, Hanger = 46,
+    // The Mouse Moose (GDD §21, the director, 15 Oct 2026; note 790).
+    MouseMoose = 47
 }
 
 /// <summary>
@@ -245,6 +247,7 @@ public abstract class Enemy
         EnemyKind.Householder => new Householder(id),
         EnemyKind.HollowHouse => new HollowHouse(id),
         EnemyKind.Hanger => new Hanger(id),
+        EnemyKind.MouseMoose => new MouseMoose(id),
         _ => new ChoirGhost(id),
     };
 
@@ -344,12 +347,12 @@ public abstract class Enemy
     static IEnumerable<(int Id, PlayerState State)> CrewOf(EnemyContext ctx) => ctx.Crew.Select(c => ((int)c.Player.Id, c.Player.State));
 
     /// <summary>
-    /// The held player's own struggle, counted by the world at a crew of one (the solo rule): Use held. One try a grab, and a
+    /// The held player's own struggle, counted by the world when no friend is near (the solo rule; in a crew, note 756): Use held. One try a grab, and a
     /// chance at best (App. C.1; the director, 13 Oct: "holding e shouldn't always result in escape it should at best give me
     /// a 15% chance of escape"; note 681): rolled on the night's seed, this creature and the tick it took hold, so the host
     /// rolls it the same however the night is replayed.
     /// </summary>
-    internal void Struggle(EnemyContext ctx, double amount)
+    internal void Struggle(EnemyContext ctx, double amount, double chance)
     {
         if (Phase != SpinePhase.Grab || _struggled)
             return;
@@ -358,7 +361,7 @@ public abstract class Enemy
             return;
         _struggled = true;
         var dice = new Pcg32((ctx.World.Director?.Seed ?? 0) ^ (ulong)Id * 0x9E3779B97F4A7C15UL, 0x5357_0000UL + _grabbedAt);
-        if (dice.NextDouble() < ctx.Tuning.Grab.SoloStruggleChance)
+        if (dice.NextDouble() < chance)
             Rescued(ctx, Holding);
     }
 

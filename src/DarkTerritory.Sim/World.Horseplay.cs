@@ -54,25 +54,39 @@ public sealed partial class World
     /// <summary>This night's horseplay (player.json <c>horseplay</c>, the sessions' <see cref="Movement"/>).</summary>
     public HorseplayTuning HorseplayTuning => Movement?.Horseplay ?? NoHorseplay;
 
+    /// <summary>
+    /// The lobby's CREW MISCHIEF switch (GDD §23.4; ARCHITECTURE §8 note 724): set on every machine from the night's setup
+    /// (<c>SessionSetup.Mischief</c>), and on a client again whenever the host changes it in the yard. Off, a shove, a bonk
+    /// and coal thrown at the crew land on nobody, as player.json <c>horseplay.enabled: false</c> does; crewmates stay solid.
+    /// </summary>
+    public bool CrewMischief { get; set; } = true;
+
+    /// <summary>Whether horseplay lands on the crew tonight: the content allows it (<c>horseplay.enabled</c>) and the lobby has it on.</summary>
+    public bool MischiefOn => HorseplayTuning.Enabled && CrewMischief;
+
     /// <summary>Whether <paramref name="by"/>'s mischief lands on the crew: horseplay's on, and they're not a bot.</summary>
-    bool Mischief(int by) => HorseplayTuning.Enabled && !BotIds.Contains(by) && Mates.Count > 0;
+    bool Mischief(int by) => MischiefOn && !BotIds.Contains(by) && Mates.Count > 0;
 
     /// <summary>Who last shoved <paramref name="player"/> (or bumped them on with a shove), and the train's speed then; null for nobody.</summary>
     public (int By, double Speed)? ShovedBy(int player) => _shovedBy.TryGetValue(player, out var s) ? s : null;
 
-    // The marked (note 717): each shover whose shove killed, whom it killed and how fast the train was going under them.
+    // The marked (note 717): each shover whose shove killed, whom it killed and how fast the train was going under them. The
+    // night's history: the report's lines read it, whether or not the mark still bites.
     readonly SortedDictionary<int, (int Victim, double Speed)> _marks = new();
+    // Whose mark still bites (note 754): a marked shover's death ends theirs (horseplay.marked.endsAtDeath).
+    readonly SortedSet<int> _marked = new();
     // The crew lying dead of a shove, already counted (a victim back through a Holdout and shoved to death again counts again).
     readonly HashSet<int> _shovedDead = new();
 
     /// <summary>
     /// Note 717 (the director, 14 Oct 2026: "if a player ever shoves another player and that results in their death all the
     /// monsters in the game should target more heavily the murderer player so they are heavily likely to die (even if they
-    /// rescue the player from a holdout)"): marked for the rest of the night, whatever comes after.
+    /// rescue the player from a holdout)"): marked for the rest of the night, whatever comes after, until the shover dies (note
+    /// 754, the director, 14 Oct 2026: "Shovers mark should reset to normal targeting after they are killed").
     /// </summary>
-    public bool IsMarked(int player) => _marks.ContainsKey(player);
+    public bool IsMarked(int player) => _marked.Contains(player);
 
-    /// <summary>Tonight's marked: each shover, whom their shove killed, and the train's speed then (m/s).</summary>
+    /// <summary>Tonight's marked, the mark ended or not (the report's history): each shover, whom their shove killed, and the train's speed then (m/s).</summary>
     public IEnumerable<(int Shover, int Victim, double Speed)> Marks => _marks.Select(m => (m.Key, m.Value.Victim, m.Value.Speed));
 
     /// <summary>How heavily the creatures and the director weigh <paramref name="player"/> as a target: horseplay.marked.targetWeight marked, else 1.</summary>
@@ -86,14 +100,19 @@ public sealed partial class World
         IsMarked(player) ? distance / TargetBias(player) - HorseplayTuning.Marked.AllowanceM : distance;
 
     /// <summary>Whether a marked crewmate is alive and on foot, off the train (the director builds faster while one is).</summary>
-    public bool MarkedAfoot => _marks.Count > 0 && CrewThisTick.Any(c => c.State.Alive && c.State.Parent == PlayerState.World && IsMarked(c.Id));
+    public bool MarkedAfoot => _marked.Count > 0 && CrewThisTick.Any(c => c.State.Alive && c.State.Parent == PlayerState.World && IsMarked(c.Id));
 
     /// <summary>
     /// Note 717, host, once everyone has moved: a crewmate newly dead of a shove (<see cref="DeathCause.Shoved"/>) marks whoever
-    /// shoved them for the night, the news says so, and the report will.
+    /// shoved them for the night, the news says so, and the report will. A marked shover dead (of anything) is unmarked (note
+    /// 754): back through a Holdout they're weighed like anyone; the news and the report keep the line.
     /// </summary>
     void MarkShovers(IReadOnlyCollection<(int Id, PlayerState State)> crew)
     {
+        if (HorseplayTuning.Marked.EndsAtDeath)
+            foreach (var (id, s) in crew)
+                if (!s.Alive)
+                    _marked.Remove(id);
         foreach (var (id, s) in crew.OrderBy(c => c.Id))
         {
             if (s.Alive)
@@ -106,6 +125,7 @@ public sealed partial class World
             if (ShovedBy(id) is not { } by || by.By < 0 || by.By == id)
                 continue;
             _marks[by.By] = (id, by.Speed);
+            _marked.Add(by.By);
             var e = new Sim.Run.NewsEvent(_nextFx, Tick, Sim.Run.NewsKind.Marked, [id], 0, 0, by.By, by.Speed);
             _nextFx = _nextFx % 0xFFFFFF + 1;
             NewsLog.Add(e);
@@ -174,6 +194,7 @@ public sealed partial class World
         var away = Horseplay.Away(from, at, PlayerMotor.WorldYaw(s, Train));
         _knocks.Add(new Knock(target.Id, playerId, KnockKind.Shove, away));
         _shovedBy[target.Id] = (playerId, SpeedUnder(target.State));
+        _thrown.Remove(target.Id);
         // Into whoever's just beyond them (a chain bump, one deep): off their feet more gently, the shove's all the same.
         foreach (var (id, o) in Mates)
         {
@@ -184,6 +205,7 @@ public sealed partial class World
                 continue;
             _knocks.Add(new Knock(id, playerId, KnockKind.Bump, Horseplay.Away(at, at + beyond, 0)));
             _shovedBy[id] = (playerId, SpeedUnder(o));
+            _thrown.Remove(id);
         }
         Horseplays.Add(new HorseplayEvent(_nextFx, Tick, playerId, KnockKind.Shove, target.Id));
         _nextFx = _nextFx % 0xFFFFFF + 1;
@@ -320,8 +342,12 @@ public sealed partial class World
                 if (solid.Present(vehicle) && solid.BoxIn(vehicle).Contains(local))
                     return true;
         }
-        // The ground.
-        return lump.At.Y <= PlayerMotor.GroundAt(lump.At, Train.Line, ref lump.Hint);
+        // The ground; on the rails, a knock what hunts by vibration hears (note 728).
+        if (lump.At.Y > PlayerMotor.GroundAt(lump.At, Train.Line, ref lump.Hint))
+            return false;
+        if (OnRail(lump.At, lump.Hint))
+            KnockRail(lump.At, lump.By);
+        return true;
     }
 
     /// <summary>A client's copy of the host's horseplay (note 717): the knocks seen lately, and the lumps in flight.</summary>
