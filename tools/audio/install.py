@@ -310,7 +310,15 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 # something not quite a dog: never a creature).
                 "state-coupling-loose.jump-brake": "slack", "state-coupling-loose.jump-coupled": "clash",
                 "state-coupling-loose.jump-bend": "groan", "tell-house.creak": "board", "tell-householder.shift": "chair",
-                "world-bell.far": "partials", "world-dog.bark": "collie"}
+                "world-bell.far": "partials", "world-dog.bark": "collie",
+                # Note 786: the real things where the packs have them (the coins, the pillar box, the frame, the rail's blades, the
+                # gloves, the coat), the models where the packs' stand-ins are thin (the well's water, the pour, the can, the
+                # bell's ring, which the packs' small bell leaves dark); the too-deep throat for what answers the can.
+                "place-town.bell": "cast", "world-odd.well-splash": "plunk", "world-odd.coin": "clink",
+                "world-odd.wash": "stream", "world-odd.can-kick": "tin", "world-odd.bark": "throat",
+                "world-odd.scarecrow": "post", "world-odd.letter": "pillar", "world-odd.painting": "frame",
+                "world-odd.sooted": "dust", "world-odd.lurch": "rail", "crew-emotes.high-five": "leather",
+                "crew-emotes.fist-bump": "gloves", "crew-emotes.sit": "coat", "crew-emotes.lean": "frame"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the
@@ -552,6 +560,13 @@ CUE_DEF = {
     "tell-house.creak": {"minDistance": 1, "maxDistance": 30, "rolloff": 1.0},
     "world-bell.far": {"tier": 4, "minDistance": 60, "maxDistance": 2000, "rolloff": 0.5},
     "world-dog.bark": {"tier": 4, "minDistance": 20, "maxDistance": 600, "rolloff": 0.7},
+    # Odd outcomes (note 786): the council bell across the town; the well, the coin, the letter, the painting and the soot
+    # where they are, close; the can down the road; what answers it 90 m out in the dark; the scarecrow barely.
+    "place-town.bell": {"tier": 4, "minDistance": 10, "maxDistance": 400, "rolloff": 0.7},
+    **{f"world-odd.{c}": {"tier": 4, "minDistance": lo, "maxDistance": hi, "rolloff": 1.0}
+       for c, lo, hi in (("well-splash", 2, 40), ("coin", 1, 25), ("wash", 1, 25), ("can-kick", 2, 80), ("scarecrow", 1, 15),
+                         ("letter", 1, 15), ("painting", 1, 20), ("sooted", 1, 30), ("lurch", 2, 40))},
+    "world-odd.bark": {"tier": 4, "minDistance": 20, "maxDistance": 600, "rolloff": 0.7},
 }
 
 

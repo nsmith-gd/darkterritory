@@ -2854,7 +2854,78 @@
    }
   ],
   "takes": 2,
-  "sha": "fe10481d1ed67185"
+  "sha": "24e58c9d02fe1cda"
+ },
+ "crew-emotes/fist-bump": {
+  "cue": "crew-emotes.fist-bump",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Two gloved fists bumping: a dull, soft knuckle knock, leather on leather",
+    "key": "gloves",
+    "sources": [
+     "kenney_rpg-audio:bookClose",
+     "kenney_rpg-audio:bookPlace1",
+     "kenney_rpg-audio:dropLeather",
+     "kenney_rpg-audio:handleSmallLeather2",
+     "kenney_impact-sounds:impactSoft_medium_002",
+     "kenney_rpg-audio:handleSmallLeather"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "396d3eebb54440bc"
+ },
+ "crew-emotes/high-five": {
+  "cue": "crew-emotes.high-five",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Two gloved hands meeting in a high five: a solid leather slap and a little whoop of breath",
+    "key": "leather",
+    "sources": [
+     "kenney_rpg-audio:bookPlace2",
+     "kenney_rpg-audio:bookPlace1",
+     "kenney_rpg-audio:knifeSlice2",
+     "sfx_100_v2:switch_01",
+     "sfx_100_v2:switch_02",
+     "kenney_rpg-audio:handleSmallLeather",
+     "sfx_100_v2:misc_05"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "fafd82995574d5a8"
+ },
+ "crew-emotes/lean": {
+  "cue": "crew-emotes.lean",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Leaning out of a doorway: a gloved hand taking the frame or the grab iron, the frame's small creak, the coat brushing it",
+    "key": "frame",
+    "sources": [
+     "kenney_rpg-audio:handleSmallLeather",
+     "kenney_rpg-audio:handleSmallLeather2",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "0283b37da52b3b55"
  },
  "crew-emotes/outfit": {
   "cue": "crew-emotes.outfit",
@@ -2898,6 +2969,44 @@
   ],
   "takes": 3,
   "sha": "3b441fe6674b9646"
+ },
+ "crew-emotes/sit": {
+  "cue": "crew-emotes.sit",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Sitting down on an edge, legs over: the coat settling on tin or wood, a boot knocking the car's side, a breath let out",
+    "key": "coat",
+    "sources": [
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4",
+     "kenney_impact-sounds:impactSoft_heavy_000",
+     "kenney_impact-sounds:impactSoft_heavy_001",
+     "kenney_impact-sounds:impactSoft_heavy_002",
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactPlate_light_000",
+     "kenney_impact-sounds:impactPlate_light_004",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_rpg-audio:footstep00",
+     "kenney_rpg-audio:footstep01",
+     "kenney_rpg-audio:footstep02",
+     "kenney_rpg-audio:footstep03",
+     "kenney_rpg-audio:footstep04",
+     "kenney_rpg-audio:footstep05",
+     "kenney_rpg-audio:footstep06",
+     "kenney_rpg-audio:footstep07",
+     "kenney_rpg-audio:footstep08",
+     "kenney_rpg-audio:footstep09",
+     "sfx_100_v2:misc_25"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "61928f80059e5bf5"
  },
  "crew-emotes/wave": {
   "cue": "crew-emotes.wave",
@@ -14551,6 +14660,21 @@
   "takes": 2,
   "sha": "128048c4b275af8b"
  },
+ "place-town/bell": {
+  "cue": "place-town.bell",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The council house's cracked bell, modelled: two to four sour, buzzing strokes across the square, the yoke creaking",
+    "key": "cast",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "bb71b71e03cdaab8"
+ },
  "place-town/clock": {
   "cue": "place-town.clock",
   "surface": null,
@@ -18980,6 +19104,224 @@
   ],
   "takes": 1,
   "sha": "d848b33e20088988"
+ },
+ "world-odd/bark": {
+  "cue": "world-odd.bark",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Something answers from the dark, modelled: a man's throat barking like a dog, too deep, too slow, a cough in it",
+    "key": "throat",
+    "sources": [
+     "sfx_100_v2:misc_25"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "67fcaaa2113551b1"
+ },
+ "world-odd/can-kick": {
+  "cue": "world-odd.can-kick",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A tin can kicked along a village road, modelled: a tinny clank, bouncing, rattling over the stones, rolling still",
+    "key": "tin",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "e30806c38a5559f8"
+ },
+ "world-odd/coin": {
+  "cue": "world-odd.coin",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The well gives back, from real coins: a coin striking the stones, a bounce, rattling down on its rim, flat",
+    "key": "clink",
+    "sources": [
+     "sfx_100_v2:items_01",
+     "sfx_100_v2:items_02",
+     "kenney_rpg-audio:handleCoins",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "5162b0391540cce4"
+ },
+ "world-odd/letter": {
+  "cue": "world-odd.letter",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A letter taken from a pillar box and opened: the iron door unlocked and swung open, the envelope torn, the letter unfolded",
+    "key": "pillar",
+    "sources": [
+     "sfx_100_v2:door_05",
+     "sfx_100_v2:door_04",
+     "kenney_rpg-audio:creak3",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactPlate_medium_002",
+     "kenney_impact-sounds:impactPlate_medium_003",
+     "kenney_rpg-audio:bookFlip1",
+     "kenney_rpg-audio:bookFlip2",
+     "kenney_rpg-audio:clothBelt2"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "1566d3ab2667faf3"
+ },
+ "world-odd/lurch": {
+  "cue": "world-odd.lurch",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A switch thrown under a crewmate on its blades: the iron blades slam over, a startled grunt, boots scrabbling on the ballast",
+    "key": "rail",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactPlate_medium_001",
+     "kenney_impact-sounds:impactPlate_medium_002",
+     "kenney_impact-sounds:impactPlate_medium_003",
+     "sfx_100_v2:metal_hit_01",
+     "sfx_100_v2:misc_05",
+     "kenney_rpg-audio:footstep00",
+     "kenney_rpg-audio:footstep01",
+     "kenney_rpg-audio:footstep02",
+     "kenney_rpg-audio:footstep03",
+     "kenney_rpg-audio:footstep04",
+     "kenney_rpg-audio:footstep05",
+     "kenney_rpg-audio:footstep06",
+     "kenney_rpg-audio:footstep07",
+     "kenney_rpg-audio:footstep08",
+     "kenney_rpg-audio:footstep09",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "8aa1e64535058f8a"
+ },
+ "world-odd/painting": {
+  "cue": "world-odd.painting",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Dave's small painting set down on the grass at your feet: the frame's soft knock, then his brush tapped clean on the easel",
+    "key": "frame",
+    "sources": [
+     "kenney_impact-sounds:footstep_grass_001",
+     "kenney_impact-sounds:footstep_grass_002",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_rpg-audio:bookPlace1",
+     "kenney_ui-audio:switch21",
+     "kenney_ui-audio:switch20"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "5da9d20fffcc5720"
+ },
+ "world-odd/scarecrow": {
+  "cue": "world-odd.scarecrow",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A scarecrow's post turning to face the line: a slow dry creak of old wood in the ground, its straw and sacking rustling",
+    "key": "post",
+    "sources": [
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:clothBelt",
+     "kenney_rpg-audio:clothBelt2",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "0055886b10d7c6b3"
+ },
+ "world-odd/sooted": {
+  "cue": "world-odd.sooted",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Out from under the coaling chute black with soot: grit pattering off, two or three dust-choked coughs and a spit",
+    "key": "dust",
+    "sources": [
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:misc_05"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "39a294f5ae247c2f"
+ },
+ "world-odd/wash": {
+  "cue": "world-odd.wash",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Washing the soot off at the well, modelled: the windlass creaking, the bucket on the rim, a stream over hands",
+    "key": "stream",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "7a7c4baab7f9914a"
+ },
+ "world-odd/well-splash": {
+  "cue": "world-odd.well-splash",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Something dropped down a stone well, modelled: a small plop far down, rung hollow up the shaft, a drip after",
+    "key": "plunk",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "412da49c60bda260"
  },
  "world-rail-knock/knock": {
   "cue": "world-rail-knock.knock",

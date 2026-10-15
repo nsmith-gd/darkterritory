@@ -761,12 +761,13 @@ public sealed partial class GameAudio
         foreach (var e in world.Emotes)
         {
             // Note 722: a high five's slap, or a fist bump's knock, the moment the hands meet: once a pair (on the record of the
-            // lower id of the two), at the hands, about head height between them. Until AU1's own takes ("crew-emotes.high-five",
-            // "crew-emotes.fist-bump") come, the bare-handed slap and the body's knock.
+            // lower id of the two), at the hands, about head height between them. Their own (queue #519, note 786), else the
+            // bare-handed slap and the body's knock stand in.
             if (e.Met && e.By < e.With && _heardMeets.Add(e.Id) && primed && Crewmate(e.By) is { } a && At(world.Train, a) is { } here)
             {
                 var there = Crewmate(e.With) is { } b && At(world.Train, b) is { } p ? p : here;
-                Cue(e.Kind == Emote.HighFive ? "crew-mishaps.bare-slap" : "crew-mishaps.body-knock", (here + there) * 0.5 + Double3.Up * (e.Kind == Emote.HighFive ? 1.8 : 1.2),
+                Cue(e.Kind == Emote.HighFive ? OwnOr("crew-emotes.high-five", "crew-mishaps.bare-slap") : OwnOr("crew-emotes.fist-bump", "crew-mishaps.body-knock"),
+                    (here + there) * 0.5 + Double3.Up * (e.Kind == Emote.HighFive ? 1.8 : 1.2),
                     OccludedAt(world.Train, a.Parent, a.Position));
             }
             if (!_heardEmotes.Add(e.Id) || !primed)
@@ -776,6 +777,9 @@ public sealed partial class GameAudio
                 Emote.Dance => "crew-emotes.dance",
                 Emote.Wave or Emote.Aboard => "crew-emotes.wave",
                 Emote.Point => "crew-emotes.point",
+                // Sat down on an edge, or leant out of a doorway (note 722; queue #519, note 786): the coat settling, a hand on the frame.
+                Emote.SitEdge => "crew-emotes.sit",
+                Emote.LeanOut => "crew-emotes.lean",
                 _ => null,
             };
             if (cue is not null && Crewmate(e.By) is { } s && At(world.Train, s) is { } at)

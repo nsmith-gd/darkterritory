@@ -960,5 +960,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [783. Big finds heard (AU1, queue #513; K1's #1026, note 719's "left for later")](notes/783.md)
 - [784. The handcar heard (AU1, queue #514; K1's #1026, note 729's "left for later": "the sim's state says when")](notes/784.md)
 - [785. Sound cues in the world heard (AU1, queue #518; K1's #1034, note 732's "left for later": "The sounds, for AU1"; note 731)](notes/785.md)
+- [786. K1's #1038 heard: the odd outcomes and emotes for two (AU1, queue #519; notes 730 and 722's "for AU1")](notes/786.md)
 - [792. The railway's leavings beside the line solid: dealt by the sim, stood on their footprints, drawn from its list (queue #517, B1; GDD App.…](notes/792.md)
 <!-- end of the notes index -->
