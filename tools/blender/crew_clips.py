@@ -64,6 +64,11 @@ What each is for (CrewActs, from the sim's state; GDD/spec where the act is):
   dance_off, dance_off_cheer
                       a dance-off's lead, a move a turn (the windmill, the sprinkler, the knees), each ended pointing at
                       whoever's next; the rest clapping it, a "whoa!", hands rubbed ready for their go (note 807)
+  fireman, fireman_walk, carried, carried_walk
+                      a living friend over the left shoulder (note 723): the carrier's arms round the friend's legs, and the
+                      friend draped on their belly, head and arms down the carrier's back, looking about, keyed on the carrier's
+                      own keys so the two stay as one
+  hand_up             in a moving car's door, leant out and down, reaching for a friend running beside it (note 723)
   shove               a crewmate shoved (note 717): off the back foot into a lunge, both palms thrown out at the chest, held
   sit_edge            sat on a roof's or a landing's edge, the legs hanging over and swinging, a lean back on the hands
   lean_out, lean_out_left
@@ -1951,8 +1956,104 @@ shove.key(8, shoving(1.0, 0.4, lift=-0.01))
 shove.key(14, shoving(0.25, 0.08, lift=-0.12))
 clips.append(shove)
 
+# --- bringing them home: a friend over the shoulder, and the hand-up (note 723; queue #540, note 812) ------------------------
+# The fireman's carry for a living friend: the carrier's `fireman`/`fireman_walk` (the body carry's lean and steps, the left arm
+# round the backs of the friend's thighs and the right hand on their knees, both arms on them), and the friend's own `carried`/
+# `carried_walk`, posed in the carrier's space on each of the carrier's keys: over the left shoulder on their belly, the head
+# and arms down the carrier's back, the legs down the front, alive: the head up looking about, the arms swinging with the
+# steps. CrewActs draws the friend at the carrier's feet, facing as they face, on the carrier's clock, so the two stay as one.
+PELVIS_REST = sk["pelvis"].head.copy()
+_hang = math.radians(65)                     # the friend's back down behind the carrier from the shoulder, from level
+DRAPE_TURN = rig.Matrix(((-1, 0, 0), (0, math.sin(_hang), -math.cos(_hang)), (0, -math.cos(_hang), -math.sin(_hang))))
+FIREMAN_L, FIREMAN_R = (-0.1, 0.36, 1.24), (-0.02, 0.32, 1.06)
+fireman_plant = rig.feet_planter(sk, clips={"fireman"})
+
+
+def fireman_hands(body):
+    p = arm_to(body, "l", FIREMAN_L, grip=85, elbow=(0.42, 0.0, 1.2))
+    return arm_to(p, "r", FIREMAN_R, grip=80, elbow=(0.4, 0.05, 1.0))
+
+
+fireman = Clip("fireman")
+fireman.key(0, fireman_hands(SHOULDER_BODY))
+fireman.key(30, fireman_hands(over(SHOULDER_BODY, spine_02=(-9, 0, 6), head=(2, 0, -4))))
+fireman.close(60)
+clips.append(fireman)
+
+
+def fireman_upper(f, side):
+    # Both arms on the friend: the body rocks onto each step under the load, nothing swings.
+    return fireman_hands(over(SHOULDER_BODY, spine_02=(-8, 0, 5 + (2 if side == "r" else -2))))
+
+
+fireman_walk = walking("fireman_walk", fireman_upper, cycle=36, short=0.75)
+clips.append(fireman_walk)
+
+
+def draped(cp, dz, look, swing, kick):
+    """The friend over the shoulder of the carrier posed `cp` (its root lifted `dz` by the planter), in the carrier's space:
+    `look` where they're looking (armature space), `swing` (-1..1) their hanging arms' swing, `kick` (-1..1) their legs'."""
+    S = rig.world_rotation(sk, cp, "spine_03").to_matrix()
+    shoulder = rig.pose_points(sk, cp, [("upperarm_l", "head")])[0] + Vector((0, 0, dz))
+    saddle = shoulder + S @ Vector((0.07, -0.02, 0.07))
+    R = S @ DRAPE_TURN
+    # The lower belly on the saddle: the pelvis a little in front of it (toward the legs) and under the friend's front.
+    hips = saddle - R @ Vector((0, 0.14, 0.06))
+    p = {"pelvis": R.to_quaternion(), "pelvis@loc": tuple(hips - PELVIS_REST),
+         "spine_01": (-10, 0, 0), "spine_02": (-10, 0, 0), "spine_03": (-6, 0, 0)}
+    # Legs down the carrier's front, the knees at the chest, in the carrier's arms; a kick of the feet.
+    for side, x in (("r", -0.25), ("l", -0.09)):
+        knee = Vector((x, 0.3, 1.3 + dz))
+        ankle = (x + 0.02, 0.36 + 0.05 * kick * (1 if side == "r" else -1), 0.86 + dz)
+        p = rig.reach(sk, p, f"thigh_{side}", f"calf_{side}", ankle, elbow_axis=0, bend=-1, pole=knee + Vector((0, 0.4, 0)))
+        p[f"foot_{side}"] = (20, 0, 0)
+    # Arms hanging down the carrier's back, swung by the steps, off the carrier's coat.
+    ar, al = rig.pose_points(sk, p, [("upperarm_r", "head"), ("upperarm_l", "head")])
+    for side, sh, k in (("r", ar, 1), ("l", al, -1)):
+        wrist = (sh.x - 0.04 * k, sh.y - 0.16 + 0.1 * swing * k, sh.z - 0.52)
+        p = rig.reach(sk, p, f"upperarm_{side}", f"lowerarm_{side}", wrist, elbow_axis=2, bend=1 if side == "r" else -1,
+                      avoid=clear_of_body(p, wrist), pole=Vector((sh.x, sh.y - 0.5, sh.z - 0.2)))
+        p[f"fingers_{side}"], p[f"thumb_{side}"] = (0, 20 * (1 if side == "r" else -1), 0), (0, 10 * (1 if side == "r" else -1), 0)
+    return look_at(p, look, share=0.5)
+
+
+def carried_of(name, carrier, plant, looks):
+    """The friend's clip on each of `carrier`'s keys, looking at `looks(frame)`, arms and legs swinging with the carrier's steps."""
+    c = Clip(name)
+    n = carrier.length
+    for f, cp, interp in carrier.keys:
+        dz = plant(carrier.name, f, cp) if plant else 0.0
+        ph = 2 * math.pi * f / n
+        c.key(f, draped(cp, dz, looks(f), math.sin(ph * (2 if n < 50 else 1)), math.sin(ph * (2 if n < 50 else 1) + 1.2)), interp)
+    return c
+
+
+# Stood (2 s): looking off to the right behind the carrier, then the head up looking back along the way they came.
+clips.append(carried_of("carried", fireman, fireman_plant, lambda f: (-1.6, -1.2, 0.9) if f in (0, 60) else (0.6, -2.0, 1.9)))
+# Walking (1.2 s a cycle, two steps): looking back the way they've come, swinging.
+clips.append(carried_of("carried_walk", fireman_walk, None, lambda f: (-0.6, -2.4, 1.2)))
+
+# Hand-up (1.6 s, loop): in a moving car's door (or on its steps, its platform), leant out and down at a friend running
+# beside it: the left hand braced on the bent knee, the right arm reached down and out, the fingers open and closing,
+# reaching further with each grab, the head down to them. (Whether it's held is the host's alone: note 812.)
+HANDUP_BODY = over(STAND, pelvis__loc=(0.03, 0.04, -0.14), pelvis=(-16, 0, -8), spine_01=(-16, 0, -4), spine_02=(-14, 4, 0),
+                   spine_03=(-10, 4, 0), thigh_r=(6, 0, 0), calf_r=(-18, 0, 0), foot_r=(6, 0, -6), thigh_l=(42, 0, 0), calf_l=(-62, 0, 0),
+                   foot_l=(16, 0, 6))
+RUNNER = (0.4, 1.6, 0.2)                     # where the runner is, out and down past the sill
+hand_up = Clip("hand_up")
+for f, grab in ((0, 0.0), (10, 1.0), (16, 0.6), (28, 0.0), (38, 1.0), (44, 0.6)):
+    body = over(HANDUP_BODY, spine_01=(-16 - 4 * grab, 0, -4), spine_02=(-14 - 3 * grab, 4, 0))
+    p = arm_to(body, "r", (0.22 + 0.02 * grab, 0.86 + 0.07 * grab, 0.74 - 0.06 * grab), fist=False, elbow=(0.5, 0.3, 1.0))
+    p = palm(p, "r", 0, 30, 90 + 40 * grab)
+    p = open_hand(p, "r", 10 + 60 * grab)
+    kn = rig.pose_points(sk, p, [("calf_l", "head")])[0]
+    p = arm_to(p, "l", (kn.x - 0.02, kn.y + 0.02, kn.z + 0.12), grip=60, elbow=(0.45, -0.2, 1.0))
+    hand_up.key(f, look_at(p, RUNNER), "LINEAR" if grab == 1.0 else "BEZIER")
+hand_up.close(48)
+clips.append(hand_up)
+
 kit.build()
-rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"wave", "point", "dance", "paint", "drink", "grill", "eat", "bow", "salute", "conga", "shove", "high_five", "high_five_met", "fist_bump", "fist_bump_met", "dance_off",
+rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"wave", "point", "dance", "paint", "drink", "grill", "eat", "bow", "salute", "conga", "shove", "fireman", "hand_up", "high_five", "high_five_met", "fist_bump", "fist_bump_met", "dance_off",
                                                         "dance_off_cheer", "lean_out", "lean_out_left", "carry", "carry_walk", "drag", "drag_fwd", "shovel", "door", "handbrake", "hatch",
                                                         "uncouple", "vent", "lever", "push", "swing", "mend",
                                                         "gap", "extinguish", "spray", "lantern", "lantern_walk", "haul",

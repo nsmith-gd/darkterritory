@@ -50,9 +50,13 @@ public static class CrewActs
             Paint: world.PaintOf(id));
         if (emote != Emote.None)
             drawn = WithEmote(drawn, id, s, world, frames, crew);
-        // Over a friend's shoulder (note 723): laid across it, the way the one carrying them faces.
+        // Over a friend's shoulder (note 723): draped over it, where the one carrying them is and on their clock (note 812).
         if (s.Alive && s.Has(PlayerFlags.Carried) && others is not null && CarrierOf(s, others) is { } carrier)
-            drawn = OnTheShoulder(drawn, Eyes.World(carrier, frames).Yaw);
+        {
+            int carrierLooks = crew?.FirstOrDefault(m => m.State.Equals(carrier)) is { State.Alive: true } found ? world.OutfitOf(found.Id) : drawn.Variant;
+            var (carrierFeet, carrierYaw) = Eyes.World(carrier, frames);
+            drawn = OnTheShoulder(drawn, carrierFeet, carrierYaw, carrierLooks);
+        }
         // On a crane's hook (note 726): stood on it, holding on to its cable.
         if (s.Alive && s.Has(PlayerFlags.Hoisted) && world.Run?.CurrentSite?.CraneNear(feet) is { } crane)
             drawn = OnTheHook(drawn, crane.HookAt);
@@ -93,23 +97,18 @@ public static class CrewActs
     }
 
     /// <summary>
-    /// A friend carried over the shoulder (note 723), as they're drawn: on their back across it (the pinned clip, its body lying
-    /// along its yaw), square to the way the carrier faces, their middle on the shoulder where the sim has them.
+    /// A friend carried over the shoulder (note 723), as they're drawn (note 812): crew_clips' carried, posed in the carrier's
+    /// own space on the carrier's keys, so drawn from the carrier's feet, facing their way, on their clock (the carrier's beat,
+    /// <paramref name="carrierLooks"/>', less this one's own: <see cref="CreatureArt.BeatOffset"/>), the two as one.
     /// </summary>
-    public static Crewmate OnTheShoulder(Crewmate c, double carrierYaw) =>
+    public static Crewmate OnTheShoulder(Crewmate c, Double3 carrierFeet, double carrierYaw, int carrierLooks) =>
         c with
         {
-            Act = CrewPose.HeldPinned,
-            Yaw = carrierYaw + ShoulderTurn,
-            Feet = c.Feet + new Double3(DMath.Sin(carrierYaw), 0, DMath.Cos(carrierYaw)) * ShoulderBack + Double3.Up * ShoulderLift,
+            Act = CrewPose.Carried,
+            Yaw = carrierYaw,
+            Feet = carrierFeet,
+            Phase = CreatureArt.BeatOffset(carrierLooks) - CreatureArt.BeatOffset(c.Variant),
         };
-
-    /// <summary>
-    /// How the carried are turned from the carrier's facing (radians: across the shoulders); how much further behind the
-    /// carrier's neck they're drawn (m); and how much higher than the sim's shoulder point (m: the pinned clip lies about its
-    /// root, a little over it, and the sim's point is about the carrier's chest).
-    /// </summary>
-    const double ShoulderTurn = Math.PI / 2, ShoulderBack = 0.1, ShoulderLift = 0.55;
 
     /// <summary>How long a shove's arms are out (s): the shover drawn shoving (note 717; crew_clips' shove, note 808), from the host's knock.</summary>
     public const double ShoveSeconds = 0.45;
@@ -510,9 +509,9 @@ public static class CrewActs
             return CrewPose.Stagger;
         if (Shoving(id, world))
             return CrewPose.Shove;
-        // Carrying a friend over the shoulder (note 723), as a body is carried (App. C.4).
+        // Carrying a friend over the shoulder (note 723), both arms round their legs (note 812).
         if (s.Has(PlayerFlags.Carrying))
-            return CrewPose.Shoulder;
+            return CrewPose.Fireman;
         // At a Holdout's door while it's breached (App. D.7): smashing its lock, prying its barricade, or picking the lock
         // with the repair kit. (Who's breaching isn't sent; whoever stands at the door is at it.)
         if (Breaching(s, world) is { } breach)
@@ -582,7 +581,7 @@ public static class CrewActs
         // In a moving car's door, looking at a friend running beside it in a hand-up's reach (note 723): hauling them up.
         if (others is not null && world.Movement is { } movement
             && Sim.Player.Rescue.HandUpTarget(s, -1, others.Select((o, i) => (i, o)), train, movement.Rescue) is not null)
-            return CrewPose.HaulUp;
+            return CrewPose.HandUp;
         var near = CrewActions.Nearest(s, train);
         // Something timed under way (CrewActions: the progress resets the moment it stops).
         if (s.ActionProgress > 0)

@@ -976,4 +976,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [805. A running jump heard as a jump off the train (AU1, queue #533; AU1's audio audit)](notes/805.md)
 - [807. The emotes for two, their own clips: a high five and a fist bump that meet, a dance-off taken in turns, sat on the edge legs over, hung out…](notes/807.md)
 - [811. The shove, its own clip: off the back foot into a lunge, both palms thrown out (C1, queue #539; note 717's "Clips: a shove of its own (the…](notes/811.md)
+- [812. Bringing them home, its own clips: a friend over the shoulder in a fireman's carry, carrier and carried as one, and a reach down from a…](notes/812.md)
 <!-- end of the notes index -->

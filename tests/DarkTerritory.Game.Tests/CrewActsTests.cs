@@ -44,6 +44,51 @@ public class CrewActsTests
         }
     }
 
+    /// <summary>
+    /// Note 812: a friend over the shoulder is drawn as one with whoever carries them: in crew_clips' carried, posed in the
+    /// carrier's own space, so at the carrier's feet, facing their way, on their clock (their beat less this one's).
+    /// </summary>
+    [Fact]
+    public void AFriendOverTheShoulderIsDrawnAtTheCarriersFeetOnTheirClock()
+    {
+        var w = World();
+        var carrier = PlayerMotor.SpawnOnRoof(w.Train, 2, 0, P) with { Yaw = 0.4, Flags = PlayerFlags.Carrying | PlayerFlags.Heavy };
+        var carried = carrier with { Position = Sim.Player.Rescue.Shoulder(carrier, P.Rescue), Flags = PlayerFlags.Carried, Yaw = 2.0 };
+        List<(int, PlayerState)> crew = [(3, carrier), (6, carried)];
+        Assert.Equal(CrewPose.Fireman, CrewActs.Of(carrier, 3, w));
+        var drawn = CrewActs.Crewmate(6, carried, w, w.Train.Frames, [carrier, carried], crew);
+        var (feet, yaw) = Eyes.World(carrier, w.Train.Frames);
+        Assert.Equal(CrewPose.Carried, drawn.Act);
+        Assert.True((drawn.Feet - feet).Length < 1e-9, $"{drawn.Feet} vs {feet}");
+        Assert.Equal(yaw, drawn.Yaw, 9);
+        Assert.Equal(CreatureArt.BeatOffset(w.OutfitOf(3)) - CreatureArt.BeatOffset(drawn.Variant), drawn.Phase, 9);
+    }
+
+    /// <summary>
+    /// Note 812: drawn together, stood and walking, the friend's hips stay on the carrier's left shoulder all through the clip
+    /// (its joint within a hand's breadth or so), their feet hang well clear of the floor, and their head hangs down behind.
+    /// </summary>
+    [Fact]
+    public void TheCarriedStayOnTheCarriersShoulderThroughTheirSteps()
+    {
+        var art = new CreatureArt(Look.Load(Content), Content);
+        var mesh = new Ballast.Render.MeshBuilder();
+        var model = System.Numerics.Matrix4x4.Identity;
+        foreach (var (carrying, carried) in new[] { (CrewPose.Fireman, CrewPose.Carried), (CrewPose.FiremanWalk, CrewPose.CarriedWalk) })
+            for (double t = 0; t < 2.4; t += 0.15)
+            {
+                Assert.True(art.Crewmate(mesh, model, carrying, t, 3));
+                var shoulder = art.Joint("upperarm_l", model);
+                var back = art.Joint("spine_03", model);
+                Assert.True(art.Crewmate(mesh, model, carried, t + CreatureArt.BeatOffset(3) - CreatureArt.BeatOffset(5), 5));
+                var hips = art.Joint("pelvis", model);
+                Assert.True(System.Numerics.Vector3.Distance(hips, shoulder) < 0.3f, $"{carried} {t:0.00}: hips {System.Numerics.Vector3.Distance(hips, shoulder):0.00} m off the shoulder");
+                Assert.True(art.Joint("foot_l", model).Y > 0.3f && art.Joint("foot_r", model).Y > 0.3f, $"{carried} {t:0.00}: feet down");
+                var head = art.Joint("head", model);
+                Assert.True(head.Y < shoulder.Y && head.Z > back.Z, $"{carried} {t:0.00}: head at {head}, not down behind");
+            }
+    }
+
     [Fact]
     public void TheActIsReadOffTheirState()
     {

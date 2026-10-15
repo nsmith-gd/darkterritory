@@ -69,6 +69,9 @@ public sealed partial class SceneArt(Look look)
         {
             CrewPose.Carry => speed < 0.4f ? CrewPose.Carry : CrewPose.CarryWalk,
             CrewPose.Shoulder => speed < 0.4f ? CrewPose.Shoulder : CrewPose.ShoulderWalk,
+            // (Note 812: a friend over the shoulder, and the carrier, walking together: the same speed, the same clock.)
+            CrewPose.Fireman => speed < 0.4f ? CrewPose.Fireman : CrewPose.FiremanWalk,
+            CrewPose.Carried => speed < 0.4f ? CrewPose.Carried : CrewPose.CarriedWalk,
             CrewPose.Cradle => speed < 0.4f ? CrewPose.Cradle : CrewPose.CradleWalk,
             CrewPose.Lantern => speed < 0.4f ? CrewPose.Lantern : CrewPose.LanternWalk,
             CrewPose.Toolbox => speed < 0.4f ? CrewPose.Toolbox : CrewPose.ToolboxWalk,
@@ -137,8 +140,10 @@ public sealed partial class SceneArt(Look look)
             // (Note 717: a crewmate's knock is the sim's, from when it began; a staged one says how far into it they are.)
             CrewPose.Stagger => c.Phase > 0 ? c.Phase : time - Math.Max(_staggered.GetValueOrDefault(c.Id, since.Time), since.Time),
             CrewPose.FireDoor => FireDoorSince >= 0 ? FireDoorSince : time - since.Time,
-            // (Note 808: a shove from the host's knock, which began the pose; a staged one says how far into it they are.)
+            // (Note 811: a shove from the host's knock, which began the pose; a staged one says how far into it they are.)
             CrewPose.Shove => c.Phase > 0 ? c.Phase : time - since.Time,
+            // (Note 812: over the shoulder, on the carrier's clock: their beat less this one's, CrewActs.OnTheShoulder.)
+            CrewPose.Carried or CrewPose.CarriedWalk => time + c.Phase,
             // A staged swing (dt screenshot --act swing) says how far into it they are; a played one, from its blow.
             CrewPose.Swing => swung >= 0 ? swung + SwingHitAt : c.Phase,
             // The reload's beats follow the gun's own progress, not a clock (CrewActs.ReloadPhase).
@@ -197,7 +202,8 @@ public sealed partial class SceneArt(Look look)
             _kitHands.Remove(c.Id);
         // Their breath in the cold (GDD §26): out on the beat of their breathing, a puff of vapour from the mouth that
         // goes out the way they face and rises, gone in a second and a half; harder breathing (running, hauling) quicker.
-        bool hard = pose is CrewPose.Run or CrewPose.Haul or CrewPose.HaulUp or CrewPose.Shovel or CrewPose.Smash or CrewPose.Pry;
+        bool hard = pose is CrewPose.Run or CrewPose.Haul or CrewPose.HaulUp or CrewPose.HandUp or CrewPose.Shovel or CrewPose.Smash or CrewPose.Pry
+            or CrewPose.Fireman or CrewPose.FiremanWalk;
         if (drawn && Breath > 0 && c.Alive)
             Look.Art.Effects.Breath(mesh, Creatures.LastMouth, Creatures.LastFacing, Breath, time, c.Id, hard);
         // (And where it is, for the cab's glass it fogs: CabGlass, drawn after the crew.)
