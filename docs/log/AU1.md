@@ -182,3 +182,23 @@ launches are AU1.1, AU1.2, …. Entries are UTC; those before 12:55 on 7 Oct wer
   - Candidates being built.
 - **The figures and K1's asks:** hooked, tested and captioned (Dave, Jacob, Nicki's party; the mail catch and tear, the
   comet's hum, the speaking tube's whistle-call). Candidates being built.
+
+## 15 Oct, ~03:10 UTC: the Wakers, the figures and K1's asks installed; the next PR
+
+- **The Wakers:**
+  - 20 candidates built (a recipe agent), uploaded.
+  - Installed: the ground's thud and stride, the throat's roar, the seized grab, the skid and the torn lift.
+  - Two new rows, `tell-wakers` and `cs-wakers`, at L1.
+- **The figures:**
+  - 14 candidates built (a recipe agent), uploaded.
+  - Installed: the easel, the reel and the glass blessing.
+  - The `figures` row at L1.
+- **K1's asks:**
+  - 8 candidates built (a recipe agent), uploaded.
+  - Installed: the sack's snatch, the rip, the glass hum and the blown whistle-call.
+  - Three new rows (`crew-mail`, `world-comet`, `crew-speaking-tube`) at L1.
+- **The clerk:** the bank gained 36 words (U1's tally words and the night's prizes), ahead of #967.
+- **U1's upgrades (#505):** the six `up-` lines are in `cues.py`. Two recipe agents are building the forge, BBQ, horns
+  and tells candidates. The hooks wait on #967.
+- **Flagged by a recipe agent:** `g1_train.tones()` builds its phase in float32, which may click at a loop's seam on a
+  long take. The Brakeman's squeal measured clean; worth a look when that file is next touched.
