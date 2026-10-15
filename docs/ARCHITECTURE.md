@@ -973,6 +973,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [801. The cannon's shot heard again with the shot endless (AU1, queue #528; U1's find on #1040)](notes/801.md)
 - [805. A running jump heard as a jump off the train (AU1, queue #533; AU1's audio audit)](notes/805.md)
 - [794. The woods keep off the railway's leavings (queue #521, B1; note 792's "not yet")](notes/794.md)
-- [796. The Mouse Moose modelled and rigged (queue #523, C1; the director, 15 Oct 2026: "We have a new asset added by gameplay, you need to do a…](notes/796.md)
 - [804. The Game test suite's memory, found and cut; the town forms back in the trades' rotation (T1, queue #531; note 692's "off for now": with…](notes/804.md)
+- [796. The Mouse Moose modelled and rigged (queue #523, C1; the director, 15 Oct 2026: "We have a new asset added by gameplay, you need to do a…](notes/796.md)
 <!-- end of the notes index -->
