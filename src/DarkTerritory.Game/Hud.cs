@@ -783,6 +783,8 @@ public static partial class Hud
         BodyKind.Loot => world.Run?.FindName(b)?.ToUpperInvariant() ?? "THE FIND",
         // What else is carried, for the hotbar's IN HANDS (note 264).
         BodyKind.Crate or BodyKind.Cargo => "A CRATE",
+        // A two-person jackpot (note 719), by what it is: "AN END OF THE SAFE".
+        BodyKind.Heavy when world.Run?.FindName(b) is { } jackpot => $"AN END OF THE {jackpot.ToUpperInvariant()}",
         BodyKind.Heavy => "AN END OF THE HEAVY CRATE",
         BodyKind.Ragdoll => "A BODY",
         BodyKind.Child => "THE CHILD",
@@ -2281,6 +2283,12 @@ public static partial class Hud
                     if ((d.WorldPosition(train) - PlayerMotor.WorldPosition(p, train)).Length <= et.Draggers.FreeReach + 1)
                         return "PULL THEM FREE : HOLD [E]";
                 }
+        // Note 723: over a friend's shoulder, or carrying one, the keys are the corner's (Hints); nothing else is offered.
+        if (p.Has(PlayerFlags.Carried) || p.Has(PlayerFlags.Carrying))
+            return null;
+        // The hand-up (note 723): a friend running beside the moving car, in reach of the door you stand in, before the door.
+        if (world.Bodies.CarriedBy(s.PlayerId) is null && Rescue.HandUpTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning.Rescue) is not null)
+            return "HAUL UP : HOLD [E]";
         // A mail crane's last seconds, in the open door on its side (note 673): the hook, before anything else in reach.
         if (MailPrompt(s) is { } hook)
             return hook;
@@ -2314,7 +2322,7 @@ public static partial class Hud
             && SwitchPrompt(world, p, train, world.Hand) is null && HealPrompt(s, slotted) is null && TakePrompt(world, p, train, s.PlayerId) is { } another)
             return another;
         if (world.Bodies.CarriedBy(s.PlayerId) is { } inHands)
-            return PowderPrompt(s, inHands) ?? SwitchPrompt(world, p, train, world.Hand) ?? HealPrompt(s, inHands);
+            return PowderPrompt(s, inHands) ?? SwitchPrompt(world, p, train, world.Hand) ?? BandagePrompt(s, inHands) ?? HealPrompt(s, inHands);
         // T112: the gun's seat and its own controls.
         if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is { } manned)
         {
@@ -2431,6 +2439,10 @@ public static partial class Hud
                 BodyKind.RepairKit => "TAKE THE REPAIR KIT : [E]",
                 BodyKind.Loot => $"TAKE {world.Run?.FindName(thing)?.ToUpperInvariant() ?? "IT"} : [E]",
                 // A reaching hand takes its end with both hands on it (T43).
+                // A two-person jackpot (note 719) says what it is: it takes two, as a heavy crate does.
+                BodyKind.Heavy when world.Run?.FindName(thing) is { } jackpot => thing.Carrier >= 0
+                    ? $"TAKE THE OTHER END OF THE {jackpot.ToUpperInvariant()} : {(p.Hand != default ? "GRIP" : "[E]")}"
+                    : $"TAKE AN END OF THE {jackpot.ToUpperInvariant()} : {(p.Hand != default ? "GRIP" : "[E]")}   IT TAKES TWO",
                 BodyKind.Heavy when thing.Carrier >= 0 => p.Hand != default ? "TAKE THE OTHER END : GRIP" : "TAKE THE OTHER END : [E]",
                 BodyKind.Heavy => p.Hand != default ? "TAKE AN END : GRIP" : "TAKE AN END : [E]",
                 _ => "PICK UP : [E]",
@@ -2442,7 +2454,11 @@ public static partial class Hud
                 : $"SEARCH THE {SpotName(spot.Container.Kind)} : HOLD [E]";
         // An open house's door (note 401), empty-handed, as the hands and the search leave it.
         if (world.Bodies.CarriedBy(s.PlayerId) is null && world.DoorInReach(p) is { } door)
-            return train.Walls!.Shut(door.Key) ? "OPEN THE DOOR : HOLD [E]" : "SHUT THE DOOR : HOLD [E]";
+            // A jackpot house's locked door (note 719): the wrench picks it, held, and how far it's got.
+            return train.Walls!.Locked(door.Key)
+                ? train.Walls.Picking(door.Key) is > 0 and var picked ? $"PICKING THE LOCK ({picked * 100:0}%)"
+                    : Repairs.WrenchInHand(p) ? "PICK THE LOCK : HOLD [E]" : "LOCKED : THE WRENCH OPENS IT"
+                : train.Walls.Shut(door.Key) ? "OPEN THE DOOR : HOLD [E]" : "SHUT THE DOOR : HOLD [E]";
         if (world.Run?.LeverInReach(p, train, hand) == true)
             return "CHUTE LEVER : HOLD [E]";
         // GDD §18's set pieces (note 185). How full the car under the spout is is what you read to let go.
@@ -2535,6 +2551,9 @@ public static partial class Hud
             if (p.Parent > 0 && crane.Unriggable(train, PlayerMotor.WorldPosition(p, train)))
                 return crane.Rigging > 0 ? $"UNHOOKING ({crane.Rigging * 100:0}%)" : "UNHOOK THE CASTING : HOLD [E]";
         }
+        // The handcar (note 729): at its handle, which stroke's in time now; at an end of it, take it; beside it, lift it.
+        if (HandcarPrompt(world, p, train) is { } handcar)
+            return handcar;
         if (world.Run?.HandleInReach(p, train, hand) is not null && world.Run.CurrentSite is { } site)
             // A headset turns the crank round with the hand (T43): which way is how it's worked, so it's said.
             return site.OutOfRhythm ? "OUT OF RHYTHM"
@@ -2572,9 +2591,31 @@ public static partial class Hud
         // the shovel, turned from the fire, it's the throw's.
         if (p.Has(PlayerFlags.Shovelful) && p.Hand == default)
             return "THROW THE COAL : [T]";
-        if (world.MischiefOn && Horseplay.ShoveTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning) is not null)
-            return "SHOVE : [LEFT ALT]";
-        return null;
+        // Note 723: a friend in front, empty-handed with nothing else in reach: lifted onto the shoulder with Use held.
+        bool carry = world.Bodies.CarriedBy(s.PlayerId) is null && near is null && Rescue.LiftTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning.Rescue, s.PlayerTuning) is not null;
+        bool shove = world.MischiefOn && Horseplay.ShoveTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning) is not null;
+        return carry && shove ? "CARRY : HOLD [E]   SHOVE : [LEFT ALT]" : carry ? "CARRY : HOLD [E]" : shove ? "SHOVE : [LEFT ALT]" : null;
+    }
+
+    /// <summary>
+    /// Note 723: a healing find in hand and a hurt friend in front: it goes on them, and heals them half again as much. The
+    /// find's own verb (bandages are put on, medicine and morphine given), and whose; how far it's got once it's under way.
+    /// </summary>
+    public static string? BandagePrompt(IPlaySession s, Body carried)
+    {
+        if (carried.Kind != BodyKind.Loot || s.World.Run is not { Healing: { } h } run || run.HealOf(carried) <= 0
+            || CrewActions.NearestInteractable(s.Player, s.Train, s.World.Hand) is not null
+            || Rescue.Patient(s.Player, s.PlayerId, s.CrewStates(1), s.Train, s.PlayerTuning.Rescue, s.PlayerTuning, s.PlayerTuning.Health) is not { } patient)
+            return null;
+        string name = s.World.Names.TryGetValue(patient.Id, out var n) && n.Length > 0 ? n.ToUpperInvariant() : "THEM";
+        string verb = run.FindOf(carried)?.Item switch
+        {
+            "bandages" => $"BANDAGE {name}",
+            "medicine" => $"GIVE {name} THE MEDICINE",
+            "morphine" => $"GIVE {name} THE MORPHINE",
+            _ => $"PATCH {name} UP",
+        };
+        return Hold(verb, carried.MendTicks * Sim.SimConstants.TickSeconds / h.UseSeconds);
     }
 
     /// <summary>What a Holdout is, for the dead player in it (App. D.4 "fiction and art").</summary>

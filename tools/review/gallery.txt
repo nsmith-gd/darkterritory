@@ -47,5 +47,7 @@
 --view broadside --car 0 --integrity 0,1 --out out/shots/failing-engine.png
 --view shove --out out/shots/shove.png
 --view sooted --out out/shots/sooted.png
+--view handup --out out/shots/handup.png
+--view carryfriend --out out/shots/carryfriend.png
 --view crewphoto --out out/shots/crewphoto.png
 --view lostcrews --out out/shots/lostcrews.png

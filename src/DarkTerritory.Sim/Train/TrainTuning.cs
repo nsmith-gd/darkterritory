@@ -42,6 +42,12 @@ public sealed record TrainTuning
     /// <summary>What running into a branch's buffer stop does (train.json <c>bufferStop</c>; note 661).</summary>
     public BufferStopTuning BufferStop { get; init; } = new();
 
+    /// <summary>The handcar (train.json <c>handcar</c>; GDD §24.1, note 729): what it is and how it runs, when the night has one.</summary>
+    public HandcarTuning Handcar { get; init; } = new();
+
+    /// <summary>The night has a handcar (note 729): bought (campaign.json's <c>handcar</c> upgrade) or <c>handcar.always</c>.</summary>
+    public bool HasHandcar => Composition.Handcar || Handcar.Always;
+
     public const string File = "tuning/train.json";
 }
 
@@ -148,6 +154,8 @@ public sealed record CompositionTuning
     public bool SwitchThrower { get; init; }
     /// <summary>How far ahead it reaches, and how slow the train has to be.</summary>
     public ThrowerTuning Thrower { get; init; } = new();
+    /// <summary>The handcar (GDD §24.1, note 729), hung on the back of the guard van: campaign.json's <c>handcar</c> upgrade.</summary>
+    public bool Handcar { get; init; }
 }
 
 /// <summary>

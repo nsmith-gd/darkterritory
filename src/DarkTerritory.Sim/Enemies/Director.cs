@@ -858,7 +858,8 @@ public sealed class Director
         var seen = new HashSet<int>();
         foreach (var (id, s) in crew)
         {
-            if (!s.Alive || s.Parent != PlayerState.World)
+            // On foot or on the handcar (note 729): fetching a friend left behind is the open line at night too.
+            if (!CrewSense.Afoot(s, train))
                 continue;
             var at = PlayerMotor.WorldPosition(s, train);
             if (world.InFort(at))
@@ -880,7 +881,7 @@ public sealed class Director
                 continue;
             // More than the group they're in (Ribbits only take the outnumbered), one more each time, to the most.
             var r = et.Ribbits;
-            int group = crew.Count(c => c.State.Alive && c.State.Parent == PlayerState.World
+            int group = crew.Count(c => CrewSense.Afoot(c.State, train)
                 && ((PlayerMotor.WorldPosition(c.State, train) - at) with { Y = 0 }).Length <= r.GroupRadius);
             int size = Math.Max(group + 1, Math.Min(a.Pack[1], a.Pack[0] + l.Hunts));
             double k = a.Pack[1] > a.Pack[0] ? Math.Min(1, (double)l.Hunts / (a.Pack[1] - a.Pack[0])) : 1;
@@ -957,7 +958,7 @@ public sealed class Director
             if (!s.Alive)
                 continue;
             alive++;
-            if (s.Parent != PlayerState.World)
+            if (!CrewSense.Afoot(s, train))
                 continue;
             var at = PlayerMotor.WorldPosition(s, train);
             if (FromTrain(train, at) > a.FromTrainM && !world.InFort(at))
