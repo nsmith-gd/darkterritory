@@ -290,8 +290,9 @@ public static partial class TownGenerator
         }
 
         // The night market (queue #552, note 825): its stalls lit and open in a row between the buildings' fronts and the
-        // centrepiece, each where it's clear of what's in the square and of the doors. Its stalls are listed last of the
-        // fixtures and its stallholders last of the people, so every other keeps its index and its name.
+        // centrepiece, each where it's clear of what's in the square and of the doors. Its stalls are listed after every other
+        // fixture but the forge, and its stallholders after every other townsperson but the blacksmith and the Flame's keeper,
+        // so every other keeps its index and its name.
         var market = Market(sq, s0, s1, side * (front - sq.MarketIn), population, fixtures, buildings, w, industry, Rng("market"));
 
         // The people. Those with a place: the jobs a town this size has, round the centrepiece, the households at home, out
@@ -344,6 +345,11 @@ public static partial class TownGenerator
             foreach (var f in fixtures.Where(f => inYard.Holds(f.S, f.D) && f.Kind is "yardoffice" or "weighbridge").Take(t.Walled.YardHands))
                 spots.Add(new("porter", f.S, f.D + f.FaceD * (f.SolidD + 1.2), -f.FaceS, -f.FaceD, 0));
 
+        // The night market's stallholders (note 825), each behind their counter, facing the square: after everyone else with
+        // a place, before the blacksmith, who stays last.
+        foreach (var (ms, md, _) in market)
+            spots.Add(new("stallholder", ms, md + side * (TownFixtures.Size("marketstall").HalfD + StallholderBack), 0, -side, 0));
+
         // The town's blacksmith, who does the trains (note 697; the director, 13 Oct 2026: "a vendor who is clearly marked as
         // the vendor blacksmith of the town who does train upgrades"): every town has one, at the forge beside the engine as it
         // stands in the yard. Last of everyone, so who everybody else is and what they're called is as it was.
@@ -353,9 +359,6 @@ public static partial class TownGenerator
         // the town between the hours' tubs of coal.
         foreach (var f in fixtures.Where(f => f.Kind == "lighthouse" && f.House < 0).Take(1))
             spots.Add(new("flamekeeper", f.S + f.FaceS * (f.SolidS + 1.2), f.D + f.FaceD * (f.SolidD + 1.2), f.FaceS, f.FaceD, 0));
-        // The night market's stallholders (note 825), each behind their counter, facing the square.
-        foreach (var (ms, md, _) in market)
-            spots.Add(new("stallholder", ms, md + side * (TownFixtures.Size("marketstall").HalfD + StallholderBack), 0, -side, 0));
 
         // Who they are: a name each, a household's sharing its surname.
         var names = new HashSet<string>();

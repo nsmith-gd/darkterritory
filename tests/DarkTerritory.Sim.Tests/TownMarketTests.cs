@@ -82,13 +82,17 @@ public class TownMarketTests
     [Fact]
     public void TheMarketMovesNothingElse()
     {
-        // With no market, every other fixture and every townsperson is as it is with one: the stalls are the fixtures' last,
-        // their stallholders the people's.
+        // With no market, every other fixture and every townsperson is as it is with one: the stalls are the fixtures' last
+        // but the forge, their stallholders the people's last but the blacksmith and the Flame's keeper (who stay last of
+        // everyone, note 697), so everyone before them is who they were and those two where they were.
         var with = Night("local:3", 1200);
         var without = Night("local:3", 1200, market: [0, 0]);
         Assert.DoesNotContain(without.Fixtures, f => f.Kind == "marketstall");
         Assert.Equal(without.Fixtures.Select(f => (f.Kind, f.S, f.D, f.Text)), with.Fixtures.Where(f => f.Kind != "marketstall").Select(f => (f.Kind, f.S, f.D, f.Text)));
-        Assert.Equal(without.People.Select(p => (p.Name, p.Role, p.S, p.D)), with.People.Where(p => p.Role != "stallholder").Select(p => (p.Name, p.Role, p.S, p.D)));
+        int before = with.People.TakeWhile(p => p.Role != "stallholder").Count();
+        Assert.InRange(without.People.Count - before, 0, 2);
+        Assert.Equal(without.People.Take(before).Select(p => (p.Name, p.Role, p.S, p.D)), with.People.Take(before).Select(p => (p.Name, p.Role, p.S, p.D)));
+        Assert.Equal(without.People.Select(p => (p.Role, p.S, p.D)), with.People.Where(p => p.Role != "stallholder").Select(p => (p.Role, p.S, p.D)));
         Assert.Equal(without.Houses.Count, with.Houses.Count);
     }
 
