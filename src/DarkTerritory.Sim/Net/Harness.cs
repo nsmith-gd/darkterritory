@@ -190,6 +190,8 @@ public sealed record HarnessReport(int Ticks, double Seconds, string Link, doubl
     public DawnReport? Dawn { get; init; }
     /// <summary>The driver's reckonings of the run home through the night (note 621), to score against when it got in.</summary>
     public IReadOnlyList<Reckoning>? Reckonings { get; init; }
+    /// <summary>How the brake was worked (note 820).</summary>
+    public DrivingReport? Driving { get; init; }
 }
 
 /// <summary>
@@ -221,6 +223,14 @@ public sealed record PacingReport(int Beats, double BeatsPerMinute, double Longe
     /// <summary>Every stretch quiet over 30 s: how long, when it ended and where, by what, and why the director had sent nothing.</summary>
     public IReadOnlyList<string> LongQuiets { get; init; } = [];
 }
+
+/// <summary>
+/// The driver at the brake (queue #532, note 820): the brake's a held button, all or nothing, and each application is heard (the
+/// shoes, the slack running in). <paramref name="Applications"/>: times it went on with the train moving;
+/// <paramref name="PerMinute"/> of the train moving; <paramref name="Taps"/>: those let off again inside a second (holding a
+/// speed by tapping it, the machine-gun AU1's audit heard); <paramref name="MeanSeconds"/>: how long one's held.
+/// </summary>
+public sealed record DrivingReport(int Applications, double PerMinute, int Taps, double MeanSeconds, double MovingSeconds);
 
 /// <summary>What the director and the enemies did (GDD §34 / App. B.9 audit).</summary>
 /// <summary>A crewmate's slack over the night (note 345): the most, and the seconds at or past slackPress.</summary>
@@ -462,6 +472,7 @@ public static class Harness
         bool freedSince = false;
         var freedBy = new SortedDictionary<string, int>(StringComparer.Ordinal);
         var falls = new FallWatch();
+        var braking = new BrakeWatch();
         // Note 607: the crew at the dawn line, and when the lead Waker took the train.
         double? lineAt = null;
         IReadOnlyList<string>? atLine = null;
@@ -492,6 +503,7 @@ public static class Harness
                 });
             }
             host.Step();
+            braking.Watch(host.Train);
             events.AddRange(host.World.EnemyEvents);
             // Note 640: what worked each pin loose, and what the driver was at.
             while (loosened.Count < host.World.Loosenings.Count)
@@ -775,7 +787,42 @@ public static class Harness
             Falls = falls.Falls,
             Dawn = dawn ?? (lineAt is { } la ? new DawnReport(la, atLine ?? [], -1, -1, -1, [], double.IsFinite(closest) ? Math.Round(closest, 1) : -1) : null),
             Reckonings = clients.Select(c => c.Bot).OfType<ConductorBot>().FirstOrDefault()?.Stops?.Reckonings,
+            Driving = braking.Report(),
         };
+    }
+
+    /// <summary>The brake as the host applied it, tick by tick (note 820): each time it went on with the train moving, and for how long.</summary>
+    sealed class BrakeWatch
+    {
+        int _applications, _taps, _movingTicks, _heldTicks, _held = -1;
+
+        public void Watch(TrainOnLine train)
+        {
+            bool on = train.LastControls.Brake > 0, moving = train.Dynamics.Speed >= CabControls.StandingBelow;
+            if (moving)
+                _movingTicks++;
+            if (on && _held < 0 && moving)
+            {
+                _applications++;
+                _held = 0;
+            }
+            else if (on && _held >= 0)
+                _held++;
+            else if (!on && _held >= 0)
+            {
+                if (_held < SimConstants.TickRate)
+                    _taps++;
+                _heldTicks += _held;
+                _held = -1;
+            }
+        }
+
+        public DrivingReport Report()
+        {
+            double moving = _movingTicks * SimConstants.TickSeconds;
+            return new DrivingReport(_applications, moving > 0 ? Math.Round(_applications * 60 / moving, 1) : 0, _taps,
+                _applications > 0 ? Math.Round((_heldTicks + Math.Max(0, _held)) * SimConstants.TickSeconds / _applications, 2) : 0, Math.Round(moving));
+        }
     }
 
     static RejoinReport Rejoined(HostSession host, List<(ClientSession Session, IBot Bot, CountingTransport Transport)> clients, int index, byte? was,
