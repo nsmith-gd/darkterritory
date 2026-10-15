@@ -34,6 +34,8 @@ public abstract record Launch
         public string? Password { get; init; }
         /// <summary>Hosting: who the run is for (note 450), said in its listing.</summary>
         public RunMood Mood { get; init; }
+        /// <summary>Hosting: the CREW MISCHIEF switch as the host set it (note 724); null, where the mood and visibility have it.</summary>
+        public bool? Mischief { get; init; }
         public override Launch Redacted() => Password is null ? this : this with { Password = "***" };
     }
     /// <summary>Someone else's night, at an address (host[:port]).</summary>
@@ -61,6 +63,11 @@ public abstract record Launch
         /// from the town (note 606) keeps them: the board's next contract carries the same.
         /// </summary>
         public int Bots { get; init; }
+        /// <summary>
+        /// A crew ridden with (note 724; GDD §11): its id among the crews kept on this machine, and <paramref name="Slot"/> 0.
+        /// Null: the slot's own crew.
+        /// </summary>
+        public string? Crew { get; init; }
     }
     /// <summary>
     /// The crew goes on together (note 606): a joiner whose host left a delivered campaign night to go on to the next, waiting
@@ -70,6 +77,8 @@ public abstract record Launch
     public sealed record Quit : Launch;
     /// <summary>The in-night menu's INVITE (note 292): the platform's invite dialog, over the night.</summary>
     public sealed record Invite : Launch;
+    /// <summary>The in-night menu's CREW MISCHIEF (note 724), the host's in the yard: the switch set so, for every machine. The menu stays up.</summary>
+    public sealed record SetMischief(bool On) : Launch;
     /// <summary>The in-night menu's LEAVE, confirmed (note 292): out of the night and back to the menus.</summary>
     public sealed record Leave : Launch;
     /// <summary>A folder shown in the system's file browser (note 411: where the crash reports are). The menu stays up.</summary>
@@ -106,7 +115,11 @@ public abstract record Launch
 /// <param name="Lobby">Hosting a listed run (note 535): who it's for and whether it's locked, which the host changes from here.
 /// Null: a joiner, or a run nobody finds on a list.</param>
 public sealed record NightMenu(bool Hosting = true, int Others = 0, bool Campaign = false, bool Invites = false, string? JoinAt = null, bool Over = false,
-    bool Yard = false, HostLobby? Lobby = null);
+    bool Yard = false, HostLobby? Lobby = null)
+{
+    /// <summary>The host in the yard (note 724): the CREW MISCHIEF switch as it stands, to change; null for anyone else, or past the gate.</summary>
+    public bool? Mischief { get; init; }
+}
 
 /// <summary>A listed run's lobby as its host has it now (note 535): its mood, and whether it's behind a password.</summary>
 public sealed record HostLobby(RunMood Mood, bool Locked);
@@ -164,6 +177,24 @@ public sealed class FrontEnd
         set => _bots = Math.Clamp(value, 0, MaxBots);
     }
     bool _host;
+    /// <summary>The host screen's CREW MISCHIEF (note 724) as the host set it; null, where the run's mood and visibility have it.</summary>
+    bool? _mischief;
+
+    /// <summary>The CREW MISCHIEF switch as the host set it for the run they open (note 724); null: as its mood and visibility have it.</summary>
+    public bool? Mischief => _mischief;
+
+    /// <summary>Horseplay's tuning (player.json, note 724): where the CREW MISCHIEF switch starts by mood. The app sets the content's.</summary>
+    public Sim.Player.HorseplayTuning Horseplay { get; set; } = new();
+
+    /// <summary>The switch as the host screen shows it: the host's choice, or the run's mood and visibility's.</summary>
+    bool MischiefShown => _mischief ?? Moods.MischiefByDefault(Settings.Mood, !Settings.PublicLobby, Horseplay);
+
+    /// <summary>The host screen's and the fortress board's CREW MISCHIEF row (note 724).</summary>
+    Entry MischiefEntry() =>
+        new(new($"CREW MISCHIEF: {(MischiefShown ? "ON" : "OFF")}", MischiefShown
+                ? "Shoves, bonks and coal at the crew land. Nobody's hurt by them, but a shove off a roof at speed is a fall."
+                : "Shoves, bonks and coal at the crew land on nobody. You can change it in the yard."),
+            () => { _mischief = !MischiefShown; return null; }, _ => _mischief = !MischiefShown);
 
     /// <param name="newSeed">Where a new campaign's seed comes from (tests pin it).</param>
     /// <param name="edition">Which game this is (T79): the demo has a quick night on its own tiers, and no campaign.</param>
@@ -684,6 +715,10 @@ public sealed class FrontEnd
         // In the yard (GDD §9: the crew "try on outfits"; note 298): put one on, and the crew see it.
         if (n.Yard)
             list.Add(OutfitEntry("Left and right to try one on: the crew see it."));
+        // Note 724: the host's CREW MISCHIEF, in the yard: every machine has it as it's set.
+        if (n.Mischief is { } on)
+            list.Add(new(new($"CREW MISCHIEF: {(on ? "ON" : "OFF")}", on ? "Shoves, bonks and coal at the crew land." : "Shoves, bonks and coal at the crew land on nobody."),
+                () => new Launch.SetMischief(!on)));
         // Note 535 (note 450's "not yet"): the host of a listed run changes who it's for and its password with the lobby open.
         if (n.Lobby is { } lobby)
             list.AddRange(LobbyEntries(lobby));
@@ -841,15 +876,32 @@ public sealed class FrontEnd
     }
 
     /// <summary>Back at the title after a quick night or a join, with the edition's word after a night (the demo's).</summary>
-    public void NightOver()
+    /// <param name="say">What to say over the edition's word: the crew put this player off (note 724).</param>
+    public void NightOver(string? say = null)
     {
         Show(Screen.Title);
-        Message = _edition.AfterNight is { Length: > 0 } after ? after : null;
+        Message = say ?? (_edition.AfterNight is { Length: > 0 } after ? after : null);
         // The demo's end card (T79): its wishlist line coming up, and (note 434) WISHLIST ON STEAM lit under it.
         if (Message is not null)
             Cue?.Invoke(UiCue.EndCard);
         if (Items.ToList().FindIndex(i => i.Label == "WISHLIST ON STEAM") is >= 0 and int wishlist)
             Selected = wishlist;
+    }
+
+    /// <summary>
+    /// Opens a crew ridden with at the fortress (note 724): its save as this machine keeps it, hosted from here. Gone (or one
+    /// that won't read), the slots and crews.
+    /// </summary>
+    public void ShowCrew(string crew, string? message = null)
+    {
+        Open = _saves.LoadCrew(crew);
+        if (Open is null)
+        {
+            Show(Screen.Slots);
+            return;
+        }
+        Show(Screen.Fortress);
+        Message = message;
     }
 
     /// <summary>Opens a slot at the fortress (after a night, with how it went).</summary>
@@ -1040,7 +1092,7 @@ public sealed class FrontEnd
             .. DevEntries.Select(d => new Entry(new(d.Label, d.Hint), () => d.Launch)),
             new(new("QUIT"), () => new Launch.Quit()),
         ],
-        Screen.Slots => [.. _saves.List().Select(x => SlotEntry(x.Slot, x.State)), BackTo(Screen.Title)],
+        Screen.Slots => [.. _saves.List().Select(x => SlotEntry(x.Slot, x.State)), .. CrewEntries(), BackTo(Screen.Title)],
         Screen.Fortress => FortressEntries(),
         Screen.Upgrades => UpgradeEntries(),
         Screen.Stores => StoreEntries(),
@@ -1067,6 +1119,7 @@ public sealed class FrontEnd
                     Field: TextField.LobbyPassword),
             ],
             MoodEntry("Said beside your run on the list, so players looking for the same find it first."),
+            MischiefEntry(),
             new(new($"{NameLabel}{LobbyName}{(NamingLobby ? "_" : "")}", NamingLobby ? "Type the name; Enter or Esc when it's done." : "Enter to rename it: what the join screen calls it."),
                 Field: TextField.LobbyName),
             new(new("OPEN THE LOBBY", PasswordMissing ? "Type a password first: a private run needs one." : "You wait in the yard with the train; you drive out when everyone's in.",
@@ -1078,6 +1131,7 @@ public sealed class FrontEnd
                     LobbyName = LobbyName.Trim() is { Length: > 0 } named ? named : DefaultLobbyName,
                     Password = Settings.PublicLobby ? null : Settings.LobbyPassword.Trim(),
                     Mood = Settings.Mood,
+                    Mischief = _mischief,
                 }),
             BackTo(Screen.Title),
         ],
@@ -1294,6 +1348,34 @@ public sealed class FrontEnd
         return Settings.Cycle(all, Array.IndexOf(all, now) < 0 ? "" : now, by);
     }
 
+    /// <summary>A crew ridden with's id, for its night's launch (note 724); null for a slot's own crew.</summary>
+    static string? RodeWith(CampaignState s) => s.Slot == 0 ? s.CrewId : null;
+
+    /// <summary>
+    /// The crews this player has ridden with (GDD §11; note 724), under the slots: each crew's save as its host last sent it,
+    /// "CREW &lt;NAME&gt; · NIGHT 7 · LAST HOSTED BY DAVE", and any of them hosted from here. A crew in one of this player's own
+    /// slots is listed only when the copy ridden with has gone further. One whose train was taken at dawn stays listed, ended.
+    /// </summary>
+    List<Entry> CrewEntries()
+    {
+        var mine = _saves.List().Where(x => x.State is not null).Select(x => x.State!).ToList();
+        var crews = _saves.Crews().Where(c => !mine.Any(m => m.CrewId == c.CrewId && m.Runs >= c.Runs)).ToList();
+        if (crews.Count == 0)
+            return [];
+        var list = new List<Entry> { new(new("CREWS YOU'VE RIDDEN WITH", null, false, Heading: true)) };
+        foreach (var c in crews)
+        {
+            string host = c.LastHost.Length > 0 ? $" · LAST HOSTED BY {Sim.Net.Messages.CleanName(c.LastHost).ToUpperInvariant()}" : "";
+            string id = c.CrewId;
+            list.Add(c.Over
+                ? new(new($"CREW {CrewName(c).ToUpperInvariant()} · TAKEN AT DAWN{host}", $"{c.Runs} nights. The company has no more trains for them."),
+                    () => { ShowCrew(id); return null; })
+                : new(new($"CREW {CrewName(c).ToUpperInvariant()} · NIGHT {c.Runs + 1}{host}", $"{c.Cars} cars, {c.Scrip:0} scrip. Host its next night from here."),
+                    () => { ShowCrew(id); return null; }));
+        }
+        return list;
+    }
+
     Entry SlotEntry(int slot, CampaignState? s)
     {
         if (s is null)
@@ -1331,7 +1413,7 @@ public sealed class FrontEnd
             // Spec E: a night that was under way picks up from its last autosave (or starts again, if it had none).
             string from = s.Checkpoint is null ? "from the yard" : "from the last facility it left";
             list.Add(new(new($"CARRY ON: {Name(tonight.Tier)} {tonight.Seed}", $"The night that was under way, {from}."),
-                () => new Launch.CampaignNight(s.Slot, -1, Resume: true, _host) { Bots = _bots }));
+                () => new Launch.CampaignNight(s.Slot, -1, Resume: true, _host) { Bots = _bots, Crew = RodeWith(s) }));
         }
         else
         {
@@ -1343,7 +1425,7 @@ public sealed class FrontEnd
                 // GDD §9 "choose a route" (note 637: a contract is just a route): the train leaves empty, and its cars are paid
                 // by what its stops load, about the tier's car-load each.
                 list.Add(new(new($"TONIGHT: {Name(c.Tier)} {c.Seed}, ABOUT {c.PerCar:0} A CAR-LOAD", $"Whatever its stops load. Up to about {c.PerCar * s.Cars:0} on {s.Cars} cars."),
-                    () => new Launch.CampaignNight(s.Slot, contract, Resume: false, _host) { Bots = _bots }));
+                    () => new Launch.CampaignNight(s.Slot, contract, Resume: false, _host) { Bots = _bots, Crew = RodeWith(s) }));
             }
         }
         // The crew's bots (note 611): who goes out with you tonight, and on to the next night from the town after it.
@@ -1375,6 +1457,15 @@ public sealed class FrontEnd
             list.Add(new(new("STORES", StoresLine(s.Stores), s.Current is null), () => { Show(Screen.Stores); return null; }));
         list.Add(new(new("UPGRADES", null, s.Current is null), () => { Show(Screen.Upgrades); return null; }));
         list.Add(new(new($"PLAY: {(_host ? "HOST FOR FRIENDS" : "ALONE")}", "Left and right to change."), () => { _host = !_host; return null; }, _ => _host = !_host));
+        // Note 724: hosting, the run's CREW MISCHIEF, as on the host screen.
+        if (_host)
+            list.Add(MischiefEntry());
+        // A crew ridden with (note 724) is the crew's, not this machine's: its name and its file are whoever hosts it last's.
+        if (s.Slot == 0)
+        {
+            list.Add(BackTo(Screen.Slots));
+            return list;
+        }
         // Note 320 (note 33's "not yet": renaming a crew or deleting a slot was `dt campaign`'s alone).
         bool naming = Editing == TextField.CrewName;
         list.Add(new(new($"{NameLabel}{(naming ? s.Name : CrewName(s)).ToUpperInvariant()}{(naming ? "_" : "")}",

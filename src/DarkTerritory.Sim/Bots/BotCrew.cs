@@ -26,6 +26,22 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
             _owned.Add(owned);
     }
 
+    /// <summary>Bots that left the crew (note 724): a friend took their seat, or the host put them off.</summary>
+    public int Retired { get; private set; }
+
+    /// <summary>
+    /// Note 724: the bot playing <paramref name="id"/> leaves the crew (a joiner took its seat, or it was put off): it's no
+    /// longer stepped, and the host has already hung up on its link. Its transport goes with the crew, as ever.
+    /// </summary>
+    public void Retire(byte id)
+    {
+        int i = _bots.FindIndex(b => b.Session.PlayerId == id);
+        if (i < 0)
+            return;
+        _bots.RemoveAt(i);
+        Retired++;
+    }
+
     public void Dispose()
     {
         foreach (var o in _owned)
@@ -122,6 +138,13 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
             else
                 ((GunnerBot)bot).Crew = crew;
         }
+        // Note 739 (GDD §12): the crew's pings, shared out a bot each as orders; this bot takes one it's nearest to and can do.
+        if (calls is not null && session.PlayerId is { } pid && bot is RoofWalkerBot or GunnerBot or ConductorBot)
+        {
+            calls.Role(pid, bot is ConductorBot ? BotRole.Driver : bot is GunnerBot ? BotRole.Gunner : BotRole.Walker);
+            IReadOnlyList<(int Id, PlayerState State)> pingCrew = (bot as RoofWalkerBot)?.Crew ?? (bot as GunnerBot)?.Crew ?? (bot as ConductorBot)?.Crew ?? [];
+            calls.Pings(session.World, pid, session.Predicted, pingCrew);
+        }
         var intent = bot is IWorldBot wb ? wb.Decide(session.Predicted, session.World, t, out _) : bot.Decide(session.Predicted, session.Train, t);
         int me = session.PlayerId ?? 0;
         // Note 551: too hurt for a hound pack that's about, it's in cover (the cab, or a car shut up): no errands out of it, to a
@@ -184,6 +207,8 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
             intent.Emote = Emote.Aboard;
             calls.CallBack(me);
         }
+        // Note 716: and round the big cab's chart table and benches, down the ways either side of them.
+        intent = Heed.CabFurniture(intent, session.Predicted, session.World, session.PlayerTuning);
         return Vote(intent, session, me);
     }
 

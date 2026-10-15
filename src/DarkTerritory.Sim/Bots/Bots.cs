@@ -388,7 +388,7 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
             foreach (var l in shape.Ladders)
                 if (cab.Contains(l.Foot + new Double3(0, 0.2, 0)))
                 {
-                    var (step, there) = WarmUp.Steer(self, l.Foot with { Y = self.Position.Y }, self.Yaw);
+                    var (step, there) = WarmUp.SteerCab(self, train, l.Foot with { Y = self.Position.Y }, self.Yaw);
                     return there ? new PlayerIntent { Actions = PlayerActions.Ladder } : step;
                 }
             return null;
@@ -544,6 +544,9 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
     {
         if (_relief is null)
             _sawDriver |= calls.Has(StopJob.Driver);
+        // Note 739 (GDD §12): the controls pinged for this bot (whoever held them let them go): forward to take them.
+        if (calls.OrderOf(Me) is { Kind: PingKind.Cab } && world.ControlsHolder < 0)
+            return true;
         if (world.ControlsHolder >= 0 && !world.ControlsHolderBot && world.ControlsHolder != Me)
             return false;
         return _relief is not null || _sawDriver && !calls.Has(StopJob.Driver);
@@ -855,10 +858,13 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         _hands.Clear();
         _second = null;
         var me = self;
+        // Note 739 (GDD §12): a fire pinged for this bot comes first, ahead of nearer trouble.
+        int? pingedFire = Calls?.OrderOf(Me) is { Kind: PingKind.Fire, Target: var pinged } ? pinged : null;
         _trouble = tend ? world.ActiveEnemies.Where(e => !e.Gone && e.Attached > 0 && (e is Incident && !(e is CarFire && (e.Extra > WellAlight && e.Attached != inside && Calls is null || e.Phase == SpinePhase.Punish && !fireFit))
                 && !(e is CarFire && Boarded(world, e.Attached))
                 || e is FireFlies && e.Attached < train0.Vehicles.Count && train0.Vehicles[e.Attached].LampLit))
-            .OrderBy(e => Covered(e, here) ? 1 : 0).ThenBy(e => e is CarFire ? 0 : 1).ThenBy(e => Math.Abs(e.Attached - here))
+            .OrderBy(e => e is CarFire && e.Attached == pingedFire ? 0 : 1)
+            .ThenBy(e => Covered(e, here) ? 1 : 0).ThenBy(e => e is CarFire ? 0 : 1).ThenBy(e => Math.Abs(e.Attached - here))
             .ThenBy(e => e.Id).FirstOrDefault(e => Hand(world, me, e, here) > 0) : null;
         var train = world.Train;
         // Otherwise a bag on a crane ahead, its board read: into a car with a side door that side, and the hook out.
@@ -1898,8 +1904,8 @@ public sealed class RoofWalkerBot(int seed, ColdTuning? cold = null, StopHand? j
         {
             // Over to the corridor's mouth first, inside the cab; then down it.
             if (Math.Abs(at.X - corridor) > 0.25 && at.Z < plan.CabBack - 0.2)
-                return WarmUp.Steer(self, new Double3(corridor, at.Y, plan.CabBack - 0.6), Math.PI).Step;
-            return WarmUp.Steer(self, new Double3(corridor, at.Y, hoodBack + 0.8), Math.PI).Step;
+                return WarmUp.SteerCab(self, train, new Double3(corridor, at.Y, plan.CabBack - 0.6), Math.PI).Step;
+            return WarmUp.SteerCab(self, train, new Double3(corridor, at.Y, hoodBack + 0.8), Math.PI).Step;
         }
         // Behind the smokebox: out along the footplate (T90's, beside the coupler plate), then sideways down onto the plate.
         double onFootplate = plan.Half + g.CouplingGap * 0.3;
@@ -2751,7 +2757,7 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         if (!minded && !_firedToLeave && train.BoilerTuning is { } bt && train.Boiler.Tender >= 1 && train.Boiler.FireFraction(bt) < fire)
         {
             var firebox = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
-            var (step, there) = WarmUp.Steer(self, FiringSpot(firebox, 1), FacingFire);
+            var (step, there) = WarmUp.SteerCab(self, train, FiringSpot(firebox, 1), FacingFire);
             var firing = there && CrewActions.Nearest(self, train) == InteractableKind.Firebox ? new PlayerIntent { Buttons = PlayerButtons.Use } : step;
             return firing with { Buttons = firing.Buttons | PlayerButtons.Brake, ThrottleNotch = -4 };
         }
@@ -2763,7 +2769,7 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         // so it pulls no harder against it than a standing engine's fire keeps it.
         if (!minded && train.BoilerTuning is { SteamDrive: true } && train.Boiler.Pressure > LeavingPressure)
         {
-            var (step, there) = WarmUp.Steer(self, VentWay(train)[0], 0);
+            var (step, there) = WarmUp.SteerCab(self, train, VentWay(train)[0], 0);
             var venting = there && CrewActions.Nearest(self, train) == InteractableKind.Vent ? new PlayerIntent { Buttons = PlayerButtons.Use } : step;
             return venting with { Buttons = venting.Buttons | PlayerButtons.Brake, ThrottleNotch = -4 };
         }
@@ -3151,7 +3157,7 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
             };
         var cab = train.Frames[0].Shape.Cab!.Value;
         var corner = side > 0 ? new Double3(cab.Max.X - 0.4, 0, cab.Min.Z + 0.9) : new Double3(cab.Min.X + 0.45, 0, cab.Max.Z - 0.45);
-        var (step, _) = WarmUp.Steer(self, corner, 0);
+        var (step, _) = WarmUp.SteerCab(self, train, corner, 0);
         return intent with { MoveX = step.MoveX, MoveZ = step.MoveZ, LookYaw = step.LookYaw };
     }
 
@@ -3234,7 +3240,7 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
             return null;
         }
         int at = _sandLeg < way.Length ? _sandLeg : 2 * way.Length - 1 - _sandLeg;
-        var (step, there) = WarmUp.Steer(self, way[at], 0);
+        var (step, there) = WarmUp.SteerCab(self, train, way[at], 0);
         // With steam driving (T97) nobody's holding the train back while the driver's out on the board, and sanded drivers
         // pull it up to whatever speed its steam makes: out with the brake held, so it's standing on it till the driver's back.
         // Note 233: but alone, that's a train on the climb that only ever stops: the brake bites on the sand it's laid, it
@@ -3311,7 +3317,7 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
             return null;
         }
         int at = _ventLeg < way.Length ? _ventLeg : 2 * way.Length - 1 - _ventLeg;
-        var (step, there) = WarmUp.Steer(self, way[at], 0);
+        var (step, there) = WarmUp.SteerCab(self, train, way[at], 0);
         if (!there)
             return step;
         if (_ventLeg == way.Length - 1)
@@ -3529,7 +3535,7 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
             if (!Repairs.WrenchInHand(self))
                 return null;
             var fire = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
-            var (step, there) = WarmUp.Steer(self, FiringSpot(fire, Fireman ? -1 : 1), FacingFire);
+            var (step, there) = WarmUp.SteerCab(self, train, FiringSpot(fire, Fireman ? -1 : 1), FacingFire);
             return there ? new PlayerIntent { Buttons = PlayerButtons.Use } : step;
         }
         var vehicles = train.Dynamics.Consist.Vehicles;
@@ -3559,7 +3565,7 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         // is the vent's, and a harness night's driver held it open from there with the wrench, the lamp never mended and the
         // boiler drained to nothing.
         if (!Repairs.AtLamp(self, train) || CrewActions.Nearest(self, train) is not (InteractableKind.Coal or InteractableKind.Firebox or null))
-            return WarmUp.Steer(self, new Double3(0, 0, PlayerMotor.CabFloorZ(train.Frames[0].Shape)), 0).Step;
+            return WarmUp.SteerCab(self, train, new Double3(0, 0, PlayerMotor.CabFloorZ(train.Frames[0].Shape)), 0).Step;
         if (Repairs.WrenchKey(self) is var key and > 0)
             return new PlayerIntent { Select = key };
         return Repairs.WrenchInHand(self) ? new PlayerIntent { Buttons = PlayerButtons.Use } : null;
@@ -3575,7 +3581,7 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         // On its way in from the bunker (note 263) it's in the open: at the fire, club it there.
         if (stoker.Boarding)
         {
-            var (step, there) = WarmUp.Steer(self, FiringSpot(firebox, Fireman ? -1 : 1), FacingFire);
+            var (step, there) = WarmUp.SteerCab(self, train, FiringSpot(firebox, Fireman ? -1 : 1), FacingFire);
             var club = there ? new PlayerIntent { Actions = PlayerActions.Swing } : step;
             club.Buttons |= PlayerButtons.Brake;
             club.ThrottleNotch = -4;
@@ -3585,7 +3591,7 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         // the director, the inbox, 12 Oct: "b") at the door and the hose on it, the brake held; else vent and starve it out.
         if (world.Enemies is { Stoker.CabHose: true })
         {
-            var (step, there) = WarmUp.Steer(self, FiringSpot(firebox, Fireman ? -1 : 1), FacingFire);
+            var (step, there) = WarmUp.SteerCab(self, train, FiringSpot(firebox, Fireman ? -1 : 1), FacingFire);
             var hose = there ? new PlayerIntent { Buttons = PlayerButtons.Fire } : step;
             hose.Buttons |= PlayerButtons.Brake;
             hose.ThrottleNotch = -4;
@@ -3622,7 +3628,7 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
             // left wall. Walking straight at the firebox from where it stood, the fireman fetched up at the vent, which was
             // then the nearest thing to hand, and never shovelled: deadLines:3's fire went out with the tender full.
             var firebox = train.Frames[0].Shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
-            var (step, there) = WarmUp.Steer(self, FiringSpot(firebox, Fireman ? -1 : 1), FacingFire);
+            var (step, there) = WarmUp.SteerCab(self, train, FiringSpot(firebox, Fireman ? -1 : 1), FacingFire);
             // Not while still walking in: Use and forward is a climb (T90), and note 280's hatch ladder stands behind the
             // bunker, on the way to the fire from the back of the cab.
             if (CrewActions.Nearest(self, train) == InteractableKind.Firebox && (there || step.MoveZ <= 0.5))
@@ -3725,7 +3731,7 @@ public static class KitRun
         {
             if (self.Parent == 0 && PlayerMotor.InCab(self, train))
             {
-                var (step, there) = WarmUp.Steer(self, firing, ConductorBot.FacingFire);
+                var (step, there) = WarmUp.SteerCab(self, train, firing, ConductorBot.FacingFire);
                 return there ? new PlayerIntent { Buttons = PlayerButtons.Use } : step;
             }
             if (self.Parent == car)
@@ -3734,7 +3740,7 @@ public static class KitRun
                 double front = -train.Frames[car].Shape.HalfLength;
                 var door = new Double3(g.PlateX, 0, front + 0.5);
                 if (self.Position.Z > door.Z + 0.15)
-                    return WarmUp.Steer(self, door, 0).Step;
+                    return WarmUp.SteerCab(self, train, door, 0).Step;
                 if (!train.Vehicles[car].DoorOpen(0))
                     return new PlayerIntent { Buttons = PlayerButtons.Use }; // drops it to open the door; picked up again after
                 return WarmUp.Steer(self, Into(train, 0, route[^1], car), 0).Step;
@@ -3742,8 +3748,8 @@ public static class KitRun
             // Back along the route to the cab: the next point nearer the front than here.
             for (int i = route.Length - 1; i >= 0; i--)
                 if (route[i].Z < self.Position.Z - RouteStep)
-                    return WarmUp.Steer(self, route[i], 0).Step;
-            return WarmUp.Steer(self, firing, ConductorBot.FacingFire).Step;
+                    return WarmUp.SteerCab(self, train, route[i], 0).Step;
+            return WarmUp.SteerCab(self, train, firing, ConductorBot.FacingFire).Step;
         }
         if (kit!.Parent == self.Parent)
             return Take(self, train, kit, tick);
@@ -3799,13 +3805,13 @@ public static class KitRun
         bool inCab = PlayerMotor.InCab(self, train);
         // (Lined up with the route's first point only short of it: past it, the way turns off to the doorway.)
         if (inCab && self.Position.Z < route[0].Z - RouteStep && Math.Abs(self.Position.X - route[0].X) > 0.2)
-            return WarmUp.Steer(self, route[0], Math.PI).Step;
+            return WarmUp.SteerCab(self, train, route[0], Math.PI).Step;
         foreach (var p in route)
             if (p.Z > self.Position.Z + RouteStep)
-                return WarmUp.Steer(self, p, Math.PI).Step;
+                return WarmUp.SteerCab(self, train, p, Math.PI).Step;
         if (!train.Vehicles[car].DoorOpen(0))
         {
-            var (step, there) = WarmUp.Steer(self, route[^1], Math.PI);
+            var (step, there) = WarmUp.SteerCab(self, train, route[^1], Math.PI);
             return there ? new PlayerIntent { Buttons = PlayerButtons.Use } : step;
         }
         double carFront = -train.Frames[car].Shape.HalfLength;
@@ -4517,6 +4523,22 @@ public sealed class WarmUp(ColdTuning cold, double goInAt = 0.6)
             MoveZ = (float)Math.Clamp((offset.X * fx + offset.Z * fz) * gain, -1, 1),
             MoveX = (float)Math.Clamp((offset.X * rx + offset.Z * rz) * gain, -1, 1),
         }, false);
+    }
+
+    /// <summary>
+    /// <see cref="Steer"/>, in the engine's cab round the crew car's chart table and benches (note 716): to the target by the
+    /// ways down the cab either side of them (<see cref="EnginePlan.CabWay"/>), there only once at the target itself.
+    /// </summary>
+    public static (PlayerIntent Step, bool There) SteerCab(in PlayerState self, TrainOnLine train, Double3 target, double yaw)
+    {
+        if (PlayerMotor.InCab(self, train))
+        {
+            var way = EnginePlan.Of(train.Dynamics.Tuning.Geometry).CabWay(self.Position, target);
+            // (At a way's point already, on to the target: the last leg's no more than a shoulder past the furniture's corner.)
+            if (Flat(way - target).Length > 0.01 && Flat(way - self.Position).Length > 0.2)
+                return (Steer(self, way, yaw).Step, false);
+        }
+        return Steer(self, target, yaw);
     }
 
     static Double3 Flat(Double3 v) => new(v.X, 0, v.Z);

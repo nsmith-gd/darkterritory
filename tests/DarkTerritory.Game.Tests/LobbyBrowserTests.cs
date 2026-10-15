@@ -73,6 +73,8 @@ public class LobbyBrowserTests
         using var browser = new LobbyBrowser(new LanBrowser(port), online: null);
         using var host = NetPlaySession.HostGame(Content, Night, port: 0, listed: true, bots: 1, beacon: new LanBeacon(port, [IPAddress.Loopback]));
         Cap(host, 2);
+        // Note 724: a joiner would take the bot's seat (crew.joinTakesBotSeat); this is the cap's refusal, so the old way.
+        host.Host!.PlayerTuning = host.Host.PlayerTuning with { Crew = host.Host.PlayerTuning.Crew with { JoinTakesBotSeat = false } };
         Browse(browser, games => games is [{ Full: true }], null, host);
         var full = Assert.Single(browser.Games);
         Assert.Equal((2, 2, true), (full.Aboard, full.Max, full.Full));
@@ -245,6 +247,8 @@ public class LobbyBrowserTests
         // The record it was hosted with goes on being said beside the mood.
         Assert.Equal("212", alice.LobbyData(id, NetPlaySession.RecordKey));
         Assert.Equal((true, RunMood.Competitive), (host.Locked, host.Mood));
+        // Locked, the run's kicks are the host's alone (note 724: the crew's vote is a public lobby's).
+        Assert.False(host.Host!.VoteKicks);
         using (var browser = new LobbyBrowser(lan: null, me))
         {
             Browse(browser, games => games.Count > 0, me, host);
@@ -262,6 +266,7 @@ public class LobbyBrowserTests
         // Opened again: the lock's off the listing, and anyone's in.
         host.ChangePassword(null);
         Assert.False(host.Locked);
+        Assert.True(host.Host!.VoteKicks);
         Assert.Equal("0", alice.LobbyData(id, NetPlaySession.LockedKey));
         using var open = NetPlaySession.JoinLobby(Content, me, id, () => host.Step(default));
         Board(host, open);

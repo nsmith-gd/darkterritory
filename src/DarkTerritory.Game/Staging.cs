@@ -30,6 +30,12 @@ public static partial class Staging
                     var b = plan.Fixtures.First(f => f.Kind == "board");
                     return (town.World(b.S, b.D) + Out(b.S, b.FaceS, b.FaceD, 1.6), town.World(b.S, b.D, 1.55));
                 }
+            case "lostcrews":
+                {
+                    // The board of lost crews (note 721), read close up as the notices are.
+                    var b = plan.Fixtures.First(f => f.Kind == "lostcrews");
+                    return (town.World(b.S, b.D) + Out(b.S, b.FaceS, b.FaceD, 1.6), town.World(b.S, b.D, 1.55));
+                }
             case "paper":
                 {
                     var loose = plan.Papers.Where(p => !p.OnBoard).ToList();
@@ -250,6 +256,9 @@ public static partial class Staging
         return where switch
         {
             "board" => Ballast.Render.Camera.LookAt(town.World(board.S - 1.2, board.D - side * 2.2, 1.65), town.World(board.S, board.D, 1.5), 60),
+            // Note 721: the board of lost crews beside it, square on, near enough to read its cards.
+            "lostcrews" when plan.Fixtures.FirstOrDefault(f => f.Kind == "lostcrews") is { } lost =>
+                Ballast.Render.Camera.LookAt(town.World(lost.S, lost.D - side * 2.0, 1.6), town.World(lost.S, lost.D, 1.5), 55),
             "hall" => Ballast.Render.Camera.LookAt(town.World(hall.S - 7, hall.D - side * (hall.Depth / 2 + 9), 1.7), town.World(hall.S, hall.D, 3), 65),
             "gate" => Ballast.Render.Camera.LookAt(town.World(plan.People[0].S + 2.5, plan.People[0].D + 1.6, 1.7), town.World(plan.People[0].S - 30, side * 8, 1.5), 65),
             "centre" => Ballast.Render.Camera.LookAt(town.World(centre.S + 5, centre.D - side * 5, 1.8), town.World(centre.S, centre.D, 1.2), 60),
@@ -631,6 +640,38 @@ public static partial class Staging
         var controls = new Sim.Train.TrainControls { Reverser = 1 };
         return new Crewmate(30, feet, cab.Heading, true, Act: whistling ? Art.CrewPose.Whistle : Art.CrewPose.Drive,
             Reach: Art.CrewActs.AtTheControls(controls, train.Frames, feet, cab.Heading, whistling), Car: 0, Local: local);
+    }
+
+    /// <summary>
+    /// The crew in the big cab (note 716; dt screenshot --cabcrew): the driver at the controls, the fireman behind the fire,
+    /// the navigator at the chart table's driver's side, two up on the gallery and one at the back wall; and two more off
+    /// it, one down on the ballast and one dead, so the table's lamps show who's missing and the hooks their caps.
+    /// </summary>
+    public static List<Crewmate> CabCrew(TrainOnLine train)
+    {
+        var engine = train.Frames[0];
+        var shape = engine.Shape;
+        var cab = shape.Cab!.Value;
+        double deck = cab.Min.Y + 0.1;
+        Crewmate At(byte id, double x, double y, double z, double turn, Art.CrewPose? act = null)
+        {
+            var local = new Double3(x, y, z);
+            return new Crewmate(id, engine.ToWorld(local), engine.Heading + turn, true, Act: act, Car: 0, Local: local);
+        }
+        var fire = shape.Interactables.First(i => i.Kind == InteractableKind.Firebox).Position;
+        var crew = new List<Crewmate> { Driver(train, false), At(31, fire.X, deck, fire.Z + 0.35, 0) };
+        if (Art.TrainKit.ChartTable(shape) is { } table)
+            crew.Add(At(32, table.Max.X + 0.42, deck, table.Centre.Z + 0.2, -Math.PI / 2 + 0.25));
+        if (Art.TrainKit.GalleryFloor(shape) is { } gallery)
+        {
+            crew.Add(At(33, -0.95, gallery.Max.Y, gallery.Min.Z + 0.35, 0.1));
+            crew.Add(At(34, 0.95, gallery.Max.Y, gallery.Min.Z + 1.6, -0.15));
+            crew.Add(At(35, -0.95, gallery.Max.Y, gallery.Min.Z + 2.4, -0.2));
+        }
+        // Off the train: one down on the ballast by the engine, one dead.
+        crew.Add(new Crewmate(36, engine.ToWorld(new Double3(-shape.HalfWidth - 3, 0, 4)), engine.Heading, true));
+        crew.Add(new Crewmate(37, engine.ToWorld(new Double3(-shape.HalfWidth - 4, 0, 7)), engine.Heading, false, Death: Sim.Player.DeathCause.Mauled));
+        return crew;
     }
 
     public static List<Crewmate> Working(TrainOnLine train, string content)
@@ -1848,7 +1889,7 @@ public static partial class Staging
         threats.Add(doll);
         // Haunting the cab at the controls (A.2 TAMPER), where it's heard giggling: left alone to her last stage (note 268).
         var haunting = new TrackDoll(26);
-        haunting.Restore(SpinePhase.Punish, 3, 1, 0, train.Frames[0].Shape.Cab!.Value.Centre + new Double3(0.4, -1.35, 0.3), 0, 0, 0, 0, 3);
+        haunting.Restore(SpinePhase.Punish, 3, 1, 0, train.Frames[0].Shape.FootplateMiddle + new Double3(0.4, -1.35, 0.3), 0, 0, 0, 0, 3);
         threats.Add(haunting);
         // On the ground by the first cargo car, gnawing a crate it's come off (A.8).
         var grumbler = new Grumbler(27);

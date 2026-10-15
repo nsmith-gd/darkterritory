@@ -44,6 +44,8 @@ public sealed record PlayerTuning(
 
     /// <summary>The emotes' lengths (GDD §9's yard, "dance"; note 298). Field docs live in player.json <c>emotes</c>.</summary>
     public EmoteTuning Emotes { get; init; } = new();
+    /// <summary>The bots' pings (note 739). Field docs live in player.json <c>pings</c>.</summary>
+    public PingTuning Pings { get; init; } = new();
     public NewsTuning News { get; init; } = new();
     /// <summary>Note 750: a crewmate held or killed out of voice reach, a line for the living (player.json <c>crewNews</c>).</summary>
     public Run.CrewNewsTuning CrewNews { get; init; } = new();
@@ -105,7 +107,20 @@ public sealed record CrewTuning(int Cap = 8, double RefuseLingerSeconds = 3, dou
     double GuessDelayMaxSeconds = 30, double GuessForgetSeconds = 300)
 {
     public int Places => Math.Max(1, Cap);
+    /// <summary>
+    /// GDD §33.1 (note 724): a human joining a night that bots crew takes a bot's place where it stands (its body, slots,
+    /// health and post) rather than waiting for a stop or the Holdouts' queue, or being turned away from a full crew.
+    /// </summary>
+    public bool JoinTakesBotSeat { get; init; } = true;
+    /// <summary>GDD §33.1 (note 724): putting a player off the run. Docs in player.json <c>crew.kick</c>.</summary>
+    public KickTuning Kick { get; init; } = new();
 }
+
+/// <summary>
+/// Note 724: a public lobby's vote to put a player off: open for <paramref name="VoteSeconds"/>, carried by more than
+/// <paramref name="Majority"/> of the living humans aboard (the one voted on not counted).
+/// </summary>
+public sealed record KickTuning(double VoteSeconds = 30, double Majority = 0.5);
 /// <summary>
 /// How long each emote lasts (note 298), in seconds, unless its player moves first. Field docs live in player.json
 /// <c>emotes</c>. Presentation only: the host keeps the event this long for the crew to see; nothing in the sim acts on it.

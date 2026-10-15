@@ -1124,6 +1124,14 @@
     // App. B.1's to pay for it. A kind among the last varietyWindow spawns has its weight halved for each.
     "pacedCost": 3,
     "varietyWindow": 4,
+    // And across the whole night (note 742; the director's second playtest, 14 Oct: "not enough variety of monsters ... I saw
+    // the cinder hounds like three times"): a kind about tonight that hasn't been sent yet weighs unseenWeight times as
+    // much, and each one of a kind sent tonight (the director's or come its own way) multiplies it by nightRepeat.
+    "unseenWeight": 2.5,
+    "nightRepeat": 0.6,
+    // And a kind come repeatHold times tonight waits (unless the director's pressed: a long quiet) while one about tonight
+    // hasn't come yet: the moving train lets few kinds in, the stops and towns most, so it saves up for those.
+    "repeatHold": 2,
     // The most of a kind the director sends a night, and the chance it's about at all tonight (drawn from the seed), by the
     // names in "costs"; a kind not named has no cap and is always about. Note 635, the director, the inbox, 12 Oct 2026, of
     // the Knotter: "They should show up once or twice a run. Sometimes never. We need more monster variety." Every kind's

@@ -26,6 +26,12 @@ public sealed class PlayerProfile(string path)
         /// beside its mood, for players feeling competitive.
         /// </summary>
         public double RecordKm { get; init; }
+        /// <summary>
+        /// The crews this player rode with, each with its logbook's pages as this machine saw them (GDD §11; the director, 14
+        /// Oct 2026; note 721): kept after the campaign's over, or the host's save is gone. The ended ones are the board of
+        /// lost crews' cards.
+        /// </summary>
+        public IReadOnlyList<Sim.Campaign.CrewLog> Crews { get; init; } = [];
     }
 
     public string Path { get; } = path;
@@ -75,6 +81,19 @@ public sealed class PlayerProfile(string path)
         if (km <= was.RecordKm)
             return was;
         var data = was with { RecordKm = km };
+        Save(data);
+        return data;
+    }
+
+    /// <summary>
+    /// A campaign night seen to its end (note 721): its page in that crew's logbook, from the report this machine was sent,
+    /// written again (in its night's place) if it's already there; <paramref name="over"/> closes the crew for good, onto the
+    /// board of lost crews. Saved.
+    /// </summary>
+    public Data Log(string key, string name, Sim.Campaign.LogPage page, bool over)
+    {
+        var was = Load();
+        var data = was with { Crews = Sim.Campaign.Logbook.Remember(was.Crews, key, name, page, over) };
         Save(data);
         return data;
     }

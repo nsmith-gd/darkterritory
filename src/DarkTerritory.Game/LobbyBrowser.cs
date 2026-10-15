@@ -30,6 +30,14 @@ public static class Moods
         _ => RunMood.Either,
     };
 
+    /// <summary>
+    /// Where the lobby's CREW MISCHIEF switch starts (GDD §23.4; note 724): on among friends (a private run) and for laughs, off
+    /// in a public run that's FEELING COMPETITIVE (player.json <c>horseplay.competitiveOff</c>), where strangers meet. The host
+    /// can set it either way.
+    /// </summary>
+    public static bool MischiefByDefault(RunMood mood, bool isPrivate, Sim.Player.HorseplayTuning t) =>
+        isPrivate || mood != RunMood.Competitive || !t.CompetitiveOff;
+
     /// <summary>As the menus say it.</summary>
     public static string Label(RunMood mood) => mood switch
     {
