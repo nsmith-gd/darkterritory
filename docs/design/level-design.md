@@ -383,7 +383,7 @@ What stands beside a generated line between the stops, and what of it you walk i
 
 ## L.3 Not yet
 - **What's still only seen:** a hand-laid line's trees and leavings.
-- **A body lies on the land,** not on a wall's top or a wharf's deck (note 817).
+- **What the game sets down for itself is set on the land:** a find put on a doorstep, a body put back beside the line. Thrown or dropped, a body or a find rests on a wall's top or a wharf's deck (note 817).
 - **A building is its box,** so a porch or a shed's stacked traps fill their corner of it.
 - **The alder, reeds and tufts** stay passable.
 
