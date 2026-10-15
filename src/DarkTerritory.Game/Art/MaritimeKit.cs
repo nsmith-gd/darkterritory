@@ -1570,7 +1570,7 @@ public static class MaritimeKit
     }
 
     /// <summary>A dory turned over on its blocks: the hull's flat bottom up, its sides drawn in to the bow and stern.</summary>
-    static void Dory(Kit k, float x0, float x1, float z0, float z1, float ht, int variant)
+    internal static void Dory(Kit k, float x0, float x1, float z0, float z1, float ht, int variant)
     {
         // Dory buff, a dark green or an old red (the yard's, not the house's).
         var paint = variant switch { 0 => new Vector3(0.62f, 0.52f, 0.32f), 1 => new Vector3(0.12f, 0.24f, 0.17f), _ => new Vector3(0.42f, 0.1f, 0.08f) };
