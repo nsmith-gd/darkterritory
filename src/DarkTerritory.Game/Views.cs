@@ -233,6 +233,9 @@ public static class Views
             // (Not one of Names.) Note 730: a stop's odd thing (dt screenshot --view oddities stages it and stands its own
             // camera off it); off the engine's side until then.
             "oddities" => Camera.LookAt(engine.ToWorld(new Double3(9, 1.6, -4)), engine.ToWorld(new Double3(3, 1.4, -2)), 40),
+            // (Not one of Names.) Note 726: a friend on the crane's hook; the screenshot puts the camera on the ground under it
+            // (dt screenshot --view hoist stops at a crane's facility); until then, off the engine's side.
+            "hoist" => Camera.LookAt(engine.ToWorld(new Double3(9, 1.6, -4)), engine.ToWorld(new Double3(3, 3, -2)), 60),
             "trophies" => Camera.LookAt(Staging.Lineside(train, 4.2, -1.6) + Double3.Up * 1.55, Staging.Lineside(train, 7.2, -4.1) + Double3.Up * 0.05, 40),
             // (Not one of Names.) Note 719, the big finds: two crewmates carrying a safe off the line's left (Staging.Jackpot puts
             // the camera beside them), a jackpot house from its street (Staging.JackpotHouse), and the finds slid in a car after

@@ -128,7 +128,8 @@ public static class Horseplay
     /// </summary>
     public static bool CanShove(in PlayerState s) =>
         s.Alive && s.Stagger == 0 && !s.Has(PlayerFlags.Shovelful) && !s.Has(PlayerFlags.Held) && !s.Has(PlayerFlags.Seated)
-        && !s.Has(PlayerFlags.Operating) && s.Surface != Surface.Ladder && !s.Has(PlayerFlags.Carried) && !s.Has(PlayerFlags.Carrying);
+        && !s.Has(PlayerFlags.Operating) && s.Surface != Surface.Ladder && !s.Has(PlayerFlags.Carried) && !s.Has(PlayerFlags.Carrying)
+        && !s.Has(PlayerFlags.Hoisted);
 
     /// <summary>
     /// The crewmate a shove from <paramref name="s"/> would land on (note 717): the nearest shoveable one in front, within
