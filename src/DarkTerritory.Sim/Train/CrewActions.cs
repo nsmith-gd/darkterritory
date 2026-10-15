@@ -244,6 +244,11 @@ public static class CrewActions
                         train.SetHandbrake(s.Parent, !train.RakeOf(s.Parent).Handbrake);
                 }
                 break;
+            // The BBQ deck's grill (note 698): held, it's lit; lit, held, it cooks, a sausage at a time (the host hands each
+            // over: World).
+            case InteractableKind.Grill when s.Parent == near.Value.Vehicle:
+                Bbq.Work(ref s, train, near.Value.Vehicle, before, dt);
+                break;
             // A battered car's dent, the wrench in hand (note 301): its shell comes back while it's worked.
             case null when Repairs.Dent(s, train, hand) is { } dented:
                 s.ActionProgress += dt;

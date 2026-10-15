@@ -34,6 +34,8 @@ public sealed record TownTuning
     public int[] NickiGuests { get; init; } = [2, 4];
     /// <summary>Nicki's wine (note 571): taken by holding Use by her, a glass a crewmate a night.</summary>
     public NickiWine Wine { get; init; } = new();
+    /// <summary>The blacksmith's forge (towns.json <c>smithy</c>; note 697). Unset, a town has none.</summary>
+    public SmithyTuning? Smithy { get; init; }
     public required int[] Quirks { get; init; }
     public required int[] Notices { get; init; }
     /// <summary>How many of the board's notices are the town's own (its culture's <c>board</c>; note 669).</summary>
@@ -227,6 +229,21 @@ public sealed record WalledTuning
     public double WorksGap { get; init; } = 3;
     /// <summary>How many of the town's hands are out at its works at night (note 353).</summary>
     public int WorksHands { get; init; } = 3;
+    /// <summary>
+    /// The town's rail yard (queue #239, note 502), behind the home platform: how far before the square's rear end it starts,
+    /// how far out from the line its siding runs, how far its pieces and buffer stops keep in from its street and its ends,
+    /// the room between pieces, how much stock stands in its siding, how far apart its lamps are, and how many porters
+    /// work it at night (m, a count).
+    /// </summary>
+    /// <summary>The fewest people a town has its rail yard for (note 502): a smaller one's first street is all it has on that side.</summary>
+    public int YardPeople { get; init; } = 400;
+    public double YardBefore { get; init; } = 90;
+    public double YardSiding { get; init; } = 14;
+    public double YardMargin { get; init; } = 1.5;
+    public double YardGap { get; init; } = 4;
+    public int[] YardStock { get; init; } = [2, 4];
+    public double YardLamps { get; init; } = 28;
+    public int YardHands { get; init; } = 2;
 }
 
 public sealed record TownReach
@@ -258,6 +275,8 @@ public sealed record TownWriting
     public required TownQuirk[] Quirks { get; init; }
     public required Dictionary<string, TownIndustry> Industries { get; init; }
     public required Dictionary<string, TownRole> Roles { get; init; }
+    /// <summary>The forge (note 697): its name, and what its board says read close to.</summary>
+    public TownText? Forge { get; init; }
     public required TownThread[] Threads { get; init; }
     public required TownText[] Notices { get; init; }
     /// <summary>What answers a knock at the square's three doors, by building ("hall", "office", "store").</summary>
@@ -279,6 +298,13 @@ public sealed record TownWriting
     /// have after its own): the pieces in the order they stand along the line, each with what looking at it tells you.
     /// </summary>
     public Dictionary<string, TownWork[]> Works { get; init; } = [];
+    /// <summary>
+    /// A walled town's rail yard (queue #239, note 502): its pieces in order from its gate end (<see cref="TownWork.After"/>:
+    /// the room left beside one toward the yard's rear end, the weighbridge's plate), each fronting the siding
+    /// (<see cref="TownWork.Across"/>: how much further back from it); and the stock that can be left standing in its siding.
+    /// </summary>
+    public TownWork[] Yard { get; init; } = [];
+    public TownWork[] Stock { get; init; } = [];
     /// <summary>What the people of a walled town say of living inside it (note 353): what becomes of those who rarely leave.</summary>
     public string[] Walled { get; init; } = [];
     /// <summary>A town that's had a creature brought in through its gate, remembering it (note 608); none, it says nothing of it.</summary>
@@ -310,6 +336,14 @@ public sealed record TownHousehold
 
 /// <summary>A paper: a notice, a letter, a page.</summary>
 public sealed record TownText(string Title, string Text);
+
+/// <summary>
+/// Where the blacksmith works (towns.json <c>smithy</c>; ARCHITECTURE §8 note 697): the forge <see cref="FromGate"/> m along
+/// the line from the gate (back into the yard, beside the engine as it stands there), <see cref="Out"/> m out on the town's
+/// side; the smith <see cref="Stand"/> m in front of it, toward the line. <see cref="HoldSeconds"/>: Use held on them that long
+/// opens the catalogue.
+/// </summary>
+public sealed record SmithyTuning(double FromGate = -18, double Out = 8.5, double Stand = 2.2, double HoldSeconds = 0.6);
 
 /// <summary>
 /// A piece of a town's works (note 353): its <see cref="Kind"/> (its art and its size, <see cref="TownFixtures.Size"/>), what
