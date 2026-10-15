@@ -189,9 +189,18 @@
   // aboard (the one voted on not counted). Put off, a player's told THE CREW PUT YOU OFF AT THE NEXT STOP and can't come back
   // to that run (barred by their account or address, or by name on a LAN that has none). A private or friends-only run: the
   // host's kick only.
+  //
+  // A private run's wrong password (ARCHITECTURE §8 note 535; note 450's "not yet"): its refusal is held back
+  // guessDelaySeconds, guessGrowth times longer for each wrong guess since from the same place (an address, or a platform
+  // account), up to guessDelayMaxSeconds; a place with no wrong guess for guessForgetSeconds starts again from the first.
+  // One guess from a place is judged at a time, so a mistyped password costs a second and a guesser a few a minute.
   "crew": {
     "cap": 8,
     "refuseLingerSeconds": 3,
+    "guessDelaySeconds": 1,
+    "guessGrowth": 2,
+    "guessDelayMaxSeconds": 30,
+    "guessForgetSeconds": 300,
     "joinTakesBotSeat": true,
     "kick": {
       "voteSeconds": 30,

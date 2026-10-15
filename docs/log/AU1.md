@@ -311,3 +311,26 @@ The director asked for the last three friendslop features to be heard. Two were 
 **The mail is cut for now** (K1's #530, note 803). The checklist page gained a **Parked** status: off the board's work like a cut line, but not struck through, with its level kept. `crew-mail` is parked; its sounds stay installed.
 
 **Checks:** the tell audit (`dt audio render --listener all`, chaos at 20 cars and 22 m/s) has every tell at least 6 dB over the bed at its worst listener. The whistle is the tightest at 6.2. The audio test classes pass (213).
+
+## 15 Oct, ~16:45 UTC: the Mouse Moose heard (#537), and U1's whimsies' candidates (#534)
+
+- **#537 (note 809), A1's Mouse Moose (#1042):** the yard's casting thief was silent.
+  - Hooked off its record, as the Pickers are: its claws while it creeps in and a squeak now and then (the tell), the bite, the drag (louder once the hook can't reach the casting and it speeds up), the bolt when it's scared off, the dig into its hole.
+  - A casting dragged all the way is heard tipping in, off the crane's own record, so a client hears it even without the creature.
+  - Fourteen candidates from a recipe agent, two a cue; the packs' real ones installed. Two new checklist rows, captions, two tests.
+- **#534 (note 806), U1's whimsies, pets and new emotes:** their 18 candidates (canary, calliope, gramophone, cat, dog, bow, salute, conga) are on the checklist: new rows `up-whimsy` and `up-pets`, and three cues on `crew-emotes`. Hooked when #967 lands, with #505.
+- **Voice Booth:** still no verdicts.
+
+## 15 Oct, ~17:00 UTC: a weak-sound sweep, and #538 (a Holdout's banging)
+
+- **The sweep:** every installed sample folder (775) checked for clipping, duplicate takes and energy below 150 Hz (raw, then A-weighted, and by centre).
+  - The sets it flags that the director kept (the Ribbits' hop landings, the Passenger's steps, which are the crew's own by design, Tippy's grab) stay as kept.
+  - Most heavy first picks are heavy by nature (the comet's hum, the drone, a strained car's groan, bodies falling).
+- **#538 (note 810):** the worst was a call. A Holdout's banging (one call in three or so) played two to four of its takes 0.3 s apart, but each take is already a whole bout, so a call was up to 32 blows piled up.
+  - Now one bout a call.
+  - A new `door` candidate, installed: each blow's crack carries over the boards' boom, where `walls` was a dull thud (cut at 1.6 kHz).
+  - The prisoner-call test holds it (it failed on the old hook: "3 bouts in one call").
+## 15 Oct, ~18:00 UTC: PREPARE HANDOFF (the Token Budget Manager)
+
+- nathaniel2's weekly limit is at 60%, on pace to run out ~16 Oct 08:00 UTC. AU1 confirmed and is writing its handoffs (COORDINATION rule 11): Handoff blocks for #42 (note 304, the Voice Booth), #505 (note 775, U1's upgrades) and #534 (note 806, U1's whimsies), in the shape COORDINATION's "Accounts and usage limits" gives. #537 and #538 are done in #1064.
+- The Voice Booth's last two fixes (`booth.py`'s preview clip guard, the clerk's kit-lost phrases in `script.json`) had stayed on `au1-booth` since 7 Oct; they land with the handoff.

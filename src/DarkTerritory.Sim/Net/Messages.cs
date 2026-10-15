@@ -111,12 +111,14 @@ public static class Protocol
     // 71: a friend on the crane's hook (note 726): the Crane record's last field counts the riders, a player's flags carry
     //     Hoisted, and a death of its own (dropped from the crane).
     // 72: the Mouse Moose (note 790): an enemy kind of its own, and a casting state (Taken: dragged out of the hook's reach).
-    // 73: the train upgrades (notes 698–745): the vehicle record carries the BBQ deck's grill charcoal and cooler beers (its
+    // 73: a lobby changed once it's open (note 535): CarryOn carries the run's key as it is when the host goes on, after the
+    //     town (a flag byte, then the key).
+    // 74: the train upgrades (notes 698–745): the vehicle record carries the BBQ deck's grill charcoal and cooler beers (its
     //     32nd and 33rd fields; the fire cells after them); the body kinds Beer, Sausage, Instrument (which, its ninth
     //     field), Caboose, FishingRod, Fish, GrilledFish, Cat, Dog and TennisBall (the caboose's and the pets' Tipped in the
     //     ninth field); the player flags Lounging and Playing (PlayerFlags is a uint now: the ushort was full); the world
     //     record's band tune and first tick, and the whimsies' state; the emotes Bow, Salute and Conga (9-11, the places note 722 kept).
-    public const int Version = 73;
+    public const int Version = 74;
 }
 
 public enum MessageType : byte
@@ -616,16 +618,30 @@ public static class Messages
     /// <summary>A <see cref="MessageType.Paint"/>'s paint, after its type byte.</summary>
     public static MaskPaint ReadPaint(ref NetReader r) => ReadPaintBytes(ref r);
 
-    /// <summary>The crew's going on from <paramref name="town"/> (note 606): its <see cref="Towns.TownAt.Spec"/>.</summary>
-    public static void WriteCarryOn(NetWriter w, Towns.TownAt town)
+    /// <summary>
+    /// The crew's going on from <paramref name="town"/> (note 606): its <see cref="Towns.TownAt.Spec"/>, and the run's key as it
+    /// is now (note 535: the host may have changed its password since they joined), so they get into the next night with it.
+    /// </summary>
+    public static void WriteCarryOn(NetWriter w, Towns.TownAt town, byte[]? key = null)
     {
         w.Reset();
         w.U8((byte)MessageType.CarryOn);
         w.Str(town.Spec);
+        w.U8(key is { Length: KeyLength } ? (byte)1 : (byte)0);
+        if (key is { Length: KeyLength })
+            w.Bytes(key);
     }
 
-    /// <summary>The town a <see cref="MessageType.CarryOn"/> names, or null if it doesn't read as one.</summary>
-    public static Towns.TownAt? ReadCarryOn(ref NetReader r) => Towns.TownAt.Parse(r.Str());
+    /// <summary>
+    /// The town a <see cref="MessageType.CarryOn"/> names (null if it doesn't read as one), and the run's key it carries
+    /// (null: an open run).
+    /// </summary>
+    public static (Towns.TownAt? Town, byte[]? Key) ReadCarryOn(ref NetReader r)
+    {
+        var town = Towns.TownAt.Parse(r.Str());
+        byte[]? key = r.Remaining >= 1 && r.U8() == 1 && r.Remaining >= KeyLength ? r.Rest()[..KeyLength].ToArray() : null;
+        return (town, key);
+    }
 
     public static void WriteNames(NetWriter w, IEnumerable<KeyValuePair<int, string>> names)
     {

@@ -63,6 +63,9 @@ public class CaptionsTests
     // Note 771: the Pickers coming up out of the drains, and taking a crate.
     [InlineData("tell-pickers.emerge")]
     [InlineData("cs-pickers.carry")]
+    // Note 809: the Mouse Moose creeping in, and dragging a casting off.
+    [InlineData("tell-mouse-moose.squeak")]
+    [InlineData("cs-mouse-moose.drag")]
     // Note 772: dawn coming, and coming for the train; the town's guns on it at the walls.
     [InlineData("tell-wakers.thud")]
     [InlineData("tell-wakers.rise")]

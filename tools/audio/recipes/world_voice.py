@@ -135,6 +135,32 @@ def frantic(rng, count):
         + [f"kenney_impact-sounds:impactMetal_medium_00{i}" for i in range(5)]
         + [f"kenney_impact-sounds:impactSoft_medium_00{i}" for i in range(5)], takes=4, lufs=-24)
 def bang(rng, k):
+    return through_wall(blows(rng, k), rng, (140, 110, 180, 150)[k])
+
+
+def at_door(x, rng, boom=140):
+    """Heard right outside the shut door: the door is what sounds, so a blow's crack carries (a little of the top gone,
+    the game's occlusion does the rest) over the boards' boom, the room inside faint behind it."""
+    y = lp(x, 4500, 2) + 0.35 * dsp.resonate(lp(x, 900), [boom, boom * 1.6, boom * 2.7], q=5)
+    return dsp.room(dsp.hp(y, 120, 2), "box", 0.15, rng=rng)
+
+
+@recipe("voice-callout", "bang", "door",
+        "Banging on a Holdout's door from inside, heard at the door: fists, kicks, a tin on iron, frantic and uneven, each blow plain",
+        """The same desperate bouts as 'walls' (clumps of two to four quick blows, ragged pauses), but heard where the crew
+        stands, at the door: the door itself sounds, so each blow's crack and the latch's rattle carry and the boards boom
+        under them, where 'walls' takes the top off at 1.6 kHz and the fists on planks go to a dull thud. One bout is one
+        call (note 810).""",
+        sources=W.PIECES["wood"] + ["kenney_rpg-audio:metalLatch", "sfx_100_v2:door_03"]
+        + [f"kenney_impact-sounds:impactMetal_medium_00{i}" for i in range(5)]
+        + [f"kenney_impact-sounds:impactPlank_medium_00{i}" for i in range(5)], takes=4, lufs=-24)
+def bang_door(rng, k):
+    return at_door(blows(rng, k, slap="kenney_impact-sounds:impactPlank_medium_00"), rng, (150, 120, 190, 160)[k])
+
+
+def blows(rng, k, slap="kenney_impact-sounds:impactSoft_medium_00"):
+    """One take's bout, dry: k 0 fists on a plank wall, 1 kicks on a door with its latch, 2 a tin on an iron door, 3 palms
+    and fists (the palms `slap`: the packs' soft thump through a wall, a plank's slap at the door)."""
     b = dsp.Bus(5.0)
     for i, t in enumerate(frantic(rng, (6, 5, 7, 8)[k])):
         g = rng.uniform(0.6, 1.0)
@@ -146,7 +172,7 @@ def bang(rng, k):
         elif k == 2:
             x = W.rec(f"kenney_impact-sounds:impactMetal_medium_00{int(rng.integers(5))}", semis=-rng.uniform(2, 4), tau=0.3)
         else:
-            x = (W.rec(f"kenney_impact-sounds:impactSoft_medium_00{int(rng.integers(5))}", semis=rng.uniform(0, 3)) if i % 2
+            x = (W.rec(f"{slap}{int(rng.integers(5))}", semis=rng.uniform(0, 3)) if i % 2
                  else W.rec(f"kenney_impact-sounds:impactWood_medium_00{int(rng.integers(5))}", semis=-2))
         b.at(t + rng.uniform(-0.01, 0.01), norm(x) * g)
-    return through_wall(b.x, rng, (140, 110, 180, 150)[k])
+    return b.x
