@@ -870,6 +870,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [679. The Wakers' model (queue #411, C1; docs/design/creatures/wakers.md §8.3, note 588; the director, 13 Oct 2026: "propose some model designs…](notes/679.md)
 - [680. The gym's calls, from the director's run-through (A1, queue #412; GDD §34.1, App. F.5; the director, 13 Oct 2026, from inside the gym: "The…](notes/680.md)
 - [681. Grabs alone: Use is the struggle's, a chance at best, and the holder stays (A1, queue #413; GDD App. C.1, App. F.5; the director, 13 Oct…](notes/681.md)
+- [682. Deaths named for what did them (A1, queue #414; GDD App. D.12, App. F.5; the director, 13 Oct 2026, from inside the creature gym:…](notes/682.md)
 - [683. The Hanger seen (A1, queue #415; GDD §21, App. F.5; the director, 13 Oct 2026, from inside the creature gym: "I was pulled up by a hanger…](notes/683.md)
 - [684. A moved board says its distance from where it stands (B4, queue #416; note 560's handoff, not yet (1); the director, 13 Oct, `pt13-signs`)](notes/684.md)
 - [686. A board past a truss isn't read through the truss (B4, queue #418; note 560's handoff, not yet (2); the director, 13 Oct, `pt13-signs`:…](notes/686.md)
@@ -999,5 +1000,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [815. Houses that don't all look alike (queue #543, B2; the director's playtest of 13 Oct evening, line 7, frontier:7's town: "A lot of the house…](notes/815.md)
 - [816. The handcar modelled: its deck, frame and post, wheels that turn by the distance run, the see-saw handle, and the chains it hangs by (C1,…](notes/816.md)
 - [817. What's solid holds you up (queue #545, B1; note 797's "not yet"; GDD App. F.1, the director: "The world is solid")](notes/817.md)
+- [819. A harbour town's Hope Tower and its Flame of Hope (queue #547, B2; the World Building board's Cultures tab, the director, 12 Oct:…](notes/819.md)
 - [820. The bot driver holds its speed without pulsing the full brake (B3, queue #532; AU1's audio audit, note 801's night)](notes/820.md)
 <!-- end of the notes index -->

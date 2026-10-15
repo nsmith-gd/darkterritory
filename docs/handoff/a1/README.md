@@ -8,7 +8,7 @@ first would make the PRs conflict.
 
 ## Queue #529, note 802: a drop off the crane's hook is a gag
 
-**Finished:** merged in [#1066](https://github.com/nsmith-gd/darkterritory/pull/1066) (15 Oct), protocol 75 (main took 73 for note 535 and 74 for the train upgrades meanwhile). Nothing left to pick up.
+**Finished:** merged in [#1066](https://github.com/nsmith-gd/darkterritory/pull/1066) (15 Oct), protocol 76 (main took 73 for note 535, 74 for the train upgrades and 75 for deaths named meanwhile). Nothing left to pick up.
 
 - **From:** nathaniel2, A1, 2026-10-15 17:44 UTC, prepare handoff (weekly 60%). K1 built it (K1.16) before its own limit; A1 carries it on.
 - **Branch and last commit:** `a1-hoist-gag`, 6b63c46d (pushed). PR [#1066](https://github.com/nsmith-gd/darkterritory/pull/1066).

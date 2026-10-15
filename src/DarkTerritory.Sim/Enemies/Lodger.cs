@@ -222,7 +222,7 @@ public sealed class Lodger(int id) : Enemy(id)
     }
 
     /// <summary>The one-hit kill: its grab's window is all but none (the shriek was the warning).</summary>
-    protected override void Punish(EnemyContext ctx, int victim) => Kill(ctx, victim, DeathCause.Mauled);
+    protected override void Punish(EnemyContext ctx, int victim) => Kill(ctx, victim, DeathCause.Lodger);
 
     /// <summary>
     /// Struck: only blows as it walks back to its corner (from behind, it's not looking) hurt it; one at it in its corner

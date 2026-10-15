@@ -288,7 +288,10 @@ public enum DeathCause : byte
     // Note 726: let go of the crane's hook (or shaken off it) after the operator lifted them, and the fall killed them; the
     // report names the operator. Note 802 (the director, 15 Oct 2026: "a silly gag not a big grief"): a drop off the hook no
     // longer kills (PlayerFlags.OffTheHook), so nothing sets it now; kept, as it's on the wire and in old recordings.
-    Dropped
+    Dropped,
+    // Note 682 (the director, 13 Oct, GDD App. F.5: "householder grabbed me and it said seized by the choir"): each of these
+    // had borrowed another's cause (the Choir's, the hounds', the Passenger's, a dropped load's). Appended: it's a byte on the wire.
+    Lodger, Hanger, Householder, HollowHouse, Brakeman, Hotbox, TowerJaw, Grumbler, Pickers
 }
 
 /// <summary>Conditions a player carries.</summary>
@@ -374,7 +377,7 @@ public enum PlayerFlags : uint
     /// till they have footing again. A landing on the ground knocks by the height fallen alone, at most player.json
     /// <c>landing.offTheHook.maxKnock</c>, and never kills (<see cref="OffTheHookTuning"/>). Set by the host as they come off
     /// (World.LetGo, a host move), cleared by the motor on footing, here and on a predicting client alike. Past main's Lounging
-    /// and Playing (protocol 74 widened the flags to a uint), at protocol 75.
+    /// and Playing (protocol 74 widened the flags to a uint), at protocol 76.
     /// </summary>
     OffTheHook = 262144,
 }
