@@ -53,10 +53,10 @@ public sealed partial class GameAudio
         switch (mode)
         {
             case LodgerMode.Hidden:
-                Hold("tell-lodger.breathing", l.Id, at + Double3.Up * 0.6, occ);
+                Hold("tell-lodger-breathing.breathing", l.Id, at + Double3.Up * 0.6, occ);
                 break;
             case LodgerMode.Shriek when began:
-                Cue("tell-lodger.shriek", at + Double3.Up * 1.4, occ);
+                Cue("tell-lodger-shriek.shriek", at + Double3.Up * 1.4, occ);
                 break;
             case LodgerMode.Lunge when began:
                 Cue("cs-lodger.lunge", at, occ);
@@ -94,12 +94,12 @@ public sealed partial class GameAudio
                     was.Next = _time + 1 + _creatureRng.Next();
                 else if (_time >= was.Next)
                 {
-                    Cue("tell-householder.creak", at + Double3.Up * 1.2, occ);
+                    Cue("cs-householder.creak", at + Double3.Up * 1.2, occ);
                     was.Next = _time + 2.5 + 2 * _creatureRng.Next();
                 }
                 break;
             case HouseholderMode.Rise when began:
-                Cue("tell-householder.rise", at + Double3.Up * 0.6, occ);
+                Cue("tell-householder-rise.rise", at + Double3.Up * 0.6, occ);
                 break;
             case HouseholderMode.Grab when began:
                 Cue("cs-householder.grab", Victim(world.Train, (int)h.Extra, 1.3) ?? at + Double3.Up * 1.3, occ);
@@ -138,10 +138,10 @@ public sealed partial class GameAudio
                 Hold("tell-hollow-house.rumble", h.Id, at, occ);
                 break;
             case HollowMode.Sink:
-                HoldLevel("tell-hollow-house.sink", h.Id, at, occ, 0.6 + 0.4 * Math.Clamp(h.Extra / Math.Max(0.1, depth), 0, 1));
+                HoldLevel("cs-hollow-house.sink", h.Id, at, occ, 0.6 + 0.4 * Math.Clamp(h.Extra / Math.Max(0.1, depth), 0, 1));
                 break;
             case HollowMode.Collapse when began:
-                Cue("tell-hollow-house.collapse", at + Double3.Up * 2, occ);
+                Cue("cs-hollow-house.collapse", at + Double3.Up * 2, occ);
                 break;
         }
     }
@@ -163,7 +163,7 @@ public sealed partial class GameAudio
             if (_space == PlayerMotor.HouseSpace(house))
                 Hold("tell-hanger.rafters", h.Id, at, 0);
             if (StrandsNearest(world, h, house) is { } near)
-                HoldLevel("tell-hanger.hum", h.Id, at - Double3.Up * 1.0, occ, 0.4 + 0.6 * Math.Clamp(1 - (near - StrandNear) / 3, 0, 1));
+                HoldLevel("tell-hanger-strands.hum", h.Id, at - Double3.Up * 1.0, occ, 0.4 + 0.6 * Math.Clamp(1 - (near - StrandNear) / 3, 0, 1));
         }
         switch (mode)
         {
@@ -211,7 +211,7 @@ public sealed partial class GameAudio
                 continue;
             if (shut && e is HollowHouse hh && (int)hh.Extra2 == d.House
                 && (HollowMode)(int)hh.Height is HollowMode.Shut or HollowMode.Sink or HollowMode.Collapse)
-                return "tell-hollow-house.slam";
+                return "cs-hollow-house.slam";
             if (!shut && e is Lodger l && (LodgerMode)(int)l.Height == LodgerMode.Break
                 && ((l.WorldPosition(world.Train) - d.At) with { Y = 0 }).Length <= 2.5)
                 return "cs-lodger.break";

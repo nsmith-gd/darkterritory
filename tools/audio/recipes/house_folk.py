@@ -298,7 +298,7 @@ def breathing(rng, one):
     return loop_of(back_room(b.x), None, BREATH_L, BREATHING)
 
 
-@recipe("tell-lodger", "breathing", "lungs",
+@recipe("tell-lodger-breathing", "breathing", "lungs",
         "Slow, deep, wet breathing from a long chest in a dark back room: real air, a phlegm rattle, spit, lips fluttering",
         """From real air: the packs' gasp (sfx_100 misc_05) drawn out (paulstretched) and dropped most of an octave for a
         long, starved chest, drawn in through a narrowed throat and let out slower and lower, the loose lips fluttering on
@@ -310,7 +310,7 @@ def breathing_lungs(rng, k):
     return breathing(rng, lungs)
 
 
-@recipe("tell-lodger", "breathing", "gurgle",
+@recipe("tell-lodger-breathing", "breathing", "gurgle",
         "Slow, deep, wet breathing, modelled: air through a long throat over bubbling phlegm, a faint groan on one breath",
         """Modelled: air through a long throat (plain noise coloured by a long vocal tract, 'h' opening to 'o' on the way in,
         'o' to 'u' on the way out), bubbles of phlegm bursting low in it (140-600 Hz) in a slow gated rattle, spit
@@ -356,7 +356,7 @@ def shriek_end(rng, x):
     return dsp.fade(held(y, *SHRIEK, drive=4), 0.0, 0.2)
 
 
-@recipe("tell-lodger", "shriek", "wail",
+@recipe("tell-lodger-shriek", "shriek", "wail",
         "A shrill, climbing shriek from a jaw unhinged wide: real cries held out, pulled up two octaves, torn rough",
         """Kitbashed from real throats: the packs' groan-and-wail and roar (sfx_100 misc_25, misc_24) held out
         (paulstretched, so they keep their grain without their syllables), pulled up two octaves and on up six to eight
@@ -379,7 +379,7 @@ def shriek_wail(rng, k):
     return shriek_end(rng, ck.place([(0, jaw(rng), -6), (0.015, y, 0)], L + 0.05))
 
 
-@recipe("tell-lodger", "shriek", "throat",
+@recipe("tell-lodger-shriek", "shriek", "throat",
         "A shrill, climbing shriek, modelled: a sharp wet gasp in, then one ragged throat screaming up from 1 kHz",
         """Modelled: a sharp wet gasp in through the teeth as it rears (breath through a short tract, 'h' to 'i', and a
         spit's click), then the shriek: a glottis from about 1.1 kHz climbing six to eight semitones, jittery and breaking
@@ -713,7 +713,7 @@ def watching(rng, k, chair_, neck_):
     return dsp.band(kitchen(ck.place(parts), 0.12), *CREAK, order=2)
 
 
-@recipe("tell-householder", "creak", "chair",
+@recipe("cs-householder", "creak", "chair",
         "Watching: its chair creaking, and its neck creaking as its head follows you",
         """Nothing else while it watches. Its kitchen chair's joints creaking as its weight shifts (the packs' real wooden
         creaks, pitched up for a small chair), and its neck as its head turns after you: a real creak dropped and narrowed
@@ -725,7 +725,7 @@ def creak_chair(rng, k):
     return watching(rng, k, lambda t, L: chair(rng, t, L), lambda t, L: neck(rng, t, L))
 
 
-@recipe("tell-householder", "creak", "sinew",
+@recipe("cs-householder", "creak", "sinew",
         "Watching, modelled: its chair's joints creaking, its neck grinding as its head turns, a click of bone",
         """Modelled: the chair's joints a slow stick-slip through a small seat's dry modes, the neck a slower, catching
         stick-slip through soft gristle (broad modes: it grinds, it doesn't ring) with a few small dry clicks of bone. One take
@@ -770,7 +770,7 @@ def hands(rng, take):
                      (0.03, knock(rng, SLAPS, take + 1, -2, 0.03), -3), (0.032, ck.hollow(rng, [150, 260, 430], 0.15, q=4), -10)])
 
 
-@recipe("tell-householder", "rise", "scrape",
+@recipe("tell-householder-rise", "rise", "scrape",
         "Rising: the chair scraped back hard on the boards, the cutlery and plate rattling on the table",
         """The telegraph, a second and a half: its hands slapped flat on the table as it pushes up (a real flat slap and the
         tabletop's knock), the table jolting and everything on it jumping: knife, fork and spoon against the plate and
@@ -805,7 +805,7 @@ def plate(rng):
     return ck.norm(y * env([(0, 1), (L, 0.001)], L, "exp"))
 
 
-@recipe("tell-householder", "rise", "judder",
+@recipe("tell-householder-rise", "rise", "judder",
         "Rising, modelled: the chair juddering back over the boards, the table jolted, spoons and the plate jumping",
         """Modelled: its hands landing on the table (a tabletop's low modes knocked), the table jolting and everything on it
         jumping (spoons and forks as thin plated bars rung and bouncing, the plate's porcelain rim ringing short, choked by

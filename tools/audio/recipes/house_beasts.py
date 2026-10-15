@@ -520,11 +520,11 @@ def slam(rng, k, real):
     parts.append((t0 + 0.05, dust, -20))
     y = dry(ck.place(parts))
     if not real:                        # the modelled bang and the frame's boom: up to 62% under 150 Hz, a squish of a slam
-        y = hp(y, 110, 4)
+        y = hp(y, 150, 4)
     return finish(hold(y, SLAM), SLAM_LUFS, PEAK)
 
 
-@recipe("tell-hollow-house", "slam", "thrown",
+@recipe("cs-hollow-house", "slam", "thrown",
         "A heavy house door thrown shut by nobody: no hand, a bang with no give, the sneck slammed down, the frame shaking",
         """Real recordings: the leaf swung from wide open by nothing, the air shoved ahead of it and its hinges yelping at
         the speed of it (a real creak cut short and pitched up), then the bang (the packs' real door slam, a heavy
@@ -538,7 +538,7 @@ def slam_thrown(rng, k):
     return slam(rng, k, True)
 
 
-@recipe("tell-hollow-house", "slam", "leaf",
+@recipe("cs-hollow-house", "slam", "leaf",
         "A heavy house door thrown shut by nobody, modelled: a ledged plank leaf struck into its jamb, the latch bouncing",
         """Modelled: the air of the swing and the strap hinges' iron yelping (stick-slip, fast), then the leaf into its
         frame (a heavy ledged deal door struck all over at once: a wooden plate's modes from about 100 Hz, its planks' own,
@@ -555,7 +555,7 @@ def slam_leaf(rng, k):
 SINK_L = 8.0
 
 
-@recipe("tell-hollow-house", "sink", "timber",
+@recipe("cs-hollow-house", "sink", "timber",
         "The house sinking: its timbers screaming as the frame racks, fibres popping, the earth heaving round its base",
         """Real recordings: six real wooden creaks a cycle held out and bent up as the strain builds (a timber screaming,
         never a hinge's squeak: hinges' squeals dropped half an octave, door creaks, overlapping), the whole frame groaning
@@ -591,7 +591,7 @@ def sink_timber(rng, k):
     return close(y, rng, SINK, wet=0.1, drive=2.5, lufs=-20)
 
 
-@recipe("tell-hollow-house", "sink", "racking",
+@recipe("cs-hollow-house", "sink", "racking",
         "The house sinking, modelled: the frame racking in long screams of stick-slip, nails shrieking, the earth grinding",
         """Modelled from how a frame fails as it's pulled down: its members screaming (stick-slip so fast it has a pitch,
         100-400 slips a second gliding up as the strain builds, rung through boards' modes from 270-550 Hz up, seven
@@ -673,7 +673,7 @@ def plaster(rng, length):
     return mix(unit(y), unit(lp(c, 4000)) * 0.6)
 
 
-@recipe("tell-hollow-house", "collapse", "crash",
+@recipe("cs-hollow-house", "collapse", "crash",
         "The house coming down: a last scream of the frame, a beam going, the roof falling in, slates, glass, brick, walls",
         """Real recordings: the frame's last scream (a real creak bent up) and a beam going with a crack (real wood breaking,
         dropped), then the roof falls in: the air shoved out of the house in a deep whump (the head of a real thunder roll,
@@ -722,7 +722,7 @@ def collapse_crash(rng, k):
     return finish(hold(y, FALL), FALL_LUFS, -1.0)
 
 
-@recipe("tell-hollow-house", "collapse", "fall",
+@recipe("cs-hollow-house", "collapse", "fall",
         "The house coming down, modelled: the frame giving, the air shoved out, timbers, slates, glass and brick, settling",
         """Modelled from what falls: the frame's last seconds (its members' stick-slip quickening into a scream, fibres
         going faster and faster), then the roof falls in: the air in the house shoved out in one deep pressure pulse, the
@@ -877,7 +877,7 @@ def strand(n, rng, f, q):
     return W.norm(y * quiver(n, rng, rng.uniform(7, 13)))
 
 
-@recipe("tell-hanger", "hum", "wire",
+@recipe("tell-hanger-strands", "hum", "wire",
         "Its strands quivering: a thin, taut hum like a wire in the wind, six strands beating, trembling, never a tone",
         """Modelled from a wire singing in a draught: each of six strands of different lengths sheds a wake that locks to
         its own vibration, so a narrow band of noise at its pitch (1.7-4.3 kHz, drawn at random and none in unison, so no
@@ -907,7 +907,7 @@ def held(rng, key, f, n, window=0.06):
     return freeze(x[top + samples(0.01):], n, rng, window)
 
 
-@recipe("tell-hanger", "hum", "held",
+@recipe("tell-hanger-strands", "hum", "held",
         "Its strands quivering, from real struck metal and glass frozen into a thin whine: six strands, trembling, beating",
         """Real recordings, bent: six struck pieces of thin metal and ringing glass from the packs, each varispeeded so its
         loudest partial sits at one strand's pitch (1.7-4.3 kHz, at random, none in unison) and frozen into a held whine

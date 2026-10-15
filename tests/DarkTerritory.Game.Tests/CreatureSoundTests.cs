@@ -977,20 +977,20 @@ public class CreatureSoundTests
     {
         // Note 583: the breathing while it hides; its shriek each time it shrieks (before every lunge); the lunge's thump; a
         // door broken in under blows about every half second of its breakSeconds.
-        using var scene = new Scene(1, "tell-lodger.breathing~", "tell-lodger.shriek", "cs-lodger.lunge", "cs-lodger.break");
+        using var scene = new Scene(1, "tell-lodger-breathing.breathing~", "tell-lodger-shriek.shriek", "cs-lodger.lunge", "cs-lodger.break");
         var t = DataFile.Load<EnemyTuning>(Path.Combine(Content, EnemyTuning.File)).Lodger;
         var at = scene.Train.Frames[1].ToWorld(new Double3(20, 0, 0));
         Lodger L(LodgerMode mode) => Record(new Lodger(80), SpinePhase.Dormant, 1, t.Health, Enemy.Loose, at, height: (double)mode, extra: 1, extra2: 0);
         var heard = new List<string>();
         for (int i = 0; i < 2 * SimConstants.TickRate; i++)
             heard.AddRange(scene.Tick(L(LodgerMode.Hidden)));
-        Assert.Equal(["tell-lodger.breathing"], heard);
+        Assert.Equal(["tell-lodger-breathing.breathing"], heard);
         heard.Clear();
         foreach (var mode in new[] { LodgerMode.Shriek, LodgerMode.Lunge, LodgerMode.Chase, LodgerMode.Shriek, LodgerMode.Lunge })
             for (int i = 0; i < SimConstants.TickRate / 2; i++)
                 heard.AddRange(scene.Tick(L(mode)));
-        Assert.Equal(["tell-lodger.shriek", "cs-lodger.lunge", "tell-lodger.shriek", "cs-lodger.lunge"], heard);
-        Assert.False(scene.Playing("tell-lodger.breathing"));
+        Assert.Equal(["tell-lodger-shriek.shriek", "cs-lodger.lunge", "tell-lodger-shriek.shriek", "cs-lodger.lunge"], heard);
+        Assert.False(scene.Playing("tell-lodger-breathing.breathing"));
         heard.Clear();
         for (int i = 0; i < (int)(t.BreakSeconds * SimConstants.TickRate); i++)
             heard.AddRange(scene.Tick(L(LodgerMode.Break)));
@@ -1002,7 +1002,7 @@ public class CreatureSoundTests
     {
         // Note 584: the house's homely loop while it sits or watches; a creak now and then as it watches; the chair scraped
         // back as it rises; hunting, its tread a step a stride and never hurried, its breath; the grab; home, it settles.
-        using var scene = new Scene(1, "tell-householder.house~", "tell-householder.creak", "tell-householder.rise", "cs-householder.step",
+        using var scene = new Scene(1, "tell-householder.house~", "cs-householder.creak", "tell-householder-rise.rise", "cs-householder.step",
             "cs-householder.breath~", "cs-householder.grab", "cs-householder.settle");
         var chair = scene.Train.Frames[1].ToWorld(new Double3(25, 0, 0));
         Householder H(HouseholderMode mode, Double3 at) =>
@@ -1011,10 +1011,10 @@ public class CreatureSoundTests
         for (int i = 0; i < 6 * SimConstants.TickRate; i++)
             heard.AddRange(scene.Tick(H(HouseholderMode.Watch, chair)));
         Assert.True(scene.Playing("tell-householder.house"));
-        Assert.InRange(heard.Count(h => h == "tell-householder.creak"), 1, 3);
+        Assert.InRange(heard.Count(h => h == "cs-householder.creak"), 1, 3);
         heard.Clear();
         heard.AddRange(scene.Tick(H(HouseholderMode.Rise, chair)));
-        Assert.Equal(["tell-householder.rise"], heard);
+        Assert.Equal(["tell-householder-rise.rise"], heard);
         // Hunting at 3.4 m/s for 4 s: about one step a stride of it, the breath held, the house's loop gone.
         heard.Clear();
         var steps = new List<int>();
@@ -1038,7 +1038,7 @@ public class CreatureSoundTests
     public void TheHollowHouseRumblesSinksLouderAsItGoesAndComesDownOnce()
     {
         // Note 585: the rumble held while it rumbles, the sink while it sinks (fuller the deeper), the collapse once.
-        using var scene = new Scene(1, "tell-hollow-house.rumble~", "tell-hollow-house.sink~", "tell-hollow-house.collapse");
+        using var scene = new Scene(1, "tell-hollow-house.rumble~", "cs-hollow-house.sink~", "cs-hollow-house.collapse");
         var middle = scene.Train.Frames[1].ToWorld(new Double3(18, 0, 0));
         HollowHouse H(HollowMode mode, double sunk = 0) =>
             Record(new HollowHouse(82), SpinePhase.Dormant, 1, 1, Enemy.Loose, middle, height: (double)mode, extra: sunk, extra2: 0);
@@ -1049,7 +1049,7 @@ public class CreatureSoundTests
         heard.AddRange(scene.Tick(H(HollowMode.Rumble)));
         Assert.Equal(["tell-hollow-house.rumble"], heard);
         scene.Tick(H(HollowMode.Sink, 0.1));
-        var sink = scene.Audio.Mixer.Voices.First(v => v.Name == "tell-hollow-house.sink" && !v.Stopped);
+        var sink = scene.Audio.Mixer.Voices.First(v => v.Name == "cs-hollow-house.sink" && !v.Stopped);
         float shallow = sink.Volume;
         scene.Tick(H(HollowMode.Sink, 2.0));
         Assert.True(sink.Volume > shallow);
@@ -1057,7 +1057,7 @@ public class CreatureSoundTests
         heard.Clear();
         for (int i = 0; i < SimConstants.TickRate; i++)
             heard.AddRange(scene.Tick(H(HollowMode.Collapse, 2.4)));
-        Assert.Equal(["tell-hollow-house.collapse"], heard);
+        Assert.Equal(["cs-hollow-house.collapse"], heard);
     }
 
     [Fact]
