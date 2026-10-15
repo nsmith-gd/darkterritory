@@ -3128,6 +3128,15 @@ static object ArtClip(string content, string name, string clip, string[] args)
         }
         else
             art.Draw(mesh, name, clip, time, loop, placed, (int)Opt(args, "--variant", 0));
+        // (--with clip [--with-at x,z,yaw]: a second of them at the same time, at that clip, there (model space; yaw in degrees):
+        // a pair to look at together, a friend over the shoulder (note 812) at the same feet, a high five's other half facing.)
+        if (Str(args, "--with", "") is { Length: > 0 } other)
+        {
+            var pair = Str(args, "--with-at", "0,0,0").Split(',').Select(double.Parse).ToArray();
+            var there = System.Numerics.Matrix4x4.CreateRotationY((float)(pair[2] * Math.PI / 180))
+                * System.Numerics.Matrix4x4.CreateTranslation(new System.Numerics.Vector3((float)pair[0], 0, (float)pair[1]) - e);
+            art.Draw(mesh, name, other, time, loop, there, (int)Opt(args, "--variant", 0) + 1);
+        }
         var light = look.Apply(FrameLighting.Night);
         light.FogDensity = 0.004f;
         light.LampRange = 0.01f;
@@ -4369,7 +4378,7 @@ static int Usage()
           trailer [--route tier:seed] [--fps n] [--width w --height h] [--short] [--beats i,j] [--ffmpeg path] [--crf n]   the trailer cut from the game itself, heard through the game's mixer: frames, trailer.wav and its spectrogram to out/trailer, ffmpeg to trailer.mp4 and contact.png
           art clearance [--only crew] [--clips a,b] [--limit m] [--allow clip:pair,..]   a figure's clips checked for limbs through its body
           art reel [--only a,b] [--clips c,d] [--fps n] [--width w --height h]   every animated model's every clip as frame strips + reel.json in out/reel (the Look Review's animations)
-          art clip <creature> <clip> [--frames n] [--at x,y,z --dist m --yaw deg --pitch deg] [--lift m] [--variant n] [--once]   a clip as a lit contact sheet
+          art clip <creature> <clip> [--frames n] [--at x,y,z --dist m --yaw deg --pitch deg] [--lift m] [--variant n] [--once] [--with clip [--with-at x,z,yaw]]   a clip as a lit contact sheet (--with: a second of them beside it, a pair)
           screenshot [--view trackside|roof|cab|chase|ahead] [--line name] [--cars n] [--at s] [--car i] [--cut n]
                      [--cam s,lateral,height --target s,lateral,height --fov deg]   camera by line coordinates
                      [--width w] [--height h] [--scale k] [--out file.png] [--threats]   --threats stages one of each enemy
