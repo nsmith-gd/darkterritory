@@ -153,8 +153,11 @@ public sealed partial class SceneArt(Look look)
             CrewPose.Shove => c.Phase > 0 ? c.Phase : time - since.Time,
             // (Note 812: over the shoulder, on the carrier's clock: their beat less this one's, CrewActs.OnTheShoulder.)
             CrewPose.Carried or CrewPose.CarriedWalk => time + c.Phase,
-            // (Note 814: the handle's swing has the pump, not a clock: CrewActs.PumpPhase.)
-            CrewPose.Pump => c.Phase,
+            // (Note 814: the handle's swing has the pump, not a clock: CrewActs.PumpPhase. Note 818: the lift's by how high the
+            // hands are, CrewActs.HeavePhase.)
+            CrewPose.Pump or CrewPose.Heave => c.Phase,
+            // (Note 818: a throw off the shoulder from the host's knock, as a shove is.)
+            CrewPose.ThrowOff => c.Phase > 0 ? c.Phase : time - since.Time,
             // A staged swing (dt screenshot --act swing) says how far into it they are; a played one, from its blow.
             CrewPose.Swing => swung >= 0 ? swung + SwingHitAt : c.Phase,
             // The reload's beats follow the gun's own progress, not a clock (CrewActs.ReloadPhase).
@@ -222,6 +225,9 @@ public sealed partial class SceneArt(Look look)
             or CrewPose.Fireman or CrewPose.FiremanWalk;
         if (drawn && Breath > 0 && c.Alive)
             Look.Art.Effects.Breath(mesh, Creatures.LastMouth, Creatures.LastFacing, Breath, time, c.Id, hard);
+        // A car fire's heat on them (note 821): smoke curling up off them and embers flicked off, so a friend sees it burning them.
+        if (drawn && c.Alive && c.Scorch > 0)
+            Look.Art.Effects.Scorched(mesh, feet.RelativeTo(eye), (float)c.Scorch, time, c.Id);
         // (And where it is, for the cab's glass it fogs: CabGlass, drawn after the crew.)
         if (drawn && c.Alive)
             _mouths[c.Id] = new Mouth(eye + new Double3(Creatures.LastMouth.X, Creatures.LastMouth.Y, Creatures.LastMouth.Z), Creatures.LastFacing, hard, time);

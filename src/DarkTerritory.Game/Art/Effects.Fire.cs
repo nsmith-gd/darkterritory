@@ -54,6 +54,50 @@ public sealed partial class Effects
     }
 
     /// <summary>
+    /// Note 821: a crewmate a car fire's heat reaches (<paramref name="heat"/> 0..1, the burn's own measure: Sim's
+    /// CarFire.HeatOn), from their <paramref name="feet"/>: smoke curling up off their shoulders, back and sleeves, thicker and
+    /// darker the hotter, and embers flicked up off them, so whoever sees them sees it burning them (the 14 Oct playtest's
+    /// line 25: "I wasn't getting any feedback that I was being burned").
+    /// </summary>
+    public void Scorched(MeshBuilder mesh, Vector3 feet, float heat, double t, int seed)
+    {
+        if (_smoke < 0 || heat <= 0.01f)
+            return;
+        float thick = Math.Clamp(heat / 0.7f, 0, 1);
+        int puffs = 5 + (int)(thick * 9);
+        for (int k = 0; k < puffs; k++)
+        {
+            float h = Hash(k * 2.13f + seed * 3.7f), h2 = Hash(k * 5.31f + seed * 1.9f), period = 1.0f + 0.7f * h;
+            float age = (float)((t * (0.9 + 0.3 * h) + h * 5) % period), s = age / period;
+            // Off the shoulders and the arms (their outline, chest to shoulder height), rising clear of them and spreading.
+            float side = h2 < 0.5f ? -1 : 1;
+            var from = feet + new Vector3(side * (0.18f + 0.18f * Hash(k * 7.7f + seed)), 1.2f + 0.35f * h, (Hash(k * 9.1f + seed) - 0.5f) * 0.3f);
+            var p = from + Vector3.UnitY * (age * (0.8f + 0.4f * thick))
+                + new Vector3(MathF.Sin(age * 2.6f + h * 6) * 0.12f, 0, MathF.Cos(age * 2.1f + h * 4) * 0.12f) * s;
+            float a = (0.6f + 0.3f * thick) * MathF.Sin(MathF.PI * MathF.Min(1, s * 1.25f + 0.05f));
+            // The smoke sheet is dark (a third grey): tinted up pale, and warm with the fire under it, so it reads against the
+            // car's dark boards.
+            float grey = 3.2f - 0.8f * thick;
+            mesh.Billboard(p, 0.25f + s * (0.7f + 0.6f * thick), h * 6.28f + age * 0.4f, new Vector4(grey * 1.08f, grey * 0.9f, grey * 0.76f, a),
+                _smoke, FxBlend.Alpha, (int)(s * 15.99f), 4);
+        }
+        if (_spark < 0)
+            return;
+        // Embers flicked up off them, round their outline (the spark sheet's dot is a fraction of its cell: these are sized for it).
+        int embers = 6 + (int)(thick * 10);
+        for (int k = 0; k < embers; k++)
+        {
+            float h = Hash(k * 3.37f + seed * 2.9f), period = 0.6f + 0.5f * h;
+            float age = (float)((t * (1.1 + 0.4 * h) + h * 3) % period), s = age / period;
+            float side = Hash(k * 1.9f + seed) < 0.5f ? -1 : 1;
+            var p = feet + new Vector3(side * (0.22f + 0.2f * Hash(k * 6.1f + seed)), 0.7f + 1.0f * h + s * 1.0f, (Hash(k * 4.3f + seed) - 0.5f) * 0.5f)
+                + new Vector3(MathF.Sin(age * 9 + h * 6), 0, MathF.Cos(age * 7 + h * 4)) * (0.08f * s);
+            mesh.Billboard(p, 0.16f + 0.08f * h, MathF.PI / 2, new Vector4(2.4f, 1.0f + 0.4f * h, 0.3f, (1 - s) * (0.7f + 0.3f * thick)), _spark,
+                FxBlend.Additive, k % 4, 2, stretch: 1.8f);
+        }
+    }
+
+    /// <summary>
     /// A breath in the cold (GDD §26): every few seconds (quicker when they're working) a puff out of the mouth, out the
     /// way they face, spreading and rising and gone. <paramref name="amount"/> how much it shows (the night's cold).
     /// </summary>

@@ -75,6 +75,23 @@ public class ClerkVoiceTests
     }
 
     [Fact]
+    public void EveryUpgradesTallyLineIsSaidWithNothingBreakingUp()
+    {
+        // Note 775 (queue #505): what the crew owns is read into every night's tally (U1's #967, Campaign.TallyLines), "Fiddle:
+        // in tune, mostly.", "Air freshener: pine.". tools/audio/clerk.py reads the lines off campaign.json; a new one fails
+        // here until the bank's built again. The nameplate's slot is a player's typing, or "unnamed" (NetPlaySession).
+        var clerk = Clerk();
+        var campaign = DataFile.Load<Sim.Campaign.CampaignTuning>(Path.Combine(Content, Sim.Campaign.CampaignTuning.File));
+        var lines = Sim.Campaign.Campaign.TallyLines(campaign, campaign.Upgrades.Select(u => u.Id));
+        Assert.True(lines.Count >= 40, $"{lines.Count} tally lines");
+        foreach (string line in lines)
+        {
+            string said = line.Replace("{engine}", "unnamed", StringComparison.Ordinal);
+            Assert.True(!clerk.Pieces(said).Any(p => p.Kind == ClerkVoice.PieceKind.Breakup), $"the set breaks up over '{said}'");
+        }
+    }
+
+    [Fact]
     public void ANameAPlayerTypedIsTheSetBreakingUpOverIt()
     {
         var clerk = Clerk();
