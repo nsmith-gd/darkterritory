@@ -345,6 +345,7 @@ public sealed record FollowerTuning
     public double LingerSeconds { get; init; } = 900;
     public int MaxActive { get; init; } = 2;
     public double PerGroundWeight { get; init; } = 1;
+    public double DropGravity { get; init; } = 9.81;
 }
 
 /// <summary>The Passenger (App. A.7, B.7). Field docs live in enemies.json.</summary>
@@ -466,6 +467,8 @@ public sealed record GauntTuning
     public bool DrivenOff { get; init; } = true;
     public bool TalkingCalms { get; init; } = true;
     public double TalkedDownSeconds { get; init; } = 45;
+    /// <summary>Note 720: a crew singing together near it talks it down this many times as fast (GDD §14).</summary>
+    public double SingingTalks { get; init; } = 3;
 }
 
 /// <summary>Climbers (App. A.4, B.4). Field docs live in enemies.json.</summary>

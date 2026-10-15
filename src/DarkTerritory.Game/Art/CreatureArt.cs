@@ -797,7 +797,7 @@ public sealed partial class CreatureArt
     /// the hands are reached for from where the shoulders have gone.</param>
     public bool Crewmate(MeshBuilder mesh, in Matrix4x4 model, CrewPose pose, double time, int variant,
         Vector3? left = null, Vector3? right = null, Vector3 leftPole = default, Vector3 rightPole = default, MeshAsset? inHand = null,
-        MeshAsset? hanging = null, string figure = "crew", VrBodyPose? body = null, MeshAsset? carried = null)
+        MeshAsset? hanging = null, string figure = "crew", VrBodyPose? body = null, MeshAsset? carried = null, bool sooted = false)
     {
         if (!_models.ContainsKey(figure))
             figure = "crew";
@@ -837,6 +837,9 @@ public sealed partial class CreatureArt
         Emit(mesh, m, clip, model, variant, 1, variant, Paint);
         if (figure == "crew")
             Marks(mesh, m, model, variant);
+        // A lump of coal in the face (note 717): sooty for the night.
+        if (sooted)
+            Soot(mesh, m, model);
         if (pose == CrewPose.Reload)
             ReloadKit(mesh, m, model, time);
         // Where their mouth is and which way they face, for their breath in the cold (SceneArt.Crewmate).
@@ -1177,6 +1180,54 @@ public sealed partial class CreatureArt
         int on = kit == 0 ? hip : back;
         if (on >= 0)
             mesh.Append(_marks[1 + kit], m.Pose.World[on] * model);
+    }
+
+    MeshAsset? _soot, _sootChest;
+
+    /// <summary>
+    /// Note 717: coal soot over the face and mask, on the head bone, and down the coat's front where the lump burst, on the
+    /// chest's: black smudges, matte (soot takes no shine). Simple on purpose: a friend sees from across the car who got the coal
+    /// (the coat's pale wool carries it further than the dark mask does).
+    /// </summary>
+    void Soot(MeshBuilder mesh, Entry m, in Matrix4x4 model)
+    {
+        var sk = m.Model.Skeleton;
+        int head = sk.IndexOf("head"), chest = sk.IndexOf("spine_03");
+        _soot ??= BuildSoot(Look, chest: false);
+        _sootChest ??= BuildSoot(Look, chest: true);
+        if (head >= 0)
+            mesh.Append(_soot, m.Pose.World[head] * model);
+        if (chest >= 0)
+            mesh.Append(_sootChest, m.Pose.World[chest] * model);
+    }
+
+    static MeshAsset BuildSoot(Look look, bool chest)
+    {
+        var k = new Kit(look, chest ? 3111 : 3110);
+        k.Use("coal", Palette.SootBlack, 0.95f, 0, tile: 4f);
+        k.Tint = new Vector3(0.06f);
+        // The head bone's frame (crew.py): +Y up the head from the neck, the face towards -Z: across the goggles and the brow,
+        // the mask's cheek and chin. The chest's (spine_03): +X right, +Y up, +Z behind: splashed down the coat's front and
+        // up onto a shoulder. Blobs a finger's breadth proud of the surface, so they read at any angle.
+        (Vector3 At, Vector3 Half)[] smudges = chest
+            ?
+            [
+                (new Vector3(0.02f, 0.12f, -0.17f), new Vector3(0.1f, 0.06f, 0.025f)),
+                (new Vector3(-0.08f, 0.03f, -0.17f), new Vector3(0.05f, 0.08f, 0.025f)),
+                (new Vector3(0.09f, -0.05f, -0.16f), new Vector3(0.04f, 0.05f, 0.025f)),
+                (new Vector3(0.16f, 0.2f, -0.06f), new Vector3(0.05f, 0.03f, 0.06f)),
+            ]
+            :
+            [
+                (new Vector3(0, 0.095f, -0.11f), new Vector3(0.085f, 0.025f, 0.02f)),
+                (new Vector3(-0.045f, 0.05f, -0.125f), new Vector3(0.04f, 0.03f, 0.02f)),
+                (new Vector3(0.05f, 0.03f, -0.12f), new Vector3(0.025f, 0.045f, 0.02f)),
+                (new Vector3(0.01f, -0.07f, -0.145f), new Vector3(0.045f, 0.022f, 0.02f)),
+                (new Vector3(-0.065f, -0.03f, -0.1f), new Vector3(0.02f, 0.035f, 0.018f)),
+            ];
+        foreach (var (at, half) in smudges)
+            k.BevelBox(at - half, at + half, Math.Min(half.X, Math.Min(half.Y, half.Z)) * 0.8f);
+        return k.Build(chest ? "crew-soot-chest" : "crew-soot");
     }
 
     static MeshAsset[] BuildMarks(Look look)
@@ -1786,6 +1837,12 @@ public sealed partial class CreatureArt
                     float swell = phase == SpinePhase.Punish ? 1 : (float)Math.Clamp(extra2, 0, 1);
                     var at = nesting ? Matrix4x4.CreateScale(1 + FollowerSwell * swell) * model : model;
                     string clip = nesting ? "nest" : phase == SpinePhase.Commit ? "crawl" : "cling";
+                    // Just off its host's back (note 504): the sim drops it to the floor under them over its first half
+                    // second, and it's drawn falling, turning over, and landing on its hooks before it scuttles off.
+                    bool dropping = phase == SpinePhase.Commit && !nesting && _models["follower"].Model.Clips.TryGetValue("drop", out var drop)
+                        && t < drop.Duration;
+                    if (dropping)
+                        return Draw(mesh, "follower", "drop", t, false, at, seed: 29);
                     // The nest it's built over the car's loot (tools/models follower_nest), grown with it, the Follower in
                     // its hollow on top: a heap you can find and bludgeon (A.6).
                     // (Built up, not scaled up, note 460: the loot there from the start, the strands down to the floor, the

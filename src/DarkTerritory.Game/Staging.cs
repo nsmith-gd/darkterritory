@@ -539,6 +539,25 @@ public static partial class Staging
     /// end, one standing by with a crowbar; and on the last gun car, a gunner sat in the cannon's seat.
     /// </summary>
     /// <summary>
+    /// Horseplay (note 717; dt screenshot --view shove | sooted): <c>shove</c>, one crewmate on car 2's roof shoving another
+    /// over its side, the shover's arms out and the shoved lurching back off their feet past the lip; <c>sooted</c>, a crewmate
+    /// with the coal's soot on their face, staggered by it, the next lump on its way past from the thrower at the far end.
+    /// </summary>
+    public static (List<Crewmate> Crew, List<Sim.Player.LumpInFlight> Lumps) Horseplay(TrainOnLine train, string content, string scene)
+    {
+        _ = content;
+        var frame = train.Frames[Math.Min(2, train.Frames.Count - 1)];
+        double roof = frame.Shape.RoofHeight, edge = frame.Shape.HalfWidth;
+        Crewmate On(byte id, double x, double z, double yaw, Art.CrewPose? act, double up = 0, double phase = 0, bool sooted = false) =>
+            new(id, frame.ToWorld(new Double3(x, roof + up, z)), yaw + frame.Heading, true, Act: act, Phase: phase, Sooted: sooted,
+                Holding: Sim.Player.Tool.Crowbar);
+        if (scene == "sooted")
+            return ([On(21, 0, 0, 0, null, sooted: true), On(22, -0.3, -6.5, Math.PI, Art.CrewPose.Shovel)],
+                [new Sim.Player.LumpInFlight(1, 22, frame.ToWorld(new Double3(0.35, roof + 1.5, -0.75)))]);
+        return ([On(21, edge - 1.15, 0, -Math.PI / 2, Art.CrewPose.Push), On(22, edge - 0.05, 0.1, Math.PI / 2, Art.CrewPose.Stagger, up: 0.12, phase: 0.22)], []);
+    }
+
+    /// <summary>
     /// A row of the crew down car 2's roof, each at one of <paramref name="acts"/> (CrewPose names, dt screenshot --act
     /// smash,pry,...: the roof view looks at them), facing the camera; the smash and pry with a crowbar in hand, the lantern
     /// with the hand lamp hung from the fist; each swing further into its blow, with the shovel, crowbar and wrench in turn.
@@ -574,6 +593,29 @@ public static partial class Staging
         }
         return crew;
     }
+
+    /// <summary>
+    /// Lamp signals at the lineside (note 720; dt screenshot --signal stop,go,back, view lampsignal): a crewmate for each on the
+    /// ballast off car 1's right, a hand lamp in the fist, turned to the trackside camera, <paramref name="seconds"/> into it.
+    /// </summary>
+    public static List<Crewmate> Signallers(TrainOnLine train, IEnumerable<string> signals, double seconds)
+    {
+        var crew = new List<Crewmate>();
+        int i = 0;
+        foreach (var name in signals)
+        {
+            var signal = Enum.Parse<Sim.Player.LampSignal>(name, ignoreCase: true);
+            var feet = Lineside(train, SignalAhead - (i - 1) * 2.4, SignalOut);
+            var to = Lineside(train, SignalAhead, SignalCamera) - feet;
+            crew.Add(new Crewmate((byte)(24 + i), feet, Math.Atan2(-to.X, -to.Z), true, Act: Art.CrewPose.Lantern, Lamp: true,
+                Signal: signal, SignalSeconds: seconds + 0.25 * i));
+            i++;
+        }
+        return crew;
+    }
+
+    /// <summary>Where the staged signallers stand (m): along from the engine's front, out from the line; and the camera, further out.</summary>
+    public const double SignalAhead = -26, SignalOut = 3.8, SignalCamera = 9.5;
 
     /// <summary>
     /// A driver at the engine's controls (note 445; dt screenshot --driver [--whistle] [--reverser s], views fireman, cab):
@@ -917,8 +959,9 @@ public static partial class Staging
 
     /// <summary>
     /// The staged Follower (<c>dt screenshot --follower</c>): <c>back</c> on crewmate 4's back (App. A.6 RIDE; <see cref="Lone"/>,
-    /// whose shoulder the <c>pack</c> view looks over), <c>crawl</c> off them on the ground making for the train, <c>nest</c>
-    /// built in car 2's aisle (the <c>inside</c> view), <c>nest:p</c> that far into building it (note 460). The Ribbits are put away.
+    /// whose shoulder the <c>pack</c> view looks over), <c>crawl</c> off them on the ground making for the train, <c>drop:s</c>
+    /// s seconds into its drop off a back aboard (note 504), <c>nest</c> built in car 2's aisle (the <c>inside</c> view),
+    /// <c>nest:p</c> that far into building it (note 460). The Ribbits are put away.
     /// </summary>
     public static List<Enemy> Follower(List<Enemy> threats, TrainOnLine train, string mode)
     {
@@ -935,6 +978,16 @@ public static partial class Staging
             case "crawl":
                 f.Restore(SpinePhase.Commit, 2, f.Health, Enemy.Loose, side.ToWorld(new Double3(-(side.Shape.HalfWidth + 1.6), 0, -0.9)), 0, 0, 0, -1, 0);
                 break;
+            // drop:s: s seconds into its drop off a back aboard (note 504), falling in car 2's aisle (the inside view).
+            case var dropping when dropping.StartsWith("drop", StringComparison.Ordinal):
+                {
+                    double s = dropping.Length > 5 && double.TryParse(dropping[5..], System.Globalization.CultureInfo.InvariantCulture, out double at) ? at : 0.25;
+                    double deck = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 0;
+                    double g = DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(DataFile.FindContentRoot(), Sim.Enemies.EnemyTuning.File)).Followers.DropGravity;
+                    double y = Math.Max(deck, deck + Sim.Enemies.Follower.BackUp - 0.5 * g * s * s);
+                    f.Restore(SpinePhase.Commit, s, f.Health, car, new Double3(-0.45, y, -side.Shape.HalfLength + 3.0), 0, 0, 0, -1, 0);
+                    break;
+                }
             case "nest":
                 double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 0;
                 f.Restore(SpinePhase.Punish, 30, f.Health, car, new Double3(-0.45, floor, -side.Shape.HalfLength + 3.0), 0, 0, 0, -1, 1);
@@ -945,7 +998,7 @@ public static partial class Staging
                 f.Restore(SpinePhase.Commit, 30, f.Health, car, new Double3(-0.45, under, -side.Shape.HalfLength + 3.0), 0, 0, 0, -1, Math.Clamp(built, 0.01, 1));
                 break;
             default:
-                throw new ArgumentException($"--follower {mode}: back, crawl, nest or nest:p");
+                throw new ArgumentException($"--follower {mode}: back, crawl, drop[:s], nest or nest:p");
         }
         return threats;
     }
@@ -1546,6 +1599,10 @@ public static partial class Staging
                 BroughtIn = 2,
                 BroughtInFees = 2 * brigade,
                 TownHurt = 2 * run.Tuning.BroughtIn.Hurt,
+                // The night's best finds and its light fingers (note 718), as a frontier night's tally reads them.
+                Prizes = [new("cometFragment", "Comet fragment", 1, 1080), new("gauntHand", "The Gaunt's hand", 1, 540), new("pocketWatch", "Pocket watch", 2, 110)],
+                Finder = "Dave",
+                FinderWorth = 1300,
             }
             : new Sim.Run.RunReport(end, 1720, 17.2, 4, 1, 2.1, 0, 120, 6, 40, -1416, 1, 3, Deaths: 3, CrewLossFees: 1050) { Lines = marked, Bookmarks = shown };
     }

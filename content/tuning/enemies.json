@@ -764,7 +764,10 @@
     // Eleven Q9's "does talking lower its aggro", answered yes for now; false: talk only holds it); calmed under attackAt it
     // stops attacking; calm and talked to for talkedDownSeconds, it leaves empty-handed. Only the gang's blows with someone
     // talking to it take its health; a blow in silence angers it a step.
-    "drivenOff": true, "talkingCalms": true, "talkedDownSeconds": 45
+    "drivenOff": true, "talkingCalms": true, "talkedDownSeconds": 45,
+    // Note 720 (GDD §14; the director, 14 Oct 2026): a crew singing together near it (player.json voices.singing) talks it
+    // down this many times as fast: its anger's steps and its calm both come on at this pace.
+    "singingTalks": 3
   },
 
   // MARSH (§22 hazard, formerly the Drift): something in the reeds surges toward motion; stand still stillSeconds and it
@@ -778,9 +781,11 @@
 
   // FOLLOWERS · scent · outside (App. A.6, B.6). Latches onto a player's back over latchSeconds on facility grounds; off
   // the train, it crawls at crawlSpeed to the car with the most loot and nests over nestSeconds, then eats eatPerSecond.
+  // Aboard, it drops off its host's back to the floor under it first, falling at dropGravity (player.json's gravity: it
+  // falls as anything does), about half a second, before it crawls (note 504).
   "followers": {
     "latchSeconds": 3, "crawlSpeed": 0.8, "nestSeconds": 60, "eatPerSecond": 0.003, "health": 1, "nestHealth": 3,
-    "lingerSeconds": 900, "maxActive": 2, "perGroundWeight": 1
+    "lingerSeconds": 900, "maxActive": 2, "perGroundWeight": 1, "dropGravity": 9.81
   },
 
   // THE PASSENGER · absence · corrupted (App. A.8, B.8). Boards at a facility and walks at walkSpeed; a player alone
