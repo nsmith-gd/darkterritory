@@ -233,6 +233,9 @@
     "crew-rescue.lift": "A GRUNT, SOMEONE HEAVED UP",
     "crew-rescue.set": "SOMEONE SET DOWN",
     "crew-rescue.throw": "A HEAVE, SOMEONE THROWN",
+    // A friend on the crane's hook (note 798): off it high up.
+    "crew-hoist.yelp": "A YELL, SOMEONE FALLING",
+    "crew-hoist.land": "A THUMP AND AN OOF",
     // Big finds (note 783): the bell's ring and the fragile finds breaking (the lock's the wrench's own).
     "loot-jackpot.bell": "A BELL'S DULL RING",
     "loot-fragile.glass": "GLASS BREAKING",
