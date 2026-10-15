@@ -2031,6 +2031,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     if (Str(args, "--hugger", "") == "swallow" && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.CarHugger>().FirstOrDefault() is { Holding: >= 0 })
         scene.Crew = [.. scene.Crew ?? [], Staging.Swallowed(train), .. args.Contains("--rescue") ? [Staging.SwallowRescuer(train)] : Array.Empty<Crewmate>()];
     // --whistler carry|nest: the one it's carrying off, or has at its nest, as well as anyone else staged (App. A.4; Staging.Carried).
+    // --alone whistler,...: of the staged creatures (--threats), only those kinds, so one's seen without the rest about it
+    // (note 759: the Whistler at its whistle, without the car fire's smoke over the train).
+    if (Str(args, "--alone", "") is { Length: > 0 } alone && scene.Enemies is { } all)
+    {
+        var kinds = alone.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        scene.Enemies = [.. all.Where(e => kinds.Contains(e.Kind.ToString(), StringComparer.OrdinalIgnoreCase))];
+    }
     if (Str(args, "--whistler", "") is "carry" or "nest" && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.Whistler>().FirstOrDefault() is { Holding: >= 0 } carrying)
         scene.Crew = [.. scene.Crew ?? [], Staging.Carried(carrying)];
     // --moose graze|listen|warn|squareup|charge|wheel|snag|search|pin: the staged Moose (note 339; Staging.Moose) off the

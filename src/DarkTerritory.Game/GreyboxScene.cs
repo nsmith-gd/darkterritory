@@ -693,6 +693,7 @@ public sealed partial class GreyboxScene
         }
         Look?.Art.Creatures?.Clutches.Clear();
         Look?.Art.Creatures?.Pins.Clear();
+        Look?.Art.Creatures?.Breaths.Clear();
         // A Ribbit pack eating someone (note 558): they're pulled down onto their back, their head away from the one holding
         // them (Pins), the pack stoops onto them (Prey.Down), and there's blood, from when it got onto them.
         _eaten.Clear();
