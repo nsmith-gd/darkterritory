@@ -978,5 +978,9 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [801. The cannon's shot heard again with the shot endless (AU1, queue #528; U1's find on #1040)](notes/801.md)
 - [804. The Game test suite's memory, found and cut; the town forms back in the trades' rotation (T1, queue #531; note 692's "off for now": with…](notes/804.md)
 - [805. A running jump heard as a jump off the train (AU1, queue #533; AU1's audio audit)](notes/805.md)
+- [806. U1's whimsies, pets and new emotes heard: candidates, ahead of #967 (AU1, queue #534; U1's #967, notes 714, 715, 745; U1's ask on #1040)](notes/806.md)
 - [808. The lineside's buildings keep off each other (queue #536, B1; note 800's "not yet"; GDD App. F.1, the director: "The world is solid")](notes/808.md)
+- [809. The Mouse Moose heard (AU1, queue #537; A1's #1042, note 790's "Left: 2. Its sounds (AU1)")](notes/809.md)
+- [810. A Holdout's banging heard as one frantic bout (AU1, queue #538; AU1's weak-sound sweep)](notes/810.md)
+- [815. Houses that don't all look alike (queue #543, B2; the director's playtest of 13 Oct evening, line 7, frontier:7's town: "A lot of the house…](notes/815.md)
 <!-- end of the notes index -->
