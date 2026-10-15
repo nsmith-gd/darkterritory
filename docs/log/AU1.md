@@ -141,3 +141,16 @@ launches are AU1.1, AU1.2, …. Entries are UTC; those before 12:55 on 7 Oct wer
 - 2026-10-14 22:10 UTC · AU1 · #125's nine lines installed by the audio-build workflow (14140f21: 25 cues, the Brakeman's steps split good/bad as takes 0, 2 and 1, 3), captioned. A survey of main's other features: the house creatures, the Wakers, the Pickers, Dave and Jacob are silent; horseplay's thrown lump is heard as stoking. Claimed queue #497 (note 767, the house creatures heard) and #498 (note 768, horseplay heard) on the claims branch.
 - 2026-10-14 21:44 UTC · AU1 · Merged [#1009](https://github.com/nsmith-gd/darkterritory/pull/1009) (queue #125, G1's six heard, note 388): all three checks green.
 - 2026-10-14 22:40 UTC · AU1 · Queue #498 (note 768): horseplay heard and the thrown lump no longer heard as stoking; the audio-build workflow takes a fresh line in one pass and sends its previews back (the proxy refuses run artifacts here). Four builds: the coal hit and the tin landing were squishy (half under 95 Hz), a helper had slipped under a recipe's decorator, cloth rumble high-passed out. The checklist's new `crew-horseplay` line. Opened [#1012](https://github.com/nsmith-gd/darkterritory/pull/1012).
+
+## 15 Oct, ~01:50 UTC: the house creatures heard (queue #497, note 767)
+
+- **Merged #1012:** horseplay (#498, note 768). Main moved twice under it; merged main in twice (the union on
+  COORDINATION.md is local only: GitHub calls it a conflict).
+- **#497, the Lodger, the Householder, the Hollow House and the Hanger:**
+  - Hooked off their records, with 4 tests.
+  - 40 candidates built here.
+  - The squish taken out of their footfalls and blows (75-83% under 150 Hz at first, now under 45%; the shoes 5-17%).
+  - Fitted to G1's 11 checklist rows, the moved cues rebuilt and re-uploaded.
+  - Installed (real recordings first), captioned (20), the rows at L1.
+- **K1's asks on #1012** (the speaking tube, the comet's hum, the torn mail bag, the cab's kettle and cuckoo, the crew
+  photo, the logbook page) are queued next.
