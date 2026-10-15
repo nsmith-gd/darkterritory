@@ -1837,6 +1837,12 @@ public sealed partial class CreatureArt
                     float swell = phase == SpinePhase.Punish ? 1 : (float)Math.Clamp(extra2, 0, 1);
                     var at = nesting ? Matrix4x4.CreateScale(1 + FollowerSwell * swell) * model : model;
                     string clip = nesting ? "nest" : phase == SpinePhase.Commit ? "crawl" : "cling";
+                    // Just off its host's back (note 504): the sim drops it to the floor under them over its first half
+                    // second, and it's drawn falling, turning over, and landing on its hooks before it scuttles off.
+                    bool dropping = phase == SpinePhase.Commit && !nesting && _models["follower"].Model.Clips.TryGetValue("drop", out var drop)
+                        && t < drop.Duration;
+                    if (dropping)
+                        return Draw(mesh, "follower", "drop", t, false, at, seed: 29);
                     // The nest it's built over the car's loot (tools/models follower_nest), grown with it, the Follower in
                     // its hollow on top: a heap you can find and bludgeon (A.6).
                     // (Built up, not scaled up, note 460: the loot there from the start, the strands down to the floor, the
