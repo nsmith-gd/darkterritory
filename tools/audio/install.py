@@ -323,7 +323,14 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 # thinner), and the crew's throat through the real gasp, its coat flapping.
                 "crew-hoist.creak": "swivel", "crew-hoist.yelp": "whoa",
                 # Note 802's gag: the modelled flop, whose thump lands plainly before its oof (the real drop's onset is soft).
-                "crew-hoist.land": "flop"}
+                "crew-hoist.land": "flop",
+                # Note 809: the Mouse Moose from the packs' real things (gravel, a hinge's squeal, a rat's iron tink, earth),
+                # the models candidates; the casting's thud the real one, which has the weight.
+                "tell-mouse-moose.creep": "cinders", "tell-mouse-moose.squeak": "hinge", "cs-mouse-moose.bite": "iron",
+                "cs-mouse-moose.drag": "gravel", "cs-mouse-moose.bolt": "squeal", "cs-mouse-moose.dig": "earth",
+                "cs-mouse-moose.lost": "thud",
+                # Note 810: a Holdout's banging heard at its door, each blow's crack carrying ('walls' cuts the top at 1.6 kHz).
+                "voice-callout.bang": "door"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the
@@ -435,7 +442,7 @@ SWAP_GAIN_DB = {"boiler-tick": -4, "cannon-impact": -1, "cannon-splash": -4, "do
 # Lines whose candidates are alternatives the game uses all of, one per instance (a prisoner's whole voice).
 SETS_LINES = {"voice-prisoner-sets"}
 # Folders a full install leaves alone: the clerk's word bank (clerk.py), which the checklist doesn't pick.
-KEEP_SAMPLES = {"voice-clerk"}
+KEEP_SAMPLES = {"voice-clerk", "band"}
 # Voices read by Piper's LibriTTS model (recipes/voices.py, children.py; clerk.py): not CC0, they carry its credit.
 TTS_CUES = {("voice-prisoner-sets", "call"), ("voice-prisoner-sets", "shout"), ("tell-soot-children", "call")}
 TTS_LICENCE = "CC BY 4.0: LibriTTS, Zen et al. 2019"

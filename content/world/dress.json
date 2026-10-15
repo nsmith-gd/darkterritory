@@ -1,0 +1,22 @@
+// The words on the train's dressing (ARCHITECTURE §8 note 701; docs/design/upgrades.md §8.6, §8.7).
+{
+  // Bumper stickers (the director, 13 Oct: "all puns, be creative"): three on the guard van's back end, a new three each
+  // night, dealt from the night's seed. Never about the Soot Children or the Passenger (GDD §23.1: those stay straight).
+  "stickers": [
+    "TENDER IS THE NIGHT", "GAUGE YOUR EXPECTATIONS", "COAL HARD CASH", "STEAM HAPPENS", "TRAIN OF THOUGHT: DERAILED",
+    "SOME LIKE IT HOTBOX", "RIBBIT OR LEAVE IT", "GAUNT TELL ME WHAT TO DO", "MOOSE-T WE DO THIS EVERY NIGHT",
+    "WHISTLE WHILE YOU LURK", "STOKER? I HARDLY KNOW HER", "COUPLE GOALS", "I BRAKE FOR NOBODY", "LOCO-MOTIVATED",
+    "RAIL AGAINST THE MACHINE", "KEEP CALM AND CARRY COAL", "ALL ABOARD THE NOPE TRAIN", "SWITCH HAPPENS", "BOILER ALERT",
+    "HOW'S MY DRIVING? SHOUT IT", "IF YOU CAN READ THIS, YOU'VE BEEN LEFT BEHIND", "I'M NOT LATE, DAWN IS EARLY",
+    "MY OTHER CAR IS A CABOOSE", "THIS IS FINE (THE CAR IS ON FIRE)"
+  ],
+  // Monogrammed towels (the director: "monograms are jokes or tiny insults"): on the guard van's rail, one per crewmate and
+  // a few spare. {NAME} is a crewmate's name, as the clerk reads them.
+  "towels": [
+    "MOSTLY DRY", "STILL DAMP", "NOT YOURS", "SPARE", "THE OTHER ONE", "IOU", "PROBABLY FINE", "BACKUP", "RETURN TO SENDER",
+    "WASH ME", "FOR EMERGENCIES ONLY", "DO NOT USE THIS ONE", "YES, THAT ONE", "FLOOR"
+  ],
+  "named": [
+    "{NAME}: SHOWERS RARELY", "{NAME}: TRIED", "{NAME}: FAVOURITE (OF NOBODY)", "{NAME}: SECOND BEST", "{NAME}: ASK THE OTHERS"
+  ]
+}

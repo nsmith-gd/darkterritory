@@ -189,9 +189,18 @@
   // aboard (the one voted on not counted). Put off, a player's told THE CREW PUT YOU OFF AT THE NEXT STOP and can't come back
   // to that run (barred by their account or address, or by name on a LAN that has none). A private or friends-only run: the
   // host's kick only.
+  //
+  // A private run's wrong password (ARCHITECTURE §8 note 535; note 450's "not yet"): its refusal is held back
+  // guessDelaySeconds, guessGrowth times longer for each wrong guess since from the same place (an address, or a platform
+  // account), up to guessDelayMaxSeconds; a place with no wrong guess for guessForgetSeconds starts again from the first.
+  // One guess from a place is judged at a time, so a mistyped password costs a second and a guesser a few a minute.
   "crew": {
     "cap": 8,
     "refuseLingerSeconds": 3,
+    "guessDelaySeconds": 1,
+    "guessGrowth": 2,
+    "guessDelayMaxSeconds": 30,
+    "guessForgetSeconds": 300,
     "joinTakesBotSeat": true,
     "kick": {
       "voteSeconds": 30,
@@ -240,7 +249,12 @@
     "edgeDrop": 0.5,
     "sillReach": 1.2,
     // A bot answers a high five or fist bump offered to it after botAnswer s (bots never offer).
-    "botAnswer": 0.4
+    "botAnswer": 0.4,
+    // The "more emotes" upgrade's (note 714): a bow, a salute, and the conga, which lasts while its line keeps going (each
+    // in it follows whoever started before them; one who stops dancing, or steers off, drops out).
+    "bow": 2.5,
+    "salute": 2.5,
+    "conga": 30
   },
   // The news (ARCHITECTURE §8 note 663; the director: "did a coupler break on its own or was that a creature?"): cars the
   // engine loses and its failing or breaking down, told to everyone as it happens, with what did it, on one line for

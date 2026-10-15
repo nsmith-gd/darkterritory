@@ -55,6 +55,11 @@ public sealed class Gannet(int id) : Enemy(id)
     public GannetMode Mode => (GannetMode)(int)Height;
     public int? Prey => Extra >= 0 ? (int)Extra : null;
     public int? Mark => Extra2 >= 0 ? (int)Extra2 : null;
+    /// <summary>
+    /// The decoy it's diving on, or carrying off as it climbs (note 715: Gerald, a garden gnome), by <see cref="Sim.Train.Decoy.Index"/>:
+    /// <see cref="Enemy.Extra"/> −2 − index, so it's never anyone's id.
+    /// </summary>
+    public int? Decoy => Extra <= -2 ? (int)(-Extra - 2) : null;
     /// <summary>Pecks landed on whoever it pins (four, the last their death), from the spine's own clock: the same on every client.</summary>
     public int PecksLanded(GannetTuning t) => Phase == SpinePhase.Grab ? Math.Min(t.Pecks, (int)(PhaseSeconds / t.PeckEvery)) : 0;
 
@@ -180,6 +185,24 @@ public sealed class Gannet(int id) : Enemy(id)
         }
         var me = WorldPosition(ctx.Train);
         var walkers = Walkers(ctx, t).OrderBy(w => (w.World - me).Length).ThenBy(w => w.Id).ToList();
+        // Gerald and the gnomes (note 715): now and then (gannet.decoyPull of its passes) it takes one of them for a walker;
+        // with nobody walking, a pass that isn't theirs waits for the next.
+        if (ctx.World.Decoys() is { Count: > 0 } decoys)
+        {
+            uint h = (ctx.Tick * 2246822519u) ^ (uint)(Id * 374761393);
+            if (h % 1000 / 1000.0 < t.DecoyPull)
+            {
+                Extra = -2 - decoys[(int)(h / 1000 % (uint)decoys.Count)].Index;
+                SetMode(GannetMode.Hang);
+                Enter(ctx, SpinePhase.Alert);
+                return;
+            }
+            if (walkers.Count == 0)
+            {
+                _nextDive = Next(ctx, t);
+                return;
+            }
+        }
         if (walkers.Count > 0)
         {
             Extra = walkers[0].Id;
@@ -193,6 +216,11 @@ public sealed class Gannet(int id) : Enemy(id)
     /// <summary>SPOT: it hangs still over a walker, head down, its calls stopped. If they stop walking, it lets them be.</summary>
     void Hang(EnemyContext ctx, GannetTuning t)
     {
+        if (Decoy is { } decoy)
+        {
+            HangOver(ctx, t, decoy);
+            return;
+        }
         double dt = SimConstants.TickSeconds;
         bool walking = Prey is { } p && Walkers(ctx, t).Any(w => w.Id == p);
         var held = Prey is { } q ? ctx.Crew.FirstOrDefault(c => c.Player.Id == q).Player.State : default;
@@ -220,6 +248,28 @@ public sealed class Gannet(int id) : Enemy(id)
         Enter(ctx, SpinePhase.Telegraph);
     }
 
+    /// <summary>Over Gerald or a gnome (note 715), still as they are: it hangs its while over them, and folds.</summary>
+    void HangOver(EnemyContext ctx, GannetTuning t, int index)
+    {
+        if (DecoyAboard(ctx, index) is not { } d)
+        {
+            Climb(ctx, t);
+            return;
+        }
+        Rehome(ctx.Train, d.Car);
+        Fly(d.Local with { Y = t.SoarHeight[0] }, t.FlySpeed);
+        if (_modeSeconds < t.HangSeconds)
+            return;
+        _aim = d.Local + Double3.Up * 0.5;
+        _from = Local;
+        Turn(_aim - _from);
+        SetMode(GannetMode.Fold);
+        Enter(ctx, SpinePhase.Telegraph);
+    }
+
+    static Sim.Train.Decoy? DecoyAboard(EnemyContext ctx, int index) =>
+        ctx.World.Decoys().Where(d => d.Index == index).Select(d => (Sim.Train.Decoy?)d).FirstOrDefault();
+
     /// <summary>FOLD → STRIKE: down its line; whoever's under the beak at the end takes it, and nobody there is a miss.</summary>
     void Fold(EnemyContext ctx, GannetTuning t)
     {
@@ -243,6 +293,14 @@ public sealed class Gannet(int id) : Enemy(id)
             hit = true;
         }
         _nextDive = Next(ctx, t);
+        // Gerald or a gnome where it struck (note 715): carried off in its beak as it climbs, gone for the night.
+        if (Decoy is { } index && DecoyAboard(ctx, index) is { } taken && taken.Car == Attached)
+        {
+            ctx.World.TakeDecoy(taken);
+            Climb(ctx, t);
+            Extra = -2 - index;
+            return;
+        }
         bool onRoof = Math.Abs(_aim.X) <= shape.HalfWidth && Math.Abs(_aim.Z) <= shape.HalfLength;
         if (!hit && onRoof)
         {

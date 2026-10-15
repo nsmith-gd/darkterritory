@@ -156,6 +156,59 @@ public sealed record CompositionTuning
     public ThrowerTuning Thrower { get; init; } = new();
     /// <summary>The handcar (GDD §24.1, note 729), hung on the back of the guard van: campaign.json's <c>handcar</c> upgrade.</summary>
     public bool Handcar { get; init; }
+    /// <summary>The BBQ deck on the engine's front (note 698): its chairs, its cooler and its grill.</summary>
+    public bool BbqDeck { get; init; }
+    /// <summary>
+    /// The train's dressing (note 701): the silly and the fun bought from the blacksmith that are only things on the train to
+    /// see (fuzzy dice, flames, the hubcaps, the tiny caboose...), by campaign.json's ids (effect <c>dress:&lt;id&gt;</c>). The
+    /// art draws each; none changes the sim but by its own effect beside it.
+    /// </summary>
+    public IReadOnlyList<string> Dress { get; init; } = [];
+
+    /// <summary>The train's paint (note 714): 0 the works' rust and plate; 1 crimson lined gold, 2 forest green and brass, 3 black with a white stripe.</summary>
+    public int Livery { get; init; }
+
+    /// <summary>Whether <paramref name="id"/> is fitted (<see cref="Dress"/>).</summary>
+    public bool Dressed(string id) => Dress.Contains(id);
+    /// <summary>What's on it, and what each does.</summary>
+    public BbqTuning Bbq { get; init; } = new();
+    /// <summary>The tiny caboose's string and size (note 713).</summary>
+    public CabooseTuning Caboose { get; init; } = new();
+    /// <summary>The whimsies' numbers (note 715): Gerald, the gnomes, the canary, the gramophone, the calliope.</summary>
+    public WhimsyTuning Whimsy { get; init; } = new();
+}
+
+/// <summary>The whimsies (train.json <c>composition.whimsy</c>; ARCHITECTURE §8 note 715). Field docs live in that file.</summary>
+public sealed record WhimsyTuning(int Gnomes = 5, int CanaryCars = 1, double CanaryGasM = 10, double CanaryFumesSeconds = 20,
+    double GramophoneHears = 22, double GramophoneLoudness = 0.25, double CalliopeHears = 80, double HammockCold = 0.5, double TubSteam = 0.15,
+    double FishReach = 4, double[]? FishSeconds = null, int FishHeals = 40, double CatSpeed = 1.1, double DogSpeed = 1.8, double[]? Wander = null,
+    int CatWarnCars = 1, double DogHears = 40, double Fetch = 0.45, double Drop = 1.2, double LaunchSpeed = 14, double LaunchEvery = 2,
+    double BallSeen = 70, double BallTake = 1.5, double BallWorry = 4)
+{
+    /// <summary>How long the cat and the dog stay put before wandering on (s), from the first to the second.</summary>
+    public double[] Idle => Wander ?? [4, 10];
+
+    /// <summary>How long a line in the water waits for a bite (s), from the first to the second, by the tick it's cast.</summary>
+    public double[] Bite => FishSeconds ?? [12, 30];
+}
+
+/// <summary>The tiny caboose (train.json <c>composition.caboose</c>; ARCHITECTURE §8 note 713). Field docs live in that file.</summary>
+public sealed record CabooseTuning(double Rope = 1.4, double Length = 0.36, double Radius = 0.1, double CouplerHeight = 1.0, double DerailAccel = 0.8,
+    double Friction = 0.15, double DraggedFriction = 0.6, double Reach = 2.0);
+
+/// <summary>The BBQ deck (train.json <c>composition.bbq</c>; ARCHITECTURE §8 note 698). Field docs live in that file.</summary>
+public sealed record BbqTuning
+{
+    public double DeckLength { get; init; } = 3.0;
+    public double RailHeight { get; init; } = 1.0;
+    public int Beers { get; init; } = 24;
+    public double BeerWarmth { get; init; } = 30;
+    public int BeerHeals { get; init; }
+    public double LightSeconds { get; init; } = 0.6;
+    public double BurnSeconds { get; init; } = 300;
+    public double GrillSeconds { get; init; } = 6;
+    public int SausageHeals { get; init; } = 20;
+    public double GrillReach { get; init; } = 2.0;
 }
 
 /// <summary>
@@ -203,6 +256,11 @@ public sealed record KitTuning
     /// still carries (m). Spec F.3's radio range adds to it (note 196).
     /// </summary>
     public double RadioReach { get; init; }
+    /// <summary>
+    /// The band's instruments the blacksmith sold the crew (note 700; band.json <c>instruments</c> ids), in the guard van; the
+    /// campaign sets it (effect <c>instrument:&lt;id&gt;</c>).
+    /// </summary>
+    public IReadOnlyList<string> Instruments { get; init; } = [];
     /// <summary>Toys in the guard van (GDD v1.1 App. C.4): hand loot, what the Track Doll will leave for.</summary>
     public int Toys { get; init; }
     /// <summary>

@@ -394,7 +394,7 @@ FORTRESS → WILDERNESS → FACILITY → WILDERNESS → TERMINUS
 ```
 
 ### Departure
-Inside the walls: purchase equipment, repair or upgrade the train, choose a contract, add or remove railcars, stock coal, powder and shot, lamps, repair supplies and tools. A contract is just a route *(the director, the inbox, 12 Oct: "Just a route"; note 637)*: the route and its tier, and about what a car-load pays there. The train leaves empty, and what its cars carry home is whatever its stops load, each car paid by its freight.
+Inside the walls: purchase equipment, repair or upgrade the train (the train's upgrades from the town's blacksmith, at the forge beside the engine in the yard: Use held on them opens their catalogue, and what's bought is fitted before the gate; note 697), choose a contract, add or remove railcars, stock coal, powder and shot, lamps, repair supplies and tools. A contract is just a route *(the director, the inbox, 12 Oct: "Just a route"; note 637)*: the route and its tier, and about what a car-load pays there. The train leaves empty, and what its cars carry home is whatever its stops load, each car paid by its freight.
 
 Then the gates open. ~~The yard dispatcher reads the crew out over the radio by name, as a manifest, with the same tone used for the coal.~~ *Director's decision of 2026-10-06: no reading at the gates; the night starts as the train moves off.*
 
@@ -465,6 +465,8 @@ That familiarity matters because the train gets more complex over time. **Progre
 Successful deliveries earn money. Money buys capability. Capability allows more freight. More freight means more railcars — and more weight, slower acceleration, longer braking, more vulnerable cargo, more distance between players, more blind spots, more repair problems, harder facility loading, greater exposure.
 
 **Difficulty is produced by success rather than selected from a menu.**
+
+**The fortress's catalogue** *(the director, 13 Oct 2026: "Some upgrades need to be simply for fun, some purchases need to be silly, some purchases need to have comedic whimsy, and some purchases need to be legitimate tools that will push runs further"; note 678, docs/design/upgrades.md)*. The shop shelves upgrades by what they're for. **Tools** push a run further, each stocked from the tier whose trouble it answers (a town on local work doesn't sell gun rammers) and taking a share of that trouble, never all of it. **Whimsy** works and is funny: the honk, a clown's bulb horn where the whistle was, quieter to the Choir. **Fun** is the train as home: paint, a nameplate, lanterns in the yard. **Silly** is bought because it's silly: a gold-plated whistle that costs more than a car, and a framed commendation the yard clerk reads into every tally, flat, forever. The flagship whimsy is **the BBQ deck** *(the director, 13 Oct: "its the BBQ Dads at the end of the world"; note 698)*: a railed deck on an extended cowcatcher out front, walked to along the running boards, with two Muskoka chairs to sit in, a cooler of beers (one takes the edge off the cold) and a BBQ on a stand that's lit, cooks a sausage that heals, warms whoever's round it, and brings the Cinder Hounds like a hot boiler. Everything's priced off the next car, so it all competes with growing the train; and it all goes down with the train at dawn (note 632).
 
 **One wallet.** The whole crew shares a single wallet for every purchase and upgrade. Nobody holds their own money. More crew means more hands and more loot, faster, which is why getting people back into a run matters (Appendix D).
 
@@ -687,7 +689,9 @@ Cargo is physically represented and **changes the run** rather than just scoring
 - **The jackpot house.** At some stops (a third of frontier stops, more deeper in), the village's biggest house is locked up. Its door is panelled and painted, not plank like the rest, and a lamp burns in its window, so it's seen from the line. A held Use doesn't open it. The wrench does: held at the lock six seconds, quietly, as it opens a Holdout's lock (App. D.7). Inside, it keeps better things than any other house: its cupboards and boards turn up the best of what they could hold, two or three more finds lie on its floor, and two in five hold a jackpot. Something is likelier to live in it, too (the house creatures' odds, doubled).
 - **Loose loot rides the train.** What's put down in a car stays a thing, and feels the car moving. On a bend it slides outward; under the brakes, forward; pulling away, back. It slides till it stops against the car's side or end, or another thing, or goes out through an open side door onto the line, lost unless someone goes back for it. Things lie on things, and one balanced badly on another topples off. A fragile find that slides hard into the end of the car is knocked. A car's stowed finds are paid only for what's still in it at the gate. Stack carefully, and shut the doors.
 
-**The mail cranes** *(notes 673, 727; the director, 14 Oct 2026, App. F.6)*. Between the stops, mail cranes stand beside the line, each with a board a way ahead saying which side. Someone in a car's open side door on that side, holding the hook out as the car goes by, catches its bag: pay, coal for the tender, rounds for the guns or spares for the worst car. The board posts the speed the hook holds a bag at ("MAIL > 50"), and a bag hooked faster tears off and is lost, so the one at the door calls the driver down for it.
+**The mail cranes: cut for now** *(the director, 15 Oct 2026: "Im soft on the mail. I dont like it so far. Lets cut for now."; ARCHITECTURE §8 note 803)*. No mail crane stands by the line on any night: nothing to see, catch or hear, no MAIL CRANE on the screen and no mail in the night's pay. It's kept in the code behind one switch (sight.json `mailCranes`, false), so it can come back as it was:
+
+**The mail cranes** *(notes 673, 727; the director, 14 Oct 2026, App. F.6; cut for now, note 803)*. Between the stops, mail cranes stand beside the line, each with a board a way ahead saying which side. Someone in a car's open side door on that side, holding the hook out as the car goes by, catches its bag: pay, coal for the tender, rounds for the guns or spares for the worst car. The board posts the speed the hook holds a bag at ("MAIL > 50"), and a bag hooked faster tears off and is lost, so the one at the door calls the driver down for it.
 
 ---
 
@@ -850,6 +854,7 @@ Step inside and the ground starts rumbling under it. Anyone still inside when th
 Strands hanging from the ceiling, glistening in the lamp.
 > **RULE: don't touch the strands.**
 Walk into a strand and it has you, hauling you up it until your feet leave the floor. A friend prises you free, or a blow makes it let go.
+*(The director, 13 Oct 2026, from the creature gym, App. F.5: "I was pulled up by a hanger despite not seeing one at all or not having any telegraph".)* The strands are plain to see in a dim house, finger-thick and glinting, a bead at each end. With anyone in its house, they quiver: that's its tell, before anyone touches one.
 
 ### STRUCTURAL — attack how you run the train
 
@@ -1386,6 +1391,9 @@ One player's machine hosts (a listen server, like *Lethal Company* and *PEAK*). 
 - **Public and private.** A public run is listed for anyone to join. A private run is listed too, with a lock, and needs its password. The host's Steam friends get in without it, as an invite would let them.
 - **Every row shows its ping.** "--" until it's measured.
 - **The run's mood.** One setting, on the host and join screens alike: **Here for Laughs** (sociable, not super competitive), **Feeling Competitive** (out for the longest runs you can make), or either. A host's run is listed with it. Joining, runs of your mood come first, nearest first.
+- **Changed with the lobby open** *(note 535)*. The host of a listed run changes its mood and its password from the in-night menu. Whoever's aboard stays aboard. A crew going on to the next night is let in with the new password.
+- **A guess costs time** *(note 535)*. A wrong password is refused after a second, and each further wrong guess from the same machine or account waits twice as long, up to half a minute. A mistype costs a second; a guesser gets a few tries a minute.
+- **The record.** Each run is listed with its host's record: the furthest any of their crews has gone in a campaign. It sits beside the mood, for players feeling competitive. The PROFILE page shows it too.
 
 #### Sessions *(the director, 14 Oct 2026; App. F.6; ARCHITECTURE §8 note 724)*
 
@@ -2914,6 +2922,10 @@ genre ... It's extremely important that friends exceeds our target meaningfully.
   two.** *Queue #452, #453.*
 - The rest of docs/design/friendslop.md §3 goes ahead (queue #450–#466). Among it, **bringing them home**: the hand-up onto
   a moving car (§17), carrying a living friend and a bandage on someone else (§23.5). *Queue #457, note 723.*
+- **The mail catch** (the audit's O6: the bag snagged from the car's door at a mail crane, too fast and it tears). *Queue
+  #461, note 727.* **Cut for now** (the director, 15 Oct 2026: "Im soft on the mail. I dont like it so far. Lets cut for
+  now."; ARCHITECTURE §8 note 803): no mail cranes on the line, kept in the code behind sight.json `mailCranes` (§22's
+  mail cranes). *Queue #530.*
 - **Odd outcomes to find,** about ten, never in the Wiki: odd things happen in the towns and at the stops, unexplained (§3.3). *Queue #464, note 730.*
 
 ## F.5 2026-10-13 — the creature gym, Test build 21 (ca0d37e)
@@ -2942,7 +2954,7 @@ genre ... It's extremely important that friends exceeds our target meaningfully.
 - The Householder grabbed the director, and the death said "seized by the Choir". *In progress (queue #414, ARCHITECTURE §8 note 682): it borrowed the Choir's cause, as the Lodger borrowed the hounds' and the Hanger the Passenger's; each now has its own (D.12).*
 - The abandoned villages' houses don't seem to have doors, though there's an open and shut prompt and a collider. A house's doors and windows need to shut and be escapable, so the house can show what it's about to do. *Open; design change → the Hollow House (§21).* (The director named the Householder; the doors slamming shut one after another are the Hollow House's tell.)
 - The house that should come down didn't: the model doesn't collapse. *Open.* (The Hollow House.)
-- Pulled up by a Hanger without seeing one, and with no tell. *Open.*
+- Pulled up by a Hanger without seeing one, and with no tell. *In progress (queue #415, ARCHITECTURE §8 note 683): the strands drawn to read in a dim house, and quivering while anyone's in its house (§21); its sounds (hanger.md §4) are the audio chat's.*
 
 **Decided** (the director, 13 Oct 2026):
 - A lone player's struggle is a chance, at best 15% (raised to a coin flip on 14 Oct, note 737), and what held them doesn't vanish; while held, Use is the struggle's alone (App. C.1).

@@ -139,11 +139,12 @@ public sealed partial class HostSession
 
     /// <summary>
     /// The crew goes on together (note 606): tells everyone aboard and waiting that the host's going on to the next night from
-    /// <paramref name="town"/>, as it leaves a delivered campaign night. Each dials back in for it rather than going to its menu.
+    /// <paramref name="town"/>, as it leaves a delivered campaign night. Each dials back in for it rather than going to its menu,
+    /// with the run's key as it is now (note 535).
     /// </summary>
     public void CarryOn(Towns.TownAt town)
     {
-        Messages.WriteCarryOn(_writer, town);
+        Messages.WriteCarryOn(_writer, town, PasswordKey);
         foreach (var c in _crew)
             _transport.Send(c.Peer, _writer.Written, Delivery.ReliableOrdered);
         foreach (var (_, peer) in _waiting)
@@ -154,6 +155,7 @@ public sealed partial class HostSession
     {
         Receive();
         Greet();
+        Answer();
         Expire();
         HangUp();
         BoardWaiting();
@@ -370,6 +372,8 @@ public sealed partial class HostSession
     {
         _greeting.RemoveAll(g => g.Peer == peer);
         _refused.RemoveAll(r => r.Peer == peer);
+        // A guesser who hangs up on a held refusal (note 535) is still held: its origin waits the delay out all the same.
+        _held.RemoveAll(h => h.Peer == peer);
         // Spec E: "Character remains as an inert body until recovered or the run ends." No bot takes over: the
         // crewmate goes limp where they stood, and their place is held for them (note 253).
         foreach (var gone in _crew.Where(c => c.Peer == peer).ToList())
@@ -426,6 +430,74 @@ public sealed partial class HostSession
     public Func<PeerId, bool>? Trusted { get; set; }
     /// <summary>Joiners turned away from a private run for the wrong password, or none.</summary>
     public int WrongPasswords { get; private set; }
+    /// <summary>
+    /// Who's behind a link (note 535): its address, or the account on the platform it came in on; null or empty, it can't be
+    /// told (each link is then its own). A private run's wrong guesses are counted by it, so a guesser coming back on a new
+    /// connection is still slowed.
+    /// </summary>
+    public Func<PeerId, string?>? Origin { get; set; }
+    /// <summary>Wrong guesses whose refusal is still held back (note 535).</summary>
+    public int GuessesHeld => _held.Count;
+
+    /// <summary>An origin's wrong guesses (note 535): how many, the last one's tick, and when its held refusal goes.</summary>
+    sealed class Guesser
+    {
+        public int Wrong;
+        public uint Last;
+        public uint Free;
+    }
+
+    readonly Dictionary<string, Guesser> _guessers = new(StringComparer.Ordinal);
+    /// <summary>Wrong guesses' refusals held till their tick (note 535), in the order they were judged.</summary>
+    readonly List<(PeerId Peer, uint At)> _held = [];
+
+    string OriginOf(PeerId peer) => Origin?.Invoke(peer) is { Length: > 0 } o ? o : $"link:{peer.Value}";
+
+    /// <summary>
+    /// Note 535: a new joiner to a private run waits its turn while a wrong guess from where it came from is still held, so a
+    /// guesser's connections are judged one at a time however many it opens at once. A friend the host trusts doesn't wait.
+    /// </summary>
+    bool WaitsItsTurn(Greeting g) =>
+        PasswordKey is not null && Trusted?.Invoke(g.Peer) != true && _guessers.TryGetValue(OriginOf(g.Peer), out var who) && Tick < who.Free;
+
+    /// <summary>
+    /// A wrong guess (note 535): its refusal is held back, crew.guessDelaySeconds the first time, crew.guessGrowth times longer
+    /// for each wrong guess since from the same origin, up to crew.guessDelayMaxSeconds. An origin quiet for
+    /// crew.guessForgetSeconds starts again from the first. The link takes no place while it waits.
+    /// </summary>
+    void Hold(PeerId peer)
+    {
+        var t = PlayerTuning.Crew;
+        uint forget = (uint)TicksOf(t.GuessForgetSeconds);
+        foreach (var gone in _guessers.Where(e => Tick >= e.Value.Free && Tick - e.Value.Last > forget).Select(e => e.Key).ToList())
+            _guessers.Remove(gone);
+        string origin = OriginOf(peer);
+        if (!_guessers.TryGetValue(origin, out var who))
+            _guessers[origin] = who = new Guesser();
+        who.Wrong++;
+        who.Last = Tick;
+        double delay = t.GuessDelaySeconds;
+        for (int i = 1; i < who.Wrong && delay < t.GuessDelayMaxSeconds; i++)
+            delay *= t.GuessGrowth;
+        who.Free = Tick + (uint)TicksOf(Math.Min(delay, t.GuessDelayMaxSeconds));
+        _held.Add((peer, who.Free));
+    }
+
+    /// <summary>Sends the held refusals whose time has come (note 535).</summary>
+    void Answer()
+    {
+        for (int i = 0; i < _held.Count;)
+        {
+            if (Tick < _held[i].At)
+            {
+                i++;
+                continue;
+            }
+            var peer = _held[i].Peer;
+            _held.RemoveAt(i);
+            Refuse(peer, RefusalReason.Password);
+        }
+    }
 
     /// <summary>Links turned away (note 254), kept open till their Refused has had time to get there, then hung up on.</summary>
     readonly List<(PeerId Peer, uint Until)> _refused = [];
@@ -580,6 +652,13 @@ public sealed partial class HostSession
                 i++;
                 continue;
             }
+            // Note 535: a held place's token is always let back in; anyone else to a private run waits while a wrong guess from
+            // where they came from is still held, and is judged when it's gone.
+            if (!(g.Token != 0 && _tokens.ContainsValue(g.Token)) && WaitsItsTurn(g))
+            {
+                i++;
+                continue;
+            }
             _greeting.RemoveAt(i);
             // A held place's token always gets back in: its place is already counted (note 254). A new joiner (or a token
             // whose place ran out) needs room. The greeting line itself takes no place: a connection that never speaks is
@@ -592,9 +671,10 @@ public sealed partial class HostSession
                 continue;
             }
             // Note 450: a private run asks a new joiner for its password before it takes a place, so a guess fills nothing.
+            // Note 535: the refusal's held back, and longer for each wrong guess from the same place.
             if (back is null && !Admitted(g))
             {
-                Refuse(g.Peer, RefusalReason.Password);
+                Hold(g.Peer);
                 continue;
             }
             // Note 724 (GDD §33.1): a friend joining a night the bots crew takes a bot's seat where it stands, rather than
@@ -1054,6 +1134,15 @@ public sealed partial class HostSession
             return;
         bool had = World.Outfits.TryGetValue(id, out byte was);
         if (outfit >= MaxOutfits)
+        {
+            if (had && World.Outfits.Remove(id))
+                _namesChanged = true;
+            return;
+        }
+        // A hat's only from the rack (note 714): without it, the colour alone.
+        if (Player.Outfit.HatOf(outfit) > 0 && !World.Train.Dynamics.Tuning.Composition.Dressed("hatRack"))
+            outfit = Player.Outfit.ColourOf(outfit) is { } colour ? (byte)colour : Messages.NoOutfit;
+        if (outfit == Messages.NoOutfit)
         {
             if (had && World.Outfits.Remove(id))
                 _namesChanged = true;

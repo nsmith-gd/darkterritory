@@ -1,4 +1,186 @@
 {
+ "band/accordion": {
+  "cue": "band.accordion",
+  "surface": null,
+  "picked": "intake",
+  "candidates": [
+   {
+    "label": "The band's accordion: A chromatic harmonica (Hohner Super 64), doubled a few cents sharp for an accordion's musette (tools/audio/band_intake.py)",
+    "key": "intake",
+    "sources": [
+     "vcsl:Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Normal/Hohner-Super64_Normal _C3.wav",
+     "vcsl:Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Normal/Hohner-Super64_Normal _C4.wav",
+     "vcsl:Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Normal/Hohner-Super64_Normal _C5.wav",
+     "vcsl:Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Normal/Hohner-Super64_Normal _E3.wav",
+     "vcsl:Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Normal/Hohner-Super64_Normal _E4.wav",
+     "vcsl:Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Normal/Hohner-Super64_Normal _G3.wav",
+     "vcsl:Aerophones/Free Aerophones/Harmonica-Hohner-Super64/Sustains/Normal/Hohner-Super64_Normal _G4.wav"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 7,
+  "sha": "0d89947ede0d96cb"
+ },
+ "band/banjo": {
+  "cue": "band.banjo",
+  "surface": null,
+  "picked": "intake",
+  "candidates": [
+   {
+    "label": "The band's banjo: A 6-string banjo, picked (tools/audio/band_intake.py)",
+    "key": "intake",
+    "sources": [
+     "ganjo:Common/Banjo_Common - A#3.wav",
+     "ganjo:Common/Banjo_Common - A4.wav",
+     "ganjo:Common/Banjo_Common - B5.wav",
+     "ganjo:Common/Banjo_Common - C5.wav",
+     "ganjo:Common/Banjo_Common - D#5.wav",
+     "ganjo:Common/Banjo_Common - E4.wav",
+     "ganjo:Common/Banjo_Common - G5.wav"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 7,
+  "sha": "678d29f69f1d701f"
+ },
+ "band/bodhran": {
+  "cue": "band.bodhran",
+  "surface": null,
+  "picked": "intake",
+  "candidates": [
+   {
+    "label": "The band's bodhran: Frame drums: a large one struck for the down stroke, a small damped one for the tipper (tools/audio/band_intake.py)",
+    "key": "intake",
+    "sources": [
+     "vcsl:Membranophones/Struck Membranophones/Frame Drum/HDrumL_HitMuted_v3_rr1_Sum.wav",
+     "vcsl:Membranophones/Struck Membranophones/Frame Drum/HDrumL_Hit_v3_rr1_Sum.wav",
+     "vcsl:Membranophones/Struck Membranophones/Frame Drum/HDrumL_Hit_v3_rr2_Sum.wav",
+     "vcsl:Membranophones/Struck Membranophones/Frame Drum/HDrumS_HitMuted_v3_rr1_Sum.wav",
+     "vcsl:Membranophones/Struck Membranophones/Frame Drum/HDrumS_Hit_v3_rr1_Sum.wav",
+     "vcsl:Membranophones/Struck Membranophones/Frame Drum/HDrumS_Hit_v3_rr2_Sum.wav"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 6,
+  "sha": "898b76552adca5f7"
+ },
+ "band/fiddle": {
+  "cue": "band.fiddle",
+  "surface": null,
+  "picked": "intake",
+  "candidates": [
+   {
+    "label": "The band's fiddle: A solo violin, bowed (arco, vibrato, forte) (tools/audio/band_intake.py)",
+    "key": "intake",
+    "sources": [
+     "vsco2ce:Strings/Solo Violin/Arco Vib/LLVln_ArcoVib_A4_f.wav",
+     "vsco2ce:Strings/Solo Violin/Arco Vib/LLVln_ArcoVib_C4_f.wav",
+     "vsco2ce:Strings/Solo Violin/Arco Vib/LLVln_ArcoVib_C5_f.wav",
+     "vsco2ce:Strings/Solo Violin/Arco Vib/LLVln_ArcoVib_C6_f.wav",
+     "vsco2ce:Strings/Solo Violin/Arco Vib/LLVln_ArcoVib_E4_f.wav",
+     "vsco2ce:Strings/Solo Violin/Arco Vib/LLVln_ArcoVib_E5_f.wav",
+     "vsco2ce:Strings/Solo Violin/Arco Vib/LLVln_ArcoVib_E6_f.wav",
+     "vsco2ce:Strings/Solo Violin/Arco Vib/LLVln_ArcoVib_G3_f.wav",
+     "vsco2ce:Strings/Solo Violin/Arco Vib/LLVln_ArcoVib_G5_f.wav"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 9,
+  "sha": "3f60e952b3439df9"
+ },
+ "band/guitar": {
+  "cue": "band.guitar",
+  "surface": null,
+  "picked": "intake",
+  "candidates": [
+   {
+    "label": "The band's guitar: An archtop guitar, acoustic, plucked (tools/audio/band_intake.py)",
+    "key": "intake",
+    "sources": [
+     "shinyguitar:Samples/acoustic/a2_vl3_rr1_1.wav",
+     "shinyguitar:Samples/acoustic/a3_vl3_rr1_1.wav",
+     "shinyguitar:Samples/acoustic/a4_vl3_rr1_1.wav",
+     "shinyguitar:Samples/acoustic/c3_vl3_rr1_1.wav",
+     "shinyguitar:Samples/acoustic/c4_vl3_rr1_1.wav",
+     "shinyguitar:Samples/acoustic/e2_vl3_rr1_1.wav",
+     "shinyguitar:Samples/acoustic/eb4_vl3_rr1_1.wav",
+     "shinyguitar:Samples/acoustic/eb5_vl3_rr1_1.wav",
+     "shinyguitar:Samples/acoustic/gb3_vl3_rr1_1.wav"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 9,
+  "sha": "09fce0e7f3dc5362"
+ },
+ "band/spoons": {
+  "cue": "band.spoons",
+  "surface": null,
+  "picked": "intake",
+  "candidates": [
+   {
+    "label": "The band's spoons: Spoons, played: single clacks cut from one take (tools/audio/band_intake.py)",
+    "key": "intake",
+    "sources": [
+     "vsco2ce:Miscellania Raw/Misc 2/spoons_fun.wav"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 6,
+  "sha": "8730057601373e74"
+ },
+ "band/uglyStick": {
+  "cue": "band.uglyStick",
+  "surface": null,
+  "picked": "intake",
+  "candidates": [
+   {
+    "label": "The band's uglyStick: A boot stomped on a wooden floor, and a tambourine's jingles for the bottle caps (tools/audio/band_intake.py)",
+    "key": "intake",
+    "sources": [
+     "bodypercussion:Samples/body/stomp_l_vl2_rr3.wav",
+     "bodypercussion:Samples/body/stomp_r_vl2_rr3.wav",
+     "bodypercussion:Samples/body/stomp_r_vl2_rr5.wav",
+     "vsco2ce:Miscellania Raw/Misc 2/tamb3_1.wav",
+     "vsco2ce:Miscellania Raw/Misc 2/tamb3_3.wav",
+     "vsco2ce:Miscellania Raw/Misc 2/tamb3_7.wav"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 6,
+  "sha": "0dfccd6fecdb2d19"
+ },
+ "band/whistle": {
+  "cue": "band.whistle",
+  "surface": null,
+  "picked": "intake",
+  "candidates": [
+   {
+    "label": "The band's whistle: A baroque soprano recorder, sustained (stands in for the D whistle) (tools/audio/band_intake.py)",
+    "key": "intake",
+    "sources": [
+     "vcsl:Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_A#4_rr1_Main.wav",
+     "vcsl:Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_A#5_rr1_Main.wav",
+     "vcsl:Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_C5_rr1_Main.wav",
+     "vcsl:Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_D4_rr1_Main.wav",
+     "vcsl:Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_D5_rr1_Main.wav",
+     "vcsl:Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_E4_rr1_Main.wav",
+     "vcsl:Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_E5_rr1_Main.wav",
+     "vcsl:Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_F#4_rr1_Main.wav",
+     "vcsl:Aerophones/Edge-blown Aerophones/Baroque Soprano Recorder/Sustain/SopRecorder_Sus_F#5_rr1_Main.wav"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 9,
+  "sha": "a4961da5ca60f20c"
+ },
  "bed-boiler-roar/roar-high": {
   "cue": "bed-boiler-roar.roar-high",
   "surface": null,
@@ -11535,6 +11717,179 @@
   "takes": 1,
   "sha": "42654a26a23b367b"
  },
+ "cs-mouse-moose/bite": {
+  "cue": "cs-mouse-moose.bite",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Its teeth fastened on a casting: incisors clicking and scraping on iron, a short grunt as it braces",
+    "key": "iron",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "kenney_rpg-audio:drawKnife1",
+     "kenney_rpg-audio:drawKnife2",
+     "sfx_100_v2:misc_24",
+     "sfx_100_v2:misc_05",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "481a164b2f07c69c"
+ },
+ "cs-mouse-moose/bolt": {
+  "cue": "cs-mouse-moose.bolt",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Scared off: a shrill rat's squeal and a scrabble of claws bolting away over the gravel, gone",
+    "key": "squeal",
+    "sources": [
+     "kenney_rpg-audio:creak3",
+     "sfx_100_v2:misc_24",
+     "sfx_100_v2:misc_05",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "kenney_rpg-audio:drawKnife1",
+     "kenney_rpg-audio:drawKnife2",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "5e30d04fbd728cbe"
+ },
+ "cs-mouse-moose/dig": {
+  "cue": "cs-mouse-moose.dig",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Into its hole: earth scrabbled and kicked back, its antlers knocking twice on the rim, gone",
+    "key": "earth",
+    "sources": [
+     "kenney_impact-sounds:footstep_snow_000",
+     "kenney_impact-sounds:footstep_snow_001",
+     "kenney_impact-sounds:footstep_snow_002",
+     "kenney_impact-sounds:footstep_snow_003",
+     "kenney_impact-sounds:footstep_snow_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "7a976396ac179bb3"
+ },
+ "cs-mouse-moose/drag": {
+  "cue": "cs-mouse-moose.drag",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Dragging a casting off, very slowly: iron grinding over gravel in short tugs, the rat straining between",
+    "key": "gravel",
+    "sources": [
+     "sfx_100_v2:misc_10",
+     "sfx_100_v2:stones_03",
+     "kenney_rpg-audio:creak3",
+     "sfx_100_v2:misc_24",
+     "sfx_100_v2:misc_05",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "0ef40b2fbaf3f172"
+ },
+ "cs-mouse-moose/lost": {
+  "cue": "cs-mouse-moose.lost",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A casting dragged down its hole: the iron tipping over the edge and thudding into the earth, earth after it",
+    "key": "thud",
+    "sources": [
+     "sfx_100_v2:misc_10",
+     "sfx_100_v2:stones_03",
+     "kenney_impact-sounds:footstep_snow_000",
+     "kenney_impact-sounds:footstep_snow_001",
+     "kenney_impact-sounds:footstep_snow_002",
+     "kenney_impact-sounds:footstep_snow_003",
+     "kenney_impact-sounds:footstep_snow_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "92502b547b61574b"
+ },
  "cs-passenger/drag/wood": {
   "cue": "cs-passenger.drag",
   "surface": "wood",
@@ -17404,6 +17759,58 @@
   "takes": 1,
   "sha": "de70def04e492398"
  },
+ "tell-mouse-moose/creep": {
+  "cue": "tell-mouse-moose.creep",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Creeping in toward a casting: big claws ticking slowly over gravel and cinders, stopping to sniff, wet",
+    "key": "cinders",
+    "sources": [
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:misc_05",
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_02",
+     "sfx_100_v2:footstep_wet_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "41da1ab149c8f6cc"
+ },
+ "tell-mouse-moose/squeak": {
+  "cue": "tell-mouse-moose.squeak",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A rat's squeak, too big a rat: a single 'eek' pitched low for a dog-sized throat, its teeth chattering after",
+    "key": "hinge",
+    "sources": [
+     "kenney_rpg-audio:creak3",
+     "sfx_100_v2:misc_24",
+     "sfx_100_v2:misc_05",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "e2dda0de816ed46a"
+ },
  "tell-pickers/chitter": {
   "cue": "tell-pickers.chitter",
   "surface": null,
@@ -18432,8 +18839,8 @@
   "picked": "first",
   "candidates": [
    {
-    "label": "Banging on a Holdout's walls from inside, heard outside: fists, kicks, a tin on iron, frantic and uneven",
-    "key": "walls",
+    "label": "Banging on a Holdout's door from inside, heard at the door: fists, kicks, a tin on iron, frantic and uneven, each blow plain",
+    "key": "door",
     "sources": [
      "kenney_impact-sounds:impactWood_heavy_000",
      "kenney_impact-sounds:impactWood_heavy_001",
@@ -18454,17 +18861,17 @@
      "kenney_impact-sounds:impactMetal_medium_002",
      "kenney_impact-sounds:impactMetal_medium_003",
      "kenney_impact-sounds:impactMetal_medium_004",
-     "kenney_impact-sounds:impactSoft_medium_000",
-     "kenney_impact-sounds:impactSoft_medium_001",
-     "kenney_impact-sounds:impactSoft_medium_002",
-     "kenney_impact-sounds:impactSoft_medium_003",
-     "kenney_impact-sounds:impactSoft_medium_004"
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004"
     ],
     "licence": "CC0"
    }
   ],
   "takes": 4,
-  "sha": "286b12b5c5326929"
+  "sha": "39df8eb25a58e0ca"
  },
  "voice-clerk/bank": {
   "cue": "voice-clerk.bank",
@@ -18479,8 +18886,8 @@
     "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
    }
   ],
-  "takes": 262,
-  "sha": "1ef45068ff63b74c"
+  "takes": 269,
+  "sha": "11aaeba1da1b4a27"
  },
  "voice-prisoner-sets/call/set1": {
   "cue": "voice-prisoner-sets.call",

@@ -25,6 +25,9 @@ public sealed partial class World
                 Emotes.RemoveAt(i);
         if (intent.Emote == Emote.None || !EmoteRules.CanTake(intent.Emote, s, Train, t))
             return;
+        // The bow, the salute and the conga are the "more emotes" upgrade's (note 714): taken only from a train that has it.
+        if (intent.Emote is Emote.Bow or Emote.Salute or Emote.Conga && !Train.Dynamics.Tuning.Composition.Dressed("moreEmotes"))
+            return;
         foreach (var e in Emotes)
             if (e.By == playerId && (Tick - (double)e.Tick) * SimConstants.TickSeconds < t.Cooldown)
                 return;

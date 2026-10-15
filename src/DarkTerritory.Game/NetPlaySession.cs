@@ -22,6 +22,9 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
 {
     /// <summary>The campaign's upgrades (spec F.3). Every machine applies the same list to the same content.</summary>
     public IReadOnlyList<string> Upgrades { get; init; } = [];
+    /// <summary>The engine's name (the nameplate, note 714): its plates and the tally's line, on every machine.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+    public string? EngineName { get; init; }
     /// <summary>
     /// The campaign's spare repair kits (GDD v1.4 App. E.12 question 4): each starts the night in a crew locker beside the
     /// train's own. Every machine builds the same train from it.
@@ -79,6 +82,11 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     /// </summary>
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public bool CampaignNight { get; init; }
+    /// <summary>
+    /// The crew's scrip as the night was hosted (note 697): what the blacksmith's catalogue shows a joiner (the host owns the
+    /// wallet, spec E, so only the host buys).
+    /// </summary>
+    public double Scrip { get; init; }
     /// <summary>
     /// The campaign's crew, its key (<see cref="Sim.Campaign.Logbook.Key"/>) and the night's number (note 721), so every
     /// machine keeps the night's page in that crew's logbook and the photo's slate says which night. Presentation only (like
@@ -218,6 +226,8 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
             CrewMischief = Mischief,
             CrewSigil = (byte)Math.Clamp(Sigil, 0, Sim.Player.MaskPaint.Max - 1),
         };
+        // The band's instruments and tunes (note 700), host and clients alike: a client plays the tune the host names.
+        world.EnableBand(DataFile.Load<Sim.Player.BandTuning>(Path.Combine(content, Sim.Player.BandTuning.File)));
         if (route is not null)
         {
             var routeTuning = RouteTuning.Load(content);
@@ -287,6 +297,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// run's (<see cref="Moods.Word"/>: "laughs", "competitive", or "" for either).
     /// </summary>
     public const string LockedKey = "locked", MoodKey = "mood";
+    /// <summary>The host's record (note 535): the furthest any of its crews has gone in a campaign, whole km; "" for none.</summary>
+    public const string RecordKey = "record";
 
     /// <summary>The crew cap the content sets (player.json crew.cap, GDD §1 "2–8"; a mod can raise it: note 254).</summary>
     public static int CrewCap(string content) => DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)).Crew.Places;
@@ -311,6 +323,17 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         Route = route;
         Lobby = lobby;
     }
+
+    /// <summary>
+    /// What the crew's catalogue purchases have the yard clerk add to the tally (note 678): the gold whistle, read like the
+    /// coal. The same on every machine, from the setup's upgrades.
+    /// </summary>
+    public IReadOnlyList<string> OwnedTally { get; init; } = [];
+
+    static IReadOnlyList<string> TallyOf(string content, SessionSetup setup) => setup.Upgrades.Count == 0 ? []
+        : [.. Sim.Campaign.Campaign.TallyLines(DataFile.Load<Sim.Campaign.CampaignTuning>(Path.Combine(content, Sim.Campaign.CampaignTuning.File)), setup.Upgrades)
+            // The engine's name in its line (the nameplate, note 714): the clerk breaks up over it, as over any name typed.
+            .Select(line => line.Replace("{engine}", setup.EngineName is { Length: > 0 } n ? n : "unnamed", StringComparison.Ordinal))];
 
     /// <summary>The platform lobby this game is hosted in or was joined through, if any.</summary>
     public Lobby? Lobby { get; }
@@ -507,7 +530,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             _bulletinSeconds += SimConstants.TickSeconds;
         if (_tally is null && run.Report is { End: Sim.Run.RunEnd.Delivered } report)
         {
-            _tally = Sim.Run.Radio.Tally(report);
+            _tally = Sim.Run.Radio.Tally(report, OwnedTally);
             _tallyTimes = RadioTimesOf(_tally);
             _tallySeconds = 0;
         }
@@ -540,7 +563,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// <param name="tap">Told of the night (note 515): a developer build's recorder. Null for <see cref="Tap"/>'s.</param>
     public static NetPlaySession HostGame(string content, SessionSetup setup, int? port = DefaultPort, int expectedCrew = 4, IOnlineBackend? online = null,
         Sim.Campaign.RunCheckpoint? resume = null, int bots = 0, bool listed = true, string? lobbyName = null, LanBeacon? beacon = null,
-        string? password = null, RunMood mood = RunMood.Either, IHostTap? tap = null, DatagramOptions? options = null, bool? mischief = null)
+        string? password = null, RunMood mood = RunMood.Either, IHostTap? tap = null, DatagramOptions? options = null, bool? mischief = null, double recordKm = 0)
     {
         tap ??= Tap;
         var key = Messages.PasswordKey(password);
@@ -582,6 +605,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 [FullKey] = 1 + bots >= cap ? "1" : "0",
                 [LockedKey] = key is null ? "0" : "1",
                 [MoodKey] = Moods.Word(mood),
+                [RecordKey] = Record(recordKm),
             });
         // The host reads what the tap hands it, if anything's tapping (a developer build's recorder); the rest of the session
         // keeps the transport itself (the friends' check below needs the group, and it's disposed with the session).
@@ -592,6 +616,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         // they came in on (a LAN or address joiner has none, and needs it).
         if (online is not null && hostTransport is HostGroup group)
             host.Trusted = peer => group.Route(peer) is (OnlineTransport over, var at) && over.TryGetAddress(at, out var user) && online.IsFriend(user);
+        // Note 535: a private run's wrong guesses are counted by where they come from, whatever connection each comes on.
+        host.Origin = peer => OriginOf(hostTransport, peer);
         // Note 724: who a link is, to bar someone put off: their account, or a LAN joiner's address.
         host.VoteKicks = setup.VoteKicks;
         host.Identity = peer => IdentityOf(hostTransport, peer);
@@ -642,9 +668,11 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             BotCrew = crew,
             Listed = listed,
             LobbyName = name,
+            OwnedTally = TallyOf(content, setup),
             Tier = tier,
             Locked = key is not null,
             Mood = mood,
+            RecordKm = recordKm,
             _beacon = listed ? beacon : null,
             _tap = tap,
         };
@@ -717,9 +745,45 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public string LobbyName { get; private init; } = "";
     string Tier { get; init; } = "";
     /// <summary>A private run, behind its password (note 450).</summary>
-    public bool Locked { get; private init; }
+    public bool Locked { get; private set; }
     /// <summary>Who the run is for (note 450).</summary>
-    public RunMood Mood { get; private init; }
+    public RunMood Mood { get; private set; }
+    /// <summary>The host's record, km (note 535): what the run's listed with beside its mood. 0: none yet.</summary>
+    public double RecordKm { get; private init; }
+
+    /// <summary>A record as a listing carries it (note 535): whole km, or "" for none.</summary>
+    public static string Record(double km) => km >= 1 ? Invariant((int)km) : "";
+
+    /// <summary>
+    /// Note 535 (note 450's "not yet"): the host of a listed run says who it's for, now. The platform lobby says it at once,
+    /// the network's beacon from its next call. Nothing for a joiner, or a run that isn't listed.
+    /// </summary>
+    public void ChangeMood(RunMood mood)
+    {
+        if (Host is null || !Listed || mood == Mood)
+            return;
+        Mood = mood;
+        if (Lobby is { IsHost: true } lobby)
+            lobby.SetData(MoodKey, Moods.Word(mood));
+    }
+
+    /// <summary>
+    /// Note 535: the host of a listed run changes its password, now: a new joiner needs the new one (or none, blank: the
+    /// run's open, its lock off the listing). The crew aboard stay, and a dropped one's held place still takes them back; the
+    /// crew going on to the next night are given the new key as they go (<see cref="HostSession.CarryOn"/>). The words go
+    /// nowhere: the host keeps the key, as it was given it hosting. Locked, the run's kicks are the host's alone; opened, the
+    /// crew's vote is back (note 724: a public lobby is a listed one with no password).
+    /// </summary>
+    public void ChangePassword(string? password)
+    {
+        if (Host is not { } host || !Listed)
+            return;
+        host.PasswordKey = Messages.PasswordKey(password);
+        Locked = host.PasswordKey is not null;
+        host.VoteKicks = !Locked;
+        if (Lobby is { IsHost: true } lobby)
+            lobby.SetData(LockedKey, Locked ? "1" : "0");
+    }
 
     static string Invariant(int n) => n.ToString(System.Globalization.CultureInfo.InvariantCulture);
 
@@ -822,6 +886,18 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         new() { TimeoutSeconds = tuning.Link.TimeoutSeconds, KeepaliveSeconds = tuning.Link.KeepaliveSeconds };
 
     /// <summary>Starts the transport's pump (note 532) when it's the app's (a tuning); a test's transport stays on its ticks.</summary>
+    /// <summary>
+    /// Who's behind a host's link (note 535): the machine's address on the network (not its port: a joiner's game dials
+    /// from a new one each time), or the account on the platform; null when the link's gone or the transport can't say.
+    /// </summary>
+    public static string? OriginOf(ITransport transport, PeerId peer) => transport switch
+    {
+        HostGroup group => group.Route(peer) is ({ } over, var at) ? OriginOf(over, at) : null,
+        UdpTransport udp => udp.TryGetAddress(peer, out var from) ? from is IPEndPoint ip ? ip.Address.ToString() : from.ToString() : null,
+        OnlineTransport platform => platform.TryGetAddress(peer, out var user) ? $"account:{user}" : null,
+        _ => null,
+    };
+
     static T Pumped<T>(T transport, PlayerTuning? tuning) where T : ITransport
     {
         if (tuning is { Link.PumpMilliseconds: > 0 } && transport is DatagramTransport<EndPoint> udp)
@@ -938,7 +1014,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         var client = new ClientSession(new Replay(transport, early), world,
             setup.Loadout(content).Train, DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)))
         { Name = LocalName(lobby), Outfit = Outfit, Paint = Paint, PasswordKey = key, SnapshotLoss = new(Hud.Tuning.LossWindowTicks) };
-        return new NetPlaySession(null, null, null, client, transport, setup, route, lobby) { Redial = redial };
+        return new NetPlaySession(null, null, null, client, transport, setup, route, lobby) { Redial = redial, OwnedTally = TallyOf(content, setup) };
     }
 
     /// <summary>A new link to the host this joiner reached (by address, or through the lobby), for coming back after a drop.</summary>
@@ -972,10 +1048,13 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     public const double CarryOnSeconds = 0.5;
 
     /// <summary>Who a joiner dials to follow its host to the next night (note 606): the same host, the same way, with the run's key.</summary>
-    public sealed record Following(Func<ITransport> Dial, byte[]? Key, string? Left, Sim.Towns.TownAt Town);
+    /// <param name="Fitted">How many upgrades the night left had (note 697): a refit's night is the same route, fitted with one more.</param>
+    /// <param name="Refit">The host left the yard for the blacksmith's refit (note 697), not for the next night.</param>
+    public sealed record Following(Func<ITransport> Dial, byte[]? Key, string? Left, Sim.Towns.TownAt Town, int Fitted = 0, bool Refit = false);
 
     /// <summary>A joiner told its host is going on (note 606), with a host to dial: whom, and from which town; else null.</summary>
-    public Following? GoingOn => Host is null && Redial is { } dial && Client.CarryingOn is { } town ? new Following(dial, Client.PasswordKey, Setup.Route, town) : null;
+    /// <remarks>The run's key is the one the host said as it went (note 535: it may have changed the password since).</remarks>
+    public Following? GoingOn => Host is null && Redial is { } dial && Client.CarryingOn is { } town ? new Following(dial, Client.CarryKey, Setup.Route, town, Setup.Upgrades.Count, World.Run is { Over: false }) : null;
 
     /// <summary>
     /// The crew goes on together (note 606), a joiner's end: dials the host it followed until the host's next night welcomes
@@ -992,7 +1071,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             try
             {
                 var joined = Connect(content, going.Dial(), "the host", null, whileWaiting, going.Dial, going.Key);
-                if (joined.Setup.Route != going.Left)
+                // The next night's a new route; the blacksmith's refit (note 697) is the same one with an upgrade more.
+                if (joined.Setup.Route != going.Left || joined.Setup.Upgrades.Count != going.Fitted)
                     return joined;
                 joined.Dispose();
             }
@@ -1091,6 +1171,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 Lobby = Lobby is { IsHost: true, Status: Lobby.State.Open, Visibility: LobbyVisibility.Public } l ? l.Id.ToString() : "",
                 Locked = Locked,
                 Mood = Moods.Word(Mood),
+                Record = Record(RecordKm),
             });
         }
         if (Host is { } served && Lobby is { } meeting)

@@ -156,6 +156,8 @@ public sealed class ClientSession
     /// When the link goes after it, it's the host gone to pick the next night, not the night lost.
     /// </summary>
     public Towns.TownAt? CarryingOn { get; private set; }
+    /// <summary>The run's key the host said to come back with (note 535), as <see cref="CarryingOn"/> came; null, an open run.</summary>
+    public byte[]? CarryKey { get; private set; }
 
     public string? WaitingReason { get; private set; }
     public bool Waiting => WaitingReason is not null && !Connected;
@@ -470,7 +472,7 @@ public sealed class ClientSession
                     World.CrewMischief = r.Bool();
                     break;
                 case MessageType.CarryOn:
-                    CarryingOn = Messages.ReadCarryOn(ref r);
+                    (CarryingOn, CarryKey) = Messages.ReadCarryOn(ref r);
                     break;
                 case MessageType.Refused:
                     // Note 254: turned away (a full crew). Kept to show; the host hangs up on this link in a moment.

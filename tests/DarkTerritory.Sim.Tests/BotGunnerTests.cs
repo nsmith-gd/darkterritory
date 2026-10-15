@@ -30,7 +30,8 @@ public class BotGunnerTests
             Route = route,
             Run = Tuning.Run,
             Facilities = DataFile.Load<Run.FacilityTuning>(Path.Combine(Content, Run.FacilityTuning.File)),
-            Sight = DataFile.Load<Route.SightTuning>(Path.Combine(Content, Route.SightTuning.File)),
+            // The mail cranes up (cut for now, note 803): what is tested is the gunner walking past them.
+            Sight = DataFile.Load<Route.SightTuning>(Path.Combine(Content, Route.SightTuning.File)) with { MailCranes = true },
             YardLength = gate,
             Holdouts = Tuning.Holdouts,
         }, Tuning.Boiler);

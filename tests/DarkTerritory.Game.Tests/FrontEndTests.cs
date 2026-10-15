@@ -107,22 +107,66 @@ public sealed class FrontEndTests : IDisposable
         Assert.NotNull(m.Message);
         Assert.Equal(C.StartingCars + 1, Saves.Load(1)!.Cars);
 
-        // Upgrades: bought once, then owned and greyed out.
+        // Upgrades (note 697): the fortress's UPGRADES is the blacksmith's shelves to look at; they're bought at the forge.
         Saves.Save(m.Open! with { Scrip = 10_000 });
         m.ShowFortress(1);
         Choose(m, "UPGRADES");
         Assert.Equal(Screen.Upgrades, m.Screen);
         var first = C.Upgrades[0];
         Choose(m, first.Name.ToUpperInvariant());
-        Assert.Contains(first.Id, Saves.Load(1)!.Upgrades);
-        var owned = m.Items.Single(i => i.Label.StartsWith(first.Name.ToUpperInvariant(), StringComparison.Ordinal));
-        Assert.EndsWith("OWNED", owned.Label);
-        Assert.False(owned.Enabled);
+        Assert.DoesNotContain(first.Id, Saves.Load(1)!.Upgrades);
+        Assert.Contains("blacksmith", m.Message);
         // Every upgrade the fortress sells does something tonight (note 196): none says it isn't modelled.
         Assert.All(C.Upgrades, u => Assert.DoesNotContain("not modelled",
             m.Items.Single(i => i.Label.StartsWith(u.Name.ToUpperInvariant(), StringComparison.Ordinal)).Detail ?? ""));
         m.Back();
         Assert.Equal(Screen.Fortress, m.Screen);
+    }
+
+    [Fact]
+    public void TheBlacksmithSellsTheCatalogueOverTheYardAndOnlyTheHostPays()
+    {
+        // Note 687: Use held on the town's blacksmith in the yard opens their catalogue over the night. The host buys on the
+        // campaign (saved at once, fitted before the gate); a joiner's told who keeps the scrip.
+        var m = Menu();
+        var crew = Campaign.New(C, 1, "Crew 1", 5) with { Scrip = 10_000 };
+        Saves.Save(crew);
+        var first = C.Upgrades[0];
+        string label = first.Name.ToUpperInvariant();
+        string? bought = null;
+        m.SmithyBuy = id =>
+        {
+            var p = Campaign.BuyUpgrade(C, Saves.Load(1)!, id);
+            if (p.Ok)
+            {
+                Saves.Save(p.State);
+                bought = id;
+            }
+            return p;
+        };
+        m.OpenSmithy(new NightMenu(Yard: true), new SmithyShop("Archie MacNeil", crew, CanBuy: true));
+        Assert.Equal(Screen.Smithy, m.Screen);
+        Assert.Contains(m.Items, i => i is { Heading: true, Label: "TOOLS" });
+        Assert.Null(Choose(m, label));
+        Assert.Equal(first.Id, bought);
+        Assert.Contains(first.Id, Saves.Load(1)!.Upgrades);
+        Assert.Contains("fitted before the gate", m.Message);
+        var owned = m.Items.Single(i => i.Label.StartsWith(label, StringComparison.Ordinal));
+        Assert.EndsWith("OWNED", owned.Label);
+        Assert.False(owned.Enabled);
+        // DONE (or Escape) and it's the night again.
+        Choose(m, "DONE");
+        Assert.Null(m.Night);
+        Assert.Null(m.Smithy);
+
+        // A joiner: the same shelves, and the host to ask.
+        bought = null;
+        m.OpenSmithy(new NightMenu(Hosting: false, Yard: true), new SmithyShop("Archie MacNeil", crew, CanBuy: false, "Sam"));
+        Choose(m, C.Upgrades[1].Name.ToUpperInvariant());
+        Assert.Null(bought);
+        Assert.Contains("ask Sam", m.Message);
+        m.Back();
+        Assert.Null(m.Night);
     }
 
     [Fact]
@@ -559,14 +603,15 @@ public sealed class FrontEndTests : IDisposable
         var rows = m.Items.Select(i => i.Label).ToList();
         Assert.StartsWith("LOBBY", rows[0]);
         Assert.Equal(["OLD'S RUN", "NICK'S RUN", "PACKED'S RUN", "PRIYA'S RUN"], rows.Skip(1).Take(4).Select(r => r[..25].TrimEnd()));
-        // Every row says its ping (note 450), and who the run's for ("-": the host said either).
-        Assert.Matches(@"^NICK'S RUN +1/12 +FRONTIER +- +3 MS$", rows[2]);
-        Assert.Matches(@"^PRIYA'S RUN +3/12 +DEAD LINES +- +41 MS$", rows[4]);
+        // Every row says its ping (note 450), who the run's for ("-": the host said either) and its host's record (note 535;
+        // "-": none said).
+        Assert.Matches(@"^NICK'S RUN +1/12 +FRONTIER +- +- +3 MS$", rows[2]);
+        Assert.Matches(@"^PRIYA'S RUN +3/12 +DEAD LINES +- +- +41 MS$", rows[4]);
         // Greyed, with the reason on the row where the tier would be: another version, a full crew.
         Assert.False(m.Items[1].Enabled);
-        Assert.Matches(@"^OLD'S RUN +1/12 +OTHER VERSION +- +2 MS$", rows[1]);
+        Assert.Matches(@"^OLD'S RUN +1/12 +OTHER VERSION +- +- +2 MS$", rows[1]);
         Assert.False(m.Items[3].Enabled);
-        Assert.Matches(@"^PACKED'S RUN +12/12 +FULL +- +5 MS$", rows[3]);
+        Assert.Matches(@"^PACKED'S RUN +12/12 +FULL +- +- +5 MS$", rows[3]);
         // The first you can join is chosen; a network game joins by address, a Steam one by its lobby.
         Assert.Equal(2, m.Selected);
         Assert.Equal(new Launch.Join("192.168.1.20:27450"), m.Select());
@@ -815,17 +860,19 @@ public sealed class FrontEndTests : IDisposable
         // Note 450 (the director, 8 Oct 2026): "a setting called 'Here for Laughs' ... that will automatically sort lowest
         // ping, here for laughs servers"; "Private matches should be password gated", listed with a lock.
         var m = Menu();
-        Ballast.Net.LanGame Lan(string ip, string name, double ping, string mood, bool locked) =>
+        Ballast.Net.LanGame Lan(string ip, string name, double ping, string mood, bool locked, string record = "") =>
             new(new System.Net.IPEndPoint(System.Net.IPAddress.Parse(ip), 27450), "host", "FRONTIER:7, 6 CARS, IN THE YARD", 1, m.Protocol, "darkterritory")
-            { Name = name, Max = 8, Tier = "Frontier", PingMs = ping, Mood = mood, Locked = locked };
-        m.Games = ListedGame.Merge([Lan("10.0.0.1", "GIGGLES", 30, "laughs", false), Lan("10.0.0.2", "LONG HAUL", 5, "competitive", false),
+            { Name = name, Max = 8, Tier = "Frontier", PingMs = ping, Mood = mood, Locked = locked, Record = record };
+        m.Games = ListedGame.Merge([Lan("10.0.0.1", "GIGGLES", 30, "laughs", false), Lan("10.0.0.2", "LONG HAUL", 5, "competitive", false, record: "1873"),
             Lan("10.0.0.3", "FRIENDS ONLY", 10, "", true)], [], "Steam");
         Choose(m, "JOIN");
-        List<string> Names() => [.. m.Items.Skip(1).Take(3).Select(i => i.Label[..26].TrimStart(Ballast.Render.BitmapFont.Lock).Trim())];
+        List<string> Names() => [.. m.Items.Skip(1).Take(3).Select(i => i.Label[..25].TrimStart(Ballast.Render.BitmapFont.Lock).Trim())];
         // Looking for either: nearest first.
         Assert.Equal(["LONG HAUL", "FRIENDS ONLY", "GIGGLES"], Names());
-        Assert.Matches(@"^LONG HAUL +1/8 +FRONTIER +COMPETE +5 MS$", m.Items[1].Label);
-        Assert.Matches(@"^GIGGLES +1/8 +FRONTIER +LAUGHS +30 MS$", m.Items[3].Label);
+        // Note 535: a competitive run's host's record beside its mood ("-": none said).
+        Assert.Matches(@"^LOBBY +CREW +TIER +MOOD +RECORD +PING$", m.Items[0].Label);
+        Assert.Matches(@"^LONG HAUL +1/8 +FRONTIER +COMPETE +1873 KM +5 MS$", m.Items[1].Label);
+        Assert.Matches(@"^GIGGLES +1/8 +FRONTIER +LAUGHS +- +30 MS$", m.Items[3].Label);
         // The private run's row starts with the lock, and says why on its detail line.
         Assert.StartsWith($"{Ballast.Render.BitmapFont.Lock} FRIENDS ONLY", m.Items[2].Label);
         Assert.StartsWith("Private:", m.Items[2].Detail);

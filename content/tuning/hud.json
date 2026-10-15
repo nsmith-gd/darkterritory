@@ -16,7 +16,8 @@
 
   // A mail crane (note 673): once the lamp reads its board, "MAIL CRANE >" (its side) and how far come up as a place does;
   // in its last seconds before your car (s), the line stays up for anyone in a car, and the open side door on its side
-  // says the hook (hold fire as the car goes by). A bag caught says what was in it.
+  // says the hook (hold fire as the car goes by). A bag caught says what was in it. (The mail's cut for now, note 803:
+  // with sight.json mailCranes off there's no crane, so none of this comes up.)
   "mailLeadSeconds": 12,
 
   // Note 740 (GDD §17): after a horn at a stand, the cab keeps the roll of who's called "Aboard!" this long (s), and says
