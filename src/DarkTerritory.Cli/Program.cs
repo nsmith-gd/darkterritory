@@ -2071,6 +2071,25 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         scene.Enemies = Staging.Mourners(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, content, mournersMode, out var mourned);
         scene.Bodies = [.. scene.Bodies ?? [], .. mourned.All];
     }
+    // The sense table (note 728): a music box playing out in the field with the Moose come over to it (Staging.MusicBox), and
+    // the extinguisher on a Cinder Hound on a roof, driving it back (Staging.ExtinguisherHound).
+    if (view == "musicbox")
+    {
+        scene.Enemies = Staging.MusicBox(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, content, out var box);
+        scene.Bodies = [.. scene.Bodies ?? [], .. box.All];
+    }
+    if (view == "extinguisherhound")
+    {
+        var (threats, sprayer, extinguisher) = Staging.ExtinguisherHound(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, content);
+        scene.Enemies = threats;
+        scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id != Staging.SprayerId), sprayer];
+        scene.Bodies = [.. scene.Bodies ?? [], .. extinguisher.All];
+        scene.StagedSpray = true;
+        scene.StagedPaces = new Dictionary<int, float>(scene.StagedPaces ?? new Dictionary<int, float>())
+        {
+            [Staging.SprayedHoundId] = (float)DarkTerritory.Sim.Enemies.SenseTuning.Load(content).Answers.CinderHounds.BackOffSpeed,
+        };
+    }
     // --beetle idle|walk|brace|push|startle: the staged Freight Beetle at a crate off the line's left (note 366;
     // Staging.Beetle), the beetle view's (pushing it unless told).
     if (Str(args, "--beetle", view == "beetle" ? "push" : "") is { Length: > 0 } beetleMode)

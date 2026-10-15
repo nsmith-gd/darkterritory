@@ -330,8 +330,12 @@ public sealed partial class World
                 if (solid.Present(vehicle) && solid.BoxIn(vehicle).Contains(local))
                     return true;
         }
-        // The ground.
-        return lump.At.Y <= PlayerMotor.GroundAt(lump.At, Train.Line, ref lump.Hint);
+        // The ground; on the rails, a knock what hunts by vibration hears (note 728).
+        if (lump.At.Y > PlayerMotor.GroundAt(lump.At, Train.Line, ref lump.Hint))
+            return false;
+        if (OnRail(lump.At, lump.Hint))
+            KnockRail(lump.At, lump.By);
+        return true;
     }
 
     /// <summary>A client's copy of the host's horseplay (note 717): the knocks seen lately, and the lumps in flight.</summary>

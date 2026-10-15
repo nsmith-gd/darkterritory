@@ -314,7 +314,11 @@ public sealed class Gaunt(int id) : Enemy(id)
                         return;
                     // LISTEN: silence near it, and the anger climbs; a voice holds it where it is (and talks it down: TalkedDown).
                     bool talked = Talked(ctx, t);
-                    _silence = talked ? 0 : _silence + SimConstants.TickSeconds;
+                    // Note 728 (senses.json answers.gaunt): a toy playing near it isn't silence, though only a voice talks it down.
+                    var heard = ctx.World.Senses.Answers.Gaunt;
+                    bool toy = (heard.ToyHoldsSilence || heard.ToyTalksDown) && ToyNear(ctx, t);
+                    _silence = talked || toy && heard.ToyHoldsSilence ? 0 : _silence + SimConstants.TickSeconds;
+                    talked |= toy && heard.ToyTalksDown;
                     if (_silence >= t.SilenceSeconds)
                     {
                         _silence = 0;
@@ -337,6 +341,14 @@ public sealed class Gaunt(int id) : Enemy(id)
                 Enter(ctx, SpinePhase.Gone);
                 return;
         }
+    }
+
+    /// <summary>A noisy toy playing (in the hands or lying wound) within its listening radius this tick (note 728).</summary>
+    bool ToyNear(EnemyContext ctx, GauntTuning t)
+    {
+        var at = WorldPosition(ctx.Train);
+        return ctx.World.Emitters(Sense.Sound, at).Any(e => e.Kind is EmitterKind.Squeaker or EmitterKind.MusicBox or EmitterKind.Drummer
+            && (e.At - at).Length <= t.ListenRadius);
     }
 
     /// <summary>LISTEN: someone (its waker, unless <c>anyVoiceCounts</c>) talking within its listening radius this tick.</summary>

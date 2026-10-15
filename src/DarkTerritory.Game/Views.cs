@@ -137,6 +137,11 @@ public static class Views
             // and at the staged Freight Beetle shoving a crate (Staging.Beetle); at Tower Jaw's coaling tower (Staging.TowerJaw:
             // the screenshot puts the camera there, at the night's tower; this is only where it looks without one).
             "mourners" => Staging.MournersCamera(train),
+            // (Not one of Names.) The sense table (note 728): a crewmate's eye beside the engine, out at a music box playing in
+            // the field and the Moose come over to it (Staging.MusicBox); side on to the extinguisher's jet on a Cinder Hound
+            // backing off down a roof (Staging.ExtinguisherHound).
+            "musicbox" => Staging.MusicBoxCamera(train),
+            "extinguisherhound" => Staging.ExtinguisherHoundCamera(train),
             "beetle" => Staging.BeetleCamera(train),
             // (Not one of Names.) The staged Pickers in the headlamp's spill off the line's left (Staging.Pickers), and close to
             // the ones under their crates; the Lodger folded in its crouch and shrieking (Staging.Lodger); the Householder at

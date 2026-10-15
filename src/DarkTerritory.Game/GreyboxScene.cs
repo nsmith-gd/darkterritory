@@ -1720,6 +1720,38 @@ public sealed partial class GreyboxScene
     readonly Dictionary<int, (double Extra, double Fell)> _fires = new();
     readonly HashSet<int> _spraying = new();
 
+    // Each carried extinguisher's charge and when it last fell (note 728: spent on a hound, the charge is what says it's spraying).
+    readonly Dictionary<int, (double Charge, double Fell)> _charges = new();
+
+    /// <summary>
+    /// The extinguisher's spray on a Cinder Hound aboard (note 728; senses.json <c>answers.cinderHounds</c>): an extinguisher
+    /// carried whose charge is falling (or staged, dt screenshot --spray), with a hound within the spray's reach of it, sprays
+    /// at the hound; its carrier's braced at it (SceneArt.Spraying).
+    /// </summary>
+    void SprayingHounds(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Double3 eye, Art.Effects fx)
+    {
+        if (Bodies is null || Enemies is null)
+            return;
+        foreach (var b in Bodies)
+        {
+            if (b.Kind != Sim.Physics.BodyKind.Extinguisher || b.Carrier < 0 || b.Stashed)
+                continue;
+            double fell = _charges.TryGetValue(b.Id, out var was) ? (b.Charge < was.Charge - 1e-9 ? Time : was.Fell) : double.NegativeInfinity;
+            _charges[b.Id] = (b.Charge, fell);
+            if (!StagedSpray && Time - fell > 0.4)
+                continue;
+            var held = HeldHere is { } h && b.Carrier == h.Player ? h.Hands
+                : b.Parent >= 0 && b.Parent < frames.Count ? frames[b.Parent].ToWorld(b.Pbd.Particles[0].Position) : b.Pbd.Particles[0].Position;
+            var hound = Enemies.OfType<Sim.Enemies.CinderHound>().Where(e => !e.Gone && e.Attached >= 0 && e.Attached < frames.Count)
+                .Select(e => (Double3?)(frames[e.Attached].ToWorld(e.Local) + Double3.Up * 0.45)).Where(at => (at!.Value - held).Length <= 4.0)
+                .OrderBy(at => (at!.Value - held).Length).FirstOrDefault();
+            if (hound is not { } aim)
+                continue;
+            fx.Spray(mesh, held.RelativeTo(eye), aim.RelativeTo(eye), Time);
+            _spraying.Add(b.Carrier);
+        }
+    }
+
     /// <summary>Extinguishers at work (App. C.5), from what's replicated: a fire going down, an extinguisher carried within reach of it.</summary>
     void Extinguishing(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Double3 eye)
     {
@@ -1728,6 +1760,8 @@ public sealed partial class GreyboxScene
         _spraying.Clear();
         if (Look is not null)
             Look.Art.Spraying = _spraying;
+        if (Look?.Art.Effects is { HasFlames: true } cold && Enemies is not null)
+            SprayingHounds(mesh, frames, eye, cold);
         if (Look?.Art.Effects is not { HasFlames: true } fx || Enemies is null)
             return;
         foreach (var e in Enemies)

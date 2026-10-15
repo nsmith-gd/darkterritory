@@ -740,6 +740,15 @@ public sealed partial class SceneArt(Look look)
         var o = at.RelativeTo(eye);
         var m = new Matrix4x4(right.X, right.Y, right.Z, 0, u.X, u.Y, u.Z, 0, back.X, back.Y, back.Z, 0, o.X, o.Y, o.Z, 1);
         var props = PropArt.Of(Look);
+        // A thrown lamp broken where it landed (note 728): no lantern, its oil burning in a puddle of flame on what it lies on.
+        if (b.Kind == Sim.Physics.BodyKind.Lamp && b.Broken)
+        {
+            float flicker = Flicker(time, b.Id);
+            var foot = o - u * 0.12f;
+            Effects.FireCell(mesh, foot, right * 0.3f, back * 0.3f, u, Sim.Enemies.FireFace.Floor, 0.55f, true, time, b.Id);
+            mesh.Billboard(foot + u * 0.2f, 1.1f * flicker, 0, new Vector4(Palette.FurnaceOrange * 0.5f * flicker, 1), -1, FxBlend.Additive);
+            return true;
+        }
         if (b.Kind == Sim.Physics.BodyKind.Extinguisher && props.Get("extinguisher") is { } extinguisher)
         {
             // Stood up on its foot (carried, where the hands have it: crew_clips' extinguish); back on its mount (lying where the sim stands it, in its car), stood in the cradle

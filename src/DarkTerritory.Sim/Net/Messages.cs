@@ -88,7 +88,9 @@ public static class Protocol
     // 60: sessions (note 724): the crew's save sent to everyone aboard as a night's settled (CrewSave, in chunks); kick and the
     //     public lobby's vote to put a player off (Kick, KickVote, Kicked; a Refused can say the crew put you off); and the
     //     lobby's crew mischief switch (Mischief), changed in the yard.
-    public const int Version = 60;
+    // 61: the sense table (note 728): the body record's ninth field carries a toy playing where it lies (its noise | 0x100) and
+    //     a thrown lamp broken and burning (1).
+    public const int Version = 61;
 }
 
 public enum MessageType : byte

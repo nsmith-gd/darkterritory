@@ -463,6 +463,8 @@ public sealed partial class World
             if (Run is not null && !_countedAhead.Remove(id))
                 Attribution.Add(Sim.Run.IncidentLog.Death(this, id, s, body, crew));
         Bodies.Step(Train, Train.Dynamics.Tuning, id => crew.FirstOrDefault(c => c.Id == id) is { State: var s } pair && pair.Id == id ? s : null);
+        // Thrown things do what they are (note 728): a lamp breaks into fire, a crate on the rail knocks.
+        Thrown();
         Train.Lying = Bodies.Lying(Train);
         Recover();
         BreakRadios(crew);
@@ -1953,6 +1955,9 @@ public sealed partial class World
             Answer = Answer with { Seconds = Math.Max(0, Answer.Seconds - SimConstants.TickSeconds) };
         if (Authority && Watcher.Showing)
             Watcher = Watcher with { Seconds = Math.Max(0, Watcher.Seconds - SimConstants.TickSeconds) };
+        // The toys playing and the lamps burning (note 728), before anything listens or looks this tick.
+        if (Authority)
+            StepSenses();
         // Singing together (note 720), heard before the meter, the livestock and the creatures listen this tick.
         if (Authority && _context is { } heard)
             StepSinging(heard);
@@ -2134,13 +2139,23 @@ public sealed partial class World
                     if (draw is { VoiceFloor: < 1 } && intent.Voice / 255.0 > draw.VoiceFloor)
                         Drew(DrawCause.Voices, p.Id, draw.Weight(DrawCause.Voices) * (intent.Voice / 255.0 - draw.VoiceFloor) / (1 - draw.VoiceFloor) * dt);
                 }
-        // A squeaker, a music box, a wind-up drummer: noisy in the hands that carry it.
+        // A squeaker, a music box, a wind-up drummer: noisy in the hands that carry it. Note 728 (senses.json
+        // answers.choir.lyingToysCount): a wound one set down or thrown plays on where it lies, and counts as it would carried, in
+        // the name of the last one to hold it, while it's within its own sound's reach of a living crewmate.
+        bool lying = Senses.Answers.Choir.LyingToysCount;
         foreach (var b in Bodies.All)
-            if (b is { Kind: Physics.BodyKind.Toy, Carrier: >= 0 } && b.Noise != Physics.ToyNoise.None)
-            {
-                Add(b.Carrier, t.Toys.Of(b.Noise));
-                Drew(DrawCause.Toy, b.Carrier, (draw?.Weight(DrawCause.Toy) ?? 0) * dt);
-            }
+        {
+            if (b.Kind != Physics.BodyKind.Toy || b.Noise == Physics.ToyNoise.None || b.Stowed)
+                continue;
+            int by = b.Carrier;
+            if (by < 0 && !(lying && b.Playing && HeardByCrew(b)))
+                continue;
+            if (by < 0)
+                by = b.LastHeld;
+            Add(by, t.Toys.Of(b.Noise));
+            if (by >= 0)
+                Drew(DrawCause.Toy, by, (draw?.Weight(DrawCause.Toy) ?? 0) * dt);
+        }
         if (WhistleSeconds > 0)
         {
             Add(WhistleBy, t.WhistleLoudness);

@@ -654,6 +654,8 @@ The learnability rules from v1.0 — the rule fits in six words, one death teach
 
 Demo ships with **five**: Track Doll, Car Hugger, Whistler, Tippy Toesie and Ribbits, with the Choir running underneath as the ambient system. If the Foundry is one of the two demo facilities, the Grumbler replaces the Ribbits.
 
+**The crew's things speak the creatures' senses** (the director, 14 Oct 2026; ARCHITECTURE §8 note 728). Every creature hunts by one sense (App. A.1), and every item the crew carries gives off or masks one of them, by a fixed table (`content/tuning/senses.json`): a lamp is light, a noisy toy is sound, the extinguisher's spray is cold (it masks heat), a crate dropped or a lump of coal thrown on the rail is a knock (vibration), food is scent, a body is what the Mourners come for. A creature answers a thing only through its own sense, the way it answers anything else, so the roster is a toybox without a tutorial: a music box thrown into the field draws the Moose to it, the extinguisher drives a Cinder Hound back, a lamp left lit in a car or out in the dark draws the Fire Flies, a knock on the rail draws the Car Hugger off and turns Tower Jaw from its post. **Thrown things do what they are:** a lamp thrown hard breaks and its oil lights the fire grid where it lands (on the ground, it burns a while); a powder keg brought up short goes up; set down by hand, neither does. Nothing thrown hurts a crewmate; fire and a keg's blast are the world's own rules.
+
 ### FORWARD — the brakes answer
 
 **TRACK DOLL** · *on the track ahead, then aboard*
@@ -1444,6 +1446,22 @@ DORMANT ──[sense trigger]──► ALERT ──[tell fires]──► TELEGRA
 
 **Sense triggers** are one of: sound, light, heat, movement, scent, vibration, sight, absence. Enemies sharing a trigger in the same zone must have tells that stay distinguishable by ear and by eye.
 
+**The sense table** (the director, 14 Oct 2026; ARCHITECTURE §8 note 728). What the crew's things give off, in the same eight senses, is one table (`content/tuning/senses.json`), and every creature reads it through one query (`World.Emitters(sense, at)`): each entry a sense, how far it carries and how strong it is (on a voice's scale, its level / 255), or a negative strength for what masks a sense.
+
+| Thing | Sense | Reach | Notes |
+|---|---|---|---|
+| Hand lamp (carried or set down; dark only put away in a slot) | light | 12 m | lying lit in a car, it's that car's lamp |
+| A car's lamps | light | 10 m | App. A.5's "a lit lamp inside a car" |
+| Squeaker | sound | 15 m | only squeezed in the hands |
+| Music box, wind-up drummer | sound | 30 m, 35 m | wound: set down or thrown, they play on where they lie (90 s, 30 s) |
+| The extinguisher's spray (Fire held) | heat, masked | 3.5 m, a 25° cone | spent only on what it reaches |
+| A knock on the rail (a coal lump, anything heavy dropped onto it at 3 m/s or more) | vibration | 40 m | heard 2 s |
+| A thrown lamp burning on the ground | light, heat | 10 m, 3 m | 25 s |
+| Food among the finds (treats, tinned food, preserves) | scent | 15 m | |
+| A body | absence | 20 m | the Mourners read the bodies themselves (note 362) |
+
+A creature answers only its own sense: a lamp is nothing to the Moose, a music box nothing to the Fire Flies. The Knotter and Hotbox (vibration) answer the train's own running, never a knock; the Switchman, a train on its switch. Each answer is in its entry below and in the table's `answers`.
+
 *All timings below are first pass, built for feel-testing.*
 
 ---
@@ -1479,12 +1497,16 @@ LEAP      within 30m → jump for the rear car
 BOARD     on success → PACK FIGHT
 PACK FIGHT several hounds; each takes several bludgeons; bites hard
 BREAK OFF rear cannon hit, or train exceeds their sustainable speed
+SPRAYED   aboard, the extinguisher's cold on it (heat masked) → lets go, can't bite, backs off down its car;
+          keeps off 3 s after; sprayed 4 s within 10 s → leaps off the train
 ```
-**Every cannon shot feeds the loudness meter.** This pair with the Choir is the roster's central tension.
+**Every cannon shot feeds the loudness meter.** *The extinguisher* (the director, 14 Oct 2026; ARCHITECTURE §8 note 728)*, the director's playtest of 13 Oct evening, line 24: "I'm pretty sure I can take a fire extinguisher and use them on the cinder hounds, can't I? ... That should have worked"): a hound's sense is heat, and the spray's cold masks it. It's a deterrent, weaker than a gun's suppression (which sends a running pack off at once): it reaches only the hounds aboard, within the spray's 3.5 m, and a hound backed out of its reach has to be followed down the roof to be driven off. Numbers in senses.json `answers.cinderHounds`.* This pair with the Choir is the roster's central tension.
 
 ### CAR HUGGER · vibration
 ```
 LURK      beside the track on low ground
+          └ a knock on the rail within 40 m → crawls to it, off the formation's edge; drawn (15 s from the last
+            knock), it latches onto nothing (note 728)
 LATCH     rear car passes → clamps on
           └ TELEGRAPH: heavy grinding from the rear; top speed capped
 FEED      eats the car's shell and loot steadily
@@ -1602,8 +1624,10 @@ It naturally targets the conductor and boiler player. At crew 2, shorten its rea
 ### FIRE FLIES · light
 ```
 DRIFT     lineside in dark sections
-SWARM     a lit lamp inside a car → they gather on it
+SWARM     a lit lamp inside a car → they gather on it (a hand lamp lying lit in a car is a lamp: note 728)
           └ TELEGRAPH: glow and buzzing around the lamp
+LURED     a lit hand lamp lying out in the world within 30 m → they drift off the car to it; igniting, the lamp
+          breaks into a short burn where it lies, and no car's alight (note 728)
 IGNITE    linger ~20s → the car catches fire
 SPREAD    fire grows and jumps couplings over time
 BREAK OFF lamp turned off, or the train pulls away at speed
@@ -1637,11 +1661,12 @@ WAKE      a player comes too close
 FOLLOW    trails its waker at arm's length; boards the train with them
 LISTEN    every 5s of silence near it → aggro +1
           └ TELEGRAPH: it leans in closer and tilts its head as aggro climbs
+          └ a noisy toy playing within 8 m isn't silence (aggro holds), but only a voice talks it down (note 728)
 ATTACK    aggro at threshold → heavy attacks on the nearest player
 COUNTER   kill it (a group job; it hits hard)
           OR lead it to a car → it takes the most valuable item → leaves for the run
 ```
-Talking only holds it off. **It punishes silence while the Choir punishes noise**, so players must chat to it quietly. Whose voice counts, and whether talking lowers aggro, are open questions (Part Eleven).
+Talking only holds it off. **It punishes silence while the Choir punishes noise**, so players must chat to it quietly. *A wound music box left by it holds it where it is (the director, 14 Oct 2026; ARCHITECTURE §8 note 728)), and feeds the Choir while it plays: the contradiction, in a toy.* Whose voice counts, and whether talking lowers aggro, are open questions (Part Eleven).
 
 **A body is an item.** It ranks at its refund value (D.9), so the Gaunt will sometimes pass over the medicine and leave with a dead crew member. It carries the body out at walking pace, in full view, and the crew can still chase it down before it clears the train.
 
@@ -1680,7 +1705,10 @@ GRAB      charges someone already hurt (40 or less) → pins them under the rack
           └ interrupt: a friend's blow → it lets go and goes for the friend
 PUNISH    trampled
 SEARCH    out of sight → where it last saw or heard them; a voice within 15 m gives anyone away;
-          25 s without them → gives up
+          25 s without them → gives up; a toy louder than any voice it hears is where it searches (note 728)
+LURED     unriled, a noisy toy playing within its reach and louder than any voice there (a music box at 30 m)
+          → walks over (2.5 m/s, inside its 80 m leash) and stands 3 m off it, listening (aggro held at
+          listenAt: on edge, never past); the toy runs down → home. A toy is nobody: it never riles it
 RAM       lost at a car they're aboard → rams it every 3 s for 15 s (a boom and a shudder, nothing more), gives up
 GIVES UP  also past 80 m from its ground, or after three charges into what it can't get into → walks home and grazes
 TRAIN     the train pulling away ends it
@@ -1725,6 +1753,8 @@ GNAW      at a stop with a wooden or light structure (not a bridge) → it's gna
           comes; the structure's strength falls (it comes down in 150 s of gnawing; faster at harder tiers)
           └ TELEGRAPH: the chiselling; chips; then the creak and the lean (from half gnawed), the groan (the last 5 s)
 NOTICE    a crewmate within 10 m → it turns, rears and slaps its tail (THREAT, 1.5 s)
+          └ nobody near, a knock on the rail within 40 m → it stops gnawing, turns to the knock and rears at it,
+            4 s from the last knock (note 728): a lump of coal a knock, so a decoy costs the tender
           ├ they come within 3 m → LUNGE: a bite (35, never a kill); then back to the post
           └ they back off → back to gnawing
 HIT       blows: 4 in 15 s DRIVE IT OFF (it lopes away for 120 s, then comes back to the same post, its gnawing kept)
@@ -1772,6 +1802,8 @@ DISPERSE  quiet held → they leave
 LIMIT     one crew member taken → the Choir is gone for the rest of the run
 ```
 **Fully preventable by hushing in time.** Fighting it is possible and almost always a mistake.
+
+*A wound music box or drummer set down or thrown plays on where it lies, and counts on the meter as it would carried, in the name of the last one to hold it, while it's within its own reach of a living crewmate (the director, 14 Oct 2026; ARCHITECTURE §8 note 728)).*
 
 **Loudest first is the blame rule.** Among exposed players, the Choir takes whoever contributed most to the meter during BUILD: their voice, a cannon they fired, the whistle they pulled, a squeaker in their hands. It stays fair because loudness is entirely player-controlled, and a player behind a closed door is safe however loud they were. The one shouting at everyone to shut up is usually the one it takes.
 
@@ -2165,8 +2197,8 @@ The roster depends on nine systems. Each is shared by several enemies, so each i
    **Alone** *(the director, 13 Oct 2026, from the creature gym, App. F.5: "holding e shouldn't always result in escape, it should at best give me a 15% chance of escape")*: a held player can struggle (hold Use, `grab.soloStruggle`, 4 s: shorter than any creature's hold), but it's a chance and never a sure thing: one try a grab, a coin flip (`grab.soloStruggleChance`, 50%). *(It was 15%; the director's playtest, 14 Oct: "hold the struggle when playing solo really should have a higher rate of success. Damn, yeah, run lost"; note 737.)* A creature struggled off doesn't vanish: it's still there, and it comes again (a Whistler back in its gap, to whistle again; a Soot Child a few steps off, calling). While you're held, Use is the struggle's alone: nothing else in reach (the firebox's coal, a door, a lever) takes it. *(Queue #413, ARCHITECTURE §8 note 681.)*
 2. **Melee.** The core verb. The tools already on the train are the weapons: shovel, wrench, crowbar. The boiler player's shovel doubling as the crew's best club is intended tension. *(Note 664, the director, 13 Oct: "Every crew member should be able to shovel coal regardless of having the shovel in their hand": coal goes on without it, and the shovel's a club on the cab's rack. `boiler.json shovelInHand` false.)* Server-authoritative hits with lag compensation.
 3. **Cannons.** Bullets and guns are rare in this world; crude cannons and crude gunpowder are not. Each mounted cannon has a full manual reload (powder, ball, ram, fire), so every shot is a timed decision. Powder and shot are stocked at departure. *A gun fires what's in its ready rack, six rounds; the rest of the night's powder is in the guard van's powder locker, the engine gun's share too, and comes up a charge at a time, carried by hand to the gun (ARCHITECTURE §8 note 374; [orchestrator.md](orchestrator.md) §5.1 U4). In a wave a gun is a two-person job: a gunner, and someone bringing the powder. A bot crew splits it the same way (note 377).*
-4. **Hand-carried loot.** Small items players carry alongside car-level freight: toys (for the Track Doll), crates (the Grumbler), salvage, and a rescued child. Carrying runs at 2.8 m/s with no climbing, per the systems spec. **Some toys are noisy** (a squeaker, a music box, a wind-up drummer). They emit sound while carried or jostled and feed the loudness meter in the carrier's name (C.7). They are worth more than quiet toys, and the Track Doll likes them just as much.
-5. **Fire and firefighting.** Fire grows and jumps couplings. Every car has a wall-mounted extinguisher that players grab, use and put back. Each holds limited charge and recharges slowly on its mount. Bigger fires need more extinguishers at once.
+4. **Hand-carried loot.** Small items players carry alongside car-level freight: toys (for the Track Doll), crates (the Grumbler), salvage, and a rescued child. Carrying runs at 2.8 m/s with no climbing, per the systems spec. **Some toys are noisy** (a squeaker, a music box, a wind-up drummer). They emit sound while carried or jostled and feed the loudness meter in the carrier's name (C.7). They are worth more than quiet toys, and the Track Doll likes them just as much. *Wound, a music box (90 s) or a drummer (30 s) set down or thrown keeps playing where it lies: a lure for what hunts by sound, and still the setter's on the meter (the director, 14 Oct 2026; ARCHITECTURE §8 note 728)).* **Thrown things do what they are:** a hand lamp brought up short at 6 m/s or more (a throw, a fall off a roof; set down from the hands it's about 4.5) breaks: on or in a car, its oil lights the car's fire grid at the cell nearest where it broke (0.35 heat; C.9 records whoever threw it); anywhere else it burns where it lies 25 s, light and heat. A powder keg brought up short goes up, as it always has (§18–19). Anything heavy landing hard on the rails is a knock (A.1's table). Nothing thrown hurts a crewmate (§23.1).
+5. **Fire and firefighting.** Fire grows and jumps couplings. Every car has a wall-mounted extinguisher that players grab, use and put back. Each holds limited charge and recharges slowly on its mount. Bigger fires need more extinguishers at once. *Its spray is cold (A.1's table): on a Cinder Hound aboard it drives the hound back (A.3); the charge goes only as the spray's spent on fire or a creature (the director, 14 Oct 2026; ARCHITECTURE §8 note 728)).*
 6. **Group counting.** Players within 8m of each other count as a group — the full-clarity voice radius. Used by Ribbits and Climbers.
 7. **The crew loudness meter.** Combined loudness from voices, cannons, the whistle and machinery, measured over a few seconds so single shouts don't count. It drives the Choir and is fed by livestock and noisy loot. **The meter keeps a per-player share**: each player's voice, the cannon they fired, the whistle they pulled and anything noisy they carry. Machinery, livestock and a whistle blown by the Whistler belong to nobody. The Choir uses the shares from its BUILD phase to pick who it takes first (A.7). **A crew singing together feeds none of it** *(the director, 14 Oct 2026; note 720)*: two or more within earshot whose voices rise and fall in time over four seconds are singing, and their voices are left out of the meter while they do (§14). Livestock aboard while the crew sings make a lower floor.
 8. **Voice effects on the server.** Tippy Toesie muffles its victim; Soot Child victims fade as they're drained; the Gaunt listens for silence; the Passenger never speaks. All live in the existing voice layer. Two more, added in v1.3:

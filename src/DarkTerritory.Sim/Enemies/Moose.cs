@@ -181,6 +181,35 @@ public sealed class Moose(int id) : Enemy(id)
             Rile(ctx, who);
             return;
         }
+        // Note 728 (senses.json answers.moose): the loudest thing it hears is a toy, playing where it lies or in someone's hands:
+        // it goes to it and stands over it listening; quiet again, it goes home.
+        if (Lure(ctx, t) is { } toy && Flat(toy.At - _home) <= t.LeashRadius)
+        {
+            _lured = true;
+            // Listening to it: its head up and its ears on it (its meter held at listenAt: a toy puts it on edge, never past).
+            Extra2 = Math.Max(Extra2, t.ListenAt);
+            var to = toy.At - here;
+            if (Flat(to) > ctx.World.Senses.Answers.Moose.StandOff)
+            {
+                SetMode(MooseMode.Search);
+                Walk(ctx, t, toy.At, t.SearchSpeed);
+            }
+            else
+            {
+                SetMode(MooseMode.Graze);
+                Turn(to, Math.PI);
+            }
+            if (Phase == SpinePhase.Dormant)
+                Enter(ctx, SpinePhase.Alert);
+            return;
+        }
+        if (_lured && Phase != SpinePhase.BreakOff)
+        {
+            SetMode(MooseMode.Home);
+            if (Walk(ctx, t, _home, t.SearchSpeed) > 1.0)
+                return;
+            _lured = false;
+        }
         if (Phase == SpinePhase.BreakOff)
         {
             // Going home: back to its ground, then grazing.
@@ -249,6 +278,9 @@ public sealed class Moose(int id) : Enemy(id)
         bool seen = Sees(ctx, t, s, at);
         if (seen)
             _lastSeen = at;
+        // Note 728: a toy louder than any voice it hears is where it searches (it's the loudest thing about).
+        else if (Lure(ctx, t) is { } toy)
+            _lastSeen = toy.At;
         // A voice near it gives anyone away (the director, 7 Oct 2026): whoever it hears is who it's after now.
         else if (Heard(ctx, t) is { } heard && heard.Id != who)
         {
@@ -478,6 +510,25 @@ public sealed class Moose(int id) : Enemy(id)
     /// <summary>On the ground, within its sight, and nothing between (a building, a car).</summary>
     bool Sees(EnemyContext ctx, MooseTuning t, in PlayerState s, Double3 at) =>
         CrewSense.OnGround(s) && Flat(at - Local) <= t.SightRange && Clear(ctx.Train, Local + Double3.Up * 1.8, at + Double3.Up * 1.2);
+
+    /// <summary>
+    /// The loudest thing it hears, when that's a noisy toy (note 728, senses.json <c>answers.moose.toysLure</c>): a squeaker, a
+    /// music box or a drummer playing within its own sound's reach, louder than any voice within its hearing (a voice's level /
+    /// 255, the table's scale). It hears nothing else in the table: a lamp's light is nothing to it.
+    /// </summary>
+    Emitter? Lure(EnemyContext ctx, MooseTuning t)
+    {
+        if (!ctx.World.Senses.Answers.Moose.ToysLure)
+            return null;
+        double voice = 0;
+        foreach (var (p, intent) in ctx.Crew)
+            if (p.State.Alive && intent.Voice >= t.TalkingAbove && Flat(PlayerMotor.WorldPosition(p.State, ctx.Train) - Local) <= t.HearVoice)
+                voice = Math.Max(voice, intent.Voice / 255.0);
+        return ctx.World.Loudest(Sense.Sound, Local + Double3.Up * 1.8,
+            e => e.Kind is EmitterKind.Squeaker or EmitterKind.MusicBox or EmitterKind.Drummer && e.Strength > voice);
+    }
+
+    bool _lured;
 
     /// <summary>The loudest voice within its hearing, and where they are.</summary>
     (int Id, Double3 At)? Heard(EnemyContext ctx, MooseTuning t)

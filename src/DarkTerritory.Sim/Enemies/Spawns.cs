@@ -579,7 +579,8 @@ public static class Spawns
     /// With <see cref="FireFliesTuning.ShutCarKeepsOut"/>, only those with a way in: a door or the hatch open, or a breach
     /// (boarding-first, note 286: a car shut up tight keeps them off its lamp).</summary>
     static List<int> LitCars(SpawnContext c) =>
-        [.. c.Train.Dynamics.Consist.Vehicles.Where(v => v.Id > 0 && v.LampLit && c.Train.Frames[v.Id].Shape.Interior is not null
+        // Note 728: a hand lamp lying lit in a car lights it as its own lamps do (World.CarLit).
+        [.. c.Train.Dynamics.Consist.Vehicles.Where(v => v.Id > 0 && c.World.CarLit(v.Id) && c.Train.Frames[v.Id].Shape.Interior is not null
             && !(c.Tuning.FireFlies.ShutCarKeepsOut && Boarding.ShutUp(c.Train, v.Id))).Select(v => v.Id)];
 
     /// <summary>

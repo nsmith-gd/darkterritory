@@ -85,7 +85,10 @@ public sealed class Body
     /// "physically aboard and readable"); <see cref="CargoKind.None"/> for a stop's loot crates and everything else.
     /// </summary>
     public CargoKind Cargo { get; set; }
-    /// <summary>A radio smashed in a fall, a grab or a blow (GDD §23 "radio breaks"; note 183): carried, but dead.</summary>
+    /// <summary>
+    /// A radio smashed in a fall, a grab or a blow (GDD §23 "radio breaks"; note 183): carried, but dead. A lamp: thrown and
+    /// broken, its oil burning where it lies (note 728).
+    /// </summary>
     public bool Broken { get; set; }
     /// <summary>
     /// A broken radio being mended with the repair kit (note 201): how many ticks Use has been held at it, 0 when nobody is.
@@ -95,6 +98,20 @@ public sealed class Body
     public int MendTicks { get; set; }
     /// <summary>A toy's noise (App. C.7): <see cref="ToyNoise.None"/> for a quiet one and everything that isn't a toy.</summary>
     public ToyNoise Noise { get; set; }
+    /// <summary>
+    /// A wound toy's tune left once it's let go (s; note 728, senses.json <c>toys.playsSeconds</c>): a music box or a drummer set
+    /// down or thrown keeps playing where it lies. Host only; <see cref="Playing"/> goes over the wire.
+    /// </summary>
+    public double Plays { get; set; }
+    /// <summary>A noisy toy playing (in the hands, or lying wound): what the sense table hears (note 728).</summary>
+    public bool Playing { get; set; }
+    /// <summary>Who last had it in their hands (−1 nobody yet): a toy playing where it lies is in their name (App. C.7). Host only.</summary>
+    public int LastHeld { get; set; } = -1;
+    /// <summary>
+    /// A thrown lamp broken on the ground (note 728): its oil burning where it lies for this long yet (s), the lamp's
+    /// <see cref="Broken"/> set. Host only.
+    /// </summary>
+    public double Burns { get; set; }
     /// <summary>
     /// For a ragdoll, the tools its player was carrying when they died (GDD v1.4 App. D.2: the body keeps everything,
     /// the engineering kit included), packed like <see cref="PlayerState.Kit"/>. Whoever lifts the body takes them.
@@ -863,7 +880,9 @@ public sealed class Bodies
         // A heavy crate with one on it is still free at its other end (T43).
         // What's in a locker is the locker's: taken from it with a tap there, not reached for (note 173).
         var free = _bodies.Where(b => !b.Stowed && b.TakenBy < 0 && (b.Carrier < 0 || b.Kind == BodyKind.Heavy && b.Second < 0 && b.Carrier != playerId)
-            && !(wearingRadio && b.Kind == BodyKind.Radio));
+            && !(wearingRadio && b.Kind == BodyKind.Radio)
+            // A lamp broken and burning (note 728) is a puddle of burning oil and glass, not a thing to pick up.
+            && !(b.Kind == BodyKind.Lamp && b.Broken));
         if (hand is not null && PlayerMotor.HandWorld(s, train) is { } h)
             return free.Select(b => (b, d: Surface(b, train, h))).Where(x => x.d <= hand.Grab).OrderBy(x => x.d).FirstOrDefault().b;
         var hands = HandsAt(s, train);
