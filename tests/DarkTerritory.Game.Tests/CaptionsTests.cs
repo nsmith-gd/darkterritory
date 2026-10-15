@@ -63,6 +63,9 @@ public class CaptionsTests
     // Note 771: the Pickers coming up out of the drains, and taking a crate.
     [InlineData("tell-pickers.emerge")]
     [InlineData("cs-pickers.carry")]
+    // Note 809: the Mouse Moose creeping in, and dragging a casting off.
+    [InlineData("tell-mouse-moose.squeak")]
+    [InlineData("cs-mouse-moose.drag")]
     // Note 772: dawn coming, and coming for the train; the town's guns on it at the walls.
     [InlineData("tell-wakers.thud")]
     [InlineData("tell-wakers.rise")]
@@ -80,12 +83,14 @@ public class CaptionsTests
     [InlineData("crew-car.kettle")]
     [InlineData("crew-car.cuckoo")]
     [InlineData("crew-memory.flash")]
-    // Notes 781-784: a knock on the rails, a lamp breaking, a hound doused, a friend hauled aboard, glass breaking, the bell,
-    // the handcar set down.
+    // Notes 781-784: a knock on the rails, a lamp breaking, a hound doused, a friend hauled aboard (and, note 798, off the
+    // crane's hook high up), glass breaking, the bell, the handcar set down.
     [InlineData("world-rail-knock.knock")]
     [InlineData("crew-lamp-broken.smash")]
     [InlineData("cs-hounds-doused.doused")]
     [InlineData("crew-rescue.haul")]
+    [InlineData("crew-hoist.yelp")]
+    [InlineData("crew-hoist.land")]
     [InlineData("loot-fragile.glass")]
     [InlineData("loot-jackpot.bell")]
     [InlineData("crew-handcar.set")]

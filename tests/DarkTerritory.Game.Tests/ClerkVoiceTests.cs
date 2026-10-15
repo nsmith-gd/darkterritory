@@ -45,10 +45,16 @@ public class ClerkVoiceTests
         var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Trains, 4, 1)), line, 600, Boilers));
         for (int i = 0; i < Players.BotNames.Count; i++)
             world.Names[i] = Players.BotName(i);
-        var report = new RunReport(RunEnd.Delivered, 1000, 12, 3, 1, 2, 2450, 40, 12, 30, -350, 3, 1, Scavenged: 75, Mail: 90)
+        // A night in the red with every line the tally has (note 766: the tow in, the brigade, what cost most).
+        var report = new RunReport(RunEnd.Delivered, 1000, 12, 3, 1, 2, 2450, 40, 12, 30, -350, 3, 1, Scavenged: 75, Mail: 90, Recovery: 600)
         {
             ChildrenHome = 2,
             ChildPay = 400,
+            BroughtInFees = 120,
+            // Note 718's finds and their finder.
+            Prizes = [new Prize("pocketWatch", "pocket watch", 1, 110), new Prize("candles", "candles", 3, 25)],
+            Finder = Players.BotName(2),
+            FinderWorth = 185,
             Lines =
             [
                 new ReportLine(IncidentKind.Death, Players.BotName(0), "", 350, 263),
@@ -58,6 +64,10 @@ public class ClerkVoiceTests
         var lines = Radio.Manifest(world, Enumerable.Range(0, Players.BotNames.Count + 1)).Concat(Radio.Tally(report))
             .Concat(Enum.GetValues<CargoKind>().Where(k => k != CargoKind.None).Select(k => $"Freight: {Cargoes.Name(k)}."))
             .Append("Child survivor: 1. Paid 200.");
+        Assert.Contains(lines, l => l.Contains("Most of it", StringComparison.Ordinal));
+        // Whatever cost a night most, the clerk can name it (Radio.Costliest names a cost as the ledger does).
+        var everyCost = report with { CrewLossFees = 700, BodyRefunds = 263, CoalCost = 40, AmmoCost = 12, RepairCost = 30 };
+        lines = lines.Concat(Radio.Ledger(everyCost).Where(i => i.Amount < 0).Select(i => $"Net: -1. Most of it {i.Name}, {-i.Amount:0}. Next."));
         foreach (var said in lines)
             Assert.DoesNotContain(clerk.Pieces(said), p => p.Kind == ClerkVoice.PieceKind.Breakup);
         // "Crew 8" (a crewmate with no name) is said too.

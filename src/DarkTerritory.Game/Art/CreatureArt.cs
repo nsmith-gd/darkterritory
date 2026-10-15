@@ -40,9 +40,21 @@ public enum CrewPose
     // fingers prised off, hauled down from the Whistler or the Choir.
     PullMouth, PryOff, HaulDown,
     // Note 722, the emotes for two and the edges: a high five, a fist bump, a dance-off's moves (by who leads), sat on an
-    // edge legs over, leant out of a doorway. Clips of their own when crew_clips has them ("high_five", "fist_bump",
-    // "dance_off", "sit_edge", "lean_out": E1's); until then posed by IK over the standing or stepping clip (EmoteArms).
+    // edge legs over, leant out of a doorway. Their own clips (note 807: "high_five", "fist_bump", their "_met" halves,
+    // "dance_off" and its "_cheer", "sit_edge", "lean_out" and "_left"), picked and timed by what the emote's at
+    // (CreatureArt.EmoteClip); a build short of them stands them idle.
     HighFive, FistBump, DanceOff, SitEdge, LeanOut,
+    // A crewmate shoved (note 717; note 811): off the back foot into a lunge, both palms thrown out, played once from the knock.
+    Shove,
+    // Bringing them home (note 723; note 812): a living friend over the shoulder, both the carrier's arms round their legs,
+    // stood and walking; the friend draped over it, posed on the carrier's keys and drawn at the carrier's feet on their clock
+    // (CrewActs.OnTheShoulder); and in a moving car's door, leant out reaching down for a friend running beside it.
+    Fireman, FiremanWalk, Carried, CarriedWalk, HandUp,
+    // A friend on the crane's hook (note 726; note 813): stood on its lip, both hands up the cable, swaying with it; and off
+    // it (let go, shaken off) or off their feet (shoved, thrown), flailing all the way down.
+    OnHook, Flail,
+    // At the handcar's handle (note 729; note 814): bent over it driving their end down, hauled back up, played by its swing.
+    Pump,
 }
 
 /// <summary>
@@ -67,7 +79,7 @@ public sealed partial class CreatureArt
     public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
         "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker", "follower", "climber", "fire_fly", "passenger",
         "survivor_prisoner", "survivor_wildlander", "sheep", "moose", "gannet", "mourner", "freight_beetle", "tower_jaw", "brakeman", "knotter", "hotbox", "hanger",
-        "picker", "lodger", "householder", "waker", DaveArt.Figure];
+        "picker", "lodger", "householder", "waker", "mouse_moose", DaveArt.Figure];
 
     /// <summary>
     /// The figure a crewmate plays as (GDD App. D.8): the crew's own, or, freed from a Holdout, its occupant's for the rest
@@ -450,30 +462,15 @@ public sealed partial class CreatureArt
         ContentRoot = contentRoot!;
         foreach (var name in Names)
         {
-            var path = Path.Combine(ContentRoot, Folder, name + ".glb");
-            if (!File.Exists(path))
+            if (Figure(ContentRoot, name, look.Tuning.ClusteredLodMetres > 0 ? look.Tuning.ClusteredLodCell : null) is not { } figure)
                 continue;
-            var model = ModelLoader.Load(path);
-            // Clips authored apart from the baked mesh (tools/blender/crew_clips.py: the crew's actions), on the same skeleton.
-            // They win over the mesh's own clips of the same name: a clip reworked there (the crew's climb and shovel,
-            // Look Review notes) needn't re-bake the mesh.
-            var extra = Path.Combine(ContentRoot, Folder, name + "_clips.glb");
-            if (File.Exists(extra))
-                model = ModelLoader.WithClips(model, ModelLoader.Load(extra), replace: true);
-            // The survivors and Dave are the crew figure redressed: the crew's actions are theirs too (his painting's there).
-            var crewClips = Path.Combine(ContentRoot, Folder, "crew_clips.glb");
-            if ((name.StartsWith("survivor_", StringComparison.Ordinal) || name == DaveArt.Figure) && File.Exists(crewClips))
-                model = ModelLoader.WithClips(model, ModelLoader.Load(crewClips), replace: true);
+            var (model, authored, far) = figure;
             float wear = WearOf.GetValueOrDefault(name, 0.5f);
-            // Its distance copy: its own, else (the survivors, the crew: a town's people are hundreds of thousands of
-            // triangles, note 479) one clustered from it at load, drawn only where a figure is a few pixels tall.
-            var authored = LoadLod(Path.Combine(ContentRoot, Folder, name + ".lod1.glb"), model);
-            var far = authored ?? (look.Tuning.ClusteredLodMetres > 0 ? ModelLod.Clustered(model, look.Tuning.ClusteredLodCell) : null);
             _models[name] = new Entry(model, [.. model.Materials.Select(m => Resolve(m, wear))])
             {
                 Lod = far is null ? null : new Entry(far, [.. far.Materials.Select(m => Resolve(m, wear))]),
                 // (The Waker's drawn thirty times his size: his distance copy from thirty times as far, note 679.)
-                LodFrom = (authored is not null ? look.Tuning.CreatureLodMetres : look.Tuning.ClusteredLodMetres) * (name == "waker" ? WakerGait.Scale : 1),
+                LodFrom = (authored ? look.Tuning.CreatureLodMetres : look.Tuning.ClusteredLodMetres) * (name == "waker" ? WakerGait.Scale : 1),
             };
         }
         Dress(DaveKit.Figure, DaveKit.Clothes);
@@ -503,6 +500,47 @@ public sealed partial class CreatureArt
 
     /// <summary>Whether <paramref name="name"/> is a figure modelled for it (its own file), not one dressed from the survivors'.</summary>
     public bool Modelled(string name) => _models.ContainsKey(name) && !_dressed.Contains(name);
+
+    /// <summary>
+    /// A figure's model as its files make it (its own clips and the crew's merged in) and its distance copy, read once a
+    /// process and shared by every <see cref="CreatureArt"/> (ARCHITECTURE §8 note 804): the tests make one a class, and each
+    /// one's own copy of every figure (a hundred megabytes or so of them, and the clustering's seconds), kept for the run,
+    /// added up past the Linux CI runner's memory, as the look's decoded textures had (Look.Decoded). Nothing writes into a loaded
+    /// model; a file that changes on disk (a rebuilt figure, a hot reload) is read again.
+    /// </summary>
+    static (Model Model, bool Authored, Model? Far)? Figure(string contentRoot, string name, float? clusterCell)
+    {
+        var path = Path.Combine(contentRoot, Folder, name + ".glb");
+        if (!File.Exists(path))
+            return null;
+        // Clips authored apart from the baked mesh (tools/blender/crew_clips.py: the crew's actions), on the same skeleton.
+        var extra = Path.Combine(contentRoot, Folder, name + "_clips.glb");
+        // The survivors and Dave are the crew figure redressed: the crew's actions are theirs too (his painting's there).
+        var crewClips = Path.Combine(contentRoot, Folder, "crew_clips.glb");
+        bool crews = name.StartsWith("survivor_", StringComparison.Ordinal) || name == DaveArt.Figure;
+        var lodPath = Path.Combine(contentRoot, Folder, name + ".lod1.glb");
+        string stamp = string.Join("|", new[] { path, extra, crews ? crewClips : null, lodPath }.Select(f =>
+            f is not null && File.Exists(f) ? $"{File.GetLastWriteTimeUtc(f).Ticks}:{new FileInfo(f).Length}" : "-"));
+        var key = (Path.GetFullPath(path), clusterCell);
+        if (LoadedModels.TryGetValue(key, out var had) && had.Stamp == stamp)
+            return had.Built;
+        var model = ModelLoader.Load(path);
+        // They win over the mesh's own clips of the same name: a clip reworked there (the crew's climb and shovel, Look
+        // Review notes) needn't re-bake the mesh.
+        if (File.Exists(extra))
+            model = ModelLoader.WithClips(model, ModelLoader.Load(extra), replace: true);
+        if (crews && File.Exists(crewClips))
+            model = ModelLoader.WithClips(model, ModelLoader.Load(crewClips), replace: true);
+        // Its distance copy: its own, else (the survivors, the crew: a town's people are hundreds of thousands of
+        // triangles, note 479) one clustered from it at load, drawn only where a figure is a few pixels tall.
+        var authored = LoadLod(lodPath, model);
+        var far = authored ?? (clusterCell is { } cell ? ModelLod.Clustered(model, cell) : null);
+        var built = (model, authored is not null, far);
+        LoadedModels[key] = (stamp, built);
+        return built;
+    }
+
+    static readonly System.Collections.Concurrent.ConcurrentDictionary<(string Path, float? Cell), (string Stamp, (Model, bool, Model?) Built)> LoadedModels = new();
 
     /// <summary>A model's distance copy (tools/models overbake `lod`), its joints renumbered by name to the full model's so
     /// the full model's pose skins it; null when there's none or a bone of it isn't the full model's.</summary>
@@ -802,6 +840,15 @@ public sealed partial class CreatureArt
         CrewPose.DanceOff => "dance_off",
         CrewPose.SitEdge => "sit_edge",
         CrewPose.LeanOut => "lean_out",
+        CrewPose.Shove => "shove",
+        CrewPose.Fireman => "fireman",
+        CrewPose.FiremanWalk => "fireman_walk",
+        CrewPose.Carried => "carried",
+        CrewPose.CarriedWalk => "carried_walk",
+        CrewPose.HandUp => "hand_up",
+        CrewPose.OnHook => "on_hook",
+        CrewPose.Flail => "flail",
+        CrewPose.Pump => "pump",
         _ => "idle",
     };
 
@@ -830,7 +877,7 @@ public sealed partial class CreatureArt
         if (!_models.ContainsKey(figure))
             figure = "crew";
         // Each crewmate breathes and steps on their own beat: a fixed offset by variant, not a random one.
-        double offset = (variant & 7) * 0.41;
+        double offset = BeatOffset(variant);
         string clip = ClipOf(pose);
         // A freed prisoner walks their own way (note 407): the irons' shuffle.
         if (figure == "survivor_prisoner" && clip == "walk")
@@ -841,12 +888,20 @@ public sealed partial class CreatureArt
                 : clip == "hurry" && has.Model.Clips.ContainsKey("run") ? "run" : clip == "reload" && has.Model.Clips.ContainsKey("gunner") ? "gunner"
                 : clip == "spray" && has.Model.Clips.ContainsKey("extinguish") ? "extinguish" : clip == "hang_up" && has.Model.Clips.ContainsKey("take_down") ? "take_down"
                 : clip is "toolbox" or "toolbox_walk" && has.Model.Clips.ContainsKey("carry") ? clip == "toolbox" ? "carry" : "carry_walk"
+                // (A shove without its own clip: the gun's push, as note 717 drew it; note 723's carry, the body carry's.)
+                : clip == "shove" && has.Model.Clips.ContainsKey("push") ? "push"
+                : clip is "fireman" or "fireman_walk" && has.Model.Clips.ContainsKey("shoulder") ? clip == "fireman" ? "shoulder" : "shoulder_walk"
+                : clip == "hand_up" && has.Model.Clips.ContainsKey("haul_up") ? "haul_up"
+                : clip is "on_hook" or "pump" && has.Model.Clips.ContainsKey("lever") ? "lever" : clip == "flail" && has.Model.Clips.ContainsKey("fall") ? "fall"
                 // An emote with no clip of its own (note 298): the dance steps on the spot, the wave and the point stand.
-                // (Note 722: a dance-off steps as the dance does; the rest stand.)
-                : clip is "dance" or "dance_off" or "shuffle" && has.Model.Clips.ContainsKey("walk") ? "walk" : "idle";
+                : clip is "dance" or "shuffle" && has.Model.Clips.ContainsKey("walk") ? "walk" : "idle";
         // ... and the arms are posed over it (EmoteArms).
-        bool emoteByHand = pose is CrewPose.Dance or CrewPose.Wave or CrewPose.Point or CrewPose.HighFive or CrewPose.FistBump or CrewPose.DanceOff
-            or CrewPose.SitEdge or CrewPose.LeanOut && clip != ClipOf(pose);
+        bool emoteByHand = pose is CrewPose.Dance or CrewPose.Wave or CrewPose.Point && clip != ClipOf(pose);
+        // Note 807: the emotes for two and the edges, each half its own clip on its own clock (EmoteClip).
+        bool emoteClip = false;
+        if (pose is CrewPose.HighFive or CrewPose.FistBump or CrewPose.DanceOff or CrewPose.SitEdge or CrewPose.LeanOut
+            && EmoteClip(pose, emote, time) is { } e && _models.TryGetValue(figure, out var with) && with.Model.Clips.ContainsKey(e.Clip))
+            (clip, time, emoteClip) = (e.Clip, e.Time, e.Once);
         var Paint = PaintOf(variant);
         if (!_models.TryGetValue(figure, out var m) || !m.Model.Clips.TryGetValue(clip, out var c))
             return false;
@@ -854,12 +909,18 @@ public sealed partial class CreatureArt
         // a blow of the tool in hand (note 275: without it a swing was put off by the variant's beat, up to 2.9 s into a
         // 0.8 s clip, and most of the crew were drawn at its end).
         bool fromStart = pose is CrewPose.GetUp or CrewPose.TakeDown or CrewPose.HangUp or CrewPose.Stagger or CrewPose.Reload or CrewPose.FireDoor
-            or CrewPose.Swing or CrewPose.Jump;
+            or CrewPose.Swing or CrewPose.Jump or CrewPose.Shove or CrewPose.Pump;
+        fromStart |= emoteClip;
         _skinner.Evaluate(m.Model, c, fromStart ? time : time + offset, pose is not (CrewPose.Dead or CrewPose.Swing) && !fromStart, m.Pose);
         if (body is { } vr)
             HeadsetBody(m, vr);
         if (emoteByHand)
             EmoteArms(m, pose, time, emote);
+        if (clip is "high_five_met" or "fist_bump_met")
+            Meet(m, clip == "high_five_met", emote);
+        // Leant out, the head turned on to where they look (as far as a neck goes).
+        if (pose == CrewPose.LeanOut && Math.Clamp(emote.Turn, -1.2, 1.2) is var turn && Math.Abs(turn) > 1e-3)
+            Bend(m, "neck", Matrix4x4.CreateRotationY((float)turn));
         if (left is { } l)
             Reach(m, "l", l, leftPole);
         if (right is { } r)
@@ -888,6 +949,10 @@ public sealed partial class CreatureArt
             Handled(mesh, m, carried, model);
         return true;
     }
+
+    /// <summary>How far into a looping clip each crewmate of <paramref name="variant"/> is put, so a crew isn't all on one beat (s);
+    /// a friend over the shoulder is put on their carrier's (CrewActs.OnTheShoulder).</summary>
+    public static double BeatOffset(int variant) => (variant & 7) * 0.41;
 
     /// <summary>
     /// <paramref name="carried"/> by its handle in the right fist (the repair kit, note 513): its origin at its foot and its
@@ -958,6 +1023,12 @@ public sealed partial class CreatureArt
     public Vector3 Posed(string bone, Vector3 bind, in Matrix4x4 model, string figure = "crew") =>
         _models.TryGetValue(figure, out var m) && m.Model.Skeleton.IndexOf(bone) is var b && b >= 0
             ? Vector3.Transform(bind, m.Pose.Skin[b] * model) : Vector3.Transform(bind, model);
+
+    /// <summary>Where <paramref name="bone"/>'s joint (its head) is on the figure last drawn as <paramref name="figure"/> at
+    /// <paramref name="model"/>: two met hands, measured (note 807). The model's origin when that figure or bone isn't built.</summary>
+    public Vector3 Joint(string bone, in Matrix4x4 model, string figure = "crew") =>
+        _models.TryGetValue(figure, out var m) && m.Model.Skeleton.IndexOf(bone) is var b && b >= 0
+            ? Vector3.Transform(m.Pose.World[b].Translation, model) : Vector3.Transform(Vector3.Zero, model);
 
     readonly Dictionary<(string, string), float> _feetOver = [];
 
@@ -1535,78 +1606,11 @@ public sealed partial class CreatureArt
     /// over the head in turn; the wave a hand up high, rocking side to side; the point an arm straight out ahead at the
     /// shoulder. Placeholders for the art pass's clips, in the crew's stiff, heavy manner (GDD §31).
     /// </summary>
-    /// <remarks>
-    /// Note 722's, the same way: the high five a hand up and a little forward while offered (drooping, and the head tipping,
-    /// the longer it hangs), then slapped forward to the middle of the gap between the two, leant into when the gap's wide, and
-    /// let down; the fist bump the same at the chest; a dance-off's lead the jig bigger, the hips swung and the fists thrown
-    /// high, the rest clapping it on the beat; sat on an edge, let down onto the seat with the thighs out over it, the shins
-    /// hanging and the hands on the edge by the hips; leant out of a doorway, the body tipped out from the feet, one hand on the
-    /// jamb, the other loose, the head turned to where they look.
-    /// </remarks>
     static void EmoteArms(Entry m, CrewPose pose, double time, EmoteDetail detail = default)
     {
         float t = (float)time;
         switch (pose)
         {
-            case CrewPose.HighFive:
-            case CrewPose.FistBump:
-                {
-                    bool five = pose == CrewPose.HighFive;
-                    if (!detail.Met)
-                    {
-                        // Held up, offered; hanging there it sags a little and the head tips, waiting.
-                        float wait = Math.Clamp((t - 1.2f) / 1.5f, 0, 1);
-                        var offered = five ? new Vector3(0.27f, 1.98f - 0.12f * wait, -0.3f) : new Vector3(0.16f, 1.24f - 0.06f * wait, -0.46f);
-                        Bend(m, "neck", Matrix4x4.CreateRotationZ(-0.22f * wait));
-                        Reach(m, "r", offered + new Vector3(0, 0.015f * MathF.Sin(t * MathF.Tau * 1.4f), 0), new Vector3(1, -0.6f, 0.4f));
-                        break;
-                    }
-                    // Met: to the middle of the gap, leant into it when the arm alone won't reach, then let down.
-                    float half = (float)Math.Max(0.2, detail.Gap / 2);
-                    float lean = Math.Clamp((half - 0.5f) * 0.9f, 0, 0.3f);
-                    float since = (float)detail.SinceMeet, down = Math.Clamp((since - 0.3f) / 0.5f, 0, 1);
-                    Bend(m, "spine_01", Matrix4x4.CreateRotationX(-lean * (1 - down)));
-                    var meet = five ? new Vector3(0.05f, 1.84f, -Math.Min(half, 0.66f)) : new Vector3(0.05f, 1.22f, -Math.Min(half, 0.62f));
-                    var after = five ? new Vector3(0.3f, 1.55f, -0.2f) : new Vector3(0.24f, 1.05f, -0.25f);
-                    Reach(m, "r", Vector3.Lerp(meet, after, down), new Vector3(1, -0.6f, 0.3f));
-                    break;
-                }
-            case CrewPose.DanceOff when detail.Leading:
-                {
-                    // The lead: the jig thrown bigger, the hips swung, the fists right up in turn.
-                    float beat = MathF.Sin(t * MathF.Tau * 1.3f);
-                    Bend(m, "spine_01", Matrix4x4.CreateRotationZ(0.24f * beat) * Matrix4x4.CreateRotationY(0.3f * beat));
-                    Reach(m, "l", new Vector3(-0.3f - 0.1f * beat, 1.98f + 0.12f * beat, -0.1f), new Vector3(-1, -0.4f, 0.2f));
-                    Reach(m, "r", new Vector3(0.3f - 0.1f * beat, 1.98f - 0.12f * beat, -0.1f), new Vector3(1, -0.4f, 0.2f));
-                    break;
-                }
-            case CrewPose.DanceOff:
-                {
-                    // Answering it: a clap on the beat, hands in front, bobbing.
-                    float clap = MathF.Abs(MathF.Sin(t * MathF.PI * 2.6f));
-                    Bend(m, "spine_01", Matrix4x4.CreateRotationX(-0.08f * clap));
-                    Reach(m, "l", new Vector3(-0.03f - 0.17f * clap, 1.32f, -0.36f), new Vector3(-1, -0.5f, 0.2f));
-                    Reach(m, "r", new Vector3(0.03f + 0.17f * clap, 1.32f, -0.36f), new Vector3(1, -0.5f, 0.2f));
-                    break;
-                }
-            case CrewPose.SitEdge:
-                SitOnEdge(m, t);
-                break;
-            case CrewPose.LeanOut:
-                {
-                    // Side on in the doorway, tipped out from the feet past the jamb (its side, detail.Out), the inner hand on the
-                    // jamb ahead, the outer arm loose out in the air; the head to the look.
-                    float side = detail.Out < 0 ? -1 : 1;
-                    string inner = side > 0 ? "l" : "r", outer = side > 0 ? "r" : "l";
-                    Skinner.Place(m.Model, m.Pose, Matrix4x4.CreateRotationZ(-0.38f * side));
-                    Bend(m, "spine_02", Matrix4x4.CreateRotationZ(-0.16f * side));
-                    Reach(m, inner, new Vector3(side * 0.2f, 1.62f, -0.38f), new Vector3(-side, -0.3f, 0.4f));
-                    Reach(m, outer, new Vector3(side * 0.95f, 1.05f + 0.03f * MathF.Sin(t * 1.7f), -0.15f), new Vector3(side, -0.5f, 0.3f));
-                    float turn = (float)Math.Clamp(detail.Turn, -1.2, 1.2);
-                    if (MathF.Abs(turn) > 1e-3f)
-                        Bend(m, "neck", Matrix4x4.CreateRotationY(turn));
-                    break;
-                }
             case CrewPose.Dance:
                 {
                     float beat = MathF.Sin(t * MathF.Tau * 1.1f);
@@ -1625,31 +1629,85 @@ public sealed partial class CreatureArt
     }
 
     /// <summary>
-    /// Sat on an edge, legs over (note 722): the figure let down until the pelvis is <see cref="SeatOver"/> over its feet' floor
-    /// (the edge it sits on), the thighs out level over it, the shins hanging down past it and swinging a little, a foot each
-    /// side; the hands on the edge by the hips, the back a little bowed.
+    /// Note 807: the clip an emote for two or an edge is drawn with, the time into it, and whether it's played once from there:
+    /// a high five or fist bump offered from the offer (up, held, sagging when no one comes) and met from the meet (in, the
+    /// hands together, the follow-through: <see cref="Meet"/>); a dance-off's lead in its move for the turn, one of three by the
+    /// turn and who they are, from the turn's start, and the rest cheering it on the same beat; the sit and the lean held,
+    /// looping on each crewmate's own beat (the lean mirrored when the outside's on the left). Null for anything else.
     /// </summary>
-    static void SitOnEdge(Entry m, float t)
+    public static (string Clip, double Time, bool Once)? EmoteClip(CrewPose pose, EmoteDetail d, double time) => pose switch
     {
-        var sk = m.Model.Skeleton;
-        int pelvis = sk.IndexOf("pelvis");
-        if (pelvis < 0)
-            return;
-        float hip = m.Pose.World[pelvis].M42;
-        Skinner.Place(m.Model, m.Pose, Matrix4x4.CreateTranslation(0, SeatOver - hip, 0));
-        Bend(m, "spine_02", Matrix4x4.CreateRotationX(-0.12f));
-        foreach (int side in new[] { -1, 1 })
-        {
-            string s = side < 0 ? "l" : "r";
-            float swing = 0.05f * MathF.Sin(t * 1.6f + side);
-            var foot = new Vector3(side * 0.14f, SeatOver - 0.62f, -0.5f + swing);
-            Reach(m, "thigh_" + s, "calf_" + s, "foot_" + s, foot, new Vector3(side * 0.1f, 0.6f, -1));
-            Reach(m, s, new Vector3(side * 0.3f, 0.05f, 0.04f), new Vector3(side, 0.2f, 0.4f));
-        }
+        CrewPose.HighFive => d.Met ? ("high_five_met", d.SinceMeet, true) : ("high_five", time, true),
+        CrewPose.FistBump => d.Met ? ("fist_bump_met", d.SinceMeet, true) : ("fist_bump", time, true),
+        CrewPose.DanceOff => d.Leading ? ("dance_off", DanceOffMoveOf(d) * DanceOffMove + Math.Clamp(d.OnBeat, 0, DanceOffMove - 1e-3), true)
+            : ("dance_off_cheer", d.OnBeat % DanceOffMove, true),
+        CrewPose.SitEdge => ("sit_edge", time, false),
+        CrewPose.LeanOut => (d.Out < 0 ? "lean_out_left" : "lean_out", time, false),
+        _ => null,
+    };
+
+    /// <summary>The dance-off's moves in crew_clips' dance_off (each <see cref="DanceOffMove"/> s, emotes.danceOffBeat's turn).</summary>
+    const int DanceOffMoves = 3;
+    const double DanceOffMove = 2;
+
+    /// <summary>
+    /// Which move a dance-off's lead is in this turn: never the one whoever went before them danced, and never the one they
+    /// danced last time it came round to them, however many are in it (the turns in order; in a ring of three or six, which
+    /// would bring each the same move every time, one more for each time round).
+    /// </summary>
+    public static int DanceOffMoveOf(EmoteDetail d)
+    {
+        int n = Math.Max(1, d.Dancers);
+        return (n % DanceOffMoves == 0 ? d.Round + d.Round / n : d.Round) % DanceOffMoves;
     }
 
-    /// <summary>How high the pelvis bone sits over the seat it's sat on (m): a body's seat below its hip joint.</summary>
-    const float SeatOver = 0.1f;
+    /// <summary>
+    /// A met high five or fist bump's hand put on the point between the two (note 807), so two crewmates' hands meet whatever the
+    /// gap and however they stand: the middle of their feet (<see cref="EmoteDetail.Gap"/> apart, <see cref="EmoteDetail.Across"/>
+    /// of it to this one's right), at the clip's height, the palm (or the knuckles) short of it toward this one by its own
+    /// thickness (a high five's lower the wider apart they are). The clip's slap comes in to it by <see cref="MeetAt"/>, holds it, and goes off it on its own path; a point
+    /// further than the arm reaches leans them into it from the waist.
+    /// </summary>
+    static void Meet(Entry m, bool five, EmoteDetail d)
+    {
+        int hand = m.Model.Skeleton.IndexOf("hand_r");
+        float since = (float)d.SinceMeet;
+        float w = since < MeetAt ? Smooth(since / MeetAt) : 1 - Smooth((since - MeetAt - MeetHold) / MeetLet);
+        if (hand < 0 || w <= 0)
+            return;
+        float across = (float)Math.Clamp(d.Across, -d.Gap, d.Gap), ahead = MathF.Sqrt(MathF.Max(0, (float)(d.Gap * d.Gap) - across * across));
+        // Up high when they're close, at the head as the gap widens to emotes.reach (both work it out alike, so it's one point).
+        float high = FiveHigh - (FiveHigh - FiveLow) * Math.Clamp((ahead / 2 - 0.45f) / 0.3f, 0, 1);
+        var between = new Vector3(across / 2, five ? high : 1.24f, -ahead / 2);
+        var home = new Vector3(-between.X, 0, -between.Z);
+        home = home.LengthSquared() < 1e-6f ? Vector3.UnitZ : Vector3.Normalize(home);
+        var wrist = between + home * (five ? 0.03f : 0.1f);
+        // Leant in from the waist, toward the point, as far as the arm needs to get there (and no further than MeetLean).
+        var sk = m.Model.Skeleton;
+        int upper = sk.IndexOf("upperarm_r"), lower = sk.IndexOf("lowerarm_r");
+        if (upper >= 0 && lower >= 0)
+        {
+            float arm = Vector3.Distance(m.Pose.World[upper].Translation, m.Pose.World[lower].Translation)
+                + Vector3.Distance(m.Pose.World[lower].Translation, m.Pose.World[hand].Translation);
+            var axis = Vector3.Cross(Vector3.UnitY, new Vector3(wrist.X, 0, wrist.Z));
+            axis = axis.LengthSquared() < 1e-6f ? Vector3.UnitX : Vector3.Normalize(axis);
+            for (float leant = 0; leant < MeetLean && Vector3.Distance(m.Pose.World[upper].Translation, wrist) > 0.97f * arm; leant += 0.04f)
+                Bend(m, "spine_01", Matrix4x4.CreateFromAxisAngle(axis, 0.04f * w));
+        }
+        Reach(m, "r", Vector3.Lerp(m.Pose.World[hand].Translation, wrist, w), new Vector3(1, -0.6f, 0.3f));
+
+        static float Smooth(float x) => x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x);
+    }
+
+    /// <summary>When a met clip's slap lands (s: crew_clips' CONTACT, frame 3), how long it's held there, and how long it takes to leave it.</summary>
+    const float MeetAt = 0.1f, MeetHold = 0.07f, MeetLet = 0.15f;
+
+    /// <summary>The most a meet leans them in from the waist to reach the point between (radians): emotes.reach's 1.5 m apart.</summary>
+    const float MeetLean = 0.7f;
+
+    /// <summary>How high a high five's palms meet (m): up over the head 0.9 m apart, down to the head's height 1.5 m apart, where
+    /// it's leant into.</summary>
+    const float FiveHigh = 1.8f, FiveLow = 1.58f;
 
     /// <summary>How many joints a ragdoll has (Sim.Physics.Bodies' skeleton), in the order <see cref="Corpse"/> reads them.</summary>
     public const int RagdollJoints = 11;

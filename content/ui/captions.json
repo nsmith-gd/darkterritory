@@ -193,6 +193,13 @@
     "cs-pickers.scatter": "SQUEALING, SCATTERING",
     "cs-pickers.down": "A GRATING RATTLING",
     "cs-pickers.hit": "A SQUEAL CUT SHORT",
+    "tell-mouse-moose.creep": "CLAWS TICKING, SNIFFING",
+    "tell-mouse-moose.squeak": "A BIG RAT SQUEAKING",
+    "cs-mouse-moose.bite": "TEETH SCRAPING ON IRON",
+    "cs-mouse-moose.drag": "IRON DRAGGED OVER GRAVEL",
+    "cs-mouse-moose.bolt": "A SQUEAL, CLAWS SCRABBLING AWAY",
+    "cs-mouse-moose.dig": "EARTH SCRABBLED",
+    "cs-mouse-moose.lost": "IRON THUDDING INTO A HOLE",
     // The Wakers (note 772): dawn's, hill-sized; heard by what they do to the land and the train, never named.
     "tell-wakers.thud": "A FAR-OFF THUD THROUGH THE GROUND",
     "tell-wakers.call": "A LONG, LOW CALL, FAR OFF",
@@ -233,6 +240,9 @@
     "crew-rescue.lift": "A GRUNT, SOMEONE HEAVED UP",
     "crew-rescue.set": "SOMEONE SET DOWN",
     "crew-rescue.throw": "A HEAVE, SOMEONE THROWN",
+    // A friend on the crane's hook (note 798): off it high up.
+    "crew-hoist.yelp": "A YELL, SOMEONE FALLING",
+    "crew-hoist.land": "A THUMP AND AN OOF",
     // Big finds (note 783): the bell's ring and the fragile finds breaking (the lock's the wrench's own).
     "loot-jackpot.bell": "A BELL'S DULL RING",
     "loot-fragile.glass": "GLASS BREAKING",

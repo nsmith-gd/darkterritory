@@ -268,3 +268,69 @@ launches are AU1.1, AU1.2, …. Entries are UTC; those before 12:55 on 7 Oct wer
     - emotes for two: the high five, the fist bump, the sit, the lean.
   - **30 candidates from two recipe agents:** uploaded, with the first picks installed. Three rows are on the checklist at L1, with captions and tests.
 - **Checked and not taken:** the two loop-helper seams the handcar agent reported. Measured on the installed flange, brake-drag and roll loops, neither the seam nor the 0.5 s point bursts above each loop's own transients. That's the build's seam crossfade, and the rumble's own variation.
+
+## 15 Oct, ~14:05 UTC: #525, a friend on the crane's hook heard
+
+- **#1048 (#519):** CI running; the whole Game test project passed here (1139, one VR skip).
+- **#525 (note 798), K1's #1046 (note 726's "Sounds (AU1)"):** claimed on `claims`, then built and hooked off what every machine has:
+  - **the cable's creak:** the hook's swivel and loaded rope at each turn of a slow, uneven sway, held where the hook is while the crane's record says anyone rides it, louder with two;
+  - **the yell:** a startled "whoa!" from a crewmate coming off the hook alive with at least 2.5 m under them. The operator's shake-off is the host's alone, so a high let-go and a shake are heard alike, and letting go at the ground is quiet.
+  - Four candidates (real creaks pitched down and a modelled stick-slip; the crew's throat through the real gasp and on its own), uploaded; the real swivel and the "whoa" installed. A new `crew-hoist` row at L1, a caption for the yell, and a test for both.
+
+## 15 Oct, ~14:45 UTC: #526, wading and the town types underfoot
+
+- **#525:** the whole Game test project passed here (1159, one VR skip).
+- **#526 (note 799), off T1's #1003 (the town types, note 692):** claimed on `claims`.
+  - **Wading:** feet under standing water (a town type's marsh and shallows, the line's lakes and marshes) step on "water", a new footstep surface. It has ten candidates: the real wet steps and running water (installed), and a modelled wade.
+  - **Underfoot:** a form's decks, ways, terraces and the land past its wall now sound as the art draws them. The art and the footing share the three texture helpers.
+  - **The town's water:** it laps near the ear as a lake does.
+  - Tests on a fen town and a quarry town.
+- **Found on the way:** my row-filling script didn't carry the director's verdicts over (`cues.carry_verdicts`). None of tonight's refilled rows had any, so nothing was lost, and it carries them now.
+
+## 15 Oct, ~14:35 UTC: #528, the cannon's shot was silent
+
+- **U1's find on #1040:** the cannon's shot sound waited for a round to leave the gun, and since #960 made shot endless (13 Oct) none ever does. No cannon has been heard firing since then. Claimed #528 (note 801): a shot is now heard off the reload it leaves the gun needing (or a round gone, where the stock is on).
+- The test faked a round gone, which is why it didn't catch this. It now fires as the sim does, and fails on the old trigger.
+
+## 15 Oct, ~15:10 UTC: a bot night heard whole; #533, and #532 opened
+
+- **The audit:** 8 minutes of frontier:7 with 4 bots and enemies, on the host's world. `GameAudio` listened from the middle car's roof and every voice's name was counted (a scratch test, not committed).
+  - 105 cues played; nothing that happened was silent. The footsteps, cab controls, slack, doors, ladders, the shovel and firebox, the switch, the foundry's crane and winch, the town and villages, the Draggers, Tippy, weather, the bridge and river all played.
+  - Before the audit, a static pass checked every installed sound's name against the code. All 828 are reached; 24 of them under game names.
+- **Found:**
+  - **#533 (note 805):** every running jump between roofs played the hit of a jump off a moving train (34 of them), and a running jump on open ground would add a tumble and scattered pockets. Fixed: the audio now reckons the knock as the sim does.
+  - **#532 (open, for the bots' owner):** the bot driver holds its speed by pulsing the full brake: 9 ticks on and 13 off on a descent, and every tick or two near the end of the line. That made 1,481 brake applications and 1,314 slack run-ins in 8 minutes. The sounds are faithful; the fix belongs to the driver (or a brake that builds in the sim).
+
+## 15 Oct, ~15:55 UTC: the last of K1's friendslop heard, and the mail parked
+
+The director asked for the last three friendslop features to be heard. Two were already on main: emotes for two and the odd outcomes were merged in #1048 at 15:07, each sound installed and played as its own. The third, the crane:
+- **The creak** is louder while the crane moves them.
+- **The landing** after a drop off the hook is a comic thump and an "oof" (the director's gag, K1's note 802), in place of the landing's own sound. Two candidates; the modelled flop is installed. It's derived from the Hoisted flag, as the yell is, so it needs nothing from note 802's sim flag (not on main yet).
+- These go in #1054 with the rest of #525.
+
+**The mail is cut for now** (K1's #530, note 803). The checklist page gained a **Parked** status: off the board's work like a cut line, but not struck through, with its level kept. `crew-mail` is parked; its sounds stay installed.
+
+**Checks:** the tell audit (`dt audio render --listener all`, chaos at 20 cars and 22 m/s) has every tell at least 6 dB over the bed at its worst listener. The whistle is the tightest at 6.2. The audio test classes pass (213).
+
+## 15 Oct, ~16:45 UTC: the Mouse Moose heard (#537), and U1's whimsies' candidates (#534)
+
+- **#537 (note 809), A1's Mouse Moose (#1042):** the yard's casting thief was silent.
+  - Hooked off its record, as the Pickers are: its claws while it creeps in and a squeak now and then (the tell), the bite, the drag (louder once the hook can't reach the casting and it speeds up), the bolt when it's scared off, the dig into its hole.
+  - A casting dragged all the way is heard tipping in, off the crane's own record, so a client hears it even without the creature.
+  - Fourteen candidates from a recipe agent, two a cue; the packs' real ones installed. Two new checklist rows, captions, two tests.
+- **#534 (note 806), U1's whimsies, pets and new emotes:** their 18 candidates (canary, calliope, gramophone, cat, dog, bow, salute, conga) are on the checklist: new rows `up-whimsy` and `up-pets`, and three cues on `crew-emotes`. Hooked when #967 lands, with #505.
+- **Voice Booth:** still no verdicts.
+
+## 15 Oct, ~17:00 UTC: a weak-sound sweep, and #538 (a Holdout's banging)
+
+- **The sweep:** every installed sample folder (775) checked for clipping, duplicate takes and energy below 150 Hz (raw, then A-weighted, and by centre).
+  - The sets it flags that the director kept (the Ribbits' hop landings, the Passenger's steps, which are the crew's own by design, Tippy's grab) stay as kept.
+  - Most heavy first picks are heavy by nature (the comet's hum, the drone, a strained car's groan, bodies falling).
+- **#538 (note 810):** the worst was a call. A Holdout's banging (one call in three or so) played two to four of its takes 0.3 s apart, but each take is already a whole bout, so a call was up to 32 blows piled up.
+  - Now one bout a call.
+  - A new `door` candidate, installed: each blow's crack carries over the boards' boom, where `walls` was a dull thud (cut at 1.6 kHz).
+  - The prisoner-call test holds it (it failed on the old hook: "3 bouts in one call").
+## 15 Oct, ~18:00 UTC: PREPARE HANDOFF (the Token Budget Manager)
+
+- nathaniel2's weekly limit is at 60%, on pace to run out ~16 Oct 08:00 UTC. AU1 confirmed and is writing its handoffs (COORDINATION rule 11): Handoff blocks for #42 (note 304, the Voice Booth), #505 (note 775, U1's upgrades) and #534 (note 806, U1's whimsies), in the shape COORDINATION's "Accounts and usage limits" gives. #537 and #538 are done in #1064.
+- The Voice Booth's last two fixes (`booth.py`'s preview clip guard, the clerk's kit-lost phrases in `script.json`) had stayed on `au1-booth` since 7 Oct; they land with the handoff.

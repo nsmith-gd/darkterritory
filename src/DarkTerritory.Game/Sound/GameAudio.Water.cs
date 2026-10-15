@@ -1,8 +1,10 @@
 using Ballast;
+using DarkTerritory.Sim;
 using DarkTerritory.Sim.LineGen;
 using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Towns;
 
 namespace DarkTerritory.Game.Sound;
 
@@ -12,7 +14,8 @@ namespace DarkTerritory.Game.Sound;
 /// terrain, alike on every machine: a river running under its span (<see cref="LinePlan.Water"/>) and beside the line up
 /// its valley (a river shore), a lake lapping at the shore nearest the ear (<see cref="LinePlan.Lakes"/>), the sea's surf
 /// at its waterline and Fundy's tide out on its flats (<see cref="LinePlan.Shores"/>). The lake and the sea louder with
-/// the night's wind. Nothing in a tunnel or down the mine.
+/// the night's wind. Nothing in a tunnel or down the mine. A town type's own water (note 692: a harbour's basin, a tidewater
+/// town's channels, a dykeland's marsh) laps as a lake does, the nearer of the two heard (queue #526, note 799).
 /// </summary>
 public sealed partial class GameAudio
 {
@@ -24,15 +27,27 @@ public sealed partial class GameAudio
 
     readonly List<(string Cue, Double3 At, double Level)> _waterNear = [];
     double _waterLookAt = double.NegativeInfinity;
+    // A town type's water as its ground's rectangles (the raster's whole grid walked once a town, not each look).
+    readonly Dictionary<TownGround, IReadOnlyList<(double S0, double S1, double D0, double D1, double Level)>> _townWater = [];
 
-    void WaterSounds(Places places, Double3 ear, double earMain, bool tunnel, bool underground)
+    void WaterSounds(World world, Places places, Double3 ear, double earMain, bool tunnel, bool underground)
     {
-        if (places.Plan is not { } plan || Terrain(places.Line) is not { } terrain)
-            return;
         if (_time - _waterLookAt >= WaterLook || _time < _waterLookAt)
         {
             _waterLookAt = _time;
-            LookForWater(plan, terrain, places.Line, ear, earMain, places.Route.Weather.Wind);
+            _waterNear.Clear();
+            double wind = places.Route.Weather.Wind;
+            if (places.Plan is { } plan && Terrain(places.Line) is { } terrain)
+                LookForWater(plan, terrain, places.Line, ear, earMain, wind);
+            foreach (var town in (Town?[])[world.Town, world.Arrival])
+                if (TownWaterNear(town, ear) is { } at
+                    && _waterNear.FindIndex(w => w.Cue == "world-water.lake") is var i
+                    && (i < 0 || (at - ear).Length < (_waterNear[i].At - ear).Length))
+                {
+                    if (i >= 0)
+                        _waterNear.RemoveAt(i);
+                    _waterNear.Add(("world-water.lake", at, 0.55 + 0.45 * Math.Clamp(wind, 0, 1)));
+                }
         }
         if (tunnel || underground)
             return;
@@ -45,10 +60,38 @@ public sealed partial class GameAudio
     static TerrainField? Terrain(RailLine line) =>
         (line.Conditions is HazardConditions h ? h.Inner : line.Conditions) is PlanConditions plan ? plan.Terrain : null;
 
+    /// <summary>A town type's water nearest the ear, within a lake's reach: the nearest point of its basins, at their surface.</summary>
+    Double3? TownWaterNear(Town? town, Double3 ear)
+    {
+        if (town is null || town.Ground.Flat)
+            return null;
+        if (!_townWater.TryGetValue(town.Ground, out var rects))
+        {
+            if (_townWater.Count >= 4)
+                _townWater.Clear();
+            _townWater[town.Ground] = rects = town.Ground.WaterRects();
+        }
+        if (rects.Count == 0)
+            return null;
+        var o = town.Anchor();
+        var along = new Double3(o.Tangent.X, 0, o.Tangent.Z).Normalized;
+        var right = Double3.Cross(along, Double3.Up).Normalized;
+        var p = ear - o.Position;
+        double s = Double3.Dot(p, along), d = Double3.Dot(p, right);
+        Double3? best = null;
+        foreach (var (s0, s1, d0, d1, level) in rects)
+        {
+            var at = o.Position + along * Math.Clamp(s, s0, s1) + right * Math.Clamp(d, d0, d1);
+            at = at with { Y = o.Position.Y + level };
+            if ((at - ear).Length <= LakeReach && (best is null || (at - ear).Length < (best.Value - ear).Length))
+                best = at;
+        }
+        return best;
+    }
+
     /// <summary>The nearest water of each kind to the ear, where it's heard from and how loud.</summary>
     void LookForWater(LinePlan plan, TerrainField terrain, RailLine line, Double3 ear, double earMain, double wind)
     {
-        _waterNear.Clear();
         // A lake: at the shore nearest the ear (its metric is 1 on the shore, so the way out from its middle scaled by the
         // ear's metric; the wobble's slow enough for that), or under the ear on a causeway across it.
         Double3? lake = null;

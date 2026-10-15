@@ -291,7 +291,9 @@
   // within the last fanFrom m of the catch they make for those places; and none comes nearer a packmate than spacing m.
   // Past a right angle, so with the catch down on their back (laid away from the leader) the others are at their sides.
   "ribbits": {
-    "packSize": [2, 4], "hopSpeed": 4, "groupRadius": 8, "tongueReach": 4, "devourSeconds": 8, "giveUpBeyond": 45,
+    // minCrew (note 795, was 2): a crew of one meets a lone Ribbit (the pack is never more than the crew); it can struggle
+    // free of the tongue (grab.soloStruggleChance).
+    "packSize": [2, 4], "minCrew": 1, "hopSpeed": 4, "groupRadius": 8, "tongueReach": 4, "devourSeconds": 8, "giveUpBeyond": 45,
     "spawnOut": 35, "health": 2, "perGroundWeight": 0.5, "fan": 100, "ringOut": 1.05, "fanFrom": 10, "spacing": 1.15
   },
 
@@ -713,6 +715,10 @@
   // (the director, 15 Oct, note 770; was 2): alone, the call comes too, the only way a solo night has a child in it.
   "sootChildren": {
     "callOut": 45, "callEvery": 6, "lungeWithin": 5, "drainSeconds": 14, "health": 2, "healthPerSecond": 0.35, "realChance": 0.5,
+<<<<<<< HEAD
+=======
+    // minCrew (note 795, was 2): a crew of one meets them too; held, a lone player can struggle free (grab.soloStruggleChance).
+>>>>>>> origin/main
     "ignoredSeconds": 120, "minCrew": 1, "nearFacility": 400
   },
 
@@ -808,10 +814,12 @@
   // clearedAt m from the train. Kill it before then and it drops it.
   // anyVoiceCounts: whose voice holds it off (GDD Part Eleven Q9, open): anyone's (true) or only its waker's.
   // Note 272 (App. F.1, no chip damage): its blows are heavy hits, 60 every 4 s (were 35 every 2): two, then the crush.
+  // minCrew (note 795, was 2): a crew of one meets it too; its waker's own voice holds it off, and a lone player can struggle
+  // free of its crush (grab.soloStruggleChance).
   "gaunt": {
     "stirAt": 9, "wakeAt": 4, "followAt": 1.2, "followSpeed": 3, "listenRadius": 8, "silenceSeconds": 5, "talkingAbove": 40,
     "anyVoiceCounts": true, "attackAt": 4, "reach": 1.6, "hitDamage": 60, "hitEvery": 4, "grabBelowHealth": 35,
-    "crushSeconds": 8, "health": 8, "lootCargo": 0.3, "lingerSeconds": 900, "minCrew": 2, "spawnOut": 25,
+    "crushSeconds": 8, "health": 8, "lootCargo": 0.3, "lingerSeconds": 900, "minCrew": 1, "spawnOut": 25,
     "longStopWeight": 2, "longStopSeconds": 120, "leaveSpeed": 1.4, "clearedAt": 30, "carryHigh": 1.7,
     "carryLow": 0.55,
     // Note 288 (drivenOff; "keep talking to it"). talkingCalms: talk brings its anger down a step every silenceSeconds (Part
@@ -1222,6 +1230,11 @@
     "lingerSeconds": 120,
     // Near enough to be met: a car's length (a Climber settled in the car behind the cab is 15-25 m from the driver).
     "lingerRadius": 12,
+    // Note 795 (the director, 15 Oct: "Even when testing alone I'm not running into monsters in yards or abandoned villages"):
+    // with every living crewmate off the train, afoot in a yard or a village, what none of them is within capNear m of (and
+    // that has nobody in its grip) holds no cap: a hound pack aboard or a Knotter in a coupling left behind held a crew of
+    // one's single place all night. 0: off.
+    "capNear": 60,
     "maxConcurrentZone": 2,
     "maxConcurrentSmallCrew": 4,
     "maxConcurrentLargeCrew": 6,

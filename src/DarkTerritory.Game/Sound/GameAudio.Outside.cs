@@ -143,7 +143,7 @@ public sealed partial class GameAudio
             WorldTunnels(train, places, ear, front, tunnel, dt, primed);
             WorldBridges(train, places, ear, dt);
             WorldWeather(world, train, places, ear, earMain, tunnel, underground, dt);
-            WaterSounds(places, ear, earMain, tunnel, underground);
+            WaterSounds(world, places, ear, earMain, tunnel, underground);
             WorldBrass(train, places, primed);
             PlaceThreshold(run, train, places, front, primed);
             PlaceWorks(world, run, train, places, ear, underground, dt, primed);
@@ -682,9 +682,10 @@ public sealed partial class GameAudio
     }
 
     /// <summary>
-    /// A facility's site: each crane's motor while it moves, its chain while the hook does, a load creaking as the crane starts
-    /// and stops under it, a casting set down on a car or the ground (or dropped); and at a wreck yard, the cargo dragged out
-    /// of a wreck while the winch turns, the wreckage shifting as each sled comes in, and the wrecks creaking.
+    /// A facility's site: each crane's motor while it moves, its chain while the hook does, the cable under anyone riding it,
+    /// a load creaking as the crane starts and stops under it, a casting set down on a car or the ground (or dropped); and at a
+    /// wreck yard, the cargo dragged out of a wreck while the winch turns, the wreckage shifting as each sled comes in, and the
+    /// wrecks creaking.
     /// </summary>
     void PlaceSite(Site site, TrainOnLine train, Double3 ear, double dt, bool primed)
     {
@@ -704,6 +705,8 @@ public sealed partial class GameAudio
                 HoldLevel("place-crane.motor", key, crane.Cab, outside, 1);
             if (hook > 1e-4)
                 HoldLevel("place-crane.chain", key, crane.HookAt, outside, 1);
+            // Note 798: the cable creaking under a friend riding the hook, louder while the crane moves them.
+            HoistCreak(crane, key, outside, running);
             // Note 726: a friend on the hook swings as a casting does.
             if (Flipped("place-crane.running", key, running, primed) != 0 && crane.Loaded)
                 Cue("place-crane.load-swing", crane.HookAt, outside);
@@ -712,6 +715,8 @@ public sealed partial class GameAudio
                 var casting = crane.Castings[c];
                 var was = _castings.TryGetValue((key, c), out var w) ? w : casting.State;
                 _castings[(key, c)] = casting.State;
+                if (primed)
+                    LostDown(was, casting.State, casting.At, outside);
                 if (!primed || was != CastingState.Hooked || casting.State == CastingState.Hooked)
                     continue;
                 bool onCar = casting.State == CastingState.Loaded && casting.Car >= 0 && casting.Car < train.Frames.Count;
@@ -914,14 +919,10 @@ public sealed partial class GameAudio
                 if (Cue($"voice-prisoner-sets.{(kind < 9 ? "call" : "shout")}.set{set}", inside, 0.35f) is null)
                     Mixer.Play("holdout-shout", inside)?.Also(v => v.Occlusion = 0.35f);
             }
-            else if (!HasCue("voice-callout.bang"))
+            // A call's banging is one bout: each take is a whole frantic bout of blows, as the synthesised stand-in is
+            // (note 810; they were played two to four at once, 0.3 s apart, as if each were one blow).
+            else if (Cue("voice-callout.bang", inside, 0.35f) is null)
                 Mixer.Play("holdout-bang", inside)?.Also(v => v.Occlusion = 0.35f);
-            else
-            {
-                int bangs = 2 + (int)(roll / 20 % 3);
-                for (int b = 0; b < bangs; b++)
-                    CueLater(b * (0.28 + 0.06 * (b % 2)), "voice-callout.bang", inside, 0.35f, b == 0 ? 1 : 0.85f);
-            }
         }
     }
 

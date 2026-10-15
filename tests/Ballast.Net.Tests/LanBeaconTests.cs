@@ -28,6 +28,19 @@ public class LanBeaconTests
         Assert.Equal(2, game.Aboard);
         Assert.Equal(3, game.Protocol);
         Assert.Equal(("NICK'S RUN", 12, "Frontier"), (game.Name, game.Max, game.Tier));
+        Assert.Equal((false, "", ""), (game.Locked, game.Mood, game.Record));
+        // The host changes what it says while it's listed (a game's note 535: locked, its mood and its record): the next
+        // beacon says so, and the list follows.
+        advert = advert with { Locked = true, Mood = "competitive", Record = "212" };
+        var changed = clock.Elapsed.TotalSeconds;
+        while (browser.Games is not [{ Locked: true }] && clock.Elapsed.TotalSeconds < changed + 3)
+        {
+            beacon.Tick(clock.Elapsed.TotalSeconds, advert);
+            browser.Poll(clock.Elapsed.TotalSeconds);
+            Thread.Sleep(20);
+        }
+        game = Assert.Single(browser.Games);
+        Assert.Equal((true, "competitive", "212"), (game.Locked, game.Mood, game.Record));
         // Gone quiet, it drops off the list.
         browser.Poll(clock.Elapsed.TotalSeconds + 5);
         Assert.Empty(browser.Games);
