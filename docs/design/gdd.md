@@ -251,6 +251,12 @@ The council's laws are posted by the clerk's door (in a walled town, the council
 
 Each piece can be looked at, and a few of the town's hands are at work there all night, talking about the work.
 
+**A harbour town's Hope Tower** *(the World Building board's Cultures tab, the director, 12 Oct; queue #547, ARCHITECTURE §8 note 819)*. "Extremely large lighthouses with bright burning flames above that people of the town call Flames of Hope for the world to find in the darkness."
+- **The tower:** a harbour town's light on its head is near eighty metres of stone, with a coal fire burning in an iron basket on top.
+- **The Flame of Hope:** kept every night since the wall went up, for whoever's still out there to find their way in by.
+- **Seen from far off:** it stands over the whole town. Its Flame is the first thing a crew sees of the town through the fog, a kilometre and more out.
+- **Its keeper** stands at its door all night, between the hours' tubs of coal hauled up its side.
+
 **People.** Text only, no voices, as many as the town is big:
 - the gatekeeper says the town's law first;
 - the keeper of the custom's building and the folk round the centrepiece talk about the custom;
