@@ -968,6 +968,11 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [791. The crew's clips for the upgrades: sat back in a Muskoka chair, a beer and a cheers, a sausage turned and eaten, the bow, the salute and…](notes/791.md)
 - [792. The railway's leavings beside the line solid: dealt by the sim, stood on their footprints, drawn from its list (queue #517, B1; GDD App.…](notes/792.md)
 - [793. The town flag's flutter never races (C1, queue #520; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 2: "The flag blowing in the…](notes/793.md)
+- [798. A friend on the crane's hook heard (AU1, queue #525; K1's #1046, note 726's "Sounds (AU1)")](notes/798.md)
+- [799. Wading heard, and the town types underfoot and their water (AU1, queue #526; T1's #1003, note 692)](notes/799.md)
+- [801. The cannon's shot heard again with the shot endless (AU1, queue #528; U1's find on #1040)](notes/801.md)
+- [805. A running jump heard as a jump off the train (AU1, queue #533; AU1's audio audit)](notes/805.md)
 - [794. The woods keep off the railway's leavings (queue #521, B1; note 792's "not yet")](notes/794.md)
 - [804. The Game test suite's memory, found and cut; the town forms back in the trades' rotation (T1, queue #531; note 692's "off for now": with…](notes/804.md)
+- [796. The Mouse Moose modelled and rigged (queue #523, C1; the director, 15 Oct 2026: "We have a new asset added by gameplay, you need to do a…](notes/796.md)
 <!-- end of the notes index -->

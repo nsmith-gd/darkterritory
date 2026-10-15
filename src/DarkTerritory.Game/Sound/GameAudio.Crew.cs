@@ -97,6 +97,8 @@ public sealed partial class GameAudio
         public int Health;
         public byte Placed;
         public bool Alive, Moving, Shovelful, LeftTrain, BreathIn = true;
+        /// <summary>Come off a crane's hook with a drop under them, not yet down (note 802's gag landing).</summary>
+        public bool OffHook;
         public PlayerFlags Flags;
         public Tool Held;
         public Double3 AirVelocity;
@@ -314,6 +316,8 @@ public sealed partial class GameAudio
                 Cue("crew-mishaps.thrown-flail", feet + Double3.Up * ChestUp, occlusion);
             // Bringing them home (note 782): hauled aboard, lifted onto a shoulder, put down.
             CrewRescue(world, id, s, c, feet, occlusion, placed);
+            // Off the crane's hook high up (note 798): the yelp as the drop takes them.
+            CrewHoist(world, s, c, feet, occlusion);
             if (!s.Alive || placed)
             {
                 Remember(c, s, world);
@@ -331,17 +335,16 @@ public sealed partial class GameAudio
                 string? mat = Footing.Under(s, world);
                 double rollAbove = tuning?.Landing.RollAbove ?? 1.5;
                 landedHard = s.Health < c.Health;
-                if (c.Surface == Surface.Air || across > rollAbove)
+                double knock = Knock(c, across, onTrain, tuning);
+                // Down after a drop off a crane's hook, the gag's landing in place of this one (note 802).
+                if (!HoistLanding(c, feet, occlusion) && (c.Surface == Surface.Air || knock > rollAbove))
                 {
-                    if (across > rollAbove)
+                    if (knock > rollAbove)
                     {
                         // Off a moving train (spec B.3): the hit, and a roll along the ballast after.
-                        Cue("crew-jump-off.impact", onTrain ? "grate" : "ground", feet, occlusion);
-                        if (!onTrain)
-                        {
-                            c.TumbleUntil = _time + Math.Min(1.5, 0.4 + 0.08 * across);
-                            CrewAfter(ScatterAfterLanding, "crew-mishaps.pocket-scatter", feet, occlusion);
-                        }
+                        Cue("crew-jump-off.impact", "ground", feet, occlusion);
+                        c.TumbleUntil = _time + Math.Min(1.5, 0.4 + 0.08 * across);
+                        CrewAfter(ScatterAfterLanding, "crew-mishaps.pocket-scatter", feet, occlusion);
                     }
                     else if (s.Surface == Surface.Coupler)
                         Cue("crew-ladder.gap-land", feet, occlusion);
@@ -500,6 +503,23 @@ public sealed partial class GameAudio
         }
         foreach (var gone in _crewMembers.Keys.Where(k => !seen.Contains(k)).ToList())
             _crewMembers.Remove(gone);
+    }
+
+    /// <summary>
+    /// How hard a landing comes down across, as the sim reckons its knock (<see cref="PlayerMotor"/>'s Land, queue #533, note
+    /// 805): only on the ground, by the speed over it; less a run's own where they left the ground on foot (note 573: a
+    /// running jump is no fall), and a friend's shove's own (note 717). A landing on a car is a landing: the sim takes no knock
+    /// there, so a running jump from roof to roof isn't a jump off the train.
+    /// </summary>
+    static double Knock(CrewMember c, double across, bool onTrain, PlayerTuning? tuning)
+    {
+        if (onTrain)
+            return 0;
+        if (c.Flags.HasFlag(PlayerFlags.OffTheGround))
+            across = Math.Max(0, across - (tuning?.Run ?? 0));
+        if (c.Flags.HasFlag(PlayerFlags.Shoved))
+            across = Math.Max(0, across - (tuning?.Horseplay.Shove.Speed ?? 0));
+        return across;
     }
 
     void Remember(CrewMember c, in PlayerState s, World world)
@@ -1108,9 +1128,18 @@ public sealed partial class GameAudio
     // ------------------------------------------------------------------------------------------------ the cannons
 
     /// <summary>
-    /// Everyone's cannons (App. C.3), from the replicated gun: a round gone from it (its ammunition, which
-    /// <see cref="GunState.LastShotTick"/> goes with; that stamp is the predicting machine's own tick until the host's
-    /// arrives, so it changes more than once a shot), the gun pushed along its rail, and each step of the reload.
+    /// A shot from a gun since it was last seen (queue #528, note 801), once a shot on every machine. Not its
+    /// <see cref="GunState.LastShotTick"/>: that stamp is the predicting machine's own tick until the host's arrives, so it
+    /// changes more than once a shot. A round gone from its stock (note 374); or, with the shot endless (combat.json
+    /// infiniteAmmo, note 689, where nothing's taken), the full reload a shot leaves it needing, from none. A rack filled
+    /// from empty asks for that reload too, but brings a round with it.
+    /// </summary>
+    static bool Shot(in GunState g, CrewGun was) =>
+        g.LastShotTick > 0 && (g.Ammo < was.Ammo || g.Ammo == was.Ammo && was.Needed <= 0 && g.ReloadNeeded > 0);
+
+    /// <summary>
+    /// Everyone's cannons (App. C.3), from the replicated gun: a shot (<see cref="Shot"/>), the gun pushed along its rail,
+    /// and each step of the reload.
     /// </summary>
     void CrewGuns(World world)
     {
@@ -1141,7 +1170,7 @@ public sealed partial class GameAudio
                 var frame = train.Frames[v.Id];
                 var muzzle = frame.ToWorld(mount.Position + mount.Facing * -TrainKit.CannonMuzzle.Z);
                 float outside = Occlusion(PlayerMotor.Outside);
-                if (m.Mounted && g.Ammo < m.Ammo && g.LastShotTick > 0)
+                if (m.Mounted && Shot(g, m))
                 {
                     bool far = (muzzle - Mixer.Listener.Position).Length > ShotFar;
                     if (Cue(far ? "crew-cannon-fire.shot-far" : "crew-cannon-fire.shot-close", muzzle, outside) is null
