@@ -356,3 +356,8 @@ The director asked for the last three friendslop features to be heard. Two were 
 - Commented on #967 for whoever lands it: the credits file's merge conflict is generated, and AU1's hooks don't need #967 to change.
 - **The calliope an octave down** (#534): it's the whistle, and the whistle's band is 200-800 Hz (spec A.4). #967's tune is G5-G6, in Tippy's, the Stoker's and the Grumbler's bands. AU1's takes are now C5, played G4-G5; about 70% of each note's energy is in the band.
 - **The tools' tells (`up-tells`) left for a design call** (note 775's handoff): the speed recorder's bell, for one, would need to split the early warning from the normal one, and the base lead is a tuning number the audio shouldn't hard-code.
+
+## 15 Oct, ~20:45 UTC: #967 merged; #534's and #505's hooks in review (#1096)
+
+- U1's #967 is on main (bdc6158be). AU1's hooks, built on it, are rebuilt on main (`claude/relaxed-cerf-r4pvh7`, AU1's changes over #967's last head applied to main) and in review in [#1096](https://github.com/nsmith-gd/darkterritory/pull/1096): the whimsies, pets and new emotes (#534), the horns, forge and BBQ deck (#505). Build, format and the audio and upgrade test classes pass.
+- Rows #534 (in review) and #505 (in progress: the tools' tells still wait on a design call); notes 806 and 775's handoffs say so.
