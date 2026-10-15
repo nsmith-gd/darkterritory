@@ -27,7 +27,8 @@ public sealed partial class WorldArt
             Main = Plan.Alignment.Select((a, i) => (a, i)).First(x => x.a.Role == EdgeRole.Main).i;
             Washouts = [.. Plan.Structures.Where(s => s.Type == StructureType.Washout && s.Edge == "main").Select(s => (s.S0, s.S1))];
             Villages = [.. route.Of(FeatureKind.Village).Where(f => f.Stop is not null).Select(f => (f.Start, f.End))];
-            Clearings = [.. route.Features.Where(f => f.Stop is not null).Select(f => Clearing(f.Start, f.End, f.Stop!))];
+            Clearings = [.. route.Features.Where(f => f.Stop is not null).Select(f => Clearing(f.Start, f.End, f.Stop!)),
+                .. Sim.Run.LinesideProps.TowerClearings(route)];
             Branches = [.. Plan.Alignment.Select((a, i) => (a, i)).Where(x => x.a.Role is EdgeRole.Alternate or EdgeRole.DeadLine).Select(x => x.i)];
             FarBranches = [.. Branches.Where(e =>
             {
