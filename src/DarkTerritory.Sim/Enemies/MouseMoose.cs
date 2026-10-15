@@ -106,7 +106,11 @@ public sealed class MouseMoose(int id) : Enemy(id)
         // Seen creeping in out of the dark, squeaking: the telegraph. Its teeth in a casting is the commit.
         if (Phase == SpinePhase.Dormant)
             Enter(ctx, SpinePhase.Telegraph);
-        if (_crane is not { } crane || crane.Wrecked || !Near(train, crane, t.LeaveBeyond))
+        Loosen(train);
+        // Staged without a crane (a look, a test): it stands where it's put.
+        if (_crane is not { } crane)
+            return;
+        if (crane.Wrecked || !Near(train, crane, t.LeaveBeyond))
             _leaving = true;
         if (_leaving)
         {
@@ -116,7 +120,6 @@ public sealed class MouseMoose(int id) : Enemy(id)
                 SetMode(MouseMooseMode.Flee);
             return;
         }
-        crane = _crane!;
 
         switch (Mode)
         {
@@ -225,6 +228,7 @@ public sealed class MouseMoose(int id) : Enemy(id)
     /// </summary>
     public override void Struck(EnemyContext ctx, int by, double damage)
     {
+        Loosen(ctx.Train);
         if (Mode is MouseMooseMode.Hide or MouseMooseMode.Flee)
             return;
         Scared(ctx);
@@ -247,6 +251,18 @@ public sealed class MouseMoose(int id) : Enemy(id)
         SetMode(MouseMooseMode.Flee);
         if (Phase != SpinePhase.BreakOff)
             Enter(ctx, SpinePhase.BreakOff);
+    }
+
+    /// <summary>
+    /// Put loose in the world where it stands (one placed on the line, as a test or the gym may, has its Height for a lift
+    /// there; its Height is its mode once it's loose).
+    /// </summary>
+    void Loosen(TrainOnLine train)
+    {
+        if (Attached == Loose)
+            return;
+        Local = WorldPosition(train);
+        Attached = Loose;
     }
 
     /// <summary>Whether casting <paramref name="i"/> is still its to drag: on the ground, in reach or already taken out of it.</summary>
