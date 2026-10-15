@@ -746,6 +746,12 @@ public sealed partial class Run
 
     static TrainDynamics EngineRake(TrainOnLine train) => train.Rakes.First(r => r.Consist.HasEngine);
 
+    /// <summary>Where the engine's front is along the main line, as the run measures it (its rake's, when the train's cut).</summary>
+    public static double EngineFront(TrainOnLine train) => EngineRake(train).Distance;
+
+    /// <summary>The engine's own speed (m/s), as the run reads it for a stop.</summary>
+    public static double EngineSpeed(TrainOnLine train) => EngineRake(train).Speed;
+
     /// <summary>
     /// Where the engine's front has to be for the night to be delivered, stopped: the whole of its rake in through a town
     /// terminus's gate (note 600, <see cref="RunTuning.HomeInsideGateM"/>), or within the terminus zone of the end of line.
@@ -1028,7 +1034,9 @@ public sealed partial class Run
         var (lines, shown) = MarkBookmarks(world, ReportLines(world, attached, delivered, feeEach, refundEach, broughtEach));
         return new RunReport(End, Math.Round(Seconds, 1), Math.Round(engine.Distance / 1000, 2), home.Count, cargo.Count - home.Count,
             Math.Round(cargoValue, 2), Math.Round(gross), Math.Round(coal), Math.Round(ammo), Math.Round(repairs),
-            Math.Round(gross - coal - ammo - repairs - fees + refunds - recovery - broughtFees), crewHome, crew.Count - crewHome, delivered ? Math.Round(scavenged) : 0,
+            // Note 766: the net is its rounded parts' sum, so the tally's figures add up to it on the screen (rounded once from the
+            // unrounded parts, it could be a scrip or two off what's read out).
+            Math.Round(gross) - Math.Round(coal) - Math.Round(ammo) - Math.Round(repairs) - fees + refunds - recovery - broughtFees, crewHome, crew.Count - crewHome, delivered ? Math.Round(scavenged) : 0,
             deaths, bodiesHome, fees, refunds, Math.Round(delivered ? Mail : 0), recovery, stranded ? Kit.Loss : KitLoss.None)
         {
             Lines = lines,

@@ -352,18 +352,19 @@ public sealed partial class GreyboxScene
         }
         var k = new Art.Kit(Look, mesh);
         k.Push(frame);
+        // Its tell (hanger.md §5; the director, 13 Oct, App. F.5: "pulled up by a hanger despite not seeing one at all or not
+        // having any telegraph"; note 683): with someone in its house the strands quiver, a fast shiver over the slow sway,
+        // stronger the nearer they are to touching one; drawn thick enough to read in a dim house, and glinting.
+        bool quiver = e.Phase == Sim.Enemies.SpinePhase.Telegraph && mode == HangerMode.Hidden;
         for (int i = 0; i < strands.Count; i++)
         {
             if (i == taut)
                 continue;
             var (sx, sy) = strands[i];
-            // Hung from the joists' undersides (the plan's x on −Z, its y on X), swaying a hand's breadth in the air that moves
-            // through the house; the bead at its end heavier, so it swings most.
-            double s = Time * (0.55 + 0.1 * (i % 3)) + i * 1.9 + e.Id;
-            var swing = new Vector3((float)(0.035 * Math.Sin(s)), 0, (float)(0.028 * Math.Sin(s * 0.83 + 1.3)));
+            // Hung from the joists' undersides (the plan's x on −Z, its y on X).
             var top = new Vector3((float)sy, ceiling, (float)-sx);
-            var bottom = new Vector3((float)sy, Floor + (float)Hanger.StrandBottom, (float)-sx) + swing;
-            Strand(k, top, bottom, 0.005f);
+            var bottom = new Vector3((float)sy, Floor + (float)Hanger.StrandBottom, (float)-sx) + StrandSway(Time, i, e.Id, quiver);
+            Strand(k, top, bottom, StrandRadius);
             Bead(k, bottom);
         }
         // Itself: up in the roof space while it's hidden or going back there, down under the joists while it's at someone.
@@ -390,25 +391,46 @@ public sealed partial class GreyboxScene
         {
             var mouth = Vector3.Transform(Art.CreatureArt.HangerMouth, model);
             var chest = Vector3.Transform((caught.Feet + Double3.Up * 1.3).RelativeTo(eye), toHouse);
-            Strand(k, mouth, chest, 0.008f);
+            Strand(k, mouth, chest, StrandRadius * 1.4f);
         }
         k.Pop();
     }
 
-    /// <summary>A strand, wet and pale, from <paramref name="a"/> to <paramref name="b"/>: a thin glassy thread, glinting in a lamp.</summary>
-    static void Strand(Art.Kit k, Vector3 a, Vector3 b, float radius)
+    /// <summary>
+    /// Where a strand's end hangs off true (house frame, m): a hand's breadth of sway in the air that moves through the house,
+    /// the bead at its end heavier, so it swings most; and, <paramref name="quiver"/> (someone in its house, note 683), a fast
+    /// shiver over it, the Hanger's tell.
+    /// </summary>
+    public static Vector3 StrandSway(double time, int strand, int id, bool quiver)
     {
-        k.Use("cream", new Vector3(0.8f, 0.79f, 0.72f), 0.05f, 0.95f, tile: 0.2f);
-        k.Tint = new Vector3(0.95f, 0.94f, 0.88f);
-        k.Cylinder(a, b, radius, 4, caps: false);
+        double s = time * (0.55 + 0.1 * (strand % 3)) + strand * 1.9 + id;
+        var swing = new Vector3((float)(0.035 * Math.Sin(s)), 0, (float)(0.028 * Math.Sin(s * 0.83 + 1.3)));
+        if (quiver)
+        {
+            double q = time * (52 + 6 * (strand % 4)) + strand * 2.3;
+            swing += new Vector3((float)(QuiverMetres * Math.Sin(q)), 0, (float)(QuiverMetres * Math.Sin(q * 1.31 + 0.7)));
+        }
+        return swing;
     }
 
-    /// <summary>The bead at a strand's end: a drop of something yellowish and sticky, glistening.</summary>
+    // The strands as drawn (note 683): a finger's thickness, where 5 mm on four sides didn't read in a dim house at all; their
+    // quiver while someone's in the house, a few centimetres either way.
+    const float StrandRadius = 0.011f, QuiverMetres = 0.022f;
+
+    /// <summary>A strand, wet and pale, from <paramref name="a"/> to <paramref name="b"/>: a glassy thread, glinting in a lamp.</summary>
+    static void Strand(Art.Kit k, Vector3 a, Vector3 b, float radius)
+    {
+        k.Use("cream", new Vector3(0.86f, 0.85f, 0.78f), 0.05f, 0.95f, tile: 0.2f);
+        k.Tint = new Vector3(1.0f, 0.99f, 0.93f);
+        k.Cylinder(a, b, radius, 6, caps: false);
+    }
+
+    /// <summary>The bead at a strand's end: a drop of something yellowish and sticky, glistening, the size of a thumb's end.</summary>
     static void Bead(Art.Kit k, Vector3 end)
     {
-        k.Use("cream", new Vector3(0.75f, 0.64f, 0.36f), 0.05f, 0.98f, tile: 0.2f);
-        k.Tint = new Vector3(0.85f, 0.72f, 0.42f);
-        k.Lathe(end - new Vector3(0, 0.03f, 0), [new(0.002f, 0), new(0.012f, 0.008f), new(0.014f, 0.017f), new(0.008f, 0.028f), new(0.004f, 0.036f)], 8);
+        k.Use("cream", new Vector3(0.8f, 0.68f, 0.38f), 0.05f, 0.98f, tile: 0.2f);
+        k.Tint = new Vector3(0.92f, 0.78f, 0.45f);
+        k.Lathe(end - new Vector3(0, 0.05f, 0), [new(0.003f, 0), new(0.02f, 0.013f), new(0.024f, 0.028f), new(0.014f, 0.046f), new(0.007f, 0.06f)], 10);
     }
 
     /// <summary>Which of the route's features <paramref name="f"/> is (its index), or −1.</summary>

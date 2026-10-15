@@ -35,14 +35,103 @@ public class CrewActsTests
         {
             // The emotes (note 298) wait on their clips (the art checklist's crew-emotes row): until then EmoteArms poses
             // them over the walk and the idle, so a missing one is a stand-in, not a gap. A clip of theirs is used as it lands.
-            // (Note 722's the same: the high five, the fist bump, the dance-off, the sit and the lean, E1's to make; and note
-            // 714's bow, salute and conga.)
-            if (pose is CrewPose.Dance or CrewPose.Wave or CrewPose.Point or CrewPose.HighFive or CrewPose.FistBump or CrewPose.DanceOff
-                or CrewPose.SitEdge or CrewPose.LeanOut or CrewPose.Bow or CrewPose.Salute or CrewPose.Conga && !crew!.Clips.ContainsKey(CreatureArt.ClipOf(pose)))
+            // (Note 722's emotes for two have theirs: note 807; note 714's bow, salute and conga are by hand.)
+            if (pose is CrewPose.Dance or CrewPose.Wave or CrewPose.Point
+                or CrewPose.Bow or CrewPose.Salute or CrewPose.Conga && !crew!.Clips.ContainsKey(CreatureArt.ClipOf(pose)))
                 continue;
             string clip = CreatureArt.ClipOf(pose);
             Assert.True(pose == CrewPose.Idle || clip != "idle", $"{pose} has no clip of its own");
             Assert.True(crew!.Clip(clip) is not null, $"{pose}: the crew has no '{clip}' clip");
+        }
+    }
+
+    /// <summary>
+    /// Note 812: a friend over the shoulder is drawn as one with whoever carries them: in crew_clips' carried, posed in the
+    /// carrier's own space, so at the carrier's feet, facing their way, on their clock (their beat less this one's).
+    /// </summary>
+    [Fact]
+    public void AFriendOverTheShoulderIsDrawnAtTheCarriersFeetOnTheirClock()
+    {
+        var w = World();
+        var carrier = PlayerMotor.SpawnOnRoof(w.Train, 2, 0, P) with { Yaw = 0.4, Flags = PlayerFlags.Carrying | PlayerFlags.Heavy };
+        var carried = carrier with { Position = Sim.Player.Rescue.Shoulder(carrier, P.Rescue), Flags = PlayerFlags.Carried, Yaw = 2.0 };
+        List<(int, PlayerState)> crew = [(3, carrier), (6, carried)];
+        Assert.Equal(CrewPose.Fireman, CrewActs.Of(carrier, 3, w));
+        var drawn = CrewActs.Crewmate(6, carried, w, w.Train.Frames, [carrier, carried], crew);
+        var (feet, yaw) = Eyes.World(carrier, w.Train.Frames);
+        Assert.Equal(CrewPose.Carried, drawn.Act);
+        Assert.True((drawn.Feet - feet).Length < 1e-9, $"{drawn.Feet} vs {feet}");
+        Assert.Equal(yaw, drawn.Yaw, 9);
+        Assert.Equal(CreatureArt.BeatOffset(w.OutfitOf(3)) - CreatureArt.BeatOffset(drawn.Variant), drawn.Phase, 9);
+    }
+
+    /// <summary>
+    /// Note 812: drawn together, stood and walking, the friend's hips stay on the carrier's left shoulder all through the clip
+    /// (its joint within a hand's breadth or so), their feet hang well clear of the floor, and their head hangs down behind.
+    /// </summary>
+    [Fact]
+    public void TheCarriedStayOnTheCarriersShoulderThroughTheirSteps()
+    {
+        var art = new CreatureArt(Look.Load(Content), Content);
+        var mesh = new Ballast.Render.MeshBuilder();
+        var model = System.Numerics.Matrix4x4.Identity;
+        foreach (var (carrying, carried) in new[] { (CrewPose.Fireman, CrewPose.Carried), (CrewPose.FiremanWalk, CrewPose.CarriedWalk) })
+            for (double t = 0; t < 2.4; t += 0.15)
+            {
+                Assert.True(art.Crewmate(mesh, model, carrying, t, 3));
+                var shoulder = art.Joint("upperarm_l", model);
+                var back = art.Joint("spine_03", model);
+                Assert.True(art.Crewmate(mesh, model, carried, t + CreatureArt.BeatOffset(3) - CreatureArt.BeatOffset(5), 5));
+                var hips = art.Joint("pelvis", model);
+                Assert.True(System.Numerics.Vector3.Distance(hips, shoulder) < 0.3f, $"{carried} {t:0.00}: hips {System.Numerics.Vector3.Distance(hips, shoulder):0.00} m off the shoulder");
+                Assert.True(art.Joint("foot_l", model).Y > 0.3f && art.Joint("foot_r", model).Y > 0.3f, $"{carried} {t:0.00}: feet down");
+                var head = art.Joint("head", model);
+                Assert.True(head.Y < shoulder.Y && head.Z > back.Z, $"{carried} {t:0.00}: head at {head}, not down behind");
+            }
+    }
+
+    /// <summary>
+    /// Note 813: a friend on a crane's hook is drawn stood on its lip behind the cable in on_hook, the hands on the cable; and the
+    /// loaded hook's sway, which the hook, its cable, its lamp and its riders all take on the scene's one clock, is a little one
+    /// (a tenth of a metre or so), level, and the same every time for the same time.
+    /// </summary>
+    [Fact]
+    public void AFriendOnTheHookStandsOnItAndSwaysWithIt()
+    {
+        var hook = new Double3(10, 3, -4);
+        var rider = CrewActs.OnTheHook(new Crewmate(3, hook, 0.3, true), hook);
+        Assert.Equal(CrewPose.OnHook, rider.Act);
+        Assert.NotNull(rider.Reach);
+        Assert.InRange(((rider.Feet - hook) with { Y = 0 }).Length, 0.15, 0.25);
+        for (double t = 0; t < 10; t += 0.37)
+        {
+            var sway = CrewActs.HookSway(t);
+            Assert.Equal(0, sway.Y);
+            Assert.InRange(sway.Length, 0, 0.11);
+            Assert.Equal(sway, CrewActs.HookSway(t));
+        }
+        Assert.True(CrewActs.HookSway(0.9).Length > 0.03, "it does swing");
+    }
+
+    /// <summary>
+    /// Note 814: a pumper's pump is played by the handle's swing, not a clock: at their own end's top (the front end's at a swing
+    /// of 0, the back end's half a swing on) the clip's at its start, at their end's bottom half way through, and once round it's
+    /// back where it began; the two ends are always half a pump apart.
+    /// </summary>
+    [Fact]
+    public void ThePumpIsPlayedByTheHandlesSwing()
+    {
+        Assert.Equal(0, CrewActs.PumpPhase(0, -1), 9);
+        Assert.Equal(CrewActs.PumpSeconds / 2, CrewActs.PumpPhase(Math.PI, -1), 9);
+        Assert.Equal(CrewActs.PumpSeconds / 2, CrewActs.PumpPhase(0, 1), 9);
+        for (double swing = -7; swing < 14; swing += 0.7)
+        {
+            Assert.InRange(CrewActs.PumpPhase(swing, -1), 0, CrewActs.PumpSeconds);
+            double apart = Math.Abs(CrewActs.PumpPhase(swing, -1) - CrewActs.PumpPhase(swing, 1));
+            Assert.Equal(CrewActs.PumpSeconds / 2, apart, 6);
+            // Its end at the top (EndHeight 1) at the clip's start, at the bottom half way: the clip's own swing.
+            double turn = CrewActs.PumpPhase(swing, -1) / CrewActs.PumpSeconds * 2 * Math.PI;
+            Assert.Equal(Sim.Train.Handcar.EndHeight(swing, -1), Math.Cos(turn), 6);
         }
     }
 
@@ -55,6 +144,14 @@ public class CrewActsTests
         Assert.Equal(CrewPose.Held, CrewActs.Of(s with { Flags = PlayerFlags.Held }, 1, w));
         Assert.Equal(CrewPose.Climb, CrewActs.Of(s with { Surface = Surface.Ladder }, 1, w));
         Assert.Equal(CrewPose.Push, CrewActs.Of(s with { Flags = PlayerFlags.Pushing }, 1, w));
+        // Note 808: a crewmate who's shoved someone, from the host's knock for the shove's 0.45 s (and a friend thrown off the shoulder).
+        w.Tick = 300;
+        w.Horseplays.Add(new HorseplayEvent(1, 290, 1, KnockKind.Shove, 2));
+        Assert.Equal(CrewPose.Shove, CrewActs.Of(s, 1, w));
+        Assert.Null(CrewActs.Of(s, 2, w));
+        w.Tick = 290 + (uint)Math.Ceiling(CrewActs.ShoveSeconds * SimConstants.TickRate);
+        Assert.Null(CrewActs.Of(s, 1, w));
+        w.Horseplays.Clear();
         Assert.Equal(CrewPose.Lever, CrewActs.Of(s with { Flags = PlayerFlags.Operating }, 1, w));
         // Note 664: crouched on the key, down; a headset rider's body crouches with their head instead.
         Assert.Equal(CrewPose.Crouch, CrewActs.Of(s with { Flags = PlayerFlags.Crouched }, 1, w));
@@ -64,6 +161,11 @@ public class CrewActsTests
         Assert.Equal(CrewPose.Jump, CrewActs.Of(s with { Surface = Surface.Air, Velocity = new Double3(0, 3, 0) }, 1, w));
         Assert.Null(CrewActs.Of(s with { Surface = Surface.Air, Velocity = new Double3(0, -1, 0) }, 1, w));
         Assert.Equal(CrewPose.Fall, CrewActs.Of(s with { Surface = Surface.Air, Velocity = new Double3(0, -6, 0) }, 1, w));
+        // Note 813: on a crane's hook, stood on it; off their feet by a shove or a throw, flailing all the way down.
+        Assert.Equal(CrewPose.OnHook, CrewActs.Of(s with { Flags = PlayerFlags.Hoisted }, 1, w));
+        // Note 814: at the handcar's handle, pumping it.
+        Assert.Equal(CrewPose.Pump, CrewActs.Of(s with { Flags = PlayerFlags.Pumping }, 1, w));
+        Assert.Equal(CrewPose.Flail, CrewActs.Of(s with { Surface = Surface.Air, Velocity = new Double3(0, -6, 0), Flags = PlayerFlags.Shoved }, 1, w));
         // Dead, they're drawn as their body.
         Assert.Null(CrewActs.Of(s with { Death = DeathCause.Struck, Flags = PlayerFlags.Held }, 1, w));
     }

@@ -50,6 +50,9 @@ runs a home that moves. Griefers, Hackers and Opportunists go to target.
 - **Comet cargo** "needs to be at actual stops and needs to be extra valuable loot that players get excited for when they
   see". Team-killable creatures "can sometimes leave trophies". "Very big value things should take two to carry."
 - K1 is authorised to build all of it and to merge as it goes green.
+- **The mail, cut for now** (15 Oct 2026): "Im soft on the mail. I dont like it so far. Lets cut for now." No mail cranes
+  on the line (#461's catch and F1's note 673 with it); kept in the code behind sight.json `mailCranes`, so it can come
+  back with one switch (queue #530, ARCHITECTURE §8 note 803).
 
 ## 3. The work (queue #450–#467)
 
@@ -66,7 +69,7 @@ runs a home that moves. Griefers, Hackers and Opportunists go to target.
 | 458 | **Sessions.** The crew's save travels with any member who hosts; a friend joining takes a bot's seat; kick and mute in public lobbies | 724 |
 | 459 | **Cuts you can get back** (a car cut at a stand stays put; one cut at speed can be caught by backing up within the 400 m) and the chart table's lamp per crewmate aboard | 725 |
 | 460 | **Hoist a friend** on the crane's hook | 726 |
-| 461 | **The mail catch:** the bag snagged from the car door as the train passes a mail crane | 727 |
+| 461 | **The mail catch:** the bag snagged from the car door as the train passes a mail crane. *Cut for now (the director, 15 Oct 2026; queue #530): no mail cranes on the line, kept behind sight.json `mailCranes`* | 727, 803 |
 | 462 | **The sense table** (every item gives off or masks a sense the creatures answer: a thrown music box lures what hunts by sound, the extinguisher's cold drives the hounds back, a lamp shows what waits in a dark house) **and thrown things do what they are** (a lamp breaks into fire, a keg rolls and blows) | 728 |
 | 463 | **The handcar:** a two-person pump trolley on a flatcar, for a branch, a friend left behind, or a race | 729 |
 | 464 | **Odd outcomes to find,** about ten a tier, never in the Wiki | 730 |

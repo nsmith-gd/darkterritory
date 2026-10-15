@@ -40,7 +40,9 @@ public static class PlanHud
             ("", InkDark),
             ("TIMETABLE", Stamp),
         };
-        rows.AddRange(card.Timetable.Select(t => ($"{t.Km,5:0.0}  {t.Text}", InkDark)));
+        // Note 765: the last town's row says what ends the run there (the director: "It's unclear if I have to go right to the
+        // end of the line or if I can just stop the train inside the town").
+        rows.AddRange(card.Timetable.Select(t => ($"{t.Km,5:0.0}  {t.Text}{(t.Kind == "terminus" ? EndOfTheRunCard(plan) : "")}", InkDark)));
         if (card.Form19.Count > 0)
         {
             rows.Add(("", InkDark));
@@ -83,6 +85,10 @@ public static class PlanHud
             Profile(o, rail!, plan, x + 6, y + 5 + 2 * line + 3, w - 12, profileH, at);
         return pages;
     }
+
+    /// <summary>The route card's word on the last town (note 765): the run ends with the whole train in and stopped.</summary>
+    public static string EndOfTheRunCard(LinePlan plan) =>
+        plan.Terminus.Silent ? ". End of the run: stop at the end of the line." : ". End of the run: stop with the whole train inside.";
 
     /// <summary>
     /// The line's height along the night in a box (<paramref name="x"/>, <paramref name="y"/>, w by h): a column of ink per

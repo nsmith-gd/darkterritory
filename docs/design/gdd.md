@@ -689,7 +689,9 @@ Cargo is physically represented and **changes the run** rather than just scoring
 - **The jackpot house.** At some stops (a third of frontier stops, more deeper in), the village's biggest house is locked up. Its door is panelled and painted, not plank like the rest, and a lamp burns in its window, so it's seen from the line. A held Use doesn't open it. The wrench does: held at the lock six seconds, quietly, as it opens a Holdout's lock (App. D.7). Inside, it keeps better things than any other house: its cupboards and boards turn up the best of what they could hold, two or three more finds lie on its floor, and two in five hold a jackpot. Something is likelier to live in it, too (the house creatures' odds, doubled).
 - **Loose loot rides the train.** What's put down in a car stays a thing, and feels the car moving. On a bend it slides outward; under the brakes, forward; pulling away, back. It slides till it stops against the car's side or end, or another thing, or goes out through an open side door onto the line, lost unless someone goes back for it. Things lie on things, and one balanced badly on another topples off. A fragile find that slides hard into the end of the car is knocked. A car's stowed finds are paid only for what's still in it at the gate. Stack carefully, and shut the doors.
 
-**The mail cranes** *(notes 673, 727; the director, 14 Oct 2026, App. F.6)*. Between the stops, mail cranes stand beside the line, each with a board a way ahead saying which side. Someone in a car's open side door on that side, holding the hook out as the car goes by, catches its bag: pay, coal for the tender, rounds for the guns or spares for the worst car. The board posts the speed the hook holds a bag at ("MAIL > 50"), and a bag hooked faster tears off and is lost, so the one at the door calls the driver down for it.
+**The mail cranes: cut for now** *(the director, 15 Oct 2026: "Im soft on the mail. I dont like it so far. Lets cut for now."; ARCHITECTURE §8 note 803)*. No mail crane stands by the line on any night: nothing to see, catch or hear, no MAIL CRANE on the screen and no mail in the night's pay. It's kept in the code behind one switch (sight.json `mailCranes`, false), so it can come back as it was:
+
+**The mail cranes** *(notes 673, 727; the director, 14 Oct 2026, App. F.6; cut for now, note 803)*. Between the stops, mail cranes stand beside the line, each with a board a way ahead saying which side. Someone in a car's open side door on that side, holding the hook out as the car goes by, catches its bag: pay, coal for the tender, rounds for the guns or spares for the worst car. The board posts the speed the hook holds a bag at ("MAIL > 50"), and a bag hooked faster tears off and is lost, so the one at the door calls the driver down for it.
 
 ---
 
@@ -852,6 +854,7 @@ Step inside and the ground starts rumbling under it. Anyone still inside when th
 Strands hanging from the ceiling, glistening in the lamp.
 > **RULE: don't touch the strands.**
 Walk into a strand and it has you, hauling you up it until your feet leave the floor. A friend prises you free, or a blow makes it let go.
+*(The director, 13 Oct 2026, from the creature gym, App. F.5: "I was pulled up by a hanger despite not seeing one at all or not having any telegraph".)* The strands are plain to see in a dim house, finger-thick and glinting, a bead at each end. With anyone in its house, they quiver: that's its tell, before anyone touches one.
 
 ### STRUCTURAL — attack how you run the train
 
@@ -2919,6 +2922,10 @@ genre ... It's extremely important that friends exceeds our target meaningfully.
   two.** *Queue #452, #453.*
 - The rest of docs/design/friendslop.md §3 goes ahead (queue #450–#466). Among it, **bringing them home**: the hand-up onto
   a moving car (§17), carrying a living friend and a bandage on someone else (§23.5). *Queue #457, note 723.*
+- **The mail catch** (the audit's O6: the bag snagged from the car's door at a mail crane, too fast and it tears). *Queue
+  #461, note 727.* **Cut for now** (the director, 15 Oct 2026: "Im soft on the mail. I dont like it so far. Lets cut for
+  now."; ARCHITECTURE §8 note 803): no mail cranes on the line, kept in the code behind sight.json `mailCranes` (§22's
+  mail cranes). *Queue #530.*
 - **Odd outcomes to find,** about ten, never in the Wiki: odd things happen in the towns and at the stops, unexplained (§3.3). *Queue #464, note 730.*
 
 ## F.5 2026-10-13 — the creature gym, Test build 21 (ca0d37e)
@@ -2947,7 +2954,7 @@ genre ... It's extremely important that friends exceeds our target meaningfully.
 - The Householder grabbed the director, and the death said "seized by the Choir". *Open.*
 - The abandoned villages' houses don't seem to have doors, though there's an open and shut prompt and a collider. A house's doors and windows need to shut and be escapable, so the house can show what it's about to do. *Open; design change → the Hollow House (§21).* (The director named the Householder; the doors slamming shut one after another are the Hollow House's tell.)
 - The house that should come down didn't: the model doesn't collapse. *Open.* (The Hollow House.)
-- Pulled up by a Hanger without seeing one, and with no tell. *Open.*
+- Pulled up by a Hanger without seeing one, and with no tell. *In progress (queue #415, ARCHITECTURE §8 note 683): the strands drawn to read in a dim house, and quivering while anyone's in its house (§21); its sounds (hanger.md §4) are the audio chat's.*
 
 **Decided** (the director, 13 Oct 2026):
 - A lone player's struggle is a chance, at best 15% (raised to a coin flip on 14 Oct, note 737), and what held them doesn't vanish; while held, Use is the struggle's alone (App. C.1).

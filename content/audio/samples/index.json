@@ -18886,8 +18886,8 @@
     "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
    }
   ],
-  "takes": 262,
-  "sha": "1ef45068ff63b74c"
+  "takes": 269,
+  "sha": "11aaeba1da1b4a27"
  },
  "voice-prisoner-sets/call/set1": {
   "cue": "voice-prisoner-sets.call",
