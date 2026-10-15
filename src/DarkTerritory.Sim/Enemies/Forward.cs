@@ -239,7 +239,7 @@ public sealed class TrackDoll(int id) : Enemy(id)
         if (cabEmpty && _level >= 2 && train.Frames[0].Shape.Cab is { } cab)
         {
             Attached = 0;
-            Local = cab.Centre with { Y = cab.Min.Y };
+            Local = train.Frames[0].Shape.FootplateMiddle with { Y = cab.Min.Y }; // (at the controls: note 716)
             Extra = 0;
             Extra2 = _level;
             return;

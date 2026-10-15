@@ -62,8 +62,9 @@ public sealed partial class BoundKeysTests
     {
         // The HUD's own strings, every [KEY] in them: either a control's default, said as the player's own (Bound), or a
         // key nobody can rebind (the menus', the headset's stick). A key that's neither would be said wrong after a rebind,
-        // or was never a key at all (the driver's [R/F]: the regulator closes on Y).
-        string[] own = ["F5", "ESC", "ENTER", "UP/DOWN", "LEFT/RIGHT", "CLICK STICK", "STICK UP/DOWN", "STICK LEFT/RIGHT"];
+        // or was never a key at all (the driver's [R/F]: the regulator closes on Y). SHIFT is the roster's (note 724): either
+        // Shift with a crewmate's number puts them off, read as it is, whatever Run is bound to.
+        string[] own = ["F5", "ESC", "ENTER", "SHIFT", "UP/DOWN", "LEFT/RIGHT", "CLICK STICK", "STICK UP/DOWN", "STICK LEFT/RIGHT"];
         string src = Path.Combine(Path.GetDirectoryName(Content)!, "src", "DarkTerritory.Game");
         var labels = Directory.GetFiles(src, "Hud*.cs")
             .SelectMany(f => Literal().Matches(File.ReadAllText(f)))

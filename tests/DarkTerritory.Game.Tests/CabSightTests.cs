@@ -150,8 +150,11 @@ public class CabSightTests
             var c = TrainKit.DriverGauge(Engine, i);
             InView(new Double3(c.X, c.Y, c.Z), i == 3 ? "speed gauge" : $"gauge {i}");
         }
-        var map = TrainKit.MapPlate(Engine);
-        InView(new Double3(map.Corner.X + map.Width / 2, map.Corner.Y + map.Height / 2, map.Corner.Z), "map");
+        // Note 716 (the director, 14 Oct 2026: "I'm okay with moving the cab map behind the controls. On a table"): the map's
+        // on the chart table behind the driver now, a turn and a couple of steps away, not over the windows.
+        var onTable = System.Numerics.Vector3.Transform(new System.Numerics.Vector3(TrainKit.MapPlate(Engine).Width / 2, TrainKit.MapPlate(Engine).Height / 2, 0), TrainKit.MapToCab(Engine));
+        var mapAt = new Double3(onTable.X, onTable.Y, onTable.Z);
+        Assert.True(mapAt.Z > eye.Z && ((mapAt - eye) with { Y = 0 }).Length < 4, $"the map's at {mapAt}, the driver at {eye}");
         InView(Engine.Levers!.Value.Brake, "brake");
         // And big enough to read from there: a dial's face over six degrees across.
         var g = TrainKit.DriverGauge(Engine, 3);
@@ -166,9 +169,7 @@ public class CabSightTests
             var c = TrainKit.DriverGauge(Engine, i);
             Assert.True(c.Y + TrainKit.DriverGaugeRadius + 0.02f < TrainKit.CeilingAt(Engine, c.Z), $"gauge {i} is up in the ceiling");
             Assert.True(c.Y - TrainKit.DriverGaugeRadius > TrainKit.FrontWindow(Engine, 1).Y1, $"gauge {i} is down over the window");
-            Assert.True(c.X - TrainKit.DriverGaugeRadius > map.Corner.X + map.Width, $"gauge {i} is over the map");
         }
-        Assert.True(map.Corner.Y + map.Height < TrainKit.CeilingAt(Engine, map.Corner.Z), "the map is up in the ceiling");
     }
 
     [Fact]

@@ -10,7 +10,7 @@ namespace DarkTerritory.Sim.Net;
 /// steps the train and every player, and broadcasts a snapshot to each client with the last input
 /// it applied for them. The host player (when there is one) goes through the same intent path.
 /// </summary>
-public sealed class HostSession
+public sealed partial class HostSession
 {
     /// <summary>Beyond this many queued inputs a client is too far ahead; drop the oldest to bound latency.</summary>
     const int MaxQueuedInputs = 8;
@@ -157,6 +157,7 @@ public sealed class HostSession
         Expire();
         HangUp();
         BoardWaiting();
+        Sessions();
 
         // Note 717: the crew as they stand at the start of the tick, as the snapshot just sent (this tick's number) has them:
         // whom a shove or a bonk finds, and the crowd. Each crewmate is pushed out from among the crew as the snapshot they
@@ -464,6 +465,7 @@ public sealed class HostSession
         Messages.WriteWelcome(_writer, id, Tick, SessionInfo, token);
         _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
         _namesChanged |= World.Names.Count > 0;
+        TellSession(peer);
         Admit(id, peer);
         return id;
     }
@@ -575,12 +577,22 @@ public sealed class HostSession
             // whose place ran out) needs room. The greeting line itself takes no place: a connection that never speaks is
             // never counted, so it can't fill the crew or shut the lobby.
             byte? back = g.Token != 0 ? Return(g.Peer, g.Token) : null;
+            // Note 724: someone the crew put off doesn't come back to this run, by any door.
+            if (back is null && Banned(g.Peer, g.Name))
+            {
+                Refuse(g.Peer, RefusalReason.Kicked);
+                continue;
+            }
             // Note 450: a private run asks a new joiner for its password before it takes a place, so a guess fills nothing.
             if (back is null && !Admitted(g))
             {
                 Refuse(g.Peer, RefusalReason.Password);
                 continue;
             }
+            // Note 724 (GDD §33.1): a friend joining a night the bots crew takes a bot's seat where it stands, rather than
+            // waiting for a stop or the Holdouts' queue, or being turned away from a full crew.
+            if (back is null && !g.Bot && WouldWait && BotSeat() is { } seat)
+                back = TakeSeat(seat, g.Peer);
             if (back is null && Full)
             {
                 Refuse(g.Peer);
@@ -710,6 +722,7 @@ public sealed class HostSession
         Messages.WriteWelcome(_writer, id, Tick, SessionInfo, token);
         _transport.Send(peer, _writer.Written, Delivery.ReliableOrdered);
         _namesChanged = true;
+        TellSession(peer);
         _ballotsSent.Remove(id);
         if (World.Commendations.Count > 0)
         {
@@ -960,6 +973,12 @@ public sealed class HostSession
         var c = _crew.Find(x => x.Peer == peer);
         if (c is null)
             return;
+        // Note 724: put a crewmate off (the host's own player), or the public lobby's vote on it.
+        if (payload.Length == 2 && payload[0] == (byte)MessageType.Kick)
+        {
+            CallKick(c, payload[1]);
+            return;
+        }
         // Note 298: trying an outfit on, in the yard.
         if (payload.Length == 2 && payload[0] == (byte)MessageType.Wear)
         {
