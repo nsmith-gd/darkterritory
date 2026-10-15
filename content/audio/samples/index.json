@@ -11535,6 +11535,179 @@
   "takes": 1,
   "sha": "42654a26a23b367b"
  },
+ "cs-mouse-moose/bite": {
+  "cue": "cs-mouse-moose.bite",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Its teeth fastened on a casting: incisors clicking and scraping on iron, a short grunt as it braces",
+    "key": "iron",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "kenney_rpg-audio:drawKnife1",
+     "kenney_rpg-audio:drawKnife2",
+     "sfx_100_v2:misc_24",
+     "sfx_100_v2:misc_05",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "481a164b2f07c69c"
+ },
+ "cs-mouse-moose/bolt": {
+  "cue": "cs-mouse-moose.bolt",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Scared off: a shrill rat's squeal and a scrabble of claws bolting away over the gravel, gone",
+    "key": "squeal",
+    "sources": [
+     "kenney_rpg-audio:creak3",
+     "sfx_100_v2:misc_24",
+     "sfx_100_v2:misc_05",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "kenney_rpg-audio:drawKnife1",
+     "kenney_rpg-audio:drawKnife2",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "5e30d04fbd728cbe"
+ },
+ "cs-mouse-moose/dig": {
+  "cue": "cs-mouse-moose.dig",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Into its hole: earth scrabbled and kicked back, its antlers knocking twice on the rim, gone",
+    "key": "earth",
+    "sources": [
+     "kenney_impact-sounds:footstep_snow_000",
+     "kenney_impact-sounds:footstep_snow_001",
+     "kenney_impact-sounds:footstep_snow_002",
+     "kenney_impact-sounds:footstep_snow_003",
+     "kenney_impact-sounds:footstep_snow_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "7a976396ac179bb3"
+ },
+ "cs-mouse-moose/drag": {
+  "cue": "cs-mouse-moose.drag",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Dragging a casting off, very slowly: iron grinding over gravel in short tugs, the rat straining between",
+    "key": "gravel",
+    "sources": [
+     "sfx_100_v2:misc_10",
+     "sfx_100_v2:stones_03",
+     "kenney_rpg-audio:creak3",
+     "sfx_100_v2:misc_24",
+     "sfx_100_v2:misc_05",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "0ef40b2fbaf3f172"
+ },
+ "cs-mouse-moose/lost": {
+  "cue": "cs-mouse-moose.lost",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A casting dragged down its hole: the iron tipping over the edge and thudding into the earth, earth after it",
+    "key": "thud",
+    "sources": [
+     "sfx_100_v2:misc_10",
+     "sfx_100_v2:stones_03",
+     "kenney_impact-sounds:footstep_snow_000",
+     "kenney_impact-sounds:footstep_snow_001",
+     "kenney_impact-sounds:footstep_snow_002",
+     "kenney_impact-sounds:footstep_snow_003",
+     "kenney_impact-sounds:footstep_snow_004",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "92502b547b61574b"
+ },
  "cs-passenger/drag/wood": {
   "cue": "cs-passenger.drag",
   "surface": "wood",
@@ -17404,6 +17577,58 @@
   "takes": 1,
   "sha": "de70def04e492398"
  },
+ "tell-mouse-moose/creep": {
+  "cue": "tell-mouse-moose.creep",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Creeping in toward a casting: big claws ticking slowly over gravel and cinders, stopping to sniff, wet",
+    "key": "cinders",
+    "sources": [
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:misc_05",
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_02",
+     "sfx_100_v2:footstep_wet_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "41da1ab149c8f6cc"
+ },
+ "tell-mouse-moose/squeak": {
+  "cue": "tell-mouse-moose.squeak",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A rat's squeak, too big a rat: a single 'eek' pitched low for a dog-sized throat, its teeth chattering after",
+    "key": "hinge",
+    "sources": [
+     "kenney_rpg-audio:creak3",
+     "sfx_100_v2:misc_24",
+     "sfx_100_v2:misc_05",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_33",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "e2dda0de816ed46a"
+ },
  "tell-pickers/chitter": {
   "cue": "tell-pickers.chitter",
   "surface": null,
@@ -18432,8 +18657,8 @@
   "picked": "first",
   "candidates": [
    {
-    "label": "Banging on a Holdout's walls from inside, heard outside: fists, kicks, a tin on iron, frantic and uneven",
-    "key": "walls",
+    "label": "Banging on a Holdout's door from inside, heard at the door: fists, kicks, a tin on iron, frantic and uneven, each blow plain",
+    "key": "door",
     "sources": [
      "kenney_impact-sounds:impactWood_heavy_000",
      "kenney_impact-sounds:impactWood_heavy_001",
@@ -18454,17 +18679,17 @@
      "kenney_impact-sounds:impactMetal_medium_002",
      "kenney_impact-sounds:impactMetal_medium_003",
      "kenney_impact-sounds:impactMetal_medium_004",
-     "kenney_impact-sounds:impactSoft_medium_000",
-     "kenney_impact-sounds:impactSoft_medium_001",
-     "kenney_impact-sounds:impactSoft_medium_002",
-     "kenney_impact-sounds:impactSoft_medium_003",
-     "kenney_impact-sounds:impactSoft_medium_004"
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004"
     ],
     "licence": "CC0"
    }
   ],
   "takes": 4,
-  "sha": "286b12b5c5326929"
+  "sha": "39df8eb25a58e0ca"
  },
  "voice-clerk/bank": {
   "cue": "voice-clerk.bank",
