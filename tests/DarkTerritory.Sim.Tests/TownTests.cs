@@ -426,7 +426,8 @@ public class TownTests
     {
         // The director (7 Oct, with his photographs): "lots of variations so it doesn't feel like the same 10 assets
         // recycled across towns". Every character turns up, and within a town no two standing houses look alike (form,
-        // storeys, roof, dormers, siding, paint, wing, porch), but a company town's, which are one house in its own paints.
+        // storeys, roof, dormers, siding, paint, wing, porch), but a company town's, which are a few plans (houses.json
+        // company.plans), changed since by the families in them (note 815).
         var characters = new HashSet<string>();
         int towns = 0;
         // (The fortress characters are the town forms' own: with the forms in the trades' rotation, towns.json forms.enabled.)
@@ -444,7 +445,8 @@ public class TownTests
             var looks = standing.Select(h => (h.Design.GableFront, h.Design.Storeys, h.Design.Roof, h.Design.Dormer, h.Design.Shingle,
                 h.Design.Paint, h.Design.Ell != 0, h.Design.Porch)).ToList();
             if (plan.Character == "company")
-                Assert.Single(looks.Select(l => (l.GableFront, l.Storeys, l.Roof, l.Dormer)).Distinct());
+                // A plan's shape as built, gable or eaves to the street and its roof, is what no family changes.
+                Assert.InRange(looks.Select(l => (l.GableFront, l.Roof)).Distinct().Count(), 1, Towns.Looks.Characters.Single(c => c.Id == "company").Plans);
             else
                 Assert.True(looks.Distinct().Count() >= looks.Count * 0.8, $"seed {seed} ({plan.Character}): {looks.Distinct().Count()} looks among {looks.Count} houses");
             // What stands of a house stays in its lot and off the line.
