@@ -898,6 +898,8 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [727. The mail catch (K1, queue #461; the director, 14 Oct 2026, GDD App. F.6)](notes/727.md)
 - [728. The sense table, and thrown things do what they are (K1, queue #462; the director, 14 Oct 2026, `docs/design/friendslop.md`, GDD App. F.6;…](notes/728.md)
 - [729. The handcar (K1, queue #463; the director, 14 Oct 2026, `docs/design/friendslop.md`, GDD App. F.6)](notes/729.md)
+- [731. Painted masks (K1, queue #465; the director, 14 Oct 2026, `docs/design/friendslop.md`, GDD App. F.6)](notes/731.md)
+- [732. Sound cues in the world: what waits in a house, what's about to go, what's been hit (K1, queue #466; the director's calls of 14 Oct 2026,…](notes/732.md)
 - [733. The friendslop audit and the director's calls of 14 Oct (K1, queue #467)](notes/733.md)
 - [734. The cab's hatch ladder clips and the hatch flickers (A1, queue #468; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 1)](notes/734.md)
 - [735. The cab shakes and rocks; still slow (A1, queue #469; the director, 14 Oct, `docs/playtest/2026-10-14.md` lines 6, 20)](notes/735.md)
@@ -939,4 +941,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [782. Bringing them home heard (AU1, queue #512; K1's #1026, note 723's "left for later")](notes/782.md)
 - [783. Big finds heard (AU1, queue #513; K1's #1026, note 719's "left for later")](notes/783.md)
 - [784. The handcar heard (AU1, queue #514; K1's #1026, note 729's "left for later": "the sim's state says when")](notes/784.md)
+- [780. Each night its own lineside: the art's dressing dealt from the night's own seed, not the same at the same km every night (queue #510, B1;…](notes/780.md)
 <!-- end of the notes index -->

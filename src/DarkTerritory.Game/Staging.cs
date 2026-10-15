@@ -668,6 +668,32 @@ public static partial class Staging
     public const double SignalAhead = -26, SignalOut = 3.8, SignalCamera = 9.5;
 
     /// <summary>
+    /// Painted masks (note 731; dt screenshot --view masks | maskface): eight of the crew in a row on the ballast off the
+    /// engine's front, facing the camera 5 m out, each in another outfit and another paint (and one unpainted with a stencil
+    /// straight on the leather); the two at the ends with the hand lamp. The crew's sigil (--sigil, the scene's) is on every mask.
+    /// </summary>
+    public static List<Crewmate> Masks(TrainOnLine train)
+    {
+        // (Coat, stencil, ink), from 1 (look.json maskPaints, maskStencils): bone and teeth, red and a star, blue and their
+        // number, ochre and a crow, soot and X eyes, green and a moustache, plum and a heart, and a bolt on the bare mask.
+        (byte, byte, byte)[] paints = [(1, 3, 2), (3, 4, 1), (7, 5, 1), (5, 8, 2), (2, 11, 1), (6, 6, 2), (9, 7, 1), (0, 9, 1)];
+        var crew = new List<Crewmate>();
+        for (int i = 0; i < paints.Length; i++)
+        {
+            var feet = Lineside(train, MaskAhead + (i - 3.5) * MaskSpacing, MaskOut);
+            var to = Lineside(train, MaskAhead + (i - 3.5) * MaskSpacing * 0.3, MaskCamera) - feet;
+            bool lamp = i is 0 or 7;
+            var (coat, stencil, ink) = paints[i];
+            crew.Add(new Crewmate((byte)i, feet, Math.Atan2(-to.X, -to.Z), true, Act: lamp ? Art.CrewPose.Lantern : null, Lamp: lamp,
+                Paint: new Sim.Player.MaskPaint(coat, stencil, ink)));
+        }
+        return crew;
+    }
+
+    /// <summary>Where the staged masks stand (m): along from the engine's front, out from the line, a step apart; the camera 5 m out.</summary>
+    public const double MaskAhead = -24, MaskOut = 3.6, MaskSpacing = 0.95, MaskCamera = 8.6;
+
+    /// <summary>
     /// A driver at the engine's controls (note 445; dt screenshot --driver [--whistle] [--reverser s], views fireman, cab):
     /// stood between the regulator and the brake, facing forward, hands on them, or up on the whistle cord.
     /// </summary>
