@@ -291,3 +291,12 @@ launches are AU1.1, AU1.2, …. Entries are UTC; those before 12:55 on 7 Oct wer
 
 - **U1's find on #1040:** the cannon's shot sound waited for a round to leave the gun, and since #960 made shot endless (13 Oct) none ever does. No cannon has been heard firing since then. Claimed #528 (note 801): a shot is now heard off the reload it leaves the gun needing (or a round gone, where the stock is on).
 - The test faked a round gone, which is why it didn't catch this. It now fires as the sim does, and fails on the old trigger.
+
+## 15 Oct, ~15:10 UTC: a bot night heard whole; #533, and #532 opened
+
+- **The audit:** 8 minutes of frontier:7 with 4 bots and enemies, on the host's world. `GameAudio` listened from the middle car's roof and every voice's name was counted (a scratch test, not committed).
+  - 105 cues played; nothing that happened was silent. The footsteps, cab controls, slack, doors, ladders, the shovel and firebox, the switch, the foundry's crane and winch, the town and villages, the Draggers, Tippy, weather, the bridge and river all played.
+  - Before the audit, a static pass checked every installed sound's name against the code. All 828 are reached; 24 of them under game names.
+- **Found:**
+  - **#533 (note 805):** every running jump between roofs played the hit of a jump off a moving train (34 of them), and a running jump on open ground would add a tumble and scattered pockets. Fixed: the audio now reckons the knock as the sim does.
+  - **#532 (open, for the bots' owner):** the bot driver holds its speed by pulsing the full brake: 9 ticks on and 13 off on a descent, and every tick or two near the end of the line. That made 1,481 brake applications and 1,314 slack run-ins in 8 minutes. The sounds are faithful; the fix belongs to the driver (or a brake that builds in the sim).

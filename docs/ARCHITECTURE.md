@@ -969,4 +969,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [798. A friend on the crane's hook heard (AU1, queue #525; K1's #1046, note 726's "Sounds (AU1)")](notes/798.md)
 - [799. Wading heard, and the town types underfoot and their water (AU1, queue #526; T1's #1003, note 692)](notes/799.md)
 - [801. The cannon's shot heard again with the shot endless (AU1, queue #528; U1's find on #1040)](notes/801.md)
+- [805. A running jump heard as a jump off the train (AU1, queue #533; AU1's audio audit)](notes/805.md)
 <!-- end of the notes index -->

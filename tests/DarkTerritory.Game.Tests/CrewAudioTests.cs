@@ -667,6 +667,41 @@ public class CrewAudioTests
     }
 
     [Fact]
+    public void ARunningJumpBetweenRoofsOrAlongTheGroundIsALandingNotAJumpOffTheTrain()
+    {
+        // Queue #533, note 805: the sim knocks a landing only on the ground (PlayerMotor's Land), less a run's own speed where
+        // they left the ground on foot; on a car it's a landing. Heard by its across speed alone, every running jump from roof
+        // to roof was the hit of a jump off a moving train (34 in 8 minutes of a bot night), and a running jump on open ground
+        // that, a tumble and the pockets scattering too.
+        string[] feet = ["wood", "grate", "plate", "roof", "coal", "ballast", "dirt", "grass", "mud", "cobbles", "concrete", "water"];
+        var b = new Bench([.. feet.Select(m => $"crew-footsteps.land.{m}"), "crew-jump-off.impact.ground", "crew-jump-off.impact.grate",
+            "crew-mishaps.pocket-scatter"]);
+        int Landings() => b.Heard.Count(h => h.Name.StartsWith("crew-footsteps.land."));
+        int Impacts() => b.Heard.Count(h => h.Name.StartsWith("crew-jump-off.impact"));
+        // Running across the gap onto the next roof, at a run over the car (the car's frame).
+        var roof = PlayerMotor.SpawnOnRoof(b.Train, 1, 0, P);
+        var leaping = roof with { Surface = Surface.Air, Velocity = new Double3(0, -1, -P.Run), Position = roof.Position + Double3.Up * 0.3 };
+        b.Step((1, roof));
+        b.Step((1, leaping));
+        b.Step((1, roof));
+        Assert.Equal(0, Impacts());
+        Assert.Equal(1, b.Count("crew-footsteps.land.roof"));
+        // A running jump along the ground (left on foot: OffTheGround), at a run.
+        var at = b.Train.Line.Sample(4_000).Position;
+        var ground = PlayerMotor.SpawnOnGround(at, b.Train.Line, 4_000, P);
+        var jumping = ground with { Surface = Surface.Air, Flags = PlayerFlags.OffTheGround, Velocity = new Double3(P.Run, -1, 0),
+            Position = ground.Position + Double3.Up * 0.3 };
+        b.Step((2, ground));
+        b.Step((2, jumping));
+        b.Step((2, ground));
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            b.Step((2, ground));
+        Assert.Equal(0, Impacts());
+        Assert.Equal(2, Landings());
+        Assert.Equal(0, b.Count("crew-mishaps.pocket-scatter"));
+    }
+
+    [Fact]
     public void ABodyCarriedThroughADoorKnocksTheFrameAndSetDownItsBootFollows()
     {
         var b = new Bench("crew-carry.body-lift", "crew-carry.body-set.wood", "crew-mishaps.body-boot.wood", "crew-mishaps.body-knock");

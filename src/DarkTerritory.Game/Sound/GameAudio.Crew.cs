@@ -333,17 +333,15 @@ public sealed partial class GameAudio
                 string? mat = Footing.Under(s, world);
                 double rollAbove = tuning?.Landing.RollAbove ?? 1.5;
                 landedHard = s.Health < c.Health;
-                if (c.Surface == Surface.Air || across > rollAbove)
+                double knock = Knock(c, across, onTrain, tuning);
+                if (c.Surface == Surface.Air || knock > rollAbove)
                 {
-                    if (across > rollAbove)
+                    if (knock > rollAbove)
                     {
                         // Off a moving train (spec B.3): the hit, and a roll along the ballast after.
-                        Cue("crew-jump-off.impact", onTrain ? "grate" : "ground", feet, occlusion);
-                        if (!onTrain)
-                        {
-                            c.TumbleUntil = _time + Math.Min(1.5, 0.4 + 0.08 * across);
-                            CrewAfter(ScatterAfterLanding, "crew-mishaps.pocket-scatter", feet, occlusion);
-                        }
+                        Cue("crew-jump-off.impact", "ground", feet, occlusion);
+                        c.TumbleUntil = _time + Math.Min(1.5, 0.4 + 0.08 * across);
+                        CrewAfter(ScatterAfterLanding, "crew-mishaps.pocket-scatter", feet, occlusion);
                     }
                     else if (s.Surface == Surface.Coupler)
                         Cue("crew-ladder.gap-land", feet, occlusion);
@@ -502,6 +500,23 @@ public sealed partial class GameAudio
         }
         foreach (var gone in _crewMembers.Keys.Where(k => !seen.Contains(k)).ToList())
             _crewMembers.Remove(gone);
+    }
+
+    /// <summary>
+    /// How hard a landing comes down across, as the sim reckons its knock (<see cref="PlayerMotor"/>'s Land, queue #533, note
+    /// 805): only on the ground, by the speed over it; less a run's own where they left the ground on foot (note 573: a
+    /// running jump is no fall), and a friend's shove's own (note 717). A landing on a car is a landing: the sim takes no knock
+    /// there, so a running jump from roof to roof isn't a jump off the train.
+    /// </summary>
+    static double Knock(CrewMember c, double across, bool onTrain, PlayerTuning? tuning)
+    {
+        if (onTrain)
+            return 0;
+        if (c.Flags.HasFlag(PlayerFlags.OffTheGround))
+            across = Math.Max(0, across - (tuning?.Run ?? 0));
+        if (c.Flags.HasFlag(PlayerFlags.Shoved))
+            across = Math.Max(0, across - (tuning?.Horseplay.Shove.Speed ?? 0));
+        return across;
     }
 
     void Remember(CrewMember c, in PlayerState s, World world)
