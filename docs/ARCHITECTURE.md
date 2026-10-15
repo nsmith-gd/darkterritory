@@ -874,6 +874,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [688. Chimney smoke runs faster as the player moves (D1, queue #420; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 4)](notes/688.md)
 - [689. The guns said NO STEAM after coaling, and wouldn't fire (D1, queue #421; the director, 13 Oct evening,…](notes/689.md)
 - [691. A performance report from a build (A1, queue #423; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 5)](notes/691.md)
+- [692. Town types: five town forms on the walled town, a way in and a way out, the same town arrived at and left from (T1, queue #424; the…](notes/692.md)
 - [693. A board stands back beyond a dead line alongside (B4, queue #425; note 560's handoff, not yet (3); the director, 13 Oct, `pt13-signs`: "I…](notes/693.md)
 - [694. The townsfolk lookbook (P1, queue #426; the director, 13 Oct 2026, with a lookbook of ten town characters: "We want to create more NPC…](notes/694.md)
 - [695. A top-to-bottom performance audit (A1, queue #427; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` lines 1–3)](notes/695.md)

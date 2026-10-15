@@ -1036,6 +1036,9 @@ static int ScreenshotBatch(TrainTuning t, string content, string file, bool chec
 
 static object Screenshot(TrainTuning t, string content, string[] args)
 {
+    // --form: every town the one type (towns.json forms.force; note 692), "street" the street town of note 335.
+    if (Str(args, "--form", "") is { Length: > 0 } townForm)
+        DarkTerritory.Game.PrototypeSession.TownForm = townForm == "street" ? "" : townForm;
     string view = Str(args, "--view", "trackside");
     // Note 721: the crew photo at the gate (crewphoto: a delivered night stood home at its terminus, four of the crew, one
     // dead, Staging.PhotoCrew) and the departure town's board of lost crews (lostcrews: two crews' cards, Staging.LostCrews).
@@ -1192,8 +1195,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // note 281), the train at the gate as a night starts, the camera standing in it (square: at the way in from the engine,
     // looking at the centrepiece; houses down its street; house, kitchen, parlour: the first open house, outside and in).
     DarkTerritory.Sim.Towns.Town? town = null;
-    if (args.Contains("--town") && generated is not null && DarkTerritory.Sim.Towns.TownContent.Load(content) is { } towns)
+    if (args.Contains("--town") && generated is not null && DarkTerritory.Sim.Towns.TownContent.Load(content) is { } loadedTowns)
     {
+        var towns = DarkTerritory.Game.PrototypeSession.TownForm is { } townType
+            ? loadedTowns with { Tuning = loadedTowns.Tuning with { Forms = loadedTowns.Tuning.Forms with { Force = townType } } } : loadedTowns;
         var runTuning = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
         double gate = generated.GateOr(RouteTuning.Load(content).YardLength);
         if (!args.Contains("--at"))
@@ -1202,6 +1207,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         var roster = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).Director.Roster;
         town = new DarkTerritory.Sim.Towns.Town(DarkTerritory.Sim.Towns.TownGenerator.Generate(towns, DarkTerritory.Sim.Towns.TownSite.Of(generated, gate, roster, towns)),
             towns.Tuning, line, towns.Looks);
+        town.Lay(line);
         // --clock s: that far into the night, the town's people on their rounds (note 353).
         town.Clock = Opt(args, "--clock", 0);
         // --bell: its council house's bell just rung (note 730), everyone within earshot stopped and looking up at it.
@@ -1217,8 +1223,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // the train stopped home inside its gate, the camera standing in it as --town's does in the departure's (TownCamera,
     // the town's own frame). `--arrival depart` is the same town as the next night's departure stands it, for comparing.
     DarkTerritory.Sim.Towns.Town? arrival = null;
-    if (args.Contains("--arrival") && generated is not null && DarkTerritory.Sim.Towns.TownContent.Load(content) is { } arrivalTowns)
+    if (args.Contains("--arrival") && generated is not null && DarkTerritory.Sim.Towns.TownContent.Load(content) is { } loadedArrival)
     {
+        var arrivalTowns = DarkTerritory.Game.PrototypeSession.TownForm is { } arrivalType
+            ? loadedArrival with { Tuning = loadedArrival.Tuning with { Forms = loadedArrival.Tuning.Forms with { Force = arrivalType } } } : loadedArrival;
         var runTuning = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
         double gate = generated.GateOr(RouteTuning.Load(content).YardLength);
         var roster = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).Director.Roster;
@@ -1237,10 +1245,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             if (!args.Contains("--at"))
                 at = runTuning.DepartFrom(nextGate, consist.LengthMetres);
             town.Clock = Opt(args, "--clock", 0);
+            town.Lay(line);
         }
         else
         {
             arrival = DarkTerritory.Sim.Towns.Town.AtTerminus(arrivalTowns, generated, line, gate, roster, departure.Culture, named);
+            arrival?.Lay(line);
             run ??= new DarkTerritory.Sim.Run.Run(runTuning, generated) { YardLength = gate };
             if (!args.Contains("--at") && generated.Plan?.Terminus is { } terminus)
                 at = terminus.GateM + (runTuning.HomeInsideGateM ?? 0) + consist.LengthMetres + 10;
