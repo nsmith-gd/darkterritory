@@ -980,4 +980,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [805. A running jump heard as a jump off the train (AU1, queue #533; AU1's audio audit)](notes/805.md)
 - [808. The lineside's buildings keep off each other (queue #536, B1; note 800's "not yet"; GDD App. F.1, the director: "The world is solid")](notes/808.md)
 - [815. Houses that don't all look alike (queue #543, B2; the director's playtest of 13 Oct evening, line 7, frontier:7's town: "A lot of the house…](notes/815.md)
+- [817. What's solid holds you up (queue #545, B1; note 797's "not yet"; GDD App. F.1, the director: "The world is solid")](notes/817.md)
 <!-- end of the notes index -->
