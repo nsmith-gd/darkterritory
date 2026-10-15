@@ -822,6 +822,7 @@ A child calling for help. Half the time it's a real survivor, the most valuable 
 > **RULE: check the eyes from five metres.**
 Black eyes and blackened hands mean a Soot Child. Get within five metres and it pins you and drinks. Your cries for help get quieter.
 *(The director, 13 Oct 2026, from the creature gym, App. F.5.)* A real survivor, picked up, is carried in both arms in front of you, plainly a child being carried, for you and the crew to see: it should feel like a rescue. A Soot Child gives one clear tell in the last second before it pins you, a last chance to read it and get away.
+*(The director, 15 Oct 2026, after "I also haven't seen like a rescue child ever"; note 770.)* **Alone, you hear it too.** The call used to come only to a crew of two or more, so a solo night never had a child in it. Now it comes to anyone: a real child is yours to carry home, and a Soot Child is a struggle on your own (App. C.1: one try a grab, a coin flip).
 
 **THE MOURNERS** · *wherever a crewmate fell off the train* *(the director's brief, 2026-10-08)*
 A huddle of grey, stooping things with long hooked fingers, picking their way toward your dead.
@@ -2251,7 +2252,7 @@ At least one pair per run on Frontier and above. Two on Deep Territory.
 | **Ribbits** | Yards and villages | Any tier · pack capped at crew size | Weight up per player on the ground |
 | **The Gaunt** | Asleep in villages and yards | Frontier+ (first pass) · once per run | Weight up on long facility stops |
 | **Followers** | Facility grounds; latches onto a disembarked player | Requires an excursion · any tier | Weight up per additional player on the ground |
-| **Soot Children** | Near facilities and dead settlements | Crew ≥2 | True 50/50 with a real child survivor; a host player's first-ever call is always a real child |
+| **Soot Children** | Near facilities and dead settlements | Any crew, alone too *(the director, 15 Oct 2026; note 770)* | True 50/50 with a real child survivor; a host player's first-ever call is always a real child |
 | **The Moose** | Grazing beside a stop, 30–60 m out; beside the line on the run (2–5 per 10 km by tier, the line's own, costing the director nothing) | **Every tier** · one about at a time · never within the track's clearance | ×1 Local, ×1.5 Frontier, ×2 Dead Lines, ×2.5 Deep Territory; ×2 bog, ×1.5 barrens and tar ponds, less in towns and coal country; up per player on the ground |
 | **The Mourners** | Beside a crewmate's body off the train, 15 s after the death | **Every tier** (G1's call) · only after a death · one group a body · never in a fort or a car of the train · not the director's (no cost, no cap) | Their number by tier: 3 Local, 4 Frontier, 5 Dead Lines, 6 Deep Territory |
 | **Tower Jaw** | At a facility's coaling tower (or crane gantry), at work as the train comes within 800 m or stands there | **Every tier** (G1's call) · never a bridge · one at a stop · not at a structure already down | ×1 Local, ×1.5 Frontier, ×2 Dead Lines, ×2 Deep Territory |
