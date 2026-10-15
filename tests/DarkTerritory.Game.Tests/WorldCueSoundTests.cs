@@ -39,7 +39,11 @@ public class WorldCueSoundTests
             World.Train.Dynamics.Velocity = Speed;
             Audio = new GameAudio(Content);
             _under = [.. listen];
-            // What's under test is installed as a plain stand-in; a hook's own cue not in `installed` is taken out.
+            // What's under test is installed as a plain stand-in; a hook's own cue not in `installed` is taken out (AU1's are in
+            // the content since note 785), so the stand-ins are what's heard without it.
+            foreach (var own in Own)
+                if (!installed.Contains(own))
+                    Audio.Bank.Remove(own);
             foreach (var s in listen)
                 if (installed.Contains(s) || Audio.HasCue(s))
                     Audio.Bank.Add(s, new SoundDef(5, [new LayerDef(SourceKind.Noise, 0.1)], Duration: 0.1, MaxInstances: 16));
@@ -63,6 +67,13 @@ public class WorldCueSoundTests
             return heard;
         }
     }
+
+    /// <summary>Each hook's own cue (AU1's, note 785).</summary>
+    static readonly string[] Own =
+    [
+        "state-coupling-loose.jump-brake", "state-coupling-loose.jump-coupled", "state-coupling-loose.jump-bend", "tell-house.creak",
+        "tell-householder.shift", "world-bell.far", "world-dog.bark",
+    ];
 
     const string Knock = "state-coupling-loose.knock", PinLift = "crew-coupling.pin-lift", RunIn = "bed-slack.run-in", Frame = "bed-groan.creak";
 
