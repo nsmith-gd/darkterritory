@@ -10,12 +10,12 @@ rule 9), saying so in the item's row and their log.
   720, 725). Protocol 59.
 - In review from `ccr-f72c055b-195xp3`: #450 the big cab (note 716; with #459's lamp per crewmate aboard), #455 crew
   memory (note 721; the logbook on the cab's front bench), #458 sessions (note 724; protocol 61) (#1016); then #462 the
-  sense table (note 728; protocol 62) and #457 bringing them home (note 723; protocol 63).
+  sense table (note 728; protocol 62), #457 bringing them home (note 723; 63) and #453 big finds (note 719; 64).
 
 ## Not started (specs in `specs/`, each with `specs/preamble.md`'s rules)
-#453 big finds (building; B4's #472 already put small finds on the floors) · #456 emotes for two (needs #454's
+#456 emotes for two (needs #454's
 lamp-signal wheel, merged) · #460 hoist a friend (D1.5 holds the crane's
-controls, #449) · #463 the handcar (building) · #464 odd outcomes · #465 painted masks · #466 sound cues in the world (and the
+controls, #449) · #463 the handcar (building) · #464 odd outcomes · #465 painted masks (building) · #466 sound cues in the world (and the
 loose coupling's cause, 14 Oct playtest line 12).
 
 ## Open threads
