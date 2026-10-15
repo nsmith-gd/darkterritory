@@ -935,4 +935,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [776. K1's crew car and crew memory heard (AU1, queue #506; K1's #1016, notes 716 and 721; K1's asks on #1012)](notes/776.md)
 - [777. A ping heard (AU1, queue #507; A1's #1024, note 739)](notes/777.md)
 - [778. Nothing lies across the track: the boughs, the deadfall, a boulder, the yards' racks of rail, the stands' trees, a dead line's land and the…](notes/778.md)
+- [780. Each night its own lineside: the art's dressing dealt from the night's own seed, not the same at the same km every night (queue #510, B1;…](notes/780.md)
 <!-- end of the notes index -->
