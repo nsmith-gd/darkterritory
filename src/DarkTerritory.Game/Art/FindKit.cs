@@ -399,6 +399,39 @@ public static class FindKit
                 for (int i = 0; i < 3; i++)
                     k.Cylinder(o + new Vector3(-0.14f, 0.035f, 0), o + new Vector3(-0.19f - i * 0.01f, 0.04f + i * 0.01f, -0.02f + i * 0.02f), 0.006f, 4);
                 break;
+            case "davePainting":
+                // Dave's gift (note 730): a small canvas on its stretcher lying face up, the world as it used to be: a pale
+                // morning sky, a far blue hill, green fields, a lake with the sky in it; his D in the corner.
+                k.Use("wood_crate", new Vector3(0.6f, 0.48f, 0.32f), 0.7f, 0, tile: 0.2f);
+                k.Box(o + new Vector3(-0.17f, 0, -0.12f), o + new Vector3(0.17f, 0.025f, 0.12f));
+                k.Use("paper_form", new Vector3(0.9f), 0.6f, 0, tile: 1);
+                k.Emissive = 0.08f;
+                (float Z0, float Z1, Vector3 Colour)[] bands =
+                [
+                    (-0.11f, -0.04f, new Vector3(0.62f, 0.74f, 0.86f)), (-0.04f, -0.01f, new Vector3(0.36f, 0.46f, 0.66f)),
+                    (-0.01f, 0.05f, new Vector3(0.34f, 0.58f, 0.24f)), (0.05f, 0.11f, new Vector3(0.48f, 0.66f, 0.3f)),
+                ];
+                foreach (var (z0, z1, colour) in bands)
+                {
+                    k.Tint = colour;
+                    k.Box(o + new Vector3(-0.16f, 0.025f, z0), o + new Vector3(0.16f, 0.03f, z1));
+                }
+                k.Tint = new Vector3(0.55f, 0.7f, 0.85f);
+                k.Box(o + new Vector3(0.02f, 0.03f, 0.0f), o + new Vector3(0.12f, 0.033f, 0.04f));
+                k.Tint = new Vector3(0.98f, 0.88f, 0.55f);
+                k.Disc(o + new Vector3(-0.09f, 0.032f, -0.08f), Vector3.UnitY, 0.018f, 10);
+                k.Tint = new Vector3(0.1f);
+                k.Box(o + new Vector3(0.13f, 0.033f, 0.09f), o + new Vector3(0.145f, 0.035f, 0.1f));
+                k.Tint = Vector3.One;
+                k.Emissive = 0;
+                break;
+            case "oldCoin":
+                // What came back up the well (note 730): a big old copper, green at its edge, its face worn smooth.
+                k.Use("rust_heavy", new Vector3(0.6f, 0.38f, 0.2f), 0.4f, 0.8f, tile: 0.1f);
+                Band(k, o, 0.04f, 0, 0.008f, "brass", 16);
+                k.Use("rust_heavy", new Vector3(0.66f, 0.44f, 0.24f), 0.35f, 0.85f, tile: 0.1f);
+                k.Disc(o + new Vector3(0, 0.0085f, 0), Vector3.UnitY, 0.038f, 16);
+                break;
             default:
                 // Anything else: a clean bundle in sacking, stencilled.
                 LabelledBox(k, o + new Vector3(0, 0.07f, 0), new Vector3(0.13f, 0.07f, 0.09f), "supplies", "supplies");

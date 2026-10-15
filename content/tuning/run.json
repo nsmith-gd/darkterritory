@@ -114,6 +114,59 @@
     "overfillDamagePerUnit": 0.0015
   },
 
+  // Odd outcomes to find (queue #464, ARCHITECTURE §8 note 730; GDD §3 and App. F.6, the director, 14 Oct 2026: things that
+  // answer when poked, never in the Wiki). Note 730 is their wiki, for the team only: nothing in the game explains them. None
+  // hurts anyone or solves a creature; each is the host's and the same on every machine. Off with "enabled": false.
+  "oddities": {
+    "enabled": true,
+    // How long each happening stays on the wire (s), so a dropped snapshot doesn't lose it.
+    "keepSeconds": 4,
+    // The council house's bell rope, beside its door in a walled town: Use held holdSeconds rings it (not more often than
+    // everySeconds), and everyone in the town within earshotM stops and looks up at the cupola for lookSeconds.
+    "bell": { "holdSeconds": 1.2, "reach": 1.3, "earshotM": 90, "lookSeconds": 6, "everySeconds": 20 },
+    // A crewmate's wave (the emote) at a townsperson within reachM and coneDegrees of where they face: they wave back.
+    "wave": { "reachM": 12, "coneDegrees": 30, "seconds": 2.5 },
+    // Dave (GDD §3.2): sit with him a while (Use held holdSeconds within reach, empty-handed, while he's painting) and he gives
+    // you a painting, once a night: loot.json item `item`, worth perCar of the tier's per-car value ("a painting signed D").
+    "painting": { "holdSeconds": 10, "reach": 3, "item": "davePainting", "perCar": 0.08 },
+    // A village's well: a find or a toy in hand, Use at its mouth (within reach) drops it down, and splashSeconds later it's
+    // heard hit the water. The night's first, coinSeconds after its splash, something throws an old coin back up (coinItem,
+    // worth coinPerCar). Empty-handed and sooted, Use held washSeconds there washes the soot off.
+    "well": { "reach": 1.6, "splashSeconds": 2.8, "coinSeconds": 6, "coinItem": "oldCoin", "coinPerCar": 0.04, "washSeconds": 2 },
+    // A tin can lying on a village's road (chance a village, within nearHouseM of one of its houses): walked into faster
+    // than kickSpeed (m/s) within reach of it, it's kicked kickM metres on (least, most) and rattles; answerSeconds later
+    // (least, most) something barks back from the dark, answerM off, away from the train. Heard only by the living.
+    "can": { "chance": 0.6, "nearHouseM": 25, "reach": 0.5, "kickSpeed": 2, "kickM": [3, 6], "answerSeconds": [1.2, 2.4], "answerM": 90 },
+    // A scarecrow at a farmstead village (chance), looking out over its fields: once a crewmate's been within nearM of it, and
+    // then nobody's within turnBeyondM or looking at it (within lookDegrees of their view), it's turned to face the line.
+    "scarecrow": { "chance": 0.8, "nearM": 15, "turnBeyondM": 30, "lookDegrees": 60 },
+    // A postbox at a village (chance): by a halt's platform, else where its road comes in nearest the line. Use held
+    // holdSeconds takes out the letter nobody collected, which is read out to the one who took it and goes in the night's
+    // report. One letter a box; the night's seed picks which.
+    "postbox": {
+      "chance": 0.5,
+      "holdSeconds": 1.5,
+      "reach": 1.3,
+      "letters": [
+        { "to": "Mrs. Agnes MacNeil, the Brook Road", "text": "Don't wait up. If the lamp's still lit when we come by, we'll know. If it isn't, we'll know that too. Feed the cat. J." },
+        { "to": "The stationmaster", "text": "Sir. The 4:10 did not stop. It slowed, and the doors were open, and nobody got on or off, and then it went on. I am putting this in writing because nobody believes me when I say it." },
+        { "to": "Peggy", "text": "We found the Gillis girl's mitten on the line past the cut. Only the one. Tell her mother we're still looking. Don't tell her where." },
+        { "to": "Whoever comes next", "text": "The pump in the yard works if you pour a cup down it first. The well is good. The house at the end is not. Leave the shutters as you find them." },
+        { "to": "Father Doucet", "text": "Father, the singing has started again under the floor of the school. The children say it is only the pipes. The school has no pipes." },
+        { "to": "Mr. and Mrs. Aucoin", "text": "Your boy reached us at the junction. He's well and he's eating. He says he left the gate open behind him and he's sorry. He says to shut it." },
+        { "to": "The Company, Head Office", "text": "Gentlemen. I return the enclosed wages. There is nobody left here to pay them to. The coal is still in the bunker. Send a train for it if you dare. Chisholm, agent." },
+        { "to": "Mary", "text": "I counted them going out tonight. Eleven. I counted them coming back. Twelve. I didn't say anything. Nobody said anything. Burn this." },
+        { "to": "To the crew of the night train", "text": "If you are reading this, you stopped. Thank you for stopping. Nobody stops. There is tea in the tin behind the stove. It isn't much." }
+      ]
+    },
+    // The coaling chute (GDD §18): anyone within reach of where the coal falls while it pours comes out of it sooted.
+    "chute": { "reach": 1.8 },
+    // A switch thrown with a crewmate stood on its blades (within bladesHalfWidth of the main line between the toe and the
+    // points' end): a harmless lurch, off their feet at speed (m/s) toward the way it's thrown, up at lift, staggered
+    // staggerSeconds.
+    "lurch": { "bladesHalfWidth": 1.0, "speed": 1.6, "lift": 1.4, "staggerSeconds": 0.5 }
+  },
+
   // GDD §1 *The fantasy*, §17-18 (the director, 9 Oct 2026, ARCHITECTURE §8 note 575: "if I skip everything and just drive
   // the train to town, I get scrip and a payout? the train cars should be totally empty and we are the ones who have to fill
   // them"): cars leave the fortress this full (a fraction of a load each). Empty: every load the night pays for is one the

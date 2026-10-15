@@ -90,7 +90,9 @@ public static class Protocol
     // 61: sessions (note 724): the crew's save sent to everyone aboard as a night's settled (CrewSave, in chunks); kick and the
     //     public lobby's vote to put a player off (Kick, KickVote, Kicked; a Refused can say the crew put you off); and the
     //     lobby's crew mischief switch (Mischief), changed in the yard.
-    public const int Version = 61;
+    // 62: odd outcomes (note 730): what they did (RecordKind.Odd) and the stops' odd things' state (RecordKind.Oddity), and the
+    //     report's letters (IncidentKind.Letter).
+    public const int Version = 62;
 }
 
 public enum MessageType : byte

@@ -314,6 +314,10 @@ A very few people live outside the walls and aren't anybody's prey. They are rar
 - **What it doesn't touch.** The cargo and what it's worth, the finds, the coal in the tender and the powder: they're supplies, not the train's condition, and the night's tally stays the crew's. A car already lost stays lost.
 - **Once a night.** After that he says so ("There. She'll run like the morning she was built. Go on, now, before the tide turns.").
 
+### 3.3 Odd things *(the director, 14 Oct 2026, App. F.6; ARCHITECTURE §8 note 730)*
+
+Odd things happen in the towns and at the stops, by design, unexplained. A few things in the world answer when they're poked, and nothing in the game or the Wiki says which or how: crews find them, tell each other, and argue about what they mean. None hurts anyone or solves a creature. What they are is kept for the team in note 730, and nowhere a player reads.
+
 ## 4. The player's place in it
 
 The players are freight crews. Not elite soldiers. Not monster hunters. Not chosen heroes.
@@ -2786,6 +2790,7 @@ genre ... It's extremely important that friends exceeds our target meaningfully.
 - **Comet cargo at real stops, extra valuable and exciting to see; trophies sometimes from team kills; very big finds take
   two.** *Queue #452, #453.*
 - The rest of docs/design/friendslop.md §3 goes ahead (queue #450–#466).
+- **Odd outcomes to find,** about ten, never in the Wiki: odd things happen in the towns and at the stops, unexplained (§3.3). *Queue #464, note 730.*
 
 ## F.5 2026-10-13 — the creature gym, Test build 21 (ca0d37e)
 

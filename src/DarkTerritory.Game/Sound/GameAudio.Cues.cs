@@ -59,6 +59,7 @@ public sealed partial class GameAudio
         _heldNow.Clear();
         CrewSounds(world);
         HorseplaySounds(world);
+        OddSounds(world);
         CreatureSounds(world);
         TrainSounds(world);
         OutsideSounds(world);

@@ -177,6 +177,8 @@
     "gannetHead": "The Gannet's head", "cometFragment": "Comet fragment", "grumblerJaw": "The Grumbler's jaw",
     "gauntHand": "The Gaunt's hand", "climberClaw": "A Climber's claw", "passengerCap": "The Passenger's cap",
     "brakemanWheel": "The Brakeman's wheel", "knotterClaw": "A Knotter's claw", "hotboxPlate": "A Hotbox plate",
-    "beetleShovel": "The Beetle's shovel", "towerJawTooth": "Tower Jaw's tooth"
+    "beetleShovel": "The Beetle's shovel", "towerJawTooth": "Tower Jaw's tooth",
+    // Note 730's odd finds (run.json oddities): Dave's gift, and what comes back up a well.
+    "davePainting": "A painting signed D", "oldCoin": "An old coin"
   }
 }

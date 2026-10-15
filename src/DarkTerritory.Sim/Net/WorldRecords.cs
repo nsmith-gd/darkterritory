@@ -8,7 +8,7 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Net;
 
-public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13, Hit = 14, Impact = 15, Heap = 16, Swing = 17, Emote = 18, Search = 19, Door = 20, News = 21, Horseplay = 22, Lump = 23, Signal = 24 }
+public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13, Hit = 14, Impact = 15, Heap = 16, Swing = 17, Emote = 18, Search = 19, Door = 20, News = 21, Horseplay = 22, Lump = 23, Signal = 24, Odd = 25, Oddity = 26 }
 
 /// <summary>One replicated thing as fixed-point integers. <see cref="Key"/> is kind in the top byte, id below.</summary>
 public readonly record struct WireRecord(uint Key, long[] Fields)
@@ -145,6 +145,11 @@ public static class WorldRecords
         // Lamp signals (note 720): who, which, and when it began.
         foreach (var e in world.Signals)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Signal, e.Id), [e.Tick, e.By, (long)e.Kind]));
+        // Odd outcomes (note 730): what happened, who did it, at which thing, where; then the odd things' state, one record.
+        foreach (var e in world.OddEvents)
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Odd, e.Id), [e.Tick, (long)e.Kind, e.By, e.Thing, Q(e.At.X, Pos), Q(e.At.Y, Pos), Q(e.At.Z, Pos)]));
+        if (world.Oddities is { } odds)
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Oddity, 0), odds.Capture(v => Q(v, Pos))));
         // The news (note 663): what was lost or broke, and what did it, for every crewmate's line; then the cars lost.
         foreach (var e in world.News)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.News, e.Id),
@@ -353,6 +358,8 @@ public static class WorldRecords
         var horseplay = new List<HorseplayEvent>();
         var lumps = new List<LumpInFlight>();
         var signals = new List<SignalEvent>();
+        var odd = new List<Run.OddEvent>();
+        long[]? oddity = null;
         var news = new List<NewsEvent>();
         var impacts = new List<CannonImpact>();
         foreach (var r in records)
@@ -482,6 +489,12 @@ public static class WorldRecords
                 case RecordKind.Signal when !world.Authority:
                     signals.Add(new SignalEvent(r.Id, (uint)f[0], (int)f[1], (LampSignal)f[2]));
                     break;
+                case RecordKind.Odd when !world.Authority && f.Length >= 7:
+                    odd.Add(new Run.OddEvent(r.Id, (uint)f[0], (Run.OddKind)f[1], (int)f[2], (int)f[3], new Double3(D(f[4], Pos), D(f[5], Pos), D(f[6], Pos))));
+                    break;
+                case RecordKind.Oddity when !world.Authority:
+                    oddity = f;
+                    break;
                 case RecordKind.News when !world.Authority:
                     news.Add(new NewsEvent(r.Id, (uint)f[0], (NewsKind)f[1], [.. f.Skip(6).Select(c => (int)c)], (byte)f[2], (byte)f[3], (int)f[4], D(f[5], Fine)));
                     break;
@@ -562,6 +575,7 @@ public static class WorldRecords
             world.MirrorEnemies(enemies);
             world.MirrorHits(hits, impacts, swings, emotes, news, signals);
             world.MirrorHorseplay(horseplay, lumps);
+            world.MirrorOddities(odd, oddity, q => D(q, Pos), players.Select(p => ((int)p.Id, p.State)));
             world.Bodies.Mirror(bodies);
             world.Train.Lying = world.Bodies.Lying(world.Train);
             // Seen a radio once, a client knows they're things tonight (T41): no radio on you, no radio.

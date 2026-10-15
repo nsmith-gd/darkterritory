@@ -126,6 +126,9 @@ public static partial class Hud
         bool figureCard = false;
         if (townCard is null && !over && figures?.Card(now) is { } said)
             (townCard, figureCard) = (said, true);
+        // A letter just taken from a postbox (note 730), read out to whoever took it.
+        if (townCard is null && !over && LetterCard(s, now) is { } letter)
+            townCard = letter;
         if (townCard is not null)
             TownCardOn(o, width, height, townCard, line);
         string? prompt = over ? null : Prompt(s);
@@ -2310,6 +2313,9 @@ public static partial class Hud
         if (world.Bodies.CarriedBy(s.PlayerId) is { Pocket: >= 0 } slotted && p.Parent == PlayerState.World && Kit.SlotFor(p) >= 0
             && SwitchPrompt(world, p, train, world.Hand) is null && HealPrompt(s, slotted) is null && TakePrompt(world, p, train, s.PlayerId) is { } another)
             return another;
+        // Note 730: a find or a toy in hand at a village's well goes down it.
+        if (WellPrompt(s) is { } well)
+            return well;
         if (world.Bodies.CarriedBy(s.PlayerId) is { } inHands)
             return PowderPrompt(s, inHands) ?? SwitchPrompt(world, p, train, world.Hand) ?? HealPrompt(s, inHands);
         // T112: the gun's seat and its own controls.
@@ -2405,6 +2411,9 @@ public static partial class Hud
         // A switch stand's lever (queue #94, note 357): Use is the lever's there, so it's offered before what's lying by it.
         if (SwitchPrompt(world, p, train, hand) is { } atStand)
             return atStand;
+        // Note 730: the bell rope by a council house's door (before the door's knock), a wash at a well, a postbox.
+        if (OddPrompt(s) is { } odd)
+            return odd;
         // Dave or Jacob (notes 570, 572): a word with him, before anything lying at his feet.
         if (FigureTalk.Target(s) is { } figure)
             return FigureTalk.Prompt(figure);
