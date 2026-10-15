@@ -473,6 +473,16 @@ public sealed partial class CrewCalls
         if (!_fireHands.TryGetValue(car, out var hands))
             _fireHands[car] = hands = [];
         hands.RemoveAll(h => h.Who != who && tick - h.Seen > SimConstants.TickRate);
+        // Note 739: the bot sent to this fire by a ping is its first hand, ahead of whoever claimed it first (a gunner's legs
+        // at their gun on that car claim it and sit on: the pinged walker came second and stayed out).
+        if (OrderOf(who) is { Kind: Player.PingKind.Fire, Target: var pinged } && pinged == car)
+        {
+            hands.RemoveAll(h => h.Who == who);
+            hands.Insert(0, (who, tick));
+            if (hands.Count > 2)
+                hands.RemoveRange(2, hands.Count - 2);
+            return 1;
+        }
         int at = hands.FindIndex(h => h.Who == who);
         if (at >= 0)
         {
@@ -3897,11 +3907,14 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         {
             Doing = "out of the cab";
             double door = CabDoorZ(train);
-            // The coal bunker stands along the left wall at the cab's front (note 280): on that side, back down the floor
-            // clear of it to the doorway's height first, then out.
-            var bunker = EnginePlan.Of(train.Dynamics.Tuning.Geometry).Bunker;
-            if (side < 0 && PlayerMotor.InCab(self, train) && Math.Abs(self.Position.Z - door) > 0.25)
-                return Edge(self, new Double3(bunker.Max.X + 0.4, self.Position.Y, door), facing);
+            // Back down the cab to abreast of the doorway first, at a walk (the stroll's for the step off), by the way down that
+            // side: note 716's big cab has its doorways at its back, 10 m behind the controls, past the chart table and up over
+            // the gallery (and the coal bunker along the left wall at the front, note 280, is passed clear of it).
+            if (PlayerMotor.InCab(self, train) && Math.Abs(self.Position.Z - door) > 0.25)
+            {
+                var lane = new Double3(side * EnginePlan.Of(train.Dynamics.Tuning.Geometry).Lane, self.Position.Y, door);
+                return WarmUp.SteerCab(self, train, lane, facing).Step;
+            }
             // Out across the running board in front of the doorway (note 559) and off its edge, the last of it at a shuffle so
             // the drop's straight down: on a bridge the deck's no wider than 2.6 m from the track (note 552), the board's edge
             // is 2.35, and stepped off at a stroll a hand landed 2.75 out, walked back along the train out there, and went

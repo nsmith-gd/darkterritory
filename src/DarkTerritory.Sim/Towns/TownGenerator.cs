@@ -32,6 +32,12 @@ public static partial class TownGenerator
 {
     // Where the people with places stand, in metres. Not design numbers: where a body stands to be in front of the thing
     // it tends (a door, the board, the engine), clear of the thing itself.
+    /// <summary>
+    /// The board of lost crews (note 721): along the square from its middle (the notice board's at +14, the bench at +7), and
+    /// what it says to anyone with no crews posted (each machine's own profile fills it).
+    /// </summary>
+    const double LostCrewsAlong = 10.6;
+    public const string LostCrewsText = "The company's board. A card goes up for every crew whose train was taken: the crew's name, how many nights it ran, and how its last one ended. Nothing's posted for any crew you rode with.";
     const double DoorStep = 1.4, BoardOut = 6.5, BoardReader = 1.3, BesideTrack = 3.4, Ring = 1.8, GateIn = 9, GateOut = 4.5;
     const double PlatformD = 7.0, PlatformTop = 0.25;
     /// <summary>The quiet house: how far inside the gate, and how far out from the line on the far side (m).</summary>
@@ -464,6 +470,11 @@ public static partial class TownGenerator
             }
         }
 
+        // The company's board of lost crews (GDD §3.1, §11; the director, 14 Oct 2026; note 721), beside the notices: each
+        // ended campaign the player rode with is a card on it, from their own profile (the app's, not the plan's). Last of the
+        // fixtures, so every other keeps its index.
+        Fix("lostcrews", "the board of lost crews", LostCrewsText, mid + LostCrewsAlong, side * BoardOut, 0, -side);
+
         // The board: the custom's order first, then what the town makes, then whatever else is posted; and a note or two
         // left about the square (a letter on a bench, a page by the hall door, a scrap by the engine).
         var papers = new List<TownPaper>();
@@ -642,7 +653,7 @@ public static class TownFixtures
         "bench" => (1.0, 0.3, 0.9),
         "carriage" => (3.2, 1.4, 3.6),
         "cannon" => (1.4, 0.8, 1.3),
-        "board" => (1.1, 0.15, 2.2),
+        "board" or "lostcrews" => (1.1, 0.15, 2.2),
         "plaque" => (0.2, 0.2, 2.2),
         "crate" => (0.5, 0.4, 0.8),
         "barrel" => (0.35, 0.35, 1.0),

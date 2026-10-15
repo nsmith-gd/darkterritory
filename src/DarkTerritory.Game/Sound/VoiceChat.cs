@@ -100,6 +100,11 @@ public sealed class VoiceChat
 
     public IEnumerable<byte> Speakers => _speakers.Keys;
 
+    /// <summary>Who's muted on this machine (note 724, the roster's MUTE): their frames are dropped as they come, on every path.</summary>
+    public Func<byte, bool>? Muted { get; set; }
+    /// <summary>Frames dropped for a mute.</summary>
+    public int FramesMuted { get; private set; }
+
     /// <summary>
     /// Seconds since a crewmate was last heard (near or on the radio), or null if never: the roster's speaking marks, which
     /// is how a crew makes everyone speak and sees who didn't (App. A.7).
@@ -140,6 +145,13 @@ public sealed class VoiceChat
         _clock += dt;
         while (client.VoiceFrames.TryDequeue(out var f))
         {
+            // Muted on this machine (note 724): nothing of theirs is played here, near, on the radio, down the speaking tube, on
+            // the dead channel or in a Soot Child's mouth. A death's hard-cut still lands, so nothing's left buffered.
+            if (Muted?.Invoke(f.Speaker) == true && !f.Path.HasFlag(VoicePath.Cut))
+            {
+                FramesMuted++;
+                continue;
+            }
             if (f.Path.HasFlag(VoicePath.Mimic))
             {
                 if (!_mimics.TryGetValue(f.Source, out var m))

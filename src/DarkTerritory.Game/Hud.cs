@@ -52,16 +52,19 @@ public static partial class Hud
     /// <param name="talk">This machine's talking and reading in a fortress town (note 281), and <paramref name="now"/> the
     /// app's seconds, for its card.</param>
     /// <param name="captions">CAPTIONS (note 349): what's heard now and where, <see cref="Captions.Lines"/>; null with it off.</param>
+    /// <param name="photo">The crew photo at the gate taken on this machine tonight (note 721): a delivered night's end card
+    /// shows it as a print.</param>
     /// <param name="firstNight">One of this player's first nights with FIRST NIGHTS on (note 350, <see cref="Onboarding.FirstNight"/>):
     /// the yard shows the core controls.</param>
     public static void Build(Overlay o, int width, int height, IPlaySession s, bool crosshair = true,
         IReadOnlyList<(string To, UiStyle.Commendation What, string From)>? commendations = null, IReadOnlyDictionary<int, Still>? stills = null,
         float pixels = 4, TownTalk? talk = null, double now = 0, bool firstNight = false, IReadOnlyList<string>? captions = null,
-        FigureTalk? figures = null)
+        FigureTalk? figures = null, Still? photo = null)
     {
         _promptScale = PromptScaleAt(pixels);
         _commendations = commendations;
         _stills = stills;
+        _photo = photo;
         o.Clear();
         // TEXT BACKING (note 404): a band behind the print in play, for this build only (the menus over it are on their plate).
         o.Backing = Keys.TextBacking ? new Vector4(0, 0, 0, (float)Math.Clamp(Tuning.TextBacking, 0, 1)) : default;
@@ -317,20 +320,73 @@ public static partial class Hud
     /// alive: GDD v1.4 made roll call verbal (open question 2). <paramref name="heard"/>: seconds since a crewmate's voice
     /// last came in, null for never.
     /// </summary>
-    public static void Roster(Overlay o, int width, int height, IReadOnlyList<RosterLine> lines, Func<byte, double?>? heard)
+    /// <param name="keys">
+    /// Note 724: what the roster's keys do, under the names (<see cref="RosterKeys"/>): each crewmate but you numbered for them.
+    /// Null, the roll call alone.
+    /// </param>
+    public static void Roster(Overlay o, int width, int height, IReadOnlyList<RosterLine> lines, Func<byte, double?>? heard, string? keys = null)
     {
         using var plate = UiStyle.OnPlate(o);
         const string title = "THE CREW. ROLL CALL IS SHOUTED";
         float k = Fine;
-        float names = lines.Count == 0 ? 0 : lines.Max(l => o.Measure(l.Name, k));
-        var (x, y, w) = Panel(o, width, height, title, Math.Max(o.Measure(title, k), names + 12 * k + o.Measure("SPEAKING", k)), lines.Count, Ink, k);
-        foreach (var l in lines)
+        var names = RosterNames(lines, keys is not null);
+        float widest = names.Count == 0 ? 0 : names.Max(n => o.Measure(n, k));
+        float content = Math.Max(o.Measure(title, k), widest + 12 * k + o.Measure("SPEAKING", k));
+        if (keys is not null)
+            content = Math.Max(content, UiStyle.MeasureKeyed(o, keys, k));
+        var (x, y, w) = Panel(o, width, height, title, content, lines.Count + (keys is null ? 0 : 1), Ink, k);
+        for (int i = 0; i < lines.Count; i++)
         {
-            o.Text(x + PanelPad * k, y, l.Name, Ink, k);
-            if (!l.You && heard?.Invoke(l.Id) is < 2)
+            var l = lines[i];
+            o.Text(x + PanelPad * k, y, names[i], Ink, k);
+            // Heard lately, they're speaking; muted on this machine (note 724), they're never heard here, and it says so.
+            if (!l.You && l.Muted)
+                o.Text(Overlay.Snap(x + w - PanelPad * k - o.Measure("MUTED", k), k), y, "MUTED", Dim, k);
+            else if (!l.You && heard?.Invoke(l.Id) is < 2)
                 o.Text(Overlay.Snap(x + w - PanelPad * k - o.Measure("SPEAKING", k), k), y, "SPEAKING", Green, k);
             y += PanelRow(o, k);
         }
+        if (keys is not null)
+            UiStyle.Keyed(o, x + PanelPad * k, y, keys, Dim, k);
+    }
+
+    /// <summary>The roster's names, each crewmate but you numbered for its keys when there are any (note 724).</summary>
+    public static List<string> RosterNames(IReadOnlyList<RosterLine> lines, bool numbered)
+    {
+        var names = new List<string>(lines.Count);
+        int n = 0;
+        foreach (var l in lines)
+            names.Add(!numbered ? l.Name : l.You ? $"   {l.Name}" : $"{(++n <= 9 ? n.ToString(System.Globalization.CultureInfo.InvariantCulture) : " ")}  {l.Name}");
+        return names;
+    }
+
+    /// <summary>
+    /// The roster's keys (note 724): a number mutes or unmutes that crewmate on this machine; with Shift, the host puts them off
+    /// and, in a public lobby, anyone else calls the crew's vote on them (or agrees to it). Fixed keys, as the ballot's numbers are.
+    /// </summary>
+    public static string RosterKeys(bool host, bool vote) =>
+        host ? "MUTE : [1-9]   PUT OFF : [SHIFT] [1-9]" : vote ? "MUTE : [1-9]   VOTE TO PUT OFF : [SHIFT] [1-9]" : "MUTE : [1-9]";
+
+    /// <summary>
+    /// The crew's vote to put someone off (note 724), across the top while it's open: on whom, how it stands and how long it has,
+    /// and how to agree. Null with no vote open.
+    /// </summary>
+    public static string? KickVoteLine(KickVote vote, string name, bool onYou, double seconds, int number)
+    {
+        if (!vote.Open)
+            return null;
+        string count = $"{vote.Yes} OF {vote.Needed} · {Math.Ceiling(seconds):0} S";
+        return onYou ? $"THE CREW IS VOTING TO PUT YOU OFF · {count}"
+            : $"PUT {name} OFF AT THE NEXT STOP? {count}{(number is >= 1 and <= 9 ? $"   YES : [Q] [SHIFT] [{number}]" : "")}";
+    }
+
+    /// <summary>The vote's line (<see cref="KickVoteLine"/>), across the top, in amber.</summary>
+    public static void KickVoteBanner(Overlay o, int width, int height, string line)
+    {
+        using var plate = UiStyle.OnPlate(o);
+        float k = Fine;
+        float w = UiStyle.MeasureKeyed(o, line, k);
+        UiStyle.Keyed(o, Overlay.Snap((width - w) / 2, k), MathF.Round(height * 0.12f), line, Amber, k);
     }
 
     const float PanelPad = 6;
@@ -956,6 +1012,9 @@ public static partial class Hud
             {
                 Big("DELIVERED", Green);
                 Small($"{r.CarsDelivered} CARS, {r.CarsLost} LOST. {r.Net:0} SCRIP. CREW HOME {r.CrewHome}", Ink, fine: false);
+                // Note 721: the town photographer's print, as this machine took it.
+                if (_photo is { } print)
+                    Print(o, print);
             }
             else if (r.End == RunEnd.Stranded)
             {
@@ -1054,6 +1113,9 @@ public static partial class Hud
         // line (App. A.4: "the whistle sounds with no hand on the cord" is its tell), so one with no name is the Whistler.
         if (p.Alive && world.WhistleSeconds > 0 && world.WhistleBy >= 0)
             Small(world.WhistleBy == s.PlayerId ? "THE WHISTLE: YOUR HAND'S ON THE CORD" : $"THE WHISTLE: {IncidentLog.NameOf(world, world.WhistleBy).ToUpperInvariant()} ON THE CORD", Dim);
+        // Note 739: the crew's pings, whose and on what (their marks are drawn on the world: PingMarks).
+        foreach (var pinged in PingMarks.Lines(world, s.PlayerId))
+            Small(pinged, Ink);
         // Note 740: "Aboard!" called back to the horn, and the driver's roll of it.
         if (p.Alive)
             foreach (var (text, good) in AboardLines(world, s.PlayerId, PlayerMotor.InCab(p, world.Train), s.Roster()))
@@ -2349,6 +2411,9 @@ public static partial class Hud
         // Dave or Jacob (notes 570, 572): a word with him, before anything lying at his feet.
         if (FigureTalk.Target(s) is { } figure)
             return FigureTalk.Prompt(figure);
+        // The crew's logbook on its shelf (note 721): this machine's to open, before what's lying by it.
+        if (LogbookReader.Facing(p, train, Remembering.Logbook, train.Dynamics.Tuning.Pick.EyeHeight))
+            return LogbookReader.Prompt;
         // A fortress town (note 281): somebody to talk to, a paper to read, a thing to look at. Before what's lying in reach,
         // so a lamp at somebody's feet doesn't take the press meant for them.
         if (world.TownOf(p) is { } town && town.Target(p, train.Dynamics.Tuning.Pick.EyeHeight) is { } there)
@@ -2507,7 +2572,7 @@ public static partial class Hud
         // the shovel, turned from the fire, it's the throw's.
         if (p.Has(PlayerFlags.Shovelful) && p.Hand == default)
             return "THROW THE COAL : [T]";
-        if (world.HorseplayTuning.Enabled && Horseplay.ShoveTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning) is not null)
+        if (world.MischiefOn && Horseplay.ShoveTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning) is not null)
             return "SHOVE : [LEFT ALT]";
         return null;
     }

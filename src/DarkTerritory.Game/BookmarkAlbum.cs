@@ -102,6 +102,42 @@ public sealed class BookmarkAlbum
         return written;
     }
 
+    /// <summary>The crew photo's file name in a night's folder (note 721): first in the folder, before the bookmarks.</summary>
+    public const string PhotoName = "00 crew photo.png";
+
+    /// <summary>The crew photo's file, once kept; "" before.</summary>
+    public string Photo { get; private set; } = "";
+
+    /// <summary>
+    /// Keeps the crew photo at the gate (note 721) in the night's folder as a PNG, with its text sidecar beside it (what it
+    /// is, who's in it, the slate). Returns its path, or "" when the disk won't have it (said once, as the stills are). U1's
+    /// departure photo keeps its own under <paramref name="name"/>.
+    /// </summary>
+    public string KeepPhoto(Still photo, string sidecar, string name = PhotoName)
+    {
+        if (_failed)
+            return "";
+        try
+        {
+            string path = Path.Combine(Night, name);
+            PngWriter.Write(path, photo.Rgba, photo.Width, photo.Height);
+            File.WriteAllText(Path.ChangeExtension(path, ".txt"), sidecar);
+            if (name == PhotoName)
+                Photo = path;
+            return path;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            _failed = true;
+            Console.WriteLine($"bookmarks: couldn't keep the crew photo in {Night} ({e.Message})");
+            return "";
+        }
+    }
+
+    /// <summary>A kept photo read back for the logbook's page (note 721), or null if it's gone or isn't one of ours.</summary>
+    public static Still? ReadPhoto(string path) =>
+        path.Length > 0 && PngWriter.Read(path) is { } png ? new Still(png.Width, png.Height, png.Rgba) : null;
+
     /// <summary>The report's lines, each with the stills beside it, then the dead's own: what the pictures are of.</summary>
     string Index(RunReport report, World world)
     {
