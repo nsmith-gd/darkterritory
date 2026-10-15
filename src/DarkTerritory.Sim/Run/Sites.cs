@@ -228,7 +228,7 @@ public sealed record SpoutTuning
     public double LeverAlong { get; init; } = 2;
     public double LeverLateral { get; init; } = 3.4;
     public double LeverReach { get; init; } = 1.2;
-    public double Tolerance { get; init; } = 1.5;
+    public double EndMargin { get; init; } = 1;
     public double PourPerSecond { get; init; } = 0.05;
     public double Bin { get; init; } = 3;
     public double OverfillDamagePerLoad { get; init; } = 0.6;
@@ -249,7 +249,7 @@ public sealed record LiftTuning
     public double SteamReach { get; init; } = 56;
     public double SteamPerSkip { get; init; } = 20;
     public double PerSkip { get; init; } = 0.25;
-    public double Tolerance { get; init; } = 1.5;
+    public double EndMargin { get; init; } = 1;
     public double Ore { get; init; } = 3;
     public double OverfillDamagePerLoad { get; init; } = 0.6;
 }
@@ -272,7 +272,7 @@ public sealed record ConveyorTuning
     public double StarterReach { get; init; } = 1.4;
     public double StartSeconds { get; init; } = 4;
     public double StartRounds { get; init; } = 0.25;
-    public double Tolerance { get; init; } = 1.5;
+    public double EndMargin { get; init; } = 1;
     public double PerSecond { get; init; } = 0.04;
     public double Grain { get; init; } = 3;
     public double[] JamEvery { get; init; } = [30, 60];
@@ -433,8 +433,12 @@ public sealed class WreckHeap(int index, Double3 centre, double yaw, int salvage
 /// <summary>A wreck heap's replicated state.</summary>
 public readonly record struct HeapState(int Salvage, bool Found, double Stability, double Groan, int Shifts);
 
-/// <summary>Where a crane's casting is (T48): on the ground where it was stacked, on the hook, or lashed on a car.</summary>
-public enum CastingState : byte { Stacked, Hooked, Loaded, Lost }
+/// <summary>
+/// Where a crane's casting is (T48): on the ground where it was stacked, on the hook, or lashed on a car. Taken: dragged off by
+/// the Mouse Moose out of the hook's reach, lying where it was left or still being dragged, and nobody's to load (note 790);
+/// Lost: gone for good.
+/// </summary>
+public enum CastingState : byte { Stacked, Hooked, Loaded, Lost, Taken }
 
 /// <summary>A site's replicated state (the Run record), for a client to adopt.</summary>
 public readonly record struct SiteState(bool Stocked, double Progress, int SledsLeft, bool Turning, bool OutOfRhythm, double Crank,

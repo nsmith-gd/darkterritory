@@ -266,6 +266,13 @@ public sealed class Crane
 
     readonly Dictionary<(long, long), (double, double, double)> _over = new();
 
+    /// <summary>
+    /// Whether the hook can be put near enough a casting lying at <paramref name="world"/> for a rigger at the hook to reach it
+    /// (within <c>rigReach</c>): what the Mouse Moose drags its casting out of (note 790). Not remembered, as <see cref="Over"/>
+    /// is: a dragged casting is somewhere new each time it's asked.
+    /// </summary>
+    public bool Reaches(Double3 world) => Search(world).Off <= _t.RigReach;
+
     (double Bridge, double Trolley, double Off) Search(Double3 world)
     {
         double lo = _t.Along - 0.5 * _t.Length, hi = _t.Along + 0.5 * _t.Length, x0 = _t.Span[0] + 0.5, x1 = _t.Span[1] - 0.5;
@@ -472,7 +479,7 @@ public sealed class Crane
     {
         CastingState.Hooked => HookedBase,
         CastingState.Loaded when c.Car >= 0 && c.Car < frames.Count => frames[c.Car].ToWorld(c.At),
-        CastingState.Stacked => c.At,
+        CastingState.Stacked or CastingState.Taken => c.At,
         _ => null,
     };
 }

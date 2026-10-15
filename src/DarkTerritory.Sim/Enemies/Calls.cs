@@ -137,6 +137,8 @@ public static class Calls
                 return Tower(world, you, max, t);
             case EnemyKind.Grumbler:
                 return Castings(world, you, max, t);
+            case EnemyKind.MouseMoose:
+                return MouseMooseCall(world, you, max, t);
             case EnemyKind.Pickers:
                 {
                     var crates = Crates(world, you, min, max, 3);
@@ -281,6 +283,28 @@ public static class Calls
                 return "gnawing the castings by the crane: leave it be, or hit it";
             }
         return "no crane with castings stacked on this line";
+    }
+
+    /// <summary>
+    /// The Mouse Moose (note 790) after the nearest casting stacked by any crane on the line (a facility's own or a yard's),
+    /// within <paramref name="max"/> of you, whether the train's in its yard or not: out of its hole past it.
+    /// </summary>
+    static string MouseMooseCall(World world, Double3 you, double max, EnemyTuning t)
+    {
+        if (world.Run is not { } run)
+            return "no stops on this line";
+        var best = run.Sites.Where(s => s is not null).SelectMany(s => s!.Cranes).Where(c => !c.Wrecked)
+            .SelectMany(c => MouseMoose.Takeable(c, you).Select(i => (Crane: c, Casting: i)))
+            .OrderBy(x => Flat(x.Crane.Castings[x.Casting].At - you)).Select(x => ((Crane, int)?)x).FirstOrDefault();
+        if (best is not { } found)
+            return "no crane with castings stacked on this line";
+        var (crane, on) = found;
+        var at = crane.Castings[on].At;
+        if (Flat(at - you) > max)
+            return $"the nearest castings are {Flat(at - you):0} m off, past the gym's {max:0} m: walk towards them and call again";
+        var (hole, hint) = MouseMoose.HoleFor(world, at, t.MouseMoose);
+        world.AddEnemy(n => MouseMoose.At(n, crane, on, hole, hint));
+        return $"out of its hole, for a casting by the crane: stand within {t.MouseMoose.ScareWithin:0} m of it to scare it off";
     }
 
     /// <summary>A Car Hugger with no marsh or bridge ahead: lurking on the line a little ahead, for the train to run over.</summary>
