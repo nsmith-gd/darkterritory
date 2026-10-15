@@ -718,7 +718,8 @@
 
   // SOOT CHILDREN · sound · outside (App. A.6, B.6). Calling from callOut m every callEvery s. realChance of a real
   // survivor (a host's first-ever call is always real). A Soot Child lunges at anyone within lungeWithin m and drinks for
-  // drainSeconds, gaining healthPerSecond blows a second while it does. Ignored for ignoredSeconds, it gives up.
+  // drainSeconds, gaining healthPerSecond blows a second while it does. Ignored for ignoredSeconds, it gives up. Alone, the
+  // call comes too (the director, 15 Oct, note 770): it's the only way a solo night has a child in it.
   "sootChildren": {
     "callOut": 45, "callEvery": 6, "lungeWithin": 5, "drainSeconds": 14, "health": 2, "healthPerSecond": 0.35, "realChance": 0.5,
     // minCrew (note 795, was 2): a crew of one meets them too; held, a lone player can struggle free (grab.soloStruggleChance).

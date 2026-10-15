@@ -11,7 +11,8 @@ What each is decides the build:
   a few clear whistled notes, and sharp chips: 2-7 kHz, almost pure tones, the pitch always moving. Each take is a
   different phrase of three to five tours, 2-3 s. The car's wooden room a little round it; nothing under a kilohertz.
 - The calliope (calliope): a steam calliope on the roof whose pipes the whistle cord now plays, one note a pull, which
-  the game pitches to the tune's notes (an octave either way). So every take is the same note, A4 (440 Hz): the valve
+  the game pitches to the tune's notes. So every take is the same note, C5 (523 Hz, the middle of #967's tune played an
+  octave down, G4-G5, in the whistle's band; no note is moved more than five semitones): the valve
   snapping open with a chiff of steam, the pipe speaking (its pitch scooping up into tune as the pressure comes on, its
   twelfth sounding for an instant first), a steady breathy, reedy tone wavering a little with the steam, and the valve
   closing: the pitch sagging and the tone thinning into breath. A steam whistle's bell is a stopped pipe, so its odd
@@ -317,7 +318,11 @@ def song_syrinx(rng, k):
 
 # ---- calliope: the steam calliope's note ---------------------------------------------------------------------------------
 
-A4 = 440.0
+# C5: the middle of #967's calliope tune played an octave down (MIDI 67-79, G4-G5), so the game's pitching moves no note
+# more than five semitones. An octave down because the calliope is the whistle, and the whistle's band (spec A.4,
+# AudioBench.TellBands) is 200-800 Hz: at #967's own octave (G5-G6, 784-1568 Hz) it would sit in Tippy's, the Stoker's and
+# the Grumbler's bands.
+NOTE = 523.25
 CALL_L = 2.5          # the note (s), its release's breath included
 OFF = 2.08            # when the valve starts to close
 # A steam whistle's bell is a stopped pipe: its odd harmonics strong, the even ones faint; a little upper reach for a reedy,
@@ -354,7 +359,7 @@ def pipe_tone(ph, p, t, weights=PIPE):
     return out.astype(np.float32)
 
 
-def comb(x, f0=A4, q=30, even=0.35):
+def comb(x, f0=NOTE, q=30, even=0.35):
     """The pipe's resonances on noise: a stopped pipe's comb (peaks at its harmonics, the even ones weaker), the jet's
     turbulence rung in the pipe as a waveguide rings it. A zero-phase filter in the frequency domain, so its peaks sit
     exactly on the note."""
@@ -381,8 +386,8 @@ def chiff_model(rng, L):
     return unit(mix(unit(comb(j, q=12)), unit(hp(j, 600, 2)) * 0.6))
 
 
-@recipe(L_, "calliope", "pipe", "The steam calliope's note (A4), modelled: a chiff of steam, a breathy stopped pipe, a sag",
-        """Modelled: one steam calliope pipe sounding A4 (440 Hz; the game pitches it to the tune's notes). A steam
+@recipe(L_, "calliope", "pipe", "The steam calliope's note (C5), modelled: a chiff of steam, a breathy stopped pipe, a sag",
+        """Modelled: one steam calliope pipe sounding C5 (523 Hz; the game pitches it to the tune's notes). A steam
         whistle's bell is a stopped pipe, so its tone is built from its harmonics with the odd ones strong (the third
         at half the fundamental, the fifth and seventh after it, the even ones faint), a little upper reach for a reedy
         edge, brighter with more pressure. The valve snaps open with a chiff (a spike of steam rung in the pipe) and the
@@ -400,7 +405,7 @@ def calliope_pipe(rng, k):
     p = pressure(L, OFF + 0.06 * k, wander)
     drift = 0.06 * W.slow(n, 0.8, rng)                      # an old calliope never quite in tune: a few cents' drift
     semis = BEND * (np.maximum(p, 0.3) - 1) + drift
-    ph = 2 * np.pi * np.cumsum(A4 * 2 ** (semis.astype(np.float64) / 12)) / SR + rng.uniform(0, 2 * np.pi)
+    ph = 2 * np.pi * np.cumsum(NOTE * 2 ** (semis.astype(np.float64) / 12)) / SR + rng.uniform(0, 2 * np.pi)
     tone = pipe_tone(ph, p, t)
     jet = W.jet(L, rng, pressure=np.maximum(p, 0), peak=2600, low=0.0, eddy=0.8)
     breath = unit(comb(jet)) * 0.16 + unit(hp(jet, 1500, 2)) * 0.03
@@ -435,9 +440,9 @@ def chiff_real(rng, L):
     return dsp.fit(unit(mix(unit(comb(burst, q=12)), unit(burst) * 0.7)), samples(L))
 
 
-@recipe(L_, "calliope", "steam", "The steam calliope's note (A4), blown by real steam: a real valve's chiff, a wavering pipe",
+@recipe(L_, "calliope", "steam", "The steam calliope's note (C5), blown by real steam: a real valve's chiff, a wavering pipe",
         """From real recordings: the packs' real locomotive steam (sfx_100 loop_water_03, its puffs evened out) blowing
-        one calliope pipe at A4 (440 Hz; the game pitches it to the tune's notes): the steam's noise rung down at the
+        one calliope pipe at C5 (523 Hz; the game pitches it to the tune's notes): the steam's noise rung down at the
         note to a band a couple of hertz wide and the pipe's tone locked onto it, so the real turbulence wavers its
         pitch a few cents and its surges move the level and nudge the pitch, as a real calliope's do; the tone a
         stopped pipe's (odd harmonics strong) with its even ones up a little, reedy; the real steam rung round the
@@ -458,9 +463,9 @@ def calliope_steam(rng, k):
     p = np.concatenate([np.full(m, 1.0, np.float32), pressure(L, OFF + 0.06 * k, 1.0)]) * surge
     semis = BEND * (np.maximum(p, 0.3) - 1)
     semis[:m] = semis[m]                                   # the run-in held at the first pitch: the lock settles unheard
-    ph = lock(jet, A4 * 2 ** (semis / 12)) + rng.uniform(0, 2 * np.pi)
+    ph = lock(jet, NOTE * 2 ** (semis / 12)) + rng.uniform(0, 2 * np.pi)
     tone = pipe_tone(ph[m:], p[m:], np.arange(n) / SR, REEDY)
-    breath = dsp.resonate(hp(jet, 300, 4), [A4 * h for h in (1, 2, 3, 5, 7)], q=25, gains=[1, 0.35, 0.5, 0.25, 0.12])[m:]
+    breath = dsp.resonate(hp(jet, 300, 4), [NOTE * h for h in (1, 2, 3, 5, 7)], q=25, gains=[1, 0.35, 0.5, 0.25, 0.12])[m:]
     hiss = hp(jet, 1500, 2)[m:]
     pr = np.clip(p[m:], 0, None)
     y = mix(unit(tone), (unit(breath) * 0.18 + unit(hiss) * 0.03) * pr ** 0.5, chiff_real(rng, L) * 0.3)
