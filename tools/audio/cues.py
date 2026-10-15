@@ -998,6 +998,38 @@ CUES = {
     "crew-speaking-tube": [
         O("call", "A voice coming down the tube after a quiet: its whistle shrilling at the far end first", vars=3),
     ],
+    # U1's upgrades (queue #505, note 775; U1's #967, notes 678, 697, 698; the checklist's up- rows, U1's requests of 13 Oct).
+    # Built ahead of #967 for the director to judge; hooked when it lands.
+    "up-forge": [
+        L("hearth", "The town blacksmith's forge: its hearth roaring low, coals ticking, heard from the cab"),
+        O("anvil", "A hammer on the anvil now and then: a ring and a bounce", vars=4),
+        O("bellows", "The bellows worked: a long wheeze and the fire roaring up", vars=3),
+        O("quench", "Hot iron in the quench barrel: a hiss and a boil", vars=3),
+    ],
+    "up-horns": [
+        O("honk", "The bulb horn where the whistle was: a clown's honk on every pull", vars=3),
+        O("gold-start", "The gold-plated whistle sounding: brighter and a quarter louder than the plain one", vars=2),
+        L("gold", "The gold-plated whistle held"),
+        O("gold-stop", "The gold-plated whistle let go", vars=2),
+    ],
+    "up-tells": [
+        O("recorder-bell", "The speed recorder's bell: a small bright ting, early, never the overspeed's alarm", vars=2),
+        O("precut", "Pre-cut boards going up: quick, light hammering, half the work", vars=3),
+        O("rammer", "The gun rammer seating the ball: a clean mechanical clack", vars=3),
+        O("booster", "The booster cutting in: a second exhaust beat under the chuff", vars=2),
+        O("composition", "Composition brake shoes on a descent: a lesser, duller shriek", vars=2),
+        O("oilers", "The oilers at work: the axle's knock slower and softer, a drip of oil", vars=2),
+        O("horseshoe", "The lucky horseshoe's glint: a tiny bright chime", vars=2),
+    ],
+    "up-bbq": [
+        O("light", "The grill lit: a whump of charcoal catching", vars=2),
+        L("grill", "The grill burning: sizzle and crackle, fat spitting"),
+        O("turn", "A sausage turned: the tongs' clack and a spit of fat", vars=3),
+        O("cooler", "The cooler's lid lifted, ice shifting", vars=2),
+        O("can", "A can cracked open and a swig", vars=3),
+        O("cheers", "Cans clinked: cheers", vars=2),
+        O("chair", "A Muskoka chair creaking as you sit down or get up", vars=3),
+    ],
     # Signs off the train (D1.1's note 327; queue #79, note 342): a crewmate afoot is shown a pair of eyes at the lamp's edge,
     # toward where a creature lives here. Its sound says something's out there, never that it's coming: quieter than its
     # tell and nothing like it (GameAudio.Watched plays "sign.<kind>", Director.Key's names). The Gaunt and the Followers
