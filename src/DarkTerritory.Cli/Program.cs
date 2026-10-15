@@ -2471,6 +2471,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --fog d: a thinner (or thicker) night than the route's, to look the lie of the land over.
     if (args.Contains("--fog"))
         lighting.FogDensity = (float)Opt(args, "--fog", lighting.FogDensity);
+    // The dead's wide (note 743), as the app thins the night for it.
+    else if (view == "deadwide")
+        lighting.FogDensity *= DeadViews.WideFog;
     if (strandedAt >= 0)
         Views.CinematicFog(ref lighting, Views.StrandedDistance(train, outro, strandedAt));
     // --survey: a flat, bright, clear light for reading the land's shape (the curves, the grades, the cuttings): a
