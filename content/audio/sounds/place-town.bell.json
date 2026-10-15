@@ -1,0 +1,20 @@
+// The walled town: The council house's cracked bell rung: two to four sour, buzzing strokes across the square. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 4,
+ "loop": false,
+ "maxInstances": 12,
+ "minDistance": 10,
+ "maxDistance": 400,
+ "rolloff": 0.7,
+ "gainDb": 2,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "place-town/bell",
+   "gain": 1,
+   "pitchJitter": 0.4,
+   "gainJitter": 1.0
+  }
+ ]
+}

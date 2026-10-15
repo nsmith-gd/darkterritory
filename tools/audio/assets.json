@@ -699,6 +699,36 @@
   "url": "/_blob/bc704c20fbfda7b4e7b9ac5e79b06089",
   "sha": "8c1f57c8a131c82f"
  },
+ "previews/crew-emotes--fist-bump--gloves.mp4": {
+  "id": "a58407ec8b6a85008997ab844c244d34",
+  "url": "/_blob/a58407ec8b6a85008997ab844c244d34",
+  "sha": "b4fb03d44ca460c4"
+ },
+ "previews/crew-emotes--fist-bump--knuckles.mp4": {
+  "id": "801a771f77d22de4fc257bd53f20442d",
+  "url": "/_blob/801a771f77d22de4fc257bd53f20442d",
+  "sha": "64958ffa01363398"
+ },
+ "previews/crew-emotes--high-five--leather.mp4": {
+  "id": "c29ae2a40578ad552db41b4024753036",
+  "url": "/_blob/c29ae2a40578ad552db41b4024753036",
+  "sha": "b3c576913ae0dbf8"
+ },
+ "previews/crew-emotes--high-five--palms.mp4": {
+  "id": "5f8522862739203e7488252b1d32c61d",
+  "url": "/_blob/5f8522862739203e7488252b1d32c61d",
+  "sha": "2179a4456a894df3"
+ },
+ "previews/crew-emotes--lean--frame.mp4": {
+  "id": "67710ce999501b43b1d5dce537c419bc",
+  "url": "/_blob/67710ce999501b43b1d5dce537c419bc",
+  "sha": "3e28e636dc73b0e0"
+ },
+ "previews/crew-emotes--lean--grip.mp4": {
+  "id": "243c61a343717f01e8224ead5ef21e0a",
+  "url": "/_blob/243c61a343717f01e8224ead5ef21e0a",
+  "sha": "3edbb2d2b34c4a02"
+ },
  "previews/crew-emotes--outfit--coat.mp4": {
   "id": "623c19046ae83b904d998940681be33c",
   "url": "/_blob/623c19046ae83b904d998940681be33c",
@@ -708,6 +738,16 @@
   "id": "2f3012d853d93ed993ed033cf3e3e767",
   "url": "/_blob/2f3012d853d93ed993ed033cf3e3e767",
   "sha": "3d62afcf5ad9767c"
+ },
+ "previews/crew-emotes--sit--coat.mp4": {
+  "id": "cfb68ec1b8b9eda83a489e275e45e3c4",
+  "url": "/_blob/cfb68ec1b8b9eda83a489e275e45e3c4",
+  "sha": "81c9c13283422bed"
+ },
+ "previews/crew-emotes--sit--wool.mp4": {
+  "id": "619662c18529ec2e4179c841964c8ab4",
+  "url": "/_blob/619662c18529ec2e4179c841964c8ab4",
+  "sha": "fb622dfe79eb3a93"
  },
  "previews/crew-emotes--wave--sleeve.mp4": {
   "id": "c7a3fa3070e0c59bd75a4dcf3c471f9f",
@@ -3619,6 +3659,16 @@
   "url": "/_blob/b29394ff350ee7441ef6151145b66443",
   "sha": "2f91fa7419e305bd"
  },
+ "previews/place-town--bell--cast.mp4": {
+  "id": "f21acf6f21a4bf3b5e4254ed217abb20",
+  "url": "/_blob/f21acf6f21a4bf3b5e4254ed217abb20",
+  "sha": "3408372edac868e5"
+ },
+ "previews/place-town--bell--rung.mp4": {
+  "id": "79f19342fde63243aeba71cff2d2671d",
+  "url": "/_blob/79f19342fde63243aeba71cff2d2671d",
+  "sha": "1fd4ee58712b9964"
+ },
  "previews/place-town--clock--case.mp4": {
   "id": "15ffa4c35aea6f313283713fbdf30125",
   "url": "/_blob/15ffa4c35aea6f313283713fbdf30125",
@@ -5263,6 +5313,106 @@
   "id": "cac032114fbccdec2ffdf01edc795653",
   "url": "/_blob/cac032114fbccdec2ffdf01edc795653",
   "sha": "101223d6fd2912b8"
+ },
+ "previews/world-odd--bark--chest.mp4": {
+  "id": "7589ba4e09bd3e7fbb00203a6ea56742",
+  "url": "/_blob/7589ba4e09bd3e7fbb00203a6ea56742",
+  "sha": "689692314a1db283"
+ },
+ "previews/world-odd--bark--throat.mp4": {
+  "id": "ee697bbcb3d53b3a0d0ec1d2ba100e4e",
+  "url": "/_blob/ee697bbcb3d53b3a0d0ec1d2ba100e4e",
+  "sha": "fdc91cfdbad614a4"
+ },
+ "previews/world-odd--can-kick--clatter.mp4": {
+  "id": "4afecb6cdadb2a6d8e1912f540e39401",
+  "url": "/_blob/4afecb6cdadb2a6d8e1912f540e39401",
+  "sha": "4c4607dd7cb2b985"
+ },
+ "previews/world-odd--can-kick--tin.mp4": {
+  "id": "0dc11f31a2ae51a786f0020e3eb3513a",
+  "url": "/_blob/0dc11f31a2ae51a786f0020e3eb3513a",
+  "sha": "82fecd15a7efb20c"
+ },
+ "previews/world-odd--coin--clink.mp4": {
+  "id": "4324de5e0b887eb2537c2d098335b2f8",
+  "url": "/_blob/4324de5e0b887eb2537c2d098335b2f8",
+  "sha": "0e11fd53700f0e62"
+ },
+ "previews/world-odd--coin--spin.mp4": {
+  "id": "f95f48a978fbc3e076741fba43a06af2",
+  "url": "/_blob/f95f48a978fbc3e076741fba43a06af2",
+  "sha": "724e5d6d0a5c8355"
+ },
+ "previews/world-odd--letter--paper.mp4": {
+  "id": "77b67e64d6bca6110578882031e44618",
+  "url": "/_blob/77b67e64d6bca6110578882031e44618",
+  "sha": "3117cfee7084c78c"
+ },
+ "previews/world-odd--letter--pillar.mp4": {
+  "id": "f87177d09a1517b27a3770406de39d8a",
+  "url": "/_blob/f87177d09a1517b27a3770406de39d8a",
+  "sha": "a34ba7d23db4e215"
+ },
+ "previews/world-odd--lurch--points.mp4": {
+  "id": "2e6821a31f504ac7d28b0c5b1f767c70",
+  "url": "/_blob/2e6821a31f504ac7d28b0c5b1f767c70",
+  "sha": "a4ca7e9d526579e7"
+ },
+ "previews/world-odd--lurch--rail.mp4": {
+  "id": "7d8d0e8b98287264125d9450866b7808",
+  "url": "/_blob/7d8d0e8b98287264125d9450866b7808",
+  "sha": "7b81b7c78e6c7b1c"
+ },
+ "previews/world-odd--painting--canvas.mp4": {
+  "id": "6a1f08d293e4785b45482a6d534c1623",
+  "url": "/_blob/6a1f08d293e4785b45482a6d534c1623",
+  "sha": "6cf8910a111fcdeb"
+ },
+ "previews/world-odd--painting--frame.mp4": {
+  "id": "764a998bf5f448d9f3a1b617e4a60632",
+  "url": "/_blob/764a998bf5f448d9f3a1b617e4a60632",
+  "sha": "dfcda8b6a5fcce87"
+ },
+ "previews/world-odd--scarecrow--post.mp4": {
+  "id": "cb81ee6c11721eb52a97f951074d2b95",
+  "url": "/_blob/cb81ee6c11721eb52a97f951074d2b95",
+  "sha": "96b744e9b461ee46"
+ },
+ "previews/world-odd--scarecrow--twist.mp4": {
+  "id": "2432fffe9a73e6fb700bdb5907239c6f",
+  "url": "/_blob/2432fffe9a73e6fb700bdb5907239c6f",
+  "sha": "ddcfdbab905f394c"
+ },
+ "previews/world-odd--sooted--dust.mp4": {
+  "id": "4ac843a365558b1bd39c318f7bf1cc8e",
+  "url": "/_blob/4ac843a365558b1bd39c318f7bf1cc8e",
+  "sha": "da791731da4be831"
+ },
+ "previews/world-odd--sooted--lungs.mp4": {
+  "id": "d54601e13bb2baa80bcd5d50f0fbf2f7",
+  "url": "/_blob/d54601e13bb2baa80bcd5d50f0fbf2f7",
+  "sha": "9419d92aad08a086"
+ },
+ "previews/world-odd--wash--bucket.mp4": {
+  "id": "06a922869ac922c01871f88e590741b0",
+  "url": "/_blob/06a922869ac922c01871f88e590741b0",
+  "sha": "e352441b2477768f"
+ },
+ "previews/world-odd--wash--stream.mp4": {
+  "id": "2ee0333a477e7d475c020ce32a5864da",
+  "url": "/_blob/2ee0333a477e7d475c020ce32a5864da",
+  "sha": "15cc24586e4746fd"
+ },
+ "previews/world-odd--well-splash--gloop.mp4": {
+  "id": "46c53116b6c958da60bbecb1894d1dc8",
+  "url": "/_blob/46c53116b6c958da60bbecb1894d1dc8",
+  "sha": "e2bc91728a862f15"
+ },
+ "previews/world-odd--well-splash--plunk.mp4": {
+  "id": "164d7a8428543f8a7df92a6e55025fa5",
+  "url": "/_blob/164d7a8428543f8a7df92a6e55025fa5",
+  "sha": "7b64a4cfe9f5902f"
  },
  "previews/world-rail-knock--knock--clank.mp4": {
   "id": "d5d0321de4565d8cd9d0448f1f8e6818",
