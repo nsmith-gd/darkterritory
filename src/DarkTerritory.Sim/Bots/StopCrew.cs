@@ -3083,6 +3083,9 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
         // A find from the village we put down to open a door (note 326), gone (someone took it): nothing to go back for.
         if (_setDown is int put0 && world.Bodies.All.FirstOrDefault(b => b.Id == put0 && b.Carrier < 0) is null)
             _setDown = null;
+        // A find pinged for us (note 739 part two, GDD §12 "Ping the bots"): out to it and up with it, before the yard's crates.
+        if (!heavy && _setDown is null && mine is null && Pinged(self, world, p) is { } pinged)
+            return pinged;
         // A find from the village in our arms (note 326): back round the houses to a car first.
         if (mine is { Kind: Physics.BodyKind.Loot } && FindHome(self, world, p) is { } home)
             return home;
