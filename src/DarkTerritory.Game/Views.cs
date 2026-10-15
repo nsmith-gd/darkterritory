@@ -28,6 +28,10 @@ public static class Views
             // Off the car's left side on the ballast, level with it: what it is from the lineside (note 184: the crew car's lit
             // windows and stovepipe, an armoured car's plate, a guard car's gun).
             "side" => Camera.LookAt(target.ToWorld(new Double3(-9, 2.6, 5)), target.ToWorld(new Double3(0, 2.4, -1)), 60),
+            // Broadside off the car's left or right (broadsider) on the ballast, the whole car in frame and its underframe against
+            // the sleepers: how far gone it is (note 779, with --integrity and --apart).
+            "broadside" or "broadsider" => Camera.LookAt(target.ToWorld(new Double3((name == "broadside" ? -1 : 1) * (target.Shape.HalfWidth + 12), 1.5, 2.5)),
+                target.ToWorld(new Double3(0, 1.4, 0)), 55),
             // Inside the car, at its front end, looking back down the aisle past the cargo.
             // Note 301: a battered car's dent on its left wall and a breach in its rear end wall, their callouts (with
             // --integrity and --breached).
@@ -147,6 +151,9 @@ public static class Views
             // the ones under their crates; the Lodger folded in its crouch and shrieking (Staging.Lodger); the Householder at
             // its table (Staging.Householder: in a night, its house's).
             "pickers" or "pickerscarry" => Staging.PickersCamera(train, name),
+            // (Not one of Names.) The staged Mouse Moose in the headlamp's spill off the line's left (Staging.MouseMoose), and close
+            // to the one tugging its load off (note 790).
+            "mousemoose" or "mousemoosedrag" or "mousemooseface" => Staging.MouseMooseCamera(train, name),
             "lodger" or "lodgershriek" => Staging.LodgerCamera(train, name),
             "householder" => Staging.HouseholderCamera(train),
             "towerjaw" or "towerjawfall" => Camera.LookAt(engine.ToWorld(new Double3(-6, 2, -engineHalf - 20)), engine.ToWorld(new Double3(4, 4, -engineHalf - 40)), 66),

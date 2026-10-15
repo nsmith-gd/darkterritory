@@ -1744,6 +1744,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         DarkTerritory.Sim.Train.Couplings.Callouts(session.Train, breaks, session.CrewStates(1).Select(c => c.State), tightening);
         scene.Breaks = breaks;
         scene.Failings = DarkTerritory.Sim.Train.Failing.Of(session.Train);
+        scene.FailTuning = session.Train.Dynamics.Tuning.Failing;
         scene.Mending = tightening.Count > 0 ? [.. mending ?? [], .. tightening] : mending;
         scene.BendStrain = session.Route?.Plan is { } strainPlan ? BendStrain.PerCar(session.Train, strainPlan.Rules) : null;
         scene.DriversLocked = scene.Ruptured && session.Train.BoilerTuning is { } rt && session.Train.Dynamics.Speed > rt.RuptureCoastBelow;

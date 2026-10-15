@@ -110,9 +110,10 @@ public static class Protocol
     //     the emote byte (protocol 60) carries the new emotes 5-8 (the high five, the fist bump, the sit, the lean) as it is.
     // 71: a friend on the crane's hook (note 726): the Crane record's last field counts the riders, a player's flags carry
     //     Hoisted, and a death of its own (dropped from the crane).
-    // 72: a lobby changed once it's open (note 535): CarryOn carries the run's key as it is when the host goes on, after the
+    // 72: the Mouse Moose (note 790): an enemy kind of its own, and a casting state (Taken: dragged out of the hook's reach).
+    // 73: a lobby changed once it's open (note 535): CarryOn carries the run's key as it is when the host goes on, after the
     //     town (a flag byte, then the key).
-    public const int Version = 72;
+    public const int Version = 73;
 }
 
 public enum MessageType : byte

@@ -33,6 +33,37 @@ public sealed record TownPlan(
 
     /// <summary>How many of its houses were burnt by creatures brought in on earlier nights (note 608).</summary>
     public int Burnt { get; init; }
+
+    /// <summary>What kind of town it is (towns.json <c>forms</c>, note 692): "" the street town of note 335, or a harbour,
+    /// a dykeland, a quarry, a tidewater or a glasshouse town.</summary>
+    public string Form { get; init; } = "";
+
+    /// <summary>Its ground plan's pieces past the streets (note 692): quarters, water, decks, terraces, plots.</summary>
+    public IReadOnlyList<TownDistrict> Districts { get; init; } = [];
+
+    /// <summary>Its ways other than the streets beside the line (note 692): quays, boardwalks, ramps, causeways.</summary>
+    public IReadOnlyList<TownWay> Ways { get; init; } = [];
+
+    /// <summary>Its gates in from the last night and out to the next, and the yard between (note 692).</summary>
+    public TownFrame Frame { get; init; } = new(0, 0, 0, 0);
+
+    /// <summary>How far past its wall it shapes the land it stands in (m; note 692's landforms), easing into the line's land.</summary>
+    public double Margin { get; init; }
+
+    /// <summary>What laying a town type's lots did (note 692; `dt town map`): stairs laid, lots left unbuilt and why.</summary>
+    public string Laid { get; init; } = "";
+
+    /// <summary>
+    /// A harbour's breakwaters (note 692): masonry moles out from its sea wall into the sea, each a line in the rail frame
+    /// (its ground the plan's outside districts, "mole"; drawn as a sea wall with a light at its head).
+    /// </summary>
+    public IReadOnlyList<IReadOnlyList<(double S, double D)>> Moles { get; init; } = [];
+
+    /// <summary>
+    /// The yard's walls in a town type's warren (note 692): runs in the rail frame (along, across to along, across) behind
+    /// each side's first row, open where a way goes through (Run.Fortresses.WardHalf, WardHeight).
+    /// </summary>
+    public IReadOnlyList<(double S0, double D0, double S1, double D1)> Wards { get; init; } = [];
 }
 
 /// <summary>
@@ -67,7 +98,46 @@ public sealed record TownWorks(double S0, double S1, double Near, double Far, in
 public sealed record TownBounds(double Rear, double Gate, double Left, double Right, IReadOnlyList<TownStreet> Streets, IReadOnlyList<TownLane> Lanes)
 {
     /// <summary>Whether a point (along the line, across it) is inside the wall, give or take <paramref name="pad"/>.</summary>
-    public bool Holds(double s, double d, double pad = 0) => s >= Rear - pad && s <= Gate + pad && d >= -Left - pad && d <= Right + pad;
+    public bool Holds(double s, double d, double pad = 0)
+    {
+        if (s < Rear - pad || s > Gate + pad || d < -Left - pad || d > Right + pad)
+            return false;
+        if (Outline is not { Count: > 2 } o)
+            return true;
+        // A town type's wall (note 692) goes round its outline: inside it, or within pad of it.
+        bool inside = false;
+        double near = double.MaxValue;
+        for (int i = 0, j = o.Count - 1; i < o.Count; j = i++)
+        {
+            var (a, b) = (o[i], o[j]);
+            if ((a.D > d) != (b.D > d) && s < (b.S - a.S) * (d - a.D) / (b.D - a.D) + a.S)
+                inside = !inside;
+            if (pad > 0)
+            {
+                double es = b.S - a.S, ed = b.D - a.D, len2 = es * es + ed * ed;
+                double k = len2 < 1e-9 ? 0 : Math.Clamp(((s - a.S) * es + (d - a.D) * ed) / len2, 0, 1);
+                double x = a.S + es * k - s, y = a.D + ed * k - d;
+                near = Math.Min(near, x * x + y * y);
+            }
+        }
+        return inside || pad > 0 && near <= pad * pad;
+    }
+
+    /// <summary>
+    /// A town type's wall (note 692): its outline in the rail frame, round from the entry gate's left side, the two gates
+    /// where it crosses the line at <see cref="Rear"/> and <see cref="Gate"/>; null for the street town's rectangle.
+    /// </summary>
+    public IReadOnlyList<(double S, double D)>? Outline { get; init; }
+
+    /// <summary>
+    /// Stretches of a town type's wall left open (note 692; the director, 14 Oct, of Breakwater Town: "the breakwater ...
+    /// doesn't look like it actually leads out into an ocean"): a harbour's mouth to the sea, each a piece of one of the
+    /// outline's runs, a turret either side.
+    /// </summary>
+    public IReadOnlyList<((double S, double D) A, (double S, double D) B)> Gaps { get; init; } = [];
+
+    /// <summary>Whether its wall is a timber palisade, its towers logs on legs (note 692: Timberholds); else stone.</summary>
+    public bool Timber { get; init; }
 }
 
 /// <summary>
@@ -145,8 +215,8 @@ public sealed record TownSquare(double S0, double S1, int Side, double WallD)
     /// <summary>Whether a point along the line, on a side, is inside the square (a fortress house wouldn't stand there).</summary>
     public bool Holds(double s, int side) => side == Side && s >= S0 && s <= S1;
 
-    /// <summary>This square in the line's frame, for a town standing turned round from <paramref name="turn"/> (note 600).</summary>
-    public TownSquare Turned(double turn) => new(turn - S1, turn - S0, -Side, -WallD);
+    /// <summary>This square in the line's frame, for a town whose frame starts <paramref name="origin"/> along it (notes 600, 692).</summary>
+    public TownSquare From(double origin) => new(origin + S0, origin + S1, Side, WallD);
 }
 
 /// <summary>One of the square's buildings, backed onto its far wall, its front to the line. <see cref="Kind"/>: hall,

@@ -68,10 +68,14 @@ public static partial class Staging
         var runTuning = DataFile.Load<Sim.Run.RunTuning>(Path.Combine(content, Sim.Run.RunTuning.File));
         double gate = route.GateOr(Sim.Route.RouteTuning.Load(content).YardLength);
         depart = runTuning.DepartFrom(gate, consistLength);
-        if (Sim.Towns.TownContent.Load(content) is not { } towns)
+        if (Sim.Towns.TownContent.Load(content) is not { } loaded)
             return null;
         var roster = DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(content, Sim.Enemies.EnemyTuning.File)).Director.Roster;
-        return new Sim.Towns.Town(Sim.Towns.TownGenerator.Generate(towns, Sim.Towns.TownSite.Of(route, gate, roster, towns)), towns.Tuning, line, towns.Looks);
+        // `--form` (note 692): every town the one type.
+        var towns = PrototypeSession.TownForm is { } form ? loaded with { Tuning = loaded.Tuning with { Forms = loaded.Tuning.Forms with { Force = form } } } : loaded;
+        var town = new Sim.Towns.Town(Sim.Towns.TownGenerator.Generate(towns, Sim.Towns.TownSite.Of(route, gate, roster, towns)), towns.Tuning, line, towns.Looks);
+        town.Lay(line);
+        return town;
     }
 
     /// <summary>
@@ -116,7 +120,8 @@ public static partial class Staging
         // outside the gate as the train leaves, its front wall either side of the gatehouse.
         if (plan.Bounds is { } wall && where is "over" or "lane" or "outside" or "watch" or "bend" or "crooked" or "crookedover" or "towergun")
         {
-            var st = wall.Streets.OrderBy(x => Math.Abs(x.D)).ThenBy(x => x.D).First();
+            // The first street's line out from the line (a town type's warren has none of the street town's: its first row).
+            double stD = wall.Streets.OrderBy(x => Math.Abs(x.D)).ThenBy(x => x.D).FirstOrDefault()?.D ?? -side * 26;
             return where switch
             {
                 "over" => Ballast.Render.Camera.LookAt(town.World(wall.Gate + 40, 0, 70), town.World(wall.Gate - 260, 0, 0), 70),
@@ -131,15 +136,15 @@ public static partial class Staging
                 // Down a lane where it turns at the second street on the far side from the square, from the first street
                 // (note 353), and from high over the same lane, the town's crossings not lining up.
                 "crooked" when wall.Lanes.OrderBy(l => Math.Abs(l.S - mid)).FirstOrDefault() is { } lane
-                    => Ballast.Render.Camera.LookAt(town.World(lane.At(-side * (Math.Abs(st.D) + 12)), -side * (Math.Abs(st.D) + 12), 1.8),
-                        town.World(lane.At(-side * (Math.Abs(st.D) + 30)), -side * (Math.Abs(st.D) + 50), 1.4), 70),
+                    => Ballast.Render.Camera.LookAt(town.World(lane.At(-side * (Math.Abs(stD) + 12)), -side * (Math.Abs(stD) + 12), 1.8),
+                        town.World(lane.At(-side * (Math.Abs(stD) + 30)), -side * (Math.Abs(stD) + 50), 1.4), 70),
                 // Up at the first tower down the far side with a gun on it (note 335), from the street inside the wall.
                 "towergun" when wall.Streets.Where(x => x.D > 0).MaxBy(x => x.D) is { } outer
                     => Ballast.Render.Camera.LookAt(town.World(wall.Rear + Sim.Run.Fortresses.TowerEvery - 28, outer.At(wall.Rear + Sim.Run.Fortresses.TowerEvery - 28), 1.8),
                         town.World(wall.Rear + Sim.Run.Fortresses.TowerEvery, wall.Right, 14.5), 40),
                 "crookedover" when wall.Lanes.OrderBy(l => Math.Abs(l.S - mid)).FirstOrDefault() is { } lane
                     => Ballast.Render.Camera.LookAt(town.World(lane.S + 45, -side * 20, 55), town.World(lane.S, -side * 70, 0), 66),
-                _ => Ballast.Render.Camera.LookAt(town.World(mid + 30, st.D, 1.7), town.World(mid - 40, st.D, 1.6), 72),
+                _ => Ballast.Render.Camera.LookAt(town.World(mid + 30, stD, 1.7), town.World(mid - 40, stD, 1.6), 72),
             };
         }
         // The town's flag (note 674): from across the square, up at it on its pole; "flagclose", nearer, the cloth filling the view.

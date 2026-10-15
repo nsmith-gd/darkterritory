@@ -429,6 +429,11 @@ CUES = {
     # was a loop.
     "state-coupling-loose": [
         O("knock", "The pin knocking in its knuckle: a dull iron clank with a ring over it", vars=4),
+        # What jumped it (queue #518, note 785; K1's #1034, note 732; the 14 Oct playtest's line 12: "the reason's"), heard at
+        # the pin the moment it jumps, the knock straight after.
+        O("jump-brake", "Jumped by a run-in: the slack slamming in down the train and the pin jumping in its knuckle", vars=3),
+        O("jump-coupled", "Jumped by a hard coupling: a coupler's clash and the pin knocked up in its knuckle", vars=3),
+        O("jump-bend", "Jumped on a bend: the cars lurching, a frame's groan and the pin jumping", vars=3),
     ],
     "state-derail": [
         L("flange-scream", "Flanges screaming on a curve taken too fast (the warning)"),
@@ -580,6 +585,8 @@ CUES = {
         L("gear-rebreather", "Someone breathing on a rebreather, its bag and valves"),
         L("gear-wrap", "Someone breathing through a wool wrap with a tin can sewn in"),
         L("lantern", "The watch's lantern swinging on its bail as they walk"),
+        # The council house's bell rope pulled (queue #519, note 786; K1's #1038, note 730): everyone near stops and looks up.
+        O("bell", "The council house's cracked bell rung: two to four sour, buzzing strokes across the square", vars=3),
     ],
     "place-mine": [
         L("underground", "Underground at the mine head"),
@@ -912,6 +919,18 @@ CUES = {
     ],
     "tell-householder": [
         L("house", "Its house, from the door: a stove's tick and crackle, a clock, a kettle at the edge of the boil"),
+        # Note 785 (note 732): one of its things lifted with nothing left on its table to pay for it, it shifts in its chair.
+        O("shift", "It shifts in its chair: the chair moved on the boards, the cutlery stilled", vars=3),
+    ],
+    # Sound cues in the world (queue #518, note 785; K1's #1034, note 732; GDD §32): the world sounding before it bites.
+    "tell-house": [
+        O("creak", "A house where something waits: a floorboard or a rafter taking a weight in the dark", vars=4),
+    ],
+    "world-bell": [
+        O("far", "Something lost out there: a stop's bell rung once or twice, a long way off", vars=3),
+    ],
+    "world-dog": [
+        O("bark", "Something at the lamps' edge: a farm dog barking far off at it", vars=3),
     ],
     "tell-householder-rise": [
         O("rise", "Rising (1.5 s): the chair scraped back hard on the boards, cutlery rattling on the table", vars=2),
@@ -1021,6 +1040,51 @@ CUES = {
     "ui-pings": [
         O("mark", "A ping marked for the crew: a quick two-note chirp on everyone's radio, never anything alive", vars=3),
     ],
+    # The sense table heard (queue #511, note 781; K1's #1026, note 728): what the crew's things now do to the creatures,
+    # heard as the things themselves. A knock on the rail is what the Car Hugger and Tower Jaw answer.
+    "world-rail-knock": [
+        O("knock", "Something heavy landing on the rails: a ringing clank that runs off down the rail", vars=3),
+    ],
+    "crew-lamp-broken": [
+        O("smash", "A thrown lamp breaking: its glass shattering and the oil going up with a whump", vars=3),
+        L("burn", "A broken lamp's oil burning where it lies: a small fire's crackle and flutter"),
+    ],
+    "cs-hounds-doused": [
+        O("doused", "A hound caught in the extinguisher's spray: a hiss off its hot hide and a yelp", vars=3),
+    ],
+    # Bringing them home (queue #512, note 782; note 723): a friend hauled aboard a moving car, carried over the shoulder,
+    # put down, or thrown. People, not things: the effort in the voice, the coats and boots.
+    "crew-rescue": [
+        O("haul", "A friend hauled up into a moving car: a grunt of effort and their boots landing on the boards", vars=3),
+        O("lift", "A friend heaved onto the shoulder: a strained grunt and coats rustling", vars=3),
+        O("set", "A friend put down off the shoulder: their boots landing, a breath let out", vars=3),
+        O("throw", "A friend thrown: a big heave and a whoosh of coats", vars=3),
+    ],
+    # Big finds (queue #513, note 783; note 719): the two-person jackpots, and the fragile finds that break as they're knocked.
+    # The jackpot house's lock is the wrench's own (place-breach.pick, pick-give).
+    "loot-jackpot": [
+        # Each find's own lift (the safe's door, the bell's clapper, the figurehead's oak as it comes up), the pair varying.
+        O("lift-iron", "The safe lifted between two: a heave each end, its weight off the floor, its door knocking once", vars=3),
+        O("lift-bell", "The church bell lifted between two: a heave each end, its weight off the floor, its clapper knocking", vars=3),
+        O("lift-wood", "The figurehead lifted between two: a heave each end, its weight off the floor, its oak creaking", vars=3),
+        O("set-iron", "The safe set down: a dead heavy iron thud, its door rattling in its frame", vars=3),
+        O("set-wood", "The figurehead or the bell's headstock set down: heavy oak laid down, a creak", vars=3),
+        O("bell", "The church bell knocked or set down: a dull, short bronze ring, the clapper's knock", vars=3),
+    ],
+    "loot-fragile": [
+        O("glass", "A crate of glass knocked: bottles breaking inside it, straw rustling", vars=3),
+        O("decanter", "A cut-glass decanter knocked: a bright crack, a chip or its neck snapping off", vars=3),
+        O("clock", "A mantel clock knocked: its dial glass cracking, the works jangling, the gong humming", vars=3),
+    ],
+    # The handcar (queue #514, note 784; note 729): the trolley hung on the van, set down on the rails, pumped along.
+    "crew-handcar": [
+        O("creak", "The handle's see-saw at the top or bottom of its stroke: a wooden creak and the pivot's iron knock", vars=4),
+        O("joint", "The handcar's small wheels over a rail joint: a light click", vars=4),
+        L("roll", "The handcar rolling: small wheels humming on the rail, the frame rattling"),
+        L("brake", "The handcar's brake shoe on the wheels: a thin squeal and a grind"),
+        O("set", "The handcar set down on the rails: its wheels dropping on with a thud and a clank", vars=2),
+        O("hang", "The handcar hung back on the van: its hooks and chains clanking, the frame knocking the van", vars=2),
+    ],
     # U1's upgrades (queue #505, note 775; U1's #967, notes 678, 697, 698; the checklist's up- rows, U1's requests of 13 Oct).
     # Built ahead of #967 for the director to judge; hooked when it lands.
     "up-forge": [
@@ -1092,6 +1156,25 @@ CUES = {
         O("wave", "An arm raised and waved: a coat sleeve's swish", vars=3),
         O("point", "An arm thrown out to point: a sharp coat rustle", vars=3),
         O("outfit", "Trying an outfit on in the yard: a coat shrugged into, buttons done up", vars=2),
+        # Emotes for two and where to sit (queue #519, note 786; K1's #1038, note 722): the hands meeting, an edge, a doorway.
+        O("high-five", "Two gloved hands meeting in a high five: a solid leather slap", vars=3),
+        O("fist-bump", "Two gloved fists bumping: a dull, soft knuckle knock", vars=3),
+        O("sit", "Sat down on an edge, legs over: the coat settling, a boot knocking the side", vars=3),
+        O("lean", "Leant out of a doorway: a gloved hand on the frame, its small creak", vars=3),
+    ],
+    # Odd outcomes to find (queue #519, note 786; K1's #1038, note 730): small strange things in the towns and dead villages,
+    # by design and unexplained. Heard once each, where they happen.
+    "world-odd": [
+        O("well-splash", "Something dropped down a village well: a small plop far down, rung hollow up the shaft", vars=3),
+        O("coin", "The well gives something back: an old coin landing on the stones beside it", vars=3),
+        O("wash", "Soot washed off at the well: a bucket drawn up and poured out", vars=2),
+        O("can-kick", "A tin can kicked along a village road: a tinny clank, bouncing and rattling to a stop", vars=3),
+        O("bark", "Something answers the can from the dark: a dog, or something like one, far off", vars=3),
+        O("scarecrow", "A scarecrow found turned: a slow dry creak of its post, far quieter than anything else", vars=2),
+        O("letter", "A letter nobody collected taken from a postbox and opened: the iron door, the envelope torn", vars=3),
+        O("painting", "Dave's painting set down at your feet: the frame's soft knock, his brush tapped clean", vars=2),
+        O("sooted", "Out from under the coaling chute black with soot: coughing and spitting", vars=3),
+        O("lurch", "A switch thrown under someone on its blades: the iron slamming over, a startled grunt", vars=3),
     ],
     "state-starved": [
         # Note 319: an engine short of steam holds the train back.

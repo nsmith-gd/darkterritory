@@ -1,0 +1,20 @@
+// A far bell: something lost: Something lost out there: a stop's bell rung once or twice, a long way off. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 4,
+ "loop": false,
+ "maxInstances": 12,
+ "minDistance": 60,
+ "maxDistance": 2000,
+ "rolloff": 0.5,
+ "gainDb": 2,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "world-bell/far",
+   "gain": 1,
+   "pitchJitter": 0.4,
+   "gainJitter": 1.0
+  }
+ ]
+}

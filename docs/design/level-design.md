@@ -371,7 +371,7 @@ What stands beside a generated line between the stops, and what of it you walk i
 - **The country road's** (maritime-rules.md §2.2): a pole leaning on its far side every 45 m. Now and then a homestead faces it: the house set back 12–22 m, its woodpile, a barn behind it, and a fence along the front. Now and then a car stands where it stopped on the verge.
 - **The shore's** (§6, §3): two or three fish sheds on stilts at a cove's head, with a wharf run out from them, and a lighthouse out on a headland. The Atlantic adds its granite ledges and weed-black rocks at the tide line, and every shore has boulders along its edge or across a river's bed.
 - **The biome's props by the 150 m block** (biomes.json `props`): its chance, how far out and how many. They are houses, barns, a church, a burying ground, fish sheds, ruins, chimneys, tanks and headframes; erratics and outcrops; stone walls along the line with gaps where they've fallen; an old field grown in with spruce; and an orchard's dead apple trees. A building wants its ground clear as the woods do, and a block either way along.
-- **The railway's leavings** (E1's kinds, note 325; solid since note 792): one thing to an 85 m stretch, four stretches in five, dealt from a shuffled deck of every kind so none comes round again within a few. The gangs' stacks of ties and rail, their hut, drums, a cable reel, a milepost, a dead signal, a wheelset, a tipped trolley, spilt coal, a cold camp, graves, dumped stores and freight, a sandbagged post, each at its kind's distance out (3.2-14 m) and facing (along the line, toward it, or any way). None comes within 2 m of the line's middle (outside the cars' sides): one that would is turned round, or left out. They're kept off a branch's ground, a stop's whole ground (its yard has its own piles), a road and the water.
+- **The railway's leavings** (E1's kinds, note 325; solid since note 792): one thing to an 85 m stretch, four stretches in five, dealt from a shuffled deck of every kind so none comes round again within a few. The gangs' stacks of ties and rail, their hut, drums, a cable reel, a milepost, a dead signal, a wheelset, a tipped trolley, spilt coal, a cold camp, graves, dumped stores and freight, a sandbagged post, each at its kind's distance out (3.2-14 m) and facing (along the line, toward it, or any way). None comes within 2 m of the line's middle (outside the cars' sides): one that would is turned round, or left out. They're kept off a branch's ground, a stop's whole ground (its yard has its own piles), a road and the water. Nothing else of the lineside stands in them: a tree, a boulder or a prop within a leaving piece's reach isn't there (note 794).
 - **The night's own.** Everything is dealt from the night's seed, the same on every machine. The woods get a stream per 12 m slot, the road per 45 m cell, the shore per 20 m cell, each biome prop its own stream in its block, and the leavings a stream per stretch. What the art alone lays out (the forest floor, the far stands, the verge's growth, the shrines) comes from the night's own art seed (note 780).
 
 ## L.2 Solid
@@ -386,7 +386,6 @@ What stands beside a generated line between the stops, and what of it you walk i
   - a hand-laid line's trees and leavings.
 - **A building is its box,** so a porch or a shed's stacked traps fill their corner of it.
 - **The alder, reeds and tufts** stay passable.
-- **The woods don't keep off the leavings** (nor did they when the art dealt them): now and then a lineside tree stands against a gangs' hut or a stack of stores.
 
 ---
 
@@ -465,3 +464,84 @@ The artifact's scores illustrate the rules. The sim is calibrated to its own mea
 - **Trailing points and loops (a north lead).** The train sim measures every position as a distance along the main line up to the points, then along a branch that leaves facing up-line. A switch facing the other way breaks that model for the train, couplings, bots and loading alike, so it's an engine change of its own.
 - **Bots don't clear a blocked siding.** Their stop crew works a facility's own track and its modules, and a switchyard's standing cars (ARCHITECTURE §8 note 187). They do breach Holdouts (notes 152, 259), and with a yard's power dead or low the crane's operator (or the conveyor's shunter) walks to the powerhouse and restarts it first (note 639); once the site's own crates are in, the crate hands fetch the crates lying elsewhere in the yard on foot (note 403), the heavy ones two to a crate (note 440), and then half of them search the village's open houses and bring the finds aboard (note 326); caught out among the houses by the Choir, a hand shuts itself into the nearest one until it's quiet (note 413; a pair's cottages are a home each, note 453), and one loading a car shuts the car up (note 439).
 - **Buildings' interiors are a first slice.** Every stop building is solid now (ARCHITECTURE §8 notes 155, 274, 279, 326): every village house stands open, one floor, the bigger ones in two rooms (an L's wing and a long house's back room, through an inner doorway; a cross its parts together), its doors hanging open until a crewmate shuts them (note 401), ransacked, its finds inside to search (note 326); the barns, outbuildings and a dead town's goods shed open as walk-in shells, a hayloft's or a workbench's find inside to search (note 417); a dead town's station open the same way, nothing in it (note 493); the yard's powerhouse open, its power restarted at the switchboard inside, dark until it runs (note 509); a dead town's derelicts, signal boxes, lamp rooms, water towers, lockups, prison cars and wells shut, a find in one put on its step; the sheds and the hero as their walls with the bay door the art draws, so the crates inside are fetched through it; a Holdout as its walls with its door open where it's breached, its occupant coming back inside and walking out. The art still paints the sheds' and Holdouts' doors on closed boxes: walking in through one shows the inside of nothing (an art row for C1).
+
+# PART T — TOWN TYPES (note 692)
+
+The director's five town renders (13 Oct 2026: "different town types that give the world a bit more flavor and a bit more
+meaning"), turned into ground plans the walled town's houses and people stand on (`Towns.TownForms`; towns.json `forms`).
+`dt town map --route r --form f` draws one top-down.
+
+## T.1 What every town keeps
+
+- **A way in and a way out.** The line comes in at the rear wall's gate from the last night and leaves at the front gate for
+  the next. Both are gatehouses; the wall is open nowhere else. The arrival town stands the same way round as when the next
+  night leaves it, its way in on the terminus's gate, so arriving and leaving are one place, and one frame (seamless-ready).
+- **The yard holds the longest train.** 330 m (20 cars) back from the engine's place 8 m inside the way out, inside the wall,
+  the line and its platform clear. Every form is 520–600 m between its gates: the yard, and a town round it.
+- **The square by the way out, on the left; the platform on the right.** The town's heart is where the night starts.
+- **The same seed, the same town.** A form is drawn from the town's trade on its own stream; every lot, level and wall from
+  the town's seed alone.
+- **Every door is walked to.** From the yard, over steps no taller than a stride and water no deeper than a wade, to every
+  house's front. Height never cuts the town in two: where it would, a stair goes up the least step.
+- **The town sits in its land.** The ground past the wall is the form's (a headland, a ridge, a mesa and its ditch, a
+  valley, tidal flats), easing into the night's land over the margin; the line comes in level through both gates.
+
+## T.2 The forms
+
+| Form | From the render | Its shape | What it asks of the crew |
+| --- | --- | --- | --- |
+| harbour | Breakwater Town | the basin inside the sea wall, piers out over it, the breakwater; streets behind the square climbing 4 m a tier to the head (16 m) and its lighthouse, the crag behind | long walks along the wharf; the piers are dead ends over the water |
+| dykeland | Fenfolk | salt marsh inside the palisade, the line on its dyke, every house on a stilt stage along a web of boardwalks, the market and chapel on mounds | the marsh is waded, slow and open; the boardwalks are the only quick ways |
+| quarry | Pitborn | the pit beside the square, benches stepping down to its floor, houses on every bench, one ramp down | height: the floor is 15 m under the rim, one way down and one way up |
+| tidewater | Drowned Boroughs | the drowned ward's houses on stilt stages along boardwalks between causeways, a jetty and a dory where a walk ends; streets climbing tier on tier to two hills (14 m, 22 m) under a ridge | causeways are exposed lines across the water; the high ward looks down on everything |
+| glasshouse | Glass Gardeners | an eight-sided wall, glasshouse ranges, round reservoirs, beds in plots, the gardeners' rows | long sight lines down the beds, cover only in the ranges |
+| furnace | Furnace Republic | the foundry and its stacks on a crown ringed by the workers' quarters, the slag pit sunk beside them with its crane and lift, the docks and a barge in the sea outside, the workers' rows across the line | the crown is the long climb; the pit is a dead end with one lift |
+| highline | Highline Settlement | a clifftop: the citadel's keep and chapel crowning rings of the upper ward behind the square, the ledges stepping down tier under tier to the cliff wall on the platform's side, the processing sheds by the way out, the lookout's tower on a stack out from the cliff | the ledges step down to a wall over a 28 m drop; the citadel looks down on all of it |
+| timber | Timberholds | a round log palisade on its knoll over the clearing, log watchtowers inside and out over a stump-cleared kill zone, the quarters in rings round the market, the log yards and two sawmills on the platform's side | open ground all round the wall; the log yards are a maze of stacks |
+| salt | Saltwardens | an eight-sided wall over the marsh, salt pans in a grid of walks, windpumps and cisterns, the processing sheds, the living rows, the lower ward on stilts in its lagoon | the pans are wide open and wet; the stilt ward is boardwalks only |
+| crag | Craghold | walled wards 12 m apart ringing the crag up to its keep and chapel (36 m), the rock falling to the sea outside the wall, a lift up the face, the docks inlet, the lower ward across the line | the climb to the keep, a tier at a time; the lift is the quick way |
+| street | (note 335) | streets beside the line, lanes between | the grid: many doors, short sight lines |
+
+## T.3 Rules for the generator
+
+- **Lay the frame, then the ground, then the ways, then the lots.** Anything laid later never stands on what's laid before (a
+  1 m grid of what's taken). Every lot is checked against the finished ground: none stands in water, on a deck or a plot, on
+  two levels at once, or under a way.
+- **A drop is walled, deep water is railed.** A step in the ground taller than a stride (0.7 m) has a retaining wall with a
+  parapet; water deeper than 0.75 m has a rail along its walkable edge. Shallower water is waded.
+- **Height where the place earns it, not everywhere.** A harbour climbs its headland, a drowned town its hills, a quarry
+  digs down; a marsh and a valley stay level. Climbing towns terrace their streets a tier at a time (4 m), the back lines
+  retaining walls, the lanes stair streets no steeper than 0.45; a stair is drawn as treads.
+- **The wall stands on its ground.** Each bay from the lower side to its height over the higher, on a plinth: a town on a
+  rise looks down its wall, a town in a pit ditch is ringed by one. It's a fortress first.
+- **A warren, not a grid** (the director, 14 Oct, of a first pass of straight streets and detached cottages: "They don't
+  look like the references"). Streets wander together like contours, the rows back to back between them, houses shoulder
+  to shoulder with no yards; every lot built, the lost's houses boarded or burnt among the lived. No flat ground left
+  bare inside the wall but the square, its green, the works and the water.
+- **Both halves walled.** The yard has a wall each side in front of the first row's backs, open at every stair lane; the
+  outer wall has a turret every 45 m between its gun towers. A drop past a storey is rock, a wall over one stands on it.
+- **Nothing stands in the water.** A house over water stands on a stage, a deck built to bear it, reached by a walk
+  from a causeway, a quay or the dyke; one out where the walk ends has a jetty and a boat (the director, 14 Oct: "we
+  can't just have houses floating in the water"). A harbour opens to the sea through its wall, its breakwater out past it.
+- **A hill town climbs in walled wards** (the director, 14 Oct, of the fourth pass: "missing the elevation and tiering").
+  Where the references stack a town up its rock, each ring is a ward a storey or more over the last (12 m in Craghold,
+  Highline and Furnace Republic) behind a tall retaining wall, a walk along the wall's top and a lane at its foot, the
+  flight up climbing along the foot (`WallLane`); a flight straight across a band only where the step is low enough to
+  fit it. The land falls away outside the wall, so the town stands on its rock rather than under a hill.
+- **Organic where the land is.** A hill town wraps its hill in rings, its lanes spokes up to the crown; a flat town's
+  streets wander together like contours.
+- **Weathered Maritime.** The fortress towns' houses are the province's shapes gone grim: tall, weathered shingle, the
+  old colours dulled, sooted and salt-bleached.
+- **Open houses stand square to the line, on dry ground, nearest the square.** Their rooms are their walls.
+- **Reuse the kit.** A form's landmarks are the game's existing pieces (the lighthouse, the chapel, a wall's tower, the pit's
+  headframe, a fish shed, a glasshouse; the casting for a foundry or sawmill, the windmill for a windpump, a chimney for a
+  stack); its ground is one mesh a town; nothing in it needs walking into but the open houses. New pieces only where the
+  kit has nothing near (a timber town's palisade, log watchtowers and log stacks, `StructureKit`).
+- **A timber town's wall is logs.** Its run is a palisade of sharpened logs on a plank walk and its towers stand on log
+  legs (`TownBounds.Timber`); outside it the kill zone is cleared to stumps.
+
+## T.4 Not yet
+
+See note 692's handoff: the forms' own paving and crops, stilts under the marsh's houses, boats at the piers, the town's
+people on its ground, the bots in its streets, the seamless hand-over itself, and whether a form should follow the land (a
+harbour where the plan has a shore) rather than the trade.

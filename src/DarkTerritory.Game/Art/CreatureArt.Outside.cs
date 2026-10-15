@@ -31,7 +31,7 @@ public sealed partial class CreatureArt
     void ForgetOutside()
     {
         (_mournerMode, _beetleMode, _towerJawMode, _outsideSince, _outsidePace) = (null, null, null, -1, 0);
-        (_pickerMode, _lodgerMode, _householderMode) = (null, null, null);
+        (_pickerMode, _lodgerMode, _householderMode, _mouseMooseMode) = (null, null, null, null);
     }
 
     /// <summary>The live enemy's mode and pace for its draw; the basis it's drawn at (Tower Jaw set back of its jaws).</summary>
@@ -51,6 +51,9 @@ public sealed partial class CreatureArt
                 return model;
             case Picker p:
                 _pickerMode = p.Mode;
+                return model;
+            case MouseMoose mm:
+                _mouseMooseMode = mm.Mode;
                 return model;
             case Lodger l:
                 _lodgerMode = l.Mode;
@@ -150,6 +153,9 @@ public sealed partial class CreatureArt
                 }
             case EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw or EnemyKind.Pickers or EnemyKind.Lodger or EnemyKind.Householder:
                 return false;
+            case EnemyKind.MouseMoose:
+                // THE MOUSE MOOSE (note 790; CreatureArt.MouseMoose.cs): its boxes, until it's modelled.
+                return MouseMooseStandIn(mesh, model, _mouseMooseMode ?? MouseMooseModeOf(phase), since);
             case EnemyKind.Waker when _models.ContainsKey("waker"):
                 // THE WAKER, the Peat Man (note 679; tools/blender/waker.py; CreatureArt.Waker.cs).
                 return DrawWaker(mesh, model, phase, t, extra);
