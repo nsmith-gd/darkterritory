@@ -5,15 +5,19 @@
 # D1 made these by hand (an integration branch, then the Test build workflow); this makes one every night. The integration
 # is force-pushed to `tonight`, so anyone can build it again, or bisect it.
 #
-# Every night at 7:30 pm Montreal time (the director, 9 Oct 2026, in the inbox). A schedule is in UTC and Montreal moves its
-# clocks, so there are two: 23:30 UTC is 7:30 pm in summer (EDT) and 00:30 UTC in winter (EST). The clock job lets through
-# only the one that's 7 pm in Montreal, so it runs once a night all year. Any other time: Actions > Tonight's build > Run
-# workflow.
+# Twice a day, for the director's playtests (the director, 15 Oct 2026: "Every evening I want a build at 5pm so I can play
+# test at 7pm and I want a build at 7am so I can play test at 9am"; before that, 7:30 pm only). A schedule is in UTC and
+# Montreal moves its clocks, so each time has two: 21:00/11:00 UTC are 5 pm/7 am in summer (EDT), 22:00/12:00 UTC in winter
+# (EST). The clock job lets through only the ones in Montreal's 5 pm or 7 am hour, so it runs twice a day all year. Which
+# Token Budget Manager watches each build is COORDINATION.md's "Playtest builds". Any other time: Actions > Tonight's build
+# > Run workflow.
 name: Tonight's build
 on:
   schedule:
-    - cron: '30 23 * * *'
-    - cron: '30 0 * * *'
+    - cron: '0 21 * * *'
+    - cron: '0 22 * * *'
+    - cron: '0 11 * * *'
+    - cron: '0 12 * * *'
   workflow_dispatch:
 permissions:
   contents: write
@@ -33,9 +37,9 @@ jobs:
         env:
           EVENT: ${{ github.event_name }}
         run: |
-          # By hand, always; on the schedule, only the run that lands in Montreal's 7 pm hour.
+          # By hand, always; on the schedule, only the runs that land in Montreal's 5 pm or 7 am hour.
           hour=$(TZ=America/Toronto date +%H)
-          if [ "$EVENT" != schedule ] || [ "$hour" = 19 ]; then go=true; else go=false; fi
+          if [ "$EVENT" != schedule ] || [ "$hour" = 17 ] || [ "$hour" = 07 ]; then go=true; else go=false; fi
           echo "Montreal: $(TZ=America/Toronto date '+%H:%M %Z'); go=$go"
           echo "go=$go" >> "$GITHUB_OUTPUT"
   tonight:
