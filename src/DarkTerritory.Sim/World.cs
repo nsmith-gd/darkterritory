@@ -1822,6 +1822,10 @@ public sealed partial class World
         // The gun's seat (T112): sat in or got up from, the view held to the gun's arc and the gun laid after it, before it fires.
         if (Combat is { } cs)
             Guns.Sit(ref s, intent, Train, cs.Guns, SimConstants.TickSeconds);
+        // The human cannonball (note 746): into the guard van's packed gun at its muzzle, or held in it; that Use is the climb's.
+        int? climbing = Combat is { } cc ? HumanCannonball.Climb(ref s, intent, Train, cc.Guns, cc.Cannonball, SimConstants.TickSeconds) : null;
+        if (climbing is { } climbed)
+            _gunHands[climbed] = _gunHands.GetValueOrDefault(climbed) + 1;
         // A Muskoka chair on the BBQ deck (note 698): sat in with the same press, got up from with it again.
         Bbq.Sit(ref s, intent, Train, LastCrew.Where(c => c.Id != playerId).Select(c => c.State), Hand);
         var targets = viewTick is { } vt && _targetHistory.TryGetValue(vt, out var then) ? then : Targets;
@@ -1843,7 +1847,7 @@ public sealed partial class World
         // The reload (note 752: the gunner in the seat, or a loader beside it while the gunner aims): each pair of hands on it
         // this tick, counted, so two together work it at combat.json loaderRate whoever's turn comes first. Standing, a hand
         // meant for something looked at (a locker, a handbrake) is that thing's, not the gun's.
-        if (Combat is { } cr && Guns.Working(s, intent, Train, cr.Guns) is { } worked
+        if (climbing is null && !s.Has(PlayerFlags.InCannon) && Combat is { } cr && Guns.Working(s, intent, Train, cr.Guns) is { } worked
             && (s.Has(PlayerFlags.Seated) || CrewActions.LookedAt(s, Train) is null))
         {
             int hands = _gunHands.GetValueOrDefault(worked) + 1;

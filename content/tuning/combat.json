@@ -101,6 +101,10 @@
   // car (its nearest side) take damage (150: dead). Not in the GDD's numbers: "near" is the next car, so the guard van's gun
   // with chemicals ahead of it is lethal and the engine's, with them three cars back, isn't.
   "fumes": { "cars": 1, "gasM": 8, "damage": 150 },
+  // The human cannonball (note 746; docs/design/upgrades.md §8.3; campaign.json humanCannonball): on the guard van's gun, packed
+  // and waiting on its ball, a crewmate within climbReach m of the muzzle (muzzle m out along the barrel from the pivot), nearer
+  // it than the pivot, holding Use climbSeconds, climbs in instead of the ball. Jump climbs out.
+  "cannonball": { "climbReach": 1.0, "climbSeconds": 1.5, "muzzle": 1.5 },
   "hits": {
     "keepSeconds": 1,
     "impactKeepSeconds": 8

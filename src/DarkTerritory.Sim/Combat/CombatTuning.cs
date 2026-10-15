@@ -8,7 +8,16 @@ public sealed record CombatTuning(GunTuning Guns, ChoirTuning Choir)
     public HitTuning Hits { get; init; } = new();
     /// <summary>A cannon fired beside a chemicals car (combat.json <c>fumes</c>; GDD App. B.9; note 182). Unset, nothing.</summary>
     public FumesTuning? Fumes { get; init; }
+    /// <summary>The human cannonball on the guard van's gun (combat.json <c>cannonball</c>; note 746).</summary>
+    public CannonballTuning Cannonball { get; init; } = new();
 }
+
+/// <summary>
+/// combat.json <c>cannonball</c> (note 746; docs/design/upgrades.md §8.3): a crewmate climbs into the guard van's packed gun
+/// (<c>dress:humanCannonball</c>) holding Use within <see cref="ClimbReach"/> m of its muzzle (<see cref="Muzzle"/> m out along
+/// the barrel from the pivot) for <see cref="ClimbSeconds"/>.
+/// </summary>
+public sealed record CannonballTuning(double ClimbReach = 1.0, double ClimbSeconds = 1.5, double Muzzle = 1.5);
 
 /// <summary>
 /// combat.json <c>fumes</c> (App. B.9: "firing a cannon near chemical cars is lethal to the crew"): a shot from a gun on a

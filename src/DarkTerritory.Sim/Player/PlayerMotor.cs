@@ -371,6 +371,11 @@ public enum PlayerFlags : uint
     Lounging = 65536,
     /// <summary>Playing the band's instrument in their hands (note 700): every machine hears it, on the band's tune.</summary>
     Playing = 131072,
+    /// <summary>
+    /// In the guard van's cannon (note 746, the human cannonball): climbed in at its muzzle with the gun packed, feet in the
+    /// barrel, still, till the gunner fires it or Jump climbs out (<see cref="DarkTerritory.Sim.Combat.HumanCannonball"/>).
+    /// </summary>
+    InCannon = 262144,
 }
 
 /// <summary>
@@ -714,7 +719,7 @@ public static class PlayerMotor
                 speed = Math.Min(speed, p.CarryHeavy);
             if (s.Has(PlayerFlags.Pushing))
                 speed = Math.Min(speed, p.PushGun);
-            if (s.Has(PlayerFlags.Operating) || s.Has(PlayerFlags.Seated) || s.Has(PlayerFlags.Pumping) || s.Has(PlayerFlags.Lounging))
+            if (s.Has(PlayerFlags.Operating) || s.Has(PlayerFlags.Seated) || s.Has(PlayerFlags.Pumping) || s.Has(PlayerFlags.Lounging) || s.Has(PlayerFlags.InCannon))
                 speed = 0;
             var wish = WishDirection(s.Yaw, intent) * speed;
             // GDD §22 wind on a roof (note 201): a sideways push across the car, on top of where you're going.
