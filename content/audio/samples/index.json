@@ -5844,6 +5844,93 @@
   "takes": 3,
   "sha": "1938e96238f513c3"
  },
+ "crew-mail/catch": {
+  "cue": "crew-mail.catch",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The bag snatched into the catcher arm at speed: a hard canvas thwack, the iron arm's clank and rattle, its weight",
+    "key": "sack",
+    "sources": [
+     "kenney_rpg-audio:dropLeather",
+     "sfx_100_v2:metal_hit_01",
+     "sfx_100_v2:misc_37",
+     "kenney_rpg-audio:bookPlace1",
+     "kenney_rpg-audio:bookPlace2",
+     "kenney_rpg-audio:bookPlace3",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth4",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:door_02",
+     "sfx_100_v2:door_04",
+     "sfx_100_v2:door_05",
+     "sfx_100_v2:metal_03",
+     "kenney_impact-sounds:impactPunch_medium_000",
+     "kenney_impact-sounds:impactPunch_medium_001",
+     "kenney_impact-sounds:impactPunch_medium_002",
+     "kenney_impact-sounds:impactPunch_medium_003",
+     "kenney_impact-sounds:impactPunch_medium_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "kenney_rpg-audio:bookFlip1",
+     "kenney_rpg-audio:bookFlip2",
+     "kenney_rpg-audio:bookFlip3"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "e81ffb03cf25fa8c"
+ },
+ "crew-mail/tear": {
+  "cue": "crew-mail.tear",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Hooked too fast: the canvas ripping open in one tear, the bag torn off the hook, letters fluttering off",
+    "key": "rip",
+    "sources": [
+     "kenney_rpg-audio:dropLeather",
+     "sfx_100_v2:metal_hit_01",
+     "sfx_100_v2:misc_37",
+     "kenney_rpg-audio:clothBelt2",
+     "kenney_rpg-audio:bookPlace1",
+     "kenney_rpg-audio:bookPlace2",
+     "kenney_rpg-audio:bookPlace3",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004",
+     "sfx_100_v2:door_02",
+     "sfx_100_v2:door_04",
+     "sfx_100_v2:door_05",
+     "sfx_100_v2:metal_03",
+     "kenney_rpg-audio:handleSmallLeather2",
+     "kenney_rpg-audio:drawKnife2",
+     "kenney_rpg-audio:bookFlip1",
+     "kenney_rpg-audio:bookFlip2",
+     "kenney_rpg-audio:bookFlip3"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "e0ad1c7906d95d57"
+ },
  "crew-melee/crowbar-drop/concrete": {
   "cue": "crew-melee.crowbar-drop",
   "surface": "concrete",
@@ -8106,6 +8193,24 @@
   ],
   "takes": 4,
   "sha": "9f58af356316c299"
+ },
+ "crew-speaking-tube/call": {
+  "cue": "crew-speaking-tube.call",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The far end's whistle-plug shrilling as someone blows down the tube: thin, breathy, wobbling, out of a brass pipe",
+    "key": "blown",
+    "sources": [
+     "sfx_100_v2:glass_01",
+     "sfx_100_v2:misc_05"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "1dc54a2edc9fd783"
  },
  "crew-switch/lever-latch": {
   "cue": "crew-switch.lever-latch",
@@ -17538,6 +17643,26 @@
   ],
   "takes": 1,
   "sha": "a95a2ac729bbb6cb"
+ },
+ "world-comet/hum": {
+  "cue": "world-comet.hum",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A comet fragment: a real glass's ring dropped five octaves into a low, wrong hum, its doublets beating, a faint fizz",
+    "key": "glass",
+    "sources": [
+     "sfx_100_v2:glass_05",
+     "sfx_100_v2:glass_02",
+     "sfx_100_v2:misc_26",
+     "sfx_100_v2:misc_27"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "72abea5308d8475b"
  },
  "world-debris-hit/hit-fast": {
   "cue": "world-debris-hit.hit-fast",

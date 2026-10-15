@@ -283,7 +283,9 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 "cs-wakers.grab": "seized", "cs-wakers.drag": "skid", "cs-wakers.lift": "torn",
                 # Note 773: Dave's hum modelled (the real one is cut from a roar, and may read as a growl); Jacob's line and
                 # his blessing from the packs' real reel and glass.
-                "figures.dave-paint": "easel", "figures.jacob-fish": "reel", "figures.jacob-bless": "glass"}
+                "figures.dave-paint": "easel", "figures.jacob-fish": "reel", "figures.jacob-bless": "glass",
+                # Note 774: the mail bag's real sack; the comet's real glass (the model's even beat may read as a tremolo).
+                "crew-mail.catch": "sack", "world-comet.hum": "glass"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the
