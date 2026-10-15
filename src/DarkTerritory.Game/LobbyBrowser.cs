@@ -70,6 +70,12 @@ public sealed record ListedGame(string Name, int Aboard, int Max, string Tier, d
     public bool Locked { get; init; }
     /// <summary>Who the run is for, as its host said (note 450).</summary>
     public RunMood Mood { get; init; }
+    /// <summary>The host's record (note 535): the furthest any of its crews has gone in a campaign, km; null, none said.</summary>
+    public int? RecordKm { get; init; }
+
+    /// <summary>A listing's record (note 535): whole km, or null for none (or an older host's, which doesn't say).</summary>
+    public static int? ParseRecord(string? word) =>
+        int.TryParse(word, NumberStyles.Integer, CultureInfo.InvariantCulture, out int km) && km > 0 ? km : null;
 
     /// <summary>The crew's at its cap (note 254): shown FULL, greyed, not joinable.</summary>
     public bool Full => Max > 0 && Aboard >= Max;
@@ -78,7 +84,7 @@ public sealed record ListedGame(string Name, int Aboard, int Max, string Tier, d
     public static ListedGame From(LanGame g) =>
         new(g.Name is { Length: > 0 } n ? n : $"{g.Host}'s run", g.Aboard, g.Max, g.Tier, g.PingMs, g.Protocol,
             $"On your network at {g.Address}: {g.Night}", new Launch.Join(g.Address.ToString()))
-        { Locked = g.Locked, Mood = Moods.Parse(g.Mood) };
+        { Locked = g.Locked, Mood = Moods.Parse(g.Mood), RecordKm = ParseRecord(g.Record) };
 
     /// <summary>A lobby a platform search found (its ping the platform's estimate from the host's published location).</summary>
     public static ListedGame From(LobbyListing l, string platform)
@@ -91,7 +97,7 @@ public sealed record ListedGame(string Name, int Aboard, int Max, string Tier, d
             l.Get(NetPlaySession.TierKey), l.PingMs,
             int.TryParse(l.Get(Lobby.ProtocolKey), NumberStyles.Integer, CultureInfo.InvariantCulture, out int protocol) ? protocol : -1,
             $"On {platform}, hosted by {host}: {l.Get(NetPlaySession.RunKey)}", new Launch.JoinLobby(l.Id))
-        { Locked = l.Get(NetPlaySession.LockedKey) == "1", Mood = Moods.Parse(l.Get(NetPlaySession.MoodKey)) };
+        { Locked = l.Get(NetPlaySession.LockedKey) == "1", Mood = Moods.Parse(l.Get(NetPlaySession.MoodKey)), RecordKm = ParseRecord(l.Get(NetPlaySession.RecordKey)) };
     }
 
     /// <summary>

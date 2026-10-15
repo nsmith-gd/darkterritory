@@ -559,14 +559,15 @@ public sealed class FrontEndTests : IDisposable
         var rows = m.Items.Select(i => i.Label).ToList();
         Assert.StartsWith("LOBBY", rows[0]);
         Assert.Equal(["OLD'S RUN", "NICK'S RUN", "PACKED'S RUN", "PRIYA'S RUN"], rows.Skip(1).Take(4).Select(r => r[..25].TrimEnd()));
-        // Every row says its ping (note 450), and who the run's for ("-": the host said either).
-        Assert.Matches(@"^NICK'S RUN +1/12 +FRONTIER +- +3 MS$", rows[2]);
-        Assert.Matches(@"^PRIYA'S RUN +3/12 +DEAD LINES +- +41 MS$", rows[4]);
+        // Every row says its ping (note 450), who the run's for ("-": the host said either) and its host's record (note 535;
+        // "-": none said).
+        Assert.Matches(@"^NICK'S RUN +1/12 +FRONTIER +- +- +3 MS$", rows[2]);
+        Assert.Matches(@"^PRIYA'S RUN +3/12 +DEAD LINES +- +- +41 MS$", rows[4]);
         // Greyed, with the reason on the row where the tier would be: another version, a full crew.
         Assert.False(m.Items[1].Enabled);
-        Assert.Matches(@"^OLD'S RUN +1/12 +OTHER VERSION +- +2 MS$", rows[1]);
+        Assert.Matches(@"^OLD'S RUN +1/12 +OTHER VERSION +- +- +2 MS$", rows[1]);
         Assert.False(m.Items[3].Enabled);
-        Assert.Matches(@"^PACKED'S RUN +12/12 +FULL +- +5 MS$", rows[3]);
+        Assert.Matches(@"^PACKED'S RUN +12/12 +FULL +- +- +5 MS$", rows[3]);
         // The first you can join is chosen; a network game joins by address, a Steam one by its lobby.
         Assert.Equal(2, m.Selected);
         Assert.Equal(new Launch.Join("192.168.1.20:27450"), m.Select());
@@ -815,17 +816,19 @@ public sealed class FrontEndTests : IDisposable
         // Note 450 (the director, 8 Oct 2026): "a setting called 'Here for Laughs' ... that will automatically sort lowest
         // ping, here for laughs servers"; "Private matches should be password gated", listed with a lock.
         var m = Menu();
-        Ballast.Net.LanGame Lan(string ip, string name, double ping, string mood, bool locked) =>
+        Ballast.Net.LanGame Lan(string ip, string name, double ping, string mood, bool locked, string record = "") =>
             new(new System.Net.IPEndPoint(System.Net.IPAddress.Parse(ip), 27450), "host", "FRONTIER:7, 6 CARS, IN THE YARD", 1, m.Protocol, "darkterritory")
-            { Name = name, Max = 8, Tier = "Frontier", PingMs = ping, Mood = mood, Locked = locked };
-        m.Games = ListedGame.Merge([Lan("10.0.0.1", "GIGGLES", 30, "laughs", false), Lan("10.0.0.2", "LONG HAUL", 5, "competitive", false),
+            { Name = name, Max = 8, Tier = "Frontier", PingMs = ping, Mood = mood, Locked = locked, Record = record };
+        m.Games = ListedGame.Merge([Lan("10.0.0.1", "GIGGLES", 30, "laughs", false), Lan("10.0.0.2", "LONG HAUL", 5, "competitive", false, record: "1873"),
             Lan("10.0.0.3", "FRIENDS ONLY", 10, "", true)], [], "Steam");
         Choose(m, "JOIN");
-        List<string> Names() => [.. m.Items.Skip(1).Take(3).Select(i => i.Label[..26].TrimStart(Ballast.Render.BitmapFont.Lock).Trim())];
+        List<string> Names() => [.. m.Items.Skip(1).Take(3).Select(i => i.Label[..25].TrimStart(Ballast.Render.BitmapFont.Lock).Trim())];
         // Looking for either: nearest first.
         Assert.Equal(["LONG HAUL", "FRIENDS ONLY", "GIGGLES"], Names());
-        Assert.Matches(@"^LONG HAUL +1/8 +FRONTIER +COMPETE +5 MS$", m.Items[1].Label);
-        Assert.Matches(@"^GIGGLES +1/8 +FRONTIER +LAUGHS +30 MS$", m.Items[3].Label);
+        // Note 535: a competitive run's host's record beside its mood ("-": none said).
+        Assert.Matches(@"^LOBBY +CREW +TIER +MOOD +RECORD +PING$", m.Items[0].Label);
+        Assert.Matches(@"^LONG HAUL +1/8 +FRONTIER +COMPETE +1873 KM +5 MS$", m.Items[1].Label);
+        Assert.Matches(@"^GIGGLES +1/8 +FRONTIER +LAUGHS +- +30 MS$", m.Items[3].Label);
         // The private run's row starts with the lock, and says why on its detail line.
         Assert.StartsWith($"{Ballast.Render.BitmapFont.Lock} FRIENDS ONLY", m.Items[2].Label);
         Assert.StartsWith("Private:", m.Items[2].Detail);
