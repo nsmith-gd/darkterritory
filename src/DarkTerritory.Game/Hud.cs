@@ -1662,19 +1662,11 @@ public static partial class Hud
         }
         if (r.Lines.Count == 0)
             blocks.Add(([("Nothing to report.", Dim)], [], line, 0));
-        var money = new List<string> { $"Gross {r.Gross:0}" };
-        if (r.CrewLossFees > 0)
-            money.Add($"crew-loss fees {r.CrewLossFees:0}");
-        if (r.BodyRefunds > 0)
-            money.Add($"refunds {r.BodyRefunds:0}");
-        if (r.Recovery > 0)
-            money.Add($"recovery {r.Recovery:0}");
-        // Note 589: what the town's monster brigade charged for what rode in.
-        if (r.BroughtInFees > 0)
-            money.Add($"brigade fees {r.BroughtInFees:0}");
-        money.Add($"running costs {r.CoalCost + r.AmmoCost + r.RepairCost:0}");
-        // Wrapped as the lines are (note 347): at a bigger TEXT SIZE it's wider than the plate.
-        var sum = Wrap($"{string.Join(", ", money)}. Net {r.Net:0} scrip.", chars).ToList();
+        // Note 766 (the director, 13 Oct: "net negative 1607. So I need a better understanding as to why I got net negative"):
+        // every figure that made the net, signed, so it adds up on the screen; in the red, what cost most.
+        var money = Radio.Ledger(r).Select(i => $"{char.ToUpperInvariant(i.Name[0])}{i.Name[1..]} {i.Amount:+0;-0}").ToList();
+        string lead = r.Net < 0 && Radio.Costliest(r) is var (what, _) ? $": most of it {what}" : "";
+        var sum = Wrap($"{(money.Count > 0 ? string.Join(", ", money) + ". " : "")}Net {r.Net:+0;-0;0} scrip{lead}.", chars).ToList();
         // Note 718: the night's best finds by what they paid, and who brought the most aboard, over the money (what the clerk
         // read, kept on the screen: how a crew learns what's worth carrying).
         if (PrizeLine(r) is { Length: > 0 } prizes)
