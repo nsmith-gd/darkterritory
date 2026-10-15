@@ -64,7 +64,7 @@ public sealed record LootTuning
     /// </summary>
     public double Knocked(string item, double whole, int knocks) =>
         knocks <= 0 || Fragile is not { } f || !f.Items.ContainsKey(item) ? whole
-            : Math.Max(LeastWorth, Math.Round(whole * Math.Pow(f.Keep, knocks) / LeastWorth) * LeastWorth);
+            : Math.Max(LeastWorth, Math.Round(whole * Ballast.DMath.Pow(f.Keep, knocks) / LeastWorth) * LeastWorth);
 
     /// <summary>A find's name as the clerk reads it in the tally (note 719): a knocked fragile one with its damage ("Mantel clock, dented").</summary>
     public string Named(string item, int knocks) =>
