@@ -448,4 +448,31 @@ public sealed class UiSoundTests : IDisposable
         audio.Interface(w, me, 1);
         Assert.Equal(1, Played(audio, UiCue.Report));
     }
+
+    [Fact]
+    public void APingIsHeardByEveryoneOnceAndNotByAnEarThatJoinsAfter()
+    {
+        // Note 777 (A1's #1024, note 739): each of the crew's pings, as World.Pings carries it to every machine, heard once
+        // as it's made; the ones already standing when an ear first looks are not news.
+        var line = new RailLine(new LineDefinition("t", [new TrackSegment(20_000)]));
+        var w = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), line, 5_000), C);
+        var s = PlayerMotor.SpawnInCab(w.Train, P);
+        var audio = Audio();
+        audio.Interface(w, s, 1);
+        w.Pings.Add(new PingEvent(7, 1, 2, PingKind.Fire, 2, w.Train.Frames[2].Origin));
+        audio.Interface(w, s, 1);
+        Assert.Equal(1, Played(audio, UiCue.Ping));
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            audio.Interface(w, s, 1);
+        Assert.Equal(1, Played(audio, UiCue.Ping));
+        // Another (the same pinger on something else): heard too.
+        w.Pings.Add(new PingEvent(8, 2, 2, PingKind.Cab, 0, w.Train.Frames[0].Origin));
+        audio.Interface(w, s, 1);
+        Assert.Equal(2, Played(audio, UiCue.Ping));
+        // An ear that joins with both standing hears neither.
+        var late = Audio();
+        late.Interface(w, s, 1);
+        late.Interface(w, s, 1);
+        Assert.Equal(0, Played(late, UiCue.Ping));
+    }
 }
