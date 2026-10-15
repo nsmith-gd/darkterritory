@@ -977,4 +977,9 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [804. The Game test suite's memory, found and cut; the town forms back in the trades' rotation (T1, queue #531; note 692's "off for now": with…](notes/804.md)
 - [805. A running jump heard as a jump off the train (AU1, queue #533; AU1's audio audit)](notes/805.md)
 - [807. The emotes for two, their own clips: a high five and a fist bump that meet, a dance-off taken in turns, sat on the edge legs over, hung out…](notes/807.md)
+- [811. The shove, its own clip: off the back foot into a lunge, both palms thrown out (C1, queue #539; note 717's "Clips: a shove of its own (the…](notes/811.md)
+- [812. Bringing them home, its own clips: a friend over the shoulder in a fireman's carry, carrier and carried as one, and a reach down from a…](notes/812.md)
+- [813. A friend on the crane's hook, its own clips: stood on its lip with both hands up the cable, the loaded hook swaying under them, and a flail…](notes/813.md)
+- [814. The handcar's pump, its own clip: bent over the handle driving their end down, hauled back up, in time with its swing (C1, queue #542; note…](notes/814.md)
+- [816. The handcar modelled: its deck, frame and post, wheels that turn by the distance run, the see-saw handle, and the chains it hangs by (C1,…](notes/816.md)
 <!-- end of the notes index -->

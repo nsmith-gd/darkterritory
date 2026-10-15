@@ -44,8 +44,9 @@ public static partial class Staging
                 var feet = car.ToWorld(local);
                 double localYaw = end < 0 ? Math.PI : 0;
                 double yaw = localYaw + car.Heading;
-                crew.Add(new Crewmate((byte)(30 + (end + 1) / 2), feet, yaw, true, Act: Art.CrewPose.Lever,
-                    Reach: Art.CrewActs.AtTheHandle(t, car, h.Phase, end, feet, yaw), Car: h.Id, Local: local));
+                crew.Add(new Crewmate((byte)(30 + (end + 1) / 2), feet, yaw, true, Act: Art.CrewPose.Pump,
+                    Reach: Art.CrewActs.AtTheHandle(t, car, h.Phase, end, feet, yaw), Car: h.Id, Local: local,
+                    Phase: Art.CrewActs.PumpPhase(h.Phase, end)));
             }
             return crew;
         }

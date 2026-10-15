@@ -44,6 +44,17 @@ public enum CrewPose
     // "dance_off" and its "_cheer", "sit_edge", "lean_out" and "_left"), picked and timed by what the emote's at
     // (CreatureArt.EmoteClip); a build short of them stands them idle.
     HighFive, FistBump, DanceOff, SitEdge, LeanOut,
+    // A crewmate shoved (note 717; note 811): off the back foot into a lunge, both palms thrown out, played once from the knock.
+    Shove,
+    // Bringing them home (note 723; note 812): a living friend over the shoulder, both the carrier's arms round their legs,
+    // stood and walking; the friend draped over it, posed on the carrier's keys and drawn at the carrier's feet on their clock
+    // (CrewActs.OnTheShoulder); and in a moving car's door, leant out reaching down for a friend running beside it.
+    Fireman, FiremanWalk, Carried, CarriedWalk, HandUp,
+    // A friend on the crane's hook (note 726; note 813): stood on its lip, both hands up the cable, swaying with it; and off
+    // it (let go, shaken off) or off their feet (shoved, thrown), flailing all the way down.
+    OnHook, Flail,
+    // At the handcar's handle (note 729; note 814): bent over it driving their end down, hauled back up, played by its swing.
+    Pump,
 }
 
 /// <summary>
@@ -829,6 +840,15 @@ public sealed partial class CreatureArt
         CrewPose.DanceOff => "dance_off",
         CrewPose.SitEdge => "sit_edge",
         CrewPose.LeanOut => "lean_out",
+        CrewPose.Shove => "shove",
+        CrewPose.Fireman => "fireman",
+        CrewPose.FiremanWalk => "fireman_walk",
+        CrewPose.Carried => "carried",
+        CrewPose.CarriedWalk => "carried_walk",
+        CrewPose.HandUp => "hand_up",
+        CrewPose.OnHook => "on_hook",
+        CrewPose.Flail => "flail",
+        CrewPose.Pump => "pump",
         _ => "idle",
     };
 
@@ -857,7 +877,7 @@ public sealed partial class CreatureArt
         if (!_models.ContainsKey(figure))
             figure = "crew";
         // Each crewmate breathes and steps on their own beat: a fixed offset by variant, not a random one.
-        double offset = (variant & 7) * 0.41;
+        double offset = BeatOffset(variant);
         string clip = ClipOf(pose);
         // A freed prisoner walks their own way (note 407): the irons' shuffle.
         if (figure == "survivor_prisoner" && clip == "walk")
@@ -868,6 +888,11 @@ public sealed partial class CreatureArt
                 : clip == "hurry" && has.Model.Clips.ContainsKey("run") ? "run" : clip == "reload" && has.Model.Clips.ContainsKey("gunner") ? "gunner"
                 : clip == "spray" && has.Model.Clips.ContainsKey("extinguish") ? "extinguish" : clip == "hang_up" && has.Model.Clips.ContainsKey("take_down") ? "take_down"
                 : clip is "toolbox" or "toolbox_walk" && has.Model.Clips.ContainsKey("carry") ? clip == "toolbox" ? "carry" : "carry_walk"
+                // (A shove without its own clip: the gun's push, as note 717 drew it; note 723's carry, the body carry's.)
+                : clip == "shove" && has.Model.Clips.ContainsKey("push") ? "push"
+                : clip is "fireman" or "fireman_walk" && has.Model.Clips.ContainsKey("shoulder") ? clip == "fireman" ? "shoulder" : "shoulder_walk"
+                : clip == "hand_up" && has.Model.Clips.ContainsKey("haul_up") ? "haul_up"
+                : clip is "on_hook" or "pump" && has.Model.Clips.ContainsKey("lever") ? "lever" : clip == "flail" && has.Model.Clips.ContainsKey("fall") ? "fall"
                 // An emote with no clip of its own (note 298): the dance steps on the spot, the wave and the point stand.
                 : clip is "dance" or "shuffle" && has.Model.Clips.ContainsKey("walk") ? "walk" : "idle";
         // ... and the arms are posed over it (EmoteArms).
@@ -884,7 +909,7 @@ public sealed partial class CreatureArt
         // a blow of the tool in hand (note 275: without it a swing was put off by the variant's beat, up to 2.9 s into a
         // 0.8 s clip, and most of the crew were drawn at its end).
         bool fromStart = pose is CrewPose.GetUp or CrewPose.TakeDown or CrewPose.HangUp or CrewPose.Stagger or CrewPose.Reload or CrewPose.FireDoor
-            or CrewPose.Swing or CrewPose.Jump;
+            or CrewPose.Swing or CrewPose.Jump or CrewPose.Shove or CrewPose.Pump;
         fromStart |= emoteClip;
         _skinner.Evaluate(m.Model, c, fromStart ? time : time + offset, pose is not (CrewPose.Dead or CrewPose.Swing) && !fromStart, m.Pose);
         if (body is { } vr)
@@ -924,6 +949,10 @@ public sealed partial class CreatureArt
             Handled(mesh, m, carried, model);
         return true;
     }
+
+    /// <summary>How far into a looping clip each crewmate of <paramref name="variant"/> is put, so a crew isn't all on one beat (s);
+    /// a friend over the shoulder is put on their carrier's (CrewActs.OnTheShoulder).</summary>
+    public static double BeatOffset(int variant) => (variant & 7) * 0.41;
 
     /// <summary>
     /// <paramref name="carried"/> by its handle in the right fist (the repair kit, note 513): its origin at its foot and its
