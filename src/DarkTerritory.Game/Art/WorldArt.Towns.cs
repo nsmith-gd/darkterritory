@@ -117,6 +117,80 @@ public sealed partial class WorldArt
     }
 
     /// <summary>
+    /// A walled town's rail yard behind the home platform (queue #239, note 502): its siding down it in pieces, its ground, and
+    /// each piece where the plan stands it: the goods sheds (the facility's model, turned to the siding and centred on its
+    /// fixture's ground footprint, <see cref="YardKit.Shed"/>), the kit's pieces, the stock in the siding, the town's lamp
+    /// posts lit down it; their lights.
+    /// </summary>
+    public void Yard(MeshBuilder mesh, RailLine line, Double3 eye, Town town, double from, double to)
+    {
+        var plan = town.Plan;
+        if (plan.Yard is not { } yard || yard.S1 < from - 60 || yard.S0 > to + 60)
+            return;
+        int side = yard.Side;
+        // The siding, in pieces down it; the yard's worn ground between it and the street.
+        const double chunk = 8;
+        int pieces = (int)Math.Ceiling((yard.Siding1 - yard.Siding0) / chunk);
+        double step = (yard.Siding1 - yard.Siding0) / pieces;
+        var siding = Piece($"yard-siding-{step:0.00}", () => YardKit.Siding(_look, (float)step));
+        double groundD = (yard.SidingD + 1.7 + yard.Far) / 2, groundW = yard.Far - yard.SidingD - 1.7;
+        var ground = Piece($"town-ground-yard-{groundW:0.0}", () => TownGround(_look, (float)chunk, (float)groundW, "ground_mud"));
+        for (int i = 0; i < pieces; i++)
+        {
+            double mid = yard.Siding0 + (i + 0.5) * step;
+            var at = town.World(mid, side * yard.SidingD);
+            if ((at - eye).Length <= 320)
+                mesh.Instances.Add(new MeshInstance(siding, Place(line, eye, at, mid, 1, 0)));
+        }
+        for (double s = yard.S0 + chunk / 2; s < yard.S1; s += chunk)
+        {
+            var at = town.World(s, side * groundD);
+            if ((at - eye).Length <= 320)
+                mesh.Instances.Add(new MeshInstance(ground, Matrix4x4.CreateScale(1, 1, 1.04f) * Place(line, eye, at, s, 1, 0)));
+        }
+        var post = Piece("square-lamppost", () => SquareKit.LampPost(_look));
+        foreach (var f in plan.Fixtures)
+        {
+            if (f.House >= 0 || !YardKit.Draws(f.Kind) || !yard.Holds(f.S, f.D, 1))
+                continue;
+            var at = town.World(f.S, f.D);
+            double far = (at - eye).Length;
+            if (far > 420)
+                continue;
+            var front = Place(line, eye, at, f.S, f.FaceS, f.FaceD);
+            if (f.Kind == "yardlamp")
+            {
+                // The town's lamp post, lit, its arm out toward the siding.
+                if (far > 260)
+                    continue;
+                mesh.Instances.Add(new MeshInstance(post, front));
+                if (far > 160)
+                    continue;
+                var flame = Vector3.Transform(SquareKit.LampTop, front);
+                mesh.PointLights.Add(new PointLight(flame, Palette.LampAmber * 1.6f, 12));
+                mesh.Billboard(flame, 0.8f, 0, new Vector4(Palette.LampAmber * 0.5f, 1), -1, FxBlend.Additive);
+                continue;
+            }
+            if (f.Kind == "goodsshed" && _props.Get(YardKit.Shed) is { } model)
+            {
+                // Built with its dock to +Z: turned a half to face the siding, its ground footprint on its fixture's.
+                var (middle, _) = YardKit.GroundFootprint(model);
+                mesh.Instances.Add(new MeshInstance(model, Matrix4x4.CreateTranslation(-middle) * Matrix4x4.CreateRotationY(MathF.PI)
+                    * Matrix4x4.CreateTranslation(0, -0.3f, 0) * front));
+            }
+            else
+            {
+                int variant = f.Kind is "van" or "flatdory" or "freight" ? f.Id % 3 : 0;
+                mesh.Instances.Add(new MeshInstance(Piece($"yard-{f.Kind}-{variant}-{side}", () => YardKit.Piece(_look, f.Kind, variant, side)), front));
+            }
+            if (far > 200)
+                continue;
+            foreach (var (lamp, colour, range) in YardKit.Lights(f.Kind, side))
+                mesh.PointLights.Add(new PointLight(Vector3.Transform(lamp, front), colour, range));
+        }
+    }
+
+    /// <summary>
     /// The town's lights on the fog over it (note 490; App. D.7's Holdout lamp, seen from its approach board): where a broad
     /// glow hangs (world, its height over the ground), how broad, its colour and how strong. Over its square; over its
     /// first streets every so far along on both sides of the line; over a foundry's casting shed, the furnace's orange. A
@@ -143,6 +217,16 @@ public sealed partial class WorldArt
     /// <summary>Where the works' stacks and chimneys smoke (note 353): the foundry's stack, the winding house's chimney.</summary>
     public IEnumerable<(Vector3 Top, int Seed)> Stacks(RailLine line, Double3 eye, Town town, double reach)
     {
+        // The yard office's stove (note 502), lit all night with the clerk's lamp.
+        if (town.Plan.Yard is { } yard)
+            foreach (var f in town.Plan.Fixtures.Where(f => f.Kind == "yardoffice" && yard.Holds(f.S, f.D)))
+            {
+                var at = town.World(f.S, f.D);
+                // Its smoke seeded by the office itself (note 688, as the chimneys).
+                if ((at - eye).Length <= reach)
+                    yield return (Vector3.Transform(YardKit.OfficePipe((float)f.SolidS, (float)f.SolidD, (float)f.Height),
+                        Place(line, eye, at, f.S, f.FaceS, f.FaceD)), 6521 + f.Id * 89);
+            }
         if (town.Plan.Works is not { } works)
             yield break;
         // Each stack's smoke seeded by the stack itself, not where it is from the eye (note 688, as Chimneys).
@@ -228,7 +312,7 @@ public sealed partial class WorldArt
             if (f.House >= 0)
                 continue;
             // The green's and the walls' pieces are drawn with the green (Civic), wherever they are.
-            if (CivicKit.Draws(f.Kind) || WorksKit.Draws(f.Kind))
+            if (CivicKit.Draws(f.Kind) || WorksKit.Draws(f.Kind) || YardKit.Draws(f.Kind))
                 continue;
             var m = Place(line, eye, town.World(f.S, f.D), f.S, f.FaceS, f.FaceD);
             int count = f.Kind switch { "board" => notices, "line" => (int)(sq.S1 - sq.S0 - 8), _ => 0 };

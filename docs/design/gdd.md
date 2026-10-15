@@ -251,6 +251,15 @@ The council's laws are posted by the clerk's door (in a walled town, the council
 
 Each piece can be looked at, and a few of the town's hands are at work there all night, talking about the work.
 
+**The rail yard behind the platform** (queue #239, note 502; "rail yards and warehouses" above). Behind a walled town's home platform, where the first street's near row would have stood, is the town's yard. Its siding runs down it, its points lifted the winter the town shut its gate, a buffer stop at each end. What was standing in it then is still there: a sealed van, a van wired shut and lettered DO NOT OPEN UNTIL CALLED FOR, a flat wagon with a dory on it. Along the siding stand:
+- the goods sheds, their docks at the stock's side: the old one from before the wall, and the one the town still packs for the train;
+- freight stacked and tagged for towns down the line that stopped answering years ago;
+- the yard office, its clerk's lamp lit all night over a timetable with every train ticked as arrived;
+- the weighbridge, whose ledger has a third column with no heading;
+- a handcart, and old sleepers stacked to dry.
+
+The town's lamp posts light the siding. Two porters work the yard all night, and everything can be looked at.
+
 **People.** Text only, no voices, as many as the town is big:
 - the gatekeeper says the town's law first;
 - the keeper of the custom's building and the folk round the centrepiece talk about the custom;

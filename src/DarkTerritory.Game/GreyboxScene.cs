@@ -3737,6 +3737,8 @@ public sealed partial class GreyboxScene
                 Look.Art.World.Square(mesh, line, eye, town, from, to);
                 Look.Art.World.Civic(mesh, line, eye, town, from, to, Look.Tuning.Atmosphere.Wind.Of(Wind), Look.Tuning.Atmosphere.Wind.Gusts, Time);
                 Look.Art.World.Works(mesh, line, eye, town, from, to);
+                // The rail yard behind the platform (note 502).
+                Look.Art.World.Yard(mesh, line, eye, town, from, to);
                 // A town type's own ground, water and landmarks (note 692).
                 Look.Art.World.Forms(mesh, line, eye, town, from, to, Time, Route);
                 Lap(mesh, "town square, green, works");
