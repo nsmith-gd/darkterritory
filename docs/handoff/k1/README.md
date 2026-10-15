@@ -12,11 +12,12 @@ rule 9), saying so in the item's row and their log.
   memory (note 721; the logbook on the cab's front bench), #458 sessions (note 724; protocol 62) (#1016, merged). Then #462 the sense
   table (note 728; protocol 63), #457 bringing them home (note 723; 64), #453 big finds (note 719; 65) and #463 the handcar
   (note 729; 66) (#1026, merged). Then #465 painted masks
-  (note 731; 67) and #466 sound cues (note 732; 68) (#1034, merged). In review next: #464 odd outcomes (note 730; 69) and #456
-  emotes for two (note 722; 70).
+  (note 731; 67) and #466 sound cues (note 732; 68) (#1034, merged). Then #464 odd outcomes
+  (note 730; 69) and #456 emotes for two (note 722; 70) (#1038, merged). In review: #460 a friend on the crane's hook
+  (note 726; 71), the last of K1's items.
 
 ## Building or not started (specs in `specs/`, each with `specs/preamble.md`'s rules)
-#460 hoist a friend (K1.15 building; D1.5 holds the crane's controls, #449).
+None: every item is merged or in review.
 
 ## Open threads
 - The director questioned the mail (14 Oct playtest line 18): #461's speed post stands until they decide.

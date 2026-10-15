@@ -212,6 +212,9 @@ public static partial class Hud
         // the crew mischief switch on).
         if (p.Has(PlayerFlags.Carried))
             return ("CARRIED", ["WRIGGLE FREE : [SPACE]"]);
+        // Note 726: on the crane's hook, the way off it (the fall is yours).
+        if (p.Has(PlayerFlags.Hoisted))
+            return ("ON THE HOOK", ["LET GO : [SPACE]"]);
         if (p.Has(PlayerFlags.Carrying))
             return ("A FRIEND ON YOUR SHOULDER", world.MischiefOn ? ["PUT DOWN : [E]", "THROW : [T]"] : ["PUT DOWN : [E]"]);
         // Carried in both hands (spec D.2, note 264): what it is, and how to be rid of it. What it's for is learned.
@@ -258,8 +261,11 @@ public static partial class Hud
             lines.AddRange(["BRIDGE AND TROLLEY : [WASD]", "HOOK UP : [SPACE]", "HOOK DOWN : [B]"]);
             if (crane.Hooked is not null)
                 lines.Add("LET GO : [LMB]");
+            // A friend on the hook (note 726): shaken off only with the crew mischief switch on.
+            else if (crane.Riders > 0 && world.MischiefOn && crane.Tuning.Hoist.ShakeOff)
+                lines.Add("SHAKE THEM OFF : [LMB]");
             lines.Add("STEP DOWN : [E]");
-            return ("THE CRANE", lines);
+            return (crane.Riders > 0 ? crane.Riders == 1 ? "THE CRANE: A FRIEND ON THE HOOK" : "THE CRANE: FRIENDS ON THE HOOK" : "THE CRANE", lines);
         }
         if (CabControls.CanDrive(p, train))
         {
