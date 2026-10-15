@@ -258,3 +258,13 @@ launches are AU1.1, AU1.2, …. Entries are UTC; those before 12:55 on 7 Oct wer
 - **Found on the way:** two loop helpers leave a seam the ear may catch: `world_kit.squeal` sums its phase in single
   precision, and `world_bed.src_loop`'s last tile isn't faded. They're in loops already installed (the flange, the brake
   drag, the fast roll). That's the next weak-sounds item.
+
+## 15 Oct, ~13:20 UTC: #1040 green; #519, K1's #1038 heard
+
+- **#1040:** green on Ubuntu. On Windows it was red only on `LobbyBrowserTests`' 4-second wall-clock browse, the same failure #1029 hit and untouched by this PR. I left one comment with a proposed patch for its owner, and the single re-run passed. Merged main once more.
+- **#519 (note 786), K1's #1038:**
+  - **Built ahead of its merge, installed once it landed:**
+    - the odd outcomes: the council bell, the well's splash, coin and wash, the tin can and what answers it, the scarecrow, the letter, Dave's painting, the soot, the lurch;
+    - emotes for two: the high five, the fist bump, the sit, the lean.
+  - **30 candidates from two recipe agents:** uploaded, with the first picks installed. Three rows are on the checklist at L1, with captions and tests.
+- **Checked and not taken:** the two loop-helper seams the handcar agent reported. Measured on the installed flange, brake-drag and roll loops, neither the seam nor the 0.5 s point bursts above each loop's own transients. That's the build's seam crossfade, and the rumble's own variation.

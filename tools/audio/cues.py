@@ -585,6 +585,8 @@ CUES = {
         L("gear-rebreather", "Someone breathing on a rebreather, its bag and valves"),
         L("gear-wrap", "Someone breathing through a wool wrap with a tin can sewn in"),
         L("lantern", "The watch's lantern swinging on its bail as they walk"),
+        # The council house's bell rope pulled (queue #519, note 786; K1's #1038, note 730): everyone near stops and looks up.
+        O("bell", "The council house's cracked bell rung: two to four sour, buzzing strokes across the square", vars=3),
     ],
     "place-mine": [
         L("underground", "Underground at the mine head"),
@@ -1154,6 +1156,25 @@ CUES = {
         O("wave", "An arm raised and waved: a coat sleeve's swish", vars=3),
         O("point", "An arm thrown out to point: a sharp coat rustle", vars=3),
         O("outfit", "Trying an outfit on in the yard: a coat shrugged into, buttons done up", vars=2),
+        # Emotes for two and where to sit (queue #519, note 786; K1's #1038, note 722): the hands meeting, an edge, a doorway.
+        O("high-five", "Two gloved hands meeting in a high five: a solid leather slap", vars=3),
+        O("fist-bump", "Two gloved fists bumping: a dull, soft knuckle knock", vars=3),
+        O("sit", "Sat down on an edge, legs over: the coat settling, a boot knocking the side", vars=3),
+        O("lean", "Leant out of a doorway: a gloved hand on the frame, its small creak", vars=3),
+    ],
+    # Odd outcomes to find (queue #519, note 786; K1's #1038, note 730): small strange things in the towns and dead villages,
+    # by design and unexplained. Heard once each, where they happen.
+    "world-odd": [
+        O("well-splash", "Something dropped down a village well: a small plop far down, rung hollow up the shaft", vars=3),
+        O("coin", "The well gives something back: an old coin landing on the stones beside it", vars=3),
+        O("wash", "Soot washed off at the well: a bucket drawn up and poured out", vars=2),
+        O("can-kick", "A tin can kicked along a village road: a tinny clank, bouncing and rattling to a stop", vars=3),
+        O("bark", "Something answers the can from the dark: a dog, or something like one, far off", vars=3),
+        O("scarecrow", "A scarecrow found turned: a slow dry creak of its post, far quieter than anything else", vars=2),
+        O("letter", "A letter nobody collected taken from a postbox and opened: the iron door, the envelope torn", vars=3),
+        O("painting", "Dave's painting set down at your feet: the frame's soft knock, his brush tapped clean", vars=2),
+        O("sooted", "Out from under the coaling chute black with soot: coughing and spitting", vars=3),
+        O("lurch", "A switch thrown under someone on its blades: the iron slamming over, a startled grunt", vars=3),
     ],
     "state-starved": [
         # Note 319: an engine short of steam holds the train back.
