@@ -287,7 +287,11 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 # Note 774: the mail bag's real sack; the comet's real glass (the model's even beat may read as a tremolo).
                 "crew-mail.catch": "sack", "world-comet.hum": "glass",
                 # Note 772: the town's guns the gun car's own shot and the cannon's own impact, put at their distance.
-                "town-guns.fire": "tower", "town-guns.hit": "meat"}
+                "town-guns.fire": "tower", "town-guns.hit": "meat",
+                # Note 776: the crew car's and the logbook's real things first (the glass's ring, the powder, the leather,
+                # the sheet, the clap), the models candidates.
+                "crew-car.kettle": "spout", "crew-memory.flash": "powder", "crew-memory.open": "leather",
+                "crew-memory.page": "sheet", "crew-memory.shut": "clap"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the
@@ -504,6 +508,12 @@ CUE_DEF = {
     # back 300 m out and forty up, heard across the yard.
     "town-guns.fire": {"minDistance": 30, "maxDistance": 1500, "rolloff": 0.8},
     "town-guns.hit": {"minDistance": 60, "maxDistance": 2000, "rolloff": 0.7},
+    # K1's crew car (note 776): the kettle and the cuckoo on the big cab's back wall, heard about the cab; the photo's flash
+    # at the gate, out in the open; the logbook's pages this machine's own, flat as the panels are.
+    "crew-car.kettle": {"minDistance": 1, "maxDistance": 12, "rolloff": 1.0},
+    "crew-car.cuckoo": {"minDistance": 1, "maxDistance": 18, "rolloff": 1.0},
+    "crew-memory.flash": {"minDistance": 3, "maxDistance": 80, "rolloff": 1.0},
+    **{f"crew-memory.{c}": {"flat": True, "tier": 4} for c in ("open", "page", "shut")},
 }
 
 

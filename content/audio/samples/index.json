@@ -1105,6 +1105,59 @@
   "takes": 3,
   "sha": "0d350b86810d4a18"
  },
+ "crew-car/cuckoo": {
+  "cue": "crew-car.cuckoo",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The cuckoo clock before dawn: its little door clacks, the works whirr, two reedy wooden pipes call 'cuck-oo'",
+    "key": "bellows",
+    "sources": [
+     "sfx_100_v2:misc_12",
+     "sfx_100_v2:misc_05",
+     "sfx_100_v2:air_03",
+     "sfx_100_v2:misc_28",
+     "sfx_100_v2:air_01",
+     "sfx_100_v2:misc_20",
+     "sfx_100_v2:lock_open_01",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004",
+     "kenney_ui-audio:click3",
+     "kenney_ui-audio:click4",
+     "kenney_ui-audio:click5",
+     "kenney_rpg-audio:metalClick",
+     "sfx_100_v2:misc_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "42a7fbbaff9ab088"
+ },
+ "crew-car/kettle": {
+  "cue": "crew-car.kettle",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The kettle singing: a real glass's two close partials held as a whistle, beating, shrill, the jet's air round it",
+    "key": "spout",
+    "sources": [
+     "sfx_100_v2:glass_01",
+     "sfx_100_v2:air_01",
+     "sfx_100_v2:loop_water_01",
+     "sfx_100_v2:loop_water_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "90e12cc8cb8b6470"
+ },
  "crew-carry/body-land/concrete": {
   "cue": "crew-carry.body-land",
   "surface": "concrete",
@@ -6994,6 +7047,112 @@
   ],
   "takes": 4,
   "sha": "6e4b6fc2f3de92ea"
+ },
+ "crew-memory/flash": {
+  "cue": "crew-memory.flash",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The crew photo: flash powder going off with a sharp 'fffump' and a fizz, the big camera's shutter snapping",
+    "key": "powder",
+    "sources": [
+     "sfx_100_v2:misc_03",
+     "sfx_100_v2:misc_32",
+     "sfx_100_v2:air_03",
+     "sfx_100_v2:air_01",
+     "sfx_100_v2:misc_17",
+     "sfx_100_v2:switch_01",
+     "sfx_100_v2:switch_02",
+     "sfx_100_v2:misc_02",
+     "sfx_100_v2:stones_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "26a18529387a9a09"
+ },
+ "crew-memory/open": {
+  "cue": "crew-memory.open",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The logbook opened: its spine creaking, the heavy leather cover thumped back on the bench, pages riffling",
+    "key": "leather",
+    "sources": [
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:dropLeather",
+     "kenney_rpg-audio:handleSmallLeather",
+     "kenney_rpg-audio:handleSmallLeather2",
+     "kenney_rpg-audio:bookPlace1",
+     "kenney_rpg-audio:bookPlace2",
+     "kenney_rpg-audio:bookPlace3",
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004",
+     "kenney_rpg-audio:bookFlip1",
+     "kenney_rpg-audio:bookFlip2",
+     "kenney_rpg-audio:bookFlip3"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "cc0417a86ca35a9a"
+ },
+ "crew-memory/page": {
+  "cue": "crew-memory.page",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A logbook page turned: dry heavy paper lifted at its corner, crackling as it bends, swept over and laid down",
+    "key": "sheet",
+    "sources": [
+     "kenney_rpg-audio:bookFlip1",
+     "kenney_rpg-audio:bookFlip2",
+     "kenney_rpg-audio:bookFlip3",
+     "kenney_rpg-audio:bookPlace1",
+     "kenney_rpg-audio:bookPlace2",
+     "kenney_rpg-audio:bookPlace3",
+     "kenney_rpg-audio:clothBelt2",
+     "sfx_100_v2:misc_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "0a07a29f04346cd9"
+ },
+ "crew-memory/shut": {
+  "cue": "crew-memory.shut",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The logbook shut: the pages' air pushed out, the heavy cover clapped down on them, a dull, papery thud",
+    "key": "clap",
+    "sources": [
+     "sfx_100_v2:air_03",
+     "sfx_100_v2:air_01",
+     "kenney_rpg-audio:bookClose",
+     "kenney_rpg-audio:dropLeather",
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:bookPlace1",
+     "kenney_rpg-audio:bookPlace2",
+     "kenney_rpg-audio:bookPlace3",
+     "kenney_rpg-audio:handleSmallLeather",
+     "kenney_rpg-audio:handleSmallLeather2"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "c57bdec7a2913508"
  },
  "crew-mishaps/bare-slap": {
   "cue": "crew-mishaps.bare-slap",
