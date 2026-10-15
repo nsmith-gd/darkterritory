@@ -182,6 +182,17 @@ public static partial class Staging
                 _ => Ballast.Render.Camera.LookAt(town.World(plan.Gate + 900, 0, 3), flame, 50),
             };
         }
+        // The night market (note 825): "market" from the square in front of its first stall, along the row; "marketover" from
+        // over the square, the whole row lit.
+        if (where is "market" or "marketover" && plan.Fixtures.Where(f => f.Kind == "marketstall").OrderBy(f => f.S).ToList() is { Count: > 0 } row)
+        {
+            var first = row[0];
+            var last = row[^1];
+            double rowMid = (first.S + last.S) / 2;
+            return where == "market"
+                ? Ballast.Render.Camera.LookAt(town.World(first.S - 6, first.D - side * 5.5, 1.7), town.World(first.S + 6, first.D, 1.2), 66)
+                : Ballast.Render.Camera.LookAt(town.World(rowMid, first.D - side * 16, 9), town.World(rowMid, first.D, 0.8), 70);
+        }
         // The town's flag (note 674): from across the square, up at it on its pole; "flagclose", nearer, the cloth filling the view.
         if (where is "flag" or "flagclose" && plan.Fixtures.FirstOrDefault(f => f.Kind == "flag") is { } flag)
         {

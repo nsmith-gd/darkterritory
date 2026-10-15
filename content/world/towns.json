@@ -680,6 +680,16 @@
       "The siding's points came up the year we shut the gate. What's in it stays in it. That's the yard's whole business now.",
       "I weigh the carts out and I weigh them back. If it doesn't match, I write the difference down. I don't ask what it was.",
       "We pack for the towns down the line every week. Some haven't answered in years. You don't stop packing for people." ] },
+    // The night market's stallholders (note 825), each behind their counter, their lamp lit.
+    "stallholder": { "title": "stallholder", "lines": [
+      "Market's at night because the night's when we're all awake. The day's for sleeping with the door barred.",
+      "Pay what you like. We keep a slate. Everybody's slate gets wiped when they don't come back.",
+      "I've had this stall since my mother had it, and she had it from hers. Same lamp. Same hook.",
+      "Mind the lamp. If it goes out while you're at the counter, step back and wait. Don't reach for anything.",
+      "Buy something for the train. You'd be surprised what keeps.",
+      "Lamp oil's dear, so it's one lamp a stall. When the lamp's out, the stall's shut. Nobody argues with the lamp.",
+      "The train crews are the best custom. You pay for tomorrow. Nobody else here does.",
+      "Don't haggle with the old woman at the end. Her prices go up if you do, and she remembers who it was." ] },
     // A harbour town's keeper of its Hope Tower (queue #547, note 819), at its door all night between the hours' tubs of coal.
     "flamekeeper": { "title": "keeper of the Flame", "lines": [
       "Four hundred and twelve steps and a tub of coal at the hour. You'd be surprised what you can carry up when it's for somebody.",
@@ -937,6 +947,20 @@
   ],
 
   // Notices any town's board might carry.
+  // The night market on the square (note 825; the director's playtest of 14 Oct, line 3: "Still a bit basic"): its stalls,
+  // each its name and what's on it, dealt with the town's trade's own (industries' "stalls"). A stallholder behind each.
+  "market": [
+    { "title": "the fish stall", "text": "Salt cod fanned out on the boards and a tub of something grey she says is chowder. Every fish has had its eyes taken out. She does it before she sells them. She says you'd want her to." },
+    { "title": "the candle stall", "text": "Tallow dips by the dozen, and a few good beeswax ones kept under the counter for funerals. Every candle in the town is bought here. Nobody lights one after midnight." },
+    { "title": "the lamp-oil stall", "text": "Oil in stone jars and wicks in bundles. He measures it out by the gill and writes down who bought it, in a book with every name in the town in it, some of them crossed through." },
+    { "title": "the shoe stall", "text": "Boots, mostly, mended and blacked. A tray of single ones at the end, never a pair. 'Somebody'll come for the other,' she says." },
+    { "title": "the knitting stall", "text": "Mittens, wristlets, and the long scarves they wear over their masks. Each one has a name knitted into the hem, so it can be given back." },
+    { "title": "the clock stall", "text": "Clocks and watches, all of them going, all set a quarter of an hour fast. The town keeps its time early. It means you're home before you think you need to be." },
+    { "title": "the bread stall", "text": "Brown bread, molasses bread, a few buns. One loaf put by at the end with a cloth over it, for whoever's coming in on the train." },
+    { "title": "the tea stall", "text": "Tea from a boiler on a brazier, a penny a cup, the cups on strings so nobody walks off with one. You drink it here, under the lamp, where she can see you." },
+    { "title": "the old things stall", "text": "Things from before: a china dog, a radio with no back, a box of keys to doors in towns that aren't there. 'Take a key,' she says. 'Somebody's door is still waiting.'" },
+    { "title": "the mask stall", "text": "Respirator filters repacked with charcoal and wool, leather masks patched at the seams. 'Try it on. Breathe in. Now tell me what you can't smell.'" }
+  ],
   "notices": [
     { "title": "Rations", "text": "Bread: half. Coal: half. Lamp oil: as before. Complaints to the clerk, in writing." },
     { "title": "Crews wanted", "text": "Freight crews wanted for the {other} road. Must climb, carry and keep calm. Paid on delivery. Fees on non-delivery." },
