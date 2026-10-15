@@ -225,6 +225,9 @@ public sealed partial class SceneArt(Look look)
             or CrewPose.Fireman or CrewPose.FiremanWalk;
         if (drawn && Breath > 0 && c.Alive)
             Look.Art.Effects.Breath(mesh, Creatures.LastMouth, Creatures.LastFacing, Breath, time, c.Id, hard);
+        // A car fire's heat on them (note 821): smoke curling up off them and embers flicked off, so a friend sees it burning them.
+        if (drawn && c.Alive && c.Scorch > 0)
+            Look.Art.Effects.Scorched(mesh, feet.RelativeTo(eye), (float)c.Scorch, time, c.Id);
         // (And where it is, for the cab's glass it fogs: CabGlass, drawn after the crew.)
         if (drawn && c.Alive)
             _mouths[c.Id] = new Mouth(eye + new Double3(Creatures.LastMouth.X, Creatures.LastMouth.Y, Creatures.LastMouth.Z), Creatures.LastFacing, hard, time);

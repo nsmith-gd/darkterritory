@@ -92,6 +92,8 @@ public static partial class Hud
             Skip(o, width, height, s);
             return;
         }
+        // A car fire's heat on them (note 821), from the moment it reaches them, under the hurt flash its burns bring.
+        HeatGlow(o, width, height, HeatStrength(s), s.HostTick * Sim.SimConstants.TickSeconds);
         // App. F.1's damage feedback (note 272): under everything else, so the text stays readable through it.
         EdgeFlash(o, width, height, HurtStrength(s));
         if (s.StrandedOutro)
@@ -206,6 +208,51 @@ public static partial class Hud
             var colour = new Vector4(0.62f, 0.03f, 0.02f, (float)strength * 0.6f * fall * fall);
             o.Rect(0, k, width, 1, colour);
             o.Rect(0, height - 1 - k, width, 1, colour);
+            o.Rect(k, k + 1, 1, height - 2 * k - 2, colour);
+            o.Rect(width - 1 - k, k + 1, 1, height - 2 * k - 2, colour);
+        }
+    }
+
+    /// <summary>
+    /// Note 821 (the 14 Oct playtest's line 25: "I wasn't getting any feedback that I was being burned. And I was standing at
+    /// the edge of the fire"): how strongly the heat glow shows (0 to 1) for how hot a car fire is on this machine's player,
+    /// as the host burns them (<see cref="Sim.Enemies.CarFire.HeatOn(in Sim.Player.PlayerState, Sim.World)"/>). At its edge,
+    /// where a brush burns slowly, it's already <see cref="HeatGlowLeast"/>: you see it before the first point comes off.
+    /// </summary>
+    public static double HeatStrength(IPlaySession s)
+    {
+        if (StagedHeat is { } staged)
+            return HeatStrengthOf(staged);
+        return HeatStrengthOf(Sim.Enemies.CarFire.HeatOn(s.Player, s.World));
+    }
+
+    /// <summary>The glow for a heat (0 to 1): none without it, never under <see cref="HeatGlowLeast"/> with it, full at <see cref="HeatGlowFullAt"/>.</summary>
+    public static double HeatStrengthOf(double heat) =>
+        heat <= 0 ? 0 : HeatGlowLeast + (1 - HeatGlowLeast) * Math.Clamp(heat / HeatGlowFullAt, 0, 1);
+
+    public const double HeatGlowLeast = 0.4, HeatGlowFullAt = 0.7;
+
+    /// <summary>A still frame's heat (<c>dt screenshot --hud --heat h</c>): a car fire this hot on the player.</summary>
+    public static double? StagedHeat { get; set; }
+
+    /// <summary>
+    /// The heat glow (note 821): an amber band round the frame's edge, wider and softer than the hurt flash and warmer, its
+    /// bottom edge (where the fire is, at your feet) the deepest, wavering as flames do. Not red: it's the heat, before and
+    /// between the burns' own flashes.
+    /// </summary>
+    public static void HeatGlow(Overlay o, int width, int height, double strength, double time)
+    {
+        if (strength <= 0.01)
+            return;
+        float waver = 0.85f + 0.15f * MathF.Sin((float)time * 9.1f) * MathF.Sin((float)time * 5.3f + 1.3f);
+        int bands = Math.Max(10, height / 5);
+        for (int k = 0; k < bands; k++)
+        {
+            float fall = 1 - (float)k / bands;
+            float a = (float)strength * waver * 0.5f * fall * fall;
+            var colour = new Vector4(1.0f, 0.42f + 0.18f * fall, 0.08f, a);
+            o.Rect(0, k, width, 1, colour with { W = a * 0.6f });
+            o.Rect(0, height - 1 - k, width, 1, colour with { W = a * 1.3f });
             o.Rect(k, k + 1, 1, height - 2 * k - 2, colour);
             o.Rect(width - 1 - k, k + 1, 1, height - 2 * k - 2, colour);
         }

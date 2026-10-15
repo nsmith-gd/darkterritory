@@ -48,7 +48,7 @@ public static class CrewActs
             Headset: s.Head > 0 ? new HeadsetBody(s.Head, s.Pitch, s.Parent, s.Position, s.Yaw) : null,
             Car: placed.Parent != PlayerState.World && placed.Parent < frames.Count ? placed.Parent : PlayerState.World, Local: placed.Position,
             Emote: emote, EmoteSeconds: emoteSeconds, Sooted: s.Has(PlayerFlags.Sooted), Signal: signal, SignalSeconds: signalSeconds,
-            Paint: world.PaintOf(id), Hat: world.HatOf(id));
+            Paint: world.PaintOf(id), Hat: world.HatOf(id), Scorch: Sim.Enemies.CarFire.HeatOn(s, world));
         if (emote != Emote.None)
             drawn = WithEmote(drawn, id, s, world, frames, crew);
         // Over a friend's shoulder (note 723): draped over it, where the one carrying them is and on their clock (note 812).

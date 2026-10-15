@@ -1954,6 +1954,23 @@ public static partial class Staging
     /// over it caught, cooling away along the car, out toward the ends as far as its <paramref name="spread"/>; and its car's
     /// char under the worst of it.
     /// </summary>
+    /// <summary>
+    /// Note 821 (dt screenshot --threats --view fire --scorch [m]): a crewmate on the burning car's floor <paramref name="from"/>
+    /// m along it from its hottest cell, toward the camera's end, facing it, the fire's heat on them as the host burns them
+    /// (<see cref="CarFire.HeatOn(Double3, FireGrid, IReadOnlyList{double}, CarFireTuning)"/>).
+    /// </summary>
+    public static Crewmate Scorched(TrainOnLine train, CarFire fire, CarFireTuning t, double from)
+    {
+        var car = train.Frames[fire.Attached];
+        var grid = FireGrid.Of(train, fire.Attached, t.CellSize)!;
+        int hottest = 0;
+        for (int i = 1; i < grid.Count && i < fire.Heat.Length; i++)
+            if (fire.Heat[i] > fire.Heat[hottest])
+                hottest = i;
+        var feet = new Double3(0.35, grid.Room.Min.Y + FireGrid.FloorPad, grid.Centre[hottest].Z + from);
+        return new Crewmate(34, car.ToWorld(feet), car.Heading, true, Car: fire.Attached, Local: feet, Scorch: CarFire.HeatOn(feet, grid, fire.Heat, t));
+    }
+
     public static void Cells(TrainOnLine train, CarFire fire, double extra, double spread, CarFireTuning? tuning = null)
     {
         if (FireGrid.Of(train, fire.Attached, (tuning ?? new CarFireTuning()).CellSize) is not { } grid)

@@ -2278,6 +2278,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             scene.Self = you;
         }
     }
+    // --scorch [m] (note 821; with --threats, the fire view): a crewmate in the burning car m from its hottest cell (1.4),
+    // the fire's heat on them as the host reckons it, smoking.
+    if (args.Contains("--scorch") && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.CarFire>().FirstOrDefault() is { Heat.Length: > 0 } burning)
+        scene.Crew = [.. scene.Crew ?? [], Staging.Scorched(train, burning, stagedFire ?? new DarkTerritory.Sim.Enemies.CarFireTuning(),
+            Array.IndexOf(args, "--scorch") is var sc && sc + 1 < args.Length
+                && double.TryParse(args[sc + 1], System.Globalization.CultureInfo.InvariantCulture, out double scorchFrom) ? scorchFrom : 1.4)];
     // --hugger swallow: the one it has in its mouth at the rear car's end door (App. A.3; Staging.Swallowed).
     if (Str(args, "--hugger", "") == "swallow" && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.CarHugger>().FirstOrDefault() is { Holding: >= 0 })
         scene.Crew = [.. scene.Crew ?? [], Staging.Swallowed(train), .. args.Contains("--rescue") ? [Staging.SwallowRescuer(train)] : Array.Empty<Crewmate>()];
@@ -3930,6 +3936,10 @@ static object HudShot(string content, string[] args)
     var hud = new Overlay();
     string photoFile = Str(args, "--photo", "");
     var photoStill = BookmarkAlbum.ReadPhoto(photoFile);
+    // --heat [h]: a car fire h hot on the player (note 821), the heat glow round the view.
+    if (args.Contains("--heat"))
+        Hud.StagedHeat = Array.IndexOf(args, "--heat") is var he && he + 1 < args.Length
+            && double.TryParse(args[he + 1], System.Globalization.CultureInfo.InvariantCulture, out double heat) ? heat : 0.3;
     // --hurt [s]: just hit (GDD App. F.1's damage model; note 272), the red edge flash at strength s (a heavy hit is 1).
     if (args.Contains("--hurt"))
         Hud.StagedHurt = Array.IndexOf(args, "--hurt") is var hu && hu + 1 < args.Length
