@@ -832,6 +832,32 @@ public class WorldSoundTests
     }
 
     [Fact]
+    public void NickisPartyIsHeardThroughItsWallsFromTheStreetAndNotAcrossTown()
+    {
+        // Note 773: the one house up late (note 571), its music and laughing held in it, dulled through its walls from the
+        // street out front, and further off than a house's range is; nothing of it beyond its reach.
+        var towns = Sim.Towns.TownContent.Load(Content)!;
+        towns = towns with { Tuning = towns.Tuning with { Population = [3000, 3000], Nicki = 1 } };
+        var route = Sim.LineGen.Routes.Generate(Content, "frontier:7", 6);
+        double gate = route.GateOr(RouteTuning.Load(Content).YardLength);
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Trains, 6, 1)), route.Build(), gate - 8, Boilers));
+        world.EnableRun(Runs, route, gate, authority: false);
+        world.EnableTown(towns, route, gate, []);
+        var town = world.Town!;
+        var party = town.Plan.Houses.Single(h => h.Party);
+        var audio = new GameAudio(Content);
+        Held(audio, "figures.party");
+        bool Sounding() => audio.Mixer.Voices.Any(v => v.Name == "figures.party" && !v.Finished && !v.Stopped);
+        var ears = new Ears(audio, world);
+        var front = party.Rail(0, -3);
+        ears.Tick(town.World(front.S, front.D, 1.6), SimConstants.TickRate / 2);
+        Assert.True(Sounding());
+        Assert.True(audio.Mixer.Voices.Single(v => v.Name == "figures.party" && !v.Stopped).Occlusion > 0.5f);
+        ears.Tick(world.Train.Line.Sample(gate + 3_000).Position + Double3.Up * 1.6, SimConstants.TickRate / 2);
+        Assert.False(Sounding());
+    }
+
+    [Fact]
     public void TheTownsfolkAreHeardOnTheirRoundsTheirStepsTheirGearAndTheWatchsLanterns()
     {
         // Note 446 (B2's #389): somebody out of doors walking their round is heard step by step beside them, on the street;
