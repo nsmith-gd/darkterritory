@@ -675,7 +675,7 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
 | 457 | **Bringing them home (App. F.6):** the hand-up onto a moving car; carrying a live friend; helping up; bandaging a friend | K1 | `ccr-f72c055b-195xp3`, [#1026](https://github.com/nsmith-gd/darkterritory/pull/1026) | 723 | done |
 | 458 | **Sessions (App. F.6):** the crew's save travels with any member who hosts; a friend takes a bot's seat; kick and mute | K1 | `ccr-f72c055b-195xp3`, [#1016](https://github.com/nsmith-gd/darkterritory/pull/1016) | 724 | done |
 | 459 | **Cuts you can get back (App. F.6):** a car cut at a stand stays put, one cut at speed can be caught; a lamp per crewmate aboard | K1 | `ccr-f72c055b-195xp3`, [#999](https://github.com/nsmith-gd/darkterritory/pull/999) (its test), [#1016](https://github.com/nsmith-gd/darkterritory/pull/1016) (the lamps) | 725 | done |
-| 460 | **Hoist a friend (App. F.6):** on the crane's hook | K1 | `ccr-f72c055b-195xp3` | 726 | in review |
+| 460 | **Hoist a friend (App. F.6):** on the crane's hook | K1 | `ccr-f72c055b-195xp3` | 726 | done (#1046) |
 | 461 | **The mail catch (App. F.6):** the bag snagged from the car door at a mail crane: the crane's board posts its speed, and a bag hooked faster tears | K1 | `ccr-f72c055b-195xp3`, [#992](https://github.com/nsmith-gd/darkterritory/pull/992) | 727 | done |
 | 462 | **The sense table (App. F.6):** every item answers the creatures' senses; thrown things do what they are | K1 | `ccr-f72c055b-195xp3`, [#1026](https://github.com/nsmith-gd/darkterritory/pull/1026) | 728 | done |
 | 463 | **The handcar (App. F.6):** a two-person pump trolley on a flatcar | K1 | `ccr-f72c055b-195xp3`, [#1026](https://github.com/nsmith-gd/darkterritory/pull/1026) | 729 | done |
