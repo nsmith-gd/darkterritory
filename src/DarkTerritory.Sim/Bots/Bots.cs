@@ -3019,6 +3019,9 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         // Note 343: a hound pack aboard and nobody else to fight it: stand the train, and cut its car loose.
         if (CutAlone(self, world, tick) is { } cuttingAlone)
             return cuttingAlone with { Lamp = lamp };
+        // Note 720 (GDD §12): a crewmate's lamp signal where the driver can see it: stop, go on, or back up.
+        if (self.Alive && PlayerMotor.InCab(self, train) && Signalled(world) is { } signalled)
+            return Work(self, train, signalled) with { Lamp = lamp };
         // T96: a crewmate left behind, or back in a lit Holdout: stop for them.
         if (self.Alive && PlayerMotor.InCab(self, train))
         {

@@ -27,7 +27,7 @@ public sealed class Sleepers(int id) : Enemy(id)
         if (!ctx.Train.Line.OnMain(engine.Path, LineDistance))
             return;
         double ahead = LineDistance - engine.Distance;
-        if (Phase == SpinePhase.Dormant && (ctx.World.LampShining && ahead <= t.LampRevealDistance || ahead <= BraceAt(t, engine)) && ahead > 0)
+        if (Phase == SpinePhase.Dormant && (ctx.World.LampShining && ahead <= t.LampRevealDistance * engine.Tuning.HeadlampReach || ahead <= BraceAt(t, engine)) && ahead > 0)
             Enter(ctx, SpinePhase.Telegraph);
         if (ahead > 0.5)
             return;
@@ -147,7 +147,7 @@ public sealed class Drift(int id) : Enemy(id)
                     Extra = Math.Min(t.MaxRadius, Extra + spread * dt);
                     var felt = ctx.LivingCrew().Where(c => moving.Contains(c.Player.Id) && PlayerMotor.Space(c.Player.State, train) <= 0
                             && ((c.World - centre) with { Y = 0 }).Length <= Radius)
-                        .OrderBy(c => ((c.World - centre) with { Y = 0 }).Length).ThenBy(c => c.Player.Id).FirstOrDefault();
+                        .OrderBy(c => ctx.Weigh(c.Player.Id, ((c.World - centre) with { Y = 0 }).Length)).ThenBy(c => c.Player.Id).FirstOrDefault();
                     if (felt.Player.Id != 0)
                     {
                         Extra2 = felt.Player.Id;

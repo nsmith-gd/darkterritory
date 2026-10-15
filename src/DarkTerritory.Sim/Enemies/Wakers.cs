@@ -381,7 +381,7 @@ public sealed class Waker(int id) : Enemy(id)
         {
             if (!Takeable(ctx, p.State) || taken.Contains(p.Id))
                 continue;
-            double d = ((PlayerMotor.WorldPosition(p.State, ctx.Train) - Local) with { Y = 0 }).Length;
+            double d = ctx.Weigh(p.Id, ((PlayerMotor.WorldPosition(p.State, ctx.Train) - Local) with { Y = 0 }).Length);
             if (d < bestD || d == bestD && p.Id < best)
                 (best, bestD) = (p.Id, d);
         }

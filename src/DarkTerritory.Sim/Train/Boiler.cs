@@ -51,6 +51,11 @@ public sealed record BoilerTuning(
     public bool ShovelInHand { get; init; } = true;
     /// <summary>T109: seconds of the wrench held at the firebox to repair a ruptured boiler.</summary>
     public double RepairSeconds { get; init; } = 25;
+    /// <summary>
+    /// Note 717: how far into a stroke at the firebox (Use held) the coal's on the shovel (<see cref="Player.PlayerFlags.Shovelful"/>),
+    /// there to be thrown (horseplay) until it goes in at <see cref="ShovelSeconds"/>.
+    /// </summary>
+    public double ScoopSeconds { get; init; } = 0.6;
 }
 
 /// <summary>

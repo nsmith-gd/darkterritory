@@ -1,0 +1,2202 @@
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 96f3126a..4d07614c 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -54,7 +54,7 @@ dotnet run --project src/DarkTerritory.Cli -- holes --route deadLines:3 [--every
+ XDG_RUNTIME_DIR=/tmp xvfb-run -a dotnet run --project src/DarkTerritory.App -- --route frontier:7 --throttle 1 --quit-after 30 --capture out/shots/app.png   # real window path, headless (--route skips the front end)
+ dotnet run --project src/DarkTerritory.Cli -- gym [--only ribbit,gaunt] [--seconds 6]   # the creature gym (dev builds; GDD §34.1, note 676): every creature called, how far off, a death and the safe ring; shots -> out/gym. In the app: --gym [--gym-call moose]
+ ```
+-**Look at your visual changes.** After touching rendering or scene code, render the relevant `dt screenshot` views and read the PNGs before calling it done. Views: trackside, roof, cab, fireman, chase, ahead, gap, hatch (and, off the perf list, crew, crewside, inside, door, gapside, pack, choir, gaunt, gauntface, grumbler, firebox, follower, flies, passenger, soot, sootside, switchman, cannon, cannonside, fire, coaling, stores, locker, kit, cut, pen, trail, nest, mount, board, carry, swallow, packside, cutoff, rupture, flanges, poses, run, hotbox, moose, moosecharge, moosepin, gannet, gannetfold, gannetstuck, gannetpin, lane, laneside, patrol, glass, gauntcarry, mourners, beetle, towerjaw, towerjawfall, brakeman, brakemancorner, knotter, knotterslip, hotboxbug, hotboxout, cabboard, hanger, hangergrab, hollowhouse, hollowcollapse, householderhouse, pickers, pickerscarry, lodger, lodgershriek, householder, wakerpick, shove, sooted, tube, tubevan, whistlecard, lampsignal, comet, trophies).
++**Look at your visual changes.** After touching rendering or scene code, render the relevant `dt screenshot` views and read the PNGs before calling it done. Views: trackside, roof, cab, fireman, chase, ahead, gap, hatch (and, off the perf list, crew, crewside, inside, door, gapside, pack, choir, gaunt, gauntface, grumbler, firebox, follower, flies, passenger, soot, sootside, switchman, cannon, cannonside, fire, coaling, stores, locker, kit, cut, pen, trail, nest, mount, board, carry, swallow, packside, cutoff, rupture, flanges, poses, run, hotbox, moose, moosecharge, moosepin, gannet, gannetfold, gannetstuck, gannetpin, lane, laneside, patrol, glass, gauntcarry, mourners, beetle, towerjaw, towerjawfall, brakeman, brakemancorner, knotter, knotterslip, hotboxbug, hotboxout, cabboard, hanger, hangergrab, hollowhouse, hollowcollapse, householderhouse, pickers, pickerscarry, lodger, lodgershriek, householder, wakerpick, shove, sooted, tube, tubevan, whistlecard, lampsignal, comet, trophies, crewphoto, lostcrews).
+ Cloud sessions: `.claude/hooks/session-start.sh` installs the .NET 10 SDK from Ubuntu apt (the Microsoft download host is blocked by the proxy) and Mesa lavapipe (software Vulkan) for rendering without a GPU.
+ 
+ ## Layout
+diff --git a/content/tuning/memory.json b/content/tuning/memory.json
+new file mode 100644
+index 00000000..95b2ddc4
+--- /dev/null
++++ b/content/tuning/memory.json
+@@ -0,0 +1,51 @@
++// Crew memory (GDD §9 Arrival, §11 "What a crew keeps", §3.1; the director, 14 Oct 2026, App. F.6; ARCHITECTURE §8 note
++// 721): the crew photo at the gate on a delivered night, the logbook a page a night, the town's board of lost crews.
++// Presentation only: every number here is how a machine draws what the replicated world and the report already say.
++{
++  // The town photographer's group shot, taken as the train stands in at the terminus (GDD §9): the living in a line
++  // beside the engine, the dead's caps on a crate at the line's end, the night's tally chalked on a slate on an easel.
++  "photo": {
++    // The print's size in the album (pixels), and the lens (vertical degrees).
++    "width": 640,
++    "height": 360,
++    "fov": 46,
++    // Seconds after the report is in (the clerk's tally under way) that the shutter goes: the train stood, the crew
++    // gathered. And how long the white flash fades over the screen.
++    "delaySeconds": 1.2,
++    "flashSeconds": 0.6,
++    // The line-up, measured off the engine (metres): along it from its middle toward its front, out from the track's
++    // centre on the yard's open side (away from the town's square: its platform canopy's posts stand on that side), and
++    // between shoulders.
++    "ahead": 2.5,
++    "out": 3.0,
++    "spacing": 0.95,
++    // The crate the dead's caps sit on stands this far past the line's right-hand end (as the lens sees it).
++    "crateGap": 1.0,
++    // The camera: out from the line, along it toward the front (for the three-quarter view of the engine's face), the
++    // lens's height, and where it's aimed (height over the line's feet).
++    "cameraOut": 5.6,
++    "cameraAhead": 3.0,
++    "cameraHeight": 1.6,
++    "lookHeight": 1.5,
++    // The slate on its easel: in front of the line toward the camera, and out past the line's left-hand end (the caps'
++    // crate is at its right), so it's near enough the lens to read and stands in front of nobody.
++    "slateOut": 1.6,
++    "slateAside": 0.7,
++    // How far into an emote someone holding one is caught (seconds): mid-wave, not the wind-up.
++    "emoteAt": 0.8,
++    // The photographer's flash, the light the photo is lit by: its reach (metres) and strength.
++    "flashRange": 18,
++    "flashStrength": 2.0
++  },
++  // The logbook (GDD §11): a book on a shelf, Use opens it as a page a night, the movement keys turn them.
++  "logbook": {
++    // Where it's kept: "lockers", on a shelf on the wall across the aisle from the kit locker in car one (GDD §12; the
++    // lockers' tops are up under the roof). Kept a word so it can move to the big cab's back wall ("cab", queue #450)
++    // without another key. And the shelf's height over the floor (metres): chest height, read standing.
++    "place": "lockers",
++    "height": 1.25,
++    // Reach (metres from the eye to the book) and how near the view's centre it has to be (degrees).
++    "reach": 1.9,
++    "lookDegrees": 22
++  }
++}
+diff --git a/docs/design/gdd.md b/docs/design/gdd.md
+index d0977827..8913201d 100644
+--- a/docs/design/gdd.md
++++ b/docs/design/gdd.md
+@@ -199,6 +199,7 @@ The towns are where the world is built. They tell the story of what happened and
+ - the clerk's office and the stores, lit;
+ - the custom's centrepiece in the middle: the felted bell, the waiting post, the tally board with one mark too many;
+ - a notice board, a plaque at the way in, market stalls shut for the night, benches, fire barrels and lamps.
++- beside the notice board, the company's **board of lost crews** *(the director, 14 Oct 2026; ARCHITECTURE §8 note 721)*: a card for every campaign this player rode with that ended (a train taken at dawn): the crew's name, how many nights it ran, how it ended, and the cause line of its last night. It's the player's own (§11, "What a crew keeps"), so each crewmate reads their own crews on it; with none posted, the board says what it's for.
+ 
+ **The houses.** Down the yard's street from the square, both sides, fronts to the line, and in a walled town down its streets, the lived-in ones nearest the square and the lost at the edges:
+ - the households' houses, nearest the square. Painted clapboard (barn red, ochre, slate blue, sage, white) with white trim on a fieldstone foundation, in the Maritime forms: a storey and a half with a gable over the door, a saltbox, a gambrel, a two-storey house with a Lunenburg bump. A lamp burns by every lived-in door, and lamplight shows in some windows (none where the custom keeps them dark). A knock is answered through the door, or not.
+@@ -408,6 +409,8 @@ Eventually the crew sees lights. Then walls. Then cannon towers. The gates open
+ 
+ **The night's best finds, by name** *(the director, 14 Oct 2026; ARCHITECTURE §8 note 718)*. After the salvage, the clerk names the night's three worthiest kinds of find with what each paid, in the same voice ("Find: comet fragment, 1080." "Finds: pocket watch, 2 at 110."), and then whoever brought the most worth aboard: "Light fingers: Dave, 1300." The run-end screen keeps the same line under the incident report. Nothing else ever shows a price (§19): this is how a crew learns, night by night, what's worth carrying. The wallet stays shared (§11); the finder's line is bragging rights, not a share.
+ 
++**The crew photo at the gate** *(the director, 14 Oct 2026; ARCHITECTURE §8 note 721)*. On a delivered night, as the train stands in at the terminus and the clerk tallies, the town photographer's flash: a group shot of the crew in the yard beside the engine, on the side away from the square. The living stand in a line, each in whatever emote they're holding (or stood; a sooty face from the coal shows, §23.4), bots too; the dead are their caps on a crate at the line's end, each in its crewmate's colours; the night's tally is chalked on a slate on an easel (the line, the night's number, the net). The screen flashes white with a camera's click. The photo is kept in the night's bookmark folder with a text sidecar (who stood where, whose caps, the slate), shown on the end card as a small framed print, and pasted into the night's page of the logbook (§11). Every machine stages it the same way from what it was sent, so every crewmate has the same photo. A departure photo at the gate (the yard photographer upgrade) takes the same shot.
++
+ ## 10. The consist
+ 
+ | Section | Contains |
+@@ -443,6 +446,13 @@ Successful deliveries earn money. Money buys capability. Capability allows more
+ 
+ You aren't picking a difficulty level. You're travelling farther from civilization.
+ 
++### What a crew keeps *(the director, 14 Oct 2026, App. F.6; ARCHITECTURE §8 note 721)*
++
++A crew remembers. In-jokes need somewhere to live, and a campaign the Wakers end should be a story to keep, not a reset.
++- **The logbook.** A fat ledger on a shelf in car one, across the aisle from the kit locker (it moves to the cab's back wall with the crew car). Use opens it as a full page in the paper's style, one page a night: the night's number, the line, the date, how it ended, the crew photo if it was delivered and this machine took it, the incident report's cause-of-death lines (and the train's own end), the commendations, and the net. The walking keys turn the pages; Use shuts it.
++- **Where it's kept.** The host's campaign save keeps the book with the campaign. Every player's own profile keeps a copy too, written on their machine at each night's end from the report it was sent, so everyone keeps their crew's logbook after the campaign ends or the host's save is gone. Quick nights are no campaign's and keep no page.
++- **The board of lost crews.** A campaign ended at dawn is posted, in that player's profile, on the board of lost crews in every fortress town's square (§3.1).
++
+ **Every night is the same length** *(the director's decision, 2026-10-06)*: "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." Every route is one length to the same dawn (systems spec B.8: 7 km, dawn in 24 minutes, the transit's 15 and three minutes for each of the three stops; the director's shorter nights of 9 Oct 2026, note 554, were 24 km and 51 minutes). A deeper tier sends more creatures over it and packs more into each kilometre: harder grades and bends, junctions, washouts, weak bridges and brass. Every tier has the same three stops, since a stop is time.
+ 
+ ---
+diff --git a/docs/notes/721.md b/docs/notes/721.md
+new file mode 100644
+index 00000000..b2a25fd1
+--- /dev/null
++++ b/docs/notes/721.md
+@@ -0,0 +1,27 @@
++721. **Crew memory (K1, queue #455; the director, 14 Oct 2026, `docs/design/friendslop.md` §3, GDD App. F.6).**
++The friendslop audit's Friends goal (note 733: "It's extremely important that friends exceeds our target meaningfully") has a pillar, a crew remembers: in-jokes need a place to live, and a campaign the Wakers end should be a story to keep, not a reset.
++
++   - **What it was:**
++     - A night left nothing a crew kept together. The bookmark album (note 203) kept one machine's stills of the deaths; the profile (note 180) kept the commendations a player was given, by count.
++     - A campaign taken at dawn (note 632) was a closed save on the host's disk, and nothing on anyone else's.
++   - **Now** (memory.json, `CrewPhoto`, `CrewMemory`, `LogbookReader`, `Sim/Campaign/Logbook.cs`, `Hud.Memory.cs`, `GreyboxScene.Memory.cs`; GDD §9 Arrival, §11 "What a crew keeps", §3.1):
++     - **The crew photo at the gate** (`photo`): on a delivered night, `delaySeconds` (1.2) after this machine has the report, the app stages the shot (`CrewPhoto.Stage`) beside the engine on the yard's open side, away from the town's square (`CrewPhoto.YardSide`: the square's side has the terminus platform's canopy posts in front of any lens). The living stand in a line `out` (3 m) from the track, `spacing` (0.95 m) apart, ordered by id, each in the emote they're holding (caught `emoteAt` 0.8 s in) and sooty if sooted (note 717); bots stand in like anyone. The dead are their caps on a crate `crateGap` (1 m) past the line's right end, each in its crewmate's colours. The slate on an easel `slateOut` in front and `slateAside` left of the line has the tally chalked on it ("FRONTIER 7 / NIGHT 3 / NET 1450"). The lens is `cameraOut` (5.6 m) out, `cameraAhead` toward the engine's front, `fov` 46. The frame is drawn off screen like a bookmark's still, lit by a point light at the lens (`flashRange`, `flashStrength`), the screen flashes white over `flashSeconds`, and the bookmark cue clicks (`UiCue.Bookmark`). Who's in it comes only from the replicated world (`CrewPhoto.Sitters`: `CrewStates`, names, emotes, outfits, the soot flag), so every machine's photo is the same photo.
++     - **Kept**: `BookmarkAlbum.KeepPhoto` writes "00 crew photo.png" (`width` × `height`, 640 × 360) and a text sidecar (the slate, who stood left to right, whose caps) in the night's album folder. The end card shows it as a small framed print at the top left ("AT THE GATE").
++     - **U1's yard photographer** (docs/design/upgrades.md §4) is one call away: `CrewPhoto.Stage` on the departure's engine and `KeepPhoto(still, sidecar, name)` under a name of its own.
++     - **The logbook** (`logbook`): a ledger on a small shelf `height` (1.25 m) up the wall across the aisle from the kit locker in car one (`LogbookReader.Shelf`; the lockers' tops are up under the roof). `place` is the hook for the big cab's back wall (queue #450); every value but "lockers" is the lockers' for now. "THE LOGBOOK   READ : [E]" within `reach` (1.9 m) and `lookDegrees` (22°); Use opens it at the last night's page, the walking keys turn pages (and walk nobody while it's open), Use shuts it, dying shuts it. The press is kept from the host, as a word in town is. A page (`Hud.LogbookPage`, the route card's paper): whose log, NIGHT n, the line ("Frontier 7, Moss Settlement to Voss Crossing"), the date by the player's clock, how it ended, the photo pasted in if this machine has it (`PngWriter.Read` reads the album's PNG back), the incident report's cause-of-death lines and the train's own end, the commendations, the net.
++     - **Where it's kept**: the setup carries the campaign's crew name, its key (`Logbook.Key`: name and seed) and the night's number to every machine (`SessionSetup.Crew`, `CrewKey`, `Night`, left out of a quick night's JSON). Each machine writes the night's page into its own profile (`PlayerProfile.Data.Crews`, a `CrewLog` per crew) as the report comes in, again with the photo, and once more as the night's left with all its commendations (`Logbook.With` replaces a night's page in its place, keeping a photo). The host also puts it in the campaign's save (`CampaignState.Logbook`). A night that ends the campaign closes the crew in the profile.
++     - **The board of lost crews**: a fixture of its own (`lostcrews`, the notice board's size) in every town's square, `LostCrewsAlong` (10.6 m) along from the square's middle beside the notice board, appended last so every other fixture keeps its index. Its cards are the player's own ended crews (`Logbook.Lost`, `Logbook.Card`: "The Night Mail" / "Ran 5 nights. TAKEN AT DAWN. PRIYA: Taken at dawn by a Waker on the line at km 21. ..."), drawn on its face as the notices are (`WorldArt.LostCrews`, a heading card and up to three) and read close up a card at a time ("THE BOARD OF LOST CREWS   READ : [E]", `TownTalk.LostCrews`). With none posted it reads its own words.
++   - **No protocol change**: the report already travels whole as JSON; the crew, key and night are setup fields an older peer reads past (as `CampaignNight` is).
++   - **Checked:**
++     - `CrewMemoryTests` (Sim, 5): a page keeps the report's death and derailment lines (not the grabs or rescues), the commendations and the net; a night written again replaces its own page and keeps its photo; the campaign's book round-trips the save and outlives the campaign, an old save reads empty; an ended campaign is on the board with its card, an open one isn't; every town's square has the board beside the notice board, clear of it, targeted from in front.
++     - `CrewMemoryTests` (Game, 7): the photo's sitters by id, living first, emote and soot from the world; the line out from the engine a shoulder apart, left to right in the lens, the crate past its right end, the slate left, everyone facing the lens and in frame, the same from a reshuffled crew; the photo and its sidecar kept and read back; every machine's profile keeps the page through to the board after a campaign taken at dawn, and the setup carries the crew; the save slots keep the book; the shelf's prompt and the reader's pages; the page's layout stays on its sheet at 480 × 270 and 320 × 180; the board read a card at a time.
++     - Views `crewphoto` and `lostcrews` (gallery), and `dt screenshot --hud --report brought --photo out/shots/crewphoto.png` (the end card's print), `--hud --logbook 3 --photo ...` (the page), `--hud --talk lostcrews --again 1` (a card read), `--hud --shelf` (the shelf's prompt) rendered and looked at.
++   - **Left for later:**
++     - The book on the big cab's back wall (queue #450's photo rail and gimmicks): set `place` and give `LogbookReader.Shelf` the wall's spot.
++     - A shutter sound of its own (AU1's): the bookmark's click stands in.
++     - Opening the logbook between nights (the fortress's menus), and the photo in a headset's panel.
++     - The soot (note 717) reads faintly at the photo's distance, over the masks: a stronger mark for the photo if the director wants it.
++
++**Handoff** (14 Oct, K1)
++- Done: built on K1's branch, for K1 to integrate.
++- Next: the cab's back wall takes the book (#450); U1's departure photo reuses `CrewPhoto.Stage` and `BookmarkAlbum.KeepPhoto`.
+diff --git a/src/Ballast.Render/PngWriter.cs b/src/Ballast.Render/PngWriter.cs
+index 5deb9d4f..422c80e2 100644
+--- a/src/Ballast.Render/PngWriter.cs
++++ b/src/Ballast.Render/PngWriter.cs
+@@ -42,6 +42,60 @@ public static class PngWriter
+         Chunk(output, "IEND"u8, []);
+     }
+ 
++    /// <summary>
++    /// Reads back a PNG this writer wrote (8-bit RGBA, unfiltered rows): a kept photo shown again (Dark Territory's logbook,
++    /// note 721). Null for a file it can't read or any other kind of PNG; it's not a general decoder.
++    /// </summary>
++    public static (int Width, int Height, byte[] Rgba)? Read(string path)
++    {
++        try
++        {
++            var bytes = File.ReadAllBytes(path);
++            if (bytes.Length < 33 || bytes[1] != 0x50 || bytes[2] != 0x4E || bytes[3] != 0x47)
++                return null;
++            int at = 8, width = 0, height = 0;
++            using var idat = new MemoryStream();
++            while (at + 8 <= bytes.Length)
++            {
++                int length = BinaryPrimitives.ReadInt32BigEndian(bytes.AsSpan(at));
++                var type = System.Text.Encoding.ASCII.GetString(bytes, at + 4, 4);
++                if (length < 0 || at + 12 + length > bytes.Length)
++                    return null;
++                var data = bytes.AsSpan(at + 8, length);
++                if (type == "IHDR")
++                {
++                    width = BinaryPrimitives.ReadInt32BigEndian(data);
++                    height = BinaryPrimitives.ReadInt32BigEndian(data[4..]);
++                    if (data[8] != 8 || data[9] != 6 || data[12] != 0)
++                        return null;
++                }
++                else if (type == "IDAT")
++                    idat.Write(data);
++                else if (type == "IEND")
++                    break;
++                at += 12 + length;
++            }
++            if (width <= 0 || height <= 0 || width > 8192 || height > 8192)
++                return null;
++            idat.Position = 0;
++            using var z = new ZLibStream(idat, CompressionMode.Decompress);
++            var rgba = new byte[width * height * 4];
++            var row = new byte[1 + width * 4];
++            for (int y = 0; y < height; y++)
++            {
++                z.ReadExactly(row);
++                if (row[0] != 0)
++                    return null;
++                row.AsSpan(1).CopyTo(rgba.AsSpan(y * width * 4));
++            }
++            return (width, height, rgba);
++        }
++        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidDataException)
++        {
++            return null;
++        }
++    }
++
+     static void Chunk(Stream s, ReadOnlySpan<byte> type, ReadOnlySpan<byte> data)
+     {
+         Span<byte> len = stackalloc byte[4];
+diff --git a/src/DarkTerritory.App/Program.cs b/src/DarkTerritory.App/Program.cs
+index e60ba029..92e3627c 100644
+--- a/src/DarkTerritory.App/Program.cs
++++ b/src/DarkTerritory.App/Program.cs
+@@ -984,6 +984,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
+     var keyOf = Enum.GetValues<Control>().ToDictionary(c => c, c => Enum.TryParse<Key>(settings.KeyFor(c), out var k) ? k : Enum.Parse<Key>(Controls.Defaults[c]));
+     Hud.Keys = settings;
+     Hud.Tuning = DataFile.Load<HudTuning>(Path.Combine(content, HudTuning.File));
++    // Note 721: the crew's memory: the photo at the gate, the logbook on its shelf, the board of lost crews (this player's
++    // own, from their profile).
++    Hud.Remembering = DataFile.Load<MemoryTuning>(Path.Combine(content, MemoryTuning.File));
++    var crewMemory = CrewMemory.For(profile, Hud.Remembering, (session as NetPlaySession)?.Setup);
++    townTalk.LostCrews = CrewMemory.LostCrews(profile.Load());
++    if (look is not null)
++        look.Art.World.LostCrews = townTalk.LostCrews;
+     // Note 350: one of this player's first nights shows the core controls in the yard.
+     bool firstNight = Onboarding.FirstNight(onboarding, settings, nightsOver);
+     // F4 (note 527): the card closed for the night, and back with F4 again.
+@@ -1193,7 +1200,14 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
+         pendingBookmark |= Hit(Control.Bookmark) && !session.Player.Alive;
+         // A word in town is this machine's alone, so the press is kept from the host; but by Nicki, held, it's a glass of her
+         // wine (note 571), which is the host's to pour.
+-        if (Hit(Control.Use) && session.World.TownOf(session.Player) is { } town && Hud.TownTarget(session) is var spoken && townTalk.Use(town, spoken, now))
++        // The crew's logbook (note 721): this machine's own to open and shut, so the press is kept from the host too.
++        if (Hit(Control.Use) && (crewMemory.Reader.Open || Hud.Prompt(session) == LogbookReader.Prompt))
++        {
++            crewMemory.Reader.Use(crewMemory.Pages().Count);
++            sound.Ui(crewMemory.Reader.Open ? UiCue.PanelOpen : UiCue.PanelClose);
++            useKept = true;
++        }
++        else if (Hit(Control.Use) && session.World.TownOf(session.Player) is { } town && Hud.TownTarget(session) is var spoken && townTalk.Use(town, spoken, now))
+             useKept = spoken is not { Kind: DarkTerritory.Sim.Towns.TownTargetKind.Person } hosting || !town.Plan.People[hosting.Index].Hosting;
+         // Dave's card is this machine's alone; Jacob's press goes on to the host as well (a word with him mends the train).
+         else if (Hit(Control.Use) && Hud.Prompt(session) is { } atFigure && FigureTalk.Target(session) is { } figure && atFigure == FigureTalk.Prompt(figure)
+@@ -1201,6 +1215,15 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
+             useKept = true;
+         if (!Held(Control.Use))
+             useKept = false;
++        // Open, the logbook takes the walking keys (note 721): back a night, or on one. Dying shuts it.
++        if (crewMemory.Reader.Open)
++        {
++            if (!session.Player.Alive)
++                crewMemory.Reader.Close();
++            int turn = (Hit(Control.Right) || Hit(Control.Forward) ? 1 : 0) - (Hit(Control.Left) || Hit(Control.Back) ? 1 : 0);
++            if (turn != 0 && crewMemory.Reader.Turn(turn, crewMemory.Pages().Count))
++                sound.Ui(UiCue.PanelPage);
++        }
+         // The gun's seat (T112): Use pressed standing still at a loaded gun sits you in it (Use held at one waiting on its
+         // reload loads it, walking with it pushes it). Seated, Jump gets you up.
+         if (Hit(Control.Use) && !session.Player.Has(PlayerFlags.Seated) && session.World.Combat is { } gc
+@@ -1303,8 +1326,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
+             if (proto is null && pendingReverser) buttons |= PlayerButtons.Reverser;
+             var intent = new PlayerIntent
+             {
+-                MoveX = (Held(Control.Right) ? 1 : 0) - (Held(Control.Left) ? 1 : 0),
+-                MoveZ = (Held(Control.Forward) ? 1 : 0) - (Held(Control.Back) ? 1 : 0),
++                // (The logbook open has the walking keys: they turn its pages, note 721.)
++                MoveX = crewMemory.Reader.Open ? 0 : (Held(Control.Right) ? 1 : 0) - (Held(Control.Left) ? 1 : 0),
++                MoveZ = crewMemory.Reader.Open ? 0 : (Held(Control.Forward) ? 1 : 0) - (Held(Control.Back) ? 1 : 0),
+                 LookYaw = (float)pendingYaw,
+                 LookPitch = (float)pendingPitch,
+                 Buttons = buttons,
+@@ -1612,6 +1636,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
+         scene.BendStrain = session.Route?.Plan is { } strainPlan ? BendStrain.PerCar(session.Train, strainPlan.Rules) : null;
+         scene.DriversLocked = scene.Ruptured && session.Train.BoilerTuning is { } rt && session.Train.Dynamics.Speed > rt.RuptureCoastBelow;
+         scene.Controls = session.Controls;
++        // The crew's logbook on its shelf in car one (note 721).
++        scene.Logbook = LogbookReader.Shelf(session.Train, Hud.Remembering.Logbook);
+         if (!session.World.LampShining)
+             lighting.LampRange = 0.01f; // not 0: the shader divides by it
+         // The night's fog as it's drawn: what's past it is cooked off the frame (note 479).
+@@ -1639,6 +1665,25 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
+             (scene.Crew, scene.Own, scene.HeldHere) = (shownCrew, shownOwn, shownHeld);
+             scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
+         }
++        // Note 721: the night's page in the crew's logbook, in this player's profile, as soon as the report's in (written again
++        // with the photo, and as the night's left with its commendations).
++        if (session.World.Run?.Report is not null && crewMemory.Page is null)
++            crewMemory.Remember(session, DateTime.Now);
++        // Note 721: a delivered night's crew photo at the gate, the town photographer's: the crew stood for it beside the engine
++        // (everyone, this machine's player too), the dead's caps on a crate, the slate, lit by the flash; drawn off screen from
++        // its lens like a bookmark's still, kept in the night's album folder, and shown on the end card.
++        if (crewMemory.PhotoDue(session, now))
++        {
++            var staged = crewMemory.Stage(session, frames);
++            var (shownCrew, shownOwn, shownHeld) = (scene.Crew, scene.Own, scene.HeldHere);
++            (scene.Crew, scene.Own, scene.HeldHere, scene.Photo) = (staged.Crew, null, null, staged.Props);
++            scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, staged.Camera.Position);
++            crewMemory.Took(session, renderer.Render(mesh, staged.Camera, lighting, lighting.FogColor), renderer.Width, renderer.Height, album, now, DateTime.Now);
++            (scene.Crew, scene.Own, scene.HeldHere, scene.Photo) = (shownCrew, shownOwn, shownHeld, null);
++            scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
++            sound.Ui(UiCue.Bookmark);
++            Console.WriteLine(crewMemory.PhotoFile.Length > 0 ? $"crew photo: kept as {crewMemory.PhotoFile}" : "crew photo: taken");
++        }
+         // D.12, D.13 (note 203): once the report's in, the stills on it are kept on disk, so a player has them after the screen.
+         if (session.World.Run?.Report is { } kept && album.Save(kept, stills.Stills, session.World).Count > 0 && !albumSaid)
+         {
+@@ -1654,6 +1699,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
+         if (showHud)
+         {
+             Hud.Build(overlay, UiWidth, UiHeight, session, stills: stills.Stills, pixels: (float)renderer.Height / UiHeight, talk: townTalk, figures: figureTalk, now: now,
++                photo: crewMemory.Photo,
+                 // The first nights' card gives way to a panel opened over it (note 351: it showed through the supplies).
+                 firstNight: firstNight && !cardHidden && !Held(Control.Roster) && !showSupplies && cardPage < 0 && !showPlan,
+                 captions: frontEnd.Settings.Captions ? captions.Lines() : null);
+@@ -1672,6 +1718,16 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
+                 if (showPlan)
+                     DarkTerritory.Game.LineGen.PlanHud.Overlay(overlay, UiWidth, UiHeight, session, shown);
+             }
++            // The logbook open (note 721): tonight's crew's pages, from this player's profile.
++            if (crewMemory.Reader.Open)
++            {
++                var pages = crewMemory.Pages();
++                var open = pages.Count > 0 ? pages[Math.Clamp(crewMemory.Reader.Page, 0, pages.Count - 1)] : null;
++                Hud.LogbookPage(overlay, UiWidth, UiHeight, crewMemory.Crew, pages, crewMemory.Reader.Page, open is null ? null : crewMemory.PhotoOf(open));
++            }
++            // The photographer's flash (note 721), white over everything, fading.
++            if (crewMemory.Flash(now) is > 0 and var flash)
++                overlay.Rect(0, 0, UiWidth, UiHeight, new Vector4(1, 1, 0.97f, flash));
+             if (session.World.Run?.Over == true)
+             {
+                 overlay.TextCentred(UiWidth / 2f, UiHeight - 22, campaign is not null ? "ENTER: BACK TO THE FORTRESS" : "ENTER: BACK", new Vector4(1, 0.7f, 0.3f, 1));
+@@ -1772,6 +1828,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
+     // Note 350: a night seen to its end is one of the player's nights.
+     if (session.World.Run?.Over == true)
+         nightsOver = profile.CountNight().Nights;
++    // Note 721: the night's page as it's left, its commendations all given, in this player's profile; and the host's, in the
++    // campaign's save beside the night it settled.
++    if (crewMemory.Remember(session, DateTime.Now) is { } logged && campaign is not null && campaign.Slot > 0 && session is NetPlaySession { Host: not null })
++    {
++        campaign = campaign with { Logbook = DarkTerritory.Sim.Campaign.Logbook.With(campaign.Logbook, logged) };
++        saves.Save(campaign);
++    }
+     if (capture is not null)
+     {
+         var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor, showHud || frontEnd.Night is not null ? overlay : null);
+diff --git a/src/DarkTerritory.Cli/Program.cs b/src/DarkTerritory.Cli/Program.cs
+index ea08b94a..e715c589 100644
+--- a/src/DarkTerritory.Cli/Program.cs
++++ b/src/DarkTerritory.Cli/Program.cs
+@@ -1037,6 +1037,12 @@ static int ScreenshotBatch(TrainTuning t, string content, string file, bool chec
+ static object Screenshot(TrainTuning t, string content, string[] args)
+ {
+     string view = Str(args, "--view", "trackside");
++    // Note 721: the crew photo at the gate (crewphoto: a delivered night stood home at its terminus, four of the crew, one
++    // dead, Staging.PhotoCrew) and the departure town's board of lost crews (lostcrews: two crews' cards, Staging.LostCrews).
++    if (view == "crewphoto" && !args.Contains("--arrival"))
++        args = [.. args, "--arrival", "photo"];
++    if (view == "lostcrews" && !args.Contains("--town"))
++        args = [.. args, "--town", "lostcrews"];
+     string lineName = Str(args, "--line", "test-loop");
+     int cars = (int)Opt(args, "--cars", 6);
+     int width = (int)Opt(args, "--width", 1280), height = (int)Opt(args, "--height", 720), scale = (int)Opt(args, "--scale", 1);
+@@ -1047,7 +1053,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
+     // stages it gnawing, the tower leaning over the line; towerjawfall, the tower down across it.
+     string towerJawMode = Str(args, "--towerjaw", view switch { "towerjaw" => "lean", "towerjawfall" => "wreck", _ => "" });
+     // --route tier:seed generates the night in memory; --coaling stops the train at its coaling tower, chute pouring.
+-    Route? generated = Str(args, "--route", towerJawMode.Length > 0 ? "frontier:3" : Staging.IsHouseView(view) || view is "comet" or "trophies" ? "frontier:7" : "") is { Length: > 0 } spec
++    Route? generated = Str(args, "--route", towerJawMode.Length > 0 ? "frontier:3" : Staging.IsHouseView(view) || view is "comet" or "trophies" or "crewphoto" or "lostcrews" ? "frontier:7" : "") is { Length: > 0 } spec
+         ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars)
+         : null;
+     var line = generated?.Build() ?? RailLine.Load(Path.Combine(content, "lines", lineName + ".json"));
+@@ -2426,6 +2432,24 @@ static object Screenshot(TrainTuning t, string content, string[] args)
+         camera = HeldShot.Frame(victim.Feet, holder.WorldPosition(train), eyesThere, inside, HeldShot.Size(holder.Kind),
+             (x, z) => PlayerMotor.GroundAt(new Double3(x, 0, z), train.Line, ref heldHint));
+     }
++    // Note 721: the crew photo at the gate, staged beside the engine on the yard's open side (CrewPhoto.YardSide) and taken
++    // from its own lens (--night n, --net s: the slate's); --side 1|-1 a side of the track of your own.
++    if (view == "crewphoto")
++    {
++        var memoryTuning = DataFile.Load<MemoryTuning>(Path.Combine(content, MemoryTuning.File));
++        var staged = CrewPhoto.Stage(train.Frames[0], (int)Opt(args, "--side", CrewPhoto.YardSide(arrival?.Plan.Square.Side)), Staging.PhotoCrew(),
++            CrewPhoto.Chalk(CrewPhoto.RouteName(Str(args, "--route", "frontier:7")), (int)Opt(args, "--night", 3), Opt(args, "--net", 1450)), memoryTuning.Photo);
++        (scene.Crew, scene.Photo) = (staged.Crew, staged.Props);
++        camera = staged.Camera;
++    }
++    // Note 721: the departure town's board of lost crews, two crews' cards on it (Staging.LostCrews), from in front of it;
++    // every other shot's board bare (a batch's renderer, and its look, is shared).
++    if (look is not null)
++        look.Art.World.LostCrews = view == "lostcrews" ? Staging.LostCrews() : [];
++    if (view == "lostcrews" && town is not null)
++        camera = Staging.TownCamera(town, "lostcrews");
++    // The crew's logbook on its shelf in car one, as every night has it (note 721; the lockers view sees it).
++    scene.Logbook = LogbookReader.Shelf(train, new LogbookTuning());
+     scene.Build(mesh, train, camera.Position, leaned);
+     // How long a frame's scene takes to build on the CPU, warm (the first build cooks the kit's pieces).
+     var buildClock = Stopwatch.StartNew();
+@@ -3319,6 +3343,24 @@ static object HudShot(string content, string[] args)
+             if (Str(args, "--carrying", "") == "kit" && solo.World.Bodies.All.FirstOrDefault(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.RepairKit) is { } kit)
+                 (kit.Carrier, kit.Locker) = (((IPlaySession)solo).PlayerId, -1);
+         }
++        // --shelf (note 721): stood in car one's aisle at the kit locker, looking up at the crew's logbook on its top, where Use
++        // opens it.
++        if (args.Contains("--shelf") && LogbookReader.Shelf(solo.Train, new LogbookTuning()) is { } shelf
++            && DarkTerritory.Sim.World.KitLocker(solo.Train) is { } shelfLocker)
++        {
++            var bay = shelfLocker.Bay;
++            var feet = new Double3(bay.Front.X + bay.Facing * 0.75, bay.Front.Y, bay.Front.Z);
++            var to = shelf.Local - (feet + Double3.Up * solo.Train.Dynamics.Tuning.Pick.EyeHeight);
++            solo.Player = solo.Player with
++            {
++                Parent = shelf.Car,
++                Surface = DarkTerritory.Sim.Player.Surface.Deck,
++                Position = feet,
++                Yaw = Math.Atan2(-to.X, -to.Z),
++                Pitch = Math.Atan2(to.Y, Math.Sqrt(to.X * to.X + to.Z * to.Z)),
++                Velocity = default,
++            };
++        }
+         // --full-car (note 324): inside the first cargo car, loaded full, a crate from the first stop in hand.
+         if (args.Contains("--full-car") && solo.World.Run is { } stocked)
+         {
+@@ -3364,7 +3406,8 @@ static object HudShot(string content, string[] args)
+     if (Str(args, "--talk", "") is { Length: > 0 } talked && session is PrototypeSession here
+         && (args.Contains("--arrival") ? here.World.Arrival : here.World.Town) is { } town)
+     {
+-        talk = new TownTalk();
++        // (The board of lost crews, note 721, with two crews' cards on it: Staging.LostCrews.)
++        talk = new TownTalk { LostCrews = talked == "lostcrews" ? Staging.LostCrews() : [] };
+         var (stand, lookAt) = Staging.TownStand(town, talked, (int)Opt(args, "--who", 0));
+         var eyeAt = stand + Double3.Up * here.Train.Dynamics.Tuning.Pick.EyeHeight;
+         var to = lookAt - eyeAt;
+@@ -3438,6 +3481,8 @@ static object HudShot(string content, string[] args)
+         Time = 0.37,
+         Look = look,
+         Crew = crew,
++        // The crew's logbook on its shelf (note 721).
++        Logbook = LogbookReader.Shelf(session.Train, Hud.Remembering.Logbook),
+     };
+     // The rest of the crew, but not the one whose eyes these are (as the app draws it).
+     Scene([.. session.Crew(frames, 1).Where(c => c.Id != session.Watching)]).Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
+@@ -3473,6 +3518,8 @@ static object HudShot(string content, string[] args)
+             kept = new BookmarkAlbum(dir, DateTime.Now, session.Route?.Name ?? "night").Save(staged, stills.Stills, session.World);
+     }
+     var hud = new Overlay();
++    string photoFile = Str(args, "--photo", "");
++    var photoStill = BookmarkAlbum.ReadPhoto(photoFile);
+     // --hurt [s]: just hit (GDD App. F.1's damage model; note 272), the red edge flash at strength s (a heavy hit is 1).
+     if (args.Contains("--hurt"))
+         Hud.StagedHurt = Array.IndexOf(args, "--hurt") is var hu && hu + 1 < args.Length
+@@ -3509,11 +3556,22 @@ static object HudShot(string content, string[] args)
+     }
+     else
+     {
+-        Hud.Build(hud, width, height, session, pixels: scale, firstNight: args.Contains("--first-night"), captions: captioned, commendations: args.Contains("--commend")
++        // --photo f.png (note 721): the crew photo at the gate (`dt screenshot --view crewphoto`'s) as tonight's, the end card's print.
++        Hud.Build(hud, width, height, session, pixels: scale, firstNight: args.Contains("--first-night"), captions: captioned, photo: photoStill, commendations: args.Contains("--commend")
+             ? [("Dave", UiStyle.Commendation.CameBackForMe, "Okafor"), ("Priya", UiStyle.Commendation.KeptTheFire, "Dave"),
+                 ("Okafor", UiStyle.Commendation.HeldTheSwitch, "Priya"), ("Dunmore", UiStyle.Commendation.LastOneStanding, "Dave")]
+             : null, stills: stills.Stills, talk: talk, now: talkNow);
+     }
++    // --logbook [n] (note 721): the crew's logbook open at its nth page (the last, 3, if not said): three nights of a crew's,
++    // the last with --photo's print pasted in (Staging.LogPages); --logbook 0 an empty book.
++    if (args.Contains("--logbook"))
++    {
++        int open = (int)Opt(args, "--logbook", 3);
++        var pages = open <= 0 ? [] : Staging.LogPages(photoFile);
++        var shown = pages.Count > 0 ? pages[Math.Clamp(open - 1, 0, pages.Count - 1)] : null;
++        Hud.LogbookPage(hud, width, height, "The Night Mail", pages, Math.Clamp(open - 1, 0, Math.Max(0, pages.Count - 1)),
++            shown is { Photo.Length: > 0 } ? BookmarkAlbum.ReadPhoto(shown.Photo) : null);
++    }
+     // --emote-wheel: the emote wheel held, the mouse leant toward the wave (note 298).
+     if (args.Contains("--emote-wheel"))
+     {
+diff --git a/src/DarkTerritory.Game/Art/SquareKit.cs b/src/DarkTerritory.Game/Art/SquareKit.cs
+index e76d7a2a..8a5103e4 100644
+--- a/src/DarkTerritory.Game/Art/SquareKit.cs
++++ b/src/DarkTerritory.Game/Art/SquareKit.cs
+@@ -614,7 +614,7 @@ public static class SquareKit
+     }
+ 
+     /// <summary>A line of the font's capitals inked on a sheet facing −Z, starting at <paramref name="x"/> (its left, as read) and running to −X.</summary>
+-    static void Ink(Kit k, BitmapFont font, string line, float x, float y, float px)
++    internal static void Ink(Kit k, BitmapFont font, string line, float x, float y, float px)
+     {
+         const float Z = -0.0015f;
+         foreach (char ch in line)
+@@ -656,7 +656,7 @@ public static class SquareKit
+         return lines;
+     }
+ 
+-    static void Timber(Kit k) => k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
++    internal static void Timber(Kit k) => k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
+     static void Iron(Kit k) => k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.3f);
+     static void Paint(Kit k)
+     {
+diff --git a/src/DarkTerritory.Game/Art/WorldArt.Towns.cs b/src/DarkTerritory.Game/Art/WorldArt.Towns.cs
+index e53b6d04..2e528335 100644
+--- a/src/DarkTerritory.Game/Art/WorldArt.Towns.cs
++++ b/src/DarkTerritory.Game/Art/WorldArt.Towns.cs
+@@ -159,6 +159,25 @@ public sealed partial class WorldArt
+         }
+     }
+ 
++    /// <summary>
++    /// The board of lost crews' cards (GDD §3.1; note 721): this player's ended campaigns, from their profile, the last ended
++    /// first. The app sets them; every town's board shows the same ones (they're the player's, not the town's).
++    /// </summary>
++    public IReadOnlyList<(string Title, string Text)> LostCrews
++    {
++        get => _lostCrews;
++        set
++        {
++            _lostCrews = value;
++            LostCrewsKey = string.Join("|", value.Take(LostCrewsShown).Select(c => c.Title + c.Text)).GetHashCode(StringComparison.Ordinal).ToString("x8");
++        }
++    }
++    IReadOnlyList<(string Title, string Text)> _lostCrews = [];
++    string LostCrewsKey { get; set; } = "none";
++    /// <summary>As many cards as the board's face holds legibly beside its heading.</summary>
++    const int LostCrewsShown = 3;
++    static readonly (string Title, string Text) LostCrewsHeading = ("Lost crews", "Each card is a crew whose train was taken at dawn. The company regrets the inconvenience.");
++
+     /// <summary>Draws a town's square within [<paramref name="from"/>, <paramref name="to"/>] along the line.</summary>
+     public void Square(MeshBuilder mesh, RailLine line, Double3 eye, Town town, double from, double to)
+     {
+@@ -212,7 +231,10 @@ public sealed partial class WorldArt
+             // The board carries the town's own notices, written on its sheets (note 669): a piece of its own, per town.
+             var piece = f.Kind == "board"
+                 ? Piece($"square-board-{plan.Name}-{notices}", () => SquareKit.Board(_look, [.. plan.Papers.Where(p => p.OnBoard).Select(p => (p.Title, p.Text))]))
+-                : Piece($"square-{f.Kind}-{count}", () => SquareKit.Fixture(_look, f.Kind, count));
++                // The board of lost crews (note 721): its heading sheet, then this player's lost crews' cards (from their profile).
++                : f.Kind == "lostcrews"
++                    ? Piece($"square-lostcrews-{LostCrewsKey}", () => SquareKit.Board(_look, [LostCrewsHeading, .. LostCrews.Take(LostCrewsShown)]))
++                    : Piece($"square-{f.Kind}-{count}", () => SquareKit.Fixture(_look, f.Kind, count));
+             mesh.Instances.Add(new MeshInstance(piece, m));
+             // The banked fire glows; the shuttered lamps leak a little round their shutters.
+             if (f.Kind == "brazier")
+diff --git a/src/DarkTerritory.Game/BookmarkAlbum.cs b/src/DarkTerritory.Game/BookmarkAlbum.cs
+index 0311ae63..f4ac7da7 100644
+--- a/src/DarkTerritory.Game/BookmarkAlbum.cs
++++ b/src/DarkTerritory.Game/BookmarkAlbum.cs
+@@ -102,6 +102,42 @@ public sealed class BookmarkAlbum
+         return written;
+     }
+ 
++    /// <summary>The crew photo's file name in a night's folder (note 721): first in the folder, before the bookmarks.</summary>
++    public const string PhotoName = "00 crew photo.png";
++
++    /// <summary>The crew photo's file, once kept; "" before.</summary>
++    public string Photo { get; private set; } = "";
++
++    /// <summary>
++    /// Keeps the crew photo at the gate (note 721) in the night's folder as a PNG, with its text sidecar beside it (what it
++    /// is, who's in it, the slate). Returns its path, or "" when the disk won't have it (said once, as the stills are). U1's
++    /// departure photo keeps its own under <paramref name="name"/>.
++    /// </summary>
++    public string KeepPhoto(Still photo, string sidecar, string name = PhotoName)
++    {
++        if (_failed)
++            return "";
++        try
++        {
++            string path = Path.Combine(Night, name);
++            PngWriter.Write(path, photo.Rgba, photo.Width, photo.Height);
++            File.WriteAllText(Path.ChangeExtension(path, ".txt"), sidecar);
++            if (name == PhotoName)
++                Photo = path;
++            return path;
++        }
++        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
++        {
++            _failed = true;
++            Console.WriteLine($"bookmarks: couldn't keep the crew photo in {Night} ({e.Message})");
++            return "";
++        }
++    }
++
++    /// <summary>A kept photo read back for the logbook's page (note 721), or null if it's gone or isn't one of ours.</summary>
++    public static Still? ReadPhoto(string path) =>
++        path.Length > 0 && PngWriter.Read(path) is { } png ? new Still(png.Width, png.Height, png.Rgba) : null;
++
+     /// <summary>The report's lines, each with the stills beside it, then the dead's own: what the pictures are of.</summary>
+     string Index(RunReport report, World world)
+     {
+diff --git a/src/DarkTerritory.Game/CrewMemory.cs b/src/DarkTerritory.Game/CrewMemory.cs
+new file mode 100644
+index 00000000..12cb451b
+--- /dev/null
++++ b/src/DarkTerritory.Game/CrewMemory.cs
+@@ -0,0 +1,134 @@
++using System.Globalization;
++using DarkTerritory.Sim.Campaign;
++using DarkTerritory.Sim.Run;
++using DarkTerritory.Sim.Train;
++
++namespace DarkTerritory.Game;
++
++/// <summary>
++/// A night's crew memory on this machine (GDD §9, §11; the director, 14 Oct 2026; ARCHITECTURE §8 note 721): when the crew
++/// photo's due and what it came to, the logbook on its shelf and the pages in it, and the night's page written into this
++/// player's profile from the report every machine was sent. The app drives it; the rendering is the app's.
++/// </summary>
++/// <param name="crew">The campaign's crew name, key and night number (the setup's: <see cref="SessionSetup.Crew"/>), or
++/// empty for a night that's no campaign's (no page is kept, and the book is empty).</param>
++public sealed class CrewMemory(PlayerProfile profile, MemoryTuning tuning, string crew, string crewKey, int night)
++{
++    readonly Dictionary<string, Still?> _photos = [];
++    double _photoDue = -1;
++    LogPage? _page;
++    IReadOnlyList<LogPage>? _pages;
++
++    public MemoryTuning Tuning { get; } = tuning;
++    /// <summary>The crew's name ("" on a quick night).</summary>
++    public string Crew { get; } = crew;
++    public string CrewKey { get; } = crewKey;
++    public int Night { get; } = night;
++    /// <summary>The logbook on its shelf, open or shut.</summary>
++    public LogbookReader Reader { get; } = new();
++    /// <summary>Tonight's crew photo, once taken on this machine.</summary>
++    public Still? Photo { get; private set; }
++    /// <summary>Where it's kept ("" until then, or when the disk wouldn't have it).</summary>
++    public string PhotoFile { get; private set; } = "";
++    /// <summary>When its flash went off (this machine's seconds), or −1.</summary>
++    public double FlashAt { get; private set; } = -1;
++    /// <summary>Tonight's page, once the report's in.</summary>
++    public LogPage? Page => _page;
++
++    /// <summary>The setup's campaign, or a quick night's nothing.</summary>
++    public static CrewMemory For(PlayerProfile profile, MemoryTuning tuning, SessionSetup? setup) =>
++        new(profile, tuning, setup?.Crew ?? "", setup?.CrewKey ?? "", setup?.Night ?? 0);
++
++    /// <summary>This crew's pages as this player's profile has them (tonight's among them once it's written); read once, kept as written.</summary>
++    public IReadOnlyList<LogPage> Pages() => _pages ??= LogbookReader.Of(profile.Load(), CrewKey)?.Pages ?? [];
++
++    /// <summary>
++    /// The crew photo's due now (note 721): the night delivered, the report in, the photo not yet taken here, and
++    /// <see cref="PhotoTuning.DelaySeconds"/> gone since this machine first saw the report.
++    /// </summary>
++    public bool PhotoDue(IPlaySession s, double now)
++    {
++        if (Photo is not null || s.World.Run?.Report is not { End: RunEnd.Delivered })
++            return false;
++        if (_photoDue < 0)
++            _photoDue = now + Tuning.Photo.DelaySeconds;
++        return now >= _photoDue;
++    }
++
++    /// <summary>Who's in it, and the slate's chalk.</summary>
++    public (IReadOnlyList<Sitter> Crew, IReadOnlyList<string> Chalk) Sitting(IPlaySession s) =>
++        (CrewPhoto.Sitters(s.World, s.CrewStates(1)), CrewPhoto.Chalk(CrewPhoto.RouteName(s.Route?.Name), Night, s.World.Run?.Report?.Net ?? 0));
++
++    /// <summary>The photo staged beside the engine as it stands now, on the yard's open side (<see cref="CrewPhoto.YardSide"/>).</summary>
++    public PhotoStaging Stage(IPlaySession s, IReadOnlyList<CarFrame> frames)
++    {
++        var (sitters, chalk) = Sitting(s);
++        int side = CrewPhoto.YardSide((s.World.Arrival ?? s.World.Town)?.Plan.Square.Side);
++        return CrewPhoto.Stage(frames[0], side, sitters, chalk, Tuning.Photo);
++    }
++
++    /// <summary>
++    /// The photo's been taken (the frame drawn from the staging's lens): kept small, written to the night's album folder with
++    /// its sidecar, the flash set off, and tonight's page written again with it.
++    /// </summary>
++    public void Took(IPlaySession s, byte[] rgba, int width, int height, BookmarkAlbum album, double now, DateTime date)
++    {
++        Photo = BookmarkStills.Shrink(rgba, width, height, Tuning.Photo.Width, Tuning.Photo.Height);
++        FlashAt = now;
++        var (sitters, chalk) = Sitting(s);
++        PhotoFile = album.KeepPhoto(Photo, CrewPhoto.Sidecar(sitters, chalk, Crew, Date(date)));
++        if (PhotoFile.Length > 0)
++            _photos[PhotoFile] = Photo;
++        if (_page is not null)
++            Remember(s, date);
++    }
++
++    /// <summary>The flash over the screen now: 1 as it goes off, fading to 0 over <see cref="PhotoTuning.FlashSeconds"/>.</summary>
++    public float Flash(double now) =>
++        FlashAt < 0 || now < FlashAt || Tuning.Photo.FlashSeconds <= 0 ? 0 : (float)Math.Clamp(1 - (now - FlashAt) / Tuning.Photo.FlashSeconds, 0, 1);
++
++    /// <summary>
++    /// Tonight's page in this crew's logbook in the player's profile (note 721), from the report and the commendations as this
++    /// machine has them now: written when the report comes in, again with the photo, and once more as the night's left (the
++    /// commendations given on the end card). A night that ended the campaign closes the crew onto the board of lost crews.
++    /// Nothing on a quick night. Returns the page.
++    /// </summary>
++    public LogPage? Remember(IPlaySession s, DateTime date)
++    {
++        if (CrewKey.Length == 0 || s.World.Run?.Report is not { } report)
++            return null;
++        var world = s.World;
++        var commended = world.Commendations.Where(c => c.Which < Commendations.StarterSet.Length)
++            .Select(c => (IncidentLog.NameOf(world, c.To), Commendations.StarterSet[c.Which], IncidentLog.NameOf(world, c.From)));
++        bool wakers = world.Enemies?.Wakers.Enabled ?? true;
++        _page = Logbook.Page(report, Night, RouteTitle(s), Date(date), commended, wakers, PhotoFile);
++        bool over = report.End == RunEnd.DawnMissed && world.DawnEndsCampaign;
++        _pages = LogbookReader.Of(profile.Log(CrewKey, Crew, _page, over), CrewKey)?.Pages ?? [];
++        return _page;
++    }
++
++    /// <summary>A page's photo, read back from where this machine kept it (cached), or null.</summary>
++    public Still? PhotoOf(LogPage page)
++    {
++        if (page.Photo.Length == 0)
++            return null;
++        if (!_photos.TryGetValue(page.Photo, out var still))
++            _photos[page.Photo] = still = BookmarkAlbum.ReadPhoto(page.Photo);
++        return still;
++    }
++
++    /// <summary>The page's line: "Frontier 7, Hollin Halt to Barrow Bay" (its tier and seed, the town it left and the terminus).</summary>
++    public static string RouteTitle(IPlaySession s)
++    {
++        string name = CrewPhoto.RouteName(s.Route?.Name);
++        string? from = s.World.Town?.Plan.Name, to = s.Route?.Plan?.Terminus.Name;
++        return from is { Length: > 0 } && to is { Length: > 0 } ? $"{name}, {from} to {to}" : to is { Length: > 0 } ? $"{name}, to {to}" : name;
++    }
++
++    /// <summary>The page's date line, by the player's own clock: "14 October 2026".</summary>
++    public static string Date(DateTime date) => date.ToString("d MMMM yyyy", CultureInfo.InvariantCulture);
++
++    /// <summary>The board of lost crews' cards from this player's profile (note 721), the last ended first.</summary>
++    public static IReadOnlyList<(string Title, string Text)> LostCrews(PlayerProfile.Data profile) =>
++        [.. Logbook.Lost(profile.Crews).Select(Logbook.Card)];
++}
+diff --git a/src/DarkTerritory.Game/CrewPhoto.cs b/src/DarkTerritory.Game/CrewPhoto.cs
+new file mode 100644
+index 00000000..d3f4dc55
+--- /dev/null
++++ b/src/DarkTerritory.Game/CrewPhoto.cs
+@@ -0,0 +1,183 @@
++using System.Text;
++using Ballast;
++using Ballast.Render;
++using DarkTerritory.Sim;
++using DarkTerritory.Sim.Player;
++using DarkTerritory.Sim.Run;
++using DarkTerritory.Sim.Train;
++
++namespace DarkTerritory.Game;
++
++/// <summary>
++/// Crew memory's numbers (content/tuning/memory.json; GDD §9, §11, §3.1; the director, 14 Oct 2026; ARCHITECTURE §8 note
++/// 721): the crew photo's staging and the logbook's place and reach. Presentation only. The defaults are the file's.
++/// </summary>
++public sealed record MemoryTuning
++{
++    public const string File = "tuning/memory.json";
++    public PhotoTuning Photo { get; init; } = new();
++    public LogbookTuning Logbook { get; init; } = new();
++}
++
++/// <summary>The crew photo at the gate (memory.json <c>photo</c>; GDD §9 Arrival, note 721). Field docs live in the file.</summary>
++public sealed record PhotoTuning
++{
++    public int Width { get; init; } = 640;
++    public int Height { get; init; } = 360;
++    public float Fov { get; init; } = 40;
++    public double DelaySeconds { get; init; } = 1.2;
++    public double FlashSeconds { get; init; } = 0.6;
++    public double Ahead { get; init; } = 2.5;
++    public double Out { get; init; } = 3.0;
++    public double Spacing { get; init; } = 0.95;
++    public double CrateGap { get; init; } = 1.0;
++    public double CameraOut { get; init; } = 8.0;
++    public double CameraAhead { get; init; } = 3.0;
++    public double CameraHeight { get; init; } = 1.6;
++    public double LookHeight { get; init; } = 1.5;
++    public double SlateOut { get; init; } = 2.6;
++    public double SlateAside { get; init; } = 0.7;
++    public double EmoteAt { get; init; } = 0.8;
++    public float FlashRange { get; init; } = 18;
++    public float FlashStrength { get; init; } = 3.0f;
++}
++
++/// <summary>The logbook (memory.json <c>logbook</c>; GDD §11, note 721). Field docs live in the file.</summary>
++public sealed record LogbookTuning
++{
++    public string Place { get; init; } = "lockers";
++    public double Height { get; init; } = 1.25;
++    public double Reach { get; init; } = 1.9;
++    public double LookDegrees { get; init; } = 22;
++}
++
++/// <summary>Someone in the crew photo (note 721): who, alive or not, the emote they're holding, and a sooty face (note 717).</summary>
++public readonly record struct Sitter(byte Id, string Name, bool Alive, Emote Emote = Emote.None, bool Sooted = false, int? Looks = null);
++
++/// <summary>
++/// What's in the photo besides the crew (note 721): the crate at the line's end with the dead's caps on it (each in its
++/// crewmate's colours, by <see cref="Crewmate.Variant"/>), the slate on its easel with the night's tally chalked on it, and
++/// where the flash went off. World positions; yaws face the lens (0 faces world −Z, as a crewmate's).
++/// </summary>
++public sealed record PhotoProps(Double3 Crate, double CrateYaw, IReadOnlyList<int> Caps, Double3 Slate, double SlateYaw, IReadOnlyList<string> Chalk,
++    Double3 Flash, float FlashRange, float FlashStrength);
++
++/// <summary>The crew photo staged: the lens, the figures stood for it, and the props.</summary>
++public sealed record PhotoStaging(Camera Camera, IReadOnlyList<Crewmate> Crew, PhotoProps Props);
++
++/// <summary>
++/// The crew photo at the gate (GDD §9 Arrival; the director, 14 Oct 2026; ARCHITECTURE §8 note 721): on a delivered night,
++/// as the train stands in at the terminus, the town photographer's flash. The living stand in a line beside the engine in the
++/// yard, each in the emote they're holding (or stood), bots too; the dead are their caps on a crate at the line's end; the
++/// night's tally is chalked on a slate on an easel. Presentation only, staged on every machine from the replicated world
++/// alone (who, alive, their emote and soot; the engine where it stands), so every machine's photo is the same photo.
++/// <para>U1's yard photographer (docs/design/upgrades.md §4) takes a departure photo with the same call (<see cref="Stage"/>
++/// on the departure's engine) and keeps it with <see cref="BookmarkAlbum.KeepPhoto"/>.</para>
++/// </summary>
++public static class CrewPhoto
++{
++    /// <summary>
++    /// Who's in the photo, from the replicated crew: the living by id (each holding the emote they're at, sooty if sooted),
++    /// then the dead by id. Bots stand in like anyone.
++    /// </summary>
++    public static IReadOnlyList<Sitter> Sitters(World world, IEnumerable<(int Id, PlayerState State)> crew) =>
++        [.. crew.Where(c => c.Id is >= 0 and <= byte.MaxValue).DistinctBy(c => c.Id).OrderBy(c => c.State.Alive ? 0 : 1).ThenBy(c => c.Id).Select(c =>
++            new Sitter((byte)c.Id, IncidentLog.NameOf(world, c.Id), c.State.Alive,
++                c.State.Alive ? Art.CrewActs.EmoteOf(c.Id, c.State with { Velocity = default }, world).Kind : Emote.None,
++                c.State.Has(PlayerFlags.Sooted), world.OutfitOf(c.Id) is var outfit && outfit != c.Id ? outfit : null))];
++
++    /// <summary>
++    /// The slate's chalk (note 721): the line's name, the night's number, and the net. "FRONTIER 7" / "NIGHT 3" / "NET 1450".
++    /// </summary>
++    public static IReadOnlyList<string> Chalk(string route, int night, double net)
++    {
++        var lines = new List<string> { route.ToUpperInvariant() };
++        if (night > 0)
++            lines.Add($"NIGHT {night}");
++        lines.Add($"NET {net:0}");
++        return lines;
++    }
++
++    /// <summary>A route's name for the slate and the page: "frontier:7" or "frontier-7" as "Frontier 7".</summary>
++    public static string RouteName(string? route)
++    {
++        if (string.IsNullOrWhiteSpace(route))
++            return "The line";
++        string s = route.Replace(':', ' ').Replace('-', ' ').Trim();
++        // "deepTerritory 3": the tier as said.
++        s = Sim.Run.IncidentLog.Spoken(s);
++        return char.ToUpperInvariant(s[0]) + s[1..].ToLowerInvariant();
++    }
++
++    /// <summary>
++    /// The side of the track the photo's taken on (+1 the line's right, −1 its left): away from the town's square, whose side
++    /// of the yard has the platform's canopy and its posts between any lens and the engine; the yard's open on the other.
++    /// </summary>
++    public static int YardSide(int? squareSide) => squareSide is < 0 ? 1 : squareSide is > 0 ? -1 : 1;
++
++    /// <summary>
++    /// Stages the photo beside the engine (frame 0) on <paramref name="side"/> of the track (+1 its right, −1 its left:
++    /// <see cref="YardSide"/>). The living stand in a line, in <paramref name="crew"/>'s order from
++    /// the picture's left, facing the lens; the crate with the dead's caps at the line's right-hand end; the slate in front. Deterministic: the same
++    /// engine, crew and side give the same photo on every machine.
++    /// </summary>
++    public static PhotoStaging Stage(CarFrame engine, int side, IReadOnlyList<Sitter> crew, IReadOnlyList<string> chalk, PhotoTuning t)
++    {
++        side = side < 0 ? -1 : 1;
++        // Level along and across the engine, at rail height under its middle.
++        var forward = ((engine.Back * -1) with { Y = 0 }).Normalized;
++        var right = (engine.Right with { Y = 0 }).Normalized * side;
++        var ground = engine.Origin;
++        Double3 At(double along, double across, double up = 0) => ground + forward * along + right * across + Double3.Up * up;
++
++        var living = crew.Where(c => c.Alive).ToList();
++        var dead = crew.Where(c => !c.Alive).ToList();
++        double middle = t.Ahead;
++        var lens = At(middle + t.CameraAhead, t.Out + t.CameraOut, t.CameraHeight);
++        var camera = Camera.LookAt(lens, At(middle + t.CameraAhead * 0.25, t.Out, t.LookHeight), t.Fov);
++        // Across the picture, left to right, as the lens sees it: its right is the engine's front on the engine's right side,
++        // its back on the left.
++        Double3 Across(double x, double outward, double up = 0) => At(middle + side * x, outward, up);
++        var figures = new List<Crewmate>(living.Count);
++        for (int i = 0; i < living.Count; i++)
++        {
++            var feet = Across((i - (living.Count - 1) / 2.0) * t.Spacing, t.Out);
++            var c = living[i];
++            figures.Add(new Crewmate(c.Id, feet, Facing(feet, lens), true, Looks: c.Looks, Emote: c.Emote,
++                EmoteSeconds: c.Emote == Emote.None ? 0 : t.EmoteAt, Sooted: c.Sooted));
++        }
++        // The crate at the line's right-hand end, the slate on the left in front.
++        var crate = Across((Math.Max(1, living.Count) - 1) / 2.0 * t.Spacing + t.CrateGap, t.Out);
++        var slate = Across(-(Math.Max(1, living.Count) - 1) / 2.0 * t.Spacing - t.SlateAside, t.Out + t.SlateOut);
++        var props = new PhotoProps(crate, Facing(crate, lens), [.. dead.Select(d => d.Looks ?? d.Id)], slate, Facing(slate, lens), chalk,
++            lens, t.FlashRange, t.FlashStrength);
++        return new PhotoStaging(camera, figures, props);
++    }
++
++    /// <summary>The yaw that faces from <paramref name="from"/> to <paramref name="to"/>, level (0 faces world −Z).</summary>
++    static double Facing(Double3 from, Double3 to)
++    {
++        var d = to - from;
++        return Math.Atan2(-d.X, -d.Z);
++    }
++
++    /// <summary>
++    /// The photo's text sidecar (note 721), kept beside its PNG: what it is, who's in it from left to right, whose caps are
++    /// on the crate, and the slate.
++    /// </summary>
++    public static string Sidecar(IReadOnlyList<Sitter> crew, IReadOnlyList<string> chalk, string crewName, string date)
++    {
++        var text = new StringBuilder();
++        text.AppendLine($"DARK TERRITORY. THE CREW PHOTO AT THE GATE{(crewName.Length > 0 ? $": {crewName.ToUpperInvariant()}" : "")}. {date}.");
++        text.AppendLine();
++        text.AppendLine("ON THE SLATE: " + string.Join(" / ", chalk));
++        var living = crew.Where(c => c.Alive).ToList();
++        if (living.Count > 0)
++            text.AppendLine("STANDING, LEFT TO RIGHT: " + string.Join(", ", living.Select(c => c.Name + (c.Emote != Emote.None ? $" ({c.Emote.ToString().ToLowerInvariant()})" : "")
++                + (c.Sooted ? " (sooty)" : ""))));
++        var dead = crew.Where(c => !c.Alive).ToList();
++        if (dead.Count > 0)
++            text.AppendLine("CAPS ON THE CRATE: " + string.Join(", ", dead.Select(c => c.Name)));
++        return text.ToString();
++    }
++}
+diff --git a/src/DarkTerritory.Game/GreyboxScene.Memory.cs b/src/DarkTerritory.Game/GreyboxScene.Memory.cs
+new file mode 100644
+index 00000000..896768eb
+--- /dev/null
++++ b/src/DarkTerritory.Game/GreyboxScene.Memory.cs
+@@ -0,0 +1,160 @@
++using System.Numerics;
++using Ballast;
++using Ballast.Render;
++using DarkTerritory.Game.Art;
++using DarkTerritory.Sim.Train;
++
++namespace DarkTerritory.Game;
++
++/// <summary>
++/// Crew memory in the scene (GDD §9, §11; the director, 14 Oct 2026; ARCHITECTURE §8 note 721): the crew photo's props (the
++/// crate with the dead's caps, the slate on its easel with the night's tally chalked on it, the photographer's flash) while
++/// the photo's drawn, and the logbook on its shelf in car one.
++/// </summary>
++public sealed partial class GreyboxScene
++{
++    /// <summary>The crew photo's props and flash (note 721), while it's drawn; null otherwise.</summary>
++    public PhotoProps? Photo { get; set; }
++
++    /// <summary>The logbook on its shelf (note 721, <see cref="LogbookReader.Shelf"/>): its car, where in it, which way it faces. Null: not drawn.</summary>
++    public (int Car, Double3 Local, double Yaw)? Logbook { get; set; }
++
++    MeshAsset? _crate, _cap, _easel, _book;
++    (string Key, MeshAsset Mesh)? _chalk;
++
++    void Memory(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Double3 eye)
++    {
++        if (Logbook is { } book && book.Car >= 0 && book.Car < frames.Count && (frames[book.Car].Origin - eye).Length < DrawDistance)
++        {
++            _book ??= Book(Look);
++            mesh.Append(_book, Matrix4x4.CreateRotationY((float)book.Yaw) * Matrix4x4.CreateTranslation(book.Local.RelativeTo(default)) * SceneArt.FrameMatrix(frames[book.Car], eye));
++        }
++        if (Photo is not { } p)
++            return;
++        // The flash: the photo is lit by it, the night round it as dark as ever.
++        mesh.PointLights.Add(new PointLight(V(p.Flash, eye), new Vector3(1, 0.97f, 0.9f) * p.FlashStrength, p.FlashRange));
++        _crate ??= Crate(Look);
++        var crate = Matrix4x4.CreateRotationY((float)p.CrateYaw) * Matrix4x4.CreateTranslation(V(p.Crate, eye));
++        mesh.Append(_crate, crate);
++        // The dead's caps on its lid, in a row of three a side to side, the next row behind; each in its crewmate's colours.
++        _cap ??= Cap(Look);
++        for (int i = 0; i < p.Caps.Count; i++)
++        {
++            int row = i / 3, inRow = Math.Min(3, p.Caps.Count - row * 3);
++            float x = ((i % 3) - (inRow - 1) / 2f) * 0.29f, z = -0.13f + row * 0.26f;
++            var tint = Look?.Tuning.CrewColour(p.Caps[i]) ?? Vector3.One;
++            mesh.Append(_cap, Matrix4x4.CreateScale(CapScale) * Matrix4x4.CreateRotationY(0.4f * ((i * 7 % 5) - 2) / 2) * Matrix4x4.CreateTranslation(x, CrateHeight + 0.002f, z) * crate, tint);
++        }
++        _easel ??= Easel(Look);
++        var easel = Matrix4x4.CreateRotationY((float)p.SlateYaw) * Matrix4x4.CreateTranslation(V(p.Slate, eye));
++        mesh.Append(_easel, easel);
++        string key = string.Join("\n", p.Chalk);
++        if (_chalk is not { } chalk || chalk.Key != key)
++            _chalk = chalk = (key, Chalk(Look, p.Chalk));
++        mesh.Append(chalk.Mesh, easel);
++    }
++
++    const float CrateHeight = 0.62f;
++    /// <summary>The caps a little larger than life: a photo's small, and they're what the crate's for.</summary>
++    const float CapScale = 1.3f;
++    static readonly Vector3 SlateCentre = new(0, 1.12f, -0.03f);
++    const float SlateW = 0.86f, SlateH = 0.62f;
++
++    /// <summary>A packing crate, planked: what the dead's caps are set on.</summary>
++    static MeshAsset Crate(Look? look)
++    {
++        var k = new Kit(look, 4410);
++        SquareKit.Timber(k);
++        k.Tint *= 1.25f;
++        k.Box(new Vector3(-0.46f, 0, -0.3f), new Vector3(0.46f, CrateHeight, 0.3f));
++        // The battens across its face and the dark seams between its planks.
++        k.Tint *= 0.7f;
++        foreach (float y in new[] { 0.1f, 0.5f })
++            k.Box(new Vector3(-0.47f, y, -0.315f), new Vector3(0.47f, y + 0.07f, -0.3f));
++        return k.Build("photo-crate");
++    }
++
++    /// <summary>A flat cap with its peak, as the crew wear them, small enough to sit three on a crate (its peak to −Z).</summary>
++    static MeshAsset Cap(Look? look)
++    {
++        var k = new Kit(look, 4420);
++        // White, the crewmate's colour multiplied in as it's drawn.
++        k.Use("cap", new Vector3(0.75f), 0.6f, 0.05f, tile: 1);
++        k.Tint = new Vector3(0.8f);
++        k.Cylinder(new Vector3(0, 0, 0.01f), new Vector3(0, 0.07f, 0.02f), 0.105f, 14, radiusB: 0.095f);
++        k.Quad(new Vector3(-0.085f, 0.012f, -0.06f), new Vector3(0.085f, 0.012f, -0.06f), new Vector3(0.07f, 0.004f, -0.16f), new Vector3(-0.07f, 0.004f, -0.16f), twoSided: true);
++        return k.Build("photo-cap");
++    }
++
++    /// <summary>The photographer's easel and its slate, framed in timber, a chalk ledge under it; the slate faces −Z.</summary>
++    static MeshAsset Easel(Look? look)
++    {
++        var k = new Kit(look, 4430);
++        SquareKit.Timber(k);
++        k.Tint *= 1.2f;
++        foreach (float side in new[] { -1f, 1f })
++            k.Cylinder(new Vector3(side * 0.36f, 0, -0.06f), new Vector3(side * 0.24f, 1.62f, 0.08f), 0.022f, 6);
++        k.Cylinder(new Vector3(0, 0, 0.58f), new Vector3(0, 1.55f, 0.04f), 0.022f, 6);
++        var c = SlateCentre;
++        float hw = SlateW / 2, hh = SlateH / 2;
++        k.Box(new Vector3(-hw - 0.05f, c.Y - hh - 0.06f, c.Z), new Vector3(hw + 0.05f, c.Y - hh, c.Z + 0.03f));
++        k.Box(new Vector3(-hw - 0.05f, c.Y + hh, c.Z), new Vector3(hw + 0.05f, c.Y + hh + 0.05f, c.Z + 0.03f));
++        foreach (float side in new[] { -1f, 1f })
++            k.Box(new Vector3(side * hw - (side > 0 ? 0 : 0.05f), c.Y - hh, c.Z), new Vector3(side * hw + (side > 0 ? 0.05f : 0), c.Y + hh, c.Z + 0.03f));
++        // The chalk ledge, out in front at the slate's foot.
++        k.Box(new Vector3(-hw, c.Y - hh - 0.08f, c.Z - 0.07f), new Vector3(hw, c.Y - hh - 0.05f, c.Z));
++        // The slate: blue-black, a little sheen.
++        k.Use("slate_board", new Vector3(0.05f, 0.055f, 0.06f), 0.4f, 0.15f, tile: 1);
++        k.Tint = new Vector3(0.05f, 0.055f, 0.06f);
++        k.Panel(c, -Vector3.UnitZ, Vector3.UnitY, SlateW, SlateH);
++        return k.Build("photo-easel");
++    }
++
++    /// <summary>The night's tally chalked on the slate (note 721), each line as large as fits it, centred.</summary>
++    static MeshAsset Chalk(Look? look, IReadOnlyList<string> lines)
++    {
++        var k = new Kit(look, 4440);
++        k.Use("chalk", new Vector3(0.92f, 0.92f, 0.88f), 0.9f, 0, tile: 1);
++        k.Tint = new Vector3(0.92f, 0.92f, 0.88f);
++        // A little glow of its own: chalk on slate reads in any light the flash leaves.
++        k.Emissive = 0.25f;
++        var font = BitmapFont.Default;
++        float inner = SlateW - 0.08f, room = SlateH - 0.08f;
++        int rows = Math.Max(1, lines.Count);
++        float widest = Math.Max(1, lines.Max(l => font.Measure(l)));
++        float px = MathF.Min(inner / widest, room / (rows * font.LineHeight));
++        float top = SlateCentre.Y + rows * font.LineHeight * px / 2;
++        for (int i = 0; i < lines.Count; i++)
++        {
++            float x = font.Measure(lines[i]) * px / 2;
++            k.With(Matrix4x4.CreateTranslation(0, 0, SlateCentre.Z), () => SquareKit.Ink(k, font, lines[i], x, top - i * font.LineHeight * px, px));
++        }
++        k.Emissive = 0;
++        return k.Build("photo-chalk");
++    }
++
++    /// <summary>
++    /// The logbook (note 721): a fat ledger bound in oxblood cloth, its pages' edge showing, lying shut on its little shelf,
++    /// the shelf's back to the wall (+Z) and its front to the aisle (−Z), two iron brackets under it.
++    /// </summary>
++    static MeshAsset Book(Look? look)
++    {
++        var k = new Kit(look, 4450);
++        SquareKit.Timber(k);
++        k.Tint *= 1.2f;
++        float back = (float)LogbookReader.ShelfDepth;
++        k.Box(new Vector3(-0.26f, -0.035f, -0.14f), new Vector3(0.26f, 0, back));
++        k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.3f);
++        foreach (float x in new[] { -0.19f, 0.19f })
++            k.Box(new Vector3(x - 0.012f, -0.2f, back - 0.25f), new Vector3(x + 0.012f, -0.035f, back));
++        k.Use("leather", new Vector3(0.36f, 0.1f, 0.08f), 0.7f, 0.1f, tile: 1);
++        k.Tint = new Vector3(0.36f, 0.1f, 0.08f);
++        k.Box(new Vector3(-0.17f, 0, -0.12f), new Vector3(0.17f, 0.012f, 0.12f));
++        k.Box(new Vector3(-0.17f, 0.058f, -0.12f), new Vector3(0.17f, 0.07f, 0.12f));
++        k.Box(new Vector3(-0.17f, 0.012f, 0.105f), new Vector3(0.17f, 0.058f, 0.12f));
++        k.Use("paper_form", new Vector3(0.85f, 0.8f, 0.68f), 0.9f, 0, tile: 1);
++        k.Tint = new Vector3(0.85f, 0.8f, 0.68f);
++        k.Box(new Vector3(-0.162f, 0.012f, -0.112f), new Vector3(0.162f, 0.058f, 0.105f));
++        return k.Build("logbook");
++    }
++}
+diff --git a/src/DarkTerritory.Game/GreyboxScene.cs b/src/DarkTerritory.Game/GreyboxScene.cs
+index 8a4cc111..38b49b92 100644
+--- a/src/DarkTerritory.Game/GreyboxScene.cs
++++ b/src/DarkTerritory.Game/GreyboxScene.cs
+@@ -655,6 +655,7 @@ public sealed partial class GreyboxScene
+             Strikes(mesh, Look.Art.Effects, line, hint, frames, eye);
+         }
+         Coal(mesh, eye);
++        Memory(mesh, frames, eye);
+         Lap(mesh, "effects");
+         mesh.Seed = 0;
+         // When the firehole's door last moved, and where it is: whoever's at it then swings it (Art/SceneArt.Crewmate).
+diff --git a/src/DarkTerritory.Game/HostedAsApp.cs b/src/DarkTerritory.Game/HostedAsApp.cs
+index b04afdcc..2ab1be7d 100644
+--- a/src/DarkTerritory.Game/HostedAsApp.cs
++++ b/src/DarkTerritory.Game/HostedAsApp.cs
+@@ -36,6 +36,10 @@ public static class HostedAsApp
+             LastTown = s.LastTown,
+             Burnt = s.Burnt.Count > 0 ? s.Burnt : null,
+             CampaignNight = true,
++            // Note 721: whose logbook the night goes in, and which night it is.
++            Crew = s.Name,
++            CrewKey = Sim.Campaign.Logbook.Key(s),
++            Night = s.Runs + 1,
+         };
+ 
+     /// <summary>The harness's arguments for <paramref name="setup"/>'s night with <paramref name="bots"/> bots, for up to
+diff --git a/src/DarkTerritory.Game/Hud.Memory.cs b/src/DarkTerritory.Game/Hud.Memory.cs
+new file mode 100644
+index 00000000..8cab7a29
+--- /dev/null
++++ b/src/DarkTerritory.Game/Hud.Memory.cs
+@@ -0,0 +1,118 @@
++using System.Numerics;
++using Ballast.Render;
++using DarkTerritory.Sim.Campaign;
++
++namespace DarkTerritory.Game;
++
++/// <summary>
++/// Crew memory on the screen (GDD §9, §11; the director, 14 Oct 2026; ARCHITECTURE §8 note 721): the crew photo as a small
++/// framed print on a delivered night's end card, and the logbook's page, a full sheet in the paper's style (the route card's
++/// and the town's notices', <see cref="PaperSheet"/>).
++/// </summary>
++public static partial class Hud
++{
++    /// <summary>Crew memory's numbers (memory.json): the logbook's place and reach for the prompt. The app loads the file's.</summary>
++    public static MemoryTuning Remembering { get; set; } = new();
++
++    /// <summary>The crew photo taken on this machine tonight (note 721), for the end card's print; null for none.</summary>
++    [ThreadStatic] static Still? _photo;
++
++    /// <summary>The print's size on the end card (canvas pixels).</summary>
++    const int PrintWidth = 112, PrintHeight = 63;
++    const string PrintCaption = "AT THE GATE";
++
++    /// <summary>
++    /// The crew photo as a print on the end card (note 721): white-bordered, a little shadow under it, at the top left
++    /// (the night's corner is clear once it's over), its caption under it in fine print.
++    /// </summary>
++    static void Print(Overlay o, Still photo)
++    {
++        using var plate = UiStyle.OnPlate(o);
++        float x = 12, y = 10, border = 3;
++        o.Rect(x + 2, y + 2, PrintWidth + 2 * border, PrintHeight + 2 * border + 6, new Vector4(0, 0, 0, 0.45f));
++        o.Rect(x, y, PrintWidth + 2 * border, PrintHeight + 2 * border + 6, new Vector4(0.9f, 0.88f, 0.82f, 1));
++        o.Image(x + border, y + border, PrintWidth, PrintHeight, photo.Rgba, photo.Width, photo.Height, PrintWidth * 2, PrintHeight * 2, levels: 24);
++        o.Text(Overlay.Snap(x + border + (PrintWidth - o.Measure(PrintCaption, Fine)) / 2, Fine), y + border + PrintHeight + 1, PrintCaption, PaperInk, Fine, shadow: false);
++    }
++
++    /// <summary>
++    /// The logbook open (note 721): one night's page on a sheet over the screen. Its heading (whose log), the night's number
++    /// large, the line and the date, how it ended, the photo at the top right if this machine has it, the report's losses,
++    /// the commendations, the net, and at its foot which page and the keys that turn it. An empty book says so.
++    /// </summary>
++    /// <param name="crew">The crew's name, or "" on a night that's no campaign's.</param>
++    public static void LogbookPage(Overlay o, int width, int height, string crew, IReadOnlyList<LogPage> pages, int index, Still? photo)
++    {
++        using var plate = UiStyle.OnPlate(o);
++        int line = o.Font.LineHeight;
++        float w = Math.Min(width - 24, 420), h = Math.Min(height - 20, 250);
++        float x = MathF.Round((width - w) / 2), y = MathF.Round((height - h) / 2);
++        // The book's dark board round the page, then the page.
++        o.Rect(x - 5, y - 5, w + 10, h + 10, new Vector4(0.22f, 0.1f, 0.08f, 0.96f));
++        o.Rect(x, y, w, h, PaperSheet with { W = 1 });
++        o.Outline(x, y, w, h, PaperRule);
++        float left = x + 8, ty = y + 6;
++        string whose = crew.Length > 0 ? $"THE LOG OF {crew.ToUpperInvariant()}" : "THE CREW'S LOG";
++        o.Text(left, ty, whose, PaperStamp, Fine, shadow: false);
++        ty += line * Fine + 4;
++        string foot = pages.Count > 0 ? $"({index + 1}/{pages.Count})   TURN : [A] [D]   CLOSE : [E]" : "CLOSE : [E]";
++        string footer = Bound(foot);
++        float footY = y + h - 6 - line * Fine;
++        UiStyle.Keyed(o, x + w - 8 - UiStyle.MeasureKeyed(o, footer, Fine), footY, footer, PaperStamp, Fine);
++        if (pages.Count == 0)
++        {
++            foreach (var row in Wrap("NOTHING WRITTEN YET. EACH NIGHT'S PAGE GOES IN AT ITS END: THE CLERK'S REPORT, THE COMMENDATIONS, THE NET.", Math.Max(16, (int)((w - 16) / o.Font.Advance))))
++            {
++                o.Text(left, ty, row, PaperInk, shadow: false);
++                ty += line;
++            }
++            return;
++        }
++        var page = pages[Math.Clamp(index, 0, pages.Count - 1)];
++        // The photo at the top right, pasted in, its own white border.
++        float photoW = photo is null ? 0 : MathF.Min(168, w * 0.42f), photoH = photoW * 9 / 16;
++        float photoX = x + w - 8 - photoW, photoBottom = ty + photoH + 6;
++        if (photo is not null)
++        {
++            o.Rect(photoX - 2, ty - 2, photoW + 4, photoH + 4, new Vector4(0.95f, 0.94f, 0.9f, 1));
++            o.Image(photoX, ty, photoW, photoH, photo.Rgba, photo.Width, photo.Height, (int)photoW * 2, (int)photoH * 2, levels: 24);
++        }
++        o.Text(left, ty, $"NIGHT {page.Night}", PaperStamp, 2, shadow: false);
++        ty += line * 2 + 2;
++        // Each row as wide as the page leaves it: beside the photo, narrower.
++        void Row(string text, Vector4 colour, string indent = "")
++        {
++            bool first = true;
++            float room = (ty < photoBottom ? photoX - 8 : x + w - 8) - left;
++            foreach (var part in Wrap(text, Math.Max(12, (int)(room / o.Font.Advance) - indent.Length)))
++            {
++                if (ty > footY - line)
++                    return;
++                o.Text(left, ty, first ? part : indent + part, colour, shadow: false);
++                ty += line;
++                first = false;
++            }
++        }
++        Row(page.Route.ToUpperInvariant(), PaperInk);
++        if (page.Date.Length > 0)
++            Row(page.Date.ToUpperInvariant(), PaperRule with { W = 1 });
++        ty += 3;
++        Row(page.Line, PaperInk);
++        ty = Math.Max(ty + 4, photo is null ? 0 : photoBottom);
++        if (page.Losses.Count > 0)
++        {
++            Row("THE INCIDENT REPORT", PaperStamp);
++            foreach (var loss in page.Losses)
++                Row(loss.ToUpperInvariant(), PaperInk, "  ");
++            ty += 3;
++        }
++        if (page.Commendations.Count > 0)
++        {
++            Row("COMMENDED", PaperStamp);
++            foreach (var c in page.Commendations)
++                Row(c.ToUpperInvariant(), PaperInk, "  ");
++            ty += 3;
++        }
++        Row($"NET {page.Net:0} SCRIP", PaperInk);
++    }
++}
+diff --git a/src/DarkTerritory.Game/Hud.cs b/src/DarkTerritory.Game/Hud.cs
+index 7e271bc1..f39278d5 100644
+--- a/src/DarkTerritory.Game/Hud.cs
++++ b/src/DarkTerritory.Game/Hud.cs
+@@ -52,16 +52,19 @@ public static partial class Hud
+     /// <param name="talk">This machine's talking and reading in a fortress town (note 281), and <paramref name="now"/> the
+     /// app's seconds, for its card.</param>
+     /// <param name="captions">CAPTIONS (note 349): what's heard now and where, <see cref="Captions.Lines"/>; null with it off.</param>
++    /// <param name="photo">The crew photo at the gate taken on this machine tonight (note 721): a delivered night's end card
++    /// shows it as a print.</param>
+     /// <param name="firstNight">One of this player's first nights with FIRST NIGHTS on (note 350, <see cref="Onboarding.FirstNight"/>):
+     /// the yard shows the core controls.</param>
+     public static void Build(Overlay o, int width, int height, IPlaySession s, bool crosshair = true,
+         IReadOnlyList<(string To, UiStyle.Commendation What, string From)>? commendations = null, IReadOnlyDictionary<int, Still>? stills = null,
+         float pixels = 4, TownTalk? talk = null, double now = 0, bool firstNight = false, IReadOnlyList<string>? captions = null,
+-        FigureTalk? figures = null)
++        FigureTalk? figures = null, Still? photo = null)
+     {
+         _promptScale = PromptScaleAt(pixels);
+         _commendations = commendations;
+         _stills = stills;
++        _photo = photo;
+         o.Clear();
+         // TEXT BACKING (note 404): a band behind the print in play, for this build only (the menus over it are on their plate).
+         o.Backing = Keys.TextBacking ? new Vector4(0, 0, 0, (float)Math.Clamp(Tuning.TextBacking, 0, 1)) : default;
+@@ -938,6 +941,9 @@ public static partial class Hud
+             {
+                 Big("DELIVERED", Green);
+                 Small($"{r.CarsDelivered} CARS, {r.CarsLost} LOST. {r.Net:0} SCRIP. CREW HOME {r.CrewHome}", Ink, fine: false);
++                // Note 721: the town photographer's print, as this machine took it.
++                if (_photo is { } print)
++                    Print(o, print);
+             }
+             else if (r.End == RunEnd.Stranded)
+             {
+@@ -2320,6 +2326,9 @@ public static partial class Hud
+         // Dave or Jacob (notes 570, 572): a word with him, before anything lying at his feet.
+         if (FigureTalk.Target(s) is { } figure)
+             return FigureTalk.Prompt(figure);
++        // The crew's logbook on its shelf (note 721): this machine's to open, before what's lying by it.
++        if (LogbookReader.Facing(p, train, Remembering.Logbook, train.Dynamics.Tuning.Pick.EyeHeight))
++            return LogbookReader.Prompt;
+         // A fortress town (note 281): somebody to talk to, a paper to read, a thing to look at. Before what's lying in reach,
+         // so a lamp at somebody's feet doesn't take the press meant for them.
+         if (world.TownOf(p) is { } town && town.Target(p, train.Dynamics.Tuning.Pick.EyeHeight) is { } there)
+diff --git a/src/DarkTerritory.Game/LogbookReader.cs b/src/DarkTerritory.Game/LogbookReader.cs
+new file mode 100644
+index 00000000..5f994218
+--- /dev/null
++++ b/src/DarkTerritory.Game/LogbookReader.cs
+@@ -0,0 +1,86 @@
++using Ballast;
++using DarkTerritory.Sim;
++using DarkTerritory.Sim.Campaign;
++using DarkTerritory.Sim.Player;
++using DarkTerritory.Sim.Train;
++
++namespace DarkTerritory.Game;
++
++/// <summary>
++/// The crew's logbook on its shelf (GDD §11 "What a crew keeps"; the director, 14 Oct 2026; ARCHITECTURE §8 note 721): a
++/// book on top of the kit locker in car one (memory.json <c>logbook.place</c>, the hook for the big cab's back wall). Use
++/// opens it as a page a night in the paper's style; the movement keys turn the pages; Use again shuts it. On this machine
++/// alone, from this player's own copy in their profile (<see cref="PlayerProfile.Data.Crews"/>), so nothing is sent: the
++/// press is the app's to keep from the host, as a word in town is.
++/// </summary>
++public sealed class LogbookReader
++{
++    /// <summary>What's offered at the shelf.</summary>
++    public const string Prompt = "THE LOGBOOK   READ : [E]";
++
++    /// <summary>The book's open.</summary>
++    public bool Open { get; private set; }
++    /// <summary>The page open (0 the first night's).</summary>
++    public int Page { get; private set; }
++
++    /// <summary>
++    /// Where the book lies, in its car's frame (note 721): for "lockers", on a small shelf on the wall across the aisle from
++    /// the kit locker in car one (the lockers' tops are up under the roof), at chest height; and which way its front faces
++    /// (yaw: 0 faces −Z), to the aisle. Null on a train without the lockers. Any other place is the lockers' until the cab
++    /// has its back wall to take it (queue #450).
++    /// </summary>
++    public static (int Car, Double3 Local, double Yaw)? Shelf(TrainOnLine train, LogbookTuning t)
++    {
++        if (World.KitLocker(train) is not { } locker || train.Frames[locker.Car].Shape.Interior is not { } room)
++            return null;
++        var box = locker.Bay.Box;
++        // The lockers face the aisle across it (+X on the left wall): the shelf's on the far wall, its front back to them.
++        int toAisle = -locker.Bay.Facing;
++        double wall = toAisle < 0 ? room.Max.X : room.Min.X;
++        var at = new Double3(wall + toAisle * ShelfDepth, box.Min.Y + t.Height, (box.Min.Z + box.Max.Z) / 2);
++        return (locker.Car, at, -toAisle * Math.PI / 2);
++    }
++
++    /// <summary>How far the book's middle stands off its wall (m): the shelf's half depth and a little.</summary>
++    public const double ShelfDepth = 0.17;
++
++    /// <summary>
++    /// The book's in front of <paramref name="p"/>: in its car, within reach of the eye and near the view's centre. The
++    /// prompt (<see cref="Prompt"/>) is offered then.
++    /// </summary>
++    public static bool Facing(in PlayerState p, TrainOnLine train, LogbookTuning t, double eyeHeight)
++    {
++        if (!p.Alive || Shelf(train, t) is not { } shelf || p.Parent != shelf.Car)
++            return false;
++        var eye = p.Position + Double3.Up * eyeHeight;
++        double cp = Math.Cos(p.Pitch);
++        var view = new Double3(-Math.Sin(p.Yaw) * cp, Math.Sin(p.Pitch), -Math.Cos(p.Yaw) * cp);
++        var to = shelf.Local + Double3.Up * 0.03 - eye;
++        double d = to.Length;
++        return d <= t.Reach && d > 1e-6 && Double3.Dot(view, to * (1 / d)) >= Math.Cos(t.LookDegrees * Math.PI / 180);
++    }
++
++    /// <summary>Use at the shelf: opens the book at its last page (the night just run), or shuts it.</summary>
++    public void Use(int pages)
++    {
++        Open = !Open;
++        Page = Math.Max(0, pages - 1);
++    }
++
++    /// <summary>Shuts it (walked off, the night's over, the menu opened).</summary>
++    public void Close() => Open = false;
++
++    /// <summary>A page turned: −1 back a night, +1 on; held at the covers. True when it turned.</summary>
++    public bool Turn(int by, int pages)
++    {
++        int to = Math.Clamp(Page + by, 0, Math.Max(0, pages - 1));
++        if (to == Page)
++            return false;
++        Page = to;
++        return true;
++    }
++
++    /// <summary>The crew whose book it is on this night: this campaign's, from the player's profile (empty pages on a quick night).</summary>
++    public static CrewLog? Of(PlayerProfile.Data profile, string? crewKey) =>
++        crewKey is { Length: > 0 } key ? profile.Crews.FirstOrDefault(c => c.Key == key) : null;
++}
+diff --git a/src/DarkTerritory.Game/NetPlaySession.cs b/src/DarkTerritory.Game/NetPlaySession.cs
+index 7f9e32d1..4445e709 100644
+--- a/src/DarkTerritory.Game/NetPlaySession.cs
++++ b/src/DarkTerritory.Game/NetPlaySession.cs
+@@ -79,6 +79,17 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
+     /// </summary>
+     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+     public bool CampaignNight { get; init; }
++    /// <summary>
++    /// The campaign's crew, its key (<see cref="Sim.Campaign.Logbook.Key"/>) and the night's number (note 721), so every
++    /// machine keeps the night's page in that crew's logbook and the photo's slate says which night. Presentation only (like
++    /// <see cref="CampaignNight"/>, left out when unset: an older peer reads past it).
++    /// </summary>
++    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
++    public string? Crew { get; init; }
++    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
++    public string? CrewKey { get; init; }
++    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
++    public int Night { get; init; }
+     /// <summary>The host's line's fingerprint: a joiner whose own generated line differs (another generator version) is refused.</summary>
+     public string? PlanPrint { get; init; }
+     /// <summary>The host's terrain's fingerprint (linegen plan §17.3): a joiner whose ground comes out differently is refused.</summary>
+diff --git a/src/DarkTerritory.Game/PlayerProfile.cs b/src/DarkTerritory.Game/PlayerProfile.cs
+index fcf5781d..c5af41e7 100644
+--- a/src/DarkTerritory.Game/PlayerProfile.cs
++++ b/src/DarkTerritory.Game/PlayerProfile.cs
+@@ -21,6 +21,12 @@ public sealed class PlayerProfile(string path)
+         public bool ChildCalled { get; init; }
+         /// <summary>Nights this player has seen to their end (note 350): the first ones show the yard's controls card.</summary>
+         public int Nights { get; init; }
++        /// <summary>
++        /// The crews this player rode with, each with its logbook's pages as this machine saw them (GDD §11; the director, 14
++        /// Oct 2026; note 721): kept after the campaign's over, or the host's save is gone. The ended ones are the board of
++        /// lost crews' cards.
++        /// </summary>
++        public IReadOnlyList<Sim.Campaign.CrewLog> Crews { get; init; } = [];
+     }
+ 
+     public string Path { get; } = path;
+@@ -63,6 +69,19 @@ public sealed class PlayerProfile(string path)
+         return data;
+     }
+ 
++    /// <summary>
++    /// A campaign night seen to its end (note 721): its page in that crew's logbook, from the report this machine was sent,
++    /// written again (in its night's place) if it's already there; <paramref name="over"/> closes the crew for good, onto the
++    /// board of lost crews. Saved.
++    /// </summary>
++    public Data Log(string key, string name, Sim.Campaign.LogPage page, bool over)
++    {
++        var was = Load();
++        var data = was with { Crews = Sim.Campaign.Logbook.Remember(was.Crews, key, name, page, over) };
++        Save(data);
++        return data;
++    }
++
+     /// <summary>A host's first-ever child call is real (B.6): true until a night they host has had one.</summary>
+     public bool FirstChildReal => !Load().ChildCalled;
+ 
+diff --git a/src/DarkTerritory.Game/Staging.Memory.cs b/src/DarkTerritory.Game/Staging.Memory.cs
+new file mode 100644
+index 00000000..245cd688
+--- /dev/null
++++ b/src/DarkTerritory.Game/Staging.Memory.cs
+@@ -0,0 +1,58 @@
++using DarkTerritory.Sim.Campaign;
++using DarkTerritory.Sim.Player;
++using DarkTerritory.Sim.Run;
++
++namespace DarkTerritory.Game;
++
++/// <summary>Crew memory staged for the screenshots (note 721): the photo's crew, a logbook's pages, the lost crews' cards.</summary>
++public static partial class Staging
++{
++    /// <summary>
++    /// The crew photo's crew (`dt screenshot --view crewphoto`): four, one dead. Dave waving, Priya sooted from the shovel's
++    /// lump (note 717), Okafor (a bot) stood, Dunmore's cap on the crate.
++    /// </summary>
++    public static IReadOnlyList<Sitter> PhotoCrew() =>
++    [
++        new(1, "Dave", true, Emote.Wave),
++        new(2, "Priya", true, Sooted: true),
++        new(3, "Okafor", true, Emote.Point),
++        new(4, "Dunmore", false),
++    ];
++
++    /// <summary>A crew's logbook, three nights in (`dt screenshot --hud --logbook`): the last delivered, with its photo's file.</summary>
++    public static IReadOnlyList<LogPage> LogPages(string photo = "") =>
++    [
++        new LogPage(1, "Local 4, Hollin Halt to Barrow Bay", "12 October 2026", RunEnd.Delivered, 860)
++        {
++            Line = "DELIVERED. 3 CARS, 0 LOST. CREW HOME 4",
++            Commendations = ["PRIYA: Kept the Fire, from Dave"],
++        },
++        new LogPage(2, "Frontier 3, Barrow Bay to Moss Settlement", "13 October 2026", RunEnd.Derailed, -420)
++        {
++            Line = "DERAILED. 4 CARS LOST. CREW HOME 0",
++            Losses = ["Consist derailed at km 14, 68 km/h. Took the 45 km/h bend at 68 km/h, 23 km/h too fast. Throttle: Dave."],
++        },
++        new LogPage(3, "Frontier 7, Moss Settlement to Voss Crossing", "14 October 2026", RunEnd.Delivered, 1450)
++        {
++            Line = "DELIVERED. 5 CARS, 1 LOST. CREW HOME 3",
++            Losses = ["DUNMORE: Mauled by the hounds on the roof of car 3 at km 4. Nearest crew: Dave, 12 m. Fee 350. Body recovered. Refund 263."],
++            Commendations = ["DAVE: Came Back For Me, from Okafor", "PRIYA: Kept the Fire, from Dave"],
++            Photo = photo,
++        },
++    ];
++
++    /// <summary>The board of lost crews' cards (`--lost-crews`): two crews this player rode with, both taken at dawn.</summary>
++    public static IReadOnlyList<(string Title, string Text)> LostCrews() =>
++    [
++        Logbook.Card(new CrewLog("The Night Mail#1", "The Night Mail") { Over = true, Pages = [.. LogPages().Take(2), new LogPage(5, "Dead Lines 2", "", RunEnd.DawnMissed, -900)
++        {
++            Line = "TAKEN AT DAWN. 2 CARS LOST. CREW HOME 0",
++            Losses = ["PRIYA: Taken at dawn by a Waker on the line at km 21. At the controls at dawn: Dave."],
++        }] }),
++        Logbook.Card(new CrewLog("Cold Feet#2", "Cold Feet") { Over = true, Pages = [new LogPage(1, "Local 2", "", RunEnd.DawnMissed, -300)
++        {
++            Line = "TAKEN AT DAWN. 3 CARS LOST. CREW HOME 0",
++            Losses = ["OKAFOR: Taken at dawn by a Waker in the cab at km 19. Nobody at the controls."],
++        }] }),
++    ];
++}
+diff --git a/src/DarkTerritory.Game/Staging.cs b/src/DarkTerritory.Game/Staging.cs
+index 6fb3e8a7..e3f0cc3a 100644
+--- a/src/DarkTerritory.Game/Staging.cs
++++ b/src/DarkTerritory.Game/Staging.cs
+@@ -30,6 +30,12 @@ public static partial class Staging
+                     var b = plan.Fixtures.First(f => f.Kind == "board");
+                     return (town.World(b.S, b.D) + Out(b.S, b.FaceS, b.FaceD, 1.6), town.World(b.S, b.D, 1.55));
+                 }
++            case "lostcrews":
++                {
++                    // The board of lost crews (note 721), read close up as the notices are.
++                    var b = plan.Fixtures.First(f => f.Kind == "lostcrews");
++                    return (town.World(b.S, b.D) + Out(b.S, b.FaceS, b.FaceD, 1.6), town.World(b.S, b.D, 1.55));
++                }
+             case "paper":
+                 {
+                     var loose = plan.Papers.Where(p => !p.OnBoard).ToList();
+@@ -250,6 +256,9 @@ public static partial class Staging
+         return where switch
+         {
+             "board" => Ballast.Render.Camera.LookAt(town.World(board.S - 1.2, board.D - side * 2.2, 1.65), town.World(board.S, board.D, 1.5), 60),
++            // Note 721: the board of lost crews beside it, square on, near enough to read its cards.
++            "lostcrews" when plan.Fixtures.FirstOrDefault(f => f.Kind == "lostcrews") is { } lost =>
++                Ballast.Render.Camera.LookAt(town.World(lost.S, lost.D - side * 2.0, 1.6), town.World(lost.S, lost.D, 1.5), 55),
+             "hall" => Ballast.Render.Camera.LookAt(town.World(hall.S - 7, hall.D - side * (hall.Depth / 2 + 9), 1.7), town.World(hall.S, hall.D, 3), 65),
+             "gate" => Ballast.Render.Camera.LookAt(town.World(plan.People[0].S + 2.5, plan.People[0].D + 1.6, 1.7), town.World(plan.People[0].S - 30, side * 8, 1.5), 65),
+             "centre" => Ballast.Render.Camera.LookAt(town.World(centre.S + 5, centre.D - side * 5, 1.8), town.World(centre.S, centre.D, 1.2), 60),
+diff --git a/src/DarkTerritory.Game/TownTalk.cs b/src/DarkTerritory.Game/TownTalk.cs
+index 1c00d5a8..cd9f6d84 100644
+--- a/src/DarkTerritory.Game/TownTalk.cs
++++ b/src/DarkTerritory.Game/TownTalk.cs
+@@ -20,6 +20,15 @@ public sealed class TownTalk
+     /// <summary>How many times each person has been talked to (by town and id): the next line is theirs to say, round again.</summary>
+     readonly Dictionary<(string Town, int Id), int> _heard = [];
+ 
++    /// <summary>
++    /// The cards on the board of lost crews (GDD §3.1, §11; note 721): this player's ended campaigns from their profile
++    /// (<see cref="Sim.Campaign.Logbook.Card"/>), the last ended first. The app sets it; empty, the board says nothing's posted.
++    /// </summary>
++    public IReadOnlyList<(string Title, string Text)> LostCrews { get; set; } = [];
++
++    /// <summary>Whether a town target is the board of lost crews (note 721).</summary>
++    public static bool IsLostCrews(Town town, TownTarget t) => t.Kind == TownTargetKind.Fixture && town.Plan.Fixtures[t.Index].Kind == "lostcrews";
++
+     /// <summary>What's being read or listened to; null for nothing.</summary>
+     public TownTarget? Open { get; private set; }
+     /// <summary>The town it's in (the departure's, or the terminus's once the night's delivered, note 603); null for nothing open.</summary>
+@@ -42,6 +51,7 @@ public sealed class TownTalk
+         TownTargetKind.Paper => $"{town.Plan.Papers[t.Index].Title.ToUpperInvariant()}   READ : [E]",
+         TownTargetKind.Door => $"{town.Plan.Buildings[t.Index].Name.ToUpperInvariant()}   KNOCK : [E]",
+         TownTargetKind.House => $"{HouseName(town.Plan.Houses[t.Index]).ToUpperInvariant()}   {(town.Plan.Houses[t.Index].Kind == HouseKind.Lived ? "KNOCK" : "LOOK")} : [E]",
++        TownTargetKind.Fixture when IsLostCrews(town, t) => "THE BOARD OF LOST CREWS   READ : [E]",
+         _ => $"{town.Plan.Fixtures[t.Index].Name.ToUpperInvariant()}   LOOK : [E]",
+     };
+ 
+@@ -72,6 +82,9 @@ public sealed class TownTalk
+                 case TownTargetKind.Board when Page + 1 < town.Notices.Count:
+                     Page++;
+                     return true;
++                case TownTargetKind.Fixture when IsLostCrews(town, t) && Page + 1 < LostCrews.Count:
++                    Page++;
++                    return true;
+                 default:
+                     Open = null;
+                     return true;
+@@ -134,6 +147,15 @@ public sealed class TownTalk
+                     string footer = Page + 1 < notices.Count ? $"({Page + 1}/{notices.Count})   NEXT : [E]" : $"({Page + 1}/{notices.Count})   DONE : [E]";
+                     return new TownCard(TownCardKind.Paper, n.Title, n.Text, footer);
+                 }
++            case TownTargetKind.Fixture when IsLostCrews(town, t) && LostCrews.Count > 0:
++                {
++                    // Note 721: each lost crew's card in turn, read close up as a notice is.
++                    var (title, text) = LostCrews[Math.Clamp(Page, 0, LostCrews.Count - 1)];
++                    string footer = Page + 1 < LostCrews.Count ? $"({Page + 1}/{LostCrews.Count})   NEXT : [E]" : $"({Page + 1}/{LostCrews.Count})   DONE : [E]";
++                    return new TownCard(TownCardKind.Paper, title, text, footer);
++                }
++            case TownTargetKind.Fixture when IsLostCrews(town, t):
++                return new TownCard(TownCardKind.Paper, town.Plan.Fixtures[t.Index].Name, town.Plan.Fixtures[t.Index].Text, "DONE : [E]");
+             case TownTargetKind.Paper:
+                 {
+                     var n = town.Plan.Papers[t.Index];
+diff --git a/src/DarkTerritory.Game/Views.cs b/src/DarkTerritory.Game/Views.cs
+index 6089b85c..74087023 100644
+--- a/src/DarkTerritory.Game/Views.cs
++++ b/src/DarkTerritory.Game/Views.cs
+@@ -193,6 +193,10 @@ public static class Views
+             // the train short of it); and stood beside the engine looking down at the creatures' trophies laid out on the
+             // ground off the line's left.
+             "comet" => CabCamera(engine),
++            // (Not one of Names.) Note 721: the crew photo at the gate (dt screenshot --view crewphoto stages it and takes its
++            // own lens, CrewPhoto.Stage) and the town's board of lost crews (--view lostcrews, Staging.TownCamera); off the
++            // engine's side until then.
++            "crewphoto" or "lostcrews" => Camera.LookAt(engine.ToWorld(new Double3(9, 1.6, -4)), engine.ToWorld(new Double3(3, 1.4, -2)), 40),
+             "trophies" => Camera.LookAt(Staging.Lineside(train, 4.2, -1.6) + Double3.Up * 1.55, Staging.Lineside(train, 7.2, -4.1) + Double3.Up * 0.05, 40),
+             // Crouched where the fireman shovels, at the firebox door (what's seen when it's open: the staged Stoker).
+             "firebox" => FireboxCamera(engine),
+diff --git a/src/DarkTerritory.Sim/Campaign/Campaign.cs b/src/DarkTerritory.Sim/Campaign/Campaign.cs
+index ca9d29d9..4b47871d 100644
+--- a/src/DarkTerritory.Sim/Campaign/Campaign.cs
++++ b/src/DarkTerritory.Sim/Campaign/Campaign.cs
+@@ -177,6 +177,11 @@ public sealed record CampaignState
+     /// trains for this crew. The save is kept to be read, and the slot's next start is a new crew.
+     /// </summary>
+     public bool Over { get; init; }
++    /// <summary>
++    /// The crew's logbook (GDD §11; the director, 14 Oct 2026; note 721): a page a night, kept after the campaign's over so the
++    /// save can still be read. Every player's profile keeps its own copy (<see cref="CrewLog"/>).
++    /// </summary>
++    public IReadOnlyList<LogPage> Logbook { get; init; } = [];
+ }
+ 
+ /// <summary>What a purchase came to: the new state, or why not.</summary>
+diff --git a/src/DarkTerritory.Sim/Campaign/Logbook.cs b/src/DarkTerritory.Sim/Campaign/Logbook.cs
+new file mode 100644
+index 00000000..cb62dce0
+--- /dev/null
++++ b/src/DarkTerritory.Sim/Campaign/Logbook.cs
+@@ -0,0 +1,114 @@
++using DarkTerritory.Sim.Run;
++
++namespace DarkTerritory.Sim.Campaign;
++
++/// <summary>
++/// One night's page in the crew's logbook (GDD §11 "What a crew keeps"; the director, 14 Oct 2026; ARCHITECTURE §8 note
++/// 721): which night, the line, the date it was run by the keeper's clock, how it ended, the incident report's losses (the
++/// cause-of-death lines and the train's own end), the commendations and the tally's net. Kept in the host's campaign save
++/// and in every player's own profile, from the report every machine was sent.
++/// </summary>
++/// <param name="Night">The campaign's night number (1 for the first).</param>
++/// <param name="Route">The line, as the page heads it ("Frontier, Hollin Halt to Barrow Bay").</param>
++/// <param name="Date">The date line, by the machine that wrote the page (the sim never reads a clock).</param>
++public sealed record LogPage(int Night, string Route, string Date, RunEnd End, double Net)
++{
++    /// <summary>How the night ended, as the end card says it: "DELIVERED. 5 CARS, 1 LOST. CREW HOME 3".</summary>
++    public string Line { get; init; } = "";
++    /// <summary>The report's losses in the clerk's words, "PRIYA: Mauled by the hounds at km 4. ...", in the order they happened.</summary>
++    public IReadOnlyList<string> Losses { get; init; } = [];
++    /// <summary>The night's commendations: "DAVE: Kept the Fire, from Priya".</summary>
++    public IReadOnlyList<string> Commendations { get; init; } = [];
++    /// <summary>The crew photo's file on the machine that wrote the page (note 721), or "" for none (not delivered, or not seen here).</summary>
++    public string Photo { get; init; } = "";
++}
++
++/// <summary>
++/// A crew this player rode with (note 721), in their profile: its name and campaign key, the pages of its logbook this
++/// machine saw, and whether the campaign's over (a train taken at dawn, note 632), which posts it on the board of lost crews.
++/// </summary>
++public sealed record CrewLog(string Key, string Name)
++{
++    public IReadOnlyList<LogPage> Pages { get; init; } = [];
++    public bool Over { get; init; }
++}
++
++/// <summary>The crew's memory (note 721): the logbook's pages and the board of lost crews' cards. Pure: reports in, pages out.</summary>
++public static class Logbook
++{
++    /// <summary>
++    /// A campaign's key, the same on every machine (the setup carries it): its crew's name and its seed, so two crews both
++    /// called "The Crew" on different hosts keep two logbooks.
++    /// </summary>
++    public static string Key(CampaignState s) => $"{s.Name}#{s.Seed:x16}";
++
++    /// <summary>How a night ended, in the end card's capitals.</summary>
++    /// <param name="wakers">The Wakers were out (a train out at dawn is taken by them, not just late).</param>
++    public static string Ended(RunEnd end, bool wakers = true) => end switch
++    {
++        RunEnd.Delivered => "DELIVERED",
++        RunEnd.Derailed => "DERAILED",
++        RunEnd.CrewLost => "THE WHOLE CREW LOST",
++        RunEnd.DawnMissed => wakers ? "TAKEN AT DAWN" : "STILL OUT WHEN THE LINE WENT LIVE",
++        RunEnd.Stranded => "STRANDED",
++        _ => "UNFINISHED",
++    };
++
++    /// <summary>The report lines a page keeps: the deaths and the train's own end (a derailment, stranded), as the report reads them.</summary>
++    public static bool Kept(IncidentKind kind) => kind is IncidentKind.Death or IncidentKind.Derailed or IncidentKind.Stranded;
++
++    /// <summary>
++    /// The page for a night from its incident report (GDD App. D.12), as every machine has it.
++    /// </summary>
++    /// <param name="commended">The night's commendations by name: to whom, which, from whom.</param>
++    public static LogPage Page(RunReport r, int night, string route, string date, IEnumerable<(string To, string What, string From)> commended,
++        bool wakers = true, string photo = "") =>
++        new(night, route, date, r.End, r.Net)
++        {
++            Line = r.End == RunEnd.Delivered ? $"{Ended(r.End)}. {r.CarsDelivered} CARS, {r.CarsLost} LOST. CREW HOME {r.CrewHome}"
++                : $"{Ended(r.End, wakers)}. {r.CarsLost} CARS LOST. CREW HOME {r.CrewHome}",
++            Losses = [.. r.Lines.Where(l => Kept(l.Kind)).Select(l => l.Who.Length > 0 ? $"{l.Who.ToUpperInvariant()}: {l.Text}" : l.Text)],
++            Commendations = [.. commended.Select(c => $"{c.To.ToUpperInvariant()}: {c.What}, from {c.From}")],
++            Photo = photo,
++        };
++
++    /// <summary>
++    /// The book with <paramref name="page"/> in it: in its night's place, replacing an earlier copy of that night's page (a
++    /// night written again as its commendations come in, or a rejoin's report), keeping a photo the old copy had and the
++    /// new one doesn't.
++    /// </summary>
++    public static IReadOnlyList<LogPage> With(IReadOnlyList<LogPage> book, LogPage page)
++    {
++        var old = book.FirstOrDefault(p => p.Night == page.Night);
++        if (old is not null && page.Photo.Length == 0 && old.Photo.Length > 0)
++            page = page with { Photo = old.Photo };
++        return [.. book.Where(p => p.Night != page.Night).Append(page).OrderBy(p => p.Night)];
++    }
++
++    /// <summary>
++    /// A crew's log in a profile with this night's page added (note 721), the crew's name kept up to date, and closed for
++    /// good when the night ended the campaign.
++    /// </summary>
++    public static IReadOnlyList<CrewLog> Remember(IReadOnlyList<CrewLog> crews, string key, string name, LogPage page, bool over)
++    {
++        var had = crews.FirstOrDefault(c => c.Key == key) ?? new CrewLog(key, name);
++        var log = had with { Name = name.Length > 0 ? name : had.Name, Pages = With(had.Pages, page), Over = had.Over || over };
++        return [.. crews.Where(c => c.Key != key).Append(log)];
++    }
++
++    /// <summary>The crews posted on the board of lost crews (note 721): the ended ones, the last ended first.</summary>
++    public static IReadOnlyList<CrewLog> Lost(IReadOnlyList<CrewLog> crews) =>
++        [.. crews.Where(c => c.Over && c.Pages.Count > 0).Reverse()];
++
++    /// <summary>
++    /// A lost crew's card on the board (note 721): its name over how many nights it ran, how it ended ("TAKEN AT DAWN"), and
++    /// the cause line of its last night (its first loss, or how the night ended).
++    /// </summary>
++    public static (string Title, string Text) Card(CrewLog crew)
++    {
++        var last = crew.Pages[^1];
++        int nights = crew.Pages.Max(p => p.Night);
++        string cause = last.Losses.Count > 0 ? last.Losses[0] : last.Line;
++        return (crew.Name, $"Ran {nights} {(nights == 1 ? "night" : "nights")}. {Ended(last.End)}. {cause}");
++    }
++}
+diff --git a/src/DarkTerritory.Sim/Towns/TownGenerator.cs b/src/DarkTerritory.Sim/Towns/TownGenerator.cs
+index 4c412b48..a700aecf 100644
+--- a/src/DarkTerritory.Sim/Towns/TownGenerator.cs
++++ b/src/DarkTerritory.Sim/Towns/TownGenerator.cs
+@@ -32,6 +32,12 @@ public static partial class TownGenerator
+ {
+     // Where the people with places stand, in metres. Not design numbers: where a body stands to be in front of the thing
+     // it tends (a door, the board, the engine), clear of the thing itself.
++    /// <summary>
++    /// The board of lost crews (note 721): along the square from its middle (the notice board's at +14, the bench at +7), and
++    /// what it says to anyone with no crews posted (each machine's own profile fills it).
++    /// </summary>
++    const double LostCrewsAlong = 10.6;
++    public const string LostCrewsText = "The company's board. A card goes up for every crew whose train was taken: the crew's name, how many nights it ran, and how its last one ended. Nothing's posted for any crew you rode with.";
+     const double DoorStep = 1.4, BoardOut = 6.5, BoardReader = 1.3, BesideTrack = 3.4, Ring = 1.8, GateIn = 9, GateOut = 4.5;
+     const double PlatformD = 7.0, PlatformTop = 0.25;
+     /// <summary>The quiet house: how far inside the gate, and how far out from the line on the far side (m).</summary>
+@@ -464,6 +470,11 @@ public static partial class TownGenerator
+             }
+         }
+ 
++        // The company's board of lost crews (GDD §3.1, §11; the director, 14 Oct 2026; note 721), beside the notices: each
++        // ended campaign the player rode with is a card on it, from their own profile (the app's, not the plan's). Last of the
++        // fixtures, so every other keeps its index.
++        Fix("lostcrews", "the board of lost crews", LostCrewsText, mid + LostCrewsAlong, side * BoardOut, 0, -side);
++
+         // The board: the custom's order first, then what the town makes, then whatever else is posted; and a note or two
+         // left about the square (a letter on a bench, a page by the hall door, a scrap by the engine).
+         var papers = new List<TownPaper>();
+@@ -642,7 +653,7 @@ public static class TownFixtures
+         "bench" => (1.0, 0.3, 0.9),
+         "carriage" => (3.2, 1.4, 3.6),
+         "cannon" => (1.4, 0.8, 1.3),
+-        "board" => (1.1, 0.15, 2.2),
++        "board" or "lostcrews" => (1.1, 0.15, 2.2),
+         "plaque" => (0.2, 0.2, 2.2),
+         "crate" => (0.5, 0.4, 0.8),
+         "barrel" => (0.35, 0.35, 1.0),
+diff --git a/tests/DarkTerritory.Game.Tests/CrewMemoryTests.cs b/tests/DarkTerritory.Game.Tests/CrewMemoryTests.cs
+new file mode 100644
+index 00000000..da7d08de
+--- /dev/null
++++ b/tests/DarkTerritory.Game.Tests/CrewMemoryTests.cs
+@@ -0,0 +1,301 @@
++using Ballast;
++using Ballast.Render;
++using DarkTerritory.Game;
++using DarkTerritory.Sim.Campaign;
++using DarkTerritory.Sim.Player;
++using DarkTerritory.Sim.Run;
++using DarkTerritory.Sim.Towns;
++
++namespace DarkTerritory.Game.Tests;
++
++/// <summary>
++/// Crew memory on a machine (GDD §9, §11, §3.1; the director, 14 Oct 2026; ARCHITECTURE §8 note 721): the crew photo at the
++/// gate staged from the replicated world, kept in the album; the logbook on its shelf, its pages in the player's profile
++/// after the campaign's gone, drawn as a page; the board of lost crews read in town.
++/// </summary>
++public class CrewMemoryTests
++{
++    static readonly string Content = DataFile.FindContentRoot();
++    static readonly MemoryTuning Tuning = DataFile.Load<MemoryTuning>(Path.Combine(Content, MemoryTuning.File));
++
++    static PrototypeSession Night() => new(Content, Sim.LineGen.Routes.Generate(Content, "frontier:7", 6), 6, enemies: false);
++
++    static string Temp(string what) => Path.Combine(Path.GetTempPath(), $"dt-{what}-{Guid.NewGuid():N}");
++
++    [Fact]
++    public void ADeliveredNightsPhotoStandsTheLivingInALineAndPutsTheDeadsCapsOnTheCrate()
++    {
++        var s = Night();
++        var world = s.World;
++        world.Names[1] = "Dave";
++        world.Names[2] = "Priya";
++        world.Names[3] = "Okafor";
++        world.Names[4] = "Dunmore";
++        world.Emotes.Add(new EmoteEvent(1, (uint)world.Tick, 3, Emote.Wave));
++        var living = new PlayerState { Parent = PlayerState.World };
++        // Given out of order, as the snapshot's remotes come: the photo's order is the ids'.
++        (int, PlayerState)[] crew =
++        [
++            (4, living with { Death = DeathCause.Mauled }),
++            (3, living),
++            (1, living),
++            (2, living with { Flags = PlayerFlags.Sooted }),
++        ];
++        var sitters = CrewPhoto.Sitters(world, crew);
++        Assert.Equal(["Dave", "Priya", "Okafor", "Dunmore"], sitters.Select(c => c.Name));
++        Assert.Equal([true, true, true, false], sitters.Select(c => c.Alive));
++        Assert.True(sitters[1].Sooted);
++        Assert.Equal(Emote.Wave, sitters[2].Emote);
++
++        var engine = s.Train.Frames[0];
++        var chalk = CrewPhoto.Chalk(CrewPhoto.RouteName("frontier:7"), 3, 1450);
++        Assert.Equal(["FRONTIER 7", "NIGHT 3", "NET 1450"], chalk);
++        var photo = CrewPhoto.Stage(engine, 1, sitters, chalk, Tuning.Photo);
++        // The living stood, the dead not: their caps on the crate, in their own colours.
++        Assert.Equal([1, 2, 3], photo.Crew.Select(c => (int)c.Id));
++        Assert.Equal([4], photo.Props.Caps);
++        Assert.Equal(Emote.Wave, photo.Crew[2].Emote);
++        Assert.True(photo.Crew[1].Sooted);
++        // In a line beside the engine, the same distance out, a shoulder's width apart, left to right in the lens.
++        var right = engine.Right with { Y = 0 };
++        foreach (var c in photo.Crew)
++            Assert.Equal(Tuning.Photo.Out, Double3.Dot(c.Feet - engine.Origin, right.Normalized), 3);
++        var lens = photo.Camera;
++        double[] across = [.. photo.Crew.Select(c => Across(lens, c.Feet))];
++        Assert.True(across[0] < across[1] && across[1] < across[2]);
++        Assert.Equal(Tuning.Photo.Spacing, (photo.Crew[1].Feet - photo.Crew[0].Feet).Length, 3);
++        // The crate past the line's right-hand end, the slate on the left in front of nobody; everyone facing the lens.
++        Assert.True(Across(lens, photo.Props.Crate) > across[2]);
++        Assert.True(Across(lens, photo.Props.Slate) < across[0]);
++        foreach (var c in photo.Crew)
++        {
++            var toLens = (lens.Position - c.Feet) with { Y = 0 };
++            Assert.Equal(1, Double3.Dot(new Double3(-Math.Sin(c.Yaw), 0, -Math.Cos(c.Yaw)), toLens.Normalized), 3);
++        }
++        // Faces in frame: every head in the lens's view, ahead of it.
++        foreach (var c in photo.Crew)
++            Assert.True(Double3.Dot(c.Feet + Double3.Up * 1.6 - lens.Position, Ahead(lens)) > 3);
++        // Deterministic: the same world gives the same photo on every machine.
++        var again = CrewPhoto.Stage(engine, 1, CrewPhoto.Sitters(world, crew.Reverse()), chalk, Tuning.Photo);
++        Assert.Equal(photo.Crew, again.Crew);
++        Assert.Equal(photo.Props.Crate, again.Props.Crate);
++        Assert.Equal(photo.Camera.Position, again.Camera.Position);
++        // The yard's open side is the one away from the town's square.
++        Assert.Equal(1, CrewPhoto.YardSide(-1));
++        Assert.Equal(-1, CrewPhoto.YardSide(1));
++    }
++
++    static Double3 Ahead(Camera lens) => new(lens.Forward.X, lens.Forward.Y, lens.Forward.Z);
++
++    /// <summary>How far right of the lens's middle a point is (along its right, +X as the image has it).</summary>
++    static double Across(Camera lens, Double3 p) => Double3.Dot(p - lens.Position, Double3.Cross(Ahead(lens), Double3.Up).Normalized);
++
++    [Fact]
++    public void ThePhotoIsKeptInTheAlbumWithItsSidecarAndReadsBack()
++    {
++        string dir = Temp("album");
++        try
++        {
++            var album = new BookmarkAlbum(dir, new DateTime(2026, 10, 14, 21, 30, 0), "frontier-7");
++            var rgba = new byte[8 * 4 * 4];
++            for (int i = 0; i < rgba.Length; i++)
++                rgba[i] = (byte)(i * 7);
++            var still = new Still(8, 4, rgba);
++            string sidecar = CrewPhoto.Sidecar(Staging.PhotoCrew(), ["FRONTIER 7", "NIGHT 3", "NET 1450"], "The Night Mail", "14 October 2026");
++            string path = album.KeepPhoto(still, sidecar);
++            Assert.Equal(Path.Combine(album.Night, BookmarkAlbum.PhotoName), path);
++            Assert.Equal(path, album.Photo);
++            var text = File.ReadAllText(Path.ChangeExtension(path, ".txt"));
++            Assert.Contains("STANDING, LEFT TO RIGHT: Dave (wave), Priya (sooty), Okafor (point)", text, StringComparison.Ordinal);
++            Assert.Contains("CAPS ON THE CRATE: Dunmore", text, StringComparison.Ordinal);
++            Assert.Contains("FRONTIER 7 / NIGHT 3 / NET 1450", text, StringComparison.Ordinal);
++            var back = BookmarkAlbum.ReadPhoto(path)!;
++            Assert.Equal((8, 4), (back.Width, back.Height));
++            Assert.Equal(still.Rgba, back.Rgba);
++            Assert.Null(BookmarkAlbum.ReadPhoto(Path.Combine(dir, "gone.png")));
++        }
++        finally
++        {
++            if (Directory.Exists(dir))
++                Directory.Delete(dir, true);
++        }
++    }
++
++    [Fact]
++    public void EveryMachineKeepsTheCrewsLogbookInItsProfileAfterTheCampaignsOver()
++    {
++        string path = Temp("profile") + ".json";
++        try
++        {
++            var s = Night();
++            s.World.Names[1] = "Dave";
++            s.World.Names[2] = "Priya";
++            s.World.Commendations.Add((2, 1, 2));
++            var profile = new PlayerProfile(path);
++            var memory = new CrewMemory(profile, Tuning, "The Night Mail", "The Night Mail#63", night: 3);
++            // Nothing till the report's in.
++            Assert.Null(memory.Remember(s, new DateTime(2026, 10, 14)));
++            Assert.Empty(memory.Pages());
++            var report = new RunReport(RunEnd.DawnMissed, 1500, 7, 0, 5, 0, 0, 100, 20, 46, -900, 0, 2)
++            {
++                Lines = [new ReportLine(IncidentKind.Death, "Priya", "Taken at dawn by a Waker on the line at km 21. At the controls at dawn: Dave.")],
++            };
++            s.World.Run!.MirrorReport(report);
++            s.World.DawnEndsCampaign = true;
++            var page = memory.Remember(s, new DateTime(2026, 10, 14))!;
++            Assert.Equal(3, page.Night);
++            Assert.Equal("14 October 2026", page.Date);
++            Assert.StartsWith("Frontier 7", page.Route, StringComparison.Ordinal);
++            Assert.Equal(["DAVE: Kept the Fire, from Priya"], page.Commendations);
++            Assert.StartsWith("PRIYA: Taken at dawn", Assert.Single(page.Losses), StringComparison.Ordinal);
++            // Written again as the night's left: still one page.
++            memory.Remember(s, new DateTime(2026, 10, 14));
++            Assert.Single(memory.Pages());
++            // Read from disk by another night (the host's save long gone): the crew, its page, and the board's card.
++            var kept = new PlayerProfile(path).Load();
++            var crew = Assert.Single(kept.Crews);
++            Assert.True(crew.Over);
++            Assert.Equal("The Night Mail", crew.Name);
++            var (title, text) = Assert.Single(CrewMemory.LostCrews(kept));
++            Assert.Equal("The Night Mail", title);
++            Assert.StartsWith("Ran 3 nights. TAKEN AT DAWN. PRIYA:", text, StringComparison.Ordinal);
++            // A quick night keeps nothing.
++            Assert.Null(new CrewMemory(profile, Tuning, "", "", 0).Remember(s, DateTime.Now));
++            // The setup carries the crew to every machine, and leaves it out of a quick night's.
++            var setup = new SessionSetup(Route: "frontier:7") { Crew = "The Night Mail", CrewKey = "The Night Mail#63", Night = 3 };
++            var sent = SessionSetup.Decode(setup.Encode());
++            Assert.Equal(("The Night Mail", "The Night Mail#63", 3), (sent.Crew, sent.CrewKey, sent.Night));
++            Assert.DoesNotContain("crewKey", new SessionSetup(Route: "frontier:7").Encode(), StringComparison.OrdinalIgnoreCase);
++        }
++        finally
++        {
++            File.Delete(path);
++        }
++    }
++
++    [Fact]
++    public void TheHostsSaveKeepsTheLogbookThroughSaveSlots()
++    {
++        string dir = Temp("saves");
++        try
++        {
++            var saves = new SaveSlots(dir);
++            var state = new CampaignState { Slot = 2, Name = "Cold Feet", Logbook = Staging.LogPages("photo.png") };
++            saves.Save(state);
++            var back = saves.Load(2)!;
++            Assert.Equal(state.Logbook.Select(p => (p.Night, p.Route, p.End, p.Net, p.Photo)), back.Logbook.Select(p => (p.Night, p.Route, p.End, p.Net, p.Photo)));
++            Assert.Equal(state.Logbook[2].Losses, back.Logbook[2].Losses);
++            Assert.Equal(state.Logbook[2].Commendations, back.Logbook[2].Commendations);
++        }
++        finally
++        {
++            if (Directory.Exists(dir))
++                Directory.Delete(dir, true);
++        }
++    }
++
++    [Fact]
++    public void TheLogbookOnItsShelfOpensAtTheLastNightAndTurnsWithTheWalkingKeys()
++    {
++        var s = Night();
++        var shelf = LogbookReader.Shelf(s.Train, Tuning.Logbook)!.Value;
++        var bay = Sim.World.KitLocker(s.Train)!.Value.Bay;
++        // Stood in the aisle at the kit locker, looking across at the shelf: its prompt.
++        var feet = new Double3(bay.Front.X + bay.Facing * 0.75, bay.Front.Y, bay.Front.Z);
++        var to = shelf.Local - (feet + Double3.Up * s.Train.Dynamics.Tuning.Pick.EyeHeight);
++        s.Player = s.Player with
++        {
++            Parent = shelf.Car,
++            Surface = Surface.Deck,
++            Position = feet,
++            Yaw = Math.Atan2(-to.X, -to.Z),
++            Pitch = Math.Atan2(to.Y, Math.Sqrt(to.X * to.X + to.Z * to.Z)),
++            Velocity = default,
++        };
++        Assert.Equal(LogbookReader.Prompt, Hud.Prompt(s));
++        // Looking away from it, no.
++        s.Player = s.Player with { Yaw = s.Player.Yaw + Math.PI };
++        Assert.NotEqual(LogbookReader.Prompt, Hud.Prompt(s));
++        // The shelf's in its car, against the far wall from the lockers, off the floor.
++        var room = s.Train.Frames[shelf.Car].Shape.Interior!.Value;
++        Assert.InRange(shelf.Local.X, room.Min.X, room.Max.X);
++        Assert.Equal(bay.Facing, Math.Sign(shelf.Local.X));
++        Assert.InRange(shelf.Local.Y - room.Min.Y, 1, 1.6);
++
++        var reader = new LogbookReader();
++        reader.Use(pages: 3);
++        Assert.True(reader.Open);
++        Assert.Equal(2, reader.Page);
++        Assert.False(reader.Turn(+1, 3));
++        Assert.True(reader.Turn(-1, 3));
++        Assert.True(reader.Turn(-1, 3));
++        Assert.False(reader.Turn(-1, 3));
++        Assert.Equal(0, reader.Page);
++        reader.Use(pages: 3);
++        Assert.False(reader.Open);
++    }
++
++    [Fact]
++    public void ALogbookPageIsASheetWithEverythingOnItAndItsPhotoPastedIn()
++    {
++        var pages = Staging.LogPages();
++        var photo = new Still(16, 9, Enumerable.Repeat((byte)200, 16 * 9 * 4).ToArray());
++        var o = new Overlay();
++        Hud.LogbookPage(o, 480, 270, "The Night Mail", pages, 2, photo);
++        Assert.NotEmpty(o.Vertices);
++        // All of it on the book (its board 5 px round the sheet), none off the screen.
++        float w = Math.Min(480 - 24, 420), h = Math.Min(270 - 20, 250), x = MathF.Round((480 - w) / 2), y = MathF.Round((270 - h) / 2);
++        foreach (var v in o.Vertices)
++        {
++            Assert.InRange(v.Position.X, x - 5.01f, x + w + 5.01f);
++            Assert.InRange(v.Position.Y, y - 5.01f, y + h + 5.01f);
++        }
++        // With the photo there's more drawn than without; an empty book is less still, and says so.
++        var bare = new Overlay();
++        Hud.LogbookPage(bare, 480, 270, "The Night Mail", pages, 2, null);
++        Assert.True(o.Count > bare.Count);
++        var empty = new Overlay();
++        Hud.LogbookPage(empty, 480, 270, "", [], 0, null);
++        Assert.True(empty.Count < bare.Count);
++        // A small screen keeps it on the screen too.
++        var small = new Overlay();
++        Hud.LogbookPage(small, 320, 180, "The Night Mail", pages, 2, photo);
++        Assert.All(small.Vertices, v => Assert.InRange(v.Position.X, 0, 320));
++    }
++
++    [Fact]
++    public void TheBoardOfLostCrewsIsReadACardAtATime()
++    {
++        var s = Night();
++        var town = s.World.Town!;
++        var (feet, look) = Staging.TownStand(town, "lostcrews", 0);
++        var to = look - (feet + Double3.Up * s.Train.Dynamics.Tuning.Pick.EyeHeight);
++        s.Player = s.Player with
++        {
++            Parent = PlayerState.World,
++            Surface = Surface.Ground,
++            Position = feet,
++            Yaw = Math.Atan2(-to.X, -to.Z),
++            Pitch = Math.Atan2(to.Y, Math.Sqrt(to.X * to.X + to.Z * to.Z)),
++            Velocity = default,
++        };
++        Assert.Equal("THE BOARD OF LOST CREWS   READ : [E]", Hud.Prompt(s));
++        var target = Hud.TownTarget(s);
++        Assert.True(target is { } t && TownTalk.IsLostCrews(town, t));
++        // Nothing posted: the board's own words.
++        var bare = new TownTalk();
++        bare.Use(town, target, 0);
++        Assert.Equal(TownGenerator.LostCrewsText, bare.Card(town, 0)!.Text);
++        // Two crews: each card in turn, then done.
++        var talk = new TownTalk { LostCrews = Staging.LostCrews() };
++        talk.Use(town, target, 0);
++        var first = talk.Card(town, 0)!;
++        Assert.Equal("The Night Mail", first.Heading);
++        Assert.Contains("TAKEN AT DAWN", first.Text, StringComparison.Ordinal);
++        Assert.Contains("(1/2)", first.Footer, StringComparison.Ordinal);
++        talk.Use(town, target, 1);
++        Assert.Equal("Cold Feet", talk.Card(town, 1)!.Heading);
++        talk.Use(town, target, 2);
++        Assert.Null(talk.Card(town, 2));
++    }
++}
+diff --git a/tests/DarkTerritory.Sim.Tests/CrewMemoryTests.cs b/tests/DarkTerritory.Sim.Tests/CrewMemoryTests.cs
+new file mode 100644
+index 00000000..040dd21c
+--- /dev/null
++++ b/tests/DarkTerritory.Sim.Tests/CrewMemoryTests.cs
+@@ -0,0 +1,125 @@
++using System.Text.Json;
++using Ballast;
++using DarkTerritory.Sim.Campaign;
++using DarkTerritory.Sim.LineGen;
++using DarkTerritory.Sim.Route;
++using DarkTerritory.Sim.Run;
++using DarkTerritory.Sim.Towns;
++
++namespace DarkTerritory.Sim.Tests;
++
++/// <summary>
++/// Crew memory (GDD §11, §3.1; the director, 14 Oct 2026; ARCHITECTURE §8 note 721): the logbook's page a night from the
++/// incident report, kept in the campaign's save; the crews a player rode with, the ended ones posted on the town's board
++/// of lost crews.
++/// </summary>
++public class CrewMemoryTests
++{
++    static readonly string Content = DataFile.FindContentRoot();
++
++    static RunReport Report(RunEnd end, double net = 1450) =>
++        new(end, 1500, 7, 5, 1, 4.2, 3200, 100, 20, 46, net, 3, 1)
++        {
++            Lines =
++            [
++                new ReportLine(IncidentKind.Grab, "Okafor", "Grabbed by the Car Hugger on the roof of car 3 at km 1. Got away."),
++                new ReportLine(IncidentKind.Death, "Dunmore", "Mauled by the hounds on the roof of car 3 at km 4. Nearest crew: Dave, 12 m. Fee 350. Body recovered. Refund 263.") { Seconds = 400 },
++                new ReportLine(IncidentKind.Rescue, "Okafor", "Freed from the Holdout at Hollin Halt. Broken out by Dave."),
++            ],
++        };
++
++    [Fact]
++    public void ANightsPageKeepsTheReportsLossesTheCommendationsAndTheNet()
++    {
++        var page = Logbook.Page(Report(RunEnd.Delivered), 3, "Frontier 7, Hollin Halt to Barrow Bay", "14 October 2026",
++            [("Dave", "Came Back For Me", "Okafor"), ("Priya", "Kept the Fire", "Dave")]);
++        Assert.Equal(3, page.Night);
++        Assert.Equal(1450, page.Net);
++        Assert.Equal("DELIVERED. 5 CARS, 1 LOST. CREW HOME 3", page.Line);
++        // The cause of death, as the clerk read it; not the grabs got away from or the rescues.
++        var loss = Assert.Single(page.Losses);
++        Assert.StartsWith("DUNMORE: Mauled by the hounds", loss, StringComparison.Ordinal);
++        Assert.Equal(["DAVE: Came Back For Me, from Okafor", "PRIYA: Kept the Fire, from Dave"], page.Commendations);
++        // A derailment's own line goes in too: the train's end is a loss.
++        var derailed = Report(RunEnd.Derailed) with { Lines = [new ReportLine(IncidentKind.Derailed, "", "Consist derailed at km 14, 68 km/h. Throttle: Dave.")] };
++        Assert.Equal(["Consist derailed at km 14, 68 km/h. Throttle: Dave."], Logbook.Page(derailed, 4, "", "", []).Losses);
++        Assert.StartsWith("TAKEN AT DAWN", Logbook.Page(Report(RunEnd.DawnMissed), 5, "", "", []).Line, StringComparison.Ordinal);
++    }
++
++    [Fact]
++    public void TheLogbookGainsAPageANightAndANightWrittenAgainReplacesItsOwn()
++    {
++        var book = Logbook.With([], Logbook.Page(Report(RunEnd.Delivered), 1, "Local 4", "12 October 2026", []) with { Photo = "night1.png" });
++        book = Logbook.With(book, Logbook.Page(Report(RunEnd.Derailed), 2, "Frontier 3", "13 October 2026", []));
++        Assert.Equal([1, 2], book.Select(p => p.Night));
++        // Night 1 written again (its commendations came in), without the photo this time: the photo's kept, one page still.
++        book = Logbook.With(book, Logbook.Page(Report(RunEnd.Delivered), 1, "Local 4", "12 October 2026", [("Dave", "Kept the Fire", "Priya")]));
++        Assert.Equal([1, 2], book.Select(p => p.Night));
++        Assert.Equal("night1.png", book[0].Photo);
++        Assert.Single(book[0].Commendations);
++    }
++
++    [Fact]
++    public void TheCampaignsLogbookRoundTripsTheSaveAndOutlivesTheCampaign()
++    {
++        var t = DataFile.Load<CampaignTuning>(Path.Combine(Content, CampaignTuning.File)) with { DawnEndsCampaign = true };
++        var s = Campaign.Campaign.Begin(Campaign.Campaign.New(t, 1, "The Night Mail", 99), new Contract(RouteTier.Frontier, 7, 1000));
++        var report = Report(RunEnd.DawnMissed, -900);
++        s = Campaign.Campaign.Settle(s, report, t);
++        s = s with { Logbook = Logbook.With(s.Logbook, Logbook.Page(report, s.Runs, "Frontier 7", "14 October 2026", [])) };
++        Assert.True(s.Over);
++        var back = JsonSerializer.Deserialize<CampaignState>(JsonSerializer.Serialize(s, DataFile.Options), DataFile.Options)!;
++        var page = Assert.Single(back.Logbook);
++        Assert.Equal(1, page.Night);
++        Assert.Equal(RunEnd.DawnMissed, page.End);
++        Assert.Equal(s.Logbook[0].Losses, page.Losses);
++        // A save from before the logbook reads as an empty one.
++        Assert.Empty(JsonSerializer.Deserialize<CampaignState>("{\"name\":\"Old\",\"cars\":3}", DataFile.Options)!.Logbook);
++        // Its key is the same on every machine (the setup carries it), and tells two crews of one name apart.
++        Assert.Equal(Logbook.Key(s), Logbook.Key(back));
++        Assert.NotEqual(Logbook.Key(s), Logbook.Key(s with { Seed = 100 }));
++    }
++
++    [Fact]
++    public void ACampaignTakenAtDawnIsPostedOnTheBoardOfLostCrews()
++    {
++        IReadOnlyList<CrewLog> crews = [];
++        crews = Logbook.Remember(crews, "a#1", "The Night Mail", Logbook.Page(Report(RunEnd.Delivered), 1, "Local 4", "", []), over: false);
++        crews = Logbook.Remember(crews, "b#2", "Cold Feet", Logbook.Page(Report(RunEnd.Delivered), 1, "Local 2", "", []), over: false);
++        Assert.Empty(Logbook.Lost(crews));
++        var taken = Report(RunEnd.DawnMissed) with { Lines = [new ReportLine(IncidentKind.Death, "Priya", "Taken at dawn by a Waker on the line at km 21. At the controls at dawn: Dave.")] };
++        crews = Logbook.Remember(crews, "a#1", "The Night Mail", Logbook.Page(taken, 2, "Dead Lines 2", "", []), over: true);
++        var lost = Assert.Single(Logbook.Lost(crews));
++        Assert.Equal("The Night Mail", lost.Name);
++        Assert.Equal(2, lost.Pages.Count);
++        var (title, text) = Logbook.Card(lost);
++        Assert.Equal("The Night Mail", title);
++        Assert.Equal("Ran 2 nights. TAKEN AT DAWN. PRIYA: Taken at dawn by a Waker on the line at km 21. At the controls at dawn: Dave.", text);
++        // Once over, a page written again doesn't open it up.
++        crews = Logbook.Remember(crews, "a#1", "The Night Mail", Logbook.Page(taken, 2, "Dead Lines 2", "", []), over: false);
++        Assert.Single(Logbook.Lost(crews));
++    }
++
++    [Fact]
++    public void EveryTownsSquareHasTheBoardOfLostCrewsBesideItsNoticeBoard()
++    {
++        var towns = TownContent.Load(Content)!;
++        foreach (string spec in new[] { "frontier:7", "local:3", "deadLines:2" })
++        {
++            var route = Routes.Generate(Content, spec, 6);
++            var line = route.Build();
++            double gate = route.GateOr(RouteTuning.Load(Content).YardLength);
++            var town = new Town(TownGenerator.Generate(towns, TownSite.Of(route, gate, [], towns)), towns.Tuning, line);
++            var board = town.Plan.Fixtures.Single(f => f.Kind == "board");
++            var lost = town.Plan.Fixtures.Single(f => f.Kind == "lostcrews");
++            // Beside it, a few metres along, clear of it; with words of its own to read when nothing's posted.
++            Assert.Equal(board.D, lost.D);
++            Assert.InRange(Math.Abs(board.S - lost.S), board.SolidS + lost.SolidS + 0.5, 6);
++            Assert.False(string.IsNullOrEmpty(lost.Text));
++            // Read from in front of it, it's the thing looked at, not the notice board beside it.
++            var at = town.LookAt(lost);
++            var before = at + town.Direction(lost.S, lost.FaceS, lost.FaceD) * 1.6 + Double3.Up * 0.1;
++            Assert.Equal(new TownTarget(TownTargetKind.Fixture, lost.Id), town.Target(before, (at - before).Normalized));
++        }
++    }
++}
+diff --git a/tools/review/gallery.txt b/tools/review/gallery.txt
+index f78eefc9..ea1732fe 100644
+--- a/tools/review/gallery.txt
++++ b/tools/review/gallery.txt
+@@ -44,3 +44,5 @@
+ --integrity 0.3,1,0.8,0.55,0.3,0.1 --cam 1126,-5.5,2.4 --target 1116,0,2.0 --fov 55 --out out/shots/damage.png
+ --view shove --out out/shots/shove.png
+ --view sooted --out out/shots/sooted.png
++--view crewphoto --out out/shots/crewphoto.png
++--view lostcrews --out out/shots/lostcrews.png

@@ -225,12 +225,21 @@ public class FallTests(ITestOutputHelper output)
         var train = Train(12);
         var geometry = Tuning.Train.Geometry;
         double end = train.Frames[2].Shape.HalfLength;
-        // Off the plate's line, walking at the back end: held at the lip.
+        // Off the plate's line, walking at the back end: held at the lip (without note 717's walkOff).
+        var held = P with { Edge = P.Edge with { WalkOff = false } };
         double side = Math.Abs(geometry.PlateX + 0.8) < Math.Abs(geometry.PlateX - 0.8) ? 0.8 : -0.8;
-        var s = Walk(train, PlayerMotor.SpawnOnRoof(train, 2, end - 2, P, localX: geometry.PlateX + side) with { Yaw = Math.PI }, new PlayerIntent { MoveZ = 1 }, 3);
+        var s = Walk(train, PlayerMotor.SpawnOnRoof(train, 2, end - 2, held, localX: geometry.PlateX + side) with { Yaw = Math.PI }, new PlayerIntent { MoveZ = 1 }, 3, held);
         Assert.Equal(2, s.Parent);
         Assert.Equal(Surface.Roof, s.Surface);
         Assert.InRange(s.Position.Z, end - P.Edge.Lip - 0.1, end - P.Edge.Lip + 0.01);
+        // Note 717 (the director's 14 Oct playtest, line 4: "let people walk off the top of the cars"): with walkOff, the same
+        // walk goes off the end, as off a side; a glance at it doesn't.
+        Assert.True(P.Edge.WalkOff);
+        var off = Walk(train, PlayerMotor.SpawnOnRoof(train, 2, end - 2, P, localX: geometry.PlateX + side) with { Yaw = Math.PI }, new PlayerIntent { MoveZ = 1 }, 3);
+        Assert.NotEqual(2, off.Parent);
+        var glance = Walk(train, PlayerMotor.SpawnOnRoof(train, 2, end - 2, P, localX: geometry.PlateX + side) with { Yaw = Math.PI - 50 * Math.PI / 180 },
+            new PlayerIntent { MoveZ = 1 }, 1.5);
+        Assert.Equal(2, glance.Parent);
         // Squarely over the plate: down onto it, as the bots go in out of the cold.
         var d = PlayerMotor.SpawnOnRoof(train, 2, end - 2, P, localX: geometry.PlateX) with { Yaw = Math.PI };
         for (int i = 0; i < 3 * SimConstants.TickRate && d.Surface is not (Surface.Coupler or Surface.Ground); i++)

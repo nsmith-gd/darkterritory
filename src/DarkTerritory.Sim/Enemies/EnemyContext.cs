@@ -28,6 +28,14 @@ public sealed class EnemyContext
     public IEnumerable<(PlayerSnapshot Player, Double3 World)> LivingCrew() =>
         Crew.Where(c => c.Player.State.Alive).Select(c => (c.Player, PlayerMotor.WorldPosition(c.Player.State, Train)));
 
+    /// <summary>
+    /// Note 717 (the director, 14 Oct 2026: a shover whose shove killed is the one "all the monsters in the game should target
+    /// more heavily"): how near <paramref name="player"/> counts as, for whom to go for, at <paramref name="distance"/> (m, or
+    /// whatever the creature ranks by). Everyone at their distance; a marked crewmate at a share of it less an allowance, so a
+    /// creature that can reach them prefers them over someone nearer. The creatures' picks order by it.
+    /// </summary>
+    public double Weigh(int player, double distance) => World.WeighTarget(player, distance);
+
     /// <summary>A hurt that can't kill (it leaves a player on 1): the fairness contract's "the consequence starts now".</summary>
     public void Bite(int playerId, int amount, DeathCause cause) => Damage.Add(new DamageEvent(playerId, amount, cause));
 
