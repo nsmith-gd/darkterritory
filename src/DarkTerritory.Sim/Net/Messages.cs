@@ -87,7 +87,8 @@ public static class Protocol
     //     it; a lamp signal rides the intent's third byte (bits 2-3), and the crew see it as a record kind of its own.
     // 60: an emote past the hotbar byte's two bits (note 740: "Aboard!"): both wheel-step bits set say the emote, and the
     //     step, follow in a byte of their own.
-    public const int Version = 60;
+    // 61: pings (note 739): a record kind of their own; the ping itself rides the intent's moves byte (bit 5).
+    public const int Version = 61;
 }
 
 public enum MessageType : byte

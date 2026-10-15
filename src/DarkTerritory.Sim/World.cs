@@ -116,6 +116,13 @@ public sealed partial class World
     /// <summary>How long an emote lasts, and how soon another may follow (player.json emotes; the host sets it).</summary>
     public EmoteTuning EmoteTuning { get; set; } = new();
     /// <summary>
+    /// The crew's pings lately (GDD §12, note 739): the host's, each kept <see cref="PingTuning.Seconds"/> and replicated, so
+    /// the crew see it; the bots take them as orders (<see cref="Bots.CrewCalls"/>).
+    /// </summary>
+    public List<PingEvent> Pings { get; } = new();
+    /// <summary>How long a ping shows and what it reaches (player.json pings; the host sets it).</summary>
+    public PingTuning PingTuning { get; set; } = new();
+    /// <summary>
     /// Lamp signals lately (GDD §12; note 720): the host's, each kept <see cref="LampSignalTuning.Seconds"/> and replicated, so
     /// the crew see the lamp's motion and the bot driver reads it.
     /// </summary>
@@ -1684,6 +1691,21 @@ public sealed partial class World
             Emotes.Add(new EmoteEvent(_nextFx, Tick, playerId, intent.Emote));
             _nextFx = _nextFx % 0xFFFFFF + 1;
         }
+        // A ping (note 739): what the pinger's looking at, for the crew to see and a bot to take. Not while held, not at a gun
+        // (the button's the push there), not on top of the last.
+        if (Hosting && intent.Moves.HasFlag(PlayerMoves.Ping) && !_pingWas.Contains(playerId) && s.Alive && !s.Has(PlayerFlags.Held)
+            && !s.Has(PlayerFlags.Seated) && Guns.MannedGun(s, Train, Combat?.Guns ?? DefaultGun) is null && !Pings.Any(p => p.By == playerId && (Tick - p.Tick) * SimConstants.TickSeconds < PingTuning.Cooldown)
+            && Player.Pings.Resolve(this, s, PingTuning) is { } ping)
+        {
+            // One standing ping a pinger on a thing: pinging it again moves nothing, pinging something else adds another.
+            Pings.RemoveAll(p => p.By == playerId && p.Kind == ping.Kind && p.Target == ping.Target);
+            Pings.Add(new PingEvent(_nextFx, Tick, playerId, ping.Kind, ping.Target, ping.At));
+            _nextFx = _nextFx % 0xFFFFFF + 1;
+            // The controls pinged by whoever holds them: they let them go, for a bot to come and take (GDD §12, note 739).
+            if (ping.Kind == PingKind.Cab && ControlsHolder == playerId)
+                HoldControls(-1, false);
+        }
+        if (intent.Moves.HasFlag(PlayerMoves.Ping)) _pingWas.Add(playerId); else _pingWas.Remove(playerId);
         // A lamp signal (note 720): given with a hand lamp in the fist, seen by the crew. Not while held, not on top of the last.
         if (Hosting && intent.Signal != LampSignal.None && s.Alive && !s.Has(PlayerFlags.Held)
             && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Lamp, Stashed: false }
@@ -1779,6 +1801,8 @@ public sealed partial class World
         double pair = Train.Dynamics.Tuning.Repair.PairRate;
         return pair > 1 && _jobsThen.Any(j => j.Kind == kind && j.Vehicle == vehicle && j.Player != player) ? pair : 1;
     }
+    // Who had the ping held last tick (note 739): a ping's made on the press.
+    readonly HashSet<int> _pingWas = new();
 
     /// <summary>
     /// A tool's swing (App. C.2): the nearest thing in front within reach that can be struck takes a blow. The host decides,
@@ -1859,6 +1883,7 @@ public sealed partial class World
             Hits.RemoveAll(h => Tick - h.Tick > keep.KeepSeconds * SimConstants.TickRate);
             Swings.RemoveAll(w => Tick - w.Tick > keep.KeepSeconds * SimConstants.TickRate);
             Emotes.RemoveAll(e => Tick - e.Tick > EmoteTuning.Seconds(e.Kind) * SimConstants.TickRate);
+            Pings.RemoveAll(e => Tick - e.Tick > PingTuning.Seconds * SimConstants.TickRate);
             Signals.RemoveAll(e => Tick - e.Tick > VoicesTuning.LampSignals.Seconds * SimConstants.TickRate);
             Impacts.RemoveAll(i => Tick - i.Tick > keep.ImpactKeepSeconds * SimConstants.TickRate);
             News.RemoveAll(e => Tick - e.Tick > NewsTuning.Seconds * SimConstants.TickRate);
@@ -2752,8 +2777,12 @@ public sealed partial class World
 
     /// <summary>Client side: the host's recent hits and impacts (T121), as the snapshot has them.</summary>
     public void MirrorHits(IEnumerable<HitConfirm> hits, IEnumerable<CannonImpact> impacts, IEnumerable<SwingEvent>? swings = null,
-        IEnumerable<EmoteEvent>? emotes = null, IEnumerable<Sim.Run.NewsEvent>? news = null, IEnumerable<SignalEvent>? signals = null)
+        IEnumerable<EmoteEvent>? emotes = null, IEnumerable<Sim.Run.NewsEvent>? news = null, IEnumerable<SignalEvent>? signals = null,
+        IEnumerable<PingEvent>? pings = null)
     {
+        Pings.Clear();
+        if (pings is not null)
+            Pings.AddRange(pings);
         News.Clear();
         if (news is not null)
             News.AddRange(news);
