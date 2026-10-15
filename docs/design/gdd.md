@@ -850,6 +850,7 @@ Step inside and the ground starts rumbling under it. Anyone still inside when th
 Strands hanging from the ceiling, glistening in the lamp.
 > **RULE: don't touch the strands.**
 Walk into a strand and it has you, hauling you up it until your feet leave the floor. A friend prises you free, or a blow makes it let go.
+*(The director, 13 Oct 2026, from the creature gym, App. F.5: "I was pulled up by a hanger despite not seeing one at all or not having any telegraph".)* The strands are plain to see in a dim house, finger-thick and glinting, a bead at each end. With anyone in its house, they quiver: that's its tell, before anyone touches one.
 
 ### STRUCTURAL — attack how you run the train
 
@@ -2942,7 +2943,7 @@ genre ... It's extremely important that friends exceeds our target meaningfully.
 - The Householder grabbed the director, and the death said "seized by the Choir". *Open.*
 - The abandoned villages' houses don't seem to have doors, though there's an open and shut prompt and a collider. A house's doors and windows need to shut and be escapable, so the house can show what it's about to do. *Open; design change → the Hollow House (§21).* (The director named the Householder; the doors slamming shut one after another are the Hollow House's tell.)
 - The house that should come down didn't: the model doesn't collapse. *Open.* (The Hollow House.)
-- Pulled up by a Hanger without seeing one, and with no tell. *Open.*
+- Pulled up by a Hanger without seeing one, and with no tell. *In progress (queue #415, ARCHITECTURE §8 note 683): the strands drawn to read in a dim house, and quivering while anyone's in its house (§21); its sounds (hanger.md §4) are the audio chat's.*
 
 **Decided** (the director, 13 Oct 2026):
 - A lone player's struggle is a chance, at best 15% (raised to a coin flip on 14 Oct, note 737), and what held them doesn't vanish; while held, Use is the struggle's alone (App. C.1).
