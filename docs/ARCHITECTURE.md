@@ -898,6 +898,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [727. The mail catch (K1, queue #461; the director, 14 Oct 2026, GDD App. F.6)](notes/727.md)
 - [728. The sense table, and thrown things do what they are (K1, queue #462; the director, 14 Oct 2026, `docs/design/friendslop.md`, GDD App. F.6;…](notes/728.md)
 - [729. The handcar (K1, queue #463; the director, 14 Oct 2026, `docs/design/friendslop.md`, GDD App. F.6)](notes/729.md)
+- [730. Odd outcomes to find (K1, queue #464; the director, 14 Oct 2026, `docs/design/friendslop.md`, GDD App. F.6)](notes/730.md)
 - [731. Painted masks (K1, queue #465; the director, 14 Oct 2026, `docs/design/friendslop.md`, GDD App. F.6)](notes/731.md)
 - [732. Sound cues in the world: what waits in a house, what's about to go, what's been hit (K1, queue #466; the director's calls of 14 Oct 2026,…](notes/732.md)
 - [733. The friendslop audit and the director's calls of 14 Oct (K1, queue #467)](notes/733.md)

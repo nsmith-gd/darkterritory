@@ -933,6 +933,8 @@ public sealed partial class World
             Train.Walls.Lock(Run.LockedDoors());
         }
         Train.Walls = ClearSiteWork(Train.Walls);
+        // Note 730: the night's odd things at the stops, from the route alike on every machine.
+        EnableOddities(tuning, route);
         Authority |= authority;
     }
 
@@ -1641,8 +1643,10 @@ public sealed partial class World
         bool lever = Authority && Switches?.InReach(s, Train, Hand) is not null;
         // Note 719: the kit in hand at a jackpot house's locked door is picking its lock, not being put down.
         bool atLock = kit && DoorInReach(s) is { } lockedDoor && Train.Walls!.Locked(lockedDoor.Key);
+        // Note 730: a find or a toy in hand at a village's well goes down it on a press of Use, not onto the ground.
+        bool welling = Authority && WellDropAct(s, intent, playerId);
         bool handsTookIt = Authority && Bodies.Handle(ref s, intent, playerId, Train, Hand,
-            keep: kit && (breaching || atLock || CrewActions.AtTheRupture(s, Train, Hand)) || charging, lever: lever, fetch: fetch, patient: patient);
+            keep: kit && (breaching || atLock || CrewActions.AtTheRupture(s, Train, Hand)) || charging || welling, lever: lever, fetch: fetch, patient: patient);
         if (charging && gunTuning is not null)
             Charge(s, intent, playerId, gunTuning);
         if (handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } lifted)
@@ -1655,6 +1659,9 @@ public sealed partial class World
         if (Authority && !WineAct(ref s, intent, playerId, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null))
             DoorAct(s, intent, playerId, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null, picks: picks && !handsTookIt);
         JacobAct(s, intent, playerId);
+        // Note 730: the odd things that answer a held Use (the bell rope, Dave's painting, a wash at a well, a postbox).
+        if (Authority)
+            OddAct(ref s, intent, playerId, emptyHanded: !handsTookIt && Bodies.CarriedBy(playerId) is null);
         // A healing find used up in the hands this tick (GDD App. F.1; note 272): its health back, up to full.
         if (Authority && Bodies.TakeDose(playerId) is > 0 and var dose && s.Alive)
             s.Health = Math.Min(Bodies.FullHealth, s.Health + dose);
@@ -1983,6 +1990,7 @@ public sealed partial class World
             Cues.RemoveAll(c => Tick - c.Tick > SoundCuesTuning.KeepSeconds * SimConstants.TickRate);
         }
         BeginHorseplay((Combat?.Hits ?? new HitTuning()).KeepSeconds);
+        BeginOddities();
         if (Hosting)
             TellNews();
         Train.Partings.Clear();
@@ -2994,6 +3002,8 @@ public sealed partial class World
         }
         // Horseplay (note 717): the lumps in flight land, and this tick's shoves, bumps, coal and bonks are put on whom they found.
         StepHorseplay(get, set);
+        // Note 730: the odd outcomes' happenings come due, the cans, the scarecrows, the chute's soot, a lurch on the blades.
+        StepOddities(get, set, crew);
         // Held this tick (App. A.1 GRAB): their feet are the thing's; carried off, they go where it goes.
         if (Authority)
             foreach (int id in crew)
