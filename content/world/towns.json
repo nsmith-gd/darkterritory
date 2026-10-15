@@ -698,7 +698,10 @@
       "Mind the gap. That's a joke from before. It isn't one now.",
       "Something in your third car's knocking. Probably the load. Probably.",
       "Trunks come back without owners all the time. Had an owner come back without a trunk. That was worse.",
-      "I don't open what's left behind. I weigh it. Some of it weighs different in the morning." ] },
+      "I don't open what's left behind. I weigh it. Some of it weighs different in the morning.",
+      "The siding's points came up the year we shut the gate. What's in it stays in it. That's the yard's whole business now.",
+      "I weigh the carts out and I weigh them back. If it doesn't match, I write the difference down. I don't ask what it was.",
+      "We pack for the towns down the line every week. Some haven't answered in years. You don't stop packing for people." ] },
     "driver": { "title": "old driver", "lines": [
       "Drove the {other} road nineteen years. Never stopped for anything on the line. That's the whole trick.",
       "Watch the bends on your map, not the bends in front of you. In front of you is too late.",
@@ -1089,6 +1092,30 @@
       { "kind": "watertower", "title": "the water tower", "text": "The town's water, from the well under the square, pumped up by hand at every bell. A waterline is painted round the tank, and under it, in white: ENOUGH." }
     ]
   },
+
+  // A walled town's rail yard behind the home platform (queue #239, note 502; GDD §3 "rail yards and warehouses"): its pieces
+  // in order from the gate end, each fronting the siding ("across": how much further back from it; "after": room left beside
+  // it toward the yard's rear end, the weighbridge's plate); the buffer stops at the siding's gate end and its rear end.
+  "yard": [
+    { "kind": "yardoffice", "title": "the yard office", "text": "The yard clerk's lamp is lit all night. On the wall, the timetable from before: every train on it ticked off as arrived, in the same pencil, in the same hand, right up to tonight's. The 4.10 from the coast is ticked. The coast hasn't answered in nine years.", "across": 3 },
+    { "kind": "weighbridge", "title": "the weighbridge", "text": "An iron plate let into the ground, the weigh house beside it. Every cart out to the wall is weighed going and weighed coming back. The ledger in the window has three columns: OUT, IN, and one with no heading. Some rows have a number in the third column. Those are circled.", "across": 6, "after": 8 },
+    { "kind": "goodsshed", "title": "the goods shed", "text": "Where the town's goods wait for the train. Chalked on the boards inside, what's to go out: nails, salt fish, twelve chairs, one crate the council packed itself. Three doors onto the dock: one open, one half across, one barred from the outside. The barred one has a date chalked on it, and nothing after." },
+    { "kind": "freight", "title": "freight for the train", "text": "Crates and sacks stacked at the siding's edge, tagged for the train in the clerk's hand. Tinned fish. Lamp oil. Blankets, for a town down the line that stopped answering in the spring. They pack its share every week anyway.", "across": 0.6 },
+    { "kind": "goodsshed", "title": "the old goods shed", "text": "The first shed, from before the wall. Nothing's loaded from it now. Inside, sacks addressed to towns nobody here has heard of, and nobody will open them: they aren't ours, the clerk says. One in the corner has been opened. From the inside." },
+    { "kind": "freight", "title": "freight for the train", "text": "The town's letters in bundles, tied with string, each bundle labelled for the town it's going to. The top one is labelled {town}. Somebody here writes to this town, from this town, every week.", "across": 0.6 },
+    { "kind": "cart", "title": "a handcart", "text": "A cart with its shafts down, half loaded. There was a horse for the carts once; the old ones tell the children about it like a story. The town pulls its carts by hand now, six to a cart, and they sing to keep in step, always the same song, and never the last verse.", "across": 4 },
+    { "kind": "sleepers", "title": "old sleepers", "text": "Sleepers from the siding's far end, taken up and stacked crossways to dry, for the fires. Each has had the number cut out of its end. The numbers are kept in a box in the yard office, in order, with a gap where one's missing.", "across": 5 },
+    { "kind": "buffers", "title": "the buffer stop", "text": "A beam of old sleepers on two posts, painted white once. Past it the rails run on a few yards and stop, cut clean. There were points here that joined the line. They were lifted the winter the town shut its gate, so that nothing standing in the siding could ever be sent anywhere." },
+    { "kind": "buffers", "title": "the buffer stop", "text": "Its beam is split, and the end of the stock nearest it is dented to match. Whatever pushed it pushed from the open end of the siding. There's no engine in the town." }
+  ],
+  // What can be left standing in a rail yard's siding (note 502): a van or a flat wagon, facing along it.
+  "stock": [
+    { "kind": "van", "title": "a van", "text": "A goods van that came in on the last train from the north and was put in the siding to wait for the next. Its seals are still on. The clerk checks them every morning and writes CORRECT in the book." },
+    { "kind": "van", "title": "a van", "text": "Its door chalked with where it was going, a line through that, and where it's going now: NOWHERE, NOT YET. Inside, the town's spare boots in pairs, laced together, the smallest at the back." },
+    { "kind": "van", "title": "a van", "text": "Shut and wired, and painted on its side in white: DO NOT OPEN UNTIL CALLED FOR. Nobody has called for it. In the cold you can hear something inside it settle, like a load shifting." },
+    { "kind": "flatdory", "title": "a flat wagon", "text": "A flat wagon with a dory lashed down on it, her name painted out. She was going to the coast, to be some family's boat. Rain collects in her. Somebody bails her out every week." },
+    { "kind": "flatrails", "title": "a flat wagon", "text": "New rails chained down on a flat wagon, meant to mend the line past the wall. They were never sent. The children aren't let play on it. They say the rails are warm at night." }
+  ],
 
   // What the people of a walled town say of living inside it.
   "walled": [

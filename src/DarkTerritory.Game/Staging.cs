@@ -242,6 +242,23 @@ public static partial class Staging
                 _ => Ballast.Render.Camera.LookAt(town.World(ws - 24, works.Side * (works.Near - 2.5), 1.8), town.World(ws + 6, wd, 8), 74),
             };
         }
+        // A walled town's rail yard (note 502): from the platform down it, from over the line across it, at the goods shed from
+        // the platform, and down its siding from the buffer stop at its gate end.
+        if (plan.Yard is { } ry && (where is "railyard" or "railyardover" or "siding" || Art.YardKit.Draws(where)))
+        {
+            int ys = ry.Side;
+            // A piece of it by its kind, seen from the platform's back: the first of them from the gate end.
+            if (plan.Fixtures.Where(f => f.Kind == where && ry.Holds(f.S, f.D)).MaxBy(f => f.S) is { } f)
+                return where == "goodsshed"
+                    ? Ballast.Render.Camera.LookAt(town.World(f.S + 16, ys * 8.5, 2.2), town.World(f.S - 2, f.D, 3.2), 70)
+                    : Ballast.Render.Camera.LookAt(town.World(f.S + 7, ys * 8.6, 2.1), town.World(f.S, f.D, 1.2), 70);
+            return where switch
+            {
+                "railyardover" => Ballast.Render.Camera.LookAt(town.World(ry.S1 + 25, -ys * 8, 42), town.World((ry.S0 + ry.S1) / 2 + 20, ys * 22, 0), 66),
+                "siding" => Ballast.Render.Camera.LookAt(town.World(ry.Siding1 - 1.5, ys * (ry.SidingD - 2.2), 1.7), town.World(ry.Siding1 - 45, ys * (ry.SidingD + 1), 1.6), 72),
+                _ => Ballast.Render.Camera.LookAt(town.World(ry.S1 + 4, ys * 8.6, 2.0), town.World(ry.S1 - 60, ys * (ry.SidingD + 5), 2.2), 74),
+            };
+        }
         // A walled town's yards (note 335): behind a house with things in its yard, and out on a street at a picket fence.
         if (where is "yard" or "fence" or "yardtop")
         {

@@ -27,6 +27,8 @@ public static partial class TownGenerator
         public TownGreen? Green;
         /// <summary>A walled town's works, across the line from the green (note 353).</summary>
         public TownWorks? Works;
+        /// <summary>A walled town's rail yard, behind the home platform (queue #239, note 502).</summary>
+        public TownYard? Yard;
         readonly Dictionary<int, (TownHousehold Household, Dictionary<string, string> Vars, Dictionary<string, Queue<string>> Lines)> _open = [];
 
         public void Open(int house, TownHousehold household, Dictionary<string, string> vars, Pcg32 rng)
@@ -76,6 +78,15 @@ public static partial class TownGenerator
     const double OpenNarrowest = 5.4;
     /// <summary>How far turned a lot an open house may stand square on (rad; note 692), when there aren't square lots enough.</summary>
     const double OpenTurn = 0.15;
+
+    /// <summary>
+    /// The home platform (WorldFeatures.Fortress, StructureKit.PlatformBay): where it starts along the line, and its back out
+    /// from the line (m). Not design numbers: where the platform's bays are drawn.
+    /// </summary>
+    const double PlatformFrom = 60, PlatformBack = 10;
+
+    /// <summary>The least a rail yard runs along the line, else a walled town has none (m): a goods shed and its siding.</summary>
+    const double YardLeast = 60;
 
     static Homes Houses(TownContent content, TownSite site, TownSquare square, int population, int former, Func<string, Pcg32> rngFor,
         TownFolk? folk = null, TownForms.Layout? form = null)
@@ -144,11 +155,16 @@ public static partial class TownGenerator
         // The streets bend (note 353; the director, 8 Oct: "Towns dont feel like they have a natural layout to them"): each
         // side's on one wave, more for each street out, so the rows between them keep their room; straight by the square
         // and its green. And a house stands back from its street by a little more or less than the next.
+        // The rail yard's stretch (queue #239, note 502): behind the home platform, from yardBefore short of the square to its
+        // gate end, clear of the quiet house; the platform side's streets run straight beside it, as the railway ruled them.
+        double yardFrom = Math.Max(Math.Max(s0, PlatformFrom), square.S0 - wt.YardBefore);
+        double yardTo = Math.Min(square.S1, site.Gate - QuietIn - 3 - wt.YardGap);
+        bool railYard = yardTo - yardFrom >= YardLeast && population >= wt.YardPeople;
         var brng = rngFor("houses.bends");
         var waves = new Dictionary<int, TownWave>();
         foreach (int sd in new[] { side, -side })
             waves[sd] = new TownWave(brng.Range(0, 400), brng.Range(wt.BendWavelength[0], wt.BendWavelength[1]),
-                square.S0 - wt.BendClear, square.S1 + wt.BendClear, 40);
+                (sd == -side && railYard ? Math.Min(square.S0, yardFrom) : square.S0) - wt.BendClear, square.S1 + wt.BendClear, 40);
         double Amp(int k) => k <= 0 ? 0 : Math.Min(wt.BendMax, wt.BendBase + wt.BendStep * (k - 1));
         // How far out from straight the k-th street (and its rows) is at s, on side sd (0 for the line's own row).
         double Swing(int sd, int k, double s) => k <= 0 ? 0 : Amp(k) * waves[sd].At(s);
@@ -159,7 +175,9 @@ public static partial class TownGenerator
             // Lanes across, the ways from the line out to the streets: never through the square (its buildings back onto
             // where its far wall was) or the works across the line from it, so one that would be is moved to just past
             // them. The line's own row leaves them clear.
-            double sqFrom = Math.Min(square.S0 - 6, worksFrom) - wt.LaneWidth / 2, sqTo = Math.Max(square.S1 + 6, worksTo) + wt.LaneWidth / 2;
+            // Nor through the rail yard behind the platform (note 502).
+            double sqFrom = Math.Min(Math.Min(square.S0 - 6, worksFrom), railYard ? yardFrom : double.MaxValue) - wt.LaneWidth / 2;
+            double sqTo = Math.Max(square.S1 + 6, worksTo) + wt.LaneWidth / 2;
             var laneAt = new List<double>();
             for (double s = s0 + lrng.Range(wt.LaneEvery[0], wt.LaneEvery[1]); s < s1 - wt.LaneEvery[0] / 2; s += lrng.Range(wt.LaneEvery[0], wt.LaneEvery[1]))
             {
@@ -246,11 +264,16 @@ public static partial class TownGenerator
                             break;
                         double mid = s + lot / 2;
                         bool lane = InLane(mid, lot, sd, row);
-                        bool inSquare = sd == side && mid > square.S0 - 6 && mid < square.S1 + 6 && Math.Abs(d) - depthMax / 2 < Math.Abs(square.WallD) + 3;
+                        // (A lot reaching into the square's ends is in it too, however far its middle is: its house's wing could
+                        // stand in the square.)
+                        bool inSquare = sd == side && (mid > square.S0 - 6 && mid < square.S1 + 6 || mid + lot / 2 > square.S0 && mid - lot / 2 < square.S1)
+                            && Math.Abs(d) - depthMax / 2 < Math.Abs(square.WallD) + 3;
                         // The green (note 353): the first street's far row and the next street's near one, across from the square.
                         bool onGreen = sd == side && row is 2 or 3 && mid + lot / 2 > square.S0 + GreenIn && mid - lot / 2 < square.S1 - GreenIn;
                         // The works (note 353): the same rows on the line's other side, a little past the square's ends.
                         onGreen |= sd == -side && row is 2 or 3 && mid + lot / 2 > worksFrom && mid - lot / 2 < worksTo;
+                        // The rail yard (note 502): the first street's near row on the platform's side, behind the platform.
+                        onGreen |= railYard && sd == -side && row == 1 && mid + lot / 2 > yardFrom && mid - lot / 2 < yardTo;
                         double back = jrng.Range(wt.SetbackJitter[0], wt.SetbackJitter[1]);
                         if (!lane && !inSquare && !onGreen)
                             lots.Add((Math.Round(mid, 3), d + sd * Swing(sd, count, mid) + facing * back, facing, lot, row));
@@ -269,6 +292,10 @@ public static partial class TownGenerator
                 count > 1 ? wt.First + wt.Every - wt.Width / 2 : reach - wt.Margin, side);
             homes.Works = new TownWorks(worksFrom, worksTo, wt.First + wt.Width / 2,
                 count > 1 ? wt.First + wt.Every - wt.Width / 2 : reach - wt.Margin, -side, site.Industry);
+            // Its siding's buffer stops a margin in from the yard's ends, a buffer stop's depth further (TownFixtures "buffers").
+            if (railYard)
+                homes.Yard = new TownYard(yardFrom, yardTo, PlatformBack, wt.First - wt.Width / 2, -side, wt.YardSiding,
+                    yardFrom + wt.YardMargin + 1, yardTo - wt.YardMargin - 1);
         }
         if (form is not null)
         {
