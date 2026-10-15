@@ -83,6 +83,7 @@ public sealed class HostSession
             World.Hand = value.Hand;
             World.Movement = value;
             World.EmoteTuning = value.Emotes;
+            World.PingTuning = value.Pings;
             World.NewsTuning = value.News;
             World.Bodies.FullHealth = value.Health; // a healing find is used only short of it (note 272)
         }

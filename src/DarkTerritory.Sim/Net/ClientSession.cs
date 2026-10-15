@@ -73,6 +73,7 @@ public sealed class ClientSession
         World = world;
         // How long the host keeps an emote is how long it's drawn (note 298).
         world.EmoteTuning = playerTuning.Emotes;
+        world.PingTuning = playerTuning.Pings;
         world.NewsTuning = playerTuning.News;
         // Clients mirror enemies; only the host simulates them.
         _transport = transport;
