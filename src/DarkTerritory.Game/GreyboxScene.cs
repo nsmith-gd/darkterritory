@@ -132,8 +132,10 @@ public sealed partial class GreyboxScene
     /// "small glowing machine in an enormous black world, going dark").
     /// </summary>
     public bool RoofGlow { get; set; }
-    /// <summary>How far ahead the lamp makes a board out (sight.json lampSignRange).</summary>
+    /// <summary>How far ahead the lamp makes a board out (sight.json lampSignRange, times the headlamp's reach).</summary>
     public double SignRange { get; set; } = new SightTuning().LampSignRange;
+    /// <summary>The headlamp's reach (train.json <c>headlampReach</c>, note 506): the beam drawn that much longer.</summary>
+    public double LampReach { get; set; } = 1;
     /// <summary>The line's boards (sight.json). Unset on a route, they're worked out from it with the default tuning.</summary>
     public IReadOnlyList<Sign>? Signs { get; set; }
     /// <summary>Live enemies to draw. When set, the route's Sleepers come from here rather than its features.</summary>
@@ -599,7 +601,8 @@ public sealed partial class GreyboxScene
             // The art pass's effects (Art/Effects): smoke, steam, sparks, the lamp's beam, and fog banks along the line.
             Look.Art.Effects.Train(mesh, frames, eye, Time, Controls, FireGlow, Emergency, Venting && !Ruptured, SafetyValve && !Ruptured,
                 frames.Count == 0 ? default : Look.Art.BiteOf(frames[^1].Shape, Vehicles is { } fleet && frames[^1].Index < fleet.Count ? fleet[frames[^1].Index] : null, frames[^1].Index),
-                whistle: !Ruptured && (CordPulled || Enemies?.Any(e => e is Sim.Enemies.Whistler { Whistling: true } && !e.Gone) == true), dead: Ruptured, lamp: LampLit);
+                whistle: !Ruptured && (CordPulled || Enemies?.Any(e => e is Sim.Enemies.Whistler { Whistling: true } && !e.Gone) == true), dead: Ruptured, lamp: LampLit,
+                reach: (float)LampReach);
             // (And the crew on a straining car stumble: SceneArt.Crewmate, drawn after.)
             Look.Art.BendStrain = BendStrain;
             if (BendStrain is { } bends)
@@ -1784,7 +1787,7 @@ public sealed partial class GreyboxScene
                         if (burnt[i] > 0)
                         {
                             var (at, along, across, normal) = Patch(car, grid, i);
-                            Art.Effects.Char(mesh, at, along, across, normal, burnt[i] / (float)((1 << Sim.Enemies.CarFire.Bits) - 1), car.Index * 131 + i);
+                            fx.Char(mesh, at, along, across, normal, burnt[i] / (float)((1 << Sim.Enemies.CarFire.Bits) - 1), car.Index * 131 + i);
                         }
         foreach (var e in Enemies ?? [])
         {

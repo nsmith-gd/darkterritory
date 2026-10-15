@@ -107,7 +107,11 @@
   // 681). Then raised to a coin flip (the director's playtest, 14 Oct: "hold the struggle when playing solo really should
   // have a higher rate of success. Damn, yeah, run lost"; note 737): 0.15 to 0.5. soloStruggle is shorter than every
   // creature's hold (the Householder's grabSeconds, 6, the shortest), so the try comes before the kill.
-  "grab": { "pullReach": 1.6, "soloStruggleOn": true, "soloStruggle": 4, "soloStruggleChance": 0.5 },
+  // In a crew, a held player with no living crewmate within crewStruggleBeyond m (proximity voice's reach: nobody near enough
+  // to hear and come) can struggle the same way, at crewStruggleChance: lower than alone's, since a friend may still come
+  // (the audit's R3, the director, 14 Oct: "Approved for Grabbed"; note 756). crewStruggleBeyond 0: alone only, as before.
+  "grab": { "pullReach": 1.6, "soloStruggleOn": true, "soloStruggle": 4, "soloStruggleChance": 0.5, "crewStruggleBeyond": 26,
+    "crewStruggleChance": 0.2 },
 
   // App. C.2 melee with train tools: the shovel, the crowbar and the wrench (GDD §12, §1322) swing; enemy health below is in
   // blows of the crowbar, the tool everyone starts with (player.json kit). App. C.2: "the boiler player's shovel doubling as
@@ -781,9 +785,11 @@
 
   // FOLLOWERS · scent · outside (App. A.6, B.6). Latches onto a player's back over latchSeconds on facility grounds; off
   // the train, it crawls at crawlSpeed to the car with the most loot and nests over nestSeconds, then eats eatPerSecond.
+  // Aboard, it drops off its host's back to the floor under it first, falling at dropGravity (player.json's gravity: it
+  // falls as anything does), about half a second, before it crawls (note 504).
   "followers": {
     "latchSeconds": 3, "crawlSpeed": 0.8, "nestSeconds": 60, "eatPerSecond": 0.003, "health": 1, "nestHealth": 3,
-    "lingerSeconds": 900, "maxActive": 2, "perGroundWeight": 1
+    "lingerSeconds": 900, "maxActive": 2, "perGroundWeight": 1, "dropGravity": 9.81
   },
 
   // THE PASSENGER · absence · corrupted (App. A.8, B.8). Boards at a facility and walks at walkSpeed; a player alone
@@ -994,8 +1000,9 @@
     // the crew active now, not the crew the night started with, so a crew that's lost players spends like the smaller crew
     // it is (the relief valve's alive-share squared still applies on top). on: the engaged cap is the least of App. B.1's flat
     // cap (maxConcurrentSmallCrew / LargeCrew), ceil(active × engagedPerActive) and perPlayer × active, and at least 1: 1 at
-    // crew 1, 2 at crew 2, 3 at crew 3 and 4, 6 at crew 8. The hound run (below) waits while the crew is at it, so a crew of
-    // one never meets two things at once. The left-behind's hunts and the Stoker stay outside it, as before.
+    // crew 1, 2 at crew 2, 3 at crew 3 and 4, 6 at crew 8 (on a train shorter than longTrainCars; from it, two each, below:
+    // a crew of one on 8 cars or more can meet two things at once, note 647). The hound run (below) waits while the crew is
+    // at the cap. The left-behind's hunts and the Stoker stay outside it, as before.
     "orchestrator": {
       "on": true, "liveCrew": true, "engagedPerActive": 0.75, "perPlayer": 1,
       // A longer train has more of the crew under a threat at once (note 646; the director, 9 Oct: "Scale by both"):
@@ -1025,13 +1032,32 @@
       "census": true, "minCrew": 2, "onRadius": 20, "drivingAbove": 0.5, "slackWeight": 2, "emptyPostWeight": 0.5, "emptyPostExempt": ["trackDoll"],
       "minSlack": 30, "slackPress": 150, "slackPerSecond": 0.05, "perTarget": true,
       // Which post answers what (orchestrator.md §3.1's table), by the names in "costs" (carFire: the trouble in the cars).
+      // Note 753 filled in the seven App. A's later creatures had no row for: the Gannet dives on whoever walks the roofs, the
+      // Brakeman is chased along them, the Knotter is the coupling (walked, and killed at a stand), all the walkers'; Hotbox
+      // is the walkers' on the run and the ground's at a stand (prised out of its truck from beside it); the Moose, Tower Jaw
+      // and the Freight Beetle are met on the ground.
       "answers": {
         "cab": ["trackDoll", "switchman", "stoker"],
         "gunner": ["cinderHounds", "climbers", "trackDoll", "switchman"],
-        "walker": ["climbers", "draggers", "fireFlies", "whistler", "carHugger", "cinderHounds", "carFire"],
+        "walker": ["climbers", "draggers", "fireFlies", "whistler", "carHugger", "cinderHounds", "carFire", "gannet", "brakeman", "knotter", "hotbox"],
         "rider": ["tippyToesie", "fireFlies", "passenger", "carHugger", "carFire"],
-        "ground": ["ribbits", "gaunt", "followers", "sootChildren", "grumbler"]
-      }
+        "ground": ["ribbits", "gaunt", "followers", "sootChildren", "grumbler", "moose", "towerJaw", "freightBeetle", "hotbox"]
+      },
+      // The census reads commitment (note 753; the audit's R5 and §7; orchestrator.md §3.1 4, §3.2 6; GDD App. B.1 "The
+      // orchestrator"). commitment: each crewmate counted is committed while their hands hold them to a job: at a crane's
+      // controls, carrying something heavy, a timed Use job under way (grease, a coupling tightened, a breach boarded, a mend,
+      // the shovel), seated at a gun mid-reload or clearing its bore, on one of a stop's modules (a winch handle, a lever, the
+      // herd, a crane's rigging), or breaking into a Holdout; read at stops as on the run (the census counts there; only slack
+      // waits for the run). And "facilityLoading" in the conflict table is then the loading going on (the machinery running,
+      // or a crewmate on a module), not only stood at the facility. With census steering (minCrew 2 or more): a kind that
+      // would come at or near a committed crewmate with nothing on them yet (their own post answers it, or it comes to a post
+      // that does within committedNearM m of them) and that a free crewmate's post answers within collisionReachM m of them
+      // weighs ×collisionWeight: the free one chooses between their post and their friend's job. Free: nothing on them, not
+      // committed, not left behind. Never with nobody free in reach. Only which kind, never when or how many. false: as
+      // before (collisionWeight 1 turns only the weight off).
+      // pairRepeat: a conflict pair made tonight weighs ÷pairRepeat for each time it's been made, when it would be made again
+      // (seed 2 frontier drew whistler+facilityStop three times); 1: off.
+      "commitment": true, "collisionWeight": 1.75, "committedNearM": 20, "collisionReachM": 60, "pairRepeat": 2
     },
     // Note 327 (GDD App. F.3, the director, 7 Oct 2026: "ideally, we want people to be feeling like when they leave, there is
     // this presence of threat at all times"). Not in the spec. A crewmate alive on the ground further than fromTrainM (m) from
@@ -1117,7 +1143,18 @@
     "incidentWeight": 0.5,
     // ...at full weight with this many hands besides the driver, proportionally less with fewer (a crew of two: a third).
     "incidentFullCrew": 3,
+    // (incidentWeight and incidentFullCrew are v1.1's in-car incidents' and are read by nothing yet: note 751.)
+    // GDD App. B.1 "Facility lull" (note 751): the first facilityLullSeconds the train stands at a facility, the director
+    // sends nothing of its own (calm on arrival; the pressure builds through it). Once a facility: shunting its yard doesn't
+    // start it again. 0: none.
     "facilityLullSeconds": 20,
+    // GDD App. B.1 "Aftermath" (note 751; the director, 14 Oct 2026: "The breathing room is good. Don't necessarily want a
+    // lot of it though"): after one of events the director sends nothing of its own for seconds, pressed or not (the
+    // pressure builds through it). death: a crewmate who was alive is dead; carLost: cars the engine lost that the crew are
+    // told of (note 663's news; a cut at a stand isn't one); rescue: a grab let go with the one held alive and not punished
+    // (a friend's pull or blow, or their own struggle); holdoutFreed: someone broken out of a Holdout. Short on purpose.
+    // on false: none, as before.
+    "aftermath": { "on": true, "seconds": 12, "events": ["death", "carLost", "rescue", "holdoutFreed"] },
     // GDD App. B.1 "Post-event cooldown" (design decision, 2026-10): the least trough after a spawn; the pressure's relief
     // makes the rest of it, and well past the threshold (pressAt) it gives way.
     "cooldownSeconds": [25, 45],
@@ -1156,7 +1193,8 @@
       "wreckYard": { "draggers": 3, "gaunt": 2 }
     },
     // App. B.1 "contradiction seeding": the v1.1 conflict table, as the tuning's names (and conditions: "choir", gathering or
-    // here; "grade", a climb or fall just ahead; "facilityLoading" and "facilityStop", at a facility). Ambiguity (ARCHITECTURE §8): "draws
+    // here; "grade", a climb or fall just ahead; "facilityStop", at a facility; "facilityLoading", at one with its loading
+    // going on, the machinery running or a crewmate on a module, with orchestrator.commitment, note 753). Ambiguity (ARCHITECTURE §8): "draws
     // pairs from a conflict table": read as a spawn that would complete a pair with what's there now weighing this much
     // more, and this much more again past halfway on a run short of its pairs.
     "conflicts": [

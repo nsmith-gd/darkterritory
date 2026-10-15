@@ -27,7 +27,7 @@ using CrewActs = DarkTerritory.Game.Art.CrewActs;
 //   R/F throttle notch up/down · B brake (hold) · X reverser (stopped only)
 //   E at the firebox: shovel (hold) · E at the valve: vent (hold) · E on a coupler plate: cut (hold) · E at a switch stand: throw it (hold)
 //   Left mouse at a gun (engine cab roof, guard car roof): fire · E (press) near a crate, lamp or body: pick up / put down · Right mouse: throw it
-//   1–9 respawn on that car's roof · Backspace respawn in the cab · Tab chase camera · Q (hold) the crew roster
+//   1–9 respawn on that car's roof · Backspace respawn in the cab · Tab chase camera (dead: the eyes, chase, wide and over-the-shoulder views, note 743) · Q (hold) the crew roster
 //   Esc frees the mouse; Esc again leaves the night (to the menu, or quits one started from the command line). When the
 //   night's over, Enter goes back.
 // F1 toggles the HUD (--no-hud to start without it).
@@ -936,7 +936,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Look = look,
         Route = session.Route,
         Signs = session.World.Lineside?.Signs,
-        SignRange = session.World.Lineside?.Tuning.LampSignRange ?? 350,
+        SignRange = session.World.Lineside?.SignRange(true, session.Train.Dynamics.Tuning.HeadlampReach) ?? 350,
+        LampReach = session.Train.Dynamics.Tuning.HeadlampReach,
         Enemies = session.World.ActiveEnemies,
         Hits = session.World.Hits,
         Swings = session.World.Swings,
@@ -1251,7 +1252,14 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (ride && session.Route?.Plan is { } ridden)
                 DarkTerritory.Game.LineGen.Ride.Drive(proto.Train, ridden, ref proto.Controls);
         }
-        if (Hit(Control.Chase)) chase = !chase;
+        // Dead, the view key goes round the dead's views (App. D.10, note 743); alive, it's the chase.
+        if (Hit(Control.Chase))
+        {
+            if (session.Watching >= 0)
+                session.NextDeadView();
+            else
+                chase = !chase;
+        }
         if (Pressed(Key.F1)) showHud = !showHud;
         if (Pressed(Key.F4)) cardHidden = !cardHidden;
         if (Pressed(Key.F2)) net?.ShowInviteDialog();
@@ -1493,9 +1501,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // headset stays in its own eyes; so does watching a crewmate's.
         var heldShot = outro || derailShot.Camera is not null || chase || vr is not null || session.Watching >= 0 ? null : HeldShot.For(session, frames, eyes);
         bool held = heldShot is not null;
+        // Dead, the view chosen (note 743): the crewmate's eyes, or one of the third-person views (a body's always one).
+        var deadShot = session.Watching >= 0 && vr is null && derailShot.Camera is null && !outro ? DeadViews.For(session.DeadView, session, frames, eyes) : null;
+        bool third = chase && session.Watching < 0 || deadShot is not null;
         camera = outro ? Views.Stranded(session.Train, outroTuning, session.OutroSeconds)
             : derailShot.Camera is { } sequenceCamera ? sequenceCamera
-            : chase ? Views.Get("chase", session.Train) : heldShot ?? eyes;
+            : deadShot is { } dead ? dead
+            : chase && session.Watching < 0 ? Views.Get("chase", session.Train) : heldShot ?? eyes;
         // E.9: the lamps go out down the train as the camera pulls back, and stay lit (or not) as far as it can see.
         // E.9: the outro opens on the repair kit's locker standing open and empty (note 173).
         scene.KitLockerOpen = outro;
@@ -1511,9 +1523,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // Aboard a moving train, speed is felt (GDD §31, note 709): the view widens with it (not in a headset), and the rail
         // joints and the car's sway come through, below with the shakes.
         var speedFeel = scene.Look?.Tuning.SpeedFeel;
-        if (speedFeel is not null && vr is null && !chase && !cinematic && !held && session.Watching < 0)
+        if (speedFeel is not null && vr is null && !third && !cinematic && !held && session.Watching < 0)
             camera = camera with { FovYDegrees = SpeedFeel.Fov(camera.FovYDegrees, session.Train, session.Viewpoint, speedFeel) };
-        if (!chase && !cinematic && !held)
+        if (!third && !cinematic && !held)
         {
             if (speedFeel is not null)
                 camera.Position += SpeedFeel.Offset(session.Train, session.Viewpoint, speedFeel) * settings.CameraShake;
@@ -1530,12 +1542,12 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // E.5's film draws the crew as ragdolls, its cutaway and light rig; the replay, the crew as they were (DerailSequence.Dress).
         DerailSequence.Dress(scene, derailShot, session, camera.Position, derailShot.Replay is null && derailShot.Filming is null ? session.Crew(frames, clock.Alpha) : []);
         // Behind a crewmate's eyes (App. D.10), their own figure isn't drawn round the camera.
-        if (session.Watching >= 0 && !chase)
+        if (session.Watching >= 0 && !third)
             scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id != session.Watching)];
         // You, for whatever's after you to face and reach for (note 558): not drawn.
         scene.Self = session.Self(frames, clock.Alpha);
         // Just come back inside a Holdout, you're seen getting up while the camera's on you (note 529).
-        if (session.CameBackFigure(frames, clock.Alpha) is { } risen && !chase && !cinematic)
+        if (session.CameBackFigure(frames, clock.Alpha) is { } risen && !third && !cinematic)
             scene.Crew = [.. scene.Crew ?? [], risen];
         // Held, you're in the shot (note 580).
         if (held && HeldShot.Figure(session, frames) is { } you)
@@ -1544,7 +1556,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         var carry = session.World.Bodies.Hands;
         var eyeForward = new Double3(-Math.Sin(camera.Yaw), 0, -Math.Cos(camera.Yaw));
         // Off the rails the living ride the wreck to their death (App. E.2 step 1): no hands, nothing carried, in the sequence.
-        scene.HeldHere = chase || cinematic || held || !session.Player.Alive ? null
+        scene.HeldHere = third || cinematic || held || !session.Player.Alive ? null
             : (session.PlayerId, camera.Position - Double3.Up * (Eyes.Height - carry.CarryHeight) + eyeForward * carry.CarryForward, camera.Yaw);
         // Your own arms in view (X3), and the swing you've started: a blow lasts the melee's recovery, and held, they follow
         // one another (World.Swing's cadence). A headset draws its own hands; behind a crewmate's eyes, theirs aren't yours.
@@ -1557,7 +1569,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         double swing = swingFrom >= 0 && now - swingFrom < swingSeconds ? now - swingFrom : -1;
         if (swing < 0)
             swingFrom = -1;
-        scene.Own = chase || cinematic || held || vr is not null || !me.Alive || session.Watching >= 0 ? null
+        scene.Own = third || cinematic || held || vr is not null || !me.Alive || session.Watching >= 0 ? null
             : new OwnView((float)camera.Yaw, (float)camera.Pitch, act, me.Velocity.X * me.Velocity.X + me.Velocity.Z * me.Velocity.Z > 0.16,
                 swing, session.World.OutfitOf(session.PlayerId), Kit.Held(me));
         scene.Time = now;
@@ -1573,7 +1585,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         // And the Wakers' stir behind the train before dawn (note 599).
         lighting = Views.Lighting(frames[0], look, session.World.Run is { } dawnRun && look is not null ? look.DawnOf(dawnRun.DawnIn) : 0,
-            DawnStir.Sky(session.World), DawnStir.SkyFrom(session.World, frames));
+            DawnStir.Sky(session.World), DawnStir.SkyFrom(session.World, frames), session.Train.Dynamics.Tuning.HeadlampReach);
         lighting.Time = now;
         // Lamps down (T52), or smashed: no beam.
         if (!session.World.LampShining)
@@ -1581,6 +1593,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (session.Route is { } r)
         {
             lighting.FogDensity = Views.FogDensity(r, session.Train);
+            // The dead's wide (note 743): the train in it, not a smear.
+            if (deadShot is not null && session.DeadView == DeadView.Wide)
+                lighting.FogDensity *= DeadViews.WideFog;
             lighting.Wetness = r.Weather.Wet ? 1 : 0;
             lighting.Frost = look?.Tuning.Atmosphere.Cold.Frost(r.Weather.Cold) ?? 0;
             if (look?.Tuning.Atmosphere.Wind is { } wind)

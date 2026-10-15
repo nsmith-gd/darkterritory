@@ -86,7 +86,7 @@ public class RejoinTests
         r = new NetReader(w.Written);
         r.U8();
         Assert.Equal(key, Messages.ReadHello(ref r).Key);
-        // Note 535 (protocol 60): the crew going on is given the run's key as it is, after the town; an open run's, none.
+        // Note 535 (protocol 61): the crew going on is given the run's key as it is, after the town; an open run's, none.
         var town = new Towns.TownAt("Grieve", "coal", 1234);
         Messages.WriteCarryOn(w, town, key);
         r = new NetReader(w.Written);
@@ -98,7 +98,7 @@ public class RejoinTests
         r = new NetReader(w.Written);
         r.U8();
         Assert.Null(Messages.ReadCarryOn(ref r).Key);
-        Assert.Equal(60, Protocol.Version);
+        Assert.Equal(61, Protocol.Version);
     }
 
     [Fact]

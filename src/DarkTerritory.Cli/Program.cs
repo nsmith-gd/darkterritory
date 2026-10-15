@@ -1233,13 +1233,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         run ??= new DarkTerritory.Sim.Run.Run(DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File)), generated);
         run.EnableLoot(lt, line, null);
         if (!Enumerable.Range(0, run.Stops.Count).Any(k => run.CometsAt(k).Count > 0) && lt.Comet is { } comet)
-            run.EnableLoot(lt with { Comet = comet with { Chance = new() { [StopLoot.TierKey(generated.Tier)] = 1 } } }, line, null);
+            run.EnableLoot(lt with { Comet = comet with { Chance = new() { [StopLoot.TierKey(generated.Tier)] = 1 }, NightChance = new() { [StopLoot.TierKey(generated.Tier)] = 1 } } }, line, null);
         int stop = Enumerable.Range(0, run.Stops.Count).First(k => run.CometsAt(k).Count > 0);
         prizes = new();
         run.Stock(prizes, stop);
         // Where it lies along the line (the stop's zone is straight), and the engine's front --comet m past that: the cab
         // coming up on it, the driver leaning out to look.
-        double s = run.Stops[stop].Start + run.Stops[stop].Stop!.Containers[run.CometsAt(stop)[0]].At.S;
+        double s = run.Stops[stop].Start + run.CometsAt(stop)[0].S;
         var by = line.Sample(s);
         s += Double3.Dot(prizes.All.First(DarkTerritory.Sim.Run.Run.IsComet).Pbd.Particles[0].Position - by.Position, by.Tangent);
         at = s + Opt(args, "--comet", -22);
@@ -1841,8 +1841,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         look.Art.ReverserThrown = Opt(args, "--reverser", 0.4);
     var horseplay = Str(args, "--horseplay", view switch { "shove" => "shove", "sooted" => "sooted", _ => "" }) is { Length: > 0 } horse
         ? Staging.Horseplay(train, content, horse) : ((List<Crewmate> Crew, List<DarkTerritory.Sim.Player.LumpInFlight> Lumps)?)null;
+    // The staged fire's cells as the game cuts them (enemies.json carFire.cellSize), so its flames and char draw (note 763).
+    var stagedFire = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).CarFire;
     var scene = new GreyboxScene
     {
+        // --upgrades lampBrightness: the beam as far as the headlamp reaches (note 506).
+        LampReach = t.HeadlampReach,
         // --draw m: how far along the line to build it (an aerial view of a stretch wants more than the cab's 400).
         DrawDistance = (float)Opt(args, "--draw", 400),
         // (--shot-age s: that long after the guns fired, for the powder smoke rolling off, Effects.CannonShot.)
@@ -1870,7 +1874,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // --scene-time s: the moment the scene's flickers are drawn at (a guttering lamp's, note 346); 0.37 as ever.
         Time = Opt(args, "--scene-time", 0.37),
         // --spread f: the staged fire f of the way to jumping the coupling (Staging.Spread).
-        Enemies = truss is not null ? Staging.Truss(truss.S0 + 10) : args.Contains("--patrol") ? Staging.Patrol(train) : args.Contains("--run") || args.Contains("--run-ahead") || args.Contains("--run-flank") ? Staging.Run(train, args.Contains("--run-ahead"), args.Contains("--run-flank")) : args.Contains("--threats") ? Later(Staging.Spread(args.Contains("--smoulder") ? Staging.Smoulder(Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Hugger(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), Str(args, "--hugger", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", ""), train), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", ""))) : Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Hugger(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null), Str(args, "--debris", "")), Str(args, "--hugger", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", ""), train), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", "")), Opt(args, "--spread", 0), DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).CarFire.SpreadSeconds), Opt(args, "--later", 0)) : null,
+        Enemies = truss is not null ? Staging.Truss(truss.S0 + 10) : args.Contains("--patrol") ? Staging.Patrol(train) : args.Contains("--run") || args.Contains("--run-ahead") || args.Contains("--run-flank") ? Staging.Run(train, args.Contains("--run-ahead"), args.Contains("--run-flank")) : args.Contains("--threats") ? Later(Staging.Spread(args.Contains("--smoulder") ? Staging.Smoulder(Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Hugger(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null, stagedFire), Str(args, "--debris", "")), Str(args, "--hugger", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", ""), train), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", ""))) : Staging.Switchman(Staging.Soot(Staging.Passenger(Staging.Climber(Staging.Follower(Staging.Stoker(Staging.Grumbler(Staging.Gaunt(Staging.Ribbits(Staging.Whistler(Staging.Tippy(Staging.Hugger(Staging.Debris(Staging.Threats(train, Opt(args, "--doll-at", 22), args.Contains("--lurk-at") ? Opt(args, "--lurk-at", 30) : null, stagedFire), Str(args, "--debris", "")), Str(args, "--hugger", "")), train, Str(args, "--tippy", "")), Str(args, "--whistler", ""), train), Str(args, "--ribbits", ""), train), train, Str(args, "--gaunt", "")), train, Str(args, "--grumbler", "")), Str(args, "--stoker", "")), train, Str(args, "--follower", "")), train, Str(args, "--climber", "")), train, Str(args, "--passenger", "")), train, Str(args, "--soot", "")), Str(args, "--switchman", "")), Opt(args, "--spread", 0), DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).CarFire.SpreadSeconds), Opt(args, "--later", 0)) : null,
         StagedPaces = args.Contains("--passenger") ? new Dictionary<int, float> { [48] = Staging.PassengerPace(Str(args, "--passenger", "")) } : null,
         // --stocked: the train as it leaves, its stores and every car's extinguisher aboard (--charge 0..1: theirs).
         Bodies = shouldered is { } carried ? carried.Bodies.All
@@ -1965,6 +1969,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         scene.Crew = [.. scene.Crew ?? [], risen];
     // Note 301's callouts, every break the crew can mend: --breached i[,j,...] those cars' end walls eaten through (dents are
     // --integrity's, the boiler --ruptured's); --mending a wrench at each, its strikes' sparks.
+    // --burnt car,s: its boards charred cell by cell as the fire left them (note 763).
+    if (scene.StagedBurnt is { } gutted)
+        Staging.Charred(train, gutted.Car, stagedFire);
     if (Str(args, "--breached", "") is { Length: > 0 } holes)
         foreach (int i in holes.Split(',').Select(int.Parse))
             if (i > 0 && i < train.Vehicles.Count && Breaches.EndWall(train.Frames[i].Shape) is { } wall)
@@ -2464,6 +2471,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     // --fog d: a thinner (or thicker) night than the route's, to look the lie of the land over.
     if (args.Contains("--fog"))
         lighting.FogDensity = (float)Opt(args, "--fog", lighting.FogDensity);
+    // The dead's wide (note 743), as the app thins the night for it.
+    else if (view == "deadwide")
+        lighting.FogDensity *= DeadViews.WideFog;
     if (strandedAt >= 0)
         Views.CinematicFog(ref lighting, Views.StrandedDistance(train, outro, strandedAt));
     // --survey: a flat, bright, clear light for reading the land's shape (the curves, the grades, the cuttings): a
@@ -3371,6 +3381,10 @@ static object HudShot(string content, string[] args)
         }
         session = solo;
     }
+    // --crew-news held|gone (note 750): a crewmate held, or just killed, on the last car's roof, out of voice reach: the line
+    // this player's shown for it, under the news.
+    if (Str(args, "--crew-news", "") is { Length: > 0 } crewNews)
+        session = CrewNewsShot.With(session, gone: crewNews == "gone");
     // --talk person|board|paper|fixture|door [--who i] (note 281): stood in the departure fortress's town in front of one
     // of its people (the i-th) or things, their card open and the line typed out, as Use at the prompt opens it. With
     // --arrival, in the terminus's town (note 603), as the crew would after the night's delivered.

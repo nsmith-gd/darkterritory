@@ -130,6 +130,43 @@ public class WrenchTests
         Assert.Equal(Tool.Wrench, Kit.Held(s));
     }
 
+    /// <summary>Seconds <paramref name="hands"/> crewmates at the fire door, wrenches in hand and Use held, take to mend the burst boiler.</summary>
+    static double Mending(int hands, TrainTuning? train = null)
+    {
+        var line = new RailLine(new LineDefinition("t", [new TrackSegment(50_000)]));
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(train ?? Tuning.Train, 3, 1)), line, 1_000, Tuning.Boiler));
+        world.Train.Boiler.Ruptured = true;
+        var crew = new PlayerState[hands];
+        for (int i = 0; i < hands; i++)
+        {
+            crew[i] = At(world, InteractableKind.Firebox);
+            AtTheFireDoor(world, ref crew[i]);
+            crew[i].Position = crew[i].Position with { X = crew[i].Position.X - 0.1 * i };
+            crew[i].HeldSlot = 1;
+        }
+        int ticks = 0;
+        var use = new PlayerIntent { Buttons = PlayerButtons.Use };
+        while (world.Train.Boiler.Ruptured && ticks < 60 * SimConstants.TickRate)
+        {
+            world.BeginTick();
+            for (int i = 0; i < hands; i++)
+                world.CrewAct(ref crew[i], use, i + 1);
+            world.Step(new TrainControls { Reverser = 1, Brake = 1 });
+            ticks++;
+        }
+        return ticks * SimConstants.TickSeconds;
+    }
+
+    [Fact]
+    public void TwoAtTheFireDoorMendTheBoilerAtThePairRateAndOneAsEver()
+    {
+        // Note 752 (GDD §12, one can, two do it faster): alone, boiler.json repairSeconds; two, each at repair.pairRate.
+        double mend = Tuning.Boiler.RepairSeconds, pair = Tuning.Train.Repair.PairRate, tick = SimConstants.TickSeconds;
+        Assert.InRange(Mending(1), mend, mend + 2 * tick);
+        Assert.InRange(Mending(2), mend / pair, mend / pair + 3 * tick);
+        Assert.InRange(Mending(2, Tuning.Train with { Repair = Tuning.Train.Repair with { PairRate = 1 } }), mend, mend + 2 * tick);
+    }
+
     [Fact]
     public void AFewPressesMendItAsWellAsAHold()
     {

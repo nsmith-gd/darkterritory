@@ -439,43 +439,53 @@ public sealed partial class Effects
     }
 
     /// <summary>
-    /// What a fire left of a cell (App. F.1: "burnt cells char the textures"; note 267): its boards scorched brown, then black
-    /// the more of it's burnt, in a ragged patch a little bigger than the cell so charred cells run together. Camera-relative,
-    /// laid on the surface by <paramref name="along"/> and <paramref name="across"/> (half-sizes), just off it into the car.
-    /// Solid, not an effect: the blended effects only ever add light, and soot takes it away.
+    /// What a fire left of a cell (App. F.1: "burnt cells char the textures"; note 267; note 763, the director, 13 Oct:
+    /// "There's a weird brown circle leftover where fires are"): the boards burnt to alligatored char (<c>fx_char</c>),
+    /// laid along their grain in a few overlapping patches, each its own ragged shape, so a cell's char runs into its
+    /// neighbours' and never reads as a disc. A little burnt is a scorch or two, browned round the edge; burnt out, the
+    /// cell is black from side to side, sooted out past it. Camera-relative, on the surface by <paramref name="along"/>
+    /// (the grain) and <paramref name="across"/> (half-sizes), just off it into the car. The decals are soot's colour,
+    /// alpha-blended, so they only ever darken the boards under them, whatever light is on them.
     /// </summary>
-    public static void Char(MeshBuilder mesh, Vector3 at, Vector3 along, Vector3 across, Vector3 normal, float amount, int seed)
+    public void Char(MeshBuilder mesh, Vector3 at, Vector3 along, Vector3 across, Vector3 normal, float amount, int seed)
     {
-        if (amount <= 0.02f)
+        if (amount <= 0.02f || _char < 0 || at.Length() > 160)
             return;
-        // Neighbours overlap; each a hair further off the boards than the last, so they don't fight.
-        var c = at + normal * (0.01f + 0.004f * (seed % 4));
-        var colour = Vector3.Lerp(new Vector3(0.045f, 0.03f, 0.02f), new Vector3(0.012f, 0.011f, 0.01f), Math.Clamp(amount * 1.3f, 0, 1));
-        const int Sides = 12;
-        Span<Vector3> rim = stackalloc Vector3[Sides];
-        for (int k = 0; k < Sides; k++)
+        float big = Math.Clamp(amount, 0, 1);
+        // One patch over the cell's heart, the worse it burnt the more of the cell it takes; up to four more about it.
+        int count = 1 + (int)(big * 4.99f);
+        for (int k = 0; k < count; k++)
         {
-            float a = k * MathF.Tau / Sides;
-            float r = (0.95f + 0.35f * Hash(seed * 3.1f + k * 1.7f)) * (0.75f + 0.35f * amount);
-            rim[k] = c + along * (MathF.Cos(a) * r * 1.05f) + across * (MathF.Sin(a) * r * 1.05f);
-        }
-        float emissive = mesh.Emissive;
-        var style = mesh.Style;
-        // Flat soot: the art style would pick a texture by the colour (and soot's no material it knows).
-        mesh.Emissive = 0;
-        mesh.Style = null;
-        // Wound to face the eye (the origin), as every solid is drawn.
-        bool flip = Vector3.Dot(Vector3.Cross(rim[0] - c, rim[1] - c), c) > 0;
-        for (int k = 0; k < Sides; k++)
-        {
-            var (p, q) = (rim[k], rim[(k + 1) % Sides]);
-            if (flip)
-                mesh.Triangle(c, q, p, colour);
+            float h0 = Hash(seed * 1.31f + k * 7.7f), h1 = Hash(seed * 2.17f + k * 3.9f), h2 = Hash(seed * 0.73f + k * 5.3f);
+            float h3 = Hash(seed * 3.53f + k * 1.1f), h4 = Hash(seed * 4.41f + k * 2.3f);
+            Vector2 centre;
+            float size;
+            if (k == 0)
+            {
+                centre = new Vector2(h0 - 0.5f, h1 - 0.5f) * 0.3f;
+                size = 0.55f + 0.75f * big;
+            }
             else
-                mesh.Triangle(c, p, q, colour);
+            {
+                centre = new Vector2(h0 - 0.5f, h1 - 0.5f) * 1.5f;
+                size = (0.3f + 0.45f * big) * (0.7f + 0.6f * h2);
+            }
+            // A little burnt is a scorch: the char's heart only where it burnt longest.
+            float strength = Math.Clamp(0.45f + 0.75f * big - 0.12f * k, 0.3f, 1);
+            var c = at + along * centre.X + across * centre.Y + normal * (0.012f + 0.003f * k);
+            // Longer along the grain than across it; mirrored or not, so no two patches match.
+            var u = along * (size * (1.05f + 0.25f * h3)) * (h4 < 0.5f ? 1 : -1);
+            var v = across * (size * (0.9f + 0.2f * h2));
+            int frame = (int)(Hash(seed * 5.9f + k * 9.1f) * 15.99f);
+            var uv0 = new Vector2(frame % 4, frame / 4) * 0.25f;
+            var colour = new Vector4(1, 1, 1, strength);
+            var p00 = new FxVertex(c - u - v, uv0, colour, _char);
+            var p10 = new FxVertex(c + u - v, uv0 + new Vector2(0.25f, 0), colour, _char);
+            var p11 = new FxVertex(c + u + v, uv0 + new Vector2(0.25f, 0.25f), colour, _char);
+            var p01 = new FxVertex(c - u + v, uv0 + new Vector2(0, 0.25f), colour, _char);
+            mesh.FxTriangle(FxBlend.Alpha, p00, p10, p11);
+            mesh.FxTriangle(FxBlend.Alpha, p00, p11, p01);
         }
-        mesh.Emissive = emissive;
-        mesh.Style = style;
     }
 
     /// <summary>

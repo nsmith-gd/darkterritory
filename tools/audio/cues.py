@@ -344,6 +344,15 @@ CUES = {
         O("startle-pigs", "Pigs in the livestock car startled by the slack running in", vars=3),
         O("startle-sheep", "Sheep in the livestock car startled by the slack running in", vars=3),
     ],
+    # Horseplay (K1's #451, note 717; queue #498, note 768): the crew knocking each other about. Real sounds, the funny in
+    # how little, like the mishaps; none of it is damage, so nothing here may sound like a hurt or a creature.
+    "crew-horseplay": [
+        O("shove", "Both hands shoved into a friend: palms slapping a coat, the breath knocked out of them, a stumble", vars=3),
+        O("bump", "A shoulder knocked in passing: a coat's thump and a grunt", vars=3),
+        O("bonk", "A tool's swing landing on a friend's head: the tool's clang and the head's hollow bonk", vars=3),
+        O("coal-hit", "A lump of coal off a friend: a hard thud on a coat, soot puffing, the lump breaking", vars=3),
+        O("coal-land", "A thrown lump of coal landing and breaking", vars=3, mats=["roof", "wood", "ground"]),
+    ],
 
     # ---- Train bed -----------------------------------------------------------------------------------------------------
     "bed-boiler-roar": [

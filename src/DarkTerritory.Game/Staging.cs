@@ -959,8 +959,9 @@ public static partial class Staging
 
     /// <summary>
     /// The staged Follower (<c>dt screenshot --follower</c>): <c>back</c> on crewmate 4's back (App. A.6 RIDE; <see cref="Lone"/>,
-    /// whose shoulder the <c>pack</c> view looks over), <c>crawl</c> off them on the ground making for the train, <c>nest</c>
-    /// built in car 2's aisle (the <c>inside</c> view), <c>nest:p</c> that far into building it (note 460). The Ribbits are put away.
+    /// whose shoulder the <c>pack</c> view looks over), <c>crawl</c> off them on the ground making for the train, <c>drop:s</c>
+    /// s seconds into its drop off a back aboard (note 504), <c>nest</c> built in car 2's aisle (the <c>inside</c> view),
+    /// <c>nest:p</c> that far into building it (note 460). The Ribbits are put away.
     /// </summary>
     public static List<Enemy> Follower(List<Enemy> threats, TrainOnLine train, string mode)
     {
@@ -977,6 +978,16 @@ public static partial class Staging
             case "crawl":
                 f.Restore(SpinePhase.Commit, 2, f.Health, Enemy.Loose, side.ToWorld(new Double3(-(side.Shape.HalfWidth + 1.6), 0, -0.9)), 0, 0, 0, -1, 0);
                 break;
+            // drop:s: s seconds into its drop off a back aboard (note 504), falling in car 2's aisle (the inside view).
+            case var dropping when dropping.StartsWith("drop", StringComparison.Ordinal):
+                {
+                    double s = dropping.Length > 5 && double.TryParse(dropping[5..], System.Globalization.CultureInfo.InvariantCulture, out double at) ? at : 0.25;
+                    double deck = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 0;
+                    double g = DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(DataFile.FindContentRoot(), Sim.Enemies.EnemyTuning.File)).Followers.DropGravity;
+                    double y = Math.Max(deck, deck + Sim.Enemies.Follower.BackUp - 0.5 * g * s * s);
+                    f.Restore(SpinePhase.Commit, s, f.Health, car, new Double3(-0.45, y, -side.Shape.HalfLength + 3.0), 0, 0, 0, -1, 0);
+                    break;
+                }
             case "nest":
                 double floor = train.Dynamics.Tuning.Geometry.Interior?.FloorHeight ?? 0;
                 f.Restore(SpinePhase.Punish, 30, f.Health, car, new Double3(-0.45, floor, -side.Shape.HalfLength + 3.0), 0, 0, 0, -1, 1);
@@ -987,7 +998,7 @@ public static partial class Staging
                 f.Restore(SpinePhase.Commit, 30, f.Health, car, new Double3(-0.45, under, -side.Shape.HalfLength + 3.0), 0, 0, 0, -1, Math.Clamp(built, 0.01, 1));
                 break;
             default:
-                throw new ArgumentException($"--follower {mode}: back, crawl, nest or nest:p");
+                throw new ArgumentException($"--follower {mode}: back, crawl, drop[:s], nest or nest:p");
         }
         return threats;
     }
@@ -1636,9 +1647,9 @@ public static partial class Staging
     /// over it caught, cooling away along the car, out toward the ends as far as its <paramref name="spread"/>; and its car's
     /// char under the worst of it.
     /// </summary>
-    public static void Cells(TrainOnLine train, CarFire fire, double extra, double spread)
+    public static void Cells(TrainOnLine train, CarFire fire, double extra, double spread, CarFireTuning? tuning = null)
     {
-        if (FireGrid.Of(train, fire.Attached, new CarFireTuning().CellSize) is not { } grid)
+        if (FireGrid.Of(train, fire.Attached, (tuning ?? new CarFireTuning()).CellSize) is not { } grid)
             return;
         var heat = new double[grid.Count];
         var burnt = new byte[grid.Count];
@@ -1651,6 +1662,26 @@ public static partial class Staging
         }
         fire.RestoreHeat(heat);
         train.Vehicles[fire.Attached].Char = burnt;
+    }
+
+    /// <summary>
+    /// A car's boards as a fire that burnt out in it leaves them (note 763; <c>dt screenshot --burnt car,s</c>): its cells charred
+    /// the way <see cref="CarFire"/> writes them, burnt out where it started a little behind the middle, less towards the ends,
+    /// the walls and roof less than the floor, each cell a little its own.
+    /// </summary>
+    public static void Charred(TrainOnLine train, int car, CarFireTuning? tuning = null)
+    {
+        if (car < 0 || car >= train.Vehicles.Count || FireGrid.Of(train, car, (tuning ?? new CarFireTuning()).CellSize) is not { } grid)
+            return;
+        var size = grid.Room.Max - grid.Room.Min;
+        double heart = grid.Room.Centre.Z + size.Z * 0.12, reach = size.Z * 0.55;
+        var burnt = new byte[grid.Count];
+        for (int i = 0; i < grid.Count; i++)
+        {
+            double d = Math.Abs(grid.Centre[i].Z - heart) / reach + (grid.Face[i] == FireFace.Floor ? 0 : grid.Face[i] == FireFace.Ceiling ? 0.25 : 0.45);
+            burnt[i] = (byte)Math.Clamp((int)Math.Round(16 * (1.1 - d) + (i * 7 % 5) - 2), 0, (1 << CarFire.Bits) - 1);
+        }
+        train.Vehicles[car].Char = burnt;
     }
 
     /// <summary>
@@ -1765,7 +1796,7 @@ public static partial class Staging
         return [dragger];
     }
 
-    public static List<Enemy> Threats(TrainOnLine train, double dollAhead = 22, double? lurkAhead = null)
+    public static List<Enemy> Threats(TrainOnLine train, double dollAhead = 22, double? lurkAhead = null, CarFireTuning? fireTuning = null)
     {
         var d = train.Dynamics;
         int rear = d.Consist.Vehicles[^1].Id;
@@ -1801,9 +1832,9 @@ public static partial class Staging
         whistler.Restore(SpinePhase.Alert, 1, 6, middle, CrewSense.GapLocal(train, middle), 0, 0, 0, 0, 0);
         threats.Add(whistler);
         // The first cargo car alight, and Fire Flies swarming the lamp in the middle car (A.5, C.5).
-        var fire = CarFire.In(24, train, cargo, 1.5, new CarFireTuning());
+        var fire = CarFire.In(24, train, cargo, 1.5, fireTuning ?? new CarFireTuning());
         fire.Restore(SpinePhase.Punish, 5, 1, cargo, fire.Local, 0, 0, 0, 0.7, 0);
-        Cells(train, fire, 0.7, 0);
+        Cells(train, fire, 0.7, 0, fireTuning);
         threats.Add(fire);
         if (train.Frames[middle].Shape.Interior is { } room)
         {

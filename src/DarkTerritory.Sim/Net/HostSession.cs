@@ -1320,6 +1320,17 @@ public sealed class HostSession
         return c;
     }
 
+    /// <summary>The body of the dead crewmate a dead player's watching (App. D.10, note 743), or null: watching the living.</summary>
+    Physics.Body? WatchedBody(Crew c)
+    {
+        if (c.State.Alive || c.LastIntent.Watch == 0 || c.LastIntent.Watch == c.Id)
+            return null;
+        foreach (var other in _crew)
+            if (other.Id == c.LastIntent.Watch && !other.State.Alive)
+                return World.Bodies.All.FirstOrDefault(b => b.Kind == Physics.BodyKind.Ragdoll && b.Owner == other.Id);
+        return null;
+    }
+
     List<WireRecord> Interest(List<WireRecord> records, Crew c)
     {
         _far.Clear();
@@ -1338,13 +1349,15 @@ public sealed class HostSession
             }
         if (InterestRadius <= 0)
             return _far.Count == 0 ? records : records.Where(r => !_far.Contains(r.Key)).ToList();
-        // Watching someone (App. D.10), a dead player is sent what's around them: they see it through their eyes.
-        var at = PlayerMotor.WorldPosition(eyes.State, Train);
+        // Watching someone (App. D.10), a dead player is sent what's around them: they see it through their eyes. Watching a
+        // dead crewmate's body (note 743), what's around it.
+        var at = WatchedBody(c) is { } watched ? Physics.Bodies.WorldCentre(watched, Train) : PlayerMotor.WorldPosition(eyes.State, Train);
         foreach (var e in World.ActiveEnemies)
             if (!e.Far && (e.WorldPosition(Train) - at).Length > InterestRadius)
                 _far.Add(WireRecord.MakeKey(RecordKind.Enemy, e.Id));
+        // The dead are sent every crewmate's body, however far back down the line it lies, to choose from (note 743).
         foreach (var b in World.Bodies.All)
-            if (!b.HeldBy(c.Id) && (Physics.Bodies.WorldCentre(b, Train) - at).Length > InterestRadius)
+            if (!b.HeldBy(c.Id) && !(!c.State.Alive && b.Kind == Physics.BodyKind.Ragdoll) && (Physics.Bodies.WorldCentre(b, Train) - at).Length > InterestRadius)
                 _far.Add(WireRecord.MakeKey(RecordKind.Body, b.Id));
         if (_far.Count == 0)
             return records;

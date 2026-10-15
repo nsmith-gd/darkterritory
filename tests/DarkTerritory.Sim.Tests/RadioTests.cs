@@ -8,7 +8,10 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Tests;
 
-/// <summary>The radio as a thing (T41, spec A.5): worn on the belt, one each, and only those wearing one are on it.</summary>
+/// <summary>
+/// The radio as a thing (T41, spec A.5): worn on the belt, one each, and only those wearing one are on it. The loose sets'
+/// tests run with note 749's radio each off; with it on (the game's), every crewmate wears one, part of the uniform.
+/// </summary>
 public class RadioTests
 {
     static readonly PlayerTuning P = Tuning.Player;
@@ -16,7 +19,7 @@ public class RadioTests
 
     static World Stocked(int cars = 6)
     {
-        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, cars, 1)), Line, 1_000));
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.LooseRadios, cars, 1)), Line, 1_000));
         world.EnableBodies();
         world.Stock();
         return world;
@@ -113,7 +116,7 @@ public class RadioTests
     [Fact]
     public void WithoutOneYouAreNotOnIt()
     {
-        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 20, 1)), Line, 1_000);
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.LooseRadios, 20, 1)), Line, 1_000);
         var a = PlayerMotor.SpawnOnRoof(train, 2, 0, P);
         var b = PlayerMotor.SpawnOnRoof(train, 19, 0, P);
         Assert.Equal(VoicePath.Radio, VoiceRouting.Route(a, b, radio: true, train));
@@ -126,13 +129,13 @@ public class RadioTests
     public void TheHostOnlyPutsTheWearersOnTheRadio()
     {
         var net = new LoopbackNetwork();
-        TrainOnLine Train() => new(new TrainDynamics(Consist.Uniform(Tuning.Train, 12, 1)), Line, 1_000);
+        TrainOnLine Train() => new(new TrainDynamics(Consist.Uniform(Tuning.LooseRadios, 12, 1)), Line, 1_000);
         var world = new World(Train());
         world.EnableBodies();
         world.Stock();
-        var host = new HostSession(net.CreateHost(), world, Tuning.Train, P);
-        var talker = new ClientSession(net.CreateClient(), Train(), Tuning.Train, P);
-        var listener = new ClientSession(net.CreateClient(), Train(), Tuning.Train, P);
+        var host = new HostSession(net.CreateHost(), world, Tuning.LooseRadios, P);
+        var talker = new ClientSession(net.CreateClient(), Train(), Tuning.LooseRadios, P);
+        var listener = new ClientSession(net.CreateClient(), Train(), Tuning.LooseRadios, P);
         void Step(int ticks = 1)
         {
             for (int i = 0; i < ticks; i++)
@@ -175,13 +178,13 @@ public class RadioTests
     public void AGrabKeysTheVictimsRadioOpenUntilItLetsGoOrTheyDie()
     {
         var net = new LoopbackNetwork();
-        TrainOnLine Train() => new(new TrainDynamics(Consist.Uniform(Tuning.Train, 12, 1)), Line, 1_000);
+        TrainOnLine Train() => new(new TrainDynamics(Consist.Uniform(Tuning.LooseRadios, 12, 1)), Line, 1_000);
         var world = new World(Train());
         world.EnableBodies();
         world.Stock();
-        var host = new HostSession(net.CreateHost(), world, Tuning.Train, P);
-        var talker = new ClientSession(net.CreateClient(), Train(), Tuning.Train, P);
-        var listener = new ClientSession(net.CreateClient(), Train(), Tuning.Train, P);
+        var host = new HostSession(net.CreateHost(), world, Tuning.LooseRadios, P);
+        var talker = new ClientSession(net.CreateClient(), Train(), Tuning.LooseRadios, P);
+        var listener = new ClientSession(net.CreateClient(), Train(), Tuning.LooseRadios, P);
         void Step(int ticks = 1)
         {
             for (int i = 0; i < ticks; i++)
@@ -222,5 +225,111 @@ public class RadioTests
         // they had of the last words is dropped (D.2).
         Assert.Equal(VoicePath.Cut, Heard(held: true, dead: true));
         Assert.Equal(VoicePath.None, Heard(held: true, dead: true));
+    }
+
+    // Note 749 (GDD §12; the director, 14 Oct 2026: "make the radios part of the default kit"; "Radio is part of uniform and
+    // doesnt take inventory space"): with kit.radioEach, the game's, every crewmate wears one.
+
+    static World Uniformed(int cars = 6)
+    {
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, cars, 1)), Line, 1_000));
+        world.EnableBodies();
+        world.Stock();
+        return world;
+    }
+
+    static Body Worn(World world, int id) => world.Bodies.All.Single(b => b.Kind == BodyKind.Radio && b.Carrier == id);
+
+    [Fact]
+    public void EveryLivingCrewmateWearsARadioFromTheNightsFirstTick()
+    {
+        Assert.True(Tuning.Train.Kit.RadioEach);
+        var world = Uniformed();
+        // None lies loose: they're the crew's uniform.
+        Assert.DoesNotContain(world.Bodies.All, b => b.Kind == BodyKind.Radio);
+        Assert.True(world.Bodies.RadiosCarried);
+        var a = PlayerMotor.SpawnOnRoof(world.Train, 1, 0, P);
+        var b = PlayerMotor.SpawnOnRoof(world.Train, 4, 0, P);
+        var dead = PlayerMotor.SpawnOnRoof(world.Train, 2, 0, P) with { Health = 0, Death = DeathCause.Mauled };
+        world.StepBodies([(1, a), (2, b), (3, dead)]);
+        Assert.True(world.Bodies.HasRadio(1));
+        Assert.True(world.Bodies.HasRadio(2));
+        Assert.False(world.Bodies.HasRadio(3));
+        Assert.Equal(2, world.Bodies.All.Count(r => r.Kind == BodyKind.Radio));
+        // A joiner (or a bot) gets theirs on the tick they're in the crew; nobody gets a second.
+        var joiner = PlayerMotor.SpawnOnRoof(world.Train, 3, 0, P);
+        world.StepBodies([(1, a), (2, b), (3, dead), (4, joiner)]);
+        world.StepBodies([(1, a), (2, b), (3, dead), (4, joiner)]);
+        Assert.True(world.Bodies.HasRadio(4));
+        Assert.Equal(3, world.Bodies.All.Count(r => r.Kind == BodyKind.Radio));
+        // On the belt, riding with them.
+        var radio = Worn(world, 2);
+        Assert.InRange((world.Train.Frames[radio.Parent].ToWorld(radio.Centre) - PlayerMotor.WorldPosition(b, world.Train)).Length, 0.8, 1.2);
+    }
+
+    [Fact]
+    public void TheUniformsRadioTakesNoSlotAndNeverComesOff()
+    {
+        var world = Uniformed();
+        var s = PlayerMotor.SpawnOnRoof(world.Train, 2, 0, P);
+        world.StepBodies([(1, s)]);
+        var radio = Worn(world, 1);
+        // Not in the hands, not in a slot.
+        Assert.Null(world.Bodies.CarriedBy(1));
+        Assert.Empty(world.Bodies.Slotted(1));
+        Assert.Equal(-1, radio.Pocket);
+        // Empty hands and Throw: it stays on the belt (with the loose sets, that set it down).
+        Press(world, ref s, PlayerButtons.Throw);
+        Press(world, ref s, PlayerButtons.Throw);
+        Assert.Same(radio, Worn(world, 1));
+        Assert.True(world.Bodies.HasRadio(1));
+    }
+
+    [Fact]
+    public void TheDeadLoseTheirsAndComeBackWithAWorkingOne()
+    {
+        var world = Uniformed();
+        var s = PlayerMotor.SpawnOnRoof(world.Train, 2, 0, P);
+        world.StepBodies([(1, s)]);
+        var radio = Worn(world, 1);
+        radio.Broken = true;
+        Assert.False(world.Bodies.HasRadio(1));
+        // Dead: it goes with them, not left squawking on the roof.
+        var dead = s with { Health = 0, Death = DeathCause.Mauled };
+        Press(world, ref dead, PlayerButtons.None);
+        Assert.DoesNotContain(world.Bodies.All, b => b.Kind == BodyKind.Radio);
+        // Back from a Holdout (App. D.8): a working one on the belt.
+        var back = PlayerMotor.SpawnOnRoof(world.Train, 3, 0, P);
+        world.StepBodies([(1, back)]);
+        Assert.False(Worn(world, 1).Broken);
+        Assert.True(world.Bodies.HasRadio(1));
+    }
+
+    [Fact]
+    public void AGrabNeverBreaksTheRadioAHardKnockStillCan()
+    {
+        // App. C.8's broadcast of a GRAB is the point: the grab doesn't smash the set (it was 0.25).
+        Assert.Equal(0, Tuning.Train.Kit.RadioBreakOnGrab);
+        Assert.True(Tuning.Train.Kit.RadioBreakPerDamage > 0);
+        for (int id = 1; id <= 200; id++)
+        {
+            var world = Uniformed();
+            var s = PlayerMotor.SpawnOnRoof(world.Train, 2, 0, P);
+            world.StepBodies([(id, s)]);
+            world.StepBodies([(id, s with { Flags = s.Flags | PlayerFlags.Held })]);
+            Assert.False(Worn(world, id).Broken);
+        }
+    }
+
+    [Fact]
+    public void OffTheTrainCarriesItsLooseSetsAsBefore()
+    {
+        var world = Stocked();
+        var s = PlayerMotor.SpawnOnRoof(world.Train, 2, 0, P);
+        world.StepBodies([(1, s)]);
+        // Nobody's given one: the sets lie where they were stowed, and nobody's on the radio till they put one on.
+        Assert.Equal(Tuning.LooseRadios.Kit.Radios, world.Bodies.All.Count(b => b.Kind == BodyKind.Radio));
+        Assert.All(world.Bodies.All.Where(b => b.Kind == BodyKind.Radio), b => Assert.Equal(-1, b.Carrier));
+        Assert.False(world.Bodies.HasRadio(1));
     }
 }

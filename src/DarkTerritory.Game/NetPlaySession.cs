@@ -1236,9 +1236,10 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             : null;
 
     /// <summary>
-    /// Dead, or waiting to board, you watch the living crew through their eyes (GDD App. D.10): whoever's first when you
-    /// die, and on to the next when they die. Fire or a step right goes to the next, a step left back; living crew only, no
-    /// free camera. The host's told whom (<see cref="PlayerIntent.Watch"/>), so it sends what's around them.
+    /// Dead, or waiting to board, you watch the crew (GDD App. D.10): the living, through their eyes, and (note 743) the
+    /// bodies of the dead where they lie. Whoever's alive first when you die; when the living one you're on dies, on to the
+    /// next living. Fire or a step right goes to the next, a step left back; no free camera. The host's told whom
+    /// (<see cref="PlayerIntent.Watch"/>), so it sends what's around them, or around the body.
     /// </summary>
     PlayerIntent Spectate(PlayerIntent intent)
     {
@@ -1250,19 +1251,36 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             return intent;
         }
         var living = new List<int>();
+        var watchable = new List<int>();
         foreach (byte id in Client.RemoteIds)
-            if (Client.TryGetRemote(id, 1, out var s) && s.Alive)
-                living.Add(id);
+            if (Client.TryGetRemote(id, 1, out var s) && (s.Alive || World.Bodies.HasRagdoll(id)))
+            {
+                watchable.Add(id);
+                if (s.Alive)
+                    living.Add(id);
+            }
         living.Sort();
+        watchable.Sort();
         int step = (intent.Has(PlayerButtons.Fire) && !last.Has(PlayerButtons.Fire)) || (intent.MoveX > 0.5f && last.MoveX <= 0.5f) ? 1
             : intent.MoveX < -0.5f && last.MoveX >= -0.5f ? -1 : 0;
-        int at = living.IndexOf(_watching);
-        _watching = living.Count == 0 ? -1
-            : at < 0 ? living[0]
-            : living[((at + step) % living.Count + living.Count) % living.Count];
+        int at = watchable.IndexOf(_watching);
+        if (_watching >= 0 && _watchingLiving && !living.Contains(_watching))
+            // The living one you were on has died: the next living after them (their body's still there to come back to).
+            _watching = living.Count > 0 ? living.FirstOrDefault(i => i > _watching, living[0]) : watchable.Count > 0 ? watchable[0] : -1;
+        else
+            _watching = watchable.Count == 0 ? -1
+                : at < 0 ? (living.Count > 0 ? living[0] : watchable[0])
+                : watchable[((at + step) % watchable.Count + watchable.Count) % watchable.Count];
+        _watchingLiving = living.Contains(_watching);
         intent.Watch = (byte)Math.Max(0, _watching);
         return intent;
     }
+
+    bool _watchingLiving;
+
+    public DeadView DeadView { get; private set; }
+
+    public void NextDeadView() => DeadView = DeadViews.Next(DeadView);
 
     int _watching = -1;
     PlayerIntent _lastIntent;
