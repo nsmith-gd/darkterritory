@@ -2844,6 +2844,66 @@
   "url": "/_blob/077bc73abd994ac542d83ed0155b822a",
   "sha": "e6c001c52b4454e7"
  },
+ "previews/cs-wakers--drag--locked.mp4": {
+  "id": "b80791a68d2ce17350fa7e3f19cce3ec",
+  "url": "/_blob/b80791a68d2ce17350fa7e3f19cce3ec",
+  "sha": "29d18afeb4d30793"
+ },
+ "previews/cs-wakers--drag--skid.mp4": {
+  "id": "02ac563fa5beaf61b2b514873a31085a",
+  "url": "/_blob/02ac563fa5beaf61b2b514873a31085a",
+  "sha": "fb0a56b006344817"
+ },
+ "previews/cs-wakers--eat--crunch.mp4": {
+  "id": "42f78230367db60fb6a464fe3de75d70",
+  "url": "/_blob/42f78230367db60fb6a464fe3de75d70",
+  "sha": "0957025be6a7f220"
+ },
+ "previews/cs-wakers--eat--jaws.mp4": {
+  "id": "7faf5d400dd7809b6b78a2e67b38907f",
+  "url": "/_blob/7faf5d400dd7809b6b78a2e67b38907f",
+  "sha": "67fc209ec0a91aa6"
+ },
+ "previews/cs-wakers--grab--hand.mp4": {
+  "id": "23b7a001131b7a46882c52d2235ce97d",
+  "url": "/_blob/23b7a001131b7a46882c52d2235ce97d",
+  "sha": "92115001f40ecbea"
+ },
+ "previews/cs-wakers--grab--seized.mp4": {
+  "id": "9071d22a26c2c8967fd985c1e9074b8d",
+  "url": "/_blob/9071d22a26c2c8967fd985c1e9074b8d",
+  "sha": "58eb0ab0d02cba02"
+ },
+ "previews/cs-wakers--lift--frame.mp4": {
+  "id": "a45b945c90cf1469d04573c14ac667fe",
+  "url": "/_blob/a45b945c90cf1469d04573c14ac667fe",
+  "sha": "caed3440b6fd9c71"
+ },
+ "previews/cs-wakers--lift--torn.mp4": {
+  "id": "0cc22245f49066b58973fd4c8e0554d3",
+  "url": "/_blob/0cc22245f49066b58973fd4c8e0554d3",
+  "sha": "4642178333f95475"
+ },
+ "previews/cs-wakers--swallow--gulp.mp4": {
+  "id": "d639a7437e1acd511ebf41708d607939",
+  "url": "/_blob/d639a7437e1acd511ebf41708d607939",
+  "sha": "f27d84eebd86b6d3"
+ },
+ "previews/cs-wakers--swallow--throat.mp4": {
+  "id": "4b1be7e00a5c1a138c86a9dd6d9bae36",
+  "url": "/_blob/4b1be7e00a5c1a138c86a9dd6d9bae36",
+  "sha": "d1d662584ba333dc"
+ },
+ "previews/cs-wakers--take--grip.mp4": {
+  "id": "285c302b08b5be900fbfd18e73f99071",
+  "url": "/_blob/285c302b08b5be900fbfd18e73f99071",
+  "sha": "c7ab43e072f995da"
+ },
+ "previews/cs-wakers--take--hand.mp4": {
+  "id": "aaefca435e1b2c1aeb946d1cc48befac",
+  "url": "/_blob/aaefca435e1b2c1aeb946d1cc48befac",
+  "sha": "1ce635e540053f92"
+ },
  "previews/cs-whistler--death--coil.mp4": {
   "id": "06aea238d65fadc2f6cf7248d7984fae",
   "url": "/_blob/06aea238d65fadc2f6cf7248d7984fae",
@@ -4053,6 +4113,56 @@
   "id": "61cfccfedab423c476bb88669287f32a",
   "url": "/_blob/61cfccfedab423c476bb88669287f32a",
   "sha": "e9abffc6817c95ff"
+ },
+ "previews/tell-wakers--call--groan.mp4": {
+  "id": "4fd47324d1f016ce4ce9133cfaaa52eb",
+  "url": "/_blob/4fd47324d1f016ce4ce9133cfaaa52eb",
+  "sha": "f186444a60097236"
+ },
+ "previews/tell-wakers--call--throat.mp4": {
+  "id": "26062909687a6385c578c27ad7454fd2",
+  "url": "/_blob/26062909687a6385c578c27ad7454fd2",
+  "sha": "9c7506946a3559d3"
+ },
+ "previews/tell-wakers--rise--earth.mp4": {
+  "id": "f5e8d73463da11edb41c4d4177b097a5",
+  "url": "/_blob/f5e8d73463da11edb41c4d4177b097a5",
+  "sha": "ab17af70c8890438"
+ },
+ "previews/tell-wakers--rise--heave.mp4": {
+  "id": "af66fbe7f37264a4da040a27db3feaa9",
+  "url": "/_blob/af66fbe7f37264a4da040a27db3feaa9",
+  "sha": "c1e00ee6fa10d8a3"
+ },
+ "previews/tell-wakers--roar--bellows.mp4": {
+  "id": "9f056642f46a2a52e7a3ca26f100f360",
+  "url": "/_blob/9f056642f46a2a52e7a3ca26f100f360",
+  "sha": "1f0fcc39eb8e1342"
+ },
+ "previews/tell-wakers--roar--throat.mp4": {
+  "id": "a8f841121704ff3d4649326b05e54029",
+  "url": "/_blob/a8f841121704ff3d4649326b05e54029",
+  "sha": "a2381418b027607c"
+ },
+ "previews/tell-wakers--stride--blow.mp4": {
+  "id": "4757eca96365c15d6cf59354c9c6a73f",
+  "url": "/_blob/4757eca96365c15d6cf59354c9c6a73f",
+  "sha": "80c8bc2441704c24"
+ },
+ "previews/tell-wakers--stride--ground.mp4": {
+  "id": "87e9ae56555235afdebbc0b6daa5f2d6",
+  "url": "/_blob/87e9ae56555235afdebbc0b6daa5f2d6",
+  "sha": "269353c207dfbb2d"
+ },
+ "previews/tell-wakers--thud--blow.mp4": {
+  "id": "3ae981f28114b6945a70498ff1d4a11a",
+  "url": "/_blob/3ae981f28114b6945a70498ff1d4a11a",
+  "sha": "c810397ffff87dcc"
+ },
+ "previews/tell-wakers--thud--ground.mp4": {
+  "id": "6c9b510f0fc9604beaa6ce8110c81228",
+  "url": "/_blob/6c9b510f0fc9604beaa6ce8110c81228",
+  "sha": "6447579f79982772"
  },
  "previews/ui-dead-phase--bookmark--fold.mp4": {
   "id": "b556cf832a1c8a48db60d2dea59f1ff6",

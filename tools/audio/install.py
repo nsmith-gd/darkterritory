@@ -277,7 +277,10 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 "tell-householder-rise.rise": "scrape", "cs-householder.breath": "rasp", "tell-hollow-house.rumble": "ground",
                 "cs-hollow-house.slam": "thrown", "cs-hollow-house.sink": "timber", "tell-hanger-strands.hum": "wire",
                 # Note 771: the Pickers' grating and their squeals from the packs' real things, the models candidates.
-                "tell-pickers.emerge": "grate", "cs-pickers.scatter": "squeals"}
+                "tell-pickers.emerge": "grate", "cs-pickers.scatter": "squeals",
+                # Note 772: the Wakers from the packs' real things (thunder, rock, iron) first, the models candidates.
+                "tell-wakers.thud": "ground", "tell-wakers.stride": "ground", "tell-wakers.roar": "throat",
+                "cs-wakers.grab": "seized", "cs-wakers.drag": "skid", "cs-wakers.lift": "torn"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the
