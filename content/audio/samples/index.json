@@ -5415,6 +5415,44 @@
   "takes": 3,
   "sha": "37b374b91b382f98"
  },
+ "crew-hoist/creak": {
+  "cue": "crew-hoist.creak",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The cable under a rider: the hook's iron swivel and the loaded rope creaking at each turn of the sway",
+    "key": "swivel",
+    "sources": [
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "sfx_100_v2:metal_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "29aea85e00aed752"
+ },
+ "crew-hoist/yelp": {
+  "cue": "crew-hoist.yelp",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Off the hook up in the air: a startled 'whoa!' as the drop takes them, the coat flapping",
+    "key": "whoa",
+    "sources": [
+     "sfx_100_v2:misc_05",
+     "kenney_rpg-audio:cloth3"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "80a9bdd7dd2fefd9"
+ },
  "crew-horseplay/bonk": {
   "cue": "crew-horseplay.bonk",
   "surface": null,

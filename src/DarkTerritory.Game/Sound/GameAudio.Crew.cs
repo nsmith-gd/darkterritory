@@ -314,6 +314,8 @@ public sealed partial class GameAudio
                 Cue("crew-mishaps.thrown-flail", feet + Double3.Up * ChestUp, occlusion);
             // Bringing them home (note 782): hauled aboard, lifted onto a shoulder, put down.
             CrewRescue(world, id, s, c, feet, occlusion, placed);
+            // Off the crane's hook high up (note 798): the yelp as the drop takes them.
+            CrewHoist(world, s, c, feet, occlusion);
             if (!s.Alive || placed)
             {
                 Remember(c, s, world);

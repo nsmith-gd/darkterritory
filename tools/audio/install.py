@@ -318,7 +318,10 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 "world-odd.wash": "stream", "world-odd.can-kick": "tin", "world-odd.bark": "throat",
                 "world-odd.scarecrow": "post", "world-odd.letter": "pillar", "world-odd.painting": "frame",
                 "world-odd.sooted": "dust", "world-odd.lurch": "rail", "crew-emotes.high-five": "leather",
-                "crew-emotes.fist-bump": "gloves", "crew-emotes.sit": "coat", "crew-emotes.lean": "frame"}
+                "crew-emotes.fist-bump": "gloves", "crew-emotes.sit": "coat", "crew-emotes.lean": "frame",
+                # Note 798: the packs' real creaks pitched down to the hook's iron and rope (the model's stick-slip is
+                # thinner), and the crew's throat through the real gasp, its coat flapping.
+                "crew-hoist.creak": "swivel", "crew-hoist.yelp": "whoa"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the
@@ -567,6 +570,9 @@ CUE_DEF = {
        for c, lo, hi in (("well-splash", 2, 40), ("coin", 1, 25), ("wash", 1, 25), ("can-kick", 2, 80), ("scarecrow", 1, 15),
                          ("letter", 1, 15), ("painting", 1, 20), ("sooted", 1, 30), ("lurch", 2, 40))},
     "world-odd.bark": {"tier": 4, "minDistance": 20, "maxDistance": 600, "rolloff": 0.7},
+    # A friend on the crane's hook (note 798): the cable's creak about the gantry; the cry off it across the yard.
+    "crew-hoist.creak": {"minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
+    "crew-hoist.yelp": {"minDistance": 2, "maxDistance": 90, "rolloff": 1.0},
 }
 
 

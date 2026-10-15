@@ -1,0 +1,20 @@
+// A friend on the crane's hook: The cable under a crewmate riding the hook: the swivel's iron and the loaded rope creaking as it sways. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 4,
+ "loop": true,
+ "maxInstances": 8,
+ "minDistance": 2,
+ "maxDistance": 60,
+ "rolloff": 1.0,
+ "gainDb": 2,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "crew-hoist/creak",
+   "gain": 1,
+   "pitchJitter": 0,
+   "gainJitter": 0
+  }
+ ]
+}

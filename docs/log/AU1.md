@@ -268,3 +268,11 @@ launches are AU1.1, AU1.2, …. Entries are UTC; those before 12:55 on 7 Oct wer
     - emotes for two: the high five, the fist bump, the sit, the lean.
   - **30 candidates from two recipe agents:** uploaded, with the first picks installed. Three rows are on the checklist at L1, with captions and tests.
 - **Checked and not taken:** the two loop-helper seams the handcar agent reported. Measured on the installed flange, brake-drag and roll loops, neither the seam nor the 0.5 s point bursts above each loop's own transients. That's the build's seam crossfade, and the rumble's own variation.
+
+## 15 Oct, ~14:05 UTC: #525, a friend on the crane's hook heard
+
+- **#1048 (#519):** CI running; the whole Game test project passed here (1139, one VR skip).
+- **#525 (note 798), K1's #1046 (note 726's "Sounds (AU1)"):** claimed on `claims`, then built and hooked off what every machine has:
+  - **the cable's creak:** the hook's swivel and loaded rope at each turn of a slow, uneven sway, held where the hook is while the crane's record says anyone rides it, louder with two;
+  - **the yell:** a startled "whoa!" from a crewmate coming off the hook alive with at least 2.5 m under them. The operator's shake-off is the host's alone, so a high let-go and a shake are heard alike, and letting go at the ground is quiet.
+  - Four candidates (real creaks pitched down and a modelled stick-slip; the crew's throat through the real gasp and on its own), uploaded; the real swivel and the "whoa" installed. A new `crew-hoist` row at L1, a caption for the yell, and a test for both.

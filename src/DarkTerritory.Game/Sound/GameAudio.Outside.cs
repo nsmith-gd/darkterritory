@@ -682,9 +682,10 @@ public sealed partial class GameAudio
     }
 
     /// <summary>
-    /// A facility's site: each crane's motor while it moves, its chain while the hook does, a load creaking as the crane starts
-    /// and stops under it, a casting set down on a car or the ground (or dropped); and at a wreck yard, the cargo dragged out
-    /// of a wreck while the winch turns, the wreckage shifting as each sled comes in, and the wrecks creaking.
+    /// A facility's site: each crane's motor while it moves, its chain while the hook does, the cable under anyone riding it,
+    /// a load creaking as the crane starts and stops under it, a casting set down on a car or the ground (or dropped); and at a
+    /// wreck yard, the cargo dragged out of a wreck while the winch turns, the wreckage shifting as each sled comes in, and the
+    /// wrecks creaking.
     /// </summary>
     void PlaceSite(Site site, TrainOnLine train, Double3 ear, double dt, bool primed)
     {
@@ -704,6 +705,8 @@ public sealed partial class GameAudio
                 HoldLevel("place-crane.motor", key, crane.Cab, outside, 1);
             if (hook > 1e-4)
                 HoldLevel("place-crane.chain", key, crane.HookAt, outside, 1);
+            // Note 798: the cable creaking under a friend riding the hook.
+            HoistCreak(crane, key, outside);
             // Note 726: a friend on the hook swings as a casting does.
             if (Flipped("place-crane.running", key, running, primed) != 0 && crane.Loaded)
                 Cue("place-crane.load-swing", crane.HookAt, outside);

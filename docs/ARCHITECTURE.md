@@ -966,4 +966,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [791. The crew's clips for the upgrades: sat back in a Muskoka chair, a beer and a cheers, a sausage turned and eaten, the bow, the salute and…](notes/791.md)
 - [792. The railway's leavings beside the line solid: dealt by the sim, stood on their footprints, drawn from its list (queue #517, B1; GDD App.…](notes/792.md)
 - [793. The town flag's flutter never races (C1, queue #520; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 2: "The flag blowing in the…](notes/793.md)
+- [798. A friend on the crane's hook heard (AU1, queue #525; K1's #1046, note 726's "Sounds (AU1)")](notes/798.md)
 <!-- end of the notes index -->
