@@ -182,3 +182,55 @@ launches are AU1.1, AU1.2, …. Entries are UTC; those before 12:55 on 7 Oct wer
   - Candidates being built.
 - **The figures and K1's asks:** hooked, tested and captioned (Dave, Jacob, Nicki's party; the mail catch and tear, the
   comet's hum, the speaking tube's whistle-call). Candidates being built.
+
+## 15 Oct, ~03:10 UTC: the Wakers, the figures and K1's asks installed; the next PR
+
+- **The Wakers:**
+  - 20 candidates built (a recipe agent), uploaded.
+  - Installed: the ground's thud and stride, the throat's roar, the seized grab, the skid and the torn lift.
+  - Two new rows, `tell-wakers` and `cs-wakers`, at L1.
+- **The figures:**
+  - 14 candidates built (a recipe agent), uploaded.
+  - Installed: the easel, the reel and the glass blessing.
+  - The `figures` row at L1.
+- **K1's asks:**
+  - 8 candidates built (a recipe agent), uploaded.
+  - Installed: the sack's snatch, the rip, the glass hum and the blown whistle-call.
+  - Three new rows (`crew-mail`, `world-comet`, `crew-speaking-tube`) at L1.
+- **The clerk:** the bank gained 36 words (U1's tally words and the night's prizes), ahead of #967.
+- **U1's upgrades (#505):** the six `up-` lines are in `cues.py`. Two recipe agents are building the forge, BBQ, horns
+  and tells candidates. The hooks wait on #967.
+- **Flagged by a recipe agent:** `g1_train.tones()` builds its phase in float32, which may click at a loop's seam on a
+  long take. The Brakeman's squeal measured clean; worth a look when that file is next touched.
+- **The town's guns at the walls (#502's last piece):**
+  - The scene's gun beat is now shared (`Effects.WallGunBeat`), and each gun is heard firing on it.
+  - Each ball is heard landing on the Waker's back its flight later. Creatures brought in through the gate are heard
+    under the same guns.
+  - 4 candidates built, the first installed, a new `town-guns` row at L1, a test.
+- **U1's upgrades (#505):** the forge and the BBQ deck (22 candidates) and the horns and the tells (22), each pair from a
+  recipe agent, uploaded; their four rows filled at L0, waiting on #967. The clerk's words row to L1. The band is #967's.
+- **The checklist:** a line for S1's covered voice (`voice-held`, note 749's ask), at L1 in review.
+- **Claimed #506 (note 776):** K1's #1016, the crew car's kettle and cuckoo, the crew photo's flash, the logbook's pages.
+  The cue lines are in, and a recipe agent is building the candidates ahead of the merge.
+
+## 15 Oct, ~04:50 UTC: #1020 merged; #1025 open; K1's crew car heard (#506)
+
+- **Merged #1020** (the house creatures, the claims). The next PR, #1025 (#501-#504 and #505's candidates), opened on
+  the new main and merged main once more when K1's #1016 landed under it.
+- **#506, K1's crew car and crew memory:** #1016 merged at 04:20, so it's done in #1025 too:
+  - the kettle and the cuckoo heard off the crew car's own reckoning;
+  - the photo's flash where it goes off;
+  - the logbook's own open, page and shut;
+  - the candidates installed, the two rows at L1, a test, three captions.
+- **The checklist:** every row now has candidates. Only U1's four `up-` rows still sit at L0, waiting on #967 (the band's
+  is #967's own), plus `crew-gun-lay`'s verdict. No new verdicts tonight; the Voice Booth has none either.
+- **The weak-sound check on tonight's installs:** every impact and footfall is under the squish line. The rest of the
+  flags are the far and low ones by design: the Wakers' thuds and calls, the comet's hum, the guns far off.
+
+## 15 Oct, ~06:40 UTC: #1025 merged; #507, a ping heard
+
+- **Merged #1025:** #501-#504 and #506, and #505's candidates.
+- **#507 (note 777), A1's #1024 pings:** they were seen by everyone but made no sound.
+  - Each ping is now heard once, by everyone, as a roger beep on the radio. Pings already standing when an ear joins are
+    not replayed.
+  - 2 candidates built and uploaded; a new `ui-pings` row at L1; a test.

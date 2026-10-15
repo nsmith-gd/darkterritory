@@ -1,0 +1,20 @@
+// The Wakers: the catch and the eating: A car torn up off the rails: its couplings snapping, its frame groaning. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 3,
+ "loop": false,
+ "maxInstances": 12,
+ "minDistance": 20,
+ "maxDistance": 1500,
+ "rolloff": 0.8,
+ "gainDb": 6,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "cs-wakers/lift",
+   "gain": 1,
+   "pitchJitter": 0.4,
+   "gainJitter": 1.0
+  }
+ ]
+}

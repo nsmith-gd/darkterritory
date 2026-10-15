@@ -275,7 +275,23 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 # strands' hum the model, a wire's wake (the struck metal frozen into a whine a candidate).
                 "tell-lodger-breathing.breathing": "lungs", "tell-lodger-shriek.shriek": "wail", "cs-lodger.lunge": "soles",
                 "tell-householder-rise.rise": "scrape", "cs-householder.breath": "rasp", "tell-hollow-house.rumble": "ground",
-                "cs-hollow-house.slam": "thrown", "cs-hollow-house.sink": "timber", "tell-hanger-strands.hum": "wire"}
+                "cs-hollow-house.slam": "thrown", "cs-hollow-house.sink": "timber", "tell-hanger-strands.hum": "wire",
+                # Note 771: the Pickers' grating and their squeals from the packs' real things, the models candidates.
+                "tell-pickers.emerge": "grate", "cs-pickers.scatter": "squeals",
+                # Note 772: the Wakers from the packs' real things (thunder, rock, iron) first, the models candidates.
+                "tell-wakers.thud": "ground", "tell-wakers.stride": "ground", "tell-wakers.roar": "throat",
+                "cs-wakers.grab": "seized", "cs-wakers.drag": "skid", "cs-wakers.lift": "torn",
+                # Note 773: Dave's hum modelled (the real one is cut from a roar, and may read as a growl); Jacob's line and
+                # his blessing from the packs' real reel and glass.
+                "figures.dave-paint": "easel", "figures.jacob-fish": "reel", "figures.jacob-bless": "glass",
+                # Note 774: the mail bag's real sack; the comet's real glass (the model's even beat may read as a tremolo).
+                "crew-mail.catch": "sack", "world-comet.hum": "glass",
+                # Note 772: the town's guns the gun car's own shot and the cannon's own impact, put at their distance.
+                "town-guns.fire": "tower", "town-guns.hit": "meat",
+                # Note 776: the crew car's and the logbook's real things first (the glass's ring, the powder, the leather,
+                # the sheet, the clap), the models candidates.
+                "crew-car.kettle": "spout", "crew-memory.flash": "powder", "crew-memory.open": "leather",
+                "crew-memory.page": "sheet", "crew-memory.shut": "clap"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the
@@ -481,6 +497,23 @@ CUE_DEF = {
     "place-tipple.derail": {"tier": 3, "minDistance": 4, "maxDistance": 250, "rolloff": 0.8},
     "place-tipple.rerail": {"minDistance": 1, "maxDistance": 40, "rolloff": 1.0},
     "place-tipple.rerailed": {"minDistance": 2, "maxDistance": 80, "rolloff": 1.0},
+    # The Wakers (note 772): hill-sized, heard from where they rise, 1.2 km behind and more (the stir placed 700 m out). A
+    # rise there about -10 dB, a footfall about -19 dB and full by 50 m; the catch at the train itself.
+    **{f"tell-wakers.{c}": {"minDistance": m, "maxDistance": 4000, "rolloff": r}
+       for c, m, r in (("thud", 200, 0.6), ("call", 200, 0.6), ("rise", 200, 0.6), ("stride", 50, 0.7), ("roar", 100, 0.6))},
+    **{f"cs-wakers.{c}": {"minDistance": 20, "maxDistance": 1500, "rolloff": 0.8}
+       for c in ("grab", "lift", "eat", "take", "swallow")},
+    "cs-wakers.drag": {"minDistance": 10, "maxDistance": 600, "rolloff": 0.8},
+    # The town's guns at the walls (note 772): on its towers, 20-200 m from a crew in the yard; the ball landing on a Waker's
+    # back 300 m out and forty up, heard across the yard.
+    "town-guns.fire": {"minDistance": 30, "maxDistance": 1500, "rolloff": 0.8},
+    "town-guns.hit": {"minDistance": 60, "maxDistance": 2000, "rolloff": 0.7},
+    # K1's crew car (note 776): the kettle and the cuckoo on the big cab's back wall, heard about the cab; the photo's flash
+    # at the gate, out in the open; the logbook's pages this machine's own, flat as the panels are.
+    "crew-car.kettle": {"minDistance": 1, "maxDistance": 12, "rolloff": 1.0},
+    "crew-car.cuckoo": {"minDistance": 1, "maxDistance": 18, "rolloff": 1.0},
+    "crew-memory.flash": {"minDistance": 3, "maxDistance": 80, "rolloff": 1.0},
+    **{f"crew-memory.{c}": {"flat": True, "tier": 4} for c in ("open", "page", "shut")},
 }
 
 

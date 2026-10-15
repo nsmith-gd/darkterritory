@@ -14,12 +14,14 @@ namespace DarkTerritory.Game.Tests;
 public class LinesideFootprintTests
 {
     static readonly string Content = DataFile.FindContentRoot();
+    // A facility's kit is measured off the content's modelled pieces (note 758), as the game draws it.
+    static readonly Look Models = Look.Load(Content);
 
     [Fact]
     public void TheFootprintsAreTheMeshesOwn()
     {
         var file = File.ReadAllText(Path.Combine(Content, LineGenConfig.Directory, "footprints.json"));
-        var measured = LinesideFootprints.Json(LinesideFootprints.Measure(null));
+        var measured = LinesideFootprints.Json(LinesideFootprints.Measure(null, Models));
         Assert.True(file == measured, "content/linegen/footprints.json is behind the kit's meshes: run `dt art footprints --write`");
         // Every piece the sim deals is in it, and every variant the art has.
         var config = DataFile.Load<FootprintsFile>(Path.Combine(Content, LineGenConfig.Directory, "footprints.json"));
@@ -30,13 +32,15 @@ public class LinesideFootprintTests
         foreach (var kind in LinesideFootprints.Kinds)
             for (int v = 0; v < kind.Variants; v++)
             {
-                var (min, max) = ArtCatalog.Bounds(kind.Make(null, v));
-                double give = kind.Shape == LinesideFootprints.Shape.Round ? 0.03 * (max.Z - min.Z) : 0.01;
+                bool cells = kind.Shape == LinesideFootprints.Shape.Cells;
+                var (min, max) = ArtCatalog.Bounds(kind.Make(cells ? Models : null, v));
+                // A drum's octagon; a kit's cells, each laid on a half-metre grid.
+                double give = kind.Shape == LinesideFootprints.Shape.Round ? 0.03 * (max.Z - min.Z) : cells ? 0.51 : 0.01;
                 foreach (var b in config.Pieces[kind.Name][v].Where(b => b[4] == 0))
                 {
                     Assert.True(b[0] - b[2] >= min.X - give && b[0] + b[2] <= max.X + give, $"{kind.Name}-{v} spills across its mesh");
                     Assert.True(b[1] - b[3] >= min.Z - give && b[1] + b[3] <= max.Z + give, $"{kind.Name}-{v} spills along its mesh");
-                    Assert.True(b[5] <= max.Y + 0.01, $"{kind.Name}-{v} stands over its mesh");
+                    Assert.True(b[5] <= max.Y + (cells ? 0.5 : 0.01), $"{kind.Name}-{v} stands over its mesh");
                 }
             }
     }
