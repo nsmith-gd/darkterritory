@@ -289,6 +289,11 @@ public static partial class TownGenerator
                 Fix("mural", murals[i].Title, murals[i].Text, walls.Rear + Run.Fortresses.WallHalf + 0.05, at[i], 1, 0);
         }
 
+        // The night market (queue #552, note 825): its stalls lit and open in a row between the buildings' fronts and the
+        // centrepiece, each where it's clear of what's in the square and of the doors. Its stalls are listed last of the
+        // fixtures and its stallholders last of the people, so every other keeps its index and its name.
+        var market = Market(sq, s0, s1, side * (front - sq.MarketIn), population, fixtures, buildings, w, industry, Rng("market"));
+
         // The people. Those with a place: the jobs a town this size has, round the centrepiece, the households at home, out
         // with a lantern in front of the lived-in houses.
         var jobs = new List<Spot>
@@ -348,6 +353,9 @@ public static partial class TownGenerator
         // the town between the hours' tubs of coal.
         foreach (var f in fixtures.Where(f => f.Kind == "lighthouse" && f.House < 0).Take(1))
             spots.Add(new("flamekeeper", f.S + f.FaceS * (f.SolidS + 1.2), f.D + f.FaceD * (f.SolidD + 1.2), f.FaceS, f.FaceD, 0));
+        // The night market's stallholders (note 825), each behind their counter, facing the square.
+        foreach (var (ms, md, _) in market)
+            spots.Add(new("stallholder", ms, md + side * (TownFixtures.Size("marketstall").HalfD + StallholderBack), 0, -side, 0));
 
         // Who they are: a name each, a household's sharing its surname.
         var names = new HashSet<string>();
@@ -520,6 +528,9 @@ public static partial class TownGenerator
         // ended campaign the player rode with is a card on it, from their own profile (the app's, not the plan's). Last of the
         // fixtures, so every other keeps its index.
         Fix("lostcrews", "the board of lost crews", LostCrewsText, mid + LostCrewsAlong, side * BoardOut, 0, -side);
+        // The night market's stalls (note 825), after it.
+        foreach (var (ms, md, on) in market)
+            Fix("marketstall", on.Title, on.Text, ms, md, 0, -side);
 
         // The board: the custom's order first, then what the town makes, then whatever else is posted; and a note or two
         // left about the square (a letter on a bench, a page by the hall door, a scrap by the engine).
@@ -670,6 +681,42 @@ public static partial class TownGenerator
         }
     }
 
+    /// <summary>How far behind a market stall's counter its stallholder stands (m), and how wide a door's way is kept clear.</summary>
+    const double StallholderBack = 0.7, DoorClear = 1.6;
+
+    /// <summary>
+    /// The night market (queue #552, note 825; the director's playtest of 14 Oct, line 3: "The town's looking better ...
+    /// Still a bit basic"): along a row <paramref name="d"/> out, from ten metres in from the square's ends, every
+    /// <see cref="SquareTuning.MarketEvery"/> where a stall stands clear of every fixture so far and of the buildings' doors;
+    /// as many of those as the town's size has stalls (<see cref="SquareTuning.Market"/>), drawn at random and laid in
+    /// order along the square. Each stall's wares are dealt from the town's trade's stalls and the market's own, none twice
+    /// and none a shut stall's already.
+    /// </summary>
+    static List<(double S, double D, TownText Wares)> Market(SquareTuning sq, double s0, double s1, double d, int population,
+        List<TownFixture> fixtures, List<TownBuilding> buildings, TownWriting w, TownIndustry? industry, Pcg32 rng)
+    {
+        int want = Math.Clamp(sq.Market[0] + (int)(population / Math.Max(1, sq.MarketPer)), sq.Market[0], sq.Market[1]);
+        var (hs, hd, _) = TownFixtures.Size("marketstall");
+        var clear = new List<double>();
+        for (double s = s0 + 10; s <= s1 - 10; s += sq.MarketEvery)
+            if (fixtures.All(f => Math.Abs(f.S - s) > f.SolidS + hs + 0.8 || Math.Abs(f.D - d) > f.SolidD + hd + 0.8)
+                && buildings.All(b => Math.Abs(b.S - s) > hs + DoorClear))
+                clear.Add(s);
+        // Which of them: a shuffle of the clear places, the first as many as are wanted, in order along the square.
+        for (int i = clear.Count - 1; i > 0; i--)
+        {
+            int j = rng.RangeInclusive(0, i);
+            (clear[i], clear[j]) = (clear[j], clear[i]);
+        }
+        var wares = new Deck<TownText>([.. (industry?.Stalls ?? []).Where(x => fixtures.All(f => f.Text != x)).Select(x => new TownText("a market stall", x)),
+            .. w.Market], rng.Fork(1));
+        var stalls = new List<(double, double, TownText)>();
+        foreach (double s in clear.Take(want).OrderBy(x => x))
+            if (wares.Next() is { } on)
+                stalls.Add((s, d, on));
+        return stalls;
+    }
+
     static List<T> Take<T>(IReadOnlyList<T> from, int count, Pcg32 rng) where T : class
     {
         var deck = new Deck<T>(from, rng);
@@ -782,6 +829,8 @@ public static class TownFixtures
         "crate" => (0.5, 0.4, 0.8),
         "barrel" => (0.35, 0.35, 1.0),
         "stall" => (0.9, 1.5, 2.6),
+        // The night market's stalls (note 825): open, a counter of its wares, an awning and a lantern, end on along the row.
+        "marketstall" => (1.4, 1.2, 2.7),
         // The civic pieces (note 353): a statue on its plinth, the wall of names, the bandstand's raised floor, a bed under
         // its lamps, a tree's trunk, the flagpole, the laws' board; a mural is paint on a wall (its half-width to look from).
         "statue" => (0.8, 0.8, 3.4),

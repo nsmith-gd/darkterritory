@@ -484,6 +484,9 @@ public static class SquareKit
             case "forge":
                 Forge(k, x, z, h);
                 break;
+            case "marketstall":
+                MarketStall(k, x, z, h, count);
+                break;
             case "crate":
                 k.Use("wood_crate", Palette.DeepBrown, 0.8f, 0.05f, tile: 1);
                 k.Box(new Vector3(-x, 0, -z), new Vector3(x, h, z));
@@ -734,6 +737,84 @@ public static class SquareKit
     {
         k.Use("paper_form", Palette.BoardEnamel, 0.9f, 0);
         k.Shade(1.2f);
+    }
+
+    /// <summary>Where a night market stall's lantern hangs (its kit frame): under the awning's front edge, over the counter.</summary>
+    public static readonly Vector3 MarketLamp = new(0, 1.95f, -1.35f);
+
+    /// <summary>
+    /// The night market stalls' awnings (note 825): faded red, green and blue stripes on a cream, by <c>variant</c>; the
+    /// canvas's tint over the sacking's own colour, and the greybox's.
+    /// </summary>
+    static readonly (Vector3 Tint, Vector3 Flat)[] Awnings =
+    [
+        (new(1.5f, 0.55f, 0.45f), new(0.55f, 0.16f, 0.12f)), (new(0.7f, 1.2f, 0.75f), new(0.2f, 0.36f, 0.22f)), (new(0.7f, 0.9f, 1.4f), new(0.2f, 0.28f, 0.42f)),
+    ];
+
+    static readonly (Vector3 Tint, Vector3 Flat) Cream = (new(1.6f, 1.5f, 1.3f), new(0.78f, 0.74f, 0.64f));
+
+    /// <summary>
+    /// A stall of the night market (queue #552, note 825): open to the square (−Z), its counter heaped with its wares in
+    /// crates, jars and sacks, a shelf at the back with more, four posts, a striped canvas awning sloping off over the
+    /// counter, and a lantern hung under the awning's edge, lit (WorldArt lights it); its slate on a post.
+    /// </summary>
+    static void MarketStall(Kit k, float x, float z, float h, int variant)
+    {
+        var rng = new Random(825 + variant);
+        Timber(k);
+        // The counter, the shelf at the back, and the four posts.
+        k.Box(new Vector3(-x, 0, -z), new Vector3(x, 1.0f, -z + 0.7f));
+        k.Box(new Vector3(-x + 0.1f, 0, z - 0.45f), new Vector3(x - 0.1f, 0.06f, z));
+        k.Box(new Vector3(-x + 0.1f, 1.35f, z - 0.45f), new Vector3(x - 0.1f, 1.42f, z));
+        foreach (float px in new[] { -x, x - 0.12f })
+            foreach (float pz in new[] { -z, z - 0.12f })
+                k.Box(new Vector3(px, 0, pz), new Vector3(px + 0.12f, h - (pz < 0 ? 0.45f : 0), pz + 0.12f));
+        // The wares: crates, jars and sacks on the counter and the shelf, each its own colour.
+        for (int i = 0; i < 7; i++)
+        {
+            bool shelf = i >= 4;
+            float wx = -x + 0.35f + (float)rng.NextDouble() * (2 * x - 0.7f), wz = shelf ? z - 0.22f : -z + 0.35f;
+            float y = shelf ? 1.42f : 1.0f;
+            var tint = new Vector3(0.45f + (float)rng.NextDouble() * 0.4f, 0.35f + (float)rng.NextDouble() * 0.3f, 0.25f + (float)rng.NextDouble() * 0.3f);
+            switch (i % 3)
+            {
+                case 0:
+                    k.Use("wood_crate", Palette.DeepBrown, 0.8f, 0.05f, tile: 1);
+                    k.BoxAt(new Vector3(wx, y + 0.15f, wz), new Vector3(0.22f, 0.15f, 0.18f));
+                    break;
+                case 1:
+                    k.Use("glass_dirty", tint, 0.3f, 0.5f, tile: 1);
+                    k.Cylinder(new Vector3(wx, y, wz), new Vector3(wx, y + 0.28f, wz), 0.09f, 8);
+                    break;
+                default:
+                    k.Use("sac", tint, 0.9f, 0, tile: 1);
+                    k.Lathe(new Vector3(wx, y, wz), [new(0.2f, 0), new(0.22f, 0.15f), new(0.14f, 0.32f), new(0, 0.36f)], 7);
+                    break;
+            }
+        }
+        // The awning: canvas in stripes, cream and its colour, sloping from over the back to out past the counter.
+        var colour = Awnings[Math.Abs(variant) % Awnings.Length];
+        const int stripes = 6;
+        for (int i = 0; i < stripes; i++)
+        {
+            float a = -x - 0.15f + i * (2 * x + 0.3f) / stripes, b = a + (2 * x + 0.3f) / stripes;
+            var (tint, flat) = i % 2 == 0 ? Cream : colour;
+            k.Use("sac", flat, 0.9f, 0, tile: 1);
+            k.Tint = tint;
+            k.Quad(new Vector3(a, h, z + 0.1f), new Vector3(b, h, z + 0.1f), new Vector3(b, h - 0.5f, -z - 0.45f), new Vector3(a, h - 0.5f, -z - 0.45f),
+                twoSided: true);
+        }
+        k.Tint = Vector3.One;
+        // The lantern under the awning's edge, and its slate on the front post.
+        Iron(k);
+        k.Rod(MarketLamp + new Vector3(0, 0.12f, 0), new Vector3(MarketLamp.X, h - 0.4f, MarketLamp.Z), 0.012f);
+        k.BoxAt(MarketLamp + new Vector3(0, 0.12f, 0), new Vector3(0.1f, 0.025f, 0.1f));
+        k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
+        k.Emissive = 1;
+        k.BoxAt(MarketLamp, new Vector3(0.08f, 0.11f, 0.08f));
+        k.Emissive = 0;
+        k.Use("paint_black", Palette.SootBlack, 0.7f, 0.1f, tile: 1);
+        k.Panel(new Vector3(-x + 0.06f, 1.45f, -z - 0.02f), -Vector3.UnitZ, Vector3.UnitY, 0.45f, 0.32f, Vector2.Zero, Vector2.One);
     }
 
     /// <summary>Two posts at either end of a thing <paramref name="x"/> each way from its middle, <paramref name="h"/> high.</summary>
