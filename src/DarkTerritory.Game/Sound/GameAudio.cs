@@ -409,6 +409,9 @@ public sealed partial class GameAudio
         // The steam calliope (note 715): its notes are the whistle.
         if (Calliope(world, train))
             return;
+        // The honk and the gold-plated whistle (queue #505, note 775), where they're installed.
+        if (Honk(world, train) || GoldWhistle(world, train))
+            return;
         // The cord's own whistle, once it's installed, is the crew's (crew-cab-controls, GameAudio.Crew.cs).
         if (world.WhistleSeconds <= 0 && train.Dynamics.Tuning.Composition.Dressed("cucarachaHorn"))
         {
@@ -454,6 +457,62 @@ public sealed partial class GameAudio
     }
 
     AudioClip? _cucaracha;
+    bool _goldBlowing;
+
+    /// <summary>
+    /// The honk (note 678; queue #505, note 775): a clown's bulb horn where the whistle was. A honk on each pull, however
+    /// short, and another while it's held; let go, the last one finishes. True when it's fitted and installed.
+    /// </summary>
+    bool Honk(World world, TrainOnLine train)
+    {
+        if (!train.Dynamics.Tuning.Composition.Dressed("theHonk") || !HasCue("up-horns.honk"))
+            return false;
+        if (_whistle is { Finished: true })
+            _whistle = null;
+        if (world.WhistleSeconds <= 0)
+            return true;
+        var at = WhistleDome(train);
+        _whistle ??= Cue("up-horns.honk", at, Occlusion(PlayerMotor.Outside));
+        if (_whistle is not null)
+            _whistle.Position = at;
+        return true;
+    }
+
+    /// <summary>
+    /// The gold-plated whistle (note 678; queue #505, note 775): brighter and a quarter louder, its own sounding, held and let
+    /// go. True when it's fitted and installed.
+    /// </summary>
+    bool GoldWhistle(World world, TrainOnLine train)
+    {
+        if (!train.Dynamics.Tuning.Composition.Dressed("goldWhistle") || !HasCue("up-horns.gold"))
+            return false;
+        var at = WhistleDome(train);
+        float outside = Occlusion(PlayerMotor.Outside);
+        bool blowing = world.WhistleSeconds > 0;
+        if (blowing && !_goldBlowing)
+        {
+            Cue("up-horns.gold-start", at, outside);
+            _whistle?.Stop();
+            _whistle = Cue("up-horns.gold", at, outside);
+        }
+        else if (!blowing && _goldBlowing)
+        {
+            _whistle?.Stop();
+            _whistle = null;
+            Cue("up-horns.gold-stop", at, outside);
+        }
+        _goldBlowing = blowing;
+        if (_whistle is not null)
+        {
+            _whistle.Position = at;
+            _whistle.Occlusion = outside;
+        }
+        return true;
+    }
+
+    /// <summary>Where the whistle sounds: its dome on the engine's roof.</summary>
+    static Double3 WhistleDome(TrainOnLine train) =>
+        train.Frames[0].ToWorld(new Double3(0, train.Frames[0].Shape.RoofHeight + 0.6, -2));
 
     /// <summary>The La Cucaracha horn's sound (note 701): the whistle's tier and reach (a tell: it's still the whistle), its phrase as a clip.</summary>
     string CucarachaSound
@@ -822,6 +881,9 @@ public sealed partial class GameAudio
                 // Sat down on an edge, or leant out of a doorway (note 722; queue #519, note 786): the coat settling, a hand on the frame.
                 Emote.SitEdge => "crew-emotes.sit",
                 Emote.LeanOut => "crew-emotes.lean",
+                // The "more emotes" upgrade (note 714; queue #534, note 806): a bow's coat and boot, a salute's heels and sleeve.
+                Emote.Bow => "crew-emotes.bow",
+                Emote.Salute => "crew-emotes.salute",
                 _ => null,
             };
             if (cue is not null && Crewmate(e.By) is { } s && At(world.Train, s) is { } at)
@@ -845,6 +907,29 @@ public sealed partial class GameAudio
             _paintsHeard[id] = paint;
         }
         _gesturesPrimed = true;
+    }
+
+    /// <summary>The conga's one held voice (queue #534, note 806): owner of its <see cref="Hold"/>.</summary>
+    const int CongaOwner = 0x0C0A6A;
+
+    /// <summary>
+    /// The conga (note 714; queue #534, note 806): boots in step and the hummed tune, held while anyone dances it, one voice for
+    /// the whole line where its dancers are (a line of eight is a line, not eight of it), a little fuller with more in it.
+    /// </summary>
+    void Conga(World world)
+    {
+        var at = Double3.Zero;
+        int n = 0;
+        int? first = null;
+        foreach (var e in world.Emotes)
+            if (e.Kind == Emote.Conga && Crewmate(e.By) is { } s && At(world.Train, s) is { } p)
+            {
+                at += p;
+                n++;
+                first ??= e.By;
+            }
+        if (n > 0 && Crewmate(first!.Value) is { } lead)
+            HoldLevel("crew-emotes.conga", CongaOwner, at * (1.0 / n) + Double3.Up, OccludedAt(world.Train, lead.Parent, lead.Position), Math.Min(1, 0.7 + 0.1 * n));
     }
 
     /// <summary>
