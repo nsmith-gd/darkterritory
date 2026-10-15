@@ -914,7 +914,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [754. The shover's mark ends at the shover's death (S1, queue #484; the director, 14 Oct)](notes/754.md)
 - [755. A comet fragment most nights, in sight off the line (S1, queue #485; the audit's R6)](notes/755.md)
 - [756. Grabbed with nobody near: the struggle in a crew (S1, queue #486; the social collision audit's R3)](notes/756.md)
-- [758. What's drawn at a stop is what's walked into: the coaling tower's trestle and the facilities' buildings (C1, queue #488; the director, 14…](notes/758.md)
 - [757. More of the Corruption alight: the crystal tree glowing a little, the thorn tree's cocoons lit from inside, the webbed birch's veins…](notes/757.md)
 - [758. What's drawn at a stop is what's walked into: the coaling tower's trestle and the facilities' buildings (C1, queue #488; the director, 14…](notes/758.md)
 - [759. The Whistler seen at its whistle: up over the roofs on the coupler, leaning out to whoever's beside the train, its breath jetting from its…](notes/759.md)
@@ -930,6 +929,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [774. K1's merged asks heard (AU1, queue #504; K1's comment on #1012; notes 718, 720 and 727)](notes/774.md)
 - [775. U1's upgrades heard (AU1, queue #505; U1's #967, notes 678, 697, 698, 700 and 711)](notes/775.md)
 - [776. K1's crew car and crew memory heard (AU1, queue #506; K1's #1016, notes 716 and 721; K1's asks on #1012)](notes/776.md)
-- [778. Nothing lies across the track: the boughs, the deadfall, a boulder, the yards' racks of rail, the stands' trees, a dead line's land and the…](notes/778.md)
 - [777. A ping heard (AU1, queue #507; A1's #1024, note 739)](notes/777.md)
+- [778. Nothing lies across the track: the boughs, the deadfall, a boulder, the yards' racks of rail, the stands' trees, a dead line's land and the…](notes/778.md)
+- [779. A car and the engine coming apart, each stage its own look (C1, queue #509; the art checklist's `failing-stages`: "each stage needs a look…](notes/779.md)
 <!-- end of the notes index -->

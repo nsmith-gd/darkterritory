@@ -202,6 +202,7 @@ public sealed class PrototypeSession : IPlaySession
         _lean.Apply(_renderFrames, Train, Route?.Plan?.Rules, (Tick + alpha) * SimConstants.TickSeconds);
         // And a car in the mine head's tipple rolled over toward its bin, or off its rails (note 423): drawn only.
         TippleTilt.Apply(_renderFrames, Train, World.Run);
+        ComeApart.Apply(_renderFrames, Train, World.Run);
         // And the cars a Waker has at dawn, lifted from the rear with whoever's in them (note 588): drawn only.
         WakerLift.Apply(_renderFrames, Train, World);
         return _renderFrames;
