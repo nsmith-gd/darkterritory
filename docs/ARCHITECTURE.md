@@ -893,6 +893,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [721. Crew memory (K1, queue #455; the director, 14 Oct 2026, `docs/design/friendslop.md` §3, GDD App. F.6)](notes/721.md)
 - [724. Sessions (K1, queue #458; the director, 14 Oct 2026, `docs/design/friendslop.md`, GDD App. F.6)](notes/724.md)
 - [727. The mail catch (K1, queue #461; the director, 14 Oct 2026, GDD App. F.6)](notes/727.md)
+- [732. Sound cues in the world: what waits in a house, what's about to go, what's been hit (K1, queue #466; the director's calls of 14 Oct 2026,…](notes/732.md)
 - [733. The friendslop audit and the director's calls of 14 Oct (K1, queue #467)](notes/733.md)
 - [734. The cab's hatch ladder clips and the hatch flickers (A1, queue #468; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 1)](notes/734.md)
 - [735. The cab shakes and rocks; still slow (A1, queue #469; the director, 14 Oct, `docs/playtest/2026-10-14.md` lines 6, 20)](notes/735.md)

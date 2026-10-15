@@ -908,6 +908,7 @@ public sealed partial class Run
         {
             LooseCause.RunIn => $"A hard brake at {Kmh(speed)} worked the coupling's pin loose, and it parted.{driving} ",
             LooseCause.Knock => $"Coupled up at {Kmh(speed)}, the knock worked the coupling's pin loose, and it parted.{driving} ",
+            LooseCause.Bend => $"A bend taken at {Kmh(speed)} worked the coupling's pin loose, and it parted.{driving} ",
             _ => "The coupling worked loose and parted. ",
         };
     }

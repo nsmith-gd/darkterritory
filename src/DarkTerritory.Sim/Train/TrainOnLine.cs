@@ -23,7 +23,7 @@ public readonly record struct RakeContact(int Front, int Rear, double ClosingSpe
 public readonly record struct RakeState(int[] Vehicles, double Distance, double Velocity, double BrakeEfficiency, bool Handbrake, bool FrontCouplerLocked, int Path = RailLine.MainPath);
 public readonly record struct VehicleState(int Id, double Load, double Integrity, double CargoIntegrity, GunState Gun = default, byte DoorsOpen = 0,
     CargoKind Cargo = CargoKind.None, bool LampLit = true, double Eaten = 0, uint LockersOpen = 0, bool Breached = false, Double3 BreachAt = default, byte[]? Char = null, double HotBox = 0, double Gutter = 0, double Loose = 0, bool Wound = false, bool Seized = false, double Knot = 0,
-    bool OffRails = false, double Placed = 0);
+    bool OffRails = false, double Placed = 0, LooseCause LooseCause = LooseCause.None);
 
 /// <summary>Everything about the train that the host owns and clients re-simulate from.</summary>
 public sealed record TrainState(RakeState[] Rakes, VehicleState[] Vehicles, Boiler Boiler);
@@ -249,6 +249,11 @@ public sealed class TrainOnLine
     /// </summary>
     public int DraggedVehicle { get; set; } = -1;
     public double DragFactor { get; set; }
+    /// <summary>
+    /// Host, this tick: the engine's rake is lurching on a posted bend taken too fast (<c>Lineside.Hazards</c>: over its board
+    /// by sight.json <c>lurchOver</c>). Held long enough it works a pin loose (<see cref="LooseTuning.BendSeconds"/>, note 732).
+    /// </summary>
+    public bool Lurching { get; set; }
 
     /// <summary>At a buffer stop: the end of the line, a dead line's end, or back at the start.</summary>
     public bool AtEndOfLine => Dynamics.Distance >= Line.PathLength(Dynamics.Path) || RearDistance <= 0;
@@ -375,7 +380,7 @@ public sealed class TrainOnLine
 
     public TrainState Capture() => new(
         _rakes.Select(r => new RakeState(r.Consist.Vehicles.Select(v => v.Id).ToArray(), r.Distance, r.Velocity, r.BrakeEfficiency, r.Handbrake, r.FrontCouplerLocked, r.Path)).ToArray(),
-        _vehicles.Select(v => new VehicleState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun, v.DoorsOpen, v.Cargo, v.LampLit, v.Eaten, v.LockersOpen, v.Breached, v.BreachAt, v.Char, v.HotBox, v.Gutter, v.Loose, v.Wound, v.Seized, v.Knot, v.OffRails, v.Placed)).ToArray(),
+        _vehicles.Select(v => new VehicleState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun, v.DoorsOpen, v.Cargo, v.LampLit, v.Eaten, v.LockersOpen, v.Breached, v.BreachAt, v.Char, v.HotBox, v.Gutter, v.Loose, v.Wound, v.Seized, v.Knot, v.OffRails, v.Placed, v.LooseCause)).ToArray(),
         Boiler);
 
     /// <summary>Adopts host state and rebuilds rakes and poses; clients then re-simulate forward from it.</summary>
@@ -399,6 +404,7 @@ public sealed class TrainOnLine
             vehicle.HotBox = v.HotBox;
             vehicle.Gutter = v.Gutter;
             vehicle.Loose = v.Loose;
+            vehicle.LooseCause = v.LooseCause;
             vehicle.Wound = v.Wound;
             vehicle.Seized = v.Seized;
             vehicle.Knot = v.Knot;
