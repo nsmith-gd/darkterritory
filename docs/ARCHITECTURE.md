@@ -915,6 +915,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [755. A comet fragment most nights, in sight off the line (S1, queue #485; the audit's R6)](notes/755.md)
 - [756. Grabbed with nobody near: the struggle in a crew (S1, queue #486; the social collision audit's R3)](notes/756.md)
 - [756. Grabbed with nobody near: the struggle in a crew (S1, queue #486; the audit's R3)](notes/756.md)
+- [757. More of the Corruption alight: the crystal tree glowing a little, the thorn tree's cocoons lit from inside, the webbed birch's veins…](notes/757.md)
 - [759. The Whistler seen at its whistle: up over the roofs on the coupler, leaning out to whoever's beside the train, its breath jetting from its…](notes/759.md)
 - [761. The eyes in the dark have something under them: a sign is the thing that lives here, a dark shape at the lamp's edge with its eyes in its…](notes/761.md)
 - [763. The char a fire leaves, as burnt boards (C1, queue #493; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 28:…](notes/763.md)
