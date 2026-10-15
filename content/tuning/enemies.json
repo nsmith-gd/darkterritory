@@ -153,6 +153,8 @@
     "mourners": [[0.35, 0.45], [0.3, 0.9]],
     // Knee-high, a crate over its head when it carries (note 592).
     "pickers": [[0.3, 0.3]],
+    // A dog-sized rat, low to the ground (note 790).
+    "mouseMoose": [[0.35, 0.3]],
     // The house creatures (notes 583–586): the Lodger and the Householder man-sized; the Hanger's sac, up in the roof.
     "lodger": [[0.35, 0.5], [0.3, 1.2]],
     "householder": [[0.35, 0.5], [0.3, 1.3]],
@@ -243,7 +245,8 @@
   "solidity": {
     "climbM": 2.5, "airClearM": 0.2,
     "kinds": { "ribbit": "ground", "gaunt": "ground", "grumbler": "ground", "choir": "air", "whistler": "none", "follower": "none", "sootChildren": "none",
-      "mourners": "ground", "freightBeetle": "ground", "towerJaw": "ground", "pickers": "ground" }
+      "mourners": "ground", "freightBeetle": "ground", "towerJaw": "ground", "pickers": "ground",
+      "mouseMoose": "ground" }
   },
 
   // TIPPY TOESIE · absence · interior (App. A.5, B.5). Picks a player idle (moving under idleBelow m/s) for idleSeconds with
@@ -435,6 +438,26 @@
     "scatterWithin": 10, "scatterSeconds": 6, "leaveSeconds": 12, "health": 1
   },
 
+  // THE MOUSE MOOSE · sight · outside (GDD §21; the director, 15 Oct 2026: "a creature that wanders yards stealing loot. It
+  // does so very slowly, and once it gets out of position so that the crane can't reach it, then you can't get it as a
+  // player"; ARCHITECTURE §8 note 790; docs/design/creatures/mouse-moose.md). A mutant rat with little moose antlers. It comes
+  // out of its hole (holeOut m out past a casting, away from the track) and creeps in (creep m/s) to one of the castings a
+  // crane at the stop still has to load, gets its teeth in it on the hole's side (stood grip m off its face, its snout's
+  // length) for biteSeconds (the reaction window), and drags it back toward its hole at drag m/s: very slowly. Once the hook
+  // can no longer be put within the crane's rigReach of it (asked every reachEvery ticks), the casting is taken: nobody can
+  // load it, and it's dragged on
+  // at dragAway m/s; at its hole (within atHole m) it's gone. A living crewmate within scareWithin m (as the crow flies: the
+  // crane's operator up in the cab is no guard), or a blow, and it lets go and bolts for its hole (run m/s), hides there
+  // hideSeconds and comes back for the same casting; the scaresToGiveUp-th scare off one, and it goes for another (the nearest
+  // it can take). It never hurts anyone, and nothing kills it. It goes when the train's more than leaveBeyond m from its
+  // crane, or there's nothing left to take. Spawns: stopped at a facility whose crane (its own or a yard's) has a casting
+  // stacked; every tier, tierWeights; one at a stop.
+  "mouseMoose": {
+    "scareWithin": 6, "scaresToGiveUp": 5, "hideSeconds": 25, "creep": 1.2, "run": 5, "drag": 0.15, "dragAway": 0.5,
+    "biteSeconds": 1.5, "grip": 0.7, "holeOut": 22, "atHole": 0.5, "reachEvery": 15, "leaveBeyond": 300,
+    "tierWeights": { "local": 1, "frontier": 1.25, "deadLines": 1.5, "deepTerritory": 1.5 }
+  },
+
   // THE HOUSE CREATURES (GDD §21; the director, 9 Oct 2026: "Every time I go into a house, it should feel like there could
   // be something lurking in there that wants to kill me, wants to chase me"; ARCHITECTURE §8 notes 583–586). Which of a
   // stop's open houses something lives in: "share" of them by tier, each house's own dice (the route's seed, the stop and the
@@ -620,11 +643,13 @@
   // Note 623: a body the Mourners are about is carried home into a car (up its side door's steps) when the foot of one's
   // within mournersCarryWithin m, and only while the dawn's time in hand covers mournersCarrySeconds and sixDawnMargin s and
   // the loading's not called done; else it's left (D1: "a body never costs the night"), and put down if it's in the arms.
+  // Note 790: on foot within mouseMooseWithin m of the Mouse Moose at a casting (creeping in, its teeth in it, dragging it), it
+  // goes at it and clubs it: it bolts long before (mouseMoose.scareWithin), and the casting's kept.
   "crewBots": {
     "mournersWithin": 30, "mournersLeash": 20, "towerJawWithin": 25, "towerJawClearFrom": 0.9, "towerJawClearBy": 2.5,
     "wreckWithin": 250, "wreckStopShort": 15, "wreckHoldWithin": 60, "beetleWithin": 15, "ribbitWithin": 12, "brakemanStandOff": 1.5,
     "brakemanWaitPast": 1, "standGiveUp": 240, "gateClearShort": 30, "gateClearWithin": 1500, "gateClearGiveUp": 240, "gateClearMargin": 45,
-    "sixDawnMargin": 45, "mournersCarryWithin": 60, "mournersCarrySeconds": 60
+    "sixDawnMargin": 45, "mournersCarryWithin": 60, "mournersCarrySeconds": 60, "mouseMooseWithin": 30
   },
 
   // DAVE (GDD §3.2; the director, 8 Oct 2026: "a special NPC that shows up randomly in places ... If a player hits Dave 5
@@ -1178,7 +1203,8 @@
       "cinderHounds": 0.7, "fireFlies": 0.42, "carHugger": 0.51, "whistler": 0.65, "trackDoll": 0.22,
       "tippyToesie": 0.7, "stoker": 0.4, "switchman": 0.12, "followers": 0.66, "ribbits": 0.66, "gaunt": 0.21,
       "sootChildren": 0.36, "grumbler": 0.11, "passenger": 0.1, "moose": 0.19, "gannet": 0.72, "freightBeetle": 0.63,
-      "towerJaw": 0.53, "pickers": 0.28, "lodger": 0.06, "householder": 0.68, "hollowHouse": 0.13, "hanger": 0.53 },
+      "towerJaw": 0.53, "pickers": 0.28, "lodger": 0.06, "householder": 0.68, "hollowHouse": 0.13, "hanger": 0.53,
+      "mouseMoose": 0.5 },
     // How often each kind comes against the rest: its weight among what could come, times this (×1 not named).
     "weights": {},
     // The in-car incidents' weight each (the others weigh 1): trouble in the cars is some of the night, not most of it.
@@ -1213,7 +1239,8 @@
     // App. B.1 v1.1's cost table (the Choir costs nothing: it isn't spawned; hazards are level content).
     "costs": { "followers": 2, "draggers": 2, "fireFlies": 2, "switchman": 2, "trackDoll": 3, "cinderHounds": 3, "climbers": 3,
       "whistler": 3, "stoker": 3, "ribbits": 3, "carHugger": 4, "tippyToesie": 4, "gaunt": 4, "sootChildren": 4, "grumbler": 4,
-      "passenger": 5, "moose": 3, "gannet": 4, "freightBeetle": 1, "towerJaw": 3, "brakeman": 3, "hotbox": 2, "knotter": 3 },
+      "passenger": 5, "moose": 3, "gannet": 4, "freightBeetle": 1, "towerJaw": 3, "brakeman": 3, "hotbox": 2, "knotter": 3,
+      "mouseMoose": 2 },
     // App. B.3/B.8 weights.
     "houndsLivestockWeight": 2.5,
     "houndsHotBoilerWeight": 1.5,

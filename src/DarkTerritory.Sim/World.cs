@@ -2875,6 +2875,8 @@ public sealed partial class World
     readonly Sim.Enemies.Dwelling _dwelling = new();
     /// <summary>Crates the Pickers carried down their drains (note 592): the stops' loot the less.</summary>
     public int PickersTook { get; set; }
+    /// <summary>Castings the Mouse Moose dragged all the way to its hole (note 790).</summary>
+    public int MouseMooseTook { get; set; }
     /// <summary>Structures Tower Jaw brought down tonight, and their wrecks the crew cleared (note 363).</summary>
     public int TowersDown { get; set; }
     public int TowersCleared { get; set; }

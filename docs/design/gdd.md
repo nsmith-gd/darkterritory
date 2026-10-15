@@ -56,6 +56,11 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
 - **Run budgets match the build** (B.1): 90, 150, 230 and 330 by tier, about twice v1.1's, to pay for the paced director the build runs.
 - Touches §12, §23, §23.1, B.1, C.9, D.2, D.4, D.7, D.12, E.9 and E.12.
 
+**The director's note of 2026-10-15: the Mouse Moose (queue #515; ARCHITECTURE §8 note 790; design in `docs/design/creatures/mouse-moose.md`).** "A creature that wanders yards stealing loot. It does so very slowly, and once it gets out of position so that the crane can't reach it, then you can't get it as a player ... a management task of trying to keep awareness of all of the loot around you and then trying to drive them off."
+- **The Mouse Moose** (outside, sight, Cargo): a mutant rat the size of a dog, with little moose antlers. At a yard where a crane still has castings to load, it creeps in and drags one away, very slowly, out from under the gantry. Once the casting is out of the crane's reach, nobody can get it back.
+- Come within 6 m and it runs off and hides a while, then comes back for the same casting, so a crewmate can stand guard over it. After five scares it goes for a different one. It never hurts anyone.
+- Touches §21.
+
 **The director's notes of 2026-10-09: the houses and the yards (queue #315–#319; ARCHITECTURE §8 notes 583–586, 592; designs in `docs/design/creatures/`).** "Every time I go into a house, it should feel like there could be something lurking in there that wants to kill me, wants to chase me", and something "more frequently active in the yard". From G1's proposals, the director took:
 - **The Pickers** (outside, sight, Cargo; the stop's own): knee-high scavengers out of a yard's drains, racing the crew for its loose crates. They bite but never kill.
 - **The Lodger** (outside, sound, Kill): hidden in a house's dark; a shriek, then a one-hit lunge; a shut door stops it; it gives up past its pursuit radius (25 m).
@@ -820,6 +825,11 @@ It takes the loose freight nearest it and shoves it directly away from the neare
 Knee-high, long-armed scavengers that scuttle out of the drains at the foot of the sheds and carry off whatever crate nobody's standing by, over their heads, down into the dark.
 > **RULE: get there first.**
 They come up a little after the train stands at a yard and race the crew for its loose crates: each takes the nearest one nobody's guarding and runs it down its drain, gone; a heavy one takes two. Come right up to one carrying and it bites and drops it; a blow kills one and scatters the rest. They never kill.
+
+**THE MOUSE MOOSE** · *in a yard, while a crane has castings to load* *(the director, 2026-10-15)*
+A mutant rat the size of a dog, mangy and hunched, with a little pair of moose antlers on its head. It squeaks.
+> **RULE: keep an eye on the castings, and stand by the one it wants.**
+A while after the train stands at a yard with a crane, it creeps in out of the dark and fastens its teeth on one of the castings waiting to be craned. Then it drags it away from the gantry, very slowly. Once the casting is out from under the crane, out of the hook's reach, it's lost: nobody can get it back. Come within 6 m of it, or strike it, and it lets go and bolts for its hole. It hides there a while, then comes back for the same casting, so once you know which one it wants, you can guard it. After the fifth scare it gives that casting up and goes for another. It never hurts anyone, and nothing kills it. It goes when the train leaves the yard.
 
 **THE LODGER** · *in the dark of a village house* *(the director, 2026-10-09)*
 A long, starved thing folded into the corner of a back room, breathing.

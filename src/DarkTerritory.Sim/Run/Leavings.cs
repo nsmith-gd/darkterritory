@@ -60,6 +60,10 @@ public static class Leavings
 
     static readonly string[] Goods = ["freightTimber", "freightSacks", "freightCarboys"];
 
+    /// <summary>Every piece any leaving is made of, by its lineside name.</summary>
+    public static readonly IReadOnlySet<string> PieceNames =
+        Kinds.SelectMany(k => Enumerable.Range(0, 6).SelectMany(v => Cluster(k.Name, v))).Select(p => p.Name).ToHashSet();
+
     /// <summary>A kind's pieces for variant <paramref name="v"/> (0-5): one, or a little cluster.</summary>
     public static IEnumerable<Piece> Cluster(string kind, int v)
     {

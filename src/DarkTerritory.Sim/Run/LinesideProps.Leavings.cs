@@ -42,6 +42,49 @@ public sealed partial class LinesideProps
     }
 
     /// <summary>
+    /// Every piece of the line's leavings, by how far along it lies: dealt once, for what the rest of the lineside keeps off
+    /// (<see cref="InALeaving"/>). Asked from the art's workers too, so made once whoever asks first.
+    /// </summary>
+    LinesideProp[] AllLeavings() =>
+        LazyInitializer.EnsureInitialized(ref _allLeavings, () => [.. LineLeavings(0, _line.Length + Leavings.Every).OrderBy(p => p.Along)]);
+
+    LinesideProp[]? _allLeavings;
+
+    /// <summary>How far a tree, a boulder or a prop keeps from a leaving's piece (m), past both of their reaches.</summary>
+    const double LeavingRoomM = 0.5;
+
+    /// <summary>
+    /// Whether <paramref name="p"/>, a tree, a boulder or a prop of the lineside, would stand in one of the railway's leavings
+    /// (note 794; note 792's "not yet"): the woods and the biomes' props were dealt without asking where the leavings lie, and
+    /// now and then a trunk grew up through a gangs' hut or a stack of stores, its wall inside the hut's. Each leaving piece's
+    /// reach round its foot, and the prop's own (a trunk's, a boulder's or a piece's), and a little room between.
+    /// </summary>
+    bool InALeaving(LinesideProp p)
+    {
+        if (p.Kind == LinesideKind.Pole || (p.Kind == LinesideKind.Piece && Leavings.PieceNames.Contains(p.Species)))
+            return false;
+        var all = AllLeavings();
+        double reach = p.Kind == LinesideKind.Tree ? p.Radius : Extent(p);
+        // The leavings are sorted along the line; none reaches further than a hut's stack of ties and its rail (5 m).
+        int lo = 0, hi = all.Length;
+        while (lo < hi)
+        {
+            int mid = (lo + hi) / 2;
+            if (all[mid].Along < p.Along - reach - 6)
+                lo = mid + 1;
+            else
+                hi = mid;
+        }
+        for (int i = lo; i < all.Length && all[i].Along <= p.Along + reach + 6; i++)
+        {
+            var l = all[i];
+            if (double.Hypot(l.Along - p.Along, l.Lateral - p.Lateral) < Extent(l) + reach + LeavingRoomM)
+                return true;
+        }
+        return false;
+    }
+
+    /// <summary>
     /// How near the line's middle a leaving laid <paramref name="lateral"/> out at <paramref name="yaw"/> comes (m, on its own
     /// side; less than nothing across it): the boxes of every piece of it, turned as they're laid (as the walls stand them).
     /// </summary>

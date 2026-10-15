@@ -238,6 +238,24 @@ public static partial class Heed
         return train.Line.Sample(path, d).Position;
     }
 
+    /// <summary>
+    /// The Mouse Moose (note 790: "stand by the one it wants"). A bot on foot (the train standing) within
+    /// <c>crewBots.mouseMooseWithin</c> of it at a casting (creeping in, its teeth in it, dragging it off) goes at it to club it:
+    /// it bolts for its hole long before (<c>mouseMoose.scareWithin</c>), and the casting's kept. Not once it's bolted or down
+    /// its hole: nothing to chase.
+    /// </summary>
+    public static PlayerIntent MouseMoose(PlayerIntent intent, in PlayerState self, World world)
+    {
+        if (!Free(self) || self.Parent != PlayerState.World || world.Enemies is not { } et || !CanGoDown(self, world.Train))
+            return intent;
+        var train = world.Train;
+        var me = PlayerMotor.WorldPosition(self, train);
+        var mouse = world.ActiveEnemies.OfType<MouseMoose>().Where(m => !m.Gone && m.Mode is MouseMooseMode.Creep or MouseMooseMode.Bite or MouseMooseMode.Drag)
+            .Select(m => (m, At: m.WorldPosition(train))).Where(x => Flat(x.At - me) <= et.CrewBots.MouseMooseWithin)
+            .OrderBy(x => Flat(x.At - me)).ThenBy(x => x.m.Id).FirstOrDefault();
+        return mouse.m is null ? intent : Strike(self, train, mouse.At, 1.0) ?? intent;
+    }
+
     /// <summary>The Freight Beetle is broad (<c>meleeRadius</c> 1.4): this near on the flat, a swing (m).</summary>
     const double BeetleReach = 1.4;
 

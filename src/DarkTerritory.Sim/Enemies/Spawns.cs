@@ -398,6 +398,24 @@ public static class Spawns
             c.Add(i => FreightBeetle.At(i, spot, hint, yaw, t));
             return true;
         }),
+        // The Mouse Moose (note 790): stopped at a facility whose crane (its own or a yard's) still has a casting to take in
+        // the hook's reach; every tier, more the harder; one at a stop. It comes out of its hole, out past the castings.
+        new(EnemyKind.MouseMoose, c =>
+        {
+            if (!c.Stopped || !c.AtFacility || !c.None(EnemyKind.MouseMoose) || MouseMooseCranes(c).Count == 0)
+                return null;
+            return MooseTuning.ByTier(c.Tuning.MouseMoose.TierWeights, c.Tier);
+        }, c =>
+        {
+            var cranes = MouseMooseCranes(c);
+            if (cranes.Count == 0)
+                return false;
+            var (crane, castings) = cranes[(int)c.Director.NextRange(0, cranes.Count - 1e-9)];
+            int on = castings[(int)c.Director.NextRange(0, castings.Count - 1e-9)];
+            var (hole, hint) = MouseMoose.HoleFor(c.World, crane.Castings[on].At, c.Tuning.MouseMoose);
+            c.Add(i => MouseMoose.At(i, crane, on, hole, hint));
+            return true;
+        }),
         // B.8 · The Brakeman (note 364): up at the far end of a moving train; never with a crew of one; every tier, more the
         // harder, the longer the train and with a climb ahead.
         new(EnemyKind.Brakeman, c =>
@@ -575,6 +593,14 @@ public static class Spawns
             return true;
         }),
     ];
+
+    /// <summary>
+    /// The cranes at the stop the train's standing at with castings the Mouse Moose could take (note 790), each with those
+    /// castings: in the order the site has them.
+    /// </summary>
+    static List<(Crane Crane, List<int> Castings)> MouseMooseCranes(SpawnContext c) =>
+        c.World.Run?.CurrentSite is not { } site ? []
+            : [.. site.Cranes.Where(k => !k.Wrecked).Select(k => (k, MouseMoose.Takeable(k, k.Controls).OrderBy(i => i).ToList())).Where(x => x.Item2.Count > 0)];
 
     /// <summary>Cars in the engine's rake with a room and their lamp lit (the Fire Flies' light).
     /// With <see cref="FireFliesTuning.ShutCarKeepsOut"/>, only those with a way in: a door or the hatch open, or a breach

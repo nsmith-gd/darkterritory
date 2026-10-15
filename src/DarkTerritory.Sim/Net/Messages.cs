@@ -110,12 +110,13 @@ public static class Protocol
     //     the emote byte (protocol 60) carries the new emotes 5-8 (the high five, the fist bump, the sit, the lean) as it is.
     // 71: a friend on the crane's hook (note 726): the Crane record's last field counts the riders, a player's flags carry
     //     Hoisted, and a death of its own (dropped from the crane).
-    // 72: the train upgrades (notes 698–745): the vehicle record carries the BBQ deck's grill charcoal and cooler beers (its
+    // 72: the Mouse Moose (note 790): an enemy kind of its own, and a casting state (Taken: dragged out of the hook's reach).
+    // 73: the train upgrades (notes 698–745): the vehicle record carries the BBQ deck's grill charcoal and cooler beers (its
     //     32nd and 33rd fields; the fire cells after them); the body kinds Beer, Sausage, Instrument (which, its ninth
     //     field), Caboose, FishingRod, Fish, GrilledFish, Cat, Dog and TennisBall (the caboose's and the pets' Tipped in the
     //     ninth field); the player flags Lounging and Playing (PlayerFlags is a uint now: the ushort was full); the world
     //     record's band tune and first tick, and the whimsies' state; the emotes Bow, Salute and Conga (9-11, the places note 722 kept).
-    public const int Version = 72;
+    public const int Version = 73;
 }
 
 public enum MessageType : byte
