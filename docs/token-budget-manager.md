@@ -24,8 +24,10 @@ or handoff file.
      "~/.claude/statusline-usage.sh"}}` in `~/.claude/settings.json`. If a status line is already there, wrap it so its
      output still shows. The script writes `~/.claude/usage-state.json` atomically and leaves it alone when `rate_limits`
      is missing (it appears only after a session's first response).
-3. Run `ListAgents` to see which worker sessions on this account you can message. Sessions on other accounts are reached
-   only through COORDINATION.md on main.
+3. Find this account's worker sessions. In a cloud session, `ListAgents` doesn't list them. Use `list_sessions` with
+   `mine: true` (the repo's sessions updated in the last day are the live workers), then `send_message` with each session
+   id. Workers answer with their own `send_message`, or you read their reply with `list_events`. Locally, `ListAgents` and
+   `SendMessage` work. Sessions on other accounts are reached only through COORDINATION.md on main.
 4. Schedule the check about hourly. In a cloud session, use `create_trigger` firing into your own session (it can't fire
    more often than hourly). Use its prompt in *The hourly routine* below.
 
@@ -95,7 +97,7 @@ The prompt the scheduled check sends (cloud form):
 
 > Hourly Token Budget Manager check for `<account>`. Read the newest rate_limit_event from this session (list_events,
 > kinds ["rate_limit_event"]); if it's older than 15 minutes, read again after this turn's first call. Write
-> ~/.claude/usage-state.json, compute pace, act on the thresholds (ListAgents for workers; message them if any), then
+> ~/.claude/usage-state.json, compute pace, act on the thresholds (list_sessions mine:true for workers, send_message them; retry once any that haven't confirmed), then
 > update `<account>`'s row in docs/COORDINATION.md: merge origin/main into your branch (never force-push), edit only your
 > row, docs PR, squash-merge when the `numbers` check is green. Skip the PR if nothing in the row would change by more than
 > a couple of points and the state is the same. Reply with the one status line.
