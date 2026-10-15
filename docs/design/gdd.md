@@ -396,7 +396,7 @@ Until the train passes the outer gate, the fortress yard and the lobby are a saf
 - the cold doesn't bite;
 - the train doesn't move off unless someone in the cab lets the brake off and drives it out through the gate.
 
-The run, and every consequence in it, begins as the train goes through the gate (run.json `yardIsSafe`). Emotes (a dance, a wave, a point) and outfits to try on are ARCHITECTURE §8 note 298.
+The run, and every consequence in it, begins as the train goes through the gate (run.json `yardIsSafe`). Emotes (a dance, a wave, a point) and outfits to try on are ARCHITECTURE §8 note 298. In the yard each player can also paint their mask (PAINT YOUR MASK, on the night's menu and in the settings): the crew see the new paint at once. Past the gate, a change waits for the next night (§29 "Painted masks"; the director, 14 Oct 2026; ARCHITECTURE §8 note 731).
 
 ### Arrival
 Eventually the crew sees lights. Then walls. Then cannon towers. The gates open and the train crosses back into civilization.
@@ -1232,6 +1232,17 @@ Don't let corruption become neon soup. Less is more.
 Practical, rail-working, soot-covered, bundled against cold, slightly anonymous. **Ordinary people in bad circumstances, not heroic fantasy silhouettes.**
 
 Heavy coats, caps and helmets, lanterns, gloves, harnesses, belts, repair tools, boots made for wet metal and ballast. They should read as fragile humans trapped in industrial systems.
+
+**Painted masks** (the director, 14 Oct 2026; ARCHITECTURE §8 note 731). The crew are masked, "but still have some fun to us" (note 58). Each player paints their own gas mask, in the settings or the yard:
+- **A coat** of one of ten paints (look.json `maskPaints`: bone, soot, signal red, oxblood, ochre, leaf green, sea blue, slate, plum, pitch pine).
+- **A stencil** over it, one of twelve (`maskStencils`): a stripe, a cross, a skull's teeth, a star, their number, a moustache, a heart, a crow, a bolt, a smile, X eyes or an anchor.
+- **The stencil's colour**, from the same paints.
+
+The paint goes on the hood's face, round the eyepieces and the filter drum. Where the welder's visor is down, it goes on the visor, round its slot of glass. It is strong and flat, lit a breath like the armband, so a crewmate knows who's who at 5 m by a hand lamp.
+
+**The crew's sigil.** The host picks one stencil on the fortress board as the crew's mark. It is kept in the campaign save, so it travels with the crew (§11). It is painted in a ring on both sides of the big cab, under the gallery windows, and as a badge on every crewmate's earflaps.
+
+The paint and the sigil are only looks. They change nothing in the night.
 
 ### Enemies
 

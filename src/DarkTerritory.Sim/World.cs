@@ -399,6 +399,22 @@ public sealed partial class World
     /// <summary>The look a player is drawn in (note 298): their outfit if they've one, else their id.</summary>
     public int OutfitOf(int id) => Outfits.TryGetValue(id, out byte o) ? o : id;
 
+    /// <summary>
+    /// Each player's mask paint (GDD §29; note 731), by id: chosen in the settings and tried on in the yard, as an outfit is.
+    /// The host's, sent on change. A player missing from it wears an unpainted mask.
+    /// </summary>
+    public Dictionary<int, MaskPaint> Paints { get; } = [];
+
+    /// <summary>The paint on a player's mask (note 731), or none.</summary>
+    public MaskPaint PaintOf(int id) => Paints.TryGetValue(id, out var p) ? p : MaskPaint.None;
+
+    /// <summary>
+    /// The crew's sigil (GDD §29; note 731): a stencil (look.json maskStencils, from 1; 0 none) the host picked at the fortress,
+    /// kept in the campaign save. Painted on the engine's side and small on every crewmate's mask. Every machine's world is
+    /// built with it (<c>SessionSetup.Sigil</c>). Presentation only.
+    /// </summary>
+    public byte CrewSigil { get; set; }
+
     /// <summary>The host's: the campaign's looks by player name, going into the night.</summary>
     public IReadOnlyDictionary<string, string> LooksByName { get; set; } = new Dictionary<string, string>();
     /// <summary>
