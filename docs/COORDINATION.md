@@ -72,11 +72,11 @@ only see what's on main here.
 
 | Account | Weekly % | Weekly resets (UTC) | Session % | State | Updated (UTC) |
 |---|---|---|---|---|---|
-| nathaniel2 | — | — | — | ACTIVE | 2026-10-15 16:00 |
+| nathaniel2 | 59 | Wed 21 Oct 20:00 | 20 (resets 21:00 UTC) | ACTIVE; at the last day's pace the weekly limit is reached ~16 Oct 08:30 UTC, so plan to hand off by then | 2026-10-15 17:30 |
 
 - **State:** ACTIVE (working); PAUSED until *time* (the 5-hour limit: its sessions are waiting with their work intact, so
   its items aren't abandoned: don't take them); LIMITED until *weekly reset* (the weekly limit: its items are handed off).
-  Each account edits only its own row, and only when its state changes or once a day. This file merges as a union, so a
+  Each account edits only its own row (its Token Budget Manager, about hourly; a session's rate-limit events carry the numbers). This file merges as a union, so a
   merge can leave two rows for one account: keep the one with the later *Updated*.
 - **Items stay in the queue.** There's no second task list: an item's queue row is its task row (rule 9). When an account is
   paused, its rows say `paused (account limit, back <time UTC>)`. When it hands off, they say `open for pick-up` with a
