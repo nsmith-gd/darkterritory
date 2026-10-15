@@ -1760,6 +1760,7 @@ public static partial class Staging
             lines.Add(Sim.Run.Run.BroughtInLine(new Sim.Run.BroughtIn(91, EnemyKind.Grumbler, "the Grumbler", 3, 1706), town, t, brigade));
         }
         var (marked, shown) = Sim.Run.Run.MarkBookmarks(world, lines);
+        // Each net is its figures summed, as a real night's is (note 766: the report's ledger shows them adding up).
         return brigade > 0
             ? new Sim.Run.RunReport(end, 1720, 17.2, 5, 0, 4.6, 3220, 120, 6, 40, 3220 - 166 - 2 * brigade, 4, 0)
             {
@@ -1772,7 +1773,17 @@ public static partial class Staging
                 Finder = "Dave",
                 FinderWorth = 1300,
             }
-            : new Sim.Run.RunReport(end, 1720, 17.2, 4, 1, 2.1, 0, 120, 6, 40, -1416, 1, 3, Deaths: 3, CrewLossFees: 1050) { Lines = marked, Bookmarks = shown };
+            : new Sim.Run.RunReport(end, 1720, 17.2, 4, 1, 2.1, 0, 120, 6, 40, -1216, 1, 3, Deaths: 3, CrewLossFees: 1050) { Lines = marked, Bookmarks = shown };
+    }
+
+    /// <summary>
+    /// A night delivered in the red (note 766; the director's of 13 Oct): <see cref="Report"/>'s three of the crew lost and its
+    /// costs, with a little cargo home, so the clerk's tally ends on what cost most.
+    /// </summary>
+    public static Sim.Run.RunReport InTheRed(Sim.World world)
+    {
+        var lost = Report(world, Sim.Run.RunEnd.CrewLost);
+        return lost with { End = Sim.Run.RunEnd.Delivered, Gross = 640, Net = lost.Net + 640 };
     }
 
     static readonly Sim.Player.PlayerTuning DefaultPlayer = DataFile.Load<Sim.Player.PlayerTuning>(Path.Combine(DataFile.FindContentRoot(), Sim.Player.PlayerTuning.File));

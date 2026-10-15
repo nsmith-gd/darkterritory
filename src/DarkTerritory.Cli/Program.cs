@@ -3907,13 +3907,17 @@ static object HudShot(string content, string[] args)
         wheel.Update(true, -60, 0);
         wheel.Draw(hud, width, height, Hud.PromptScaleAt(scale));
     }
-    // --radio manifest|tally [s]: the fortress on the radio (GDD §9; note 178), staged from this night and a delivered report,
-    // --radio-at s into the reading.
+    // --radio manifest|tally|red [s]: the fortress on the radio (GDD §9; note 178), staged from this night and a delivered report
+    // (red: one delivered in the red, three of the crew lost, the clerk saying what cost most; note 766), --radio-at s into the
+    // reading.
     if (Str(args, "--radio", "") is { Length: > 0 } reading)
     {
-        var lines = reading == "tally"
-            ? DarkTerritory.Sim.Run.Radio.Tally(Staging.Report(session.World, DarkTerritory.Sim.Run.RunEnd.Delivered))
-            : DarkTerritory.Sim.Run.Radio.Manifest(session.World, [0, 1, 2, 3]);
+        var lines = reading switch
+        {
+            "tally" => DarkTerritory.Sim.Run.Radio.Tally(Staging.Report(session.World, DarkTerritory.Sim.Run.RunEnd.Delivered)),
+            "red" => DarkTerritory.Sim.Run.Radio.Tally(Staging.InTheRed(session.World)),
+            _ => DarkTerritory.Sim.Run.Radio.Manifest(session.World, [0, 1, 2, 3]),
+        };
         Hud.RadioCard(hud, width, height, lines, Opt(args, "--radio-at", 6), session.World.Run?.Tuning.Radio ?? new());
     }
     // --supplies: the supplies aboard (the director's decision of 2026-10-06; note 264), as I toggles it on.
