@@ -686,7 +686,7 @@ public static class SquareKit
     }
 
     /// <summary>A line of the font's capitals inked on a sheet facing −Z, starting at <paramref name="x"/> (its left, as read) and running to −X.</summary>
-    static void Ink(Kit k, BitmapFont font, string line, float x, float y, float px)
+    internal static void Ink(Kit k, BitmapFont font, string line, float x, float y, float px)
     {
         const float Z = -0.0015f;
         foreach (char ch in line)
@@ -728,7 +728,7 @@ public static class SquareKit
         return lines;
     }
 
-    static void Timber(Kit k) => k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
+    internal static void Timber(Kit k) => k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
     static void Iron(Kit k) => k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.3f);
     static void Paint(Kit k)
     {

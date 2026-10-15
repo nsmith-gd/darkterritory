@@ -36,6 +36,20 @@
     [1.35, 0.36, 0.26], [0.3, 0.55, 1.75], [1.35, 1.05, 0.3], [0.25, 1.1, 1.15],
     [0.45, 1.15, 0.32], [1.1, 0.38, 1.35], [1.45, 0.62, 0.2], [1.05, 1.05, 1.05]
   ],
+  // Painted masks (GDD §29, §9's yard; ARCHITECTURE §8 note 731): each player paints their gas mask in the settings' or the
+  // yard's PAINT YOUR MASK, the crew see it. The paints a coat and a stencil come in, by name, as multipliers over the pale
+  // paint (tools/art plaster_ruin; Art.MaskKit), counted from 1 on the wire (0: unpainted). Strong, so a mask reads at 5 m by
+  // a hand lamp; the dark ones are for a coat with a light stencil on it.
+  "maskPaintNames": ["BONE", "SOOT", "SIGNAL RED", "OXBLOOD", "OCHRE", "LEAF GREEN", "SEA BLUE", "SLATE", "PLUM", "PITCH PINE"],
+  "maskPaints": [
+    [1.25, 1.18, 1.0], [0.1, 0.1, 0.11], [1.45, 0.2, 0.14], [0.6, 0.1, 0.1], [1.35, 0.92, 0.25],
+    [0.4, 0.95, 0.3], [0.25, 0.55, 1.4], [0.55, 0.62, 0.7], [0.75, 0.3, 0.85], [0.62, 0.42, 0.24]
+  ],
+  // The stencils (Art.MaskKit.Known draws each by its key), in the menu's order; a crew's sigil is one of them too.
+  "maskStencils": ["stripe", "cross", "teeth", "star", "number", "moustache", "heart", "crow", "bolt", "smile", "x-eyes", "anchor"],
+  // A stencil's colour when none's picked (from 1: BONE), and the crew's sigil's, on the masks and the engine.
+  "maskInk": 1,
+  "sigilInk": 1,
   // §27's material families. The kit's own pieces (the train, the track, the world) name their textures directly; these
   // are for everything still drawn as coloured boxes.
   "materials": {

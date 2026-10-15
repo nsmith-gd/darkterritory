@@ -47,6 +47,39 @@ public class CaptionsTests
     [InlineData("tell-knotter.creep")]
     [InlineData("cs-freight-beetle.push.ground")]
     [InlineData("tell-hotbox.knock")]
+    // Note 768: horseplay, a reader told what a hearing player is.
+    [InlineData("crew-horseplay.bonk")]
+    [InlineData("crew-horseplay.coal-land.roof")]
+    // Note 767: the house creatures' tells, and the doors they slam and break in.
+    [InlineData("tell-lodger-breathing.breathing")]
+    [InlineData("tell-lodger-shriek.shriek")]
+    [InlineData("cs-lodger.break")]
+    [InlineData("tell-householder.house")]
+    [InlineData("tell-householder-rise.rise")]
+    [InlineData("tell-hollow-house.rumble")]
+    [InlineData("cs-hollow-house.slam")]
+    [InlineData("tell-hanger.rafters")]
+    [InlineData("tell-hanger-strands.hum")]
+    // Note 771: the Pickers coming up out of the drains, and taking a crate.
+    [InlineData("tell-pickers.emerge")]
+    [InlineData("cs-pickers.carry")]
+    // Note 772: dawn coming, and coming for the train; the town's guns on it at the walls.
+    [InlineData("tell-wakers.thud")]
+    [InlineData("tell-wakers.rise")]
+    [InlineData("tell-wakers.stride")]
+    [InlineData("cs-wakers.grab")]
+    [InlineData("town-guns.fire")]
+    // Note 773: the figures, by what a reader would hear of each.
+    [InlineData("figures.dave-paint")]
+    [InlineData("figures.party")]
+    [InlineData("figures.jacob-fish")]
+    // Note 774: the speaking tube's call, the mail bag torn.
+    [InlineData("crew-speaking-tube.call")]
+    [InlineData("crew-mail.tear")]
+    // Note 776: the crew car's kettle and cuckoo, the crew photo's flash.
+    [InlineData("crew-car.kettle")]
+    [InlineData("crew-car.cuckoo")]
+    [InlineData("crew-memory.flash")]
     public void TheTellsAndCallsSinceCaptionsAreCaptioned(string sound)
     {
         // Note 391: the signs as they play since note 342, the Moose's and the Gannet's tells (notes 334, 384), and the jobs

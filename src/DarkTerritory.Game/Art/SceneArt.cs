@@ -86,7 +86,7 @@ public sealed partial class SceneArt(Look look)
             pose = c.Emote switch
             {
                 Sim.Player.Emote.Dance => CrewPose.Dance,
-                Sim.Player.Emote.Wave => CrewPose.Wave,
+                Sim.Player.Emote.Wave or Sim.Player.Emote.Aboard => CrewPose.Wave,
                 Sim.Player.Emote.Bow => CrewPose.Bow,
                 Sim.Player.Emote.Salute => CrewPose.Salute,
                 Sim.Player.Emote.Conga => CrewPose.Conga,
@@ -189,7 +189,9 @@ public sealed partial class SceneArt(Look look)
         // The repair kit by its handle (note 513): drawn in the fist, not where the sim holds it (Body skips it).
         var kit = pose is CrewPose.Toolbox or CrewPose.ToolboxWalk ? PropArt.Of(Look).Get("repair_kit") : null;
         bool drawn = Creatures.Crewmate(mesh, m, pose, clipTime, c.Variant, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)), ToolProp(c.Holding),
-            hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor), body: HeadsetBody(c, pose, time), carried: kit, sooted: c.Sooted);
+            hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor), body: HeadsetBody(c, pose, time), carried: kit, sooted: c.Sooted,
+            // (A Passenger's id is 200 and the face it wears, GreyboxScene.AsCrewmate: it wears that crewmate's number too.)
+            mask: new CreatureArt.MaskLook(c.Paint, CrewSigil, (c.Id >= 200 ? c.Id - 200 : c.Id) % 9 + 1));
         // The hat rack's (note 714): on the head, over the cap or helmet.
         if (drawn && c.Hat > 0 && HatKit.Of(Look, c.Hat) is { } hat)
             Creatures.Wear(mesh, hat, "head", m, CreatureArt.FigureOf(c.Survivor));
@@ -253,6 +255,12 @@ public sealed partial class SceneArt(Look look)
 
     /// <summary>How much a breath shows tonight, 0..1 (look.json atmosphere.cold, GreyboxScene.Cold).</summary>
     public float Breath { get; set; }
+
+    /// <summary>
+    /// The crew's sigil (note 731; World.CrewSigil, look.json maskStencils from 1, 0 none), small on every mask and on the
+    /// engine's side. GreyboxScene sets it each frame.
+    /// </summary>
+    public int CrewSigil { get; set; }
 
     /// <summary>
     /// A car of livestock (GDD §19 "makes noise constantly", the slaughterhouse's): sheep packed down the load side in its
@@ -787,6 +795,15 @@ public sealed partial class SceneArt(Look look)
         var o = at.RelativeTo(eye);
         var m = new Matrix4x4(right.X, right.Y, right.Z, 0, u.X, u.Y, u.Z, 0, back.X, back.Y, back.Z, 0, o.X, o.Y, o.Z, 1);
         var props = PropArt.Of(Look);
+        // A thrown lamp broken where it landed (note 728): no lantern, its oil burning in a puddle of flame on what it lies on.
+        if (b.Kind == Sim.Physics.BodyKind.Lamp && b.Broken)
+        {
+            float flicker = Flicker(time, b.Id);
+            var foot = o - u * 0.12f;
+            Effects.FireCell(mesh, foot, right * 0.3f, back * 0.3f, u, Sim.Enemies.FireFace.Floor, 0.55f, true, time, b.Id);
+            mesh.Billboard(foot + u * 0.2f, 1.1f * flicker, 0, new Vector4(Palette.FurnaceOrange * 0.5f * flicker, 1), -1, FxBlend.Additive);
+            return true;
+        }
         if (b.Kind == Sim.Physics.BodyKind.Extinguisher && props.Get("extinguisher") is { } extinguisher)
         {
             // Stood up on its foot (carried, where the hands have it: crew_clips' extinguish); back on its mount (lying where the sim stands it, in its car), stood in the cradle
@@ -821,6 +838,9 @@ public sealed partial class SceneArt(Look look)
             Sim.Physics.BodyKind.Cargo => props.Get(Freight(b)) ?? Piece("prop-cargo", () => PropKit.Cargo(Look)),
             Sim.Physics.BodyKind.Toy => props.Get(ToyModel(b.Id, b.Noise)) ?? PropArt.Of(Look).Get("hand_lantern")
                 ?? Piece("prop-lantern", () => PropKit.Lantern(Look)),
+            // A two-person jackpot (note 719): a heavy crate's ball, drawn as what it is (a safe, a church bell, a figurehead).
+            Sim.Physics.BodyKind.Heavy when FindItem?.Invoke(b) is { } jackpot => Piece($"jackpot-{jackpot}-{b.Pbd.Particles[0].Radius:0.00}",
+                () => FindKit.Jackpot(Look, jackpot, (float)b.Pbd.Particles[0].Radius)),
             Sim.Physics.BodyKind.Heavy => props.Get("heavy_crate") ?? Piece($"prop-heavy-{heavyHalf:0.00}", () => PropKit.Heavy(Look, (float)heavyHalf)),
             Sim.Physics.BodyKind.Crate => props.Get("stores_crate") ?? Piece("prop-crate", () => PropKit.Crate(Look)),
             Sim.Physics.BodyKind.Radio => props.Get("field_radio") ?? Piece("prop-radio", () => PropKit.Radio(Look)),
@@ -831,7 +851,8 @@ public sealed partial class SceneArt(Look look)
             // A tool left on a locker's shelf (note 649): its own model, as it's drawn in hand.
             Sim.Physics.BodyKind.Tool when ToolProp(Sim.Player.Kit.At(b.Tools, 0)) is { } tool => tool,
             // A village find as what it is (FindKit; the director, 8 Oct: finds that stand out by their texture).
-            Sim.Physics.BodyKind.Loot when FindItem?.Invoke(b) is { } item => Piece($"find-{item}", () => FindKit.Find(Look, item, 0.15f)),
+            // (A fragile one as knocked as it is, note 719: cracked, dented, smashed.)
+            Sim.Physics.BodyKind.Loot when FindItem?.Invoke(b) is { } item => Piece($"find-{item}-{Math.Min(b.Knocks, 2)}", () => FindKit.Find(Look, item, 0.15f, Math.Min(b.Knocks, 2))),
             Sim.Physics.BodyKind.Loot => Piece("prop-loot", () => PropKit.Loot(Look, 0.15f)),
             // The BBQ deck's (note 698).
             Sim.Physics.BodyKind.Beer => Piece("prop-beer", () => PropKit.Beer(Look)),
@@ -1430,6 +1451,17 @@ public sealed partial class SceneArt(Look look)
             if ((frame.Origin - eye).Length < 60 && lamps > 0.5f)
                 foreach (var lamp in TrainKit.CorridorLamps(shape))
                     mesh.PointLights.Add(new PointLight(Vector3.Transform(lamp, m), new Vector3(1.0f, 0.62f, 0.32f) * 0.55f, 4.5f));
+            // The crew car (note 716): the chart table's lamp under its shade, down on the map and the heads round it; and the
+            // back wall warm off the boiler's end, a low glow on the gallery's backs. Close to, inside, only.
+            if ((frame.Origin - eye).Length < 30 && TrainKit.ChartTable(shape) is not null && shape.Cab is { } crewCab)
+            {
+                mesh.PointLights.Add(new PointLight(Vector3.Transform(TrainKit.ChartLamp(shape) - new Vector3(0, 0.12f, 0), m), new Vector3(1.0f, 0.82f, 0.55f) * 0.6f * lamps, 3.6f));
+                if (TrainKit.GalleryLamp(shape) is { } galleryLamp)
+                    mesh.PointLights.Add(new PointLight(Vector3.Transform(galleryLamp - new Vector3(0, 0.2f, 0), m), new Vector3(1.0f, 0.74f, 0.45f) * 0.5f * lamps, 4.2f));
+                if (crewCab.Max.Z - crewCab.Min.Z > 8)
+                    mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0, (float)crewCab.Min.Y + 1.5f, (float)crewCab.Max.Z - 0.9f), m),
+                        new Vector3(1.0f, 0.5f, 0.22f) * 0.75f, 3.6f));
+            }
         }
         // Its couplers, each end's shut or cut (TrainKit.CouplerEnds): the knuckle open on a car that's been let go. Where
         // the knuckle's its own piece (car_gear's coupler_jaw, note 402) it swings open on its pin as the end's cut, over
@@ -1554,6 +1586,13 @@ public sealed partial class SceneArt(Look look)
         if (!engine && Look.Layer("stencil_numerals") >= 0)
             mesh.Instances.Add(new MeshInstance(Piece($"number:{ShapeKey(shape)}:{number}", () => TrainKit.CarNumber(Look, shape, number)), m,
                 emergency ? 0.06f : 1, Scar: scar, Bite: cut, BiteFloor: floor));
+        // The crew's sigil on the hood's sides (note 731; World.CrewSigil).
+        if (engine && Look.Tuning.MaskStencil(CrewSigil) is { } sigil)
+        {
+            var ink = Look.Tuning.MaskPaint(Look.Tuning.SigilInk) ?? Vector3.One;
+            mesh.Instances.Add(new MeshInstance(Piece($"sigil:{ShapeKey(shape)}:{sigil}:{Look.Tuning.SigilInk}", () => MaskKit.EngineSigil(Look, shape, sigil, ink)), m,
+                emergency ? 0.06f : 1, Tint: soot, Scar: scar, Bite: cut, BiteFloor: floor));
+        }
         int state = damage.StateOf(integrity);
         if (state > 0)
             mesh.Instances.Add(new MeshInstance(Piece($"damage:{ShapeKey(shape)}:{state}:{seed}",

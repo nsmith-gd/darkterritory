@@ -5,22 +5,24 @@ using DarkTerritory.Sim.Player;
 namespace DarkTerritory.Game;
 
 /// <summary>
-/// The emote wheel (note 298; GDD §9's yard, where the crew "hang out, dance"): held on its key, the three emotes round the
+/// The emote wheel (note 298; GDD §9's yard, where the crew "hang out, dance"): held on its key, the emotes round the
 /// crosshair, the mouse leaning toward one; let go, that one is sent as intent. A tap with no lean sends the last one picked
 /// (the dance, the first time). While it's held the mouse picks rather than looks. The app feeds it; tests drive it.
 /// </summary>
 public sealed class EmoteWheel
 {
-    /// <summary>What's on the wheel, and where: the dance up, the wave to the left, the point to the right (and the upgrade's).</summary>
+    /// <summary>What's on the wheel, and where: the dance up, the wave to the left, the point to the right, ABOARD down (note 740), and the "more emotes" upgrade's on the diagonals.</summary>
     public static readonly (Emote Emote, string Label, Vector2 At)[] Spokes =
     [
         (Emote.Dance, "DANCE", new(0, -1)),
         (Emote.Wave, "WAVE", new(-1, 0)),
         (Emote.Point, "POINT", new(1, 0)),
-        // The "more emotes" upgrade's (note 714), round the bottom: the bow down, the salute and the conga either side of it.
-        (Emote.Bow, "BOW", new(0, 1)),
-        (Emote.Salute, "SALUTE", new(-0.7f, 0.7f)),
+        // Note 740 (GDD §17): the call back to the horn, down.
+        (Emote.Aboard, "ABOARD", new(0, 1)),
+        // The "more emotes" upgrade's (note 714), on the diagonals: the bow down-left, the conga down-right, the salute up-left.
+        (Emote.Bow, "BOW", new(-0.7f, 0.7f)),
         (Emote.Conga, "CONGA", new(0.7f, 0.7f)),
+        (Emote.Salute, "SALUTE", new(-0.7f, -0.7f)),
     ];
 
     /// <summary>The bow, the salute and the conga are on the wheel (the train has the "more emotes" upgrade, note 714).</summary>

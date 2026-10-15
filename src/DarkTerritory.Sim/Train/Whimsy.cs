@@ -58,6 +58,14 @@ public static class Whimsy
         return all;
     }
 
+    /// <summary>
+    /// The engine's footplate (note 745): its cab from the front wall back to the chart table, where the big cab's crew car
+    /// begins (note 716; its gallery's floor is raised, its benches in the way). Where the yard cat walks and sleeps in the cab;
+    /// the whole cab on an engine without the crew car.
+    /// </summary>
+    public static Box Footplate(CarShape engine, Box cab) =>
+        CrewCar.Table(engine) is { } table && table.Min.Z > cab.Min.Z + 1.5 ? new Box(cab.Min, cab.Max with { Z = table.Min.Z - 0.2 }) : cab;
+
     /// <summary>The canary's car: car one, behind the engine (the engine's, on a train of one).</summary>
     public static int CanaryCar(TrainOnLine train) => CanaryCar(train.Frames);
 

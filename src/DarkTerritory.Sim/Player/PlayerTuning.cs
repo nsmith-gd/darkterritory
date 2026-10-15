@@ -44,13 +44,22 @@ public sealed record PlayerTuning(
 
     /// <summary>The emotes' lengths (GDD §9's yard, "dance"; note 298). Field docs live in player.json <c>emotes</c>.</summary>
     public EmoteTuning Emotes { get; init; } = new();
+    /// <summary>The bots' pings (note 739). Field docs live in player.json <c>pings</c>.</summary>
+    public PingTuning Pings { get; init; } = new();
     public NewsTuning News { get; init; } = new();
+    /// <summary>Note 750: a crewmate held or killed out of voice reach, a line for the living (player.json <c>crewNews</c>).</summary>
+    public Run.CrewNewsTuning CrewNews { get; init; } = new();
 
     /// <summary>
     /// Horseplay among the crew (note 717; the director, 14 Oct 2026): crewmates solid to each other, the shove, coal off the
     /// shovel, a tool's bonk. Field docs live in player.json <c>horseplay</c>.
     /// </summary>
     public HorseplayTuning Horseplay { get; init; } = new();
+    /// <summary>
+    /// Bringing them home (note 723; the director, 14 Oct 2026, GDD App. F.6): the hand-up onto a moving car, carrying a living
+    /// friend, a bandage on someone else. Field docs live in player.json <c>rescue</c>.
+    /// </summary>
+    public RescueTuning Rescue { get; init; } = new();
     /// Voices as tools (the friendslop audit's Friends goal; the director, 14 Oct 2026; note 720): the speaking tube, singing
     /// together, and lamp signals. Field docs live in player.json <c>voices</c>.
     /// </summary>
@@ -102,7 +111,20 @@ public sealed record LinkTuning(double TimeoutSeconds = 15, double KeepaliveSeco
 public sealed record CrewTuning(int Cap = 8, double RefuseLingerSeconds = 3)
 {
     public int Places => Math.Max(1, Cap);
+    /// <summary>
+    /// GDD §33.1 (note 724): a human joining a night that bots crew takes a bot's place where it stands (its body, slots,
+    /// health and post) rather than waiting for a stop or the Holdouts' queue, or being turned away from a full crew.
+    /// </summary>
+    public bool JoinTakesBotSeat { get; init; } = true;
+    /// <summary>GDD §33.1 (note 724): putting a player off the run. Docs in player.json <c>crew.kick</c>.</summary>
+    public KickTuning Kick { get; init; } = new();
 }
+
+/// <summary>
+/// Note 724: a public lobby's vote to put a player off: open for <paramref name="VoteSeconds"/>, carried by more than
+/// <paramref name="Majority"/> of the living humans aboard (the one voted on not counted).
+/// </summary>
+public sealed record KickTuning(double VoteSeconds = 30, double Majority = 0.5);
 /// <summary>
 /// How long each emote lasts (note 298), in seconds, unless its player moves first. Field docs live in player.json
 /// <c>emotes</c>. Presentation only: the host keeps the event this long for the crew to see; nothing in the sim acts on it.
@@ -110,20 +132,21 @@ public sealed record CrewTuning(int Cap = 8, double RefuseLingerSeconds = 3)
 /// <summary>Note 663: how long a line of news is up, and how fast the train runs before a crewmate's own cut is news.</summary>
 public sealed record NewsTuning(double Seconds = 5, double CutToldAbove = 1.5);
 
-public sealed record EmoteTuning(double Dance = 8, double Wave = 2.5, double Point = 2.5, double Cooldown = 0.5, double Bow = 2.5, double Salute = 2.5,
-    double Conga = 30)
+public sealed record EmoteTuning(double Dance = 8, double Wave = 2.5, double Point = 2.5, double Cooldown = 0.5, double Aboard = 3, double Bow = 2.5,
+    double Salute = 2.5, double Conga = 30)
 {
     public double Seconds(Emote e) => e switch
     {
         Emote.Dance => Dance,
         Emote.Wave => Wave,
         Emote.Point => Point,
+        Emote.Aboard => Aboard,
         Emote.Bow => Bow,
         Emote.Salute => Salute,
         Emote.Conga => Conga,
         _ => 0,
     };
-    public double Longest => new[] { Dance, Wave, Point, Bow, Salute, Conga }.Max();
+    public double Longest => new[] { Dance, Wave, Point, Aboard, Bow, Salute, Conga }.Max();
 }
 /// <param name="LethalAbove">Speed over the ground on landing that kills (spec B.3 after T90); 0 for the train's jump-off band.</param>
 /// <param name="DamageAtLethal">A landing's knock rises from <paramref name="RollDamage"/> to this at the lethal edge.</param>
@@ -155,6 +178,19 @@ public sealed record VoicesTuning
     public TubeTuning Tube { get; init; } = new();
     public SingingTuning Singing { get; init; } = new();
     public LampSignalTuning LampSignals { get; init; } = new();
+    /// <summary>Note 749: a held speaker's voice, a hand over the mouth (player.json <c>voices.covered</c>).</summary>
+    public CoveredVoiceTuning Covered { get; init; } = new();
+}
+
+/// <summary>
+/// Note 749 (GDD App. C.8; the director, 14 Oct 2026: "A grab should allow players to still use the radio but their voice
+/// should be muffle filtered as if the grab is covering their mouth partially"). Field docs live in player.json
+/// <c>voices.covered</c>. Off by default: a voice as it was.
+/// </summary>
+public sealed record CoveredVoiceTuning
+{
+    public bool On { get; init; }
+    public double GainDb { get; init; } = -6;
 }
 
 /// <summary>The speaking tube from the cab to the guard van (note 720). Field docs live in player.json <c>voices.tube</c>.</summary>

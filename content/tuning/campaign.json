@@ -101,6 +101,9 @@
     { "id": "poweredSwitchThrower", "name": "Powered switch thrower", "size": "major", "costShare": 1.6, "effect": { "switchThrower": 1 }, "line": "Throw the points from the cab. Nobody has to get down at a junction." },
     // F.3 "uncouple under load": cutting a working train's coupling takes no longer than a slack one (6 s to 3 s).
     { "id": "reinforcedCouplings", "name": "Reinforced couplings", "size": "major", "costShare": 1.8, "effect": { "underLoad": 0.5 }, "line": "Cut a working train's coupling in half the time." },
+    // The handcar (GDD §24.1; the director, 14 Oct 2026, App. F.6; note 729): a pump trolley hung on the back of the guard van
+    // (train.json handcar), for a friend left behind, a branch scouted or a race. Not in F.3; priced as its small upgrades are.
+    { "id": "handcar", "name": "The handcar", "size": "small", "costShare": 0.25, "effect": { "handcar": 1 } },
 
     // Tools that keep pace with the tiers (note 678). Each answers a trouble that grows past the tier it's stocked from, and
     // takes a share of it, never all of it: a warning sooner, a job done faster, a window held open longer.

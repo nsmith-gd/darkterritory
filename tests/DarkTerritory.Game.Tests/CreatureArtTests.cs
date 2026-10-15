@@ -41,6 +41,9 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         // The freed survivors (App. D.8): the crew figure redressed, on its rig, with the crew's actions merged on load.
         ["survivor_prisoner"] = new(2500, 9000, 20, 60, ["idle", "walk", "run", "climb", "shovel", "crouch_idle", "carry", "lever"], ["dead"]),
         ["survivor_wildlander"] = new(2500, 9000, 20, 60, ["idle", "walk", "run", "climb", "shovel", "crouch_idle", "carry", "lever"], ["dead"]),
+        // Dave (note 491): the crew figure in his own clothes, each waistcoat a variant; a hero's budget (GDD §27's 10k), seen
+        // close when he's talked to. His painting, his turn and his grab among the crew's actions.
+        ["dave"] = new(2500, 10000, 20, 60, ["idle", "walk", "paint", "push", "point"], ["dead"]),
         // Livestock (GDD §19): a prop's budget, packed a dozen to a car; its own small quadruped rig.
         ["sheep"] = new(600, 3000, 12, 30, ["idle", "shuffle", "bleat"], ["startle"]),
         // SK_Quad: 40-55 bones.
@@ -900,6 +903,51 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
             Assert.True(after > none && later > none, $"cut loose: {after}, then {later}, against {none}");
         else
             Assert.Equal(none, later);
+    }
+
+    /// <summary>
+    /// The Whistler seen at its whistle (note 759; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 11: "I'm not
+    /// actually seeing our sneaky guy who's doing the horn ... we got to be able to see it"). Blowing, it stands on the
+    /// coupler's head with its front and siphon up over the roofs, its breath jetting out of the siphon: straight up from
+    /// the roofs, leant out past the cars' side toward whoever's beside the train. Folded in its gap, none of that.
+    /// </summary>
+    [Fact]
+    public void TheWhistlerBlowingStandsOverTheRoofsBreathingAndLeansOutToWhoeversBesideTheTrain()
+    {
+        var tuning = DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File));
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
+        var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
+        var whistler = Staging.Threats(train).OfType<Whistler>().Single();
+        var car = train.Frames[whistler.Attached];
+        var gap = car.ToWorld(whistler.Local);
+        double roof = car.Shape.RoofHeight;
+        List<(Vector3 Lip, Vector3 Out)> Breaths(string mode, Double3 eye)
+        {
+            var scene = new GreyboxScene { Look = Look, Time = 0.6, Enemies = Staging.Whistler([whistler], mode, train) };
+            scene.Build(new MeshBuilder(), train, eye);
+            return [.. Look.Art.Creatures!.Breaths];
+        }
+        // From the next car's roof, looking back down the roofs at it: straight up over them, blowing up at the sky.
+        var fromRoof = car.ToWorld(new Double3(0, roof + 1.65, -car.Shape.HalfLength + 2));
+        var (lip, @out) = Assert.Single(Breaths("whistle", fromRoof));
+        var local = car.ToLocal(fromRoof + new Double3(lip.X, lip.Y, lip.Z));
+        Assert.True(local.Y > roof + 0.5, $"its siphon {local.Y - roof:0.00} m over the roofs");
+        Assert.InRange(local.X, -0.6, 0.6);
+        Assert.True(@out.Y > 0.5f, $"blowing up: {@out}");
+        // From the ground off its left side: leant out past the cars' side toward them.
+        var fromLeft = car.ToWorld(new Double3(-car.Shape.HalfWidth - 6, 1.65, car.Shape.HalfLength));
+        (lip, _) = Assert.Single(Breaths("whistle", fromLeft));
+        local = car.ToLocal(fromLeft + new Double3(lip.X, lip.Y, lip.Z));
+        Assert.True(local.X < -car.Shape.HalfWidth, $"its siphon {local.X:0.00} m across, past the side at {-car.Shape.HalfWidth:0.00}");
+        Assert.True(local.Y > roof, $"its siphon {local.Y - roof:0.00} m over the roofs");
+        // And off its right, the other way.
+        var fromRight = car.ToWorld(new Double3(car.Shape.HalfWidth + 6, 1.65, car.Shape.HalfLength));
+        (lip, _) = Assert.Single(Breaths("whistle", fromRight));
+        Assert.True(car.ToLocal(fromRight + new Double3(lip.X, lip.Y, lip.Z)).X > car.Shape.HalfWidth);
+        // Folded in its gap, or watching after, there's no breath to see.
+        Assert.Empty(Breaths("fold", fromLeft));
+        Assert.Empty(Breaths("watch", fromLeft));
+        Assert.True((gap - fromLeft).Length < 12);
     }
 
     [Fact]

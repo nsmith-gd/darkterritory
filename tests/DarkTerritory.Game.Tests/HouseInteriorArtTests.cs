@@ -32,13 +32,64 @@ public class HouseInteriorArtTests
         var plain = FindKit.Find(null, "nothing", 0.15f).Vertices.Length;
         // (A creature's trophy, the Gannet's head, isn't a village find: a model of its own, but no cell. Nor is a comet
         // fragment, note 718.)
-        var trophies = loot.Trophies.Values.Select(t => t.Item).Append(loot.Comet!.Item).ToHashSet();
+        // Note 719: nor are the fragile valuables (glass, walnut and brass: the kit's own stock, not the atlas's) nor the two-person
+        // jackpots (drawn by FindKit.Jackpot, as big as they are).
+        var trophies = loot.Trophies.Values.Select(t => t.Item).Append(loot.Comet!.Item).Concat(loot.Fragile!.Items.Keys).ToHashSet();
+        var jackpots = loot.Jackpots!.Items;
         foreach (var item in loot.Items.Keys)
         {
-            if (!trophies.Contains(item))
+            if (!trophies.Contains(item) && !jackpots.ContainsKey(item))
                 Assert.Contains(item, FindKit.Cells);
-            var model = FindKit.Find(null, item, 0.15f);
+            var model = jackpots.TryGetValue(item, out var big) ? FindKit.Jackpot(null, item, (float)big.Radius) : FindKit.Find(null, item, 0.15f);
             Assert.True(model.Vertices.Length > 0 && model.Vertices.Length != plain, $"{item} is the plain bundle");
+        }
+        // A fragile find knocked looks it: cracked, then smashed, each a model of its own.
+        foreach (var item in loot.Fragile.Items.Keys)
+        {
+            var whole = FindKit.Find(null, item, 0.15f, 0).Vertices.Length;
+            Assert.NotEqual(whole, FindKit.Find(null, item, 0.15f, 1).Vertices.Length);
+            Assert.NotEqual(FindKit.Find(null, item, 0.15f, 1).Vertices.Length, FindKit.Find(null, item, 0.15f, 2).Vertices.Length);
+        }
+    }
+
+    /// <summary>
+    /// What a find's kept in (note 760; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 21: "Cupboards that definitely
+    /// need a redesign"): a cupboard's a kitchen dresser and a cabinet a sideboard, not a plain box. They're made of their
+    /// parts (doors, frames, knobs, hinges), their doors painted and their carcass stained, and they stand in the sim's box for
+    /// them (StopWalls.Furniture), all but the worktop's and the cornice's lip and the knobs, a few centimetres out of their
+    /// face.
+    /// </summary>
+    [Theory]
+    [InlineData(ContainerKind.Cupboard, 1.9, 300)]
+    [InlineData(ContainerKind.Cabinet, 1.0, 150)]
+    public void ACupboardIsADresserAndACabinetASideboardInTheSimsBoxForThem(ContainerKind kind, double top, int least)
+    {
+        var look = Look.Load(Content);
+        var route = Routes.Generate(Content, "frontier:7", 6);
+        var (b, c) = route.Features.Where(f => f.Stop is not null).SelectMany(f => f.Stop!.Containers
+            .Where(c => c.Kind == kind && c.Building >= 0 && f.Stop.Buildings[c.Building].Open && StopWalls.Walled(f.Stop, c.Building))
+            .Select(c => (f.Stop.Buildings[c.Building], c))).First();
+        Vertex[] House(IEnumerable<StopContainer> kept)
+        {
+            var k = new Kit(look, 0);
+            TownKit.OpenHouse(k, b, kept);
+            return k.Build("house").Vertices;
+        }
+        // What's drawn for it is what's drawn after the empty house.
+        var empty = House([]);
+        var piece = House([c])[empty.Length..];
+        Assert.True(piece.Length / 3 >= least, $"a {kind} of {piece.Length / 3} triangles");
+        // Painted, stained, iron: more than one finish.
+        Assert.True(piece.Select(v => v.Color).Distinct().Count() >= 4);
+        // In the sim's box (the kit's frame is the building's turned: TownKit.OpenHouse's K), but a few centimetres.
+        var box = StopWalls.Furniture(b, [c]).Single();
+        const double Floor = 0.17, Proud = 0.04 + 1e-3;
+        foreach (var v in piece)
+        {
+            double x = -v.Position.Z, y = v.Position.X;
+            Assert.InRange(Math.Abs(x - box.X), 0, box.HalfX + Proud);
+            Assert.InRange(Math.Abs(y - box.Y), 0, box.HalfY + Proud);
+            Assert.InRange(v.Position.Y, Floor - 1e-3, Floor + top + 1e-3);
         }
     }
 

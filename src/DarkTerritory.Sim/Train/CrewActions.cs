@@ -26,7 +26,10 @@ namespace DarkTerritory.Sim.Train;
 public static class CrewActions
 {
     /// <param name="hand">The hand tuning, when hands are reported at all (<see cref="World.Hand"/>).</param>
-    public static void Apply(ref PlayerState s, in PlayerIntent intent, TrainOnLine train, double dt, HandTuning? hand = null)
+    /// <param name="pace">Note 752: how fast this hand works a shared job (a breach, the burst boiler) this tick, the world's
+    /// say (train.json repair.pairRate with a crewmate at it); unset, 1.</param>
+    public static void Apply(ref PlayerState s, in PlayerIntent intent, TrainOnLine train, double dt, HandTuning? hand = null,
+        Func<BreakKind, int, double>? pace = null)
     {
         if (Uncoupling(s, intent, train, hand))
         {
@@ -97,7 +100,7 @@ public static class CrewActions
             s.Flags &= ~PlayerFlags.Shovelful;
             if (s.ActionProgress >= board)
                 s.ActionProgress = 0;
-            s.ActionProgress += dt;
+            s.ActionProgress += dt * (pace?.Invoke(BreakKind.Breach, breached) ?? 1);
             if (s.ActionProgress >= board)
                 train.Vehicles[breached].Breached = false;
             return;
@@ -171,7 +174,7 @@ public static class CrewActions
             // worked there, it's mended.
             case InteractableKind.Firebox when train.BoilerTuning is { } rt && train.Boiler.Ruptured && Repairs.MendsBoiler(s, train) && PlayerMotor.InCab(s, train):
                 s.Flags &= ~PlayerFlags.Shovelful;
-                s.ActionProgress += dt;
+                s.ActionProgress += dt * (pace?.Invoke(BreakKind.Rupture, 0) ?? 1);
                 if (s.ActionProgress >= rt.RepairSeconds)
                 {
                     train.Boiler.Repair();
@@ -186,6 +189,9 @@ public static class CrewActions
                     s.Flags &= ~PlayerFlags.Shovelful;
                     break;
                 }
+                // A count left from mending the boiler beside a crewmate who finished it (note 752) isn't a stroke under way.
+                if (s.ActionProgress >= bt.ShovelSeconds)
+                    s.ActionProgress = 0;
                 s.ActionProgress += dt;
                 if (s.ActionProgress >= bt.ShovelSeconds)
                 {
@@ -383,7 +389,16 @@ public static class CrewActions
     /// firebox, as it always has).
     /// </para>
     /// </summary>
-    public static (Interactable Thing, int Vehicle)? NearestInteractable(in PlayerState s, TrainOnLine train, HandTuning? hand = null)
+    public static (Interactable Thing, int Vehicle)? NearestInteractable(in PlayerState s, TrainOnLine train, HandTuning? hand = null) =>
+        Pick(s, train, hand, lookedOnly: false);
+
+    /// <summary>
+    /// What this player's look picks in reach (note 267's look, or note 675's lid), not merely the nearest: Use works that, so
+    /// a gun beside it isn't loaded by a hand meant for it (note 752). Null with nothing looked at.
+    /// </summary>
+    public static (Interactable Thing, int Vehicle)? LookedAt(in PlayerState s, TrainOnLine train) => Pick(s, train, null, lookedOnly: true);
+
+    static (Interactable Thing, int Vehicle)? Pick(in PlayerState s, TrainOnLine train, HandTuning? hand, bool lookedOnly)
     {
         if (s.Parent == PlayerState.World)
             return null;
@@ -453,6 +468,6 @@ public static class CrewActions
             var world = train.Frames[s.Parent].ToWorld(from);
             Search(behind, train.Frames[behind].ToLocal(world), doorsOnly: true);
         }
-        return lid ?? looked ?? best;
+        return lookedOnly ? lid ?? looked : lid ?? looked ?? best;
     }
 }

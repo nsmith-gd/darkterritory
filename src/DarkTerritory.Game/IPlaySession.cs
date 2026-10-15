@@ -29,11 +29,12 @@ namespace DarkTerritory.Game;
 /// <param name="Local">Their feet in that car's frame (<see cref="PlayerState.Position"/>); unused on the ground.</param>
 /// <param name="Emote">An emote they're at (note 298), stood still with nothing else to do, and how far into it they are (s).</param>
 /// <param name="Signal">A lamp signal they're giving with the hand lamp in their fist (note 720), and how far into it they are (s).</param>
+/// <param name="Paint">The paint on their gas mask (note 731): its coat, its stencil and the stencil's colour; none for unpainted.</param>
 public readonly record struct Crewmate(byte Id, Double3 Feet, double Yaw, bool Alive, Double3 Hand = default, Double3 Other = default, int? Looks = null,
     CrewPose? Act = null, Tool Holding = Tool.None, (Double3 A, Double3 B)? Reach = null, bool Lamp = false, Survivor Survivor = Survivor.None,
     bool Stressed = false, int Health = 0, double Phase = 0, DeathCause Death = DeathCause.None, int Car = PlayerState.World,
     Double3 Local = default, HeadsetBody? Headset = null, Sim.Player.Emote Emote = Sim.Player.Emote.None, double EmoteSeconds = 0,
-    bool Sooted = false, Sim.Player.LampSignal Signal = Sim.Player.LampSignal.None, double SignalSeconds = 0, int Hat = 0)
+    bool Sooted = false, Sim.Player.LampSignal Signal = Sim.Player.LampSignal.None, double SignalSeconds = 0, Sim.Player.MaskPaint Paint = default, int Hat = 0)
 {
     public int Variant => Looks ?? Id;
 }
@@ -57,7 +58,11 @@ public readonly record struct OwnView(float Yaw, float Pitch, CrewPose? Act, boo
 /// is for; a Passenger's line has the id of the face it wears (App. A.7 "appears on the roster"), so it sits beside theirs,
 /// and it is not <paramref name="Voiced"/>: the voice heard under that id is the real crewmate's, never the thing's.
 /// </summary>
-public readonly record struct RosterLine(byte Id, string Name, string Where, bool Alive, bool You = false, bool Voiced = true);
+public readonly record struct RosterLine(byte Id, string Name, string Where, bool Alive, bool You = false, bool Voiced = true)
+{
+    /// <summary>Their voice is muted on this machine (note 724): the roster says so beside the name.</summary>
+    public bool Muted { get; init; }
+}
 
 /// <summary>What the app plays: the single-player prototype, or a networked session (host or client).</summary>
 public interface IPlaySession
@@ -139,8 +144,12 @@ public interface IPlaySession
     LinkInfo? Link => null;
     /// <summary>The crew roster (T69), in player-id order: everyone aboard by the figures, a Passenger among them.</summary>
     IReadOnlyList<RosterLine> Roster() => [new RosterLine((byte)PlayerId, "YOU", PrototypeSession.Where(Player, Train), Player.Alive, You: true)];
-    /// <summary>The living crewmate a dead or waiting player is watching (GDD App. D.10), or −1: nobody's left, or you're alive.</summary>
+    /// <summary>The crewmate a dead or waiting player is watching (GDD App. D.10; the living, or a dead one's body, note 743), or −1: nobody's left, or you're alive.</summary>
     int Watching => -1;
+    /// <summary>How a dead player's watching (App. D.10, note 743): the crewmate's eyes, the chase, the wide, over the shoulder.</summary>
+    DeadView DeadView => DeadView.Eyes;
+    /// <summary>On to the dead's next view (the view key, Tab); alone, there's nobody to watch, and nothing to change.</summary>
+    void NextDeadView() { }
     /// <summary>Whose eyes and ears this machine has: the player's own or, watching, the crewmate's (their space, their shelter).</summary>
     PlayerState Viewpoint => Player;
     /// <summary>

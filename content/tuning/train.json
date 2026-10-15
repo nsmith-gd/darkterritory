@@ -50,7 +50,10 @@
       // the whole cab being operable by one person"): everything at its front, facing forward. Across it under the windows,
       // left to right: the coal bunker in the front left corner, the firebox against the front wall beside it, the
       // driver's console under the right-hand window. One person stood behind them reaches all three without turning round.
-      "cabLength": 5.0,
+      // Note 716 (the director, 14 Oct 2026: "big cab, 11 meters, smaller boiler ... the cab itself becomes the crew car"):
+      // 11 m of the engine's 20 (was 5), the boiler about 8 behind it (was about 14). Its front 2.5 m, the footplate, is as it
+      // was; behind it crewCar's chart table, gallery and back wall.
+      "cabLength": 11.0,
       // The coal bunker: in the front left corner, back along the left wall this long, this deep in from the wall and this
       // high over the floor.
       "bunkerLength": 1.8,
@@ -70,7 +73,46 @@
       // viaducts' parapets, clear above them. Any wider and the steps' foot is off a bridge's deck.
       "runningBoardWidth": 0.85,
       "runningBoardAhead": 1.0,
-      "sandboxBehind": 2.5
+      "sandboxBehind": 2.5,
+      // The cab as the crew car (note 716; the director, 14 Oct 2026: "the place where players hang out together ... where
+      // coordinated driving happens ... the captain's quarters, shared by all"). Every place is metres behind the cab's front.
+      "crewCar": {
+        // The footplate, the work at the front exactly as note 280 has it (bunker, firebox, console, levers, cord): nothing of
+        // the crew car's stands in its first footplateLength.
+        "footplateLength": 2.5,
+        // The chart table behind it, in the middle (the director: "I'm okay with moving the cab map behind the controls. On a
+        // table and as long as it's tracking where the train still is and giving our route"): from tableFrom, this long,
+        // this wide and this high (standing height). Either side of it a way 0.95 m wide down the cab. Its front clear by a
+        // body's breadth of the floor a crewmate's put on behind the bunker (PlayerMotor.CabFloorZ, 2.5 m back).
+        "tableFrom": 2.9,
+        "tableLength": 1.75,
+        "tableWidth": 0.9,
+        "tableHeight": 1.0,
+        // The gallery ("the gallery and the raised benches, this is a good spot"): a floor galleryRise up from galleryFrom to
+        // galleryTo, a tread galleryStep deep at its front and its back, half way up (player.json stepUp walks it, with
+        // arms full; deeper than a body's radius, so the foot's on it before the riser behind it is in the way), so whoever
+        // stands there sees the line out of the front windows over the heads at the footplate. The cab's sides stand
+        // galleryWaist over its floor the whole way from the front pillar to the doorways (a waist, not a sill to jump out
+        // over; and no corner where the gallery starts), under the footplate's slits as ever.
+        "galleryFrom": 5.1,
+        "galleryTo": 8.4,
+        "galleryRise": 0.45,
+        "galleryStep": 0.45,
+        "galleryWaist": 1.1,
+        // The benches on it, facing forward down the middle of the cab (the chart table's line, so a bench sees over it), one
+        // a row, from each benchRows (m behind the cab's front), benchWidth across, benchDepth deep, its seat benchHeight up.
+        // The ways either side of the table run on past them to the back wall's doors.
+        "benchRows": [5.9, 7.3],
+        "benchWidth": 1.0,
+        "benchDepth": 0.45,
+        "benchHeight": 0.45,
+        // The back wall's kettle on the warm backhead sings from kettleFrom under boiler.json's redline, full at it: the
+        // cab's own sign the gauge is climbing. The cuckoo clock's bird comes out every cuckooEvery seconds over the last
+        // enemies.json wakers.stirSeconds before dawn, for cuckooOutSeconds each time.
+        "kettleFrom": 10,
+        "cuckooEvery": 60,
+        "cuckooOutSeconds": 3
+      }
     },
     // Cars are walk-in (GDD §10: "the back door"; §26: warm interior, hostile exterior). The floor is
     // level with the coupler plate, so you step from the gap through the end door. The roof slab keeps
@@ -195,7 +237,13 @@
     // Slice 2, the director (8 Oct): a smashed headlamp (enemies.json climbers.lampOutSeconds) no longer comes back by
     // itself; it's mended with the wrench from the cab's front windows, behind it, each second worked taking this many
     // off what's left (45 s of glass is 7.5 s with the wrench; lamp armour halves it again).
-    "lampMendRate": 6
+    "lampMendRate": 6,
+    // GDD §12, one can, two do it faster (note 752; the social collision audit's R4, the director, 14 Oct 2026: "absolutely
+    // the right direction"): a crewmate boarding up the same breach (breach.boardSeconds, spec B.9's 8 s), or mending the
+    // same burst boiler (boiler.json repairSeconds), beside you each works it pairRate times as fast (two: 8 s is 4.4 s);
+    // a third adds nothing. Alone, as ever. A dent, the smashed lamp and a fire (each extinguisher cools its cell) are worked
+    // on the car itself, so two hands there already do twice as much. 1: each alone, as before.
+    "pairRate": 1.8
   },
 
   // Damage with consequences, Sea of Thieves style (the director, 9 Oct 2026, ARCHITECTURE §8 note 576: "If players dont fix
@@ -241,6 +289,27 @@
   // Green's broke the engine down at the stop and stranded the night (13 Oct). Now 5 m/s is 0.125 and a dead line's
   // 25 km/h (overspeed.deadEndDerailAbove) 0.39: a dent the wrench mends, short of failing (failing.below).
   "bufferStop": { "safeSpeed": 2.5, "damagePerSpeedSquared": 0.02 },
+
+  // The handcar (GDD §24.1; the director, 14 Oct 2026, App. F.6; ARCHITECTURE §8 note 729): a pump trolley hung on its end on
+  // the back of the guard van, bought at the fortress (campaign.json's "handcar"; `always` gives every night one, for the
+  // tests and the views). At a stand, held Use beside it lifts it down onto the rails setBehind metres behind the van's
+  // platform (two lifters in liftSeconds, one alone soloLiftScale times as long), and back from within stowReach. On the
+  // rails it's a rake of its own: through the points as they're set, coupling to nothing, never past the train.
+  // - The handle's a see-saw geared to the wheels, a full swing every strokeMetres. At an end of it (Use takes it, within
+  //   handleReach), W pushes your end down and S pulls it up: in time with the swing it drives the car on, against it it
+  //   brakes or fights your mate. Each pumper pushes pumpAccel at a walk, falling off past pumpPower / pumpAccel m/s (their
+  //   power): two in time make about 8 m/s on the level, one about 6, two out of time less; a 2% bank takes two down to
+  //   about 6.5, and down one it runs on to maxSpeed with nobody on the brake (brakeDecel, the brake key).
+  // - floor: a stroke's least purchase, at the top and bottom of the swing, so a car stopped at dead centre still starts.
+  // - parked: with nobody aboard its brake's latched on, so one left standing stays where it was left.
+  "handcar": {
+    "always": false,
+    "length": 3.0, "width": 1.7, "deckHeight": 0.55, "stepHeight": 0.28, "massTonnes": 0.5,
+    "strokeMetres": 5.0, "pumpAccel": 0.9, "pumpPower": 1.8, "pumpers": 2, "floor": 0.3,
+    "rolling": 0.04, "air": 0.005, "maxSpeed": 14.0, "brakeDecel": 3.0, "parked": true,
+    "liftSeconds": 4.0, "soloLiftScale": 3.0, "liftReach": 2.5, "setBehind": 1.5, "standBelow": 0.3, "stowReach": 6.0,
+    "handleReach": 1.0
+  },
 
   // A bend taken too fast (ARCHITECTURE §8 note 265; build 1121: "we'll want to telegraph using sound design that the train
   // is going under stress and it's getting close to derailment"). Linegen plan §8.5's numbers stand: a bend derails above
@@ -352,7 +421,14 @@
   // crouch.eyeDrop.
   "pick": { "eyeHeight": 1.6, "lookDegrees": 30, "crouchedEyeHeight": 1.05 },
   "kit": {
+    // The loose radio sets (T41) when radioEach is off: one on the cab floor, the rest in the guard van.
     "radios": 2,
+    // GDD §12, note 749 (the director, 14 Oct 2026: "make the radios part of the default kit ... Hold down right click to use
+    // the radio since communication is so important"; "Radio is part of uniform and doesnt take inventory space"): every
+    // living crewmate wears a radio from the start of the night, joiners and those back from a Holdout too (bots as well),
+    // and it never comes off the belt: no slot, not put down, not stowed. A broken one is mended on the belt. The loose sets
+    // above aren't placed; the dead's goes with them, and they come back with a working one. False: the loose sets, as before.
+    "radioEach": true,
     // Note 266 (build 1121, solo: "there's no lanterns. The lights are completely off"): the forward lamp a Climber smashed
     // (enemies.json climbers.lampOutSeconds, the spare glass going in) comes back lit as the driver had it, not dark till
     // someone thinks to press [L]. One the driver switched off stays off.
@@ -361,12 +437,13 @@
     // spur's points (m): none, until the campaign's radio range adds to it (campaign.json, F.3; note 196).
     "radioReach": 0,
     // GDD §23 "radio breaks" (note 183): a radio on your belt smashes with this chance per point of damage you take, plus
-    // radioBreakOnGrab when something grabs you. Broken, it's still worn but off the air. Note 200: the repair kit mends
+    // radioBreakOnGrab when something grabs you (note 749, App. C.8: 0, a grab never breaks the set; the broadcast is the
+    // point. It was 0.25). Broken, it's still worn but off the air. Note 200: the repair kit mends
     // it (GDD §12's engineer, whoever has the kit): the kit in hand, Use held radioMendSeconds, standing, with the broken
     // radio on your own belt or lying in reach (a crewmate takes theirs off to hand it over). A tap still puts the kit
     // down. Not in the GDD's numbers: a third of the boiler's 25 s, long enough to be a decision under attack.
     "radioBreakPerDamage": 0.006,
-    "radioBreakOnGrab": 0.25,
+    "radioBreakOnGrab": 0,
     "radioMendSeconds": 8,
     // The band's instruments (note 700): band.json ids, each the blacksmith sold the crew (campaign.json, effect
     // "instrument:<id>"), stocked in the guard van. None until bought.

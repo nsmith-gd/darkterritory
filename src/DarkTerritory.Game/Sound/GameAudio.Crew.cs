@@ -141,7 +141,7 @@ public sealed partial class GameAudio
     sealed class CrewEngine
     {
         public bool FireDoor, Vented, Lamp, WrenchOut, ShovelOut, Ruptured, Sanding, Released, MendedSinceWrench;
-        public double Tender, SinceShovel, Throttle, Brake, Sand, SandTrend, Whistle, WhistleLow, LampOut;
+        public double Tender, Firebox, SinceShovel, Throttle, Brake, Sand, SandTrend, Whistle, WhistleLow, LampOut;
         public int Reverser, WhistleFalling, SandIdle;
     }
 
@@ -653,6 +653,9 @@ public sealed partial class GameAudio
             if (to.Length <= melee.Reach + e.MeleeRadius && (flat.Length <= 0.4 || Double3.Dot(flat.Normalized, facing) >= cos))
                 return;
         }
+        // A friend in the way is bonked (note 768): heard off the knock, not as the tool ringing on the car behind them.
+        if (Bonks(world, eye, facing, melee, PlayerMotor.WorldPosition(s, train)))
+            return;
         var look = new Double3(-Math.Sin(yaw) * Math.Cos(s.Pitch), Math.Sin(s.Pitch), -Math.Cos(yaw) * Math.Cos(s.Pitch));
         if (Strike(train, eye, look, melee.Reach) is { } hit)
             Cue($"crew-melee.{ToolName(held)}-hit-{(hit.Wood ? "wood" : "metal")}", hit.At, occlusion);
@@ -822,6 +825,7 @@ public sealed partial class GameAudio
                 ShovelOut = boiler.ShovelOut,
                 Ruptured = boiler.Ruptured,
                 Tender = boiler.Tender,
+                Firebox = boiler.Firebox,
                 SinceShovel = sinceShovel,
                 Throttle = controls.Throttle,
                 Brake = controls.Brake,
@@ -842,9 +846,11 @@ public sealed partial class GameAudio
             Cue(boiler.FireDoorOpen ? "crew-firebox-door.open" : "crew-firebox-door.shut", fireDoor, cab);
         if (boiler.FireDoorOpen && Hold("crew-firebox-door.fire-open", 0, fireDoor, cab) is { } fire && train.BoilerTuning is { } bt)
             fire.Params.Set("fire", boiler.FireFraction(bt));
-        // A shovelful thrown in (spec B.6): coal out of the tender, or the door's clock started again (a full firebox
-        // takes no coal, but the throw's still made). The old composite shovel sound until the throw has its own.
-        if (boiler.Tender <= e.Tender - 0.5 || sinceShovel < e.SinceShovel - 0.05)
+        // A shovelful thrown in (spec B.6): the door's clock started again (Boiler.Shovel starts it with every throw, a full
+        // firebox's included), or a unit more in the firebox. Not the tender going down alone: a lump flung at a friend takes
+        // a unit too (note 717), and it's heard as horseplay (note 768). The old composite shovel sound until the throw has
+        // its own.
+        if (sinceShovel < e.SinceShovel - 0.05 || boiler.Firebox >= e.Firebox + 0.5)
         {
             if (Cue("crew-shovel.throw", fireDoor, cab) is null && !HasCue("crew-shovel.throw"))
                 Mixer.Play("shovel", fireDoor)?.Also(v => v.Occlusion = cab);
@@ -954,6 +960,7 @@ public sealed partial class GameAudio
         e.Ruptured = boiler.Ruptured;
         e.Tender = boiler.Tender;
         e.SinceShovel = sinceShovel;
+        e.Firebox = boiler.Firebox;
         e.Throttle = controls.Throttle;
         e.Brake = controls.Brake;
         e.Reverser = controls.Reverser;

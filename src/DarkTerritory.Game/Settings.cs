@@ -85,6 +85,14 @@ public sealed record Settings
     /// <summary>The hat from the hat rack (note 714): 0 none, else look.json crewHats' (from 1). Worn only on a train with the rack.</summary>
     public int Hat { get; init; }
     /// <summary>
+    /// Note 731 (GDD §29 "Painted masks"): your gas mask's coat (look.json maskPaints, from 1; 0 unpainted), its stencil
+    /// (maskStencils, from 1; 0 none) and the stencil's colour (from 1; 0 look.json maskInk's). Sent as you join; tried on in
+    /// the yard (PAINT YOUR MASK).
+    /// </summary>
+    public int MaskColour { get; init; }
+    public int MaskStencil { get; init; }
+    public int MaskInk { get; init; }
+    /// <summary>
     /// Note 347: how big the HUD's and the menus' print is, one of <see cref="TextSizes"/>. The overlay's canvas is drawn smaller
     /// and scaled up to the window (<see cref="Canvas"/>), so everything on it grows together and keeps its layout.
     /// </summary>
@@ -125,6 +133,12 @@ public sealed record Settings
     public byte OutfitByte(int outfits, int hats = 0) =>
         Hat > 0 && Hat <= hats ? Sim.Player.Outfit.Encode(Outfit < outfits ? Outfit : -1, Hat)
             : Outfit >= 0 && Outfit < outfits ? (byte)Outfit : Sim.Net.Messages.NoOutfit;
+
+    /// <summary>The mask's paint as the wire has it (note 731): each part none past what's on offer (<paramref name="paints"/>, <paramref name="stencils"/>).</summary>
+    public Sim.Player.MaskPaint MaskPaint(int paints, int stencils) => new(
+        MaskColour > 0 && MaskColour <= paints ? (byte)MaskColour : (byte)0,
+        MaskStencil > 0 && MaskStencil <= stencils ? (byte)MaskStencil : (byte)0,
+        MaskInk > 0 && MaskInk <= paints ? (byte)MaskInk : (byte)0);
     /// <summary>
     /// T83, note 672: a window, or the whole screen, borderless or exclusive. A new install starts on the whole screen,
     /// exclusive (the director, 13 Oct: "I have notifications popping up that are coming up over the bottom right
@@ -248,6 +262,7 @@ public sealed record Settings
         && VoiceVolume == other.VoiceVolume && MicDevice == other.MicDevice && MicLevel == other.MicLevel
         && VrTurn == other.VrTurn && VrVignette == other.VrVignette && MouseSpeed == other.MouseSpeed
         && InvertMouse == other.InvertMouse && FieldOfView == other.FieldOfView && CameraShake == other.CameraShake && Outfit == other.Outfit && Hat == other.Hat
+        && MaskColour == other.MaskColour && MaskStencil == other.MaskStencil && MaskInk == other.MaskInk
         && TextSize == other.TextSize && Colours == other.Colours && FirstNights == other.FirstNights && Captions == other.Captions && ToggleHolds == other.ToggleHolds && TextBacking == other.TextBacking
         && Display == other.Display && VSync == other.VSync && Resolution == other.Resolution && RenderScale == other.RenderScale
         && PlayerName == other.PlayerName && PublicLobby == other.PublicLobby && LobbyName == other.LobbyName
@@ -256,7 +271,7 @@ public sealed record Settings
 
     public override int GetHashCode() => HashCode.Combine(Mute, PushToTalk, Hud, VrTurn, VrVignette, MouseSpeed, Keys.Count,
         HashCode.Combine(Display, VSync, Resolution, RenderScale, PublicLobby, LobbyName, HashCode.Combine(MasterVolume, EffectsVolume, MusicVolume, VoiceVolume, MicDevice, MicLevel),
-            HashCode.Combine(InvertMouse, FieldOfView, CameraShake, Outfit, ControlHints, TextSize, Colours, HashCode.Combine(FirstNights, Captions, ToggleHolds, TextBacking, LobbyPassword, Mood))));
+            HashCode.Combine(InvertMouse, FieldOfView, CameraShake, Outfit, ControlHints, TextSize, Colours, HashCode.Combine(FirstNights, Captions, ToggleHolds, TextBacking, LobbyPassword, Mood, HashCode.Combine(MaskColour, MaskStencil, MaskInk)))));
 
     /// <summary>The field of view the eyes are drawn at (note 297): the setting if it's one on offer, else 75.</summary>
     public float EyeFov => (float)(FieldsOfView.Contains(FieldOfView) ? FieldOfView : 75);

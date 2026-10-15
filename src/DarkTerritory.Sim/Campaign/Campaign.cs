@@ -113,7 +113,11 @@ public sealed record RakeSave(int[] Vehicles, int Path, double Distance, bool Ha
 /// </summary>
 public sealed record ThingAboard(BodyKind Kind, int Car, Double3 At, double Radius, double Friction, double Bounce, double Yaw = 0, int Locker = -1,
     int Slot = 0, bool Claimed = true, CargoKind Cargo = CargoKind.None, int Owner = -1, int Home = -1, double Charge = 1,
-    ToyNoise Noise = ToyNoise.None, bool Broken = false, ulong Tools = 0, bool Loaded = false, byte Instrument = 0);
+    ToyNoise Noise = ToyNoise.None, bool Broken = false, ulong Tools = 0, bool Loaded = false, byte Instrument = 0)
+{
+    /// <summary>A fragile find's knocks (note 719), so it comes back as knocked as it was.</summary>
+    public int Knocks { get; init; }
+}
 
 /// <summary>
 /// Spec E "autosave per POI, on successful departure": enough of a night to start it again from the facility the
@@ -198,6 +202,31 @@ public sealed record CampaignState
     /// trains for this crew. The save is kept to be read, and the slot's next start is a new crew.
     /// </summary>
     public bool Over { get; init; }
+    /// <summary>
+    /// The crew's logbook (GDD §11; the director, 14 Oct 2026; note 721): a page a night, kept after the campaign's over so the
+    /// save can still be read. Every player's profile keeps its own copy (<see cref="CrewLog"/>).
+    /// </summary>
+    public IReadOnlyList<LogPage> Logbook { get; init; } = [];
+    /// <summary>
+    /// The crew's own id (GDD §11, note 724): the same on every machine its save has travelled to, so each keeps one copy of it
+    /// among the crews it's ridden with. Empty in a save from before it: <see cref="CrewId"/> reads the campaign's seed.
+    /// </summary>
+    public string Crew { get; init; } = "";
+    /// <summary>The crew's id: <see cref="Crew"/>, or for an older save its seed's (random to each campaign, kept in the save).</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public string CrewId => Crew.Length > 0 ? Crew : $"{Seed:x16}";
+    /// <summary>Who last hosted a night of it and settled it (note 724): the front end's "LAST HOSTED BY DAVE". Empty before.</summary>
+    public string LastHost { get; init; } = "";
+    /// <summary>
+    /// When its last night was settled (note 724), Unix milliseconds by the settling host's clock: the tie-break between two
+    /// copies with as many nights. 0 before.
+    /// </summary>
+    public long SettledAt { get; init; }
+    /// <summary>
+    /// The crew's sigil (GDD §29; note 731): a stencil from look.json maskStencils (from 1; 0, none yet), picked by the host at
+    /// the fortress. Painted on the engine's side and small on every crewmate's mask; it travels with the save (note 724).
+    /// </summary>
+    public int Sigil { get; init; }
 }
 
 /// <summary>What a purchase came to: the new state, or why not.</summary>
@@ -447,6 +476,17 @@ public static class Campaign
         return s with { Cars = cars, Scrip = scrip, Runs = s.Runs + 1, History = [.. s.History, log], Current = null, Checkpoint = null, SpareKits = spares, Identities = identities, Stores = new(), Over = s.Over || Ends(t, report.End) };
     }
 
+    /// <summary>
+    /// Two copies of one crew's save (GDD §11, note 724): the one with more nights settled wins; with as many, the newer
+    /// settlement; with that too, the one already held (<paramref name="held"/>). A campaign over (note 632) closes every copy:
+    /// whichever wins is over if either is. Deterministic: no clock read here, only what each copy says.
+    /// </summary>
+    public static CampaignState Prefer(CampaignState held, CampaignState incoming)
+    {
+        var win = incoming.Runs > held.Runs || incoming.Runs == held.Runs && incoming.SettledAt > held.SettledAt ? incoming : held;
+        return win.Over || !(held.Over || incoming.Over) ? win : win with { Over = true };
+    }
+
     /// <summary>The night's tunings with the crew's spare repair kits aboard (E.12 question 4): stocked in the lockers beside the train's own.</summary>
     public static Loadout WithSpareKits(Loadout l, int spares) =>
         spares <= 0 ? l : l with { Train = l.Train with { Kit = l.Train.Kit with { SpareKits = spares } } };
@@ -488,6 +528,8 @@ public static class Campaign
                     "repair" => l with { Boiler = l.Boiler with { RepairSeconds = l.Boiler.RepairSeconds * k } },
                     "radioReach" => l with { Train = l.Train with { Kit = l.Train.Kit with { RadioReach = l.Train.Kit.RadioReach + k } } },
                     "switchThrower" => Fit(l, c => c with { SwitchThrower = c.SwitchThrower || k > 0 }),
+                    // The handcar (note 729), hung on the guard van's back.
+                    "handcar" => Fit(l, c => c with { Handcar = c.Handcar || k > 0 }),
                     // The BBQ deck (note 698): the engine's front, its chairs, cooler and grill.
                     "bbqDeck" => Fit(l, c => c with { BbqDeck = c.BbqDeck || k > 0 }),
                     // The livery (note 714): the train's paint, the last owned's (BuyUpgrade puts the one picked last).

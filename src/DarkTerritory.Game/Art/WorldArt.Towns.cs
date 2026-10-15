@@ -159,6 +159,25 @@ public sealed partial class WorldArt
         }
     }
 
+    /// <summary>
+    /// The board of lost crews' cards (GDD §3.1; note 721): this player's ended campaigns, from their profile, the last ended
+    /// first. The app sets them; every town's board shows the same ones (they're the player's, not the town's).
+    /// </summary>
+    public IReadOnlyList<(string Title, string Text)> LostCrews
+    {
+        get => _lostCrews;
+        set
+        {
+            _lostCrews = value;
+            LostCrewsKey = string.Join("|", value.Take(LostCrewsShown).Select(c => c.Title + c.Text)).GetHashCode(StringComparison.Ordinal).ToString("x8");
+        }
+    }
+    IReadOnlyList<(string Title, string Text)> _lostCrews = [];
+    string LostCrewsKey { get; set; } = "none";
+    /// <summary>As many cards as the board's face holds legibly beside its heading.</summary>
+    const int LostCrewsShown = 3;
+    static readonly (string Title, string Text) LostCrewsHeading = ("Lost crews", "Each card is a crew whose train was taken at dawn. The company regrets the inconvenience.");
+
     /// <summary>Draws a town's square within [<paramref name="from"/>, <paramref name="to"/>] along the line.</summary>
     public void Square(MeshBuilder mesh, RailLine line, Double3 eye, Town town, double from, double to)
     {
@@ -212,7 +231,10 @@ public sealed partial class WorldArt
             // The board carries the town's own notices, written on its sheets (note 669): a piece of its own, per town.
             var piece = f.Kind == "board"
                 ? Piece($"square-board-{plan.Name}-{notices}", () => SquareKit.Board(_look, [.. plan.Papers.Where(p => p.OnBoard).Select(p => (p.Title, p.Text))]))
-                : Piece($"square-{f.Kind}-{count}", () => SquareKit.Fixture(_look, f.Kind, count));
+                // The board of lost crews (note 721): its heading sheet, then this player's lost crews' cards (from their profile).
+                : f.Kind == "lostcrews"
+                    ? Piece($"square-lostcrews-{LostCrewsKey}", () => SquareKit.Board(_look, [LostCrewsHeading, .. LostCrews.Take(LostCrewsShown)]))
+                    : Piece($"square-{f.Kind}-{count}", () => SquareKit.Fixture(_look, f.Kind, count));
             mesh.Instances.Add(new MeshInstance(piece, m));
             // The banked fire glows; the shuttered lamps leak a little round their shutters.
             if (f.Kind == "brazier")

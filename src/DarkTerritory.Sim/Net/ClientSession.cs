@@ -63,6 +63,22 @@ public sealed class ClientSession
         _transport.Send(PeerId.Host, _writer.Written, Delivery.ReliableOrdered);
     }
 
+    /// <summary>The paint on this player's mask (note 731), sent with the name; none for an unpainted one.</summary>
+    public MaskPaint Paint { get; set; }
+
+    /// <summary>
+    /// Paints the mask (note 731), as <see cref="Wear"/> tries an outfit on: asked of the host, which takes it only in the
+    /// yard; the crew see it once it's sent back. Kept for the next Hello, too.
+    /// </summary>
+    public void PaintMask(MaskPaint paint)
+    {
+        Paint = paint;
+        if (!_helloSent)
+            return;
+        Messages.WritePaint(_writer, paint);
+        _transport.Send(PeerId.Host, _writer.Written, Delivery.ReliableOrdered);
+    }
+
     readonly Dictionary<int, byte[]> _reportChunks = [];
     int _reportCount;
     readonly Dictionary<int, byte[]> _filmChunks = [];
@@ -73,6 +89,7 @@ public sealed class ClientSession
         World = world;
         // How long the host keeps an emote is how long it's drawn (note 298).
         world.EmoteTuning = playerTuning.Emotes;
+        world.PingTuning = playerTuning.Pings;
         world.NewsTuning = playerTuning.News;
         // Clients mirror enemies; only the host simulates them.
         _transport = transport;
@@ -152,6 +169,39 @@ public sealed class ClientSession
     /// <summary>The host turned this connection away instead of welcoming it (a full crew, note 254); null otherwise.</summary>
     public Refusal? Refused { get; private set; }
 
+    readonly Dictionary<int, byte[]> _saveChunks = [];
+    int _saveCount;
+    /// <summary>The crew's save as the host last sent it (note 724), its bytes; null till one's come. <see cref="TakeCrewSave"/> takes it.</summary>
+    public byte[]? CrewSave { get; private set; }
+    /// <summary>How many of the crew's saves have come in this session.</summary>
+    public int CrewSaves { get; private set; }
+
+    /// <summary>The crew's save that's come in since the last take, or null: the game keeps it (note 724).</summary>
+    public byte[]? TakeCrewSave()
+    {
+        var save = CrewSave;
+        CrewSave = null;
+        return save;
+    }
+
+    /// <summary>The vote to put someone off as the host last said it (note 724), or none.</summary>
+    public KickVote KickVote { get; private set; }
+
+    /// <summary>The crew put this player off the run (note 724): the host hangs up in a moment, and they can't come back to it.</summary>
+    public bool Kicked { get; private set; }
+
+    /// <summary>
+    /// Note 724: put <paramref name="target"/> off. The host's own player does it outright; in a public lobby anyone else calls
+    /// the vote on them, or says yes to the one open on them. The host decides.
+    /// </summary>
+    public void Kick(byte target)
+    {
+        if (PlayerId is null)
+            return;
+        Messages.WriteKick(_writer, target);
+        _transport.Send(PeerId.Host, _writer.Written, Delivery.ReliableOrdered);
+    }
+
     /// <summary>
     /// Note 254: the player's quitting on purpose. Tells the host, so their place frees now rather than being held for a
     /// rejoin (note 253), then hangs up (the session's done: don't step it again). If the word's lost on the way, the host
@@ -200,7 +250,7 @@ public sealed class ClientSession
         if (_helloSent)
             return;
         _helloSent = true;
-        Messages.WriteHello(_writer, Name, Token, Outfit, PasswordKey, Bot);
+        Messages.WriteHello(_writer, Name, Token, Outfit, PasswordKey, Bot, Paint);
         _transport.Send(PeerId.Host, _writer.Written, Delivery.ReliableOrdered);
     }
     /// <summary>A private run's password as its key (note 450), said in every Hello; null for an open run.</summary>
@@ -396,6 +446,29 @@ public sealed class ClientSession
                 case MessageType.Wait:
                     WaitingReason = r.Str();
                     break;
+                case MessageType.CrewSave:
+                    {
+                        // Note 724: the crew's save, settled on the host's machine, kept among the crews this player rides with.
+                        int index = r.U8();
+                        _saveCount = r.U8();
+                        _saveChunks[index] = r.Rest().ToArray();
+                        if (Messages.ReadCrewSave(_saveChunks, _saveCount) is { } save)
+                        {
+                            CrewSave = save;
+                            CrewSaves++;
+                            _saveChunks.Clear();
+                        }
+                        break;
+                    }
+                case MessageType.KickVote:
+                    KickVote = Messages.ReadKickVote(ref r);
+                    break;
+                case MessageType.Kicked:
+                    Kicked = true;
+                    break;
+                case MessageType.Mischief:
+                    World.CrewMischief = r.Bool();
+                    break;
                 case MessageType.CarryOn:
                     CarryingOn = Messages.ReadCarryOn(ref r);
                     break;
@@ -421,6 +494,9 @@ public sealed class ClientSession
                     break;
                 case MessageType.Outfits:
                     Messages.ReadOutfits(ref r, World.Outfits);
+                    break;
+                case MessageType.Paints:
+                    Messages.ReadPaints(ref r, World.Paints);
                     break;
                 case MessageType.Ballot:
                     if (Ballot is null)

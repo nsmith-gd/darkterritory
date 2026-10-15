@@ -89,16 +89,22 @@ public enum PlayerMoves : byte
     /// Shove the crewmate you're looking at (note 717, horseplay; LeftAlt): sent while held, acted on the press. Never a bot's.
     /// </summary>
     Shove = 16,
+    /// <summary>
+    /// Ping what you're looking at for the bots (note 739; the middle mouse, pressed): sent on the press. Held at a gun the
+    /// same button is <see cref="Push"/>, and a ping isn't made there.
+    /// </summary>
+    Ping = 32,
     // (On the wire the byte's bits 2-3 carry the intent's lamp signal, note 720: the moves keep the other bits.)
 }
 
 /// <summary>
 /// A crewmate's emote (GDD §9: in the yard "the crew wait for friends, hang out, dance"; note 298), sent on the press. The
-/// crew see it; nothing in the sim acts on it.
+/// crew see it; nothing in the sim acts on it. Note 740: "Aboard!", the call back to the horn (GDD §17); past the hotbar
+/// byte's two bits, an emote rides a byte of its own.
 /// </summary>
 /// <remarks>Bow, Salute and Conga are the "more emotes" upgrade's (note 714): the host takes them only from a train that has it.
 /// The conga's a dance its players walk in, each following whoever started before them (the client's own steering).</remarks>
-public enum Emote : byte { None, Dance, Wave, Point, Bow, Salute, Conga }
+public enum Emote : byte { None, Dance, Wave, Point, Aboard, Bow, Salute, Conga }
 
 /// <summary>An emote as the crew see it (note 298): unique for the night (its record's key), the host tick it began, whose, which.</summary>
 public readonly record struct EmoteEvent(int Id, uint Tick, int By, Emote Kind);
@@ -247,7 +253,7 @@ public enum DeathCause : byte
 
 /// <summary>Conditions a player carries.</summary>
 [Flags]
-public enum PlayerFlags : ushort
+public enum PlayerFlags : uint
 {
     None = 0,
     /// <summary>
@@ -299,12 +305,25 @@ public enum PlayerFlags : ushort
     Shoved = 1024,
     /// <summary>A lump of coal in the face (note 717): sooty for the rest of the night. Nothing in the sim reads it; the crew see it.</summary>
     Sooted = 2048,
+    /// <summary>
+    /// Over a crewmate's shoulder (note 723, carrying a friend): the feet are the carrier's, so the motor leaves them be; they
+    /// look, talk and wriggle free (Jump). Set by the host each tick from who carries whom (<see cref="Rescue.Follow"/>).
+    /// </summary>
+    Carried = 4096,
+    /// <summary>Carrying a friend over the shoulder (note 723): with <see cref="Heavy"/>'s pace and no climbing. The host's.</summary>
+    Carrying = 8192,
+    /// <summary>
+    /// At the handcar's handle (note 729): taken and let go with a press of Use at an end of it, like the crane's stand. Feet
+    /// still, W pushes your end down and S pulls it up; the brake key's the brake lever; Jump lets go.
+    /// </summary>
+    Pumping = 16384,
+    /// <summary>
     /// Sat in one of the BBQ deck's Muskoka chairs (note 698): still, low, looking down the line. Jump, or Use again, gets you
     /// up. Not <see cref="Seated"/>, which is a gun's (the census, the Gannet and the bots read that as on the gun).
     /// </summary>
-    Lounging = 4096,
+    Lounging = 32768,
     /// <summary>Playing the band's instrument in their hands (note 700): every machine hears it, on the band's tune.</summary>
-    Playing = 8192,
+    Playing = 65536,
 }
 
 /// <summary>
@@ -469,7 +488,7 @@ public static class PlayerMotor
         InCab(s, train) || s.Parent != PlayerState.World && s.Parent < train.Frames.Count
             && train.Frames[s.Parent].Shape.Interior is { } room && room.Contains(s.Position) && s.Surface == Surface.Deck;
 
-    static Surface ToSurface(SurfaceKind k) => k switch
+    public static Surface ToSurface(SurfaceKind k) => k switch
     {
         SurfaceKind.Roof => Surface.Roof,
         SurfaceKind.Coupler => Surface.Coupler,
@@ -615,6 +634,10 @@ public static class PlayerMotor
         if (!s.Alive)
             return;
 
+        // Carried over a friend's shoulder (note 723): your feet are theirs; the host puts you where they go.
+        if (s.Has(PlayerFlags.Carried))
+            return;
+
         // Held (App. A.1 GRAB): your feet are the thing's now. What moves you is what holds you.
         if (s.Has(PlayerFlags.Held))
         {
@@ -643,7 +666,7 @@ public static class PlayerMotor
                 speed = Math.Min(speed, p.CarryHeavy);
             if (s.Has(PlayerFlags.Pushing))
                 speed = Math.Min(speed, p.PushGun);
-            if (s.Has(PlayerFlags.Operating) || s.Has(PlayerFlags.Seated) || s.Has(PlayerFlags.Lounging))
+            if (s.Has(PlayerFlags.Operating) || s.Has(PlayerFlags.Seated) || s.Has(PlayerFlags.Pumping) || s.Has(PlayerFlags.Lounging))
                 speed = 0;
             var wish = WishDirection(s.Yaw, intent) * speed;
             // GDD §22 wind on a roof (note 201): a sideways push across the car, on top of where you're going.
@@ -652,10 +675,11 @@ public static class PlayerMotor
             var jostle = crowd is { Count: > 0 } ? Horseplay.Push(s, self, crowd, train, p, dt) * (1 / dt) : default;
             s.Velocity = new Double3(wish.X + wind + jostle.X, 0, wish.Z + jostle.Z);
             // Jump in the gun's seat is getting up out of it (T112), not a leap off the carriage.
-            if (s.Has(PlayerFlags.Seated))
+            if (s.Has(PlayerFlags.Seated) || s.Has(PlayerFlags.Pumping))
             {
+                // And at the handcar's handle (note 729), Jump lets go of it.
                 if (intent.Has(PlayerButtons.Jump))
-                    s.Flags &= ~PlayerFlags.Seated;
+                    s.Flags &= ~(PlayerFlags.Seated | PlayerFlags.Pumping);
             }
             // Out of a Muskoka chair the same way (note 698): up, and a step forward out of it.
             else if (s.Has(PlayerFlags.Lounging))
@@ -1118,13 +1142,17 @@ public static class PlayerMotor
                 continue;
             var local = frame.ToLocal(world);
             var vehicle = train.Vehicles[frame.Index];
+            // Note 716: walking the engine's cab, down the gallery's treads is a step down, not a drop: the floor's taken a step
+            // below the feet. Off the treads into the air, a crewmate was out of the cab for a few ticks (no longer InCab, its
+            // space the outside) with the train under them.
+            double down = wasGrounded && s.Parent == frame.Index && frame.Shape.Cab is { } cabRoom && cabRoom.Contains(local) ? p.StepUp : snap;
             foreach (var solid in frame.Shape.Solids)
             {
                 if (!solid.Present(vehicle))
                     continue;
                 var box = solid.BoxIn(vehicle);
                 double top = box.Max.Y;
-                if (!box.ContainsXZ(local) || local.Y > top + snap || local.Y < top - below)
+                if (!box.ContainsXZ(local) || local.Y > top + down || local.Y < top - below)
                     continue;
                 double worldTop = frame.ToWorld(local with { Y = top }).Y;
                 if (worldTop <= bestTop)
@@ -1374,7 +1402,8 @@ public static class PlayerMotor
     public static double WorldYaw(in PlayerState s, TrainOnLine train) =>
         s.Parent == PlayerState.World ? s.Yaw : s.Yaw + train.Frames[s.Parent].Heading;
 
-    static void Reparent(ref PlayerState s, TrainOnLine train, int parent)
+    /// <summary>Moves a player into another frame (or the world) where they are, their velocity and view kept in the world.</summary>
+    public static void Reparent(ref PlayerState s, TrainOnLine train, int parent)
     {
         if (parent == s.Parent)
             return;

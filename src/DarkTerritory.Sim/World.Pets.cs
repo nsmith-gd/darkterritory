@@ -30,15 +30,16 @@ public sealed partial class World
     {
         _pets.Clear();
         _launchedAt = null;
-        if (Fitted("yardCat") && Train.Frames[0].Shape.Cab is { } cab)
-            Bodies.SpawnCrate(Train, 0, new Double3(cab.Min.X + 0.6, cab.Min.Y, cab.Max.Z - 0.6), BodyKind.Cat);
+        // The cat on the footplate's back corner, clear of the bunker and the firebox in its front one (note 280).
+        if (Fitted("yardCat") && Train.Frames[0].Shape.Cab is { } cab && Sim.Train.Whimsy.Footplate(Train.Frames[0].Shape, cab) is var plate)
+            Bodies.SpawnCrate(Train, 0, new Double3(plate.Max.X - 0.6, cab.Min.Y, plate.Max.Z - 0.6), BodyKind.Cat);
         if (Fitted("dog") && guard >= 0 && Train.Frames[guard].Shape.Interior is { } room)
             Bodies.SpawnCrate(Train, guard, new Double3(-0.4, room.Min.Y + 0.1, room.Max.Z - 2.0), BodyKind.Dog);
     }
 
-    /// <summary>Where a pet can walk in a car: its floor's box and height (a car's inside, or the engine's cab).</summary>
+    /// <summary>Where a pet can walk in a car: its floor's box and height (a car's inside, or the engine's footplate).</summary>
     static (Box Room, double Floor)? PetSpace(CarShape shape) =>
-        shape.Interior is { } room ? (room, room.Min.Y + 0.1) : shape.Cab is { } cab ? (cab, cab.Min.Y) : null;
+        shape.Interior is { } room ? (room, room.Min.Y + 0.1) : shape.Cab is { } cab ? (Sim.Train.Whimsy.Footplate(shape, cab), cab.Min.Y) : null;
 
     /// <summary>The cat's spot on the warm backhead (the firebox's door, in the cab), in the engine's frame.</summary>
     static Double3? Backhead(CarShape engine) =>
