@@ -31,7 +31,7 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
 - **One night length for every tier:** 7 km, three stops and dawn at 24 minutes, an average run of about 17 (the director, 9 Oct 2026, note 554; was 24 km and 51 minutes). A deeper tier is denser, not longer (§11).
 - **The director runs on pressure.** Quiet, loudness, cargo and the night's depth build it; the grace is 20–90 s, picked per night; the night's first threat answers something a crewmate did, and the report names it (B.1).
 - **The orchestrator** (outlined): threats planned against the players active now. Built so far: the budget from the crew alive, and a cap on threats at once by it (B.1, orchestrator.md).
-- **Something to do between stops.** The hound run, a stream of Cinder Hounds a fast train draws for the guns to answer one at a time; and the first upkeep jobs: the hot box, an axle box running dry that's greased from the gap or the ground before it slows the train and catches, a car's lamp guttering, trimmed inside before it goes out, a coupling working loose, knocking in its gap until the wrench tightens it or the rake parts behind it, and powder to the guns: a gun's ready rack of six, refilled by a charge carried up from the guard van's powder locker (B.3, C.3, F.3).
+- **Something to do between stops.** The hound run, a stream of Cinder Hounds a fast train draws for the guns to answer one at a time; and the first upkeep jobs: the hot box, an axle box running dry that's greased from the gap or the ground before it slows the train and catches, a car's lamp guttering, trimmed inside before it goes out, a coupling working loose from a hard brake, a hard coupling up or a bend taken too fast, the moment heard as what did it, then knocking in its gap until the wrench tightens it or the rake parts behind it (§32 "Sound cues in the world", note 732), and powder to the guns: a gun's ready rack of six, refilled by a charge carried up from the guard van's powder locker (B.3, C.3, F.3).
 - **Off the train, a presence of threat.** The crew on foot are watched from the lamp's edge, and outdoor creatures come sooner while anyone's out (B.1, F.3).
 - **Driven off, or killed together.** A creature is driven off by its rule; a coordinated team can kill the Grumbler, the Gaunt, the Passenger, Climbers and the Choir's ghosts (F.1). A team kill sometimes leaves a trophy (§19, note 718).
 - **Damage, Lethal Company style:** a few big hits, never chip damage, rare healing finds, an edge flash (F.1; systems spec B.2).
@@ -1298,6 +1298,16 @@ Silhouette legibility is not an aesthetic preference here. It is a coordination 
 
 The timings are in `content/tuning/hud.json`; the engineering is in ARCHITECTURE §8 note 285.
 
+### Sound cues in the world
+
+*The director, 14 Oct 2026, cutting the dead's haunt: "I don't want dead people seeing things that other people don't, and then helping them play the game. I do like the idea of using sound-only cues in the design of the environment." And of the loose coupling, the same day: "We still have this coupling is loose for no reason issue. The reason's not obvious" (ARCHITECTURE §8 note 732).* For the living. Each is heard where it is and never shown on the HUD, and each comes before what it tells of: App. A.1's sound before a threat, in the world's own voice. A player who listens learns what each means, as with the tells.
+
+- **What waits in a house.** Boards creak where a house creature waits: in the Lodger's dark corner, in the roof over the Hanger's strands. Only within about 10 m of it, and quicker the nearer anyone comes, so the first creak comes a few seconds before the Lodger shrieks or a strand is touched. The Householder shifts in its chair the moment one of its things is lifted with nothing left on its table to pay for it, and its chair creaks as the thing is carried to the door. It rises only once the thing goes out of the door.
+- **What's about to go.** A coupling's pin never works loose on its own (note 640). It jumps from something the crew can name, and the moment is heard as that thing: a hard brake from speed (the slack slamming in on the engine), coupling up too hard (the knuckles' clash), or a bend taken too fast (the cars lurching over the board for two seconds). The pin knocks in its gap from that moment, harder and quicker for the 90 s until it drops. The Knotter is a creature at a coupling, never a pin. Its wet creak at the gap is its own, and is never the pin's knock. A hot box squeals from the moment it runs dry, rising as it heats, a minute before it drags. A lamp's wick sputters for 45 s before it goes out.
+- **What's been hit.** A far bell rings from where something of the crew's is lost out of their sight. It rings for a car taken with nobody by it, and for a cut of theirs that every living crewmate is now more than 400 m from (§23.2: the night has it). It rings for a Holdout the train has left with a friend still in it (App. D.5). Out in the dark, a dog barks far off, beyond something moving at the edge of the lamps.
+
+The numbers are in `content/tuning/enemies.json` `soundCues` and `upkeep.json` `coupling.bendSeconds`. The sounds are the audio chat's: each cue has its own sound to come, and until it lands a train sound or a house sound of the same kind stands in. A bell and a dog have no stand-in. Nothing installed is a bell or a dog, and a creature's tell standing in would teach the wrong thing.
+
 ### Accessibility
 
 *The director, 8 Oct 2026, on the list of what's next for the UI: a text size, a colourblind-safe palette, captions, a light first-night onboarding and a polish pass in the real window: "these are all quite important".* Each is a setting, and none of them tells a player what an action will do: the rules above still hold.
@@ -1512,6 +1522,7 @@ DORMANT ──[sense trigger]──► ALERT ──[tell fires]──► TELEGRA
 - **TELEGRAPH always precedes COMMIT.** No enemy may punish a player who was given no window. This is the rule the agent harness checks hardest.
 - **Kills go through GRAB.** Any enemy that kills a player holds them first, long enough for a friend to act. The only exceptions are whole-train events (derailment), which carry their own telegraph.
 - **The rule fits in six words, and one death teaches it.**
+- **The world sounds before it bites, too.** Where what kills or costs isn't a creature's tell, the world gives a sound first: the boards over what waits in a house, a coupling's pin knocking from the moment something named jumped it, a hot box's squeal, a lamp's sputter (§32 "Sound cues in the world"; the director, 14 Oct 2026; ARCHITECTURE §8 note 732).
 
 **Sense triggers** are one of: sound, light, heat, movement, scent, vibration, sight, absence. Enemies sharing a trigger in the same zone must have tells that stay distinguishable by ear and by eye.
 
@@ -2865,7 +2876,7 @@ genre ... It's extremely important that friends exceeds our target meaningfully.
   note 717.*
 - **Coal thrown** from the shovelling as it is. *Queue #451.*
 - **Not taken:** the toy slipped into a pocket; a price on every find (value is learned by playing); the dead's haunt (the
-  dead never see what the living don't and help them). Sound-only cues in the world instead. *Queue #452, #466.*
+  dead never see what the living don't and help them). Sound-only cues in the world instead (§32). *Queue #452, #466, note 732.*
 - **Singing does not fight the Choir.** *Queue #454.*
 - **Comet cargo at real stops, extra valuable and exciting to see; trophies sometimes from team kills; very big finds take
   two.** *Queue #452, #453.*
