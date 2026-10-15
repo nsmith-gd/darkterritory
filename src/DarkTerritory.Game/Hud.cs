@@ -1095,6 +1095,10 @@ public static partial class Hud
         // line (App. A.4: "the whistle sounds with no hand on the cord" is its tell), so one with no name is the Whistler.
         if (p.Alive && world.WhistleSeconds > 0 && world.WhistleBy >= 0)
             Small(world.WhistleBy == s.PlayerId ? "THE WHISTLE: YOUR HAND'S ON THE CORD" : $"THE WHISTLE: {IncidentLog.NameOf(world, world.WhistleBy).ToUpperInvariant()} ON THE CORD", Dim);
+        // Note 740: "Aboard!" called back to the horn, and the driver's roll of it.
+        if (p.Alive)
+            foreach (var (text, good) in AboardLines(world, s.PlayerId, PlayerMotor.InCab(p, world.Train), s.Roster()))
+                Small(text, good ? Green : Ink);
         // T115 playtest ("suddenly I can't move and then a few seconds later I die"): held, say so, and what to do. Alone
         // (the solo rule) Use held struggles free; with a crew, a friend has to pull it off or hit it.
         if (p.Alive && p.Has(PlayerFlags.Held))

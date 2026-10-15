@@ -80,7 +80,7 @@ public sealed partial class SceneArt(Look look)
         };
         // An emote (note 298), stood still with nothing else on.
         if (pose == CrewPose.Idle && c.Emote != Sim.Player.Emote.None)
-            pose = c.Emote switch { Sim.Player.Emote.Dance => CrewPose.Dance, Sim.Player.Emote.Wave => CrewPose.Wave, _ => CrewPose.Point };
+            pose = c.Emote switch { Sim.Player.Emote.Dance => CrewPose.Dance, Sim.Player.Emote.Wave or Sim.Player.Emote.Aboard => CrewPose.Wave, _ => CrewPose.Point };
         // The extinguisher at work: braced into it and kicking with the jet while the fire's going down under it (GreyboxScene
         // sees that: Spraying), not stood with it on the hip. Come to its bracket already carrying it, it's being hung back:
         // lifted up onto it, not off it (TakeDown is the sim's "at the mount with it" either way), and that plays on through

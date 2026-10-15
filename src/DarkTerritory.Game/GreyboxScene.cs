@@ -1788,7 +1788,7 @@ public sealed partial class GreyboxScene
                         if (burnt[i] > 0)
                         {
                             var (at, along, across, normal) = Patch(car, grid, i);
-                            Art.Effects.Char(mesh, at, along, across, normal, burnt[i] / (float)((1 << Sim.Enemies.CarFire.Bits) - 1), car.Index * 131 + i);
+                            fx.Char(mesh, at, along, across, normal, burnt[i] / (float)((1 << Sim.Enemies.CarFire.Bits) - 1), car.Index * 131 + i);
                         }
         foreach (var e in Enemies ?? [])
         {

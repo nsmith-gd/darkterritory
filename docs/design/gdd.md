@@ -491,6 +491,8 @@ A crew remembers. In-jokes need somewhere to live, and a campaign the Wakers end
 
 Roles emerge from position. You end up on the cannon because you're standing at the cannon.
 
+**Nobody at the controls, a bot takes them** *(the director's playtest, 14 Oct: "I was driving the train and then I died. And the bots did not take over driving the train. They just stood there"; note 741)*. Someone playing who works the cab's controls has them, and the bot driver goes out to work (note 574). If the controls are let go, because whoever held them died or left the cab, and no driver bot is alive to come back to them, a bot goes forward and drives on: a walker first, and a gunner off its gun when no walker is left. A crewmate who's playing is never counted on to come back to the controls in a bot's place.
+
 **The cab is where the crew drives the train together** *(the director, 14 Oct 2026; note 716)*. Five jobs, every one optional: the **driver** at the controls, the **fireman** at the coal and the fire beside them, the **navigator** at the chart table calling the bends and the stops and counting the lamps, the **lookout** up on the gallery watching the line over everyone's heads, and the **gunner** up the ladder at the forward cannon. A crew of five can split them; a crew of one does all of them from the footplate, as before.
 
 **The cab's ladder goes up to the roof** *(the director's evening playtest, 13 Oct: "This ladder inside the cab should actually go up to the roof so that I can access the roof quickly and vice versa"; note 704)*. Behind the coal bunker, a ladder runs from the cab floor up through an open hatch onto the cab roof, by the forward gun. It's the quick way between the driver's place and the gun.
@@ -568,6 +570,10 @@ Facilities were built for industrial efficiency, not monster survival. Most cann
 > **The engine can leave without you.**
 
 Not a punishment mechanic — the whole tension of the sequence. The person on the switch is a hundred metres from the only thing that outruns anything, and the conductor genuinely might not know they're not aboard.
+
+**The horn calls the crew aboard; "Aboard!" is called back** *(the director's playtest, 14 Oct: "When I pull the horn, the bots should understand that they need to get back on the train"; "We need some way to signal to the driver that everybody is on the train. It would usually be vocal with players, but with bots, we need some sort of way of telling people"; note 740)*.
+- **The horn at a stand is the call.** Someone at the controls pulls the cord with the train standing, and every bot off the train drops what it's doing (its stop's work, a house it's searching, an errand on the ground) and comes aboard. It holds until the train moves off. The Whistler's whistle (no hand on the cord) calls nobody.
+- **"Aboard!" is called, not shown.** A bot that's aboard after the horn calls "Aboard!" once: its hand goes up and the crew see it said, with its name. Someone playing calls it the same way, from the emote wheel's fourth spoke (ABOARD), or out loud. In the cab, the driver keeps the roll of who's called since the horn, and is told when every living crewmate has. Nobody is counted for you: whoever hasn't called hasn't been heard from, aboard or not, so roll call is still something the crew does, not something the game knows (open question 2).
 
 ## 18. Facility roster
 
@@ -1394,7 +1400,7 @@ Every night the game plays is timed frame by frame, and what it found is written
 # PART ELEVEN — OPEN QUESTIONS
 
 1. **Does a cannon reload need two players, or is it just slower solo?** A two-person reload makes the gunner a pair: more social, and more expensive.
-2. ~~**Can the conductor see whether everyone is aboard, or is roll call purely verbal?**~~ **Answered in v1.3: verbal.** There is no aboard indicator for the conductor or anyone else. Roll call is a question somebody has to shout, and the engine leaving without someone is this game's version of Lethal Company's ship leaving at midnight (§17, §23.1). D.6 already keeps the queue hidden from the living.
+2. ~~**Can the conductor see whether everyone is aboard, or is roll call purely verbal?**~~ **Answered in v1.3: verbal.** There is no aboard indicator for the conductor or anyone else. Roll call is a question somebody has to shout (and since 14 Oct, a call a bot can answer: "Aboard!", §17, note 740), and the engine leaving without someone is this game's version of Lethal Company's ship leaving at midnight (§17, §23.1). D.6 already keeps the queue hidden from the living.
 3. **How many cars before the flank is genuinely indefensible** — and is that ceiling the real progression cap?
 4. **Do corrupted humans ever use the radio?** A voice on your own channel that isn't crew is the single most disturbing thing available in this design. Possibly too much.
 5. **Does cold need a meter,** or is it enough that being outside too long simply kills you?
