@@ -91,6 +91,8 @@ public class HouseCreatureTests
         n.Crew[1] = At(n, lodger.Hide + (lodger.Hide - house.Middle).Normalized * -2.0);
         Run(n, 4);
         Assert.False(n.Crew[1].Alive);
+        // Named for what did it (note 682; the director, 13 Oct: "householder grabbed me and it said seized by the choir").
+        Assert.Equal(DeathCause.Lodger, n.Crew[1].Death);
         n.AssertFair();
     }
 
@@ -161,6 +163,8 @@ public class HouseCreatureTests
         // Stood still with it, they're had, and with nobody to prise it off, killed.
         Run(n, 10 + Tuning.Enemies.Householder.GrabSeconds);
         Assert.False(n.Crew[1].Alive);
+        // Named for what did it (note 682; the director, 13 Oct: "householder grabbed me and it said seized by the choir").
+        Assert.Equal(DeathCause.Householder, n.Crew[1].Death);
         n.AssertFair();
     }
 
@@ -195,6 +199,8 @@ public class HouseCreatureTests
         Assert.True(Walls(n).Shut(DoorOf(n, house).Key));
         Run(n, t.SinkSeconds + 1.5);
         Assert.False(n.Crew[1].Alive);
+        // Named for what did it (note 682; the director, 13 Oct: "householder grabbed me and it said seized by the choir").
+        Assert.Equal(DeathCause.HollowHouse, n.Crew[1].Death);
         Assert.Equal(t.SinkDepth, hollow.Sunk, 6);
         Assert.Contains(hollow.Mode, new[] { HollowMode.Collapse, HollowMode.Settled });
         // It stays as it fell, shut.
@@ -286,6 +292,8 @@ public class HouseCreatureTests
         n.Crew[1] = At(n, hanger.StrandsAt[0]);
         Run(n, t.GrabSeconds + 1);
         Assert.False(n.Crew[1].Alive);
+        // Named for what did it (note 682; the director, 13 Oct: "householder grabbed me and it said seized by the choir").
+        Assert.Equal(DeathCause.Hanger, n.Crew[1].Death);
     }
 
     // ---- Which houses ----

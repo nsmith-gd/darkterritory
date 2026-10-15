@@ -149,6 +149,15 @@ public static class IncidentLog
         DeathCause.Fell => "Fell to their death",
         DeathCause.Shoved => "Shoved off the train",
         DeathCause.Dropped => "Dropped from the crane",
+        DeathCause.Lodger => "Taken by the Lodger in its house",
+        DeathCause.Hanger => "Hauled into the roof by the Hanger",
+        DeathCause.Householder => "Taken by the Householder for what wasn't paid for",
+        DeathCause.HollowHouse => "Crushed when the Hollow House came down",
+        DeathCause.Brakeman => "Lashed by the Brakeman",
+        DeathCause.Hotbox => "Bitten by the thing in the axle box",
+        DeathCause.TowerJaw => "Bitten by Tower Jaw",
+        DeathCause.Grumbler => "Mauled by the Grumbler",
+        DeathCause.Pickers => "Bitten by the Pickers",
         _ => cause.ToString(),
     };
 

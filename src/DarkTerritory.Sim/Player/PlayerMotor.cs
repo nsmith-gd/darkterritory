@@ -287,7 +287,10 @@ public enum DeathCause : byte
     Shoved,
     // Note 726: let go of the crane's hook (or shaken off it) after the operator lifted them, and the fall killed them; the
     // report names the operator.
-    Dropped
+    Dropped,
+    // Note 682 (the director, 13 Oct, GDD App. F.5: "householder grabbed me and it said seized by the choir"): each of these
+    // had borrowed another's cause (the Choir's, the hounds', the Passenger's, a dropped load's). Appended: it's a byte on the wire.
+    Lodger, Hanger, Householder, HollowHouse, Brakeman, Hotbox, TowerJaw, Grumbler, Pickers
 }
 
 /// <summary>Conditions a player carries.</summary>

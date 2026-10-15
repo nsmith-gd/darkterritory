@@ -1028,6 +1028,43 @@ public class StopCrewTests
     }
 
     [Fact]
+    public void AFindPingedOnTheGroundAtAStopIsFetchedAboardByAHand()
+    {
+        // Note 739 part two (GDD §12 "Ping the bots"; the director, 14 Oct: "If I point at loot ..."): at a stop, a find lying
+        // out beside the train pinged; a walker takes it, goes out to it, picks it up and brings it into a car.
+        var night = new Night(cars: 8, walkers: 3, crateHands: true, ids: true, loot: true, modules: ModuleKind.Crates);
+        var train = night.Train;
+        var world = night.World;
+        var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().ToList();
+        night.Until(() => hands.Any(h => h.Doing.Contains("crate")), 900);
+        Assert.Contains(hands, h => h.Doing.Contains("crate"));
+        // A find beside the middle of the train, out from its side, and the ping on it (as World.CrewAct makes one).
+        var frame = train.Frames[4];
+        var at = frame.ToWorld(new Double3(night.Site.Side * (frame.Shape.Bounds.Max.X + 5), 0.3, 0));
+        var find = world.Bodies.SpawnLoot(at, train.Dynamics.Distance, -1, 0.2);
+        world.Pings.Add(new Player.PingEvent(1, world.Tick, 99, Player.PingKind.Loot, find.Id, at));
+        for (int i = 0; i < night.Bots.Count; i++)
+        {
+            night.Calls.Bot(i + 1);
+            night.Calls.Role(i + 1, night.Bots[i] is ConductorBot ? BotRole.Driver : BotRole.Walker);
+        }
+        int? taker = null;
+        night.Until(() => find.Carrier < 0 && (find.Stowed || find.Parent != PlayerState.World), 240, () =>
+        {
+            var crew = night.Crew.Select((c, i) => (i + 1, c)).ToList();
+            for (int i = 0; i < night.Bots.Count; i++)
+                night.Calls.Pings(world, i + 1, night.Crew[i], crew);
+            taker ??= Enumerable.Range(1, night.Bots.Count).Select(id => (int?)id).FirstOrDefault(id => night.Calls.OrderOf(id!.Value) is { Kind: Player.PingKind.Loot });
+        });
+        string doing = string.Join(", ", hands.Select(h => h.Doing));
+        Assert.True(taker is not null, $"nobody took the ping; the hands were {doing}");
+        Assert.IsType<RoofWalkerBot>(night.Bots[taker!.Value - 1]);
+        Assert.True(find.Carrier < 0 && (find.Stowed || find.Parent != PlayerState.World),
+            $"the find's still out (carrier {find.Carrier}, on {find.Parent}); the hands were {doing}");
+        Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}"));
+    }
+
+    [Fact]
     public void AHandOutInTheVillageFillsItsSlotsBeforeItWalksBack()
     {
         // Note 594 (the director, 9 Oct: "I'm able to kind of hold on to it so I can grab a few pieces of loot at a time"): a
