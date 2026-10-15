@@ -14,6 +14,11 @@ namespace DarkTerritory.Sim.Tests;
 /// entrance from the previous run, and then it also needs a gate that is the exit to the next run", "it needs to be the
 /// exact same town with the exact same layout, so seed-based"). Every form on a few routes and sizes.
 /// </summary>
+/// <remarks>
+/// In LineGenTests' collection, after the parallel classes: sixty whole nights with a full town each, run beside the rest,
+/// held the suite's memory 0.7 GB over main's and the CI machine ran out with the Game tests beside it.
+/// </remarks>
+[Collection(nameof(LineGenTests))]
 public class TownFormTests
 {
     static readonly string Content = DataFile.FindContentRoot();
