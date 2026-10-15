@@ -23,8 +23,13 @@ public class HazardTests
     }
 
     /// <param name="wrench">Note 301's <c>repair.wrench</c>: the wrench mends a radio. Off, the repair kit does (note 200).</param>
-    static TrainOnLine Train(ITrackConditions? conditions, int cars = 5, bool wrench = true) =>
-        new(new TrainDynamics(Consist.Uniform(Tuning.Train with { Repair = Tuning.Train.Repair with { Wrench = wrench } }, cars, 1)),
+    // The loose radio sets (note 749's radio each off): the radio tests here take one and put it on.
+    static TrainOnLine Train(ITrackConditions? conditions, int cars = 5, bool wrench = true, double? grabBreak = null) =>
+        new(new TrainDynamics(Consist.Uniform(Tuning.LooseRadios with
+        {
+            Repair = Tuning.Train.Repair with { Wrench = wrench },
+            Kit = Tuning.LooseRadios.Kit with { RadioBreakOnGrab = grabBreak ?? Tuning.LooseRadios.Kit.RadioBreakOnGrab },
+        }, cars, 1)),
             new RailLine(new LineDefinition("t", [new TrackSegment(40_000)])) { Conditions = conditions }, 2_000);
 
     static double ColdAfter(ITrackConditions? conditions, double seconds)
@@ -101,9 +106,9 @@ public class HazardTests
         Assert.False(w.Train.Vehicles[0].Gun.Jammed);
     }
 
-    static (World World, Body Radio, PlayerState Wearer) Wearing(int id = 1, bool wrench = true)
+    static (World World, Body Radio, PlayerState Wearer) Wearing(int id = 1, bool wrench = true, double? grabBreak = null)
     {
-        var world = new World(Train(null, 6, wrench));
+        var world = new World(Train(null, 6, wrench, grabBreak));
         world.EnableBodies();
         world.Stock();
         var radio = world.Bodies.All.First(b => b.Kind == BodyKind.Radio);
@@ -129,10 +134,12 @@ public class HazardTests
     [Fact]
     public void GrabbedSomeRadiosBreakAndUnhurtNone()
     {
+        // The mechanism, at the old chance (note 749 made the game's 0: a grab never breaks the set, RadioTests).
+        const double Chance = 0.25;
         int broken = 0, trials = 400;
         for (int id = 1; id <= trials; id++)
         {
-            var (world, radio, s) = Wearing(id);
+            var (world, radio, s) = Wearing(id, grabBreak: Chance);
             world.StepBodies([(id, s)]);
             world.StepBodies([(id, s)]);
             Assert.False(radio.Broken);
@@ -140,7 +147,7 @@ public class HazardTests
             world.StepBodies([(id, s)]);
             broken += radio.Broken ? 1 : 0;
         }
-        double expect = trials * Tuning.Train.Kit.RadioBreakOnGrab;
+        double expect = trials * Chance;
         Assert.InRange(broken, expect * 0.6, expect * 1.4);
     }
 

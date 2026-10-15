@@ -42,6 +42,9 @@ public sealed class Director
     /// <summary>The night's seed, for rolls made outside the director's own dice (a lone struggle's chance, note 681).</summary>
     public ulong Seed => _seed;
     double _cooldown;
+    /// <summary>The facility whose lull was last given (App. B.1 "Facility lull"), and the seconds of it left.</summary>
+    int _lullAt = -1;
+    double _lull;
 
     double _spent;
 
@@ -86,6 +89,23 @@ public sealed class Director
     /// <summary>Those come their own way tonight, by kind (<see cref="Counted"/>).</summary>
     public IReadOnlyDictionary<EnemyKind, int> OwnWay => _ownWay;
 
+    /// <summary>A kind about tonight (and on this tier, not slain, under its cap) that hasn't come yet (note 742).</summary>
+    bool Unseen(World world) =>
+        Spawns.Rules.Any(r => Allows(r.Kind) && Tonight(r.Kind, world) && !world.Slain.Contains(r.Kind) && SentTonight(r.Kind) == 0);
+
+    /// <summary>How many of <paramref name="kind"/> have come tonight: the director's sends and those come their own way.</summary>
+    public int SentTonight(EnemyKind kind) => Log.Count(l => l.Kind == kind) + _ownWay.GetValueOrDefault(kind);
+
+    /// <summary>
+    /// What tonight's sends so far make of <paramref name="kind"/>'s weight (note 742): ×<see cref="DirectorTuning.UnseenWeight"/>
+    /// before its first, ×<see cref="DirectorTuning.NightRepeat"/> for each one since.
+    /// </summary>
+    public double NightVariety(EnemyKind kind) => SentTonight(kind) switch
+    {
+        0 => _t.UnseenWeight,
+        int n => DMath.Pow(_t.NightRepeat, n),
+    };
+
     /// <summary>The kind's not about tonight (<see cref="DirectorTuning.NightChance"/>'s roll).</summary>
     public bool OutTonight(EnemyKind kind) => _outTonight.Contains(Key(kind));
 
@@ -97,7 +117,7 @@ public sealed class Director
     public bool Tonight(EnemyKind kind, World world)
     {
         string key = Key(kind);
-        if (_outTonight.Contains(key) || _t.CapFor(key) is int cap && Log.Count(l => l.Kind == kind) + _ownWay.GetValueOrDefault(kind) >= cap)
+        if (_outTonight.Contains(key) || _t.CapFor(key) is int cap && SentTonight(kind) >= cap)
             return false;
         return world.Enemies is not { } et || !et.Wakers.Flees(kind) || !Waker.NightFleeing(world, et.Wakers);
     }
@@ -144,6 +164,7 @@ public sealed class Director
     {
         _cars = world.Train.Dynamics.Consist.CarCount;
         _world = world;
+        Crises(world, active);
         if (world.CrewThisTick.Count > 0)
             Active = world.CrewThisTick.Count(c => c.State.Alive);
         // Counted whenever the orchestrator's on (the harness reads it); census steers only with its own flag (Steering).
@@ -157,6 +178,75 @@ public sealed class Director
         bool counting = elapsed >= Grace && !world.TrainInFort && !home && world.Run?.Phase is null or Run.RunPhase.Underway
             && Math.Abs(world.Train.Dynamics.Velocity) > _t.Orchestrator.DrivingAbove;
         Posts.Count(world, active, _t.Orchestrator, _t.Abandoned.BehindM, counting);
+    }
+
+    /// <summary>Seconds left of the aftermath's hold (note 751): nothing of the director's own comes while it runs.</summary>
+    public double AftermathLeft { get; private set; }
+
+    /// <summary>What began the last aftermath ("death", "carLost", "rescue", "holdoutFreed"), or null before any.</summary>
+    public string? AftermathCause { get; private set; }
+
+    /// <summary>
+    /// A crisis just ended (GDD App. B.1 "Aftermath"; note 751; the director, 14 Oct 2026: "The breathing room is good. Don't
+    /// necessarily want a lot of it though"): for <see cref="AftermathTuning.Seconds"/> the director sends nothing of its own,
+    /// so the crew get a moment to say what just happened. Only the causes <see cref="AftermathTuning.Events"/> names.
+    /// </summary>
+    public void Crisis(string cause)
+    {
+        var a = _t.Aftermath;
+        if (!a.On || a.Seconds <= 0 || !a.Events.Contains(cause))
+            return;
+        AftermathLeft = Math.Max(AftermathLeft, a.Seconds);
+        AftermathCause = cause;
+    }
+
+    // What the director last saw (note 751): who was alive, which threat held whom, and how far it had read the news and the
+    // Holdouts' freed.
+    readonly SortedSet<int> _alive = [];
+    readonly SortedDictionary<int, int> _grips = [];
+    int _newsRead, _freedRead;
+
+    /// <summary>
+    /// The crises of the last second, from the world's own state (note 751; host only, deterministic: players and threats by
+    /// id, the news and the Holdouts in their order): a crewmate dead who was alive; cars the engine lost that the crew were
+    /// told of (note 663's news: a cut at a stand isn't a loss); a grab let go with the one held alive and not punished (a
+    /// friend's pull or blow, or their own struggle); someone freed from a Holdout.
+    /// </summary>
+    void Crises(World world, IReadOnlyList<Enemy> active)
+    {
+        if (world.CrewThisTick.Count > 0)
+        {
+            foreach (var (id, s) in world.CrewThisTick.OrderBy(c => c.Id))
+                if (!s.Alive && _alive.Contains(id))
+                    Crisis("death");
+            _alive.Clear();
+            foreach (var (id, s) in world.CrewThisTick)
+                if (s.Alive)
+                    _alive.Add(id);
+        }
+        _newsRead = Math.Min(_newsRead, world.NewsLog.Count);
+        for (; _newsRead < world.NewsLog.Count; _newsRead++)
+            if (world.NewsLog[_newsRead] is { Kind: Run.NewsKind.CarsLost, Told: true })
+                Crisis("carLost");
+        if (world.Holdouts is { } holdouts)
+        {
+            _freedRead = Math.Min(_freedRead, holdouts.Freed.Count);
+            if (_freedRead < holdouts.Freed.Count)
+                Crisis("holdoutFreed");
+            _freedRead = holdouts.Freed.Count;
+        }
+        foreach (var (enemy, victim) in _grips)
+        {
+            var e = active.FirstOrDefault(x => x.Id == enemy);
+            if (e is { Phase: SpinePhase.Grab } && e.Holding == victim || e is { Phase: SpinePhase.Punish })
+                continue;
+            if (_alive.Contains(victim))
+                Crisis("rescue");
+        }
+        _grips.Clear();
+        foreach (var e in active)
+            if (e is { Phase: SpinePhase.Grab, Holding: >= 0 })
+                _grips[e.Id] = e.Holding;
     }
 
     /// <summary>
@@ -218,7 +308,7 @@ public sealed class Director
 
     /// <summary>
     /// Whether one side of a conflict-table pair is there now (App. B.1): an enemy of that kind about, or a condition:
-    /// "grade" (a climb or fall just ahead), "facilityLoading" (at a facility), "facilityStop" (stopped at one), "choir"
+    /// "grade" (a climb or fall just ahead), "facilityLoading" (at a facility, its loading going on: note 753), "facilityStop" (stopped at one), "choir"
     /// (gathering or here).
     /// </summary>
     bool Present(string side, World world, IReadOnlyList<Enemy> active)
@@ -229,6 +319,8 @@ public sealed class Director
         {
             case "choir":
                 return world.Choir.Build > 0 || world.Choir.Present;
+            case "facilityLoading" when _t.Orchestrator.Commitment:
+                return Loading(world);
             case "facilityLoading" or "facilityStop":
                 return world.Run is { Phase: Run.RunPhase.AtFacility };
             case "grade":
@@ -240,6 +332,15 @@ public sealed class Director
                 return active.Any(e => !e.Gone && Key(e.Kind) == side);
         }
     }
+
+    /// <summary>
+    /// The conflict table's "facility loading" with the census reading commitment (note 753; App. B.1's "the facility needs
+    /// everyone"): stood at a facility with its loading going on, its machinery running or a crewmate on one of its modules
+    /// (at a crane's controls among them). Stood there idle is only a stop ("facilityStop").
+    /// </summary>
+    public static bool Loading(World world) =>
+        world.Run is { Phase: Run.RunPhase.AtFacility } run && (run.Machinery || run.CurrentSite is { } site
+            && world.CrewThisTick.Any(c => c.State.Alive && (c.State.Has(PlayerFlags.Operating) || site.Works(c.Id))));
 
     /// <summary>The conflict-table pair spawning this would make, with what's there now, if any.</summary>
     string? Completes(EnemyKind kind, World world, IReadOnlyList<Enemy> active)
@@ -254,6 +355,18 @@ public sealed class Director
                 return $"{pair[0]}+{pair[1]}";
         }
         return null;
+    }
+
+    /// <summary>
+    /// Note 753 (the audit's R5 6): a conflict pair made tonight weighs ÷pairRepeat for each time it's been made, when it would
+    /// be made again (seed 2 frontier drew whistler+facilityStop three times). Its own weight, beside the variety halving.
+    /// </summary>
+    public List<(EnemyKind Kind, double Weight)> PairRepeats(List<(EnemyKind Kind, double Weight)> options, World world, IReadOnlyList<Enemy> active)
+    {
+        if (_t.Orchestrator.PairRepeat <= 1 || Pairs.Count == 0)
+            return options;
+        return [.. options.Select(o => Completes(o.Kind, world, active) is { } again && Pairs.Count(p => p == again) is > 0 and var made
+            ? (o.Kind, o.Weight / DMath.Pow(_t.Orchestrator.PairRepeat, made)) : o)];
     }
 
     /// <summary>App. B.1: "at least one pair per run on Frontier and above. Two on Deep Territory."</summary>
@@ -344,6 +457,17 @@ public sealed class Director
     public EnemyKind? Decide(World world, double elapsed, IReadOnlyList<Enemy> active, double noSpawnFinal)
     {
         _cooldown -= 1;
+        // The aftermath (note 751) and the facility lull (App. B.1) run down a second a decision, whatever holds it.
+        bool shaken = AftermathLeft > 0;
+        AftermathLeft = Math.Max(0, AftermathLeft - 1);
+        if (world.Run is { Phase: Run.RunPhase.AtFacility } arrived && arrived.Facility != _lullAt)
+        {
+            // Once a facility (a crew shunting its yard hasn't arrived again), counted from the first second stood at it.
+            _lullAt = arrived.Facility;
+            _lull = _t.FacilityLullSeconds;
+        }
+        bool lull = _lull > 0 && world.Run is { Phase: Run.RunPhase.AtFacility };
+        _lull = Math.Max(0, _lull - 1);
         var train = world.Train;
         double s = train.Dynamics.Distance;
         if (elapsed < Grace)
@@ -374,6 +498,18 @@ public sealed class Director
         // adds slackPerSecond, on top of the pressure's own terms, so a crew with several people idle fills faster.
         if (Steering)
             _pressure = Math.Min(_t.Pressure.Max, _pressure + _t.Orchestrator.SlackPerSecond * Posts.Entries.Count(c => c.Slack >= _t.Orchestrator.SlackPress));
+        // GDD App. B.1 "Aftermath" (note 751): a crisis just ended, nothing of the director's own for a few seconds, however
+        // pressed; the pressure goes on building (the dawn clock doesn't wait either), so whatever's due comes after it. Not
+        // pressed through: at twelve seconds it's short enough not to need to be.
+        if (shaken)
+            return Held("aftermath");
+        // App. B.1 "Facility lull": "~20 seconds of calm on arrival before facility threats activate. Lets the crew commit to
+        // a plan before it falls apart." Read as everything the director would send while the train stands at the facility,
+        // which is what comes at a stop (its residents, the stop's own creatures, the Whistler boarding there): calm on
+        // arrival, as the rule says. What isn't the director's spend keeps its own rules (the Stoker's heat, the Pickers'
+        // own wait, a left-behind's hunts). The pressure builds through it, as through the grace's end.
+        if (lull)
+            return Held("facility lull");
         // The night's first threat is drawn (note 287): it answers what the crew did. A draw past answerAt is answered out loud at
         // once (the World puts the answer where it's heard), and the threat follows leadSeconds on, pressed for; with no draw that
         // big the pressure waits (listening) up to holdUntil, and then the biggest draw standing takes it. A quiet crew buys
@@ -477,6 +613,14 @@ public sealed class Director
                 options[i] = (options[i].Kind, options[i].Weight * calls.GetValueOrDefault(Key(options[i].Kind), 1));
         if (options.Count == 0)
             return Held("nothing fits");
+        // Variety across the night (note 742): a kind come repeatHold times tonight waits while one about tonight hasn't come
+        // at all; the director saves up for the stop, the town or the stretch that lets the new one in. Pressed, it sends.
+        if (!due && _t.RepeatHold > 0 && options.Any(o => SentTonight(o.Kind) >= _t.RepeatHold) && Unseen(world))
+        {
+            options.RemoveAll(o => SentTonight(o.Kind) >= _t.RepeatHold);
+            if (options.Count == 0)
+                return Held("saving for something new");
+        }
         // App. B.1 contradiction seeding: "the director draws pairs from a conflict table rather than spawning
         // independently". Whatever would make a pair with what's about now is weighted up, and more so past halfway on a
         // run that hasn't had its pairs yet.
@@ -488,9 +632,13 @@ public sealed class Director
                 if (Completes(options[i].Kind, world, active) is not null)
                     options[i] = (options[i].Kind, options[i].Weight * _t.PairWeight * (behind ? _t.BehindPairWeight : 1));
         }
+        options = PairRepeats(options, world, active);
         // Variety: a kind sent lately comes on less (the Lamplighters were half of everything in the playtest).
         var recent = Log.TakeLast(_t.VarietyWindow).Select(l => l.Kind).ToList();
         options = [.. options.Select(o => (o.Kind, o.Weight / DMath.Pow(2, recent.Count(k => k == o.Kind))))];
+        // And across the night (note 742: "very one note ... the cinder hounds like three times"): what hasn't come yet tonight
+        // comes on more, and each one of a kind that has (the director's or its own way) weighs it down again.
+        options = [.. options.Select(o => (o.Kind, o.Weight * NightVariety(o.Kind)))];
         // Note 327: with crew afoot off the train, what comes for them out there (the outside creatures, and whatever lives at
         // the stops' sites) weighs more, by their share: more of the night is met off the train.
         if (_t.Afoot.On && AfootShare > 0 && _t.Afoot.OutsideWeight != 1)
@@ -556,12 +704,38 @@ public sealed class Director
             if (o.PerTarget && entries.Where(c => posts.Contains(c.Post)).ToList() is { Count: > 0 } answering
                 && answering.All(c => c.On >= Math.Max(1, (int)Math.Floor(o.PerPlayerFor(_cars) + 1e-9))))
                 return (op.Kind, 0.0);
+            double w = op.Weight;
             if (next is not null && posts.Contains(next.Post))
-                return (op.Kind, op.Weight * o.SlackWeight);
-            if (!posts.Any(held.Contains) && !o.EmptyPostExempt.Contains(Key(op.Kind)))
-                return (op.Kind, op.Weight * o.EmptyPostWeight);
-            return op;
+                w *= o.SlackWeight;
+            else if (!posts.Any(held.Contains) && !o.EmptyPostExempt.Contains(Key(op.Kind)))
+                w *= o.EmptyPostWeight;
+            return (op.Kind, w * Collision(posts, entries));
         })];
+    }
+
+    /// <summary>
+    /// A collision (note 753; the audit's R5 5, E1): ×<see cref="OrchestratorTuning.CollisionWeight"/> for a kind that would come
+    /// at or near a committed crewmate who has nothing on them yet (their own post answers it, or it comes to a post that
+    /// does within <see cref="OrchestratorTuning.CommittedNearM"/> of them: the census's own reading of whose a threat is) and
+    /// that a free crewmate's post answers within <see cref="OrchestratorTuning.CollisionReachM"/> of them: the free one then
+    /// chooses between their own post and their friend's job. Never with nobody free in reach (that's a pile-on, not a
+    /// collision). Only which kind comes, never when or how many: the caps, the gates and the pacing are the director's as
+    /// before. Free: nothing on them, not committed, not left behind (the census counts only the living).
+    /// </summary>
+    double Collision(List<Post> posts, IReadOnlyList<CensusEntry> entries)
+    {
+        var o = _t.Orchestrator;
+        if (!o.Commitment || o.CollisionWeight == 1)
+            return 1;
+        foreach (var busy in entries.Where(c => c.Committed && c.On == 0 && c.Post != Post.LeftBehind))
+        {
+            bool comes = posts.Contains(busy.Post)
+                || entries.Any(x => x.Player != busy.Player && posts.Contains(x.Post) && (x.At - busy.At).Length <= o.CommittedNearM);
+            if (comes && entries.Any(f => f.Player != busy.Player && f.On == 0 && !f.Committed && f.Post != Post.LeftBehind
+                && posts.Contains(f.Post) && (f.At - busy.At).Length <= o.CollisionReachM))
+                return o.CollisionWeight;
+        }
+        return 1;
     }
 
     /// <summary>

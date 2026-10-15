@@ -237,7 +237,13 @@
     // Slice 2, the director (8 Oct): a smashed headlamp (enemies.json climbers.lampOutSeconds) no longer comes back by
     // itself; it's mended with the wrench from the cab's front windows, behind it, each second worked taking this many
     // off what's left (45 s of glass is 7.5 s with the wrench; lamp armour halves it again).
-    "lampMendRate": 6
+    "lampMendRate": 6,
+    // GDD §12, one can, two do it faster (note 752; the social collision audit's R4, the director, 14 Oct 2026: "absolutely
+    // the right direction"): a crewmate boarding up the same breach (breach.boardSeconds, spec B.9's 8 s), or mending the
+    // same burst boiler (boiler.json repairSeconds), beside you each works it pairRate times as fast (two: 8 s is 4.4 s);
+    // a third adds nothing. Alone, as ever. A dent, the smashed lamp and a fire (each extinguisher cools its cell) are worked
+    // on the car itself, so two hands there already do twice as much. 1: each alone, as before.
+    "pairRate": 1.8
   },
 
   // Damage with consequences, Sea of Thieves style (the director, 9 Oct 2026, ARCHITECTURE §8 note 576: "If players dont fix
@@ -352,7 +358,14 @@
   // crouch.eyeDrop.
   "pick": { "eyeHeight": 1.6, "lookDegrees": 30, "crouchedEyeHeight": 1.05 },
   "kit": {
+    // The loose radio sets (T41) when radioEach is off: one on the cab floor, the rest in the guard van.
     "radios": 2,
+    // GDD §12, note 749 (the director, 14 Oct 2026: "make the radios part of the default kit ... Hold down right click to use
+    // the radio since communication is so important"; "Radio is part of uniform and doesnt take inventory space"): every
+    // living crewmate wears a radio from the start of the night, joiners and those back from a Holdout too (bots as well),
+    // and it never comes off the belt: no slot, not put down, not stowed. A broken one is mended on the belt. The loose sets
+    // above aren't placed; the dead's goes with them, and they come back with a working one. False: the loose sets, as before.
+    "radioEach": true,
     // Note 266 (build 1121, solo: "there's no lanterns. The lights are completely off"): the forward lamp a Climber smashed
     // (enemies.json climbers.lampOutSeconds, the spare glass going in) comes back lit as the driver had it, not dark till
     // someone thinks to press [L]. One the driver switched off stays off.
@@ -361,12 +374,13 @@
     // spur's points (m): none, until the campaign's radio range adds to it (campaign.json, F.3; note 196).
     "radioReach": 0,
     // GDD §23 "radio breaks" (note 183): a radio on your belt smashes with this chance per point of damage you take, plus
-    // radioBreakOnGrab when something grabs you. Broken, it's still worn but off the air. Note 200: the repair kit mends
+    // radioBreakOnGrab when something grabs you (note 749, App. C.8: 0, a grab never breaks the set; the broadcast is the
+    // point. It was 0.25). Broken, it's still worn but off the air. Note 200: the repair kit mends
     // it (GDD §12's engineer, whoever has the kit): the kit in hand, Use held radioMendSeconds, standing, with the broken
     // radio on your own belt or lying in reach (a crewmate takes theirs off to hand it over). A tap still puts the kit
     // down. Not in the GDD's numbers: a third of the boiler's 25 s, long enough to be a decision under attack.
     "radioBreakPerDamage": 0.006,
-    "radioBreakOnGrab": 0.25,
+    "radioBreakOnGrab": 0,
     "radioMendSeconds": 8,
     // GDD v1.1 App. C.4 hand loot: toys, for the Track Doll (it steals one and leaves for the run). Note 267 (the director's
     // notes on build 1121: "things that we should definitely find out in the world"): none ride from the fortress now;

@@ -29,9 +29,9 @@ public sealed partial class BoundKeysTests
             Hud.Keys = Rebound();
             foreach (var (c, key) in Controls.Defaults)
                 Assert.Equal(Said(c), Hud.Bound($"[{Controls.KeyLabel(key)}]"));
-            // The HUD's short names for the mouse buttons and the vent's left Ctrl.
+            // The HUD's short names for the mouse buttons and the vent's left Ctrl (note 749: the right one is the radio's).
             Assert.Equal(Said(Control.Fire), Hud.Bound("[LMB]"));
-            Assert.Equal(Said(Control.Throw), Hud.Bound("[RMB]"));
+            Assert.Equal(Said(Control.Radio), Hud.Bound("[RMB]"));
             Assert.Equal(Said(Control.Vent), Hud.Bound("[VENT]"));
             // What can't be bound is as written: the menus' keys, the hotbar's numbers, a reconnect.
             foreach (string own in new[] { "[F5]", "[ESC]", "[ENTER]", "[1]", "[UP/DOWN]", "[LEFT/RIGHT]", "[CLICK STICK]" })
