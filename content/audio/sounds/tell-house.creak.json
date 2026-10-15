@@ -1,0 +1,20 @@
+// A house where something waits: its boards creaking: A house where something waits: a floorboard or a rafter taking a weight in the dark. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 1,
+ "loop": false,
+ "maxInstances": 12,
+ "minDistance": 1,
+ "maxDistance": 30,
+ "rolloff": 1.0,
+ "gainDb": 8,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "tell-house/creak",
+   "gain": 1,
+   "pitchJitter": 0.4,
+   "gainJitter": 1.0
+  }
+ ]
+}

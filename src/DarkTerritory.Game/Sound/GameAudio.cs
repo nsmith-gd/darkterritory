@@ -747,6 +747,7 @@ public sealed partial class GameAudio
 
     readonly HashSet<int> _heardHits = [], _heardImpacts = [], _heardEmotes = [], _heardMeets = [];
     readonly Dictionary<int, byte> _outfitsHeard = [];
+    readonly Dictionary<int, MaskPaint> _paintsHeard = [];
     bool _strikesPrimed, _gesturesPrimed;
 
     /// <summary>
@@ -789,6 +790,13 @@ public sealed partial class GameAudio
             if (_outfitsHeard.TryGetValue(id, out byte was) && was != outfit && Crewmate(id) is { } s && At(world.Train, s) is { } at)
                 Cue("crew-emotes.outfit", at + Double3.Up * 1.2, OccludedAt(world.Train, s.Parent, s.Position));
             _outfitsHeard[id] = outfit;
+        }
+        // A mask painted afresh in the yard (note 731; queue #518, note 785): tried on as an outfit is, heard the same.
+        foreach (var (id, paint) in world.Paints)
+        {
+            if (_paintsHeard.TryGetValue(id, out var was) && was != paint && Crewmate(id) is { } s && At(world.Train, s) is { } at)
+                Cue("crew-emotes.outfit", at + Double3.Up * 1.2, OccludedAt(world.Train, s.Parent, s.Position));
+            _paintsHeard[id] = paint;
         }
         _gesturesPrimed = true;
     }
@@ -899,6 +907,7 @@ public sealed partial class GameAudio
         _heardEmotes.Clear();
         _heardMeets.Clear();
         _outfitsHeard.Clear();
+        _paintsHeard.Clear();
         _strikesPrimed = _gesturesPrimed = false;
         _cooling = null;
         _lampsOut = 0;
