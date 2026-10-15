@@ -76,9 +76,10 @@ public sealed partial class WorldArt
 
         /// <summary>
         /// Each corner of the main line's land (its 5 m row, its own column) that has an alternate or a dead line within
-        /// reach: which, and how far out from it (right positive). See <see cref="BranchTakes"/>.
+        /// reach: which, and how far out from it (right positive). See <see cref="BranchTakes"/>. Concurrent: the main line's
+        /// cells are cooked on workers as well as on the frame (note 479), and each asks it.
         /// </summary>
-        public Dictionary<(long Row, int Column), (int Edge, double Lateral)[]> BranchCorners { get; } = new();
+        public System.Collections.Concurrent.ConcurrentDictionary<(long Row, int Column), (int Edge, double Lateral)[]> BranchCorners { get; } = new();
 
         /// <summary>A stop's ground, cleared of the woods: its zone, out on each side past the last thing it built there.</summary>
         static (double S0, double S1, double Left, double Right) Clearing(double s0, double s1, StopLayout stop)
