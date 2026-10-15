@@ -4309,42 +4309,42 @@ public sealed partial class GreyboxScene
             switch (spot.Container.Kind)
             {
                 case Sim.Stops.ContainerKind.Cupboard when Look is not null:
-                {
-                    // The dresser (TownKit.Dresser, note 760): its face 0.25 out from its middle. Searched, its four doors are gone
-                    // from the face (the dark of inside over them, out past their knobs, and its shelves) and each is swung back
-                    // past square (115°) from its hinge at the side, so it reads from in front, not edge on.
-                    float face = (float)Sim.Run.StopWalls.CupboardDepth, half = (float)Sim.Run.StopWalls.CupboardWidth;
-                    Matrix4x4 Placed(Vector3 across, Vector3 at) =>
-                        new(across.X, across.Y, across.Z, 0, 0, 1, 0, 0, Vector3.Cross(across, up).X, Vector3.Cross(across, up).Y, Vector3.Cross(across, up).Z, 0, at.X, at.Y, at.Z, 1);
-                    mesh.Instances.Add(new MeshInstance(Look.Art.Piece("dresser-inside", () => Art.TownKit.DresserInside(Look)), Placed(side, At(face + 0.04f, 0))));
-                    float width = half - Art.TownKit.DoorInset - Art.TownKit.DoorGap;
-                    foreach (var (h0, h1) in Art.TownKit.DresserDoors)
                     {
-                        var door = Look.Art.Piece($"dresser-door-{h1 - h0:0.00}", () => Art.TownKit.FrontPiece(Look, width, h1 - h0, Art.TownKit.DoorFrame, width - 0.05f, (h1 - h0) / 2));
-                        foreach (float s in new[] { -1f, 1f })
+                        // The dresser (TownKit.Dresser, note 760): its face 0.25 out from its middle. Searched, its four doors are gone
+                        // from the face (the dark of inside over them, out past their knobs, and its shelves) and each is swung back
+                        // past square (115°) from its hinge at the side, so it reads from in front, not edge on.
+                        float face = (float)Sim.Run.StopWalls.CupboardDepth, half = (float)Sim.Run.StopWalls.CupboardWidth;
+                        Matrix4x4 Placed(Vector3 across, Vector3 at) =>
+                            new(across.X, across.Y, across.Z, 0, 0, 1, 0, 0, Vector3.Cross(across, up).X, Vector3.Cross(across, up).Y, Vector3.Cross(across, up).Z, 0, at.X, at.Y, at.Z, 1);
+                        mesh.Instances.Add(new MeshInstance(Look.Art.Piece("dresser-inside", () => Art.TownKit.DresserInside(Look)), Placed(side, At(face + 0.04f, 0))));
+                        float width = half - Art.TownKit.DoorInset - Art.TownKit.DoorGap;
+                        foreach (var (h0, h1) in Art.TownKit.DresserDoors)
                         {
-                            float swing = 115 * MathF.PI / 180;
-                            // Closed, a door runs from its hinge (the face's edge) in across the face; open, it's turned out about
-                            // the hinge. Built from its hinge across (its knob at the far end), so the right-hand one's laid from
-                            // its free edge back to its hinge, its face still out.
-                            var along = Vector3.Normalize(-s * side * MathF.Cos(swing) + into * MathF.Sin(swing));
-                            var hinge = At(face + 0.005f, h0, s * (half - Art.TownKit.DoorInset));
-                            mesh.Instances.Add(new MeshInstance(door, s < 0 ? Placed(along, hinge) : Placed(-along, hinge + along * width)));
+                            var door = Look.Art.Piece($"dresser-door-{h1 - h0:0.00}", () => Art.TownKit.FrontPiece(Look, width, h1 - h0, Art.TownKit.DoorFrame, width - 0.05f, (h1 - h0) / 2));
+                            foreach (float s in new[] { -1f, 1f })
+                            {
+                                float swing = 115 * MathF.PI / 180;
+                                // Closed, a door runs from its hinge (the face's edge) in across the face; open, it's turned out about
+                                // the hinge. Built from its hinge across (its knob at the far end), so the right-hand one's laid from
+                                // its free edge back to its hinge, its face still out.
+                                var along = Vector3.Normalize(-s * side * MathF.Cos(swing) + into * MathF.Sin(swing));
+                                var hinge = At(face + 0.005f, h0, s * (half - Art.TownKit.DoorInset));
+                                mesh.Instances.Add(new MeshInstance(door, s < 0 ? Placed(along, hinge) : Placed(-along, hinge + along * width)));
+                            }
                         }
+                        break;
                     }
-                    break;
-                }
                 case Sim.Stops.ContainerKind.Cabinet when Look is not null:
-                {
-                    // The sideboard's drawer (TownKit.Sideboard) pulled out of it, the slot it came from dark, out past its knobs.
-                    float face = (float)Sim.Run.StopWalls.CabinetDepth, half = (float)Sim.Run.StopWalls.CabinetWidth - Art.TownKit.DrawerInset;
-                    float tall = Art.TownKit.DrawerTo - Art.TownKit.DrawerFrom;
-                    mesh.Box(At(face + 0.04f, Art.TownKit.DrawerFrom + tall / 2), side, up, into, new Vector3(half, tall / 2, 0.004f), Vector3.Zero);
-                    var drawer = Look.Art.Piece("sideboard-drawer", () => Art.TownKit.FrontPiece(Look, 2 * half, tall, Art.TownKit.DrawerFrame, half, tall / 2, drawer: 0.34f));
-                    var corner = At(face + 0.3f, Art.TownKit.DrawerFrom, -half);
-                    mesh.Instances.Add(new MeshInstance(drawer, new Matrix4x4(side.X, side.Y, side.Z, 0, 0, 1, 0, 0, into.X, into.Y, into.Z, 0, corner.X, corner.Y, corner.Z, 1)));
-                    break;
-                }
+                    {
+                        // The sideboard's drawer (TownKit.Sideboard) pulled out of it, the slot it came from dark, out past its knobs.
+                        float face = (float)Sim.Run.StopWalls.CabinetDepth, half = (float)Sim.Run.StopWalls.CabinetWidth - Art.TownKit.DrawerInset;
+                        float tall = Art.TownKit.DrawerTo - Art.TownKit.DrawerFrom;
+                        mesh.Box(At(face + 0.04f, Art.TownKit.DrawerFrom + tall / 2), side, up, into, new Vector3(half, tall / 2, 0.004f), Vector3.Zero);
+                        var drawer = Look.Art.Piece("sideboard-drawer", () => Art.TownKit.FrontPiece(Look, 2 * half, tall, Art.TownKit.DrawerFrame, half, tall / 2, drawer: 0.34f));
+                        var corner = At(face + 0.3f, Art.TownKit.DrawerFrom, -half);
+                        mesh.Instances.Add(new MeshInstance(drawer, new Matrix4x4(side.X, side.Y, side.Z, 0, 0, 1, 0, 0, into.X, into.Y, into.Z, 0, corner.X, corner.Y, corner.Z, 1)));
+                        break;
+                    }
                 case Sim.Stops.ContainerKind.Cellar:
                     // The hatch (1 m square, flush) gone: a black hole, and the lid stood up on its back edge.
                     mesh.Box(At(0, 0.056f), side, up, into, new Vector3(0.46f, 0.004f, 0.46f), dark);
