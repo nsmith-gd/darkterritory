@@ -38,13 +38,15 @@ public class EmoteAndOutfitTests
         foreach (var e in Enum.GetValues<Emote>())
         {
             var w = new NetWriter();
-            Messages.WriteInput(w, [new InputFrame(7, new PlayerIntent { MoveZ = 1, Emote = e, Select = e == Emote.Wave ? (byte)3 : (byte)0 })], 0);
+            // Note 740: "Aboard!" is past the hotbar byte's two bits, and a wheel step rides with it.
+            Messages.WriteInput(w, [new InputFrame(7, new PlayerIntent { MoveZ = 1, Emote = e, Select = e == Emote.Wave ? (byte)3 : (byte)0, Cycle = (sbyte)(e == Emote.Aboard ? -1 : 0) })], 0);
             var r = new NetReader(w.Written);
             r.U8();
             var frames = new List<InputFrame>();
             Messages.ReadInput(ref r, frames, out _);
             Assert.Equal(e, frames[0].Intent.Emote);
             Assert.Equal(e == Emote.Wave ? 3 : 0, frames[0].Intent.Select);
+            Assert.Equal(e == Emote.Aboard ? -1 : 0, frames[0].Intent.Cycle);
         }
     }
 

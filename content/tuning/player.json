@@ -190,6 +190,8 @@
     "dance": 8,
     "wave": 2.5,
     "point": 2.5,
+    // Note 740 (GDD §17): "Aboard!", called back to the horn, a hand up and the crew told who said it.
+    "aboard": 3,
     "cooldown": 0.5
   },
   // The news (ARCHITECTURE §8 note 663; the director: "did a coupler break on its own or was that a creature?"): cars the

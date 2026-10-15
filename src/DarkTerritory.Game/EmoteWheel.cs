@@ -5,18 +5,20 @@ using DarkTerritory.Sim.Player;
 namespace DarkTerritory.Game;
 
 /// <summary>
-/// The emote wheel (note 298; GDD §9's yard, where the crew "hang out, dance"): held on its key, the three emotes round the
+/// The emote wheel (note 298; GDD §9's yard, where the crew "hang out, dance"): held on its key, the emotes round the
 /// crosshair, the mouse leaning toward one; let go, that one is sent as intent. A tap with no lean sends the last one picked
 /// (the dance, the first time). While it's held the mouse picks rather than looks. The app feeds it; tests drive it.
 /// </summary>
 public sealed class EmoteWheel
 {
-    /// <summary>What's on the wheel, and where: the dance up, the wave to the left, the point to the right.</summary>
+    /// <summary>What's on the wheel, and where: the dance up, the wave to the left, the point to the right, ABOARD down (note 740).</summary>
     public static readonly (Emote Emote, string Label, Vector2 At)[] Spokes =
     [
         (Emote.Dance, "DANCE", new(0, -1)),
         (Emote.Wave, "WAVE", new(-1, 0)),
         (Emote.Point, "POINT", new(1, 0)),
+        // Note 740 (GDD §17): the call back to the horn, down.
+        (Emote.Aboard, "ABOARD", new(0, 1)),
     ];
 
     /// <summary>How far the mouse has to lean (its counts) before a spoke is picked over the last one.</summary>
