@@ -68,10 +68,28 @@ public static class Radio
             lines.Add($"Salvage: {report.Scavenged:0}.");
         if (owned is not null)
             lines.AddRange(owned);
+        // Note 718 (the director, 14 Oct 2026: "as they play the game more often, they learn what those objects are"): the
+        // night's best finds by name with what each paid, as flat as the coal, and who brought the most aboard.
+        lines.AddRange(Prizes(report));
         lines.Add($"Coal: {report.CoalCost:0}. Powder and shot: {report.AmmoCost:0}. Repairs: {report.RepairCost:0}.");
         lines.Add($"Net: {report.Net:0}. Next.");
         return lines;
     }
+
+    /// <summary>
+    /// Note 718: the tally's lines for the night's finds, the worthiest kinds first ("Find: pocket watch, 110.", "Finds: candles,
+    /// 3 at 25."), then the finder's line ("Light fingers: Dave, 1140."). Nothing on a night with no finds home.
+    /// </summary>
+    public static IEnumerable<string> Prizes(RunReport report)
+    {
+        foreach (var p in report.Prizes)
+            yield return p.Count > 1 ? $"Finds: {Said(p.Name)}, {p.Count} at {p.Worth:0}." : $"Find: {Said(p.Name)}, {p.Worth:0}.";
+        if (report.Finder.Length > 0 && report.FinderWorth > 0)
+            yield return $"Light fingers: {report.Finder}, {report.FinderWorth:0}.";
+    }
+
+    /// <summary>A find's name as the clerk reads it, mid-line: "Pocket watch" is "pocket watch", "The Gaunt's hand" "the Gaunt's hand".</summary>
+    static string Said(string name) => name.Length == 0 ? name : char.ToLowerInvariant(name[0]) + name[1..];
 
     /// <summary>
     /// GDD v1.4 App. E.9, the Stranded outro: the clerk over the pull-back, as flat as the coal. On the screen and said

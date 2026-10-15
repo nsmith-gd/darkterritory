@@ -959,10 +959,12 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         Look = look,
         Route = session.Route,
         Signs = session.World.Lineside?.Signs,
-        SignRange = session.World.Lineside?.Tuning.LampSignRange ?? 350,
+        SignRange = session.World.Lineside?.SignRange(true, session.Train.Dynamics.Tuning.HeadlampReach) ?? 350,
+        LampReach = session.Train.Dynamics.Tuning.HeadlampReach,
         Enemies = session.World.ActiveEnemies,
         Hits = session.World.Hits,
         Swings = session.World.Swings,
+        Lumps = session.World.Lumps,
         Outfits = session.World.Outfits,
         Impacts = session.World.Impacts,
         Run = session.World.Run,
@@ -1102,6 +1104,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // The emote wheel (note 298): held on its key, the mouse picks; let go, it's sent on the next tick.
     var wheel = new EmoteWheel();
     var pendingEmote = Emote.None;
+    // The lamp signals (note 720): with a hand lamp in the fist, held on their key, the mouse picks; let go, it's given.
+    var signalWheel = new SignalWheel();
+    var pendingSignal = LampSignal.None;
     Camera camera = default;
     // T121: the derailment first-hand, then replayed from the chase view, then the orbit (DerailSequence).
     var derailSequence = new DerailSequence();
@@ -1367,7 +1372,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         wheel.More = session.Train.Dynamics.Tuning.Composition.Dressed("moreEmotes");
         if (wheel.Update(Held(Control.Emote) && session.Player.Alive, input.MouseDX, input.MouseDY) is var let && let != Emote.None)
             pendingEmote = let;
-        if (!inMenu && !wheel.Open)
+        bool lampInHand = session.World.Bodies.CarriedBy(session.PlayerId) is { Kind: DarkTerritory.Sim.Physics.BodyKind.Lamp, Stashed: false };
+        if (signalWheel.Update(Held(Control.Signal) && session.Player.Alive && lampInHand && !wheel.Open, input.MouseDX, input.MouseDY) is var given
+            && given != LampSignal.None)
+            pendingSignal = given;
+        if (!inMenu && !wheel.Open && !signalWheel.Open)
         {
             pendingYaw -= input.MouseDX * sensitivity;
             pendingPitch -= input.MouseDY * sensitivity * (settings.InvertMouse ? -1 : 1);
@@ -1423,17 +1432,21 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 // speaking up, so a player without one can still talk the Gaunt down and answer a roll call.
                 Voice = (byte)Math.Clamp(voiceLevel * 255, 0, 255),
                 // Note 664: crouch and pushing the gun along, each its own key, held (a headset rider crouches for real).
-                Moves = (Held(Control.Crouch) ? PlayerMoves.Crouch : 0) | (Held(Control.Push) ? PlayerMoves.Push : 0),
+                Moves = (Held(Control.Crouch) ? PlayerMoves.Crouch : 0) | (Held(Control.Push) ? PlayerMoves.Push : 0)
+                    // Note 717: the shove (the host acts on the press).
+                    | (Held(Control.Shove) ? PlayerMoves.Shove : 0),
                 Select = pendingSelect,
                 // Scrolled up is the previous slot, down the next, as in most games.
                 Cycle = (sbyte)(pendingCycle >= 1 ? -1 : pendingCycle <= -1 ? 1 : 0),
                 Emote = pendingEmote,
+                Signal = pendingSignal,
             };
             // In a conga line (note 714), with the stick still, the feet follow whoever started before you.
             if (intent.MoveX == 0 && intent.MoveZ == 0 && Conga.Follow(session.PlayerId, session.Player, session.World, GameAudio.CrewOf(session)) is { } step)
                 (intent.MoveX, intent.MoveZ, intent.LookYaw) = (step.MoveX, step.MoveZ, step.LookYaw);
             pendingSelect = 0;
             pendingEmote = Emote.None;
+            pendingSignal = LampSignal.None;
             if (Math.Abs(pendingCycle) >= 1)
                 pendingCycle -= Math.Sign(pendingCycle);
             if (locomotion is not null)
@@ -1651,7 +1664,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         // And the Wakers' stir behind the train before dawn (note 599).
         lighting = Views.Lighting(frames[0], look, session.World.Run is { } dawnRun && look is not null ? look.DawnOf(dawnRun.DawnIn) : 0,
-            DawnStir.Sky(session.World), DawnStir.SkyFrom(session.World, frames));
+            DawnStir.Sky(session.World), DawnStir.SkyFrom(session.World, frames), session.Train.Dynamics.Tuning.HeadlampReach);
         lighting.Time = now;
         // Lamps down (T52), or smashed: no beam.
         if (!session.World.LampShining)
@@ -1773,6 +1786,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 captions: frontEnd.Settings.Captions ? captions.Lines() : null);
             Hud.Photograph(overlay, UiWidth, UiHeight, photographer, now, session);
             wheel.Draw(overlay, UiWidth, UiHeight, Hud.PromptScaleAt((float)renderer.Height / UiHeight));
+            signalWheel.Draw(overlay, UiWidth, UiHeight, Hud.PromptScaleAt((float)renderer.Height / UiHeight));
             // Q held: the crew roster (T69), with who's been heard.
             if (Held(Control.Roster))
                 Hud.Roster(overlay, UiWidth, UiHeight, session.Roster(), voice is null ? null : voice.SinceHeard);

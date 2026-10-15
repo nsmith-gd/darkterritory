@@ -216,6 +216,12 @@ def candidates(line, cue, stored):
         u = assets.url_for(e["preview"])
         if u:
             by_url[u] = e
+    # Rebuilt elsewhere (the audio-build workflow, note 667), a preview's encoding can come out a byte different from the
+    # copy that went up, though the takes are its recipe's own (seeded): the page's candidate is the one recorded for it.
+    recorded = assets.load()
+    for e in man.values():
+        if (a := recorded.get(e["preview"])) and a["url"] not in by_url:
+            by_url[a["url"]] = e
     out = []
     for k in stored.get("cands") or []:
         k = dict(k)
@@ -231,6 +237,11 @@ def candidates(line, cue, stored):
         out.append(k)
     return out
 
+
+# A cue whose takes are two sounds the game fires by turns: each part its own folder of the takes it names (by index) and
+# its own definition, <line>.<cue>.<part>, beside the whole cue's. The Brakeman's steps limp only if the good leg's takes
+# and the bad leg's alternate on his long-short beat (note 388; recipes/g1_train.py LAME), so GameAudio fires them so.
+TAKE_SPLITS = {"tell-brakeman.step": {"good": (0, 2), "bad": (1, 3)}}
 
 # Which candidate plays while nothing's kept, where the director's brief already says which (rather than the first): the
 # tunnel's hit is to be a bonk, not a thock (3 Oct), and the clean bonk is the one that says so. The bend's stress is to be
@@ -256,7 +267,9 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 # Note 431: the joint's crack, short and hard under 2 kHz; the old clack and the battered joint candidates.
                 "bed-wheel-rail.joint": "crack",
                 # Note 444: the truss Dragger's whole weight on the roof (limbs, lighter, a candidate).
-                "cs-draggers.drop": "slam"}
+                "cs-draggers.drop": "slam",
+                # Note 388: the Brakeman's iron heel and hobnails from real recordings, the modelled plank a candidate.
+                "tell-brakeman.step": "hob"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the
@@ -583,6 +596,12 @@ def tell_sounds(chosen):
                 print(f"{name}: now the takes of {', '.join(fo for fo, _ in folders)}")
 
 
+def _sha(folder):
+    """A folder's takes (its files, not its parts' folders) as one short hash."""
+    files = sorted(f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f)))
+    return hashlib.sha256(b"".join(open(os.path.join(folder, f), "rb").read() for f in files)).hexdigest()[:16]
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     store = sys.argv[sys.argv.index("--from") + 1]
@@ -657,14 +676,25 @@ def main():
                            f"// {item['name']}: {cue['event']}" + (f" ({C.MATERIALS.get(mat, mat)})" if mat else "") +
                            f". Written by tools/audio/install.py from the audio checklist ({why}); edit the cue, not this.\n",
                            sound_def(item, cue, rel, line))
-                index[rel] = {"cue": f"{line}.{cue['id']}", "surface": mat, "picked": why,
-                              "candidates": [{"label": k.get("label"), "key": k.get("key") or k.get("libkey") or k["src"],
-                                              "sources": k.get("sources") or ([k["libkey"]] if k.get("libkey") else []),
-                                              "licence": "Sonniss GDC" if k.get("restricted")
-                                              else TTS_LICENCE if (line, cue["id"]) in TTS_CUES else "CC0"} for k in chosen],
-                              "takes": len(takes),
-                              "sha": hashlib.sha256(b"".join(open(os.path.join(folder, f), "rb").read()
-                                                             for f in sorted(os.listdir(folder)))).hexdigest()[:16]}
+                provenance = [{"label": k.get("label"), "key": k.get("key") or k.get("libkey") or k["src"],
+                               "sources": k.get("sources") or ([k["libkey"]] if k.get("libkey") else []),
+                               "licence": "Sonniss GDC" if k.get("restricted")
+                               else TTS_LICENCE if (line, cue["id"]) in TTS_CUES else "CC0"} for k in chosen]
+                index[rel] = {"cue": f"{line}.{cue['id']}", "surface": mat, "picked": why, "candidates": provenance,
+                              "takes": len(takes), "sha": _sha(folder)}
+                for part, which in TAKE_SPLITS.get(f"{line}.{cue['id']}", {}).items():
+                    sub = [takes[i] for i in which if i < len(takes)]
+                    if not sub:
+                        continue
+                    for i, x in enumerate(sub):
+                        encode(x, os.path.join(folder, part, f"{i:02d}.opus"))
+                    _write_def(os.path.join(SOUNDS, f"{name}.{part}.json"),
+                               f"// {item['name']}: {cue['event']} ({part}: takes {', '.join(map(str, which))}). Written by "
+                               f"tools/audio/install.py from the audio checklist ({why}, TAKE_SPLITS); edit the cue, not this.\n",
+                               sound_def(item, cue, f"{rel}/{part}", line))
+                    index[f"{rel}/{part}"] = {"cue": f"{line}.{cue['id']}", "surface": mat, "part": part, "picked": why,
+                                              "candidates": provenance, "takes": len(sub),
+                                              "sha": _sha(os.path.join(folder, part))}
     if not dry:
         os.makedirs(SAMPLES, exist_ok=True)
         json.dump(dict(sorted(index.items())), open(index_path, "w"), indent=1)

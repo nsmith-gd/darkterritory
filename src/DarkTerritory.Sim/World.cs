@@ -116,6 +116,26 @@ public sealed partial class World
     /// <summary>How long an emote lasts, and how soon another may follow (player.json emotes; the host sets it).</summary>
     public EmoteTuning EmoteTuning { get; set; } = new();
     /// <summary>
+    /// Lamp signals lately (GDD §12; note 720): the host's, each kept <see cref="LampSignalTuning.Seconds"/> and replicated, so
+    /// the crew see the lamp's motion and the bot driver reads it.
+    /// </summary>
+    public List<SignalEvent> Signals { get; } = new();
+    /// <summary>Voices as tools (note 720): the tube, singing, lamp signals; from the players' tuning where the sessions set it.</summary>
+    public VoicesTuning VoicesTuning => Movement?.Voices ?? DefaultVoices;
+    static readonly VoicesTuning DefaultVoices = new();
+    /// <summary>
+    /// Singing together (GDD §14; note 720), heard on the host each tick from the crew's voice levels: who's singing now
+    /// (<see cref="Player.Singing.Singers"/>). Their voices don't feed the loudness meter, the livestock settle, and a Gaunt
+    /// near them is talked down faster.
+    /// </summary>
+    public Singing Singing { get; } = new();
+    /// <summary>Who's singing together this tick (host; empty on a client).</summary>
+    public IReadOnlySet<int> Singers => Singing.Singers;
+    /// <summary>Someone aboard the train is singing with someone (host): the livestock hear it.</summary>
+    public bool SingingAboard { get; private set; }
+    /// <summary>How much the livestock aboard are settled by the crew's singing (0 none, 1 quite still): voices.singing.calmsLivestock.</summary>
+    public double LivestockCalm => SingingAboard ? Math.Clamp(VoicesTuning.Singing.CalmsLivestock, 0, 1) : 0;
+    /// <summary>
     /// The news lately (note 663): cars the engine lost and its failing, each with what did it, as the crew are told. The
     /// host's, kept <see cref="NewsTuning"/>'s seconds and replicated, so every machine shows the same line.
     /// </summary>
@@ -236,8 +256,9 @@ public sealed partial class World
     /// <summary>Host: a draw made (note 287), credited on the director's ledger; nothing in the safe yard.</summary>
     void Drew(DrawCause cause, int player, double amount)
     {
+        // Note 717: what a marked crewmate does draws the dark that many times harder.
         if (Authority && !SafeYard && Director is { } d)
-            d.Draws.Add(cause, player, amount);
+            d.Draws.Add(cause, player, amount * TargetBias(player));
     }
 
     /// <summary>
@@ -451,6 +472,9 @@ public sealed partial class World
     /// <summary>Host: after everyone has moved, bodies for anyone who died, then a physics step.</summary>
     public void StepBodies(IReadOnlyCollection<(int Id, PlayerState State)> crew)
     {
+        // Note 717: a shove that killed marks the shover for the night.
+        if (Hosting)
+            MarkShovers(crew);
         if (!Authority)
             return;
         LastCrew = [.. crew];
@@ -1476,6 +1500,10 @@ public sealed partial class World
         PlayerMotor.Look(ref s, intent);
         PlayerMotor.TakeHand(ref s, intent, Hand);
         Crouching(ref s, intent);
+        // Horseplay (note 717): coal off the shovel before the hands see Throw; the shove, the host's, where they now look.
+        CoalAct(ref s, ref intent, playerId);
+        if (Hosting)
+            ShoveAct(s, intent, playerId);
         // The lamp switch in the cab (T52, "lamps down"): a predicting client sets it too, so the lamp goes out at once.
         if (intent.Lamp != LampSwitch.None && Net.CabControls.CanDrive(s, Train))
         {
@@ -1680,6 +1708,18 @@ public sealed partial class World
             Emotes.Add(new EmoteEvent(_nextFx, Tick, playerId, intent.Emote));
             _nextFx = _nextFx % 0xFFFFFF + 1;
         }
+        // A lamp signal (note 720): given with a hand lamp in the fist, seen by the crew. Not while held, not on top of the last.
+        if (Hosting && intent.Signal != LampSignal.None && s.Alive && !s.Has(PlayerFlags.Held)
+            && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Lamp, Stashed: false }
+            && !Signals.Any(e => e.By == playerId && (Tick - e.Tick) * SimConstants.TickSeconds < VoicesTuning.LampSignals.Cooldown))
+        {
+            Signals.RemoveAll(e => e.By == playerId);
+            Signals.Add(new SignalEvent(_nextFx, Tick, playerId, intent.Signal));
+            _nextFx = _nextFx % 0xFFFFFF + 1;
+            // A STOP shown to a moving train: if it stands soon after, the report names who stopped it (Signalled).
+            if (Authority && intent.Signal == LampSignal.Stop && Train.Dynamics.Speed >= Net.CabControls.StandingBelow)
+                _stopShown = (playerId, Tick);
+        }
         if (Authority && _context is { } ec)
         {
             // Melee (App. C.2): a swing with the tool you carry, at what's in front of you.
@@ -1782,6 +1822,9 @@ public sealed partial class World
                 best = e;
             }
         }
+        // Note 717: a crewmate nearer in the swing than any creature takes it instead: a bonk, no damage.
+        if (Bonk(s, playerId, eye, facing, t, best is null ? double.MaxValue : bestD))
+            return;
         // By the tool in hand (App. C.2; note 275): the shovel the best club, the crowbar a blow, the wrench less, and
         // empty-handed (a slot picked with nothing in it) a fraction of one (T108).
         if (best is null)
@@ -1822,9 +1865,11 @@ public sealed partial class World
             Hits.RemoveAll(h => Tick - h.Tick > keep.KeepSeconds * SimConstants.TickRate);
             Swings.RemoveAll(w => Tick - w.Tick > keep.KeepSeconds * SimConstants.TickRate);
             Emotes.RemoveAll(e => Tick - e.Tick > EmoteTuning.Seconds(e.Kind) * SimConstants.TickRate);
+            Signals.RemoveAll(e => Tick - e.Tick > VoicesTuning.LampSignals.Seconds * SimConstants.TickRate);
             Impacts.RemoveAll(i => Tick - i.Tick > keep.ImpactKeepSeconds * SimConstants.TickRate);
             News.RemoveAll(e => Tick - e.Tick > NewsTuning.Seconds * SimConstants.TickRate);
         }
+        BeginHorseplay((Combat?.Hits ?? new HitTuning()).KeepSeconds);
         if (Hosting)
             TellNews();
         Train.Partings.Clear();
@@ -1996,6 +2041,11 @@ public sealed partial class World
             Answer = Answer with { Seconds = Math.Max(0, Answer.Seconds - SimConstants.TickSeconds) };
         if (Authority && Watcher.Showing)
             Watcher = Watcher with { Seconds = Math.Max(0, Watcher.Seconds - SimConstants.TickSeconds) };
+        // Singing together (note 720), heard before the meter, the livestock and the creatures listen this tick.
+        if (Authority && _context is { } heard)
+            StepSinging(heard);
+        if (Authority)
+            StoppedBySignal();
         if (Combat is { } c)
         {
             Guns.Step(Train);
@@ -2003,7 +2053,8 @@ public sealed partial class World
             if (Authority)
             {
                 // App. B.9: livestock aboard raise the baseline (they're never quiet).
-                Choir.Floor = DarkTerritory.Sim.Enemies.Director.Aboard(this).Contains(DarkTerritory.Sim.Train.CargoKind.Livestock) ? c.Choir.LivestockFloor : 0;
+                // Note 720: the crew singing settles them some (voices.singing.calmsLivestock).
+                Choir.Floor = DarkTerritory.Sim.Enemies.Director.Aboard(this).Contains(DarkTerritory.Sim.Train.CargoKind.Livestock) ? c.Choir.LivestockFloor * (1 - LivestockCalm) : 0;
                 // Spec D.2's livestock ramp (note 185): the herd stirred up at the slaughterhouse raises it too.
                 Choir.Floor = Math.Max(Choir.Floor, Run?.HerdFloor ?? 0);
                 // Insisted on (note 186): it's gathered all but the last few seconds, and the meter's held up till it comes.
@@ -2162,11 +2213,14 @@ public sealed partial class World
         // The same acts draw the night's first threat (note 287): a voice raised past the draw's floor (talking as you work
         // doesn't), a noisy toy carried, the whistle. Its own weights, so the whistle's blast outweighs a minute's chatter.
         var draw = Director?.Tuning.Draw;
+        // Note 720 (the director, 14 Oct 2026: "Singing does not fight the choir"): a crew singing together isn't feeding it.
+        bool songIsQuiet = !VoicesTuning.Singing.FeedsChoir;
         if (_context is { } ctx)
             foreach (var (p, intent) in ctx.Crew)
                 if (p.State.Alive)
                 {
-                    Add(p.Id, intent.Voice / 255.0 * t.VoicePerPlayer);
+                    if (!(songIsQuiet && Singers.Contains(p.Id)))
+                        Add(p.Id, intent.Voice / 255.0 * t.VoicePerPlayer);
                     if (draw is { VoiceFloor: < 1 } && intent.Voice / 255.0 > draw.VoiceFloor)
                         Drew(DrawCause.Voices, p.Id, draw.Weight(DrawCause.Voices) * (intent.Voice / 255.0 - draw.VoiceFloor) / (1 - draw.VoiceFloor) * dt);
                 }
@@ -2201,6 +2255,36 @@ public sealed partial class World
     }
 
     readonly Dictionary<int, double> _unmet = [];
+
+    /// <summary>Note 720: this tick's voices, to <see cref="Singing"/>; and whether any of the singers are aboard.</summary>
+    void StepSinging(EnemyContext ctx)
+    {
+        var crew = ctx.Crew.Select(c => ((int)c.Player.Id, PlayerMotor.WorldPosition(c.Player.State, Train), c.Player.State.Alive, c.Intent.Voice)).ToList();
+        Singing.Step(crew, VoicesTuning.Singing);
+        SingingAboard = Singers.Count > 0 && ctx.Crew.Any(c => Singers.Contains(c.Player.Id) && c.Player.State.Parent != PlayerState.World);
+    }
+
+    (int By, uint Tick)? _stopShown;
+
+    /// <summary>
+    /// Note 720: a STOP shown with a lamp to a moving train, and the train stood within <see cref="LampSignalTuning.StoppedWithin"/>:
+    /// the report says who stopped it ("Stopped by a lamp signal").
+    /// </summary>
+    void StoppedBySignal()
+    {
+        if (_stopShown is not { } shown)
+            return;
+        if ((Tick - shown.Tick) * SimConstants.TickSeconds > VoicesTuning.LampSignals.StoppedWithin)
+        {
+            _stopShown = null;
+            return;
+        }
+        if (Train.Dynamics.Speed >= Net.CabControls.StandingBelow)
+            return;
+        _stopShown = null;
+        if (Run is not null)
+            Attribution.Add(Sim.Run.IncidentLog.Event(this, Sim.Run.IncidentKind.Signalled, "Stopped by a lamp signal", shown.By, "Signalled by {actor}."));
+    }
 
     /// <summary>The night's creatures gone to ground before dawn tonight (note 635).</summary>
     public int FledAtDawn { get; private set; }
@@ -2673,7 +2757,7 @@ public sealed partial class World
 
     /// <summary>Client side: the host's recent hits and impacts (T121), as the snapshot has them.</summary>
     public void MirrorHits(IEnumerable<HitConfirm> hits, IEnumerable<CannonImpact> impacts, IEnumerable<SwingEvent>? swings = null,
-        IEnumerable<EmoteEvent>? emotes = null, IEnumerable<Sim.Run.NewsEvent>? news = null)
+        IEnumerable<EmoteEvent>? emotes = null, IEnumerable<Sim.Run.NewsEvent>? news = null, IEnumerable<SignalEvent>? signals = null)
     {
         News.Clear();
         if (news is not null)
@@ -2681,6 +2765,9 @@ public sealed partial class World
         Emotes.Clear();
         if (emotes is not null)
             Emotes.AddRange(emotes);
+        Signals.Clear();
+        if (signals is not null)
+            Signals.AddRange(signals);
         Hits.Clear();
         Hits.AddRange(hits);
         Swings.Clear();
@@ -2730,6 +2817,8 @@ public sealed partial class World
             }
             set(d.PlayerId, s);
         }
+        // Horseplay (note 717): the lumps in flight land, and this tick's shoves, bumps, coal and bonks are put on whom they found.
+        StepHorseplay(get, set);
         // Held this tick (App. A.1 GRAB): their feet are the thing's; carried off, they go where it goes.
         if (Authority)
             foreach (int id in crew)

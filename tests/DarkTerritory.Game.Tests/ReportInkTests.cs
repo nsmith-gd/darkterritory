@@ -25,10 +25,10 @@ public sealed class ReportInkTests : IDisposable
 
     static readonly IncidentKind[] Took = [IncidentKind.Derailed, IncidentKind.Stranded, IncidentKind.CarLost, IncidentKind.Fire, IncidentKind.Nest,
         IncidentKind.Aboard, IncidentKind.Runaway, IncidentKind.Points, IncidentKind.Rupture, IncidentKind.Struck,
-        IncidentKind.BroughtIn];
-    static readonly IncidentKind[] WentWell = [IncidentKind.Rescue, IncidentKind.Slain];
-    // (A whimsy's line, note 715: Gerald taken, the canary deceased, is faint: what it cost is a joke.)
-    static readonly IncidentKind[] Faint = [IncidentKind.Grab, IncidentKind.Voted, IncidentKind.Punished, IncidentKind.Drawn, IncidentKind.Whimsy];
+        IncidentKind.BroughtIn, IncidentKind.Marked];
+    static readonly IncidentKind[] WentWell = [IncidentKind.Rescue, IncidentKind.Slain, IncidentKind.Sang];
+    static readonly IncidentKind[] Faint = [IncidentKind.Grab, IncidentKind.Voted, IncidentKind.Punished, IncidentKind.Drawn, IncidentKind.Bonked,
+        IncidentKind.Signalled, IncidentKind.Whimsy];
 
     [Theory]
     [InlineData(HudColours.Standard)]

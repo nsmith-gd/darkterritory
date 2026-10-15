@@ -138,7 +138,8 @@ public sealed partial class SceneArt(Look look)
             // (A staged getting up says how far into it they are: dt screenshot --cameback, note 529.)
             CrewPose.GetUp => c.Phase > 0 ? c.Phase : time - since.Time,
             CrewPose.TakeDown or CrewPose.HangUp => time - since.Time,
-            CrewPose.Stagger => time - _staggered.GetValueOrDefault(c.Id, since.Time),
+            // (Note 717: a crewmate's knock is the sim's, from when it began; a staged one says how far into it they are.)
+            CrewPose.Stagger => c.Phase > 0 ? c.Phase : time - Math.Max(_staggered.GetValueOrDefault(c.Id, since.Time), since.Time),
             CrewPose.FireDoor => FireDoorSince >= 0 ? FireDoorSince : time - since.Time,
             // A staged swing (dt screenshot --act swing) says how far into it they are; a played one, from its blow.
             CrewPose.Swing => swung >= 0 ? swung + SwingHitAt : c.Phase,
@@ -181,11 +182,14 @@ public sealed partial class SceneArt(Look look)
             if (r != Arms.Hanging(1))
                 rightHand = ToF(r);
         }
+        // A lamp signal (note 720): the lamp hand swung across, raised and lowered, or round in a circle, out in front.
+        if (c.Lamp && c.Signal != Sim.Player.LampSignal.None && c.Alive)
+            rightHand = LampSignalHand(c.Signal, c.SignalSeconds);
         var lamp = c.Lamp ? PropArt.Of(Look).Get("hand_lantern") : null;
         // The repair kit by its handle (note 513): drawn in the fist, not where the sim holds it (Body skips it).
         var kit = pose is CrewPose.Toolbox or CrewPose.ToolboxWalk ? PropArt.Of(Look).Get("repair_kit") : null;
         bool drawn = Creatures.Crewmate(mesh, m, pose, clipTime, c.Variant, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)), ToolProp(c.Holding),
-            hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor), body: HeadsetBody(c, pose, time), carried: kit);
+            hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor), body: HeadsetBody(c, pose, time), carried: kit, sooted: c.Sooted);
         // The hat rack's (note 714): on the head, over the cap or helmet.
         if (drawn && c.Hat > 0 && HatKit.Of(Look, c.Hat) is { } hat)
             Creatures.Wear(mesh, hat, "head", m, CreatureArt.FigureOf(c.Survivor));
@@ -208,6 +212,8 @@ public sealed partial class SceneArt(Look look)
             var flame = Creatures.LastHanging;
             float flicker = Flicker(time, c.Id);
             mesh.Billboard(flame, 0.7f * flicker, 0, new Vector4(Palette.LampAmber * 0.55f * flicker, 1), -1, FxBlend.Additive);
+            if (c.Signal != Sim.Player.LampSignal.None && c.Alive)
+                SignalTrail(mesh, m, flame, c.Signal, c.SignalSeconds);
             _lampHands[c.Id] = (eye + new Double3(flame.X, flame.Y, flame.Z), time);
         }
         else
@@ -844,6 +850,18 @@ public sealed partial class SceneArt(Look look)
             mesh.Instances.Add(new MeshInstance(piece, m, Shadowless: true));
         else
             mesh.Append(piece, m);
+        // A comet fragment (note 718; the director, 14 Oct 2026: "extra valuable loot that players get excited for when they
+        // see"): its sick green light round it, breathing slowly as the comet's freight does, a pool on what it lies on and a
+        // halo over it, so a crew sees it from the line coming in.
+        if (b.Kind == Sim.Physics.BodyKind.Loot && FindItem?.Invoke(b) is { } glowing && FindKit.Glows(glowing))
+        {
+            float breath = 0.8f + 0.2f * MathF.Sin((float)(time * 1.3) + b.Id);
+            var lit = o + u * 0.4f;
+            mesh.PointLights.Add(new PointLight(lit, FindKit.CometGlow * 3f * breath, 10f));
+            mesh.Billboard(o + u * 0.12f, 0.9f * breath, 0, new Vector4(FindKit.CometGlow * 0.4f * breath, 1), -1, FxBlend.Additive);
+            // ... and a wide, faint haze of it in the fog over it, what a crew picks out from the line a stop's length off.
+            mesh.Billboard(o + u * 0.8f, 3.2f * breath, 0, new Vector4(FindKit.CometGlow * 0.25f * breath, 1), -1, FxBlend.Additive);
+        }
         if (b.Kind == Sim.Physics.BodyKind.Lamp)
         {
             // A hand lamp's glow round it, flickering a little (pipeline: "dynamic point lights with flicker curves").

@@ -134,7 +134,16 @@ public static class CrewActions
             ShovelByHand(ref s, near?.Thing.Kind, train, boiler, dt);
             return;
         }
-        s.Flags &= ~PlayerFlags.Shovelful;
+        // Note 717: the coal on the shovel stays on it while Use is held in the cab, turned from the fire (to throw it, or to
+        // bring it back); at the firebox the stroke goes on. Anywhere else it's back in the tender, as ever.
+        bool loaded = s.Has(PlayerFlags.Shovelful) && PlayerMotor.InCab(s, train) && near?.Thing.Kind is null or InteractableKind.Coal;
+        if (!loaded && near?.Thing.Kind != InteractableKind.Firebox)
+            s.Flags &= ~PlayerFlags.Shovelful;
+        if (loaded)
+        {
+            s.ActionProgress = 0;
+            return;
+        }
 
         // Use on the coupler plate works a door, never the coupling (T91: that's Uncouple, looking down).
         if (s.Surface == Surface.Coupler && near?.Thing.Kind != InteractableKind.Door)
@@ -161,6 +170,7 @@ public static class CrewActions
             // A ruptured boiler, the wrench in hand (note 301; the repair kit where the wrench isn't the tool, T109, GDD §12):
             // worked there, it's mended.
             case InteractableKind.Firebox when train.BoilerTuning is { } rt && train.Boiler.Ruptured && Repairs.MendsBoiler(s, train) && PlayerMotor.InCab(s, train):
+                s.Flags &= ~PlayerFlags.Shovelful;
                 s.ActionProgress += dt;
                 if (s.ActionProgress >= rt.RepairSeconds)
                 {
@@ -173,6 +183,7 @@ public static class CrewActions
                 if (bt.ShovelInHand && !TakeShovel(ref s, train))
                 {
                     s.ActionProgress = 0;
+                    s.Flags &= ~PlayerFlags.Shovelful;
                     break;
                 }
                 s.ActionProgress += dt;
@@ -180,7 +191,11 @@ public static class CrewActions
                 {
                     train.Boiler.Shovel(bt);
                     s.ActionProgress -= bt.ShovelSeconds;
+                    s.Flags &= ~PlayerFlags.Shovelful;
                 }
+                // Note 717: the coal's on the shovel from scoopSeconds into the stroke till it goes in (horseplay's to throw).
+                else if (s.ActionProgress >= bt.ScoopSeconds)
+                    s.Flags |= PlayerFlags.Shovelful;
                 break;
             // Out on the running boards at a sandbox: sand going down under the drivers while it's held (App. A.2).
             case InteractableKind.Sandbox when s.Parent == 0 && s.Surface == Surface.Deck:

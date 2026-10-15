@@ -535,12 +535,14 @@ public sealed class Moose(int id) : Enemy(id)
         int loudest = t.TalkingAbove - 1;
         foreach (var (p, intent) in ctx.Crew)
         {
-            if (!p.State.Alive || intent.Voice <= loudest)
+            // Note 717: a marked voice weighs as many times louder (it still has to be talking at all).
+            int voice = intent.Voice < t.TalkingAbove ? intent.Voice : (int)Math.Min(int.MaxValue / 2, intent.Voice * ctx.World.TargetBias(p.Id));
+            if (!p.State.Alive || voice <= loudest)
                 continue;
             var at = PlayerMotor.WorldPosition(p.State, ctx.Train);
             if (Flat(at - Local) > t.HearVoice)
                 continue;
-            loudest = intent.Voice;
+            loudest = voice;
             best = (p.Id, at);
         }
         return best;

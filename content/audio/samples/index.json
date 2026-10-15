@@ -8418,6 +8418,76 @@
   "takes": 3,
   "sha": "992ff3090e43e9b8"
  },
+ "cs-brakeman/chain-up": {
+  "cue": "cs-brakeman.chain-up",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The chain rattling up into his hands, from real recordings: keys jangling quickened and pitched down, caught",
+    "key": "gather",
+    "sources": [
+     "sfx_100_v2:misc_09",
+     "sfx_100_v2:wood_03",
+     "sfx_100_v2:wood_02",
+     "sfx_100_v2:misc_10",
+     "kenney_rpg-audio:handleSmallLeather",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "46a48370760dfedd"
+ },
+ "cs-brakeman/lash": {
+  "cue": "cs-brakeman.lash",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The chain's lash, from real recordings: a switch's whip pitched down, keys shaken, an iron slam into a coat",
+    "key": "switch",
+    "sources": [
+     "sfx_100_v2:switch_01",
+     "sfx_100_v2:switch_02",
+     "sfx_100_v2:misc_09",
+     "sfx_100_v2:wood_03",
+     "sfx_100_v2:wood_02",
+     "sfx_100_v2:metal_hit_01",
+     "sfx_100_v2:misc_36",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "bc62cef8d731cae8"
+ },
+ "cs-brakeman/wheeze": {
+  "cue": "cs-brakeman.wheeze",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Cornered: a low, wet wheeze from real breaths, pitched down and held, whistling and gurgling",
+    "key": "gasp",
+    "sources": [
+     "sfx_100_v2:misc_05",
+     "sfx_100_v2:misc_25",
+     "sfx_100_v2:misc_24"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "bd391e99aaa96ecd"
+ },
  "cs-car-hugger/break-away": {
   "cue": "cs-car-hugger.break-away",
   "surface": null,
@@ -9144,6 +9214,68 @@
   ],
   "takes": 1,
   "sha": "38d34c0a72843009"
+ },
+ "cs-freight-beetle/push/ground": {
+  "cue": "cs-freight-beetle.push",
+  "surface": "ground",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A crate shoved over gravel in surges, one with each tripod of a big beetle's legs, its shell creaking",
+    "key": "gravel",
+    "sources": [
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "46669f823320287d"
+ },
+ "cs-freight-beetle/push/wood": {
+  "cue": "cs-freight-beetle.push",
+  "surface": "wood",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A crate shoved over a platform's boards in surges with a big beetle's strides: wood juddering on wood, its shell creaking",
+    "key": "boards",
+    "sources": [
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "11a9802772b39e4b"
+ },
+ "cs-freight-beetle/startle": {
+  "cue": "cs-freight-beetle.startle",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Startled: a clatter of shell plates as the wing cases flare, its feet scrabbling back, a hiss from its sides",
+    "key": "plates",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "d8414bc92f69bb0d"
  },
  "cs-gannet-strike/death": {
   "cue": "cs-gannet-strike.death",
@@ -10045,6 +10177,34 @@
   "takes": 3,
   "sha": "707d4c53d67cc94d"
  },
+ "cs-mourners-drag/drag": {
+  "cue": "cs-mourners-drag.drag",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The body hauled off in slow double heaves: a real coat rasping over gravel, feet scrabbling, gasps and a thin keen",
+    "key": "heaves",
+    "sources": [
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth3",
+     "kenney_rpg-audio:cloth4",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02",
+     "sfx_100_v2:misc_05",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "42654a26a23b367b"
+ },
  "cs-passenger/drag/wood": {
   "cue": "cs-passenger.drag",
   "surface": "wood",
@@ -10534,6 +10694,97 @@
   ],
   "takes": 1,
   "sha": "77341706dfc6e775"
+ },
+ "cs-tower-jaw/fall": {
+  "cue": "cs-tower-jaw.fall",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A wooden water tower crashing across the line: legs splitting, timbers smashing, the tank bursting, planks on rails",
+    "key": "crash",
+    "sources": [
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "kenney_rpg-audio:doorOpen_1",
+     "kenney_rpg-audio:doorOpen_2",
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "sfx_100_v2:door_03",
+     "sfx_100_v2:misc_36",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "sfx_100_v2:loop_machine_02",
+     "sfx_100_v2:loop_water_01",
+     "sfx_100_v2:loop_water_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "03c505b47b97acf0"
+ },
+ "cs-tower-jaw/lunge": {
+  "cue": "cs-tower-jaw.lunge",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The lunge kitbashed: a real roar broken into a rattling snarl with a hiss through the teeth, a hard wooden clack",
+    "key": "roar",
+    "sources": [
+     "sfx_100_v2:misc_24",
+     "sfx_100_v2:misc_05",
+     "kenney_rpg-audio:chop"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "fd230e63635d8f81"
+ },
+ "cs-tower-jaw/tail-slap": {
+  "cue": "cs-tower-jaw.tail-slap",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A heavy flat tail whacked down on the ground: a broad leathery smack, the ground thudding, grit or dust thrown",
+    "key": "flat",
+    "sources": [
+     "kenney_rpg-audio:bookPlace2",
+     "kenney_rpg-audio:dropLeather",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "sfx_100_v2:stones_01",
+     "sfx_100_v2:stones_02",
+     "sfx_100_v2:stones_03",
+     "sfx_100_v2:footstep_01",
+     "sfx_100_v2:footstep_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "d9b7b74f015e7b44"
  },
  "cs-track-doll/crack": {
   "cue": "cs-track-doll.crack",
@@ -13704,6 +13955,140 @@
   "takes": 2,
   "sha": "7305c84c7f14b3e9"
  },
+ "tell-brakeman/chain": {
+  "cue": "tell-brakeman.chain",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A heavy chain dragged along the roofs behind him, from real recordings: keys and a scrape, jerked in his limp",
+    "key": "drag",
+    "sources": [
+     "sfx_100_v2:misc_09",
+     "sfx_100_v2:wood_03",
+     "sfx_100_v2:wood_02",
+     "sfx_100_v2:misc_10",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "94955580a86f1e95"
+ },
+ "tell-brakeman/ratchet": {
+  "cue": "tell-brakeman.ratchet",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A car's brake wheel wound on, modelled: each tooth a scrape up the slope and the iron dog's clack down",
+    "key": "dog",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "ad1a89481c2aa98c"
+ },
+ "tell-brakeman/squeal": {
+  "cue": "tell-brakeman.squeal",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The brake shoes binding, from a real scrape: metal dragged without end, rung into a squeal through the wheel",
+    "key": "bind",
+    "sources": [
+     "sfx_100_v2:misc_10"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "5c7655f8f10ab259"
+ },
+ "tell-brakeman/step": {
+  "cue": "tell-brakeman.step",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "One iron-shod footfall on the roof walk, from real recordings: the good leg's, or the bad one dragged and planted",
+    "key": "hob",
+    "sources": [
+     "sfx_100_v2:wood_hit_02",
+     "sfx_100_v2:door_03",
+     "sfx_100_v2:footstep_wood_03",
+     "sfx_100_v2:footstep_wood_04",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "7405a037925bc80e"
+ },
+ "tell-brakeman/step/bad": {
+  "cue": "tell-brakeman.step",
+  "surface": null,
+  "part": "bad",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "One iron-shod footfall on the roof walk, from real recordings: the good leg's, or the bad one dragged and planted",
+    "key": "hob",
+    "sources": [
+     "sfx_100_v2:wood_hit_02",
+     "sfx_100_v2:door_03",
+     "sfx_100_v2:footstep_wood_03",
+     "sfx_100_v2:footstep_wood_04",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "919871979f111036"
+ },
+ "tell-brakeman/step/good": {
+  "cue": "tell-brakeman.step",
+  "surface": null,
+  "part": "good",
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "One iron-shod footfall on the roof walk, from real recordings: the good leg's, or the bad one dragged and planted",
+    "key": "hob",
+    "sources": [
+     "sfx_100_v2:wood_hit_02",
+     "sfx_100_v2:door_03",
+     "sfx_100_v2:footstep_wood_03",
+     "sfx_100_v2:footstep_wood_04",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "45192ce02e5dc768"
+ },
  "tell-car-fire/alight": {
   "cue": "tell-car-fire.alight",
   "surface": null,
@@ -13936,6 +14321,80 @@
   "takes": 2,
   "sha": "38296945ded2afc2"
  },
+ "tell-hotbox/grind": {
+  "cue": "tell-hotbox.grind",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Seized: a long grinding scrape from real recordings, a metal scrape and stones pitched down and dragged on",
+    "key": "rasp",
+    "sources": [
+     "sfx_100_v2:misc_10",
+     "sfx_100_v2:stones_03",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "db5cb72d9ed66a6a"
+ },
+ "tell-hotbox/knock": {
+  "cue": "tell-hotbox.knock",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A heavy, dull knock in the axle box: a real iron strike's first instant rung through the box's casting",
+    "key": "box",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "sfx_100_v2:metal_hit_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "8a4a3c41b5b1cf3f"
+ },
+ "tell-hotbox/sizzle": {
+  "cue": "tell-hotbox.sizzle",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The glow from real recordings: heavy iron knocks gone ragged and wet, a steam hiss cut into a frying sizzle",
+    "key": "fry",
+    "sources": [
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_03",
+     "sfx_100_v2:loop_water_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "79f8b62568bea1f2"
+ },
  "tell-hounds/howl-far": {
   "cue": "tell-hounds.howl-far",
   "surface": null,
@@ -13965,6 +14424,62 @@
   ],
   "takes": 4,
   "sha": "7203545c12e11cdf"
+ },
+ "tell-knotter/creep": {
+  "cue": "tell-knotter.creep",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Wet creaking at a coupling, modelled: a living rope groaning in surges, its slime peeling, the iron straining",
+    "key": "fibre",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "511fb387003ad9ef"
+ },
+ "tell-knotter/hawser": {
+  "cue": "tell-knotter.hawser",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Taut: a big wet rope groaning under a jerk as the train's speed changes, modelled",
+    "key": "groan",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "ae653ecf39fb0f7d"
+ },
+ "tell-knotter/stretch": {
+  "cue": "tell-knotter.stretch",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A long groaning stretch, the buffers parting and a jolt down the train, from real recordings",
+    "key": "iron",
+    "sources": [
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "kenney_rpg-audio:doorOpen_2",
+     "kenney_rpg-audio:handleCoins",
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_03",
+     "sfx_100_v2:misc_10",
+     "sfx_100_v2:metal_hit_01",
+     "sfx_100_v2:misc_36"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "7ef39345c6070776"
  },
  "tell-marsh/reeds": {
   "cue": "tell-marsh.reeds",
@@ -14225,6 +14740,41 @@
   "takes": 3,
   "sha": "95cdce8e4cf1982e"
  },
+ "tell-mourners/clicks": {
+  "cue": "tell-mourners.clicks",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A startled group's mandibles clattering: pairs of hard little plates snapping shut, quick and dry",
+    "key": "mandibles",
+    "sources": [
+     "kenney_rpg-audio:chop"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "60d31707c3cf9c97"
+ },
+ "tell-mourners/keening": {
+  "cue": "tell-mourners.keening",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The keening from real hinge squeals: thin wavering tones that sob and fall, several out of step, never together",
+    "key": "hinges",
+    "sources": [
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "de70def04e492398"
+ },
  "tell-ribbits/swell": {
   "cue": "tell-ribbits.swell",
   "surface": null,
@@ -14299,6 +14849,100 @@
   ],
   "takes": 6,
   "sha": "1af48d4505458980"
+ },
+ "tell-tower-jaw/crack": {
+  "cue": "tell-tower-jaw.crack",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The leg giving with a crack like a gunshot: real wood breaking, a whip's report, echoing off the stop",
+    "key": "shot",
+    "sources": [
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "sfx_100_v2:switch_01",
+     "sfx_100_v2:switch_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "9d413997c483704a"
+ },
+ "tell-tower-jaw/creak": {
+  "cue": "tell-tower-jaw.creak",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The tower creaking, from real door creaks dropped an octave and more to the size of a tower's timbers",
+    "key": "doors",
+    "sources": [
+     "kenney_rpg-audio:doorOpen_1",
+     "kenney_rpg-audio:doorOpen_2",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "9467a5d6a8c65a72"
+ },
+ "tell-tower-jaw/gnaw": {
+  "cue": "tell-tower-jaw.gnaw",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Slower, heavier bites like an adze into the leg: each sunk in, worked side to side, a chunk torn off every other",
+    "key": "adze",
+    "sources": [
+     "kenney_impact-sounds:impactWood_heavy_000",
+     "kenney_impact-sounds:impactWood_heavy_001",
+     "kenney_impact-sounds:impactWood_heavy_002",
+     "kenney_impact-sounds:impactWood_heavy_003",
+     "kenney_impact-sounds:impactWood_heavy_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "kenney_rpg-audio:chop",
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35",
+     "kenney_impact-sounds:impactWood_medium_000",
+     "kenney_impact-sounds:impactWood_medium_001",
+     "kenney_impact-sounds:impactWood_medium_002",
+     "kenney_impact-sounds:impactWood_medium_003",
+     "kenney_impact-sounds:impactWood_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "872d9a3b955cff5e"
+ },
+ "tell-tower-jaw/groan": {
+  "cue": "tell-tower-jaw.groan",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The tower's long deep groan as it goes: timbers straining in one long stick-slip moan, fibres popping",
+    "key": "fibres",
+    "sources": [
+     "sfx_100_v2:misc_34",
+     "sfx_100_v2:misc_35"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "52810dd29fbfe67c"
  },
  "tell-track-debris/writhe": {
   "cue": "tell-track-debris.writhe",

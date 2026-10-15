@@ -130,6 +130,10 @@ public class HudTests
         }
         s.Player = At(InteractableKind.Firebox);
         Assert.Equal("SHOVEL COAL : HOLD [E]", Hud.Prompt(s));
+        // Note 717: coal on the shovel can be thrown instead; the shove's key reads as bound.
+        s.Player = At(InteractableKind.Firebox) with { Flags = PlayerFlags.Shovelful };
+        Assert.Equal("SHOVEL COAL : HOLD [E]   THROW IT : [RMB]", Hud.Prompt(s));
+        Assert.Equal("SHOVE : [LEFT ALT]", Hud.Bound("SHOVE : [LEFT ALT]"));
         s.Player = At(InteractableKind.Vent);
         Assert.Equal("VENT STEAM : HOLD [E]", Hud.Prompt(s));
         // At the controls looking at nothing (note 285): nothing at the crosshair; driving them is the corner's.

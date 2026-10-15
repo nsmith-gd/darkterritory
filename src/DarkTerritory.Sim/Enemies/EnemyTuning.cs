@@ -309,8 +309,11 @@ public sealed record GrabTuning
     public double PullReach { get; init; } = 1.6;
     public bool SoloStruggleOn { get; init; } = true;
     public double SoloStruggle { get; init; } = 4;
-    /// <summary>A lone struggle's chance of breaking the hold (App. C.1, the director, 13 Oct: "at best a 15% chance"): one try a grab.</summary>
-    public double SoloStruggleChance { get; init; } = 0.15;
+    /// <summary>
+    /// A lone struggle's chance of breaking the hold (App. C.1): one try a grab. The director, 13 Oct: "at best a 15% chance";
+    /// then 14 Oct: "really should have a higher rate of success" (note 737), a coin flip.
+    /// </summary>
+    public double SoloStruggleChance { get; init; } = 0.5;
 }
 
 /// <summary>The Drift (App. A.4, B.4). Field docs live in enemies.json.</summary>
@@ -464,6 +467,8 @@ public sealed record GauntTuning
     public bool TalkingCalms { get; init; } = true;
     public bool BandCalms { get; init; } = true;
     public double TalkedDownSeconds { get; init; } = 45;
+    /// <summary>Note 720: a crew singing together near it talks it down this many times as fast (GDD §14).</summary>
+    public double SingingTalks { get; init; } = 3;
 }
 
 /// <summary>Climbers (App. A.4, B.4). Field docs live in enemies.json.</summary>

@@ -196,7 +196,7 @@ The bands fall out of the 4:1 ratio, and they define what's possible at each spe
 | **Jump-off survivable** | <16.5 m/s | A knock on landing: 10 just above 1.5 m/s, rising to 80 at the lethal edge (T90 playtest) |
 | **Jump-off lethal** | >16.5 m/s (3× run) | Death. Was 4.0 m/s, which made every step off a moving train fatal. Being *pulled* off (Draggers) still kills above 4.0 m/s |
 | **Fall** | ≥5.5 m down | A knock by the height fallen: 10 at 5.5 m, rising to death at **7.5 m** (off a bridge's deck, 8 m to the river bank). Under 5.5 m (a car's roof and a jump's apex over the ballast) it's the speed rows alone; the worse of the two knocks counts (note 573) |
-| **Off the ground** | — | Off open ground's own footing (over a dip, down a bank) a crewmate's own run is no knock: only what's over the run speed counts (note 573) |
+| **Off the ground** | — | Off open ground's own footing (over a dip, down a bank), or off a train standing still (under 0.5 m/s, `landing.standBelow`; the director's 14 Oct playtest, note 717), a crewmate's own run is no knock: only what's over the run speed counts (note 573) |
 | **Slow** | 6 m/s | Roof work comfortable |
 | **Working** | 10–14 m/s | Standard transit |
 | **Cruise** | 14 m/s | Target efficiency |
