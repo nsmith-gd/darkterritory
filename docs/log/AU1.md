@@ -286,3 +286,8 @@ launches are AU1.1, AU1.2, …. Entries are UTC; those before 12:55 on 7 Oct wer
   - **The town's water:** it laps near the ear as a lake does.
   - Tests on a fen town and a quarry town.
 - **Found on the way:** my row-filling script didn't carry the director's verdicts over (`cues.carry_verdicts`). None of tonight's refilled rows had any, so nothing was lost, and it carries them now.
+
+## 15 Oct, ~14:35 UTC: #528, the cannon's shot was silent
+
+- **U1's find on #1040:** the cannon's shot sound waited for a round to leave the gun, and since #960 made shot endless (13 Oct) none ever does. No cannon has been heard firing since then. Claimed #528 (note 801): a shot is now heard off the reload it leaves the gun needing (or a round gone, where the stock is on).
+- The test faked a round gone, which is why it didn't catch this. It now fires as the sim does, and fails on the old trigger.

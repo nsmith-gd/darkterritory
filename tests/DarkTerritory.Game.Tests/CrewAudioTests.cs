@@ -917,6 +917,39 @@ public class CrewAudioTests
     }
 
     [Fact]
+    public void WithTheNightsStockAShotIsARoundGoneAndARackFilledFromEmptyIsNoShot()
+    {
+        // combat.json infiniteAmmo false (note 374): a shot takes a round, and the last one leaves nothing to reload; a charge
+        // carried up to an empty rack asks for the reload too, and is no shot.
+        var b = new Bench("crew-cannon-fire.shot-close", "crew-cannon-fire.shot-far", "crew-cannon-fire.recoil", "crew-powder.filled");
+        var guard = b.Train.Vehicles.Last(v => v.HasGun);
+        b.Step();
+        guard.Gun.Ammo--;
+        guard.Gun.Rack = Math.Max(0, guard.Gun.Rack - 1);
+        guard.Gun.LastShotTick = 99;
+        guard.Gun.ReloadNeeded = C.Guns.ReloadSteps;
+        b.Step();
+        b.Step();
+        guard.Gun.ReloadNeeded = 0;
+        b.Step();
+        // The last round: nothing left to reload.
+        guard.Gun.Ammo--;
+        guard.Gun.Rack = 0;
+        guard.Gun.LastShotTick = 120;
+        b.Step();
+        Assert.Equal(2, b.Count("crew-cannon-fire.shot-close") + b.Count("crew-cannon-fire.shot-far"));
+        Assert.Equal(2, b.Count("crew-cannon-fire.recoil"));
+        // A charge carried up to it from the lockers: the rack filled, the reload asked for, no shot.
+        guard.Gun.Ammo += 2;
+        guard.Gun.Rack = 2;
+        guard.Gun.ReloadNeeded = C.Guns.ReloadSteps;
+        b.Step();
+        b.Step();
+        Assert.Equal(2, b.Count("crew-cannon-fire.shot-close") + b.Count("crew-cannon-fire.shot-far"));
+        Assert.Equal(1, b.Count("crew-powder.filled"));
+    }
+
+    [Fact]
     public void EveryonesShotIsHeardOnceFromTheGunAndAGunPushedOntoAnotherCarIsNoShot()
     {
         var b = new Bench("crew-cannon-fire.shot-close", "crew-cannon-fire.shot-far", "crew-cannon-fire.recoil", "crew-cannon-fire.traverse",
@@ -924,8 +957,10 @@ public class CrewAudioTests
             "crew-cannon-ball.ball-roll", "crew-cannon-ram.ram", "crew-cannon-ram.ram-home");
         var guard = b.Train.Vehicles.Last(v => v.HasGun);
         b.Step();
-        // A crewmate's shot (it's in nobody's world.Shots but theirs): a round gone, the gun to reload.
-        guard.Gun.Ammo--;
+        // A crewmate's shot (it's in nobody's world.Shots but theirs), as Guns.TryFire leaves the gun with the shot endless
+        // (combat.json infiniteAmmo, note 689): nothing taken from it, its full reload to do (queue #528, note 801: the shot
+        // was heard only off a round gone, so with nothing ever taken it never was).
+        Assert.True(C.Guns.InfiniteAmmo);
         guard.Gun.LastShotTick = 99;
         guard.Gun.ReloadNeeded = C.Guns.ReloadSteps;
         b.Step();

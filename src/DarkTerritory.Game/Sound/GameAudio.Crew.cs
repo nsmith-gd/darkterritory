@@ -1110,9 +1110,18 @@ public sealed partial class GameAudio
     // ------------------------------------------------------------------------------------------------ the cannons
 
     /// <summary>
-    /// Everyone's cannons (App. C.3), from the replicated gun: a round gone from it (its ammunition, which
-    /// <see cref="GunState.LastShotTick"/> goes with; that stamp is the predicting machine's own tick until the host's
-    /// arrives, so it changes more than once a shot), the gun pushed along its rail, and each step of the reload.
+    /// A shot from a gun since it was last seen (queue #528, note 801), once a shot on every machine. Not its
+    /// <see cref="GunState.LastShotTick"/>: that stamp is the predicting machine's own tick until the host's arrives, so it
+    /// changes more than once a shot. A round gone from its stock (note 374); or, with the shot endless (combat.json
+    /// infiniteAmmo, note 689, where nothing's taken), the full reload a shot leaves it needing, from none. A rack filled
+    /// from empty asks for that reload too, but brings a round with it.
+    /// </summary>
+    static bool Shot(in GunState g, CrewGun was) =>
+        g.LastShotTick > 0 && (g.Ammo < was.Ammo || g.Ammo == was.Ammo && was.Needed <= 0 && g.ReloadNeeded > 0);
+
+    /// <summary>
+    /// Everyone's cannons (App. C.3), from the replicated gun: a shot (<see cref="Shot"/>), the gun pushed along its rail,
+    /// and each step of the reload.
     /// </summary>
     void CrewGuns(World world)
     {
@@ -1143,7 +1152,7 @@ public sealed partial class GameAudio
                 var frame = train.Frames[v.Id];
                 var muzzle = frame.ToWorld(mount.Position + mount.Facing * -TrainKit.CannonMuzzle.Z);
                 float outside = Occlusion(PlayerMotor.Outside);
-                if (m.Mounted && g.Ammo < m.Ammo && g.LastShotTick > 0)
+                if (m.Mounted && Shot(g, m))
                 {
                     bool far = (muzzle - Mixer.Listener.Position).Length > ShotFar;
                     if (Cue(far ? "crew-cannon-fire.shot-far" : "crew-cannon-fire.shot-close", muzzle, outside) is null
