@@ -324,23 +324,33 @@ public static class Guns
     }
 
     /// <summary>
-    /// The reload (GDD v1.1 App. C.3 "powder, ball, ram, fire"): Use held at a gun that's been fired works it, a step at a
-    /// time, each <see cref="GunTuning.ReloadStepSeconds"/>. Let go and the step starts again. Whoever's at the gun does it;
-    /// DESIGN-TODO (Part Eleven Q1): whether a reload needs two players, or is only slower alone.
+    /// The gun whose reload (or fouled bore) this player works this tick, or null: at it (<see cref="MannedGun"/>, seated in it
+    /// or standing by it), Use held, standing still (walking with Use held is pushing it, T93), and it wants working. Note 752:
+    /// the gunner in the seat, or a crewmate beside it while the gunner keeps aiming (the world's say whether Use is the gun's
+    /// there, not something else looked at).
     /// </summary>
-    public static void Reload(in PlayerState s, in PlayerIntent intent, TrainOnLine train, GunTuning t, double dt)
+    public static int? Working(in PlayerState s, in PlayerIntent intent, TrainOnLine train, GunTuning t)
     {
-        if (MannedGun(s, train, t) is not { } gunVehicle)
-            return;
-        ref var gun = ref train.Vehicles[gunVehicle].Gun;
-        // A fouled bore first (note 183): Use held at the gun, standing still, for ClearSeconds, under fire or not.
+        if (!intent.Has(PlayerButtons.Use) || Math.Abs(intent.MoveX) > 0.5 || Math.Abs(intent.MoveZ) > 0.5 || MannedGun(s, train, t) is not { } gun)
+            return null;
+        return train.Vehicles[gun].Gun is { Jammed: true } or { ReloadNeeded: > 0 } ? gun : null;
+    }
+
+    /// <summary>
+    /// The reload (GDD v1.1 App. C.3 "powder, ball, ram, fire"): Use held at a gun that's been fired works it, a step at a
+    /// time, each <see cref="GunTuning.ReloadStepSeconds"/>. Let go, every hand of it, and the step starts again
+    /// (<see cref="Unworked"/>). Note 752 (GDD §12, one can, two do it faster; the social collision audit's R4, the director,
+    /// 14 Oct 2026: "absolutely the right direction"): this is the <paramref name="hands"/>th pair of hands on it this tick;
+    /// one works it at 1, two together at <see cref="GunTuning.LoaderRate"/> between them, a third adds nothing. A fouled
+    /// bore (note 183) is one pair of hands' job: <see cref="GunTuning.ClearSeconds"/> of it, under fire or not.
+    /// </summary>
+    public static void Reload(TrainOnLine train, int vehicle, GunTuning t, double dt, int hands)
+    {
+        ref var gun = ref train.Vehicles[vehicle].Gun;
         if (gun.Jammed)
         {
-            if (!intent.Has(PlayerButtons.Use) || Math.Abs(intent.MoveX) > 0.5 || Math.Abs(intent.MoveZ) > 0.5)
-            {
-                gun.ReloadProgress = 0;
+            if (hands != 1)
                 return;
-            }
             gun.ReloadProgress += dt;
             if (gun.ReloadProgress >= t.ClearSeconds)
             {
@@ -351,18 +361,23 @@ public static class Guns
         }
         if (gun.ReloadNeeded <= 0)
             return;
-        // Walking with Use held is pushing the gun, not reloading it (T93); but a gun waiting on a reload won't be pushed.
-        if (!intent.Has(PlayerButtons.Use) || Math.Abs(intent.MoveX) > 0.5 || Math.Abs(intent.MoveZ) > 0.5)
-        {
-            gun.ReloadProgress = 0;
-            return;
-        }
-        gun.ReloadProgress += dt;
+        gun.ReloadProgress += dt * (hands == 1 ? 1 : hands == 2 ? Math.Max(0, t.LoaderRate - 1) : 0);
         if (gun.ReloadProgress >= t.ReloadStepSeconds)
         {
             gun.ReloadProgress = 0;
             gun.ReloadNeeded--;
         }
+    }
+
+    /// <summary>
+    /// Host, once the crew have acted: a gun waiting on its reload or its fouled bore that no hand worked this tick
+    /// (<paramref name="worked"/>) starts its step again.
+    /// </summary>
+    public static void Unworked(TrainOnLine train, Func<int, bool> worked)
+    {
+        foreach (var v in train.Vehicles)
+            if (v.HasGun && v.Gun.ReloadProgress > 0 && (v.Gun.Jammed || v.Gun.ReloadNeeded > 0) && !worked(v.Id))
+                v.Gun.ReloadProgress = 0;
     }
 
     /// <summary>Whether the round fired at <paramref name="tick"/> from <paramref name="vehicle"/>'s gun fouls it: a hash, not a die.</summary>

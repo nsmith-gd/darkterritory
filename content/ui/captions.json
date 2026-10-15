@@ -168,6 +168,12 @@
     "cs-choir.seize": "A VOICE CLOSING OVER YOU, HUMMING",
     "cs-choir.disperse": "THE SINGING FADING AWAY",
     "cs-climbers.force": "THE HATCH BEING PRISED OPEN",
+    // Horseplay (note 768): the crew knocking each other about, none of it a hurt.
+    "crew-horseplay.shove": "A SHOVE, SOMEONE STUMBLING",
+    "crew-horseplay.bump": "SHOULDERS BUMPING",
+    "crew-horseplay.bonk": "A CLANG AND A BONK",
+    "crew-horseplay.coal-hit": "COAL THUDDING OFF A COAT",
+    "crew-horseplay.coal-land": "COAL CLATTERING",
     // And how the train fails: the warnings first (the bell, the roof irons, the telltales), then what they warned of.
     "warn-overspeed": "A BELL, TWICE",
     "warn-curve": "THE ROOF IRONS RATTLING",

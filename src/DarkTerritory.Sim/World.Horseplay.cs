@@ -60,19 +60,23 @@ public sealed partial class World
     /// <summary>Who last shoved <paramref name="player"/> (or bumped them on with a shove), and the train's speed then; null for nobody.</summary>
     public (int By, double Speed)? ShovedBy(int player) => _shovedBy.TryGetValue(player, out var s) ? s : null;
 
-    // The marked (note 717): each shover whose shove killed, whom it killed and how fast the train was going under them.
+    // The marked (note 717): each shover whose shove killed, whom it killed and how fast the train was going under them. The
+    // night's history: the report's lines read it, whether or not the mark still bites.
     readonly SortedDictionary<int, (int Victim, double Speed)> _marks = new();
+    // Whose mark still bites (note 754): a marked shover's death ends theirs (horseplay.marked.endsAtDeath).
+    readonly SortedSet<int> _marked = new();
     // The crew lying dead of a shove, already counted (a victim back through a Holdout and shoved to death again counts again).
     readonly HashSet<int> _shovedDead = new();
 
     /// <summary>
     /// Note 717 (the director, 14 Oct 2026: "if a player ever shoves another player and that results in their death all the
     /// monsters in the game should target more heavily the murderer player so they are heavily likely to die (even if they
-    /// rescue the player from a holdout)"): marked for the rest of the night, whatever comes after.
+    /// rescue the player from a holdout)"): marked for the rest of the night, whatever comes after, until the shover dies (note
+    /// 754, the director, 14 Oct 2026: "Shovers mark should reset to normal targeting after they are killed").
     /// </summary>
-    public bool IsMarked(int player) => _marks.ContainsKey(player);
+    public bool IsMarked(int player) => _marked.Contains(player);
 
-    /// <summary>Tonight's marked: each shover, whom their shove killed, and the train's speed then (m/s).</summary>
+    /// <summary>Tonight's marked, the mark ended or not (the report's history): each shover, whom their shove killed, and the train's speed then (m/s).</summary>
     public IEnumerable<(int Shover, int Victim, double Speed)> Marks => _marks.Select(m => (m.Key, m.Value.Victim, m.Value.Speed));
 
     /// <summary>How heavily the creatures and the director weigh <paramref name="player"/> as a target: horseplay.marked.targetWeight marked, else 1.</summary>
@@ -86,14 +90,19 @@ public sealed partial class World
         IsMarked(player) ? distance / TargetBias(player) - HorseplayTuning.Marked.AllowanceM : distance;
 
     /// <summary>Whether a marked crewmate is alive and on foot, off the train (the director builds faster while one is).</summary>
-    public bool MarkedAfoot => _marks.Count > 0 && CrewThisTick.Any(c => c.State.Alive && c.State.Parent == PlayerState.World && IsMarked(c.Id));
+    public bool MarkedAfoot => _marked.Count > 0 && CrewThisTick.Any(c => c.State.Alive && c.State.Parent == PlayerState.World && IsMarked(c.Id));
 
     /// <summary>
     /// Note 717, host, once everyone has moved: a crewmate newly dead of a shove (<see cref="DeathCause.Shoved"/>) marks whoever
-    /// shoved them for the night, the news says so, and the report will.
+    /// shoved them for the night, the news says so, and the report will. A marked shover dead (of anything) is unmarked (note
+    /// 754): back through a Holdout they're weighed like anyone; the news and the report keep the line.
     /// </summary>
     void MarkShovers(IReadOnlyCollection<(int Id, PlayerState State)> crew)
     {
+        if (HorseplayTuning.Marked.EndsAtDeath)
+            foreach (var (id, s) in crew)
+                if (!s.Alive)
+                    _marked.Remove(id);
         foreach (var (id, s) in crew.OrderBy(c => c.Id))
         {
             if (s.Alive)
@@ -106,6 +115,7 @@ public sealed partial class World
             if (ShovedBy(id) is not { } by || by.By < 0 || by.By == id)
                 continue;
             _marks[by.By] = (id, by.Speed);
+            _marked.Add(by.By);
             var e = new Sim.Run.NewsEvent(_nextFx, Tick, Sim.Run.NewsKind.Marked, [id], 0, 0, by.By, by.Speed);
             _nextFx = _nextFx % 0xFFFFFF + 1;
             NewsLog.Add(e);

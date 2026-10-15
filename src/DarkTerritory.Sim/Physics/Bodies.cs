@@ -555,8 +555,13 @@ public sealed class Bodies
     public Body DropOut(TrainOnLine train, int owner, in PlayerState left)
     {
         // (A heavy crate's end is let go by CarryHeavy, which sees its carrier gone.)
+        // A uniform's radio (note 749) goes with them: the world takes it off the dead and gives the next one their own.
+        bool uniform = train.Dynamics.Tuning.Kit.RadioEach;
         foreach (var held in _bodies.Where(x => x.Carrier == owner && x.Kind != BodyKind.Heavy).ToList())
-            Release(held, left, train, 0);
+            if (uniform && held.Kind == BodyKind.Radio)
+                Remove(held);
+            else
+                Release(held, left, train, 0);
         var b = SpawnRagdoll(train, owner, left);
         b.DroppedOut = true;
         return b;
@@ -569,6 +574,10 @@ public sealed class Bodies
     /// <para>
     /// A radio picked up goes on the belt (one each), leaving the hands free; Throw with empty hands takes it off and
     /// sets it down, to pass to someone. The dead drop theirs where they fall, still squawking (T41).
+    /// </para>
+    /// <para>
+    /// Note 749: with a radio each (train.json <c>kit.radioEach</c>), it's part of the uniform: it never comes off the belt,
+    /// takes no slot and isn't put down; the world (<see cref="World.StepBodies"/>) gives it and takes it off the dead.
     /// </para>
     /// </summary>
     /// <param name="hand">The hand tuning, when hands are reported (T29): a reaching hand takes what it's on.</param>
@@ -596,11 +605,13 @@ public sealed class Bodies
         _throwWas[playerId] = thrown;
         var carried = CarriedBy(playerId);
         var worn = _bodies.FirstOrDefault(b => b.Kind == BodyKind.Radio && b.Carrier == playerId);
+        // Note 749: the uniform's radio stays on the belt (the world takes it off the dead).
+        bool uniform = train.Dynamics.Tuning.Kit.RadioEach;
         if (!s.Alive)
         {
             if (carried is not null)
                 Release(carried, s, train, 0);
-            if (worn is not null)
+            if (worn is not null && !uniform)
                 Release(worn, s, train, 0);
             DropSlots(s, playerId, train);
             s.Pockets = 0;
@@ -688,7 +699,7 @@ public sealed class Bodies
             Release(carried, s, train, speed);
             return usePressed || carried.Kind == BodyKind.Heavy;
         }
-        if (carried is null && throwPressed && worn is not null)
+        if (carried is null && throwPressed && worn is not null && !uniform)
         {
             Release(worn, s, train, 0);
             return false;

@@ -45,6 +45,8 @@ public sealed record PlayerTuning(
     /// <summary>The emotes' lengths (GDD §9's yard, "dance"; note 298). Field docs live in player.json <c>emotes</c>.</summary>
     public EmoteTuning Emotes { get; init; } = new();
     public NewsTuning News { get; init; } = new();
+    /// <summary>Note 750: a crewmate held or killed out of voice reach, a line for the living (player.json <c>crewNews</c>).</summary>
+    public Run.CrewNewsTuning CrewNews { get; init; } = new();
 
     /// <summary>
     /// Horseplay among the crew (note 717; the director, 14 Oct 2026): crewmates solid to each other, the shove, coal off the
@@ -110,10 +112,10 @@ public sealed record CrewTuning(int Cap = 8, double RefuseLingerSeconds = 3)
 /// <summary>Note 663: how long a line of news is up, and how fast the train runs before a crewmate's own cut is news.</summary>
 public sealed record NewsTuning(double Seconds = 5, double CutToldAbove = 1.5);
 
-public sealed record EmoteTuning(double Dance = 8, double Wave = 2.5, double Point = 2.5, double Cooldown = 0.5)
+public sealed record EmoteTuning(double Dance = 8, double Wave = 2.5, double Point = 2.5, double Cooldown = 0.5, double Aboard = 3)
 {
-    public double Seconds(Emote e) => e switch { Emote.Dance => Dance, Emote.Wave => Wave, Emote.Point => Point, _ => 0 };
-    public double Longest => Math.Max(Dance, Math.Max(Wave, Point));
+    public double Seconds(Emote e) => e switch { Emote.Dance => Dance, Emote.Wave => Wave, Emote.Point => Point, Emote.Aboard => Aboard, _ => 0 };
+    public double Longest => Math.Max(Math.Max(Dance, Aboard), Math.Max(Wave, Point));
 }
 /// <param name="LethalAbove">Speed over the ground on landing that kills (spec B.3 after T90); 0 for the train's jump-off band.</param>
 /// <param name="DamageAtLethal">A landing's knock rises from <paramref name="RollDamage"/> to this at the lethal edge.</param>
@@ -145,6 +147,19 @@ public sealed record VoicesTuning
     public TubeTuning Tube { get; init; } = new();
     public SingingTuning Singing { get; init; } = new();
     public LampSignalTuning LampSignals { get; init; } = new();
+    /// <summary>Note 749: a held speaker's voice, a hand over the mouth (player.json <c>voices.covered</c>).</summary>
+    public CoveredVoiceTuning Covered { get; init; } = new();
+}
+
+/// <summary>
+/// Note 749 (GDD App. C.8; the director, 14 Oct 2026: "A grab should allow players to still use the radio but their voice
+/// should be muffle filtered as if the grab is covering their mouth partially"). Field docs live in player.json
+/// <c>voices.covered</c>. Off by default: a voice as it was.
+/// </summary>
+public sealed record CoveredVoiceTuning
+{
+    public bool On { get; init; }
+    public double GainDb { get; init; } = -6;
 }
 
 /// <summary>The speaking tube from the cab to the guard van (note 720). Field docs live in player.json <c>voices.tube</c>.</summary>

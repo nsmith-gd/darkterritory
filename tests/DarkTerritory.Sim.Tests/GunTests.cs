@@ -91,6 +91,124 @@ public class GunTests
         Assert.Equal(C.Guns.Ammo, w.Train.Vehicles[0].Gun.Ammo);
     }
 
+    // ---- One can, two do it faster (note 752; GDD §12 Fluidity; the director, 14 Oct 2026: "absolutely the right direction").
+
+    /// <summary>A crewmate standing beside a gun's pivot (off its seat), within reach, turned to it.</summary>
+    static PlayerState Beside(World w, int vehicle, double side = 1)
+    {
+        var mount = Guns.Mount(w.Train, vehicle)!.Value;
+        var s = PlayerMotor.SpawnOnRoof(w.Train, vehicle, mount.Position.Z, P, side * 0.7);
+        s.Yaw = side * Math.PI / 2;
+        return s;
+    }
+
+    /// <summary>A gun on <paramref name="vehicle"/> fired, and how many ticks its reload takes with these crewmates acting (in this order).</summary>
+    static int TicksToLoad(World w, int vehicle, params (int Id, PlayerState State, PlayerIntent Intent)[] crew)
+    {
+        w.Train.Vehicles[vehicle].Gun.ReloadNeeded = C.Guns.ReloadSteps;
+        w.Train.Vehicles[vehicle].Gun.ReloadProgress = 0;
+        var states = crew.Select(c => c.State).ToArray();
+        for (int tick = 1; tick <= 20 * SimConstants.TickRate; tick++)
+        {
+            w.BeginTick();
+            for (int i = 0; i < crew.Length; i++)
+                w.CrewAct(ref states[i], crew[i].Intent, crew[i].Id);
+            w.Step(default);
+            if (w.Train.Vehicles[vehicle].Gun.ReloadNeeded == 0)
+                return tick;
+        }
+        return -1;
+    }
+
+    static int SoloTicks => (int)Math.Round(C.Guns.ReloadSteps * C.Guns.ReloadStepSeconds * SimConstants.TickRate);
+
+    [Fact]
+    public void AGunnerAloneReloadsInTheTimeItAlwaysTook()
+    {
+        var w = World();
+        var gunner = AtGun(w, 0);
+        Assert.InRange(TicksToLoad(w, 0, (1, gunner, Reload)), SoloTicks, SoloTicks + C.Guns.ReloadSteps);
+        // And standing at it, out of the seat, the same.
+        Assert.InRange(TicksToLoad(w, 0, (1, Beside(w, 0), Reload)), SoloTicks, SoloTicks + C.Guns.ReloadSteps);
+    }
+
+    [Fact]
+    public void ALoaderBesideAMannedGunReloadsItWhileTheGunnerAims()
+    {
+        // The gunner keeps the seat and aims (no Use), and their aiming doesn't start the loader's step over.
+        var w = World();
+        var gunner = AtGun(w, 0);
+        var loader = Beside(w, 0);
+        Assert.Equal(0, Guns.MannedGun(loader, w.Train, C.Guns));
+        Assert.False(loader.Has(PlayerFlags.Seated));
+        Assert.InRange(TicksToLoad(w, 0, (1, gunner, default), (2, loader, Reload)), SoloTicks, SoloTicks + C.Guns.ReloadSteps);
+        Assert.InRange(TicksToLoad(w, 0, (1, loader, Reload), (2, gunner, default)), SoloTicks, SoloTicks + C.Guns.ReloadSteps);
+    }
+
+    [Fact]
+    public void GunnerAndLoaderTogetherReloadAtTheLoaderRateAndAThirdAddsNothing()
+    {
+        Assert.True(C.Guns.LoaderRate > 1);
+        int pair = (int)Math.Round(SoloTicks / C.Guns.LoaderRate);
+        var w = World();
+        var gunner = AtGun(w, 0);
+        var loader = Beside(w, 0);
+        int both = TicksToLoad(w, 0, (1, gunner, Reload), (2, loader, Reload));
+        Assert.InRange(both, pair - C.Guns.ReloadSteps, pair + C.Guns.ReloadSteps);
+        // Whoever's turn comes first.
+        Assert.Equal(both, TicksToLoad(w, 0, (1, loader, Reload), (2, gunner, Reload)));
+        // A third pair of hands, on the gun's other side: no faster.
+        Assert.Equal(both, TicksToLoad(w, 0, (1, gunner, Reload), (2, loader, Reload), (3, Beside(w, 0, side: -1), Reload)));
+        // With loaderRate 1 (off), two are as one.
+        var off = World(combat: C with { Guns = C.Guns with { LoaderRate = 1 } });
+        Assert.InRange(TicksToLoad(off, 0, (1, AtGun(off, 0), Reload), (2, Beside(off, 0), Reload)), SoloTicks, SoloTicks + C.Guns.ReloadSteps);
+    }
+
+    [Fact]
+    public void LetGoByEveryHandTheStepStartsOver()
+    {
+        var w = World();
+        var gunner = AtGun(w, 0);
+        var loader = Beside(w, 0);
+        w.Train.Vehicles[0].Gun.ReloadNeeded = C.Guns.ReloadSteps;
+        for (int i = 0; i < SimConstants.TickRate / 2; i++)
+        {
+            w.BeginTick();
+            w.CrewAct(ref gunner, default, 1);
+            w.CrewAct(ref loader, Reload, 2);
+            w.Step(default);
+        }
+        Assert.True(w.Train.Vehicles[0].Gun.ReloadProgress > 0.4);
+        w.BeginTick();
+        w.CrewAct(ref gunner, default, 1);
+        w.CrewAct(ref loader, default, 2);
+        w.Step(default);
+        Assert.Equal(0, w.Train.Vehicles[0].Gun.ReloadProgress);
+        Assert.Equal(C.Guns.ReloadSteps, w.Train.Vehicles[0].Gun.ReloadNeeded);
+    }
+
+    [Fact]
+    public void AHandMeantForTheHatchBesideTheGunIsntTheGuns()
+    {
+        // Use works the thing looked at (note 267; note 752): the guard van's gun pushed onto the car ahead and along to its
+        // roof hatch, a loader beside it looking down at the hatch's lid works the lid, not the reload; looking level at the
+        // gun, the reload.
+        var w = World();
+        Guns.Slide(w.Train, GuardCar(w), -100);
+        int g = w.Train.Vehicles.First(v => v.HasGun && v.Id != 0).Id;
+        Assert.NotEqual(GuardCar(w), g);
+        var hatch = w.Train.Frames[g].Shape.Interactables.First(i => i.Kind == InteractableKind.Hatch && i.LookDegrees < 0);
+        var rail = w.Train.Frames[g].Shape.RoofRail!.Value;
+        w.Train.Vehicles[g].Gun.Z = Math.Clamp(hatch.Position.Z, rail.Front, rail.Back);
+        var loader = Beside(w, g) with { Pitch = -1.2 };
+        Assert.Equal(g, Guns.MannedGun(loader, w.Train, C.Guns));
+        Assert.NotNull(CrewActions.LookedAt(loader, w.Train));
+        Assert.Equal(-1, TicksToLoad(w, g, (1, loader, Reload)));
+        loader.Pitch = 0;
+        Assert.Null(CrewActions.LookedAt(loader, w.Train));
+        Assert.InRange(TicksToLoad(w, g, (1, loader, Reload)), SoloTicks, SoloTicks + C.Guns.ReloadSteps);
+    }
+
     [Fact]
     public void AnEmptyGunFiresNothing()
     {

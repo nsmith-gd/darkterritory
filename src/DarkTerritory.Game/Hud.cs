@@ -817,6 +817,16 @@ public static partial class Hud
             : $"A WAKER {Math.Max(0, behind):0} M BEHIND. GET IN";
     }
 
+    /// <summary>
+    /// Note 750: the line this player's shown for a crewmate held or killed beyond voice reach (player.json <c>crewNews</c>),
+    /// or null: none, or they're within it, or this player's dead.
+    /// </summary>
+    public static Sim.Run.CrewNewsLine? CrewLine(IPlaySession s) => CrewLine(s, Observe(s));
+
+    static Sim.Run.CrewNewsLine? CrewLine(IPlaySession s, Memory m) =>
+        m.Crew.Update(s.PlayerTuning.CrewNews, s.Train, s.PlayerId, s.Player, s.Tick, s.CrewStates(1), id => IncidentLog.NameOf(s.World, id),
+            stop: s.World.Run is { Phase: Sim.Run.RunPhase.AtFacility });
+
     /// <summary>The newest news (note 663), or null.</summary>
     static NewsEvent? NewsUp(Sim.World world) => world.News.Count > 0 ? world.News[^1] : null;
 
@@ -845,6 +855,14 @@ public static partial class Hud
                 y += line;
             }
             y += 4;
+        }
+        // Note 750 (GDD open question 2): a crewmate held or killed out of voice reach, under the news: who and where, never
+        // what. A hold for as long as it lasts; a death for a few seconds, fading.
+        if (CrewLine(s, m) is { } crew)
+        {
+            float shown = crew.Dead ? Shown(Since(s, crew.Since), s.PlayerTuning.CrewNews.DeathSeconds) : 1;
+            o.TextCentred(cx, y, crew.Text, (crew.Dead ? Red : Amber) with { W = shown }, 1);
+            y += line + 4;
         }
         if (m.Place is { } place && Shown(Since(s, m.PlaceTick), Tuning.PlaceSeconds) is > 0 and var a)
         {
@@ -1036,13 +1054,18 @@ public static partial class Hud
         // line (App. A.4: "the whistle sounds with no hand on the cord" is its tell), so one with no name is the Whistler.
         if (p.Alive && world.WhistleSeconds > 0 && world.WhistleBy >= 0)
             Small(world.WhistleBy == s.PlayerId ? "THE WHISTLE: YOUR HAND'S ON THE CORD" : $"THE WHISTLE: {IncidentLog.NameOf(world, world.WhistleBy).ToUpperInvariant()} ON THE CORD", Dim);
+        // Note 740: "Aboard!" called back to the horn, and the driver's roll of it.
+        if (p.Alive)
+            foreach (var (text, good) in AboardLines(world, s.PlayerId, PlayerMotor.InCab(p, world.Train), s.Roster()))
+                Small(text, good ? Green : Ink);
         // T115 playtest ("suddenly I can't move and then a few seconds later I die"): held, say so, and what to do. Alone
         // (the solo rule) Use held struggles free; with a crew, a friend has to pull it off or hit it.
         if (p.Alive && p.Has(PlayerFlags.Held))
         {
             Big("SOMETHING HAS YOU", world.Tick / 10 % 2 == 0 ? Red : Amber);
-            // Alone, Use held struggles free (the solo rule). With a crew, who can help is learned (note 285).
-            if (s.Roster().Count(l => l.Alive) <= 1)
+            // Alone, Use held struggles free (the solo rule); in a crew, so does one with no living crewmate near (note 756).
+            // With a friend near, who can help is learned (note 285).
+            if (CanStruggle(s, p))
                 Small(Bound("STRUGGLE : HOLD [E]"), Ink);
         }
         // Note 260 (T115 playtest, "random death walking outside"; GDD App. A.1): the line's own kills are telegraphed. Up
@@ -1242,9 +1265,15 @@ public static partial class Hud
         var p = s.Player;
         var world = s.World;
         var rows = new List<(string Text, Vector4 Colour)> { (DeathLine(p.Death), Ink) };
-        // App. D.10: the dead watch the living, through their eyes. Networked only: alone, there's nobody.
+        // App. D.10: the dead watch the living, through their eyes, or the bodies of the dead (note 743), and from the view
+        // they choose. Networked only: alone, there's nobody.
         if (s.Watching >= 0)
-            rows.Add((Bound($"WATCHING CREW {s.Watching}   NEXT : [LMB] OR [D]   BACK : [A]"), Ink));
+        {
+            string who = IncidentLog.NameOf(world, s.Watching).ToUpperInvariant() + (s.Viewpoint.Alive ? "" : " (BODY)");
+            var view = s.DeadView == DeadView.Eyes && !s.Viewpoint.Alive ? DeadView.Shoulder : s.DeadView;
+            rows.Add((Bound($"WATCHING {who}   NEXT : [LMB] OR [D]   BACK : [A]"), Ink));
+            rows.Add((Bound($"VIEW : {DeadViews.Name(view)}   [TAB] TO CHANGE"), Dim));
+        }
         else if (s.Link is not null && world.Run is not { Over: true })
             rows.Add(("NOBODY LEFT ALIVE TO WATCH", Dim));
         // D.10's Bookmark (D.12): a still of what you're watching, for the run-end screen; how many are left, and the last.
@@ -1268,8 +1297,8 @@ public static partial class Hud
                 && (PlayerMotor.WorldPosition(c.State, s.Train) - h.Inside).Length <= holdouts.Tuning.CallOutRadius));
             int place = holdouts.Queue.Select((e, i) => (e, i)).FirstOrDefault(x => x.e.PlayerId == s.PlayerId, (default, -1)).i;
             bool behind = place >= 0 && place < holdouts.Queue.Count - 1;
-            // (A row each: bound, Throw reads [RIGHT MOUSE], and the two together run off a 150% TEXT SIZE canvas at 720p.)
-            string[] acts = [.. new[] { heard ? "CALL OUT : [E]" : null, behind ? "LET SOMEONE ELSE GO FIRST : [RMB]" : null }.OfType<string>().Select(Bound)];
+            // (A row each: bound, a key can read long ([RIGHT MOUSE]), and the two together run off a 150% TEXT SIZE canvas at 720p.)
+            string[] acts = [.. new[] { heard ? "CALL OUT : [E]" : null, behind ? "LET SOMEONE ELSE GO FIRST : [T]" : null }.OfType<string>().Select(Bound)];
             if (holdouts.All.FirstOrDefault(h => h.Occupant == s.PlayerId && h.Lit) is { } mine)
             {
                 if (mine.State == HoldoutState.Breaching)
@@ -2027,7 +2056,7 @@ public static partial class Hud
     }
 
     /// <summary>
-    /// A prompt written with the default keys ([E], [RMB], [K]) as the player has them bound (T80's CONTROLS; note 426): every
+    /// A prompt written with the default keys ([E], [T], [K]) as the player has them bound (T80's CONTROLS; note 426): every
     /// key the HUD names is written as its control's default and said as the player's own, so a rebind can't leave one saying
     /// the wrong key. Labels that aren't a control's default are left as written: the menus' and the vote's (they can't be
     /// bound), [F5], the hotbar's numbers.
@@ -2044,7 +2073,7 @@ public static partial class Hud
     /// </summary>
     static readonly IReadOnlyDictionary<string, Control> ByDefault = new Dictionary<string, Control>(
         Controls.Defaults.Select(d => KeyValuePair.Create(Controls.KeyLabel(d.Value), d.Key))
-            .Concat([KeyValuePair.Create("LMB", Control.Fire), KeyValuePair.Create("RMB", Control.Throw), KeyValuePair.Create("VENT", Control.Vent),
+            .Concat([KeyValuePair.Create("LMB", Control.Fire), KeyValuePair.Create("RMB", Control.Radio), KeyValuePair.Create("VENT", Control.Vent),
             KeyValuePair.Create("PUSH", Control.Push)]));
 
     /// <summary>[WASD], the four walking keys as the player has them: one keycap where each is a letter (ZQSD), else one each.</summary>
@@ -2286,7 +2315,7 @@ public static partial class Hud
             case InteractableKind.Firebox when PlayerMotor.InCab(p, train):
                 // Note 717: the coal on the shovel can be thrown instead (horseplay), said while it's there.
                 return p.Hand != default && !p.Has(PlayerFlags.Shovelful) ? "SHOVEL EMPTY"
-                    : p.Has(PlayerFlags.Shovelful) && p.Hand == default ? "SHOVEL COAL : HOLD [E]   THROW IT : [RMB]" : "SHOVEL COAL : HOLD [E]";
+                    : p.Has(PlayerFlags.Shovelful) && p.Hand == default ? "SHOVEL COAL : HOLD [E]   THROW IT : [T]" : "SHOVEL COAL : HOLD [E]";
             // Only a reaching hand finds the coal face (T29).
             case InteractableKind.Coal when PlayerMotor.InCab(p, train):
                 return p.Has(PlayerFlags.Shovelful) ? "SHOVEL FULL" : "TAKE COAL : GRIP";
@@ -2477,7 +2506,7 @@ public static partial class Hud
         // Note 717 (horseplay): a crewmate in front within reach, nothing else to do there: the shove's key. With the coal on
         // the shovel, turned from the fire, it's the throw's.
         if (p.Has(PlayerFlags.Shovelful) && p.Hand == default)
-            return "THROW THE COAL : [RMB]";
+            return "THROW THE COAL : [T]";
         if (world.HorseplayTuning.Enabled && Horseplay.ShoveTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning) is not null)
             return "SHOVE : [LEFT ALT]";
         return null;
@@ -2518,5 +2547,22 @@ public static partial class Hud
             o.Text(6, y, t.ToUpperInvariant(), t.StartsWith("STOPPED", StringComparison.Ordinal) ? Amber : Dim, k);
             y += (line + 1) * k;
         }
+    }
+
+    /// <summary>
+    /// Whether a held player's struggle is theirs to try (App. C.1; the world's own test, note 756): alone, or with no living
+    /// crewmate within grab.crewStruggleBeyond.
+    /// </summary>
+    static bool CanStruggle(IPlaySession s, in PlayerState p)
+    {
+        var others = s.CrewStates(1).Where(c => c.Id != s.PlayerId && c.State.Alive).ToList();
+        if (others.Count == 0)
+            return true;
+        double beyond = s.World.Enemies?.Grab.CrewStruggleBeyond ?? 0;
+        if (beyond <= 0)
+            return false;
+        var at = PlayerMotor.WorldPosition(p, s.Train);
+        var train = s.Train;
+        return others.All(c => (PlayerMotor.WorldPosition(c.State, train) - at).Length > beyond);
     }
 }
