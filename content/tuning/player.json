@@ -226,7 +226,30 @@
     "point": 2.5,
     // Note 740 (GDD §17): "Aboard!", called back to the horn, a hand up and the crew told who said it.
     "aboard": 3,
-    "cooldown": 0.5
+    "cooldown": 0.5,
+    // Emotes for two, and the edges (GDD §9; the director, 14 Oct 2026, App. F.6; ARCHITECTURE §8 note 722). A high five
+    // (fist bump) is held up offered for highFive (fistBump) s; a crewmate within reach m of the offerer (feet to feet, on a
+    // level), the two facing each other within facingDegrees, who picks it too answers it, and the hands meet: both are shown
+    // met for met s from that tick. Unanswered, it hangs there till it runs out.
+    "highFive": 3,
+    "fistBump": 3,
+    "met": 0.8,
+    "reach": 1.5,
+    "facingDegrees": 50,
+    // Dancers within danceOffReach m of each other, facing each other within danceOffFacingDegrees, are a dance-off: the lead
+    // goes round them by id every danceOffBeat s (from the host's tick), the rest answering.
+    "danceOffReach": 3,
+    "danceOffFacingDegrees": 70,
+    "danceOffBeat": 2,
+    // The sit and the lean are taken within edgeReach m of where a car's footing ends at its side (a roof's, a door landing's,
+    // a running board's) or of a doorway; an edge is sat on where it drops more than edgeDrop m. From inside, in an open side
+    // doorway, the edge sat on can be up to edgeReach + sillReach m out: across the sill and a cargo car's landing outside it.
+    // Both are held till their crewmate moves, jumps or is moved.
+    "edgeReach": 0.6,
+    "edgeDrop": 0.5,
+    "sillReach": 1.2,
+    // A bot answers a high five or fist bump offered to it after botAnswer s (bots never offer).
+    "botAnswer": 0.4
   },
   // The news (ARCHITECTURE §8 note 663; the director: "did a coupler break on its own or was that a creature?"): cars the
   // engine loses and its failing or breaking down, told to everyone as it happens, with what did it, on one line for

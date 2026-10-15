@@ -33,7 +33,7 @@ public class LinesideFootprintTests
             for (int v = 0; v < kind.Variants; v++)
             {
                 bool cells = kind.Shape == LinesideFootprints.Shape.Cells;
-                var (min, max) = ArtCatalog.Bounds(kind.Make(cells ? Models : null, v));
+                var (min, max) = ArtCatalog.Bounds(kind.Make(cells || kind.Modelled ? Models : null, v));
                 // A drum's octagon; a kit's cells, each laid on a half-metre grid.
                 double give = kind.Shape == LinesideFootprints.Shape.Round ? 0.03 * (max.Z - min.Z) : cells ? 0.51 : 0.01;
                 foreach (var b in config.Pieces[kind.Name][v].Where(b => b[4] == 0))
@@ -59,7 +59,9 @@ public class LinesideFootprintTests
             return (Route: route, Line: line, Side: LinesideProps.Of(route, line)!, Forts: Fortresses.Of(route, line, 600, 400));
         }).ToList();
         var drawn = 0;
-        foreach (var name in new[] { "saltbox", "stoneWall", "lighthouse", "fishShed", "pole" })
+        // And the railway's leavings (note 792): the gangs' hut and a stack of drums, dealt by the sim and drawn from its list.
+        string[] names = ["saltbox", "stoneWall", "lighthouse", "fishShed", "pole", "junkHut", "junkDrums"];
+        foreach (var name in names)
         {
             var (route, line, side, found) = nights.Select(n => (n.Route, n.Line, n.Side, Piece: n.Side.Props(1500, n.Line.Length - 1500)
                 .Where(q => q.Kind == LinesideKind.Piece && q.Species == name && !LinesideProps.InsideAFort(n.Forts, q.Along, q.Lateral))
@@ -80,7 +82,7 @@ public class LinesideFootprintTests
                 $"no {kind.Cached(p.Variant)} drawn where the sim stands it, {p.Along:0} m, {p.Lateral:0.0} out");
             drawn++;
         }
-        Assert.Equal(5, drawn);
+        Assert.Equal(names.Length, drawn);
     }
 
     [Fact]

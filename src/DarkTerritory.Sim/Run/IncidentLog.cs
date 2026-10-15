@@ -148,6 +148,7 @@ public static class IncidentLog
         DeathCause.Dave => "Struck Dave once too often",
         DeathCause.Fell => "Fell to their death",
         DeathCause.Shoved => "Shoved off the train",
+        DeathCause.Dropped => "Dropped from the crane",
         _ => cause.ToString(),
     };
 
@@ -182,6 +183,12 @@ public static class IncidentLog
                     action = speed >= 1 ? $"{how} off by {{actor}} at {Kmh(speed)}." : $"{how} off by {{actor}}.";
                     break;
                 }
+            case DeathCause.Dropped:
+                // Note 726: off the crane's hook after a lift, and the fall killed them: whose lift (or shake) it was, and how high
+                // ("Dropped from the crane by Dave, 9 m up.").
+                actor = world.DroppedBy(victim) ?? -1;
+                action = actor >= 0 ? World.DropLine(world.WasShaken(victim), world.DropHeight(victim)) : "Let go of the crane's hook.";
+                break;
             case DeathCause.Cold when !aboard:
                 {
                     // Left behind (B.2's cold off the train): how far from the train, to its nearest end, not a car's middle (an

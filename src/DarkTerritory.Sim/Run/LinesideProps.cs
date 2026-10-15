@@ -262,7 +262,7 @@ public sealed partial class LinesideProps
     /// Everything beside the line whose slot, cell or block starts in [<paramref name="from"/>, <paramref name="to"/>): so
     /// neighbouring stretches (the art's cells) share nothing and miss nothing. The woods' trees and boulders by their slot,
     /// the telegraph poles; the road's homesteads, poles and cars by its cells, a shore's sheds and rocks by its, the biomes'
-    /// props by the block (note 389). The same for the same night on every machine.
+    /// props by the block (note 389), the railway's leavings by their stretch (note 792). The same for the same night on every machine.
     /// </summary>
     /// <param name="reach">Only what stands within this of the line (m): the rest is dealt and passed over unchecked, so
     /// what's within it is the same either way.</param>
@@ -283,6 +283,8 @@ public sealed partial class LinesideProps
         foreach (var p in Shores(from, to, reach))
             yield return p;
         foreach (var p in Blocks(from, to, reach))
+            yield return p;
+        foreach (var p in LineLeavings(from, to))
             yield return p;
     }
 

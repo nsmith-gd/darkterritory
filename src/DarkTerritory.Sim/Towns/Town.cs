@@ -138,16 +138,71 @@ public sealed class Town
         return new TownPose(World(s, d, up), Direction(s, fight - s, -d), "guard", false);
     }
 
+    // Who's stopped to look at something (note 730: the bell rung, a crewmate's wave), by id: from when to when on the clock,
+    // how far into their round they'd got (it waits for them, as for a talk), where they look and what they do. Kept on every
+    // machine from the host's replicated happenings, alike; like a talk, it moves nobody in the night.
+    readonly Dictionary<int, (double Start, double End, double Own, Double3 Look, string Act)> _reacting = [];
+
+    /// <summary>
+    /// Stops <paramref name="person"/> where they are on their round from <paramref name="start"/> on the clock for
+    /// <paramref name="seconds"/>, looking at <paramref name="look"/> and doing <paramref name="act"/> (note 730: "idle" to
+    /// stand and stare at the bell, "wave" to wave back). Their round waits for them. A second reason while they're stopped
+    /// keeps them there longer, looking at the new one.
+    /// </summary>
+    public void React(int person, double start, double seconds, Double3 look, string act)
+    {
+        if (person < 0 || person >= _behind.Length || seconds <= 0)
+            return;
+        double end = start + seconds;
+        if (_reacting.TryGetValue(person, out var was) && start < was.End)
+        {
+            if (end > was.End)
+                _behind[person] += end - was.End;
+            _reacting[person] = (was.Start, Math.Max(end, was.End), was.Own, look, act);
+            return;
+        }
+        // Where their round had got to at the start (a start already past on this machine counts back to it).
+        double own = Own(person) - Math.Max(0, Clock - start);
+        _behind[person] += seconds;
+        _reacting[person] = (start, end, own, look, act);
+    }
+
+    /// <summary>Whether <paramref name="person"/> is stopped looking at something now (note 730), and what they're doing.</summary>
+    public string? Reacting(int person) =>
+        _reacting.TryGetValue(person, out var r) && Clock >= r.Start && Clock < r.End ? r.Act : null;
+
+    /// <summary>
+    /// The council house's bell rope (note 730), at its foot: beside its door in a walled town, on the far side of the door
+    /// from its lamp, against its front. Null in a town without a council house.
+    /// </summary>
+    public Double3? BellRope => Plan.Buildings.FirstOrDefault(b => b.Style == "council") is { } c
+        ? World(c.S - RopeAlong, c.D - Math.Sign(c.D) * (c.Depth / 2 + RopeOut), 0) : null;
+
+    // Where the rope hangs from the council house's door: along its front, and out from it (m). Not design numbers.
+    const double RopeAlong = 2.1, RopeOut = 0.12;
+
     /// <summary>Where somebody is now on their round, which way they face, and what they're doing.</summary>
     public TownPose Now(Townsperson p)
     {
         if (Fight is { } fight && Guards(p))
             return OnTheYard(Plan.People.Count(q => q.Id < p.Id && Guards(q)), fight, p.Up);
+        if (_reacting.TryGetValue(p.Id, out var r) && Clock >= r.Start && Clock < r.End)
+        {
+            var there = At(p, r.Own);
+            var look = (r.Look - there.Feet) with { Y = 0 };
+            return new TownPose(there.Feet, look.Length > 1e-6 ? look.Normalized : there.Facing, r.Act, false);
+        }
+        return At(p, Own(p.Id));
+    }
+
+    /// <summary>Where somebody is <paramref name="own"/> seconds into their round (<see cref="Now"/>, with the clock given).</summary>
+    TownPose At(Townsperson p, double own)
+    {
         var at = World(p.S, p.D, p.Up);
         if (Rounds[p.Id] is not { Stops.Count: > 0 } r)
             return new TownPose(at, Direction(p.S, p.FaceS, p.FaceD), p.Pose, false);
         int n = r.Stops.Count;
-        double t = (Own(p.Id) + r.Offset) % r.Period;
+        double t = (own + r.Offset) % r.Period;
         if (t < 0)
             t += r.Period;
         int k = Math.Min(n - 1, (int)(t / r.Slot));
