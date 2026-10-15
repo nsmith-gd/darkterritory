@@ -105,7 +105,9 @@ public class SolidWorldTests
             var centre = Run.Run.StopWorld(train.Line, f, b.Centre);
             var from = Run.Run.StopWorld(train.Line, f, new Pt(b.S, b.D - Math.Sign(b.D == 0 ? 1 : b.D) * (Math.Max(b.Length, b.Width) / 2 + 8)));
             var end = Walk(train, from, centre, 6, f.Start + b.S);
-            Assert.True(((end.Position - centre) with { Y = 0 }).Length > Math.Min(b.Length, b.Width) / 2, $"{b.Kind}: walked into it");
+            // A well is its stone ring, not its plot (note 730: walked up to, to drop something down it).
+            double half = b.Kind == BuildingKind.Well ? StopWalls.WellHalf : Math.Min(b.Length, b.Width) / 2;
+            Assert.True(((end.Position - centre) with { Y = 0 }).Length > half, $"{b.Kind}: walked into it");
             walked++;
         }
         Assert.True(walked > 0, "frontier:9's stops have a powerhouse, a well or a signal box");

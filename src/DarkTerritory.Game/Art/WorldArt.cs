@@ -654,9 +654,9 @@ public sealed partial class WorldArt(Look look)
         // A generated line is dressed by its biomes (PlanArt), round its stops.
         if (Scene(route) is { } plan)
         {
+            // (The railway's leavings are the sim's on a generated line, note 792: PlanDressing draws them from its list.)
             PlanDressing(mesh, line, route!, plan, eye, from, to, seed, OnBranch);
             Shrines(mesh, from, to, seed, Clear, OnBranch, Place);
-            Leavings(mesh, from, to, seed, Clear, OnBranch, Place);
             Stops(mesh, line, route, eye, from, to, valleyDepth);
             return;
         }

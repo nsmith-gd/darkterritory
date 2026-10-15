@@ -11,11 +11,12 @@ rule 9), saying so in the item's row and their log.
 - From `ccr-f72c055b-195xp3`: #450 the big cab (note 716; with #459's lamp per crewmate aboard), #455 crew
   memory (note 721; the logbook on the cab's front bench), #458 sessions (note 724; protocol 62) (#1016, merged). Then #462 the sense
   table (note 728; protocol 63), #457 bringing them home (note 723; 64), #453 big finds (note 719; 65) and #463 the handcar
-  (note 729; 66) (#1026, merged). In review next: #465 painted masks (note 731; 67), #466 sound cues (note 732; 68).
+  (note 729; 66) (#1026, merged). Then #465 painted masks
+  (note 731; 67) and #466 sound cues (note 732; 68) (#1034, merged). In review next: #464 odd outcomes (note 730; 69) and #456
+  emotes for two (note 722; 70).
 
 ## Building or not started (specs in `specs/`, each with `specs/preamble.md`'s rules)
-#456 emotes for two (K1.14 building) · #464 odd outcomes (K1.13 building) · #460 hoist a friend (not started; D1.5 holds
-the crane's controls, #449).
+#460 hoist a friend (K1.15 building; D1.5 holds the crane's controls, #449).
 
 ## Open threads
 - The director questioned the mail (14 Oct playtest line 18): #461's speed post stands until they decide.

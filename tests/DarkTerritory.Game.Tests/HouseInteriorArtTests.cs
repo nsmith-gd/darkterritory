@@ -34,7 +34,11 @@ public class HouseInteriorArtTests
         // fragment, note 718.)
         // Note 719: nor are the fragile valuables (glass, walnut and brass: the kit's own stock, not the atlas's) nor the two-person
         // jackpots (drawn by FindKit.Jackpot, as big as they are).
-        var trophies = loot.Trophies.Values.Select(t => t.Item).Append(loot.Comet!.Item).Concat(loot.Fragile!.Items.Keys).ToHashSet();
+        // Note 730: nor are the odd outcomes' gifts (Dave's painting, the coin back up the well): never dealt in a house, drawn
+        // from the kit's own stock.
+        var odd = DataFile.Load<RunTuning>(Path.Combine(Content, RunTuning.File)).Oddities;
+        var trophies = loot.Trophies.Values.Select(t => t.Item).Append(loot.Comet!.Item).Concat(loot.Fragile!.Items.Keys)
+            .Append(odd.Painting.Item).Append(odd.Well.CoinItem).ToHashSet();
         var jackpots = loot.Jackpots!.Items;
         foreach (var item in loot.Items.Keys)
         {
