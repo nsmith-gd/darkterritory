@@ -1843,6 +1843,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         ? Staging.Horseplay(train, content, horse) : ((List<Crewmate> Crew, List<DarkTerritory.Sim.Player.LumpInFlight> Lumps)?)null;
     var scene = new GreyboxScene
     {
+        // --upgrades lampBrightness: the beam as far as the headlamp reaches (note 506).
+        LampReach = t.HeadlampReach,
         // --draw m: how far along the line to build it (an aerial view of a stretch wants more than the cab's 400).
         DrawDistance = (float)Opt(args, "--draw", 400),
         // (--shot-age s: that long after the guns fired, for the powder smoke rolling off, Effects.CannonShot.)

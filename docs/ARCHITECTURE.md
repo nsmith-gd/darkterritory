@@ -704,6 +704,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [501. The coupler's knuckle heard opening, a clank not a thud (AU1, queue #238; the weak-sounds audit)](notes/501.md)
 - [503. Weak sounds: a body on the grating, and a crate set on concrete (AU1, queue #240; the weak-sounds audit, dull one-shots)](notes/503.md)
 - [505. The Gaunt carries off what it took (queue #242, E1; the art checklist's `gaunt-anim`; GDD App. A.6 "it carries the body out at walking…](notes/505.md)
+- [506. The lamp brightness upgrade lights the line (A1, queue #243; spec F.3 "Lamp brightness"; note 196: "a purchase that does nothing is a bug")](notes/506.md)
 - [508. Bodies on the grating heard on steel (AU1, queue #245; the weak-sounds audit; note 503's fault in three more cues)](notes/508.md)
 - [509. The yard's powerhouse stands open, its switchboard inside (B4, queue #246; note 417's "not yet": "the derelicts and the powerhouse stay…](notes/509.md)
 - [510. Captions for the moments: what a creature does and how the train fails (AU1, queue #247; note 349's CAPTIONS, F1's; note 391; GDD §32; the…](notes/510.md)
