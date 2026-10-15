@@ -299,14 +299,21 @@ public sealed partial class WorldArt
                 double steep = Math.Max(Math.Max(Math.Abs(ha - hb), Math.Abs(hc - hd)), Math.Max(Math.Abs(ha - hd), Math.Abs(hb - hc))) / LandGrid;
                 double mean = (ha + hb + hc + hd) / 4;
                 bool wet = g.Water((sa + sb) / 2, (da + db) / 2) is { } wl && mean < wl;
-                if (steep > 0.7)
-                    k.Use("rock_cliff", Palette.DeepBrown, 0.8f, 0.05f, tile: 6);
-                else if (wet)
-                    k.Use("ground_mud", Palette.DeepBrown, 0.95f, 0.2f, tile: 4);
-                else if (steep > 0.35)
-                    k.Use("granite_lichen", Palette.DeepBrown, 0.85f, 0.05f, tile: 5);
-                else
-                    k.Use(mean > 8 ? "ground_heath" : "ground_grass", Palette.DeepBrown, 0.9f, 0.04f, tile: 4);
+                switch (FormLandTexture(steep, wet, mean))
+                {
+                    case "rock_cliff":
+                        k.Use("rock_cliff", Palette.DeepBrown, 0.8f, 0.05f, tile: 6);
+                        break;
+                    case "ground_mud":
+                        k.Use("ground_mud", Palette.DeepBrown, 0.95f, 0.2f, tile: 4);
+                        break;
+                    case "granite_lichen":
+                        k.Use("granite_lichen", Palette.DeepBrown, 0.85f, 0.05f, tile: 5);
+                        break;
+                    case var grass:
+                        k.Use(grass, Palette.DeepBrown, 0.9f, 0.04f, tile: 4);
+                        break;
+                }
                 var (pa, pb, pc, pd) = (V(sa, ha, da), V(sb, hb, da), V(sb, hc, db), V(sa, hd, db));
                 // Corners as Kit.Box's top (x across, z back down the line), texture in the frame's metres.
                 k.Quad(pa, pb, pc, pd, new(pa.X, pa.Z), new(pb.X, pb.Z), new(pc.X, pc.Z), new(pd.X, pd.Z));
@@ -332,7 +339,7 @@ public sealed partial class WorldArt
         var rects = g.Rects(FormApron, insideOnly: g.Margin > 0);
         double floor = rects.Count > 0 ? rects.Min(r => r.Level) - 1.5 : -2;
         bool quarry = plan.Form == "quarry";
-        string land = plan.Form switch { "quarry" => "granite_lichen", "tidewater" => "cobbles", "harbour" => "ground_heath", "dykeland" => "marsh", _ => "ground_mud" };
+        string land = FormTopTexture(plan.Form);
         string face = quarry ? "rock_cliff" : "stone_block";
         static Vector3 V(double s, double y, double d) => new((float)d, (float)y, (float)-s);
         // The sides of a rectangle with lower ground beside them (the piece's +X is +D, its +Z back down the line): only
@@ -534,7 +541,7 @@ public sealed partial class WorldArt
         }
         // The ways on the ground (the walled town's streets are Streets'): beaten strips over the ground, a ramp's tilted
         // with it; a deck's are its planks already.
-        k.Use(plan.Form == "tidewater" || plan.Form == "harbour" ? "cobbles" : "ballast", Palette.DeepBrown, 0.9f, 0.04f, tile: 2.5f);
+        k.Use(FormWayTexture(plan.Form), Palette.DeepBrown, 0.9f, 0.04f, tile: 2.5f);
         foreach (var w in plan.Ways)
         {
             if (w.Deck)
