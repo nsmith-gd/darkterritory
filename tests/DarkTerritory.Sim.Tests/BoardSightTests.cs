@@ -15,6 +15,8 @@ namespace DarkTerritory.Sim.Tests;
 public class BoardSightTests
 {
     static readonly string Content = DataFile.FindContentRoot();
+    /// <summary>The mail cranes up (note 803: cut for now, sight.json mailCranes), so their boards are still tested.</summary>
+    static readonly Route.SightTuning MailOn = new() { MailCranes = true };
     static readonly string[] Nights = ["frontier:7", "deadLines:2", "deepTerritory:2"];
     /// <summary>Nights with a through truss on the main line (deadLines:2 at 1.7 km, local:3 at 1.75 km).</summary>
     static readonly string[] TrussNights = ["deadLines:2", "local:3"];
@@ -275,7 +277,7 @@ public class BoardSightTests
         var route = Routes.Generate(Content, "frontier:7", 6);
         var side = LinesideProps.Of(route, route.Build())!;
         var rules = route.Plan!.Rules;
-        var mail = Route.Lineside.Boards(new Route.SightTuning(), route).Single(b => b.Kind == Route.SignKind.Drop && Math.Abs(b.Board - 4010) < 1);
+        var mail = Route.Lineside.Boards(MailOn, route).Single(b => b.Kind == Route.SignKind.Drop && Math.Abs(b.Board - 4010) < 1);
         var site = side.SightBoard(mail);
         Assert.True(site.SeenM >= 0.4 * site.ApproachM, $"MAIL at 4010 read over {site.SeenM} m of {site.ApproachM}");
         var inner = site.Bottom - site.Right * (site.Side * site.Face.Width / 2);
@@ -306,7 +308,7 @@ public class BoardSightTests
         {
             var route = Routes.Generate(Content, spec, 6);
             var side = LinesideProps.Of(route, route.Build())!;
-            var drops = Route.Lineside.Boards(new Route.SightTuning(), route).Where(b => b.Kind == Route.SignKind.Drop).ToList();
+            var drops = Route.Lineside.Boards(MailOn, route).Where(b => b.Kind == Route.SignKind.Drop).ToList();
             int across = 0;
             foreach (var sign in drops)
             {
@@ -403,7 +405,11 @@ public class BoardSightTests
         var boards = Route.Lineside.Boards(sight, route).ToList();
         Assert.Equal(Route.Lineside.Boards(new Route.SightTuning(), route).Select(b => (b.Kind, b.Board)), boards.Select(b => (b.Kind, b.Board)));
         var side = LinesideProps.Of(route, route.Build())!;
-        Assert.Contains(boards, b => b.Kind == Route.SignKind.Drop);
+        // (Mail boards among them while the mail's up; cut for now, note 803, none.)
+        if (sight.MailCranes)
+            Assert.Contains(boards, b => b.Kind == Route.SignKind.Drop);
+        else
+            Assert.DoesNotContain(boards, b => b.Kind == Route.SignKind.Drop);
         foreach (var b in boards)
         {
             var site = side.SightBoard(b);

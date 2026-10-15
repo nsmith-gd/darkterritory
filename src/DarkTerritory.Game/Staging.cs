@@ -354,11 +354,13 @@ public static partial class Staging
     /// </summary>
     public static PrototypeSession MailCrane(string content, Sim.Route.Route route, int cars, double seconds = 6, bool atDoor = true)
     {
-        var sight = DataFile.Load<Sim.Route.SightTuning>(Path.Combine(content, Sim.Route.SightTuning.File));
+        // The mail's cut for now (note 803): the staged night turns sight.json's mailCranes back on for itself.
+        var sight = DataFile.Load<Sim.Route.SightTuning>(Path.Combine(content, Sim.Route.SightTuning.File)) with { MailCranes = true };
         var drop = Sim.Route.Lineside.Drops(sight, route).FirstOrDefault(d => d.At > route.Gate + 1500)
             ?? throw new InvalidOperationException($"{route.Name} has no mail crane past its yard");
         const double speed = 12;
         var session = new PrototypeSession(content, route, cars, enemies: false, at: drop.At - speed * (seconds + 1));
+        session.World.EnableLineside(sight, route);
         session.Controls = new Sim.Train.TrainControls { Reverser = 1 };
         int car = Math.Min(2, session.Train.Frames.Count - 1);
         var shape = session.Train.Frames[car].Shape;

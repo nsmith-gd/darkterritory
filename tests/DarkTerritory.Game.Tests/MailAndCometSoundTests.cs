@@ -24,7 +24,8 @@ public class MailAndCometSoundTests : IDisposable
     static readonly PlayerTuning P = DataFile.Load<PlayerTuning>(Path.Combine(Content, PlayerTuning.File));
     static readonly CombatTuning C = DataFile.Load<CombatTuning>(Path.Combine(Content, CombatTuning.File));
     static readonly RunTuning R = DataFile.Load<RunTuning>(Path.Combine(Content, RunTuning.File));
-    static readonly SightTuning S = DataFile.Load<SightTuning>(Path.Combine(Content, SightTuning.File));
+    // The mail cranes up (cut for now, note 803): the catch is still heard for when it comes back.
+    static readonly SightTuning S = DataFile.Load<SightTuning>(Path.Combine(Content, SightTuning.File)) with { MailCranes = true };
 
     readonly string _root = Path.Combine(Path.GetTempPath(), "dt-mail-" + Guid.NewGuid().ToString("N"));
 

@@ -30,6 +30,9 @@ public sealed record SightTuning
     public double SandSeconds { get; init; } = 8;
     public double SandFadeSeconds { get; init; } = 3;
     public int StruckDamage { get; init; } = 200;
+    // Note 803: the mail cut for now. Mirrors sight.json (false); the callers that read the defaults (the line's prop
+    // boards, the linegen map, a screenshot's boards) see the cut through it.
+    public bool MailCranes { get; init; }
     public double[] DropSpacing { get; init; } = [350, 600];
     public double DropFrom { get; init; } = 900;
     public double DropClear { get; init; } = 80;
@@ -152,10 +155,15 @@ public sealed class Lineside
     /// <summary>
     /// The mail cranes along a route (the playtest's rewards, so there's something to reach for between the threats): every
     /// <see cref="SightTuning.DropSpacing"/> from the yard to the terminus's board, on either side, clear of tunnels, bridges,
-    /// facilities and junctions. From the route's seed, so every machine has the same.
+    /// facilities and junctions. From the route's seed, so every machine has the same. None while the mail's cut
+    /// (<see cref="SightTuning.MailCranes"/>, note 803).
     /// </summary>
     public static IEnumerable<Drop> Drops(SightTuning t, Route route)
     {
+        // The mail cut for now (queue #530, note 803; the director, 15 Oct 2026): with the switch off there are no cranes,
+        // so no boards, catches, HUD lines, sounds, bot errands or mail pay downstream of here.
+        if (!t.MailCranes)
+            yield break;
         var rng = new Pcg32(route.Seed, 0xD209);
         var kinds = new (DropKind Kind, double Weight)[]
         {
