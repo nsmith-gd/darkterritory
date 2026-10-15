@@ -229,6 +229,33 @@ public class LinesidePropsTests
     }
 
     [Fact]
+    public void TheWoodsKeepOffTheBuildings()
+    {
+        // Note 800 (note 797's "not yet"): the woods were dealt without asking where the lineside's buildings stand, and a
+        // spruce grew up through a barn or a burying ground's stones. No trunk, nor a boulder's lump, is inside a building's
+        // wall; a tree between its walls (in a burying ground's rows) stands.
+        foreach (var spec in new[] { "local:4", "deadLines:49", "deepTerritory:2", "local:1" })
+        {
+            var (_, train, side, _) = Night(spec);
+            var all = side.Props(0, train.Line.Length).ToList();
+            var buildings = all.Where(p => p.Kind == LinesideKind.Piece).Select(p => (Piece: p, Walls: side.WallsOf(p).ToList())).Where(b => b.Walls.Count > 0).ToList();
+            Assert.Contains(buildings, b => b.Piece.Species is "saltbox" or "barn" or "tank" or "buryingGround");
+            foreach (var p in all.Where(p => p.Kind is LinesideKind.Tree or LinesideKind.Rock))
+            {
+                double reach = p.Kind == LinesideKind.Tree ? p.Radius : side.Extent(p);
+                var at = Foot(train, p);
+                foreach (var (b, walls) in buildings.Where(b => Math.Abs(b.Piece.Along - p.Along) < 60))
+                    foreach (var w in walls)
+                    {
+                        var local = w.ToLocal(at);
+                        Assert.False(Math.Abs(local.X) < w.HalfLength + reach && Math.Abs(local.Z) < w.HalfWidth + reach,
+                            $"{spec}: a {p.Species} at {p.Along:0.0} m, {p.Lateral:0.0} out, stands in a {b.Species} at {b.Along:0.0}, {b.Lateral:0.0}");
+                    }
+            }
+        }
+    }
+
+    [Fact]
     public void AHomesteadStopsACrewmateWalkingAtIt()
     {
         // Note 389: a house by the country road stands on its footprint, the box round its walls and roof, turned to face
@@ -267,7 +294,7 @@ public class LinesidePropsTests
     {
         // Every kind of piece is dealt somewhere across the tiers, and stands as its footprint has it: a house, a car, a shed
         // one box; a church its nave and its tower; a tank round; a headframe on its four legs and its stay, open between; a
-        // burying ground and a wharf walked through.
+        // burying ground its stones and its fence's runs, open between its rows (note 797); a wharf walked through.
         var seen = new HashSet<string>();
         foreach (var spec in new[] { "local:4", "deadLines:49", "deepTerritory:2", "local:1", "deadLines:3" })
         {
@@ -282,12 +309,18 @@ public class LinesidePropsTests
                 {
                     case "church": Assert.Equal(2, walls.Count); break;
                     case "tank": Assert.Equal(2, walls.Count); break;
-                    case "wharf" or "buryingGround": Assert.Empty(walls); break;
+                    case "wharf": Assert.Empty(walls); break;
                     case "headframe":
                         Assert.Equal(5, walls.Count);
                         // Its foot, under the frame between the legs, is open ground.
                         var foot = Foot(train, p) + Double3.Up;
                         Assert.DoesNotContain(walls, w => Math.Abs(w.ToLocal(foot).X) < w.HalfLength && Math.Abs(w.ToLocal(foot).Z) < w.HalfWidth);
+                        break;
+                    case "buryingGround":
+                        // A wall to every stone and every run of the fence; its middle, between two rows of stones, is open.
+                        Assert.InRange(walls.Count, 20, 45);
+                        var middle = Foot(train, p) + Double3.Up;
+                        Assert.DoesNotContain(walls, w => Math.Abs(w.ToLocal(middle).X) < w.HalfLength && Math.Abs(w.ToLocal(middle).Z) < w.HalfWidth);
                         break;
                 }
                 foreach (var w in walls)

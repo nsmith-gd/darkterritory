@@ -967,4 +967,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [792. The railway's leavings beside the line solid: dealt by the sim, stood on their footprints, drawn from its list (queue #517, B1; GDD App.…](notes/792.md)
 - [793. The town flag's flutter never races (C1, queue #520; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 2: "The flag blowing in the…](notes/793.md)
 - [794. The woods keep off the railway's leavings (queue #521, B1; note 792's "not yet")](notes/794.md)
+- [797. A burying ground's stones and fence solid (queue #524, B1; note 389's "not yet"; GDD App. F.1, the director: "The world is solid")](notes/797.md)
+- [800. The woods keep off the lineside's buildings (queue #527, B1; note 797's "not yet"; GDD App. F.1, the director: "The world is solid")](notes/800.md)
 <!-- end of the notes index -->
