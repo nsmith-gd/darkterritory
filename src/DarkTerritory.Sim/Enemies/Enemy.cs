@@ -37,7 +37,9 @@ public enum EnemyKind : byte
     // The Pickers (GDD §21, the director's pick to prototype, 9 Oct 2026; note 592).
     Pickers = 42,
     // The house creatures (GDD §21, the director, 9 Oct 2026; notes 583–586).
-    Lodger = 43, Householder = 44, HollowHouse = 45, Hanger = 46
+    Lodger = 43, Householder = 44, HollowHouse = 45, Hanger = 46,
+    // The Mouse Moose (GDD §21, the director, 15 Oct 2026; note 790).
+    MouseMoose = 47
 }
 
 /// <summary>
@@ -245,6 +247,7 @@ public abstract class Enemy
         EnemyKind.Householder => new Householder(id),
         EnemyKind.HollowHouse => new HollowHouse(id),
         EnemyKind.Hanger => new Hanger(id),
+        EnemyKind.MouseMoose => new MouseMoose(id),
         _ => new ChoirGhost(id),
     };
 

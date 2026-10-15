@@ -1,0 +1,613 @@
+diff --git a/content/tuning/facilities.json b/content/tuning/facilities.json
+index a0bfd2ce..31e903d8 100644
+--- a/content/tuning/facilities.json
++++ b/content/tuning/facilities.json
+@@ -117,10 +117,10 @@
+     // reach), holds Use for "grabSeconds" (HOLD ON : HOLD [E]) and is on it: stood on it, a hand on the cable, "feetAbove" m
+     // over the hook, up to "riders" at once, "spread" m apart across it. The operator lifts, runs and lowers them as a load,
+     // but with someone on it the hook stops "headroom" m short of its top (crane.height), so their head stays under the bridge
+-    // and the trolley: on the foundry's 8 m gantry their feet top out at 6.35 m. Jump lets go, and the fall is the world's
+-    // (player.json landing: from 5.5 m a knock, from 7.5 m death), so off the top of this gantry it's a hard knock, not a death;
+-    // a taller one kills. A let-go after a lift that hurts or kills is the operator's in the report ("Dropped from the crane by
+-    // Dave, 6 m up."). With "shakeOff" and the CREW MISCHIEF switch on (note 724), the operator's Fire with nothing hooked
++    // and the trolley: on the foundry's 8 m gantry their feet top out at 6.35 m. Jump lets go, and the drop is a gag (note 802,
++    // the director, 15 Oct 2026: "a silly gag not a big grief"): player.json landing.offTheHook, a knock by the height of at
++    // most 10, never a death, from any gantry. A let-go after a lift that hurts is the operator's in the report ("Dropped from
++    // the crane by Dave, 6 m up."). With "shakeOff" and the CREW MISCHIEF switch on (note 724), the operator's Fire with nothing hooked
+     // shakes them off. Bots never take hold. "enabled": false, nobody does.
+     "hoist": { "enabled": true, "reach": 1.2, "height": [-0.4, 1.9], "grabSeconds": 0.6, "riders": 2, "feetAbove": 0.05, "spread": 0.45, "headroom": 1.7, "shakeOff": true }
+   },
+diff --git a/content/tuning/player.json b/content/tuning/player.json
+index 1fa80fb2..2b29d2a6 100644
+--- a/content/tuning/player.json
++++ b/content/tuning/player.json
+@@ -52,7 +52,15 @@
+     // ... I shouldn't take damage unless I like fully jump as high as I can go off the top of the train"): off a train going
+     // slower than standBelow (m/s), a stood train's footing is the ground's (note 573's off the ground): a crewmate's own walk
+     // or run is no knock, only the drop is (a car's roof and a jump's apex over it, 5.2 m, is under fallHurtFrom).
+-    "standBelow": 0.5
++    "standBelow": 0.5,
++    // ARCHITECTURE §8 note 802 (the director, 15 Oct 2026, on hoisting a friend, note 726: "If we're hoisting a player and
++    // dropping them lets make it so the player can only lose 10 health at most from a drop and then scale that based on
++    // height. It's a silly gag not a big grief"): a landing on the ground after letting go of a crane's hook, or being shaken
++    // off it, lift or no lift, knocks by the height fallen alone (m, by the speed it lands at): nothing from "from" or less
++    // (a step down off a low hook), rising evenly to "maxKnock" at "fullAt" (the foundry's gantry tops a rider's feet out at
++    // 6.35 m, so its top is the full knock) and no more however high. Never a death, and never below 1 health. The fall and
++    // speed rules above don't count. A landing on a car's roof is no knock, as for any drop onto the train.
++    "offTheHook": { "maxKnock": 10, "from": 1.0, "fullAt": 6.0 }
+   },
+   "ladder": {
+     "grabRange": 0.7,
+diff --git a/docs/ARCHITECTURE.md b/docs/ARCHITECTURE.md
+index 0bd808e6..e2348102 100644
+--- a/docs/ARCHITECTURE.md
++++ b/docs/ARCHITECTURE.md
+@@ -965,4 +965,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
+ - [791. The crew's clips for the upgrades: sat back in a Muskoka chair, a beer and a cheers, a sausage turned and eaten, the bow, the salute and…](notes/791.md)
+ - [792. The railway's leavings beside the line solid: dealt by the sim, stood on their footprints, drawn from its list (queue #517, B1; GDD App.…](notes/792.md)
+ - [793. The town flag's flutter never races (C1, queue #520; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 2: "The flag blowing in the…](notes/793.md)
++- [802. A drop off the crane's hook is a gag (K1, queue #529; the director, 15 Oct 2026, on note 726)](notes/802.md)
+ <!-- end of the notes index -->
+diff --git a/docs/design/friendslop.md b/docs/design/friendslop.md
+index c2b68b51..063111f5 100644
+--- a/docs/design/friendslop.md
++++ b/docs/design/friendslop.md
+@@ -65,7 +65,7 @@ runs a home that moves. Griefers, Hackers and Opportunists go to target.
+ | 457 | **Bringing them home.** The hand-up onto a moving car; carrying a live friend; helping a knocked-down friend up; a bandage put on someone else heals half again as much | 723 |
+ | 458 | **Sessions.** The crew's save travels with any member who hosts; a friend joining takes a bot's seat; kick and mute in public lobbies | 724 |
+ | 459 | **Cuts you can get back** (a car cut at a stand stays put; one cut at speed can be caught by backing up within the 400 m) and the chart table's lamp per crewmate aboard | 725 |
+-| 460 | **Hoist a friend** on the crane's hook | 726 |
++| 460 | **Hoist a friend** on the crane's hook (the drop a gag, at most 10 health by its height and never a death: the director, 15 Oct 2026, queue #529, note 802) | 726 |
+ | 461 | **The mail catch:** the bag snagged from the car door as the train passes a mail crane | 727 |
+ | 462 | **The sense table** (every item gives off or masks a sense the creatures answer: a thrown music box lures what hunts by sound, the extinguisher's cold drives the hounds back, a lamp shows what waits in a dark house) **and thrown things do what they are** (a lamp breaks into fire, a keg rolls and blows) | 728 |
+ | 463 | **The handcar:** a two-person pump trolley on a flatcar, for a branch, a friend left behind, or a race | 729 |
+diff --git a/docs/design/gdd.md b/docs/design/gdd.md
+index 5b92bf9a..d54b8d3a 100644
+--- a/docs/design/gdd.md
++++ b/docs/design/gdd.md
+@@ -633,7 +633,7 @@ Each stop of a kind has the module it's named for and two to four in all, drawn
+ 
+ **A load let go comes down** *(the director's evening playtest, 13 Oct: "It did unhook, but it sort of just stays there in the air, doesn't fall"; note 708)*. A casting unhooked or let go over a car comes down onto what's really under it: the car's floor through an open hatch, the load already in it, or its roof. It never rests on a heap that isn't there (an empty car has none), and the hook lowers it all the way down. Let go of high, it falls and crushes whoever's under it, as before.
+ 
+-**A friend on the hook** *(the director, 14 Oct 2026: "The griefer ideas are funny"; App. F.6; ARCHITECTURE §8 note 726)*. With the hook empty and low, and no casting there to rig, a crewmate with empty hands holds Use at it (**HOLD ON : HOLD [E]**) and stands on it, a hand on the cable. The operator lifts, runs and lowers them as a load, two at most, and the hook's lamp hangs over their heads. With someone on it the hook stops 1.7 m short of its top, so they never go up into the bridge. Jump lets go, and the fall is the world's: from 5.5 m a knock, from 7.5 m death (note 573). On the foundry's 8 m gantry a rider's feet top out at about 6.3 m, so a let-go from the top is a hard knock, and only a taller gantry kills. Being hoisted is the rider's own choice, so the grab is never gated, but a let-go after a lift that hurts or kills is the operator's in the report: *"Dropped from the crane by Dave, 6 m up."* With the CREW MISCHIEF switch on (§23.4), the operator's Fire with nothing hooked shakes them off (*"Shaken off the hook by Dave"*). Nobody carried can take hold, and bots never do. The numbers are in `facilities.json crane.hoist`.
++**A friend on the hook** *(the director, 14 Oct 2026: "The griefer ideas are funny"; App. F.6; ARCHITECTURE §8 note 726)*. With the hook empty and low, and no casting there to rig, a crewmate with empty hands holds Use at it (**HOLD ON : HOLD [E]**) and stands on it, a hand on the cable. The operator lifts, runs and lowers them as a load, two at most, and the hook's lamp hangs over their heads. With someone on it the hook stops 1.7 m short of its top, so they never go up into the bridge. Jump lets go. **The drop is a gag, not a grief** *(the director, 15 Oct 2026: "the player can only lose 10 health at most from a drop and then scale that based on height. It's a silly gag not a big grief"; ARCHITECTURE §8 note 802)*: coming off the hook, let go or shaken off, the landing costs nothing from a metre or less, rising with the height to 10 health at 6 m, and never more, from any gantry. It never kills, and never takes the last of anyone's health. The world's fall rules (note 573) don't apply to it. On the foundry's 8 m gantry a rider's feet top out at about 6.3 m, so a let-go from the top is the full 10. Being hoisted is the rider's own choice, so the grab is never gated, but a let-go after a lift that hurts is the operator's in the report: *"Dropped from the crane by Dave, 6 m up."* With the CREW MISCHIEF switch on (§23.4), the operator's Fire with nothing hooked shakes them off (*"Shaken off the hook by Dave"*). Nobody carried can take hold, and bots never do. The numbers are in `facilities.json crane.hoist`, and the drop's in `player.json landing.offTheHook`.
+ 
+ **Every facility is optional. Skipping them is safe and pays nothing:** the train leaves the fortress empty, and only what the crew load at the stops and carry out of the villages is paid at the gates (§1 *The fantasy*; the director, 9 Oct 2026, note 575). The payout exists to force bad decisions, not to reward good ones.
+ 
+diff --git a/docs/notes/726.md b/docs/notes/726.md
+index 150441ac..149f84c0 100644
+--- a/docs/notes/726.md
++++ b/docs/notes/726.md
+@@ -15,6 +15,7 @@ The audit's Griefers goal, cheap credited mischief. The director: "The griefer i
+      - **Headroom.** With someone on it, the hook stops `headroom` (1.7 m) short of `crane.height`, at 6.3 m on the foundry's 8 m gantry, so the rider's head stays under the bridge and the trolley.
+      - **Letting go.** Jump lets go: they're in the air on the hook's motion, and the fall is the world's (player.json `landing`, note 573).
+        - **The call made:** the spec wanted "from 7.5 m death". A rider stood on an 8 m gantry's hook can't get their feet that high without their head going through the bridge. So a let-go from the top of the foundry's gantry is a hard knock, about 48 of 100 health, not a death. A taller gantry (or more `headroom` taken off) kills, and the code path is tested on an 11 m one.
++       - **Superseded by note 802** (the director, 15 Oct 2026: "It's a silly gag not a big grief"): a drop off the hook is no longer the world's fall. It costs at most 10 health, by its height (player.json `landing.offTheHook`), and never kills, so `Dropped` is no longer set and the 11 m test is now a 10-health knock.
+        - Landing on a car's roof is never a knock (the motor's rule for any drop onto the train), so a rider set down on a roof and let go just stands there.
+      - **Who's to blame.** After a let-go, whoever last lifted the rider (`Crane.LastDriver`, kept past the operator's per-tick reset) is held against the landing:
+        - If it kills, the host turns `Fell` into the new death `Dropped` ("Dropped from the crane"; death screen "DROPPED FROM THE CRANE. YOU DID ASK"), and the report reads "Dropped from the crane by {actor}, 9 m up.".
+diff --git a/docs/notes/802.md b/docs/notes/802.md
+new file mode 100644
+index 00000000..d63a866e
+--- /dev/null
++++ b/docs/notes/802.md
+@@ -0,0 +1,38 @@
++802. **A drop off the crane's hook is a gag (K1, queue #529; the director, 15 Oct 2026, on note 726).**
++The director, on hoisting a friend (note 726, merged in #1046): "If we're hoisting a player and dropping them lets make it so the player can only lose 10 health at most from a drop and then scale that based on height. It's a silly gag not a big grief."
++
++   - **What it was:** a rider who let go of the hook (Jump), or was shaken off it (the operator's Fire, CREW MISCHIEF on), fell by the world's fall rules (`PlayerMotor.Land`, player.json `landing.fallHurtFrom` 5.5 / `fallLethalFrom` 7.5, note 573).
++     - From the top of the foundry's 8 m gantry a rider's feet are 6.35 m up, so a let-go knocked about 48 of 100.
++     - A taller gantry killed (`DeathCause.Dropped`, the operator's death in the report).
++   - **GDD §18 first** ("A friend on the hook": the drop is a gag, not a grief), and friendslop.md's #460 row.
++   - **Now** (`PlayerFlags.OffTheHook`, `PlayerMotor.Land`, `World.LetGo`, player.json `landing.offTheHook`):
++     - **The knock.** A landing on the ground after coming off the hook (let go or shaken off, lifted or not) knocks by the height fallen alone, measured by the speed it lands at as note 573's fall is:
++       - nothing from `from` (1.0 m) or less, a step down off a low hook;
++       - rising evenly to `maxKnock` (10) at `fullAt` (6.0 m), so the foundry's top (6.35 m) is the full 10;
++       - never more, from any gantry or at any speed (the hook's own run isn't counted);
++       - never a death, and never below 1 health (a rider on 5 lands on 1).
++       - Note 573's fall table and spec B.3's speed table don't apply to it. A landing on a car's roof is still no knock (the motor's rule for any drop onto the train).
++     - **Predicted.** The landing is the motor's, which a client re-simulates, so the motor has to know the player came off a hook. `PlayerFlags` was full (`Hoisted` took the ushort's last bit), so it's widened to a `uint`, and the new flag `OffTheHook` (65536) is its bit 16.
++       - The host sets it in `World.LetGo`, a host move that already bumps `Placed`, so a client adopts it with the rest.
++       - The motor clears it on any footing (with `OffTheGround` and `Shoved`), and `Land` clears it as it lands them.
++       - It's cleared where `Shoved` is, when someone is hauled up (`Rescue`'s hand-up), carried, or on a hook again.
++     - **The wire.** `WorldRecords` writes the flags as a `long` (`(long)s.Flags`) and reads them back with `(PlayerFlags)f[15]`, as signed varints, so nothing truncates at 16 bits. The Game's audio keeps a `PlayerFlags` copy (no cast). A recording (`.dtrec`, note 515) holds what the host's transport heard and a digest of what it sent, never a flags field of its own. Nothing hashes the flags apart from the records.
++     - **The report.** A hurt landing after a lift is still the lifter's faint line ("Dropped from the crane by Dave, 6 m up."; "Shaken off the hook by Dave, 6 m up."). `World.StepHoist` no longer turns a `Fell` into `Dropped`. `DeathCause.Dropped` is kept, as it's on the wire, with the HUD's and the report's text for it, but nothing sets it now.
++     - `facilities.json crane.hoist`'s comment points at `landing.offTheHook`. Its numbers are as they were.
++   - **Protocol 72** (renumbered at merge): `PlayerFlags` is a uint, and `OffTheHook` is new. The pins in `RejoinTests`, `CrewCapTests`, `SessionsTests`, `MaskPaintTests` and `EmotesForTwoTests` are updated.
++   - **Checked:**
++     - `HoistTests` (14, was 9):
++       - the gag's numbers are the director's (10, nothing at `from`, half at the middle, full at `fullAt` and past it);
++       - a let-go from the foundry's top: exactly 10, the flag set in the air and gone on landing, the report's line kept;
++       - an 11 m gantry (past `fallLethalFrom`): alive, exactly 10, no death in the attribution, the line "9 m up";
++       - a low drop (about 2 m): a small knock, the gag's for that height;
++       - a let-go with no lift, from as high as a crewmate can reach: the gag's knock, nobody in the report;
++       - on 5 health, a drop off the top leaves 1;
++       - `OffTheHook` with `Hoisted` and `Sooted` through a snapshot's delta bytes and back, whole.
++     - The whole `DarkTerritory.Sim.Tests` project, including `NetcodeTests` (prediction matches the host), `CraneTests`, `RescueTests`, `HorseplayTests`, `MovingFrameRegressionTests`, `DeterministicMathTests`, `AttributionTests` and the protocol pins.
++   - **Left for later:**
++     - A playtest's word on whether 10 off the top reads as a gag (a "thud" and a groan more than a hurt). The sound is AU1's: the landing's existing cues play as they are.
++
++**Handoff** (15 Oct, K1)
++- Done: built on K1's branch (K1.16), for K1 to integrate; protocol 72 at merge.
++- Next: nothing required. If the director wants the drop to read even sillier, a pratfall pose on landing is art's.
+diff --git a/src/DarkTerritory.Sim/Net/Messages.cs b/src/DarkTerritory.Sim/Net/Messages.cs
+index 7d92b96a..7acc0564 100644
+--- a/src/DarkTerritory.Sim/Net/Messages.cs
++++ b/src/DarkTerritory.Sim/Net/Messages.cs
+@@ -110,7 +110,9 @@ public static class Protocol
+     //     the emote byte (protocol 60) carries the new emotes 5-8 (the high five, the fist bump, the sit, the lean) as it is.
+     // 71: a friend on the crane's hook (note 726): the Crane record's last field counts the riders, a player's flags carry
+     //     Hoisted, and a death of its own (dropped from the crane).
+-    public const int Version = 71;
++    // 72: a drop off the crane's hook is a gag (note 802): a player's flags are a uint, past Hoisted the new OffTheHook (bit 16),
++    //     which a predicting client's landing reads.
++    public const int Version = 72;
+ }
+ 
+ public enum MessageType : byte
+diff --git a/src/DarkTerritory.Sim/Player/PlayerMotor.cs b/src/DarkTerritory.Sim/Player/PlayerMotor.cs
+index 704c2310..a80870e3 100644
+--- a/src/DarkTerritory.Sim/Player/PlayerMotor.cs
++++ b/src/DarkTerritory.Sim/Player/PlayerMotor.cs
+@@ -279,13 +279,14 @@ public enum DeathCause : byte
+     // Note 717: shoved off by a crewmate, and the landing (the train's speed, or the height) killed them; the report names who.
+     Shoved,
+     // Note 726: let go of the crane's hook (or shaken off it) after the operator lifted them, and the fall killed them; the
+-    // report names the operator.
++    // report names the operator. Note 802 (the director, 15 Oct 2026: "a silly gag not a big grief"): a drop off the hook no
++    // longer kills (PlayerFlags.OffTheHook), so nothing sets it now; kept, as it's on the wire and in old recordings.
+     Dropped
+ }
+ 
+ /// <summary>Conditions a player carries.</summary>
+ [Flags]
+-public enum PlayerFlags : ushort
++public enum PlayerFlags : uint
+ {
+     None = 0,
+     /// <summary>
+@@ -354,6 +355,14 @@ public enum PlayerFlags : ushort
+     /// leaves them be; they look, talk and let go (Jump). Set by the host each tick from who's on which hook (World.StepHoist).
+     /// </summary>
+     Hoisted = 32768,
++    /// <summary>
++    /// Off a crane's hook (note 802; the director, 15 Oct 2026: "It's a silly gag not a big grief"): let go of it or shaken off,
++    /// till they have footing again. A landing on the ground knocks by the height fallen alone, at most player.json
++    /// <c>landing.offTheHook.maxKnock</c>, and never kills (<see cref="OffTheHookTuning"/>). Set by the host as they come off
++    /// (World.LetGo, a host move), cleared by the motor on footing, here and on a predicting client alike. The first bit past
++    /// the old ushort's: protocol 72 widened the flags to a uint.
++    /// </summary>
++    OffTheHook = 65536,
+ }
+ 
+ /// <summary>
+@@ -639,7 +648,7 @@ public static class PlayerMotor
+         bool aloft = s.Surface == Surface.Air;
+         Move(ref s, input, train, p, t, dt, applyLook, self, crowd);
+         if (s.Surface != Surface.Air)
+-            s.Flags &= ~(PlayerFlags.OffTheGround | PlayerFlags.Shoved);
++            s.Flags &= ~(PlayerFlags.OffTheGround | PlayerFlags.Shoved | PlayerFlags.OffTheHook);
+         else if (!aloft)
+             s.Flags = onGround ? s.Flags | PlayerFlags.OffTheGround : s.Flags & ~PlayerFlags.OffTheGround;
+         // Note 717: a stagger wears off a tick at a time, here and on a predicting client alike.
+@@ -1233,13 +1242,25 @@ public static class PlayerMotor
+     /// </summary>
+     static void Land(ref PlayerState s, Double3 worldVelocity, PlayerTuning p, TrainTuning t)
+     {
++        var l = p.Landing;
++        // Note 802 (the director, 15 Oct 2026: "the player can only lose 10 health at most from a drop and then scale that based
++        // on height. It's a silly gag not a big grief"): off a crane's hook, the knock is the gag's, by the height fallen alone
++        // (the speed it lands at). The hook's own run and the fall and speed tables aren't counted, and it never kills.
++        if (s.Has(PlayerFlags.OffTheHook))
++        {
++            double drop = worldVelocity.Y < 0 ? worldVelocity.Y * worldVelocity.Y / (2 * p.Gravity) : 0;
++            int gag = (l.OffTheHook ?? OffTheHookTuning.Default).Knock(drop);
++            if (gag > 0 && s.Health > 1)
++                s.Health = Math.Max(1, s.Health - gag);
++            s.Flags &= ~PlayerFlags.OffTheHook;
++            return;
++        }
+         double horizontal = Math.Sqrt(worldVelocity.X * worldVelocity.X + worldVelocity.Z * worldVelocity.Z);
+         // Note 573: off the ground's own footing (a dip, a bank on open ground), the knock is for what's over their own run, not
+         // the run: spec B.3's table is for leaving the train, at its speed. frontier:7 seed 4's driver, running beside the train
+         // at a stand, took 29 coming down off a dip on the bank. Off a car, a ladder or a platform it's as ever.
+         if (s.Has(PlayerFlags.OffTheGround))
+             horizontal = Math.Max(0, horizontal - p.Run);
+-        var l = p.Landing;
+         // Note 717: off their feet from a friend's shove, a landing that kills is the shove's (the report names the shover); the
+         // shove's own speed knocks nobody (a shove on the flat, or off a roof at a stand, is no hurt), only the train's or the drop.
+         bool shoved = s.Has(PlayerFlags.Shoved);
+diff --git a/src/DarkTerritory.Sim/Player/PlayerTuning.cs b/src/DarkTerritory.Sim/Player/PlayerTuning.cs
+index 3df95afc..4ba2ea7e 100644
+--- a/src/DarkTerritory.Sim/Player/PlayerTuning.cs
++++ b/src/DarkTerritory.Sim/Player/PlayerTuning.cs
+@@ -181,8 +181,32 @@ public sealed record EmoteTuning(double Dance = 8, double Wave = 2.5, double Poi
+ /// The director's 14 Oct playtest, line 7 (note 717): off a train going slower than this (m/s), as off the ground's own footing,
+ /// a crewmate's own run is no knock (spec B.3's speed table is for leaving a moving train); 0 for the old rule.
+ /// </param>
++/// <param name="OffTheHook">Note 802: a landing after coming off a crane's hook, the gag's knock; null for its defaults.</param>
+ public sealed record LandingTuning(double RollAbove, int RollDamage, double LethalAbove = 0, int DamageAtLethal = 0, double FallHurtFrom = 0,
+-    double FallLethalFrom = 0, double StandBelow = 0);
++    double FallLethalFrom = 0, double StandBelow = 0, OffTheHookTuning? OffTheHook = null);
++
++/// <summary>
++/// Note 802 (the director, 15 Oct 2026, on hoisting a friend: "a silly gag not a big grief"): a landing after letting go of a
++/// crane's hook, or being shaken off it, knocks nothing from a drop of <see cref="From"/> m or less, rising evenly to
++/// <see cref="MaxKnock"/> at <see cref="FullAt"/> m and no more however far, and never kills. Mirror of player.json
++/// <c>landing.offTheHook</c>, where each field is documented.
++/// </summary>
++public sealed record OffTheHookTuning
++{
++    public static readonly OffTheHookTuning Default = new();
++    public int MaxKnock { get; init; } = 10;
++    public double From { get; init; } = 1.0;
++    public double FullAt { get; init; } = 6.0;
++
++    /// <summary>The knock for a landing after a drop of <paramref name="height"/> m (by the speed it lands at): 0 to <see cref="MaxKnock"/>.</summary>
++    public int Knock(double height)
++    {
++        if (MaxKnock <= 0 || height <= From)
++            return 0;
++        double k = FullAt > From ? Math.Min(1, (height - From) / (FullAt - From)) : 1;
++        return (int)Math.Round(MaxKnock * k);
++    }
++}
+ public sealed record LadderTuning(double GrabRange, double GrabMaxRelativeSpeed, double HatchLookUpDegrees = 25);
+ /// <summary>A VR player's reaching hand (T29). Field docs live in player.json.</summary>
+ public sealed record HandTuning(double Arm, double Overhead, double Grab);
+diff --git a/src/DarkTerritory.Sim/Player/Rescue.cs b/src/DarkTerritory.Sim/Player/Rescue.cs
+index 23e19989..5c1ace55 100644
+--- a/src/DarkTerritory.Sim/Player/Rescue.cs
++++ b/src/DarkTerritory.Sim/Player/Rescue.cs
+@@ -168,7 +168,7 @@ public static class Rescue
+         runner.Yaw = yaw;
+         runner.Surface = surface;
+         runner.LineHint = train.Cars[car].FrontDistance;
+-        runner.Flags &= ~(PlayerFlags.OffTheGround | PlayerFlags.Shoved | PlayerFlags.Crouched);
++        runner.Flags &= ~(PlayerFlags.OffTheGround | PlayerFlags.Shoved | PlayerFlags.OffTheHook | PlayerFlags.Crouched);
+         runner.Placed++;
+     }
+ 
+@@ -274,7 +274,7 @@ public static class Rescue
+         carried.Velocity = carrier.Velocity;
+         carried.Surface = carrier.Surface;
+         carried.LineHint = carrier.LineHint;
+-        carried.Flags = (carried.Flags | PlayerFlags.Carried) & ~(PlayerFlags.Crouched | PlayerFlags.OffTheGround | PlayerFlags.Shoved);
++        carried.Flags = (carried.Flags | PlayerFlags.Carried) & ~(PlayerFlags.Crouched | PlayerFlags.OffTheGround | PlayerFlags.Shoved | PlayerFlags.OffTheHook);
+     }
+ 
+     /// <summary>
+diff --git a/src/DarkTerritory.Sim/World.Hoist.cs b/src/DarkTerritory.Sim/World.Hoist.cs
+index 164b2582..c5963d77 100644
+--- a/src/DarkTerritory.Sim/World.Hoist.cs
++++ b/src/DarkTerritory.Sim/World.Hoist.cs
+@@ -7,10 +7,12 @@ namespace DarkTerritory.Sim;
+ /// <summary>
+ /// Hoisting a friend on the crane's hook, the host's side (GDD §18; ARCHITECTURE §8 note 726; the friendslop audit's griefers,
+ /// approved by the director, 14 Oct 2026: "The griefer ideas are funny"). A crewmate takes hold of an empty hook in reach
+-/// (Use held, crane.hoist.grabSeconds) and stands on it; the operator lifts, runs and lowers them as a load; Jump lets go and
+-/// the world's fall rules take it from there. Being hoisted is the rider's own choice, so the grab isn't gated; what is
+-/// mischief is the operator shaking them off (Fire with nothing hooked), only with the CREW MISCHIEF switch on. A let-go after
+-/// a lift that hurts or kills is the operator's in the report ("Dropped from the crane by Dave, 6 m up."). Who takes hold is
++/// (Use held, crane.hoist.grabSeconds) and stands on it; the operator lifts, runs and lowers them as a load; Jump lets go. The
++/// drop is a gag (note 802; the director, 15 Oct 2026: "It's a silly gag not a big grief"): the landing knocks by its height,
++/// at most player.json landing.offTheHook.maxKnock, and never kills (<see cref="PlayerFlags.OffTheHook"/>, in the motor, so a
++/// predicting client lands it alike). Being hoisted is the rider's own choice, so the grab isn't gated; what is mischief is the
++/// operator shaking them off (Fire with nothing hooked), only with the CREW MISCHIEF switch on. A let-go after a lift that
++/// hurts is the operator's in the report ("Dropped from the crane by Dave, 6 m up."). Who takes hold is
+ /// decided in each crewmate's act (<see cref="HoistAct"/>), and put on them once everyone's moved (<see cref="StepHoist"/>).
+ /// </summary>
+ public sealed partial class World
+@@ -121,8 +123,8 @@ public sealed partial class World
+     /// Note 726, host, once everyone has moved this tick (after the rescues, before the bodies): this tick's grabs and let-goes,
+     /// the operator's shake (mischief on), then every rider stood on their hook where it is, moving as it moves, in the world's
+     /// frame (the gantry stands in it; a rider who took hold from a car's roof leaves the car's). Anyone who's let go and since
+-    /// landed is done with; one the landing killed after a lift died of the drop (<see cref="DeathCause.Dropped"/>), and one it
+-    /// hurt has a line in the report.
++    /// landed is done with, and one the landing hurt after a lift has a line in the report. The landing never kills (note 802),
++    /// so <see cref="DeathCause.Dropped"/> isn't set any more.
+     /// </summary>
+     public void StepHoist(Func<int, PlayerState?> get, Action<int, PlayerState> set)
+     {
+@@ -198,26 +200,21 @@ public sealed partial class World
+             s.Position = crane.RiderFeet(on.IndexOf(id), on.Count);
+             s.Velocity = ride.Velocity;
+             s.Surface = Surface.Air;
+-            s.Flags = (s.Flags | PlayerFlags.Hoisted) & ~(PlayerFlags.Crouched | PlayerFlags.OffTheGround | PlayerFlags.Shoved);
++            s.Flags = (s.Flags | PlayerFlags.Hoisted) & ~(PlayerFlags.Crouched | PlayerFlags.OffTheGround | PlayerFlags.Shoved | PlayerFlags.OffTheHook);
+             set(id, s);
+         }
+         foreach (var crane in site?.Cranes ?? [])
+             crane.Riders = Riders(crane);
+-        // Off the hook and landed: alive, a knock is the lifter's line in the report; dead of the fall, the drop's.
++        // Off the hook and landed: a knock is the lifter's line in the report. The landing never kills (note 802: the motor's
++        // gag, PlayerFlags.OffTheHook); one dead of something else on the way down is done with.
+         foreach (var (id, fall) in _falling.ToList())
+         {
+-            if (get(id) is not { } s)
++            if (get(id) is not { } s || !s.Alive)
+             {
+                 _falling.Remove(id);
+                 continue;
+             }
+-            // Kept while they're dead: the report's line for the death is written once the bodies go down, after this.
+-            if (!s.Alive)
+-            {
+-                if (s.Death == DeathCause.Fell && fall.By >= 0)
+-                    set(id, s with { Death = DeathCause.Dropped });
+-            }
+-            else if (s.Surface != Surface.Air || s.Has(PlayerFlags.Hoisted))
++            if (s.Surface != Surface.Air || s.Has(PlayerFlags.Hoisted))
+             {
+                 if (s.Health < fall.Health && fall.By >= 0)
+                     Attribution.Add(new Incident(IncidentKind.Bonked, Run?.Seconds ?? Tick * SimConstants.TickSeconds, id, "Dropped from the crane",
+@@ -241,8 +238,10 @@ public sealed partial class World
+     }
+ 
+     /// <summary>
+-    /// A rider comes off the hook (note 726): in the air where they stood, on the hook's own motion, to fall by the world's rules.
+-    /// After a lift (or a shake), whose it was, and how high, till they land. A host move (<see cref="PlayerState.Placed"/>).
++    /// A rider comes off the hook (note 726): in the air where they stood, on the hook's own motion, to fall. The landing is the
++    /// gag's (note 802, <see cref="PlayerFlags.OffTheHook"/>: by its height, at most landing.offTheHook.maxKnock, never a death),
++    /// lift or no lift. After a lift (or a shake), whose it was, and how high, till they land. A host move
++    /// (<see cref="PlayerState.Placed"/>), so a client takes the flag with the rest.
+     /// </summary>
+     void LetGo(ref PlayerState s, int id, Ride ride, int by, bool shaken)
+     {
+@@ -251,6 +250,7 @@ public sealed partial class World
+         ride.Crane.Riders = Riders(ride.Crane);
+         if (!s.Alive || s.Has(PlayerFlags.Held) || !hoisted)
+             return;
++        s.Flags |= PlayerFlags.OffTheHook;
+         s.Surface = Surface.Air;
+         s.Velocity = ride.Velocity;
+         s.Placed++;
+diff --git a/tests/DarkTerritory.Sim.Tests/CrewCapTests.cs b/tests/DarkTerritory.Sim.Tests/CrewCapTests.cs
+index 6afed098..1c55586e 100644
+--- a/tests/DarkTerritory.Sim.Tests/CrewCapTests.cs
++++ b/tests/DarkTerritory.Sim.Tests/CrewCapTests.cs
+@@ -86,7 +86,7 @@ public class CrewCapTests
+         Assert.Equal("CREW FULL (8/8)", refusal.ToString());
+         Messages.WriteLeave(w);
+         Assert.Equal([(byte)MessageType.Leave], w.Written.ToArray());
+-        Assert.Equal(71, Protocol.Version);
++        Assert.Equal(72, Protocol.Version);
+         // The GDD's largest crew is the content's cap.
+         Assert.Equal(8, P.Crew.Cap);
+     }
+diff --git a/tests/DarkTerritory.Sim.Tests/EmotesForTwoTests.cs b/tests/DarkTerritory.Sim.Tests/EmotesForTwoTests.cs
+index b8511363..4ca730e8 100644
+--- a/tests/DarkTerritory.Sim.Tests/EmotesForTwoTests.cs
++++ b/tests/DarkTerritory.Sim.Tests/EmotesForTwoTests.cs
+@@ -110,7 +110,7 @@ public class EmotesForTwoTests
+                 Assert.Equal(cycle, frames[0].Intent.Cycle);
+                 Assert.Equal(2, frames[0].Intent.Select);
+             }
+-        Assert.Equal(71, Protocol.Version);
++        Assert.Equal(72, Protocol.Version);
+     }
+ 
+     [Fact]
+diff --git a/tests/DarkTerritory.Sim.Tests/HoistTests.cs b/tests/DarkTerritory.Sim.Tests/HoistTests.cs
+index 4949e821..e9b4ca62 100644
+--- a/tests/DarkTerritory.Sim.Tests/HoistTests.cs
++++ b/tests/DarkTerritory.Sim.Tests/HoistTests.cs
+@@ -10,7 +10,8 @@ namespace DarkTerritory.Sim.Tests;
+ /// <summary>
+ /// A friend on the crane's hook (GDD §18; ARCHITECTURE §8 note 726; the friendslop audit's griefers, the director, 14 Oct 2026:
+ /// "The griefer ideas are funny"): a crewmate takes hold of the empty hook and rides it, the operator lifts, runs and lowers
+-/// them as a load, Jump lets go and the world's fall rules take over, and the report names the operator for a drop that hurt.
++/// them as a load, Jump lets go, the drop is a gag (note 802; the director, 15 Oct 2026: "It's a silly gag not a big grief": at
++/// most 10 health by its height, never a death), and the report names the operator for a drop that hurt.
+ /// </summary>
+ public class HoistTests
+ {
+@@ -183,26 +184,47 @@ public class HoistTests
+         Assert.DoesNotContain(IncidentLog.Lines(y.World, 0, 0, _ => false), l => l.Victim == Friend);
+     }
+ 
++    /// <summary>Note 802: the gag's knock for a drop of <paramref name="height"/> m, worked from player.json's numbers here.</summary>
++    static int Gag(double height)
++    {
++        var g = P.Landing.OffTheHook!;
++        return height <= g.From ? 0 : (int)Math.Round(g.MaxKnock * Math.Min(1, (height - g.From) / (g.FullAt - g.From)));
++    }
++
++    [Fact]
++    public void TheGagsNumbersAreTheDirectors()
++    {
++        // Note 802 (the director, 15 Oct 2026): "the player can only lose 10 health at most from a drop and then scale that based
++        // on height".
++        var g = Assert.IsType<OffTheHookTuning>(P.Landing.OffTheHook);
++        Assert.Equal(10, g.MaxKnock);
++        Assert.Equal(0, g.Knock(g.From));
++        Assert.Equal(g.MaxKnock / 2, g.Knock((g.From + g.FullAt) / 2));
++        Assert.Equal(g.MaxKnock, g.Knock(g.FullAt));
++        Assert.Equal(g.MaxKnock, g.Knock(100));
++    }
++
+     [Fact]
+-    public void LetGoFromTheTopItsAKnockAndTheReportNamesWhoLiftedThem()
++    public void LetGoFromTheTopItsTheGagsFullKnockAndTheReportNamesWhoLiftedThem()
+     {
+-        // Note 573's fall by height: the foundry's gantry tops a rider's feet out at 6.35 m, between fallHurtFrom (5.5) and
+-        // fallLethalFrom (7.5): a hard knock, the operator's in the report.
++        // Note 802: the foundry's gantry tops a rider's feet out at 6.35 m, past landing.offTheHook.fullAt: the full knock of 10,
++        // no more (note 573's fall table would have taken about 48), and the operator's in the report.
+         var y = new Yard();
+         y.HookOverGround(1.2);
+         y.FriendBesideTheHook();
+         y.TakeHold();
+         y.Run(C.Height / C.HoistSpeed + 1, id => id == Operator ? Up : default);
+         double feet = y.At(Friend).Y - (y.Crane.HookAt.Y - y.Crane.Hook);
+-        Assert.InRange(feet, P.Landing.FallHurtFrom, P.Landing.FallLethalFrom);
++        Assert.True(feet > P.Landing.OffTheHook!.FullAt, $"feet {feet:0.00} m up");
+         y.Run(Dt, id => id == Friend ? Jump : default);
++        Assert.True(y.Players[Friend].Has(PlayerFlags.OffTheHook));
+         Assert.Equal(Operator, y.World.DroppedBy(Friend));
+         y.Run(2);
+         var her = y.Players[Friend];
+         Assert.True(her.Alive);
+         Assert.Equal(Surface.Ground, her.Surface);
+-        int knock = (int)Math.Round(P.Landing.RollDamage + (P.Health - P.Landing.RollDamage) * (feet - P.Landing.FallHurtFrom) / (P.Landing.FallLethalFrom - P.Landing.FallHurtFrom));
+-        Assert.InRange(P.Health - her.Health, knock - 6, knock + 6);
++        Assert.False(her.Has(PlayerFlags.OffTheHook));
++        Assert.Equal(P.Landing.OffTheHook.MaxKnock, P.Health - her.Health);
+         var line = Assert.Single(IncidentLog.Lines(y.World, 0, 0, _ => false), l => l.Victim == Friend);
+         Assert.Equal("Priya", line.Who);
+         Assert.Matches(@"^Dropped from the crane .+\. Dropped from the crane by Dave, 6 m up\.$", line.Text);
+@@ -210,8 +232,9 @@ public class HoistTests
+     }
+ 
+     [Fact]
+-    public void OffATallerGantryTheDropKillsAndTheDeathIsTheOperators()
++    public void OffATallerGantryItsStillTheGagNeverADeath()
+     {
++        // Note 802: an 11 m gantry puts a rider's feet past note 573's fallLethalFrom; off the hook it's still the gag's 10.
+         var tall = FacilityTests.F with { Crane = C with { Height = 11 } };
+         var y = new Yard(tall);
+         y.HookOverGround(1.2);
+@@ -222,11 +245,100 @@ public class HoistTests
+         y.Run(Dt, id => id == Friend ? Jump : default);
+         y.Run(2.5);
+         var her = y.Players[Friend];
+-        Assert.False(her.Alive);
+-        Assert.Equal(DeathCause.Dropped, her.Death);
+-        var death = Assert.Single(y.World.Attribution.Of(IncidentKind.Death));
+-        Assert.Equal((Friend, Operator, "Dropped from the crane"), (death.Victim, death.Actor, death.What));
+-        Assert.Equal("Dropped from the crane by {actor}, 9 m up.", death.Action);
++        Assert.True(her.Alive);
++        Assert.Equal(DeathCause.None, her.Death);
++        Assert.Equal(Surface.Ground, her.Surface);
++        Assert.Equal(P.Landing.OffTheHook!.MaxKnock, P.Health - her.Health);
++        Assert.Empty(y.World.Attribution.Of(IncidentKind.Death));
++        var line = Assert.Single(IncidentLog.Lines(y.World, 0, 0, _ => false), l => l.Victim == Friend);
++        Assert.EndsWith("Dropped from the crane by Dave, 9 m up.", line.Text);
++    }
++
++    [Fact]
++    public void ALowDropIsASmallKnockByItsHeight()
++    {
++        // Note 802: lifted to about 2 m over the ground and let go, the knock is the gag's for that height (a couple of health).
++        var y = new Yard();
++        y.HookOverGround(1.2);
++        y.FriendBesideTheHook();
++        y.TakeHold();
++        y.Run(1, id => id == Operator ? Up : default);
++        y.Run(Dt);
++        double feet = y.At(Friend).Y - (y.Crane.HookAt.Y - y.Crane.Hook);
++        Assert.InRange(feet, 1.7, 2.4);
++        y.Run(Dt, id => id == Friend ? Jump : default);
++        y.Run(1.5);
++        var her = y.Players[Friend];
++        Assert.Equal(Surface.Ground, her.Surface);
++        int knock = P.Health - her.Health;
++        Assert.InRange(knock, 1, P.Landing.OffTheHook!.MaxKnock / 2);
++        Assert.InRange(knock, Gag(feet) - 1, Gag(feet) + 1);
++        Assert.Contains(IncidentLog.Lines(y.World, 0, 0, _ => false), l => l.Victim == Friend);
++    }
++
++    [Fact]
++    public void LetGoWithNoLiftItsStillTheGagAndNobodysFault()
++    {
++        // Taken hold of as high as a crewmate can reach and let go without anyone lifting them: still off the hook, so the gag's
++        // knock by the height (a little, from about 1.9 m), and nobody's in the report.
++        var y = new Yard();
++        y.HookOverGround(H.Height[1] - 0.05);
++        y.FriendBesideTheHook();
++        y.TakeHold();
++        double feet = y.At(Friend).Y - (y.Crane.HookAt.Y - y.Crane.Hook);
++        Assert.True(feet > P.Landing.OffTheHook!.From + 0.5, $"feet {feet:0.00} m up");
++        y.Run(Dt, id => id == Friend ? Jump : default);
++        Assert.Null(y.World.DroppedBy(Friend));
++        Assert.True(y.Players[Friend].Has(PlayerFlags.OffTheHook));
++        y.Run(2);
++        var her = y.Players[Friend];
++        Assert.True(her.Alive);
++        Assert.Equal(Surface.Ground, her.Surface);
++        Assert.InRange(P.Health - her.Health, Math.Max(1, Gag(feet) - 1), Gag(feet) + 1);
++        Assert.DoesNotContain(IncidentLog.Lines(y.World, 0, 0, _ => false), l => l.Victim == Friend);
++    }
++
++    [Fact]
++    public void OffTheHookCrossesTheWirePastTheOldSixteenBits()
++    {
++        // Note 802: PlayerFlags widened to a uint for OffTheHook (bit 16); a snapshot carries it, with Hoisted's bit, whole.
++        var y = new Yard();
++        y.HookOverGround(1.2);
++        y.FriendBesideTheHook();
++        y.TakeHold();
++        y.Run(2, id => id == Operator ? Up : default);
++        y.Run(Dt, id => id == Friend ? Jump : default);
++        var flags = y.Players[Friend].Flags | PlayerFlags.Hoisted | PlayerFlags.Sooted;
++        Assert.True(flags.HasFlag(PlayerFlags.OffTheHook));
++        Assert.True((uint)flags > ushort.MaxValue);
++        var records = WorldRecords.Capture(y.World, new TrainControls(), [new PlayerSnapshot(Friend, y.Players[Friend] with { Flags = flags })]);
++        var w = new Ballast.Net.NetWriter();
++        WorldRecords.WriteDelta(w, records, null);
++        var r = new Ballast.Net.NetReader(w.Written);
++        var read = WorldRecords.ReadDelta(ref r, null);
++        var client = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 0)), y.Train.Line, 1000, Tuning.Boiler));
++        client.EnableRun(Tuning.Run, y.World.Run!.Route, 600, authority: false, FacilityTests.F);
++        var controls = new TrainControls();
++        var players = new List<PlayerSnapshot>();
++        WorldRecords.Apply(read, client, ref controls, players);
++        Assert.Equal(flags, Assert.Single(players, p => p.Id == Friend).State.Flags);
++    }
++
++    [Fact]
++    public void TheGagNeverTakesTheLastHealth()
++    {
++        // Note 802: on 5 health, the full knock off the top leaves them on 1, not dead.
++        var y = new Yard();
++        y.HookOverGround(1.2);
++        y.FriendBesideTheHook();
++        y.TakeHold();
++        y.Run(C.Height / C.HoistSpeed + 1, id => id == Operator ? Up : default);
++        y.Players[Friend] = y.Players[Friend] with { Health = 5 };
++        y.Run(Dt, id => id == Friend ? Jump : default);
++        y.Run(2);
++        var her = y.Players[Friend];
++        Assert.True(her.Alive);
++        Assert.Equal(1, her.Health);
+     }
+ 
+     [Fact]
+diff --git a/tests/DarkTerritory.Sim.Tests/MaskPaintTests.cs b/tests/DarkTerritory.Sim.Tests/MaskPaintTests.cs
+index 80455407..1fee3bd4 100644
+--- a/tests/DarkTerritory.Sim.Tests/MaskPaintTests.cs
++++ b/tests/DarkTerritory.Sim.Tests/MaskPaintTests.cs
+@@ -67,7 +67,7 @@ public class MaskPaintTests
+         Messages.ReadPaints(ref r, into);
+         Assert.Equal(paint, into[2]);
+         Assert.Equal(new MaskPaint(1, 0, 0), into[0]);
+-        Assert.Equal(71, Protocol.Version);
++        Assert.Equal(72, Protocol.Version);
+     }
+ 
+     [Fact]
+diff --git a/tests/DarkTerritory.Sim.Tests/RejoinTests.cs b/tests/DarkTerritory.Sim.Tests/RejoinTests.cs
+index e233b892..60752876 100644
+--- a/tests/DarkTerritory.Sim.Tests/RejoinTests.cs
++++ b/tests/DarkTerritory.Sim.Tests/RejoinTests.cs
+@@ -86,7 +86,7 @@ public class RejoinTests
+         r = new NetReader(w.Written);
+         r.U8();
+         Assert.Equal(key, Messages.ReadHello(ref r).Key);
+-        Assert.Equal(71, Protocol.Version);
++        Assert.Equal(72, Protocol.Version);
+     }
+ 
+     [Fact]
+diff --git a/tests/DarkTerritory.Sim.Tests/SessionsTests.cs b/tests/DarkTerritory.Sim.Tests/SessionsTests.cs
+index 4f2a08d9..87000eda 100644
+--- a/tests/DarkTerritory.Sim.Tests/SessionsTests.cs
++++ b/tests/DarkTerritory.Sim.Tests/SessionsTests.cs
+@@ -384,6 +384,6 @@ public class SessionsTests
+         r = new NetReader(w.Written);
+         r.U8();
+         Assert.Equal(RefusalReason.Kicked, Messages.ReadRefused(ref r).Reason);
+-        Assert.Equal(71, Protocol.Version);
++        Assert.Equal(72, Protocol.Version);
+     }
+ }

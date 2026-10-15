@@ -172,6 +172,7 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
             {
                 intent = Heed.Mourners(intent, session.Predicted, session.World, me, hand);
                 intent = Heed.Beetle(intent, session.Predicted, session.World, me);
+                intent = Heed.MouseMoose(intent, session.Predicted, session.World);
                 intent = Heed.TowerJaw(intent, session.Predicted, session.World, me, hand);
                 intent = Heed.Knotter(intent, session.Predicted, session.World, me, hand);
             }

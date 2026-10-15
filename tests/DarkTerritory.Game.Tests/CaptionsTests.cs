@@ -94,6 +94,10 @@ public class CaptionsTests
     [InlineData("tell-house.creak")]
     [InlineData("world-bell.far")]
     [InlineData("world-dog.bark")]
+    // Note 786: the odd outcomes, the council bell and what answers the can.
+    [InlineData("place-town.bell")]
+    [InlineData("world-odd.well-splash")]
+    [InlineData("world-odd.bark")]
     public void TheTellsAndCallsSinceCaptionsAreCaptioned(string sound)
     {
         // Note 391: the signs as they play since note 342, the Moose's and the Gannet's tells (notes 334, 384), and the jobs
