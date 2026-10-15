@@ -2063,6 +2063,16 @@ public static partial class Hud
         DeathCause.Shoved => "SHOVED OFF. SOME FRIEND",
         // Note 726: off the crane's hook after a friend lifted you.
         DeathCause.Dropped => "DROPPED FROM THE CRANE. YOU DID ASK",
+        // Note 682: each house creature, and each that had borrowed another's line, named for itself.
+        DeathCause.Lodger => "THE LODGER. YOU STAYED IN ITS HOUSE",
+        DeathCause.Hanger => "HAULED UP INTO THE ROOF. YOU TOUCHED THE STRANDS",
+        DeathCause.Householder => "THE HOUSEHOLDER. YOU TOOK WHAT YOU HADN'T PAID FOR",
+        DeathCause.HollowHouse => "THE HOUSE CAME DOWN ON YOU. YOU WERE STILL INSIDE",
+        DeathCause.Brakeman => "LASHED BY THE BRAKEMAN ON THE ROOFS",
+        DeathCause.Hotbox => "BITTEN BY THE THING IN THE AXLE BOX",
+        DeathCause.TowerJaw => "BITTEN BY TOWER JAW. YOU CAME TOO CLOSE",
+        DeathCause.Grumbler => "MAULED BY THE GRUMBLER. YOU HIT IT, OR SOMEONE DID",
+        DeathCause.Pickers => "BITTEN BY THE PICKERS, OVER A CRATE",
         DeathCause.None => "",
         _ => cause.ToString().ToUpperInvariant(),
     };
