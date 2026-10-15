@@ -77,7 +77,7 @@ public class RescueHudTests
         Assert.Null(Hud.Prompt(new Seat(world, 1, carrying, [(2, friend)])));
         Assert.Equal(["PUT DOWN : [E]"], Hud.Hints(new Seat(world, 1, carrying, [(2, friend)])).Lines);
         world.CrewMischief = true;
-        Assert.Equal(["PUT DOWN : [E]", "THROW : [RMB]"], Hud.Hints(new Seat(world, 1, carrying, [(2, friend)])).Lines);
+        Assert.Equal(["PUT DOWN : [E]", "THROW : [T]"], Hud.Hints(new Seat(world, 1, carrying, [(2, friend)])).Lines);
         // Carried: the way off the shoulder.
         var carried = friend with { Flags = PlayerFlags.Carried };
         var (head, lines) = Hud.Hints(new Seat(world, 2, carried, [(1, carrying)]));
