@@ -56,6 +56,12 @@ public static class TrendMetrics
             Put(m, "pacing.longestQuietSeconds", Num(pacing["longestQuietSeconds"]));
             Put(m, "pacing.quietOver30", Num(pacing["quietOver30"]));
         }
+        // The driver at the brake (note 820): each application is heard, and tapping it to hold a speed was a machine-gun.
+        if (report["driving"] is JsonObject driving)
+        {
+            Put(m, "driving.brakesPerMinute", Num(driving["perMinute"]));
+            Put(m, "driving.brakeTaps", Num(driving["taps"]));
+        }
         Put(m, "net.downKbps", Num(report["downKbpsPerClient"]));
         Put(m, "net.upKbps", Num(report["upKbpsPerClient"]));
         Put(m, "net.maxCorrectionM", Num(report["maxCorrectionM"]));
