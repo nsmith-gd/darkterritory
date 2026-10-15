@@ -96,6 +96,11 @@
    "said": "bridge",
    "seconds": 0.397
   },
+  "broken": {
+   "file": "broken",
+   "said": "broken",
+   "seconds": 0.46
+  },
   "brook": {
    "file": "brook",
    "said": "brook",
@@ -171,6 +176,16 @@
    "said": "child survivors",
    "seconds": 0.966
   },
+  "chipped": {
+   "file": "chipped",
+   "said": "chipped",
+   "seconds": 0.355
+  },
+  "church bell": {
+   "file": "church-bell",
+   "said": "church bell",
+   "seconds": 0.56
+  },
   "coal": {
    "file": "coal",
    "said": "coal",
@@ -231,10 +246,20 @@
    "said": "cotter",
    "seconds": 0.357
   },
+  "cracked": {
+   "file": "cracked",
+   "said": "cracked",
+   "seconds": 0.369
+  },
   "crane": {
    "file": "crane",
    "said": "crane",
    "seconds": 0.366
+  },
+  "crate of glass": {
+   "file": "crate-of-glass",
+   "said": "crate of glass",
+   "seconds": 0.753
   },
   "crew": {
    "file": "crew",
@@ -251,10 +276,20 @@
    "said": "crossing",
    "seconds": 0.462
   },
+  "cut-glass decanter": {
+   "file": "cut-glass-decanter",
+   "said": "cut-glass decanter",
+   "seconds": 0.999
+  },
   "deck": {
    "file": "deck",
    "said": "deck",
    "seconds": 0.245
+  },
+  "dented": {
+   "file": "dented",
+   "said": "dented",
+   "seconds": 0.385
   },
   "depot": {
    "file": "depot",
@@ -636,6 +671,11 @@
    "said": "manifest follows",
    "seconds": 0.955
   },
+  "mantel clock": {
+   "file": "mantel-clock",
+   "said": "mantel clock",
+   "seconds": 0.712
+  },
   "marrin": {
    "file": "marrin",
    "said": "marrin",
@@ -901,6 +941,11 @@
    "said": "rope",
    "seconds": 0.268
   },
+  "safe": {
+   "file": "safe",
+   "said": "safe",
+   "seconds": 0.389
+  },
   "sallow": {
    "file": "sallow",
    "said": "sallow",
@@ -936,6 +981,11 @@
    "said": "seventy",
    "seconds": 0.479
   },
+  "ship's figurehead": {
+   "file": "ship-s-figurehead",
+   "said": "ship's figurehead",
+   "seconds": 0.796
+  },
   "siding": {
    "file": "siding",
    "said": "siding",
@@ -955,6 +1005,11 @@
    "file": "sixty",
    "said": "sixty",
    "seconds": 0.476
+  },
+  "smashed": {
+   "file": "smashed",
+   "said": "smashed",
+   "seconds": 0.54
   },
   "stage": {
    "file": "stage",

@@ -1319,9 +1319,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         }
         else if (Hit(Control.Use) && session.World.TownOf(session.Player) is { } town && Hud.TownTarget(session) is var spoken && townTalk.Use(town, spoken, now))
             useKept = spoken is not { Kind: DarkTerritory.Sim.Towns.TownTargetKind.Person } hosting || !town.Plan.People[hosting.Index].Hosting;
-        // Dave's card is this machine's alone; Jacob's press goes on to the host as well (a word with him mends the train).
+        // Dave's card is this machine's alone; Jacob's press goes on to the host as well (a word with him mends the train), and
+        // so does Dave's while he's a painting to give (note 730: sat with a while, held).
         else if (Hit(Control.Use) && Hud.Prompt(session) is { } atFigure && FigureTalk.Target(session) is { } figure && atFigure == FigureTalk.Prompt(figure)
-            && figureTalk.Use(figure, now) && figure is not DarkTerritory.Sim.Enemies.Jacob)
+            && figureTalk.Use(figure, now) && figure is not DarkTerritory.Sim.Enemies.Jacob && session.World.DaveToSitWith(session.Player) is null)
             useKept = true;
         if (!Held(Control.Use))
             useKept = false;
@@ -1803,6 +1804,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.AnswerShowSeconds = session.World.Director?.Tuning.Draw.ShowSeconds ?? 7;
         // Watched afoot (note 327): eyes toward what lives at the stop.
         scene.Watcher = session.World.Watcher;
+        // The night's odd things at the stops (note 730): a new night's are its own.
+        scene.Oddities = session.World.Oddities;
         scene.WatcherShowSeconds = session.World.Director?.Tuning.Afoot.SignSeconds ?? 3.5;
         // How long the Stoker's been waiting on the stack, as seen here (presentation only: it's put in by the host's own clock).
         stokerSince = session.World.StokerWaiting ? stokerSince < 0 ? scene.Time : stokerSince : -1;

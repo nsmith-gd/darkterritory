@@ -713,6 +713,7 @@ public sealed partial class GreyboxScene
             Strikes(mesh, Look.Art.Effects, line, hint, frames, eye);
         }
         Coal(mesh, eye);
+        OddThings(mesh, line, eye);
         Memory(mesh, frames, eye);
         Lap(mesh, "effects");
         mesh.Seed = 0;
@@ -1957,7 +1958,9 @@ public sealed partial class GreyboxScene
     void CraneLamps(MeshBuilder mesh, Sim.Run.Crane crane, IReadOnlyList<CarFrame> frames, Double3 eye)
     {
         var w = WorkLight;
-        var lamp = V(crane.HookAt + Double3.Up * w.HookAbove, eye);
+        // A friend stood on the hook (note 726) is its load: the lamp on the cable hangs over their head, not in their chest.
+        double above = crane.Riders > 0 ? Math.Max(w.HookAbove, crane.Tuning.Hoist.FeetAbove + RiderHeadroom) : w.HookAbove;
+        var lamp = V(crane.HookAt + Double3.Up * above, eye);
         mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * w.HookIntensity, w.HookRange));
         mesh.Billboard(lamp, 0.12f, 0, new Vector4(Palette.LampAmber * 1.4f, 1), -1, FxBlend.Additive);
         Double3 sum = default;
@@ -1971,6 +1974,9 @@ public sealed partial class GreyboxScene
         if (stacked > 0)
             mesh.PointLights.Add(new PointLight(V(sum * (1.0 / stacked) + Double3.Up * w.StackHeight, eye), Palette.LampAmber * w.StackIntensity, w.StackRange));
     }
+
+    /// <summary>A crewmate's height and a hand's breadth over it (m): where the hook's lamp hangs over a rider (note 726).</summary>
+    const double RiderHeadroom = 2.0;
 
     readonly List<(double Distance, Double3 At)> _groundFinds = [];
 

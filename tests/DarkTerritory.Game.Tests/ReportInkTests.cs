@@ -28,7 +28,7 @@ public sealed class ReportInkTests : IDisposable
         IncidentKind.BroughtIn, IncidentKind.Marked];
     static readonly IncidentKind[] WentWell = [IncidentKind.Rescue, IncidentKind.Slain, IncidentKind.Sang];
     static readonly IncidentKind[] Faint = [IncidentKind.Grab, IncidentKind.Voted, IncidentKind.Punished, IncidentKind.Drawn, IncidentKind.Bonked,
-        IncidentKind.Signalled, IncidentKind.Whimsy];
+        IncidentKind.Signalled, IncidentKind.Letter, IncidentKind.Whimsy];
 
     [Theory]
     [InlineData(HudColours.Standard)]

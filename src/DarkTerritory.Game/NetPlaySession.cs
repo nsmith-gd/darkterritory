@@ -1204,6 +1204,9 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         if (Watching >= 0 && Client.TryGetRemote((byte)Watching, alpha, out var s))
             return Eyes.Operator(s, World) ?? Eyes.From(s, s, frames, alpha, 0, 0, World.Movement?.Crouch.EyeDrop ?? 0);
         var eyes = Eyes.Operator(Player, World) ?? Eyes.From(Player, _previous, frames, alpha, pendingYaw, pendingPitch, World.Movement?.Crouch.EyeDrop ?? 0);
+        // Sat on an edge (note 722): the eyes down where a sitter's are, as the crew see you.
+        if (Player.Alive && Art.CrewActs.EmoteOf(PlayerId, Player, World).Kind == Sim.Player.Emote.SitEdge)
+            eyes = eyes with { Position = eyes.Position - Double3.Up * (Eyes.Height - Eyes.SatOnEdge) };
         // A Ribbit pack on you (note 558): down on your back with them, from when they got onto you.
         double now = (Tick + alpha) * SimConstants.TickSeconds;
         if (Player.Alive && Eaten(frames) is { } holder)
@@ -1322,9 +1325,11 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         foreach (byte id in Client.RemoteIds)
             if (Client.TryGetRemote(id, alpha, out var s))
                 _states.Add(s);
+        // Everyone by id too (note 722: a high five's partner, a dance-off).
+        var byId = CrewStates(alpha);
         foreach (byte id in Client.RemoteIds)
             if (Client.TryGetRemote(id, alpha, out var s))
-                _crew.Add(Art.CrewActs.Crewmate(id, s, World, frames, _states));
+                _crew.Add(Art.CrewActs.Crewmate(id, s, World, frames, _states, byId));
         return _crew;
     }
 

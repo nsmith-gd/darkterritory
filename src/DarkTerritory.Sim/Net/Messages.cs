@@ -104,12 +104,18 @@ public static class Protocol
     // 68: sound cues in the world (note 732): a record kind of their own (boards creaking where a house creature waits, the
     //     Householder shifting in its chair, a far bell for what's been lost, a dog barking at the lamps' edge), and what worked
     //     a coupling's pin loose on its car's record (the wound and seized byte's bits 2 up), a bend taken too fast among them.
-    // 69: the train upgrades (notes 698–745): the vehicle record carries the BBQ deck's grill charcoal and cooler beers (its
+    // 69: odd outcomes (note 730): what they did (RecordKind.Odd) and the stops' odd things' state (RecordKind.Oddity), and the
+    //     report's letters (IncidentKind.Letter).
+    // 70: emotes for two (note 722): an emote record carries the tick a high five's or fist bump's hands met and with whom;
+    //     the emote byte (protocol 60) carries the new emotes 5-8 (the high five, the fist bump, the sit, the lean) as it is.
+    // 71: a friend on the crane's hook (note 726): the Crane record's last field counts the riders, a player's flags carry
+    //     Hoisted, and a death of its own (dropped from the crane).
+    // 72: the train upgrades (notes 698–745): the vehicle record carries the BBQ deck's grill charcoal and cooler beers (its
     //     32nd and 33rd fields; the fire cells after them); the body kinds Beer, Sausage, Instrument (which, its ninth
     //     field), Caboose, FishingRod, Fish, GrilledFish, Cat, Dog and TennisBall (the caboose's and the pets' Tipped in the
     //     ninth field); the player flags Lounging and Playing (PlayerFlags is a uint now: the ushort was full); the world
-    //     record's band tune and first tick, and the whimsies' state; the emotes Bow, Salute and Conga past note 740's Aboard.
-    public const int Version = 69;
+    //     record's band tune and first tick, and the whimsies' state; the emotes Bow, Salute and Conga (9-11, the places note 722 kept).
+    public const int Version = 72;
 }
 
 public enum MessageType : byte

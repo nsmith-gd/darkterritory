@@ -85,8 +85,13 @@ public sealed partial class SceneArt(Look look)
         if (pose == CrewPose.Idle && c.Emote != Sim.Player.Emote.None)
             pose = c.Emote switch
             {
-                Sim.Player.Emote.Dance => CrewPose.Dance,
+                // Note 722: dancers facing each other are a dance-off, the lead going round them.
+                Sim.Player.Emote.Dance => c.EmoteWith.Dancers >= 2 ? CrewPose.DanceOff : CrewPose.Dance,
                 Sim.Player.Emote.Wave or Sim.Player.Emote.Aboard => CrewPose.Wave,
+                Sim.Player.Emote.HighFive => CrewPose.HighFive,
+                Sim.Player.Emote.FistBump => CrewPose.FistBump,
+                Sim.Player.Emote.SitEdge => CrewPose.SitEdge,
+                Sim.Player.Emote.LeanOut => CrewPose.LeanOut,
                 Sim.Player.Emote.Bow => CrewPose.Bow,
                 Sim.Player.Emote.Salute => CrewPose.Salute,
                 Sim.Player.Emote.Conga => CrewPose.Conga,
@@ -150,7 +155,8 @@ public sealed partial class SceneArt(Look look)
             // Up a ladder by how far up it they are, not by the clock: one cycle of crew_clips' climb is two rungs climbed,
             // so the hands and feet stay on the rungs at any pace and stop when the climber does (a Look Review note).
             CrewPose.Climb or CrewPose.ClimbCarry => at.Y / ClimbCycleRise * ClimbCycleSeconds,
-            CrewPose.Dance or CrewPose.Wave or CrewPose.Point or CrewPose.Bow or CrewPose.Salute or CrewPose.Conga => c.EmoteSeconds,
+            CrewPose.Dance or CrewPose.Wave or CrewPose.Point or CrewPose.HighFive or CrewPose.FistBump or CrewPose.DanceOff or CrewPose.SitEdge
+                or CrewPose.LeanOut or CrewPose.Bow or CrewPose.Salute or CrewPose.Conga => c.EmoteSeconds,
             _ => time,
         };
         var right = new Vector3((float)Math.Cos(c.Yaw), 0, (float)-Math.Sin(c.Yaw));
@@ -191,7 +197,7 @@ public sealed partial class SceneArt(Look look)
         bool drawn = Creatures.Crewmate(mesh, m, pose, clipTime, c.Variant, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)), ToolProp(c.Holding),
             hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor), body: HeadsetBody(c, pose, time), carried: kit, sooted: c.Sooted,
             // (A Passenger's id is 200 and the face it wears, GreyboxScene.AsCrewmate: it wears that crewmate's number too.)
-            mask: new CreatureArt.MaskLook(c.Paint, CrewSigil, (c.Id >= 200 ? c.Id - 200 : c.Id) % 9 + 1));
+            mask: new CreatureArt.MaskLook(c.Paint, CrewSigil, (c.Id >= 200 ? c.Id - 200 : c.Id) % 9 + 1), emote: c.EmoteWith);
         // The hat rack's (note 714): on the head, over the cap or helmet.
         if (drawn && c.Hat > 0 && HatKit.Of(Look, c.Hat) is { } hat)
             Creatures.Wear(mesh, hat, "head", m, CreatureArt.FigureOf(c.Survivor));

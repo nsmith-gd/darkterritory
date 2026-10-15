@@ -291,7 +291,26 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 # Note 776: the crew car's and the logbook's real things first (the glass's ring, the powder, the leather,
                 # the sheet, the clap), the models candidates.
                 "crew-car.kettle": "spout", "crew-memory.flash": "powder", "crew-memory.open": "leather",
-                "crew-memory.page": "sheet", "crew-memory.shut": "clap"}
+                "crew-memory.page": "sheet", "crew-memory.shut": "clap",
+                # Notes 781 and 784: the real things first (the packs' iron ring, glass and tin, a real crackle, the train's own
+                # rumble pitched up for small wheels); the hound's steam leading its yelp, so the spray's heard working; the
+                # handcar's modelled shoe, whose squeal keeps more of itself under the tells' band than the real scrape's grind.
+                "world-rail-knock.knock": "clank", "crew-lamp-broken.smash": "shatter", "crew-lamp-broken.burn": "crackle",
+                "cs-hounds-doused.doused": "steam", "crew-handcar.creak": "pivot", "crew-handcar.joint": "tick",
+                "crew-handcar.roll": "rumble", "crew-handcar.brake": "shoe", "crew-handcar.set": "iron",
+                "crew-handcar.hang": "chains",
+                # Notes 782 and 783: the kitbashed ones first (the packs' real boards, leather, iron, oak, glass and bell
+                # round the crew's modelled voices), the models candidates.
+                "crew-rescue.haul": "boards", "crew-rescue.lift": "coats", "crew-rescue.set": "boards", "crew-rescue.throw": "swing",
+                "loot-jackpot.lift-iron": "boards", "loot-jackpot.lift-bell": "boards", "loot-jackpot.lift-wood": "boards",
+                "loot-jackpot.set-iron": "boards", "loot-jackpot.set-wood": "oak", "loot-jackpot.bell": "bronze",
+                "loot-fragile.glass": "crate", "loot-fragile.decanter": "cut", "loot-fragile.clock": "mantel",
+                # Note 785: the packs' real slams, iron, creaks and chair first; the far bell's proper minor-third partials
+                # (the packs' real bell is a small gong-like one) and the modelled farm dog (the roar sped up may read as
+                # something not quite a dog: never a creature).
+                "state-coupling-loose.jump-brake": "slack", "state-coupling-loose.jump-coupled": "clash",
+                "state-coupling-loose.jump-bend": "groan", "tell-house.creak": "board", "tell-householder.shift": "chair",
+                "world-bell.far": "partials", "world-dog.bark": "collie"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the
@@ -430,6 +449,8 @@ LAYER_EXTRAS = {
     # The scream climbs as the bend pulls harder (note 265: the stress telegraph; GameAudio.BedWheels sets "stress", the
     # scream's share of the stress's last half): two semitones from where it starts to where the train comes off.
     "state-derail.flange-scream": {"rate": {"param": "stress", "points": [[0, 0.94], [1, 1.06]]}},
+    # The handcar's roll, built at a moderate run (about 6 m/s), up and down with its speed (GameAudio.Handcar sets "speed").
+    "crew-handcar.roll": {"rate": {"param": "speed", "points": [[1, 0.8], [6, 1.0], [12, 1.2]]}},
 }
 
 
@@ -514,6 +535,23 @@ CUE_DEF = {
     "crew-car.cuckoo": {"minDistance": 1, "maxDistance": 18, "rolloff": 1.0},
     "crew-memory.flash": {"minDistance": 3, "maxDistance": 80, "rolloff": 1.0},
     **{f"crew-memory.{c}": {"flat": True, "tier": 4} for c in ("open", "page", "shut")},
+    # The sense table (note 781): a knock on the rails rings down them, heard along the line; a lamp's glass and oil carry
+    # across a yard, its small fire about it.
+    "world-rail-knock.knock": {"tier": 4, "minDistance": 4, "maxDistance": 200, "rolloff": 0.8},
+    "crew-lamp-broken.smash": {"minDistance": 2, "maxDistance": 80, "rolloff": 1.0},
+    "crew-lamp-broken.burn": {"minDistance": 1, "maxDistance": 30, "rolloff": 1.0},
+    # Big finds (note 783): the bell's ring carries; glass breaking across a house and its street.
+    "loot-jackpot.bell": {"minDistance": 3, "maxDistance": 120, "rolloff": 0.9},
+    **{f"loot-fragile.{c}": {"minDistance": 2, "maxDistance": 50, "rolloff": 1.0} for c in ("glass", "decanter", "clock")},
+    # The handcar (note 784): out on the open line, heard from the train up the line behind it.
+    **{f"crew-handcar.{c}": {"minDistance": 2, "maxDistance": 120, "rolloff": 0.9} for c in ("roll", "brake", "creak", "set", "hang")},
+    # Its joints under the riders' feet, each axle's: built at -21 LUFS, kept nearer the train's own clack (-27 to -29).
+    "crew-handcar.joint": {"minDistance": 2, "maxDistance": 120, "rolloff": 0.9, "gainDb": -3},
+    # Sound cues in the world (note 785): a house's boards from its door and its street; what's lost far off, a bell from
+    # where it was lost; a dog at the lamps' edge and beyond it.
+    "tell-house.creak": {"minDistance": 1, "maxDistance": 30, "rolloff": 1.0},
+    "world-bell.far": {"tier": 4, "minDistance": 60, "maxDistance": 2000, "rolloff": 0.5},
+    "world-dog.bark": {"tier": 4, "minDistance": 20, "maxDistance": 600, "rolloff": 0.7},
 }
 
 

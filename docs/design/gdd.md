@@ -314,6 +314,10 @@ A very few people live outside the walls and aren't anybody's prey. They are rar
 - **What it doesn't touch.** The cargo and what it's worth, the finds, the coal in the tender and the powder: they're supplies, not the train's condition, and the night's tally stays the crew's. A car already lost stays lost.
 - **Once a night.** After that he says so ("There. She'll run like the morning she was built. Go on, now, before the tide turns.").
 
+### 3.3 Odd things *(the director, 14 Oct 2026, App. F.6; ARCHITECTURE §8 note 730)*
+
+Odd things happen in the towns and at the stops, by design, unexplained. A few things in the world answer when they're poked, and nothing in the game or the Wiki says which or how: crews find them, tell each other, and argue about what they mean. None hurts anyone or solves a creature. What they are is kept for the team in note 730, and nowhere a player reads.
+
 ## 4. The player's place in it
 
 The players are freight crews. Not elite soldiers. Not monster hunters. Not chosen heroes.
@@ -397,6 +401,16 @@ Until the train passes the outer gate, the fortress yard and the lobby are a saf
 - the train doesn't move off unless someone in the cab lets the brake off and drives it out through the gate.
 
 The run, and every consequence in it, begins as the train goes through the gate (run.json `yardIsSafe`). Emotes (a dance, a wave, a point) and outfits to try on are ARCHITECTURE §8 note 298. In the yard each player can also paint their mask (PAINT YOUR MASK, on the night's menu and in the settings): the crew see the new paint at once. Past the gate, a change waits for the next night (§29 "Painted masks"; the director, 14 Oct 2026; ARCHITECTURE §8 note 731).
+
+**Emotes for two, and more of them** *(the director, 14 Oct 2026, App. F.6; ARCHITECTURE §8 note 722)*. Emotes that need a second person are a friend's thing by definition. The emote wheel (hold J) has twelve places round the crosshair like a clock: DANCE at the top, WAVE to the left, POINT to the right, ABOARD at the bottom, as before; HIGH FIVE and FIST BUMP up beside the dance; SIT and LEAN OUT down beside the point. Three places are kept for the bow, the salute and the conga (the "more emotes" upgrade), and one is free. Anywhere, yard or night, and none of them moves anything:
+
+- **The high five.** Pick it and your hand goes up, offered, for up to 3 s. A crewmate within 1.5 m, the two of you facing each other, who picks it too answers it: the hands meet with a slap, both of you on the same tick. Left unanswered, the hand hangs there, sagging a little, till it runs out. Bots answer one held up to them (they turn to you, stop, and slap it a beat later); bots never offer.
+- **The fist bump.** The same, a fist held out low, with a knock.
+- **The dance-off.** Two or more dancing within 3 m, facing each other, are a dance-off: one leads with the big moves while the rest clap along, and the lead goes round them every 2 s.
+- **Sitting on the edge.** On a car's roof by its side, on a door landing or a running board by its edge, or in an open side door (the edge across the sill and the landing), you sit with your legs over. You stay sat in the car's frame, at any speed, while you look about; any move or a jump stands you up. A shove still puts you off (at speed, that can kill: §23.4), and a friend who picks you up lifts you off the edge.
+- **Leaning out.** In a car's open side door or the cab's doorway, you lean out with a hand on the jamb, your head free to look where you look. You stand up the same way.
+
+Over a friend's shoulder you can't emote at all (§23.5). `player.json emotes`.
 
 ### Arrival
 Eventually the crew sees lights. Then walls. Then cannon towers. The gates open and the train crosses back into civilization.
@@ -620,6 +634,8 @@ Each stop of a kind has the module it's named for and two to four in all, drawn 
 **The cab rides the bridge, on the stack's side** *(the director's playtest, 14 Oct: "Again, my train is blocking the view of the loot, so I can't actually see where it is effectively ... So I'm doing a bit of guesswork here"; note 736)*. The cab used to stand on the gantry's near leg, across the track from the castings, so the operator looked over the cars at the stack and their roofs hid the ground round it. Now it hangs under the bridge's far end, outboard of the stack, and travels with the bridge. The castings lie under and in front of the operator, with nothing between, and the car stands clear beyond them, its open hatch seen from above. The control stand is still at the foot of the near leg, where the crew can reach it. The car's near side, behind the car from the cab, is out of sight, and so is anyone ducked under the bridge's girders. Crewmates there still have to call the position (spec D.2).
 
 **A load let go comes down** *(the director's evening playtest, 13 Oct: "It did unhook, but it sort of just stays there in the air, doesn't fall"; note 708)*. A casting unhooked or let go over a car comes down onto what's really under it: the car's floor through an open hatch, the load already in it, or its roof. It never rests on a heap that isn't there (an empty car has none), and the hook lowers it all the way down. Let go of high, it falls and crushes whoever's under it, as before.
+
+**A friend on the hook** *(the director, 14 Oct 2026: "The griefer ideas are funny"; App. F.6; ARCHITECTURE §8 note 726)*. With the hook empty and low, and no casting there to rig, a crewmate with empty hands holds Use at it (**HOLD ON : HOLD [E]**) and stands on it, a hand on the cable. The operator lifts, runs and lowers them as a load, two at most, and the hook's lamp hangs over their heads. With someone on it the hook stops 1.7 m short of its top, so they never go up into the bridge. Jump lets go, and the fall is the world's: from 5.5 m a knock, from 7.5 m death (note 573). On the foundry's 8 m gantry a rider's feet top out at about 6.3 m, so a let-go from the top is a hard knock, and only a taller gantry kills. Being hoisted is the rider's own choice, so the grab is never gated, but a let-go after a lift that hurts or kills is the operator's in the report: *"Dropped from the crane by Dave, 6 m up."* With the CREW MISCHIEF switch on (§23.4), the operator's Fire with nothing hooked shakes them off (*"Shaken off the hook by Dave"*). Nobody carried can take hold, and bots never do. The numbers are in `facilities.json crane.hoist`.
 
 **Every facility is optional. Skipping them is safe and pays nothing:** the train leaves the fortress empty, and only what the crew load at the stops and carry out of the villages is paid at the gates (§1 *The fantasy*; the director, 9 Oct 2026, note 575). The payout exists to force bad decisions, not to reward good ones.
 
@@ -2884,6 +2900,7 @@ genre ... It's extremely important that friends exceeds our target meaningfully.
   two.** *Queue #452, #453.*
 - The rest of docs/design/friendslop.md §3 goes ahead (queue #450–#466). Among it, **bringing them home**: the hand-up onto
   a moving car (§17), carrying a living friend and a bandage on someone else (§23.5). *Queue #457, note 723.*
+- **Odd outcomes to find,** about ten, never in the Wiki: odd things happen in the towns and at the stops, unexplained (§3.3). *Queue #464, note 730.*
 
 ## F.5 2026-10-13 — the creature gym, Test build 21 (ca0d37e)
 

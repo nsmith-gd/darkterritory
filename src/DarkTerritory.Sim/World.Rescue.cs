@@ -192,6 +192,8 @@ public sealed partial class World
                         || !Rescue.CanHelp(by) || _carriedBy.ContainsKey(r.By) || _carriedBy.ContainsValue(r.By))
                         break;
                     _carriedBy[r.Target] = r.By;
+                    // Note 722: a friend sat on an edge (or leant out, or holding a hand up) is lifted off it: the emote ends.
+                    Emotes.RemoveAll(e => e.By == r.Target);
                     set(r.By, by with { Flags = by.Flags | PlayerFlags.Carrying | PlayerFlags.Heavy });
                     Rescue.Follow(ref them, by, Train, t);
                     them.Placed++;

@@ -102,12 +102,48 @@ public enum PlayerMoves : byte
 /// crew see it; nothing in the sim acts on it. Note 740: "Aboard!", the call back to the horn (GDD §17); past the hotbar
 /// byte's two bits, an emote rides a byte of its own.
 /// </summary>
-/// <remarks>Bow, Salute and Conga are the "more emotes" upgrade's (note 714): the host takes them only from a train that has it.
-/// The conga's a dance its players walk in, each following whoever started before them (the client's own steering).</remarks>
-public enum Emote : byte { None, Dance, Wave, Point, Aboard, Bow, Salute, Conga }
+/// <summary>Note 298's emotes; note 740: "Aboard!", the call back to the horn (GDD §17); note 722, the emotes for two and the edges.</summary>
+/// <remarks>
+/// On the wire an emote is six bits (note 740's byte of its own, the wheel's step in its top two): values 0-63. Note 722 uses
+/// 5-8; 9-11 are kept for U1's "more emotes" upgrade (docs/design/upgrades.md §4: the bow, the salute, the conga), which
+/// leaves 52 free (12-63) once those are in, with no wire change.
+/// </remarks>
+public enum Emote : byte
+{
+    None, Dance, Wave, Point, Aboard,
+    /// <summary>
+    /// Note 722: a hand held up, offered; a crewmate within emotes.reach, the two facing, who picks it too answers it, and the
+    /// hands meet (both records carry the tick they met). Unanswered, it hangs there till emotes.highFive runs out.
+    /// </summary>
+    HighFive,
+    /// <summary>Note 722: the same as the high five, a fist held out low.</summary>
+    FistBump,
+    /// <summary>
+    /// Note 722: sat on a roof's side edge or an open side door's sill, legs over (<see cref="EmoteRules.SitAt"/>). Held till
+    /// the sitter moves, jumps or is moved (a shove, a lift); the motor does nothing new, a crewmate stood still in a car's
+    /// frame stays there.
+    /// </summary>
+    SitEdge,
+    /// <summary>Note 722: leant out of a car's open side door or the cab's doorway, a hand on the rail (<see cref="EmoteRules.LeanAt"/>); held as the sit is.</summary>
+    LeanOut,
+    /// <summary>
+    /// Note 714: the "more emotes" upgrade's (9-11, the places note 722 kept): the host takes them only from a train that
+    /// has it. The conga's a dance its players walk in, each following whoever started before them (the client's own steering).
+    /// </summary>
+    Bow = 9,
+    Salute = 10,
+    Conga = 11,
+}
 
-/// <summary>An emote as the crew see it (note 298): unique for the night (its record's key), the host tick it began, whose, which.</summary>
-public readonly record struct EmoteEvent(int Id, uint Tick, int By, Emote Kind);
+/// <summary>
+/// An emote as the crew see it (note 298): unique for the night (its record's key), the host tick it began, whose, which.
+/// Note 722: a high five or fist bump answered carries the tick the hands met (<paramref name="Meet"/>, 0 while it's only
+/// offered) and with whom (<paramref name="With"/>, −1 for nobody); both of the pair's records carry the same.
+/// </summary>
+public readonly record struct EmoteEvent(int Id, uint Tick, int By, Emote Kind, uint Meet = 0, int With = -1)
+{
+    public bool Met => Meet != 0;
+}
 
 /// <summary>
 /// A lamp signal (GDD §12; the director's calls of 14 Oct 2026, friendslop.md queue #454; note 720), given with a hand lamp in
@@ -248,7 +284,10 @@ public enum DeathCause : byte
     // Note 573: came down from too high (off a bridge's deck, down a bank's drop).
     Fell,
     // Note 717: shoved off by a crewmate, and the landing (the train's speed, or the height) killed them; the report names who.
-    Shoved
+    Shoved,
+    // Note 726: let go of the crane's hook (or shaken off it) after the operator lifted them, and the fall killed them; the
+    // report names the operator.
+    Dropped
 }
 
 /// <summary>Conditions a player carries.</summary>
@@ -318,12 +357,17 @@ public enum PlayerFlags : uint
     /// </summary>
     Pumping = 16384,
     /// <summary>
+    /// Riding a crane's hook (note 726, hoisting a friend): stood on it, a hand on its cable, the feet the hook's, so the motor
+    /// leaves them be; they look, talk and let go (Jump). Set by the host each tick from who's on which hook (World.StepHoist).
+    /// </summary>
+    Hoisted = 32768,
+    /// <summary>
     /// Sat in one of the BBQ deck's Muskoka chairs (note 698): still, low, looking down the line. Jump, or Use again, gets you
     /// up. Not <see cref="Seated"/>, which is a gun's (the census, the Gannet and the bots read that as on the gun).
     /// </summary>
-    Lounging = 32768,
+    Lounging = 65536,
     /// <summary>Playing the band's instrument in their hands (note 700): every machine hears it, on the band's tune.</summary>
-    Playing = 65536,
+    Playing = 131072,
 }
 
 /// <summary>
@@ -634,8 +678,9 @@ public static class PlayerMotor
         if (!s.Alive)
             return;
 
-        // Carried over a friend's shoulder (note 723): your feet are theirs; the host puts you where they go.
-        if (s.Has(PlayerFlags.Carried))
+        // Carried over a friend's shoulder (note 723): your feet are theirs; the host puts you where they go. Riding a crane's
+        // hook (note 726), they're the hook's.
+        if (s.Has(PlayerFlags.Carried) || s.Has(PlayerFlags.Hoisted))
             return;
 
         // Held (App. A.1 GRAB): your feet are the thing's now. What moves you is what holds you.

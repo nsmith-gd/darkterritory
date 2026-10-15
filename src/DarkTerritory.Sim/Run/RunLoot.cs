@@ -65,6 +65,12 @@ public sealed partial class Run
     /// <summary>A creature's trophy's owner (the Gannet's head, note 340): a find that's the kind's, not a stop's.</summary>
     public static int TrophyOwner(Enemies.EnemyKind kind) => LootOwner(TrophyStop, (int)kind);
 
+    /// <summary>The "stop" an odd outcome's find's owner names (note 730): Dave's painting, the coin up the well.</summary>
+    public const int OddStop = 0xFFE;
+
+    /// <summary>Dave's painting's owner (note 730; its "container" 0) and the well's coin's (1).</summary>
+    public static int OddOwner(bool coin) => LootOwner(OddStop, coin ? 1 : 0);
+
     /// <summary>
     /// The "container" a stop's first comet fragment's owner names (note 718), the next the next: past any layout's own
     /// containers, so a client names a fragment from its body as it names a find.
@@ -195,6 +201,13 @@ public sealed partial class Run
             return _loot is { } lt && _route is { } r && lt.Trophies.TryGetValue(Enemies.Director.Key((Enemies.EnemyKind)container), out var trophy)
                 ? new LootFind(container, trophy.Item, trophy.PerCar * Tuning.Economy.PerCar.GetValueOrDefault(StopLoot.TierKey(r.Tier), 700))
                 : null;
+        // An odd outcome's (note 730): run.json oddities, its share of the tier's car-load. The same on every machine.
+        if (stop == OddStop)
+        {
+            var odd = Tuning.Oddities;
+            var (item, share) = container == 1 ? (odd.Well.CoinItem, odd.Well.CoinPerCar) : (odd.Painting.Item, odd.Painting.PerCar);
+            return new LootFind(container, item, share * Tuning.Economy.PerCar.GetValueOrDefault(StopLoot.TierKey(_route.Tier), 700));
+        }
         if (stop < 0 || stop >= _stopLoot.Count)
             return null;
         // What lies on the jackpot house's floor (note 719): a village find, worth its kind's at the tier.
