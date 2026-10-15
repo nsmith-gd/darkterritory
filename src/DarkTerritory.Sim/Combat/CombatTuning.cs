@@ -33,6 +33,11 @@ public sealed record GunTuning(double RoundsPerSecond, double Range, double Trav
     /// <summary>Seconds of Use held at the gun per step.</summary>
     public double ReloadStepSeconds { get; init; } = 1.5;
     /// <summary>
+    /// Note 752 (GDD §12, one can, two do it faster): how fast two pairs of hands on the reload work it together, against one's 1
+    /// (a third adds nothing). 1: two as fast as one.
+    /// </summary>
+    public double LoaderRate { get; init; } = 1;
+    /// <summary>
     /// A shot takes nothing from the gun's stock or rack (the director, 13 Oct evening, note 689: "let them fire and reload
     /// as much as they want, infinite ammo"): the reload is the cost. False: the night's stock and the rack (note 374).
     /// </summary>

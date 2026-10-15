@@ -152,7 +152,8 @@ public class LockerTests
         int shelves = Lockers.Slots(world.Train);
         Assert.True(shelves >= 4, $"{shelves} shelves");
         var toys = Enumerable.Range(0, shelves).Select(i => world.Bodies.SpawnCrate(world.Train, car, new Double3(room.Centre.X, room.Min.Y + 0.1, room.Centre.Z + i * 0.5), BodyKind.Toy)).ToList();
-        var radio = world.Bodies.All.First(b => b.Kind == BodyKind.Radio && b.Parent != 0);
+        // A loose set (note 749: there are none with a radio each, every one worn), for the locker to turn away.
+        var radio = world.Bodies.SpawnCrate(world.Train, car, new Double3(room.Centre.X + 0.4, room.Min.Y + 0.1, room.Centre.Z), BodyKind.Radio);
         foreach (var toy in toys)
             Assert.True(world.Bodies.Stow(toy, world.Train, car, bay.Index));
         Assert.Equal(Lockers.Slots(world.Train), Lockers.Contents(world.Bodies, car, bay.Index).Count());
