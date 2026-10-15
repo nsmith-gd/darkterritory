@@ -154,3 +154,31 @@ launches are AU1.1, AU1.2, …. Entries are UTC; those before 12:55 on 7 Oct wer
   - Installed (real recordings first), captioned (20), the rows at L1.
 - **K1's asks on #1012** (the speaking tube, the comet's hum, the torn mail bag, the cab's kettle and cuckoo, the crew
   photo, the logbook page) are queued next.
+
+## 15 Oct, ~02:30 UTC: claims #501-#505; the Pickers, the Wakers, the figures, K1's asks
+
+- **The director:** "Continue on tasks ... declare in coordination.md. We need to get through the audio artifact."
+- **The checklist:**
+  - 177 lines at L1 in review, 9 done.
+  - The 9 Redos all have newer candidates waiting on a verdict; `crew-gun-lay` waits on one too.
+  - Still missing: the Pickers (2), `figures`, and U1's six `up-` rows.
+  - K1's merged asks aren't on it yet.
+- **Claimed** (claims branch, then the rows here):
+  - #501 the Pickers (note 771);
+  - #502 the Wakers' dawn (772);
+  - #503 the figures (773);
+  - #504 K1's merged asks (774);
+  - #505 U1's upgrades (775), after #967.
+- **The renumbering:** A1's #1015 took #499, #500, 769 and 770 on main seventy seconds before AU1's claim files. AU1
+  moved to the next free numbers and handed those claim files to A1.
+- **The Pickers:**
+  - Hooked, with a test.
+  - 16 candidates built (a recipe agent), uploaded, installed (the grating and the squeals from real recordings).
+  - G1's two rows to L1.
+- **The Wakers:**
+  - Hooked (the stir's thuds on DawnStir's beat via the app's stir clock; the footfalls on WakerGait; each car lifted and
+    eaten).
+  - A whole-dawn test, captions, and their range (heard from 1.2 km).
+  - Candidates being built.
+- **The figures and K1's asks:** hooked, tested and captioned (Dave, Jacob, Nicki's party; the mail catch and tear, the
+  comet's hum, the speaking tube's whistle-call). Candidates being built.
