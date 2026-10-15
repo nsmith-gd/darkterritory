@@ -167,6 +167,38 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     // own so the rest don't grow with them. A layer's slot there is BigHero + its index.
     GpuTexture _bigDiffuse, _bigSpec, _bigNormal;
     int[] _heroSlot = [];
+    // Those nine arrays as this renderer holds them: perhaps shared with others on its device (MaterialArrays).
+    MaterialArrays _materials;
+
+    /// <summary>
+    /// The material arrays a look's layers make (the layers' diffuse, spec and normal maps, and the hero arrays at their
+    /// sizes): the bulk of a renderer's memory, two gigabytes or so for the look's layers, and on lavapipe the machine's own.
+    /// Renderers on one device dressed from the same layers share one upload, counted and freed with the last of them
+    /// (ARCHITECTURE §8 note 804): `dt perf`'s eyes and the tests' renderers each took their own, and three at once took
+    /// the Linux CI runner past its memory. Nothing writes into an array once it's up.
+    /// </summary>
+    sealed class MaterialArrays
+    {
+        public required GpuTexture Diffuse, Spec, Normal, HeroDiffuse, HeroSpec, HeroNormal, BigDiffuse, BigSpec, BigNormal;
+        public required int[] HeroSlot;
+        public int Users;
+
+        public void Dispose()
+        {
+            foreach (var t in new[] { Diffuse, Spec, Normal, HeroDiffuse, HeroSpec, HeroNormal, BigDiffuse, BigSpec, BigNormal })
+                t.Dispose();
+        }
+    }
+
+    /// <summary>What a set of material arrays is made from: the very layers (by reference: a look's are read once), sized and sampled alike.</summary>
+    readonly record struct MaterialKey(IReadOnlyList<MaterialLayer> Layers, int LayerSize, int HeroSize, int BigHeroSize, float MipBias)
+    {
+        public bool Equals(MaterialKey other) => ReferenceEquals(Layers, other.Layers) && LayerSize == other.LayerSize && HeroSize == other.HeroSize
+            && BigHeroSize == other.BigHeroSize && MipBias.Equals(other.MipBias);
+        public override int GetHashCode() => HashCode.Combine(RuntimeHelpers.GetHashCode(Layers), LayerSize, HeroSize, BigHeroSize, MipBias);
+    }
+
+    static readonly ConditionalWeakTable<GpuContext, Dictionary<MaterialKey, MaterialArrays>> SharedMaterials = new();
 
     /// <summary>A hero slot at or over this is in the big arrays (scene.frag's heroSlot).</summary>
     const int BigHero = 64;
@@ -379,9 +411,8 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         _overlayPipeline = Pipeline(_overlayLayout, "overlay.vert", "overlay.frag", _colorFormat, PipelineKind.Overlay, depth: false);
 
         // Until there are assets: one plain white layer (the greybox's flat colour), no backdrop, no grade.
-        (_diffuse, _spec, _backdrop, _lut) = Upload(new RenderAssets());
-        _normal = UploadNormals(new RenderAssets());
-        (_heroDiffuse, _heroSpec, _heroNormal, _bigDiffuse, _bigSpec, _bigNormal) = UploadHeroes(new RenderAssets());
+        (_backdrop, _lut) = Upload(new RenderAssets());
+        _materials = TakeMaterials(new RenderAssets());
         GrowBones(1024);
         WriteSets();
     }
@@ -496,20 +527,13 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     public void Load(RenderAssets assets)
     {
         Api.vkDeviceWaitIdle();
-        _diffuse.Dispose();
-        _spec.Dispose();
         _backdrop.Dispose();
         _lut.Dispose();
-        _normal.Dispose();
-        _heroDiffuse.Dispose();
-        _heroSpec.Dispose();
-        _heroNormal.Dispose();
-        _bigDiffuse.Dispose();
-        _bigSpec.Dispose();
-        _bigNormal.Dispose();
-        (_diffuse, _spec, _backdrop, _lut) = Upload(assets);
-        _normal = UploadNormals(assets);
-        (_heroDiffuse, _heroSpec, _heroNormal, _bigDiffuse, _bigSpec, _bigNormal) = UploadHeroes(assets);
+        // Taken before the old are let go: a reload of the same layers keeps the arrays it has.
+        var had = _materials;
+        (_backdrop, _lut) = Upload(assets);
+        _materials = TakeMaterials(assets);
+        Release(had);
         _assets = assets;
         Post = assets.Post;
         WriteSets();
@@ -543,7 +567,58 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     /// <summary>The loaded material layer called <paramref name="name"/>, or −1.</summary>
     public int LayerOf(string name) => _assets?.IndexOf(name) ?? -1;
 
-    (GpuTexture, GpuTexture, GpuTexture, GpuTexture) Upload(RenderAssets assets)
+    /// <summary>This renderer's own textures from the assets: the backdrop and the grade.</summary>
+    (GpuTexture, GpuTexture) Upload(RenderAssets assets)
+    {
+        var b = UploadBackdrop(assets);
+        var lut = new GpuTexture(_gpu, GpuTexture.Kind.Volume, VkFormat.R8G8B8A8Unorm, ColourGrade.Size, ColourGrade.Size, [[assets.Lut ?? ColourGrade.Identity()]],
+            VkFilter.Linear, VkSamplerAddressMode.ClampToEdge, VkSamplerAddressMode.ClampToEdge, depth: ColourGrade.Size);
+        return (b, lut);
+    }
+
+    /// <summary>
+    /// The material arrays for <paramref name="assets"/>' layers: the set another renderer on this device already holds
+    /// for them (<see cref="MaterialArrays"/>), or a new upload; then this renderer's view of them.
+    /// </summary>
+    [System.Diagnostics.CodeAnalysis.MemberNotNull(nameof(_diffuse), nameof(_spec), nameof(_normal), nameof(_heroDiffuse), nameof(_heroSpec), nameof(_heroNormal),
+        nameof(_bigDiffuse), nameof(_bigSpec), nameof(_bigNormal))]
+    MaterialArrays TakeMaterials(RenderAssets assets)
+    {
+        var key = new MaterialKey(assets.Layers, assets.LayerSize, assets.HeroSize, assets.BigHeroSize, assets.Post.MipBias);
+        var shared = SharedMaterials.GetValue(_gpu, _ => []);
+        MaterialArrays m;
+        lock (shared)
+        {
+            if (!shared.TryGetValue(key, out m!))
+                shared[key] = m = UploadMaterials(assets);
+            m.Users++;
+        }
+        (_diffuse, _spec, _normal) = (m.Diffuse, m.Spec, m.Normal);
+        (_heroDiffuse, _heroSpec, _heroNormal, _bigDiffuse, _bigSpec, _bigNormal) = (m.HeroDiffuse, m.HeroSpec, m.HeroNormal, m.BigDiffuse, m.BigSpec, m.BigNormal);
+        _heroSlot = m.HeroSlot;
+        _motion = [.. assets.Layers.Select(l => Motion(l.Name))];
+        return m;
+    }
+
+    /// <summary>This renderer done with a set of material arrays: freed when no renderer holds it any more.</summary>
+    void Release(MaterialArrays m)
+    {
+        var shared = SharedMaterials.GetValue(_gpu, _ => []);
+        lock (shared)
+        {
+            if (--m.Users > 0)
+                return;
+            foreach (var (key, held) in shared)
+                if (held == m)
+                {
+                    shared.Remove(key);
+                    break;
+                }
+        }
+        m.Dispose();
+    }
+
+    MaterialArrays UploadMaterials(RenderAssets assets)
     {
         int size = assets.LayerSize;
         var layers = assets.Layers.Count > 0 ? assets.Layers : [new MaterialLayer("white", Image.Solid(size, 255, 255, 255), Image.Solid(size, 0, 0, 0))];
@@ -556,10 +631,21 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             VkSamplerAddressMode.Repeat, VkSamplerAddressMode.Repeat, bias, anisotropy: _gpu.MaxAnisotropy);
         var s = new GpuTexture(_gpu, GpuTexture.Kind.Array2D, VkFormat.R8G8B8A8Unorm, size, size, spec, VkFilter.Linear,
             VkSamplerAddressMode.Repeat, VkSamplerAddressMode.Repeat, bias, anisotropy: _gpu.MaxAnisotropy);
-        var b = UploadBackdrop(assets);
-        var lut = new GpuTexture(_gpu, GpuTexture.Kind.Volume, VkFormat.R8G8B8A8Unorm, ColourGrade.Size, ColourGrade.Size, [[assets.Lut ?? ColourGrade.Identity()]],
-            VkFilter.Linear, VkSamplerAddressMode.ClampToEdge, VkSamplerAddressMode.ClampToEdge, depth: ColourGrade.Size);
-        return (d, s, b, lut);
+        var n = UploadNormals(assets);
+        var (hd, hs, hn, bd, bs, bn, slot) = UploadHeroes(assets);
+        return new MaterialArrays
+        {
+            Diffuse = d,
+            Spec = s,
+            Normal = n,
+            HeroDiffuse = hd,
+            HeroSpec = hs,
+            HeroNormal = hn,
+            BigDiffuse = bd,
+            BigSpec = bs,
+            BigNormal = bn,
+            HeroSlot = slot,
+        };
     }
 
     /// <summary>
@@ -581,26 +667,25 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     /// <see cref="RenderAssets.HeroSize"/>, in arrays of their own; <see cref="_heroSlot"/> says which layer is where. With
     /// none, one flat layer each, so the bindings are always there.
     /// </summary>
-    (GpuTexture, GpuTexture, GpuTexture, GpuTexture, GpuTexture, GpuTexture) UploadHeroes(RenderAssets assets)
+    (GpuTexture, GpuTexture, GpuTexture, GpuTexture, GpuTexture, GpuTexture, int[] Slot) UploadHeroes(RenderAssets assets)
     {
         int size = Math.Max(assets.LayerSize, assets.HeroSize);
         int bigSize = Math.Max(size, assets.BigHeroSize);
         var heroes = new List<MaterialLayer>();
         var bigs = new List<MaterialLayer>();
-        _heroSlot = new int[assets.Layers.Count];
-        _motion = [.. assets.Layers.Select(l => Motion(l.Name))];
+        var slot = new int[assets.Layers.Count];
         for (int i = 0; i < assets.Layers.Count; i++)
         {
             var l = assets.Layers[i];
-            _heroSlot[i] = -1;
+            slot[i] = -1;
             if (l.Diffuse.Width > size && bigSize > size && i < LayerTable && bigs.Count < BigHero)
             {
-                _heroSlot[i] = BigHero + bigs.Count;
+                slot[i] = BigHero + bigs.Count;
                 bigs.Add(l);
             }
             else if (l.Diffuse.Width > assets.LayerSize && i < LayerTable && heroes.Count < BigHero)
             {
-                _heroSlot[i] = heroes.Count;
+                slot[i] = heroes.Count;
                 heroes.Add(l);
             }
         }
@@ -617,7 +702,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         }
         var (d, s, n) = Arrays(heroes, size);
         var (bd, bs, bn) = Arrays(bigs, bigSize);
-        return (d, s, n, bd, bs, bn);
+        return (d, s, n, bd, bs, bn, slot);
     }
 
     /// <summary>Every layer's normal map (flat where a layer has none), filtered like the diffuse, linear (not sRGB).</summary>
@@ -1824,15 +1909,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         Api.vkDestroyDescriptorPool(_pool, null);
         foreach (var l in new[] { _sceneSetLayout, _postSetLayout, _compositeSetLayout })
             Api.vkDestroyDescriptorSetLayout(l, null);
-        _diffuse.Dispose();
-        _normal.Dispose();
-        _heroDiffuse.Dispose();
-        _heroSpec.Dispose();
-        _heroNormal.Dispose();
-        _bigDiffuse.Dispose();
-        _bigSpec.Dispose();
-        _bigNormal.Dispose();
-        _spec.Dispose();
+        Release(_materials);
         _backdrop.Dispose();
         _lut.Dispose();
         Api.vkDestroySampler(_nearest, null);
