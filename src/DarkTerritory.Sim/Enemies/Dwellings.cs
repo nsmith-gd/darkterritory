@@ -120,7 +120,7 @@ public static class HouseWays
             var p = a + d * ((double)i / steps) + Double3.Up * 1.0;
             foreach (var w in walls.Near(p))
             {
-                if (w.Fort)
+                if (w.Fort || w.Trestle)
                     continue;
                 var l = w.ToLocal(p);
                 if (Math.Abs(l.X) <= w.HalfLength && Math.Abs(l.Z) <= w.HalfWidth && l.Y >= w.Bottom && l.Y <= w.Top)

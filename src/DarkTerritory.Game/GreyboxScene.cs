@@ -93,15 +93,23 @@ public sealed partial class GreyboxScene
             return;
         var (drift, flicker) = Look is null ? (Vector3.Zero, 1f) : (Art.SceneArt.FlameDrift(Time, id), Art.SceneArt.Flicker(Time, id));
         var light = new PointLight(V(at, eye) + drift, Palette.LampAmber * Interiors.HandLamp * flicker, Interiors.HandLampRange);
-        if (mesh.ShadowLight is { } nearer && nearer.Position.LengthSquared() <= light.Position.LengthSquared())
+        // Which casts the shadows holds it until another's clearly nearer (note 762): two lamps about as near as each other
+        // (a crewmate's beside yours in the cab) would otherwise swap it from frame to frame, and the shadows flash.
+        float Near(PointLight l, int lamp) => l.Position.Length() - (lamp == _shadowLampWas ? ShadowHoldM : 0);
+        if (mesh.ShadowLight is { } nearer && Near(nearer, _shadowLamp) <= Near(light, id))
             mesh.PointLights.Add(light);
         else
         {
             if (mesh.ShadowLight is { } farther)
                 mesh.PointLights.Add(farther);
             mesh.ShadowLight = light;
+            _shadowLamp = id;
         }
     }
+
+    // The lamp casting the shadows this frame, and the last. How much nearer another must be to take them (m): not a design number.
+    int _shadowLamp = -1, _shadowLampWas = -1;
+    const float ShadowHoldM = 0.75f;
 
     bool CarDark(int index) => Vehicles is { } fleet && index < fleet.Count && (!fleet[index].LampLit || Sputtered(fleet[index], index));
 
@@ -407,6 +415,7 @@ public sealed partial class GreyboxScene
     public void Build(MeshBuilder mesh, RailLine line, IReadOnlyList<CarFrame> frames, double hint, Double3 eye)
     {
         mesh.Clear();
+        (_shadowLampWas, _shadowLamp) = (_shadowLamp, -1);
         _speed = frames.Count == 0 ? 0 : Vector3.Dot(ToF(frames[0].Velocity), ToF(frames[0].Back * -1));
         // The headlamp as the lineside boards' reflective paint sees it (note 560).
         if (Look is not null && frames.Count > 0)
@@ -442,7 +451,7 @@ public sealed partial class GreyboxScene
         HouseCreatures(mesh, line, eye);
         Track(mesh, line, eye, from, to, centre);
         foreach (var branch in line.Branches)
-            if (branch.Toe < to && branch.End > from)
+            if (branch.Toe < to && branch.End > from || BranchInReach(branch, eye))
                 Branch(mesh, line, branch, eye);
         Lap(mesh, "track");
         Lineside(mesh, line, eye, from, to);
@@ -666,9 +675,14 @@ public sealed partial class GreyboxScene
             // Something out past the lamp heard the crew (note 287).
             if (Answer.Showing)
                 Look.Art.Effects.Eyes(mesh, Answer.At, eye, Answer.Seconds, AnswerShowSeconds);
-            // Something that lives at this stop, watching the crew afoot (note 327).
+            // Something that lives at this stop, watching the crew afoot (note 327): its shape in the dark, its eyes (note 761).
             if (Watcher.Showing)
-                Look.Art.Effects.Eyes(mesh, Watcher.At, eye, Watcher.Seconds, WatcherShowSeconds);
+            {
+                if (Look.Art.Creatures is { } watching)
+                    watching.Watching(mesh, Look.Art.Effects, Watcher.Kind, Watcher.At, eye, Watcher.Seconds, WatcherShowSeconds);
+                else
+                    Look.Art.Effects.Eyes(mesh, Watcher.At, eye, Watcher.Seconds, WatcherShowSeconds);
+            }
             // The air of a corrupted stretch: ash, spores (GDD §30), or brass dust over a brass field.
             Look.Art.Effects.Corruption(mesh, eye, Time, StagedAir
                 ?? (Art.WorldArt.NearBrass(Route, eye) ? Art.Effects.Air.Brass : Art.Effects.AirOf(Art.WorldArt.BiomeAt(Route, centre))));
@@ -710,6 +724,7 @@ public sealed partial class GreyboxScene
         }
         Look?.Art.Creatures?.Clutches.Clear();
         Look?.Art.Creatures?.Pins.Clear();
+        Look?.Art.Creatures?.Breaths.Clear();
         // A Ribbit pack eating someone (note 558): they're pulled down onto their back, their head away from the one holding
         // them (Pins), the pack stoops onto them (Prey.Down), and there's blood, from when it got onto them.
         _eaten.Clear();
@@ -2127,8 +2142,11 @@ public sealed partial class GreyboxScene
 
     /// <summary>Where <paramref name="e"/> stands in the world: in its car's frame aboard, as it is loose.</summary>
     /// <summary>Where the Wakers stop short of the terminus's gate (note 588): under the town's guns.</summary>
-    double WakerWall(RailLine line, Sim.Enemies.WakersTuning t) =>
-        (Route?.Plan?.Terminus.GateM ?? line.Length - (Run?.Tuning.TerminusZone ?? 400)) - t.StopShort;
+    double WakerWall(RailLine line, Sim.Enemies.WakersTuning t) => WakerWall(line, Route, Run, t);
+
+    /// <summary>Where along the line a Waker stops short of the terminus's gate and stands under its guns (wakers.md §4).</summary>
+    public static double WakerWall(RailLine line, Route? route, Sim.Run.Run? run, Sim.Enemies.WakersTuning t) =>
+        (route?.Plan?.Terminus.GateM ?? line.Length - (run?.Tuning.TerminusZone ?? 400)) - t.StopShort;
 
     /// <summary>
     /// The car the Waker holding the train is eating (note 679): the rearmost car he hasn't finished (an eaten one's drawn far
@@ -2231,7 +2249,7 @@ public sealed partial class GreyboxScene
     }
 
     /// <summary>How high a Waker's back is over his feet stood (m): where the town's shots land on him.</summary>
-    const double WakerBack = 40;
+    public const double WakerBack = 40;
 
     /// <summary>
     /// The terminus's guns that bear on what's stopped outside its gate (note 599): one on each of the gatehouse's towers and on
@@ -2277,7 +2295,7 @@ public sealed partial class GreyboxScene
     }
 
     /// <summary>The town's guards out on the yard (note 608), their pieces at shoulder height: they fire with the walls' guns.</summary>
-    static IEnumerable<Vector3> YardGuns(Sim.Towns.Town town, Double3 eye) =>
+    public static IEnumerable<Vector3> YardGuns(Sim.Towns.Town town, Double3 eye) =>
         town.Fight is null ? [] : town.Plan.People.Where(Sim.Towns.Town.Guards).Select(p => town.Now(p)).Select(n => V(n.Feet + n.Facing * 0.6 + Double3.Up * 1.45, eye));
 
     /// <summary>The creatures seen brought into the arrival town this night (note 608), by id: each sets houses alight.</summary>
@@ -2332,9 +2350,12 @@ public sealed partial class GreyboxScene
     const float BroughtInSpread = 0.15f;
 
     /// <summary>In through the terminus town's gate (note 589): along the main line past it.</summary>
-    bool InTheTown(RailLine line, Double3 at)
+    bool InTheTown(RailLine line, Double3 at) => InTheTown(line, Route, at);
+
+    /// <summary>Whether <paramref name="at"/> is inside the terminus town's gate (note 589): past it along the line.</summary>
+    public static bool InTheTown(RailLine line, Route? route, Double3 at)
     {
-        if (Route?.Plan?.Terminus is not { Silent: false } t)
+        if (route?.Plan?.Terminus is not { Silent: false } t)
             return false;
         double hint = t.GateM;
         line.Nearest(at, ref hint);
@@ -3116,6 +3137,30 @@ public sealed partial class GreyboxScene
     }
 
     /// <summary>
+    /// Whether any of a branch's track is within the draw distance of the eye, by the box round it (note 498). By the main
+    /// line's distances alone (its toe to its end) a dead line running back alongside the main line, or out a kilometre
+    /// from it, wasn't drawn from its own track: its land was, and the bed between open to the sky (`dt holes --edges
+    /// branches`, deadLines:8's dead lines 135 m and 1.4 km off the main line).
+    /// </summary>
+    bool BranchInReach(Branch branch, Double3 eye)
+    {
+        var box = _branchBoxes.GetValue(branch, b =>
+        {
+            double x0 = double.MaxValue, z0 = double.MaxValue, x1 = double.MinValue, z1 = double.MinValue;
+            for (double s = 0; s <= b.Local.Length + 25; s += 25)
+            {
+                var q = b.Local.Sample(Math.Min(s, b.Local.Length)).Position;
+                (x0, z0, x1, z1) = (Math.Min(x0, q.X), Math.Min(z0, q.Z), Math.Max(x1, q.X), Math.Max(z1, q.Z));
+            }
+            return new double[] { x0, z0, x1, z1 };
+        });
+        double dx = Math.Max(0, Math.Max(box[0] - eye.X, eye.X - box[2])), dz = Math.Max(0, Math.Max(box[1] - eye.Z, eye.Z - box[3]));
+        return dx * dx + dz * dz < (double)DrawDistance * DrawDistance;
+    }
+
+    readonly System.Runtime.CompilerServices.ConditionalWeakTable<Branch, double[]> _branchBoxes = new();
+
+    /// <summary>
     /// A branch off the main line (GDD §17, App. A.7): its own ballast, rails and sleepers from the points, the
     /// switch stand beside them with its target lamp (green set for the main line, red for the branch: from the cab,
     /// the lamp is how you read a switch before you're on it), and a buffer stop at the far end.
@@ -3429,9 +3474,12 @@ public sealed partial class GreyboxScene
                         Along(mesh, line, eye, s, 0.9, 0, 0.12, 1.5, 0.28, Palette.Corrupted);
                     break;
                 case FeatureKind.Grease:
+                    // On the rail heads in 10 m lengths, as the decks are: laid as one length the whole stretch long (113 m on
+                    // deepTerritory:3), its chord left the rails on any grade or curve, over them on a sag (note 778).
                     mesh.Emissive = 0.15f;
-                    foreach (double side in new[] { -0.72, 0.72 })
-                        Along(mesh, line, eye, a, b - a, side, 0.19, 0.05, 0.02, Palette.GreaseSheen);
+                    for (double s = a; s < b; s += 10)
+                        foreach (double side in new[] { -0.72, 0.72 })
+                            Along(mesh, line, eye, s, Math.Min(10, b - s), side, 0.19, 0.05, 0.02, Palette.GreaseSheen);
                     mesh.Emissive = 0;
                     break;
                 case FeatureKind.Junction:
@@ -4342,26 +4390,43 @@ public sealed partial class GreyboxScene
                 V(new Double3(spot.Kept.X, floor + height, spot.Kept.Z) + ToD(into * out_ + side * across), eye);
             switch (spot.Container.Kind)
             {
-                case Sim.Stops.ContainerKind.Cupboard:
-                    // Its face is 0.25 out from its middle, 1 m wide and up to 1.9: inside dark, a door swung back from each side
-                    // past square (115°), so it reads from in front, not edge on.
-                    mesh.Box(At(0.255f, 0.86f), side, up, into, new Vector3(0.46f, 0.66f, 0.005f), dark);
-                    foreach (float s in new[] { -1f, 1f })
+                case Sim.Stops.ContainerKind.Cupboard when Look is not null:
                     {
-                        float swing = 115 * MathF.PI / 180;
-                        // Closed, a door runs from its hinge (the face's edge) in across the face; open, it's turned out about the hinge.
-                        var along = Vector3.Normalize(-s * side * MathF.Cos(swing) + into * MathF.Sin(swing));
-                        var face = Vector3.Cross(up, along);
-                        var hinge = side * (s * 0.5f) + into * 0.25f;
-                        var middle = hinge + along * 0.25f;
-                        mesh.Box(V(new Double3(spot.Kept.X, floor + 0.88, spot.Kept.Z) + ToD(middle), eye), face, up, along, new Vector3(0.015f, 0.7f, 0.24f), wood);
+                        // The dresser (TownKit.Dresser, note 760): its face 0.25 out from its middle. Searched, its four doors are gone
+                        // from the face (the dark of inside over them, out past their knobs, and its shelves) and each is swung back
+                        // past square (115°) from its hinge at the side, so it reads from in front, not edge on.
+                        float face = (float)Sim.Run.StopWalls.CupboardDepth, half = (float)Sim.Run.StopWalls.CupboardWidth;
+                        Matrix4x4 Placed(Vector3 across, Vector3 at) =>
+                            new(across.X, across.Y, across.Z, 0, 0, 1, 0, 0, Vector3.Cross(across, up).X, Vector3.Cross(across, up).Y, Vector3.Cross(across, up).Z, 0, at.X, at.Y, at.Z, 1);
+                        mesh.Instances.Add(new MeshInstance(Look.Art.Piece("dresser-inside", () => Art.TownKit.DresserInside(Look)), Placed(side, At(face + 0.04f, 0))));
+                        float width = half - Art.TownKit.DoorInset - Art.TownKit.DoorGap;
+                        foreach (var (h0, h1) in Art.TownKit.DresserDoors)
+                        {
+                            var door = Look.Art.Piece($"dresser-door-{h1 - h0:0.00}", () => Art.TownKit.FrontPiece(Look, width, h1 - h0, Art.TownKit.DoorFrame, width - 0.05f, (h1 - h0) / 2));
+                            foreach (float s in new[] { -1f, 1f })
+                            {
+                                float swing = 115 * MathF.PI / 180;
+                                // Closed, a door runs from its hinge (the face's edge) in across the face; open, it's turned out about
+                                // the hinge. Built from its hinge across (its knob at the far end), so the right-hand one's laid from
+                                // its free edge back to its hinge, its face still out.
+                                var along = Vector3.Normalize(-s * side * MathF.Cos(swing) + into * MathF.Sin(swing));
+                                var hinge = At(face + 0.005f, h0, s * (half - Art.TownKit.DoorInset));
+                                mesh.Instances.Add(new MeshInstance(door, s < 0 ? Placed(along, hinge) : Placed(-along, hinge + along * width)));
+                            }
+                        }
+                        break;
                     }
-                    break;
-                case Sim.Stops.ContainerKind.Cabinet:
-                    // A drawer pulled out of its face (0.22 out, up to 1.0), the slot it came from dark.
-                    mesh.Box(At(0.225f, 0.72f), side, up, into, new Vector3(0.36f, 0.09f, 0.005f), dark);
-                    mesh.Box(At(0.22f + 0.2f, 0.72f), side, up, into, new Vector3(0.36f, 0.08f, 0.2f), Palette.RustRed * 0.6f);
-                    break;
+                case Sim.Stops.ContainerKind.Cabinet when Look is not null:
+                    {
+                        // The sideboard's drawer (TownKit.Sideboard) pulled out of it, the slot it came from dark, out past its knobs.
+                        float face = (float)Sim.Run.StopWalls.CabinetDepth, half = (float)Sim.Run.StopWalls.CabinetWidth - Art.TownKit.DrawerInset;
+                        float tall = Art.TownKit.DrawerTo - Art.TownKit.DrawerFrom;
+                        mesh.Box(At(face + 0.04f, Art.TownKit.DrawerFrom + tall / 2), side, up, into, new Vector3(half, tall / 2, 0.004f), Vector3.Zero);
+                        var drawer = Look.Art.Piece("sideboard-drawer", () => Art.TownKit.FrontPiece(Look, 2 * half, tall, Art.TownKit.DrawerFrame, half, tall / 2, drawer: 0.34f));
+                        var corner = At(face + 0.3f, Art.TownKit.DrawerFrom, -half);
+                        mesh.Instances.Add(new MeshInstance(drawer, new Matrix4x4(side.X, side.Y, side.Z, 0, 0, 1, 0, 0, into.X, into.Y, into.Z, 0, corner.X, corner.Y, corner.Z, 1)));
+                        break;
+                    }
                 case Sim.Stops.ContainerKind.Cellar:
                     // The hatch (1 m square, flush) gone: a black hole, and the lid stood up on its back edge.
                     mesh.Box(At(0, 0.056f), side, up, into, new Vector3(0.46f, 0.004f, 0.46f), dark);

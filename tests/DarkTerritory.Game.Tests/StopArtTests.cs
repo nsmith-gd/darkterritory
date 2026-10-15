@@ -81,6 +81,9 @@ public class StopArtTests
                 {
                     total++;
                     Assert.True(NearestTrack(line, p.World, f.Start + b.S) >= 3.1, $"{p.Kind} by {b.Kind} at {f.Start + b.S:0} is on a track");
+                    // A rack of rail's ends too (note 778): its lengths reached over a track from a gable end.
+                    Assert.True(Math.Min(NearestTrack(line, p.EndA, f.Start + b.S), NearestTrack(line, p.EndB, f.Start + b.S)) >= 3.1,
+                        $"{p.Kind} by {b.Kind} at {f.Start + b.S:0} reaches over a track");
                     double reach = double.Hypot(b.Length, b.Width) / 2 + 2;
                     Assert.True(double.Hypot(p.World.X - centre.X, p.World.Z - centre.Z) <= reach, $"{p.Kind} strays from its {b.Kind}");
                 }

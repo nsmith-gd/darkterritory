@@ -517,6 +517,13 @@ public sealed partial class CreatureArt
     /// <summary>A Cinder Hound's board onto the rear car (tools/blender/cinder_hound.py "board", 33 frames at 30).</summary>
     const double HoundBoardSeconds = 1.1;
     Sim.Enemies.WhistlerTuning? _whistler;
+    double? _couplerHeight;
+    /// <summary>How far a whistling Whistler leans out of its gap toward someone beside the train (rad; note 759): its front
+    /// out past the cars' sides. The art's, not a design number.</summary>
+    public const float WhistlerLean = 0.5f;
+
+    /// <summary>How high the couplers' heads are over the rail (m; train.json couplerHeight): where a whistling Whistler stands.</summary>
+    public double CouplerHeight => _couplerHeight ??= DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(ContentRoot, Sim.Train.TrainTuning.File)).Geometry.CouplerHeight;
     Sim.Enemies.CarFireTuning? _carFire;
     /// <summary>The car fire's tuning, as the content has it (its grid's cell size, its spread clock; note 267).</summary>
     public Sim.Enemies.CarFireTuning CarFire => _carFire ??= DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(ContentRoot, Sim.Enemies.EnemyTuning.File)).CarFire;
@@ -635,7 +642,12 @@ public sealed partial class CreatureArt
     {
         var mats = m.Model.Materials;
         for (int i = 0; i < mats.Length; i++)
+        {
             m.Scratch[i] = adjust is null ? m.Looks[i] : adjust(mats[i], m.Looks[i]);
+            // (A watcher's shape, CreatureArt.Watching: the whole of it dark.)
+            if (_shade < 1)
+                m.Scratch[i] = m.Scratch[i] with { Colour = m.Scratch[i].Colour * _shade, Emissive = m.Scratch[i].Emissive * _shade };
+        }
         var seedOffset = new Vector3(MathF.Sin(seed * 12.9898f), MathF.Sin(seed * 78.233f), MathF.Sin(seed * 37.719f)) * 97;
         var settings = new EmitSettings(variant % Math.Max(1, m.Model.VariantCount), clip, _texels, seedOffset);
         mesh.Skinned(Bound(m, settings, arms), at, skin ?? m.Pose.Skin, glow, seedOffset * _texels);
@@ -2088,6 +2100,24 @@ public sealed partial class CreatureArt
                         SpinePhase.BreakOff => "run",
                         _ => "watch",
                     };
+                    if (clip == "whistle")
+                    {
+                        // Its breath out of the siphon's lip as it blows (note 759): a plume over the roofs that marks
+                        // which gap the whistle came from, as the whistle's own does the engine.
+                        bool whistled = Draw(mesh, "whistler", clip, t, true, model, seed: 41);
+                        if (whistled)
+                        {
+                            var root = BoneAt("whistler", "siphon_02", model);
+                            var end = BoneAt("whistler", "siphon_03", model);
+                            var along = end - root;
+                            if (along.LengthSquared() > 1e-8f)
+                            {
+                                _fx.WhistlerBreath(mesh, end + along, Vector3.Normalize(along), t, 59);
+                                Breaths.Add((end + along, Vector3.Normalize(along)));
+                            }
+                        }
+                        return whistled;
+                    }
                     if (clip == "carry" && Draw(mesh, "whistler", clip, t, true, model, seed: 41))
                     {
                         _clutch = ((BoneAt("whistler", "hook_r", model) + BoneAt("whistler", "hook_l", model)) / 2,
@@ -2709,6 +2739,12 @@ public sealed partial class CreatureArt
     /// </summary>
     public Dictionary<int, (Vector3 At, Vector3 Forward, bool Hung)> Clutches { get; } = new();
 
+    /// <summary>
+    /// Where each Whistler drawn this frame blowing has its siphon's lip, and the way its breath goes out of it
+    /// (<see cref="Effects.WhistlerBreath"/>; note 759): eye-relative. GreyboxScene clears it each frame.
+    /// </summary>
+    public List<(Vector3 Lip, Vector3 Out)> Breaths { get; } = [];
+
     /// <summary>How far in front of the Car Hugger's mouth someone it's swallowing stands: their head in it
     /// (crew_clips.py held_mouth, bent double, the head 0.62-0.82 m ahead of their feet).</summary>
     public const float SwallowReach = 0.72f;
@@ -2914,10 +2950,19 @@ public sealed partial class CreatureArt
                         }
                         break;
                     }
-                    m = Matrix4x4.CreateTranslation(0, -(float)e.Local.Y, 0) * model;
+                    // Whistling, it stands on the coupler's head, not the rail, so its front and siphon are up over the
+                    // roofs (whistler.py whistle; note 759): seen at it from the cab and from the roofs.
+                    bool whistling = e is Sim.Enemies.Whistler { Whistling: true };
+                    float perch = whistling ? (float)CouplerHeight : 0;
+                    m = Matrix4x4.CreateTranslation(0, perch - (float)e.Local.Y, 0) * model;
                     if (Matrix4x4.Invert(model, out var toModel))
                     {
                         var eye = Vector3.Transform(Vector3.Zero, toModel);
+                        // Whistling, it leans out of the gap toward whoever's beside the train (from the cab's window
+                        // looking back, from the ground), so its front's out past the cars' sides where they can see it;
+                        // from the roofs it stands straight up over them.
+                        if (whistling)
+                            m = Matrix4x4.CreateRotationZ(-MathF.Sign(eye.X) * WhistlerLean * SmoothStep(0.8f, 2.0f, MathF.Abs(eye.X))) * m;
                         if (eye.X * eye.X + eye.Z * eye.Z > 1e-6f)
                             m = Matrix4x4.CreateRotationY(MathF.Atan2(-eye.X, -eye.Z)) * m;
                     }

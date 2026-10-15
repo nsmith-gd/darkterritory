@@ -1806,6 +1806,21 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Double3 At(double x, double y, double up) => DarkTerritory.Sim.Run.Run.StopWorld(line, f, DarkTerritory.Sim.Run.StopWalls.InHouse(b, x, y), up);
         camera = Camera.LookAt(At(inside.X, inside.Y, 1.75), At(-inside.X * 0.8, -inside.Y * 0.8, 1.0), 80);
     }
+    // --kept n: the night's nth cupboard or cabinet in an open village house (note 760), from a couple of metres in front of
+    // it and to one side at a crewmate's eye (with --searched, as it's left once searched; --lantern for a hand lamp).
+    if (Opt(args, "--kept", -1) is var keptAt and >= 0 && generated is not null)
+    {
+        var pieces = generated.Features.Where(f => f.Stop is not null)
+            .SelectMany(f => f.Stop!.Containers.Where(c => c.Kind is DarkTerritory.Sim.Stops.ContainerKind.Cupboard or DarkTerritory.Sim.Stops.ContainerKind.Cabinet
+                && c.Building >= 0 && f.Stop.Buildings[c.Building].Open && DarkTerritory.Sim.Run.StopWalls.Walled(f.Stop, c.Building)).Select(c => (Feature: f, Container: c))).ToList();
+        if (pieces.Count == 0)
+            return Print(new { error = $"{Str(args, "--route", "")} has no cupboards" });
+        var (f, c) = pieces[(int)keptAt % pieces.Count];
+        var b = f.Stop!.Buildings[c.Building];
+        var (x, y, fx, fy) = DarkTerritory.Sim.Run.StopWalls.Kept(b, c.Kind, c.Index);
+        Double3 At(double px, double py, double up) => DarkTerritory.Sim.Run.Run.StopWorld(line, f, DarkTerritory.Sim.Run.StopWalls.InHouse(b, px, py), up);
+        camera = Camera.LookAt(At(x + fx * 2.1 - fy * 0.7, y + fy * 2.1 + fx * 0.7, 1.65), At(x, y, 0.95), 70);
+    }
     // --gun-laid yaw,pitch (degrees): every gun turned and elevated so, as a seated gunner lays it (T112).
     if (Str(args, "--gun-laid", "") is { Length: > 0 } laid)
     {
@@ -2030,9 +2045,11 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Answer = args.Contains("--answer") ? Str(args, "--answer-at", "60,-12").Split(',') is var aa
             ? Staging.Answer(train, Opt(args, "--answer", 4), double.Parse(aa[0]), double.Parse(aa[1])) : default : default,
         // --watcher s,lateral,height: a sign shown a crewmate afoot (note 327), its eyes there in line coordinates (as --cam;
-        // `dt afoot` lists each sign's), --watcher-left seconds still to show (2.5: open, before the blink).
+        // `dt afoot` lists each sign's), --watcher-left seconds still to show (2.5: open, before the blink), --watcher-kind what it
+        // is (Ribbit; its shape under its eyes, note 761: Gaunt, Grumbler, SootChildren, Whistler).
         Watcher = Str(args, "--watcher", "") is { Length: > 0 } ws && ws.Split(',').Select(double.Parse).ToArray() is var wp
-            ? new DarkTerritory.Sim.Enemies.Watcher(Opt(args, "--watcher-left", 2.5), DarkTerritory.Sim.Enemies.EnemyKind.Ribbit, Staging.LineAt(line, wp[0], wp[1], wp[2]), 0)
+            ? new DarkTerritory.Sim.Enemies.Watcher(Opt(args, "--watcher-left", 2.5),
+                Enum.Parse<DarkTerritory.Sim.Enemies.EnemyKind>(Str(args, "--watcher-kind", "Ribbit"), ignoreCase: true), Staging.LineAt(line, wp[0], wp[1], wp[2]), 0)
             : default,
         // --perched [s]: the fire burned low s seconds (default 10), the Stoker waiting on the smokestack (World.StokerWaiting);
         // past 42 it's climbing down into it.
@@ -2132,6 +2149,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     if (Str(args, "--hugger", "") == "swallow" && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.CarHugger>().FirstOrDefault() is { Holding: >= 0 })
         scene.Crew = [.. scene.Crew ?? [], Staging.Swallowed(train), .. args.Contains("--rescue") ? [Staging.SwallowRescuer(train)] : Array.Empty<Crewmate>()];
     // --whistler carry|nest: the one it's carrying off, or has at its nest, as well as anyone else staged (App. A.4; Staging.Carried).
+    // --alone whistler,...: of the staged creatures (--threats), only those kinds, so one's seen without the rest about it
+    // (note 759: the Whistler at its whistle, without the car fire's smoke over the train).
+    if (Str(args, "--alone", "") is { Length: > 0 } alone && scene.Enemies is { } all)
+    {
+        var kinds = alone.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        scene.Enemies = [.. all.Where(e => kinds.Contains(e.Kind.ToString(), StringComparer.OrdinalIgnoreCase))];
+    }
     if (Str(args, "--whistler", "") is "carry" or "nest" && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.Whistler>().FirstOrDefault() is { Holding: >= 0 } carrying)
         scene.Crew = [.. scene.Crew ?? [], Staging.Carried(carrying)];
     // --moose graze|listen|warn|squareup|charge|wheel|snag|search|pin: the staged Moose (note 339; Staging.Moose) off the
@@ -2696,7 +2720,7 @@ static int ArtCheck(TrainTuning t, string content, string[] args)
 // What each lineside kit piece stands on (note 389), as content/linegen/footprints.json has it: one variant a line.
 static int ArtFootprints(string content, string[] args)
 {
-    var all = DarkTerritory.Game.Art.LinesideFootprints.Measure(null);
+    var all = DarkTerritory.Game.Art.LinesideFootprints.Measure(null, DarkTerritory.Game.Look.Load(content));
     var text = DarkTerritory.Game.Art.LinesideFootprints.Json(all);
     string path = Path.Combine(content, DarkTerritory.Sim.LineGen.LineGenConfig.Directory, "footprints.json");
     if (args.Contains("--write"))
@@ -4316,3 +4340,4 @@ sealed record SpectatedNight(NetPlaySession Host, NetPlaySession Watcher) : IDis
         Host.Dispose();
     }
 }
+

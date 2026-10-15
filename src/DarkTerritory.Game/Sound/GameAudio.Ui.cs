@@ -29,6 +29,10 @@ public static class UiCue
     public const string PanelOpen = "ui-panels.open";
     public const string PanelClose = "ui-panels.close";
     public const string PanelPage = "ui-panels.page";
+    // crew-memory: the crew's logbook on the big cab's bench (note 721), opened, paged and shut on this machine only (note 776).
+    public const string LogbookOpen = "crew-memory.open";
+    public const string LogbookPage = "crew-memory.page";
+    public const string LogbookShut = "crew-memory.shut";
     /// <summary>This player's own film skipped (note 315).</summary>
     public const string FilmSkip = "ui-film.skip";
     // ui-prompts: a hold-to-interact action (GameAudio.Interface).
@@ -49,6 +53,8 @@ public static class UiCue
     public const string Vote = "ui-dead-phase.vote";
     /// <summary>A bookmark this player took (D.12's manual ones; notes 176, 203, 243).</summary>
     public const string Bookmark = "ui-dead-phase.bookmark";
+    /// <summary>A ping marked for the crew (note 739), heard by everyone once (note 777).</summary>
+    public const string Ping = "ui-pings.mark";
 }
 
 /// <summary>
@@ -107,7 +113,8 @@ public sealed partial class GameAudio
     public void Interface(World world, in PlayerState me, int self)
     {
         _uiTime += SimConstants.TickSeconds;
-        if (!ReferenceEquals(world, _uiWorld))
+        bool primed = ReferenceEquals(world, _uiWorld);
+        if (!primed)
         {
             // A new night (or a first look at this one): what's already so when it starts isn't news.
             InterfaceEnd();
@@ -117,6 +124,7 @@ public sealed partial class GameAudio
         Prompts(world, me);
         NightOver(world);
         DeadPhase(world, me);
+        PingsHeard(world, primed);
     }
 
     int _ballotPick = -1;
@@ -178,6 +186,7 @@ public sealed partial class GameAudio
         _ballotSent = _ballotLocked = _commendGiven = _choicesPrimed = false;
         _skipHold = 0;
         _heardBookmarks.Clear();
+        _pingsHeard.Clear();
     }
 
     enum HoldKind : byte { Reload, Repair, Handbrake, Hatch, Uncouple, Breach, Restart, Rig, ClearFoul, BoardUp, StartBelt, Unjam, Clamp, Rerail }

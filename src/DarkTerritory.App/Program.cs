@@ -1241,7 +1241,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (Hit(Control.Use) && (crewMemory.Reader.Open || Hud.Prompt(session) == LogbookReader.Prompt))
         {
             crewMemory.Reader.Use(crewMemory.Pages().Count);
-            sound.Ui(crewMemory.Reader.Open ? UiCue.PanelOpen : UiCue.PanelClose);
+            sound.Ui(crewMemory.Reader.Open ? UiCue.LogbookOpen : UiCue.LogbookShut);
             useKept = true;
         }
         else if (Hit(Control.Use) && session.World.TownOf(session.Player) is { } town && Hud.TownTarget(session) is var spoken && townTalk.Use(town, spoken, now))
@@ -1259,7 +1259,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 crewMemory.Reader.Close();
             int turn = (Hit(Control.Right) || Hit(Control.Forward) ? 1 : 0) - (Hit(Control.Left) || Hit(Control.Back) ? 1 : 0);
             if (turn != 0 && crewMemory.Reader.Turn(turn, crewMemory.Pages().Count))
-                sound.Ui(UiCue.PanelPage);
+                sound.Ui(UiCue.LogbookPage);
         }
         // The gun's seat (T112): Use pressed standing still at a loaded gun sits you in it (Use held at one waiting on its
         // reload loads it, walking with it pushes it). Seated, Jump gets you up.
@@ -1584,6 +1584,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         var stirWorld = session.World;
         scene.LampSwayOf = car => DawnStir.LampSway(stirWorld, stirAt, car);
         scene.StirThud = DawnStir.Thud(stirWorld, stirAt);
+        sound.StirClock = stirAt;   // the stir's thuds heard on the beat they're felt (note 772)
         scene.LampRange = outro ? 400 : 60;
         scene.RoofGlow = outro;
         // On the engine with the boiler in the red, it shakes you (T109).
@@ -1767,7 +1768,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             crewMemory.Took(session, renderer.Render(mesh, staged.Camera, lighting, lighting.FogColor), renderer.Width, renderer.Height, album, now, DateTime.Now);
             (scene.Crew, scene.Own, scene.HeldHere, scene.Photo) = (shownCrew, shownOwn, shownHeld, null);
             scene.Build(mesh, session.Train.Line, frames, session.Train.Dynamics.Distance, camera.Position);
-            sound.Ui(UiCue.Bookmark);
+            sound.PhotoFlash(staged.Props.Flash);   // the flash powder and the shutter, where the flash went off (note 776)
             Console.WriteLine(crewMemory.PhotoFile.Length > 0 ? $"crew photo: kept as {crewMemory.PhotoFile}" : "crew photo: taken");
         }
         // D.12, D.13 (note 203): once the report's in, the stills on it are kept on disk, so a player has them after the screen.
