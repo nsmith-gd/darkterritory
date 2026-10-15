@@ -2526,7 +2526,7 @@ static int ArtCheck(TrainTuning t, string content, string[] args)
 // What each lineside kit piece stands on (note 389), as content/linegen/footprints.json has it: one variant a line.
 static int ArtFootprints(string content, string[] args)
 {
-    var all = DarkTerritory.Game.Art.LinesideFootprints.Measure(null);
+    var all = DarkTerritory.Game.Art.LinesideFootprints.Measure(null, DarkTerritory.Game.Look.Load(content));
     var text = DarkTerritory.Game.Art.LinesideFootprints.Json(all);
     string path = Path.Combine(content, DarkTerritory.Sim.LineGen.LineGenConfig.Directory, "footprints.json");
     if (args.Contains("--write"))
@@ -4091,3 +4091,4 @@ sealed record SpectatedNight(NetPlaySession Host, NetPlaySession Watcher) : IDis
         Host.Dispose();
     }
 }
+

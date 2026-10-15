@@ -814,10 +814,12 @@ public sealed partial class World
         Bookmarks.Tuning = tuning.Bookmarks;
         Forts = Sim.Run.Fortresses.Of(route, Train.Line, yardLength, tuning.TerminusZone);
         _walls = tuning.Walls;
-        Train.Walls = LinesideToo(Sim.Run.StopWalls.Of(route, Train.Line, Forts, _walls), route);
+        Train.Walls = StopsWalls(route);
         if (facilities is not null)
         {
             Run.EnableSites(facilities, Train.Line);
+            // Their buildings beyond the machinery, solid where the art stands them (note 758): down from the sites' middles.
+            Train.Walls.AddFacilities(route, Train.Line, Run.Sites);
             // The switchyards' cars on their sidings (GDD §18; note 187), alike on the host and every client: so from the
             // route alone, not from anything one machine has and another mightn't (route.json's 12 m points).
             Run.StandCars(Train);
@@ -839,6 +841,23 @@ public sealed partial class World
     /// Note 371: a generated line's trees, boulders and telegraph poles stand beside the stops' walls, out to
     /// run.json <c>walls.linesideReachM</c> from the line, none inside a fort (<see cref="Sim.Run.LinesideProps"/>).
     /// </summary>
+    /// <summary>
+    /// The line's walls: the stops' and the forts' (note 279), the lineside's (note 371), the coaling towers' standing beside
+    /// the line as they're drawn until Tower Jaw brings one down, and the facilities' buildings where the art stands them (note
+    /// 758; once the sites are laid out).
+    /// </summary>
+    Sim.Run.StopWalls StopsWalls(Route.Route route)
+    {
+        var walls = LinesideToo(Sim.Run.StopWalls.Of(route, Train.Line, Forts, _walls), route);
+        if (Run is { } run)
+        {
+            walls.AddTowers(run.Facilities, Train.Line);
+            if (run.Sites.Count > 0)
+                walls.AddFacilities(route, Train.Line, run.Sites);
+        }
+        return walls;
+    }
+
     Sim.Run.StopWalls LinesideToo(Sim.Run.StopWalls walls, Route.Route route)
     {
         if (Sim.Run.LinesideProps.Of(route, Train.Line) is { } side && _walls is { LinesideReachM: > 0 } t)
@@ -886,7 +905,7 @@ public sealed partial class World
             Arrival = there;
             Forts = [both[0], both[1] with { Square = there.Plan.Square.Turned(turn), Bounds = there.Plan.Bounds, Turn = turn }, .. both.Skip(2)];
         }
-        Train.Walls = ClearSiteWork(LinesideToo(Sim.Run.StopWalls.Of(route, Train.Line, Forts, _walls), route));
+        Train.Walls = ClearSiteWork(StopsWalls(route));
         Train.Walls.Add(Town.Walls);
         if (Arrival is not null)
             Train.Walls.Add(Arrival.Walls);
@@ -2375,6 +2394,7 @@ public sealed partial class World
                 e.Step(ctx);
         // The world is solid (note 279): nothing loose in it stands in a building or a tunnel's lining, and what walks is on the land.
         Sim.Enemies.Solidity.Settle(_enemies, Train, t);
+        FellTowers();
         // GDD §9, T128 (note 273): no creature comes into a fort. One that does (riding the train in, running down a crewmate
         // who got back inside the gate, put down there by a spawn) is driven off: it lets go and is gone.
         // The gym's safe ring (note 676) the same.
@@ -2596,6 +2616,20 @@ public sealed partial class World
         _enemies.Clear();
         _enemies.AddRange(enemies);
         ExposedBodies(Targets);
+        FellTowers();
+    }
+
+    /// <summary>
+    /// Note 758: a coaling tower Tower Jaw's brought down no longer stands as walls. Seen once (its wreck where the tower
+    /// stood: on the host as it falls, on a client in the snapshot that carries it), it's down the rest of the night.
+    /// </summary>
+    void FellTowers()
+    {
+        if (Train.Walls is not { } walls)
+            return;
+        foreach (var e in _enemies)
+            if (e is Sim.Enemies.TowerJaw { Mode: Sim.Enemies.TowerJawMode.Wreck } jaw)
+                walls.Fell(jaw.WorldPosition(Train));
     }
 
     /// <summary>Every creature's body in the open, as a ball finds it (enemies.json <c>bodies</c>; note 290).</summary>

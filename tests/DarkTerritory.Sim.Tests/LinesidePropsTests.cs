@@ -294,7 +294,8 @@ public class LinesidePropsTests
                     Assert.True(w.Top > p.Ground - p.Sink && w.Bottom < p.Ground, $"{spec}: a {p.Species}'s wall from {w.Bottom:0.0} to {w.Top:0.0} over ground {p.Ground:0.0}");
             }
         }
-        var every = Routes.Generate(Content, "local:1", 6).Plan!.Rules.Footprints.Keys.Where(k => k != "rock");
+        // The facilities' footprints are the stops' (StopWalls.AddFacilities, note 758), not the lineside's.
+        var every = Routes.Generate(Content, "local:1", 6).Plan!.Rules.Footprints.Keys.Where(k => k != "rock" && !k.StartsWith("facility", StringComparison.Ordinal));
         Assert.All(every, name => Assert.Contains(name, seen));
     }
 
