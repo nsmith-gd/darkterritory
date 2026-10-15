@@ -891,6 +891,31 @@ public static partial class Hud
     /// <summary>The newest news (note 663), or null.</summary>
     static NewsEvent? NewsUp(Sim.World world) => world.News.Count > 0 ? world.News[^1] : null;
 
+    /// <summary>Under the last town's name as it comes up (note 765).</summary>
+    public const string EndOfTheRun = "END OF THE RUN";
+
+    /// <summary>The place coming up is the night's last town, its gate (note 765).</summary>
+    static bool IsTerminus(Route? route, (string Name, double At) place) =>
+        route?.Plan?.Terminus is { } t && place.Name == t.Name && Math.Abs(place.At - t.GateM) < 0.5;
+
+    /// <summary>
+    /// Note 765: in through the last town's gate (or onto a silent settlement's last stretch), what ends the run: the whole
+    /// train in, then stopped anywhere (run.json homeInsideGateM; the end of the line, short of the buffers, at a silent one).
+    /// Coming in, "KEEP COMING: THE WHOLE TRAIN INSIDE"; all of it in and still rolling, "STOP ANYWHERE: THE RUN ENDS HERE"
+    /// (Stop). Null before the gate, or once the run's over.
+    /// </summary>
+    public static (string Text, bool Stop)? EndLine(Route? route, Sim.World world, TrainOnLine train)
+    {
+        if (world.Run is not { Over: false, Phase: not Sim.Run.RunPhase.Yard } run || route?.Plan?.Terminus is not { } t)
+            return null;
+        double front = Sim.Run.Run.EngineFront(train), home = run.HomeFront(train);
+        if (front < Math.Min(t.GateM, home))
+            return null;
+        if (front < home)
+            return (t.Silent ? "KEEP COMING: TO THE END OF THE LINE" : "KEEP COMING: THE WHOLE TRAIN INSIDE", false);
+        return Math.Abs(Sim.Run.Run.EngineSpeed(train)) >= run.Tuning.StopBelowSpeed ? ("STOP ANYWHERE: THE RUN ENDS HERE", true) : null;
+    }
+
     /// <summary>
     /// What the top centre's lines took (note 764): how far down they go, and the widest one's half width (0: nothing there).
     /// The top left's lines keep out of it.
@@ -949,6 +974,19 @@ public static partial class Hud
             y += line;
             // The distance alone (note 671): "0.6 KM" under a place's name says how far.
             Centred(left > 50 ? $"{left / 1000:0.0} KM" : "HERE", Dim with { W = a }, k, y);
+            y += (line + 2) * k;
+            // Note 765: the last town is where the run ends, and says so as it comes up.
+            if (IsTerminus(s.Route, place))
+            {
+                Centred(EndOfTheRun, Dim with { W = a }, k, y);
+                y += (line + 2) * k;
+            }
+        }
+        // Note 765 (the director, 13 Oct: "It's unclear if I have to go right to the end of the line or if I can just stop the
+        // train inside the town"): in through the last town's gate, what ends the run, until it's ended.
+        if (EndLine(s.Route, s.World, s.Train) is { } end)
+        {
+            Centred(end.Text, end.Stop ? Amber : Ink, k, y);
             y += (line + 2) * k;
         }
         y = MailTop(o, s, m, cx, y, line, k, ref half);

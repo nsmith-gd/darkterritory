@@ -374,6 +374,35 @@ public static partial class Staging
     }
 
     /// <summary>
+    /// The last town (note 765, `dt screenshot --hud --terminus approach|inside|home`): a solo night on
+    /// <paramref name="route"/> under way at <paramref name="speed"/> m/s with its engine's front 600 m short of the terminus's
+    /// gate (approach), just in through it (inside), or with the whole train in and still rolling (home).
+    /// </summary>
+    public static PrototypeSession Terminus(string content, Sim.Route.Route route, int cars, string where, double speed = 4)
+    {
+        var gate = route.Plan?.Terminus.GateM ?? throw new InvalidOperationException($"{route.Name} has no terminus");
+        var probe = new PrototypeSession(content, route, cars, enemies: false);
+        double home = probe.World.Run!.HomeFront(probe.Train);
+        double at = where switch
+        {
+            "approach" => gate - 600,
+            "inside" => Math.Min(gate + 15, home - 5),
+            "home" => home + 2,
+            _ => throw new ArgumentException($"--terminus {where}: approach, inside or home"),
+        };
+        // Settled a second short of it, so the frames have a tick to draw from.
+        var session = new PrototypeSession(content, route, cars, enemies: false, at: at - speed);
+        session.Controls = new Sim.Train.TrainControls { Reverser = 1 };
+        session.World.Run!.Resume(route.DawnSeconds * 0.8, -1, session.Train.Boiler.Tender, session.Train.Vehicles.Sum(v => v.Gun.Ammo));
+        for (int t = 0; t < Sim.SimConstants.TickRate; t++)
+        {
+            session.Train.Dynamics.Velocity = speed;
+            session.Step(default);
+        }
+        return session;
+    }
+
+    /// <summary>
     /// A mail crane coming up (note 673, `dt screenshot --hud --mail-crane [s]`): a solo night on <paramref name="route"/>
     /// with its first crane past the yard about <paramref name="seconds"/> from the second car's side doors, its board read,
     /// the player in that car: with <paramref name="atDoor"/>, in the open side door on the crane's side, else mid-car.

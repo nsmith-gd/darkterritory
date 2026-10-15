@@ -746,6 +746,12 @@ public sealed partial class Run
 
     static TrainDynamics EngineRake(TrainOnLine train) => train.Rakes.First(r => r.Consist.HasEngine);
 
+    /// <summary>Where the engine's front is along the main line, as the run measures it (its rake's, when the train's cut).</summary>
+    public static double EngineFront(TrainOnLine train) => EngineRake(train).Distance;
+
+    /// <summary>The engine's own speed (m/s), as the run reads it for a stop.</summary>
+    public static double EngineSpeed(TrainOnLine train) => EngineRake(train).Speed;
+
     /// <summary>
     /// Where the engine's front has to be for the night to be delivered, stopped: the whole of its rake in through a town
     /// terminus's gate (note 600, <see cref="RunTuning.HomeInsideGateM"/>), or within the terminus zone of the end of line.
