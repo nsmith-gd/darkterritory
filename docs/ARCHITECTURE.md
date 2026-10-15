@@ -693,6 +693,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [488. The Gaunt's barn or shed is dark too (B4, queue #225; note 475's lanterns; level-design H.2 "the Gaunt's roost"; GDD §28)](notes/488.md)
 - [489. The hounds' patrol heard by its moves (AU1, queue #226; D1's #208, note 472, the mode replicated as `CinderHound.Aboard`; E1's #213 clips,…](notes/489.md)
 - [490. Towns, a third pass: nothing ruled straight, a small town's green, the town seen from outside, a fishing town's yards, the guns on the…](notes/490.md)
+- [491. Dave modelled, dressed as the director's photographs have him (queue #228, C1; the art checklist's `dave` "for the art sessions: a modelled…](notes/491.md)
 - [492. A bot crew takes a hand lamp out to the wreck yard's dark heaps (A1, queue #229; note 187's "not yet"; GDD §18 wreck yard "unstable, unlit")](notes/492.md)
 - [493. A dead town's station stands open (B4, queue #230; note 417's "not yet": "the station, the derelicts and the powerhouse stay shut"; linegen…](notes/493.md)
 - [494. The Grumbler's healing heard (AU1, queue #231; E1's #224, note 487, its healing seen; GDD App. A.8 "REGEN heals if only one player has hit…](notes/494.md)
@@ -941,4 +942,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [777. A ping heard (AU1, queue #507; A1's #1024, note 739)](notes/777.md)
 - [778. Nothing lies across the track: the boughs, the deadfall, a boulder, the yards' racks of rail, the stands' trees, a dead line's land and the…](notes/778.md)
 - [780. Each night its own lineside: the art's dressing dealt from the night's own seed, not the same at the same km every night (queue #510, B1;…](notes/780.md)
+- [792. The railway's leavings beside the line solid: dealt by the sim, stood on their footprints, drawn from its list (queue #517, B1; GDD App.…](notes/792.md)
 <!-- end of the notes index -->
