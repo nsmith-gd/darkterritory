@@ -968,4 +968,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [792. The railway's leavings beside the line solid: dealt by the sim, stood on their footprints, drawn from its list (queue #517, B1; GDD App.…](notes/792.md)
 - [793. The town flag's flutter never races (C1, queue #520; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 2: "The flag blowing in the…](notes/793.md)
 - [794. The woods keep off the railway's leavings (queue #521, B1; note 792's "not yet")](notes/794.md)
+- [795. Something at the stops, alone too (A1, queue #522; the director, 15 Oct 2026)](notes/795.md)
 <!-- end of the notes index -->
