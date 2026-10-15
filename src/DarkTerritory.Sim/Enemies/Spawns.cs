@@ -26,6 +26,13 @@ public sealed class SpawnContext(World world, EnemyTuning tuning, Director direc
     public IEnumerable<(int Id, PlayerState State)> Living => World.CrewThisTick.Where(c => c.State.Alive).Select(c => ((int)c.Id, c.State));
     public IEnumerable<(int Id, PlayerState State)> OnGround => Living.Where(c => CrewSense.Afoot(c.State, Train));
     public bool AtFacility => World.Run is { Phase: RunPhase.AtFacility };
+    /// <summary>
+    /// Standing at a stop (note 795): at a facility (down its spur), or standing on the main line beside one. What lives at a
+    /// stop comes to a crew that walks into its yard or village from the main line as to one that took the spur.
+    /// </summary>
+    public bool AtStop => World.Run is { } r && r.StandsAt(Train) >= 0;
+    /// <summary>The site of the stop the train stands at (<see cref="AtStop"/>), if it has one.</summary>
+    public Site? StopSite => World.Run is { } r && r.StandsAt(Train) is >= 0 and var i ? r.Sites.ElementAtOrDefault(i) : null;
     public bool Stopped => Train.Dynamics.Speed < 0.3;
     public RouteTier Tier => World.Route?.Tier ?? RouteTier.Frontier;
     /// <summary>
@@ -276,7 +283,7 @@ public static class Spawns
         {
             var t = c.Tuning.Ribbits;
             int ground = c.OnGround.Count();
-            if (ground == 0 || c.Crew < 2 || !c.None(EnemyKind.Ribbit) || !(c.AtFacility || c.World.InSettlement))
+            if (ground == 0 || c.Crew < c.Tuning.Ribbits.MinCrew || !c.None(EnemyKind.Ribbit) || !(c.AtStop || c.World.InSettlement))
                 return null;
             return 1 + t.PerGroundWeight * ground;
         }, c =>
@@ -307,7 +314,7 @@ public static class Spawns
         {
             var t = c.Tuning.Gaunt;
             if (c.Tier < c.Director.Gate(c.World, RouteTier.Frontier) || c.Crew < t.MinCrew || !c.Once(EnemyKind.Gaunt)
-                || !(c.AtFacility || c.World.InSettlement) || !c.OnGround.Any())
+                || !(c.AtStop || c.World.InSettlement) || !c.OnGround.Any())
                 return null;
             return c.World.Run?.StopSeconds >= t.LongStopSeconds ? t.LongStopWeight : 1;
         }, c =>
@@ -324,7 +331,7 @@ public static class Spawns
         new(EnemyKind.Moose, c =>
         {
             var t = c.Tuning.Moose;
-            if (c.Crew < t.MinCrew || !c.None(EnemyKind.Moose) || !c.Stopped || !(c.AtFacility || c.World.InSettlement))
+            if (c.Crew < t.MinCrew || !c.None(EnemyKind.Moose) || !c.Stopped || !(c.AtStop || c.World.InSettlement))
                 return null;
             double biome = Moose.BiomeWeight(c.World, t, c.Front);
             if (biome <= 0)
@@ -376,7 +383,7 @@ public static class Spawns
         new(EnemyKind.FreightBeetle, c =>
         {
             var t = c.Tuning.FreightBeetle;
-            if (!c.Stopped || !c.AtFacility || !c.None(EnemyKind.FreightBeetle) || FreightBeetle.Freight(c.World, t).Count == 0)
+            if (!c.Stopped || !c.AtStop || !c.None(EnemyKind.FreightBeetle) || FreightBeetle.Freight(c.World, t).Count == 0)
                 return null;
             return MooseTuning.ByTier(t.TierWeights, c.Tier);
         }, c =>
@@ -500,7 +507,8 @@ public static class Spawns
         {
             var t = c.Tuning.Followers;
             var free = OnFollowerGround(c, Follower.Excursions(c.World));
-            if (free.Count == 0 || !c.AtFacility || c.World.ActiveEnemies.Count(e => !e.Gone && e.Kind == EnemyKind.Follower) >= t.MaxActive)
+            // At a facility's grounds, or an abandoned village's (note 795: at a village stop they never came).
+            if (free.Count == 0 || !(c.AtStop || c.World.InSettlement) || c.World.ActiveEnemies.Count(e => !e.Gone && e.Kind == EnemyKind.Follower) >= t.MaxActive)
                 return null;
             return 1 + t.PerGroundWeight * (c.OnGround.Count() - 1);
         }, c =>
@@ -518,7 +526,7 @@ public static class Spawns
         new(EnemyKind.SootChildren, c =>
         {
             var t = c.Tuning.SootChildren;
-            if (c.Crew < t.MinCrew || !c.None(EnemyKind.SootChildren) || !c.OnGround.Any() || !(c.AtFacility || c.World.InSettlement))
+            if (c.Crew < t.MinCrew || !c.None(EnemyKind.SootChildren) || !c.OnGround.Any() || !(c.AtStop || c.World.InSettlement))
                 return null;
             return 1;
         }, c =>
@@ -539,7 +547,7 @@ public static class Spawns
         new(EnemyKind.Passenger, c =>
         {
             var t = c.Tuning.Passenger;
-            if (c.Tier < c.Director.Gate(c.World, RouteTier.DeadLines) || c.Crew < t.MinCrew || !c.AtFacility || !c.Once(EnemyKind.Passenger)
+            if (c.Tier < c.Director.Gate(c.World, RouteTier.DeadLines) || c.Crew < t.MinCrew || !c.AtStop || !c.Once(EnemyKind.Passenger)
                 || Passenger.Car(c.Train) is null)
                 return null;
             int places = c.Living.Select(p => p.State.Parent).Distinct().Count();
@@ -577,12 +585,12 @@ public static class Spawns
         // B.8 · The Grumbler: facilities with a crane and crates (the Foundry first); any tier; ×2 with food at the facility.
         new(EnemyKind.Grumbler, c =>
         {
-            if (!c.AtFacility || c.World.Run?.CurrentSite?.Crane is not { } crane || crane.Left == 0 || !c.None(EnemyKind.Grumbler))
+            if (!c.AtStop || c.StopSite?.Crane is not { } crane || crane.Left == 0 || !c.None(EnemyKind.Grumbler))
                 return null;
             return Director.Aboard(c.World).Contains(CargoKind.Food) ? c.Tuning.Grumbler.FoodWeight : 1;
         }, c =>
         {
-            if (c.World.Run?.CurrentSite?.Crane is not { } crane)
+            if (c.StopSite?.Crane is not { } crane)
                 return false;
             var stacked = Enumerable.Range(0, crane.Castings.Length).Where(i => crane.Castings[i].State == CastingState.Stacked).ToList();
             if (stacked.Count == 0)
