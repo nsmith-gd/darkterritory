@@ -1929,9 +1929,11 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Answer = args.Contains("--answer") ? Str(args, "--answer-at", "60,-12").Split(',') is var aa
             ? Staging.Answer(train, Opt(args, "--answer", 4), double.Parse(aa[0]), double.Parse(aa[1])) : default : default,
         // --watcher s,lateral,height: a sign shown a crewmate afoot (note 327), its eyes there in line coordinates (as --cam;
-        // `dt afoot` lists each sign's), --watcher-left seconds still to show (2.5: open, before the blink).
+        // `dt afoot` lists each sign's), --watcher-left seconds still to show (2.5: open, before the blink), --watcher-kind what it
+        // is (Ribbit; its shape under its eyes, note 761: Gaunt, Grumbler, SootChildren, Whistler).
         Watcher = Str(args, "--watcher", "") is { Length: > 0 } ws && ws.Split(',').Select(double.Parse).ToArray() is var wp
-            ? new DarkTerritory.Sim.Enemies.Watcher(Opt(args, "--watcher-left", 2.5), DarkTerritory.Sim.Enemies.EnemyKind.Ribbit, Staging.LineAt(line, wp[0], wp[1], wp[2]), 0)
+            ? new DarkTerritory.Sim.Enemies.Watcher(Opt(args, "--watcher-left", 2.5),
+                Enum.Parse<DarkTerritory.Sim.Enemies.EnemyKind>(Str(args, "--watcher-kind", "Ribbit"), ignoreCase: true), Staging.LineAt(line, wp[0], wp[1], wp[2]), 0)
             : default,
         // --perched [s]: the fire burned low s seconds (default 10), the Stoker waiting on the smokestack (World.StokerWaiting);
         // past 42 it's climbing down into it.

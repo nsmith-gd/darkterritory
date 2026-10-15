@@ -916,6 +916,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [756. Grabbed with nobody near: the struggle in a crew (S1, queue #486; the social collision audit's R3)](notes/756.md)
 - [756. Grabbed with nobody near: the struggle in a crew (S1, queue #486; the audit's R3)](notes/756.md)
 - [759. The Whistler seen at its whistle: up over the roofs on the coupler, leaning out to whoever's beside the train, its breath jetting from its…](notes/759.md)
+- [761. The eyes in the dark have something under them: a sign is the thing that lives here, a dark shape at the lamp's edge with its eyes in its…](notes/761.md)
 - [763. The char a fire leaves, as burnt boards (C1, queue #493; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 28:…](notes/763.md)
 - [767. The house creatures heard (AU1, queue #497; G1's #316-#319, notes 583-586; their design docs' §4)](notes/767.md)
 - [768. Horseplay heard (AU1, queue #498; K1's #451, note 717)](notes/768.md)

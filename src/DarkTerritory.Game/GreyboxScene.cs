@@ -649,9 +649,14 @@ public sealed partial class GreyboxScene
             // Something out past the lamp heard the crew (note 287).
             if (Answer.Showing)
                 Look.Art.Effects.Eyes(mesh, Answer.At, eye, Answer.Seconds, AnswerShowSeconds);
-            // Something that lives at this stop, watching the crew afoot (note 327).
+            // Something that lives at this stop, watching the crew afoot (note 327): its shape in the dark, its eyes (note 761).
             if (Watcher.Showing)
-                Look.Art.Effects.Eyes(mesh, Watcher.At, eye, Watcher.Seconds, WatcherShowSeconds);
+            {
+                if (Look.Art.Creatures is { } watching)
+                    watching.Watching(mesh, Look.Art.Effects, Watcher.Kind, Watcher.At, eye, Watcher.Seconds, WatcherShowSeconds);
+                else
+                    Look.Art.Effects.Eyes(mesh, Watcher.At, eye, Watcher.Seconds, WatcherShowSeconds);
+            }
             // The air of a corrupted stretch: ash, spores (GDD §30), or brass dust over a brass field.
             Look.Art.Effects.Corruption(mesh, eye, Time, StagedAir
                 ?? (Art.WorldArt.NearBrass(Route, eye) ? Art.Effects.Air.Brass : Art.Effects.AirOf(Art.WorldArt.BiomeAt(Route, centre))));

@@ -642,7 +642,12 @@ public sealed partial class CreatureArt
     {
         var mats = m.Model.Materials;
         for (int i = 0; i < mats.Length; i++)
+        {
             m.Scratch[i] = adjust is null ? m.Looks[i] : adjust(mats[i], m.Looks[i]);
+            // (A watcher's shape, CreatureArt.Watching: the whole of it dark.)
+            if (_shade < 1)
+                m.Scratch[i] = m.Scratch[i] with { Colour = m.Scratch[i].Colour * _shade, Emissive = m.Scratch[i].Emissive * _shade };
+        }
         var seedOffset = new Vector3(MathF.Sin(seed * 12.9898f), MathF.Sin(seed * 78.233f), MathF.Sin(seed * 37.719f)) * 97;
         var settings = new EmitSettings(variant % Math.Max(1, m.Model.VariantCount), clip, _texels, seedOffset);
         mesh.Skinned(Bound(m, settings, arms), at, skin ?? m.Pose.Skin, glow, seedOffset * _texels);
