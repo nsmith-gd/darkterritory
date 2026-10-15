@@ -1894,6 +1894,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             // --signal stop,go,back: a crewmate for each on the ballast off car 1 giving that lamp signal (note 720; view
             // lampsignal); --signal-at s: how far into it.
             : args.Contains("--signal") ? Staging.Signallers(train, Str(args, "--signal", "stop,go,back").Split(','), Opt(args, "--signal-at", 0.9))
+            // --cabcrew: the crew in the big cab (note 716), and two off the train (its chart table's lamps, its hooks' caps).
+            : args.Contains("--cabcrew") ? Staging.CabCrew(train)
             : args.Contains("--vr-body") ? Staging.Headsets(train, content)
             : args.Contains("--working") ? Staging.Working(train, content)
             : args.Contains("--crew") ? [.. Staging.Crew(train, content), .. args.Contains("--ribbits") || args.Contains("--gaunt") || args.Contains("--grumbler") || args.Contains("--follower") || args.Contains("--soot") ? [Staging.Lone(train)] : Array.Empty<Crewmate>()]
@@ -1928,6 +1930,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         StokerLowFor = args.Contains("--perched") ? Opt(args, "--perched", 10) : -1,
         // --whistle: a crewmate on the cord (the cord hauled down, the whistle's steam).
         CordPulled = args.Contains("--whistle"),
+        // --kettle s: the back wall's kettle singing that hard (0..1, note 716); --cuckoo c: the clock's bird c of the way
+        // through its call (0..1).
+        KettleSong = Opt(args, "--kettle", 0),
+        Cuckoo = args.Contains("--cuckoo") ? Opt(args, "--cuckoo", 0.5) : null,
         // --unseen: the livestock not looking round at the eye and the crew (note 455), for the before.
         Onlook = !args.Contains("--unseen"),
         // --coal u: that much on the fire, as the HUD's FIRE reads it (T121: the firebox's look follows it, out only at 0).

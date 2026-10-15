@@ -4735,14 +4735,18 @@ public sealed partial class GreyboxScene
             _mapSheetOf = (line, Route, frame.Shape);
             FrameCounts.Add("cab maps built");
         }
-        mesh.Instances.Add(new MeshInstance(_mapSheet, Art.SceneArt.FrameMatrix(frame, eye)));
+        // Note 716: laid on the chart table, where the engine has one (the sheet's frame to the table's top).
+        var onCab = Art.TrainKit.MapToCab(frame.Shape);
+        mesh.Instances.Add(new MeshInstance(_mapSheet, onCab * Art.SceneArt.FrameMatrix(frame, eye)));
         var style = mesh.Style;
         mesh.Style = null;
         mesh.Emissive = 1;
         // The engine where it is: its distance is along its own path, which on a spur or an alternate isn't the main line's.
         var at = frame.Origin;
         float pulse = 0.7f + 0.3f * MathF.Sin((float)Time * 4);
-        draw(Box.FromCentre(On(at.X, at.Z, 0.014), new Double3(0.013, 0.013, 0.003)), Palette.SignalRed * pulse);
+        var dot = Vector3.Transform(ToF(On(at.X, at.Z, 0.014)), onCab);
+        var size = Vector3.Abs(Vector3.TransformNormal(new Vector3(0.013f, 0.013f, 0.003f), onCab));
+        draw(Box.FromCentre(new Double3(dot.X, dot.Y, dot.Z), new Double3(size.X, size.Y, size.Z)), Palette.SignalRed * pulse);
         mesh.Emissive = 0;
         mesh.Style = style;
 
@@ -4933,6 +4937,73 @@ public sealed partial class GreyboxScene
         }
     }
 
+    /// <summary>
+    /// How hard the back wall's kettle is singing (note 716, <see cref="Sim.Train.CrewCar.KettleSong"/>), 0 to 1: steam off
+    /// its spout as the boiler nears its redline.
+    /// </summary>
+    public double KettleSong { get; set; }
+
+    /// <summary>The cuckoo clock's bird (note 716, <see cref="Sim.Train.CrewCar.Cuckoo"/>): how far through its call, or null while it's in.</summary>
+    public double? Cuckoo { get; set; }
+
+    /// <summary>
+    /// What moves in the crew car (note 716): the chart table's lamp for each crewmate (lit while they're aboard, dark off
+    /// the train or dead: <see cref="Sim.Train.CrewCar.Aboard"/>), in the crew's order by id; each one not aboard's cap on
+    /// their hook at the back, in their own colour; the cuckoo out of its door; the kettle's steam.
+    /// </summary>
+    void CrewCarFittings(MeshBuilder mesh, CarFrame frame, Double3 eye, Action<Box, Vector3> draw)
+    {
+        var shape = frame.Shape;
+        if (Art.TrainKit.ChartTable(shape) is null)
+            return;
+        int vehicles = Vehicles?.Count ?? int.MaxValue;
+        // Flat colour, as the map's ink is: no surface treatment.
+        var style = mesh.Style;
+        mesh.Style = null;
+        var crew = (Crew ?? []).Concat(Self is { } me ? [me] : []).Where(c => c.Id < 200).OrderBy(c => c.Id).ToList();
+        for (int i = 0; i < crew.Count; i++)
+        {
+            var c = crew[i];
+            bool aboard = Sim.Train.CrewCar.Aboard(c.Alive, c.Car, vehicles);
+            var lamp = Art.TrainKit.CrewLamp(shape, i, crew.Count);
+            var at = new Double3(lamp.X, lamp.Y, lamp.Z);
+            draw(Box.FromCentre(at - new Double3(0, 0.035, 0), new Double3(0.022, 0.015, 0.022)), Palette.TarnishedBrass * 0.7f);
+            mesh.Emissive = aboard ? 1 : 0;
+            draw(Box.FromCentre(at, new Double3(0.017, 0.022, 0.017)), aboard ? Palette.LampAmber : new Vector3(0.05f, 0.045f, 0.04f));
+            mesh.Emissive = 0;
+            // Off the train, their cap's on their hook.
+            if (!aboard && i < 16)
+            {
+                var hook = Art.TrainKit.CapHook(shape, i);
+                // A flat cap on the peg, its crown against the wall and its peak down: the crewmate's colour, dulled as cloth is.
+                var colour = new Vector3(0.05f) + (Look?.Tuning.CrewColour(c.Variant) ?? Palette.BlueGrey) * 0.05f;
+                var crown = new Double3(hook.X - 0.06, hook.Y - 0.04, hook.Z);
+                draw(Box.FromCentre(crown, new Double3(0.03, 0.055, 0.075)), colour);
+                draw(Box.FromCentre(crown + new Double3(-0.015, 0.045, 0), new Double3(0.035, 0.02, 0.07)), colour * 0.85f);
+                draw(Box.FromCentre(crown + new Double3(-0.04, -0.06, 0), new Double3(0.04, 0.008, 0.065)), colour * 0.6f);
+            }
+        }
+        // The cuckoo: out of its door and back, its beak open at the top of it.
+        if (Cuckoo is { } call && shape.Cab is { } cab && cab.Max.Z - cab.Min.Z > 8)
+        {
+            var door = Art.TrainKit.CuckooDoor(shape);
+            double pop = Math.Sin(Math.PI * Math.Clamp(call, 0, 1));
+            var bird = new Double3(0, door.Y, door.Z - 0.02 - 0.14 * pop);
+            draw(Box.FromCentre(bird, new Double3(0.04, 0.036, 0.06)), new Vector3(0.36f, 0.24f, 0.13f));
+            draw(Box.FromCentre(bird + new Double3(0, 0.04, -0.04), new Double3(0.03, 0.03, 0.03)), new Vector3(0.42f, 0.3f, 0.17f));
+            draw(Box.FromCentre(bird + new Double3(0, 0.04 + 0.008 * pop, -0.08), new Double3(0.008, 0.005, 0.018)), Palette.HazardYellow * 0.8f);
+            draw(Box.FromCentre(bird + new Double3(0, 0.03, 0.055), new Double3(0.016, 0.012, 0.026)), new Vector3(0.2f, 0.12f, 0.06f));
+        }
+        // The kettle's steam, as it sings.
+        if (KettleSong > 0 && Look?.Art.Effects is { } fx)
+        {
+            var m = Art.SceneArt.FrameMatrix(frame, eye);
+            fx.KettleSteam(mesh, Vector3.Transform(Art.TrainKit.KettleSpout(shape), m), Vector3.TransformNormal(Vector3.UnitY, m),
+                Vector3.TransformNormal(new Vector3(0.6f, 0, -0.8f), m), (float)KettleSong, Time);
+        }
+        mesh.Style = style;
+    }
+
     void CarWorkings(MeshBuilder mesh, CarFrame frame, Double3 eye, Action<Box, Vector3> draw)
     {
         var shape = frame.Shape;
@@ -4940,7 +5011,10 @@ public sealed partial class GreyboxScene
         {
             // Only read from the footplate: from farther off it's a pale square, and not worth its dots in the frame budget.
             if ((frame.Origin - eye).Length < 16)
+            {
                 CabMap(mesh, frame, eye, draw);
+                CrewCarFittings(mesh, frame, eye, draw);
+            }
             mesh.Emissive = 1;
             // The fire, through the firehole: the back of the firebox dull with its light, and the bed of coals along the
             // bottom bright (the firehole's sides frame it, Art/TrainKit).

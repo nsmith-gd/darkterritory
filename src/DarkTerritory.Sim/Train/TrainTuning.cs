@@ -309,6 +309,33 @@ public sealed record EngineLayout(double DeckHeight, double BoilerHalfWidth, dou
     public double RunningBoardAhead { get; init; } = 1.0;
     /// <summary>The sandboxes on the running boards: this far behind the cab, over the drivers.</summary>
     public double SandboxBehind { get; init; } = 2.5;
+    /// <summary>The big cab behind the footplate (ARCHITECTURE §8 note 716): the chart table, the gallery, the back wall.</summary>
+    public CrewCarLayout CrewCar { get; init; } = new();
+}
+
+/// <summary>
+/// The cab as the crew car (ARCHITECTURE §8 note 716; the director, 14 Oct 2026: "the cab itself becomes the crew car"),
+/// train.json <c>geometry.engine.crewCar</c>. Every place is how far behind the cab's front (m). Field docs live in that file.
+/// </summary>
+public sealed record CrewCarLayout
+{
+    public double FootplateLength { get; init; } = 2.5;
+    public double TableFrom { get; init; } = 2.9;
+    public double TableLength { get; init; } = 1.75;
+    public double TableWidth { get; init; } = 0.9;
+    public double TableHeight { get; init; } = 1.0;
+    public double GalleryFrom { get; init; } = 5.1;
+    public double GalleryTo { get; init; } = 8.4;
+    public double GalleryRise { get; init; } = 0.45;
+    public double GalleryStep { get; init; } = 0.45;
+    public double GalleryWaist { get; init; } = 1.1;
+    public IReadOnlyList<double> BenchRows { get; init; } = [5.9, 7.3];
+    public double BenchWidth { get; init; } = 1.0;
+    public double BenchDepth { get; init; } = 0.45;
+    public double BenchHeight { get; init; } = 0.45;
+    public double KettleFrom { get; init; } = 10;
+    public double CuckooEvery { get; init; } = 60;
+    public double CuckooOutSeconds { get; init; } = 3;
 }
 public sealed record MassTuning(double EngineTonnes, double EmptyCarTonnes, double LoadedCarTonnes);
 public sealed record PerformanceRow(int Cars, double Accel, double Brake);

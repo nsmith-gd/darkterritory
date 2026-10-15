@@ -50,7 +50,10 @@
       // the whole cab being operable by one person"): everything at its front, facing forward. Across it under the windows,
       // left to right: the coal bunker in the front left corner, the firebox against the front wall beside it, the
       // driver's console under the right-hand window. One person stood behind them reaches all three without turning round.
-      "cabLength": 5.0,
+      // Note 716 (the director, 14 Oct 2026: "big cab, 11 meters, smaller boiler ... the cab itself becomes the crew car"):
+      // 11 m of the engine's 20 (was 5), the boiler about 8 behind it (was about 14). Its front 2.5 m, the footplate, is as it
+      // was; behind it crewCar's chart table, gallery and back wall.
+      "cabLength": 11.0,
       // The coal bunker: in the front left corner, back along the left wall this long, this deep in from the wall and this
       // high over the floor.
       "bunkerLength": 1.8,
@@ -70,7 +73,46 @@
       // viaducts' parapets, clear above them. Any wider and the steps' foot is off a bridge's deck.
       "runningBoardWidth": 0.85,
       "runningBoardAhead": 1.0,
-      "sandboxBehind": 2.5
+      "sandboxBehind": 2.5,
+      // The cab as the crew car (note 716; the director, 14 Oct 2026: "the place where players hang out together ... where
+      // coordinated driving happens ... the captain's quarters, shared by all"). Every place is metres behind the cab's front.
+      "crewCar": {
+        // The footplate, the work at the front exactly as note 280 has it (bunker, firebox, console, levers, cord): nothing of
+        // the crew car's stands in its first footplateLength.
+        "footplateLength": 2.5,
+        // The chart table behind it, in the middle (the director: "I'm okay with moving the cab map behind the controls. On a
+        // table and as long as it's tracking where the train still is and giving our route"): from tableFrom, this long,
+        // this wide and this high (standing height). Either side of it a way 0.95 m wide down the cab. Its front clear by a
+        // body's breadth of the floor a crewmate's put on behind the bunker (PlayerMotor.CabFloorZ, 2.5 m back).
+        "tableFrom": 2.9,
+        "tableLength": 1.75,
+        "tableWidth": 0.9,
+        "tableHeight": 1.0,
+        // The gallery ("the gallery and the raised benches, this is a good spot"): a floor galleryRise up from galleryFrom to
+        // galleryTo, a tread galleryStep deep at its front and its back, half way up (player.json stepUp walks it, with
+        // arms full; deeper than a body's radius, so the foot's on it before the riser behind it is in the way), so whoever
+        // stands there sees the line out of the front windows over the heads at the footplate. The cab's sides stand
+        // galleryWaist over its floor the whole way from the front pillar to the doorways (a waist, not a sill to jump out
+        // over; and no corner where the gallery starts), under the footplate's slits as ever.
+        "galleryFrom": 5.1,
+        "galleryTo": 8.4,
+        "galleryRise": 0.45,
+        "galleryStep": 0.45,
+        "galleryWaist": 1.1,
+        // The benches on it, facing forward down the middle of the cab (the chart table's line, so a bench sees over it), one
+        // a row, from each benchRows (m behind the cab's front), benchWidth across, benchDepth deep, its seat benchHeight up.
+        // The ways either side of the table run on past them to the back wall's doors.
+        "benchRows": [5.9, 7.3],
+        "benchWidth": 1.0,
+        "benchDepth": 0.45,
+        "benchHeight": 0.45,
+        // The back wall's kettle on the warm backhead sings from kettleFrom under boiler.json's redline, full at it: the
+        // cab's own sign the gauge is climbing. The cuckoo clock's bird comes out every cuckooEvery seconds over the last
+        // enemies.json wakers.stirSeconds before dawn, for cuckooOutSeconds each time.
+        "kettleFrom": 10,
+        "cuckooEvery": 60,
+        "cuckooOutSeconds": 3
+      }
     },
     // Cars are walk-in (GDD §10: "the back door"; §26: warm interior, hostile exterior). The floor is
     // level with the coupler plate, so you step from the gap through the end door. The roof slab keeps
