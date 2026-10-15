@@ -202,3 +202,11 @@ launches are AU1.1, AU1.2, …. Entries are UTC; those before 12:55 on 7 Oct wer
   and tells candidates. The hooks wait on #967.
 - **Flagged by a recipe agent:** `g1_train.tones()` builds its phase in float32, which may click at a loop's seam on a
   long take. The Brakeman's squeal measured clean; worth a look when that file is next touched.
+- **The town's guns at the walls (#502's last piece):**
+  - The scene's gun beat is now shared (`Effects.WallGunBeat`), and each gun is heard firing on it.
+  - Each ball is heard landing on the Waker's back its flight later. Creatures brought in through the gate are heard
+    under the same guns.
+  - 4 candidates built, the first installed, a new `town-guns` row at L1, a test.
+- **The forge and the BBQ deck (#505):** 22 candidates from a recipe agent, uploaded; rows filled at L0, waiting on #967.
+- **Claimed #506 (note 776):** K1's #1016, the crew car's kettle and cuckoo, the crew photo's flash, the logbook's pages.
+  The cue lines are in, and a recipe agent is building the candidates ahead of the merge.
