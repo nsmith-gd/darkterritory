@@ -104,9 +104,10 @@ public static class FlagKit
     /// <summary>
     /// The chain at <paramref name="time"/> in a wind of <paramref name="wind"/> (m/s, world axes: <see cref="WindTuning.Of"/>)
     /// gusting by <paramref name="gusts"/>: each bone's matrix, bind space to the flag's (world-aligned) object space, its hoist
-    /// at the origin. <paramref name="seed"/> keeps two flags out of step.
+    /// at the origin. <paramref name="seed"/> keeps two flags out of step. <paramref name="clock"/>, the flag's own, runs its
+    /// ripple on from frame to frame at the pace of the moment (without one, as if it had run at this pace all night).
     /// </summary>
-    public static void Pose(FlagTuning t, Vector3 wind, float gusts, double time, float seed, Span<Matrix4x4> skin)
+    public static void Pose(FlagTuning t, Vector3 wind, float gusts, double time, float seed, Span<Matrix4x4> skin, FlagClock? clock = null)
     {
         float s = (float)time + seed * 7.3f;
         // The gusts roll through as the foliage's do (scene.vert): the wind a little up and down on a slow swell.
@@ -119,6 +120,10 @@ public static class FlagKit
         var turn = Matrix4x4.CreateRotationY(yaw);
         float ripple = t.Ripple + (t.RippleFull - t.Ripple) * lift;
         float pace = t.Pace + (t.PaceFull - t.Pace) * lift * gust;
+        // How far the ripple's run (rad). Its pace rises and falls with every gust, so it's run on from where it was: the
+        // clock's time by the pace would jump it on by the whole night's change at each one (the 14 Oct playtest's "a little
+        // fast sometimes": the fly flung about frame to frame, worse the later it got).
+        float run = (float)((clock?.Run(s, pace) ?? s * pace) % (2 * Math.PI));
         float seg = t.Length / (Bones - 1);
         var at = Vector3.Zero;
         for (int i = 0; i < Bones; i++)
@@ -128,18 +133,37 @@ public static class FlagKit
             // (Slack, it still stirs: the hang swings a little on its own slow breath.)
             float droop = t.Droop * (1 - lift) * MathF.Pow(f, 0.8f) * (1 + 0.1f * MathF.Sin(s * 1.1f + f * 1.5f)) + 0.08f * lift * f;
             // Flying, it billows up and down as well as side to side, the wave a little behind the snake.
-            float billow = t.Flutter * lift * f * MathF.Sin(f * t.Waves * MathF.Tau - s * pace + 0.9f);
+            float billow = t.Flutter * lift * f * MathF.Sin(f * t.Waves * MathF.Tau - run + 0.9f);
             // The ripple runs out from the hoist (phase back along the chain), nothing at the pole, widest at the fly.
-            float phase = f * t.Waves * MathF.Tau - s * pace;
+            float phase = f * t.Waves * MathF.Tau - run;
             float snake = ripple * f * MathF.Sin(phase);
             // A lift and fall across it as the wave passes, and the fly's flick.
             float roll = 0.12f * lift * f * MathF.Sin(phase + 1.1f);
-            float flick = f > 0.75f ? 0.15f * (0.3f + lift) * MathF.Sin(s * pace * 1.7f + seed) * (f - 0.75f) * 4 : 0;
+            float flick = f > 0.75f ? 0.15f * (0.3f + lift) * MathF.Sin(run * 1.7f + seed) * (f - 0.75f) * 4 : 0;
             var r = Matrix4x4.CreateRotationX(roll) * Matrix4x4.CreateRotationY(snake + flick) * Matrix4x4.CreateRotationZ(billow - droop) * turn;
             var pose = r with { Translation = at };
             skin[i] = Matrix4x4.CreateTranslation(-seg * i, 0, 0) * pose;
             // The next bone a segment on along this one.
             at += Vector3.TransformNormal(Vector3.UnitX, r) * seg;
         }
+    }
+}
+
+/// <summary>
+/// A flag's ripple run on frame to frame (<see cref="FlagKit.Pose"/>): its pace integrated over the time it's drawn, so a gust
+/// quickens it from where it is. Presentation only: each flag's own, kept by whoever draws it. A gap of more than a second
+/// (the flag out of sight) or a clock run back starts it again as if it had run at that pace.
+/// </summary>
+public sealed class FlagClock
+{
+    double _at = double.NaN, _run;
+
+    /// <summary>How far the ripple's run (rad) by <paramref name="time"/> (s) at <paramref name="pace"/> (rad/s) since last asked.</summary>
+    public double Run(double time, double pace)
+    {
+        double dt = time - _at;
+        _run = double.IsNaN(_at) || dt < 0 || dt > 1 ? time * pace % (2 * Math.PI) : (_run + dt * pace) % (2 * Math.PI);
+        _at = time;
+        return _run;
     }
 }

@@ -70,9 +70,13 @@ public static partial class TownGenerator
 
     /// <summary>How far in from the square's ends the green across the street from it starts (m).</summary>
     const double GreenIn = 4;
+    /// <summary>The narrowest an open house is drawn on a turned lot (m; note 692): its rooms' least.</summary>
+    const double OpenNarrowest = 5.4;
+    /// <summary>How far turned a lot an open house may stand square on (rad; note 692), when there aren't square lots enough.</summary>
+    const double OpenTurn = 0.15;
 
     static Homes Houses(TownContent content, TownSite site, TownSquare square, int population, int former, Func<string, Pcg32> rngFor,
-        TownFolk? folk = null)
+        TownFolk? folk = null, TownForms.Layout? form = null)
     {
         var t = content.Tuning;
         var st = t.Houses;
@@ -118,6 +122,13 @@ public static partial class TownGenerator
             double mid = (square.S0 + square.S1) / 2;
             lots = [.. lots.OrderBy(l => Math.Abs(l.S - mid)).ThenBy(l => l.Side == side ? 0 : 1).ThenBy(l => l.S).Take(st.LineRow)];
         }
+        // A town type's lots are its own (note 692): its form laid them, nearest the square first.
+        if (form is not null)
+        {
+            lots.Clear();
+            foreach (var l in form.Lots)
+                lots.Add((l.S, l.D, l.Side, l.Frontage, -1));
+        }
         var wt = t.Walled;
         var lrng = rngFor("houses.lots");
         double s0 = wt.From, s1 = site.Gate - wt.ToGate, depthMax = st.Depth[1];
@@ -141,7 +152,7 @@ public static partial class TownGenerator
         double Swing(int sd, int k, double s) => k <= 0 ? 0 : Amp(k) * waves[sd].At(s);
         // The works' stretch along the line (note 353), across it from the square and its green.
         double worksFrom = Math.Max(s0, square.S0 - wt.WorksBefore), worksTo = Math.Min(s1, square.S1 + wt.WorksPast);
-        if (lots.Count < needed)
+        if (lots.Count < needed && form is null)
         {
             // Lanes across, the ways from the line out to the streets: never through the square (its buildings back onto
             // where its far wall was) or the works across the line from it, so one that would be is moved to just past
@@ -217,7 +228,7 @@ public static partial class TownGenerator
             Lanes(row, sd, s, frontage) is var (below, above) && (below > s - frontage / 2 || above < s + frontage / 2);
         var jrng = rngFor("houses.setbacks");
         int count = 0;
-        while (lots.Count < needed && count < wt.MaxStreets)
+        while (form is null && lots.Count < needed && count < wt.MaxStreets)
         {
             count++;
             double c = Street(count);
@@ -247,7 +258,8 @@ public static partial class TownGenerator
         }
         // Nearest the square first: the town grows out from its heart, its lost at its edges, nothing past them.
         double heartS = (square.S0 + square.S1) / 2, heartD = side * 15;
-        lots = [.. lots.OrderBy(l => (l.S - heartS) * (l.S - heartS) + (l.D - heartD) * (l.D - heartD)).ThenBy(l => l.Side == side ? 0 : 1)];
+        if (form is null)
+            lots = [.. lots.OrderBy(l => (l.S - heartS) * (l.S - heartS) + (l.D - heartD) * (l.D - heartD)).ThenBy(l => l.Side == side ? 0 : 1)];
         double reach = wt.First + (count - 1) * wt.Every + wt.Width / 2 + wt.Setback + depthMax + wt.Margin + wt.SetbackJitter[1] + Amp(count);
         if (count > 0)
         {
@@ -255,6 +267,12 @@ public static partial class TownGenerator
                 count > 1 ? wt.First + wt.Every - wt.Width / 2 : reach - wt.Margin, side);
             homes.Works = new TownWorks(worksFrom, worksTo, wt.First + wt.Width / 2,
                 count > 1 ? wt.First + wt.Every - wt.Width / 2 : reach - wt.Margin, -side, site.Industry);
+        }
+        if (form is not null)
+        {
+            homes.Green = form.Green;
+            homes.Works = form.Works;
+            homes.Bounds = form.Bounds(site.Gate);
         }
         // A lane turns only where there's a street (straight on from the last to the wall).
         if (count > 0)
@@ -291,13 +309,34 @@ public static partial class TownGenerator
                     k < count ? Over(x => c + wt.Every / 2 + (Swing(sd, k, x) + Swing(sd, k + 1, x)) / 2).Lo : reach - 1.5, false);
         }
 
+        // A town type's open houses stand square on dry ground (their rooms are their walls), and its drowned lots are only
+        // ever the lost's (note 692): the first lots square to the line go first, and the households fit the dry lots.
+        int dry = lots.Count;
+        if (form is not null)
+        {
+            dry = form.Lots.Count;
+            int want = Math.Min(Math.Clamp((int)Math.Round(population / Math.Max(1, t.Explorable.Per)), t.Explorable.Min, t.Explorable.Max), dry);
+            var order = Enumerable.Range(0, form.Lots.Count).ToList();
+            // The open houses' lots: square to the line, nearest the square; short of those (a town that turns its rows round
+            // its hill, note 692), the nearly square, so an open house, which stands square, swings no corner far into its
+            // neighbours.
+            var squareLots = order.Where(i => form.Lots[i].Turn == 0).Take(want).ToList();
+            if (squareLots.Count < want)
+                squareLots.AddRange(order.Where(i => form.Lots[i].Turn != 0 && Math.Abs(form.Lots[i].Turn) < OpenTurn).Take(want - squareLots.Count));
+            order = [.. squareLots, .. order.Except(squareLots)];
+            var formLots = order.Select(i => form.Lots[i]).ToList();
+            form.Lots.Clear();
+            form.Lots.AddRange(formLots);
+            lots = [.. formLots.Select(l => (l.S, l.D, l.Side, l.Frontage, -1))];
+        }
         // More to a house where there aren't houses enough.
-        while (sizes.Count > lots.Count && sizes.Count > 1)
+        while (sizes.Count > dry && sizes.Count > 1)
         {
             sizes[^2] += sizes[^1];
             sizes.RemoveAt(sizes.Count - 1);
         }
-        int lostHouses = Math.Clamp(lostWanted, 0, lots.Count - sizes.Count);
+        // A warren (note 692) stands full: every lot its people don't live in is one of the lost's, boarded, burnt or empty.
+        int lostHouses = form is { Packed: true } ? Math.Max(0, lots.Count - sizes.Count) : Math.Clamp(lostWanted, 0, Math.Max(0, lots.Count - sizes.Count));
         int open = Math.Min(sizes.Count, Math.Clamp((int)Math.Round(population / Math.Max(1, t.Explorable.Per)), t.Explorable.Min, t.Explorable.Max));
 
         var looks = rngFor("houses");
@@ -308,7 +347,9 @@ public static partial class TownGenerator
         // The town's character (houses.json), and the stream its houses' designs come from: a fishing cove's shingled
         // gable-fronts, an old town's painted bumps, a company town's one house over and over in its own paints.
         var drng = rngFor("houses.design");
-        var character = HouseDesigner.Character(content.Looks, site.Industry, ref drng);
+        var character = HouseDesigner.Character(content.Looks, site.Industry, ref drng, form?.Form ?? "");
+        // How sooted each is (note 692), on a stream of its own so the designs are as they were.
+        var grng = rngFor("houses.grime");
         homes.Character = character.Id;
         homes.Gear = character.Gear;
         HouseDesign? model = null;
@@ -347,13 +388,43 @@ public static partial class TownGenerator
             // house (whose wing may come this way).
             width = Math.Min(width, frontage - 2);
             double room = (frontage - width) / 2 - 0.6;
+            // A warren's row (note 692): shoulder to shoulder, each as wide as its lot, no room for a wing beside it.
+            if (row < 0 && form!.Packed)
+            {
+                (width, room) = (frontage - 0.15, 0);
+                // An open house stands square (its rooms are the rail frame's), so it's narrower by as far as its lot's turn
+                // swings its turned neighbours' corners in.
+                if (i < Math.Min(sizes.Count, open))
+                    width = Math.Max(OpenNarrowest, width - 2 * depth * Math.Abs(DMath.Sin(form.Lots[i].Turn)) - 0.3);
+            }
             var layout = kind == HouseKind.Open ? HouseLayout.For(width, depth, looks.Chance(0.5) ? 1 : -1) : null;
             var design = model is not null && character.Uniform
                 ? HouseDesigner.Copy(content.Looks, character, model, layout?.DoorU, ref drng)
                 : HouseDesigner.Draw(content.Looks, character, gable, width, depth, room, layout is not null, layout?.DoorU, ref drng);
             if (character.Uniform)
                 model ??= design;
-            var house = new TownHouse(i, s, d0, sd, width, depth, kind, design, family, text, layout) { Party = i == partyAt && layout is not null };
+            if (character.Grime > 0)
+                design = design with { Grime = Math.Clamp(character.Grime + grng.Range(-character.GrimeSpread, character.GrimeSpread), 0, 1) };
+            var fl = row < 0 ? form!.Lots[i] : null;
+            var house = new TownHouse(i, s, d0, sd, width, depth, kind, design, family, text, layout)
+            { Party = i == partyAt && layout is not null, Level = fl?.Level ?? 0, Turn = layout is null ? fl?.Turn ?? 0 : 0 };
+            if (fl is not null)
+            {
+                // A town type's lot (note 692): a yard only where it's square to the line and has room behind.
+                var formYard = fl.Back is { } fb ? Yard(house, character.Yard, frontage, fl.Edge, fb, false, ref yrng) : [];
+                formYard.RemoveAll(y => InSquare(house, y, square));
+                house = house with { Yard = formYard };
+                homes.Houses.Add(house);
+                if (house.Party && layout is not null)
+                {
+                    PartyAt(i, house, layout);
+                    continue;
+                }
+                if (layout is null || stories.Next() is not { } formHousehold)
+                    continue;
+                AtHome(i, house, layout, formHousehold);
+                continue;
+            }
             var (edge, back, fenced) = RowYards(row, Math.Sign(d0), s, frontage / 2);
             // Nothing ruled straight (note 490): a shut house on a street a few degrees off true, the row across the green's
             // far street turned to it; no further than its lot has room for, its yard square to the lot.
@@ -384,7 +455,13 @@ public static partial class TownGenerator
             }
             if (layout is null || stories.Next() is not { } household)
                 continue;
+            AtHome(i, house, layout, household);
+        }
+        return homes;
 
+        void AtHome(int i, TownHouse house, HouseLayout layout, TownHousehold household)
+        {
+            string family = house.Family;
             // The household at home: always a parent, then whoever else its story has a part for, as many as live here.
             // A household's {other} is one town (the lodgers came from it, the letters go to it), not a new one a line.
             var vars = new Dictionary<string, string> { ["{family}"] = family };
@@ -417,7 +494,6 @@ public static partial class TownGenerator
                 homes.Residents.Add(new Spot("", ps, pd, fs, fd, 0, House: i, Pose: spot.Pose, Part: part));
             }
         }
-        return homes;
 
         // Nicki at the door with a glass for whoever comes in, waving them in; her guests about the rooms, dancing (one sat
         // at the table with the wine). Its "household" is the party's words: what she says first, the rest, the guests'.

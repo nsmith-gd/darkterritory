@@ -15,6 +15,12 @@ namespace DarkTerritory.Sim.Tests;
 /// The fortress towns (GDD §3.1, App. F.1 T133; ARCHITECTURE §8 note 281): each its own custom, people with lines, papers
 /// to read, made alike on every machine, solid where they stand.
 /// </summary>
+/// <remarks>
+/// In LineGenTests' collection, after the parallel classes: since the town forms (note 692) most of its eighty towns are
+/// warrens of hundreds of houses, a minute and more of solid CPU, which at startup starved the other assemblies' wall-clock
+/// tests on CI's Windows runner (UdpTransportTests' loopback ping).
+/// </remarks>
+[Collection(nameof(LineGenTests))]
 public class TownTests
 {
     static readonly string Content = DataFile.FindContentRoot();
@@ -423,9 +429,11 @@ public class TownTests
         // storeys, roof, dormers, siding, paint, wing, porch), but a company town's, which are one house in its own paints.
         var characters = new HashSet<string>();
         int towns = 0;
+        // (The fortress characters are the town forms' own: with the forms in the trades' rotation, towns.json forms.enabled.)
+        var rotation = Towns with { Tuning = Towns.Tuning with { Forms = Towns.Tuning.Forms with { Enabled = true } } };
         for (int seed = 1; seed <= 80; seed++)
         {
-            var plan = TownGenerator.Generate(Towns, Site(seed));
+            var plan = TownGenerator.Generate(rotation, Site(seed));
             characters.Add(plan.Character);
             // The houses round the square, where a crew walks (a big town's streets go on past them: it can't be all one
             // of each, but no stretch of street should look like a row of copies).
