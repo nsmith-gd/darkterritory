@@ -63,6 +63,15 @@ public class CaptionsTests
     // Note 771: the Pickers coming up out of the drains, and taking a crate.
     [InlineData("tell-pickers.emerge")]
     [InlineData("cs-pickers.carry")]
+    // Note 806: the pets' tells, the canary while it sings, the calliope as the whistle.
+    [InlineData("up-pets.hiss")]
+    [InlineData("up-pets.bark")]
+    [InlineData("up-whimsy.song")]
+    [InlineData("up-whimsy.calliope")]
+    // Note 775: the horns as the whistle; the forge from the cab.
+    [InlineData("up-horns.honk")]
+    [InlineData("up-horns.gold")]
+    [InlineData("up-forge.hearth")]
     // Note 809: the Mouse Moose creeping in, and dragging a casting off.
     [InlineData("tell-mouse-moose.squeak")]
     [InlineData("cs-mouse-moose.drag")]

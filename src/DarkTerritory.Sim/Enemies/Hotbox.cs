@@ -148,7 +148,7 @@ public sealed class Hotbox(int id) : Enemy(id)
             .Select(c => (int?)c.Player.Id).FirstOrDefault();
         if (near is not { } victim || !Enter(ctx, SpinePhase.Commit))
             return;
-        ctx.Bite(victim, t.SnapDamage, DeathCause.Taken);
+        ctx.Bite(victim, t.SnapDamage, DeathCause.Hotbox);
         Enter(ctx, SpinePhase.Telegraph);
     }
 

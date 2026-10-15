@@ -118,7 +118,9 @@ public static class Protocol
     //     field), Caboose, FishingRod, Fish, GrilledFish, Cat, Dog and TennisBall (the caboose's and the pets' Tipped in the
     //     ninth field); the player flags Lounging and Playing (PlayerFlags is a uint now: the ushort was full); the world
     //     record's band tune and first tick, and the whimsies' state; the emotes Bow, Salute and Conga (9-11, the places note 722 kept).
-    public const int Version = 74;
+    // 75: deaths named for what did them (note 682): DeathCause's byte gains Lodger, Hanger, Householder, HollowHouse,
+    //     Brakeman, Hotbox, TowerJaw, Grumbler and Pickers, after Dropped.
+    public const int Version = 75;
 }
 
 public enum MessageType : byte

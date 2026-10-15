@@ -142,7 +142,7 @@
     // The whistle swapped for a clown's bulb horn: a third as loud to the Choir (combat.json choir.whistleLoudness; it still
     // draws the night's first threat as a whistle does, note 287). Its honk is the audio chat's (asked on the PR). Not with
     // the gold one.
-    { "id": "theHonk", "name": "The honk", "kind": "whimsy", "size": "small", "costShare": 0.05, "effect": { "whistle": 0.35 }, "excludes": [ "goldWhistle", "cucarachaHorn", "calliope" ],
+    { "id": "theHonk", "name": "The honk", "kind": "whimsy", "size": "small", "costShare": 0.05, "effect": { "whistle": 0.35, "dress:theHonk": 1 }, "excludes": [ "goldWhistle", "cucarachaHorn", "calliope" ],
       "line": "A bulb horn off a clown's bicycle where the whistle was. The Territory doesn't take it seriously.",
       "tally": "Horn: comedic." },
     // The BBQ deck (note 698; the director, 13 Oct: "its the BBQ Dads at the end of the world"): train.json composition.bbq.
@@ -185,7 +185,7 @@
 
     // Silly (note 678): bought because it's silly. The price is the joke, and the clerk reads it out every night.
     // Costs more than a major and is still a whistle: louder, which isn't better (the Choir hears it a quarter further).
-    { "id": "goldWhistle", "name": "Gold-plated whistle", "kind": "silly", "size": "major", "costShare": 2.5, "effect": { "whistle": 1.25 }, "excludes": [ "theHonk", "cucarachaHorn", "calliope" ],
+    { "id": "goldWhistle", "name": "Gold-plated whistle", "kind": "silly", "size": "major", "costShare": 2.5, "effect": { "whistle": 1.25, "dress:goldWhistle": 1 }, "excludes": [ "theHonk", "cucarachaHorn", "calliope" ],
       "line": "Costs more than a car. It's a whistle. It's louder, and that isn't better.",
       "tally": "Whistle: gold." },
     // The rest of the silly (note 701; the director, 13 Oct: approved, "hilarious", "super funny"): things on the train, the

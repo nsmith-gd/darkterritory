@@ -507,7 +507,7 @@
         "head": ["the Head", "Gallows Head", "Lantern Hill"],
         "lanes": ["the Lanes", "Upper Town", "the Back Lanes"] },
       "landmarks": {
-        "lighthouse": { "title": "the {town} light", "text": "Still lit, every night, though no boat has come in since the wall went up. The keeper says it isn't for boats. He won't say what it's for. The lamp turns the wrong way round, and has done since the second winter." },
+        "lighthouse": { "title": "the Hope Tower", "text": "Eighty metres of stone on the head, and a coal fire on top in an iron basket: the Flame of Hope, {town} calls it. It's been kept every night since the wall went up, for whoever's still out there in the dark to find their way in by. The keeper hauls the coal up a tub at a time. Nobody's come in by it yet. Everybody here is sure somebody will." },
         "beacon": { "title": "the breakwater light", "text": "A lamp at the end of the mole in a cage of iron. Somebody walks out to trim it at the bell, on a rope tied off at the sea wall. The rope is new. The one before it is still out there, in the water, going down." },
         "boatshed": { "title": "the boat shed", "text": "A dory half built on the stocks, ribs and no planks. It's been half built for three years. They work on it in the day and take a plank off at night, so it's never finished and nobody has to go out in it." },
         "chapel": { "title": "the seamen's chapel", "text": "Every pew carved with a boat's name. Some names have a date after them. A few have two dates, the second added in a different hand, years after the boat went down: the night it was seen again." } } },
@@ -702,6 +702,13 @@
       "The siding's points came up the year we shut the gate. What's in it stays in it. That's the yard's whole business now.",
       "I weigh the carts out and I weigh them back. If it doesn't match, I write the difference down. I don't ask what it was.",
       "We pack for the towns down the line every week. Some haven't answered in years. You don't stop packing for people." ] },
+    // A harbour town's keeper of its Hope Tower (queue #547, note 819), at its door all night between the hours' tubs of coal.
+    "flamekeeper": { "title": "keeper of the Flame", "lines": [
+      "Four hundred and twelve steps and a tub of coal at the hour. You'd be surprised what you can carry up when it's for somebody.",
+      "It isn't for ships. There aren't any ships. It's for anybody. Anybody at all that's still out there.",
+      "It's never gone out. Not the night of the fall, not the winter the coal ran short. We burned the pews that winter. The chapel didn't mind.",
+      "Some nights there's another light, far up the coast, the same colour as ours. It goes out when we bank ours. So I don't bank ours.",
+      "Folk ask what if it brings the wrong ones in. I tell them the wrong ones never needed a light to find us." ] },
     "driver": { "title": "old driver", "lines": [
       "Drove the {other} road nineteen years. Never stopped for anything on the line. That's the whole trick.",
       "Watch the bends on your map, not the bends in front of you. In front of you is too late.",

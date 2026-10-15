@@ -227,6 +227,103 @@ public class SolidWorldTests
         Assert.False(InAnyWall(train.Walls!, awake.Local, 0.3), $"an awake Gaunt in a house at {awake.Local}");
     }
 
+    /// <summary>
+    /// A stretch of flat formation beside frontier:9's line, 4.5 m out at 900 m: where a test's walls stand, the walk along the line
+    /// (its start, which way is ahead and across, and the ground there).
+    /// </summary>
+    static (TrainOnLine Train, Double3 Start, Double3 Ahead, Double3 Across, double Ground) Formation()
+    {
+        var (_, train) = Night("frontier:9");
+        var t = train.Line.Sample(900);
+        var ahead = new Double3(t.Tangent.X, 0, t.Tangent.Z).Normalized;
+        var across = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+        var start = t.Position + across * 4.5;
+        double ground = train.Line.Conditions!.Ground(start);
+        return (train, start with { Y = ground }, ahead, across, ground);
+    }
+
+    /// <summary>A wall across the way ahead, <paramref name="out"/> m along it: <paramref name="wide"/> across, <paramref name="deep"/> along, its top <paramref name="high"/> over the ground.</summary>
+    static Wall Across(Double3 start, Double3 ahead, Double3 across, double ground, double @out, double wide, double deep, double high) =>
+        new(start + ahead * @out, across, wide / 2, deep / 2, ground - 1, ground + high);
+
+    static PlayerState Facing(TrainOnLine train, Double3 start, Double3 ahead)
+    {
+        var s = PlayerMotor.SpawnOnGround(start, train.Line, 900, P);
+        s.Yaw = Math.Atan2(-ahead.X, -ahead.Z);
+        return s;
+    }
+
+    static void Tick(ref PlayerState s, TrainOnLine train, PlayerIntent intent) =>
+        PlayerMotor.Step(ref s, intent, train, P, Tuning.Train, SimConstants.TickSeconds);
+
+    [Fact]
+    public void AWallsTopUnderAStepIsSteppedUpOntoAndWalkedOff()
+    {
+        // Note 817: a pile of timber, a boulder sunk low: walked at, a crewmate steps up onto it and down off its far side, never
+        // through it (it was walked through, under PushOut's step and nothing to stand on).
+        var (train, start, ahead, across, ground) = Formation();
+        double high = P.StepUp - 0.05;
+        var low = Across(start, ahead, across, ground, 4, 3, 1, high);
+        train.Walls = StopWalls.Of([low]);
+        var s = Facing(train, start, ahead);
+        bool stood = false;
+        for (int i = 0; i < 3 * SimConstants.TickRate; i++)
+        {
+            Tick(ref s, train, new PlayerIntent { MoveZ = 1 });
+            Assert.False(InAnyWall(train.Walls, s.Position, 0), $"inside the wall at {s.Position}, tick {i}");
+            var local = low.ToLocal(s.Position);
+            if (Math.Abs(local.X) < low.HalfLength && Math.Abs(local.Z) < low.HalfWidth - 0.05)
+            {
+                Assert.Equal(low.Top, s.Position.Y, 6);
+                stood = true;
+            }
+        }
+        Assert.True(stood, "never stood on it");
+        Assert.True(Double3.Dot(s.Position - start, ahead) > 5, $"stopped {Double3.Dot(s.Position - start, ahead):0.0} m along");
+        Assert.Equal(train.Line.Conditions!.Ground(s.Position), s.Position.Y, 3);
+        Assert.Equal(PlayerState.World, s.Parent);
+        Assert.Equal(Surface.Ground, s.Surface);
+    }
+
+    [Fact]
+    public void AWoodpileOverAStepStopsYouAndHoldsYouUpJumpedOnto()
+    {
+        // Note 817: a woodpile over a step is a wall walked into; jumped onto, it's stood on (it was jumped through on the way
+        // down). Deep enough to come down on: a walking jump carries 1.9 m, and from against a crate a metre deep goes over it.
+        var (train, start, ahead, across, ground) = Formation();
+        var crate = Across(start, ahead, across, ground, 3, 2, 2.5, 0.8);
+        train.Walls = StopWalls.Of([crate]);
+        var s = Facing(train, start, ahead);
+        for (int i = 0; i < 2 * SimConstants.TickRate; i++)
+            Tick(ref s, train, new PlayerIntent { MoveZ = 1 });
+        Assert.Equal(ground, s.Position.Y, 3);
+        Assert.InRange(Double3.Dot(crate.Centre - s.Position, ahead), crate.HalfWidth + P.Radius - 0.05, crate.HalfWidth + P.Radius + 0.05);
+
+        Tick(ref s, train, new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Jump });
+        for (int i = 0; i < SimConstants.TickRate && !(s.Grounded && s.Position.Y > ground + 0.5); i++)
+            Tick(ref s, train, new PlayerIntent { MoveZ = 1 });
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            Tick(ref s, train, default);
+        Assert.Equal(crate.Top, s.Position.Y, 6);
+        Assert.True(s.Grounded);
+        Assert.Equal(PlayerState.World, s.Parent);
+        Assert.True(s.Alive);
+    }
+
+    [Fact]
+    public void RidingTheTrainNoWallsTopTakesYouOffIt()
+    {
+        // Note 817: afoot only. Riding, it's the train underfoot (T107): a wall's top a hand over a car's roof, right where a
+        // crewmate stands on it, doesn't lift them off the car into the world.
+        var (_, train) = Night("frontier:9");
+        var s = PlayerMotor.SpawnOnRoof(train, 2, 0, P);
+        var feet = train.Frames[2].ToWorld(s.Position);
+        train.Walls = StopWalls.Of([new Wall(feet with { Y = 0 }, new Double3(1, 0, 0), 1, 1, feet.Y - 3, feet.Y + 0.1)]);
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            Tick(ref s, train, default);
+        Assert.Equal(2, s.Parent);
+    }
+
     [Fact]
     public void TheWhistlersRunToItsNestGoesThroughNoBuilding()
     {

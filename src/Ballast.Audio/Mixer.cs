@@ -316,12 +316,27 @@ public sealed class Mixer
             _tierGain[t].Step(target, target < _tierGain[t].Value ? Mix.DuckAttack : Mix.DuckRelease);
         }
 
-        // Sound-level ducking inside a tier, for tells whose bands collide.
+        // Sound-level ducking: tells whose bands collide, and the crew's band under any tell.
         _soundTarget.Clear();
         foreach (var rule in Mix.SoundDucking ?? [])
-            if (rule.When.Any(_soundActive.Contains))
+            if (rule.WhenTier is int when && _tierActive[Math.Clamp(when, 1, Tiers)] || rule.When.Any(_soundActive.Contains))
                 foreach (var name in rule.Ducks)
-                    _soundTarget[name] = Math.Min(_soundTarget.GetValueOrDefault(name), rule.Db);
+                {
+                    if (!name.EndsWith('*'))
+                        _soundTarget[name] = Math.Min(_soundTarget.GetValueOrDefault(name), rule.Db);
+                    else
+                    {
+                        // Every sound so named that's playing, or still coming back up from the last duck (so a note that starts
+                        // mid-duck starts ducked, and one between notes doesn't creep back up).
+                        var prefix = name[..^1];
+                        foreach (var v in _selected)
+                            if (v.Name.StartsWith(prefix, StringComparison.Ordinal))
+                                _soundTarget[v.Name] = Math.Min(_soundTarget.GetValueOrDefault(v.Name), rule.Db);
+                        foreach (var held in _soundGain.Keys)
+                            if (held.StartsWith(prefix, StringComparison.Ordinal))
+                                _soundTarget[held] = Math.Min(_soundTarget.GetValueOrDefault(held), rule.Db);
+                    }
+                }
         foreach (var name in _soundGain.Keys.Union(_soundTarget.Keys).ToList())
         {
             var gain = _soundGain.GetValueOrDefault(name, new Smoothed(1));

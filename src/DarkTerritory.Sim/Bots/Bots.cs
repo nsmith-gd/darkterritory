@@ -3115,6 +3115,7 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
                 return working with { Lamp = lamp };
             }
             stops.CruiseSpeed = cruise;
+            stops.CruiseBand = OnTheOpenLine(world, cruise) ? OpenBand : 0;
             stops.ReckonTop = world.LampShining ? CruiseSpeed : DarkCruiseSpeed;
             if (stops.Decide(self, world) is { } stopping)
                 return KeepClear(self, world, Work(self, train, stopping), +1) with { Lamp = lamp };
@@ -3126,7 +3127,8 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         // cab's vent is a step across: T109). Their crews of two ran onto them over the brake as the eights did (note 231).
         if (calls?.FiremanMinding != true && calls?.Venting != true && (HazardAllow(world) < double.MaxValue || train.Dynamics.BrakeEfficiency < FadedBrake || Venting) && Vent(self, world) is { } ventingAlone)
             return KeepClear(self, world, ventingAlone with { Buttons = ventingAlone.Buttons | PlayerButtons.Brake, ThrottleNotch = -4 }, +1) with { Lamp = lamp };
-        var intent = Drive(train, tick, cruise, world.TrackPlan is null ? 1.5 : 0.5);
+        bool open = OnTheOpenLine(world, cruise);
+        var intent = Drive(train, tick, cruise, open ? OpenBand : world.TrackPlan is null ? 1.5 : 0.5, open ? OpenBand : 0);
         intent.Lamp = lamp;
         return KeepClear(self, world, Work(self, train, WatchTheRoad(world, intent)), +1);
     }
@@ -3646,13 +3648,31 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
     /// <summary>The speed the driver's holding to, which the fire's kept for (T97).</summary>
     double _cruise = 14;
 
+    /// <summary>
+    /// How far over the open line's cruise (m/s) the brake holds it, and how far under it's let off (note 820): 13 to 15 at
+    /// 14, about the cruise, so the night keeps its pace. Let off further under, it ran slower.
+    /// </summary>
+    const double OpenBand = 1;
+
+    /// <summary>
+    /// Whether <paramref name="cruise"/> is a line plan's open line's own, with the line and its hazards allowing more (note
+    /// 820). With steam driving (T97) the steam's over the cruise (fired for a metre a second over it, and the fire kept off its
+    /// low mark makes more: 80 psi, the steam for 17.6 m/s, on frontier:7 at 14), so on the level the brake holds it back from
+    /// its own steam: held to half a metre over the cruise on a plan's line and let off at it, that was every second. There
+    /// it's held <see cref="OpenBand"/> either side of it. Under a board, the line's authority, the dark's cruise, a hazard's
+    /// speed or a curve to stand at something, it's held as it was; and off a plan, with its 1.5 over, as it was.
+    /// </summary>
+    bool OnTheOpenLine(World world, double cruise) =>
+        world.TrackPlan is not null && cruise >= CruiseSpeed && Math.Min(LineAllows(world), HazardAllow(world)) >= cruise + OpenBand;
+
     /// <summary>Going backwards faster than this (m/s) when it's meant to be going on, it's rolling back.</summary>
     const double RollingBack = 0.2;
 
     /// <summary>How far short of the end of the track the driver plans to stand (m), and how far past home it pulls up.</summary>
     const double StopShort = 150, HomePast = 30;
 
-    PlayerIntent Drive(TrainOnLine train, uint tick, double cruise, double over)
+    /// <param name="under">How far under <paramref name="cruise"/> the brake holding it is let off (note 820).</param>
+    PlayerIntent Drive(TrainOnLine train, uint tick, double cruise, double over, double under = 0)
     {
         _cruise = cruise;
         var d = train.Dynamics;
@@ -3668,10 +3688,12 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         double stopping = d.Speed * d.Speed / (2 * Math.Max(0.1, brakeRate)) + StopShort;
         var intent = new PlayerIntent();
         // A descent runs the train away with the regulator shut; hold it on the brake, with some
-        // hysteresis so it isn't hammered every tick (fade only builds while it's applied).
+        // hysteresis so it isn't hammered every tick (fade only builds while it's applied). On the open line, let off well
+        // under the cruise (note 820): the brake's all or nothing, and off it the steam pulls at once, so let off at the cruise
+        // it was back on within a second, and every application is heard.
         if (d.Speed > cruise + over)
             _holdingDown = true;
-        else if (d.Speed <= cruise)
+        else if (d.Speed <= cruise - under)
             _holdingDown = false;
         // T107: running on, a train rolling back is one that's lost the hill (stalled on a climb, or stopped there and let go):
         // brake it to a stand. Cruising, nothing here ever braked one going backwards, and deepTerritory:1 ran back 9.5 km,

@@ -82,6 +82,29 @@ public class MixerTests
     }
 
     [Fact]
+    public void ATierCanDuckSoundsByTheirNamesStartAsWellAsTheirTier()
+    {
+        // Note 775: the crew's band gives way to any tell further than the rest of its tier does (mix.json's "band-*" rule).
+        var mix = Mix with { SoundDucking = [new SoundDuckRule([], ["band-*"], -12, WhenTier: 1)] };
+        double Db(bool tell, string sound)
+        {
+            var bank = new SoundBank();
+            bank.Add("band-fiddle", Tone(4, 500));
+            bank.Add("hands", Tone(4, 700));
+            bank.Add("tell", Tone(1, 3000));
+            var m = new Mixer(bank, mix) { Listener = Listener.At(Double3.Zero, 0), Tap = new MeterTap(Audio.SampleRate / Audio.Block * Audio.Block) };
+            m.Play("band-fiddle", new Double3(0, 0, -2));
+            m.Play("hands", new Double3(0, 0, -2));
+            if (tell)
+                m.Play("tell", new Double3(0, 0, -30));
+            Render(m, 1);
+            return Meter.Db(m.Tap.Stems[sound].AsSpan(Audio.SampleRate / 2));
+        }
+        Assert.InRange(Db(false, "hands") - Db(true, "hands"), 8.5, 9.5);
+        Assert.InRange(Db(false, "band-fiddle") - Db(true, "band-fiddle"), 20.5, 21.5);
+    }
+
+    [Fact]
     public void VoiceDucksOnlyTheBed()
     {
         var (m, _) = Make(("bed", Tone(5, 200)), ("action", Tone(4, 500)), ("voice", Tone(2, 800)));

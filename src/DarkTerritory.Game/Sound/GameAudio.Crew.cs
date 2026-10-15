@@ -293,7 +293,7 @@ public sealed partial class GameAudio
                     Cue("crew-mishaps.tunnel-bonk", feet + Double3.Up * HeadUp, occlusion);
                     CrewAfter(TumbleAfterBonk, "crew-mishaps.tunnel-tumble", feet, occlusion);
                 }
-                else if (s.Death == DeathCause.Crushed && HasCue("crew-mishaps.crushed"))
+                else if (s.Death is DeathCause.Crushed or DeathCause.HollowHouse && HasCue("crew-mishaps.crushed"))
                 {
                     Cue("crew-mishaps.crushed", feet, occlusion);
                     CrewAfter(ChainAfterCrush, "crew-mishaps.crane-chain", feet + Double3.Up * 5, occlusion);
