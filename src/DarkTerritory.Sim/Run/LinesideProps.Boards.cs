@@ -654,7 +654,14 @@ public sealed partial class LinesideProps
                 site = site with { S = s };
                 if (site.SeenM >= r.SeenShare * site.ApproachM - 1e-9 && site.BoardsInWay == 0)
                     return site;
-                if (best is null || site.SeenM - site.BoardsInWay * r.SightStepM > best.SeenM - best.BoardsInWay * r.SightStepM)
+                // Else the best read of those no board stands in front of, and only failing any such, the best read (seen, less
+                // where one's in front). Note 803: with the mail cut, frontier:7's Maddox Bridge board, no longer hung with a mail
+                // board, was read 150 of its 225 m clear on its far side, or 195 with two boards in front of it on its own, and
+                // the old score (seen less a step for each) took the second: a board in front of another while it's read is
+                // what the director asked never to see (`pt13-signs`), a board read short of seenShare is only read later.
+                bool clearOfThem = site.BoardsInWay == 0, bestClear = best?.BoardsInWay == 0;
+                if (best is null || clearOfThem && !bestClear
+                    || clearOfThem == bestClear && site.SeenM - site.BoardsInWay * r.SightStepM > best.SeenM - best.BoardsInWay * r.SightStepM)
                     best = site;
             }
         }

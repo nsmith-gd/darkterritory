@@ -53,6 +53,43 @@ public class MailHudTests
         Assert.False(s.World.Lineside!.Caught(drop.Id));
     }
 
+    [Fact]
+    public void WithTheMailCutANightHasNoCraneAndTheHudNeverSaysOne()
+    {
+        // Queue #530, note 803 (the director, 15 Oct 2026: "Im soft on the mail. I dont like it so far. Lets cut for now."):
+        // a night on the shipped tuning, by where the first crane would stand, in the open side door on its side with the
+        // hook held out the whole way past: no crane, no board, no MAIL CRANE line, no hook at the crosshair, no pay.
+        var sight = DataFile.Load<SightTuning>(Path.Combine(Content, SightTuning.File));
+        Assert.False(sight.MailCranes);
+        var would = Lineside.Drops(sight with { MailCranes = true }, Frontier).First(d => d.At > Frontier.Gate + 1500);
+        var s = new PrototypeSession(Content, Frontier, 6, enemies: false, at: would.At - 12 * 8);
+        Assert.Empty(s.World.Lineside!.AllDrops);
+        Assert.DoesNotContain(s.World.Lineside.Signs, b => b.Kind == SignKind.Drop);
+        s.Controls = new Sim.Train.TrainControls { Reverser = 1 };
+        int car = Math.Min(2, s.Train.Frames.Count - 1);
+        var shape = s.Train.Frames[car].Shape;
+        s.Respawn(car);
+        if (Sim.Bots.StopHand.SideDoor(shape, would.Side) is { } door && !s.Train.Vehicles[car].DoorOpen(door))
+            s.Train.Vehicles[car].ToggleDoor(door);
+        var room = shape.Interior!.Value;
+        s.Player = s.Player with
+        {
+            Parent = car,
+            Position = new Ballast.Double3(would.Side * (room.HalfSize.X - 0.35), room.Min.Y, 0),
+            Surface = Surface.Deck,
+            Yaw = -would.Side * Math.PI / 2,
+        };
+        for (int i = 0; i < 20 * Sim.SimConstants.TickRate && s.Train.Dynamics.RearDistance < would.At + 5; i++)
+        {
+            s.Train.Dynamics.Velocity = 12;
+            s.Step(new PlayerIntent { Buttons = PlayerButtons.Fire });
+            Assert.Null(Hud.MailAhead(s));
+            Assert.Null(Hud.MailPrompt(s));
+        }
+        Assert.True(s.Train.Dynamics.RearDistance >= would.At + 5, "the train never got past where the crane would be");
+        Assert.Equal(0, s.World.Run!.Mail);
+    }
+
     [Theory]
     [InlineData(DropKind.Mail, "MAIL: 40 SCRIP")]
     [InlineData(DropKind.Coal, "COAL: THE TENDER")]

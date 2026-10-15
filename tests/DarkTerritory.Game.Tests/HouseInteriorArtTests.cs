@@ -293,4 +293,33 @@ public class HouseInteriorArtTests
             }
         }
     }
+    [Fact]
+    public void TheHangersStrandsQuiverWhileSomeonesInItsHouse()
+    {
+        // Note 683 (the director, 13 Oct, App. F.5: "pulled up by a hanger despite not seeing one at all or not having any
+        // telegraph"): its tell is the strands' quiver. Over a second, a quivering strand's end moves far more than a still
+        // one's slow sway, and it shivers (many turns of direction, not the sway's one).
+        static (double Path, int Turns) Moves(bool quiver)
+        {
+            double path = 0;
+            int turns = 0;
+            var last = GreyboxScene.StrandSway(10, 2, 7, quiver);
+            float dLast = 0;
+            for (int f = 1; f <= 120; f++)
+            {
+                var now = GreyboxScene.StrandSway(10 + f / 120.0, 2, 7, quiver);
+                path += Vector3.Distance(now, last);
+                float d = now.X - last.X;
+                if (dLast != 0 && MathF.Sign(d) != MathF.Sign(dLast))
+                    turns++;
+                (last, dLast) = (now, d);
+            }
+            return (path, turns);
+        }
+        var still = Moves(false);
+        var quivering = Moves(true);
+        Assert.True(quivering.Path > 5 * still.Path, $"quivering {quivering.Path:0.000} m vs still {still.Path:0.000} m in a second");
+        Assert.True(quivering.Turns >= 12, $"{quivering.Turns} turns in a second");
+        Assert.True(still.Turns <= 2);
+    }
 }

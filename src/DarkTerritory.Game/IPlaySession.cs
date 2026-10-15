@@ -43,12 +43,15 @@ public readonly record struct Crewmate(byte Id, Double3 Feet, double Yaw, bool A
 
 /// <summary>
 /// Note 722: what else an emote's drawing needs. A high five or fist bump: whether it's been <paramref name="Met"/>, how long
-/// ago (<paramref name="SinceMeet"/>, s), and how far apart the two stand (<paramref name="Gap"/>, m), so the hands meet between
-/// them. A dance-off: how many are in it (<paramref name="Dancers"/>, two or more) and whether this one has the lead
-/// (<paramref name="Leading"/>). The lean: how far the head's turned from the body to where they look (<paramref name="Turn"/>,
+/// ago (<paramref name="SinceMeet"/>, s), and how far apart the two stand (<paramref name="Gap"/>, m) and how much of that is
+/// to this one's right (<paramref name="Across"/>, m; note 807), so the hands meet between them. A dance-off: how many are in
+/// it (<paramref name="Dancers"/>, two or more), whether this one has the lead (<paramref name="Leading"/>), which turn it is
+/// (<paramref name="Round"/>: the host's tick over emotes.danceOffBeat) and how far into it (<paramref name="OnBeat"/>, s), so
+/// the lead's move and the rest's cheering keep the turn. The lean: how far the head's turned from the body to where they look (<paramref name="Turn"/>,
 /// radians, + to the left), and which of their sides is out of the doorway (<paramref name="Out"/>: +1 their right, −1 their left).
 /// </summary>
-public readonly record struct EmoteDetail(bool Met = false, double SinceMeet = 0, double Gap = 0, int Dancers = 0, bool Leading = false, double Turn = 0, int Out = 0);
+public readonly record struct EmoteDetail(bool Met = false, double SinceMeet = 0, double Gap = 0, int Dancers = 0, bool Leading = false, double Turn = 0, int Out = 0,
+    double Across = 0, int Round = 0, double OnBeat = 0);
 
 /// <summary>
 /// What the snapshot says of a headset player's head (T82): its height over their feet (<see cref="PlayerState.Head"/>),
