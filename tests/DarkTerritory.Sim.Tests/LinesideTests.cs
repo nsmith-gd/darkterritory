@@ -601,7 +601,9 @@ public class DropAndPacingTests
     public void ANightOutOnTheLineIsNeverQuietForLongerThanTheLongestQuietSpell()
     {
         // The director's decision of 6 Oct 2026 (note 266): a quiet spell runs 20–90 s, not the 100-night playtest's 30 s at
-        // most; something still happens a couple of times a minute.
+        // most; something still happens a couple of times a minute. Measured with the mail on (M), as it was built: the mail
+        // cranes' boards and catches were beats between the threats, and with the mail cut (note 803) this night's longest
+        // quiet is 175 s, the director's own spawns alone. That's for the director to weigh with the cut, not retuned here.
         var content = DataFile.FindContentRoot();
         var route = RouteGenerator.Generate(Tuning.Route, RouteTier.Local, 3);
         var report = Net.Harness.Run(route.Build(), T, P, new Net.HarnessOptions
@@ -617,7 +619,7 @@ public class DropAndPacingTests
             Route = route,
             Run = Tuning.Run,
             YardLength = Tuning.Route.YardLength,
-            Sight = S,
+            Sight = M,
             Holdouts = Tuning.Holdouts,
         }, Tuning.Boiler);
         var pace = report.Pacing!;

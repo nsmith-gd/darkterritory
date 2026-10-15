@@ -17,7 +17,7 @@ public class BoardSightTests
     static readonly string Content = DataFile.FindContentRoot();
     /// <summary>The mail cranes up (note 803: cut for now, sight.json mailCranes), so their boards are still tested.</summary>
     static readonly Route.SightTuning MailOn = new() { MailCranes = true };
-    static readonly string[] Nights =["frontier:7", "deadLines:2", "deepTerritory:2"];
+    static readonly string[] Nights = ["frontier:7", "deadLines:2", "deepTerritory:2"];
     /// <summary>Nights with a through truss on the main line (deadLines:2 at 1.7 km, local:3 at 1.75 km).</summary>
     static readonly string[] TrussNights = ["deadLines:2", "local:3"];
 
