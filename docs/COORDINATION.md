@@ -735,6 +735,7 @@ renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's 
 
 | Item | PR | Note |
 |---|---|---|
+| Holes off the main line closed: a branch's own land where the main line's roofed its cutting, from its ballast's foot and past its buffer stop; a far dead line's own far land, and no far hills over it or across a track; a branch drawn when its track is in reach (`dt holes --edges branches,stops`; queue #235) | [#1011](https://github.com/nsmith-gd/darkterritory/pull/1011) | 498 |
 | The house creatures heard: the Lodger's breathing, shriek, lunge and door broken in; the Householder's house, creak, rising, tread, breath, grab and settling; the Hollow House's rumble, slams, sinking and collapse; the Hanger's rafters, strands' hum, grab, haul and retreat (queue #497) | [#1020](https://github.com/nsmith-gd/darkterritory/pull/1020) | 767 |
 | The social collision audit: does the train make situations between people? (`docs/design/social-collision-audit.md`; queue #478) | [#1005](https://github.com/nsmith-gd/darkterritory/pull/1005) | 748 |
 | Radios in every uniform: right mouse talks, Throw on T, a grab muffles a radio and never breaks it (queue #479) | [#1005](https://github.com/nsmith-gd/darkterritory/pull/1005) | 749 |
