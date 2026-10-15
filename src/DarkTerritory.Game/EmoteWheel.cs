@@ -15,7 +15,8 @@ public sealed class EmoteWheel
     /// What's on the wheel, and where, round a clock face (note 722: twelve places, 30° apart): the dance up (12), the wave
     /// to the left (9), the point to the right (3), ABOARD down (6, note 740); the emotes for two up to the right of the
     /// dance (the high five at 1, the fist bump at 2), the edges down to the right of the point (sit at 4, lean at 5).
-    /// <see cref="Kept"/> are U1's; 11 is free. A place with nothing in it isn't drawn, and leaning at it picks a neighbour.
+    /// <see cref="Kept"/> are the "more emotes" upgrade's (note 714); 11 is free. A place with nothing in it isn't drawn, and
+    /// leaning at it picks a neighbour.
     /// </summary>
     public static readonly (Emote Emote, string Label, Vector2 At)[] Spokes =
     [
@@ -31,11 +32,17 @@ public sealed class EmoteWheel
     ];
 
     /// <summary>
-    /// The places kept for U1's "more emotes" upgrade (docs/design/upgrades.md §4; their PR #967): the bow at 7, the salute at
-    /// 8, the conga at 10, as <see cref="Emote"/> values 9-11 (the emote byte has them; no wire change). Added to
-    /// <see cref="Spokes"/> once the upgrade's bought.
+    /// The "more emotes" upgrade's (note 714; docs/design/upgrades.md §4), in the places note 722 kept for it: the bow at 7,
+    /// the salute at 8, the conga at 10. On the wheel while the train has it (<see cref="More"/>).
     /// </summary>
-    public static readonly (string Label, Vector2 At)[] Kept = [("BOW", Clock(7)), ("SALUTE", Clock(8)), ("CONGA", Clock(10))];
+    public static readonly (Emote Emote, string Label, Vector2 At)[] Kept =
+        [(Emote.Bow, "BOW", Clock(7)), (Emote.Salute, "SALUTE", Clock(8)), (Emote.Conga, "CONGA", Clock(10))];
+
+    /// <summary>The bow, the salute and the conga are on the wheel (the train has the "more emotes" upgrade, note 714).</summary>
+    public bool More { get; set; }
+
+    /// <summary>The spokes on offer: <see cref="Spokes"/>, and <see cref="Kept"/> with <see cref="More"/>.</summary>
+    public IEnumerable<(Emote Emote, string Label, Vector2 At)> Offered => More ? Spokes.Concat(Kept) : Spokes;
 
     /// <summary>A place round the wheel by the clock's hour (12 up), on screen (+y down).</summary>
     public static Vector2 Clock(int hour) => new(MathF.Round(MathF.Sin(hour * MathF.PI / 6), 5), MathF.Round(-MathF.Cos(hour * MathF.PI / 6), 5));
@@ -57,7 +64,7 @@ public sealed class EmoteWheel
             if (_lean.Length() < Lean)
                 return Last;
             var dir = Vector2.Normalize(_lean);
-            return Spokes.MaxBy(s => Vector2.Dot(s.At, dir)).Emote;
+            return Offered.MaxBy(s => Vector2.Dot(s.At, dir)).Emote;
         }
     }
 
@@ -95,7 +102,7 @@ public sealed class EmoteWheel
         // (Note 722: wider than the four-spoke wheel's 22, so the labels at 30° don't overlap.)
         float cx = width / 2f, cy = height / 2f, r = 30;
         var picked = Picked;
-        foreach (var (emote, label, at) in Spokes)
+        foreach (var (emote, label, at) in Offered)
         {
             bool on = emote == picked;
             float w = o.Measure(label, scale);

@@ -101,6 +101,10 @@ public class BroughtInTests
         // some of car 2's freight.)
         Assert.Equal(brought.Gross - brought.CoalCost - brought.AmmoCost - brought.RepairCost - fee, brought.Net, 0);
         Assert.True(brought.Net <= clear.Net - fee);
+        // Note 766: a real night's figures, as the tally and the report read them, add up to its net exactly.
+        Assert.Equal(brought.Net, Radio.Ledger(brought).Sum(i => i.Amount));
+        Assert.Equal(clear.Net, Radio.Ledger(clear).Sum(i => i.Amount));
+        Assert.Contains($"Brigade fees: {fee:0}.", Radio.Tally(brought));
     }
 
     [Fact]

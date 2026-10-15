@@ -76,8 +76,11 @@ public static partial class Hud
         (m.MailDrop, m.MailTick) = (ahead, now);
     }
 
-    /// <summary>The crane's lines at the top centre, from <paramref name="y"/>; returns where the next line goes.</summary>
-    static float MailTop(Overlay o, IPlaySession s, Memory m, float cx, float y, int line, float k)
+    /// <summary>
+    /// The crane's lines at the top centre, from <paramref name="y"/>; returns where the next line goes, and widens
+    /// <paramref name="half"/> to the widest one's half width (note 764: the top left keeps out of them).
+    /// </summary>
+    static float MailTop(Overlay o, IPlaySession s, Memory m, float cx, float y, int line, float k, ref float half)
     {
         if (MailAhead(s) is { } mail)
         {
@@ -93,13 +96,16 @@ public static partial class Hud
                 y += line;
                 o.TextCentred(cx, y, distance, Dim with { W = a }, k);
                 y += (line + 2) * k;
+                half = Math.Max(half, Math.Max(o.Measure(head), o.Measure(distance, k)) / 2);
             }
         }
         if (m.CaughtDrop >= 0 && s.World.Lineside is { } lineside && m.CaughtDrop < lineside.AllDrops.Count
             && Shown(Since(s, m.CaughtTick), Tuning.PlaceSeconds) is > 0 and var c)
         {
-            o.TextCentred(cx, y, lineside.Torn(m.CaughtDrop) ? TornLine : CaughtLine(lineside.AllDrops[m.CaughtDrop]), Amber with { W = c }, 1);
+            string caught = lineside.Torn(m.CaughtDrop) ? TornLine : CaughtLine(lineside.AllDrops[m.CaughtDrop]);
+            o.TextCentred(cx, y, caught, Amber with { W = c }, 1);
             y += line + 2;
+            half = Math.Max(half, o.Measure(caught) / 2);
         }
         return y;
     }

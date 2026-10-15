@@ -235,6 +235,8 @@ public static partial class TownGenerator
                 Fix(piece.Kind, piece.Title.Replace("{town}", site.Name), piece.Text.Replace("{town}", site.Name), from + at,
                     works.Side * (middle + piece.Across), 0, -works.Side);
         }
+        if (homes.Yard is { } ry)
+            RailYard(ry, t.Walled, w, site.Name, Rng("yard"), Fix);
         if (homes.Bounds is not null)
         {
             // A walled town's clerk keeps the council's house (note 353): its cupola and clock over the square.
@@ -332,6 +334,16 @@ public static partial class TownGenerator
             foreach (var f in fixtures.Where(f => atWork.Holds(f.S, f.D) && f.Kind is "headframe" or "winding" or "casting" or "glasshouse"
                 or "elevator" or "warehouse").DistinctBy(f => f.Kind).Take(t.Walled.WorksHands))
                 spots.Add(new("hand", f.S, f.D + f.FaceD * (f.SolidD + 1.2), -f.FaceS, -f.FaceD, 0));
+        // The rail yard's porters (note 502), at the office's door and the weighbridge's window: off the siding.
+        if (homes.Yard is { } inYard)
+            foreach (var f in fixtures.Where(f => inYard.Holds(f.S, f.D) && f.Kind is "yardoffice" or "weighbridge").Take(t.Walled.YardHands))
+                spots.Add(new("porter", f.S, f.D + f.FaceD * (f.SolidD + 1.2), -f.FaceS, -f.FaceD, 0));
+
+        // The town's blacksmith, who does the trains (note 697; the director, 13 Oct 2026: "a vendor who is clearly marked as
+        // the vendor blacksmith of the town who does train upgrades"): every town has one, at the forge beside the engine as it
+        // stands in the yard. Last of everyone, so who everybody else is and what they're called is as it was.
+        if (t.Smithy is { } smithy)
+            spots.Add(new("blacksmith", site.Gate + smithy.FromGate, side * (smithy.Out - smithy.Stand), 0, -side, 0));
 
         // Who they are: a name each, a household's sharing its surname.
         var names = new HashSet<string>();
@@ -534,9 +546,13 @@ public static partial class TownGenerator
         for (int i = 0; i < looseCount && loose.Next() is { } n; i++)
             papers.Add(new TownPaper(papers.Count, fill.In(n.Title, null), fill.In(n.Text, null), false, lying[i].S, lying[i].D, lying[i].H));
 
+        // The forge, last of the fixtures (so every other one's number is as it was): its board lettered to read from the cab.
+        if (t.Smithy is { } forge)
+            Fix("forge", w.Forge?.Title ?? "the forge", fill.In(w.Forge?.Text ?? "", null), site.Gate + forge.FromGate, side * forge.Out, 0, -side);
+
         var plan = new TownPlan(site.Name, population, former, culture.Id, culture.Creature, culture.Law.Replace("{town}", site.Name), culture.Hall,
             industry?.Name ?? site.Industry, [.. quirks.Select(q => q.Id)], square, buildings, homes.Houses, townsfolk, papers, fixtures, homes.Character, homes.Bounds,
-            homes.Green, homes.Works)
+            homes.Green, homes.Works, homes.Yard)
         {
             Gate = site.Gate,
             Frame = FrameOf(t, site.Gate, homes.Bounds),
@@ -595,6 +611,59 @@ public static partial class TownGenerator
             return p with { Lines = all };
         }).ToList();
         return plan with { Houses = houses, People = people, Burnt = harmed.Count };
+    }
+
+    /// <summary>How far a piece of stock stands out either side of its siding's middle (m; TownFixtures "van", "flatdory").</summary>
+    const double StockHalf = 1.5;
+
+    /// <summary>
+    /// A walled town's rail yard (queue #239, note 502; GDD §3: "Fortified towns survive behind stone and steel walls ... rail
+    /// yards and warehouses"): a buffer stop at each end of its siding; its pieces (world/towns.json "yard") fronting the
+    /// siding from the gate end back, each that fits short of the yard's rear end (<see cref="TownWork.After"/>: room left
+    /// beside it toward that end, the weighbridge's plate); the lamps down the siding's near side; and the stock left
+    /// standing in the siding, one to a stretch of it, clear of each other and the buffer stops.
+    /// </summary>
+    static void RailYard(TownYard yard, WalledTuning wt, TownWriting w, string town, Pcg32 rng,
+        Action<string, string, string, double, double, double, double, int, double?> fix)
+    {
+        void Fix(string kind, string name, string text, double s, double d, double faceS, double faceD) =>
+            fix(kind, name.Replace("{town}", town), text.Replace("{town}", town), s, d, faceS, faceD, -1, null);
+        int side = yard.Side;
+        var buffers = w.Yard.Where(p => p.Kind == "buffers").ToList();
+        double bd = TownFixtures.Size("buffers").HalfD;
+        Fix("buffers", buffers.ElementAtOrDefault(0)?.Title ?? "a buffer stop", buffers.ElementAtOrDefault(0)?.Text ?? "",
+            yard.Siding1 + bd, side * yard.SidingD, -1, 0);
+        Fix("buffers", buffers.ElementAtOrDefault(1)?.Title ?? "a buffer stop", buffers.ElementAtOrDefault(1)?.Text ?? "",
+            yard.Siding0 - bd, side * yard.SidingD, 1, 0);
+        // The pieces front the siding's stock (a goods shed's dock at a van's side), the far ones back toward the street.
+        double front = yard.SidingD + StockHalf + 0.1, back = yard.Far - wt.YardMargin, at = yard.S1 - wt.YardMargin;
+        foreach (var piece in w.Yard)
+        {
+            if (piece.Kind == "buffers")
+                continue;
+            var (hs, hd, _) = TownFixtures.Size(piece.Kind);
+            double d = front + piece.Across + hd;
+            if (d + hd > back || at - 2 * hs - piece.After < yard.S0 + wt.YardMargin)
+                continue;
+            Fix(piece.Kind, piece.Title, piece.Text, at - hs, side * d, 0, -side);
+            at -= 2 * hs + piece.After + wt.YardGap;
+        }
+        // Its lamps between the platform's back and the siding, lighting the stock.
+        double lampD = (yard.Near + yard.SidingD - StockHalf) / 2;
+        for (double s = yard.S1 - wt.YardLamps / 2; s > yard.S0 + 2; s -= wt.YardLamps)
+            Fix("yardlamp", "", "", s, side * lampD, 0, side);
+        // The stock: the siding cut into a stretch apiece, each standing somewhere in its own, facing up or down the line.
+        int count = Math.Min(w.Stock.Length, rng.RangeInclusive(wt.YardStock[0], wt.YardStock[1]));
+        var stock = Take(w.Stock, count, rng.Fork(1));
+        double from = yard.Siding0 + 0.5, stretch = (yard.Siding1 - 0.5 - from) / Math.Max(1, stock.Count);
+        for (int i = 0; i < stock.Count; i++)
+        {
+            double half = TownFixtures.Size(stock[i].Kind).HalfD;
+            if (2 * half > stretch)
+                continue;
+            double s = from + i * stretch + half + rng.NextDouble() * (stretch - 2 * half);
+            Fix(stock[i].Kind, stock[i].Title, stock[i].Text, s, side * yard.SidingD, rng.Chance(0.5) ? 1 : -1, 0);
+        }
     }
 
     static List<T> Take<T>(IReadOnlyList<T> from, int count, Pcg32 rng) where T : class
@@ -689,6 +758,8 @@ public static class TownFixtures
     public static (double HalfS, double HalfD, double Height) Size(string kind) => kind switch
     {
         "bell" => (1.3, 0.9, 3.6),
+        // Note 687: the blacksmith's forge, its hood and its board (the chimney's above).
+        "forge" => (1.7, 1.1, 3.4),
         "post" => (0.35, 0.35, 2.4),
         "tally" => (1.2, 0.25, 2.4),
         "lamps" => (1.6, 0.45, 2.2),
@@ -761,6 +832,22 @@ public static class TownFixtures
         "shed" => (9.0, 6.0, 7.5),
         "keep" => (4.6, 4.6, 24),
         "barge" => (3.3, 11.7, 3.5),
+        // A town's rail yard (note 502), behind the home platform: the goods shed (the facility's modelled piece, its walls
+        // and dock as TownYardArtTests holds them: the office at one end, the steps at the other; its canopy and its crane's
+        // jib reach out over the siding), the yard office, the weighbridge's house (its plate lies beside it, flush), freight
+        // stacked waiting, a handcart, old sleepers stacked to dry; in the siding a van and a flat wagon with a dory or rails
+        // on it (half their width, half their length: they face along it),
+        // the buffer stops at its ends (half their width across it, their depth); the lamps down it.
+        "goodsshed" => (17.9, 6.4, 9.1),
+        "yardoffice" => (2.4, 1.8, 3.8),
+        "weighbridge" => (1.3, 1.3, 3.0),
+        "freight" => (2.0, 1.0, 1.8),
+        "cart" => (1.0, 1.6, 1.5),
+        "sleepers" => (1.4, 1.4, 1.35),
+        "van" => (1.5, 4.2, 3.7),
+        "flatdory" or "flatrails" => (1.4, 4.6, 2.2),
+        "buffers" => (1.4, 0.45, 1.2),
+        "yardlamp" => (0.15, 0.15, 4.6),
         // In the houses (their furniture is the layout's): only the cradle stands on its own feet.
         "cradle" => (0.45, 0.3, 0.7),
         "table" or "letters" or "anklebell" or "timetable" or "boots" or "boards" or "suitcase" or "radio" or "clock"

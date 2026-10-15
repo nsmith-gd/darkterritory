@@ -474,6 +474,7 @@ public sealed record GauntTuning
     /// <summary>Note 288: talked down, it leaves; killed only by a gang while someone talks to it. False: the old health fight.</summary>
     public bool DrivenOff { get; init; } = true;
     public bool TalkingCalms { get; init; } = true;
+    public bool BandCalms { get; init; } = true;
     public double TalkedDownSeconds { get; init; } = 45;
     /// <summary>Note 720: a crew singing together near it talks it down this many times as fast (GDD §14).</summary>
     public double SingingTalks { get; init; } = 3;
@@ -1061,6 +1062,8 @@ public sealed record MooseTuning
     public double TrainPassAt { get; init; } = 25;
     public double TrainPass { get; init; } = 25;
     public double CalmPerSecond { get; init; } = 15;
+    public double BandHears { get; init; } = 30;
+    public double BandCalmPerSecond { get; init; } = 30;
     public double ListenAt { get; init; } = 20;
     public double WarnAt { get; init; } = 50;
     public double[] SquareUpAt { get; init; } = [12, 30];
@@ -1160,6 +1163,7 @@ public sealed record GannetTuning
     public double PerRoofWeight { get; init; } = 1;
     public Dictionary<string, double> TierWeights { get; init; } = new() { ["local"] = 1, ["frontier"] = 1.5, ["deadLines"] = 2, ["deepTerritory"] = 2.5 };
     public Dictionary<string, double> BiomeWeights { get; init; } = new();
+    public double DecoyPull { get; init; } = 0.25;
 }
 
 /// <summary>The Mourners (GDD §21, App. A.6, B.6; ARCHITECTURE §8 note 362). Field docs live in enemies.json.</summary>
