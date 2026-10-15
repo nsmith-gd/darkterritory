@@ -1938,10 +1938,19 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         double eaten = Math.Clamp(Opt(args, "--eaten", 0.5), 0, 1);
         (rear.Eaten, rear.Integrity) = (eaten, 1 - eaten);
     }
-    // --shouldered [walk] | --cradled [walk]: a crewmate carrying a body over the shoulder, or the child in their arms (App. C.4).
+    // --shouldered [walk] | --cradled [walk|first]: a crewmate carrying a body over the shoulder, or the child in their arms (App. C.4).
     var shouldered = args.Contains("--shouldered") ? Staging.Shouldered(train, content, Str(args, "--shouldered", "") == "walk")
         : args.Contains("--cradled") ? Staging.Shouldered(train, content, Str(args, "--cradled", "") == "walk", child: true)
         : ((DarkTerritory.Sim.Physics.Bodies Bodies, Crewmate Carrier)?)null;
+    // --cradled first: the child in your own arms, through your own eyes, looking down at it (note 823; the director, 15 Oct:
+    // "when I pick it up I dont see it in my hands"): drawn at your hands as the app draws what you carry, your arms in view.
+    bool cradledFirst = Str(args, "--cradled", "") == "first";
+    if (cradledFirst && shouldered is { } mine)
+    {
+        var facing = new Double3(-Math.Sin(mine.Carrier.Yaw), 0, -Math.Cos(mine.Carrier.Yaw));
+        var eyes = mine.Carrier.Feet + Double3.Up * DarkTerritory.Game.Eyes.Height;
+        camera = Camera.LookAt(eyes, eyes + facing * 1.0 - Double3.Up * Opt(args, "--down", 0.55), 70);
+    }
     // --powerhouse (note 509): the yards' power as the run has it, so a live powerhouse's lamp burns.
     if (Opt(args, "--powerhouse", -1) >= 0 && generated is not null)
     {
@@ -2131,7 +2140,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             // --bodies --burned: the staged body (crewmate 9's) is one the fire took: drawn charred, smouldering (spec C.1).
             : args.Contains("--burned") ? [new Crewmate(9, default, 0, false, Death: DarkTerritory.Sim.Player.DeathCause.Burned)]
             // --shouldered [walk]: a crewmate on car 2 with a body over the shoulder (App. C.4; Staging.Shouldered).
-            : shouldered is { } sh ? [sh.Carrier] : null,
+            : shouldered is { } sh && !cradledFirst ? [sh.Carrier] : null,
         Emergency = args.Contains("--emergency"),
         LampsOut = strandedAt >= 0 ? Views.StrandedLampsOut(train.Frames.Count, outro, strandedAt) : 0,
         KitLockerOpen = strandedAt >= 0,
@@ -2199,6 +2208,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 own == "none" ? Tool.None : Enum.Parse<Tool>(own, true))
             : null,
     };
+    if (cradledFirst && shouldered is { } inArms)
+    {
+        var ahead = new Double3(-Math.Sin(camera.Yaw), 0, -Math.Cos(camera.Yaw));
+        var hands = inArms.Bodies.Hands;
+        scene.HeldHere = (inArms.Carrier.Id, camera.Position - Double3.Up * (DarkTerritory.Game.Eyes.Height - hands.CarryHeight) + ahead * hands.CarryForward, camera.Yaw);
+        scene.Own = new OwnView((float)camera.Yaw, (float)camera.Pitch, DarkTerritory.Game.Art.CrewPose.Cradle, false, -1, 1, Tool.None);
+    }
     // --bbq (note 698; with --upgrades bbqDeck): the party at the front, the grill lit, a beer and a sausage going.
     if (args.Contains("--bbq") && Staging.BbqParty(train, content) is var (party, partyBodies))
     {
@@ -3234,7 +3250,8 @@ static object ArtReel(string content, string[] args)
     string[] cut = ["clinger", "weight", "sleeper", "hollow"];
     var only = Str(args, "--only", "") is { Length: > 0 } o ? o.Split(',') : null;
     var clipsOnly = Str(args, "--clips", "") is { Length: > 0 } co ? co.Split(',') : null;
-    int w = (int)Opt(args, "--width", 360), h = (int)Opt(args, "--height", 240), fps = (int)Opt(args, "--fps", 12);
+    // --fps: the game's own 30 by default (note 823: at 12 the Look Review's reels read choppier than the game plays them).
+    int w = (int)Opt(args, "--width", 360), h = (int)Opt(args, "--height", 240), fps = (int)Opt(args, "--fps", 30);
     var props = DarkTerritory.Game.Art.PropArt.Of(look);
     string dir = Str(args, "--out", "out/reel");
     using var gpu = new GpuContext("dt art reel");
@@ -4482,7 +4499,7 @@ static int Usage()
           line drive <name> [--cars n] [--start s] [--from v] [--throttle 0..1] [--seconds t]
           trailer [--route tier:seed] [--fps n] [--width w --height h] [--short] [--beats i,j] [--ffmpeg path] [--crf n]   the trailer cut from the game itself, heard through the game's mixer: frames, trailer.wav and its spectrogram to out/trailer, ffmpeg to trailer.mp4 and contact.png
           art clearance [--only crew] [--clips a,b] [--limit m] [--allow clip:pair,..]   a figure's clips checked for limbs through its body
-          art reel [--only a,b] [--clips c,d] [--fps n] [--width w --height h]   every animated model's every clip as frame strips + reel.json in out/reel (the Look Review's animations)
+          art reel [--only a,b] [--clips c,d] [--fps n (30)] [--width w --height h]   every animated model's every clip as frame strips + reel.json in out/reel (the Look Review's animations)
           art clip <creature> <clip> [--frames n] [--at x,y,z --dist m --yaw deg --pitch deg] [--lift m] [--variant n] [--once] [--with clip [--with-at x,z,yaw]]   a clip as a lit contact sheet (--with: a second of them beside it, a pair)
           screenshot [--view trackside|roof|cab|chase|ahead] [--line name] [--cars n] [--at s] [--car i] [--cut n]
                      [--cam s,lateral,height --target s,lateral,height --fov deg]   camera by line coordinates

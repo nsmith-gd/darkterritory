@@ -416,70 +416,121 @@ def head_at(pose):
     return rig.pose_points(sk, pose, [("head", "head")])[0]
 
 
-# Gnaw (1.6 s, loop): crouched over a crate, its head down in it and the jaw going hard; the rib arms tearing at what it's
-# eating; still, but for the head's jerks, and once a leg twitches out and back.
+# The director's 15 Oct notes (note 823: "more creepy ... and more fluidity"): it moves like an insect, smooth and then
+# a jerk of two frames, and it stops dead to listen; nothing is a stepped key.
+def ease(f, a, b):
+    """0 before frame `a`, 1 after `b`, eased between."""
+    return rig.smoothstep(a, b, f)
+
+
+# Gnaw (1.6 s, loop): crouched over a crate, its head down in it and the jaw going hard, chewing fast; the rib arms
+# tearing at what it's eating; the head shifting in small jerks as it works. Then it stops dead: the head jerks up out of
+# the crate and round, the jaw hanging, listening, the rib arms still holding what they tore, dead still but for a
+# tremor; and it jerks back down and goes on. Once, before, a leg twitches out and back. Keyed every frame.
 GN = over(BODY, neck=(-38, 0, 0), head=(34, 0, 0))
 mouth_to = head_at(GN) + Vector((0, 0.16, -0.1))
 GN = crouch(GN, HANDS, FEET, ribs={"r": mouth_to + Vector((0.07, 0.02, -0.04)), "l": mouth_to + Vector((-0.07, 0.03, -0.03))})
+TWITCH = crouch(GN, HANDS, {"r": FEET["r"] + Vector((0.12, -0.08, 0.06)), "l": FEET["l"]}, ribs={})
+# (Where its head jerks to between bites, in degrees round: one jerk of two frames each, held until the next.)
+JERKS = ((0, 0), (6, 6), (12, -4), (18, 10), (24, -2))
+
+
+def gnawing(f):
+    up = ease(f, 28, 30) - ease(f, 40, 43)      # stopped dead, the head up listening
+    turn = 0.0
+    for at, deg in JERKS:
+        turn = turn + (deg - turn) * ease(f, at, at + 2)
+    turn += (-12 - turn) * ease(f, 43, 45)      # back down, the head jerked round the other way
+    turn += (0 - turn) * ease(f, 45, 48)
+    chew = (1 - math.cos(2 * math.pi * f / 8)) / 2
+    jaw = (10 + 30 * chew) * (1 - up) + 22 * up
+    tear = (1 - math.cos(2 * math.pi * f / 16)) / 2
+    tremor = 1.5 * math.sin(f * 2.7) * up
+    p = over(GN, jaw=(-jaw, 0, 0), neck=(-38 + 26 * up, 0, 0), head=(34 - jaw * 0.2 * (1 - up) + 18 * up + tremor, 0, turn + 20 * up))
+    p["hand2_r"] = (0, 0, 20 * tear * (1 - up))
+    p["hand2_l"] = (0, 0, -20 * (1 - tear) * (1 - up))
+    leg = ease(f, 14, 16) - ease(f, 16, 20)     # the twitch: out in two frames, back in four
+    if leg <= 0:
+        return p
+    twitched = dict(p)
+    twitched.update({k: v for k, v in TWITCH.items() if k.startswith(("thigh_", "calf_", "foot_"))})
+    return rig.blend(p, twitched, leg)
+
+
 gnaw = Clip("gnaw")
-for f, (jaw, turn, tear) in enumerate(((10, 0, 0.0), (34, 6, 0.4), (14, -4, 0.8), (40, 10, 0.3), (8, -2, 0.0), (30, -12, 0.6), (12, 4, 1.0),
-                                       (38, 0, 0.2))):
-    p = over(GN, jaw=(-jaw, 0, 0), head=(34 - jaw * 0.2, 0, turn))
-    p[f"hand2_r"] = (0, 0, 20 * tear)
-    p[f"hand2_l"] = (0, 0, -20 * (1 - tear))
-    gnaw.key(f * 6, p, "CONSTANT")
-gnaw.key(30, over(crouch(GN, HANDS, {"r": FEET["r"] + Vector((0.12, -0.08, 0.06)), "l": FEET["l"]}, ribs={}), jaw=(-30, 0, 0)), "CONSTANT")
-gnaw.key(33, over(GN, jaw=(-30, 0, 0)), "CONSTANT")
+for f in range(48):
+    gnaw.key(f, gnawing(f), "LINEAR")
 gnaw.close(48)
 
 # Scuttle (0.5 s, loop): after whoever hit it, very low and very fast, the limbs in diagonal pairs (right hand with left
-# foot), each thrown forward and slapped down; the head up and level, looking where it's going, the jaw hanging.
+# foot), each thrown forward and slapped down; the head up and level, looking where it's going, the jaw hanging, the head
+# ticking side to side in tiny jerks. Keyed every two frames. (The rib arms held out wide enough that a hand lifted
+# mid-swing clears them: dt art clearance.)
 SC = over(BODY, root__loc=(0, 0, LOW - HIP - 0.06), neck=(2, 0, 0), head=(74, 0, 0), jaw=(-34, 0, 0))
 scuttle = Clip("scuttle")
-for f, k in ((0, 1.0), (4, 0.0), (8, -1.0), (12, 0.0)):
-    lift_a, lift_b = max(0.0, k), max(0.0, -k)
+for f in range(0, 16, 2):
+    ph = 2 * math.pi * f / 16
+    k = math.cos(ph)
+    lift_a, lift_b = max(0.0, math.sin(ph)), max(0.0, -math.sin(ph))
     hands = {"r": HANDS["r"] + Vector((0, 0.14 * k, 0.12 * lift_a)), "l": HANDS["l"] + Vector((0, -0.14 * k, 0.12 * lift_b))}
     feet = {"l": FEET["l"] + Vector((0, 0.12 * k, 0.1 * lift_a)), "r": FEET["r"] + Vector((0, -0.12 * k, 0.1 * lift_b))}
-    p = crouch(over(SC, pelvis=(-78, 0, 6 * k), spine_03=(4, 0, -6 * k)), hands, feet,
-               ribs={"r": head_at(SC) + Vector((0.14, 0.05, -0.18)), "l": head_at(SC) + Vector((-0.14, 0.05, -0.18))})
+    tick = 4 if (f // 4) % 2 == 0 else -4
+    p = crouch(over(SC, pelvis=(-78, 0, 6 * k), spine_03=(4, 0, -6 * k), head=(74, 0, tick)), hands, feet,
+               ribs={"r": head_at(SC) + Vector((0.17, 0.05, -0.18)), "l": head_at(SC) + Vector((-0.17, 0.05, -0.18))})
     scuttle.key(f, p, "LINEAR")
 scuttle.close(16)
 
-# Bite (0.9 s, loop): in reach of its prey, reared up on its back legs, all four arms out and grabbing, the head lunging
-# in with the jaw dropped as far as it goes, and snapping shut; and back.
+# Bite (0.9 s, loop): in reach of its prey, reared up on its back legs, all four arms out and grabbing; it draws its head
+# back, then lunges in with the jaw dropped as far as it goes, and snaps shut in two frames, shakes what it has, and draws
+# back again.
 REAR = over(BASE, root__loc=(0, 0, LOW + 0.1 - HIP), pelvis=(-34, 0, 0), spine_02=(-6, 0, 0), spine_03=(-10, 0, 0), neck=(-20, 0, 0), head=(44, 0, 0))
 REAR = crouch(REAR, {}, FEET, knee=0.7)
 sh_r, sh_l = rig.pose_points(sk, REAR, [("upperarm_r", "head"), ("upperarm_l", "head")])
 bite = Clip("bite")
-for f, (jaw, lunge) in ((0, (10, 0.0)), (8, (62, 0.6)), (12, (64, 1.0)), (14, (4, 1.0)), (20, (8, 0.3))):
-    p = over(REAR, spine_03=(-10 - 24 * lunge, 0, 0), neck=(-20 - 10 * lunge, 0, 0), jaw=(-jaw, 0, 0))
+for f, (jaw, lunge, shake), interp in ((0, (10, 0.0, 0), "BEZIER"), (5, (24, -0.25, 0), "LINEAR"), (8, (62, 0.6, 0), "LINEAR"),
+                                       (11, (64, 1.0, 0), "LINEAR"), (13, (4, 1.0, 8), "BEZIER"), (16, (6, 0.9, -10), "BEZIER"),
+                                       (19, (8, 0.6, 6), "BEZIER"), (23, (10, 0.15, 0), "BEZIER")):
+    p = over(REAR, spine_03=(-10 - 24 * lunge, 0, 0), neck=(-20 - 10 * lunge, 0, shake * 0.5), head=(44, 0, shake), jaw=(-jaw, 0, 0))
     reach = 0.55 + 0.2 * lunge
     p = rig.reach(sk, p, "upperarm_r", "lowerarm_r", sh_r + Vector((0.18, reach, 0.05)), elbow_axis=2, bend=1, avoid=knee_high(sh_r.z + 0.1))
     p = rig.reach(sk, p, "upperarm_l", "lowerarm_l", sh_l + Vector((-0.18, reach, 0.05)), elbow_axis=2, bend=-1, avoid=knee_high(sh_l.z + 0.1))
     hd = head_at(p)
     p = rig.reach(sk, p, "arm2_r_01", "arm2_r_02", hd + Vector((0.2, 0.2 + 0.1 * lunge, -0.3)), elbow_axis=2, bend=1)
     p = rig.reach(sk, p, "arm2_l_01", "arm2_l_02", hd + Vector((-0.2, 0.2 + 0.1 * lunge, -0.3)), elbow_axis=2, bend=-1)
-    p["fingers_r"], p["fingers_l"] = (0, 10 + 60 * lunge, 0), (0, -10 - 60 * lunge, 0)
-    bite.key(f, p, "LINEAR" if f in (8, 12) else "CONSTANT")
+    grip = max(0.0, lunge)
+    p["fingers_r"], p["fingers_l"] = (0, 10 + 60 * grip, 0), (0, -10 - 60 * grip, 0)
+    bite.key(f, p, interp)
 bite.close(27)
 
-# Maul (1.2 s, loop): on its victim, down on the ground in front of it: over them, every hand down on them, holding, and
-# the head going down into them, again and again, the body shuddering with it.
+# Maul (1.2 s, loop): on its victim, down on the ground in front of it: over them, every hand down on them, holding; the
+# head drawn up, then driven down into them in two frames, the jaw working there, and drawn up again, three times, the body
+# shuddering with it. Keyed every two frames.
 MA = over(BODY, root__loc=(0, 0, LOW - HIP + 0.04), neck=(-46, 0, 0), head=(24, 0, 0))
 ON = Vector((0, 0.75, 0.2))
+
+
+def mauling(f):
+    u = (f % 12) / 12
+    k = 0.2 - 0.2 * ease(u, 0.0, 0.3) + ease(u, 0.3, 0.42) - 0.8 * ease(u, 0.75, 1.0)
+    jaw = 46 * ease(u, 0.15, 0.3) - 36 * ease(u, 0.38, 0.45) + 24 * ease(u, 0.5, 0.6) - 34 * ease(u, 0.75, 0.95) + 10
+    p = over(MA, spine_03=(4 - 10 * k, 0, 0), neck=(-46 - 14 * k, 0, 0), jaw=(-jaw, 0, 0), pelvis=(-78, 0, 3 * math.sin(f * 1.05)))
+    return crouch(p, {"r": ON + Vector((0.3, 0.1, 0.0)), "l": ON + Vector((-0.3, 0.12, 0.0))}, FEET,
+                  ribs={"r": ON + Vector((0.14, -0.08, 0.08)), "l": ON + Vector((-0.14, -0.06, 0.08))})
+
+
 maul = Clip("maul")
-for f, (k, jaw) in enumerate(((0.0, 20), (1.0, 50), (0.3, 6), (1.0, 46), (0.2, 10), (0.9, 40))):
-    p = over(MA, spine_03=(4 - 10 * k, 0, 0), neck=(-46 - 14 * k, 0, 0), jaw=(-jaw, 0, 0), pelvis=(-78, 0, 3 * math.sin(f * 2.1)))
-    p = crouch(p, {"r": ON + Vector((0.3, 0.1, 0.0)), "l": ON + Vector((-0.3, 0.12, 0.0))}, FEET,
-               ribs={"r": ON + Vector((0.14, -0.08, 0.08)), "l": ON + Vector((-0.14, -0.06, 0.08))})
-    maul.key(f * 6, p, "LINEAR" if k > 0.5 else "CONSTANT")
+for f in range(0, 36, 2):
+    maul.key(f, mauling(f), "LINEAR")
 maul.close(36)
 
+# Hit (0.5 s, once): struck, it jerks round in two frames, the jaw wrenched open, on past, and back over the crate.
+STRUCK = over(GN, spine_02=(6, 0, 14), spine_03=(10, 0, 10), head=(30, 0, 30), jaw=(-50, 0, 0))
 hit = Clip("hit", loop=False)
-hit.key(0, GN, "CONSTANT")
-hit.key(2, over(GN, spine_02=(6, 0, 14), spine_03=(10, 0, 10), head=(30, 0, 30), jaw=(-50, 0, 0)), "CONSTANT")
-hit.key(10, over(GN, jaw=(-20, 0, 0)), "LINEAR")
-hit.key(14, GN, "CONSTANT")
+hit.key(0, GN, "LINEAR")
+hit.key(2, STRUCK, "BEZIER")
+hit.key(4, rig.add(STRUCK, {"spine_02": (1, 0, 3), "spine_03": (1, 0, 2), "head": (0, 0, 6)}), "BEZIER")
+hit.key(9, over(GN, jaw=(-20, 0, 0), head=(36, 0, -6)), "BEZIER")
+hit.key(14, GN, "BEZIER")
 
 
 def top(pose):
