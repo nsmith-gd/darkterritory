@@ -36,19 +36,22 @@ public readonly record struct Crewmate(byte Id, Double3 Feet, double Yaw, bool A
     bool Stressed = false, int Health = 0, double Phase = 0, DeathCause Death = DeathCause.None, int Car = PlayerState.World,
     Double3 Local = default, HeadsetBody? Headset = null, Sim.Player.Emote Emote = Sim.Player.Emote.None, double EmoteSeconds = 0,
     bool Sooted = false, Sim.Player.LampSignal Signal = Sim.Player.LampSignal.None, double SignalSeconds = 0, Sim.Player.MaskPaint Paint = default,
-    EmoteDetail EmoteWith = default)
+    EmoteDetail EmoteWith = default, int Hat = 0)
 {
     public int Variant => Looks ?? Id;
 }
 
 /// <summary>
 /// Note 722: what else an emote's drawing needs. A high five or fist bump: whether it's been <paramref name="Met"/>, how long
-/// ago (<paramref name="SinceMeet"/>, s), and how far apart the two stand (<paramref name="Gap"/>, m), so the hands meet between
-/// them. A dance-off: how many are in it (<paramref name="Dancers"/>, two or more) and whether this one has the lead
-/// (<paramref name="Leading"/>). The lean: how far the head's turned from the body to where they look (<paramref name="Turn"/>,
+/// ago (<paramref name="SinceMeet"/>, s), and how far apart the two stand (<paramref name="Gap"/>, m) and how much of that is
+/// to this one's right (<paramref name="Across"/>, m; note 807), so the hands meet between them. A dance-off: how many are in
+/// it (<paramref name="Dancers"/>, two or more), whether this one has the lead (<paramref name="Leading"/>), which turn it is
+/// (<paramref name="Round"/>: the host's tick over emotes.danceOffBeat) and how far into it (<paramref name="OnBeat"/>, s), so
+/// the lead's move and the rest's cheering keep the turn. The lean: how far the head's turned from the body to where they look (<paramref name="Turn"/>,
 /// radians, + to the left), and which of their sides is out of the doorway (<paramref name="Out"/>: +1 their right, −1 their left).
 /// </summary>
-public readonly record struct EmoteDetail(bool Met = false, double SinceMeet = 0, double Gap = 0, int Dancers = 0, bool Leading = false, double Turn = 0, int Out = 0);
+public readonly record struct EmoteDetail(bool Met = false, double SinceMeet = 0, double Gap = 0, int Dancers = 0, bool Leading = false, double Turn = 0, int Out = 0,
+    double Across = 0, int Round = 0, double OnBeat = 0);
 
 /// <summary>
 /// What the snapshot says of a headset player's head (T82): its height over their feet (<see cref="PlayerState.Head"/>),
@@ -226,6 +229,8 @@ public static class Eyes
     /// </summary>
     public const double Seated = 1.56;
 
+    /// <summary>Sat back in a Muskoka chair on the BBQ deck (note 698): low, the line coming at you over your knees.</summary>
+    public const double Lounging = 1.05;
     /// <summary>Sat on an edge, legs over (note 722): the eyes over the edge sat on (m), a seated body's (CreatureArt.SitOnEdge).</summary>
     public const double SatOnEdge = 0.92;
 
@@ -278,7 +283,7 @@ public static class Eyes
         double crouchDrop = 0)
     {
         var local = prev.Parent == cur.Parent ? Double3.Lerp(prev.Position, cur.Position, alpha) : cur.Position;
-        var eyeLocal = local + Double3.Up * (!cur.Alive ? 0.3 : cur.Has(PlayerFlags.Seated) ? Seated
+        var eyeLocal = local + Double3.Up * (!cur.Alive ? 0.3 : cur.Has(PlayerFlags.Seated) ? Seated : cur.Has(PlayerFlags.Lounging) ? Lounging
             : cur.Has(PlayerFlags.Crouched) && cur.Head <= 0 ? Height - crouchDrop : Height);
         bool onCar = cur.Parent != PlayerState.World && cur.Parent < frames.Count;
         var eye = onCar ? frames[cur.Parent].ToWorld(eyeLocal) : eyeLocal;

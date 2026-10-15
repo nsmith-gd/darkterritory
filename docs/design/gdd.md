@@ -251,6 +251,15 @@ The council's laws are posted by the clerk's door (in a walled town, the council
 
 Each piece can be looked at, and a few of the town's hands are at work there all night, talking about the work.
 
+**The rail yard behind the platform** (queue #239, note 502; "rail yards and warehouses" above). Behind a walled town's home platform, where the first street's near row would have stood, is the town's yard. Its siding runs down it, its points lifted the winter the town shut its gate, a buffer stop at each end. What was standing in it then is still there: a sealed van, a van wired shut and lettered DO NOT OPEN UNTIL CALLED FOR, a flat wagon with a dory on it. Along the siding stand:
+- the goods sheds, their docks at the stock's side: the old one from before the wall, and the one the town still packs for the train;
+- freight stacked and tagged for towns down the line that stopped answering years ago;
+- the yard office, its clerk's lamp lit all night over a timetable with every train ticked as arrived;
+- the weighbridge, whose ledger has a third column with no heading;
+- a handcart, and old sleepers stacked to dry.
+
+The town's lamp posts light the siding. Two porters work the yard all night, and everything can be looked at.
+
 **A harbour town's Hope Tower** *(the World Building board's Cultures tab, the director, 12 Oct; queue #547, ARCHITECTURE §8 note 819)*. "Extremely large lighthouses with bright burning flames above that people of the town call Flames of Hope for the world to find in the darkness."
 - **The tower:** a harbour town's light on its head is near eighty metres of stone, with a coal fire burning in an iron basket on top.
 - **The Flame of Hope:** kept every night since the wall went up, for whoever's still out there to find their way in by.
@@ -400,7 +409,7 @@ FORTRESS → WILDERNESS → FACILITY → WILDERNESS → TERMINUS
 ```
 
 ### Departure
-Inside the walls: purchase equipment, repair or upgrade the train, choose a contract, add or remove railcars, stock coal, powder and shot, lamps, repair supplies and tools. A contract is just a route *(the director, the inbox, 12 Oct: "Just a route"; note 637)*: the route and its tier, and about what a car-load pays there. The train leaves empty, and what its cars carry home is whatever its stops load, each car paid by its freight.
+Inside the walls: purchase equipment, repair or upgrade the train (the train's upgrades from the town's blacksmith, at the forge beside the engine in the yard: Use held on them opens their catalogue, and what's bought is fitted before the gate; note 697), choose a contract, add or remove railcars, stock coal, powder and shot, lamps, repair supplies and tools. A contract is just a route *(the director, the inbox, 12 Oct: "Just a route"; note 637)*: the route and its tier, and about what a car-load pays there. The train leaves empty, and what its cars carry home is whatever its stops load, each car paid by its freight.
 
 Then the gates open. ~~The yard dispatcher reads the crew out over the radio by name, as a manifest, with the same tone used for the coal.~~ *Director's decision of 2026-10-06: no reading at the gates; the night starts as the train moves off.*
 
@@ -471,6 +480,8 @@ That familiarity matters because the train gets more complex over time. **Progre
 Successful deliveries earn money. Money buys capability. Capability allows more freight. More freight means more railcars — and more weight, slower acceleration, longer braking, more vulnerable cargo, more distance between players, more blind spots, more repair problems, harder facility loading, greater exposure.
 
 **Difficulty is produced by success rather than selected from a menu.**
+
+**The fortress's catalogue** *(the director, 13 Oct 2026: "Some upgrades need to be simply for fun, some purchases need to be silly, some purchases need to have comedic whimsy, and some purchases need to be legitimate tools that will push runs further"; note 678, docs/design/upgrades.md)*. The shop shelves upgrades by what they're for. **Tools** push a run further, each stocked from the tier whose trouble it answers (a town on local work doesn't sell gun rammers) and taking a share of that trouble, never all of it. **Whimsy** works and is funny: the honk, a clown's bulb horn where the whistle was, quieter to the Choir. **Fun** is the train as home: paint, a nameplate, lanterns in the yard. **Silly** is bought because it's silly: a gold-plated whistle that costs more than a car, and a framed commendation the yard clerk reads into every tally, flat, forever. The flagship whimsy is **the BBQ deck** *(the director, 13 Oct: "its the BBQ Dads at the end of the world"; note 698)*: a railed deck on an extended cowcatcher out front, walked to along the running boards, with two Muskoka chairs to sit in, a cooler of beers (one takes the edge off the cold) and a BBQ on a stand that's lit, cooks a sausage that heals, warms whoever's round it, and brings the Cinder Hounds like a hot boiler. Everything's priced off the next car, so it all competes with growing the train; and it all goes down with the train at dawn (note 632).
 
 **One wallet.** The whole crew shares a single wallet for every purchase and upgrade. Nobody holds their own money. More crew means more hands and more loot, faster, which is why getting people back into a run matters (Appendix D).
 

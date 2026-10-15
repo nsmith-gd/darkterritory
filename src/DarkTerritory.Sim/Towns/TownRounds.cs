@@ -123,7 +123,9 @@ public static class TownRounds
         // Who's away in which slots: the people at their doors (the clerk, the keeper, the store, the fitter) go once, in the
         // middle of the day, when everyone else is back at their post; the rest go every other slot. So there's always
         // somebody at their post to go and have a word with.
-        bool Out(Townsperson p, int k) => p.Role is "clerk" or "keeper" or "storekeeper" or "fitter" ? k == t.Slots / 2 : k % 2 == 1;
+        // The blacksmith never leaves the forge (note 697): the crew have to be able to find them to buy.
+        bool Out(Townsperson p, int k) => p.Role is "blacksmith" ? false
+            : p.Role is "clerk" or "keeper" or "storekeeper" or "fitter" ? k == t.Slots / 2 : k % 2 == 1;
         // Where everyone's standing, slot by slot, so nobody's put where somebody already is.
         var stood = new List<Double3>[t.Slots];
         for (int k = 0; k < t.Slots; k++)

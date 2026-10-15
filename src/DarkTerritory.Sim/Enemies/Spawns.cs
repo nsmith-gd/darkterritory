@@ -116,7 +116,8 @@ public static class Spawns
             var h = c.Tuning.CinderHounds;
             if (c.Train.Dynamics.Speed < h.MinTrainSpeed || c.Train.Dynamics.Consist.CarCount < 1 || !c.None(EnemyKind.CinderHound))
                 return null;
-            return c.Train.BoilerTuning is { } b && c.Train.Boiler.Pressure > b.WorkingBandMax ? c.Director.Tuning.HoundsHotBoilerWeight : 1;
+            // ... and to the BBQ deck's grill lit (note 698): its heat and its smell.
+            return c.Train.BoilerTuning is { } b && c.Train.Boiler.Pressure > b.WorkingBandMax || Train.Bbq.AnyLit(c.Train) ? c.Director.Tuning.HoundsHotBoilerWeight : 1;
         }, c =>
         {
             var t = c.Tuning.CinderHounds;

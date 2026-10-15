@@ -104,6 +104,12 @@ public sealed class Moose(int id) : Enemy(id)
             Calm(ctx);
             return;
         }
+        // The band (note 711): music within its hearing stops it to listen, short of a pin.
+        if (Phase is not (SpinePhase.Grab or SpinePhase.Punish) && Music(ctx, t) is { } music)
+        {
+            Listen(ctx, t, music);
+            return;
+        }
         switch (Phase)
         {
             case SpinePhase.Dormant or SpinePhase.Alert or SpinePhase.BreakOff when Target is null:
@@ -450,6 +456,49 @@ public sealed class Moose(int id) : Enemy(id)
     }
 
     /// <summary>Gives up: its meter emptied, back home to graze (it can be riled again the same way).</summary>
+    /// <summary>The nearest crewmate playing the band's instruments within its hearing (<c>bandHears</c>), where they are.</summary>
+    Double3? Music(EnemyContext ctx, MooseTuning t)
+    {
+        if (t.BandHears <= 0)
+            return null;
+        Double3? nearest = null;
+        double best = t.BandHears;
+        foreach (var (p, _) in ctx.Crew)
+        {
+            if (!p.State.Alive || !p.State.Has(PlayerFlags.Playing))
+                continue;
+            var at = PlayerMotor.WorldPosition(p.State, ctx.Train);
+            double d = Flat(at - Local);
+            if (d <= best)
+                (best, nearest) = (d, at);
+        }
+        // The gramophone and the calliope (note 715): heard from as far as each carries.
+        foreach (var (at, hears) in ctx.World.Playing())
+        {
+            double d = Flat(at - Local);
+            if (d <= hears && (nearest is null || d < best))
+                (best, nearest) = (d, at);
+        }
+        return nearest;
+    }
+
+    /// <summary>
+    /// Stopped by the band (note 711; the director: "the moose stopping to listen"): whoever it was after is forgotten, it stands
+    /// listening with its head to the music (its listening tell), and its temper falls; quiet again, it grazes as before.
+    /// </summary>
+    void Listen(EnemyContext ctx, MooseTuning t, Double3 music)
+    {
+        Extra = -1;
+        _put.Clear();
+        _blocked = 0;
+        _ramCar = -1;
+        Extra2 = Math.Max(0, Extra2 - t.BandCalmPerSecond * SimConstants.TickSeconds);
+        if (Phase != SpinePhase.Alert)
+            Enter(ctx, SpinePhase.Alert);
+        SetMode(MooseMode.Graze);
+        Turn(music - Local, Math.PI);
+    }
+
     void Calm(EnemyContext ctx)
     {
         Extra = -1;

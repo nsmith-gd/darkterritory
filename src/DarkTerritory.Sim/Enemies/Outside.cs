@@ -351,14 +351,20 @@ public sealed class Gaunt(int id) : Enemy(id)
             && (e.At - at).Length <= t.ListenRadius);
     }
 
-    /// <summary>LISTEN: someone (its waker, unless <c>anyVoiceCounts</c>) talking within its listening radius this tick.</summary>
+    /// <summary>
+    /// LISTEN: someone (its waker, unless <c>anyVoiceCounts</c>) talking within its listening radius this tick, or anyone there
+    /// playing the band's instruments (<c>bandCalms</c>, note 711).
+    /// </summary>
     bool Talked(EnemyContext ctx, GauntTuning t)
     {
         var train = ctx.Train;
         var at = WorldPosition(train);
         int who = Waker ?? -1;
-        return ctx.Crew.Any(c => c.Player.State.Alive && c.Intent.Voice >= t.TalkingAbove
-            && (t.AnyVoiceCounts || c.Player.Id == who)
+        // The band's playing is talk to it too, whoever's playing (note 711); and the gramophone, within its own reach (note 715).
+        if (t.BandCalms && ctx.World.GramophonePlaying && ctx.World.Playing().FirstOrDefault() is var (record, hears) && (record - at).Length <= hears)
+            return true;
+        return ctx.Crew.Any(c => c.Player.State.Alive
+            && (c.Intent.Voice >= t.TalkingAbove && (t.AnyVoiceCounts || c.Player.Id == who) || t.BandCalms && c.Player.State.Has(PlayerFlags.Playing))
             && (PlayerMotor.WorldPosition(c.Player.State, train) - at).Length <= t.ListenRadius);
     }
 

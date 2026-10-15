@@ -286,9 +286,10 @@ public static partial class TrainKit
     /// </summary>
     /// <param name="gear">With its drivers and rods in it (a still engine: the catalog's, a wreck's). Without, they're
     /// drawn apart each frame turning with the train's going (SceneArt.Gear).</param>
-    public static MeshAsset Engine(Look? look, CarShape shape, int variant, bool gear = true)
+    /// <param name="paint">The train's livery (note 714; composition.livery): 0 the works' rust.</param>
+    public static MeshAsset Engine(Look? look, CarShape shape, int variant, bool gear = true, int paint = 0)
     {
-        var k = new Kit(look, 101 + variant);
+        var k = new Kit(look, 101 + variant) { Paint = PaintOf(paint) };
         float w = (float)shape.HalfWidth, l = (float)shape.HalfLength;
         var boiler = shape.Solids.First(s => s.Part == PartKind.Boiler).Box;
         var stack = shape.Solids.First(s => s.Part == PartKind.Stack).Box;
@@ -520,11 +521,19 @@ public static partial class TrainKit
         // front and a cheek either side angled back to the engine's corners, all of it in heavy upright slats with dark
         // gaps between, each slat's edges standing proud; two bands across and a rail-iron stem at each fold.
         float reach = PloughAhead, foot = 0.06f, crest = PloughCrest, half = PloughFront;
+        // The BBQ deck (note 698) is on an extended cowcatcher: the plough pushed out under the deck's front, its crest under
+        // the planks, its cheeks run back to the engine's corners under the deck.
+        float pushed = 0;
+        if (shape.Bbq is { } bbq)
+        {
+            pushed = MathF.Max(0, (float)(-l - bbq.Front) - reach + 0.3f);
+            crest = MathF.Min(crest, (float)shape.Solids.First(s => s.Part == PartKind.BbqDeck).Box.Min.Y - 0.35f);
+        }
         // A point on the plough's face: across from −1 (the left corner) to 1, up from the foot to the crest.
         Vector3 Plough(float across, float y)
         {
             float f = (y - foot) / (crest - foot);
-            float zFront = -l - reach + (reach - 0.08f) * f;
+            float zFront = -l - pushed - reach + (reach - 0.08f) * f;
             float ax = MathF.Abs(across);
             // Across the front face to ±half, then the cheek back to the engine's side.
             float x = ax <= 0.5f ? across * 2 * half : MathF.Sign(across) * (half + (w + 0.08f - half) * (ax - 0.5f) * 2);
@@ -883,7 +892,7 @@ public static partial class TrainKit
     static Kit Plate(Kit k, float tile = 1.3f)
     {
         k.Use("paint_oxide", Palette.RustRed * 0.6f, 0.95f, 0.3f, tile);
-        k.Tint *= PlateTint;
+        k.Tint *= PlateTint * k.Paint;
         return k;
     }
 
@@ -891,7 +900,7 @@ public static partial class TrainKit
     static Kit Iron(Kit k, float tile = 1.3f)
     {
         k.Use("iron_plate", Palette.IronGrey * 0.7f, 0.95f, 0.3f, tile);
-        k.Tint *= IronTint;
+        k.Tint *= IronTint * k.Paint;
         return k;
     }
 
@@ -2115,6 +2124,18 @@ public static partial class TrainKit
 
     // ---------------------------------------------------------------- cars
 
+    /// <summary>
+    /// The train's livery (note 714; the director's approved fun: "crimson lined gold, forest green and brass, black with a white
+    /// stripe"), over the plate's rust: what the painted iron's colour is multiplied by. 0, the works' own (one).
+    /// </summary>
+    public static Vector3 PaintOf(int livery) => livery switch
+    {
+        1 => new(1.55f, 0.5f, 0.45f),
+        2 => new(0.4f, 1.75f, 0.62f),
+        3 => new(0.36f, 0.36f, 0.4f),
+        _ => Vector3.One,
+    };
+
     /// <summary>How a car is finished: planked boxcar, steel boxcar, or armoured (plate and olive paint).</summary>
     public enum Livery { Planked, Steel, Armoured }
 
@@ -2146,12 +2167,13 @@ public static partial class TrainKit
         };
         k.Use(outside.Texture, outside.Fallback, 0.9f, 0.2f, outside.Tile);
         // Every livery rusted dark, the engine's iron (note 338, the director's reference).
-        k.Tint *= livery switch { Livery.Planked => IronTint, Livery.Steel => PlateTint, _ => new Vector3(0.62f, 0.55f, 0.45f) };
+        // (And the train's paint over it, note 714: k.Paint, white unless a livery's bought.)
+        k.Tint *= (livery switch { Livery.Planked => IronTint, Livery.Steel => PlateTint, _ => new Vector3(0.62f, 0.55f, 0.45f) }) * k.Paint;
     }
 
-    public static MeshAsset Car(Look? look, CarShape shape, Livery livery, int variant, bool load = true, bool wheel = true)
+    public static MeshAsset Car(Look? look, CarShape shape, Livery livery, int variant, bool load = true, bool wheel = true, int paint = 0)
     {
-        var k = new Kit(look, 7 + variant * 3 + (int)livery);
+        var k = new Kit(look, 7 + variant * 3 + (int)livery) { Paint = PaintOf(paint) };
         var interior = shape.Interior!.Value;
         float w = (float)shape.HalfWidth, l = (float)shape.HalfLength, h = (float)shape.RoofHeight;
         float floor = (float)interior.Min.Y + 0.1f, ceiling = (float)interior.Max.Y, t = w - (float)interior.Max.X;

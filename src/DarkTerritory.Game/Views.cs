@@ -302,6 +302,59 @@ public static class Views
             // left side, the cab's run into the boiler.
             // (Not one of Names.) Close on the headlamp from up the line, a little off its axis: the Stella Maris in its cage (note 338).
             "headlamp" => Camera.LookAt(engine.ToWorld(new Double3(0.8, 2.2, -engineHalf - 3.4)), engine.ToWorld(new Double3(0, 1.95, -engineHalf)), 40),
+            // The BBQ deck (note 698; `--upgrades bbqDeck`): from ahead and to the right, over its rail, the chairs and the grill;
+            // and from the left-hand chair, sat, down the line.
+            "bbq" => Camera.LookAt(engine.ToWorld(new Double3(4.6, 3.3, -engineHalf - 7.5)), engine.ToWorld(new Double3(-0.3, 1.8, -engineHalf - 1.4)), 55),
+            "bbqparty" => Camera.LookAt(engine.ToWorld(new Double3(2.6, 3.0, -engineHalf - 4.6)), engine.ToWorld(new Double3(-0.4, 1.9, -engineHalf - 1.4)), 62),
+            "bbqseat" => Camera.LookAt(engine.ToWorld(new Double3(-0.95, 2.45, -engineHalf - 2.0)), engine.ToWorld(new Double3(-0.6, 2.0, -engineHalf - 40)), 75),
+            // The train's dressing (note 701; `--upgrades fuzzyDice,flames,...`): the back of the guard van from behind, low (the
+            // stickers, the ribbon, the tiny caboose on its string); the engine's side (the flames down the hood, the hubcaps);
+            // inside the guard van, across to the towels' rail with the disco ball turning over the aisle.
+            "dressback" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(1.3, 2.0, train.Frames[^1].Shape.HalfLength + 5.0)),
+                train.Frames[^1].ToWorld(new Double3(-0.1, 1.6, train.Frames[^1].Shape.HalfLength + 0.8)), 55),
+            // The cab's side (note 714): the nameplate under its windows, the livery's lining past it.
+            "nameplate" => engine.Shape.Cab is { } plateCab
+                ? Camera.LookAt(engine.ToWorld(new Double3(4.2, 2.6, (plateCab.Min.Z + plateCab.Max.Z) / 2 - 1.5)), engine.ToWorld(new Double3(1.5, 2.3, (plateCab.Min.Z + plateCab.Max.Z) / 2)), 50)
+                : Camera.LookAt(engine.ToWorld(new Double3(0, 2.5, 0)), engine.ToWorld(new Double3(0, 2.5, -1)), 60),
+            // The yard photographer (note 714) and his picture: framed from where he stands past the gate, which only the
+            // night knows (dt screenshot puts them there, YardPhotographer.Stand and .Lens); from here, off the engine's front.
+            "photographer" or "yardphoto" => Camera.LookAt(engine.ToWorld(new Double3(5, 1.6, -engineHalf - 14)), engine.ToWorld(new Double3(0, 2.4, -engineHalf + 6)), 52),
+            // The whimsies (note 715; `--upgrades gerald,gardenGnomes,canary,gramophone,calliope`): Gerald on the guard van's
+            // roof from behind it; the gnomes down car 1's roof; the canary's cage in car 1; the gramophone in the guard van;
+            // the calliope's pipes on the boiler.
+            // The Gannet climbing off car 2's roof with Gerald (note 715; dt screenshot --gannet carry), from off the car's side.
+            "gannetgerald" => Camera.LookAt(train.Frames[2].ToWorld(new Double3(-9, train.Frames[2].Shape.RoofHeight + 3, 4)),
+                train.Frames[2].ToWorld(new Double3(0.3, train.Frames[2].Shape.RoofHeight + 2.5, -2.5)), 60),
+            // The hammock and the hot tub (note 744; `--upgrades hammock,hotTub --lounge`): across the guard van's back end from
+            // its middle; the tub on the engine's hood from over the cab's roof.
+            "hammock" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(0.9, Floor(train) + 1.6, train.Frames[^1].Shape.HalfLength - 4.2)),
+                train.Frames[^1].ToWorld(new Double3(-0.2, Floor(train) + 0.6, train.Frames[^1].Shape.HalfLength - 1.0)), 65),
+            "hottub" => Camera.LookAt(engine.ToWorld(new Double3(2.6, engine.Shape.RoofHeight + 2.4, Sim.Train.CarShape.TubZ - 3.6)),
+                engine.ToWorld(new Double3(0, engine.Shape.RoofHeight + 0.6, Sim.Train.CarShape.TubZ)), 55),
+            // The yard cat and the dog (note 745; `--upgrades yardCat,dog --stocked [--pet-mood warn|sleep]`): the cab from its back
+            // corner, the cat by the backhead; the guard van from its middle down to its back end, the dog there; the launcher on
+            // the van's platform from behind, off its side (`--upgrades tennisBalls`).
+            "cat" => engine.Shape.Cab is { } catCab && Sim.Train.Whimsy.Footplate(engine.Shape, catCab) is var plate
+                ? Camera.LookAt(engine.ToWorld(new Double3(plate.Min.X + 0.5, catCab.Min.Y + 1.6, plate.Max.Z + 0.6)), engine.ToWorld(new Double3(plate.Max.X - 0.6, catCab.Min.Y + 0.2, plate.Max.Z - 1.2)), 70)
+                : Camera.LookAt(engine.ToWorld(new Double3(0, 3, 0)), engine.ToWorld(new Double3(0, 2, -1)), 60),
+            "dog" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(0.8, Floor(train) + 1.3, train.Frames[^1].Shape.HalfLength - 4.6)),
+                train.Frames[^1].ToWorld(new Double3(-0.4, Floor(train) + 0.3, train.Frames[^1].Shape.HalfLength - 2.0)), 60),
+            "launcher" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(3.2, 2.4, train.Frames[^1].Shape.HalfLength + 4.5)),
+                train.Frames[^1].ToWorld(new Double3(0.2, 1.6, train.Frames[^1].Shape.HalfLength + 0.6)), 50),
+            "gerald" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(3.0, train.Frames[^1].Shape.RoofHeight + 1.6, -train.Frames[^1].Shape.HalfLength + 5.5)),
+                train.Frames[^1].ToWorld(new Double3(0.8, train.Frames[^1].Shape.RoofHeight + 0.9, -train.Frames[^1].Shape.HalfLength + 1.6)), 50),
+            "gnomes" => Camera.LookAt(train.Frames[1].ToWorld(new Double3(-2.4, train.Frames[1].Shape.RoofHeight + 1.6, -train.Frames[1].Shape.HalfLength - 1.5)),
+                train.Frames[1].ToWorld(new Double3(0, train.Frames[1].Shape.RoofHeight + 0.2, 1.5)), 60),
+            "canary" => Camera.LookAt(train.Frames[Sim.Train.Whimsy.CanaryCar(train)].ToWorld(Sim.Train.Whimsy.Cage(train) + new Double3(1.1, -0.35, 0.9)),
+                train.Frames[Sim.Train.Whimsy.CanaryCar(train)].ToWorld(Sim.Train.Whimsy.Cage(train) + new Double3(0, -0.3, 0)), 55),
+            "gramophone" => Camera.LookAt(train.Frames[^1].ToWorld(Sim.Train.Whimsy.Gramophone(train.Frames[^1].Shape) + new Double3(1.7, 1.55, 1.3)),
+                train.Frames[^1].ToWorld(Sim.Train.Whimsy.Gramophone(train.Frames[^1].Shape) + new Double3(0.1, 0.95, 0)), 60),
+            "calliope" => Camera.LookAt(engine.ToWorld(new Double3(2.6, engine.Shape.RoofHeight + 1.4, -4.6)), engine.ToWorld(new Double3(0, engine.Shape.RoofHeight + 0.4, -2)), 50),
+            "dresside" => Camera.LookAt(engine.ToWorld(new Double3(6.5, 2.0, -2.5)), engine.ToWorld(new Double3(1.5, 1.7, 0.2)), 60),
+            "dressvan" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(-1.0, 2.3, -2.2)), train.Frames[^1].ToWorld(new Double3(1.3, 2.4, 1.4)), 70),
+            // The band (note 700; `--band`): from over the roof's back end, down between the two rows playing.
+            "band" => Camera.LookAt(train.Frames[Math.Clamp(car, 1, train.Frames.Count - 1)].ToWorld(new Double3(1.6, train.Frames[Math.Clamp(car, 1, train.Frames.Count - 1)].Shape.RoofHeight + 2.4, 4.6)),
+                train.Frames[Math.Clamp(car, 1, train.Frames.Count - 1)].ToWorld(new Double3(-0.2, train.Frames[Math.Clamp(car, 1, train.Frames.Count - 1)].Shape.RoofHeight + 1.0, -0.6)), 60),
             "prow" => Camera.LookAt(engine.ToWorld(new Double3(4.2, 1.9, -engineHalf - 6.5)), engine.ToWorld(new Double3(0, 2.5, -engineHalf + 2.2)), 52),
             // The way in from the train (the director, 7 Oct): on the left running board beside the boiler, a crewmate's eye,
             // looking forward to the cab's doorway.

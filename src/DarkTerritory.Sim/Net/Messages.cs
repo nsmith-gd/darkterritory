@@ -113,7 +113,12 @@ public static class Protocol
     // 72: the Mouse Moose (note 790): an enemy kind of its own, and a casting state (Taken: dragged out of the hook's reach).
     // 73: a lobby changed once it's open (note 535): CarryOn carries the run's key as it is when the host goes on, after the
     //     town (a flag byte, then the key).
-    public const int Version = 73;
+    // 74: the train upgrades (notes 698–745): the vehicle record carries the BBQ deck's grill charcoal and cooler beers (its
+    //     32nd and 33rd fields; the fire cells after them); the body kinds Beer, Sausage, Instrument (which, its ninth
+    //     field), Caboose, FishingRod, Fish, GrilledFish, Cat, Dog and TennisBall (the caboose's and the pets' Tipped in the
+    //     ninth field); the player flags Lounging and Playing (PlayerFlags is a uint now: the ushort was full); the world
+    //     record's band tune and first tick, and the whimsies' state; the emotes Bow, Salute and Conga (9-11, the places note 722 kept).
+    public const int Version = 74;
 }
 
 public enum MessageType : byte
