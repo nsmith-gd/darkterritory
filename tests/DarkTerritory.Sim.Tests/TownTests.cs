@@ -15,6 +15,12 @@ namespace DarkTerritory.Sim.Tests;
 /// The fortress towns (GDD §3.1, App. F.1 T133; ARCHITECTURE §8 note 281): each its own custom, people with lines, papers
 /// to read, made alike on every machine, solid where they stand.
 /// </summary>
+/// <remarks>
+/// In LineGenTests' collection, after the parallel classes: since the town forms (note 692) most of its eighty towns are
+/// warrens of hundreds of houses, a minute and more of solid CPU, which at startup starved the other assemblies' wall-clock
+/// tests on CI's Windows runner (UdpTransportTests' loopback ping).
+/// </remarks>
+[Collection(nameof(LineGenTests))]
 public class TownTests
 {
     static readonly string Content = DataFile.FindContentRoot();
