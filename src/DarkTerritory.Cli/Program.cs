@@ -3351,13 +3351,11 @@ static object HudShot(string content, string[] args)
             if (Str(args, "--carrying", "") == "kit" && solo.World.Bodies.All.FirstOrDefault(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.RepairKit) is { } kit)
                 (kit.Carrier, kit.Locker) = (((IPlaySession)solo).PlayerId, -1);
         }
-        // --shelf (note 721): stood in car one's aisle at the kit locker, looking up at the crew's logbook on its top, where Use
-        // opens it.
+        // --shelf (note 721): stood over the crew's logbook (on the big cab's chart table, note 716; or on its shelf across
+        // car one's aisle from the kit locker), looking at it, where Use opens it.
         if (args.Contains("--shelf") && LogbookReader.Shelf(solo.Train, new LogbookTuning()) is { } shelf
-            && DarkTerritory.Sim.World.KitLocker(solo.Train) is { } shelfLocker)
+            && LogbookReader.ReadFrom(solo.Train, shelf) is { } feet)
         {
-            var bay = shelfLocker.Bay;
-            var feet = new Double3(bay.Front.X + bay.Facing * 0.75, bay.Front.Y, bay.Front.Z);
             var to = shelf.Local - (feet + Double3.Up * solo.Train.Dynamics.Tuning.Pick.EyeHeight);
             solo.Player = solo.Player with
             {

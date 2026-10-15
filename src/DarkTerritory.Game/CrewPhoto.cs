@@ -45,7 +45,7 @@ public sealed record PhotoTuning
 /// <summary>The logbook (memory.json <c>logbook</c>; GDD §11, note 721). Field docs live in the file.</summary>
 public sealed record LogbookTuning
 {
-    public string Place { get; init; } = "lockers";
+    public string Place { get; init; } = "cab";
     public double Height { get; init; } = 1.25;
     public double Reach { get; init; } = 1.9;
     public double LookDegrees { get; init; } = 22;

@@ -39,10 +39,10 @@
   },
   // The logbook (GDD §11): a book on a shelf, Use opens it as a page a night, the movement keys turn them.
   "logbook": {
-    // Where it's kept: "lockers", on a shelf on the wall across the aisle from the kit locker in car one (GDD §12; the
-    // lockers' tops are up under the roof). Kept a word so it can move to the big cab's back wall ("cab", queue #450)
-    // without another key. And the shelf's height over the floor (metres): chest height, read standing.
-    "place": "lockers",
+    // Where it's kept: "cab", shut on the big cab's chart table at its back corner by the gallery (GDD §12, note 716), as a
+    // ship's log lies on the chart table; or "lockers", on a shelf on the wall across the aisle from the kit locker in car
+    // one (the lockers' tops are up under the roof). And the lockers' shelf's height over the floor (metres): chest height.
+    "place": "cab",
     "height": 1.25,
     // Reach (metres from the eye to the book) and how near the view's centre it has to be (degrees).
     "reach": 1.9,

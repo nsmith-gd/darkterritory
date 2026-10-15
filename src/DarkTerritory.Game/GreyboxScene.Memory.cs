@@ -17,17 +17,17 @@ public sealed partial class GreyboxScene
     public PhotoProps? Photo { get; set; }
 
     /// <summary>The logbook on its shelf (note 721, <see cref="LogbookReader.Shelf"/>): its car, where in it, which way it faces. Null: not drawn.</summary>
-    public (int Car, Double3 Local, double Yaw)? Logbook { get; set; }
+    public (int Car, Double3 Local, double Yaw, bool OnShelf)? Logbook { get; set; }
 
-    MeshAsset? _crate, _cap, _easel, _book;
+    MeshAsset? _crate, _cap, _easel, _book, _bookAlone;
     (string Key, MeshAsset Mesh)? _chalk;
 
     void Memory(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Double3 eye)
     {
         if (Logbook is { } book && book.Car >= 0 && book.Car < frames.Count && (frames[book.Car].Origin - eye).Length < DrawDistance)
         {
-            _book ??= Book(Look);
-            mesh.Append(_book, Matrix4x4.CreateRotationY((float)book.Yaw) * Matrix4x4.CreateTranslation(book.Local.RelativeTo(default)) * SceneArt.FrameMatrix(frames[book.Car], eye));
+            var asset = book.OnShelf ? _book ??= Book(Look, shelf: true) : _bookAlone ??= Book(Look, shelf: false);
+            mesh.Append(asset, Matrix4x4.CreateRotationY((float)book.Yaw) * Matrix4x4.CreateTranslation(book.Local.RelativeTo(default)) * SceneArt.FrameMatrix(frames[book.Car], eye));
         }
         if (Photo is not { } p)
             return;
@@ -135,18 +135,22 @@ public sealed partial class GreyboxScene
 
     /// <summary>
     /// The logbook (note 721): a fat ledger bound in oxblood cloth, its pages' edge showing, lying shut on its little shelf,
-    /// the shelf's back to the wall (+Z) and its front to the aisle (−Z), two iron brackets under it.
+    /// the shelf's back to the wall (+Z) and its front to the aisle (−Z), two iron brackets under it; or (<paramref name="shelf"/>
+    /// false) the book alone, lying on the big cab's chart table (note 716).
     /// </summary>
-    static MeshAsset Book(Look? look)
+    static MeshAsset Book(Look? look, bool shelf)
     {
         var k = new Kit(look, 4450);
-        SquareKit.Timber(k);
-        k.Tint *= 1.2f;
-        float back = (float)LogbookReader.ShelfDepth;
-        k.Box(new Vector3(-0.26f, -0.035f, -0.14f), new Vector3(0.26f, 0, back));
-        k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.3f);
-        foreach (float x in new[] { -0.19f, 0.19f })
-            k.Box(new Vector3(x - 0.012f, -0.2f, back - 0.25f), new Vector3(x + 0.012f, -0.035f, back));
+        if (shelf)
+        {
+            SquareKit.Timber(k);
+            k.Tint *= 1.2f;
+            float back = (float)LogbookReader.ShelfDepth;
+            k.Box(new Vector3(-0.26f, -0.035f, -0.14f), new Vector3(0.26f, 0, back));
+            k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.3f);
+            foreach (float x in new[] { -0.19f, 0.19f })
+                k.Box(new Vector3(x - 0.012f, -0.2f, back - 0.25f), new Vector3(x + 0.012f, -0.035f, back));
+        }
         k.Use("leather", new Vector3(0.36f, 0.1f, 0.08f), 0.7f, 0.1f, tile: 1);
         k.Tint = new Vector3(0.36f, 0.1f, 0.08f);
         k.Box(new Vector3(-0.17f, 0, -0.12f), new Vector3(0.17f, 0.012f, 0.12f));
@@ -155,6 +159,6 @@ public sealed partial class GreyboxScene
         k.Use("paper_form", new Vector3(0.85f, 0.8f, 0.68f), 0.9f, 0, tile: 1);
         k.Tint = new Vector3(0.85f, 0.8f, 0.68f);
         k.Box(new Vector3(-0.162f, 0.012f, -0.112f), new Vector3(0.162f, 0.058f, 0.105f));
-        return k.Build("logbook");
+        return k.Build(shelf ? "logbook" : "logbook-alone");
     }
 }

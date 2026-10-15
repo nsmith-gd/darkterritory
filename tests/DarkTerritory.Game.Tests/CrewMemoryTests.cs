@@ -195,10 +195,41 @@ public class CrewMemoryTests
     }
 
     [Fact]
+    public void TheLogbookLiesOnTheBigCabsChartTableAndOffersItselfToAReaderBehindIt()
+    {
+        var s = Night();
+        Assert.Equal("cab", Tuning.Logbook.Place);
+        var book = LogbookReader.Shelf(s.Train, Tuning.Logbook)!.Value;
+        var table = Sim.Train.CrewCar.Table(s.Train.Frames[0].Shape)!.Value;
+        // In the engine, lying on the table top (no shelf of its own), inside its edges.
+        Assert.Equal(0, book.Car);
+        Assert.False(book.OnShelf);
+        Assert.InRange(book.Local.Y - table.Max.Y, 0, 0.02);
+        Assert.InRange(book.Local.X, table.Min.X + LogbookReader.BookHalf.X, table.Max.X - LogbookReader.BookHalf.X);
+        Assert.InRange(book.Local.Z, table.Min.Z + LogbookReader.BookHalf.Z, table.Max.Z - LogbookReader.BookHalf.Z);
+        // Stood behind the table at the gallery's foot, looking down at it: its prompt; looking up the line, no.
+        var feet = LogbookReader.ReadFrom(s.Train, book)!.Value;
+        var to = book.Local - (feet + Double3.Up * s.Train.Dynamics.Tuning.Pick.EyeHeight);
+        s.Player = s.Player with
+        {
+            Parent = 0,
+            Surface = Surface.Deck,
+            Position = feet,
+            Yaw = Math.Atan2(-to.X, -to.Z),
+            Pitch = Math.Atan2(to.Y, Math.Sqrt(to.X * to.X + to.Z * to.Z)),
+            Velocity = default,
+        };
+        Assert.Equal(LogbookReader.Prompt, Hud.Prompt(s));
+        s.Player = s.Player with { Pitch = 0.3 };
+        Assert.NotEqual(LogbookReader.Prompt, Hud.Prompt(s));
+    }
+
+    [Fact]
     public void TheLogbookOnItsShelfOpensAtTheLastNightAndTurnsWithTheWalkingKeys()
     {
         var s = Night();
-        var shelf = LogbookReader.Shelf(s.Train, Tuning.Logbook)!.Value;
+        var lockers = Tuning.Logbook with { Place = "lockers" };
+        var shelf = LogbookReader.Shelf(s.Train, lockers)!.Value;
         var bay = Sim.World.KitLocker(s.Train)!.Value.Bay;
         // Stood in the aisle at the kit locker, looking across at the shelf: its prompt.
         var feet = new Double3(bay.Front.X + bay.Facing * 0.75, bay.Front.Y, bay.Front.Z);
@@ -212,10 +243,10 @@ public class CrewMemoryTests
             Pitch = Math.Atan2(to.Y, Math.Sqrt(to.X * to.X + to.Z * to.Z)),
             Velocity = default,
         };
-        Assert.Equal(LogbookReader.Prompt, Hud.Prompt(s));
+        Assert.True(LogbookReader.Facing(s.Player, s.Train, lockers, s.Train.Dynamics.Tuning.Pick.EyeHeight));
         // Looking away from it, no.
         s.Player = s.Player with { Yaw = s.Player.Yaw + Math.PI };
-        Assert.NotEqual(LogbookReader.Prompt, Hud.Prompt(s));
+        Assert.False(LogbookReader.Facing(s.Player, s.Train, lockers, s.Train.Dynamics.Tuning.Pick.EyeHeight));
         // The shelf's in its car, against the far wall from the lockers, off the floor.
         var room = s.Train.Frames[shelf.Car].Shape.Interior!.Value;
         Assert.InRange(shelf.Local.X, room.Min.X, room.Max.X);

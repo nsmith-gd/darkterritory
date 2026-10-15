@@ -8,6 +8,10 @@ namespace DarkTerritory.Sim.Train;
 /// </summary>
 public static class CrewCar
 {
+    /// <summary>The big cab's chart table (note 716), in the engine's frame: its top the run map's. Null on an engine without one.</summary>
+    public static Box? Table(CarShape engine) =>
+        engine.Solids.Where(s => s.Part == PartKind.ChartTable).Select(s => (Box?)s.Box).FirstOrDefault();
+
     /// <summary>
     /// The chart table's lamp for a crewmate (note 716: "the navigator sees who's missing"): lit while they're alive and on the
     /// train (standing in any vehicle's frame, the engine's or a car's), dark when they're down on the ground or dead.
