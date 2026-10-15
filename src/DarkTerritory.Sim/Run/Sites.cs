@@ -228,7 +228,7 @@ public sealed record SpoutTuning
     public double LeverAlong { get; init; } = 2;
     public double LeverLateral { get; init; } = 3.4;
     public double LeverReach { get; init; } = 1.2;
-    public double Tolerance { get; init; } = 1.5;
+    public double EndMargin { get; init; } = 1;
     public double PourPerSecond { get; init; } = 0.05;
     public double Bin { get; init; } = 3;
     public double OverfillDamagePerLoad { get; init; } = 0.6;
@@ -249,7 +249,7 @@ public sealed record LiftTuning
     public double SteamReach { get; init; } = 56;
     public double SteamPerSkip { get; init; } = 20;
     public double PerSkip { get; init; } = 0.25;
-    public double Tolerance { get; init; } = 1.5;
+    public double EndMargin { get; init; } = 1;
     public double Ore { get; init; } = 3;
     public double OverfillDamagePerLoad { get; init; } = 0.6;
 }
@@ -272,7 +272,7 @@ public sealed record ConveyorTuning
     public double StarterReach { get; init; } = 1.4;
     public double StartSeconds { get; init; } = 4;
     public double StartRounds { get; init; } = 0.25;
-    public double Tolerance { get; init; } = 1.5;
+    public double EndMargin { get; init; } = 1;
     public double PerSecond { get; init; } = 0.04;
     public double Grain { get; init; } = 3;
     public double[] JamEvery { get; init; } = [30, 60];

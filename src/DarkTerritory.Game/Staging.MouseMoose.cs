@@ -53,12 +53,16 @@ public static partial class Staging
     }
 
     /// <summary>The <c>mousemoose</c> and <c>mousemoosedrag</c> views: from beside the engine out at the staged Mouse Moose in
-    /// the headlamp's spill, or crouched close to the one tugging its load.</summary>
+    /// the headlamp's spill, or crouched close to the one tugging its load; <c>mousemooseface</c> and <c>mousemoosehole</c>
+    /// close on the one creeping in and the one down its hole.</summary>
     public static Camera MouseMooseCamera(TrainOnLine train, string view)
     {
         // Front-quarter on, close, to the one creeping in: its face, its eyes and its antlers.
         if (view == "mousemooseface")
             return Camera.LookAt(Lineside(train, 12.6, -4.6) + Double3.Up * 0.75, Lineside(train, 14.0, -6.5) + Double3.Up * 0.4, 38);
+        // Low and close to the one down its hole: its head and antlers over the earth it's dug out (note 796).
+        if (view == "mousemoosehole")
+            return Camera.LookAt(Lineside(train, 19.2, -7.6) + Double3.Up * 0.6, Lineside(train, 20.5, -9.0) + Double3.Up * 0.12, 40);
         if (view == "mousemoosedrag")
             return Camera.LookAt(Lineside(train, 16.2, -6.6) + Double3.Up * 0.55, Lineside(train, 18.0, -5.4) + Double3.Up * 0.35, 48);
         return Camera.LookAt(Lineside(train, 10.0, -1.5) + Double3.Up * 1.4, Lineside(train, 17.0, -5.5) + Double3.Up * 0.3, 56);

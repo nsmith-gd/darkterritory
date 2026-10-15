@@ -1,0 +1,227 @@
+From d49a455dc27e8948454e2beda7f82357bd67eebe Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Tue, 13 Oct 2026 18:38:53 +0000
+Subject: [PATCH] The Hanger seen (queue #415, note 683): strands that read in
+ a dim house, and their quiver
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+The strands are drawn 1.1 cm on six sides (were 5 mm on four), glinting, beads about 5 cm; while anyone's in its house they quiver, about 9 Hz over the slow sway (StrandSway): its tell (the director, 13 Oct: "pulled up by a hanger despite not seeing one at all or not having any telegraph"). GDD §21 and F.5 first. HouseInteriorArtTests; the hanger and hangergrab views looked at.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+Claude-Session: https://claude.ai/code/session_01XV59m2qzBTRyKw3EDXquHM
+---
+ docs/ARCHITECTURE.md                          |  1 +
+ docs/COORDINATION.md                          |  1 +
+ docs/design/gdd.md                            |  3 +-
+ docs/log/A1.md                                |  1 +
+ docs/notes/683.md                             | 18 +++++++
+ src/DarkTerritory.Game/GreyboxScene.Houses.cs | 52 +++++++++++++------
+ .../HouseInteriorArtTests.cs                  | 29 +++++++++++
+ 7 files changed, 89 insertions(+), 16 deletions(-)
+ create mode 100644 docs/notes/683.md
+
+diff --git a/docs/ARCHITECTURE.md b/docs/ARCHITECTURE.md
+index 95c1ce33..ed3cdac3 100644
+--- a/docs/ARCHITECTURE.md
++++ b/docs/ARCHITECTURE.md
+@@ -863,4 +863,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
+ - [680. The gym's calls, from the director's run-through (A1, queue #412; GDD §34.1, App. F.5; the director, 13 Oct 2026, from inside the gym: "The…](notes/680.md)
+ - [681. Grabs alone: Use is the struggle's, a chance at best, and the holder stays (A1, queue #413; GDD App. C.1, App. F.5; the director, 13 Oct…](notes/681.md)
+ - [682. Deaths named for what did them (A1, queue #414; GDD App. D.12, App. F.5; the director, 13 Oct 2026, from inside the creature gym:…](notes/682.md)
++- [683. The Hanger seen (A1, queue #415; GDD §21, App. F.5; the director, 13 Oct 2026, from inside the creature gym: "I was pulled up by a hanger…](notes/683.md)
+ <!-- end of the notes index -->
+diff --git a/docs/COORDINATION.md b/docs/COORDINATION.md
+index 79d38114..f5aa5f1e 100644
+--- a/docs/COORDINATION.md
++++ b/docs/COORDINATION.md
+@@ -619,6 +619,7 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged).
+ | 412 | **The gym's calls, from the director's run-through (the director, 13 Oct 2026; GDD §34.1, App. F.5):** "The cinderhounds do not approach the train when called", "Switchman cannot be tested that far away", "tippie toesie seems to be called very very far away", "dragger not seen on the side of any car", "gannet doesnt dive consistently or loop its attacks". The gym's engine stands short of the stop's first points; the hounds come close behind the rear car and board it; Tippy Toesie hides till you stand still (no 2.6 km distance); the Dragger waits under the nearest car, named; the Gannet stays over a standing train in the gym. **Overlaps:** the creatures on a real night are unchanged (their owners'); the waiting Dragger's art is open | A1 | `claude/modest-cannon-6dvqrs` | 680 | claimed |
+ | 413 | **Grabs alone (the director, 13 Oct 2026; GDD App. C.1, App. F.5):** "struggle is hold e and when next to the firebox it will also shovel coal into the firebox, we need input prioritization"; "monsters like the whistler should not disappear entirely if I hold e to escape. holding e shouldn't always result in escape it should at best give me a 15% chance of escape". While held, Use is the struggle's alone; a lone struggle is one try a grab at 15% (`grab.soloStruggleChance`), shorter than every hold (`soloStruggle` 4); struggled free of, the Whistler and the Soot Children stay. **Overlaps:** the creatures' own files (G1's designs) only where a self-free ends them | A1 | `claude/modest-cannon-6dvqrs` | 681 | claimed |
+ | 414 | **Deaths named for what did them (the director, 13 Oct 2026; GDD App. D.12, App. F.5):** "householder grabbed me and it said seized by the choir". The Householder, the Lodger, the Hanger, the Hollow House, the Brakeman, the Hot Box, Tower Jaw, the Grumbler and the Pickers each kill with a cause of their own (they had borrowed the Choir's, the hounds', the Passenger's, a dropped load's, the Gnawers'), with its death-screen line and the clerk's | A1 | `claude/modest-cannon-6dvqrs` | 682 | claimed |
++| 415 | **The Hanger seen (the director, 13 Oct 2026; GDD §21, App. F.5):** "I was pulled up by a hanger despite not seeing one at all or not having any telegraph". Its strands drawn to read in a dim house (finger-thick, glinting, a bead at each end) and quivering while anyone's in its house, its tell. **Overlaps:** its sounds (hanger.md §4) are AU1's | A1 | `claude/modest-cannon-6dvqrs` | 683 | claimed |
+ 
+ The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished from main's docs/design/gdd.md on 8 Oct at
+ 00:20 UTC (D1, main at e345c64, version 18), with G1's open #247 (the Moose) merged on top, as the live page already
+diff --git a/docs/design/gdd.md b/docs/design/gdd.md
+index 2276e1d2..f9178933 100644
+--- a/docs/design/gdd.md
++++ b/docs/design/gdd.md
+@@ -719,6 +719,7 @@ Step inside and the ground starts rumbling under it. Anyone still inside when th
+ Strands hanging from the ceiling, glistening in the lamp.
+ > **RULE: don't touch the strands.**
+ Walk into a strand and it has you, hauling you up it until your feet leave the floor. A friend prises you free, or a blow makes it let go.
++*(The director, 13 Oct 2026, from the creature gym, App. F.5: "I was pulled up by a hanger despite not seeing one at all or not having any telegraph".)* The strands are plain to see in a dim house, finger-thick and glinting, a bead at each end. With anyone in its house, they quiver: that's its tell, before anyone touches one.
+ 
+ ### STRUCTURAL — attack how you run the train
+ 
+@@ -2655,7 +2656,7 @@ Agents can't tell whether it's funny, but they can tell whether everyone was on
+ - The Householder grabbed the director, and the death said "seized by the Choir". *In progress (queue #414, ARCHITECTURE §8 note 682): it borrowed the Choir's cause, as the Lodger borrowed the hounds' and the Hanger the Passenger's; each now has its own (D.12).*
+ - The abandoned villages' houses don't seem to have doors, though there's an open and shut prompt and a collider. A house's doors and windows need to shut and be escapable, so the house can show what it's about to do. *Open; design change → the Hollow House (§21).* (The director named the Householder; the doors slamming shut one after another are the Hollow House's tell.)
+ - The house that should come down didn't: the model doesn't collapse. *Open.* (The Hollow House.)
+-- Pulled up by a Hanger without seeing one, and with no tell. *Open.*
++- Pulled up by a Hanger without seeing one, and with no tell. *In progress (queue #415, ARCHITECTURE §8 note 683): the strands drawn to read in a dim house, and quivering while anyone's in its house (§21); its sounds (hanger.md §4) are the audio chat's.*
+ 
+ **Decided** (the director, 13 Oct 2026):
+ - A lone player's struggle is a chance, at best 15%, and what held them doesn't vanish; while held, Use is the struggle's alone (App. C.1).
+diff --git a/docs/log/A1.md b/docs/log/A1.md
+index 01cfb101..78b68965 100644
+--- a/docs/log/A1.md
++++ b/docs/log/A1.md
+@@ -91,3 +91,4 @@ where GitHub recorded it.
+ - 2026-10-13 17:58 UTC · A1 · Claimed queue **#412**, note **680**, and built it on a local branch (to push after #940): the gym's calls from the director's run-through (App. F.5). The engine stands 60 m short of the stop's first points (the Switchman comes 63 m off); the hounds 45 m behind the rear car, boarding it; Tippy Toesie no longer called 2.6 km off; the Dragger under the nearest car, named; the Gannet stays over a standing train in the gym. `dt gym` 32/36 (Tower Jaw and the Grumbler now say walk nearer), `CreatureGymTests` 8/8.
+ - 2026-10-13 18:05 UTC · A1 · Claimed queue **#413**, note **681**, built on a local branch after #412: grabs alone. While held, Use is the struggle's alone (no coal shovelled); a lone struggle is one try a grab at 15% (seeded), `soloStruggle` 6 → 4 s (shorter than the Householder's hold); struggled free of, the Whistler goes back to its gap and the Soot Child backs off calling. Roster and cab tests 26/26.
+ - 2026-10-13 18:29 UTC · A1 · Claimed queue **#414**, note **682**, built on a local branch after #413: deaths named for what did them. Nine creatures killed with another's cause (the Householder the Choir's "seized", the Lodger and the Grumbler the hounds' "mauled", the Hanger and three more the Passenger's "taken", the Hollow House a dropped load's, the Pickers the Gnawers'); each now has its own, appended to `DeathCause`, with its line and the clerk's. HouseCreatureTests 28/28, HudTests' every-death line.
++- 2026-10-13 18:37 UTC · A1 · Claimed queue **#415**, note **683**, built on a local branch after #414: the Hanger seen. Its strands 1.1 cm on six sides (were 5 mm on four), beads 5 cm, and a 9 Hz quiver while anyone's in its house (`StrandSway`); `hanger`/`hangergrab` views looked at; HouseInteriorArtTests 6/6. Its sounds are AU1's. Passed the director's titan note to C1 on #945.
+diff --git a/docs/notes/683.md b/docs/notes/683.md
+new file mode 100644
+index 00000000..012f7f5f
+--- /dev/null
++++ b/docs/notes/683.md
+@@ -0,0 +1,18 @@
++683. **The Hanger seen (A1, queue #415; GDD §21, App. F.5; the director, 13 Oct 2026, from inside the creature gym: "I was pulled up by a hanger despite not seeing one at all or not having any telegraph").**
++   - **What the trace found:**
++     - The strands were 5 mm cylinders with four sides, and the beads at most 1.4 cm across (`GreyboxScene.HangerIn`). In a dim house they don't read at all.
++     - Their sway was the same whether or not anyone was in the house, so the design's telegraph (hanger.md §5: "anyone in its house → its strands quiver") was never drawn.
++     - It has no sound at all, so hanger.md §4's tell (the creak and wet clicking, the strands' hum) doesn't exist.
++     - In the gym, a Hanger called earlier stays in its house, and the pointer marks only the kind called last, so one could sit unmarked in a house walked into later.
++   - **Drawn to read** (`GreyboxScene.Houses.cs`):
++     - Strands are `StrandRadius` 1.1 cm on six sides, paler and glinting.
++     - Beads are about 5 cm across, on ten sides.
++     - The taut strand to whoever it has is 1.4 × that.
++   - **The quiver** (`StrandSway`): while its phase is `Telegraph` (someone in its house) and it's hidden, each strand's end shivers about 9 Hz, `QuiverMetres` 2.2 cm, over the slow sway.
++   - **Checked:**
++     - `HouseInteriorArtTests.TheHangersStrandsQuiverWhileSomeonesInItsHouse`: over a second, a quivering strand's end travels more than five times a still one's, turning direction 12 or more times against the sway's 2 at most.
++     - The `hanger` and `hangergrab` views were looked at, before and after. In the lit house two strands now read where one barely did; the grab view shows the strand from its mouth to the held crewmate's chest.
++   - **Not here:** its sounds (hanger.md §4; the house's creak and clicking, the strands' hum, the snap, the reel, the hiss) are the audio chat's (AU1), as are the Lodger's (App. F.5). The gym's pointer marking every kind called, not just the last, is a gym item if the director wants it.
++
++**Handoff** (13 Oct)
++- Done: on the branch after #940, #412, #413 and #414 merge.
+diff --git a/src/DarkTerritory.Game/GreyboxScene.Houses.cs b/src/DarkTerritory.Game/GreyboxScene.Houses.cs
+index a147d3c6..d510d1b8 100644
+--- a/src/DarkTerritory.Game/GreyboxScene.Houses.cs
++++ b/src/DarkTerritory.Game/GreyboxScene.Houses.cs
+@@ -352,18 +352,19 @@ public sealed partial class GreyboxScene
+         }
+         var k = new Art.Kit(Look, mesh);
+         k.Push(frame);
++        // Its tell (hanger.md §5; the director, 13 Oct, App. F.5: "pulled up by a hanger despite not seeing one at all or not
++        // having any telegraph"; note 683): with someone in its house the strands quiver, a fast shiver over the slow sway,
++        // stronger the nearer they are to touching one; drawn thick enough to read in a dim house, and glinting.
++        bool quiver = e.Phase == Sim.Enemies.SpinePhase.Telegraph && mode == HangerMode.Hidden;
+         for (int i = 0; i < strands.Count; i++)
+         {
+             if (i == taut)
+                 continue;
+             var (sx, sy) = strands[i];
+-            // Hung from the joists' undersides (the plan's x on −Z, its y on X), swaying a hand's breadth in the air that moves
+-            // through the house; the bead at its end heavier, so it swings most.
+-            double s = Time * (0.55 + 0.1 * (i % 3)) + i * 1.9 + e.Id;
+-            var swing = new Vector3((float)(0.035 * Math.Sin(s)), 0, (float)(0.028 * Math.Sin(s * 0.83 + 1.3)));
++            // Hung from the joists' undersides (the plan's x on −Z, its y on X).
+             var top = new Vector3((float)sy, ceiling, (float)-sx);
+-            var bottom = new Vector3((float)sy, Floor + (float)Hanger.StrandBottom, (float)-sx) + swing;
+-            Strand(k, top, bottom, 0.005f);
++            var bottom = new Vector3((float)sy, Floor + (float)Hanger.StrandBottom, (float)-sx) + StrandSway(Time, i, e.Id, quiver);
++            Strand(k, top, bottom, StrandRadius);
+             Bead(k, bottom);
+         }
+         // Itself: up in the roof space while it's hidden or going back there, down under the joists while it's at someone.
+@@ -390,25 +391,46 @@ public sealed partial class GreyboxScene
+         {
+             var mouth = Vector3.Transform(Art.CreatureArt.HangerMouth, model);
+             var chest = Vector3.Transform((caught.Feet + Double3.Up * 1.3).RelativeTo(eye), toHouse);
+-            Strand(k, mouth, chest, 0.008f);
++            Strand(k, mouth, chest, StrandRadius * 1.4f);
+         }
+         k.Pop();
+     }
+ 
+-    /// <summary>A strand, wet and pale, from <paramref name="a"/> to <paramref name="b"/>: a thin glassy thread, glinting in a lamp.</summary>
++    /// <summary>
++    /// Where a strand's end hangs off true (house frame, m): a hand's breadth of sway in the air that moves through the house,
++    /// the bead at its end heavier, so it swings most; and, <paramref name="quiver"/> (someone in its house, note 683), a fast
++    /// shiver over it, the Hanger's tell.
++    /// </summary>
++    public static Vector3 StrandSway(double time, int strand, int id, bool quiver)
++    {
++        double s = time * (0.55 + 0.1 * (strand % 3)) + strand * 1.9 + id;
++        var swing = new Vector3((float)(0.035 * Math.Sin(s)), 0, (float)(0.028 * Math.Sin(s * 0.83 + 1.3)));
++        if (quiver)
++        {
++            double q = time * (52 + 6 * (strand % 4)) + strand * 2.3;
++            swing += new Vector3((float)(QuiverMetres * Math.Sin(q)), 0, (float)(QuiverMetres * Math.Sin(q * 1.31 + 0.7)));
++        }
++        return swing;
++    }
++
++    // The strands as drawn (note 683): a finger's thickness, where 5 mm on four sides didn't read in a dim house at all; their
++    // quiver while someone's in the house, a few centimetres either way.
++    const float StrandRadius = 0.011f, QuiverMetres = 0.022f;
++
++    /// <summary>A strand, wet and pale, from <paramref name="a"/> to <paramref name="b"/>: a glassy thread, glinting in a lamp.</summary>
+     static void Strand(Art.Kit k, Vector3 a, Vector3 b, float radius)
+     {
+-        k.Use("cream", new Vector3(0.8f, 0.79f, 0.72f), 0.05f, 0.95f, tile: 0.2f);
+-        k.Tint = new Vector3(0.95f, 0.94f, 0.88f);
+-        k.Cylinder(a, b, radius, 4, caps: false);
++        k.Use("cream", new Vector3(0.86f, 0.85f, 0.78f), 0.05f, 0.95f, tile: 0.2f);
++        k.Tint = new Vector3(1.0f, 0.99f, 0.93f);
++        k.Cylinder(a, b, radius, 6, caps: false);
+     }
+ 
+-    /// <summary>The bead at a strand's end: a drop of something yellowish and sticky, glistening.</summary>
++    /// <summary>The bead at a strand's end: a drop of something yellowish and sticky, glistening, the size of a thumb's end.</summary>
+     static void Bead(Art.Kit k, Vector3 end)
+     {
+-        k.Use("cream", new Vector3(0.75f, 0.64f, 0.36f), 0.05f, 0.98f, tile: 0.2f);
+-        k.Tint = new Vector3(0.85f, 0.72f, 0.42f);
+-        k.Lathe(end - new Vector3(0, 0.03f, 0), [new(0.002f, 0), new(0.012f, 0.008f), new(0.014f, 0.017f), new(0.008f, 0.028f), new(0.004f, 0.036f)], 8);
++        k.Use("cream", new Vector3(0.8f, 0.68f, 0.38f), 0.05f, 0.98f, tile: 0.2f);
++        k.Tint = new Vector3(0.92f, 0.78f, 0.45f);
++        k.Lathe(end - new Vector3(0, 0.05f, 0), [new(0.003f, 0), new(0.02f, 0.013f), new(0.024f, 0.028f), new(0.014f, 0.046f), new(0.007f, 0.06f)], 10);
+     }
+ 
+     /// <summary>Which of the route's features <paramref name="f"/> is (its index), or −1.</summary>
+diff --git a/tests/DarkTerritory.Game.Tests/HouseInteriorArtTests.cs b/tests/DarkTerritory.Game.Tests/HouseInteriorArtTests.cs
+index 9d589c49..caf8646f 100644
+--- a/tests/DarkTerritory.Game.Tests/HouseInteriorArtTests.cs
++++ b/tests/DarkTerritory.Game.Tests/HouseInteriorArtTests.cs
+@@ -237,4 +237,33 @@ public class HouseInteriorArtTests
+             }
+         }
+     }
++    [Fact]
++    public void TheHangersStrandsQuiverWhileSomeonesInItsHouse()
++    {
++        // Note 683 (the director, 13 Oct, App. F.5: "pulled up by a hanger despite not seeing one at all or not having any
++        // telegraph"): its tell is the strands' quiver. Over a second, a quivering strand's end moves far more than a still
++        // one's slow sway, and it shivers (many turns of direction, not the sway's one).
++        static (double Path, int Turns) Moves(bool quiver)
++        {
++            double path = 0;
++            int turns = 0;
++            var last = GreyboxScene.StrandSway(10, 2, 7, quiver);
++            float dLast = 0;
++            for (int f = 1; f <= 120; f++)
++            {
++                var now = GreyboxScene.StrandSway(10 + f / 120.0, 2, 7, quiver);
++                path += Vector3.Distance(now, last);
++                float d = now.X - last.X;
++                if (dLast != 0 && MathF.Sign(d) != MathF.Sign(dLast))
++                    turns++;
++                (last, dLast) = (now, d);
++            }
++            return (path, turns);
++        }
++        var still = Moves(false);
++        var quivering = Moves(true);
++        Assert.True(quivering.Path > 5 * still.Path, $"quivering {quivering.Path:0.000} m vs still {still.Path:0.000} m in a second");
++        Assert.True(quivering.Turns >= 12, $"{quivering.Turns} turns in a second");
++        Assert.True(still.Turns <= 2);
++    }
+ }
+-- 
+2.43.0
+
