@@ -53,7 +53,32 @@ public static class CrewActs
         // Over a friend's shoulder (note 723): laid across it, the way the one carrying them faces.
         if (s.Alive && s.Has(PlayerFlags.Carried) && others is not null && CarrierOf(s, others) is { } carrier)
             drawn = OnTheShoulder(drawn, Eyes.World(carrier, frames).Yaw);
+        // On a crane's hook (note 726): stood on it, holding on to its cable.
+        if (s.Alive && s.Has(PlayerFlags.Hoisted) && world.Run?.CurrentSite?.CraneNear(feet) is { } crane)
+            drawn = OnTheHook(drawn, crane.HookAt);
         return drawn;
+    }
+
+    /// <summary>How far behind the cable a rider on the hook is drawn (m, note 726): stood on its far lip, the cable at their chest.</summary>
+    const double CableAhead = 0.2;
+
+    /// <summary>
+    /// A crewmate stood on a crane's hook (note 726), as they're drawn: their feet on the hook's lip a step behind its cable (the
+    /// sim has them on the hook itself), both hands up on the cable over it, one over the other.
+    /// </summary>
+    public static Crewmate OnTheHook(Crewmate c, Double3 hook)
+    {
+        var forward = new Double3(-DMath.Sin(c.Yaw), 0, -DMath.Cos(c.Yaw));
+        var cable = hook with { Y = c.Feet.Y };
+        var toCable = (cable - c.Feet) with { Y = 0 };
+        // Two side by side keep where they stand; one alone is put behind the cable, facing it.
+        var feet = toCable.Length < 0.05 ? cable - forward * CableAhead : c.Feet;
+        Double3 Local(Double3 at)
+        {
+            var d = at - feet;
+            return new Double3(d.X * Math.Cos(c.Yaw) - d.Z * Math.Sin(c.Yaw), d.Y, d.X * Math.Sin(c.Yaw) + d.Z * Math.Cos(c.Yaw));
+        }
+        return c with { Feet = feet, Act = CrewPose.Lever, Reach = (Local(cable + Double3.Up * 1.75), Local(cable + Double3.Up * 1.4)) };
     }
 
     /// <summary>The crewmate carrying <paramref name="s"/> (note 723): the nearest carrying one in their frame, under them.</summary>
@@ -416,6 +441,9 @@ public static class CrewActs
         // Over a friend's shoulder (note 723; Crewmate lays them across it).
         if (s.Has(PlayerFlags.Carried))
             return CrewPose.HeldPinned;
+        // Stood on a crane's hook (note 726), both hands up on its cable (OnTheHook).
+        if (s.Has(PlayerFlags.Hoisted))
+            return CrewPose.Lever;
         // Knocked by a crewmate (note 717): rocked back, arms out, while the stagger lasts; and the shover's arms out at them.
         if (s.Stagger > 0)
             return CrewPose.Stagger;

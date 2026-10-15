@@ -636,11 +636,19 @@ public sealed partial class Run
         if (crane.Operator >= 0)
         {
             crane.Drive(_craneIntent, world.Train, dt);
-            if (crane.Pressed(_craneIntent.Has(PlayerButtons.Fire)) && crane.Release(world.Train) is { Fell: true } drop)
-                _drop = (drop.Landed, crane.Tuning.CrushRadius);
+            if (crane.Pressed(_craneIntent.Has(PlayerButtons.Fire)))
+            {
+                // Nothing hooked and a friend on it (note 726): the press is for the hoist to answer (a shake, mischief on).
+                if (crane.Hooked is null && crane.Riders > 0)
+                    crane.ShakeOffBy = crane.Operator;
+                else if (crane.Release(world.Train) is { Fell: true } drop)
+                    _drop = (drop.Landed, crane.Tuning.CrushRadius);
+            }
         }
         else
             crane.Pressed(false);
+        // Whose hands moved it this tick (note 726): a rider's height is the lift of whoever drove it.
+        crane.LastDriver = crane.Operator;
         crane.Operator = -1;
     }
 
