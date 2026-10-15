@@ -554,23 +554,38 @@ public static class NovaKit
         return k.Build($"lighthouse-{variant}");
     }
 
+    /// <summary>A wharf's deck (<see cref="Wharf"/>): the planks' top over its foot, how far they reach either side of its middle, where they end on the land side (m).</summary>
+    public const float WharfDeck = 1.6f, WharfHalfWidth = 2.2f, WharfLandEnd = 0.2f;
+    /// <summary>A wharf's steps up from the shore (<see cref="Wharf"/>): how many, each one's rise (under player.json's stepUp, 0.35) and tread (m).</summary>
+    public const int WharfSteps = 4;
+    public const float WharfRise = 0.32f, WharfTread = 0.35f;
+
     /// <summary>
     /// A crib wharf (maritime-rules.md §6): log cribs filled with rock, a plank deck across them, run out from the shore
-    /// into the water along +Z's back (−Z out), some of its planks gone.
+    /// into the water along +Z's back (−Z out), some of its planks gone; a flight of steps up to it from the shore (note 817:
+    /// walked out on, each step a step up, the lower ones in the bank where it's steep).
     /// </summary>
     public static MeshAsset Wharf(Look? look, int variant)
     {
         var k = new Kit(look, 3200 + variant);
         var rng = new Random(3200 + variant);
-        float len = 16 + variant * 6, w = 4, deck = 1.6f;
+        float len = 16 + variant * 6, w = 4, deck = WharfDeck;
         k.Use("wood_sleeper", Palette.DeepBrown, 0.9f, 0.05f, tile: 1);
         for (float z = 0; z > -len; z -= 5)
             k.Box(new Vector3(-w / 2, -4, z - 3.2f), new Vector3(w / 2, deck - 0.2f, z), Kit.Faces.Sides);
+        // The steps, landward of the deck's end (a hair clear of it, so each is measured on its own: LinesideFootprints).
+        for (int i = 1; i <= WharfSteps; i++)
+        {
+            float near = WharfLandEnd + 0.01f + (WharfSteps - i) * WharfTread;
+            k.Box(new Vector3(-w / 2, -1, near), new Vector3(w / 2, i * WharfRise, near + WharfTread), Kit.Faces.All & ~Kit.Faces.NegY);
+        }
         k.Use("wood_floor", Palette.DeepBrown, 0.9f, 0.05f, tile: 1);
         k.Tint = new Vector3(0.8f, 0.8f, 0.78f);
-        for (float z = 0.2f; z > -len; z -= 0.35f)
-            if (rng.NextDouble() > 0.1)
-                k.Box(new Vector3(-w / 2 - 0.2f, deck - 0.2f, z - 0.3f), new Vector3(w / 2 + 0.2f, deck, z), Kit.Faces.All & ~Kit.Faces.NegY);
+        // Some planks gone, never the first: the steps come up to it.
+        bool first = true;
+        for (float z = WharfLandEnd; z > -len; z -= 0.35f, first = false)
+            if (rng.NextDouble() > 0.1 || first)
+                k.Box(new Vector3(-WharfHalfWidth, deck - 0.2f, z - 0.3f), new Vector3(WharfHalfWidth, deck, z), Kit.Faces.All & ~Kit.Faces.NegY);
         // Lobster traps stacked on the deck, slatted boxes three and four high, some fallen.
         k.Use("wood_crate", Palette.DeepBrown, 0.9f, 0.05f, tile: 0.8f);
         k.Tint = new Vector3(0.85f);
