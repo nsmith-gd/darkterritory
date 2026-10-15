@@ -54,8 +54,18 @@ public sealed partial class World
     /// <summary>This night's horseplay (player.json <c>horseplay</c>, the sessions' <see cref="Movement"/>).</summary>
     public HorseplayTuning HorseplayTuning => Movement?.Horseplay ?? NoHorseplay;
 
+    /// <summary>
+    /// The lobby's CREW MISCHIEF switch (GDD §23.4; ARCHITECTURE §8 note 724): set on every machine from the night's setup
+    /// (<c>SessionSetup.Mischief</c>), and on a client again whenever the host changes it in the yard. Off, a shove, a bonk
+    /// and coal thrown at the crew land on nobody, as player.json <c>horseplay.enabled: false</c> does; crewmates stay solid.
+    /// </summary>
+    public bool CrewMischief { get; set; } = true;
+
+    /// <summary>Whether horseplay lands on the crew tonight: the content allows it (<c>horseplay.enabled</c>) and the lobby has it on.</summary>
+    public bool MischiefOn => HorseplayTuning.Enabled && CrewMischief;
+
     /// <summary>Whether <paramref name="by"/>'s mischief lands on the crew: horseplay's on, and they're not a bot.</summary>
-    bool Mischief(int by) => HorseplayTuning.Enabled && !BotIds.Contains(by) && Mates.Count > 0;
+    bool Mischief(int by) => MischiefOn && !BotIds.Contains(by) && Mates.Count > 0;
 
     /// <summary>Who last shoved <paramref name="player"/> (or bumped them on with a shove), and the train's speed then; null for nobody.</summary>
     public (int By, double Speed)? ShovedBy(int player) => _shovedBy.TryGetValue(player, out var s) ? s : null;

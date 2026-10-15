@@ -1099,13 +1099,17 @@ public static class PlayerMotor
                 continue;
             var local = frame.ToLocal(world);
             var vehicle = train.Vehicles[frame.Index];
+            // Note 716: walking the engine's cab, down the gallery's treads is a step down, not a drop: the floor's taken a step
+            // below the feet. Off the treads into the air, a crewmate was out of the cab for a few ticks (no longer InCab, its
+            // space the outside) with the train under them.
+            double down = wasGrounded && s.Parent == frame.Index && frame.Shape.Cab is { } cabRoom && cabRoom.Contains(local) ? p.StepUp : snap;
             foreach (var solid in frame.Shape.Solids)
             {
                 if (!solid.Present(vehicle))
                     continue;
                 var box = solid.BoxIn(vehicle);
                 double top = box.Max.Y;
-                if (!box.ContainsXZ(local) || local.Y > top + snap || local.Y < top - below)
+                if (!box.ContainsXZ(local) || local.Y > top + down || local.Y < top - below)
                     continue;
                 double worldTop = frame.ToWorld(local with { Y = top }).Y;
                 if (worldTop <= bestTop)

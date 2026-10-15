@@ -179,9 +179,24 @@
   // patch (`{"$patch": true, "crew": {"cap": 12}}`): everyone in a game runs the same content, so they agree on it. The net
   // budget (ARCHITECTURE §6) has headroom to 12; past that is untested. refuseLingerSeconds: how long the host keeps a
   // refused link open for the refusal to get there before it hangs up (the client hangs up itself on reading it).
+  //
+  // Sessions (GDD §33.1; ARCHITECTURE §8 note 724; the director, 14 Oct 2026, App. F.6). joinTakesBotSeat: a human joining a
+  // night that bots crew, who'd otherwise wait for a stop, go into the Holdouts' queue or be turned away from a full crew,
+  // takes a bot's place where it stands (its body, its slots and what it carries, its health, its post): a living bot's, the
+  // director's census's least busy, else the newest, the one at the cab's controls last. The bot leaves. false: the old way.
+  // kick: the host puts a player off from the roster (Q held, Shift and their number); in a public lobby (listed, no password)
+  // anyone aboard can call the crew's vote on someone, open voteSeconds, carried by more than `majority` of the living humans
+  // aboard (the one voted on not counted). Put off, a player's told THE CREW PUT YOU OFF AT THE NEXT STOP and can't come back
+  // to that run (barred by their account or address, or by name on a LAN that has none). A private or friends-only run: the
+  // host's kick only.
   "crew": {
     "cap": 8,
-    "refuseLingerSeconds": 3
+    "refuseLingerSeconds": 3,
+    "joinTakesBotSeat": true,
+    "kick": {
+      "voteSeconds": 30,
+      "majority": 0.5
+    }
   },
   // Emotes (GDD §9: the yard's a safe space where "the crew wait for friends, hang out, dance"; ARCHITECTURE §8 note 298).
   // Seconds each lasts, unless its player moves first: the host keeps the event this long for the crew to see. cooldown:
@@ -213,10 +228,13 @@
   // can be shoved off of it. And at speed, it kills you"; and the lump of coal "is going to need to be able to work with the
   // current coal shoveling system". Nothing a crewmate does to another is damage: staggers, soot and knocks only, and a death
   // only through the world's own rules (the landing, by the train's speed or the height), so the report names who.
-  // enabled: false turns the shove, the bonk and coal at the crew off (the lobby's "crew mischief" to come); crewmates stay
-  // solid to each other either way.
+  // enabled: false turns the shove, the bonk and coal at the crew off for every lobby; crewmates stay solid to each other
+  // either way. The lobby's CREW MISCHIEF switch (note 724, GDD §23.4) turns it off for one run: the host sets it on the host
+  // screen or the fortress board, or in the yard from the night's menu. It starts on, but in a public run FEELING COMPETITIVE
+  // with competitiveOff (strangers meet there; among friends and for laughs it's on).
   "horseplay": {
     "enabled": true,
+    "competitiveOff": true,
     // Crewmates are solid to each other: two shoulders of `radius` (m) each, on the ground or in a car, out of each other at
     // `share` of the overlap a tick each, no faster than maxSpeed (m/s, over a run, so nobody runs through anybody): soft, so
     // whoever stands in a doorway is squeezed past, pushed along at half the pace of whoever walks into them (an edge holds
