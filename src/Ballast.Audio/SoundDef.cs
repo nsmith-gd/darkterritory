@@ -238,8 +238,11 @@ public sealed record CompressorDef(double ThresholdDb, double Ratio, double Atta
 /// <summary>While any sound on <see cref="Tier"/> is audible, the listed tiers drop by <see cref="Db"/>.</summary>
 public sealed record DuckRule(int Tier, int[] Ducks, double Db);
 
-/// <summary>Within a tier: while any of <see cref="When"/> is audible, the named sounds drop (tells whose bands collide).</summary>
-public sealed record SoundDuckRule(string[] When, string[] Ducks, double Db);
+/// <summary>
+/// While any of <see cref="When"/> is audible (or anything on <see cref="WhenTier"/>), the named sounds drop: tells whose bands
+/// collide, and the crew's band under any tell. A name ending in <c>*</c> is every sound starting so.
+/// </summary>
+public sealed record SoundDuckRule(string[] When, string[] Ducks, double Db, int? WhenTier = null);
 
 /// <summary>
 /// The music bus (GDD v1.4 App. E.6), outside the tell tiers: sounds on <see cref="Mixer.MusicTier"/> never duck anything,
