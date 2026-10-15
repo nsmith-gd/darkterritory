@@ -31,7 +31,10 @@
   // A town of more than "lineRow" houses keeps that many on the line's street, the nearest its square, and takes streets
   // of its own for the rest (note 668; the director, 13 Oct, of frontier:7's: "a long row of houses. It doesn't feel like
   // a town"): a hamlet stays a row by the track.
-  "houses": { "every": 15, "out": 10.9, "width": [6.5, 9.0], "gableWidth": [5.4, 7.0], "depth": [5.2, 6.0], "fromGate": 30, "burnt": 0.15, "open": 0.12, "lineRow": 10 },
+  // A company town's houses (note 815) stand in runs of one plan "planRun" m long down each street, the next run maybe
+  // another plan's.
+  "houses": { "every": 15, "out": 10.9, "width": [6.5, 9.0], "gableWidth": [5.4, 7.0], "depth": [5.2, 6.0], "fromGate": 30, "burnt": 0.15, "open": 0.12, "lineRow": 10,
+    "planRun": 45 },
 
   // A walled town (the director, 7 Oct: "fortresses aren't just some straight line around the railroad, they should
   // surround towns, towns should be explorable"; queue #74, ARCHITECTURE §8 note 335). A town with more houses than the

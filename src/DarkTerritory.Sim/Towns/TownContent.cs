@@ -163,6 +163,8 @@ public sealed record StreetTuning
     /// streets of its own, so a town of forty houses isn't one row down the track.
     /// </summary>
     public int LineRow { get; init; } = int.MaxValue;
+    /// <summary>How long a run of one plan is down a company town's street (m; note 815).</summary>
+    public double PlanRun { get; init; } = 45;
     public double Burnt { get; init; }
     public double Open { get; init; }
 }
