@@ -1103,6 +1103,90 @@ public class WorldSoundTests
     }
 
     [Fact]
+    public void AFriendOnTheCranesHookIsHeardOnTheCableAndYellingOffItHighUpAndLandingAsAGag()
+    {
+        // K1's friend on the hook (note 726), heard (queue #525, note 798), off what a client has: the crane's riders (its
+        // record) and the rider's Hoisted flag. The cable creaks where the hook is while anyone rides it, louder while the
+        // crane moves them; coming off it alive high up (shaken off, or let go), a yell where they are, once, and down on the
+        // ground a comic thump and an oof in place of the landing (the director's gag, note 802); let go a step off the
+        // ground, no yell and an ordinary landing.
+        var (world, foundry) = Night(f => f.Facility == FacilityKind.Foundry, from: 20);
+        var audio = new GameAudio(Content) { PlayerTuning = DataFile.Load<PlayerTuning>(Path.Combine(Content, PlayerTuning.File)) };
+        Held(audio, "crew-hoist.creak");
+        Stand(audio, "crew-hoist.yelp", "crew-hoist.land");
+        string[] feet = ["wood", "grate", "plate", "roof", "coal", "ballast", "dirt", "grass", "mud", "cobbles", "concrete", "water", "ground"];
+        Stand(audio, [.. feet.Select(m => $"crew-footsteps.land.{m}")]);
+        var run = world.Run!;
+        run.EnableSites(DataFile.Load<FacilityTuning>(Path.Combine(Content, FacilityTuning.File)), world.Train.Line);
+        var site = run.Sites[run.Route.Of(FeatureKind.Facility).ToList().IndexOf(foundry)]!;
+        var crane = Assert.Single(site.Cranes);
+        var ears = new Ears(audio, world);
+        Double3 Beside() => crane.HookAt + new Double3(4, 0, 4);
+        int Landings() => ears.Started.Count(v => v.Name.StartsWith("crew-footsteps.land."));
+        // The hook this high over what's under it (a car's roof, or the ground), and who rides it.
+        void Hook(double above, int riders)
+        {
+            crane.Mirror(crane.Bridge, crane.Trolley, 0, 0, [], riders);
+            double floor = crane.Under(world.Train).Y, lowest = crane.HookAt.Y;
+            crane.Mirror(crane.Bridge, crane.Trolley, floor + above - lowest, 0, [], riders);
+        }
+        Hook(5, 0);
+        ears.Tick(Beside(), 5);
+        Assert.False(Playing(audio, "crew-hoist.creak"));
+        Hook(5, 1);
+        ears.Tick(Beside(), 5);
+        var creak = audio.Mixer.Voices.Single(v => v.Name == "crew-hoist.creak" && !v.Finished);
+        Assert.True((creak.Position - crane.HookAt).Length < 1e-6);
+        float still = creak.Volume;
+        // The crane running them up: louder while it moves.
+        for (int i = 0; i < 5; i++)
+        {
+            crane.Mirror(crane.Bridge, crane.Trolley, crane.Hook + 0.02, 0, [], 1);
+            ears.Tick(Beside());
+        }
+        Assert.True(creak.Volume > still * 1.5, $"{creak.Volume:0.00} moving, {still:0.00} still");
+        Hook(5, 0);
+        ears.Tick(Beside(), SimConstants.TickRate);
+        Assert.False(Playing(audio, "crew-hoist.creak"));
+
+        // Priya on the hook, then off it: the yell once at her head 5 m up; on it a step off the ground and off, nothing more.
+        PlayerState Rider(double above, bool on, byte placed)
+        {
+            Hook(above, on ? 1 : 0);
+            var feet = crane.RiderFeet(0, 1);
+            return PlayerMotor.SpawnOnGround(feet, world.Train.Line, 0, audio.PlayerTuning!) with
+            {
+                Position = feet,
+                Surface = Surface.Air,
+                Flags = on ? PlayerFlags.Hoisted : PlayerFlags.None,
+                Placed = placed,
+            };
+        }
+        PlayerState Down(byte placed) =>
+            PlayerMotor.SpawnOnGround(crane.RiderFeet(0, 1), world.Train.Line, 0, audio.PlayerTuning!) with { Placed = placed };
+        audio.CrewStates = [(2, Rider(5, true, 1))];
+        ears.Tick(Beside(), 3);
+        var at = crane.RiderFeet(0, 1);
+        audio.CrewStates = [(2, Rider(5, false, 2))];
+        ears.Tick(Beside(), 3);
+        var yelp = Assert.Single(ears.Started, v => v.Name == "crew-hoist.yelp");
+        Assert.True((yelp.Position - at).Length < 2, $"{(yelp.Position - at).Length:0.0} m off her feet");
+        audio.CrewStates = [(2, Down(2))];
+        ears.Tick(Beside(), 3);
+        Assert.Single(ears.Started, v => v.Name == "crew-hoist.land");
+        Assert.Equal(0, Landings());
+        audio.CrewStates = [(2, Rider(1, true, 3))];
+        ears.Tick(Beside(), 3);
+        audio.CrewStates = [(2, Rider(1, false, 4))];
+        ears.Tick(Beside(), 3);
+        audio.CrewStates = [(2, Down(4))];
+        ears.Tick(Beside(), 3);
+        Assert.Single(ears.Started, v => v.Name == "crew-hoist.yelp");
+        Assert.Single(ears.Started, v => v.Name == "crew-hoist.land");
+        Assert.Equal(1, Landings());
+    }
+
+    [Fact]
     public void TheFoundrysFurnaceBurnsInItsShedWithNobodyToTendIt()
     {
         // C1's casting shed (note 420), heard (queue #161, note 425): the cupola banked and roaring under its own draught,
