@@ -201,6 +201,16 @@
   // Emotes (GDD §9: the yard's a safe space where "the crew wait for friends, hang out, dance"; ARCHITECTURE §8 note 298).
   // Seconds each lasts, unless its player moves first: the host keeps the event this long for the crew to see. cooldown:
   // how soon after one another can be picked. Presentation only: nothing in the sim acts on an emote.
+  // GDD §12 "Ping the bots" (note 739; the director, 14 Oct 2026: "use my middle mouse button to create some sort of context
+  // ping"): what's nearest the middle of the view within coneDegrees and range m is pinged; the crew see it seconds s, and a
+  // bot that takes it keeps to it orderSeconds at most. One a pinger each cooldown s.
+  "pings": {
+    "range": 60,
+    "coneDegrees": 12,
+    "seconds": 20,
+    "orderSeconds": 120,
+    "cooldown": 0.5
+  },
   "emotes": {
     "dance": 8,
     "wave": 2.5,

@@ -920,4 +920,9 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [763. The char a fire leaves, as burnt boards (C1, queue #493; the director, 13 Oct evening, `docs/playtest/2026-10-13-evening.md` line 28:…](notes/763.md)
 - [767. The house creatures heard (AU1, queue #497; G1's #316-#319, notes 583-586; their design docs' §4)](notes/767.md)
 - [768. Horseplay heard (AU1, queue #498; K1's #451, note 717)](notes/768.md)
+- [771. The Pickers heard (AU1, queue #501; G1's #315, note 592; pickers.md §4, "a request to the audio chat")](notes/771.md)
+- [772. 772. **The Wakers' dawn heard (AU1, queue #502; note 588, docs/design/creatures/wakers.md §2-§5, §8.4: "the sounds to](notes/772.md)
+- [773. 773. **The figures heard (AU1, queue #503; P1's notes 570, 571 and 489; the Audio Checklist's `figures`, asked of AU1 by](notes/773.md)
+- [774. K1's merged asks heard (AU1, queue #504; K1's comment on #1012; notes 718, 720 and 727)](notes/774.md)
+- [775. 775. **U1's upgrades heard (AU1, queue #505; U1's #967, notes 678, 697, 698, 700 and 711; the Audio Checklist's six](notes/775.md)
 <!-- end of the notes index -->

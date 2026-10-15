@@ -138,6 +138,13 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
             else
                 ((GunnerBot)bot).Crew = crew;
         }
+        // Note 739 (GDD §12): the crew's pings, shared out a bot each as orders; this bot takes one it's nearest to and can do.
+        if (calls is not null && session.PlayerId is { } pid && bot is RoofWalkerBot or GunnerBot or ConductorBot)
+        {
+            calls.Role(pid, bot is ConductorBot ? BotRole.Driver : bot is GunnerBot ? BotRole.Gunner : BotRole.Walker);
+            IReadOnlyList<(int Id, PlayerState State)> pingCrew = (bot as RoofWalkerBot)?.Crew ?? (bot as GunnerBot)?.Crew ?? (bot as ConductorBot)?.Crew ?? [];
+            calls.Pings(session.World, pid, session.Predicted, pingCrew);
+        }
         var intent = bot is IWorldBot wb ? wb.Decide(session.Predicted, session.World, t, out _) : bot.Decide(session.Predicted, session.Train, t);
         int me = session.PlayerId ?? 0;
         // Note 551: too hurt for a hound pack that's about, it's in cover (the cab, or a car shut up): no errands out of it, to a

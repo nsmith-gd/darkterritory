@@ -87,18 +87,19 @@ public static class Protocol
     //     it; a lamp signal rides the intent's third byte (bits 2-3), and the crew see it as a record kind of its own.
     // 60: an emote past the hotbar byte's two bits (note 740: "Aboard!"): both wheel-step bits set say the emote, and the
     //     step, follow in a byte of their own.
-    // 61: sessions (note 724): the crew's save sent to everyone aboard as a night's settled (CrewSave, in chunks); kick and the
+    // 61: pings (note 739): a record kind of their own; the ping itself rides the intent's moves byte (bit 5).
+    // 62: sessions (note 724): the crew's save sent to everyone aboard as a night's settled (CrewSave, in chunks); kick and the
     //     public lobby's vote to put a player off (Kick, KickVote, Kicked; a Refused can say the crew put you off); and the
     //     lobby's crew mischief switch (Mischief), changed in the yard.
-    // 62: the sense table (note 728): the body record's ninth field carries a toy playing where it lies (its noise | 0x100) and
+    // 63: the sense table (note 728): the body record's ninth field carries a toy playing where it lies (its noise | 0x100) and
     //     a thrown lamp broken and burning (1).
-    // 63: bringing them home (note 723): two player flags (carried over a friend's shoulder, and carrying one) and a knock of
+    // 64: bringing them home (note 723): two player flags (carried over a friend's shoulder, and carrying one) and a knock of
     //     its own (a friend thrown off the shoulder).
-    // 64: the big finds (note 719): a find's body record carries a fragile one's knocks over its use ticks (its ninth field,
+    // 65: the big finds (note 719): a find's body record carries a fragile one's knocks over its use ticks (its ninth field,
     //     bits 16 up), and the doors' record the jackpot houses' locks being picked after the doors shut (key, progress pairs).
-    // 65: the handcar (note 729): a vehicle kind of its own and a Handcar record (hung or on the rails, the handle's swing, the
+    // 66: the handcar (note 729): a vehicle kind of its own and a Handcar record (hung or on the rails, the handle's swing, the
     //     pumpers' drive, the brake, a lift under way, how many at the handle); a player's flags carry Pumping.
-    public const int Version = 65;
+    public const int Version = 66;
 }
 
 public enum MessageType : byte

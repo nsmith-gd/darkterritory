@@ -8,7 +8,7 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Net;
 
-public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13, Hit = 14, Impact = 15, Heap = 16, Swing = 17, Emote = 18, Search = 19, Door = 20, News = 21, Horseplay = 22, Lump = 23, Signal = 24, Handcar = 25 }
+public enum RecordKind : byte { Rake = 1, Vehicle = 2, Boiler = 3, Controls = 4, Player = 5, World = 6, Enemy = 7, Run = 8, Body = 9, Holdout = 10, Switch = 11, Crane = 12, Wreck = 13, Hit = 14, Impact = 15, Heap = 16, Swing = 17, Emote = 18, Search = 19, Door = 20, News = 21, Horseplay = 22, Lump = 23, Signal = 24, Ping = 25, Handcar = 26 }
 
 /// <summary>One replicated thing as fixed-point integers. <see cref="Key"/> is kind in the top byte, id below.</summary>
 public readonly record struct WireRecord(uint Key, long[] Fields)
@@ -147,6 +147,9 @@ public static class WorldRecords
         // Emotes (note 298): who, which, and when it began.
         foreach (var e in world.Emotes)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Emote, e.Id), [e.Tick, e.By, (long)e.Kind]));
+        // Pings (note 739): who, on what, which one of those, where, and when.
+        foreach (var e in world.Pings)
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Ping, e.Id), [e.Tick, e.By, (long)e.Kind, e.Target, Q(e.At.X, Pos), Q(e.At.Y, Pos), Q(e.At.Z, Pos)]));
         // Lamp signals (note 720): who, which, and when it began.
         foreach (var e in world.Signals)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Signal, e.Id), [e.Tick, e.By, (long)e.Kind]));
@@ -361,6 +364,7 @@ public static class WorldRecords
         var hits = new List<HitConfirm>();
         var swings = new List<SwingEvent>();
         var emotes = new List<EmoteEvent>();
+        var pings = new List<PingEvent>();
         var horseplay = new List<HorseplayEvent>();
         var lumps = new List<LumpInFlight>();
         var signals = new List<SignalEvent>();
@@ -484,6 +488,9 @@ public static class WorldRecords
                 case RecordKind.Swing when !world.Authority:
                     swings.Add(new SwingEvent(r.Id, (uint)f[0], (int)f[1]));
                     break;
+                case RecordKind.Ping when !world.Authority:
+                    pings.Add(new PingEvent(r.Id, (uint)f[0], (int)f[1], (PingKind)f[2], (int)f[3], new Ballast.Double3(D(f[4], Pos), D(f[5], Pos), D(f[6], Pos))));
+                    break;
                 case RecordKind.Emote when !world.Authority:
                     emotes.Add(new EmoteEvent(r.Id, (uint)f[0], (int)f[1], (Emote)f[2]));
                     break;
@@ -576,7 +583,7 @@ public static class WorldRecords
         if (!world.Authority)
         {
             world.MirrorEnemies(enemies);
-            world.MirrorHits(hits, impacts, swings, emotes, news, signals);
+            world.MirrorHits(hits, impacts, swings, emotes, news, signals, pings);
             world.MirrorHorseplay(horseplay, lumps);
             world.Bodies.Mirror(bodies);
             world.Train.Lying = world.Bodies.Lying(world.Train);
