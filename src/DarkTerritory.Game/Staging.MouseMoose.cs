@@ -56,6 +56,9 @@ public static partial class Staging
     /// the headlamp's spill, or crouched close to the one tugging its load.</summary>
     public static Camera MouseMooseCamera(TrainOnLine train, string view)
     {
+        // Front-quarter on, close, to the one creeping in: its face, its eyes and its antlers.
+        if (view == "mousemooseface")
+            return Camera.LookAt(Lineside(train, 12.6, -4.6) + Double3.Up * 0.75, Lineside(train, 14.0, -6.5) + Double3.Up * 0.4, 38);
         if (view == "mousemoosedrag")
             return Camera.LookAt(Lineside(train, 16.2, -6.6) + Double3.Up * 0.55, Lineside(train, 18.0, -5.4) + Double3.Up * 0.35, 48);
         return Camera.LookAt(Lineside(train, 10.0, -1.5) + Double3.Up * 1.4, Lineside(train, 17.0, -5.5) + Double3.Up * 0.3, 56);
