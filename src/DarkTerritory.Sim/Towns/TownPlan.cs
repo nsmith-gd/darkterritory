@@ -26,7 +26,8 @@ public sealed record TownPlan(
     string Character = "",
     TownBounds? Bounds = null,
     TownGreen? Green = null,
-    TownWorks? Works = null)
+    TownWorks? Works = null,
+    TownYard? Yard = null)
 {
     /// <summary>Its outer gate along the line (the site's), which the houses a creature brought in burns are nearest (note 608).</summary>
     public double Gate { get; init; }
@@ -84,6 +85,21 @@ public sealed record TownGreen(double S0, double S1, double Near, double Far, in
 /// <see cref="Side"/>, where the houses would have been. Its pieces are the plan's fixtures standing in it.
 /// </summary>
 public sealed record TownWorks(double S0, double S1, double Near, double Far, int Side, string Trade)
+{
+    public bool Holds(double s, double d, double pad = 0) =>
+        s >= S0 - pad && s <= S1 + pad && Math.Sign(d) == Side && Math.Abs(d) >= Near - pad && Math.Abs(d) <= Far + pad;
+}
+
+/// <summary>
+/// A walled town's rail yard (queue #239, note 502; GDD §3: "Fortified towns survive behind stone and steel walls ... rail
+/// yards and warehouses"): behind the home platform, from <see cref="S0"/> to <see cref="S1"/> along the line and
+/// <see cref="Near"/> (the platform's back) to <see cref="Far"/> (the first street's edge) out from it on <see cref="Side"/>,
+/// where that street's near row would have stood. Its siding runs down it <see cref="SidingD"/> out from the line, from
+/// <see cref="Siding0"/> to <see cref="Siding1"/>, a buffer stop at each end: its points were lifted long ago, and the stock
+/// in it hasn't moved since. Its pieces (the goods sheds, the yard office, the weighbridge, freight waiting, the stock, the
+/// lamps) are the plan's fixtures standing in it.
+/// </summary>
+public sealed record TownYard(double S0, double S1, double Near, double Far, int Side, double SidingD, double Siding0, double Siding1)
 {
     public bool Holds(double s, double d, double pad = 0) =>
         s >= S0 - pad && s <= S1 + pad && Math.Sign(d) == Side && Math.Abs(d) >= Near - pad && Math.Abs(d) <= Far + pad;
