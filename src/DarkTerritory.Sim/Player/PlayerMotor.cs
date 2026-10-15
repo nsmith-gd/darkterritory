@@ -286,7 +286,8 @@ public enum DeathCause : byte
     // Note 717: shoved off by a crewmate, and the landing (the train's speed, or the height) killed them; the report names who.
     Shoved,
     // Note 726: let go of the crane's hook (or shaken off it) after the operator lifted them, and the fall killed them; the
-    // report names the operator.
+    // report names the operator. Note 802 (the director, 15 Oct 2026: "a silly gag not a big grief"): a drop off the hook no
+    // longer kills (PlayerFlags.OffTheHook), so nothing sets it now; kept, as it's on the wire and in old recordings.
     Dropped,
     // Note 682 (the director, 13 Oct, GDD App. F.5: "householder grabbed me and it said seized by the choir"): each of these
     // had borrowed another's cause (the Choir's, the hounds', the Passenger's, a dropped load's). Appended: it's a byte on the wire.
@@ -372,15 +373,23 @@ public enum PlayerFlags : uint
     /// <summary>Playing the band's instrument in their hands (note 700): every machine hears it, on the band's tune.</summary>
     Playing = 131072,
     /// <summary>
+    /// Off a crane's hook (note 802; the director, 15 Oct 2026: "It's a silly gag not a big grief"): let go of it or shaken off,
+    /// till they have footing again. A landing on the ground knocks by the height fallen alone, at most player.json
+    /// <c>landing.offTheHook.maxKnock</c>, and never kills (<see cref="OffTheHookTuning"/>). Set by the host as they come off
+    /// (World.LetGo, a host move), cleared by the motor on footing, here and on a predicting client alike. Past main's Lounging
+    /// and Playing (protocol 74 widened the flags to a uint), at protocol 76.
+    /// </summary>
+    OffTheHook = 262144,
+    /// <summary>
     /// In the guard van's cannon (note 746, the human cannonball): climbed in at its muzzle with the gun packed, feet in the
     /// barrel, still, till the gunner fires it or Jump climbs out (<see cref="DarkTerritory.Sim.Combat.HumanCannonball"/>).
     /// </summary>
-    InCannon = 262144,
+    InCannon = 524288,
     /// <summary>
     /// Fired from the guard van's cannon (note 746): in the air, the stick does nothing, the view's held on where they'll come
     /// down, and the landing never hurts ("we're going for fun in this one"). Cleared on landing.
     /// </summary>
-    Fired = 524288,
+    Fired = 1048576,
 }
 
 /// <summary>
@@ -666,7 +675,7 @@ public static class PlayerMotor
         bool aloft = s.Surface == Surface.Air;
         Move(ref s, input, train, p, t, dt, applyLook, self, crowd);
         if (s.Surface != Surface.Air)
-            s.Flags &= ~(PlayerFlags.OffTheGround | PlayerFlags.Shoved | PlayerFlags.Fired);
+            s.Flags &= ~(PlayerFlags.OffTheGround | PlayerFlags.Shoved | PlayerFlags.OffTheHook | PlayerFlags.Fired);
         else if (!aloft)
             s.Flags = onGround ? s.Flags | PlayerFlags.OffTheGround : s.Flags & ~PlayerFlags.OffTheGround;
         // Note 717: a stagger wears off a tick at a time, here and on a predicting client alike.
@@ -1086,13 +1095,15 @@ public static class PlayerMotor
     /// <summary>
     /// Note 279: a step that would take someone up land steeper than <see cref="PlayerTuning.ClimbSlope"/> isn't climbed.
     /// What's left of it goes across the slope (along its contour) while that stays walkable, else nowhere. Down is free.
+    /// Climbed from where they stand (note 817): up on a wall's top, a wharf's deck over a bed rising to the shore is walked
+    /// along, and land higher than the deck is no easier to step up onto from it.
     /// </summary>
     static Double3 Walkable(Double3 to, Double3 from, ITrackConditions land, PlayerTuning p)
     {
         double dx = to.X - from.X, dz = to.Z - from.Z, run = Math.Sqrt(dx * dx + dz * dz);
         if (run < 1e-6)
             return to;
-        double here = land.Ground(from);
+        double here = Math.Max(land.Ground(from), from.Y);
         if (land.Ground(to) - here <= p.ClimbSlope * run + 1e-4)
             return to;
         const double H = 0.25;
@@ -1243,6 +1254,20 @@ public static class PlayerMotor
             }
         }
 
+        // Note 817: afoot, what's solid holds you up as a car's solids do: a wall's top is stepped up onto, or landed on from
+        // a jump or a fall (a crate, a stone wall, a boulder, a wharf's deck), and its edge walked off. Riding, it's the train
+        // underfoot (T107): nobody is lifted off a moving car by a wall it passes.
+        bool onTop = false;
+        if (!riding && train.Walls is { } walls)
+            foreach (var w in walls.Near(world))
+            {
+                if (w.Top <= bestTop || world.Y > w.Top + snap || world.Y < w.Top - below || !w.Box.ContainsXZ(w.ToLocal(world)))
+                    continue;
+                bestTop = w.Top;
+                bestParent = PlayerState.World;
+                onTop = true;
+            }
+
         if (double.IsNegativeInfinity(bestTop) && underGround)
             bestTop = groundY; // nothing of the train underfoot either: the earth, however far up it is
         if (double.IsNegativeInfinity(bestTop))
@@ -1259,7 +1284,7 @@ public static class PlayerMotor
                 Land(ref s, worldVelocity, p, t);
             s.Parent = PlayerState.World;
             s.Surface = Surface.Ground;
-            s.Position = world with { Y = groundY };
+            s.Position = world with { Y = onTop ? bestTop : groundY };
             s.Velocity = default;
             return;
         }
@@ -1282,13 +1307,25 @@ public static class PlayerMotor
         // Fired from the cannon (note 746, the director: "Make sure the player doesn't die when they are fired"): a roll, unhurt.
         if (s.Has(PlayerFlags.Fired))
             return;
+        var l = p.Landing;
+        // Note 802 (the director, 15 Oct 2026: "the player can only lose 10 health at most from a drop and then scale that based
+        // on height. It's a silly gag not a big grief"): off a crane's hook, the knock is the gag's, by the height fallen alone
+        // (the speed it lands at). The hook's own run and the fall and speed tables aren't counted, and it never kills.
+        if (s.Has(PlayerFlags.OffTheHook))
+        {
+            double drop = worldVelocity.Y < 0 ? worldVelocity.Y * worldVelocity.Y / (2 * p.Gravity) : 0;
+            int gag = (l.OffTheHook ?? OffTheHookTuning.Default).Knock(drop);
+            if (gag > 0 && s.Health > 1)
+                s.Health = Math.Max(1, s.Health - gag);
+            s.Flags &= ~PlayerFlags.OffTheHook;
+            return;
+        }
         double horizontal = Math.Sqrt(worldVelocity.X * worldVelocity.X + worldVelocity.Z * worldVelocity.Z);
         // Note 573: off the ground's own footing (a dip, a bank on open ground), the knock is for what's over their own run, not
         // the run: spec B.3's table is for leaving the train, at its speed. frontier:7 seed 4's driver, running beside the train
         // at a stand, took 29 coming down off a dip on the bank. Off a car, a ladder or a platform it's as ever.
         if (s.Has(PlayerFlags.OffTheGround))
             horizontal = Math.Max(0, horizontal - p.Run);
-        var l = p.Landing;
         // Note 717: off their feet from a friend's shove, a landing that kills is the shove's (the report names the shover); the
         // shove's own speed knocks nobody (a shove on the flat, or off a roof at a stand, is no hurt), only the train's or the drop.
         bool shoved = s.Has(PlayerFlags.Shoved);
