@@ -194,7 +194,7 @@ public sealed class TowerJaw(int id) : Enemy(id)
             }
             if (d <= t.LungeWithin && PhaseSeconds >= t.ThreatSeconds && Phase == SpinePhase.Telegraph && Enter(ctx, SpinePhase.Commit))
             {
-                ctx.Bite(near.Player.Id, t.Bite, DeathCause.Taken);
+                ctx.Bite(near.Player.Id, t.Bite, DeathCause.TowerJaw);
                 SetMode(TowerJawMode.Lunge);
                 Enter(ctx, SpinePhase.Telegraph);
             }
@@ -237,7 +237,7 @@ public sealed class TowerJaw(int id) : Enemy(id)
     {
         foreach (var (p, at) in ctx.LivingCrew())
             if (Flat(at - _fallsAt) <= t.CrushRadius)
-                ctx.Bite(p.Id, t.Crush, DeathCause.Taken);
+                ctx.Bite(p.Id, t.Crush, DeathCause.Crushed);
         var world = ctx.World;
         if (world.Authority && world.Run is { } run)
         {

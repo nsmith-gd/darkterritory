@@ -334,3 +334,30 @@ The director asked for the last three friendslop features to be heard. Two were 
 
 - nathaniel2's weekly limit is at 60%, on pace to run out ~16 Oct 08:00 UTC. AU1 confirmed and is writing its handoffs (COORDINATION rule 11): Handoff blocks for #42 (note 304, the Voice Booth), #505 (note 775, U1's upgrades) and #534 (note 806, U1's whimsies), in the shape COORDINATION's "Accounts and usage limits" gives. #537 and #538 are done in #1064.
 - The Voice Booth's last two fixes (`booth.py`'s preview clip guard, the clerk's kit-lost phrases in `script.json`) had stayed on `au1-booth` since 7 Oct; they land with the handoff.
+
+## 15 Oct, ~18:45 UTC: #1064 merged; #534's hooks ready on #967
+
+- **#1064 merged** (ff01db1): the Mouse Moose (#537), the Holdout banging (#538), U1's candidates (#534), and AU1's handoff blocks for the Token Budget Manager (#42, #505, #534). Main kept moving in the coordination files GitHub can't union-merge, so the last merge of main went in on its tests and a local build without a fresh CI run; main's own CI on it is being watched.
+- **#534's hooks**, written on U1's #967 (nathaniel1 is landing it tonight) and pushed to `claude/relaxed-cerf-r4pvh7` without a PR until #967 is on main:
+  - The pets, the canary, the calliope (at the tune's pitch, through a layer parameter: the mixer resets a voice's own rate every block), the gramophone's wind, the bow, the salute, and the conga as one held voice for the line.
+  - The calliope's candidates rebuilt at C6, the middle of #967's tune, instead of A4 (which the game would have pitched up 10-22 semitones).
+  - Installed, captioned, `WhimsySoundTests` (5).
+
+## 15 Oct, ~19:10 UTC: #505's horns, forge and BBQ deck ready on #967
+
+- Main's CI on #1064's merge (ff01db1) is green: format, build, every test on both systems, VR, the tell audit, crossplay.
+- **#505 (note 775)**, on the same branch as #534's hooks (built on #967, no PR until it lands):
+  - **The horns:** the honk on each pull, the gold-plated whistle sounding, held and let go.
+    - #967's horns only changed what the Choir hears, so no client could tell which was fitted. They now mark the train (`dress:theHonk`, `dress:goldWhistle`), as the La Cucaracha horn does.
+  - **The forge** at a fortress town: its hearth, and the smith hammering, working the bellows, quenching.
+  - **The BBQ deck:** the charcoal catching, the grill, a sausage turned, the cooler, a can cracked as a beer in hand is drunk, cans clinked, a Muskoka chair.
+  - Installed, captioned and tested.
+  - The tools' tells (`up-tells`) are next; their moments are each in a different system.
+- Commented on #967 for whoever lands it: the credits file's merge conflict is generated, and AU1's hooks don't need #967 to change.
+- **The calliope an octave down** (#534): it's the whistle, and the whistle's band is 200-800 Hz (spec A.4). #967's tune is G5-G6, in Tippy's, the Stoker's and the Grumbler's bands. AU1's takes are now C5, played G4-G5; about 70% of each note's energy is in the band.
+- **The tools' tells (`up-tells`) left for a design call** (note 775's handoff): the speed recorder's bell, for one, would need to split the early warning from the normal one, and the base lead is a tuning number the audio shouldn't hard-code.
+
+## 15 Oct, ~20:45 UTC: #967 merged; #534's and #505's hooks in review (#1096)
+
+- U1's #967 is on main (bdc6158be). AU1's hooks, built on it, are rebuilt on main (`claude/relaxed-cerf-r4pvh7`, AU1's changes over #967's last head applied to main) and in review in [#1096](https://github.com/nsmith-gd/darkterritory/pull/1096): the whimsies, pets and new emotes (#534), the horns, forge and BBQ deck (#505). Build, format and the audio and upgrade test classes pass.
+- Rows #534 (in review) and #505 (in progress: the tools' tells still wait on a design call); notes 806 and 775's handoffs say so.

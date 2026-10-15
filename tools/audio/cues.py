@@ -1136,7 +1136,7 @@ CUES = {
     # wound in the guard van. Each plays over U1's own made sound only where it's installed.
     "up-whimsy": [
         O("song", "The canary singing in its cage: a phrase of trills, warbles and chirps, a few seconds, while all's well", vars=6),
-        O("calliope", "The steam calliope's note on the whistle's pull: a breathy, reedy steam pipe, a little out of tune (one pitch, the game tunes it)", vars=2),
+        O("calliope", "The steam calliope's note on the whistle's pull: a breathy, reedy steam pipe, a little out of tune (one pitch, C5: the game tunes it)", vars=2),
         O("wind", "The gramophone wound in the guard van: the crank's ratchet turning the spring, a few turns", vars=2),
     ],
     # U1's yard cat and dog (#967, note 745; queue #534, note 806): their tells. The cat hisses at a creature aboard its car

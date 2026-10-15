@@ -563,7 +563,7 @@ public sealed class Grumbler(int id) : Enemy(id)
         _bite = 0;
         if (prey.Health <= t.GrabBelowHealth && Grab(ctx, LastHitBy, t.MaulSeconds))
             return;
-        ctx.Bite(LastHitBy, t.BiteDamage, DeathCause.Mauled);
+        ctx.Bite(LastHitBy, t.BiteDamage, DeathCause.Grumbler);
     }
 
     public override void Struck(EnemyContext ctx, int by, double damage)
@@ -603,7 +603,7 @@ public sealed class Grumbler(int id) : Enemy(id)
 
     protected override void Punish(EnemyContext ctx, int victim)
     {
-        Kill(ctx, victim, DeathCause.Mauled);
+        Kill(ctx, victim, DeathCause.Grumbler);
         Enter(ctx, SpinePhase.BreakOff);
         Enter(ctx, SpinePhase.Telegraph);
     }

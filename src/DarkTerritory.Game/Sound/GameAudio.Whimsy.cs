@@ -10,7 +10,15 @@ namespace DarkTerritory.Game.Sound;
 // the whistle's pulls, the gramophone in the guard van playing the band's recordings through its horn.
 public sealed partial class GameAudio
 {
+    /// <summary>
+    /// AU1's calliope (queue #534, note 806): the pitch (MIDI) its takes are recorded at, C5, the middle of the tune played an
+    /// octave down (tools/audio/recipes/upgrade_whimsy.py). An octave down because the calliope is the whistle, and the
+    /// whistle's band is 200-800 Hz (spec A.4; AudioBench.TellBands): at the tune's own octave (G5-G6) it would sit in Tippy's,
+    /// the Stoker's and the Grumbler's.
+    /// </summary>
+    const int CalliopeRecorded = 72, CalliopeDown = 12;
     SoundInstance? _canary, _gramophone;
+    uint _woundHeard = uint.MaxValue;
     double _canaryNext;
     int _canaryPhrase, _calliopeNote = -1, _gramophoneRecord = -1;
     readonly Dictionary<int, AudioClip> _calliopeClips = [];
@@ -51,6 +59,12 @@ public sealed partial class GameAudio
             }
             int take = (int)(_time * 7) % 3;
             string name = cat ? mood == PetMood.Warn ? "hiss" : "meow" : "bark";
+            var at = Sim.Physics.Bodies.WorldCentre(b, train) + Double3.Up * 0.2;
+            float occ = Occlusion(PlayerMotor.Space(new PlayerState { Parent = b.Parent, Position = b.Centre }, train));
+            _petHeard[b.Id] = (b.Tipped, _time);
+            // AU1's recorded cat and dog where they're installed (queue #534, note 806); the made sound otherwise.
+            if (Cue($"up-pets.{name}", at, occ) is not null)
+                continue;
             if (!_petClips.TryGetValue($"{name}{take}", out var clip))
                 _petClips[$"{name}{take}"] = clip = new AudioClip(name switch
                 {
@@ -58,13 +72,11 @@ public sealed partial class GameAudio
                     "meow" => BandSynth.Meow(take),
                     _ => BandSynth.Bark(take),
                 }, Audio.SampleRate);
-            var at = Sim.Physics.Bodies.WorldCentre(b, train) + Double3.Up * 0.2;
             Mixer.Play(WhimsySound($"whimsy-{name}", 3, 1.5, cat ? 22 : 60, cat ? -2 : 0), at)?.Also(v =>
             {
                 v.Clip = clip;
-                v.Occlusion = Occlusion(PlayerMotor.Space(new PlayerState { Parent = b.Parent, Position = b.Centre }, train));
+                v.Occlusion = occ;
             });
-            _petHeard[b.Id] = (b.Tipped, _time);
         }
     }
 
@@ -88,15 +100,26 @@ public sealed partial class GameAudio
             _canary.Position = at;
             return;
         }
+        // A recorded phrase's length isn't known ahead: the pause is counted from when it ends.
+        if (double.IsPositiveInfinity(_canaryNext))
+            _canaryNext = _time + 1.5 + _canaryPhrase % 3;
         if (_time < _canaryNext)
             return;
         int phrase = _canaryPhrase++ % 6;
+        float occ = Occlusion(PlayerMotor.Space(new PlayerState { Parent = car, Position = Whimsy.Cage(train) }, train));
+        // AU1's recorded canary where it's installed (queue #534, note 806); the made song otherwise.
+        if (HasCue("up-whimsy.song"))
+        {
+            _canary = Cue("up-whimsy.song", at, occ);
+            _canaryNext = _canary is null ? _time + 3 : double.PositiveInfinity;
+            return;
+        }
         if (!_canaryClips.TryGetValue(phrase, out var clip))
             _canaryClips[phrase] = clip = new AudioClip(BandSynth.Canary(phrase), Audio.SampleRate);
         _canary = Mixer.Play(WhimsySound("whimsy-canary", 4, 1, 18, -8), at)?.Also(v =>
         {
             v.Clip = clip;
-            v.Occlusion = Occlusion(PlayerMotor.Space(new PlayerState { Parent = car, Position = Whimsy.Cage(train) }, train));
+            v.Occlusion = occ;
         });
         _canaryNext = _time + clip.Seconds + 1.5 + phrase % 3;
     }
@@ -124,11 +147,18 @@ public sealed partial class GameAudio
             _whistle?.Stop();
             _calliopeNote = note;
             int pitch = BandSynth.CalliopeTune[((note - 1) % BandSynth.CalliopeTune.Length + BandSynth.CalliopeTune.Length) % BandSynth.CalliopeTune.Length];
-            if (!_calliopeClips.TryGetValue(pitch, out var clip))
-                _calliopeClips[pitch] = clip = new AudioClip(BandSynth.Calliope(pitch, 2.5), Audio.SampleRate);
-            var whistle = Bank.Get("train-whistle");
-            _whistle = Mixer.Play(WhimsySound("whimsy-calliope", whistle?.Tier ?? 1, whistle?.MinDistance ?? 10, whistle?.MaxDistance ?? 900, whistle?.GainDb ?? 0), at)
-                ?.Also(v => v.Clip = clip);
+            // AU1's recorded pipe where it's installed (queue #534, note 806): one note, C5, played at the tune's pitch an
+            // octave down.
+            if (HasCue("up-whimsy.calliope"))
+                _whistle = Cue("up-whimsy.calliope", at)?.Also(v => v.Params.Set("pitch", Math.Pow(2, (pitch - CalliopeDown - CalliopeRecorded) / 12.0)));
+            else
+            {
+                if (!_calliopeClips.TryGetValue(pitch, out var clip))
+                    _calliopeClips[pitch] = clip = new AudioClip(BandSynth.Calliope(pitch, 2.5), Audio.SampleRate);
+                var whistle = Bank.Get("train-whistle");
+                _whistle = Mixer.Play(WhimsySound("whimsy-calliope", whistle?.Tier ?? 1, whistle?.MinDistance ?? 10, whistle?.MaxDistance ?? 900, whistle?.GainDb ?? 0), at)
+                    ?.Also(v => v.Clip = clip);
+            }
         }
         if (_whistle is not null)
         {
@@ -145,6 +175,21 @@ public sealed partial class GameAudio
     void Gramophone(World world, TrainOnLine train)
     {
         var w = world.Whimsy;
+        // Wound (queue #534, note 806): the crank's ratchet as it's wound and set going, once a winding (the host's tick of
+        // it); what's there on the first update is old news.
+        if (w.Playing && w.WoundAt != _woundHeard && train.Frames.Count >= 2)
+        {
+            if (_woundHeard != uint.MaxValue)
+            {
+                int guard = Whimsy.GramophoneCar(train);
+                var table = Whimsy.Gramophone(train.Frames[guard].Shape);
+                Cue("up-whimsy.wind", train.Frames[guard].ToWorld(table + new Double3(0.16, Whimsy.Table + 0.3, 0.06)),
+                    Occlusion(PlayerMotor.Space(new PlayerState { Parent = guard, Position = table + Double3.Up }, train)));
+            }
+            _woundHeard = w.WoundAt;
+        }
+        else if (_woundHeard == uint.MaxValue)
+            _woundHeard = w.WoundAt;
         if (!train.Dynamics.Tuning.Composition.Dressed("gramophone") || !w.Playing || world.BandTuning is not { } band || w.Record >= band.Scores.Count
             || train.Frames.Count < 2)
         {
