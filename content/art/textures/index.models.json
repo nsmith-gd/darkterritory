@@ -10828,6 +10828,26 @@
     ]
   },
   {
+    "name": "mouse_moose_0",
+    "diffuse": "models/mouse_moose_0.png",
+    "spec": "models/mouse_moose_0_s.png",
+    "normal": "models/mouse_moose_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/mouse_moose.py",
+        "what": "the Mouse Moose, modelled in tools/blender/mouse_moose.py, its colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
     "name": "nissen_hut_0",
     "diffuse": "models/nissen_hut_0.png",
     "spec": "models/nissen_hut_0_s.png",

@@ -254,6 +254,7 @@ public sealed record FireFliesTuning
 public sealed record RibbitTuning
 {
     public int[] PackSize { get; init; } = [2, 4];
+    public int MinCrew { get; init; } = 1;
     public double HopSpeed { get; init; } = 4;
     public double GroupRadius { get; init; } = 8;
     public double TongueReach { get; init; } = 4;
@@ -462,7 +463,7 @@ public sealed record GauntTuning
     public double Health { get; init; } = 8;
     public double LootCargo { get; init; } = 0.3;
     public double LingerSeconds { get; init; } = 900;
-    public int MinCrew { get; init; } = 2;
+    public int MinCrew { get; init; } = 1;
     public double SpawnOut { get; init; } = 25;
     public double LongStopWeight { get; init; } = 2;
     public double LongStopSeconds { get; init; } = 120;
@@ -625,7 +626,7 @@ public sealed record SootChildrenTuning
     public double HealthPerSecond { get; init; } = 0.35;
     public double RealChance { get; init; } = 0.5;
     public double IgnoredSeconds { get; init; } = 120;
-    public int MinCrew { get; init; } = 2;
+    public int MinCrew { get; init; } = 1;
     public double NearFacility { get; init; } = 400;
 }
 
@@ -728,6 +729,8 @@ public sealed record DirectorTuning(
     /// </summary>
     public double LingerSeconds { get; init; } = 120;
     public double LingerRadius { get; init; } = 12;
+    /// <summary>Note 795: with every living crewmate off the train, what none of them is within this of holds no cap (0: off).</summary>
+    public double CapNear { get; init; } = 60;
     /// <summary>
     /// The quiet spell at the start of a night (GDD App. B.1 "Grace period", design decision 2026-10): a range, picked per night
     /// from its seed (<see cref="PressureTuning.GraceTierScale"/> shortens it at the harder tiers).

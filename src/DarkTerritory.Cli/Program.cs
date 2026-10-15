@@ -2316,7 +2316,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     }
     // --mousemoose yard|drag: the staged Mouse Moose off the line's left (note 790; Staging.MouseMoose): creeping in, tugging a
     // load off, down its hole (the mousemoose view's); close to the one tugging (mousemoosedrag's).
-    if (Str(args, "--mousemoose", view switch { "mousemoose" or "mousemooseface" => "yard", "mousemoosedrag" => "drag", _ => "" }) is { Length: > 0 } mouseMode)
+    if (Str(args, "--mousemoose", view switch { "mousemoose" or "mousemooseface" or "mousemoosehole" => "yard", "mousemoosedrag" => "drag", _ => "" }) is { Length: > 0 } mouseMode)
     {
         scene.Enemies = Staging.MouseMoose(scene.Enemies is List<DarkTerritory.Sim.Enemies.Enemy> others ? others : [], train, content, mouseMode,
             out var loads, out var mousePaces);
