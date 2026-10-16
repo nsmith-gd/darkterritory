@@ -32,6 +32,17 @@
   // Company's clock does when it matters. Before that, the route card has it.
   "dawnClockSeconds": 600,
 
+  // The cab's warning of a bend taken too fast (note 266: TOO FAST FOR THE BEND AHEAD, FLANGES SCREAMING, THE BEND IS
+  // PULLING HARD). Off: the director's playtest of 16 Oct, line 11 (note 837), "I don't think we need the warning you're going
+  // too fast around the bend. I think this is for players to pay attention to"; the tilt tells the driver. A roof rider's
+  // GET OFF THE ROOF for a bend or a tunnel is kept: that one's a crewmate's life.
+  "bendWarning": false,
+
+  // After a run's delivered, how long its result and the incident report stay up (s) before they go, so the town can be
+  // explored (the director's playtest of 16 Oct, line 25, note 837: "it should go away after delivered"). They stay while
+  // the commendations are being given.
+  "deliveredReportSeconds": 20,
+
   // Spec E: ping is shown prominently in the lobby (the yard). Out on the line, only once it's this bad (ms), or lost.
   "pingWarnMs": 150,
 

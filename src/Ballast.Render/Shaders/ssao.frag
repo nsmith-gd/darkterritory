@@ -13,6 +13,8 @@ layout(location = 0) in vec2 vUv;
 layout(location = 0) out vec4 outColor;
 // This eye's focal lengths (M11, M22).
 #define FOCAL (EYE == 0 ? post.a.zw : post.c.yz)
+// How far from the eye your own arms and the tool in them reach (m): a hand held out and a wrench's length past it.
+#define OWN_REACH 1.2
 
 vec3 viewAt(vec2 uv, float d) {
     // Right-handed, depth 0..1: z_ndc = -M33 - M43 / z, so z = -M43 / (d + M33) (negative in front).
@@ -75,8 +77,15 @@ void main() {
             continue;
         float sceneZ = viewAt(uv).z;
         // Occluded when the surface there is in front of the sample, and near enough to count (no halo off a far wall).
+        // Note 840 (the director's playtest of 16 Oct, line 16: "a sort of like weird shader shadow thing around both my
+        // hands and any of the tools"): and not your own hands, or the tool in them, over what's behind them. Within
+        // OWN_REACH of the eye, a thing that isn't touching the surface (more than half the radius in front of it) doesn't
+        // darken it: held over the map, a wrench a quarter of a metre up from it spread a speckled smudge round itself. A
+        // contact's darkening is all within that half radius, so nothing you touch loses it.
+        float gap = abs(p.z - sceneZ);
+        float yours = -sceneZ < OWN_REACH && gap > 0.5 * r ? 0.0 : 1.0;
         float inFront = step(s.z + 0.02 * r, sceneZ);
-        occluded += inFront * smoothstep(0.0, 1.0, r / max(abs(p.z - sceneZ), 1e-3));
+        occluded += inFront * yours * smoothstep(0.0, 1.0, r / max(gap, 1e-3));
     }
     float ao = 1.0 - occluded / float(N) * post.b.y;
     ao = mix(ao, 1.0, smoothstep(post.c.x * 0.6, post.c.x, dist));

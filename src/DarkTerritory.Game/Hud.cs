@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using Ballast.Render;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Combat;
@@ -1131,6 +1132,10 @@ public static partial class Hud
             return;
         if (world.Run?.Report is { } r)
         {
+            // Note 837 (the director's playtest of 16 Oct, line 25: "it should go away after delivered"): delivered, the
+            // result and the incident report go after a while, so the town can be explored; not while commendations are given.
+            if (r.End == RunEnd.Delivered && DeliveredReportGone(s))
+                return;
             if (r.End == RunEnd.Delivered)
             {
                 Big("DELIVERED", Green);
@@ -1261,8 +1266,9 @@ public static partial class Hud
             Small(roof.Line, Ink);
         }
         // Note 266 (build 1121: "people should know they're going too fast for a spot"): a bend the speed now would derail
-        // the train on, coming or under it, to whoever's in the cab; and its stress rising, short of that.
-        else if (BendWarningLines(s) is { } bend)
+        // the train on, coming or under it, to whoever's in the cab; and its stress rising, short of that. Off since the
+        // 16 Oct playtest (note 837: the tilt tells the driver), behind hud.json's bendWarning.
+        else if (Tuning.BendWarning && BendWarningLines(s) is { } bend)
         {
             Big(bend.Head, bend.Urgent ? (world.Tick / 6 % 2 == 0 ? Red : Amber) : Amber, bend.Urgent);
             Small(bend.Line, Ink);
@@ -2108,6 +2114,24 @@ public static partial class Hud
         return w.Kind == SignKind.LowClearance
             ? ("LOW CLEARANCE", w.Metres <= 0 ? "IN THE TUNNEL: STAY OFF THE ROOF" : $"TUNNEL MOUTH {when}: GET OFF THE ROOF")
             : (w.Bridge ? "TOO FAST FOR THE BRIDGE" : "TOO FAST FOR THE BEND", $"{w.LimitKmh} KM/H BOARD {when}: GET OFF THE ROOF");
+    }
+
+    // Per session: the tick a delivered run's result was first shown (note 837).
+    static readonly System.Runtime.CompilerServices.ConditionalWeakTable<IPlaySession, StrongBox<long>> _deliveredAt = new();
+
+    /// <summary>
+    /// Whether a delivered run's result and incident report have been up for hud.json's deliveredReportSeconds (note 837),
+    /// with no commendation still to give: then they're gone, and the town's there to be explored.
+    /// </summary>
+    public static bool DeliveredReportGone(IPlaySession s)
+    {
+        long now = (long)s.World.Tick;
+        var at = _deliveredAt.GetValue(s, _ => new StrongBox<long>(now));
+        if (now < at.Value)
+            at.Value = now;
+        if ((s.CommendPick ?? StagedCommendPick) is { Given: false })
+            return false;
+        return (now - at.Value) * Sim.SimConstants.TickSeconds >= Tuning.DeliveredReportSeconds;
     }
 
     /// <summary>
