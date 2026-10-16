@@ -636,6 +636,9 @@ public static class CrewActs
     /// <summary>How far under the muzzle's middle a crouched crewmate's feet are, so their head and shoulders show (m).</summary>
     const double InCannonDrop = 0.75;
 
+    /// <summary>C1's cheers clip's length (s, note 791): an emote from the chair with a can is a cheers for this long.</summary>
+    const double CheersSeconds = 1.5;
+
     /// <summary>How high the hammock's sag and the hot tub's bench are over the floor or the roof under them (m; note 744).</summary>
     public const double HammockPan = 0.55, TubPan = 0.25;
 
@@ -768,7 +771,11 @@ public static class CrewActs
             {
                 LoungeKind.Hammock => CrewPose.Hammock,
                 LoungeKind.HotTub => CrewPose.Gunner,
-                _ => world.Bodies.CarriedBy(id) is { Kind: BodyKind.Beer, MendTicks: > 0 } ? CrewPose.LoungeDrink : CrewPose.Lounge,
+                _ => world.Bodies.CarriedBy(id) is { Kind: BodyKind.Beer } can
+                    ? can.MendTicks > 0 ? CrewPose.LoungeDrink
+                    // An emote from the chair with a can in hand (the wheel's wave, or any): a cheers, held out to the next chair.
+                    : EmoteOf(id, s, world) is { Kind: not Emote.None, Seconds: < CheersSeconds } ? CrewPose.Cheers : CrewPose.Lounge
+                    : CrewPose.Lounge,
             };
         if (world.Bodies.CarriedBy(id) is { } carried)
             return carried.Kind switch
