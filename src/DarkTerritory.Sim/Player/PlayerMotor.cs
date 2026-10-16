@@ -390,6 +390,14 @@ public enum PlayerFlags : uint
     /// down, and the landing never hurts ("we're going for fun in this one"). Cleared on landing.
     /// </summary>
     Fired = 1048576,
+    /// <summary>
+    /// Got up on Jump (out of a gun's seat, off the handcar's handle, out of a Muskoka chair or the cannon's barrel) with the
+    /// key still down (note 832): that press got them up, and it's a jump only once it's let go and pressed again. A press
+    /// lasts a few ticks, and the rest of it leapt them from wherever they'd sat (the director's 13 Oct evening playtest, line
+    /// 23: turned round, the engine's forward gun seats its gunner at the cab roof's front edge, "and I end up jumping off the
+    /// front of the train").
+    /// </summary>
+    GotUp = 2097152,
 }
 
 /// <summary>
@@ -748,20 +756,31 @@ public static class PlayerMotor
             // Note 717: and the crowd's, out from among the others (the edge holds it as it does the wind: it isn't meant).
             var jostle = crowd is { Count: > 0 } ? Horseplay.Push(s, self, crowd, train, p, dt) * (1 / dt) : default;
             s.Velocity = new Double3(wish.X + wind + jostle.X, 0, wish.Z + jostle.Z);
+            // Note 832: the press of Jump that got them up (here, or out of the cannon's barrel) is a jump only once let go.
+            if (!intent.Has(PlayerButtons.Jump))
+                s.Flags &= ~PlayerFlags.GotUp;
             // Jump in the gun's seat is getting up out of it (T112), not a leap off the carriage.
             if (s.Has(PlayerFlags.Seated) || s.Has(PlayerFlags.Pumping))
             {
                 // And at the handcar's handle (note 729), Jump lets go of it.
                 if (intent.Has(PlayerButtons.Jump))
-                    s.Flags &= ~(PlayerFlags.Seated | PlayerFlags.Pumping);
+                {
+                    // Stood up clear of the roof's edge (note 832): the seat turns with the carriage, and can be at it.
+                    if (s.Has(PlayerFlags.Seated))
+                        StandClear(ref s, train, p);
+                    s.Flags = (s.Flags & ~(PlayerFlags.Seated | PlayerFlags.Pumping)) | PlayerFlags.GotUp;
+                }
             }
             // Out of a Muskoka chair the same way (note 698): up, and a step forward out of it.
             else if (s.Has(PlayerFlags.Lounging))
             {
                 if (intent.Has(PlayerButtons.Jump))
+                {
                     Bbq.GetUp(ref s);
+                    s.Flags |= PlayerFlags.GotUp;
+                }
             }
-            else if (intent.Has(PlayerButtons.Jump) && !s.Has(PlayerFlags.Heavy) && !s.Has(PlayerFlags.Operating) && !crouched)
+            else if (intent.Has(PlayerButtons.Jump) && !s.Has(PlayerFlags.GotUp) && !s.Has(PlayerFlags.Heavy) && !s.Has(PlayerFlags.Operating) && !crouched)
             {
                 // Take off in the car's frame and integrate this tick there. The car has already moved
                 // this tick; switching to world first would count its motion twice (0.73 m at 22 m/s).
@@ -882,6 +901,27 @@ public static class PlayerMotor
         }
         return false;
     }
+
+    /// <summary>
+    /// Note 832: up out of a gun's seat, stood where the edge would hold someone walking: <see cref="EdgeTuning.Lip"/> in from
+    /// any edge of the roof within it (along the car and across it, each alone), in steps of <see cref="ClearStep"/>.
+    /// Turned round, the engine's forward gun's seat is 5 cm from the cab roof's front.
+    /// </summary>
+    static void StandClear(ref PlayerState s, TrainOnLine train, PlayerTuning p)
+    {
+        var e = p.Edge;
+        if (e.Lip <= 0 || s.Parent < 0 || s.Parent >= train.Frames.Count)
+            return;
+        var frame = train.Frames[s.Parent];
+        foreach (var away in ClearOf)
+            for (int i = 0; i * ClearStep < e.Lip && !Footing(train, frame, s.Position + away * e.Lip, e.CatchDrop, p.StepUp); i++)
+                s.Position -= away * ClearStep;
+    }
+
+    static readonly Double3[] ClearOf = [new(1, 0, 0), new(-1, 0, 0), new(0, 0, 1), new(0, 0, -1)];
+
+    /// <summary>How far at a time <see cref="StandClear"/> steps someone in from an edge (m).</summary>
+    const double ClearStep = 0.05;
 
     /// <summary>How far down a step off a roof's footing is still just a step (anything of the train's at all).</summary>
     const double EdgeStepDown = 0.5;
