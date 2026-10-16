@@ -54,6 +54,7 @@ public sealed partial class GameAudio
         EndNightRoofWarning();
         EndNightWorldCues();
         EndNightBbq();
+        EndNightLounge();
     }
 
     void Cues(World world)
@@ -64,6 +65,7 @@ public sealed partial class GameAudio
         // Held, so with the other held loops (not with the one-shot gestures, Actions, which runs before this sweep).
         Conga(world);
         BbqSounds(world);
+        LoungeSounds(world);
         OddSounds(world);
         CreatureSounds(world);
         TrainSounds(world);

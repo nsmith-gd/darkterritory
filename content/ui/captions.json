@@ -265,6 +265,7 @@
     "crew-hoist.land": "A THUMP AND AN OOF",
     "crew-cannonball.whoop": "A WHOOP, SOMEONE FLYING",
     "crew-cannonball.land": "A THUMP, A ROLL AND AN OOF",
+    "up-fishing.catch": "A REEL SCREAMING, A FISH LANDED",
     // Big finds (note 783): the bell's ring and the fragile finds breaking (the lock's the wrench's own).
     "loot-jackpot.bell": "A BELL'S DULL RING",
     "loot-fragile.glass": "GLASS BREAKING",

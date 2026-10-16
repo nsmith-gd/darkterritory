@@ -1014,4 +1014,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [829. The Soot Child's telegraph heard (AU1, queue #557; C1's note 823: "From 2.5 m outside the lunge, as they come on, the call stops dead and…](notes/829.md)
 - [830. The coupling gap's step up: walked up onto the deck at an angle, not held at the plate's lip (C1, queue #558; the director's Look Review…](notes/830.md)
 - [832. Up out of a turned-round gun, not off the train's front (C1, queue #560; the director's 13 Oct evening playtest, line 23)](notes/832.md)
+- [831. U1's second whimsies heard (AU1, queue #559; U1's #967, note 744: the hammock, the hot tub, the fishing rod, a grilled fish)](notes/831.md)
 <!-- end of the notes index -->
