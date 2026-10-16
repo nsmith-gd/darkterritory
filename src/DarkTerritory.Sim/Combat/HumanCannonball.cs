@@ -60,6 +60,9 @@ public static class HumanCannonball
             if (!s.Alive || intent.Has(PlayerButtons.Jump) || !Takes(train, s.Parent))
             {
                 ClimbOut(ref s, train, t);
+                // Note 832: that press of Jump got them out; it isn't a leap off the muzzle as well till it's let go.
+                if (intent.Has(PlayerButtons.Jump))
+                    s.Flags |= PlayerFlags.GotUp;
                 return null;
             }
             // In the barrel, behind the muzzle, facing out along it (feet on the roof under it: the art sits them in the barrel).
