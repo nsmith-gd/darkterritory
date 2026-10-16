@@ -52,8 +52,8 @@ printf '%s' "$input" | jq -r '"5h \(.rate_limits.five_hour.used_percentage // "?
 2. Work out the time to each reset and the pace. The projected % at reset is used % ÷ the fraction of the window gone,
    where the 5-hour window is 18,000 s and the weekly window is 604,800 s. Early in a window the projection runs high, so
    also say when the limit is reached at the current rate.
-3. Act on the thresholds below. Update the account's row on main when a number moves by more than a couple of points or
-   the state changes. Reply with one line: `Session X% (resets in Hh Mm) · Weekly Y% (resets in Dd Hh) · state`.
+3. Act on the thresholds below. Update the account's row on main **every hour from 6 am to 9 pm Montreal** (the director, 16 Oct),
+   and at once when the state changes. Reply with one line: `Session X% (resets in Hh Mm) · Weekly Y% (resets in Dd Hh) · state`.
 
 ### The weekly limit: this is what hands work to another account
 

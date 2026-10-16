@@ -73,12 +73,12 @@ only see what's on main here. The role, and how to start one on another account,
 
 | Account | Weekly % | Weekly resets (UTC) | Session % | State | Updated (UTC) |
 |---|---|---|---|---|---|
-| nathaniel2 | 64 | Wed 21 Oct 20:00 | 46 (resets 21:00 UTC) | ACTIVE, full pace; ~4%/h, so 92% (handoff) around 01:30 UTC 16 Oct; the 5-hour window may pause it briefly before 21:00 | 2026-10-15 18:31 |
+| nathaniel2 | 89 | Wed 21 Oct 20:00 | 13 (resets 16:20 UTC) | ACTIVE, the director's 16 Oct playtest lines going out; ~2.5%/h this morning, so 92% (handoff, build duty released) around 14:00 UTC 16 Oct. Updated hourly 6 am–9 pm Montreal | 2026-10-16 12:42 |
 | nathaniel1 | 92 | Sun 18 Oct 17:00 | 16 (resets 19:50 UTC) | ACTIVE, spending the week's last 8%: one worker (U1) lands #967, then takes pick-ups; at the day's pace the weekly limit is reached ~16 Oct 02:00 UTC, its rows handed off by then. Its other items are `open for pick-up` now | 2026-10-15 17:47 |
 
 - **State:** ACTIVE (working); PAUSED until *time* (the 5-hour limit: its sessions are waiting with their work intact, so
   its items aren't abandoned: don't take them); LIMITED until *weekly reset* (the weekly limit: its items are handed off).
-  Each account edits only its own row (its Token Budget Manager, about hourly; a session's rate-limit events carry the numbers). This file merges as a union, so a
+  Each account edits only its own row: its Token Budget Manager updates it **every hour from 6 am to 9 pm Montreal** (the director, 16 Oct: "It's very important that you know where each other is at"; a session's rate-limit events carry the numbers). This file merges as a union, so a
   merge can leave two rows for one account: keep the one with the later *Updated*.
 - **Items stay in the queue.** There's no second task list: an item's queue row is its task row (rule 9). When an account is
   paused, its rows say `paused (account limit, back <time UTC>)`. When it hands off, they say `open for pick-up` with a
