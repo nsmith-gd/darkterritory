@@ -272,6 +272,8 @@ Descending, the same figure adds to your speed and your brakes fade at 8% per 10
 
 There's no regulator. **The pressure sets the speed the engine can make:** none at the power floor (20), the line's top speed (22 m/s) at the safety valve (95), in proportion between; the engine pulls at full effort until it's within 3 m/s of that. Coal raises the pressure (faster), the vent drops it (slower, 12 per second held), and too much pressure just runs you at top speed. The cylinders draw steam with the effort of pulling away or with speed, whichever is more, drawing full demand from 85% of top speed: running flat out is the "full throttle" of the tables below. A standing train with steam stands on its brake, and it stays on it until the driver lets it off. Cruise (14 m/s) is about 68 on the gauge; the working band 60–90 is 12–20 m/s.
 
+**The director's playtest of 16 Oct (line 18, note 843): the gauge moves 17% faster** ("build pressure a bit faster ... 15-20% faster"). The steam a unit of coal makes and the steam the train draws went up together, so the burn table below is unchanged, and a rebuild at a standstill (C.2) is about 15% quicker: 37 s to the working band at three cars, three and a half minutes at twenty. A boiler left unfed also falls 17% faster.
+
 ### Burn rate by consist
 
 | Consist | Burn | Shovel interval | Tender endurance |

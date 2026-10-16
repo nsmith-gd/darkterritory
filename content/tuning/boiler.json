@@ -43,10 +43,15 @@
   "fireTimeConstant": 30,
   // Draft with the regulator shut (blower only), as a fraction of working draft.
   "idleDraft": 0.6,
-  "steamPerUnit": 15,
-  "auxiliaryDrain": 0.05,
-  "heatingPerCar": 0.0675,
-  "fullThrottleDemand": 0.5,
+  // The director's playtest of 16 Oct (line 18, note 843): "build pressure a bit faster ... maybe like 15-20% faster". The
+  // steam a unit makes and the steam drawn (auxiliaries, heating, the cylinders) all went up 17% together (were 15, 0.05,
+  // 0.0675 and 0.5): the gauge moves 17% faster either way, and B.6's burn and endurance table stays as it was, since what
+  // burns to hold pressure is draw / steamPerUnit. A rebuild at a standstill is 37 s at three cars (was 43), 208 s at twenty
+  // (was 243).
+  "steamPerUnit": 17.55,
+  "auxiliaryDrain": 0.0585,
+  "heatingPerCar": 0.078975,
+  "fullThrottleDemand": 0.585,
 
   // Holding the vent valve open dumps pressure at this rate. T97: it's how the crew slows the train (steam sets the
   // speed). T109 playtest: in the cab, on its left side, so one player can drive it all from the footplate.
