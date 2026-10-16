@@ -110,6 +110,8 @@ public class CaptionsTests
     [InlineData("world-dog.bark")]
     // Note 786: the odd outcomes, the council bell and what answers the can.
     [InlineData("place-town.bell")]
+    // Note 827: a stallholder calling across the market.
+    [InlineData("place-town.stall-call")]
     [InlineData("world-odd.well-splash")]
     [InlineData("world-odd.bark")]
     public void TheTellsAndCallsSinceCaptionsAreCaptioned(string sound)

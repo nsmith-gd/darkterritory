@@ -15492,6 +15492,85 @@
   "takes": 1,
   "sha": "4b6e526ea68d7cda"
  },
+ "place-town/stall-call": {
+  "cue": "place-town.stall-call",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A stallholder calling their wares through a mask: a wordless sing-song cry",
+    "key": "cry",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "8dbc671e79c12ee0"
+ },
+ "place-town/stall-clocks": {
+  "cue": "place-town.stall-clocks",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The clock stall: a dozen clocks and watches going on its counter, every one out of step",
+    "key": "tables",
+    "sources": [
+     "kenney_rpg-audio:metalClick",
+     "sfx_100_v2:misc_01",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "b592b4b711839ed0"
+ },
+ "place-town/stall-knitting": {
+  "cue": "place-town.stall-knitting",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The knitting stall: steel needles clicking, a row at a time, the wool drawn off the ball",
+    "key": "steel",
+    "sources": [
+     "kenney_rpg-audio:metalClick",
+     "sfx_100_v2:misc_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "19593a7f0cc1969e"
+ },
+ "place-town/stall-tea": {
+  "cue": "place-town.stall-tea",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The tea stall: a boiler on a brazier on the simmer, its lid ticking, a cup knocking on its string",
+    "key": "boiler",
+    "sources": [
+     "kenney_impact-sounds:impactTin_medium_000",
+     "kenney_impact-sounds:impactTin_medium_001",
+     "kenney_impact-sounds:impactTin_medium_002",
+     "kenney_impact-sounds:impactTin_medium_003",
+     "kenney_impact-sounds:impactTin_medium_004",
+     "kenney_rpg-audio:metalClick",
+     "sfx_100_v2:misc_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "e1b94e7f2dbbda89"
+ },
  "place-villages/dead-town": {
   "cue": "place-villages.dead-town",
   "surface": null,

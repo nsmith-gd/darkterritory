@@ -379,3 +379,8 @@ The director asked for the last three friendslop features to be heard. Two were 
 
 - Main's new features since the last look: B2's Hope Tower (#1091, note 819) puts an 80 m stone tower with a coal fire on top in every harbour town, and it was silent. Claimed queue #554, note 826.
 - `place-town.flame`: two candidates (`basket`, `tongues`), both under 4.5 kHz so the town's light is never a car alight; `basket` installed; held on the tower's top within 800 m (`GameAudio.Town`); `WorldSoundTests`. The `place-town` row on the Audio Checklist has them.
+
+## 16 Oct, ~00:25 UTC: #555, the night market heard
+
+- B2's night market (#1111, note 825) asked for its sounds ("the stallholders' talk, the tea boiler (AU1's, if wanted)"). Claimed queue #555, note 827.
+- `place-town.stall-tea`, `stall-clocks`, `stall-knitting` held at their stalls' counters, `stall-call` from a stallholder now and then (captioned); two candidates each (`recipes/market.py`), the first installed; `WorldSoundTests`. The walled-town test now listens two seconds away from the town (a stand-in cough begun as the ear left could outlast half a second).

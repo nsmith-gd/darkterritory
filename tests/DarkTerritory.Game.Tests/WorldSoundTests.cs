@@ -828,9 +828,11 @@ public class WorldSoundTests
         Assert.True(Sounding("place-town.murmur"));
         Assert.True(ears.Started.Count(v => v.Name == "place-town.cough") > coughs);
 
-        // Away from the town: none of it.
-        ears.Tick(world.Train.Line.Sample(gate + 3_000).Position + Double3.Up * 1.6, SimConstants.TickRate / 2);
-        Assert.DoesNotContain(audio.Mixer.Voices, v => v.Name.StartsWith("place-town.") && !v.Finished && !v.Stopped);
+        // Away from the town: none of it. Two seconds, so a cough that began as you left has finished (these ears render a
+        // part of each tick, so half a second isn't always a stand-in cough's length); a failure names what's left.
+        ears.Tick(world.Train.Line.Sample(gate + 3_000).Position + Double3.Up * 1.6, SimConstants.TickRate * 2);
+        var left = audio.Mixer.Voices.Where(v => v.Name.StartsWith("place-town.") && !v.Finished && !v.Stopped).Select(v => (v.Name, v.Age)).ToList();
+        Assert.True(left.Count == 0, string.Join(", ", left));
     }
 
     [Fact]
@@ -864,6 +866,52 @@ public class WorldSoundTests
         // Far down the line: gone.
         ears.Tick(world.Train.Line.Sample(gate + 3_000).Position + Double3.Up * 1.6, SimConstants.TickRate / 2);
         Assert.Null(Flame());
+    }
+
+    [Fact]
+    public void TheNightMarketsStallsAreHeardAtTheirCountersAndTheirKeepersCallAcrossTheSquare()
+    {
+        // Note 827 (queue #555; B2's #1111, note 825): the tea stall's boiler, the clock stall's clocks and the knitting
+        // stall's needles held at each one's counter, only close to it; and the stallholders calling now and then where
+        // they stand. A town of 3000, a full market.
+        var towns = Sim.Towns.TownContent.Load(Content)!;
+        towns = towns with { Tuning = towns.Tuning with { Population = [3000, 3000] } };
+        var route = Sim.LineGen.Routes.Generate(Content, "frontier:7", 6);
+        double gate = route.GateOr(RouteTuning.Load(Content).YardLength);
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Trains, 6, 1)), route.Build(), gate - 8, Boilers));
+        world.EnableRun(Runs, route, gate, authority: false);
+        world.EnableTown(towns, route, gate, []);
+        var town = world.Town!;
+        var trades = new Dictionary<string, string>
+        {
+            ["the tea stall"] = "place-town.stall-tea",
+            ["the clock stall"] = "place-town.stall-clocks",
+            ["the knitting stall"] = "place-town.stall-knitting",
+        };
+        var stalls = town.Plan.Fixtures.Where(f => f.Kind == "marketstall" && trades.ContainsKey(f.Name)).ToList();
+        Assert.NotEmpty(stalls);
+        var audio = new GameAudio(Content);
+        Held(audio, [.. trades.Values]);
+        Stand(audio, "place-town.stall-call");
+        var ears = new Ears(audio, world);
+        foreach (var stall in stalls)
+        {
+            // In front of its counter, on the square's side: its trade, there.
+            var counter = town.World(stall.S, stall.D, 1.0);
+            var front = town.World(stall.S - stall.FaceS * 1.5, stall.D - stall.FaceD * 1.5, 1.6);
+            ears.Tick(front, SimConstants.TickRate / 2);
+            var voice = audio.Mixer.Voices.Where(v => v.Name == trades[stall.Name] && !v.Finished && !v.Stopped).MinBy(v => (v.Position - counter).Length);
+            Assert.NotNull(voice);
+            Assert.True((voice!.Position - counter).Length < 1e-6, $"{stall.Name} at its counter");
+        }
+        // A minute among the stalls: some keeper calls.
+        var first = stalls[0];
+        int calls = ears.Started.Count(v => v.Name == "place-town.stall-call");
+        ears.Tick(town.World(first.S - first.FaceS * 3, first.D - first.FaceD * 3, 1.6), SimConstants.TickRate * 60);
+        Assert.True(ears.Started.Count(v => v.Name == "place-town.stall-call") > calls, "no stallholder called in a minute");
+        // Away down the line: none of it.
+        ears.Tick(world.Train.Line.Sample(gate + 3_000).Position + Double3.Up * 1.6, SimConstants.TickRate / 2);
+        Assert.DoesNotContain(audio.Mixer.Voices, v => v.Name.StartsWith("place-town.stall-") && v.Def.Loop && !v.Finished && !v.Stopped);
     }
 
     [Fact]

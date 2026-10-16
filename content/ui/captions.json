@@ -281,6 +281,7 @@
     "world-dog.bark": "A DOG BARKING, FAR OFF",
     // Odd outcomes (note 786): small strange things, heard as what they are.
     "place-town.bell": "A CRACKED BELL RINGING",
+    "place-town.stall-call": "A STALLHOLDER CALLING",
     "world-odd.well-splash": "A SPLASH, FAR DOWN",
     "world-odd.coin": "A COIN ON STONE",
     "world-odd.wash": "WATER POURED",

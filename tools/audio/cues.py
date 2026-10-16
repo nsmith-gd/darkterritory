@@ -589,6 +589,11 @@ CUES = {
         O("bell", "The council house's cracked bell rung: two to four sour, buzzing strokes across the square", vars=3),
         # A harbour town's Hope Tower (B2's #1091, note 819; queue #554, note 826): its Flame, a coal fire 80 m up in the wind.
         L("flame", "The Flame of Hope: a great coal fire in an iron basket high on the Hope Tower, roaring in the wind off the sea"),
+        # The night market on the square (B2's #1111, note 825; queue #555, note 827): its stalls, and its stallholders calling.
+        L("stall-tea", "The tea stall: a boiler on a brazier kept on the simmer, the cups on their strings"),
+        L("stall-clocks", "The clock stall: a dozen clocks and watches all going, none in step"),
+        L("stall-knitting", "The knitting stall: the stallholder's needles clicking, a row at a time"),
+        O("stall-call", "A stallholder calling their wares across the square, through a mask", vars=3),
     ],
     "place-mine": [
         L("underground", "Underground at the mine head"),
