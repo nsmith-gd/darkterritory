@@ -9008,6 +9008,21 @@
   "takes": 3,
   "sha": "efe275a5ff078eda"
  },
+ "crew-scorch/sizzle": {
+  "cue": "crew-scorch.sizzle",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Burned at a fire's edge, modelled: a hiss and a fine crackle of a coat singeing",
+    "key": "singe",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "19c1342ea982d2ce"
+ },
  "crew-search/bench": {
   "cue": "crew-search.bench",
   "surface": null,

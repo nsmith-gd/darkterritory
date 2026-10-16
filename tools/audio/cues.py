@@ -1148,6 +1148,11 @@ CUES = {
         O("tub-in", "Getting into or out of the hot tub: hot water heaving and slopping over the rim, a contented 'ahh'", vars=3),
         L("tub", "The hot tub on the engine's hood: hot water bubbling where the steam comes in, lapping at the staves"),
     ],
+    # Burned at a fire's edge (C1's note 821, the director's 14 Oct playtest line 25; queue #561, note 833): held on whoever
+    # the fire's heat reaches, from its first tick, louder the hotter, as the HUD's heat glow.
+    "crew-scorch": [
+        L("sizzle", "Burned at a fire's edge: a coat smouldering on them, cloth and hair singeing and hissing"),
+    ],
     # The fishing rod (note 744; queue #559, note 831): the angler's own cast and line (heard off their own Use), and the
     # catch, which everyone hears as the fish lands at their feet.
     "up-fishing": [

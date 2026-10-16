@@ -61,6 +61,7 @@ public sealed partial class GameAudio
     {
         _heldNow.Clear();
         CrewSounds(world);
+        ScorchSounds(world);
         HorseplaySounds(world);
         // Held, so with the other held loops (not with the one-shot gestures, Actions, which runs before this sweep).
         Conga(world);
