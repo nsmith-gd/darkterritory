@@ -1287,6 +1287,88 @@
   "takes": 3,
   "sha": "0d350b86810d4a18"
  },
+ "crew-cannonball/climb": {
+  "cue": "crew-cannonball.climb",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Climbing into the cannon: boots and knees on the bore's iron, booming hollow, and a grunt",
+    "key": "barrel",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_rpg-audio:cloth3"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "8c949ebb919b2ecc"
+ },
+ "crew-cannonball/flight": {
+  "cue": "crew-cannonball.flight",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "In flight from the cannon: the air tearing past their ears, the coat flapping",
+    "key": "rush",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "24899270e00f42c5"
+ },
+ "crew-cannonball/land": {
+  "cue": "crew-cannonball.land",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Down from the cannon, a gag: a padded thump, a roll or two along the ground, and a comic 'oof!'",
+    "key": "roll",
+    "sources": [
+     "kenney_impact-sounds:impactSoft_heavy_000",
+     "kenney_impact-sounds:impactSoft_heavy_001",
+     "kenney_impact-sounds:impactSoft_heavy_002",
+     "kenney_impact-sounds:impactSoft_heavy_003",
+     "kenney_impact-sounds:impactSoft_heavy_004",
+     "kenney_rpg-audio:dropLeather",
+     "sfx_100_v2:misc_05"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "7de284b4ea6e5a29"
+ },
+ "crew-cannonball/whoop": {
+  "cue": "crew-cannonball.whoop",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Fired from the cannon: a long delighted 'wheee!' as the shot throws them",
+    "key": "whee",
+    "sources": [
+     "sfx_100_v2:misc_05"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "d1b8b2b318d7de3b"
+ },
  "crew-car/cuckoo": {
   "cue": "crew-car.cuckoo",
   "surface": null,
@@ -19596,8 +19678,8 @@
     "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
    }
   ],
-  "takes": 339,
-  "sha": "8e50de7a5c2a167d"
+  "takes": 340,
+  "sha": "c42803bfadf6b13e"
  },
  "voice-prisoner-sets/call/set1": {
   "cue": "voice-prisoner-sets.call",

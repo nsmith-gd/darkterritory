@@ -384,3 +384,19 @@ The director asked for the last three friendslop features to be heard. Two were 
 
 - B2's night market (#1111, note 825) asked for its sounds ("the stallholders' talk, the tea boiler (AU1's, if wanted)"). Claimed queue #555, note 827.
 - `place-town.stall-tea`, `stall-clocks`, `stall-knitting` held at their stalls' counters, `stall-call` from a stallholder now and then (captioned); two candidates each (`recipes/market.py`), the first installed; `WorldSoundTests`. The walled-town test now listens two seconds away from the town (a stand-in cough begun as the ear left could outlast half a second).
+
+## 16 Oct, ~01:35 UTC: #554 merged; #555 in review (#1120); #556, the human cannonball heard
+
+- [#1112](https://github.com/nsmith-gd/darkterritory/pull/1112) merged (the Hope Tower's Flame) after main was merged in twice (the coordination files GitHub can't union), the last time merged at once on local tests.
+- The night market is [#1120](https://github.com/nsmith-gd/darkterritory/pull/1120).
+- U1's human cannonball (#1106, note 746) made only the gun's boom. Claimed queue #556, note 828: climbing in, the whoop, the flight's air, the gag's landing; `crew-cannonball` (a new checklist row), two candidates each, the first installed; captioned; `WorldSoundTests`. The reload's new order needed nothing: U1's hook plays the takes in it.
+
+## 16 Oct, ~01:45 UTC: #557, the Soot Child's telegraph heard
+
+- Main's Soot Child animations (C1, note 823) give it a telegraph: from 2.5 m outside its lunge "the call stops dead and its head snaps round to them". The sound kept calling. Claimed queue #557, note 829.
+- The call now stops dead (faded over one mix block) while the nearest of the crew is in the art's telegraph, and calls again when they back off; a real child goes on calling. No new sound. `CreatureSoundTests` (fails without it). Going up with #556 after #1120.
+
+## 16 Oct, ~02:05 UTC: #1120 merged; #556 and #557 in review
+
+- [#1120](https://github.com/nsmith-gd/darkterritory/pull/1120) merged (the night market) on green CI, main merged in once more first (the union merge kept row #554 twice; main's stale copy dropped). Row #555 done.
+- The human cannonball (#556) and the Soot Child's telegraph (#557) go up together, rebased on main.
