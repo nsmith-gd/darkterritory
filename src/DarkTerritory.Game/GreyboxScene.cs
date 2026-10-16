@@ -913,6 +913,12 @@ public sealed partial class GreyboxScene
                     or Sim.Player.DeathCause.Exploded or Sim.Player.DeathCause.Keg).Select(c => (int)c.Id).ToHashSet();
                 // Who has the repair kit by its handle (note 513): it's drawn in their fist with them, below, not here.
                 Look.Art.KitCarriers = Crew?.Where(c => c.Alive && c.Act == Art.CrewPose.Toolbox).Select(c => (int)c.Id).ToHashSet();
+                // A can or a sausage at the deck's clips (note 791): in the fist, with them, not where the sim holds it.
+                var party = Crew?.Where(c => c.Alive && Art.SceneArt.Fisted(c.Act)).Select(c => (int)c.Id).ToHashSet();
+                Look.Art.FistCarriers = party is { Count: > 0 }
+                    ? Bodies.Where(b => b.Carrier >= 0 && party.Contains(b.Carrier) && b.Kind is Sim.Physics.BodyKind.Beer or Sim.Physics.BodyKind.Sausage
+                        or Sim.Physics.BodyKind.GrilledFish).GroupBy(b => b.Carrier).ToDictionary(g => g.Key, g => g.First().Kind)
+                    : null;
             }
             GroundFindLights(mesh, frames, eye);
             foreach (var b in Bodies)

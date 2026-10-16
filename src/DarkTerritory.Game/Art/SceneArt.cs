@@ -167,6 +167,8 @@ public sealed partial class SceneArt(Look look)
             // Up a ladder by how far up it they are, not by the clock: one cycle of crew_clips' climb is two rungs climbed,
             // so the hands and feet stay on the rungs at any pace and stop when the climber does (a Look Review note).
             CrewPose.Climb or CrewPose.ClimbCarry => at.Y / ClimbCycleRise * ClimbCycleSeconds,
+            // (Note 791: a pull at the can, a bite, a cheers, each from when it began.)
+            CrewPose.Drink or CrewPose.Eat or CrewPose.LoungeDrink or CrewPose.Cheers => time - since.Time,
             CrewPose.Dance or CrewPose.Wave or CrewPose.Point or CrewPose.HighFive or CrewPose.FistBump or CrewPose.DanceOff or CrewPose.SitEdge
                 or CrewPose.LeanOut or CrewPose.Bow or CrewPose.Salute or CrewPose.Conga => c.EmoteSeconds,
             _ => time,
@@ -208,10 +210,18 @@ public sealed partial class SceneArt(Look look)
         var lamp = c.Lamp ? PropArt.Of(Look).Get("hand_lantern") : null;
         // The repair kit by its handle (note 513): drawn in the fist, not where the sim holds it (Body skips it).
         var kit = pose is CrewPose.Toolbox or CrewPose.ToolboxWalk ? PropArt.Of(Look).Get("repair_kit") : null;
+        // A can or a sausage at the deck's clips (note 791), in the fist.
+        var fist = FistCarriers?.TryGetValue(c.Id, out var inFist) == true ? inFist switch
+        {
+            Sim.Physics.BodyKind.Beer => Piece("prop-beer", () => PropKit.Beer(Look)),
+            Sim.Physics.BodyKind.Sausage => Piece("prop-sausage", () => PropKit.Sausage(Look)),
+            Sim.Physics.BodyKind.GrilledFish => Piece("whimsy-grilled-fish", () => WhimsyKit.Fish(Look, true)),
+            _ => null,
+        } : null;
         bool drawn = Creatures.Crewmate(mesh, m, pose, clipTime, c.Variant, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)), ToolProp(c.Holding),
             hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor), body: HeadsetBody(c, pose, time), carried: kit, sooted: c.Sooted,
             // (A Passenger's id is 200 and the face it wears, GreyboxScene.AsCrewmate: it wears that crewmate's number too.)
-            mask: new CreatureArt.MaskLook(c.Paint, CrewSigil, (c.Id >= 200 ? c.Id - 200 : c.Id) % 9 + 1), emote: c.EmoteWith);
+            mask: new CreatureArt.MaskLook(c.Paint, CrewSigil, (c.Id >= 200 ? c.Id - 200 : c.Id) % 9 + 1), emote: c.EmoteWith, fist: fist);
         // The hat rack's (note 714): on the head, over the cap or helmet.
         if (drawn && c.Hat > 0 && HatKit.Of(Look, c.Hat) is { } hat)
             Creatures.Wear(mesh, hat, "head", m, CreatureArt.FigureOf(c.Survivor));
@@ -809,6 +819,8 @@ public sealed partial class SceneArt(Look look)
             return true;
         if (b.Kind == Sim.Physics.BodyKind.RepairKit && b.Carrier >= 0 && KitCarriers?.Contains(b.Carrier) == true && Creatures.Get("crew") is not null)
             return true;
+        if (b.Carrier >= 0 && FistCarriers?.TryGetValue(b.Carrier, out var fisted) == true && fisted == b.Kind && Creatures.Get("crew") is not null)
+            return true;
         var local = b.Pbd.Particles[0].Position;
         var at = onCar ? frames[b.Parent].ToWorld(local) : local;
         if ((at - eye).Length > 250)
@@ -1073,6 +1085,16 @@ public sealed partial class SceneArt(Look look)
     /// <summary>The crew carrying the repair kit by its handle this frame (note 513: GreyboxScene, from their acts): it's drawn in
     /// their fist (Crewmate), so Body leaves it out.</summary>
     public IReadOnlySet<int>? KitCarriers { get; set; }
+
+    /// <summary>
+    /// Who has a can, a sausage or the grilled fish in their fist at the deck's clips (note 791), and which: drawn there with
+    /// them (Crewmate), not where the sim holds it.
+    /// </summary>
+    public IReadOnlyDictionary<int, Sim.Physics.BodyKind>? FistCarriers { get; set; }
+
+    /// <summary>The clips a can or a sausage is held to the mouth or the grill in (note 791): it's drawn in the fist.</summary>
+    public static bool Fisted(CrewPose? act) => act is CrewPose.Lounge or CrewPose.LoungeDrink or CrewPose.Cheers or CrewPose.Drink or CrewPose.Eat
+        or CrewPose.Grill;
 
     /// <summary>A ragdoll as the crew model lying as its joints lie; false (the greybox's bones) if the model isn't there.</summary>
     bool Corpse(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Sim.Physics.Body b, Double3 eye, bool onCar, double time)
