@@ -302,6 +302,12 @@ Use talks to someone, and Use again hears their next line. They turn to face you
 - things everyone hears when one person does them (ringing the bell);
 - notes found out along the line.
 
+**Fortresses that were only begun** *(the World Building board's Cultures tab, the director, 12 Oct; queue #551, ARCHITECTURE §8 note 824)*. "Ruins of fortress towns that once were. They're always small beginnings of a fortress that were destroyed by the Wakers."
+- **Where:** out beside the line between the stops, two nights in three or so, in every country.
+- **What's left:** a stretch of new wall in the fortresses' stone, never built to its height, with a squat tower at its corner or a gatehouse's two stumps, the scaffolding still up.
+- **What happened:** a Waker came down the line at dawn and stepped on it. A run of the wall is trodden into rubble, its footprint the size of a house pressed into the ground across it, the gate's iron leaf lying in the mud.
+- **Solid:** where it still stands; a crew can walk in by the breach.
+
 ### 3.2 The figures out there *(the director, 8 Oct 2026; ARCHITECTURE §8 note 570)*
 
 A very few people live outside the walls and aren't anybody's prey. They are rare, they are kind, and nobody knows what they are. The crew meet them by luck and talk to them as they talk to townsfolk (text only, a Use press). Each is the night's, made from the route's seed.
