@@ -26,7 +26,12 @@ public sealed record TownHouse(int Id, double S, double D, int Side, double Widt
     {
         var d = Design;
         bool burnt = Kind == HouseKind.Burnt;
-        if (Layout is null)
+        if (Layout is null && d.Hull && !burnt)
+            // A houseboat (notes 822, 841): solid out to its hull, which stands past its walls and its ends, and up to its
+            // roof on the deck; else at a corner the eye went into the hull's hollow and saw the nothing inside.
+            yield return (-Width / 2 - HouseDesign.HullBeam, Width / 2 + HouseDesign.HullBeam, -HouseDesign.HullEnds,
+                Depth + HouseDesign.HullEnds, 9 + HouseDesign.HullLift);
+        else if (Layout is null)
             yield return (-Width / 2, Width / 2, 0, Depth, burnt ? 1.0 : 9);
         if (burnt)
             yield break;
