@@ -74,7 +74,7 @@ only see what's on main here. The role, and how to start one on another account,
 | Account | Weekly % | Weekly resets (UTC) | Session % | State | Updated (UTC) |
 |---|---|---|---|---|---|
 | nathaniel2 | 93 | Wed 21 Oct 20:00 | 38 (resets 16:20 UTC) | **ACTIVE on its reserve until Saturday night**, the only account working until nathaniel3 is back (the director, 16 Oct). One worker, the Queue #531 chat, on the 16 Oct playtest's small lines (18 the boiler, 23 the vent, 14 the crane's keys, 7 the cannon); every other worker is stopped, and their items stay `open for pick-up`. Stops at 98%. Its Token Budget Manager keeps build duty | 2026-10-16 15:32 |
-| nathaniel1 | 98 | Sun 18 Oct 17:00 | 0 (resets 22:00 UTC) | LIMITED until the weekly reset (Sun 18 Oct 17:00 UTC): weekly 98%, no worker active (U1 stopped for the week, #1136); its items are `open for pick-up` | 2026-10-16 17:10 |
+| nathaniel1 | 98 | Sun 18 Oct 17:00 | 2 (resets 22:00 UTC) | LIMITED until the weekly reset (Sun 18 Oct 17:00 UTC): weekly 98%, no worker active (U1 stopped for the week, #1136); its items are `open for pick-up` | 2026-10-16 18:10 |
 
 - **State:** ACTIVE (working); PAUSED until *time* (the 5-hour limit: its sessions are waiting with their work intact, so
   its items aren't abandoned: don't take them); LIMITED until *weekly reset* (the weekly limit: its items are handed off).
