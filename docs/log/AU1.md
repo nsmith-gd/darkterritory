@@ -425,3 +425,7 @@ The director asked for the last three friendslop features to be heard. Two were 
 
 - U1's #1135/#1136 left "AU1's recorded reload cues in the new order" open in note 746 and row #447; it was settled for #556 (note 828): `GameAudio.CrewGuns` already plays the takes in the new order and they fit it, nothing to re-record. Said so on #1135; note 746 and the row now say it. Only C1's barrel clip is left of #447.
 - Nothing else new on main for AU1 (U1 stopped for the week); the Voice Booth still has no verdicts.
+
+## 16 Oct, ~12:40 UTC: #562, the director's playtest lines 19 and 27
+
+- The Token Budget Manager passed on the director's playtest of the morning build (docs/playtest/2026-10-16.md, #1139). Claimed queue #562, note 834, for line 19 (the Moose's munching too loud: "we want to allow players to get a little bit closer") and line 27 (the walls' guns "firing once a second. It should be a bit more random"). Line 27's sound comes off the same beat as the guns' flashes (`Effects.WallGunBeat`, note 772), so the fix there is the beat, for both.
