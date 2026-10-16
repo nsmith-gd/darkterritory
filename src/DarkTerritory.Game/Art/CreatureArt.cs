@@ -935,7 +935,7 @@ public sealed partial class CreatureArt
     public bool Crewmate(MeshBuilder mesh, in Matrix4x4 model, CrewPose pose, double time, int variant,
         Vector3? left = null, Vector3? right = null, Vector3 leftPole = default, Vector3 rightPole = default, MeshAsset? inHand = null,
         MeshAsset? hanging = null, string figure = "crew", VrBodyPose? body = null, MeshAsset? carried = null, bool sooted = false,
-        MaskLook mask = default, EmoteDetail emote = default)
+        MaskLook mask = default, EmoteDetail emote = default, MeshAsset? fist = null)
     {
         if (!_models.ContainsKey(figure))
             figure = "crew";
@@ -980,7 +980,7 @@ public sealed partial class CreatureArt
         // 0.8 s clip, and most of the crew were drawn at its end).
         bool fromStart = pose is CrewPose.GetUp or CrewPose.TakeDown or CrewPose.HangUp or CrewPose.Stagger or CrewPose.Reload or CrewPose.FireDoor
             or CrewPose.Swing or CrewPose.Jump or CrewPose.Shove or CrewPose.Pump or CrewPose.Heave or CrewPose.ThrowOff
-            or CrewPose.Drink or CrewPose.Eat or CrewPose.LoungeDrink;
+            or CrewPose.Drink or CrewPose.Eat or CrewPose.LoungeDrink or CrewPose.Cheers;
         fromStart |= emoteClip;
         _skinner.Evaluate(m.Model, c, fromStart ? time : time + offset, pose is not (CrewPose.Dead or CrewPose.Swing) && !fromStart, m.Pose);
         if (body is { } vr)
@@ -1018,6 +1018,9 @@ public sealed partial class CreatureArt
             Hung(mesh, m, hanging, model);
         if (carried is not null)
             Handled(mesh, m, carried, model);
+        // A can or a sausage in the fist (note 791): up the socket's own axes, its middle in the grip.
+        if (fist is not null)
+            mesh.Append(fist, Matrix4x4.CreateTranslation(0, -HandleOf(fist) / 2, 0) * Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", model));
         return true;
     }
 

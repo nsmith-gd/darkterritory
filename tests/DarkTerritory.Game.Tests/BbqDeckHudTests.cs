@@ -53,4 +53,29 @@ public class BbqDeckHudTests
         var feet = s.Train.Frames[0].ToWorld(s.Player.Position);
         Assert.Equal(Eyes.Lounging, cam.Position.Y - feet.Y, 2);
     }
+
+    [Fact]
+    public void SatWithACanItsTheLoungeAPullAtItAndACheersOnAnEmote()
+    {
+        // C1's clips (note 791): sat back in the chair with a can on its arm; a pull at it while it's being drunk; and an
+        // emote from the chair with it in hand is a cheers, then sat back again. The can's drawn in the fist for these.
+        var s = Night();
+        StandAt(s, InteractableKind.Chair);
+        s.Player = s.Player with { Flags = s.Player.Flags | PlayerFlags.Lounging };
+        Assert.Equal(Art.CrewPose.Lounge, Art.CrewActs.Of(s.Player, 1, s.World));
+        var can = s.World.Bodies.SpawnCrate(s.Train, 0, s.Player.Position + Double3.Up, Sim.Physics.BodyKind.Beer);
+        can.Carrier = 1;
+        Assert.Equal(Art.CrewPose.Lounge, Art.CrewActs.Of(s.Player, 1, s.World));
+        can.MendTicks = 10;
+        Assert.Equal(Art.CrewPose.LoungeDrink, Art.CrewActs.Of(s.Player, 1, s.World));
+        can.MendTicks = 0;
+        s.World.Emotes.Add(new EmoteEvent(1, s.World.Tick, 1, Emote.Wave));
+        Assert.Equal(Art.CrewPose.Cheers, Art.CrewActs.Of(s.Player, 1, s.World));
+        Assert.True(Art.SceneArt.Fisted(Art.CrewPose.Cheers) && Art.SceneArt.Fisted(Art.CrewPose.Drink) && !Art.SceneArt.Fisted(Art.CrewPose.Carry));
+        // Stood with it, being drunk: the stood pull.
+        s.World.Emotes.Clear();
+        s.Player = s.Player with { Flags = s.Player.Flags & ~PlayerFlags.Lounging };
+        can.MendTicks = 10;
+        Assert.Equal(Art.CrewPose.Drink, Art.CrewActs.Of(s.Player, 1, s.World));
+    }
 }
