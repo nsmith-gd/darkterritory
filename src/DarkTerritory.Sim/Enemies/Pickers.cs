@@ -121,7 +121,7 @@ public sealed class Picker(int id) : Enemy(id)
             {
                 if (_biteAgain <= 0)
                 {
-                    ctx.Bite(bitten, t.Bite, DeathCause.Gnawed);
+                    ctx.Bite(bitten, t.Bite, DeathCause.Pickers);
                     _biteAgain = t.BiteEvery;
                 }
                 ctx.World.Bodies.LetGo(crate);

@@ -348,6 +348,10 @@
     "crowdAt": 20, "crowdPerSecond": 25, "closeAt": 12, "closePerSecond": 70,
     "hearVoice": 15, "talkingAbove": 40, "voicePerSecond": 40,
     "trainPassAt": 25, "trainPass": 25, "calmPerSecond": 15,
+    // The band (note 711; the director, 14 Oct: "stopping the moose"): a crewmate playing within bandHears m stops it to
+    // listen, whatever it was doing short of a pin: it forgets its target, stands with its head to the music, and its temper
+    // falls bandCalmPerSecond (0 bandHears: it doesn't care).
+    "bandHears": 30, "bandCalmPerSecond": 30,
     "listenAt": 20, "warnAt": 50,
     "squareUpAt": [12, 30], "squareUpSeconds": 2.5, "huntSpeed": 4.5,
     "chargeSpeed": 11, "overrun": 8, "wheelSeconds": 2.5, "rackSpan": 3.2, "hitReach": 0.5, "snagSeconds": 4, "blockedCharges": 3,
@@ -386,7 +390,10 @@
     "health": 12, "giveUpBelow": 4, "markReach": 200, "minCars": 2, "perRoofWeight": 1,
     "tierWeights": { "local": 1, "frontier": 1.5, "deadLines": 2, "deepTerritory": 2.5 },
     "biomeWeights": { "coast": 3, "dykeland": 3, "plains": 1.5, "marsh": 1.5, "contaminatedMarsh": 1.5, "blackForest": 0.3,
-      "forestEdge": 0.5, "mountain": 1, "deadTown": 1.5 }
+      "forestEdge": 0.5, "mountain": 1, "deadTown": 1.5 },
+    // Gerald and the garden gnomes (note 715; train.json composition.whimsy): of its passes with one aboard, this share it
+    // dives on one of them instead (hangs over it, folds, and carries it off), whoever's walking.
+    "decoyPull": 0.25
   },
 
   // THE MOURNERS · absence · outside (GDD §21, App. A.6, B.6; the director's brief of 8 Oct 2026; ARCHITECTURE §8 note 362;
@@ -711,7 +718,8 @@
 
   // SOOT CHILDREN · sound · outside (App. A.6, B.6). Calling from callOut m every callEvery s. realChance of a real
   // survivor (a host's first-ever call is always real). A Soot Child lunges at anyone within lungeWithin m and drinks for
-  // drainSeconds, gaining healthPerSecond blows a second while it does. Ignored for ignoredSeconds, it gives up.
+  // drainSeconds, gaining healthPerSecond blows a second while it does. Ignored for ignoredSeconds, it gives up. Alone, the
+  // call comes too (the director, 15 Oct, note 770): it's the only way a solo night has a child in it.
   "sootChildren": {
     "callOut": 45, "callEvery": 6, "lungeWithin": 5, "drainSeconds": 14, "health": 2, "healthPerSecond": 0.35, "realChance": 0.5,
     // minCrew (note 795, was 2): a crew of one meets them too; held, a lone player can struggle free (grab.soloStruggleChance).
@@ -823,6 +831,9 @@
     // stops attacking; calm and talked to for talkedDownSeconds, it leaves empty-handed. Only the gang's blows with someone
     // talking to it take its health; a blow in silence angers it a step.
     "drivenOff": true, "talkingCalms": true, "talkedDownSeconds": 45,
+    // The band (note 711; upgrades.md §8.4, the director, 14 Oct: "the band calming the gaunt"): a crewmate playing within
+    // listenRadius is talking to it, whoever it's after.
+    "bandCalms": true,
     // Note 720 (GDD §14; the director, 14 Oct 2026): a crew singing together near it (player.json voices.singing) talks it
     // down this many times as fast: its anger's steps and its calm both come on at this pace.
     "singingTalks": 3

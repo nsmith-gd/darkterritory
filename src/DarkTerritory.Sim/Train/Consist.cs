@@ -35,7 +35,7 @@ public struct GunState
     public bool Jammed;
     /// <summary>Tick of the last round fired (for muzzle flash and sound on clients), 0 if never.</summary>
     public uint LastShotTick;
-    /// <summary>Reload steps still to do before it can fire (GDD v1.1 App. C.3: powder, ball, ram); 0 is loaded.</summary>
+    /// <summary>Reload steps still to do before it can fire (GDD v1.1 App. C.3; note 746: powder, pack, ball); 0 is loaded.</summary>
     public int ReloadNeeded;
     /// <summary>Seconds into the current reload step.</summary>
     public double ReloadProgress;
@@ -167,6 +167,15 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     /// out, it's dark, and the Climbers and Followers like it that way. Lit at departure.
     /// </summary>
     public bool LampLit { get; set; } = true;
+    /// <summary>
+    /// The engine's BBQ (note 698): the seconds of charcoal it has left burning, 0 out. Lit, it warms who's by it and brings
+    /// the Cinder Hounds as a hot boiler does.
+    /// </summary>
+    public double Grill { get; set; }
+    /// <summary>The beers left in the engine's BBQ-deck cooler tonight (note 698).</summary>
+    public int Beers { get; set; }
+    /// <summary>Sausages that have come off its grill this night (note 698): the host hands each one to whoever cooked it.</summary>
+    public int Cooked { get; set; }
     public bool DoorOpen(int index) => (DoorsOpen & (1 << index)) != 0;
 
     /// <summary>

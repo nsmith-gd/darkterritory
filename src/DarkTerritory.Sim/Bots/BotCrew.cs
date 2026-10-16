@@ -205,6 +205,9 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
         intent = Heed.Heal(intent, session.Predicted, session.World, me);
         // Note 729: the other end of the handcar's handle, for a crewmate playing at one.
         intent = Heed.Handcar(intent, session.Predicted, session.World, me, others, calls);
+        // The band (note 711): a bot with nothing else to do joins in, once every other heed's had its say (never the driver: its intent's the controls).
+        if (bot is RoofWalkerBot or GunnerBot && !hunted)
+            intent = Heed.Band(intent, session.Predicted, session.World, me);
         // Note 659: round what's lying in a car, last, whatever it was going there for.
         intent = Heed.Lying(intent, session.Predicted, session.World, session.PlayerTuning);
         // Note 740 (GDD §17): aboard after the horn, "Aboard!", once: the crew see who's called back.

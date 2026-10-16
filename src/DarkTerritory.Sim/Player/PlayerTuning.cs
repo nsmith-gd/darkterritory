@@ -138,13 +138,13 @@ public sealed record NewsTuning(double Seconds = 5, double CutToldAbove = 1.5);
 /// <paramref name="FistBump"/>) and lasts once met (<paramref name="Met"/>); how near (<paramref name="Reach"/>, m, feet to
 /// feet) and how square to each other (<paramref name="FacingDegrees"/>) two must be for it to be answered; a dance-off's reach
 /// and beat; how near a side the edge emotes are taken (<paramref name="EdgeReach"/>) and the drop under a sill that makes it
-/// one to sit on (<paramref name="EdgeDrop"/>), and how far out through a doorway its edge may be (<paramref name="SillReach"/>); and a bot's beat before it answers (<paramref name="BotAnswer"/>). Field docs
-/// live in player.json <c>emotes</c>.
+/// one to sit on (<paramref name="EdgeDrop"/>), and how far out through a doorway its edge may be (<paramref name="SillReach"/>); and a bot's beat before it answers (<paramref name="BotAnswer"/>).
+/// Note 714: the "more emotes" upgrade's bow, salute and conga, each its length. Field docs live in player.json <c>emotes</c>.
 /// </summary>
 public sealed record EmoteTuning(double Dance = 8, double Wave = 2.5, double Point = 2.5, double Cooldown = 0.5, double Aboard = 3,
     double HighFive = 3, double FistBump = 3, double Met = 0.8, double Reach = 1.5, double FacingDegrees = 50,
     double DanceOffReach = 3, double DanceOffFacingDegrees = 70, double DanceOffBeat = 2, double EdgeReach = 0.6, double EdgeDrop = 0.5, double SillReach = 1.2,
-    double BotAnswer = 0.4)
+    double BotAnswer = 0.4, double Bow = 2.5, double Salute = 2.5, double Conga = 30)
 {
     /// <summary>
     /// How long <paramref name="e"/> lasts unmet (s). The sit and the lean are held (<see cref="double.PositiveInfinity"/>):
@@ -159,6 +159,9 @@ public sealed record EmoteTuning(double Dance = 8, double Wave = 2.5, double Poi
         Emote.HighFive => HighFive,
         Emote.FistBump => FistBump,
         Emote.SitEdge or Emote.LeanOut => double.PositiveInfinity,
+        Emote.Bow => Bow,
+        Emote.Salute => Salute,
+        Emote.Conga => Conga,
         _ => 0,
     };
 
@@ -182,8 +185,32 @@ public sealed record EmoteTuning(double Dance = 8, double Wave = 2.5, double Poi
 /// The director's 14 Oct playtest, line 7 (note 717): off a train going slower than this (m/s), as off the ground's own footing,
 /// a crewmate's own run is no knock (spec B.3's speed table is for leaving a moving train); 0 for the old rule.
 /// </param>
+/// <param name="OffTheHook">Note 802: a landing after coming off a crane's hook, the gag's knock; null for its defaults.</param>
 public sealed record LandingTuning(double RollAbove, int RollDamage, double LethalAbove = 0, int DamageAtLethal = 0, double FallHurtFrom = 0,
-    double FallLethalFrom = 0, double StandBelow = 0);
+    double FallLethalFrom = 0, double StandBelow = 0, OffTheHookTuning? OffTheHook = null);
+
+/// <summary>
+/// Note 802 (the director, 15 Oct 2026, on hoisting a friend: "a silly gag not a big grief"): a landing after letting go of a
+/// crane's hook, or being shaken off it, knocks nothing from a drop of <see cref="From"/> m or less, rising evenly to
+/// <see cref="MaxKnock"/> at <see cref="FullAt"/> m and no more however far, and never kills. Mirror of player.json
+/// <c>landing.offTheHook</c>, where each field is documented.
+/// </summary>
+public sealed record OffTheHookTuning
+{
+    public static readonly OffTheHookTuning Default = new();
+    public int MaxKnock { get; init; } = 10;
+    public double From { get; init; } = 1.0;
+    public double FullAt { get; init; } = 6.0;
+
+    /// <summary>The knock for a landing after a drop of <paramref name="height"/> m (by the speed it lands at): 0 to <see cref="MaxKnock"/>.</summary>
+    public int Knock(double height)
+    {
+        if (MaxKnock <= 0 || height <= From)
+            return 0;
+        double k = FullAt > From ? Math.Min(1, (height - From) / (FullAt - From)) : 1;
+        return (int)Math.Round(MaxKnock * k);
+    }
+}
 public sealed record LadderTuning(double GrabRange, double GrabMaxRelativeSpeed, double HatchLookUpDegrees = 25);
 /// <summary>A VR player's reaching hand (T29). Field docs live in player.json.</summary>
 public sealed record HandTuning(double Arm, double Overhead, double Grab);

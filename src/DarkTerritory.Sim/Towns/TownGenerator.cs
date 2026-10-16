@@ -143,6 +143,8 @@ public static partial class TownGenerator
         string formId = site.Form ?? TownForms.Pick(t.Forms, site.Industry, Rng("form"));
         var form = TownForms.Make(t, w, formId, site.Gate, square, Rng);
         var homes = Houses(content, site, square, population, former, Rng, folk, form);
+        // What its people believe, by its houses' character (note 822, the Flooders'): heard with its custom, posted after it.
+        var creed = homes.Creed is { } creedId ? w.Creeds.FirstOrDefault(c => c.Id == creedId) : null;
 
         // The council's laws posted by the clerk's door, and the town's flag in the square; a walled town's green across the
         // street with its statue, its wall of names, its bandstand, its garden under lamps and its trees; and the day painted
@@ -235,6 +237,8 @@ public static partial class TownGenerator
                 Fix(piece.Kind, piece.Title.Replace("{town}", site.Name), piece.Text.Replace("{town}", site.Name), from + at,
                     works.Side * (middle + piece.Across), 0, -works.Side);
         }
+        if (homes.Yard is { } ry)
+            RailYard(ry, t.Walled, w, site.Name, Rng("yard"), Fix);
         if (homes.Bounds is not null)
         {
             // A walled town's clerk keeps the council's house (note 353): its cupola and clock over the square.
@@ -287,6 +291,12 @@ public static partial class TownGenerator
                 Fix("mural", murals[i].Title, murals[i].Text, walls.Rear + Run.Fortresses.WallHalf + 0.05, at[i], 1, 0);
         }
 
+        // The night market (queue #552, note 825): its stalls lit and open in a row between the buildings' fronts and the
+        // centrepiece, each where it's clear of what's in the square and of the doors. Its stalls are listed after every other
+        // fixture but the forge, and its stallholders after every other townsperson but the blacksmith and the Flame's keeper,
+        // so every other keeps its index and its name.
+        var market = Market(sq, s0, s1, side * (front - sq.MarketIn), population, fixtures, buildings, w, industry, Rng("market"));
+
         // The people. Those with a place: the jobs a town this size has, round the centrepiece, the households at home, out
         // with a lantern in front of the lived-in houses.
         var jobs = new List<Spot>
@@ -332,6 +342,25 @@ public static partial class TownGenerator
             foreach (var f in fixtures.Where(f => atWork.Holds(f.S, f.D) && f.Kind is "headframe" or "winding" or "casting" or "glasshouse"
                 or "elevator" or "warehouse").DistinctBy(f => f.Kind).Take(t.Walled.WorksHands))
                 spots.Add(new("hand", f.S, f.D + f.FaceD * (f.SolidD + 1.2), -f.FaceS, -f.FaceD, 0));
+        // The rail yard's porters (note 502), at the office's door and the weighbridge's window: off the siding.
+        if (homes.Yard is { } inYard)
+            foreach (var f in fixtures.Where(f => inYard.Holds(f.S, f.D) && f.Kind is "yardoffice" or "weighbridge").Take(t.Walled.YardHands))
+                spots.Add(new("porter", f.S, f.D + f.FaceD * (f.SolidD + 1.2), -f.FaceS, -f.FaceD, 0));
+
+        // The night market's stallholders (note 825), each behind their counter, facing the square: after everyone else with
+        // a place, before the blacksmith, who stays last.
+        foreach (var (ms, md, _) in market)
+            spots.Add(new("stallholder", ms, md + side * (TownFixtures.Size("marketstall").HalfD + StallholderBack), 0, -side, 0));
+
+        // The town's blacksmith, who does the trains (note 697; the director, 13 Oct 2026: "a vendor who is clearly marked as
+        // the vendor blacksmith of the town who does train upgrades"): every town has one, at the forge beside the engine as it
+        // stands in the yard. Last of everyone, so who everybody else is and what they're called is as it was.
+        if (t.Smithy is { } smithy)
+            spots.Add(new("blacksmith", site.Gate + smithy.FromGate, side * (smithy.Out - smithy.Stand), 0, -side, 0));
+        // A harbour town's keeper of the Flame (queue #547, note 819), at the Hope Tower's door all night, looking out over
+        // the town between the hours' tubs of coal.
+        foreach (var f in fixtures.Where(f => f.Kind == "lighthouse" && f.House < 0).Take(1))
+            spots.Add(new("flamekeeper", f.S + f.FaceS * (f.SolidS + 1.2), f.D + f.FaceD * (f.SolidD + 1.2), f.FaceS, f.FaceD, 0));
 
         // Who they are: a name each, a household's sharing its surname.
         var names = new HashSet<string>();
@@ -386,6 +415,8 @@ public static partial class TownGenerator
         // Each person's lines. A household's say their own story first; the folk round the centrepiece and the keeper talk
         // about the custom; the people at work about the work; then perhaps a scrap of a thread, and what anybody says.
         var cultureLines = new Deck<string>(culture.Lines, Rng("lines.culture"));
+        // The creed (note 822): heard once the custom's lines are spoken for, before the town's other habits.
+        var creedLines = new Deck<string>(creed?.Lines ?? [], Rng("lines.creed"));
         var spare = new Deck<string>([.. quirks.SelectMany(q => q.Lines)], Rng("lines.spare"));
         var trade = new Deck<string>(industry?.Lines ?? [], Rng("lines.trade"));
         var scraps = new Deck<string>([.. w.Threads.SelectMany(th => th.Lines)], Rng("lines.scraps"));
@@ -437,12 +468,13 @@ public static partial class TownGenerator
                         lines.Add(line);
                 first = lines.Count;
                 // At the party, nobody's talking about the custom tonight.
-                if (!close && spot.Part != "guest" && spot.Part != "host" && cultureLines.Next() is { } town)
+                if (!close && spot.Part != "guest" && spot.Part != "host" && (cultureLines.Next() ?? creedLines.Next()) is { } town)
                     lines.Add(town);
             }
             else
             {
-                string? job = JobDeck(role).Next(), town = (street ? inside.Next() : close ? null : cultureLines.Next()) ?? spare.Next() ?? trade.Next();
+                string? job = JobDeck(role).Next(), town = (street ? inside.Next() : close ? null : cultureLines.Next() ?? creedLines.Next()) ?? spare.Next()
+                    ?? trade.Next();
                 // The gatekeeper says the town's law first, as you come in (the first thing anyone in a town tells you).
                 if (role == "gatekeeper" && w.Welcome.Length > 0)
                     lines.Add(Rng("welcome").Pick(w.Welcome));
@@ -504,6 +536,9 @@ public static partial class TownGenerator
         // ended campaign the player rode with is a card on it, from their own profile (the app's, not the plan's). Last of the
         // fixtures, so every other keeps its index.
         Fix("lostcrews", "the board of lost crews", LostCrewsText, mid + LostCrewsAlong, side * BoardOut, 0, -side);
+        // The night market's stalls (note 825), after it.
+        foreach (var (ms, md, on) in market)
+            Fix("marketstall", on.Title, on.Text, ms, md, 0, -side);
 
         // The board: the custom's order first, then what the town makes, then whatever else is posted; and a note or two
         // left about the square (a letter on a bench, a page by the hall door, a scrap by the engine).
@@ -516,7 +551,11 @@ public static partial class TownGenerator
         var own = new Deck<TownText>(culture.Board, Rng("papers.board"));
         for (int i = 0; i < t.BoardOwn && own.Next() is { } o; i++)
             posted.Add(o);
-        var more = new Deck<TownText>([.. industry?.Notes ?? [], .. quirks.SelectMany(q => q.Notes), .. w.Notices, .. w.Threads.SelectMany(th => th.Notes)], prng);
+        // And the creed's first (note 822: the Flooders' Water Book), after the town's own.
+        if (creed is { Notes.Length: > 0 })
+            posted.Add(creed.Notes[0]);
+        var more = new Deck<TownText>([.. industry?.Notes ?? [], .. quirks.SelectMany(q => q.Notes), .. creed?.Notes.Skip(1) ?? [], .. w.Notices,
+            .. w.Threads.SelectMany(th => th.Notes)], prng);
         int notices = prng.RangeInclusive(t.Notices[0], t.Notices[1]);
         while (posted.Count < notices && more.Next() is { } p)
             posted.Add(p);
@@ -534,9 +573,13 @@ public static partial class TownGenerator
         for (int i = 0; i < looseCount && loose.Next() is { } n; i++)
             papers.Add(new TownPaper(papers.Count, fill.In(n.Title, null), fill.In(n.Text, null), false, lying[i].S, lying[i].D, lying[i].H));
 
+        // The forge, last of the fixtures (so every other one's number is as it was): its board lettered to read from the cab.
+        if (t.Smithy is { } forge)
+            Fix("forge", w.Forge?.Title ?? "the forge", fill.In(w.Forge?.Text ?? "", null), site.Gate + forge.FromGate, side * forge.Out, 0, -side);
+
         var plan = new TownPlan(site.Name, population, former, culture.Id, culture.Creature, culture.Law.Replace("{town}", site.Name), culture.Hall,
             industry?.Name ?? site.Industry, [.. quirks.Select(q => q.Id)], square, buildings, homes.Houses, townsfolk, papers, fixtures, homes.Character, homes.Bounds,
-            homes.Green, homes.Works)
+            homes.Green, homes.Works, homes.Yard)
         {
             Gate = site.Gate,
             Frame = FrameOf(t, site.Gate, homes.Bounds),
@@ -595,6 +638,95 @@ public static partial class TownGenerator
             return p with { Lines = all };
         }).ToList();
         return plan with { Houses = houses, People = people, Burnt = harmed.Count };
+    }
+
+    /// <summary>How far a piece of stock stands out either side of its siding's middle (m; TownFixtures "van", "flatdory").</summary>
+    const double StockHalf = 1.5;
+
+    /// <summary>
+    /// A walled town's rail yard (queue #239, note 502; GDD §3: "Fortified towns survive behind stone and steel walls ... rail
+    /// yards and warehouses"): a buffer stop at each end of its siding; its pieces (world/towns.json "yard") fronting the
+    /// siding from the gate end back, each that fits short of the yard's rear end (<see cref="TownWork.After"/>: room left
+    /// beside it toward that end, the weighbridge's plate); the lamps down the siding's near side; and the stock left
+    /// standing in the siding, one to a stretch of it, clear of each other and the buffer stops.
+    /// </summary>
+    static void RailYard(TownYard yard, WalledTuning wt, TownWriting w, string town, Pcg32 rng,
+        Action<string, string, string, double, double, double, double, int, double?> fix)
+    {
+        void Fix(string kind, string name, string text, double s, double d, double faceS, double faceD) =>
+            fix(kind, name.Replace("{town}", town), text.Replace("{town}", town), s, d, faceS, faceD, -1, null);
+        int side = yard.Side;
+        var buffers = w.Yard.Where(p => p.Kind == "buffers").ToList();
+        double bd = TownFixtures.Size("buffers").HalfD;
+        Fix("buffers", buffers.ElementAtOrDefault(0)?.Title ?? "a buffer stop", buffers.ElementAtOrDefault(0)?.Text ?? "",
+            yard.Siding1 + bd, side * yard.SidingD, -1, 0);
+        Fix("buffers", buffers.ElementAtOrDefault(1)?.Title ?? "a buffer stop", buffers.ElementAtOrDefault(1)?.Text ?? "",
+            yard.Siding0 - bd, side * yard.SidingD, 1, 0);
+        // The pieces front the siding's stock (a goods shed's dock at a van's side), the far ones back toward the street.
+        double front = yard.SidingD + StockHalf + 0.1, back = yard.Far - wt.YardMargin, at = yard.S1 - wt.YardMargin;
+        foreach (var piece in w.Yard)
+        {
+            if (piece.Kind == "buffers")
+                continue;
+            var (hs, hd, _) = TownFixtures.Size(piece.Kind);
+            double d = front + piece.Across + hd;
+            if (d + hd > back || at - 2 * hs - piece.After < yard.S0 + wt.YardMargin)
+                continue;
+            Fix(piece.Kind, piece.Title, piece.Text, at - hs, side * d, 0, -side);
+            at -= 2 * hs + piece.After + wt.YardGap;
+        }
+        // Its lamps between the platform's back and the siding, lighting the stock.
+        double lampD = (yard.Near + yard.SidingD - StockHalf) / 2;
+        for (double s = yard.S1 - wt.YardLamps / 2; s > yard.S0 + 2; s -= wt.YardLamps)
+            Fix("yardlamp", "", "", s, side * lampD, 0, side);
+        // The stock: the siding cut into a stretch apiece, each standing somewhere in its own, facing up or down the line.
+        int count = Math.Min(w.Stock.Length, rng.RangeInclusive(wt.YardStock[0], wt.YardStock[1]));
+        var stock = Take(w.Stock, count, rng.Fork(1));
+        double from = yard.Siding0 + 0.5, stretch = (yard.Siding1 - 0.5 - from) / Math.Max(1, stock.Count);
+        for (int i = 0; i < stock.Count; i++)
+        {
+            double half = TownFixtures.Size(stock[i].Kind).HalfD;
+            if (2 * half > stretch)
+                continue;
+            double s = from + i * stretch + half + rng.NextDouble() * (stretch - 2 * half);
+            Fix(stock[i].Kind, stock[i].Title, stock[i].Text, s, side * yard.SidingD, rng.Chance(0.5) ? 1 : -1, 0);
+        }
+    }
+
+    /// <summary>How far behind a market stall's counter its stallholder stands (m), and how wide a door's way is kept clear.</summary>
+    const double StallholderBack = 0.7, DoorClear = 1.6;
+
+    /// <summary>
+    /// The night market (queue #552, note 825; the director's playtest of 14 Oct, line 3: "The town's looking better ...
+    /// Still a bit basic"): along a row <paramref name="d"/> out, from ten metres in from the square's ends, every
+    /// <see cref="SquareTuning.MarketEvery"/> where a stall stands clear of every fixture so far and of the buildings' doors;
+    /// as many of those as the town's size has stalls (<see cref="SquareTuning.Market"/>), drawn at random and laid in
+    /// order along the square. Each stall's wares are dealt from the town's trade's stalls and the market's own, none twice
+    /// and none a shut stall's already.
+    /// </summary>
+    static List<(double S, double D, TownText Wares)> Market(SquareTuning sq, double s0, double s1, double d, int population,
+        List<TownFixture> fixtures, List<TownBuilding> buildings, TownWriting w, TownIndustry? industry, Pcg32 rng)
+    {
+        int want = Math.Clamp(sq.Market[0] + (int)(population / Math.Max(1, sq.MarketPer)), sq.Market[0], sq.Market[1]);
+        var (hs, hd, _) = TownFixtures.Size("marketstall");
+        var clear = new List<double>();
+        for (double s = s0 + 10; s <= s1 - 10; s += sq.MarketEvery)
+            if (fixtures.All(f => Math.Abs(f.S - s) > f.SolidS + hs + 0.8 || Math.Abs(f.D - d) > f.SolidD + hd + 0.8)
+                && buildings.All(b => Math.Abs(b.S - s) > hs + DoorClear))
+                clear.Add(s);
+        // Which of them: a shuffle of the clear places, the first as many as are wanted, in order along the square.
+        for (int i = clear.Count - 1; i > 0; i--)
+        {
+            int j = rng.RangeInclusive(0, i);
+            (clear[i], clear[j]) = (clear[j], clear[i]);
+        }
+        var wares = new Deck<TownText>([.. (industry?.Stalls ?? []).Where(x => fixtures.All(f => f.Text != x)).Select(x => new TownText("a market stall", x)),
+            .. w.Market], rng.Fork(1));
+        var stalls = new List<(double, double, TownText)>();
+        foreach (double s in clear.Take(want).OrderBy(x => x))
+            if (wares.Next() is { } on)
+                stalls.Add((s, d, on));
+        return stalls;
     }
 
     static List<T> Take<T>(IReadOnlyList<T> from, int count, Pcg32 rng) where T : class
@@ -689,6 +821,8 @@ public static class TownFixtures
     public static (double HalfS, double HalfD, double Height) Size(string kind) => kind switch
     {
         "bell" => (1.3, 0.9, 3.6),
+        // Note 687: the blacksmith's forge, its hood and its board (the chimney's above).
+        "forge" => (1.7, 1.1, 3.4),
         "post" => (0.35, 0.35, 2.4),
         "tally" => (1.2, 0.25, 2.4),
         "lamps" => (1.6, 0.45, 2.2),
@@ -707,6 +841,8 @@ public static class TownFixtures
         "crate" => (0.5, 0.4, 0.8),
         "barrel" => (0.35, 0.35, 1.0),
         "stall" => (0.9, 1.5, 2.6),
+        // The night market's stalls (note 825): open, a counter of its wares, an awning and a lantern, end on along the row.
+        "marketstall" => (1.4, 1.2, 2.7),
         // The civic pieces (note 353): a statue on its plinth, the wall of names, the bandstand's raised floor, a bed under
         // its lamps, a tree's trunk, the flagpole, the laws' board; a mural is paint on a wall (its half-width to look from).
         "statue" => (0.8, 0.8, 3.4),
@@ -737,7 +873,9 @@ public static class TownFixtures
         "watertower" => (2.2, 3.2, 10.2),
         // The town types' landmarks (note 692): the harbour's lighthouse on its head and the beacon at the breakwater's end,
         // its boat shed on the slip; a chapel on a hummock or a hill; a watch tower; a quarry's lift and crane; the seed house.
-        "lighthouse" => (3.2, 3.2, 22),
+        // The harbour's light is its Hope Tower (queue #547, note 819; HopeKit): its plinth and the coal bay under its hoist,
+        // and up to its fire basket's brim.
+        "lighthouse" => (8.4, 8.4, 84),
         "beacon" => (1.2, 1.2, 6),
         "boatshed" => (9.0, 6.0, 7.5),
         "chapel" => (5.5, 9.0, 12),
@@ -761,6 +899,22 @@ public static class TownFixtures
         "shed" => (9.0, 6.0, 7.5),
         "keep" => (4.6, 4.6, 24),
         "barge" => (3.3, 11.7, 3.5),
+        // A town's rail yard (note 502), behind the home platform: the goods shed (the facility's modelled piece, its walls
+        // and dock as TownYardArtTests holds them: the office at one end, the steps at the other; its canopy and its crane's
+        // jib reach out over the siding), the yard office, the weighbridge's house (its plate lies beside it, flush), freight
+        // stacked waiting, a handcart, old sleepers stacked to dry; in the siding a van and a flat wagon with a dory or rails
+        // on it (half their width, half their length: they face along it),
+        // the buffer stops at its ends (half their width across it, their depth); the lamps down it.
+        "goodsshed" => (17.9, 6.4, 9.1),
+        "yardoffice" => (2.4, 1.8, 3.8),
+        "weighbridge" => (1.3, 1.3, 3.0),
+        "freight" => (2.0, 1.0, 1.8),
+        "cart" => (1.0, 1.6, 1.5),
+        "sleepers" => (1.4, 1.4, 1.35),
+        "van" => (1.5, 4.2, 3.7),
+        "flatdory" or "flatrails" => (1.4, 4.6, 2.2),
+        "buffers" => (1.4, 0.45, 1.2),
+        "yardlamp" => (0.15, 0.15, 4.6),
         // In the houses (their furniture is the layout's): only the cradle stands on its own feet.
         "cradle" => (0.45, 0.3, 0.7),
         "table" or "letters" or "anklebell" or "timetable" or "boots" or "boards" or "suitcase" or "radio" or "clock"

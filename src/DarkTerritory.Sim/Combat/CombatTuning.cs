@@ -8,7 +8,20 @@ public sealed record CombatTuning(GunTuning Guns, ChoirTuning Choir)
     public HitTuning Hits { get; init; } = new();
     /// <summary>A cannon fired beside a chemicals car (combat.json <c>fumes</c>; GDD App. B.9; note 182). Unset, nothing.</summary>
     public FumesTuning? Fumes { get; init; }
+    /// <summary>The human cannonball on the guard van's gun (combat.json <c>cannonball</c>; note 746).</summary>
+    public CannonballTuning Cannonball { get; init; } = new();
 }
+
+/// <summary>
+/// combat.json <c>cannonball</c> (note 746; docs/design/upgrades.md §8.3): a crewmate climbs into the guard van's packed gun
+/// (<c>dress:humanCannonball</c>) holding Use within <see cref="ClimbReach"/> m of its muzzle (<see cref="Muzzle"/> m out along
+/// the barrel from the pivot) for <see cref="ClimbSeconds"/>. Fired, they fly at <see cref="Speed"/> m/s (level) to a point
+/// <see cref="Range"/> m along the gun's aim, stepped back <see cref="Step"/> m at a time to dry ground on the map (within
+/// <see cref="MapHalfWidth"/> of the line and the line's room there); a creature within <see cref="HitRadius"/> of them in the
+/// air takes the ball's hit (<see cref="GunTuning.DamagePerRound"/>) once, and stops them.
+/// </summary>
+public sealed record CannonballTuning(double ClimbReach = 1.0, double ClimbSeconds = 1.5, double Muzzle = 1.5, double Range = 40,
+    double Speed = 22, double Step = 2, double MapHalfWidth = 300, double HitRadius = 1.2);
 
 /// <summary>
 /// combat.json <c>fumes</c> (App. B.9: "firing a cannon near chemical cars is lethal to the crew"): a shot from a gun on a
@@ -19,7 +32,7 @@ public sealed record FumesTuning(int Cars = 1, double GasM = 8, int Damage = 150
 
 /// <summary>
 /// The crude cannons (GDD v1.1 §12, App. C.3): arc-limited, loud, and every shot a timed decision. After each shot a full
-/// manual reload (powder, ball, ram) at the gun before it fires again. Field docs live in combat.json.
+/// manual reload (powder, pack, ball: note 746) at the gun before it fires again. Field docs live in combat.json.
 /// </summary>
 /// <summary>Which way a gun faces at rest: ahead (the engine's forward gun) or back down the train (every car's).</summary>
 public enum GunMountFacing : byte { Ahead, Back }
@@ -28,7 +41,7 @@ public sealed record GunTuning(double RoundsPerSecond, double Range, double Trav
     double MinPitchDegrees, double MaxPitchDegrees, int Ammo, double Reach, double DamagePerRound, double MinPressure)
 {
     public int TicksPerRound => (int)Math.Round(SimConstants.TickRate / RoundsPerSecond);
-    /// <summary>The reload's steps: powder, ball, ram (0: the old magazine gun, no reload).</summary>
+    /// <summary>The reload's steps: powder, pack, ball (note 746; 0: the old magazine gun, no reload).</summary>
     public int ReloadSteps { get; init; } = 3;
     /// <summary>Seconds of Use held at the gun per step.</summary>
     public double ReloadStepSeconds { get; init; } = 1.5;

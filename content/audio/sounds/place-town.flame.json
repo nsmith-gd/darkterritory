@@ -1,0 +1,20 @@
+// The walled town: The Flame of Hope: a great coal fire in an iron basket high on the Hope Tower, roaring in the wind off the sea. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 6,
+ "loop": true,
+ "maxInstances": 8,
+ "minDistance": 20,
+ "maxDistance": 800,
+ "rolloff": 0.7,
+ "gainDb": 2,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "place-town/flame",
+   "gain": 1,
+   "pitchJitter": 0,
+   "gainJitter": 0
+  }
+ ]
+}

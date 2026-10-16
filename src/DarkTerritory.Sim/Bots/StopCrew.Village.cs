@@ -204,6 +204,38 @@ public sealed partial class StopHand
         return Follow(self, train, foot);
     }
 
+    /// <summary>
+    /// A find pinged for this hand (note 739 part two; the director, 14 Oct: "If I point at loot ..."): off the car, round
+    /// the walls and the train to it (<see cref="FootPath"/>), and up with it; <see cref="FindHome"/> then brings it to a car
+    /// as it does the village's. Null with no find pinged for it, or that find taken or aboard already.
+    /// </summary>
+    PlayerIntent? Pinged(in PlayerState self, World world, StopPlan p)
+    {
+        if (PlayerId is not { } me || calls.OrderOf(me) is not { Kind: PingKind.Loot, Target: var id })
+            return null;
+        var find = world.Bodies.All.FirstOrDefault(b => b.Id == id && b.Kind == Physics.BodyKind.Loot && b.Carrier < 0 && !b.Stowed
+            && b.Parent == PlayerState.World);
+        if (find is null)
+            return null;
+        var train = world.Train;
+        calls.Out(member, true);
+        if (self.Parent != PlayerState.World)
+            return OffTheCar(self, world, p) ?? GetDown(self, train, p.Site.Side);
+        var here = PlayerMotor.WorldPosition(self, train);
+        var at = Physics.Bodies.WorldCentre(find, train);
+        if ((Flat(at) - Flat(here)).Length < 1.4)
+        {
+            _path = null;
+            double yaw = DMath.Atan2(-(at.X - here.X), -(at.Z - here.Z));
+            if (!Aligned(self, yaw))
+                return new PlayerIntent { LookYaw = Turn(self, yaw) };
+            Doing = "picking up the find it was pointed at";
+            return Press();
+        }
+        Doing = "to the find it was pointed at";
+        return Follow(self, train, at);
+    }
+
     /// <summary>The cargo car nearest a point (a find's stowed in any car: it takes no room).</summary>
     static int NearestCargo(TrainOnLine train, Double3 at) =>
         train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Id < train.Frames.Count)

@@ -139,5 +139,5 @@ public sealed class Hanger(int id) : Enemy(id)
                 }
     }
 
-    protected override void Punish(EnemyContext ctx, int victim) => Kill(ctx, victim, DeathCause.Taken);
+    protected override void Punish(EnemyContext ctx, int victim) => Kill(ctx, victim, DeathCause.Hanger);
 }

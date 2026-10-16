@@ -63,6 +63,15 @@ public class CaptionsTests
     // Note 771: the Pickers coming up out of the drains, and taking a crate.
     [InlineData("tell-pickers.emerge")]
     [InlineData("cs-pickers.carry")]
+    // Note 806: the pets' tells, the canary while it sings, the calliope as the whistle.
+    [InlineData("up-pets.hiss")]
+    [InlineData("up-pets.bark")]
+    [InlineData("up-whimsy.song")]
+    [InlineData("up-whimsy.calliope")]
+    // Note 775: the horns as the whistle; the forge from the cab.
+    [InlineData("up-horns.honk")]
+    [InlineData("up-horns.gold")]
+    [InlineData("up-forge.hearth")]
     // Note 809: the Mouse Moose creeping in, and dragging a casting off.
     [InlineData("tell-mouse-moose.squeak")]
     [InlineData("cs-mouse-moose.drag")]
@@ -91,6 +100,10 @@ public class CaptionsTests
     [InlineData("crew-rescue.haul")]
     [InlineData("crew-hoist.yelp")]
     [InlineData("crew-hoist.land")]
+    // Note 828: the human cannonball's whoop and landing.
+    [InlineData("crew-cannonball.whoop")]
+    [InlineData("crew-cannonball.land")]
+    [InlineData("up-fishing.catch")]
     [InlineData("loot-fragile.glass")]
     [InlineData("loot-jackpot.bell")]
     [InlineData("crew-handcar.set")]
@@ -101,6 +114,8 @@ public class CaptionsTests
     [InlineData("world-dog.bark")]
     // Note 786: the odd outcomes, the council bell and what answers the can.
     [InlineData("place-town.bell")]
+    // Note 827: a stallholder calling across the market.
+    [InlineData("place-town.stall-call")]
     [InlineData("world-odd.well-splash")]
     [InlineData("world-odd.bark")]
     public void TheTellsAndCallsSinceCaptionsAreCaptioned(string sound)

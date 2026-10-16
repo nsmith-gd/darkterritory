@@ -45,12 +45,15 @@ public static class Radio
 
     /// <summary>
     /// The clerk at the terminus: the cars and their cargo, then each death body by body (its fee, and the refund if the body
-    /// came home), the mail, the costs, and the net. Every figure as flat as the last.
+    /// came home), the mail, the costs, and the net. Every figure as flat as the last. <paramref name="owned"/> are what the
+    /// crew's catalogue purchases have the clerk say (note 678; <see cref="Campaign.Campaign.TallyLines"/>): a gold whistle
+    /// read like the coal, before the costs.
     /// </summary>
-    public static List<string> Tally(RunReport report)
+    public static List<string> Tally(RunReport report, IReadOnlyList<string>? owned = null)
     {
         var lines = new List<string> { "Yard clerk. Consist received. Tally follows." };
-        lines.Add($"Cars delivered: {report.CarsDelivered}. Cargo: {report.Gross:0}.");
+        // Note 766: the cargo alone; the mail, the finds and a child home are read on their own lines, not in it too.
+        lines.Add($"Cars delivered: {report.CarsDelivered}. Cargo: {Cargo(report):0}.");
         if (report.CarsLost > 0)
             lines.Add($"Cars lost: {report.CarsLost}.");
         // GDD §19: the most valuable cargo there is, read like the coal.
@@ -64,13 +67,56 @@ public static class Radio
             lines.Add($"Mail: {report.Mail:0}.");
         if (report.Scavenged > 0)
             lines.Add($"Salvage: {report.Scavenged:0}.");
+        if (owned is not null)
+            lines.AddRange(owned);
         // Note 718 (the director, 14 Oct 2026: "as they play the game more often, they learn what those objects are"): the
         // night's best finds by name with what each paid, as flat as the coal, and who brought the most aboard.
         lines.AddRange(Prizes(report));
+        // Note 766: what the net was ever short of without a word: the tow in, the town's brigade.
+        if (report.Recovery > 0)
+            lines.Add($"Recovery: {report.Recovery:0}.");
+        if (report.BroughtInFees > 0)
+            lines.Add($"Brigade fees: {report.BroughtInFees:0}.");
         lines.Add($"Coal: {report.CoalCost:0}. Powder and shot: {report.AmmoCost:0}. Repairs: {report.RepairCost:0}.");
-        lines.Add($"Net: {report.Net:0}. Next.");
+        // Note 766 (the director, 13 Oct: "net negative 1607. So I need a better understanding as to why"): in the red, what
+        // cost most, as flat as the rest.
+        lines.Add(report.Net < 0 && Costliest(report) is var (what, much) ? $"Net: {report.Net:0}. Most of it {what}, {much:0}. Next." : $"Net: {report.Net:0}. Next.");
         return lines;
     }
+
+    /// <summary>The freight's pay alone (note 766): the gross less the mail, the finds and a child home, each read on its own.</summary>
+    public static double Cargo(RunReport r) => r.Gross - r.Mail - r.Scavenged - r.ChildPay;
+
+    /// <summary>
+    /// What made a night's net (note 766), each item signed (pay in, costs out), earned first: the cargo, a child home, the
+    /// mail, the finds; then the crew lost and the bodies brought home against it, the tow in, the brigade, coal, powder and
+    /// shot, repairs. Only what's not nothing. They add up to <see cref="RunReport.Net"/>.
+    /// </summary>
+    public static IReadOnlyList<(string Name, double Amount)> Ledger(RunReport r)
+    {
+        var items = new List<(string, double)>();
+        void Add(string name, double amount)
+        {
+            if (Math.Abs(amount) >= 0.5)
+                items.Add((name, amount));
+        }
+        Add("cargo", Cargo(r));
+        Add("a child home", r.ChildPay);
+        Add("mail", r.Mail);
+        Add("finds", r.Scavenged);
+        Add("the crew lost", -r.CrewLossFees);
+        Add("bodies brought home", r.BodyRefunds);
+        Add("the recovery", -r.Recovery);
+        Add("the brigade", -r.BroughtInFees);
+        Add("coal", -r.CoalCost);
+        Add("powder and shot", -r.AmmoCost);
+        Add("repairs", -r.RepairCost);
+        return items;
+    }
+
+    /// <summary>What cost the night most (note 766), and how much; null if nothing did.</summary>
+    public static (string Name, double Amount)? Costliest(RunReport r) =>
+        Ledger(r).Where(i => i.Amount < 0).OrderBy(i => i.Amount).Select(i => ((string, double)?)(i.Name, -i.Amount)).FirstOrDefault();
 
     /// <summary>
     /// Note 718: the tally's lines for the night's finds, the worthiest kinds first ("Find: pocket watch, 110.", "Finds: candles,
@@ -97,6 +143,12 @@ public static class Radio
     /// GDD App. E.12 question 5 (note 308): the train's last engineering kit lost, the yard says so, flat, once. It says what's
     /// known (gone with a car, by its number), not what follows from it.
     /// </summary>
+    /// <summary>
+    /// The human cannonball (note 746: "Sam's been fired from the rear cannon"): the yard on the radio, once a crewmate's been
+    /// fired from the guard van's gun.
+    /// </summary>
+    public static List<string> Fired(string name) => ["Yard to consist.", $"{name} fired from the rear cannon.", "Yard out."];
+
     public static List<string> KitLost(KitWhere kit) =>
     [
         "Yard to consist.",

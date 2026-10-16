@@ -303,6 +303,7 @@ public sealed partial class World
     /// <summary>The whistle blows this long (the cord pulled by <paramref name="by"/>, or the Whistler at it).</summary>
     public void Whistled(double seconds, int by = -1)
     {
+        CalliopePull(by);
         WhistleSeconds = Math.Max(WhistleSeconds, seconds);
         WhistleBy = by;
     }
@@ -406,8 +407,11 @@ public sealed partial class World
     /// </summary>
     public Dictionary<int, byte> Outfits { get; } = [];
 
-    /// <summary>The look a player is drawn in (note 298): their outfit if they've one, else their id.</summary>
-    public int OutfitOf(int id) => Outfits.TryGetValue(id, out byte o) ? o : id;
+    /// <summary>The look a player is drawn in (note 298): their outfit's colour if they've one, else their id.</summary>
+    public int OutfitOf(int id) => Outfits.TryGetValue(id, out byte o) && Player.Outfit.ColourOf(o) is { } colour ? colour : id;
+
+    /// <summary>The hat a player wears from the hat rack (note 714): 0 none, else which (look.json crewHats, from 1).</summary>
+    public int HatOf(int id) => Outfits.TryGetValue(id, out byte o) ? Player.Outfit.HatOf(o) : 0;
 
     /// <summary>
     /// Each player's mask paint (GDD §29; note 731), by id: chosen in the settings and tried on in the yard, as an outfit is.
@@ -476,6 +480,22 @@ public sealed partial class World
                 _enemies.Add(new Sleepers(_nextEnemyId++) { LineDistance = f.Start, Height = 0.2 });
     }
 
+    /// <summary>The band (note 700): its instruments and repertoire; null where it's off (no instruments stocked, no band).</summary>
+    public Player.BandTuning? BandTuning { get; private set; }
+
+    /// <summary>What the band's playing (note 700): the host's, from who's playing; the world record carries it to every client.</summary>
+    public Player.BandState Band = Player.BandState.Silent;
+
+    // The repertoire's next tune: the band plays its tunes in order, round, one per time it starts up.
+    int _nextTune;
+
+    /// <summary>The band (band.json; note 700): which instruments there are, the tunes, and how long Use is held to play.</summary>
+    public void EnableBand(Player.BandTuning tuning)
+    {
+        BandTuning = tuning;
+        Bodies.PlayHold = tuning.HoldSeconds;
+    }
+
     /// <summary>Loose bodies: cargo crates, tools, the dead (GDD §33). Host-simulated, mirrored on clients.</summary>
     public Physics.Bodies Bodies { get; } = new();
 
@@ -499,9 +519,12 @@ public sealed partial class World
         Bodies.Step(Train, Train.Dynamics.Tuning, id => crew.FirstOrDefault(c => c.Id == id) is { State: var s } pair && pair.Id == id ? s : null);
         // Thrown things do what they are (note 728): a lamp breaks into fire, a crate on the rail knocks.
         Thrown();
+        StepPets(crew);
         Train.Lying = Bodies.Lying(Train);
         Recover();
         BreakRadios(crew);
+        // The band (note 700): the first to play starts the next tune on this tick; the last to stop stops it.
+        Band = Player.Band.Step(Band, crew.Count(c => c.State.Alive && c.State.Has(PlayerFlags.Playing)), BandTuning, ref _nextTune, Tick);
     }
 
     /// <summary>
@@ -598,6 +621,18 @@ public sealed partial class World
     public void Stock()
     {
         MountExtinguishers();
+        RestockWhimsy();
+        // The tiny caboose (note 713), on its string behind the last car.
+        if (Train.Dynamics.Tuning.Composition.Dressed("tinyCaboose"))
+            Bodies.SpawnCaboose(Train, Train.Dynamics.Tuning.Composition.Caboose);
+        // The BBQ deck (note 698): its cooler full, its grill cold, what a beer and a sausage give back.
+        var bbq = Train.Dynamics.Tuning.Composition.Bbq;
+        Bodies.BeerHeals = bbq.BeerHeals;
+        Bodies.SausageHeals = bbq.SausageHeals;
+        Bodies.FishHeals = WhimsyTuning.FishHeals;
+        foreach (var v in Train.Vehicles)
+            if (v is not null && Bbq.On(Train, v.Id) is not null)
+                (v.Beers, v.Grill) = (bbq.Beers, 0);
         // The radios (T41, train.json kit): one on the cab floor against its back wall right of the middle, out of the reach
         // of a crewmate arriving in the cab and of all the work at its front (note 280), and against the plate over the
         // boiler's end, clear of the corridor in beside it (note 338); the rest in the guard van.
@@ -614,6 +649,8 @@ public sealed partial class World
         }
         StowRepairKits();
         var guard = Train.Dynamics.Consist.Vehicles.LastOrDefault(v => v.Kind == VehicleKind.Guard);
+        // The yard cat and the dog (note 745).
+        StockPets(guard?.Id ?? -1);
         if (guard is null || Train.Frames[guard.Id].Shape.Interior is not { } room)
             return;
         double floor = room.Min.Y + 0.1;
@@ -634,6 +671,13 @@ public sealed partial class World
         for (int i = 0; i < kit.Toys; i++)
             Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(0.6, floor, room.Max.Z - 1.2 - 0.5 * i), Physics.BodyKind.Toy).Noise =
                 i < kit.ToyNoises.Count ? kit.ToyNoises[i] : Physics.ToyNoise.None;
+        // The fishing rod (note 744), along the van's right side.
+        if (Fitted("fishingRod"))
+            Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(0.9, floor, room.Max.Z - 3.6), Physics.BodyKind.FishingRod);
+        // The band's instruments (note 700), down the van's middle from its back door: the first thing seen going in.
+        for (int i = 0; i < kit.Instruments.Count; i++)
+            if (BandTuning is { } band && Array.FindIndex(band.Instruments, x => x.Id == kit.Instruments[i]) is >= 0 and var which)
+                Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(0.1, floor, room.Max.Z - 1.2 - 0.45 * i), Physics.BodyKind.Instrument).Instrument = (byte)which;
     }
 
     /// <summary>
@@ -649,7 +693,7 @@ public sealed partial class World
             var p = b.Pbd.Particles[0];
             return new Campaign.ThingAboard(b.Kind, b.Parent, p.Position, p.Radius, b.Pbd.Friction, b.Pbd.Bounce, b.Yaw, b.Locker, b.Slot, b.Claimed,
                 b.Cargo, b.Owner, b.Home, b.Charge, b.Noise, b.Broken, b.Tools,
-                b.Banked && b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy && !Sim.Run.Run.IsJackpot(b)) { Knocks = b.Knocks };
+                b.Banked && b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy && !Sim.Run.Run.IsJackpot(b), b.Instrument) { Knocks = b.Knocks };
         })];
 
     /// <summary>
@@ -665,6 +709,9 @@ public sealed partial class World
             Bodies.RadiosCarried = true;
         if (RepairKitCar(Train) is not null && !Repairs.ByWrench(Train) && kit.RepairKits + kit.SpareKits > 0)
             KitStocked = true;
+        // The tiny caboose (note 713) isn't aboard to be saved: it's towed behind, stood on the line again.
+        if (Train.Dynamics.Tuning.Composition.Dressed("tinyCaboose"))
+            Bodies.SpawnCaboose(Train, Train.Dynamics.Tuning.Composition.Caboose);
         foreach (var t in things.OrderBy(t => t.Locker < 0 ? 0 : 1).ThenBy(t => t.Car).ThenBy(t => t.Locker).ThenBy(t => t.Slot))
         {
             if (t.Car < 0 || t.Car >= Train.Vehicles.Count)
@@ -680,6 +727,7 @@ public sealed partial class World
             b.Broken = t.Broken;
             // A tool left on a locker's shelf (note 649) is which tool it is.
             b.Tools = t.Tools;
+            b.Instrument = t.Instrument;
             // A fragile find as knocked as it was (note 719).
             b.Knocks = t.Knocks;
             // A crate loaded (note 659): its share's in its car's saved load, so it isn't loaded again.
@@ -1644,18 +1692,38 @@ public sealed partial class World
         bool charging = Authority && gunTuning is { Rack: > 0 } && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Powder } && Charging(s, gunTuning) is not null;
         var fetch = Authority && gunTuning is { Rack: > 0 } && Guns.AtLocker(s, Train, gunTuning) is not null && Guns.Stowed(Train, gunTuning) > 0
             ? Physics.BodyKind.Powder : (Physics.BodyKind?)null;
+        // The BBQ deck's cooler (note 698): empty hands at it, and there's a beer left, take one.
+        int? cooler = Authority && fetch is null && CrewActions.NearestInteractable(s, Train, Hand) is ({ Kind: InteractableKind.Cooler }, var coolerCar)
+            && Train.Vehicles[coolerCar].Beers > 0 ? coolerCar : null;
+        if (cooler is not null)
+            fetch = Physics.BodyKind.Beer;
         // Hands first: a Use press that picks something up (or puts it down) isn't also working a lever. Except at a switch's
         // lever, which takes Use whatever's in your hands (queue #94, note 357): the lamp you carried out to a stand stays lit
         // in your hand while you throw it, and a crate lying by it stays down.
         bool lever = Authority && Switches?.InReach(s, Train, Hand) is not null;
+        // Sitting down in a Muskoka chair or getting up (note 698): what's in your hands (a beer) stays there.
+        bool sitting = intent.Has(PlayerActions.Seat) && (s.Has(PlayerFlags.Lounging) || CrewActions.Nearest(s, Train, Hand) is { } seat && Bbq.IsSeat(seat));
+        // The fishing rod's line in the water, and a fish held at the grill (note 744): the hands keep them.
+        bool angling = Angling(s, playerId), grilling = GrillingFish(s, playerId);
         // Note 719: the kit in hand at a jackpot house's locked door is picking its lock, not being put down.
         bool atLock = kit && DoorInReach(s) is { } lockedDoor && Train.Walls!.Locked(lockedDoor.Key);
         // Note 730: a find or a toy in hand at a village's well goes down it on a press of Use, not onto the ground.
         bool welling = Authority && WellDropAct(s, intent, playerId);
         bool handsTookIt = Authority && Bodies.Handle(ref s, intent, playerId, Train, Hand,
-            keep: kit && (breaching || atLock || CrewActions.AtTheRupture(s, Train, Hand)) || charging || welling, lever: lever, fetch: fetch, patient: patient);
+            keep: kit && (breaching || atLock || CrewActions.AtTheRupture(s, Train, Hand)) || charging || welling || sitting || angling || grilling,
+            lever: lever, fetch: fetch, patient: patient);
+        Fishing(s, intent, playerId, angling);
         if (charging && gunTuning is not null)
             Charge(s, intent, playerId, gunTuning);
+        if (cooler is { } fromCooler && handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Beer })
+            Train.Vehicles[fromCooler].Beers--;
+        // The tiny caboose off the rails (note 713): empty hands and Use within reach of it put it back on them.
+        if (Authority && !handsTookIt && intent.Has(PlayerButtons.Use) && Bodies.CarriedBy(playerId) is null)
+            Bodies.Rerail(s, Train, Train.Dynamics.Tuning.Composition.Caboose);
+        // The gramophone (note 715): a Use press at it, whatever's in your hands, winds it or lifts the needle off.
+        WindGramophone(s, intent, playerId);
+        // The tennis-ball launcher (note 745), the same press on the guard van's platform.
+        Launch(s, intent, playerId);
         if (handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } lifted)
             Physics.Bodies.TakeTools(ref s, lifted);
         // Searching an open house's hiding spot (note 326), empty-handed, with a Use the hands didn't take.
@@ -1672,6 +1740,9 @@ public sealed partial class World
         // A healing find used up in the hands this tick (GDD App. F.1; note 272): its health back, up to full.
         if (Authority && Bodies.TakeDose(playerId) is > 0 and var dose && s.Alive)
             s.Health = Math.Min(Bodies.FullHealth, s.Health + dose);
+        // A beer finished (note 698): it takes the edge off the cold.
+        if (Authority && Bodies.TakeDrink(playerId))
+            s.Cold = Math.Max(0, s.Cold - Train.Dynamics.Tuning.Composition.Bbq.BeerWarmth);
         // At the crane's controls, the stick drives the crane, not your feet (T48); taken and let go with a press of Use at
         // the stand (Crane.Operates). Worked out the same everywhere, so a client predicts standing still at the stand.
         bool operating = false;
@@ -1692,6 +1763,8 @@ public sealed partial class World
                 or Physics.BodyKind.Toy or Physics.BodyKind.Loot or Physics.BodyKind.Child or Physics.BodyKind.Ragdoll);
             s.Flags = heavy ? s.Flags | PlayerFlags.Heavy : s.Flags & ~PlayerFlags.Heavy;
             s.Flags = carrying ? s.Flags | PlayerFlags.Carrying : s.Flags & ~PlayerFlags.Carrying;
+            // Playing the instrument in your hands (note 700): every machine hears you, in time with the band.
+            s.Flags = Bodies.Playing(playerId) && s.Alive ? s.Flags | PlayerFlags.Playing : s.Flags & ~PlayerFlags.Playing;
             // D.9's solo remainer: the last one alive, with a body, may still climb (slowly).
             bool solo = s.Alive && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } && LastCrew.Count(c => c.State.Alive && c.Id != playerId) == 0;
             s.Flags = solo ? s.Flags | PlayerFlags.SoloCarry : s.Flags & ~PlayerFlags.SoloCarry;
@@ -1709,7 +1782,21 @@ public sealed partial class World
             // Note 619: the doors as they were, to say who opened one (only a Use works a door).
             var doors = Authority && intent.Buttons.HasFlag(PlayerButtons.Use) ? Train.Vehicles.Select(v => v.DoorsOpen).ToArray() : null;
             int partings = Train.Partings.Count;
+            int cooked = Train.Vehicles.Sum(v => v?.Cooked ?? 0);
             CrewActions.Apply(ref s, intent, Train, SimConstants.TickSeconds, Hand, (kind, vehicle) => Pace(playerId, kind, vehicle));
+            // A sausage off the BBQ deck's grill (note 698), into the cook's hands (or at their feet, hands full).
+            // A fish held at it (note 744) is what came off it, grilled.
+            if (Authority && Train.Vehicles.Sum(v => v?.Cooked ?? 0) > cooked && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Fish } raw)
+                Grilled(raw, s, playerId);
+            else if (Authority && Train.Vehicles.Sum(v => v?.Cooked ?? 0) > cooked)
+            {
+                var sausage = Bodies.SpawnItem(PlayerMotor.WorldPosition(s, Train) + Double3.Up * 1.0, s.LineHint, Physics.BodyKind.Sausage);
+                if (Bodies.CarriedBy(playerId) is null)
+                {
+                    sausage.Carrier = playerId;
+                    sausage.Claimed = true;
+                }
+            }
             // Note 663: whose hand cut it, for the news.
             for (int i = partings; i < Train.Partings.Count; i++)
                 if (Train.Partings[i] is { Cause: Parting.Crew, Who: < 0 } cut)
@@ -1735,8 +1822,28 @@ public sealed partial class World
         // The gun's seat (T112): sat in or got up from, the view held to the gun's arc and the gun laid after it, before it fires.
         if (Combat is { } cs)
             Guns.Sit(ref s, intent, Train, cs.Guns, SimConstants.TickSeconds);
+        // The human cannonball (note 746): into the guard van's packed gun at its muzzle, or held in it; that Use is the climb's.
+        int? climbing = Combat is { } cc ? HumanCannonball.Climb(ref s, intent, Train, cc.Guns, cc.Cannonball, SimConstants.TickSeconds) : null;
+        if (climbing is { } climbed)
+            _gunHands[climbed] = _gunHands.GetValueOrDefault(climbed) + 1;
+        // A Muskoka chair on the BBQ deck (note 698): sat in with the same press, got up from with it again.
+        Bbq.Sit(ref s, intent, Train, LastCrew.Where(c => c.Id != playerId).Select(c => c.State), Hand);
         var targets = viewTick is { } vt && _targetHistory.TryGetValue(vt, out var then) ? then : Targets;
-        if (Combat is { } c && Guns.TryFire(s, intent, Train, c.Guns, ref Choir, c.Choir, targets, Tick, playerId) is { } shot)
+        // The human cannonball (note 746): a crewmate in the guard van's gun is what it fires, not a ball (the host's crew list).
+        bool manned = false;
+        if (Combat is { } hc && Guns.MannedGun(s, Train, hc.Guns) is { } mg && HumanCannonball.Takes(Train, mg)
+            && HumanCannonball.Inside(mg, LastCrew) is not null)
+        {
+            manned = true;
+            if (HumanCannonball.TryFire(s, intent, Train, hc.Guns, hc.Cannonball, ref Choir, hc.Choir, Tick, playerId, LastCrew,
+                    Movement?.Gravity ?? 9.81) is { } launch && Hosting)
+            {
+                _launches.Add(launch);
+                CreditChoir(playerId, hc.Choir.RoundLoudness * hc.Choir.WindowSeconds);
+                Drew(DrawCause.Cannon, playerId, Director?.Tuning.Draw.Weight(DrawCause.Cannon) ?? 0);
+            }
+        }
+        if (!manned && Combat is { } c && Guns.TryFire(s, intent, Train, c.Guns, ref Choir, c.Choir, targets, Tick, playerId) is { } shot)
         {
             Shots.Add(shot);
             // A good shot at a switch stand throws it (note 595), the host's say as a hand on it is.
@@ -1754,7 +1861,7 @@ public sealed partial class World
         // The reload (note 752: the gunner in the seat, or a loader beside it while the gunner aims): each pair of hands on it
         // this tick, counted, so two together work it at combat.json loaderRate whoever's turn comes first. Standing, a hand
         // meant for something looked at (a locker, a handbrake) is that thing's, not the gun's.
-        if (Combat is { } cr && Guns.Working(s, intent, Train, cr.Guns) is { } worked
+        if (climbing is null && !s.Has(PlayerFlags.InCannon) && Combat is { } cr && Guns.Working(s, intent, Train, cr.Guns) is { } worked
             && (s.Has(PlayerFlags.Seated) || CrewActions.LookedAt(s, Train) is null))
         {
             int hands = _gunHands.GetValueOrDefault(worked) + 1;
@@ -1866,6 +1973,7 @@ public sealed partial class World
             cars.Add(shot.GunVehicle);
         if (cars.Count == 0)
             return;
+        CanaryGassed(cars);
         Attribution.Gassed(gunner);
         var victims = new SortedSet<int>();
         foreach (var (id, st, _) in _actors)
@@ -1887,6 +1995,11 @@ public sealed partial class World
     readonly HashSet<int> _lampWas = new();
     /// <summary>Note 752: the pairs of hands on each gun's reload this tick, by its vehicle. Looked up, never iterated.</summary>
     readonly Dictionary<int, int> _gunHands = new();
+    /// <summary>The human cannonball's launches this tick (note 746), put on their crewmates once everyone's acted.</summary>
+    readonly List<HumanCannonball.Launch> _launches = new();
+    /// <summary>Who's in the air from the cannon, and who fired them (for a creature they hit); and who's hit one already.</summary>
+    readonly Dictionary<int, int> _flights = new();
+    readonly HashSet<int> _flightHit = new();
     /// <summary>Note 752: who worked which job (a breach, the burst boiler) this tick, and last tick: two at one work it faster.</summary>
     List<(BreakKind Kind, int Vehicle, int Player)> _jobsNow = [], _jobsThen = [];
 
@@ -2175,6 +2288,7 @@ public sealed partial class World
         if (Authority && TrackPlan is { } plan)
             LineGen.TrackRules.Step(this, plan, SimConstants.TickSeconds);
         WhistleSeconds = Math.Max(0, WhistleSeconds - SimConstants.TickSeconds);
+        StepWhimsy();
         if (Authority && Answer.Showing)
             Answer = Answer with { Seconds = Math.Max(0, Answer.Seconds - SimConstants.TickSeconds) };
         if (Authority && Watcher.Showing)
@@ -2255,6 +2369,8 @@ public sealed partial class World
             if (Train.Boiler.FireDoorOpen && Train.Boiler.SinceShovel >= st.Stoker.FireDoorShutSeconds && CabEmptySeconds <= 0)
                 Train.Boiler.FireDoorOpen = false;
         }
+        // The BBQ deck's charcoal burning down (note 698), on every machine (the host's is what's sent).
+        Bbq.Burn(Train, SimConstants.TickSeconds);
         // Extinguishers left in their own car recharge, slowly (App. C.5).
         if (Authority && Enemies is { } ft)
             foreach (var b in Bodies.All)
@@ -2382,6 +2498,17 @@ public sealed partial class World
             if (by >= 0)
                 Drew(DrawCause.Toy, by, (draw?.Weight(DrawCause.Toy) ?? 0) * dt);
         }
+        // The band (note 700): each playing as loud as a noisy toy, and as drawing.
+        if (BandTuning is { } band && _context is { } playing)
+            foreach (var (p, _) in playing.Crew)
+                if (p.State.Alive && p.State.Has(PlayerFlags.Playing))
+                {
+                    Add(p.Id, band.Loudness);
+                    Drew(DrawCause.Toy, p.Id, (draw?.Weight(DrawCause.Toy) ?? 0) * dt);
+                }
+        // The gramophone (note 715): a music box to the Choir, nobody's.
+        if (GramophonePlaying)
+            Add(-1, WhimsyTuning.GramophoneLoudness);
         if (WhistleSeconds > 0)
         {
             Add(WhistleBy, t.WhistleLoudness);
@@ -2506,6 +2633,25 @@ public sealed partial class World
                     struck.Hit(ctx, shot.Shooter, c.Guns.DamagePerRound);
                     Confirm(struck, shot.Shooter, HitSource.Cannon, shot.Impact, shot.Direction);
                 }
+
+        // The human cannonball (note 746, the director: "If a player is fired into a monster they need to do damage to it"): a
+        // creature within cannonball.hitRadius of someone in the air from the cannon takes the ball's hit, once a flight.
+        if (Combat is { } cb)
+            foreach (var (player, _) in ctx.Crew)
+            {
+                if (!player.State.Has(PlayerFlags.Fired) || !_flights.TryGetValue(player.Id, out int by) || _flightHit.Contains(player.Id))
+                    continue;
+                var at = PlayerMotor.WorldPosition(player.State, Train) + Ballast.Double3.Up * 0.9;
+                foreach (var target in Targets)
+                    if ((target.Position - at).Length <= target.Radius + cb.Cannonball.HitRadius
+                        && _enemies.FirstOrDefault(e => e.Id == target.Id) is { Exposed: true } struck)
+                    {
+                        struck.Hit(ctx, by, cb.Guns.DamagePerRound);
+                        Confirm(struck, by, HitSource.Cannon, target.Position, player.State.Velocity.Length > 1e-6 ? player.State.Velocity.Normalized : Ballast.Double3.Up);
+                        _flightHit.Add(player.Id);
+                        break;
+                    }
+            }
 
         // How long the cab's been empty (the Track Doll's tampering; and a cab left empty is how a firebox door's left open).
         CabEmptySeconds = ctx.Crew.Any(c => c.Player.State.Alive && PlayerMotor.InCab(c.Player.State, Train)) ? 0 : CabEmptySeconds + SimConstants.TickSeconds;

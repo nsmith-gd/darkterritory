@@ -168,7 +168,7 @@ public static class Rescue
         runner.Yaw = yaw;
         runner.Surface = surface;
         runner.LineHint = train.Cars[car].FrontDistance;
-        runner.Flags &= ~(PlayerFlags.OffTheGround | PlayerFlags.Shoved | PlayerFlags.Crouched);
+        runner.Flags &= ~(PlayerFlags.OffTheGround | PlayerFlags.Shoved | PlayerFlags.OffTheHook | PlayerFlags.Crouched);
         runner.Placed++;
     }
 
@@ -274,7 +274,7 @@ public static class Rescue
         carried.Velocity = carrier.Velocity;
         carried.Surface = carrier.Surface;
         carried.LineHint = carrier.LineHint;
-        carried.Flags = (carried.Flags | PlayerFlags.Carried) & ~(PlayerFlags.Crouched | PlayerFlags.OffTheGround | PlayerFlags.Shoved);
+        carried.Flags = (carried.Flags | PlayerFlags.Carried) & ~(PlayerFlags.Crouched | PlayerFlags.OffTheGround | PlayerFlags.Shoved | PlayerFlags.OffTheHook);
     }
 
     /// <summary>

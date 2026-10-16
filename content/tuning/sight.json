@@ -39,6 +39,12 @@
   // A tunnel's mouth, to anyone standing on a roof going into it.
   "struckDamage": 200,
 
+  // The mail cut for now (queue #530, ARCHITECTURE §8 note 803; the director, 15 Oct 2026: "Im soft on the mail. I dont
+  // like it so far. Lets cut for now."). false: no mail crane or its board on any line (Lineside.Drops places none), so
+  // there's nothing to see, catch or hear, no MAIL CRANE line on the HUD, no hook at the door, and no mail in the pay.
+  // The code stays: true brings it all back as below. (SightTuning's default mirrors this one, as the line's prop boards,
+  // the linegen map and a screenshot's boards read the defaults: LinesideTests holds the two in step.)
+  "mailCranes": false,
   // The mail cranes (the playtest's rewards: something to reach for between the threats). One every dropSpacing (m) from
   // dropFrom to the terminus's board, clear of tunnels, bridges, facilities and junctions by dropClear, each with a board
   // dropBoardAhead short of it saying which side. Caught by someone in a cargo car's open side door on that side, within

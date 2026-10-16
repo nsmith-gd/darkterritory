@@ -828,9 +828,90 @@ public class WorldSoundTests
         Assert.True(Sounding("place-town.murmur"));
         Assert.True(ears.Started.Count(v => v.Name == "place-town.cough") > coughs);
 
-        // Away from the town: none of it.
+        // Away from the town: none of it. Two seconds, so a cough that began as you left has finished (these ears render a
+        // part of each tick, so half a second isn't always a stand-in cough's length); a failure names what's left.
+        ears.Tick(world.Train.Line.Sample(gate + 3_000).Position + Double3.Up * 1.6, SimConstants.TickRate * 2);
+        var left = audio.Mixer.Voices.Where(v => v.Name.StartsWith("place-town.") && !v.Finished && !v.Stopped).Select(v => (v.Name, v.Age)).ToList();
+        Assert.True(left.Count == 0, string.Join(", ", left));
+    }
+
+    [Fact]
+    public void AHarbourTownsFlameOfHopeIsHeardAtTheTopOfItsTowerAcrossTheTown()
+    {
+        // Note 826 (queue #554; B2's #1091, note 819): the Hope Tower's coal fire burns in its basket 85 m up, and it's held
+        // there, over the basket's brim, from the tower's foot and across the town; far down the line, not at all.
+        var towns = Sim.Towns.TownContent.Load(Content)!;
+        towns = towns with { Tuning = towns.Tuning with { Population = [140, 140], Forms = towns.Tuning.Forms with { Force = "harbour" } } };
+        var route = Sim.LineGen.Routes.Generate(Content, "frontier:7", 6);
+        double gate = route.GateOr(RouteTuning.Load(Content).YardLength);
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Trains, 6, 1)), route.Build(), gate - 8, Boilers));
+        world.EnableRun(Runs, route, gate, authority: false);
+        world.EnableTown(towns, route, gate, []);
+        var town = world.Town!;
+        var tower = Assert.Single(town.Plan.Fixtures, f => f.Kind == "lighthouse");
+        var audio = new GameAudio(Content);
+        Held(audio, "place-town.flame");
+        var ears = new Ears(audio, world);
+        SoundInstance? Flame() => audio.Mixer.Voices.SingleOrDefault(v => v.Name == "place-town.flame" && !v.Finished && !v.Stopped);
+        var basket = town.World(tower.S, tower.D, Sim.Towns.TownFixtures.Size("lighthouse").Height);
+
+        // At its door: the fire's up there, not at the door.
+        ears.Tick(town.World(tower.S + tower.FaceS * (tower.SolidS + 2), tower.D + tower.FaceD * (tower.SolidD + 2), 1.6), SimConstants.TickRate / 2);
+        Assert.NotNull(Flame());
+        Assert.InRange(Flame()!.Position.Y - basket.Y, 0, 4);
+        Assert.True(((Flame()!.Position - basket) with { Y = 0 }).Length < 1e-6);
+        // At the train in the yard, a long way from the tower's foot: still there.
+        ears.Tick(world.Train.Line.Sample(gate - 8).Position + Double3.Up * 1.6, SimConstants.TickRate / 2);
+        Assert.NotNull(Flame());
+        // Far down the line: gone.
         ears.Tick(world.Train.Line.Sample(gate + 3_000).Position + Double3.Up * 1.6, SimConstants.TickRate / 2);
-        Assert.DoesNotContain(audio.Mixer.Voices, v => v.Name.StartsWith("place-town.") && !v.Finished && !v.Stopped);
+        Assert.Null(Flame());
+    }
+
+    [Fact]
+    public void TheNightMarketsStallsAreHeardAtTheirCountersAndTheirKeepersCallAcrossTheSquare()
+    {
+        // Note 827 (queue #555; B2's #1111, note 825): the tea stall's boiler, the clock stall's clocks and the knitting
+        // stall's needles held at each one's counter, only close to it; and the stallholders calling now and then where
+        // they stand. A town of 3000, a full market.
+        var towns = Sim.Towns.TownContent.Load(Content)!;
+        towns = towns with { Tuning = towns.Tuning with { Population = [3000, 3000] } };
+        var route = Sim.LineGen.Routes.Generate(Content, "frontier:7", 6);
+        double gate = route.GateOr(RouteTuning.Load(Content).YardLength);
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Trains, 6, 1)), route.Build(), gate - 8, Boilers));
+        world.EnableRun(Runs, route, gate, authority: false);
+        world.EnableTown(towns, route, gate, []);
+        var town = world.Town!;
+        var trades = new Dictionary<string, string>
+        {
+            ["the tea stall"] = "place-town.stall-tea",
+            ["the clock stall"] = "place-town.stall-clocks",
+            ["the knitting stall"] = "place-town.stall-knitting",
+        };
+        var stalls = town.Plan.Fixtures.Where(f => f.Kind == "marketstall" && trades.ContainsKey(f.Name)).ToList();
+        Assert.NotEmpty(stalls);
+        var audio = new GameAudio(Content);
+        Held(audio, [.. trades.Values]);
+        Stand(audio, "place-town.stall-call");
+        var ears = new Ears(audio, world);
+        foreach (var stall in stalls)
+        {
+            // In front of its counter, on the square's side: its trade, there.
+            var counter = town.World(stall.S, stall.D, 1.0);
+            var front = town.World(stall.S - stall.FaceS * 1.5, stall.D - stall.FaceD * 1.5, 1.6);
+            ears.Tick(front, SimConstants.TickRate / 2);
+            var voice = audio.Mixer.Voices.Where(v => v.Name == trades[stall.Name] && !v.Finished && !v.Stopped).MinBy(v => (v.Position - counter).Length);
+            Assert.NotNull(voice);
+            Assert.True((voice!.Position - counter).Length < 1e-6, $"{stall.Name} at its counter");
+        }
+        // A minute among the stalls: some keeper calls.
+        var first = stalls[0];
+        int calls = ears.Started.Count(v => v.Name == "place-town.stall-call");
+        ears.Tick(town.World(first.S - first.FaceS * 3, first.D - first.FaceD * 3, 1.6), SimConstants.TickRate * 60);
+        Assert.True(ears.Started.Count(v => v.Name == "place-town.stall-call") > calls, "no stallholder called in a minute");
+        // Away down the line: none of it.
+        ears.Tick(world.Train.Line.Sample(gate + 3_000).Position + Double3.Up * 1.6, SimConstants.TickRate / 2);
+        Assert.DoesNotContain(audio.Mixer.Voices, v => v.Name.StartsWith("place-town.stall-") && v.Def.Loop && !v.Finished && !v.Stopped);
     }
 
     [Fact]
@@ -1186,6 +1267,66 @@ public class WorldSoundTests
         Assert.Single(ears.Started, v => v.Name == "crew-hoist.yelp");
         Assert.Single(ears.Started, v => v.Name == "crew-hoist.land");
         Assert.Equal(1, Landings());
+    }
+
+    [Fact]
+    public void TheHumanCannonballIsHeardClimbingInWhoopingThroughTheAirAndLandingAsAGag()
+    {
+        // Note 828 (queue #556; U1's #1106, note 746): off the crewmate's own flags. Into the barrel (InCannon), the bore's
+        // iron; fired (Fired), a whoop once where they are and the air past them held at their head as they fly; down, the
+        // gag's thump, roll and oof in place of the landing's own sound. Climbing back out before the shot is the barrel too.
+        var (world, _) = Night(f => f.Facility == FacilityKind.Foundry, from: 20);
+        var audio = new GameAudio(Content) { PlayerTuning = DataFile.Load<PlayerTuning>(Path.Combine(Content, PlayerTuning.File)) };
+        Held(audio, "crew-cannonball.flight");
+        Stand(audio, "crew-cannonball.climb", "crew-cannonball.whoop", "crew-cannonball.land");
+        string[] feet = ["wood", "grate", "plate", "roof", "coal", "ballast", "dirt", "grass", "mud", "cobbles", "concrete", "water", "ground"];
+        Stand(audio, [.. feet.Select(m => $"crew-footsteps.land.{m}")]);
+        var ears = new Ears(audio, world);
+        var line = world.Train.Line;
+        var start = line.Sample(world.Train.Dynamics.Distance - 30).Position + new Double3(4, 0, 0);
+        PlayerState On(Double3 at, PlayerFlags flags, byte placed, bool air = false) =>
+            PlayerMotor.SpawnOnGround(at, line, 0, audio.PlayerTuning!) with
+            {
+                Position = air ? at : PlayerMotor.SpawnOnGround(at, line, 0, audio.PlayerTuning!).Position,
+                Surface = air ? Surface.Air : Surface.Ground,
+                Flags = flags,
+                Placed = placed,
+            };
+        var ear = start + new Double3(0, 1.6, 6);
+        int Count(string name) => ears.Started.Count(v => v.Name == name);
+
+        audio.CrewStates = [(3, On(start, PlayerFlags.None, 1))];
+        ears.Tick(ear, 3);
+        audio.CrewStates = [(3, On(start, PlayerFlags.InCannon, 1))];
+        ears.Tick(ear, 3);
+        Assert.Equal(1, Count("crew-cannonball.climb"));
+        // Fired: the whoop once, the air held at their head, following them along the flight.
+        var up = start + new Double3(0, 6, -10);
+        audio.CrewStates = [(3, On(up, PlayerFlags.Fired, 1, air: true))];
+        ears.Tick(ear, 3);
+        Assert.Equal(1, Count("crew-cannonball.whoop"));
+        var flight = audio.Mixer.Voices.Single(v => v.Name == "crew-cannonball.flight" && !v.Finished && !v.Stopped);
+        var further = start + new Double3(0, 8, -25);
+        audio.CrewStates = [(3, On(further, PlayerFlags.Fired, 1, air: true))];
+        ears.Tick(ear, 3);
+        Assert.Equal(1, Count("crew-cannonball.whoop"));
+        Assert.True((flight.Position - (further + Double3.Up * 1.6)).Length < 0.5, $"the flight's air {(flight.Position - further).Length:0.0} m off them");
+        // Down: the gag, not a landing; the air let go.
+        var down = start + new Double3(0, 0, -40);
+        audio.CrewStates = [(3, On(down, PlayerFlags.None, 1))];
+        ears.Tick(ear, 3);
+        Assert.Equal(1, Count("crew-cannonball.land"));
+        Assert.Equal(0, ears.Started.Count(v => v.Name.StartsWith("crew-footsteps.land.")));
+        ears.Tick(ear, SimConstants.TickRate / 2);
+        Assert.DoesNotContain(audio.Mixer.Voices, v => v.Name == "crew-cannonball.flight" && !v.Finished && !v.Stopped);
+        // In and back out before the shot: the barrel both ways, nothing else.
+        audio.CrewStates = [(3, On(start, PlayerFlags.InCannon, 1))];
+        ears.Tick(ear, 3);
+        audio.CrewStates = [(3, On(start, PlayerFlags.None, 1))];
+        ears.Tick(ear, 3);
+        Assert.Equal(3, Count("crew-cannonball.climb"));
+        Assert.Equal(1, Count("crew-cannonball.whoop"));
+        Assert.Equal(1, Count("crew-cannonball.land"));
     }
 
     [Fact]

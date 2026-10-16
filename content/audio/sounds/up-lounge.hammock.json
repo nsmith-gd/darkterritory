@@ -1,0 +1,20 @@
+// The hammock and the hot tub: Lying down in the guard van's hammock or getting out: the canvas taking the weight, the ropes creaking. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 4,
+ "loop": false,
+ "maxInstances": 12,
+ "minDistance": 1,
+ "maxDistance": 14,
+ "rolloff": 1.0,
+ "gainDb": 2,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "up-lounge/hammock",
+   "gain": 1,
+   "pitchJitter": 0.4,
+   "gainJitter": 1.0
+  }
+ ]
+}

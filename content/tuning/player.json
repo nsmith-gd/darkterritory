@@ -52,7 +52,15 @@
     // ... I shouldn't take damage unless I like fully jump as high as I can go off the top of the train"): off a train going
     // slower than standBelow (m/s), a stood train's footing is the ground's (note 573's off the ground): a crewmate's own walk
     // or run is no knock, only the drop is (a car's roof and a jump's apex over it, 5.2 m, is under fallHurtFrom).
-    "standBelow": 0.5
+    "standBelow": 0.5,
+    // ARCHITECTURE §8 note 802 (the director, 15 Oct 2026, on hoisting a friend, note 726: "If we're hoisting a player and
+    // dropping them lets make it so the player can only lose 10 health at most from a drop and then scale that based on
+    // height. It's a silly gag not a big grief"): a landing on the ground after letting go of a crane's hook, or being shaken
+    // off it, lift or no lift, knocks by the height fallen alone (m, by the speed it lands at): nothing from "from" or less
+    // (a step down off a low hook), rising evenly to "maxKnock" at "fullAt" (the foundry's gantry tops a rider's feet out at
+    // 6.35 m, so its top is the full knock) and no more however high. Never a death, and never below 1 health. The fall and
+    // speed rules above don't count. A landing on a car's roof is no knock, as for any drop onto the train.
+    "offTheHook": { "maxKnock": 10, "from": 1.0, "fullAt": 6.0 }
   },
   "ladder": {
     "grabRange": 0.7,
@@ -249,7 +257,12 @@
     "edgeDrop": 0.5,
     "sillReach": 1.2,
     // A bot answers a high five or fist bump offered to it after botAnswer s (bots never offer).
-    "botAnswer": 0.4
+    "botAnswer": 0.4,
+    // The "more emotes" upgrade's (note 714): a bow, a salute, and the conga, which lasts while its line keeps going (each
+    // in it follows whoever started before them; one who stops dancing, or steers off, drops out).
+    "bow": 2.5,
+    "salute": 2.5,
+    "conga": 30
   },
   // The news (ARCHITECTURE §8 note 663; the director: "did a coupler break on its own or was that a creature?"): cars the
   // engine loses and its failing or breaking down, told to everyone as it happens, with what did it, on one line for

@@ -591,6 +591,62 @@ public class CrewAudioTests
     }
 
     [Fact]
+    public void AFiresHeatIsHeardOnWhoeverItReachesFromTheFirstTickLouderTheHotter()
+    {
+        // Note 833 (note 821, the director's 14 Oct playtest line 25: "I wasn't getting any feedback that I was being burned"):
+        // a coat smouldering, held on whoever the fire's heat reaches (CarFire.HeatOn, off a client's copy of the fire), from
+        // the first tick, at the HUD's heat glow's strength: faint but there at its edge, full in it, none out of its reach.
+        var b = new Bench();
+        b.Audio.Bank.Add("crew-scorch.sizzle", new SoundDef(3, [new LayerDef(SourceKind.Sine, 0.3, Frequency: 440)], Loop: true, MaxInstances: 16));
+        var enemies = DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(Content, Sim.Enemies.EnemyTuning.File));
+        b.World.EnableEnemies(enemies, null, 1, 1, authority: false);
+        int car = 2;
+        var t = enemies.CarFire;
+        var room = b.Train.Frames[car].Shape.Interior!.Value;
+        var grid = Sim.Enemies.FireGrid.Of(b.Train, car, t.CellSize)!;
+        var fire = Sim.Enemies.CarFire.In(100, b.Train, car, 2, t);
+        int cell = grid.FloorAt(fire.Local);
+        var heat = new double[grid.Count];
+        heat[cell] = 0.9;
+        // Alight, as the host's record has it: past its telegraph, burning.
+        fire.Restore(Sim.Enemies.SpinePhase.Punish, 5, fire.Health, fire.Attached, fire.Local, 0, 0, 0, 0.9, 0);
+        fire.RestoreHeat(heat);
+        b.Mirror = () => b.World.MirrorEnemies([fire]);
+        var at = grid.Centre[cell];
+        PlayerState Stood(double z) => new() { Parent = car, Position = new Double3(room.Centre.X, room.Min.Y, z), Surface = Surface.Deck, Health = P.Health };
+        SoundInstance? Sizzle() => b.Audio.Mixer.Voices.FirstOrDefault(v => v.Name == "crew-scorch.sizzle" && !v.Stopped);
+        // Down the car from it, along to the last place its heat reaches, and past that.
+        double end = Math.Abs(room.Max.Z - at.Z) > Math.Abs(room.Min.Z - at.Z) ? room.Max.Z - 0.3 : room.Min.Z + 0.3, step = Math.Sign(end - at.Z) * 0.05;
+        b.Step((1, Stood(at.Z)));
+        double edge = double.NaN;
+        for (double z = at.Z; (end - z) * Math.Sign(step) > 0; z += step)
+            if (Sim.Enemies.CarFire.HeatOn(Stood(z), b.World) > 0)
+                edge = z;
+        Assert.False(double.IsNaN(edge));
+        // Out of its reach: nothing.
+        b.Step((1, Stood(edge + 6 * step)));
+        b.Step((1, Stood(edge + 6 * step)));
+        Assert.Null(Sizzle());
+        // At its edge, the first tick: there, faint (the glow's least).
+        var warm = Stood(edge - step);
+        Assert.InRange(Sim.Enemies.CarFire.HeatOn(warm, b.World), 1e-6, 0.3);
+        b.Step((1, warm));
+        var sizzle = Assert.IsType<SoundInstance>(Sizzle());
+        Assert.InRange(sizzle.Volume, Hud.HeatGlowLeast - 1e-3, 0.7);
+        Assert.True((sizzle.Position - b.Train.Frames[car].ToWorld(warm.Position + Double3.Up * 1.2)).Length < 1e-6);
+        // In it: full.
+        b.Step((1, Stood(at.Z)));
+        Assert.Equal(1, Sizzle()!.Volume, 3);
+        // Out again (or dead in it): gone.
+        b.Step((1, Stood(edge + 6 * step)));
+        b.Step((1, Stood(edge + 6 * step)));
+        Assert.Null(Sizzle());
+        b.Step((1, Stood(at.Z) with { Health = 0, Death = DeathCause.Burned }));
+        b.Step((1, Stood(at.Z) with { Health = 0, Death = DeathCause.Burned }));
+        Assert.Null(Sizzle());
+    }
+
+    [Fact]
     public void LivestockAreStartledByAHardJoltAndNotAgainStraightAway()
     {
         var b = new Bench("crew-mishaps.startle-cattle", "crew-mishaps.startle-pigs", "crew-mishaps.startle-sheep");

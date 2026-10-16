@@ -198,7 +198,7 @@ public sealed class Brakeman(int id) : Enemy(id)
         var nearest = roofs.OrderBy(r => Math.Abs(r.Along - me)).ThenBy(r => r.Id).First();
         if (Math.Abs(nearest.Along - me) <= t.LashReach && Enter(ctx, SpinePhase.Commit))
         {
-            ctx.Bite(nearest.Id, t.LashDamage, DeathCause.Taken);
+            ctx.Bite(nearest.Id, t.LashDamage, DeathCause.Brakeman);
             Enter(ctx, SpinePhase.Telegraph);
         }
     }

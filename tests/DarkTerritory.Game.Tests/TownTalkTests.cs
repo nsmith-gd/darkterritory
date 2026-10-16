@@ -46,6 +46,26 @@ public class TownTalkTests
     }
 
     [Fact]
+    public void TheBlacksmithIsClearlyTheBlacksmithAndSaysWhatTheySell()
+    {
+        // Note 687: whatever the town calls them, the prompt says blacksmith; in a campaign night's yard, the hold that opens
+        // their catalogue too (a night that isn't a campaign's sells nothing: its upgrades aren't anyone's).
+        var s = Night();
+        int smith = s.World.Town!.Plan.People.Single(p => p.Role == "blacksmith").Id;
+        var town = StandAt(s, "person", smith);
+        string name = town.Plan.People[smith].Name.ToUpperInvariant();
+        Assert.False(TownTalk.Selling(s));
+        Assert.Equal($"{name}, BLACKSMITH   TALK : [E]", Hud.Prompt(s));
+        var target = Hud.TownTarget(s);
+        Assert.Equal(new TownTarget(TownTargetKind.Person, smith), target);
+        Assert.Equal($"{name}, BLACKSMITH   TALK : [E]   UPGRADES : HOLD [E]", TownTalk.Prompt(town, target!.Value, selling: true));
+        // A word with them is about the trains.
+        var talk = new TownTalk();
+        Assert.True(talk.Use(town, target, 10));
+        Assert.Contains(talk.Card(town, 30)!.Text, town.Plan.People[smith].Lines);
+    }
+
+    [Fact]
     public void TalkingToSomebodyHearsTheirLinesInTurn()
     {
         var s = Night();
