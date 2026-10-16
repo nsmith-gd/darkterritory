@@ -235,6 +235,24 @@ public class LinesidePropsTests
     }
 
     [Fact]
+    public void WhatsBesideTheLineIsSolidAsFarOutAsTheCrewIsSent()
+    {
+        // Note 835 (the director's playtest of 16 Oct, line 20: "I have clipped straight through a wall"): the lineside stood
+        // solid out to 40 m, and a comet fragment is put 40-90 m out (note 755), so the walk out to one went through houses,
+        // barns, ruins and trees that were drawn and not there. Now everything the lineside deals is within the walls' reach,
+        // and so is the furthest a fragment lies.
+        double reach = Tuning.Run.Walls.LinesideReachM;
+        var comet = DataFile.Load<Stops.LootTuning>(Path.Combine(Content, Stops.LootTuning.File)).Comet!;
+        Assert.True(comet.OffLine[^1] + 10 <= reach, $"a comet fragment lies out to {comet.OffLine[^1]} m, the lineside's solid to {reach} m");
+        foreach (var spec in new[] { "frontier:7", "deadLines:3", "local:1", "deepTerritory:2" })
+        {
+            var (_, train, side, _) = Night(spec);
+            var past = side.Props(0, train.Line.Length).Where(p => !side.Within(p, reach)).ToList();
+            Assert.True(past.Count == 0, $"{spec}: {past.Count} things dealt past the walls' reach, the first a {past.FirstOrDefault().Species} {past.FirstOrDefault().Lateral:0} m out");
+        }
+    }
+
+    [Fact]
     public void AWharfIsWalkedOutOnUpItsSteps()
     {
         // Note 817 (note 797's "not yet"): a wharf stood nothing, walked through on the bed under the water. Walked at from the
