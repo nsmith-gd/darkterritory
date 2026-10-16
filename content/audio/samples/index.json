@@ -15351,6 +15351,24 @@
   "takes": 1,
   "sha": "7476d6fe21017138"
  },
+ "place-town/flame": {
+  "cue": "place-town.flame",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The Flame of Hope: a great coal fire in an iron basket high on its tower, roaring as the wind fans it",
+    "key": "basket",
+    "sources": [
+     "kenney_rpg-audio:metalClick",
+     "sfx_100_v2:misc_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "5ca4fc0b3cbf79e4"
+ },
  "place-town/gear-oxygen": {
   "cue": "place-town.gear-oxygen",
   "surface": null,
