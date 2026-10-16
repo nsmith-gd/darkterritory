@@ -73,7 +73,7 @@ only see what's on main here. The role, and how to start one on another account,
 
 | Account | Weekly % | Weekly resets (UTC) | Session % | State | Updated (UTC) |
 |---|---|---|---|---|---|
-| nathaniel2 | 91 | Wed 21 Oct 20:00 | 28 (resets 16:20 UTC) | ACTIVE, landing its last items; 92% (handoff: rows `open for pick-up`, build duty released) expected around 14:00 UTC 16 Oct. Updated hourly 6 am–9 pm Montreal | 2026-10-16 13:32 |
+| nathaniel2 | 92 | Wed 21 Oct 20:00 | 32 (resets 16:20 UTC) | **LIMITED until Wed 21 Oct 20:00 UTC.** Handed off at 14:18 UTC 16 Oct: its workers land their Handoff blocks and set their rows `open for pick-up`; the 16 Oct playtest's open lines are anyone's. Its Token Budget Manager keeps build duty on the reserve (two build checks a day) until an ACTIVE account takes it | 2026-10-16 14:18 |
 | nathaniel1 | 98 | Sun 18 Oct 17:00 | 4 (resets 16:40 UTC) | LIMITED until the weekly reset (Sun 18 Oct 17:00 UTC): weekly 98%, no worker active (U1 stopped for the week, #1136); its items are `open for pick-up` | 2026-10-16 14:10 |
 
 - **State:** ACTIVE (working); PAUSED until *time* (the 5-hour limit: its sessions are waiting with their work intact, so
@@ -115,7 +115,7 @@ it at a time:
 
 | Duty | Account | Claimed (UTC) |
 |---|---|---|
-| Playtest builds | nathaniel2 | 2026-10-15 18:00 |
+| Playtest builds | nathaniel2, on its reserve while LIMITED: **take it** if you're ACTIVE | 2026-10-15 18:00 |
 
 - **Claim it** by putting your account in the row (a docs PR) when it's empty, or when its account is LIMITED or PAUSED in
   *Accounts and usage limits*. An account going LIMITED clears its own claim first. With nothing in the row, whoever's
