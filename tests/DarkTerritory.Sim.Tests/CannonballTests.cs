@@ -169,6 +169,65 @@ public class CannonballTests
         Assert.InRange(out_, Tuning.Combat.Cannonball.Range - 4, Tuning.Combat.Cannonball.Range + 4);
     }
 
+    /// <summary>
+    /// Fired into a creature (note 746, the director: "If a player is fired into a monster they need to do damage to it"):
+    /// the ball's blow by the gunner, once a flight, and the flyer stops dead there and drops, short of where they'd have
+    /// come down.
+    /// </summary>
+    [Fact]
+    public void FiredIntoACreatureTheyHitItOnceForTheGunnerAndDropThere()
+    {
+        // The flight on its own first: where they are a few ticks before they'd come down, and where they land.
+        var clear = World(dressed: true);
+        clear.EnableEnemies(Tuning.Enemies, null, 1, crew: 2, authority: true);
+        clear.EnableBodies();
+        clear.Movement = P;
+        var (gunner, inside) = Loaded(clear);
+        var fire = new PlayerIntent { Buttons = PlayerButtons.Fire };
+        Tick(clear, ref gunner, fire, ref inside);
+        var path = new List<Double3>();
+        for (int i = 0; i < 10 * SimConstants.TickRate && inside.Surface == Surface.Air; i++)
+        {
+            path.Add(PlayerMotor.WorldPosition(inside, clear.Train));
+            Tick(clear, ref gunner, default, ref inside);
+        }
+        var landed = PlayerMotor.WorldPosition(inside, clear.Train);
+        Assert.True(path.Count > 10, $"only {path.Count} ticks in the air");
+        var there = path[^6];
+
+        // The same flight with a Grumbler across it there (on its crates, off the train).
+        var w = World(dressed: true);
+        w.EnableEnemies(Tuning.Enemies, null, 1, crew: 2, authority: true);
+        w.EnableBodies();
+        w.Movement = P;
+        (gunner, inside) = Loaded(w);
+        var g = w.AddEnemy(id => DarkTerritory.Sim.Enemies.Grumbler.OnCrates(id, there, -1, Tuning.Enemies.Grumbler));
+        Tick(w, ref gunner, fire, ref inside);
+        bool stopped = false;
+        var hits = new List<Combat.HitConfirm>();
+        for (int i = 0; i < 10 * SimConstants.TickRate && inside.Surface == Surface.Air; i++)
+        {
+            Tick(w, ref gunner, default, ref inside);
+            hits.AddRange(w.Hits.Where(h => h.EnemyId == g.Id && !hits.Any(k => k.Id == h.Id)));
+            if (hits.Count > 0 && inside.Surface == Surface.Air)
+                stopped |= inside.Velocity.X == 0 && inside.Velocity.Z == 0;
+        }
+        var hit = Assert.Single(hits);
+        Assert.Equal(1, hit.By);
+        Assert.Equal(Combat.HitSource.Cannon, hit.Source);
+        // Taken as any blow is, by its own rule (note 288): feral at it, and hurt unless only the gang's blows hurt it.
+        Assert.True(g.Feral, "the Grumbler shrugged it off");
+        if (!Tuning.Enemies.Grumbler.DrivenOff)
+            Assert.True(g.Health < Tuning.Enemies.Grumbler.Health, $"the Grumbler took nothing ({g.Health})");
+        Assert.True(stopped, "flew on through it");
+        Assert.NotEqual(Surface.Air, inside.Surface);
+        Assert.False(inside.Has(PlayerFlags.Fired));
+        var down = PlayerMotor.WorldPosition(inside, w.Train);
+        var muzzle = w.Train.Frames[Van(w)].ToWorld(HumanCannonball.Muzzle(w.Train, Van(w), Tuning.Combat.Cannonball));
+        static double Flat(Double3 a, Double3 b) => Math.Sqrt((a.X - b.X) * (a.X - b.X) + (a.Z - b.Z) * (a.Z - b.Z));
+        Assert.True(Flat(down, muzzle) < Flat(landed, muzzle) - 1, $"came down {Flat(down, muzzle):F1} m out, the clear flight {Flat(landed, muzzle):F1} m");
+    }
+
     [Fact]
     public void TheLandingIsNeverOffTheMapOrPastTheLinesEnd()
     {
