@@ -118,15 +118,29 @@ public sealed partial class SceneArt
         if (props.Get("crane_controls") is { } controls)
             mesh.Append(controls, acrossBasis * Matrix4x4.CreateTranslation(crane.Controls.RelativeTo(eye)));
         // The castings: stacked, on the hook, or lashed on a car's roof.
-        if (props.Get("casting") is { } casting)
-            foreach (var c in crane.Castings)
-                if (crane.Where(c, frames) is { } at)
-                {
-                    bool onCar = c.State == Sim.Run.CastingState.Loaded && c.Car >= 0 && c.Car < frames.Count;
-                    var carUp = onCar ? ToF(frames[c.Car].Up) : up;
-                    var x = onCar ? ToF(frames[c.Car].Right) : along;
-                    mesh.Append(casting, Placed(x, carUp, Vector3.Cross(x, carUp), (at + (onCar ? frames[c.Car].Up : Double3.Up) * 0.5).RelativeTo(eye)));
-                }
+        Castings(mesh, crane, frames, eye, loadedOnly: false);
+        return true;
+    }
+
+    /// <summary>
+    /// A crane's castings: stacked, on its hook, or loaded into a car. <paramref name="loadedOnly"/>: only those in a car of the
+    /// train, which ride on with it wherever its stop's crane is (note 838: the scene drew a stop's castings only near its
+    /// crane, so one loaded into car 1 was gone from sight once the train had left the stop). False without the art's model.
+    /// </summary>
+    public bool Castings(MeshBuilder mesh, Sim.Run.Crane crane, IReadOnlyList<CarFrame> frames, Double3 eye, bool loadedOnly)
+    {
+        if (PropArt.Of(Look).Get("casting") is not { } casting)
+            return false;
+        var along = Vector3.Normalize(ToF(crane.Corner(1, 0) - crane.Corner(0, 0)));
+        foreach (var c in crane.Castings)
+        {
+            bool onCar = c.State == Sim.Run.CastingState.Loaded && c.Car >= 0 && c.Car < frames.Count;
+            if (loadedOnly && !onCar || crane.Where(c, frames) is not { } at)
+                continue;
+            var carUp = onCar ? ToF(frames[c.Car].Up) : Vector3.UnitY;
+            var x = onCar ? ToF(frames[c.Car].Right) : along;
+            mesh.Append(casting, Placed(x, carUp, Vector3.Cross(x, carUp), (at + (onCar ? frames[c.Car].Up : Double3.Up) * 0.5).RelativeTo(eye)));
+        }
         return true;
     }
 
