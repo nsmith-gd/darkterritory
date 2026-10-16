@@ -329,6 +329,9 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 "crew-hoist.creak": "swivel", "crew-hoist.yelp": "whoa",
                 # Note 802's gag: the modelled flop, whose thump lands plainly before its oof (the real drop's onset is soft).
                 "crew-hoist.land": "flop",
+                # Note 828: the human cannonball, the barrel's iron, the 'wheee!', the air past them, the roll.
+                "crew-cannonball.climb": "barrel", "crew-cannonball.whoop": "whee", "crew-cannonball.flight": "rush",
+                "crew-cannonball.land": "roll",
                 # Note 809: the Mouse Moose from the packs' real things (gravel, a hinge's squeal, a rat's iron tink, earth),
                 # the models candidates; the casting's thud the real one, which has the weight.
                 "tell-mouse-moose.creep": "cinders", "tell-mouse-moose.squeak": "hinge", "cs-mouse-moose.bite": "iron",
@@ -611,6 +614,12 @@ CUE_DEF = {
     "crew-hoist.creak": {"minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
     "crew-hoist.yelp": {"minDistance": 2, "maxDistance": 90, "rolloff": 1.0},
     "crew-hoist.land": {"minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
+    # The human cannonball (note 828): into the barrel heard round the gun; the whoop as far as a yell carries; the flight's air
+    # close to the flier; the landing as the hook's.
+    "crew-cannonball.climb": {"minDistance": 1.5, "maxDistance": 30, "rolloff": 1.0},
+    "crew-cannonball.whoop": {"minDistance": 2, "maxDistance": 90, "rolloff": 1.0},
+    "crew-cannonball.flight": {"minDistance": 1, "maxDistance": 30, "rolloff": 1.0},
+    "crew-cannonball.land": {"minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
     # Note 806: U1's whimsies and pets at the tier and reach #967 gave its own made sounds (GameAudio.Whimsy); the calliope's
     # note is the whistle (a tell: the Choir hears it), so it has the whistle's tier, reach and level (-20 LUFS +5 dB there,
     # -16 LUFS +1 dB here).

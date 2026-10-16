@@ -1210,6 +1210,14 @@ CUES = {
         # Note 802 (the director, 15 Oct): the drop is "a silly gag, not a big grief", so the landing's comic.
         O("land", "Down on the ground after coming off the hook: a padded thump and a comic 'oof!', never a body falling dead", vars=3),
     ],
+    # The human cannonball (U1's #1106, note 746; queue #556, note 828): a crewmate climbs into the guard van's cannon and is
+    # fired, "going for fun": the landing never hurts.
+    "crew-cannonball": [
+        O("climb", "Climbing into the cannon's barrel (or back out): boots and knees on the bore's iron, booming hollow", vars=3),
+        O("whoop", "Fired from the cannon: a long delighted cry as the shot throws them", vars=3),
+        L("flight", "In flight from the cannon: the air tearing past and the coat flapping"),
+        O("land", "Down from the cannon: a padded thump, a roll along the ground and a comic 'oof!'", vars=3),
+    ],
     # Odd outcomes to find (queue #519, note 786; K1's #1038, note 730): small strange things in the towns and dead villages,
     # by design and unexplained. Heard once each, where they happen.
     "world-odd": [
