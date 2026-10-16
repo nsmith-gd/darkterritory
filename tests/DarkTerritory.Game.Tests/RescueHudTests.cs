@@ -69,7 +69,7 @@ public class RescueHudTests
         var spot = train.Frames[1].ToWorld(new Double3(train.Frames[1].Shape.HalfWidth + 4, 0, 0));
         var me = PlayerMotor.SpawnOnGround(spot, train.Line, train.Cars[1].FrontDistance, P) with { Yaw = 0 };
         var friend = PlayerMotor.SpawnOnGround(spot + new Double3(0, 0, -0.8), train.Line, train.Cars[1].FrontDistance, P);
-        Assert.Equal("CARRY : HOLD [E]   SHOVE : [LEFT ALT]", Hud.Prompt(new Seat(world, 1, me, [(2, friend)])));
+        Assert.Equal("CARRY : HOLD [E]   SHOVE : [CAPS LOCK]", Hud.Prompt(new Seat(world, 1, me, [(2, friend)])));
         world.CrewMischief = false;
         Assert.Equal("CARRY : HOLD [E]", Hud.Prompt(new Seat(world, 1, me, [(2, friend)])));
         // Carrying her: nothing at the crosshair; the corner has the keys, the throw only with the switch on.
