@@ -73,7 +73,7 @@ only see what's on main here. The role, and how to start one on another account,
 
 | Account | Weekly % | Weekly resets (UTC) | Session % | State | Updated (UTC) |
 |---|---|---|---|---|---|
-| nathaniel2 | 92 | Wed 21 Oct 20:00 | 32 (resets 16:20 UTC) | **LIMITED until Wed 21 Oct 20:00 UTC.** Handed off at 14:18 UTC 16 Oct: its workers land their Handoff blocks and set their rows `open for pick-up`; the 16 Oct playtest's open lines are anyone's. Its Token Budget Manager keeps build duty on the reserve (two build checks a day) until an ACTIVE account takes it | 2026-10-16 14:18 |
+| nathaniel2 | 92 | Wed 21 Oct 20:00 | 35 (resets 16:20 UTC) | **ACTIVE on its reserve until Saturday night**, the only account working until nathaniel3 is back (the director, 16 Oct). One worker, the Queue #531 chat, on the 16 Oct playtest's small lines (18 the boiler, 23 the vent, 14 the crane's keys, 7 the cannon); every other worker is stopped, and their items stay `open for pick-up`. Stops at 98%. Its Token Budget Manager keeps build duty | 2026-10-16 14:35 |
 | nathaniel1 | 98 | Sun 18 Oct 17:00 | 4 (resets 16:40 UTC) | LIMITED until the weekly reset (Sun 18 Oct 17:00 UTC): weekly 98%, no worker active (U1 stopped for the week, #1136); its items are `open for pick-up` | 2026-10-16 14:10 |
 
 - **State:** ACTIVE (working); PAUSED until *time* (the 5-hour limit: its sessions are waiting with their work intact, so
@@ -115,7 +115,7 @@ it at a time:
 
 | Duty | Account | Claimed (UTC) |
 |---|---|---|
-| Playtest builds | nathaniel2, on its reserve while LIMITED: **take it** if you're ACTIVE | 2026-10-15 18:00 |
+| Playtest builds | nathaniel2 (on its reserve: an ACTIVE account may take it) | 2026-10-16 14:35 |
 
 - **Claim it** by putting your account in the row (a docs PR) when it's empty, or when its account is LIMITED or PAUSED in
   *Accounts and usage limits*. An account going LIMITED clears its own claim first. With nothing in the row, whoever's
