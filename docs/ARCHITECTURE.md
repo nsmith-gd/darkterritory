@@ -1019,9 +1019,10 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [834. The director's playtest of 16 Oct, lines 19 and 27: the Moose's munching quieter, the walls' guns never on a beat (AU1, queue #562;…](notes/834.md)
 - [835. Clipped through a wall at frontier:7's wreck yard (queue #563, B1; the director's playtest of 16 Oct, line 20: "Oh, I have clipped straight…](notes/835.md)
 - [837. 837. **The cab's bend warning off, the tilt kept; the incident report goes once delivered (B3, queue #565; the director's](notes/837.md)
-- [839. The whistle held is the pull held (A1, queue #567; the director, 16 Oct, `docs/playtest/2026-10-16.md` line 1)](notes/839.md)
 - [838. What the crane loaded rides on, drawn with the train (A1, queue #566; the director, 16 Oct, `docs/playtest/2026-10-16.md` line 21)](notes/838.md)
+- [839. The whistle held is the pull held (A1, queue #567; the director, 16 Oct, `docs/playtest/2026-10-16.md` line 1)](notes/839.md)
 - [840. No dark smudge round the hands and tools over the map (C1, queue #568; the director's playtest of 16 Oct, line 16)](notes/840.md)
 - [841. The stilt town lived in and solid (queue #569, B2; the director's playtest of 16 Oct, line 28, a Flooder town on arrival: "they have little…](notes/841.md)
 - [842. The view no longer widens with speed (P16, queue #570; the director's playtest of 16 Oct, line 8)](notes/842.md)
+- [846. The cannon: further down, no firing in a town, the reload clip only on a reload (T2, queue #574; the director's playtest of 16 Oct, line 7)](notes/846.md)
 <!-- end of the notes index -->
