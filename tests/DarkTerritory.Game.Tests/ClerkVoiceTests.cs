@@ -92,6 +92,15 @@ public class ClerkVoiceTests
     }
 
     [Fact]
+    public void TheHumanCannonballsBulletinIsSaidWhole()
+    {
+        // Note 746: "Sam's been fired from the rear cannon", for a bot's name (a typed one is the set breaking up, below).
+        var clerk = Clerk();
+        foreach (string line in Sim.Run.Radio.Fired(Players.BotName(3)))
+            Assert.True(!clerk.Pieces(line).Any(p => p.Kind == ClerkVoice.PieceKind.Breakup), $"the set breaks up over '{line}'");
+    }
+
+    [Fact]
     public void ANameAPlayerTypedIsTheSetBreakingUpOverIt()
     {
         var clerk = Clerk();

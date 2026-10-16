@@ -143,6 +143,12 @@ public static class Radio
     /// GDD App. E.12 question 5 (note 308): the train's last engineering kit lost, the yard says so, flat, once. It says what's
     /// known (gone with a car, by its number), not what follows from it.
     /// </summary>
+    /// <summary>
+    /// The human cannonball (note 746: "Sam's been fired from the rear cannon"): the yard on the radio, once a crewmate's been
+    /// fired from the guard van's gun.
+    /// </summary>
+    public static List<string> Fired(string name) => ["Yard to consist.", $"{name} fired from the rear cannon.", "Yard out."];
+
     public static List<string> KitLost(KitWhere kit) =>
     [
         "Yard to consist.",

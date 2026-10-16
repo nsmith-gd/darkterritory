@@ -467,6 +467,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     }
 
     List<string>? _manifest, _tally, _bulletin;
+    /// <summary>Who's in the air from the cannon and been said on the radio (note 746): said once a flight.</summary>
+    readonly HashSet<byte> _firedSaid = [];
     List<double>? _manifestTimes, _tallyTimes, _bulletinTimes;
     double _manifestSeconds = -1, _tallySeconds = -1, _bulletinSeconds = -1;
     /// <summary>How long the run's said the kit's lost (note 308): it's said once that's held a second (stranded.lostForSeconds).</summary>
@@ -528,6 +530,20 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         }
         else if (_bulletinSeconds >= 0)
             _bulletinSeconds += SimConstants.TickSeconds;
+        // The human cannonball (note 746): someone just fired from the rear cannon, the yard says so (a bulletin, as the kit's).
+        foreach (byte id in Client.RemoteIds.Append((byte)PlayerId).Distinct())
+        {
+            bool fired = id == PlayerId ? Player.Has(PlayerFlags.Fired)
+                : Client.TryGetRemote(id, 1, out var other) && other.Has(PlayerFlags.Fired);
+            if (fired && _firedSaid.Add(id) && !Bulletin)
+            {
+                _bulletin = Sim.Run.Radio.Fired(Sim.Run.IncidentLog.NameOf(World, id));
+                _bulletinTimes = RadioTimesOf(_bulletin);
+                _bulletinSeconds = 0;
+            }
+            else if (!fired)
+                _firedSaid.Remove(id);
+        }
         if (_tally is null && run.Report is { End: Sim.Run.RunEnd.Delivered } report)
         {
             _tally = Sim.Run.Radio.Tally(report, OwnedTally);
