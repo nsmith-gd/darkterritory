@@ -74,7 +74,7 @@ only see what's on main here. The role, and how to start one on another account,
 | Account | Weekly % | Weekly resets (UTC) | Session % | State | Updated (UTC) |
 |---|---|---|---|---|---|
 | nathaniel2 | 89 | Wed 21 Oct 20:00 | 13 (resets 16:20 UTC) | ACTIVE, the director's 16 Oct playtest lines going out; ~2.5%/h this morning, so 92% (handoff, build duty released) around 14:00 UTC 16 Oct. Updated hourly 6 am–9 pm Montreal | 2026-10-16 12:42 |
-| nathaniel1 | 92 | Sun 18 Oct 17:00 | 16 (resets 19:50 UTC) | ACTIVE, spending the week's last 8%: one worker (U1) lands #967, then takes pick-ups; at the day's pace the weekly limit is reached ~16 Oct 02:00 UTC, its rows handed off by then. Its other items are `open for pick-up` now | 2026-10-15 17:47 |
+| nathaniel1 | 98 | Sun 18 Oct 17:00 | 2 (resets 16:40 UTC) | LIMITED until the weekly reset (Sun 18 Oct 17:00 UTC): weekly 98%, no worker active (U1 stopped for the week, #1136); its items are `open for pick-up` | 2026-10-16 12:48 |
 
 - **State:** ACTIVE (working); PAUSED until *time* (the 5-hour limit: its sessions are waiting with their work intact, so
   its items aren't abandoned: don't take them); LIMITED until *weekly reset* (the weekly limit: its items are handed off).
