@@ -837,7 +837,7 @@ public static class PlayerMotor
             return;
         var frame = train.Frames[s.Parent];
         var at = s.Position;
-        if (v.X != 0 && !Footing(train, frame, at + new Double3(v.X * dt + Math.Sign(v.X) * e.Lip, 0, 0), e.CatchDrop))
+        if (v.X != 0 && !Footing(train, frame, at + new Double3(v.X * dt + Math.Sign(v.X) * e.Lip, 0, 0), e.CatchDrop, p.StepUp))
         {
             double length = Math.Sqrt(wish.X * wish.X + wish.Z * wish.Z);
             bool meant = length > 1e-6 && wish.X * Math.Sign(v.X) >= DMath.Cos(e.StepOffDegrees * Math.PI / 180) * length;
@@ -846,7 +846,7 @@ public static class PlayerMotor
         }
         // Off an end (note 717; the director's 14 Oct playtest, line 4: "let people walk off the top of the cars"): with walkOff,
         // as off a side, walking at it on purpose.
-        if (v.Z != 0 && !Footing(train, frame, at + new Double3(0, 0, v.Z * dt + Math.Sign(v.Z) * e.Lip), e.CatchDrop))
+        if (v.Z != 0 && !Footing(train, frame, at + new Double3(0, 0, v.Z * dt + Math.Sign(v.Z) * e.Lip), e.CatchDrop, p.StepUp))
         {
             double length = Math.Sqrt(wish.X * wish.X + wish.Z * wish.Z);
             bool meant = e.WalkOff && length > 1e-6 && wish.Z * Math.Sign(v.Z) >= DMath.Cos(e.StepOffDegrees * Math.PI / 180) * length;
@@ -858,12 +858,18 @@ public static class PlayerMotor
 
     /// <summary>
     /// Whether there's footing under a point in a car's frame, given at the height of the feet: this car's or a neighbour's,
-    /// no higher than a step up, and a roof or a plate no further down than <paramref name="drop"/> (beyond that it's the
-    /// ballast).
+    /// no higher than a step up (<paramref name="up"/>), and a roof or a plate no further down than <paramref name="drop"/>
+    /// (beyond that it's the ballast).
     /// </summary>
-    static bool Footing(TrainOnLine train, CarFrame frame, Double3 local, double drop)
+    /// <remarks>
+    /// Note 830 (the director, 15 Oct, at the coupling gap: "the player doesnt automatically step up over this ledge, it forces
+    /// me to jump every time"): a step up is footing. Off the plate the engine's deck and the footplate beside it are 0.3 m
+    /// up, one the motor steps you onto; counted only to the feet, they read as a drop, and walking at the deck more than
+    /// <see cref="EdgeTuning.StepOffDegrees"/> off straight held you at the plate's lip short of it.
+    /// </remarks>
+    static bool Footing(TrainOnLine train, CarFrame frame, Double3 local, double drop, double up)
     {
-        if (Catches(frame.Shape.TopAt(local.X, local.Z, local.Y + 0.05), local.Y, drop))
+        if (Catches(frame.Shape.TopAt(local.X, local.Z, local.Y + up), local.Y, drop))
             return true;
         var world = frame.ToWorld(local);
         foreach (var other in train.Frames)
@@ -871,7 +877,7 @@ public static class PlayerMotor
             if (other.Index == frame.Index || (other.Origin - world).Length > NearbyCar)
                 continue;
             var there = other.ToLocal(world);
-            if (Catches(other.Shape.TopAt(there.X, there.Z, there.Y + 0.05), there.Y, drop))
+            if (Catches(other.Shape.TopAt(there.X, there.Z, there.Y + up), there.Y, drop))
                 return true;
         }
         return false;
