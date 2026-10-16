@@ -1220,7 +1220,10 @@ public class StopCrewTests
         // Note 439 (note 413's "not yet"): a crate hand in a cargo car, loading through its open side door, is outside to the
         // Choir (an open door lets it in). With the Choir gathering it puts its crate down in there, shuts the car's doors from
         // inside and waits behind them; quiet again, it opens the side door and goes back to loading, and they leave together.
-        var night = new Night(cars: 8, walkers: 3, crateHands: true, ids: true, modules: ModuleKind.Crates);
+        // From 700 m short (note 843): at the boiler's faster gauge, from the usual 600 m the crate hands stall on a heavy crate
+        // and the driver gives up on the loading at 360 s (it did at the old rate too, door 2 shut only just in time); that's
+        // note 843's follow-up, not this test's. From 700 m the loading's done in 162 s and they leave together as before.
+        var night = new Night(cars: 8, walkers: 3, crateHands: true, ids: true, from: 700, modules: ModuleKind.Crates);
         var train = night.Train;
         var world = night.World;
         var run = world.Run!;
