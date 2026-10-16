@@ -67,11 +67,11 @@ Cut, layered and processed for the game.
 - Body percussion (github.com/sfzinstruments/body_percussion)
   CC0 1.0. In 1 of the game's sounds.
 - Impact Sounds, by Kenney (kenney.nl)
-  CC0 1.0. In 417 of the game's sounds.
+  CC0 1.0. In 419 of the game's sounds.
 - RPG Audio, by Kenney (kenney.nl)
-  CC0 1.0. In 344 of the game's sounds.
+  CC0 1.0. In 347 of the game's sounds.
 - SFX 100, volume 2
-  CC0 1.0. In 432 of the game's sounds.
+  CC0 1.0. In 435 of the game's sounds.
 - Shinyguitar, by D. Smolken, Karoryfer Samples (github.com/sfzinstruments/karoryfer.shinyguitar)
   CC0 1.0. In 1 of the game's sounds.
 - UI Audio, by Kenney (kenney.nl)
