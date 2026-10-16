@@ -41,6 +41,8 @@ public sealed record GunTuning(double RoundsPerSecond, double Range, double Trav
     double MinPitchDegrees, double MaxPitchDegrees, int Ammo, double Reach, double DamagePerRound, double MinPressure)
 {
     public int TicksPerRound => (int)Math.Round(SimConstants.TickRate / RoundsPerSecond);
+    /// <summary>Note 846: no gun fires from inside a walled town (<see cref="World.InTown"/>).</summary>
+    public bool HoldInTowns { get; init; } = true;
     /// <summary>The reload's steps: powder, pack, ball (note 746; 0: the old magazine gun, no reload).</summary>
     public int ReloadSteps { get; init; } = 3;
     /// <summary>Seconds of Use held at the gun per step.</summary>

@@ -21,7 +21,12 @@
     "forwardTraverseDegrees": 360,
     // Spec B.7: no firing within this many degrees of the train's own body axis.
     "deadZoneDegrees": 20,
-    "minPitchDegrees": -12,
+    // Note 846 (the director's playtest of 16 Oct, line 7: "we're going to want to be able to pitch the cannon down a little bit
+    // more"): -20 (was -12), so a roof gun lays on what's close in beside the train.
+    "minPitchDegrees": -20,
+    // Note 846 (line 7: "the cannon lets me fire when I'm in a town, and I just fired at a house ... we really shouldn't let
+    // people do that"): a gun whose car is inside a walled town (the departure's or the arrival's, World.InTown) won't fire.
+    "holdInTowns": true,
     "maxPitchDegrees": 45,
     // App. C.3: "powder and shot are stocked at departure" and are rare: a gun's shots for the night.
     "ammo": 24,

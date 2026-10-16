@@ -133,7 +133,7 @@ public class HudTests
         // Note 717: coal on the shovel can be thrown instead; the shove's key reads as bound.
         s.Player = At(InteractableKind.Firebox) with { Flags = PlayerFlags.Shovelful };
         Assert.Equal("SHOVEL COAL : HOLD [E]   THROW IT : [T]", Hud.Prompt(s));
-        Assert.Equal("SHOVE : [LEFT ALT]", Hud.Bound("SHOVE : [LEFT ALT]"));
+        Assert.Equal("SHOVE : [CAPS LOCK]", Hud.Bound("SHOVE : [CAPS LOCK]"));
         s.Player = At(InteractableKind.Vent);
         Assert.Equal("VENT STEAM : HOLD [E]", Hud.Prompt(s));
         // At the controls looking at nothing (note 285): nothing at the crosshair; driving them is the corner's.
@@ -189,8 +189,8 @@ public class HudTests
         s.Controls.Reverser = 1;
         Assert.DoesNotContain(Hud.Hints(s).Lines, l => l.Contains("REVERSE"));
         s.Train.Dynamics.Velocity = 0;
-        // Note 664: the vent's its own key (LeftCtrl's the crouch); note 703: Caps Lock, by A.
-        Assert.Contains("VENT : HOLD [CAPS LOCK]", Hud.Bound(string.Join("   ", lines)));
+        // Note 664: the vent's its own key (LeftCtrl's the crouch); note 703: Caps Lock, by A; note 844: Left Alt, by Space.
+        Assert.Contains("VENT : HOLD [LEFT ALT]", Hud.Bound(string.Join("   ", lines)));
         // The corner's head is the speed, for the driver to read against the boards.
         Assert.Equal($"{Math.Abs(s.Train.Dynamics.Speed) * 3.6:0} KM/H", head?.Split("  ")[0]);
         s.Train.Boiler.Vented = true;

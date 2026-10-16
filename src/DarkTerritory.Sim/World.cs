@@ -1843,7 +1843,7 @@ public sealed partial class World
                 Drew(DrawCause.Cannon, playerId, Director?.Tuning.Draw.Weight(DrawCause.Cannon) ?? 0);
             }
         }
-        if (!manned && Combat is { } c && Guns.TryFire(s, intent, Train, c.Guns, ref Choir, c.Choir, targets, Tick, playerId) is { } shot)
+        if (!manned && Combat is { } c && !(Guns.MannedGun(s, Train, c.Guns) is { } held && GunHeld(held)) && Guns.TryFire(s, intent, Train, c.Guns, ref Choir, c.Choir, targets, Tick, playerId) is { } shot)
         {
             Shots.Add(shot);
             // A good shot at a switch stand throws it (note 595), the host's say as a hand on it is.
@@ -2172,6 +2172,30 @@ public sealed partial class World
             return false;
         return along >= (terminus?.GateM ?? run.Route.Length - run.Tuning.TerminusZone);
     }
+
+    /// <summary>
+    /// Whether a world point is inside a walled town: the departure's, up to its gate, or the arrival's, from its gate on (the
+    /// walled reach of <see cref="InFort"/>). Note 846 (the director's playtest of 16 Oct, line 7: "I just fired at a house").
+    /// </summary>
+    public bool InTown(Ballast.Double3 world)
+    {
+        if (Run is not { } run || Town?.Plan.Bounds is null && Arrival?.Plan.Bounds is null)
+            return false;
+        double hint = Train.Dynamics.Distance;
+        Train.Line.Nearest(world, ref hint);
+        double along = hint;
+        var rail = Train.Line.Sample(Rail.RailLine.MainPath, along);
+        double off = ((world - rail.Position) with { Y = 0 }).Length;
+        if (along <= run.YardLength && Town?.Plan.Bounds is { } walled)
+            return off <= Math.Max(walled.Left, walled.Right) + 5;
+        if (Arrival?.Plan.Bounds is { } there && run.Route.Plan?.Terminus is { } home && along >= home.GateM)
+            return off <= Math.Max(there.Left, there.Right) + 5;
+        return false;
+    }
+
+    /// <summary>Note 846: whether <paramref name="vehicle"/>'s gun holds its fire, its car inside a walled town (combat.json holdInTowns).</summary>
+    public bool GunHeld(int vehicle) =>
+        Combat is { Guns.HoldInTowns: true } && vehicle >= 0 && vehicle < Train.Frames.Count && InTown(Train.Frames[vehicle].Origin);
 
     /// <summary>Any of the train in a fort (note 273): the director sends nothing then.</summary>
     public bool TrainInFort => Run is { Tuning.Forts.Safe: true } && Train.Frames.Count > 0

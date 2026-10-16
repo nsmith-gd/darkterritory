@@ -246,7 +246,10 @@ public static partial class Hud
             var gun = train.Vehicles[manned].Gun;
             bool steam = train.BoilerTuning is null || train.Boiler.Pressure >= combat.Guns.MinPressure;
             int ready = Guns.Ready(gun, combat.Guns);
-            if (!gun.Jammed && gun.ReloadNeeded == 0 && ready > 0 && steam)
+            // Note 846: inside a walled town the gun holds its fire, and says why.
+            if (world.GunHeld(manned))
+                lines.Add("NO FIRING IN TOWN");
+            else if (!gun.Jammed && gun.ReloadNeeded == 0 && ready > 0 && steam)
                 lines.Add("FIRE : [LMB]");
             lines.Add("GET UP : [SPACE]");
             // With a rack (note 374): what's at the gun, and what's left down in the locker for every gun.
