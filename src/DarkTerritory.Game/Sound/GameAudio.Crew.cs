@@ -99,6 +99,9 @@ public sealed partial class GameAudio
         public bool Alive, Moving, Shovelful, LeftTrain, BreathIn = true;
         /// <summary>Come off a crane's hook with a drop under them, not yet down (note 802's gag landing).</summary>
         public bool OffHook;
+        /// <summary>Fired from the cannon and not yet down (note 828), and the whoop carried with them.</summary>
+        public bool Flying;
+        public SoundInstance? Whoop;
         public PlayerFlags Flags;
         public Tool Held;
         public Double3 AirVelocity;
@@ -318,6 +321,8 @@ public sealed partial class GameAudio
             CrewRescue(world, id, s, c, feet, occlusion, placed);
             // Off the crane's hook high up (note 798): the yelp as the drop takes them.
             CrewHoist(world, s, c, feet, occlusion);
+            // The human cannonball (note 828): into the barrel, the shot's whoop and the flight.
+            CrewCannonball(id, s, c, feet, occlusion);
             if (!s.Alive || placed)
             {
                 Remember(c, s, world);
@@ -337,7 +342,7 @@ public sealed partial class GameAudio
                 landedHard = s.Health < c.Health;
                 double knock = Knock(c, across, onTrain, tuning);
                 // Down after a drop off a crane's hook, the gag's landing in place of this one (note 802).
-                if (!HoistLanding(c, feet, occlusion) && (c.Surface == Surface.Air || knock > rollAbove))
+                if (!CannonballLanding(c, feet, occlusion) && !HoistLanding(c, feet, occlusion) && (c.Surface == Surface.Air || knock > rollAbove))
                 {
                     if (knock > rollAbove)
                     {

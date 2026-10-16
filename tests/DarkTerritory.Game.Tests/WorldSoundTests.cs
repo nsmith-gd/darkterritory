@@ -1270,6 +1270,66 @@ public class WorldSoundTests
     }
 
     [Fact]
+    public void TheHumanCannonballIsHeardClimbingInWhoopingThroughTheAirAndLandingAsAGag()
+    {
+        // Note 828 (queue #556; U1's #1106, note 746): off the crewmate's own flags. Into the barrel (InCannon), the bore's
+        // iron; fired (Fired), a whoop once where they are and the air past them held at their head as they fly; down, the
+        // gag's thump, roll and oof in place of the landing's own sound. Climbing back out before the shot is the barrel too.
+        var (world, _) = Night(f => f.Facility == FacilityKind.Foundry, from: 20);
+        var audio = new GameAudio(Content) { PlayerTuning = DataFile.Load<PlayerTuning>(Path.Combine(Content, PlayerTuning.File)) };
+        Held(audio, "crew-cannonball.flight");
+        Stand(audio, "crew-cannonball.climb", "crew-cannonball.whoop", "crew-cannonball.land");
+        string[] feet = ["wood", "grate", "plate", "roof", "coal", "ballast", "dirt", "grass", "mud", "cobbles", "concrete", "water", "ground"];
+        Stand(audio, [.. feet.Select(m => $"crew-footsteps.land.{m}")]);
+        var ears = new Ears(audio, world);
+        var line = world.Train.Line;
+        var start = line.Sample(world.Train.Dynamics.Distance - 30).Position + new Double3(4, 0, 0);
+        PlayerState On(Double3 at, PlayerFlags flags, byte placed, bool air = false) =>
+            PlayerMotor.SpawnOnGround(at, line, 0, audio.PlayerTuning!) with
+            {
+                Position = air ? at : PlayerMotor.SpawnOnGround(at, line, 0, audio.PlayerTuning!).Position,
+                Surface = air ? Surface.Air : Surface.Ground,
+                Flags = flags,
+                Placed = placed,
+            };
+        var ear = start + new Double3(0, 1.6, 6);
+        int Count(string name) => ears.Started.Count(v => v.Name == name);
+
+        audio.CrewStates = [(3, On(start, PlayerFlags.None, 1))];
+        ears.Tick(ear, 3);
+        audio.CrewStates = [(3, On(start, PlayerFlags.InCannon, 1))];
+        ears.Tick(ear, 3);
+        Assert.Equal(1, Count("crew-cannonball.climb"));
+        // Fired: the whoop once, the air held at their head, following them along the flight.
+        var up = start + new Double3(0, 6, -10);
+        audio.CrewStates = [(3, On(up, PlayerFlags.Fired, 1, air: true))];
+        ears.Tick(ear, 3);
+        Assert.Equal(1, Count("crew-cannonball.whoop"));
+        var flight = audio.Mixer.Voices.Single(v => v.Name == "crew-cannonball.flight" && !v.Finished && !v.Stopped);
+        var further = start + new Double3(0, 8, -25);
+        audio.CrewStates = [(3, On(further, PlayerFlags.Fired, 1, air: true))];
+        ears.Tick(ear, 3);
+        Assert.Equal(1, Count("crew-cannonball.whoop"));
+        Assert.True((flight.Position - (further + Double3.Up * 1.6)).Length < 0.5, $"the flight's air {(flight.Position - further).Length:0.0} m off them");
+        // Down: the gag, not a landing; the air let go.
+        var down = start + new Double3(0, 0, -40);
+        audio.CrewStates = [(3, On(down, PlayerFlags.None, 1))];
+        ears.Tick(ear, 3);
+        Assert.Equal(1, Count("crew-cannonball.land"));
+        Assert.Equal(0, ears.Started.Count(v => v.Name.StartsWith("crew-footsteps.land.")));
+        ears.Tick(ear, SimConstants.TickRate / 2);
+        Assert.DoesNotContain(audio.Mixer.Voices, v => v.Name == "crew-cannonball.flight" && !v.Finished && !v.Stopped);
+        // In and back out before the shot: the barrel both ways, nothing else.
+        audio.CrewStates = [(3, On(start, PlayerFlags.InCannon, 1))];
+        ears.Tick(ear, 3);
+        audio.CrewStates = [(3, On(start, PlayerFlags.None, 1))];
+        ears.Tick(ear, 3);
+        Assert.Equal(3, Count("crew-cannonball.climb"));
+        Assert.Equal(1, Count("crew-cannonball.whoop"));
+        Assert.Equal(1, Count("crew-cannonball.land"));
+    }
+
+    [Fact]
     public void ACastingTheMouseMooseDragsDownItsHoleIsHeardTippingInAndOneSetDownOffTheHookIsNot()
     {
         // Note 809: the Mouse Moose's casting dragged to its hole (Stacked or Taken to Lost) tips in where it lies, off the
