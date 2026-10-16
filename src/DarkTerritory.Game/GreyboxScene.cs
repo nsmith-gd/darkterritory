@@ -520,6 +520,10 @@ public sealed partial class GreyboxScene
                                 Crane(mesh, crane, frames, eye);
                             CraneLamps(mesh, crane, frames, eye);
                         }
+                        // Its stop left behind (note 838, the director's 16 Oct playtest line 21: "Where are the crates that I
+                        // loaded up? In car one, they're no longer here"): what it loaded rides on in the train, and is drawn with it.
+                        else if (Look?.Art.Castings(mesh, crane, frames, eye, loadedOnly: true) != true)
+                            Castings(mesh, crane, frames, eye, loadedOnly: true);
                 }
             // A yard's powerhouse with its power on (level-design D.2): the lamp over its door burns; an open one's (note 509)
             // hangs over its switchboard inside, so the engine house is dark until the power runs, and lit from its doorway after.
@@ -4696,9 +4700,18 @@ public sealed partial class GreyboxScene
         mesh.Box(V(cab + Double3.Up * 0.3, eye), Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, new Vector3(0.92f, 0.12f, 0.6f), Palette.LampAmber * 0.5f);
         mesh.Emissive = 0;
         mesh.Box(V(crane.Controls + Double3.Up * 0.55, eye), Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, new Vector3(0.25f, 0.55f, 0.2f), Palette.IronGrey);
+        Castings(mesh, crane, frames, eye, loadedOnly: false);
+    }
+
+    /// <summary>
+    /// The greybox's castings: stacked, on the hook, or in a car. <paramref name="loadedOnly"/>: only those loaded into a car of
+    /// the train, drawn with it wherever its stop's crane is (note 838).
+    /// </summary>
+    static void Castings(MeshBuilder mesh, Sim.Run.Crane crane, IReadOnlyList<CarFrame> frames, Double3 eye, bool loadedOnly)
+    {
         var size = crane.Tuning.CastingSize;
         foreach (var c in crane.Castings)
-            if (crane.Where(c, frames) is { } at)
+            if ((!loadedOnly || c.State == Sim.Run.CastingState.Loaded && c.Car >= 0 && c.Car < frames.Count) && crane.Where(c, frames) is { } at)
             {
                 var up = c.State == Sim.Run.CastingState.Loaded && c.Car >= 0 && c.Car < frames.Count ? frames[c.Car].Up : Double3.Up;
                 var centre = at + up * (size[1] * 0.5);
