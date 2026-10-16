@@ -414,4 +414,4 @@ The director asked for the last three friendslop features to be heard. Two were 
 ## 16 Oct, ~02:55 UTC: #561, burned at a fire's edge heard
 
 - #1130 (#559) in review. The director's playtest line 25 ("I wasn't getting any feedback that I was being burned") got a heat glow and smoke from C1 (note 821) and no sound. Claimed queue #561, note 833.
-- `crew-scorch.sizzle`: a coat smouldering, held on whoever a car fire's heat reaches from the first tick, at the glow's own strength, under 5 kHz so it's never the car-fire tell; two candidates (`recipes/scorch.py`), the modelled one installed (the real one's crackle clicks past the tell's band); a new checklist row; `CrewAudioTests`. Goes up after #1130.
+- `crew-scorch.sizzle`: a coat smouldering, held on whoever a car fire's heat reaches from the first tick, at the glow's own strength, under 5 kHz so it's never the car-fire tell; two candidates (`recipes/scorch.py`), the modelled one installed (the real one's crackle clicks past the tell's band); a new checklist row; `CrewAudioTests`. Joined #1130 while its CI had only just started.
