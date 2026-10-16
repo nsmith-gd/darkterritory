@@ -74,7 +74,7 @@ only see what's on main here. The role, and how to start one on another account,
 | Account | Weekly % | Weekly resets (UTC) | Session % | State | Updated (UTC) |
 |---|---|---|---|---|---|
 | nathaniel2 | 96 | Wed 21 Oct 20:00 | 16 (resets 01:20 UTC) | **ACTIVE on its reserve, no worker running.** The 16 Oct playtest's lines 7, 14, 18 and 23 merged (#1183, #1182, #1179, #1180); note 843's bot stall is `open for pick-up`. Every other item stays `open for pick-up`. Its Token Budget Manager keeps build duty (tonight's builds now carry a Linux zip, #1186) and goes LIMITED at 98% | 2026-10-16 22:00 |
-| nathaniel1 | 98 | Sun 18 Oct 17:00 | 0 (resets 03:00 UTC) | LIMITED until the weekly reset (Sun 18 Oct 17:00 UTC): weekly 98%, no worker active (U1 stopped for the week, #1136); its items are `open for pick-up` | 2026-10-16 22:09 |
+| nathaniel1 | 98 | Sun 18 Oct 17:00 | 0 (resets 03:00 UTC) | LIMITED until the weekly reset (Sun 18 Oct 17:00 UTC): weekly 98%, no worker active (U1 stopped for the week, #1136); its items are `open for pick-up` | 2026-10-16 23:09 |
 
 - **State:** ACTIVE (working); PAUSED until *time* (the 5-hour limit: its sessions are waiting with their work intact, so
   its items aren't abandoned: don't take them); LIMITED until *weekly reset* (the weekly limit: its items are handed off).
