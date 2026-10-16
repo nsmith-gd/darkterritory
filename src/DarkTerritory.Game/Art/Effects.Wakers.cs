@@ -100,18 +100,50 @@ public sealed partial class Effects
         }
     }
 
-    /// <summary>How often each of the town's guns fires on a Waker at the walls (s), and the shot's speed (m/s).</summary>
+    /// <summary>How often each of the town's guns has its turn to fire on a Waker at the walls (s), and the shot's speed (m/s).</summary>
     public const double WallGunEvery = 4.2, WallShotSpeed = 260;
+    /// <summary>How far into its turn a gun may fire (a share of <see cref="WallGunEvery"/>): reloaded and laid, sooner or later.</summary>
+    const double WallGunLate = 0.6;
+    /// <summary>How long the town's fire takes to swell and slacken (s), the two slow waves it's made of.</summary>
+    const double WallSwellSlow = 23, WallSwellFast = 9.7;
 
     /// <summary>
-    /// Gun <paramref name="gun"/>'s beat on <paramref name="seed"/>'s target (note 599): how long since it last fired (s),
+    /// Gun <paramref name="gun"/>'s firing on <paramref name="seed"/>'s target (note 599): how long since it last fired (s),
     /// and that shot's own number. From <paramref name="time"/> alone, so what draws the guns (<see cref="WallGuns"/>) and
-    /// what hears them (GameAudio's, note 772) keep the one beat.
+    /// what hears them (GameAudio's, note 772) keep the one firing.
+    /// Never a beat (queue #562, note 834; the director's 16 Oct playtest, line 27: "they seem like they're firing once a
+    /// second. It should be a bit more random"): each gun has its turn every <see cref="WallGunEvery"/> but fires anywhere in
+    /// the first <see cref="WallGunLate"/> of it, so no two of its shots fall the same gap apart, and it lets some turns go
+    /// by, more of them while the town's fire slackens. The fire swells and slackens over all the guns on one target together
+    /// (<see cref="WallFire"/>), so the walls fire in ragged bursts with lulls between, not a gun a second.
     /// </summary>
     public static (double Since, long Shot) WallGunBeat(double time, long seed, int gun)
     {
-        float off = Hash(seed % 53 + gun * 2.9f) * (float)WallGunEvery;
-        return ((time + off) % WallGunEvery, (long)Math.Floor((time + off) / WallGunEvery) * 31 + gun);
+        double off = Hash(seed % 53 + gun * 2.9f) * WallGunEvery;
+        long turn = (long)Math.Floor((time + off) / WallGunEvery);
+        float s0 = seed % 89 * 0.13f;
+        // Back through its turns to the last it fired in (a lull of a few turns at the most; the smoke's long gone by then).
+        // The hashes on the shot's number kept small, so they don't run out of float the longer the app's been up.
+        for (long k = turn; k > turn - 6; k--)
+        {
+            long shot = k * 31 + gun;
+            float h = shot % 7919;
+            double at = (k + WallGunLate * Hash(h * 0.61f + s0 + 2.3f)) * WallGunEvery - off;
+            if (at <= time && Hash(h * 1.71f + s0 + 0.4f) < WallFire(at, seed))
+                return (time - at, shot);
+        }
+        return (time - ((turn - 5) * WallGunEvery - off), (turn - 6) * 31 + gun);
+    }
+
+    /// <summary>
+    /// How hotly the town's guns are firing on <paramref name="seed"/>'s target at <paramref name="time"/>: the share of
+    /// their turns they fire in, from about a quarter in a lull to nearly all of them at a burst's height. Two slow waves
+    /// out of step, so the bursts and lulls never come round evenly either.
+    /// </summary>
+    public static double WallFire(double time, long seed)
+    {
+        double p = seed % 97 * 0.37;
+        return 0.6 + 0.21 * Math.Sin(2 * Math.PI * time / WallSwellSlow + p) + 0.14 * Math.Sin(2 * Math.PI * time / WallSwellFast + p * 1.7);
     }
 
     /// <summary>
