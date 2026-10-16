@@ -57,6 +57,8 @@ public static class LinesideFootprints
         new("buryingGround", v => $"burying-{v}", 3, NovaKit.BuryingGround, Shape.Uprights, true),
         new("fishShed", v => $"fishshed-{v}", 3, NovaKit.FishShed, Shape.Bounds, true),
         new("ruin", v => $"ruin-{v}", 3, SettingKit.RuinWall, Shape.Bounds, true),
+        // A fortress town begun and stamped flat by a Waker (note 824): its walls where they stand, open where they're trodden.
+        new("fortRuin", v => $"fortruin-{v}", RuinKit.Variants, RuinKit.FortRuin, Shape.Cells, true),
         new("chimney", v => $"chimney-{v}", 3, SettingKit.Chimney, Shape.Bounds, true),
         new("tank", v => $"tank-{v}", 3, SettingKit.Tank, Shape.Round, true),
         new("headframe", _ => "headframe", 1, (l, _) => SettingKit.Headframe(l), Shape.Feet, true),

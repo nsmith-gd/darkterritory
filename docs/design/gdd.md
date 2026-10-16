@@ -271,6 +271,11 @@ The town's lamp posts light the siding. Two porters work the yard all night, and
 - **Seen from far off:** it stands over the whole town. Its Flame is the first thing a crew sees of the town through the fog, a kilometre and more out.
 - **Its keeper** stands at its door all night, between the hours' tubs of coal hauled up its side.
 
+**The night market** *(the director's playtest of 14 Oct, line 3: "Still a bit basic"; queue #552, ARCHITECTURE §8 note 825)*.
+- **Where:** a row of stalls on the square, lit and open, between the hall and the centrepiece. A small town has four, a big one up to eight.
+- **What's on them:** what the town makes, and what a walled town trades for at night: salt cod with the eyes taken out, candles nobody lights after midnight, single boots never a pair, clocks kept a quarter of an hour fast, a loaf put by for whoever's coming in on the train.
+- **Who keeps them:** each stall has its lantern under its awning and a stallholder behind its counter to talk to.
+
 **People.** Text only, no voices, as many as the town is big:
 - the gatekeeper says the town's law first;
 - the keeper of the custom's building and the folk round the centrepiece talk about the custom;
@@ -301,6 +306,12 @@ Use talks to someone, and Use again hears their next line. They turn to face you
 - upstairs in the open houses;
 - things everyone hears when one person does them (ringing the bell);
 - notes found out along the line.
+
+**Fortresses that were only begun** *(the World Building board's Cultures tab, the director, 12 Oct; queue #551, ARCHITECTURE §8 note 824)*. "Ruins of fortress towns that once were. They're always small beginnings of a fortress that were destroyed by the Wakers."
+- **Where:** out beside the line between the stops, two nights in three or so, in every country.
+- **What's left:** a stretch of new wall in the fortresses' stone, never built to its height, with a squat tower at its corner or a gatehouse's two stumps, the scaffolding still up.
+- **What happened:** a Waker came down the line at dawn and stepped on it. A run of the wall is trodden into rubble, its footprint the size of a house pressed into the ground across it, the gate's iron leaf lying in the mud.
+- **Solid:** where it still stands; a crew can walk in by the breach.
 
 ### 3.2 The figures out there *(the director, 8 Oct 2026; ARCHITECTURE §8 note 570)*
 

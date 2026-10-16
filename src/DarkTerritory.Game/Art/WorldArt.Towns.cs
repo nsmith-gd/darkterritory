@@ -324,7 +324,8 @@ public sealed partial class WorldArt
             if (plan.Form.Length > 0 && Landmark(f.Kind) && !(plan.Works is { } wk && wk.Holds(f.S, f.D, 1)))
                 continue;
             var m = Place(line, eye, town.World(f.S, f.D), f.S, f.FaceS, f.FaceD);
-            int count = f.Kind switch { "board" => notices, "line" => (int)(sq.S1 - sq.S0 - 8), _ => 0 };
+            // (A market stall's awning is one of three colours, by where it stands: note 825.)
+            int count = f.Kind switch { "board" => notices, "line" => (int)(sq.S1 - sq.S0 - 8), "marketstall" => (int)Math.Abs(Math.Round(f.S / 4.6)) % 3, _ => 0 };
             // The board carries the town's own notices, written on its sheets (note 669): a piece of its own, per town.
             var piece = f.Kind == "board"
                 ? Piece($"square-board-{plan.Name}-{notices}", () => SquareKit.Board(_look, [.. plan.Papers.Where(p => p.OnBoard).Select(p => (p.Title, p.Text))]))
@@ -346,6 +347,13 @@ public sealed partial class WorldArt
             }
             if (f.Kind == "lamps")
                 mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0, 1.8f, -0.6f), m), Palette.LampAmber * 0.4f, 4));
+            // The night market's lanterns (note 825), each lighting its counter and the ground in front.
+            if (f.Kind == "marketstall")
+            {
+                var lamp = Vector3.Transform(SquareKit.MarketLamp, m);
+                mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * 1.5f, 7));
+                mesh.Billboard(lamp, 0.5f, 0, new Vector4(Palette.LampAmber * 0.6f, 1), -1, FxBlend.Additive);
+            }
         }
         // The papers left about: flat on a bench or a crate, or pinned up by the hall's door.
         foreach (var p in plan.Papers)

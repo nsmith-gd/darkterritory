@@ -27,7 +27,7 @@ public static partial class Staging
 
     /// <summary>
     /// The handcar's crew for its views (note 729): two at the handle, pumping, their hands on its grip bars where the swing
-    /// has them (handcar); two on the ballast behind the van with their hands under its sides as it comes down (handcarlift).
+    /// has them (handcar); two on the ballast behind the van heaving under its sides as it comes down (handcarlift; note 818).
     /// </summary>
     public static List<Crewmate> HandcarCrew(TrainOnLine train, string view)
     {
@@ -50,7 +50,8 @@ public static partial class Staging
             }
             return crew;
         }
-        // Lifting: the trolley as it's drawn part-way down (GreyboxScene.Lifted), a lifter each side of it on the ground.
+        // Lifting: the trolley as it's drawn part-way down (GreyboxScene.Lifted), a lifter each side of it on the ground, drawn
+        // under it as a lift is (CrewActs.Heaving, note 818).
         var to = train.HandcarLiftedTo() is { } target ? GreyboxScene.Lifted(car, target, h.Lift) : car;
         var van = train.Frames[train.HandcarHost];
         double backEnd = van.Shape.Platform is { } platform ? platform.Max.Z : van.Shape.HalfLength;
@@ -59,23 +60,16 @@ public static partial class Staging
         {
             var stand = van.ToWorld(new Double3(side * (t.Width / 2 + 0.35), 0, backEnd + 1.1));
             var feet = stand with { Y = PlayerMotor.GroundAt(stand, train.Line, ref hint) };
-            var grip = to.ToWorld(new Double3(side * t.Width / 2, t.DeckHeight * 0.5, 0));
-            var d = grip - feet;
-            double yaw = Math.Atan2(-d.X, -d.Z);
-            Double3 Local(Double3 w)
-            {
-                var e = w - feet;
-                return new Double3(e.X * Math.Cos(yaw) - e.Z * Math.Sin(yaw), e.Y, e.X * Math.Sin(yaw) + e.Z * Math.Cos(yaw));
-            }
-            var near = to.ToWorld(new Double3(side * t.Width / 2, t.DeckHeight * 0.5, -0.35));
-            var far = to.ToWorld(new Double3(side * t.Width / 2, t.DeckHeight * 0.5, 0.35));
-            crew.Add(new Crewmate((byte)(32 + (side + 1) / 2), feet, yaw, true, Act: Art.CrewPose.Lever, Reach: (Local(near), Local(far))));
+            crew.Add(Art.CrewActs.Heaving(new Crewmate((byte)(32 + (side + 1) / 2), feet, van.Heading, true), to, t));
         }
         return crew;
     }
 
-    /// <summary>The handcar views' cameras (note 729): up the line off its lamp end at the pumpers; off the van's back at the lift.</summary>
-    public static Camera HandcarCamera(TrainOnLine train, string view)
+    /// <summary>
+    /// The handcar views' cameras (note 729): up the line off its lamp end at the pumpers; off the van's back at the lift.
+    /// <paramref name="close"/> (dt screenshot --close, note 818): the lift from beside the near lifter, down at their height.
+    /// </summary>
+    public static Camera HandcarCamera(TrainOnLine train, string view, bool close = false)
     {
         if (train.Handcar is not { } h)
             return Camera.LookAt(train.Frames[^1].ToWorld(new Double3(-4, 2, 12)), train.Frames[^1].ToWorld(new Double3(0, 1.5, 0)), 55);
@@ -86,6 +80,8 @@ public static partial class Staging
         }
         var van = train.Frames[train.HandcarHost];
         double back = van.Shape.Platform is { } p ? p.Max.Z : van.Shape.HalfLength;
-        return Camera.LookAt(van.ToWorld(new Double3(-5.2, 2.0, back + 6.0)), van.ToWorld(new Double3(0, 1.7, back + 0.6)), 55);
+        return close
+            ? Camera.LookAt(van.ToWorld(new Double3(-3.4, 1.3, back + 3.4)), van.ToWorld(new Double3(-0.3, 1.1, back + 1.0)), 55)
+            : Camera.LookAt(van.ToWorld(new Double3(-5.2, 2.0, back + 6.0)), van.ToWorld(new Double3(0, 1.7, back + 0.6)), 55);
     }
 }
