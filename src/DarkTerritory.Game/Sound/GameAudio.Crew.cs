@@ -1214,11 +1214,12 @@ public sealed partial class GameAudio
                     m.Laying = false;
                     Cue("crew-cannon-fire.traverse-stop", frame.ToWorld(mount.Position), outside, 0.6f);
                 }
-                // The reload: powder, ball, ram (App. C.3), a step at a time while Use is held.
+                // The reload: powder, pack it, the ball (note 746; App. C.3's powder, ball, ram before), a step at a time while
+                // Use is held. The last step's the ball, rolled home.
                 if (m.Mounted && g.ReloadNeeded < m.Needed)
                 {
                     int done = steps - m.Needed;
-                    Cue(g.ReloadNeeded == 0 ? "crew-cannon-ram.ram-home" : done == 0 ? "crew-cannon-reload.powder-done" : "crew-cannon-ball.ball-roll",
+                    Cue(g.ReloadNeeded == 0 ? "crew-cannon-ball.ball-roll" : done == 0 ? "crew-cannon-reload.powder-done" : "crew-cannon-ram.ram-home",
                         g.ReloadNeeded == 0 || done == 0 ? muzzle : frame.ToWorld(mount.Position), outside);
                 }
                 if (g.ReloadNeeded >= steps)
@@ -1228,7 +1229,7 @@ public sealed partial class GameAudio
                     int step = steps - g.ReloadNeeded;
                     if (step <= 0)
                         Hold("crew-cannon-reload.powder", v.Id, muzzle, outside);
-                    else if (step == 1 && steps > 2)
+                    else if (step == steps - 1)
                     {
                         if (!m.BallIn)
                             Cue("crew-cannon-ball.ball-in", muzzle, outside);

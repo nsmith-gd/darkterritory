@@ -35,7 +35,7 @@ public struct GunState
     public bool Jammed;
     /// <summary>Tick of the last round fired (for muzzle flash and sound on clients), 0 if never.</summary>
     public uint LastShotTick;
-    /// <summary>Reload steps still to do before it can fire (GDD v1.1 App. C.3: powder, ball, ram); 0 is loaded.</summary>
+    /// <summary>Reload steps still to do before it can fire (GDD v1.1 App. C.3; note 746: powder, pack, ball); 0 is loaded.</summary>
     public int ReloadNeeded;
     /// <summary>Seconds into the current reload step.</summary>
     public double ReloadProgress;

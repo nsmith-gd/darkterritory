@@ -191,6 +191,11 @@
    "said": "candles",
    "seconds": 0.466
   },
+  "cannon": {
+   "file": "cannon",
+   "said": "cannon",
+   "seconds": 0.415
+  },
   "car": {
    "file": "car",
    "said": "car",
@@ -1040,6 +1045,11 @@
    "file": "one",
    "said": "one",
    "seconds": 0.332
+  },
+  "one volunteer": {
+   "file": "one-volunteer",
+   "said": "one volunteer",
+   "seconds": 0.821
   },
   "ore": {
    "file": "ore",

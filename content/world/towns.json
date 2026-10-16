@@ -471,6 +471,28 @@
       "lines": ["We write down everyone's last words. Most of them are 'what was that'.", "The book of last words is in the hall. You're welcome to read it. Don't add to it."],
       "notes": [{ "title": "From the book of last words", "text": "'Who left this here?' 'I'll only be a minute.' 'It's fine, it's one of ours.' 'Shh.'" }] }
   ],
+  // What a town's people believe, by its houses' character (houses.json "creed"; note 822). Never drawn as a habit is: kept
+  // only where the character keeps it, its lines heard with the custom's, its first note posted after the custom's order.
+  // The Flooders (the World Building board's Cultures tab, the director, 12 Oct): "a cult who insist the comet that brought
+  // the pestilence that changed the creatures of the world against humanity was an act of God and God will cleanse the
+  // Earth with a great flood once again."
+  "creeds": [
+    { "id": "flooders", "habit": "every house a boat on its stilts, against the flood",
+      "lines": [
+        "The comet was no accident. It was sent. The first flood was water and the next one's water too. We'll be afloat.",
+        "The creatures didn't go wrong. They were sent to thin us out before the water comes. You can't fight what's sent.",
+        "Every house a boat, every boat on its legs. When the sea comes over the dykes we'll float off, and you'll be on your roofs.",
+        "We mark the water on the stilts every morning. It's up two fingers since spring. It's coming, same as it said.",
+        "Your train runs on the ground. Where will it run when there isn't any ground?",
+        "We don't bury our dead. We give them a boat and push them out on the tide. They'll be waiting, out there, when it comes.",
+        "Forty days and forty nights, it was, last time. We've stores for forty-one.",
+        "My grandmother saw it come apart over the bay. Green fire across the whole sky, and the sea went quiet under it." ],
+      "notes": [
+        { "title": "The Water Book", "text": "Marked at the north stilt this morning: two fingers over the Lady Day mark. Praise be. Keep your caulking up and your pitch hot." },
+        { "title": "Wanted", "text": "Pitch. Oakum. Rope that's never been wet. Will trade a winter's salt fish for a barrel of either, and a prayer for the rope." },
+        { "title": "To the crews of the train", "text": "There's room in every hull for one more, and you're welcome aboard. There won't be room on the day. Ask for a berth before then." },
+        { "title": "Launching", "text": "Old Mother Pyke goes out on tonight's ebb, in her own dory. Bring a lamp to the end of the long walk. Don't call after her." } ] }
+  ],
 
   // The town types (note 692; the director, 13 Oct 2026: "different town types that give the world a bit more flavor and
   // a bit more meaning ... more traditional East Coast-y sounding names that keep with our Maritimes Canada aesthetic"):

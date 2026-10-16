@@ -136,6 +136,12 @@ public static partial class Staging
         }
         // A walled town (queue #74): from over the gate looking back over its roofs, down its first street, and from
         // outside the gate as the train leaves, its front wall either side of the gatehouse.
+        // Down the first street on the line's other side from the square, among its houses (note 815: whether they look alike).
+        if (plan.Bounds is { } rowWall && where == "row" && rowWall.Streets.Where(x => Math.Sign(x.D) == -side).OrderBy(x => Math.Abs(x.D)).FirstOrDefault() is { } rs)
+        {
+            double r0 = sq.S0 + 10, r1 = sq.S0 - 110;
+            return Ballast.Render.Camera.LookAt(town.World(r0, rs.At(r0), 16), town.World(r1, rs.At(r1), 0), 60);
+        }
         if (plan.Bounds is { } wall && where is "over" or "lane" or "outside" or "watch" or "bend" or "crooked" or "crookedover" or "towergun")
         {
             // The first street's line out from the line (a town type's warren has none of the street town's: its first row).
@@ -164,6 +170,19 @@ public static partial class Staging
                     => Ballast.Render.Camera.LookAt(town.World(lane.S + 45, -side * 20, 55), town.World(lane.S, -side * 70, 0), 66),
                 _ => Ballast.Render.Camera.LookAt(town.World(mid + 30, stD, 1.7), town.World(mid - 40, stD, 1.6), 72),
             };
+        }
+        // A Flooder's houseboat (note 822): the nearest the square, from out in front of it and to one side, its hull, stilts
+        // and ladder; "houseboats" from higher and further, a row of them.
+        if (where is "houseboat" or "houseboats" && plan.Houses.Where(h => h.Design.Hull && h.Kind != Sim.Towns.HouseKind.Burnt)
+            .OrderBy(h => Math.Abs(h.S - mid) + Math.Abs(h.D)).FirstOrDefault() is { } boat)
+        {
+            var (fs, fd) = boat.Rail(0, 0);
+            var front = town.World(fs, fd);
+            var outward = town.Direction(fs, 0, -boat.Side);
+            var along = town.Direction(fs, 1, 0);
+            return where == "houseboat"
+                ? Ballast.Render.Camera.LookAt(front + outward * 5 + along * (boat.Width / 2 + 7) + Double3.Up * 1.4, front + Double3.Up * 1.8 - outward * (boat.Depth / 2), 66)
+                : Ballast.Render.Camera.LookAt(front + outward * 26 + along * 22 + Double3.Up * 9, front + Double3.Up * 2 - along * 10, 62);
         }
         // A harbour town's Hope Tower (queue #547, note 819): "hope" up at its Flame from the lanes below it, toward the line;
         // "hopeover" from over the head, level with its fire basket; "hopefar" from the line far out past the town's gate,
@@ -901,6 +920,25 @@ public static partial class Staging
     }
 
     /// <summary>
+    /// The human cannonball (note 746; `dt screenshot --upgrades humanCannonball --cannonball`, view cannonball): someone in the
+    /// guard van's gun, crouched in its mouth, and its gunner sat behind it.
+    /// </summary>
+    public static List<Crewmate> Cannonball(TrainOnLine train, Sim.Combat.CannonballTuning t)
+    {
+        var crew = new List<Crewmate>();
+        int van = Enumerable.Range(0, train.Vehicles.Count).LastOrDefault(i => Sim.Combat.HumanCannonball.Takes(train, i), -1);
+        if (van < 0 || Sim.Combat.Guns.Mount(train, van) is not { } mount)
+            return crew;
+        var frame = train.Frames[van];
+        var inside = Art.CrewActs.InTheCannon(new Sim.Player.PlayerState { Parent = van, Position = mount.Position, Health = 100 }, train, t);
+        crew.Add(new Crewmate(60, frame.ToWorld(inside.Position), frame.Heading + Math.Atan2(-mount.Facing.X, -mount.Facing.Z), true,
+            Act: Art.CrewPose.Crouch, Car: van, Local: inside.Position));
+        var seat = Art.CrewActs.Seated(new Sim.Player.PlayerState { Parent = van, Health = 100 }, mount);
+        crew.Add(new Crewmate(61, frame.ToWorld(seat.Position), frame.Heading + seat.Yaw, true, Act: Art.CrewPose.Gunner, Car: van, Local: seat.Position));
+        return crew;
+    }
+
+    /// <summary>
     /// The band (note 700; `dt screenshot --band`, view band): the crew on a car's roof in two rows facing each other across
     /// it, each with one of band.json's instruments in their hands, as a kitchen party's sat round a table.
     /// </summary>
@@ -1463,7 +1501,8 @@ public static partial class Staging
     /// <summary>
     /// The staged Soot Child (<c>dt screenshot --soot</c>), off car 2's left in front of crewmate 4 (<see cref="Lone"/>; the
     /// Ribbits put away): <c>huddle</c> squatted in the ash, <c>call</c> calling to them (App. A.6 CALL; black eyes, black
-    /// hands), <c>real</c> the same, a real child (ROLL), <c>drink</c> on them (GRAB). The <c>soot</c> view looks over their
+    /// hands), <c>real</c> the same, a real child (ROLL), <c>rise</c> its telegraph as they come near (note 823), <c>drink</c> on
+    /// them (GRAB). The <c>soot</c> view looks over their
     /// shoulder at it.
     /// </summary>
     public static List<Enemy> Soot(List<Enemy> threats, TrainOnLine train, string mode)
@@ -1481,14 +1520,20 @@ public static partial class Staging
             case "drink":
                 c.Restore(SpinePhase.Grab, 2.5, c.Health, Enemy.Loose, Lone(train).Feet, 0, 0, 0, 0, 1);
                 break;
+            // Its telegraph (note 823): crewmate 4 a step outside its lunge, and it's turned to them and rising, poised.
+            case "rise":
+                c.Restore(SpinePhase.Telegraph, 1.1, c.Health, Enemy.Loose, side.ToWorld(new Double3(-(side.Shape.HalfWidth + 2.2 + SootRiseAt), 0, -1.5)),
+                    0, 0, 0, 0, 1);
+                break;
             default:
-                throw new ArgumentException($"--soot {mode}: huddle, call, real or drink");
+                throw new ArgumentException($"--soot {mode}: huddle, call, real, rise or drink");
         }
         return threats;
     }
 
-    // How far off the second car's side the staged Soot Child is (m): in front of crewmate 4, a few metres out.
-    const double SootOut = 4.6;
+    // How far off the second car's side the staged Soot Child is (m): in front of crewmate 4, a few metres out. Rising, how
+    // far from them (m): just outside its lunge (enemies.json sootChildren.lungeWithin, 5), most of the way into its telegraph.
+    const double SootOut = 4.6, SootRiseAt = 5.6;
 
     /// <summary>
     /// The staged Switchman (<c>dt screenshot --switchman</c>), at its lever 55 m up the line (App. A.7): <c>wait</c> by it

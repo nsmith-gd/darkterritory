@@ -380,6 +380,16 @@ public enum PlayerFlags : uint
     /// and Playing (protocol 74 widened the flags to a uint), at protocol 76.
     /// </summary>
     OffTheHook = 262144,
+    /// <summary>
+    /// In the guard van's cannon (note 746, the human cannonball): climbed in at its muzzle with the gun packed, feet in the
+    /// barrel, still, till the gunner fires it or Jump climbs out (<see cref="DarkTerritory.Sim.Combat.HumanCannonball"/>).
+    /// </summary>
+    InCannon = 524288,
+    /// <summary>
+    /// Fired from the guard van's cannon (note 746): in the air, the stick does nothing, the view's held on where they'll come
+    /// down, and the landing never hurts ("we're going for fun in this one"). Cleared on landing.
+    /// </summary>
+    Fired = 1048576,
 }
 
 /// <summary>
@@ -665,7 +675,7 @@ public static class PlayerMotor
         bool aloft = s.Surface == Surface.Air;
         Move(ref s, input, train, p, t, dt, applyLook, self, crowd);
         if (s.Surface != Surface.Air)
-            s.Flags &= ~(PlayerFlags.OffTheGround | PlayerFlags.Shoved | PlayerFlags.OffTheHook);
+            s.Flags &= ~(PlayerFlags.OffTheGround | PlayerFlags.Shoved | PlayerFlags.OffTheHook | PlayerFlags.Fired);
         else if (!aloft)
             s.Flags = onGround ? s.Flags | PlayerFlags.OffTheGround : s.Flags & ~PlayerFlags.OffTheGround;
         // Note 717: a stagger wears off a tick at a time, here and on a predicting client alike.
@@ -685,6 +695,13 @@ public static class PlayerMotor
 
         if (applyLook)
             Look(ref s, intent);
+        // Fired from the cannon (note 746): the flight's the cannon's, facing where it comes down.
+        if (s.Has(PlayerFlags.Fired) && s.Surface == Surface.Air)
+        {
+            intent.MoveX = intent.MoveZ = 0;
+            intent.Buttons &= ~(PlayerButtons.Jump | PlayerButtons.Run);
+            Combat.HumanCannonball.Face(ref s, train, p.Gravity);
+        }
 
         StepCold(ref s, train, p, dt);
         if (!s.Alive)
@@ -723,7 +740,7 @@ public static class PlayerMotor
                 speed = Math.Min(speed, p.CarryHeavy);
             if (s.Has(PlayerFlags.Pushing))
                 speed = Math.Min(speed, p.PushGun);
-            if (s.Has(PlayerFlags.Operating) || s.Has(PlayerFlags.Seated) || s.Has(PlayerFlags.Pumping) || s.Has(PlayerFlags.Lounging))
+            if (s.Has(PlayerFlags.Operating) || s.Has(PlayerFlags.Seated) || s.Has(PlayerFlags.Pumping) || s.Has(PlayerFlags.Lounging) || s.Has(PlayerFlags.InCannon))
                 speed = 0;
             var wish = WishDirection(s.Yaw, intent) * speed;
             // GDD §22 wind on a roof (note 201): a sideways push across the car, on top of where you're going.
@@ -1287,6 +1304,9 @@ public static class PlayerMotor
     /// </summary>
     static void Land(ref PlayerState s, Double3 worldVelocity, PlayerTuning p, TrainTuning t)
     {
+        // Fired from the cannon (note 746, the director: "Make sure the player doesn't die when they are fired"): a roll, unhurt.
+        if (s.Has(PlayerFlags.Fired))
+            return;
         var l = p.Landing;
         // Note 802 (the director, 15 Oct 2026: "the player can only lose 10 health at most from a drop and then scale that based
         // on height. It's a silly gag not a big grief"): off a crane's hook, the knock is the gag's, by the height fallen alone

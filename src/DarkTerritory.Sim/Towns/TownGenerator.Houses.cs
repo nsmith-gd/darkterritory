@@ -17,6 +17,8 @@ public static partial class TownGenerator
         public readonly List<Spot> Residents = [];
         /// <summary>The town's character (houses.json), its houses' designs drawn by it.</summary>
         public string Character = "";
+        /// <summary>The creed its people keep, by its houses' character (note 822), or null.</summary>
+        public string? Creed;
         /// <summary>What the town breathes through (its character's <see cref="HouseCharacter.Gear"/>).</summary>
         public IReadOnlyDictionary<string, double> Gear = new Dictionary<string, double> { ["respirator"] = 1 };
         /// <summary>A walled town's extent and streets (queue #74), or null where its houses are the line's street's alone.</summary>
@@ -372,14 +374,21 @@ public static partial class TownGenerator
         // How far each stands off true (note 490), on a stream of its own.
         var trng = rngFor("houses.turn");
         // The town's character (houses.json), and the stream its houses' designs come from: a fishing cove's shingled
-        // gable-fronts, an old town's painted bumps, a company town's one house over and over in its own paints.
+        // gable-fronts, an old town's painted bumps, a company town's few plans in runs down its streets, in its own paints.
         var drng = rngFor("houses.design");
         var character = HouseDesigner.Character(content.Looks, site.Industry, ref drng, form?.Form ?? "");
         // How sooted each is (note 692), on a stream of its own so the designs are as they were.
         var grng = rngFor("houses.grime");
+        var hullRng = rngFor("houses.hull");
         homes.Character = character.Id;
+        homes.Creed = character.Creed;
         homes.Gear = character.Gear;
-        HouseDesign? model = null;
+        // A company's plans (note 815), each drawn the first time a run of it is built, with its size; and what the
+        // families have done to their houses since, on streams of their own so the rest are as they were.
+        var plans = new (HouseDesign Design, double Width, double Depth)?[Math.Max(1, character.Plans)];
+        var arng = rngFor("houses.altered");
+        int PlanAt(int row, int sd, double s) => character.Plans <= 1 ? 0
+            : (int)(rngFor($"houses.plan.{row}.{sd}.{(int)Math.Floor(s / Math.Max(1, st.PlanRun))}").NextUInt() % (uint)plans.Length);
         var knocks = new Deck<string>(w.HouseKnocks, rngFor("houses.knocks"));
         var stories = new Deck<TownHousehold>(w.Households, rngFor("houses.stories"));
         // The families by the town's mix of peoples (note 474), or any of the province's.
@@ -394,9 +403,11 @@ public static partial class TownGenerator
         for (int i = 0; i < sizes.Count + lostHouses; i++)
         {
             var (s, d0, sd, frontage, row) = lots[i];
-            bool gable = model?.GableFront ?? drng.Chance(character.GableFront);
-            double width = model is null ? looks.Range(gable ? st.GableWidth[0] : st.Width[0], gable ? st.GableWidth[1] : st.Width[1]) : homes.Houses[0].Width;
-            double depth = model is null ? looks.Range(st.Depth[0], st.Depth[1]) : homes.Houses[0].Depth;
+            int plan = character.Uniform ? PlanAt(row, sd, s) : 0;
+            var model = character.Uniform ? plans[plan] : null;
+            bool gable = model?.Design.GableFront ?? drng.Chance(character.GableFront);
+            double width = model?.Width ?? looks.Range(gable ? st.GableWidth[0] : st.Width[0], gable ? st.GableWidth[1] : st.Width[1]);
+            double depth = model?.Depth ?? looks.Range(st.Depth[0], st.Depth[1]);
             string family = families.Next() ?? looks.Pick(content.Surnames);
             HouseKind kind;
             string text;
@@ -425,13 +436,21 @@ public static partial class TownGenerator
                     width = Math.Max(OpenNarrowest, width - 2 * depth * Math.Abs(DMath.Sin(form.Lots[i].Turn)) - 0.3);
             }
             var layout = kind == HouseKind.Open ? HouseLayout.For(width, depth, looks.Chance(0.5) ? 1 : -1) : null;
-            var design = model is not null && character.Uniform
-                ? HouseDesigner.Copy(content.Looks, character, model, layout?.DoorU, ref drng)
+            var design = model is { } m
+                ? HouseDesigner.Copy(content.Looks, character, m.Design, layout?.DoorU, ref drng)
                 : HouseDesigner.Draw(content.Looks, character, gable, width, depth, room, layout is not null, layout?.DoorU, ref drng);
             if (character.Uniform)
-                model ??= design;
+                plans[plan] ??= (design, width, depth);
+            // What its family has done to it since (note 815): a company's houses most of all, built alike and lived in apart.
+            if (arng.Chance(character.Altered))
+                design = HouseDesigner.Alter(content.Looks, design, arng.RangeInclusive(character.Alterations[0], character.Alterations[1]),
+                    width, depth, room, layout is not null, ref arng);
             if (character.Grime > 0)
                 design = design with { Grime = Math.Clamp(character.Grime + grng.Range(-character.GrimeSpread, character.GrimeSpread), 0, 1) };
+            // A Flooder's house is a houseboat (note 822): a hull under it, up on stilts. Never an open one: its rooms are on
+            // the Sim's floor. On a stream of its own, so every other house is as it was.
+            if (character.Hull > 0 && layout is null && hullRng.Chance(character.Hull))
+                design = design with { Hull = true };
             var fl = row < 0 ? form!.Lots[i] : null;
             var house = new TownHouse(i, s, d0, sd, width, depth, kind, design, family, text, layout)
             { Party = i == partyAt && layout is not null, Level = fl?.Level ?? 0, Turn = layout is null ? fl?.Turn ?? 0 : 0 };

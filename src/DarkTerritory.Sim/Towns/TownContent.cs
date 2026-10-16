@@ -174,6 +174,8 @@ public sealed record StreetTuning
     /// streets of its own, so a town of forty houses isn't one row down the track.
     /// </summary>
     public int LineRow { get; init; } = int.MaxValue;
+    /// <summary>How long a run of one plan is down a company town's street (m; note 815).</summary>
+    public double PlanRun { get; init; } = 45;
     public double Burnt { get; init; }
     public double Open { get; init; }
 }
@@ -280,6 +282,11 @@ public sealed record TownWriting
     public string[] Welcome { get; init; } = [];
     public required TownCulture[] Cultures { get; init; }
     public required TownQuirk[] Quirks { get; init; }
+    /// <summary>
+    /// What a town's people believe, by its houses' character (<see cref="HouseCharacter.Creed"/>; note 822, the Flooders):
+    /// never drawn as a habit is, only kept where the character keeps it.
+    /// </summary>
+    public TownQuirk[] Creeds { get; init; } = [];
     public required Dictionary<string, TownIndustry> Industries { get; init; }
     public required Dictionary<string, TownRole> Roles { get; init; }
     /// <summary>The forge (note 697): its name, and what its board says read close to.</summary>

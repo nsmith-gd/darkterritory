@@ -1004,7 +1004,10 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [819. A harbour town's Hope Tower and its Flame of Hope (queue #547, B2; the World Building board's Cultures tab, the director, 12 Oct:…](notes/819.md)
 - [820. The bot driver holds its speed without pulsing the full brake (B3, queue #532; AU1's audio audit, note 801's night)](notes/820.md)
 - [821. Burned at a fire's edge, seen at once: a heat glow round the view and smoke and embers off whoever's being burned (C1, queue #548; the…](notes/821.md)
+- [822. The Flooders: houseboat towns on stilts and their flood creed (queue #549, B2; the World Building board's Cultures tab, the director, 12…](notes/822.md)
 - [823. The director's 15 Oct Look Review animation notes: six creatures' clips made more fluid, the Climber's first; the Animations tab at the…](notes/823.md)
 - [825. A night market on the square (queue #552, B2; the director's playtest of 14 Oct, line 3, in frontier:7's town: "The town's looking better.…](notes/825.md)
 - [826. The Hope Tower's Flame of Hope heard (AU1, queue #554; B2's #1091, note 819)](notes/826.md)
+- [824. Ruins: the beginnings of fortress towns the Wakers stamped flat, out beside the line (queue #551, B2; the World Building board's Cultures…](notes/824.md)
+- [825. A night market on the square (queue #552, B2; the director's playtest of 14 Oct, line 3, in frontier:7's town: "The town's looking better.…](notes/825.md)
 <!-- end of the notes index -->

@@ -2084,9 +2084,12 @@ public static partial class Hud
             yield return line.ToString();
     }
 
-    /// <summary>The reload's step under way (GDD v1.1 App. C.3: powder, ball, ram), for the prompt.</summary>
+    /// <summary>
+    /// The reload's step under way, for the prompt: powder, then pack it, then the ball (the director, 15 Oct 2026, note 746:
+    /// "the reload flow to be powder, pack, then either a ball or a player jumps in"; App. C.3's powder, ball, ram before).
+    /// </summary>
     static string LoadStep(in GunState gun, GunTuning t) =>
-        (t.ReloadSteps - gun.ReloadNeeded) switch { 0 => "LOAD POWDER", 1 => "LOAD BALL", _ => "RAM IT" };
+        (t.ReloadSteps - gun.ReloadNeeded) switch { 0 => "LOAD POWDER", var d when d < t.ReloadSteps - 1 => "PACK IT", _ => "LOAD BALL" };
 
     /// <summary>
     /// The roof warning's two lines (note 260), or null: nothing coming, or it isn't for you (sight.json <c>roofWarning.roofOnly</c>:
@@ -2514,6 +2517,14 @@ public static partial class Hud
         // The tiny caboose off the rails within reach (note 713): empty hands put it back.
         if (world.Bodies.CabooseOff(p, train, train.Dynamics.Tuning.Composition.Caboose) is not null)
             return "PUT THE CABOOSE BACK ON THE RAILS : [E]";
+        // The human cannonball (note 746): in the guard van's gun, or at its muzzle with it packed.
+        if (world.Combat is { } cannon)
+        {
+            if (p.Has(PlayerFlags.InCannon))
+                return "IN THE CANNON   CLIMB OUT : [SPACE]";
+            if (HumanCannonball.AtTheMuzzle(p, train, cannon.Guns, cannon.Cannonball) is { } muzzle)
+                return Hold("CLIMB IN", train.Vehicles[muzzle].Gun.ReloadProgress / cannon.Cannonball.ClimbSeconds);
+        }
         // T112: the gun's seat and its own controls.
         if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is { } manned)
         {
