@@ -31,6 +31,9 @@ public sealed partial class GameAudio
 
     /// <summary>The app's clock as the town's guns were last heard by: a shot is heard when its beat fell since.</summary>
     double _gunsHeardTo = double.NaN;
+    /// <summary>The walls' shots heard fired, by target and shot (note 834): only a ball heard fired is heard landing, not one
+    /// already in the air when the target came to stand under the guns.</summary>
+    readonly HashSet<(long Seed, long Shot)> _gunShots = [];
     /// <summary>The town's guards' pieces among the guns (note 608) are rifles: heard this much under the walls' guns.</summary>
     const float YardGunVolume = 0.7f;
 
@@ -78,7 +81,7 @@ public sealed partial class GameAudio
 
     /// <summary>
     /// The shots fired and landed between <paramref name="was"/> and <paramref name="now"/>: a gun's report at its muzzle (the
-    /// first <paramref name="walls"/> of them the walls' guns, the rest the guards' rifles), and each wall gun's ball landing
+    /// first <paramref name="walls"/> of them the walls' guns, the rest the guards' rifles), and each wall gun's ball heard fired landing
     /// on <paramref name="target"/> its flight later.
     /// </summary>
     void Volley(IReadOnlyList<Vector3> guns, int walls, Double3 target, long seed, double was, double now)
@@ -86,16 +89,21 @@ public sealed partial class GameAudio
         for (int g = 0; g < guns.Count; g++)
         {
             var muzzle = new Double3(guns[g].X, guns[g].Y, guns[g].Z);
-            var (since, _) = Effects.WallGunBeat(now, seed, g);
+            var (since, shot) = Effects.WallGunBeat(now, seed, g);
             if (since < now - was)
             {
                 if (g < walls)
+                {
                     Cue("town-guns.fire", muzzle, 0);
+                    if (_gunShots.Count > 256)
+                        _gunShots.Clear();
+                    _gunShots.Add((seed, shot));
+                }
                 else
                     Cue("gunshot", muzzle, 0, YardGunVolume);
             }
             double flight = (target - muzzle).Length / Effects.WallShotSpeed;
-            if (g < walls && since >= flight && since - (now - was) < flight)
+            if (g < walls && since >= flight && since - (now - was) < flight && _gunShots.Remove((seed, shot)))
                 Cue("town-guns.hit", target, 0);
         }
     }

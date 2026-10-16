@@ -637,6 +637,33 @@ public class CreatureSoundTests
     }
 
     [Fact]
+    public void TheMooseGrazingIsHeardFromTheLineButQuietEnoughToCreepCloser()
+    {
+        // The director's 16 Oct playtest, line 19 (queue #562, note 834): "The munching is a bit loud ... We do need to be able
+        // to hear it, but we don't want to hear it maybe so loud. We want to allow players to get a little bit closer." The
+        // installed sounds, as heard at a distance: where its temper starts to rise (crowdAt) the chewing is well under its own
+        // level, so it doesn't sound on top of you; it's still there from the train going by (trainPassAt); and it grows as
+        // you creep in, so how close you are is in the sound.
+        var audio = new GameAudio(Content);
+        var t = DataFile.Load<EnemyTuning>(Path.Combine(Content, EnemyTuning.File)).Moose;
+        double Db(string name, double d)
+        {
+            audio.Mixer.StopAll();
+            audio.Mixer.Listener = Listener.At(Double3.Zero, 0);
+            var v = audio.Mixer.Play(name, new Double3(0, 0, -d))!;
+            audio.Mixer.Render(new float[Ballast.Audio.Audio.Block * 2]);
+            return 20 * Math.Log10(v.AudibleGain);
+        }
+        foreach (var cue in new[] { "chew", "browse", "creak", "grunt" })
+        {
+            string name = $"tell-moose-grazing.{cue}";
+            Assert.True(Db(name, t.CrowdAt) < -8, $"{name} at {t.CrowdAt} m: {Db(name, t.CrowdAt):0.0} dB");
+            Assert.True(Db(name, t.TrainPassAt) > -16, $"{name} from the train going by: {Db(name, t.TrainPassAt):0.0} dB");
+            Assert.True(Db(name, t.CloseAt / 2) > Db(name, t.CloseAt) + 4 && Db(name, t.CloseAt) > Db(name, t.CrowdAt) + 3);
+        }
+    }
+
+    [Fact]
     public void TheGannetCallsOverheadFallsSilentOverAWalkerWhistlesDownBanksScreamingAndPecksOnItsBeat()
     {
         // Note 384 (queue #121), off its record (note 340): its GannetMode in Height, its pecks on the spine's grab clock.

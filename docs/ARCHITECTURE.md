@@ -1016,4 +1016,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [831. U1's second whimsies heard (AU1, queue #559; U1's #967, note 744: the hammock, the hot tub, the fishing rod, a grilled fish)](notes/831.md)
 - [832. Up out of a turned-round gun, not off the train's front (C1, queue #560; the director's 13 Oct evening playtest, line 23)](notes/832.md)
 - [833. Burned at a fire's edge, heard (AU1, queue #561; C1's note 821, the director's 14 Oct playtest, line 25: "I just died because I wasn't…](notes/833.md)
+- [834. The director's playtest of 16 Oct, lines 19 and 27: the Moose's munching quieter, the walls' guns never on a beat (AU1, queue #562;…](notes/834.md)
 <!-- end of the notes index -->

@@ -605,6 +605,12 @@ CUE_DEF = {
     # Sound cues in the world (note 785): a house's boards from its door and its street; what's lost far off, a bell from
     # where it was lost; a dog at the lamps' edge and beyond it.
     "tell-house.creak": {"minDistance": 1, "maxDistance": 30, "rolloff": 1.0},
+    # The Moose grazing (queue #562, note 834; the director's 16 Oct playtest, line 19: "The munching is a bit loud ... We
+    # do need to be able to hear it, but ... we want to allow players to get a little bit closer"): about 7 dB under the
+    # tells' default from 12 m out (where it's quick to anger) to the line, so it reads as further off than it is, still
+    # heard from the train going by at 25 m; and a shorter reach, so its tier-1 duck doesn't hold the world down from 250 m.
+    **{f"tell-moose-grazing.{c}": {"minDistance": 4, "maxDistance": 150, "rolloff": 0.9, "gainDb": 2}
+       for c in ("chew", "browse", "creak", "grunt")},
     "world-bell.far": {"tier": 4, "minDistance": 60, "maxDistance": 2000, "rolloff": 0.5},
     "world-dog.bark": {"tier": 4, "minDistance": 20, "maxDistance": 600, "rolloff": 0.7},
     # Odd outcomes (note 786): the council bell across the town; the well, the coin, the letter, the painting and the soot
