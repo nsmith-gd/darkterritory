@@ -74,7 +74,7 @@ only see what's on main here. The role, and how to start one on another account,
 | Account | Weekly % | Weekly resets (UTC) | Session % | State | Updated (UTC) |
 |---|---|---|---|---|---|
 | nathaniel2 | 94 | Wed 21 Oct 20:00 | 6 (resets 21:20 UTC) | **ACTIVE on its reserve until Saturday night**, the only account working until nathaniel3 is back (the director, 16 Oct). One worker, session_01Y4pCJP4v8S7nSzbdp3hdX4, is on the 16 Oct playtest's small lines: 18 (#1179) and 23 (#1180) in CI, 14 and 7 next. Every other worker is stopped, and their items stay `open for pick-up`. Stops at 98%. Its Token Budget Manager keeps build duty | 2026-10-16 19:35 |
-| nathaniel1 | 98 | Sun 18 Oct 17:00 | 2 (resets 22:00 UTC) | LIMITED until the weekly reset (Sun 18 Oct 17:00 UTC): weekly 98%, no worker active (U1 stopped for the week, #1136); its items are `open for pick-up` | 2026-10-16 19:10 |
+| nathaniel1 | 98 | Sun 18 Oct 17:00 | 2 (resets 22:00 UTC) | LIMITED until the weekly reset (Sun 18 Oct 17:00 UTC): weekly 98%, no worker active (U1 stopped for the week, #1136); its items are `open for pick-up` | 2026-10-16 20:10 |
 
 - **State:** ACTIVE (working); PAUSED until *time* (the 5-hour limit: its sessions are waiting with their work intact, so
   its items aren't abandoned: don't take them); LIMITED until *weekly reset* (the weekly limit: its items are handed off).
