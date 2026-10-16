@@ -267,7 +267,8 @@ public static class MaritimeKit
     /// hull is to its deck, where the house stands (m); how far the hull's sides stand out past the house's walls and its
     /// ends past its front and back, and how far each end rakes in to the flat bottom.
     /// </summary>
-    public const float Stilts = 0.9f, HullDeep = 1.3f, HullLift = Stilts + HullDeep, HullBeam = 0.3f, HullEnds = 0.4f, HullRake = 1.0f;
+    public const float Stilts = 0.9f, HullLift = (float)HouseDesign.HullLift, HullDeep = HullLift - Stilts,
+        HullBeam = (float)HouseDesign.HullBeam, HullEnds = (float)HouseDesign.HullEnds, HullRake = 1.0f;
 
     /// <summary>
     /// Under a Flooder's house (note 822): a scow's hull, flat-bottomed, its ends raked, tarred, a rubbing strake along its

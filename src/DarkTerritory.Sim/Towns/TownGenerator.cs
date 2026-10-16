@@ -337,6 +337,27 @@ public static partial class TownGenerator
             var (lfs, lfd) = h.BodyFacing(0, -1);
             spots.Add(new("", ls, ld, lfs, lfd, 0, Street: true, Pose: "lantern"));
         }
+        // Its people out at their own work among its houses (note 841; the director, 16 Oct, in a Flooder town: "There's
+        // also nobody walking around. There's no kind of like culture going on"): one for every Out[0] of its houses, spread
+        // evenly through the town, at a house's front corner facing it (a hull caulked, the water's mark read on a stilt), or
+        // out with a lamp, walking its street.
+        if (homes.Out is [> 0, > 0] && homes.OutActs.Length > 0)
+        {
+            // Any house standing shut, lived in or left (a neighbour's hull caulked as their own): the lived ones keep to
+            // the square's end of a town that's emptied.
+            var lit = lived.Take(outdoors).ToHashSet();
+            var further = homes.Houses.Where(h => h.Layout is null && h.Kind != HouseKind.Burnt && !lit.Contains(h)).ToList();
+            int count = Math.Min(Math.Min(homes.Out[1], homes.Houses.Count / homes.Out[0]), further.Count);
+            for (int i = 0; i < count; i++)
+            {
+                var h = further[i * further.Count / count];
+                string act = homes.OutActs[i % homes.OutActs.Length];
+                double u = (i % 2 == 0 ? -1 : 1) * Math.Max(0, h.Width / 2 - OutAtCorner);
+                var (os, od) = h.Body(u, -OutInFront - (h.Design.Hull ? HouseDesign.HullEnds : 0));
+                var (ofs, ofd) = act == "lantern" ? h.BodyFacing(0, -1) : h.BodyFacing(0, 1);
+                spots.Add(new("", os, od, ofs, ofd, 0, Street: act == "lantern", Pose: act));
+            }
+        }
         // The works' hands (note 353), at work all night: in front of a piece with a door or a mouth to it, one a kind.
         if (homes.Works is { } atWork)
             foreach (var f in fixtures.Where(f => atWork.Holds(f.S, f.D) && f.Kind is "headframe" or "winding" or "casting" or "glasshouse"
@@ -692,6 +713,12 @@ public static partial class TownGenerator
             Fix(stock[i].Kind, stock[i].Title, stock[i].Text, s, side * yard.SidingD, rng.Chance(0.5) ? 1 : -1, 0);
         }
     }
+
+    /// <summary>
+    /// Where a town's people out at their work stand (note 841): in from a house's corner along its front, and out in front
+    /// of it (past a houseboat's hull), a body's room from what's solid (m).
+    /// </summary>
+    const double OutAtCorner = 0.6, OutInFront = 1.2;
 
     /// <summary>How far behind a market stall's counter its stallholder stands (m), and how wide a door's way is kept clear.</summary>
     const double StallholderBack = 0.7, DoorClear = 1.6;
