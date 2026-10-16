@@ -2558,8 +2558,10 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
     static bool Steer(ref PlayerIntent drive, Crane c, double bridge, double trolley)
     {
         double db = bridge - c.Bridge, dx = trolley - c.Trolley;
-        drive.MoveZ = Math.Abs(db) < 0.04 ? 0 : (float)Math.Clamp(db * 2.5, -1, 1);
-        drive.MoveX = Math.Abs(dx) < 0.04 ? 0 : (float)Math.Clamp(dx * 2.5, -1, 1);
+        // The stick's as the cab sees it (note 845): what each axis wants, turned into it.
+        var (right, forward) = c.StickFor(Math.Abs(db) < 0.04 ? 0 : Math.Clamp(db * 2.5, -1, 1), Math.Abs(dx) < 0.04 ? 0 : Math.Clamp(dx * 2.5, -1, 1));
+        drive.MoveX = (float)right;
+        drive.MoveZ = (float)forward;
         return Near(c, bridge, trolley);
     }
 
