@@ -11,21 +11,18 @@ public class SpeedFeelTests
     static readonly SpeedFeelTuning T = DataFile.Load<LookTuning>(Path.Combine(Content, LookTuning.File)).SpeedFeel;
 
     [Fact]
-    public void AboardTheViewWidensWithSpeedEasedSoTheFirstGainIsFelt()
+    public void AboardTheViewNeverWidensWithSpeed()
     {
+        // Note 842 (the director, 16 Oct: "the FOV is adjusting a little bit ... I would get rid of that"): the widening (note 709)
+        // is off, at a walking pace and at full speed, aboard and off the train.
         var s = new PrototypeSession(Content, "test-loop", 4);
         var train = s.Train;
         var aboard = PlayerMotor.SpawnOnRoof(train, 1, 0, s.PlayerTuning);
-        train.Dynamics.Velocity = 0;
-        Assert.Equal(75f, SpeedFeel.Fov(75, train, aboard, T));
-        Assert.Equal(default, SpeedFeel.Offset(train, aboard, T));
-        // The director's 27 km/h: already a good share of the widening, eased (under linear's 7.5 / 20 of it).
-        train.Dynamics.Velocity = 27 / 3.6;
-        float slow = SpeedFeel.Fov(75, train, aboard, T);
-        Assert.True(slow - 75 > T.Widen * 7.5 / 20, $"{slow - 75:0.0} degrees at 27 km/h");
-        train.Dynamics.Velocity = T.FullAt * 2;
-        Assert.Equal(75 + (float)T.Widen, SpeedFeel.Fov(75, train, aboard, T), 3);
-        // Off the train, nothing (a crewmate on the ground isn't riding).
+        foreach (double v in new[] { 0, 27 / 3.6, T.FullAt, T.FullAt * 2 })
+        {
+            train.Dynamics.Velocity = v;
+            Assert.Equal(75f, SpeedFeel.Fov(75, train, aboard, T));
+        }
         var ground = aboard with { Parent = PlayerState.World };
         Assert.Equal(75f, SpeedFeel.Fov(75, train, ground, T));
         Assert.Equal(default, SpeedFeel.Offset(train, ground, T));

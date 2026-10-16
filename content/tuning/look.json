@@ -273,8 +273,9 @@
   // look out the front, it just feels so agonizingly slow"; note 709). Presentation only, aboard, never in a headset.
   "speedFeel": {
     // The view widens by up to "widen" degrees, at "fullAt" m/s, eased by (speed / fullAt) ^ "ease" (under 1: felt early).
-    // Note 735 (the director, 14 Oct: "It still feels a bit slow"): 8 to 12.
-    "widen": 12,
+    // Note 735 (the director, 14 Oct: "It still feels a bit slow"): 8 to 12. Note 842 (the director, 16 Oct: "the FOV is
+    // adjusting a little bit ... maybe that's a miss. I would get rid of that"): off.
+    "widen": 0,
     "fullAt": 20,
     "ease": 0.6,
     // A knock through the floor at each rail joint, "joint" m apart, under each bogie ("bogies" m apart): "jolt" m at full
