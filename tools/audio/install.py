@@ -350,7 +350,11 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 "up-horns.honk": "horn", "up-horns.gold-start": "steam", "up-horns.gold": "steam", "up-horns.gold-stop": "steam",
                 "up-forge.hearth": "coals", "up-forge.anvil": "ring", "up-forge.bellows": "leather", "up-forge.quench": "hiss",
                 "up-bbq.light": "whump", "up-bbq.grill": "sausages", "up-bbq.turn": "tongs", "up-bbq.cooler": "lid",
-                "up-bbq.can": "crack", "up-bbq.cheers": "clink", "up-bbq.chair": "creak"}
+                "up-bbq.can": "crack", "up-bbq.cheers": "clink", "up-bbq.chair": "creak", "up-bbq.eat": "bite",
+                "up-lounge.hammock": "ropes", "up-lounge.sway": "creak", "up-lounge.tub-in": "splash", "up-lounge.tub": "seethe",
+                "up-fishing.cast": "reel", "up-fishing.line": "lap", "up-fishing.catch": "trout",
+                # The modelled one: the real fizz and cloth crackle carry clicks past the car-fire tell's band (note 833).
+                "crew-scorch.sizzle": "singe"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the
@@ -650,6 +654,18 @@ CUE_DEF = {
     "up-bbq.can": {"minDistance": 1, "maxDistance": 12, "rolloff": 1.0},
     "up-bbq.cheers": {"minDistance": 1, "maxDistance": 15, "rolloff": 1.0},
     "up-bbq.chair": {"minDistance": 1, "maxDistance": 15, "rolloff": 1.0},
+    "up-bbq.eat": {"minDistance": 0.8, "maxDistance": 8, "rolloff": 1.0},
+    # Burned at a fire's edge (queue #561, note 833): a warning on yourself, so over the crew's own actions (tier 3, with the
+    # alarms) and under the tells; heard on whoever it's burning and by the friends beside them.
+    "crew-scorch.sizzle": {"tier": 3, "minDistance": 0.6, "maxDistance": 15, "rolloff": 1.0},
+    # The second whimsies (queue #559, note 831): close things, a body's own, heard by whoever's by them.
+    "up-lounge.hammock": {"minDistance": 1, "maxDistance": 14, "rolloff": 1.0},
+    "up-lounge.sway": {"tier": 6, "minDistance": 1, "maxDistance": 10, "rolloff": 1.0},
+    "up-lounge.tub-in": {"minDistance": 1.5, "maxDistance": 25, "rolloff": 1.0},
+    "up-lounge.tub": {"tier": 6, "minDistance": 1, "maxDistance": 12, "rolloff": 1.0},
+    "up-fishing.cast": {"minDistance": 1, "maxDistance": 25, "rolloff": 1.0},
+    "up-fishing.line": {"minDistance": 1, "maxDistance": 10, "rolloff": 1.0},
+    "up-fishing.catch": {"minDistance": 1.5, "maxDistance": 35, "rolloff": 1.0},
 }
 
 

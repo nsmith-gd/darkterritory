@@ -103,6 +103,7 @@ public class CaptionsTests
     // Note 828: the human cannonball's whoop and landing.
     [InlineData("crew-cannonball.whoop")]
     [InlineData("crew-cannonball.land")]
+    [InlineData("up-fishing.catch")]
     [InlineData("loot-fragile.glass")]
     [InlineData("loot-jackpot.bell")]
     [InlineData("crew-handcar.set")]

@@ -265,4 +265,120 @@ public class WhimsySoundTests
         ears.Tick(ear, 3);
         Assert.DoesNotContain(audio.Mixer.Voices, x => x.Name == "up-bbq.grill" && !x.Stopped);
     }
+
+    [Fact]
+    public void TheHammockAndTheHotTubAreHeardGotIntoLainInAndOutAndASausageIsHeardEaten()
+    {
+        // Note 831 (note 744): the hammock lain in and got out of, its ropes creaking while anyone lies in it; the hot tub
+        // bubbling while the boiler feeds it, got into and out of; a sausage bitten as it's started and again while it's had.
+        var (world, audio) = Night(["hammock", "hotTub"], "up-lounge.hammock", "up-lounge.sway~", "up-lounge.tub-in", "up-lounge.tub~",
+            "up-bbq.eat");
+        var train = world.Train;
+        int van = Enumerable.Range(0, train.Frames.Count).First(i => train.Frames[i].Shape.Lounges.Any(l => l.Kind == LoungeKind.Hammock));
+        int engine = Enumerable.Range(0, train.Frames.Count).First(i => train.Frames[i].Shape.Lounges.Any(l => l.Kind == LoungeKind.HotTub));
+        var hammock = train.Frames[van].Shape.Lounges.First(l => l.Kind == LoungeKind.Hammock);
+        var bench = train.Frames[engine].Shape.Lounges.First(l => l.Kind == LoungeKind.HotTub);
+        PlayerState In(int v, Double3 at, bool lounging) => new()
+        {
+            Parent = v,
+            Position = at,
+            Health = 100,
+            Flags = lounging ? PlayerFlags.Lounging : PlayerFlags.None,
+        };
+        var ears = new Ears(audio, world);
+        var vanEar = train.Frames[van].ToWorld(hammock.At + new Double3(1, 1.6, 0));
+        audio.CrewStates = [(1, In(van, hammock.At + new Double3(0, 0, -1), false))];
+        ears.Tick(vanEar, 3);
+        Assert.Equal(0, ears.Count("up-lounge.hammock"));
+        Assert.DoesNotContain(audio.Mixer.Voices, x => x.Name == "up-lounge.sway" && !x.Stopped);
+        // Lain in: the canvas and the ropes once, and their creak held while they lie there.
+        audio.CrewStates = [(1, In(van, hammock.At, true))];
+        ears.Tick(vanEar, SimConstants.TickRate);
+        Assert.Equal(1, ears.Count("up-lounge.hammock"));
+        Assert.Single(audio.Mixer.Voices, x => x.Name == "up-lounge.sway" && !x.Stopped);
+        // Out: once more, and the swing's creak gone with them.
+        audio.CrewStates = [(1, In(van, hammock.At + new Double3(0, 0, -1), false))];
+        ears.Tick(vanEar, 3);
+        Assert.Equal(2, ears.Count("up-lounge.hammock"));
+        Assert.DoesNotContain(audio.Mixer.Voices, x => x.Name == "up-lounge.sway" && !x.Stopped);
+
+        // The tub bubbling while it's fed (a train without a boiler's tuning always is), got into with an 'ahh'.
+        var tubEar = train.Frames[engine].ToWorld(bench.At + new Double3(1.5, 1.6, 0));
+        ears.Tick(tubEar, 3);
+        Assert.Single(audio.Mixer.Voices, x => x.Name == "up-lounge.tub" && !x.Stopped);
+        Assert.Equal(0, ears.Count("up-lounge.tub-in"));
+        audio.CrewStates = [(1, In(engine, bench.At, true))];
+        ears.Tick(tubEar, 3);
+        Assert.Equal(1, ears.Count("up-lounge.tub-in"));
+        Assert.Equal(2, ears.Count("up-lounge.hammock"));
+
+        // A sausage had in the tub: bitten as it's started, and again a second or so on while they're at it; put down, no more.
+        var sausage = world.Bodies.SpawnItem(train.Frames[engine].ToWorld(bench.At), 0, BodyKind.Sausage);
+        sausage.Carrier = 1;
+        ears.Host = w => sausage.MendTicks = 10;
+        ears.Tick(tubEar, 2 * SimConstants.TickRate);
+        Assert.InRange(ears.Count("up-bbq.eat"), 2, 3);
+        int bites = ears.Count("up-bbq.eat");
+        ears.Host = w => sausage.MendTicks = 0;
+        ears.Tick(tubEar, 2 * SimConstants.TickRate);
+        Assert.Equal(bites, ears.Count("up-bbq.eat"));
+    }
+
+    [Fact]
+    public void TheAnglersOwnCastAndLineAreHeardOffTheirUseAndEveryoneHearsTheCatch()
+    {
+        // Note 831 (note 744): the cast as Use goes down with a line to put in the water, the line held while Use is; a fish
+        // that turns up at an angler's feet, caught. A shore where Jacob would fish, as the sim's LoungeTests find one.
+        var anywhere = Base.Enemies!.Jacob with { Chance = 1 };
+        var train = Campaign.Apply(C, ["fishingRod"], Base).Train;
+        World? world = null;
+        (Double3 At, double Along, double Yaw)? site = null;
+        for (int seed = 1; seed <= 24 && site is null; seed++)
+        {
+            var route = DarkTerritory.Sim.LineGen.Routes.Generate(Content, $"frontier:{seed}", 4);
+            world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(train, 4, 1)), route.Build(), 400), Base.Combat);
+            site = Sim.Enemies.Jacob.Site(world, route, anywhere);
+        }
+        Assert.NotNull(site);
+        var (spot, along, yaw) = site.Value;
+        world!.EnableBodies();
+        world.Stock();
+        var rod = Assert.Single(world.Bodies.All, b => b.Kind == BodyKind.FishingRod);
+        rod.Carrier = 1;
+        rod.Claimed = true;
+        var angler = PlayerMotor.SpawnOnGround(spot, world.Train.Line, along, Player) with { Yaw = yaw, HeldSlot = 0 };
+        Assert.True(world.Angling(angler, 1));
+        var audio = new GameAudio(Content) { PlayerTuning = Player, OwnId = 1 };
+        foreach (var c in new[] { "up-fishing.cast", "up-fishing.line~", "up-fishing.catch" })
+            audio.Bank.Add(c.TrimEnd('~'), new SoundDef(3, [new LayerDef(SourceKind.Sine, 0.2, Frequency: 440)], Loop: c.EndsWith('~'),
+                Duration: 0.6, MaxInstances: 16, MaxDistance: 600));
+        audio.CrewStates = [(1, angler)];
+        var ears = new Ears(audio, world);
+        var ear = angler.Position + Double3.Up * 1.6;
+        ears.Tick(ear, 3);
+        Assert.Equal(0, ears.Count("up-fishing.cast"));
+        // Use down: the cast once, the line held while it's down.
+        audio.OwnIntent = new PlayerIntent { Buttons = PlayerButtons.Use };
+        ears.Tick(ear, SimConstants.TickRate);
+        Assert.Equal(1, ears.Count("up-fishing.cast"));
+        Assert.Single(audio.Mixer.Voices, x => x.Name == "up-fishing.line" && !x.Stopped);
+        // A trout at their feet: caught.
+        var ahead = new Double3(-Math.Sin(yaw), 0, -Math.Cos(yaw));
+        world.Bodies.SpawnItem(angler.Position + ahead * 0.6 + Double3.Up * 0.3, along, BodyKind.Fish);
+        ears.Tick(ear, 3);
+        Assert.Equal(1, ears.Count("up-fishing.catch"));
+        // Use up: the line's out of the water; no second cast till it goes down again.
+        audio.OwnIntent = default;
+        ears.Tick(ear, 3);
+        Assert.DoesNotContain(audio.Mixer.Voices, x => x.Name == "up-fishing.line" && !x.Stopped);
+        Assert.Equal(1, ears.Count("up-fishing.cast"));
+        // Someone else's line: not heard here (the host alone keeps when it went in), but their catch is.
+        audio.OwnId = 2;
+        audio.OwnIntent = new PlayerIntent { Buttons = PlayerButtons.Use };
+        ears.Tick(ear, 3);
+        Assert.Equal(1, ears.Count("up-fishing.cast"));
+        world.Bodies.SpawnItem(angler.Position + ahead * 0.6 + Double3.Up * 0.3, along, BodyKind.Fish);
+        ears.Tick(ear, 3);
+        Assert.Equal(2, ears.Count("up-fishing.catch"));
+    }
 }

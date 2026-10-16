@@ -2164,6 +2164,16 @@
   "url": "/_blob/6ae22c69e54600a048468fb527eb9aac",
   "sha": "6a6eb3f8c2be36bd"
  },
+ "previews/crew-scorch--sizzle--singe.mp4": {
+  "id": "022c0431d871488e3193ccaee8636e4a",
+  "url": "/_blob/022c0431d871488e3193ccaee8636e4a",
+  "sha": "f5398f7c57ac7e25"
+ },
+ "previews/crew-scorch--sizzle--smoulder.mp4": {
+  "id": "dd5d0c652c3dc76ffe3b983576df4a27",
+  "url": "/_blob/dd5d0c652c3dc76ffe3b983576df4a27",
+  "sha": "8e8c10d6c31a5a6d"
+ },
  "previews/crew-search--bench--tools.mp4": {
   "id": "eaa06c4e02ebf2ac3c076b95bdbd1c40",
   "url": "/_blob/eaa06c4e02ebf2ac3c076b95bdbd1c40",
@@ -5174,6 +5184,16 @@
   "url": "/_blob/70d6494b4a70ffb61f7dc0c52a987972",
   "sha": "633226bf1c3a7bd2"
  },
+ "previews/up-bbq--eat--bite.mp4": {
+  "id": "0f04f5cbcc7e20d5d8a17ed58bbbe079",
+  "url": "/_blob/0f04f5cbcc7e20d5d8a17ed58bbbe079",
+  "sha": "3164b22fe647125a"
+ },
+ "previews/up-bbq--eat--chew.mp4": {
+  "id": "f54a8c1da73a4bff9541a52c73988589",
+  "url": "/_blob/f54a8c1da73a4bff9541a52c73988589",
+  "sha": "0a1fd00857b207f6"
+ },
  "previews/up-bbq--grill--embers.mp4": {
   "id": "75ac399a5de78e55459c687d6991190c",
   "url": "/_blob/75ac399a5de78e55459c687d6991190c",
@@ -5203,6 +5223,36 @@
   "id": "71f82a5420fc6bbe28f48f7352250d02",
   "url": "/_blob/71f82a5420fc6bbe28f48f7352250d02",
   "sha": "d60be01971fbe1ba"
+ },
+ "previews/up-fishing--cast--pawl.mp4": {
+  "id": "d18373ca39433be92316d2ceb20a96e7",
+  "url": "/_blob/d18373ca39433be92316d2ceb20a96e7",
+  "sha": "ff46c1f747ef4cc4"
+ },
+ "previews/up-fishing--cast--reel.mp4": {
+  "id": "a4a0bfffcf7d743c086a6fc9ca027205",
+  "url": "/_blob/a4a0bfffcf7d743c086a6fc9ca027205",
+  "sha": "9697fffe13f54057"
+ },
+ "previews/up-fishing--catch--run.mp4": {
+  "id": "8a307baf98f6fa967ec2c83c0b33b7f3",
+  "url": "/_blob/8a307baf98f6fa967ec2c83c0b33b7f3",
+  "sha": "215fdc982c43f94a"
+ },
+ "previews/up-fishing--catch--trout.mp4": {
+  "id": "c84770652c27895a5b696f4b6c392a22",
+  "url": "/_blob/c84770652c27895a5b696f4b6c392a22",
+  "sha": "821aa192ea4adf83"
+ },
+ "previews/up-fishing--line--lap.mp4": {
+  "id": "b1a63fa10ef32a8363b114f223c4b209",
+  "url": "/_blob/b1a63fa10ef32a8363b114f223c4b209",
+  "sha": "813fd07dd6a7c15f"
+ },
+ "previews/up-fishing--line--ripple.mp4": {
+  "id": "bce66de3df40aab27c82f40ca97239a3",
+  "url": "/_blob/bce66de3df40aab27c82f40ca97239a3",
+  "sha": "ca317f272f642d4c"
  },
  "previews/up-forge--anvil--modal.mp4": {
   "id": "db50c78f542228fd7eaefbcf8e7e5d0b",
@@ -5283,6 +5333,46 @@
   "id": "7869f60fe0ceb2638ecb7968993b4c5b",
   "url": "/_blob/7869f60fe0ceb2638ecb7968993b4c5b",
   "sha": "113337055d19bca1"
+ },
+ "previews/up-lounge--hammock--hemp.mp4": {
+  "id": "eece60fce7fa13b114b6b0925ba56279",
+  "url": "/_blob/eece60fce7fa13b114b6b0925ba56279",
+  "sha": "33ee025eedd00bf3"
+ },
+ "previews/up-lounge--hammock--ropes.mp4": {
+  "id": "8743265a960c01ded2b86368704a90ea",
+  "url": "/_blob/8743265a960c01ded2b86368704a90ea",
+  "sha": "34b75c649d926ffa"
+ },
+ "previews/up-lounge--sway--creak.mp4": {
+  "id": "06420501bd6d80bb5f80557b563b617c",
+  "url": "/_blob/06420501bd6d80bb5f80557b563b617c",
+  "sha": "6e51cf7b067532e6"
+ },
+ "previews/up-lounge--sway--stickslip.mp4": {
+  "id": "9f72bd780cbae3ffe8d0a92446bf773c",
+  "url": "/_blob/9f72bd780cbae3ffe8d0a92446bf773c",
+  "sha": "e2ed1bf47dd1e5f5"
+ },
+ "previews/up-lounge--tub--bubbles.mp4": {
+  "id": "37b19bd811d755dc8049d5b19c13263d",
+  "url": "/_blob/37b19bd811d755dc8049d5b19c13263d",
+  "sha": "782e63f759a99a01"
+ },
+ "previews/up-lounge--tub--seethe.mp4": {
+  "id": "8fb339195bcb530cd4f2a2a99706c4be",
+  "url": "/_blob/8fb339195bcb530cd4f2a2a99706c4be",
+  "sha": "1434dff1aa41a37d"
+ },
+ "previews/up-lounge--tub-in--slosh.mp4": {
+  "id": "1d7184deff5ecd8749d9e3b65caa4f54",
+  "url": "/_blob/1d7184deff5ecd8749d9e3b65caa4f54",
+  "sha": "96de8842586fefd2"
+ },
+ "previews/up-lounge--tub-in--splash.mp4": {
+  "id": "367e7324645b406b129cc720b4e944ef",
+  "url": "/_blob/367e7324645b406b129cc720b4e944ef",
+  "sha": "a25086c7565fbf99"
  },
  "previews/up-pets--bark--throat.mp4": {
   "id": "c952ef3230bc0ae460548e759893a61b",

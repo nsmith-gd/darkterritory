@@ -400,3 +400,18 @@ The director asked for the last three friendslop features to be heard. Two were 
 
 - [#1120](https://github.com/nsmith-gd/darkterritory/pull/1120) merged (the night market) on green CI, main merged in once more first (the union merge kept row #554 twice; main's stale copy dropped). Row #555 done.
 - The human cannonball (#556) and the Soot Child's telegraph (#557) go up together, rebased on main.
+
+## 16 Oct, ~02:30 UTC: #559, U1's second whimsies heard
+
+- #1126 (the cannonball and the Soot Child's telegraph) in review. Main's #1119 wired C1's lounge and eating clips; the things they show (U1's hammock, hot tub, fishing rod and grilled fish, note 744) had no sounds. Claimed queue #559, note 831.
+- `up-lounge` (hammock in/out and its ropes' creak while lain in; the hot tub in/out and its bubbling while there's steam), `up-fishing` (the angler's own cast and line, off their own Use; everyone's catch, captioned) and `up-bbq.eat`; two candidates each (`recipes/lounge_fish.py`), the first installed; two new checklist rows; `WhimsySoundTests`. Goes up after #1126.
+
+## 16 Oct, ~02:40 UTC: #1126 merged; #559 in review
+
+- [#1126](https://github.com/nsmith-gd/darkterritory/pull/1126) merged (the human cannonball, #556; the Soot Child's telegraph, #557) on green CI, main merged in once more first (rows #555 and #558 kept twice by the union merge; the stale copies dropped). Rows #556 and #557 done.
+- U1's second whimsies (#559) rebased on main; `dt credits --write` for its samples (the packs' counts). Up for review.
+
+## 16 Oct, ~02:55 UTC: #561, burned at a fire's edge heard
+
+- #1130 (#559) in review. The director's playtest line 25 ("I wasn't getting any feedback that I was being burned") got a heat glow and smoke from C1 (note 821) and no sound. Claimed queue #561, note 833.
+- `crew-scorch.sizzle`: a coat smouldering, held on whoever a car fire's heat reaches from the first tick, at the glow's own strength, under 5 kHz so it's never the car-fire tell; two candidates (`recipes/scorch.py`), the modelled one installed (the real one's crackle clicks past the tell's band); a new checklist row; `CrewAudioTests`. Joined #1130 while its CI had only just started.

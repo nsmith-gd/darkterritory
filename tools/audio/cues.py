@@ -1137,6 +1137,28 @@ CUES = {
         O("can", "A can cracked open and a swig", vars=3),
         O("cheers", "Cans clinked: cheers", vars=2),
         O("chair", "A Muskoka chair creaking as you sit down or get up", vars=3),
+        # A sausage or a grilled fish eaten (note 744; queue #559, note 831): bites while it's had.
+        O("eat", "A sausage or a grilled fish eaten: a bite through the skin and a few chews", vars=4),
+    ],
+    # U1's second whimsies (#967, note 744; queue #559, note 831): the hammock in the guard van, the hot tub on the engine's
+    # hood, each lain or sat in.
+    "up-lounge": [
+        O("hammock", "Lying down in the guard van's hammock or getting out: the canvas taking the weight, the ropes creaking", vars=3),
+        L("sway", "Lying in the hammock as the van rocks it: the ropes' slow creak at each end of the swing"),
+        O("tub-in", "Getting into or out of the hot tub: hot water heaving and slopping over the rim, a contented 'ahh'", vars=3),
+        L("tub", "The hot tub on the engine's hood: hot water bubbling where the steam comes in, lapping at the staves"),
+    ],
+    # Burned at a fire's edge (C1's note 821, the director's 14 Oct playtest line 25; queue #561, note 833): held on whoever
+    # the fire's heat reaches, from its first tick, louder the hotter, as the HUD's heat glow.
+    "crew-scorch": [
+        L("sizzle", "Burned at a fire's edge: a coat smouldering on them, cloth and hair singeing and hissing"),
+    ],
+    # The fishing rod (note 744; queue #559, note 831): the angler's own cast and line (heard off their own Use), and the
+    # catch, which everyone hears as the fish lands at their feet.
+    "up-fishing": [
+        O("cast", "The rod cast: its swish, the reel paying out, the weight's plop out on the water", vars=3),
+        L("line", "A line in the water: the shore lapping, the reel's clicker now and then as it's twitched"),
+        O("catch", "A fish on: the reel screaming, a splash, wound in, a trout flapping on the ground", vars=3),
     ],
     # U1's whimsies (#967, note 715; queue #534, note 806; U1's ask on #1040): the canary in car one, whose silence is the
     # tell; the steam calliope's note on the whistle's pull (one note, pitched by the game to the tune's); the gramophone

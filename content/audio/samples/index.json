@@ -9008,6 +9008,21 @@
   "takes": 3,
   "sha": "efe275a5ff078eda"
  },
+ "crew-scorch/sizzle": {
+  "cue": "crew-scorch.sizzle",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Burned at a fire's edge, modelled: a hiss and a fine crackle of a coat singeing",
+    "key": "singe",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "19c1342ea982d2ce"
+ },
  "crew-search/bench": {
   "cue": "crew-search.bench",
   "surface": null,
@@ -19236,6 +19251,25 @@
   "takes": 2,
   "sha": "53d7f1541a729196"
  },
+ "up-bbq/eat": {
+  "cue": "up-bbq.eat",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A sausage or a grilled fish eaten: a bite through the skin and a few chews",
+    "key": "bite",
+    "sources": [
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_02",
+     "sfx_100_v2:footstep_wet_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "a53e0cf590b46c55"
+ },
  "up-bbq/grill": {
   "cue": "up-bbq.grill",
   "surface": null,
@@ -19332,6 +19366,74 @@
   ],
   "takes": 3,
   "sha": "752e1847cb0214b2"
+ },
+ "up-fishing/cast": {
+  "cue": "up-fishing.cast",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The fishing rod cast: the rod's swish, the reel's clicker paying out, the weight's plop out on the water",
+    "key": "reel",
+    "sources": [
+     "sfx_100_v2:air_03",
+     "sfx_100_v2:air_01",
+     "sfx_100_v2:misc_28",
+     "sfx_100_v2:loop_water_01",
+     "sfx_100_v2:loop_water_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "791cc36384490219"
+ },
+ "up-fishing/catch": {
+  "cue": "up-fishing.catch",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A fish on: the reel screaming as it runs, a splash, wound in fast, and a trout flapping on the ground",
+    "key": "trout",
+    "sources": [
+     "sfx_100_v2:air_03",
+     "sfx_100_v2:air_01",
+     "sfx_100_v2:misc_28",
+     "sfx_100_v2:loop_water_01",
+     "sfx_100_v2:loop_water_02",
+     "sfx_100_v2:misc_20",
+     "sfx_100_v2:lock_open_01",
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_02",
+     "sfx_100_v2:footstep_wet_03",
+     "sfx_100_v2:misc_05"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "59755d36cba5f268"
+ },
+ "up-fishing/line": {
+  "cue": "up-fishing.line",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A line in the water: the shore's wavelets lapping, the reel's clicker now and then as it's twitched",
+    "key": "lap",
+    "sources": [
+     "sfx_100_v2:loop_water_01",
+     "sfx_100_v2:loop_water_02",
+     "sfx_100_v2:misc_20",
+     "sfx_100_v2:lock_open_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "15772230a8f8f819"
  },
  "up-forge/anvil": {
   "cue": "up-forge.anvil",
@@ -19513,6 +19615,94 @@
   ],
   "takes": 3,
   "sha": "56480f4b5f18ca13"
+ },
+ "up-lounge/hammock": {
+  "cue": "up-lounge.hammock",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Lying down in the guard van's hammock or getting out: the canvas taking the weight, the ropes creaking at their hooks",
+    "key": "ropes",
+    "sources": [
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "kenney_impact-sounds:impactSoft_medium_000",
+     "kenney_impact-sounds:impactSoft_medium_001",
+     "kenney_impact-sounds:impactSoft_medium_002",
+     "kenney_impact-sounds:impactSoft_medium_003",
+     "kenney_impact-sounds:impactSoft_medium_004",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth4",
+     "sfx_100_v2:misc_05"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "bbe89dd6bdf76c24"
+ },
+ "up-lounge/sway": {
+  "cue": "up-lounge.sway",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Lying in the hammock as the van rocks it: the ropes' slow creak at each end of the swing",
+    "key": "creak",
+    "sources": [
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "c3da9ea3d15721b7"
+ },
+ "up-lounge/tub": {
+  "cue": "up-lounge.tub",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The hot tub on the engine's hood: hot water bubbling where the steam pipe comes in, lapping at the staves",
+    "key": "seethe",
+    "sources": [
+     "sfx_100_v2:loop_water_01",
+     "sfx_100_v2:loop_water_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "3a3643254b00f7b7"
+ },
+ "up-lounge/tub-in": {
+  "cue": "up-lounge.tub-in",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Getting into or out of the hot tub on the engine's hood: hot water heaving and slopping over the rim, a contented 'ahh'",
+    "key": "splash",
+    "sources": [
+     "sfx_100_v2:loop_water_01",
+     "sfx_100_v2:loop_water_02",
+     "sfx_100_v2:loop_machine_02",
+     "sfx_100_v2:misc_05"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "d300ffefffcad5b5"
  },
  "up-pets/bark": {
   "cue": "up-pets.bark",
