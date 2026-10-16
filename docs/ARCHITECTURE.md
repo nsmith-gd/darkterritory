@@ -1017,4 +1017,8 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [832. Up out of a turned-round gun, not off the train's front (C1, queue #560; the director's 13 Oct evening playtest, line 23)](notes/832.md)
 - [833. Burned at a fire's edge, heard (AU1, queue #561; C1's note 821, the director's 14 Oct playtest, line 25: "I just died because I wasn't…](notes/833.md)
 - [838. What the crane loaded rides on, drawn with the train (A1, queue #566; the director, 16 Oct, `docs/playtest/2026-10-16.md` line 21)](notes/838.md)
+- [835. Clipped through a wall at frontier:7's wreck yard (queue #563, B1; the director's playtest of 16 Oct, line 20: "Oh, I have clipped straight…](notes/835.md)
+- [837. 837. **The cab's bend warning off, the tilt kept; the incident report goes once delivered (B3, queue #565; the director's](notes/837.md)
+- [840. No dark smudge round the hands and tools over the map (C1, queue #568; the director's playtest of 16 Oct, line 16)](notes/840.md)
+- [842. The view no longer widens with speed (P16, queue #570; the director's playtest of 16 Oct, line 8)](notes/842.md)
 <!-- end of the notes index -->
