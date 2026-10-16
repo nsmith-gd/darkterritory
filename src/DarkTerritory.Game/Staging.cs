@@ -165,6 +165,19 @@ public static partial class Staging
                 _ => Ballast.Render.Camera.LookAt(town.World(mid + 30, stD, 1.7), town.World(mid - 40, stD, 1.6), 72),
             };
         }
+        // A Flooder's houseboat (note 822): the nearest the square, from out in front of it and to one side, its hull, stilts
+        // and ladder; "houseboats" from higher and further, a row of them.
+        if (where is "houseboat" or "houseboats" && plan.Houses.Where(h => h.Design.Hull && h.Kind != Sim.Towns.HouseKind.Burnt)
+            .OrderBy(h => Math.Abs(h.S - mid) + Math.Abs(h.D)).FirstOrDefault() is { } boat)
+        {
+            var (fs, fd) = boat.Rail(0, 0);
+            var front = town.World(fs, fd);
+            var outward = town.Direction(fs, 0, -boat.Side);
+            var along = town.Direction(fs, 1, 0);
+            return where == "houseboat"
+                ? Ballast.Render.Camera.LookAt(front + outward * 5 + along * (boat.Width / 2 + 7) + Double3.Up * 1.4, front + Double3.Up * 1.8 - outward * (boat.Depth / 2), 66)
+                : Ballast.Render.Camera.LookAt(front + outward * 26 + along * 22 + Double3.Up * 9, front + Double3.Up * 2 - along * 10, 62);
+        }
         // A harbour town's Hope Tower (queue #547, note 819): "hope" up at its Flame from the lanes below it, toward the line;
         // "hopeover" from over the head, level with its fire basket; "hopefar" from the line far out past the town's gate,
         // where a crew coming in sees the Flame over the fog before anything else of the town.

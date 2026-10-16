@@ -135,6 +135,16 @@
       "storeys": [3, 4, 3, 1], "roofs": [6, 3, 1, 0], "paints": ["kelp", "drab", "tarred", "oldOchre", "storm", "sage", "bleached"], "own": 0.9,
       "gear": { "wrap": 6, "respirator": 1 },
       "yard": { "picket": 0, "boards": 0, "count": [0, 0], "things": {} } },
+    // The Flooders (note 822; the World Building board's Cultures tab, the director: "Towns made entirely of houseboats on
+    // stilts ... a cult who insist the comet ... was an act of God and God will cleanse the Earth with a great flood once
+    // again"): every shut house a scow's hull with the house on its deck, up on stilts (hull, MaritimeKit.Hull); low cabins,
+    // hip and gable roofs, tarred and bleached; their creed (world/towns.json creeds) heard and posted.
+    { "id": "flooders", "name": "a houseboat town",
+      "shingle": 0.5, "gableFront": 0.5, "dormers": 0.05, "ell": 0, "porch": 0, "shutters": 0.25, "fancy": 0, "grime": 0.55, "grimeSpread": 0.15,
+      "storeys": [6, 4, 1, 0], "roofs": [5, 1, 0, 3], "paints": ["tarred", "kelp", "bleached", "storm", "sage", "drab"], "own": 0.9,
+      "hull": 1, "creed": "flooders",
+      "gear": { "wrap": 5, "respirator": 2 },
+      "yard": { "picket": 0, "boards": 0, "count": [0, 0], "things": {} } },
     { "id": "pitborn", "name": "a quarry warren",
       "shingle": 0.45, "gableFront": 0.55, "dormers": 0.25, "ell": 0, "porch": 0.2, "shutters": 0.1, "fancy": 0, "grime": 0.7, "grimeSpread": 0.12,
       "storeys": [1, 2, 5, 3], "roofs": [6, 2, 1, 1], "paints": ["drab", "rust", "tarred", "bleached", "oldOchre", "kelp", "storm", "dove"], "own": 0.9,
@@ -154,14 +164,14 @@
   // A town type's houses (note 692), before its trade's: a fortress town's own character.
   "byForm": {
     "harbour": ["breakwater"],
-    "dykeland": ["fenfolk"],
+    "dykeland": ["fenfolk", "flooders"],
     "quarry": ["pitborn"],
     "tidewater": ["drowned"],
     "glasshouse": ["gardeners"],
     "furnace": ["pitborn"],
     "highline": ["drowned", "breakwater"],
     "timber": ["fenfolk"],
-    "salt": ["breakwater", "fenfolk"],
+    "salt": ["breakwater", "fenfolk", "flooders"],
     "crag": ["drowned", "pitborn"]
   },
   // Which characters each trade's towns are drawn from, as often as each is listed (the fortress's identity, linegen
