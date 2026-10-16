@@ -19,6 +19,9 @@ public static partial class TownGenerator
         public string Character = "";
         /// <summary>The creed its people keep, by its houses' character (note 822), or null.</summary>
         public string? Creed;
+        /// <summary>Its people out at their own work among its houses (<see cref="HouseCharacter.Out"/>, note 841).</summary>
+        public int[] Out = [0, 0];
+        public string[] OutActs = [];
         /// <summary>What the town breathes through (its character's <see cref="HouseCharacter.Gear"/>).</summary>
         public IReadOnlyDictionary<string, double> Gear = new Dictionary<string, double> { ["respirator"] = 1 };
         /// <summary>A walled town's extent and streets (queue #74), or null where its houses are the line's street's alone.</summary>
@@ -382,6 +385,8 @@ public static partial class TownGenerator
         var hullRng = rngFor("houses.hull");
         homes.Character = character.Id;
         homes.Creed = character.Creed;
+        homes.Out = character.Out;
+        homes.OutActs = character.OutActs;
         homes.Gear = character.Gear;
         // A company's plans (note 815), each drawn the first time a run of it is built, with its size; and what the
         // families have done to their houses since, on streams of their own so the rest are as they were.

@@ -184,6 +184,17 @@ public static partial class Staging
                 ? Ballast.Render.Camera.LookAt(front + outward * 5 + along * (boat.Width / 2 + 7) + Double3.Up * 1.4, front + Double3.Up * 1.8 - outward * (boat.Depth / 2), 66)
                 : Ballast.Render.Camera.LookAt(front + outward * 26 + along * 22 + Double3.Up * 9, front + Double3.Up * 2 - along * 10, 62);
         }
+        // A Flooder out at their work (note 841): "flooder" the first kneeling at a houseboat's bow, from a few steps out on
+        // the stage; "flooders" from over the stage, the houseboats' row along it.
+        if (where is "flooder" or "flooders" && plan.People.FirstOrDefault(p => p.House < 0 && p.Pose == "mend") is { } worker)
+        {
+            var feet = town.Feet(worker);
+            var facing = town.Direction(worker.S, worker.FaceS, worker.FaceD);
+            var by = town.Direction(worker.S, 1, 0);
+            return where == "flooder"
+                ? Ballast.Render.Camera.LookAt(feet - facing * 3.4 + by * 1.4 + Double3.Up * 1.6, feet + Double3.Up * 1.1 + facing * 0.8, 66)
+                : Ballast.Render.Camera.LookAt(feet - facing * 16 + by * 6 + Double3.Up * 11, feet - facing * 3 + Double3.Up * 1, 64);
+        }
         // A harbour town's Hope Tower (queue #547, note 819): "hope" up at its Flame from the lanes below it, toward the line;
         // "hopeover" from over the head, level with its fire basket; "hopefar" from the line far out past the town's gate,
         // where a crew coming in sees the Flame over the fog before anything else of the town.

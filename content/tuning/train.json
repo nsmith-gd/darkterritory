@@ -289,6 +289,10 @@
   // Green's broke the engine down at the stop and stranded the night (13 Oct). Now 5 m/s is 0.125 and a dead line's
   // 25 km/h (overspeed.deadEndDerailAbove) 0.39: a dent the wrench mends, short of failing (failing.below).
   "bufferStop": { "safeSpeed": 2.5, "damagePerSpeedSquared": 0.02 },
+  // The whistle on the cord (GDD §12; the director, 16 Oct 2026, note 839: "while I'm holding the key, I am holding the whistle
+  // pull ... when I let go of the key, it immediately stops the whistle"): held, it blows; let go, it blows on tailSeconds (s).
+  // It was a second, so the codes' shorts ran together.
+  "whistle": { "tailSeconds": 0.12 },
 
   // The handcar (GDD §24.1; the director, 14 Oct 2026, App. F.6; ARCHITECTURE §8 note 729): a pump trolley hung on its end on
   // the back of the guard van, bought at the fortress (campaign.json's "handcar"; `always` gives every night one, for the

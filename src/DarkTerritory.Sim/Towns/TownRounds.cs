@@ -202,8 +202,11 @@ public static class TownRounds
         RoundStop? Along(double by, string act)
         {
             var there = town.World(p.S + by, p.D, p.Up);
-            return Room(there) && town.Free(there) && town.Clear(at, there) ? new RoundStop(p.S + by, p.D, by > 0 ? 1 : -1, 0, act, []) : null;
+            return Room(there) && Dry(p.S + by, p.D) && town.Free(there) && town.Clear(at, there)
+                ? new RoundStop(p.S + by, p.D, by > 0 ? 1 : -1, 0, act, []) : null;
         }
+        // Never off the end of a stage into the water (note 841: a Flooder town's lamp-carriers walk its stages).
+        bool Dry(double s, double d) => town.Ground.Water(s, d) is not { } w || w - town.Ground.Level(s, d) <= TownGround.Wade;
         switch (p.Role)
         {
             // The gate's people and the porter on the platform keep to their post, pacing it.
