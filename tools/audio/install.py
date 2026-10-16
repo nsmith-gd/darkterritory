@@ -251,6 +251,8 @@ TAKE_SPLITS = {"tell-brakeman.step": {"good": (0, 2), "bad": (1, 3)}}
 # Gameplay foley is the real thing where there's a choice: the wind-up drummer from real tin over the modelled one; the
 # lamp guttering from its flame over cloth whooshes.
 FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note 415: the square's barrels; the folk about
+                # Note 826: the Hope Tower's Flame by its coal bed and its weight, the roar a town hears.
+                "place-town.flame": "basket",
                 "crew-mishaps.tunnel-bonk": "coconut", "bed-wheel-rail.flange": "sing", "state-derail.flange-scream": "shriek",
                 "crew-noisy-toys.drummer": "tin", "ui-stranded-outro.lamp-out": "gutter",
                 # Note 322: the chuff already beats, so the starved engine's struggle under it is the beatless one.
@@ -516,6 +518,9 @@ CUE_DEF = {
     "place-town.gear-rebreather": {"minDistance": 0.5, "maxDistance": 6, "rolloff": 1.0},
     "place-town.gear-wrap": {"minDistance": 0.5, "maxDistance": 6, "rolloff": 1.0},
     "place-town.lantern": {"minDistance": 1, "maxDistance": 25, "rolloff": 1.0},
+    # The Hope Tower's Flame (note 826): a fire as big as a cart, 85 m up: a few dB down at the tower's foot, still there across
+    # the town and out along the line (falling off slower than a near thing does, as a big source's sound does).
+    "place-town.flame": {"minDistance": 20, "maxDistance": 800, "rolloff": 0.7},
     # The water (note 429): a river heard from its bank or the span over it, a lake's lap only near its shore, the sea's
     # surf a long way inland, the tide's flats across their width.
     "world-water.river": {"minDistance": 6, "maxDistance": 120, "rolloff": 0.9},

@@ -834,6 +834,39 @@ public class WorldSoundTests
     }
 
     [Fact]
+    public void AHarbourTownsFlameOfHopeIsHeardAtTheTopOfItsTowerAcrossTheTown()
+    {
+        // Note 826 (queue #554; B2's #1091, note 819): the Hope Tower's coal fire burns in its basket 85 m up, and it's held
+        // there, over the basket's brim, from the tower's foot and across the town; far down the line, not at all.
+        var towns = Sim.Towns.TownContent.Load(Content)!;
+        towns = towns with { Tuning = towns.Tuning with { Population = [140, 140], Forms = towns.Tuning.Forms with { Force = "harbour" } } };
+        var route = Sim.LineGen.Routes.Generate(Content, "frontier:7", 6);
+        double gate = route.GateOr(RouteTuning.Load(Content).YardLength);
+        var world = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Trains, 6, 1)), route.Build(), gate - 8, Boilers));
+        world.EnableRun(Runs, route, gate, authority: false);
+        world.EnableTown(towns, route, gate, []);
+        var town = world.Town!;
+        var tower = Assert.Single(town.Plan.Fixtures, f => f.Kind == "lighthouse");
+        var audio = new GameAudio(Content);
+        Held(audio, "place-town.flame");
+        var ears = new Ears(audio, world);
+        SoundInstance? Flame() => audio.Mixer.Voices.SingleOrDefault(v => v.Name == "place-town.flame" && !v.Finished && !v.Stopped);
+        var basket = town.World(tower.S, tower.D, Sim.Towns.TownFixtures.Size("lighthouse").Height);
+
+        // At its door: the fire's up there, not at the door.
+        ears.Tick(town.World(tower.S + tower.FaceS * (tower.SolidS + 2), tower.D + tower.FaceD * (tower.SolidD + 2), 1.6), SimConstants.TickRate / 2);
+        Assert.NotNull(Flame());
+        Assert.InRange(Flame()!.Position.Y - basket.Y, 0, 4);
+        Assert.True(((Flame()!.Position - basket) with { Y = 0 }).Length < 1e-6);
+        // At the train in the yard, a long way from the tower's foot: still there.
+        ears.Tick(world.Train.Line.Sample(gate - 8).Position + Double3.Up * 1.6, SimConstants.TickRate / 2);
+        Assert.NotNull(Flame());
+        // Far down the line: gone.
+        ears.Tick(world.Train.Line.Sample(gate + 3_000).Position + Double3.Up * 1.6, SimConstants.TickRate / 2);
+        Assert.Null(Flame());
+    }
+
+    [Fact]
     public void NickisPartyIsHeardThroughItsWallsFromTheStreetAndNotAcrossTown()
     {
         // Note 773: the one house up late (note 571), its music and laughing held in it, dulled through its walls from the
