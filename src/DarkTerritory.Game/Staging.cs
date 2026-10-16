@@ -883,13 +883,14 @@ public static partial class Staging
             }
             return new Crewmate(id, feet, engine.Heading + yaw, true, Act: act, Car: 0, Local: local);
         }
-        double lift = Art.CrewActs.ChairPan - Art.CrewActs.GunnerPan;
+        // C1's clips (note 791): the chairs' at the seat's own height; one sat back, one at the can; the grill tended; a can
+        // up at the cooler.
         var crew = new List<Crewmate>
         {
-            At(40, deck.Chairs[0] + new Double3(0, lift, 0), 0, Art.CrewPose.Gunner),
-            At(41, deck.Chairs[1] + new Double3(0, lift, 0), 0, Art.CrewPose.Gunner, Sim.Physics.BodyKind.Beer, new Double3(0.42, 0.68 - lift, -0.25)),
-            At(42, deck.Grill + new Double3(0, 0, 0.6), 0, Art.CrewPose.Carry, Sim.Physics.BodyKind.Sausage, new Double3(0, 1.1, -0.3)),
-            At(43, deck.Cooler + new Double3(0.9, 0, 0.9), Math.PI * 0.75, Art.CrewPose.Carry, Sim.Physics.BodyKind.Beer, new Double3(-0.25, 1.15, -0.25)),
+            At(40, deck.Chairs[0], 0, Art.CrewPose.Lounge),
+            At(41, deck.Chairs[1], 0, Art.CrewPose.LoungeDrink, Sim.Physics.BodyKind.Beer, new Double3(0.42, 0.68, -0.25)),
+            At(42, deck.Grill + new Double3(0, 0, 0.6), 0, Art.CrewPose.Grill, Sim.Physics.BodyKind.Sausage, new Double3(0, 1.1, -0.3)),
+            At(43, deck.Cooler + new Double3(0.9, 0, 0.9), Math.PI * 0.75, Art.CrewPose.Drink, Sim.Physics.BodyKind.Beer, new Double3(-0.25, 1.15, -0.25)),
         };
         return (crew, bodies.All);
     }
@@ -908,11 +909,12 @@ public static partial class Staging
             var frame = train.Frames[car];
             foreach (var l in frame.Shape.Lounges)
             {
-                double pan = l.Kind == LoungeKind.Hammock ? Art.CrewActs.HammockPan : Art.CrewActs.TubPan;
-                var local = l.At + new Double3(0, pan - Art.CrewActs.GunnerPan, 0);
+                // The hammock's clip lies at its own height (note 791); the tub's bench is the gunner's seat let down to it.
+                bool hammock = l.Kind == LoungeKind.Hammock;
+                var local = hammock ? l.At : l.At + new Double3(0, Art.CrewActs.TubPan - Art.CrewActs.GunnerPan, 0);
                 if (l.Kind == LoungeKind.HotTub && id == 51)
                     bodies.SpawnCrate(train, car, l.At + new Double3(0.15, 1.0, -0.3), Sim.Physics.BodyKind.GrilledFish).Carrier = id;
-                crew.Add(new Crewmate(id, frame.ToWorld(local), frame.Heading + l.Yaw, true, Act: Art.CrewPose.Gunner, Car: car, Local: local));
+                crew.Add(new Crewmate(id, frame.ToWorld(local), frame.Heading + l.Yaw, true, Act: hammock ? Art.CrewPose.Hammock : Art.CrewPose.Gunner, Car: car, Local: local));
                 id++;
             }
         }

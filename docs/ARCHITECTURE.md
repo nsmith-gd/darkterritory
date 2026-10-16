@@ -1010,4 +1010,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [825. A night market on the square (queue #552, B2; the director's playtest of 14 Oct, line 3, in frontier:7's town: "The town's looking better.…](notes/825.md)
 - [826. The Hope Tower's Flame of Hope heard (AU1, queue #554; B2's #1091, note 819)](notes/826.md)
 - [827. The night market heard (AU1, queue #555; B2's #1111, note 825's "not yet: the market heard: the stallholders' talk, the tea boiler (AU1's,…](notes/827.md)
+- [830. The coupling gap's step up: walked up onto the deck at an angle, not held at the plate's lip (C1, queue #558; the director's Look Review…](notes/830.md)
 <!-- end of the notes index -->
