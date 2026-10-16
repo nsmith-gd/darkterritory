@@ -2088,6 +2088,10 @@ public static partial class Hud
     /// The reload's step under way, for the prompt: powder, then pack it, then the ball (the director, 15 Oct 2026, note 746:
     /// "the reload flow to be powder, pack, then either a ball or a player jumps in"; App. C.3's powder, ball, ram before).
     /// </summary>
+    /// <summary>The gun's gunner's line when it's loaded with a crewmate (note 746): who goes when they fire; null with a ball.</summary>
+    public static string? Loaded(World world, int gun, IEnumerable<(int Id, PlayerState State)> crew) =>
+        HumanCannonball.Inside(gun, crew) is { } who ? $"LOADED: {IncidentLog.NameOf(world, who).ToUpperInvariant()}" : null;
+
     static string LoadStep(in GunState gun, GunTuning t) =>
         (t.ReloadSteps - gun.ReloadNeeded) switch { 0 => "LOAD POWDER", var d when d < t.ReloadSteps - 1 => "PACK IT", _ => "LOAD BALL" };
 
@@ -2536,6 +2540,8 @@ public static partial class Hud
                 : gun.ReloadNeeded > 0 ? $"{LoadStep(gun, combat.Guns)} : HOLD [E]"
                 : Guns.Ready(gun, combat.Guns) <= 0 ? Guns.Stowed(train, combat.Guns) > 0 ? "THE RACK'S EMPTY: POWDER FROM THE GUARD VAN" : "NO SHOT"
                 : train.BoilerTuning is not null && train.Boiler.Pressure < combat.Guns.MinPressure ? "NO STEAM"
+                // Note 746: loaded with a crewmate, not a ball; the gunner's told who goes when they fire.
+                : Loaded(world, manned, s.CrewStates(1)) is { } loaded ? loaded
                 : seated ? null
                 // Note 664: pushing it along is its own key (Use's sitting in it; the director: "a different button").
                 : "SIT : [E]   PUSH : HOLD [PUSH] + WALK";
