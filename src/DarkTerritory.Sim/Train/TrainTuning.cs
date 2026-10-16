@@ -42,6 +42,9 @@ public sealed record TrainTuning
     /// <summary>What running into a branch's buffer stop does (train.json <c>bufferStop</c>; note 661).</summary>
     public BufferStopTuning BufferStop { get; init; } = new();
 
+    /// <summary>The engine's whistle on the cord (train.json <c>whistle</c>; note 839): how long it blows on once let go.</summary>
+    public WhistleTuning Whistle { get; init; } = new();
+
     /// <summary>The handcar (train.json <c>handcar</c>; GDD §24.1, note 729): what it is and how it runs, when the night has one.</summary>
     public HandcarTuning Handcar { get; init; } = new();
 
@@ -439,3 +442,14 @@ public sealed record FragileTuning(double SafeContactSpeed = 0.3, double ShockSh
 public sealed record BufferStopTuning(double SafeSpeed = 2.5, double DamagePerSpeedSquared = 0.02);
 
 public sealed record RecoveryTuning(double CorridorM = 40, double DropM = 15, double EdgeM = 3.5);
+
+/// <summary>
+/// The engine's whistle on the cord (train.json <c>whistle</c>; GDD §12, note 839; the director, 16 Oct 2026: "while I'm holding
+/// the key, I am holding the whistle pull. And then when I let go of the key, it immediately stops the whistle. That way we can
+/// actually do the longs and the shorts"). Held, it blows; let go, it blows on only <see cref="TailSeconds"/>, the steam off the
+/// valve, so the whistle codes' shorts and longs come out as blown. (It was a second, so two shorts ran into one long.)
+/// </summary>
+public sealed record WhistleTuning
+{
+    public double TailSeconds { get; init; } = 0.12;
+}

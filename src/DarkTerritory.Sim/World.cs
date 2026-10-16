@@ -1874,8 +1874,10 @@ public sealed partial class World
         // The whistle cord, in the cab (GDD §12): a blast, loud, and every client hears it.
         // Note 267: or Use held on the cord's handle, looked at (CrewActions picks it only so). Either way it's in the puller's
         // name: their share of the loudness meter, and the HUD's "on the cord" (the Whistler's blows with no name, App. A.4).
+        // Note 839: it blows while held, and on only a moment once let go (train.json whistle.tailSeconds), so the codes'
+        // shorts and longs come out as blown.
         if ((intent.Has(PlayerActions.Whistle) || OnTheCord(s, intent)) && Net.CabControls.CanDrive(s, Train))
-            Whistled(1.0, playerId);
+            Whistled(Math.Max(SimConstants.TickSeconds, Train.Dynamics.Tuning.Whistle.TailSeconds) + SimConstants.TickSeconds, playerId);
         // The lamp in the car you're in (GDD v1.1 App. A.5): on the press, the host's to set.
         if (Authority && intent.Has(PlayerActions.CarLamp) && !_lampWas.Contains(playerId) && s.Parent > 0 && s.Parent < Train.Frames.Count
             && PlayerMotor.Indoors(s, Train))

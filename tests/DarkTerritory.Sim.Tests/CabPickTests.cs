@@ -166,4 +166,41 @@ public class CabPickTests
         Hold(world, ref roof, 0.5, new PlayerIntent { Actions = PlayerActions.Vent });
         Assert.False(world.Train.Boiler.Vented);
     }
+
+    [Fact]
+    public void TheWhistleBlowsWhileTheKeyIsHeldAndStopsAMomentAfterItsLetGo()
+    {
+        // Note 839 (the director, 16 Oct 2026: "while I'm holding the key, I am holding the whistle pull ... when I let go of the
+        // key, it immediately stops the whistle"): two shorts and a long, as the whistle codes ask, come out as two shorts and a long.
+        var world = World();
+        var s = PlayerMotor.SpawnInCab(world.Train, Tuning.Player);
+        var pull = new PlayerIntent { Actions = PlayerActions.Whistle };
+        double tail = Tuning.Train.Whistle.TailSeconds;
+        Assert.InRange(tail, 0.01, 0.25);
+        int Blowing(double seconds, PlayerIntent intent)
+        {
+            int ticks = 0;
+            for (int i = 0; i < seconds * SimConstants.TickRate; i++)
+            {
+                world.BeginTick();
+                world.CrewAct(ref s, intent, 1);
+                world.Step(new TrainControls { Reverser = 1, Brake = 1 });
+                if (world.WhistleSeconds > 0)
+                    ticks++;
+            }
+            return ticks;
+        }
+        // A short: blowing every tick it's held, and silent again within the tail once let go.
+        Assert.Equal((int)(0.3 * SimConstants.TickRate), Blowing(0.3, pull));
+        Assert.Equal(1, world.WhistleBy);
+        int after = Blowing(0.5, default);
+        Assert.InRange(after, 1, (int)Math.Ceiling(tail * SimConstants.TickRate) + 1);
+        Assert.Equal(0, world.WhistleSeconds);
+        // Another short, then a long held two seconds: blowing all the while it's held.
+        Blowing(0.3, pull);
+        Blowing(0.5, default);
+        Assert.Equal(2 * SimConstants.TickRate, Blowing(2, pull));
+        Blowing(0.5, default);
+        Assert.Equal(0, world.WhistleSeconds);
+    }
 }
