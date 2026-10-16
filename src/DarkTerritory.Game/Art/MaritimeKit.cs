@@ -186,6 +186,12 @@ public static class MaritimeKit
             return k.Build($"maritime-burnt-{h.Id}");
         }
         float doorX = X(h, h.Design.DoorU);
+        // A Flooder's houseboat (note 822): its stilts and hull, and the house on the hull's deck.
+        if (h.Design.Hull)
+        {
+            Hull(k, b, doorX);
+            k.Push(Kit.At(0, HullLift, 0));
+        }
         Shell(k, h, b, coat, doorX);
         var panes = Windows(h, b, doorX);
         int n = 0;
@@ -208,6 +214,8 @@ public static class MaritimeKit
             Fancy(k, h, b, coat);
         if (h.Layout is { } l)
             Inside(k, h, l, thing, panes);
+        if (h.Design.Hull)
+            k.Pop();
         k.Pop();
         return k.Build($"maritime-{h.Kind}-{h.Id}-{h.S:0}-{h.D:0}");
     }
@@ -240,8 +248,70 @@ public static class MaritimeKit
     {
         FarYard(k, h);
         k.Push(Turned(h));
-        FarBody(k, h, b, c, lit);
+        if (h.Design.Hull && h.Kind != HouseKind.Burnt)
+        {
+            // A houseboat's hull as a box under it, the house on its deck (note 822).
+            k.Use("tar", Palette.SootBlack, 0.85f, 0.15f, tile: 1);
+            k.Box(new Vector3(b.X0 - HullBeam, Stilts, b.Z0 - HullEnds), new Vector3(b.X1 + HullBeam, HullLift, b.Z1 + HullEnds), Kit.Faces.Sides);
+            k.Push(Kit.At(0, HullLift, 0));
+            FarBody(k, h, b, c, lit);
+            k.Pop();
+        }
+        else
+            FarBody(k, h, b, c, lit);
         k.Pop();
+    }
+
+    /// <summary>
+    /// A houseboat's stilts and hull (note 822, the Flooders' houses): how high its stilts lift its bottom, and how deep the
+    /// hull is to its deck, where the house stands (m); how far the hull's sides stand out past the house's walls and its
+    /// ends past its front and back, and how far each end rakes in to the flat bottom.
+    /// </summary>
+    public const float Stilts = 0.9f, HullDeep = 1.3f, HullLift = Stilts + HullDeep, HullBeam = 0.3f, HullEnds = 0.4f, HullRake = 1.0f;
+
+    /// <summary>
+    /// Under a Flooder's house (note 822): a scow's hull, flat-bottomed, its ends raked, tarred, a rubbing strake along its
+    /// sheer, up on braced stilts over the marsh, against the flood they're waiting for; a ladder up to the deck at its door.
+    /// </summary>
+    static void Hull(Kit k, Block b, float doorX)
+    {
+        float x0 = b.X0 - HullBeam, x1 = b.X1 + HullBeam, z0 = b.Z0 - HullEnds, z1 = b.Z1 + HullEnds;
+        float bz0 = z0 + HullRake, bz1 = z1 - HullRake;
+        // The stilts: tarred posts under its bottom, three pairs, each pair braced across.
+        k.Use("wood_sleeper", Palette.DeepBrown, 0.9f, 0.05f, tile: 1);
+        foreach (float z in new[] { bz0 + 0.2f, (bz0 + bz1) / 2, bz1 - 0.2f })
+        {
+            var l = new Vector3(x0 + 0.35f, 0, z);
+            var r = new Vector3(x1 - 0.35f, 0, z);
+            k.BoxAt(l + new Vector3(0, (Stilts - 0.3f) / 2, 0), new Vector3(0.12f, (Stilts + 0.3f) / 2, 0.12f));
+            k.BoxAt(r + new Vector3(0, (Stilts - 0.3f) / 2, 0), new Vector3(0.12f, (Stilts + 0.3f) / 2, 0.12f));
+            k.Rod(l + new Vector3(0, 0.1f, 0), r + new Vector3(0, Stilts - 0.05f, 0), 0.05f);
+        }
+        // The hull: its bottom, its sides (the sheer straight, the chines raked up at either end), its raked ends; planked and
+        // tarred black.
+        k.Use("tar", Palette.SootBlack, 0.85f, 0.15f, tile: 1.2f);
+        k.Quad(new Vector3(x0, Stilts, bz1), new Vector3(x1, Stilts, bz1), new Vector3(x1, Stilts, bz0), new Vector3(x0, Stilts, bz0), twoSided: true);
+        k.Use("clapboard", new Vector3(0.12f, 0.11f, 0.1f), 0.8f, 0.2f, tile: 1.0f);
+        k.Tint = new Vector3(0.22f, 0.2f, 0.19f);
+        k.Quad(new Vector3(x0, HullLift, z0), new Vector3(x0, HullLift, z1), new Vector3(x0, Stilts, bz1), new Vector3(x0, Stilts, bz0), twoSided: true);
+        k.Quad(new Vector3(x1, HullLift, z1), new Vector3(x1, HullLift, z0), new Vector3(x1, Stilts, bz0), new Vector3(x1, Stilts, bz1), twoSided: true);
+        k.Quad(new Vector3(x1, HullLift, z0), new Vector3(x0, HullLift, z0), new Vector3(x0, Stilts, bz0), new Vector3(x1, Stilts, bz0), twoSided: true);
+        k.Quad(new Vector3(x0, HullLift, z1), new Vector3(x1, HullLift, z1), new Vector3(x1, Stilts, bz1), new Vector3(x0, Stilts, bz1), twoSided: true);
+        k.Tint = Vector3.One;
+        // The deck round the house, and the rubbing strake along the sheer.
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0.05f, tile: 1);
+        k.Box(new Vector3(x0, HullLift - 0.08f, z0), new Vector3(x1, HullLift, z1), Kit.Faces.PosY);
+        k.Box(new Vector3(x0 - 0.08f, HullLift - 0.35f, z0), new Vector3(x0, HullLift - 0.15f, z1), Kit.Faces.All);
+        k.Box(new Vector3(x1, HullLift - 0.35f, z0), new Vector3(x1 + 0.08f, HullLift - 0.15f, z1), Kit.Faces.All);
+        // The ladder up to the deck at its door, leant against the bow.
+        float lz = z0 - 1.0f;
+        foreach (float side in new[] { -0.28f, 0.28f })
+            k.Rod(new Vector3(doorX + side, 0, lz), new Vector3(doorX + side, HullLift + 0.6f, z0 - 0.05f), 0.035f);
+        for (float y = 0.3f; y < HullLift; y += 0.32f)
+        {
+            float z = lz + (z0 - 0.05f - lz) * (y / (HullLift + 0.6f));
+            k.Rod(new Vector3(doorX - 0.28f, y, z), new Vector3(doorX + 0.28f, y, z), 0.025f);
+        }
     }
 
     static void FarBody(Kit k, TownHouse h, Block b, Coat c, bool lit)
@@ -967,7 +1037,8 @@ public static class MaritimeKit
     /// Where a house's chimneys (or its stovepipe) let out, in its own kit frame: where a lived-in house's wood smoke rises
     /// from (<see cref="Effects.Chimney"/>). As <see cref="Chimneys"/> builds them.
     /// </summary>
-    public static IEnumerable<Vector3> ChimneyTops(TownHouse h) => Tops(h).Select(p => Vector3.Transform(p, Turned(h)));
+    public static IEnumerable<Vector3> ChimneyTops(TownHouse h) =>
+        Tops(h).Select(p => Vector3.Transform(p + new Vector3(0, h.Design.Hull ? HullLift : 0, 0), Turned(h)));
 
     static IEnumerable<Vector3> Tops(TownHouse h)
     {

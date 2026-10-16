@@ -136,6 +136,12 @@ public static partial class Staging
         }
         // A walled town (queue #74): from over the gate looking back over its roofs, down its first street, and from
         // outside the gate as the train leaves, its front wall either side of the gatehouse.
+        // Down the first street on the line's other side from the square, among its houses (note 815: whether they look alike).
+        if (plan.Bounds is { } rowWall && where == "row" && rowWall.Streets.Where(x => Math.Sign(x.D) == -side).OrderBy(x => Math.Abs(x.D)).FirstOrDefault() is { } rs)
+        {
+            double r0 = sq.S0 + 10, r1 = sq.S0 - 110;
+            return Ballast.Render.Camera.LookAt(town.World(r0, rs.At(r0), 16), town.World(r1, rs.At(r1), 0), 60);
+        }
         if (plan.Bounds is { } wall && where is "over" or "lane" or "outside" or "watch" or "bend" or "crooked" or "crookedover" or "towergun")
         {
             // The first street's line out from the line (a town type's warren has none of the street town's: its first row).
@@ -165,6 +171,19 @@ public static partial class Staging
                 _ => Ballast.Render.Camera.LookAt(town.World(mid + 30, stD, 1.7), town.World(mid - 40, stD, 1.6), 72),
             };
         }
+        // A Flooder's houseboat (note 822): the nearest the square, from out in front of it and to one side, its hull, stilts
+        // and ladder; "houseboats" from higher and further, a row of them.
+        if (where is "houseboat" or "houseboats" && plan.Houses.Where(h => h.Design.Hull && h.Kind != Sim.Towns.HouseKind.Burnt)
+            .OrderBy(h => Math.Abs(h.S - mid) + Math.Abs(h.D)).FirstOrDefault() is { } boat)
+        {
+            var (fs, fd) = boat.Rail(0, 0);
+            var front = town.World(fs, fd);
+            var outward = town.Direction(fs, 0, -boat.Side);
+            var along = town.Direction(fs, 1, 0);
+            return where == "houseboat"
+                ? Ballast.Render.Camera.LookAt(front + outward * 5 + along * (boat.Width / 2 + 7) + Double3.Up * 1.4, front + Double3.Up * 1.8 - outward * (boat.Depth / 2), 66)
+                : Ballast.Render.Camera.LookAt(front + outward * 26 + along * 22 + Double3.Up * 9, front + Double3.Up * 2 - along * 10, 62);
+        }
         // A harbour town's Hope Tower (queue #547, note 819): "hope" up at its Flame from the lanes below it, toward the line;
         // "hopeover" from over the head, level with its fire basket; "hopefar" from the line far out past the town's gate,
         // where a crew coming in sees the Flame over the fog before anything else of the town.
@@ -181,6 +200,17 @@ public static partial class Staging
                 "hopeover" => Ballast.Render.Camera.LookAt(flame + along * 50 + toward * 35 + Double3.Up * 10, foot + Double3.Up * ((flame - foot).Length * 0.6), 60),
                 _ => Ballast.Render.Camera.LookAt(town.World(plan.Gate + 900, 0, 3), flame, 50),
             };
+        }
+        // The night market (note 825): "market" from the square in front of its first stall, along the row; "marketover" from
+        // over the square, the whole row lit.
+        if (where is "market" or "marketover" && plan.Fixtures.Where(f => f.Kind == "marketstall").OrderBy(f => f.S).ToList() is { Count: > 0 } row)
+        {
+            var first = row[0];
+            var last = row[^1];
+            double rowMid = (first.S + last.S) / 2;
+            return where == "market"
+                ? Ballast.Render.Camera.LookAt(town.World(first.S - 6, first.D - side * 5.5, 1.7), town.World(first.S + 6, first.D, 1.2), 66)
+                : Ballast.Render.Camera.LookAt(town.World(rowMid, first.D - side * 16, 9), town.World(rowMid, first.D, 0.8), 70);
         }
         // The town's flag (note 674): from across the square, up at it on its pole; "flagclose", nearer, the cloth filling the view.
         if (where is "flag" or "flagclose" && plan.Fixtures.FirstOrDefault(f => f.Kind == "flag") is { } flag)
@@ -717,13 +747,29 @@ public static partial class Staging
                     Act: Art.CrewPose.HeldCarried), Sim.Player.PlayerMotor.WorldPosition(carrier, train), Sim.Player.PlayerMotor.WorldYaw(carrier, train), 31),
             ];
         }
+        if (scene == "throwoff")
+        {
+            // Note 818: the same carry a moment after the throw (dt screenshot --view carryfriend --rescue throwoff): the carrier
+            // up on their toes pushing, the friend off the shoulder ahead of them along their view, flailing.
+            var frame = train.Frames[Math.Min(2, train.Frames.Count - 1)];
+            var carrier = Sim.Player.PlayerMotor.SpawnOnRoof(train, frame.Index, -1.0, player, -0.3) with { Yaw = Math.PI - 1.45 };
+            var feet = Sim.Player.PlayerMotor.WorldPosition(carrier, train);
+            double yaw = Sim.Player.PlayerMotor.WorldYaw(carrier, train);
+            var ahead = new Double3(-Math.Sin(yaw), 0, -Math.Cos(yaw));
+            return
+            [
+                new Crewmate(31, feet, yaw, true, Act: Art.CrewPose.ThrowOff, Phase: 0.2),
+                new Crewmate(32, feet + ahead * 1.5 + Double3.Up * 0.8, yaw + 2.4, true, Act: Art.CrewPose.Flail),
+            ];
+        }
         int car = SideDoorCar(train);
         var at = train.Frames[car];
         train.Vehicles[car].DoorsOpen |= 1 << 3;
         double w = at.Shape.HalfWidth, floor = at.Shape.Interior?.Min.Y + 0.1 ?? 1.1;
         var helper = new Crewmate(31, at.ToWorld(new Double3(w - 0.25, floor, 0)), -Math.PI / 2 + at.Heading, true, Act: Art.CrewPose.HandUp);
-        var runner = new Crewmate(32, at.ToWorld(new Double3(w + 1.0, 0, 0.45)), at.Heading + 0.25, true, Act: Art.CrewPose.LanternWalk, Lamp: true);
-        return [helper, runner];
+        var runner = new Crewmate(32, at.ToWorld(new Double3(w + 1.0, 0, 0.45)), at.Heading + 0.25, true, Act: Art.CrewPose.Run, Lamp: true);
+        // Note 818: running alongside with a hand up to the helper's, the two hands on one point.
+        return [Art.CrewActs.HandsMeet(helper, runner.Feet, helping: true), Art.CrewActs.HandsMeet(runner, helper.Feet, helping: false, helper.Yaw)];
     }
 
     /// <summary>
@@ -837,13 +883,14 @@ public static partial class Staging
             }
             return new Crewmate(id, feet, engine.Heading + yaw, true, Act: act, Car: 0, Local: local);
         }
-        double lift = Art.CrewActs.ChairPan - Art.CrewActs.GunnerPan;
+        // C1's clips (note 791): the chairs' at the seat's own height; one sat back, one at the can; the grill tended; a can
+        // up at the cooler.
         var crew = new List<Crewmate>
         {
-            At(40, deck.Chairs[0] + new Double3(0, lift, 0), 0, Art.CrewPose.Gunner),
-            At(41, deck.Chairs[1] + new Double3(0, lift, 0), 0, Art.CrewPose.Gunner, Sim.Physics.BodyKind.Beer, new Double3(0.42, 0.68 - lift, -0.25)),
-            At(42, deck.Grill + new Double3(0, 0, 0.6), 0, Art.CrewPose.Carry, Sim.Physics.BodyKind.Sausage, new Double3(0, 1.1, -0.3)),
-            At(43, deck.Cooler + new Double3(0.9, 0, 0.9), Math.PI * 0.75, Art.CrewPose.Carry, Sim.Physics.BodyKind.Beer, new Double3(-0.25, 1.15, -0.25)),
+            At(40, deck.Chairs[0], 0, Art.CrewPose.Lounge),
+            At(41, deck.Chairs[1], 0, Art.CrewPose.LoungeDrink, Sim.Physics.BodyKind.Beer, new Double3(0.42, 0.68, -0.25)),
+            At(42, deck.Grill + new Double3(0, 0, 0.6), 0, Art.CrewPose.Grill, Sim.Physics.BodyKind.Sausage, new Double3(0, 1.1, -0.3)),
+            At(43, deck.Cooler + new Double3(0.9, 0, 0.9), Math.PI * 0.75, Art.CrewPose.Drink, Sim.Physics.BodyKind.Beer, new Double3(-0.25, 1.15, -0.25)),
         };
         return (crew, bodies.All);
     }
@@ -862,15 +909,35 @@ public static partial class Staging
             var frame = train.Frames[car];
             foreach (var l in frame.Shape.Lounges)
             {
-                double pan = l.Kind == LoungeKind.Hammock ? Art.CrewActs.HammockPan : Art.CrewActs.TubPan;
-                var local = l.At + new Double3(0, pan - Art.CrewActs.GunnerPan, 0);
+                // The hammock's clip lies at its own height (note 791); the tub's bench is the gunner's seat let down to it.
+                bool hammock = l.Kind == LoungeKind.Hammock;
+                var local = hammock ? l.At : l.At + new Double3(0, Art.CrewActs.TubPan - Art.CrewActs.GunnerPan, 0);
                 if (l.Kind == LoungeKind.HotTub && id == 51)
                     bodies.SpawnCrate(train, car, l.At + new Double3(0.15, 1.0, -0.3), Sim.Physics.BodyKind.GrilledFish).Carrier = id;
-                crew.Add(new Crewmate(id, frame.ToWorld(local), frame.Heading + l.Yaw, true, Act: Art.CrewPose.Gunner, Car: car, Local: local));
+                crew.Add(new Crewmate(id, frame.ToWorld(local), frame.Heading + l.Yaw, true, Act: hammock ? Art.CrewPose.Hammock : Art.CrewPose.Gunner, Car: car, Local: local));
                 id++;
             }
         }
         return (crew, bodies.All);
+    }
+
+    /// <summary>
+    /// The human cannonball (note 746; `dt screenshot --upgrades humanCannonball --cannonball`, view cannonball): someone in the
+    /// guard van's gun, crouched in its mouth, and its gunner sat behind it.
+    /// </summary>
+    public static List<Crewmate> Cannonball(TrainOnLine train, Sim.Combat.CannonballTuning t)
+    {
+        var crew = new List<Crewmate>();
+        int van = Enumerable.Range(0, train.Vehicles.Count).LastOrDefault(i => Sim.Combat.HumanCannonball.Takes(train, i), -1);
+        if (van < 0 || Sim.Combat.Guns.Mount(train, van) is not { } mount)
+            return crew;
+        var frame = train.Frames[van];
+        var inside = Art.CrewActs.InTheCannon(new Sim.Player.PlayerState { Parent = van, Position = mount.Position, Health = 100 }, train, t);
+        crew.Add(new Crewmate(60, frame.ToWorld(inside.Position), frame.Heading + Math.Atan2(-mount.Facing.X, -mount.Facing.Z), true,
+            Act: Art.CrewPose.Crouch, Car: van, Local: inside.Position));
+        var seat = Art.CrewActs.Seated(new Sim.Player.PlayerState { Parent = van, Health = 100 }, mount);
+        crew.Add(new Crewmate(61, frame.ToWorld(seat.Position), frame.Heading + seat.Yaw, true, Act: Art.CrewPose.Gunner, Car: van, Local: seat.Position));
+        return crew;
     }
 
     /// <summary>
@@ -1436,7 +1503,8 @@ public static partial class Staging
     /// <summary>
     /// The staged Soot Child (<c>dt screenshot --soot</c>), off car 2's left in front of crewmate 4 (<see cref="Lone"/>; the
     /// Ribbits put away): <c>huddle</c> squatted in the ash, <c>call</c> calling to them (App. A.6 CALL; black eyes, black
-    /// hands), <c>real</c> the same, a real child (ROLL), <c>drink</c> on them (GRAB). The <c>soot</c> view looks over their
+    /// hands), <c>real</c> the same, a real child (ROLL), <c>rise</c> its telegraph as they come near (note 823), <c>drink</c> on
+    /// them (GRAB). The <c>soot</c> view looks over their
     /// shoulder at it.
     /// </summary>
     public static List<Enemy> Soot(List<Enemy> threats, TrainOnLine train, string mode)
@@ -1454,14 +1522,20 @@ public static partial class Staging
             case "drink":
                 c.Restore(SpinePhase.Grab, 2.5, c.Health, Enemy.Loose, Lone(train).Feet, 0, 0, 0, 0, 1);
                 break;
+            // Its telegraph (note 823): crewmate 4 a step outside its lunge, and it's turned to them and rising, poised.
+            case "rise":
+                c.Restore(SpinePhase.Telegraph, 1.1, c.Health, Enemy.Loose, side.ToWorld(new Double3(-(side.Shape.HalfWidth + 2.2 + SootRiseAt), 0, -1.5)),
+                    0, 0, 0, 0, 1);
+                break;
             default:
-                throw new ArgumentException($"--soot {mode}: huddle, call, real or drink");
+                throw new ArgumentException($"--soot {mode}: huddle, call, real, rise or drink");
         }
         return threats;
     }
 
-    // How far off the second car's side the staged Soot Child is (m): in front of crewmate 4, a few metres out.
-    const double SootOut = 4.6;
+    // How far off the second car's side the staged Soot Child is (m): in front of crewmate 4, a few metres out. Rising, how
+    // far from them (m): just outside its lunge (enemies.json sootChildren.lungeWithin, 5), most of the way into its telegraph.
+    const double SootOut = 4.6, SootRiseAt = 5.6;
 
     /// <summary>
     /// The staged Switchman (<c>dt screenshot --switchman</c>), at its lever 55 m up the line (App. A.7): <c>wait</c> by it
@@ -1972,6 +2046,23 @@ public static partial class Staging
     /// over it caught, cooling away along the car, out toward the ends as far as its <paramref name="spread"/>; and its car's
     /// char under the worst of it.
     /// </summary>
+    /// <summary>
+    /// Note 821 (dt screenshot --threats --view fire --scorch [m]): a crewmate on the burning car's floor <paramref name="from"/>
+    /// m along it from its hottest cell, toward the camera's end, facing it, the fire's heat on them as the host burns them
+    /// (<see cref="CarFire.HeatOn(Double3, FireGrid, IReadOnlyList{double}, CarFireTuning)"/>).
+    /// </summary>
+    public static Crewmate Scorched(TrainOnLine train, CarFire fire, CarFireTuning t, double from)
+    {
+        var car = train.Frames[fire.Attached];
+        var grid = FireGrid.Of(train, fire.Attached, t.CellSize)!;
+        int hottest = 0;
+        for (int i = 1; i < grid.Count && i < fire.Heat.Length; i++)
+            if (fire.Heat[i] > fire.Heat[hottest])
+                hottest = i;
+        var feet = new Double3(0.35, grid.Room.Min.Y + FireGrid.FloorPad, grid.Centre[hottest].Z + from);
+        return new Crewmate(34, car.ToWorld(feet), car.Heading, true, Car: fire.Attached, Local: feet, Scorch: CarFire.HeatOn(feet, grid, fire.Heat, t));
+    }
+
     public static void Cells(TrainOnLine train, CarFire fire, double extra, double spread, CarFireTuning? tuning = null)
     {
         if (FireGrid.Of(train, fire.Attached, (tuning ?? new CarFireTuning()).CellSize) is not { } grid)

@@ -14,7 +14,7 @@ SK_Climber: root, the body (pelvis, three spine bones), the neck's two, the head
 the six limbs' four bones each (upper out from the body to the elbow, lower down to the wrist, the hand, its hooks).
 Faces +Y (the engine's -Z). Clips (§31: still, then too fast): run (beside the train, low, the body snaking, the limbs
 in alternating threes, too fast), scrabble (in a coupling gap, up between the cars facing in: the hooks going on the
-buffers and the couplers), walk (along the roofs toward the engine, slow, flattened, the head swinging), crouch (inside
+buffers and the couplers in a lizard's diagonal gait, note 823), walk (along the roofs toward the engine, slow, flattened, the head swinging), crouch (inside
 an unlit car, folded up in a corner, the head lifted and cocked), grab (reared over its victim, the forehands on their
 head, the mouth opened on their face), hit.
 
@@ -275,23 +275,51 @@ for f, ph in ((0, 0.0), (4, 0.27), (8, 0.53), (11, 0.73)):
     run.key(f, stance(body, wr, curl=10), "LINEAR")
 run.close(15)
 
-# Scrabble (0.6 s, loop): up between the cars facing in, the body stood up the gap like a lizard on a wall, the forehooks
-# on the car ends above, the middle on the buffers, the hind on the coupler; climbing, the hands going in quick snatches,
-# the head pressed up and turning in jerks.
+# Scrabble (0.8 s, loop): up between the cars facing in, the body stood up the gap like a lizard on a wall, the forehooks
+# on the car ends above, the middle on the buffers, the hind on the coupler; climbing (the director, 15 Oct: "the grab and
+# scrabble look bad"; note 823): a lizard's diagonal gait, the right fore and left hind reaching up together while the
+# other pair hauls, the middle pair between them, each hand lifted off the steel, thrown up and hooked on, then dragged
+# down the length of its pull as the body's hauled up past it; the body snaking side to side with the pulls, rising and
+# sinking on them, the tail whipping against it, the head pressed up and turning, with a jerk at the top of each pull.
 UPRIGHT = {"root@loc": (0, -0.2, 0.25 + LIFT), "pelvis": (62, 0, 0), "spine_01": (8, 0, 0), "spine_02": (6, 0, 0), "spine_03": (4, 0, 0),
            "neck_01": (-14, 0, 0), "neck_02": (-10, 0, 0), "head": (-16, 0, 0), "tail_01": (-50, 0, 0), "tail_02": (-20, 0, 0)}
 scrabble = Clip("scrabble")
 GRIP = {"f": (0.36, 0.42, 1.75), "m": (0.46, 0.4, 1.2), "h": (0.32, 0.22, 0.75)}
-for f, which, turn in ((0, None, 0), (3, ("f", "r"), 10), (5, ("m", "l"), 10), (8, ("h", "r"), -14), (10, ("f", "l"), -14), (13, ("m", "r"), 4),
-                       (15, ("h", "l"), 4)):
+CLIMB_PHASE = {("f", "r"): 0.0, ("h", "l"): 0.0, ("f", "l"): 0.5, ("h", "r"): 0.5, ("m", "l"): 0.25, ("m", "r"): 0.75}
+REACH_SHARE, PULL = 0.35, 0.13                 # the share of a cycle a hand's off the steel; how far each hand travels each way
+
+
+def climbing_hand(ph):
+    """A hand `ph` (0..1) into its cycle: (up the wall, off it). Thrown up off the steel, then dragged down it on its pull."""
+    if ph < REACH_SHARE:
+        k = ph / REACH_SHARE
+        k = k * k * (3 - 2 * k)
+        return -PULL + 2 * PULL * k, 0.07 * math.sin(math.pi * ph / REACH_SHARE)
+    k = (ph - REACH_SHARE) / (1 - REACH_SHARE)
+    return PULL - 2 * PULL * k, 0.0
+
+
+SCRABBLE_FRAMES = 24
+for f in range(0, SCRABBLE_FRAMES, 2):
+    t = f / SCRABBLE_FRAMES
+    u = 2 * math.pi * t
     wr = {}
     for limb, s in LIMBNAMES:
         x, y, z = GRIP[limb]
-        reach = 0.14 if which == (limb, s) else 0.0
-        wr[(limb, s)] = (x * (1 if s == "r" else -1), y + 0.04 * (reach > 0), z + reach)
-    body = UPRIGHT | {"head": (-16, 0, turn), "neck_02": (-10, 0, turn * 0.5)}
-    scrabble.key(f, stance(body, wr, lay={k + s: (90, 0, 0) for k, s in LIMBNAMES}, curl=40, elbow_up=False), "CONSTANT")
-scrabble.close(18)
+        up, off = climbing_hand((t + CLIMB_PHASE[(limb, s)]) % 1)
+        wr[(limb, s)] = (x * (1 if s == "r" else -1), y + off, z + up)
+    # Two pulls a cycle: the body hauled up and sinking back on each, snaking toward the side that's pulling.
+    sway = math.sin(u)
+    heave = 0.035 * math.sin(2 * u)
+    # The head scans with the climb and snaps at the top of each pull.
+    snap = 10 * math.copysign(abs(math.sin(2 * u)) ** 0.35, math.sin(2 * u))
+    body = UPRIGHT | {"root@loc": (0, -0.2, 0.25 + LIFT + heave), "pelvis": (62 + 3 * math.sin(2 * u), 0, 9 * sway),
+                      "spine_01": (8, 0, -6 * sway), "spine_02": (6, 0, -5 * sway), "spine_03": (4, 0, 4 * sway),
+                      "neck_02": (-10, 0, 0.5 * snap), "head": (-16 - 4 * math.sin(2 * u), 0, snap),
+                      "tail_01": (-50, 0, -14 * math.sin(u - 0.7)), "tail_02": (-20, 0, -22 * math.sin(u - 1.4)),
+                      "tail_03": (0, 0, -26 * math.sin(u - 2.1))}
+    scrabble.key(f, stance(body, wr, lay={k + s: (90, 0, 0) for k, s in LIMBNAMES}, curl=34 + 14 * abs(math.sin(2 * u)), elbow_up=False), "LINEAR")
+scrabble.close(SCRABBLE_FRAMES)
 
 # Walk (2 s, loop): along the roofs toward the engine, slow, flattened to the roof, one limb at a time, the head low and
 # swinging from side to side as if it could smell its way.
@@ -326,17 +354,45 @@ crouch.key(110, stance(SIT | {"head": (-24, 0, -30)}, SIT_WR, curl=30), "BEZIER"
 crouch.close(120)
 
 # Grab (1.2 s, loop): reared up over its victim in front of it, the forehooks over their head, the middle hooks in
-# their shoulders, the hind limbs braced; the head pressed down at their face, the sucker opening on it, and working.
+# their shoulders, the hind limbs braced; the head pressed down at their face, the sucker opening on it, and working
+# (note 823: "the grab ... look[s] bad"). Feeding in two long pulls a loop: the body rocks back and drives down into
+# them, the sucker opening wide as it comes back and clamping as it drives in, the forehooks clenching on the head and
+# the middle hooks digging in as it pulls; the tail lashing slowly behind; the hind feet shifting their grip; a tremor
+# through the whole of it, never still.
 REAR = {"root@loc": (0, -0.25, 0.1 + LIFT), "pelvis": (40, 0, 0), "spine_01": (10, 0, 0), "spine_02": (6, 0, 0), "spine_03": (-6, 0, 0),
         "neck_01": (-24, 0, 0), "neck_02": (-24, 0, 0), "head": (-30, 0, 0), "tail_01": (-30, 0, 0)}
 GRAB_WR = {("f", "r"): (0.16, 0.62, 1.72), ("f", "l"): (-0.16, 0.6, 1.72), ("m", "r"): (0.26, 0.5, 1.4), ("m", "l"): (-0.26, 0.5, 1.42),
            ("h", "r"): (0.4, -0.55, 0.05), ("h", "l"): (-0.4, -0.55, 0.05)}
 grab = Clip("grab")
-for f, k in ((0, 0.0), (8, 1.0), (14, 0.4), (22, 1.0), (30, 0.2)):
-    p = stance(REAR | {"head": (-30 - 6 * k, 0, 4 * k), "mouth@scale": (1 + 0.5 * k, 1, 1 + 0.5 * k)}, GRAB_WR,
-               lay={"fr": (0, 0, -30), "fl": (0, 0, 30)}, curl=50 + 10 * k, elbow_up=False)
-    grab.key(f, p, "CONSTANT" if f in (8, 22) else "BEZIER")
-grab.close(36)
+GRAB_FRAMES = 36
+for f in range(0, GRAB_FRAMES, 2):
+    t = f / GRAB_FRAMES
+    u = 2 * math.pi * t
+    # Two pulls a loop: 0 rocked back, 1 driven in (a quick drive, a slow draw back).
+    drive = (1 - math.cos(2 * u)) / 2
+    drive = drive ** 0.6
+    tremor = 0.6 * math.sin(f * 2.7) + 0.4 * math.sin(f * 4.3)
+    body = REAR | {"root@loc": (0, -0.25 + 0.06 * drive, 0.1 + LIFT - 0.03 * drive),
+                   "pelvis": (40 + 5 * drive, 0, 2 * math.sin(u)), "spine_01": (10 + 2 * drive, 0, -2 * math.sin(u)),
+                   "spine_02": (6 + 3 * drive, tremor, 0), "spine_03": (-6 + 4 * drive, 0, 0),
+                   "neck_01": (-24 - 4 * drive, 0, 3 * math.sin(u + 0.5)), "neck_02": (-24 - 6 * drive, 0, 0),
+                   "head": (-30 - 8 * drive + tremor, 0, 5 * math.sin(u + 1.0)),
+                   "mouth@scale": (1.55 - 0.45 * drive, 1, 1.55 - 0.45 * drive),
+                   "tail_01": (-30, 0, 16 * math.sin(u)), "tail_02": (0, 0, 22 * math.sin(u - 0.9)), "tail_03": (0, 0, 26 * math.sin(u - 1.8))}
+    wr = dict(GRAB_WR)
+    for s_ in ("r", "l"):
+        k = 1 if s_ == "r" else -1
+        fx, fy, fz = GRAB_WR[("f", s_)]
+        mx, my, mz = GRAB_WR[("m", s_)]
+        hx, hy, hz = GRAB_WR[("h", s_)]
+        wr[("f", s_)] = (fx - k * 0.03 * drive, fy + 0.04 * drive, fz - 0.05 * drive)
+        wr[("m", s_)] = (mx - k * 0.02 * drive, my + 0.05 * drive, mz - 0.03 * drive)
+        # The hind feet shift their grip, one and then the other.
+        shift = max(0.0, math.sin(u + (0 if s_ == "r" else math.pi)))
+        wr[("h", s_)] = (hx, hy + 0.05 * shift, hz + 0.05 * shift)
+    p = stance(body, wr, lay={"fr": (0, 0, -30), "fl": (0, 0, 30)}, curl=46 + 22 * drive, elbow_up=False)
+    grab.key(f, p, "BEZIER")
+grab.close(GRAB_FRAMES)
 
 # Hit (0.4 s, once): struck, it flattens and coils round the blow, the tail lashing, and snaps back.
 REST = stance({}, {(limb, s): rest_wrist(limb, s, 1.25) for limb, s in LIMBNAMES})

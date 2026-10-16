@@ -251,6 +251,11 @@ TAKE_SPLITS = {"tell-brakeman.step": {"good": (0, 2), "bad": (1, 3)}}
 # Gameplay foley is the real thing where there's a choice: the wind-up drummer from real tin over the modelled one; the
 # lamp guttering from its flame over cloth whooshes.
 FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note 415: the square's barrels; the folk about
+                # Note 826: the Hope Tower's Flame by its coal bed and its weight, the roar a town hears.
+                "place-town.flame": "basket",
+                # Note 827: the night market, its boiler, its counter of clocks, steel needles, a stallholder's cry.
+                "place-town.stall-tea": "boiler", "place-town.stall-clocks": "tables", "place-town.stall-knitting": "steel",
+                "place-town.stall-call": "cry",
                 "crew-mishaps.tunnel-bonk": "coconut", "bed-wheel-rail.flange": "sing", "state-derail.flange-scream": "shriek",
                 "crew-noisy-toys.drummer": "tin", "ui-stranded-outro.lamp-out": "gutter",
                 # Note 322: the chuff already beats, so the starved engine's struggle under it is the beatless one.
@@ -324,6 +329,9 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 "crew-hoist.creak": "swivel", "crew-hoist.yelp": "whoa",
                 # Note 802's gag: the modelled flop, whose thump lands plainly before its oof (the real drop's onset is soft).
                 "crew-hoist.land": "flop",
+                # Note 828: the human cannonball, the barrel's iron, the 'wheee!', the air past them, the roll.
+                "crew-cannonball.climb": "barrel", "crew-cannonball.whoop": "whee", "crew-cannonball.flight": "rush",
+                "crew-cannonball.land": "roll",
                 # Note 809: the Mouse Moose from the packs' real things (gravel, a hinge's squeal, a rat's iron tink, earth),
                 # the models candidates; the casting's thud the real one, which has the weight.
                 "tell-mouse-moose.creep": "cinders", "tell-mouse-moose.squeak": "hinge", "cs-mouse-moose.bite": "iron",
@@ -342,7 +350,11 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 "up-horns.honk": "horn", "up-horns.gold-start": "steam", "up-horns.gold": "steam", "up-horns.gold-stop": "steam",
                 "up-forge.hearth": "coals", "up-forge.anvil": "ring", "up-forge.bellows": "leather", "up-forge.quench": "hiss",
                 "up-bbq.light": "whump", "up-bbq.grill": "sausages", "up-bbq.turn": "tongs", "up-bbq.cooler": "lid",
-                "up-bbq.can": "crack", "up-bbq.cheers": "clink", "up-bbq.chair": "creak"}
+                "up-bbq.can": "crack", "up-bbq.cheers": "clink", "up-bbq.chair": "creak", "up-bbq.eat": "bite",
+                "up-lounge.hammock": "ropes", "up-lounge.sway": "creak", "up-lounge.tub-in": "splash", "up-lounge.tub": "seethe",
+                "up-fishing.cast": "reel", "up-fishing.line": "lap", "up-fishing.catch": "trout",
+                # The modelled one: the real fizz and cloth crackle carry clicks past the car-fire tell's band (note 833).
+                "crew-scorch.sizzle": "singe"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the
@@ -516,6 +528,14 @@ CUE_DEF = {
     "place-town.gear-rebreather": {"minDistance": 0.5, "maxDistance": 6, "rolloff": 1.0},
     "place-town.gear-wrap": {"minDistance": 0.5, "maxDistance": 6, "rolloff": 1.0},
     "place-town.lantern": {"minDistance": 1, "maxDistance": 25, "rolloff": 1.0},
+    # The Hope Tower's Flame (note 826): a fire as big as a cart, 85 m up: a few dB down at the tower's foot, still there across
+    # the town and out along the line (falling off slower than a near thing does, as a big source's sound does).
+    "place-town.flame": {"minDistance": 20, "maxDistance": 800, "rolloff": 0.7},
+    # The night market (note 827): a stall's trade heard at its counter, its keeper's call across the square.
+    "place-town.stall-tea": {"minDistance": 1, "maxDistance": 14, "rolloff": 1.0},
+    "place-town.stall-clocks": {"minDistance": 0.8, "maxDistance": 10, "rolloff": 1.0},
+    "place-town.stall-knitting": {"minDistance": 0.8, "maxDistance": 8, "rolloff": 1.0},
+    "place-town.stall-call": {"minDistance": 2, "maxDistance": 45, "rolloff": 1.0},
     # The water (note 429): a river heard from its bank or the span over it, a lake's lap only near its shore, the sea's
     # surf a long way inland, the tide's flats across their width.
     "world-water.river": {"minDistance": 6, "maxDistance": 120, "rolloff": 0.9},
@@ -598,6 +618,12 @@ CUE_DEF = {
     "crew-hoist.creak": {"minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
     "crew-hoist.yelp": {"minDistance": 2, "maxDistance": 90, "rolloff": 1.0},
     "crew-hoist.land": {"minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
+    # The human cannonball (note 828): into the barrel heard round the gun; the whoop as far as a yell carries; the flight's air
+    # close to the flier; the landing as the hook's.
+    "crew-cannonball.climb": {"minDistance": 1.5, "maxDistance": 30, "rolloff": 1.0},
+    "crew-cannonball.whoop": {"minDistance": 2, "maxDistance": 90, "rolloff": 1.0},
+    "crew-cannonball.flight": {"minDistance": 1, "maxDistance": 30, "rolloff": 1.0},
+    "crew-cannonball.land": {"minDistance": 2, "maxDistance": 60, "rolloff": 1.0},
     # Note 806: U1's whimsies and pets at the tier and reach #967 gave its own made sounds (GameAudio.Whimsy); the calliope's
     # note is the whistle (a tell: the Choir hears it), so it has the whistle's tier, reach and level (-20 LUFS +5 dB there,
     # -16 LUFS +1 dB here).
@@ -628,6 +654,18 @@ CUE_DEF = {
     "up-bbq.can": {"minDistance": 1, "maxDistance": 12, "rolloff": 1.0},
     "up-bbq.cheers": {"minDistance": 1, "maxDistance": 15, "rolloff": 1.0},
     "up-bbq.chair": {"minDistance": 1, "maxDistance": 15, "rolloff": 1.0},
+    "up-bbq.eat": {"minDistance": 0.8, "maxDistance": 8, "rolloff": 1.0},
+    # Burned at a fire's edge (queue #561, note 833): a warning on yourself, so over the crew's own actions (tier 3, with the
+    # alarms) and under the tells; heard on whoever it's burning and by the friends beside them.
+    "crew-scorch.sizzle": {"tier": 3, "minDistance": 0.6, "maxDistance": 15, "rolloff": 1.0},
+    # The second whimsies (queue #559, note 831): close things, a body's own, heard by whoever's by them.
+    "up-lounge.hammock": {"minDistance": 1, "maxDistance": 14, "rolloff": 1.0},
+    "up-lounge.sway": {"tier": 6, "minDistance": 1, "maxDistance": 10, "rolloff": 1.0},
+    "up-lounge.tub-in": {"minDistance": 1.5, "maxDistance": 25, "rolloff": 1.0},
+    "up-lounge.tub": {"tier": 6, "minDistance": 1, "maxDistance": 12, "rolloff": 1.0},
+    "up-fishing.cast": {"minDistance": 1, "maxDistance": 25, "rolloff": 1.0},
+    "up-fishing.line": {"minDistance": 1, "maxDistance": 10, "rolloff": 1.0},
+    "up-fishing.catch": {"minDistance": 1.5, "maxDistance": 35, "rolloff": 1.0},
 }
 
 

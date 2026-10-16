@@ -810,12 +810,13 @@ public sealed partial class GreyboxScene
                     // its pack's mark, and its tongue goes to them; a Gaunt faces its waker; a Follower rides its carrier's
                     // back (Art/CreatureArt).
                     // A feral Grumbler, who it's after: the nearest of them (who hit it is the host's alone); a Soot Child's, the
-                    // one it's on (the nearest: it's at their feet).
+                    // one it's on (the nearest: it's at their feet), or before that the nearest coming at it (its telegraph, note 823).
                     // (A Gaunt leaving, its extra is what it's carrying off, not who woke it: it faces where it's going.)
                     bool leaving = e.Kind == EnemyKind.Gaunt && e.Phase == SpinePhase.BreakOff;
                     var after = !leaving && e.Kind is EnemyKind.TippyToesie or EnemyKind.Ribbit or EnemyKind.Choir or EnemyKind.Gaunt or EnemyKind.Follower && e.Extra >= 0
                         ? Whom((long)e.Extra)
-                        : (e.Kind == EnemyKind.Grumbler && e.Phase >= SpinePhase.Commit || e.Kind == EnemyKind.SootChildren && e.Phase is SpinePhase.Grab or SpinePhase.Punish)
+                        : (e.Kind == EnemyKind.Grumbler && e.Phase >= SpinePhase.Commit || e.Kind == EnemyKind.SootChildren && e.Phase is SpinePhase.Grab or SpinePhase.Punish
+                                || e.Kind == EnemyKind.SootChildren && e.Phase == SpinePhase.Telegraph && e.Extra2 > 0.5)
                             && Everyone().Any(c => c.Alive)
                             ? Everyone().Where(c => c.Alive).MinBy(c => (c.Feet - EnemyWorld(e, frames)).Length)
                             : null;
@@ -878,7 +879,7 @@ public sealed partial class GreyboxScene
                         wakerArt.WakerIn = WakerIn(titan, line, frames, eye);
                     DrawEnemy(mesh, line, frames, e, eye, from, to, Look?.Art.Creatures, bite, prey, room,
                         e.Kind is EnemyKind.Gaunt or EnemyKind.Grumbler or EnemyKind.Moose || outside ? Pace(e) : 0, Flinch(e), HitAge(e),
-                        modeSeconds: modeSeconds, place: e is Sim.Enemies.TowerJaw { Mode: Sim.Enemies.TowerJawMode.Wreck } ? TowerPlace(line, e.Local) : null);
+                        modeSeconds: modeSeconds, place: e is Sim.Enemies.TowerJaw { Mode: Sim.Enemies.TowerJawMode.Wreck } ? TowerPlace(line, e.Local) : StoodBack(e, after?.Feet));
                     if (e.Kind == EnemyKind.Waker && Look?.Art.Creatures is { } drawnWaker)
                         drawnWaker.WakerIn = default;
                     // A Waker getting up (note 599): the earth it throws off rising, and the dust it raises on the move.
@@ -912,6 +913,12 @@ public sealed partial class GreyboxScene
                     or Sim.Player.DeathCause.Exploded or Sim.Player.DeathCause.Keg).Select(c => (int)c.Id).ToHashSet();
                 // Who has the repair kit by its handle (note 513): it's drawn in their fist with them, below, not here.
                 Look.Art.KitCarriers = Crew?.Where(c => c.Alive && c.Act == Art.CrewPose.Toolbox).Select(c => (int)c.Id).ToHashSet();
+                // A can or a sausage at the deck's clips (note 791): in the fist, with them, not where the sim holds it.
+                var party = Crew?.Where(c => c.Alive && Art.SceneArt.Fisted(c.Act)).Select(c => (int)c.Id).ToHashSet();
+                Look.Art.FistCarriers = party is { Count: > 0 }
+                    ? Bodies.Where(b => b.Carrier >= 0 && party.Contains(b.Carrier) && b.Kind is Sim.Physics.BodyKind.Beer or Sim.Physics.BodyKind.Sausage
+                        or Sim.Physics.BodyKind.GrilledFish).GroupBy(b => b.Carrier).ToDictionary(g => g.Key, g => g.First().Kind)
+                    : null;
             }
             GroundFindLights(mesh, frames, eye);
             foreach (var b in Bodies)
@@ -927,13 +934,26 @@ public sealed partial class GreyboxScene
                     b.Parent = Sim.Player.PlayerState.World;
                     b.Pbd.Particles[0].Position = HeldHere!.Value.Hands;
                     b.Yaw = HeldHere.Value.Yaw;
+                    // The child in your arms (note 823; the director, 15 Oct: "when I pick it up I dont see it in my hands"):
+                    // where your cradling arms hold it (Bodies.ChildAt from your eyes), lifted with them into view, looking up
+                    // at you (SceneArt.InYourArms: soot_child's held).
+                    if (b.Kind == Sim.Physics.BodyKind.Child)
+                    {
+                        var ahead = new Double3(-Math.Sin(HeldHere.Value.Yaw), 0, -Math.Cos(HeldHere.Value.Yaw));
+                        b.Pbd.Particles[0].Position = eye - Double3.Up * (Eyes.Height - Sim.Physics.Bodies.ChildHeight - Art.CreatureArt.OwnCradleLift)
+                            + ahead * (Sim.Physics.Bodies.ChildForward + Art.CreatureArt.OwnCradleOut);
+                    }
                 }
                 if (Look is not null)
                     Look.Art.FindItem ??= body => Run?.FindOf(body)?.Item;
                 if (Look is not null)
                     Look.Art.InstrumentOf ??= body => Band is { } band && body.Instrument < band.Instruments.Length ? band.Instruments[body.Instrument].Id : null;
+                if (Look is not null)
+                    Look.Art.InYourArms = held ? b.Id : -1;
                 if (Look?.Art.Body(mesh, frames, b, eye, heavyHalf, Time) != true)
                     DrawBody(mesh, frames, b, eye, heavyHalf);
+                if (Look is not null)
+                    Look.Art.InYourArms = -1;
                 if (held)
                 {
                     b.Parent = parent;
@@ -2431,6 +2451,30 @@ public sealed partial class GreyboxScene
 
     // Seconds a pace takes to come round to a new speed (the sim moves things in tick steps; this smooths them out).
     const double PaceEasing = 0.25;
+
+    // The bearing each woken Gaunt was last drawn on round its waker, and when (note 823).
+    readonly Dictionary<int, (double Bearing, double Time)> _stoodBack = new();
+
+    /// <summary>
+    /// Where a woken Gaunt is drawn when it's out in the open after its waker (<paramref name="waker"/>'s feet), following,
+    /// listening or striking: stood back from them and facing them, going round them when they turn
+    /// (Art/CreatureArt.GauntStoodBack; note 823). Null where the sim has it: asleep, leaving, crushing someone, or aboard.
+    /// </summary>
+    (Double3 Origin, Double3 Right)? StoodBack(Enemy e, Double3? waker)
+    {
+        if (e.Kind != EnemyKind.Gaunt || e.Phase is not (SpinePhase.Telegraph or SpinePhase.Commit) || e.Attached != Enemy.Loose || waker is not { } w)
+        {
+            _stoodBack.Remove(e.Id);
+            return null;
+        }
+        // (Drawn twice in one frame, both eyes, it's where it was.)
+        double? was = _stoodBack.TryGetValue(e.Id, out var last) && Time >= last.Time ? last.Bearing : null;
+        var (origin, bearing) = Art.CreatureArt.GauntStoodBack(e.Local, w, was, was is null ? 0 : Time - last.Time);
+        _stoodBack[e.Id] = (bearing, Time);
+        // Its back away from them (the art turns it to face them).
+        var back = new Double3(Math.Sin(bearing), 0, Math.Cos(bearing));
+        return (origin, Double3.Cross(Double3.Up, back).Normalized);
+    }
 
     // What each Moose was doing when last drawn, and when it started (scene time).
     readonly Dictionary<int, (Sim.Enemies.MooseMode Mode, double Since)> _mooseModes = new();

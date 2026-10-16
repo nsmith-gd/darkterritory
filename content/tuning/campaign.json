@@ -304,6 +304,11 @@
     { "id": "tennisBalls", "name": "The tennis-ball launcher", "kind": "whimsy", "size": "small", "costShare": 0.07, "effect": { "dress:tennisBalls": 1 },
       "line": "A sprung launcher on the van's back rail and a bucket of balls. The hounds are hounds.",
       "tally": "Balls: thrown." },
+    // The human cannonball (note 746): the guard van's gun takes a crewmate for its last load, climbed in at the muzzle; fired,
+    // they land where it's aimed, unhurt, on dry ground, and anything in the way takes the ball's hit.
+    { "id": "humanCannonball", "name": "The human cannonball", "kind": "whimsy", "size": "small", "costShare": 0.12, "effect": { "dress:humanCannonball": 1 },
+      "line": "A wider bore and a padded helmet for the van's gun. Powder, pack, and a volunteer. They land. They always land.",
+      "tally": "Cannon: one volunteer." },
     // Does nothing at all, and the clerk says so, every night, for good.
     { "id": "commendation", "name": "Framed commendation", "kind": "silly", "size": "small", "costShare": 0.5, "effect": { },
       "line": "\"For Services to the Railway\", signed by a council nobody's met, framed, for the cab. Read into every tally.",

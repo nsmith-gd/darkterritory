@@ -675,6 +675,21 @@ public sealed partial class GameAudio
         s.Next = _time + gap + jitter * _rng.Next();
     }
 
+    static readonly SootChildrenTuning SootDefaults = new();
+
+    /// <summary>
+    /// Whether a Soot Child at <paramref name="at"/> is into its telegraph: the nearest of the crew within
+    /// <see cref="Art.CreatureArt.SootRiseFrom"/> of its lunge's reach, as the art has it turn and rise (note 823; note 829).
+    /// </summary>
+    bool SootRising(World world, Double3 at)
+    {
+        double lunge = (world.Enemies?.SootChildren ?? SootDefaults).LungeWithin, nearest = double.MaxValue;
+        foreach (var (_, c) in CrewStates)
+            if (c.Alive && At(world.Train, c) is { } feet)
+                nearest = Math.Min(nearest, ((feet - at) with { Y = 0 }).Length);
+        return Art.CreatureArt.SootPoise(nearest, lunge) > 0;
+    }
+
     static TrainDynamics? RakeOf(TrainOnLine train, int vehicle) => train.Rakes.FirstOrDefault(r => r.Consist.Vehicles.Any(v => v.Id == vehicle));
 
 
@@ -778,8 +793,21 @@ public sealed partial class GameAudio
                     Loop(s, "grumbler-gnaw", at, occlusion);
                     break;
                 case EnemyKind.SootChildren when ((SootChildren)e).Extra > 0.5:
-                    // Calling for help (App. A.6): a real child and a Soot Child sound the same. The eyes are the tell.
-                    // Call after call, with a frightened wait for an answer between.
+                    // Calling for help (App. A.6): a real child and a Soot Child sound the same. The eyes are the tell, from afar.
+                    // Call after call, with a frightened wait for an answer between. But a Soot Child rising for its lunge
+                    // stops calling dead as it turns to them (its telegraph, note 823's: note 829); a real child goes on.
+                    if (e.Phase == SpinePhase.Telegraph && ((SootChildren)e).Soot && SootRising(world, at))
+                    {
+                        // Its gain to nothing over this block (no click), and gone the next.
+                        if (s.Loop is { Finished: false, Volume: > 0 } calling)
+                            calling.Volume = 0;
+                        else
+                        {
+                            s.Loop?.Stop();
+                            s.Loop = null;
+                        }
+                        break;
+                    }
                     Repeat(s, "child-call", at, occlusion, 1.6, 2.4);
                     break;
                 case EnemyKind.CarFire:

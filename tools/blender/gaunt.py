@@ -17,7 +17,8 @@ picks by the room; note 118).
 
 SK_Gaunt: root, the body's four spine bones (pelvis to spine_03 at the shoulders), the neck's three, the head, the jaw,
 the ears, and the legs' three bones each (thigh up to the high knee, shin down to the hock, cannon down to the spike).
-Faces +Y (the engine's -Z). Clips (GDD §31: still, then too fast): sleep (the heap, breathing), stir (the neck coming
+Faces +Y (the engine's -Z). Clips (GDD §31: still, then too fast; since the director's 15 Oct notes, note 823, the
+stillness breathes and the too-fast is a quick eased move of two or three frames, keyed densely, never a stepped key): sleep (the heap, breathing), stir (the neck coming
 up out of it, the ears opening, once), follow (the stilts stepping in slow diagonal pairs, the head carried low and
 ahead, ears forward), listen (stood over you, the neck let down to you, the head on one side, the ears cupped at you,
 quivering; the engine lets it further down and tips the head over as its anger climbs), attack (it rears up on its hind
@@ -386,37 +387,83 @@ def gait(base, phase, stride, lift):
 EARS = (-8, 6)
 STAND = done(stand_on({"root@loc": (0, 0, 0)}, rest_feet()), EARS)
 
+
+def cached(solve):
+    """A leg solve kept by its arguments: the IK is the slow part, and a breath takes only a few values."""
+    memo = {}
+
+    def go(*key):
+        if key not in memo:
+            memo[key] = solve(*key)
+        return memo[key]
+    return go
+
+
+def flutter(f, at, deg):
+    """A flutter of `deg` from frame `at`, dying away over a few frames (the ears' quiver, a shudder)."""
+    u = f - at
+    return deg * math.sin(math.pi * u / 2) * math.exp(-u / 5) if u >= 0 else 0.0
+
+
+def breath_at(f, frames):
+    """Out (-1) and in (1), twice a loop of `frames`; a quarter-step, so the legs' solves are kept (cached)."""
+    return round(math.sin(4 * math.pi * f / frames) * 4) / 4
+
+
+# The director's 15 Oct notes (note 823: "more fluidity to the anims"): its holds breathe and its snaps are quick eased
+# moves of two or three frames, keyed densely, not stepped keys.
+
 # Listen (3 s, loop): stood over you, the body let down a little at the front, the neck let down to you and the head on
-# one side, the ears cupped at you; dead still but for the ears' quiver, and once the head turning to the other side.
+# one side, the ears cupped at you. Never quite still: it breathes, slow and deep, the chest let down and up and the jaw
+# working with it; the neck weaves as it listens; the ears quiver twice; and once the head comes round onto its other
+# side, eased, held, and back. Keyed every frame.
 LISTEN_BODY = {"root@loc": (0, 0, -0.18), "pelvis": (4, 0, 0), "spine_02": (-4, 0, 0), "spine_03": (-8, 0, 0),
                "neck_01": (-12, 0, 0), "neck_02": (-18, 0, 0), "neck_03": (-14, 0, 0), "head": (-34, 0, 18), "jaw": (-6, 0, 0)}
-LISTEN_LEGS = stand_on(LISTEN_BODY, rest_feet(1.0, 0.1))
+
+
+@cached
+def listen_legs(b):
+    """Stood, the chest let down and up with the breath `b` (-1 out, 1 in)."""
+    body = rig.add(LISTEN_BODY, {"root@loc": (0, 0, 0.03 * b), "spine_02": (1.5 * b, 0, 0), "spine_03": (2.0 * b, 0, 0)})
+    return stand_on(body, rest_feet(1.0, 0.1))
+
+
+LISTEN_LEGS = listen_legs(0.0)
 LEAR = (-18, 14)
 LISTEN = done(LISTEN_LEGS, LEAR)
+
+
+def listening(f):
+    b, weave = breath_at(f, 90), math.sin(2 * math.pi * f / 90)
+    tilt = -40 * (rig.smoothstep(50, 62, f) - rig.smoothstep(72, 86, f))
+    p = rig.add(listen_legs(b), {"neck_01": (0, 0, 3 * weave), "neck_02": (1.5 * b, 0, -2 * weave),
+                                 "head": (2 * math.sin(4 * math.pi * f / 90 + 1.2), 0, tilt + 2 * weave), "jaw": (-3 * max(0.0, b), 0, 0)})
+    return done(p, LEAR, flutter(f, 14, 6) + flutter(f, 40, 4))
+
+
 listen = Clip("listen")
-listen.key(0, LISTEN, "CONSTANT")
-for f, k in ((14, 1), (15, -1), (16, 0), (40, 1), (41, 0)):
-    listen.key(f, done(LISTEN_LEGS, LEAR, 6 * k), "CONSTANT")
-listen.key(54, LISTEN, "BEZIER")
-listen.key(64, done(over(LISTEN_LEGS, head=(-34, 0, -22)), LEAR), "BEZIER")
-listen.key(78, done(over(LISTEN_LEGS, head=(-34, 0, -22)), LEAR), "CONSTANT")
-listen.key(80, LISTEN, "CONSTANT")
+for f in range(90):
+    listen.key(f, listening(f), "LINEAR")
 listen.close(90)
 
 # Follow (1.6 s, loop): stalking on its stilts, each leg lifted high and set down ahead; the body swaying between them,
-# the head carried low and out ahead, the ears up and forward.
+# the head carried low and out ahead, held steady against the body's bob, the ears up and forward and working with the
+# steps. Keyed every two frames.
 FOLLOW_BODY = {"root@loc": (0, 0, -0.08), "spine_03": (-4, 0, 0), "neck_01": (-24, 0, 0), "neck_02": (-16, 0, 0), "neck_03": (-6, 0, 0),
                "head": (-14, 0, 0)}
 follow = Clip("follow")
-for f, phase in ((0, 0.0), (12, 0.25), (24, 0.5), (36, 0.75)):
-    body = over(FOLLOW_BODY, root__loc=(0.03 * math.sin(phase * 2 * math.pi), 0, -0.08 + 0.03 * math.cos(phase * 4 * math.pi)),
-                spine_02=(0, 3 * math.sin(phase * 2 * math.pi), 0), head=(-14, 0, -6 * math.sin(phase * 2 * math.pi)))
-    follow.key(f, done(stand_on(body, gait(rest_feet(), phase, 0.4, 0.35)), (-12, 4)), "LINEAR")
+for f in range(0, 48, 2):
+    phase = f / 48
+    sway, bob = math.sin(phase * 2 * math.pi), math.cos(phase * 4 * math.pi)
+    body = over(FOLLOW_BODY, root__loc=(0.03 * sway, 0, -0.08 + 0.03 * bob), spine_02=(0, 3 * sway, 0),
+                neck_02=(-16 + 3 * bob, 0, 0), head=(-14 - 3 * bob, 0, -6 * sway))
+    follow.key(f, done(stand_on(body, gait(rest_feet(), phase, 0.4, 0.35)), (-12 + 4 * bob, 4)), "LINEAR")
 follow.close(48)
 
 # Attack (2.4 s, loop): up on its hind legs, the body tipped back, the forelegs lifted high over its head, too slowly;
-# held; then driven down into you, too fast, the spikes in the ground where you stood, the head after them; pulled out,
-# and up again.
+# held there trembling, and drawn up higher still; then driven down into you, too fast (three frames), past where they
+# stop and back; the spikes in the ground where you stood, the head after them, the jaw open and the head wrenched as it
+# pulls out; and up again.
 REAR_BODY = {"root@loc": (0, -0.25, 0.25), "pelvis": (24, 0, 0), "spine_01": (8, 0, 0), "spine_02": (6, 0, 0), "spine_03": (4, 0, 0),
              "neck_01": (6, 0, 0), "neck_02": (-6, 0, 0), "head": (-30, 0, 0), "jaw": (-30, 0, 0)}
 hind = {k: v for k, v in rest_feet(1.0, -0.2).items() if k[0] == "b"}
@@ -435,11 +482,18 @@ STAB_OPEN = done(over(STAB, jaw=(-20, 0, 0)), (20, 10))
 STAB = done(STAB, (20, 10))
 attack = Clip("attack")
 attack.key(0, STAND, "BEZIER")
-attack.key(20, REAR, "BEZIER")
-attack.key(30, REAR, "CONSTANT")
+attack.key(20, REAR, "LINEAR")
+for k, f in enumerate((22, 24, 26, 28)):
+    q = 1 if k % 2 == 0 else -1
+    attack.key(f, rig.add(REAR, {"cannon_fr": (3 * q, 0, 0), "cannon_fl": (-3 * q, 0, 0), "spine_03": (0.8 * q, 0, 0), "head": (2 * q, 0, 0),
+                                 "jaw": (-2 * q, 0, 0)}), "LINEAR")
+attack.key(30, rig.add(REAR, {"spine_01": (3, 0, 0), "cannon_fr": (-12, 0, 0), "cannon_fl": (-12, 0, 0), "head": (-8, 0, 0)}), "LINEAR")
 attack.key(33, STAB, "LINEAR")
-attack.key(42, STAB_OPEN, "BEZIER")
-attack.key(54, STAB_OPEN, "BEZIER")
+attack.key(35, rig.add(STAB, {"spine_02": (-3, 0, 0), "spine_03": (-3, 0, 0), "neck_01": (-8, 0, 0), "head": (-6, 0, 0)}), "BEZIER")
+attack.key(40, STAB, "BEZIER")
+attack.key(44, STAB_OPEN, "BEZIER")
+attack.key(50, rig.add(STAB_OPEN, {"neck_02": (4, 0, 4), "head": (8, 0, 10)}), "BEZIER")
+attack.key(56, STAB_OPEN, "BEZIER")
 attack.close(72)
 
 
@@ -456,40 +510,66 @@ def low_feet(spread, reach, dy=0.0):
 ALL = [leg + s for leg, s in LEGNAMES]
 CRAWL_BODY = {"root@loc": (0, 0, -1.28), "spine_03": (-6, 0, 0), "neck_01": (-50, 0, 0), "neck_02": (-20, 0, 0), "neck_03": (4, 0, 0),
               "head": (-6, 0, 0)}
+# Crawl (1.3 s, loop): creeping folded, the head low and swinging, held against the bob. Keyed every two frames.
 crawl = Clip("crawl")
-for f, phase in ((0, 0.0), (10, 0.25), (20, 0.5), (30, 0.75)):
-    p = stand_on(over(CRAWL_BODY, root__loc=(0, 0, -1.28 + 0.02 * math.cos(phase * 4 * math.pi)), head=(-6, 0, 8 * math.sin(phase * 2 * math.pi))),
+for f in range(0, 40, 2):
+    phase = f / 40
+    bob = math.cos(phase * 4 * math.pi)
+    p = stand_on(over(CRAWL_BODY, root__loc=(0, 0, -1.28 + 0.02 * bob), head=(-6 - 3 * bob, 0, 8 * math.sin(phase * 2 * math.pi))),
                  gait(low_feet(0.85, 2.2), phase, 0.3, 0.2), hocks={k: 0.35 for k in ALL}, **{k: {"knee_low": 1.5} for k in ALL})
     crawl.key(f, done(p, (30, 20)), "LINEAR")
-    crawl_probe = done(p, (30, 20))
+    if f == 30:
+        crawl_probe = done(p, (30, 20))
 crawl.close(40)
 
 # Squat (3 s, loop): folded up tight in the car, the knees jammed up under the roof round it like a cage, the neck up out
-# of the fold and the head on one side, the ears open, listening; still, then the ears flinch.
+# of the fold and the head on one side, the ears open, listening; breathing, the head coming round onto its other side
+# and back, eased, and once the ears thrown up at something in two frames and let down again. Keyed every frame.
 SQUAT_BODY = {"root@loc": (0, 0, -1.3), "pelvis": (-6, 0, 0), "neck_01": (-26, 0, 0), "neck_02": (-12, 0, 0), "neck_03": (-6, 0, 0),
               "head": (-20, 0, 20)}
 SQUAT_KNEES = {k: {"knee_low": 1.62, "knee_high": 1.45} for k in ALL}
-SQUAT_LEGS = stand_on(SQUAT_BODY, low_feet(0.8, 1.9), hocks={k: 0.6 for k in ALL}, **SQUAT_KNEES)
+
+
+@cached
+def squat_legs(b):
+    body = rig.add(SQUAT_BODY, {"root@loc": (0, 0, 0.02 * b), "spine_02": (1.2 * b, 0, 0), "spine_03": (1.5 * b, 0, 0)})
+    return stand_on(body, low_feet(0.8, 1.9), hocks={k: 0.6 for k in ALL}, **SQUAT_KNEES)
+
+
+SQUAT_LEGS = squat_legs(0.0)
 SQUAT = done(SQUAT_LEGS, (-10, 18))
+
+
+def squatting(f):
+    b = breath_at(f, 90)
+    turn = rig.smoothstep(32, 42, f) - rig.smoothstep(66, 80, f)
+    flinch = rig.smoothstep(56, 58, f) - rig.smoothstep(58, 68, f)
+    p = rig.add(squat_legs(b), {"neck_02": (1.5 * b, 0, 0), "head": (0, 0, -38 * turn), "jaw": (-2 * max(0.0, b), 0, 0)})
+    return done(p, (-10 + 40 * flinch, 18 - 14 * flinch), flutter(f, 58, 5))
+
+
 squat = Clip("squat")
-squat.key(0, SQUAT, "CONSTANT")
-squat.key(40, done(over(SQUAT_LEGS, head=(-20, 0, -18)), (-10, 18)), "BEZIER")
-squat.key(56, done(over(SQUAT_LEGS, head=(-20, 0, -18)), (-10, 18)), "CONSTANT")
-squat.key(58, done(over(SQUAT_LEGS, head=(-20, 0, -18)), (30, 4)), "CONSTANT")
-squat.key(62, SQUAT, "BEZIER")
+for f in range(90):
+    squat.key(f, squatting(f), "LINEAR")
 squat.close(90)
 
+
 # Smash (1 s, loop): from the squat, the forelegs stabbed out ahead and down along the floor, one and then the other,
-# too fast.
+# each drawn back and up first, then out in two frames, dug in, and pulled back in.
+def stabbing(which, foot, hock, neck, jaw, ears):
+    sx = 1 if which == "r" else -1
+    feet = low_feet(0.8, 1.9) | {("f", which): (sx * foot[0], foot[1], foot[2])}
+    p = stand_on(SQUAT_BODY | {"neck_01": (neck, 0, 0), "jaw": (jaw, 0, 0)}, feet, hocks={k: 0.6 for k in ALL} | {"f" + which: hock}, **SQUAT_KNEES)
+    return done(p, ears)
+
+
 smash = Clip("smash")
-for f, which in ((0, None), (6, "r"), (10, None), (16, "l"), (20, None)):
-    p = SQUAT
-    if which:
-        sx = 1 if which == "r" else -1
-        feet = low_feet(0.8, 1.9) | {("f", which): (sx * 0.25, 2.7, 0.0)}
-        p = stand_on(SQUAT_BODY | {"neck_01": (-30, 0, 0), "jaw": (-30, 0, 0)}, feet, hocks={k: 0.6 for k in ALL} | {"f" + which: 0.25}, **SQUAT_KNEES)
-        p = done(p, (24, 10))
-    smash.key(f, p, "CONSTANT" if which else "LINEAR")
+smash.key(0, SQUAT, "BEZIER")
+for at, which in ((0, "r"), (10, "l")):
+    smash.key(at + 4, stabbing(which, (0.6, 1.5, 0.35), 0.6, -20, -8, (-4, 16)), "LINEAR")
+    smash.key(at + 6, stabbing(which, (0.25, 2.75, 0.0), 0.22, -32, -32, (26, 10)), "BEZIER")
+    smash.key(at + 8, stabbing(which, (0.25, 2.7, 0.0), 0.25, -30, -30, (24, 10)), "BEZIER")
+    smash.key(at + 12, SQUAT, "BEZIER")
 smash.close(30)
 
 # Sleep (4 s, loop): lain down in the middle of its legs, the legs out round it in a tangle on the ground like fallen
@@ -512,13 +592,16 @@ stir.key(0, SLEEP, "BEZIER")
 stir.key(40, done(STIR, (-6, 14)), "BEZIER")
 stir.key(60, done(over(STIR, head=(-20, 0, -10)), (-14, 14)), "CONSTANT")
 
-# Hit (0.5 s, once): struck, it shudders through its whole length, the ears flattened, and holds again.
+# Hit (0.5 s, once): struck, it shudders through its whole length in two frames, the ears flattened, rocks back past
+# where it stood and shudders again, less, and holds.
+STRUCK = done(over(LISTEN_LEGS, spine_02=(8, 6, 10), neck_01=(-10, 0, 20), head=(-10, 0, 40)), (60, 0))
 hit = Clip("hit", loop=False)
-hit.key(0, LISTEN, "CONSTANT")
-hit.key(2, done(over(LISTEN_LEGS, spine_02=(8, 6, 10), neck_01=(-10, 0, 20), head=(-10, 0, 40)), (60, 0)), "CONSTANT")
-hit.key(8, done(over(LISTEN_LEGS, spine_02=(-4, -4, -6)), (30, 10)), "LINEAR")
-hit.key(14, LISTEN, "CONSTANT")
-
+hit.key(0, LISTEN, "LINEAR")
+hit.key(2, STRUCK, "BEZIER")
+hit.key(4, rig.add(STRUCK, {"spine_02": (2, 2, 3), "neck_01": (0, 0, 4), "head": (0, 0, 6)}), "BEZIER")
+hit.key(8, done(over(LISTEN_LEGS, spine_02=(-4, -4, -6)), (30, 10)), "BEZIER")
+hit.key(11, rig.blend(LISTEN, STRUCK, 0.25), "BEZIER")
+hit.key(14, LISTEN, "BEZIER")
 
 
 # Carrying off what it took (App. A.6: "it carries the body out at walking pace, in full view"; note 505): the sim holds
@@ -580,7 +663,8 @@ JAW_SHUT = (-14, 0, 0)
 CARRY_BODY = over(FOLLOW_BODY, root__loc=(0, 0, -0.14), spine_03=(2, 0, 0), jaw=JAW_SHUT)
 carry = Clip("carry")
 carry_worst = 0.0
-for f, phase in ((0, 0.0), (12, 0.25), (24, 0.5), (36, 0.75)):
+for f in range(0, 48, 6):
+    phase = f / 48
     sway, bob = 0.03 * math.sin(phase * 2 * math.pi), 0.03 * math.cos(phase * 4 * math.pi)
     body = over(CARRY_BODY, root__loc=(sway, 0, -0.14 + bob), spine_02=(0, 3 * math.sin(phase * 2 * math.pi), 0))
     body, miss = mouth_to(body, GRIP_HIGH + Vector((sway, 0, bob)), aim=AIM_HIGH)
@@ -592,7 +676,8 @@ carry.close(48)
 # Carry low (1.3 s, loop): aboard, the crawl's fold, the load dragged under its chest in its mouth.
 CARRY_LOW_BODY = over(CRAWL_BODY, jaw=JAW_SHUT)
 carry_low = Clip("carry_low")
-for f, phase in ((0, 0.0), (10, 0.25), (20, 0.5), (30, 0.75)):
+for f in range(0, 40, 5):
+    phase = f / 40
     bob = 0.02 * math.cos(phase * 4 * math.pi)
     body = over(CARRY_LOW_BODY, root__loc=(0, 0, -1.28 + bob))
     body, miss = mouth_to(body, GRIP_LOW + Vector((0, 0, bob)), aim=(0.0, 0.2, -1.0))

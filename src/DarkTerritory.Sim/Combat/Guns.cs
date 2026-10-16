@@ -221,7 +221,7 @@ public static class Guns
         }
         gun.Cooldown = t.TicksPerRound;
         gun.LastShotTick = tick;
-        // The cannon's full manual reload before the next (GDD v1.1 App. C.3): powder, ball, ram. The rack run dry (note
+        // The cannon's full manual reload before the next (GDD v1.1 App. C.3; note 746): powder, pack, ball. The rack run dry (note
         // 374), there's nothing to load until a charge comes up from the lockers.
         gun.ReloadNeeded = Ready(gun, t) > 0 ? t.ReloadSteps : 0;
         gun.ReloadProgress = 0;

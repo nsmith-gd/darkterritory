@@ -31,7 +31,10 @@
   // A town of more than "lineRow" houses keeps that many on the line's street, the nearest its square, and takes streets
   // of its own for the rest (note 668; the director, 13 Oct, of frontier:7's: "a long row of houses. It doesn't feel like
   // a town"): a hamlet stays a row by the track.
-  "houses": { "every": 15, "out": 10.9, "width": [6.5, 9.0], "gableWidth": [5.4, 7.0], "depth": [5.2, 6.0], "fromGate": 30, "burnt": 0.15, "open": 0.12, "lineRow": 10 },
+  // A company town's houses (note 815) stand in runs of one plan "planRun" m long down each street, the next run maybe
+  // another plan's.
+  "houses": { "every": 15, "out": 10.9, "width": [6.5, 9.0], "gableWidth": [5.4, 7.0], "depth": [5.2, 6.0], "fromGate": 30, "burnt": 0.15, "open": 0.12, "lineRow": 10,
+    "planRun": 45 },
 
   // A walled town (the director, 7 Oct: "fortresses aren't just some straight line around the railroad, they should
   // surround towns, towns should be explorable"; queue #74, ARCHITECTURE §8 note 335). A town with more houses than the
@@ -78,8 +81,11 @@
   // stands, inside the yard's level pad (linegen LongPad, 70 m); buildingDepth: the hall, the clerk's and the store,
   // backed onto that wall, fronts to the line.
   // A small town's green (note 490), in its square's rear end: "greenAlong" m from that end, "greenOut" m out from the line.
+  // market (queue #552, note 825; the director's playtest of 14 Oct, line 3: "Still a bit basic"): the night market's
+  // stalls on the square, the least and the most, one more for every marketPer people; its row marketIn m in front of the
+  // buildings' fronts, its stalls at least marketEvery m apart along it.
   "square": { "side": -1, "fromGate": [-100, -28], "wallOut": 30, "buildingDepth": 6, "hallWidth": 14, "officeWidth": 9,
-    "greenAlong": [5, 17], "greenOut": [7, 17] },
+    "greenAlong": [5, 17], "greenOut": [7, 17], "market": [4, 8], "marketPer": 400, "marketIn": 3.6, "marketEvery": 4.6 },
 
   // People. "ring": how many stand round the centrepiece, one for every 30 in the town between these; the rest have
   // their places (the gate, the doors, the board, the engine, the platform), more of them in a bigger town, and the

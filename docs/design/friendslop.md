@@ -68,7 +68,7 @@ runs a home that moves. Griefers, Hackers and Opportunists go to target.
 | 457 | **Bringing them home.** The hand-up onto a moving car; carrying a live friend; helping a knocked-down friend up; a bandage put on someone else heals half again as much | 723 |
 | 458 | **Sessions.** The crew's save travels with any member who hosts; a friend joining takes a bot's seat; kick and mute in public lobbies | 724 |
 | 459 | **Cuts you can get back** (a car cut at a stand stays put; one cut at speed can be caught by backing up within the 400 m) and the chart table's lamp per crewmate aboard | 725 |
-| 460 | **Hoist a friend** on the crane's hook | 726 |
+| 460 | **Hoist a friend** on the crane's hook (the drop a gag, at most 10 health by its height and never a death: the director, 15 Oct 2026, queue #529, note 802) | 726, 802 |
 | 461 | **The mail catch:** the bag snagged from the car door as the train passes a mail crane. *Cut for now (the director, 15 Oct 2026; queue #530): no mail cranes on the line, kept behind sight.json `mailCranes`* | 727, 803 |
 | 462 | **The sense table** (every item gives off or masks a sense the creatures answer: a thrown music box lures what hunts by sound, the extinguisher's cold drives the hounds back, a lamp shows what waits in a dark house) **and thrown things do what they are** (a lamp breaks into fire, a keg rolls and blows) | 728 |
 | 463 | **The handcar:** a two-person pump trolley on a flatcar, for a branch, a friend left behind, or a race | 729 |

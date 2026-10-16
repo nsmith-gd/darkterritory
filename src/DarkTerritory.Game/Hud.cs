@@ -92,6 +92,8 @@ public static partial class Hud
             Skip(o, width, height, s);
             return;
         }
+        // A car fire's heat on them (note 821), from the moment it reaches them, under the hurt flash its burns bring.
+        HeatGlow(o, width, height, HeatStrength(s), s.HostTick * Sim.SimConstants.TickSeconds);
         // App. F.1's damage feedback (note 272): under everything else, so the text stays readable through it.
         EdgeFlash(o, width, height, HurtStrength(s));
         if (s.StrandedOutro)
@@ -206,6 +208,51 @@ public static partial class Hud
             var colour = new Vector4(0.62f, 0.03f, 0.02f, (float)strength * 0.6f * fall * fall);
             o.Rect(0, k, width, 1, colour);
             o.Rect(0, height - 1 - k, width, 1, colour);
+            o.Rect(k, k + 1, 1, height - 2 * k - 2, colour);
+            o.Rect(width - 1 - k, k + 1, 1, height - 2 * k - 2, colour);
+        }
+    }
+
+    /// <summary>
+    /// Note 821 (the 14 Oct playtest's line 25: "I wasn't getting any feedback that I was being burned. And I was standing at
+    /// the edge of the fire"): how strongly the heat glow shows (0 to 1) for how hot a car fire is on this machine's player,
+    /// as the host burns them (<see cref="Sim.Enemies.CarFire.HeatOn(in Sim.Player.PlayerState, Sim.World)"/>). At its edge,
+    /// where a brush burns slowly, it's already <see cref="HeatGlowLeast"/>: you see it before the first point comes off.
+    /// </summary>
+    public static double HeatStrength(IPlaySession s)
+    {
+        if (StagedHeat is { } staged)
+            return HeatStrengthOf(staged);
+        return HeatStrengthOf(Sim.Enemies.CarFire.HeatOn(s.Player, s.World));
+    }
+
+    /// <summary>The glow for a heat (0 to 1): none without it, never under <see cref="HeatGlowLeast"/> with it, full at <see cref="HeatGlowFullAt"/>.</summary>
+    public static double HeatStrengthOf(double heat) =>
+        heat <= 0 ? 0 : HeatGlowLeast + (1 - HeatGlowLeast) * Math.Clamp(heat / HeatGlowFullAt, 0, 1);
+
+    public const double HeatGlowLeast = 0.4, HeatGlowFullAt = 0.7;
+
+    /// <summary>A still frame's heat (<c>dt screenshot --hud --heat h</c>): a car fire this hot on the player.</summary>
+    public static double? StagedHeat { get; set; }
+
+    /// <summary>
+    /// The heat glow (note 821): an amber band round the frame's edge, wider and softer than the hurt flash and warmer, its
+    /// bottom edge (where the fire is, at your feet) the deepest, wavering as flames do. Not red: it's the heat, before and
+    /// between the burns' own flashes.
+    /// </summary>
+    public static void HeatGlow(Overlay o, int width, int height, double strength, double time)
+    {
+        if (strength <= 0.01)
+            return;
+        float waver = 0.85f + 0.15f * MathF.Sin((float)time * 9.1f) * MathF.Sin((float)time * 5.3f + 1.3f);
+        int bands = Math.Max(10, height / 5);
+        for (int k = 0; k < bands; k++)
+        {
+            float fall = 1 - (float)k / bands;
+            float a = (float)strength * waver * 0.5f * fall * fall;
+            var colour = new Vector4(1.0f, 0.42f + 0.18f * fall, 0.08f, a);
+            o.Rect(0, k, width, 1, colour with { W = a * 0.6f });
+            o.Rect(0, height - 1 - k, width, 1, colour with { W = a * 1.3f });
             o.Rect(k, k + 1, 1, height - 2 * k - 2, colour);
             o.Rect(width - 1 - k, k + 1, 1, height - 2 * k - 2, colour);
         }
@@ -2037,9 +2084,16 @@ public static partial class Hud
             yield return line.ToString();
     }
 
-    /// <summary>The reload's step under way (GDD v1.1 App. C.3: powder, ball, ram), for the prompt.</summary>
+    /// <summary>
+    /// The reload's step under way, for the prompt: powder, then pack it, then the ball (the director, 15 Oct 2026, note 746:
+    /// "the reload flow to be powder, pack, then either a ball or a player jumps in"; App. C.3's powder, ball, ram before).
+    /// </summary>
+    /// <summary>The gun's gunner's line when it's loaded with a crewmate (note 746): who goes when they fire; null with a ball.</summary>
+    public static string? Loaded(World world, int gun, IEnumerable<(int Id, PlayerState State)> crew) =>
+        HumanCannonball.Inside(gun, crew) is { } who ? $"LOADED: {IncidentLog.NameOf(world, who).ToUpperInvariant()}" : null;
+
     static string LoadStep(in GunState gun, GunTuning t) =>
-        (t.ReloadSteps - gun.ReloadNeeded) switch { 0 => "LOAD POWDER", 1 => "LOAD BALL", _ => "RAM IT" };
+        (t.ReloadSteps - gun.ReloadNeeded) switch { 0 => "LOAD POWDER", var d when d < t.ReloadSteps - 1 => "PACK IT", _ => "LOAD BALL" };
 
     /// <summary>
     /// The roof warning's two lines (note 260), or null: nothing coming, or it isn't for you (sight.json <c>roofWarning.roofOnly</c>:
@@ -2467,6 +2521,14 @@ public static partial class Hud
         // The tiny caboose off the rails within reach (note 713): empty hands put it back.
         if (world.Bodies.CabooseOff(p, train, train.Dynamics.Tuning.Composition.Caboose) is not null)
             return "PUT THE CABOOSE BACK ON THE RAILS : [E]";
+        // The human cannonball (note 746): in the guard van's gun, or at its muzzle with it packed.
+        if (world.Combat is { } cannon)
+        {
+            if (p.Has(PlayerFlags.InCannon))
+                return "IN THE CANNON   CLIMB OUT : [SPACE]";
+            if (HumanCannonball.AtTheMuzzle(p, train, cannon.Guns, cannon.Cannonball) is { } muzzle)
+                return Hold("CLIMB IN", train.Vehicles[muzzle].Gun.ReloadProgress / cannon.Cannonball.ClimbSeconds);
+        }
         // T112: the gun's seat and its own controls.
         if (world.Combat is { } combat && Guns.MannedGun(p, train, combat.Guns) is { } manned)
         {
@@ -2478,6 +2540,8 @@ public static partial class Hud
                 : gun.ReloadNeeded > 0 ? $"{LoadStep(gun, combat.Guns)} : HOLD [E]"
                 : Guns.Ready(gun, combat.Guns) <= 0 ? Guns.Stowed(train, combat.Guns) > 0 ? "THE RACK'S EMPTY: POWDER FROM THE GUARD VAN" : "NO SHOT"
                 : train.BoilerTuning is not null && train.Boiler.Pressure < combat.Guns.MinPressure ? "NO STEAM"
+                // Note 746: loaded with a crewmate, not a ball; the gunner's told who goes when they fire.
+                : Loaded(world, manned, s.CrewStates(1)) is { } loaded ? loaded
                 : seated ? null
                 // Note 664: pushing it along is its own key (Use's sitting in it; the director: "a different button").
                 : "SIT : [E]   PUSH : HOLD [PUSH] + WALK";

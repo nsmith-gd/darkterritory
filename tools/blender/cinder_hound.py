@@ -14,7 +14,9 @@ distance in fog, a tall, spiked, long-legged shape with a smoulder along its sid
 0.72 m at the withers, 1.6 m nose to rump (the tail hangs on behind, 1.88 m all told), head forward (-Z in the engine).
 SK_Quad. Clips: prowl (loop), run (gallop loop), crouch (telegraph: low, ready, trembling), lunge (commit), board, hit,
 bite. Motion (§31): "unnaturally still when observed, disturbing changes in pace, abrupt turns, lurches, too-fast
-corrections": holds and CONSTANT-key pops, the head snapping round a beat before the body.
+corrections": holds and pops, the head snapping round a beat before the body. The pops are quick eased moves of a frame
+or a few, not stepped keys (note 823, the director, 15 Oct: "The animations still look choppy and not very fluid. The
+Run is okay but the others look bad"): the hitch and the snaps keep their timing and lose the jump.
 
     blender -b --python tools/blender/cinder_hound.py -- content/art/models/cinder_hound.glb
 
@@ -609,11 +611,11 @@ for f in range(0, 49, 2):
         ph, look, interp = STOP * f / 20, 0.0, "LINEAR"
     elif f < 32:
         # 22 frozen; 24 the head snaps round; 30 still staring; 32 snapped back and walking.
-        ph, look, interp = STOP, (0.0 if f < 24 else 1.0), "CONSTANT"
+        ph, look, interp = STOP, (0.0 if f < 24 else 1.0), "LINEAR"
     else:
         ph, look, interp = STOP + (1 - STOP) * (f - 32) / 16, 0.0, "LINEAR"
     if f in (20, 22):
-        interp = "CONSTANT"
+        interp = "LINEAR"
     prowl.key(f, stalk(ph % 1.0, look), interp)
 
 # Planted poses: each paw put where it stands, flat (the stance pitches), by the same IK.
@@ -661,7 +663,7 @@ for f, lean, breath in ((0, 0.0, 0.0), (8, 0.3, 1.0), (14, 0.6, 0.4)):
 for f, d in ((16, 1), (17, -1), (19, 1), (21, 0)):
     # Tremble: small, fast, out of step between the crest, the flanks and the head.
     crouch.key(f, crouched(0.6, belly=(4 * d, 0, 0), crest_01=(7 * d, 0, 0), crest_03=(-6 * d, 0, 3 * d),
-                           head=(6 + 2 * d, 0, 2 * d), tail_05=(6, 0, 14 * d)), "CONSTANT")
+                           head=(6 + 2 * d, 0, 2 * d), tail_05=(6, 0, 14 * d)), "LINEAR")
 crouch.key(24, crouched(0.2, belly=(2, 0, 0)), "BEZIER")
 crouch.close(30)
 
@@ -708,11 +710,11 @@ HIT = planted(posed(root__loc=(-0.07, -0.02, -0.08), root=(0, 0, -6), pelvis=(0,
               {"front_r": (0.36, GROUND), "front_l": (0.42, GROUND), "rear_r": (-0.46, GROUND), "rear_l": (-0.4, GROUND)},
               spread=1.5)
 hit = Clip("hit", loop=False)
-hit.key(0, STAND, "CONSTANT")
-hit.key(1, HIT, "CONSTANT")
+hit.key(0, STAND, "LINEAR")
+hit.key(1, HIT, "LINEAR")
 hit.key(5, {**HIT, "crest_02": (0, -15, 0), "chest": (0, 6, -8)}, "LINEAR")
-hit.key(9, {**STAND, "head": (-6, 0, -10)}, "CONSTANT")
-hit.key(12, STAND, "CONSTANT")
+hit.key(9, {**STAND, "head": (-6, 0, -10)}, "LINEAR")
+hit.key(12, STAND, "LINEAR")
 
 # Bite (32 frames, loop; GRAB, the pack fight on someone): braced, the forepaws planted wide, the hind legs dug in and
 # hauling back, the jaws clamped; the head wrenching side to side in hard pops, the whole body thrown the other way
@@ -728,9 +730,9 @@ def biting(w, back, slip=0.0):
 
 
 bite = Clip("bite")
-for f, (w, back, slip, interp) in enumerate(((0, 0.0, 0, "CONSTANT"), (28, 0.03, 0, "CONSTANT"), (-30, 0.05, 1, "CONSTANT"),
-                                             (24, 0.02, 0.5, "LINEAR"), (0, 0.0, 0, "CONSTANT"), (-26, 0.04, 0, "CONSTANT"),
-                                             (32, 0.05, 0, "CONSTANT"), (0, 0.01, 0, "LINEAR"))):
+for f, (w, back, slip, interp) in enumerate(((0, 0.0, 0, "LINEAR"), (28, 0.03, 0, "LINEAR"), (-30, 0.05, 1, "LINEAR"),
+                                             (24, 0.02, 0.5, "LINEAR"), (0, 0.0, 0, "LINEAR"), (-26, 0.04, 0, "LINEAR"),
+                                             (32, 0.05, 0, "LINEAR"), (0, 0.01, 0, "LINEAR"))):
     bite.key(f * 4, biting(w, back, slip), interp)
 bite.close(32)
 
@@ -749,7 +751,7 @@ for f, d in ((14, 1), (17, -1), (20, 1)):
     # Scrabbling: the forelegs hooked over the lip, the hind legs kicking at the car's end out of step.
     board.key(f, {**REAR, "root": (58 + 4 * d, 0, 0), "root@loc": (0, -2.62 + 0.02 * d, -1.05 + 0.08 * (f - 14) / 6),
                   "thigh_r": (-20 + 45 * d, 0, 0), "calf_r": (20 - 40 * d, 0, 0), "thigh_l": (-20 - 45 * d, 0, 0),
-                  "calf_l": (20 + 40 * d, 0, 0), "head": (-24, 0, 8 * d)}, "CONSTANT")
+                  "calf_l": (20 + 40 * d, 0, 0), "head": (-24, 0, 8 * d)}, "LINEAR")
 board.key(25, {**DRIVE, "root": (18, 0, 0), "root@loc": (0, -1.3, -0.25)}, "BEZIER")
 board.key(30, {**CROUCH, "root@loc": (0, -0.2, -0.06), "jaw": (-30, 0, 0)}, "BEZIER")
 board.key(33, CROUCH, "LINEAR")
@@ -821,7 +823,7 @@ climb.key(19, {**REAR, "root@loc": (0, DOOR_IN + 0.45, DROP_UP - 1.2), "root": (
 for f, d in ((22, 1), (25, -1), (28, 1)):
     climb.key(f, {**REAR, "root": (58 + 4 * d, 0, 180), "root@loc": (0, DOOR_IN + 0.4, DROP_UP - 1.1 + 0.05 * (f - 22) / 6),
                   "thigh_r": (-20 + 45 * d, 0, 0), "calf_r": (20 - 40 * d, 0, 0), "thigh_l": (-20 - 45 * d, 0, 0),
-                  "calf_l": (20 + 40 * d, 0, 0), "head": (-24, 0, 8 * d)}, "CONSTANT")
+                  "calf_l": (20 + 40 * d, 0, 0), "head": (-24, 0, 8 * d)}, "LINEAR")
 climb.key(33, {**DRIVE, "root": (18, 0, 180), "root@loc": (0, DOOR_IN + 0.05, DROP_UP - 0.3)}, "BEZIER")
 climb.key(37, {**crouched(0.2), "root@loc": (0, DOOR_IN - 0.2, DROP_UP - 0.06), "root": (0, 0, 180)}, "BEZIER")
 climb.key(40, {**STAND, "root@loc": (0, DOOR_IN - 0.2, DROP_UP), "root": (0, 0, 180)}, "BEZIER")
@@ -845,7 +847,7 @@ def scraping(lift):
 sniff = Clip("sniff")
 for f, pose in ((0, nosing(0.4)), (6, nosing(0.8)), (8, nosing(0.7, 0.1)), (10, nosing(0.85, 0.1)), (14, nosing(0.75, -0.15)),
                 (16, nosing(0.9, -0.15)), (24, nosing(0.6, 0.2)), (28, nosing(0.9, 0.25)), (30, nosing(0.8, 0.25))):
-    sniff.key(f, pose, "CONSTANT" if f in (8, 10, 14, 16, 28, 30) else "BEZIER")
+    sniff.key(f, pose, "LINEAR" if f in (8, 10, 14, 16, 28, 30) else "BEZIER")
 for f, lift in ((38, 1), (42, 0), (46, 1), (50, 0), (54, 1), (58, 0)):
     sniff.key(f, scraping(lift), "BEZIER")
 for f, pose in ((66, nosing(0.2, 1.0, ear_r=(14, 0, -20), ear_l=(14, 0, 20))), (72, nosing(0.3, 1.1, ear_r=(14, 0, -20), ear_l=(14, 0, 20))),

@@ -44,7 +44,9 @@ CANDIDATES = [(385, "a low, even man's voice"), (518, "a deep man's voice, slowe
 # "engineering kit reported lost" and "with car": the kit lost (GDD App. E.12 q.5; note 308).
 PHRASES = ["engineering kit reported lost", "with car", "yard to consist", "manifest follows", "gates open", "yard out", "yard clerk", "consist received",
            "tally follows", "powder and shot", "cars delivered", "cars lost", "child survivor", "child survivors",
-           "body recovered", "body not recovered", "gunpowder and shot", "machine parts", "comet-derived material"]
+           "body recovered", "body not recovered", "gunpowder and shot", "machine parts", "comet-derived material",
+           # Note 746: the human cannonball on the radio (Radio.Fired).
+           "fired from the rear cannon"]
 WORDS = ["crew", "coal", "cars", "freight", "cargo", "paid", "fee", "refund", "mail", "salvage", "repairs", "net", "next",
          # The cargoes (Train.Cargoes.Name).
          "goods", "grain", "salvage", "livestock", "food", "chemicals", "ore", "medicine", "timber",
@@ -87,7 +89,9 @@ def places():
 
 # How a word's said where the phonemizer guesses wrong ("Achebe" came out "Aitch-b").
 SAY = {"achebe": "Ah-chay-bay", "okafor": "Oh-kah-for", "reyes": "Ray-ez", "moreau": "Mor-oh", "combe": "Coom",
-       "drury": "Droo-ree"}
+       "drury": "Droo-ree",
+       # The upgrades' words the model can't read off the page (the Irish drum; the steam organ; a gramophone wound, not a wound).
+       "bodhrán": "Bow-rawn", "a calliope": "a ka-lie-oh-pee", "wound": "wownd"}
 
 
 def bots():
@@ -103,15 +107,28 @@ PRIZE_PHRASES = ["light fingers"]
 PRIZE_WORDS = ["find", "finds"]
 
 # The upgrades read into every night's tally (U1's #967, note 678; queue #505, note 775; the checklist's up-clerk-words):
-# "Whistle: gold." "Horn: comedic." "Horseshoe: still up." "Commendation: framed." "Deck: barbecue." More come with each silly
-# upgrade (campaign.json upgrades' "tally").
-UPGRADE_PHRASES = ["still up"]
-UPGRADE_WORDS = ["whistle", "gold", "horn", "comedic", "horseshoe", "commendation", "framed", "deck", "barbecue"]
+# "Whistle: gold." "Fiddle: in tune, mostly." "Air freshener: pine." Read off campaign.json's upgrades (upgrades()), so a new
+# upgrade's line is in the bank the next time it's built. "Engine: {engine}." is the nameplate's name, a player's typing, or
+# "unnamed" (NetPlaySession) when there's none.
+UPGRADE_WORDS = ["unnamed"]
 
 # The tally's costs and a night in the red (note 766; Radio.Tally, Radio.Costliest): "Recovery: 900.", "Brigade fees: 120.",
 # "Net: -1607. Most of it the crew lost, 1500. Next." Each cost is named as the ledger names it ("the recovery", "the brigade").
 LEDGER_PHRASES = ["most of it", "the crew lost", "brigade fees"]
 LEDGER_WORDS = ["recovery", "brigade"]
+
+
+def upgrades():
+    """Every upgrade's tally line (campaign.json upgrades' "tally"), in the pieces the clerk says between its marks: "Fiddle: in
+    tune, mostly." is "fiddle", "in tune", "mostly". A {slot} (the engine's nameplate) is a name a player typed: the set
+    breaks up over it, as over any typed name."""
+    out = []
+    for u in jsonc("content", "tuning", "campaign.json")["upgrades"]:
+        for part in re.split(r"[:,.;()]", u.get("tally") or ""):
+            part = part.strip().lower()
+            if part and "{" not in part:
+                out.append(part)
+    return out
 
 
 def finds():
@@ -127,7 +144,7 @@ def damage():
 
 def vocabulary():
     seen, out = set(), []
-    for w in (PHRASES + CAUSE_PHRASES + PRIZE_PHRASES + UPGRADE_PHRASES + LEDGER_PHRASES + finds() + damage() + WORDS
+    for w in (PHRASES + CAUSE_PHRASES + PRIZE_PHRASES + LEDGER_PHRASES + upgrades() + finds() + damage() + WORDS
               + CAUSE_WORDS + PRIZE_WORDS + UPGRADE_WORDS + LEDGER_WORDS + bots() + places()):
         if w not in seen:
             seen.add(w)

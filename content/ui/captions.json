@@ -263,6 +263,9 @@
     // A friend on the crane's hook (note 798): off it high up.
     "crew-hoist.yelp": "A YELL, SOMEONE FALLING",
     "crew-hoist.land": "A THUMP AND AN OOF",
+    "crew-cannonball.whoop": "A WHOOP, SOMEONE FLYING",
+    "crew-cannonball.land": "A THUMP, A ROLL AND AN OOF",
+    "up-fishing.catch": "A REEL SCREAMING, A FISH LANDED",
     // Big finds (note 783): the bell's ring and the fragile finds breaking (the lock's the wrench's own).
     "loot-jackpot.bell": "A BELL'S DULL RING",
     "loot-fragile.glass": "GLASS BREAKING",
@@ -281,6 +284,7 @@
     "world-dog.bark": "A DOG BARKING, FAR OFF",
     // Odd outcomes (note 786): small strange things, heard as what they are.
     "place-town.bell": "A CRACKED BELL RINGING",
+    "place-town.stall-call": "A STALLHOLDER CALLING",
     "world-odd.well-splash": "A SPLASH, FAR DOWN",
     "world-odd.coin": "A COIN ON STONE",
     "world-odd.wash": "WATER POURED",

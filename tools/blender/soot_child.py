@@ -419,12 +419,34 @@ def clinging(pose):
     return arm_to(p, "l", VICTIM_NECK + Vector((0.07, 0.04, 0.02)), curl=0.9)
 
 
-# Pin (0.6 s, once): from a crouch at their feet, up and onto them, too fast; the jaw dropping as it goes.
+# Rise (0.6 s, once; the telegraph, note 823, the director, 15 Oct: "We need a telegraph for when it's about to kill us
+# as well so the player can pay attention to that telegraph as a last minute save measure"). CreatureArt plays it by how
+# near the nearest of the crew has come, from a step or two outside its lunge to the lunge itself, not by a clock: the
+# call stops dead and the head snaps round to them; it comes up off its heels onto its toes, the hands off its knees and
+# clawed, low in front of it; crouched forward, poised to spring, the jaw unhinging, trembling.
+POISED = mirror({"thigh_r": (96, 0, 12), "calf_r": (-118, 0, 0), "foot_r": (52, 0, 0)}) | {
+    "root@loc": (0, -0.04, 0.12), "pelvis": (-24, 0, 0), "spine_01": (-18, 0, 0), "spine_02": (-10, 0, 0), "spine_03": (-4, 0, 0),
+    "neck": (16, 0, 0), "head": (26, 0, 0), "jaw": (-52, 0, 0)}
+POISED = arm_to(arm_to(POISED, "r", Vector((0.17, 0.34, 0.42)), curl=0.95), "l", Vector((-0.17, 0.34, 0.42)), curl=0.95)
+rise = Clip("rise", loop=False)
+rise.key(0, CALLING, "LINEAR")
+rise.key(3, over(CALLING, jaw=(-4, 0, 0), neck=(14, 0, 0), head=(24, 0, 0)), "BEZIER")
+rise.key(10, rig.blend(over(CALLING, jaw=(-20, 0, 0), neck=(14, 0, 0), head=(24, 0, 0)), POISED, 0.6), "BEZIER")
+for f, q in ((14, 1), (16, -1), (18, 1)):
+    rise.key(f, rig.add(POISED, {"spine_03": (1.5 * q, 0, 0), "head": (2 * q, 0, 2 * q), "jaw": (-3 * q, 0, 0)}), "LINEAR")
+
+# Pin (0.6 s, once): the lunge. From poised out in the dark it springs, the last of it in the air at them, the arms out for
+# their neck; it hits them and locks on, its weight carrying it up past where it holds; its head rears back with the jaw
+# unhinged, and drives into their throat. (The sim has it on them from the lunge's first tick, CreatureArt in front of
+# them, so it comes in from behind its hold.)
 pin = Clip("pin", loop=False)
-pin.key(0, over(SQUAT, root__loc=(0, -0.05, 0), jaw=(-10, 0, 0)), "CONSTANT")
-pin.key(3, over(SQUAT, root__loc=(0, -0.02, -0.06), spine_01=(-36, 0, 0), jaw=(-20, 0, 0)), "LINEAR")
-pin.key(8, clinging(over(CLING, root__loc=(0, 0.04, LIFT + 0.12), jaw=(-60, 0, 0), head=(-6, 0, 0))), "LINEAR")
-pin.key(14, clinging(over(CLING, jaw=(-62, 0, 0))), "BEZIER")
+pin.key(0, over(POISED, root__loc=(0, -1.5, 0.12)), "LINEAR")
+pin.key(2, over(POISED, root__loc=(0, -1.35, 0.02), pelvis=(-30, 0, 0), spine_01=(-24, 0, 0)), "LINEAR")
+pin.key(5, clinging(over(CLING, root__loc=(0, -0.55, LIFT + 0.18), pelvis=(-10, 0, 0), spine_01=(-16, 0, 0), head=(20, 0, 0),
+                         jaw=(-66, 0, 0))), "LINEAR")
+pin.key(8, clinging(over(CLING, root__loc=(0, 0.06, LIFT + 0.14), jaw=(-64, 0, 0), head=(-4, 0, 0))), "BEZIER")
+pin.key(10, clinging(over(CLING, root__loc=(0, 0.03, LIFT - 0.02), neck=(-4, 0, 0), head=(16, 0, 14), jaw=(-72, 0, 0))), "BEZIER")
+pin.key(13, clinging(over(CLING, neck=(-20, 0, 0), head=(-30, 0, 8), jaw=(-40, 0, 0))), "BEZIER")
 pin.key(18, clinging(CLING), "BEZIER")
 
 # Drink (2.4 s, loop): face in their throat, the jaw wide, the head and the shoulders pumping with each swallow, the
@@ -435,7 +457,7 @@ for f, k in ((0, 0.0), (6, 1.0), (12, 0.0), (18, 1.0), (24, 0.0), (30, 1.0)):
     drink.key(f, clinging(over(CLING, spine_03=(-8 - 6 * k, 0, 0), neck=(-16 - 6 * k, 0, 0), jaw=(-48 + 10 * k, 0, 0))) |
               {"fingers_r": (0, 80 - 30 * k, 0), "fingers_l": (0, -80 + 30 * k, 0)}, "BEZIER")
 drink.key(44, clinging(over(CLING, neck=(4, 0, -20), head=(10, 0, -64), jaw=(-58, 0, 0))), "BEZIER")
-drink.key(60, clinging(over(CLING, neck=(4, 0, -20), head=(10, 0, -66), jaw=(-60, 0, 0))), "CONSTANT")
+drink.key(60, clinging(over(CLING, neck=(4, 0, -20), head=(10, 0, -66), jaw=(-60, 0, 0))), "LINEAR")
 drink.key(63, clinging(CLING), "BEZIER")
 drink.close(72)
 
@@ -450,7 +472,27 @@ for f, (k, hitch) in ((0, (0.0, 0.0)), (24, (1.0, 0.0)), (48, (0.0, 0.0)), (60, 
                                 head=(-14 + 3 * hitch, 0, 52 - 4 * hitch))) | {"fingers_r": (0, 85, 0), "fingers_l": (0, -85, 0)}, "BEZIER")
 clutch.close(90)
 
+# Held (3 s, loop; note 823, the director, 15 Oct: "when I pick it up I dont see it in my hands"): the rescued child as
+# whoever carries it sees it, in their own arms. The clutch's hold, lifted up in front of them (GreyboxScene draws it at
+# Bodies.ChildAt from their eyes, raised CreatureArt.OwnCradleLift and out OwnCradleOut, so its origin is 1.57 m under
+# their eyes and 0.5 m out, its face at the bottom of what they see ahead): its face up off their shoulder, looking up at them, its hands on their shoulders either side
+# of their neck, not round it in front of their eyes; breathing, a hitch now and then.
+HELD = over(CLING, pelvis=(10, 0, 0), spine_02=(-6, 0, 0), spine_03=(-2, 0, 0), neck=(-2, 0, 0), head=(16, 0, 6), jaw=(-3, 0, 0))
+THEIR_SHOULDERS = {"r": Vector((0.2, 0.48, 1.22)), "l": Vector((-0.2, 0.48, 1.22))}
+
+
+def holding_on(pose):
+    p = arm_to(pose, "r", THEIR_SHOULDERS["r"], curl=0.85)
+    return arm_to(p, "l", THEIR_SHOULDERS["l"], curl=0.85)
+
+
+held = Clip("held")
+for f, (k, hitch) in ((0, (0.0, 0.0)), (24, (1.0, 0.0)), (48, (0.0, 0.0)), (60, (0.6, 1.0)), (66, (0.2, 0.0))):
+    held.key(f, holding_on(over(HELD, spine_02=(-6 - 2 * k, 0, 0), spine_03=(-2 - 2 * k - 3 * hitch, 0, 0),
+                                head=(16 - 3 * hitch, 0, 6 - 6 * hitch))) | {"fingers_r": (0, 85, 0), "fingers_l": (0, -85, 0)}, "BEZIER")
+held.close(90)
+
 kit.build()
-rig.bake(sk, [huddle, call, pin, drink, clutch], plant=rig.feet_planter(sk, lowest=0.015, clips=["huddle", "call"]))
+rig.bake(sk, [huddle, call, rise, pin, drink, clutch, held], plant=rig.feet_planter(sk, lowest=0.015, clips=["huddle", "call"]))
 print("[dt] soot_child", {p.name: p.tris() for p in kit.parts}, "total", kit.tris(), "bones", len(sk.bones))
 rig.export(rig.args()[0] if rig.args() else "soot_child.glb", kit)

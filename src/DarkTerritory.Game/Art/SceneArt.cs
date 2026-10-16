@@ -153,8 +153,11 @@ public sealed partial class SceneArt(Look look)
             CrewPose.Shove => c.Phase > 0 ? c.Phase : time - since.Time,
             // (Note 812: over the shoulder, on the carrier's clock: their beat less this one's, CrewActs.OnTheShoulder.)
             CrewPose.Carried or CrewPose.CarriedWalk => time + c.Phase,
-            // (Note 814: the handle's swing has the pump, not a clock: CrewActs.PumpPhase.)
-            CrewPose.Pump => c.Phase,
+            // (Note 814: the handle's swing has the pump, not a clock: CrewActs.PumpPhase. Note 818: the lift's by how high the
+            // hands are, CrewActs.HeavePhase.)
+            CrewPose.Pump or CrewPose.Heave => c.Phase,
+            // (Note 818: a throw off the shoulder from the host's knock, as a shove is.)
+            CrewPose.ThrowOff => c.Phase > 0 ? c.Phase : time - since.Time,
             // A staged swing (dt screenshot --act swing) says how far into it they are; a played one, from its blow.
             CrewPose.Swing => swung >= 0 ? swung + SwingHitAt : c.Phase,
             // The reload's beats follow the gun's own progress, not a clock (CrewActs.ReloadPhase).
@@ -164,6 +167,8 @@ public sealed partial class SceneArt(Look look)
             // Up a ladder by how far up it they are, not by the clock: one cycle of crew_clips' climb is two rungs climbed,
             // so the hands and feet stay on the rungs at any pace and stop when the climber does (a Look Review note).
             CrewPose.Climb or CrewPose.ClimbCarry => at.Y / ClimbCycleRise * ClimbCycleSeconds,
+            // (Note 791: a pull at the can, a bite, a cheers, each from when it began.)
+            CrewPose.Drink or CrewPose.Eat or CrewPose.LoungeDrink or CrewPose.Cheers => time - since.Time,
             CrewPose.Dance or CrewPose.Wave or CrewPose.Point or CrewPose.HighFive or CrewPose.FistBump or CrewPose.DanceOff or CrewPose.SitEdge
                 or CrewPose.LeanOut or CrewPose.Bow or CrewPose.Salute or CrewPose.Conga => c.EmoteSeconds,
             _ => time,
@@ -205,10 +210,18 @@ public sealed partial class SceneArt(Look look)
         var lamp = c.Lamp ? PropArt.Of(Look).Get("hand_lantern") : null;
         // The repair kit by its handle (note 513): drawn in the fist, not where the sim holds it (Body skips it).
         var kit = pose is CrewPose.Toolbox or CrewPose.ToolboxWalk ? PropArt.Of(Look).Get("repair_kit") : null;
+        // A can or a sausage at the deck's clips (note 791), in the fist.
+        var fist = FistCarriers?.TryGetValue(c.Id, out var inFist) == true ? inFist switch
+        {
+            Sim.Physics.BodyKind.Beer => Piece("prop-beer", () => PropKit.Beer(Look)),
+            Sim.Physics.BodyKind.Sausage => Piece("prop-sausage", () => PropKit.Sausage(Look)),
+            Sim.Physics.BodyKind.GrilledFish => Piece("whimsy-grilled-fish", () => WhimsyKit.Fish(Look, true)),
+            _ => null,
+        } : null;
         bool drawn = Creatures.Crewmate(mesh, m, pose, clipTime, c.Variant, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)), ToolProp(c.Holding),
             hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor), body: HeadsetBody(c, pose, time), carried: kit, sooted: c.Sooted,
             // (A Passenger's id is 200 and the face it wears, GreyboxScene.AsCrewmate: it wears that crewmate's number too.)
-            mask: new CreatureArt.MaskLook(c.Paint, CrewSigil, (c.Id >= 200 ? c.Id - 200 : c.Id) % 9 + 1), emote: c.EmoteWith);
+            mask: new CreatureArt.MaskLook(c.Paint, CrewSigil, (c.Id >= 200 ? c.Id - 200 : c.Id) % 9 + 1), emote: c.EmoteWith, fist: fist);
         // The hat rack's (note 714): on the head, over the cap or helmet.
         if (drawn && c.Hat > 0 && HatKit.Of(Look, c.Hat) is { } hat)
             Creatures.Wear(mesh, hat, "head", m, CreatureArt.FigureOf(c.Survivor));
@@ -222,6 +235,9 @@ public sealed partial class SceneArt(Look look)
             or CrewPose.Fireman or CrewPose.FiremanWalk;
         if (drawn && Breath > 0 && c.Alive)
             Look.Art.Effects.Breath(mesh, Creatures.LastMouth, Creatures.LastFacing, Breath, time, c.Id, hard);
+        // A car fire's heat on them (note 821): smoke curling up off them and embers flicked off, so a friend sees it burning them.
+        if (drawn && c.Alive && c.Scorch > 0)
+            Look.Art.Effects.Scorched(mesh, feet.RelativeTo(eye), (float)c.Scorch, time, c.Id);
         // (And where it is, for the cab's glass it fogs: CabGlass, drawn after the crew.)
         if (drawn && c.Alive)
             _mouths[c.Id] = new Mouth(eye + new Double3(Creatures.LastMouth.X, Creatures.LastMouth.Y, Creatures.LastMouth.Z), Creatures.LastFacing, hard, time);
@@ -462,6 +478,9 @@ public sealed partial class SceneArt(Look look)
     public bool KitInHand(int carrier, double time) => _kitHands.TryGetValue(carrier, out var at) && time - at < 0.5;
 
     readonly Dictionary<int, double> _kitHands = new();
+
+    /// <summary>The body you're carrying, drawn at your own hands this frame (GreyboxScene.HeldHere), or -1 (note 823).</summary>
+    public int InYourArms { get; set; } = -1;
 
     /// <summary>The crew whose extinguisher is at work on a fire this frame (GreyboxScene: a fire going down with it in reach).</summary>
     public IReadOnlySet<int>? Spraying { get; set; }
@@ -800,6 +819,8 @@ public sealed partial class SceneArt(Look look)
             return true;
         if (b.Kind == Sim.Physics.BodyKind.RepairKit && b.Carrier >= 0 && KitCarriers?.Contains(b.Carrier) == true && Creatures.Get("crew") is not null)
             return true;
+        if (b.Carrier >= 0 && FistCarriers?.TryGetValue(b.Carrier, out var fisted) == true && fisted == b.Kind && Creatures.Get("crew") is not null)
+            return true;
         var local = b.Pbd.Particles[0].Position;
         var at = onCar ? frames[b.Parent].ToWorld(local) : local;
         if ((at - eye).Length > 250)
@@ -843,8 +864,9 @@ public sealed partial class SceneArt(Look look)
         // its knees; carried, in the arms (App. C.4): clinging to whoever has it, its legs round their waist and its face on
         // their shoulder (the clutch: its origin at their feet, out in front; a carried body's frame already faces back at
         // whoever carries it; Bodies.ChildAt holds its middle there). (The body's a ball 0.35 m round its middle.)
+        // In your own arms (<see cref="InYourArms"/>), it looks up at you, its hands on your shoulders (soot_child's held).
         if (b.Kind == Sim.Physics.BodyKind.Child && (b.Carrier >= 0
-                ? Creatures.Draw(mesh, "soot_child", "clutch", time, true,
+                ? Creatures.Draw(mesh, "soot_child", b.Id == InYourArms && Creatures.Get("soot_child")?.Clips.ContainsKey("held") == true ? "held" : "clutch", time, true,
                     Matrix4x4.CreateTranslation(0, -(float)Sim.Physics.Bodies.ChildHeight, 0) * m, 0, seed: 2)
                 : Creatures.Draw(mesh, "soot_child", "huddle", time, true, Matrix4x4.CreateTranslation(0, -0.35f, 0) * m, 0, seed: 2)))
             return true;
@@ -1063,6 +1085,16 @@ public sealed partial class SceneArt(Look look)
     /// <summary>The crew carrying the repair kit by its handle this frame (note 513: GreyboxScene, from their acts): it's drawn in
     /// their fist (Crewmate), so Body leaves it out.</summary>
     public IReadOnlySet<int>? KitCarriers { get; set; }
+
+    /// <summary>
+    /// Who has a can, a sausage or the grilled fish in their fist at the deck's clips (note 791), and which: drawn there with
+    /// them (Crewmate), not where the sim holds it.
+    /// </summary>
+    public IReadOnlyDictionary<int, Sim.Physics.BodyKind>? FistCarriers { get; set; }
+
+    /// <summary>The clips a can or a sausage is held to the mouth or the grill in (note 791): it's drawn in the fist.</summary>
+    public static bool Fisted(CrewPose? act) => act is CrewPose.Lounge or CrewPose.LoungeDrink or CrewPose.Cheers or CrewPose.Drink or CrewPose.Eat
+        or CrewPose.Grill;
 
     /// <summary>A ragdoll as the crew model lying as its joints lie; false (the greybox's bones) if the model isn't there.</summary>
     bool Corpse(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Sim.Physics.Body b, Double3 eye, bool onCar, double time)

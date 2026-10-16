@@ -1437,6 +1437,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         if (args.Contains("--close"))
             camera = Camera.LookAt(there + ((eye - there) with { Y = 0 }).Normalized * 3.5 + Double3.Up * 1.6, there, 55);
     }
+    // --close (note 818): the handcar's lift from beside the near lifter.
+    if (view == "handcarlift" && args.Contains("--close"))
+        camera = Staging.HandcarCamera(train, view, close: true);
     if (town is not null && !args.Contains("--view"))
         camera = Staging.TownCamera(town, args.Contains("--arrival") ? Str(args, "--where", "square") : Str(args, "--town", "square"));
     // --bell rope (note 730): stood at the council house's bell rope, as a crewmate about to pull it sees it.
@@ -1935,10 +1938,19 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         double eaten = Math.Clamp(Opt(args, "--eaten", 0.5), 0, 1);
         (rear.Eaten, rear.Integrity) = (eaten, 1 - eaten);
     }
-    // --shouldered [walk] | --cradled [walk]: a crewmate carrying a body over the shoulder, or the child in their arms (App. C.4).
+    // --shouldered [walk] | --cradled [walk|first]: a crewmate carrying a body over the shoulder, or the child in their arms (App. C.4).
     var shouldered = args.Contains("--shouldered") ? Staging.Shouldered(train, content, Str(args, "--shouldered", "") == "walk")
         : args.Contains("--cradled") ? Staging.Shouldered(train, content, Str(args, "--cradled", "") == "walk", child: true)
         : ((DarkTerritory.Sim.Physics.Bodies Bodies, Crewmate Carrier)?)null;
+    // --cradled first: the child in your own arms, through your own eyes, looking down at it (note 823; the director, 15 Oct:
+    // "when I pick it up I dont see it in my hands"): drawn at your hands as the app draws what you carry, your arms in view.
+    bool cradledFirst = Str(args, "--cradled", "") == "first";
+    if (cradledFirst && shouldered is { } mine)
+    {
+        var facing = new Double3(-Math.Sin(mine.Carrier.Yaw), 0, -Math.Cos(mine.Carrier.Yaw));
+        var eyes = mine.Carrier.Feet + Double3.Up * DarkTerritory.Game.Eyes.Height;
+        camera = Camera.LookAt(eyes, eyes + facing * 1.0 - Double3.Up * Opt(args, "--down", 0.55), 70);
+    }
     // --powerhouse (note 509): the yards' power as the run has it, so a live powerhouse's lamp burns.
     if (Opt(args, "--powerhouse", -1) >= 0 && generated is not null)
     {
@@ -2037,7 +2049,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         look.Art.ReverserThrown = Opt(args, "--reverser", 0.4);
     var horseplay = Str(args, "--horseplay", view switch { "shove" => "shove", "sooted" => "sooted", _ => "" }) is { Length: > 0 } horse
         ? Staging.Horseplay(train, content, horse) : ((List<Crewmate> Crew, List<DarkTerritory.Sim.Player.LumpInFlight> Lumps)?)null;
-    // --rescue handup|carryfriend (the views handup and carryfriend, note 723): a friend hauled up into a side door; one carried.
+    // --rescue handup|carryfriend|throwoff (the views handup and carryfriend, note 723): a friend hauled up into a side door; one
+    // carried; one just thrown off the shoulder (note 818, with --view carryfriend).
     if (Str(args, "--rescue", view switch { "handup" => "handup", "carryfriend" => "carryfriend", _ => "" }) is { Length: > 0 } rescued)
         horseplay = (Staging.Rescue(train, content, rescued), []);
     // --emotes highfive|danceoff|sitedge|leanout (the views of the same names, note 722): the emotes for two, and the edges.
@@ -2127,7 +2140,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             // --bodies --burned: the staged body (crewmate 9's) is one the fire took: drawn charred, smouldering (spec C.1).
             : args.Contains("--burned") ? [new Crewmate(9, default, 0, false, Death: DarkTerritory.Sim.Player.DeathCause.Burned)]
             // --shouldered [walk]: a crewmate on car 2 with a body over the shoulder (App. C.4; Staging.Shouldered).
-            : shouldered is { } sh ? [sh.Carrier] : null,
+            : shouldered is { } sh && !cradledFirst ? [sh.Carrier] : null,
         Emergency = args.Contains("--emergency"),
         LampsOut = strandedAt >= 0 ? Views.StrandedLampsOut(train.Frames.Count, outro, strandedAt) : 0,
         KitLockerOpen = strandedAt >= 0,
@@ -2195,6 +2208,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 own == "none" ? Tool.None : Enum.Parse<Tool>(own, true))
             : null,
     };
+    if (cradledFirst && shouldered is { } inArms)
+    {
+        var ahead = new Double3(-Math.Sin(camera.Yaw), 0, -Math.Cos(camera.Yaw));
+        var hands = inArms.Bodies.Hands;
+        scene.HeldHere = (inArms.Carrier.Id, camera.Position - Double3.Up * (DarkTerritory.Game.Eyes.Height - hands.CarryHeight) + ahead * hands.CarryForward, camera.Yaw);
+        scene.Own = new OwnView((float)camera.Yaw, (float)camera.Pitch, DarkTerritory.Game.Art.CrewPose.Cradle, false, -1, 1, Tool.None);
+    }
     // --bbq (note 698; with --upgrades bbqDeck): the party at the front, the grill lit, a beer and a sausage going.
     if (args.Contains("--bbq") && Staging.BbqParty(train, content) is var (party, partyBodies))
     {
@@ -2207,6 +2227,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     if (Str(args, "--pet-mood", "") is { Length: > 0 } petMood && scene.Bodies is { } petBodies)
         foreach (var pet in petBodies.Where(b => b.Kind is DarkTerritory.Sim.Physics.BodyKind.Cat or DarkTerritory.Sim.Physics.BodyKind.Dog))
             pet.Tipped = (sbyte)Enum.Parse<DarkTerritory.Sim.PetMood>(petMood, ignoreCase: true);
+    // --cannonball (note 746; with --upgrades humanCannonball): someone in the guard van's gun, its gunner behind it.
+    if (args.Contains("--cannonball"))
+        scene.Crew = [.. scene.Crew ?? [], .. Staging.Cannonball(train, DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)).Cannonball)];
     // --lounge (note 744; with --upgrades hammock,hotTub): someone in the hammock, two in the hot tub.
     if (args.Contains("--lounge") && Staging.Lounging(train) is var (loungers, loungeBodies))
     {
@@ -2274,6 +2297,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             scene.Self = you;
         }
     }
+    // --scorch [m] (note 821; with --threats, the fire view): a crewmate in the burning car m from its hottest cell (1.4),
+    // the fire's heat on them as the host reckons it, smoking.
+    if (args.Contains("--scorch") && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.CarFire>().FirstOrDefault() is { Heat.Length: > 0 } burning)
+        scene.Crew = [.. scene.Crew ?? [], Staging.Scorched(train, burning, stagedFire ?? new DarkTerritory.Sim.Enemies.CarFireTuning(),
+            Array.IndexOf(args, "--scorch") is var sc && sc + 1 < args.Length
+                && double.TryParse(args[sc + 1], System.Globalization.CultureInfo.InvariantCulture, out double scorchFrom) ? scorchFrom : 1.4)];
     // --hugger swallow: the one it has in its mouth at the rear car's end door (App. A.3; Staging.Swallowed).
     if (Str(args, "--hugger", "") == "swallow" && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.CarHugger>().FirstOrDefault() is { Holding: >= 0 })
         scene.Crew = [.. scene.Crew ?? [], Staging.Swallowed(train), .. args.Contains("--rescue") ? [Staging.SwallowRescuer(train)] : Array.Empty<Crewmate>()];
@@ -3224,7 +3253,8 @@ static object ArtReel(string content, string[] args)
     string[] cut = ["clinger", "weight", "sleeper", "hollow"];
     var only = Str(args, "--only", "") is { Length: > 0 } o ? o.Split(',') : null;
     var clipsOnly = Str(args, "--clips", "") is { Length: > 0 } co ? co.Split(',') : null;
-    int w = (int)Opt(args, "--width", 360), h = (int)Opt(args, "--height", 240), fps = (int)Opt(args, "--fps", 12);
+    // --fps: the game's own 30 by default (note 823: at 12 the Look Review's reels read choppier than the game plays them).
+    int w = (int)Opt(args, "--width", 360), h = (int)Opt(args, "--height", 240), fps = (int)Opt(args, "--fps", 30);
     var props = DarkTerritory.Game.Art.PropArt.Of(look);
     string dir = Str(args, "--out", "out/reel");
     using var gpu = new GpuContext("dt art reel");
@@ -3926,6 +3956,10 @@ static object HudShot(string content, string[] args)
     var hud = new Overlay();
     string photoFile = Str(args, "--photo", "");
     var photoStill = BookmarkAlbum.ReadPhoto(photoFile);
+    // --heat [h]: a car fire h hot on the player (note 821), the heat glow round the view.
+    if (args.Contains("--heat"))
+        Hud.StagedHeat = Array.IndexOf(args, "--heat") is var he && he + 1 < args.Length
+            && double.TryParse(args[he + 1], System.Globalization.CultureInfo.InvariantCulture, out double heat) ? heat : 0.3;
     // --hurt [s]: just hit (GDD App. F.1's damage model; note 272), the red edge flash at strength s (a heavy hit is 1).
     if (args.Contains("--hurt"))
         Hud.StagedHurt = Array.IndexOf(args, "--hurt") is var hu && hu + 1 < args.Length
@@ -4468,7 +4502,7 @@ static int Usage()
           line drive <name> [--cars n] [--start s] [--from v] [--throttle 0..1] [--seconds t]
           trailer [--route tier:seed] [--fps n] [--width w --height h] [--short] [--beats i,j] [--ffmpeg path] [--crf n]   the trailer cut from the game itself, heard through the game's mixer: frames, trailer.wav and its spectrogram to out/trailer, ffmpeg to trailer.mp4 and contact.png
           art clearance [--only crew] [--clips a,b] [--limit m] [--allow clip:pair,..]   a figure's clips checked for limbs through its body
-          art reel [--only a,b] [--clips c,d] [--fps n] [--width w --height h]   every animated model's every clip as frame strips + reel.json in out/reel (the Look Review's animations)
+          art reel [--only a,b] [--clips c,d] [--fps n (30)] [--width w --height h]   every animated model's every clip as frame strips + reel.json in out/reel (the Look Review's animations)
           art clip <creature> <clip> [--frames n] [--at x,y,z --dist m --yaw deg --pitch deg] [--lift m] [--variant n] [--once] [--with clip [--with-at x,z,yaw]]   a clip as a lit contact sheet (--with: a second of them beside it, a pair)
           screenshot [--view trackside|roof|cab|chase|ahead] [--line name] [--cars n] [--at s] [--car i] [--cut n]
                      [--cam s,lateral,height --target s,lateral,height --fov deg]   camera by line coordinates

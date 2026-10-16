@@ -35,6 +35,9 @@ public enum CrewPose
     Dance, Wave, Point,
     // The "more emotes" upgrade's (note 714): a bow from the waist, a salute to the brow, the conga's hands-on-shoulders shuffle.
     Bow, Salute, Conga,
+    // The BBQ deck and the hammock (note 698, 744; C1's clips, note 791): sat back in a Muskoka chair, a pull at the can there,
+    // a cheers; stood with a can or a sausage at the mouth, at the grill with the tongs; lying in the guard van's hammock.
+    Lounge, LoungeDrink, Cheers, Drink, Eat, Grill, Hammock,
     // Off the roof on a jump, rising, the leap between cars (the checklist's crew-gap: "a jump between roofs"); stood on a
     // car straining on a bend taken too fast, fighting for footing (App. F.1's overspeed telegraph; note 375).
     Jump, Stumble,
@@ -57,6 +60,10 @@ public enum CrewPose
     OnHook, Flail,
     // At the handcar's handle (note 729; note 814): bent over it driving their end down, hauled back up, played by its swing.
     Pump,
+    // Note 818: lifting the handcar off the guard van or onto it (note 729), posed by how high their hands are under its side
+    // (CrewActs.HeavePhase); and a friend thrown off the shoulder (note 723), a drive up onto the toes pushing them off,
+    // played once from the knock.
+    Heave, ThrowOff,
 }
 
 /// <summary>
@@ -287,6 +294,8 @@ public sealed partial class CreatureArt
 
     // Set by Enemy(e, pace) for the one draw it makes, as _room.
     float _pace;
+    // How far the Soot Child about to be drawn is into its telegraph (SootPoise; set where it's placed, used once).
+    float _sootPoise;
     // Set by Enemy(e) for a Dragger in its grab's last moment: how far into dragging them under it is (s), or -1.
     double _draggedUnder = -1;
     // A Dragger drags its catch under over its grab's last this long (s: its drag clip).
@@ -306,6 +315,46 @@ public sealed partial class CreatureArt
     const float HoundLightRange = 4.2f;
 
     const float Going = 0.4f, GauntLeanPerAnger = 0.25f, GauntLean = 0.32f, GauntTilt = 0.6f;
+
+    // A woken Gaunt in the open is drawn at least this far from its waker (m: its forefeet are a metre ahead of its middle,
+    // so this stands them a step clear in front of it), going round them at this much (radians a second); it's drawn
+    // where the sim has it once it's this much further off again (m). See GauntStoodBack.
+    public const double GauntStandOff = 1.7, GauntGoesRound = 2.5, GauntStandOffFades = 1.0;
+
+    /// <summary>
+    /// Where a woken Gaunt out in the open is drawn round its waker (note 823; the director, 15 Oct: "it stands right on the
+    /// player when triggered. Needs to stand next to the player").
+    /// <list type="bullet">
+    /// <item>The sim keeps it at their back at arm's length (enemies.json gaunt.followAt, inside its reach). That stands them
+    /// inside the cage of its legs, under its neck.</item>
+    /// <item>Drawn, it's stood back to <see cref="GauntStandOff"/> from them on the same bearing, and the scene turns it to
+    /// face them, its neck let down to them.</item>
+    /// <item>The sim's point is still in its drawn chest (enemies.json bodies.gaunt, what the guns hit), and straight ahead of
+    /// anyone facing it (a swing's cone).</item>
+    /// <item>When they turn, the sim walks it straight through them to their new back. Drawn, it goes round them at
+    /// <see cref="GauntGoesRound"/>.</item>
+    /// <item>Further off than <see cref="GauntStandOff"/>, it eases back to where it is, all the way by
+    /// <see cref="GauntStandOffFades"/> past it.</item>
+    /// </list>
+    /// </summary>
+    /// <param name="was">The bearing it was last drawn on (radians round them, from +Z towards +X); null when first seen.</param>
+    /// <param name="seconds">Since it was last drawn.</param>
+    public static (Double3 Origin, double Bearing) GauntStoodBack(Double3 at, Double3 waker, double? was, double seconds)
+    {
+        var d = (at - waker) with { Y = 0 };
+        double dist = d.Length, want = dist > 1e-6 ? Math.Atan2(d.X, d.Z) : was ?? 0;
+        double bearing = want;
+        if (was is { } before)
+        {
+            double most = GauntGoesRound * Math.Max(0, seconds);
+            bearing = before + Math.Clamp(Math.IEEERemainder(want - before, 2 * Math.PI), -most, most);
+        }
+        // (Past the stand-off it comes round to the sim's bearing too, so it's drawn exactly where it is by the fade's end.)
+        double far = Math.Clamp((dist - GauntStandOff) / GauntStandOffFades, 0, 1);
+        bearing += far * Math.IEEERemainder(want - bearing, 2 * Math.PI);
+        double r = Math.Max(dist, GauntStandOff);
+        return (new Double3(waker.X + Math.Sin(bearing) * r, at.Y, waker.Z + Math.Cos(bearing) * r), bearing);
+    }
 
     // Fire Flies round a car's lantern (tools/blender/fire_fly.py; the lantern's tools/models hand_lantern, its flame at the
     // model's origin): at most this many of them, the swarm filling as they linger (all of it by FireFlySwarmFills
@@ -776,6 +825,13 @@ public sealed partial class CreatureArt
         CrewPose.Bow => "bow",
         CrewPose.Salute => "salute",
         CrewPose.Conga => "conga",
+        CrewPose.Lounge => "lounge",
+        CrewPose.LoungeDrink => "lounge_drink",
+        CrewPose.Cheers => "cheers",
+        CrewPose.Drink => "drink",
+        CrewPose.Eat => "eat",
+        CrewPose.Grill => "grill",
+        CrewPose.Hammock => "hammock",
         CrewPose.Walk => "walk",
         CrewPose.Run => "run",
         CrewPose.Climb => "climb",
@@ -854,6 +910,8 @@ public sealed partial class CreatureArt
         CrewPose.OnHook => "on_hook",
         CrewPose.Flail => "flail",
         CrewPose.Pump => "pump",
+        CrewPose.Heave => "heave",
+        CrewPose.ThrowOff => "throw_off",
         _ => "idle",
     };
 
@@ -877,7 +935,7 @@ public sealed partial class CreatureArt
     public bool Crewmate(MeshBuilder mesh, in Matrix4x4 model, CrewPose pose, double time, int variant,
         Vector3? left = null, Vector3? right = null, Vector3 leftPole = default, Vector3 rightPole = default, MeshAsset? inHand = null,
         MeshAsset? hanging = null, string figure = "crew", VrBodyPose? body = null, MeshAsset? carried = null, bool sooted = false,
-        MaskLook mask = default, EmoteDetail emote = default)
+        MaskLook mask = default, EmoteDetail emote = default, MeshAsset? fist = null)
     {
         if (!_models.ContainsKey(figure))
             figure = "crew";
@@ -895,9 +953,14 @@ public sealed partial class CreatureArt
                 : clip is "toolbox" or "toolbox_walk" && has.Model.Clips.ContainsKey("carry") ? clip == "toolbox" ? "carry" : "carry_walk"
                 // (A shove without its own clip: the gun's push, as note 717 drew it; note 723's carry, the body carry's.)
                 : clip == "shove" && has.Model.Clips.ContainsKey("push") ? "push"
+                // (Note 818's: the lift as the lever's hands under its sides, the throw as the shove was.)
+                : clip == "throw_off" && has.Model.Clips.ContainsKey("shove") ? "shove" : clip == "throw_off" && has.Model.Clips.ContainsKey("push") ? "push"
                 : clip is "fireman" or "fireman_walk" && has.Model.Clips.ContainsKey("shoulder") ? clip == "fireman" ? "shoulder" : "shoulder_walk"
                 : clip == "hand_up" && has.Model.Clips.ContainsKey("haul_up") ? "haul_up"
-                : clip is "on_hook" or "pump" && has.Model.Clips.ContainsKey("lever") ? "lever" : clip == "flail" && has.Model.Clips.ContainsKey("fall") ? "fall"
+                : clip is "on_hook" or "pump" or "heave" && has.Model.Clips.ContainsKey("lever") ? "lever" : clip == "flail" && has.Model.Clips.ContainsKey("fall") ? "fall"
+                // (Note 791's deck and hammock clips, not in a build: the seated clip, and the carry for what's in hand.)
+                : clip is "lounge" or "lounge_drink" or "cheers" or "hammock" && has.Model.Clips.ContainsKey("gunner") ? "gunner"
+                : clip is "drink" or "eat" or "grill" && has.Model.Clips.ContainsKey("carry") ? "carry"
                 // An emote with no clip of its own (note 298): the dance steps on the spot, the wave and the point stand.
                 : clip is "dance" or "shuffle" or "conga" && has.Model.Clips.ContainsKey("walk") ? "walk" : "idle";
         // ... and the arms are posed over it (EmoteArms).
@@ -916,7 +979,8 @@ public sealed partial class CreatureArt
         // a blow of the tool in hand (note 275: without it a swing was put off by the variant's beat, up to 2.9 s into a
         // 0.8 s clip, and most of the crew were drawn at its end).
         bool fromStart = pose is CrewPose.GetUp or CrewPose.TakeDown or CrewPose.HangUp or CrewPose.Stagger or CrewPose.Reload or CrewPose.FireDoor
-            or CrewPose.Swing or CrewPose.Jump or CrewPose.Shove or CrewPose.Pump;
+            or CrewPose.Swing or CrewPose.Jump or CrewPose.Shove or CrewPose.Pump or CrewPose.Heave or CrewPose.ThrowOff
+            or CrewPose.Drink or CrewPose.Eat or CrewPose.LoungeDrink or CrewPose.Cheers;
         fromStart |= emoteClip;
         _skinner.Evaluate(m.Model, c, fromStart ? time : time + offset, pose is not (CrewPose.Dead or CrewPose.Swing) && !fromStart, m.Pose);
         if (body is { } vr)
@@ -954,6 +1018,9 @@ public sealed partial class CreatureArt
             Hung(mesh, m, hanging, model);
         if (carried is not null)
             Handled(mesh, m, carried, model);
+        // A can or a sausage in the fist (note 791): up the socket's own axes, its middle in the grip.
+        if (fist is not null)
+            mesh.Append(fist, Matrix4x4.CreateTranslation(0, -HandleOf(fist) / 2, 0) * Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", model));
         return true;
     }
 
@@ -1143,6 +1210,14 @@ public sealed partial class CreatureArt
     /// </summary>
     /// <param name="yaw">The body's facing (rad; 0 looks along −Z).</param>
     /// <param name="pitch">The look's (rad; up positive): the held tool follows it, the work doesn't.</param>
+    /// <summary>
+    /// In your own eyes, the child in your arms (the cradle) is held this much higher and further out than the body holds it
+    /// (m; note 823, the director, 15 Oct: "when I pick it up I dont see it in my hands"): up in front of you where you see
+    /// it and your arms round it, not under your chin out of sight. Your arms (<see cref="OwnArms"/>) and the child
+    /// (GreyboxScene's held child) go up together, so your hands stay under it.
+    /// </summary>
+    public const float OwnCradleLift = 0.08f, OwnCradleOut = 0.2f;
+
     public bool OwnArms(MeshBuilder mesh, float yaw, float pitch, CrewPose? act, bool moving, double swing, double time, int variant,
         MeshAsset? inHand = null)
     {
@@ -1160,7 +1235,8 @@ public sealed partial class CreatureArt
         _skinner.Evaluate(m.Model, c, t, loop, m.Pose);
         int head = m.Model.Skeleton.IndexOf("head");
         var eye = (head >= 0 ? m.Pose.World[head].Translation : new Vector3(0, 1.58f, -0.01f)) + EyeOverHead;
-        var at = Matrix4x4.CreateTranslation(-eye) * (follow ? Matrix4x4.CreateRotationX(pitch) : Matrix4x4.Identity) * Matrix4x4.CreateRotationY(yaw);
+        var lift = act is CrewPose.Cradle or CrewPose.CradleWalk && swing < 0 ? new Vector3(0, OwnCradleLift, -OwnCradleOut) : Vector3.Zero;
+        var at = Matrix4x4.CreateTranslation(lift - eye) * (follow ? Matrix4x4.CreateRotationX(pitch) : Matrix4x4.Identity) * Matrix4x4.CreateRotationY(yaw);
         Emit(mesh, m, clip, at, variant, 1, variant, PaintOf(variant), arms: true);
         if (inHand is not null && (follow || act is { } held && OneHanded(held)))
             mesh.Append(inHand, ToolGrip * Skinner.Socket(m.Model, m.Pose, "hand_r_weapon", at));
@@ -1982,6 +2058,11 @@ public sealed partial class CreatureArt
                     // at them), its jaw dropped, drinking.
                     bool soot = extra2 > 0.5;
                     int variant = soot ? 1 : 0;
+                    float poise = _sootPoise;
+                    _sootPoise = 0;
+                    // Its telegraph (note 823): someone's coming into its lunge's reach; it turns to them and rises, poised.
+                    if (soot && phase == SpinePhase.Telegraph && poise > 0 && Get("soot_child")?.Clips.ContainsKey("rise") == true)
+                        return Draw(mesh, "soot_child", "rise", poise * SootRiseSeconds, false, model, variant, seed: 5);
                     if (phase is SpinePhase.Grab or SpinePhase.Punish)
                         return t < SootPinSeconds ? Draw(mesh, "soot_child", "pin", t, false, model, variant, seed: 5)
                             : Draw(mesh, "soot_child", "drink", t - SootPinSeconds, true, model, variant, seed: 5);
@@ -2869,6 +2950,22 @@ public sealed partial class CreatureArt
     /// <summary>The Moose's tuning, as the content has it (its tells' thresholds, its speeds).</summary>
     public Sim.Enemies.MooseTuning MooseTuning => _moose ??= DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(ContentRoot, Sim.Enemies.EnemyTuning.File)).Moose;
 
+    Sim.Enemies.SootChildrenTuning? _sootTuning;
+
+    /// <summary>The Soot Children's tuning, as the content has it (its lunge's reach, for its telegraph: note 823).</summary>
+    public Sim.Enemies.SootChildrenTuning SootTuning => _sootTuning ??= DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(ContentRoot, Sim.Enemies.EnemyTuning.File)).SootChildren;
+
+    /// <summary>
+    /// How far a Soot Child is into its telegraph (0..1; note 823), by how near <paramref name="nearest"/> of the crew is (m):
+    /// none further than <see cref="SootRiseFrom"/> past its lunge's reach (enemies.json <c>sootChildren.lungeWithin</c>),
+    /// all of it at the lunge. A step or two to see it turn and rise, and back off.
+    /// </summary>
+    public static float SootPoise(double nearest, double lungeWithin) =>
+        (float)Math.Clamp((lungeWithin + SootRiseFrom - nearest) / SootRiseFrom, 0, 1);
+
+    /// <summary>The telegraph's reach past the lunge's (m), and its clip's length (s: soot_child.py's rise, 18 frames).</summary>
+    public const double SootRiseFrom = 2.5, SootRiseSeconds = 0.6;
+
     Sim.Enemies.WakersTuning? _wakers;
 
     /// <summary>The Wakers' tuning (note 588): how long one takes to rise, for its stand-in and its effects (note 599).</summary>
@@ -3002,6 +3099,14 @@ public sealed partial class CreatureArt
                 m = Matrix4x4.CreateRotationY((float)e.Extra2) * model;
                 _pace = pace;
                 break;
+            case EnemyKind.SootChildren when prey is { } near && e.Phase == SpinePhase.Telegraph && e.Extra2 > 0.5:
+                {
+                    // Someone afoot coming near a Soot Child (note 823): it turns to them as it rises, its telegraph.
+                    _sootPoise = SootPoise(new Vector2(near.Feet.X - model.Translation.X, near.Feet.Z - model.Translation.Z).Length(), SootTuning.LungeWithin);
+                    if (_sootPoise > 0)
+                        m = Facing(model, near.Feet);
+                    break;
+                }
             case EnemyKind.SootChildren when prey is { } held && e.Phase is SpinePhase.Grab or SpinePhase.Punish:
                 {
                     // On them: in front of them, facing them, a little way off their chest (the clip lifts it to them and

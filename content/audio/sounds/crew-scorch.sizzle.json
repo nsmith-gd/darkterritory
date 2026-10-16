@@ -1,0 +1,20 @@
+// Burned: the heat on you: Burned at a fire's edge: a coat smouldering on them, cloth and hair singeing and hissing. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 3,
+ "loop": true,
+ "maxInstances": 8,
+ "minDistance": 0.6,
+ "maxDistance": 15,
+ "rolloff": 1.0,
+ "gainDb": 2,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "crew-scorch/sizzle",
+   "gain": 1,
+   "pitchJitter": 0,
+   "gainJitter": 0
+  }
+ ]
+}

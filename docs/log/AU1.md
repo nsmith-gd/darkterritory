@@ -366,3 +366,62 @@ The director asked for the last three friendslop features to be heard. Two were 
 
 - [#1096](https://github.com/nsmith-gd/darkterritory/pull/1096) merged (d3c4cf8) on green CI (both systems, packaging, crossplay): #534 done; #505's horns, forge and BBQ deck in. #505 stays open for the tools' tells, which wait on the tools (#967's "still to build"), and the band against the mix.
 - The six checklist rows (`up-whimsy`, `up-pets`, `crew-emotes`, `up-horns`, `up-forge`, `up-bbq`) at L1.
+
+## 15 Oct, ~21:55 UTC: the band against the mix (#505)
+
+- #1098 merged (rows #534 done, #505's handoff). `dt audio render --scenario chaos+band` (new: maximum chaos with all eight of the band's instruments round the listener on the roof): six tells fell under spec A.3's 6 dB over the bed, the Dragger to -4.4 dB. The band now drops a further 18 dB under any tell (`mix.json`, a sound-duck rule on tier 1 and `band-*`), as the music gives way; every tell clears (the Dragger by 6.3 dB). `AudioTests` holds it.
+
+## 15 Oct, ~22:35 UTC: #1104 merged; the clerk's words for every upgrade (#505)
+
+- [#1104](https://github.com/nsmith-gd/darkterritory/pull/1104) merged on green CI: the band gives way to a tell.
+- **The clerk's words:** #967's 42 upgrade tally lines are read into every night's tally, and the bank had only the first ten's words, so the set broke up over "Fiddle: in tune, mostly." and the rest. `tools/audio/clerk.py` reads them off `campaign.json` now; 68 new takes; `ClerkVoiceTests` holds every line. The checklist's `up-clerk-words` says so.
+## 15 Oct, ~22:50 UTC: #554, the Hope Tower's Flame heard
+
+- Main's new features since the last look: B2's Hope Tower (#1091, note 819) puts an 80 m stone tower with a coal fire on top in every harbour town, and it was silent. Claimed queue #554, note 826.
+- `place-town.flame`: two candidates (`basket`, `tongues`), both under 4.5 kHz so the town's light is never a car alight; `basket` installed; held on the tower's top within 800 m (`GameAudio.Town`); `WorldSoundTests`. The `place-town` row on the Audio Checklist has them.
+
+## 16 Oct, ~00:25 UTC: #555, the night market heard
+
+- B2's night market (#1111, note 825) asked for its sounds ("the stallholders' talk, the tea boiler (AU1's, if wanted)"). Claimed queue #555, note 827.
+- `place-town.stall-tea`, `stall-clocks`, `stall-knitting` held at their stalls' counters, `stall-call` from a stallholder now and then (captioned); two candidates each (`recipes/market.py`), the first installed; `WorldSoundTests`. The walled-town test now listens two seconds away from the town (a stand-in cough begun as the ear left could outlast half a second).
+
+## 16 Oct, ~01:35 UTC: #554 merged; #555 in review (#1120); #556, the human cannonball heard
+
+- [#1112](https://github.com/nsmith-gd/darkterritory/pull/1112) merged (the Hope Tower's Flame) after main was merged in twice (the coordination files GitHub can't union), the last time merged at once on local tests.
+- The night market is [#1120](https://github.com/nsmith-gd/darkterritory/pull/1120).
+- U1's human cannonball (#1106, note 746) made only the gun's boom. Claimed queue #556, note 828: climbing in, the whoop, the flight's air, the gag's landing; `crew-cannonball` (a new checklist row), two candidates each, the first installed; captioned; `WorldSoundTests`. The reload's new order needed nothing: U1's hook plays the takes in it.
+
+## 16 Oct, ~01:45 UTC: #557, the Soot Child's telegraph heard
+
+- Main's Soot Child animations (C1, note 823) give it a telegraph: from 2.5 m outside its lunge "the call stops dead and its head snaps round to them". The sound kept calling. Claimed queue #557, note 829.
+- The call now stops dead (faded over one mix block) while the nearest of the crew is in the art's telegraph, and calls again when they back off; a real child goes on calling. No new sound. `CreatureSoundTests` (fails without it). Going up with #556 after #1120.
+
+## 16 Oct, ~02:05 UTC: #1120 merged; #556 and #557 in review
+
+- [#1120](https://github.com/nsmith-gd/darkterritory/pull/1120) merged (the night market) on green CI, main merged in once more first (the union merge kept row #554 twice; main's stale copy dropped). Row #555 done.
+- The human cannonball (#556) and the Soot Child's telegraph (#557) go up together, rebased on main.
+
+## 16 Oct, ~02:30 UTC: #559, U1's second whimsies heard
+
+- #1126 (the cannonball and the Soot Child's telegraph) in review. Main's #1119 wired C1's lounge and eating clips; the things they show (U1's hammock, hot tub, fishing rod and grilled fish, note 744) had no sounds. Claimed queue #559, note 831.
+- `up-lounge` (hammock in/out and its ropes' creak while lain in; the hot tub in/out and its bubbling while there's steam), `up-fishing` (the angler's own cast and line, off their own Use; everyone's catch, captioned) and `up-bbq.eat`; two candidates each (`recipes/lounge_fish.py`), the first installed; two new checklist rows; `WhimsySoundTests`. Goes up after #1126.
+
+## 16 Oct, ~02:40 UTC: #1126 merged; #559 in review
+
+- [#1126](https://github.com/nsmith-gd/darkterritory/pull/1126) merged (the human cannonball, #556; the Soot Child's telegraph, #557) on green CI, main merged in once more first (rows #555 and #558 kept twice by the union merge; the stale copies dropped). Rows #556 and #557 done.
+- U1's second whimsies (#559) rebased on main; `dt credits --write` for its samples (the packs' counts). Up for review.
+
+## 16 Oct, ~02:55 UTC: #561, burned at a fire's edge heard
+
+- #1130 (#559) in review. The director's playtest line 25 ("I wasn't getting any feedback that I was being burned") got a heat glow and smoke from C1 (note 821) and no sound. Claimed queue #561, note 833.
+- `crew-scorch.sizzle`: a coat smouldering, held on whoever a car fire's heat reaches from the first tick, at the glow's own strength, under 5 kHz so it's never the car-fire tell; two candidates (`recipes/scorch.py`), the modelled one installed (the real one's crackle clicks past the tell's band); a new checklist row; `CrewAudioTests`. Joined #1130 while its CI had only just started.
+
+## 16 Oct, ~03:45 UTC: #1130 merged
+
+- [#1130](https://github.com/nsmith-gd/darkterritory/pull/1130) merged (U1's second whimsies, #559; burned at a fire's edge, #561) on green CI, main merged in twice more first (row #560 kept twice by the union merge; the stale copy dropped). Rows #559 and #561 done.
+- Main's newest (#1124 the deck's cheers and the can in the fist, #1128 up out of a turned-round gun, #1125 the cannonball on the radio) need nothing more from AU1: the cheers and the can are heard already (`up-bbq`), the gun's seat is movement, and U1 put the radio line in the clerk's bank.
+
+## 16 Oct, ~05:35 UTC: #447's reload cues closed
+
+- U1's #1135/#1136 left "AU1's recorded reload cues in the new order" open in note 746 and row #447; it was settled for #556 (note 828): `GameAudio.CrewGuns` already plays the takes in the new order and they fit it, nothing to re-record. Said so on #1135; note 746 and the row now say it. Only C1's barrel clip is left of #447.
+- Nothing else new on main for AU1 (U1 stopped for the week); the Voice Booth still has no verdicts.

@@ -142,6 +142,15 @@ public sealed record SquareTuning
     /// (m), clear of the clerk's office, the stall and the first bench.</summary>
     public double[] GreenAlong { get; init; } = [5, 17];
     public double[] GreenOut { get; init; } = [7, 17];
+    /// <summary>
+    /// The night market (queue #552, note 825; the director's playtest of 14 Oct, line 3: "Still a bit basic"): how many
+    /// stalls, the least and the most, one more for every <see cref="MarketPer"/> people; how far in front of the buildings'
+    /// fronts its row stands, and how far apart along it its stalls may stand (m).
+    /// </summary>
+    public int[] Market { get; init; } = [4, 8];
+    public double MarketPer { get; init; } = 400;
+    public double MarketIn { get; init; } = 3.6;
+    public double MarketEvery { get; init; } = 4.6;
 }
 
 public sealed record ExplorableTuning
@@ -165,6 +174,8 @@ public sealed record StreetTuning
     /// streets of its own, so a town of forty houses isn't one row down the track.
     /// </summary>
     public int LineRow { get; init; } = int.MaxValue;
+    /// <summary>How long a run of one plan is down a company town's street (m; note 815).</summary>
+    public double PlanRun { get; init; } = 45;
     public double Burnt { get; init; }
     public double Open { get; init; }
 }
@@ -271,12 +282,19 @@ public sealed record TownWriting
     public string[] Welcome { get; init; } = [];
     public required TownCulture[] Cultures { get; init; }
     public required TownQuirk[] Quirks { get; init; }
+    /// <summary>
+    /// What a town's people believe, by its houses' character (<see cref="HouseCharacter.Creed"/>; note 822, the Flooders):
+    /// never drawn as a habit is, only kept where the character keeps it.
+    /// </summary>
+    public TownQuirk[] Creeds { get; init; } = [];
     public required Dictionary<string, TownIndustry> Industries { get; init; }
     public required Dictionary<string, TownRole> Roles { get; init; }
     /// <summary>The forge (note 697): its name, and what its board says read close to.</summary>
     public TownText? Forge { get; init; }
     public required TownThread[] Threads { get; init; }
     public required TownText[] Notices { get; init; }
+    /// <summary>The night market's stalls (note 825), each its name and what's on it, dealt with the town's trade's own stalls.</summary>
+    public TownText[] Market { get; init; } = [];
     /// <summary>What answers a knock at the square's three doors, by building ("hall", "office", "store").</summary>
     public Dictionary<string, string[]> Doors { get; init; } = [];
     /// <summary>Households behind an open door: what happened to them, what each says, and the thing that tells it.</summary>
