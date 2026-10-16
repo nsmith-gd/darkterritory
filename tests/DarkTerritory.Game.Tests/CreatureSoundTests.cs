@@ -1242,4 +1242,62 @@ public class CreatureSoundTests
         Assert.Equal(scene.Train.Dynamics.Consist.Vehicles.Count, heard.Count(h => h == "figures.jacob-bless"));
         Assert.True(scene.Playing("figures.jacob-fish"));
     }
+
+    [Fact]
+    public void ASootChildStopsCallingDeadAsItRisesToSomeoneComingNearAndARealChildGoesOnCalling()
+    {
+        // Note 829 (note 823's telegraph): from 2.5 m outside its lunge, as someone comes on, a Soot Child's call stops dead
+        // as its head snaps round to them, and it calls again when they back off; a real child goes on calling.
+        double lunge = new SootChildrenTuning().LungeWithin; // the scene's world has no tuning: GameAudio's, the content's default
+        foreach (bool soot in new[] { true, false })
+        {
+            using var scene = new Scene(0, "child-call");
+            // A call long enough to be cut off in.
+            scene.Audio.Bank.Add("child-call", new SoundDef(3, [new LayerDef(SourceKind.Noise, 0.1)], Duration: 1.5, MaxInstances: 4));
+            var frame = scene.Train.Frames[0];
+            var at = frame.ToWorld(new Double3(14, 0, 0));
+            var child = Record(new SootChildren(41), SpinePhase.Telegraph, 1, 4, Enemy.Loose, at, extra: 1, extra2: soot ? 1 : 0);
+            void Stand(double away) =>
+                scene.Audio.CrewStates = [(1, new PlayerState { Parent = PlayerState.World, Position = at + new Double3(away, 0, 0), Health = Player.Health })];
+            // A tick's worth of sound played, so a call ends when it should.
+            int Step()
+            {
+                int n = scene.Tick(child).Count(h => h == "child-call");
+                for (int b = 0; b < Audio.SampleRate / SimConstants.TickRate / Audio.Block; b++)
+                    scene.Audio.Mixer.Render(new float[Audio.Block * 2]);
+                return n;
+            }
+            int Calls(double seconds)
+            {
+                int n = 0;
+                for (int i = 0; i < seconds * SimConstants.TickRate; i++)
+                    n += Step();
+                return n;
+            }
+
+            // Out past its telegraph: calling, call after call.
+            Stand(lunge + Art.CreatureArt.SootRiseFrom + 1);
+            Assert.True(Calls(6) >= 2, "it should call for help, call after call");
+            while (!scene.Playing("child-call"))
+                Step();
+
+            // Coming on into it, mid-call.
+            Stand(lunge + 1);
+            Step();
+            Step();
+            if (soot)
+            {
+                Assert.False(scene.Playing("child-call"), "a Soot Child rising for its lunge should stop calling dead");
+                Assert.Equal(0, Calls(6));
+                // Backed off: it settles and calls again.
+                Stand(lunge + Art.CreatureArt.SootRiseFrom + 1);
+                Assert.True(Calls(6) >= 1, "backed off, it should call again");
+            }
+            else
+            {
+                Assert.True(scene.Playing("child-call"), "a real child should go on calling");
+                Assert.True(Calls(6) >= 2, "a real child should go on calling");
+            }
+        }
+    }
 }

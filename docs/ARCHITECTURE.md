@@ -1012,4 +1012,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [827. The night market heard (AU1, queue #555; B2's #1111, note 825's "not yet: the market heard: the stallholders' talk, the tea boiler (AU1's,…](notes/827.md)
 - [830. The coupling gap's step up: walked up onto the deck at an angle, not held at the plate's lip (C1, queue #558; the director's Look Review…](notes/830.md)
 - [828. The human cannonball heard (AU1, queue #556; U1's #1106, note 746: "going for fun in this one")](notes/828.md)
+- [829. The Soot Child's telegraph heard (AU1, queue #557; C1's note 823: "From 2.5 m outside the lunge, as they come on, the call stops dead and…](notes/829.md)
 <!-- end of the notes index -->
