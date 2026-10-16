@@ -1009,4 +1009,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [824. Ruins: the beginnings of fortress towns the Wakers stamped flat, out beside the line (queue #551, B2; the World Building board's Cultures…](notes/824.md)
 - [825. A night market on the square (queue #552, B2; the director's playtest of 14 Oct, line 3, in frontier:7's town: "The town's looking better.…](notes/825.md)
 - [826. The Hope Tower's Flame of Hope heard (AU1, queue #554; B2's #1091, note 819)](notes/826.md)
+- [828. The coupling gap's step up: walked up onto the deck at an angle, not held at the plate's lip (C1, queue #556; the director's Look Review…](notes/828.md)
 <!-- end of the notes index -->
