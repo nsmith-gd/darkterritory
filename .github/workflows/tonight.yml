@@ -39,13 +39,20 @@ jobs:
           EVENT: ${{ github.event_name }}
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
         run: |
           # By hand, always. On the schedule, once per slot: the slot is the last 5 pm or 7 am Montreal gone by, and a
-          # try builds only if no build's zip has been made since then (a by-hand build counts).
+          # try builds only if no build has passed since then (a by-hand build counts).
           hour=$(TZ=America/Toronto date +%-H)
           if [ "$hour" -ge 17 ]; then at='today 17:00'; elif [ "$hour" -ge 7 ]; then at='today 07:00'; else at='yesterday 17:00'; fi
           slot=$(date -u -d "@$(TZ=America/Toronto date -d "$at" +%s)" +%Y-%m-%dT%H:%M:%SZ)
-          built=$(gh api "repos/$REPO/actions/artifacts?per_page=30" --jq "[.artifacts[] | select(.name | startswith(\"DarkTerritory-Dev-win-x64-tonight\")) | select(.created_at >= \"$slot\")] | length")
+          # The slot's builds: this workflow's runs since the slot whose build job ran and passed (a skipped try's
+          # doesn't count). By run, not by artifact: the repo's newest artifacts are mostly every PR's review packet.
+          built=0
+          for id in $(gh api "repos/$REPO/actions/workflows/tonight.yml/runs?created=%3E%3D$slot&per_page=30" --jq ".workflow_runs[] | select(.id != $RUN_ID) | .id"); do
+            n=$(gh api "repos/$REPO/actions/runs/$id/jobs" --jq '[.jobs[] | select(.name == "tonight" and .conclusion == "success")] | length')
+            built=$((built + n))
+          done
           if [ "$EVENT" != schedule ] || [ "$built" = 0 ]; then go=true; else go=false; fi
           echo "Montreal: $(TZ=America/Toronto date '+%H:%M %Z'); slot from $slot; builds since: $built; go=$go"
           echo "go=$go" >> "$GITHUB_OUTPUT"
