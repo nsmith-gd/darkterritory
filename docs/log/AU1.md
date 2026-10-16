@@ -415,3 +415,8 @@ The director asked for the last three friendslop features to be heard. Two were 
 
 - #1130 (#559) in review. The director's playtest line 25 ("I wasn't getting any feedback that I was being burned") got a heat glow and smoke from C1 (note 821) and no sound. Claimed queue #561, note 833.
 - `crew-scorch.sizzle`: a coat smouldering, held on whoever a car fire's heat reaches from the first tick, at the glow's own strength, under 5 kHz so it's never the car-fire tell; two candidates (`recipes/scorch.py`), the modelled one installed (the real one's crackle clicks past the tell's band); a new checklist row; `CrewAudioTests`. Joined #1130 while its CI had only just started.
+
+## 16 Oct, ~03:45 UTC: #1130 merged
+
+- [#1130](https://github.com/nsmith-gd/darkterritory/pull/1130) merged (U1's second whimsies, #559; burned at a fire's edge, #561) on green CI, main merged in twice more first (row #560 kept twice by the union merge; the stale copy dropped). Rows #559 and #561 done.
+- Main's newest (#1124 the deck's cheers and the can in the fist, #1128 up out of a turned-round gun, #1125 the cannonball on the radio) need nothing more from AU1: the cheers and the can are heard already (`up-bbq`), the gun's seat is movement, and U1 put the radio line in the clerk's bank.
