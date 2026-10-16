@@ -136,6 +136,12 @@ public static partial class Staging
         }
         // A walled town (queue #74): from over the gate looking back over its roofs, down its first street, and from
         // outside the gate as the train leaves, its front wall either side of the gatehouse.
+        // Down the first street on the line's other side from the square, among its houses (note 815: whether they look alike).
+        if (plan.Bounds is { } rowWall && where == "row" && rowWall.Streets.Where(x => Math.Sign(x.D) == -side).OrderBy(x => Math.Abs(x.D)).FirstOrDefault() is { } rs)
+        {
+            double r0 = sq.S0 + 10, r1 = sq.S0 - 110;
+            return Ballast.Render.Camera.LookAt(town.World(r0, rs.At(r0), 16), town.World(r1, rs.At(r1), 0), 60);
+        }
         if (plan.Bounds is { } wall && where is "over" or "lane" or "outside" or "watch" or "bend" or "crooked" or "crookedover" or "towergun")
         {
             // The first street's line out from the line (a town type's warren has none of the street town's: its first row).

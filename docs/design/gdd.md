@@ -220,7 +220,7 @@ The towns are where the world is built. They tell the story of what happened and
 - grey cedar shingle or painted clapboard, in teal, butter yellow, periwinkle, barn red, maroon, ochre or white;
 - white or coloured trim, a bright door, shutters, Victorian brackets.
 
-Each town has a character too: a fishing cove of shingled gable-fronts, an old town of painted bumps, a loyalist row on the water, a farm town of capes and ells, a company town of one double house in many paints, or a town of all sorts.
+Each town has a character too: a fishing cove of shingled gable-fronts, an old town of painted bumps, a loyalist row on the water, a farm town of capes and ells, a company town built to the company's few plans in runs down its streets, in many paints, or a town of all sorts. And no house is its neighbour's twin (queue #543, note 815; the director, 13 Oct: "A lot of the house models are too same same"): over the years the families have changed them. A porch has been added or closed in, a lean-to built on the side, a dormer cut into the roof. A house has been shingled over its clapboard, shutters hung, a stovepipe put through where the chimney was, or a storey built up. A company's houses most of all, built alike and lived in apart.
 
 **The Flooders** *(the World Building board's Cultures tab, the director, 12 Oct; queue #549, ARCHITECTURE §8 note 822)*. "Towns made entirely of houseboats on stilts ... a cult who insist the comet that brought the pestilence ... was an act of God and God will cleanse the Earth with a great flood once again."
 - **Where:** some of the marsh and salt-flat towns are theirs.
