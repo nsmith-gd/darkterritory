@@ -422,8 +422,11 @@ public sealed partial class GameAudio
         }
         if (world.WhistleSeconds <= 0 || CordWhistles(world))
         {
-            // A held whistle stops with the blowing; a recorded blast (a whole take, start to release) rings out.
-            if (Bank.Get("train-whistle") is { Loop: true })
+            // A held whistle stops with the blowing. So does a crewmate's pull on a recorded blast (note 839, the director, 16 Oct:
+            // "when I let go of the key, it immediately stops the whistle. That way we can actually do the longs and the shorts"):
+            // the sim's short tail (train.json whistle.tailSeconds) is its release. The Whistler's blast (no hand on the cord,
+            // App. A.4) rings out as recorded.
+            if (Bank.Get("train-whistle") is { Loop: true } || world.WhistleBy >= 0)
                 _whistle?.Stop();
             _whistle = null;
             return;
