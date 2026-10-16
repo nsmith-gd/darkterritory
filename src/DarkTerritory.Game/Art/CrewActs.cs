@@ -813,7 +813,9 @@ public static class CrewActs
         if (s.Has(PlayerFlags.Crouched) && s.Head <= 0)
             return CrewPose.Crouch;
         if (world.Combat is { } combat && Guns.MannedGun(s, train, combat.Guns) is { } manned)
-            return train.Vehicles[manned].Gun.ReloadNeeded > 0 ? CrewPose.Reload : CrewPose.Gunner;
+            // Note 846 (the director's playtest of 16 Oct, line 7: "the reloading animation plays even if you're not
+            // reloading"): the reload's clip only while a hand's on it (its step under way), not for as long as it wants one.
+            return train.Vehicles[manned].Gun is { ReloadNeeded: > 0, ReloadProgress: > 0 } ? CrewPose.Reload : CrewPose.Gunner;
         // On the ground at the line's own levers: a switch stand's (spec C.6), a coaling chute's or a spout's (spec D.3).
         if (s.Parent == PlayerState.World)
         {
