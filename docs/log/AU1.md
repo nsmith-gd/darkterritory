@@ -420,3 +420,8 @@ The director asked for the last three friendslop features to be heard. Two were 
 
 - [#1130](https://github.com/nsmith-gd/darkterritory/pull/1130) merged (U1's second whimsies, #559; burned at a fire's edge, #561) on green CI, main merged in twice more first (row #560 kept twice by the union merge; the stale copy dropped). Rows #559 and #561 done.
 - Main's newest (#1124 the deck's cheers and the can in the fist, #1128 up out of a turned-round gun, #1125 the cannonball on the radio) need nothing more from AU1: the cheers and the can are heard already (`up-bbq`), the gun's seat is movement, and U1 put the radio line in the clerk's bank.
+
+## 16 Oct, ~05:35 UTC: #447's reload cues closed
+
+- U1's #1135/#1136 left "AU1's recorded reload cues in the new order" open in note 746 and row #447; it was settled for #556 (note 828): `GameAudio.CrewGuns` already plays the takes in the new order and they fit it, nothing to re-record. Said so on #1135; note 746 and the row now say it. Only C1's barrel clip is left of #447.
+- Nothing else new on main for AU1 (U1 stopped for the week); the Voice Booth still has no verdicts.
