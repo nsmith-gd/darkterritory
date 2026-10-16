@@ -395,3 +395,8 @@ The director asked for the last three friendslop features to be heard. Two were 
 
 - Main's Soot Child animations (C1, note 823) give it a telegraph: from 2.5 m outside its lunge "the call stops dead and its head snaps round to them". The sound kept calling. Claimed queue #557, note 829.
 - The call now stops dead (faded over one mix block) while the nearest of the crew is in the art's telegraph, and calls again when they back off; a real child goes on calling. No new sound. `CreatureSoundTests` (fails without it). Going up with #556 after #1120.
+
+## 16 Oct, ~02:05 UTC: #1120 merged; #556 and #557 in review
+
+- [#1120](https://github.com/nsmith-gd/darkterritory/pull/1120) merged (the night market) on green CI, main merged in once more first (the union merge kept row #554 twice; main's stale copy dropped). Row #555 done.
+- The human cannonball (#556) and the Soot Child's telegraph (#557) go up together, rebased on main.
