@@ -460,4 +460,61 @@ public class GunTests
         Assert.Equal(Surface.Roof, s.Surface);
         Assert.Equal(T.Geometry.EngineHeight, s.Position.Y, 6);
     }
+
+    // ---- Up out of a turned-round gun (note 832; the director's 13 Oct evening playtest, line 23).
+
+    /// <summary>The crew's acts, the world's tick and the motor, a tick at a time, as the host runs them.</summary>
+    static void Ride(World w, ref PlayerState s, PlayerIntent intent, double seconds, TrainControls controls = default, Action<PlayerState>? each = null)
+    {
+        for (int i = 0; i < Math.Max(1, Math.Round(seconds * SimConstants.TickRate)); i++)
+        {
+            w.BeginTick();
+            w.CrewAct(ref s, intent, 1);
+            w.Step(controls);
+            PlayerMotor.Step(ref s, intent, w.Train, P, T, SimConstants.TickSeconds, applyLook: false);
+            each?.Invoke(s);
+        }
+    }
+
+    [Fact]
+    public void UpOutOfTheForwardGunTurnedRoundYoureStoodOnTheCabRoofNotOffItsFront()
+    {
+        // "When I jump off a turret, if I turn the turret around, it causes me to jump off backwards, and I end up jumping off
+        // the front of the train": turned round, the forward gun's seat is at the cab roof's front edge, a press of Jump lasts
+        // a few ticks, and the train slowing under someone in the air carries them on over it.
+        var w = World();
+        w.Train.Dynamics.Velocity = 12;
+        var s = AtGun(w, 0);
+        s.Yaw = Math.PI;
+        Ride(w, ref s, default, 180 / C.Guns.TraverseDegreesPerSecond + 0.5);
+        Assert.Equal(Math.PI, Math.Abs(w.Train.Vehicles[0].Gun.Traverse), 3);
+        double front = w.Train.Frames[0].Shape.Solids.Where(x => x.Part == PartKind.CabRoof && x.Box.ContainsXZ(s.Position)).Min(x => x.Box.Min.Z);
+        Assert.True(s.Position.Z - front < P.Edge.Lip, $"the seat's {s.Position.Z - front:0.00} m from the roof's front");
+
+        var braking = new TrainControls { Brake = 1, Reverser = 1 };
+        bool flew = false;
+        Ride(w, ref s, new PlayerIntent { Buttons = PlayerButtons.Jump }, 8.0 / SimConstants.TickRate, braking, x => flew |= x.Surface == Surface.Air);
+        Ride(w, ref s, default, 2, braking, x => flew |= x.Surface == Surface.Air);
+        Assert.False(s.Has(PlayerFlags.Seated));
+        Assert.False(flew, "the press that got them up leapt them");
+        Assert.Equal(0, s.Parent);
+        Assert.Equal(Surface.Roof, s.Surface);
+        Assert.True(s.Position.Z - front >= P.Edge.Lip - 1e-9, $"stood {s.Position.Z - front:0.00} m from the roof's front");
+    }
+
+    [Fact]
+    public void TheJumpThatGetsYouUpIsALeapOnlyOnceItsLetGo()
+    {
+        var w = World();
+        var s = AtGun(w, 0);
+        var jump = new PlayerIntent { Buttons = PlayerButtons.Jump };
+        Ride(w, ref s, jump, 0.5);
+        Assert.False(s.Has(PlayerFlags.Seated));
+        Assert.Equal(Surface.Roof, s.Surface);
+        // Let go, and pressed again: a jump.
+        Ride(w, ref s, default, 1.0 / SimConstants.TickRate);
+        Assert.False(s.Has(PlayerFlags.GotUp));
+        Ride(w, ref s, jump, 1.0 / SimConstants.TickRate);
+        Assert.Equal(Surface.Air, s.Surface);
+    }
 }
