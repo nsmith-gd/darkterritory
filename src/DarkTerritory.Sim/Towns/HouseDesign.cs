@@ -47,6 +47,13 @@ public sealed record HouseDesign(bool GableFront, double Storeys, HouseRoof Roof
     /// </summary>
     public double Grime { get; init; }
 
+    /// <summary>
+    /// A houseboat (note 822, the Flooders): a scow's hull under it, up on stilts against the flood, a ladder to its door.
+    /// The art lifts the house onto the hull's deck (<c>MaritimeKit.HullLift</c>); never an open house, whose rooms are on the
+    /// Sim's floor.
+    /// </summary>
+    public bool Hull { get; init; }
+
     /// <summary>How far the eaves stand off the ground, by storeys (m): the wall's height under the roof.</summary>
     public double Eaves => Storeys switch { <= 1 => 2.9, <= 1.5 => 3.6, <= 2 => 5.6, _ => 6.2 };
 }
@@ -119,6 +126,13 @@ public sealed record HouseCharacter
     /// <summary>How sooted and bleached its houses have gone (0..1, <see cref="HouseDesign.Grime"/>), and how far either way one house's differs.</summary>
     public double Grime { get; init; }
     public double GrimeSpread { get; init; }
+    /// <summary>The share of its shut houses that are houseboats (<see cref="HouseDesign.Hull"/>; note 822, the Flooders).</summary>
+    public double Hull { get; init; }
+    /// <summary>
+    /// The creed its people keep (world/towns.json <c>creeds</c>; note 822, the Flooders'): heard and posted as a habit's
+    /// lines and notes are, its first notice on the board after the custom's order.
+    /// </summary>
+    public string? Creed { get; init; }
     /// <summary>What its yards hold (note 335).</summary>
     public YardOdds Yard { get; init; } = new();
     /// <summary>What its people breathe through (note 353): each of <see cref="TownGear.Kinds"/>' weight against the rest.</summary>

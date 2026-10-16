@@ -171,6 +171,19 @@ public static partial class Staging
                 _ => Ballast.Render.Camera.LookAt(town.World(mid + 30, stD, 1.7), town.World(mid - 40, stD, 1.6), 72),
             };
         }
+        // A Flooder's houseboat (note 822): the nearest the square, from out in front of it and to one side, its hull, stilts
+        // and ladder; "houseboats" from higher and further, a row of them.
+        if (where is "houseboat" or "houseboats" && plan.Houses.Where(h => h.Design.Hull && h.Kind != Sim.Towns.HouseKind.Burnt)
+            .OrderBy(h => Math.Abs(h.S - mid) + Math.Abs(h.D)).FirstOrDefault() is { } boat)
+        {
+            var (fs, fd) = boat.Rail(0, 0);
+            var front = town.World(fs, fd);
+            var outward = town.Direction(fs, 0, -boat.Side);
+            var along = town.Direction(fs, 1, 0);
+            return where == "houseboat"
+                ? Ballast.Render.Camera.LookAt(front + outward * 5 + along * (boat.Width / 2 + 7) + Double3.Up * 1.4, front + Double3.Up * 1.8 - outward * (boat.Depth / 2), 66)
+                : Ballast.Render.Camera.LookAt(front + outward * 26 + along * 22 + Double3.Up * 9, front + Double3.Up * 2 - along * 10, 62);
+        }
         // A harbour town's Hope Tower (queue #547, note 819): "hope" up at its Flame from the lanes below it, toward the line;
         // "hopeover" from over the head, level with its fire basket; "hopefar" from the line far out past the town's gate,
         // where a crew coming in sees the Flame over the fog before anything else of the town.
@@ -187,6 +200,17 @@ public static partial class Staging
                 "hopeover" => Ballast.Render.Camera.LookAt(flame + along * 50 + toward * 35 + Double3.Up * 10, foot + Double3.Up * ((flame - foot).Length * 0.6), 60),
                 _ => Ballast.Render.Camera.LookAt(town.World(plan.Gate + 900, 0, 3), flame, 50),
             };
+        }
+        // The night market (note 825): "market" from the square in front of its first stall, along the row; "marketover" from
+        // over the square, the whole row lit.
+        if (where is "market" or "marketover" && plan.Fixtures.Where(f => f.Kind == "marketstall").OrderBy(f => f.S).ToList() is { Count: > 0 } row)
+        {
+            var first = row[0];
+            var last = row[^1];
+            double rowMid = (first.S + last.S) / 2;
+            return where == "market"
+                ? Ballast.Render.Camera.LookAt(town.World(first.S - 6, first.D - side * 5.5, 1.7), town.World(first.S + 6, first.D, 1.2), 66)
+                : Ballast.Render.Camera.LookAt(town.World(rowMid, first.D - side * 16, 9), town.World(rowMid, first.D, 0.8), 70);
         }
         // The town's flag (note 674): from across the square, up at it on its pole; "flagclose", nearer, the cloth filling the view.
         if (where is "flag" or "flagclose" && plan.Fixtures.FirstOrDefault(f => f.Kind == "flag") is { } flag)
@@ -723,13 +747,29 @@ public static partial class Staging
                     Act: Art.CrewPose.HeldCarried), Sim.Player.PlayerMotor.WorldPosition(carrier, train), Sim.Player.PlayerMotor.WorldYaw(carrier, train), 31),
             ];
         }
+        if (scene == "throwoff")
+        {
+            // Note 818: the same carry a moment after the throw (dt screenshot --view carryfriend --rescue throwoff): the carrier
+            // up on their toes pushing, the friend off the shoulder ahead of them along their view, flailing.
+            var frame = train.Frames[Math.Min(2, train.Frames.Count - 1)];
+            var carrier = Sim.Player.PlayerMotor.SpawnOnRoof(train, frame.Index, -1.0, player, -0.3) with { Yaw = Math.PI - 1.45 };
+            var feet = Sim.Player.PlayerMotor.WorldPosition(carrier, train);
+            double yaw = Sim.Player.PlayerMotor.WorldYaw(carrier, train);
+            var ahead = new Double3(-Math.Sin(yaw), 0, -Math.Cos(yaw));
+            return
+            [
+                new Crewmate(31, feet, yaw, true, Act: Art.CrewPose.ThrowOff, Phase: 0.2),
+                new Crewmate(32, feet + ahead * 1.5 + Double3.Up * 0.8, yaw + 2.4, true, Act: Art.CrewPose.Flail),
+            ];
+        }
         int car = SideDoorCar(train);
         var at = train.Frames[car];
         train.Vehicles[car].DoorsOpen |= 1 << 3;
         double w = at.Shape.HalfWidth, floor = at.Shape.Interior?.Min.Y + 0.1 ?? 1.1;
         var helper = new Crewmate(31, at.ToWorld(new Double3(w - 0.25, floor, 0)), -Math.PI / 2 + at.Heading, true, Act: Art.CrewPose.HandUp);
-        var runner = new Crewmate(32, at.ToWorld(new Double3(w + 1.0, 0, 0.45)), at.Heading + 0.25, true, Act: Art.CrewPose.LanternWalk, Lamp: true);
-        return [helper, runner];
+        var runner = new Crewmate(32, at.ToWorld(new Double3(w + 1.0, 0, 0.45)), at.Heading + 0.25, true, Act: Art.CrewPose.Run, Lamp: true);
+        // Note 818: running alongside with a hand up to the helper's, the two hands on one point.
+        return [Art.CrewActs.HandsMeet(helper, runner.Feet, helping: true), Art.CrewActs.HandsMeet(runner, helper.Feet, helping: false, helper.Yaw)];
     }
 
     /// <summary>
@@ -1978,6 +2018,23 @@ public static partial class Staging
     /// over it caught, cooling away along the car, out toward the ends as far as its <paramref name="spread"/>; and its car's
     /// char under the worst of it.
     /// </summary>
+    /// <summary>
+    /// Note 821 (dt screenshot --threats --view fire --scorch [m]): a crewmate on the burning car's floor <paramref name="from"/>
+    /// m along it from its hottest cell, toward the camera's end, facing it, the fire's heat on them as the host burns them
+    /// (<see cref="CarFire.HeatOn(Double3, FireGrid, IReadOnlyList{double}, CarFireTuning)"/>).
+    /// </summary>
+    public static Crewmate Scorched(TrainOnLine train, CarFire fire, CarFireTuning t, double from)
+    {
+        var car = train.Frames[fire.Attached];
+        var grid = FireGrid.Of(train, fire.Attached, t.CellSize)!;
+        int hottest = 0;
+        for (int i = 1; i < grid.Count && i < fire.Heat.Length; i++)
+            if (fire.Heat[i] > fire.Heat[hottest])
+                hottest = i;
+        var feet = new Double3(0.35, grid.Room.Min.Y + FireGrid.FloorPad, grid.Centre[hottest].Z + from);
+        return new Crewmate(34, car.ToWorld(feet), car.Heading, true, Car: fire.Attached, Local: feet, Scorch: CarFire.HeatOn(feet, grid, fire.Heat, t));
+    }
+
     public static void Cells(TrainOnLine train, CarFire fire, double extra, double spread, CarFireTuning? tuning = null)
     {
         if (FireGrid.Of(train, fire.Attached, (tuning ?? new CarFireTuning()).CellSize) is not { } grid)

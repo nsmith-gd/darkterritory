@@ -222,6 +222,11 @@ The towns are where the world is built. They tell the story of what happened and
 
 Each town has a character too: a fishing cove of shingled gable-fronts, an old town of painted bumps, a loyalist row on the water, a farm town of capes and ells, a company town built to the company's few plans in runs down its streets, in many paints, or a town of all sorts. And no house is its neighbour's twin (queue #543, note 815; the director, 13 Oct: "A lot of the house models are too same same"): over the years the families have changed them. A porch has been added or closed in, a lean-to built on the side, a dormer cut into the roof. A house has been shingled over its clapboard, shutters hung, a stovepipe put through where the chimney was, or a storey built up. A company's houses most of all, built alike and lived in apart.
 
+**The Flooders** *(the World Building board's Cultures tab, the director, 12 Oct; queue #549, ARCHITECTURE §8 note 822)*. "Towns made entirely of houseboats on stilts ... a cult who insist the comet that brought the pestilence ... was an act of God and God will cleanse the Earth with a great flood once again."
+- **Where:** some of the marsh and salt-flat towns are theirs.
+- **Their houses:** every shut house is a scow's hull with the house built on its deck, up on stilts over the marsh, a ladder to its door.
+- **Their creed:** the comet was sent, and the creatures were sent to thin us out before the water. They say it at their tables and post it on their board, beside the water mark they paint on the stilts each morning.
+
 **Every house has its yard.** On a street, a picket fence along the front with its gate at the door; a board fence at the back; and behind the house what a yard keeps: the woodpile under a sheet of roofing, a shed, the privy, lobster traps, a dory turned over on its blocks, a rain barrel, the washing pegged out and left out after dark. A cove's yards are traps and dories, a farm town's woodpiles and sheds, a company row's the same fence and privy at every house. You go in by the gate, and the fences stop you.
 
 **A town that's lived in.** Smoke rises from the chimneys of the houses people live in, and the watch walk the wall with their lanterns, up and back between the towers all night.
@@ -266,6 +271,11 @@ The town's lamp posts light the siding. Two porters work the yard all night, and
 - **Seen from far off:** it stands over the whole town. Its Flame is the first thing a crew sees of the town through the fog, a kilometre and more out.
 - **Its keeper** stands at its door all night, between the hours' tubs of coal hauled up its side.
 
+**The night market** *(the director's playtest of 14 Oct, line 3: "Still a bit basic"; queue #552, ARCHITECTURE §8 note 825)*.
+- **Where:** a row of stalls on the square, lit and open, between the hall and the centrepiece. A small town has four, a big one up to eight.
+- **What's on them:** what the town makes, and what a walled town trades for at night: salt cod with the eyes taken out, candles nobody lights after midnight, single boots never a pair, clocks kept a quarter of an hour fast, a loaf put by for whoever's coming in on the train.
+- **Who keeps them:** each stall has its lantern under its awning and a stallholder behind its counter to talk to.
+
 **People.** Text only, no voices, as many as the town is big:
 - the gatekeeper says the town's law first;
 - the keeper of the custom's building and the folk round the centrepiece talk about the custom;
@@ -296,6 +306,12 @@ Use talks to someone, and Use again hears their next line. They turn to face you
 - upstairs in the open houses;
 - things everyone hears when one person does them (ringing the bell);
 - notes found out along the line.
+
+**Fortresses that were only begun** *(the World Building board's Cultures tab, the director, 12 Oct; queue #551, ARCHITECTURE §8 note 824)*. "Ruins of fortress towns that once were. They're always small beginnings of a fortress that were destroyed by the Wakers."
+- **Where:** out beside the line between the stops, two nights in three or so, in every country.
+- **What's left:** a stretch of new wall in the fortresses' stone, never built to its height, with a squat tower at its corner or a gatehouse's two stumps, the scaffolding still up.
+- **What happened:** a Waker came down the line at dawn and stepped on it. A run of the wall is trodden into rubble, its footprint the size of a house pressed into the ground across it, the gate's iron leaf lying in the mud.
+- **Solid:** where it still stands; a crew can walk in by the breach.
 
 ### 3.2 The figures out there *(the director, 8 Oct 2026; ARCHITECTURE §8 note 570)*
 

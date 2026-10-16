@@ -57,6 +57,10 @@ public enum CrewPose
     OnHook, Flail,
     // At the handcar's handle (note 729; note 814): bent over it driving their end down, hauled back up, played by its swing.
     Pump,
+    // Note 818: lifting the handcar off the guard van or onto it (note 729), posed by how high their hands are under its side
+    // (CrewActs.HeavePhase); and a friend thrown off the shoulder (note 723), a drive up onto the toes pushing them off,
+    // played once from the knock.
+    Heave, ThrowOff,
 }
 
 /// <summary>
@@ -854,6 +858,8 @@ public sealed partial class CreatureArt
         CrewPose.OnHook => "on_hook",
         CrewPose.Flail => "flail",
         CrewPose.Pump => "pump",
+        CrewPose.Heave => "heave",
+        CrewPose.ThrowOff => "throw_off",
         _ => "idle",
     };
 
@@ -895,9 +901,11 @@ public sealed partial class CreatureArt
                 : clip is "toolbox" or "toolbox_walk" && has.Model.Clips.ContainsKey("carry") ? clip == "toolbox" ? "carry" : "carry_walk"
                 // (A shove without its own clip: the gun's push, as note 717 drew it; note 723's carry, the body carry's.)
                 : clip == "shove" && has.Model.Clips.ContainsKey("push") ? "push"
+                // (Note 818's: the lift as the lever's hands under its sides, the throw as the shove was.)
+                : clip == "throw_off" && has.Model.Clips.ContainsKey("shove") ? "shove" : clip == "throw_off" && has.Model.Clips.ContainsKey("push") ? "push"
                 : clip is "fireman" or "fireman_walk" && has.Model.Clips.ContainsKey("shoulder") ? clip == "fireman" ? "shoulder" : "shoulder_walk"
                 : clip == "hand_up" && has.Model.Clips.ContainsKey("haul_up") ? "haul_up"
-                : clip is "on_hook" or "pump" && has.Model.Clips.ContainsKey("lever") ? "lever" : clip == "flail" && has.Model.Clips.ContainsKey("fall") ? "fall"
+                : clip is "on_hook" or "pump" or "heave" && has.Model.Clips.ContainsKey("lever") ? "lever" : clip == "flail" && has.Model.Clips.ContainsKey("fall") ? "fall"
                 // An emote with no clip of its own (note 298): the dance steps on the spot, the wave and the point stand.
                 : clip is "dance" or "shuffle" or "conga" && has.Model.Clips.ContainsKey("walk") ? "walk" : "idle";
         // ... and the arms are posed over it (EmoteArms).
@@ -916,7 +924,7 @@ public sealed partial class CreatureArt
         // a blow of the tool in hand (note 275: without it a swing was put off by the variant's beat, up to 2.9 s into a
         // 0.8 s clip, and most of the crew were drawn at its end).
         bool fromStart = pose is CrewPose.GetUp or CrewPose.TakeDown or CrewPose.HangUp or CrewPose.Stagger or CrewPose.Reload or CrewPose.FireDoor
-            or CrewPose.Swing or CrewPose.Jump or CrewPose.Shove or CrewPose.Pump;
+            or CrewPose.Swing or CrewPose.Jump or CrewPose.Shove or CrewPose.Pump or CrewPose.Heave or CrewPose.ThrowOff;
         fromStart |= emoteClip;
         _skinner.Evaluate(m.Model, c, fromStart ? time : time + offset, pose is not (CrewPose.Dead or CrewPose.Swing) && !fromStart, m.Pose);
         if (body is { } vr)

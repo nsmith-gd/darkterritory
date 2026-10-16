@@ -81,8 +81,11 @@
   // stands, inside the yard's level pad (linegen LongPad, 70 m); buildingDepth: the hall, the clerk's and the store,
   // backed onto that wall, fronts to the line.
   // A small town's green (note 490), in its square's rear end: "greenAlong" m from that end, "greenOut" m out from the line.
+  // market (queue #552, note 825; the director's playtest of 14 Oct, line 3: "Still a bit basic"): the night market's
+  // stalls on the square, the least and the most, one more for every marketPer people; its row marketIn m in front of the
+  // buildings' fronts, its stalls at least marketEvery m apart along it.
   "square": { "side": -1, "fromGate": [-100, -28], "wallOut": 30, "buildingDepth": 6, "hallWidth": 14, "officeWidth": 9,
-    "greenAlong": [5, 17], "greenOut": [7, 17] },
+    "greenAlong": [5, 17], "greenOut": [7, 17], "market": [4, 8], "marketPer": 400, "marketIn": 3.6, "marketEvery": 4.6 },
 
   // People. "ring": how many stand round the centrepiece, one for every 30 in the town between these; the rest have
   // their places (the gate, the doors, the board, the engine, the platform), more of them in a bigger town, and the

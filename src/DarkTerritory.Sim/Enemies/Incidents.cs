@@ -425,19 +425,7 @@ public sealed class CarFire(int id) : Incident(id)
         var inIt = new HashSet<int>();
         foreach (var (p, _) in Inside(ctx, 0))
         {
-            // From feet to head, to the cell's patch of board (half a cell round its centre).
-            var feet = p.State.Position;
-            double heat = 0;
-            for (int i = 0; i < grid.Count; i++)
-            {
-                if (Heat[i] <= 0)
-                    continue;
-                var c = grid.Centre[i];
-                var body = feet with { Y = Math.Clamp(c.Y, feet.Y, feet.Y + t.BodyHeight) };
-                double d = Math.Max(0, (c - body).Length - t.BurnPatch);
-                if (d < t.BurnReach)
-                    heat = Math.Max(heat, Heat[i] * (1 - d / t.BurnReach) * (grid.Face[i] == FireFace.Ceiling ? t.CeilingBurnShare : 1));
-            }
+            double heat = HeatOn(p.State.Position, grid, Heat, t);
             if (heat <= 0)
                 continue;
             inIt.Add(p.Id);
@@ -452,6 +440,46 @@ public sealed class CarFire(int id) : Incident(id)
         }
         foreach (int gone in _burning.Keys.Where(id => !inIt.Contains(id)).ToList())
             _burning.Remove(gone);
+    }
+
+    /// <summary>
+    /// How hot a car fire is on someone stood at <paramref name="feet"/> (its car's frame), 0 to 1, as <see cref="Burn"/> burns
+    /// them: from their feet to their head, to each burning cell's patch of board (half a cell round its centre), the hottest
+    /// cell's heat less with distance out to <see cref="CarFireTuning.BurnReach"/>, the roof's at
+    /// <see cref="CarFireTuning.CeilingBurnShare"/>. Note 821: the burn's own measure, so the crew can see what it's doing to them.
+    /// </summary>
+    public static double HeatOn(Double3 feet, FireGrid grid, IReadOnlyList<double> heat, CarFireTuning t)
+    {
+        double on = 0;
+        for (int i = 0; i < grid.Count && i < heat.Count; i++)
+        {
+            if (heat[i] <= 0)
+                continue;
+            var c = grid.Centre[i];
+            var body = feet with { Y = Math.Clamp(c.Y, feet.Y, feet.Y + t.BodyHeight) };
+            double d = Math.Max(0, (c - body).Length - t.BurnPatch);
+            if (d < t.BurnReach)
+                on = Math.Max(on, heat[i] * (1 - d / t.BurnReach) * (grid.Face[i] == FireFace.Ceiling ? t.CeilingBurnShare : 1));
+        }
+        return on;
+    }
+
+    /// <summary>
+    /// Note 821: how hot the train's car fires are on <paramref name="s"/> now (0 to 1; 0 with none reaching them), as the host
+    /// burns them (<see cref="Burn"/>: alight, in the burning car, inside its walls, out of its cab), from the replicated
+    /// fires, so every machine reckons it alike. For the crew's feedback only; the burn itself is the host's.
+    /// </summary>
+    public static double HeatOn(in PlayerState s, World world)
+    {
+        if (world.Enemies?.CarFire is not { } t || !s.Alive || s.Parent <= 0)
+            return 0;
+        double most = 0;
+        foreach (var e in world.ActiveEnemies)
+            if (e is CarFire { Gone: false, Phase: SpinePhase.Punish, Heat.Length: > 0 } fire && fire.Attached == s.Parent
+                && PlayerMotor.Indoors(s, world.Train) && !PlayerMotor.InCab(s, world.Train)
+                && FireGrid.Of(world.Train, fire.Attached, t.CellSize) is { } grid && grid.Count == fire.Heat.Length)
+                most = Math.Max(most, HeatOn(s.Position, grid, fire.Heat, t));
+        return most;
     }
 
     /// <summary>

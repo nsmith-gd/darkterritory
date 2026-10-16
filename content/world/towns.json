@@ -471,6 +471,28 @@
       "lines": ["We write down everyone's last words. Most of them are 'what was that'.", "The book of last words is in the hall. You're welcome to read it. Don't add to it."],
       "notes": [{ "title": "From the book of last words", "text": "'Who left this here?' 'I'll only be a minute.' 'It's fine, it's one of ours.' 'Shh.'" }] }
   ],
+  // What a town's people believe, by its houses' character (houses.json "creed"; note 822). Never drawn as a habit is: kept
+  // only where the character keeps it, its lines heard with the custom's, its first note posted after the custom's order.
+  // The Flooders (the World Building board's Cultures tab, the director, 12 Oct): "a cult who insist the comet that brought
+  // the pestilence that changed the creatures of the world against humanity was an act of God and God will cleanse the
+  // Earth with a great flood once again."
+  "creeds": [
+    { "id": "flooders", "habit": "every house a boat on its stilts, against the flood",
+      "lines": [
+        "The comet was no accident. It was sent. The first flood was water and the next one's water too. We'll be afloat.",
+        "The creatures didn't go wrong. They were sent to thin us out before the water comes. You can't fight what's sent.",
+        "Every house a boat, every boat on its legs. When the sea comes over the dykes we'll float off, and you'll be on your roofs.",
+        "We mark the water on the stilts every morning. It's up two fingers since spring. It's coming, same as it said.",
+        "Your train runs on the ground. Where will it run when there isn't any ground?",
+        "We don't bury our dead. We give them a boat and push them out on the tide. They'll be waiting, out there, when it comes.",
+        "Forty days and forty nights, it was, last time. We've stores for forty-one.",
+        "My grandmother saw it come apart over the bay. Green fire across the whole sky, and the sea went quiet under it." ],
+      "notes": [
+        { "title": "The Water Book", "text": "Marked at the north stilt this morning: two fingers over the Lady Day mark. Praise be. Keep your caulking up and your pitch hot." },
+        { "title": "Wanted", "text": "Pitch. Oakum. Rope that's never been wet. Will trade a winter's salt fish for a barrel of either, and a prayer for the rope." },
+        { "title": "To the crews of the train", "text": "There's room in every hull for one more, and you're welcome aboard. There won't be room on the day. Ask for a berth before then." },
+        { "title": "Launching", "text": "Old Mother Pyke goes out on tonight's ebb, in her own dory. Bring a lamp to the end of the long walk. Don't call after her." } ] }
+  ],
 
   // The town types (note 692; the director, 13 Oct 2026: "different town types that give the world a bit more flavor and
   // a bit more meaning ... more traditional East Coast-y sounding names that keep with our Maritimes Canada aesthetic"):
@@ -680,6 +702,16 @@
       "The siding's points came up the year we shut the gate. What's in it stays in it. That's the yard's whole business now.",
       "I weigh the carts out and I weigh them back. If it doesn't match, I write the difference down. I don't ask what it was.",
       "We pack for the towns down the line every week. Some haven't answered in years. You don't stop packing for people." ] },
+    // The night market's stallholders (note 825), each behind their counter, their lamp lit.
+    "stallholder": { "title": "stallholder", "lines": [
+      "Market's at night because the night's when we're all awake. The day's for sleeping with the door barred.",
+      "Pay what you like. We keep a slate. Everybody's slate gets wiped when they don't come back.",
+      "I've had this stall since my mother had it, and she had it from hers. Same lamp. Same hook.",
+      "Mind the lamp. If it goes out while you're at the counter, step back and wait. Don't reach for anything.",
+      "Buy something for the train. You'd be surprised what keeps.",
+      "Lamp oil's dear, so it's one lamp a stall. When the lamp's out, the stall's shut. Nobody argues with the lamp.",
+      "The train crews are the best custom. You pay for tomorrow. Nobody else here does.",
+      "Don't haggle with the old woman at the end. Her prices go up if you do, and she remembers who it was." ] },
     // A harbour town's keeper of its Hope Tower (queue #547, note 819), at its door all night between the hours' tubs of coal.
     "flamekeeper": { "title": "keeper of the Flame", "lines": [
       "Four hundred and twelve steps and a tub of coal at the hour. You'd be surprised what you can carry up when it's for somebody.",
@@ -937,6 +969,20 @@
   ],
 
   // Notices any town's board might carry.
+  // The night market on the square (note 825; the director's playtest of 14 Oct, line 3: "Still a bit basic"): its stalls,
+  // each its name and what's on it, dealt with the town's trade's own (industries' "stalls"). A stallholder behind each.
+  "market": [
+    { "title": "the fish stall", "text": "Salt cod fanned out on the boards and a tub of something grey she says is chowder. Every fish has had its eyes taken out. She does it before she sells them. She says you'd want her to." },
+    { "title": "the candle stall", "text": "Tallow dips by the dozen, and a few good beeswax ones kept under the counter for funerals. Every candle in the town is bought here. Nobody lights one after midnight." },
+    { "title": "the lamp-oil stall", "text": "Oil in stone jars and wicks in bundles. He measures it out by the gill and writes down who bought it, in a book with every name in the town in it, some of them crossed through." },
+    { "title": "the shoe stall", "text": "Boots, mostly, mended and blacked. A tray of single ones at the end, never a pair. 'Somebody'll come for the other,' she says." },
+    { "title": "the knitting stall", "text": "Mittens, wristlets, and the long scarves they wear over their masks. Each one has a name knitted into the hem, so it can be given back." },
+    { "title": "the clock stall", "text": "Clocks and watches, all of them going, all set a quarter of an hour fast. The town keeps its time early. It means you're home before you think you need to be." },
+    { "title": "the bread stall", "text": "Brown bread, molasses bread, a few buns. One loaf put by at the end with a cloth over it, for whoever's coming in on the train." },
+    { "title": "the tea stall", "text": "Tea from a boiler on a brazier, a penny a cup, the cups on strings so nobody walks off with one. You drink it here, under the lamp, where she can see you." },
+    { "title": "the old things stall", "text": "Things from before: a china dog, a radio with no back, a box of keys to doors in towns that aren't there. 'Take a key,' she says. 'Somebody's door is still waiting.'" },
+    { "title": "the mask stall", "text": "Respirator filters repacked with charcoal and wool, leather masks patched at the seams. 'Try it on. Breathe in. Now tell me what you can't smell.'" }
+  ],
   "notices": [
     { "title": "Rations", "text": "Bread: half. Coal: half. Lamp oil: as before. Complaints to the clerk, in writing." },
     { "title": "Crews wanted", "text": "Freight crews wanted for the {other} road. Must climb, carry and keep calm. Paid on delivery. Fees on non-delivery." },
