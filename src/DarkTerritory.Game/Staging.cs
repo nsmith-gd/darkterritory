@@ -920,6 +920,25 @@ public static partial class Staging
     }
 
     /// <summary>
+    /// The human cannonball (note 746; `dt screenshot --upgrades humanCannonball --cannonball`, view cannonball): someone in the
+    /// guard van's gun, crouched in its mouth, and its gunner sat behind it.
+    /// </summary>
+    public static List<Crewmate> Cannonball(TrainOnLine train, Sim.Combat.CannonballTuning t)
+    {
+        var crew = new List<Crewmate>();
+        int van = Enumerable.Range(0, train.Vehicles.Count).LastOrDefault(i => Sim.Combat.HumanCannonball.Takes(train, i), -1);
+        if (van < 0 || Sim.Combat.Guns.Mount(train, van) is not { } mount)
+            return crew;
+        var frame = train.Frames[van];
+        var inside = Art.CrewActs.InTheCannon(new Sim.Player.PlayerState { Parent = van, Position = mount.Position, Health = 100 }, train, t);
+        crew.Add(new Crewmate(60, frame.ToWorld(inside.Position), frame.Heading + Math.Atan2(-mount.Facing.X, -mount.Facing.Z), true,
+            Act: Art.CrewPose.Crouch, Car: van, Local: inside.Position));
+        var seat = Art.CrewActs.Seated(new Sim.Player.PlayerState { Parent = van, Health = 100 }, mount);
+        crew.Add(new Crewmate(61, frame.ToWorld(seat.Position), frame.Heading + seat.Yaw, true, Act: Art.CrewPose.Gunner, Car: van, Local: seat.Position));
+        return crew;
+    }
+
+    /// <summary>
     /// The band (note 700; `dt screenshot --band`, view band): the crew on a car's roof in two rows facing each other across
     /// it, each with one of band.json's instruments in their hands, as a kitchen party's sat round a table.
     /// </summary>

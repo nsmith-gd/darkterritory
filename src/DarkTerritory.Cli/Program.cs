@@ -2227,6 +2227,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     if (Str(args, "--pet-mood", "") is { Length: > 0 } petMood && scene.Bodies is { } petBodies)
         foreach (var pet in petBodies.Where(b => b.Kind is DarkTerritory.Sim.Physics.BodyKind.Cat or DarkTerritory.Sim.Physics.BodyKind.Dog))
             pet.Tipped = (sbyte)Enum.Parse<DarkTerritory.Sim.PetMood>(petMood, ignoreCase: true);
+    // --cannonball (note 746; with --upgrades humanCannonball): someone in the guard van's gun, its gunner behind it.
+    if (args.Contains("--cannonball"))
+        scene.Crew = [.. scene.Crew ?? [], .. Staging.Cannonball(train, DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)).Cannonball)];
     // --lounge (note 744; with --upgrades hammock,hotTub): someone in the hammock, two in the hot tub.
     if (args.Contains("--lounge") && Staging.Lounging(train) is var (loungers, loungeBodies))
     {
