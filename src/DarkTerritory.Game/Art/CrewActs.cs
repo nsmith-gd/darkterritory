@@ -614,13 +614,11 @@ public static class CrewActs
     /// </summary>
     public static PlayerState Lounging(in PlayerState s, TrainOnLine train)
     {
-        double pan = Bbq.LoungingIn(s, train)?.Kind switch
-        {
-            LoungeKind.Hammock => HammockPan,
-            LoungeKind.HotTub => TubPan,
-            _ => ChairPan,
-        };
-        return s with { Position = s.Position with { Y = s.Position.Y + pan - GunnerPan } };
+        // C1's lounge and hammock clips (note 791) are posed from the sitter's root at the seat's own height: no lift. The hot
+        // tub's bench is still the gunner's seat let down to it.
+        if (Bbq.LoungingIn(s, train)?.Kind != LoungeKind.HotTub)
+            return s;
+        return s with { Position = s.Position with { Y = s.Position.Y + TubPan - GunnerPan } };
     }
 
     /// <summary>
@@ -763,11 +761,23 @@ public static class CrewActs
         if (s.Has(PlayerFlags.Pumping))
             return CrewPose.Pump;
         // Sat back in a Muskoka chair on the BBQ deck (note 698), a beer in hand or not: the gunner's seated clip, in the chair.
+        // Sat or lain (note 698, 744; C1's clips, note 791): back in a Muskoka chair (a pull at the can while it's being drunk), in
+        // the hammock; the hot tub's bench is still the gunner's seat.
         if (s.Has(PlayerFlags.Lounging))
-            return CrewPose.Gunner;
+            return Bbq.LoungingIn(s, train)?.Kind switch
+            {
+                LoungeKind.Hammock => CrewPose.Hammock,
+                LoungeKind.HotTub => CrewPose.Gunner,
+                _ => world.Bodies.CarriedBy(id) is { Kind: BodyKind.Beer, MendTicks: > 0 } ? CrewPose.LoungeDrink : CrewPose.Lounge,
+            };
         if (world.Bodies.CarriedBy(id) is { } carried)
             return carried.Kind switch
             {
+                // A can at the mouth, a sausage (or the grilled fish) bitten, while it's had (Bodies.Dose's MendTicks); a sausage
+                // in hand at a lit grill, turned with the tongs (note 698; C1's clips, note 791).
+                BodyKind.Beer when carried.MendTicks > 0 => CrewPose.Drink,
+                BodyKind.Sausage or BodyKind.GrilledFish when carried.MendTicks > 0 => CrewPose.Eat,
+                BodyKind.Sausage when Bbq.ByTheGrill(s, train) => CrewPose.Grill,
                 // Over the shoulder (App. C.4), the arm round its legs: where the sim holds it (Bodies.Shoulder).
                 BodyKind.Ragdoll => CrewPose.Shoulder,
                 // The child in the arms, clinging to them (App. C.4; Bodies.ChildAt).

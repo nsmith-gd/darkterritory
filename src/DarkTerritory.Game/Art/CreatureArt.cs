@@ -35,6 +35,9 @@ public enum CrewPose
     Dance, Wave, Point,
     // The "more emotes" upgrade's (note 714): a bow from the waist, a salute to the brow, the conga's hands-on-shoulders shuffle.
     Bow, Salute, Conga,
+    // The BBQ deck and the hammock (note 698, 744; C1's clips, note 791): sat back in a Muskoka chair, a pull at the can there,
+    // a cheers; stood with a can or a sausage at the mouth, at the grill with the tongs; lying in the guard van's hammock.
+    Lounge, LoungeDrink, Cheers, Drink, Eat, Grill, Hammock,
     // Off the roof on a jump, rising, the leap between cars (the checklist's crew-gap: "a jump between roofs"); stood on a
     // car straining on a bend taken too fast, fighting for footing (App. F.1's overspeed telegraph; note 375).
     Jump, Stumble,
@@ -822,6 +825,13 @@ public sealed partial class CreatureArt
         CrewPose.Bow => "bow",
         CrewPose.Salute => "salute",
         CrewPose.Conga => "conga",
+        CrewPose.Lounge => "lounge",
+        CrewPose.LoungeDrink => "lounge_drink",
+        CrewPose.Cheers => "cheers",
+        CrewPose.Drink => "drink",
+        CrewPose.Eat => "eat",
+        CrewPose.Grill => "grill",
+        CrewPose.Hammock => "hammock",
         CrewPose.Walk => "walk",
         CrewPose.Run => "run",
         CrewPose.Climb => "climb",
@@ -948,6 +958,9 @@ public sealed partial class CreatureArt
                 : clip is "fireman" or "fireman_walk" && has.Model.Clips.ContainsKey("shoulder") ? clip == "fireman" ? "shoulder" : "shoulder_walk"
                 : clip == "hand_up" && has.Model.Clips.ContainsKey("haul_up") ? "haul_up"
                 : clip is "on_hook" or "pump" or "heave" && has.Model.Clips.ContainsKey("lever") ? "lever" : clip == "flail" && has.Model.Clips.ContainsKey("fall") ? "fall"
+                // (Note 791's deck and hammock clips, not in a build: the seated clip, and the carry for what's in hand.)
+                : clip is "lounge" or "lounge_drink" or "cheers" or "hammock" && has.Model.Clips.ContainsKey("gunner") ? "gunner"
+                : clip is "drink" or "eat" or "grill" && has.Model.Clips.ContainsKey("carry") ? "carry"
                 // An emote with no clip of its own (note 298): the dance steps on the spot, the wave and the point stand.
                 : clip is "dance" or "shuffle" or "conga" && has.Model.Clips.ContainsKey("walk") ? "walk" : "idle";
         // ... and the arms are posed over it (EmoteArms).
@@ -966,7 +979,8 @@ public sealed partial class CreatureArt
         // a blow of the tool in hand (note 275: without it a swing was put off by the variant's beat, up to 2.9 s into a
         // 0.8 s clip, and most of the crew were drawn at its end).
         bool fromStart = pose is CrewPose.GetUp or CrewPose.TakeDown or CrewPose.HangUp or CrewPose.Stagger or CrewPose.Reload or CrewPose.FireDoor
-            or CrewPose.Swing or CrewPose.Jump or CrewPose.Shove or CrewPose.Pump or CrewPose.Heave or CrewPose.ThrowOff;
+            or CrewPose.Swing or CrewPose.Jump or CrewPose.Shove or CrewPose.Pump or CrewPose.Heave or CrewPose.ThrowOff
+            or CrewPose.Drink or CrewPose.Eat or CrewPose.LoungeDrink;
         fromStart |= emoteClip;
         _skinner.Evaluate(m.Model, c, fromStart ? time : time + offset, pose is not (CrewPose.Dead or CrewPose.Swing) && !fromStart, m.Pose);
         if (body is { } vr)
