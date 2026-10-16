@@ -44,7 +44,9 @@ CANDIDATES = [(385, "a low, even man's voice"), (518, "a deep man's voice, slowe
 # "engineering kit reported lost" and "with car": the kit lost (GDD App. E.12 q.5; note 308).
 PHRASES = ["engineering kit reported lost", "with car", "yard to consist", "manifest follows", "gates open", "yard out", "yard clerk", "consist received",
            "tally follows", "powder and shot", "cars delivered", "cars lost", "child survivor", "child survivors",
-           "body recovered", "body not recovered", "gunpowder and shot", "machine parts", "comet-derived material"]
+           "body recovered", "body not recovered", "gunpowder and shot", "machine parts", "comet-derived material",
+           # Note 746: the human cannonball on the radio (Radio.Fired).
+           "fired from the rear cannon"]
 WORDS = ["crew", "coal", "cars", "freight", "cargo", "paid", "fee", "refund", "mail", "salvage", "repairs", "net", "next",
          # The cargoes (Train.Cargoes.Name).
          "goods", "grain", "salvage", "livestock", "food", "chemicals", "ore", "medicine", "timber",
