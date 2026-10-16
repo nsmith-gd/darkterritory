@@ -86,7 +86,7 @@ public enum PlayerMoves : byte
     /// </summary>
     Push = 2,
     /// <summary>
-    /// Shove the crewmate you're looking at (note 717, horseplay; LeftAlt): sent while held, acted on the press. Never a bot's.
+    /// Shove the crewmate you're looking at (note 717, horseplay; Caps Lock since note 844): sent while held, acted on the press. Never a bot's.
     /// </summary>
     Shove = 16,
     /// <summary>
