@@ -1,0 +1,6 @@
+{
+ "agent": "P16",
+ "title": "The view no longer widens with speed (the 16 Oct playtest, line 8)",
+ "branch": "claude/p16-no-speed-fov",
+ "at": "2026-10-16T13:00:00Z"
+}
