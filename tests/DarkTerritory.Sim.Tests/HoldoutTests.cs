@@ -884,8 +884,9 @@ public class HoldoutTests
                 Assert.True(n.Host.Train.Dynamics.Speed < 0.1, $"the train moved at {n.Host.Train.Dynamics.Speed:0.00} m/s with the driver out");
         });
         Assert.True(wentOut, "the driver got down");
-        // Vented to 60; the fresh fire has it climbing again by the time it's out of the doorway.
-        Assert.True(leftPressure <= 65, $"vented down before it went: {leftPressure:0.0}");
+        // Vented to 60; the fresh fire has it climbing again by the time it's out of the doorway, 5 on the gauge at the old
+        // rate and 17% more since note 843 (the gauge moves 17% faster).
+        Assert.True(leftPressure <= 60 + 5 * 1.17, $"vented down before it went: {leftPressure:0.0}");
         Assert.True(leftFire >= 0.75, $"fired up before it went: {leftFire:0.00}");
         var lockup = n.Lockup;
         Assert.Equal(HoldoutState.Freed, lockup.State);
