@@ -469,6 +469,9 @@ public sealed partial class SceneArt(Look look)
 
     readonly Dictionary<int, double> _kitHands = new();
 
+    /// <summary>The body you're carrying, drawn at your own hands this frame (GreyboxScene.HeldHere), or -1 (note 823).</summary>
+    public int InYourArms { get; set; } = -1;
+
     /// <summary>The crew whose extinguisher is at work on a fire this frame (GreyboxScene: a fire going down with it in reach).</summary>
     public IReadOnlySet<int>? Spraying { get; set; }
 
@@ -849,8 +852,9 @@ public sealed partial class SceneArt(Look look)
         // its knees; carried, in the arms (App. C.4): clinging to whoever has it, its legs round their waist and its face on
         // their shoulder (the clutch: its origin at their feet, out in front; a carried body's frame already faces back at
         // whoever carries it; Bodies.ChildAt holds its middle there). (The body's a ball 0.35 m round its middle.)
+        // In your own arms (<see cref="InYourArms"/>), it looks up at you, its hands on your shoulders (soot_child's held).
         if (b.Kind == Sim.Physics.BodyKind.Child && (b.Carrier >= 0
-                ? Creatures.Draw(mesh, "soot_child", "clutch", time, true,
+                ? Creatures.Draw(mesh, "soot_child", b.Id == InYourArms && Creatures.Get("soot_child")?.Clips.ContainsKey("held") == true ? "held" : "clutch", time, true,
                     Matrix4x4.CreateTranslation(0, -(float)Sim.Physics.Bodies.ChildHeight, 0) * m, 0, seed: 2)
                 : Creatures.Draw(mesh, "soot_child", "huddle", time, true, Matrix4x4.CreateTranslation(0, -0.35f, 0) * m, 0, seed: 2)))
             return true;

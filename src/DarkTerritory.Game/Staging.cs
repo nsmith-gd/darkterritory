@@ -1476,7 +1476,8 @@ public static partial class Staging
     /// <summary>
     /// The staged Soot Child (<c>dt screenshot --soot</c>), off car 2's left in front of crewmate 4 (<see cref="Lone"/>; the
     /// Ribbits put away): <c>huddle</c> squatted in the ash, <c>call</c> calling to them (App. A.6 CALL; black eyes, black
-    /// hands), <c>real</c> the same, a real child (ROLL), <c>drink</c> on them (GRAB). The <c>soot</c> view looks over their
+    /// hands), <c>real</c> the same, a real child (ROLL), <c>rise</c> its telegraph as they come near (note 823), <c>drink</c> on
+    /// them (GRAB). The <c>soot</c> view looks over their
     /// shoulder at it.
     /// </summary>
     public static List<Enemy> Soot(List<Enemy> threats, TrainOnLine train, string mode)
@@ -1494,14 +1495,20 @@ public static partial class Staging
             case "drink":
                 c.Restore(SpinePhase.Grab, 2.5, c.Health, Enemy.Loose, Lone(train).Feet, 0, 0, 0, 0, 1);
                 break;
+            // Its telegraph (note 823): crewmate 4 a step outside its lunge, and it's turned to them and rising, poised.
+            case "rise":
+                c.Restore(SpinePhase.Telegraph, 1.1, c.Health, Enemy.Loose, side.ToWorld(new Double3(-(side.Shape.HalfWidth + 2.2 + SootRiseAt), 0, -1.5)),
+                    0, 0, 0, 0, 1);
+                break;
             default:
-                throw new ArgumentException($"--soot {mode}: huddle, call, real or drink");
+                throw new ArgumentException($"--soot {mode}: huddle, call, real, rise or drink");
         }
         return threats;
     }
 
-    // How far off the second car's side the staged Soot Child is (m): in front of crewmate 4, a few metres out.
-    const double SootOut = 4.6;
+    // How far off the second car's side the staged Soot Child is (m): in front of crewmate 4, a few metres out. Rising, how
+    // far from them (m): just outside its lunge (enemies.json sootChildren.lungeWithin, 5), most of the way into its telegraph.
+    const double SootOut = 4.6, SootRiseAt = 5.6;
 
     /// <summary>
     /// The staged Switchman (<c>dt screenshot --switchman</c>), at its lever 55 m up the line (App. A.7): <c>wait</c> by it
