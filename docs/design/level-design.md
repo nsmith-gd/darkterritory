@@ -375,11 +375,10 @@ What stands beside a generated line between the stops, and what of it you walk i
 - **The night's own.** Everything is dealt from the night's seed, the same on every machine. The woods get a stream per 12 m slot, the road per 45 m cell, the shore per 20 m cell, each biome prop its own stream in its block, and the leavings a stream per stretch. What the art alone lays out (the forest floor, the far stands, the verge's growth, the shrines) comes from the night's own art seed (note 780).
 
 ## L.2 Solid
-- **Out to 40 m from the line** (run.json `walls.linesideReachM`), each tree is a wall at its trunk, each boulder at its lump (one sunk under a step is walked over), and each pole at its foot. So is each pine out to 40 m from an alternate's or a dead line's own track (ARCHITECTURE §8 note 432).
+- **As far out as anything's dealt** (run.json `walls.linesideReachM`, 160 m: the furthest barn), each tree is a wall at its trunk, each boulder at its lump (one sunk under a step is stepped onto), and each pole at its foot. So is each pine out from an alternate's or a dead line's own track (ARCHITECTURE §8 note 432). It was 40 m, until a comet fragment was put 40-90 m out and the director walked through what stood on the way to it (note 835).
 - **Each kit piece stands on its footprint**, measured off its own mesh (content/linegen/footprints.json): a house, barn, shed, car, woodpile, ruin, chimney, lighthouse or length of stone wall as the box round it; a church as its nave and tower; a tank round; a headframe on its four legs and its stay, so the ground between them is open; a road's pole or fence post at its foot; each piece of the railway's leavings as the box round it, a dead signal at its post (note 792); a burying ground each of its stones, and its fence in runs, open where it's down (note 797); a wharf its deck, the traps stacked on it and each of its steps up from the shore (note 817).
 - **What's low enough is stood on** (note 817): afoot, a wall's top under a step is stepped up onto, and one over it is landed on from a jump or a fall, as a car's solids are. A wharf is walked out on, up its steps and along its deck over the water.
 - **What meets them:** the crew, what's loose at a stop or running beside the train, the Moose's charge, the Whistler's run, cannon balls and bodies.
-- **Past 40 m** the woods are only seen. The stops' ground is cleared further out than that anyway.
 
 ## L.3 Not yet
 - **What's still only seen:** a hand-laid line's trees and leavings.
