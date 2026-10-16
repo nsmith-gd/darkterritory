@@ -114,6 +114,85 @@ public class CrewActsTests
     }
 
     /// <summary>
+    /// Note 818: whoever's by the handcar while it's coming off the van (or going back on) is drawn heaving it: turned to the
+    /// trolley where the scene draws it part-way through the lift, both hands under the edge of its deck, posed by how high
+    /// that is. Not before it moves, and not someone stood on it.
+    /// </summary>
+    [Fact]
+    public void BesideTheHandcarAsItsLiftedTheyHeaveItWithTheirHandsUnderIt()
+    {
+        var t = T with { Handcar = T.Handcar with { Always = true } };
+        var w = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(t, 4, 1)), new RailLine(new LineDefinition("t", [new TrackSegment(20_000)])), 5_000), C);
+        var h = Assert.IsType<Sim.Train.Handcar>(w.Train.Handcar);
+        var hung = w.Train.Frames[h.Id];
+        var stand = hung.Origin + hung.Right * 1.2;
+        var lifter = new PlayerState { Position = stand with { Y = 0 }, Parent = PlayerState.World, Surface = Surface.Ground, Health = 100 };
+        Assert.True(lifter.Alive);
+        Assert.True(w.CanLiftHandcar(lifter));
+        Assert.Null(CrewActs.Of(lifter, 1, w));
+        foreach (double lift in (ReadOnlySpan<double>)[0.1, 0.5, 0.9])
+        {
+            h.Lift = lift;
+            Assert.Equal(CrewPose.Heave, CrewActs.Of(lifter, 1, w));
+            var drawn = CrewActs.Crewmate(1, lifter, w, w.Train.Frames);
+            Assert.Equal(CrewPose.Heave, drawn.Act);
+            Assert.InRange(drawn.Phase, 0, CrewActs.HeaveSeconds);
+            var car = GreyboxScene.Lifted(hung, w.Train.HandcarLiftedTo()!.Value, lift);
+            var reach = Assert.NotNull(drawn.Reach);
+            var (a, b) = (World(drawn, reach.A), World(drawn, reach.B));
+            foreach (var hand in (ReadOnlySpan<Double3>)[a, b])
+            {
+                // On the edge of its deck, half way up it: on a side or an end.
+                var local = car.ToLocal(hand);
+                Assert.Equal(t.Handcar.DeckHeight * 0.5, local.Y, 6);
+                Assert.True(Math.Abs(Math.Abs(local.X) - t.Handcar.Width / 2) < 1e-6 || Math.Abs(Math.Abs(local.Z) - t.Handcar.Length / 2) < 1e-6,
+                    $"at the edge ({local.X:0.00}, {local.Z:0.00})");
+            }
+            // Facing it, the hands either side of straight ahead.
+            Assert.True(reach.A.Z < 0 && reach.B.Z < 0, "the hands are ahead of them");
+            Assert.Equal(CrewActs.HeavePhase((a.Y + b.Y) / 2 - lifter.Position.Y), drawn.Phase, 6);
+        }
+        // Stood on it, they ride it; nobody heaves a trolley they're on.
+        Assert.NotEqual(CrewPose.Heave, CrewActs.Of(lifter with { Parent = h.Id, Position = default, Surface = Surface.Deck }, 1, w));
+        h.Lift = 0;
+        Assert.Null(CrewActs.Of(lifter, 1, w));
+        // The clip's squatted under it low and stood up under it high, and no further either way.
+        Assert.Equal(0, CrewActs.HeavePhase(0.1));
+        Assert.Equal(0, CrewActs.HeavePhase(CrewActs.HeaveLow));
+        Assert.Equal(CrewActs.HeaveSeconds, CrewActs.HeavePhase(CrewActs.HeaveHigh));
+        Assert.Equal(CrewActs.HeaveSeconds, CrewActs.HeavePhase(3));
+        Assert.True(CrewActs.HeavePhase(1.0) < CrewActs.HeavePhase(1.5));
+    }
+
+    /// <summary>A crewmate's hand from their own frame (from the feet, as they face) into the world.</summary>
+    static Double3 World(Crewmate c, Double3 local) =>
+        c.Feet + new Double3(Math.Cos(c.Yaw), 0, -Math.Sin(c.Yaw)) * local.X + Double3.Up * local.Y + new Double3(Math.Sin(c.Yaw), 0, Math.Cos(c.Yaw)) * local.Z;
+
+    /// <summary>
+    /// Note 818: a hand-up's two hands meet: the helper's held down out of the car's door and the runner's raised to it, a
+    /// hand's thickness apart, each within an arm's reach; the helper's near where hand_up has it anyway.
+    /// </summary>
+    [Fact]
+    public void AHandUpsTwoHandsMeet()
+    {
+        var w = World();
+        var staged = Staging.Rescue(w.Train, Content, "handup");
+        var (helper, runner) = (staged[0], staged[1]);
+        Assert.Equal(CrewPose.HandUp, helper.Act);
+        var (down, up) = (World(helper, helper.Hand), World(runner, runner.Hand));
+        Assert.InRange((down - up).Length, 0.05, 0.1);
+        Assert.True(down.Y > up.Y, "the helper's hand over the runner's");
+        // The runner's raised from their shoulder, within an arm's reach (and the hand to the helper's side of them).
+        var side = Math.Sign(runner.Hand.X);
+        var shoulder = World(runner, new Double3(side * Arms.ShoulderWidth, Arms.ShoulderHeight, 0));
+        Assert.InRange((up - shoulder).Length, 0, Arms.Upper + Arms.Lower);
+        Assert.True(((helper.Feet - runner.Feet) with { Y = 0 }).Length > ((helper.Feet - up) with { Y = 0 }).Length, "reached toward the helper");
+        // The helper's within a little of the clip's own reach down.
+        var clipHand = World(helper, new Double3(0.23, 0.75, -0.85));
+        Assert.InRange((down - clipHand).Length, 0, 0.45);
+    }
+
+    /// <summary>
     /// Note 814: a pumper's pump is played by the handle's swing, not a clock: at their own end's top (the front end's at a swing
     /// of 0, the back end's half a swing on) the clip's at its start, at their end's bottom half way through, and once round it's
     /// back where it began; the two ends are always half a pump apart.
@@ -144,12 +223,21 @@ public class CrewActsTests
         Assert.Equal(CrewPose.Held, CrewActs.Of(s with { Flags = PlayerFlags.Held }, 1, w));
         Assert.Equal(CrewPose.Climb, CrewActs.Of(s with { Surface = Surface.Ladder }, 1, w));
         Assert.Equal(CrewPose.Push, CrewActs.Of(s with { Flags = PlayerFlags.Pushing }, 1, w));
-        // Note 808: a crewmate who's shoved someone, from the host's knock for the shove's 0.45 s (and a friend thrown off the shoulder).
+        // Note 808: a crewmate who's shoved someone, from the host's knock for the shove's 0.45 s.
         w.Tick = 300;
         w.Horseplays.Add(new HorseplayEvent(1, 290, 1, KnockKind.Shove, 2));
         Assert.Equal(CrewPose.Shove, CrewActs.Of(s, 1, w));
         Assert.Null(CrewActs.Of(s, 2, w));
         w.Tick = 290 + (uint)Math.Ceiling(CrewActs.ShoveSeconds * SimConstants.TickRate);
+        Assert.Null(CrewActs.Of(s, 1, w));
+        w.Horseplays.Clear();
+        // Note 818: a friend thrown off the shoulder is a throw of its own, as long as its drive up and the beat after.
+        w.Tick = 300;
+        w.Horseplays.Add(new HorseplayEvent(2, 290, 1, KnockKind.Throw, 2));
+        Assert.Equal(CrewPose.ThrowOff, CrewActs.Of(s, 1, w));
+        w.Tick = 290 + (uint)Math.Ceiling(CrewActs.ShoveSeconds * SimConstants.TickRate);
+        Assert.Equal(CrewPose.ThrowOff, CrewActs.Of(s, 1, w));
+        w.Tick = 290 + (uint)Math.Ceiling(CrewActs.ThrowSeconds * SimConstants.TickRate);
         Assert.Null(CrewActs.Of(s, 1, w));
         w.Horseplays.Clear();
         Assert.Equal(CrewPose.Lever, CrewActs.Of(s with { Flags = PlayerFlags.Operating }, 1, w));

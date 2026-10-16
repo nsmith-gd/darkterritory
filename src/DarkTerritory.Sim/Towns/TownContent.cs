@@ -142,6 +142,15 @@ public sealed record SquareTuning
     /// (m), clear of the clerk's office, the stall and the first bench.</summary>
     public double[] GreenAlong { get; init; } = [5, 17];
     public double[] GreenOut { get; init; } = [7, 17];
+    /// <summary>
+    /// The night market (queue #552, note 825; the director's playtest of 14 Oct, line 3: "Still a bit basic"): how many
+    /// stalls, the least and the most, one more for every <see cref="MarketPer"/> people; how far in front of the buildings'
+    /// fronts its row stands, and how far apart along it its stalls may stand (m).
+    /// </summary>
+    public int[] Market { get; init; } = [4, 8];
+    public double MarketPer { get; init; } = 400;
+    public double MarketIn { get; init; } = 3.6;
+    public double MarketEvery { get; init; } = 4.6;
 }
 
 public sealed record ExplorableTuning
@@ -277,6 +286,8 @@ public sealed record TownWriting
     public TownText? Forge { get; init; }
     public required TownThread[] Threads { get; init; }
     public required TownText[] Notices { get; init; }
+    /// <summary>The night market's stalls (note 825), each its name and what's on it, dealt with the town's trade's own stalls.</summary>
+    public TownText[] Market { get; init; } = [];
     /// <summary>What answers a knock at the square's three doors, by building ("hall", "office", "store").</summary>
     public Dictionary<string, string[]> Doors { get; init; } = [];
     /// <summary>Households behind an open door: what happened to them, what each says, and the thing that tells it.</summary>

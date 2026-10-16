@@ -842,6 +842,26 @@ public class HudTests
         Assert.True(o.Count > 0);
     }
 
+    /// <summary>
+    /// Note 821 (the 14 Oct playtest's line 25: "I wasn't getting any feedback that I was being burned"): a car fire's heat on
+    /// the player glows amber round the frame from the moment it reaches them, at least <see cref="Hud.HeatGlowLeast"/> at its
+    /// faint edge, full a good way into it; nothing without it; and the bottom edge (the fire at your feet) deepest.
+    /// </summary>
+    [Fact]
+    public void AFiresHeatOnYouGlowsRoundTheViewFromItsEdge()
+    {
+        Assert.Equal(0, Hud.HeatStrengthOf(0));
+        Assert.Equal(Hud.HeatGlowLeast, Hud.HeatStrengthOf(1e-6), 3);
+        Assert.Equal(1, Hud.HeatStrengthOf(Hud.HeatGlowFullAt), 9);
+        Assert.Equal(1, Hud.HeatStrengthOf(1), 9);
+        Assert.True(Hud.HeatStrengthOf(0.2) < Hud.HeatStrengthOf(0.5));
+        var o = new Overlay();
+        Hud.HeatGlow(o, 480, 270, 0, 0);
+        Assert.Equal(0, o.Count);
+        Hud.HeatGlow(o, 480, 270, Hud.HeatStrengthOf(0.05), 0);
+        Assert.True(o.Count > 0);
+    }
+
     [Fact]
     public void ACrateCarriedIntoAFullCarSaysTheCarsFull()
     {

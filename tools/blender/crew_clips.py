@@ -73,6 +73,9 @@ What each is for (CrewActs, from the sim's state; GDD/spec where the act is):
   flail               off the hook, or off their feet (shoved, thrown): in the air, arms windmilling, legs running at nothing
   pump                at the handcar's handle (note 729), played by its swing: bent over it driving it down, hauled back up
   shove               a crewmate shoved (note 717): off the back foot into a lunge, both palms thrown out at the chest, held
+  heave               lifting the handcar off the van or onto it (note 729), posed by how high the hands are: squatted under
+                      its side, up to stood holding it overhead (note 818)
+  throw_off           a friend thrown off the shoulder (note 723): a dip, the drive up onto the toes, both arms pushing them on
   sit_edge            sat on a roof's or a landing's edge, the legs hanging over and swinging, a lean back on the hands
   lean_out, lean_out_left
                       hung out of a doorway off the jamb ahead, the outside on the right (on the left, mirrored), pointing
@@ -2124,8 +2127,67 @@ for f in range(0, 60, 5):
 pump.close(60)
 clips.append(pump)
 
+# --- the friendslop clips' loose ends (queue #546, note 818) -----------------------------------------------------------------
+# Heave: lifting the handcar down off the guard van's back, or up onto it (note 729's lift, two in 4 s). Posed by how high
+# the hands are, not by a clock (CrewActs.HeavePhase): one second from a deep squat with the hands at its side 0.35 m off the
+# ground, the back flat, to stood tall with them overhead at 2.15 m, leant back under the weight; CrewActs still puts the
+# hands where the trolley's side is as GreyboxScene.Lifted draws it.
+HEAVE_LOW, HEAVE_HIGH = 0.35, 2.15
+
+
+def heaving(h):
+    """The lifter with both hands under a load `h` m off the ground, ahead of them."""
+    k = (h - HEAVE_LOW) / (HEAVE_HIGH - HEAVE_LOW)           # 0 squatted under it, 1 stood holding it overhead
+    squat = max(0.0, 1 - k / 0.55) ** 1.3                    # the legs do the low half
+    lean = -34 * max(0.0, 1 - k / 0.45) + 7 * max(0.0, k - 0.6) / 0.4   # a flat back forward low, back under it high
+    body = over(STAND, **{"pelvis@loc": (0, -0.1 * squat, -0.42 * squat + 0.03 * max(0.0, k - 0.85) / 0.15),
+                          "pelvis": (lean * 0.4, 0, 0), "spine_01": (lean * 0.3, 0, 0), "spine_02": (lean * 0.2, 0, 0),
+                          "spine_03": (lean * 0.1, 0, 0), "clavicle_l": (0, 0, 6 * k), "clavicle_r": (0, 0, -6 * k),
+                          "thigh_r": (84 * squat, -14 * squat, 0), "calf_r": (-112 * squat - 4, 0, 0), "foot_r": (30 * squat, 0, -8),
+                          "thigh_l": (84 * squat, 14 * squat, 0), "calf_l": (-112 * squat - 4, 0, 0), "foot_l": (30 * squat, 0, 8)})
+    ahead = 0.38 - 0.08 * k
+    p = hands(body, (0.25, ahead, h), (-0.25, ahead, h), grip=90,
+              elbow=(0.5, -0.35 + 0.6 * k, h + 0.25 - 0.5 * k))
+    return look_at(p, (0, 1.6, h + 0.15))
+
+
+heave = Clip("heave", loop=False)
+for f in range(0, 31, 5):
+    heave.key(f, heaving(HEAVE_LOW + (HEAVE_HIGH - HEAVE_LOW) * f / 30), "LINEAR")
+clips.append(heave)
+
+# Throw off: a friend thrown off the shoulder (note 723's throw; with the crew mischief switch on). Played once from the
+# host's knock, which is the friend leaving the shoulder (Horseplay.Throw): dipped under them in the fireman's carry, a
+# drive up off both legs onto the toes with both arms pushing them up and on off the left shoulder, held a beat watching
+# them go, and back down onto the heels.
+def throwing(k, reach, toes=0.0):
+    """`k` of the way up from the dip (0: knees bent under the load; 1: stood up straight), the hands `reach` of the way
+    from the carry's holds to arms out ahead and up, open."""
+    body = over(SHOULDER_BODY, **{"pelvis@loc": (0, 0.05 * k, -0.14 * (1 - k) + 0.04 * toes),
+                                  "spine_01": (-8 + 10 * k, 0, 3 - 6 * k), "spine_02": (-8 + 8 * k, 0, 5 - 8 * k),
+                                  "spine_03": (-6 + 6 * k, 0, 4 - 6 * k), "clavicle_l": (0, 0, -8 + 14 * reach),
+                                  "clavicle_r": (0, 0, -8 * reach),
+                                  "thigh_r": (34 * (1 - k), 0, 0), "calf_r": (-58 * (1 - k), 0, 0), "foot_r": (24 * (1 - k) - 18 * toes, 0, -6),
+                                  "thigh_l": (34 * (1 - k), 0, 0), "calf_l": (-58 * (1 - k), 0, 0), "foot_l": (24 * (1 - k) - 18 * toes, 0, 6)})
+    lerp = lambda a, b: tuple(a[i] + (b[i] - a[i]) * reach for i in range(3))
+    p = arm_to(body, "l", lerp(FIREMAN_L, (-0.22, 0.5, 1.92)), fist=reach < 0.5, grip=85 - 70 * reach, elbow=(0.42, 0.0, 1.2 + 0.3 * reach))
+    p = arm_to(p, "r", lerp(FIREMAN_R, (0.14, 0.54, 1.82)), fist=reach < 0.5, grip=80 - 65 * reach, elbow=(0.4, 0.05, 1.0 + 0.4 * reach))
+    if reach >= 0.5:
+        for s_ in ("r", "l"):
+            p = open_hand(palm(p, s_, 0, -90, 90), s_, 6)
+    return look_at(p, (-0.3, 3.0, 1.2 + 1.4 * reach))
+
+
+throw_off = Clip("throw_off", loop=False)
+throw_off.key(0, throwing(0.1, 0.15), "LINEAR")
+throw_off.key(3, throwing(0.85, 0.8, toes=0.6))
+throw_off.key(6, throwing(1.0, 1.0, toes=1.0))
+throw_off.key(10, throwing(1.0, 0.95, toes=0.8))
+throw_off.key(20, look_at(by_side(by_side(over(STAND, spine_02=(-2, 0, 0)), "r"), "l"), (-0.3, 3.0, 1.0)))
+clips.append(throw_off)
+
 kit.build()
-rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"wave", "point", "dance", "paint", "drink", "grill", "eat", "bow", "salute", "conga", "shove", "pump", "fireman", "hand_up", "high_five", "high_five_met", "fist_bump", "fist_bump_met", "dance_off",
+rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"wave", "point", "dance", "paint", "drink", "grill", "eat", "bow", "salute", "conga", "shove", "pump", "heave", "throw_off", "fireman", "hand_up", "high_five", "high_five_met", "fist_bump", "fist_bump_met", "dance_off",
                                                         "dance_off_cheer", "lean_out", "lean_out_left", "carry", "carry_walk", "drag", "drag_fwd", "shovel", "door", "handbrake", "hatch",
                                                         "uncouple", "vent", "lever", "push", "swing", "mend",
                                                         "gap", "extinguish", "spray", "lantern", "lantern_walk", "haul",
