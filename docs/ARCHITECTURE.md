@@ -1025,4 +1025,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [841. The stilt town lived in and solid (queue #569, B2; the director's playtest of 16 Oct, line 28, a Flooder town on arrival: "they have little…](notes/841.md)
 - [842. The view no longer widens with speed (P16, queue #570; the director's playtest of 16 Oct, line 8)](notes/842.md)
 - [846. The cannon: further down, no firing in a town, the reload clip only on a reload (T2, queue #574; the director's playtest of 16 Oct, line 7)](notes/846.md)
+- [845. The crane's keys as seen from its cab (T2, queue #573; the director's playtest of 16 Oct, line 14)](notes/845.md)
 <!-- end of the notes index -->
