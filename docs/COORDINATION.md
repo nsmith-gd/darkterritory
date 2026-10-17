@@ -221,7 +221,7 @@ The director's notes from playing a Test build are tracked line by line in `docs
 director's words, its owner, queue item, PR and status. Whoever holds a line updates it there when its PR merges (rule 9).
 D1 keeps the file current and starts the next Test build once every line is merged.
 
-**The latest director feedback review session: `docs/playtest/2026-10-16.md`** (the director, 16 Oct morning, playing
+**The latest director feedback review session: `docs/playtest/2026-10-16-evening.md`** (the director, 16 Oct evening, the first two-player night: Windows host, a Linux joiner over IPv4, run 19 at 8c94b18): 8 lines, every one open, lines 6-8 the director's call on what a night is for (monsters waiting at the stops, problems the crew share). Before it, **`docs/playtest/2026-10-16.md`** (the director, 16 Oct morning, playing
 the 7 am build, run 17 at b6ac032): 28 lines, every one open, and what to keep. Before it, **`docs/playtest/2026-10-13-evening.md`** (the director, 13 Oct evening,
 playing Test build 22, main at 33ee8d5e). 28 lines. Performance comes first (lines 1–6: "the frame drops are constant"),
 then the broken cannon (line 22). D1 holds lines 4, 6 and 22 only (D1 is low on tokens). **Every other line is open:**
