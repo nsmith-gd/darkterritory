@@ -74,7 +74,7 @@ only see what's on main here. The role, and how to start one on another account,
 | Account | Weekly % | Weekly resets (UTC) | Session % | State | Updated (UTC) |
 |---|---|---|---|---|---|
 | nathaniel2 | 99 | Wed 21 Oct 20:00 | 5 | **LIMITED until Wed 21 Oct 20:00 UTC** (99%). No worker running; everything it had is merged or `open for pick-up`. The 16 Oct evening playtest (`docs/playtest/2026-10-16-evening.md`, the first two-player night) is the next work: anyone's | 2026-10-17 11:35 |
-| nathaniel1 | 99 | Sun 18 Oct 17:00 | 1 (resets 01:00 UTC) | LIMITED until the weekly reset (Sun 18 Oct 17:00 UTC): weekly 99%, no worker active (U1 stopped for the week, #1136); its items are `open for pick-up` | 2026-10-17 22:09 |
+| nathaniel1 | 99 | Sun 18 Oct 17:00 | 1 (resets 01:00 UTC) | LIMITED until the weekly reset (Sun 18 Oct 17:00 UTC): weekly 99%, no worker active (U1 stopped for the week, #1136); its items are `open for pick-up` | 2026-10-17 23:09 |
 
 - **State:** ACTIVE (working); PAUSED until *time* (the 5-hour limit: its sessions are waiting with their work intact, so
   its items aren't abandoned: don't take them); LIMITED until *weekly reset* (the weekly limit: its items are handed off).
