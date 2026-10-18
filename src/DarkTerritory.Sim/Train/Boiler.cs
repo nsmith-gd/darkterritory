@@ -81,8 +81,6 @@ public struct Boiler
     public double VentedSteam;
     /// <summary>Extra pressure per second from outside the model: the Stoker (GDD App. A.5).</summary>
     public double ExternalHeat;
-    /// <summary>Deep cold multiplies boiler efficiency (GDD §22 hazards). 1 is a normal night.</summary>
-    public double Efficiency;
     /// <summary>
     /// The firebox door (GDD v1.1 App. A.5 Stoker, "keep it hot, keep it shut"): shovelling opens it, and it swings shut a
     /// few seconds after the last shovelful, so long as someone's in the cab to see to it. Left with the cab empty it
@@ -113,7 +111,6 @@ public struct Boiler
         Pressure = t.StartPressure,
         Firebox = t.StartFirebox,
         Tender = t.TenderCapacity,
-        Efficiency = 1,
     };
 
     public readonly bool InWorkingBand(BoilerTuning t) => Pressure >= t.WorkingBandMin && Pressure <= t.WorkingBandMax;
@@ -176,7 +173,7 @@ public struct Boiler
         double draw = t.SteamDrive ? Math.Max(Math.Clamp(throttle, 0, 1), Math.Clamp(speedFraction / t.FullDemandAt, 0, 1)) : throttle;
         double burn = Math.Min(BurnRate(t, draw) * dt, Firebox);
         Firebox -= burn;
-        double gain = burn * t.SteamPerUnit * Efficiency + ExternalHeat * dt;
+        double gain = burn * t.SteamPerUnit + ExternalHeat * dt;
         double vent = Venting ? t.VentRate * dt : 0;
         double loss = SteamDemand(t, throttle, cars, speedFraction) * dt + vent;
         double next = Pressure + gain - loss;

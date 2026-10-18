@@ -368,7 +368,7 @@ public static class RouteGenerator
         bool sleeperOk(double s) => s >= t.NoSleepersFirst && s + 20 <= last && !inZone(s);
         Scatter(FeatureKind.Sleepers, sleepers, sleeperSpots, 20, sleeperOk, features, ref rng);
 
-        double greaseRate = tt.GreasePerKm * (weather.Wet ? 2 : 1);
+        double greaseRate = tt.GreasePerKm * (weather.Wet || weather.Cold > 0.5 ? 2 : 1);
         int grease = (int)Math.Round(greaseRate * km * rng.Range(0.8, 1.2));
         var greaseSpots = approaches.Where(s => s > t.YardLength && s <= last && !inZone(s)).ToList();
         bool greaseOk(double s) => s > t.YardLength && s + 150 <= last && !inZone(s);

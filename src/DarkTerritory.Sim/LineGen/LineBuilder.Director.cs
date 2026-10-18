@@ -57,7 +57,8 @@ sealed partial class LineBuilder
             if (Clear(l.S0 - 150))
                 _greaseZones.Add(new PlanZone("main", R(l.S0 - 250), R(l.S0 - 20)));
         _greaseZones.Sort((a, b) => a.S0.CompareTo(b.S0));
-        double rate = dr.GreasePerKm * (_weather!.Rain ? dr.GreaseWetCold : 1);
+        // The night's cold here is the weather's roll (the look's, note 852): a cold night greases the rail as a wet one does.
+        double rate = dr.GreasePerKm * (_weather!.Rain || _weather.Cold > 0.5 ? dr.GreaseWetCold : 1);
         int grease = _greaseZones.Count == 0 ? 0 : (int)Math.Round(rate * km * rng.Range(0.8, 1.2));
         for (int i = 0, tries = 0; i < grease && tries < grease * 30; tries++)
         {

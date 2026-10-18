@@ -193,7 +193,8 @@ public static class WorldRecords
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Boiler, 0),
         [
             Q(b.Pressure, Fine), Q(b.Firebox, Fine), Q(b.Tender, Fine), Q(b.AtMaxSeconds, Fine), Q(b.LowFireSeconds, Fine),
-            Q(b.ExternalHeat, Fine), Q(b.Efficiency, Fine),
+            // (The deep cold's efficiency came out of the record with the cold, note 852; protocol 78.)
+            Q(b.ExternalHeat, Fine),
             (b.Ruptured ? 1 : 0) | (b.SafetyValveLifting ? 2 : 0) | (b.SafetyValveJammed ? 4 : 0) | (b.FireDoorOpen ? 8 : 0) | (b.Vented ? 16 : 0) | (b.WrenchOut ? 32 : 0) | (b.ShovelOut ? 64 : 0),
             // The door's swing-shut clock: without it the host's own snap back onto the grid zeroed it every tick, and the
             // door never shut.
@@ -492,15 +493,14 @@ public static class WorldRecords
                         AtMaxSeconds = D(f[3], Fine),
                         LowFireSeconds = D(f[4], Fine),
                         ExternalHeat = D(f[5], Fine),
-                        Efficiency = D(f[6], Fine),
-                        Ruptured = (f[7] & 1) != 0,
-                        SafetyValveLifting = (f[7] & 2) != 0,
-                        SafetyValveJammed = (f[7] & 4) != 0,
-                        FireDoorOpen = (f[7] & 8) != 0,
-                        WrenchOut = (f[7] & 32) != 0,
-                        ShovelOut = (f[7] & 64) != 0,
-                        Vented = (f[7] & 16) != 0,
-                        SinceShovel = f.Length > 8 ? D(f[8], Fine) : 0,
+                        Ruptured = (f[6] & 1) != 0,
+                        SafetyValveLifting = (f[6] & 2) != 0,
+                        SafetyValveJammed = (f[6] & 4) != 0,
+                        FireDoorOpen = (f[6] & 8) != 0,
+                        WrenchOut = (f[6] & 32) != 0,
+                        ShovelOut = (f[6] & 64) != 0,
+                        Vented = (f[6] & 16) != 0,
+                        SinceShovel = f.Length > 7 ? D(f[7], Fine) : 0,
                     };
                     break;
                 case RecordKind.Controls:
