@@ -4,8 +4,8 @@ namespace DarkTerritory.Sim.Train;
 
 /// <summary>
 /// A dead line's end, taken too fast (the director's decision of 7 Oct 2026, ARCHITECTURE §8 note 286: "the switch itself
-/// shouldn't cause derail, it should be lines that lead nowhere"). The Switchman throws a junction ahead and the train goes
-/// down a line that ends at buffers in the dark. That costs the clock: stop, back out, set the points back by hand. It
+/// shouldn't cause derail, it should be lines that lead nowhere"). A junction set against the train sends it
+/// down a line that ends at buffers in the dark (the Switchman's doing, until note 852 cut it; a hand's now). That costs the clock: stop, back out, set the points back by hand. It
 /// derails the train only when the driver runs off the end over <see cref="OverspeedTuning.DeadEndDerailAbove"/>, and only
 /// once the cab's warning (the bend warning's bell and a HUD line) has been up a full lead: visibly the driver's mistake.
 /// </summary>

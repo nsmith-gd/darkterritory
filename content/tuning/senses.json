@@ -73,7 +73,7 @@
     "carHugger": { "knocksDraw": true, "drawnSeconds": 15, "crawlSpeed": 2, "lateral": 6 },
     // TOWER JAW (vibration): a knock within the knock's radius and it stops gnawing, turns to the knock and rears (its
     // threat, at no one) for listenSeconds. The Knotter and Hotbox answer the train's own running (its speed), never a
-    // knock; the Switchman, a train on its switch. They ignore it.
+    // knock. They ignore it.
     "towerJaw": { "knocksTurn": true, "listenSeconds": 4 }
   }
 }

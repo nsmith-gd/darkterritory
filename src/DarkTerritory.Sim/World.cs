@@ -50,9 +50,9 @@ public sealed partial class World
     }
 
     /// <summary>
-    /// Host: sets a switch without anyone at its stand (the Switchman, scripted set pieces, tests). Returns whether it now
+    /// Host: sets a switch without anyone at its stand (scripted set pieces, tests). Returns whether it now
     /// stands as asked: false only when a wheel on the points kept it from moving. (Note 289: it returned whether it moved,
-    /// so one already set that way read as held, and the Switchman left its lever a tick after throwing it.)
+    /// so one already set that way read as held.)
     /// </summary>
     public bool SetSwitch(int branch, bool diverge) =>
         Train.Diverging(branch) == diverge || Train.ThrowSwitch(branch, diverge, Switches?.Tuning.PointsLength ?? 0);
@@ -209,23 +209,11 @@ public sealed partial class World
     public double DeadEndWarnSeconds { get; set; }
     /// <summary>Host: buffers hit over the limit before the warning had been up its lead (the buffer stop's damage alone; should be 0).</summary>
     public int DeadEndsSpared { get; set; }
-    /// <summary>Host: the dead lines a Switchman has thrown the points for this night (note 286), by branch: C.9's Switchman row.</summary>
-    public HashSet<int> SwitchmanThrew { get; } = new();
-
-    /// <summary>
-    /// Through a dead line's buffers and off the end (note 286). Down a line the Switchman threw it onto, C.9's Switchman row
-    /// names the forward cannon as it always has; otherwise it's the throttle's.
-    /// </summary>
+    /// <summary>Through a dead line's buffers and off the end (note 286): the throttle's. (The Switchman's row went with it, note 852.)</summary>
     void OffTheEnd(int branch, double speed, double limit)
     {
         int kmh = (int)Math.Round(speed * 3.6), over = (int)Math.Round(limit * 3.6);
-        if (SwitchmanThrew.Contains(branch))
-        {
-            var (gunner, cannon) = Sim.Run.IncidentLog.ForwardCannon(this);
-            Derail($"ran off the end of the dead line the Switchman threw it down, at {kmh} km/h (over {over} km/h it goes through the buffers)", gunner, cannon);
-        }
-        else
-            Derail($"ran off the end of a dead line at {kmh} km/h (over {over} km/h it goes through the buffers)");
+        Derail($"ran off the end of a dead line at {kmh} km/h (over {over} km/h it goes through the buffers)");
     }
 
     /// <summary>Host: each bend derailment, by how long its warning had been up when it came (the audit's).</summary>
@@ -869,7 +857,7 @@ public sealed partial class World
 
     /// <summary>The generated line whose track rules the host holds the train to (curves, weak bridges, washouts); null for a hand-laid one.</summary>
     public LineGen.LinePlan? TrackPlan { get; set; }
-    /// <summary>What derailed the train (the report and the HUD say so): the track, a board run too fast, the Sleepers, the Switchman.</summary>
+    /// <summary>What derailed the train (the report and the HUD say so): the track, a board run too fast, the Sleepers, a dead line's end.</summary>
     public string? DerailCause { get; private set; }
     /// <summary>At the derail tick: the train's speed, and who was on the throttle (App. C.9's "speed at impact").</summary>
     public double DerailSpeed { get; private set; }
@@ -877,7 +865,7 @@ public sealed partial class World
     /// <summary>
     /// The derail's contributing action (App. C.9), as the cause card and the report read it: who made it (−1 for nobody)
     /// and the clerk's words, with <c>{actor}</c> where their name goes. The throttle for the track's dangers and the
-    /// debris; the forward cannon for the Switchman; the firebox for a Stoker's runaway (note 190).
+    /// debris; the firebox for a Stoker's runaway (note 190).
     /// </summary>
     public int DerailActor { get; private set; } = -1;
     public string DerailAction { get; private set; } = "";

@@ -217,7 +217,7 @@ def plan(enemies, creatures, night):
         want = doc.get("want") or {}
         own = OWN.get(name)
         if name not in d["costs"] and not own:
-            said.append(f"  {name}: neither in director.costs nor one that comes its own way; skipped")
+            said.append(f"  {name}: not a creature of the game (neither in director.costs nor one that comes its own way): cut, or not yet in; skipped")
             continue
         # Those come their own way (note 644): a house creature's how often is its share of the houses (dwellings.weights);
         # the Pickers have none, and neither has a cost.

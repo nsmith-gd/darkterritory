@@ -2,7 +2,7 @@
 the film's skip, the panels, a name typed and a crew deleted (notes 315, 316, 320).
 
 The pain cues are each creature's own voice, built from the same parts as everything it already makes, so a hit sounds
-like the same body: the Gaunt, the Soot Children and the Switchman from recipes/horrors.py, the Grumbler and the
+like the same body: the Gaunt and the Soot Children from recipes/horrors.py, the Grumbler and the
 Followers from recipes/beasts.py. The weapon's impact is not in them (a ball has crew-cannon's flesh, a tool its own
 blow): each take carries only what the creature's own body does when it's struck (bark knocked, soot shaken out, a lamp
 jerked on its chain, skin smacked, a shield knocked) and then its answer.
@@ -211,133 +211,6 @@ def soot_hit_rattle(rng, k):
     rattle = rattle * env([(0, 0), (0.04, 0.8), (Lo * 0.7, 0.6), (Lo, 0)], Lo)
     b.at(t, mix(out, H.norm(rattle) * 0.5), -3)
     return H.finish(dsp.room(b.x, "car", wet=0.1, rng=rng))
-
-
-# ---- The Switchman ------------------------------------------------------------------------------------------------------
-# Its lamp is an oil lamp (horrors.py): tin, a glass chimney in its gallery, a flame. Its voice is two throats, a man's
-# and a thin reedy one; struck, the reed goes up into a shriek.
-
-CHAIN = ["sfx_100_v2:misc_09", "sfx_100_v2:wood_03"]       # keys jangling: the lamp's chain, pitched into heavier links
-RING = ["sfx_100_v2:glass_05", "sfx_100_v2:glass_02"]       # struck glass that rings on
-
-
-def lamp_jerked(rng, length=0.55, hard=1.0):
-    """Its lamp jerked on its chain by the blow: the links jangling, the tin lamp knocking against them, the glass
-    chimney chattering in its gallery, the flame ducking and catching again with a soft whump."""
-    b = Bus(length + 0.3)
-    ch = dsp.vari(dsp.trim_silence(src.get(CHAIN[int(rng.integers(2))]), -40, 0.002), rng.uniform(-5, -2))
-    b.at(0, H.cut(ch, length), -2 + 2 * (hard - 1))
-    b.at(rng.uniform(0.0, 0.02), H.rec(rng, H.TIN, rng.uniform(-2, 1), 0.12), -7)
-    b.at(rng.uniform(0.18, 0.3), H.rec(rng, H.TIN, rng.uniform(1, 4), 0.1), -13)
-    H.glass_chatter(rng, b, rng.uniform(0.01, 0.03), int(rng.integers(3, 6)))
-    F = length + 0.1
-    d = rng.uniform(0.06, 0.1)
-    lv = env([(0, 0.8), (d, 0.12 / hard), (d + 0.12, 0.08), (d + 0.22, 0.9), (F, 0.7)], F)
-    b.at(0, H.flame(rng, F, lv) * env([(0, 0), (0.05, 1), (F - 0.15, 1), (F, 0)], F), -15)
-    b.at(d + 0.2, H.whump(rng, 0.25), -14)
-    return b.x
-
-
-def struck_frame(rng):
-    """The blow landing on the man half: a coat struck, the body under it; long fingers flinching on the lever."""
-    b = Bus(0.6)
-    b.at(0, H.rec(rng, H.CLOTH, rng.uniform(-3, -1), 0.3), -6)
-    b.at(0, kit.thud(rng, rng.uniform(70, 85), 0.25, 0.8), -10)
-    H.knuckles(rng, b, 0.01, int(rng.integers(4, 7)), 0.12)
-    return b.x
-
-
-def cracked(y, rng, rate=(95, 140)):
-    """Through cracked glass: the crack's edges chatter against each other (the sound gated in uneven pulses a hundred
-    or so times a second) and the edge folds it into grit."""
-    n = len(y)
-    c = B.fry(rng, rng.uniform(*rate), n / SR, jitter=0.5, decay=0.003)
-    z = y * (0.35 + 0.65 * c)
-    return H.norm(mix(dsp.saturate(H.norm(z), 6), dsp.fold(H.norm(z) * 0.5, 2.5) * 0.15))
-
-
-def reed(rng, f0, breath=0.5):
-    """Its spindly half's thin reedy throat: a pressed glottis through the narrow, breathy 'ee' it strains with on the
-    lever (horrors.py), with the glottis's own bright harmonics kept over it so the pitch carries when it's forced
-    high (up there the 'ee's narrow formants would only catch one harmonic and flatten it into a whistle)."""
-    g = synth.glottis(f0, len(f0) / SR, rng, jitter=0.015, shimmer=0.15, oq=0.45)
-    ee = H.morph_tract(g, "i", 0.6, breath=breath, rng=rng)
-    return H.norm(H.norm(bp(g, 700, 8000)) * 0.7 + ee * 0.4)
-
-
-def reed_shriek(rng, length, top):
-    """The reed forced up into a shriek, sung through the lamp's hot glass (the chimney's partials, as when it sings)
-    and cracked."""
-    f0 = env([(0, top * 0.68), (0.05, top), (length * 0.6, top * 1.07), (length, top * 0.78)], length, "exp")
-    v = reed(rng, f0)
-    fg = rng.uniform(2300, 2800)
-    glass = dsp.resonate(v, [fg, fg * 2.32, fg * 4.25], q=40, gains=[1, 0.5, 0.25])
-    y = cracked(v * 0.8 + H.norm(glass) * 0.35, rng)
-    return bp(y, 700, 9000) * env([(0, 0), (0.02, 1), (length * 0.7, 0.8), (length, 0)], length)
-
-
-def glass_shriek(rng, length, rise):
-    """A shriek made of the glass itself: a struck glass's ring held out into a tone (paulstretched), bent up as a
-    voice would go and dropping as it breaks off, made to speak by the reed throat it's multiplied with (the glass
-    rings in the voice's own pulses, so every partial splits: a cracked, glassy voice)."""
-    g = dsp.trim_silence(src.get(RING[int(rng.integers(2))]), -40, 0.002)
-    seg = dsp.trim(g, 0.004, 0.3)
-    held = dsp.smear(seg, (length + 0.15) / 0.3, 0.1, rng)
-    held = H.bend(held, env([(0, -rise * 0.3), (0.06, 0), (length * 0.6, rise), (length + 0.15, rise - 4)], length + 0.15))
-    held = dsp.fit(H.norm(held), samples(length))
-    f0 = env([(0, 330), (0.05, 440), (length * 0.6, 470), (length, 360)], length, "exp") * rng.uniform(0.92, 1.08)
-    v = reed(rng, f0, 0.6)
-    y = held * (0.3 + 0.7 * v) + bp(v, 1200, 6000) * 0.2
-    y = cracked(y, rng, (110, 160))
-    return hp(y, 500) * env([(0, 0), (0.015, 1), (length * 0.7, 0.75), (length, 0)], length)
-
-
-@recipe("cs-switchman", "hit", "chimney",
-        "Struck: its lamp jerking and rattling on its chain, and its thin reed of a throat shrieking through cracked glass",
-        """The blow lands on the man half (a coat struck, long fingers flinching on the lever in a ripple of dry
-        knuckles) and jerks the oil lamp on its chain: the links jangle (keys jangling, pitched down a few semitones
-        into heavier links), the tin lamp knocks, the glass chimney chatters in its gallery and the flame ducks and
-        catches. Over it, its spindly half's thin reedy throat (the breathy 'ee' it strains with on the lever) is forced
-        up into a shriek, sung through the chimney's glass partials and cracked: the sound gated in uneven pulses where
-        a crack's edges chatter, folded into grit. A few metres off, in the open. Takes: one shriek, one that breaks
-        off and comes again, a harder jerk with a short shriek.""",
-        sources=CHAIN + H.TIN + H.GLASS_TICK + H.CLOTH, takes=3)
-def switchman_hit_chimney(rng, k):
-    b = Bus(2.0)
-    b.at(0, struck_frame(rng), 0)
-    b.at(0.005, lamp_jerked(rng, 0.55, (1.0, 1.0, 1.4)[k]), -1)
-    t = rng.uniform(0.04, 0.07)
-    top = rng.uniform(900, 1250)
-    if k == 1:     # the shriek breaks off and comes again, higher
-        L1 = rng.uniform(0.22, 0.28)
-        b.at(t, reed_shriek(rng, L1, top), -2)
-        b.at(t + L1 + rng.uniform(0.06, 0.1), reed_shriek(rng, rng.uniform(0.3, 0.38), top * 1.12), -2)
-    else:
-        b.at(t, reed_shriek(rng, (0.48, 0, 0.32)[k] * rng.uniform(0.9, 1.1), top), -2)
-    return H.finish(H.junction(dsp.trim_silence(b.x, -70), rng, 0.45))
-
-
-@recipe("cs-switchman", "hit", "glass",
-        "Struck: the lamp rattling on its chain, and a shriek made of glass, a struck glass's ring bent up into a voice",
-        """The same blow and lamp as 'chimney' (a coat struck, knuckles flinching, the chain jangling, the tin lamp
-        knocking, the chimney chattering, the flame ducking). The shriek is glass made to speak: a real struck glass's
-        ring held out into a tone (paulstretched), bent up a few semitones as a voice would go and dropping as it
-        breaks off, multiplied by its thin reedy throat so the glass rings in the voice's own pulses (every partial
-        splits: a cracked, glassy voice), then gated where the crack chatters. The man half grunts under it. A few
-        metres off, in the open.""",
-        sources=CHAIN + RING + H.TIN + H.GLASS_TICK + H.CLOTH, takes=3)
-def switchman_hit_glass(rng, k):
-    b = Bus(2.0)
-    b.at(0, struck_frame(rng), 0)
-    b.at(0.005, lamp_jerked(rng, 0.55, (1.0, 1.3, 1.0)[k]), -1)
-    t = rng.uniform(0.04, 0.07)
-    L = (0.5, 0.36, 0.62)[k] * rng.uniform(0.9, 1.1)
-    b.at(t, glass_shriek(rng, L, (5, 4, 6)[k] * rng.uniform(0.85, 1.15)), -2)
-    Lg = rng.uniform(0.22, 0.3)
-    man = H.throat(rng, env([(0, 125), (0.05, 140), (Lg, 100)], Lg, "exp"), [(0, "a"), (Lg, "u")], 0.72, breath=0.45,
-                   rough=0.5, jitter=0.02)
-    b.at(0.01, man * env([(0, 0), (0.02, 1), (Lg * 0.6, 0.6), (Lg, 0)], Lg), -11)
-    return H.finish(H.junction(dsp.trim_silence(b.x, -70), rng, 0.45))
 
 
 # ---- The Grumbler -------------------------------------------------------------------------------------------------------

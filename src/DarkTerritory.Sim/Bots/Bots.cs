@@ -37,7 +37,7 @@ public sealed class GunnerBot(GunTuning guns, ChoirTuning? choir = null, int see
     public string Name => Forward ? "forward-gunner" : "gunner";
     /// <summary>
     /// The engine's forward gun's (note 414), not the guard van's: it goes forward over the cars onto the engine's hood and
-    /// takes that gun's seat, for the lane ahead (note 405), the Track Doll and the Switchman.
+    /// takes that gun's seat, for the lane ahead (note 405) and the Track Doll.
     /// </summary>
     public bool Forward { get; init; }
     public int WarmUps => _legs.WarmUps;
@@ -2370,7 +2370,6 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
     public double DarkCruiseSpeed { get; init; } = 10.5;
     /// <summary>The braking it plans a stop for the Track Doll on (m/s²): well under the brake's, so it stops short in time.</summary>
     public double DollBraking { get; init; } = 0.35;
-    bool _clubbed;
     Rail.Branch? _alone;
     /// <summary>Whether it's throwing <see cref="_alone"/> over for the branch (a stop's spur, note 261), not setting it back.</summary>
     bool _aloneTo;
@@ -2676,8 +2675,8 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
     /// Note 258 (T115's leftover): a crewmate in a lit Holdout (GDD App. D.5: "a living crew member begins the breach") and
     /// nobody else to begin it. Heed.Holdouts sends a walker or the gunner; with none of them alive (a crew of one bot and
     /// someone playing who's died, or the driver the last bot standing) the driver's held the train there for
-    /// <c>ForAHoldout</c>'s wait and gone on without them. So the driver goes, as it does to set a switch back alone or to
-    /// club the Switchman: the train standing on its brake, the gauge vented down to what it holds at a stand and the firebox
+    /// <c>ForAHoldout</c>'s wait and gone on without them. So the driver goes, as it does to set a switch back alone: the
+    /// train standing on its brake, the gauge vented down to what it holds at a stand and the firebox
     /// door shut; down out of the cab on the Holdout's side, along to its door, Use held there till they're out; and back up
     /// into the cab, where <c>ForAHoldout</c> finds nothing lit and it drives on. Someone playing in the cab minds it instead
     /// (the brake's theirs), and one aboard gets a while to come to it. Null when it isn't going (or is back).
@@ -3005,39 +3004,6 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
             if (ahead > 0)
                 cruise = Math.Min(cruise, Math.Max(0, Math.Sqrt(Math.Max(0, 2 * DollBraking * (ahead - 25)))));
         }
-        // A derailing Switchman at its lever ahead (v1.1 App. A.8): stop short of its points, and the driver goes and clubs it.
-        var derailer = world.ActiveEnemies.OfType<Switchman>().FirstOrDefault(w => w.Derailer && !w.Gone && w.Phase is SpinePhase.Telegraph or SpinePhase.Commit
-            && w.Branch >= 0 && w.Branch < train.Line.Branches.Count && train.Line.Branches[w.Branch].Toe > train.Dynamics.Distance - 2);
-        if (derailer is not null)
-        {
-            double ahead = train.Line.Branches[derailer.Branch].Toe - train.Dynamics.Distance;
-            cruise = Math.Min(cruise, Math.Max(0, Math.Sqrt(Math.Max(0, 2 * DollBraking * (ahead - 40)))));
-            // Close in, on the brake and off the regulator, whatever the drive says: it's a stop short, not a crawl.
-            if (ahead < 90 && Math.Abs(train.Dynamics.Velocity) >= 0.05 && PlayerMotor.InCab(self, train))
-                return new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4, Lamp = lamp };
-            // Not out of the cab with the firebox door still open from the last shovelful: an empty cab leaves it open, and
-            // an open door at a stop lets the Stoker in (App. A.5), which drives the train on over the points.
-            if (PlayerMotor.InCab(self, train) && train.Boiler.FireDoorOpen)
-                return new PlayerIntent { Buttons = PlayerButtons.Brake, Lamp = lamp };
-            if (ahead < 300 && Math.Abs(train.Dynamics.Velocity) < 0.05 && calls is not null && self.Alive)
-            {
-                _aloneHand ??= new StopHand(StopJob.None, calls, member);
-                if (_aloneHand.Club(self, world, derailer) is { } clubbing)
-                {
-                    // Out of the cab with the brake held, so the train's left standing on it (on a grade it would roll on
-                    // into the points).
-                    _clubbed = true;
-                    return clubbing with { Lamp = lamp, Buttons = clubbing.Buttons | PlayerButtons.Brake };
-                }
-            }
-        }
-        else if (_clubbed && _aloneHand is not null && self.Alive)
-        {
-            // Back up into the cab after.
-            if (_aloneHand.SetBackAlone(self, world, null) is { } back)
-                return back with { Lamp = lamp, Buttons = back.Buttons | PlayerButtons.Brake };
-            _clubbed = false;
-        }
         // Note 367: the six of 8 Oct. Short of Tower Jaw's wreck; stood for a Hotbox or a Knotter, and coupled up after.
         if (ForTheSix(self, world, ref cruise) is { } six)
             return Work(self, train, six) with { Lamp = lamp };
@@ -3077,8 +3043,8 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         }
         // And the Sleepers in the lamp, or greased rail down a grade: under the Sleepers' speed (note 231).
         cruise = Math.Min(cruise, HazardAllow(world));
-        // The express driver (note 376) takes no stops, but a dead line's no stop (note 512): taken (the Switchman's points thrown
-        // under it), it stands down it at the buffers all night without the stop driver's way back off it (OffDeadLine,
+        // The express driver (note 376) takes no stops, but a dead line's no stop (note 512): taken (its points set against the
+        // train), it stands down it at the buffers all night without the stop driver's way back off it (OffDeadLine,
         // SetBack, Forward). That much it does as any driver does; back on the main line, it runs on and stops for nothing.
         if (Stops is { } stops && (!Express || stops.Doing != StopDriver.Leg.Cruise || SwitchPlan.DownOne(world) is not null))
         {
@@ -3227,7 +3193,7 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         if ((!greased || stoker || noSteam) && _sandLeg < way.Length)
             _sandLeg = 2 * way.Length - 1 - _sandLeg;
         // Not out of the cab with the firebox door still open from the last shovelful: only someone in the cab shuts it, and
-        // an open door at a stand lets the Stoker in (App. A.5; the Switchman's club waits the same).
+        // an open door at a stand lets the Stoker in (App. A.5).
         if (_sandLeg == 0 && PlayerMotor.InCab(self, train) && train.Boiler.FireDoorOpen)
             return new PlayerIntent { Buttons = train.BoilerTuning is { SteamDrive: true } && !alone ? PlayerButtons.Brake : PlayerButtons.None };
         if (_sandLeg >= 2 * way.Length)

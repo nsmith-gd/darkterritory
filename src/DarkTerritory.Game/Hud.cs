@@ -2138,8 +2138,7 @@ public static partial class Hud
     }
 
     /// <summary>
-    /// The cab's dead-line warning (note 286), or null: in the cab with the engine down a dead line (the Switchman's work, or
-    /// a switch set wrong), what to do; and with its buffers coming up faster than it can stop under the speed that goes
+    /// The cab's dead-line warning (note 286), or null: in the cab with the engine down a dead line (a switch set wrong), what to do; and with its buffers coming up faster than it can stop under the speed that goes
     /// through them (Sim.Train.DeadEnds.Assess), urgent. From the line and the train as this machine has them.
     /// </summary>
     public static (string Head, string Line, bool Urgent)? DeadEndLines(IPlaySession s)
