@@ -441,10 +441,10 @@ public sealed class FireFlies(int id) : Enemy(id)
             {
                 int into = Attached;
                 double along = Local.Z;
-                ctx.World.AddEnemy(i => CarFire.In(i, train, into, along, ctx.Tuning.CarFire));
                 // C.9's Fire Flies row (note 190): what drew them, the car's lamp, and who relit it if anyone did (T131, note 286).
+                // The row and the news line are the fire's own, as it starts (World.FireStarted, note 851).
                 var (lit, drawn) = Run.IncidentLog.FireFliesDrawn(ctx.World, into);
-                ctx.World.Attribution.Add(Run.IncidentLog.Event(ctx.World, Run.IncidentKind.Fire, $"Fire Flies set car {into} alight", lit, drawn, into));
+                ctx.World.AddEnemy(i => CarFire.In(i, train, into, along, ctx.Tuning.CarFire, FireCause.FireFlies, -1, lit, drawn));
             }
             Enter(ctx, SpinePhase.BreakOff);
             Enter(ctx, SpinePhase.Gone);

@@ -21,21 +21,46 @@ public class FireCellsTests
         Assert.True(r.Health > 50, r.ToString());
     }
 
+    [Fact]
+    public void TwoOnTheExtinguishersPutARearCarFireOutWellWithinTheOnesTime()
+    {
+        // Note 851 (the director's playtest of 16 Oct evening, line 5: "The fire in the rear car didn't go out ever despite both
+        // of us fighting it"; GDD §12 "one can, two do it faster", note 752): the last car at full blaze, two inside on the
+        // extinguishers. Each cools the stretch it's aimed at by the whole rate, so two have it out in about two thirds of one's
+        // time (B.11's "Two extinguishers" row), both unburned.
+        var one = OneExtinguisher(Tuning.Enemies, rear: true);
+        var two = OneExtinguisher(Tuning.Enemies, rear: true, crew: 2);
+        Assert.True(one.Out && one.Seconds <= 20, one.ToString());
+        Assert.True(two.Out && two.Seconds <= 10, two.ToString());
+        Assert.True(two.Seconds <= one.Seconds * 0.8, $"two: {two.Seconds:0.0} s, one: {one.Seconds:0.0} s");
+        Assert.True(two.Health > 50, two.ToString());
+    }
+
     internal record Result(int Cells, bool Out, double Seconds, int Health, double Charge);
 
-    /// <summary>One crewmate in car 3, an extinguisher in hand, the whole car at full blaze: the nearest burning cell in reach sprayed, walking to the next.</summary>
-    internal static Result OneExtinguisher(EnemyTuning en, double seconds = 40)
+    /// <summary>
+    /// One crewmate in car 3 (<paramref name="rear"/>: the last car), an extinguisher in hand, the whole car at full blaze: the
+    /// nearest burning cell in reach sprayed, walking to the next. <paramref name="crew"/> more than one: each with their own,
+    /// side by side at the car's rear end (note 851).
+    /// </summary>
+    internal static Result OneExtinguisher(EnemyTuning en, double seconds = 40, bool rear = false, int crew = 1)
     {
         var n = new Night(5, speed: 0, enemies: en);
         var t = en.CarFire;
-        int car = 3;
+        int car = rear ? n.Train.Dynamics.Consist.Vehicles[^1].Id : 3;
         var room = n.Train.Frames[car].Shape.Interior!.Value;
         double doorX = Tuning.Train.Geometry.Interior!.DoorX;
-        n.Crew[1] = new PlayerState { Parent = car, Position = new Double3(doorX, room.Min.Y, room.Max.Z - 0.6), Yaw = 0, Surface = Surface.Deck, Health = Tuning.Player.Health };
-        var ext = n.World.Bodies.SpawnCrate(n.Train, car, n.Crew[1].Position with { Y = room.Min.Y + 0.1 }, Physics.BodyKind.Extinguisher);
-        ext.Carrier = 1;
-        ext.Claimed = true;
-        var fire = (CarFire)n.World.AddEnemy(id => CarFire.In(id, n.Train, car, 0, t).Ablaze(1.0));
+        Physics.Body ext = null!;
+        for (int k = 1; k <= crew; k++)
+        {
+            var feet = new Double3(doorX + (k - 1) * 0.5, room.Min.Y, room.Max.Z - 0.6 - (k - 1) * 0.6);
+            n.Crew[k] = new PlayerState { Parent = car, Position = feet, Yaw = 0, Surface = Surface.Deck, Health = Tuning.Player.Health };
+            var mine = n.World.Bodies.SpawnCrate(n.Train, car, feet with { Y = room.Min.Y + 0.1 }, Physics.BodyKind.Extinguisher);
+            mine.Carrier = k;
+            mine.Claimed = true;
+            ext ??= mine;
+        }
+        var fire = (CarFire)n.World.AddEnemy(id => CarFire.In(id, n.Train, car, 0, t, FireCause.Set).Ablaze(1.0));
         n.Run(SimConstants.TickSeconds);
         var grid = FireGrid.Of(n.Train, car, t.CellSize)!;
         double eye = Tuning.Train.Pick.EyeHeight;
@@ -67,6 +92,6 @@ public class FireCellsTests
                 return step with { LookYaw = look.LookYaw, LookPitch = look.LookPitch };
             });
         }
-        return new(grid.Count, fire.Gone, (n.World.Tick - t0) / (double)SimConstants.TickRate, n.Crew[1].Health, ext.Charge);
+        return new(grid.Count, fire.Gone, (n.World.Tick - t0) / (double)SimConstants.TickRate, n.Crew.Values.Min(s => s.Health), ext.Charge);
     }
 }

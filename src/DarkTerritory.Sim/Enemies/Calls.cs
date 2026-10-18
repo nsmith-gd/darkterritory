@@ -55,7 +55,7 @@ public static class Calls
                     int car = FarthestCar(world, you, interior: true);
                     if (car < 0)
                         return "no car with a room to burn";
-                    world.AddEnemy(i => CarFire.In(i, train, car, 0, t.CarFire));
+                    world.AddEnemy(i => CarFire.In(i, train, car, 0, t.CarFire, FireCause.Called));
                     return $"car {car} alight";
                 }
             case EnemyKind.Waker:
