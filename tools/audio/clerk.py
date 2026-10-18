@@ -57,11 +57,11 @@ WORDS = ["crew", "coal", "cars", "freight", "cargo", "paid", "fee", "refund", "m
 
 
 # The derail cause card (GDD v1.4 App. E.5; IncidentLog.CauseCard and the causes World.Derail and Overspeed are given:
-# Lineside's bends, the Sleepers, the Switchman, TrackRules' washouts and bridges, the Stoker's runaway, C.9's blame lines)
+# Lineside's bends, the Sleepers, TrackRules' washouts and bridges, the Stoker's runaway, C.9's blame lines)
 # and the Stranded line (E.9; Radio.Stranded). ClerkVoice says "68 km/h" as "68 kilometres an hour", "at km 12" as
 # "at kilometre 12", "40 s" as "40 seconds" and "12 m" as "12 metres".
 CAUSE_PHRASES = ["consist derailed", "took the", "too fast", "ran onto the washout", "gave way under car",
-                 "the switchman threw the points under it", "they throw a train off", "ran onto the sleepers", "they'll take",
+                 "ran onto the sleepers", "they'll take",
                  "the stoker ran away with it", "nobody on the throttle", "forward cannon crewed by", "forward cannon not crewed",
                  "no forward cannon on the consist", "firebox last tended", "nobody had tended the firebox",
                  "recovery not scheduled", "cause not established", "consist reported stranded", "recovery at first light",

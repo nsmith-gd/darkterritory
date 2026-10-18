@@ -131,7 +131,6 @@
   // A sleeping Gaunt is curled to gauntAsleep of its height.
   "bodies": {
     "cinderHound": [[0.75, 0.4]],
-    "switchman": [[0.4, 0.5], [0.4, 1.15], [0.3, 1.6]],
     "climber": [[0.65, 0.3]],
     "trackDoll": [[0.55, 0.7], [0.4, 1.6]],
     "ribbit": [[0.6, 0.55]],
@@ -700,22 +699,6 @@
     // seconds (35, note 652).
     "nightFleesSeconds": 35, "staysAtDawn": ["knotter", "hotbox"] },
 
-  // THE SWITCHMAN · vibration · corrupted (App. A.8, B.8). At a junction ahead[0]-[1] m out; seen at revealAt m. It throws
-  // the points for the dead line, and the train goes down a line that leads nowhere (the clock's cost: stop, back out, set
-  // them back by hand). Killed before the train's over them (killedSetsBack), the lever falls back to the main line. One
-  // cannon round (4 blows) or three blows kills it. B.8: minJunctions on the route, deadLineWeight more with dead lines about.
-  // The director's decision of 7 Oct 2026 (note 286): "The switch itself shouldn't cause derail, it should be lines that
-  // lead nowhere." throwsUnderTrain false: it never throws points under a train. True (a mod) brings back v1.1's derailing
-  // kind: derailChance of them grip the lever at gripAt m and throw it under the engine. A derailment comes only from
-  // running off the dead line's end (train.json overspeed.deadEndDerailAbove, warned in the cab a full lead ahead).
-  "switchman": {
-    "ahead": [500, 1200], "standBeside": 1.2, "revealAt": 300, "derailChance": 0.3, "gripAt": 250, "health": 3,
-    "lingerSeconds": 20, "minJunctions": 3, "deadLineWeight": 1.5, "throwsUnderTrain": false, "killedSetsBack": true,
-    // T121 playtest (derailed "at a very low speed"): points thrown under a train at or under derailAbove (m/s, 25 km/h)
-    // split under it instead: the engine takes runThroughDamage and stops hard. Over it, the Switchman derails it.
-    "derailAbove": 6.9, "runThroughDamage": 0.25
-  },
-
   // SOOT CHILDREN · sound · outside (App. A.6, B.6). Calling from callOut m every callEvery s. realChance of a real
   // survivor (a host's first-ever call is always real). A Soot Child lunges at anyone within lungeWithin m and drinks for
   // drainSeconds, gaining healthPerSecond blows a second while it does. Ignored for ignoredSeconds, it gives up. Alone, the
@@ -1137,8 +1120,8 @@
       // is the walkers' on the run and the ground's at a stand (prised out of its truck from beside it); the Moose, Tower Jaw
       // and the Freight Beetle are met on the ground.
       "answers": {
-        "cab": ["trackDoll", "switchman", "stoker"],
-        "gunner": ["cinderHounds", "climbers", "trackDoll", "switchman"],
+        "cab": ["trackDoll", "stoker"],
+        "gunner": ["cinderHounds", "climbers", "trackDoll"],
         "walker": ["climbers", "draggers", "fireFlies", "whistler", "carHugger", "cinderHounds", "carFire", "gannet", "brakeman", "knotter", "hotbox"],
         "rider": ["tippyToesie", "fireFlies", "passenger", "carHugger", "carFire"],
         "ground": ["ribbits", "gaunt", "followers", "sootChildren", "grumbler", "moose", "towerJaw", "freightBeetle", "hotbox"]
@@ -1242,7 +1225,7 @@
     "perNightDefault": null,
     "nightChance": { "knotter": 0.66, "hotbox": 0.4, "brakeman": 0.6, "climbers": 0.35, "draggers": 0.65,
       "cinderHounds": 0.7, "fireFlies": 0.42, "carHugger": 0.51, "whistler": 0.65, "trackDoll": 0.22,
-      "tippyToesie": 0.7, "stoker": 0.4, "switchman": 0.12, "followers": 0.66, "ribbits": 0.66, "gaunt": 0.21,
+      "tippyToesie": 0.7, "stoker": 0.4, "followers": 0.66, "ribbits": 0.66, "gaunt": 0.21,
       "sootChildren": 0.36, "grumbler": 0.11, "passenger": 0.1, "moose": 0.19, "gannet": 0.72, "freightBeetle": 0.63,
       "towerJaw": 0.53, "pickers": 0.28, "lodger": 0.06, "householder": 0.68, "hollowHouse": 0.13, "hanger": 0.53,
       "mouseMoose": 0.5 },
@@ -1283,7 +1266,7 @@
     // Budget share spent before the first facility, across the middle, and in the final approach.
     "phaseShares": [0.15, 0.45, 0.40],
     // App. B.1 v1.1's cost table (the Choir costs nothing: it isn't spawned; hazards are level content).
-    "costs": { "followers": 2, "draggers": 2, "fireFlies": 2, "switchman": 2, "trackDoll": 3, "cinderHounds": 3, "climbers": 3,
+    "costs": { "followers": 2, "draggers": 2, "fireFlies": 2, "trackDoll": 3, "cinderHounds": 3, "climbers": 3,
       "whistler": 3, "stoker": 3, "ribbits": 3, "carHugger": 4, "tippyToesie": 4, "gaunt": 4, "sootChildren": 4, "grumbler": 4,
       "passenger": 5, "moose": 3, "gannet": 4, "freightBeetle": 1, "towerJaw": 3, "brakeman": 3, "hotbox": 2, "knotter": 3,
       "mouseMoose": 2 },
@@ -1350,7 +1333,6 @@
       ["trackDoll", "facilityLoading"],
       ["whistler", "facilityStop"],
       ["tippyToesie", "stoker"],
-      ["ribbits", "switchman"],
       ["carHugger", "grade"]
     ],
     "pairWeight": 3,

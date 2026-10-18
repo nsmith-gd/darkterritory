@@ -86,7 +86,7 @@ whoever has to hear it.
 | Followers | Silent: a lump on a back, seen by friends | — | — |
 | Soot Children | A child calling for help (tier 2; the eyes are the tell) | voice band | child-call |
 | The Passenger | **Silent by design** (it never speaks) | — | — |
-| The Switchman | Visual: the figure at the lever, the lamp wrong | — | — |
+| ~~The Switchman~~ | *Cut: the director, 16 Oct 2026 ("I think we cut them"; note 852). Its tell was visual: the figure at the lever, the lamp wrong* | — | — |
 | Grumbler | Gnawing on the crates | 1.4–2.2k | grumbler-gnaw |
 | The Moose *(added 7 Oct, note 339; the sounds are the audio chat's to make)* | Warning: a cough-like grunt and teeth clacking; the charge: hooves on ballast; a ram: an iron boom through the car | grunt 150Hz–1.5k, clack 2–4k | tell-moose-* (note 334) |
 | The Gannet *(added 7 Oct, note 340; the sounds are the audio chat's to make)* | The fold: a crack of wings, then a rising whistle of air for 1.6 s; overhead, harsh "arrah" calls that stop when it picks a walker; the bank: a long rising scream | whistle 2–5 kHz rising; calls 1–3 kHz | tell-gannet-* (note 384) |

@@ -9,7 +9,6 @@ public sealed record EnemyTuning(
 {
     public const string File = "tuning/enemies.json";
 
-    public SwitchmanTuning Switchman { get; init; } = new();
     public SootChildrenTuning SootChildren { get; init; } = new();
     public DraggerTuning Draggers { get; init; } = new();
     public StokerTuning Stoker { get; init; } = new();
@@ -633,34 +632,6 @@ public sealed record SootChildrenTuning
     public double NearFacility { get; init; } = 400;
 }
 
-/// <summary>The Switchman (App. A.7, B.7). Field docs live in enemies.json.</summary>
-public sealed record SwitchmanTuning
-{
-    public double[] Ahead { get; init; } = [500, 1200];
-    public double StandBeside { get; init; } = 1.2;
-    public double RevealAt { get; init; } = 300;
-    public double DerailChance { get; init; } = 0.3;
-    public double GripAt { get; init; } = 250;
-    public double Health { get; init; } = 3;
-    public double LingerSeconds { get; init; } = 20;
-    /// <summary>
-    /// T121 playtest ("we appear to have derailed at a very low speed"): points thrown under a train crawling over them
-    /// split, they don't throw it off. At or under this (m/s) the train runs through them: the engine takes
-    /// <see cref="RunThroughDamage"/> and the clock takes the stop. Over it, it's off the rails.
-    /// </summary>
-    public double DerailAbove { get; init; } = 6.9;
-    public double RunThroughDamage { get; init; } = 0.25;
-    /// <summary>
-    /// The director's decision of 7 Oct 2026 (note 286): "the switch itself shouldn't cause derail, it should be lines that
-    /// lead nowhere". Off (the default), it never throws points under a train: every Switchman throws the junction ahead
-    /// down a dead line. On, <see cref="DerailChance"/> of them throw under the train as v1.1 had it (for a mod).
-    /// </summary>
-    public bool ThrowsUnderTrain { get; init; }
-    /// <summary>Note 286: killed before the train reaches its points, its lever falls back and the points go back to the main line.</summary>
-    public bool KilledSetsBack { get; init; } = true;
-    public int MinJunctions { get; init; } = 3;
-    public double DeadLineWeight { get; init; } = 1.5;
-}
 
 /// <summary>enemies.json <c>sleepers</c> (track debris, GDD §22). Field docs live in that file.</summary>
 /// <param name="Enabled">Placed on generated lines and run at all: off since the director's decision of 2026-10-06 (note 265); a mod can bring them back.</param>
