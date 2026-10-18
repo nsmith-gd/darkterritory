@@ -111,6 +111,10 @@ public sealed partial class CreatureArt
     /// round as far as it takes, behind it included (GDD §31: still when watched, then too-fast corrections).
     /// </summary>
     const float DollHeadClick = 30;
+
+    /// <summary>How many levels the lit Track Doll's face glow comes in (see Draw's track_doll case: each level is an asset cooked once).</summary>
+    const float DollGlowSteps = 8;
+
     /// <summary>On the rail it beckons the train in once it's this close (m, from the eye).</summary>
     const float DollBeckons = 40;
     /// <summary>Aboard, bent over the cargo, it looks round at you when you're this close (m).</summary>
@@ -2335,7 +2339,9 @@ public sealed partial class CreatureArt
                     // shines out of the fog far off and eases to a sheen as the train closes on it (the model's translation is
                     // from the eye). Unrevealed, or aboard, it's only porcelain.
                     float far = SmoothStep(15, 120, model.Translation.Length());
-                    float glow = phase == SpinePhase.Telegraph ? 0.15f + 0.75f * far : 0.05f;
+                    // (In DollGlowSteps levels: the face's glow is baked into the asset Bound keeps, so a glow that changed a little every
+                    // frame as the train closed on it cooked and uploaded a new doll every frame or two: queue #427.)
+                    float glow = phase == SpinePhase.Telegraph ? MathF.Round((0.15f + 0.75f * far) * DollGlowSteps) / DollGlowSteps : 0.05f;
                     // On the rail it faces the train coming at it (a thing on the line faces down it, the way the train goes).
                     var at = aboard ? model : Matrix4x4.CreateRotationY(MathF.PI) * model;
                     // With the toy it was given, it's clutching it under its chin (its giggle's hands), and looking at you.
