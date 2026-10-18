@@ -76,7 +76,7 @@ public class CabWalkTests
         foreach (double z in new[] { plan.DoorFront - g.Engine.RunningBoardAhead + 0.05, plan.DoorFront, mid, plan.CabBack + 1 })
             foreach (double x in new[] { w + 0.05, w + width - 0.05 })
                 Assert.Equal((g.Engine.DeckHeight, SurfaceKind.Deck), shape.TopAt(side * x, z, g.Engine.DeckHeight + 0.5));
-        var steps = shape.Ladders.Single(l => l.Foot.Y < 0.2 && Math.Sign(l.Foot.X) == side && Math.Abs(l.Inward.X) > 0.9);
+        var steps = shape.Ladders.Single(l => l.Foot.Y < 0.2 && Math.Sign(l.Foot.X) == side && Math.Abs(l.Inward.X) > 0.9 && l.Foot.Z > plan.DoorFront - 0.1); // (the back doorway's, not a side door's at the front, note 856)
         Assert.True(Math.Abs(steps.Foot.X) > w + width, $"the steps at {steps.Foot} hang off the board's edge");
         Assert.InRange(steps.Foot.Z, plan.DoorFront, plan.CabBack - 0.15);
 

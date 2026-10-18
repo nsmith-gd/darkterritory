@@ -169,8 +169,12 @@ public enum LoungeKind : byte { Hammock, HotTub }
 /// </summary>
 public readonly record struct Lounge(LoungeKind Kind, Double3 At, double Yaw);
 
-/// <summary>A hinged door: solid while shut. <see cref="Index"/> is its bit in <see cref="Vehicle.DoorsOpen"/>.</summary>
-public readonly record struct Door(Box Box, int Index);
+/// <summary>
+/// A door: solid while shut. <see cref="Index"/> is its bit in <see cref="Vehicle.DoorsOpen"/>. Drawn open, a side door's leaf
+/// steps <see cref="Out"/> m out from its wall and slides its own width along it, back (+Z, <see cref="Slide"/> 1) or forward
+/// (−1): the engine's cab side doors (note 856) slide clear of the cab's rail and away from its windows.
+/// </summary>
+public readonly record struct Door(Box Box, int Index, int Slide = 1, double Out = 0.12);
 
 /// <summary>
 /// Greybox collision for one car in its own frame: solids to stand on and bump into, ladders,
@@ -365,6 +369,8 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         var plan = EnginePlan.Of(g);
         double boardFront = plan.DoorFront - e.RunningBoardAhead;
         var solids = shape.Solids.ToList();
+        // (The landings outside the cab's side doors, note 856, are under the boards run on forward: one board, not two.)
+        solids.RemoveAll(s => s.Part == PartKind.RunningBoard && s.Box.Min.Z >= -l && s.Box.Max.Z <= boardFront + 1e-6);
         // The deck on its cowcatcher, and the running boards run on to it past the cab's front.
         solids.Add(new(new Box(new Double3(-hw, deck - 0.15, front), new Double3(hw, deck, -l)), SurfaceKind.Deck, PartKind.BbqDeck));
         foreach (int side in new[] { -1, 1 })
@@ -673,7 +679,14 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             var (x0, x1) = (Math.Min(inner, outer), Math.Max(inner, outer));
             // Sides waist-high with a doorway at the back of each; corner pillars; the standard lintel over each doorway
             // (train.json doorway: the cab roof is higher, but a door is a door, note 110).
-            solids.Add(new(new Box(new Double3(x0, deck, cabFront), new Double3(x1, waist, doorFront)), SurfaceKind.Deck, PartKind.CabWall));
+            // (Broken by the side door at the cab's front on this side, note 856: the door's leaf is the wall there, shut.)
+            double wallFrom = cabFront;
+            foreach (var d in plan.SideDoors.Where(d => d.Side == side))
+            {
+                solids.Add(new(new Box(new Double3(x0, deck, wallFrom), new Double3(x1, waist, d.Z0)), SurfaceKind.Deck, PartKind.CabWall));
+                wallFrom = d.Z1;
+            }
+            solids.Add(new(new Box(new Double3(x0, deck, wallFrom), new Double3(x1, waist, doorFront)), SurfaceKind.Deck, PartKind.CabWall));
             solids.Add(new(new Box(new Double3(x0, deck, cabFront), new Double3(x1, roof, cabFront + 0.15)), SurfaceKind.Deck, PartKind.CabWall));
             solids.Add(new(new Box(new Double3(x0, deck, cabBack - 0.15), new Double3(x1, roof, cabBack)), SurfaceKind.Deck, PartKind.CabWall));
             solids.Add(new(new Box(new Double3(x0, deck + g.Doorway.Height, doorFront), new Double3(x1, roof, cabBack - 0.15)), SurfaceKind.Deck, PartKind.CabWall));
@@ -723,6 +736,21 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             var (x0, x1) = side < 0 ? (-w - board, -w) : (w, w + board);
             solids.Add(new(new Box(new Double3(x0, deck - 0.1, boardFront), new Double3(x1, deck, l - 0.3)), SurfaceKind.Deck, PartKind.RunningBoard));
         }
+        // The side doors at the cab's front (note 856; the director, 16 Oct 2026: "a door near where the coal is, and I guess
+        // on the other side of the front of the cab as well"): each a sliding door in the side, solid shut, worked from inside
+        // or from the landing outside it, a board's width out at the running boards' height; the cab steps hung off its edge
+        // up to it from the ballast, as they hang off the boards at the back.
+        var doors = new List<Door>();
+        var sideDoorways = new List<Interactable>();
+        foreach (var d in plan.SideDoors)
+        {
+            double inner = d.Side * (w - 0.1), outer = d.Side * w;
+            var (x0, x1) = (Math.Min(inner, outer), Math.Max(inner, outer));
+            doors.Add(new Door(new Box(new Double3(x0, deck, d.Z0), new Double3(x1, deck + g.Doorway.Height, d.Z1)), d.Index, d.Slide, DoorOut));
+            sideDoorways.Add(new Interactable(InteractableKind.Door, new Double3(d.Side * (w - 0.05), deck, d.Middle), 0.9, d.Index));
+            var (b0, b1) = d.Side < 0 ? (-w - board, -w) : (w, w + board);
+            solids.Add(new(new Box(new Double3(b0, deck - 0.1, d.Z0 - e.SideDoorLanding), new Double3(b1, deck, d.Z1 + e.SideDoorLanding)), SurfaceKind.Deck, PartKind.RunningBoard));
+        }
         if (CouplerPlate(g, l, hasCarBehind) is { } plate)
             solids.Add(plate);
         // A footplate off the coupler plate onto the deck beside the boiler (T90): the plate is lower than the deck, so
@@ -739,6 +767,9 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             new(new Double3(w + board + 0.15, 0, doorZ), deck, new Double3(-1, 0, 0), Over: board),
             new(new Double3(-w - board - 0.15, 0, doorZ), deck, new Double3(1, 0, 0), Over: board),
         };
+        // ... and at the side doors (note 856), up onto the landing outside the door: shut, it's opened from there.
+        foreach (var d in plan.SideDoors)
+            ladders.Add(new(new Double3(d.Side * (w + board + 0.15), 0, d.Middle), deck, new Double3(-d.Side, 0, 0)));
         // Up the engine's back onto the hood's roof (note 338: level with the cab's, and its gun, from the top of the train;
         // before the hood it went onto the boiler's top, and another ladder up the cab's back wall from there).
         if (hasCarBehind)
@@ -774,6 +805,7 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             new(InteractableKind.Sandbox, new Double3(w + board / 2, deck, cabBack + e.SandboxBehind), 0.8),
             new(InteractableKind.Sandbox, new Double3(-w - board / 2, deck, cabBack + e.SandboxBehind), 0.8),
         };
+        interactables.AddRange(sideDoorways);
         var cab = new Box(new Double3(-w + 0.1, deck - 0.1, cabFront), new Double3(w - 0.1, roof, cabBack));
         var bounds = new Box(new Double3(-w, 0, -l), new Double3(w, g.EngineHeight, l));
 
@@ -788,8 +820,15 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             Regulator: new Double3(0.55, deck + 1.25, cabFront + 0.35),
             Brake: new Double3(w - 0.4, deck + 1.15, cabFront + 0.6),
             Reverser: new Double3(w - 0.35, deck + 0.95, cabFront + 1.1));
-        return new CarShape(bounds, solids, ladders, interactables, cab, new GunMount(mount + new Double3(0, 0.9, 0), new Double3(0, 0, -1)), Levers: levers);
+        return new CarShape(bounds, solids, ladders, interactables, cab, new GunMount(mount + new Double3(0, 0.9, 0), new Double3(0, 0, -1)),
+            Doors: doors.Count > 0 ? doors : null, Levers: levers);
     }
+
+    /// <summary>
+    /// How far out from the cab's side a side door's leaf stands open (m, note 856): clear of the rolled rail along the cab's
+    /// waist (the shell's, out to 0.09 past the side), where a car's door steps out 0.12.
+    /// </summary>
+    public const double DoorOut = 0.22;
 
     /// <summary>The vent's handle behind the cab's front wall (m): a step behind the console (note 280), where it's always been.</summary>
     const double VentAlong = 3.8 / 3;
@@ -805,6 +844,19 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     /// against the cab side (note 276: cab forward, further in it hung in the driver's window, across the line).
     /// </summary>
     public static Double3 WhistleCordAt(double halfWidth, double deck, double cabFront) => new(halfWidth - 0.24, deck, cabFront + 0.9);
+}
+
+/// <summary>
+/// One of the cab's side doors at its front (note 856), in the engine's frame: its side (−1 left, the coal's; +1 right) and
+/// its opening along the cab, <see cref="Z0"/> to <see cref="Z1"/>. Its bit in <see cref="Vehicle.DoorsOpen"/> is a car's
+/// sliding side door's on that side (<see cref="Index"/>: 2 left, 3 right).
+/// </summary>
+public readonly record struct CabSideDoor(int Side, double Z0, double Z1)
+{
+    public int Index => Side < 0 ? 2 : 3;
+    public double Middle => (Z0 + Z1) / 2;
+    /// <summary>Which way its leaf slides open (<see cref="Door.Slide"/>): the left one back, the right one forward, each over plate, not glass.</summary>
+    public int Slide => Side < 0 ? 1 : -1;
 }
 
 /// <summary>
@@ -829,6 +881,11 @@ public readonly record struct EnginePlan(double Half, double CabFront, double Ca
     /// footplate and the back wall keeps to one (<see cref="CabWay"/>).
     /// </summary>
     public double Lane { get; init; }
+    /// <summary>
+    /// The cab's side doors at its front (note 856): the left one beside the coal, the right one across the cab behind the
+    /// points lever; each only where it stands clear of the back wall's doorway (none on the right in the old 5 m cab).
+    /// </summary>
+    public IReadOnlyList<CabSideDoor> SideDoors { get; init; } = [];
 
     public static EnginePlan Of(GeometryTuning g)
     {
@@ -860,8 +917,13 @@ public readonly record struct EnginePlan(double Half, double CabFront, double Ca
             .Select(r => new Box(new Double3(-c.BenchWidth / 2, rise, cabFront + r), new Double3(c.BenchWidth / 2, rise + c.BenchHeight, cabFront + r + c.BenchDepth))).ToList();
         // Half way between the furniture's edge and the cab's side.
         double lane = (Math.Max(c.TableWidth, c.BenchWidth) / 2 + inner) / 2;
+        var sideDoors = new List<CabSideDoor>();
+        foreach (var (side, behind) in new[] { (-1, e.CoalDoorFrom), (1, e.FrontDoorFrom) })
+            if (behind > 0 && cabFront + behind + g.Doorway.Width <= doorFront - 0.5)
+                sideDoors.Add(new CabSideDoor(side, cabFront + behind, cabFront + behind + g.Doorway.Width));
         return new(l, cabFront, cabBack, doorFront, bunker, stackZ, firebox)
         {
+            SideDoors = sideDoors,
             ChartTable = table,
             Gallery = gallery,
             FrontTread = frontTread,

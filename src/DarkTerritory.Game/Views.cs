@@ -275,6 +275,13 @@ public static class Views
             "cabhatch" => engine.Shape.Ladders.FirstOrDefault(d => d.Foot.Y > 0.2 && d.Inward.Z > 0) is { Top: > 0 } hatchLadder
                 ? Camera.LookAt(engine.ToWorld(hatchLadder.Foot + new Double3(1.2, 1.5, -1.3)), engine.ToWorld(hatchLadder.Foot + new Double3(0, 2.7, -0.33)), 70)
                 : Camera.LookAt(engine.ToWorld(new Double3(0, 2.5, 0)), engine.ToWorld(new Double3(0, 2.5, -1)), 60),
+            // (Not one of Names.) The side doors at the cab's front (note 856): from across the cab at the one beside the coal
+            // (cabdoor) and at the right-hand one (cabdoorright); and from the ballast off the engine's front quarter at each, its
+            // landing and steps (cabdoorout, cabdoorrightout). --doors-open slides them open.
+            "cabdoor" => CabDoorCamera(engine, -1, inside: true),
+            "cabdoorright" => CabDoorCamera(engine, 1, inside: true),
+            "cabdoorout" => CabDoorCamera(engine, -1, inside: false),
+            "cabdoorrightout" => CabDoorCamera(engine, 1, inside: false),
             // (Not one of Names.) From over car 1's front end, a crewmate's eye up on the roofs, forward along the hood to the
             // whistle on it: its valve lever pulled down by its rod from the cab while a crewmate blows it (note 445).
             "whistlepull" => Camera.LookAt(engine.ToWorld(new Double3(1.4, engine.Shape.Bounds.Max.Y + 1.3, Art.TrainKit.WhistleZ(engine.Shape) + 5.5)),
@@ -509,6 +516,19 @@ public static class Views
             if (bunker.Box.ContainsXZ(eye))
                 eye = eye with { X = bunker.Box.Max.X + 0.35 };
         return Camera.LookAt(engine.ToWorld(eye), engine.ToWorld(at + new Double3(0, 1.1, 0)), 70);
+    }
+
+    /// <summary>At a side door at the cab's front (note 856), from inside across the cab or from the ballast outside it.</summary>
+    static Camera CabDoorCamera(in CarFrame engine, int side, bool inside)
+    {
+        var doors = engine.Shape.DoorList.Where(d => Math.Sign(d.Box.Centre.X) == side && d.Box.Max.Z - d.Box.Min.Z > d.Box.Max.X - d.Box.Min.X).ToList();
+        if (doors.Count == 0)
+            return CabCamera(engine);
+        var c = doors[0].Box.Centre;
+        double deck = doors[0].Box.Min.Y;
+        return inside
+            ? Camera.LookAt(engine.ToWorld(new Double3(-side * 0.9, deck + 1.65, c.Z + 1.7)), engine.ToWorld(new Double3(side * 1.3, deck + 0.95, c.Z - 0.7)), 75)
+            : Camera.LookAt(engine.ToWorld(new Double3(side * 5.5, deck + 0.5, c.Z - 3.5)), engine.ToWorld(new Double3(side * 1.6, deck + 0.4, c.Z)), 55);
     }
 
     /// <summary>The cab's hatch ladder, up through the cab roof (note 704), if the engine has one.</summary>

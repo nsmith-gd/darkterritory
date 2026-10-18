@@ -74,6 +74,16 @@
       "runningBoardWidth": 0.85,
       "runningBoardAhead": 1.0,
       "sandboxBehind": 2.5,
+      // The cab's side doors at its front (note 856; the director, 16 Oct 2026: "I think we want one that's more next to the
+      // coal ... a door near where the coal is, and I guess on the other side of the front of the cab as well"), beside the
+      // back wall's doorways: a sliding door the standard doorway's size (doorway above) in each side, its opening from this
+      // far behind the cab's front. The left one (coalDoorFrom) just behind the bunker and the hatch ladder up to the gun,
+      // the coal a step and a turn from it; the right one (frontDoorFrom) behind the points lever, its back jamb at the
+      // gallery's front tread. Outside each, a landing at the running boards' height, this far past the opening either side,
+      // the cab steps hung off its edge. 0 is no door.
+      "coalDoorFrom": 2.55,
+      "frontDoorFrom": 3.75,
+      "sideDoorLanding": 0.3,
       // The cab as the crew car (note 716; the director, 14 Oct 2026: "the place where players hang out together ... where
       // coordinated driving happens ... the captain's quarters, shared by all"). Every place is metres behind the cab's front.
       "crewCar": {
