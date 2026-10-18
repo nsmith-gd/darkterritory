@@ -787,7 +787,8 @@ public class HudTests
     public void EveryDeathSaysWhatKilledYou()
     {
         // T115 playtest: "the death screen doesn't show me anything": the v1.1 creatures' causes had no line.
-        foreach (var cause in Enum.GetValues<DeathCause>().Where(c => c != DeathCause.None))
+        // Cold is an enum slot nothing sets since note 852 cut the cold (kept for the wire and old recordings): no line.
+        foreach (var cause in Enum.GetValues<DeathCause>().Where(c => c is not (DeathCause.None or DeathCause.Cold)))
         {
             string line = Hud.DeathLine(cause);
             Assert.False(string.IsNullOrWhiteSpace(line) || line == cause.ToString().ToUpperInvariant(), $"{cause} has no line of its own");

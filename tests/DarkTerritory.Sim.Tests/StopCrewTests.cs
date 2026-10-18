@@ -811,7 +811,7 @@ public class StopCrewTests
         // Back together, the switch set back by the shunter, the doors shut, everyone aboard and the driver at the controls.
         Assert.Equal(1, train.TrainRakes);
         Assert.False(train.Diverging(night.Site.Spur));
-        Assert.Empty(OpenSideDoors(train, night.Site.Side));
+        Assert.True(OpenSideDoors(train, night.Site.Side).Count == 0, $"doors open {string.Join(",", OpenSideDoors(train, night.Site.Side))}; did {string.Join(", ", doing)}; legs {string.Join(", ", night.Driver.Stops!.Log[0].Legs)}; crew {where}");
         Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}; crew {where}"));
         Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
         Assert.True(PlayerMotor.InCab(night.Crew[0], train));
