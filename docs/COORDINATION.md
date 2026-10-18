@@ -349,4 +349,4 @@ renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's 
 
 ## Waiting on the director
 
-- **The Stoker's hose** (note 271): asked again in gameplay terms on 12 Oct (D1, the inbox's `D1-stoker-hose-in-the-cab`): keep the extinguisher fetched from car 1 (killing it is a job for two), a hose fitting in the cab (the fireman kills it from the footplate), or no water (starve it out only).
+- Nothing asked in the inbox is open (18 Oct, note 857). The Stoker's hose was decided on 12 Oct (`D1-stoker-hose-in-the-cab`, b) and built in #866 (note 648). The calls the 18 Oct audit found waiting are listed in [note 857](notes/857.md)'s "For the director".
