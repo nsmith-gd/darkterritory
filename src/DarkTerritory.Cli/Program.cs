@@ -140,7 +140,10 @@ return args switch
         Str(args, "--space", "") is { Length: > 0 } space ? space : null,
         args.Contains("--die-at") ? Opt(args, "--die-at", 1) : null,
         // --tube: down the speaking tube, the cab's mouthpiece to the guard van's horn (note 720).
-        tube: args.Contains("--tube"))),
+        tube: args.Contains("--tube"),
+        // Note 855: under way (--speed m/s), the listener in the cab or on a roof of their own, a quiet mic (--mic -20), a WAV.
+        speed: Opt(args, "--speed", 0), listenerInCab: args.Contains("--listener-cab"), listenerCar: (int)Opt(args, "--listener-car", 3),
+        listenerZ: Opt(args, "--listener-z", 0), micDb: Opt(args, "--mic", 0), wav: Str(args, "--out", "") is { Length: > 0 } wav ? wav : null)),
 
     _ => Usage(),
 };
@@ -4602,8 +4605,10 @@ static int Usage()
           audio render --sound <name> [--param name=value ...] [--seconds t] [--out file.wav]
                      one sound alone (a one-shot to its end, a loop for 4 s): WAV, spectrogram, its length, takes and level
           edit [--port p] [--screenshot file.png]   the designer's editor (tuning + routes) at http://127.0.0.1:<port>/
-          voice bench [--car n (0 = cab)] [--z m] [--radio] [--latency s --jitter s --loss 0..1]
-                     one speaker to a listener on car 3 through host routing, Opus and the mixer (spec A.5)
+          voice bench [--car n (0 = cab)] [--z m] [--radio] [--latency s --jitter s --loss 0..1] [--speed m/s]
+                      [--listener-cab | --listener-car n --listener-z m] [--mic dB] [--out file.wav]
+                     one speaker to a listener on car 3 through host routing, Opus and the mixer (spec A.5); restDb is
+                     everything else they hear in the voice band, overRestDb the voice's margin over it (note 855)
         """);
     return 2;
 }
