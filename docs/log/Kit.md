@@ -1,2 +1,3 @@
 - 17:18 UTC: #577 SwitchyardAheadTests: cause found (free hound packs light the cars), fix is a design call; note 849 updated, reported.
 - 18:02 UTC: #577 free hound gate keeps minTrainSpeed (SwitchyardAheadTests, NightCurveTests green); full Sim rerun pending.
+- 18:54 UTC: #577 CarFireTests seed 2: free Ribbits kept the hands busy; the test runs with the curve's free spawns and fill off (note 849).

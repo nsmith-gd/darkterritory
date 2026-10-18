@@ -590,7 +590,13 @@ public class CarFireTests
             EnemyKind.MouseMoose];
         var enemies = Tuning.Enemies with
         {
-            Director = Tuning.Enemies.Director with { Roster = [.. Enum.GetValues<EnemyKind>().Except(six).Select(Director.Key)] },
+            // Note 849: the night's free spawns and fill off, as the nights were dealt when this was written: seed 2's free Ribbits at
+            // 125 s kept the hands busy until the swarm came; the test is about the hand's answer to the lamp, not the director's deal.
+            Director = Tuning.Enemies.Director with
+            {
+                Roster = [.. Enum.GetValues<EnemyKind>().Except(six).Select(Director.Key)],
+                Curve = Tuning.Enemies.Director.Curve with { Free = false, Fill = false },
+            },
         };
         var flies = new Dictionary<int, int>(); // swarm → its car
         var lit = new HashSet<int>();           // cars alight (a fire past its smoke)
