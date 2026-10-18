@@ -945,16 +945,16 @@ public sealed partial class Run
     /// parted these cars, and who was driving, in the clerk's words.
     /// </summary>
     static string PinParted(World world, int car) =>
-        world.Attribution.LooseOf(car) is { } l ? PinParted(world, l.Cause, l.Speed, l.Driver) : PinParted(world, LooseCause.None, 0, -1);
+        world.Attribution.LooseOf(car) is { } l ? PinParted(world, l.Cause, l.Speed, l.Driver, l.Board) : PinParted(world, LooseCause.None, 0, -1);
 
-    static string PinParted(World world, LooseCause cause, double speed, int driver)
+    static string PinParted(World world, LooseCause cause, double speed, int driver, int board = 0)
     {
         string driving = driver >= 0 ? $" Driving: {IncidentLog.NameOf(world, driver)}." : "";
         return cause switch
         {
             LooseCause.RunIn => $"A hard brake at {Kmh(speed)} worked the coupling's pin loose, and it parted.{driving} ",
             LooseCause.Knock => $"Coupled up at {Kmh(speed)}, the knock worked the coupling's pin loose, and it parted.{driving} ",
-            LooseCause.Bend => $"A bend taken at {Kmh(speed)} worked the coupling's pin loose, and it parted.{driving} ",
+            LooseCause.Bend => $"A bend taken at {Kmh(speed)}{(board > 0 ? $" (its board said {board} km/h)" : "")} worked the coupling's pin loose, and it parted.{driving} ",
             _ => "The coupling worked loose and parted. ",
         };
     }
@@ -968,7 +968,7 @@ public sealed partial class Run
     static string LostCause(World world, NewsEvent e) => (Parting)e.Cause switch
     {
         Parting.Crew when e.Who >= 0 => $"Coupler: {IncidentLog.NameOf(world, e.Who)}. ",
-        Parting.Pin => PinParted(world, (LooseCause)e.Detail, e.Speed, e.Who),
+        Parting.Pin => PinParted(world, (LooseCause)e.Detail, e.Speed, e.Who, e.Cars.Length > 0 && world.Attribution.LooseOf(e.Cars[0]) is { } l ? l.Board : 0),
         Parting.Knotter => "A Knotter took the coupling, and it parted. ",
         Parting.Apart => CameApart,
         _ => "",
