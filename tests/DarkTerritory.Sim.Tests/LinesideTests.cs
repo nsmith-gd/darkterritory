@@ -361,7 +361,7 @@ public class LinesideTests
         var world = new World(train) { LampLit = lamp };
         world.EnableBodies();
         world.EnableLineside(S, route);
-        var bots = new[] { new RoofWalkerBot(5, P.Cold), new RoofWalkerBot(6, P.Cold) };
+        var bots = new[] { new RoofWalkerBot(5), new RoofWalkerBot(6) };
         var crew = new[] { PlayerMotor.SpawnOnRoof(train, 2, 0, P), PlayerMotor.SpawnOnRoof(train, 4, 0, P) };
         bool wentIn = false;
         // How long after the warning went up the last of them was off the roofs (s).
@@ -426,7 +426,7 @@ public class LinesideTests
         var world = new World(train);
         world.EnableBodies();
         world.EnableLineside(S, route);
-        var bot = new RoofWalkerBot(5, P.Cold);
+        var bot = new RoofWalkerBot(5);
         var s = PlayerMotor.SpawnOnRoof(train, 3, 0, P);
         s.Position = Enemies.CrewSense.GapLocal(train, 3) with { Y = 0.9 };
         s.Surface = Surface.Coupler;
@@ -457,7 +457,7 @@ public class LinesideTests
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), Tunnel().Build(), 400);
         int last = train.Vehicles.Count - 1;
         var self = PlayerMotor.SpawnOnRoof(train, last, 3, P);
-        var warm = new WarmUp(P.Cold) { Troubled = car => car == last - 1 };
+        var warm = new WarmUp() { Troubled = car => car == last - 1 };
         Assert.Null(warm.Decide(self, train)); // warm, and nothing coming: stays up
         warm.Shelter = true;
         Assert.NotNull(warm.Decide(self, train));
@@ -474,7 +474,7 @@ public class LinesideTests
         int last = train.Vehicles.Count - 1;
         var self = PlayerMotor.SpawnOnRoof(train, last, 3, P);
         // The last car and the car ahead both alight: every way in is troubled.
-        var warm = new WarmUp(P.Cold) { Troubled = car => car >= last - 1, Shelter = true };
+        var warm = new WarmUp() { Troubled = car => car >= last - 1, Shelter = true };
         bool inside = false;
         for (int tick = 0; tick < 40 * SimConstants.TickRate; tick++)
         {

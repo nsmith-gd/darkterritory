@@ -169,7 +169,7 @@ sealed partial class LineBuilder
             Seed = $"0x{_seed:X16}",
             Route = new PlanRoute(_p.RouteId, _p.Tier, Math.Round(_p.Severity, 4), Math.Round(_p.D, 4), _region, _routeName),
             Consist = new PlanConsist(_p.Cars, Math.Round(_l.MassTonnes, 1), Math.Round(_l.ConsistLength, 1), Math.Round(_l.ClimbMax, 3), Math.Round(_l.Brake, 4), Math.Round(_l.MainGrade, 3)),
-            Weather = _weather ?? new PlanWeather(_l.Fog[0], _l.Fog[1], false, 0, 0, 0, 0.016),
+            Weather = _weather ?? new PlanWeather(_l.Fog[0], _l.Fog[1], false, 0, 0, 0.016),
             GateM = _gate,
             TerminusM = _terminus,
             LengthM = Math.Round(line.Length, 3),

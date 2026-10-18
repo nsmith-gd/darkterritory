@@ -84,13 +84,11 @@ public class BreachTests
         var r = new Rig();
         var s = r.Inside(2, 0);
         Assert.Equal(2, PlayerMotor.Space(s, r.Train));
-        Assert.True(PlayerMotor.NearHeat(s, r.Train));
         Assert.True(r.Train.Vehicles[2].Breach(Breaches.EndWall(r.Train.Frames[2].Shape)!.Value));
-        // Every door shut, and it's the outside: the cold, the sound, voices and the Choir come in through the hole.
+        // Every door shut, and it's the outside: the sound, voices and the Choir come in through the hole.
         Assert.Equal(0, r.Train.Vehicles[2].DoorsOpen);
         Assert.Equal(PlayerMotor.Outside, PlayerMotor.Space(s, r.Train));
-        Assert.False(PlayerMotor.NearHeat(s, r.Train));
-        // Out of the wind's full force still (spec B.2's ¼ rate, as with a door open): it's still a car around you.
+        // Out of the wind's full force still: it's still a car around you.
         Assert.True(PlayerMotor.Indoors(s, r.Train));
         // Breached already, it's the hole there is.
         Assert.False(r.Train.Vehicles[2].Breach(Double3.Zero));
@@ -304,29 +302,30 @@ public class BreachTests
     }
 
     [Fact]
-    public void AWalkerWarmingUpInABreachedCarBoardsItUpFirst()
+    public void AWalkerShelteringInABreachedCarBoardsItUpFirst()
     {
-        // A car only warms you shut, and a breached one isn't, however its doors are: the walker boards the hole up, then
-        // it's warm in there (else a bot-crewed night freezes in a car the Car Hugger's been at).
+        // A car only shelters you shut, and a breached one isn't, however its doors are: the walker boards the hole up, then
+        // it's shut in there (it was warm in there, before note 852 cut the cold).
         var line = RailLine.Load(Path.Combine(DataFile.FindContentRoot(), "lines/test-loop.json"));
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), line, 1500);
         var world = new World(train);
+        world.Choir.Build = 1;
         const int car = 2;
         train.Vehicles[car].Breach(Breaches.EndWall(train.Frames[car].Shape)!.Value);
-        var bot = new RoofWalkerBot(7, P.Cold);
+        var bot = new RoofWalkerBot(7);
         var s = new PlayerState
         {
             Parent = car,
             Position = new Double3(T.Geometry.Interior!.DoorX, T.Geometry.Interior.FloorHeight, -2),
             Surface = Surface.Deck,
             Health = P.Health,
-            Cold = P.Cold.OnsetSeconds * 0.8,
             LineHint = train.Cars[car].FrontDistance,
             Kit = P.StartingKit,
         };
         for (uint tick = 0; tick < SimConstants.TickRate * 40 && train.Vehicles[car].Breached; tick++)
         {
             world.BeginTick();
+            world.Choir.Build = 1;
             var intent = bot.Decide(s, world, tick, out _);
             world.CrewAct(ref s, intent, 1);
             world.Step(new TrainControls { Brake = 1, Reverser = 1 });
@@ -334,7 +333,7 @@ public class BreachTests
         }
         Assert.False(train.Vehicles[car].Breached, $"{s.Surface} on {s.Parent} at {s.Position}");
         Assert.Equal(0, train.Vehicles[car].DoorsOpen);
-        Assert.True(PlayerMotor.NearHeat(s, train), $"{s.Surface} on {s.Parent} at {s.Position}");
+        Assert.True(PlayerMotor.Indoors(s, train), $"{s.Surface} on {s.Parent} at {s.Position}");
     }
 
     [Fact]

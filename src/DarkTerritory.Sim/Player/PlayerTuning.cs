@@ -3,7 +3,7 @@ namespace DarkTerritory.Sim.Player;
 /// <summary>Mirror of content/tuning/player.json.</summary>
 public sealed record PlayerTuning(
     double Run, double Walk, double RoofRun, double RoofWalkSafe, double LadderClimb,
-    double CarryHeavy, double JumpGap, int Health, ColdTuning Cold,
+    double CarryHeavy, double JumpGap, int Health,
     double Gravity, double Radius, double Height, double StepUp,
     LandingTuning Landing, LadderTuning Ladder, HandTuning Hand, double JumpHeight = 0, double PushGun = 1.2, IReadOnlyList<string>? Kit = null)
 {
@@ -74,10 +74,6 @@ public sealed record PlayerTuning(
     public double JumpVelocity => Math.Max(Gravity * JumpGap / (2 * RoofRun), Math.Sqrt(2 * Gravity * JumpHeight));
 }
 
-/// <param name="IndoorsRate">How fast the cold comes on inside a car's walls with a door open, against outside (spec B.2).</param>
-/// <param name="PerColdStep">GDD §22 deep cold (note 183): each cold step where you are makes the cold climb this much faster.</param>
-public sealed record ColdTuning(double OnsetSeconds, double DeathSeconds, double RecoverSecondsNearHeat, double OnsetSpeedScale, double IndoorsRate = 1,
-    double PerColdStep = 0.25);
 /// <summary>
 /// GDD §22 wind on a roof (note 201): the wind across a moving train pushes whoever's up top sideways, in gusts from
 /// either side. Field docs live in player.json <c>wind</c>.

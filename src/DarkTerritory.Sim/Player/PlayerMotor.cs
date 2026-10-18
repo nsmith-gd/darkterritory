@@ -261,6 +261,8 @@ public enum Surface : byte { Air, Ground, Roof, Coupler, Ladder, Deck }
 /// <summary><see cref="Struck"/>: stood on a roof into a tunnel's mouth; <see cref="Thrown"/>: off a roof on a curve taken over its board.</summary>
 public enum DeathCause : byte
 {
+    // Cold: nothing sets it since note 852 cut the cold from gameplay (the director, 16 Oct 2026); kept, as it's on the wire
+    // and in old recordings.
     None, JumpedAtSpeed, Derailed, Mauled, Hollow, Choir, Cold, Taken, Dragged, Crushed, PulledUnder, Lamplighter, Deadman, Stoker, Ferryman, Climbed, TornOff, Gaunt, Struck, Thrown, Burned, Gnawed, Replaced, Nested, Drift,
     // GDD v1.1: swallowed by the Car Hugger; smothered by Tippy Toesie; eaten by Ribbits; drained by a Soot Child; carried off
     // to the Whistler's nest; seized by the Choir; taken with the caboose by the Passenger.
@@ -423,8 +425,6 @@ public struct PlayerState
     public double LineHint;
     /// <summary>Seconds into a timed action (shovelling). Resets when the action stops.</summary>
     public double ActionProgress;
-    /// <summary>Seconds of cold exposure (spec B.2): climbs outside, falls near heat, kills at the death mark.</summary>
-    public double Cold;
     public PlayerFlags Flags;
     /// <summary>
     /// A VR player's reaching hand this tick, from the feet in the frame they face (<see cref="PlayerIntent.HandX"/>);
@@ -711,7 +711,6 @@ public static class PlayerMotor
             Combat.HumanCannonball.Face(ref s, train, p.Gravity);
         }
 
-        StepCold(ref s, train, p, dt);
         if (!s.Alive)
             return;
 
@@ -742,8 +741,6 @@ public static class PlayerMotor
                 : (intent.Has(PlayerButtons.Run) && !crouched ? p.Run : p.Walk);
             if (crouched)
                 speed *= p.Crouch.SpeedScale;
-            if (Chilled(s, p))
-                speed *= p.Cold.OnsetSpeedScale;
             if (s.Has(PlayerFlags.Heavy))
                 speed = Math.Min(speed, p.CarryHeavy);
             if (s.Has(PlayerFlags.Pushing))
@@ -963,41 +960,6 @@ public static class PlayerMotor
     const double WalkInReach = 0.45;
 
     /// <summary>
-    /// Spec B.2 cold: exposure climbs outside and kills at the death mark; near heat it falls fast enough that even the
-    /// nearly frozen are recovered within the reset time. Heat is the cab while the fire's lit, a shut car while the
-    /// boiler has steam to heat it, or a crew car's stove (note 184).
-    /// </summary>
-    static void StepCold(ref PlayerState s, TrainOnLine train, PlayerTuning p, double dt)
-    {
-        // The fortress yard before the run begins is a safe space (note 263): the cold doesn't bite there.
-        if (train.HeldInYard)
-            return;
-        var c = p.Cold;
-        if (NearHeat(s, train))
-        {
-            s.Cold = Math.Max(0, s.Cold - dt * c.DeathSeconds / c.RecoverSecondsNearHeat);
-            return;
-        }
-        // Out of the wind inside a car with a door open: it comes on, but slower (spec B.2), and slower still in insulated cars
-        // (spec F.3 car insulation, note 184: a car with the steam gone cold as well). GDD §22 deep cold (note 183): faster
-        // the colder it is where they are (the night's cold, high ground, exposed track).
-        double deep = 1 + c.PerColdStep * ColdStep(s, train);
-        // Swinging in the hammock (note 744): warm-ish, the cold coming on slower.
-        if (Bbq.LoungingIn(s, train) is { Kind: LoungeKind.Hammock })
-            deep *= train.Dynamics.Tuning.Composition.Whimsy.HammockCold;
-        s.Cold += (Indoors(s, train) ? dt * c.IndoorsRate * train.Dynamics.Tuning.Composition.Insulation : dt) * deep;
-        if (s.Cold >= c.DeathSeconds)
-        {
-            s.Health = 0;
-            s.Death = DeathCause.Cold;
-        }
-    }
-
-    /// <summary>GDD §22 deep cold where a player is (note 183): the route's cold step there, 0 on a line without conditions.</summary>
-    public static int ColdStep(in PlayerState s, TrainOnLine train) =>
-        Math.Max(0, train.Line.Conditions?.ColdStep(RailLine.MainPath, s.LineHint) ?? 0);
-
-    /// <summary>
     /// GDD §22 wind, spec B.2 "roof run: wind and balance penalty" (note 201): how hard the wind pushes someone on a roof
     /// across their car (m/s along the car's +X, its right), or 0 off one. The route's wind there (the night's, ×1.5 on
     /// exposed track), harder the faster the train goes and at a run, in gusts from either side along the line; a hand
@@ -1043,42 +1005,6 @@ public static class PlayerMotor
         h ^= h >> 29;
         return (h >> 11) * (2.0 / (1UL << 53)) - 1;
     }
-
-    /// <summary>Warm enough to recover: see <see cref="StepCold"/>.</summary>
-    public static bool NearHeat(in PlayerState s, TrainOnLine train)
-    {
-        if (BesideStove(s, train) || Bbq.ByTheGrill(s, train))
-            return true;
-        // In the hot tub (note 744): warm while the boiler's steam feeds it; gone cold with it.
-        if (Bbq.LoungingIn(s, train) is { Kind: LoungeKind.HotTub })
-            return train.BoilerTuning is null || train.Boiler.Pressure > 0;
-        int space = Space(s, train);
-        if (space == Outside)
-            return false;
-        if (train.BoilerTuning is null)
-            return true;
-        return space == 0 ? train.Boiler.Firebox > 0 || train.Boiler.Pressure > 0 : train.Boiler.Pressure > 0;
-    }
-
-    /// <summary>
-    /// In a crew car's walls with its stove (note 184): its own heat, steam or none. Shut in, the whole car's warm; with a door
-    /// open, only near the stove (train.json <c>composition.stoveReach</c>), like standing at the cab's firebox.
-    /// </summary>
-    public static bool BesideStove(in PlayerState s, TrainOnLine train)
-    {
-        if (s.Parent == PlayerState.World || s.Parent >= train.Frames.Count || train.Frames[s.Parent].Shape.Stove is not { } stove || !Indoors(s, train))
-            return false;
-        // A breached car lets the cold in as an open door does (decided 1 Oct).
-        if (train.Vehicles[s.Parent] is { DoorsOpen: 0, Breached: false })
-            return true;
-        double dx = s.Position.X - Math.Clamp(s.Position.X, stove.Min.X, stove.Max.X), dz = s.Position.Z - Math.Clamp(s.Position.Z, stove.Min.Z, stove.Max.Z);
-        double reach = train.Dynamics.Tuning.Composition.StoveReach;
-        return dx * dx + dz * dz <= reach * reach;
-    }
-
-    /// <summary>Past the onset of cold: slower, and the HUD says so. The revived reach it sooner (spec C.2).</summary>
-    public static bool Chilled(in PlayerState s, PlayerTuning p) =>
-        s.Cold >= p.Cold.OnsetSeconds;
 
     static Double3 WishDirection(double yaw, in PlayerIntent intent)
     {

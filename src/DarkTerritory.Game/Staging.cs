@@ -1967,7 +1967,7 @@ public static partial class Staging
         log.Add(new Sim.Run.Incident(Sim.Run.IncidentKind.Fire, 940, -1, "Fire Flies set car 3 alight", "at km 11", 3, "Lamp lit by {actor}."));
         log.Add(new Sim.Run.Incident(Sim.Run.IncidentKind.Slain, 980, -1, "Killed the Gaunt together", "beside car 2 at km 12", 0, "By Dave, Dunmore."));
         At(1012);
-        log.Add(Sim.Run.IncidentLog.Death(world, 3, line with { Death = Sim.Player.DeathCause.Cold }, null, crew));
+        log.Add(Sim.Run.IncidentLog.Death(world, 3, line with { Death = Sim.Player.DeathCause.Woken }, null, crew));
         At(1104);
         marks.Manual(world, 3, 0, cab);
         At(1290);

@@ -71,8 +71,8 @@ public static class FacilityWork
         StopJob[] jobs = [StopJob.Shunter, StopJob.Winch0, StopJob.Winch1, .. Enumerable.Repeat(StopJob.Crates, hands)];
         for (int i = 0; i < jobs.Length; i++)
         {
-            var hand = new StopHand(jobs[i], calls, i + 1, p.Cold) { PlayerId = i + 2 };
-            bots.Add(new RoofWalkerBot(11 + i, p.Cold, hand));
+            var hand = new StopHand(jobs[i], calls, i + 1) { PlayerId = i + 2 };
+            bots.Add(new RoofWalkerBot(11 + i, hand));
             crew.Add(PlayerMotor.SpawnOnRoof(train, 1 + i % (cars - 1), i * 1.5 - 3, p));
         }
         double before = train.Dynamics.Consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).Sum(v => v.Load);
