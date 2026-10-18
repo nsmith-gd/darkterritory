@@ -387,6 +387,10 @@ A car fire burns on cells (decided 6 Oct, GDD App. F.1; ARCHITECTURE note 267). 
 | Burns | Within 1.6 m of a burning cell's patch (feet to 1.8 m up), its heat × the falloff; the roof at half |
 | Left alone (goods) | At 1.5 m cells: alight at 25 s, the roof caught by about 55 s, half the car by 70 s, the next car by 85 s; burnt out by about 6 min. Not yet measured again at 3.5 m (note 634) |
 | One extinguisher | Puts out a car at full blaze in about 8.6 s, nearly three-quarters of its charge left, the one spraying it unburned (the director, 12 Oct: "from full blaze within 20 seconds"; `FireCellsTests`) |
+| Two extinguishers | Two in the car, each spraying the nearest fire in reach, put the same car out in about 6.4 s (three in 5.5 s): each cools the stretch it's aimed at by the whole rate, so they stack (note 752, GDD §12; note 851, the director's playtest of 16 Oct evening: "didn't go out ever despite both of us fighting it"); both unburned, most of their charge left (`FireCellsTests.TwoOnTheExtinguishersPutARearCarFireOutWellWithinTheOnesTime`) |
+| Every fire has a cause | Told to the crew as it starts, where it starts, and in the report: the hot box, the Fire Flies at the car's lamp, Cinder Hounds feeding on it, a thrown lamp (and who threw it), the fire jumping the coupling from the next car, a powder car going up (`FireCause`, `World.FireStarted`; the news line, note 663; note 851) |
+| Home | In through the arrival's gates (note 847) or delivered, nothing on the train burns: a fire goes out at once, no hound lights one, no hot box catches, no powder car goes up (`World.HomeSafe`; note 851). Never in the gym (note 676), and not the departure's yard |
+| A hound over the crew | A Cinder Hound on the roof of a car with a crewmate inside it (out of its reach, note 471) is not alone: it doesn't feed and relight the car over their heads; it prowls and waits for them to come out (note 851) |
 
 ---
 

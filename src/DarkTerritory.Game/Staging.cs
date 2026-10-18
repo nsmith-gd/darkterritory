@@ -2265,7 +2265,7 @@ public static partial class Staging
         whistler.Restore(SpinePhase.Alert, 1, 6, middle, CrewSense.GapLocal(train, middle), 0, 0, 0, 0, 0);
         threats.Add(whistler);
         // The first cargo car alight, and Fire Flies swarming the lamp in the middle car (A.5, C.5).
-        var fire = CarFire.In(24, train, cargo, 1.5, fireTuning ?? new CarFireTuning());
+        var fire = CarFire.In(24, train, cargo, 1.5, fireTuning ?? new CarFireTuning(), FireCause.Set);
         fire.Restore(SpinePhase.Punish, 5, 1, cargo, fire.Local, 0, 0, 0, 0.7, 0);
         Cells(train, fire, 0.7, 0, fireTuning);
         threats.Add(fire);
