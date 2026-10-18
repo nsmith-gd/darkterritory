@@ -342,7 +342,7 @@ A breach is a car's shell giving way to the outside (decided 1 Oct): a door forc
 
 ## B.10 Director pacing
 
-*Design decision, 2026-10* (GDD App. B.1 "Pressure", "Pacing rules"; `director` in `content/tuning/enemies.json`). The budget and its curve, the caps and the gates are GDD App. B.1's; these say when the director spends.
+*Design decision, 2026-10* (GDD App. B.1 "Pressure", "Pacing rules"; `director` in `content/tuning/enemies.json`). The budget and its curve, the caps and the gates are GDD App. B.1's; these say when the director spends. The night's curve and the free spawns on it (the director, 16 Oct 2026; note 849) are the rows marked so; `NightCurveTests` pins them.
 
 | Parameter | Value |
 |---|---|
@@ -353,7 +353,7 @@ A breach is a car's shell giving way to the outside (decided 1 Oct): a door forc
 | Most banked | 18 |
 | **Relief per spawn** | **3 × its cost** |
 | Base | 0.03 /s |
-| **Escalation** (on everything) | × (1 + 3 × progress), progress along the line or toward dawn, whichever is further |
+| **Escalation** (on everything) | × (1 + 3 × the night's curve): the curve is progress along the line or toward dawn, whichever is further, to the power **1** (`director.curve.power`; note 849) |
 | Quiet | + 0.1 /s × (seconds since a threat was engaged or sent ÷ 90, to 1) |
 | Loudness | + 0.1 /s × (Choir meter ÷ its threshold, to 1.5) |
 | Cargo | + 0.01 /s per car-load (× comet 2, livestock 1.5, food and medicine 1.3, ammunition 1.2) |
@@ -361,6 +361,8 @@ A breach is a car's shell giving way to the outside (decided 1 Oct): a door forc
 | Conditions | × (1 + 0.15 lamp out + 0.1 × cold + 0.05 per deep-cold step + 0.05 rain + 0.05 × wind) |
 | **Relief valve** | × (alive ÷ crew)² × (1 − 0.25 × share of the living under 35 health) |
 | Busy | × 1 ÷ (1 + 0.5 × threats engaged × (1 − progress)): engaged is telegraphing, committing, grabbing or punishing; late in the night it stops waiting for the crew |
+| **Free spawns** (GDD App. B.1 "The night's curve"; note 849) | Beside the pressure, outside its budget, cooldown and holds: **2 an hour at the gate rising to 14 at the end** along the curve, rolled a second at a time on their own dice; never within **20 s** of anything the director sent, never before the night's first threat (drawn); nothing off the pressure. Under the hard caps, each kind's `nightChance` and `perNight`, the variety rules, who's next and the votes |
+| Free spawn: what comes | One draw among the rule-less, sent without their situational rule, by weight: Cinder Hounds 1, Climbers 1, Ribbits 1.5, Followers 1, Soot Children 1, the Moose 0.7 (`curve.kinds`); and every kind whose rule is met now at its rule's weight × **1** × the curve (`curve.bound`); a Dragger or Whistler (silent until met) only with nothing else to send |
 | Post-spawn cooldown | 25–45 s (gives way when pressed) |
 | Facility lull (note 751) | 20 s from the first second stood at a facility: nothing of the director's own |
 | Aftermath (note 751) | 12 s after a death, cars lost (told), a grab broken with the one held alive, a Holdout freed: nothing of the director's own, pressed or not |

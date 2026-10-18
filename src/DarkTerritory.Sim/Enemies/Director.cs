@@ -10,7 +10,7 @@ namespace DarkTerritory.Sim.Enemies;
 /// Pressed for: the pressure was at <see cref="PressureTuning.PressAt"/>, and it came through the cooldown or over the budget's
 /// curve (by at most <see cref="DirectorTuning.PacedCost"/>).
 /// </param>
-public readonly record struct DirectorSpawn(uint Tick, EnemyKind Kind, double Cost, double TrainDistance, int ActiveInZone, int ActiveTotal, bool Paced = false);
+public readonly record struct DirectorSpawn(uint Tick, EnemyKind Kind, double Cost, double TrainDistance, int ActiveInZone, int ActiveTotal, bool Paced = false, bool Free = false);
 
 /// <summary>What built the director's pressure in its last second (note 266), for the harness's trace.</summary>
 /// <param name="Rate">Pressure a second, all told.</param>
@@ -53,6 +53,9 @@ public sealed class Director
         _t = tuning;
         _route = route;
         _rng = new Pcg32(seed, 0xD1EC7);
+        // The free spawns' own dice (note 849): a stream of their own off the scrambled seed, so the night's other draws are as
+        // they were with the curve off.
+        _freeRng = new Pcg32(unchecked(seed * 0x9E3779B97F4A7C15UL + 0xF4EE), 0xF4EE);
         _seed = seed;
         var tier = route?.Tier ?? RouteTier.Frontier;
         string key = char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..];
@@ -125,6 +128,13 @@ public sealed class Director
     readonly double _tierRate;
     double _pressure;
     bool _building;
+    /// <summary>The night's curve as of the last second the director thought (note 849): 0 at the gate, 1 at the end.</summary>
+    public double Curve { get; private set; }
+    Pcg32 _freeRng;
+    /// <summary>Seconds since the director last sent anything, its own spend or a free spawn (the free spawns' spacing).</summary>
+    double _sinceAny = 1e9;
+    /// <summary>The last kind <see cref="Decide"/> returned was a free spawn (note 849): its rule's spawn goes without the rule.</summary>
+    public bool SentFree { get; private set; }
     double _sinceThreat;
     /// <summary>The line run since a threat was last engaged or sent (note 270: quiet counted in kilometres).</summary>
     double _quietMetres;
@@ -457,6 +467,8 @@ public sealed class Director
     public EnemyKind? Decide(World world, double elapsed, IReadOnlyList<Enemy> active, double noSpawnFinal)
     {
         _cooldown -= 1;
+        _sinceAny += 1;
+        SentFree = false;
         // The aftermath (note 751) and the facility lull (App. B.1) run down a second a decision, whatever holds it.
         bool shaken = AftermathLeft > 0;
         AftermathLeft = Math.Max(0, AftermathLeft - 1);
@@ -510,6 +522,18 @@ public sealed class Director
         // own wait, a left-behind's hunts). The pressure builds through it, as through the grace's end.
         if (lull)
             return Held("facility lull");
+        if (Spend(world, elapsed, active, s, tags, context) is { } spent)
+            return spent;
+        // Nothing of the budget's: the night's curve may send something free (note 849).
+        return SpendFree(world, active, s);
+    }
+
+    /// <summary>
+    /// The pressure's spend (App. B.1): past the threshold, what the weights, wants, pairs, gates and caps pick; null, and why
+    /// (<see cref="HeldBecause"/>), when it sends nothing this second.
+    /// </summary>
+    EnemyKind? Spend(World world, double elapsed, IReadOnlyList<Enemy> active, double s, List<string> tags, LineGen.PlanDirector? context)
+    {
         // The night's first threat is drawn (note 287): it answers what the crew did. A draw past answerAt is answered out loud at
         // once (the World puts the answer where it's heard), and the threat follows leadSeconds on, pressed for; with no draw that
         // big the pressure waits (listening) up to holdUntil, and then the biggest draw standing takes it. A quiet crew buys
@@ -670,6 +694,82 @@ public sealed class Director
         return kind;
     }
 
+    /// <summary>
+    /// A free spawn (note 849; GDD App. B.1 "The night's curve"; the director, 16 Oct 2026: "I want more monsters to spawn the
+    /// longer the run goes that don't have a rules system. And then I want the weighting of the likelihood of spawn for
+    /// monsters with rules that they have to follow ... to increase"): beside the pressure's spends and outside its budget,
+    /// its cooldown and its holds, the night's curve sends something at <c>curve.atGate</c> an hour at the gate, rising to
+    /// <c>curve.atEnd</c> at the end, rolled a second at a time on its own dice. What it sends: a kind come without its
+    /// situational rule (<see cref="SpawnRule.Free"/>, at its weight in <c>curve.kinds</c>), or one whose rule is met now, at
+    /// its rule's weight × <c>curve.bound</c> × the curve (the rule-bound come on more as the night goes). The hard caps, each
+    /// kind's night (its chance, its cap, slain), the night's variety, who's next and the dead's votes hold as for the rest.
+    /// Never before the night's first threat, which is drawn (note 287), nor within <c>curve.spacingSeconds</c> of anything sent.
+    /// </summary>
+    EnemyKind? SpendFree(World world, IReadOnlyList<Enemy> active, double s)
+    {
+        var f = _t.Curve;
+        if (!f.Free || f.Kinds.Count == 0 && f.Bound <= 0)
+            return null;
+        if (f.AfterFirst && _t.Draw.Enabled && First is null)
+            return null;
+        // Rolled every second it may come, before anything else is asked, so what held it doesn't move the night's dice.
+        bool fires = _freeRng.NextDouble() < f.PerHour(Curve) / 3600;
+        if (!fires || _sinceAny < f.SpacingSeconds)
+            return null;
+        var holding = Holding(world, active);
+        if (holding.Count >= EngagedCap || world.Enemies is not { } et)
+            return null;
+        var ctx = new SpawnContext(world, et, this) { Free = true };
+        var options = new List<(EnemyKind Kind, double Weight)>();
+        foreach (var rule in Spawns.Rules)
+        {
+            if (!Allows(rule.Kind) || !Tonight(rule.Kind, world) || world.Slain.Contains(rule.Kind) || !Room(rule.Kind, holding))
+                continue;
+            double w;
+            if (rule.Weight(ctx) is { } met && met > 0)
+                w = met * _t.Weights.GetValueOrDefault(Key(rule.Kind), 1) * f.Bound * Curve;
+            else if (rule.Free is { } free && f.Kinds.GetValueOrDefault(Key(rule.Kind), 0) is var fw && fw > 0 && free(ctx))
+                w = fw;
+            else
+                continue;
+            w *= NightVariety(rule.Kind);
+            if (w > 0)
+                options.Add((rule.Kind, w));
+        }
+        // Something that shows itself: a Dragger under a car's edge or a Whistler in its gap lies silent until someone comes.
+        if (options.Any(o => o.Kind is not (EnemyKind.Dragger or EnemyKind.Whistler)))
+            options.RemoveAll(o => o.Kind is EnemyKind.Dragger or EnemyKind.Whistler);
+        if (options.Count == 0)
+            return null;
+        options = WeighVotes(WhoseNext(options));
+        double total = options.Sum(o => o.Weight);
+        if (total <= 0)
+            return null;
+        double pick = _freeRng.NextDouble() * total;
+        var kind = options[^1].Kind;
+        foreach (var o in options)
+        {
+            if (pick < o.Weight)
+            {
+                kind = o.Kind;
+                break;
+            }
+            pick -= o.Weight;
+        }
+        // Sent, not spent: nothing off the budget, nothing off the pressure (it's beside the pressure, not instead of it); the
+        // quiet is over, and it counts toward the night's variety and the kind's cap as any of the director's own does.
+        SentFree = true;
+        HeldBecause = null;
+        _sinceAny = 0;
+        _sinceThreat = 0;
+        _quietMetres = 0;
+        if (AfootShare > 0)
+            SpawnsAfoot++;
+        var zone = Profile(kind).Zone;
+        Log.Add(new DirectorSpawn(world.Tick, kind, Cost(kind), s, active.Count(e => Engaged(e) && e.Zone == zone) + 1, active.Count(Engaged) + 1, Free: true));
+        return kind;
+    }
+
     /// <summary>The crewmate the census would send the next threat to (note 345): the free one with the most slack, past minSlack.</summary>
     /// <remarks>
     /// Note 717: a crewmate marked for a shove that killed (<see cref="World.IsMarked"/>) is the next threat's first choice while
@@ -757,7 +857,9 @@ public sealed class Director
         // How far into the night: along the line, or toward dawn if the clock's ahead of the train.
         double progress = _route is null ? s / 20_000
             : Math.Max(s / Math.Max(1, _route.RunLength), _route.DawnSeconds > 0 ? elapsed / _route.DawnSeconds : 0);
-        double escalation = 1 + p.Escalation * DMath.Pow(Math.Clamp(progress, 0, 1), p.EscalationPower);
+        // The night's curve (note 849): the escalation climbs by it, as the free spawns come on it.
+        Curve = _t.Curve.Of(progress);
+        double escalation = 1 + p.Escalation * Curve;
         // Engaged with the crew: showing itself, coming on, holding someone, punishing. What only paces the train or lingers
         // (on the caps, <see cref="Engaged"/>) neither stops the quiet nor keeps the crew busy (harness: a Climber pacing a car
         // nobody walked into held the night's pressure flat).
@@ -1637,6 +1739,7 @@ public sealed class Director
         _pressure = Math.Max(0, _pressure - _t.Pressure.ReliefPerCost * Cost(kind));
         _sinceThreat = 0;
         _quietMetres = 0;
+        _sinceAny = 0;
         string want = WantOf(kind).ToString().ToLowerInvariant();
         _spentByWant[want] = _spentByWant.GetValueOrDefault(want) + Cost(kind);
         if (Completes(kind, world, active) is { } pair)

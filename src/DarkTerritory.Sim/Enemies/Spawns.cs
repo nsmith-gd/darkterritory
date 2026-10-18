@@ -23,6 +23,11 @@ public sealed class SpawnContext(World world, EnemyTuning tuning, Director direc
     /// </summary>
     public Double3? CalledAt { get; init; }
     public int? CrewAs { get; init; }
+    /// <summary>
+    /// A free spawn (note 849; GDD App. B.1 "The night's curve"): the kind sent without its situational rule, on the night's
+    /// curve. What lives at a stop's sites comes from the dark when none of its sites is near.
+    /// </summary>
+    public bool Free { get; init; }
     public IEnumerable<(int Id, PlayerState State)> Living => World.CrewThisTick.Where(c => c.State.Alive).Select(c => ((int)c.Id, c.State));
     public IEnumerable<(int Id, PlayerState State)> OnGround => Living.Where(c => CrewSense.Afoot(c.State, Train));
     public bool AtFacility => World.Run is { Phase: RunPhase.AtFacility };
@@ -87,7 +92,15 @@ public sealed class SpawnContext(World world, EnemyTuning tuning, Director direc
 /// One enemy's spawn rule (GDD v1.1 App. B.2-B.8): its context and gates (<see cref="Weight"/> null when it can't come now),
 /// its weighting, and how it's put into the world (<see cref="Spawn"/>, false if in the end it couldn't be).
 /// </summary>
-public sealed record SpawnRule(EnemyKind Kind, Func<SpawnContext, double?> Weight, Func<SpawnContext, bool> Spawn);
+public sealed record SpawnRule(EnemyKind Kind, Func<SpawnContext, double?> Weight, Func<SpawnContext, bool> Spawn)
+{
+    /// <summary>
+    /// The kind without its situational rule (note 849; GDD App. B.1 "The night's curve"): only what its <see cref="Spawn"/>
+    /// needs of the train and the crew (cars, gaps, someone on the ground, its once a night), nothing of where or when. The
+    /// director's free spawns, on the night's curve, send a kind this says yes to; null, it comes by its rule alone.
+    /// </summary>
+    public Func<SpawnContext, bool>? Free { get; init; }
+}
 
 /// <summary>The director's spawn table: every enemy it spends on (the Stoker and the Choir come on their own conditions).</summary>
 public static class Spawns
@@ -135,7 +148,11 @@ public static class Spawns
                 });
             }
             return true;
-        }),
+        })
+        {
+            // Free (note 849): behind the train at any speed; a slow train they board at once.
+            Free = c => c.Train.Dynamics.Consist.CarCount >= 1 && c.None(EnemyKind.CinderHound),
+        },
         // B.3 · Car Hugger: marsh, water crossings, low ground; a train of two or more; never on a grade; weight up at low speed.
         new(EnemyKind.CarHugger, c =>
         {
@@ -185,7 +202,11 @@ public static class Spawns
                     Lateral = side * (c.Train.Frames[gap].Shape.HalfWidth + t.PaceOut + i * 0.8),
                 });
             return true;
-        }),
+        })
+        {
+            // Free (note 849): any coupling gap, at any speed (slow, they mount at once; at speed they pace, as their rule has it).
+            Free = c => CrewSense.Gaps(c.Train).Count >= 1 && c.None(EnemyKind.Climber),
+        },
         // B.4 · Draggers: a train of two or more, dormant until someone's on the roofs; weight up per roof walker.
         // Boarding-first (GDD App. F.1, note 286): they get under a car only while the train's slow (a stop, a tight bend),
         // and wait there for someone to walk its roof; on a train at speed they can't get on at all.
@@ -297,7 +318,7 @@ public static class Spawns
             Double3 at;
             if (c.NearestSite(LairKind.Warren, centre, c.Tuning.Sites.WarrenReach) is { } warren)
                 at = warren;
-            else if (c.Sites(LairKind.Warren).Count > 0)
+            else if (c.Sites(LairKind.Warren).Count > 0 && !c.Free)
                 return false;
             else
                 at = c.Out(centre, t.SpawnOut);
@@ -308,7 +329,11 @@ public static class Spawns
                 c.Add(id => Ribbit.At(id, pack, spot, t));
             }
             return true;
-        }),
+        })
+        {
+            // Free (note 849): for whoever's on the ground, anywhere (a hot box pulled mid-line as much as a yard).
+            Free = c => c.OnGround.Any() && c.Crew >= c.Tuning.Ribbits.MinCrew && c.None(EnemyKind.Ribbit),
+        },
         // B.6 · The Gaunt: asleep in villages and yards, the Frontier and on, once a run; weight up on long facility stops.
         new(EnemyKind.Gaunt, c =>
         {
@@ -325,7 +350,12 @@ public static class Spawns
             var at = c.NearestSite(LairKind.GauntRoost, centre, c.Tuning.Sites.RoostReach) is { } roost ? roost : c.Out(centre, c.Tuning.Gaunt.SpawnOut);
             c.Add(i => Gaunt.Asleep(i, at, c.Tuning.Gaunt));
             return true;
-        }),
+        })
+        {
+            // Free (note 849): asleep out in the dark off any ground the crew stand on; its tier, its crew and its once a night kept.
+            Free = c => c.Tier >= c.Director.Gate(c.World, RouteTier.Frontier) && c.Crew >= c.Tuning.Gaunt.MinCrew
+                && c.Once(EnemyKind.Gaunt) && c.OnGround.Any(),
+        },
         // B.6 · The Moose (note 339): grazing beside a stop, in every tier and more the harder; none where one's already
         // about; by the line's biome; weight up per player on the ground.
         new(EnemyKind.Moose, c =>
@@ -360,7 +390,11 @@ public static class Spawns
                 return true;
             }
             return false;
-        }),
+        })
+        {
+            // Free (note 849): grazing beside the train wherever it stands, a stop or not.
+            Free = c => c.Crew >= c.Tuning.Moose.MinCrew && c.None(EnemyKind.Moose) && c.Stopped,
+        },
         // B.6 · Tower Jaw (note 363): at work on a facility's coaling tower or crane gantry as the train comes to it (or stands
         // at it); every tier, more the harder; one at a stop, and not at a structure already down.
         new(EnemyKind.TowerJaw, c =>
@@ -513,14 +547,19 @@ public static class Spawns
             return 1 + t.PerGroundWeight * (c.OnGround.Count() - 1);
         }, c =>
         {
-            var free = OnFollowerGround(c, Follower.Excursions(c.World));
+            var free = c.Free ? Follower.Excursions(c.World) : OnFollowerGround(c, Follower.Excursions(c.World));
             if (free.Count == 0)
                 return false;
             int on = free[(int)c.Director.NextRange(0, free.Count - 1e-9)];
             var s = c.World.CrewThisTick.First(p => p.Id == on).State;
             c.Add(i => Follower.On(i, c.Train, s, on, c.Tuning.Followers));
             return true;
-        }),
+        })
+        {
+            // Free (note 849): onto anyone off the train, wherever they are, under their cap.
+            Free = c => Follower.Excursions(c.World).Count > 0
+                && c.World.ActiveEnemies.Count(e => !e.Gone && e.Kind == EnemyKind.Follower) < c.Tuning.Followers.MaxActive,
+        },
         // B.6 · Soot Children: near facilities and dead settlements; any crew, alone too (enemies.json minCrew, note 770); a
         // true 50/50 with a real child (a host's first-ever call always real).
         new(EnemyKind.SootChildren, c =>
@@ -541,7 +580,11 @@ public static class Spawns
             var at = c.NearestSite(LairKind.SootCall, centre, c.Tuning.Sites.CallReach) is { } call ? call : c.Out(centre, t.CallOut);
             c.Add(i => SootChildren.Calls(i, at, soot, t));
             return true;
-        }),
+        })
+        {
+            // Free (note 849): calling from the dark beyond whoever's on the ground, anywhere.
+            Free = c => c.Crew >= c.Tuning.SootChildren.MinCrew && c.None(EnemyKind.SootChildren) && c.OnGround.Any(),
+        },
         // B.8 · The Passenger: boards during a facility stop; the Dead lines and on (comet relaxes it a tier); crew of three or
         // more (a crowd to hide in); once a run; weight up with the crew split across tasks.
         new(EnemyKind.Passenger, c =>

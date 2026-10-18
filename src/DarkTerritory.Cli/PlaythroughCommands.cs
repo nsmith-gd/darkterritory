@@ -203,6 +203,9 @@ static class PlaythroughCommands
         }
 
         int signsShot = 0, encountersAfoot = 0;
+        // Note 849: why the director sent nothing, by the second (its own spend's reason; a free spawn clears it).
+        var held = new SortedDictionary<string, int>();
+        uint lastHeldTick = uint.MaxValue;
 
         // After each tick: each enemy as it arrives and at each beat of its spine that a crew would be watching for, and the
         // line between.
@@ -259,6 +262,12 @@ static class PlaythroughCommands
             }
             if (world.Director is { AfootShare: > 0 })
                 encountersAfoot += world.EnemyEvents.Count(e => e.To == SpinePhase.Telegraph);
+            if (world.Director is { } hd && world.Tick % SimConstants.TickRate == 0 && world.Tick != lastHeldTick)
+            {
+                lastHeldTick = world.Tick;
+                string why = hd.HeldBecause ?? "sent";
+                held[why] = held.GetValueOrDefault(why) + 1;
+            }
             if (now - lastChase >= every)
             {
                 lastChase = now;
@@ -343,6 +352,19 @@ static class PlaythroughCommands
                 spawns = ld.SpawnsAfoot,
                 spawnsAll = ld.Log.Count,
                 telegraphs = encountersAfoot,
+            } : null,
+            // Note 849: what the director sent, in order and by kind: its own spends and the night's curve's free spawns, so a
+            // night's encounters can be counted (the director, 16 Oct: "Where's the rest of the content?").
+            director = last.Director is { } dd ? new
+            {
+                spawns = dd.Log.Select(l => new { kind = l.Kind.ToString(), seconds = Math.Round(l.Tick * SimConstants.TickSeconds), km = Math.Round(l.TrainDistance / 1000, 2), free = l.Free }).ToArray(),
+                byKind = dd.Log.GroupBy(l => l.Kind.ToString()).OrderBy(g => g.Key).ToDictionary(g => g.Key, g => g.Count()),
+                kinds = dd.Log.Select(l => l.Kind).Distinct().Count(),
+                free = dd.Log.Count(l => l.Free),
+                // Those come their own way (the stops' house creatures, the lineside moose, the Stoker's heat): counted with the rest.
+                ownWay = dd.OwnWay.OrderBy(k => k.Key.ToString()).ToDictionary(k => k.Key.ToString(), k => k.Value),
+                curveAtEnd = Math.Round(dd.Curve, 2),
+                held,
             } : null,
             // Note 326: what the crew found at the stops (with --loot): the hiding spots searched, the finds stowed and their scrip.
             loot = last.Run is { } lr ? new
