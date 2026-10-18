@@ -33,7 +33,13 @@ public sealed class InputState
     readonly HashSet<Key> _down = new();
     readonly HashSet<Key> _pressed = new();
 
-    public bool Down(Key k) => _down.Contains(k);
+    /// <summary>
+    /// Whether a key is held this frame. A key that went down and came back up between two <see cref="EndFrame"/>s counts as
+    /// held for that frame (note 850: on a machine drawing 10-30 frames a second, a tap of the jump key is shorter than a
+    /// frame as often as not, and read off the key's state alone it was never down at all; a joiner's Linux build lost most
+    /// of its jumps that way). It reads as down for the frame of its press and not after, as a key held one frame would.
+    /// </summary>
+    public bool Down(Key k) => _down.Contains(k) || _pressed.Contains(k);
     /// <summary>Went down since the last <see cref="EndFrame"/>.</summary>
     public bool Pressed(Key k) => _pressed.Contains(k);
     /// <summary>A key that went down since the last <see cref="EndFrame"/>, if any (the lowest, if several): for binding one.</summary>
