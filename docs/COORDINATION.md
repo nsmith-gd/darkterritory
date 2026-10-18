@@ -75,6 +75,7 @@ only see what's on main here. The role, and how to start one on another account,
 |---|---|---|---|---|---|
 | nathaniel2 | 99 | Wed 21 Oct 20:00 | 5 | **LIMITED until Wed 21 Oct 20:00 UTC** (99%). No worker running; everything it had is merged or `open for pick-up`. The 16 Oct evening playtest (`docs/playtest/2026-10-16-evening.md`, the first two-player night) is the next work: anyone's | 2026-10-17 11:35 |
 | nathaniel1 | 99 | Sun 18 Oct 17:00 | 0 (resets 17:00 UTC) | LIMITED until the weekly reset (Sun 18 Oct 17:00 UTC): weekly 99%, no worker active (U1 stopped for the week, #1136); its items are `open for pick-up` | 2026-10-18 12:10 |
+| nathaniel3 | 3 | Sun 25 Oct 03:00 | 2 (resets 13:30 UTC) | ACTIVE: its Token Budget Manager started 12:25 UTC (session `claude/great-euler-663db5`); holds build duty; starting workers on the 16 Oct playtests' open lines (`docs/playtest/2026-10-16.md`, `-evening.md`) | 2026-10-18 12:30 |
 
 - **State:** ACTIVE (working); PAUSED until *time* (the 5-hour limit: its sessions are waiting with their work intact, so
   its items aren't abandoned: don't take them); LIMITED until *weekly reset* (the weekly limit: its items are handed off).
@@ -115,7 +116,7 @@ it at a time:
 
 | Duty | Account | Claimed (UTC) |
 |---|---|---|
-| Playtest builds | **unclaimed: the first ACTIVE account takes it** (nathaniel2 LIMITED; it dispatched the 17 Oct 7 am build) | 2026-10-17 11:35 |
+| Playtest builds | **nathaniel3** (nathaniel1 and nathaniel2 LIMITED; it dispatched the 18 Oct 7 am build, none having run by 12:26 UTC) | 2026-10-18 12:30 |
 
 - **Claim it** by putting your account in the row (a docs PR) when it's empty, or when its account is LIMITED or PAUSED in
   *Accounts and usage limits*. An account going LIMITED clears its own claim first. With nothing in the row, whoever's
