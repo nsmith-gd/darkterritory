@@ -192,7 +192,10 @@ public class NightCurveTests
         // Nobody on the ground: the ground kinds don't come; a train with gaps lets the Climbers in, and the hounds once it moves.
         Assert.False(Spawns.For(EnemyKind.CinderHound)!.Free!(ctx));
         Assert.True(Spawns.For(EnemyKind.Climber)!.Free!(ctx));
+        // ... not a slow one (the hounds' own minTrainSpeed is their rule, kept), a quick one yes.
         world.Train.Dynamics.Velocity = 5;
+        Assert.False(Spawns.For(EnemyKind.CinderHound)!.Free!(ctx));
+        world.Train.Dynamics.Velocity = 10;
         Assert.True(Spawns.For(EnemyKind.CinderHound)!.Free!(ctx));
         world.Train.Dynamics.Velocity = 0;
         Assert.False(Spawns.For(EnemyKind.Ribbit)!.Free!(ctx));
