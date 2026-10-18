@@ -1,4 +1,4 @@
-"""Humanoid building blocks for the corrupted people (the Switchman, the Hollow, the Soot children): tubes that
+"""Humanoid building blocks for the corrupted people (the Hollow, the Soot children; the Switchman once, note 852): tubes that
 follow an SK_Human's bones, a torso lofted up the spine, a head. The crew (crew.py) is modelled by hand in more
 detail; these are for figures seen at the edge of the lamplight, where proportion and outline are everything
 (GDD §26.1) and a coat is a coat.

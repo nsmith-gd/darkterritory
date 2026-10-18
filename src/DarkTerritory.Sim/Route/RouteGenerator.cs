@@ -71,7 +71,7 @@ public static class RouteGenerator
     }
 
     /// <summary>
-    /// Junctions with a dead line off each (App. A.7: what the Switchman sets you onto). The turnout is on straight
+    /// Junctions with a dead line off each (a line that leads nowhere, the clock's cost). The turnout is on straight
     /// main line, and the dead line runs alongside, so it lies on the main line's ground and never crosses it.
     /// </summary>
     static void AddJunctions(JunctionTuning j, int count, RailLine line, double length, List<(double Start, double End)> blocked,

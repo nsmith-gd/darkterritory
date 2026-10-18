@@ -67,7 +67,7 @@ public static class News
         KnockCause.Collision => $"HIT CARS AT {Kmh(speed)}",
         KnockCause.Wreck => $"HIT THE FALLEN TOWER AT {Kmh(speed)}",
         KnockCause.Sleepers => $"HIT DEBRIS AT {Kmh(speed)}",
-        KnockCause.Points => "RAN THROUGH THE SWITCHMAN'S POINTS",
+        KnockCause.Points => "RAN THROUGH THE POINTS",
         KnockCause.Brass => $"THE BRASS FIELD AT {Kmh(speed)}",
         KnockCause.Bend => $"TOOK A BEND AT {Kmh(speed)}",
         KnockCause.Fire => "BURNED",

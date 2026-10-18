@@ -265,8 +265,6 @@ public static class Views
             "deadshoulder" => StagedShoulder(train),
             "deadbody" => DeadViews.OverBody(train.Frames[Math.Min(3, train.Frames.Count - 1)].ToWorld(new Double3(0, train.Frames[Math.Min(3, train.Frames.Count - 1)].Shape.RoofHeight, -2)),
                 train.Frames[0].Back * -1),
-            // On the line 47 m ahead of the engine, at the staged Switchman by its lever 8 m on (Staging.Threats).
-            "switchman" => Camera.LookAt(engine.ToWorld(new Double3(1.6, 1.8, -engineHalf - 50.5)), engine.ToWorld(new Double3(3.8, 1.1, -engineHalf - 55)), 50),
             // (Not one of Names.) Off the engine's right side ahead of it, the whole of it three-quarters on (note 276, the cab
             // forward): the cab and its lamp leading, the boiler and the stack behind, car 1 coupled on.
             // The boiler's left flank, where it tears when it ruptures (TrainKit.RuptureSeam; dt screenshot --ruptured).

@@ -317,7 +317,7 @@ public class UpgradeTests
         Assert.True(run.Underground(Down(reach + 60), train, reach));
     }
 
-    /// <summary>A main line with one dead line off it, set for the dead line (the Switchman's work), and a train short of it.</summary>
+    /// <summary>A main line with one dead line off it, set for the dead line (a hand's work; the Switchman's, until note 852), and a train short of it.</summary>
     static World Junction(TrainTuning t, double short_, double speed = 0)
     {
         const double Toe = 3_000;
@@ -391,7 +391,7 @@ public class UpgradeTests
     [Fact]
     public void ThePoweredThrowerWontMoveThePointsUnderAWheel()
     {
-        // The engine's front is over the toe (so the Switchman's setting couldn't go on either): the points are under it, and
+        // The engine's front is over the toe (so no setting could go on either): the points are under it, and
         // there are none ahead for the lever to reach.
         var world = Junction(With("poweredSwitchThrower").Train, -5);
         Assert.False(world.Train.Diverging(0));

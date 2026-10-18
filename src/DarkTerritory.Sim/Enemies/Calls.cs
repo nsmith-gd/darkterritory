@@ -83,8 +83,6 @@ public static class Calls
                 return House(world, kind, you, max, t);
             // What stands where its rule finds it is taken only within the gym's reach (the director, 13 Oct: "nothing should
             // spawn more than 200m off").
-            case EnemyKind.Switchman:
-                return Points(world, you, min, max, t);
             case EnemyKind.TrackDoll:
                 {
                     // On the rail ahead, inside the reach: she shows in the headlamp at its reveal distance, and a train standing
@@ -212,28 +210,6 @@ public static class Calls
             world.AddEnemy(i => Ribbit.At(i, pack, spot, t.Ribbits));
         }
         return "out of the stop's warren";
-    }
-
-    /// <summary>
-    /// The Switchman at points ahead of the engine, between <paramref name="min"/> and <paramref name="max"/> of you (a dead
-    /// line's before a yard's spur): it waits for the train to come over them, so points behind are no use to it.
-    /// </summary>
-    static string Points(World world, Double3 you, double min, double max, EnemyTuning t)
-    {
-        var train = world.Train;
-        double front = train.Dynamics.Distance;
-        double Off(Rail.Branch b) => Flat(train.Line.Sample(Rail.RailLine.MainPath, b.Toe).Position - you);
-        var ahead = train.Line.Branches.Where(b => !train.Diverging(b.Index) && b.Toe - front >= 20).ToList();
-        var branch = ahead.Where(b => Off(b) >= min && Off(b) <= max)
-            .OrderBy(b => b.Kind == Rail.BranchKind.DeadLine ? 0 : 1).ThenBy(b => b.Toe).FirstOrDefault();
-        if (branch is null)
-        {
-            double nearest = ahead.Select(b => b.Toe - front).DefaultIfEmpty(double.PositiveInfinity).Min();
-            return double.IsInfinity(nearest) ? "no points ahead on this line"
-                : $"the next points are {nearest:0} m ahead, past the gym's {max:0} m: drive to within it and call again";
-        }
-        world.AddEnemy(i => Switchman.At(i, branch, t.Switchman, world.Switches?.Tuning.LeverOffset ?? 2.6, false));
-        return $"at the {(branch.Kind == Rail.BranchKind.DeadLine ? "dead line's" : "branch's")} points ahead: drive towards them";
     }
 
     /// <summary>Tower Jaw at the nearest coaling tower or standing crane within <paramref name="max"/> of you, here or not.</summary>
@@ -423,7 +399,7 @@ public static class Calls
     {
         var train = world.Train;
         double lim = max - Inside;
-        var free = came.Where(e => e.Kind is not (EnemyKind.TippyToesie or EnemyKind.Follower or EnemyKind.Switchman)).ToList();
+        var free = came.Where(e => e.Kind is not (EnemyKind.TippyToesie or EnemyKind.Follower)).ToList();
         // On the line: the farthest of those ahead of you brought to lim, the rest by the same; the same behind.
         double hint = train.Dynamics.Distance;
         var (_, mine) = train.Line.Nearest(you, ref hint);

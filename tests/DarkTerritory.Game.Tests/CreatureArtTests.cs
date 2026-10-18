@@ -41,7 +41,6 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
             ["dead", "swing", "fp_swing", "jump", "high_five", "high_five_met", "fist_bump", "fist_bump_met", "dance_off", "shove", "heave", "throw_off"]),
         // The crew figure gone wrong (the Climbers and the Deadman): the crew's own rig and clips.
         ["husk"] = new(2500, 9000, 20, 60, ["idle", "walk", "run", "climb", "shovel", "crouch_idle"], ["dead"]),
-        ["switchman"] = new(2000, 9000, 20, 60, ["wait", "flee", "grip"], ["throw"]),
         ["hollow"] = new(1500, 5000, 20, 60, ["idle"], ["reach"]),
         ["soot_child"] = new(3000, 9000, 20, 60, ["huddle", "call", "drink"], ["pin"]),
         // The freed survivors (App. D.8): the crew figure redressed, on its rig, with the crew's actions merged on load.
@@ -173,7 +172,6 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         // Heights and lengths from the brief (GDD §21, App. A): what makes the silhouette read at distance.
         // 1.8 m to the crown of the head, and the gas mask's flying cap and the welder's visor over it (about 1.86 m).
         Assert.InRange(Height(Get("crew")), 1.8f, 1.95f);
-        Assert.InRange(Height(Get("switchman")), 1.7f, 2.2f);
         Assert.InRange(Height(Get("hollow")), 1.95f, 2.25f);
         var hound = Get("cinder_hound");
         Assert.InRange(hound.Max.Z - hound.Min.Z, 1.25f, 1.9f); // nose to tail's root and beyond
@@ -601,7 +599,7 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
         var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
         var living = Staging.Threats(train);
-        var dead = living.First(e => e.Kind == EnemyKind.Switchman);
+        var dead = living.First(e => e.Kind == EnemyKind.Gaunt);
         living.Remove(dead);
         var eye = dead.WorldPosition(train) + new Double3(3, 1.6, 2);
         int Drawn(double age, bool kill)
@@ -611,7 +609,7 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
                 scene.Killed(dead, Staging.StrikeTick, new Vector3(1, 0, 0));
             var mesh = new MeshBuilder();
             scene.Build(mesh, train, eye);
-            return mesh.Instances.Count(i => i.Asset.Name.Contains("switchman", StringComparison.OrdinalIgnoreCase));
+            return mesh.Instances.Count(i => i.Asset.Name.Contains("gaunt", StringComparison.OrdinalIgnoreCase));
         }
         Assert.Equal(0, Drawn(0.6, kill: false));
         Assert.True(Drawn(0.6, kill: true) > 0, "going over");
@@ -727,7 +725,6 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
     [InlineData(EnemyKind.CinderHound, "cinder_hound", true)]
     [InlineData(EnemyKind.Ribbit, "ribbit", false)]
     [InlineData(EnemyKind.Gaunt, "gaunt", false)]
-    [InlineData(EnemyKind.Switchman, "switchman", false)]
     [InlineData(EnemyKind.Gannet, "gannet", true)]
     // The night things going to ground at dawn (note 642), and any of these let go of otherwise.
     [InlineData(EnemyKind.Brakeman, "brakeman", true)]
@@ -1333,7 +1330,7 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         // more models than it looks.)
         var mesh = new MeshBuilder();
         EnemyKind[] kinds = [.. Enumerable.Repeat(EnemyKind.CinderHound, 4), EnemyKind.Ribbit, EnemyKind.Ribbit, EnemyKind.CarHugger,
-            EnemyKind.Gaunt, EnemyKind.Switchman, EnemyKind.Sleepers, EnemyKind.SootChildren, EnemyKind.TrackDoll];
+            EnemyKind.Gaunt, EnemyKind.Sleepers, EnemyKind.SootChildren, EnemyKind.TrackDoll];
         void Frame(double t)
         {
             mesh.Clear();
@@ -1383,8 +1380,8 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
     [Fact]
     public void TheLightsAreLights()
     {
-        // The crew's chest lamp, the Switchman's lantern glass and the Hollow's eyes are pure light; hound embers glow.
-        foreach (var (name, clip) in new[] { ("crew", "idle"), ("switchman", "wait"), ("hollow", "idle") })
+        // The crew's chest lamp and the Hollow's eyes are pure light; hound embers glow.
+        foreach (var (name, clip) in new[] { ("crew", "idle"), ("hollow", "idle") })
         {
             var mesh = new MeshBuilder();
             Art.Draw(mesh, name, clip, 0, true, Matrix4x4.Identity);

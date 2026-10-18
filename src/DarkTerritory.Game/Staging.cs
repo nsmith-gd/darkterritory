@@ -1555,26 +1555,6 @@ public static partial class Staging
     const double SootOut = 4.6, SootRiseAt = 5.6;
 
     /// <summary>
-    /// The staged Switchman (<c>dt screenshot --switchman</c>), at its lever 55 m up the line (App. A.7): <c>wait</c> by it
-    /// (TELEGRAPH), <c>grip</c> its hand on it, waiting to throw it under the train (COMMIT, the derailer's tell),
-    /// <c>throw</c> it thrown (PUNISH). The <c>switchman</c> view is on the line short of it.
-    /// </summary>
-    public static List<Enemy> Switchman(List<Enemy> threats, string mode)
-    {
-        if (mode.Length == 0 || threats.OfType<Sim.Enemies.Switchman>().FirstOrDefault() is not { } s)
-            return threats;
-        var (phase, derail) = mode switch
-        {
-            "wait" => (SpinePhase.Telegraph, 0.0),
-            "grip" => (SpinePhase.Commit, 1.0),
-            "throw" => (SpinePhase.Punish, 1.0),
-            _ => throw new ArgumentException($"--switchman {mode}: wait, grip or throw"),
-        };
-        s.Restore(phase, 0.4, s.Health, s.Attached, s.Local, s.LineDistance, s.Lateral, s.Height, s.Extra, derail);
-        return threats;
-    }
-
-    /// <summary>
     /// The staged Moose (<c>dt screenshot --moose</c>; note 339, docs/design/creatures/moose.md), on the ground off the
     /// stopped engine's left ahead of it, where its headlamp reaches (beside the line, never on it: well outside the track's
     /// clearance). Its ears and posture are its meter: <c>graze</c> unbothered, <c>listen</c> its head up (aggro past
@@ -2326,10 +2306,6 @@ public static partial class Staging
             ghost.Restore(SpinePhase.Commit, 2, 6, Enemy.Loose, train.Frames[rear].ToWorld(new Double3(i == 0 ? -1.2 : 1.3, rearShape.RoofHeight + 1.6 + i * 0.4, -1 + i * 2)), 0, 0, 0, -1, 0);
             threats.Add(ghost);
         }
-        // At the side of the line ahead, where a switch stand would be, lantern out.
-        var switchman = new Switchman(40);
-        switchman.Restore(SpinePhase.Telegraph, 3, 1, -1, default, d.Distance + 55, 3.8, 0, -1, 0);
-        threats.Add(switchman);
         // Out in the dark off the second car's side, calling for help: black eyes, from five metres (A.6).
         var soot = new SootChildren(41);
         soot.Restore(SpinePhase.Telegraph, 4, 1, Enemy.Loose, side.ToWorld(new Double3(-(side.Shape.HalfWidth + 6), 0, 6)), 0, 0, 0, 1, 1);

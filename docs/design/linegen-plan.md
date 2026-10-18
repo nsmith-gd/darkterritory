@@ -21,7 +21,7 @@ Units throughout: metres, m/s, grade in percent, chainage `s` in metres along a 
 1. Every run gets a unique line that is **harder the further the crew travels from civilization**, both across the campaign and within a single run.
 2. Difficulty comes from the GDD's hazard list only: grades, curves, fog, wet rail, cold, wind, washouts, weak bridges, tunnels, brass growth, dawn. **Terrain removes tools; it never changes enemy rules.**
 3. The line is **fair**: a crew that obeys the boards and the paperwork cannot be killed by track geometry. What kills them is breaking that authority, or an enemy that telegraphed.
-4. The line **serves the pressure director**: it provides the terrain contexts the spawn rules require (marsh for The Weight, long straights for The Ferryman, junctions for The Switchman, and so on).
+4. The line **serves the pressure director**: it provides the terrain contexts the spawn rules require (marsh for The Weight, long straights for The Ferryman, and so on; junctions were the Switchman's until note 852 cut it).
 5. The line is **callable on voice**: every place a crew might need to name has a number or a name.
 6. Deterministic, streamable, network-safe, and cheap to render at the late-PS2/early-PS3 target.
 
@@ -200,8 +200,8 @@ The main line is a single open-ended path from `fortress_depart` to `terminus`. 
    - *Settlement line:* through a dead settlement (Soot Children context), level
 5. **Washouts** are placed on one side of a fork, never both. The other side must pass the validator for this consist.
 6. **Weak bridges** go on alternates, or on the main line only with a limit the departing consist satisfies. **At least one route through every fork must be passable by the fully loaded departing consist.** The generator must never produce a run that is impossible for the train that left.
-7. **Dead-line branches** (2–6 km, ending at a buffer stop) hang off facing junctions. The Switchman misroutes crews onto these. Some end at a wreck-yard facility instead of a buffer stop.
-8. **Junction count check.** The count of facing junctions on the main line must meet the tier minimum. The Switchman needs at least 3 (GDD B.7), which Frontier's minimum of 3 guarantees.
+7. **Dead-line branches** (2–6 km, ending at a buffer stop) hang off facing junctions. A switch set wrong (a crewmate's hand; the Switchman's, until note 852 cut it) misroutes crews onto these. Some end at a wreck-yard facility instead of a buffer stop.
+8. **Junction count check.** The count of facing junctions on the main line must meet the tier minimum (Frontier's is 3: the Switchman's need once, GDD B.7; the dead lines stay, note 852).
 
 ## 6.3 Junction rules
 
@@ -407,7 +407,7 @@ Restricted zones are placed both where geometry demands them (blind curves, deep
 | **Bridge board** | Bridge name; weak bridges add "MAX N CARS" and a crossing speed | Count in cars, not tonnes: cars are what the crew can count and say |
 | **Line closed** | Red flag and "LINE CLOSED" board at the junction | For washouts. The washout itself is never a surprise. |
 | **Form 19 entry** | Line on the route card paperwork (§9.7) | |
-| **Switch-stand lamp** | Aspect lamp at every facing junction, visible from 250 m | The Switchman's telegraph ("a lamp signal reading wrong") uses this |
+| **Switch-stand lamp** | Aspect lamp at every facing junction, visible from 250 m | A switch set wrong reads from the cab by it (the Switchman's telegraph, until note 852 cut it) |
 | **Dressing ramp** | Lineside growth or damage that intensifies over the tell zone | Brass fields and dead-line ends. Counts as a tell only in addition to one other. |
 
 **Required tells are never removed.** Tier affects how many redundant tells exist: at redundancy 3 there is a board, a repeat board and a Form 19 entry; at redundancy 1 there is exactly one of those. The signage survival rate in the tier table applies only to non-required signage (extra km posts, dead signals, repeats), which may be intact, fallen or missing. Deep territory feels dark because nothing is repeated and the crew has to read the paper and count the posts, not because anything is hidden.
@@ -687,7 +687,7 @@ Every edge carries tag intervals by chainage. The director queries tags ahead of
 | `contaminated` | The Drift |
 | `dark_forest`, `open` | Lamplighters |
 | `dead_settlement`, `near_facility` | Soot Children, Followers |
-| `junction` | The Switchman |
+| `junction` | *(nothing since note 852 cut the Switchman)* |
 | `tunnel`, `tunnel_exit` | Radio blackout; The Gaunt |
 | `mine_spur` | Radio blackout |
 | `terminus_safe`, `grace` | Spawn bans |

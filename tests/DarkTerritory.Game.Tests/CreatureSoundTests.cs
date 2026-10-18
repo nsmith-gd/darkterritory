@@ -121,7 +121,7 @@ public class CreatureSoundTests
     {
         // Note 290: the gun hits what it's laid on, and per-creature pain is the audio chat's (note 322). Health dropping on
         // a record still there is a hurt (a killing blow takes the record, and that's its death: Vanished).
-        using var scene = new Scene(1, "cs-gaunt.hit", "cs-switchman.hit", "cs-soot-children.hit", "cs-followers.hit",
+        using var scene = new Scene(1, "cs-gaunt.hit", "cs-soot-children.hit", "cs-followers.hit",
             "cs-grumbler.hit", "cs-grumbler.feral");
         double s = scene.Train.Dynamics.Distance - 40;
         var shape = scene.Train.Frames[2].Shape;
@@ -129,7 +129,6 @@ public class CreatureSoundTests
         (Func<double, double, Enemy> Make, string Hurt)[] kinds =
         [
             ((h, x) => Record(new Gaunt(60), SpinePhase.Telegraph, 1, h, -1, default, s, 12), "cs-gaunt.hit"),
-            ((h, x) => Record(new Switchman(61), SpinePhase.Telegraph, 1, h, -1, default, s, 6), "cs-switchman.hit"),
             ((h, x) => Record(new SootChildren(62), SpinePhase.Telegraph, 1, h, -1, default, s, 9), "cs-soot-children.hit"),
             ((h, x) => Record(new Follower(63), SpinePhase.Telegraph, 1, h, -1, default, s, 7), "cs-followers.hit"),
             ((h, x) => Record(new Grumbler(64), SpinePhase.Telegraph, 1, h, 2, inside, extra2: x), "cs-grumbler.hit"),

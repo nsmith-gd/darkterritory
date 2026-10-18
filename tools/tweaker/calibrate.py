@@ -31,7 +31,7 @@ SLOTS = [
     {"kinds": ["draggers", "climbers"], "why": "both on the train's flanks, moving"},
     {"kinds": ["ribbits", "freightBeetle"], "why": "both on the ground at a stop, by sight"},
     {"kinds": ["gaunt", "sootChildren"], "why": "both on the ground at a stop, by sound"},
-    {"kinds": ["brakeman", "passenger", "switchman", "grumbler"], "why": "the corrupted humans, one at a time"},
+    {"kinds": ["brakeman", "passenger", "grumbler"], "why": "the corrupted humans, one at a time"},
 ]
 PLURAL = {"CinderHound": "cinderHounds", "Dragger": "draggers", "Climber": "climbers", "Follower": "followers", "Ribbit": "ribbits",
           "Sleepers": "sleepers"}
