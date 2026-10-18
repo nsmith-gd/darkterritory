@@ -127,6 +127,10 @@
     // back to full on the bracket in half the time.
     { "id": "bigExtinguishers", "name": "Big extinguishers", "size": "small", "costShare": 0.2, "fromTier": "frontier", "effect": { "extinguisher": 1.5 },
       "line": "Bigger bottles: half again the spray, and full again on the bracket in half the time." },
+    // Debris on the line (enemies.json sleepers; off by default since note 265, a mod can bring it back): the cowcatcher takes
+    // half the front car's damage from striking it, heavy or minor. It's the plough on the front of the engine (upgrades.md §8.2).
+    { "id": "cowcatcher", "name": "Cowcatcher", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "debrisDamage": 0.5 },
+      "line": "A plough on the engine's front. Debris struck on the line costs half." },
     // The feedwater heater (upgrades.md): retired with the cold (note 852): the cold took nothing off the boiler to give back.
     // More creatures at the rear and flanks each tier down: a reload step in 1.2 s, not 1.5.
     { "id": "gunRammers", "name": "Gun rammers", "size": "small", "costShare": 0.25, "fromTier": "deadLines", "effect": { "reload": 0.8 },
