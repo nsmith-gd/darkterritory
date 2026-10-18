@@ -429,8 +429,14 @@ public sealed class Grumbler(int id) : Enemy(id)
     public bool Feral => Extra2 > 0.5;
     public int Casting => (int)Math.Round(Extra);
 
-    public static Grumbler OnCrates(int id, Double3 world, int casting, GrumblerTuning t) =>
-        new(id) { Attached = Loose, Local = world, Extra = casting, Health = t.Health };
+    /// <summary>
+    /// The crane whose castings it's on (note 848: a yard's gantry, the perch it was put on), on the host; null, the stop's
+    /// own crane as before (the gym's call, a test's).
+    /// </summary>
+    Crane? _crane;
+
+    public static Grumbler OnCrates(int id, Double3 world, int casting, GrumblerTuning t, Crane? crane = null) =>
+        new(id) { Attached = Loose, Local = world, Extra = casting, Health = t.Health, _crane = crane };
 
     protected override void Tick(EnemyContext ctx)
     {
@@ -451,7 +457,7 @@ public sealed class Grumbler(int id) : Enemy(id)
             case SpinePhase.Telegraph when !Feral:
                 {
                     // On its casting: where the casting goes, it goes. Craned onto a car: LOADED, it's aboard.
-                    if (ctx.World.Run?.CurrentSite?.Crane is { } crane && Casting >= 0 && Casting < crane.Castings.Length)
+                    if ((_crane ?? ctx.World.Run?.CurrentSite?.Crane) is { } crane && Casting >= 0 && Casting < crane.Castings.Length)
                     {
                         var c = crane.Castings[Casting];
                         if (c.State == CastingState.Loaded && c.Car >= 0 && c.Car < train.Frames.Count)

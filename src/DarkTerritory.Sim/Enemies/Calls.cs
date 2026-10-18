@@ -262,26 +262,26 @@ public static class Calls
         return "no coaling tower or crane standing on this line";
     }
 
-    /// <summary>The Grumbler on castings stacked by a crane within <paramref name="max"/> of you, whether the train's in its yard or not.</summary>
+    /// <summary>The Grumbler on castings stacked by a crane (a facility's own or a yard's gantry, note 848) within <paramref name="max"/> of you, whether the train's in its yard or not.</summary>
     static string Castings(World world, Double3 you, double max, EnemyTuning t)
     {
         if (world.Run is not { } run)
             return "no stops on this line";
         double front = world.Train.Dynamics.Distance;
         foreach (int i in Enumerable.Range(0, run.Facilities.Count).OrderBy(i => Math.Abs((run.Facilities[i].Start + run.Facilities[i].End) / 2 - front)))
-            if (run.Sites.ElementAtOrDefault(i)?.Crane is { } crane)
-            {
-                var stacked = Enumerable.Range(0, crane.Castings.Length).Where(c => crane.Castings[c].State == CastingState.Stacked)
-                    .OrderBy(c => Flat(crane.Castings[c].At - you)).ToList();
-                if (stacked.Count == 0)
-                    continue;
-                int on = stacked[0];
-                if (Flat(crane.Castings[on].At - you) > max)
-                    return $"the nearest castings are {Flat(crane.Castings[on].At - you):0} m off, past the gym's {max:0} m: walk towards them and call again";
-                var at = crane.Castings[on].At;
-                world.AddEnemy(n => Grumbler.OnCrates(n, at + Double3.Up * 0.8, on, t.Grumbler));
-                return "gnawing the castings by the crane: leave it be, or hit it";
-            }
+        {
+            // The nearest casting stacked by any of its cranes.
+            var stacked = (run.Sites.ElementAtOrDefault(i)?.Cranes ?? []).SelectMany(k => Enumerable.Range(0, k.Castings.Length)
+                .Where(c => k.Castings[c].State == CastingState.Stacked).Select(c => (Crane: k, On: c))).OrderBy(x => Flat(x.Crane.Castings[x.On].At - you)).ToList();
+            if (stacked.Count == 0)
+                continue;
+            var (crane, on) = stacked[0];
+            if (Flat(crane.Castings[on].At - you) > max)
+                return $"the nearest castings are {Flat(crane.Castings[on].At - you):0} m off, past the gym's {max:0} m: walk towards them and call again";
+            var at = crane.Castings[on].At;
+            world.AddEnemy(n => Grumbler.OnCrates(n, at + Double3.Up * 0.8, on, t.Grumbler, crane));
+            return "gnawing the castings by the crane: leave it be, or hit it";
+        }
         return "no crane with castings stacked on this line";
     }
 
