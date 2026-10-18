@@ -1689,7 +1689,7 @@ public sealed partial class SceneArt(Look look)
                 // Out from the wall first, then along it: the step out done in the first fifth of the slide.
                 double outward = Math.Min(1, slid * 5), along = slid;
                 var move = side
-                    ? new Double3((box.Min.X < 0 ? -0.12 : 0.12) * outward, 0, (box.Max.Z - box.Min.Z) * along)
+                    ? new Double3((box.Min.X < 0 ? -door.Out : door.Out) * outward, 0, (box.Max.Z - box.Min.Z) * along * door.Slide)
                     : new Double3((box.Max.X - box.Min.X) * along, 0, (box.Min.Z < 0 ? 0.12 : -0.12) * outward);
                 box = new Box(box.Min + move, box.Max + move);
             }

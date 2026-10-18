@@ -13,11 +13,6 @@ public sealed record GymTuning
     public int Cars { get; init; } = 6;
     /// <summary>The kind of stop it stands at (stops' <c>StopKind</c>, camel-cased): the first of it on the line.</summary>
     public string Stop { get; init; } = "yardAndVillage";
-    /// <summary>
-    /// The engine stands this far short of the stop's first points (m), so the Switchman has points ahead to work (the
-    /// director, 13 Oct, GDD App. F.5); 0 stands the train's middle beside the village.
-    /// </summary>
-    public double PointsAhead { get; init; } = 60;
     /// <summary>Nothing called comes nearer you than this (m), nor than its own reach.</summary>
     public double MinDistance { get; init; } = 45;
     /// <summary>And nothing farther than this (m): brought in, or only chosen within it.</summary>

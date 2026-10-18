@@ -389,6 +389,13 @@ public sealed record EngineLayout(double DeckHeight, double BoilerHalfWidth, dou
     public double RunningBoardAhead { get; init; } = 1.0;
     /// <summary>The sandboxes on the running boards: this far behind the cab, over the drivers.</summary>
     public double SandboxBehind { get; init; } = 2.5;
+    /// <summary>
+    /// The cab's side doors at its front (note 856): the left one's opening this far behind the cab's front (beside the coal),
+    /// the right one's; 0 is none. Each the standard doorway's size, a landing <see cref="SideDoorLanding"/> past it either side.
+    /// </summary>
+    public double CoalDoorFrom { get; init; }
+    public double FrontDoorFrom { get; init; }
+    public double SideDoorLanding { get; init; } = 0.3;
     /// <summary>The big cab behind the footplate (ARCHITECTURE §8 note 716): the chart table, the gallery, the back wall.</summary>
     public CrewCarLayout CrewCar { get; init; } = new();
 }

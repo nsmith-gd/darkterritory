@@ -41,7 +41,7 @@ public sealed record LineDefinition(string Name, IReadOnlyList<TrackSegment> Seg
 
 public enum BranchKind : byte
 {
-    /// <summary>A disused line off into the Territory, ending at a buffer stop (what the Switchman sets you onto, App. A.7).</summary>
+    /// <summary>A disused line off into the Territory, ending at a buffer stop (the clock's cost if the train's sent down one).</summary>
     DeadLine,
     /// <summary>A facility's siding (GDD §17): where the empties go to be loaded.</summary>
     Spur,

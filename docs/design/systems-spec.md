@@ -44,7 +44,7 @@ Strict ducking priority. Higher tiers duck everything below, except voice: nothi
 | Tier | Content | Behaviour |
 |---|---|---|
 | **1** | Enemy telegraphs | Ducks tiers 3–6 −9dB (*changed 2 Oct*: not voice, so a crewmate calling out the tell is heard over it; as the implementation table below has it, "tier 1 bus ducks buses 3–6"). Never masked. Never occluded beyond −6dB. |
-| **2** | Proximity voice | Ducks bed −6dB while active |
+| **2** | Proximity voice | Ducks bed −6dB while active, and the ambient world with it (*changed 18 Oct, note 855*: on a roof at speed the wind is the loudest thing in the voice's band, and a crewmate talking from the cab's door was lost under it). Every microphone is levelled to one speech level before it's sent (note 855), so a quiet mic is heard as a loud one |
 | **3** | Critical train state | Pressure alarm, brake fade, breach |
 | **4** | Player actions | Footsteps, tools, shovel, gun |
 | **5** | Train bed | The floor everything sits on |
@@ -86,7 +86,7 @@ whoever has to hear it.
 | Followers | Silent: a lump on a back, seen by friends | — | — |
 | Soot Children | A child calling for help (tier 2; the eyes are the tell) | voice band | child-call |
 | The Passenger | **Silent by design** (it never speaks) | — | — |
-| The Switchman | Visual: the figure at the lever, the lamp wrong | — | — |
+| ~~The Switchman~~ | *Cut: the director, 16 Oct 2026 ("I think we cut them"; note 852). Its tell was visual: the figure at the lever, the lamp wrong* | — | — |
 | Grumbler | Gnawing on the crates | 1.4–2.2k | grumbler-gnaw |
 | The Moose *(added 7 Oct, note 339; the sounds are the audio chat's to make)* | Warning: a cough-like grunt and teeth clacking; the charge: hooves on ballast; a ram: an iron boom through the car | grunt 150Hz–1.5k, clack 2–4k | tell-moose-* (note 334) |
 | The Gannet *(added 7 Oct, note 340; the sounds are the audio chat's to make)* | The fold: a crack of wings, then a rising whistle of air for 1.6 s; overhead, harsh "arrah" calls that stop when it picks a walker; the bank: a long rising scream | whistle 2–5 kHz rising; calls 1–3 kHz | tell-gannet-* (note 384) |
@@ -342,7 +342,7 @@ A breach is a car's shell giving way to the outside (decided 1 Oct): a door forc
 
 ## B.10 Director pacing
 
-*Design decision, 2026-10* (GDD App. B.1 "Pressure", "Pacing rules"; `director` in `content/tuning/enemies.json`). The budget and its curve, the caps and the gates are GDD App. B.1's; these say when the director spends.
+*Design decision, 2026-10* (GDD App. B.1 "Pressure", "Pacing rules"; `director` in `content/tuning/enemies.json`). The budget and its curve, the caps and the gates are GDD App. B.1's; these say when the director spends. The night's curve and the free spawns on it (the director, 16 Oct 2026; note 849) are the rows marked so; `NightCurveTests` pins them.
 
 | Parameter | Value |
 |---|---|
@@ -353,7 +353,7 @@ A breach is a car's shell giving way to the outside (decided 1 Oct): a door forc
 | Most banked | 18 |
 | **Relief per spawn** | **3 × its cost** |
 | Base | 0.03 /s |
-| **Escalation** (on everything) | × (1 + 3 × progress), progress along the line or toward dawn, whichever is further |
+| **Escalation** (on everything) | × (1 + 3 × the night's curve): the curve is progress along the line or toward dawn, whichever is further, to the power **1** (`director.curve.power`; note 849) |
 | Quiet | + 0.1 /s × (seconds since a threat was engaged or sent ÷ 90, to 1) |
 | Loudness | + 0.1 /s × (Choir meter ÷ its threshold, to 1.5) |
 | Cargo | + 0.01 /s per car-load (× comet 2, livestock 1.5, food and medicine 1.3, ammunition 1.2) |
@@ -361,6 +361,9 @@ A breach is a car's shell giving way to the outside (decided 1 Oct): a door forc
 | Conditions | × (1 + 0.15 lamp out + 0.05 rain + 0.05 × wind). The cold's terms (0.1 × cold + 0.05 per deep-cold step) went with the cold (B.2, note 852) |
 | **Relief valve** | × (alive ÷ crew)² × (1 − 0.25 × share of the living under 35 health) |
 | Busy | × 1 ÷ (1 + 0.5 × threats engaged × (1 − progress)): engaged is telegraphing, committing, grabbing or punishing; late in the night it stops waiting for the crew |
+| **Free spawns** (GDD App. B.1 "The night's curve"; note 849) | Beside the pressure, outside its budget, cooldown and holds: **3 an hour at the gate rising to 18 at the end** along the curve, rolled a second at a time on their own dice, the whole of it for a crew of **2** or fewer and **0.25** less for each crewmate alive over that, never under **0.35** (`crewFade`, `crewFadeFrom`, `crewFloor`); never within **20 s** of anything the director sent, never before the night's first threat (drawn); nothing off the pressure. Under the hard caps, each kind's `nightChance` and `perNight`, the variety rules, who's next and the votes |
+| Free spawn: the fill (`curve.fill`) | The pressure **pressed** (at 16, `fillPressed`) with **no rule met** spends on the rule-less (the list below) instead of nothing: charged, paced and relieving as any spend |
+| Free spawn: what comes | One draw among the rule-less, sent without their situational rule, by weight: Cinder Hounds 0.5 (the train moving), Climbers 1, Ribbits 1.5, Followers 1, Soot Children 1, the Moose 0.7 (`curve.kinds`); and every kind whose rule is met now at its rule's weight × **1** × the curve (`curve.bound`); a Dragger or Whistler (silent until met) only with nothing else to send |
 | Post-spawn cooldown | 25–45 s (gives way when pressed) |
 | Facility lull (note 751) | 20 s from the first second stood at a facility: nothing of the director's own |
 | Aftermath (note 751) | 12 s after a death, cars lost (told), a grab broken with the one held alive, a Holdout freed: nothing of the director's own, pressed or not |

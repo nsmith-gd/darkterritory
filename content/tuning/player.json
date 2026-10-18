@@ -373,6 +373,15 @@
     // through the sounds' own low-pass on their "covered" parameter (voice.json and voice-radio.json, 1.4 kHz). A creature
     // that does its own thing to the voice keeps it, alone: Tippy Toesie's hand (muffled) and a Soot Child's draining
     // (fading). Off: a held voice as it was.
-    "covered": { "on": true, "gainDb": -6 }
+    "covered": { "on": true, "gainDb": -6 },
+    // The capture leveller (note 855; the director's playtest of 16 Oct evening, line 1: "my mic is way too low for her"). Out
+    // of the box a microphone's speech sits anywhere from about -35 dBFS (a Windows headset, no boost) to -15 (a Linux
+    // desktop's PulseAudio at 100%), and the mix is made for the loud end: a quiet mic's voice in the air was under the train's
+    // bed outdoors at 8 m, where a loud one stood 18 dB over it. Each client levels its own mic before it's encoded: the
+    // talker's level (each 20 ms frame's RMS while the voice activity hears talk, coming up to louder speech over riseSeconds
+    // and down to quieter over fallSeconds, frames more than ignoreBelowDb under it left out) is brought to targetDb (dBFS),
+    // lifted at most maxBoostDb and cut at most maxCutDb, a frame's peak held under ceiling (full scale 1). The settings' MIC
+    // LEVEL trims after it. Off: each mic as it comes.
+    "leveller": { "on": true, "targetDb": -14, "maxBoostDb": 24, "maxCutDb": 12, "riseSeconds": 0.15, "fallSeconds": 2.5, "ignoreBelowDb": 20, "ceiling": 0.95 }
   }
 }

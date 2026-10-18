@@ -8,8 +8,9 @@ public enum EnemyKind : byte
 {
     // GDD v1.1 §21's roster, and two hazards that are still things in the world: Sleepers (v1.1's track debris) and the Drift
     // (the marsh). v1.0's retired enemies' numbers (Clingers, the Hollow, the Rattle, Lamplighters, the Deadman, the
-    // Ferryman, the Long Whistle, the Weight, the loose load and the Gnawers) aren't reused.
-    Sleepers = 1, CinderHound = 2, Switchman = 5, SootChildren = 6, Dragger = 7, Stoker = 11, Climber = 14, Gaunt = 16,
+    // Ferryman, the Long Whistle, the Weight, the loose load and the Gnawers) aren't reused; nor is the Switchman's 5 (cut by
+    // the director, 16 Oct 2026, note 852).
+    Sleepers = 1, CinderHound = 2, SootChildren = 6, Dragger = 7, Stoker = 11, Climber = 14, Gaunt = 16,
     CarFire = 17, Passenger = 20, Follower = 21, Drift = 22,
     TrackDoll = 23, CarHugger = 24, Whistler = 25, TippyToesie = 26, FireFlies = 27, Ribbit = 28, Grumbler = 29, Choir = 30,
     // The Moose (GDD §21, the director's decisions of 7 Oct 2026; note 339).
@@ -214,7 +215,6 @@ public abstract class Enemy
     {
         EnemyKind.Sleepers => new Sleepers(id),
         EnemyKind.CinderHound => new CinderHound(id, (int)extra),
-        EnemyKind.Switchman => new Switchman(id),
         EnemyKind.SootChildren => new SootChildren(id),
         EnemyKind.Dragger => new Dragger(id),
         EnemyKind.Stoker => new Stoker(id),

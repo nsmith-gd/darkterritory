@@ -17,7 +17,7 @@ public enum FeatureKind
     Bridge,
     /// <summary>A freight facility off the main line: the loading set piece (GDD §16–18).</summary>
     Facility,
-    /// <summary>A junction with a dead-line branch: what the Switchman throws (App. A.7).</summary>
+    /// <summary>A junction with a dead-line branch (level design; the Switchman's, before note 852 cut it).</summary>
     Junction,
     /// <summary>Sleepers lying across the rail: placed at generation, not spawned (App. B.2).</summary>
     Sleepers,

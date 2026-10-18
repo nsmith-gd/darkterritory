@@ -6,10 +6,11 @@ namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
 /// The director's decision of 7 Oct 2026 (ARCHITECTURE §8 note 286): "The switch itself shouldn't cause derail, it should
-/// be lines that lead nowhere." The Switchman throws the junction ahead, and the train goes down a dead line: the clock's
-/// cost. It derails only when the driver runs off the end through the buffers, warned in the cab a full lead ahead.
+/// be lines that lead nowhere." A junction set against the train (the Switchman's work, until note 852 cut it; a hand's
+/// now) sends it down a dead line: the clock's cost. It derails only when the driver runs off the end through the buffers,
+/// warned in the cab a full lead ahead.
 /// </summary>
-public class SwitchmanDeadLineTests
+public class DeadLineTests
 {
     static readonly EnemyTuning E = Tuning.Enemies;
     static readonly Lazy<Rail.RailLine> Frontier7 = new(() => LineGen.Routes.Generate(DataFile.FindContentRoot(), "frontier:7", 4).Build());
@@ -26,27 +27,18 @@ public class SwitchmanDeadLineTests
         return (n, branch);
     }
 
-    static Switchman Throws(Night n, int branch) =>
-        n.World.AddEnemy(i => Switchman.At(i, n.Train.Line.Branches[branch], E.Switchman, 2.6, derail: false));
+    /// <summary>The dead line's points set against the train, as a hand at the stand would (World.SetSwitch).</summary>
+    static void Thrown(Night n, int branch) => Assert.True(n.World.SetSwitch(branch, true));
 
     [Fact]
-    public void ByDefaultNoSwitchmanThrowsPointsUnderTheTrain()
-    {
-        Assert.False(E.Switchman.ThrowsUnderTrain);
-        Assert.True(E.Switchman.KilledSetsBack);
-    }
-
-    [Fact]
-    public void ItThrowsTheJunctionAheadAndTheTrainGoesDownALineThatLeadsNowhere()
+    public void ThrownAgainstTheTrainTheJunctionSendsItDownALineThatLeadsNowhere()
     {
         var (n, branch) = AtADeadLine(10);
-        var s = Throws(n, branch);
+        Thrown(n, branch);
         for (int i = 0; i < 120 && n.Train.Dynamics.Path != branch; i++)
             n.Run(1);
         Assert.Equal(branch, n.Train.Dynamics.Path);
         Assert.False(n.World.Derailed);
-        Assert.Contains(branch, n.World.SwitchmanThrew);
-        Assert.False(s.Derailer);
         Assert.True(DeadEnds.Assess(n.Train, n.Train.Dynamics.Tuning.Overspeed).OnDeadLine);
         n.AssertFair();
     }
@@ -55,7 +47,7 @@ public class SwitchmanDeadLineTests
     public void RunOffTheEndAndItDerailsButOnlyAfterTheCabWasWarnedAFullLead()
     {
         var (n, branch) = AtADeadLine(10);
-        Throws(n, branch);
+        Thrown(n, branch);
         var t = n.Train.Dynamics.Tuning.Overspeed;
         double warned = 0;
         for (int i = 0; i < 1200 && !n.World.Derailed; i++)
@@ -64,7 +56,7 @@ public class SwitchmanDeadLineTests
             warned = Math.Max(warned, n.World.DeadEndWarnSeconds);
         }
         Assert.True(n.World.Derailed);
-        Assert.Matches(@"^ran off the end of the dead line the Switchman threw it down, at \d+ km/h \(over 25 km/h it goes through the buffers\)$", n.World.DerailCause);
+        Assert.Matches(@"^ran off the end of a dead line at \d+ km/h \(over 25 km/h it goes through the buffers\)$", n.World.DerailCause);
         Assert.True(warned >= t.LeadSeconds, $"warned {warned:0.0} s");
         Assert.Equal(0, n.World.DeadEndsSpared);
     }
@@ -73,7 +65,7 @@ public class SwitchmanDeadLineTests
     public void ADriverWhoBrakesOnTheWarningStopsShortOfTheBuffers()
     {
         var (n, branch) = AtADeadLine(18);
-        Throws(n, branch);
+        Thrown(n, branch);
         var t = n.Train.Dynamics.Tuning.Overspeed;
         double warned = 0;
         bool braking = false;
@@ -91,22 +83,6 @@ public class SwitchmanDeadLineTests
         }
         Assert.False(n.World.Derailed, n.World.DerailCause);
         Assert.Equal(branch, n.Train.Dynamics.Path);
-    }
-
-    [Fact]
-    public void ShotBeforeThePointsItsLeverFallsBackToTheMainLine()
-    {
-        var (n, branch) = AtADeadLine(10);
-        var s = Throws(n, branch);
-        n.Run(32);
-        Assert.Equal(SpinePhase.Telegraph, s.Phase);
-        Assert.True(n.Train.Diverging(branch));
-        // One cannon round is four blows (App. C.2).
-        s.Struck(new EnemyContext { World = n.World, Tuning = E }, 1, 4);
-        Assert.True(s.Gone);
-        Assert.False(n.Train.Diverging(branch));
-        n.Run(70);
-        Assert.Equal(Rail.RailLine.MainPath, n.Train.Dynamics.Path);
     }
 
     [Fact]

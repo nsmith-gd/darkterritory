@@ -29,6 +29,9 @@ public sealed class VoiceChat
     readonly VoiceEncoder _encoder = new();
     readonly VoiceActivity _activity = new();
     readonly float[] _frame = new float[VoiceFormat.FrameSamples];
+    readonly float[] _heard = new float[VoiceFormat.FrameSamples];
+    VoiceLeveller? _leveller;
+    Sim.Player.LevellerTuning? _levelledBy;
     readonly byte[] _packet = new byte[VoiceFormat.MaxPacket];
     readonly Dictionary<byte, Speaker> _speakers = new();
     readonly Dictionary<int, Speaker> _mimics = new();
@@ -113,20 +116,36 @@ public sealed class VoiceChat
         _speakers.TryGetValue(speaker, out var s) && !double.IsNegativeInfinity(s.LastHeard) ? _clock - s.LastHeard : null;
     public int Underruns(byte speaker) => _speakers.TryGetValue(speaker, out var s) ? s.Near.Underruns : 0;
 
-    /// <summary>Microphone samples (mono, 48 kHz), any amount; sends whole frames as they fill.</summary>
+    /// <summary>The capture leveller's gain on the last frame (dB; note 855), 0 before any.</summary>
+    public double LevellerGainDb => _leveller?.GainDb ?? 0;
+
+    /// <summary>
+    /// Microphone samples (mono, 48 kHz), any amount; sends whole frames as they fill. Each frame is levelled first (note 855,
+    /// player.json <c>voices.leveller</c>: every mic sent at one speech level, a quiet Windows headset as a hot Linux desktop),
+    /// then trimmed by <see cref="MicLevel"/>. The voice activity hears the mic as it comes, trimmed, so the leveller's lift
+    /// never opens the mic on the room's noise, and MIC LEVEL at nothing still sends nothing.
+    /// </summary>
     public void Capture(ReadOnlySpan<float> samples, ClientSession client)
     {
         while (samples.Length > 0)
         {
             int n = Math.Min(samples.Length, _frame.Length - _filled);
-            for (int i = 0; i < n; i++)
-                _frame[_filled + i] = Math.Clamp(samples[i] * MicLevel, -1f, 1f);
+            samples[..n].CopyTo(_frame.AsSpan(_filled));
             _filled += n;
             samples = samples[n..];
             if (_filled < _frame.Length)
                 continue;
             _filled = 0;
-            bool speaking = _activity.Update(_frame);
+            for (int i = 0; i < _frame.Length; i++)
+                _heard[i] = Math.Clamp(_frame[i] * MicLevel, -1f, 1f);
+            bool speaking = _activity.Update(_heard);
+            var levelling = client.PlayerTuning.Voices.Leveller;
+            // A hot-reloaded player.json (note 687) takes effect at once.
+            if (_leveller is null || !ReferenceEquals(_levelledBy, levelling))
+                (_leveller, _levelledBy) = (new VoiceLeveller(Settings(levelling)), levelling);
+            _leveller.Process(_frame, speaking);
+            for (int i = 0; i < _frame.Length; i++)
+                _frame[i] = Math.Clamp(_frame[i] * MicLevel, -1f, 1f);
             Transmitting = Grabbed || (PushToTalk ? TalkHeld || RadioHeld : speaking || RadioHeld);
             // The sequence advances even in silence, so a receiver can tell loss (conceal) from a pause (don't).
             _sequence++;
@@ -137,6 +156,18 @@ public sealed class VoiceChat
             FramesSent++;
         }
     }
+
+    static LevellerSettings Settings(Sim.Player.LevellerTuning t) => new()
+    {
+        On = t.On,
+        TargetDb = t.TargetDb,
+        MaxBoostDb = t.MaxBoostDb,
+        MaxCutDb = t.MaxCutDb,
+        RiseSeconds = t.RiseSeconds,
+        FallSeconds = t.FallSeconds,
+        IgnoreBelowDb = t.IgnoreBelowDb,
+        Ceiling = t.Ceiling,
+    };
 
     /// <summary>Decodes what's arrived and keeps each speaker's voice where they are.</summary>
     public void Update(ClientSession client, IReadOnlyList<Crewmate> crew, double dt)

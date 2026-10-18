@@ -6,8 +6,11 @@
     // Tier 1 is inviolable: while any telegraph is audible, everything else drops 9 dB, bar voice (decided 2 Oct,
     // spec A.3): nothing ducks the crew, whose call-out of a tell has to be heard over the tell itself.
     { "tier": 1, "ducks": [3, 4, 5, 6], "db": -9 },
-    // Proximity voice ducks the bed 6 dB while someone's talking.
-    { "tier": 2, "ducks": [5], "db": -6 },
+    // Proximity voice ducks the bed 6 dB while someone's talking, and the wind with it (note 855, the director's playtest of 16
+    // Oct evening, line 1: "maybe it's the outdoor ambience that is interfering with the vocals"): on a roof at speed the
+    // wind past you is the loudest thing in the voice's band, over the wheels, and a crewmate talking from the cab's door was
+    // under it (`dt voice bench --car 0 --listener-car 0 --speed 22`'s maskedBy).
+    { "tier": 2, "ducks": [5, 6], "db": -6 },
     // Not in the spec's table, which only gives tiers 1 and 2 a number: the rest duck what's below
     // them gently, so an alarm reads over the bed without the bed pumping.
     { "tier": 3, "ducks": [4, 5, 6], "db": -3 },
