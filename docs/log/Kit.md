@@ -1,0 +1,1 @@
+- 17:18 UTC: #577 SwitchyardAheadTests: cause found (free hound packs light the cars), fix is a design call; note 849 updated, reported.
