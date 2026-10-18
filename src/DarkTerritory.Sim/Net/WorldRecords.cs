@@ -193,7 +193,8 @@ public static class WorldRecords
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Boiler, 0),
         [
             Q(b.Pressure, Fine), Q(b.Firebox, Fine), Q(b.Tender, Fine), Q(b.AtMaxSeconds, Fine), Q(b.LowFireSeconds, Fine),
-            Q(b.ExternalHeat, Fine), Q(b.Efficiency, Fine),
+            // (The deep cold's efficiency came out of the record with the cold, note 852; protocol 78.)
+            Q(b.ExternalHeat, Fine),
             (b.Ruptured ? 1 : 0) | (b.SafetyValveLifting ? 2 : 0) | (b.SafetyValveJammed ? 4 : 0) | (b.FireDoorOpen ? 8 : 0) | (b.Vented ? 16 : 0) | (b.WrenchOut ? 32 : 0) | (b.ShovelOut ? 64 : 0),
             // The door's swing-shut clock: without it the host's own snap back onto the grid zeroed it every tick, and the
             // door never shut.
@@ -360,7 +361,7 @@ public static class WorldRecords
                 s.Parent, Q(s.Position.X, Pos), Q(s.Position.Y, Pos), Q(s.Position.Z, Pos),
                 Q(s.Velocity.X, Pos), Q(s.Velocity.Y, Pos), Q(s.Velocity.Z, Pos),
                 Q(s.Yaw, Ang), Q(s.Pitch, Ang), (long)s.Surface, s.Health, (long)s.Death, Q(s.LineHint, Hint), Q(s.ActionProgress, Fine),
-                Q(s.Cold, Fine), (long)s.Flags, s.Placed,
+                (long)s.Flags, s.Placed,
                 // A VR player's hands, on the centimetre grid they came in on (T47): the rest of the crew see their arms.
                 Q(s.Hand.X, Cm), Q(s.Hand.Y, Cm), Q(s.Hand.Z, Cm), Q(s.OtherHand.X, Cm), Q(s.OtherHand.Y, Cm), Q(s.OtherHand.Z, Cm),
                 // The hotbar (T108): what they carry, and which is in hand; over it, the slots holding a thing (note 594).
@@ -492,15 +493,14 @@ public static class WorldRecords
                         AtMaxSeconds = D(f[3], Fine),
                         LowFireSeconds = D(f[4], Fine),
                         ExternalHeat = D(f[5], Fine),
-                        Efficiency = D(f[6], Fine),
-                        Ruptured = (f[7] & 1) != 0,
-                        SafetyValveLifting = (f[7] & 2) != 0,
-                        SafetyValveJammed = (f[7] & 4) != 0,
-                        FireDoorOpen = (f[7] & 8) != 0,
-                        WrenchOut = (f[7] & 32) != 0,
-                        ShovelOut = (f[7] & 64) != 0,
-                        Vented = (f[7] & 16) != 0,
-                        SinceShovel = f.Length > 8 ? D(f[8], Fine) : 0,
+                        Ruptured = (f[6] & 1) != 0,
+                        SafetyValveLifting = (f[6] & 2) != 0,
+                        SafetyValveJammed = (f[6] & 4) != 0,
+                        FireDoorOpen = (f[6] & 8) != 0,
+                        WrenchOut = (f[6] & 32) != 0,
+                        ShovelOut = (f[6] & 64) != 0,
+                        Vented = (f[6] & 16) != 0,
+                        SinceShovel = f.Length > 7 ? D(f[7], Fine) : 0,
                     };
                     break;
                 case RecordKind.Controls:
@@ -785,16 +785,16 @@ public static class WorldRecords
             Death = (DeathCause)f[11],
             LineHint = D(f[12], Hint),
             ActionProgress = D(f[13], Fine),
-            Cold = D(f[14], Fine),
-            Flags = (PlayerFlags)f[15],
-            Placed = (byte)f[16],
-            Hand = f.Length > 22 ? new Double3(D(f[17], Cm), D(f[18], Cm), D(f[19], Cm)) : default,
-            OtherHand = f.Length > 22 ? new Double3(D(f[20], Cm), D(f[21], Cm), D(f[22], Cm)) : default,
-            Kit = f.Length > 24 ? (ulong)f[23] : 0,
-            HeldSlot = f.Length > 24 ? (byte)(f[24] & 0xFF) : (byte)0,
-            Pockets = f.Length > 24 ? (byte)(f[24] >> 8) : (byte)0,
-            Head = f.Length > 25 ? D(f[25], Cm) : 0,
-            Stagger = f.Length > 26 ? (byte)f[26] : (byte)0,
+            // The cold's field came out of the record with the cold (note 852; protocol 78).
+            Flags = (PlayerFlags)f[14],
+            Placed = (byte)f[15],
+            Hand = f.Length > 21 ? new Double3(D(f[16], Cm), D(f[17], Cm), D(f[18], Cm)) : default,
+            OtherHand = f.Length > 21 ? new Double3(D(f[19], Cm), D(f[20], Cm), D(f[21], Cm)) : default,
+            Kit = f.Length > 23 ? (ulong)f[22] : 0,
+            HeldSlot = f.Length > 23 ? (byte)(f[23] & 0xFF) : (byte)0,
+            Pockets = f.Length > 23 ? (byte)(f[23] >> 8) : (byte)0,
+            Head = f.Length > 24 ? D(f[24], Cm) : 0,
+            Stagger = f.Length > 25 ? (byte)f[25] : (byte)0,
         });
     }
 

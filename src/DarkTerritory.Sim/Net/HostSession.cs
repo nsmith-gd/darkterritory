@@ -844,7 +844,6 @@ public sealed partial class HostSession
         return up with
         {
             Health = seat.State.Health,
-            Cold = seat.State.Cold,
             Yaw = seat.State.Yaw,
             Kit = body.Tools,
             HeldSlot = seat.State.HeldSlot,

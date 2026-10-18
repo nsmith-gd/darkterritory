@@ -379,9 +379,11 @@ The sky never truly clears. Day is dim. Night is nearly absolute. Human settleme
 
 A moving train appears from a distance as **a small glowing machine crossing an enormous black world.** That is the game's fundamental image.
 
-Nighttime temperatures collapsed after the atmospheric catastrophe. The locomotive provides more than transport — it provides heat. It is a moving pocket of human survivability. Players outside are exposed to monsters, wind, extreme cold, falling and isolation.
+Nighttime temperatures collapsed after the atmospheric catastrophe. The locomotive provides more than transport — it provides heat. It is a moving pocket of human survivability. Players outside are exposed to monsters, wind, falling and isolation.
 
 This is why being left behind is a death sentence, and why it doesn't need to be enforced arbitrarily.
+
+**The cold is the look, not a system** *(the director, 14 Oct 2026, playtest line 14: "I think we can get rid of the cold mechanic. I don't really feel like the cold mechanic is doing anything"; 16 Oct, line 9: "We're going to get rid of the deep cold. We can still have frost on the windows and stuff like that ... we're going to get rid of cold as a concept that the player has to worry about in terms of gameplay"; ARCHITECTURE §8 note 852)*. The night is bitterly cold to look at: frost creeps in from the cab windows' edges, breath shows on the glass and in the air, a cold night's crew breathe hard outside. None of it hurts. There is no exposure meter, no onset, no freezing to death, no deep-cold step on the line, nothing the cold takes off the boiler, nothing a car's walls or a stove or a beer need to answer. Being left behind kills by what's out there and how far the train is, not by the thermometer. Spec B.2's cold exposure row and C.2's "come back cold" are struck; the cold's hazard row below is retired.
 
 ## 7. Why the train must keep moving
 
@@ -440,7 +442,6 @@ Until the train passes the outer gate, the fortress yard and the lobby are a saf
 
 - nothing spawns, and the Choir's meter doesn't gather;
 - the boiler and its fire hold: no overheating, no rupture, no running out of steam or coal;
-- the cold doesn't bite;
 - the train doesn't move off unless someone in the cab lets the brake off and drives it out through the gate.
 
 The run, and every consequence in it, begins as the train goes through the gate (run.json `yardIsSafe`). Emotes (a dance, a wave, a point) and outfits to try on are ARCHITECTURE §8 note 298. In the yard each player can also paint their mask (PAINT YOUR MASK, on the night's menu and in the settings): the crew see the new paint at once. Past the gate, a change waits for the next night (§29 "Painted masks"; the director, 14 Oct 2026; ARCHITECTURE §8 note 731).
@@ -956,7 +957,7 @@ It doesn't touch guests. Everything in its house is its own: leave something of 
 | **Curves** | Forward sightline. The lamp shows you nothing. |
 | **Fog** | Identification at range. Everything is a shape. |
 | **Wet rail** | Traction, and every speed-based answer with it. |
-| **Deep cold** | Boiler efficiency, and survival time outside. |
+| ~~Deep cold~~ | *Retired: the director's decision, 16 Oct 2026 (§6 "The cold is the look, not a system"; note 852). It took boiler efficiency and survival time outside; the cold is the look now, and takes nothing.* |
 | **Wind** | Sound discipline. Gunfire carries much further. |
 | **Washout** | Route options. Forces the bad junction. |
 | **Weak bridges** | Length. Your longer, richer train may not clear it. |
@@ -986,7 +987,7 @@ Nothing there is a mystery. It's still a disaster.
 - **Jumping at speed** — above 16.5 m/s. Below it, landing is a knock. The train is a trap by design. Shoved off by a friend counts the same, and the report names them (§23.4)
 - **Falling** — a drop from 7.5 m kills, and from 5.5 m it's a knock: off a bridge's deck, not off a car's roof (note 573). A run over open ground, down a bank or a dip, is never a landing; nor is a walk off a train standing still (the director, 14 Oct 2026, playtest line 7: "I shouldn't take damage unless I like fully jump as high as I can go off the top of the train"; note 717)
 - **Walking off a roof** is yours to do: its edge holds you while you only walk along it, glance aside or stand in the wind, and lets you off its side or its end when you walk at it (the director, 14 Oct 2026, playtest line 4: "I think we want to let people walk off the top of the cars"; ARCHITECTURE §8 note 717)
-- **Getting left behind** — cold and distance do the rest
+- **Getting left behind** — the creatures and the distance do the rest (the cold did too, until it was cut: §6)
 - **Derailment** — kills the entire crew at once, in slow motion, to opera (Appendix E)
 
 **Everything else cascades:**
@@ -998,7 +999,7 @@ Nothing there is a mystery. It's still a disaster.
 | Lights fail | Navigate through darkness on shouted landmarks |
 | Radio breaks | Shouting down the length of a moving train. A hard knock breaks one; a grab never does (note 749). Mended on the belt |
 | Cannon fouls | Someone clears it by hand, under fire |
-| Car catches fire | Grab the extinguishers or abandon it |
+| Car catches fire | Grab the extinguishers or abandon it. Every fire says what started it as it starts, on the HUD and in the report: the hot box, the Fire Flies at its lamp, Cinder Hounds feeding on it, a thrown lamp, the fire jumping from the next car, a powder car going up *(the director's playtest of 16 Oct: "how'd that even get started?"; ARCHITECTURE §8 note 851)*. Two on the extinguishers put it out faster than one (§12). In through the arrival's gates, nothing burns: a fire goes out, nothing new starts |
 | A car battered and left (§23.3) | It works itself apart as it runs and its freight spills out of it; mend it with the wrench, or it comes off its rails and takes everything behind it |
 | The engine battered and left (§23.3) | It loses its pull and its brake; mend it with the wrench, or it breaks down and the crew are stranded |
 | Engineering kit left in car four | Somebody's going out there, and the kit is on a body (§12) |
@@ -1361,7 +1362,7 @@ Silhouette legibility is not an aesthetic preference here. It is a coordination 
 - **What you hold is said in the corner.** The bottom right, in fine print: the keys for what's in your hands, the cab's controls or the gun, a line each. In the cab, the speed sits over them as a figure, read against the boards. A setting (CONTROL HINTS) hides the keys; the speed and what you're holding stay.
 - **A hand lamp says SIGNAL in the corner.** With a lamp in your fist the corner adds "SIGNAL : HOLD [U]"; held, the three signals sit round the crosshair in the prompts' fine print, like the emote wheel. What each one does is learned (§12; note 720).
 - **Crouch, held; and the gun pushed on its own key.** *(The director's playtest of 13 Oct, note 664; D1's calls for the keys.)* Crouch is LeftCtrl, held (a toggle with HOLD KEYS on TOGGLE). Crouched, you're lower (the eye 0.55 m down), at half a walk, never running or jumping, your footsteps quieter, and under what standing would hit: a tunnel's mouth doesn't take a crouched roof rider. Let go and you stand once there's room. A headset rider crouches for real. The blow-off's key is its own, Left Alt, held in the cab, under the left thumb by Space *(the director's playtest of 16 Oct, note 844: "remap venting to the left alt next to the spacebar"; it was Caps Lock)*. Pushing the gun along its rail is the middle mouse button held, walking ("PUSH : HOLD [MIDDLE MOUSE] + WALK"); E at the gun is its seat. *(The evening playtest, 13 Oct, note 703: N and O were "not near the mouse, and not near the left hand".)* The shove (§23.4) is Caps Lock, by A under the little finger: "SHOVE : [CAPS LOCK]" at a crewmate in reach *(note 717; Left Alt until note 844 gave that to the vent)*. All rebind in Settings. All the numbers are in `player.json crouch`.
-- **The rest comes when it matters, then goes.** A place's name as the train nears it. The cold, as you go into a deeper step. The dawn clock in the night's last stretch. The ping in the lobby with what's being lost and how the host's reached (relayed or direct), and each crewmate's on the host's lobby panel; on the line only when it's bad, a host's naming whichever crewmate's link has gone bad. The noise meter only once the crew's loud.
+- **The rest comes when it matters, then goes.** A place's name as the train nears it. The dawn clock in the night's last stretch. The ping in the lobby with what's being lost and how the host's reached (relayed or direct), and each crewmate's on the host's lobby panel; on the line only when it's bad, a host's naming whichever crewmate's link has gone bad. The noise meter only once the crew's loud.
 - **The world says it first.** The gauges and the run map in the cab, the route card (where the train is is pencilled on it), the supplies view and the roster are things you look at or open. They're not on screen. Every stretch of the line that would derail the train at its top speed has its max speed on the map and the card.
 - **No frames in play.** Text sits on the picture with a shadow. Only the panels you open, and the run's end, are framed.
 - **Alarms are rare and short.** The headline is big only when it's urgent. The hazard telegraphs (a tunnel mouth, a bend you're too fast for, the boiler about to go) keep their warnings and their speed figures; what to do sits under them in fine print, without the outcome.
@@ -1551,7 +1552,7 @@ Every night the game plays is timed frame by frame, and what it found is written
 2. ~~**Can the conductor see whether everyone is aboard, or is roll call purely verbal?**~~ **Answered in v1.3: verbal.** There is no aboard indicator for the conductor or anyone else. Roll call is a question somebody has to shout (and since 14 Oct, a call a bot can answer: "Aboard!", §17, note 740), and the engine leaving without someone is this game's version of Lethal Company's ship leaving at midnight (§17, §23.1). D.6 already keeps the queue hidden from the living. **An emergency is shown, not a roster** *(the director, 14 Oct 2026, on the social collision audit's R1: "looks good"; note 750)*. Roll call stays verbal: nothing shows who is aboard. But a crewmate held, or killed, out of voice reach (26 m) is a line for the living, under the news: who and where, never what. "PRIYA - CAR 4 ROOF" for as long as she's held; "PRIYA IS GONE - CAR 4" for four seconds when she dies. Within 26 m nothing is shown: you hear it. The dead are shown nothing. What has her, and what to bring, is still hers or her neighbours' to shout (`crewNews`).
 3. **How many cars before the flank is genuinely indefensible** — and is that ceiling the real progression cap?
 4. **Do corrupted humans ever use the radio?** A voice on your own channel that isn't crew is the single most disturbing thing available in this design. Possibly too much.
-5. **Does cold need a meter,** or is it enough that being outside too long simply kills you?
+5. ~~**Does cold need a meter,** or is it enough that being outside too long simply kills you?~~ *Answered 16 Oct 2026: neither. The cold is the look, not a system (§6; note 852).*
 6. **How do enemies stay silhouette-legible in heavy fog at distance?** The art direction wants fog doing the atmospheric work, and the design wants creatures identifiable before you understand them. Those pull against each other. Likely answers: rim lighting from practical sources, or enemies that are legible by *motion* signature before shape.
 7. **Do cargo cars visually show what's inside?** Gunpowder versus livestock versus chemicals changes how the crew should behave around a car. If the exterior reads it, callouts get faster. If not, the interior becomes worth learning.
 8. **Is corruption ever visible on the train itself** — growth in the couplings, in the tender, under the cars? It would give the flank a visual tell and make the home slowly stop feeling like home.
@@ -2115,7 +2116,7 @@ pressure per second = tier × conditions × relief × busy × escalation × (bas
 | **Loudness** | The Choir meter. A crew loud enough to draw the Choir draws everything else too |
 | **Cargo** | Each car-load aboard, by what it's worth. Cargo lost stops drawing them |
 | **Tier** | Harder tiers build faster |
-| **Conditions** | Dark (the lamp out), cold, rain and wind add a little |
+| **Conditions** | Dark (the lamp out), rain and wind add a little (the cold did, until it was cut: §6) |
 
 The **relief valve** eases it when the crew is losing: by the share of the crew still alive (squared), and less again for each crewmate badly hurt, so a night going wrong doesn't snowball. While threats are already engaged it builds more slowly (the crew's busy), less so as the night goes on: toward the end the director stops waiting for the crew to finish.
 

@@ -3806,12 +3806,16 @@ static object HudShot(string content, string[] args)
             solo.Train.Vehicles[car].Load = 1;
             solo.World.Bodies.All.First(b => b.Kind == DarkTerritory.Sim.Physics.BodyKind.Cargo).Carrier = ((IPlaySession)solo).PlayerId;
         }
-        // --news pin|engine (note 663): the news under the dawn clock, a moment after it's said: the pin behind car 2 dropped
-        // (cars 3 on lost), or the engine knocked down to failing at the buffer stop at 21 km/h.
+        // --news pin|engine|fire (note 663): the news under the dawn clock, a moment after it's said: the pin behind car 2 dropped
+        // (cars 3 on lost), or the engine knocked down to failing at the buffer stop at 21 km/h; fire (note 851): car 3's hot
+        // box has just set it alight, and the line says so.
         if (Str(args, "--news", "") is { Length: > 0 } said)
         {
             if (said == "engine")
                 (solo.Train.Vehicles[0].Integrity, solo.Train.Vehicles[0].Knock) = (0.45, (DarkTerritory.Sim.Train.KnockCause.BufferStop, 21 / 3.6));
+            else if (said == "fire")
+                solo.World.FireStarted(DarkTerritory.Sim.Enemies.CarFire.In(99, solo.Train, 3, 2, solo.World.Enemies?.CarFire ?? new DarkTerritory.Sim.Enemies.CarFireTuning(),
+                    DarkTerritory.Sim.Enemies.FireCause.HotBox, 3, -1, "Its rear axle box ran hot, ungreased."));
             else
                 solo.Train.Uncouple(2, DarkTerritory.Sim.Train.Parting.Pin);
             for (int i = 0; i < SimConstants.TickRate / 2; i++)

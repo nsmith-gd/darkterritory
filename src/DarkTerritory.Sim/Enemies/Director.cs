@@ -778,10 +778,9 @@ public sealed class Director
                 loads += v.Load * v.CargoIntegrity * p.CargoValue.GetValueOrDefault(char.ToLowerInvariant(v.Cargo.ToString()[0]) + v.Cargo.ToString()[1..], 1);
         double cargo = p.CargoPerLoad * loads;
         var train = world.Train;
-        int coldStep = train.Line.Conditions?.ColdStep(train.Dynamics.Path, s) ?? 0;
         var weather = _route?.Weather;
-        double conditions = 1 + (world.LampLit ? 0 : p.Dark) + p.ColdPerStep * Math.Max(0, coldStep)
-            + (weather is null ? 0 : p.Cold * weather.Cold + (weather.Wet ? p.Wet : 0) + p.Wind * weather.Wind);
+        double conditions = 1 + (world.LampLit ? 0 : p.Dark)
+            + (weather is null ? 0 : (weather.Wet ? p.Wet : 0) + p.Wind * weather.Wind);
         // The relief valve: the share of the crew still alive, to a power, and less for each of them badly hurt.
         double relief = 1;
         var crew = world.CrewThisTick;

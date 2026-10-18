@@ -38,7 +38,7 @@ public class HuntedTests
         n.Run(SimConstants.TickSeconds);
         var hound = n.World.ActiveEnemies.OfType<CinderHound>().First();
         int ground = n.Train.Dynamics.Consist.IndexOf(hound.FrontCar(n.Train, Tuning.Enemies.CinderHounds));
-        var bot = new RoofWalkerBot(7, P.Cold) { Me = 1 };
+        var bot = new RoofWalkerBot(7) { Me = 1 };
         n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, cars[2].Id, 0, P) with { Health = health };
         var steps = new List<string>();
         for (int i = 0; i < seconds * 4; i++)
@@ -63,16 +63,22 @@ public class HuntedTests
     [Fact]
     public void TooHurtAndInACarItStaysInWithTheDoorsShut()
     {
-        // Warming in car 1 (ahead of the pack's ground) as the pack comes: in it stays, warm or not, its doors shut.
+        // Sheltering in car 1 (ahead of the pack's ground; in from the Choir gathering, the way the cold once sent it in,
+        // note 852) as the pack comes: in it stays, the Choir eased or not, its doors shut.
         var n = new Night(4, 6, enemies: HoundRunTests.Quiet);
         n.Crew[0] = PlayerMotor.SpawnInCab(n.Train, P);
         var cars = n.Train.Dynamics.Consist.Vehicles;
-        var bot = new RoofWalkerBot(7, P.Cold) { Me = 1 };
-        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, cars[1].Id, 2, P) with { Cold = P.Cold.OnsetSeconds * 0.9, Health = 30 };
-        for (int i = 0; i < 60 * 4 && bot.WarmUpStep is not "Warm/cold"; i++)
+        var bot = new RoofWalkerBot(7) { Me = 1 };
+        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, cars[1].Id, 2, P) with { Health = 30 };
+        n.World.Choir.Build = 1;
+        for (int i = 0; i < 60 * 4 && bot.WarmUpStep is not "Warm/shelter"; i++)
+        {
+            n.World.Choir.Build = 1; // held gathering: its shelter is the way in (the cold was, before note 852)
             n.Run(0.25, id => id == 1 ? bot.Decide(n.Crew[1], n.World, n.World.Tick, out _) : default);
-        Assert.Equal("Warm/cold", bot.WarmUpStep);
+        }
+        Assert.Equal("Warm/shelter", bot.WarmUpStep);
         int car = n.Crew[1].Parent;
+        n.World.Choir.Build = 0;
         PackOn(n, cars[4].Id, 3);
         for (int i = 0; i < 30 * 4; i++)
             n.Run(0.25, id => id == 1 ? bot.Decide(n.Crew[1], n.World, n.World.Tick, out _) : default);
@@ -103,7 +109,7 @@ public class HuntedTests
         n.Run(SimConstants.TickSeconds);
         int car = cars[2].Id;
         n.Train.Vehicles[car].Loose = SimConstants.TickSeconds;
-        var bot = new RoofWalkerBot(7, P.Cold) { Me = 1 };
+        var bot = new RoofWalkerBot(7) { Me = 1 };
         n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, car, 0, P) with { Health = health, Kit = Kit.Of([Tool.Shovel, Tool.Wrench]) };
         double? tight = null;
         for (int i = 0; i < 60 * 4 && tight is null; i++)
@@ -145,7 +151,7 @@ public class HuntedTests
         n.Run(SimConstants.TickSeconds);
         int car = cars[behind].Id;
         n.Train.Vehicles[car].Loose = SimConstants.TickSeconds;
-        var bot = new RoofWalkerBot(7, P.Cold) { Me = 1 };
+        var bot = new RoofWalkerBot(7) { Me = 1 };
         n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, cars[6].Id, 0, P) with { Kit = Kit.Of([Tool.Shovel, Tool.Wrench]) };
         double? tight = null;
         for (int i = 0; i < 40 * 4 && tight is null; i++)

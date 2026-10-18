@@ -385,7 +385,7 @@ public class CargoTests
             var n = new Night(5, speed: 8);
             foreach (var v in n.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo))
                 v.Cargo = cargo;
-            var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 2, 2, EveryKind.Enemies.CarFire));
+            var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 2, 2, EveryKind.Enemies.CarFire, FireCause.Set));
             n.Run(20);
             double grown = fire.Extra;
             double t = 20;

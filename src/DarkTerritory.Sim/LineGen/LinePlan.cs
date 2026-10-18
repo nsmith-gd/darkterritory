@@ -95,7 +95,7 @@ public sealed record LinePlan
 public sealed record PlanRoute(string Id, RouteTier Tier, double Severity, double D, string Region, string Name);
 public sealed record PlanConsist(int NPlan, double MaxMassT, double LengthM, double ClimbMaxPct, double BrakeMs2, double MainGradePct);
 /// <param name="FogMinM">The night's thinnest sight through fog: what fairness plans against (§14).</param>
-public sealed record PlanWeather(double FogMinM, double FogMaxM, bool Rain, double Cold, double Wind, int TempStep, double FogDensity);
+public sealed record PlanWeather(double FogMinM, double FogMaxM, bool Rain, double Cold, double Wind, double FogDensity);
 
 public enum NodeType : byte { FortressDepart, Terminus, JunctionFacing, JunctionTrailing, FacilityJunction, DeadEnd }
 public enum EdgeRole : byte { Main, Alternate, Spur, DeadLine }
@@ -212,7 +212,7 @@ public sealed record PlanLandmark(string Type, string Name, string Edge, double 
 public sealed record PlanBiome(string Edge, double S0, double S1, string Biome);
 
 /// <summary>§14's per-segment weather modifiers.</summary>
-public sealed record PlanExposure(string Edge, double S0, double S1, double Fog, double Wind, double Adhesion, int ColdStep, string Why);
+public sealed record PlanExposure(string Edge, double S0, double S1, double Fog, double Wind, double Adhesion, string Why);
 
 public sealed record PlanTag(string Tag, string Edge, double S0, double S1);
 public sealed record PlanZone(string Edge, double S0, double S1);

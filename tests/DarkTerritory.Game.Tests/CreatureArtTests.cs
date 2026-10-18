@@ -910,7 +910,7 @@ public class CreatureArtTests(CreatureArtTests.TurntableRig rig) : IClassFixture
         var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines", "test-loop.json"));
         var train = new Sim.Train.TrainOnLine(new Sim.Train.TrainDynamics(Sim.Train.Consist.Uniform(tuning, 6, 1)), line, 1200);
         int car = 4;
-        var fire = CarFire.In(24, train, car, 1.5, new CarFireTuning());
+        var fire = CarFire.In(24, train, car, 1.5, new CarFireTuning(), FireCause.Set);
         fire.Restore(SpinePhase.Punish, 5, 1, car, fire.Local, 0, 0, 0, 0.7, 0);
         var eye = train.Frames[car].ToWorld(new Double3(-6, 3, 0));
         var staged = new List<Enemy> { fire };

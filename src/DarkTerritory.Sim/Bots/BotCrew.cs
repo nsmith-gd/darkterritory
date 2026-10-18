@@ -67,13 +67,13 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
             2 => StopJob.Winch1,
             _ => i == 1 && gunner ? StopJob.None : StopJob.Crates,
         };
-        StopHand? hand = calls is null ? null : new StopHand(job, calls, i, player.Cold);
-        return i == 0 ? express is { } fast ? new ConductorBot(calls, i) { CruiseSpeed = fast, Express = true } : new ConductorBot(calls, i) { Cold = player.Cold }
-            : i == 1 && combat is { } c ? new GunnerBot(c.Guns, c.Choir, seed * 1000 + i, player.Cold, hand)
+        StopHand? hand = calls is null ? null : new StopHand(job, calls, i);
+        return i == 0 ? express is { } fast ? new ConductorBot(calls, i) { CruiseSpeed = fast, Express = true } : new ConductorBot(calls, i)
+            : i == 1 && combat is { } c ? new GunnerBot(c.Guns, c.Choir, seed * 1000 + i, hand)
             // The engine's forward gun's (note 414), in a crew big enough: its last place.
             : i == count - 1 && combat is { Guns.ForwardGunnerFrom: > 0 } f && count >= f.Guns.ForwardGunnerFrom
-                ? new GunnerBot(f.Guns, f.Choir, seed * 1000 + i, player.Cold, hand) { Forward = true }
-            : new RoofWalkerBot(seed * 1000 + i, player.Cold, hand);
+                ? new GunnerBot(f.Guns, f.Choir, seed * 1000 + i, hand) { Forward = true }
+            : new RoofWalkerBot(seed * 1000 + i, hand);
     }
 
     /// <summary>Every bot's tick: decide and send (its client steps with it).</summary>

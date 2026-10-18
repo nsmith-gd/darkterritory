@@ -232,7 +232,7 @@ public sealed record DykeRules(double FieldsBelowRailM, double HeightM, double C
     double MaxRailRangeM);
 
 /// <summary>§14.</summary>
-public sealed record WeatherRules(double FogLowGround, double FogCrest, double WindExposed, double ColdStepPerM, double ColdExposedStep, double WetAdhesion,
+public sealed record WeatherRules(double FogLowGround, double FogCrest, double WindExposed, double WetAdhesion,
     double WetBiasAdhesion, double FogDensityPerInverseMetre, double CrestLengthM, double FogWater = 1, double FogWaterM = 0, double FogBlendM = 0, bool FogAlongLine = false);
 
 /// <summary>§15.</summary>

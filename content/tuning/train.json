@@ -350,11 +350,6 @@
     // much of what's done to its shell (a Car Hugger eats it half as fast; a hard knock at the couplers does half).
     "armourTonnes": 10,
     "armourDamage": 0.5,
-    // A crew car's stove: shut in, the whole car is warm, steam or none (spec B.2's recovery); with a door open, within
-    // this of the stove.
-    "stoveReach": 2.5,
-    // How fast the cold comes on in a car without heat (player.json cold.indoorsRate, times this): car insulation halves it.
-    "insulation": 1,
     // Roof handrails (F.3 "Dragger resistance"): fitted, a Dragger's grab range is draggerGrab of what it was (0.6 m off the
     // edge at a crawl, not 1), it hangs on draggerHang times as long before it has you (12 s, not 8: friends' time), and
     // a bend has to be taken throwOver times as far over its limit to throw you off the roof (5.25 m/s, not 3.5), and the
@@ -373,8 +368,8 @@
     // the BBQ Dads at the end of the world"): fitted (campaign.json bbqDeck), a plank deck deckLength m long on a cowcatcher
     // ahead of the engine's pilot, railed railHeight m high, as wide as the running boards, which run on forward along the
     // cab's sides onto it. On it, two Muskoka chairs (sat in with Use, got up from with Jump or Use), a cooler with `beers`
-    // in it a night (Use takes one; Use held drinks it, as a healing find's used: a beer takes beerWarmth s off the cold and
-    // gives beerHeals), and a BBQ on a stand: Use held lightSeconds lights it, and it burns burnSeconds of charcoal; Use held
+    // in it a night (Use takes one; Use held drinks it, as a healing find's used, for beerHeals; it took the edge off the cold
+    // until note 852 cut the cold), and a BBQ on a stand: Use held lightSeconds lights it, and it burns burnSeconds of charcoal; Use held
     // at it lit cooks for grillSeconds and a sausage comes off into your hands (eaten the same way: sausageHeals). Lit, it
     // warms whoever's within grillReach m (the cold recovers as at the firebox), and its heat and smell are a hot boiler's
     // to the Cinder Hounds (enemies.json director.houndsHotBoilerWeight).
@@ -387,7 +382,7 @@
     // rolling friction's) until a crewmate within reach m puts it back with Use.
     "caboose": { "rope": 1.4, "length": 0.36, "radius": 0.1, "couplerHeight": 1.0, "derailAccel": 0.8, "friction": 0.15, "draggedFriction": 0.6,
       "reach": 2.0 },
-    "bbq": { "deckLength": 3.0, "railHeight": 1.0, "beers": 24, "beerWarmth": 30, "beerHeals": 0, "lightSeconds": 0.6, "burnSeconds": 300,
+    "bbq": { "deckLength": 3.0, "railHeight": 1.0, "beers": 24, "beerHeals": 0, "lightSeconds": 0.6, "burnSeconds": 300,
       "grillSeconds": 6, "sausageHeals": 20, "grillReach": 2.0 },
     // The whimsies (note 715; docs/design/upgrades.md §8.2). Gerald on the guard van's roof and the garden gnomes along the
     // cars' (gnomes of them) are what the Gannet dives on now and then (enemies.json gannet.decoyPull). The canary in car one
@@ -396,8 +391,8 @@
     // gramophone in the guard van, wound with Use: a Gaunt within gramophoneHears m hears it as talk (gaunt.bandCalms), a
     // Moose stops to listen (moose.bandHears), and the Choir hears it as a music box (gramophoneLoudness on its meter). The
     // calliope's notes are the whistle's: a Moose within calliopeHears m of the engine stops for it.
-    // Note 744: the hammock in the guard van brings the cold on at hammockCold of its rate; the hot tub on the engine's hood
-    // keeps whoever's in it warm while the boiler has steam, and each bather draws tubSteam of its pressure a second. The
+    // Note 744: the hammock in the guard van (it slowed the cold until note 852 cut the cold); the hot tub on the engine's
+    // hood steams while the boiler has steam, and each bather draws tubSteam of its pressure a second. The
     // fishing rod: stood on dry ground, a line in water within fishReach m ahead, a bite comes in fishSeconds (from the first
     // to the second, by when it's cast), and a fish grilled on the BBQ deck's grill heals fishHeals.
     // Note 745: the yard cat walks at catSpeed m/s and the dog at dogSpeed, each staying put wander s (from the first to the
@@ -407,7 +402,7 @@
     // Hound chasing the train goes for a ball on the ground within ballSeen m, has it within ballTake m, and stands worrying it
     // ballWorry s before it comes on again.
     "whimsy": { "gnomes": 5, "canaryCars": 1, "canaryGasM": 10, "canaryFumesSeconds": 20, "gramophoneHears": 22,
-      "gramophoneLoudness": 0.25, "calliopeHears": 80, "hammockCold": 0.5, "tubSteam": 0.15, "fishReach": 4, "fishSeconds": [12, 30],
+      "gramophoneLoudness": 0.25, "calliopeHears": 80, "tubSteam": 0.15, "fishReach": 4, "fishSeconds": [12, 30],
       "fishHeals": 40, "catSpeed": 1.1, "dogSpeed": 1.8, "wander": [4, 10], "catWarnCars": 1, "dogHears": 40, "fetch": 0.45,
       "drop": 1.2, "launchSpeed": 14, "launchEvery": 2, "ballSeen": 70, "ballTake": 1.5, "ballWorry": 4 }
   },

@@ -59,7 +59,6 @@ public class UpgradeTests
         Assert.Equal(Tuning.Enemies.Hotbox.RepairSeconds * 0.5, With("axleOilers").Enemies!.Hotbox.RepairSeconds, 9);
         Assert.Equal(Tuning.Enemies.CarFire.ChargeSeconds * 1.5, With("bigExtinguishers").Enemies!.CarFire.ChargeSeconds, 9);
         Assert.Equal(Tuning.Enemies.CarFire.RechargeSeconds / 1.5, With("bigExtinguishers").Enemies!.CarFire.RechargeSeconds, 9);
-        Assert.Equal(Tuning.Boiler.ColdEfficiencyPerStep * 0.5, With("feedwaterHeater").Boiler.ColdEfficiencyPerStep, 9);
         Assert.Equal(Tuning.Combat.Guns.ReloadStepSeconds * 0.8, With("gunRammers").Combat.Guns.ReloadStepSeconds, 9);
         Assert.All(train.Performance.Zip(With("boosterEngine").Train.Performance), p => Assert.Equal(p.First.Accel * 1.2, p.Second.Accel, 9));
         // The whimsy and the silly: the honk is a third as loud to the Choir, the gold one a quarter louder.

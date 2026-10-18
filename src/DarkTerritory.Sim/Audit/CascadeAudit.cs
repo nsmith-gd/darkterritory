@@ -117,7 +117,7 @@ public static class CascadeAudit
                     var r = Night(c, seed, trace, t.FireOutWithinSeconds, (tick, w) =>
                     {
                         if (tick == At(t.FailAtSeconds) && w.Enemies is { } et)
-                            w.AddEnemy(id => CarFire.In(id, w.Train, car, 0, et.CarFire));
+                            w.AddEnemy(id => CarFire.In(id, w.Train, car, 0, et.CarFire, FireCause.Set));
                     }, (w, since) =>
                     {
                         if (outAt is null && since > 1 && !w.ActiveEnemies.Any(e => e.Kind == EnemyKind.CarFire && !e.Gone))

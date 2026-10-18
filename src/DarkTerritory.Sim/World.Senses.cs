@@ -255,14 +255,11 @@ public sealed partial class World
             var local = lamp.Centre;
             Bodies.Remove(lamp);
             _wasMoving.Remove(lamp.Id);
+            // C.9: a fire has a cause, and this one's whoever threw the lamp (the record and the news line are FireStarted's, note 851).
             if (_enemies.OfType<CarFire>().FirstOrDefault(f => !f.Gone && f.Attached == car) is { } fire)
                 fire.Kindle(grid, local, t.LampFireHeat);
             else
-                AddEnemy(id => CarFire.Kindled(id, car, local, t.LampFireHeat));
-            // C.9: a fire has a cause, and this one's whoever threw the lamp.
-            if (Run is not null)
-                Attribution.Add(Sim.Run.IncidentLog.Event(this, Sim.Run.IncidentKind.Fire, $"A thrown lamp set car {car} alight", lamp.LastHeld,
-                    lamp.LastHeld >= 0 ? "Thrown by {actor}." : "", car));
+                AddEnemy(id => CarFire.Kindled(id, car, local, t.LampFireHeat, lamp.LastHeld));
             return;
         }
         // On the ground, or on something that doesn't burn (the engine's iron): the glass breaks, and the oil burns where it lies.

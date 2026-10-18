@@ -1050,27 +1050,8 @@ public static partial class Hud
             y += (line + 2) * k;
         }
         y = MailTop(o, s, m, cx, y, line, k, ref half);
-        if (s.Player.Alive && Shown(Since(s, m.ColdTick), Tuning.ColdSeconds) is > 0 and var c
-            && ColdLine(s.Player, s.Train) is { } cold)
-        {
-            Centred(cold, Amber with { W = c }, k, y + 2);
-            y += 2 + (line + 2) * k;
-        }
         return y > 6 ? new TopBand(y, half) : new TopBand(6, 0);
     }
-
-    /// <summary>
-    /// The cold step where a player is, in words (note 201), or null on a normal night. Every machine builds the night's
-    /// conditions from its seed, so a client knows it as the host does. Its name only: how much faster it comes on outside
-    /// is learned out in it (note 285's "nothing foretells"; note 369).
-    /// </summary>
-    public static string? ColdLine(in PlayerState p, TrainOnLine train) => PlayerMotor.ColdStep(p, train) switch
-    {
-        <= 0 => null,
-        1 => "DEEP COLD",
-        2 => "BITTER COLD",
-        _ => "KILLING COLD",
-    };
 
     static void Alerts(Overlay o, int width, int height, IPlaySession s, int line)
     {
@@ -1191,8 +1172,6 @@ public static partial class Hud
             DeadCard(o, width, height, s, line);
             BallotPlate(o, width, s, line);
         }
-        if (p.Alive && PlayerMotor.Chilled(p, s.PlayerTuning))
-            Small($"COLD: {Math.Max(0, s.PlayerTuning.Cold.DeathSeconds - p.Cold):0}S", p.Cold > s.PlayerTuning.Cold.DeathSeconds - 30 ? Red : Amber);
         if (world.Derailed)
             Big("DERAILED", Red);
         // T109 playtest ("feedback for the player to understand in multiple ways that pressure is too high"): the boiler in
@@ -2182,7 +2161,6 @@ public static partial class Hud
     /// </summary>
     public static string DeathLine(DeathCause cause) => cause switch
     {
-        DeathCause.Cold => "FROZE",
         DeathCause.JumpedAtSpeed => "JUMPED AT SPEED",
         DeathCause.Derailed => "THE TRAIN LEFT THE RAILS",
         DeathCause.Mauled => "MAULED. SOMETHING GOT HOLD OF YOU AND NOBODY PULLED IT OFF",

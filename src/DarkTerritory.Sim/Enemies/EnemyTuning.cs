@@ -833,8 +833,6 @@ public sealed record PressureTuning
     public Dictionary<string, double> Tier { get; init; } = new();
     public Dictionary<string, double> GraceTierScale { get; init; } = new();
     public double Dark { get; init; } = 0.15;
-    public double Cold { get; init; } = 0.1;
-    public double ColdPerStep { get; init; } = 0.05;
     public double Wet { get; init; } = 0.05;
     public double Wind { get; init; } = 0.05;
     public int DownPower { get; init; } = 2;
