@@ -288,7 +288,8 @@ public class ClimberTests
         var d = EveryKind.Enemies.Director;
         var only = EveryKind.Enemies with
         {
-            Director = d with { GraceMinSeconds = 0, GraceMaxSeconds = 0, Pressure = Tuning.Eager, Draw = Tuning.Unheld, CooldownSeconds = [1, 1], Costs = d.Costs.ToDictionary(c => c.Key, c => c.Key == "climbers" ? 0.5 : 1e9) },
+            // The rule's gates are what's tested: the night's curve (note 849), which sends Climbers to any gap without them, off.
+            Director = d with { GraceMinSeconds = 0, GraceMaxSeconds = 0, Pressure = Tuning.Eager, Draw = Tuning.Unheld, CooldownSeconds = [1, 1], Costs = d.Costs.ToDictionary(c => c.Key, c => c.Key == "climbers" ? 0.5 : 1e9), Curve = d.Curve with { Free = false, Fill = false } },
         };
         var slow = new Night(speed: C.MinSpeed - 2, cars: 5, only);
         slow.Run(10);

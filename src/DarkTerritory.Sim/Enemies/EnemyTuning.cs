@@ -1,3 +1,5 @@
+using Ballast;
+
 namespace DarkTerritory.Sim.Enemies;
 
 /// <summary>Mirror of content/tuning/enemies.json. Field docs live in that file.</summary>
@@ -711,6 +713,8 @@ public sealed record DirectorTuning(
     public double GraceMaxSeconds { get; init; } = 90;
     /// <summary>The pressure model (GDD App. B.1, design decision 2026-10; ARCHITECTURE §8 note 266).</summary>
     public PressureTuning Pressure { get; init; } = new();
+    /// <summary>The night's curve and the free spawns on it (GDD App. B.1 "The night's curve"; note 849).</summary>
+    public CurveTuning Curve { get; init; } = new();
     /// <summary>T128 (note 273): the pressure on a crewmate the train has left behind.</summary>
     public AbandonedTuning Abandoned { get; init; } = new();
     /// <summary>Note 327 (GDD App. F.3): the crew on foot off the train, watched: the pressure they draw, and the signs they're shown.</summary>
@@ -790,6 +794,41 @@ public sealed record DirectorTuning(
 }
 
 /// <summary>
+/// The night's curve (GDD App. B.1 "The night's curve"; note 849; the director, 16 Oct 2026: "The longer a run goes, the more
+/// monsters just spawn in general, forcing you to kind of push towards the end"): how far into the night, as a curve from 0
+/// at the gate to 1 at the end, that the pressure's escalation climbs by, and that the free spawns come on: creatures sent
+/// without their situational rule (<see cref="SpawnRule.Free"/>), the Lethal Company way, at <see cref="AtGate"/> an hour at
+/// the gate rising to <see cref="AtEnd"/> at the end, beside the pressure's own spends and outside its budget; the hard caps,
+/// each kind's night (its chance and its cap) and the night's variety hold for them as for the rest. Mirror of enemies.json
+/// <c>director.curve</c>; field docs live there.
+/// </summary>
+public sealed record CurveTuning
+{
+    public int Power { get; init; } = 1;
+    public bool Free { get; init; } = true;
+    public bool Fill { get; init; } = true;
+    public bool FillPressed { get; init; } = true;
+    public double AtGate { get; init; } = 3;
+    public double AtEnd { get; init; } = 18;
+    public double SpacingSeconds { get; init; } = 20;
+    public double CrewFade { get; init; } = 0.25;
+    public int CrewFadeFrom { get; init; } = 2;
+    public double CrewFloor { get; init; } = 0.35;
+    public bool AfterFirst { get; init; } = true;
+    public double Bound { get; init; } = 1;
+    public Dictionary<string, double> Kinds { get; init; } = new();
+    /// <summary>The curve at <paramref name="progress"/> (0..1 into the night): progress to the power.</summary>
+    public double Of(double progress) => DMath.Pow(Math.Clamp(progress, 0, 1), Power);
+    /// <summary>Free spawns an hour where the curve stands at <paramref name="curve"/>, for a crew of <paramref name="crew"/>.</summary>
+    public double PerHour(double curve, int crew = 1) => (AtGate + (AtEnd - AtGate) * curve) * Fade(crew);
+    /// <summary>
+    /// The crew's share of the curve: the whole of it for a crew of <see cref="CrewFadeFrom"/> or fewer, <see cref="CrewFade"/>
+    /// less for each crewmate over that, never under <see cref="CrewFloor"/> (a bigger crew's pressure already scales with it).
+    /// </summary>
+    public double Fade(int crew) => Math.Max(CrewFloor, 1 - CrewFade * Math.Max(0, crew - CrewFadeFrom));
+}
+
+/// <summary>
 /// The aftermath (GDD App. B.1 Pacing rules; note 751; the director, 14 Oct 2026: "The breathing room is good. Don't
 /// necessarily want a lot of it though"): after one of <see cref="Events"/> the director sends nothing of its own for
 /// <see cref="Seconds"/>, pressed or not. Mirror of enemies.json <c>director.aftermath</c>; field docs live there.
@@ -816,7 +855,6 @@ public sealed record PressureTuning
     public double ReliefPerCost { get; init; } = 3;
     public double BasePerSecond { get; init; } = 0.03;
     public double Escalation { get; init; } = 3;
-    public int EscalationPower { get; init; } = 1;
     public double QuietPerSecond { get; init; } = 0.1;
     public double QuietRampSeconds { get; init; } = 90;
     /// <summary>
