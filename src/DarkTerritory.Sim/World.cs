@@ -2229,6 +2229,24 @@ public sealed partial class World
         _nextFx = _nextFx % 0xFFFFFF + 1;
     }
 
+    /// <summary>
+    /// Host (note 854; the director's playtest of 16 Oct, line 13: "What is making these couplings loose? It doesn't make any
+    /// sense"): a pin's just jumped. The report keeps what did it for when it parts (note 640), and the crew are told now, where
+    /// and why, everyone alike (the news line, <see cref="Sim.Run.News.Line"/>), while there's still the 90 s to tighten it.
+    /// </summary>
+    /// <param name="board">For a bend, its posted board (km/h); 0 not known.</param>
+    public void PinLoosened(int car, LooseCause cause, double speed, int board = 0)
+    {
+        if (!Authority)
+            return;
+        Attribution.Loosened(car, cause, speed, board);
+        _loosenings.Add((cause, speed));
+        var news = new Sim.Run.NewsEvent(_nextFx, Tick, Sim.Run.NewsKind.Loose, [car], (byte)cause, (byte)Math.Clamp(board, 0, 255), Attribution.Driver, speed);
+        NewsLog.Add(news);
+        News.Add(news);
+        _nextFx = _nextFx % 0xFFFFFF + 1;
+    }
+
     /// <summary>Note 846: whether <paramref name="vehicle"/>'s gun holds its fire, its car inside a walled town (combat.json holdInTowns).</summary>
     public bool GunHeld(int vehicle) =>
         Combat is { Guns.HoldInTowns: true } && vehicle >= 0 && vehicle < Train.Frames.Count && InTown(Train.Frames[vehicle].Origin);
@@ -2311,10 +2329,7 @@ public sealed partial class World
             bool pack = ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && !e.Gone && e.Attached >= 0);
             int parted = pins.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort || CallOnly, pack);
             if (pins.Loosened is { } l)
-            {
-                Attribution.Loosened(l.Car, l.Cause, l.Speed);
-                _loosenings.Add((l.Cause, l.Speed));
-            }
+                PinLoosened(l.Car, l.Cause, l.Speed, l.Cause == LooseCause.Bend ? Train.LurchBoardKmh : 0);
             // Note 511: what it parted is in the report as the pin's, not a cut nobody's named for.
             // The rake that isn't the engine's: ahead of it, the parted pin's own car's (note 653: seed 7's pair carried ahead).
             if (parted >= 0 && pins.PartedFrom >= 0)

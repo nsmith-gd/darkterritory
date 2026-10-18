@@ -43,7 +43,7 @@ public sealed class Attribution
     // Note 511: the cars a loose coupling's dropped pin parted from the train (note 356), nobody's hand on it: each to the car
     // whose pin it was. Note 640: what worked each pin loose, who was driving, and the train's speed then.
     readonly Dictionary<int, int> _parted = [];
-    readonly Dictionary<int, (LooseCause Cause, int Driver, double Speed)> _loosened = [];
+    readonly Dictionary<int, (LooseCause Cause, int Driver, double Speed, int Board)> _loosened = [];
     readonly HashSet<int> _apart = [];
 
     public IReadOnlyList<Incident> Log => _log;
@@ -95,10 +95,13 @@ public sealed class Attribution
         }
     }
     public bool Parted(int vehicle) => _parted.ContainsKey(vehicle);
-    /// <summary>Note 640: a pin worked loose (the car ahead of its gap), by what, with whom driving and at what speed.</summary>
-    public void Loosened(int car, LooseCause cause, double speed) => _loosened[car] = (cause, Driver, speed);
+    /// <summary>
+    /// Note 640: a pin worked loose (the car ahead of its gap), by what, with whom driving and at what speed; for a bend, its
+    /// posted board in km/h (note 854).
+    /// </summary>
+    public void Loosened(int car, LooseCause cause, double speed, int board = 0) => _loosened[car] = (cause, Driver, speed, board);
     /// <summary>What worked loose the pin that parted this car from the train, or null.</summary>
-    public (LooseCause Cause, int Driver, double Speed)? LooseOf(int vehicle) =>
+    public (LooseCause Cause, int Driver, double Speed, int Board)? LooseOf(int vehicle) =>
         _parted.TryGetValue(vehicle, out int pin) && _loosened.TryGetValue(pin, out var l) ? l : null;
     /// <summary>A car that came apart, battered and let go (note 576): what parted the train ahead of it.</summary>
     public void CameApart(int vehicle) => _apart.Add(vehicle);

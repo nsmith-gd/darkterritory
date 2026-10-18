@@ -455,6 +455,8 @@ public sealed class TrainOnLine
     /// by sight.json <c>lurchOver</c>). Held long enough it works a pin loose (<see cref="LooseTuning.BendSeconds"/>, note 732).
     /// </summary>
     public bool Lurching { get; set; }
+    /// <summary>Host, this tick: the posted board (km/h) of the bend the engine's rake is lurching on, for the line that says so (note 854).</summary>
+    public int LurchBoardKmh { get; set; }
 
     /// <summary>At a buffer stop: the end of the line, a dead line's end, or back at the start.</summary>
     public bool AtEndOfLine => Dynamics.Distance >= Line.PathLength(Dynamics.Path) || RearDistance <= 0;

@@ -2,15 +2,16 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Run;
 
-public enum NewsKind : byte { CarsLost, EngineFailing, EngineBroken, Marked, Fire }
+public enum NewsKind : byte { CarsLost, EngineFailing, EngineBroken, Marked, Fire, Loose }
 
 /// <summary>
 /// A piece of the night's news (note 663): cars the engine's lost, or the engine failing or broken down, and what did it.
 /// </summary>
 /// <param name="Cars">The cars lost, front to back (none for the engine's).</param>
 /// <param name="Cause">A <see cref="Parting"/> for cars lost, a <see cref="KnockCause"/> for the engine, an
-/// <see cref="Enemies.FireCause"/> for a fire (note 851).</param>
-/// <param name="Detail">For a pin, what worked it loose (<see cref="LooseCause"/>); for a fire, the car it came from.</param>
+/// <see cref="Enemies.FireCause"/> for a fire (note 851), a <see cref="LooseCause"/> for a pin just jumped (note 854).</param>
+/// <param name="Detail">For a pin, what worked it loose (<see cref="LooseCause"/>); for a fire, the car it came from; for a pin just
+/// jumped on a bend, the bend's posted board in km/h.</param>
 /// <param name="Who">Whose hand: the crewmate who cut them, or who was driving when the pin worked loose, or who threw the lamp; −1 nobody's.</param>
 /// <param name="Speed">The speed it was done at (m/s): the knock, or the pin's loosening; 0 when it's not said.</param>
 /// <param name="Told">Said to the crew; a crewmate's cut at a stand isn't (it's only in the host's log, for the report).</param>
@@ -37,7 +38,8 @@ public static class News
 
     /// <summary>
     /// The line as the crew read it, in capitals (the HUD's): what happened and why, no instructions (note 402's rule; F1's
-    /// wording). What worked a pin loose, and who was driving, is the report's (it's longer than five seconds' reading).
+    /// wording). What worked a pin loose is said as it jumps and again as it parts (note 854); who was driving is the report's
+    /// (it's longer than five seconds' reading).
     /// </summary>
     public static string Line(World world, NewsEvent e)
     {
@@ -57,6 +59,19 @@ public static class News
                 _ => $"FIRE IN {car}",
             };
         }
+        // Note 854 (the director, 16 Oct: "What is making these couplings loose?"): a pin jumped, the gap and what jumped it, as
+        // it does, with the 90 s still to tighten it in.
+        if (e.Kind == NewsKind.Loose)
+        {
+            string gap = e.Cars.Length > 0 ? $"COUPLING LOOSE BEHIND CAR {e.Cars[0]}" : "COUPLING LOOSE";
+            return (LooseCause)e.Cause switch
+            {
+                LooseCause.RunIn => $"{gap} · A HARD BRAKE AT {Kmh(e.Speed)}",
+                LooseCause.Knock => $"{gap} · COUPLED UP AT {Kmh(e.Speed)}",
+                LooseCause.Bend => e.Detail > 0 ? $"{gap} · A {e.Detail} KM/H BEND TAKEN AT {Kmh(e.Speed)}" : $"{gap} · A BEND TAKEN AT {Kmh(e.Speed)}",
+                _ => gap,
+            };
+        }
         if (e.Kind == NewsKind.Marked)
             return $"MARKED: {IncidentLog.NameOf(world, e.Who).ToUpperInvariant()} (SHOVED {IncidentLog.NameOf(world, e.Cars.Length > 0 ? e.Cars[0] : -1).ToUpperInvariant()} OFF"
                 + (e.Speed >= 1 ? $" AT {Kmh(e.Speed)})" : ")");
@@ -66,7 +81,14 @@ public static class News
         string it = e.Cars.Length == 1 ? "IT" : "THEM";
         return (Parting)e.Cause switch
         {
-            Parting.Pin => $"{cars} LOST · THE PIN WORKED LOOSE",
+            // Note 854: and what worked it loose, so the parting reads as the jump the crew were told of 90 s before.
+            Parting.Pin => (LooseCause)e.Detail switch
+            {
+                LooseCause.RunIn => $"{cars} LOST · THE PIN THE HARD BRAKE WORKED LOOSE",
+                LooseCause.Knock => $"{cars} LOST · THE PIN THE HARD COUPLING WORKED LOOSE",
+                LooseCause.Bend => $"{cars} LOST · THE PIN THE BEND WORKED LOOSE",
+                _ => $"{cars} LOST · THE PIN WORKED LOOSE",
+            },
             Parting.Knotter => $"{cars} LOST · A KNOTTER PARTED {it}",
             Parting.Crew => $"{cars} LOST · CUT LOOSE BY {IncidentLog.NameOf(world, e.Who).ToUpperInvariant()}",
             Parting.CarHugger => $"{cars} LOST · THE CAR HUGGER TOOK {it}",
