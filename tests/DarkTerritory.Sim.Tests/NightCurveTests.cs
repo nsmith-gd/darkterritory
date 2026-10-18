@@ -136,6 +136,30 @@ public class NightCurveTests
         Assert.Equal(1 + D.Pressure.Escalation * 0.95, off.Director!.Terms.Escalation, 9);
     }
 
+    /// <summary>
+    /// The curve fills the gaps the rules leave (curve.fill): the pressure past its threshold with no rule met spends on the
+    /// rule-less instead of nothing ("nothing fits" was most of a two-player night), charged and paced as any spend.
+    /// </summary>
+    [Fact]
+    public void ThePressureSpendsOnTheRuleLessWhenNoRuleFits()
+    {
+        Assert.True(D.Curve.Fill);
+        // The pressure as it is (it spends), the free spawns of their own off: whatever comes is the fill.
+        var filling = Tuning.Enemies with { Director = D with { Curve = D.Curve with { Free = false } } };
+        var world = Plain(filling, at: 10_000);
+        var d = world.Director!;
+        var sent = Think(world, 600);
+        Assert.NotEmpty(sent);
+        Assert.All(sent, k => Assert.Contains(Director.Key(k), D.Curve.Kinds.Keys));
+        Assert.All(d.Log, l => Assert.True(l.Free));
+        // A spend: charged to the budget, the pressure relieved, the cooldown kept.
+        Assert.Equal(sent.Sum(d.Cost), d.Spent);
+        Assert.True(d.Pressure < D.Pressure.Threshold);
+        var off = Plain(filling with { Director = filling.Director with { Curve = filling.Director.Curve with { Fill = false } } }, at: 10_000);
+        Assert.Empty(Think(off, 600));
+        Assert.Equal("nothing fits", off.Director!.HeldBecause);
+    }
+
     [Fact]
     public void TheSameNightSendsTheSameFreeSpawns()
     {

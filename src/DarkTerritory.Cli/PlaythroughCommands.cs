@@ -265,7 +265,7 @@ static class PlaythroughCommands
             if (world.Director is { } hd && world.Tick % SimConstants.TickRate == 0 && world.Tick != lastHeldTick)
             {
                 lastHeldTick = world.Tick;
-                string why = hd.HeldBecause ?? "sent";
+                string why = hd.HeldBecause ?? (world.SafeYard ? "safe yard" : "sent");
                 held[why] = held.GetValueOrDefault(why) + 1;
             }
             if (now - lastChase >= every)

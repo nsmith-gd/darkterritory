@@ -1058,9 +1058,12 @@
     // The hard caps hold (a crew of one still meets one thing at a time), each kind's night (nightChance, perNight, slain),
     // the variety rules (unseen, repeats), who's next and the dead's votes; never within spacingSeconds of anything the
     // director sent, and (afterFirst) never before the night's first threat, which is drawn (note 287). A free spawn takes
-    // nothing off the pressure: it's beside the pressure, not instead of it. on false: the curve shapes the escalation only.
+    // nothing off the pressure: it's beside the pressure, not instead of it. free false: no free spawns of their own.
+    // fill: and the rule-less fill the gaps the rules leave: when the pressure would spend and no rule is met (a moving train
+    // lets few kinds in; a crew of one or two fewer: "nothing fits" was most of a two-player night), it spends on the
+    // rule-less instead of nothing, by their kinds weights, charged, paced and relieving as any spend. false: as before.
     "curve": {
-      "power": 1, "free": true, "atGate": 2, "atEnd": 14, "spacingSeconds": 20, "afterFirst": true, "bound": 1,
+      "power": 1, "free": true, "fill": true, "atGate": 2, "atEnd": 14, "spacingSeconds": 20, "afterFirst": true, "bound": 1,
       "kinds": { "cinderHounds": 1, "climbers": 1, "ribbits": 1.5, "followers": 1, "sootChildren": 1, "moose": 0.7 }
     },
     // T128 (build 1121: "a player left behind by the train should feel the world close in: tension, monsters coming, the

@@ -637,6 +637,16 @@ public sealed class Director
             && draw.Answers.GetValueOrDefault(DrawLedger.Key(_answer?.Cause ?? Draws.Top.Cause)) is { } calls)
             for (int i = 0; i < options.Count; i++)
                 options[i] = (options[i].Kind, options[i].Weight * calls.GetValueOrDefault(Key(options[i].Kind), 1));
+        // The night's curve fills the gaps the rules leave (note 849; curve.fill): with no rule met (the moving train lets few
+        // kinds in; a crew of one or two fewer), the pressure spends on the rule-less instead of nothing: a kind sent without
+        // its situational rule, at its free weight, charged and paced as any spend.
+        bool fill = false;
+        if (options.Count == 0 && _t.Curve.Fill && world.Enemies is { } ft)
+        {
+            options = FreeOptions(world, ft, holding, withBound: false);
+            options.RemoveAll(o => Cost(o.Kind) > (due ? Math.Max(available - Reserve(world, s, o.Kind), _t.PacedCost) : available - Reserve(world, s, o.Kind)));
+            fill = options.Count > 0;
+        }
         if (options.Count == 0)
             return Held("nothing fits");
         // Variety across the night (note 742): a kind come repeatHold times tonight waits while one about tonight hasn't come
@@ -689,9 +699,41 @@ public sealed class Director
             pick -= o.Weight;
         }
         HeldBecause = null;
-        Charge(world, kind, active, paced: due && (_cooldown > 0 || Cost(kind) > available - Reserve(world, s, kind)));
+        SentFree = fill;
+        Charge(world, kind, active, paced: due && (_cooldown > 0 || Cost(kind) > available - Reserve(world, s, kind)), free: fill);
         _cooldown = _rng.Range(_t.CooldownSeconds[0], _t.CooldownSeconds[1]);
         return kind;
+    }
+
+    /// <summary>
+    /// What the night's curve could send now (note 849): the rule-less whose free gate (<see cref="SpawnRule.Free"/>) says yes,
+    /// at their weight in <c>curve.kinds</c>; and, with <paramref name="withBound"/>, every kind whose rule is met now at its
+    /// rule's weight × <c>curve.bound</c> × the curve. Each × the tuning's weights and the night's variety; under the roster,
+    /// the kind's night, slain and the zone caps. A Dragger or Whistler (silent until met) only with nothing else.
+    /// </summary>
+    List<(EnemyKind Kind, double Weight)> FreeOptions(World world, EnemyTuning et, List<Enemy> holding, bool withBound)
+    {
+        var f = _t.Curve;
+        var ctx = new SpawnContext(world, et, this) { Free = true };
+        var options = new List<(EnemyKind Kind, double Weight)>();
+        foreach (var rule in Spawns.Rules)
+        {
+            if (!Allows(rule.Kind) || !Tonight(rule.Kind, world) || world.Slain.Contains(rule.Kind) || !Room(rule.Kind, holding))
+                continue;
+            double w;
+            if (rule.Weight(ctx) is { } met && met > 0)
+                w = withBound ? met * _t.Weights.GetValueOrDefault(Key(rule.Kind), 1) * f.Bound * Curve : 0;
+            else if (rule.Free is { } free && f.Kinds.GetValueOrDefault(Key(rule.Kind), 0) is var fw && fw > 0 && free(ctx))
+                w = fw * _t.Weights.GetValueOrDefault(Key(rule.Kind), 1);
+            else
+                continue;
+            w *= NightVariety(rule.Kind);
+            if (w > 0)
+                options.Add((rule.Kind, w));
+        }
+        if (options.Any(o => o.Kind is not (EnemyKind.Dragger or EnemyKind.Whistler)))
+            options.RemoveAll(o => o.Kind is EnemyKind.Dragger or EnemyKind.Whistler);
+        return options;
     }
 
     /// <summary>
@@ -719,26 +761,7 @@ public sealed class Director
         var holding = Holding(world, active);
         if (holding.Count >= EngagedCap || world.Enemies is not { } et)
             return null;
-        var ctx = new SpawnContext(world, et, this) { Free = true };
-        var options = new List<(EnemyKind Kind, double Weight)>();
-        foreach (var rule in Spawns.Rules)
-        {
-            if (!Allows(rule.Kind) || !Tonight(rule.Kind, world) || world.Slain.Contains(rule.Kind) || !Room(rule.Kind, holding))
-                continue;
-            double w;
-            if (rule.Weight(ctx) is { } met && met > 0)
-                w = met * _t.Weights.GetValueOrDefault(Key(rule.Kind), 1) * f.Bound * Curve;
-            else if (rule.Free is { } free && f.Kinds.GetValueOrDefault(Key(rule.Kind), 0) is var fw && fw > 0 && free(ctx))
-                w = fw;
-            else
-                continue;
-            w *= NightVariety(rule.Kind);
-            if (w > 0)
-                options.Add((rule.Kind, w));
-        }
-        // Something that shows itself: a Dragger under a car's edge or a Whistler in its gap lies silent until someone comes.
-        if (options.Any(o => o.Kind is not (EnemyKind.Dragger or EnemyKind.Whistler)))
-            options.RemoveAll(o => o.Kind is EnemyKind.Dragger or EnemyKind.Whistler);
+        var options = FreeOptions(world, et, holding, withBound: true);
         if (options.Count == 0)
             return null;
         options = WeighVotes(WhoseNext(options));
@@ -1720,7 +1743,7 @@ public sealed class Director
     };
 
     /// <summary>Condition-triggered enemies (the Stoker) cost budget only when they actually fire (App. B.5).</summary>
-    public void Charge(World world, EnemyKind kind, IReadOnlyList<Enemy> active, bool paced = false)
+    public void Charge(World world, EnemyKind kind, IReadOnlyList<Enemy> active, bool paced = false, bool free = false)
     {
         // The night's first (note 287): the Stoker is the firebox's own answer (drawn by heat, note 263), whoever tended it last;
         // anything else, the draw that was answered, or the biggest standing.
@@ -1748,7 +1771,7 @@ public sealed class Director
         if (AfootShare > 0)
             SpawnsAfoot++;
         Log.Add(new DirectorSpawn(world.Tick, kind, Cost(kind), world.Train.Dynamics.Distance,
-            active.Count(e => Engaged(e) && e.Zone == zone) + 1, active.Count(Engaged) + 1, paced));
+            active.Count(e => Engaged(e) && e.Zone == zone) + 1, active.Count(Engaged) + 1, paced, free));
     }
 
     // GDD v1.4 App. D.11, the creature vote (note 180): host-side, by player id in order, so every choice is deterministic.
