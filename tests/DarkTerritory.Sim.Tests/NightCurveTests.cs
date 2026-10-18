@@ -158,7 +158,7 @@ public class NightCurveTests
     [Fact]
     public void ThePressureSpendsOnTheRuleLessWhenNoRuleFits()
     {
-        Assert.True(D.Curve.Fill);
+        Assert.True(D.Curve.Fill && D.Curve.FillPressed);
         // The pressure as it is (it spends), the free spawns of their own off: whatever comes is the fill.
         var filling = Tuning.Enemies with { Director = D with { Curve = D.Curve with { Free = false }, NightChance = OnlyTheFree } };
         var world = Plain(filling, at: 10_000);
@@ -167,9 +167,10 @@ public class NightCurveTests
         Assert.NotEmpty(sent);
         Assert.All(sent, k => Assert.Contains(Director.Key(k), D.Curve.Kinds.Keys));
         Assert.All(d.Log, l => Assert.True(l.Free));
-        // A spend: charged to the budget, the pressure relieved, the cooldown kept.
+        // A spend: charged to the budget, the pressure relieved, the cooldown kept; and only once pressed (a long quiet).
         Assert.Equal(sent.Sum(d.Cost), d.Spent);
-        Assert.True(d.Pressure < D.Pressure.Threshold);
+        Assert.True(d.Pressure < D.Pressure.PressAt);
+        Assert.All(d.Log, l => Assert.True(l.Paced));
         var off = Plain(filling with { Director = filling.Director with { Curve = filling.Director.Curve with { Fill = false } } }, at: 10_000);
         Assert.Empty(Think(off, 600));
         Assert.Equal("nothing fits", off.Director!.HeldBecause);

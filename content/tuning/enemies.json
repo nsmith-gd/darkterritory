@@ -1064,9 +1064,11 @@
     // nothing off the pressure: it's beside the pressure, not instead of it. free false: no free spawns of their own.
     // fill: and the rule-less fill the gaps the rules leave: when the pressure would spend and no rule is met (a moving train
     // lets few kinds in; a crew of one or two fewer: "nothing fits" was most of a two-player night), it spends on the
-    // rule-less instead of nothing, by their kinds weights, charged, paced and relieving as any spend. false: as before.
+    // rule-less instead of nothing, by their kinds weights, charged, paced and relieving as any spend. fillPressed: only
+    // once the pressure presses (pressAt: a long quiet), so the rules keep their rhythm and the fill is the gap's answer, not
+    // every threshold's (at every threshold, 3- and 4-bot nights missed dawn, note 849). fill false: as before.
     "curve": {
-      "power": 1, "free": true, "fill": true, "atGate": 2, "atEnd": 14, "spacingSeconds": 20,
+      "power": 1, "free": true, "fill": true, "fillPressed": true, "atGate": 2, "atEnd": 14, "spacingSeconds": 20,
       "crewFade": 0.2, "crewFadeFrom": 2, "crewFloor": 0.5, "afterFirst": true, "bound": 1,
       "kinds": { "cinderHounds": 1, "climbers": 1, "ribbits": 1.5, "followers": 1, "sootChildren": 1, "moose": 0.7 }
     },

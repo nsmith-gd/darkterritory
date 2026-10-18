@@ -836,6 +836,7 @@ public sealed record CurveTuning
     public int Power { get; init; } = 1;
     public bool Free { get; init; } = true;
     public bool Fill { get; init; } = true;
+    public bool FillPressed { get; init; } = true;
     public double AtGate { get; init; } = 2;
     public double AtEnd { get; init; } = 14;
     public double SpacingSeconds { get; init; } = 20;

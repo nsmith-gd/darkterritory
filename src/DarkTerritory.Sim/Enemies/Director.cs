@@ -641,7 +641,7 @@ public sealed class Director
         // kinds in; a crew of one or two fewer), the pressure spends on the rule-less instead of nothing: a kind sent without
         // its situational rule, at its free weight, charged and paced as any spend.
         bool fill = false;
-        if (options.Count == 0 && _t.Curve.Fill && world.Enemies is { } ft)
+        if (options.Count == 0 && _t.Curve.Fill && (due || !_t.Curve.FillPressed) && world.Enemies is { } ft)
         {
             options = FreeOptions(world, ft, holding, withBound: false);
             options.RemoveAll(o => Cost(o.Kind) > (due ? Math.Max(available - Reserve(world, s, o.Kind), _t.PacedCost) : available - Reserve(world, s, o.Kind)));
@@ -700,7 +700,7 @@ public sealed class Director
         }
         HeldBecause = null;
         SentFree = fill;
-        Charge(world, kind, active, paced: due && (_cooldown > 0 || Cost(kind) > available - Reserve(world, s, kind)), free: fill);
+        Charge(world, kind, active, paced: fill || due && (_cooldown > 0 || Cost(kind) > available - Reserve(world, s, kind)), free: fill);
         _cooldown = _rng.Range(_t.CooldownSeconds[0], _t.CooldownSeconds[1]);
         return kind;
     }
