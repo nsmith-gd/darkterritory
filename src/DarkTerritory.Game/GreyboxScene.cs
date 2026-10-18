@@ -3837,13 +3837,17 @@ public sealed partial class GreyboxScene
             if (town is not null)
             {
                 Look.Art.World.Square(mesh, line, eye, town, from, to);
+                Lap(mesh, "town square");
                 Look.Art.World.Civic(mesh, line, eye, town, from, to, Look.Tuning.Atmosphere.Wind.Of(Wind), Look.Tuning.Atmosphere.Wind.Gusts, Time);
+                Lap(mesh, "town green");
                 Look.Art.World.Works(mesh, line, eye, town, from, to);
+                Lap(mesh, "town works");
                 // The rail yard behind the platform (note 502).
                 Look.Art.World.Yard(mesh, line, eye, town, from, to);
+                Lap(mesh, "town rail yard");
                 // A town type's own ground, water and landmarks (note 692).
                 Look.Art.World.Forms(mesh, line, eye, town, from, to, Time, Route);
-                Lap(mesh, "town square, green, works");
+                Lap(mesh, "town form");
                 Look.Art.World.Houses(mesh, line, eye, town, from, to);
                 if (town == Arrival)
                     HouseFires(mesh, eye, town);
