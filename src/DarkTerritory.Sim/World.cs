@@ -2769,7 +2769,7 @@ public sealed partial class World
             // Its grace counts from the run's start when the yard's safe (note 263): a crew who waited half an hour at the gate
             // haven't been out in the Territory for it.
             else if (d.Decide(this, Run is { Tuning.YardIsSafe: true } r ? r.Seconds : ElapsedSeconds, _enemies, NoSpawnFinalApproach) is { } kind && Spawns.For(kind) is { } rule)
-                rule.Spawn(new SpawnContext(this, t, d));
+                rule.Spawn(new SpawnContext(this, t, d) { Free = d.SentFree });
             // The dark answers the draw (note 287): heard from out past the lamp, and eyes at its edge, before the threat comes.
             foreach (var (cause, actor) in d.TakeAnswers())
                 Answer = new DrawAnswer(t.Director.Draw.ShowSeconds, cause, AnswerAt(t.Director.Draw), actor);
