@@ -139,6 +139,8 @@ public sealed record CompositionTuning
     public int UtilityCars { get; init; }
     /// <summary>Cars converted to armour (GDD §26 "reinforced plating, heavier mass"), from the rear forward.</summary>
     public int ArmouredCars { get; init; }
+    /// <summary>Note 678, §8.8: the cab's glass is armour glass in riveted frames (the driver keeps full sight of the line); a Climber coming over the tender holds there for <c>climbers.cabGlassSeconds</c> first.</summary>
+    public bool CabArmour { get; init; }
     /// <summary>Cars that stay cargo whatever's bought: a conversion that would leave fewer isn't made.</summary>
     public int MinCargoCars { get; init; } = 1;
     /// <summary>What an armoured car's plate weighs on top of the car.</summary>

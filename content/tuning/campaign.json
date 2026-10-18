@@ -143,6 +143,11 @@
     { "id": "boosterEngine", "name": "Trailing-truck booster", "size": "major", "costShare": 1.5, "fromTier": "deadLines", "effect": { "accel": 1.2 },
       "line": "A second engine under the tender's trucks. A long train pulls away a fifth harder." },
 
+    // The armoured cab (upgrades.md §8.8, the director: "You still want full visibility of the track"): thick glass in heavy
+    // riveted frames and a grille outside, never slits. A Climber over the tender is held at the glass (enemies.json
+    // climbers.cabGlassSeconds) before it's through into the cab.
+    { "id": "armouredCab", "name": "Armoured cab", "size": "major", "costShare": 1.5, "fromTier": "deepTerritory", "effect": { "cabArmour": 1 },
+      "line": "Armour glass and a grille at the cab windows. Full sight of the line; a Climber is held at the glass before it's through." },
     // Armour II and III (upgrades.md §8.2; "the conversion repeatable"): one more car plated each, a rank at a time, from the
     // tier whose Climbers and Draggers they answer. "requires" names the rank before.
     { "id": "armouredCar2", "name": "Armour II", "size": "major", "costShare": 1.4, "fromTier": "deadLines", "requires": [ "armouredCar" ], "effect": { "armouredCars": 1 },

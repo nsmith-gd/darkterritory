@@ -102,6 +102,14 @@ public class UpgradeTests
     }
 
     [Fact]
+    public void TheArmouredCabHoldsAClimberAtTheGlass()
+    {
+        Assert.False(Tuning.Train.Composition.CabArmour);
+        Assert.True(With("armouredCab").Train.Composition.CabArmour);
+        Assert.True(Tuning.Enemies.Climbers.CabGlassSeconds > 0);
+    }
+
+    [Fact]
     public void ArmourIIAndIIIAreRanksOfTheConversion()
     {
         // Each plates one more car than the last: three fitted, three plated; and a rank needs the one before it.
