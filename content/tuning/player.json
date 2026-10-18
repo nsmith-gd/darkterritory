@@ -78,22 +78,8 @@
     "overhead": 2.3,
     "grab": 0.3
   },
-  // Spec B.2: 600 s outside to onset, 1200 s to death, reset in 20 s near heat (from any point short of death). Cut from
-  // 200 / 320 / 45 after the 100-night playtest, where cold was 73% of all deaths: it was attrition, not a decision.
-  // Heat is the cab while the fire burns, or a shut car while the boiler has steam to heat it.
-  "cold": {
-    "onsetSeconds": 600,
-    "deathSeconds": 1200,
-    "recoverSecondsNearHeat": 20,
-    // Not in the spec, which gives onset no effect: past it you move at this fraction of your speed.
-    "onsetSpeedScale": 0.9,
-    // Spec B.2: inside a car's walls with a door open (working a side door, say), out of the wind but not warm, the cold
-    // comes on at this fraction of the rate outside.
-    "indoorsRate": 0.25,
-    // GDD §22 deep cold (note 183): each of linegen §14's cold steps where you are (the night's, high ground, exposed track)
-    // makes it come on this much faster. A step-3 night on an exposed crest: about twice as fast.
-    "perColdStep": 0.25
-  },
+  // The cold (spec B.2's exposure, GDD §22's deep cold) is out of gameplay since note 852 (the director, 16 Oct 2026): a
+  // night's cold is the look's alone (look.json atmosphere.cold: the frost, the breath).
   // GDD §22 wind, spec B.2's "roof run: wind and balance penalty" (ARCHITECTURE §8 note 201). Up on a roof, the wind
   // (the route's conditions: the night's, ×1.5 on exposed track) pushes you sideways: drift m/s at wind 1 with the train
   // at its maxSpeed, still of that with it stopped (it's the wind across a moving train), in gusts that swing from one

@@ -145,10 +145,6 @@ public sealed record CompositionTuning
     public double ArmourTonnes { get; init; } = 10;
     /// <summary>How much of a blow to its shell an armoured car takes (the plate turns the rest).</summary>
     public double ArmourDamage { get; init; } = 0.5;
-    /// <summary>A crew car's stove warms this far round it with a door open; shut in, the whole car's warm.</summary>
-    public double StoveReach { get; init; } = 2.5;
-    /// <summary>How fast the cold comes on in an unheated car, against player.json <c>cold.indoorsRate</c> (spec F.3 car insulation).</summary>
-    public double Insulation { get; init; } = 1;
     /// <summary>Handrails along every roof's edges (spec F.3 roof handrails).</summary>
     public bool Handrails { get; init; }
     /// <summary>What holding them does.</summary>
@@ -183,7 +179,7 @@ public sealed record CompositionTuning
 
 /// <summary>The whimsies (train.json <c>composition.whimsy</c>; ARCHITECTURE §8 note 715). Field docs live in that file.</summary>
 public sealed record WhimsyTuning(int Gnomes = 5, int CanaryCars = 1, double CanaryGasM = 10, double CanaryFumesSeconds = 20,
-    double GramophoneHears = 22, double GramophoneLoudness = 0.25, double CalliopeHears = 80, double HammockCold = 0.5, double TubSteam = 0.15,
+    double GramophoneHears = 22, double GramophoneLoudness = 0.25, double CalliopeHears = 80, double TubSteam = 0.15,
     double FishReach = 4, double[]? FishSeconds = null, int FishHeals = 40, double CatSpeed = 1.1, double DogSpeed = 1.8, double[]? Wander = null,
     int CatWarnCars = 1, double DogHears = 40, double Fetch = 0.45, double Drop = 1.2, double LaunchSpeed = 14, double LaunchEvery = 2,
     double BallSeen = 70, double BallTake = 1.5, double BallWorry = 4)
@@ -205,7 +201,6 @@ public sealed record BbqTuning
     public double DeckLength { get; init; } = 3.0;
     public double RailHeight { get; init; } = 1.0;
     public int Beers { get; init; } = 24;
-    public double BeerWarmth { get; init; } = 30;
     public int BeerHeals { get; init; }
     public double LightSeconds { get; init; } = 0.6;
     public double BurnSeconds { get; init; } = 300;

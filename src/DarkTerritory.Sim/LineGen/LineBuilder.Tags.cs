@@ -168,14 +168,14 @@ sealed partial class LineBuilder
         bool rain = rng.Chance(_l.RainChance);
         double cold = Math.Round(rng.Range(_l.Cold), 2);
         double wind = Math.Round(rng.Range(_l.Wind), 2);
-        int step = (int)Math.Floor(cold * 3.999);
         double density = Math.Round(w.FogDensityPerInverseMetre / ((fogMin + fogMax) / 2), 4);
-        _weather = new PlanWeather(fogMin, fogMax, rain, cold, wind, step, density);
+        // The night's cold (0..1) is the look's alone since note 852: the frost on the glass, the breath (look.json atmosphere.cold).
+        _weather = new PlanWeather(fogMin, fogMax, rain, cold, wind, density);
     }
 
     /// <summary>
     /// §14's per-segment modifiers, from the tags: fog ×1.3 in low ground and marsh, ×0.8 on crests; wind ×1.5 where
-    /// exposed; adhesion worse on wet-biased track in rain; a cold step per 150 m climbed and on exposed track.
+    /// exposed; adhesion worse on wet-biased track in rain. (Its cold steps went with the cold, note 852.)
     /// </summary>
     void LayExposure()
     {
@@ -191,7 +191,6 @@ sealed partial class LineBuilder
             {
                 double mid = Math.Min(line.Length, s + step / 2);
                 double fog = 1, wind = 1, adhesion = 1;
-                int cold = 0;
                 var why = new List<string>();
                 bool water = BesideWater(e.Id, mid, line.Sample(mid).Position);
                 if (HasTag("low_ground", e.Id, mid) || HasTag("marsh", e.Id, mid) || water)
@@ -209,7 +208,6 @@ sealed partial class LineBuilder
                 if (exposed)
                 {
                     wind *= w.WindExposed;
-                    cold += (int)w.ColdExposedStep;
                     why.Add("exposed");
                 }
                 bool wetBias = HasTag("wet_bias", e.Id, mid) || HasTag("dark_forest", e.Id, mid) || HasTag("tunnel_exit", e.Id, mid) || HasTag("cutting", e.Id, mid);
@@ -217,9 +215,8 @@ sealed partial class LineBuilder
                     adhesion = wetBias ? w.WetBiasAdhesion : w.WetAdhesion;
                 if (wetBias)
                     why.Add("wet");
-                cold += (int)Math.Max(0, Math.Floor(line.Sample(mid).Position.Y / w.ColdStepPerM));
-                var seg = new PlanExposure(e.Id, R(s), R(Math.Min(line.Length, s + step)), fog, wind, adhesion, cold, string.Join(",", why));
-                if (run is not null && run.Fog == seg.Fog && run.Wind == seg.Wind && run.Adhesion == seg.Adhesion && run.ColdStep == seg.ColdStep && run.Why == seg.Why)
+                var seg = new PlanExposure(e.Id, R(s), R(Math.Min(line.Length, s + step)), fog, wind, adhesion, string.Join(",", why));
+                if (run is not null && run.Fog == seg.Fog && run.Wind == seg.Wind && run.Adhesion == seg.Adhesion && run.Why == seg.Why)
                     run = run with { S1 = seg.S1 };
                 else
                 {

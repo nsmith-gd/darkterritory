@@ -94,7 +94,7 @@ public class CreatureGymTests
         Assert.DoesNotContain(host.World.ActiveEnemies, e => !e.Gone);
         Assert.False(host.World.Run!.Over);
         Assert.Equal(clock, host.World.Run.Seconds);
-        Assert.All(host.Players, p => Assert.True(p.State.Alive && p.State.Cold == 0));
+        Assert.All(host.Players, p => Assert.True(p.State.Alive));
     }
 
     /// <summary>

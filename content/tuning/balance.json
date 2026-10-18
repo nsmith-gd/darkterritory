@@ -52,13 +52,13 @@
     // curious player, roughly.
     "look": { "waitSeconds": 12, "seekM": 80, "gauntM": 3, "ribbitM": 5, "mooseM": 10, "towerJawM": 20, "beetleM": 12, "edgeM": 0.6 },
     // §22: "hazards remove your tools. They never change enemy rules." What each set takes away, laid over the line:
-    // adhesion (wet rail; 0.75 is the generator's wettest, linegen tiers.json wetBiasAdhesion), coldStep (deep cold, added
-    // to the line's), wind (gunfire carries; 1 is Deep Territory's worst night), lampsOut (§23 "lights fail": the forward
-    // lamp smashed and every car's out).
+    // adhesion (wet rail; 0.75 is the generator's wettest, linegen tiers.json wetBiasAdhesion), wind (gunfire carries; 1 is
+    // Deep Territory's worst night), lampsOut (§23 "lights fail": the forward lamp smashed and every car's out). The deep
+    // cold's set went with the cold (note 852): the wind that came with it is its own set.
     "hazardSets": [
       { "name": "clear" },
       { "name": "wet", "adhesion": 0.75 },
-      { "name": "cold", "coldStep": 2, "wind": 1 },
+      { "name": "wind", "wind": 1 },
       { "name": "dark", "lampsOut": true }
     ]
   },

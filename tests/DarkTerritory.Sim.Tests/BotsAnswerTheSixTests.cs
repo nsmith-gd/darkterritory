@@ -23,7 +23,7 @@ public class BotsAnswerTheSixTests
     /// <summary>The director quiet (its grace never over): only what each test puts there.</summary>
     static readonly EnemyTuning Quiet = E with { Director = E.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } };
 
-    static StopHand Hand(int id) => new(StopJob.None, new CrewCalls(), id, P.Cold);
+    static StopHand Hand(int id) => new(StopJob.None, new CrewCalls(), id);
 
     static Double3 Beside(Night n, int car, double lateral, double along = 0)
     {
@@ -131,7 +131,7 @@ public class BotsAnswerTheSixTests
         n.World.AddEnemy(id => Mourner.Come(id, 1, body, n.Train, E.Mourners)[0]);
         n.Crew[2] = Ground(n, Beside(n, 2, 14));
         var calls = new CrewCalls();
-        var hand = new StopHand(StopJob.None, calls, 2, P.Cold);
+        var hand = new StopHand(StopJob.None, calls, 2);
         var job = new PlayerIntent { MoveX = 0.7f };
         Assert.NotEqual(job, Heed.Mourners(job, n.Crew[2], n.World, 2, hand));
         calls.Leave(true);
@@ -196,7 +196,7 @@ public class BotsAnswerTheSixTests
     /// <summary>A roof walker (no stop part) whose legs are its own, as a crew bot's are.</summary>
     static RoofWalkerBot Walker(int id, int head = -1)
     {
-        var w = new RoofWalkerBot(id, P.Cold) { Me = id };
+        var w = new RoofWalkerBot(id) { Me = id };
         w.Head(head);
         return w;
     }
