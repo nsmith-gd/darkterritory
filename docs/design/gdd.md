@@ -2299,7 +2299,7 @@ At least one pair per run on Frontier and above. Two on Deep Territory.
 |---|---|---|---|
 | **The Passenger** | Boards during a facility stop | **Dead lines+ · crew ≥3** (needs a crowd to hide in) · once per run | Weight up if the crew were split across several facility tasks |
 | **The Switchman** | Junction network ahead of the train | Frontier+ · **route must contain ≥3 junctions** | Weight up on routes with dead-line branches available |
-| **Grumbler** | Facilities with a crane and crates (Foundry first) | Any tier (first pass) | ×2 with food crates at the facility |
+| **Grumbler** | Facilities with a crane and crates (Foundry first): its own crane or a yard's gantry, on the perch nearest the crew (level-design H.2, note 848) | Any tier (first pass) | ×2 with food crates at the facility |
 | **The Brakeman** | Up the end ladder at the end of a moving train furthest from the crew | **Never with a crew of one** · train length ≥4 · over 3 m/s · not in a fort or a tunnel · one at a time; gone for the night once killed | ×1 Local, ×1.5 Frontier, ×2 Dead Lines, ×2.5 Deep Territory; × cars ÷ 6; ×2 with a climb of 2% or more within 1 km |
 
 Corrupted humans are the rarest category by design. **Maximum one active at a time**, regardless of budget.
