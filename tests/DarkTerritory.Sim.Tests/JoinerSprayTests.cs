@@ -53,8 +53,12 @@ public class JoinerSprayTests
         byte me = joiner.PlayerId!.Value;
         host.SetPlayerState(me, new PlayerState
         {
-            Parent = car, Position = feet, Surface = Surface.Deck, Health = P.Health,
-            Yaw = Math.Atan2(-d.X, -d.Z), Pitch = Math.Atan2(d.Y, Math.Sqrt(d.X * d.X + d.Z * d.Z)),
+            Parent = car,
+            Position = feet,
+            Surface = Surface.Deck,
+            Health = P.Health,
+            Yaw = Math.Atan2(-d.X, -d.Z),
+            Pitch = Math.Atan2(d.Y, Math.Sqrt(d.X * d.X + d.Z * d.Z)),
         });
         var ext = host.World.Bodies.SpawnCrate(train, car, feet with { Y = room.Min.Y + 0.1 }, BodyKind.Extinguisher);
         ext.Carrier = me;
