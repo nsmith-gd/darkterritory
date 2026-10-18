@@ -47,7 +47,10 @@ public class WarmClearTests
         n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, car, 2, P);
         n.World.Choir.Build = 1;
         for (int i = 0; i < 60 * 4 && bot.WarmUpStep is not "Warm/shelter"; i++)
+        {
+            n.World.Choir.Build = 1; // held gathering: its shelter is the way in (the cold was, before note 852)
             n.Run(0.25, id => id == 1 ? bot.Decide(n.Crew[1], n.World, n.World.Tick, out _) : default);
+        }
         Assert.Equal("Warm/shelter", bot.WarmUpStep);
         int warmCar = n.Crew[1].Parent;
         Assert.False(n.Train.Vehicles[warmCar].DoorOpen(SideDoor(n, warmCar)));
@@ -83,6 +86,7 @@ public class WarmClearTests
         var steps = new List<string>();
         for (int i = 0; i < 60 * 4 && bot.WarmUpStep is not "Warm/shelter"; i++)
         {
+            n.World.Choir.Build = 1;
             n.Run(0.25, id => id == 1 ? bot.Decide(n.Crew[1], n.World, n.World.Tick, out _) : default);
             if (bot.WarmUpStep is { } w && (steps.Count == 0 || steps[^1] != w)) steps.Add(w);
         }

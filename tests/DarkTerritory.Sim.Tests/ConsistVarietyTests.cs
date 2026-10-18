@@ -172,7 +172,7 @@ public class ConsistVarietyTests
         Assert.Equal(2, With("secondGuardCar").Composition.GuardCars);
         Assert.Equal(1, With("armouredCar").Composition.ArmouredCars);
         // Every consist upgrade the spec lists now does something.
-        foreach (var id in new[] { "couplingReinforcement", "roofHandrails", "carInsulation", "armouredCar", "secondGuardCar", "reinforcedCouplings", "crewCar" })
+        foreach (var id in new[] { "couplingReinforcement", "roofHandrails", "armouredCar", "secondGuardCar", "reinforcedCouplings", "crewCar" })
             Assert.NotEqual(base_, Campaign.Campaign.Apply(C, [id], base_));
     }
 

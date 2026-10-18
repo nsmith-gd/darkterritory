@@ -84,7 +84,10 @@ public class FallWatchTests
         n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, car, 2, P);
         n.World.Choir.Build = 1;
         for (int i = 0; i < 60 * 4 && bot.WarmUpStep is not "Warm/shelter"; i++)
+        {
+            n.World.Choir.Build = 1; // held gathering: its shelter is the way in (the cold was, before note 852)
             n.Run(0.25, id => id == 1 ? bot.Decide(n.Crew[1], n.World, n.World.Tick, out _) : default);
+        }
         Assert.Equal("Warm/shelter", bot.WarmUpStep);
         n.World.Choir.Build = 0;
         int warm = n.Crew[1].Parent;
@@ -131,6 +134,7 @@ public class FallWatchTests
         bool inside = false;
         for (int i = 0; i < 20 * 4 && !inside; i++)
         {
+            n.World.Choir.Build = 1;
             n.Run(0.25, id => id == 1 ? bot.Decide(n.Crew[1], n.World, n.World.Tick, out _) : default);
             var c = n.Crew[1];
             Assert.True(c.Parent == car, $"off the car at {i / 4.0:0.0} s: {c.Surface}@{c.Parent} ({c.Position.X:0.0},{c.Position.Z:0.0}), {bot.WarmUpStep}");

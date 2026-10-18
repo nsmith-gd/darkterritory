@@ -39,6 +39,7 @@ public class WarmUpTests
         for (uint tick = 0; tick < SimConstants.TickRate * 30 && train.Vehicles[car].DoorsOpen != 0; tick++)
         {
             world.BeginTick();
+            world.Choir.Build = 1;
             var intent = bot.Decide(s, world, tick, out _);
             world.CrewAct(ref s, intent, 1);
             world.Step(new TrainControls { Brake = 1, Reverser = 1 });
@@ -74,6 +75,7 @@ public class WarmUpTests
         for (uint tick = 0; tick < SimConstants.TickRate * 30 && !shut; tick++)
         {
             world.BeginTick();
+            world.Choir.Build = 1;
             var intents = new PlayerIntent[crew.Length];
             for (int i = 0; i < crew.Length; i++)
             {

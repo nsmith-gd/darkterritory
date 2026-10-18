@@ -72,7 +72,7 @@ deeper tiers grow:
 | ~~**Spare radios**~~ | small 0.15 | Local | Retired (15 Oct): S1's note 749 makes the radio every crewmate's, with no loose sets to add to | "Half the crew can't hear the other half" (§15) |
 | **Big extinguishers** | small 0.2 | Frontier | Half again the spray, full again on the bracket in half the time | Car fires; powder and chemicals (App. C.5) |
 | **Axle oilers** | small 0.2 | Dead lines | A Hotbox's axle knocks and glows half again as long before it seizes, and is mended in half the time | The Hotbox, weighted up each tier |
-| **Feedwater heater** | small 0.25 | Dead lines | Each step of the cold costs the boiler half the steam it did | The cold |
+| ~~**Feedwater heater**~~ | small 0.25 | Dead lines | Retired (18 Oct, note 852): the cold is out of gameplay (the director, 16 Oct), so it had nothing to give back | The cold |
 | **Gun rammers** | small 0.25 | Dead lines | Each step of a reload a fifth quicker | More at the rear and flanks |
 | **Trailing-truck booster** | major 1.5 | Dead lines | Every train length pulls away a fifth harder | The longest trains standing at a stop (0.18 m/s² at 20 cars) |
 
@@ -156,7 +156,7 @@ Each needs its art (C1, E1); the moose head's temper is one multiplier in the Si
 |---|---|---|
 | **Local** (3–5 cars) | F.3's seventeen; sprung cradles, spare radios; all the whimsy and the silly | Learning the train |
 | **Frontier** (6–10) | Speed recorder, composition shoes, pre-cut boards, big extinguishers | Bends and grades, breaches, fires |
-| **Dead lines** (11–15) | Axle oilers, feedwater heater, gun rammers, the booster | Hot boxes, the cold, the rear and flanks, a long train's weight |
+| **Dead lines** (11–15) | Axle oilers, ~~feedwater heater~~, gun rammers, the booster | Hot boxes, ~~the cold~~, the rear and flanks, a long train's weight |
 | **Deep territory** (16–20) | (Designed: the armoured cab, armour III) | Everything |
 
 ## 6. For the director
@@ -302,7 +302,7 @@ And the shop's card says the consequence, both halves, before you pay: what it d
 | Spare radios | Two more sets on the guard van's shelf | (They're radios) | — |
 | Big extinguishers | Fat red bottles in the brackets | A longer spray | Fires out |
 | Axle oilers | Oil cups on the axle boxes, a drip | A slower knock, thinner smoke | Hot boxes caught before they seized |
-| Feedwater heater | A pipe run along the boiler, a plate | The pressure holds in the cold (the gauge) | Steam the cold didn't take |
+| ~~Feedwater heater~~ | *Retired with the cold (note 852)* | | |
 | Gun rammers | A sprung rammer and a brass measure at each gun | A quicker clack on each step | — |
 | Trailing-truck booster | A second set of cylinders under the tender | A second exhaust beat pulling away | — |
 | The honk | A bulb horn where the whistle was | It honks | Honks |
@@ -325,7 +325,9 @@ And the shop's card says the consequence, both halves, before you pay: what it d
 **The cold.** *"I don't find that crews end up really feeling the cold that much and I'm okay with that now."* So the
 cold's not a reason to buy anything: the feedwater heater, car insulation, a beer's warmth and the hot tub's heat are
 small comforts, not answers. The hot tub's case is that it's a hot tub. (U1's call: nothing's re-priced; the shop's cards
-don't sell the cold.)
+don't sell the cold.) *18 Oct (note 852): the cold is out of gameplay altogether (the director, 16 Oct), so the feedwater
+heater and car insulation are retired from the catalogue (campaign.json keeps a comment where each was); the beer and the
+hot tub stay, for their own sake.*
 
 **Not mentioned, so parked** (not built until asked): the pigeon loft, the three-chime whistle, festoon lamps, the brass
 bell, the velvet seat, the spittoon, the second stack, the bubble machine, the Tannoy, the piano, wind chimes, the

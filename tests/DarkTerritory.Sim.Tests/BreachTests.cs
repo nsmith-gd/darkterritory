@@ -325,6 +325,7 @@ public class BreachTests
         for (uint tick = 0; tick < SimConstants.TickRate * 40 && train.Vehicles[car].Breached; tick++)
         {
             world.BeginTick();
+            world.Choir.Build = 1;
             var intent = bot.Decide(s, world, tick, out _);
             world.CrewAct(ref s, intent, 1);
             world.Step(new TrainControls { Brake = 1, Reverser = 1 });
