@@ -142,7 +142,7 @@ public static partial class Staging
             double r0 = sq.S0 + 10, r1 = sq.S0 - 110;
             return Ballast.Render.Camera.LookAt(town.World(r0, rs.At(r0), 16), town.World(r1, rs.At(r1), 0), 60);
         }
-        if (plan.Bounds is { } wall && where is "over" or "lane" or "outside" or "watch" or "bend" or "crooked" or "crookedover" or "towergun")
+        if (plan.Bounds is { } wall && where is "over" or "lane" or "outside" or "wayin" or "wayinout" or "wayout" or "watch" or "bend" or "crooked" or "crookedover" or "towergun")
         {
             // The first street's line out from the line (a town type's warren has none of the street town's: its first row).
             double stD = wall.Streets.OrderBy(x => Math.Abs(x.D)).ThenBy(x => x.D).FirstOrDefault()?.D ?? -side * 26;
@@ -150,6 +150,12 @@ public static partial class Staging
             {
                 "over" => Ballast.Render.Camera.LookAt(town.World(wall.Gate + 40, 0, 70), town.World(wall.Gate - 260, 0, 0), 70),
                 "outside" => Ballast.Render.Camera.LookAt(town.World(wall.Gate + 90, wall.Right * 0.35, 4), town.World(wall.Gate, -wall.Left * 0.3, 6), 75),
+                // Its way in from the last night (note 847): "wayin" from in its yard back at the gate (behind an arrived train, shut
+                // behind it), "wayinout" from just outside it, its wicket open in the left gate.
+                "wayin" => Ballast.Render.Camera.LookAt(town.World(wall.Rear + 48, -5, 6), town.World(wall.Rear, 0, 4), 70),
+                "wayinout" => Ballast.Render.Camera.LookAt(town.World(wall.Rear - 22, -4, 2.2), town.World(wall.Rear, -0.8, 2.6), 70),
+                // Its way out to the next, "wayout": from its yard beside the engine, the gate opening ahead of it.
+                "wayout" => Ballast.Render.Camera.LookAt(town.World(wall.Gate - 36, -7, 4.5), town.World(wall.Gate, 0, 4), 70),
                 // Below the wall, inside it, up at one of the watch on its walk (from a street, the houses' roofs hide it).
                 "watch" when Art.WorldArt.Watch(town, wall.Gate, 0.37).Select(g => g.Feet).OrderBy(f => (f - town.World(mid, wall.Right)).Length).ToList() is { Count: > 0 } guards
                     => guards[0] is var g && town.Direction(mid, 1, 0) is var along && town.Direction(mid, 0, 1) is var across

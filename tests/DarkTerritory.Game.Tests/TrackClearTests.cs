@@ -27,6 +27,8 @@ public class TrackClearTests
     const double SharedBedM = 4;
     /// <summary>A brass field's growth thickens over its approach (linegen plan §5's dressing ramp): this far either side of it (m).</summary>
     const double ApproachM = 30;
+    /// <summary>A fortress gate's shut leaves (note 847) are asked about only this far either side of it (m): its passage, and the box the train fills on up to it.</summary>
+    const double GateClearM = 4.5;
 
     [Theory]
     [InlineData("local:4")] // a dead line's land up over the main line (3.5 km); the main line's boughs over the dead line (its 262 m)
@@ -47,6 +49,9 @@ public class TrackClearTests
         var problems = new List<string>();
         int asked = 0;
         var plan = route.Plan!;
+        // The fortresses' gates (note 847), drawn shut across the main line until a train comes up to them (and open for it):
+        // as the scene stands its forts, with no run (a 600 m yard, a 400 m terminus zone).
+        var gates = Sim.Run.Fortresses.Of(route, line, 600, 400).Select(f => f.Gate).ToList();
         var tracks = new List<(string Name, RailLine Track, double Toe, string Edge)> { ("main", line, 0, "main") };
         foreach (var b in line.Branches.Where(b => b.Kind is BranchKind.Alternate or BranchKind.DeadLine))
             tracks.Add(($"b{b.Index}", b.Local, b.Toe, plan.Alignment.First(a => a.Branch == b.Index && a.Role is EdgeRole.Alternate or EdgeRole.DeadLine).Edge));
@@ -97,7 +102,8 @@ public class TrackClearTests
                     // other's ballast there, as at any set of points. Nor on a brass field (linegen plan §5: "growth across
                     // the rail", cut through at the cutting speed) or a washout: those are meant to be in the way.
                     if (SharesABed(track, q.Position)
-                        || plan.Structures.Any(st => st.Edge == edge && st.Type is StructureType.BrassField or StructureType.Washout && s > st.S0 - ApproachM && s < st.S1 + ApproachM))
+                        || plan.Structures.Any(st => st.Edge == edge && st.Type is StructureType.BrassField or StructureType.Washout && s > st.S0 - ApproachM && s < st.S1 + ApproachM)
+                        || name == "main" && gates.Any(g => Math.Abs(s - g) < GateClearM))
                         continue;
                     var right = Double3.Cross(q.Tangent, Double3.Up).Normalized;
                     foreach (double up in Heights)

@@ -132,8 +132,10 @@ public class StopWallsTests
         Assert.Equal(2 * 5, solids.Count(w => w.HalfWidth == Fortresses.TowerHalf && w.HalfLength == Fortresses.TowerHalf));
         Assert.Single(solids, w => Math.Abs(w.Bottom - rail - Fortresses.ArchBottom) < 1e-9);
         Assert.True(solids.Count(w => w.HalfWidth >= 2.25 && w.HalfWidth <= Fortresses.LivedDepth / 2 && w.HalfLength != Fortresses.TowerHalf) > 20);
-        // Nothing on the ground stands nearer the line than the gatehouse's passage (the arch is overhead).
-        foreach (var w in solids.Where(w => w.Bottom < rail + Fortresses.ArchBottom - 1))
+        // Nothing on the ground stands nearer the line than the gatehouse's passage (the arch is overhead), but for its gate's
+        // two leaves across it (note 847), which stand only while it's shut.
+        Assert.Equal(2, solids.Count(w => w.Gate == Fortresses.GateKey(home.Gate)));
+        foreach (var w in solids.Where(w => w.Bottom < rail + Fortresses.ArchBottom - 1 && w.Gate == 0))
         {
             double near = Math.Abs(Across(train, home.Gate, w.Centre with { Y = rail })) - w.HalfWidth;
             Assert.True(near >= Fortresses.GateInner - 0.05, $"a solid {near:0.00} m off the line");

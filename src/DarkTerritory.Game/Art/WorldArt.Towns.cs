@@ -601,7 +601,8 @@ public sealed partial class WorldArt
     /// the rear wall to the gate, the front wall out from the gatehouse to each corner, the rear wall across the line, a
     /// tower at each corner and down the sides, their lamps lit near you.
     /// </summary>
-    void TownWall(MeshBuilder mesh, RailLine line, Double3 eye, TownBounds town, double from, double to, bool lit, double time, TownGround? ground = null)
+    void TownWall(MeshBuilder mesh, RailLine line, Double3 eye, TownBounds town, double from, double to, bool lit, double time, TownGround? ground = null,
+        double rearOpen = 0)
     {
         // Standing on a town type's ground (note 692): a bay on the town's side's level, its stone plinth down to the lower.
         var (low, high) = Sim.Run.Fortresses.Footing(town, ground);
@@ -646,7 +647,12 @@ public sealed partial class WorldArt
         Turrets(mesh, eye, town, start, low, high, lit);
         // The gatehouse at the way in from the last night (note 692), facing out of the town as the way out's does.
         if (Near(town.Rear, 0))
-            mesh.Instances.Add(new MeshInstance(Piece("gatehouse", () => StructureKit.Gatehouse(_look)), Basis(start.Tangent, P(town.Rear, 0), eye, MathF.PI)));
+        {
+            var gm = Basis(start.Tangent, P(town.Rear, 0), eye, MathF.PI);
+            mesh.Instances.Add(new MeshInstance(Piece("gatehouse", () => StructureKit.Gatehouse(_look)), gm));
+            // Its gates (note 847), swung in toward the town ahead of it; turned round, the line's left is the piece's +X.
+            GateLeaves(mesh, gm, rearOpen, 1, wicketLeft: false);
+        }
         {
             var towers = Sim.Run.Fortresses.Towers(town).ToList();
             int side = 0;

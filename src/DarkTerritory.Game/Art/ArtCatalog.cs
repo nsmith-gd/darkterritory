@@ -143,6 +143,13 @@ public static class ArtCatalog
             list.Add(new($"fortruin-{v}", LargeProp, () => RuinKit.FortRuin(look, variant)));
         }
         list.Add(new("gatehouse", LargeProp, () => StructureKit.Gatehouse(look)));
+        // Its gates (note 847): the plain one and the one with the wicket in it, each side.
+        foreach (int side in new[] { -1, 1 })
+        {
+            int s = side;
+            list.Add(new($"gateleaf-{s}", SmallProp, () => StructureKit.GateLeaf(look, s, false)));
+            list.Add(new($"gateleaf-wicket-{s}", SmallProp, () => StructureKit.GateLeaf(look, s, true)));
+        }
         list.Add(new("platform", StructureBay, () => StructureKit.PlatformBay(look, 1)));
         list.Add(new("house", LargeProp, () => TownKit.House(look, 1)));
         list.Add(new("lived-house", LargeProp, () => TownKit.LivedHouse(look, 1)));
