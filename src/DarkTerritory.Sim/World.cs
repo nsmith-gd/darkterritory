@@ -2193,6 +2193,54 @@ public sealed partial class World
         return false;
     }
 
+    /// <summary>
+    /// Note 851 (the director's playtest of 16 Oct, line 24: "I don't know why my car is on fire after I've gotten into a safe
+    /// area"): whether <paramref name="vehicle"/> is home and safe: the run delivered, or the car in through the arrival's gates
+    /// (note 847), inside the terminus's fort (run.json <c>forts.safe</c>). Nothing on it burns then: a fire goes out, a hot box
+    /// doesn't catch, a hound lights nothing. Never in the gym (note 676: a fire's called there on purpose), and not the
+    /// departure's yard: a lamp thrown there still breaks and burns, the crew's own doing.
+    /// </summary>
+    public bool HomeSafe(int vehicle)
+    {
+        if (CallOnly || Run is not { Tuning.Forts.Safe: true } run || vehicle < 0 || vehicle >= Train.Frames.Count)
+            return false;
+        if (run.End == Sim.Run.RunEnd.Delivered)
+            return true;
+        var at = Train.Frames[vehicle].Origin;
+        double hint = Train.Dynamics.Distance;
+        Train.Line.Nearest(at, ref hint);
+        return hint > run.YardLength && InFort(at);
+    }
+
+    /// <summary>
+    /// Host (note 851; the director's playtest of 16 Oct, line 22: "how'd that even get started?"): a fire's first tick. The crew
+    /// are told what started it where it starts (the news line, everyone alike, <see cref="Sim.Run.News.Line"/>), and the report
+    /// gets the same fact as its row (C.9's Fire row), so the two never disagree.
+    /// </summary>
+    public void FireStarted(Sim.Enemies.CarFire fire)
+    {
+        if (!Authority)
+            return;
+        int car = fire.Attached;
+        string what = fire.Cause switch
+        {
+            Sim.Enemies.FireCause.HotBox => $"Car {car}'s hot box set it alight",
+            Sim.Enemies.FireCause.FireFlies => $"Fire Flies set car {car} alight",
+            Sim.Enemies.FireCause.Hounds => $"Cinder Hounds set car {car} alight",
+            Sim.Enemies.FireCause.Lamp => $"A thrown lamp set car {car} alight",
+            Sim.Enemies.FireCause.Jumped => $"The fire jumped the coupling into car {car}",
+            Sim.Enemies.FireCause.Blast => $"Car {fire.From} going up set car {car} alight",
+            Sim.Enemies.FireCause.Called => $"Car {car} called alight",
+            _ => $"Car {car} set alight",
+        };
+        string action = fire.Cause == Sim.Enemies.FireCause.Jumped ? $"From car {fire.From}." : fire.Action;
+        Attribution.Add(Sim.Run.IncidentLog.Event(this, Sim.Run.IncidentKind.Fire, what, fire.Actor, action, car));
+        var news = new Sim.Run.NewsEvent(_nextFx, Tick, Sim.Run.NewsKind.Fire, [car], (byte)fire.Cause, (byte)Math.Clamp(fire.From, 0, 255), fire.Actor, 0);
+        NewsLog.Add(news);
+        News.Add(news);
+        _nextFx = _nextFx % 0xFFFFFF + 1;
+    }
+
     /// <summary>Note 846: whether <paramref name="vehicle"/>'s gun holds its fire, its car inside a walled town (combat.json holdInTowns).</summary>
     public bool GunHeld(int vehicle) =>
         Combat is { Guns.HoldInTowns: true } && vehicle >= 0 && vehicle < Train.Frames.Count && InTown(Train.Frames[vehicle].Origin);
@@ -2297,7 +2345,8 @@ public sealed partial class World
         {
             int open = Math.Max(1, _actors.Count(a => a.State.Alive));
             if (boxes.Step(Train, open, SafeYard || TrainInFort || CallOnly) is var caught and >= 0 && Enemies is { } ht)
-                AddEnemy(id => CarFire.In(id, Train, caught, Train.Frames[caught].Shape.HalfLength - boxes.Tuning.BogieInset, ht.CarFire));
+                AddEnemy(id => CarFire.In(id, Train, caught, Train.Frames[caught].Shape.HalfLength - boxes.Tuning.BogieInset, ht.CarFire,
+                    Sim.Enemies.FireCause.HotBox, caught, -1, $"Its rear axle box ran hot {boxes.Tuning.FireAfter:0} s, ungreased."));
         }
         if (Authority && Combat?.Fumes is { } fumes)
             foreach (var shot in _fumes)

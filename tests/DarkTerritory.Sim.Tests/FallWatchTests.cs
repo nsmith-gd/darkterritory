@@ -160,7 +160,7 @@ public class FallWatchTests
         // onto the engine's plate.
         var n = new Night(5, speed: 0);
         var rearZ = n.Train.Frames[1].Shape.HalfLength - 2;
-        n.World.AddEnemy(id => CarFire.In(id, n.Train, 1, rearZ, Tuning.Enemies.CarFire).Ablaze(0.97, 3.5));
+        n.World.AddEnemy(id => CarFire.In(id, n.Train, 1, rearZ, Tuning.Enemies.CarFire, FireCause.Set).Ablaze(0.97, 3.5));
         n.Run(SimConstants.TickSeconds);
         var bot = new RoofWalkerBot(3) { Me = 1 };
         double aisle = n.Train.Dynamics.Tuning.Geometry.Interior!.DoorX;

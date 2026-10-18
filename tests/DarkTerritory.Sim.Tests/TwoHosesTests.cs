@@ -28,7 +28,7 @@ public class TwoHosesTests
             bots.Add(new Bots.RoofWalkerBot(3 + i) { Me = i + 1, Calls = calls });
             n.Crew[i + 1] = PlayerMotor.SpawnOnRoof(n.Train, roofs[i], 0, P);
         }
-        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 3, 0, Tuning.Enemies.CarFire).Ablaze(heat, span));
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 3, 0, Tuning.Enemies.CarFire, FireCause.Set).Ablaze(heat, span));
         uint t0 = n.World.Tick;
         double peak = 0;
         int least = P.Health;

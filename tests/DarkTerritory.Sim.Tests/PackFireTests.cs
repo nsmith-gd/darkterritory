@@ -18,7 +18,7 @@ public class PackFireTests
     {
         var n = new Night(4, speed: 8);
         int rear = n.Train.Dynamics.Consist.Vehicles[^1].Id;
-        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, rear, 0, Tuning.Enemies.CarFire).Ablaze(0.3, 2));
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, rear, 0, Tuning.Enemies.CarFire, FireCause.Set).Ablaze(0.3, 2));
         if (pack)
         {
             var shape = n.Train.Frames[rear].Shape;

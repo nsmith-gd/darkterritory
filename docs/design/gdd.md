@@ -999,7 +999,7 @@ Nothing there is a mystery. It's still a disaster.
 | Lights fail | Navigate through darkness on shouted landmarks |
 | Radio breaks | Shouting down the length of a moving train. A hard knock breaks one; a grab never does (note 749). Mended on the belt |
 | Cannon fouls | Someone clears it by hand, under fire |
-| Car catches fire | Grab the extinguishers or abandon it |
+| Car catches fire | Grab the extinguishers or abandon it. Every fire says what started it as it starts, on the HUD and in the report: the hot box, the Fire Flies at its lamp, Cinder Hounds feeding on it, a thrown lamp, the fire jumping from the next car, a powder car going up *(the director's playtest of 16 Oct: "how'd that even get started?"; ARCHITECTURE §8 note 851)*. Two on the extinguishers put it out faster than one (§12). In through the arrival's gates, nothing burns: a fire goes out, nothing new starts |
 | A car battered and left (§23.3) | It works itself apart as it runs and its freight spills out of it; mend it with the wrench, or it comes off its rails and takes everything behind it |
 | The engine battered and left (§23.3) | It loses its pull and its brake; mend it with the wrench, or it breaks down and the crew are stranded |
 | Engineering kit left in car four | Somebody's going out there, and the kit is on a body (§12) |
