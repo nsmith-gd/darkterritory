@@ -14,6 +14,13 @@ public class NightCurveTests
 {
     static readonly DirectorTuning D = Tuning.Enemies.Director;
 
+    /// <summary>
+    /// The night's lottery (nightChance) isn't what's tested: the rule-less (curve.kinds) are every one about tonight, and every
+    /// other kind is out (a stood train on a straight line meets the Whistler's, the Dragger's and the Track Doll's rules).
+    /// </summary>
+    static readonly Dictionary<string, double> OnlyTheFree =
+        D.Costs.Keys.Where(k => !D.Curve.Kinds.ContainsKey(k)).ToDictionary(k => k, _ => 0.0);
+
     /// <summary>The director's tuning with a pressure that never spends (the free spawns are what's left), and the free spawns not waiting for a first threat.</summary>
     static EnemyTuning Curved(bool afterFirst = false, CurveTuning? curve = null) => Tuning.Enemies with
     {
@@ -21,6 +28,7 @@ public class NightCurveTests
         {
             Pressure = D.Pressure with { Threshold = 1e9, Max = 1e9, PressAt = 1e9 },
             Curve = (curve ?? D.Curve) with { AfterFirst = afterFirst },
+            NightChance = OnlyTheFree,
         },
     };
 
@@ -145,7 +153,7 @@ public class NightCurveTests
     {
         Assert.True(D.Curve.Fill);
         // The pressure as it is (it spends), the free spawns of their own off: whatever comes is the fill.
-        var filling = Tuning.Enemies with { Director = D with { Curve = D.Curve with { Free = false } } };
+        var filling = Tuning.Enemies with { Director = D with { Curve = D.Curve with { Free = false }, NightChance = OnlyTheFree } };
         var world = Plain(filling, at: 10_000);
         var d = world.Director!;
         var sent = Think(world, 600);
