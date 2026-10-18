@@ -150,8 +150,9 @@ public static class Spawns
             return true;
         })
         {
-            // Free (note 849): behind the train at any speed; a slow train they board at once.
-            Free = c => c.Train.Dynamics.Consist.CarCount >= 1 && c.None(EnemyKind.CinderHound),
+            // Free (note 849): behind the train at any speed it's moving (a slow train they board at once); never to one stood
+            // still (a 4-bot seed's packs lit a stood train's cars with the crew on the ground: the stop has its own creatures).
+            Free = c => c.Train.Dynamics.Consist.CarCount >= 1 && !c.Stopped && c.None(EnemyKind.CinderHound),
         },
         // B.3 · Car Hugger: marsh, water crossings, low ground; a train of two or more; never on a grade; weight up at low speed.
         new(EnemyKind.CarHugger, c =>

@@ -79,14 +79,14 @@ public class NightCurveTests
         // Nothing of the budget's was spent on them, and they count toward the night (the kind's cap and its variety).
         Assert.Equal(0, d.Spent);
         Assert.Equal(sent.Count(k => k == sent[0]), d.SentTonight(sent[0]));
-        // The spawn goes without its rule: a pack behind a stood train.
+        // The spawn goes without its rule: Climbers to a gap of a stood train (their rule wants it moving).
         var ctx = new SpawnContext(world, world.Enemies!, d) { Free = true };
-        var rule = Spawns.For(sent[0])!;
-        Assert.NotNull(rule.Free);
+        Assert.Contains(EnemyKind.Climber, sent);
+        var rule = Spawns.For(EnemyKind.Climber)!;
         Assert.Null(rule.Weight(ctx));
         Assert.True(rule.Free!(ctx));
         Assert.True(rule.Spawn(ctx));
-        Assert.Contains(world.ActiveEnemies, e => e.Kind == sent[0]);
+        Assert.Contains(world.ActiveEnemies, e => e.Kind == EnemyKind.Climber);
     }
 
     [Fact]
@@ -173,9 +173,12 @@ public class NightCurveTests
     {
         var world = Plain(Curved(), at: 19_000);
         var ctx = new SpawnContext(world, world.Enemies!, world.Director!) { Free = true };
-        // Nobody on the ground: the ground kinds don't come; a train with cars and gaps lets the hounds and the Climbers in.
-        Assert.True(Spawns.For(EnemyKind.CinderHound)!.Free!(ctx));
+        // Nobody on the ground: the ground kinds don't come; a train with gaps lets the Climbers in, and the hounds once it moves.
+        Assert.False(Spawns.For(EnemyKind.CinderHound)!.Free!(ctx));
         Assert.True(Spawns.For(EnemyKind.Climber)!.Free!(ctx));
+        world.Train.Dynamics.Velocity = 5;
+        Assert.True(Spawns.For(EnemyKind.CinderHound)!.Free!(ctx));
+        world.Train.Dynamics.Velocity = 0;
         Assert.False(Spawns.For(EnemyKind.Ribbit)!.Free!(ctx));
         Assert.False(Spawns.For(EnemyKind.Follower)!.Free!(ctx));
         Assert.False(Spawns.For(EnemyKind.SootChildren)!.Free!(ctx));
