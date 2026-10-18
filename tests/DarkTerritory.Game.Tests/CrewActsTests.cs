@@ -347,6 +347,34 @@ public class CrewActsTests
     }
 
     [Fact]
+    public void TheGunnerTurnsWithTheGun()
+    {
+        // Note 850 (the 16 Oct evening playtest, line 2): the gun's traverse reaches every client in the snapshot; the body on
+        // its seat is drawn turned with it, behind the breech, as the sim seats them (Guns.SeatAt), not facing the mount's way.
+        var w = World();
+        int gun = Enumerable.Range(0, w.Train.Vehicles.Count).Last(i => w.Train.Vehicles[i].HasGun);
+        var mount = Guns.Mount(w.Train, gun)!.Value;
+        var s = PlayerMotor.SpawnOnRoof(w.Train, gun, mount.Position.Z + 0.5, P);
+        double traverse = 50 * Math.PI / 180;
+        w.Train.Vehicles[gun].Gun.Traverse = traverse;
+        var seat = CrewActs.Seated(s, mount, w.Train.Vehicles[gun].Gun);
+        double yaw = Guns.FacingYaw(mount) + traverse;
+        Assert.Equal(yaw, seat.Yaw, 6);
+        Assert.Equal(mount.Position.X + Math.Sin(yaw) * TrainKit.CannonSeat.Z, seat.Position.X, 6);
+        Assert.Equal(mount.Position.Z + Math.Cos(yaw) * TrainKit.CannonSeat.Z, seat.Position.Z, 6);
+        // The sim's seat is the same point (its seatBehind is the kit's), so the feet drawn are where the host holds them.
+        var simSeat = Guns.SeatAt(mount, w.Train.Vehicles[gun].Gun, w.Combat!.Guns, seat.Position.Y);
+        Assert.Equal(simSeat.X, seat.Position.X, 6);
+        Assert.Equal(simSeat.Z, seat.Position.Z, 6);
+        // And the crewmate as drawn faces that way in the world.
+        var c = CrewActs.Crewmate(1, s, w, w.Train.Frames);
+        Assert.Equal(CrewPose.Gunner, c.Act);
+        Assert.Equal(PlayerMotor.WorldYaw(seat, w.Train), c.Yaw, 6);
+        Assert.Equal(PlayerMotor.WorldPosition(seat, w.Train).X, c.Feet.X, 3);
+        Assert.Equal(PlayerMotor.WorldPosition(seat, w.Train).Z, c.Feet.Z, 3);
+    }
+
+    [Fact]
     public void TheExtinguisherIsSprayedBracedAndHungBackNotTakenDownAgain()
     {
         // App. C.5; SceneArt.Crewmate. Carried, it's on the hip; at work on a fire (GreyboxScene's Spraying), braced and

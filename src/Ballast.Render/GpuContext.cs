@@ -35,6 +35,12 @@ public sealed unsafe class GpuContext : IDisposable
     public float MaxAnisotropy { get; private set; }
 
     public string DeviceName { get; }
+    /// <summary>
+    /// The device as a bug report wants it (note 850: a joiner's Linux build drew black squares on a GPU and driver nobody
+    /// knew): its name and kind, the driver's name, version and info string (Vulkan 1.2's driver properties), and the Vulkan
+    /// version it offers. The driver version is the vendor's own encoding, given raw beside the Vulkan reading of it.
+    /// </summary>
+    public string Description { get; }
 
     /// <summary>
     /// Whether the device draws both of a headset's eyes in one pass (VK_KHR_multiview, core since Vulkan 1.1, but an
@@ -100,6 +106,7 @@ public sealed unsafe class GpuContext : IDisposable
         VkPhysicalDeviceProperties props;
         InstanceApi.vkGetPhysicalDeviceProperties(PhysicalDevice, &props);
         DeviceName = new string((sbyte*)props.deviceName);
+        Description = Describe(InstanceApi, PhysicalDevice, DeviceName, props);
         VkPhysicalDeviceMemoryProperties mem;
         InstanceApi.vkGetPhysicalDeviceMemoryProperties(PhysicalDevice, &mem);
         _memory = mem;
@@ -160,6 +167,28 @@ public sealed unsafe class GpuContext : IDisposable
         VkCommandPool pool;
         Check(Api.vkCreateCommandPool(&poolInfo, null, &pool), "vkCreateCommandPool");
         CommandPool = pool;
+    }
+
+    /// <summary>The device's name, kind, driver and Vulkan version in one line (<see cref="Description"/>).</summary>
+    static string Describe(VkInstanceApi api, VkPhysicalDevice device, string deviceName, in VkPhysicalDeviceProperties props)
+    {
+        var driver = new VkPhysicalDeviceDriverProperties();
+        var props2 = new VkPhysicalDeviceProperties2 { pNext = &driver };
+        api.vkGetPhysicalDeviceProperties2(device, &props2);
+        string kind = props.deviceType switch
+        {
+            VkPhysicalDeviceType.DiscreteGpu => "discrete GPU",
+            VkPhysicalDeviceType.IntegratedGpu => "integrated GPU",
+            VkPhysicalDeviceType.VirtualGpu => "virtual GPU",
+            VkPhysicalDeviceType.Cpu => "CPU (software rendering)",
+            _ => "other",
+        };
+        var apiVersion = new VkVersion(props.apiVersion);
+        var driverVersion = new VkVersion(props.driverVersion);
+        string driverName = new string((sbyte*)driver.driverName), driverInfo = new string((sbyte*)driver.driverInfo);
+        return $"{deviceName} ({kind}); driver {driverName} {driverInfo}".TrimEnd()
+            + $" ({driver.driverID}), driver version {driverVersion.Major}.{driverVersion.Minor}.{driverVersion.Patch} (0x{props.driverVersion:x8}), "
+            + $"Vulkan {apiVersion.Major}.{apiVersion.Minor}.{apiVersion.Patch}, vendor 0x{props.vendorID:x4} device 0x{props.deviceID:x4}";
     }
 
     (VkPhysicalDevice, uint) PickDevice()

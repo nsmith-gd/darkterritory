@@ -121,7 +121,7 @@ public static partial class Hud
             Lobby(o, s, lobby, line);
         // A new player's first nights (note 350): the core controls on a card in the yard, gone once the train's out.
         if (firstNight && !over && p.Alive && s.World.Run is { Phase: Sim.Run.RunPhase.Yard })
-            Onboarding.DrawCard(o, width, height, Keys, Fine, 1, Dim, Amber);
+            Onboarding.DrawCard(o, width, height, Keys, Fine, 1, Dim, Amber, now);
         // A fortress town's card (note 281): what somebody's saying to you, or the paper you're reading. While it's open its
         // own foot says what Use does next, so the town's prompt under the crosshair stands down.
         var townCard = !over && talk is not null && (talk.In ?? s.World.TownOf(p)) is { } town ? talk.Card(town, now) : null;
