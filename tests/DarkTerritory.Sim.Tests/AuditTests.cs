@@ -181,7 +181,7 @@ public class AuditTests
         var bare = new RailLine(new LineDefinition("t", [new TrackSegment(5_000)]));
         HazardConditions.Apply(bare, HazardSet.Clear);
         Assert.Null(bare.Conditions);
-        Assert.Equal(["clear", "wet", "cold", "dark"], Balance.Combinations.HazardSets.Select(h => h.Name));
+        Assert.Equal(["clear", "wet", "wind", "dark"], Balance.Combinations.HazardSets.Select(h => h.Name));
     }
 
     [Fact]
