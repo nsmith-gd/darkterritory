@@ -352,7 +352,7 @@ public class GunPowderTests
                 n.Run(1.0 / SimConstants.TickRate, id => gunner.Decide(n.Crew[id], n.World, n.World.Tick, out _));
             Assert.Equal("to the locker", gunner.PowderStep);
         }
-        var fire = n.World.AddEnemy(id => Enemies.CarFire.In(id, n.Train, van, 2, Tuning.Enemies.CarFire));
+        var fire = n.World.AddEnemy(id => Enemies.CarFire.In(id, n.Train, van, 2, Tuning.Enemies.CarFire, Sim.Enemies.FireCause.Set));
         fire.Ablaze(0.97);
         double indoors = 0;
         var steps = new List<string>();

@@ -535,7 +535,7 @@ public class CrewAudioTests
         var t = enemies.CarFire;
         var room = b.Train.Frames[car].Shape.Interior!.Value;
         var grid = Sim.Enemies.FireGrid.Of(b.Train, car, t.CellSize)!;
-        var fire = Sim.Enemies.CarFire.In(100, b.Train, car, 2, t);
+        var fire = Sim.Enemies.CarFire.In(100, b.Train, car, 2, t, Sim.Enemies.FireCause.Set);
         int cell = grid.FloorAt(fire.Local), other = grid.Next[cell][0];
         var heat = new double[grid.Count];
         heat[cell] = heat[other] = 0.8;
@@ -604,7 +604,7 @@ public class CrewAudioTests
         var t = enemies.CarFire;
         var room = b.Train.Frames[car].Shape.Interior!.Value;
         var grid = Sim.Enemies.FireGrid.Of(b.Train, car, t.CellSize)!;
-        var fire = Sim.Enemies.CarFire.In(100, b.Train, car, 2, t);
+        var fire = Sim.Enemies.CarFire.In(100, b.Train, car, 2, t, Sim.Enemies.FireCause.Set);
         int cell = grid.FloorAt(fire.Local);
         var heat = new double[grid.Count];
         heat[cell] = 0.9;
