@@ -1030,4 +1030,8 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [846. The cannon: further down, no firing in a town, the reload clip only on a reload (T2, queue #574; the director's playtest of 16 Oct, line 7)](notes/846.md)
 - [847. The fortress's gates shut behind the train, and the town walked once you're in (B4, queue #575; the director's playtest of 16 Oct,…](notes/847.md)
 - [848. The stops' creatures, stop kind by stop kind, and the Grumbler on its perches (B4, queue #576; the director's playtest of 16 Oct evening,…](notes/848.md)
+- [849. The hybrid spawn system (H1, queue #577; the director's playtest of 16 Oct line 17 and 16 Oct evening line 6)](notes/849.md)
+- [850. The first two-player night's blockers: run+jump on Linux, the gunner's body with the gun, the driver in the report (H2, queue #578; 16 Oct…](notes/850.md)
+- [851. Fires that make sense: two on the extinguishers, the cause shown, nothing burns in the yard (H3, queue #579; 16 Oct evening line 5, 16 Oct…](notes/851.md)
+- [852. The cuts: the deep cold out of gameplay, the Switchmen cut (H4, queue #580; 16 Oct lines 9 and 30)](notes/852.md)
 <!-- end of the notes index -->
