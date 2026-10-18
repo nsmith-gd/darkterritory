@@ -1048,7 +1048,7 @@
     // for something new), the director sends a free spawn at atGate an hour at the gate rising to atEnd an hour at the end
     // along the curve, rolled a second at a time on dice of its own (the night's other draws are as they were with it off).
     // By the crew: the whole of that for a crew of crewFadeFrom or fewer, crewFade less an hour for each crewmate alive over
-    // it, never under crewFloor of it (a crew of four, 0.6; six and up, half): a bigger crew's pressure already scales with it
+    // it, never under crewFloor of it (a crew of four, half; six and up, 0.35): a bigger crew's pressure already scales with it
     // (pressure.crewScale), and on 4-bot nights the whole curve on top burned the cargo (pack fires 0 to 3.5 a night).
     // What it sends, by one draw among:
     // - kinds: the rule-less, each at this weight: a creature sent without its situational rule, needing only what its
@@ -1068,9 +1068,10 @@
     // once the pressure presses (pressAt: a long quiet), so the rules keep their rhythm and the fill is the gap's answer, not
     // every threshold's (at every threshold, 3- and 4-bot nights missed dawn, note 849). fill false: as before.
     "curve": {
-      "power": 1, "free": true, "fill": true, "fillPressed": true, "atGate": 2, "atEnd": 14, "spacingSeconds": 20,
-      "crewFade": 0.2, "crewFadeFrom": 2, "crewFloor": 0.5, "afterFirst": true, "bound": 1,
-      "kinds": { "cinderHounds": 1, "climbers": 1, "ribbits": 1.5, "followers": 1, "sootChildren": 1, "moose": 0.7 }
+      "power": 1, "free": true, "fill": true, "fillPressed": true, "atGate": 3, "atEnd": 18, "spacingSeconds": 20,
+      "crewFade": 0.25, "crewFadeFrom": 2, "crewFloor": 0.35, "afterFirst": true, "bound": 1,
+      // The hounds at half: a free pack boards a slow train at once and lights its cars (4-bot seed 1: 16 pack fires at 1).
+      "kinds": { "cinderHounds": 0.5, "climbers": 1, "ribbits": 1.5, "followers": 1, "sootChildren": 1, "moose": 0.7 }
     },
     // T128 (build 1121: "a player left behind by the train should feel the world close in: tension, monsters coming, the
     // difficulty spiking for that player. They needn't die at once"; GDD §7, §23; ARCHITECTURE §8 note 273). Not in the spec.

@@ -837,12 +837,12 @@ public sealed record CurveTuning
     public bool Free { get; init; } = true;
     public bool Fill { get; init; } = true;
     public bool FillPressed { get; init; } = true;
-    public double AtGate { get; init; } = 2;
-    public double AtEnd { get; init; } = 14;
+    public double AtGate { get; init; } = 3;
+    public double AtEnd { get; init; } = 18;
     public double SpacingSeconds { get; init; } = 20;
-    public double CrewFade { get; init; } = 0.2;
+    public double CrewFade { get; init; } = 0.25;
     public int CrewFadeFrom { get; init; } = 2;
-    public double CrewFloor { get; init; } = 0.5;
+    public double CrewFloor { get; init; } = 0.35;
     public bool AfterFirst { get; init; } = true;
     public double Bound { get; init; } = 1;
     public Dictionary<string, double> Kinds { get; init; } = new();

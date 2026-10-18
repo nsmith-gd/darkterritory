@@ -64,19 +64,19 @@ public class NightCurveTests
         Assert.Equal(0.95, late.Director!.Curve, 9);
         Assert.Equal(1 + D.Pressure.Escalation * 0.05, early.Director.Terms.Escalation, 9);
         Assert.Equal(1 + D.Pressure.Escalation * 0.95, late.Director.Terms.Escalation, 9);
-        // The spec's table: ×4 at the end, 2 an hour free at the gate rising to 14.
+        // The spec's table: ×4 at the end, 3 an hour free at the gate rising to 18.
         Assert.Equal(3, D.Pressure.Escalation);
-        Assert.Equal(2, D.Curve.AtGate);
-        Assert.Equal(14, D.Curve.AtEnd);
-        Assert.Equal(14, D.Curve.PerHour(1));
-        Assert.Equal(2, D.Curve.PerHour(0));
-        // By the crew: the whole curve for one or two, 0.2 less a crewmate over that, never under half.
+        Assert.Equal(3, D.Curve.AtGate);
+        Assert.Equal(18, D.Curve.AtEnd);
+        Assert.Equal(18, D.Curve.PerHour(1));
+        Assert.Equal(3, D.Curve.PerHour(0));
+        // By the crew: the whole curve for one or two, a quarter less a crewmate over that, never under 0.35.
         Assert.Equal(1, D.Curve.Fade(1));
         Assert.Equal(1, D.Curve.Fade(2));
-        Assert.Equal(0.8, D.Curve.Fade(3), 9);
-        Assert.Equal(0.6, D.Curve.Fade(4), 9);
-        Assert.Equal(0.5, D.Curve.Fade(8), 9);
-        Assert.Equal(14 * 0.6, D.Curve.PerHour(1, 4), 9);
+        Assert.Equal(0.75, D.Curve.Fade(3), 9);
+        Assert.Equal(0.5, D.Curve.Fade(4), 9);
+        Assert.Equal(0.35, D.Curve.Fade(8), 9);
+        Assert.Equal(9, D.Curve.PerHour(1, 4), 9);
     }
 
     [Fact]
@@ -113,7 +113,7 @@ public class NightCurveTests
             early += Think(Plain(Curved(), at: 1_000, seed), 1_800).Count;
             late += Think(Plain(Curved(), at: 19_000, seed), 1_800).Count;
         }
-        // Half an hour at the gate (2 an hour) against half an hour at the end (14): about one against seven a night.
+        // Half an hour at the gate (3 an hour) against half an hour at the end (18): about one and a half against nine.
         Assert.True(late > early * 3, $"{early} free spawns early across six nights, {late} late");
         Assert.True(late >= 6 * 4, $"{late} late across six nights");
     }
