@@ -1028,4 +1028,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [844. The vent on Left Alt (T2, queue #572; the director's playtest of 16 Oct, line 23)](notes/844.md)
 - [845. The crane's keys as seen from its cab (T2, queue #573; the director's playtest of 16 Oct, line 14)](notes/845.md)
 - [846. The cannon: further down, no firing in a town, the reload clip only on a reload (T2, queue #574; the director's playtest of 16 Oct, line 7)](notes/846.md)
+- [847. The fortress's gates shut behind the train, and the town walked once you're in (B4, queue #575; the director's playtest of 16 Oct,…](notes/847.md)
 <!-- end of the notes index -->
