@@ -16,7 +16,7 @@ public class EngineWayOutTests
     {
         var n = new Night(4, 12);
         n.Crew[3] = PlayerMotor.SpawnInCab(n.Train, Tuning.Player);
-        var walker = new RoofWalkerBot(1, Tuning.Player.Cold) { Me = 3 };
+        var walker = new RoofWalkerBot(1) { Me = 3 };
         double? out_ = null;
         for (int s = 0; s < 30 && out_ is null; s++)
         {

@@ -127,8 +127,10 @@ public static class AudioBench
     }
 
     /// <param name="scenario">"bed" (train only), "tells" (quiet train, every demo tell), "chaos" (everything at once) or
-    /// "wreck" (the train derails, heard from beside the line), "toys" (the noisy toys carried on the listener's roof), "feet"
-    /// (the crew walking: <see cref="FeetAt"/>).</param>
+    /// "wreck" (the train derails, heard from beside the line), "toys" (the noisy toys carried on the listener's roof), "band"
+    /// (the band round the listener on the roof, playing <paramref name="track"/>: a tune's title or place), "chaos+band"
+    /// (chaos with the whole band playing on the listener's roof, or the first car's from the cab: the crew's own music
+    /// mustn't bury a tell, note 775), "feet" (the crew walking: <see cref="FeetAt"/>).</param>
     /// <param name="listenerCar">0 = in the cab; otherwise on that car's roof (in "feet", inside it, or the last beside it).</param>
     /// <param name="space">Hear it all as if in this space (content/audio/spaces.json); null, where the listener is.</param>
     /// <param name="track">"wreck": the music track to play (a manifest id); null, the host's draw from a fresh bag.</param>
@@ -146,7 +148,7 @@ public static class AudioBench
         var audio = new GameAudio(content) { SpaceOverride = space };
         // Offline: every take decodes the moment it's asked for, so a render is the same every time.
         audio.Bank.Samples.InlineBytes = long.MaxValue;
-        bool chaos = scenario == "chaos", tells = chaos || scenario == "tells";
+        bool chaos = scenario is "chaos" or "chaos+band", tells = chaos || scenario == "tells";
         // "wreck" (T117): the train comes off half a second in, heard from beside the line where the engine left it.
         bool wreck = scenario == "wreck";
         // "sound:<name>": one sound, 6 m off the listener's right, over the train (stopped, with --speed 0, for a quiet bed):
@@ -166,6 +168,28 @@ public static class AudioBench
                 toy.Noise = noises[i];
                 toy.Carrier = i + 1;
             }
+        }
+        // "band" (note 700): the whole band on the listener's roof and the next car's, one of each instrument, playing the tune
+        // asked for (--track: its title or its place in the repertoire; the first, without).
+        if (scenario is "band" or "chaos+band")
+        {
+            var bandTuning = DataFile.Load<Sim.Player.BandTuning>(Path.Combine(content, Sim.Player.BandTuning.File));
+            world.EnableBand(bandTuning);
+            int tune = int.TryParse(track, out int n) ? n : Math.Max(0, Array.FindIndex(bandTuning.Repertoire, t => t.Title == track));
+            world.Band = new Sim.Player.BandState(tune % bandTuning.Repertoire.Length, 0);
+            int car = Math.Clamp(listenerCar, 1, train.Frames.Count - 1);
+            var crew = new List<(int, PlayerState)>();
+            for (int i = 0; i < bandTuning.Instruments.Length; i++)
+            {
+                // Round the listener in a ring, along the roof: the melody ahead, the rhythm and the drums behind.
+                var s = PlayerMotor.SpawnOnRoof(train, car, 0, playerTuning);
+                s = s with { Position = s.Position + new Double3(i % 2 == 0 ? -0.6 : 0.6, 0, (i - 3.5) * 1.6), Flags = s.Flags | PlayerFlags.Playing };
+                var held = world.Bodies.SpawnCrate(train, car, s.Position + Double3.Up, Sim.Physics.BodyKind.Instrument);
+                held.Instrument = (byte)i;
+                held.Carrier = i + 1;
+                crew.Add((i + 1, s));
+            }
+            audio.CrewStates = crew;
         }
         // "feet" (note 667): your own steps and a crewmate's a stride behind, walking, on what's under each, over the train.
         bool feet = scenario == "feet";

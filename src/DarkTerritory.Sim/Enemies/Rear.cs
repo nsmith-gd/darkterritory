@@ -17,6 +17,11 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
     public override Want Want => Want.Kill;
     double _biteTimer, _boredTimer, _from;
     bool _stays;
+    // The tennis ball it's after or has in its jaws (note 745), by its body's id; −1 none.
+    int _ball = -1;
+    bool _hasBall;
+    // How long it's still to stand worrying the ball it's caught (s).
+    double _worry;
 
     public override EnemyKind Kind => EnemyKind.CinderHound;
     public override PressureZone Zone => PressureZone.Rear;
@@ -86,6 +91,8 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
                 if (PhaseSeconds >= t.HowlSeconds)
                     Enter(ctx, SpinePhase.Commit);
                 break;
+            case SpinePhase.Telegraph when Fetch(ctx, t):
+                break;
             case SpinePhase.Telegraph:
                 Run(ctx, t, closing: 0);
                 if (PhaseSeconds >= t.HowlSeconds)
@@ -107,6 +114,8 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
                 Run(ctx, t, closing: 0);
                 RunIn(ctx);
                 break;
+            case SpinePhase.Commit when Fetch(ctx, t):
+                break;
             case SpinePhase.Commit:
                 double gap = train.RearDistance - LineDistance;
                 if (gap > 250)
@@ -125,6 +134,71 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
             case SpinePhase.Grab:
                 break;
         }
+    }
+
+    /// <summary>
+    /// The tennis ball (note 745; docs/design/upgrades.md §7.4: "they're hounds ... they bring it back"): running after the train,
+    /// a ball lying on the ground within <see cref="WhimsyTuning.BallSeen"/> m and it goes for that instead, at its own pace,
+    /// while the train runs on; caught, it stands worrying it in its jaws <see cref="WhimsyTuning.BallWorry"/> s, and then it
+    /// comes on after the train again. One that catches the train up drops it on the guard van's platform before it leaps.
+    /// True while it's going for one, or worrying it.
+    /// </summary>
+    bool Fetch(EnemyContext ctx, HoundTuning t)
+    {
+        var bodies = ctx.World.Bodies;
+        var train = ctx.Train;
+        var whimsy = train.Dynamics.Tuning.Composition.Whimsy;
+        var at = WorldPosition(train);
+        if (_hasBall)
+        {
+            if (bodies.All.FirstOrDefault(b => b.Id == _ball) is not { } held)
+            {
+                (_ball, _hasBall) = (-1, false);
+                return false;
+            }
+            // In its jaws, as it runs.
+            Physics.Bodies.PlaceIn(held, PlayerState.World, at + Double3.Up * 0.55);
+            if (_worry > 0)
+            {
+                _worry -= SimConstants.TickSeconds;
+                return true;
+            }
+            if (train.Dynamics.RearDistance - LineDistance <= t.LeapDistance && train.Frames[^1].Shape.Platform is { } platform)
+            {
+                // Brought back: dropped on the platform, and then it's the train it wants.
+                Physics.Bodies.PlaceIn(held, train.Frames.Count - 1, CarShape.Launcher(platform) + Double3.Up * held.Pbd.Particles[0].Radius);
+                held.TakenBy = -1;
+                (_ball, _hasBall) = (-1, false);
+            }
+            return false;
+        }
+        if (Runner || Ahead || Flank || Attached >= 0)
+            return false;
+        var ball = bodies.All.Where(b => b.Kind == Physics.BodyKind.TennisBall && b.Parent == PlayerState.World && !b.Lifted && b.TakenBy < 0
+                && (b.Centre - at).Length <= whimsy.BallSeen)
+            .OrderBy(b => (b.Centre - at).Length).ThenBy(b => b.Id).FirstOrDefault();
+        if (ball is null)
+        {
+            _ball = -1;
+            return false;
+        }
+        _ball = ball.Id;
+        // Along the line and out to it, as fast as it runs.
+        var sample = train.Line.Sample(train.Dynamics.Path, LineDistance);
+        var right = Double3.Cross(sample.Tangent, Double3.Up).Normalized;
+        var off = ball.Centre - at;
+        double along = Double3.Dot(off, sample.Tangent), across = Double3.Dot(off, right);
+        double step = t.MaxSpeed * SimConstants.TickSeconds, d = Math.Sqrt(along * along + across * across);
+        if (d <= whimsy.BallTake)
+        {
+            ball.TakenBy = Id;
+            _hasBall = true;
+            _worry = whimsy.BallWorry;
+            return true;
+        }
+        LineDistance += along * Math.Min(1, step / d);
+        Lateral += across * Math.Min(1, step / d);
+        return true;
     }
 
     void Run(EnemyContext ctx, HoundTuning t, double closing)
@@ -573,14 +647,22 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         // Nobody near (12 m, as ever): it eats the car and lights it, and patrols (note 472).
         if (victim is not { } v || v.Distance > 12)
         {
-            _boredTimer += SimConstants.TickSeconds;
-            if (t.StayAboard)
-                Feed(ctx, t);
-            else if (_boredTimer >= t.BoredSeconds)
+            // Note 851 (the director's playtest of 16 Oct evening, line 5: "The fire in the rear car didn't go out ever despite
+            // both of us fighting it"): a crewmate in the car under it is out of its reach through the roof (note 471), but near
+            // all the same. It doesn't settle to eating and lighting the car over their heads every igniteEverySeconds, unseen:
+            // it prowls, and waits for them to come out.
+            bool near = ctx.LivingCrew().Any(c => (c.World - at).Length <= 12 && OnGround(ctx.Train, c.Player.State, t));
+            if (!near)
             {
-                Enter(ctx, SpinePhase.BreakOff);
-                Enter(ctx, SpinePhase.Gone);
-                return;
+                _boredTimer += SimConstants.TickSeconds;
+                if (t.StayAboard)
+                    Feed(ctx, t);
+                else if (_boredTimer >= t.BoredSeconds)
+                {
+                    Enter(ctx, SpinePhase.BreakOff);
+                    Enter(ctx, SpinePhase.Gone);
+                    return;
+                }
             }
             if (t.StayAboard)
                 Patrol(ctx, t, victim is { } far ? far.State : null);
@@ -622,10 +704,15 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         _boredTimer = 0;
         if (ctx.World.ActiveEnemies.Any(e => e is CarFire f && !f.Gone && f.Attached == Attached))
             return;
+        // Note 851: home (in through the arrival's gates), nothing burns: it eats, and lights nothing.
+        if (ctx.World.HomeSafe(Attached))
+            return;
         int into = Attached;
         double along = Local.Z;
-        // No C.9 record: its table names no actor for a fire the hounds set (the burn's own deaths are recorded as ever).
-        ctx.World.AddEnemy(i => CarFire.In(i, train, into, along, ctx.Tuning.CarFire));
+        // C.9's row and the news line are the fire's own (World.FireStarted, note 851): its table names no actor for a fire the
+        // hounds set (the burn's own deaths are recorded as ever).
+        string where = Inside(train) ? "in it" : "on its roof";
+        ctx.World.AddEnemy(i => CarFire.In(i, train, into, along, ctx.Tuning.CarFire, FireCause.Hounds, -1, -1, $"Feeding {where}, nobody near."));
         ctx.World.PackFires++;
     }
 

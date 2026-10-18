@@ -101,13 +101,10 @@ public static class IncidentLog
     }
 
     /// <summary>The failure, as the clerk reads it, for each way to die.</summary>
-    /// <param name="aboard">Died on the train (a car or the engine): the cold took them there, not left behind (note 547).</param>
-    public static string What(DeathCause cause, bool aboard = false) => cause switch
+    public static string What(DeathCause cause) => cause switch
     {
-        DeathCause.Cold when aboard => "Froze on the train",
         DeathCause.JumpedAtSpeed => "Jumped from the moving train",
         DeathCause.Derailed => "Killed in the derailment",
-        DeathCause.Cold => "Froze, left behind",
         DeathCause.Mauled => "Mauled by the hounds",
         DeathCause.Hollow => "Taken by the Hollow",
         DeathCause.Choir or DeathCause.Seized => "Taken by the Choir",
@@ -149,6 +146,15 @@ public static class IncidentLog
         DeathCause.Fell => "Fell to their death",
         DeathCause.Shoved => "Shoved off the train",
         DeathCause.Dropped => "Dropped from the crane",
+        DeathCause.Lodger => "Taken by the Lodger in its house",
+        DeathCause.Hanger => "Hauled into the roof by the Hanger",
+        DeathCause.Householder => "Taken by the Householder for what wasn't paid for",
+        DeathCause.HollowHouse => "Crushed when the Hollow House came down",
+        DeathCause.Brakeman => "Lashed by the Brakeman",
+        DeathCause.Hotbox => "Bitten by the thing in the axle box",
+        DeathCause.TowerJaw => "Bitten by Tower Jaw",
+        DeathCause.Grumbler => "Mauled by the Grumbler",
+        DeathCause.Pickers => "Bitten by the Pickers",
         _ => cause.ToString(),
     };
 
@@ -162,8 +168,6 @@ public static class IncidentLog
         var a = world.Attribution;
         var train = world.Train;
         var at = PlayerMotor.WorldPosition(s, train);
-        // On the train: in its frame, on a car or the engine still in the rake (a car cut loose isn't the train).
-        bool aboard = s.Parent >= 0 && s.Parent < train.Frames.Count && train.Dynamics.Consist.IndexOf(s.Parent) >= 0;
         int actor = -1;
         string action;
         switch (s.Death)
@@ -189,15 +193,6 @@ public static class IncidentLog
                 actor = world.DroppedBy(victim) ?? -1;
                 action = actor >= 0 ? World.DropLine(world.WasShaken(victim), world.DropHeight(victim)) : "Let go of the crane's hook.";
                 break;
-            case DeathCause.Cold when !aboard:
-                {
-                    // Left behind (B.2's cold off the train): how far from the train, to its nearest end, not a car's middle (an
-                    // end of a car is half its length from it: on the roof, "8 m from the train", note 547).
-                    double back = train.Dynamics.Consist.Vehicles.Min(v => Math.Max(0, (train.Frames[v.Id].Origin - at).Length - train.Frames[v.Id].Shape.HalfLength));
-                    actor = a.Driver;
-                    action = $"Throttle: {{actor}}. {back:0} m from the train.";
-                    break;
-                }
             case DeathCause.Derailed or DeathCause.Struck or DeathCause.Thrown or DeathCause.TornOff:
                 // In a derailment, its own contributing action (note 190: the forward cannon for the Switchman, the firebox for
                 // the Stoker), and the speed it came off at.
@@ -268,7 +263,7 @@ public static class IncidentLog
                     break;
                 }
         }
-        return new Incident(IncidentKind.Death, Seconds(world), victim, What(s.Death, aboard), Where(world, s), actor, action, s.Death, body?.Id ?? -1);
+        return new Incident(IncidentKind.Death, Seconds(world), victim, What(s.Death), Where(world, s), actor, action, s.Death, body?.Id ?? -1);
     }
 
     /// <summary>A record of C.9's that isn't about a crewmate's death, rescue or the night's end: a creature's or the line's doing.</summary>

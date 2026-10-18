@@ -521,21 +521,22 @@ public sealed partial class GameAudio
         Double3 Yard(double s, double side) => line.Sample(s) is var t ? t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * side + Double3.Up * 4 : default;
         if (run.Phase == RunPhase.Yard)
             HoldLevel("place-threshold.fortress", 0, Yard(Math.Max(0, Math.Min(front, gate) - 60), 30), Occlusion(PlayerMotor.Outside), 1);
-        PlaceGates(0, gate, front, rear, line, primed);
+        PlaceGates(0, gate, front, rear, line, primed, run.Tuning.Gates);
         if (places.Plan?.Terminus is { Silent: false } terminus && terminus.GateM > 0)
         {
             if (front >= terminus.GateM - 300 || run.Phase == RunPhase.Arrived)
                 HoldLevel("place-threshold.fortress", 1, Yard(terminus.GateM + 80, 30), Occlusion(PlayerMotor.Outside), 1);
-            PlaceGates(1, terminus.GateM, front, rear, line, primed);
+            PlaceGates(1, terminus.GateM, front, rear, line, primed, run.Tuning.Gates);
         }
     }
 
-    void PlaceGates(int which, double gate, double front, double rear, RailLine line, bool primed)
+    // (When the leaves are seen and stood swinging, note 847: run.json gates, Sim.Run.Fortresses.Open.)
+    void PlaceGates(int which, double gate, double front, double rear, RailLine line, bool primed, Sim.Run.GateTuning gates)
     {
         var at = line.Sample(gate).Position + Double3.Up * 3;
-        if (Flipped("place-threshold.open", which, front >= gate - 40 && front < gate + 5, primed) > 0)
+        if (Flipped("place-threshold.open", which, front >= gate - gates.OpenAheadM && front < gate + 5, primed) > 0)
             Cue("place-threshold.gate-open", at, Occlusion(PlayerMotor.Outside));
-        if (!double.IsNaN(rear) && Flipped("place-threshold.shut", which, rear >= gate + 3, primed) > 0)
+        if (!double.IsNaN(rear) && Flipped("place-threshold.shut", which, rear >= gate + gates.ShutBehindM, primed) > 0)
             Cue("place-threshold.gate-shut", at, Occlusion(PlayerMotor.Outside));
     }
 
@@ -715,6 +716,8 @@ public sealed partial class GameAudio
                 var casting = crane.Castings[c];
                 var was = _castings.TryGetValue((key, c), out var w) ? w : casting.State;
                 _castings[(key, c)] = casting.State;
+                if (primed)
+                    LostDown(was, casting.State, casting.At, outside);
                 if (!primed || was != CastingState.Hooked || casting.State == CastingState.Hooked)
                     continue;
                 bool onCar = casting.State == CastingState.Loaded && casting.Car >= 0 && casting.Car < train.Frames.Count;
@@ -917,14 +920,10 @@ public sealed partial class GameAudio
                 if (Cue($"voice-prisoner-sets.{(kind < 9 ? "call" : "shout")}.set{set}", inside, 0.35f) is null)
                     Mixer.Play("holdout-shout", inside)?.Also(v => v.Occlusion = 0.35f);
             }
-            else if (!HasCue("voice-callout.bang"))
+            // A call's banging is one bout: each take is a whole frantic bout of blows, as the synthesised stand-in is
+            // (note 810; they were played two to four at once, 0.3 s apart, as if each were one blow).
+            else if (Cue("voice-callout.bang", inside, 0.35f) is null)
                 Mixer.Play("holdout-bang", inside)?.Also(v => v.Occlusion = 0.35f);
-            else
-            {
-                int bangs = 2 + (int)(roll / 20 % 3);
-                for (int b = 0; b < bangs; b++)
-                    CueLater(b * (0.28 + 0.06 * (b % 2)), "voice-callout.bang", inside, 0.35f, b == 0 ? 1 : 0.85f);
-            }
         }
     }
 

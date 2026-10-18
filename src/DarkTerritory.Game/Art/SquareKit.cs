@@ -481,6 +481,12 @@ public static class SquareKit
                 k.Quad(new Vector3(-x - 0.2f, h, z), new Vector3(x + 0.2f, h, z), new Vector3(x + 0.2f, h - 0.5f, -z - 0.5f), new Vector3(-x - 0.2f, h - 0.5f, -z - 0.5f), twoSided: true);
                 k.BoxAt(new Vector3(-0.2f, 1.15f, 0), new Vector3(0.45f, 0.2f, 0.5f));
                 break;
+            case "forge":
+                Forge(k, x, z, h);
+                break;
+            case "marketstall":
+                MarketStall(k, x, z, h, count);
+                break;
             case "crate":
                 k.Use("wood_crate", Palette.DeepBrown, 0.8f, 0.05f, tile: 1);
                 k.Box(new Vector3(-x, 0, -z), new Vector3(x, h, z));
@@ -491,6 +497,75 @@ public static class SquareKit
                 break;
         }
         return k.Build($"square-{kind}-{count}");
+    }
+
+    /// <summary>
+    /// The blacksmith's forge (ARCHITECTURE §8 note 697; the director, 13 Oct: "a vendor who is clearly marked as the vendor
+    /// blacksmith of the town who does train upgrades"): an open-fronted shed facing the line, its brick hearth glowing at the
+    /// back under an iron hood and a chimney through the roof, an anvil on its stump and a quench barrel out front, and across
+    /// the front a board lettered BLACKSMITH over TRAIN UPGRADES, a lantern hung under it, to read from the cab.
+    /// </summary>
+    static void Forge(Kit k, float x, float z, float h)
+    {
+        float eave = h - 0.75f, ridge = h - 0.3f;
+        // The shed: four posts, boarded back and sides, a lean-to roof falling to the front.
+        Timber(k);
+        foreach (float px in new[] { -x + 0.08f, x - 0.08f })
+            foreach (float pz in new[] { -z + 0.08f, z - 0.08f })
+                k.BoxAt(new Vector3(px, (pz < 0 ? eave : ridge) / 2, pz), new Vector3(0.08f, (pz < 0 ? eave : ridge) / 2, 0.08f));
+        k.Box(new Vector3(-x, 0, z - 0.1f), new Vector3(x, ridge, z));
+        foreach (float sx in new[] { -x, x - 0.08f })
+            k.Box(new Vector3(sx, 0, 0), new Vector3(sx + 0.08f, eave, z));
+        k.Use("roof_slate", Palette.Charcoal, 0.8f, 0.2f, tile: 1);
+        k.Quad(new Vector3(-x - 0.2f, ridge + 0.05f, z + 0.15f), new Vector3(x + 0.2f, ridge + 0.05f, z + 0.15f),
+            new Vector3(x + 0.2f, eave, -z - 0.25f), new Vector3(-x - 0.2f, eave, -z - 0.25f), twoSided: true);
+        // The hearth at the back: brick, the fire in it, an iron hood over it, and the chimney up through the roof.
+        k.Use("brick_soot", Palette.RustRed, 0.9f, 0, tile: 1);
+        k.Box(new Vector3(-0.75f, 0, z - 0.95f), new Vector3(0.75f, 0.9f, z - 0.1f));
+        k.Use("ember_crack", Palette.FurnaceOrange, 0.5f, 0);
+        k.Emissive = 1.2f;
+        k.Box(new Vector3(-0.45f, 0.9f, z - 0.75f), new Vector3(0.45f, 0.98f, z - 0.3f));
+        k.Emissive = 0;
+        Iron(k);
+        var hood = new[] { new Vector3(-0.8f, 1.6f, z - 1.0f), new Vector3(0.8f, 1.6f, z - 1.0f), new Vector3(0.8f, 1.6f, z - 0.1f), new Vector3(-0.8f, 1.6f, z - 0.1f) };
+        var neck = new Vector3(0, 2.25f, z - 0.45f);
+        for (int i = 0; i < 4; i++)
+            k.Tri(hood[i], neck, hood[(i + 1) % 4], Vector2.Zero, new Vector2(0.5f, 1), Vector2.UnitX);
+        k.Cylinder(neck, new Vector3(0, h + 1.2f, z - 0.45f), 0.18f, 8);
+        // Out front: the anvil on its stump, and the quench barrel.
+        Timber(k);
+        k.Cylinder(new Vector3(-0.85f, 0, -z + 0.55f), new Vector3(-0.85f, 0.55f, -z + 0.55f), 0.24f, 8);
+        Iron(k);
+        k.Box(new Vector3(-1.1f, 0.55f, -z + 0.45f), new Vector3(-0.6f, 0.68f, -z + 0.65f));
+        k.Box(new Vector3(-1.15f, 0.68f, -z + 0.42f), new Vector3(-0.55f, 0.82f, -z + 0.68f));
+        k.Rod(new Vector3(-0.55f, 0.76f, -z + 0.55f), new Vector3(-0.35f, 0.74f, -z + 0.55f), 0.045f);
+        k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
+        k.Cylinder(new Vector3(0.95f, 0, -z + 0.5f), new Vector3(0.95f, 0.8f, -z + 0.5f), 0.3f, 10, capB: false);
+        k.Use("rust_heavy", new Vector3(0.05f, 0.06f, 0.07f), 0.1f, 0.4f);
+        k.Disc(new Vector3(0.95f, 0.74f, -z + 0.5f), Vector3.UnitY, 0.27f, 10);
+        // The board across the front, under the eave: dark, lettered in white, lit by its lantern.
+        float bh = 0.62f, by = eave - 0.02f - bh / 2, bz = -z - 0.12f;
+        k.Use("paint_black", new Vector3(0.12f, 0.1f, 0.09f), 0.7f, 0.05f);
+        k.Box(new Vector3(-x, by - bh / 2, bz - 0.04f), new Vector3(x, by + bh / 2, bz + 0.02f));
+        var font = BitmapFont.Default;
+        k.Use("notice_paper", new Vector3(0.92f, 0.9f, 0.82f), 0.6f, 0, tile: 1);
+        k.Emissive = 0.55f;
+        const string Name = "BLACKSMITH", Trade = "TRAIN UPGRADES";
+        float big = MathF.Min(0.042f, 2 * x * 0.9f / font.Measure(Name)), small = MathF.Min(0.022f, 2 * x * 0.8f / font.Measure(Trade));
+        float top = by + bh / 2 - 0.06f;
+        k.With(Matrix4x4.CreateTranslation(0, 0, bz - 0.041f), () =>
+        {
+            Ink(k, font, Name, font.Measure(Name) * big / 2, top, big);
+            Ink(k, font, Trade, font.Measure(Trade) * small / 2, top - font.LineHeight * big - 0.03f, small);
+        });
+        k.Emissive = 0;
+        // The lantern under it, at its middle.
+        Iron(k);
+        k.Rod(new Vector3(0, by - bh / 2, bz), new Vector3(0, by - bh / 2 - 0.15f, bz - 0.2f), 0.02f);
+        k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
+        k.Emissive = 1;
+        k.BoxAt(new Vector3(0, by - bh / 2 - 0.3f, bz - 0.2f), new Vector3(0.09f, 0.13f, 0.09f));
+        k.Emissive = 0;
     }
 
     /// <summary>A lamp post at the square's corners: iron, a lantern at the top. <see cref="LampTop"/> is its flame.</summary>
@@ -662,6 +737,84 @@ public static class SquareKit
     {
         k.Use("paper_form", Palette.BoardEnamel, 0.9f, 0);
         k.Shade(1.2f);
+    }
+
+    /// <summary>Where a night market stall's lantern hangs (its kit frame): under the awning's front edge, over the counter.</summary>
+    public static readonly Vector3 MarketLamp = new(0, 1.95f, -1.35f);
+
+    /// <summary>
+    /// The night market stalls' awnings (note 825): faded red, green and blue stripes on a cream, by <c>variant</c>; the
+    /// canvas's tint over the sacking's own colour, and the greybox's.
+    /// </summary>
+    static readonly (Vector3 Tint, Vector3 Flat)[] Awnings =
+    [
+        (new(1.5f, 0.55f, 0.45f), new(0.55f, 0.16f, 0.12f)), (new(0.7f, 1.2f, 0.75f), new(0.2f, 0.36f, 0.22f)), (new(0.7f, 0.9f, 1.4f), new(0.2f, 0.28f, 0.42f)),
+    ];
+
+    static readonly (Vector3 Tint, Vector3 Flat) Cream = (new(1.6f, 1.5f, 1.3f), new(0.78f, 0.74f, 0.64f));
+
+    /// <summary>
+    /// A stall of the night market (queue #552, note 825): open to the square (−Z), its counter heaped with its wares in
+    /// crates, jars and sacks, a shelf at the back with more, four posts, a striped canvas awning sloping off over the
+    /// counter, and a lantern hung under the awning's edge, lit (WorldArt lights it); its slate on a post.
+    /// </summary>
+    static void MarketStall(Kit k, float x, float z, float h, int variant)
+    {
+        var rng = new Random(825 + variant);
+        Timber(k);
+        // The counter, the shelf at the back, and the four posts.
+        k.Box(new Vector3(-x, 0, -z), new Vector3(x, 1.0f, -z + 0.7f));
+        k.Box(new Vector3(-x + 0.1f, 0, z - 0.45f), new Vector3(x - 0.1f, 0.06f, z));
+        k.Box(new Vector3(-x + 0.1f, 1.35f, z - 0.45f), new Vector3(x - 0.1f, 1.42f, z));
+        foreach (float px in new[] { -x, x - 0.12f })
+            foreach (float pz in new[] { -z, z - 0.12f })
+                k.Box(new Vector3(px, 0, pz), new Vector3(px + 0.12f, h - (pz < 0 ? 0.45f : 0), pz + 0.12f));
+        // The wares: crates, jars and sacks on the counter and the shelf, each its own colour.
+        for (int i = 0; i < 7; i++)
+        {
+            bool shelf = i >= 4;
+            float wx = -x + 0.35f + (float)rng.NextDouble() * (2 * x - 0.7f), wz = shelf ? z - 0.22f : -z + 0.35f;
+            float y = shelf ? 1.42f : 1.0f;
+            var tint = new Vector3(0.45f + (float)rng.NextDouble() * 0.4f, 0.35f + (float)rng.NextDouble() * 0.3f, 0.25f + (float)rng.NextDouble() * 0.3f);
+            switch (i % 3)
+            {
+                case 0:
+                    k.Use("wood_crate", Palette.DeepBrown, 0.8f, 0.05f, tile: 1);
+                    k.BoxAt(new Vector3(wx, y + 0.15f, wz), new Vector3(0.22f, 0.15f, 0.18f));
+                    break;
+                case 1:
+                    k.Use("glass_dirty", tint, 0.3f, 0.5f, tile: 1);
+                    k.Cylinder(new Vector3(wx, y, wz), new Vector3(wx, y + 0.28f, wz), 0.09f, 8);
+                    break;
+                default:
+                    k.Use("sac", tint, 0.9f, 0, tile: 1);
+                    k.Lathe(new Vector3(wx, y, wz), [new(0.2f, 0), new(0.22f, 0.15f), new(0.14f, 0.32f), new(0, 0.36f)], 7);
+                    break;
+            }
+        }
+        // The awning: canvas in stripes, cream and its colour, sloping from over the back to out past the counter.
+        var colour = Awnings[Math.Abs(variant) % Awnings.Length];
+        const int stripes = 6;
+        for (int i = 0; i < stripes; i++)
+        {
+            float a = -x - 0.15f + i * (2 * x + 0.3f) / stripes, b = a + (2 * x + 0.3f) / stripes;
+            var (tint, flat) = i % 2 == 0 ? Cream : colour;
+            k.Use("sac", flat, 0.9f, 0, tile: 1);
+            k.Tint = tint;
+            k.Quad(new Vector3(a, h, z + 0.1f), new Vector3(b, h, z + 0.1f), new Vector3(b, h - 0.5f, -z - 0.45f), new Vector3(a, h - 0.5f, -z - 0.45f),
+                twoSided: true);
+        }
+        k.Tint = Vector3.One;
+        // The lantern under the awning's edge, and its slate on the front post.
+        Iron(k);
+        k.Rod(MarketLamp + new Vector3(0, 0.12f, 0), new Vector3(MarketLamp.X, h - 0.4f, MarketLamp.Z), 0.012f);
+        k.BoxAt(MarketLamp + new Vector3(0, 0.12f, 0), new Vector3(0.1f, 0.025f, 0.1f));
+        k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
+        k.Emissive = 1;
+        k.BoxAt(MarketLamp, new Vector3(0.08f, 0.11f, 0.08f));
+        k.Emissive = 0;
+        k.Use("paint_black", Palette.SootBlack, 0.7f, 0.1f, tile: 1);
+        k.Panel(new Vector3(-x + 0.06f, 1.45f, -z - 0.02f), -Vector3.UnitZ, Vector3.UnitY, 0.45f, 0.32f, Vector2.Zero, Vector2.One);
     }
 
     /// <summary>Two posts at either end of a thing <paramref name="x"/> each way from its middle, <paramref name="h"/> high.</summary>

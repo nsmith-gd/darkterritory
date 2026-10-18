@@ -228,6 +228,132 @@ public class LinesidePropsTests
         }
     }
 
+    static bool Inside(Wall w, Double3 p, double pad)
+    {
+        var l = w.ToLocal(p);
+        return p.Y < w.Top && p.Y > w.Bottom && Math.Abs(l.X) < w.HalfLength + pad && Math.Abs(l.Z) < w.HalfWidth + pad;
+    }
+
+    [Fact]
+    public void WhatsBesideTheLineIsSolidAsFarOutAsTheCrewIsSent()
+    {
+        // Note 835 (the director's playtest of 16 Oct, line 20: "I have clipped straight through a wall"): the lineside stood
+        // solid out to 40 m, and a comet fragment is put 40-90 m out (note 755), so the walk out to one went through houses,
+        // barns, ruins and trees that were drawn and not there. Now everything the lineside deals is within the walls' reach,
+        // and so is the furthest a fragment lies.
+        double reach = Tuning.Run.Walls.LinesideReachM;
+        var comet = DataFile.Load<Stops.LootTuning>(Path.Combine(Content, Stops.LootTuning.File)).Comet!;
+        Assert.True(comet.OffLine[^1] + 10 <= reach, $"a comet fragment lies out to {comet.OffLine[^1]} m, the lineside's solid to {reach} m");
+        foreach (var spec in new[] { "frontier:7", "deadLines:3", "local:1", "deepTerritory:2" })
+        {
+            var (_, train, side, _) = Night(spec);
+            var past = side.Props(0, train.Line.Length).Where(p => !side.Within(p, reach)).ToList();
+            Assert.True(past.Count == 0, $"{spec}: {past.Count} things dealt past the walls' reach, the first a {past.FirstOrDefault().Species} {past.FirstOrDefault().Lateral:0} m out");
+        }
+    }
+
+    [Fact]
+    public void AWharfIsWalkedOutOnUpItsSteps()
+    {
+        // Note 817 (note 797's "not yet"): a wharf stood nothing, walked through on the bed under the water. Walked at from the
+        // shore along it, a crewmate goes up its steps and out along its deck, over the water, at the deck's height.
+        var (_, train, side, _) = Night("local:1");
+        var wharf = side.Props(0, train.Line.Length).First(p => p.Species == "wharf");
+        var t = train.Line.Sample(wharf.Along);
+        var ahead = new Double3(t.Tangent.X, 0, t.Tangent.Z).Normalized;
+        var right = Double3.Cross(t.Tangent, Double3.Up).Normalized;
+        var foot = (t.Position + right * wharf.Lateral) with { Y = 0 };
+        double c = DMath.Cos(wharf.Yaw), sn = DMath.Sin(wharf.Yaw);
+        // Its own frame (NovaKit.Wharf, as LinesideProps.FootprintWalls turns it): x across, −z out over the water.
+        Double3 At(double x, double z) => foot + right * (x * c + z * sn) + ahead * (x * sn - z * c);
+        // Up the side clear of the traps stacked on the deck.
+        var from = At(1.2, 4);
+        var s = PlayerMotor.SpawnOnGround(from, train.Line, wharf.Along, P);
+        var d = At(1.2, -12) - from;
+        s.Yaw = Math.Atan2(-d.X, -d.Z);
+        double deck = wharf.Ground - wharf.Sink + 1.6, was = s.Position.Y;
+        for (int i = 0; i < 6 * SimConstants.TickRate; i++)
+        {
+            PlayerMotor.Step(ref s, new PlayerIntent { MoveZ = 1 }, train, P, Tuning.Train, SimConstants.TickSeconds);
+            // In a wall over a step: one under it (the next step) is stepped up onto when the feet come over it.
+            Assert.False(train.Walls!.Near(s.Position).Any(w => w.Top - s.Position.Y > P.StepUp && Inside(w, s.Position, P.Radius - 0.02)),
+                $"inside a wall at {s.Position}, tick {i}");
+            Assert.True(s.Position.Y > was - 0.02 || !s.Grounded, $"stepped down at tick {i}: {was:0.00} to {s.Position.Y:0.00}");
+            was = s.Position.Y;
+        }
+        double outAlong = -Double3.Dot(s.Position - foot, right * sn - ahead * c);
+        Assert.True(outAlong > 6, $"only {outAlong:0.0} m out along the wharf (at {s.Position})");
+        Assert.Equal(deck, s.Position.Y, 6);
+        var water = ((PlanConditions)train.Line.Conditions!).Terrain.WaterAt(s.Position.X, s.Position.Z);
+        Assert.True(water is { } w && w < deck, $"not over the water: {water}");
+        Assert.True(train.Line.Conditions.Ground(s.Position) < deck - 1, "the deck isn't over the bed");
+    }
+
+    [Fact]
+    public void TheWoodsKeepOffTheBuildings()
+    {
+        // Note 800 (note 797's "not yet"): the woods were dealt without asking where the lineside's buildings stand, and a
+        // spruce grew up through a barn or a burying ground's stones. No trunk, nor a boulder's lump, is inside a building's
+        // wall; a tree between its walls (in a burying ground's rows) stands.
+        foreach (var spec in new[] { "local:4", "deadLines:49", "deepTerritory:2", "local:1" })
+        {
+            var (_, train, side, _) = Night(spec);
+            var all = side.Props(0, train.Line.Length).ToList();
+            var buildings = all.Where(p => p.Kind == LinesideKind.Piece).Select(p => (Piece: p, Walls: side.WallsOf(p).ToList())).Where(b => b.Walls.Count > 0).ToList();
+            Assert.Contains(buildings, b => b.Piece.Species is "saltbox" or "barn" or "tank" or "buryingGround");
+            foreach (var p in all.Where(p => p.Kind is LinesideKind.Tree or LinesideKind.Rock))
+            {
+                double reach = p.Kind == LinesideKind.Tree ? p.Radius : side.Extent(p);
+                var at = Foot(train, p);
+                foreach (var (b, walls) in buildings.Where(b => Math.Abs(b.Piece.Along - p.Along) < 60))
+                    foreach (var w in walls)
+                    {
+                        var local = w.ToLocal(at);
+                        Assert.False(Math.Abs(local.X) < w.HalfLength + reach && Math.Abs(local.Z) < w.HalfWidth + reach,
+                            $"{spec}: a {p.Species} at {p.Along:0.0} m, {p.Lateral:0.0} out, stands in a {b.Species} at {b.Along:0.0}, {b.Lateral:0.0}");
+                    }
+            }
+        }
+    }
+
+    [Fact]
+    public void TheBuildingsKeepOffEachOther()
+    {
+        // Note 808 (note 800's "not yet"): the road's, the shore's and the biomes' buildings were dealt without asking where
+        // each other stood, and a church stood half inside a house. No building's wall is inside another's (a stone wall's
+        // lengths run on into each other as they're laid; a leaving's pieces stand together).
+        foreach (var spec in new[] { "deadLines:3", "deadLines:49", "deepTerritory:2", "deadLines:2" })
+        {
+            var (_, train, side, _) = Night(spec);
+            var buildings = side.Props(0, train.Line.Length).Where(p => p.Kind == LinesideKind.Piece && !Leavings.PieceNames.Contains(p.Species))
+                .Select(p => (Piece: p, Walls: side.WallsOf(p).ToList())).Where(b => b.Walls.Count > 0).ToList();
+            Assert.Contains(buildings, b => b.Piece.Species is "church" or "saltbox");
+            for (int i = 0; i < buildings.Count; i++)
+                for (int j = i + 1; j < buildings.Count; j++)
+                {
+                    var (a, b) = (buildings[i], buildings[j]);
+                    if (Math.Abs(a.Piece.Along - b.Piece.Along) > 80 || (a.Piece.Species == "stoneWall" && b.Piece.Species == "stoneWall"))
+                        continue;
+                    Assert.False(a.Walls.Any(w => b.Walls.Any(v => Inside(w, v))),
+                        $"{spec}: a {a.Piece.Species} at {a.Piece.Along:0.0}, {a.Piece.Lateral:0.0} and a {b.Piece.Species} at {b.Piece.Along:0.0}, {b.Piece.Lateral:0.0} stand in each other");
+                }
+        }
+    }
+
+    /// <summary>Whether two walls' boxes overlap on the ground (separating axes: each one's along and across).</summary>
+    static bool Inside(Wall a, Wall b)
+    {
+        double dx = b.Centre.X - a.Centre.X, dz = b.Centre.Z - a.Centre.Z;
+        foreach (var (nx, nz) in new[] { (a.Axis.X, a.Axis.Z), (-a.Axis.Z, a.Axis.X), (b.Axis.X, b.Axis.Z), (-b.Axis.Z, b.Axis.X) })
+        {
+            double ra = a.HalfLength * Math.Abs(a.Axis.X * nx + a.Axis.Z * nz) + a.HalfWidth * Math.Abs(-a.Axis.Z * nx + a.Axis.X * nz);
+            double rb = b.HalfLength * Math.Abs(b.Axis.X * nx + b.Axis.Z * nz) + b.HalfWidth * Math.Abs(-b.Axis.Z * nx + b.Axis.X * nz);
+            if (Math.Abs(dx * nx + dz * nz) >= ra + rb)
+                return false;
+        }
+        return true;
+    }
+
     [Fact]
     public void AHomesteadStopsACrewmateWalkingAtIt()
     {
@@ -267,7 +393,8 @@ public class LinesidePropsTests
     {
         // Every kind of piece is dealt somewhere across the tiers, and stands as its footprint has it: a house, a car, a shed
         // one box; a church its nave and its tower; a tank round; a headframe on its four legs and its stay, open between; a
-        // burying ground and a wharf walked through.
+        // burying ground its stones and its fence's runs, open between its rows (note 797); a wharf its deck, the traps on it and
+        // its steps up from the shore, each a step's rise over the last (note 817).
         var seen = new HashSet<string>();
         foreach (var spec in new[] { "local:4", "deadLines:49", "deepTerritory:2", "local:1", "deadLines:3" })
         {
@@ -282,12 +409,23 @@ public class LinesidePropsTests
                 {
                     case "church": Assert.Equal(2, walls.Count); break;
                     case "tank": Assert.Equal(2, walls.Count); break;
-                    case "wharf" or "buryingGround": Assert.Empty(walls); break;
+                    case "wharf":
+                        Assert.Equal(6, walls.Count);
+                        Assert.Equal(p.Ground - p.Sink + 1.6, walls.Max(w => w.HalfLength * w.HalfWidth > 15 ? w.Top : double.MinValue), 3);
+                        var tops = walls.Where(w => w.Top < p.Ground - p.Sink + 1.6).Select(w => w.Top).Order().Append(p.Ground - p.Sink + 1.6).ToList();
+                        Assert.All(tops.Zip(tops.Skip(1)), t => Assert.InRange(t.Second - t.First, 0.01, P.StepUp));
+                        break;
                     case "headframe":
                         Assert.Equal(5, walls.Count);
                         // Its foot, under the frame between the legs, is open ground.
                         var foot = Foot(train, p) + Double3.Up;
                         Assert.DoesNotContain(walls, w => Math.Abs(w.ToLocal(foot).X) < w.HalfLength && Math.Abs(w.ToLocal(foot).Z) < w.HalfWidth);
+                        break;
+                    case "buryingGround":
+                        // A wall to every stone and every run of the fence; its middle, between two rows of stones, is open.
+                        Assert.InRange(walls.Count, 20, 45);
+                        var middle = Foot(train, p) + Double3.Up;
+                        Assert.DoesNotContain(walls, w => Math.Abs(w.ToLocal(middle).X) < w.HalfLength && Math.Abs(w.ToLocal(middle).Z) < w.HalfWidth);
                         break;
                 }
                 foreach (var w in walls)

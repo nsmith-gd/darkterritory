@@ -637,6 +637,33 @@ public class CreatureSoundTests
     }
 
     [Fact]
+    public void TheMooseGrazingIsHeardFromTheLineButQuietEnoughToCreepCloser()
+    {
+        // The director's 16 Oct playtest, line 19 (queue #562, note 834): "The munching is a bit loud ... We do need to be able
+        // to hear it, but we don't want to hear it maybe so loud. We want to allow players to get a little bit closer." The
+        // installed sounds, as heard at a distance: where its temper starts to rise (crowdAt) the chewing is well under its own
+        // level, so it doesn't sound on top of you; it's still there from the train going by (trainPassAt); and it grows as
+        // you creep in, so how close you are is in the sound.
+        var audio = new GameAudio(Content);
+        var t = DataFile.Load<EnemyTuning>(Path.Combine(Content, EnemyTuning.File)).Moose;
+        double Db(string name, double d)
+        {
+            audio.Mixer.StopAll();
+            audio.Mixer.Listener = Listener.At(Double3.Zero, 0);
+            var v = audio.Mixer.Play(name, new Double3(0, 0, -d))!;
+            audio.Mixer.Render(new float[Ballast.Audio.Audio.Block * 2]);
+            return 20 * Math.Log10(v.AudibleGain);
+        }
+        foreach (var cue in new[] { "chew", "browse", "creak", "grunt" })
+        {
+            string name = $"tell-moose-grazing.{cue}";
+            Assert.True(Db(name, t.CrowdAt) < -8, $"{name} at {t.CrowdAt} m: {Db(name, t.CrowdAt):0.0} dB");
+            Assert.True(Db(name, t.TrainPassAt) > -16, $"{name} from the train going by: {Db(name, t.TrainPassAt):0.0} dB");
+            Assert.True(Db(name, t.CloseAt / 2) > Db(name, t.CloseAt) + 4 && Db(name, t.CloseAt) > Db(name, t.CrowdAt) + 3);
+        }
+    }
+
+    [Fact]
     public void TheGannetCallsOverheadFallsSilentOverAWalkerWhistlesDownBanksScreamingAndPecksOnItsBeat()
     {
         // Note 384 (queue #121), off its record (note 340): its GannetMode in Height, its pecks on the spine's grab clock.
@@ -1120,6 +1147,63 @@ public class CreatureSoundTests
         Assert.Contains("cs-pickers.hit", scene.Tick());
     }
 
+    // ---- The Mouse Moose (queue #537, note 809) ---------------------------------------------------------------------------
+
+    [Fact]
+    public void TheMouseMooseCreepsInSqueakingBitesDragsAndBoltsForItsHole()
+    {
+        // Note 790's pest, heard off its record: its claws while it creeps in and a squeak now and then (the tell); its teeth
+        // in the casting; the drag, louder once it's out of the hook's reach and going faster; scared off, a squeal and a
+        // scrabble, and the earth kicked back as it goes down its hole. Back out for the casting, a squeak soon after.
+        using var scene = new Scene(2, "tell-mouse-moose.creep~", "tell-mouse-moose.squeak", "cs-mouse-moose.bite", "cs-mouse-moose.drag~",
+            "cs-mouse-moose.bolt", "cs-mouse-moose.dig", "cs-mouse-moose.lost");
+        var hole = scene.Train.Frames[2].ToWorld(new Double3(-20, 0, 0));
+        MouseMoose M(MouseMooseMode mode, Double3 at) =>
+            Record(new MouseMoose(97), SpinePhase.Telegraph, 0, 1, Enemy.Loose, at, height: (double)mode, extra: 0);
+        var heard = new List<string>();
+        var at = hole;
+        // Twelve seconds creeping in at 1.2 m/s.
+        var step = new Double3(1.2 / SimConstants.TickRate, 0, 0);
+        for (int i = 0; i < 12 * SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(M(MouseMooseMode.Creep, at += step)));
+        Assert.True(scene.Playing("tell-mouse-moose.creep"));
+        Assert.InRange(heard.Count(h => h == "tell-mouse-moose.squeak"), 1, 5);
+        // Its teeth in it: the bite once, and its claws stop.
+        heard.Clear();
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(M(MouseMooseMode.Bite, at)));
+        Assert.Equal(["cs-mouse-moose.bite"], heard.Where(h => h != "tell-mouse-moose.squeak"));
+        Assert.False(scene.Playing("tell-mouse-moose.creep"));
+        // Dragging it off at 0.15 m/s, then at 0.5 once the hook can't reach it: louder.
+        float Drag(double speed)
+        {
+            var back = new Double3(-speed / SimConstants.TickRate, 0, 0);
+            for (int i = 0; i < SimConstants.TickRate; i++)
+                scene.Tick(M(MouseMooseMode.Drag, at += back));
+            return scene.Audio.Mixer.Voices.Single(v => v.Name == "cs-mouse-moose.drag" && !v.Stopped).Volume;
+        }
+        float slow = Drag(0.15), away = Drag(0.5);
+        Assert.True(away > slow * 1.2, $"{away:0.00} out of reach, {slow:0.00} in it");
+        // A crewmate comes up: it lets go and bolts, the drag stops; down its hole, the dig. No casting's lost.
+        heard.Clear();
+        heard.AddRange(scene.Tick(M(MouseMooseMode.Flee, at)));
+        Assert.Equal(["cs-mouse-moose.bolt"], heard);
+        for (int i = 0; i < SimConstants.TickRate / 2; i++)
+            heard.AddRange(scene.Tick(M(MouseMooseMode.Flee, at = (at + hole) * 0.5)));
+        Assert.False(scene.Playing("cs-mouse-moose.drag"));
+        Assert.Equal(["cs-mouse-moose.dig"], scene.Tick(M(MouseMooseMode.Hide, hole)));
+        heard.Clear();
+        for (int i = 0; i < 5 * SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(M(MouseMooseMode.Hide, hole)));
+        Assert.Empty(heard);
+        // Back out for it: a squeak within the first second, its claws as it comes.
+        for (int i = 0; i < SimConstants.TickRate; i++)
+            heard.AddRange(scene.Tick(M(MouseMooseMode.Creep, at = hole + step * (i + 1))));
+        Assert.Equal(["tell-mouse-moose.creep", "tell-mouse-moose.squeak"], heard.Order());
+        Assert.True(scene.Playing("tell-mouse-moose.creep"));
+        Assert.DoesNotContain("cs-mouse-moose.lost", heard);
+    }
+
     // ---- The Wakers (queue #502, note 772) --------------------------------------------------------------------------------
 
     [Fact]
@@ -1184,5 +1268,63 @@ public class CreatureSoundTests
             heard.AddRange(scene.Tick(J(1)));
         Assert.Equal(scene.Train.Dynamics.Consist.Vehicles.Count, heard.Count(h => h == "figures.jacob-bless"));
         Assert.True(scene.Playing("figures.jacob-fish"));
+    }
+
+    [Fact]
+    public void ASootChildStopsCallingDeadAsItRisesToSomeoneComingNearAndARealChildGoesOnCalling()
+    {
+        // Note 829 (note 823's telegraph): from 2.5 m outside its lunge, as someone comes on, a Soot Child's call stops dead
+        // as its head snaps round to them, and it calls again when they back off; a real child goes on calling.
+        double lunge = new SootChildrenTuning().LungeWithin; // the scene's world has no tuning: GameAudio's, the content's default
+        foreach (bool soot in new[] { true, false })
+        {
+            using var scene = new Scene(0, "child-call");
+            // A call long enough to be cut off in.
+            scene.Audio.Bank.Add("child-call", new SoundDef(3, [new LayerDef(SourceKind.Noise, 0.1)], Duration: 1.5, MaxInstances: 4));
+            var frame = scene.Train.Frames[0];
+            var at = frame.ToWorld(new Double3(14, 0, 0));
+            var child = Record(new SootChildren(41), SpinePhase.Telegraph, 1, 4, Enemy.Loose, at, extra: 1, extra2: soot ? 1 : 0);
+            void Stand(double away) =>
+                scene.Audio.CrewStates = [(1, new PlayerState { Parent = PlayerState.World, Position = at + new Double3(away, 0, 0), Health = Player.Health })];
+            // A tick's worth of sound played, so a call ends when it should.
+            int Step()
+            {
+                int n = scene.Tick(child).Count(h => h == "child-call");
+                for (int b = 0; b < Audio.SampleRate / SimConstants.TickRate / Audio.Block; b++)
+                    scene.Audio.Mixer.Render(new float[Audio.Block * 2]);
+                return n;
+            }
+            int Calls(double seconds)
+            {
+                int n = 0;
+                for (int i = 0; i < seconds * SimConstants.TickRate; i++)
+                    n += Step();
+                return n;
+            }
+
+            // Out past its telegraph: calling, call after call.
+            Stand(lunge + Art.CreatureArt.SootRiseFrom + 1);
+            Assert.True(Calls(6) >= 2, "it should call for help, call after call");
+            while (!scene.Playing("child-call"))
+                Step();
+
+            // Coming on into it, mid-call.
+            Stand(lunge + 1);
+            Step();
+            Step();
+            if (soot)
+            {
+                Assert.False(scene.Playing("child-call"), "a Soot Child rising for its lunge should stop calling dead");
+                Assert.Equal(0, Calls(6));
+                // Backed off: it settles and calls again.
+                Stand(lunge + Art.CreatureArt.SootRiseFrom + 1);
+                Assert.True(Calls(6) >= 1, "backed off, it should call again");
+            }
+            else
+            {
+                Assert.True(scene.Playing("child-call"), "a real child should go on calling");
+                Assert.True(Calls(6) >= 2, "a real child should go on calling");
+            }
+        }
     }
 }

@@ -8393,6 +8393,366 @@
     ]
   },
   {
+    "name": "handcar_body_0",
+    "diffuse": "models/handcar_body_0.png",
+    "spec": "models/handcar_body_0_s.png",
+    "normal": "models/handcar_body_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/handcar.py",
+        "what": "the handcar's deck, frame, post and fittings",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_roughness.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/metal_rust_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "Mini Texture (CC0-1.0), via the library's rust_heavy"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's rust_heavy"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's rust_heavy"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_sleeper"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_sleeper"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Asphalt033_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_sleeper"
+      }
+    ]
+  },
+  {
+    "name": "handcar_chain_0",
+    "diffuse": "models/handcar_chain_0.png",
+    "spec": "models/handcar_chain_0_s.png",
+    "normal": "models/handcar_chain_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/handcar.py",
+        "what": "a metre of chain the hung handcar hangs by",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_roughness.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/metal_rust_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "Mini Texture (CC0-1.0), via the library's rust_heavy"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's rust_heavy"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's rust_heavy"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_sleeper"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_sleeper"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Asphalt033_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_sleeper"
+      }
+    ]
+  },
+  {
+    "name": "handcar_handle_0",
+    "diffuse": "models/handcar_handle_0.png",
+    "spec": "models/handcar_handle_0_s.png",
+    "normal": "models/handcar_handle_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/handcar.py",
+        "what": "the handcar's see-saw handle",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_roughness.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/metal_rust_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "Mini Texture (CC0-1.0), via the library's rust_heavy"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's rust_heavy"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's rust_heavy"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_sleeper"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_sleeper"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Asphalt033_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_sleeper"
+      }
+    ]
+  },
+  {
+    "name": "handcar_wheel_0",
+    "diffuse": "models/handcar_wheel_0.png",
+    "spec": "models/handcar_wheel_0_s.png",
+    "normal": "models/handcar_wheel_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/handcar.py",
+        "what": "a handcar wheel",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_roughness.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/metal_rust_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "Mini Texture (CC0-1.0), via the library's rust_heavy"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's rust_heavy"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Ground111_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's rust_heavy"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_sleeper"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_sleeper"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Asphalt033_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_sleeper"
+      }
+    ]
+  },
+  {
     "name": "hanger_0",
     "diffuse": "models/hanger_0.png",
     "spec": "models/hanger_0_s.png",
@@ -10821,6 +11181,26 @@
       {
         "generator": "tools/models/recipes/mourner.py",
         "what": "the Mourners, modelled in tools/blender/mourner.py, their colour painted here",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      }
+    ]
+  },
+  {
+    "name": "mouse_moose_0",
+    "diffuse": "models/mouse_moose_0.png",
+    "spec": "models/mouse_moose_0_s.png",
+    "normal": "models/mouse_moose_0_n.png",
+    "size": 1024,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "creature",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/mouse_moose.py",
+        "what": "the Mouse Moose, modelled in tools/blender/mouse_moose.py, its colour painted here",
         "author": "Dark Territory",
         "license": "CC0-1.0",
         "attribution": "Dark Territory (modelled in tools/models from the texture library)"

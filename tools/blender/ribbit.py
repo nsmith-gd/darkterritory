@@ -573,31 +573,77 @@ def breathe(k):
     return {"throat@scale": (1 + 0.12 * k, 1 + 0.12 * k, 1 + 0.25 * k), "jaw": (-7, 0, 0)}
 
 
+# The director's 15 Oct notes (note 823: "these animations need more fluidity"): its holds breathe and shift, its snaps
+# are quick eased moves of two or three frames, its hop gathers before it goes and lands with its weight, and nothing is
+# a stepped key.
+def ease(f, a, b):
+    """0 before frame `a`, 1 after `b`, eased between."""
+    return rig.smoothstep(a, b, f)
+
+
+def flutter(f, at, deg):
+    """A flutter of `deg` from frame `at`, dying away over a few frames (an ear's flick)."""
+    u = f - at
+    return deg * math.sin(math.pi * u / 2) * math.exp(-u / 4) if u >= 0 else 0.0
+
+
+# Sit (4 s, loop): sat squat, the throat pulsing slow, three breaths a loop; the body settling a little on each; once the
+# head turns a few degrees, quick, the way a frog's does, and holds there; and once an ear flicks. Keyed every two frames.
+def sitting(f):
+    k = (1 - math.cos(2 * math.pi * f / 40)) / 2
+    look = 7 * (ease(f, 56, 59) - ease(f, 100, 106))
+    flick = flutter(f, 84, -14)
+    return {**breathe(k), "root@loc": (0, 0, -0.006 * k), "chest": (1.5 * k, 0, 0), "head": (-1.5 * k, 0, look),
+            "neck": (0, 0, 0.4 * look), "ear_r_01": (2 * k, 0, flick), "ear_l_01": (2 * k, 0, 0)}
+
+
 sit = Clip("sit")
-for f, k in ((0, 0.0), (20, 1.0), (40, 0.0), (60, 1.0), (80, 0.0)):
-    sit.key(f, breathe(k), "BEZIER")
-sit.key(84, {"ear_r_01": (0, 0, -14), **breathe(0)}, "CONSTANT")
-sit.key(87, {"ear_r_01": (0, 0, 0), **breathe(0.1)}, "CONSTANT")
-sit.key(100, breathe(0.6), "BEZIER")
+for f in range(0, 120, 2):
+    sit.key(f, sitting(f), "LINEAR")
 sit.close(120)
 
-# Hop (1 s, loop): half a second of leap, the hind legs flung out straight behind, the body stretched long, the front
-# hands reaching; half a second sat, landed heavily, dead still. (The sim moves it in its half-second bursts.)
+# Hop (1 s, loop): gathered down on its haunches; flung off them, the hind legs out straight behind, the body stretched
+# long, the front hands reaching, the ears streaming back; the arc of it; the hands reached down for the ground and the
+# hind legs swung under; landed heavily, the body squashed down on its hands, the throat thrown out and the ears flopped
+# forward, rocking back up past sat and settling; then still a moment, breathing, before it gathers again. (The sim moves
+# it in its half-second bursts.)
 LEAP = {"root@loc": (0, 0, 0.5), "pelvis": (-24, 0, 0), "spine_01": (-8, 0, 0), "chest": (-4, 0, 0), "head": (6, 0, 0),
         "thigh_r": (-70, 0, 0), "thigh_l": (-70, 0, 0), "calf_r": (60, 0, 0), "calf_l": (60, 0, 0), "foot_r": (-40, 0, 0),
         "foot_l": (-40, 0, 0), "upperarm_r": (-55, 0, 0), "upperarm_l": (-55, 0, 0), "lowerarm_r": (20, 0, 0),
         "lowerarm_l": (20, 0, 0), "ear_r_01": (14, 0, 0), "ear_l_01": (14, 0, 0), "ear_r_02": (30, 0, 0), "ear_l_02": (30, 0, 0)}
+GATHER = {"root@loc": (0, 0, -0.04), "pelvis": (8, 0, 0), "spine_01": (3, 0, 0), "head": (-4, 0, 0), "thigh_r": (10, 0, 0),
+          "thigh_l": (10, 0, 0), "upperarm_r": (6, 0, 0), "upperarm_l": (6, 0, 0), "ear_r_01": (-6, 0, 0), "ear_l_01": (-6, 0, 0),
+          **breathe(0.2)}
+PUSH = {**LEAP, "root@loc": (0, 0, 0.3), "pelvis": (-14, 0, 0), "thigh_r": (-40, 0, 0), "thigh_l": (-40, 0, 0), "calf_r": (30, 0, 0),
+        "calf_l": (30, 0, 0), "foot_r": (-20, 0, 0), "foot_l": (-20, 0, 0), "upperarm_r": (-30, 0, 0), "upperarm_l": (-30, 0, 0),
+        "ear_r_01": (-4, 0, 0), "ear_l_01": (-4, 0, 0), "ear_r_02": (6, 0, 0), "ear_l_02": (6, 0, 0)}
+REACH = {"root@loc": (0, 0, 0.26), "pelvis": (-10, 0, 0), "spine_01": (-4, 0, 0), "chest": (2, 0, 0), "head": (4, 0, 0),
+         "thigh_r": (-24, 0, 0), "thigh_l": (-24, 0, 0), "calf_r": (30, 0, 0), "calf_l": (30, 0, 0), "foot_r": (-14, 0, 0),
+         "foot_l": (-14, 0, 0), "upperarm_r": (-14, 0, 0), "upperarm_l": (-14, 0, 0), "lowerarm_r": (8, 0, 0),
+         "lowerarm_l": (8, 0, 0), "ear_r_01": (22, 0, 0), "ear_l_01": (20, 0, 0), "ear_r_02": (24, 0, 0), "ear_l_02": (24, 0, 0)}
+SQUASH = {"root@loc": (0, 0, -0.05), "pelvis": (5, 0, 0), "chest": (-4, 0, 0), "head": (-5, 0, 0), "upperarm_r": (-22, 0, 0),
+          "upperarm_l": (-22, 0, 0), "lowerarm_r": (-6, 0, 0), "lowerarm_l": (-6, 0, 0), "ear_r_01": (34, 0, 0), "ear_l_01": (30, 0, 0),
+          "ear_r_02": (20, 0, 0), "ear_l_02": (20, 0, 0), **breathe(0.8)}
 hop = Clip("hop")
-hop.key(0, {"root@loc": (0, 0, -0.03), "pelvis": (6, 0, 0), "thigh_r": (8, 0, 0), "thigh_l": (8, 0, 0)}, "LINEAR")
-hop.key(3, {**LEAP, "root@loc": (0, 0, 0.42)}, "LINEAR")
-hop.key(8, LEAP, "LINEAR")
-hop.key(13, {"root@loc": (0, 0, 0.06), "upperarm_r": (-20, 0, 0), "upperarm_l": (-20, 0, 0), "ear_r_01": (20, 0, 0), "ear_l_01": (20, 0, 0)}, "LINEAR")
-hop.key(15, {"root@loc": (0, 0, -0.04), "pelvis": (4, 0, 0), "ear_r_01": (34, 0, 0), "ear_l_01": (30, 0, 0), "ear_r_02": (20, 0, 0), "ear_l_02": (20, 0, 0)}, "LINEAR")
-hop.key(18, {"ear_r_01": (8, 0, 0), "ear_l_01": (6, 0, 0), **breathe(0.3)}, "CONSTANT")
+hop.key(0, GATHER, "LINEAR")
+hop.key(3, PUSH, "LINEAR")
+hop.key(5, {**LEAP, "root@loc": (0, 0, 0.46)}, "BEZIER")
+hop.key(8, {**LEAP, "root@loc": (0, 0, 0.52)}, "BEZIER")
+hop.key(10, {**LEAP, "root@loc": (0, 0, 0.44), "upperarm_r": (-40, 0, 0), "upperarm_l": (-40, 0, 0), "ear_r_01": (18, 0, 0),
+             "ear_l_01": (18, 0, 0)}, "BEZIER")
+hop.key(12, REACH, "LINEAR")
+hop.key(14, {**REACH, "root@loc": (0, 0, 0.0), "pelvis": (2, 0, 0), "thigh_r": (4, 0, 0), "thigh_l": (4, 0, 0), "calf_r": (0, 0, 0),
+             "calf_l": (0, 0, 0), "foot_r": (0, 0, 0), "foot_l": (0, 0, 0), "upperarm_r": (-18, 0, 0), "upperarm_l": (-18, 0, 0),
+             "ear_r_01": (30, 0, 0), "ear_l_01": (28, 0, 0)}, "LINEAR")
+hop.key(16, SQUASH, "BEZIER")
+hop.key(19, {"root@loc": (0, 0, 0.012), "pelvis": (-2, 0, 0), "chest": (1, 0, 0), "ear_r_01": (-6, 0, 0), "ear_l_01": (-4, 0, 0),
+             "ear_r_02": (-6, 0, 0), "ear_l_02": (-6, 0, 0), **breathe(0.4)}, "BEZIER")
+hop.key(22, {"root@loc": (0, 0, -0.004), "ear_r_01": (6, 0, 0), "ear_l_01": (5, 0, 0), **breathe(0.3)}, "BEZIER")
+hop.key(26, {"ear_r_01": (1, 0, 0), "ear_l_01": (1, 0, 0), **breathe(0.15)}, "BEZIER")
 hop.close(30)
 
 # Swell (2 s, loop): the telegraph. Up tall on its front legs, the head raised, the sac blown up huge under it and
-# pulsing, pale and veined, a croak in each pulse; the ears laid flat back.
+# pulsing, pale and veined, a croak in each pulse, the body shuddering with each; the ears laid flat back.
 TALL = {"pelvis": (14, 0, 0), "spine_01": (10, 0, 0), "chest": (8, 0, 0), "neck": (10, 0, 0), "head": (10, 0, 0),
         "upperarm_r": (16, 0, 0), "upperarm_l": (16, 0, 0), "ear_r_01": (-10, 0, 0), "ear_l_01": (-10, 0, 0),
         "root@loc": (0, 0, 0.05)}
@@ -607,11 +653,12 @@ SAC_FULL, SAC_PULSE = (2.6, 3.2, 2.1), (0.25, 0.4, 0.2)
 swell = Clip("swell")
 for f, k in ((0, 0.4), (6, 1.0), (14, 0.55), (22, 1.0), (30, 0.4), (36, 0.85), (46, 0.5), (54, 1.0)):
     swell.key(f, {**TALL, "throat@scale": tuple(a + b * (k - 1) for a, b in zip(SAC_FULL, SAC_PULSE)), "jaw": (-2 - 4 * k, 0, 0),
-                  "neck": (-12 + 2 * k, 0, 0), "head": (-8, 0, 0)}, "BEZIER")
+                  "neck": (-12 + 2 * k, 0, 0), "head": (-8, 0, 0), "chest": (8 + 2 * k, 0, 0), "spine_01": (10 - k, 0, 0)}, "BEZIER")
 swell.close(60)
 
 # Tongue (1 s, loop): the mouth gaping right open, the body braced back on its haunches, jerking as it reels its
-# catch in; the sac pumping. (The tongue itself, out to its catch, is the engine's.)
+# catch in, each jerk a quick hard tug of two or three frames, eased off; the sac pumping. (The tongue itself, out to its
+# catch, is the engine's.)
 BRACE = {"pelvis": (-6, 0, 0), "chest": (6, 0, 0), "head": (6, 0, 0), "upperarm_r": (24, 0, 0), "upperarm_l": (24, 0, 0),
          "ear_r_01": (20, 0, 0), "ear_l_01": (20, 0, 0)}
 # The tongue out at full stretch (TONGUE_OUT its length over its 0.165 m at rest, ~1.2 m out of the mouth, sagging),
@@ -625,49 +672,65 @@ def lash(out, droop=0.0):
 
 
 tongue = Clip("tongue")
-for f, k in ((0, 0.0), (5, 1.0), (10, 0.3), (18, 1.0), (24, 0.0)):
-    tongue.key(f, {**BRACE, "jaw": (-34 - 6 * k, 0, 0), "chest": (6 + 4 * k, 0, 0), **lash(TONGUE_OUT - 0.5 * k, 3 * k),
-                   "throat@scale": (1.2 + 0.4 * k, 1.2, 1.3 + 0.5 * k)}, "BEZIER" if f % 2 == 0 else "CONSTANT")
+for f, k in ((0, 0.0), (3, 0.8), (5, 1.0), (8, 0.55), (11, 0.3), (14, 0.85), (16, 1.0), (19, 0.6), (24, 0.1)):
+    tongue.key(f, {**BRACE, "jaw": (-34 - 6 * k, 0, 0), "chest": (6 + 4 * k, 0, 0), "head": (6 - 3 * k, 0, 0), **lash(TONGUE_OUT - 0.5 * k, 3 * k),
+                   "throat@scale": (1.2 + 0.4 * k, 1.2, 1.3 + 0.5 * k)}, "LINEAR" if k > 0.7 else "BEZIER")
 tongue.close(30)
 
 # Creep (1.6 s, loop): the leader's slow way in on its frozen catch (the sim's quarter-speed hop, App. A.6 "the pack hops
-# in to eat"): down low on its belly, the mouth still gaping and the tongue out to them, the little hands placed one and
-# then the other, the haunches pushing it on after them; the sac pumping, the ears laid back.
+# in to eat"): down low on its belly, the mouth still gaping and the tongue out to them, the little hands lifted and
+# placed one and then the other, the haunches pushing it on after them, the body rolling with them; the sac pumping, the
+# ears laid back.
 LOW = {"root@loc": (0, 0, -0.07), "pelvis": (-4, 0, 0), "spine_01": (-6, 0, 0), "chest": (-8, 0, 0), "neck": (4, 0, 0), "head": (2, 0, 0),
        "ear_r_01": (-12, 0, 0), "ear_l_01": (-12, 0, 0), **lash(4.0, 6)}
+
+
+def creeping(f):
+    """Its right hand placed at the loop's start, its left at the half (k: 1 the right forward, -1 the left)."""
+    ph = 2 * math.pi * f / 48
+    k = math.cos(ph)
+    lift_r, lift_l = max(0.0, math.sin(ph)), max(0.0, -math.sin(ph))
+    return {**LOW, "jaw": (-30 - 2 * (1 + k), 0, 0), "root@loc": (0, 0.03 * k, -0.07 + 0.008 * abs(k)),
+            "upperarm_r": (-13 - 21 * k, 0, 0), "lowerarm_r": (12 + 8 * k + 26 * lift_r, 0, 0),
+            "upperarm_l": (-13 + 21 * k, 0, 0), "lowerarm_l": (12 - 8 * k + 26 * lift_l, 0, 0),
+            "thigh_r": (-6 * k, 0, 0), "thigh_l": (6 * k, 0, 0), "chest": (-8, 0, 3 * k), "pelvis": (-4, 0, -2 * k), "head": (2, 0, -2 * k),
+            "throat@scale": (1.2 + 0.075 * (1 + k), 1.2, 1.3 + 0.1 * (1 + k))}
+
+
 creep = Clip("creep")
-for f, k in ((0, 1), (12, -1), (24, 1), (36, -1)):
-    creep.key(f, {**LOW, "jaw": (-30 - 4 * (k > 0), 0, 0), "root@loc": (0, 0.03 * k, -0.07),
-                  "upperarm_r": (-34 if k > 0 else 8, 0, 0), "lowerarm_r": (20 if k > 0 else 4, 0, 0),
-                  "upperarm_l": (8 if k > 0 else -34, 0, 0), "lowerarm_l": (4 if k > 0 else 20, 0, 0),
-                  "thigh_r": (-6 if k > 0 else 6, 0, 0), "thigh_l": (6 if k > 0 else -6, 0, 0),
-                  "throat@scale": (1.2 + 0.15 * (k > 0), 1.2, 1.3 + 0.2 * (k > 0))}, "BEZIER")
+for f in range(0, 48, 3):
+    creep.key(f, creeping(f), "LINEAR")
 creep.close(48)
 
 # Devour (1.2 s, loop): on them (App. A.6, ~8 s of it): reared up on its haunches against its frozen catch, the front
 # half lifted and leant in over them, the little hands up on them gripping, the head bent down into them, driving in and
-# wrenching side to side, the jaw snapping shut and tearing back, the sac heaving. (The sim's hop stops 0.8 m short, so it
-# leans the rest of the way.)
+# wrenching side to side, the jaw snapping shut in two or three frames and tearing back, the sac heaving. (The sim's hop
+# stops 0.8 m short, so it leans the rest of the way.)
 OVER = {"root@loc": (0, 0.22, 0.06), "pelvis": (28, 0, 0), "spine_01": (14, 0, 0), "chest": (8, 0, 0), "neck": (-14, 0, 0),
         "thigh_r": (-28, 0, 0), "thigh_l": (-28, 0, 0),
         "upperarm_r": (-20, 0, 0), "upperarm_l": (-20, 0, 0), "lowerarm_r": (10, 0, 0), "lowerarm_l": (10, 0, 0),
         "ear_r_01": (-16, 0, 0), "ear_l_01": (-16, 0, 0)}
 devour = Clip("devour")
-for f, jaw, shake, drive in ((0, -46, 0, 0), (4, -6, 16, 1), (8, -20, -14, 0.5), (12, -4, 18, 1), (17, -44, 0, 0), (22, -8, -18, 1),
-                             (26, -24, 10, 0.4), (31, -5, -16, 1), (36, -46, 0, 0)):
+for f, jaw, shake, drive in ((0, -46, 0, 0), (3, -6, 10, 1), (5, -4, 18, 1), (8, -20, -14, 0.5), (10, -6, 4, 1), (12, -4, 18, 1),
+                             (17, -44, 0, 0), (20, -8, -12, 1), (22, -6, -18, 1), (26, -24, 10, 0.4), (29, -6, -6, 1), (31, -5, -16, 1)):
     # (The neck bent down no further than the jaw clears the chest when it gapes: dt art clearance.)
     devour.key(f, {**OVER, "jaw": (jaw, 0, 0), "head": (-30 - 12 * drive, 0, shake), "neck": (-12 - 6 * drive, 0, shake * 0.4),
                    "root@loc": (0, 0.22 + 0.06 * drive, 0.06), "throat@scale": (1.15 + 0.2 * drive, 1.1, 1.2 + 0.25 * drive)},
-               "CONSTANT" if jaw > -10 else "LINEAR")
+               "LINEAR" if jaw < -30 else "BEZIER")
 devour.close(36)
 
+# Hit (0.4 s, once): struck, it snaps round in two frames and on past, the ears left behind; rocks back the other way, and
+# settles.
+STRUCK = {"pelvis": (-10, 0, 14), "chest": (-6, 0, 10), "head": (-10, 0, 20), "root@loc": (0, -0.06, 0.04),
+          "ear_r_01": (10, 0, -10), "ear_l_01": (10, 0, -26)}
 hit = Clip("hit", loop=False)
-hit.key(0, {}, "CONSTANT")
+hit.key(0, {}, "LINEAR")
 # (The ears left behind as the head snaps round, not swung through its flank: dt art clearance.)
-hit.key(2, {"pelvis": (-10, 0, 14), "chest": (-6, 0, 10), "head": (-10, 0, 20), "root@loc": (0, -0.06, 0.04),
-            "ear_r_01": (10, 0, -10), "ear_l_01": (10, 0, -26)}, "CONSTANT")
-hit.key(8, {"pelvis": (4, 0, -4)}, "LINEAR")
-hit.key(12, {}, "CONSTANT")
+hit.key(2, STRUCK, "BEZIER")
+hit.key(4, {**STRUCK, "pelvis": (-11, 0, 16), "chest": (-7, 0, 12), "head": (-11, 0, 24)}, "BEZIER")
+hit.key(7, {"pelvis": (4, 0, -4), "chest": (2, 0, -3), "head": (3, 0, -6), "ear_r_01": (4, 0, 4), "ear_l_01": (4, 0, 6)}, "BEZIER")
+hit.key(10, {"pelvis": (-1, 0, 1), "head": (-1, 0, 2)}, "BEZIER")
+hit.key(12, {}, "BEZIER")
 
 
 # One skin from the rump to the snout, the legs, the hands' palms, the ears' roots and the sac grown out of it (rig.fuse,

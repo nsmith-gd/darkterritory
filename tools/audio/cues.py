@@ -587,6 +587,13 @@ CUES = {
         L("lantern", "The watch's lantern swinging on its bail as they walk"),
         # The council house's bell rope pulled (queue #519, note 786; K1's #1038, note 730): everyone near stops and looks up.
         O("bell", "The council house's cracked bell rung: two to four sour, buzzing strokes across the square", vars=3),
+        # A harbour town's Hope Tower (B2's #1091, note 819; queue #554, note 826): its Flame, a coal fire 80 m up in the wind.
+        L("flame", "The Flame of Hope: a great coal fire in an iron basket high on the Hope Tower, roaring in the wind off the sea"),
+        # The night market on the square (B2's #1111, note 825; queue #555, note 827): its stalls, and its stallholders calling.
+        L("stall-tea", "The tea stall: a boiler on a brazier kept on the simmer, the cups on their strings"),
+        L("stall-clocks", "The clock stall: a dozen clocks and watches all going, none in step"),
+        L("stall-knitting", "The knitting stall: the stallholder's needles clicking, a row at a time"),
+        O("stall-call", "A stallholder calling their wares across the square, through a mask", vars=3),
     ],
     "place-mine": [
         L("underground", "Underground at the mine head"),
@@ -976,6 +983,20 @@ CUES = {
         O("down", "Down its drain: the grating rattling as it squeezes through", vars=3),
         O("hit", "One killed by a blow: a squeal cut short", vars=3),
     ],
+    # The Mouse Moose (queue #537, note 809; A1's #1042, note 790, docs/design/creatures/mouse-moose.md): a mutant rat the size
+    # of a dog with little moose antlers, that drags a yard crane's castings off out of the hook's reach, very slowly, when
+    # nobody's near. Never hurts anyone, nothing kills it: a pest, heard as one. Its creep is how it's noticed.
+    "tell-mouse-moose": [
+        L("creep", "Creeping in toward a casting: big claws ticking slowly over gravel and cinders, a wet snuffling sniff"),
+        O("squeak", "A rat's squeak now and then, too big a rat, with a chatter of teeth after it", vars=4),
+    ],
+    "cs-mouse-moose": [
+        O("bite", "Its teeth fastened on a casting: incisors scraping on iron and a grunt as it braces", vars=3),
+        L("drag", "Dragging a casting off, very slowly: the iron grinding over gravel in short tugs, the rat's straining squeaks"),
+        O("bolt", "Scared off: a shrill squeal and a scrabble of claws bolting away, the casting let go", vars=3),
+        O("dig", "Into its hole: earth scrabbled and kicked back, the antlers knocking on the hole's rim", vars=3),
+        O("lost", "A casting dragged down its hole: the iron tipping over the edge and thudding into the earth", vars=2),
+    ],
     # The Wakers (queue #502, note 772; note 588, docs/design/creatures/wakers.md §2-§5, §8.4 "the sounds to AU1"): what
     # gets up at dawn. Hill-sized: heard from a kilometre and more, the stir's thuds and calls below the night creatures'
     # range so they never mask a tell (spec A.3). Their footfalls are the land's, never a crewmate's step made big.
@@ -1116,6 +1137,43 @@ CUES = {
         O("can", "A can cracked open and a swig", vars=3),
         O("cheers", "Cans clinked: cheers", vars=2),
         O("chair", "A Muskoka chair creaking as you sit down or get up", vars=3),
+        # A sausage or a grilled fish eaten (note 744; queue #559, note 831): bites while it's had.
+        O("eat", "A sausage or a grilled fish eaten: a bite through the skin and a few chews", vars=4),
+    ],
+    # U1's second whimsies (#967, note 744; queue #559, note 831): the hammock in the guard van, the hot tub on the engine's
+    # hood, each lain or sat in.
+    "up-lounge": [
+        O("hammock", "Lying down in the guard van's hammock or getting out: the canvas taking the weight, the ropes creaking", vars=3),
+        L("sway", "Lying in the hammock as the van rocks it: the ropes' slow creak at each end of the swing"),
+        O("tub-in", "Getting into or out of the hot tub: hot water heaving and slopping over the rim, a contented 'ahh'", vars=3),
+        L("tub", "The hot tub on the engine's hood: hot water bubbling where the steam comes in, lapping at the staves"),
+    ],
+    # Burned at a fire's edge (C1's note 821, the director's 14 Oct playtest line 25; queue #561, note 833): held on whoever
+    # the fire's heat reaches, from its first tick, louder the hotter, as the HUD's heat glow.
+    "crew-scorch": [
+        L("sizzle", "Burned at a fire's edge: a coat smouldering on them, cloth and hair singeing and hissing"),
+    ],
+    # The fishing rod (note 744; queue #559, note 831): the angler's own cast and line (heard off their own Use), and the
+    # catch, which everyone hears as the fish lands at their feet.
+    "up-fishing": [
+        O("cast", "The rod cast: its swish, the reel paying out, the weight's plop out on the water", vars=3),
+        L("line", "A line in the water: the shore lapping, the reel's clicker now and then as it's twitched"),
+        O("catch", "A fish on: the reel screaming, a splash, wound in, a trout flapping on the ground", vars=3),
+    ],
+    # U1's whimsies (#967, note 715; queue #534, note 806; U1's ask on #1040): the canary in car one, whose silence is the
+    # tell; the steam calliope's note on the whistle's pull (one note, pitched by the game to the tune's); the gramophone
+    # wound in the guard van. Each plays over U1's own made sound only where it's installed.
+    "up-whimsy": [
+        O("song", "The canary singing in its cage: a phrase of trills, warbles and chirps, a few seconds, while all's well", vars=6),
+        O("calliope", "The steam calliope's note on the whistle's pull: a breathy, reedy steam pipe, a little out of tune (one pitch, C5: the game tunes it)", vars=2),
+        O("wind", "The gramophone wound in the guard van: the crank's ratchet turning the spring, a few turns", vars=2),
+    ],
+    # U1's yard cat and dog (#967, note 745; queue #534, note 806): their tells. The cat hisses at a creature aboard its car
+    # or the next, and meows now and then; the dog barks at one aboard or closing in behind.
+    "up-pets": [
+        O("hiss", "The yard cat hissing at something aboard: a sharp spitting hiss, its back up", vars=3),
+        O("meow", "The yard cat's meow, now and then: an ordinary cat, a little hoarse", vars=4),
+        O("bark", "The guard van's dog barking at something aboard or behind: a medium dog's sharp alarm bark", vars=4),
     ],
     # Signs off the train (D1.1's note 327; queue #79, note 342): a crewmate afoot is shown a pair of eyes at the lamp's edge,
     # toward where a creature lives here. Its sound says something's out there, never that it's coming: quieter than its
@@ -1161,6 +1219,11 @@ CUES = {
         O("fist-bump", "Two gloved fists bumping: a dull, soft knuckle knock", vars=3),
         O("sit", "Sat down on an edge, legs over: the coat settling, a boot knocking the side", vars=3),
         O("lean", "Leant out of a doorway: a gloved hand on the frame, its small creak", vars=3),
+        # U1's "more emotes" upgrade (#967, note 714; queue #534, note 806): the bow, the salute and the conga, on the wheel's
+        # kept places (note 722), C1's clips (note 791).
+        O("bow", "A low bow: the coat creasing as they bend, a boot drawn back on the boards", vars=2),
+        O("salute", "A salute: boot heels brought together with a clack, the sleeve snapped up", vars=3),
+        L("conga", "The conga line: boots in step, a kick every fourth, and a hummed da-da-da-da-da-DA under it"),
     ],
     # A friend on the crane's hook (queue #525, note 798; K1's #1046, note 726): the cable under a rider, and a cry coming off it.
     "crew-hoist": [
@@ -1168,6 +1231,14 @@ CUES = {
         O("yelp", "Coming off the hook up in the air (shaken off, or letting go high): a startled cry as the drop takes them", vars=3),
         # Note 802 (the director, 15 Oct): the drop is "a silly gag, not a big grief", so the landing's comic.
         O("land", "Down on the ground after coming off the hook: a padded thump and a comic 'oof!', never a body falling dead", vars=3),
+    ],
+    # The human cannonball (U1's #1106, note 746; queue #556, note 828): a crewmate climbs into the guard van's cannon and is
+    # fired, "going for fun": the landing never hurts.
+    "crew-cannonball": [
+        O("climb", "Climbing into the cannon's barrel (or back out): boots and knees on the bore's iron, booming hollow", vars=3),
+        O("whoop", "Fired from the cannon: a long delighted cry as the shot throws them", vars=3),
+        L("flight", "In flight from the cannon: the air tearing past and the coat flapping"),
+        O("land", "Down from the cannon: a padded thump, a roll along the ground and a comic 'oof!'", vars=3),
     ],
     # Odd outcomes to find (queue #519, note 786; K1's #1038, note 730): small strange things in the towns and dead villages,
     # by design and unexplained. Heard once each, where they happen.

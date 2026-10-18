@@ -6,4 +6,7 @@
     <PackageReference Include="ppy.SDL3-CS" Version="2026.722.0" />
     <PackageReference Include="Vortice.Vulkan" Version="3.2.3" />
   </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="DarkTerritory.Game.Tests" />
+  </ItemGroup>
 </Project>

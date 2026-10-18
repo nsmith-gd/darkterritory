@@ -52,7 +52,26 @@ public sealed record CarCostTuning(double Base, double Growth, int FromCar);
 public sealed record SpareKitTuning(double Cost, int Most);
 public sealed record TierStep(RouteTier Tier, int FromCars);
 public enum UpgradeSize : byte { Small, Major }
-public sealed record UpgradeDef(string Id, string Name, UpgradeSize Size, double CostShare, Dictionary<string, double> Effect);
+/// <summary>
+/// What an upgrade is for (ARCHITECTURE §8 note 678; docs/design/upgrades.md): a tool that pushes a night further, a bit of
+/// fun, something silly bought because it's silly, or a whimsy that works and is funny with it.
+/// </summary>
+public enum UpgradeKind : byte { Tool, Fun, Silly, Whimsy }
+
+/// <summary>
+/// One line of the fortress's catalogue (campaign.json <c>upgrades</c>; spec F.3). Field docs live in that file.
+/// <see cref="FromTier"/> holds a tool back until the consist works the tier whose trouble it answers (note 678: the town
+/// stocks what the line needs); <see cref="Excludes"/> names the ones it won't go with; <see cref="Line"/> is the shop's
+/// card and <see cref="Tally"/> what the yard clerk reads into every night's tally while the crew owns it.
+/// </summary>
+public sealed record UpgradeDef(string Id, string Name, UpgradeSize Size, double CostShare, Dictionary<string, double> Effect)
+{
+    public UpgradeKind Kind { get; init; }
+    public RouteTier FromTier { get; init; }
+    public string[] Excludes { get; init; } = [];
+    public string? Line { get; init; }
+    public string? Tally { get; init; }
+}
 /// <summary>The yardstick crew for <see cref="Campaign.Simulate"/>; <c>Loads</c> is the car-loads a competent delivered night
 /// brings home on each tier (note 636: the train leaves empty, note 575, and a night earns what its stops load), and a tier
 /// it doesn't name loads every car but the guard.</summary>
@@ -71,7 +90,14 @@ public sealed record Contract(RouteTier Tier, ulong Seed, double PerCar)
     public string Route => $"{char.ToLowerInvariant(Tier.ToString()[0])}{Tier.ToString()[1..]}:{Seed}";
 }
 
-public sealed record RunLog(int Run, string Route, RunEnd End, double Net, int CarsLost, double ScripAfter);
+public sealed record RunLog(int Run, string Route, RunEnd End, double Net, int CarsLost, double ScripAfter)
+{
+    /// <summary>
+    /// How far the train went that night, km (note 535: the crew's distance is the sum, and a host's record the furthest any
+    /// of its crews has gone). A save from before reads as none.
+    /// </summary>
+    public double Km { get; init; }
+}
 
 /// <summary>One car's condition, to put it back as it was.</summary>
 /// <param name="Cargo">What it's carrying (T68): a save from before cargo types reads as none.</param>
@@ -94,7 +120,7 @@ public sealed record RakeSave(int[] Vehicles, int Path, double Distance, bool Ha
 /// </summary>
 public sealed record ThingAboard(BodyKind Kind, int Car, Double3 At, double Radius, double Friction, double Bounce, double Yaw = 0, int Locker = -1,
     int Slot = 0, bool Claimed = true, CargoKind Cargo = CargoKind.None, int Owner = -1, int Home = -1, double Charge = 1,
-    ToyNoise Noise = ToyNoise.None, bool Broken = false, ulong Tools = 0, bool Loaded = false)
+    ToyNoise Noise = ToyNoise.None, bool Broken = false, ulong Tools = 0, bool Loaded = false, byte Instrument = 0)
 {
     /// <summary>A fragile find's knocks (note 719), so it comes back as knocked as it was.</summary>
     public int Knocks { get; init; }
@@ -138,6 +164,8 @@ public sealed record CampaignState
 {
     public int Slot { get; init; } = 1;
     public string Name { get; init; } = "";
+    /// <summary>What the crew named the engine (the nameplate, note 714): on its brass plates, and read in the tally. Null, unnamed.</summary>
+    public string? EngineName { get; init; }
     public ulong Seed { get; init; } = 1;
     public int Cars { get; init; }
     public double Scrip { get; init; }
@@ -220,6 +248,9 @@ public sealed record Loadout(TrainTuning Train, BoilerTuning Boiler, CombatTunin
 /// <summary>Spec F.2-F.4: the campaign's rules. Pure: states in, states out.</summary>
 public static class Campaign
 {
+    /// <summary>How far the crew's gone, every night of its campaign together (note 535), km.</summary>
+    public static double Distance(CampaignState s) => s.History.Sum(h => h.Km);
+
     public static CampaignState New(CampaignTuning t, int slot, string name, ulong seed) =>
         new() { Slot = slot, Name = name, Seed = seed, Cars = t.StartingCars, Scrip = t.StartingScrip };
 
@@ -272,10 +303,55 @@ public static class Campaign
     {
         if (t.Upgrades.FirstOrDefault(u => u.Id == id) is not { } u)
             return new(s, $"no upgrade called '{id}'");
+        // A livery owned (note 714: "bought once, picked in the yard"): chosen again, the train's painted in it. The one on the
+        // train is the last livery in the list, as Apply takes it.
+        if (s.Upgrades.Contains(id) && u.Effect.ContainsKey("livery"))
+            return LiveryOf(t, s) == id ? new(s, $"the train's in {u.Name.ToLowerInvariant()} already")
+                : new(s with { Upgrades = [.. s.Upgrades.Where(x => x != id), id] }, null);
         if (s.Upgrades.Contains(id))
             return new(s, $"you already have {u.Name}");
+        if (Unavailable(t, s, u) is { } why)
+            return new(s, why);
         double cost = UpgradeCost(t, s, u);
         return s.Scrip < cost ? new(s, $"{u.Name} costs {cost:0} scrip; you have {s.Scrip:0}") : new(s with { Upgrades = [.. s.Upgrades, id], Scrip = s.Scrip - cost }, null);
+    }
+
+    /// <summary>The livery the train's painted in (note 714): the last livery upgrade owned, or null for the works' paint.</summary>
+    public static string? LiveryOf(CampaignTuning t, CampaignState s) =>
+        s.Upgrades.LastOrDefault(id => t.Upgrades.FirstOrDefault(u => u.Id == id)?.Effect.ContainsKey("livery") == true);
+
+    /// <summary>
+    /// Why the fortress won't sell <paramref name="u"/> to this crew yet (note 678), or null: a tool held back until the
+    /// consist works the tier it answers (spec F.4: the cars set the tier), or one that won't go with something already fitted
+    /// (either side naming the other).
+    /// </summary>
+    public static string? Unavailable(CampaignTuning t, CampaignState s, UpgradeDef u)
+    {
+        if (TierFor(t, s.Cars) < u.FromTier)
+            return $"{u.Name} is stocked for {TierWords(u.FromTier)} work: a train of {t.Tiers.Where(x => x.Tier == u.FromTier).Select(x => x.FromCars).DefaultIfEmpty(0).First()} cars";
+        foreach (var other in s.Upgrades)
+            if (other != u.Id && t.Upgrades.FirstOrDefault(o => o.Id == other) is { } o && (u.Excludes.Contains(other) || o.Excludes.Contains(u.Id)))
+                return $"{u.Name} won't go with the {o.Name.ToLowerInvariant()}";
+        return null;
+    }
+
+    /// <summary>A tier as the fortress says it ("dead lines").</summary>
+    public static string TierWords(RouteTier tier) => tier switch
+    {
+        RouteTier.Local => "local",
+        RouteTier.Frontier => "frontier",
+        RouteTier.DeadLines => "dead lines",
+        _ => "deep territory",
+    };
+
+    /// <summary>
+    /// What the yard clerk adds to the tally for what the crew owns (note 678): each owned upgrade's <see cref="UpgradeDef.Tally"/>,
+    /// in the catalogue's order, read as flat as the coal. "The settlement does not mourn" (GDD §9), and it isn't impressed.
+    /// </summary>
+    public static IReadOnlyList<string> TallyLines(CampaignTuning t, IEnumerable<string> upgrades)
+    {
+        var owned = upgrades.ToHashSet();
+        return [.. t.Upgrades.Where(u => u.Tally is { Length: > 0 } && owned.Contains(u.Id)).Select(u => u.Tally!)];
     }
 
     /// <summary>A spare repair kit from the fortress's stores (E.12 question 4, answered: it sells them).</summary>
@@ -400,7 +476,7 @@ public static class Campaign
     {
         int cars = Math.Max(2, s.Cars - report.CarsLost);
         double scrip = s.Scrip + report.Net;
-        var log = new RunLog(s.Runs + 1, s.Current?.Route ?? "?", report.End, report.Net, report.CarsLost, scrip);
+        var log = new RunLog(s.Runs + 1, s.Current?.Route ?? "?", report.End, report.Net, report.CarsLost, scrip) { Km = report.DistanceKm };
         int spares = report.SpareKitsHome >= 0 ? report.SpareKitsHome : s.SpareKits;
         // D.8: whoever was freed tonight is that survivor from now on; everyone else stays who they were.
         var identities = new Dictionary<string, string>(s.Identities);
@@ -452,7 +528,6 @@ public static class Campaign
                     "guardCars" => Fit(l, c => c with { GuardCars = c.GuardCars + (int)Math.Round(k) }),
                     "armouredCars" => Fit(l, c => c with { ArmouredCars = c.ArmouredCars + (int)Math.Round(k) }),
                     "handrails" => Fit(l, c => c with { Handrails = c.Handrails || k > 0 }),
-                    "insulation" => Fit(l, c => c with { Insulation = c.Insulation * k }),
                     "contactSafe" => l with { Train = l.Train with { Couplings = l.Train.Couplings with { SafeContactSpeed = l.Train.Couplings.SafeContactSpeed * k } } },
                     "underLoad" => l with { Train = l.Train with { Couplings = l.Train.Couplings with { UncoupleUnderLoadSeconds = l.Train.Couplings.UncoupleUnderLoadSeconds * k } } },
                     "unhook" when l.Enemies is { } e => l with { Enemies = e with { Passenger = e.Passenger with { UncoupleSeconds = e.Passenger.UncoupleSeconds * k } } },
@@ -464,6 +539,33 @@ public static class Campaign
                     "switchThrower" => Fit(l, c => c with { SwitchThrower = c.SwitchThrower || k > 0 }),
                     // The handcar (note 729), hung on the guard van's back.
                     "handcar" => Fit(l, c => c with { Handcar = c.Handcar || k > 0 }),
+                    // The BBQ deck (note 698): the engine's front, its chairs, cooler and grill.
+                    "bbqDeck" => Fit(l, c => c with { BbqDeck = c.BbqDeck || k > 0 }),
+                    // The livery (note 714): the train's paint, the last owned's (BuyUpgrade puts the one picked last).
+                    "livery" => Fit(l, c => c with { Livery = (int)Math.Round(k) }),
+                    // The train's dressing (note 701): drawn on the train; the art reads which.
+                    _ when effect.StartsWith("dress:", StringComparison.Ordinal) && k > 0 =>
+                        Fit(l, c => c.Dressed(effect["dress:".Length..]) ? c : c with { Dress = [.. c.Dress, effect["dress:".Length..]] }),
+                    // The stuffed moose head (note 701): a Moose takes it personally, its temper rising k times as fast as the train passes.
+                    "mooseTemper" when l.Enemies is { } e => l with { Enemies = e with { Moose = e.Moose with { TrainPass = e.Moose.TrainPass * k } } },
+                    // The disco ball (note 701): the Fire Flies come to dance, k times as often at a stop.
+                    "fireFlies" when l.Enemies is { } e => l with { Enemies = e with { FireFlies = e.FireFlies with { StoppedWeight = e.FireFlies.StoppedWeight * k } } },
+                    // The band (note 700): an instrument of band.json's in the guard van, one per upgrade.
+                    _ when effect.StartsWith("instrument:", StringComparison.Ordinal) && k > 0 =>
+                        l with { Train = l.Train with { Kit = l.Train.Kit with { Instruments = [.. l.Train.Kit.Instruments, effect["instrument:".Length..]] } } },
+                    // The catalogue's (note 678; docs/design/upgrades.md): tools that keep pace with the tiers, and the silly.
+                    "overspeedLead" => l with { Train = l.Train with { Overspeed = l.Train.Overspeed with { LeadSeconds = l.Train.Overspeed.LeadSeconds * k } } },
+                    "brakeFade" => l with { Train = l.Train with { BrakeFade = l.Train.BrakeFade with { FadePerSecond = l.Train.BrakeFade.FadePerSecond * k } } },
+                    "fragile" when l.Train.Fragile is { } f => l with { Train = l.Train with { Fragile = f with { ShockShare = f.ShockShare * k, BrakeShockPerSecond = f.BrakeShockPerSecond * k } } },
+                    "boardUp" => l with { Train = l.Train with { Breach = l.Train.Breach with { BoardSeconds = l.Train.Breach.BoardSeconds * k } } },
+                    "radios" => l with { Train = l.Train with { Kit = l.Train.Kit with { Radios = l.Train.Kit.Radios + (int)Math.Round(k) } } },
+                    "accel" => l with { Train = l.Train with { Performance = [.. l.Train.Performance.Select(r => r with { Accel = r.Accel * k })] } },
+                    "reload" => l with { Combat = l.Combat with { Guns = l.Combat.Guns with { ReloadStepSeconds = l.Combat.Guns.ReloadStepSeconds * k } } },
+                    "whistle" => l with { Combat = l.Combat with { Choir = l.Combat.Choir with { WhistleLoudness = l.Combat.Choir.WhistleLoudness * k } } },
+                    "hotboxKnock" when l.Enemies is { } e => l with { Enemies = e with { Hotbox = e.Hotbox with { KnockSeconds = e.Hotbox.KnockSeconds * k, GlowSeconds = e.Hotbox.GlowSeconds * k } } },
+                    "hotboxMend" when l.Enemies is { } e => l with { Enemies = e with { Hotbox = e.Hotbox with { RepairSeconds = e.Hotbox.RepairSeconds * k } } },
+                    // A bigger extinguisher: k times the spray in it, and back to full on its bracket in 1/k the time.
+                    "extinguisher" when l.Enemies is { } e => l with { Enemies = e with { CarFire = e.CarFire with { ChargeSeconds = e.CarFire.ChargeSeconds * k, RechargeSeconds = e.CarFire.RechargeSeconds / k } } },
                     _ => l,
                 };
         }

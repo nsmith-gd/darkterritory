@@ -579,13 +579,68 @@ public static class StructureKit
         for (float x = -8; x < 8.6f; x += 1.3f)
             foreach (float z in new[] { -3.4f, 3.4f })
                 k.BoxAt(new Vector3(x, 14.45f, z), new Vector3(0.4f, 0.45f, 0.18f));
-        // The iron gates, drawn back against the passage walls.
-        k.Use("iron_plate", Palette.IronGrey, 0.9f, 0.35f);
+        // Its gates are pieces of their own, swung open and shut (GateLeaf, note 847): here the iron posts they hang from, set
+        // into the passage's walls where the leaves' hinges are.
+        k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f);
+        float post = (float)Sim.Run.Fortresses.LeafHinge, arch = (float)Sim.Run.Fortresses.ArchBottom;
         foreach (int side in new[] { -1, 1 })
-            k.Box(new Vector3(side * 3.5f - side * 0.25f - 0.06f, 0, -3.2f), new Vector3(side * 3.5f - side * 0.25f + 0.06f, 7.8f, 0.5f));
+            k.Box(new Vector3(side < 0 ? -3.5f : post - 0.1f, 0, -0.22f), new Vector3(side < 0 ? -post + 0.1f : 3.5f, arch, 0.22f));
         k.Use("rust_heavy", Palette.RustRed, 0.9f, 0.2f);
         k.Box(new Vector3(-3.5f, 7.8f, 3.3f), new Vector3(3.5f, 8.2f, 3.6f));
         return k.Build("gatehouse");
+    }
+
+    /// <summary>
+    /// One of a gatehouse's two iron gates (note 847), hung on its hinge at the piece's origin and reaching across the passage
+    /// to the line, toward −X for the right-hand one (<paramref name="side"/> 1) and +X for the left (−1): heavy timber in an
+    /// iron frame, three straps across, up to the arch (Sim.Run.Fortresses: LeafHinge, ArchBottom). The one with
+    /// <paramref name="wicket"/> has the wicket in it near the line, standing open into the fortress (+Z), for whoever's on foot.
+    /// </summary>
+    public static MeshAsset GateLeaf(Look? look, int side, bool wicket)
+    {
+        var k = new Kit(look, 961 + side + (wicket ? 4 : 0));
+        float reach = (float)Sim.Run.Fortresses.LeafHinge, top = (float)Sim.Run.Fortresses.ArchBottom, t = 0.06f;
+        // The wicket's span out from the hinge, and its height (the Sim's opening).
+        float w0 = reach + (float)Sim.Run.Fortresses.WicketLo, w1 = reach + (float)Sim.Run.Fortresses.WicketHi, wh = (float)Sim.Run.Fortresses.WicketHeight;
+        // A span out from the hinge (0 at it, reach at the line) as a box in the piece, toward the line.
+        void Span(float a, float b, float y0, float y1, float thick) =>
+            k.Box(new Vector3(-side * Math.Max(a, b), y0, -thick), new Vector3(-side * Math.Min(a, b), y1, thick));
+        // Heavy timber, banded with iron: it reads against the stone of the passage round it.
+        k.Use("wood_sleeper", Palette.DeepBrown, 0.85f, 0.05f);
+        if (wicket)
+        {
+            Span(0, w0, 0, top, t);
+            Span(w1, reach, 0, top, t);
+            Span(w0, w1, wh, top, t);
+        }
+        else
+            Span(0, reach, 0, top, t);
+        // The frame round it and the straps across, proud of the timber on both faces (broken at the wicket).
+        k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f);
+        Span(0, 0.18f, 0, top, t + 0.04f);
+        Span(reach - 0.12f, reach, 0, top, t + 0.04f);
+        Span(0, reach, top - 0.2f, top, t + 0.04f);
+        foreach (float y in new[] { 0.9f, 3.9f, 6.6f })
+        {
+            if (wicket && y < wh + 0.1f)
+            {
+                Span(0, w0 - 0.05f, y, y + 0.22f, t + 0.04f);
+                Span(w1 + 0.05f, reach, y, y + 0.22f, t + 0.04f);
+            }
+            else
+                Span(0, reach, y, y + 0.22f, t + 0.04f);
+        }
+        if (wicket)
+        {
+            // The wicket's frame, and its door swung in on its hinge by the line's side of the opening.
+            Span(w0 - 0.08f, w0, 0, wh + 0.08f, t + 0.03f);
+            Span(w1, w1 + 0.08f, 0, wh + 0.08f, t + 0.03f);
+            Span(w0 - 0.08f, w1 + 0.08f, wh, wh + 0.08f, t + 0.03f);
+            k.Use("wood_sleeper", Palette.DeepBrown, 0.85f, 0.05f);
+            float hx = -side * w1;
+            k.Box(new Vector3(hx - 0.04f, 0.04f, t), new Vector3(hx + 0.04f, wh - 0.04f, t + (w1 - w0) - 0.04f));
+        }
+        return k.Build(wicket ? $"gateleaf-wicket-{side}" : $"gateleaf-{side}");
     }
 
     /// <summary>

@@ -39,7 +39,7 @@ public class PingTests
         var train = Train();
         var world = new World(train);
         world.EnableEnemies(Quiet, null, 1, 3, authority: true);
-        world.AddEnemy(id => CarFire.In(id, train, 3, 2, Tuning.Enemies.CarFire));
+        world.AddEnemy(id => CarFire.In(id, train, 3, 2, Tuning.Enemies.CarFire, FireCause.Set));
         var t = P.Pings;
         var onCar2 = PlayerMotor.SpawnOnRoof(train, 2, 0, P);
         // At the car on fire behind: the fire, in car 3.
@@ -111,7 +111,7 @@ public class PingTests
         c.Run(10);
         // Car 2 catches (its gun's car: the gunner's legs there claimed its first hand and sat on at the gun); the one playing
         // looks at it from car 1's roof and pings it.
-        c.Host.World.AddEnemy(id => CarFire.In(id, train, 2, 2, Tuning.Enemies.CarFire));
+        c.Host.World.AddEnemy(id => CarFire.In(id, train, 2, 2, Tuning.Enemies.CarFire, FireCause.Set));
         c.Host.SetPlayerState(c.PlayerId, Looking(PlayerMotor.SpawnOnRoof(train, 1, 0, P), train, Middle(train, 2)));
         c.Run(0.5);
         c.Ping();

@@ -67,6 +67,17 @@ public abstract class Incident(int id) : Enemy(id)
 
 
 /// <summary>
+/// What started a car fire (note 851; the director's playtest of 16 Oct, line 22: "Is that a fire in the back car? How did that
+/// even get started? ... That doesn't seem like there's anything that was there"). Every fire has one, and the crew are told
+/// it as the fire starts (<see cref="World.FireStarted"/>: the news line, and the report's row). <see cref="Set"/> is a
+/// fire put there by hand (a test, a staged shot, the cascade audit); the game never starts one that way.
+/// </summary>
+public enum FireCause : byte
+{
+    Set, HotBox, FireFlies, Hounds, Lamp, Jumped, Blast, Called,
+}
+
+/// <summary>
 /// FIRE (GDD v1.1 App. C.5, and what the Fire Flies start, App. A.5). A cargo car catches: smoke and a crackle through its
 /// walls (the tell), then flames. It burns the cargo and the car, and whoever's in it, and it grows and jumps the couplings
 /// over time. Every car has a wall-mounted extinguisher: grab it, spray it (fire held with it in your hands, inside the
@@ -107,6 +118,16 @@ public sealed class CarFire(int id) : Incident(id)
     /// <summary>Each cell's heat, 0 to 1, in its car's <see cref="FireGrid"/> order. Empty until its first tick on the host.</summary>
     public double[] Heat { get; private set; } = [];
 
+    /// <summary>What started it (note 851). The host's: a client's copy has <see cref="FireCause.Set"/>, and reads the news for it.</summary>
+    public FireCause Cause { get; private set; }
+    /// <summary>The car it came from (<see cref="FireCause.Jumped"/>, <see cref="FireCause.Blast"/>), or −1.</summary>
+    public int From { get; private set; } = -1;
+    /// <summary>Whose hand (the lamp's thrower, who relit the Fire Flies' lamp), or −1; and the clerk's line for it (C.9).</summary>
+    public int Actor { get; private set; } = -1;
+    public string Action { get; private set; } = "";
+    /// <summary>Host: the crew told of it (<see cref="World.FireStarted"/>), on its first tick.</summary>
+    bool _told;
+
     public override EnemyKind Kind => EnemyKind.CarFire;
     public override Sense Sense => Sense.Heat;
     public override Want Want => Want.Cargo;
@@ -116,15 +137,20 @@ public sealed class CarFire(int id) : Incident(id)
     /// </summary>
     protected override Run.Incident? Punished(EnemyContext ctx) => null;
 
-    public static CarFire In(int id, TrainOnLine train, int car, double along, CarFireTuning t) =>
-        new(id) { Attached = car, Local = At(train, car, along), Extra = t.StartIntensity, _startHeat = t.StartIntensity };
+    /// <summary>
+    /// A fire starting at <paramref name="along"/> on <paramref name="car"/>'s floor, from <paramref name="cause"/> (note 851:
+    /// every fire has one, and it's told). <paramref name="from"/>: the car it came from, if it came from one; <paramref name="actor"/>
+    /// and <paramref name="action"/>: C.9's contributing action, for the report.
+    /// </summary>
+    public static CarFire In(int id, TrainOnLine train, int car, double along, CarFireTuning t, FireCause cause, int from = -1, int actor = -1, string action = "") =>
+        new(id) { Attached = car, Local = At(train, car, along), Extra = t.StartIntensity, _startHeat = t.StartIntensity, Cause = cause, From = from, Actor = actor, Action = action };
 
     /// <summary>
     /// A thrown lamp's oil (note 728, senses.json <c>thrown.lampFireHeat</c>): alight at <paramref name="heat"/> in the cell
     /// nearest <paramref name="local"/> (the car's frame), where it broke: the floor, a wall or the roof.
     /// </summary>
-    public static CarFire Kindled(int id, int car, Double3 local, double heat) =>
-        new(id) { Attached = car, Local = local, Extra = heat, _startHeat = heat, _kindle = local };
+    public static CarFire Kindled(int id, int car, Double3 local, double heat, int thrower) =>
+        new(id) { Attached = car, Local = local, Extra = heat, _startHeat = heat, _kindle = local, Cause = FireCause.Lamp, Actor = thrower, Action = thrower >= 0 ? "Thrown by {actor}." : "" };
 
     /// <summary>More oil on it (note 728): the cell nearest <paramref name="local"/> at least <paramref name="heat"/>.</summary>
     public void Kindle(FireGrid grid, Double3 local, double heat)
@@ -257,10 +283,26 @@ public sealed class CarFire(int id) : Incident(id)
         }
         double dt = SimConstants.TickSeconds;
         var car = ctx.Train.Vehicles[Attached];
+        // Note 851 (the director's playtest of 16 Oct, line 24: "I don't know why my car is on fire after I've gotten into a safe
+        // area. It's like on fire and exploding"): home, in through the arrival's gates or delivered, nothing burns. It's out.
+        if (ctx.World.HomeSafe(Attached))
+        {
+            for (int i = 0; i < Heat.Length; i++)
+                Heat[i] = 0;
+            Extra = 0;
+            Out(ctx);
+            return;
+        }
         if (Heat.Length != grid.Count)
             Lay(grid, car);
         if (Phase == SpinePhase.Dormant)
             Enter(ctx, SpinePhase.Telegraph); // smoke through the boards, and the crackle
+        if (!_told)
+        {
+            // Note 851: told as it starts, where it starts, with what started it; the report's row is the same fact.
+            _told = true;
+            ctx.World.FireStarted(this);
+        }
         var spraying = Spraying(ctx, grid, t);
         _sprayed.Clear();
         foreach (var (_, ext, cell) in spraying)
@@ -407,7 +449,8 @@ public sealed class CarFire(int id) : Incident(id)
                 continue;
             _spread[side] = true;
             double half = train.Frames[into].Shape.HalfLength;
-            ctx.World.AddEnemy(i => In(i, train, into, side == 0 ? half : -half, t));
+            int from = Attached;
+            ctx.World.AddEnemy(i => In(i, train, into, side == 0 ? half : -half, t, FireCause.Jumped, from));
         }
         Extra2 = Math.Max(_blaze[0], _blaze[1]);
     }
@@ -425,19 +468,7 @@ public sealed class CarFire(int id) : Incident(id)
         var inIt = new HashSet<int>();
         foreach (var (p, _) in Inside(ctx, 0))
         {
-            // From feet to head, to the cell's patch of board (half a cell round its centre).
-            var feet = p.State.Position;
-            double heat = 0;
-            for (int i = 0; i < grid.Count; i++)
-            {
-                if (Heat[i] <= 0)
-                    continue;
-                var c = grid.Centre[i];
-                var body = feet with { Y = Math.Clamp(c.Y, feet.Y, feet.Y + t.BodyHeight) };
-                double d = Math.Max(0, (c - body).Length - t.BurnPatch);
-                if (d < t.BurnReach)
-                    heat = Math.Max(heat, Heat[i] * (1 - d / t.BurnReach) * (grid.Face[i] == FireFace.Ceiling ? t.CeilingBurnShare : 1));
-            }
+            double heat = HeatOn(p.State.Position, grid, Heat, t);
             if (heat <= 0)
                 continue;
             inIt.Add(p.Id);
@@ -452,6 +483,46 @@ public sealed class CarFire(int id) : Incident(id)
         }
         foreach (int gone in _burning.Keys.Where(id => !inIt.Contains(id)).ToList())
             _burning.Remove(gone);
+    }
+
+    /// <summary>
+    /// How hot a car fire is on someone stood at <paramref name="feet"/> (its car's frame), 0 to 1, as <see cref="Burn"/> burns
+    /// them: from their feet to their head, to each burning cell's patch of board (half a cell round its centre), the hottest
+    /// cell's heat less with distance out to <see cref="CarFireTuning.BurnReach"/>, the roof's at
+    /// <see cref="CarFireTuning.CeilingBurnShare"/>. Note 821: the burn's own measure, so the crew can see what it's doing to them.
+    /// </summary>
+    public static double HeatOn(Double3 feet, FireGrid grid, IReadOnlyList<double> heat, CarFireTuning t)
+    {
+        double on = 0;
+        for (int i = 0; i < grid.Count && i < heat.Count; i++)
+        {
+            if (heat[i] <= 0)
+                continue;
+            var c = grid.Centre[i];
+            var body = feet with { Y = Math.Clamp(c.Y, feet.Y, feet.Y + t.BodyHeight) };
+            double d = Math.Max(0, (c - body).Length - t.BurnPatch);
+            if (d < t.BurnReach)
+                on = Math.Max(on, heat[i] * (1 - d / t.BurnReach) * (grid.Face[i] == FireFace.Ceiling ? t.CeilingBurnShare : 1));
+        }
+        return on;
+    }
+
+    /// <summary>
+    /// Note 821: how hot the train's car fires are on <paramref name="s"/> now (0 to 1; 0 with none reaching them), as the host
+    /// burns them (<see cref="Burn"/>: alight, in the burning car, inside its walls, out of its cab), from the replicated
+    /// fires, so every machine reckons it alike. For the crew's feedback only; the burn itself is the host's.
+    /// </summary>
+    public static double HeatOn(in PlayerState s, World world)
+    {
+        if (world.Enemies?.CarFire is not { } t || !s.Alive || s.Parent <= 0)
+            return 0;
+        double most = 0;
+        foreach (var e in world.ActiveEnemies)
+            if (e is CarFire { Gone: false, Phase: SpinePhase.Punish, Heat.Length: > 0 } fire && fire.Attached == s.Parent
+                && PlayerMotor.Indoors(s, world.Train) && !PlayerMotor.InCab(s, world.Train)
+                && FireGrid.Of(world.Train, fire.Attached, t.CellSize) is { } grid && grid.Count == fire.Heat.Length)
+                most = Math.Max(most, HeatOn(s.Position, grid, fire.Heat, t));
+        return most;
     }
 
     /// <summary>
@@ -480,7 +551,10 @@ public sealed class CarFire(int id) : Incident(id)
         foreach (int next in new[] { train.VehicleBehind(Attached), train.VehicleAhead(Attached) })
             if (next > 0 && train.Vehicles[next].Kind == VehicleKind.Cargo && train.Dynamics.Consist.IndexOf(next) >= 0
                 && !ctx.World.ActiveEnemies.Any(e => !e.Gone && e.Kind == Kind && e.Attached == next))
-                ctx.World.AddEnemy(i => In(i, train, next, Local.Z, t));
+            {
+                int from = Attached;
+                ctx.World.AddEnemy(i => In(i, train, next, Local.Z, t, FireCause.Blast, from));
+            }
         ctx.World.Blast(at);
         // What was blown out burns down from what's left: the cells cooled to where it no longer spreads.
         for (int i = 0; i < Heat.Length; i++)

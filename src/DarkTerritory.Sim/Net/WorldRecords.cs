@@ -103,6 +103,8 @@ public static class WorldRecords
                     Q(v.Knot, Fine),
                     // How much of its load is things lying in it as themselves (note 659): the rest is its heap, every client's.
                     Q(v.Placed, Fine),
+                    // The BBQ deck's (note 698): the grill's charcoal left (it glows and warms on every client), the cooler's beers.
+                    Q(v.Grill, Fine), v.Beers,
                     // How charred its fire cells are (note 267: every client draws the burnt boards).
                     .. CarFire.Pack([.. v.Char.Select(c => c / (double)((1 << CarFire.Bits) - 1))])]));
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.World, 0),
@@ -119,7 +121,12 @@ public static class WorldRecords
                 Q(world.Answer.At.X, Pos), Q(world.Answer.At.Y, Pos), Q(world.Answer.At.Z, Pos),
                 // A sign shown a crewmate afoot (note 327): how long it shows, whose, to whom, and where.
                 Q(world.Watcher.Seconds, Fine), (long)world.Watcher.Kind, world.Watcher.Player,
-                Q(world.Watcher.At.X, Pos), Q(world.Watcher.At.Y, Pos), Q(world.Watcher.At.Z, Pos)]));
+                Q(world.Watcher.At.X, Pos), Q(world.Watcher.At.Y, Pos), Q(world.Watcher.At.Z, Pos),
+                // The band (note 700): the tune it's playing (+1; 0 none) and the tick its first bar began.
+                world.Band.Tune + 1, world.Band.StartTick,
+                // The whimsies (note 715): Gerald and the gnomes taken, the canary, the calliope's note, the gramophone.
+                world.Whimsy.Taken, (long)world.Whimsy.Canary, world.Whimsy.CalliopeNote, world.Whimsy.Playing ? 1 : 0, world.Whimsy.Record,
+                world.Whimsy.WoundAt]));
         foreach (var e in world.ActiveEnemies)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Enemy, e.Id),
             [
@@ -186,7 +193,8 @@ public static class WorldRecords
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Boiler, 0),
         [
             Q(b.Pressure, Fine), Q(b.Firebox, Fine), Q(b.Tender, Fine), Q(b.AtMaxSeconds, Fine), Q(b.LowFireSeconds, Fine),
-            Q(b.ExternalHeat, Fine), Q(b.Efficiency, Fine),
+            // (The deep cold's efficiency came out of the record with the cold, note 852; protocol 78.)
+            Q(b.ExternalHeat, Fine),
             (b.Ruptured ? 1 : 0) | (b.SafetyValveLifting ? 2 : 0) | (b.SafetyValveJammed ? 4 : 0) | (b.FireDoorOpen ? 8 : 0) | (b.Vented ? 16 : 0) | (b.WrenchOut ? 32 : 0) | (b.ShovelOut ? 64 : 0),
             // The door's swing-shut clock: without it the host's own snap back onto the grid zeroed it every tick, and the
             // door never shut.
@@ -318,6 +326,12 @@ public static class WorldRecords
                 Physics.BodyKind.Toy => (long)body.Noise + (body.Playing ? 0x100 : 0),
                 // Thrown and broken, its oil burning where it lies (note 728).
                 Physics.BodyKind.Lamp => body.Broken ? 1 : 0,
+                // Which of the band's instruments (note 700).
+                Physics.BodyKind.Instrument => body.Instrument,
+                // The tiny caboose (note 713): which way it's over (+1; 1 on the rails).
+                Physics.BodyKind.Caboose => body.Tipped + 1,
+                // The cat's and the dog's mood (note 745: PetMood).
+                Physics.BodyKind.Cat or Physics.BodyKind.Dog => body.Tipped + 1,
                 // Broken, and how far the kit's got mending it (note 201): 0 whole, 1 + ticks broken.
                 Physics.BodyKind.Radio => body.Broken ? 1 + body.MendTicks : 0,
                 // How far its carrier has got using a healing find (note 272), for their HUD; over it, a fragile one's knocks
@@ -347,7 +361,7 @@ public static class WorldRecords
                 s.Parent, Q(s.Position.X, Pos), Q(s.Position.Y, Pos), Q(s.Position.Z, Pos),
                 Q(s.Velocity.X, Pos), Q(s.Velocity.Y, Pos), Q(s.Velocity.Z, Pos),
                 Q(s.Yaw, Ang), Q(s.Pitch, Ang), (long)s.Surface, s.Health, (long)s.Death, Q(s.LineHint, Hint), Q(s.ActionProgress, Fine),
-                Q(s.Cold, Fine), (long)s.Flags, s.Placed,
+                (long)s.Flags, s.Placed,
                 // A VR player's hands, on the centimetre grid they came in on (T47): the rest of the crew see their arms.
                 Q(s.Hand.X, Cm), Q(s.Hand.Y, Cm), Q(s.Hand.Z, Cm), Q(s.OtherHand.X, Cm), Q(s.OtherHand.Y, Cm), Q(s.OtherHand.Z, Cm),
                 // The hotbar (T108): what they carry, and which is in hand; over it, the slots holding a thing (note 594).
@@ -429,10 +443,11 @@ public static class WorldRecords
                         f.Length > 8 ? (CargoKind)f[8] : CargoKind.None, f.Length <= 9 || f[9] != 0, f.Length > 15 ? D(f[15], Fine) : 0,
                         f.Length > 18 ? (uint)f[18] : 0,
                         f.Length > 22 && f[19] != 0, f.Length > 22 ? new Double3(D(f[20], Pos), D(f[21], Pos), D(f[22], Pos)) : default,
-                        [.. CarFire.Unpack(f, 31).Select(c => (byte)Math.Round(c * ((1 << CarFire.Bits) - 1)))],
+                        [.. CarFire.Unpack(f, 33).Select(c => (byte)Math.Round(c * ((1 << CarFire.Bits) - 1)))],
                         f.Length > 23 ? D(f[23], Fine) : 0, f.Length > 24 ? D(f[24], Fine) : 0, f.Length > 25 ? D(f[25], Fine) : 0,
                         f.Length > 28 && (f[28] & 1) != 0, f.Length > 28 && (f[28] & 2) != 0, f.Length > 29 ? D(f[29], Fine) : 0,
-                        f.Length > 27 && f[27] != 0, f.Length > 30 ? D(f[30], Fine) : 0, f.Length > 28 ? (LooseCause)((f[28] >> 2) & 0xFF) : LooseCause.None));
+                        f.Length > 27 && f[27] != 0, f.Length > 30 ? D(f[30], Fine) : 0, f.Length > 31 ? D(f[31], Fine) : 0, f.Length > 32 ? (int)f[32] : 0,
+                        f.Length > 28 ? (LooseCause)((f[28] >> 2) & 0xFF) : LooseCause.None));
                     break;
                 case RecordKind.World:
                     world.Choir = new ChoirState
@@ -460,6 +475,10 @@ public static class WorldRecords
                     world.LampLit = f[4] != 0;
                     world.LampOutSeconds = f.Length > 5 ? D(f[5], Fine) : 0;
                     world.Train.Sand = f.Length > 6 ? D(f[6], Fine) : 0;
+                    world.Band = f.Length > 29 ? new BandState((int)f[28] - 1, (uint)f[29]) : BandState.Silent;
+                    world.Whimsy = f.Length > 35
+                        ? new WhimsyState((int)f[30], (CanaryMood)f[31], (int)f[32], f[33] != 0, (int)f[34], (uint)f[35])
+                        : default;
                     break;
                 case RecordKind.Enemy:
                     if (!world.Authority)
@@ -474,15 +493,14 @@ public static class WorldRecords
                         AtMaxSeconds = D(f[3], Fine),
                         LowFireSeconds = D(f[4], Fine),
                         ExternalHeat = D(f[5], Fine),
-                        Efficiency = D(f[6], Fine),
-                        Ruptured = (f[7] & 1) != 0,
-                        SafetyValveLifting = (f[7] & 2) != 0,
-                        SafetyValveJammed = (f[7] & 4) != 0,
-                        FireDoorOpen = (f[7] & 8) != 0,
-                        WrenchOut = (f[7] & 32) != 0,
-                        ShovelOut = (f[7] & 64) != 0,
-                        Vented = (f[7] & 16) != 0,
-                        SinceShovel = f.Length > 8 ? D(f[8], Fine) : 0,
+                        Ruptured = (f[6] & 1) != 0,
+                        SafetyValveLifting = (f[6] & 2) != 0,
+                        SafetyValveJammed = (f[6] & 4) != 0,
+                        FireDoorOpen = (f[6] & 8) != 0,
+                        WrenchOut = (f[6] & 32) != 0,
+                        ShovelOut = (f[6] & 64) != 0,
+                        Vented = (f[6] & 16) != 0,
+                        SinceShovel = f.Length > 7 ? D(f[7], Fine) : 0,
                     };
                     break;
                 case RecordKind.Controls:
@@ -642,7 +660,9 @@ public static class WorldRecords
             Charge = (Physics.BodyKind)f[0] == Physics.BodyKind.Extinguisher ? D(f[8], Hint) : 1,
             Tools = (Physics.BodyKind)f[0] is Physics.BodyKind.Ragdoll or Physics.BodyKind.Tool ? (ulong)f[8] : 0,
             Cargo = (Physics.BodyKind)f[0] is Physics.BodyKind.Extinguisher or Physics.BodyKind.Ragdoll or Physics.BodyKind.Toy or Physics.BodyKind.Radio or Physics.BodyKind.Loot or Physics.BodyKind.Tool
-                or Physics.BodyKind.Lamp ? CargoKind.None : (CargoKind)f[8],
+                or Physics.BodyKind.Instrument or Physics.BodyKind.Caboose or Physics.BodyKind.Lamp ? CargoKind.None : (CargoKind)f[8],
+            Tipped = (Physics.BodyKind)f[0] is Physics.BodyKind.Caboose or Physics.BodyKind.Cat or Physics.BodyKind.Dog ? (sbyte)(f[8] - 1) : (sbyte)0,
+            Instrument = (Physics.BodyKind)f[0] == Physics.BodyKind.Instrument ? (byte)f[8] : (byte)0,
             Noise = (Physics.BodyKind)f[0] == Physics.BodyKind.Toy ? (Physics.ToyNoise)(f[8] & 0xFF) : Physics.ToyNoise.None,
             Playing = (Physics.BodyKind)f[0] == Physics.BodyKind.Toy && (f[8] & 0x100) != 0,
             Broken = (Physics.BodyKind)f[0] is Physics.BodyKind.Radio or Physics.BodyKind.Lamp && f[8] != 0,
@@ -765,16 +785,16 @@ public static class WorldRecords
             Death = (DeathCause)f[11],
             LineHint = D(f[12], Hint),
             ActionProgress = D(f[13], Fine),
-            Cold = D(f[14], Fine),
-            Flags = (PlayerFlags)f[15],
-            Placed = (byte)f[16],
-            Hand = f.Length > 22 ? new Double3(D(f[17], Cm), D(f[18], Cm), D(f[19], Cm)) : default,
-            OtherHand = f.Length > 22 ? new Double3(D(f[20], Cm), D(f[21], Cm), D(f[22], Cm)) : default,
-            Kit = f.Length > 24 ? (ulong)f[23] : 0,
-            HeldSlot = f.Length > 24 ? (byte)(f[24] & 0xFF) : (byte)0,
-            Pockets = f.Length > 24 ? (byte)(f[24] >> 8) : (byte)0,
-            Head = f.Length > 25 ? D(f[25], Cm) : 0,
-            Stagger = f.Length > 26 ? (byte)f[26] : (byte)0,
+            // The cold's field came out of the record with the cold (note 852; protocol 78).
+            Flags = (PlayerFlags)f[14],
+            Placed = (byte)f[15],
+            Hand = f.Length > 21 ? new Double3(D(f[16], Cm), D(f[17], Cm), D(f[18], Cm)) : default,
+            OtherHand = f.Length > 21 ? new Double3(D(f[19], Cm), D(f[20], Cm), D(f[21], Cm)) : default,
+            Kit = f.Length > 23 ? (ulong)f[22] : 0,
+            HeldSlot = f.Length > 23 ? (byte)(f[23] & 0xFF) : (byte)0,
+            Pockets = f.Length > 23 ? (byte)(f[23] >> 8) : (byte)0,
+            Head = f.Length > 24 ? D(f[24], Cm) : 0,
+            Stagger = f.Length > 25 ? (byte)f[25] : (byte)0,
         });
     }
 

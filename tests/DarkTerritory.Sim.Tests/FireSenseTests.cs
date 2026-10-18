@@ -19,9 +19,9 @@ public class FireSenseTests
     {
         var n = new Night(5, speed: 10);
         n.World.MountExtinguishers();
-        var bot = new Bots.RoofWalkerBot(3, P.Cold) { Me = 1 };
+        var bot = new Bots.RoofWalkerBot(3) { Me = 1 };
         n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
-        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 3, 2, Tuning.Enemies.CarFire).Ablaze(heat, span));
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 3, 2, Tuning.Enemies.CarFire, FireCause.Set).Ablaze(heat, span));
         int least = P.Health;
         bool everIn = false;
         var steps = new List<string>();

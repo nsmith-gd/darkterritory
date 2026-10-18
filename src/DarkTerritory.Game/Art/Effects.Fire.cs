@@ -54,6 +54,50 @@ public sealed partial class Effects
     }
 
     /// <summary>
+    /// Note 821: a crewmate a car fire's heat reaches (<paramref name="heat"/> 0..1, the burn's own measure: Sim's
+    /// CarFire.HeatOn), from their <paramref name="feet"/>: smoke curling up off their shoulders, back and sleeves, thicker and
+    /// darker the hotter, and embers flicked up off them, so whoever sees them sees it burning them (the 14 Oct playtest's
+    /// line 25: "I wasn't getting any feedback that I was being burned").
+    /// </summary>
+    public void Scorched(MeshBuilder mesh, Vector3 feet, float heat, double t, int seed)
+    {
+        if (_smoke < 0 || heat <= 0.01f)
+            return;
+        float thick = Math.Clamp(heat / 0.7f, 0, 1);
+        int puffs = 5 + (int)(thick * 9);
+        for (int k = 0; k < puffs; k++)
+        {
+            float h = Hash(k * 2.13f + seed * 3.7f), h2 = Hash(k * 5.31f + seed * 1.9f), period = 1.0f + 0.7f * h;
+            float age = (float)((t * (0.9 + 0.3 * h) + h * 5) % period), s = age / period;
+            // Off the shoulders and the arms (their outline, chest to shoulder height), rising clear of them and spreading.
+            float side = h2 < 0.5f ? -1 : 1;
+            var from = feet + new Vector3(side * (0.18f + 0.18f * Hash(k * 7.7f + seed)), 1.2f + 0.35f * h, (Hash(k * 9.1f + seed) - 0.5f) * 0.3f);
+            var p = from + Vector3.UnitY * (age * (0.8f + 0.4f * thick))
+                + new Vector3(MathF.Sin(age * 2.6f + h * 6) * 0.12f, 0, MathF.Cos(age * 2.1f + h * 4) * 0.12f) * s;
+            float a = (0.6f + 0.3f * thick) * MathF.Sin(MathF.PI * MathF.Min(1, s * 1.25f + 0.05f));
+            // The smoke sheet is dark (a third grey): tinted up pale, and warm with the fire under it, so it reads against the
+            // car's dark boards.
+            float grey = 3.2f - 0.8f * thick;
+            mesh.Billboard(p, 0.25f + s * (0.7f + 0.6f * thick), h * 6.28f + age * 0.4f, new Vector4(grey * 1.08f, grey * 0.9f, grey * 0.76f, a),
+                _smoke, FxBlend.Alpha, (int)(s * 15.99f), 4);
+        }
+        if (_spark < 0)
+            return;
+        // Embers flicked up off them, round their outline (the spark sheet's dot is a fraction of its cell: these are sized for it).
+        int embers = 6 + (int)(thick * 10);
+        for (int k = 0; k < embers; k++)
+        {
+            float h = Hash(k * 3.37f + seed * 2.9f), period = 0.6f + 0.5f * h;
+            float age = (float)((t * (1.1 + 0.4 * h) + h * 3) % period), s = age / period;
+            float side = Hash(k * 1.9f + seed) < 0.5f ? -1 : 1;
+            var p = feet + new Vector3(side * (0.22f + 0.2f * Hash(k * 6.1f + seed)), 0.7f + 1.0f * h + s * 1.0f, (Hash(k * 4.3f + seed) - 0.5f) * 0.5f)
+                + new Vector3(MathF.Sin(age * 9 + h * 6), 0, MathF.Cos(age * 7 + h * 4)) * (0.08f * s);
+            mesh.Billboard(p, 0.16f + 0.08f * h, MathF.PI / 2, new Vector4(2.4f, 1.0f + 0.4f * h, 0.3f, (1 - s) * (0.7f + 0.3f * thick)), _spark,
+                FxBlend.Additive, k % 4, 2, stretch: 1.8f);
+        }
+    }
+
+    /// <summary>
     /// A breath in the cold (GDD §26): every few seconds (quicker when they're working) a puff out of the mouth, out the
     /// way they face, spreading and rising and gone. <paramref name="amount"/> how much it shows (the night's cold).
     /// </summary>
@@ -436,6 +480,81 @@ public sealed partial class Effects
         // Out on the street, so the light falls on the ground and the houses opposite, not flat on its own front.
         mesh.PointLights.Add(new PointLight(front - into * 7 + up * 2, Palette.FurnaceOrange * (1.8f * flicker), 22));
         mesh.PointLights.Add(new PointLight(ridge + up * 4, Palette.FurnaceOrange * (2.0f * flicker), 30));
+    }
+
+    /// <summary>
+    /// A Hope Tower's Flame of Hope (queue #547, note 819; the director's Cultures tab: "bright burning flames above ... for
+    /// the world to find in the darkness"): a coal fire in an iron basket eighty metres up, kept all night. Tongues standing
+    /// out of the basket, the tallest three men high, leaning with the wind; a white-hot heart; cinders going up off it and
+    /// away; a column of smoke lit orange from under, leaning off with the wind; its light thrown over the gallery and the
+    /// roofs below. Camera-relative: <paramref name="fire"/> the coals' middle, <paramref name="radius"/> the basket's brim.
+    /// <paramref name="near"/> 0..1 how much of it is worth drawing (1 within a few hundred metres; far off the tongues and
+    /// the heart are all that shows, and the town's glow carries it: WorldArt.Glow).
+    /// </summary>
+    public void Beacon(MeshBuilder mesh, Vector3 fire, float radius, double t, int seed, float near = 1)
+    {
+        var up = Vector3.UnitY;
+        var wind = new Vector3(0.5f, 0, 0.3f);
+        // (Drawn for a basket of 2.6 m; a bigger one's fire is bigger.)
+        float sc = radius / 2.6f;
+        float flicker = 0.85f + 0.1f * MathF.Sin((float)t * 7.3f + seed) + 0.05f * MathF.Sin((float)t * 17.1f);
+        // The heart: white-hot in the basket, and a broad glow round it that the fog takes up.
+        mesh.Billboard(fire + up * 0.8f, radius * 2.4f, 0, new Vector4(new Vector3(1.6f, 1.15f, 0.7f) * flicker, 1), -1, FxBlend.Additive);
+        mesh.Billboard(fire + up * 2.5f, radius * 7f, 0, new Vector4(Palette.FurnaceOrange * (0.55f * flicker), 1), -1, FxBlend.Additive);
+        // From far off, a point of fire that stays a point (never under 1.3% of the way to it): what a crew sees of it
+        // from down the line, over the town's own glow.
+        float far = fire.Length() * 0.013f;
+        if (far > radius * 1.5f)
+            mesh.Billboard(fire + up * 1.5f, far, 0, new Vector4(new Vector3(1.8f, 1.25f, 0.75f) * flicker, 1), -1, FxBlend.Additive);
+        // The tongues: a ring of them round the brim leaning in, and the tall ones out of the middle, all leaning off downwind.
+        int tongues = near > 0.3f ? 14 : 5;
+        for (int i = 0; i < tongues; i++)
+        {
+            float h = Hash(seed * 1.7f + i * 2.93f), h2 = Hash(seed * 0.9f + i * 4.1f);
+            bool middle = i < 5;
+            float a = i * 2.4f + h * 0.8f, r = middle ? radius * 0.35f * h : radius * (0.55f + 0.3f * h);
+            float tall = sc * ((middle ? 6.5f : 3.6f) + 2.5f * h + 1.2f * MathF.Sin((float)t * (4.5f + 3 * h) + h2 * 6.28f));
+            var foot = fire + new Vector3(MathF.Cos(a) * r, 0.2f, MathF.Sin(a) * r);
+            var lean = wind * (0.18f * tall);
+            int frame = (int)((t * 17 + h * 16 + i * 4.7) % 16);
+            var colour = middle ? new Vector4(1.25f, 0.78f, 0.38f, 1f) : new Vector4(1.05f, 0.55f, 0.26f, 1f);
+            mesh.Billboard(foot + up * (tall * 0.45f) + lean * 0.5f, tall * 0.62f, (h - 0.5f) * 0.3f, colour, _flame, FxBlend.Additive, frame, 4,
+                stretch: 1.7f);
+        }
+        if (near <= 0.05f)
+            return;
+        // Cinders off it, going up and away downwind, winking out.
+        for (int k = 0; k < 24; k++)
+        {
+            float h = Hash(seed * 0.53f + k * 1.37f), period = 3.0f + 3 * h;
+            float age = (float)((t + h * 11) % period), a = age / period;
+            var spark = fire + up * (2 + age * 4.5f) + wind * (age * age * 0.9f)
+                + new Vector3(MathF.Sin(age * 2.1f + k) * radius * 0.6f, 0, MathF.Cos(age * 1.7f + k * 0.7f) * radius * 0.6f);
+            mesh.Billboard(spark, 0.16f, 0, new Vector4(Palette.FurnaceOrange * (1.8f * (1 - a) * near), 1), -1, FxBlend.Additive);
+        }
+        // The column of smoke: coal smoke, thick, the fire's orange under it, sooty above, leaning off with the wind.
+        if (_smoke >= 0)
+        {
+            const float life = 16f, rate = 2.5f;
+            double emitted = Math.Floor(t * rate);
+            for (int k = 0; k < (int)(life * rate); k++)
+            {
+                double index = emitted - k;
+                float age = (float)(t - index / rate);
+                if (age < 0 || age > life)
+                    continue;
+                float h = Hash((float)(index * 0.618 + seed * 2.3)), a = age / life;
+                var at = fire + up * (7f * sc + 2.0f * age) + wind * age * (1.6f + 0.8f * h)
+                    + new Vector3(h - 0.5f, 0, Hash((float)index + seed) - 0.5f) * (radius + age * 0.6f);
+                float size = sc * (3.5f + 11f * MathF.Sqrt(a));
+                float alpha = 0.6f * MathF.Pow(1 - a, 1.3f) * MathF.Min(1, age) * near;
+                var tint = Vector3.Lerp(new Vector3(0.5f, 0.27f, 0.12f), new Vector3(0.1f, 0.095f, 0.09f), MathF.Min(1, a * 2.5f));
+                mesh.Billboard(at, size, h * 6.28f + age * 0.08f, new Vector4(tint, alpha), _smoke, FxBlend.Alpha, (int)(a * 15.99f), 4);
+            }
+        }
+        // Its light: over the gallery and the tower's top, and thrown wide over the head's roofs below.
+        mesh.PointLights.Add(new PointLight(fire + up * 2.5f, Palette.FurnaceOrange * (2.6f * flicker), 46));
+        mesh.PointLights.Add(new PointLight(fire + up * 6f, Palette.LampAmber * (1.6f * flicker), 110));
     }
 
     /// <summary>

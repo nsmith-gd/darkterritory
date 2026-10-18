@@ -47,6 +47,20 @@ public sealed record HouseDesign(bool GableFront, double Storeys, HouseRoof Roof
     /// </summary>
     public double Grime { get; init; }
 
+    /// <summary>
+    /// A houseboat (note 822, the Flooders): a scow's hull under it, up on stilts against the flood, a ladder to its door.
+    /// The art lifts the house onto the hull's deck (<c>MaritimeKit.HullLift</c>); never an open house, whose rooms are on the
+    /// Sim's floor.
+    /// </summary>
+    public bool Hull { get; init; }
+
+    /// <summary>
+    /// A houseboat's hull as the Sim holds it (note 841): how high its deck stands, and how far its sides stand out past
+    /// the house's walls and its ends past its front and back (m). <c>MaritimeKit</c> draws it to these, so what's solid is
+    /// what's drawn (the director, 16 Oct: "I can sort of clip through the corners of some of them and just see inside").
+    /// </summary>
+    public const double HullLift = 2.2, HullBeam = 0.3, HullEnds = 0.4;
+
     /// <summary>How far the eaves stand off the ground, by storeys (m): the wall's height under the roof.</summary>
     public double Eaves => Storeys switch { <= 1 => 2.9, <= 1.5 => 3.6, <= 2 => 5.6, _ => 6.2 };
 }
@@ -102,11 +116,39 @@ public sealed record HouseCharacter
     /// <summary>The town's own paints (ids), and the share of its houses painted from them.</summary>
     public string[] Paints { get; init; } = [];
     public double Own { get; init; }
-    /// <summary>A company town's: one design, its paint and wear each house's own.</summary>
+    /// <summary>A company town's: the company's plans (<see cref="Plans"/>), its paint and wear each house's own.</summary>
     public bool Uniform { get; init; }
+    /// <summary>
+    /// How many plans a company built to (note 815; the director, 13 Oct: "A lot of the house models are too same same"):
+    /// each street's houses in runs of one plan, the next run another's.
+    /// </summary>
+    public int Plans { get; init; } = 1;
+    /// <summary>
+    /// The share of its houses the families have changed over the years (note 815: a porch added or closed in, a lean-to
+    /// on the side, a dormer cut in, shingled over, shutters hung, a stovepipe for the chimney, a storey built up), and how
+    /// many changes such a house has had.
+    /// </summary>
+    public double Altered { get; init; }
+    public int[] Alterations { get; init; } = [1, 2];
     /// <summary>How sooted and bleached its houses have gone (0..1, <see cref="HouseDesign.Grime"/>), and how far either way one house's differs.</summary>
     public double Grime { get; init; }
     public double GrimeSpread { get; init; }
+    /// <summary>The share of its shut houses that are houseboats (<see cref="HouseDesign.Hull"/>; note 822, the Flooders).</summary>
+    public double Hull { get; init; }
+    /// <summary>
+    /// The creed its people keep (world/towns.json <c>creeds</c>; note 822, the Flooders'): heard and posted as a habit's
+    /// lines and notes are, its first notice on the board after the custom's order.
+    /// </summary>
+    public string? Creed { get; init; }
+    /// <summary>
+    /// Its people out among its houses at their own work all night (note 841; the director, 16 Oct, in a Flooder town:
+    /// "There's also nobody walking around. There's no kind of like culture going on"): one for every <c>Out[0]</c> of its
+    /// houses, at most <c>Out[1]</c>, spread through the town, each at a house's front doing <see cref="OutActs"/>' next
+    /// (a townsperson's act: "mend" caulking a hull, "crouch" reading the water's mark on a stilt, "lantern" out walking
+    /// with a lamp, "work" hauling). None where it's [0, 0].
+    /// </summary>
+    public int[] Out { get; init; } = [0, 0];
+    public string[] OutActs { get; init; } = ["lantern"];
     /// <summary>What its yards hold (note 335).</summary>
     public YardOdds Yard { get; init; } = new();
     /// <summary>What its people breathe through (note 353): each of <see cref="TownGear.Kinds"/>' weight against the rest.</summary>
@@ -252,6 +294,54 @@ public static class HouseDesigner
             DoorU = doorU ?? (rng.Chance(0.5) ? model.DoorU : -model.DoorU),
             Ell = rng.Chance(0.5) ? model.Ell : -model.Ell,
         };
+
+    /// <summary>What a family can do to its house over the years (note 815), each as often as its weight.</summary>
+    public enum Change : byte { Porch, LeanTo, Dormer, Shingled, Shutters, Stovepipe, BuiltUp }
+
+    static readonly double[] ChangeWeights = [4, 4, 2, 3, 2, 2, 1];
+
+    /// <summary>
+    /// A house as its family has changed it over the years (note 815; the director, 13 Oct: "A lot of the house models are too
+    /// same same"): <paramref name="changes"/> of <see cref="Change"/>, each that fits the house as it stands, drawn from
+    /// <paramref name="rng"/>. A lean-to needs <paramref name="room"/> beside it; an open house's porch stays a stoop (you go
+    /// straight in). What doesn't fit is drawn again, up to a few times.
+    /// </summary>
+    public static HouseDesign Alter(HouseLooks looks, HouseDesign d, int changes, double width, double depth, double room, bool open, ref Pcg32 rng)
+    {
+        for (int n = 0, tries = 0; n < changes && tries < 4 * changes; tries++)
+        {
+            var change = (Change)Weighted(ChangeWeights, ref rng);
+            HouseDesign? to = change switch
+            {
+                Change.Porch when d.Porch == HousePorch.None => d with { Porch = HousePorch.Stoop },
+                Change.Porch when d.Porch == HousePorch.Stoop && !open => d with
+                {
+                    Porch = HousePorch.Vestibule,
+                    DoorU = Math.Clamp(d.DoorU, -width / 2 + HouseDesign.VestibuleHalf + 0.2, width / 2 - HouseDesign.VestibuleHalf - 0.2),
+                },
+                Change.LeanTo when d.Ell == 0 && room >= 2.2 => LeanTo(d, depth, room, ref rng),
+                Change.Dormer when !d.GableFront && d.Dormer == HouseDormer.None && d.Storeys >= 1.5 && d.Roof is HouseRoof.Gable or HouseRoof.Gambrel
+                    => d with { Dormer = HouseDormer.Shed, Dormers = 1 },
+                Change.Shingled when !d.Shingle => d with { Shingle = true, Painted = false, Paint = Pick(looks.Stains, ref rng) },
+                Change.Shutters when d.Shutters < 0 => d with { Shutters = Pick(looks.Doors, ref rng) },
+                Change.Stovepipe when d.Chimney != HouseChimney.Pipe => d with { Chimney = HouseChimney.Pipe },
+                Change.BuiltUp when d.Storeys <= 1.5 && d.Roof is not HouseRoof.Flat => d with { Storeys = d.Storeys + 0.5 },
+                _ => null,
+            };
+            if (to is null)
+                continue;
+            d = to;
+            n++;
+        }
+        return d;
+    }
+
+    /// <summary>A lean-to: a one-storey wing built on the side, narrower than an ell, toward the back of the house.</summary>
+    static HouseDesign LeanTo(HouseDesign d, double depth, double room, ref Pcg32 rng)
+    {
+        double w = Math.Min(room, rng.Range(2.2, 3.2)), deep = Math.Min(depth - 0.4, rng.Range(2.6, Math.Max(2.7, depth - 0.6)));
+        return d with { Ell = rng.Chance(0.5) ? 1 : -1, EllWidth = w, EllDepth = deep, EllSetback = Math.Max(0.3, depth - deep - 0.1), EllTall = false };
+    }
 
     static int PaintFor(HouseLooks looks, HouseCharacter c, ref Pcg32 rng)
     {

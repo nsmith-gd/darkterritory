@@ -31,6 +31,8 @@ public class CreatureBodyTests
         // The Pickers (note 574; drawn 0.92-1.08 by their id: the body's for the middling one) and the house creatures (notes
         // 583, 584).
         { EnemyKind.Pickers, "picker", 1 }, { EnemyKind.Lodger, "lodger", 1 }, { EnemyKind.Householder, "householder", 1 },
+        // The Mouse Moose (note 796).
+        { EnemyKind.MouseMoose, "mouse_moose", 1 },
     };
 
     [Theory]
@@ -52,8 +54,9 @@ public class CreatureBodyTests
         Assert.True(body.Max(s => s.Height + s.Radius) >= 0.6 * top, $"{kind}'s body stops at {body.Max(s => s.Height + s.Radius):0.00} m of its {top:0.00}");
     }
 
-    /// <summary>Kinds drawn from boxes until they're modelled (the Mouse Moose, note 790): their body's checked against that.</summary>
-    static readonly EnemyKind[] StandIns = [EnemyKind.MouseMoose];
+    /// <summary>Kinds drawn from boxes until they're modelled (as the Mouse Moose was, note 790, until note 796): their body's
+    /// checked against that.</summary>
+    static readonly EnemyKind[] StandIns = [];
 
     [Fact]
     public void EveryCreatureWithABodyIsDrawn()

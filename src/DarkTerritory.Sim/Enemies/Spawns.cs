@@ -116,7 +116,8 @@ public static class Spawns
             var h = c.Tuning.CinderHounds;
             if (c.Train.Dynamics.Speed < h.MinTrainSpeed || c.Train.Dynamics.Consist.CarCount < 1 || !c.None(EnemyKind.CinderHound))
                 return null;
-            return c.Train.BoilerTuning is { } b && c.Train.Boiler.Pressure > b.WorkingBandMax ? c.Director.Tuning.HoundsHotBoilerWeight : 1;
+            // ... and to the BBQ deck's grill lit (note 698): its heat and its smell.
+            return c.Train.BoilerTuning is { } b && c.Train.Boiler.Pressure > b.WorkingBandMax || Train.Bbq.AnyLit(c.Train) ? c.Director.Tuning.HoundsHotBoilerWeight : 1;
         }, c =>
         {
             var t = c.Tuning.CinderHounds;
@@ -520,8 +521,8 @@ public static class Spawns
             c.Add(i => Follower.On(i, c.Train, s, on, c.Tuning.Followers));
             return true;
         }),
-        // B.6 · Soot Children: near facilities and dead settlements; crew of two or more; a true 50/50 with a real child (a
-        // host's first-ever call always real).
+        // B.6 · Soot Children: near facilities and dead settlements; any crew, alone too (enemies.json minCrew, note 770); a
+        // true 50/50 with a real child (a host's first-ever call always real).
         new(EnemyKind.SootChildren, c =>
         {
             var t = c.Tuning.SootChildren;
@@ -581,25 +582,47 @@ public static class Spawns
             c.Add(i => Switchman.At(i, junction, c.Tuning.Switchman, c.World.Switches?.Tuning.LeverOffset ?? 2.6, derail));
             return true;
         }),
-        // B.8 · The Grumbler: facilities with a crane and crates (the Foundry first); any tier; ×2 with food at the facility.
+        // B.8 · The Grumbler: facilities with a crane and crates (the Foundry first); any tier; ×2 with food at the facility. On
+        // its perch (level-design H.2, note 848): any of the stop's cranes with castings stacked, a yard's gantry as much as the
+        // facility's own.
         new(EnemyKind.Grumbler, c =>
         {
-            if (!c.AtStop || c.StopSite?.Crane is not { } crane || crane.Left == 0 || !c.None(EnemyKind.Grumbler))
+            if (!c.AtStop || GrumblerCranes(c).Count == 0 || !c.None(EnemyKind.Grumbler))
                 return null;
             return Director.Aboard(c.World).Contains(CargoKind.Food) ? c.Tuning.Grumbler.FoodWeight : 1;
         }, c =>
         {
-            if (c.StopSite?.Crane is not { } crane)
+            if (GrumblerPerch(c) is not { } crane)
                 return false;
             var stacked = Enumerable.Range(0, crane.Castings.Length).Where(i => crane.Castings[i].State == CastingState.Stacked).ToList();
-            if (stacked.Count == 0)
-                return false;
             int on = stacked[(int)c.Director.NextRange(0, stacked.Count - 1e-9)];
             var at = crane.Castings[on].At;
-            c.Add(i => Grumbler.OnCrates(i, at + Double3.Up * 0.8, on, c.Tuning.Grumbler));
+            c.Add(i => Grumbler.OnCrates(i, at + Double3.Up * 0.8, on, c.Tuning.Grumbler, crane));
             return true;
         }),
     ];
+
+    /// <summary>The cranes at the stop the train stands at (<see cref="SpawnContext.StopSite"/>) with castings stacked, in the site's order.</summary>
+    static List<Crane> GrumblerCranes(SpawnContext c) =>
+        c.StopSite is not { } site ? [] : [.. site.Cranes.Where(k => !k.Wrecked && k.Castings.Any(x => x.State == CastingState.Stacked))];
+
+    /// <summary>
+    /// Which of them it's on (level-design H.2, note 848): the crane of the perch nearest the crew on the ground (or the
+    /// consist's middle, with nobody off the train) that has castings stacked; a stop without perches laid (a hand-laid line),
+    /// the first such crane.
+    /// </summary>
+    static Crane? GrumblerPerch(SpawnContext c)
+    {
+        var cranes = GrumblerCranes(c);
+        if (cranes.Count == 0 || c.StopSite is not { } site)
+            return null;
+        var from = c.GroundCentre() ?? c.Train.Line.Sample(c.Train.Dynamics.Path, c.Front - c.Train.Dynamics.Consist.LengthMetres * 0.5).Position;
+        double Flat(Double3 a) => ((a - from) with { Y = 0 }).Length;
+        foreach (var (perch, _) in c.Sites(LairKind.GrumblerPerch).OrderBy(p => Flat(p.At)))
+            if (site.CraneNear(perch) is { } crane && cranes.Contains(crane))
+                return crane;
+        return cranes[0];
+    }
 
     /// <summary>
     /// The cranes at the stop the train's standing at with castings the Mouse Moose could take (note 790), each with those

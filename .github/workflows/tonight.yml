@@ -5,21 +5,26 @@
 # D1 made these by hand (an integration branch, then the Test build workflow); this makes one every night. The integration
 # is force-pushed to `tonight`, so anyone can build it again, or bisect it.
 #
-# Every night at 7:30 pm Montreal time (the director, 9 Oct 2026, in the inbox). A schedule is in UTC and Montreal moves its
-# clocks, so there are two: 23:30 UTC is 7:30 pm in summer (EDT) and 00:30 UTC in winter (EST). The clock job lets through
-# only the one that's 7 pm in Montreal, so it runs once a night all year. Any other time: Actions > Tonight's build > Run
-# workflow.
+# Twice a day, for the director's playtests (the director, 15 Oct 2026: "Every evening I want a build at 5pm so I can play
+# test at 7pm and I want a build at 7am so I can play test at 9am"; before that, 7:30 pm only): one build per slot, the
+# first scheduled try after 5 pm or 7 am Montreal (the clock job; summer and winter alike, the tries cover both). Which
+# Token Budget Manager watches each build is COORDINATION.md's "Playtest builds". Any other time: Actions > Tonight's build
+# > Run workflow.
 name: Tonight's build
 on:
   schedule:
-    - cron: '30 23 * * *'
-    - cron: '30 0 * * *'
+    # GitHub runs a schedule late, by minutes or hours (15 Oct: the 5 pm run came at 7:29 pm and the clock let it go),
+    # so each slot has several tries, and the clock job builds once per slot: the first try after 5 pm (or 7 am)
+    # Montreal builds, and the later ones see that slot's zip and stop.
+    - cron: '0 21,22,23,0,1 * * *'
+    - cron: '0 11,12,13,14,15 * * *'
   workflow_dispatch:
 permissions:
   contents: write
   pull-requests: read
   checks: read
   statuses: read
+  actions: read
 concurrency:
   group: tonight
   cancel-in-progress: false
@@ -32,11 +37,24 @@ jobs:
       - id: montreal
         env:
           EVENT: ${{ github.event_name }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
         run: |
-          # By hand, always; on the schedule, only the run that lands in Montreal's 7 pm hour.
-          hour=$(TZ=America/Toronto date +%H)
-          if [ "$EVENT" != schedule ] || [ "$hour" = 19 ]; then go=true; else go=false; fi
-          echo "Montreal: $(TZ=America/Toronto date '+%H:%M %Z'); go=$go"
+          # By hand, always. On the schedule, once per slot: the slot is the last 5 pm or 7 am Montreal gone by, and a
+          # try builds only if no build has passed since then (a by-hand build counts).
+          hour=$(TZ=America/Toronto date +%-H)
+          if [ "$hour" -ge 17 ]; then at='today 17:00'; elif [ "$hour" -ge 7 ]; then at='today 07:00'; else at='yesterday 17:00'; fi
+          slot=$(date -u -d "@$(TZ=America/Toronto date -d "$at" +%s)" +%Y-%m-%dT%H:%M:%SZ)
+          # The slot's builds: this workflow's runs since the slot whose build job ran and passed (a skipped try's
+          # doesn't count). By run, not by artifact: the repo's newest artifacts are mostly every PR's review packet.
+          built=0
+          for id in $(gh api "repos/$REPO/actions/workflows/tonight.yml/runs?created=%3E%3D$slot&per_page=30" --jq ".workflow_runs[] | select(.id != $RUN_ID) | .id"); do
+            n=$(gh api "repos/$REPO/actions/runs/$id/jobs" --jq '[.jobs[] | select(.name == "tonight" and .conclusion == "success")] | length')
+            built=$((built + n))
+          done
+          if [ "$EVENT" != schedule ] || [ "$built" = 0 ]; then go=true; else go=false; fi
+          echo "Montreal: $(TZ=America/Toronto date '+%H:%M %Z'); slot from $slot; builds since: $built; go=$go"
           echo "go=$go" >> "$GITHUB_OUTPUT"
   tonight:
     needs: clock
@@ -77,6 +95,17 @@ jobs:
         with:
           name: DarkTerritory-Dev-win-x64-tonight-${{ github.run_number }}
           path: out/dist/DarkTerritory-Dev-win-x64/
+      # The same build for Linux, so a crewmate on Linux can play the director's night (crossplay: one commit, both
+      # platforms). Uploaded as the zip package.sh makes, so the executable bit survives.
+      - name: The same build for Linux
+        run: |
+          tools/package.sh --dev linux-x64
+          cp out/tonight/TEST-PLAN.md out/tonight/tonight.json out/dist/DarkTerritory-Dev-linux-x64/
+          (cd out/dist && rm -f DarkTerritory-Dev-linux-x64.zip && zip -qr DarkTerritory-Dev-linux-x64.zip DarkTerritory-Dev-linux-x64)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: DarkTerritory-Dev-linux-x64-tonight-${{ github.run_number }}
+          path: out/dist/DarkTerritory-Dev-linux-x64.zip
       - name: The integration to `tonight`
         env:
           ZIP: ${{ steps.zip.outputs.artifact-url }}

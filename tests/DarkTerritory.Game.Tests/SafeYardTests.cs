@@ -60,7 +60,6 @@ public class SafeYardTests
         {
             Assert.True(p.State.Alive);
             Assert.Equal(before[p.Id].Health, p.State.Health);
-            Assert.Equal(0, p.State.Cold, 6);
         }
         Assert.DoesNotContain(world.Attribution.Log, i => i.Kind is IncidentKind.Death or IncidentKind.Grab or IncidentKind.Rupture or IncidentKind.Runaway);
     }

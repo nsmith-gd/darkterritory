@@ -64,14 +64,24 @@ Cut, layered and processed for the game.
 
 - LibriTTS, Zen et al. 2019
   CC BY 4.0. Spoken through Piper, LibriTTS en-us high (rhasspy/piper v0.0.2). In: tell soot children, voice clerk, voice prisoner sets.
+- Body percussion (github.com/sfzinstruments/body_percussion)
+  CC0 1.0. In 1 of the game's sounds.
 - Impact Sounds, by Kenney (kenney.nl)
-  CC0 1.0. In 402 of the game's sounds.
+  CC0 1.0. In 422 of the game's sounds.
 - RPG Audio, by Kenney (kenney.nl)
-  CC0 1.0. In 325 of the game's sounds.
+  CC0 1.0. In 351 of the game's sounds.
 - SFX 100, volume 2
-  CC0 1.0. In 404 of the game's sounds.
+  CC0 1.0. In 444 of the game's sounds.
+- Shinyguitar, by D. Smolken, Karoryfer Samples (github.com/sfzinstruments/karoryfer.shinyguitar)
+  CC0 1.0. In 1 of the game's sounds.
 - UI Audio, by Kenney (kenney.nl)
   CC0 1.0. In 9 of the game's sounds.
+- VS Chamber Orchestra: Community Edition, by Versilian Studios (github.com/sgossner/VSCO-2-CE)
+  CC0 1.0. In 3 of the game's sounds.
+- Versilian Community Sample Library, by Versilian Studios (github.com/sgossner/VCSL)
+  CC0 1.0. In 3 of the game's sounds.
+- ganjo (6-string banjo), by itsclipping (github.com/sfzinstruments/ganjo)
+  CC0 1.0. In 1 of the game's sounds.
 
 THE TEXTURES
 Graded, tiled and rebaked for the game.

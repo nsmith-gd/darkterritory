@@ -120,10 +120,12 @@ public static class TownRounds
             }
 
         var outdoors = plan.People.Where(p => p.House < 0).ToList();
-        // Who's away in which slots: the people at their doors (the clerk, the keeper, the store, the fitter) go once, in the
-        // middle of the day, when everyone else is back at their post; the rest go every other slot. So there's always
-        // somebody at their post to go and have a word with.
-        bool Out(Townsperson p, int k) => p.Role is "clerk" or "keeper" or "storekeeper" or "fitter" ? k == t.Slots / 2 : k % 2 == 1;
+        // Who's away in which slots: the people at their posts (the clerk, the keeper, the store, the fitter, the market's
+        // stallholders, note 825) go once, in the middle of the day, when everyone else is back at their post; the rest go
+        // every other slot. So there's always somebody at their post to go and have a word with.
+        // The blacksmith never leaves the forge (note 697): the crew have to be able to find them to buy.
+        bool Out(Townsperson p, int k) => p.Role is "blacksmith" ? false
+            : p.Role is "clerk" or "keeper" or "storekeeper" or "fitter" or "stallholder" ? k == t.Slots / 2 : k % 2 == 1;
         // Where everyone's standing, slot by slot, so nobody's put where somebody already is.
         var stood = new List<Double3>[t.Slots];
         for (int k = 0; k < t.Slots; k++)
@@ -200,8 +202,11 @@ public static class TownRounds
         RoundStop? Along(double by, string act)
         {
             var there = town.World(p.S + by, p.D, p.Up);
-            return Room(there) && town.Free(there) && town.Clear(at, there) ? new RoundStop(p.S + by, p.D, by > 0 ? 1 : -1, 0, act, []) : null;
+            return Room(there) && Dry(p.S + by, p.D) && town.Free(there) && town.Clear(at, there)
+                ? new RoundStop(p.S + by, p.D, by > 0 ? 1 : -1, 0, act, []) : null;
         }
+        // Never off the end of a stage into the water (note 841: a Flooder town's lamp-carriers walk its stages).
+        bool Dry(double s, double d) => town.Ground.Water(s, d) is not { } w || w - town.Ground.Level(s, d) <= TownGround.Wade;
         switch (p.Role)
         {
             // The gate's people and the porter on the platform keep to their post, pacing it.

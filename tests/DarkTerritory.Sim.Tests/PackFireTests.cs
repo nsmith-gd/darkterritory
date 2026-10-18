@@ -18,7 +18,7 @@ public class PackFireTests
     {
         var n = new Night(4, speed: 8);
         int rear = n.Train.Dynamics.Consist.Vehicles[^1].Id;
-        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, rear, 0, Tuning.Enemies.CarFire).Ablaze(0.3, 2));
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, rear, 0, Tuning.Enemies.CarFire, FireCause.Set).Ablaze(0.3, 2));
         if (pack)
         {
             var shape = n.Train.Frames[rear].Shape;
@@ -28,11 +28,11 @@ public class PackFireTests
                 h.Restore(SpinePhase.Commit, 0, Tuning.Enemies.CinderHounds.Health, rear, new Double3(i == 0 ? 0.6 : -0.6, shape.RoofHeight, shape.HalfLength - 2.5), 0, 0, 0, 900, 0);
             }
         }
-        var bot = new RoofWalkerBot(3, P.Cold) { Me = 1 };
-        // Cold, as everyone was on frontier:7 that night; onIt: already on the burning car's roof, at its front end.
+        var bot = new RoofWalkerBot(3) { Me = 1 };
+        // onIt: already on the burning car's roof, at its front end.
         n.Crew[1] = (onIt ? PlayerMotor.SpawnOnRoof(n.Train, rear, -n.Train.Frames[rear].Shape.HalfLength + 1, P)
             : PlayerMotor.SpawnOnRoof(n.Train, n.Train.VehicleAhead(rear), 0, P)) with
-        { Health = health, Cold = P.Cold.OnsetSeconds };
+        { Health = health };
         bool inside = false;
         for (int i = 0; i < 40 && !inside; i++)
         {

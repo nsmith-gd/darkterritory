@@ -89,6 +89,17 @@ static class TownCommands
                 across = new[] { Math.Round(wk.Side * wk.Near, 1), Math.Round(wk.Side * wk.Far, 1) },
                 pieces = plan.Fixtures.Where(f => wk.Holds(f.S, f.D)).Select(f => $"{f.Kind} at {f.S - wk.S0:0.0} ({f.Name})"),
             } : null,
+            // Its rail yard (note 502): where it runs behind the platform, its siding, and each piece from its start, how far out.
+            yard = plan.Yard is { } ry ? new
+            {
+                along = new[] { Math.Round(ry.S0 - gate, 1), Math.Round(ry.S1 - gate, 1) },
+                across = new[] { Math.Round(ry.Side * ry.Near, 1), Math.Round(ry.Side * ry.Far, 1) },
+                siding = new[] { Math.Round(ry.Siding0 - ry.S0, 1), Math.Round(ry.Siding1 - ry.S0, 1), Math.Round(ry.Side * ry.SidingD, 1) },
+                pieces = plan.Fixtures.Where(f => ry.Holds(f.S, f.D) && f.Kind != "yardlamp")
+                    .Select(f => $"{f.Kind} at {f.S - ry.S0:0.0}, {f.D:0.0} out ({f.Name})"),
+                lamps = plan.Fixtures.Count(f => ry.Holds(f.S, f.D) && f.Kind == "yardlamp"),
+                porters = plan.People.Count(p => p.Role == "porter" && ry.Holds(p.S, p.D)),
+            } : null,
             open = plan.Houses.Where(h => h.Kind == HouseKind.Open).Select(h => new
             {
                 h.Family,

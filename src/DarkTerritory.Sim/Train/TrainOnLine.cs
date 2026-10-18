@@ -23,7 +23,7 @@ public readonly record struct RakeContact(int Front, int Rear, double ClosingSpe
 public readonly record struct RakeState(int[] Vehicles, double Distance, double Velocity, double BrakeEfficiency, bool Handbrake, bool FrontCouplerLocked, int Path = RailLine.MainPath);
 public readonly record struct VehicleState(int Id, double Load, double Integrity, double CargoIntegrity, GunState Gun = default, byte DoorsOpen = 0,
     CargoKind Cargo = CargoKind.None, bool LampLit = true, double Eaten = 0, uint LockersOpen = 0, bool Breached = false, Double3 BreachAt = default, byte[]? Char = null, double HotBox = 0, double Gutter = 0, double Loose = 0, bool Wound = false, bool Seized = false, double Knot = 0,
-    bool OffRails = false, double Placed = 0, LooseCause LooseCause = LooseCause.None);
+    bool OffRails = false, double Placed = 0, double Grill = 0, int Beers = 0, LooseCause LooseCause = LooseCause.None);
 
 /// <summary>Everything about the train that the host owns and clients re-simulate from.</summary>
 public sealed record TrainState(RakeState[] Rakes, VehicleState[] Vehicles, Boiler Boiler)
@@ -581,7 +581,7 @@ public sealed class TrainOnLine
 
     public TrainState Capture() => new(
         _rakes.Select(r => new RakeState(r.Consist.Vehicles.Select(v => v.Id).ToArray(), r.Distance, r.Velocity, r.BrakeEfficiency, r.Handbrake, r.FrontCouplerLocked, r.Path)).ToArray(),
-        _vehicles.Select(v => new VehicleState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun, v.DoorsOpen, v.Cargo, v.LampLit, v.Eaten, v.LockersOpen, v.Breached, v.BreachAt, v.Char, v.HotBox, v.Gutter, v.Loose, v.Wound, v.Seized, v.Knot, v.OffRails, v.Placed, v.LooseCause)).ToArray(),
+        _vehicles.Select(v => new VehicleState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun, v.DoorsOpen, v.Cargo, v.LampLit, v.Eaten, v.LockersOpen, v.Breached, v.BreachAt, v.Char, v.HotBox, v.Gutter, v.Loose, v.Wound, v.Seized, v.Knot, v.OffRails, v.Placed, v.Grill, v.Beers, v.LooseCause)).ToArray(),
         Boiler)
     { Handcar = HandcarNow };
 
@@ -612,6 +612,8 @@ public sealed class TrainOnLine
             vehicle.Knot = v.Knot;
             vehicle.OffRails = v.OffRails;
             vehicle.Placed = v.Placed;
+            vehicle.Grill = v.Grill;
+            vehicle.Beers = v.Beers;
         }
         if (state.Handcar is { } hs)
             MirrorHandcar(hs);
@@ -733,8 +735,6 @@ public sealed class TrainOnLine
                 var effective = controls;
                 if (BoilerTuning is { } bt)
                 {
-                    // GDD §22 deep cold (note 183): the cold where the engine is takes the edge off what a shovelful makes.
-                    Boiler.Efficiency = bt.ColdEfficiency(Line.Conditions?.ColdStep(rake.Path, rake.Distance) ?? 0);
                     // Tractive effort comes from the pressure there is now; then the fire and the cylinders move it.
                     if (bt.SteamDrive)
                     {
@@ -1192,7 +1192,7 @@ public sealed class TrainOnLine
         }
     }
 
-    readonly Dictionary<(VehicleKind, bool, bool, int), CarShape> _shapes = new();
+    readonly Dictionary<(VehicleKind, bool, bool, int, bool), CarShape> _shapes = new();
     CarShape? _handcarShape;
     GeometryTuning? _shapeGeometry;
     int? _kitCar;
@@ -1211,12 +1211,31 @@ public sealed class TrainOnLine
         lockers &= Tuning.Kit.Lockers is { Names.Count: > 0 };
         // (Its body across the gap, to a tenth of a metre: a handful of shapes while it forces the cars apart.)
         int tenths = hasCarBehind ? (int)Math.Round(knot * 10) : 0;
-        if (!_shapes.TryGetValue((kind, hasCarBehind, lockers, tenths), out var shape))
+        // The BBQ deck on the engine's front (note 698), where it's fitted.
+        bool bbq = kind == VehicleKind.Engine && Tuning.Composition.BbqDeck;
+        // The gramophone and the hammock in the last guard van (notes 715, 744), the hot tub on the engine's hood (note 744).
+        // (A train's dressing doesn't change: one key for whatever extras this kind has.)
+        bool gramophone = kind == VehicleKind.Guard && !hasCarBehind && Tuning.Composition.Dressed("gramophone");
+        bool hammock = kind == VehicleKind.Guard && !hasCarBehind && Tuning.Composition.Dressed("hammock");
+        bool tub = kind == VehicleKind.Engine && Tuning.Composition.Dressed("hotTub");
+        bool launcher = kind == VehicleKind.Guard && !hasCarBehind && Tuning.Composition.Dressed("tennisBalls");
+        bool extras = bbq || gramophone || hammock || tub || launcher;
+        if (!_shapes.TryGetValue((kind, hasCarBehind, lockers, tenths, extras), out var shape))
         {
             shape = CarShape.Build(g, kind, hasCarBehind, lockers ? Tuning.Kit.Lockers : null);
             if (tenths > 0)
                 shape = CarShape.Knotted(shape, g, tenths / 10.0);
-            _shapes[(kind, hasCarBehind, lockers, tenths)] = shape;
+            if (bbq)
+                shape = CarShape.WithBbqDeck(shape, g, Tuning.Composition.Bbq);
+            if (gramophone)
+                shape = CarShape.WithGramophone(shape);
+            if (hammock)
+                shape = CarShape.WithHammock(shape);
+            if (tub)
+                shape = CarShape.WithHotTub(shape);
+            if (launcher)
+                shape = CarShape.WithLauncher(shape);
+            _shapes[(kind, hasCarBehind, lockers, tenths, extras)] = shape;
         }
         return shape;
     }

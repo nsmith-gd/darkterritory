@@ -184,7 +184,7 @@ The alternative is Unity's built-in AudioMixer with hand-rolled ducking. It's vi
 | Jump height | 1.2m | Playtest (T90): the 0.48 m a flat 2.2 m gap needs felt like no jump at all (0.8 m then); the director, 8 Oct 2026: "our base jump is too weak" (note 473). A roof-run jump now carries ~3.4 m |
 | Health | 100 | Most attacks 35–60. No regeneration. Damage model (GDD App. F.1, note 272): every creature hit is a big one, at least 30 (`enemies.json` `damage.minHit`; a hit 35, a heavy hit 60) and at least 2.5 s apart (`minGapSeconds`), so a creature on you is two or three hits from death. The train's own continuous dangers (fire, gas) and landings are not chip-limited |
 | Healing | Bandages 30, medicine 50, morphine 80 | Rare finds (about one a frontier night), used from the hands: Use held 2 s standing, up to full health, the find gone (`loot.json` `healing`; note 272) |
-| Cold exposure | 600s to onset, 1200s to death | Resets in 20s near heat. Inside a car with a door open it builds at ¼ rate. (Was 200 / 320 / 45: cold was 73% of deaths in the 100-night playtest.) |
+| ~~Cold exposure~~ | ~~600s to onset, 1200s to death~~ | *Struck: the director's decision, 16 Oct 2026 (GDD §6 "The cold is the look, not a system"; ARCHITECTURE §8 note 852). The cold is no longer anything the player has to worry about: no exposure, no onset, no death by it, no deep-cold step on the line (GDD §22's row retired), nothing it takes off the boiler. The frost and the breath stay. (Was 600 / 1200 / 20, and before that 200 / 320 / 45: cold was 73% of deaths in the 100-night playtest.)* |
 
 ## B.3 Speed bands
 
@@ -272,6 +272,8 @@ Descending, the same figure adds to your speed and your brakes fade at 8% per 10
 
 There's no regulator. **The pressure sets the speed the engine can make:** none at the power floor (20), the line's top speed (22 m/s) at the safety valve (95), in proportion between; the engine pulls at full effort until it's within 3 m/s of that. Coal raises the pressure (faster), the vent drops it (slower, 12 per second held), and too much pressure just runs you at top speed. The cylinders draw steam with the effort of pulling away or with speed, whichever is more, drawing full demand from 85% of top speed: running flat out is the "full throttle" of the tables below. A standing train with steam stands on its brake, and it stays on it until the driver lets it off. Cruise (14 m/s) is about 68 on the gauge; the working band 60–90 is 12–20 m/s.
 
+**The director's playtest of 16 Oct (line 18, note 843): the gauge moves 17% faster** ("build pressure a bit faster ... 15-20% faster"). The steam a unit of coal makes and the steam the train draws went up together, so the burn table below is unchanged, and a rebuild at a standstill (C.2) is about 15% quicker: 37 s to the working band at three cars, three and a half minutes at twenty. A boiler left unfed also falls 17% faster.
+
 ### Burn rate by consist
 
 | Consist | Burn | Shovel interval | Tender endurance |
@@ -336,7 +338,7 @@ A breach is a car's shell giving way to the outside (decided 1 Oct): a door forc
 | Boarding up | 8 s of Use held inside the car within 1.5 m of the hole; let go and that board starts over |
 | Two boarding up | Each works it 1.8× as fast, 4.4 s; a third adds nothing (train.json `repair.pairRate`; GDD §12 Fluidity, note 752) |
 | Needs the repair kit | No: anyone's hands (train.json `breach.needsKit`, true to need the kit carried) |
-| Inside a breached car | No shelter from the cold (as with a door open, it builds at ¼ rate), no muffling, no shelter from the Choir |
+| Inside a breached car | No muffling, no shelter from the Choir (and no shelter from the cold, while there was one: B.2) |
 
 ## B.10 Director pacing
 
@@ -356,7 +358,7 @@ A breach is a car's shell giving way to the outside (decided 1 Oct): a door forc
 | Loudness | + 0.1 /s × (Choir meter ÷ its threshold, to 1.5) |
 | Cargo | + 0.01 /s per car-load (× comet 2, livestock 1.5, food and medicine 1.3, ammunition 1.2) |
 | Tier | × 0.8 Local, 1 Frontier, 1.2 Dead Lines, 1.4 Deep Territory |
-| Conditions | × (1 + 0.15 lamp out + 0.1 × cold + 0.05 per deep-cold step + 0.05 rain + 0.05 × wind) |
+| Conditions | × (1 + 0.15 lamp out + 0.05 rain + 0.05 × wind). The cold's terms (0.1 × cold + 0.05 per deep-cold step) went with the cold (B.2, note 852) |
 | **Relief valve** | × (alive ÷ crew)² × (1 − 0.25 × share of the living under 35 health) |
 | Busy | × 1 ÷ (1 + 0.5 × threats engaged × (1 − progress)): engaged is telegraphing, committing, grabbing or punishing; late in the night it stops waiting for the crew |
 | Post-spawn cooldown | 25–45 s (gives way when pressed) |
@@ -385,6 +387,10 @@ A car fire burns on cells (decided 6 Oct, GDD App. F.1; ARCHITECTURE note 267). 
 | Burns | Within 1.6 m of a burning cell's patch (feet to 1.8 m up), its heat × the falloff; the roof at half |
 | Left alone (goods) | At 1.5 m cells: alight at 25 s, the roof caught by about 55 s, half the car by 70 s, the next car by 85 s; burnt out by about 6 min. Not yet measured again at 3.5 m (note 634) |
 | One extinguisher | Puts out a car at full blaze in about 8.6 s, nearly three-quarters of its charge left, the one spraying it unburned (the director, 12 Oct: "from full blaze within 20 seconds"; `FireCellsTests`) |
+| Two extinguishers | Two in the car, each spraying the nearest fire in reach, put the same car out in about 6.4 s (three in 5.5 s): each cools the stretch it's aimed at by the whole rate, so they stack (note 752, GDD §12; note 851, the director's playtest of 16 Oct evening: "didn't go out ever despite both of us fighting it"); both unburned, most of their charge left (`FireCellsTests.TwoOnTheExtinguishersPutARearCarFireOutWellWithinTheOnesTime`) |
+| Every fire has a cause | Told to the crew as it starts, where it starts, and in the report: the hot box, the Fire Flies at the car's lamp, Cinder Hounds feeding on it, a thrown lamp (and who threw it), the fire jumping the coupling from the next car, a powder car going up (`FireCause`, `World.FireStarted`; the news line, note 663; note 851) |
+| Home | In through the arrival's gates (note 847) or delivered, nothing on the train burns: a fire goes out at once, no hound lights one, no hot box catches, no powder car goes up (`World.HomeSafe`; note 851). Never in the gym (note 676), and not the departure's yard |
+| A hound over the crew | A Cinder Hound on the roof of a car with a crewmate inside it (out of its reach, note 471) is not alone: it doesn't feed and relight the car over their heads; it prowls and waits for them to come out (note 851) |
 
 ---
 
@@ -544,7 +550,7 @@ Revival is possible, expensive, and genuinely capable of ending a run.
 
 ### The revived
 
-They come back **cold**: cold exposure onset halved (300s), carry capacity reduced to light only, and they cannot operate the guns until the next POI.
+They come back weak: carry capacity reduced to light only, and they cannot operate the guns until the next POI. ~~Cold exposure onset halved (300s)~~ *struck with the cold (B.2, note 852)*.
 
 ### The alternative
 
@@ -682,13 +688,24 @@ Leftover scrip grows in absolute terms but stays roughly proportional, so **the 
 
 **Small — 15–25% of current car cost.** One or two per car purchase.
 
-Lamp brightness · lamp armour · gun cooling · ammunition capacity · repair kit charges · tender capacity · coupling reinforcement · roof handrails (Dragger resistance) · radio range · car insulation (cold)
+Lamp brightness · lamp armour · gun cooling · ammunition capacity · repair kit charges · tender capacity · coupling reinforcement · roof handrails (Dragger resistance) · radio range · ~~car insulation (cold)~~ *(retired with the cold, note 852)*
 
 **Major — 100–180% of current car cost.** A run's income, deliberately competing with buying a car.
 
 Armoured car conversion · second guard car (a **third gun**, but it costs a cargo slot) · improved brakes (+20% deceleration) · boiler upgrade (−15% burn) · powered switch thrower (removes the ground excursion at junctions) · reinforced couplings (uncouple under load)
 
 **The core tension:** every upgrade slot competes with a car, and every car makes you richer and more vulnerable. A crew that buys guns and brakes instead of cars stays small, safe and poor.
+
+**The catalogue** *(the director, 13 Oct 2026; note 678, docs/design/upgrades.md)*. Upgrades come in four kinds: **tools**
+(the above, and more priced in the same bands), **whimsy** (works and is funny: 1–15%), **fun** (looks and sounds, no
+gameplay: 2–8%) and **silly** (bought because it's silly; any price, the gold whistle's 250% being its joke, and the yard
+clerk reads it into every tally). A tool is stocked from the tier whose trouble it answers (campaign.json `fromTier`), and
+takes a share of that trouble, never all of it:
+
+Frontier: speed recorder (+50% bend warning) · composition brake shoes (−50% fade) · pre-cut boards (−50% boarding a
+breach) · big extinguishers (+50% spray, −50% recharge). Dead lines: axle oilers (Hotbox +50% before seizing, −50% to
+mend) · ~~feedwater heater (−50% cold off the boiler)~~ *(retired with the cold, note 852)* · gun rammers (−20% reload step) · trailing-truck booster (major, +20%
+pull). From Local: sprung cradles (−60% fragile spoilage) · spare radios (+2).
 
 ## F.4 Progression shape
 

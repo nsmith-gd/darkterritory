@@ -92,13 +92,16 @@ public sealed partial class GameAudio
         public int Parent;
         public Double3 Position;
         public Surface Surface;
-        public double Yaw, Action, Cold, Stride, LastScuff = double.NegativeInfinity, MovingFor, Speed, NextRatchet, NextSwing, TumbleUntil, NextBreath,
+        public double Yaw, Action, Stride, LastScuff = double.NegativeInfinity, MovingFor, Speed, NextRatchet, NextSwing, TumbleUntil, NextBreath,
             NextStumble;
         public int Health;
         public byte Placed;
         public bool Alive, Moving, Shovelful, LeftTrain, BreathIn = true;
         /// <summary>Come off a crane's hook with a drop under them, not yet down (note 802's gag landing).</summary>
         public bool OffHook;
+        /// <summary>Fired from the cannon and not yet down (note 828), and the whoop carried with them.</summary>
+        public bool Flying;
+        public SoundInstance? Whoop;
         public PlayerFlags Flags;
         public Tool Held;
         public Double3 AirVelocity;
@@ -293,7 +296,7 @@ public sealed partial class GameAudio
                     Cue("crew-mishaps.tunnel-bonk", feet + Double3.Up * HeadUp, occlusion);
                     CrewAfter(TumbleAfterBonk, "crew-mishaps.tunnel-tumble", feet, occlusion);
                 }
-                else if (s.Death == DeathCause.Crushed && HasCue("crew-mishaps.crushed"))
+                else if (s.Death is DeathCause.Crushed or DeathCause.HollowHouse && HasCue("crew-mishaps.crushed"))
                 {
                     Cue("crew-mishaps.crushed", feet, occlusion);
                     CrewAfter(ChainAfterCrush, "crew-mishaps.crane-chain", feet + Double3.Up * 5, occlusion);
@@ -318,6 +321,8 @@ public sealed partial class GameAudio
             CrewRescue(world, id, s, c, feet, occlusion, placed);
             // Off the crane's hook high up (note 798): the yelp as the drop takes them.
             CrewHoist(world, s, c, feet, occlusion);
+            // The human cannonball (note 828): into the barrel, the shot's whoop and the flight.
+            CrewCannonball(id, s, c, feet, occlusion);
             if (!s.Alive || placed)
             {
                 Remember(c, s, world);
@@ -337,7 +342,7 @@ public sealed partial class GameAudio
                 landedHard = s.Health < c.Health;
                 double knock = Knock(c, across, onTrain, tuning);
                 // Down after a drop off a crane's hook, the gag's landing in place of this one (note 802).
-                if (!HoistLanding(c, feet, occlusion) && (c.Surface == Surface.Air || knock > rollAbove))
+                if (!CannonballLanding(c, feet, occlusion) && !HoistLanding(c, feet, occlusion) && (c.Surface == Surface.Air || knock > rollAbove))
                 {
                     if (knock > rollAbove)
                     {
@@ -446,11 +451,10 @@ public sealed partial class GameAudio
                 Cue(Burning(world, s) ? "crew-hurt.burned" : "crew-hurt.hit", feet + Double3.Up * ChestUp, occlusion,
                     (float)Math.Clamp(0.5 + (c.Health - s.Health) / 40.0, 0.5, 1));
 
-            // ---- the cold (spec B.2): shivering past its onset; breath you can hear outside on a cold night.
-            if (tuning is not null && PlayerMotor.Chilled(s, tuning))
-                Hold("crew-cold.shiver", id, feet + Double3.Up * HeadUp, occlusion);
+            // ---- a cold night (the look's cold, note 852: no longer anything that hurts): breath you can hear outside on one.
+            // The shiver (crew-cold.shiver) went with the cold's onset.
             bool outside = PlayerMotor.Space(s, train) == PlayerMotor.Outside;
-            if (outside && (weather?.Cold >= 0.5 || tuning is not null && PlayerMotor.Chilled(s, tuning)))
+            if (outside && weather?.Cold >= 0.5)
             {
                 if (_time >= c.NextBreath)
                 {
@@ -544,7 +548,6 @@ public sealed partial class GameAudio
         c.Flags = s.Flags;
         c.Held = Kit.Held(s);
         c.Action = s.ActionProgress;
-        c.Cold = s.Cold;
         c.Shovelful = s.Has(PlayerFlags.Shovelful);
     }
 
@@ -1214,11 +1217,12 @@ public sealed partial class GameAudio
                     m.Laying = false;
                     Cue("crew-cannon-fire.traverse-stop", frame.ToWorld(mount.Position), outside, 0.6f);
                 }
-                // The reload: powder, ball, ram (App. C.3), a step at a time while Use is held.
+                // The reload: powder, pack it, the ball (note 746; App. C.3's powder, ball, ram before), a step at a time while
+                // Use is held. The last step's the ball, rolled home.
                 if (m.Mounted && g.ReloadNeeded < m.Needed)
                 {
                     int done = steps - m.Needed;
-                    Cue(g.ReloadNeeded == 0 ? "crew-cannon-ram.ram-home" : done == 0 ? "crew-cannon-reload.powder-done" : "crew-cannon-ball.ball-roll",
+                    Cue(g.ReloadNeeded == 0 ? "crew-cannon-ball.ball-roll" : done == 0 ? "crew-cannon-reload.powder-done" : "crew-cannon-ram.ram-home",
                         g.ReloadNeeded == 0 || done == 0 ? muzzle : frame.ToWorld(mount.Position), outside);
                 }
                 if (g.ReloadNeeded >= steps)
@@ -1228,7 +1232,7 @@ public sealed partial class GameAudio
                     int step = steps - g.ReloadNeeded;
                     if (step <= 0)
                         Hold("crew-cannon-reload.powder", v.Id, muzzle, outside);
-                    else if (step == 1 && steps > 2)
+                    else if (step == steps - 1)
                     {
                         if (!m.BallIn)
                             Cue("crew-cannon-ball.ball-in", muzzle, outside);

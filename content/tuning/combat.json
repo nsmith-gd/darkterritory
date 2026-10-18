@@ -21,7 +21,12 @@
     "forwardTraverseDegrees": 360,
     // Spec B.7: no firing within this many degrees of the train's own body axis.
     "deadZoneDegrees": 20,
-    "minPitchDegrees": -12,
+    // Note 846 (the director's playtest of 16 Oct, line 7: "we're going to want to be able to pitch the cannon down a little bit
+    // more"): -20 (was -12), so a roof gun lays on what's close in beside the train.
+    "minPitchDegrees": -20,
+    // Note 846 (line 7: "the cannon lets me fire when I'm in a town, and I just fired at a house ... we really shouldn't let
+    // people do that"): a gun whose car is inside a walled town (the departure's or the arrival's, World.InTown) won't fire.
+    "holdInTowns": true,
     "maxPitchDegrees": 45,
     // App. C.3: "powder and shot are stocked at departure" and are rare: a gun's shots for the night.
     "ammo": 24,
@@ -40,7 +45,8 @@
     // powder locker and the tally charges no powder. The reload below is the cost, and the noise (the Choir hears every
     // shot). false: the night's stock of ammo and the rack (note 374).
     "infiniteAmmo": true,
-    // App. C.3: "a full manual reload (powder, ball, ram, fire)": after each shot, this many steps of Use held at the gun,
+    // App. C.3: "a full manual reload (powder, ball, ram, fire)", in the order note 746 gives it: powder, pack it, the ball (or, on
+    // the guard van's human cannonball, a crewmate climbing in). After each shot, this many steps of Use held at the gun,
     // each this long. Fire is the trigger.
     "reloadSteps": 3,
     "reloadStepSeconds": 1.5,
@@ -100,6 +106,14 @@
   // car (its nearest side) take damage (150: dead). Not in the GDD's numbers: "near" is the next car, so the guard van's gun
   // with chemicals ahead of it is lethal and the engine's, with them three cars back, isn't.
   "fumes": { "cars": 1, "gasM": 8, "damage": 150 },
+  // The human cannonball (note 746; docs/design/upgrades.md §8.3; campaign.json humanCannonball): on the guard van's gun, packed
+  // and waiting on its ball, a crewmate within climbReach m of the muzzle (muzzle m out along the barrel from the pivot), nearer
+  // it than the pivot, holding Use climbSeconds, climbs in instead of the ball. Jump climbs out. The gunner's shot flies them at
+  // speed m/s (level) to a point range m along the gun's aim, stepped back step m at a time until it's dry ground on the map
+  // (within mapHalfWidth m of the line, and the line's own room there); the landing never hurts. A creature within hitRadius
+  // m of them in the air takes the ball's hit (guns.damagePerRound) once, and they drop there.
+  "cannonball": { "climbReach": 1.0, "climbSeconds": 1.5, "muzzle": 1.5, "range": 40, "speed": 22, "step": 2, "mapHalfWidth": 300,
+    "hitRadius": 1.2 },
   "hits": {
     "keepSeconds": 1,
     "impactKeepSeconds": 8

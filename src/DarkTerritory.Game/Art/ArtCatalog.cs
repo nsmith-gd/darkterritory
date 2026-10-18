@@ -134,7 +134,22 @@ public static class ArtCatalog
         list.Add(new("portal", LargeProp, () => StructureKit.Portal(look)));
         list.Add(new("wall", StructureBay, () => StructureKit.Wall(look, 1)));
         list.Add(new("tower", LargeProp, () => StructureKit.Tower(look, 1)));
+        // A harbour town's Hope Tower (note 819): one a town, seen from a kilometre off, so a large prop's budget.
+        list.Add(new("hope-tower", LargeProp, () => HopeKit.Tower(look)));
+        // A fortress town begun and stamped flat by a Waker (note 824), out beside the line: a large prop's budget each.
+        for (int v = 0; v < RuinKit.Variants; v++)
+        {
+            int variant = v;
+            list.Add(new($"fortruin-{v}", LargeProp, () => RuinKit.FortRuin(look, variant)));
+        }
         list.Add(new("gatehouse", LargeProp, () => StructureKit.Gatehouse(look)));
+        // Its gates (note 847): the plain one and the one with the wicket in it, each side.
+        foreach (int side in new[] { -1, 1 })
+        {
+            int s = side;
+            list.Add(new($"gateleaf-{s}", SmallProp, () => StructureKit.GateLeaf(look, s, false)));
+            list.Add(new($"gateleaf-wicket-{s}", SmallProp, () => StructureKit.GateLeaf(look, s, true)));
+        }
         list.Add(new("platform", StructureBay, () => StructureKit.PlatformBay(look, 1)));
         list.Add(new("house", LargeProp, () => TownKit.House(look, 1)));
         list.Add(new("lived-house", LargeProp, () => TownKit.LivedHouse(look, 1)));

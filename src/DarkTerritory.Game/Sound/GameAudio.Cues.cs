@@ -53,13 +53,20 @@ public sealed partial class GameAudio
         EndNightUi();
         EndNightRoofWarning();
         EndNightWorldCues();
+        EndNightBbq();
+        EndNightLounge();
     }
 
     void Cues(World world)
     {
         _heldNow.Clear();
         CrewSounds(world);
+        ScorchSounds(world);
         HorseplaySounds(world);
+        // Held, so with the other held loops (not with the one-shot gestures, Actions, which runs before this sweep).
+        Conga(world);
+        BbqSounds(world);
+        LoungeSounds(world);
         OddSounds(world);
         CreatureSounds(world);
         TrainSounds(world);

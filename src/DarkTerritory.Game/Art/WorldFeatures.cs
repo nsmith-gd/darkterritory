@@ -194,15 +194,34 @@ public sealed partial class WorldArt
     /// <param name="time">Seconds, for the searchlights' sweep.</param>
     /// <param name="square">The town's square (note 281): the walls on its side step back round it (<see cref="Square"/>
     /// draws those), and the town's houses are its own (<see cref="Houses"/>), not note 107's village.</param>
+    /// <summary>
+    /// A gatehouse's two iron gates (note 847; StructureKit.GateLeaf) on <paramref name="gm"/>, the gatehouse's own basis:
+    /// each hung from its passage wall, <paramref name="open"/> of the way round toward the fortress (+Z in the piece,
+    /// <paramref name="inward"/> 1, or −Z), shut across the passage at 0. The wicket's in the one on the line's left (the
+    /// Sim's opening, Fortresses.WicketLo..WicketHi): the piece's −X side when it faces up the line, +X turned round.
+    /// </summary>
+    void GateLeaves(MeshBuilder mesh, Matrix4x4 gm, double open, int inward, bool wicketLeft)
+    {
+        float hinge = (float)Sim.Run.Fortresses.LeafHinge, swing = (float)Math.Clamp(open, 0, 1) * MathF.PI / 2;
+        foreach (int side in new[] { -1, 1 })
+        {
+            bool wicket = wicketLeft ? side < 0 : side > 0;
+            var leaf = Piece(wicket ? $"gateleaf-wicket-{side}" : $"gateleaf-{side}", () => StructureKit.GateLeaf(_look, side, wicket));
+            mesh.Instances.Add(new MeshInstance(leaf, Matrix4x4.CreateRotationY(side * inward * swing) * Matrix4x4.CreateTranslation(side * hinge, 0, 0) * gm));
+        }
+    }
+
+    /// <param name="gateOpen">How far its gate at <paramref name="gateAt"/> stands open (0 shut, 1 against the passage's walls;
+    /// note 847), and a walled town's at its way in, <paramref name="rearOpen"/>.</param>
     public void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt, bool platform, bool lit = true,
-        double time = 0, TownSquare? square = null, TownBounds? bounds = null, TownGround? ground = null)
+        double time = 0, TownSquare? square = null, TownBounds? bounds = null, TownGround? ground = null, double gateOpen = 0, double rearOpen = 0)
     {
         double a = Math.Max(start, from), b = Math.Min(end, to);
         if (a >= b)
             return;
         // A walled town's wall goes round it (queue #74, note 335); the gatehouse and the platform are the yard's still.
         if (bounds is not null)
-            TownWall(mesh, line, eye, bounds, from, to, lit, time, ground);
+            TownWall(mesh, line, eye, bounds, from, to, lit, time, ground, rearOpen);
         else
         {
             foreach (int side in new[] { -1, 1 })
@@ -261,6 +280,8 @@ public sealed partial class WorldArt
             var t = line.Sample(gateAt);
             var gm = Basis(t.Tangent, t.Position, eye, 0);
             mesh.Instances.Add(new MeshInstance(Piece("gatehouse", () => StructureKit.Gatehouse(_look)), gm));
+            // Its gates, swung in toward the fortress: behind a way out (the yard's), ahead of a fort's way in at its start.
+            GateLeaves(mesh, gm, gateOpen, gateAt <= start + 1 ? -1 : 1, wicketLeft: true);
             var lamp = (t.Position + Double3.Up * 8.0 + t.Tangent * -3.8).RelativeTo(eye);
             if (lit)
                 mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * 1.6f, 14));

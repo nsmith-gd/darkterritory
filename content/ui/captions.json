@@ -32,6 +32,26 @@
     "choir-voice": "VOICES SINGING",
     "train-whistle": "THE WHISTLE",
     "crew-mishaps.whistle-wheeze": "THE WHISTLE, WHEEZING",
+    // #967's whimsies and pets on AU1's banks (queue #534, note 806): the calliope is the whistle's pull; the canary's song
+    // is the tell by its stopping, so a reader is told it while it sings; the cat's hiss and the dog's bark are tells.
+    "up-whimsy.calliope": "THE WHISTLE, A STEAM ORGAN NOTE",
+    "up-whimsy.song": "A CANARY SINGING",
+    "up-whimsy.wind": "A GRAMOPHONE WOUND",
+    "up-pets.hiss": "A CAT HISSING",
+    "up-pets.meow": "A CAT MEOWING",
+    "up-pets.bark": "A DOG BARKING",
+    // #967's horns, forge and BBQ deck (queue #505, note 775): the horns are the whistle's pull; the smith at work; the deck's party.
+    "up-horns.honk": "A BULB HORN HONKING",
+    "up-horns.gold-start": "THE WHISTLE, BRIGHT",
+    "up-horns.gold": "THE WHISTLE, BRIGHT",
+    "up-forge.hearth": "A FORGE ROARING",
+    "up-forge.anvil": "A HAMMER ON AN ANVIL",
+    "up-forge.bellows": "BELLOWS WHEEZING",
+    "up-forge.quench": "HOT IRON HISSING IN WATER",
+    "up-bbq.light": "CHARCOAL CATCHING",
+    "up-bbq.grill": "A GRILL SIZZLING",
+    "up-bbq.can": "A CAN CRACKED OPEN",
+    "up-bbq.cheers": "CANS CLINKED",
     "toy-squeaker": "A TOY SQUEAKING",
     "toy-musicbox": "A MUSIC BOX",
     "toy-drummer": "A TOY DRUM",
@@ -193,6 +213,13 @@
     "cs-pickers.scatter": "SQUEALING, SCATTERING",
     "cs-pickers.down": "A GRATING RATTLING",
     "cs-pickers.hit": "A SQUEAL CUT SHORT",
+    "tell-mouse-moose.creep": "CLAWS TICKING, SNIFFING",
+    "tell-mouse-moose.squeak": "A BIG RAT SQUEAKING",
+    "cs-mouse-moose.bite": "TEETH SCRAPING ON IRON",
+    "cs-mouse-moose.drag": "IRON DRAGGED OVER GRAVEL",
+    "cs-mouse-moose.bolt": "A SQUEAL, CLAWS SCRABBLING AWAY",
+    "cs-mouse-moose.dig": "EARTH SCRABBLED",
+    "cs-mouse-moose.lost": "IRON THUDDING INTO A HOLE",
     // The Wakers (note 772): dawn's, hill-sized; heard by what they do to the land and the train, never named.
     "tell-wakers.thud": "A FAR-OFF THUD THROUGH THE GROUND",
     "tell-wakers.call": "A LONG, LOW CALL, FAR OFF",
@@ -236,6 +263,9 @@
     // A friend on the crane's hook (note 798): off it high up.
     "crew-hoist.yelp": "A YELL, SOMEONE FALLING",
     "crew-hoist.land": "A THUMP AND AN OOF",
+    "crew-cannonball.whoop": "A WHOOP, SOMEONE FLYING",
+    "crew-cannonball.land": "A THUMP, A ROLL AND AN OOF",
+    "up-fishing.catch": "A REEL SCREAMING, A FISH LANDED",
     // Big finds (note 783): the bell's ring and the fragile finds breaking (the lock's the wrench's own).
     "loot-jackpot.bell": "A BELL'S DULL RING",
     "loot-fragile.glass": "GLASS BREAKING",
@@ -254,6 +284,7 @@
     "world-dog.bark": "A DOG BARKING, FAR OFF",
     // Odd outcomes (note 786): small strange things, heard as what they are.
     "place-town.bell": "A CRACKED BELL RINGING",
+    "place-town.stall-call": "A STALLHOLDER CALLING",
     "world-odd.well-splash": "A SPLASH, FAR DOWN",
     "world-odd.coin": "A COIN ON STONE",
     "world-odd.wash": "WATER POURED",

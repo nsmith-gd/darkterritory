@@ -52,7 +52,15 @@
     // ... I shouldn't take damage unless I like fully jump as high as I can go off the top of the train"): off a train going
     // slower than standBelow (m/s), a stood train's footing is the ground's (note 573's off the ground): a crewmate's own walk
     // or run is no knock, only the drop is (a car's roof and a jump's apex over it, 5.2 m, is under fallHurtFrom).
-    "standBelow": 0.5
+    "standBelow": 0.5,
+    // ARCHITECTURE §8 note 802 (the director, 15 Oct 2026, on hoisting a friend, note 726: "If we're hoisting a player and
+    // dropping them lets make it so the player can only lose 10 health at most from a drop and then scale that based on
+    // height. It's a silly gag not a big grief"): a landing on the ground after letting go of a crane's hook, or being shaken
+    // off it, lift or no lift, knocks by the height fallen alone (m, by the speed it lands at): nothing from "from" or less
+    // (a step down off a low hook), rising evenly to "maxKnock" at "fullAt" (the foundry's gantry tops a rider's feet out at
+    // 6.35 m, so its top is the full knock) and no more however high. Never a death, and never below 1 health. The fall and
+    // speed rules above don't count. A landing on a car's roof is no knock, as for any drop onto the train.
+    "offTheHook": { "maxKnock": 10, "from": 1.0, "fullAt": 6.0 }
   },
   "ladder": {
     "grabRange": 0.7,
@@ -70,22 +78,8 @@
     "overhead": 2.3,
     "grab": 0.3
   },
-  // Spec B.2: 600 s outside to onset, 1200 s to death, reset in 20 s near heat (from any point short of death). Cut from
-  // 200 / 320 / 45 after the 100-night playtest, where cold was 73% of all deaths: it was attrition, not a decision.
-  // Heat is the cab while the fire burns, or a shut car while the boiler has steam to heat it.
-  "cold": {
-    "onsetSeconds": 600,
-    "deathSeconds": 1200,
-    "recoverSecondsNearHeat": 20,
-    // Not in the spec, which gives onset no effect: past it you move at this fraction of your speed.
-    "onsetSpeedScale": 0.9,
-    // Spec B.2: inside a car's walls with a door open (working a side door, say), out of the wind but not warm, the cold
-    // comes on at this fraction of the rate outside.
-    "indoorsRate": 0.25,
-    // GDD §22 deep cold (note 183): each of linegen §14's cold steps where you are (the night's, high ground, exposed track)
-    // makes it come on this much faster. A step-3 night on an exposed crest: about twice as fast.
-    "perColdStep": 0.25
-  },
+  // The cold (spec B.2's exposure, GDD §22's deep cold) is out of gameplay since note 852 (the director, 16 Oct 2026): a
+  // night's cold is the look's alone (look.json atmosphere.cold: the frost, the breath).
   // GDD §22 wind, spec B.2's "roof run: wind and balance penalty" (ARCHITECTURE §8 note 201). Up on a roof, the wind
   // (the route's conditions: the night's, ×1.5 on exposed track) pushes you sideways: drift m/s at wind 1 with the train
   // at its maxSpeed, still of that with it stopped (it's the wind across a moving train), in gusts that swing from one
@@ -189,9 +183,18 @@
   // aboard (the one voted on not counted). Put off, a player's told THE CREW PUT YOU OFF AT THE NEXT STOP and can't come back
   // to that run (barred by their account or address, or by name on a LAN that has none). A private or friends-only run: the
   // host's kick only.
+  //
+  // A private run's wrong password (ARCHITECTURE §8 note 535; note 450's "not yet"): its refusal is held back
+  // guessDelaySeconds, guessGrowth times longer for each wrong guess since from the same place (an address, or a platform
+  // account), up to guessDelayMaxSeconds; a place with no wrong guess for guessForgetSeconds starts again from the first.
+  // One guess from a place is judged at a time, so a mistyped password costs a second and a guesser a few a minute.
   "crew": {
     "cap": 8,
     "refuseLingerSeconds": 3,
+    "guessDelaySeconds": 1,
+    "guessGrowth": 2,
+    "guessDelayMaxSeconds": 30,
+    "guessForgetSeconds": 300,
     "joinTakesBotSeat": true,
     "kick": {
       "voteSeconds": 30,
@@ -240,7 +243,12 @@
     "edgeDrop": 0.5,
     "sillReach": 1.2,
     // A bot answers a high five or fist bump offered to it after botAnswer s (bots never offer).
-    "botAnswer": 0.4
+    "botAnswer": 0.4,
+    // The "more emotes" upgrade's (note 714): a bow, a salute, and the conga, which lasts while its line keeps going (each
+    // in it follows whoever started before them; one who stops dancing, or steers off, drops out).
+    "bow": 2.5,
+    "salute": 2.5,
+    "conga": 30
   },
   // The news (ARCHITECTURE §8 note 663; the director: "did a coupler break on its own or was that a creature?"): cars the
   // engine loses and its failing or breaking down, told to everyone as it happens, with what did it, on one line for
@@ -274,7 +282,7 @@
     // them as it holds the wind: walking into a friend never puts them off a roof; a shove does). Not on a ladder (a hatch's
     // comes up through a crowded roof), in a gun's seat or in the air.
     "crowd": { "radius": 0.25, "share": 0.75, "maxSpeed": 6.0 },
-    // The shove (its own key, LeftAlt): looking at a crewmate within `reach` (m, chest to chest) and coneDegrees of where you
+    // The shove (its own key, Caps Lock since note 844): looking at a crewmate within `reach` (m, chest to chest) and coneDegrees of where you
     // face, hands off the shovel. They go off their feet the way you shoved, at `speed` (m/s) and `lift` (m/s) up, staggered
     // staggerSeconds (they can look and talk, nothing else), and you can't shove again for cooldownSeconds. On a roof, from
     // within a metre or so of its side, that's over the edge (the lip holds a walker, note 273, not a shove), and the landing

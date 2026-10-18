@@ -30,6 +30,8 @@
   // be told apart on a roof: multipliers over the cap's pale neutral leather (tools/models/crewfigure.py).
   // The looks' names on the settings' OUTFIT (note 298), in the colours' order.
   "crewColourNames": ["RED", "BLUE", "OCHRE", "TEAL", "GREEN", "VIOLET", "ORANGE", "WHITE"],
+  // The hat rack's hats (note 714; campaign.json hatRack), on OUTFIT's HAT row, in their order (HatKit draws them by it).
+  "crewHats": ["STOVEPIPE", "FEZ", "STRAW BOATER", "DEERSTALKER"],
   "crewColours": [
     [1.35, 0.36, 0.26], [0.3, 0.55, 1.75], [1.35, 1.05, 0.3], [0.25, 1.1, 1.15],
     [0.45, 1.15, 0.32], [1.1, 0.38, 1.35], [1.45, 0.62, 0.2], [1.05, 1.05, 1.05]
@@ -271,8 +273,9 @@
   // look out the front, it just feels so agonizingly slow"; note 709). Presentation only, aboard, never in a headset.
   "speedFeel": {
     // The view widens by up to "widen" degrees, at "fullAt" m/s, eased by (speed / fullAt) ^ "ease" (under 1: felt early).
-    // Note 735 (the director, 14 Oct: "It still feels a bit slow"): 8 to 12.
-    "widen": 12,
+    // Note 735 (the director, 14 Oct: "It still feels a bit slow"): 8 to 12. Note 842 (the director, 16 Oct: "the FOV is
+    // adjusting a little bit ... maybe that's a miss. I would get rid of that"): off.
+    "widen": 0,
     "fullAt": 20,
     "ease": 0.6,
     // A knock through the floor at each rail joint, "joint" m apart, under each bogie ("bogies" m apart): "jolt" m at full

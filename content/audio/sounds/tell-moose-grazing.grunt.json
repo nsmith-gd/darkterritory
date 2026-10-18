@@ -4,9 +4,9 @@
  "loop": false,
  "maxInstances": 12,
  "minDistance": 4,
- "maxDistance": 250,
- "rolloff": 0.8,
- "gainDb": 8,
+ "maxDistance": 150,
+ "rolloff": 0.9,
+ "gainDb": 2,
  "flat": false,
  "layers": [
   {

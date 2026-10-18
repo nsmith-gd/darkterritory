@@ -103,7 +103,7 @@ public sealed class HollowHouse(int id) : Enemy(id)
                 // Down on whoever's in it.
                 Enter(ctx, SpinePhase.Punish);
                 foreach (var c in inside)
-                    ctx.Harm(c.Player.Id, t.Crush, DeathCause.Crushed);
+                    ctx.Harm(c.Player.Id, t.Crush, DeathCause.HollowHouse);
                 SetMode(HollowMode.Collapse);
                 return;
             case HollowMode.Collapse:

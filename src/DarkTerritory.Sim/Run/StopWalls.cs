@@ -34,6 +34,12 @@ public readonly record struct Wall(Double3 Centre, Double3 Axis, double HalfLeng
     /// </summary>
     public int Door { get; init; }
 
+    /// <summary>
+    /// A fortress gate's leaf (note 847), by its gate's key (<see cref="Fortresses.GateKey"/>; 0 for any other wall): it stands
+    /// only while the gate's shut (<see cref="StopWalls.Near"/>, <see cref="StopWalls.OpenGates"/>).
+    /// </summary>
+    public int Gate { get; init; }
+
     /// <summary>A world point in the wall's own frame: x along its axis, z across, y as is.</summary>
     public Double3 ToLocal(Double3 p)
     {
@@ -75,12 +81,14 @@ public sealed partial class StopWalls
 
     /// <summary>
     /// The walls that may touch a point (its cell's: each wall is listed in every cell it reaches). An open house's door is
-    /// one of them only while it's shut (note 401), a coaling tower's only while it stands (note 758).
+    /// one of them only while it's shut (note 401), a coaling tower's only while it stands (note 758), a gate's leaf only while
+    /// its gate's shut (note 847).
     /// </summary>
     public IEnumerable<Wall> Near(Double3 p)
     {
         foreach (int i in _cells.TryGetValue(CellOf(p.X, p.Z), out var list) ? list : None)
-            if ((_walls[i].Door == 0 || _shut.Contains(_walls[i].Door)) && (_walls[i].Tower == 0 || !_felled.Contains(_walls[i].Tower)))
+            if ((_walls[i].Door == 0 || _shut.Contains(_walls[i].Door)) && (_walls[i].Tower == 0 || !_felled.Contains(_walls[i].Tower))
+                && (_walls[i].Gate == 0 || !_gatesOpen.Contains(_walls[i].Gate)))
                 yield return _walls[i];
     }
 
@@ -565,6 +573,8 @@ public sealed partial class StopWalls
     {
         int index = _walls.Count;
         _walls.Add(w);
+        if (w.Gate != 0 && !_gates.Contains(w.Gate))
+            _gates.Add(w.Gate);
         double r = Math.Sqrt(w.HalfLength * w.HalfLength + w.HalfWidth * w.HalfWidth) + 1;
         var (x0, z0) = CellOf(w.Centre.X - r, w.Centre.Z - r);
         var (x1, z1) = CellOf(w.Centre.X + r, w.Centre.Z + r);

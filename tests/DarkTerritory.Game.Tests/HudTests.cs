@@ -133,7 +133,7 @@ public class HudTests
         // Note 717: coal on the shovel can be thrown instead; the shove's key reads as bound.
         s.Player = At(InteractableKind.Firebox) with { Flags = PlayerFlags.Shovelful };
         Assert.Equal("SHOVEL COAL : HOLD [E]   THROW IT : [T]", Hud.Prompt(s));
-        Assert.Equal("SHOVE : [LEFT ALT]", Hud.Bound("SHOVE : [LEFT ALT]"));
+        Assert.Equal("SHOVE : [CAPS LOCK]", Hud.Bound("SHOVE : [CAPS LOCK]"));
         s.Player = At(InteractableKind.Vent);
         Assert.Equal("VENT STEAM : HOLD [E]", Hud.Prompt(s));
         // At the controls looking at nothing (note 285): nothing at the crosshair; driving them is the corner's.
@@ -189,8 +189,8 @@ public class HudTests
         s.Controls.Reverser = 1;
         Assert.DoesNotContain(Hud.Hints(s).Lines, l => l.Contains("REVERSE"));
         s.Train.Dynamics.Velocity = 0;
-        // Note 664: the vent's its own key (LeftCtrl's the crouch); note 703: Caps Lock, by A.
-        Assert.Contains("VENT : HOLD [CAPS LOCK]", Hud.Bound(string.Join("   ", lines)));
+        // Note 664: the vent's its own key (LeftCtrl's the crouch); note 703: Caps Lock, by A; note 844: Left Alt, by Space.
+        Assert.Contains("VENT : HOLD [LEFT ALT]", Hud.Bound(string.Join("   ", lines)));
         // The corner's head is the speed, for the driver to read against the boards.
         Assert.Equal($"{Math.Abs(s.Train.Dynamics.Speed) * 3.6:0} KM/H", head?.Split("  ")[0]);
         s.Train.Boiler.Vented = true;
@@ -670,21 +670,6 @@ public class HudTests
     }
 
     [Fact]
-    public void TheHudSaysHowDeepTheColdIs()
-    {
-        // GDD §22 deep cold (note 201): from the line's conditions, which every machine builds from the night's seed.
-        var s = new PrototypeSession(Content, "test-loop", 4);
-        Assert.Null(Hud.ColdLine(s.Player, s.Train));
-        DarkTerritory.Sim.Net.HazardConditions.Apply(s.Train.Line, DarkTerritory.Sim.Net.HazardSet.Clear with { Name = "cold", ColdStep = 2 });
-        // Its name only (note 369): how much faster it comes on outside is learned out in it.
-        Assert.Equal("BITTER COLD", Hud.ColdLine(s.Player, s.Train));
-        AssertShort(Hud.ColdLine(s.Player, s.Train));
-        var deeper = new PrototypeSession(Content, "test-loop", 4);
-        DarkTerritory.Sim.Net.HazardConditions.Apply(deeper.Train.Line, DarkTerritory.Sim.Net.HazardSet.Clear with { Name = "deep", ColdStep = 1 });
-        Assert.Equal("DEEP COLD", Hud.ColdLine(deeper.Player, deeper.Train));
-    }
-
-    [Fact]
     public void TheWrenchInHandOffersToMendABrokenRadio()
     {
         // GDD §23 "radio breaks" (note 201): mended, held; how far it's got from the body record. Note 301: with the wrench in
@@ -802,7 +787,8 @@ public class HudTests
     public void EveryDeathSaysWhatKilledYou()
     {
         // T115 playtest: "the death screen doesn't show me anything": the v1.1 creatures' causes had no line.
-        foreach (var cause in Enum.GetValues<DeathCause>().Where(c => c != DeathCause.None))
+        // Cold is an enum slot nothing sets since note 852 cut the cold (kept for the wire and old recordings): no line.
+        foreach (var cause in Enum.GetValues<DeathCause>().Where(c => c is not (DeathCause.None or DeathCause.Cold)))
         {
             string line = Hud.DeathLine(cause);
             Assert.False(string.IsNullOrWhiteSpace(line) || line == cause.ToString().ToUpperInvariant(), $"{cause} has no line of its own");
@@ -839,6 +825,26 @@ public class HudTests
         Hud.EdgeFlash(o, 480, 270, 0);
         Assert.Equal(0, o.Count);
         Hud.EdgeFlash(o, 480, 270, 1);
+        Assert.True(o.Count > 0);
+    }
+
+    /// <summary>
+    /// Note 821 (the 14 Oct playtest's line 25: "I wasn't getting any feedback that I was being burned"): a car fire's heat on
+    /// the player glows amber round the frame from the moment it reaches them, at least <see cref="Hud.HeatGlowLeast"/> at its
+    /// faint edge, full a good way into it; nothing without it; and the bottom edge (the fire at your feet) deepest.
+    /// </summary>
+    [Fact]
+    public void AFiresHeatOnYouGlowsRoundTheViewFromItsEdge()
+    {
+        Assert.Equal(0, Hud.HeatStrengthOf(0));
+        Assert.Equal(Hud.HeatGlowLeast, Hud.HeatStrengthOf(1e-6), 3);
+        Assert.Equal(1, Hud.HeatStrengthOf(Hud.HeatGlowFullAt), 9);
+        Assert.Equal(1, Hud.HeatStrengthOf(1), 9);
+        Assert.True(Hud.HeatStrengthOf(0.2) < Hud.HeatStrengthOf(0.5));
+        var o = new Overlay();
+        Hud.HeatGlow(o, 480, 270, 0, 0);
+        Assert.Equal(0, o.Count);
+        Hud.HeatGlow(o, 480, 270, Hud.HeatStrengthOf(0.05), 0);
         Assert.True(o.Count > 0);
     }
 

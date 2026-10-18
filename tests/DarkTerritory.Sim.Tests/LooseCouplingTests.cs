@@ -238,20 +238,19 @@ public class LooseCouplingTests
     {
         // Note 511: on frontier:7's 4-bot nights the walkers were in the cars, getting warm or waiting for a mail bag, while
         // a pin worked loose behind them, and 11 of 21 parted, every car behind each lost. A loose coupling comes first: a
-        // walker chilled enough to want warming, the cold not yet hurting, goes along to car 3, down into the gap behind it
-        // and tightens the pin, and only then goes in. Without the call it went into car 2 to warm first.
+        // walker goes along to car 3, down into the gap behind it and tightens the pin, and doesn't go in for anything else.
+        // (It was a walker chilled enough to want warming, until note 852 cut the cold.)
         var w = Night(8);
         w.Upkeep = w.Upkeep! with { Coupling = L };
         var train = w.Train;
         const int loose = 3;
-        var bot = new RoofWalkerBot(7, Tuning.Player.Cold);
+        var bot = new RoofWalkerBot(7);
         var s = new PlayerState
         {
             Parent = 2,
             Position = new Double3(0, T.Geometry.CarHeight, 0),
             Surface = Surface.Roof,
             Health = 100,
-            Cold = Tuning.Player.Cold.OnsetSeconds * 0.8,
             Kit = Kit.Of([Tool.Shovel, Tool.Wrench]),
             LineHint = train.Cars[2].FrontDistance,
         };
@@ -269,7 +268,7 @@ public class LooseCouplingTests
             if (train.Vehicles[loose].Loose == 0)
                 tight = tick / (double)SimConstants.TickRate;
         }
-        Assert.True(tight is not null, $"never tightened: {s.Surface} on {s.Parent} at {s.Position}, cold {s.Cold:0}");
-        Assert.False(wentIn, $"went in to warm before tightening it ({tight:0} s)");
+        Assert.True(tight is not null, $"never tightened: {s.Surface} on {s.Parent} at {s.Position}");
+        Assert.False(wentIn, $"went in before tightening it ({tight:0} s)");
     }
 }

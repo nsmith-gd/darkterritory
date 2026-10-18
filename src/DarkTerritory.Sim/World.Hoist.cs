@@ -7,10 +7,12 @@ namespace DarkTerritory.Sim;
 /// <summary>
 /// Hoisting a friend on the crane's hook, the host's side (GDD §18; ARCHITECTURE §8 note 726; the friendslop audit's griefers,
 /// approved by the director, 14 Oct 2026: "The griefer ideas are funny"). A crewmate takes hold of an empty hook in reach
-/// (Use held, crane.hoist.grabSeconds) and stands on it; the operator lifts, runs and lowers them as a load; Jump lets go and
-/// the world's fall rules take it from there. Being hoisted is the rider's own choice, so the grab isn't gated; what is
-/// mischief is the operator shaking them off (Fire with nothing hooked), only with the CREW MISCHIEF switch on. A let-go after
-/// a lift that hurts or kills is the operator's in the report ("Dropped from the crane by Dave, 6 m up."). Who takes hold is
+/// (Use held, crane.hoist.grabSeconds) and stands on it; the operator lifts, runs and lowers them as a load; Jump lets go. The
+/// drop is a gag (note 802; the director, 15 Oct 2026: "It's a silly gag not a big grief"): the landing knocks by its height,
+/// at most player.json landing.offTheHook.maxKnock, and never kills (<see cref="PlayerFlags.OffTheHook"/>, in the motor, so a
+/// predicting client lands it alike). Being hoisted is the rider's own choice, so the grab isn't gated; what is mischief is the
+/// operator shaking them off (Fire with nothing hooked), only with the CREW MISCHIEF switch on. A let-go after a lift that
+/// hurts is the operator's in the report ("Dropped from the crane by Dave, 6 m up."). Who takes hold is
 /// decided in each crewmate's act (<see cref="HoistAct"/>), and put on them once everyone's moved (<see cref="StepHoist"/>).
 /// </summary>
 public sealed partial class World
@@ -121,8 +123,8 @@ public sealed partial class World
     /// Note 726, host, once everyone has moved this tick (after the rescues, before the bodies): this tick's grabs and let-goes,
     /// the operator's shake (mischief on), then every rider stood on their hook where it is, moving as it moves, in the world's
     /// frame (the gantry stands in it; a rider who took hold from a car's roof leaves the car's). Anyone who's let go and since
-    /// landed is done with; one the landing killed after a lift died of the drop (<see cref="DeathCause.Dropped"/>), and one it
-    /// hurt has a line in the report.
+    /// landed is done with, and one the landing hurt after a lift has a line in the report. The landing never kills (note 802),
+    /// so <see cref="DeathCause.Dropped"/> isn't set any more.
     /// </summary>
     public void StepHoist(Func<int, PlayerState?> get, Action<int, PlayerState> set)
     {
@@ -198,26 +200,21 @@ public sealed partial class World
             s.Position = crane.RiderFeet(on.IndexOf(id), on.Count);
             s.Velocity = ride.Velocity;
             s.Surface = Surface.Air;
-            s.Flags = (s.Flags | PlayerFlags.Hoisted) & ~(PlayerFlags.Crouched | PlayerFlags.OffTheGround | PlayerFlags.Shoved);
+            s.Flags = (s.Flags | PlayerFlags.Hoisted) & ~(PlayerFlags.Crouched | PlayerFlags.OffTheGround | PlayerFlags.Shoved | PlayerFlags.OffTheHook);
             set(id, s);
         }
         foreach (var crane in site?.Cranes ?? [])
             crane.Riders = Riders(crane);
-        // Off the hook and landed: alive, a knock is the lifter's line in the report; dead of the fall, the drop's.
+        // Off the hook and landed: a knock is the lifter's line in the report. The landing never kills (note 802: the motor's
+        // gag, PlayerFlags.OffTheHook); one dead of something else on the way down is done with.
         foreach (var (id, fall) in _falling.ToList())
         {
-            if (get(id) is not { } s)
+            if (get(id) is not { } s || !s.Alive)
             {
                 _falling.Remove(id);
                 continue;
             }
-            // Kept while they're dead: the report's line for the death is written once the bodies go down, after this.
-            if (!s.Alive)
-            {
-                if (s.Death == DeathCause.Fell && fall.By >= 0)
-                    set(id, s with { Death = DeathCause.Dropped });
-            }
-            else if (s.Surface != Surface.Air || s.Has(PlayerFlags.Hoisted))
+            if (s.Surface != Surface.Air || s.Has(PlayerFlags.Hoisted))
             {
                 if (s.Health < fall.Health && fall.By >= 0)
                     Attribution.Add(new Incident(IncidentKind.Bonked, Run?.Seconds ?? Tick * SimConstants.TickSeconds, id, "Dropped from the crane",
@@ -241,8 +238,10 @@ public sealed partial class World
     }
 
     /// <summary>
-    /// A rider comes off the hook (note 726): in the air where they stood, on the hook's own motion, to fall by the world's rules.
-    /// After a lift (or a shake), whose it was, and how high, till they land. A host move (<see cref="PlayerState.Placed"/>).
+    /// A rider comes off the hook (note 726): in the air where they stood, on the hook's own motion, to fall. The landing is the
+    /// gag's (note 802, <see cref="PlayerFlags.OffTheHook"/>: by its height, at most landing.offTheHook.maxKnock, never a death),
+    /// lift or no lift. After a lift (or a shake), whose it was, and how high, till they land. A host move
+    /// (<see cref="PlayerState.Placed"/>), so a client takes the flag with the rest.
     /// </summary>
     void LetGo(ref PlayerState s, int id, Ride ride, int by, bool shaken)
     {
@@ -251,6 +250,7 @@ public sealed partial class World
         ride.Crane.Riders = Riders(ride.Crane);
         if (!s.Alive || s.Has(PlayerFlags.Held) || !hoisted)
             return;
+        s.Flags |= PlayerFlags.OffTheHook;
         s.Surface = Surface.Air;
         s.Velocity = ride.Velocity;
         s.Placed++;
