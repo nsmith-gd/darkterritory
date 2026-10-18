@@ -279,6 +279,8 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
     public int TrussDraggers { get; init; }
     /// <summary>The fires boarded packs set (note 269), beside the upkeep's hot boxes caught: where the burns come from (note 437).</summary>
     public int PackFires { get; init; }
+    /// <summary>The night's curve (note 849): the director's spawns sent without their rule, by kind; "free" the curve's own, "fill" the pressure's.</summary>
+    public IReadOnlyDictionary<string, int> FreeSpawns { get; init; } = new Dictionary<string, int>();
     /// <summary>The Gannet's passes (note 454): hung over a walker, folded, stabbed.</summary>
     public GannetReport Gannet { get; init; } = new(0, 0, 0);
     /// <summary>Each Cinder Hound pack that boarded (note 484): how long it was aboard and how its hounds ended.</summary>
@@ -724,6 +726,8 @@ public static class Harness
                 Pressure = new PressureReport(Math.Round(d.Grace, 1), d.Tuning.Pressure.Threshold, PressureEvery, per5Min, pressureTrace),
                 Slack = d.Posts.Stats.ToDictionary(kv => kv.Key, kv => new SlackReport(kv.Value.Max, kv.Value.Over)),
                 PackFires = host.World.PackFires,
+                FreeSpawns = d.Log.Where(l => l.Free).GroupBy(l => l.Kind.ToString()).OrderBy(g => g.Key).ToDictionary(g => g.Key, g => g.Count())
+                    .Concat([new KeyValuePair<string, int>("free", d.Log.Count(l => l.Free && !l.Paced)), new("fill", d.Log.Count(l => l.Free && l.Paced))]).ToDictionary(kv => kv.Key, kv => kv.Value),
                 Packs = [.. packs.OrderBy(kv => kv.Value.First).Select(kv => PackAboard(kv.Key, kv.Value, host.Train))],
                 HoundRuns = [.. d.HoundRuns.Select(r => new HoundRunReport(Math.Round(r.Tick * SimConstants.TickSeconds, 1), Math.Round(r.Distance / 1000, 2), r.Size,
                     r.Active, r.Hot, d.RunOutcome(r.Pack).Scattered, d.RunOutcome(r.Pack).Killed, d.RunOutcome(r.Pack).Boarded, d.AheadRunners(r.Pack), d.FlankRunners(r.Pack),
