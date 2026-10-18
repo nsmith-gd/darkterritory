@@ -237,7 +237,7 @@ public static class GrabAudit
                             if (s.Parent == car && PlayerMotor.Indoors(s, n.Train))
                                 return null;
                             if (!warm.TryGetValue(id, out var w))
-                                warm[id] = w = new WarmUp(c.Player.Cold) { Into = car };
+                                warm[id] = w = new WarmUp { Into = car };
                             return w.Decide(s, n.Train);
                         },
                     };

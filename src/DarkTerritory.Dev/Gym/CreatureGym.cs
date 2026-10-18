@@ -196,8 +196,6 @@ public sealed class CreatureGym
             if (state.Alive)
             {
                 _deadSince.Remove(id);
-                if (state.Cold > 0)
-                    host.Stand(id, state with { Cold = 0 });
                 continue;
             }
             if (state.Death == DeathCause.Waiting)

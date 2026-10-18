@@ -360,7 +360,7 @@ public static class WorldRecords
                 s.Parent, Q(s.Position.X, Pos), Q(s.Position.Y, Pos), Q(s.Position.Z, Pos),
                 Q(s.Velocity.X, Pos), Q(s.Velocity.Y, Pos), Q(s.Velocity.Z, Pos),
                 Q(s.Yaw, Ang), Q(s.Pitch, Ang), (long)s.Surface, s.Health, (long)s.Death, Q(s.LineHint, Hint), Q(s.ActionProgress, Fine),
-                Q(s.Cold, Fine), (long)s.Flags, s.Placed,
+                (long)s.Flags, s.Placed,
                 // A VR player's hands, on the centimetre grid they came in on (T47): the rest of the crew see their arms.
                 Q(s.Hand.X, Cm), Q(s.Hand.Y, Cm), Q(s.Hand.Z, Cm), Q(s.OtherHand.X, Cm), Q(s.OtherHand.Y, Cm), Q(s.OtherHand.Z, Cm),
                 // The hotbar (T108): what they carry, and which is in hand; over it, the slots holding a thing (note 594).
@@ -785,16 +785,16 @@ public static class WorldRecords
             Death = (DeathCause)f[11],
             LineHint = D(f[12], Hint),
             ActionProgress = D(f[13], Fine),
-            Cold = D(f[14], Fine),
-            Flags = (PlayerFlags)f[15],
-            Placed = (byte)f[16],
-            Hand = f.Length > 22 ? new Double3(D(f[17], Cm), D(f[18], Cm), D(f[19], Cm)) : default,
-            OtherHand = f.Length > 22 ? new Double3(D(f[20], Cm), D(f[21], Cm), D(f[22], Cm)) : default,
-            Kit = f.Length > 24 ? (ulong)f[23] : 0,
-            HeldSlot = f.Length > 24 ? (byte)(f[24] & 0xFF) : (byte)0,
-            Pockets = f.Length > 24 ? (byte)(f[24] >> 8) : (byte)0,
-            Head = f.Length > 25 ? D(f[25], Cm) : 0,
-            Stagger = f.Length > 26 ? (byte)f[26] : (byte)0,
+            // The cold's field came out of the record with the cold (note 852; protocol 78).
+            Flags = (PlayerFlags)f[14],
+            Placed = (byte)f[15],
+            Hand = f.Length > 21 ? new Double3(D(f[16], Cm), D(f[17], Cm), D(f[18], Cm)) : default,
+            OtherHand = f.Length > 21 ? new Double3(D(f[19], Cm), D(f[20], Cm), D(f[21], Cm)) : default,
+            Kit = f.Length > 23 ? (ulong)f[22] : 0,
+            HeldSlot = f.Length > 23 ? (byte)(f[23] & 0xFF) : (byte)0,
+            Pockets = f.Length > 23 ? (byte)(f[23] >> 8) : (byte)0,
+            Head = f.Length > 24 ? D(f[24], Cm) : 0,
+            Stagger = f.Length > 25 ? (byte)f[25] : (byte)0,
         });
     }
 

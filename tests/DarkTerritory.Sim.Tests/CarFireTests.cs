@@ -41,7 +41,7 @@ public class CarFireTests
         // extinguisher off its mount, sprayed from the aisle, before it's taken hold.
         var n = new Night(5, speed: 10);
         n.World.MountExtinguishers();
-        var bot = new Bots.RoofWalkerBot(3, Tuning.Player.Cold) { Me = 1 };
+        var bot = new Bots.RoofWalkerBot(3) { Me = 1 };
         n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
         var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 3, 2, Tuning.Enemies.CarFire));
         for (int s = 0; s < 60 && !fire.Gone; s++)
@@ -124,7 +124,7 @@ public class CarFireTests
         // v1.1 App. A.5: "lamps off when they swarm". Car 3's lamp lit, the flies on it, a walker on car 2's roof. Stopped: they
         // come to nothing else, and go on their own once it's under way (note 269).
         var n = new Night(5, speed: 0);
-        var bot = new Bots.RoofWalkerBot(3, Tuning.Player.Cold) { Me = 1 };
+        var bot = new Bots.RoofWalkerBot(3) { Me = 1 };
         n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
         var flies = n.World.AddEnemy(id => FireFlies.OnLamp(id, n.Train, 3));
         n.Run(Tuning.Enemies.FireFlies.IgniteSeconds + 2, id => bot.Decide(n.Crew[id], n.World, n.World.Tick, out _));
@@ -143,7 +143,7 @@ public class CarFireTests
         n.Train.Vehicles[3].DoorsOpen = 0;
         n.Train.Vehicles[3].ToggleDoor(Bots.StopHand.SideDoor(shape, 1)!.Value);
         var tread = shape.Solids.Where(s => s.Part == PartKind.Steps && s.Box.Max.X < 0 && s.Box.Max.Z < -1).MaxBy(s => s.Box.Max.Y).Box;
-        var bot = new Bots.RoofWalkerBot(3, Tuning.Player.Cold) { Me = 1 };
+        var bot = new Bots.RoofWalkerBot(3) { Me = 1 };
         n.Crew[1] = new PlayerState { Parent = 3, Position = tread.Centre with { Y = tread.Max.Y }, Surface = Surface.Deck, Health = P.Health };
         var flies = n.World.AddEnemy(id => FireFlies.OnLamp(id, n.Train, 3));
         n.Run(Tuning.Enemies.FireFlies.IgniteSeconds + 2, id => bot.Decide(n.Crew[id], n.World, n.World.Tick, out _));
@@ -161,7 +161,7 @@ public class CarFireTests
         n.World.MountExtinguishers();
         int car = n.Train.Dynamics.Consist.Vehicles[1].Id;
         Assert.NotEmpty(n.Train.Frames[car].Shape.Lockers);
-        var bot = new Bots.RoofWalkerBot(3, Tuning.Player.Cold) { Me = 1 };
+        var bot = new Bots.RoofWalkerBot(3) { Me = 1 };
         n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, car + 1, 0, P);
         var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, car, 2, Tuning.Enemies.CarFire));
         for (int s = 0; s < 60 && !fire.Gone; s++)
@@ -188,7 +188,7 @@ public class CarFireTests
         var bots = new List<Bots.RoofWalkerBot>();
         for (int i = 1; i <= 3; i++)
         {
-            bots.Add(new Bots.RoofWalkerBot(i, Tuning.Player.Cold) { Me = i });
+            bots.Add(new Bots.RoofWalkerBot(i) { Me = i });
             // Where they stood: out past the wall, at the doorway's forward edge.
             var opening = shape.DoorList.First(d => d.Index == door).Box;
             n.Crew[i] = new PlayerState
@@ -220,7 +220,7 @@ public class CarFireTests
         var room = n.Train.Frames[car].Shape.Interior!.Value;
         var ext = n.World.Bodies.SpawnCrate(n.Train, car, new Double3(Tuning.Train.Geometry.Interior!.DoorX, room.Min.Y + 0.1, -3), BodyKind.Extinguisher);
         ext.Home = car;
-        var bot = new Bots.RoofWalkerBot(3, Tuning.Player.Cold) { Me = 1 };
+        var bot = new Bots.RoofWalkerBot(3) { Me = 1 };
         n.Crew[1] = new PlayerState { Parent = car, Position = new Double3(Tuning.Train.Geometry.Interior.DoorX, room.Min.Y, 5), Surface = Surface.Deck, Health = P.Health };
         var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, car, 0, Tuning.Enemies.CarFire));
         for (int s = 0; s < 40 && !fire.Gone; s++)
@@ -238,7 +238,7 @@ public class CarFireTests
         n.World.MountExtinguishers();
         int van = n.Train.Dynamics.Consist.Vehicles[^1].Id;
         Assert.Equal(VehicleKind.Guard, n.Train.Vehicles[van].Kind);
-        var bot = new Bots.RoofWalkerBot(3, Tuning.Player.Cold) { Me = 1 };
+        var bot = new Bots.RoofWalkerBot(3) { Me = 1 };
         n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, van - 1, 0, P);
         var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, van, 0, Tuning.Enemies.CarFire));
         for (int s = 0; s < 60 && !fire.Gone; s++)

@@ -146,7 +146,7 @@ public class SteamAgainstTheBrakeTests
         var n = new Night(10, speed: 14);
         n.World.MountExtinguishers();
         int van = n.Train.Dynamics.Consist.Vehicles[^1].Id;
-        var bot = new RoofWalkerBot(3, P.Cold) { Me = 1 };
+        var bot = new RoofWalkerBot(3) { Me = 1 };
         n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, van, -n.Train.Frames[van].Shape.HalfLength + 0.3, P, localX: 0.12);
         n.World.AddEnemy(id => CarFire.In(id, n.Train, van - 1, 0, Tuning.Enemies.CarFire));
         var first = bot.Decide(n.Crew[1], n.World, n.World.Tick, out _);

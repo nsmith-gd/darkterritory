@@ -1024,9 +1024,9 @@
       // The tier's rate, and how much of the grace range above its minimum the tier keeps.
       "tier": { "local": 0.8, "frontier": 1, "deadLines": 1.2, "deepTerritory": 1.4 },
       "graceTierScale": { "local": 1, "frontier": 0.85, "deadLines": 0.7, "deepTerritory": 0.55 },
-      // Conditions (GDD §22, §23): 1 + dark (the forward lamp out) + cold × the night's cold (0..1) + coldPerStep per deep-cold
-      // step + wet (rain) + wind × the night's wind (0..1). Modest: §22's hazards take tools away, they don't make the rules.
-      "dark": 0.15, "cold": 0.1, "coldPerStep": 0.05, "wet": 0.05, "wind": 0.05,
+      // Conditions (GDD §22, §23): 1 + dark (the forward lamp out) + wet (rain) + wind × the night's wind (0..1). Modest:
+      // §22's hazards take tools away, they don't make the rules. (The cold's terms went with the cold, note 852.)
+      "dark": 0.15, "wet": 0.05, "wind": 0.05,
       // The relief valve: × (alive / crew)^downPower, and × (1 − hurtRelief × the share of the living under hurtBelow health,
       // the bots' own "too hurt to fight"), so a crew that's losing isn't fed faster; and busy: × 1 / (1 + busy × threats
       // engaged × (1 − busyFade × progress)) while they're fighting: late in the night it stops waiting for them.

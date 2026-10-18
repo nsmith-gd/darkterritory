@@ -22,8 +22,6 @@ public sealed record HudTuning
     public double MailLeadSeconds { get; init; } = 12;
     /// <summary>Note 740: how long after a horn at a stand (s) the cab keeps the roll of who's called "Aboard!".</summary>
     public double AboardRollSeconds { get; init; } = 90;
-    /// <summary>How long a deeper step of the cold is said (s).</summary>
-    public double ColdSeconds { get; init; } = 5;
     /// <summary>How long before dawn (s) its clock comes up.</summary>
     public double DawnClockSeconds { get; init; } = 600;
     /// <summary>Whether the cab warns of a bend taken too fast (note 266); off since the 16 Oct playtest (note 837).</summary>

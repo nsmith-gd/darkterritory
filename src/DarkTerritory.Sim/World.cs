@@ -1740,9 +1740,9 @@ public sealed partial class World
         // A healing find used up in the hands this tick (GDD App. F.1; note 272): its health back, up to full.
         if (Authority && Bodies.TakeDose(playerId) is > 0 and var dose && s.Alive)
             s.Health = Math.Min(Bodies.FullHealth, s.Health + dose);
-        // A beer finished (note 698): it takes the edge off the cold.
-        if (Authority && Bodies.TakeDrink(playerId))
-            s.Cold = Math.Max(0, s.Cold - Train.Dynamics.Tuning.Composition.Bbq.BeerWarmth);
+        // A beer finished (note 698): drunk for its own sake (it took the edge off the cold until note 852 cut the cold).
+        if (Authority)
+            Bodies.TakeDrink(playerId);
         // At the crane's controls, the stick drives the crane, not your feet (T48); taken and let go with a press of Use at
         // the stand (Crane.Operates). Worked out the same everywhere, so a client predicts standing still at the stand.
         bool operating = false;

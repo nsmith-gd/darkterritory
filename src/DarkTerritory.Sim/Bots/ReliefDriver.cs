@@ -71,7 +71,7 @@ public static class ReliefDriver
         };
         if (self.Position.Z < -l + 0.45 && aligned)
         {
-            if (WarmUp.CanJumpGap(self, train, null, 0))
+            if (WarmUp.CanJumpGap(self, train, 0))
                 intent.Buttons |= PlayerButtons.Jump;
             else
                 intent.MoveZ = 0;
@@ -105,7 +105,7 @@ public static class ReliefDriver
         };
         if (self.Position.Z > edge - 0.45 && aligned)
         {
-            if (WarmUp.CanJumpGap(self, train, null, behind))
+            if (WarmUp.CanJumpGap(self, train, behind))
                 intent.Buttons |= PlayerButtons.Jump;
             else
                 intent.MoveZ = 0;

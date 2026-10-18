@@ -143,14 +143,14 @@ public class StopCrewTests
             Driver = express ? new ConductorBot(calls, 0) { CruiseSpeed = 21, Express = true } : new ConductorBot(calls, 0);
             Add(Driver, PlayerMotor.SpawnInCab(train, P));
             if (hands >= 1)
-                Add(new RoofWalkerBot(11, P.Cold, new StopHand(StopJob.Shunter, calls, 1, P.Cold)), PlayerMotor.SpawnOnRoof(train, 1, 0, P));
+                Add(new RoofWalkerBot(11, new StopHand(StopJob.Shunter, calls, 1)), PlayerMotor.SpawnOnRoof(train, 1, 0, P));
             var (a, b) = winchPair ? (StopJob.Winch0, StopJob.Winch1) : (StopJob.None, StopJob.None);
             if (hands >= 2)
-                Add(new RoofWalkerBot(12, P.Cold, new StopHand(a, calls, 2, P.Cold)), PlayerMotor.SpawnOnRoof(train, 2, 0, P));
+                Add(new RoofWalkerBot(12, new StopHand(a, calls, 2)), PlayerMotor.SpawnOnRoof(train, 2, 0, P));
             if (hands >= 3)
-                Add(new RoofWalkerBot(13, P.Cold, new StopHand(b, calls, 3, P.Cold)), PlayerMotor.SpawnOnRoof(train, cars - 1, 2, P));
+                Add(new RoofWalkerBot(13, new StopHand(b, calls, 3)), PlayerMotor.SpawnOnRoof(train, cars - 1, 2, P));
             for (int w = 0; w < walkers; w++)
-                Add(new RoofWalkerBot(20 + w, P.Cold, new StopHand(crateHands ? StopJob.Crates : StopJob.None, calls, 4 + w, P.Cold)),
+                Add(new RoofWalkerBot(20 + w, new StopHand(crateHands ? StopJob.Crates : StopJob.None, calls, 4 + w)),
                     PlayerMotor.SpawnOnRoof(train, 3 + w % (cars - 3), -3, P));
             if (ids)
                 for (int i = 0; i < Bots.Count; i++)
@@ -217,7 +217,7 @@ public class StopCrewTests
         var world = new World(train, Tuning.Combat);
         world.EnableBodies();
         var calls = new CrewCalls();
-        var bot = new RoofWalkerBot(21, P.Cold, new StopHand(StopJob.Crates, calls, 1, P.Cold)) { Me = 1 };
+        var bot = new RoofWalkerBot(21, new StopHand(StopJob.Crates, calls, 1)) { Me = 1 };
         int last = train.Vehicles[^1].Id;
         var shape = train.Frames[last].Shape;
         // Beside the last car, or that far back down the line from it, off to its side.
@@ -264,7 +264,7 @@ public class StopCrewTests
         var world = new World(train, Tuning.Combat);
         world.EnableBodies();
         var calls = new CrewCalls();
-        var bot = new GunnerBot(Tuning.Combat.Guns, cold: P.Cold, job: new StopHand(StopJob.Winch0, calls, 1, P.Cold));
+        var bot = new GunnerBot(Tuning.Combat.Guns, job: new StopHand(StopJob.Winch0, calls, 1));
         var shape = train.Frames[2].Shape;
         var s = PlayerMotor.SpawnOnGround(train.Frames[2].ToWorld(new Ballast.Double3(shape.HalfWidth + 1.2, 0, 0)), train.Line, train.Cars[2].FrontDistance, P);
         for (uint tick = 0; tick < 40 * SimConstants.TickRate && s.Parent == PlayerState.World; tick++)
@@ -302,7 +302,7 @@ public class StopCrewTests
         var calls = new CrewCalls();
         var cab = PlayerMotor.SpawnInCab(train, P);
         calls.Say(0, StopJob.Driver, cab);
-        var bot = new RoofWalkerBot(21, P.Cold, new StopHand(StopJob.Winch0, calls, 1, P.Cold)) { Me = 2, Calls = calls };
+        var bot = new RoofWalkerBot(21, new StopHand(StopJob.Winch0, calls, 1)) { Me = 2, Calls = calls };
         bot.Decide(PlayerMotor.SpawnOnRoof(train, 2, 0, P), world, 0, out _);
         Assert.True(calls.AllAboard);
         calls.Say(0, StopJob.Driver, cab with { Health = 0, Death = DeathCause.Mauled });
@@ -328,7 +328,7 @@ public class StopCrewTests
         calls.Say(0, StopJob.Driver, cab);
         var self = PlayerMotor.SpawnOnRoof(train, 2, 0, P);
         var other = PlayerMotor.SpawnOnRoof(train, 3, 0, P);
-        var bot = new RoofWalkerBot(21, P.Cold) { Me = 2, Calls = calls, Crew = [(2, self), (9, other)] };
+        var bot = new RoofWalkerBot(21) { Me = 2, Calls = calls, Crew = [(2, self), (9, other)] };
         world.Tick = 100;
         bot.Decide(self, world, world.Tick, out _);
         calls.Say(0, StopJob.Driver, cab with { Health = 0, Death = DeathCause.Climbed });
@@ -361,10 +361,10 @@ public class StopCrewTests
         // Both bots (note 741: a crewmate playing is no walker to leave it to; see below).
         calls.Bot(2);
         calls.Bot(3);
-        var legs = new RoofWalkerBot(21, P.Cold) { Me = 2, Calls = calls, Gunner = true, Crew = [(2, self), (3, walker)] };
+        var legs = new RoofWalkerBot(21) { Me = 2, Calls = calls, Gunner = true, Crew = [(2, self), (3, walker)] };
         legs.Decide(self, world, world.Tick, out _);
         // The same gunner with someone playing in the walker's place (4, not a bot).
-        var withAPlayer = new RoofWalkerBot(21, P.Cold) { Me = 2, Calls = calls, Gunner = true, Crew = [(2, self), (4, walker)] };
+        var withAPlayer = new RoofWalkerBot(21) { Me = 2, Calls = calls, Gunner = true, Crew = [(2, self), (4, walker)] };
         withAPlayer.Decide(self, world, world.Tick, out _);
         calls.Say(0, StopJob.Driver, cab with { Health = 0, Death = DeathCause.Climbed });
         world.Tick++;
@@ -514,7 +514,7 @@ public class StopCrewTests
         double loadBefore = train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).Sum(v => v.Load);
         var seen = new HashSet<StopDriver.Leg>();
         night.Until(() => run.Departures > 0, 900, () => seen.Add(night.Driver.Stops!.Doing));
-        string where = string.Join(", ", night.Crew.Select((c, i) => $"{i}: {c.Surface} on {c.Parent} cold {c.Cold:0}"));
+        string where = string.Join(", ", night.Crew.Select((c, i) => $"{i}: {c.Surface} on {c.Parent}"));
 
         Assert.True(run.Departures > 0, $"never left the stop: driver {night.Driver.Stops!.Doing}; crew {where}");
         Assert.Equal(night.Site.Index, run.Departed);
@@ -672,7 +672,7 @@ public class StopCrewTests
         // shunter came back still holding the part, and at the next stop the two went to the points by turns, setting them
         // over and back, for the 180 s of the clear. The one with the higher number gives it up for a part nobody has.
         var night = new Night(cars: 8, walkers: 0);
-        night.Add(new RoofWalkerBot(31, P.Cold, new StopHand(StopJob.Shunter, night.Calls, 9, P.Cold)), PlayerMotor.SpawnOnRoof(night.Train, 4, 0, P));
+        night.Add(new RoofWalkerBot(31, new StopHand(StopJob.Shunter, night.Calls, 9)), PlayerMotor.SpawnOnRoof(night.Train, 4, 0, P));
         night.Until(() => false, 5);
         Assert.Equal(1, night.Calls.Crew.Count(c => c.Alive && c.Job == StopJob.Shunter));
         Assert.Equal(StopJob.Shunter, ((RoofWalkerBot)night.Bots[1]).Job!.Job);
@@ -704,7 +704,7 @@ public class StopCrewTests
         var night = new Night(cars: 4, walkers: 0, hands: 0);
         night.World.StepRun(night.Crew); // out of the yard: the night's begun, the train standing
         Assert.NotEqual(RunPhase.Yard, night.World.Run!.Phase);
-        var hand = new StopHand(StopJob.None, night.Calls, 5, P.Cold);
+        var hand = new StopHand(StopJob.None, night.Calls, 5);
         var train = night.Train;
         var shape = train.Frames[2].Shape;
         var down = PlayerMotor.SpawnOnGround(train.Frames[2].ToWorld(new Ballast.Double3(shape.HalfWidth + 1.2, 0, 0)), train.Line, train.Cars[2].FrontDistance, P);
@@ -726,7 +726,7 @@ public class StopCrewTests
         var run = night.World.Run!;
         Assert.Equal(2, train.TrainRakes);
         night.Until(() => run.Departures > 0, 1200);
-        string where = string.Join(", ", night.Crew.Select((c, i) => $"{i}: {c.Surface} on {c.Parent} cold {c.Cold:0}"));
+        string where = string.Join(", ", night.Crew.Select((c, i) => $"{i}: {c.Surface} on {c.Parent}"));
 
         Assert.True(run.Departures > 0, $"never left the stop: driver {night.Driver.Stops!.Doing}; crew {where}");
         Assert.Equal(night.Site.Index, run.Departed);
@@ -976,7 +976,7 @@ public class StopCrewTests
         var cargoCars = train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).ToList();
         double before = cargoCars.Sum(v => v.Load);
         night.Until(() => run.Departures > 0, 1200);
-        string where = string.Join(", ", night.Crew.Select((c, i) => $"{i}: {c.Surface} on {c.Parent} cold {c.Cold:0}"));
+        string where = string.Join(", ", night.Crew.Select((c, i) => $"{i}: {c.Surface} on {c.Parent}"));
 
         Assert.True(run.Departures > 0, $"never left: driver {night.Driver.Stops!.Doing}; crew {where}");
         // Every crate that had a car with room went in: the cars that went down the spur leave the fortress part loaded.
