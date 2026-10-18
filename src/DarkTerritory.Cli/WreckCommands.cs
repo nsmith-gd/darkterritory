@@ -13,7 +13,7 @@ static class WreckCommands
         var tuning = DataFile.Load<WreckTuning>(Path.Combine(content, WreckTuning.File));
         var trainTuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
         // Into a 300 m curve at speed: the engine goes off its outside, the rest after it.
-        // --straight: on the level and straight (a Sleeper, the Switchman's points), nothing to throw it but the kick.
+        // --straight: on the level and straight (a Sleeper, points run through), nothing to throw it but the kick.
         var line = args.Contains("--straight") ? new RailLine(new LineDefinition("wreck", [new TrackSegment(5000)]))
             : new RailLine(new LineDefinition("wreck", [new TrackSegment(2000), new TrackSegment(600, 1 / 300.0), new TrackSegment(2000)]));
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(trainTuning, cars, 1)), line, 2250);

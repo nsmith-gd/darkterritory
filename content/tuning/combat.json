@@ -32,7 +32,7 @@
     "ammo": 24,
     // Stand within this of the gun to work it.
     "reach": 1.0,
-    // In blows (App. C.2's unit): a ball is four clubbings' worth. The Switchman dies to "one cannon shot".
+    // In blows (App. C.2's unit): a ball is four clubbings' worth. A creature of three blows dies to "one cannon shot".
     "damagePerRound": 4,
     // The guns are their own (the director, 13 Oct evening, note 689: "I really don't want a situation where the driver has to
     // coordinate how much pressure the boiler has to be able to fire the cannons. I just want the cannons to be like an
@@ -93,7 +93,7 @@
     "feedWhileFiring": 20,
     // A bot crew of this many or more has a second gunner, on the engine's forward gun (note 414): the last place in the crew
     // goes forward over the cars onto the engine's hood (the relief driver's way, note 399) and takes that gun's seat, for
-    // the hound run's lane ahead (note 405), the Track Doll and the Switchman. Below it, a crew's one gunner is the guard
+    // the hound run's lane ahead (note 405) and the Track Doll. Below it, a crew's one gunner is the guard
     // van's and the lane ahead boards. Six: the driver, the guard van's gunner, the winch pair and the shunter come first.
     "forwardGunnerFrom": 6
   },

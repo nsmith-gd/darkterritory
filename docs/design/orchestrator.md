@@ -25,7 +25,7 @@ every section names the file they'd live in. §6.1, the hound run, is built (not
    eight can have one player fighting hounds at the rear while seven ride in the cars with nothing to answer. Its crew
    multiplier is fixed when the night starts (`0.7 + 0.12 × crew`, to 1.6), whoever has died or dropped since.
 3. **The guns have little to shoot between stops.** A gun answers four creatures (note 171: the Hounds, the Climbers at a
-   gap, the Track Doll, the Switchman). A hound pack leaves at one round fired anywhere within 220 m
+   gap, the Track Doll). A hound pack leaves at one round fired anywhere within 220 m
    (`cinderHounds.suppressRounds` 1), so the gunner's whole fight is one shot, aimed or not.
 4. **Nothing on the train needs keeping up while it runs** but the fire. The driver has the line and the boiler, and the
    fireman has the firebox. Everyone else rides.
@@ -74,7 +74,7 @@ final approach.
 
    | Post | Where | Answers |
    |---|---|---|
-   | **Driver** | In the cab, at the controls | The line ahead: boards, bends, the Track Doll, the Switchman |
+   | **Driver** | In the cab, at the controls | The line ahead: boards, bends, the Track Doll |
    | **Fireman** | In the cab, at the firebox or the coal | The fire, the Stoker |
    | **Gunner** | Seated at a gun | Waves (§5.3), anything in the gun's arc |
    | **Walker** | On the roofs, the landings or in a coupling gap | Climbers, Draggers, Fire Flies, upkeep jobs (§5.1) |

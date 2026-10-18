@@ -26,7 +26,7 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
 
 **v1.5 changes — the director's play-tests of 5–7 October.**
 - **Boarding-first.** Nothing acts inside the train unless it boarded: each creature by its own rule at a known point, with a telegraph and a counter, at its own speeds. A hauling train is safe from most creatures, not all; stops, facilities and tight bends are where things get on (§21, App. A, F.1 Decided).
-- **A derailment is the driver's mistake.** The Sleepers are retired. Every bend that can derail the train is boarded and on the cab map with its speed, and the cab hears and sees the stress before it goes. Every night carries its tier's hard bends. The Switchman sends you down a dead line, and only running off its end derails you (§21, §22, A.8).
+- **A derailment is the driver's mistake.** The Sleepers are retired. Every bend that can derail the train is boarded and on the cab map with its speed, and the cab hears and sees the stress before it goes. Every night carries its tier's hard bends. A dead line taken (a switch set wrong) costs the clock, and only running off its end derails you (§22; the Switchman that sent you down one is cut, note 852).
 - **A derailment commits.** However slow it comes off, the first car is thrown and every car after goes over, one after another (App. E, F.3).
 - **One night length for every tier:** 7 km, three stops and dawn at 24 minutes, an average run of about 17 (the director, 9 Oct 2026, note 554; was 24 km and 51 minutes). A deeper tier is denser, not longer (§11).
 - **The director runs on pressure.** Quiet, loudness, cargo and the night's depth build it; the grace is 20–90 s, picked per night; the night's first threat answers something a crewmate did, and the report names it (B.1).
@@ -403,7 +403,7 @@ Your crew operates inside a dangerous nighttime freight window. Miss it and the 
 
 **Seen and felt coming** *(note 599; the director: "the tension before it is really, really important")*. For the last three minutes before dawn (`wakers.stirSeconds`, 180) a cold line comes up low on the sky behind the train, where they'll rise: nothing at first, then a wide dim bruise, and by dawn a thin grey band clear of the treeline. The ground thuds, and in the cars the lamps swing and the coal slides. At dawn each Waker heaves up out of the land in three surges, earth and boulders shed off its back in a bank of dark dust, and every footfall raises dust as it comes down the line. **The town's guns fire on any that come near the walls**, and they stop 300 m short of the gate (`wakers.stopShort`): a train whose last car is in past that is safe.
 
-**Not every creature every night** *(the director, on the Creature Tweaker, 13 Oct 2026; note 652; "We need more monster variety", 12 Oct)*. Each creature is about only on some nights (`director.nightChance`): the Gannet, the Cinder Hounds and the Tippy Toesie on about seven in ten, the Climbers on a third, the Gaunt and the Moose on one in five, the Switchman, the Grumbler and the Passenger on about one in ten, the Lodger on one in sixteen. So no two nights bring the same mix, and the director sets each creature's chance on the Tweaker. With few kinds about, the night's creatures come from those few, again and again (note 652); a most-a-night for every creature without its own (`director.perNightDefault`, off until the director sets it; note 654) holds each to a few.
+**Not every creature every night** *(the director, on the Creature Tweaker, 13 Oct 2026; note 652; "We need more monster variety", 12 Oct)*. Each creature is about only on some nights (`director.nightChance`): the Gannet, the Cinder Hounds and the Tippy Toesie on about seven in ten, the Climbers on a third, the Gaunt and the Moose on one in five, the Grumbler and the Passenger on about one in ten, the Lodger on one in sixteen. So no two nights bring the same mix, and the director sets each creature's chance on the Tweaker. With few kinds about, the night's creatures come from those few, again and again (note 652); a most-a-night for every creature without its own (`director.perNightDefault`, off until the director sets it; note 654) holds each to a few.
 
 **Nor the same few all night** *(the director's second playtest, 14 Oct 2026: "I felt like we didn't see enough variety of monsters ... very one note. I saw like two nodders. I saw one moose. I saw the cinder hounds like three times"; note 742)*. Across the whole night, not only the last few, the director leans to what hasn't come yet: a kind about tonight that it hasn't sent yet weighs more (`director.unseenWeight`, ×2.5), and each one of a kind it has sent already (its own or come its own way) weighs that kind down (`director.nightRepeat`, ×0.6 each). That's on top of the last four's halving (`director.varietyWindow`). And a kind that's come twice tonight waits (`director.repeatHold`) while another about tonight hasn't come at all: most kinds come only in their own moment (Fire Flies to a train stopped with a lamp lit, the Tippy Toesie to a crewmate standing alone, Ribbits to crew on the ground at a stop), so the director saves up for the stop or the town that lets a new one in, rather than sending the hounds a third time. Pressed by a long quiet, it sends what fits. How many kinds a night can bring at all is still each creature's chance on the Tweaker. So a night spreads over the kinds that are about, and the Cinder Hounds' run along a fast train (the guns' own, note 328) is all that comes again and again.
 
@@ -916,9 +916,9 @@ A crew member from a train lost long ago. In the dark it passes for one of yours
 > **RULE: make everyone speak.**
 It never talks. It drags a lone player to the caboose, uncouples it, and rolls away into the dark to eat. Only the crew can stop it.
 
-**THE SWITCHMAN** · *junctions ahead*
-Half railway worker, half something spindly and wrong. Throws switches as you pass.
-> **RULE: kill the Switchman before the switch.**
+~~**THE SWITCHMAN** · *junctions ahead*~~ *(Cut: the director, 16 Oct 2026: "I'm not really feeling good about the switchmen anymore. I think we cut them"; ARCHITECTURE §8 note 852.)*
+~~Half railway worker, half something spindly and wrong. Throws switches as you pass.~~
+> ~~**RULE: kill the Switchman before the switch.**~~
 Wrong routes cost the clock: it sends you down a line that leads nowhere, and you stop, back out and set the points back by hand. Its switch never derails you; running off the end of that line does, and that's on the driver. One cannon shot, or stop and club it. *(The director's decision, 7 Oct 2026.)*
 
 **GRUMBLER** · *facility cranes*
@@ -1083,7 +1083,7 @@ Pillar 5 says the night gets worse and funnier. A failure is only funny when fou
 
 **Horror in the telegraph, comedy in the grab.** The shared skeleton (A.1) splits the two cleanly. DORMANT through TELEGRAPH is where the game is frightening: the porcelain face in the lamp, the tiptoeing, the rising Choir. GRAB through PUNISH is where it gets funny: a friend narrating their own death, a crew sprinting after a Whistler carrying someone off at a run, a voice cut off mid-word.
 
-**Whole-train deaths still need a witness.** Derailment kills everyone at once, so nobody is left to watch. The game becomes the witness: a slow-motion cinematic shows every crew member's death to opera (Appendix E), then the incident report names the cause: the ignored Stoker, the un-shot Switchman, the bend taken at 70 (D.12, C.9). The run ends, but it ends with a show, a photo and a culprit.
+**Whole-train deaths still need a witness.** Derailment kills everyone at once, so nobody is left to watch. The game becomes the witness: a slow-motion cinematic shows every crew member's death to opera (Appendix E), then the incident report names the cause: the ignored Stoker, the dead line run off the end of, the bend taken at 70 (D.12, C.9). The run ends, but it ends with a show, a photo and a culprit.
 
 **Kept straight, on purpose.** The Soot Children and the Passenger are built to disturb, and so is the idea of a corrupted human on the radio (open question 4). None of the comedy levers above are applied to them beyond the shared systems. A few failures that aren't funny are what make the rest land.
 
@@ -1463,8 +1463,8 @@ The gym is where the director meets each creature on purpose, one at a time, and
 - **Getting there.** A developer build's main menu has CREATURE GYM, and `--gym` on the command line goes straight in (`--gym-call ribbit` calls one as it begins). It's a solo night, hosted as any night is, so the creatures run by the same rules and code as on a real night.
 - **The place.** The train stands beside the village of the first stop on the line with a yard and a village (`gym.json` `route`, `stop`; on frontier:7, the Talbot Foundry). Everything the roster needs is within a walk: the engine and its firebox and tender, the cars with their rooms, couplings, roofs and doors, the yard's sheds, crane and castings, the points, the village's open houses, and the creatures' own ground (the warren, the Gaunt's roost, the Soot Child's call). The run is under way, but the night doesn't end: no dawn, no cold, and the crew lost doesn't end it. Nothing comes unless it's called: the director's spawns and draws are off, and so are the lamps, couplings and hot boxes that go wrong by themselves.
 - **Picking and spawning.** F6 picks the next creature, Shift+F6 the one before; F7 calls it; F10 clears everything that's about. A panel names the creature, where it will come from and what answers it, and says where it came or why it couldn't. F1 hides the panel with the HUD, for filming. A pointer shows where what was called is *(the director, 13 Oct 2026: "the gym needs a UI pointer that points to where the thing spawned is")*: a mark over it with its name and how far off it is while it's in view, and an arrow at the edge of the screen pointing the way to it when it isn't. It points at the nearest of the kind last called, so a pack, the Choir's ghosts or the Pickers' group are found as they come, and it goes when they're gone.
-- **Far enough away.** Each creature comes the way it comes on a real night, by its own spawn rule. In the gym, that rule's own gates are set aside (once a night, the train's speed, the cargo, the dice), so it comes when called. Off the train, nothing comes nearer than 45 m (`gym.json` `minDistance`): what its rule would put nearer is moved out along the way it lay. And nothing comes farther than 200 m *(the director, 13 Oct 2026: "nothing should spawn more than 200m off")* (`gym.json` `maxDistance`): what its rule would put farther off is brought in (on the ground along the way it lay, on the line along the line, ahead staying ahead and behind behind), and what stands where its rule finds it (the points, a crane or tower, a house) is taken only from those within 200 m, or doesn't come, saying how far the nearest is. What lives on the train (a gap, a car, the tender, an axle box) is where its rule put it, and its reach is that car's. Packs and groups come sized for a crew of four, so a pack goes for a lone player, as it would for one left alone on a real night. Where a rule needs a place the gym can supply, it does: crates set down for the Freight Beetle and the Pickers, a body for the Mourners, a car's lamp lit for the Fire Flies. Where it needs somewhere further along (the Switchman's points, Tower Jaw's crane or tower, the Grumbler's castings), it comes at the nearest one. Two can't be had standing at the stop, and the panel says why: the marsh is the ground itself (stand the train on one; the panel says how far), and a Follower rides whoever steps down off the train (and only the others ever see it). What acts on a moving train comes where it would, within the 200 m (the Track Doll, the Car Hugger and the debris ahead), and is met by driving. *(The director's run-through, 13 Oct 2026, App. F.5.)* What the director couldn't try at the standing train comes so it can be tried there:
-  - **The Switchman.** The train stands with its engine short of the stop's first points (`gym.json` `pointsAhead`, 60 m), the village round them, so there are points ahead to call the Switchman to. The yard's crane and castings are then a walk off: past the 200 m, Tower Jaw and the Grumbler say how far, to be called again nearer.
+- **Far enough away.** Each creature comes the way it comes on a real night, by its own spawn rule. In the gym, that rule's own gates are set aside (once a night, the train's speed, the cargo, the dice), so it comes when called. Off the train, nothing comes nearer than 45 m (`gym.json` `minDistance`): what its rule would put nearer is moved out along the way it lay. And nothing comes farther than 200 m *(the director, 13 Oct 2026: "nothing should spawn more than 200m off")* (`gym.json` `maxDistance`): what its rule would put farther off is brought in (on the ground along the way it lay, on the line along the line, ahead staying ahead and behind behind), and what stands where its rule finds it (the points, a crane or tower, a house) is taken only from those within 200 m, or doesn't come, saying how far the nearest is. What lives on the train (a gap, a car, the tender, an axle box) is where its rule put it, and its reach is that car's. Packs and groups come sized for a crew of four, so a pack goes for a lone player, as it would for one left alone on a real night. Where a rule needs a place the gym can supply, it does: crates set down for the Freight Beetle and the Pickers, a body for the Mourners, a car's lamp lit for the Fire Flies. Where it needs somewhere further along (Tower Jaw's crane or tower, the Grumbler's castings), it comes at the nearest one. Two can't be had standing at the stop, and the panel says why: the marsh is the ground itself (stand the train on one; the panel says how far), and a Follower rides whoever steps down off the train (and only the others ever see it). What acts on a moving train comes where it would, within the 200 m (the Track Doll, the Car Hugger and the debris ahead), and is met by driving. *(The director's run-through, 13 Oct 2026, App. F.5.)* What the director couldn't try at the standing train comes so it can be tried there:
+  - ~~**The Switchman.**~~ *Cut (note 852); the train's middle stands beside the village again (`pointsAhead` is gone). The yard's crane and castings are a walk off: past the 200 m, Tower Jaw and the Grumbler say how far, to be called again nearer.*
   - **The Cinder Hounds** come up the line close behind the rear car (the gym's least distance behind it, `minDistance`, 45 m) and board it. They go for whoever's out on the train, so climb up to meet them.
   - **Tippy Toesie** hides until you've stood still and alone a few seconds, then comes up behind you. The panel says so, and it isn't counted as far off while it hides.
   - **The Dragger** waits under the roof's edge of the car nearest you, on your side. The panel names the car and the side; walk that roof along that edge.
@@ -1614,7 +1614,7 @@ DORMANT ──[sense trigger]──► ALERT ──[tell fires]──► TELEGRA
 | Food among the finds (treats, tinned food, preserves) | scent | 15 m | |
 | A body | absence | 20 m | the Mourners read the bodies themselves (note 362) |
 
-A creature answers only its own sense: a lamp is nothing to the Moose, a music box nothing to the Fire Flies. The Knotter and Hotbox (vibration) answer the train's own running, never a knock; the Switchman, a train on its switch. Each answer is in its entry below and in the table's `answers`.
+A creature answers only its own sense: a lamp is nothing to the Moose, a music box nothing to the Fire Flies. The Knotter and Hotbox (vibration) answer the train's own running, never a knock. Each answer is in its entry below and in the table's `answers`.
 
 *All timings below are first pass, built for feel-testing.*
 
@@ -2016,21 +2016,9 @@ PUNISH    victim and caboose lost
 ```
 **The only tell is silence**, in a game entirely about talking.
 
-### THE SWITCHMAN · vibration
-```
-WAIT      at a junction ahead
-          └ TELEGRAPH: a tall figure at the lever in the headlamp;
-                       the junction lamp shows the wrong signal
-THROW     as the train passes → wrong route: a dead line that leads nowhere, to buffers in the dark
-          (the clock's cost: stop, back out, set the points back by hand on the ground)
-DEAD END  the switch never derails the train (the director, 7 Oct 2026: "the switch itself shouldn't
-          cause derail, it should be lines that lead nowhere"); running off the end of the dead line does
-          └ TELEGRAPH: the cab's warning, the bell and "BUFFERS AHEAD", a full lead before it's too late
-            to stop; a hit short of that lead is the buffer stop's damage alone
-COUNTER   a forward cannon hit (one shot, long reload): killed before the points, its lever falls back
-          OR stop and bludgeon it to death
-          OR take the dead line and stop short of its end
-```
+### ~~THE SWITCHMAN · vibration~~
+*Cut: the director, 16 Oct 2026 ("I think we cut them"; note 852). It waited at a junction ahead, threw the points as the train passed and sent it down a dead line, the clock's cost, never a life (the 7 Oct decision, note 286); a forward cannon shot before the points, or a club, killed it. Its dead lines stay as level design: a switch set wrong still reads from the cab, the train still backs out and sets it back by hand, and running off a dead line's end still derails it after the cab's warning.*
+
 
 ### GRUMBLER · sound
 ```
@@ -2077,7 +2065,7 @@ NEVER     with a crew of one; never in a yard or a fort; never inside a car
 
 **Fully preventable enemies.** Track Doll (stop in time), the Choir (hush before commit), the Stoker (run cool, or catch it on the way in) and the Moose (give it room, keep it quiet) can each be reduced to zero threat by correct play. A roster where everything is unavoidable stops rewarding mastery.
 
-**Cost-only enemies.** The Track Doll and the Switchman's routing throws cost time and control rather than lives. Keep this category small.
+**Cost-only enemies.** The Track Doll costs time and control rather than lives (the Switchman's routing throws did too, until it was cut, note 852). Keep this category small.
 
 **What the harness verifies per tree.** Telegraph precedes commit in every path · every GRAB is interruptible by the crew actually present · reaction and rescue windows are achievable at all crew sizes · at least one counter is reachable with the crew's actual equipment · no two active enemies present indistinguishable tells.
 
@@ -2143,7 +2131,7 @@ Past the **threshold** the director spends: on what its weights, wants, pairs, g
 | Cost | Enemies |
 |---|---|
 | **1** | The Mourners, The Freight Beetle |
-| **2** | Followers, Draggers, Fire Flies, The Switchman, Hotbox |
+| **2** | Followers, Draggers, Fire Flies, ~~The Switchman~~ *(cut, note 852)*, Hotbox |
 | **3** | Track Doll, Cinder Hounds, Climbers, Whistler, Stoker, Ribbits, The Moose, Tower Jaw, The Brakeman, The Knotter |
 | **4** | Car Hugger, Tippy Toesie, The Gaunt, Soot Children, Grumbler, The Gannet |
 | **5** | The Passenger |
@@ -2158,7 +2146,7 @@ The director tags each enemy with the player want it attacks, and aims for a tar
 | **Kill** | 40% | Cinder Hounds, Draggers, Whistler, Stoker, Tippy Toesie, Ribbits, The Choir, The Gannet |
 | **Split** | 25% | Track Doll, Climbers, The Gaunt, The Moose, The Brakeman, The Knotter |
 | **Trust** | 20% | Followers, Soot Children, The Passenger |
-| **Cargo** | 15% | Car Hugger, Fire Flies, The Switchman, Grumbler, The Mourners, Tower Jaw, The Freight Beetle, Hotbox |
+| **Cargo** | 15% | Car Hugger, Fire Flies, Grumbler, The Mourners, Tower Jaw, The Freight Beetle, Hotbox |
 
 Split is the thinnest category and the best target for a post-launch addition. The Moose (2026-10-07) is the first; the Brakeman and the Knotter (2026-10-08) follow. The Mourners (Cargo, cost 1) come for the dead and cost the caps nothing: they hunt no one.
 
@@ -2201,7 +2189,6 @@ The director draws pairs from a **conflict table** rather than spawning independ
 | Track Doll + facility loading | Keep someone in the cab vs. the facility needs everyone |
 | Whistler + any facility stop | Stopping is the job vs. stopping is when it grabs |
 | Tippy Toesie + Stoker | The boiler player is idle and alone vs. the firebox needs watching |
-| Ribbits + The Switchman | Don't go alone vs. someone must reset the switch |
 | Car Hugger + climbing grade | Kill it or cut the car vs. the speed cap loses the summit |
 | The Gaunt + The Moose | Keep talking to the Gaunt vs. the moose hears every word, and where it came from |
 | Ribbits + The Moose | Never be outnumbered vs. whoever the moose chases ends up alone |
@@ -2299,7 +2286,7 @@ At least one pair per run on Frontier and above. Two on Deep Territory.
 | Enemy | Spawn context | Gates | Weighting |
 |---|---|---|---|
 | **The Passenger** | Boards during a facility stop | **Dead lines+ · crew ≥3** (needs a crowd to hide in) · once per run | Weight up if the crew were split across several facility tasks |
-| **The Switchman** | Junction network ahead of the train | Frontier+ · **route must contain ≥3 junctions** | Weight up on routes with dead-line branches available |
+| ~~**The Switchman**~~ | *Cut, note 852. (It took the junction network ahead of the train, Frontier+, a route of 3 or more junctions; the dead lines it used stay, as level design.)* | | |
 | **Grumbler** | Facilities with a crane and crates (Foundry first): its own crane or a yard's gantry, on the perch nearest the crew (level-design H.2, note 848) | Any tier (first pass) | ×2 with food crates at the facility |
 | **The Brakeman** | Up the end ladder at the end of a moving train furthest from the crew | **Never with a crew of one** · train length ≥4 · over 3 m/s · not in a fort or a tunnel · one at a time; gone for the night once killed | ×1 Local, ×1.5 Frontier, ×2 Dead Lines, ×2.5 Deep Territory; × cars ÷ 6; ×2 with a climb of 2% or more within 1 km |
 
@@ -2370,7 +2357,7 @@ The roster depends on nine systems. Each is shared by several enemies, so each i
    |---|---|
    | Track Doll struck | Who was on the throttle, and the speed at impact |
    | Track debris derailment *(retired 6 Oct 2026, §22)* | Who was on the throttle, and the speed at impact |
-   | Switchman derailment *(since 7 Oct 2026: off the end of the dead line it threw the train down)* | Whether the forward cannon was crewed, and by whom |
+   | ~~Switchman derailment~~ *(cut, note 852: a dead line's end is the throttle's row)* | |
    | Stoker runaway or derailment | Who last fuelled or tended the firebox, and how long it had been unattended |
    | Boiler rupture | Who last fired or vented the boiler, and how long it sat at 100 |
    | Stranded | How the engineering kit was lost, and who last held it (and, for a decoupled car, who pulled the coupler) |
@@ -2610,7 +2597,7 @@ Being dead means watching your crew and talking with the other dead. Lobbied pla
 | **Visibility** | Hidden from the living until the run-end screen |
 | **Payoff for the dead** | When a creature spawns that a dead player voted for, every dead player gets a dead-channel cue naming it and the voters. The living hear nothing. The run-end reveal then lands twice: once for the dead in the moment, once for the living at the end. |
 
-Provisional voteable set, subject to the runtime rule: Track Doll · Cinder Hounds · Car Hugger · Climbers · Draggers · Whistler · Tippy Toesie · Fire Flies · Ribbits · The Gaunt · Followers · Soot Children · The Passenger · The Switchman · Grumbler.
+Provisional voteable set, subject to the runtime rule: Track Doll · Cinder Hounds · Car Hugger · Climbers · Draggers · Whistler · Tippy Toesie · Fire Flies · Ribbits · The Gaunt · Followers · Soot Children · The Passenger · ~~The Switchman~~ · Grumbler.
 
 ## D.12 Run end: incident report and commendations
 
@@ -2971,7 +2958,7 @@ genre ... It's extremely important that friends exceeds our target meaningfully.
 
 **The gym**
 - The Cinder Hounds, called, never come up to the train: they play out their whole life without reaching it. *In progress (queue #412, ARCHITECTURE §8 note 680): §34.1.* (The gym puts them behind a moving train, as on a real night; a standing train has to bring them in too.)
-- The Switchman can't be tried: the points it works are too far off. *In progress (queue #412, note 680): §34.1.* (At the Foundry the nearest points ahead are beyond the gym's 200 m.)
+- ~~The Switchman can't be tried: the points it works are too far off.~~ *Moot: cut (note 852).*
 - Tippy Toesie is called very far away, which makes no sense. Many of the creatures' spawn rules need putting to the director for review, in the inbox. *In progress (queue #412, note 680) for Tippy Toesie in the gym (§34.1); the spawn rules' review is open.*
 
 **Grabs** (App. C.1)
@@ -3185,7 +3172,7 @@ Further decisions (the director, 6 Oct 2026):
 
 **Decided** (the director, 6 Oct 2026): "The time a run takes should always be the same. Difficulty scales not by time but by monsters and density of challenges." One night length for every tier; §11 Route tiers and systems spec B.8 (run length) to change. *Done (T125): one 24 km line and a 51 min dawn on every tier, the tiers' counts and creature budgets now their density (§11, spec B.8; ARCHITECTURE.md note 270). Since 9 Oct 2026 the one line is 7 km with a 24 min dawn (note 554).*
 
-**Decided** (the director, 7 Oct 2026): "The switch itself shouldn't cause derail, it should be lines that lead nowhere." The Switchman never derails the train by throwing points under it; it throws a junction ahead and the train goes down a dead line. The crew notice (the wrong lamp, the figure at the lever, the route card), stop, back out and set the switch back by hand. A derailment comes only from the driver running off the end of the dead line, warned in the cab in time to stop. §21 and App. A.8 changed. *Done (note 286).*
+**Decided** (the director, 7 Oct 2026): "The switch itself shouldn't cause derail, it should be lines that lead nowhere." The Switchman never derails the train by throwing points under it; it throws a junction ahead and the train goes down a dead line. The crew notice (the wrong lamp, the figure at the lever, the route card), stop, back out and set the switch back by hand. A derailment comes only from the driver running off the end of the dead line, warned in the cab in time to stop. §21 and App. A.8 changed. *Done (note 286).* *16 Oct 2026: the Switchman itself is cut (note 852); the dead lines, the cab's warning and the crew's way back off one stay.*
 
 ## F.2 2026-10-05/06 — derailment film, takes 3–5
 

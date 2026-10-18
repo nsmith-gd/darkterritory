@@ -1490,7 +1490,7 @@ public class StopCrewTests
     {
         // Taken: stop on the dead line, back out past the points, set the switch back, and go on down the main line. The
         // express driver too (note 512): it takes no stops, and it ran to the dead line's buffer and stood there all night
-        // (8-bot frontier:7 seed 2, the Switchman's points thrown under it at 6,800 m).
+        // (8-bot frontier:7 seed 2, points set against it at 6,800 m; the Switchman's then, note 852).
         var night = new Night(cars: 8, deadLine: true, express: express);
         var train = night.Train;
         var toe = train.Line.Branches[night.Branch].Toe;
@@ -1509,7 +1509,7 @@ public class StopCrewTests
     [Fact]
     public void AnExpressSentDownADeadLineComesBackOffItAndRunsOn()
     {
-        // Note 512: the Switchman's points thrown ahead of the express driver (note 376). It stops for no switch lamp, so it
+        // Note 512: a dead line's points set against the express driver (note 376; the Switchman's work then, note 852). It stops for no switch lamp, so it
         // takes the dead line at speed; there it stands, backs out past the points, has them set back, and runs on down the
         // main line. It used to brake for the buffers and stand there all night.
         var night = new Night(cars: 8, deadLine: true, express: true);
@@ -1595,7 +1595,7 @@ public class StopCrewTests
     [Fact]
     public void AKnotterKilledWhileTheDriverStandsForThePointsIsCoupledUpAfter()
     {
-        // Note 545 (frontier:7, 4 bots, seed 8): a Knotter forced car 1's coupling as the driver stood for the Switchman's
+        // Note 545 (frontier:7, 4 bots, seed 8): a Knotter forced car 1's coupling as the driver stood for a dead line's
         // points. The crew killed it slack at that stand, but the driver's part for it waits for the stop's moves to finish,
         // and they took the train on: the nine cars behind its gap stood on the line where it died, and the night ran on with one.
         var night = new Night(cars: 8, deadLine: true, creatures: true);

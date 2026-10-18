@@ -496,8 +496,8 @@ public sealed partial class WorldArt
         float throwAngle = (diverging ? -1 : 1) * 0.85f * branch.Side;
         mesh.Instances.Add(new MeshInstance(Piece("switch-lever", () => StructureKit.SwitchLever(_look)),
             Matrix4x4.CreateRotationX(throwAngle) * Matrix4x4.CreateTranslation(0, 0.9f, 0) * standAt));
-        // The lamp's glass: green set for the main line, red for the branch; flickering while the Switchman grips the
-        // lever to throw it under the train (App. A.8, the derail's telegraph).
+        // The lamp's glass: green set for the main line, red for the branch (flicker 1; it guttered for the Switchman's
+        // grip until note 852 cut it).
         var colour = (diverging ? Palette.SignalRed : Palette.SignalGreen) * flicker;
         var glass = (foot + Double3.Up * 1.75).RelativeTo(eye);
         mesh.Billboard(glass, 0.3f, 0, new Vector4(colour * 1.6f, 1), -1, FxBlend.Additive);

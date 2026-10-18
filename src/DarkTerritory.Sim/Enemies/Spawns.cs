@@ -563,25 +563,6 @@ public static class Spawns
             c.Add(i => Passenger.Boards(i, c.Train, car, looks, c.Tuning.Passenger));
             return true;
         }),
-        // B.8 · The Switchman: the junction network ahead; the Frontier and on; a route with three or more junctions; weight up
-        // with dead-line branches available.
-        new(EnemyKind.Switchman, c =>
-        {
-            var t = c.Tuning.Switchman;
-            if (c.Tier < RouteTier.Frontier || c.World.Route is not { } r || r.Of(FeatureKind.Junction).Count() < t.MinJunctions
-                || c.World.Switches is null || !c.None(EnemyKind.Switchman) || Switchman.Junction(c.World, t) is null)
-                return null;
-            return c.Train.Line.Branches.Any(b => b.Kind == Rail.BranchKind.DeadLine) ? t.DeadLineWeight : 1;
-        }, c =>
-        {
-            if (Switchman.Junction(c.World, c.Tuning.Switchman) is not { } junction)
-                return false;
-            // The director's decision of 7 Oct 2026 (note 286): it never throws points under the train unless a mod asks it to
-            // (the draw is kept either way, so the director's dice run as they did).
-            bool derail = c.Director.NextRange(0, 1) < c.Tuning.Switchman.DerailChance && c.Tuning.Switchman.ThrowsUnderTrain;
-            c.Add(i => Switchman.At(i, junction, c.Tuning.Switchman, c.World.Switches?.Tuning.LeverOffset ?? 2.6, derail));
-            return true;
-        }),
         // B.8 · The Grumbler: facilities with a crane and crates (the Foundry first); any tier; ×2 with food at the facility. On
         // its perch (level-design H.2, note 848): any of the stop's cranes with castings stacked, a yard's gantry as much as the
         // facility's own.

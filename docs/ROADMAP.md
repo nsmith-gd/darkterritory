@@ -189,11 +189,7 @@ M3 is done but for a test with eight people.
   - slow for it and it comes down the line, boards and kills whoever's driving; hold your speed and it steps aside for good;
   - the driver bot holds its speed past it, even with the lamps down;
   - `dt screenshot --threats` shows one.
-- **The Switchman (T37, App. A.7):**
-  - it throws a junction ahead for its dead line: the lamp reads wrong, and a figure with a lantern stands at the stand;
-  - it flees anyone on the ground, but chasing it off doesn't set the switch back;
-  - crew bots stop short, set it back on the ground, and go on; left alone, the train takes the dead line and backs out, costing the clock, never a life;
-  - `dt screenshot --threats` shows it.
+- ~~**The Switchman (T37, App. A.7)**~~ *cut by the director, 16 Oct 2026 (note 852); the dead lines and the crew's way back off one stay.*
 
 **Loading at facilities (spec D, GDD §17):**
 - Manual crates you carry into the cars (heavy: slow, no climbing).

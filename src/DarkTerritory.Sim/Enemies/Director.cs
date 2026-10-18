@@ -1489,7 +1489,6 @@ public sealed class Director
             {
                 EnemyKind.Sleepers => new Sleepers(0),
                 EnemyKind.CinderHound => new CinderHound(0, 0),
-                EnemyKind.Switchman => new Switchman(0),
                 EnemyKind.SootChildren => new SootChildren(0),
                 EnemyKind.Dragger => new Dragger(0),
                 EnemyKind.Stoker => new Stoker(0),
