@@ -62,7 +62,7 @@ public sealed class PlanConditions : ITrackConditions
         return _plan.Rules.WetAdhesion;
     }
 
-    /// <summary>The plan's exposure along the line (§14): its cold step and wind where the track is, or none off it.</summary>
+    /// <summary>The plan's exposure along the line (§14): its wind where the track is, or none off it.</summary>
     PlanExposure? ExposureAt(int path, double distance)
     {
         var (edge, s) = Locate(path, distance);
@@ -71,9 +71,6 @@ public sealed class PlanConditions : ITrackConditions
                 return x;
         return null;
     }
-
-    /// <summary>The night's cold step (§14's temperature) plus this stretch's own (climbed high, or exposed).</summary>
-    public int ColdStep(int path, double distance) => _plan.Weather.TempStep + (ExposureAt(path, distance)?.ColdStep ?? 0);
 
     /// <summary>The night's wind (0 to 1) times this stretch's exposure (×1.5 where exposed).</summary>
     public double Wind(int path, double distance) => _plan.Weather.Wind * (ExposureAt(path, distance)?.Wind ?? 1);

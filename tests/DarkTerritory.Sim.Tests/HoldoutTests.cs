@@ -182,7 +182,7 @@ public class HoldoutTests
         Assert.Equal(HoldoutState.Freed, h.State);
 
         var calls = new Bots.CrewCalls();
-        var bot = new Bots.RoofWalkerBot(21, P.Cold, new Bots.StopHand(Bots.StopJob.Crates, calls, 1, P.Cold)) { Me = dead };
+        var bot = new Bots.RoofWalkerBot(21, new Bots.StopHand(Bots.StopJob.Crates, calls, 1)) { Me = dead };
         var s = n[dead];
         var from = s.Position;
         double bound = 30 + ((h.Door - n.Train.Frames[1].Origin) with { Y = 0 }).Length / P.Walk * 1.5;
@@ -219,7 +219,7 @@ public class HoldoutTests
         var behind = h.Door + into.Normalized * (depth * 2 + 1.5);
         Assert.InRange(((behind - h.Door) with { Y = 0 }).Length, 2, 10);
         n.Stand(living, behind);
-        var hand = new Bots.StopHand(Bots.StopJob.Crates, new Bots.CrewCalls(), living, P.Cold);
+        var hand = new Bots.StopHand(Bots.StopJob.Crates, new Bots.CrewCalls(), living);
         var s = n[living];
         double closest = double.MaxValue;
         for (uint tick = 0; tick < 60 * SimConstants.TickRate && h.State != HoldoutState.Freed; tick++)

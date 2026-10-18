@@ -2,15 +2,16 @@ using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Run;
 
-public enum NewsKind : byte { CarsLost, EngineFailing, EngineBroken, Marked }
+public enum NewsKind : byte { CarsLost, EngineFailing, EngineBroken, Marked, Fire }
 
 /// <summary>
 /// A piece of the night's news (note 663): cars the engine's lost, or the engine failing or broken down, and what did it.
 /// </summary>
 /// <param name="Cars">The cars lost, front to back (none for the engine's).</param>
-/// <param name="Cause">A <see cref="Parting"/> for cars lost, a <see cref="KnockCause"/> for the engine.</param>
-/// <param name="Detail">For a pin, what worked it loose (<see cref="LooseCause"/>).</param>
-/// <param name="Who">Whose hand: the crewmate who cut them, or who was driving when the pin worked loose; −1 nobody's.</param>
+/// <param name="Cause">A <see cref="Parting"/> for cars lost, a <see cref="KnockCause"/> for the engine, an
+/// <see cref="Enemies.FireCause"/> for a fire (note 851).</param>
+/// <param name="Detail">For a pin, what worked it loose (<see cref="LooseCause"/>); for a fire, the car it came from.</param>
+/// <param name="Who">Whose hand: the crewmate who cut them, or who was driving when the pin worked loose, or who threw the lamp; −1 nobody's.</param>
 /// <param name="Speed">The speed it was done at (m/s): the knock, or the pin's loosening; 0 when it's not said.</param>
 /// <param name="Told">Said to the crew; a crewmate's cut at a stand isn't (it's only in the host's log, for the report).</param>
 public readonly record struct NewsEvent(int Id, uint Tick, NewsKind Kind, int[] Cars, byte Cause, byte Detail, int Who, double Speed,
@@ -41,6 +42,21 @@ public static class News
     public static string Line(World world, NewsEvent e)
     {
         // Note 717: a shove that killed marks the shover, and everyone's told: "MARKED: DAVE (SHOVED PRIYA OFF AT 58 KM/H)".
+        // Note 851 (the director, 16 Oct: "how'd that even get started?"): a fire, where and from what, as it starts.
+        if (e.Kind == NewsKind.Fire)
+        {
+            string car = Cars(e.Cars);
+            return (Enemies.FireCause)e.Cause switch
+            {
+                Enemies.FireCause.HotBox => $"FIRE IN {car} · ITS HOT BOX RAN HOT",
+                Enemies.FireCause.FireFlies => $"FIRE IN {car} · FIRE FLIES AT ITS LAMP",
+                Enemies.FireCause.Hounds => $"FIRE IN {car} · CINDER HOUNDS FEEDING ON IT",
+                Enemies.FireCause.Lamp => e.Who >= 0 ? $"FIRE IN {car} · A LAMP THROWN BY {IncidentLog.NameOf(world, e.Who).ToUpperInvariant()}" : $"FIRE IN {car} · A LAMP BROKEN",
+                Enemies.FireCause.Jumped => $"FIRE IN {car} · SPREAD FROM CAR {e.Detail}",
+                Enemies.FireCause.Blast => $"FIRE IN {car} · CAR {e.Detail} WENT UP",
+                _ => $"FIRE IN {car}",
+            };
+        }
         if (e.Kind == NewsKind.Marked)
             return $"MARKED: {IncidentLog.NameOf(world, e.Who).ToUpperInvariant()} (SHOVED {IncidentLog.NameOf(world, e.Cars.Length > 0 ? e.Cars[0] : -1).ToUpperInvariant()} OFF"
                 + (e.Speed >= 1 ? $" AT {Kmh(e.Speed)})" : ")");

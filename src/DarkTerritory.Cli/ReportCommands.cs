@@ -16,7 +16,8 @@ static class ReportCommands
         reports.Context("edition", EditionTuning.Load(content).Name);
         reports.Context("mods", "none");
         reports.Context("steam", "off");
-        reports.Context("gpu", "llvmpipe (LLVM 17.0.6, 256 bits)");
+        // The GPU as the app says it (note 850: name and kind, driver, its version raw and read, the Vulkan version, the ids).
+        reports.Context("gpu", SampleGpu);
         reports.Context("vr", "off");
         reports.Live = () =>
         [
@@ -24,7 +25,7 @@ static class ReportCommands
             new ReportField("doing", "a hosted night, frontier:7, 6 cars, 3 bots"),
             new ReportField("night", "running, 742 s in, km 9.41 at 13.2 m/s, 8 vehicles, player 1 alive, host, 4 aboard"),
         ];
-        foreach (var line in new[] { "steam: off; LAN and direct IP still work", "GPU: llvmpipe (LLVM 17.0.6, 256 bits)",
+        foreach (var line in new[] { "steam: off; LAN and direct IP still work", $"GPU: {SampleGpu}",
             "a crew of 3 bots aboard", "hosting on UDP port 27960: others join with --join <this machine's address>:27960",
             "director: Cinder Hounds at km 9.3 (run, behind)" })
             reports.Remember(line);
@@ -45,6 +46,9 @@ static class ReportCommands
         }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
         return 0;
     }
+
+    const string SampleGpu = "llvmpipe (LLVM 20.1.2, 256 bits) (CPU (software rendering)); driver llvmpipe Mesa 25.2.8-0ubuntu0.24.04.4 (LLVM 20.1.2) (MesaLLVMPipe), "
+        + "driver version 25.2.8 (0x06402008), Vulkan 1.4.318, vendor 0x10005 device 0x0000";
 
     static Exception Thrown()
     {

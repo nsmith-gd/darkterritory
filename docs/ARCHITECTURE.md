@@ -1034,4 +1034,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [850. The first two-player night's blockers: run+jump on Linux, the gunner's body with the gun, the driver in the report (H2, queue #578; 16 Oct…](notes/850.md)
 - [851. Fires that make sense: two on the extinguishers, the cause shown, nothing burns in the yard (H3, queue #579; 16 Oct evening line 5, 16 Oct…](notes/851.md)
 - [852. The cuts: the deep cold out of gameplay, the Switchmen cut (H4, queue #580; 16 Oct lines 9 and 30)](notes/852.md)
+- [853. The first nights' card says how to close it first (D1, queue #581; the director, 18 Oct)](notes/853.md)
 <!-- end of the notes index -->

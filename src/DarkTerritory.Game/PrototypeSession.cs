@@ -420,13 +420,11 @@ public sealed class PrototypeSession : IPlaySession
     string RouteStatus() => RouteStatus(Route, World, Train);
 
     /// <summary>The night so far: the dawn clock, where you are on the route, what's next, and how it ended.</summary>
-    /// <summary>Cold and being held, for the status line (spec B.2; GDD v1.1 App. C.1).</summary>
+    /// <summary>Being held, for the status line (GDD v1.1 App. C.1).</summary>
     public static string Condition(in PlayerState p, PlayerTuning t)
     {
-        string cold = PlayerMotor.Chilled(p, t) ? $" | COLD: {Math.Max(0, t.Cold.DeathSeconds - p.Cold):0}s — get inside" : "";
         // GDD v1.1 App. C.1: held, a friend has to hit it or pull you free; alone, you struggle (hold Use).
-        string held = p.Has(PlayerFlags.Held) ? " | HELD: shout for help (alone: hold Use to struggle)" : "";
-        return cold + held;
+        return p.Has(PlayerFlags.Held) ? " | HELD: shout for help (alone: hold Use to struggle)" : "";
     }
 
     /// <summary>Holdouts lit along the line (GDD App. D): somebody's waiting to be picked up.</summary>

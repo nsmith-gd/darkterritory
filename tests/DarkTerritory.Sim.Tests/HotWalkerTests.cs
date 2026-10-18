@@ -33,7 +33,7 @@ public class HotWalkerTests
             h.Restore(SpinePhase.Commit, 0, Tuning.Enemies.CinderHounds.Health, rear, new Double3(i % 2 == 0 ? 0.6 : -0.6, shape.RoofHeight, shape.HalfLength - 2.5 - i * 0.8), 0, 0, 0, 900, 0);
             pack.Add(h);
         }
-        var bot = new RoofWalkerBot(5, P.Cold, new StopHand(StopJob.None, new CrewCalls(), 1, P.Cold)) { Me = 1 };
+        var bot = new RoofWalkerBot(5, new StopHand(StopJob.None, new CrewCalls(), 1)) { Me = 1 };
         n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, 2, 0, P);
         int cars = n.Train.Dynamics.Consist.Vehicles.Count;
         for (int i = 0; i < 60 && n.Train.Dynamics.Consist.Vehicles.Count == cars; i++)

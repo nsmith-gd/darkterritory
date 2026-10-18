@@ -118,30 +118,6 @@ public class ConsistVarietyTests
     }
 
     [Fact]
-    public void TheCrewCarIsWarmWithTheSteamGone()
-    {
-        var train = Train(With("crewCar"), boiler: true);
-        train.Boiler.Pressure = 0;
-        train.Boiler.Firebox = 0;
-        Assert.Equal(VehicleKind.Utility, train.Vehicles[1].Kind);
-        // Its stove is its own heat (GDD §26 "cramped, lamp-lit"): shut in, the whole car's warm. A cargo car shut, with
-        // the boiler cold, isn't.
-        Assert.True(PlayerMotor.NearHeat(Inside(train, 1, z: -4), train));
-        Assert.False(PlayerMotor.NearHeat(Inside(train, 2), train));
-        // With a door open, only by the stove.
-        train.Vehicles[1].ToggleDoor(0);
-        var stove = train.Frames[1].Shape.Stove!.Value;
-        Assert.True(PlayerMotor.NearHeat(Inside(train, 1, z: stove.Min.Z - 1), train));
-        Assert.False(PlayerMotor.NearHeat(Inside(train, 1, z: stove.Min.Z - T.Composition.StoveReach - 1), train));
-        // And it warms the frozen like the cab does (spec B.2's recovery).
-        train.Vehicles[1].DoorsOpen = 0;
-        var s = Inside(train, 1) with { Cold = P.Cold.OnsetSeconds };
-        for (int i = 0; i < P.Cold.RecoverSecondsNearHeat * SimConstants.TickRate; i++)
-            PlayerMotor.Step(ref s, default, train, P, train.Dynamics.Tuning, Dt);
-        Assert.Equal(0, s.Cold);
-    }
-
-    [Fact]
     public void TheCrewCarIsTheKitsCarItsLockersItsStores()
     {
         var train = Train(With("crewCar"));
@@ -158,24 +134,6 @@ public class ConsistVarietyTests
         // The stove stands clear of the rear doorway.
         var rear = shape.DoorList.Single(d => d.Box.Min.Z > 0).Box;
         Assert.True(shape.Stove!.Value.Max.X <= rear.Min.X + 1e-9);
-    }
-
-    [Fact]
-    public void InsulationSlowsTheColdInAnUnheatedCar()
-    {
-        double After(TrainTuning t)
-        {
-            var train = Train(t, boiler: true);
-            train.Boiler.Pressure = 0;
-            train.Boiler.Firebox = 0;
-            var s = Inside(train, 2);
-            for (int i = 0; i < 20 * SimConstants.TickRate; i++)
-                PlayerMotor.Step(ref s, default, train, P, train.Dynamics.Tuning, Dt);
-            return s.Cold;
-        }
-        double plain = After(T), insulated = After(With("carInsulation"));
-        Assert.Equal(20 * P.Cold.IndoorsRate, plain, 3);
-        Assert.Equal(plain * 0.5, insulated, 3);
     }
 
     [Fact]
@@ -209,13 +167,12 @@ public class ConsistVarietyTests
         // Reinforced couplings (F.3 "uncouple under load"): cutting a working train takes no longer than a slack one.
         var couplings = Campaign.Campaign.Apply(C, ["reinforcedCouplings"], base_).Train.Couplings;
         Assert.Equal(T.Couplings.UncoupleSeconds, couplings.UncoupleUnderLoadSeconds, 6);
-        // Car insulation halves the cold indoors; the rest fit the consist.
-        Assert.Equal(0.5, With("carInsulation").Composition.Insulation, 6);
+        // The rest fit the consist (car insulation went with the cold, note 852).
         Assert.Equal(1, With("crewCar").Composition.UtilityCars);
         Assert.Equal(2, With("secondGuardCar").Composition.GuardCars);
         Assert.Equal(1, With("armouredCar").Composition.ArmouredCars);
         // Every consist upgrade the spec lists now does something.
-        foreach (var id in new[] { "couplingReinforcement", "roofHandrails", "carInsulation", "armouredCar", "secondGuardCar", "reinforcedCouplings", "crewCar" })
+        foreach (var id in new[] { "couplingReinforcement", "roofHandrails", "armouredCar", "secondGuardCar", "reinforcedCouplings", "crewCar" })
             Assert.NotEqual(base_, Campaign.Campaign.Apply(C, [id], base_));
     }
 

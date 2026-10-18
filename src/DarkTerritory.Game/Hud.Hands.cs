@@ -38,8 +38,6 @@ public static partial class Hud
         public long SlotTick = long.MinValue / 2;
         public (string Name, double At)? Place;
         public long PlaceTick = long.MinValue / 2;
-        public int ColdStep;
-        public long ColdTick = long.MinValue / 2;
         // The mail crane coming up (note 673), from when its board was read; the last bag caught, and when.
         public int MailDrop = -1;
         public long MailTick = long.MinValue / 2;
@@ -64,10 +62,6 @@ public static partial class Hud
             && next.At - s.Train.Dynamics.Distance <= Tuning.PlaceAheadMetres && m.Place != next)
             (m.Place, m.PlaceTick) = (next, now);
         ObserveMail(s, m, now);
-        int step = s.Player.Alive ? PlayerMotor.ColdStep(s.Player, s.Train) : 0;
-        if (step > m.ColdStep)
-            m.ColdTick = now;
-        m.ColdStep = step;
         return m;
     }
 

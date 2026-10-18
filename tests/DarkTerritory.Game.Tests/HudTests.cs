@@ -670,21 +670,6 @@ public class HudTests
     }
 
     [Fact]
-    public void TheHudSaysHowDeepTheColdIs()
-    {
-        // GDD §22 deep cold (note 201): from the line's conditions, which every machine builds from the night's seed.
-        var s = new PrototypeSession(Content, "test-loop", 4);
-        Assert.Null(Hud.ColdLine(s.Player, s.Train));
-        DarkTerritory.Sim.Net.HazardConditions.Apply(s.Train.Line, DarkTerritory.Sim.Net.HazardSet.Clear with { Name = "cold", ColdStep = 2 });
-        // Its name only (note 369): how much faster it comes on outside is learned out in it.
-        Assert.Equal("BITTER COLD", Hud.ColdLine(s.Player, s.Train));
-        AssertShort(Hud.ColdLine(s.Player, s.Train));
-        var deeper = new PrototypeSession(Content, "test-loop", 4);
-        DarkTerritory.Sim.Net.HazardConditions.Apply(deeper.Train.Line, DarkTerritory.Sim.Net.HazardSet.Clear with { Name = "deep", ColdStep = 1 });
-        Assert.Equal("DEEP COLD", Hud.ColdLine(deeper.Player, deeper.Train));
-    }
-
-    [Fact]
     public void TheWrenchInHandOffersToMendABrokenRadio()
     {
         // GDD §23 "radio breaks" (note 201): mended, held; how far it's got from the body record. Note 301: with the wrench in
@@ -802,7 +787,8 @@ public class HudTests
     public void EveryDeathSaysWhatKilledYou()
     {
         // T115 playtest: "the death screen doesn't show me anything": the v1.1 creatures' causes had no line.
-        foreach (var cause in Enum.GetValues<DeathCause>().Where(c => c != DeathCause.None))
+        // Cold is an enum slot nothing sets since note 852 cut the cold (kept for the wire and old recordings): no line.
+        foreach (var cause in Enum.GetValues<DeathCause>().Where(c => c is not (DeathCause.None or DeathCause.Cold)))
         {
             string line = Hud.DeathLine(cause);
             Assert.False(string.IsNullOrWhiteSpace(line) || line == cause.ToString().ToUpperInvariant(), $"{cause} has no line of its own");

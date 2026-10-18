@@ -61,7 +61,8 @@ public sealed class HotBoxes(HotBoxTuning tuning, ulong seed)
 
     /// <summary>Host, after the train's step: the train's running brings a box on; one left too long sets its car alight.</summary>
     /// <param name="open">How many may be open at once (orchestrator.md §5.1: one per active player).</param>
-    /// <param name="quiet">The yard or a fort: nothing comes on (none in the grace).</param>
+    /// <param name="quiet">The yard or a fort: nothing comes on (none in the grace), and a box already hot doesn't catch (note 851:
+    /// home, nothing burns; it's still hot, and greased in the yard).</param>
     /// <returns>A car whose box caught this tick, or −1.</returns>
     public int Step(TrainOnLine train, int open, bool quiet)
     {
@@ -74,7 +75,7 @@ public sealed class HotBoxes(HotBoxTuning tuning, ulong seed)
         for (int i = 0; i < train.Vehicles.Count; i++)
         {
             var v = train.Vehicles[i];
-            if (v.HotBox >= tuning.FireAfter)
+            if (v.HotBox >= tuning.FireAfter && !quiet)
             {
                 v.HotBox = 0;
                 caught = i;
