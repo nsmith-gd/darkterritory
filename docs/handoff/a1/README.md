@@ -21,7 +21,7 @@ Written first at PREPARE HANDOFF, 2026-10-15 17:44 UTC, and kept current since.
 - **Gotchas:** a union merge of COORDINATION.md doubles changed rows; take main's file and re-apply your row.
 - **Files:** note 695 (the findings table), `src/DarkTerritory.Game` (`WorldArt.Cells`, `GreyboxRenderer`), `FrameWatch`, `tuning/perf.json`.
 - **Verify:** `dotnet run --project src/DarkTerritory.Cli -- perf --route local:5 --town square,houses --ride 8 --walk`; `dotnet test --project tests/DarkTerritory.Game.Tests -- --filter-class DarkTerritory.Game.Tests.FrameWatchTests`.
-- **Claimed by:** —
+- **Claimed by:** nathaniel1, n1-w2, 2026-10-18 17:15 UTC
 
 ## Queue #566, note 838, and #567, note 839 (16 Oct playtest lines 21 and 1)
 
