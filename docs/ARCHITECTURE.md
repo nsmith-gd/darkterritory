@@ -1035,4 +1035,9 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [851. Fires that make sense: two on the extinguishers, the cause shown, nothing burns in the yard (H3, queue #579; 16 Oct evening line 5, 16 Oct…](notes/851.md)
 - [852. The cuts: the deep cold out of gameplay, the Switchmen cut (H4, queue #580; 16 Oct lines 9 and 30)](notes/852.md)
 - [853. The first nights' card says how to close it first (D1, queue #581; the director, 18 Oct)](notes/853.md)
+- [854. Loose couplings explained in play (the director's playtest of 16 Oct, `docs/playtest/2026-10-16.md` line 13: "We have a coupling that's…](notes/854.md)
+- [855. The host's voice reaches a joiner outdoors (the director's playtest of 16 Oct evening, `docs/playtest/2026-10-16-evening.md` line 1: "she…](notes/855.md)
+- [856. Cab doors by the coal and across the front (the director, 16 Oct, `docs/playtest/2026-10-16.md` line 10: "a door near where the coal is,…](notes/856.md)
+- [857. Audit: the GDD and the Director's Inbox against the last week's work (the director, 18 Oct) (Elsie, queue #585)](notes/857.md)
+- [858. Audit: the Audio Checklist and the Art Checklist against the last week's work (the director, 18 Oct) (Rowan, queue #586)](notes/858.md)
 <!-- end of the notes index -->
