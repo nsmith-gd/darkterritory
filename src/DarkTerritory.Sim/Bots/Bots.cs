@@ -3953,9 +3953,13 @@ public sealed class WarmUp
                 _ticks = 0;
             }
         }
-        // Stuck (the train split under us, the door jammed by something): give it up and walk on as usual.
+        // Stuck (the train split under us, the door jammed by something): give it up and walk on as usual. Stuck on the way
+        // out (note 852: a stop's hand between the two crates it had stowed at either end of the aisle, walking into one for
+        // 25 s, giving up, and walking into it again; the cold's warm-up used to take it to the side door first, and from
+        // there it cleared them), the next way out is the other end, by the far side of the aisle.
         if (++_ticks > GiveUpTicks || !self.Alive)
         {
+            _stuckEnd = _step is Step.Reopen or Step.Out ? _outEnd : 0;
             _step = Step.Off;
             return null;
         }
@@ -4169,6 +4173,13 @@ public sealed class WarmUp
                         return Next(Step.Out);
                     var at = new Double3(_doorX, 0, _outEnd * (_l - 0.5));
                     double facing = _outEnd > 0 ? Math.PI : 0;
+                    if (_sidestep && train.Frames[_car].Shape.Interior is { } room)
+                    {
+                        double sideX = _doorX > 0 ? room.Min.X + 0.4 : room.Max.X - 0.4;
+                        if (Math.Abs(self.Position.X - sideX) > 0.2)
+                            return Steer(self, new Double3(sideX, 0, self.Position.Z), self.Yaw).Step;
+                        _sidestep = false;
+                    }
                     if ((Flat(self.Position) - Flat(at)).Length > 0.2 || !Aligned(self, facing))
                         return Reach(self, at, facing, Step.Reopen);
                     return CrewActions.Nearest(self, train) == InteractableKind.Door ? new PlayerIntent { Buttons = PlayerButtons.Use } : Abandon();
@@ -4259,6 +4270,10 @@ public sealed class WarmUp
     internal const double PlateMargin = 0.2;
     double _dropYaw;
     int _outEnd = 1;
+    /// <summary>The end it last gave up getting out by (0 none): the next way out is the other, where there is one.</summary>
+    int _stuckEnd;
+    /// <summary>After a stuck way out: over to the far side of the aisle first, round whatever's stowed in it.</summary>
+    bool _sidestep;
 
     /// <summary>
     /// Found on a car's floor with nothing under way (knocked in, or given up in there): cold, shut it up and warm up
@@ -4274,6 +4289,10 @@ public sealed class WarmUp
         _inDoor = RearDoor;
         _hoseTo = -1;
         _outEnd = WayOut(self, train);
+        if (_outEnd == _stuckEnd && Way(train, -_outEnd))
+            _outEnd = -_outEnd;
+        _sidestep = _stuckEnd != 0;
+        _stuckEnd = 0;
         _step = Wants(self) ? Step.Shut : Step.Reopen;
         _ticks = 0;
         return new PlayerIntent();
