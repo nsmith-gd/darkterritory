@@ -2475,6 +2475,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         scene.Bodies = [.. scene.Bodies ?? [], .. prizes.All];
     if (carriers is not null)
         scene.Crew = [.. (scene.Crew ?? []).Where(c => c.Id is not (Staging.JackpotFront or Staging.JackpotBack)), .. carriers];
+    // --gates 0..1 (note 847): every fortress gate's leaves held that far open, to see them swing.
+    if (args.Contains("--gates"))
+        scene.GatesHeld = Math.Clamp(Opt(args, "--gates", 0.5), 0, 1);
     // The village houses' doors (note 401), hanging open; --doors-shut: every one shut.
     if (generated is not null)
     {

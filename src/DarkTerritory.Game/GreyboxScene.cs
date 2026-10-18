@@ -434,6 +434,8 @@ public sealed partial class GreyboxScene
         CabooseTuning = train.Dynamics.Tuning.Composition.Caboose;
         SwitchThrower = train.Dynamics.Tuning.Composition.SwitchThrower;
         HandcarFrom(train);
+        // Note 847: where the train's front and rear are along the main line, for a gate the walls don't stand (a still's).
+        _trainAlong = (train.Line.MainDistance(train.Dynamics.Path, train.Dynamics.Distance), train.Line.MainDistance(train.Dynamics.Path, train.Dynamics.RearDistance));
         Build(mesh, train.Line, frames ?? train.Frames, train.Dynamics.Distance, eye);
     }
 
@@ -572,13 +574,16 @@ public sealed partial class GreyboxScene
             double yard = Run?.YardLength ?? 600, terminus = Run?.Tuning.TerminusZone ?? 400;
             Lap(mesh, "route");
             // (Where the sim stands their solids, T124.)
+            SwingGates();
             foreach (var fort in Sim.Run.Fortresses.Of(Route, line, yard, terminus))
                 // The terminus that's a town (notes 600, 692) is drawn as the departure's is, in its own frame from where that
                 // starts, the same way round: the window along it, its way out at the far end of its yard.
                 if (fort.Start > 0 && fort.Lived && Arrival is { Origin: { } origin } arrival)
-                    Fortress(mesh, arrival.Line, eye, from - origin, to - origin, 0, arrival.Plan.Gate, gateAt: arrival.Plan.Gate, town: arrival);
+                    Fortress(mesh, arrival.Line, eye, from - origin, to - origin, 0, arrival.Plan.Gate, gateAt: arrival.Plan.Gate, town: arrival,
+                        gateOpen: GateSwing(origin + arrival.Plan.Gate), rearOpen: GateSwing(origin + (arrival.Plan.Bounds?.Rear ?? 0)));
                 else
-                    Fortress(mesh, line, eye, from, to, fort.Start, fort.End, gateAt: fort.Gate, lit: fort.Lived);
+                    Fortress(mesh, line, eye, from, to, fort.Start, fort.End, gateAt: fort.Gate, lit: fort.Lived,
+                        gateOpen: GateSwing(fort.Gate), rearOpen: fort.Start == 0 && Town?.Plan.Bounds is { } walled ? GateSwing(walled.Rear) : 0);
             Photographer(mesh, line, eye);
             Lap(mesh, "fortresses and towns");
         }
@@ -3783,14 +3788,51 @@ public sealed partial class GreyboxScene
 
     /// <summary>Walls both sides, gun towers with lamps, and a gatehouse over the line.</summary>
     /// <param name="town">The town this fortress is (the terminus's, note 600); null, the departure fortress's is <see cref="Town"/>.</param>
+    // Note 847: how far each fortress gate's leaves stand open, by its key (0 shut, 1 against the passage's walls), and when
+    // they were last swung (the scene's clock).
+    readonly Dictionary<int, double> _gateSwing = [];
+    double _gateClock = double.NaN;
+
+    /// <summary>
+    /// Note 847: swings each gate's leaves toward what the walls say (<see cref="Sim.Run.StopWalls.GateOpen"/>, the Sim's own,
+    /// which the crew walk into), over run.json <c>gates.swingSeconds</c>; a gate first seen is drawn as it stands.
+    /// </summary>
+    void SwingGates()
+    {
+        double dt = double.IsNaN(_gateClock) || Time < _gateClock ? 0 : Time - _gateClock;
+        _gateClock = Time;
+        if (Walls is not { } walls)
+            return;
+        double rate = 1 / Math.Max(0.1, Run?.Tuning.Gates.SwingSeconds ?? 4);
+        foreach (int key in walls.Gates)
+        {
+            double want = walls.GateOpen(key) ? 1 : 0;
+            _gateSwing[key] = _gateSwing.TryGetValue(key, out double at) ? at + Math.Clamp(want - at, -rate * dt, rate * dt) : want;
+        }
+    }
+
+    // Note 847: the train's front and rear along the main line, as last built.
+    (double Front, double Rear) _trainAlong = (double.NaN, double.NaN);
+
+    /// <summary>
+    /// Note 847: how far the gate <paramref name="along"/> the main line stands open; where the walls don't stand it (a still
+    /// built without the forts' solids), as the Sim's rule has it for where the train is.
+    /// </summary>
+    double GateSwing(double along) => GatesHeld ?? (_gateSwing.TryGetValue(Sim.Run.Fortresses.GateKey(along), out double open) ? open
+        : Run is { } run && Sim.Run.Fortresses.Open(along, _trainAlong.Front, _trainAlong.Rear, run.Tuning.Gates) ? 1 : 0);
+
+    /// <summary>Note 847: every gate's leaves held this far open (0..1) whatever the train's doing (`dt screenshot --gates`); null, as they swing.</summary>
+    public double? GatesHeld { get; set; }
+
     void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt, bool lit = true,
-        Sim.Towns.Town? town = null)
+        Sim.Towns.Town? town = null, double gateOpen = 0, double rearOpen = 0)
     {
         if (Look is not null)
         {
             // The departure fortress is a town (note 281): its square, and its people where note 107's folk stood.
             town ??= start == 0 && lit ? Town : null;
-            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit, Time, town?.Plan.Square, town?.Plan.Bounds, town?.Ground);
+            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit, Time, town?.Plan.Square, town?.Plan.Bounds, town?.Ground,
+                gateOpen, rearOpen);
             Lap(mesh, "fortress walls");
             if (town is not null)
             {

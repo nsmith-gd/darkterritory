@@ -2239,6 +2239,11 @@ public sealed partial class World
         if (Authority)
             StepHandcar();
         Train.Step(SimConstants.TickSeconds, applied);
+        // Note 847: the fortress gates open for the train and shut behind it, from where it is now (the host and every client
+        // alike: prediction walks into the same leaves).
+        if (Run is { } gatesRun && Train.Walls is { Gates.Count: > 0 } gated)
+            gated.OpenGates(Train.Line.MainDistance(Train.Dynamics.Path, Train.Dynamics.Distance),
+                Train.Line.MainDistance(Train.Dynamics.Path, Train.Dynamics.RearDistance), gatesRun.Tuning.Gates);
         if (Authority && !Derailed)
         {
             int spared = DeadEndsSpared, path = Train.Dynamics.Path;

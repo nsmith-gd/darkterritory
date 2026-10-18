@@ -15,6 +15,9 @@ public sealed record RunTuning(double StopBelowSpeed, double TerminusZone, doubl
     /// <summary>How far short of the outer gate a night's engine starts (run.json <c>departShortOfGateM</c>).</summary>
     public double DepartShortOfGateM { get; init; } = 8;
 
+    /// <summary>The fortress gates opening for the train and shutting behind it (run.json <c>gates</c>; note 847).</summary>
+    public GateTuning Gates { get; init; } = new(40, 3, 4);
+
     /// <summary>
     /// A terminus that's a town is home once the whole train has stopped this far in through its gate (run.json
     /// <c>homeInsideGateM</c>; note 600): its yard is the departure's length, too long to crawl to the end of. Null: home is

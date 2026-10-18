@@ -114,6 +114,30 @@ public sealed partial class StopWalls
     /// <summary>Whether coaling tower <paramref name="key"/> (its facility's index + 1) has been brought down tonight.</summary>
     public bool Felled(int key) => _felled.Contains(key);
 
+    // Note 847: the fortress gates standing open (shared by every copy of these walls, as the doors are), and every gate that
+    // has leaves among these walls (in the order they were first stood).
+    HashSet<int> _gatesOpen = [];
+    readonly List<int> _gates = [];
+
+    /// <summary>Every fortress gate with leaves among these walls (<see cref="Fortresses.GateKey"/>), in the order they were stood.</summary>
+    public IReadOnlyList<int> Gates => _gates;
+
+    /// <summary>Whether gate <paramref name="key"/> (<see cref="Fortresses.GateKey"/>) stands open: its leaves aren't in the way.</summary>
+    public bool GateOpen(int key) => _gatesOpen.Contains(key);
+
+    /// <summary>
+    /// Note 847: opens the gates the train's at and shuts the rest (<see cref="Fortresses.Open"/>), from its front and rear along
+    /// the main line. From the train's place alone, so the host and every client that has the train there stand the same
+    /// leaves. True if any gate changed.
+    /// </summary>
+    public bool OpenGates(double front, double rear, GateTuning t)
+    {
+        bool changed = false;
+        foreach (int key in _gates)
+            changed |= Fortresses.Open(Fortresses.GateAlong(key), front, rear, t) ? _gatesOpen.Add(key) : _gatesOpen.Remove(key);
+        return changed;
+    }
+
     // The drawn tower's dimensions (facility_pieces.py coaling_tower; StructureKit stands it TowerOut off the line). Not
     // design numbers: the model's.
     const double TowerOut = 7, TowerHalfAlong = 4.5, TowerHalfAcross = 3.5, TowerTop = 12, FaceHalf = 0.3;
