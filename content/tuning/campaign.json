@@ -150,10 +150,10 @@
       "line": "Armour glass and a grille at the cab windows. Full sight of the line; a Climber is held at the glass before it's through." },
     // Armour II and III (upgrades.md §8.2; "the conversion repeatable"): one more car plated each, a rank at a time, from the
     // tier whose Climbers and Draggers they answer. "requires" names the rank before.
-    { "id": "armouredCar2", "name": "Armour II", "size": "major", "costShare": 1.4, "fromTier": "deadLines", "requires": [ "armouredCar" ], "effect": { "armouredCars": 1 },
+    { "id": "armouredCar2", "name": "Armour rank 2", "size": "major", "costShare": 1.4, "fromTier": "deadLines", "requires": [ "armouredCar" ], "effect": { "armouredCars": 1 },
       "line": "Plate on the next car back. Needs the first conversion." },
-    { "id": "armouredCar3", "name": "Armour III", "size": "major", "costShare": 1.6, "fromTier": "deepTerritory", "requires": [ "armouredCar2" ], "effect": { "armouredCars": 1 },
-      "line": "Plate on a third car. Needs Armour II." },
+    { "id": "armouredCar3", "name": "Armour rank 3", "size": "major", "costShare": 1.6, "fromTier": "deepTerritory", "requires": [ "armouredCar2" ], "effect": { "armouredCars": 1 },
+      "line": "Plate on a third car. Needs armour rank 2." },
 
     // Whimsy (note 678): it works, and it's funny. A real use and a joke in the same purchase.
     // The whistle swapped for a clown's bulb horn: a third as loud to the Choir (combat.json choir.whistleLoudness; it still
