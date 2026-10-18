@@ -839,13 +839,21 @@ public sealed record CurveTuning
     public double AtGate { get; init; } = 2;
     public double AtEnd { get; init; } = 14;
     public double SpacingSeconds { get; init; } = 20;
+    public double CrewFade { get; init; } = 0.2;
+    public int CrewFadeFrom { get; init; } = 2;
+    public double CrewFloor { get; init; } = 0.5;
     public bool AfterFirst { get; init; } = true;
     public double Bound { get; init; } = 1;
     public Dictionary<string, double> Kinds { get; init; } = new();
     /// <summary>The curve at <paramref name="progress"/> (0..1 into the night): progress to the power.</summary>
     public double Of(double progress) => DMath.Pow(Math.Clamp(progress, 0, 1), Power);
-    /// <summary>Free spawns an hour where the curve stands at <paramref name="curve"/>.</summary>
-    public double PerHour(double curve) => AtGate + (AtEnd - AtGate) * curve;
+    /// <summary>Free spawns an hour where the curve stands at <paramref name="curve"/>, for a crew of <paramref name="crew"/>.</summary>
+    public double PerHour(double curve, int crew = 1) => (AtGate + (AtEnd - AtGate) * curve) * Fade(crew);
+    /// <summary>
+    /// The crew's share of the curve: the whole of it for a crew of <see cref="CrewFadeFrom"/> or fewer, <see cref="CrewFade"/>
+    /// less for each crewmate over that, never under <see cref="CrewFloor"/> (a bigger crew's pressure already scales with it).
+    /// </summary>
+    public double Fade(int crew) => Math.Max(CrewFloor, 1 - CrewFade * Math.Max(0, crew - CrewFadeFrom));
 }
 
 /// <summary>

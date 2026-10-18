@@ -70,6 +70,13 @@ public class NightCurveTests
         Assert.Equal(14, D.Curve.AtEnd);
         Assert.Equal(14, D.Curve.PerHour(1));
         Assert.Equal(2, D.Curve.PerHour(0));
+        // By the crew: the whole curve for one or two, 0.2 less a crewmate over that, never under half.
+        Assert.Equal(1, D.Curve.Fade(1));
+        Assert.Equal(1, D.Curve.Fade(2));
+        Assert.Equal(0.8, D.Curve.Fade(3), 9);
+        Assert.Equal(0.6, D.Curve.Fade(4), 9);
+        Assert.Equal(0.5, D.Curve.Fade(8), 9);
+        Assert.Equal(14 * 0.6, D.Curve.PerHour(1, 4), 9);
     }
 
     [Fact]

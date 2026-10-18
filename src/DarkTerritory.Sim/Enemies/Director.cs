@@ -755,7 +755,7 @@ public sealed class Director
         if (f.AfterFirst && _t.Draw.Enabled && First is null)
             return null;
         // Rolled every second it may come, before anything else is asked, so what held it doesn't move the night's dice.
-        bool fires = _freeRng.NextDouble() < f.PerHour(Curve) / 3600;
+        bool fires = _freeRng.NextDouble() < f.PerHour(Curve, Math.Max(1, Active)) / 3600;
         if (!fires || _sinceAny < f.SpacingSeconds)
             return null;
         var holding = Holding(world, active);
