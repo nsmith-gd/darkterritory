@@ -78,7 +78,7 @@ only see what's on main here. The role, and how to start one on another account,
 |---|---|---|---|---|---|
 | nathaniel2 | 99 | Wed 21 Oct 20:00 | 5 | **LIMITED until Wed 21 Oct 20:00 UTC** (99%). No worker running; everything it had is merged or `open for pick-up`. The 16 Oct evening playtest (`docs/playtest/2026-10-16-evening.md`, the first two-player night) is the next work: anyone's | 2026-10-17 11:35 |
 | nathaniel1 | 99 | Sun 18 Oct 17:00 | 0 (resets 17:00 UTC) | LIMITED until the weekly reset (Sun 18 Oct 17:00 UTC): weekly 99%, no worker active (U1 stopped for the week, #1136); its items are `open for pick-up` | 2026-10-18 12:10 |
-| nathaniel3 | 3 | Sun 25 Oct 03:00 | 2 (resets 13:30 UTC) | ACTIVE: its Token Budget Manager started 12:25 UTC (session `claude/great-euler-663db5`); holds build duty; starting workers on the 16 Oct playtests' open lines (`docs/playtest/2026-10-16.md`, `-evening.md`) | 2026-10-18 12:30 |
+| nathaniel3 | 12 | Sun 25 Oct 03:00 | 57 (resets 13:30 UTC) | ACTIVE: four workers (H1-H4, queue #577-#580) on the 16 Oct playtests' open lines since 12:31 UTC; H2's part 1 in review ([#1221](https://github.com/nsmith-gd/darkterritory/pull/1221)). Burning fast: 9 weekly points in the first 37 minutes with four workers; at that pace the week is gone by Tue 20 Oct, so the workers are told to checkpoint before each 5-hour reset and nothing new starts without the director. Holds build duty (the 18 Oct 7 am build dispatched by hand, run 28 green) | 2026-10-18 13:05 |
 
 - **State:** ACTIVE (working); PAUSED until *time* (the 5-hour limit: its sessions are waiting with their work intact, so
   its items aren't abandoned: don't take them); LIMITED until *weekly reset* (the weekly limit: its items are handed off).
