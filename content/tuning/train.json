@@ -435,6 +435,8 @@
     // Spec A.5: the radio "dies in tunnels and mine spurs". It still carries this far in, from a tunnel's mouth or a mine
     // spur's points (m): none, until the campaign's radio range adds to it (campaign.json, F.3; note 196).
     "radioReach": 0,
+    // Note 678's grab irons (campaign.json): the multiple of player.json ladder.grabMaxRelativeSpeed a ladder is caught at.
+    "grabIrons": 1,
     // GDD §23 "radio breaks" (note 183): a radio on your belt smashes with this chance per point of damage you take, plus
     // radioBreakOnGrab when something grabs you (note 749, App. C.8: 0, a grab never breaks the set; the broadcast is the
     // point. It was 0.25). Broken, it's still worn but off the air. Note 200: the repair kit mends

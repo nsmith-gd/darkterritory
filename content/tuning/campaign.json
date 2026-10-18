@@ -131,6 +131,10 @@
     // half the front car's damage from striking it, heavy or minor. It's the plough on the front of the engine (upgrades.md §8.2).
     { "id": "cowcatcher", "name": "Cowcatcher", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "debrisDamage": 0.5 },
       "line": "A plough on the engine's front. Debris struck on the line costs half." },
+    // The ladders (player.json ladder.grabMaxRelativeSpeed, 3.5 m/s): caught from the ground at a third more speed, so a
+    // crewmate left behind has a longer chase to make. Extra irons on every ladder's foot.
+    { "id": "grabIrons", "name": "Grab irons", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "grabIrons": 1.3333333333 },
+      "line": "Extra irons at every ladder's foot. A ladder caught from the ground at a third more speed." },
     // The feedwater heater (upgrades.md): retired with the cold (note 852): the cold took nothing off the boiler to give back.
     // More creatures at the rear and flanks each tier down: a reload step in 1.2 s, not 1.5.
     { "id": "gunRammers", "name": "Gun rammers", "size": "small", "costShare": 0.25, "fromTier": "deadLines", "effect": { "reload": 0.8 },

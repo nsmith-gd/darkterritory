@@ -559,6 +559,8 @@ public static class Campaign
                     "fragile" when l.Train.Fragile is { } f => l with { Train = l.Train with { Fragile = f with { ShockShare = f.ShockShare * k, BrakeShockPerSecond = f.BrakeShockPerSecond * k } } },
                     // The cowcatcher: what striking debris on the line costs the front car, heavy or minor, k times.
                     "debrisDamage" when l.Enemies is { } e => l with { Enemies = e with { Sleepers = e.Sleepers with { HeavyDamage = e.Sleepers.HeavyDamage * k, MinorDamage = e.Sleepers.MinorDamage * k } } },
+                    // The grab irons: a ladder caught from the ground at k times the speed (the player's own tuning stays the base).
+                    "grabIrons" => l with { Train = l.Train with { Kit = l.Train.Kit with { GrabIrons = l.Train.Kit.GrabIrons * k } } },
                     "boardUp" => l with { Train = l.Train with { Breach = l.Train.Breach with { BoardSeconds = l.Train.Breach.BoardSeconds * k } } },
                     "radios" => l with { Train = l.Train with { Kit = l.Train.Kit with { Radios = l.Train.Kit.Radios + (int)Math.Round(k) } } },
                     "accel" => l with { Train = l.Train with { Performance = [.. l.Train.Performance.Select(r => r with { Accel = r.Accel * k })] } },
