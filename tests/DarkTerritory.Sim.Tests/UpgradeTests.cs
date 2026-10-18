@@ -102,6 +102,19 @@ public class UpgradeTests
     }
 
     [Fact]
+    public void ArmourIIAndIIIAreRanksOfTheConversion()
+    {
+        // Each plates one more car than the last: three fitted, three plated; and a rank needs the one before it.
+        Assert.Equal(Tuning.Train.Composition.ArmouredCars + 3, With("armouredCar", "armouredCar2", "armouredCar3").Train.Composition.ArmouredCars);
+        var s = Campaign.Campaign.New(C, 1, "t", 1) with { Cars = 20, Scrip = 1e9 };
+        Assert.Contains("armoured car conversion", Campaign.Campaign.BuyUpgrade(C, s, "armouredCar2").Refused, StringComparison.OrdinalIgnoreCase);
+        s = Campaign.Campaign.BuyUpgrade(C, s, "armouredCar").State;
+        Assert.False(Campaign.Campaign.BuyUpgrade(C, s, "armouredCar3").Ok);
+        s = Campaign.Campaign.BuyUpgrade(C, s, "armouredCar2").State;
+        Assert.True(Campaign.Campaign.BuyUpgrade(C, s, "armouredCar3").Ok);
+    }
+
+    [Fact]
     public void TheCataloguesPricesKeepSpecF3sBands()
     {
         // Spec F.3: a small tool 15-25% of the next car, a major 100-180%. The whimsy sits under a tool; the silly may be

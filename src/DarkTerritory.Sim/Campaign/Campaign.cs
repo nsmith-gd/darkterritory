@@ -69,6 +69,8 @@ public sealed record UpgradeDef(string Id, string Name, UpgradeSize Size, double
     public UpgradeKind Kind { get; init; }
     public RouteTier FromTier { get; init; }
     public string[] Excludes { get; init; } = [];
+    /// <summary>What has to be fitted first (armour II needs the conversion, III needs II): ranks of one upgrade.</summary>
+    public string[] Requires { get; init; } = [];
     public string? Line { get; init; }
     public string? Tally { get; init; }
 }
@@ -329,6 +331,9 @@ public static class Campaign
     {
         if (TierFor(t, s.Cars) < u.FromTier)
             return $"{u.Name} is stocked for {TierWords(u.FromTier)} work: a train of {t.Tiers.Where(x => x.Tier == u.FromTier).Select(x => x.FromCars).DefaultIfEmpty(0).First()} cars";
+        foreach (var need in u.Requires)
+            if (!s.Upgrades.Contains(need))
+                return $"{u.Name} needs the {t.Upgrades.FirstOrDefault(o => o.Id == need)?.Name.ToLowerInvariant() ?? need} first";
         foreach (var other in s.Upgrades)
             if (other != u.Id && t.Upgrades.FirstOrDefault(o => o.Id == other) is { } o && (u.Excludes.Contains(other) || o.Excludes.Contains(u.Id)))
                 return $"{u.Name} won't go with the {o.Name.ToLowerInvariant()}";
