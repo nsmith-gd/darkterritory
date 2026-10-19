@@ -23,6 +23,12 @@ permissions:
 concurrency:
   group: music-intake-${{ github.ref }}
   cancel-in-progress: false
+# Queue #591 (note 864): the test platform's telemetry off. At a test host's shutdown its ApplicationInsights flush is a
+# synchronous send with a 100 s timeout, and on a runner slow to reach the endpoint it held the host past xunit's 11 s, which
+# then failed it ("Foreground threads were left running", whichever test project; Windows mostly).
+env:
+  TESTINGPLATFORM_TELEMETRY_OPTOUT: 1
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
 jobs:
   intake:
     runs-on: ubuntu-latest
