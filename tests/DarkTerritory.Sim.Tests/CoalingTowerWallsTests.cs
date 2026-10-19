@@ -67,6 +67,19 @@ public class CoalingTowerWallsTests
     }
 
     [Fact]
+    public void NothingStandsOffItsBackButItsFootings()
+    {
+        // Note 869 (the director's playtest of 19 Oct line 8: "Ladder on the coaling tower but can't climb it?"): no ladder up
+        // its back, drawn or stood; nothing of it reaches past its far face but a footing's corner.
+        var world = Night(Tower.Start - 2000);
+        var (mid, outward, _) = Where(world.Train);
+        var walls = world.Train.Walls!.All.Where(w => w.Tower > 0 && ((w.Centre - mid) with { Y = 0 }).Length < 20).ToList();
+        Assert.Equal(8, walls.Count); // its four faces and four footings
+        foreach (var w in walls)
+            Assert.True(Double3.Dot((w.Centre - mid) with { Y = 0 }, outward) <= 7 + 3.5 + 0.01, "a wall off the trestle's back");
+    }
+
+    [Fact]
     public void NoTreeStandsInTheTrestle()
     {
         var world = Night(Tower.Start - 2000);

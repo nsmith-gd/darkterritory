@@ -79,6 +79,9 @@ return args switch
     ["line", "info", var name, ..] => Print(LineInfo(LoadLine(name), Opt(args, "--every", 100))),
     ["line", "drive", var name, ..] => Print(Drive(train, LoadLine(name), (int)Opt(args, "--cars", 3), Opt(args, "--start", -1), Opt(args, "--from", 0), Opt(args, "--throttle", 1), (int)Opt(args, "--seconds", 120))),
     ["art", "check", ..] => ArtCheck(train, content, args),
+    // dt art closed [--only a,b] [--over 0.05]: how much of each kit piece's inside shows from outside it (note 869, the back
+    // faces the renderer culls where a kit left a side out), worst first; non-zero if any is over the share.
+    ["art", "closed", ..] => ArtClosed(train, content, args),
     // dt art houses [--character cove|lunenburg|shelburne|farm|company|mixed] [--count n] [--seed n] [--kind lived|boarded|empty|burnt]:
     // a lineup of a town character's houses as the towns draw them (note 281), to judge their variety at a glance.
     ["art", "houses", ..] => Print(ArtHouses(content, args)),
@@ -2917,6 +2920,21 @@ static int ArtCheck(TrainTuning t, string content, string[] args)
     var textures = look.Textures.Select(x => x.Name).ToHashSet();
     Print(new { pieces = rows, textures = textures.Count, over = rows.Where(r => r.over).Select(r => r.piece) });
     return rows.Any(r => r.over) ? 1 : 0;
+}
+
+// How much of each kit piece's inside shows from outside it (note 869; MeshOpenness), worst first.
+static int ArtClosed(TrainTuning t, string content, string[] args)
+{
+    var look = DarkTerritory.Game.Look.Load(content);
+    var only = Str(args, "--only", "") is { Length: > 0 } names ? names.Split(',').ToHashSet() : null;
+    double over = Opt(args, "--over", 0.05);
+    var rows = DarkTerritory.Game.Art.ArtCatalog.Entries(look, t).Where(e => only is null || only.Contains(e.Name)).Select(e =>
+    {
+        var (inside, hits, worst) = DarkTerritory.Game.Art.MeshOpenness.SeenInside(e.Make());
+        return new { piece = e.Name, inside = Math.Round(inside, 3), hits, from = new[] { Math.Round(worst.X, 2), Math.Round(worst.Z, 2) } };
+    }).OrderByDescending(r => r.inside).ToList();
+    Print(new { over, open = rows.Where(r => r.inside > over).Select(r => r.piece), pieces = rows });
+    return rows.Any(r => r.inside > over) ? 1 : 0;
 }
 
 // What each lineside kit piece stands on (note 389), as content/linegen/footprints.json has it: one variant a line.

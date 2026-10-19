@@ -603,8 +603,10 @@ public static class StructureKit
         // The wicket's span out from the hinge, and its height (the Sim's opening).
         float w0 = reach + (float)Sim.Run.Fortresses.WicketLo, w1 = reach + (float)Sim.Run.Fortresses.WicketHi, wh = (float)Sim.Run.Fortresses.WicketHeight;
         // A span out from the hinge (0 at it, reach at the line) as a box in the piece, toward the line.
+        // (Its least and most x either side: the left leaf's, −side × a, runs the other way, and a box given its ends the
+        // wrong way round is built inside out, its faces turned in and culled; note 869.)
         void Span(float a, float b, float y0, float y1, float thick) =>
-            k.Box(new Vector3(-side * Math.Max(a, b), y0, -thick), new Vector3(-side * Math.Min(a, b), y1, thick));
+            k.Box(new Vector3(MathF.Min(-side * a, -side * b), y0, -thick), new Vector3(MathF.Max(-side * a, -side * b), y1, thick));
         // Heavy timber, banded with iron: it reads against the stone of the passage round it.
         k.Use("wood_sleeper", Palette.DeepBrown, 0.85f, 0.05f);
         if (wicket)

@@ -966,10 +966,12 @@ public static class TownFixtures
     /// </summary>
     public static IEnumerable<(double HalfS, double HalfD, double Bottom, double Top)> HeapLayers(double halfS, double halfD, double height, double step)
     {
-        int layers = Math.Max(1, (int)Math.Ceiling(height / Math.Max(0.05, step * 0.9)));
+        // Up to its peak (a little under its height: the art's mound rounds off there).
+        double peak = HeapHeight(height, 0);
+        int layers = Math.Max(1, (int)Math.Ceiling(peak / Math.Max(0.05, step * 0.9)));
         for (int i = 0; i < layers; i++)
         {
-            double below = height * i / layers, top = height * (i + 1) / layers;
+            double below = peak * i / layers, top = peak * (i + 1) / layers;
             // How far out the heap still stands higher than the layer below's top.
             double lo = 0, hi = 1;
             for (int k = 0; k < 30; k++)
@@ -977,9 +979,9 @@ public static class TownFixtures
                 double mid = (lo + hi) / 2;
                 (lo, hi) = HeapHeight(height, mid) > below ? (mid, hi) : (lo, mid);
             }
-            // The cross inscribed in that ellipse: (0.9, 0.45) and (0.45, 0.9) of it.
-            yield return (halfS * lo * 0.9, halfD * lo * 0.45, below, top);
-            yield return (halfS * lo * 0.45, halfD * lo * 0.9, below, top);
+            // The cross inscribed in that ellipse: (0.88, 0.44) and (0.44, 0.88) of it, its corners just inside.
+            yield return (halfS * lo * 0.88, halfD * lo * 0.44, below, top);
+            yield return (halfS * lo * 0.44, halfD * lo * 0.88, below, top);
         }
     }
 }
