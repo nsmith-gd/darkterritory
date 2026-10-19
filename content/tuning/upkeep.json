@@ -77,7 +77,7 @@
     "jump": {
       "enabled": true,
       "minCrew": 2,
-      "above": 13,
+      "above": 12,
       "perMinute": 0.25,
       "after": 180,
       "spacing": 300,

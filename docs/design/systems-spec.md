@@ -518,7 +518,7 @@ A car fire burns on cells (decided 6 Oct, GDD App. F.1; ARCHITECTURE note 267). 
 | Parameter | Value |
 |---|---|
 | **Crew** | **2** or more alive; never on a night of one |
-| When | running at **13 m/s** or more, a **0.25** chance each minute; none in the first **180 s**, none within **300 s** of the last |
+| When | running at **12 m/s** or more, a **0.25** chance each minute; none in the first **180 s**, none within **300 s** of the last |
 | Hands | one holding the pin in the gap (Use, bare hands) **and** one taking the slack off: a brake wheel over the gap held, or the throttle shut by one in the cab (or the train stood) |
 | **Home** | both on it **4 s** |
 | **Let go** | once both have hold, either off it **0.3 s** parts it there and then |
