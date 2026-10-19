@@ -467,16 +467,18 @@ sealed partial class LineBuilder
         // hazards, or fewer stops"): the 7 km night's free stretches are short (450 m to 1 km between the threshold, the
         // facilities' fixed zones and the windows), and the every-so-often above rarely fell in one with room after its first
         // connector: one night in twelve had a settlement on the main line. So, up to deadSettlement's perNight a night, a
-        // stretch with spare room takes one at its start, leadM in (a village stands clear of a yard's zone), out of what its
-        // hazards, signatures and quotas leave it (Owed): what's handed out keeps its room, and the night its length.
+        // stretch with spare room takes one at its start, out of what its hazards, signatures and quotas leave it (Owed): what's
+        // handed out keeps its room, and the night its length. leadM in after a facility (a village stands clear of a yard's
+        // zone); with nothing else owed it may run to the stretch's end (the next stop's straight approach is its run-out).
         var dead = Def("deadSettlement");
         if (_settlements < (int)dead.Param("perNight") && st.Window is null && !st.Spike && first.Chain is null)
         {
-            double lead = dead.Param("leadM"), after = Math.Min(200, RecoveryLength());
-            double spare = end - s - Owed(queue) - lead;
+            double lead = st.AfterFacility ? dead.Param("leadM") : 0, after = Math.Min(200, RecoveryLength());
+            double spare = end - s - Owed(queue) - lead + (queue.Count == 0 ? after : 0);
             if (spare >= dead.Param("haltM") + after && Settlement(s + lead, spare, ref rng) is { } halt)
             {
-                list.Add(Connector(s, s + lead, st, ref rng));
+                if (lead > 0)
+                    list.Add(Connector(s, s + lead, st, ref rng));
                 s += lead;
                 Place([halt], list, ref s, ref budget);
                 _settlements++;
