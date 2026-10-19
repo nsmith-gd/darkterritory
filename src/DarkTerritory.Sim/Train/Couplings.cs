@@ -259,7 +259,7 @@ public sealed class Couplings(LooseTuning tuning, ulong seed)
             return (pinner, pinner, SlackOff.Standing);
         int behind = train.VehicleBehind(car);
         foreach (var (id, s, intent) in order)
-            if (id != pinner && intent.Has(PlayerButtons.Use) && (s.Surface == Surface.Roof || hand is not null)
+            if (id != pinner && intent.Has(PlayerButtons.Use) && (s.Surface == Surface.Roof || hand is not null && s.Hand != default)
                 && CrewActions.NearestInteractable(s, train, hand) is { Thing.Kind: InteractableKind.Handbrake, Vehicle: var wheel }
                 && (wheel == car || wheel == behind))
                 return (pinner, id, SlackOff.Brake);

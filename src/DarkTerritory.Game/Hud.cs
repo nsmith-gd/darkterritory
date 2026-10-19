@@ -2566,7 +2566,7 @@ public static partial class Hud
         // Note 865: a jumped pin, held down by hand; it goes home only while a second takes the slack off it, and the prompt says so.
         if (train.Loose is { Enabled: true } jt && Couplings.Within(p, train, jt) is { } jumped && train.Vehicles[jumped].LooseCause == LooseCause.Jumped)
             return train.Vehicles[jumped].Pinned ? Hold("DRIVE THE PIN HOME", p.ActionProgress / jt.Jump.DriveSeconds)
-                : "HOLD THE PIN : HOLD [E]   TAKES TWO: A HAND ON THE BRAKE WHEEL ABOVE, OR THE THROTTLE SHUT";
+                : "HOLD THE PIN : HOLD [E]   TAKES TWO: BRAKE WHEEL OR THROTTLE SHUT";
         // A loose coupling (note 356): the wrench in the gap tightens it; without it in hand, the key that puts it there.
         if (train.Loose is { Enabled: true } lt && Couplings.Within(p, train, lt) is not null)
             return Couplings.Tightens(p, train) ? Hold("TIGHTEN THE COUPLING", p.ActionProgress / lt.TightenSeconds)
