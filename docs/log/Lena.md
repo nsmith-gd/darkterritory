@@ -7,3 +7,4 @@
 2026-10-19 19:35 UTC · Lena · line 1: the heaps ridged, gullied, lumped, textured by facing; the slag's glow runs down its slope. Line 4: six stall forms × three colourings dealt so neighbours differ; two facing rows across an aisle, staggered (towns.json `marketAisle` 3.4, `marketJitter` 0.5, new tuning); pushed ab66914
 2026-10-19 19:50 UTC · Lena · note 870 and its Handoff written; the playtest's lines 1, 3, 4, 5 and the queue row set to in review
 2026-10-19 19:45 UTC · Lena · TownsfolkTests caught a second-row stall on a small town's green: Market keeps off it; Town* 136/136. The heap kept inside its footprint; its new shape sent to Wade (#596 layers the slag's walls by its profile)
+2026-10-19 21:15 UTC · Lena · agreed with Wade (#596) how the slag's layered walls follow the new heap shape, whichever lands second (note 870's handoff); PR #1304 opened by the Token Budget Manager
