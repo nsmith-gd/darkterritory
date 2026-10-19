@@ -1223,9 +1223,15 @@
     // the Knotter: "They should show up once or twice a run. Sometimes never. We need more monster variety." Every kind's
     // chance is the director's roster on the Creature Tweaker (note 652, 13 Oct).
     "perNight": { "knotter": 2 },
-    // The most of any kind perNight doesn't name (note 654): null, no cap. For the director's D1-roster-piles-up: with few
-    // kinds about on a night (nightChance), those about come again and again (note 652); this holds each to a few.
-    "perNightDefault": null,
+    // The most of any kind perNight doesn't name (note 654; null is no cap). On at 3 (note 863; the director, 19 Oct: "turn
+    // on the 3-a-night creature cap"): with few kinds about on a night (nightChance), those about came again and again
+    // (note 652, D1-roster-piles-up); this holds each to three. It counts the director's sends (the pressure's, the free
+    // spawns and the fill alike), the Stoker, the house creatures and the Pickers' groups; the line's own (the lineside
+    // moose, the hound runs, the truss Draggers) stop at it but don't count toward it. A kind's own perNight wins (the Knotter's 2).
+    "perNightDefault": 3,
+    // A pack the director sends (Cinder Hounds, Ribbits, Climbers) counts once toward its kind's cap (note 863; the spec
+    // doesn't say); false counts each of its members.
+    "packCountsOnce": true,
     "nightChance": { "knotter": 0.66, "hotbox": 0.4, "brakeman": 0.6, "climbers": 0.35, "draggers": 0.65,
       "cinderHounds": 0.7, "fireFlies": 0.42, "carHugger": 0.51, "whistler": 0.65, "trackDoll": 0.22,
       "tippyToesie": 0.7, "stoker": 0.4, "followers": 0.66, "ribbits": 0.66, "gaunt": 0.21,

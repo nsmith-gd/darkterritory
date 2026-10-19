@@ -85,7 +85,13 @@ public sealed class SpawnContext(World world, EnemyTuning tuning, Director direc
     }
 
     public int NextId => World.NextEnemyId;
-    public T Add<T>(Func<int, T> make) where T : Enemy => World.AddEnemy(make);
+    /// <summary>How many enemies this spawn put into the world (a pack's members; note 863's <see cref="DirectorTuning.PackCountsOnce"/>).</summary>
+    public int Added { get; private set; }
+    public T Add<T>(Func<int, T> make) where T : Enemy
+    {
+        Added++;
+        return World.AddEnemy(make);
+    }
 }
 
 /// <summary>

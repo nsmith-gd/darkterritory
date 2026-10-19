@@ -140,6 +140,45 @@ public class NightCurveTests
     }
 
     [Fact]
+    public void TheNightsCapHoldsTheFreeSpawnsTheFillAndThePressuresSpends()
+    {
+        // Note 863 (the director, 19 Oct: "turn on the 3-a-night creature cap"): two hours late in the night, the free
+        // channel alone and then the pressure spending (and filling) beside it, every kind about; none past its cap.
+        var every = D with { NightChance = [] };
+        var free = Plain(Curved() with { Director = Curved().Director with { NightChance = [] } }, at: 19_000);
+        var spends = Plain(Tuning.Enemies with { Director = every }, at: 19_000);
+        foreach (var world in new[] { free, spends })
+        {
+            var d = world.Director!;
+            Think(world, 7_200);
+            Assert.NotEmpty(d.Log);
+            foreach (var kind in d.Log.Select(l => l.Kind).Distinct())
+                Assert.True(d.SentTonight(kind) <= D.CapFor(Director.Key(kind)), $"{kind}: {d.SentTonight(kind)} sent");
+        }
+        Assert.Contains(spends.Director!.Log, l => !l.Free);
+    }
+
+    [Fact]
+    public void APackCountsOnceTowardItsKindsCap()
+    {
+        // Note 863: the spec doesn't say how a pack counts; one send is one of the night's few (packCountsOnce), or with it
+        // off each of its members.
+        Assert.True(D.PackCountsOnce);
+        var world = Plain(Curved(), at: 19_000);
+        var ctx = new SpawnContext(world, world.Enemies!, world.Director!) { Free = true };
+        Assert.True(Spawns.For(EnemyKind.Climber)!.Spawn(ctx));
+        Assert.InRange(ctx.Added, 2, 3);
+        foreach (bool once in new[] { true, false })
+        {
+            var d = new Director(D with { PackCountsOnce = once, NightChance = [] }, null, 1, 6, 4);
+            d.Log.Add(new DirectorSpawn(0, EnemyKind.CinderHound, 2, 0, 0, 0));
+            d.Spawned(EnemyKind.CinderHound, 4);
+            Assert.Equal(once ? 1 : 4, d.SentTonight(EnemyKind.CinderHound));
+            Assert.Equal(once, d.Tonight(EnemyKind.CinderHound, world));
+        }
+    }
+
+    [Fact]
     public void NothingComesFreeBeforeTheNightsFirstThreatNorWithTheCurveOff()
     {
         Assert.True(D.Curve.AfterFirst && D.Draw.Enabled);
@@ -159,8 +198,9 @@ public class NightCurveTests
     public void ThePressureSpendsOnTheRuleLessWhenNoRuleFits()
     {
         Assert.True(D.Curve.Fill && D.Curve.FillPressed);
-        // The pressure as it is (it spends), the free spawns of their own off: whatever comes is the fill.
-        var filling = Tuning.Enemies with { Director = D with { Curve = D.Curve with { Free = false }, NightChance = OnlyTheFree } };
+        // The pressure as it is (it spends), the free spawns of their own off: whatever comes is the fill. The night's cap
+        // off too (note 863): ten minutes of fill takes each kind past three, and the pressure then stays pressed (below).
+        var filling = Tuning.Enemies with { Director = D with { Curve = D.Curve with { Free = false }, NightChance = OnlyTheFree, PerNightDefault = null } };
         var world = Plain(filling, at: 10_000);
         var d = world.Director!;
         var sent = Think(world, 600);
@@ -174,6 +214,11 @@ public class NightCurveTests
         var off = Plain(filling with { Director = filling.Director with { Curve = filling.Director.Curve with { Fill = false } } }, at: 10_000);
         Assert.Empty(Think(off, 600));
         Assert.Equal("nothing fits", off.Director!.HeldBecause);
+        // With the cap on, the fill stops at three of each, and what's left is the pressure, pressed, with nothing to send.
+        var capped = Plain(filling with { Director = filling.Director with { PerNightDefault = 3 } }, at: 10_000);
+        var fills = Think(capped, 600);
+        Assert.All(fills.GroupBy(k => k), g => Assert.True(g.Count() <= 3, $"{g.Key} ×{g.Count()}"));
+        Assert.True(fills.Count < sent.Count, $"{fills.Count} capped against {sent.Count}");
     }
 
     [Fact]

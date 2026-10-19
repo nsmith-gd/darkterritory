@@ -97,7 +97,20 @@ public sealed class Director
         Spawns.Rules.Any(r => Allows(r.Kind) && Tonight(r.Kind, world) && !world.Slain.Contains(r.Kind) && SentTonight(r.Kind) == 0);
 
     /// <summary>How many of <paramref name="kind"/> have come tonight: the director's sends and those come their own way.</summary>
-    public int SentTonight(EnemyKind kind) => Log.Count(l => l.Kind == kind) + _ownWay.GetValueOrDefault(kind);
+    public int SentTonight(EnemyKind kind) => Log.Count(l => l.Kind == kind) + _ownWay.GetValueOrDefault(kind)
+        + (_t.PackCountsOnce ? 0 : _packExtra.GetValueOrDefault(kind));
+
+    readonly Dictionary<EnemyKind, int> _packExtra = [];
+
+    /// <summary>
+    /// The director's send of <paramref name="kind"/> put <paramref name="members"/> into the world: past the first, counted
+    /// against its cap only with <see cref="DirectorTuning.PackCountsOnce"/> off (note 863).
+    /// </summary>
+    public void Spawned(EnemyKind kind, int members)
+    {
+        if (members > 1)
+            _packExtra[kind] = _packExtra.GetValueOrDefault(kind) + members - 1;
+    }
 
     /// <summary>
     /// What tonight's sends so far make of <paramref name="kind"/>'s weight (note 742): ×<see cref="DirectorTuning.UnseenWeight"/>

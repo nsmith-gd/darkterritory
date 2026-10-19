@@ -745,6 +745,11 @@ public sealed record DirectorTuning(
     /// kinds about on a night, those about come again and again, note 652); null, no cap.
     /// </summary>
     public int? PerNightDefault { get; init; }
+    /// <summary>
+    /// A pack the director sends (a Cinder Hound pack, the Ribbits, the Climbers) counts once against its kind's night cap
+    /// (note 863: the spec doesn't say; one send, one of the night's few); false counts each of its members.
+    /// </summary>
+    public bool PackCountsOnce { get; init; } = true;
     /// <summary>The kind's most a night: its own (<see cref="PerNight"/>), else <see cref="PerNightDefault"/>; null, none.</summary>
     public int? CapFor(string key) => PerNight.TryGetValue(key, out int cap) ? cap : PerNightDefault;
     /// <summary>

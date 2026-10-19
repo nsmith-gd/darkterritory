@@ -85,9 +85,12 @@ public class NightCallsTests
     [Fact]
     public void ADefaultCapHoldsEveryKindWithoutItsOwn()
     {
-        // Note 654 (the director's D1-roster-piles-up): off, nothing but the named caps; on, each kind not named stops at it,
-        // the house creatures counted as the director's own are, and a kind's own cap still wins (the Knotter's 2 over 1).
-        Assert.Null(E.Director.PerNightDefault);
+        // Note 654 (the director's D1-roster-piles-up), on at 3 since note 863 (the director, 19 Oct: "turn on the 3-a-night
+        // creature cap"): each kind not named stops at it, the house creatures counted as the director's own are, and a
+        // kind's own cap still wins (the Knotter's 2 over 3, and over 1 here).
+        Assert.Equal(3, E.Director.PerNightDefault);
+        Assert.Equal(2, E.Director.CapFor("knotter"));
+        Assert.Equal(3, E.Director.CapFor("cinderHounds"));
         var n = new Night(dawn: 3600);
         var d = new Director(E.Director with { PerNight = new() { ["knotter"] = 2 }, PerNightDefault = 1, NightChance = [] }, null, 1, 6, 4);
         Assert.True(d.Tonight(EnemyKind.Dragger, n.World));
