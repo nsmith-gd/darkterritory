@@ -149,7 +149,7 @@ public static class Balance
             checks.Add(new BalanceCheck($"stops shared (≥ {t.Shared.StopsWithShared:P0} with a problem for two)", share >= t.Shared.StopsWithShared,
                 $"{share:P0} of {stops} stops", Advisory: true));
         }
-                int unfair = rows.Sum(r => r.FairnessViolations);
+        int unfair = rows.Sum(r => r.FairnessViolations);
         checks.Add(new BalanceCheck("fair (App. A.1)", unfair == 0, $"{unfair} commits without the reaction window"));
         return new BalanceReport(rows, byCrew, byCars, checks, checks.All(c => c.Pass || c.Advisory));
     }
