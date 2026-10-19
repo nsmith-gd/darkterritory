@@ -78,7 +78,7 @@
       "enabled": true,
       "minCrew": 2,
       "above": 13,
-      "perMinute": 0.1,
+      "perMinute": 0.25,
       "after": 180,
       "spacing": 300,
       "partAfter": 40,

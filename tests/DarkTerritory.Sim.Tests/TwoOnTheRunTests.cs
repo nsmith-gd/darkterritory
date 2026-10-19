@@ -226,7 +226,7 @@ public class TwoOnTheRunTests
         Assert.True(j.Enabled);
         Assert.Equal(2, j.MinCrew);
         Assert.Equal(13, j.Above);
-        Assert.Equal(0.1, j.PerMinute);
+        Assert.Equal(0.25, j.PerMinute);
         Assert.Equal(180, j.After);
         Assert.Equal(300, j.Spacing);
         Assert.Equal(4, j.DriveSeconds);

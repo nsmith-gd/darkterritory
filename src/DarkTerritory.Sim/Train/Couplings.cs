@@ -51,7 +51,7 @@ public sealed record JumpTuning
     public bool Enabled { get; init; }
     public int MinCrew { get; init; } = 2;
     public double Above { get; init; } = 13;
-    public double PerMinute { get; init; } = 0.1;
+    public double PerMinute { get; init; } = 0.25;
     public double After { get; init; } = 180;
     public double Spacing { get; init; } = 300;
     public double PartAfter { get; init; } = 40;
