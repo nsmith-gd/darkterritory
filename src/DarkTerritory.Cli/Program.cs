@@ -226,6 +226,7 @@ object RunHarness(string[] args)
             // The app's own link is UDP over localhost (D1.4); the perfect one is kept by default, as a trends night must
             // play the same on every commit it's measured on. --udp for the sockets.
             Udp = args.Contains("--udp"),
+            Shared = DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Shared,
         }, args.Contains("--no-boiler") ? null : hosted.Boiler);
     }
     return Harness.Run(line, train, player, new HarnessOptions
@@ -278,6 +279,7 @@ object RunHarness(string[] args)
             ? DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Combinations.HazardSets.First(h => h.Name == hz) : null,
         // And its look-out (note 212), as the sweep's; --no-look leaves it out (note 222: the before of a before/after).
         Look = args.Contains("--insist") && !args.Contains("--no-look") ? DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Combinations.Look : null,
+        Shared = DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Shared,
     }, args.Contains("--no-boiler") ? null : boiler);
 }
 
@@ -330,6 +332,7 @@ BalanceReport RunBalance(string[] args)
             Enemies = enemies,
             Route = route,
             Holdouts = holdouts,
+            Shared = targets.Shared,
             Sight = sight,
             Run = run,
             Facilities = facilities,
