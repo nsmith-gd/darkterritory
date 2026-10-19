@@ -158,6 +158,50 @@ public class NightCurveTests
         Assert.Contains(spends.Director!.Log, l => !l.Free);
     }
 
+    /// <summary>The director alone down a bare 20 km line at 13 m/s (as PacingTests has it): what it sent, and the director.</summary>
+    static (List<EnemyKind> Sent, Director D) Ride(DirectorTuning tuning, ulong seed = 3)
+    {
+        var line = new Rail.RailLine(new Rail.LineDefinition("t", [new Rail.TrackSegment(40_000)]));
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 8, 1)), line, 0);
+        var world = new World(train, Tuning.Combat);
+        world.EnableEnemies(Tuning.Enemies with { Director = tuning }, null, seed, crew: 4, authority: true);
+        var sent = new List<EnemyKind>();
+        for (int t = 0; t < 20_000 / 13; t++)
+        {
+            train.Dynamics.Distance = 13.0 * t;
+            if (world.Director!.Decide(world, t, [], 500) is { } kind)
+                sent.Add(kind);
+        }
+        return (sent, world.Director!);
+    }
+
+    [Fact]
+    public void FreshKindsComeWhenTheNightsKindsHaveHadTheirThree()
+    {
+        // Note 863 (the director, 19 Oct: "I don't want the night to run into a soft ending but I dont want repeats of the same
+        // monsters over and over"): with the cap at 3, once a kind about tonight has had its three and nothing fits, a kind the
+        // night's chances rolled out comes in, drawn by its chance among those whose rule fits; never one at a chance of 0.
+        Assert.True(D.Fresh.On);
+        var (off, dOff) = Ride(D with { Fresh = D.Fresh with { On = false } });
+        var (on, dOn) = Ride(D);
+        Assert.Empty(dOff.FreshBrought);
+        Assert.NotEmpty(dOn.FreshBrought);
+        Assert.True(on.Count > off.Count, $"{on.Count} sent with fresh kinds, {off.Count} without");
+        Assert.True(on.Distinct().Count() > off.Distinct().Count());
+        foreach (var key in dOn.FreshBrought)
+        {
+            Assert.True(D.NightChance.GetValueOrDefault(key, 0) > 0, key);
+            Assert.True(dOff.OutTonight(Spawns.Rules.First(r => Director.Key(r.Kind) == key).Kind), $"{key} was about anyway");
+        }
+        Assert.All(on.GroupBy(k => k), g => Assert.True(g.Count() <= D.CapFor(Director.Key(g.Key)), $"{g.Key} ×{g.Count()}"));
+        Assert.True(dOn.FreshBrought.Count <= D.Fresh.MaxPerNight);
+        // The same night brings the same; a chance of 0 is the director's never.
+        Assert.Equal(dOn.FreshBrought, Ride(D).D.FreshBrought);
+        string first = dOn.FreshBrought[0];
+        var never = Ride(D with { NightChance = new(D.NightChance) { [first] = 0 } }).D;
+        Assert.DoesNotContain(first, never.FreshBrought);
+    }
+
     [Fact]
     public void APackCountsOnceTowardItsKindsCap()
     {

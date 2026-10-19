@@ -241,8 +241,8 @@ public class PacingTests
     {
         // The director alone over a 20 km night at 13 m/s, each threat it sends at the crew for 30 s: fewer sends in the first third
         // than in the last, none of the gaps between them a dead zone, and no early pile-up. The pressure's shape, so without
-        // the night's cap (note 863): on a bare moving line the few kinds whose rules fit have their three by the middle
-        // third and the last sends none (6 against 0 here), the cost note 863 puts to the director.
+        // the night's cap (note 863): on a bare moving line with nobody on it, every kind whose rule fits (the fresh ones
+        // too, director.fresh) has its three by the middle third, and nothing else can come.
         var line = new Rail.RailLine(new Rail.LineDefinition("t", [new Rail.TrackSegment(40_000)]));
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 8, 1)), line, 0);
         var world = new World(train, Tuning.Combat);

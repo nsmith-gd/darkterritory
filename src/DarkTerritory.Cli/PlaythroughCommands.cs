@@ -382,6 +382,9 @@ static class PlaythroughCommands
                 // Those come their own way (the stops' house creatures, the lineside moose, the Stoker's heat): counted with the rest.
                 ownWay = dd.OwnWay.OrderBy(k => k.Key.ToString()).ToDictionary(k => k.Key.ToString(), k => k.Value),
                 curveAtEnd = Math.Round(dd.Curve, 2),
+                // Note 868's floor and note 863's fresh kinds: those the night's chances rolled out that came in after all.
+                floor = dd.FloorBrought,
+                fresh = dd.FreshBrought,
                 held,
             } : null,
             // Note 860 (the director's playtest of 16 Oct evening, line 7): every stop of the night, stood at or passed; for those

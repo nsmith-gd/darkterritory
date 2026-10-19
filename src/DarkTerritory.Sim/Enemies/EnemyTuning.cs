@@ -719,6 +719,8 @@ public sealed record DirectorTuning(
     public CurveTuning Curve { get; init; } = new();
     /// <summary>The stops' own creatures, in place as the train stands at a yard or village, and one boarding there (note 860).</summary>
     public StopsTuning Stops { get; init; } = new();
+    /// <summary>Fresh kinds late in the night (note 863): the night's run dry under its cap, a kind rolled out comes in.</summary>
+    public FreshTuning Fresh { get; init; } = new();
     /// <summary>T128 (note 273): the pressure on a crewmate the train has left behind.</summary>
     public AbandonedTuning Abandoned { get; init; } = new();
     /// <summary>Note 327 (GDD App. F.3): the crew on foot off the train, watched: the pressure they draw, and the signs they're shown.</summary>
@@ -811,6 +813,20 @@ public sealed record DirectorTuning(
 /// each kind's night (its chance and its cap) and the night's variety hold for them as for the rest. Mirror of enemies.json
 /// <c>director.curve</c>; field docs live there.
 /// </summary>
+/// <summary>
+/// Fresh kinds when the night's run dry (note 863; the director, 19 Oct 2026: "I don't want the night to run into a soft
+/// ending but I dont want repeats of the same monsters over and over"): with a kind at its night's cap and nothing the pressure
+/// may send, a kind <c>nightChance</c> rolled out (never one at a chance of 0) is brought in, drawn by its chance among those
+/// whose rule (or free gate) fits now; at most one every <see cref="EverySeconds"/>, <see cref="MaxPerNight"/> a night. Mirror
+/// of enemies.json <c>director.fresh</c>; field docs live there.
+/// </summary>
+public sealed record FreshTuning
+{
+    public bool On { get; init; } = true;
+    public double EverySeconds { get; init; } = 30;
+    public int MaxPerNight { get; init; } = 10;
+}
+
 public sealed record CurveTuning
 {
     public int Power { get; init; } = 1;
