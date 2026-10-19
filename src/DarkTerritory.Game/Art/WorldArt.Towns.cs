@@ -484,20 +484,22 @@ public sealed partial class WorldArt
     public IEnumerable<(Vector3 Top, int Seed)> Chimneys(RailLine line, Double3 eye, Town town, double reach)
     {
         var houses = town.Plan.Houses;
-        for (int i = 0; i < houses.Count; i++)
+        // Where each lived-in house stands and where its chimneys are on it never change: found once a town, not every frame (queue #427).
+        var smoking = _chimneys.GetValue(town, t => [.. Enumerable.Range(0, houses.Count)
+            .Where(i => houses[i].Kind is HouseKind.Lived or HouseKind.Open)
+            .Select(i => (i, t.World(houses[i].S, houses[i].D), MaritimeKit.ChimneyTops(houses[i]).ToArray()))]);
+        foreach (var (i, at, tops) in smoking)
         {
-            var h = houses[i];
-            if (h.Kind is not (HouseKind.Lived or HouseKind.Open))
-                continue;
-            var at = town.World(h.S, h.D);
             if ((at - eye).Length > reach)
                 continue;
-            var m = HouseAt(line, eye, town, h);
+            var m = HouseAt(line, eye, town, houses[i]);
             int k = 0;
-            foreach (var top in MaritimeKit.ChimneyTops(h))
+            foreach (var top in tops)
                 yield return (Vector3.Transform(top, m), i * 8 + k++);
         }
     }
+
+    readonly System.Runtime.CompilerServices.ConditionalWeakTable<Town, (int House, Double3 At, Vector3[] Tops)[]> _chimneys = [];
 
     /// <summary>
     /// The watch on a town's wall (App. F.3: the fortresses feel static): a guard with a lantern walking each stretch of
