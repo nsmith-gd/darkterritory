@@ -541,8 +541,10 @@ sealed partial class LineBuilder
     /// zones and the windows), and the every-so-often settlement fell due in one with room after its first connector one night
     /// in twelve. Up to deadSettlement's perNight a night, a filled stretch's first straight recovery long enough (a run of
     /// its straight recovery connectors one after another) becomes one: a halt, or a dead town where it fits (townChance). Nothing else moves: its hazards, signatures and quotas
-    /// are where they were, and a settlement is straight and level, as a recovery is for. leadM in after a facility (a village
-    /// stands clear of a yard's zone). On dice of its own, so the stretches after draw as they did.
+    /// are where they were, and a settlement is straight and level, as a recovery is for. leadM into the stretch (a village
+    /// stands clear of a yard's zone). On dice of its own, so the stretches after draw as they did. But the line's own shape
+    /// moves: a recovery wanders (alignment wanderDeg) and a settlement is straight, so what's laid by the line downstream
+    /// (an alternate's closure, a lake, a road) can fall elsewhere; perNight is 0 until the director decides (note 868).
     /// </summary>
     void Halt(Stretch st, List<Item> list)
     {
@@ -560,7 +562,9 @@ sealed partial class LineBuilder
             while (j + 1 < list.Count && Recovery(list[j + 1]))
                 j++;
             double s0 = list[i].S0, s1 = list[j].S1;
-            double lead = st.AfterFacility ? Math.Max(0, st.S0 + clear - s0) : 0;
+            // leadM into the stretch: clear of a yard's zone after a facility, and of the threshold's easement (deepTerritory:6's
+            // halt laid at its first metre had a bow PlanStops wouldn't stand a village on).
+            double lead = Math.Max(0, st.S0 + clear - s0);
             if (s1 - s0 - lead < halt)
             {
                 i = j;

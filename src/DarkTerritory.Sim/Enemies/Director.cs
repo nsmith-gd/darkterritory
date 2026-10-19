@@ -809,14 +809,16 @@ public sealed class Director
     /// lives at a yard but the Followers). Of those rolled out (but those at a chance of 0: never), kinds are brought back, each
     /// drawn by its chance on the same stream (so the night's other draws are untouched), until as many of
     /// <c>stops.residents</c> are about as wait at a stop on this tier for this crew (<see cref="StopsTuning.Count"/>,
-    /// <see cref="StopsTuning.Split"/>), and at least <c>stops.floorKinds</c> of the kinds the chances name are.
+    /// <see cref="StopsTuning.Split"/>), and at least <c>stops.floorKinds</c> of the kinds the director sends are (those the chances
+    /// don't name are about every night).
     /// </summary>
     void Floor(DirectorTuning tuning, RouteTier tier, int crew, ref Pcg32 about, List<(string Name, double Chance)> rolled)
     {
         var st = tuning.Stops;
         if (!st.On)
             return;
-        int named = tuning.NightChance.Count;
+        // Every kind the director sends counts: those nightChance doesn't name are about every night.
+        var sends = Spawns.Rules.Select(r => Key(r.Kind)).ToHashSet();
         int residents = Math.Min(st.Split(st.Count(tier, crew)).Waiting, st.Residents.Length);
         var dice = about;
         void Back(Func<string, bool> which, Func<int> missing)
@@ -844,7 +846,7 @@ public sealed class Director
             }
         }
         Back(st.Residents.Contains, () => residents - st.Residents.Count(r => !_outTonight.Contains(r)));
-        Back(_ => true, () => st.FloorKinds - (named - _outTonight.Count));
+        Back(sends.Contains, () => st.FloorKinds - sends.Count(k => !_outTonight.Contains(k)));
         about = dice;
     }
 

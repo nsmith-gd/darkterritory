@@ -113,7 +113,7 @@ public class StopsOwnTests
             {
                 var route = new Route.Route("t", tier, seed, new Rail.LineDefinition("t", [new Rail.TrackSegment(1000)]), [], new RouteWeather(0, false, 0, 0), 1440);
                 var d = new Director(D, route, seed, 6, crew);
-                int about = D.NightChance.Keys.Count(k => !d.OutTonight(Kind(k)));
+                int about = Spawns.Rules.Select(r => r.Kind).Distinct().Count(k => !d.OutTonight(k));
                 Assert.True(about >= D.Stops.FloorKinds, $"seed {seed}: {about} about");
                 int wants = Math.Min(D.Stops.Split(D.Stops.Count(tier, crew)).Waiting, residents.Length);
                 Assert.True(residents.Count(r => !d.OutTonight(Kind(r))) >= wants, $"seed {seed}, {tier}, crew {crew}");
