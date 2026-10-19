@@ -2308,6 +2308,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             scene.Self = you;
         }
     }
+    // --put-out n (note 866; with --threats, the fire view): the staged car ablaze end to end, and the n stretches of it nearest
+    // the camera put out by the extinguisher, dark, wet and charred, as the crew leave a car they're working down.
+    if (args.Contains("--put-out") && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.CarFire>().FirstOrDefault() is { Heat.Length: > 0 } dousing)
+        Staging.PutOut(train, dousing, (int)Opt(args, "--put-out", 1), stagedFire);
     // --scorch [m] (note 821; with --threats, the fire view): a crewmate in the burning car m from its hottest cell (1.4),
     // the fire's heat on them as the host reckons it, smoking.
     if (args.Contains("--scorch") && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.CarFire>().FirstOrDefault() is { Heat.Length: > 0 } burning)
@@ -4563,6 +4567,7 @@ static int Usage()
                      [--utility i,j]   those cars as utility cars, fitted out for the crew (bunks, stove, table)
                      [--cold c]   a night that cold (0..1): frost on what's outdoors, breath from every mouth
                      [--burnt car,s]   that car gutted by a fire out s seconds ago: charred, smouldering
+                     [--put-out n]     with --threats, the staged car ablaze end to end, its n stretches nearest the fire view put out (note 866)
                      [--route tier:seed --structure girder|truss|trestle|viaduct|causeway|retainingwall]   the night's first of the plan's structures of that type, the train on it, from off its side
                      [--route tier:seed --mail s]   at the night's first mail crane, car 2's door by it; s > 0: the bag caught s seconds ago (its snatch, the arms falling)
                      [--route tier:seed --site [--crank | --crane | --facility i|kind [--leak] [--settled]]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook [--hook h --trolley t] [--operator: from its cab]; --facility: the route's i-th
