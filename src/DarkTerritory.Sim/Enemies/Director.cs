@@ -806,9 +806,10 @@ public sealed class Director
     /// <summary>
     /// The night's floor (note 868; the director, 19 Oct 2026: "It should be impossible to have a night with no creatures"):
     /// the night's chances (note 635) may roll out nearly everything (seed 1 rolled 22 of 28 kinds out, and every creature that
-    /// lives at a yard). Of those rolled out, kinds are brought back, each drawn by its chance on the same stream (so the
-    /// night's other draws are untouched), until as many of <c>stops.residents</c> are about as a stop's own wants on this
-    /// tier for this crew wait at it (<see cref="StopsTuning.Count"/>, <see cref="StopsTuning.Split"/>), and at least <c>stops.floorKinds</c> kinds of the roster are.
+    /// lives at a yard but the Followers). Of those rolled out (but those at a chance of 0: never), kinds are brought back, each
+    /// drawn by its chance on the same stream (so the night's other draws are untouched), until as many of
+    /// <c>stops.residents</c> are about as wait at a stop on this tier for this crew (<see cref="StopsTuning.Count"/>,
+    /// <see cref="StopsTuning.Split"/>), and at least <c>stops.floorKinds</c> of the kinds the chances name are.
     /// </summary>
     void Floor(DirectorTuning tuning, RouteTier tier, int crew, ref Pcg32 about, List<(string Name, double Chance)> rolled)
     {
@@ -822,20 +823,21 @@ public sealed class Director
         {
             while (missing() > 0)
             {
-                var pool = rolled.Where(r => _outTonight.Contains(r.Name) && which(r.Name)).ToList();
-                double total = pool.Sum(r => Math.Max(1e-3, r.Chance));
+                // A chance of 0 is the director's "never": not brought back.
+                var pool = rolled.Where(r => r.Chance > 0 && _outTonight.Contains(r.Name) && which(r.Name)).ToList();
+                double total = pool.Sum(r => r.Chance);
                 if (pool.Count == 0 || total <= 0)
                     return;
                 double pick = dice.NextDouble() * total;
                 var back = pool[^1].Name;
                 foreach (var r in pool)
                 {
-                    if (pick < Math.Max(1e-3, r.Chance))
+                    if (pick < r.Chance)
                     {
                         back = r.Name;
                         break;
                     }
-                    pick -= Math.Max(1e-3, r.Chance);
+                    pick -= r.Chance;
                 }
                 _outTonight.Remove(back);
                 FloorBrought.Add(back);

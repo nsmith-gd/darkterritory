@@ -58,7 +58,7 @@
     // A dead settlement (§11.3): a halt (haltM) or, at townChance, a dead town (townM), straight and level; a village stop is
     // laid at it (PlanStops). Every everyKm along the main line where a stretch has room, and (note 868, the director, 19 Oct:
     // "I'd love more [abandoned villages] but we can't have a longer night, fewer hazards, or fewer stops") up to perNight a
-    // night at the start of a stretch with spare room after its hazards, signatures and quotas, leadM in.
+    // night in a filled stretch's straight recovery long enough (its hazards where they were), leadM in after a facility.
     { "id": "deadSettlement", "kind": "settlement", "minD": 0, "fullD": 0, "lengthM": [300, 900], "cost": 0, "costScale": 0, "crunch": false,
       "tags": ["dead_settlement", "landmark"], "params": { "townChance": [0.35], "haltM": [300], "townM": [400, 550], "everyKm": [1.5, 3],
         "perNight": [2], "leadM": [120] }, "weight": 0 }
