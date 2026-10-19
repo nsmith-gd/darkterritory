@@ -1074,7 +1074,7 @@
     // DirectorSpawn.Stop.
     "stops": {
       "on": true, "waiting": 1, "boarding": 1, "trySeconds": 240,
-      "boarders": ["whistler", "draggers", "tippyToesie", "passenger", "climbers"]
+      "boarders": ["whistler", "draggers", "tippyToesie", "passenger"]
     },
     // T128 (build 1121: "a player left behind by the train should feel the world close in: tension, monsters coming, the
     // difficulty spiking for that player. They needn't die at once"; GDD §7, §23; ARCHITECTURE §8 note 273). Not in the spec.
