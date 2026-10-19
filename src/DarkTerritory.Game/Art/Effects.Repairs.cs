@@ -47,15 +47,19 @@ public sealed partial class Effects
             };
             float seed = brk.Vehicle * 7.3f + (int)brk.Kind * 1.9f;
             float t = (float)time;
-            float beat = 0.5f + 0.5f * MathF.Sin(t * 6.2832f * 1.1f + seed);
+            // Note 865: a pin that takes two beats three times as fast, its glow and halo half as big again, its ring swelling
+            // twice as far, and it throws a shower: the alarm a crew sees from the cab and the roofs (the director, 19 Oct:
+            // "hella telegraphing").
+            float rate = brk.Urgent ? 3.3f : 1.1f, size = brk.Urgent ? 1.6f : 1f;
+            float beat = 0.5f + 0.5f * MathF.Sin(t * 6.2832f * rate + seed);
             var core = at + outward * 0.15f;
             // The glow and its halo: additive, so they read in the dark without lighting anything.
-            mesh.Billboard(core, 0.7f + 0.3f * beat, 0, new Vector4(CalloutAmber * 2.2f, 0.7f + 0.3f * beat), _flash, FxBlend.Additive, 0, 2);
-            mesh.Billboard(core, 2.0f + 0.6f * beat, 0, new Vector4(CalloutAmber, 0.35f + 0.25f * beat), _flash, FxBlend.Additive, 0, 2);
+            mesh.Billboard(core, (0.7f + 0.3f * beat) * size, 0, new Vector4(CalloutAmber * 2.2f, 0.7f + 0.3f * beat), _flash, FxBlend.Additive, 0, 2);
+            mesh.Billboard(core, (2.0f + 0.6f * beat) * size, 0, new Vector4(CalloutAmber, 0.35f + 0.25f * beat), _flash, FxBlend.Additive, 0, 2);
             // A ring that swells out of it each beat, so it catches the eye at the edge of the view.
-            float swell = (t * 1.1f + seed / 6.2832f) % 1;
-            mesh.Billboard(core, 0.5f + 2.2f * swell, 0, new Vector4(CalloutAmber * 1.5f, 0.6f * (1 - swell) * (1 - swell)), _flash, FxBlend.Additive, 0, 2);
-            bool worked = mending?.Contains(b) == true;
+            float swell = (t * rate + seed / 6.2832f) % 1;
+            mesh.Billboard(core, 0.5f + 2.2f * size * size * swell, 0, new Vector4(CalloutAmber * 1.5f, 0.6f * (1 - swell) * (1 - swell)), _flash, FxBlend.Additive, 0, 2);
+            bool worked = mending?.Contains(b) == true || brk.Urgent;
             // Sparks off the torn edge: a burst every so often (every strike, while someone's at it), each spark out along
             // the wall's normal and splayed, falling as it goes.
             // Idle, a thin steady spit (each spark on its own clock), so a still frame always shows some; worked, a burst off

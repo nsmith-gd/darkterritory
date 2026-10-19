@@ -70,7 +70,10 @@ public static class News
                 LooseCause.Knock => $"{gap} · COUPLED UP AT {Kmh(e.Speed)}",
                 LooseCause.Bend => e.Detail > 0 ? $"{gap} · A {e.Detail} KM/H BEND TAKEN AT {Kmh(e.Speed)}" : $"{gap} · A BEND TAKEN AT {Kmh(e.Speed)}",
                 // Note 865: jumped clear, and it takes two (what it is, not what to do: note 402).
-                LooseCause.Jumped => $"{(e.Cars.Length > 0 ? $"PIN JUMPED BEHIND CAR {e.Cars[0]}" : "PIN JUMPED")} · A RAIL JOINT AT {Kmh(e.Speed)} · TWO TO HOLD IT",
+                // The warning first (the director, 19 Oct: "hella telegraphing"), where and why, and that it wants two now; then
+                // the jump itself.
+                LooseCause.Working => $"{(e.Cars.Length > 0 ? $"PIN WORKING LOOSE BEHIND CAR {e.Cars[0]}" : "PIN WORKING LOOSE")} · A RAIL JOINT AT {Kmh(e.Speed)} · GET TWO TO IT",
+                LooseCause.Jumped => $"{(e.Cars.Length > 0 ? $"PIN JUMPED BEHIND CAR {e.Cars[0]}" : "PIN JUMPED")} · TWO TO HOLD IT",
                 _ => gap,
             };
         }

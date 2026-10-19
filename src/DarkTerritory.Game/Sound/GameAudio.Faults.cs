@@ -37,7 +37,9 @@ public sealed partial class GameAudio
     {
         public bool Breached;
         public Double3 At;
-        public double HotBox, Loose, NextKnock, TightenedAt = double.NegativeInfinity;
+        public double HotBox, Loose, NextKnock, NextRattle, TightenedAt = double.NegativeInfinity;
+        /// <summary>Note 865: what its pin was working loose from last tick (a warning that's just jumped is heard so).</summary>
+        public LooseCause Cause;
     }
 
     /// <summary>A loose pin's knocks a second, just come loose and about to drop: D1's synth's pace (note 356).</summary>
@@ -47,6 +49,26 @@ public sealed partial class GameAudio
     /// slam, the clash or the lurch began; and its loudness, from a clear knock just loose to full about to drop.
     /// </summary>
     const double FirstKnockAfter = 0.6, KnockGainFrom = 0.7;
+    /// <summary>
+    /// Note 865: a pin working loose before it jumps knocks this many times a second, from the start of its warning to its end
+    /// (twice a worked-loose pin's, and climbing), as loud as a knock goes; and the pin rattles in its knuckle between.
+    /// </summary>
+    const double WarnKnockFrom = 3, WarnKnockTo = 10, RattleEvery = 0.45;
+    /// <summary>
+    /// Note 865: the warning's knock carries the length of the train (the director: "hella telegraphing"). Until AU1's own cue
+    /// for it (<c>state-coupling-loose.warn</c>, long-carrying) is installed, the knock's played from no further than this off
+    /// the ear (m), toward the gap: the knock's own sound stops at 60 m, and the cab is further than that from most gaps.
+    /// </summary>
+    const double WarnCarries = 45;
+
+    /// <summary>Note 865: where a warning's knock is heard from: the pin, or toward it from the ear, no further than <see cref="WarnCarries"/>.</summary>
+    Double3 Carried(Double3 pin)
+    {
+        var ear = Mixer.Listener.Position;
+        var to = pin - ear;
+        double d = to.Length;
+        return d <= WarnCarries ? pin : ear + to * (WarnCarries / d);
+    }
 
     /// <summary>A hot box that goes cool this near its catching (or nearer) caught: its car's fire is the sound, not a greasing.</summary>
     const double CaughtWithin = 1.0;
@@ -251,7 +273,33 @@ public sealed partial class GameAudio
             PinJumped(train, v, outside);
             c.NextKnock = _time + FirstKnockAfter;
         }
-        if (v.Loose > 0)
+        // Note 865: the warning's over and the pin's out: heard as loud as anything on the train, the slack's snatch and the
+        // pin flung up in its knuckle, twice over.
+        if (v.Loose > 0 && c.Cause == LooseCause.Working && v.LooseCause == LooseCause.Jumped)
+        {
+            PinJumped(train, v, outside);
+            Cue("crew-coupling.pin-lift", Pin(train, v.Id), outside, 1.4f);
+            c.NextKnock = _time + FirstKnockAfter;
+        }
+        c.Cause = v.Loose > 0 ? v.LooseCause : LooseCause.None;
+        // Note 865: working loose, the warning. The knock quickens from three a second to ten as it comes to jumping, full loud,
+        // and the pin rattles in its knuckle between: a sound the crew hears from the cab and the roofs, before anything's gone.
+        if (v.Loose > 0 && v.LooseCause == LooseCause.Working && HasCue("state-coupling-loose.knock"))
+        {
+            double warned = Couplings.Warned(v, lt);
+            if (_time >= c.NextKnock)
+            {
+                if (Cue("state-coupling-loose.warn", Pin(train, v.Id), outside) is null)
+                    Cue("state-coupling-loose.knock", Carried(Pin(train, v.Id)), outside, 1.2f);
+                c.NextKnock = _time + (0.85 + 0.3 * _creatureRng.Next()) / (WarnKnockFrom + (WarnKnockTo - WarnKnockFrom) * warned);
+            }
+            if (_time >= c.NextRattle)
+            {
+                Cue("crew-coupling.pin-lift", Pin(train, v.Id), outside, (float)(0.6 + 0.6 * warned));
+                c.NextRattle = _time + RattleEvery * (1.3 - 0.6 * warned) * (0.8 + 0.4 * _creatureRng.Next());
+            }
+        }
+        else if (v.Loose > 0)
         {
             // Note 865: a jumped pin goes sooner, and knocks up to it as quick.
             double loose = Math.Clamp(v.Loose / (v.LooseCause == LooseCause.Jumped ? lt.Jump.PartAfter : lt.PartAfter), 0, 1);
@@ -288,12 +336,12 @@ public sealed partial class GameAudio
             LooseCause.RunIn => "state-coupling-loose.jump-brake",
             LooseCause.Bend => "state-coupling-loose.jump-bend",
             // Note 865: a rail joint at speed (AU1's cue to come; the slack's snatch stands in).
-            LooseCause.Jumped => "state-coupling-loose.jump-joint",
+            LooseCause.Jumped or LooseCause.Working => "state-coupling-loose.jump-joint",
             _ => "state-coupling-loose.jump-coupled",
         };
         if (Cue(own, pin, outside) is not null)
             return;
-        if (v.LooseCause is LooseCause.RunIn or LooseCause.Jumped)
+        if (v.LooseCause is LooseCause.RunIn or LooseCause.Jumped or LooseCause.Working)
             Cue("bed-slack.run-in", pin, outside);
         else if (v.LooseCause == LooseCause.Bend)
             Cue("bed-groan.creak", pin, outside);

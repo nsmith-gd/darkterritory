@@ -319,6 +319,8 @@ public sealed record UpkeepReport(int HotBoxes, int Caught, int Lamps, int WentO
     public int Jumped { get; init; }
     public int JumpedHome { get; init; }
     public int JumpLetGo { get; init; }
+    /// <summary>Note 865: of <see cref="JumpedHome"/>, those caught in the warning before the pin jumped.</summary>
+    public int JumpCaught { get; init; }
     /// <summary>Note 865: seconds a pin could have jumped (two alive, at speed, the night's clock past its first and the last's spacing).</summary>
     public double JumpSeconds { get; init; }
 }
@@ -779,6 +781,7 @@ public static class Harness
             Jumped = host.World.JumpCount.Jumped,
             JumpedHome = host.World.JumpCount.Home,
             JumpLetGo = host.World.JumpCount.LetGo,
+            JumpCaught = host.World.JumpCaught,
             JumpSeconds = Math.Round(host.World.JumpSeconds),
         };
         return new HarnessReport(ticks, seconds, link,

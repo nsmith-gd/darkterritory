@@ -45,18 +45,26 @@ public sealed record LooseTuning
 /// pin down (Use, bare hands do), and another taking the slack off it, at either car's brake wheel over the gap (Use held) or
 /// with the throttle shut at the controls; the train stood does as well. Both on it <see cref="DriveSeconds"/> and it's home.
 /// Once both are on it, either letting go <see cref="LetGo"/> s parts it then and there. Field docs in upkeep.json.
+/// <para>
+/// The director, 19 Oct, having played it: "I want a pin to jump almost never and when it does it should have hella telegraphing
+/// to the players." So it's rare (<see cref="PerMinute"/>, <see cref="MaxPerNight"/>) and it warns first: for
+/// <see cref="WarnSeconds"/> the pin works loose where everyone can tell (<see cref="LooseCause.Working"/>: the line, the knock
+/// quickening, the gap's callout beating, the cars either side shaking), and two on it then drive it home before it ever jumps.
+/// </para>
 /// </summary>
 public sealed record JumpTuning
 {
     public bool Enabled { get; init; }
     public int MinCrew { get; init; } = 2;
     public double Above { get; init; } = 12;
-    public double PerMinute { get; init; } = 0.25;
+    public double PerMinute { get; init; } = 0.03;
     public double After { get; init; } = 180;
     public double Spacing { get; init; } = 300;
     public double PartAfter { get; init; } = 60;
     public double DriveSeconds { get; init; } = 4;
     public double LetGo { get; init; } = 0.3;
+    public double WarnSeconds { get; init; } = 10;
+    public int MaxPerNight { get; init; } = 1;
 }
 
 /// <summary>
@@ -65,9 +73,10 @@ public sealed record JumpTuning
 /// </summary>
 /// <remarks>
 /// Note 865: <see cref="Jumped"/>, a rail joint at speed jumped it clear (two to pin it, <see cref="JumpTuning"/>); the
-/// <c>LetGo</c> causes are what parted a jumped pin two had hold of: never on a car's record, only the report's and the news's.
+/// <c>LetGo</c> causes are what parted a jumped pin two had hold of: never on a car's record, only the report's and the news's;
+/// <see cref="Working"/>, the warning before it jumps (<see cref="JumpTuning.WarnSeconds"/>), told and heard and seen.
 /// </remarks>
-public enum LooseCause : byte { None, RunIn, Knock, Bend, Jumped, LetGoPin, LetGoBrake, LetGoThrottle }
+public enum LooseCause : byte { None, RunIn, Knock, Bend, Jumped, LetGoPin, LetGoBrake, LetGoThrottle, Working }
 
 /// <summary>Note 865: what's taking the slack off a jumped pin: a hand on a brake wheel over the gap, the throttle shut, the train stood.</summary>
 public enum SlackOff : byte { None, Brake, Throttle, Standing }
@@ -114,6 +123,8 @@ public sealed class Couplings(LooseTuning tuning, ulong seed)
     public int Jumped { get; private set; }
     public int Home { get; private set; }
     public int LetGos { get; private set; }
+    /// <summary>Note 865: of <see cref="Home"/>, those two drove home in the warning, before the pin ever jumped.</summary>
+    public int Caught { get; private set; }
     /// <summary>Note 865: seconds tonight a pin could have jumped (the crew, the speed, the night's clock; host, for the tuning).</summary>
     public double JumpSeconds { get; private set; }
     /// <summary>Note 865: a jumped pin let go this tick (it parted): its car, how it was let go, who let go, the speed (host), or null.</summary>
@@ -122,6 +133,13 @@ public sealed class Couplings(LooseTuning tuning, ulong seed)
     /// <summary>Where the coupling behind a car is (that car's frame): the middle of the gap, at the coupler's height.</summary>
     public static Double3 Pin(CarShape shape, TrainTuning t) =>
         new(t.Geometry.PlateX, t.Geometry.CouplerHeight, shape.HalfLength + t.Geometry.CouplingGap / 2);
+
+    /// <summary>Note 865: a pin that takes two, working loose (the warning) or jumped clear.</summary>
+    public static bool TakesTwo(LooseCause cause) => cause is LooseCause.Working or LooseCause.Jumped;
+
+    /// <summary>Note 865: how far through its warning a working pin is, 0 to 1 (1 for one that's jumped), from its record.</summary>
+    public static double Warned(Vehicle v, LooseTuning t) =>
+        v.LooseCause == LooseCause.Jumped ? 1 : v.LooseCause == LooseCause.Working ? Math.Clamp(v.Loose / Math.Max(0.1, t.Jump.WarnSeconds), 0, 1) : 0;
 
     /// <summary>The couplings that can work loose: behind a car (never the engine) of the engine's rake, with a car behind it.</summary>
     static bool Runs(TrainOnLine train, int car)
@@ -159,12 +177,29 @@ public sealed class Couplings(LooseTuning tuning, ulong seed)
             // Tight again (the wrench, two hands on a jumped pin, or the pin dropped): nothing's working it.
             if (v.Loose <= 0)
             {
-                if (v.LooseCause == LooseCause.Jumped && v.Pinned)
+                if (TakesTwo(v.LooseCause) && v.Pinned)
+                {
                     Home++;
+                    if (v.LooseCause == LooseCause.Working)
+                        Caught++;
+                }
                 (v.LooseCause, v.Pinned) = (LooseCause.None, false);
                 _held.Remove(i);
             }
             bool jumped = v.Loose > 0 && v.LooseCause == LooseCause.Jumped;
+            // Note 865: the warning. Two on it drive it home as on a jumped pin, but nothing parts yet: let go, it's only let go.
+            // It works on while the train runs, and at WarnSeconds it jumps clear (told again, and heard as it goes).
+            if (v.Loose > 0 && v.LooseCause == LooseCause.Working)
+            {
+                LetsGo(train, i, crew, hand, holding, speed);
+                if (!holding && !v.Pinned && (v.Loose += SimConstants.TickSeconds) >= tuning.Jump.WarnSeconds && Loosened is null)
+                {
+                    (v.Loose, v.LooseCause) = (SimConstants.TickSeconds, LooseCause.Jumped);
+                    Loosened = (i, LooseCause.Jumped, speed);
+                }
+                loose++;
+                continue;
+            }
             // Note 865: a jumped pin two had hold of, and one let go: the slack snatches it out, and it parts now.
             if (jumped && parted < 0 && LetsGo(train, i, crew, hand, holding, speed))
             {
@@ -228,11 +263,11 @@ public sealed class Couplings(LooseTuning tuning, ulong seed)
             Loose(train, tight[(int)(_rng.NextDouble() * tight.Count) % tight.Count], LooseCause.Bend, speed);
         // Note 865: a rail joint taken at speed jumps a pin clear, now and then, and only with two or more of the crew alive
         // (the director: "not on solo nights"). Its own draws, so a night's other pins come as they did.
-        else if (tuning.Jump is { Enabled: true } jt && crew is not null && crew.Count(c => c.State.Alive) >= jt.MinCrew && speed >= jt.Above
+        else if (tuning.Jump is { Enabled: true } jt && Jumped < jt.MaxPerNight && crew is not null && crew.Count(c => c.State.Alive) >= jt.MinCrew && speed >= jt.Above
             && _clock >= jt.After && _clock - _lastJump >= jt.Spacing && (JumpSeconds += SimConstants.TickSeconds) > 0
             && _jumps.NextDouble() < jt.PerMinute / 60 * SimConstants.TickSeconds)
         {
-            Loose(train, tight[(int)(_jumps.NextDouble() * tight.Count) % tight.Count], LooseCause.Jumped, speed);
+            Loose(train, tight[(int)(_jumps.NextDouble() * tight.Count) % tight.Count], LooseCause.Working, speed);
             _lastJump = _clock;
             Jumped++;
         }
@@ -293,7 +328,7 @@ public sealed class Couplings(LooseTuning tuning, ulong seed)
         }
         if (!v.Pinned || !_held.TryGetValue(car, out var h))
             return false;
-        if (holding || h.How == SlackOff.Standing)
+        if (holding || h.How == SlackOff.Standing || v.LooseCause == LooseCause.Working)
         {
             v.Pinned = false;
             _held.Remove(car);
@@ -357,7 +392,7 @@ public sealed class Couplings(LooseTuning tuning, ulong seed)
                 continue;
             if (crew is not null && mending is not null && crew.Any(s => s.ActionProgress > 0 && Tightens(s, train) && Within(s, train, t) == i))
                 mending.Add(breaks.Count);
-            breaks.Add(new BreakCallout(BreakKind.Coupling, i, Pin(train.Frames[i].Shape, train.Dynamics.Tuning)));
+            breaks.Add(new BreakCallout(BreakKind.Coupling, i, Pin(train.Frames[i].Shape, train.Dynamics.Tuning), TakesTwo(train.Vehicles[i].LooseCause)));
         }
     }
 

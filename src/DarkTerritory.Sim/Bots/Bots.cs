@@ -1078,7 +1078,7 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
         int? car = null;
         double nearest = double.MaxValue;
         foreach (var v in train.Dynamics.Consist.Vehicles)
-            if (v.Id > 0 && v.Loose > 0 && v.Id < train.Frames.Count && (wrench || v.LooseCause == LooseCause.Jumped) && (v.Id == beside || ClearOfPack(world, v.Id)))
+            if (v.Id > 0 && v.Loose > 0 && v.Id < train.Frames.Count && (wrench || Couplings.TakesTwo(v.LooseCause)) && (v.Id == beside || ClearOfPack(world, v.Id)))
             {
                 var f = train.Frames[v.Id];
                 double d = (f.ToWorld(Couplings.Pin(f.Shape, train.Dynamics.Tuning)) - here).Length;
@@ -1940,7 +1940,7 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
             if (hb is not null && train.Vehicles[i].HotBox > 0)
                 Consider(f.ToWorld(HotBoxes.Box(f.Shape, hb)), hb.Reach, i, false);
             // Note 602: not a pin on the pack's ground (unless it's the one beside it a hurt hand stays out for).
-            if (lt is not null && train.Vehicles[i].Loose > 0 && (wrench || train.Vehicles[i].LooseCause == LooseCause.Jumped) && (i == _pinBeside || ClearOfPack(world, i)))
+            if (lt is not null && train.Vehicles[i].Loose > 0 && (wrench || Couplings.TakesTwo(train.Vehicles[i].LooseCause)) && (i == _pinBeside || ClearOfPack(world, i)))
                 Consider(f.ToWorld(Couplings.Pin(f.Shape, train.Dynamics.Tuning)), lt.Reach, i, true);
         }
         void Consider(Ballast.Double3 at, double reach, int i, bool isPin)
@@ -1957,7 +1957,7 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
         if (!pin && HotBoxes.Within(self, train, hb!) == car)
             return new PlayerIntent { Buttons = PlayerButtons.Use };
         if (pin && Couplings.Within(self, train, lt!) == car)
-            return train.Vehicles[car].LooseCause != LooseCause.Jumped && Repairs.WrenchKey(self) is var key and > 0 ? new PlayerIntent { Select = key }
+            return !Couplings.TakesTwo(train.Vehicles[car].LooseCause) && Repairs.WrenchKey(self) is var key and > 0 ? new PlayerIntent { Select = key }
                 : new PlayerIntent { Buttons = PlayerButtons.Use };
         double l = train.Frames[car].Shape.HalfLength;
         switch (self.Surface)
@@ -2903,7 +2903,7 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         if (intent.ThrottleNotch <= -4 || train.Loose is not { Enabled: true } t || Crewmates is null)
             return intent;
         foreach (var c in Crewmates)
-            if (c.Alive && Couplings.Within(c, train, t) is { } car && train.Vehicles[car].LooseCause == LooseCause.Jumped)
+            if (c.Alive && Couplings.Within(c, train, t) is { } car && Couplings.TakesTwo(train.Vehicles[car].LooseCause))
                 return intent with { ThrottleNotch = -4 };
         return intent;
     }
@@ -4861,7 +4861,7 @@ public static partial class Heed
             || world.Train.Loose is not { Enabled: true } t || Couplings.Within(self, world.Train, t) is not { } car)
             return intent;
         // Note 865: a jumped pin's held down by hand, wrench or none.
-        if (world.Train.Vehicles[car].LooseCause == LooseCause.Jumped)
+        if (Couplings.TakesTwo(world.Train.Vehicles[car].LooseCause))
             return new PlayerIntent { Buttons = PlayerButtons.Use };
         if (Repairs.WrenchKey(self) is var key and > 0)
             return new PlayerIntent { Select = key };

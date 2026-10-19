@@ -62,7 +62,7 @@ public static class CrewActions
         // Note 865: a pin jumped clear at speed is held down by hand, wrench or none, and goes home only while a second takes the
         // slack off it (the host's say, Vehicle.Pinned): alone, the hands are on it and it doesn't move.
         if (s.Alive && intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5 && train.Loose is { Enabled: true } jt
-            && Couplings.Within(s, train, jt) is { } jumped && train.Vehicles[jumped].LooseCause == LooseCause.Jumped)
+            && Couplings.Within(s, train, jt) is { } jumped && Couplings.TakesTwo(train.Vehicles[jumped].LooseCause))
         {
             s.Flags &= ~PlayerFlags.Shovelful;
             if (!train.Vehicles[jumped].Pinned || s.ActionProgress >= jt.Jump.DriveSeconds)
@@ -381,7 +381,7 @@ public static class CrewActions
         // Note 865: a headset hand down at a jumped pin is holding it down, not cutting the coupling under it.
         if (Hand(s, hand))
             return intent.Has(PlayerButtons.Use) && s.Hand.Y < ReachedDown
-                && !(train.Loose is { Enabled: true } lt && Couplings.Within(s, train, lt) is { } pin && train.Vehicles[pin].LooseCause == LooseCause.Jumped);
+                && !(train.Loose is { Enabled: true } lt && Couplings.Within(s, train, lt) is { } pin && Couplings.TakesTwo(train.Vehicles[pin].LooseCause));
         double down = train.Dynamics.Tuning.Couplings.UncoupleLookDownDegrees * Math.PI / 180;
         return intent.Has(PlayerActions.Uncouple) && s.Pitch <= -down;
     }

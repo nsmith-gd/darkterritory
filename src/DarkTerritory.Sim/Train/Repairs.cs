@@ -167,7 +167,8 @@ public static class Repairs
 }
 
 /// <summary>A break on the train, where its callout's drawn (car frame of <see cref="Vehicle"/>; note 301).</summary>
-public readonly record struct BreakCallout(BreakKind Kind, int Vehicle, Double3 At);
+/// <param name="Urgent">Note 865: beating hard, a pin that takes two (working loose, or jumped): the callout's own alarm.</param>
+public readonly record struct BreakCallout(BreakKind Kind, int Vehicle, Double3 At, bool Urgent = false);
 
 public static class RepairCallouts
 {

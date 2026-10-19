@@ -2389,8 +2389,8 @@ public static partial class Hud
     /// </summary>
     /// <summary>Note 865: a jumped pin in the gap behind <paramref name="car"/> or ahead of it (either car's brake wheel takes its slack).</summary>
     static bool JumpedGap(TrainOnLine train, int car) =>
-        car > 0 && car < train.Vehicles.Count && (train.Vehicles[car] is { Loose: > 0, LooseCause: LooseCause.Jumped }
-            || train.VehicleAhead(car) is var ahead and > 0 && ahead < train.Vehicles.Count && train.Vehicles[ahead] is { Loose: > 0, LooseCause: LooseCause.Jumped });
+        car > 0 && car < train.Vehicles.Count && (train.Vehicles[car] is { Loose: > 0, LooseCause: LooseCause.Jumped or LooseCause.Working }
+            || train.VehicleAhead(car) is var ahead and > 0 && ahead < train.Vehicles.Count && train.Vehicles[ahead] is { Loose: > 0, LooseCause: LooseCause.Jumped or LooseCause.Working });
 
     static string Hold(string verb, double done) =>
         done > 1e-6 ? $"{verb} : HOLD [E] ({Math.Min(1, done) * 100:0}%)" : $"{verb} : HOLD [E]";
@@ -2564,7 +2564,7 @@ public static partial class Hud
         if (train.HotBoxTuning is { Enabled: true } hb && HotBoxes.Within(p, train, hb) is not null)
             return Hold("GREASE THE HOT BOX", p.ActionProgress / hb.GreaseSeconds);
         // Note 865: a jumped pin, held down by hand; it goes home only while a second takes the slack off it, and the prompt says so.
-        if (train.Loose is { Enabled: true } jt && Couplings.Within(p, train, jt) is { } jumped && train.Vehicles[jumped].LooseCause == LooseCause.Jumped)
+        if (train.Loose is { Enabled: true } jt && Couplings.Within(p, train, jt) is { } jumped && Couplings.TakesTwo(train.Vehicles[jumped].LooseCause))
             return train.Vehicles[jumped].Pinned ? Hold("DRIVE THE PIN HOME", p.ActionProgress / jt.Jump.DriveSeconds)
                 : "HOLD THE PIN : HOLD [E]   TAKES TWO: BRAKE WHEEL OR THROTTLE SHUT";
         // A loose coupling (note 356): the wrench in the gap tightens it; without it in hand, the key that puts it there.

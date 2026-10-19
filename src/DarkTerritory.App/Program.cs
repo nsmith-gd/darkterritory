@@ -1735,6 +1735,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             camera.Position += BoilerShake.Offset(session.World, session.Viewpoint, timer.Elapsed.TotalSeconds) * settings.CameraShake;
             // In or by a Hollow House going (note 585): the ground under it rumbling, the doors slamming, the floor going.
             camera.Position += HouseShake.Offset(session.World, session.Viewpoint, timer.Elapsed.TotalSeconds) * settings.CameraShake;
+            // Note 865: a pin working loose shakes the cars either side of its gap.
+            camera.Position += PinShake.Offset(session.World, session.Viewpoint, timer.Elapsed.TotalSeconds) * settings.CameraShake;
             // The ground's thuds as dawn comes, and as a Waker comes on behind (note 588).
             camera.Position += DawnStir.Offset(session.World, timer.Elapsed.TotalSeconds) * settings.CameraShake;
             // On a car straining round a bend too fast, it judders you (the overspeed telegraph, App. F.1).

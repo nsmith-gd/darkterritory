@@ -74,16 +74,24 @@
     // either car's brake wheel over the gap (Use held) or with the throttle shut by one in the cab (the train stood does as
     // well). Both on it driveSeconds and it's home. Once both are on it, either letting go letGo s parts it then and there,
     // and the line and the report say who let go of what. Nobody on it, it parts after partAfter s of running.
+    // The director, 19 Oct, having played it: "I want a pin to jump almost never and when it does it should have hella
+    // telegraphing to the players". So perMinute is set for about one night in nine (a frontier night has about 230 s a pin
+    // could jump in: TwoOnTheRunTests.ComesAboutOneNightInNine), at most maxPerNight a night, and before it jumps the pin works
+    // loose for warnSeconds: told ("PIN WORKING LOOSE BEHIND CAR 3 · ... · GET TWO TO IT"), its knock quickening, the gap's
+    // callout beating hard, the cars either side shaking. Two on it in the warning drive it home before it ever jumps, and
+    // letting go then parts nothing; the train stood, the warning waits.
     "jump": {
       "enabled": true,
       "minCrew": 2,
       "above": 12,
-      "perMinute": 0.25,
+      "perMinute": 0.03,
       "after": 180,
       "spacing": 300,
       "partAfter": 60,
       "driveSeconds": 4,
-      "letGo": 0.3
+      "letGo": 0.3,
+      "warnSeconds": 10,
+      "maxPerNight": 1
     }
   }
 }
