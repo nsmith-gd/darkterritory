@@ -534,8 +534,12 @@ public sealed class Town
                 bool turned = Math.Abs(f.FaceS) > Math.Abs(f.FaceD);
                 // A heap (slag, coal) is a mound walked up, in layers (note 869), not a block stopping you at its foot.
                 if (TownFixtures.Heap(f.Kind))
-                    foreach (var (hs, hd, bottom, top) in TownFixtures.HeapLayers(f.SolidS, f.SolidD, f.Height, HeapStep))
-                        yield return Box(f.S, f.D, turned ? hd : hs, turned ? hs : hd, top - bottom, up: bottom);
+                {
+                    // Its back (+Z in the art's frame) is away from where it faces.
+                    double face = Math.Max(1e-9, Math.Sqrt(f.FaceS * f.FaceS + f.FaceD * f.FaceD));
+                    foreach (var (hx, hz, back, bottom, top) in TownFixtures.HeapLayers(f.SolidS, f.SolidD, f.Height, HeapStep))
+                        yield return Box(f.S - f.FaceS / face * back, f.D - f.FaceD / face * back, turned ? hz : hx, turned ? hx : hz, top - bottom, up: bottom);
+                }
                 else
                     yield return Box(f.S, f.D, turned ? f.SolidD : f.SolidS, turned ? f.SolidS : f.SolidD, Math.Max(1, f.Height));
             }

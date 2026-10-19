@@ -3,6 +3,7 @@ using Ballast;
 using DarkTerritory.Game.Art;
 using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Towns;
+using Ballast.Render;
 
 namespace DarkTerritory.Game.Tests;
 
@@ -25,20 +26,38 @@ public class TownSolidsMatchArtTests
         double step = 0.35; // player.json stepUp
         var layers = TownFixtures.HeapLayers(hs, hd, height, 0.3).ToList();
         Assert.NotEmpty(layers);
-        foreach (var (lhs, lhd, bottom, top) in layers)
+        foreach (var (hx, hz, back, bottom, top) in layers)
         {
             Assert.True(top - bottom < step, $"{kind}: a layer {top - bottom:F2} m deep is no step up");
-            // Each corner of a layer is on the heap: the mound there stands at least as high as the layer's foot.
-            foreach (var (x, z) in new[] { (lhs, lhd), (-lhs, lhd), (lhs, -lhd), (-lhs, -lhd) })
+            // Each corner of a layer is on the heap as it's drawn: the mound there stands at least as high as the layer's top
+            // (a step under it at most), never in the air beside it.
+            foreach (var (x, z) in new[] { (hx, back + hz), (-hx, back + hz), (hx, back - hz), (-hx, back - hz) })
             {
-                double t = Math.Sqrt(x * x / (hs * hs) + z * z / (hd * hd));
-                Assert.True(t <= 1 && TownFixtures.HeapHeight(height, t) >= bottom - 1e-6, $"{kind}: a layer's corner ({x:F1}, {z:F1}) stands off the heap");
+                double ground = Surface(mesh, (float)x, (float)z);
+                Assert.True(ground >= top - step, $"{kind}: a layer's corner ({x:F1}, {z:F1}) {top:F2} m up stands over the heap drawn there ({ground:F2} m)");
             }
         }
-        // And the drawn mound is that heap: as high as its walls' top, and its foot as wide as the ground layer.
-        var (_, size) = WorksKit.Footprint(mesh);
-        Assert.True(size.Y >= height * 0.9 && size.Y <= height * 1.15, $"{kind}: drawn {size.Y:F2} m high, its walls {height:F2}");
-        Assert.True(size.X / 2 >= layers[0].HalfS && size.Z / 2 >= layers[1].HalfD, $"{kind}: its ground layer stands past its mound");
+        // And its walls reach up the mound: the top layer near its crest.
+        Assert.True(layers.Max(l => l.Top) >= height * 0.75, $"{kind}: its walls stop at {layers.Max(l => l.Top):F2} m of {height:F2}");
+    }
+
+    // The drawn mound's height at (x, z) in its own frame: the highest of its faces straight under that point, or below the ground.
+    static double Surface(MeshAsset mesh, float x, float z)
+    {
+        var v = mesh.Vertices;
+        double best = -1;
+        for (int i = 0; i + 2 < v.Length; i += 3)
+        {
+            var (a, b, c) = (v[i].Position, v[i + 1].Position, v[i + 2].Position);
+            float d = (b.Z - c.Z) * (a.X - c.X) + (c.X - b.X) * (a.Z - c.Z);
+            if (Math.Abs(d) < 1e-9f)
+                continue;
+            float u = ((b.Z - c.Z) * (x - c.X) + (c.X - b.X) * (z - c.Z)) / d, w = ((c.Z - a.Z) * (x - c.X) + (a.X - c.X) * (z - c.Z)) / d;
+            if (u < 0 || w < 0 || u + w > 1)
+                continue;
+            best = Math.Max(best, u * a.Y + w * b.Y + (1 - u - w) * c.Y);
+        }
+        return best;
     }
 
     [Fact]
