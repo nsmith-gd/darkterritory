@@ -23,11 +23,14 @@ public sealed partial class GameAudio
     const double FizzleAfterMisfire = 0.9;
     // Presentation, not design: the first nail this long after the board's put to the hole, then one a blow this often.
     const double HammerFirst = 0.35, HammerEvery = 0.55;
+    // The pre-cut boards' run of quick blows (up-tells.precut's takes, about 1.5 s): the hammering goes on after it.
+    const double PrecutRun = 1.5;
 
     sealed class FaultGun
     {
         public bool Mounted, Jammed;
-        public double Progress, LastRise = double.NegativeInfinity;
+        public double Progress, LastRise = double.NegativeInfinity, Glinted = double.NegativeInfinity;
+        public uint Shot;
     }
 
     sealed class FaultCar
@@ -105,7 +108,7 @@ public sealed partial class GameAudio
             if (!_faultGuns.TryGetValue(v.Id, out var m))
             {
                 // Fouled already when first seen: that's how it is, not something happening.
-                _faultGuns[v.Id] = new FaultGun { Mounted = g.Mounted, Jammed = g.Jammed, Progress = g.ReloadProgress };
+                _faultGuns[v.Id] = new FaultGun { Mounted = g.Mounted, Jammed = g.Jammed, Progress = g.ReloadProgress, Shot = g.LastShotTick };
                 continue;
             }
             if (g.Mounted && m.Mounted && Guns.Mount(train, v.Id) is { } mount)
@@ -114,6 +117,13 @@ public sealed partial class GameAudio
                 var vent = train.Frames[v.Id].ToWorld(mount.Position - mount.Facing * 0.55 + Double3.Up * 0.15);
                 if (g.Jammed && m.Jammed && mine == v.Id)
                     Cue("state-cannon-foul.misfire", vent, outside);
+                // The lucky horseshoe (queue #505, note 775): a shot that would have fouled without it glints.
+                if (g.LastShotTick != m.Shot && g.LastShotTick > 0 && !g.Jammed && _time - m.Glinted > GlintAgain
+                    && HasCue("up-tells.horseshoe") && HorseshoeSaved(world, g.LastShotTick, v.Id))
+                {
+                    m.Glinted = _time;
+                    Cue("up-tells.horseshoe", vent, outside);
+                }
                 // As it fouls, after the shot that fouled it, the damp charge's pfft out of the vent (crew-mishaps).
                 if (g.Jammed && !m.Jammed)
                     CrewAfter(FizzleAfterMisfire, "crew-mishaps.foul-fizzle", vent, outside);
@@ -127,6 +137,7 @@ public sealed partial class GameAudio
             m.Mounted = g.Mounted;
             m.Jammed = g.Jammed;
             m.Progress = g.ReloadProgress;
+            m.Shot = g.LastShotTick;
         }
     }
 
@@ -200,6 +211,12 @@ public sealed partial class GameAudio
                 {
                     Cue("crew-repair.board-place", hole, outside);
                     b.NextBlow = _time + HammerFirst;
+                    // Pre-cut boards (queue #505, note 775): cut to the hole, nailed light and quick, in place of the first blows.
+                    if (Fitted(train, "precutBoards", "up-tells.precut"))
+                    {
+                        Cue("up-tells.precut", hole, outside);
+                        b.NextBlow = _time + PrecutRun;
+                    }
                 }
                 b.Placed = true;
                 b.LastRise = _time;
