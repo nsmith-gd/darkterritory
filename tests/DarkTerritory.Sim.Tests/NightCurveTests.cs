@@ -140,6 +140,89 @@ public class NightCurveTests
     }
 
     [Fact]
+    public void TheNightsCapHoldsTheFreeSpawnsTheFillAndThePressuresSpends()
+    {
+        // Note 863 (the director, 19 Oct: "turn on the 3-a-night creature cap"): two hours late in the night, the free
+        // channel alone and then the pressure spending (and filling) beside it, every kind about; none past its cap.
+        var every = D with { NightChance = [] };
+        var free = Plain(Curved() with { Director = Curved().Director with { NightChance = [] } }, at: 19_000);
+        var spends = Plain(Tuning.Enemies with { Director = every }, at: 19_000);
+        foreach (var world in new[] { free, spends })
+        {
+            var d = world.Director!;
+            Think(world, 7_200);
+            Assert.NotEmpty(d.Log);
+            foreach (var kind in d.Log.Select(l => l.Kind).Distinct())
+                Assert.True(d.SentTonight(kind) <= D.CapFor(Director.Key(kind)), $"{kind}: {d.SentTonight(kind)} sent");
+        }
+        Assert.Contains(spends.Director!.Log, l => !l.Free);
+    }
+
+    /// <summary>The director alone down a bare 20 km line at 13 m/s (as PacingTests has it): what it sent, and the director.</summary>
+    static (List<EnemyKind> Sent, Director D) Ride(DirectorTuning tuning, ulong seed = 3)
+    {
+        var line = new Rail.RailLine(new Rail.LineDefinition("t", [new Rail.TrackSegment(40_000)]));
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 8, 1)), line, 0);
+        var world = new World(train, Tuning.Combat);
+        world.EnableEnemies(Tuning.Enemies with { Director = tuning }, null, seed, crew: 4, authority: true);
+        var sent = new List<EnemyKind>();
+        for (int t = 0; t < 20_000 / 13; t++)
+        {
+            train.Dynamics.Distance = 13.0 * t;
+            if (world.Director!.Decide(world, t, [], 500) is { } kind)
+                sent.Add(kind);
+        }
+        return (sent, world.Director!);
+    }
+
+    [Fact]
+    public void FreshKindsComeWhenTheNightsKindsHaveHadTheirThree()
+    {
+        // Note 863 (the director, 19 Oct: "I don't want the night to run into a soft ending but I dont want repeats of the same
+        // monsters over and over"): with the cap at 3, once a kind about tonight has had its three and nothing fits, a kind the
+        // night's chances rolled out comes in, drawn by its chance among those whose rule fits; never one at a chance of 0.
+        Assert.True(D.Fresh.On);
+        var (off, dOff) = Ride(D with { Fresh = D.Fresh with { On = false } });
+        var (on, dOn) = Ride(D);
+        Assert.Empty(dOff.FreshBrought);
+        Assert.NotEmpty(dOn.FreshBrought);
+        Assert.True(on.Count > off.Count, $"{on.Count} sent with fresh kinds, {off.Count} without");
+        Assert.True(on.Distinct().Count() > off.Distinct().Count());
+        foreach (var key in dOn.FreshBrought)
+        {
+            Assert.True(D.NightChance.GetValueOrDefault(key, 0) > 0, key);
+            Assert.True(dOff.OutTonight(Spawns.Rules.First(r => Director.Key(r.Kind) == key).Kind), $"{key} was about anyway");
+        }
+        Assert.All(on.GroupBy(k => k), g => Assert.True(g.Count() <= D.CapFor(Director.Key(g.Key)), $"{g.Key} ×{g.Count()}"));
+        Assert.True(dOn.FreshBrought.Count <= D.Fresh.MaxPerNight);
+        // The same night brings the same; a chance of 0 is the director's never.
+        Assert.Equal(dOn.FreshBrought, Ride(D).D.FreshBrought);
+        string first = dOn.FreshBrought[0];
+        var never = Ride(D with { NightChance = new(D.NightChance) { [first] = 0 } }).D;
+        Assert.DoesNotContain(first, never.FreshBrought);
+    }
+
+    [Fact]
+    public void APackCountsOnceTowardItsKindsCap()
+    {
+        // Note 863: the spec doesn't say how a pack counts; one send is one of the night's few (packCountsOnce), or with it
+        // off each of its members.
+        Assert.True(D.PackCountsOnce);
+        var world = Plain(Curved(), at: 19_000);
+        var ctx = new SpawnContext(world, world.Enemies!, world.Director!) { Free = true };
+        Assert.True(Spawns.For(EnemyKind.Climber)!.Spawn(ctx));
+        Assert.InRange(ctx.Added, 2, 3);
+        foreach (bool once in new[] { true, false })
+        {
+            var d = new Director(D with { PackCountsOnce = once, NightChance = [] }, null, 1, 6, 4);
+            d.Log.Add(new DirectorSpawn(0, EnemyKind.CinderHound, 2, 0, 0, 0));
+            d.Spawned(EnemyKind.CinderHound, 4);
+            Assert.Equal(once ? 1 : 4, d.SentTonight(EnemyKind.CinderHound));
+            Assert.Equal(once, d.Tonight(EnemyKind.CinderHound, world));
+        }
+    }
+
+    [Fact]
     public void NothingComesFreeBeforeTheNightsFirstThreatNorWithTheCurveOff()
     {
         Assert.True(D.Curve.AfterFirst && D.Draw.Enabled);
@@ -159,8 +242,9 @@ public class NightCurveTests
     public void ThePressureSpendsOnTheRuleLessWhenNoRuleFits()
     {
         Assert.True(D.Curve.Fill && D.Curve.FillPressed);
-        // The pressure as it is (it spends), the free spawns of their own off: whatever comes is the fill.
-        var filling = Tuning.Enemies with { Director = D with { Curve = D.Curve with { Free = false }, NightChance = OnlyTheFree } };
+        // The pressure as it is (it spends), the free spawns of their own off: whatever comes is the fill. The night's cap
+        // off too (note 863): ten minutes of fill takes each kind past three, and the pressure then stays pressed (below).
+        var filling = Tuning.Enemies with { Director = D with { Curve = D.Curve with { Free = false }, NightChance = OnlyTheFree, PerNightDefault = null } };
         var world = Plain(filling, at: 10_000);
         var d = world.Director!;
         var sent = Think(world, 600);
@@ -174,6 +258,11 @@ public class NightCurveTests
         var off = Plain(filling with { Director = filling.Director with { Curve = filling.Director.Curve with { Fill = false } } }, at: 10_000);
         Assert.Empty(Think(off, 600));
         Assert.Equal("nothing fits", off.Director!.HeldBecause);
+        // With the cap on, the fill stops at three of each, and what's left is the pressure, pressed, with nothing to send.
+        var capped = Plain(filling with { Director = filling.Director with { PerNightDefault = 3 } }, at: 10_000);
+        var fills = Think(capped, 600);
+        Assert.All(fills.GroupBy(k => k), g => Assert.True(g.Count() <= 3, $"{g.Key} ×{g.Count()}"));
+        Assert.True(fills.Count < sent.Count, $"{fills.Count} capped against {sent.Count}");
     }
 
     [Fact]

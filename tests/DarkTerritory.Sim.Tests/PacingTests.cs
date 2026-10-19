@@ -240,11 +240,13 @@ public class PacingTests
     public void TheNightRisesTowardItsEnd()
     {
         // The director alone over a 20 km night at 13 m/s, each threat it sends at the crew for 30 s: fewer sends in the first third
-        // than in the last, none of the gaps between them a dead zone, and no early pile-up.
+        // than in the last, none of the gaps between them a dead zone, and no early pile-up. The pressure's shape, so without
+        // the night's cap (note 863): on a bare moving line with nobody on it, every kind whose rule fits (the fresh ones
+        // too, director.fresh) has its three by the middle third, and nothing else can come.
         var line = new Rail.RailLine(new Rail.LineDefinition("t", [new Rail.TrackSegment(40_000)]));
         var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 8, 1)), line, 0);
         var world = new World(train, Tuning.Combat);
-        world.EnableEnemies(Tuning.Enemies, null, 3, crew: 4, authority: true);
+        world.EnableEnemies(Tuning.Enemies with { Director = D with { PerNightDefault = null } }, null, 3, crew: 4, authority: true);
         var d = world.Director!;
         var about = new List<(Enemy Enemy, int Until)>();
         var sent = new List<(int At, double S)>();

@@ -381,10 +381,17 @@ public class EnemyTests
             // minding the fire.
             // Nothing of the director's own before the night's grace, pressed or not (note 266).
             Assert.All(d.Log.Where(l => l.Kind is not EnemyKind.Stoker), l => Assert.True(l.Tick * SimConstants.TickSeconds >= d.Grace, $"spawn at {l.Tick / 30} s"));
-            // Pressed spawns (the pressure at pressAt) come when they must, cooldown or not.
-            var spawns = d.Log.Where(l => l.Kind is not EnemyKind.Stoker && !l.Paced).ToList();
+            // Pressed spawns (the pressure at pressAt) come when they must, cooldown or not. The cooldown is between the
+            // pressure's own spends; the night's free spawns (note 849) are beside it, each kept curve.spacingSeconds from
+            // anything sent before it (with note 863's fresh kinds, seed 2 has a free Dragger 2 s before the pressure's spend).
+            var spawns = d.Log.Where(l => l.Kind is not EnemyKind.Stoker && !l.Paced && !l.Free && !l.Stop).ToList();
             for (int i = 1; i < spawns.Count; i++)
-                Assert.True((spawns[i].Tick - spawns[i - 1].Tick) * SimConstants.TickSeconds >= E.Director.CooldownSeconds[0] - 1);
+                Assert.True((spawns[i].Tick - spawns[i - 1].Tick) * SimConstants.TickSeconds >= E.Director.CooldownSeconds[0] - 1,
+                    $"{spawns[i - 1]} then {spawns[i]}");
+            var all = d.Log.Where(l => l.Kind is not EnemyKind.Stoker).ToList();
+            for (int i = 1; i < all.Count; i++)
+                if (all[i].Free && !all[i].Paced)
+                    Assert.True((all[i].Tick - all[i - 1].Tick) * SimConstants.TickSeconds >= E.Director.Curve.SpacingSeconds - 1, $"{all[i - 1]} then {all[i]}");
             // The caps are on what's engaged; the condition-triggered ones aren't capped (App. B.5). A long train's two each
             // (note 647; from 8 cars in the director's roster, note 652) grows the hard cap in step.
             var o = E.Director.Orchestrator;

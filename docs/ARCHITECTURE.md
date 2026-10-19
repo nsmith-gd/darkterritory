@@ -1044,7 +1044,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [860. The night's pattern: monsters waiting at the stops, or boarding from them (the director's playtest of 16 Oct evening, line 7) (Ivy, queue…](notes/860.md)
 - [861. Shared challenges that make laughs on a multiplayer night (the director's playtest of 16 Oct evening, line 8) (Otis, queue #588)](notes/861.md)
 - [862. An open cab door lets voices out a bit more, not completely (the director, 19 Oct, on #583's call) (Theo, queue #589)](notes/862.md)
-- [863. The 3-a-night creature cap turned on (the director, 19 Oct, answering note 857's call) (Nell, queue #590)](notes/863.md)
+- [863. The 3-a-night creature cap, on (Nell, queue #590; the director, 19 Oct 2026: "turn on the 3-a-night creature cap"; Elsie's audit, note 857)](notes/863.md)
 - [864. The Windows CI flake: Game.Tests' host left running after its tests pass (nathaniel1 n1-w3, queue #591)](notes/864.md)
 - [865. Something for two on the run, not on solo nights (the director, 19 Oct, on note 861's call 5) (Bram, queue #592)](notes/865.md)
 - [866. The extinguisher puts out the flame it's aimed at, stretch by stretch down the car (Faye, queue #593; the 19 Oct playtest, line 10)](notes/866.md)

@@ -1090,6 +1090,15 @@
       "residents": ["ribbits", "gaunt", "moose", "sootChildren", "followers", "freightBeetle", "grumbler", "mouseMoose", "towerJaw"],
       "floorKinds": 8
     },
+    // Fresh kinds when the night's run dry (note 863; the director, 19 Oct 2026, of the night's cap: "I don't want the night to
+    // run into a soft ending but I dont want repeats of the same monsters over and over. We have so many monsters in the
+    // build now, how can we be running out of options?"). With the cap at 3 (perNightDefault) the kinds about tonight had
+    // their three by the night's middle and its last third went quiet (4 bots: 9 sends to 0). So: when the director would
+    // send something (the pressure past its threshold, or a free spawn rolled) and nothing fits, and a kind about tonight has
+    // had its cap, one kind nightChance rolled out comes in, drawn by its chance among those whose rule is met now or whose
+    // free gate (curve.kinds) is open; a chance of 0 is never brought. At most one every everySeconds, maxPerNight a night.
+    // On its own dice: the night's other draws are as they were. Off with `on`.
+    "fresh": { "on": true, "everySeconds": 30, "maxPerNight": 10 },
     // T128 (build 1121: "a player left behind by the train should feel the world close in: tension, monsters coming, the
     // difficulty spiking for that player. They needn't die at once"; GDD §7, §23; ARCHITECTURE §8 note 273). Not in the spec.
     // A crewmate alive on the ground, further than behindM (m) along the line from the nearest end of the train and not in a
@@ -1254,9 +1263,15 @@
     // the Knotter: "They should show up once or twice a run. Sometimes never. We need more monster variety." Every kind's
     // chance is the director's roster on the Creature Tweaker (note 652, 13 Oct).
     "perNight": { "knotter": 2 },
-    // The most of any kind perNight doesn't name (note 654): null, no cap. For the director's D1-roster-piles-up: with few
-    // kinds about on a night (nightChance), those about come again and again (note 652); this holds each to a few.
-    "perNightDefault": null,
+    // The most of any kind perNight doesn't name (note 654; null is no cap). On at 3 (note 863; the director, 19 Oct: "turn
+    // on the 3-a-night creature cap"): with few kinds about on a night (nightChance), those about came again and again
+    // (note 652, D1-roster-piles-up); this holds each to three. It counts the director's sends (the pressure's, the free
+    // spawns and the fill alike), the Stoker, the house creatures and the Pickers' groups; the line's own (the lineside
+    // moose, the hound runs, the truss Draggers) stop at it but don't count toward it. A kind's own perNight wins (the Knotter's 2).
+    "perNightDefault": 3,
+    // A pack the director sends (Cinder Hounds, Ribbits, Climbers) counts once toward its kind's cap (note 863; the spec
+    // doesn't say); false counts each of its members.
+    "packCountsOnce": true,
     "nightChance": { "knotter": 0.66, "hotbox": 0.4, "brakeman": 0.6, "climbers": 0.35, "draggers": 0.65,
       "cinderHounds": 0.7, "fireFlies": 0.42, "carHugger": 0.51, "whistler": 0.65, "trackDoll": 0.22,
       "tippyToesie": 0.7, "stoker": 0.4, "followers": 0.66, "ribbits": 0.66, "gaunt": 0.21,

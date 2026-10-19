@@ -57,6 +57,7 @@ public sealed class Director
         // they were with the curve off.
         _freeRng = new Pcg32(unchecked(seed * 0x9E3779B97F4A7C15UL + 0xF4EE), 0xF4EE);
         _stopRng = new Pcg32(unchecked(seed * 0x9E3779B97F4A7C15UL + 0x5709), 0x5709);
+        _freshRng = new Pcg32(unchecked(seed * 0x9E3779B97F4A7C15UL + 0xF2E5), 0xF2E5);
         _seed = seed;
         var tier = route?.Tier ?? RouteTier.Frontier;
         string key = char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..];
@@ -103,7 +104,20 @@ public sealed class Director
         Spawns.Rules.Any(r => Allows(r.Kind) && Tonight(r.Kind, world) && !world.Slain.Contains(r.Kind) && SentTonight(r.Kind) == 0);
 
     /// <summary>How many of <paramref name="kind"/> have come tonight: the director's sends and those come their own way.</summary>
-    public int SentTonight(EnemyKind kind) => Log.Count(l => l.Kind == kind) + _ownWay.GetValueOrDefault(kind);
+    public int SentTonight(EnemyKind kind) => Log.Count(l => l.Kind == kind) + _ownWay.GetValueOrDefault(kind)
+        + (_t.PackCountsOnce ? 0 : _packExtra.GetValueOrDefault(kind));
+
+    readonly Dictionary<EnemyKind, int> _packExtra = [];
+
+    /// <summary>
+    /// The director's send of <paramref name="kind"/> put <paramref name="members"/> into the world: past the first, counted
+    /// against its cap only with <see cref="DirectorTuning.PackCountsOnce"/> off (note 863).
+    /// </summary>
+    public void Spawned(EnemyKind kind, int members)
+    {
+        if (members > 1)
+            _packExtra[kind] = _packExtra.GetValueOrDefault(kind) + members - 1;
+    }
 
     /// <summary>
     /// What tonight's sends so far make of <paramref name="kind"/>'s weight (note 742): ×<see cref="DirectorTuning.UnseenWeight"/>
@@ -474,6 +488,7 @@ public sealed class Director
     {
         _cooldown -= 1;
         _sinceAny += 1;
+        _sinceFresh += 1;
         SentFree = false;
         // The aftermath (note 751) and the facility lull (App. B.1) run down a second a decision, whatever holds it.
         bool shaken = AftermathLeft > 0;
@@ -658,7 +673,7 @@ public sealed class Director
             fill = options.Count > 0;
         }
         if (options.Count == 0)
-            return Held("nothing fits");
+            return Held(Freshen(world, holding) ? "fresh" : "nothing fits");
         // Variety across the night (note 742): a kind come repeatHold times tonight waits while one about tonight hasn't come
         // at all; the director saves up for the stop, the town or the stretch that lets the new one in. Pressed, it sends.
         if (!due && _t.RepeatHold > 0 && options.Any(o => SentTonight(o.Kind) >= _t.RepeatHold) && Unseen(world))
@@ -773,7 +788,10 @@ public sealed class Director
             return null;
         var options = FreeOptions(world, et, holding, withBound: true);
         if (options.Count == 0)
+        {
+            Freshen(world, holding);
             return null;
+        }
         options = WeighVotes(WhoseNext(options));
         double total = options.Sum(o => o.Weight);
         if (total <= 0)
@@ -848,6 +866,64 @@ public sealed class Director
         Back(st.Residents.Contains, () => residents - st.Residents.Count(r => !_outTonight.Contains(r)));
         Back(sends.Contains, () => st.FloorKinds - sends.Count(k => !_outTonight.Contains(k)));
         about = dice;
+    }
+
+    Pcg32 _freshRng;
+    double _sinceFresh = 1e9;
+
+    /// <summary>The kinds brought in fresh tonight (note 863), in the order they came.</summary>
+    public List<string> FreshBrought { get; } = [];
+
+    /// <summary>
+    /// Fresh kinds when the night's run dry (note 863; <c>director.fresh</c>; the director, 19 Oct 2026: "I don't want the night
+    /// to run into a soft ending but I dont want repeats of the same monsters over and over. We have so many monsters in the
+    /// build now, how can we be running out of options?"). Asked when the director would send something and nothing fits: if a
+    /// kind about tonight has had its cap (<see cref="DirectorTuning.CapFor"/>), one the night's chances rolled out comes in, drawn
+    /// by its chance among those whose rule is met now or whose free gate is open (<c>curve.kinds</c>); a chance of 0 is never
+    /// brought. It comes as anything about tonight does, the next time the director sends. On its own dice (0xF2E5): the
+    /// night's other draws are as they were.
+    /// </summary>
+    bool Freshen(World world, List<Enemy> holding)
+    {
+        var ft = _t.Fresh;
+        if (!ft.On || FreshBrought.Count >= ft.MaxPerNight || _sinceFresh < ft.EverySeconds || world.Enemies is not { } et)
+            return false;
+        // Run dry under the cap: a kind about tonight has had its most.
+        if (!Spawns.Rules.Any(r => Allows(r.Kind) && !_outTonight.Contains(Key(r.Kind)) && _t.CapFor(Key(r.Kind)) is int cap && SentTonight(r.Kind) >= cap))
+            return false;
+        var met = new SpawnContext(world, et, this);
+        var free = new SpawnContext(world, et, this) { Free = true };
+        bool fleeing = Waker.NightFleeing(world, et.Wakers);
+        var pool = new List<(string Key, double Chance)>();
+        foreach (var rule in Spawns.Rules)
+        {
+            string key = Key(rule.Kind);
+            if (!_outTonight.Contains(key) || _t.NightChance.GetValueOrDefault(key, 0) is var chance && chance <= 0 || pool.Any(p => p.Key == key)
+                || !Allows(rule.Kind) || world.Slain.Contains(rule.Kind) || !Room(rule.Kind, holding) || fleeing && et.Wakers.Flees(rule.Kind))
+                continue;
+            bool fits = rule.Weight(met) is > 0
+                || rule.Free is { } gate && _t.Curve.Kinds.GetValueOrDefault(key, 0) > 0 && gate(free);
+            if (fits)
+                pool.Add((key, chance));
+        }
+        double total = pool.Sum(p => p.Chance);
+        if (pool.Count == 0 || total <= 0)
+            return false;
+        double pick = _freshRng.NextDouble() * total;
+        var back = pool[^1].Key;
+        foreach (var p in pool)
+        {
+            if (pick < p.Chance)
+            {
+                back = p.Key;
+                break;
+            }
+            pick -= p.Chance;
+        }
+        _outTonight.Remove(back);
+        FreshBrought.Add(back);
+        _sinceFresh = 0;
+        return true;
     }
 
     /// <summary>The kinds the night's floor brought back from out tonight (note 868), in the order it did.</summary>

@@ -285,6 +285,9 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
     public int PackFires { get; init; }
     /// <summary>The night's curve (note 849): the director's spawns sent without their rule, by kind; "free" the curve's own, "fill" the pressure's.</summary>
     public IReadOnlyDictionary<string, int> FreeSpawns { get; init; } = new Dictionary<string, int>();
+    /// <summary>The kinds the night's chances rolled out that came in after all: the floor's (note 868) and the fresh ones late (note 863).</summary>
+    public IReadOnlyList<string> Floor { get; init; } = [];
+    public IReadOnlyList<string> Fresh { get; init; } = [];
     /// <summary>The Gannet's passes (note 454): hung over a walker, folded, stabbed.</summary>
     public GannetReport Gannet { get; init; } = new(0, 0, 0);
     /// <summary>Each Cinder Hound pack that boarded (note 484): how long it was aboard and how its hounds ended.</summary>
@@ -732,6 +735,8 @@ public static class Harness
                 Pressure = new PressureReport(Math.Round(d.Grace, 1), d.Tuning.Pressure.Threshold, PressureEvery, per5Min, pressureTrace),
                 Slack = d.Posts.Stats.ToDictionary(kv => kv.Key, kv => new SlackReport(kv.Value.Max, kv.Value.Over)),
                 PackFires = host.World.PackFires,
+                Floor = [.. d.FloorBrought],
+                Fresh = [.. d.FreshBrought],
                 FreeSpawns = d.Log.Where(l => l.Free).GroupBy(l => l.Kind.ToString()).OrderBy(g => g.Key).ToDictionary(g => g.Key, g => g.Count())
                     .Concat([new KeyValuePair<string, int>("free", d.Log.Count(l => l.Free && !l.Paced)), new("fill", d.Log.Count(l => l.Free && l.Paced))]).ToDictionary(kv => kv.Key, kv => kv.Value),
                 Packs = [.. packs.OrderBy(kv => kv.Value.First).Select(kv => PackAboard(kv.Key, kv.Value, host.Train))],
