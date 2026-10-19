@@ -1740,7 +1740,7 @@ public sealed class FrontEnd
     };
 
     static string StoresLine(Stores st) => st.Any
-        ? $"Bought for tonight: {st.Powder} powder, {st.Lamps} lamps, {st.Extinguishers} extinguishers."
+        ? $"Bought for tonight: {st.Powder} powder, {st.Lamps} lamps, {st.Extinguishers} extinguishers{(st.Flares > 0 ? $", {st.Flares} flare pistols" : "")}."
         : "Powder and shot, spare lamps and extinguishers for tonight.";
 
     /// <summary>The departure's stores (GDD §9 "stock ... powder and shot, lamps, repair supplies"; note 182): for the coming night.</summary>
@@ -1759,6 +1759,15 @@ public sealed class FrontEnd
         Row(StoreKind.Powder, st.Powder, "POWDER AND SHOT", $"A crate: {st.Powder.Each} more rounds for every gun tonight.");
         Row(StoreKind.Lamp, st.Lamps, "SPARE LAMP", "In the guard van beside its own, for when one goes out over the side.");
         Row(StoreKind.Extinguisher, st.Extinguishers, "SPARE EXTINGUISHER", "Loose in the guard van: a second hand on a fire. It doesn't recharge.");
+        // Note 871: the flare pistol, stocked from the Frontier tier (upgrades.md §4).
+        if (st.Flares is { } flares)
+        {
+            if (Campaign.TierFor(_campaign, s.Cars) < flares.FromTier)
+                list.Add(new(new($"FLARE PISTOL: STOCKED FOR {Campaign.TierWords(flares.FromTier).ToUpperInvariant()} WORK",
+                    "A longer train first.", false), () => null));
+            else
+                Row(StoreKind.Flare, flares, "FLARE PISTOL", $"Loaded with {flares.Each} flares. Each lights a village for a minute, and the Fire Flies follow it away from the train.");
+        }
         list.Add(BackTo(Screen.Fortress));
         return list;
     }

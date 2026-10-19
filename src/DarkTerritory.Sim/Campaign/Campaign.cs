@@ -26,25 +26,39 @@ public sealed record CampaignTuning(int StartingCars, double StartingScrip, int 
 }
 
 /// <summary>One line of the fortress's stores: its price, how many a night takes at most, and what each holds.</summary>
-public sealed record StoreItem(double Cost, int Most, int Each = 1);
+public sealed record StoreItem(double Cost, int Most, int Each = 1)
+{
+    /// <summary>Stocked once the consist works this tier (note 871: the flare pistol is a Frontier tool, upgrades.md §4), as an upgrade's.</summary>
+    public RouteTier FromTier { get; init; }
+}
 
 /// <summary>campaign.json <c>stores</c> (GDD §9 "stock coal, powder and shot, lamps, repair supplies and tools"; note 182).</summary>
-public sealed record StoresTuning(StoreItem Powder, StoreItem Lamps, StoreItem Extinguishers);
+public sealed record StoresTuning(StoreItem Powder, StoreItem Lamps, StoreItem Extinguishers)
+{
+    /// <summary>A flare pistol and <see cref="StoreItem.Each"/> flares (note 871); unset, the fortress sells none.</summary>
+    public StoreItem? Flares { get; init; }
+}
 
 /// <summary>campaign.json <c>sellCar</c>: what a car taken off brings back (a share of what it cost), and the fewest a consist keeps.</summary>
 public sealed record SellCarTuning(double Share, int Fewest);
 
 /// <summary>What the fortress's stores sell for a night (note 182).</summary>
-public enum StoreKind : byte { Powder, Lamp, Extinguisher }
+public enum StoreKind : byte { Powder, Lamp, Extinguisher, Flare }
 
 /// <summary>
 /// The stores bought for the coming night (GDD §9): crates of powder and shot (each <see cref="StoreItem.Each"/> rounds more a
 /// gun), spare lamps and spare extinguishers in the guard van. Issued for the night: settling it spends them.
 /// </summary>
-public sealed record Stores(int Powder = 0, int Lamps = 0, int Extinguishers = 0)
+public sealed record Stores(int Powder = 0, int Lamps = 0, int Extinguishers = 0, int Flares = 0)
 {
-    public int Of(StoreKind kind) => kind switch { StoreKind.Powder => Powder, StoreKind.Lamp => Lamps, _ => Extinguishers };
-    public bool Any => Powder > 0 || Lamps > 0 || Extinguishers > 0;
+    public int Of(StoreKind kind) => kind switch
+    {
+        StoreKind.Powder => Powder,
+        StoreKind.Lamp => Lamps,
+        StoreKind.Flare => Flares,
+        _ => Extinguishers,
+    };
+    public bool Any => Powder > 0 || Lamps > 0 || Extinguishers > 0 || Flares > 0;
 }
 
 public sealed record CarCostTuning(double Base, double Growth, int FromCar);
@@ -384,8 +398,14 @@ public static class Campaign
         {
             StoreKind.Powder => (st.Powder, "crate of powder and shot"),
             StoreKind.Lamp => (st.Lamps, "spare lamp"),
+            StoreKind.Flare => (st.Flares, "flare pistol"),
             _ => (st.Extinguishers, "spare extinguisher"),
         };
+        if (item is null)
+            return new(s, "the fortress has none to sell");
+        // Note 871: a tool's stocked for the tier whose trouble it answers, as an upgrade is (UpgradeDef.FromTier).
+        if (TierFor(t, s.Cars) < item.FromTier)
+            return new(s, $"the {name} is stocked for {TierWords(item.FromTier)} work");
         if (s.Stores.Of(kind) >= item.Most)
             return new(s, $"a night takes {item.Most} at most, and you have them");
         if (s.Scrip < item.Cost)
@@ -394,6 +414,7 @@ public static class Campaign
         {
             StoreKind.Powder => s.Stores with { Powder = s.Stores.Powder + 1 },
             StoreKind.Lamp => s.Stores with { Lamps = s.Stores.Lamps + 1 },
+            StoreKind.Flare => s.Stores with { Flares = s.Stores.Flares + 1 },
             _ => s.Stores with { Extinguishers = s.Stores.Extinguishers + 1 },
         };
         return new(s with { Stores = stores, Scrip = s.Scrip - item.Cost }, null);
@@ -434,6 +455,9 @@ public static class Campaign
                 {
                     SpareLamps = l.Train.Kit.SpareLamps + stores.Lamps * st.Lamps.Each,
                     SpareExtinguishers = l.Train.Kit.SpareExtinguishers + stores.Extinguishers * st.Extinguishers.Each,
+                    // Note 871: each flare pistol bought comes loaded with its flares.
+                    FlarePistols = l.Train.Kit.FlarePistols + stores.Flares,
+                    FlareShots = st.Flares?.Each ?? l.Train.Kit.FlareShots,
                 },
             },
         };

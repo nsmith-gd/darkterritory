@@ -124,7 +124,9 @@ public static class Protocol
     //     which a predicting client's landing reads.
     // 77: the human cannonball (note 746): the player flags InCannon (524288) and Fired (1048576).
     // 79: a ping on the abandoned town (note 739 part two): PingKind.Town (5), its target the stop whose village it is.
-    public const int Version = 79;
+    // 80: the flare pistol (note 871): the body kinds FlarePistol (24, its flares left in the ninth field) and Flare (25, its
+    //     burn left, 0..1, there).
+    public const int Version = 80;
 }
 
 public enum MessageType : byte

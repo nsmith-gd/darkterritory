@@ -455,14 +455,16 @@ public sealed class FireFlies(int id) : Enemy(id)
     int _lamp = -1;
 
     /// <summary>
-    /// A lit hand lamp lying out of every car within <c>answers.fireFlies.lureRadius</c> of them (senses.json; note 728): its light
-    /// reaches them, and it's the strongest light that does that isn't a car's. Null for none.
+    /// A lit hand lamp lying out of every car within <c>answers.fireFlies.lureRadius</c> of them (senses.json; note 728), or a
+    /// burning flare within <c>flareLureRadius</c> (note 871): its light reaches them, and it's the strongest light that does
+    /// that isn't a car's (a flare first, the brighter). Null for none.
     /// </summary>
     Physics.Body? Lured(EnemyContext ctx)
     {
         var a = ctx.World.Senses.Answers.FireFlies;
         var at = WorldPosition(ctx.Train);
-        var light = ctx.World.Loudest(Sense.Light, at, e => e.Kind is EmitterKind.HandLamp && e.Car < 0 && (e.At - at).Length <= a.LureRadius
+        var light = ctx.World.Loudest(Sense.Light, at, e => e.Car < 0
+            && (e.Kind is EmitterKind.HandLamp && (e.At - at).Length <= a.LureRadius || e.Kind is EmitterKind.Flare && (e.At - at).Length <= a.FlareLureRadius)
             && ctx.World.Bodies.All.Any(b => b.Id == e.Source && b.Carrier < 0));
         return light is { } l ? ctx.World.Bodies.All.FirstOrDefault(b => b.Id == l.Source) : null;
     }
@@ -486,6 +488,24 @@ public sealed class FireFlies(int id) : Enemy(id)
     void OnLoose(EnemyContext ctx, FireFliesTuning t)
     {
         var a = ctx.World.Senses.Answers.FireFlies;
+        // Note 871: a flare's followed wherever it goes (in flight, or burning where it lies), swarmed round while it burns, and
+        // nothing's set alight; when it's out they're gone.
+        if (ctx.World.Bodies.All.FirstOrDefault(b => b.Id == _lamp) is { Kind: Physics.BodyKind.Flare } flare)
+        {
+            if (flare.Burns <= 0)
+            {
+                Enter(ctx, SpinePhase.BreakOff);
+                Enter(ctx, SpinePhase.Gone);
+                return;
+            }
+            var at = Physics.Bodies.WorldCentre(flare, ctx.Train) + Double3.Up * 0.5;
+            var toward = at - Local;
+            double stride = a.LureSpeed * SimConstants.TickSeconds;
+            Local = toward.Length <= stride ? at : Local + toward * (stride / toward.Length);
+            if (toward.Length <= 1 && Phase is SpinePhase.Dormant or SpinePhase.Alert)
+                Enter(ctx, SpinePhase.Telegraph); // the glow and the buzzing about the flare
+            return;
+        }
         if (ctx.World.Bodies.All.FirstOrDefault(b => b.Id == _lamp) is not { Kind: Physics.BodyKind.Lamp, Broken: false, Carrier: < 0, Stashed: false } lamp
             || lamp.Parent != PlayerState.World)
         {

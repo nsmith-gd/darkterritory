@@ -32,6 +32,8 @@ public enum BodyKind : byte
     FishingRod = 18, Fish = 19, GrilledFish = 20,
     // The yard cat, the dog and a tennis ball off the launcher (note 745).
     Cat = 21, Dog = 22, TennisBall = 23,
+    // The flare pistol from the stores, its flares left in Charge, and a flare fired from it, burning (note 871).
+    FlarePistol = 24, Flare = 25,
 }
 
 /// <summary>
@@ -1004,7 +1006,7 @@ public sealed class Bodies
         // A heavy crate with one on it is still free at its other end (T43).
         // What's in a locker is the locker's: taken from it with a tap there, not reached for (note 173).
         var free = _bodies.Where(b => !b.Stowed && b.TakenBy < 0 && (b.Carrier < 0 || b.Kind == BodyKind.Heavy && b.Second < 0 && b.Carrier != playerId)
-            && !(wearingRadio && b.Kind == BodyKind.Radio) && b.Kind is not (BodyKind.Caboose or BodyKind.Dog)
+            && !(wearingRadio && b.Kind == BodyKind.Radio) && b.Kind is not (BodyKind.Caboose or BodyKind.Dog or BodyKind.Flare)
             // A lamp broken and burning (note 728) is a puddle of burning oil and glass, not a thing to pick up.
             && !(b.Kind == BodyKind.Lamp && b.Broken));
         if (hand is not null && PlayerMotor.HandWorld(s, train) is { } h)

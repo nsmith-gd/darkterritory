@@ -321,6 +321,8 @@ public static class WorldRecords
             f[8] = body.Kind switch
             {
                 Physics.BodyKind.Extinguisher => Q(body.Charge, Hint),
+                // The flare pistol's flares left, and a flare's burn left (0..1) (note 871).
+                Physics.BodyKind.FlarePistol or Physics.BodyKind.Flare => Q(body.Charge, Hint),
                 Physics.BodyKind.Ragdoll or Physics.BodyKind.Tool => (long)body.Tools,
                 // Its noise, and 0x100 while it plays (note 728: a wound toy set down keeps playing where it lies).
                 Physics.BodyKind.Toy => (long)body.Noise + (body.Playing ? 0x100 : 0),
@@ -657,7 +659,7 @@ public static class WorldRecords
             Second = (int)f[7],
             Owner = (int)f[3],
             Yaw = D(f[5], Ang),
-            Charge = (Physics.BodyKind)f[0] == Physics.BodyKind.Extinguisher ? D(f[8], Hint) : 1,
+            Charge = (Physics.BodyKind)f[0] is Physics.BodyKind.Extinguisher or Physics.BodyKind.FlarePistol or Physics.BodyKind.Flare ? D(f[8], Hint) : 1,
             Tools = (Physics.BodyKind)f[0] is Physics.BodyKind.Ragdoll or Physics.BodyKind.Tool ? (ulong)f[8] : 0,
             Cargo = (Physics.BodyKind)f[0] is Physics.BodyKind.Extinguisher or Physics.BodyKind.Ragdoll or Physics.BodyKind.Toy or Physics.BodyKind.Radio or Physics.BodyKind.Loot or Physics.BodyKind.Tool
                 or Physics.BodyKind.Instrument or Physics.BodyKind.Caboose or Physics.BodyKind.Lamp ? CargoKind.None : (CargoKind)f[8],
