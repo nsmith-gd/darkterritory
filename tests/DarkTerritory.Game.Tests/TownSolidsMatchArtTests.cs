@@ -1,9 +1,9 @@
 using System.Numerics;
 using Ballast;
+using Ballast.Render;
 using DarkTerritory.Game.Art;
 using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Towns;
-using Ballast.Render;
 
 namespace DarkTerritory.Game.Tests;
 
