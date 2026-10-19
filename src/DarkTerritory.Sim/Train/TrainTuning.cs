@@ -288,6 +288,12 @@ public sealed record KitTuning
     /// </summary>
     public int SpareLamps { get; init; }
     public int SpareExtinguishers { get; init; }
+    /// <summary>
+    /// Flare pistols bought at the fortress for the night (note 871; campaign.json <c>stores.flares</c>): in the guard van, each
+    /// loaded with <see cref="FlareShots"/> flares. The campaign sets them (<c>SessionSetup</c>).
+    /// </summary>
+    public int FlarePistols { get; init; }
+    public int FlareShots { get; init; } = 3;
     /// <summary>The crew lockers in the kit's car (ARCHITECTURE §8 note 173). Unset, the car has none.</summary>
     public LockerTuning? Lockers { get; init; }
 }

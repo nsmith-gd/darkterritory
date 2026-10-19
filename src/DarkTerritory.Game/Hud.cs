@@ -829,6 +829,8 @@ public static partial class Hud
             _ => "THE TOY",
         },
         BodyKind.Extinguisher => "THE EXTINGUISHER",
+        // The flare pistol (note 871), by its flares left.
+        BodyKind.FlarePistol => b.Charge >= 1 ? $"THE FLARE PISTOL ({(int)b.Charge} LEFT)" : "THE FLARE PISTOL (EMPTY)",
         // A tool on a locker's shelf (note 649).
         BodyKind.Tool => $"THE {ToolName(Kit.At(b.Tools, 0))}",
         BodyKind.Loot => world.Run?.FindName(b)?.ToUpperInvariant() ?? "THE FIND",

@@ -77,9 +77,11 @@ public class GateTests
         var walls = world.Train.Walls!;
         var (departIn, departOut, arriveIn, arriveOut) = Gates(world, route);
         double length = world.Train.Dynamics.Consist.LengthMetres;
-        // Before the first tick nothing's open; the night starts with the engine just short of the departure's gate, so on it
-        // that gate's open (the train's going out through it) and the rest shut.
-        Assert.False(walls.Gates.Any(walls.GateOpen), "a gate open before the first tick");
+        // The night starts with the engine just short of the departure's gate, so that gate's open (the train's going out
+        // through it) and the rest shut: from the first, before any tick (note 869: never drawn swinging in toward an engine
+        // already moving off), and on the first.
+        Assert.True(Open(world, departOut), "the departure's gate is shut in front of the engine before the first tick");
+        Assert.False(Open(world, departIn) || Open(world, arriveIn) || Open(world, arriveOut));
         world.Step(new TrainControls { Brake = 1 });
         Assert.True(Open(world, departOut), "the departure's gate is shut in front of the engine");
         Assert.False(Open(world, departIn) || Open(world, arriveIn) || Open(world, arriveOut));

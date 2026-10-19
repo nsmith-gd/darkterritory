@@ -102,7 +102,9 @@ def shell(p, w, d, h, mat, rise=None):
             mesh = bpy.data.meshes.new("gable_low")
             y = sy * (d / 2 + 0.01)
             verts = [(-w / 2, y, h), (w / 2, y, h), (0, y, h + rise), (-w / 2, y - sy * 0.2, h), (w / 2, y - sy * 0.2, h), (0, y - sy * 0.2, h + rise)]
-            faces = [(0, 1, 2) if sy > 0 else (0, 2, 1), (3, 5, 4) if sy > 0 else (3, 4, 5)]
+            # The outer face out, the inner in (note 869: they were the other way round, so from outside the outer was culled
+            # and the inner, baked dark behind the boards, showed: a black hole in each gable end, "missing sides of geo").
+            faces = [(0, 2, 1) if sy > 0 else (0, 1, 2), (3, 4, 5) if sy > 0 else (3, 5, 4)]
             mesh.from_pydata(verts, [], faces)
             mesh.materials.append(mat)
             o = bpy.data.objects.new("gable_low", mesh)

@@ -45,7 +45,7 @@ so each kind reads by its shape from the line:
     lit by the furnace (`_Glow`: a mask baked to the layer's emissive), a great doorway at each end of its front, the
     cupola through its roof, the 40 m stack behind.
   * coaling_tower (note 422): the coaling stage's concrete bunker on its braced timber trestle, the steel hopper and the
-    chute out over the track hung from its jib, its mouth where the sim's chute pours (CHUTE_MOUTH), ladders, the stop's
+    chute out over the track hung from its jib, its mouth where the sim's chute pours (CHUTE_MOUTH), no ladder (note 869), the stop's
     lamp on its chain, coal spilled round its feet.
   * the wreck yard's dressing (note 427): its older dead, from before the train's time (the heaps the crew work are the
     train's own cars, SceneArt.Wreckage): dead_boxcar, a wooden boxcar off its trucks, boards gapped and charred, a door
@@ -1270,8 +1270,8 @@ CHUTE_MOUTH = (0.0, -6.6, 9.1)
 def coaling_tower(m):
     """The coaling stage's tower (GDD §18: "gravity chute: fast, deafening, fills whether you're ready or not"): a
     concrete bunker 10 m tall on a braced timber trestle 12 m up, a steel hopper under it and the chute out over the
-    track from its gate, hung on chains from a jib, its mouth where the sim's chute pours; an iron roof, a ladder up the
-    trestle and on up the bunker, the stop's lamp on its chain from the front girt, coal spilled round the feet. Its
+    track from its gate, hung on chains from a jib, its mouth where the sim's chute pours; an iron roof (no ladder: note
+    869), the stop's lamp on its chain from the front girt, coal spilled round the feet. Its
     origin is on the ground at the trestle's middle, 7 m off the line."""
     p = []
     X, Y, TOP = 4.5, 3.5, 12.0           # the posts' feet, half along and half across; the trestle's height
@@ -1355,9 +1355,8 @@ def coaling_tower(m):
         p.append(make.box((sx * 0.6, -BY - 0.06, 17.5), (0.12, 0.04, 0.12), m["steel"], bevel=0.005, name="tie_plate", low=False))
         p.append(make.cyl((sx * 0.45, my, jz - 0.05), (sx * 0.45, my, mz + 0.25), 0.02, m["rust"], n=5, bevel=0, name="chain", low=3))
     p.append(make.cyl((-0.7, my - 0.3, jz + 0.3), (0.7, my - 0.3, jz + 0.3), 0.25, m["rust"], n=14, bevel=0, name="sheave", low=8))
-    # Ladders: up the back of the trestle to the cap, on up the bunker to its roof.
-    _ladder(p, m, 2.0, post(1, 1, 6).y + 0.32, 0.3, TOP + 0.4)
-    _ladder(p, m, 2.0, BY + 0.3, TOP + 0.4, B1 + 0.6)
+    # No ladder up it (note 869; the director's playtest of 19 Oct, line 8: "Ladder on the coaling tower but can't climb
+    # it?"): only the train's ladders are climbed, and there's nothing up there for a crewmate to stand on or do.
     # The stop's lamp hangs where GreyboxScene lights it, 4 m off the line 5 m up: on a chain from the front girt.
     p.append(make.cyl((0, post(0, -1, 6.4).y, 6.3), (0, -3.0, 5.35), 0.015, m["rust"], n=5, bevel=0, name="lamp_chain", low=3))
     p.append(make.box((0, -3.0, 5.25), (0.12, 0.12, 0.12), m["rust"], bevel=0.01, name="lamp_cage"))

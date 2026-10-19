@@ -114,6 +114,10 @@
   // m of them in the air takes the ball's hit (guns.damagePerRound) once, and they drop there.
   "cannonball": { "climbReach": 1.0, "climbSeconds": 1.5, "muzzle": 1.5, "range": 40, "speed": 22, "step": 2, "mapHalfWidth": 300,
     "hitRadius": 1.2 },
+  // The flare pistol (note 871; docs/design/upgrades.md §4: "A flare lights a village for 60 s, and the Fire Flies follow it
+  // away from the train"). Fire with it in hand: a flare out along the look at speed m/s, lift of that upward (so it arcs
+  // out over a village rather than into the ballast), one every `every` s at most; it burns burnSeconds where it lands.
+  "flarePistol": { "speed": 28, "lift": 0.35, "every": 1.0, "burnSeconds": 60 },
   "hits": {
     "keepSeconds": 1,
     "impactKeepSeconds": 8

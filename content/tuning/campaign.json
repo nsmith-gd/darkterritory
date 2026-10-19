@@ -25,7 +25,11 @@
   "stores": {
     "powder": { "cost": 120, "most": 3, "each": 4 },
     "lamps": { "cost": 60, "most": 2 },
-    "extinguishers": { "cost": 90, "most": 2 }
+    "extinguishers": { "cost": 90, "most": 2 },
+    // Note 871 (docs/design/upgrades.md §4, the director: "fantastic"): a flare pistol loaded with `each` flares, stocked from
+    // the Frontier tier as a tool is (fromTier). Priced between a spare lamp and an extinguisher: a flare pistol is three
+    // nights' answer to the Fire Flies at one stop each.
+    "flares": { "cost": 80, "most": 2, "each": 3, "fromTier": "frontier" }
   },
   // GDD §9 "add or remove railcars": a car taken off the consist brings back this share of what that car cost (spec F.2),
   // and a consist keeps the starting three at least. A shorter train works a lower tier when it drops below one (F.4).

@@ -962,4 +962,56 @@ public static class TownFixtures
             or "stove" or "stairdoor" or "photo" => (0, 0, 0.5),
         _ => (0.5, 0.5, 1.5),
     };
+
+    /// <summary>
+    /// The works' heaps, slag and coal (WorksKit.Heap, note 870's mound tipped from a line: a ridge along X at its crest, set
+    /// back toward +Z, its slopes straight, gullied): a mound, not a block.
+    /// </summary>
+    public static bool Heap(string kind) => kind is "slag" or "coal";
+
+    /// <summary>
+    /// A heap's walls (note 869; the director's playtest of 19 Oct line 2, "Collision boxes are off": a slag heap stood a 4 m
+    /// box from the ground over its whole footprint, so its foot stopped you in mid-air): a stack of layers no deeper than
+    /// <paramref name="step"/> (player.json stepUp: walked up, as a heap is), each the cross of two boxes inside where the
+    /// mound stands higher than the layer's foot. In the heap's own frame (WorksKit's: X along its front, +Z back from it),
+    /// its footprint <paramref name="halfX"/> by <paramref name="halfZ"/>: each layer's half sizes, how far back its middle
+    /// stands, its foot and top. From the art's shape at every height (its outline's least reach, <see cref="HeapReachLeast"/>;
+    /// its gullies' deepest, <see cref="HeapGully"/> of its height), so a layer is never out past the mound drawn.
+    /// </summary>
+    public static IEnumerable<(double HalfX, double HalfZ, double Back, double Bottom, double Top)> HeapLayers(double halfX, double halfZ, double height,
+        double step)
+    {
+        // Up to its crest, less what a gully takes off it.
+        double peak = height * (1 - HeapGully);
+        int layers = Math.Max(1, (int)Math.Ceiling(peak / Math.Max(0.05, step * 0.9)));
+        for (int i = 0; i < layers; i++)
+        {
+            double below = peak * i / layers, top = peak * (i + 1) / layers;
+            // How far out (t) its slope still stands over the layer's foot, its gullies' worst taken off: y = h (1 - t^1.2).
+            double fall = Math.Min(1, below / height + HeapGully);
+            double t = SixthRootOfFifth(1 - fall), r = t * HeapReachLeast;
+            double x = halfX * (0.42 * (1 - r) + r), z = halfZ * (0.06 * (1 - r) + r), back = halfZ * 0.18 * (1 - t);
+            // The cross inscribed in that ellipse: (0.88, 0.44) and (0.44, 0.88) of it, its corners just inside.
+            yield return (x * 0.88, z * 0.44, back, below, top);
+            yield return (x * 0.44, z * 0.88, back, below, top);
+        }
+    }
+
+    /// <summary>
+    /// x^(5/6), the art's t^1.2 undone (1 / 1.2 = 5 / 6), for x in 0..1: the y with y^6 = x^5, found by halving, so it's the
+    /// same bits on every machine (the C library's Pow isn't; DeterministicMathTests).
+    /// </summary>
+    static double SixthRootOfFifth(double x)
+    {
+        double target = DMath.Pow(Math.Clamp(x, 0, 1), 5), lo = 0, hi = 1;
+        for (int i = 0; i < 52; i++)
+        {
+            double mid = (lo + hi) / 2;
+            (lo, hi) = DMath.Pow(mid, 6) < target ? (mid, hi) : (lo, mid);
+        }
+        return lo;
+    }
+
+    /// <summary>A heap's outline's least reach (of its footprint's half sizes) and its gullies' deepest (of its height): WorksKit.Heap's. Not design numbers.</summary>
+    public const double HeapReachLeast = 0.72, HeapGully = 0.17;
 }

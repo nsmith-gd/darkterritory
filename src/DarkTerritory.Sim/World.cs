@@ -655,6 +655,9 @@ public sealed partial class World
             Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(-0.5, floor, room.Max.Z - 2.5 - 0.4 * (i + 1)), Physics.BodyKind.Lamp);
         for (int i = 0; i < kit.SpareExtinguishers; i++)
             Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(-0.2, floor, room.Min.Z + 1.2 + 0.4 * i), Physics.BodyKind.Extinguisher);
+        // Note 871: the flare pistols, loaded (their flares left in Charge), beside the extinguishers.
+        for (int i = 0; i < kit.FlarePistols; i++)
+            Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(0.2, floor, room.Min.Z + 1.2 + 0.4 * i), Physics.BodyKind.FlarePistol).Charge = kit.FlareShots;
         // Hand-carried loot (GDD v1.1 App. C.4): toys, for the Track Doll to steal.
         for (int i = 0; i < kit.Toys; i++)
             Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(0.6, floor, room.Max.Z - 1.2 - 0.5 * i), Physics.BodyKind.Toy).Noise =
@@ -969,6 +972,7 @@ public sealed partial class World
             Train.Walls.Lock(Run.LockedDoors());
         }
         Train.Walls = ClearSiteWork(Train.Walls);
+        StandGates();
         // Note 730: the night's odd things at the stops, from the route alike on every machine.
         EnableOddities(tuning, route);
         Authority |= authority;
@@ -983,6 +987,19 @@ public sealed partial class World
     /// the line as they're drawn until Tower Jaw brings one down, and the facilities' buildings where the art stands them (note
     /// 758; once the sites are laid out).
     /// </summary>
+    /// <summary>
+    /// Note 847: the fortress gates open for the train and shut behind it, from where it is now. Also as soon as the walls are
+    /// stood (note 869, the director's playtest of 19 Oct line 6: "We clip through the front gate to start?"): the night starts
+    /// with the engine run.json departShortOfGateM short of the departure's gate, which is open from the first, not shut until
+    /// the first tick and then drawn swinging in toward an engine already moving off.
+    /// </summary>
+    void StandGates()
+    {
+        if (Run is { } run && Train.Walls is { Gates.Count: > 0 } gated)
+            gated.OpenGates(Train.Line.MainDistance(Train.Dynamics.Path, Train.Dynamics.Distance),
+                Train.Line.MainDistance(Train.Dynamics.Path, Train.Dynamics.RearDistance), run.Tuning.Gates);
+    }
+
     Sim.Run.StopWalls StopsWalls(Route.Route route)
     {
         var walls = LinesideToo(Sim.Run.StopWalls.Of(route, Train.Line, Forts, _walls), route);
@@ -1049,6 +1066,7 @@ public sealed partial class World
         Train.Walls.Add(Town.Walls);
         if (Arrival is not null)
             Train.Walls.Add(Arrival.Walls);
+        StandGates();
         // A town type's ground laid over the land (note 692): its terraces, benches, decks and water are what's stood on.
         Town.Lay(Train.Line);
         Arrival?.Lay(Train.Line);
@@ -1718,6 +1736,8 @@ public sealed partial class World
         WindGramophone(s, intent, playerId);
         // The tennis-ball launcher (note 745), the same press on the guard van's platform.
         Launch(s, intent, playerId);
+        // The flare pistol (note 871): Fire with it in hand.
+        FireFlare(s, intent, playerId);
         if (handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } lifted)
             Physics.Bodies.TakeTools(ref s, lifted);
         // Searching an open house's hiding spot (note 326), empty-handed, with a Use the hands didn't take.
@@ -2301,9 +2321,7 @@ public sealed partial class World
         Train.Step(SimConstants.TickSeconds, applied);
         // Note 847: the fortress gates open for the train and shut behind it, from where it is now (the host and every client
         // alike: prediction walks into the same leaves).
-        if (Run is { } gatesRun && Train.Walls is { Gates.Count: > 0 } gated)
-            gated.OpenGates(Train.Line.MainDistance(Train.Dynamics.Path, Train.Dynamics.Distance),
-                Train.Line.MainDistance(Train.Dynamics.Path, Train.Dynamics.RearDistance), gatesRun.Tuning.Gates);
+        StandGates();
         if (Authority && !Derailed)
         {
             int spared = DeadEndsSpared, path = Train.Dynamics.Path;

@@ -126,7 +126,9 @@ public static class Protocol
     // 79: a ping on the abandoned town (note 739 part two): PingKind.Town (5), its target the stop whose village it is.
     // 80: a pin jumped at speed takes two (note 865): the vehicle record's field 28 gains bit 10 (Pinned), and LooseCause gains
     //     Jumped (4) and the let-go causes LetGoPin, LetGoBrake, LetGoThrottle (5-7) in the record and the news.
-    public const int Version = 80;
+    // 81: the flare pistol (note 871): the body kinds FlarePistol (24, its flares left in the ninth field) and Flare (25, its
+    //     burn left, 0..1, there).
+    public const int Version = 81;
 }
 
 public enum MessageType : byte

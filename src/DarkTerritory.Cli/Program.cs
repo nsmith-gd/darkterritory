@@ -79,6 +79,9 @@ return args switch
     ["line", "info", var name, ..] => Print(LineInfo(LoadLine(name), Opt(args, "--every", 100))),
     ["line", "drive", var name, ..] => Print(Drive(train, LoadLine(name), (int)Opt(args, "--cars", 3), Opt(args, "--start", -1), Opt(args, "--from", 0), Opt(args, "--throttle", 1), (int)Opt(args, "--seconds", 120))),
     ["art", "check", ..] => ArtCheck(train, content, args),
+    // dt art closed [--only a,b] [--over 0.05]: how much of each kit piece's inside shows from outside it (note 869, the back
+    // faces the renderer culls where a kit left a side out), worst first; non-zero if any is over the share.
+    ["art", "closed", ..] => ArtClosed(train, content, args),
     // dt art houses [--character cove|lunenburg|shelburne|farm|company|mixed] [--count n] [--seed n] [--kind lived|boarded|empty|burnt]:
     // a lineup of a town character's houses as the towns draw them (note 281), to judge their variety at a glance.
     ["art", "houses", ..] => Print(ArtHouses(content, args)),
@@ -677,6 +680,8 @@ object CampaignCommand(string content, string verb, string[] args)
                     "powder" => DarkTerritory.Sim.Campaign.Campaign.BuyStores(t, s, DarkTerritory.Sim.Campaign.StoreKind.Powder),
                     "lamp" => DarkTerritory.Sim.Campaign.Campaign.BuyStores(t, s, DarkTerritory.Sim.Campaign.StoreKind.Lamp),
                     "extinguisher" => DarkTerritory.Sim.Campaign.Campaign.BuyStores(t, s, DarkTerritory.Sim.Campaign.StoreKind.Extinguisher),
+                    // Note 871: the flare pistol, from the Frontier tier.
+                    "flare" => DarkTerritory.Sim.Campaign.Campaign.BuyStores(t, s, DarkTerritory.Sim.Campaign.StoreKind.Flare),
                     "sell" => DarkTerritory.Sim.Campaign.Campaign.SellCar(t, s),
                     _ => DarkTerritory.Sim.Campaign.Campaign.BuyUpgrade(t, s, what),
                 };
@@ -2828,6 +2833,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     for (int b = 0; b < builds; b++)
         scene.Build(mesh, train, camera.Position, leaned);
     double buildMs = buildClock.Elapsed.TotalMilliseconds / builds;
+    // --walls [r]: the night's Sim walls within r of the eye (60 m) over the scene, to lay what's walked into against what's
+    // drawn (note 869; WallsOverlay). The whole night's, as the app stands them: the run, its facilities, both towns.
+    if (args.Contains("--walls") && generated is not null)
+    {
+        var night = new DarkTerritory.Game.PrototypeSession(content, generated, cars, enemies: false);
+        int drawn = WallsOverlay.Draw(mesh, night.World.Train.Walls!, night.Train.Line, camera.Position, Opt(args, "--walls", 60));
+        Console.Error.WriteLine($"walls: {drawn} of {night.World.Train.Walls!.All.Count} drawn");
+    }
     // --lantern: a hand lamp held just under the eye (the scene is eye-relative), the light you'd have in a dark car.
     if (args.Contains("--lantern") || Staging.IsHouseView(view))
         mesh.PointLights.Add(new PointLight(new System.Numerics.Vector3(0.15f, -0.35f, 0), DarkTerritory.Game.Palette.LampAmber * 1.6f, 6));
@@ -2919,6 +2932,21 @@ static int ArtCheck(TrainTuning t, string content, string[] args)
     var textures = look.Textures.Select(x => x.Name).ToHashSet();
     Print(new { pieces = rows, textures = textures.Count, over = rows.Where(r => r.over).Select(r => r.piece) });
     return rows.Any(r => r.over) ? 1 : 0;
+}
+
+// How much of each kit piece's inside shows from outside it (note 869; MeshOpenness), worst first.
+static int ArtClosed(TrainTuning t, string content, string[] args)
+{
+    var look = DarkTerritory.Game.Look.Load(content);
+    var only = Str(args, "--only", "") is { Length: > 0 } names ? names.Split(',').ToHashSet() : null;
+    double over = Opt(args, "--over", 0.05);
+    var rows = DarkTerritory.Game.Art.ArtCatalog.Entries(look, t).Where(e => only is null || only.Contains(e.Name)).Select(e =>
+    {
+        var (inside, hits, worst) = DarkTerritory.Game.Art.MeshOpenness.SeenInside(e.Make());
+        return new { piece = e.Name, inside = Math.Round(inside, 3), hits, from = new[] { Math.Round(worst.X, 2), Math.Round(worst.Z, 2) } };
+    }).OrderByDescending(r => r.inside).ToList();
+    Print(new { over, open = rows.Where(r => r.inside > over).Select(r => r.piece), pieces = rows });
+    return rows.Any(r => r.inside > over) ? 1 : 0;
 }
 
 // What each lineside kit piece stands on (note 389), as content/linegen/footprints.json has it: one variant a line.
@@ -3941,6 +3969,19 @@ static object HudShot(string content, string[] args)
         session.World.DawnEndsCampaign = true;
     var frames = session.InterpolatedFrames(1);
     var camera = session.EyeCamera(frames, 1, 0, 0);
+    // --flare (note 871): a flare burning on the ground 35 m out ahead of the eye, and a loaded flare pistol in your hands.
+    if (args.Contains("--flare"))
+    {
+        var ahead = new Double3(camera.Forward.X, 0, camera.Forward.Z);
+        var at = camera.Position + ahead * (35 / ahead.Length);
+        double hint = session.Train.Dynamics.Distance;
+        at = at with { Y = PlayerMotor.GroundAt(at, session.Train.Line, ref hint) };
+        var flare = session.World.Bodies.SpawnItem(at, hint, DarkTerritory.Sim.Physics.BodyKind.Flare);
+        (flare.Burns, flare.Charge) = (60, 1);
+        flare.Pbd.Sleep();
+        var pistol = session.World.Bodies.SpawnItem(at, hint, DarkTerritory.Sim.Physics.BodyKind.FlarePistol);
+        (pistol.Charge, pistol.Carrier) = (2, session.PlayerId);
+    }
     // --loading [built]: the next night's loading card over the town the crew's in (note 604), from its square; "built", the
     // night ahead named (its terminus), as it holds before the night opens.
     var loadingIn = args.Contains("--loading") ? session.World.Arrival : null;

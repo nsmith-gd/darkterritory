@@ -82,6 +82,37 @@ public static class Fortresses
     public const int HouseSeed = 7001;
 
     /// <summary>
+    /// The home platform's bays (StructureKit.PlatformBay; note 869): one every <see cref="PlatformBay"/> m along the line from
+    /// <see cref="PlatformFrom"/> past the yard's start to <see cref="PlatformShort"/> short of its gate, right of the line. Its
+    /// deck from <see cref="PlatformEdge"/> out to <see cref="PlatformOut"/>, <see cref="PlatformDeck"/> up; at each bay's start
+    /// its canopy's two posts, <see cref="PostOut"/> out, <see cref="PostHalf"/> square and <see cref="PostTop"/> tall. Not
+    /// design numbers: the kit's.
+    /// </summary>
+    public const double PlatformBay = 8, PlatformFrom = 60, PlatformShort = 30, PlatformEdge = 3.6, PlatformOut = 10, PlatformDeck = 0.25;
+    public const double PostHalf = 0.13, PostTop = 4.2;
+    public static readonly double[] PostOut = [5.2, 9.2];
+
+    /// <summary>
+    /// What stands on a platform bay of <paramref name="variant"/> (every third bay the same, by where it is: (s / 8) % 3), in
+    /// the bay's frame (x out from the line, z up the line from the bay's start, negative): the bench (0) or the crates (1), each
+    /// (x0, z0, x1, z1, top); none on the third. StructureKit.PlatformBay draws them from these.
+    /// </summary>
+    public static IReadOnlyList<(double X0, double Z0, double X1, double Z1, double Top)> OnThePlatformBay(int variant) => (variant % 3) switch
+    {
+        0 => [(8.6, -5.5, 9.1, -3.5, 1.2)],
+        1 => [(7.5, -3.0, 8.1, -2.4, 1.35), (8.2, -3.1, 8.8, -2.5, 0.85)],
+        _ => [],
+    };
+
+    /// <summary>The platform's bays' starts along the line, for a fortress from <paramref name="start"/> with its gate at <paramref name="gateAt"/>.</summary>
+    public static IEnumerable<double> PlatformBays(double start, double gateAt)
+    {
+        double p0 = start + PlatformFrom, p1 = gateAt - PlatformShort;
+        for (double s = Math.Floor(p0 / PlatformBay) * PlatformBay; s < p1; s += PlatformBay)
+            yield return s;
+    }
+
+    /// <summary>
     /// The line's fortresses: the home fortress's yard (the gate at its end, <paramref name="yardLength"/>), and the terminus's
     /// from its gate to the end of the line (the plan's gate, or <paramref name="terminusZone"/> and 200 m short of the end on a
     /// hand-laid route), dark and empty when the terminus has stopped answering.
@@ -223,6 +254,20 @@ public static class Fortresses
                     }
             }
         }
+        // The home platform (note 869; the director's playtest of 19 Oct line 2, "Collision boxes are off"): its deck, stepped
+        // up onto, its canopy's posts and what stands on it, solid where StructureKit.PlatformBay draws them, not walked through.
+        if (fort.Platform)
+            foreach (double s in PlatformBays(fort.Start, fort.Gate))
+            {
+                if (s < a || s + PlatformBay > b)
+                    continue;
+                double deck = (PlatformEdge + PlatformOut) / 2;
+                yield return At(s + PlatformBay / 2, deck, PlatformBay / 2, (PlatformOut - PlatformEdge) / 2, -3, PlatformDeck);
+                foreach (double x in PostOut)
+                    yield return At(s, x, PostHalf, PostHalf, -3, PostTop);
+                foreach (var (x0, z0, x1, z1, top) in OnThePlatformBay((int)(s / PlatformBay)))
+                    yield return At(s - (z0 + z1) / 2, (x0 + x1) / 2, (z1 - z0) / 2, (x1 - x0) / 2, -3, top);
+            }
         if (fort.Bounds is null && fort.Gate >= 0 && fort.Gate <= line.Length)
         {
             double mid = (GateInner + GateOuter) / 2, half = (GateOuter - GateInner) / 2;
