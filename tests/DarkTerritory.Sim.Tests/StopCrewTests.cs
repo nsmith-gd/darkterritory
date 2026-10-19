@@ -1065,6 +1065,56 @@ public class StopCrewTests
     }
 
     [Fact]
+    public void ATownPingedAtAStopIsSearchedByAHandBeforeTheCratesAreIn()
+    {
+        // Note 739 part two (GDD §12 "Ping the bots"; the director, 14 Oct: "an abandoned town by a yard"): at a stop, with
+        // the crates still going in, someone looks at a house of the village and pings it. That's the town, the stop's; a
+        // walker takes it and goes out searching its houses then and there, not once the crates are in as it would.
+        var night = new Night(cars: 8, walkers: 3, crateHands: true, ids: true, loot: true, modules: ModuleKind.Crates);
+        var train = night.Train;
+        var world = night.World;
+        var run = world.Run!;
+        int k = run.Stops.ToList().IndexOf(night.Site.Feature);
+        var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().ToList();
+        night.Until(() => hands.Any(h => h.Doing.Contains("crate")), 900);
+        Assert.Contains(hands, h => h.Doing.Contains("crate"));
+        // Standing out beside the middle of the train, looking at the nearest house of the stop's village: the town.
+        var walls = train.Walls!;
+        var beside = train.Frames[4].ToWorld(new Double3(night.Site.Side * (train.Frames[4].Shape.Bounds.Max.X + 3), 0, 0));
+        var house = walls.OpenHouses.Where(h => h.Feature == run.StopOf(night.Site.Feature).Feature)
+            .OrderBy(h => (h.Middle - beside).Length).First();
+        var eye = PlayerMotor.SpawnOnGround(beside, train.Line, train.Dynamics.Distance, P);
+        var to = house.Middle + Double3.Up * 2 - (eye.Position + Double3.Up * train.Dynamics.Tuning.Pick.EyeHeight);
+        to *= 1 / to.Length;
+        Assert.True(run.CurrentSite is not null, "no current site");
+        Assert.True((house.Middle - beside).Length < P.Pings.TownRange, $"house {(house.Middle - beside).Length:0} m off");
+        var ping = Pings.Resolve(world, eye with { Yaw = Math.Atan2(-to.X, -to.Z), Pitch = Math.Asin(to.Y) }, P.Pings);
+        Assert.Equal((PingKind.Town, k), (ping?.Kind, ping?.Target));
+        world.Pings.Add(new PingEvent(1, world.Tick, 99, PingKind.Town, k, ping!.Value.At));
+        for (int i = 0; i < night.Bots.Count; i++)
+        {
+            night.Calls.Bot(i + 1);
+            night.Calls.Role(i + 1, night.Bots[i] is ConductorBot ? BotRole.Driver : BotRole.Walker);
+        }
+        int? taker = null;
+        bool cratesGoing = false;
+        night.Until(() => taker is int id && hands.First(h => h.PlayerId == id).Searching is not null, 120, () =>
+        {
+            var crew = night.Crew.Select((c, i) => (i + 1, c)).ToList();
+            for (int i = 0; i < night.Bots.Count; i++)
+                night.Calls.Pings(world, i + 1, night.Crew[i], crew);
+            taker ??= Enumerable.Range(1, night.Bots.Count).Select(id => (int?)id).FirstOrDefault(id => night.Calls.OrderOf(id!.Value) is { Kind: PingKind.Town });
+            cratesGoing = hands.Any(h => h.PlayerId != taker && h.Doing.Contains("crate"));
+        });
+        string doing = string.Join(", ", hands.Select(h => h.Doing));
+        Assert.True(taker is not null, $"nobody took the ping; the hands were {doing}");
+        var hand = hands.First(h => h.PlayerId == taker);
+        Assert.True(hand.Searching is { } spot && spot.Stop == k, $"the taker's not searching the town's houses; the hands were {doing}");
+        Assert.True(cratesGoing, $"the crates were in before it went; the hands were {doing}");
+        Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}"));
+    }
+
+    [Fact]
     public void AHandOutInTheVillageFillsItsSlotsBeforeItWalksBack()
     {
         // Note 594 (the director, 9 Oct: "I'm able to kind of hold on to it so I can grab a few pieces of loot at a time"): a
