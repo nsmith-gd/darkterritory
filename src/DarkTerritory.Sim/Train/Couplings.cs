@@ -54,7 +54,7 @@ public sealed record JumpTuning
     public double PerMinute { get; init; } = 0.25;
     public double After { get; init; } = 180;
     public double Spacing { get; init; } = 300;
-    public double PartAfter { get; init; } = 40;
+    public double PartAfter { get; init; } = 60;
     public double DriveSeconds { get; init; } = 4;
     public double LetGo { get; init; } = 0.3;
 }

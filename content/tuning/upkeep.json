@@ -81,7 +81,7 @@
       "perMinute": 0.25,
       "after": 180,
       "spacing": 300,
-      "partAfter": 40,
+      "partAfter": 60,
       "driveSeconds": 4,
       "letGo": 0.3
     }

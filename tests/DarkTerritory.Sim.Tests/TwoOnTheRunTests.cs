@@ -214,7 +214,6 @@ public class TwoOnTheRunTests
                 else if (cameAt is not null && homeAt is null && w.Train.Vehicles[gap].Loose == 0 && w.JumpCount.Home > 0)
                     homeAt = w.ElapsedSeconds;
             });
-        Console.Error.WriteLine($"BOTS {bots} cars {cars} gap {gap}: home {homeAt - cameAt:0.0} s after");
         Assert.NotNull(cameAt);
         Assert.True(homeAt is not null, $"jumped at {cameAt:0} s behind car {gap}, never home ({report.Upkeep?.Parted} parted, {report.Deaths} died)");
         Assert.Equal(0, report.Upkeep?.Parted ?? 0);
@@ -262,7 +261,7 @@ public class TwoOnTheRunTests
         Assert.Equal(300, j.Spacing);
         Assert.Equal(4, j.DriveSeconds);
         Assert.Equal(0.3, j.LetGo);
-        Assert.Equal(40, j.PartAfter);
+        Assert.Equal(60, j.PartAfter);
         Assert.Equal(90, L.PartAfter);
     }
 
