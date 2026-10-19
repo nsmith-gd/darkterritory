@@ -228,6 +228,9 @@ public static partial class Hud
             // Note 720: a hand lamp's signals, its own wheel (what each says is the crew's to learn).
             if (carried.Kind == BodyKind.Lamp)
                 lines.Add("SIGNAL : HOLD [U]");
+            // Note 871: a loaded flare pistol fires as a gun does (its flares left are in its name).
+            if (carried.Kind == BodyKind.FlarePistol && carried.Charge >= 1)
+                lines.Insert(0, "FIRE : [LMB]");
             return (Called(world, carried), lines);
         }
         // Note 649: at a crew locker with a tool in hand, Throw puts it on a shelf (the prompt's line is the locker's Use).

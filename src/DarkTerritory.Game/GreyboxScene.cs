@@ -107,7 +107,28 @@ public sealed partial class GreyboxScene
         if ((at - eye).Length >= 60)
             return;
         var (drift, flicker) = Look is null ? (Vector3.Zero, 1f) : (Art.SceneArt.FlameDrift(Time, id), Art.SceneArt.Flicker(Time, id));
-        var light = new PointLight(V(at, eye) + drift, Palette.LampAmber * Interiors.HandLamp * flicker, Interiors.HandLampRange);
+        Practical(mesh, new PointLight(V(at, eye) + drift, Palette.LampAmber * Interiors.HandLamp * flicker, Interiors.HandLampRange), id);
+    }
+
+    /// <summary>
+    /// A flare burning (note 871; upgrades.md §4: "a flare lights a village"): a hard red light round it, sputtering
+    /// and dimming as it burns down (Body.Charge, the burn left). It takes the shadows as a hand lamp does when it's the nearest,
+    /// so it doesn't light the cars' insides through their walls.
+    /// </summary>
+    void FlareLight(MeshBuilder mesh, Double3 at, Double3 eye, int id, double left)
+    {
+        if ((at - eye).Length >= 120)
+            return;
+        float sputter = 0.85f + 0.15f * MathF.Sin((float)(Time * 23) + id) * MathF.Sin((float)(Time * 7.1) + 2 * id);
+        float burn = 0.35f + 0.65f * (float)Math.Clamp(left, 0, 1);
+        // (Its light's reach is the look's, short of the sim's: point lights cast no shadow unless they're the nearest, so one
+        // reaching a village's width would light the cars' insides through their walls. Its glare carries it further.)
+        Practical(mesh, new PointLight(V(at + Double3.Up * 0.7, eye), Art.SceneArt.FlareGlow * 8f * sputter * burn, 18f), -2 - id);
+    }
+
+    /// <summary>A practical light into the scene (a lamp's, a flare's): the nearest the eye casts the shadows, the rest light unshadowed.</summary>
+    void Practical(MeshBuilder mesh, PointLight light, int id)
+    {
         // Which casts the shadows holds it until another's clearly nearer (note 762): two lamps about as near as each other
         // (a crewmate's beside yours in the cab) would otherwise swap it from frame to frame, and the shadows flash.
         float Near(PointLight l, int lamp) => l.Position.Length() - (lamp == _shadowLampWas ? ShadowHoldM : 0);
@@ -594,6 +615,11 @@ public sealed partial class GreyboxScene
             foreach (var b in Bodies.Where(b => b.Kind == Sim.Physics.BodyKind.Lamp && !b.Stashed))
                 if (((b.Carrier >= 0 ? Look?.Art.LampInHand(b.Carrier, Time) : null) ?? BodyWorld(b, frames, b.Centre)) is { } at)
                     HandLamp(mesh, at, eye, b.Carrier >= 0 ? b.Carrier : b.Id);
+        // Flares burning (note 871).
+        if (Bodies is not null)
+            foreach (var b in Bodies.Where(b => b.Kind == Sim.Physics.BodyKind.Flare && b.Charge > 0))
+                if (BodyWorld(b, frames, b.Centre) is { } at)
+                    FlareLight(mesh, at, eye, b.Id, b.Charge);
         // (A staged crewmate's, dt screenshot --act lantern, has no body: its light is where the art hung it.)
         if (Crew is not null && Look is not null)
             foreach (var c in Crew.Where(c => c.Lamp && Bodies?.Any(b => b.Kind == Sim.Physics.BodyKind.Lamp && b.Carrier == c.Id) != true))
