@@ -315,6 +315,14 @@ public sealed record UpkeepReport(int HotBoxes, int Caught, int Lamps, int WentO
     public IReadOnlyDictionary<string, int> FilledBy { get; init; } = new Dictionary<string, int>();
     /// <summary>Seconds a gun that's fired stood with its rack dry while there was powder below (note 377), its gunner waiting or gone for it.</summary>
     public double DrySeconds { get; init; }
+    /// <summary>Note 865: pins a rail joint jumped (two to hold, among <see cref="Couplings"/>), driven home by two, parted as one let go.</summary>
+    public int Jumped { get; init; }
+    public int JumpedHome { get; init; }
+    public int JumpLetGo { get; init; }
+    /// <summary>Note 865: of <see cref="JumpedHome"/>, those caught in the warning before the pin jumped.</summary>
+    public int JumpCaught { get; init; }
+    /// <summary>Note 865: seconds a pin could have jumped (two alive, at speed, the night's clock past its first and the last's spacing).</summary>
+    public double JumpSeconds { get; init; }
 }
 
 /// <summary>
@@ -770,6 +778,11 @@ public static class Harness
             FilledBy = host.World.RacksFilledBy.GroupBy(f => clients.FirstOrDefault(c => c.Session.PlayerId == f.Key).Bot?.Name ?? $"player {f.Key}")
                 .ToDictionary(g => g.Key, g => g.Sum(f => f.Value)),
             DrySeconds = Math.Round(dryTicks * SimConstants.TickSeconds, 1),
+            Jumped = host.World.JumpCount.Jumped,
+            JumpedHome = host.World.JumpCount.Home,
+            JumpLetGo = host.World.JumpCount.LetGo,
+            JumpCaught = host.World.JumpCaught,
+            JumpSeconds = Math.Round(host.World.JumpSeconds),
         };
         return new HarnessReport(ticks, seconds, link,
             Math.Round(host.Train.Dynamics.Distance, 1), Math.Round(host.Train.Dynamics.Speed, 2),

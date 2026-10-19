@@ -1396,6 +1396,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     {
         train.Loose = DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File)).Coupling;
         train.Vehicles[Math.Min(2, train.Vehicles.Count - 1)].Loose = looseFor;
+        // --loose-cause working|jumped (note 865): the pin that takes two, in its warning (its callout beating hard) or jumped.
+        if (Str(args, "--loose-cause", "") is { Length: > 0 } cause)
+            train.Vehicles[Math.Min(2, train.Vehicles.Count - 1)].LooseCause = Enum.Parse<LooseCause>(cause, ignoreCase: true);
     }
     // --gannet soar|circle|hang|fold|dive|stuck|tearfree|climb|bank|swoop|pin|windup|peck: the staged Gannet (note 340;
     // Staging.Gannet) over the second car's roof, after crewmate 4 walking it; the train running at --speed (20 m/s: it only
@@ -3833,6 +3836,28 @@ static object HudShot(string content, string[] args)
                 solo.Train.Loose = DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File)).Coupling;
                 solo.Train.Vehicles[2].Loose = SimConstants.TickSeconds;
                 solo.World.PinLoosened(2, DarkTerritory.Sim.Train.LooseCause.Bend, 62 / 3.6, 50);
+            }
+            // jumped (note 865): the pin behind car 2 just jumped clear at a rail joint at 64 km/h, the one that takes two; working,
+            // its warning before, most of the way through (the knock quick, the callout beating, the cars shaking).
+            else if (said is "jumped" or "working")
+            {
+                solo.Train.Loose = DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File)).Coupling;
+                var cause = said == "working" ? DarkTerritory.Sim.Train.LooseCause.Working : DarkTerritory.Sim.Train.LooseCause.Jumped;
+                double into = said == "working" ? solo.Train.Loose.Jump.WarnSeconds * 0.7 : SimConstants.TickSeconds;
+                (solo.Train.Vehicles[2].Loose, solo.Train.Vehicles[2].LooseCause) = (into, cause);
+                solo.World.PinLoosened(2, cause, 64 / 3.6);
+                // Jumped: down in its gap, at the pin, the HUD's prompt saying it takes two. Working: up on car 2's roof at its back
+                // end, looking back down into the gap, its callout beating there.
+                var g = solo.Train.Dynamics.Tuning.Geometry;
+                solo.Player = said == "working"
+                    ? DarkTerritory.Sim.Player.PlayerMotor.SpawnOnRoof(solo.Train, 2, solo.Train.Frames[2].Shape.HalfLength - 1.2, solo.PlayerTuning) with { Yaw = Math.PI, Pitch = -0.7 }
+                    : solo.Player with
+                    {
+                        Parent = 2,
+                        Surface = DarkTerritory.Sim.Player.Surface.Coupler,
+                        Velocity = default,
+                        Position = new Double3(g.PlateX, g.CouplerHeight, solo.Train.Frames[2].Shape.HalfLength + 0.7),
+                    };
             }
             else if (said == "fire")
                 solo.World.FireStarted(DarkTerritory.Sim.Enemies.CarFire.In(99, solo.Train, 3, 2, solo.World.Enemies?.CarFire ?? new DarkTerritory.Sim.Enemies.CarFireTuning(),
