@@ -717,6 +717,8 @@ public sealed record DirectorTuning(
     public PressureTuning Pressure { get; init; } = new();
     /// <summary>The night's curve and the free spawns on it (GDD App. B.1 "The night's curve"; note 849).</summary>
     public CurveTuning Curve { get; init; } = new();
+    /// <summary>The stops' own creatures, in place as the train stands at a yard or village, and one boarding there (note 860).</summary>
+    public StopsTuning Stops { get; init; } = new();
     /// <summary>T128 (note 273): the pressure on a crewmate the train has left behind.</summary>
     public AbandonedTuning Abandoned { get; init; } = new();
     /// <summary>Note 327 (GDD App. F.3): the crew on foot off the train, watched: the pressure they draw, and the signs they're shown.</summary>
@@ -828,6 +830,24 @@ public sealed record CurveTuning
     /// less for each crewmate over that, never under <see cref="CrewFloor"/> (a bigger crew's pressure already scales with it).
     /// </summary>
     public double Fade(int crew) => Math.Max(CrewFloor, 1 - CrewFade * Math.Max(0, crew - CrewFadeFrom));
+}
+
+/// <summary>
+/// The stops' own (note 860; GDD App. B.1 "The stops' own"; the director's playtest of 16 Oct evening, line 7: "Monsters are
+/// positioned and ready at yards and abandoned villages, or use those stops to get onto the train"): as the train stands at
+/// a yard or a village, <see cref="Waiting"/> of what lives there is put in place, and <see cref="Boarding"/> of the
+/// <see cref="Boarders"/> gets aboard there, each a kind whose rule the stop meets, at its own and the tuning's weights;
+/// beside the pressure's spends, outside its budget, threshold, cooldown and the facility lull. Mirror of enemies.json
+/// <c>director.stops</c>; field docs live there.
+/// </summary>
+public sealed record StopsTuning
+{
+    public bool On { get; init; } = true;
+    public int Waiting { get; init; } = 1;
+    public int Boarding { get; init; } = 1;
+    public double BoardingAfterSeconds { get; init; } = 40;
+    public double TrySeconds { get; init; } = 240;
+    public string[] Boarders { get; init; } = [];
 }
 
 /// <summary>

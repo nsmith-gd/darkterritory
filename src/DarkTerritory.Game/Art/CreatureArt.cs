@@ -497,6 +497,13 @@ public sealed partial class CreatureArt
     readonly Effects _fx;
     readonly float _texels;
 
+    /// <summary>
+    /// Whether a car fire is drawn on its cells (<see cref="Effects.CellFlames"/>), for the fire drawn here at its heart. Note
+    /// 866: the scene set it only on the art's own effects, never on these, so the heart drew its whole fire (flames, smoke,
+    /// glow, light) at the middle of it until the last cell was out.
+    /// </summary>
+    public bool CellFlames { get => _fx.CellFlames; set => _fx.CellFlames = value; }
+
     /// <param name="contentRoot">The content folder; by default the one <paramref name="look"/>'s textures came from.</param>
     DaveKit? _dave;
     JacobKit? _jacob;
