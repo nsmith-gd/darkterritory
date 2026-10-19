@@ -188,6 +188,13 @@ public class BigFindsTests
         Assert.Equal(1, shared.Report(world).Moments.GetValueOrDefault("pairJob"));
         var between = (PlayerMotor.WorldPosition(crew[0], world.Train) + PlayerMotor.WorldPosition(crew[1], world.Train)) * 0.5;
         Assert.True(((Bodies.WorldCentre(jackpot, world.Train) - between) with { Y = 0 }).Length < 0.4);
+
+        // Note 867: something grabs one of them, and their end's let go: it's down, the other left holding it, to choose.
+        crew[1] = crew[1] with { Flags = crew[1].Flags | PlayerFlags.Held };
+        Step(world, crew, new PlayerIntent[2], 0.5);
+        Assert.False(jackpot.Lifted);
+        Assert.False(jackpot.HeldBy(2));
+        Assert.True(jackpot.HeldBy(1));
     }
 
     [Fact]

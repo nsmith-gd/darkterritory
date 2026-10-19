@@ -37,6 +37,8 @@ public sealed record SharedReport(IReadOnlyDictionary<string, int> Moments, IRea
 {
     /// <summary>The stops where two worked one job (going to plan or not).</summary>
     public int StopsWithPairJob { get; init; }
+    /// <summary>Note 867: the night's jackpots lying stowed in a car (paid at the gate). Those carried by two are the moments' <c>jackpotCarried</c>.</summary>
+    public int JackpotsBanked { get; init; }
 }
 
 /// <summary>
@@ -48,6 +50,7 @@ public sealed class SharedWatch(SharedTuning t)
     /// <summary>Who's held now, and whether a friend has come within reach of them this hold.</summary>
     readonly SortedDictionary<int, bool> _held = [];
     readonly HashSet<(int, int)> _pairs = [], _threatened = [];
+    readonly HashSet<int> _carried = [];
     readonly SortedDictionary<string, int> _all = new(StringComparer.Ordinal), _run = new(StringComparer.Ordinal);
     readonly List<SharedStop> _stops = [];
     int _incidents, _facility = -1;
@@ -107,6 +110,10 @@ public sealed class SharedWatch(SharedTuning t)
         }
         foreach (int gone in _held.Keys.Where(k => !living.Any(c => c.Id == k)).ToList())
             _held.Remove(gone);
+        // A two-person jackpot up between two (note 867: bots carry them too): once a jackpot.
+        foreach (var body in world.Bodies.All)
+            if (body is { Lifted: true, Second: >= 0 } && Run.Run.IsJackpot(body) && _carried.Add(body.Id))
+                Count("jackpotCarried");
         // A hold broken by a friend (the log's Rescue, its actor someone else).
         var log = world.Attribution.Log;
         for (; _incidents < log.Count; _incidents++)
@@ -207,6 +214,7 @@ public sealed class SharedWatch(SharedTuning t)
         return new SharedReport(all, _run, stops, stops.Count(s => s.Moments.Keys.Any(Problem.Contains)), world.Run?.Jackpots ?? 0)
         {
             StopsWithPairJob = stops.Count(s => s.Moments.ContainsKey("pairJob")),
+            JackpotsBanked = world.Bodies.All.Count(b => b.Banked && Run.Run.IsJackpot(b)),
         };
     }
 }

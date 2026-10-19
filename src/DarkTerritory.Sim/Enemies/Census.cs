@@ -27,7 +27,11 @@ public enum Post : byte
 /// <see cref="OrchestratorTuning.Commitment"/> on.
 /// </param>
 /// <param name="At">Where they stand (world), for the collision's reach.</param>
-public sealed record CensusEntry(int Player, Post Post, double Slack, int On, bool Committed = false, Double3 At = default);
+public sealed record CensusEntry(int Player, Post Post, double Slack, int On, bool Committed = false, Double3 At = default)
+{
+    /// <summary>Note 867: the one on the same pair job with them (<see cref="Census.PartnerOf"/>), or −1.</summary>
+    public int Partner { get; init; } = -1;
+}
 
 /// <summary>
 /// The orchestrator's census (ARCHITECTURE §8 note 345; docs/design/orchestrator.md §3.1, §3.2 items 2–4; GDD App. F.3: threats
@@ -43,12 +47,12 @@ public sealed record CensusEntry(int Player, Post Post, double Slack, int On, bo
 /// </summary>
 public sealed class Census
 {
-    readonly SortedDictionary<int, (Post Post, double Slack, int On, bool Committed, Double3 At)> _now = [];
+    readonly SortedDictionary<int, (Post Post, double Slack, int On, bool Committed, Double3 At, int Partner)> _now = [];
     readonly SortedDictionary<int, (double Max, double Over)> _stats = [];
 
     /// <summary>The crewmates counted this second, by player id.</summary>
     public IReadOnlyList<CensusEntry> Entries =>
-        [.. _now.Select(kv => new CensusEntry(kv.Key, kv.Value.Post, kv.Value.Slack, kv.Value.On, kv.Value.Committed, kv.Value.At))];
+        [.. _now.Select(kv => new CensusEntry(kv.Key, kv.Value.Post, kv.Value.Slack, kv.Value.On, kv.Value.Committed, kv.Value.At) { Partner = kv.Value.Partner })];
 
     /// <summary>Each crewmate's most slack tonight, and the seconds they've spent at or past <see cref="OrchestratorTuning.SlackPress"/>.</summary>
     public IReadOnlyDictionary<int, (double Max, double Over)> Stats => _stats;
@@ -120,7 +124,7 @@ public sealed class Census
             slack = n > 0 || hotBox || driving || post == Post.LeftBehind ? 0 : counting ? slack + 1 : slack;
             // Committed (note 753) is read wherever the census counts, at a stop as on the run.
             bool committed = t.Commitment && IsCommitted(world, id, crew.First(c => c.Id == id).State);
-            _now[id] = (post, slack, n, committed, at);
+            _now[id] = (post, slack, n, committed, at, committed ? PartnerOf(world, id) : -1);
             var st = _stats.GetValueOrDefault(id);
             _stats[id] = (Math.Max(st.Max, slack), st.Over + (counting && slack >= t.SlackPress ? 1 : 0));
         }
@@ -147,6 +151,36 @@ public sealed class Census
         if (world.Run is { Phase: Run.RunPhase.AtFacility, CurrentSite: { } site } && site.Works(id))
             return true;
         return world.Holdouts?.All.Any(h => h.Breacher == id) == true;
+    }
+
+    /// <summary>
+    /// Note 867: the crewmate on the same pair job as <paramref name="id"/>, or −1: the other end of a heavy crate or a jackpot
+    /// up between them, the winch's other handle, the crane's operator for its rigger (and the rigger for its operator).
+    /// </summary>
+    public static int PartnerOf(World world, int id)
+    {
+        foreach (var b in world.Bodies.All)
+            if (b.Kind == Physics.BodyKind.Heavy && b.Carrier >= 0 && b.Second >= 0 && b.HeldBy(id))
+                return b.Carrier == id ? b.Second : b.Carrier;
+        if (world.Run is { Phase: Run.RunPhase.AtFacility, CurrentSite: { } site })
+        {
+            if (site.Cranking[0] >= 0 && site.Cranking[1] >= 0 && site.Cranking[0] != site.Cranking[1])
+            {
+                if (site.Cranking[0] == id)
+                    return site.Cranking[1];
+                if (site.Cranking[1] == id)
+                    return site.Cranking[0];
+            }
+            foreach (var crane in site.Cranes)
+                if (crane.Operator >= 0 && crane.Rigger >= 0 && crane.Operator != crane.Rigger)
+                {
+                    if (crane.Operator == id)
+                        return crane.Rigger;
+                    if (crane.Rigger == id)
+                        return crane.Operator;
+                }
+        }
+        return -1;
     }
 
     /// <summary>The crewmate an engaged threat is on, or null (nobody near and nobody at a post that answers it).</summary>

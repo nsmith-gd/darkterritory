@@ -974,6 +974,12 @@ public sealed record OrchestratorTuning
     public double CollisionReachM { get; init; } = 60;
     /// <summary>A conflict pair made tonight weighs ÷ this for each time it's been made, when it would be made again; 1: off.</summary>
     public double PairRepeat { get; init; } = 1;
+    /// <summary>
+    /// Note 867 (the director, 19 Oct, on note 861's call 2: "Yes"): one of a pair on one job (a jackpot's two ends, the winch's
+    /// two handles, the crane's operator and rigger) counts as free for the other's collision: they can let go and come.
+    /// Off: as note 753 (a pair is two busy, nobody free).
+    /// </summary>
+    public bool PairFree { get; init; }
 }
 
 /// <summary>

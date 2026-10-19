@@ -45,7 +45,7 @@ public sealed partial class StopHand
         if (crate is null || crate.Carrier >= 0 || crate.Parent != PlayerState.World)
         {
             LetGoOfCrate();
-            crate = NextCrate(world, p, here, t.YardReach);
+            crate = NextCrate(world, p, here, t.YardReach, t.JackpotReach);
             if (crate is null)
                 return null;
         }
@@ -74,7 +74,7 @@ public sealed partial class StopHand
                 return clear;
             // To the crate itself: the way ends as near it as a crewmate stands (it may lie in a shed's bay, by its wall).
             var path = FootPath.Plan(train, here, goal);
-            if (path is null || FootPath.Length(here, path) > t.YardReach * 1.4)
+            if (path is null || FootPath.Length(here, path) > Reach(t, crate) * 1.4)
             {
                 // No way there from here: another next tick.
                 _cantReach.Add(CrateKey(crate.Id));
@@ -92,11 +92,13 @@ public sealed partial class StopHand
 
     /// <summary>
     /// Where the lead hand takes a heavy crate from the yard (note 440): a step out from it on the side its way home leaves by,
-    /// toward the car the crates are going to. Worked out once a crate.
+    /// toward the car the crates are going to. Worked out once a crate, and again where it's been moved to.
     /// </summary>
     Double3 LeadEnd(World world, StopPlan p, Physics.Body crate)
     {
-        if (_leadFor == crate.Id)
+        // Worked out again if it's been moved since (note 867: carried part way and put down to open a shut door, the old
+        // end was where it had lain, out of reach, and the hand stood there pressing Use at nothing).
+        if (_leadFor == crate.Id && (Flat(_leadFrom) - Flat(crate.Centre)).Length < 0.3)
             return _lead;
         var train = world.Train;
         int car = Roomiest(world, p, calls, member);
@@ -104,13 +106,14 @@ public sealed partial class StopHand
         var way = FootPath.Plan(train, crate.Centre, home);
         var first = way is { Count: > 0 } ? way.FirstOrDefault(q => (Flat(q) - Flat(crate.Centre)).Length > 1.0, way[^1]) : home;
         var dir = Flat(first) - Flat(crate.Centre);
-        _lead = crate.Centre + (dir.Length > 0.01 ? dir.Normalized : new Double3(1, 0, 0)) * 0.9;
+        _lead = crate.Centre + (dir.Length > 0.01 ? dir.Normalized : new Double3(1, 0, 0)) * EndOff(crate);
         _leadFor = crate.Id;
+        _leadFrom = crate.Centre;
         return _lead;
     }
 
     int _leadFor = -1;
-    Double3 _lead;
+    Double3 _lead, _leadFrom;
 
     /// <summary>
     /// The nearest crate lying loose in the yard that isn't the site's own (another siding's, or across the train from the
@@ -121,16 +124,25 @@ public sealed partial class StopHand
     /// know who they are to carry it (<see cref="CrewCalls.HeavyHands"/>): this hand takes an end, and another comes for the
     /// other (<see cref="Wanting"/>).
     /// </remarks>
-    Physics.Body? NextCrate(World world, StopPlan p, Double3 here, double reach)
+    Physics.Body? NextCrate(World world, StopPlan p, Double3 here, double reach, double jackpotReach = 0)
     {
         bool heavy = calls.HeavyHands >= 2;
         return world.Bodies.All.Where(b => (b.Kind == Physics.BodyKind.Cargo || heavy && b.Kind == Physics.BodyKind.Heavy)
                 && b.Parent == PlayerState.World && b.Carrier < 0 && b.Pbd.Asleep
-                && !p.Loose(world, b) && (Flat(b.Centre) - Flat(here)).Length <= reach
+                && !p.Loose(world, b) && (Flat(b.Centre) - Flat(here)).Length <= (Run.Run.IsJackpot(b) ? Math.Max(reach, jackpotReach) : reach)
                 && !calls.SpotClaimed(CrateKey(b.Id), member) && !_cantReach.Contains(CrateKey(b.Id))
                 && world.Run?.Groaning(b.Centre, 0.5) is null)
             .OrderBy(b => b.Kind == Physics.BodyKind.Heavy ? 1 : 0).ThenBy(b => (Flat(b.Centre) - Flat(here)).Length).ThenBy(b => b.Id).FirstOrDefault();
     }
+
+    /// <summary>
+    /// How far from its middle a hand stands to take an end (m): a heavy crate's 0.9 (its 0.55 m ball, note 440), a jackpot's
+    /// own ball and as much again (note 867: a safe's 0.42 m ball at 0.9 was out of reach of the hands).
+    /// </summary>
+    internal static double EndOff(Physics.Body b) => Run.Run.IsJackpot(b) ? b.Pbd.Particles[0].Radius + 0.35 : 0.9;
+
+    /// <summary>How far a hand goes for this one: a jackpot's reach (note 867), or the yard's.</summary>
+    static double Reach(Run.StopCrewTuning t, Physics.Body b) => Run.Run.IsJackpot(b) ? Math.Max(t.YardReach, t.JackpotReach) : t.YardReach;
 
     /// <summary>
     /// Standing within a car's steps' reach of its side (where <see cref="FootPath"/> keeps clear of): a step straight out
@@ -239,7 +251,7 @@ public sealed partial class StopHand
         if (_trail.Count == 0 || (_trail[^1] - at).Length > 0.2)
             _trail.Add(at);
         var away = (at - front) with { Y = 0 };
-        var behind = at + (away.Length > 0.01 ? away.Normalized : (here - at) with { Y = 0 }) * 0.9;
+        var behind = at + (away.Length > 0.01 ? away.Normalized : (here - at) with { Y = 0 }) * EndOff(crate);
         if ((Flat(here) - Flat(behind)).Length < 0.35)
         {
             double yaw = DMath.Atan2(-(at.X - here.X), -(at.Z - here.Z));

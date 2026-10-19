@@ -3036,6 +3036,14 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
     /// <summary>A find from the village it put down on a car's landing to open the door (note 326), to take up again.</summary>
     int? _setDown;
 
+    /// <summary>
+    /// The front end of a jackpot up between two (note 867) walks at the back end's pace, as a heavy crate from the yard does
+    /// (<see cref="HeavyPace"/>): at a walk to the steps the back end fell behind and it was down (too far apart), again and
+    /// again at the foot of them.
+    /// </summary>
+    static PlayerIntent Paced(Physics.Body? mine, PlayerIntent step) =>
+        mine is { Kind: Physics.BodyKind.Heavy, Second: >= 0 } && Run.Run.IsJackpot(mine) ? step with { MoveZ = Math.Min(step.MoveZ, HeavyPace) } : step;
+
     /// <summary>Use for one tick, then not: picking up and putting down are on the press, not the hold.</summary>
     PlayerIntent Press()
     {
@@ -3080,7 +3088,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
             if (mine.Second == PlayerId)
                 return _yardHelp == mine.Id && mine.Parent == PlayerState.World ? BackEnd(self, world, mine) : Follow(self, world, mine);
         }
-        else if (mine is null && PlayerId is not null && Wanting(world, p) is { } wanting)
+        else if (mine is null && PlayerId is not null && Wanting(world, p, PlayerMotor.WorldPosition(self, train)) is { } wanting)
             return LendAHand(self, world, wanting);
         // A find from the village we put down to open a door (note 326), gone (someone took it): nothing to go back for.
         if (_setDown is int put0 && world.Bodies.All.FirstOrDefault(b => b.Id == put0 && b.Carrier < 0) is null)
@@ -3157,6 +3165,10 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
                 toward = wall > 0 ? -Math.PI / 2 : Math.PI / 2;
                 drop = stow with { X = stow.X - wall * world.Bodies.Hands.CarryForward };
             }
+            // A jackpot between two (note 867): the front end goes on to the far wall, so what's between their hands is down
+            // well inside, not in the doorway (where it rolled out onto the ballast again).
+            else if (mine is { Second: >= 0 } && Run.Run.IsJackpot(mine))
+                drop = drop with { X = -side * (w - layout.WallThickness - 0.45) };
             if (!Near(self, drop, 0.25) || !Aligned(self, toward))
                 return Walk(self, drop, toward, "carrying in");
             Doing = "putting it down";
@@ -3193,7 +3205,8 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
                 if (heavy)
                 {
                     Doing = "putting it down to open up";
-                    if (mine is { Kind: Physics.BodyKind.Loot })
+                    // And back up again with it once it's open (a jackpot too, note 867: its other end's taken as ever).
+                    if (mine is { Kind: Physics.BodyKind.Loot } || mine is not null && Run.Run.IsJackpot(mine))
                         _setDown = mine.Id;
                     return Press();
                 }
@@ -3248,12 +3261,12 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
             double outward = side * local.X - w;
             bool inLane = outward > 0.1 && outward < layout.StepWidth - 0.1 && local.Z > -sd - 4 * layout.StepDepth - 1.2 && local.Z < -sd - 0.3;
             if (inLane)
-                return Head(self, frame.ToWorld(landing with { Y = 0, Z = local.Z + 1.5 }), heavy ? "up the steps with it" : "up the steps");
+                return Paced(mine, Head(self, frame.ToWorld(landing with { Y = 0, Z = local.Z + 1.5 }), heavy ? "up the steps with it" : "up the steps"));
             Doing = heavy ? "carrying" : "to the door";
             // Arrived at the foot but a hand's width outside the lane (the 100-night playtest's crate hands, stood there for
             // good with the crates in their arms): straight on up from there.
             var (walk, atFoot) = WalkTo(self, train.Line, p.Spur.Index, foot, null);
-            return atFoot ? Head(self, frame.ToWorld(landing with { Y = 0, Z = local.Z + 1.5 }), heavy ? "up the steps with it" : "up the steps") : walk;
+            return Paced(mine, atFoot ? Head(self, frame.ToWorld(landing with { Y = 0, Z = local.Z + 1.5 }), heavy ? "up the steps with it" : "up the steps") : walk);
         }
         // Nothing loose just now, though some are still on their way in (in someone's arms, settling): wait by the stack
         // for the next, rather than give up the stop.
@@ -3286,10 +3299,14 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
     /// gone for out in the yard (its claim on the crew's calls, note 440), if we're a crate hand not out at the houses ourselves
     /// (a hand lent to the crates goes back to its own part when it's done, and the crate would be left half way).
     /// </summary>
-    Physics.Body? Wanting(World world, StopPlan p) =>
+    Physics.Body? Wanting(World world, StopPlan p, Double3 here) =>
         world.Bodies.All.FirstOrDefault(b => b.Kind == Physics.BodyKind.Heavy && b.Carrier >= 0 && b.Carrier != PlayerId && b.Second < 0
-            && (calls.SpotClaimed(CrateKey(b.Id), member) ? job == StopJob.Crates && _spot is null
-                : (Physics.Bodies.WorldCentre(b, world.Train) - p.Site.CrateStack.FirstOrDefault()).Length < 60));
+            && ((calls.SpotClaimed(CrateKey(b.Id), member) ? job == StopJob.Crates && _spot is null
+                : (Physics.Bodies.WorldCentre(b, world.Train) - p.Site.CrateStack.FirstOrDefault()).Length < 60)
+                // Note 867: a jackpot held alone anywhere in reach, the yard's or the village's, a person's too: any hand at the
+                // stop with nothing of its own on (not off to a house) comes, whatever its part.
+                || Run.Run.IsJackpot(b) && b.Parent == PlayerState.World && _spot is null && Crew(world).JackpotReach > 0
+                    && (Flat(Physics.Bodies.WorldCentre(b, world.Train)) - Flat(here)).Length <= Crew(world).JackpotReach));
 
     /// <summary>
     /// To the free end of a heavy crate someone's holding: across it from them (if they've said where they are, else from
@@ -3301,7 +3318,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         var at = Physics.Bodies.WorldCentre(crate, train);
         var me = PlayerMotor.WorldPosition(self, train);
         var away = (calls.Where(crate.Carrier) is { } holder ? at - holder : me - at) with { Y = 0 };
-        var stand = at + (away.Length > 0.01 ? away.Normalized : new Double3(1, 0, 0)) * 0.9;
+        var stand = at + (away.Length > 0.01 ? away.Normalized : new Double3(1, 0, 0)) * EndOff(crate);
         if (self.Parent != PlayerState.World)
             return GetDown(self, train, _plan!.Site.Side);
         // Out in the yard (note 440): round the sheds and the train to it, as the one holding it went; and walked home by the
