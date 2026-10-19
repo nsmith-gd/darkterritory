@@ -14,8 +14,10 @@ public enum BotRole : byte { Walker, Gunner, Driver }
 /// </summary>
 public sealed partial class CrewCalls
 {
-    readonly Dictionary<int, (int Ping, PingKind Kind, int Target, uint Since)> _orders = [];
+    readonly Dictionary<int, (int Ping, PingKind Kind, int Target, uint Since, StopJob Part)> _orders = [];
     readonly HashSet<int> _pingsTaken = [];
+    /// <summary>How many bots have taken each ping (the crane's two, note 739 part two).</summary>
+    readonly Dictionary<int, int> _pingHands = [];
     readonly Dictionary<int, BotRole> _roles = [];
 
     /// <summary>What a bot is to the pings (note 739): it says each tick.</summary>
@@ -35,11 +37,33 @@ public sealed partial class CrewCalls
             PingKind.Fire => role == BotRole.Walker,
             // Note 739 part two: a find is a walker's to fetch (the stop's hands carry it home, as the village's).
             PingKind.Loot => role == BotRole.Walker,
+            // The abandoned town: a walker's to search (the village errand, whatever the crates).
+            PingKind.Town => role == BotRole.Walker,
+            // The crane: two walkers', its operator and its rigger.
+            PingKind.Crane => role == BotRole.Walker,
             PingKind.Cab => any(BotRole.Driver) ? role == BotRole.Driver
                 : role == BotRole.Walker || role == BotRole.Gunner && !any(BotRole.Walker),
             _ => false,
         };
     }
+
+    /// <summary>
+    /// How many bots take a ping of this kind (note 739 part two): the crane two, its operator and its rigger (spec D.2's
+    /// gantry crane, "2 mandatory"); the rest one.
+    /// </summary>
+    static int Hands(PingKind kind) => kind == PingKind.Crane ? 2 : 1;
+
+    /// <summary>
+    /// The crane part a bot's ping gives it (note 739 part two): the controls (<see cref="StopJob.Winch0"/>, the pair's first,
+    /// whose part the crane's operator is) or the rigging (<see cref="StopJob.Winch1"/>); None with no crane order.
+    /// </summary>
+    public StopJob CranePart(int bot) => _orders.TryGetValue(bot, out var o) && o.Kind == PingKind.Crane ? o.Part : StopJob.None;
+
+    /// <summary>Whether a bot's been sent to that part of the crane (note 739 part two): whoever has it otherwise stands aside.</summary>
+    public bool CranePartOrdered(StopJob part) => part != StopJob.None && _orders.Values.Any(o => o.Kind == PingKind.Crane && o.Part == part);
+
+    /// <summary>Whether any bot's been sent to the crane (note 739 part two): the driver waits for its loading.</summary>
+    public bool CraneOrdered => _orders.Values.Any(o => o.Kind == PingKind.Crane);
 
     /// <summary>The ping <paramref name="bot"/> is working on, or null.</summary>
     public (PingKind Kind, int Target)? OrderOf(int bot) => _orders.TryGetValue(bot, out var o) ? (o.Kind, o.Target) : null;
@@ -60,14 +84,15 @@ public sealed partial class CrewCalls
         bool alive = self.Alive;
         bool can(int bot, PingKind kind) => Can(bot, kind, crew, me, alive);
         if (_orders.TryGetValue(me, out var mine) && (!self.Alive || OrderDone(world, me, mine.Kind, mine.Target)
-            || (world.Tick - mine.Since) * SimConstants.TickSeconds > world.PingTuning.OrderSeconds))
+            || (world.Tick - mine.Since) * SimConstants.TickSeconds > (mine.Kind == PingKind.Crane ? world.PingTuning.CraneOrderSeconds : world.PingTuning.OrderSeconds)))
             _orders.Remove(me);
         if (!self.Alive || _orders.ContainsKey(me))
             return;
         var at = PlayerMotor.WorldPosition(self, world.Train);
         foreach (var p in world.Pings.OrderBy(p => p.Tick).ThenBy(p => p.Id))
         {
-            if (_pingsTaken.Contains(p.Id) || !can(me, p.Kind) || OrderDone(world, me, p.Kind, p.Target))
+            if (_pingsTaken.Contains(p.Id) || !can(me, p.Kind) || OrderDone(world, me, p.Kind, p.Target)
+                || _pingHands.GetValueOrDefault(p.Id) >= Hands(p.Kind))
                 continue;
             double mineAway = (at - p.At).Length;
             // The nearest bot free for it: another free one nearer that can do it leaves it to them (ties to the lower id).
@@ -75,13 +100,21 @@ public sealed partial class CrewCalls
                 && ((PlayerMotor.WorldPosition(c.State, world.Train) - p.At).Length is var d && (d < mineAway || d == mineAway && c.Id < me)));
             if (nearer)
                 continue;
-            _orders[me] = (p.Id, p.Kind, p.Target, world.Tick);
-            _pingsTaken.Add(p.Id);
+            // The crane's two (note 739 part two): the first to take it at the controls, the second rigging; taken once each.
+            var others = _orders.Values.Where(o => o.Ping == p.Id).ToList();
+            var part = p.Kind != PingKind.Crane ? StopJob.None : others.Any(o => o.Part == StopJob.Winch0) ? StopJob.Winch1 : StopJob.Winch0;
+            _orders[me] = (p.Id, p.Kind, p.Target, world.Tick, part);
+            if (others.Count + 1 >= Hands(p.Kind))
+                _pingsTaken.Add(p.Id);
+            _pingHands[p.Id] = others.Count + 1;
             return;
         }
     }
 
-    /// <summary>A ping's job done (note 739): the car's fire out; the controls a bot's; the find aboard.</summary>
+    /// <summary>
+    /// A ping's job done (note 739): the car's fire out; the controls a bot's; the find aboard; the town searched; the crane's
+    /// loading done (nothing stacked to lift or nowhere under it with room, nothing on the hook) or the crane gone or wrecked.
+    /// </summary>
     static bool OrderDone(World world, int me, PingKind kind, int target) => kind switch
     {
         PingKind.Fire => !world.ActiveEnemies.Any(e => e is CarFire && !e.Gone && e.Attached == target),
@@ -89,6 +122,10 @@ public sealed partial class CrewCalls
         // The find aboard a car and set down (or stowed), or gone.
         PingKind.Loot => world.Bodies.All.FirstOrDefault(b => b.Id == target) is not { } find
             || find.Carrier < 0 && (find.Stowed || find.Parent != PlayerState.World),
+        // Every hiding spot in the stop's houses searched (or no run: nothing to search).
+        PingKind.Town => world.Run is not { } run || !run.HidingSpots.Any(h => h.Stop == target && !run.Searched(h.Stop, h.Container.Index)),
+        PingKind.Crane => world.Run?.CurrentSite is not { } site || target < 0 || target >= site.Cranes.Count || site.Cranes[target] is not { } crane
+            || crane.Wrecked || crane.Hooked is null && StopHand.CraneTarget(crane, world.Train) is null,
         _ => false,
     };
 }

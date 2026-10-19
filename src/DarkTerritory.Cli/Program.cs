@@ -143,7 +143,9 @@ return args switch
         tube: args.Contains("--tube"),
         // Note 855: under way (--speed m/s), the listener in the cab or on a roof of their own, a quiet mic (--mic -20), a WAV.
         speed: Opt(args, "--speed", 0), listenerInCab: args.Contains("--listener-cab"), listenerCar: (int)Opt(args, "--listener-car", 3),
-        listenerZ: Opt(args, "--listener-z", 0), micDb: Opt(args, "--mic", 0), wav: Str(args, "--out", "") is { Length: > 0 } wav ? wav : null)),
+        listenerZ: Opt(args, "--listener-z", 0), micDb: Opt(args, "--mic", 0), wav: Str(args, "--out", "") is { Length: > 0 } wav ? wav : null,
+        // Note 862: --cab-door left|right|both, the cab's side doors held open.
+        cabDoors: Str(args, "--cab-door", "") switch { "left" => 4, "right" => 8, "both" => 12, _ => 0 })),
 
     _ => Usage(),
 };
@@ -4017,7 +4019,8 @@ static object HudShot(string content, string[] args)
     }
     else
     {
-        // --ping: the crew's pings (note 739): Priya's on car 2 (as if afire) and on the controls, and one of yours on car 3.
+        // --ping: the crew's pings (note 739): Priya's on car 2 (as if afire) and on the controls, one of yours on car 3, and
+        // Dunmore's on a town.
         if (args.Contains("--ping"))
         {
             var pinged = session.World;
@@ -4027,6 +4030,9 @@ static object HudShot(string content, string[] args)
             pinged.Pings.Add(new PingEvent(9001, (uint)session.HostTick, 90, PingKind.Fire, 2, Mid(2)));
             pinged.Pings.Add(new PingEvent(9002, (uint)session.HostTick, 90, PingKind.Cab, 0, f[0].ToWorld(f[0].Shape.Levers?.Regulator ?? default)));
             pinged.Pings.Add(new PingEvent(9003, (uint)session.HostTick, session.PlayerId, PingKind.Fire, 3, Mid(3)));
+            // And Dunmore's on the abandoned town (note 739 part two), a house out beside the line.
+            pinged.Names[91] = "Dunmore";
+            pinged.Pings.Add(new PingEvent(9004, (uint)session.HostTick, 91, PingKind.Town, 0, f[Math.Min(2, f.Count - 1)].ToWorld(new Double3(-80, 2, -40))));
         }
         // --photo f.png (note 721): the crew photo at the gate (`dt screenshot --view crewphoto`'s) as tonight's, the end card's print.
         Hud.Build(hud, width, height, session, pixels: scale, firstNight: args.Contains("--first-night"), captions: captioned, photo: photoStill, commendations: args.Contains("--commend")
@@ -4609,7 +4615,7 @@ static int Usage()
                      one sound alone (a one-shot to its end, a loop for 4 s): WAV, spectrogram, its length, takes and level
           edit [--port p] [--screenshot file.png]   the designer's editor (tuning + routes) at http://127.0.0.1:<port>/
           voice bench [--car n (0 = cab)] [--z m] [--radio] [--latency s --jitter s --loss 0..1] [--speed m/s]
-                      [--listener-cab | --listener-car n --listener-z m] [--mic dB] [--out file.wav]
+                      [--listener-cab | --listener-car n --listener-z m] [--mic dB] [--cab-door left|right|both] [--out file.wav]
                      one speaker to a listener on car 3 through host routing, Opus and the mixer (spec A.5); restDb is
                      everything else they hear in the voice band, overRestDb the voice's margin over it (note 855)
         """);

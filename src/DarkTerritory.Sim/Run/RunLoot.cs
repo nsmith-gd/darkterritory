@@ -317,6 +317,18 @@ public sealed partial class Run
     /// <summary>Note 719: stop <paramref name="stop"/>'s jackpot house, its building's index, or −1 (for tools, tests and the walls).</summary>
     public int LockedHouse(int stop) => stop >= 0 && stop < _locked.Count ? _locked[stop] : -1;
 
+    /// <summary>
+    /// The stop (its place in <see cref="Stops"/>) that's the route's feature <paramref name="feature"/>, and that feature's
+    /// place in the route's features (the houses' <c>OpenHouse.Feature</c>); (−1, −1) for a feature that's no stop.
+    /// </summary>
+    public (int Stop, int Feature) StopOf(RouteFeature feature)
+    {
+        for (int k = 0; k < _stopLoot.Count; k++)
+            if (ReferenceEquals(_stopLoot[k].Feature, feature))
+                return (k, _stopLoot[k].Index);
+        return (-1, -1);
+    }
+
     /// <summary>Note 719: the jackpot house's building at the route's feature <paramref name="feature"/>, or −1.</summary>
     public int LockedAt(int feature)
     {

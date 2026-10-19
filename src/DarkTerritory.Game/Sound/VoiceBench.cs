@@ -50,10 +50,12 @@ public static class VoiceBench
     /// <param name="listenerCar">The listener's roof (<paramref name="listenerZ"/> along it), when not in the cab.</param>
     /// <param name="micDb">The microphone's own level against the synthetic talker's (a hot mic): -20 is a quiet headset.</param>
     /// <param name="speakerInCab">The speaker in the cab (by default, on car 0); false puts them on the engine's roof.</param>
+    /// <param name="cabDoors">Note 862: the engine's doors held open (its <see cref="Vehicle.DoorsOpen"/> bits: 4 the cab's left side
+    /// door, by the coal; 8 its right, note 856).</param>
     /// <param name="wav">Writes what the listener heard here, and its spectrogram beside it.</param>
     public static VoiceBenchReport Run(string content, int speakerCar, double speakerZ, bool radio, double seconds = 2, LinkConditions? link = null,
         string? space = null, double? dieAt = null, float micLevel = 1, bool tube = false, bool muted = false, bool held = false,
-        double speed = 0, bool listenerInCab = false, int listenerCar = 3, double listenerZ = 0, double micDb = 0, string? wav = null, bool? speakerInCab = null)
+        double speed = 0, bool listenerInCab = false, int listenerCar = 3, double listenerZ = 0, double micDb = 0, string? wav = null, bool? speakerInCab = null, byte cabDoors = 0)
     {
         var trainTuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
         var playerTuning = DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File));
@@ -109,6 +111,8 @@ public static class VoiceBench
             var them = host.Players.First(p => p.Id == speaker.PlayerId).State;
             host.SetPlayerState(speaker.PlayerId!.Value, them with { Flags = them.Flags | PlayerFlags.Held });
         }
+        if (cabDoors != 0)
+            t.Vehicles[0].DoorsOpen |= cabDoors;
         for (int i = 0; i < 10; i++)
             Tick();
 

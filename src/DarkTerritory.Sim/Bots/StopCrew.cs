@@ -1803,7 +1803,8 @@ public sealed class StopDriver(CrewCalls calls)
         var train = world.Train;
         bool pairs = calls.PairNow;
         bool winched = !p.Site.Has(ModuleKind.Winch) || p.Site.SledsLeft == 0 || !pairs || world.Run is { } wr && !wr.SledHasRoom(train, p.Site);
-        bool craned = p.Site.Crane is not { } crane || !pairs || StopHand.CraneTarget(crane, train) is null;
+        // (A crane pinged, note 739 part two, is waited on as the pair's would be: its two are sent whatever the pair.)
+        bool craned = p.Site.Crane is not { } crane || !pairs && !calls.CraneOrdered || StopHand.CraneTarget(crane, train) is null;
         bool crated = calls.CrateHands == 0 && (calls.PeopleHands == 0 || calls.PeopleIdle)
             || !p.CratesToLoad(world, calls.HeavyHands) && !p.OpenSideDoors(train).Any();
         bool herded = !pairs || !p.HerdLeft(world);
@@ -2261,10 +2262,15 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         if (Pair == StopJob.Winch0 && !WinchOnly && !calls.Leaving && p.Site.Crane is { } powered && CraneTarget(powered, train) is not null
             && PowerUp(self, world, p) is { } restart)
             return restart;
+        // The crane pinged (note 739 part two; the director, 14 Oct: "If I point at the crane"): the two sent to it work it, the
+        // first at the controls (the power restarted first, as the pair's operator does) and the second rigging, whatever
+        // their own parts and however few the pair; whoever has those parts otherwise stands aside for them.
+        if (OrderedCrane(world, p) is ({ } sent, var ordered))
+            return ordered == StopJob.Winch0 ? PowerUp(self, world, p) ?? Operate(self, world, p, sent) : RigCasting(self, world, p, sent);
         // The gantry crane (T54, spec D.2): the pair work it first, one at the controls and one rigging, while the cars under
         // the gantry still have room (the crates and the sleds would fill them); then the winch.
-        if (Pair is StopJob.Winch0 or StopJob.Winch1 && !WinchOnly && p.Site.Crane is { } crane && (calls.PairNow || crane.Hooked is not null)
-            && (CraneTarget(crane, train) is not null || crane.Hooked is not null))
+        if (Pair is StopJob.Winch0 or StopJob.Winch1 && !WinchOnly && !calls.CranePartOrdered(Pair) && p.Site.Crane is { } crane
+            && (calls.PairNow || crane.Hooked is not null) && (CraneTarget(crane, train) is not null || crane.Hooked is not null))
             return Pair == StopJob.Winch0 ? Operate(self, world, p, crane) : RigCasting(self, world, p, crane);
         if (_atControls || self.Has(PlayerFlags.Operating))
         {
@@ -2333,7 +2339,8 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         var train = world.Train;
         if (self.Surface == Surface.Air)
             return new PlayerIntent();
-        if (Pair is StopJob.Winch0 or StopJob.Winch1 && !WinchOnly && plan.Site.Crane is { } crane && (CraneTarget(crane, train) is not null || crane.Hooked is not null))
+        if (Pair is StopJob.Winch0 or StopJob.Winch1 && !WinchOnly && !calls.CranePartOrdered(Pair) && plan.Site.Crane is { } crane
+            && (CraneTarget(crane, train) is not null || crane.Hooked is not null))
             return Pair == StopJob.Winch0 ? Operate(self, world, plan, crane) : RigCasting(self, world, plan, crane);
         if (_atControls || self.Has(PlayerFlags.Operating))
         {
@@ -2418,6 +2425,21 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
     bool _atControls, _fired;
     (int Casting, double Bridge, double Trolley)? _castingAt;
     (int Car, double Bridge, double Trolley)? _carAt;
+
+    /// <summary>
+    /// The crane this hand's been sent to by a ping (note 739 part two), at this stop, with its loading still to do, and its
+    /// part there (the controls or the rigging); null with none.
+    /// </summary>
+    (Crane Crane, StopJob Part)? OrderedCrane(World world, StopPlan p)
+    {
+        if (calls.Leaving || PlayerId is not { } me || calls.OrderOf(me) is not { Target: var i } || world.Run?.CurrentSite != p.Site || i < 0 || i >= p.Site.Cranes.Count)
+            return null;
+        var part = calls.CranePart(me);
+        if (part is not (StopJob.Winch0 or StopJob.Winch1))
+            return null;
+        var crane = p.Site.Cranes[i];
+        return crane.Hooked is not null || CraneTarget(crane, world.Train) is not null ? (crane, part) : null;
+    }
 
     /// <summary>
     /// What's left for the crane: the next casting still stacked (in order, so the operator and the rigger agree on it
@@ -3079,6 +3101,9 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         // Note 617: not the shunter lent to them while the pair are at their own work: it's the points' to set back once the
         // loading's done, and out at the yard's far crates it kept a frontier:7 Foundry's clear waiting 150 s for it.
         bool spare = job == StopJob.Shunter && calls.PairAtWork;
+        // The town pinged for us (note 739 part two, GDD §12 "Ping the bots"): its houses searched, before the yard's crates.
+        if (!heavy && _setDown is null && mine is null && world.Run is { } run && TownOrdered(run.StopOf(p.Site.Feature).Stop) && Village(self, world, p) is { } town)
+            return town;
         if (!heavy && _setDown is null && !spare && (Fetching || !p.CratesToLoad(world, calls.HeavyHands)) && Yard(self, world, p) is { } fetch)
             return fetch;
         if (!heavy && _setDown is null && !spare && (!p.CratesToLoad(world, calls.HeavyHands) || calls.Leaving) && Village(self, world, p) is { } errand)
