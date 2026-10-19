@@ -329,9 +329,6 @@ public sealed class PrototypeSession : IPlaySession
         (EnemyKind.Passenger, SpinePhase.Grab) => "someone's being dragged toward the caboose: hit it and it runs",
         (EnemyKind.Passenger, SpinePhase.Punish) => "the caboose is rolling away with someone",
         (EnemyKind.Passenger, SpinePhase.BreakOff) => "the one who never spoke is found out: it's running for the back",
-        (EnemyKind.Switchman, SpinePhase.Telegraph) => "a figure at the points ahead; the switch lamp reads wrong: shoot it or stop",
-        (EnemyKind.Switchman, SpinePhase.Punish) => "the train takes the wrong line",
-        (EnemyKind.Switchman, SpinePhase.BreakOff) => "the figure at the points is down",
         (EnemyKind.Grumbler, SpinePhase.Telegraph) => "gnawing in the crates: check before every lift",
         (EnemyKind.Grumbler, SpinePhase.Commit) => "it's feral: gang up on it",
         (EnemyKind.Grumbler, SpinePhase.Punish) => "it came aboard with a crate: it's eating the cargo",
@@ -386,9 +383,7 @@ public sealed class PrototypeSession : IPlaySession
             parts.Add($"something's gathering to the noise ({World.Choir.Build:P0})");
         foreach (var e in World.ActiveEnemies)
         {
-            if (e is Switchman { Phase: SpinePhase.Telegraph })
-                parts.Add("a switch ahead set wrong");
-            else if (e is CarHugger { Phase: SpinePhase.Commit or SpinePhase.Grab } && !parts.Contains("the rear car's being eaten"))
+            if (e is CarHugger { Phase: SpinePhase.Commit or SpinePhase.Grab } && !parts.Contains("the rear car's being eaten"))
                 parts.Add("the rear car's being eaten");
             else if (e is TrackDoll { Tampering: true } && !parts.Contains("THE DOLL'S IN THE CAB"))
                 parts.Add("THE DOLL'S IN THE CAB");
@@ -420,13 +415,11 @@ public sealed class PrototypeSession : IPlaySession
     string RouteStatus() => RouteStatus(Route, World, Train);
 
     /// <summary>The night so far: the dawn clock, where you are on the route, what's next, and how it ended.</summary>
-    /// <summary>Cold and being held, for the status line (spec B.2; GDD v1.1 App. C.1).</summary>
+    /// <summary>Being held, for the status line (GDD v1.1 App. C.1).</summary>
     public static string Condition(in PlayerState p, PlayerTuning t)
     {
-        string cold = PlayerMotor.Chilled(p, t) ? $" | COLD: {Math.Max(0, t.Cold.DeathSeconds - p.Cold):0}s — get inside" : "";
         // GDD v1.1 App. C.1: held, a friend has to hit it or pull you free; alone, you struggle (hold Use).
-        string held = p.Has(PlayerFlags.Held) ? " | HELD: shout for help (alone: hold Use to struggle)" : "";
-        return cold + held;
+        return p.Has(PlayerFlags.Held) ? " | HELD: shout for help (alone: hold Use to struggle)" : "";
     }
 
     /// <summary>Holdouts lit along the line (GDD App. D): somebody's waiting to be picked up.</summary>

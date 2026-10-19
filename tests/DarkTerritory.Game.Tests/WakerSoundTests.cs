@@ -127,10 +127,11 @@ public class WakerSoundTests : IDisposable
         Assert.True(guns >= 2);
         int fired = heard.Count(h => h.Name == "town-guns.fire"), landed = heard.Count(h => h.Name == "town-guns.hit");
         Assert.DoesNotContain(heard, h => h.Name.StartsWith("town-guns.") && h.At < stood);
-        // Each gun once every WallGunEvery, give or take its first and last; each ball landing (but those still in the air).
-        double standing = t - stood;
+        // Each gun has its turn every WallGunEvery and fires in about three in five of them, more in a burst and fewer in a
+        // lull (note 834: never on a beat), give or take its first and last; each ball landing (but those still in the air).
+        double standing = t - stood, turns = standing / Art.Effects.WallGunEvery;
         Assert.True(standing > 60, $"stood under the guns {standing:0} s");
-        Assert.InRange(fired, guns * (standing / Art.Effects.WallGunEvery - 1), guns * (standing / Art.Effects.WallGunEvery + 1));
+        Assert.InRange(fired, guns * (turns * 0.35 - 1), guns * (turns * 0.85 + 1));
         Assert.InRange(landed, fired - guns, fired);
         Assert.DoesNotContain(heard, h => h.Name == "gunshot");
     }

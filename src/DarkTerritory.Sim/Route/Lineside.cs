@@ -403,7 +403,7 @@ public sealed class Lineside
         var train = world.Train;
         double dt = SimConstants.TickSeconds;
         Catch(world, crew);
-        train.Lurching = false;
+        (train.Lurching, train.LurchBoardKmh) = (false, 0);
         foreach (var sign in _signs)
         {
             if (sign.Kind is SignKind.Drop or SignKind.Terminus)
@@ -428,7 +428,8 @@ public sealed class Lineside
                         v.Integrity = Math.Max(0, v.Integrity - Tuning.StrainPerSecond * over * dt);
                         v.Knock = (KnockCause.Bend, rake.Speed);
                         // The engine's rake thrown about: held, it jumps a pin (note 732).
-                        train.Lurching |= rake == train.Dynamics;
+                        if (rake == train.Dynamics)
+                            (train.Lurching, train.LurchBoardKmh) = (true, sign.LimitKmh);
                         if (v.Kind == VehicleKind.Cargo)
                             v.CargoIntegrity = Math.Max(0, v.CargoIntegrity - Tuning.CargoDamagePerSecond * over * dt);
                     }

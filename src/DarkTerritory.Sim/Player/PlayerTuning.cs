@@ -3,7 +3,7 @@ namespace DarkTerritory.Sim.Player;
 /// <summary>Mirror of content/tuning/player.json.</summary>
 public sealed record PlayerTuning(
     double Run, double Walk, double RoofRun, double RoofWalkSafe, double LadderClimb,
-    double CarryHeavy, double JumpGap, int Health, ColdTuning Cold,
+    double CarryHeavy, double JumpGap, int Health,
     double Gravity, double Radius, double Height, double StepUp,
     LandingTuning Landing, LadderTuning Ladder, HandTuning Hand, double JumpHeight = 0, double PushGun = 1.2, IReadOnlyList<string>? Kit = null)
 {
@@ -74,10 +74,6 @@ public sealed record PlayerTuning(
     public double JumpVelocity => Math.Max(Gravity * JumpGap / (2 * RoofRun), Math.Sqrt(2 * Gravity * JumpHeight));
 }
 
-/// <param name="IndoorsRate">How fast the cold comes on inside a car's walls with a door open, against outside (spec B.2).</param>
-/// <param name="PerColdStep">GDD §22 deep cold (note 183): each cold step where you are makes the cold climb this much faster.</param>
-public sealed record ColdTuning(double OnsetSeconds, double DeathSeconds, double RecoverSecondsNearHeat, double OnsetSpeedScale, double IndoorsRate = 1,
-    double PerColdStep = 0.25);
 /// <summary>
 /// GDD §22 wind on a roof (note 201): the wind across a moving train pushes whoever's up top sideways, in gusts from
 /// either side. Field docs live in player.json <c>wind</c>.
@@ -233,6 +229,24 @@ public sealed record VoicesTuning
     public LampSignalTuning LampSignals { get; init; } = new();
     /// <summary>Note 749: a held speaker's voice, a hand over the mouth (player.json <c>voices.covered</c>).</summary>
     public CoveredVoiceTuning Covered { get; init; } = new();
+    /// <summary>Note 855: every microphone brought to one speech level before it's sent (player.json <c>voices.leveller</c>).</summary>
+    public LevellerTuning Leveller { get; init; } = new();
+}
+
+/// <summary>
+/// Note 855 (the director's playtest of 16 Oct evening, line 1: the host's Windows mic "way too low" for the joiner): the
+/// capture leveller, client side (Ballast.Voice.VoiceLeveller). Field docs live in player.json <c>voices.leveller</c>.
+/// </summary>
+public sealed record LevellerTuning
+{
+    public bool On { get; init; } = true;
+    public double TargetDb { get; init; } = -14;
+    public double MaxBoostDb { get; init; } = 24;
+    public double MaxCutDb { get; init; } = 12;
+    public double RiseSeconds { get; init; } = 0.15;
+    public double FallSeconds { get; init; } = 2.5;
+    public double IgnoreBelowDb { get; init; } = 20;
+    public double Ceiling { get; init; } = 0.95;
 }
 
 /// <summary>

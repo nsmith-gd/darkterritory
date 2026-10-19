@@ -55,7 +55,7 @@ public static class Calls
                     int car = FarthestCar(world, you, interior: true);
                     if (car < 0)
                         return "no car with a room to burn";
-                    world.AddEnemy(i => CarFire.In(i, train, car, 0, t.CarFire));
+                    world.AddEnemy(i => CarFire.In(i, train, car, 0, t.CarFire, FireCause.Called));
                     return $"car {car} alight";
                 }
             case EnemyKind.Waker:
@@ -83,8 +83,6 @@ public static class Calls
                 return House(world, kind, you, max, t);
             // What stands where its rule finds it is taken only within the gym's reach (the director, 13 Oct: "nothing should
             // spawn more than 200m off").
-            case EnemyKind.Switchman:
-                return Points(world, you, min, max, t);
             case EnemyKind.TrackDoll:
                 {
                     // On the rail ahead, inside the reach: she shows in the headlamp at its reveal distance, and a train standing
@@ -214,28 +212,6 @@ public static class Calls
         return "out of the stop's warren";
     }
 
-    /// <summary>
-    /// The Switchman at points ahead of the engine, between <paramref name="min"/> and <paramref name="max"/> of you (a dead
-    /// line's before a yard's spur): it waits for the train to come over them, so points behind are no use to it.
-    /// </summary>
-    static string Points(World world, Double3 you, double min, double max, EnemyTuning t)
-    {
-        var train = world.Train;
-        double front = train.Dynamics.Distance;
-        double Off(Rail.Branch b) => Flat(train.Line.Sample(Rail.RailLine.MainPath, b.Toe).Position - you);
-        var ahead = train.Line.Branches.Where(b => !train.Diverging(b.Index) && b.Toe - front >= 20).ToList();
-        var branch = ahead.Where(b => Off(b) >= min && Off(b) <= max)
-            .OrderBy(b => b.Kind == Rail.BranchKind.DeadLine ? 0 : 1).ThenBy(b => b.Toe).FirstOrDefault();
-        if (branch is null)
-        {
-            double nearest = ahead.Select(b => b.Toe - front).DefaultIfEmpty(double.PositiveInfinity).Min();
-            return double.IsInfinity(nearest) ? "no points ahead on this line"
-                : $"the next points are {nearest:0} m ahead, past the gym's {max:0} m: drive to within it and call again";
-        }
-        world.AddEnemy(i => Switchman.At(i, branch, t.Switchman, world.Switches?.Tuning.LeverOffset ?? 2.6, false));
-        return $"at the {(branch.Kind == Rail.BranchKind.DeadLine ? "dead line's" : "branch's")} points ahead: drive towards them";
-    }
-
     /// <summary>Tower Jaw at the nearest coaling tower or standing crane within <paramref name="max"/> of you, here or not.</summary>
     static string Tower(World world, Double3 you, double max, EnemyTuning t)
     {
@@ -262,26 +238,26 @@ public static class Calls
         return "no coaling tower or crane standing on this line";
     }
 
-    /// <summary>The Grumbler on castings stacked by a crane within <paramref name="max"/> of you, whether the train's in its yard or not.</summary>
+    /// <summary>The Grumbler on castings stacked by a crane (a facility's own or a yard's gantry, note 848) within <paramref name="max"/> of you, whether the train's in its yard or not.</summary>
     static string Castings(World world, Double3 you, double max, EnemyTuning t)
     {
         if (world.Run is not { } run)
             return "no stops on this line";
         double front = world.Train.Dynamics.Distance;
         foreach (int i in Enumerable.Range(0, run.Facilities.Count).OrderBy(i => Math.Abs((run.Facilities[i].Start + run.Facilities[i].End) / 2 - front)))
-            if (run.Sites.ElementAtOrDefault(i)?.Crane is { } crane)
-            {
-                var stacked = Enumerable.Range(0, crane.Castings.Length).Where(c => crane.Castings[c].State == CastingState.Stacked)
-                    .OrderBy(c => Flat(crane.Castings[c].At - you)).ToList();
-                if (stacked.Count == 0)
-                    continue;
-                int on = stacked[0];
-                if (Flat(crane.Castings[on].At - you) > max)
-                    return $"the nearest castings are {Flat(crane.Castings[on].At - you):0} m off, past the gym's {max:0} m: walk towards them and call again";
-                var at = crane.Castings[on].At;
-                world.AddEnemy(n => Grumbler.OnCrates(n, at + Double3.Up * 0.8, on, t.Grumbler));
-                return "gnawing the castings by the crane: leave it be, or hit it";
-            }
+        {
+            // The nearest casting stacked by any of its cranes.
+            var stacked = (run.Sites.ElementAtOrDefault(i)?.Cranes ?? []).SelectMany(k => Enumerable.Range(0, k.Castings.Length)
+                .Where(c => k.Castings[c].State == CastingState.Stacked).Select(c => (Crane: k, On: c))).OrderBy(x => Flat(x.Crane.Castings[x.On].At - you)).ToList();
+            if (stacked.Count == 0)
+                continue;
+            var (crane, on) = stacked[0];
+            if (Flat(crane.Castings[on].At - you) > max)
+                return $"the nearest castings are {Flat(crane.Castings[on].At - you):0} m off, past the gym's {max:0} m: walk towards them and call again";
+            var at = crane.Castings[on].At;
+            world.AddEnemy(n => Grumbler.OnCrates(n, at + Double3.Up * 0.8, on, t.Grumbler, crane));
+            return "gnawing the castings by the crane: leave it be, or hit it";
+        }
         return "no crane with castings stacked on this line";
     }
 
@@ -423,7 +399,7 @@ public static class Calls
     {
         var train = world.Train;
         double lim = max - Inside;
-        var free = came.Where(e => e.Kind is not (EnemyKind.TippyToesie or EnemyKind.Follower or EnemyKind.Switchman)).ToList();
+        var free = came.Where(e => e.Kind is not (EnemyKind.TippyToesie or EnemyKind.Follower)).ToList();
         // On the line: the farthest of those ahead of you brought to lim, the rest by the same; the same behind.
         double hint = train.Dynamics.Distance;
         var (_, mine) = train.Line.Nearest(you, ref hint);

@@ -92,7 +92,7 @@ public sealed partial class GameAudio
         public int Parent;
         public Double3 Position;
         public Surface Surface;
-        public double Yaw, Action, Cold, Stride, LastScuff = double.NegativeInfinity, MovingFor, Speed, NextRatchet, NextSwing, TumbleUntil, NextBreath,
+        public double Yaw, Action, Stride, LastScuff = double.NegativeInfinity, MovingFor, Speed, NextRatchet, NextSwing, TumbleUntil, NextBreath,
             NextStumble;
         public int Health;
         public byte Placed;
@@ -451,11 +451,10 @@ public sealed partial class GameAudio
                 Cue(Burning(world, s) ? "crew-hurt.burned" : "crew-hurt.hit", feet + Double3.Up * ChestUp, occlusion,
                     (float)Math.Clamp(0.5 + (c.Health - s.Health) / 40.0, 0.5, 1));
 
-            // ---- the cold (spec B.2): shivering past its onset; breath you can hear outside on a cold night.
-            if (tuning is not null && PlayerMotor.Chilled(s, tuning))
-                Hold("crew-cold.shiver", id, feet + Double3.Up * HeadUp, occlusion);
+            // ---- a cold night (the look's cold, note 852: no longer anything that hurts): breath you can hear outside on one.
+            // The shiver (crew-cold.shiver) went with the cold's onset.
             bool outside = PlayerMotor.Space(s, train) == PlayerMotor.Outside;
-            if (outside && (weather?.Cold >= 0.5 || tuning is not null && PlayerMotor.Chilled(s, tuning)))
+            if (outside && weather?.Cold >= 0.5)
             {
                 if (_time >= c.NextBreath)
                 {
@@ -549,7 +548,6 @@ public sealed partial class GameAudio
         c.Flags = s.Flags;
         c.Held = Kit.Held(s);
         c.Action = s.ActionProgress;
-        c.Cold = s.Cold;
         c.Shovelful = s.Has(PlayerFlags.Shovelful);
     }
 

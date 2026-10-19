@@ -259,13 +259,14 @@ public sealed partial class StopWalls
             _houses.Add(new HouseSpace(b, origin, ex.Normalized, ey.Normalized, [.. keys]));
     }
 
-    /// <summary>A copy of these walls (<see cref="Clear"/>) shares their doors, and which are shut; and their towers, and which are down.</summary>
+    /// <summary>A copy of these walls (<see cref="Clear"/>) shares their doors, and which are shut; their towers, and which are down; and which gates are open.</summary>
     void KeepDoors(StopWalls from)
     {
         _shut = from._shut;
         _locked = from._locked;
         _picking = from._picking;
         _felled = from._felled;
+        _gatesOpen = from._gatesOpen;
         _towers = from._towers;
         _doors = from._doors;
         _houses = from._houses;

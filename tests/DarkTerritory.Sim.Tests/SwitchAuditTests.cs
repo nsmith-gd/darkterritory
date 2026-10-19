@@ -30,7 +30,7 @@ public class SwitchAuditTests
     [Fact]
     public void SettingASwitchThatIsAlreadySetSaysItIsSet()
     {
-        // World.SetSwitch is the hook for whatever sets a switch without a hand on the stand (the Switchman, set pieces): it
+        // World.SetSwitch is the hook for whatever sets a switch without a hand on the stand (set pieces, tests; the Switchman, set pieces): it
         // says whether the switch now stands as asked. It said "false" for one already set that way, which the Switchman read
         // as "a wheel's on the points" and gave up on the junction a tick after throwing it.
         var (world, train, branch) = AtADeadLine(800);
@@ -41,24 +41,6 @@ public class SwitchAuditTests
         var (held, heldTrain, b) = AtADeadLine(-10);
         Assert.False(held.SetSwitch(b, true));
         Assert.False(heldTrain.Diverging(b));
-    }
-
-    [Fact]
-    public void ARoutingSwitchmanStaysAtTheLeverItThrewUntilTheTrainComes()
-    {
-        // App. A.7: it throws the dead line's points and stands at the stand with its lantern (the telegraph) until the train
-        // is on it. Before the fix it threw them and was gone the next tick: the points stayed wrong and nothing was there.
-        var (world, train, branch) = AtADeadLine(900);
-        world.AddEnemy(i => Switchman.At(i, train.Line.Branches[branch], Tuning.Enemies.Switchman, Tuning.Route.Junctions.LeverOffset, derail: false));
-        for (int i = 0; i < SimConstants.TickRate * 2; i++)
-        {
-            world.BeginTick();
-            world.Step(new TrainControls { Brake = 1, Reverser = 1 });
-        }
-        Assert.True(train.Diverging(branch));
-        var man = Assert.Single(world.ActiveEnemies.OfType<Switchman>());
-        Assert.False(man.Gone);
-        Assert.Equal(SpinePhase.Dormant, man.Phase);
     }
 
     [Fact]
@@ -137,7 +119,7 @@ public class SwitchAuditTests
         // frontier:7's harness night (8 bots, 9 cars) took both of its Switchmen's dead lines and backed out of each: the
         // driver planned its stop on the bare brake, but with steam driving (T97) the engine pulls against the brake, so it set
         // off for the points too late. Here the dead line's points are thrown 600 m ahead of a train at line speed, as the
-        // Switchman throws them. On the 7 km nights of note 554 frontier:7's dead line leaves past its first stop, too near it
+        // points are set against the train (the Switchman threw them, until note 852 cut it). On the 7 km nights of note 554 frontier:7's dead line leaves past its first stop, too near it
         // for a run up to line speed; frontier:3's has open line before it.
         var content = DataFile.FindContentRoot();
         var route = LineGen.Routes.Generate(content, "frontier:3", 9);

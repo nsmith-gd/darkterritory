@@ -22,10 +22,12 @@ public sealed record HudTuning
     public double MailLeadSeconds { get; init; } = 12;
     /// <summary>Note 740: how long after a horn at a stand (s) the cab keeps the roll of who's called "Aboard!".</summary>
     public double AboardRollSeconds { get; init; } = 90;
-    /// <summary>How long a deeper step of the cold is said (s).</summary>
-    public double ColdSeconds { get; init; } = 5;
     /// <summary>How long before dawn (s) its clock comes up.</summary>
     public double DawnClockSeconds { get; init; } = 600;
+    /// <summary>Whether the cab warns of a bend taken too fast (note 266); off since the 16 Oct playtest (note 837).</summary>
+    public bool BendWarning { get; init; }
+    /// <summary>After a run's delivered, how long its result and incident report stay up (s; note 837).</summary>
+    public double DeliveredReportSeconds { get; init; } = 20;
     /// <summary>The ping (ms) at which it's shown out on the line (spec E: always in the lobby).</summary>
     public double PingWarnMs { get; init; } = 150;
     /// <summary>The window (s) the link's loss is counted over (note 534).</summary>

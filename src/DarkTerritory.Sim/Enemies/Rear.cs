@@ -647,14 +647,22 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         // Nobody near (12 m, as ever): it eats the car and lights it, and patrols (note 472).
         if (victim is not { } v || v.Distance > 12)
         {
-            _boredTimer += SimConstants.TickSeconds;
-            if (t.StayAboard)
-                Feed(ctx, t);
-            else if (_boredTimer >= t.BoredSeconds)
+            // Note 851 (the director's playtest of 16 Oct evening, line 5: "The fire in the rear car didn't go out ever despite
+            // both of us fighting it"): a crewmate in the car under it is out of its reach through the roof (note 471), but near
+            // all the same. It doesn't settle to eating and lighting the car over their heads every igniteEverySeconds, unseen:
+            // it prowls, and waits for them to come out.
+            bool near = ctx.LivingCrew().Any(c => (c.World - at).Length <= 12 && OnGround(ctx.Train, c.Player.State, t));
+            if (!near)
             {
-                Enter(ctx, SpinePhase.BreakOff);
-                Enter(ctx, SpinePhase.Gone);
-                return;
+                _boredTimer += SimConstants.TickSeconds;
+                if (t.StayAboard)
+                    Feed(ctx, t);
+                else if (_boredTimer >= t.BoredSeconds)
+                {
+                    Enter(ctx, SpinePhase.BreakOff);
+                    Enter(ctx, SpinePhase.Gone);
+                    return;
+                }
             }
             if (t.StayAboard)
                 Patrol(ctx, t, victim is { } far ? far.State : null);
@@ -696,10 +704,15 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         _boredTimer = 0;
         if (ctx.World.ActiveEnemies.Any(e => e is CarFire f && !f.Gone && f.Attached == Attached))
             return;
+        // Note 851: home (in through the arrival's gates), nothing burns: it eats, and lights nothing.
+        if (ctx.World.HomeSafe(Attached))
+            return;
         int into = Attached;
         double along = Local.Z;
-        // No C.9 record: its table names no actor for a fire the hounds set (the burn's own deaths are recorded as ever).
-        ctx.World.AddEnemy(i => CarFire.In(i, train, into, along, ctx.Tuning.CarFire));
+        // C.9's row and the news line are the fire's own (World.FireStarted, note 851): its table names no actor for a fire the
+        // hounds set (the burn's own deaths are recorded as ever).
+        string where = Inside(train) ? "in it" : "on its roof";
+        ctx.World.AddEnemy(i => CarFire.In(i, train, into, along, ctx.Tuning.CarFire, FireCause.Hounds, -1, -1, $"Feeding {where}, nobody near."));
         ctx.World.PackFires++;
     }
 

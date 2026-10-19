@@ -45,6 +45,24 @@ public class VoiceTests
     }
 
     [Fact]
+    public void TheHostsVoiceReachesAJoinerAsLoudAsTheJoinersReachesTheHost()
+    {
+        // Note 855 (the director's playtest of 16 Oct evening, line 1): the host drove (the first aboard takes the cab) on a
+        // Windows mic "way too low for her"; she joined from Linux, outdoors, and was heard. The host's own player is a client
+        // like hers (NetPlaySession: over loopback, the same send), so what differed was the mics. Levelled before they're
+        // sent, a mic 20 dB quieter is heard as loud, each way through the cab's wall.
+        var hostToJoiner = VoiceBench.Run(Content, speakerCar: 0, speakerZ: 0, radio: false, listenerCar: 0, micDb: -20);
+        var joinerToHost = VoiceBench.Run(Content, speakerCar: 0, speakerZ: 0, radio: false, speakerInCab: false, listenerInCab: true);
+        Assert.Equal(hostToJoiner.FramesSent, hostToJoiner.FramesHeard);
+        Assert.Equal(joinerToHost.FramesSent, joinerToHost.FramesHeard);
+        Assert.InRange(hostToJoiner.NearDb - joinerToHost.NearDb, -1.5, 1.5);
+        // Side by side in the cab (where she could hear him), the same: the quiet mic as the hot one.
+        var quiet = VoiceBench.Run(Content, speakerCar: 0, speakerZ: 0, radio: false, listenerInCab: true, micDb: -20);
+        var hot = VoiceBench.Run(Content, speakerCar: 0, speakerZ: 0, radio: false, listenerInCab: true);
+        Assert.InRange(quiet.NearDb - hot.NearDb, -1, 1);
+    }
+
+    [Fact]
     public void TheRadioCarriesTheLengthOfTheTrainBandLimited()
     {
         var r = VoiceBench.Run(Content, speakerCar: 9, speakerZ: 0, radio: true);

@@ -282,7 +282,7 @@ VrView? StartVr()
 }
 using var ownGpu = vr is null ? new GpuContext("Dark Territory", Window.VulkanInstanceExtensions(), window.CreateSurface) : null;
 var gpu = vr?.Gpu ?? ownGpu!;
-crashes.Context("gpu", gpu.DeviceName);
+crashes.Context("gpu", gpu.Description);
 crashes.Context("vr", vr is null ? "off" : "on");
 // --crash-test (note 452): stops the game on purpose once it's up, so the whole path (the report, its twin, the notice on
 // the next launch, the mail) can be tried on any machine.
@@ -333,7 +333,7 @@ void ApplyDisplay()
     }
     shownSettings = now;
 }
-Console.WriteLine($"GPU: {gpu.DeviceName}, window {w}x{h}, internal {renderer.Width}x{renderer.Height}");
+Console.WriteLine($"GPU: {gpu.Description}, window {w}x{h}, internal {renderer.Width}x{renderer.Height}");
 
 var sound = new GameAudio(content);
 // Note 667: no take decodes where it's played, on the frame or the mixing thread; a first play starts a decode's few

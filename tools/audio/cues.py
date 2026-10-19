@@ -764,13 +764,6 @@ CUES = {
         L("drag", "A victim dragged at walking pace", mats=["wood"]),
         O("uncouple", "The caboose uncoupled (plays crew-coupling)", vars=1, cand={"_": [old("audio/cs-passenger--uncouple.mp3")]}),
     ],
-    "cs-switchman": [
-        O("throw", "The switch thrown as you pass: its grip and its lamp, over the stand's own lever (crew-switch)", vars=3),
-        O("flicker", "The lamp flickering as it grips the lever", vars=2),
-        O("death", "Its death"),
-        # Note 290: pain sounds for a ball are the audio chat's.
-        O("hit", "A ball or a blow landing on it: its lamp rattling, a cracked-glass shriek", vars=3),
-    ],
     "cs-grumbler": [
         O("scuttle", "Scuttling over the crane", vars=4),
         O("feral", "Going feral at whoever hit it last", vars=2),
@@ -1197,7 +1190,6 @@ CUES = {
     "tell-gaunt": [O("none", "Silent by design", silent=True)],
     "tell-followers": [O("none", "Silent by design", silent=True)],
     "tell-passenger": [O("none", "Never speaks", silent=True)],
-    "tell-switchman": [O("none", "A visual tell", silent=True)],
 
     # ---- Music, UI, voice sets, the trailer -------------------------------------------------------------------------
     # UI sounds are things on the train's paperwork and brass: a waybill, a ticket punch, a stamp, a switch.

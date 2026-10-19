@@ -1,4 +1,5 @@
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using Ballast.Render;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Combat;
@@ -120,7 +121,7 @@ public static partial class Hud
             Lobby(o, s, lobby, line);
         // A new player's first nights (note 350): the core controls on a card in the yard, gone once the train's out.
         if (firstNight && !over && p.Alive && s.World.Run is { Phase: Sim.Run.RunPhase.Yard })
-            Onboarding.DrawCard(o, width, height, Keys, Fine, 1, Dim, Amber);
+            Onboarding.DrawCard(o, width, height, Keys, Fine, 1, Dim, Amber, now);
         // A fortress town's card (note 281): what somebody's saying to you, or the paper you're reading. While it's open its
         // own foot says what Use does next, so the town's prompt under the crosshair stands down.
         var townCard = !over && talk is not null && (talk.In ?? s.World.TownOf(p)) is { } town ? talk.Card(town, now) : null;
@@ -1049,27 +1050,8 @@ public static partial class Hud
             y += (line + 2) * k;
         }
         y = MailTop(o, s, m, cx, y, line, k, ref half);
-        if (s.Player.Alive && Shown(Since(s, m.ColdTick), Tuning.ColdSeconds) is > 0 and var c
-            && ColdLine(s.Player, s.Train) is { } cold)
-        {
-            Centred(cold, Amber with { W = c }, k, y + 2);
-            y += 2 + (line + 2) * k;
-        }
         return y > 6 ? new TopBand(y, half) : new TopBand(6, 0);
     }
-
-    /// <summary>
-    /// The cold step where a player is, in words (note 201), or null on a normal night. Every machine builds the night's
-    /// conditions from its seed, so a client knows it as the host does. Its name only: how much faster it comes on outside
-    /// is learned out in it (note 285's "nothing foretells"; note 369).
-    /// </summary>
-    public static string? ColdLine(in PlayerState p, TrainOnLine train) => PlayerMotor.ColdStep(p, train) switch
-    {
-        <= 0 => null,
-        1 => "DEEP COLD",
-        2 => "BITTER COLD",
-        _ => "KILLING COLD",
-    };
 
     static void Alerts(Overlay o, int width, int height, IPlaySession s, int line)
     {
@@ -1131,6 +1113,10 @@ public static partial class Hud
             return;
         if (world.Run?.Report is { } r)
         {
+            // Note 837 (the director's playtest of 16 Oct, line 25: "it should go away after delivered"): delivered, the
+            // result and the incident report go after a while, so the town can be explored; not while commendations are given.
+            if (r.End == RunEnd.Delivered && DeliveredReportGone(s))
+                return;
             if (r.End == RunEnd.Delivered)
             {
                 Big("DELIVERED", Green);
@@ -1186,8 +1172,6 @@ public static partial class Hud
             DeadCard(o, width, height, s, line);
             BallotPlate(o, width, s, line);
         }
-        if (p.Alive && PlayerMotor.Chilled(p, s.PlayerTuning))
-            Small($"COLD: {Math.Max(0, s.PlayerTuning.Cold.DeathSeconds - p.Cold):0}S", p.Cold > s.PlayerTuning.Cold.DeathSeconds - 30 ? Red : Amber);
         if (world.Derailed)
             Big("DERAILED", Red);
         // T109 playtest ("feedback for the player to understand in multiple ways that pressure is too high"): the boiler in
@@ -1261,8 +1245,9 @@ public static partial class Hud
             Small(roof.Line, Ink);
         }
         // Note 266 (build 1121: "people should know they're going too fast for a spot"): a bend the speed now would derail
-        // the train on, coming or under it, to whoever's in the cab; and its stress rising, short of that.
-        else if (BendWarningLines(s) is { } bend)
+        // the train on, coming or under it, to whoever's in the cab; and its stress rising, short of that. Off since the
+        // 16 Oct playtest (note 837: the tilt tells the driver), behind hud.json's bendWarning.
+        else if (Tuning.BendWarning && BendWarningLines(s) is { } bend)
         {
             Big(bend.Head, bend.Urgent ? (world.Tick / 6 % 2 == 0 ? Red : Amber) : Amber, bend.Urgent);
             Small(bend.Line, Ink);
@@ -2110,6 +2095,24 @@ public static partial class Hud
             : (w.Bridge ? "TOO FAST FOR THE BRIDGE" : "TOO FAST FOR THE BEND", $"{w.LimitKmh} KM/H BOARD {when}: GET OFF THE ROOF");
     }
 
+    // Per session: the tick a delivered run's result was first shown (note 837).
+    static readonly System.Runtime.CompilerServices.ConditionalWeakTable<IPlaySession, StrongBox<long>> _deliveredAt = new();
+
+    /// <summary>
+    /// Whether a delivered run's result and incident report have been up for hud.json's deliveredReportSeconds (note 837),
+    /// with no commendation still to give: then they're gone, and the town's there to be explored.
+    /// </summary>
+    public static bool DeliveredReportGone(IPlaySession s)
+    {
+        long now = (long)s.World.Tick;
+        var at = _deliveredAt.GetValue(s, _ => new StrongBox<long>(now));
+        if (now < at.Value)
+            at.Value = now;
+        if ((s.CommendPick ?? StagedCommendPick) is { Given: false })
+            return false;
+        return (now - at.Value) * Sim.SimConstants.TickSeconds >= Tuning.DeliveredReportSeconds;
+    }
+
     /// <summary>
     /// The cab's bend warning (note 265), or null: in the cab, a bend the speed now would derail the train on, under it or
     /// ahead within the distance to brake (LineGen.TrackRules.Assess, urgent); or the bend under it stressed past halfway
@@ -2135,8 +2138,7 @@ public static partial class Hud
     }
 
     /// <summary>
-    /// The cab's dead-line warning (note 286), or null: in the cab with the engine down a dead line (the Switchman's work, or
-    /// a switch set wrong), what to do; and with its buffers coming up faster than it can stop under the speed that goes
+    /// The cab's dead-line warning (note 286), or null: in the cab with the engine down a dead line (a switch set wrong), what to do; and with its buffers coming up faster than it can stop under the speed that goes
     /// through them (Sim.Train.DeadEnds.Assess), urgent. From the line and the train as this machine has them.
     /// </summary>
     public static (string Head, string Line, bool Urgent)? DeadEndLines(IPlaySession s)
@@ -2159,7 +2161,6 @@ public static partial class Hud
     /// </summary>
     public static string DeathLine(DeathCause cause) => cause switch
     {
-        DeathCause.Cold => "FROZE",
         DeathCause.JumpedAtSpeed => "JUMPED AT SPEED",
         DeathCause.Derailed => "THE TRAIN LEFT THE RAILS",
         DeathCause.Mauled => "MAULED. SOMETHING GOT HOLD OF YOU AND NOBODY PULLED IT OFF",
@@ -2830,7 +2831,7 @@ public static partial class Hud
         // Note 723: a friend in front, empty-handed with nothing else in reach: lifted onto the shoulder with Use held.
         bool carry = world.Bodies.CarriedBy(s.PlayerId) is null && near is null && Rescue.LiftTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning.Rescue, s.PlayerTuning) is not null;
         bool shove = world.MischiefOn && Horseplay.ShoveTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning) is not null;
-        return carry && shove ? "CARRY : HOLD [E]   SHOVE : [LEFT ALT]" : carry ? "CARRY : HOLD [E]" : shove ? "SHOVE : [LEFT ALT]" : null;
+        return carry && shove ? "CARRY : HOLD [E]   SHOVE : [CAPS LOCK]" : carry ? "CARRY : HOLD [E]" : shove ? "SHOVE : [CAPS LOCK]" : null;
     }
 
     /// <summary>

@@ -434,6 +434,8 @@ public sealed partial class GreyboxScene
         CabooseTuning = train.Dynamics.Tuning.Composition.Caboose;
         SwitchThrower = train.Dynamics.Tuning.Composition.SwitchThrower;
         HandcarFrom(train);
+        // Note 847: where the train's front and rear are along the main line, for a gate the walls don't stand (a still's).
+        _trainAlong = (train.Line.MainDistance(train.Dynamics.Path, train.Dynamics.Distance), train.Line.MainDistance(train.Dynamics.Path, train.Dynamics.RearDistance));
         Build(mesh, train.Line, frames ?? train.Frames, train.Dynamics.Distance, eye);
     }
 
@@ -520,6 +522,10 @@ public sealed partial class GreyboxScene
                                 Crane(mesh, crane, frames, eye);
                             CraneLamps(mesh, crane, frames, eye);
                         }
+                        // Its stop left behind (note 838, the director's 16 Oct playtest line 21: "Where are the crates that I
+                        // loaded up? In car one, they're no longer here"): what it loaded rides on in the train, and is drawn with it.
+                        else if (Look?.Art.Castings(mesh, crane, frames, eye, loadedOnly: true) != true)
+                            Castings(mesh, crane, frames, eye, loadedOnly: true);
                 }
             // A yard's powerhouse with its power on (level-design D.2): the lamp over its door burns; an open one's (note 509)
             // hangs over its switchboard inside, so the engine house is dark until the power runs, and lit from its doorway after.
@@ -568,13 +574,16 @@ public sealed partial class GreyboxScene
             double yard = Run?.YardLength ?? 600, terminus = Run?.Tuning.TerminusZone ?? 400;
             Lap(mesh, "route");
             // (Where the sim stands their solids, T124.)
+            SwingGates();
             foreach (var fort in Sim.Run.Fortresses.Of(Route, line, yard, terminus))
                 // The terminus that's a town (notes 600, 692) is drawn as the departure's is, in its own frame from where that
                 // starts, the same way round: the window along it, its way out at the far end of its yard.
                 if (fort.Start > 0 && fort.Lived && Arrival is { Origin: { } origin } arrival)
-                    Fortress(mesh, arrival.Line, eye, from - origin, to - origin, 0, arrival.Plan.Gate, gateAt: arrival.Plan.Gate, town: arrival);
+                    Fortress(mesh, arrival.Line, eye, from - origin, to - origin, 0, arrival.Plan.Gate, gateAt: arrival.Plan.Gate, town: arrival,
+                        gateOpen: GateSwing(origin + arrival.Plan.Gate), rearOpen: GateSwing(origin + (arrival.Plan.Bounds?.Rear ?? 0)));
                 else
-                    Fortress(mesh, line, eye, from, to, fort.Start, fort.End, gateAt: fort.Gate, lit: fort.Lived);
+                    Fortress(mesh, line, eye, from, to, fort.Start, fort.End, gateAt: fort.Gate, lit: fort.Lived,
+                        gateOpen: GateSwing(fort.Gate), rearOpen: fort.Start == 0 && Town?.Plan.Bounds is { } walled ? GateSwing(walled.Rear) : 0);
             Photographer(mesh, line, eye);
             Lap(mesh, "fortresses and towns");
         }
@@ -1339,7 +1348,7 @@ public sealed partial class GreyboxScene
                 _newBeats.Add(("scattered", was));
             }
         // The rest let go of, not killed (note 458): a Climber outnumbered or giving up, a Whistler found in its gap, a pack
-        // that's eaten, the Gaunt going with its loot, a Switchman at the lever, a hound aboard over the side. The sim has
+        // that's eaten, the Gaunt going with its loot, a hound aboard over the side. The sim has
         // them gone the tick it's done with them; they're seen going.
         foreach (var (id, was) in _seen)
             if (Art.CreatureArt.Retreat(was.Kind) is not null && !(was.Kind == EnemyKind.CinderHound && was.Attached < 0)
@@ -3010,20 +3019,6 @@ public sealed partial class GreyboxScene
                     }
                     break;
                 }
-            case EnemyKind.Switchman:
-                {
-                    // A railwayman, stooped wrong, standing at the switch with a lantern held out: the lantern's the only
-                    // light on it, and it swings while it waits for the train.
-                    Draw(0, 0.45, 0, 0.12, 0.45, 0.12, Palette.SootBlack);
-                    Draw(0, 1.2, 0.05, 0.22, 0.35, 0.14, Palette.SootBlack);
-                    Draw(0, 1.62, -0.12, 0.13, 0.13, 0.13, Palette.Corrupted);
-                    double swing = e.Phase == SpinePhase.Telegraph ? 0.15 * Math.Sin(e.PhaseSeconds * 2.2) : 0;
-                    Draw(0.32, 1.0, -0.1 + swing, 0.05, 0.28, 0.05, Palette.SootBlack);
-                    mesh.Emissive = 1;
-                    Draw(0.32, 0.7, -0.1 + swing, 0.08, 0.1, 0.08, Palette.LampAmber);
-                    mesh.Emissive = 0;
-                    break;
-                }
             case EnemyKind.Drift:
                 {
                     // A dark spreading mat over the roof and down the sides, as wide as it's spread.
@@ -3262,9 +3257,8 @@ public sealed partial class GreyboxScene
         if (Look is not null)
         {
             var at = (Stands ?? DefaultStands).LeverAt(main, branch.Index);
-            // The Switchman gripping this lever to throw it under the train (App. A.8): the lamp flickers.
-            bool gripped = Enemies?.Any(e => e is Sim.Enemies.Switchman { Gripping: true } s && s.Branch == branch.Index && !e.Gone) == true;
-            float flicker = gripped ? (MathF.Sin((float)Math.Floor(Time * 14) * 12.9898f) * 43758.5f % 1 is var j && MathF.Abs(j) < 0.45f ? 0.08f : 1) : 1;
+            // (The lamp flickered while the Switchman gripped the lever, App. A.8; it went with the Switchman, note 852.)
+            const float flicker = 1;
             Look.Art.World.Branch(mesh, branch, eye, DrawDistance, at, main.Sample(branch.Toe).Tangent, Diverging?.Invoke(branch.Index) ?? false, flicker);
             return;
         }
@@ -3779,14 +3773,51 @@ public sealed partial class GreyboxScene
 
     /// <summary>Walls both sides, gun towers with lamps, and a gatehouse over the line.</summary>
     /// <param name="town">The town this fortress is (the terminus's, note 600); null, the departure fortress's is <see cref="Town"/>.</param>
+    // Note 847: how far each fortress gate's leaves stand open, by its key (0 shut, 1 against the passage's walls), and when
+    // they were last swung (the scene's clock).
+    readonly Dictionary<int, double> _gateSwing = [];
+    double _gateClock = double.NaN;
+
+    /// <summary>
+    /// Note 847: swings each gate's leaves toward what the walls say (<see cref="Sim.Run.StopWalls.GateOpen"/>, the Sim's own,
+    /// which the crew walk into), over run.json <c>gates.swingSeconds</c>; a gate first seen is drawn as it stands.
+    /// </summary>
+    void SwingGates()
+    {
+        double dt = double.IsNaN(_gateClock) || Time < _gateClock ? 0 : Time - _gateClock;
+        _gateClock = Time;
+        if (Walls is not { } walls)
+            return;
+        double rate = 1 / Math.Max(0.1, Run?.Tuning.Gates.SwingSeconds ?? 4);
+        foreach (int key in walls.Gates)
+        {
+            double want = walls.GateOpen(key) ? 1 : 0;
+            _gateSwing[key] = _gateSwing.TryGetValue(key, out double at) ? at + Math.Clamp(want - at, -rate * dt, rate * dt) : want;
+        }
+    }
+
+    // Note 847: the train's front and rear along the main line, as last built.
+    (double Front, double Rear) _trainAlong = (double.NaN, double.NaN);
+
+    /// <summary>
+    /// Note 847: how far the gate <paramref name="along"/> the main line stands open; where the walls don't stand it (a still
+    /// built without the forts' solids), as the Sim's rule has it for where the train is.
+    /// </summary>
+    double GateSwing(double along) => GatesHeld ?? (_gateSwing.TryGetValue(Sim.Run.Fortresses.GateKey(along), out double open) ? open
+        : Run is { } run && Sim.Run.Fortresses.Open(along, _trainAlong.Front, _trainAlong.Rear, run.Tuning.Gates) ? 1 : 0);
+
+    /// <summary>Note 847: every gate's leaves held this far open (0..1) whatever the train's doing (`dt screenshot --gates`); null, as they swing.</summary>
+    public double? GatesHeld { get; set; }
+
     void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt, bool lit = true,
-        Sim.Towns.Town? town = null)
+        Sim.Towns.Town? town = null, double gateOpen = 0, double rearOpen = 0)
     {
         if (Look is not null)
         {
             // The departure fortress is a town (note 281): its square, and its people where note 107's folk stood.
             town ??= start == 0 && lit ? Town : null;
-            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit, Time, town?.Plan.Square, town?.Plan.Bounds, town?.Ground);
+            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit, Time, town?.Plan.Square, town?.Plan.Bounds, town?.Ground,
+                gateOpen, rearOpen);
             Lap(mesh, "fortress walls");
             if (town is not null)
             {
@@ -4696,9 +4727,18 @@ public sealed partial class GreyboxScene
         mesh.Box(V(cab + Double3.Up * 0.3, eye), Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, new Vector3(0.92f, 0.12f, 0.6f), Palette.LampAmber * 0.5f);
         mesh.Emissive = 0;
         mesh.Box(V(crane.Controls + Double3.Up * 0.55, eye), Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, new Vector3(0.25f, 0.55f, 0.2f), Palette.IronGrey);
+        Castings(mesh, crane, frames, eye, loadedOnly: false);
+    }
+
+    /// <summary>
+    /// The greybox's castings: stacked, on the hook, or in a car. <paramref name="loadedOnly"/>: only those loaded into a car of
+    /// the train, drawn with it wherever its stop's crane is (note 838).
+    /// </summary>
+    static void Castings(MeshBuilder mesh, Sim.Run.Crane crane, IReadOnlyList<CarFrame> frames, Double3 eye, bool loadedOnly)
+    {
         var size = crane.Tuning.CastingSize;
         foreach (var c in crane.Castings)
-            if (crane.Where(c, frames) is { } at)
+            if ((!loadedOnly || c.State == Sim.Run.CastingState.Loaded && c.Car >= 0 && c.Car < frames.Count) && crane.Where(c, frames) is { } at)
             {
                 var up = c.State == Sim.Run.CastingState.Loaded && c.Car >= 0 && c.Car < frames.Count ? frames[c.Car].Up : Double3.Up;
                 var centre = at + up * (size[1] * 0.5);

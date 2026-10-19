@@ -20,7 +20,7 @@ public class BurnFeedbackTests
     static (Night N, CarFire Fire) Blaze()
     {
         var n = new Night(5, speed: 8);
-        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, Car, 2, E.CarFire).Ablaze(1, 1.5));
+        var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, Car, 2, E.CarFire, FireCause.Set).Ablaze(1, 1.5));
         n.Train.Vehicles[Car].Cargo = CargoKind.None;
         n.Run(3); // alight (past its telegraph), with nobody in the car yet
         return (n, fire);

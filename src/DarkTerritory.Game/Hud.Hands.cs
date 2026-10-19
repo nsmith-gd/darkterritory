@@ -38,8 +38,6 @@ public static partial class Hud
         public long SlotTick = long.MinValue / 2;
         public (string Name, double At)? Place;
         public long PlaceTick = long.MinValue / 2;
-        public int ColdStep;
-        public long ColdTick = long.MinValue / 2;
         // The mail crane coming up (note 673), from when its board was read; the last bag caught, and when.
         public int MailDrop = -1;
         public long MailTick = long.MinValue / 2;
@@ -64,10 +62,6 @@ public static partial class Hud
             && next.At - s.Train.Dynamics.Distance <= Tuning.PlaceAheadMetres && m.Place != next)
             (m.Place, m.PlaceTick) = (next, now);
         ObserveMail(s, m, now);
-        int step = s.Player.Alive ? PlayerMotor.ColdStep(s.Player, s.Train) : 0;
-        if (step > m.ColdStep)
-            m.ColdTick = now;
-        m.ColdStep = step;
         return m;
     }
 
@@ -246,7 +240,10 @@ public static partial class Hud
             var gun = train.Vehicles[manned].Gun;
             bool steam = train.BoilerTuning is null || train.Boiler.Pressure >= combat.Guns.MinPressure;
             int ready = Guns.Ready(gun, combat.Guns);
-            if (!gun.Jammed && gun.ReloadNeeded == 0 && ready > 0 && steam)
+            // Note 846: inside a walled town the gun holds its fire, and says why.
+            if (world.GunHeld(manned))
+                lines.Add("NO FIRING IN TOWN");
+            else if (!gun.Jammed && gun.ReloadNeeded == 0 && ready > 0 && steam)
                 lines.Add("FIRE : [LMB]");
             lines.Add("GET UP : [SPACE]");
             // With a rack (note 374): what's at the gun, and what's left down in the locker for every gun.

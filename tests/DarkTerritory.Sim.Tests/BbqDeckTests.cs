@@ -127,23 +127,21 @@ public class BbqDeckTests
     }
 
     [Fact]
-    public void TheCoolerHasItsBeersAndABeerTakesTheEdgeOffTheCold()
+    public void TheCoolerHasItsBeersAndABeerIsDrunk()
     {
         var w = Night(Fitted);
         var deck = w.Train.Frames[0].Shape.Bbq!;
         Assert.Equal(Bbq.Beers, w.Train.Vehicles[0].Beers);
         var cooler = w.Train.Frames[0].Shape.Interactables.Single(i => i.Kind == InteractableKind.Cooler);
-        var s = At(w, cooler.Position) with { Cold = 100 };
+        var s = At(w, cooler.Position);
         Tick(w, ref s, Use);
         Assert.Equal(BodyKind.Beer, w.Bodies.CarriedBy(1)?.Kind);
         Assert.Equal(Bbq.Beers - 1, w.Train.Vehicles[0].Beers);
         // Let go, then held: drunk, as a healing find's used.
         Tick(w, ref s, default);
         Assert.Equal(BodyKind.Beer, w.Bodies.CarriedBy(1)?.Kind);
-        double cold = s.Cold;
         Hold(w, ref s, Use, 2.5);
         Assert.Null(w.Bodies.CarriedBy(1));
-        Assert.True(s.Cold <= cold - Bbq.BeerWarmth + 3, $"cold {s.Cold:0.0} from {cold:0.0}");
         Assert.DoesNotContain(w.Bodies.All, b => b.Kind == BodyKind.Beer);
         // Every one taken, the cooler's empty.
         w.Train.Vehicles[0].Beers = 0;
@@ -187,8 +185,7 @@ public class BbqDeckTests
         Assert.False(Train.Bbq.Lit(w.Train.Vehicles[0]));
         Hold(w, ref s, Use, Bbq.LightSeconds + 0.1);
         Assert.True(Train.Bbq.Lit(w.Train.Vehicles[0]));
-        // Lit, it's warm by it, and it brings the hounds as a hot boiler does.
-        Assert.True(PlayerMotor.NearHeat(s, w.Train));
+        // Lit, it brings the hounds as a hot boiler does.
         Assert.True(Train.Bbq.AnyLit(w.Train));
         Hold(w, ref s, Use, Bbq.GrillSeconds);
         var sausage = w.Bodies.CarriedBy(1);

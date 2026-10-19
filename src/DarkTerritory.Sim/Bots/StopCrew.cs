@@ -953,7 +953,8 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
 public sealed record StopRecord(int Facility, string Kind, double Seconds, int SledsHauled, IReadOnlyDictionary<string, double> Legs, double Coal = 0, int Castings = 0);
 
 /// <summary>
-/// A dead line's switch set against the train (App. A.7, the Switchman's work): its lamp reads wrong from the cab. The
+/// A dead line's switch set against the train (someone's hand, or a scripted set piece; the Switchman's work once, note 852):
+/// its lamp reads wrong from the cab. The
 /// crew stops short of its points and someone sets it back on the ground; if the train's already down the dead line, it
 /// backs out first. A facility's spur set for it outside a stop is the same (note 550: frontier:7's seed 8, a shunter
 /// threw the Foundry's points after the driver had given the stop up, and the train ran down the spur to its buffer and
@@ -1992,27 +1993,22 @@ public sealed class StopDriver(CrewCalls calls)
 /// <summary>
 /// A crew member's part on the ground at a facility stop (GDD §17: "someone is on the ground at every junction"), all
 /// through intent. The shunter drops into the gap and cuts the train, walks up to the stand and throws the switch, rides
-/// in and out in the cab (it's warm there), then sets it back and climbs aboard. The two on the winch ride in, crank it
-/// together until the sleds are in, and climb aboard. Out in the cold too long, they go and get warm first (the walker
-/// does that) and come back to it. With no part, or nothing to do this tick, it returns null and the walker walks.
+/// in and out in the cab, then sets it back and climbs aboard. The two on the winch ride in, crank it together until the
+/// sleds are in, and climb aboard. With no part, or nothing to do this tick, it returns null and the walker walks.
 /// </summary>
-public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, ColdTuning? cold = null)
+public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
 {
     /// <summary>Walking beside the train, keep this far from its track's centreline (a car is 3 m wide, 4.2 at its steps).</summary>
     const double Clear = 2.6;
     /// <summary>Stand this far from the track at the switch stand: in reach of the lever (2.6 m out), clear of the train.</summary>
     const double StandOff = 3.2;
 
-    /// <summary>Warm enough again to go back to it (from 85% of the onset).</summary>
-    const double WarmAgain = 5;
-    /// <summary>The cab's the place to get warm when it's this near: no doors to fight over, and the driver's there.</summary>
-    const double CabNear = 60;
 
     readonly HashSet<int> _done = [];
     StopPlan? _plan;
     /// <summary>Its part in a facility stop is under way: the train's standing for it, or in at it, and not yet away (note 601).</summary>
     public bool AtAStop => _plan is not null;
-    bool _wentIn, _reachedEnd, _warming;
+    bool _wentIn, _reachedEnd;
 
     public StopJob Job => job;
     /// <summary>
@@ -2033,7 +2029,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
     /// </summary>
     public void Report(in PlayerState self) => calls.Say(member, job, self);
 
-    /// <summary>It's gone in to get warm (and says where it is), or come out again.</summary>
+    /// <summary>It's gone in off the roofs (and says where it is), or come out again.</summary>
     public void Warming(in PlayerState self, bool on)
     {
         calls.Warming(member, on);
@@ -2255,24 +2251,6 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
             return hiding;
         if (self.Surface == Surface.Ladder || self.Surface == Surface.Deck && self.Parent > 0 && !(part == StopJob.Crates && _reachedEnd))
             return null;
-        // Too cold to keep at it: into the cab if it's near (the walker's way into a car if not), until properly warm again.
-        if (cold is not null && self.Cold >= cold.OnsetSeconds * 0.85 && !PlayerMotor.NearHeat(self, train))
-        {
-            _warming = true;
-            calls.Unclaim(member);
-        }
-        else if (self.Cold <= WarmAgain)
-            _warming = false;
-        if (_warming)
-        {
-            // Nobody climbs into the cab with freight in their arms.
-            if (self.Has(PlayerFlags.Heavy))
-                return Press();
-            var cab = train.Frames[0].ToWorld(train.Frames[0].Shape.Cab!.Value.Centre);
-            var warming = (PlayerMotor.WorldPosition(self, train) - cab).Length < CabNear ? Ride(self, train, p) : null;
-            Doing = "warming";
-            return warming;
-        }
         // Note 609: the points, while the shunter's at the cut (a crew's second pair of hands; StopDriver's Held leg was the
         // shunter's walk back to the cut, then forward past the engine to the stand, then to the cab: 68 to 115 s).
         if (ThrowsForTheShunter(world, p))
@@ -2558,8 +2536,10 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
     static bool Steer(ref PlayerIntent drive, Crane c, double bridge, double trolley)
     {
         double db = bridge - c.Bridge, dx = trolley - c.Trolley;
-        drive.MoveZ = Math.Abs(db) < 0.04 ? 0 : (float)Math.Clamp(db * 2.5, -1, 1);
-        drive.MoveX = Math.Abs(dx) < 0.04 ? 0 : (float)Math.Clamp(dx * 2.5, -1, 1);
+        // The stick's as the cab sees it (note 845): what each axis wants, turned into it.
+        var (right, forward) = c.StickFor(Math.Abs(db) < 0.04 ? 0 : Math.Clamp(db * 2.5, -1, 1), Math.Abs(dx) < 0.04 ? 0 : Math.Clamp(dx * 2.5, -1, 1));
+        drive.MoveX = (float)right;
+        drive.MoveZ = (float)forward;
         return Near(c, bridge, trolley);
     }
 
@@ -3683,28 +3663,6 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
     }
 
     /// <summary>
-    /// A derailing Switchman gripping its lever ahead (v1.1 App. A.8: "stop and club it"): down off the train, along the
-    /// ballast to it, and clubbed. Null once it's gone.
-    /// </summary>
-    public PlayerIntent? Club(in PlayerState self, World world, Enemies.Switchman sw)
-    {
-        var train = world.Train;
-        if (sw.Gone || sw.Branch < 0 || sw.Branch >= train.Line.Branches.Count)
-            return null;
-        if (self.Surface == Surface.Air)
-            return new PlayerIntent();
-        var branch = train.Line.Branches[sw.Branch];
-        if (self.Parent != PlayerState.World)
-            return GetDown(self, train, branch.Side);
-        Doing = "at the Switchman";
-        var at = sw.WorldPosition(train);
-        if ((at - PlayerMotor.WorldPosition(self, train)).Length <= 1.6)
-            return Heed.Strike(self, train, at, 1.6);
-        var stand = TrackPoint(train.Line, RailLine.MainPath, branch.Toe, branch.Side * StandOff);
-        return WalkTo(self, train.Line, RailLine.MainPath, stand, null).Step;
-    }
-
-    /// <summary>
     /// A crewmate waiting in a lit Holdout (GDD App. D.5, T96): down off the standing train on its side, along to its door,
     /// and hold Use there until it's breached. Null once it isn't lit.
     /// </summary>
@@ -4021,7 +3979,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member, C
             intent.MoveZ = 0; // square up over the plate first (and never down onto a Knotter's back: note 367)
         if (jumpGaps && nearEnd && beyond > 0)
         {
-            if (WarmUp.CanJumpGap(self, train, null, beyond))
+            if (WarmUp.CanJumpGap(self, train, beyond))
                 intent.Buttons |= PlayerButtons.Jump;
             else
                 intent.MoveZ = 0; // square up on the centreline first (or wait out the curve)

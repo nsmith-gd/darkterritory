@@ -182,7 +182,7 @@ public class HoldoutTests
         Assert.Equal(HoldoutState.Freed, h.State);
 
         var calls = new Bots.CrewCalls();
-        var bot = new Bots.RoofWalkerBot(21, P.Cold, new Bots.StopHand(Bots.StopJob.Crates, calls, 1, P.Cold)) { Me = dead };
+        var bot = new Bots.RoofWalkerBot(21, new Bots.StopHand(Bots.StopJob.Crates, calls, 1)) { Me = dead };
         var s = n[dead];
         var from = s.Position;
         double bound = 30 + ((h.Door - n.Train.Frames[1].Origin) with { Y = 0 }).Length / P.Walk * 1.5;
@@ -219,7 +219,7 @@ public class HoldoutTests
         var behind = h.Door + into.Normalized * (depth * 2 + 1.5);
         Assert.InRange(((behind - h.Door) with { Y = 0 }).Length, 2, 10);
         n.Stand(living, behind);
-        var hand = new Bots.StopHand(Bots.StopJob.Crates, new Bots.CrewCalls(), living, P.Cold);
+        var hand = new Bots.StopHand(Bots.StopJob.Crates, new Bots.CrewCalls(), living);
         var s = n[living];
         double closest = double.MaxValue;
         for (uint tick = 0; tick < 60 * SimConstants.TickRate && h.State != HoldoutState.Freed; tick++)
@@ -884,8 +884,9 @@ public class HoldoutTests
                 Assert.True(n.Host.Train.Dynamics.Speed < 0.1, $"the train moved at {n.Host.Train.Dynamics.Speed:0.00} m/s with the driver out");
         });
         Assert.True(wentOut, "the driver got down");
-        // Vented to 60; the fresh fire has it climbing again by the time it's out of the doorway.
-        Assert.True(leftPressure <= 65, $"vented down before it went: {leftPressure:0.0}");
+        // Vented to 60; the fresh fire has it climbing again by the time it's out of the doorway, 5 on the gauge at the old
+        // rate and 17% more since note 843 (the gauge moves 17% faster).
+        Assert.True(leftPressure <= 60 + 5 * 1.17, $"vented down before it went: {leftPressure:0.0}");
         Assert.True(leftFire >= 0.75, $"fired up before it went: {leftFire:0.00}");
         var lockup = n.Lockup;
         Assert.Equal(HoldoutState.Freed, lockup.State);

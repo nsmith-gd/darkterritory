@@ -77,7 +77,7 @@ public static class IncidentLog
         var train = world.Train;
         string at = At(world, train.Frames[0].Origin, train.Dynamics.Distance);
         string cause = world.DerailCause is { Length: > 0 } c ? char.ToUpperInvariant(c[0]) + c[1..].TrimEnd('.') + ". " : "";
-        // C.9's contributing action for this cause: the throttle, the forward cannon (the Switchman), the firebox (a Stoker's runaway).
+        // C.9's contributing action for this cause: the throttle, the firebox (a Stoker's runaway).
         string blame = world.DerailAction is { Length: > 0 } action ? action.Replace("{actor}", NameOf(world, world.DerailActor)) + " "
             : world.DerailDriver >= 0 ? $"Throttle: {NameOf(world, world.DerailDriver)}. " : "Nobody on the throttle. ";
         return $"Consist derailed {at}, {Kmh(world.DerailSpeed)}. {cause}{blame}Recovery not scheduled.";
@@ -101,13 +101,10 @@ public static class IncidentLog
     }
 
     /// <summary>The failure, as the clerk reads it, for each way to die.</summary>
-    /// <param name="aboard">Died on the train (a car or the engine): the cold took them there, not left behind (note 547).</param>
-    public static string What(DeathCause cause, bool aboard = false) => cause switch
+    public static string What(DeathCause cause) => cause switch
     {
-        DeathCause.Cold when aboard => "Froze on the train",
         DeathCause.JumpedAtSpeed => "Jumped from the moving train",
         DeathCause.Derailed => "Killed in the derailment",
-        DeathCause.Cold => "Froze, left behind",
         DeathCause.Mauled => "Mauled by the hounds",
         DeathCause.Hollow => "Taken by the Hollow",
         DeathCause.Choir or DeathCause.Seized => "Taken by the Choir",
@@ -171,8 +168,6 @@ public static class IncidentLog
         var a = world.Attribution;
         var train = world.Train;
         var at = PlayerMotor.WorldPosition(s, train);
-        // On the train: in its frame, on a car or the engine still in the rake (a car cut loose isn't the train).
-        bool aboard = s.Parent >= 0 && s.Parent < train.Frames.Count && train.Dynamics.Consist.IndexOf(s.Parent) >= 0;
         int actor = -1;
         string action;
         switch (s.Death)
@@ -198,17 +193,8 @@ public static class IncidentLog
                 actor = world.DroppedBy(victim) ?? -1;
                 action = actor >= 0 ? World.DropLine(world.WasShaken(victim), world.DropHeight(victim)) : "Let go of the crane's hook.";
                 break;
-            case DeathCause.Cold when !aboard:
-                {
-                    // Left behind (B.2's cold off the train): how far from the train, to its nearest end, not a car's middle (an
-                    // end of a car is half its length from it: on the roof, "8 m from the train", note 547).
-                    double back = train.Dynamics.Consist.Vehicles.Min(v => Math.Max(0, (train.Frames[v.Id].Origin - at).Length - train.Frames[v.Id].Shape.HalfLength));
-                    actor = a.Driver;
-                    action = $"Throttle: {{actor}}. {back:0} m from the train.";
-                    break;
-                }
             case DeathCause.Derailed or DeathCause.Struck or DeathCause.Thrown or DeathCause.TornOff:
-                // In a derailment, its own contributing action (note 190: the forward cannon for the Switchman, the firebox for
+                // In a derailment, its own contributing action (note 190: the firebox for
                 // the Stoker), and the speed it came off at.
                 if (world.Derailed && world.DerailAction is { Length: > 0 } derail)
                 {
@@ -277,7 +263,7 @@ public static class IncidentLog
                     break;
                 }
         }
-        return new Incident(IncidentKind.Death, Seconds(world), victim, What(s.Death, aboard), Where(world, s), actor, action, s.Death, body?.Id ?? -1);
+        return new Incident(IncidentKind.Death, Seconds(world), victim, What(s.Death), Where(world, s), actor, action, s.Death, body?.Id ?? -1);
     }
 
     /// <summary>A record of C.9's that isn't about a crewmate's death, rescue or the night's end: a creature's or the line's doing.</summary>
@@ -329,23 +315,6 @@ public static class IncidentLog
         string left = opener >= 0 ? $" Door left open by {NameOf(world, opener)}." : " Door left open.";
         string way = v.Breached ? " In through the breach." : doors != 0 ? left : (v.DoorsOpen & (1 << Train.CarShape.HatchBit)) != 0 ? " Hatch left open." : "";
         return (lit, drawn + way);
-    }
-
-    /// <summary>
-    /// C.9's Switchman row: whether the forward cannon was crewed this tick, and by whom (the lowest id, if more than one
-    /// forward gun was). A forward cannon is one mounted facing the way the train goes, on a vehicle still on the engine.
-    /// </summary>
-    public static (int Actor, string Action) ForwardCannon(World world)
-    {
-        var train = world.Train;
-        var guns = train.Dynamics.Consist.Vehicles.Select(v => v.Id).Where(id => train.Vehicles[id] is { HasGun: true, Gun.Facing: < 0 }).ToList();
-        if (guns.Count == 0)
-            return (-1, "No forward cannon on the consist.");
-        int gunner = world.Combat?.Guns is { } t
-            ? world.CrewThisTick.Where(c => c.State.Alive && Combat.Guns.MannedGun(c.State, train, t) is { } g && guns.Contains(g))
-                .Select(c => c.Id).DefaultIfEmpty(-1).Min()
-            : -1;
-        return gunner >= 0 ? (gunner, "Forward cannon crewed by {actor}.") : (-1, "Forward cannon not crewed.");
     }
 
     /// <summary>C.9's Stoker row: who last fuelled or tended the firebox, and how long it had gone unattended since.</summary>

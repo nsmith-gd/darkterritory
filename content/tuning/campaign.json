@@ -38,7 +38,7 @@
   "saveSlots": 3,
   // Spec F.3. Cost is a share of what the next car costs now. "effect" multiplies tuning: tender (tender capacity),
   // ammo (rounds per gun), lamp (how far the headlamp reaches: train.json headlampReach, note 506), brakes (braking), burn (coal per unit of steam),
-  // insulation (how fast the cold comes on in an unheated car: player.json cold.indoorsRate), contactSafe (the closing
+  // contactSafe (the closing
   // speed a coupling takes before the ends are damaged: train.json couplings.safeContactSpeed), underLoad (how long cutting
   // a working train's coupling takes: couplings.uncoupleUnderLoadSeconds), unhook (how long the Passenger takes to unhook
   // the caboose: enemies.json passenger.uncoupleSeconds).
@@ -60,7 +60,7 @@
   // The note's effects: overspeedLead (train.json overspeed.leadSeconds: the cab's bell before a bend, and how long it rings
   // before a bend can take the train), brakeFade (brakeFade.fadePerSecond), fragile (fragile.shockShare and
   // brakeShockPerSecond: what knocks spoil of medicine), boardUp (breach.boardSeconds), radios (kit.radios, added), accel
-  // (each performance row's accel), coldBoiler (boiler.json coldEfficiencyPerStep), reload (combat.json
+  // (each performance row's accel), reload (combat.json
   // guns.reloadStepSeconds), whistle (choir.whistleLoudness), hotboxKnock (enemies.json hotbox.knockSeconds and
   // glowSeconds: how long a Hotbox's axle knocks and glows before it seizes), hotboxMend (hotbox.repairSeconds) and
   // extinguisher (carFire.chargeSeconds times it, rechargeSeconds over it).
@@ -86,8 +86,7 @@
     // F.3 "radio range" (spec A.5's radio already covers the whole run, and "dies in tunnels and mine spurs"): it carries
     // 150 m into one before it dies, from a tunnel's mouth or a mine spur's points.
     { "id": "radioRange", "name": "Radio range", "size": "small", "costShare": 0.15, "effect": { "radioReach": 150 }, "line": "A stronger set. The radio carries 150 m into a tunnel or down a mine spur." },
-    // F.3 "car insulation (cold)": in a car without heat (a door open, or the steam gone), the cold comes on half as fast.
-    { "id": "carInsulation", "name": "Car insulation", "size": "small", "costShare": 0.2, "effect": { "insulation": 0.5 }, "line": "Lined walls. With the steam gone or a door open, the cold comes on half as fast." },
+    // F.3 "car insulation (cold)": retired with the cold (note 852, the director, 16 Oct 2026): nothing for it to slow now.
     // GDD §26 "reinforced plating, heavier mass": one car, the guard van (composition.armourTonnes, armourDamage).
     { "id": "armouredCar", "name": "Armoured car conversion", "size": "major", "costShare": 1.2, "effect": { "armouredCars": 1 }, "line": "Plate on the guard van. Heavier, and it takes the knocks." },
     // F.3 "a third gun, but it costs a cargo slot": a cargo car in the middle becomes a guard car.
@@ -128,9 +127,7 @@
     // back to full on the bracket in half the time.
     { "id": "bigExtinguishers", "name": "Big extinguishers", "size": "small", "costShare": 0.2, "fromTier": "frontier", "effect": { "extinguisher": 1.5 },
       "line": "Bigger bottles: half again the spray, and full again on the bracket in half the time." },
-    // The cold (player.json cold): each step of it costs the boiler half what it did.
-    { "id": "feedwaterHeater", "name": "Feedwater heater", "size": "small", "costShare": 0.25, "fromTier": "deadLines", "effect": { "coldBoiler": 0.5 },
-      "line": "Warms the water before it reaches the boiler. The cold takes half as much off the steam." },
+    // The feedwater heater (upgrades.md): retired with the cold (note 852): the cold took nothing off the boiler to give back.
     // More creatures at the rear and flanks each tier down: a reload step in 1.2 s, not 1.5.
     { "id": "gunRammers", "name": "Gun rammers", "size": "small", "costShare": 0.25, "fromTier": "deadLines", "effect": { "reload": 0.8 },
       "line": "Sprung rammers and a powder measure at every gun. Each step of a reload a fifth quicker." },

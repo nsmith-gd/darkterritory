@@ -66,8 +66,9 @@ public static class Controls
         // Note 664: the genre's crouch key is LeftCtrl, and the vent (cab only, rare) went to its own key: one key doing two
         // things in two places is what the director flagged for E. Note 703 (the director, 13 Oct evening: "I don't like N
         // being the button ... it should be a different button that is more accessible than the WASD"): Caps Lock, by A
-        // under the little finger.
-        [Control.Vent] = "CapsLock",
+        // under the little finger. Note 844 (the director's playtest of 16 Oct, line 23: "remap venting to the left alt next to
+        // the spacebar"): Left Alt, under the left thumb; the shove took Caps Lock.
+        [Control.Vent] = "LeftAlt",
         [Control.Supplies] = "I",
         [Control.Emote] = "J",
         [Control.Crouch] = "LeftCtrl",
@@ -75,8 +76,9 @@ public static class Controls
         // it's not something that's near the left hand"): the middle mouse button, held while walking.
         [Control.Push] = "MouseMiddle",
         // Note 717: the shove, under the left thumb beside the jump (every key near the left hand being taken, note 703, and
-        // the director wanting keys by the hands, not across the keyboard).
-        [Control.Shove] = "LeftAlt",
+        // the director wanting keys by the hands, not across the keyboard). Note 844: the vent took Left Alt, and the shove
+        // its old Caps Lock, by A under the little finger.
+        [Control.Shove] = "CapsLock",
         // Note 720: beside the emote wheel's J, by the lamp-carrying hand's other keys (the car lamp's K).
         [Control.Signal] = "U",
     };

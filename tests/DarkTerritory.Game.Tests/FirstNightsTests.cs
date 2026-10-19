@@ -93,7 +93,9 @@ public sealed class FirstNightsTests : IDisposable
     public void TheCardSaysHowToCloseItAndNoControlCanTakeThatKey()
     {
         // The director, 9 Oct (note 527): "we need a way to close the 'first time controls' overlay".
-        Assert.Contains(Onboarding.Card(new Settings()), r => r.Contains($"HIDE THIS CARD : [{Onboarding.HideKey}]", StringComparison.Ordinal));
+        // Said on its own line at the top, not as the last of the rows (the director, 18 Oct: players never read that far).
+        Assert.Equal($"PRESS [{Onboarding.HideKey}] TO HIDE THIS CARD", Onboarding.HideRow);
+        Assert.DoesNotContain(Onboarding.Card(new Settings()), r => r.Contains("HIDE", StringComparison.Ordinal));
         Assert.Contains(Onboarding.HideKey, Controls.Reserved);
     }
 

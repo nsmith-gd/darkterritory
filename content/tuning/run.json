@@ -16,6 +16,13 @@
   // (2.5 m/s), so the crawl to the gate was minutes of nothing; now the run begins as the train moves off. Short of the
   // gate, not on it, so everyone joining boards at the fortress (GDD App. D.3) until it does.
   "departShortOfGateM": 8,
+  // The fortress gates (ARCHITECTURE §8 note 847; the director's playtest of 16 Oct: "The gates to the fortress should close
+  // behind me"): a gate opens as the engine comes within openAheadM of it and shuts once the last car's shutBehindM past (the
+  // gates' sounds, AU1's place-threshold cues, go by the same), its leaves swinging for swingSeconds. Shut, its leaves stand
+  // across the passage, the wicket in one left open for a crewmate on foot. The night starts with the engine
+  // departShortOfGateM short of the gate, so the departure's is open from the first; the arrival's shuts behind the train
+  // well before it's home (homeInsideGateM).
+  "gates": { "openAheadM": 40, "shutBehindM": 3, "swingSeconds": 4 },
   // The director's decision of 6 Oct 2026 (GDD §9, ARCHITECTURE §8 note 263): until the run begins (the train through the
   // gate, above), the fortress yard is a safe space, like the ship in Lethal Company. The crew wait for friends, try on
   // outfits, walk away from the keyboard; nothing of consequence happens. Nothing spawns, the boiler and its fire hold (no
@@ -46,13 +53,15 @@
   // works the shed, its cut is open, the gantry's legs and its operator's stand in it (the roofed rooms either side keep
   // their four walls). A
   // Holdout stands as its walls with a door personDoorM wide where the crew breaches it: its occupant comes back inside it
-  // (GDD App. D.14) and walks out of the door. linesideReachM (note 371): how far out from a generated line its trees,
-  // boulders and telegraph poles stand solid (LinesideProps): where the crew and what hunts them go between the stops, whose
-  // ground is cleared further out. Past it the woods are the art's alone, as all of them were. An open village house's
+  // (GDD App. D.14) and walks out of the door. linesideReachM (notes 371, 835): how far out from a generated line what's
+  // beside it stands solid (LinesideProps): its trees, boulders and poles, the road's, the shore's and the biomes' buildings.
+  // It was 40 m, where the crew kept between the stops; then a comet fragment was put 40-90 m out (loot.json comet.offLine,
+  // note 755), and the director walked through what stood on the way to it (playtest 16 Oct, line 20). Now all of it: the
+  // furthest the biomes deal is a barn 160 m out (biomes.json's dykeland); past it the lineside deals nothing. An open village house's
   // doors (note 401; GDD §21 the Choir's "behind a closed door") hang open until a crewmate on foot holds Use at one, within
   // houseDoorReachM of its doorway, for houseDoorSeconds (a car door's 0.4 and a little: a swollen, sagging door) to shut it
   // or open it again.
-  "walls": { "wallM": 0.3, "bayDoorM": 4, "personDoorM": 1.2, "wellTopM": 0.85, "topM": 9, "linesideReachM": 40,
+  "walls": { "wallM": 0.3, "bayDoorM": 4, "personDoorM": 1.2, "wellTopM": 0.85, "topM": 9, "linesideReachM": 160,
     "houseDoorSeconds": 0.6, "houseDoorReachM": 1.2 },
   // GDD §9 (note 178): the yard dispatcher's manifest at the gate and the clerk's tally at the terminus, a line every
   // lineSeconds over the radio. Spoken (note 240), each line takes as long as it's said and pauseSeconds after (an even,

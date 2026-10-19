@@ -19,10 +19,10 @@ public class CreatureGymTests
     {
         // One of each way in: the director's rules (hounds), a rule from the stop's own places (the Ribbits' warren), the
         // condition kinds (the Stoker, the Choir), a house, the props the gym supplies (crates, a body, a lit car), and the
-        // rules that look further along the line (the Switchman's points, Tower Jaw's crane, the Grumbler's castings), within 200 m;
+        // rules that look further along the line (Tower Jaw's crane, the Grumbler's castings), within 200 m;
         // and what the director couldn't try at the standing train (App. F.5: Tippy Toesie, the Dragger, the Gannet).
         EnemyKind[] kinds = [EnemyKind.CinderHound, EnemyKind.Ribbit, EnemyKind.Stoker, EnemyKind.Choir, EnemyKind.Lodger, EnemyKind.Pickers,
-            EnemyKind.Mourners, EnemyKind.FreightBeetle, EnemyKind.FireFlies, EnemyKind.Switchman, EnemyKind.TowerJaw, EnemyKind.Grumbler, EnemyKind.Moose,
+            EnemyKind.Mourners, EnemyKind.FreightBeetle, EnemyKind.FireFlies, EnemyKind.TowerJaw, EnemyKind.Grumbler, EnemyKind.Moose,
             EnemyKind.TippyToesie, EnemyKind.Dragger, EnemyKind.Gannet];
         var report = GymCheck.Run(Content, kinds, seconds: 20, shots: null);
 
@@ -30,9 +30,6 @@ public class CreatureGymTests
         string[] walk = ["towerJaw", "grumbler"];
         Assert.All(report.Kinds.Where(k => !walk.Contains(k.Kind)), k => Assert.True(k.Came, $"{k.Kind}: {k.Where}"));
         Assert.All(report.Kinds.Where(k => walk.Contains(k.Kind)), k => Assert.True(k.Came || k.Where.Contains("call again", StringComparison.Ordinal), $"{k.Kind}: {k.Where}"));
-        // The engine stands short of the stop's first points (App. F.5: "Switchman cannot be tested that far away").
-        var switchman = report.Kinds.Single(k => k.Kind == "switchman");
-        Assert.InRange(switchman.NearestAtCall ?? 0, 45, 200);
         // The hounds come up behind the standing train and board it; Tippy Toesie comes for whoever stands still; the Dragger
         // waits under a named car's edge; the Gannet stays over a standing train in the gym.
         var hounds = report.Kinds.Single(k => k.Kind == "cinderHound");
@@ -94,7 +91,7 @@ public class CreatureGymTests
         Assert.DoesNotContain(host.World.ActiveEnemies, e => !e.Gone);
         Assert.False(host.World.Run!.Over);
         Assert.Equal(clock, host.World.Run.Seconds);
-        Assert.All(host.Players, p => Assert.True(p.State.Alive && p.State.Cold == 0));
+        Assert.All(host.Players, p => Assert.True(p.State.Alive));
     }
 
     /// <summary>

@@ -50,9 +50,9 @@ public sealed partial class World
     }
 
     /// <summary>
-    /// Host: sets a switch without anyone at its stand (the Switchman, scripted set pieces, tests). Returns whether it now
+    /// Host: sets a switch without anyone at its stand (scripted set pieces, tests). Returns whether it now
     /// stands as asked: false only when a wheel on the points kept it from moving. (Note 289: it returned whether it moved,
-    /// so one already set that way read as held, and the Switchman left its lever a tick after throwing it.)
+    /// so one already set that way read as held.)
     /// </summary>
     public bool SetSwitch(int branch, bool diverge) =>
         Train.Diverging(branch) == diverge || Train.ThrowSwitch(branch, diverge, Switches?.Tuning.PointsLength ?? 0);
@@ -209,23 +209,11 @@ public sealed partial class World
     public double DeadEndWarnSeconds { get; set; }
     /// <summary>Host: buffers hit over the limit before the warning had been up its lead (the buffer stop's damage alone; should be 0).</summary>
     public int DeadEndsSpared { get; set; }
-    /// <summary>Host: the dead lines a Switchman has thrown the points for this night (note 286), by branch: C.9's Switchman row.</summary>
-    public HashSet<int> SwitchmanThrew { get; } = new();
-
-    /// <summary>
-    /// Through a dead line's buffers and off the end (note 286). Down a line the Switchman threw it onto, C.9's Switchman row
-    /// names the forward cannon as it always has; otherwise it's the throttle's.
-    /// </summary>
+    /// <summary>Through a dead line's buffers and off the end (note 286): the throttle's. (The Switchman's row went with it, note 852.)</summary>
     void OffTheEnd(int branch, double speed, double limit)
     {
         int kmh = (int)Math.Round(speed * 3.6), over = (int)Math.Round(limit * 3.6);
-        if (SwitchmanThrew.Contains(branch))
-        {
-            var (gunner, cannon) = Sim.Run.IncidentLog.ForwardCannon(this);
-            Derail($"ran off the end of the dead line the Switchman threw it down, at {kmh} km/h (over {over} km/h it goes through the buffers)", gunner, cannon);
-        }
-        else
-            Derail($"ran off the end of a dead line at {kmh} km/h (over {over} km/h it goes through the buffers)");
+        Derail($"ran off the end of a dead line at {kmh} km/h (over {over} km/h it goes through the buffers)");
     }
 
     /// <summary>Host: each bend derailment, by how long its warning had been up when it came (the audit's).</summary>
@@ -869,7 +857,7 @@ public sealed partial class World
 
     /// <summary>The generated line whose track rules the host holds the train to (curves, weak bridges, washouts); null for a hand-laid one.</summary>
     public LineGen.LinePlan? TrackPlan { get; set; }
-    /// <summary>What derailed the train (the report and the HUD say so): the track, a board run too fast, the Sleepers, the Switchman.</summary>
+    /// <summary>What derailed the train (the report and the HUD say so): the track, a board run too fast, the Sleepers, a dead line's end.</summary>
     public string? DerailCause { get; private set; }
     /// <summary>At the derail tick: the train's speed, and who was on the throttle (App. C.9's "speed at impact").</summary>
     public double DerailSpeed { get; private set; }
@@ -877,7 +865,7 @@ public sealed partial class World
     /// <summary>
     /// The derail's contributing action (App. C.9), as the cause card and the report read it: who made it (−1 for nobody)
     /// and the clerk's words, with <c>{actor}</c> where their name goes. The throttle for the track's dangers and the
-    /// debris; the forward cannon for the Switchman; the firebox for a Stoker's runaway (note 190).
+    /// debris; the firebox for a Stoker's runaway (note 190).
     /// </summary>
     public int DerailActor { get; private set; } = -1;
     public string DerailAction { get; private set; } = "";
@@ -1740,9 +1728,9 @@ public sealed partial class World
         // A healing find used up in the hands this tick (GDD App. F.1; note 272): its health back, up to full.
         if (Authority && Bodies.TakeDose(playerId) is > 0 and var dose && s.Alive)
             s.Health = Math.Min(Bodies.FullHealth, s.Health + dose);
-        // A beer finished (note 698): it takes the edge off the cold.
-        if (Authority && Bodies.TakeDrink(playerId))
-            s.Cold = Math.Max(0, s.Cold - Train.Dynamics.Tuning.Composition.Bbq.BeerWarmth);
+        // A beer finished (note 698): drunk for its own sake (it took the edge off the cold until note 852 cut the cold).
+        if (Authority)
+            Bodies.TakeDrink(playerId);
         // At the crane's controls, the stick drives the crane, not your feet (T48); taken and let go with a press of Use at
         // the stand (Crane.Operates). Worked out the same everywhere, so a client predicts standing still at the stand.
         bool operating = false;
@@ -1843,7 +1831,7 @@ public sealed partial class World
                 Drew(DrawCause.Cannon, playerId, Director?.Tuning.Draw.Weight(DrawCause.Cannon) ?? 0);
             }
         }
-        if (!manned && Combat is { } c && Guns.TryFire(s, intent, Train, c.Guns, ref Choir, c.Choir, targets, Tick, playerId) is { } shot)
+        if (!manned && Combat is { } c && !(Guns.MannedGun(s, Train, c.Guns) is { } held && GunHeld(held)) && Guns.TryFire(s, intent, Train, c.Guns, ref Choir, c.Choir, targets, Tick, playerId) is { } shot)
         {
             Shots.Add(shot);
             // A good shot at a switch stand throws it (note 595), the host's say as a hand on it is.
@@ -1874,8 +1862,10 @@ public sealed partial class World
         // The whistle cord, in the cab (GDD §12): a blast, loud, and every client hears it.
         // Note 267: or Use held on the cord's handle, looked at (CrewActions picks it only so). Either way it's in the puller's
         // name: their share of the loudness meter, and the HUD's "on the cord" (the Whistler's blows with no name, App. A.4).
+        // Note 839: it blows while held, and on only a moment once let go (train.json whistle.tailSeconds), so the codes'
+        // shorts and longs come out as blown.
         if ((intent.Has(PlayerActions.Whistle) || OnTheCord(s, intent)) && Net.CabControls.CanDrive(s, Train))
-            Whistled(1.0, playerId);
+            Whistled(Math.Max(SimConstants.TickSeconds, Train.Dynamics.Tuning.Whistle.TailSeconds) + SimConstants.TickSeconds, playerId);
         // The lamp in the car you're in (GDD v1.1 App. A.5): on the press, the host's to set.
         if (Authority && intent.Has(PlayerActions.CarLamp) && !_lampWas.Contains(playerId) && s.Parent > 0 && s.Parent < Train.Frames.Count
             && PlayerMotor.Indoors(s, Train))
@@ -2171,6 +2161,96 @@ public sealed partial class World
         return along >= (terminus?.GateM ?? run.Route.Length - run.Tuning.TerminusZone);
     }
 
+    /// <summary>
+    /// Whether a world point is inside a walled town: the departure's, up to its gate, or the arrival's, from its gate on (the
+    /// walled reach of <see cref="InFort"/>). Note 846 (the director's playtest of 16 Oct, line 7: "I just fired at a house").
+    /// </summary>
+    public bool InTown(Ballast.Double3 world)
+    {
+        if (Run is not { } run || Town?.Plan.Bounds is null && Arrival?.Plan.Bounds is null)
+            return false;
+        double hint = Train.Dynamics.Distance;
+        Train.Line.Nearest(world, ref hint);
+        double along = hint;
+        var rail = Train.Line.Sample(Rail.RailLine.MainPath, along);
+        double off = ((world - rail.Position) with { Y = 0 }).Length;
+        if (along <= run.YardLength && Town?.Plan.Bounds is { } walled)
+            return off <= Math.Max(walled.Left, walled.Right) + 5;
+        if (Arrival?.Plan.Bounds is { } there && run.Route.Plan?.Terminus is { } home && along >= home.GateM)
+            return off <= Math.Max(there.Left, there.Right) + 5;
+        return false;
+    }
+
+    /// <summary>
+    /// Note 851 (the director's playtest of 16 Oct, line 24: "I don't know why my car is on fire after I've gotten into a safe
+    /// area"): whether <paramref name="vehicle"/> is home and safe: the run delivered, or the car in through the arrival's gates
+    /// (note 847), inside the terminus's fort (run.json <c>forts.safe</c>). Nothing on it burns then: a fire goes out, a hot box
+    /// doesn't catch, a hound lights nothing. Never in the gym (note 676: a fire's called there on purpose), and not the
+    /// departure's yard: a lamp thrown there still breaks and burns, the crew's own doing.
+    /// </summary>
+    public bool HomeSafe(int vehicle)
+    {
+        if (CallOnly || Run is not { Tuning.Forts.Safe: true } run || vehicle < 0 || vehicle >= Train.Frames.Count)
+            return false;
+        if (run.End == Sim.Run.RunEnd.Delivered)
+            return true;
+        var at = Train.Frames[vehicle].Origin;
+        double hint = Train.Dynamics.Distance;
+        Train.Line.Nearest(at, ref hint);
+        return hint > run.YardLength && InFort(at);
+    }
+
+    /// <summary>
+    /// Host (note 851; the director's playtest of 16 Oct, line 22: "how'd that even get started?"): a fire's first tick. The crew
+    /// are told what started it where it starts (the news line, everyone alike, <see cref="Sim.Run.News.Line"/>), and the report
+    /// gets the same fact as its row (C.9's Fire row), so the two never disagree.
+    /// </summary>
+    public void FireStarted(Sim.Enemies.CarFire fire)
+    {
+        if (!Authority)
+            return;
+        int car = fire.Attached;
+        string what = fire.Cause switch
+        {
+            Sim.Enemies.FireCause.HotBox => $"Car {car}'s hot box set it alight",
+            Sim.Enemies.FireCause.FireFlies => $"Fire Flies set car {car} alight",
+            Sim.Enemies.FireCause.Hounds => $"Cinder Hounds set car {car} alight",
+            Sim.Enemies.FireCause.Lamp => $"A thrown lamp set car {car} alight",
+            Sim.Enemies.FireCause.Jumped => $"The fire jumped the coupling into car {car}",
+            Sim.Enemies.FireCause.Blast => $"Car {fire.From} going up set car {car} alight",
+            Sim.Enemies.FireCause.Called => $"Car {car} called alight",
+            _ => $"Car {car} set alight",
+        };
+        string action = fire.Cause == Sim.Enemies.FireCause.Jumped ? $"From car {fire.From}." : fire.Action;
+        Attribution.Add(Sim.Run.IncidentLog.Event(this, Sim.Run.IncidentKind.Fire, what, fire.Actor, action, car));
+        var news = new Sim.Run.NewsEvent(_nextFx, Tick, Sim.Run.NewsKind.Fire, [car], (byte)fire.Cause, (byte)Math.Clamp(fire.From, 0, 255), fire.Actor, 0);
+        NewsLog.Add(news);
+        News.Add(news);
+        _nextFx = _nextFx % 0xFFFFFF + 1;
+    }
+
+    /// <summary>
+    /// Host (note 854; the director's playtest of 16 Oct, line 13: "What is making these couplings loose? It doesn't make any
+    /// sense"): a pin's just jumped. The report keeps what did it for when it parts (note 640), and the crew are told now, where
+    /// and why, everyone alike (the news line, <see cref="Sim.Run.News.Line"/>), while there's still the 90 s to tighten it.
+    /// </summary>
+    /// <param name="board">For a bend, its posted board (km/h); 0 not known.</param>
+    public void PinLoosened(int car, LooseCause cause, double speed, int board = 0)
+    {
+        if (!Authority)
+            return;
+        Attribution.Loosened(car, cause, speed, board);
+        _loosenings.Add((cause, speed));
+        var news = new Sim.Run.NewsEvent(_nextFx, Tick, Sim.Run.NewsKind.Loose, [car], (byte)cause, (byte)Math.Clamp(board, 0, 255), Attribution.Driver, speed);
+        NewsLog.Add(news);
+        News.Add(news);
+        _nextFx = _nextFx % 0xFFFFFF + 1;
+    }
+
+    /// <summary>Note 846: whether <paramref name="vehicle"/>'s gun holds its fire, its car inside a walled town (combat.json holdInTowns).</summary>
+    public bool GunHeld(int vehicle) =>
+        Combat is { Guns.HoldInTowns: true } && vehicle >= 0 && vehicle < Train.Frames.Count && InTown(Train.Frames[vehicle].Origin);
+
     /// <summary>Any of the train in a fort (note 273): the director sends nothing then.</summary>
     public bool TrainInFort => Run is { Tuning.Forts.Safe: true } && Train.Frames.Count > 0
         && (InFort(Train.Frames[0].Origin) || InFort(Train.Frames[Train.Dynamics.Consist.Vehicles[^1].Id].Origin));
@@ -2213,6 +2293,11 @@ public sealed partial class World
         if (Authority)
             StepHandcar();
         Train.Step(SimConstants.TickSeconds, applied);
+        // Note 847: the fortress gates open for the train and shut behind it, from where it is now (the host and every client
+        // alike: prediction walks into the same leaves).
+        if (Run is { } gatesRun && Train.Walls is { Gates.Count: > 0 } gated)
+            gated.OpenGates(Train.Line.MainDistance(Train.Dynamics.Path, Train.Dynamics.Distance),
+                Train.Line.MainDistance(Train.Dynamics.Path, Train.Dynamics.RearDistance), gatesRun.Tuning.Gates);
         if (Authority && !Derailed)
         {
             int spared = DeadEndsSpared, path = Train.Dynamics.Path;
@@ -2244,10 +2329,7 @@ public sealed partial class World
             bool pack = ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && !e.Gone && e.Attached >= 0);
             int parted = pins.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort || CallOnly, pack);
             if (pins.Loosened is { } l)
-            {
-                Attribution.Loosened(l.Car, l.Cause, l.Speed);
-                _loosenings.Add((l.Cause, l.Speed));
-            }
+                PinLoosened(l.Car, l.Cause, l.Speed, l.Cause == LooseCause.Bend ? Train.LurchBoardKmh : 0);
             // Note 511: what it parted is in the report as the pin's, not a cut nobody's named for.
             // The rake that isn't the engine's: ahead of it, the parted pin's own car's (note 653: seed 7's pair carried ahead).
             if (parted >= 0 && pins.PartedFrom >= 0)
@@ -2266,7 +2348,8 @@ public sealed partial class World
         {
             int open = Math.Max(1, _actors.Count(a => a.State.Alive));
             if (boxes.Step(Train, open, SafeYard || TrainInFort || CallOnly) is var caught and >= 0 && Enemies is { } ht)
-                AddEnemy(id => CarFire.In(id, Train, caught, Train.Frames[caught].Shape.HalfLength - boxes.Tuning.BogieInset, ht.CarFire));
+                AddEnemy(id => CarFire.In(id, Train, caught, Train.Frames[caught].Shape.HalfLength - boxes.Tuning.BogieInset, ht.CarFire,
+                    Sim.Enemies.FireCause.HotBox, caught, -1, $"Its rear axle box ran hot {boxes.Tuning.FireAfter:0} s, ungreased."));
         }
         if (Authority && Combat?.Fumes is { } fumes)
             foreach (var shot in _fumes)
@@ -2701,7 +2784,7 @@ public sealed partial class World
             // Its grace counts from the run's start when the yard's safe (note 263): a crew who waited half an hour at the gate
             // haven't been out in the Territory for it.
             else if (d.Decide(this, Run is { Tuning.YardIsSafe: true } r ? r.Seconds : ElapsedSeconds, _enemies, NoSpawnFinalApproach) is { } kind && Spawns.For(kind) is { } rule)
-                rule.Spawn(new SpawnContext(this, t, d));
+                rule.Spawn(new SpawnContext(this, t, d) { Free = d.SentFree });
             // The dark answers the draw (note 287): heard from out past the lamp, and eyes at its edge, before the threat comes.
             foreach (var (cause, actor) in d.TakeAnswers())
                 Answer = new DrawAnswer(t.Director.Draw.ShowSeconds, cause, AnswerAt(t.Director.Draw), actor);

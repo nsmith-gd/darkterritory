@@ -28,7 +28,7 @@ public class DawnBotsTests
         public readonly World World;
         public readonly RunState Run;
         public PlayerState Driver, Walker;
-        public readonly RoofWalkerBot Bot = new(7, P.Cold) { Me = 2 };
+        public readonly RoofWalkerBot Bot = new(7) { Me = 2 };
         readonly TrainControls _controls = new() { Reverser = 1, Brake = 1 };
 
         public Dawn(Func<TrainOnLine, PlayerState> walker)

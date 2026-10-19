@@ -73,12 +73,8 @@ public sealed class CreatureGym
         // The train's middle beside the stop's village (its houses and their creatures a short walk off), else the stop's middle.
         Front = Stop is { } s ? s.Start + Middle(s) + length / 2 : route.Length * 0.25;
         Village = Stop is { } v ? v.Start + Middle(v) : Front;
-        // Or the engine short of the stop's first points, so the Switchman has some ahead to work (the director, 13 Oct, App.
-        // F.5: "Switchman cannot be tested that far away"); the village is round the yard's throat, so still a walk from the
-        // engine, and if it isn't, the train stays beside it.
+        // (It stood short of the stop's first points for the Switchman, App. F.5, until note 852 cut it.)
         FirstPoints = Stop is { Stop: { Tracks.Count: > 0 } layout } at ? at.Start + layout.Tracks.Min(x => x.Toe) : null;
-        if (FirstPoints is { } toe && Tuning.PointsAhead > 0 && Math.Abs(Village - (toe - Tuning.PointsAhead)) <= Tuning.MaxDistance * 0.75)
-            Front = toe - Tuning.PointsAhead;
         return new SessionSetup(Route: Tuning.Route, Cars: Tuning.Cars, Enemies: true) { Start = Front };
     }
 
@@ -196,8 +192,6 @@ public sealed class CreatureGym
             if (state.Alive)
             {
                 _deadSince.Remove(id);
-                if (state.Cold > 0)
-                    host.Stand(id, state with { Cold = 0 });
                 continue;
             }
             if (state.Death == DeathCause.Waiting)

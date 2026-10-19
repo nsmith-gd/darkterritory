@@ -207,7 +207,7 @@ sealed partial class LineBuilder
         var p0 = PoseOnMain(d.Toe);
         double turnout = 2 * j.TurnoutLength;
         double away = rng.Range(_t.DeadLines.AngleDeg) * Math.PI / 180;
-        // Curves a misrouted train can take at the line's speed (the Switchman costs the clock, never the train).
+        // Curves a misrouted train can take at the line's speed (a dead line costs the clock, never the train).
         double safe = _l.LineSpeed * _l.LineSpeed / _t.Curves.ADerail * 1.25;
         double radius = Math.Max(_l.MinRadius * 2, safe);
         var items = new List<Item> { Branchy("turnout", 0, turnout, TurnoutOut(side, j.TurnoutRadius, j.TurnoutLength)) };

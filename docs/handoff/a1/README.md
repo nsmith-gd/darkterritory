@@ -1,10 +1,31 @@
 # A1's handoff (account nathaniel2)
 
-Written at the Token Budget Manager's PREPARE HANDOFF (COORDINATION rule 11), 2026-10-15 17:44 UTC: nathaniel2's weekly limit at 60%,
-on pace to run out about 16 Oct 08:00 UTC (resets Wed 21 Oct 20:00 UTC). A1 is still working these; this file is kept
-current at each step, and the rows say `open for pick-up` only at EXECUTE HANDOFF. One README for several items
-(*Accounts and usage limits*): the notes 802, 803 and 770 live on the branches until their PRs land, so landing them here
-first would make the PRs conflict.
+**EXECUTE HANDOFF, 2026-10-16 14:25 UTC** (the Token Budget Manager: nathaniel2 at 92% of its weekly limit at 14:18 UTC,
+limited until Wed 21 Oct 20:00 UTC). A1 starts nothing new. Everything A1 claimed has landed except queue #427, which is
+`open for pick-up` below. The 16 Oct playtest's lines 1 and 21 are merged (#1157, #1156). Lines 9, 17, 29 and 30, which the
+Token Budget Manager offered later, were never claimed and are open on `docs/playtest/2026-10-16.md` for anyone.
+
+Written first at PREPARE HANDOFF, 2026-10-15 17:44 UTC, and kept current since.
+
+## Queue #427, note 695: a top-to-bottom performance audit (open for pick-up)
+
+- **From:** nathaniel2, A1, 2026-10-16 14:25 UTC, execute handoff (weekly 92%).
+- **Branch and last commit:** `claude/modest-cannon-6dvqrs`; its work is merged ([#969](https://github.com/nsmith-gd/darkterritory/pull/969), [#975](https://github.com/nsmith-gd/darkterritory/pull/975)). Nothing unpushed. Start a fresh branch from main.
+- **Goal:** the director, 13 Oct evening (`docs/playtest/2026-10-13-evening.md` lines 1–3): "I think we're going to need a performance audit of everything"; "the towns feel like they're just crawling"; line 2: "I'm also getting frame drops when I'm rapidly turning".
+- **Done:** founds 1 and 2 (the town crawl, code compiled on the spot) merged in #969; found 3 (what never changes, built again every frame, now cooked once) merged in #975. The night's performance report (#966, note 691, GDD §34.3) is in every build: `logs/test-reports.txt` in a dev build.
+- **Next, in order:**
+  1. Read the night's performance in the director's next Test build's `logs/test-reports.txt` (§34.3: hitches by the part that led them, and how many while turning fast).
+  2. Line 2, turning fast: nothing the CPU builds turns with the view (the lamp shadow is one fixed view), so it's likeliest found 1's collections, which show only when the view moves. The report counts hitches while turning: confirm or rule it out.
+  3. The rest of the frame, part by part, from the report's table: the sim per tick, the cars (2.6 ms), hud/upload (3.3 ms), the effects, the line's cells cooked on the frame. Each fix with a `dt perf` number before and after and a budget in `tuning/perf.json` that holds it.
+- **Decisions:** the towns first; everything measured headless (`dt perf --route local:5 --town square,houses [--ride 8 [--walk]]`, note 479).
+- **Gotchas:** a union merge of COORDINATION.md doubles changed rows; take main's file and re-apply your row.
+- **Files:** note 695 (the findings table), `src/DarkTerritory.Game` (`WorldArt.Cells`, `GreyboxRenderer`), `FrameWatch`, `tuning/perf.json`.
+- **Verify:** `dotnet run --project src/DarkTerritory.Cli -- perf --route local:5 --town square,houses --ride 8 --walk`; `dotnet test --project tests/DarkTerritory.Game.Tests -- --filter-class DarkTerritory.Game.Tests.FrameWatchTests`.
+- **Claimed by:** nathaniel1, n1-w2, 2026-10-18 17:15 UTC
+
+## Queue #566, note 838, and #567, note 839 (16 Oct playtest lines 21 and 1)
+
+**Finished:** #566 merged in [#1156](https://github.com/nsmith-gd/darkterritory/pull/1156) (what a crane loaded rides on, drawn with the train); #567 in [#1157](https://github.com/nsmith-gd/darkterritory/pull/1157) (the whistle held is the pull held). Nothing left to pick up.
 
 ## Queue #529, note 802: a drop off the crane's hook is a gag
 

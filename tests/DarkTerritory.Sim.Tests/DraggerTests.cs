@@ -283,7 +283,7 @@ public class DraggerTests
         // drops on nobody (on its own, it's into car 1 and the door shut); and back up on the roofs after.
         var n = new Night(speed: 20);
         int id = n.OnRoof(0, z: 3);
-        var walker = new Bots.RoofWalkerBot(5, Tuning.Player.Cold, new Bots.StopHand(Bots.StopJob.None, new Bots.CrewCalls(), 1, Tuning.Player.Cold)) { Me = id };
+        var walker = new Bots.RoofWalkerBot(5, new Bots.StopHand(Bots.StopJob.None, new Bots.CrewCalls(), 1)) { Me = id };
         var dragger = OnTruss(n, 150);
         bool grabbed = false, off = false, backUp = false;
         double through = 150 / 20.0 + n.Train.Dynamics.Consist.LengthMetres / 20 + 2;

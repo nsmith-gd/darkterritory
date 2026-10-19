@@ -7,7 +7,8 @@ namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
 /// Note 537 (queue #279; #208's patrol meeting the warm-up, D1's frontier:7 seed 3): the gunner, warming up in car 7, was
-/// mauled by a hound that dropped in at an open side door. A crewmate warming up does it clear of the pack.
+/// mauled by a hound that dropped in at an open side door. A crewmate going in (for shelter now: the cold's gone, note 852)
+/// does it clear of the pack.
 /// </summary>
 public class WarmClearTests
 {
@@ -35,18 +36,22 @@ public class WarmClearTests
     [Fact]
     public void AlreadyWarmingInACarThePackBoardsNoHoundDropsInOnIt()
     {
-        // In and warming behind its shut doors (it shut the side door left open for loading on its way in), and a pack boards
-        // its car: in it stays while they're on its ground, warm or not, not out onto the roof among them. No hound drops in
+        // In and sheltering behind its shut doors (it shut the side door left open for loading on its way in), and a pack
+        // boards its car: in it stays while they're on its ground, not out onto the roof among them. No hound drops in
         // on it (note 472: only at an open side door), and nothing bites it in there. (Their fire drives it out, note 537.)
         var n = new Night(4, 6, enemies: HoundRunTests.Quiet);
         n.Crew[0] = PlayerMotor.SpawnInCab(n.Train, P);
         int car = n.Train.Dynamics.Consist.Vehicles[2].Id;
         n.Train.Vehicles[car].ToggleDoor(SideDoor(n, car));
-        var bot = new RoofWalkerBot(7, P.Cold) { Me = 1 };
-        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, car, 2, P) with { Cold = P.Cold.OnsetSeconds * 0.9 };
-        for (int i = 0; i < 60 * 4 && bot.WarmUpStep is not "Warm/cold"; i++)
+        var bot = new RoofWalkerBot(7) { Me = 1 };
+        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, car, 2, P);
+        n.World.Choir.Build = 1;
+        for (int i = 0; i < 60 * 4 && bot.WarmUpStep is not "Warm/shelter"; i++)
+        {
+            n.World.Choir.Build = 1; // held gathering: its shelter is the way in (the cold was, before note 852)
             n.Run(0.25, id => id == 1 ? bot.Decide(n.Crew[1], n.World, n.World.Tick, out _) : default);
-        Assert.Equal("Warm/cold", bot.WarmUpStep);
+        }
+        Assert.Equal("Warm/shelter", bot.WarmUpStep);
         int warmCar = n.Crew[1].Parent;
         Assert.False(n.Train.Vehicles[warmCar].DoorOpen(SideDoor(n, warmCar)));
         var pack = PackOn(n, warmCar, 4);
@@ -65,25 +70,27 @@ public class WarmClearTests
     }
 
     [Fact]
-    public void ColdOnThePacksGroundItWarmsUpInTheCarAheadOfIt()
+    public void OnThePacksGroundItShelterInTheCarAheadOfIt()
     {
-        // Cold on car 2's roof, a pack on car 3 (its ground runs from car 2 back, note 472): not into car 2, where a hound drops
-        // in at the first open side door, but forward into car 1, ahead of the pack's ground.
+        // On car 2's roof wanting in, a pack on car 3 (its ground runs from car 2 back, note 472): not into car 2, where a
+        // hound drops in at the first open side door, but forward into car 1, ahead of the pack's ground.
         var n = new Night(4, 6, enemies: HoundRunTests.Quiet);
         n.Crew[0] = PlayerMotor.SpawnInCab(n.Train, P);
         var cars = n.Train.Dynamics.Consist.Vehicles;
         int first = cars[1].Id, second = cars[2].Id, third = cars[3].Id;
         PackOn(n, third, 3);
         n.Run(SimConstants.TickSeconds);
-        var bot = new RoofWalkerBot(7, P.Cold) { Me = 1 };
-        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, second, 3, P) with { Cold = P.Cold.OnsetSeconds * 0.9 };
+        var bot = new RoofWalkerBot(7) { Me = 1 };
+        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, second, 3, P);
+        n.World.Choir.Build = 1;
         var steps = new List<string>();
-        for (int i = 0; i < 60 * 4 && bot.WarmUpStep is not "Warm/cold"; i++)
+        for (int i = 0; i < 60 * 4 && bot.WarmUpStep is not "Warm/shelter"; i++)
         {
+            n.World.Choir.Build = 1;
             n.Run(0.25, id => id == 1 ? bot.Decide(n.Crew[1], n.World, n.World.Tick, out _) : default);
             if (bot.WarmUpStep is { } w && (steps.Count == 0 || steps[^1] != w)) steps.Add(w);
         }
-        Assert.True(bot.WarmUpStep == "Warm/cold", $"never warming: {string.Join(" > ", steps)}; {n.Crew[1].Surface} on {n.Crew[1].Parent}");
+        Assert.True(bot.WarmUpStep == "Warm/shelter", $"never in: {string.Join(" > ", steps)}; {n.Crew[1].Surface} on {n.Crew[1].Parent}");
         Assert.Equal(first, n.Crew[1].Parent);
         Assert.Equal(P.Health, n.Crew[1].Health);
     }
