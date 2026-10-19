@@ -52,6 +52,31 @@ public class HotBoxTests
     }
 
     [Fact]
+    public void EachComesAtItsOwnSpacingOnACarOfItsOwn()
+    {
+        // Note 872: the generator was a readonly field, so every draw was its first: one fixed spacing, one share of the cars.
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 10, 1)), new RailLine(new LineDefinition("t", [new TrackSegment(60_000)])), 5_000);
+        train.Dynamics.Velocity = 15;
+        var boxes = new HotBoxes(H, 7);
+        var (cars, gaps) = (new HashSet<int>(), new HashSet<long>());
+        long last = 0;
+        for (long t = 1; boxes.Came < 12; t++)
+        {
+            boxes.Step(train, open: 1, quiet: false);
+            int car = Enumerable.Range(0, train.Vehicles.Count).FirstOrDefault(i => train.Vehicles[i].HotBox > 0, -1);
+            if (car < 0)
+                continue;
+            var v = train.Vehicles[car];
+            cars.Add(car);
+            if (boxes.Came > 1)
+                gaps.Add(t - last);
+            (last, v.HotBox) = (t, 0);
+        }
+        Assert.True(gaps.Count >= 8, $"{gaps.Count} spacings in 11");
+        Assert.True(cars.Count >= 4, $"{cars.Count} cars in 12");
+    }
+
+    [Fact]
     public void LeftAloneItDragsTheTrainOffItsTopSpeed()
     {
         var w = Night(T.MaxSpeed);
