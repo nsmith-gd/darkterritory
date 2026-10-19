@@ -93,8 +93,11 @@ public sealed class Couplings(LooseTuning tuning, ulong seed)
     int _tick;
     bool _runningIn, _bent;
     double _lurched;
-    /// <summary>Note 865: the jumps' own draws (so the other causes' picks are as they were), the night's clock, the last jump.</summary>
-    readonly Pcg32 _jumps = new(seed, 0x7A0F);
+    /// <summary>
+    /// Note 865: the jumps' own draws (so the other causes' picks are as they were), the night's clock, the last jump. Not
+    /// readonly: <see cref="Pcg32"/> is a struct, and a readonly one draws from a fresh copy each time (the same number forever).
+    /// </summary>
+    Pcg32 _jumps = new(seed, 0x7A0F);
     double _clock, _lastJump = double.NegativeInfinity;
     /// <summary>Note 865: the jumped pins two have hold of (by the car ahead of the gap): who, how, and how long one's let go.</summary>
     readonly SortedDictionary<int, (int Pinner, int Second, SlackOff How, double Lapse)> _held = [];

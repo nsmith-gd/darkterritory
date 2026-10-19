@@ -218,6 +218,35 @@ public class TwoOnTheRunTests
         Assert.Equal(0, report.Upkeep?.Parted ?? 0);
     }
 
+    /// <summary>
+    /// An hour at speed with two aboard: the jumps come about as often as perMinute and spacing say, at more than one gap.
+    /// (Its draws once came from a readonly struct field, a fresh copy each tick: the first number forever, and none jumped.)
+    /// </summary>
+    [Fact]
+    public void ItComesAsOftenAsItsRateSaysAtGapsOfItsOwnPicking()
+    {
+        var line = new RailLine(new LineDefinition("t", [new TrackSegment(400_000)]));
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 10, 1)), line, 5_000) { Loose = L };
+        var pins = new Couplings(L, 786582);
+        var crew = new List<(int, PlayerState, PlayerIntent)> { (1, new PlayerState { Health = 100 }, default), (2, new PlayerState { Health = 100 }, default) };
+        var gaps = new HashSet<int>();
+        for (int t = 0; t < 3600 * SimConstants.TickRate; t++)
+        {
+            train.Dynamics.Velocity = 16;
+            train.Step(Dt, new TrainControls { Reverser = 1 });
+            pins.Step(train, 2, false, false, crew);
+            if (pins.Loosened is { Cause: LooseCause.Jumped } j)
+                gaps.Add(j.Car);
+            // Tightened as it comes, so every gap's always there to jump (and none parts the train).
+            foreach (var v in train.Vehicles)
+                v.Loose = 0;
+        }
+        // The mean wait is spacing plus a perMinute draw's: (3600 - after) over that, give or take.
+        double expected = (3600 - L.Jump.After) / (L.Jump.Spacing + 60 / L.Jump.PerMinute);
+        Assert.InRange(pins.Jumped, expected * 0.5, expected * 1.6);
+        Assert.True(gaps.Count > 1, $"every jump at car {string.Join(",", gaps)}");
+    }
+
     /// <summary>Systems spec B.20's table.</summary>
     [Fact]
     public void MatchesB20()
