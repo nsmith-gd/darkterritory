@@ -69,6 +69,8 @@ public sealed record UpgradeDef(string Id, string Name, UpgradeSize Size, double
     public UpgradeKind Kind { get; init; }
     public RouteTier FromTier { get; init; }
     public string[] Excludes { get; init; } = [];
+    /// <summary>What has to be fitted first (armour II needs the conversion, III needs II): ranks of one upgrade.</summary>
+    public string[] Requires { get; init; } = [];
     public string? Line { get; init; }
     public string? Tally { get; init; }
 }
@@ -329,6 +331,9 @@ public static class Campaign
     {
         if (TierFor(t, s.Cars) < u.FromTier)
             return $"{u.Name} is stocked for {TierWords(u.FromTier)} work: a train of {t.Tiers.Where(x => x.Tier == u.FromTier).Select(x => x.FromCars).DefaultIfEmpty(0).First()} cars";
+        foreach (var need in u.Requires)
+            if (!s.Upgrades.Contains(need))
+                return $"{u.Name} needs the {t.Upgrades.FirstOrDefault(o => o.Id == need)?.Name.ToLowerInvariant() ?? need} first";
         foreach (var other in s.Upgrades)
             if (other != u.Id && t.Upgrades.FirstOrDefault(o => o.Id == other) is { } o && (u.Excludes.Contains(other) || o.Excludes.Contains(u.Id)))
                 return $"{u.Name} won't go with the {o.Name.ToLowerInvariant()}";
@@ -527,6 +532,7 @@ public static class Campaign
                     "utilityCars" => Fit(l, c => c with { UtilityCars = c.UtilityCars + (int)Math.Round(k) }),
                     "guardCars" => Fit(l, c => c with { GuardCars = c.GuardCars + (int)Math.Round(k) }),
                     "armouredCars" => Fit(l, c => c with { ArmouredCars = c.ArmouredCars + (int)Math.Round(k) }),
+                    "cabArmour" => Fit(l, c => c with { CabArmour = c.CabArmour || k > 0 }),
                     "handrails" => Fit(l, c => c with { Handrails = c.Handrails || k > 0 }),
                     "contactSafe" => l with { Train = l.Train with { Couplings = l.Train.Couplings with { SafeContactSpeed = l.Train.Couplings.SafeContactSpeed * k } } },
                     "underLoad" => l with { Train = l.Train with { Couplings = l.Train.Couplings with { UncoupleUnderLoadSeconds = l.Train.Couplings.UncoupleUnderLoadSeconds * k } } },
@@ -557,6 +563,10 @@ public static class Campaign
                     "overspeedLead" => l with { Train = l.Train with { Overspeed = l.Train.Overspeed with { LeadSeconds = l.Train.Overspeed.LeadSeconds * k } } },
                     "brakeFade" => l with { Train = l.Train with { BrakeFade = l.Train.BrakeFade with { FadePerSecond = l.Train.BrakeFade.FadePerSecond * k } } },
                     "fragile" when l.Train.Fragile is { } f => l with { Train = l.Train with { Fragile = f with { ShockShare = f.ShockShare * k, BrakeShockPerSecond = f.BrakeShockPerSecond * k } } },
+                    // The cowcatcher: what striking debris on the line costs the front car, heavy or minor, k times.
+                    "debrisDamage" when l.Enemies is { } e => l with { Enemies = e with { Sleepers = e.Sleepers with { HeavyDamage = e.Sleepers.HeavyDamage * k, MinorDamage = e.Sleepers.MinorDamage * k } } },
+                    // The grab irons: a ladder caught from the ground at k times the speed (the player's own tuning stays the base).
+                    "grabIrons" => l with { Train = l.Train with { Kit = l.Train.Kit with { GrabIrons = l.Train.Kit.GrabIrons * k } } },
                     "boardUp" => l with { Train = l.Train with { Breach = l.Train.Breach with { BoardSeconds = l.Train.Breach.BoardSeconds * k } } },
                     "radios" => l with { Train = l.Train with { Kit = l.Train.Kit with { Radios = l.Train.Kit.Radios + (int)Math.Round(k) } } },
                     "accel" => l with { Train = l.Train with { Performance = [.. l.Train.Performance.Select(r => r with { Accel = r.Accel * k })] } },

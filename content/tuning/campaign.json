@@ -127,6 +127,14 @@
     // back to full on the bracket in half the time.
     { "id": "bigExtinguishers", "name": "Big extinguishers", "size": "small", "costShare": 0.2, "fromTier": "frontier", "effect": { "extinguisher": 1.5 },
       "line": "Bigger bottles: half again the spray, and full again on the bracket in half the time." },
+    // Debris on the line (enemies.json sleepers; off by default since note 265, a mod can bring it back): the cowcatcher takes
+    // half the front car's damage from striking it, heavy or minor. It's the plough on the front of the engine (upgrades.md §8.2).
+    { "id": "cowcatcher", "name": "Cowcatcher", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "debrisDamage": 0.5 },
+      "line": "A plough on the engine's front. Debris struck on the line costs half." },
+    // The ladders (player.json ladder.grabMaxRelativeSpeed, 3.5 m/s): caught from the ground at a third more speed, so a
+    // crewmate left behind has a longer chase to make. Extra irons on every ladder's foot.
+    { "id": "grabIrons", "name": "Grab irons", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "grabIrons": 1.3333333333 },
+      "line": "Extra irons at every ladder's foot. A ladder caught from the ground at a third more speed." },
     // The feedwater heater (upgrades.md): retired with the cold (note 852): the cold took nothing off the boiler to give back.
     // More creatures at the rear and flanks each tier down: a reload step in 1.2 s, not 1.5.
     { "id": "gunRammers", "name": "Gun rammers", "size": "small", "costShare": 0.25, "fromTier": "deadLines", "effect": { "reload": 0.8 },
@@ -134,6 +142,18 @@
     // The longest trains (spec B.5: 0.18 m/s² at 20 cars) get going again after a stop a fifth harder.
     { "id": "boosterEngine", "name": "Trailing-truck booster", "size": "major", "costShare": 1.5, "fromTier": "deadLines", "effect": { "accel": 1.2 },
       "line": "A second engine under the tender's trucks. A long train pulls away a fifth harder." },
+
+    // The armoured cab (upgrades.md §8.8, the director: "You still want full visibility of the track"): thick glass in heavy
+    // riveted frames and a grille outside, never slits. A Climber over the tender is held at the glass (enemies.json
+    // climbers.cabGlassSeconds) before it's through into the cab.
+    { "id": "armouredCab", "name": "Armoured cab", "size": "major", "costShare": 1.5, "fromTier": "deepTerritory", "effect": { "cabArmour": 1 },
+      "line": "Armour glass and a grille at the cab windows. Full sight of the line; a Climber is held at the glass before it's through." },
+    // Armour II and III (upgrades.md §8.2; "the conversion repeatable"): one more car plated each, a rank at a time, from the
+    // tier whose Climbers and Draggers they answer. "requires" names the rank before.
+    { "id": "armouredCar2", "name": "Armour rank 2", "size": "major", "costShare": 1.4, "fromTier": "deadLines", "requires": [ "armouredCar" ], "effect": { "armouredCars": 1 },
+      "line": "Plate on the next car back. Needs the first conversion." },
+    { "id": "armouredCar3", "name": "Armour rank 3", "size": "major", "costShare": 1.6, "fromTier": "deepTerritory", "requires": [ "armouredCar2" ], "effect": { "armouredCars": 1 },
+      "line": "Plate on a third car. Needs armour rank 2." },
 
     // Whimsy (note 678): it works, and it's funny. A real use and a joke in the same purchase.
     // The whistle swapped for a clown's bulb horn: a third as loud to the Choir (combat.json choir.whistleLoudness; it still
