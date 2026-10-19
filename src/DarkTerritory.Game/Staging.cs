@@ -283,8 +283,16 @@ public static partial class Staging
             };
         }
         // A walled town's works (note 353): from the first street on their side, and from over the line looking across them.
-        if (plan.Works is { } works && where is "works" or "worksover" or "worksend")
+        if (plan.Works is { } works && (where is "works" or "worksover" or "worksend" || Art.WorksKit.Draws(where)))
         {
+            // A piece of them by its kind (note 870: the slag, the coal, the water tower), from the line side, a little
+            // up the street toward the gate, standing back as far as it is tall.
+            if (plan.Fixtures.FirstOrDefault(f => f.Kind == where && works.Holds(f.S, f.D)) is { } piece)
+            {
+                double back = Math.Max(8, piece.SolidS * 1.6 + Sim.Towns.TownFixtures.Size(where).Height);
+                return Ballast.Render.Camera.LookAt(town.World(piece.S + back * 0.45, piece.D - works.Side * back, 1.8),
+                    town.World(piece.S, piece.D, Sim.Towns.TownFixtures.Size(where).Height * 0.45), 62);
+            }
             double ws = (works.S0 + works.S1) / 2, wd = works.Side * (works.Near + works.Far) / 2;
             return where switch
             {

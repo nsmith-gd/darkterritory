@@ -136,6 +136,16 @@ public static class ArtCatalog
         list.Add(new("tower", LargeProp, () => StructureKit.Tower(look, 1)));
         // A harbour town's Hope Tower (note 819): one a town, seen from a kilometre off, so a large prop's budget.
         list.Add(new("hope-tower", LargeProp, () => HopeKit.Tower(look)));
+        // The starting town's pieces the director looked at on 19 Oct (note 870): the bitten van, the night market's stalls
+        // (every form and colouring), the works' heaps.
+        list.Add(new("square-carriage", MediumProp, () => SquareKit.Fixture(look, "carriage")));
+        for (int v = 0; v < SquareKit.StallVariants; v++)
+        {
+            int variant = v;
+            list.Add(new($"square-marketstall-{v}", MediumProp, () => SquareKit.Fixture(look, "marketstall", variant)));
+        }
+        list.Add(new("works-slag", LargeProp, () => WorksKit.Piece(look, "slag")));
+        list.Add(new("works-coal", LargeProp, () => WorksKit.Piece(look, "coal")));
         // A fortress town begun and stamped flat by a Waker (note 824), out beside the line: a large prop's budget each.
         for (int v = 0; v < RuinKit.Variants; v++)
         {
