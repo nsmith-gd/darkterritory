@@ -1047,6 +1047,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [863. The 3-a-night creature cap turned on (the director, 19 Oct, answering note 857's call) (Nell, queue #590)](notes/863.md)
 - [864. The Windows CI flake: Game.Tests' host left running after its tests pass (nathaniel1 n1-w3, queue #591)](notes/864.md)
 - [865. Something for two on the run, not on solo nights (the director, 19 Oct, on note 861's call 5) (Bram, queue #592)](notes/865.md)
-- [866. The extinguisher puts out the flame it is aimed at (the director, 19 Oct) (Faye, queue #593)](notes/866.md)
+- [866. The extinguisher puts out the flame it's aimed at, stretch by stretch down the car (Faye, queue #593; the 19 Oct playtest, line 10)](notes/866.md)
 - [867. Pair jobs: a grab on one makes the other let go, and bots carry jackpots in pairs (the director, 19 Oct, on note 861's calls 2 and 3) (Otis, queue #594)](notes/867.md)
 <!-- end of the notes index -->

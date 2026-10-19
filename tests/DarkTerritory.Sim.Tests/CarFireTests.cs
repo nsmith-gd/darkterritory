@@ -426,6 +426,48 @@ public class CarFireTests
     }
 
     [Fact]
+    public void WorkedDownTheCarStretchByStretchEachGoesOutWhereTheSprayLandsAndTheLastEndsIt()
+    {
+        // Note 866 (the director, 19 Oct: "it aims at a flame, puts it out, then I aim at a different flame and put it out,
+        // etc. etc."): the car at full blaze, a crewmate working it from the rear end to the front, a stretch at a time, each
+        // aimed at on its floor from just behind it and held until it's out. Each goes out where it's sprayed while every
+        // stretch ahead burns on, the ones put out stay out while the next is worked, and the fire ends with the last.
+        var (n, fire, ext, room) = Armed();
+        fire.Ablaze(0.97);
+        n.Run(Tuning.Enemies.MinReactionSeconds + 0.2); // alight: past its telegraph
+        Assert.Equal(SpinePhase.Punish, fire.Phase);
+        var grid = FireGrid.Of(n.Train, 2, Tuning.Enemies.CarFire.CellSize)!;
+        int Stretch(int row) => Enumerable.Range(0, grid.Count).First(c => grid.Row(c) == row && grid.Face[c] == FireFace.Floor);
+        Assert.Equal(4, grid.Along);
+        Assert.All(fire.Heat, h => Assert.True(h > 0.5));
+        for (int row = grid.Along - 1; row >= 0; row--)
+        {
+            var at = grid.Centre[Stretch(row)];
+            n.Crew[1] = Aim(n.Crew[1] with { Position = new Double3(room.Centre.X, room.Min.Y, Math.Min(at.Z + 2, room.Max.Z - 0.4)), Health = P.Health }, at);
+            double held = 0;
+            while (grid.Slice[Stretch(row)].Any(c => fire.Heat[c] > 0) && held < 3 && !fire.Gone)
+            {
+                n.Run(SimConstants.TickSeconds, _ => new PlayerIntent { Buttons = PlayerButtons.Fire });
+                held += SimConstants.TickSeconds;
+            }
+            Assert.True(held <= 1.5, $"stretch {row}: {held:0.00} s held");
+            if (row == 0)
+                break;
+            // Out where it landed: this stretch and the ones before it, every cell; the rest of the car still burning.
+            Assert.False(fire.Gone, $"stretch {row} out ended the whole fire");
+            for (int c = 0; c < grid.Count; c++)
+                if (grid.Row(c) >= row)
+                    Assert.True(fire.Heat[c] == 0, $"stretch {grid.Row(c)} cell {c} at {fire.Heat[c]:0.00} after stretch {row}");
+                else if (grid.Row(c) < row - 1)
+                    Assert.True(fire.Heat[c] > 0.5, $"stretch {grid.Row(c)} cell {c} at {fire.Heat[c]:0.00}, ahead of stretch {row}, not burning");
+            Assert.Equal(SpinePhase.Punish, fire.Phase);
+        }
+        n.Run(SimConstants.TickSeconds);
+        Assert.True(fire.Gone, $"{fire.Heat.Count(h => h > 0)} cells alight after the last stretch, charge {ext.Charge:0.00}");
+        Assert.True(ext.Charge > 0, "the car's out before the charge is");
+    }
+
+    [Fact]
     public void TheSprayPutsOutTheCellItsAimedAtAndNotTheFireBehindYou()
     {
         // App. F.1 (the director's decision of 6 Oct 2026): "the extinguisher puts out the cell you aim at". Beside the fire,
