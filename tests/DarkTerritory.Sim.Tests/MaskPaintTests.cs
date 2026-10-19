@@ -67,7 +67,7 @@ public class MaskPaintTests
         Messages.ReadPaints(ref r, into);
         Assert.Equal(paint, into[2]);
         Assert.Equal(new MaskPaint(1, 0, 0), into[0]);
-        Assert.Equal(80, Protocol.Version);
+        Assert.Equal(81, Protocol.Version);
     }
 
     [Fact]

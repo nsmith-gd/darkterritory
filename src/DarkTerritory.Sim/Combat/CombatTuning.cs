@@ -10,7 +10,17 @@ public sealed record CombatTuning(GunTuning Guns, ChoirTuning Choir)
     public FumesTuning? Fumes { get; init; }
     /// <summary>The human cannonball on the guard van's gun (combat.json <c>cannonball</c>; note 746).</summary>
     public CannonballTuning Cannonball { get; init; } = new();
+    /// <summary>The flare pistol (combat.json <c>flarePistol</c>; note 871).</summary>
+    public FlarePistolTuning FlarePistol { get; init; } = new();
 }
+
+/// <summary>
+/// combat.json <c>flarePistol</c> (note 871; docs/design/upgrades.md §4 "A flare lights a village for 60 s, and the Fire Flies
+/// follow it away from the train"): Fire with the pistol in hand sends a flare out along the look at <see cref="Speed"/> m/s
+/// (<see cref="Lift"/> of it upward, so it arcs), no sooner than <see cref="Every"/> s after its last; the flare burns
+/// <see cref="BurnSeconds"/> where it comes down (its light is senses.json's <c>flare</c>).
+/// </summary>
+public sealed record FlarePistolTuning(double Speed = 28, double Lift = 0.35, double Every = 1.0, double BurnSeconds = 60);
 
 /// <summary>
 /// combat.json <c>cannonball</c> (note 746; docs/design/upgrades.md §8.3): a crewmate climbs into the guard van's packed gun

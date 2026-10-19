@@ -655,6 +655,9 @@ public sealed partial class World
             Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(-0.5, floor, room.Max.Z - 2.5 - 0.4 * (i + 1)), Physics.BodyKind.Lamp);
         for (int i = 0; i < kit.SpareExtinguishers; i++)
             Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(-0.2, floor, room.Min.Z + 1.2 + 0.4 * i), Physics.BodyKind.Extinguisher);
+        // Note 871: the flare pistols, loaded (their flares left in Charge), beside the extinguishers.
+        for (int i = 0; i < kit.FlarePistols; i++)
+            Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(0.2, floor, room.Min.Z + 1.2 + 0.4 * i), Physics.BodyKind.FlarePistol).Charge = kit.FlareShots;
         // Hand-carried loot (GDD v1.1 App. C.4): toys, for the Track Doll to steal.
         for (int i = 0; i < kit.Toys; i++)
             Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(0.6, floor, room.Max.Z - 1.2 - 0.5 * i), Physics.BodyKind.Toy).Noise =
@@ -1718,6 +1721,8 @@ public sealed partial class World
         WindGramophone(s, intent, playerId);
         // The tennis-ball launcher (note 745), the same press on the guard van's platform.
         Launch(s, intent, playerId);
+        // The flare pistol (note 871): Fire with it in hand.
+        FireFlare(s, intent, playerId);
         if (handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } lifted)
             Physics.Bodies.TakeTools(ref s, lifted);
         // Searching an open house's hiding spot (note 326), empty-handed, with a Use the hands didn't take.

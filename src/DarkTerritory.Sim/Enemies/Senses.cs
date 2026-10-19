@@ -3,7 +3,7 @@ using Ballast;
 namespace DarkTerritory.Sim.Enemies;
 
 /// <summary>What gives a sense off (the sense table's items, content/tuning/senses.json; note 728).</summary>
-public enum EmitterKind : byte { HandLamp, CarLamp, Squeaker, MusicBox, Drummer, Spray, Knock, BurningLamp, Food, Body }
+public enum EmitterKind : byte { HandLamp, CarLamp, Squeaker, MusicBox, Drummer, Spray, Knock, BurningLamp, Food, Body, Flare }
 
 /// <summary>
 /// Something in the world giving off (or, <see cref="Strength"/> negative, masking) a sense a creature answers (GDD App. A.1;
@@ -134,7 +134,7 @@ public sealed record GauntSenses(bool ToyHoldsSilence = true, bool ToyTalksDown 
 
 public sealed record HoundSenses(bool SprayRepels = true, double RepelSeconds = 3, double DriveOffSeconds = 4, double DriveOffWindow = 10, double BackOffSpeed = 2.5);
 
-public sealed record FireFlySenses(bool LampsAboardCount = true, double LureRadius = 30, double LureSpeed = 3);
+public sealed record FireFlySenses(bool LampsAboardCount = true, double LureRadius = 30, double LureSpeed = 3, double FlareLureRadius = 80);
 
 public sealed record HuggerSenses(bool KnocksDraw = true, double DrawnSeconds = 15, double CrawlSpeed = 2, double Lateral = 6);
 
