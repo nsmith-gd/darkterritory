@@ -118,6 +118,11 @@ public sealed record GunTuning(double RoundsPerSecond, double Range, double Trav
     /// </summary>
     public double FoulChance { get; init; } = 0.04;
     public double FoulWetFactor { get; init; } = 2.5;
+    /// <summary>
+    /// The lucky horseshoe's share of <see cref="FoulChance"/> (campaign.json's <c>horseshoe</c> effect; 1 without it): a shot
+    /// that would have fouled at the chance over it, and didn't, is one it saved (queue #505, note 775: its glint).
+    /// </summary>
+    public double HorseshoeFoul { get; init; } = 1;
     public double ClearSeconds { get; init; } = 4;
     /// <summary>GDD §22 wind (note 183): "gunfire carries much further": a round's loudness grows this much per unit of wind.</summary>
     public double WindLoudness { get; init; } = 0.6;

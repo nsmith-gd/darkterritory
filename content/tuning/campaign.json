@@ -64,6 +64,10 @@
   // guns.reloadStepSeconds), whistle (choir.whistleLoudness), hotboxKnock (enemies.json hotbox.knockSeconds and
   // glowSeconds: how long a Hotbox's axle knocks and glows before it seizes), hotboxMend (hotbox.repairSeconds) and
   // extinguisher (carFire.chargeSeconds times it, rechargeSeconds over it).
+  // Heard working (queue #505, note 775; upgrades.md §8.1 "When it works"): a tool whose moment has a sound of its own marks
+  // itself with "dress:<id>" so every machine knows it's fitted (the recorder's bell, the pre-cut boards, the rammer, the
+  // booster's beat, the composition shoes, the oilers). horseshoe multiplies foul as foul does, and the guns keep the
+  // factor (GunTuning.HorseshoeFoul): a shot that would have fouled without it, and didn't, glints.
   "upgrades": [
     { "id": "lampBrightness", "name": "Lamp brightness", "size": "small", "costShare": 0.15, "effect": { "lamp": 1.25 }, "line": "A brighter headlamp, seen further down the line." },
     // F.3 "lamp armour": the Climbers still smash the forward lamp coming into the cab (§23 "lights fail"), but the guard
@@ -108,20 +112,20 @@
     // takes a share of it, never all of it: a warning sooner, a job done faster, a window held open longer.
     // The deeper lines' bends (GDD §11: "harder grades and bends"): the bell rings 6 s out, not 4, and a bend has to have
     // been rung that long before it can take the train (note 266).
-    { "id": "speedRecorder", "name": "Speed recorder", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "overspeedLead": 1.5 },
+    { "id": "speedRecorder", "name": "Speed recorder", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "overspeedLead": 1.5, "dress:speedRecorder": 1 },
       "line": "A bell in the cab that rings before the bend does. Six seconds' warning, not four." },
     // The grades (spec B.5's fade, on a descent): half as fast.
-    { "id": "compositionShoes", "name": "Composition brake shoes", "size": "small", "costShare": 0.2, "fromTier": "frontier", "effect": { "brakeFade": 0.5 },
+    { "id": "compositionShoes", "name": "Composition brake shoes", "size": "small", "costShare": 0.2, "fromTier": "frontier", "effect": { "brakeFade": 0.5, "dress:compositionShoes": 1 },
       "line": "Shoes that fade half as fast on a long descent." },
     // Medicine (GDD §19 "fragile, high value"): knocks and hard braking spoil 40% of what they did.
     { "id": "sprungCradles", "name": "Sprung cradles", "size": "small", "costShare": 0.15, "effect": { "fragile": 0.4 },
       "line": "Racks on springs for the medicine. A hard stop spoils less of it." },
     // Breaches (spec B.9; the Car Hugger and the Climbers, more of both on every tier down): boarded up in 4 s, not 8.
-    { "id": "precutBoards", "name": "Pre-cut boards", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "boardUp": 0.5 },
+    { "id": "precutBoards", "name": "Pre-cut boards", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "boardUp": 0.5, "dress:precutBoards": 1 },
       "line": "Planks cut to a breach's size, stacked in every car. Boarded up in half the time." },
     // The Hotbox (App. A.3; weighted up each tier, enemies.json hotbox.tierWeights): its axle knocks and glows half again
     // as long before it seizes, and is mended in half the time.
-    { "id": "axleOilers", "name": "Axle oilers", "size": "small", "costShare": 0.2, "fromTier": "deadLines", "effect": { "hotboxKnock": 1.5, "hotboxMend": 0.5 },
+    { "id": "axleOilers", "name": "Axle oilers", "size": "small", "costShare": 0.2, "fromTier": "deadLines", "effect": { "hotboxKnock": 1.5, "hotboxMend": 0.5, "dress:axleOilers": 1 },
       "line": "Oil cups on every axle. A hot box knocks longer before it seizes, and cools quicker under the wrench." },
     // Car fires (App. C.5; powder, chemicals and fuel grow them, and the deeper yards load them): half again the spray, and
     // back to full on the bracket in half the time.
@@ -137,10 +141,10 @@
       "line": "Extra irons at every ladder's foot. A ladder caught from the ground at a third more speed." },
     // The feedwater heater (upgrades.md): retired with the cold (note 852): the cold took nothing off the boiler to give back.
     // More creatures at the rear and flanks each tier down: a reload step in 1.2 s, not 1.5.
-    { "id": "gunRammers", "name": "Gun rammers", "size": "small", "costShare": 0.25, "fromTier": "deadLines", "effect": { "reload": 0.8 },
+    { "id": "gunRammers", "name": "Gun rammers", "size": "small", "costShare": 0.25, "fromTier": "deadLines", "effect": { "reload": 0.8, "dress:gunRammers": 1 },
       "line": "Sprung rammers and a powder measure at every gun. Each step of a reload a fifth quicker." },
     // The longest trains (spec B.5: 0.18 m/s² at 20 cars) get going again after a stop a fifth harder.
-    { "id": "boosterEngine", "name": "Trailing-truck booster", "size": "major", "costShare": 1.5, "fromTier": "deadLines", "effect": { "accel": 1.2 },
+    { "id": "boosterEngine", "name": "Trailing-truck booster", "size": "major", "costShare": 1.5, "fromTier": "deadLines", "effect": { "accel": 1.2, "dress:boosterEngine": 1 },
       "line": "A second engine under the tender's trucks. A long train pulls away a fifth harder." },
 
     // The armoured cab (upgrades.md §8.8, the director: "You still want full visibility of the track"): thick glass in heavy
@@ -196,7 +200,7 @@
       "line": "A mop handle, a rubber boot, bottle caps and a tin can. Hold [E] to thump it: the Newfoundland way.",
       "tally": "Ugly stick: ugly." },
     // Nailed points up over the cab door: the guns foul a little less (with gun cooling too: they multiply).
-    { "id": "luckyHorseshoe", "name": "Lucky horseshoe", "kind": "whimsy", "size": "small", "costShare": 0.1, "effect": { "foul": 0.85 },
+    { "id": "luckyHorseshoe", "name": "Lucky horseshoe", "kind": "whimsy", "size": "small", "costShare": 0.1, "effect": { "horseshoe": 0.85 },
       "line": "Nailed over the cab door, points up. The guns foul a little less. Nobody can say why.",
       "tally": "Horseshoe: still up." },
 
