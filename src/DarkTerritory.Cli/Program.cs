@@ -1394,6 +1394,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     {
         train.Loose = DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File)).Coupling;
         train.Vehicles[Math.Min(2, train.Vehicles.Count - 1)].Loose = looseFor;
+        // --loose-cause working|jumped (note 865): the pin that takes two, in its warning (its callout beating hard) or jumped.
+        if (Str(args, "--loose-cause", "") is { Length: > 0 } cause)
+            train.Vehicles[Math.Min(2, train.Vehicles.Count - 1)].LooseCause = Enum.Parse<LooseCause>(cause, ignoreCase: true);
     }
     // --gannet soar|circle|hang|fold|dive|stuck|tearfree|climb|bank|swoop|pin|windup|peck: the staged Gannet (note 340;
     // Staging.Gannet) over the second car's roof, after crewmate 4 walking it; the train running at --speed (20 m/s: it only
