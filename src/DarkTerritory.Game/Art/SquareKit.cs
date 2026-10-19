@@ -957,7 +957,7 @@ public static class SquareKit
         for (int i = 0; i < 3; i++)
         {
             float a = -x - 0.1f + i * (2 * x + 0.2f) / 3 - (i > 0 ? 0.05f : 0), b = -x - 0.1f + (i + 1) * (2 * x + 0.2f) / 3 + (i < 2 ? 0.05f : 0), lift = i == 2 ? 0.08f : 0;
-            k.Quad(new Vector3(a, h + 0.05f, z + 0.15f), new Vector3(b, h + 0.05f, z + 0.15f), new Vector3(b, front + lift - 0.05f, -z), new Vector3(a, front - 0.05f, -z), twoSided: true);
+            k.Quad(new Vector3(a, h + 0.05f, z + 0.08f), new Vector3(b, h + 0.05f, z + 0.08f), new Vector3(b, front + lift - 0.05f, -z), new Vector3(a, front - 0.05f, -z), twoSided: true);
         }
         Iron(k);
         k.Box(new Vector3(-x, front - 0.32f, -z + 0.22f), new Vector3(x, front - 0.29f, -z + 0.25f));
