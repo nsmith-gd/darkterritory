@@ -549,7 +549,8 @@ sealed partial class LineBuilder
     void Halt(Stretch st, List<Item> list)
     {
         var dead = Def("deadSettlement");
-        if (_settlements >= (int)dead.Param("perNight") || st.Window is not null || st.Spike)
+        // A stretch that already has its settlement (the every-so-often's) takes no second: frontier:5's two halts stood end to end.
+        if (_settlements >= (int)dead.Param("perNight") || st.Window is not null || st.Spike || list.Any(x => x.Kind == "settlement"))
             return;
         double halt = dead.Param("haltM"), clear = dead.Param("leadM");
         // A run of straight recovery connectors one after another (the deeper tiers' recoveries are short, 150 m and less).
