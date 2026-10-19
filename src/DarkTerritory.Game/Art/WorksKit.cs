@@ -244,7 +244,8 @@ public static class WorksKit
         var rng = new Random(seed * 31 + 870);
         k.Use(texture, colour, 0.9f, shine, tile: 1.2f);
         // Its outline and its surface, as functions of how far out (t, 0 the crest, 1 the toe) and which way (a).
-        float Reach(float a) => 1 + 0.12f * MathF.Sin(a * 2 + seed) + 0.08f * MathF.Sin(a * 5 + seed * 1.7f) + 0.05f * MathF.Sin(a * 11 + seed * 0.3f);
+        // (Never past its fixture's footprint: the town's walls round it are that box, note 869.)
+        float Reach(float a) => 0.86f + 0.08f * MathF.Sin(a * 2 + seed) + 0.04f * MathF.Sin(a * 5 + seed * 1.7f) + 0.02f * MathF.Sin(a * 11 + seed * 0.3f);
         Vector3 At(float t, float a)
         {
             // A ridge along it at the crest (a heap tipped from a line of barrows, not a cone), widening to its toe.
@@ -265,7 +266,7 @@ public static class WorksKit
         var grid = new Vector3[rings + 1, sides];
         for (int r = 0; r <= rings; r++)
             for (int i = 0; i < sides; i++)
-                grid[r, i] = At(r == rings ? 1.04f : (float)r / rings, MathF.Tau * i / sides);
+                grid[r, i] = At((float)r / rings, MathF.Tau * i / sides);
         var normals = new Vector3[rings + 1, sides];
         for (int r = 0; r < rings; r++)
             for (int i = 0; i < sides; i++)
@@ -307,7 +308,7 @@ public static class WorksKit
         for (int i = 0; i < 34; i++)
         {
             float a = (float)rng.NextDouble() * MathF.Tau;
-            float t = i < 24 ? 0.9f + (float)rng.NextDouble() * 0.22f : 0.35f + (float)rng.NextDouble() * 0.5f;
+            float t = i < 24 ? 0.88f + (float)rng.NextDouble() * 0.16f : 0.35f + (float)rng.NextDouble() * 0.5f;
             var p = At(MathF.Min(t, 1), a);
             if (t > 1)
                 p = new Vector3(p.X * t, -0.05f, p.Z * t);

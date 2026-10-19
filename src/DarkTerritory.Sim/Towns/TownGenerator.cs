@@ -295,7 +295,7 @@ public static partial class TownGenerator
         // centrepiece, each where it's clear of what's in the square and of the doors. Its stalls are listed after every other
         // fixture but the forge, and its stallholders after every other townsperson but the blacksmith and the Flame's keeper,
         // so every other keeps its index and its name.
-        var market = Market(sq, s0, s1, side * (front - sq.MarketIn), population, fixtures, buildings, w, industry, Rng("market"));
+        var market = Market(sq, s0, s1, side * (front - sq.MarketIn), population, fixtures, buildings, homes.Green, w, industry, Rng("market"));
 
         // The people. Those with a place: the jobs a town this size has, round the centrepiece, the households at home, out
         // with a lantern in front of the lived-in houses.
@@ -730,13 +730,14 @@ public static partial class TownGenerator
     /// <paramref name="d"/> out with its counters to the line, the second nearer the line with its counters to the
     /// buildings; along each, every <see cref="SquareTuning.MarketEvery"/> from ten metres in from the square's ends (the
     /// second row's places half a step on from the first's), each stall set off its place by up to
-    /// <see cref="SquareTuning.MarketJitter"/> each way, where it stands clear of every fixture so far and of the
-    /// buildings' doors; as many of those as the town's size has stalls (<see cref="SquareTuning.Market"/>), drawn at
-    /// random and laid in order along the square. Each stall's wares are dealt from the town's trade's stalls and the
-    /// market's own, none twice and none a shut stall's already. Face: the way its counter looks, across the line (±1).
+    /// <see cref="SquareTuning.MarketJitter"/> each way, where it stands clear of every fixture so far, of the
+    /// buildings' doors and of a small town's green; as many of those as the town's size has stalls
+    /// (<see cref="SquareTuning.Market"/>), drawn at random and laid in order along the square. Each stall's wares are
+    /// dealt from the town's trade's stalls and the market's own, none twice and none a shut stall's already. Face: the way
+    /// its counter looks, across the line (±1).
     /// </summary>
     static List<(double S, double D, int Face, TownText Wares)> Market(SquareTuning sq, double s0, double s1, double d, int population,
-        List<TownFixture> fixtures, List<TownBuilding> buildings, TownWriting w, TownIndustry? industry, Pcg32 rng)
+        List<TownFixture> fixtures, List<TownBuilding> buildings, TownGreen? green, TownWriting w, TownIndustry? industry, Pcg32 rng)
     {
         int want = Math.Clamp(sq.Market[0] + (int)(population / Math.Max(1, sq.MarketPer)), sq.Market[0], sq.Market[1]);
         var (hs, hd, _) = TownFixtures.Size("marketstall");
@@ -751,7 +752,7 @@ public static partial class TownGenerator
                 // Each off its place a little, along and across, so the rows are a market's, not a ruled line.
                 double ps = s + (jitter.NextDouble() * 2 - 1) * sq.MarketJitter, pd = row.D + (jitter.NextDouble() * 2 - 1) * sq.MarketJitter;
                 if (fixtures.All(f => Math.Abs(f.S - ps) > f.SolidS + hs + 0.8 || Math.Abs(f.D - pd) > f.SolidD + hd + 0.8)
-                    && buildings.All(b => Math.Abs(b.S - ps) > hs + DoorClear))
+                    && buildings.All(b => Math.Abs(b.S - ps) > hs + DoorClear) && green?.Holds(ps, pd, Math.Max(hs, hd)) != true)
                     clear.Add((ps, pd, row.Face));
             }
         // Which of them: a shuffle of the clear places, the first as many as are wanted, in order along the square.
