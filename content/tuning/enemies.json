@@ -770,6 +770,9 @@
     // GDD §23 "lights fail" (note 183): coming over the engine's end into the cab, it smashes the forward lamp for this
     // long (s). Lamp armour (campaign.json, F.3) shortens it.
     "lampOutSeconds": 45,
+    // Note 678, §8.8: the armoured cab's glass (campaign.json armouredCab): it holds a Climber on the tender's roof this long
+    // (s) before it's through into the cab. Without the armour, none.
+    "cabGlassSeconds": 8,
     "paceOut": 2.5, "paceSeconds": 6, "catch": 1.2, "maxSpeed": 18, "loseBehind": 60, "scrabbleSeconds": 2.5, "holdReach": 2,
     "maxTries": 3, "traverseSpeed": 2.2, "reach": 1.8, "biteDamage": 35, "biteEvery": 3, "boredSeconds": 120, "health": 3,
     "minGaps": 2, "minSpeed": 5, "perGapWeight": 0.5, "packSize": [2, 3], "countRadius": 8, "takeSeconds": 10,

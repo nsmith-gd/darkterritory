@@ -473,7 +473,7 @@ public sealed class Whistler(int id) : Enemy(id)
 /// </remarks>
 public sealed class Climber(int id) : Enemy(id)
 {
-    double _bored, _bite, _outnumbered;
+    double _bored, _bite, _outnumbered, _glass;
     int _tries;
     readonly List<int> _tried = [];
 
@@ -708,6 +708,13 @@ public sealed class Climber(int id) : Enemy(id)
         }
         if (ahead == 0)
         {
+            // The armoured cab's glass holds it at the tender's end a while first (note 678, §8.8).
+            if (train.Dynamics.Tuning.Composition.CabArmour && _glass < t.CabGlassSeconds)
+            {
+                _glass += SimConstants.TickSeconds;
+                Local = Local with { Z = -shape.HalfLength + 0.3 };
+                return;
+            }
             // The engine: down into the cab.
             Attached = 0;
             Local = train.Frames[0].Shape.FootplateMiddle; // (onto the footplate: note 716)

@@ -1041,4 +1041,8 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [857. Audit: the GDD and the Director's Inbox against the last week's work (the director, 18 Oct) (Elsie, queue #585)](notes/857.md)
 - [858. Audit: the Audio Checklist and the Art Checklist against the last week's work (the director, 18 Oct) (Rowan, queue #586)](notes/858.md)
 - [859. Crew killed at a pick-up's siding, Stroud Yard (queue #389, n1-w4 for nathaniel1; parked by D1 from note 656)](notes/859.md)
+- [860. The night's pattern: monsters waiting at the stops, or boarding from them (the director's playtest of 16 Oct evening, line 7) (Ivy, queue #587)](notes/860.md)
+- [861. Shared challenges that make laughs on a multiplayer night (the director's playtest of 16 Oct evening, line 8) (Otis, queue #588)](notes/861.md)
+- [862. An open cab door lets voices out a bit more, not completely (the director, 19 Oct, on #583's call) (Theo, queue #589)](notes/862.md)
+- [863. The 3-a-night creature cap turned on (the director, 19 Oct, answering note 857's call) (Nell, queue #590)](notes/863.md)
 <!-- end of the notes index -->

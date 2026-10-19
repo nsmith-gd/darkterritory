@@ -486,6 +486,8 @@ public sealed record ClimberTuning
 {
     /// <summary>GDD §23 "lights fail" (note 183): coming over the engine's end, it smashes the forward lamp for this long.</summary>
     public double LampOutSeconds { get; init; } = 45;
+    /// <summary>Note 678, §8.8: with the cab armoured, how long (s) it works at the glass, on the tender's roof, before it's through into the cab.</summary>
+    public double CabGlassSeconds { get; init; }
     public double PaceOut { get; init; } = 2.5;
     public double PaceSeconds { get; init; } = 6;
     public double Catch { get; init; } = 1.2;
