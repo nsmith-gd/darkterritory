@@ -50,23 +50,81 @@ public class StopsOwnTests
     }
 
     [Fact]
-    public void AsTheTrainStandsAtAYardOneOfWhatLivesThereAndOneThatBoardsThereAreSentOnceAStop()
+    public void AsTheTrainStandsAtAYardWhatLivesThereComesAtOnceAndTheBoardersOnceTheCrewIsBusyOnceAStop()
     {
         var n = AtTheFirstYard(Own());
         Assert.True(Director.StopAt(n.World) >= 0);
+        // A Frontier night for a crew of four: three, two waiting and one boarding (note 868).
+        var (waiting, boarding) = D.Stops.Split(D.Stops.Count(RouteTier.Frontier, 4));
+        Assert.Equal((2, 1), (waiting, boarding));
         // In the first seconds stood there, inside the facility lull, what lives there: it was there before the train came.
-        var waiting = Assert.Single(Think(n.World, 5));
-        Assert.DoesNotContain(Director.Key(waiting.Kind), D.Stops.Boarders);
+        var first = Think(n.World, 5);
+        Assert.Equal(waiting, first.Count);
+        Assert.All(first, l => Assert.DoesNotContain(Director.Key(l.Kind), D.Stops.Boarders));
+        Assert.Equal(first.Count, first.Select(l => l.Kind).Distinct().Count());
         // The boarder once the crew's busy with the stop (not while they cut the train at its points).
-        Assert.Single(Think(n.World, (int)D.Stops.BoardingAfterSeconds - 10));
+        Assert.Equal(waiting, Think(n.World, (int)D.Stops.BoardingAfterSeconds - 10).Count);
         var sent = Think(n.World, 10);
-        Assert.Equal(2, sent.Count);
-        Assert.Contains(Director.Key(sent[1].Kind), D.Stops.Boarders);
+        Assert.Equal(waiting + boarding, sent.Count);
+        Assert.Contains(Director.Key(sent[^1].Kind), D.Stops.Boarders);
         Assert.All(sent, l => Assert.False(l.Free));
         // Once a stop: standing on there sends nothing more of the stop's own.
-        Assert.Equal(2, Think(n.World, 300).Count);
+        Assert.Equal(waiting + boarding, Think(n.World, 300).Count);
         Assert.DoesNotContain(n.World.Director!.Log, l => !l.Stop);
     }
+
+    /// <summary>
+    /// Note 868 (the director, 19 Oct 2026): "Easy difficulty and low player count means one creature. High difficulty high
+    /// player count should be at least 4+ creatures to deal with per stop."
+    /// </summary>
+    [Fact]
+    public void HowManyComeGoesByTheTierAndTheCrewOneForALocalCrewOfOneFourOrMoreDeepWithFourOrMore()
+    {
+        var st = D.Stops;
+        Assert.Equal(1, st.Count(RouteTier.Local, 1));
+        Assert.Equal((1, 0), st.Split(1));
+        for (int crew = 4; crew <= 8; crew++)
+            Assert.True(st.Count(RouteTier.DeepTerritory, crew) >= 4, $"deep, crew of {crew}: {st.Count(RouteTier.DeepTerritory, crew)}");
+        Assert.True(st.Count(RouteTier.DeadLines, 8) >= 4);
+        // More with a bigger crew and a deeper tier, never fewer; a boarder among them from two on.
+        foreach (var tier in new[] { RouteTier.Local, RouteTier.Frontier, RouteTier.DeadLines, RouteTier.DeepTerritory })
+            for (int crew = 1; crew < 8; crew++)
+            {
+                Assert.True(st.Count(tier, crew + 1) >= st.Count(tier, crew));
+                Assert.True(st.Count(tier + 1 > RouteTier.DeepTerritory ? tier : tier + 1, crew) >= st.Count(tier, crew));
+            }
+        Assert.Equal((1, 1), st.Split(2));
+        Assert.Equal((3, 2), st.Split(5));
+    }
+
+    /// <summary>
+    /// The night's floor (note 868; the director, 19 Oct 2026: "It should be impossible to have a night with no creatures").
+    /// Seed 1's chances roll 22 of the 28 kinds out, every creature that lives at a yard but the Followers among them.
+    /// </summary>
+    [Fact]
+    public void NoNightRollsOutEveryCreatureOrEveryStopResident()
+    {
+        var off = new Director(D with { Stops = D.Stops with { On = false } }, null, 1, 6, 4);
+        var residents = D.Stops.Residents;
+        // Only the Followers about, and they come only to whoever stands at a yard's loading faces.
+        Assert.Equal(["followers"], residents.Where(r => !off.OutTonight(Kind(r))));
+        for (ulong seed = 1; seed <= 300; seed++)
+            foreach (var (tier, crew) in new[] { (RouteTier.Local, 1), (RouteTier.Frontier, 2), (RouteTier.DeepTerritory, 8) })
+            {
+                var route = new Route.Route("t", tier, seed, new Rail.LineDefinition("t", [new Rail.TrackSegment(1000)]), [], new RouteWeather(0, false, 0, 0), 1440);
+                var d = new Director(D, route, seed, 6, crew);
+                int about = Spawns.Rules.Select(r => r.Kind).Distinct().Count(k => !d.OutTonight(k));
+                Assert.True(about >= D.Stops.FloorKinds, $"seed {seed}: {about} about");
+                int wants = Math.Min(D.Stops.Split(D.Stops.Count(tier, crew)).Waiting, residents.Length);
+                Assert.True(residents.Count(r => !d.OutTonight(Kind(r))) >= wants, $"seed {seed}, {tier}, crew {crew}");
+            }
+        // What the roll left about stays about: the floor only brings kinds back.
+        var floored = new Director(D, null, 1, 6, 4);
+        Assert.All(D.NightChance.Keys.Where(k => !off.OutTonight(Kind(k))), k => Assert.False(floored.OutTonight(Kind(k))));
+        Assert.NotEmpty(floored.FloorBrought);
+    }
+
+    static EnemyKind Kind(string key) => Enum.GetValues<EnemyKind>().First(k => Director.Key(k) == key);
 
     [Fact]
     public void NothingOfTheStopsOwnStoodAwayFromAStopOrWithItOff()
@@ -86,7 +144,7 @@ public class StopsOwnTests
         var a = Think(AtTheFirstYard(Own(), seed: 7).World, 100).Select(l => l.Kind).ToList();
         var b = Think(AtTheFirstYard(Own(), seed: 7).World, 100).Select(l => l.Kind).ToList();
         Assert.Equal(a, b);
-        Assert.Equal(2, a.Count);
+        Assert.Equal(D.Stops.Count(RouteTier.Frontier, 4), a.Count);
     }
 
     [Fact]
@@ -95,6 +153,6 @@ public class StopsOwnTests
         var kinds = Spawns.Rules.Select(r => Director.Key(r.Kind)).ToHashSet();
         Assert.NotEmpty(D.Stops.Boarders);
         Assert.All(D.Stops.Boarders, b => Assert.Contains(b, kinds));
-        Assert.True(D.Stops is { On: true, Waiting: 1, Boarding: 1, BoardingAfterSeconds: 40, TrySeconds: 240 });
+        Assert.True(D.Stops is { On: true, BoardingAfterSeconds: 40, TrySeconds: 240 });
     }
 }

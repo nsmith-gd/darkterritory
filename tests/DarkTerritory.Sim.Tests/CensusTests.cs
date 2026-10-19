@@ -230,6 +230,42 @@ public class CensusTests
         Assert.Equal(1, off.WhoseNext(options).Single(o => o.Kind == EnemyKind.Dragger).Weight);
     }
 
+    /// <summary>Two at a winch's handles, cranking (note 867's pair), the census counted.</summary>
+    static (FacilityTests.Stop Stop, Director D) AtTheWinch(EnemyTuning? enemies = null)
+    {
+        var stop = new FacilityTests.Stop(Run.ModuleKind.Winch);
+        stop.World.EnableEnemies(enemies ?? Q, null, 1, crew: 4, authority: true);
+        foreach (var handle in stop.Site.Handles)
+            stop.Crew.Add(stop.OnTheGround(handle - Double3.Up * 0.9));
+        var crank = new PlayerIntent { Buttons = PlayerButtons.Use };
+        stop.Step(1.1, [crank, crank]);
+        Assert.True(stop.Site.Turning);
+        return (stop, stop.World.Director!);
+    }
+
+    [Fact]
+    public void OneOfAPairIsFreeForTheOthersCollision()
+    {
+        // Note 867 (the director, 19 Oct, on note 861's call 2): a crew of two both at the winch. Each is the other's partner;
+        // the ground's kind coming at one weighs up, for the other can let go of their handle and come. Off (note 753): a pair
+        // is two busy and nobody free, nothing weighs up.
+        Assert.True(O.PairFree);
+        var (_, d) = AtTheWinch();
+        Assert.True(Of(d, 1).Committed && Of(d, 2).Committed);
+        Assert.Equal(2, Of(d, 1).Partner);
+        Assert.Equal(1, Of(d, 2).Partner);
+        List<(EnemyKind Kind, double Weight)> options = [(EnemyKind.FreightBeetle, 1), (EnemyKind.Dragger, 1)];
+        var w = d.WhoseNext(options).ToDictionary(o => o.Kind, o => o.Weight);
+        var (_, off) = AtTheWinch(Q with { Director = Q.Director with { Orchestrator = O with { PairFree = false } } });
+        var before = off.WhoseNext(options).ToDictionary(o => o.Kind, o => o.Weight);
+        Assert.Equal(before[EnemyKind.FreightBeetle] * O.CollisionWeight, w[EnemyKind.FreightBeetle], 9);
+        Assert.Equal(before[EnemyKind.Dragger], w[EnemyKind.Dragger], 9); // the walkers': nobody on the roofs to come
+        // Not a pair: a crane's operator and a walker on the roof aren't partners.
+        var (_, crane) = AtTheCrane();
+        Assert.Equal(-1, Of(crane, 1).Partner);
+        Assert.Equal(-1, Of(crane, 2).Partner);
+    }
+
     [Fact]
     public void ABusyCrewmateAloneIsLeftAsAppBHasIt()
     {

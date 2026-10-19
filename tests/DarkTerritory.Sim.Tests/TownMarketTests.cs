@@ -61,14 +61,40 @@ public class TownMarketTests
             Assert.False(string.IsNullOrEmpty(s.Name));
             Assert.False(string.IsNullOrEmpty(s.Text));
             var holder = Assert.Single(plan.People, p => p.Role == "stallholder" && Math.Abs(p.S - s.S) < 0.01);
-            Assert.True(Math.Abs(holder.D) > Math.Abs(s.D) + s.SolidD && Math.Abs(holder.D) < front, "the stallholder isn't behind the counter");
-            Assert.Equal(-sq.Side, Math.Sign(holder.FaceD));
+            // Behind the counter (away from the way it faces), facing the way it does, still in the square.
+            Assert.True((holder.D - s.D) * s.FaceD < -s.SolidD && Math.Abs(holder.D) < front && Math.Abs(holder.D) > 3.4,
+                "the stallholder isn't behind the counter");
+            Assert.Equal(Math.Sign(s.FaceD), Math.Sign(holder.FaceD));
         }
         Assert.Equal(stalls.Count, stalls.Select(s => s.Text).Distinct().Count());
         // Most of them talk about their stalls (a close-mouthed one says only how they carry it: note 474).
         var holders = plan.People.Where(p => p.Role == "stallholder").ToList();
         Assert.True(holders.Count(h => h.Lines.Any(l => Towns.Writing.Roles["stallholder"].Lines.Contains(l))) * 2 >= holders.Count,
             "the stallholders hardly talk about their stalls");
+    }
+
+    [Fact]
+    public void ItsStallsFaceEachOtherAcrossAnAisleNotInOneRuledRow()
+    {
+        // Note 870 (the director's playtest of 19 Oct, line 4: "Too many cut and paste stalls in a row ... doesn't look like
+        // a market"): a big town's market is two rows, counters facing across the aisle, and no row a ruled line.
+        var plan = Night("frontier:7", 3000);
+        var stalls = plan.Fixtures.Where(f => f.Kind == "marketstall").ToList();
+        var rows = stalls.GroupBy(f => Math.Sign(f.FaceD)).ToList();
+        Assert.Equal(2, rows.Count);
+        var (_, hd, _) = TownFixtures.Size("marketstall");
+        double aisle = Math.Abs(rows[0].Average(f => f.D) - rows[1].Average(f => f.D)) - 2 * hd;
+        Assert.InRange(aisle, Towns.Tuning.Square.MarketAisle - 2 * Towns.Tuning.Square.MarketJitter, Towns.Tuning.Square.MarketAisle + 2 * Towns.Tuning.Square.MarketJitter);
+        // Each row's counters face the other's, the far row's toward the line.
+        var far = rows.OrderByDescending(r => r.Average(f => Math.Abs(f.D))).First();
+        Assert.Equal(-plan.Square.Side, far.Key);
+        // Staggered: not all on one line across, nor all the same distance apart.
+        foreach (var row in rows.Where(r => r.Count() >= 3))
+        {
+            Assert.True(row.Select(f => Math.Round(f.D, 2)).Distinct().Count() > 1, "a row of stalls all on one line");
+            var gaps = row.OrderBy(f => f.S).Zip(row.OrderBy(f => f.S).Skip(1), (a, b) => Math.Round(b.S - a.S, 2)).Distinct().Count();
+            Assert.True(gaps > 1, "a row of stalls evenly spaced, as if ruled");
+        }
     }
 
     [Fact]

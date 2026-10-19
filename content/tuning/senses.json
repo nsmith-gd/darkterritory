@@ -28,7 +28,10 @@
     // Food among the finds (foodFinds): its smell, lying about or in the hands.
     "food": [ { "sense": "scent", "radius": 15, "strength": 0.5 } ],
     // A body (App. D.9): what the Mourners come for (App. A.6, absence; they read the bodies themselves, note 362).
-    "body": [ { "sense": "absence", "radius": 20, "strength": 1 } ]
+    "body": [ { "sense": "absence", "radius": 20, "strength": 1 } ],
+    // A flare from the flare pistol, burning where it came down (note 871; upgrades.md §4: "a flare lights a village"): the
+    // brightest light there is, and a little heat close to.
+    "flare": [ { "sense": "light", "radius": 60, "strength": 1 }, { "sense": "heat", "radius": 2, "strength": 0.5 } ]
   },
   // How long a wound toy plays once it's let go (s): 0, only while it's in the hands.
   "toys": { "playsSeconds": { "squeaker": 0, "musicBox": 90, "drummer": 30 } },
@@ -67,7 +70,10 @@
     // FIRE FLIES (light): a lit hand lamp lying in a car counts as that car's lamp (they come to it, and it doesn't go out
     // with the car's lamps); one lying out of every car within lureRadius of a swarm draws the swarm off the car to it
     // (lureSpeed m/s), where its igniting breaks the lamp into a ground burn instead of setting a car alight.
-    "fireFlies": { "lampsAboardCount": true, "lureRadius": 30, "lureSpeed": 3 },
+    // Note 871: a burning flare draws a swarm off its car from flareLureRadius (it's seen from further than a lamp), and they
+    // follow it (upgrades.md §4: "the Fire Flies follow it away from the train"): they swarm round it while it burns, set
+    // nothing alight (it's burning already), and are gone when it's out.
+    "fireFlies": { "lampsAboardCount": true, "lureRadius": 30, "lureSpeed": 3, "flareLureRadius": 80 },
     // CAR HUGGER (vibration): lurking, a knock within the knock's radius draws it to the knock along the line (crawlSpeed m/s)
     // and off the formation's edge (lateral m out); while drawn (drawnSeconds from the last knock) it latches onto nothing.
     "carHugger": { "knocksDraw": true, "drawnSeconds": 15, "crawlSpeed": 2, "lateral": 6 },

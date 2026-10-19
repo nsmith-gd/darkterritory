@@ -98,7 +98,8 @@ public static class WorldRecords
                     v.OffRails ? 1 : 0,
                     // Its handbrake wound on by the Brakeman (note 364), an axle seized by Hotbox (note 367): drag every client feels;
                     // and what worked the coupling behind it loose (note 732), so every client hears the moment as what did it.
-                    (v.Wound ? 1L : 0L) | (v.Seized ? 2L : 0L) | ((long)v.LooseCause << 2),
+                    // Note 865: and a jumped pin two have hold of, so its pinner's client drives it home as the host does.
+                    (v.Wound ? 1L : 0L) | (v.Seized ? 2L : 0L) | ((long)v.LooseCause << 2) | (v.Pinned ? 1L << 10 : 0L),
                     // How far a Knotter's forced the coupling behind it apart (note 365): every client lays the cars out so.
                     Q(v.Knot, Fine),
                     // How much of its load is things lying in it as themselves (note 659): the rest is its heap, every client's.
@@ -321,6 +322,8 @@ public static class WorldRecords
             f[8] = body.Kind switch
             {
                 Physics.BodyKind.Extinguisher => Q(body.Charge, Hint),
+                // The flare pistol's flares left, and a flare's burn left (0..1) (note 871).
+                Physics.BodyKind.FlarePistol or Physics.BodyKind.Flare => Q(body.Charge, Hint),
                 Physics.BodyKind.Ragdoll or Physics.BodyKind.Tool => (long)body.Tools,
                 // Its noise, and 0x100 while it plays (note 728: a wound toy set down keeps playing where it lies).
                 Physics.BodyKind.Toy => (long)body.Noise + (body.Playing ? 0x100 : 0),
@@ -447,7 +450,7 @@ public static class WorldRecords
                         f.Length > 23 ? D(f[23], Fine) : 0, f.Length > 24 ? D(f[24], Fine) : 0, f.Length > 25 ? D(f[25], Fine) : 0,
                         f.Length > 28 && (f[28] & 1) != 0, f.Length > 28 && (f[28] & 2) != 0, f.Length > 29 ? D(f[29], Fine) : 0,
                         f.Length > 27 && f[27] != 0, f.Length > 30 ? D(f[30], Fine) : 0, f.Length > 31 ? D(f[31], Fine) : 0, f.Length > 32 ? (int)f[32] : 0,
-                        f.Length > 28 ? (LooseCause)((f[28] >> 2) & 0xFF) : LooseCause.None));
+                        f.Length > 28 ? (LooseCause)((f[28] >> 2) & 0xFF) : LooseCause.None, f.Length > 28 && (f[28] & (1L << 10)) != 0));
                     break;
                 case RecordKind.World:
                     world.Choir = new ChoirState
@@ -657,7 +660,7 @@ public static class WorldRecords
             Second = (int)f[7],
             Owner = (int)f[3],
             Yaw = D(f[5], Ang),
-            Charge = (Physics.BodyKind)f[0] == Physics.BodyKind.Extinguisher ? D(f[8], Hint) : 1,
+            Charge = (Physics.BodyKind)f[0] is Physics.BodyKind.Extinguisher or Physics.BodyKind.FlarePistol or Physics.BodyKind.Flare ? D(f[8], Hint) : 1,
             Tools = (Physics.BodyKind)f[0] is Physics.BodyKind.Ragdoll or Physics.BodyKind.Tool ? (ulong)f[8] : 0,
             Cargo = (Physics.BodyKind)f[0] is Physics.BodyKind.Extinguisher or Physics.BodyKind.Ragdoll or Physics.BodyKind.Toy or Physics.BodyKind.Radio or Physics.BodyKind.Loot or Physics.BodyKind.Tool
                 or Physics.BodyKind.Instrument or Physics.BodyKind.Caboose or Physics.BodyKind.Lamp ? CargoKind.None : (CargoKind)f[8],

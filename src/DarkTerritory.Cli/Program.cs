@@ -677,6 +677,8 @@ object CampaignCommand(string content, string verb, string[] args)
                     "powder" => DarkTerritory.Sim.Campaign.Campaign.BuyStores(t, s, DarkTerritory.Sim.Campaign.StoreKind.Powder),
                     "lamp" => DarkTerritory.Sim.Campaign.Campaign.BuyStores(t, s, DarkTerritory.Sim.Campaign.StoreKind.Lamp),
                     "extinguisher" => DarkTerritory.Sim.Campaign.Campaign.BuyStores(t, s, DarkTerritory.Sim.Campaign.StoreKind.Extinguisher),
+                    // Note 871: the flare pistol, from the Frontier tier.
+                    "flare" => DarkTerritory.Sim.Campaign.Campaign.BuyStores(t, s, DarkTerritory.Sim.Campaign.StoreKind.Flare),
                     "sell" => DarkTerritory.Sim.Campaign.Campaign.SellCar(t, s),
                     _ => DarkTerritory.Sim.Campaign.Campaign.BuyUpgrade(t, s, what),
                 };
@@ -1394,6 +1396,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     {
         train.Loose = DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File)).Coupling;
         train.Vehicles[Math.Min(2, train.Vehicles.Count - 1)].Loose = looseFor;
+        // --loose-cause working|jumped (note 865): the pin that takes two, in its warning (its callout beating hard) or jumped.
+        if (Str(args, "--loose-cause", "") is { Length: > 0 } cause)
+            train.Vehicles[Math.Min(2, train.Vehicles.Count - 1)].LooseCause = Enum.Parse<LooseCause>(cause, ignoreCase: true);
     }
     // --gannet soar|circle|hang|fold|dive|stuck|tearfree|climb|bank|swoop|pin|windup|peck: the staged Gannet (note 340;
     // Staging.Gannet) over the second car's roof, after crewmate 4 walking it; the train running at --speed (20 m/s: it only
@@ -3832,6 +3837,28 @@ static object HudShot(string content, string[] args)
                 solo.Train.Vehicles[2].Loose = SimConstants.TickSeconds;
                 solo.World.PinLoosened(2, DarkTerritory.Sim.Train.LooseCause.Bend, 62 / 3.6, 50);
             }
+            // jumped (note 865): the pin behind car 2 just jumped clear at a rail joint at 64 km/h, the one that takes two; working,
+            // its warning before, most of the way through (the knock quick, the callout beating, the cars shaking).
+            else if (said is "jumped" or "working")
+            {
+                solo.Train.Loose = DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File)).Coupling;
+                var cause = said == "working" ? DarkTerritory.Sim.Train.LooseCause.Working : DarkTerritory.Sim.Train.LooseCause.Jumped;
+                double into = said == "working" ? solo.Train.Loose.Jump.WarnSeconds * 0.7 : SimConstants.TickSeconds;
+                (solo.Train.Vehicles[2].Loose, solo.Train.Vehicles[2].LooseCause) = (into, cause);
+                solo.World.PinLoosened(2, cause, 64 / 3.6);
+                // Jumped: down in its gap, at the pin, the HUD's prompt saying it takes two. Working: up on car 2's roof at its back
+                // end, looking back down into the gap, its callout beating there.
+                var g = solo.Train.Dynamics.Tuning.Geometry;
+                solo.Player = said == "working"
+                    ? DarkTerritory.Sim.Player.PlayerMotor.SpawnOnRoof(solo.Train, 2, solo.Train.Frames[2].Shape.HalfLength - 1.2, solo.PlayerTuning) with { Yaw = Math.PI, Pitch = -0.7 }
+                    : solo.Player with
+                    {
+                        Parent = 2,
+                        Surface = DarkTerritory.Sim.Player.Surface.Coupler,
+                        Velocity = default,
+                        Position = new Double3(g.PlateX, g.CouplerHeight, solo.Train.Frames[2].Shape.HalfLength + 0.7),
+                    };
+            }
             else if (said == "fire")
                 solo.World.FireStarted(DarkTerritory.Sim.Enemies.CarFire.In(99, solo.Train, 3, 2, solo.World.Enemies?.CarFire ?? new DarkTerritory.Sim.Enemies.CarFireTuning(),
                     DarkTerritory.Sim.Enemies.FireCause.HotBox, 3, -1, "Its rear axle box ran hot, ungreased."));
@@ -3916,6 +3943,19 @@ static object HudShot(string content, string[] args)
         session.World.DawnEndsCampaign = true;
     var frames = session.InterpolatedFrames(1);
     var camera = session.EyeCamera(frames, 1, 0, 0);
+    // --flare (note 871): a flare burning on the ground 35 m out ahead of the eye, and a loaded flare pistol in your hands.
+    if (args.Contains("--flare"))
+    {
+        var ahead = new Double3(camera.Forward.X, 0, camera.Forward.Z);
+        var at = camera.Position + ahead * (35 / ahead.Length);
+        double hint = session.Train.Dynamics.Distance;
+        at = at with { Y = PlayerMotor.GroundAt(at, session.Train.Line, ref hint) };
+        var flare = session.World.Bodies.SpawnItem(at, hint, DarkTerritory.Sim.Physics.BodyKind.Flare);
+        (flare.Burns, flare.Charge) = (60, 1);
+        flare.Pbd.Sleep();
+        var pistol = session.World.Bodies.SpawnItem(at, hint, DarkTerritory.Sim.Physics.BodyKind.FlarePistol);
+        (pistol.Charge, pistol.Carrier) = (2, session.PlayerId);
+    }
     // --loading [built]: the next night's loading card over the town the crew's in (note 604), from its square; "built", the
     // night ahead named (its terminus), as it holds before the night opens.
     var loadingIn = args.Contains("--loading") ? session.World.Arrival : null;
