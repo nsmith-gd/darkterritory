@@ -242,6 +242,12 @@ public sealed partial class Effects
     public void CarFire(MeshBuilder mesh, Vector3 o, Vector3 r, Vector3 u, Vector3 b, bool alight, double burn, double t, float ceiling = 2.0f,
         float spread = 0)
     {
+        // Note 866 (the director, 19 Oct: "its still going out once the whole car is done only so I cant work down the car for
+        // the fire out"): a fire on its cells is drawn all on its cells, its flames (FireCell) and its smoke, glow, cinders and
+        // light a stretch of the car at a time (FireStretch), so what the spray puts out goes dark where it lands. Drawn here
+        // at the heart of it, they burnt on to the fire's last cell.
+        if (CellFlames)
+            return;
         Vector3 L(float x, float y, float z) => o + r * x + u * y + b * z;
         float burnF = (float)Math.Clamp(burn, 0.05, 1);
 
@@ -362,8 +368,8 @@ public sealed partial class Effects
     }
 
     /// <summary>
-    /// Whether a car fire's flames are drawn cell by cell (<see cref="FireCell"/>; note 267), so <see cref="CarFire"/> draws
-    /// only its smoke, glow, cinders and light at the heart of it. Set by the scene each frame.
+    /// Whether a car fire is drawn on its cells (<see cref="FireCell"/>, note 267; <see cref="FireStretch"/>, note 866), so
+    /// <see cref="CarFire"/> draws nothing at the heart of it. Set by the scene each frame.
     /// </summary>
     public bool CellFlames { get; set; }
 
@@ -410,6 +416,75 @@ public sealed partial class Effects
         }
         // The cell's heat on its boards: a broad soft glow over its patch.
         mesh.Billboard(at + normal * 0.06f, 1.0f + 0.8f * heat, 0, new Vector4(Palette.FurnaceOrange * 0.22f * heat, 1), -1, FxBlend.Additive, stretch: 0.6f);
+    }
+
+    /// <summary>
+    /// One stretch of a burning car (note 866): its floor, walls and roof at one place along it, the cells the spray works
+    /// together (note 662), drawn with its own smoke, glow, cinders and light, by its hottest cell's <paramref name="heat"/>;
+    /// out, nothing. So the crew put a fire out down the car stretch by stretch, and each goes dark as it's put out.
+    /// Camera-relative: <paramref name="floor"/> the middle of its floor, <paramref name="along"/> half its length along the
+    /// car, <paramref name="across"/> half the car's width; <paramref name="ceiling"/> the roof's height over the floor (m).
+    /// </summary>
+    public void FireStretch(MeshBuilder mesh, Vector3 floor, Vector3 along, Vector3 across, float ceiling, float heat, bool alight, double t, int seed)
+    {
+        if (heat <= 0.02f)
+            return;
+        var up = Vector3.UnitY;
+        float h0 = Math.Clamp(heat, 0, 1), roof = ceiling - 0.35f;
+        float length = along.Length();
+        // Smoke: up off the boards to the roof, then rolling a little way along under it.
+        int puffs = alight ? 8 : 4;
+        for (int k = 0; k < puffs; k++)
+        {
+            float h = Hash(seed * 0.71f + k * 1.37f + 0.3f), h2 = Hash(seed * 1.13f + k * 2.71f + 1.9f);
+            float period = 3.2f + h * 2.4f;
+            float age = (float)((t * (0.9 + 0.3 * h) + h2 * 17) % period);
+            float s = age / period;
+            float climb = 0.55f + age * (alight ? 1.5f : 0.8f);
+            float y = MathF.Min(climb, roof), rolled = MathF.Max(0, climb - roof);
+            float z = (h - 0.5f) * 1.4f + (h2 < 0.5f ? -1 : 1) * MathF.Min(rolled * 1.2f, 0.4f);
+            var p = floor + along * z + across * ((h2 - 0.5f) * 0.6f) + up * y;
+            float size = alight ? 0.45f + s * (0.9f + 1.0f * h0) : 0.6f + s * 1.2f;
+            float a = MathF.Min(1, (alight ? 0.85f + 0.4f * h0 : 1.3f * MathF.Max(0.4f, h0 * 3)) * MathF.Sin(MathF.PI * MathF.Min(1, s * 1.3f)));
+            var grey = alight ? new Vector3(0.07f, 0.06f, 0.055f) + Palette.FurnaceOrange * 0.22f * h0 * MathF.Max(0, 1 - s * 1.6f) : SmoulderGrey;
+            mesh.Billboard(p, size, h * 6.28f + age * 0.35f, new Vector4(grey * (0.85f + 0.3f * h2), a), _smoke, FxBlend.Alpha, (int)(s * 15.99f), 4);
+        }
+        if (!alight)
+        {
+            // Smouldering: a small red light in the boards, short of flames (the TELEGRAPH, App. C.5: smoke before flame).
+            mesh.PointLights.Add(new PointLight(floor + up * 0.5f, Palette.FurnaceOrange * 0.35f * MathF.Max(0.3f, h0 * 3), 2.2f));
+            return;
+        }
+        // The pool under the roof over it: what you crouch under, there while it burns and gone with it.
+        int pool = 6;
+        float depth = 0.25f + 0.45f * h0;
+        for (int k = 0; k < pool; k++)
+        {
+            float h = Hash(seed * 0.37f + k * 4.13f + 7.7f), h2 = Hash(seed * 0.53f + k * 1.91f + 3.3f);
+            float z = (k / (pool - 1f) - 0.5f) * 2 * 0.9f + MathF.Sin((float)t * 0.15f + h * 6.28f) * 0.1f;
+            var p = floor + along * z + across * ((h2 - 0.5f) * 0.9f) + up * (ceiling - 0.2f - depth * h);
+            var grey = new Vector3(0.09f, 0.075f, 0.065f) + Palette.FurnaceOrange * 0.3f * h0;
+            mesh.Billboard(p, 1.1f + h * 0.7f, h * 6.28f + (float)t * 0.05f, new Vector4(grey, 0.8f + 0.4f * h0), _smoke, FxBlend.Alpha, 6 + (int)(h2 * 8), 4,
+                stretch: 0.6f);
+        }
+        // The heat: a soft glow along its floor.
+        mesh.Billboard(floor + up * 0.45f, MathF.Min(length * 2, 1.0f + 1.6f * h0), 0, new Vector4(Palette.FurnaceOrange * 0.3f, 1), -1, FxBlend.Additive, stretch: 0.55f);
+        // Cinders: up out of it in slow spirals, going out before the roof.
+        int cinders = 2 + (int)(5 * h0);
+        for (int k = 0; k < cinders; k++)
+        {
+            float h = Hash(seed * 0.91f + k * 5.77f + 2.2f);
+            float period = 1.4f + h * 1.6f;
+            float age = (float)((t + h * 9) % period);
+            float s = age / period;
+            float a0 = h * 6.28f + age * 2.5f;
+            var p = floor + along * ((h - 0.5f) * 1.6f) + across * (MathF.Cos(a0) * 0.15f * s) + up * (0.3f + age * (ceiling - 0.4f) / period);
+            mesh.Billboard(p, 0.05f + 0.04f * h, 0, new Vector4(1.0f, 0.5f, 0.15f, (1 - s) * 0.9f), _spark, FxBlend.Additive, 0, 2);
+        }
+        // Its light, out of the flames there, flickering on its own (never strobing: summed slow sines), short enough that
+        // the stretch beside it put out goes dark.
+        float flicker = 0.78f + 0.12f * MathF.Sin((float)t * (7.3f + (seed % 5) * 0.7f)) + 0.1f * MathF.Sin((float)t * (17.1f + (seed % 3) * 1.9f) + seed);
+        mesh.PointLights.Add(new PointLight(floor + up * 0.8f, Palette.FurnaceOrange * (0.9f + 1.7f * h0) * flicker, 2.5f + 3f * h0));
     }
 
     /// <summary>
