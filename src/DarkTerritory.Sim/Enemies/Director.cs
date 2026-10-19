@@ -998,7 +998,8 @@ public sealed class Director
     /// that a free crewmate's post answers within <see cref="OrchestratorTuning.CollisionReachM"/> of them: the free one then
     /// chooses between their own post and their friend's job. Never with nobody free in reach (that's a pile-on, not a
     /// collision). Only which kind comes, never when or how many: the caps, the gates and the pacing are the director's as
-    /// before. Free: nothing on them, not committed, not left behind (the census counts only the living).
+    /// before. Free: nothing on them, not committed, not left behind (the census counts only the living). With
+    /// <see cref="OrchestratorTuning.PairFree"/> (note 867), their partner on one pair job is free for them: they can let go.
     /// </summary>
     double Collision(List<Post> posts, IReadOnlyList<CensusEntry> entries)
     {
@@ -1009,8 +1010,9 @@ public sealed class Director
         {
             bool comes = posts.Contains(busy.Post)
                 || entries.Any(x => x.Player != busy.Player && posts.Contains(x.Post) && (x.At - busy.At).Length <= o.CommittedNearM);
-            if (comes && entries.Any(f => f.Player != busy.Player && f.On == 0 && !f.Committed && f.Post != Post.LeftBehind
-                && posts.Contains(f.Post) && (f.At - busy.At).Length <= o.CollisionReachM))
+            // Free: not committed, or (note 867, pairFree) committed only to the same pair job as them: they can let go.
+            if (comes && entries.Any(f => f.Player != busy.Player && f.On == 0 && (!f.Committed || o.PairFree && f.Partner == busy.Player)
+                && f.Post != Post.LeftBehind && posts.Contains(f.Post) && (f.At - busy.At).Length <= o.CollisionReachM))
                 return o.CollisionWeight;
         }
         return 1;

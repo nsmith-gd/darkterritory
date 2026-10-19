@@ -124,7 +124,9 @@ public static class Protocol
     //     which a predicting client's landing reads.
     // 77: the human cannonball (note 746): the player flags InCannon (524288) and Fired (1048576).
     // 79: a ping on the abandoned town (note 739 part two): PingKind.Town (5), its target the stop whose village it is.
-    public const int Version = 79;
+    // 80: a pin jumped at speed takes two (note 865): the vehicle record's field 28 gains bit 10 (Pinned), and LooseCause gains
+    //     Jumped (4) and the let-go causes LetGoPin, LetGoBrake, LetGoThrottle (5-7) in the record and the news.
+    public const int Version = 80;
 }
 
 public enum MessageType : byte

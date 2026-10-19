@@ -20,7 +20,11 @@ public sealed record SharedTuning
 /// arriving till <see cref="SharedTuning.AfterStopSeconds"/> after leaving), by kind. <paramref name="Afoot"/>: crew-seconds
 /// off the train there.
 /// </summary>
-public sealed record SharedStop(int Facility, string Kind, double Arrived, double Seconds, double Afoot, IReadOnlyDictionary<string, int> Moments);
+public sealed record SharedStop(int Facility, string Kind, double Arrived, double Seconds, double Afoot, IReadOnlyDictionary<string, int> Moments)
+{
+    /// <summary>Note 867: the most two-person jackpots lying on the ground within 150 m of the train while it stood there.</summary>
+    public int JackpotsNear { get; init; }
+}
 
 /// <summary>
 /// The night's shared problems (note 861; the director's playtest of 16 Oct evening, line 8): moments that took two. By kind:
@@ -37,6 +41,8 @@ public sealed record SharedReport(IReadOnlyDictionary<string, int> Moments, IRea
 {
     /// <summary>The stops where two worked one job (going to plan or not).</summary>
     public int StopsWithPairJob { get; init; }
+    /// <summary>Note 867: the night's jackpots lying stowed in a car (paid at the gate). Those carried by two are the moments' <c>jackpotCarried</c>.</summary>
+    public int JackpotsBanked { get; init; }
 }
 
 /// <summary>
@@ -48,6 +54,7 @@ public sealed class SharedWatch(SharedTuning t)
     /// <summary>Who's held now, and whether a friend has come within reach of them this hold.</summary>
     readonly SortedDictionary<int, bool> _held = [];
     readonly HashSet<(int, int)> _pairs = [], _threatened = [];
+    readonly HashSet<int> _carried = [];
     readonly SortedDictionary<string, int> _all = new(StringComparer.Ordinal), _run = new(StringComparer.Ordinal);
     readonly List<SharedStop> _stops = [];
     int _incidents, _facility = -1;
@@ -56,6 +63,9 @@ public sealed class SharedWatch(SharedTuning t)
     SortedDictionary<string, int>? _stop;
     /// <summary>Stood this long by a village out on the line (s) is a stop there: not just a slow-down beside it.</summary>
     const double StandSeconds = 5;
+    /// <summary>How far from the train a jackpot lying out counts as at the stop (m: the stop crew's jackpotReach).</summary>
+    const double JackpotsNearM = 150;
+    int _jackpotsNear;
     string _kind = "";
 
     public void Watch(uint tick, World world, IReadOnlyList<(int Id, PlayerState State)> crew)
@@ -77,7 +87,7 @@ public sealed class SharedWatch(SharedTuning t)
         if (standing && (_stop is null || facility != _facility))
         {
             Close();
-            (_facility, _arrived, _left, _afoot) = (facility, now, double.PositiveInfinity, 0);
+            (_facility, _arrived, _left, _afoot, _jackpotsNear) = (facility, now, double.PositiveInfinity, 0, 0);
             _kind = atFacility && run!.FacilityFeature is { } f ? (f.Facility?.ToString() ?? f.Kind.ToString()) : "Village";
             _stop = new(StringComparer.Ordinal);
         }
@@ -86,7 +96,12 @@ public sealed class SharedWatch(SharedTuning t)
         if (_stop is not null && now - _left > t.AfterStopSeconds)
             Close();
         if (_stop is not null && double.IsPositiveInfinity(_left))
+        {
             _afoot += crew.Count(c => c.State.Alive && c.State.Parent == PlayerState.World) * SimConstants.TickSeconds;
+            if (tick % SimConstants.TickRate == 0)
+                _jackpotsNear = Math.Max(_jackpotsNear, world.Bodies.All.Count(b => b.Parent == PlayerState.World && Run.Run.IsJackpot(b)
+                    && train.Frames.Any(f => (f.Origin - b.Centre).Length <= JackpotsNearM)));
+        }
 
         var living = crew.Where(c => c.State.Alive).Select(c => (c.Id, c.State, At: PlayerMotor.WorldPosition(c.State, train))).ToList();
         // Each hold (the Held flag's spell, whatever has them), and whether a friend was ever within reach of it.
@@ -107,6 +122,10 @@ public sealed class SharedWatch(SharedTuning t)
         }
         foreach (int gone in _held.Keys.Where(k => !living.Any(c => c.Id == k)).ToList())
             _held.Remove(gone);
+        // A two-person jackpot up between two (note 867: bots carry them too): once a jackpot.
+        foreach (var body in world.Bodies.All)
+            if (body is { Lifted: true, Second: >= 0 } && Run.Run.IsJackpot(body) && _carried.Add(body.Id))
+                Count("jackpotCarried");
         // A hold broken by a friend (the log's Rescue, its actor someone else).
         var log = world.Attribution.Log;
         for (; _incidents < log.Count; _incidents++)
@@ -193,20 +212,24 @@ public sealed class SharedWatch(SharedTuning t)
         if (_stop is null)
             return;
         double until = double.IsPositiveInfinity(_left) ? _arrived : _left;
-        _stops.Add(new SharedStop(_facility, _kind, Math.Round(_arrived, 1), Math.Round(Math.Max(0, until - _arrived), 1), Math.Round(_afoot), _stop));
+        _stops.Add(new SharedStop(_facility, _kind, Math.Round(_arrived, 1), Math.Round(Math.Max(0, until - _arrived), 1), Math.Round(_afoot), _stop)
+        {
+            JackpotsNear = _jackpotsNear,
+        });
         _stop = null;
     }
 
     /// <summary>The night as it stands (a stop still open is counted as it is). A grab is "grab"; one the crew could share, "grabNear".</summary>
     public SharedReport Report(World world)
     {
-        var stops = _stop is null ? _stops : [.. _stops, new SharedStop(_facility, _kind, Math.Round(_arrived, 1), 0, Math.Round(_afoot), _stop)];
+        var stops = _stop is null ? _stops : [.. _stops, new SharedStop(_facility, _kind, Math.Round(_arrived, 1), 0, Math.Round(_afoot), _stop) { JackpotsNear = _jackpotsNear }];
         var all = new SortedDictionary<string, int>(_all, StringComparer.Ordinal);
         if (all.GetValueOrDefault("grab") - all.GetValueOrDefault("grabNear") is > 0 and var alone)
             all["grabAlone"] = alone;
         return new SharedReport(all, _run, stops, stops.Count(s => s.Moments.Keys.Any(Problem.Contains)), world.Run?.Jackpots ?? 0)
         {
             StopsWithPairJob = stops.Count(s => s.Moments.ContainsKey("pairJob")),
+            JackpotsBanked = world.Bodies.All.Count(b => b.Banked && Run.Run.IsJackpot(b)),
         };
     }
 }

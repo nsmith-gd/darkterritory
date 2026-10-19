@@ -1544,6 +1544,96 @@ public class StopCrewTests
         Assert.Equal(id, heavy.Carrier);
     }
 
+    /// <summary>
+    /// A two-person jackpot (note 719) lying on the ground beside car <paramref name="car"/>, <paramref name="out_"/> m out on the
+    /// site's side: a heavy crate's ball with a jackpot's owner, as the run stocks one.
+    /// </summary>
+    static Physics.Body JackpotBeside(Night night, int car, double out_)
+    {
+        var frame = night.Train.Frames[car];
+        int side = night.Site.Side == 0 ? 1 : night.Site.Side;
+        var at = frame.ToWorld(new Double3(side * (frame.Shape.HalfWidth + out_), 0, 0));
+        double hint = night.Train.Cars[car].FrontDistance - frame.Shape.HalfLength;
+        at = at with { Y = PlayerMotor.GroundAt(at, night.Train.Line, ref hint) };
+        var b = night.World.Bodies.SpawnCargo(at, hint, L.Jackpots!.Items["safe"].Radius);
+        b.Owner = Run.Run.LootOwner(0, Run.Run.JackpotContainer);
+        Assert.True(Run.Run.IsJackpot(b));
+        return b;
+    }
+
+    [Fact]
+    public void AHandComesToTheOtherEndOfAJackpotAPlayerHoldsWhereverItIs()
+    {
+        // Note 867 (the director, 19 Oct, on note 861's call 3): a player holding one end of a jackpot alone, at a winch stop
+        // with no crate stack (the heavy crate's help came only by a stack, note 440): a bot hand comes and takes the other
+        // end, so a solo player with bots has a second pair of hands.
+        var night = new Night(cars: 8, walkers: 1, crateHands: true, ids: true);
+        night.Until(() => night.World.Run!.Phase == RunPhase.AtFacility && night.Bots.OfType<RoofWalkerBot>().Any(b => b.Job is { Job: StopJob.Crates } h && h.Doing.Length > 0), 900);
+        Assert.Empty(night.Site.CrateStack);
+        var jackpot = JackpotBeside(night, 4, 8);
+        var player = PlayerMotor.SpawnOnGround(jackpot.Centre + new Double3(0, 0, 1.0), night.Train.Line, night.Train.Dynamics.Distance, P);
+        int id = night.Add(new Waiting(), player);
+        jackpot.Carrier = id;
+        night.Until(() => jackpot.Lifted, 600);
+        Assert.True(jackpot.Lifted, $"nobody came: {string.Join(", ", night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job?.Doing))}");
+        Assert.Equal(id, jackpot.Carrier);
+        Assert.NotEqual(id, jackpot.Second);
+        // Off (jackpotReach 0): as before, nobody comes away from a stack.
+        var off = new Night(cars: 8, walkers: 1, crateHands: true, ids: true, facilities: F with { Crew = F.Crew with { JackpotReach = 0 } });
+        off.Until(() => off.World.Run!.Phase == RunPhase.AtFacility && off.Bots.OfType<RoofWalkerBot>().Any(b => b.Job is { Job: StopJob.Crates } h && h.Doing.Length > 0), 900);
+        var alone = JackpotBeside(off, 4, 8);
+        int offId = off.Add(new Waiting(), PlayerMotor.SpawnOnGround(alone.Centre + new Double3(0, 0, 1.0), off.Train.Line, off.Train.Dynamics.Distance, P));
+        alone.Carrier = offId;
+        off.Until(() => alone.Lifted, 120);
+        Assert.False(alone.Lifted);
+    }
+
+    [Fact]
+    public void TwoHandsFetchAJackpotLyingInTheYardAndStowIt()
+    {
+        // Note 867: a jackpot lying out in the yard, the site's crates in: two crate hands go for it (one an end, the other
+        // the other, note 440's way), carry it home between them and put it down in a car, where it's paid at the gate.
+        var few = F with
+        {
+            Crates = F.Crates with { Count = [2, 2], Heavy = F.Crates.Heavy with { Count = [0, 0] } },
+            Crew = F.Crew with { VillageShare = 0 },
+        };
+        var night = new Night(cars: 8, walkers: 3, crateHands: true, ids: true, loot: true, facilities: few, modules: ModuleKind.Crates);
+        var run = night.World.Run!;
+        Physics.Body? jackpot = null;
+        bool two = false;
+        double stood = 0;
+        var did = new List<string>();
+        night.Until(() => run.Departures > 0, 2400, () =>
+        {
+            // Laid once the train's stood at the end of the spur a while (where the cars will be worked from).
+            stood = run.Phase == RunPhase.AtFacility && Math.Abs(night.Train.Dynamics.Velocity) < 0.01 ? stood + SimConstants.TickSeconds : 0;
+            // Away from the site's own stack (there it's the site's to load, note 403): out in the yard, by a car further down.
+            if (jackpot is null && stood > 20)
+            {
+                var stack = night.Site.CrateStack[0];
+                int car = night.Train.Frames.Where(f => f.Index > 0 && (f.Origin - stack).Length < 100).MaxBy(f => (f.Origin - stack).Length)!.Index;
+                double out_ = 6;
+                while (out_ < 60 && (night.Train.Frames[car].ToWorld(new Double3((night.Site.Side == 0 ? 1 : night.Site.Side) * (night.Train.Frames[car].Shape.HalfWidth + out_), 0, 0)) - stack).Length < 65)
+                    out_ += 2;
+                jackpot = JackpotBeside(night, car, out_);
+                foreach (var v in night.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo))
+                    v.Load = 0;
+            }
+            two |= jackpot is { Lifted: true, Second: >= 0 };
+            foreach (var b in night.Bots.OfType<RoofWalkerBot>())
+                if (b.Job?.Doing is { Length: > 0 } d && !did.Contains(d))
+                    did.Add(d);
+        });
+        string doing = string.Join(", ", did);
+        Assert.True(run.Departures > 0, $"never left: driver {night.Driver.Stops!.Doing}; hands {doing}");
+        Assert.NotNull(jackpot);
+        Assert.True(two, $"never up between two ({(jackpot!.Centre - night.Site.CrateStack[0]).Length:0} m from the stack): {doing}");
+        Assert.True(jackpot!.Parent > 0 && jackpot.Carrier < 0, $"not stowed: on {jackpot.Parent}, held by {jackpot.Carrier}");
+        Assert.All(night.Crew, c => Assert.True(c.Alive));
+        Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
+    }
+
     [Fact]
     public void EachOpenDoorIsShutByOneHandThatsStillAtIt()
     {

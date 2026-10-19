@@ -98,7 +98,8 @@ public static class WorldRecords
                     v.OffRails ? 1 : 0,
                     // Its handbrake wound on by the Brakeman (note 364), an axle seized by Hotbox (note 367): drag every client feels;
                     // and what worked the coupling behind it loose (note 732), so every client hears the moment as what did it.
-                    (v.Wound ? 1L : 0L) | (v.Seized ? 2L : 0L) | ((long)v.LooseCause << 2),
+                    // Note 865: and a jumped pin two have hold of, so its pinner's client drives it home as the host does.
+                    (v.Wound ? 1L : 0L) | (v.Seized ? 2L : 0L) | ((long)v.LooseCause << 2) | (v.Pinned ? 1L << 10 : 0L),
                     // How far a Knotter's forced the coupling behind it apart (note 365): every client lays the cars out so.
                     Q(v.Knot, Fine),
                     // How much of its load is things lying in it as themselves (note 659): the rest is its heap, every client's.
@@ -447,7 +448,7 @@ public static class WorldRecords
                         f.Length > 23 ? D(f[23], Fine) : 0, f.Length > 24 ? D(f[24], Fine) : 0, f.Length > 25 ? D(f[25], Fine) : 0,
                         f.Length > 28 && (f[28] & 1) != 0, f.Length > 28 && (f[28] & 2) != 0, f.Length > 29 ? D(f[29], Fine) : 0,
                         f.Length > 27 && f[27] != 0, f.Length > 30 ? D(f[30], Fine) : 0, f.Length > 31 ? D(f[31], Fine) : 0, f.Length > 32 ? (int)f[32] : 0,
-                        f.Length > 28 ? (LooseCause)((f[28] >> 2) & 0xFF) : LooseCause.None));
+                        f.Length > 28 ? (LooseCause)((f[28] >> 2) & 0xFF) : LooseCause.None, f.Length > 28 && (f[28] & (1L << 10)) != 0));
                     break;
                 case RecordKind.World:
                     world.Choir = new ChoirState

@@ -1590,6 +1590,12 @@ public sealed partial class World
     public SortedDictionary<int, int> RacksFilledBy { get; } = [];
     /// <summary>Host: the night's loose couplings so far (note 356): how many worked loose, and how many parted.</summary>
     public (int Came, int Parted) LooseCount => _couplings is { } c ? (c.Came, c.Parted) : (0, 0);
+    /// <summary>Note 865: pins jumped at speed tonight, driven home by two, and parted with one letting go (host).</summary>
+    public (int Jumped, int Home, int LetGo) JumpCount => _couplings is { } c ? (c.Jumped, c.Home, c.LetGos) : (0, 0, 0);
+    /// <summary>Note 865: of the pins driven home, those two caught in the warning, before they jumped (host).</summary>
+    public int JumpCaught => _couplings?.Caught ?? 0;
+    /// <summary>Note 865: seconds tonight a pin could have jumped (host).</summary>
+    public double JumpSeconds => _couplings?.JumpSeconds ?? 0;
     /// <summary>Host: each pin worked loose tonight, what did it and the train's speed then (note 640; the harness's).</summary>
     public IReadOnlyList<(LooseCause Cause, double Speed)> Loosenings => _loosenings;
     readonly List<(LooseCause Cause, double Speed)> _loosenings = [];
@@ -2340,9 +2346,13 @@ public sealed partial class World
         if (Authority && !Derailed && _couplings is { } pins)
         {
             bool pack = ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && !e.Gone && e.Attached >= 0);
-            int parted = pins.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort || CallOnly, pack);
+            // Note 865: with the crew's hands, for a pin jumped at speed (two or more alive) and who has hold of it.
+            int parted = pins.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort || CallOnly, pack, _actors, Hand);
             if (pins.Loosened is { } l)
                 PinLoosened(l.Car, l.Cause, l.Speed, l.Cause == LooseCause.Bend ? Train.LurchBoardKmh : 0);
+            // Note 865: a jumped pin let go by one of the two: the report and the line name who, and what they let go of.
+            if (pins.LetGo is { } letGo)
+                Attribution.LetGo(letGo.Car, letGo.How, letGo.Who, letGo.Speed);
             // Note 511: what it parted is in the report as the pin's, not a cut nobody's named for.
             // The rake that isn't the engine's: ahead of it, the parted pin's own car's (note 653: seed 7's pair carried ahead).
             if (parted >= 0 && pins.PartedFrom >= 0)
