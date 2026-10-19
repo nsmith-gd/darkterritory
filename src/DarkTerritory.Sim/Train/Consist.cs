@@ -196,6 +196,12 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     /// </summary>
     public LooseCause LooseCause { get; set; }
     /// <summary>
+    /// Note 865: its jumped pin (<see cref="LooseCause.Jumped"/>) has two on it, one holding it down and one taking the slack
+    /// off (<see cref="Couplings.Hands"/>), so the pinner's Use drives it home (<see cref="CrewActions"/>). The host's say, on the
+    /// car's record, so a pinner's client predicts their own hands as the host works them.
+    /// </summary>
+    public bool Pinned { get; set; }
+    /// <summary>
     /// Its handbrake wound on by the Brakeman (note 364): in the engine's rake, its own handbrake's drag on the train (train.json
     /// <c>handbrakeDecel</c> of its mass), until a crewmate unwinds it at its wheel.
     /// </summary>

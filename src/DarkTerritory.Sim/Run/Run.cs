@@ -955,6 +955,11 @@ public sealed partial class Run
             LooseCause.RunIn => $"A hard brake at {Kmh(speed)} worked the coupling's pin loose, and it parted.{driving} ",
             LooseCause.Knock => $"Coupled up at {Kmh(speed)}, the knock worked the coupling's pin loose, and it parted.{driving} ",
             LooseCause.Bend => $"A bend taken at {Kmh(speed)}{(board > 0 ? $" (its board said {board} km/h)" : "")} worked the coupling's pin loose, and it parted.{driving} ",
+            // Note 865: a pin a rail joint jumped, nobody to hold it; or the two holding it, and the one who let go.
+            LooseCause.Jumped => $"A rail joint at {Kmh(speed)} jumped the coupling's pin, nobody held it, and it parted.{driving} ",
+            LooseCause.LetGoPin => $"Two had hold of the jumped pin, {IncidentLog.NameOf(world, driver)} let go of it, and it parted. ",
+            LooseCause.LetGoBrake => $"Two had hold of the jumped pin, {IncidentLog.NameOf(world, driver)} let go of the brake wheel, and it parted. ",
+            LooseCause.LetGoThrottle => $"Two had hold of the jumped pin, {IncidentLog.NameOf(world, driver)} opened the throttle on it, and it parted. ",
             _ => "The coupling worked loose and parted. ",
         };
     }
