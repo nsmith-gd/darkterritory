@@ -1222,7 +1222,9 @@ public sealed partial class GameAudio
                 if (m.Mounted && g.ReloadNeeded < m.Needed)
                 {
                     int done = steps - m.Needed;
-                    Cue(g.ReloadNeeded == 0 ? "crew-cannon-ball.ball-roll" : done == 0 ? "crew-cannon-reload.powder-done" : "crew-cannon-ram.ram-home",
+                    // The gun rammers (queue #505, note 775): the sprung rod's clean clack in the wooden rammer's place.
+                    string ram = Fitted(train, "gunRammers", "up-tells.rammer") ? "up-tells.rammer" : "crew-cannon-ram.ram-home";
+                    Cue(g.ReloadNeeded == 0 ? "crew-cannon-ball.ball-roll" : done == 0 ? "crew-cannon-reload.powder-done" : ram,
                         g.ReloadNeeded == 0 || done == 0 ? muzzle : frame.ToWorld(mount.Position), outside);
                 }
                 if (g.ReloadNeeded >= steps)

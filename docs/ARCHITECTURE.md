@@ -1049,4 +1049,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [865. Something for two on the run, not on solo nights (the director, 19 Oct, on note 861's call 5) (Bram, queue #592)](notes/865.md)
 - [866. The extinguisher puts out the flame it's aimed at, stretch by stretch down the car (Faye, queue #593; the 19 Oct playtest, line 10)](notes/866.md)
 - [867. Pair jobs: a grab on one makes the other let go, and bots carry jackpots in pairs (the director, 19 Oct, on note 861's calls 2 and 3) (Otis, queue #594)](notes/867.md)
+- [868. The stops' own scale with crew and difficulty, no night without creatures, more abandoned villages (the director, 19 Oct, on note 860's calls) (Ivy, queue #595)](notes/868.md)
+- [869. The starting town and yard: colliders, the gate, lineside geometry, the coaling ladder, the crane (the director's playtest of 19 Oct, lines 2, 6, 7, 8, 9) (Wade, queue #596)](notes/869.md)
+- [870. The starting town's look: flat assets, the water tower's texture, a market with varied stalls, the Bitten Van (the director's playtest of 19 Oct, lines 1, 3, 4, 5) (Lena, queue #597)](notes/870.md)
 <!-- end of the notes index -->
