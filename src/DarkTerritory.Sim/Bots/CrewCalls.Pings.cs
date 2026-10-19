@@ -35,6 +35,8 @@ public sealed partial class CrewCalls
             PingKind.Fire => role == BotRole.Walker,
             // Note 739 part two: a find is a walker's to fetch (the stop's hands carry it home, as the village's).
             PingKind.Loot => role == BotRole.Walker,
+            // The abandoned town: a walker's to search (the village errand, whatever the crates).
+            PingKind.Town => role == BotRole.Walker,
             PingKind.Cab => any(BotRole.Driver) ? role == BotRole.Driver
                 : role == BotRole.Walker || role == BotRole.Gunner && !any(BotRole.Walker),
             _ => false,
@@ -81,7 +83,7 @@ public sealed partial class CrewCalls
         }
     }
 
-    /// <summary>A ping's job done (note 739): the car's fire out; the controls a bot's; the find aboard.</summary>
+    /// <summary>A ping's job done (note 739): the car's fire out; the controls a bot's; the find aboard; the town searched.</summary>
     static bool OrderDone(World world, int me, PingKind kind, int target) => kind switch
     {
         PingKind.Fire => !world.ActiveEnemies.Any(e => e is CarFire && !e.Gone && e.Attached == target),
@@ -89,6 +91,8 @@ public sealed partial class CrewCalls
         // The find aboard a car and set down (or stowed), or gone.
         PingKind.Loot => world.Bodies.All.FirstOrDefault(b => b.Id == target) is not { } find
             || find.Carrier < 0 && (find.Stowed || find.Parent != PlayerState.World),
+        // Every hiding spot in the stop's houses searched (or no run: nothing to search).
+        PingKind.Town => world.Run is not { } run || !run.HidingSpots.Any(h => h.Stop == target && !run.Searched(h.Stop, h.Container.Index)),
         _ => false,
     };
 }

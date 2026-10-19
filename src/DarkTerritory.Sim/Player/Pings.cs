@@ -5,16 +5,17 @@ using DarkTerritory.Sim.Train;
 namespace DarkTerritory.Sim.Player;
 
 /// <summary>What a ping is on (GDD §12 "Ping the bots", note 739), each an order a bot can take.</summary>
-public enum PingKind : byte { None, Fire, Cab, Loot, Crane }
+public enum PingKind : byte { None, Fire, Cab, Loot, Crane, Town }
 
 /// <summary>
 /// A ping as the crew see it (note 739): unique for the night (its record's key), the host tick it was made, whose, on what,
-/// which one of those (the car on fire, the loot's body, the crane at the stop; 0 for the cab) and where it was, in the world.
+/// which one of those (the car on fire, the loot's body, the crane at the stop, the stop whose village it is; 0 for the cab) and
+/// where it was, in the world.
 /// </summary>
 public readonly record struct PingEvent(int Id, uint Tick, int By, PingKind Kind, int Target, Double3 At);
 
 /// <summary>Field docs live in player.json <c>pings</c>.</summary>
-public sealed record PingTuning(double Range = 60, double ConeDegrees = 12, double Seconds = 20, double OrderSeconds = 120, double Cooldown = 0.5);
+public sealed record PingTuning(double Range = 60, double ConeDegrees = 12, double Seconds = 20, double OrderSeconds = 120, double Cooldown = 0.5, double TownRange = 150);
 
 /// <summary>
 /// Note 739 (the director's second playtest, 14 Oct 2026: "I'm going to want to use my middle mouse button to create some
@@ -46,12 +47,19 @@ public static class Pings
         {
             var to = at - eye;
             double d = to.Length;
-            if (d > t.Range || d < 1e-6)
+            if (d > (kind == PingKind.Town ? t.TownRange : t.Range) || d < 1e-6)
                 return;
             // Something big is looked at anywhere on it: its cone widened by its size where it is.
             double c = Double3.Dot(to * (1 / d), view) + Math.Min(0.5, radius / d) * (1 - cone);
             if (c > bestCos)
                 (bestCos, best) = (c, (kind, target, at));
+        }
+        // Note 739 part two, the abandoned town: a house of the stop's village, looked at anywhere on it. First, so anything
+        // else as near the middle of the view (a find at its door, the crane) is pinged rather than the town round it.
+        if (world.Run is { CurrentSite: { } here } run && train.Walls is { } walls && run.StopOf(here.Feature) is ( >= 0 and var stop, var feature))
+        {
+            foreach (var h in walls.OpenHouses.Where(h => h.Feature == feature))
+                Consider(PingKind.Town, stop, h.Middle + Double3.Up * 2, Math.Max(h.Plan.HalfX, h.Plan.HalfY));
         }
         foreach (var e in world.ActiveEnemies.OfType<CarFire>().Where(e => !e.Gone && e.Attached > 0 && e.Attached < train.Frames.Count).OrderBy(e => e.Id))
         {

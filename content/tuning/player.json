@@ -212,7 +212,10 @@
     "coneDegrees": 12,
     "seconds": 20,
     "orderSeconds": 120,
-    "cooldown": 0.5
+    "cooldown": 0.5,
+    // Note 739 part two: how far off a house of a stop's village can be pinged (m), the abandoned town. A village stands
+    // well back from the yard (100 m and more), and a house is big enough to point at from there.
+    "townRange": 150
   },
   "emotes": {
     "dance": 8,
