@@ -27,11 +27,17 @@ public sealed record SharedStop(int Facility, string Kind, double Arrived, doubl
 /// <c>grabNear</c> a crewmate held with a friend within <see cref="SharedTuning.NearMetres"/> (voice reach: they can hear it and
 /// come), <c>grabAlone</c> held with nobody near (the moment missed), <c>rescue</c> a hold broken by someone else, and
 /// <c>pairJob</c> two crewmates busy (<see cref="Census.IsCommitted"/>) within <see cref="SharedTuning.PairMetres"/> of each
-/// other: both ends of a heavy crate or a jackpot, a gunner and their loader, two at a mend, the winch's two handles.
-/// <paramref name="StopsWithShared"/>: the stops with one or more, of <paramref name="Stops"/>'s count.
+/// other: both ends of a heavy crate or a jackpot, a gunner and their loader, two at a mend, the winch's two handles; and
+/// <c>pairThreatened</c> such a pair with a creature come on at them, within voice's reach. <paramref name="StopsWithShared"/>:
+/// the stops with a problem for two (<see cref="SharedWatch.Problem"/>: grabNear, rescue, pairThreatened), of
+/// <paramref name="Stops"/>'s count; <paramref name="Jackpots"/>: the night's two-person jackpots, every stop's.
 /// </summary>
 public sealed record SharedReport(IReadOnlyDictionary<string, int> Moments, IReadOnlyDictionary<string, int> OnTheRun, IReadOnlyList<SharedStop> Stops,
-    int StopsWithShared, int Jackpots);
+    int StopsWithShared, int Jackpots)
+{
+    /// <summary>The stops where two worked one job (going to plan or not).</summary>
+    public int StopsWithPairJob { get; init; }
+}
 
 /// <summary>
 /// Note 861: watches a night a tick at a time for problems two crewmates are in together, and where they are (at a stop, or on
@@ -41,14 +47,14 @@ public sealed class SharedWatch(SharedTuning t)
 {
     /// <summary>Who's held now, and whether a friend has come within reach of them this hold.</summary>
     readonly SortedDictionary<int, bool> _held = [];
-    readonly HashSet<(int, int)> _pairs = [];
+    readonly HashSet<(int, int)> _pairs = [], _threatened = [];
     readonly SortedDictionary<string, int> _all = new(StringComparer.Ordinal), _run = new(StringComparer.Ordinal);
     readonly List<SharedStop> _stops = [];
     int _incidents, _facility = -1;
     double _arrived, _left = double.NegativeInfinity, _afoot;
     double _still;
     SortedDictionary<string, int>? _stop;
-    /// <summary>Stood this long out on the line (s) is a stop: a village's, a halt's, a stand for a crewmate left behind.</summary>
+    /// <summary>Stood this long by a village out on the line (s) is a stop there: not just a slow-down beside it.</summary>
     const double StandSeconds = 5;
     string _kind = "";
 
@@ -56,13 +62,14 @@ public sealed class SharedWatch(SharedTuning t)
     {
         double now = tick * SimConstants.TickSeconds;
         var run = world.Run;
-        // The stop's window: from the train standing (at a facility, or still a while out on the line: a village, a halt) till a
-        // while after it moves off (what it started carries on past the train moving).
+        // The stop's window: from the train standing (at a facility, or still a while by a village out on the line: a halt, a
+        // dead town) till a while after it moves off (what it started carries on past the train moving). A stand anywhere else
+        // (a switch set, a crewmate waited for) is the run's.
         var train = world.Train;
         bool still = Math.Abs(train.Dynamics.Velocity) < 0.05;
         _still = still ? _still + SimConstants.TickSeconds : 0;
         bool atFacility = run is { Phase: Run.RunPhase.AtFacility };
-        bool standing = atFacility || run is { Phase: Run.RunPhase.Underway } && _still >= StandSeconds;
+        bool standing = atFacility || run is { Phase: Run.RunPhase.Underway } && _still >= StandSeconds && ByAVillage(run, train.Dynamics.Distance);
         int facility = atFacility ? run!.Facility : -1;
         // Stood again soon after moving off at the same place (a spur's set-back, a creep along a platform): the same stop.
         if (standing && _stop is not null && !double.IsPositiveInfinity(_left) && facility == _facility)
@@ -71,7 +78,7 @@ public sealed class SharedWatch(SharedTuning t)
         {
             Close();
             (_facility, _arrived, _left, _afoot) = (facility, now, double.PositiveInfinity, 0);
-            _kind = atFacility && run!.FacilityFeature is { } f ? (f.Facility?.ToString() ?? f.Kind.ToString()) : Where(run, train.Dynamics.Distance);
+            _kind = atFacility && run!.FacilityFeature is { } f ? (f.Facility?.ToString() ?? f.Kind.ToString()) : "Village";
             _stop = new(StringComparer.Ordinal);
         }
         else if (_stop is not null && !standing && double.IsPositiveInfinity(_left))
@@ -122,19 +129,35 @@ public sealed class SharedWatch(SharedTuning t)
                     if (!_pairs.Contains(pair))
                         Count("pairJob");
                 }
+        // A pair job with something come on at them (engaged, within voice's reach of either): both hands full, and a problem.
+        var threats = world.ActiveEnemies.Where(Director.Engaged).Select(e => e.WorldPosition(train)).ToList();
+        foreach (var (a, b) in together)
+        {
+            if (_threatened.Contains((a, b)))
+                continue;
+            var at = busy.Where(c => c.Id == a || c.Id == b).Select(c => c.At).ToList();
+            if (threats.Any(e => at.Any(p => (p - e).Length <= t.NearMetres)))
+            {
+                _threatened.Add((a, b));
+                Count("pairThreatened");
+            }
+        }
+        _threatened.IntersectWith(together);
         _pairs.Clear();
         _pairs.UnionWith(together);
     }
 
-    /// <summary>A stand out on the line by what it's beside: a village (a halt, a dead town), or the line.</summary>
-    static string Where(Run.Run? run, double along) =>
-        run?.Route.Features.FirstOrDefault(f => f.Kind == Route.FeatureKind.Village && along >= f.Start - 150 && along <= f.End + 150) is not null ? "Village" : "Line";
+    /// <summary>Beside a village out on the line (a halt, a dead town): stood there, the crew can get down to it.</summary>
+    static bool ByAVillage(Run.Run run, double along) =>
+        run.Route.Features.Any(f => f.Kind == Route.FeatureKind.Village && along >= f.Start - 150 && along <= f.End + 150);
 
-    /// <summary>Each with something of their own in their hands, not the same thing: two carries side by side, not one job.</summary>
+    /// <summary>Each with something of their own in their arms, not the same thing: two carries side by side, not one job.</summary>
     static bool Apart(World world, int a, int b)
     {
         bool aHolds = false, bHolds = false;
-        foreach (var body in world.Bodies.All)
+        // What's in the arms, as World.CrewAct's Heavy reads it (not the radio on the uniform, nor a find in a slot).
+        foreach (var body in world.Bodies.All.Where(b => !b.Stashed && b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy or Physics.BodyKind.Toy
+            or Physics.BodyKind.Loot or Physics.BodyKind.Child or Physics.BodyKind.Ragdoll))
         {
             bool byA = body.HeldBy(a), byB = body.HeldBy(b);
             if (byA && byB)
@@ -143,6 +166,9 @@ public sealed class SharedWatch(SharedTuning t)
         }
         return aHolds && bHolds;
     }
+
+    /// <summary>The moments that are a problem two are in together (not a pair job going to plan, not a hold nobody was near).</summary>
+    public static readonly IReadOnlySet<string> Problem = new HashSet<string>(StringComparer.Ordinal) { "grabNear", "rescue", "pairThreatened" };
 
     void Count(string kind)
     {
@@ -167,6 +193,9 @@ public sealed class SharedWatch(SharedTuning t)
         var all = new SortedDictionary<string, int>(_all, StringComparer.Ordinal);
         if (all.GetValueOrDefault("grab") - all.GetValueOrDefault("grabNear") is > 0 and var alone)
             all["grabAlone"] = alone;
-        return new SharedReport(all, _run, stops, stops.Count(s => s.Moments.Keys.Any(k => k != "grab")), world.Run?.Jackpots ?? 0);
+        return new SharedReport(all, _run, stops, stops.Count(s => s.Moments.Keys.Any(Problem.Contains)), world.Run?.Jackpots ?? 0)
+        {
+            StopsWithPairJob = stops.Count(s => s.Moments.ContainsKey("pairJob")),
+        };
     }
 }
