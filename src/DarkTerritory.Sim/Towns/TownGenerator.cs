@@ -989,12 +989,27 @@ public static class TownFixtures
             double below = peak * i / layers, top = peak * (i + 1) / layers;
             // How far out (t) its slope still stands over the layer's foot, its gullies' worst taken off: y = h (1 - t^1.2).
             double fall = Math.Min(1, below / height + HeapGully);
-            double t = Math.Pow(1 - fall, 1 / 1.2), r = t * HeapReachLeast;
+            double t = SixthRootOfFifth(1 - fall), r = t * HeapReachLeast;
             double x = halfX * (0.42 * (1 - r) + r), z = halfZ * (0.06 * (1 - r) + r), back = halfZ * 0.18 * (1 - t);
             // The cross inscribed in that ellipse: (0.88, 0.44) and (0.44, 0.88) of it, its corners just inside.
             yield return (x * 0.88, z * 0.44, back, below, top);
             yield return (x * 0.44, z * 0.88, back, below, top);
         }
+    }
+
+    /// <summary>
+    /// x^(5/6), the art's t^1.2 undone (1 / 1.2 = 5 / 6), for x in 0..1: the y with y^6 = x^5, found by halving, so it's the
+    /// same bits on every machine (the C library's Pow isn't; DeterministicMathTests).
+    /// </summary>
+    static double SixthRootOfFifth(double x)
+    {
+        double target = DMath.Pow(Math.Clamp(x, 0, 1), 5), lo = 0, hi = 1;
+        for (int i = 0; i < 52; i++)
+        {
+            double mid = (lo + hi) / 2;
+            (lo, hi) = DMath.Pow(mid, 6) < target ? (mid, hi) : (lo, mid);
+        }
+        return lo;
     }
 
     /// <summary>A heap's outline's least reach (of its footprint's half sizes) and its gullies' deepest (of its height): WorksKit.Heap's. Not design numbers.</summary>
