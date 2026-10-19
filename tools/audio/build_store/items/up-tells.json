@@ -1,0 +1,380 @@
+{
+  "area": "Train state & alarms",
+  "assignedAt": "2026-10-15T04:00:00Z",
+  "assignee": "AU1",
+  "band": "",
+  "cues": [
+    {
+      "cands": [
+        {
+          "band": [
+            1800,
+            9000
+          ],
+          "how": "Modelled: the recorder's escapement ticking its hammer free (two hard little ticks), then one stroke on a small flat brass gong: a free disc's modes from 2.35-2.5 kHz (1, 1.73, 2.33, 3.91, 4.11 times it), each a doublet so it shimmers, the high ones dying first, the whole gone in under a second; a hard little steel tick on its front. In the iron cab. One stroke, small and high: never the overspeed's bell.",
+          "inBand": 1,
+          "key": "gong",
+          "label": "The speed recorder's bell, modelled: a small flat brass gong struck once, an escapement's tick before it",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 0.93,
+          "sources": [],
+          "src": "/_blob/79fbe38f381cef2bb21847668c17f0ab",
+          "takes": 2
+        },
+        {
+          "band": [
+            1800,
+            9000
+          ],
+          "how": "From real recordings: the recorder's clockwork letting its hammer go (a real small mechanism's tick, sfx_100 metal_04, pitched up), then one stroke on a small gong: a real small piece of steel struck (Kenney's light metal, its clean partials tuned to about 2.7 and 4 kHz), its ring drawn out to about two thirds of a second with the strike kept crisp, the low partial held back. In the iron cab's short slap. One stroke, small and high: never the overspeed's alarm (a 1.2 kHz bell with its hum, struck twice). Takes differ in the piece struck and its tune.",
+          "inBand": 0.97,
+          "key": "steel",
+          "label": "The speed recorder's bell: one small bright ting from a gong on the backhead, a clockwork tick before it",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 0.68,
+          "sources": [
+            "sfx_100_v2:metal_04",
+            "kenney_impact-sounds:impactMetal_light_003",
+            "kenney_impact-sounds:impactMetal_light_000"
+          ],
+          "src": "/_blob/f7aa6af558a05e89e1dd40ba5d0d498a",
+          "takes": 2
+        }
+      ],
+      "event": "The speed recorder's bell: a small bright ting, early, never the overspeed's alarm",
+      "id": "recorder-bell",
+      "kind": "oneshot",
+      "mats": [],
+      "need": "",
+      "status": "candidate",
+      "vars": 2
+    },
+    {
+      "cands": [
+        {
+          "how": "From crew-repair's own real sources, made light and quick: the board set against the hole (Kenney's plank knock), then each nail a light tap to start it and one blow to drive it, four or five blows a second: the hammer's face on the nail head (the packs' hammer on metal, choked short), the nail's ring (a heavy metal hit pitched up for a short nail, rising and dying sooner as it goes in) and the board and the car wall taking it (the packs' wooden knocks, a lighter blow than the repair's), the last blow flush and solid. Takes: three nails; four (two of them one blow); five, quickest. Inside the car.",
+          "key": "nails",
+          "label": "Pre-cut boards going up: quick, light hammering, a tap and a blow a nail, three to five nails, the last flush",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 1.5,
+          "sources": [
+            "sfx_100_v2:misc_19",
+            "kenney_impact-sounds:impactMetal_heavy_000",
+            "kenney_impact-sounds:impactMetal_heavy_001",
+            "kenney_impact-sounds:impactMetal_heavy_002",
+            "kenney_impact-sounds:impactMetal_heavy_003",
+            "kenney_impact-sounds:impactMetal_heavy_004",
+            "kenney_impact-sounds:impactPlank_medium_000",
+            "kenney_impact-sounds:impactPlank_medium_001",
+            "kenney_impact-sounds:impactPlank_medium_002",
+            "kenney_impact-sounds:impactPlank_medium_003",
+            "kenney_impact-sounds:impactPlank_medium_004",
+            "sfx_100_v2:wood_hit_01",
+            "sfx_100_v2:wood_hit_02",
+            "sfx_100_v2:misc_08",
+            "sfx_100_v2:door_03"
+          ],
+          "src": "/_blob/60ad21fe1a44836d1dc3aff18ef69619",
+          "takes": 3
+        },
+        {
+          "how": "Modelled: the board's bending modes knocked as it's set against the hole, then each nail tapped and driven: the hammer's steel face on the head (a hard click), the nail ringing as a rod clamped in the wood (its free length shortening as it goes in, so its ring rises from about 1.3 to 5 kHz and dies sooner), the short board's modes and the car wall's hollow under each blow, the last flush and solid. The same three takes as 'nails'.",
+          "key": "planks",
+          "label": "Pre-cut boards going up, modelled: quick light blows, each nail's ring rising as it goes in, the last flush",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 1.48,
+          "sources": [],
+          "src": "/_blob/e947fab1944d0a562bde166fba48c586",
+          "takes": 3
+        }
+      ],
+      "event": "Pre-cut boards going up: quick, light hammering, half the work",
+      "id": "precut",
+      "kind": "oneshot",
+      "mats": [],
+      "need": "",
+      "status": "candidate",
+      "vars": 3
+    },
+    {
+      "cands": [
+        {
+          "how": "From real recordings: the catch let go (a real latch's click), the steel rod driven down the bore by its spring (a real blade drawn, steel on steel, pitched down for a rod, quickening), then the seat: one clean clack (the packs' heavy iron for the ball, choked as cast iron is, and a real sharp, bright hit of metal choked short for the steel's edge), rung through the gun's bore (crew_cannon's hollow, 300/600/900 Hz); the rod thrown back out and its catch dropping in. Takes: a stroke; a harder seat that bounces once; a quicker stroke.",
+          "key": "clack",
+          "label": "The gun rammer seating the ball: its catch let go, the steel rod's slide, a clean clack, sprung back home",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 0.52,
+          "sources": [
+            "kenney_rpg-audio:drawKnife2",
+            "kenney_rpg-audio:drawKnife1",
+            "sfx_100_v2:door_04",
+            "sfx_100_v2:door_05",
+            "sfx_100_v2:door_02",
+            "sfx_100_v2:metal_hit_02",
+            "kenney_impact-sounds:impactPlate_heavy_000",
+            "kenney_impact-sounds:impactPlate_heavy_001",
+            "kenney_impact-sounds:impactPlate_heavy_002",
+            "kenney_impact-sounds:impactPlate_heavy_003",
+            "kenney_impact-sounds:impactPlate_heavy_004",
+            "kenney_impact-sounds:impactMetal_heavy_000",
+            "kenney_impact-sounds:impactMetal_heavy_001",
+            "kenney_impact-sounds:impactMetal_heavy_002",
+            "kenney_impact-sounds:impactMetal_heavy_003",
+            "kenney_impact-sounds:impactMetal_heavy_004"
+          ],
+          "src": "/_blob/28c8439b783c0d4c4d841a2408dd2fe9",
+          "takes": 3
+        },
+        {
+          "how": "Modelled: a sprung pawl let go, the steel rod sliding in its brass guide (fast, fine stick-slip, bright) as the spring drives it down the bore, the seat (the rod's steel head, a bar's modes from about 1.15 kHz, on the iron ball, a casting's close modes from 430 Hz, choked; a hard click on the front) rung through the bore, then the spring's coil ringing as it throws the rod back and the pawl dropping in. The same three takes as 'clack'.",
+          "key": "spring",
+          "label": "The gun rammer, modelled: a sprung steel rod's slide, its head clacking on the iron ball, the coil throwing it back",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 0.53,
+          "sources": [],
+          "src": "/_blob/49ca20989395b12156d3d5ac67b671c7",
+          "takes": 3
+        }
+      ],
+      "event": "The gun rammer seating the ball: a clean mechanical clack",
+      "id": "rammer",
+      "kind": "oneshot",
+      "mats": [],
+      "need": "",
+      "status": "candidate",
+      "vars": 3
+    },
+    {
+      "cands": [
+        {
+          "how": "Modelled: the idler gear's knock and its teeth catching, steam let to the booster (the modelled jet through its throttle), then its exhaust: world_bed's blast-pipe model from smaller cylinders (a pulse rising in a few ms and dying in four hundredths, the big engine's in a tenth; its jet peaking higher, rung through the chimney's pipe modes, a small thump), four a turn, uneven, quickening from 4.5 to 7 a second and settling under the chuff. The same two takes as 'puffs'; the preview lays each over the chuff.",
+          "key": "beats",
+          "label": "The booster cutting in, modelled: a gear knocking into mesh, then smaller, quicker blast-pipe beats under the chuff",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 2.5,
+          "sources": [],
+          "src": "/_blob/f611e62084fa0fc3d1ecf0fa7527ba14",
+          "takes": 2
+        },
+        {
+          "how": "From real recordings: the idler gear dropping into mesh (the packs' heavy plate and metal choked, crew_train's iron, a real bright hit of metal for the teeth meeting and two teeth of a real ratchet catching), steam reaching the booster (the packs' real steam vehicle's hiss), then its exhaust: the real puffs in the packs' locomotive steam (sfx_100 loop_water_03) cut to their fronts, pitched up for smaller cylinders, choked short and rung through the chimney (world_bed's pipe modes): four beats a turn, uneven like two cylinders, from about 4.5 to 7 a second over a second and a half, swelling in and settling under the chuff. Outdoors by the engine. The preview lays each take over the big engine's chuff at its own level.",
+          "key": "puffs",
+          "label": "The booster cutting in: its gear into mesh, then a second, quicker exhaust beat under the chuff, from real puffs",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 2.48,
+          "sources": [
+            "sfx_100_v2:loop_water_03",
+            "sfx_100_v2:misc_22",
+            "sfx_100_v2:misc_20",
+            "sfx_100_v2:metal_hit_02",
+            "kenney_impact-sounds:impactPlate_heavy_000",
+            "kenney_impact-sounds:impactPlate_heavy_001",
+            "kenney_impact-sounds:impactPlate_heavy_002",
+            "kenney_impact-sounds:impactPlate_heavy_003",
+            "kenney_impact-sounds:impactPlate_heavy_004",
+            "kenney_impact-sounds:impactMetal_heavy_000",
+            "kenney_impact-sounds:impactMetal_heavy_001",
+            "kenney_impact-sounds:impactMetal_heavy_002",
+            "kenney_impact-sounds:impactMetal_heavy_003",
+            "kenney_impact-sounds:impactMetal_heavy_004"
+          ],
+          "src": "/_blob/bc0329934533fbd225c7aabea10a9e0e",
+          "takes": 2
+        }
+      ],
+      "event": "The booster cutting in: a second exhaust beat under the chuff",
+      "id": "booster",
+      "kind": "oneshot",
+      "mats": [],
+      "need": "",
+      "status": "candidate",
+      "vars": 2
+    },
+    {
+      "cands": [
+        {
+          "how": "From real recordings: the rigging taking up (world_bed's: the packs' light metal hits pitched down for heavy iron) and the shoes meeting the tyres soft (a medium plate pitched down and softened), then the grind: the packs' real metal scrape (sfx_100 misc_10) drawn out, dropped seven semitones and darkened (a composition shoe damps the wheel's ring), a little of a car wheel's modes in it, pulsing once a wheel turn; and the lesser shriek, a real hinge's squeal (Kenney's creak, stick-slip singing) held out and pulled down to about 1 kHz, swelling in and letting go as the shoes take hold. Never the iron shoes' 1.9 kHz squeal or their glazed whine. Takes: about 1.9 and 2.3 s. Outdoors by the wheels.",
+          "key": "scrape",
+          "label": "Composition shoes on a descent: a duller grind holding, a lesser moan near 1 kHz where the iron ones shriek",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 2.1,
+          "sources": [
+            "sfx_100_v2:misc_10",
+            "kenney_rpg-audio:creak2",
+            "kenney_rpg-audio:creak3",
+            "kenney_impact-sounds:impactPlate_medium_000",
+            "kenney_impact-sounds:impactPlate_medium_001",
+            "kenney_impact-sounds:impactPlate_medium_002",
+            "kenney_impact-sounds:impactPlate_medium_003",
+            "kenney_impact-sounds:impactPlate_medium_004",
+            "kenney_impact-sounds:impactMetal_light_000",
+            "kenney_impact-sounds:impactMetal_light_001",
+            "kenney_impact-sounds:impactMetal_light_002",
+            "kenney_impact-sounds:impactMetal_light_003",
+            "kenney_impact-sounds:impactMetal_light_004"
+          ],
+          "src": "/_blob/0784d16f3ff6e3f2042ef61ce80eff88",
+          "takes": 2
+        },
+        {
+          "how": "Modelled from the bed's brake friction (contact noise rung through a car wheel's modes) through a softer shoe: the modes' Q low (the composition damps the ring), the asperities' roughness and the hiss down, the top rolled off above 2.4 kHz, a low hum of the shoe in its hanger, pulsing once a wheel turn; the rigging's rods knocking and the shoes landing soft first; a wheel mode near 1 kHz caught for a moment (a soft, shivering moan) where the iron shoes squeal at 1.9 kHz. The same two takes as 'scrape'.",
+          "key": "shoes",
+          "label": "Composition shoes on a descent, modelled: the brake friction damped and dulled, a soft moan near 1 kHz",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 2.16,
+          "sources": [],
+          "src": "/_blob/8d45bb6574fb89eff5c7324fd25e0734",
+          "takes": 2
+        }
+      ],
+      "event": "Composition brake shoes on a descent: a lesser, duller shriek",
+      "id": "composition",
+      "kind": "oneshot",
+      "mats": [],
+      "need": "",
+      "status": "candidate",
+      "vars": 2
+    },
+    {
+      "cands": [
+        {
+          "how": "Modelled: g1_train's axle-box casting (close, inharmonic modes from about 190-250 Hz) struck through a longer contact (the oil film: only the low modes sound) and damped sooner, three times, easing off and quieter, the box's dull bump under each; the brass oil cup's lid ticking on the box (a small plate's modes from 3.2 kHz); between, a drop of oil landing on the film (a soft tick, a small dull ring rising as its cavity closes). The same two takes as 'drip'.",
+          "key": "cups",
+          "label": "The oilers at work, modelled: the casting's knock cushioned and easing off, the cup ticking, oil dropping",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 1.8,
+          "sources": [],
+          "src": "/_blob/e2ad6a20148119f1cd43bcfce5c5bc85",
+          "takes": 2
+        },
+        {
+          "how": "From the tell's own real sources: three knocks in the axle box easing off, each further apart and quieter (the packs' heavy plate and a pick's blow pitched down, as tell-hotbox's 'struck' is, but choked sooner and rolled off lower: the oil takes the blow), a little of the box's casting under each, the oil cup on the box ticking with it (a small real metal click, pitched up); between them a drop of oil off the cup's wick (a real plop pitched down, thick and dull, a grain of a real wet squelch on its front). Takes: knocks half a second then 0.64 s apart, one drop; further apart, two drops. Never the tell's even knock once a wheel turn.",
+          "key": "drip",
+          "label": "The oilers at work: the axle box's knock slower and softer, cushioned by oil, a drop of oil falling between",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 1.8,
+          "sources": [
+            "kenney_impact-sounds:impactPlate_heavy_000",
+            "kenney_impact-sounds:impactPlate_heavy_001",
+            "kenney_impact-sounds:impactPlate_heavy_002",
+            "kenney_impact-sounds:impactPlate_heavy_003",
+            "kenney_impact-sounds:impactPlate_heavy_004",
+            "kenney_impact-sounds:impactMining_000",
+            "kenney_impact-sounds:impactMining_001",
+            "kenney_impact-sounds:impactMining_002",
+            "kenney_impact-sounds:impactMining_003",
+            "kenney_impact-sounds:impactMining_004",
+            "kenney_impact-sounds:impactGeneric_light_000",
+            "kenney_impact-sounds:impactGeneric_light_001",
+            "kenney_impact-sounds:impactGeneric_light_002",
+            "kenney_impact-sounds:impactGeneric_light_003",
+            "kenney_impact-sounds:impactGeneric_light_004",
+            "sfx_100_v2:footstep_wet_01",
+            "kenney_rpg-audio:metalClick"
+          ],
+          "src": "/_blob/bffae74f43f01e49699878b649b74b54",
+          "takes": 2
+        }
+      ],
+      "event": "The oilers at work: the axle's knock slower and softer, a drip of oil",
+      "id": "oilers",
+      "kind": "oneshot",
+      "mats": [],
+      "need": "",
+      "status": "candidate",
+      "vars": 2
+    },
+    {
+      "cands": [
+        {
+          "band": [
+            2500,
+            12000
+          ],
+          "how": "From real recordings: four or five tiny tings rising through a major chord in the seventh octave (E, G sharp, B, E; or B, E, G sharp, B and B again), each a real small thing struck (Kenney's light steel, the packs' ringing glass and light glass) pitched so its loudest partial lands on the note and cut short, a few real coins' chinks under the front for the glitter, the run's own ring held out (paulstretched) into a shimmer hanging after it. A little of the night round it; under a second. The only sparkle on the train: nothing like the recorder's single gong stroke.",
+          "inBand": 0.99,
+          "key": "glint",
+          "label": "The lucky horseshoe's glint: a tiny, bright run of high tings rising, a shimmer hanging after, from real things",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 0.89,
+          "sources": [
+            "kenney_impact-sounds:impactMetal_light_003",
+            "kenney_impact-sounds:impactMetal_light_002",
+            "kenney_impact-sounds:impactMetal_light_000",
+            "sfx_100_v2:glass_05",
+            "kenney_impact-sounds:impactGlass_light_001",
+            "kenney_rpg-audio:handleCoins2"
+          ],
+          "src": "/_blob/3897c191b59060d6e333ca30635f2185",
+          "takes": 2
+        },
+        {
+          "band": [
+            2500,
+            12000
+          ],
+          "how": "Modelled: the horseshoe itself rung once (a bent steel bar's modes from about 1.85 kHz, each a doublet so it shimmers), then the same run as 'glint' in tiny steel bar tings (1, 2.756, 5.404 times each note), and a breath of high air (5-12 kHz) swelling and fading under it: the gleam. Under a second.",
+          "inBand": 0.89,
+          "key": "shoe",
+          "label": "The lucky horseshoe's glint, modelled: the shoe rung once, a run of tiny bar tings rising, a gleam of high air",
+          "mat": null,
+          "old": false,
+          "restricted": false,
+          "seconds": 0.91,
+          "sources": [],
+          "src": "/_blob/865b63074a143f75b6a823e8cf11a27a",
+          "takes": 2
+        }
+      ],
+      "event": "The lucky horseshoe's glint: a tiny bright chime",
+      "id": "horseshoe",
+      "kind": "oneshot",
+      "mats": [],
+      "need": "",
+      "status": "candidate",
+      "vars": 2
+    }
+  ],
+  "current": "Candidates for the director (queue #505, note 775), built ahead of #967: each upgrade's moment its own sound (the recorder's bell, the pre-cut boards, the rammers, the booster's beat, the composition shoes, the oilers, the horseshoe's glint), hooked when it lands.",
+  "gdd": "§11; docs/design/upgrades.md §8.1",
+  "level": 0,
+  "name": "Every upgrade heard working",
+  "need": "The director, 13 Oct: \"all of these are going to need hard signs and feedback for the player to understand what the consequence is.\" Each upgrade's moment, its own sound: the speed recorder's bell (early, and not the overspeed's), pre-cut boards' quick hammering, the gun rammers' clack, the booster's second exhaust beat, the composition shoes' lesser shriek on a descent, the oilers' slower knock, the horseshoe's glint.",
+  "notes": "docs/design/upgrades.md §8.1's \"When it works\" column.",
+  "order": 905.5,
+  "queue": "505",
+  "refNote": "775",
+  "scope": "launch",
+  "sound": "",
+  "status": "review",
+  "tier": null,
+  "type": "sfx",
+  "updatedAt": "2026-10-15T04:00:00Z",
+  "updatedBy": null
+}

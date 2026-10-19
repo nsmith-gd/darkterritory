@@ -1,0 +1,4 @@
+{"build": ["up-tells"],
+ "install": ["up-tells"],
+ "store": "tools/audio/build_store/items",
+ "why": "queue #505 (note 775): the tools' tells, now the tools are on main"}
