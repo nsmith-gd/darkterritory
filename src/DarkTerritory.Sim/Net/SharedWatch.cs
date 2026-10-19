@@ -129,6 +129,17 @@ public sealed class SharedWatch(SharedTuning t)
                     if (!_pairs.Contains(pair))
                         Count("pairJob");
                 }
+        // The crane's two (spec D.2: the operator up in its cab, the rigger at the hook below, out of each other's sight): one job
+        // however far apart.
+        if (run is { Phase: Run.RunPhase.AtFacility, CurrentSite: { } site })
+            foreach (var crane in site.Cranes)
+                if (crane.Rigger >= 0 && busy.Any(c => c.Id == crane.Rigger)
+                    && living.FirstOrDefault(c => c.Id != crane.Rigger && c.State.Has(PlayerFlags.Operating)) is { State.Alive: true } op)
+                {
+                    var pair = (Math.Min(op.Id, crane.Rigger), Math.Max(op.Id, crane.Rigger));
+                    if (together.Add(pair) && !_pairs.Contains(pair))
+                        Count("pairJob");
+                }
         // A pair job with something come on at them (engaged, within voice's reach of either): both hands full, and a problem.
         var threats = world.ActiveEnemies.Where(Director.Engaged).Select(e => e.WorldPosition(train)).ToList();
         foreach (var (a, b) in together)
