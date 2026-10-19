@@ -15,7 +15,8 @@ public enum PingKind : byte { None, Fire, Cab, Loot, Crane, Town }
 public readonly record struct PingEvent(int Id, uint Tick, int By, PingKind Kind, int Target, Double3 At);
 
 /// <summary>Field docs live in player.json <c>pings</c>.</summary>
-public sealed record PingTuning(double Range = 60, double ConeDegrees = 12, double Seconds = 20, double OrderSeconds = 120, double Cooldown = 0.5, double TownRange = 150);
+public sealed record PingTuning(double Range = 60, double ConeDegrees = 12, double Seconds = 20, double OrderSeconds = 120, double Cooldown = 0.5, double TownRange = 150,
+    double CraneOrderSeconds = 600);
 
 /// <summary>
 /// Note 739 (the director's second playtest, 14 Oct 2026: "I'm going to want to use my middle mouse button to create some

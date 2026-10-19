@@ -1115,6 +1115,90 @@ public class StopCrewTests
     }
 
     [Fact]
+    public void ACranePingedIsRunByTwoWalkersWhereThePairCantBeMadeUp()
+    {
+        // Note 739 part two (GDD §12 "Ping the bots"; the director, 14 Oct: "If I point at the crane"): a foundry's crane, and a
+        // crew without the winch pair (the shunter, two crate hands, the driver kept to the cab): nobody works the crane, two
+        // being "mandatory" (spec D.2). Pinged, two walkers take it, one up at the controls and one rigging, and a casting goes
+        // onto a car.
+        var night = new Night(cars: 8, walkers: 2, crateHands: true, ids: true, hands: 1, facilities: F with { Crew = F.Crew with { DriverWorks = false } },
+            modules: [ModuleKind.Crane, ModuleKind.Crates]);
+        var world = night.World;
+        var crane = Assert.IsType<Crane>(night.Site.Crane);
+        var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().ToList();
+        night.Until(() => hands.Any(h => h.Doing.Contains("crate")), 900);
+        Assert.Contains(hands, h => h.Doing.Contains("crate"));
+        Assert.DoesNotContain(crane.Castings, c => c.State is CastingState.Hooked or CastingState.Loaded);
+        int i = night.Site.Cranes.ToList().IndexOf(crane);
+        world.Pings.Add(new PingEvent(1, world.Tick, 99, PingKind.Crane, i, crane.Controls + Double3.Up));
+        for (int b = 0; b < night.Bots.Count; b++)
+        {
+            night.Calls.Bot(b + 1);
+            night.Calls.Role(b + 1, night.Bots[b] is ConductorBot ? BotRole.Driver : BotRole.Walker);
+        }
+        var parts = new Dictionary<int, StopJob>();
+        var doing = new HashSet<string>();
+        night.Until(() => crane.Castings.Any(c => c.State == CastingState.Loaded), 480, () =>
+        {
+            var crew = night.Crew.Select((c, k) => (k + 1, c)).ToList();
+            for (int b = 0; b < night.Bots.Count; b++)
+            {
+                night.Calls.Pings(world, b + 1, night.Crew[b], crew);
+                if (night.Calls.CranePart(b + 1) is var part and not StopJob.None)
+                    parts[b + 1] = part;
+            }
+            foreach (var h in hands)
+                if (h.Doing.Length > 0)
+                    doing.Add(h.Doing);
+        });
+        string trace = $"parts {string.Join(", ", parts.Select(kv => $"{kv.Key}: {kv.Value}"))}; castings {string.Join(", ", crane.Castings.Select(c => c.State))}; did {string.Join(", ", doing)}";
+        // Two took it, one part each, walkers both.
+        Assert.True(parts.Values.Order().SequenceEqual([StopJob.Winch0, StopJob.Winch1]), trace);
+        Assert.All(parts.Keys, id => Assert.IsType<RoofWalkerBot>(night.Bots[id - 1]));
+        Assert.Contains(crane.Castings, c => c.State == CastingState.Loaded);
+        Assert.Contains("at the crane", doing);
+        Assert.Contains("rigging", doing);
+        Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}; {trace}"));
+    }
+
+    [Fact]
+    public void ACranePingedWhereThePairWorkItStillLoadsEveryCasting()
+    {
+        // Note 739 part two: with the winch pair there, the crane's theirs; pinged as they start, whoever takes the ping has
+        // that part and the pair's hand on it stands aside (one at the controls, one rigging, never two). The castings all
+        // go on and the train leaves, as without the ping.
+        var night = new Night(cars: 8, walkers: 2, crateHands: true, ids: true, modules: [ModuleKind.Crane, ModuleKind.Winch, ModuleKind.Crates]);
+        var world = night.World;
+        var run = world.Run!;
+        var crane = Assert.IsType<Crane>(night.Site.Crane);
+        var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().ToList();
+        night.Until(() => hands.Any(h => h.Doing is "to the crane" or "at the crane"), 900);
+        world.Pings.Add(new PingEvent(1, world.Tick, 99, PingKind.Crane, night.Site.Cranes.ToList().IndexOf(crane), crane.Controls + Double3.Up));
+        for (int b = 0; b < night.Bots.Count; b++)
+        {
+            night.Calls.Bot(b + 1);
+            night.Calls.Role(b + 1, night.Bots[b] is ConductorBot ? BotRole.Driver : BotRole.Walker);
+        }
+        int most = 0;
+        var doing = new HashSet<string>();
+        night.Until(() => run.Departures > 0, 1500, () =>
+        {
+            var crew = night.Crew.Select((c, k) => (k + 1, c)).ToList();
+            for (int b = 0; b < night.Bots.Count; b++)
+                night.Calls.Pings(world, b + 1, night.Crew[b], crew);
+            most = Math.Max(most, night.Crew.Count(c => c.Has(PlayerFlags.Operating)));
+            foreach (var h in hands)
+                if (h.Doing.Length > 0)
+                    doing.Add(h.Doing);
+        });
+        string trace = $"castings {string.Join(", ", crane.Castings.Select(c => $"{c.State} car {c.Car}"))}; did {string.Join(", ", doing)}";
+        Assert.True(run.Departures > 0, $"never left: driver {night.Driver.Stops!.Doing}; {trace}");
+        Assert.True(most <= 1, $"{most} at the controls at once; {trace}");
+        Assert.DoesNotContain(crane.Castings, c => c.State is CastingState.Stacked or CastingState.Hooked);
+        Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}; {trace}"));
+    }
+
+    [Fact]
     public void AHandOutInTheVillageFillsItsSlotsBeforeItWalksBack()
     {
         // Note 594 (the director, 9 Oct: "I'm able to kind of hold on to it so I can grab a few pieces of loot at a time"): a
