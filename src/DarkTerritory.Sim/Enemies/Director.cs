@@ -1966,6 +1966,5 @@ public sealed class Director
     /// <summary>What's been spent on each want (App. B.1), for the harness's want-balance check.</summary>
     public IReadOnlyDictionary<string, double> SpentByWant => _spentByWant;
 
-    public Pcg32 Rng => _rng;
     public double NextRange(double min, double max) => _rng.Range(min, max);
 }

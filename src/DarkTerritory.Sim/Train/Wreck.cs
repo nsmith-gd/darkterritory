@@ -140,7 +140,7 @@ public sealed class Wreck
     readonly WreckTuning _t;
     readonly Func<double, double, double> _ground;
     readonly List<(int A, int B, bool Intact, double Length)> _links = [];
-    readonly Pcg32 _rng;
+    Pcg32 _rng;
     double _still;
 
     public IReadOnlyList<WreckBody> Bodies { get; }

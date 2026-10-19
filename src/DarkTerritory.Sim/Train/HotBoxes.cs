@@ -43,12 +43,14 @@ public sealed record HotBoxTuning
 /// </summary>
 public sealed class HotBoxes(HotBoxTuning tuning, ulong seed)
 {
-    readonly Pcg32 _rng = new(seed, 0x407B0);
+    Pcg32 _rng = new(seed, 0x407B0);
     double _toGo = -1;
 
     public HotBoxTuning Tuning => tuning;
     /// <summary>How many came on, and how many caught, so far tonight (host; for the harness and the tests).</summary>
     public int Came { get; private set; }
+    /// <summary>The car each came on, in order (note 872: where along the train, for the harness).</summary>
+    public List<int> CameOn { get; } = [];
     public int Caught { get; private set; }
 
     /// <summary>Where a car's hot box is (car frame): its rear bogie, at the axle's height, on the right, outside the wheel.</summary>
@@ -89,7 +91,9 @@ public sealed class HotBoxes(HotBoxTuning tuning, ulong seed)
         // Its running done, one comes on, on a car drawn from those running cool; or it waits for one to be free.
         if (_toGo > 0 || quiet || hot >= open || cool.Count == 0)
             return caught;
-        train.Vehicles[cool[(int)(_rng.NextDouble() * cool.Count) % cool.Count]].HotBox = SimConstants.TickSeconds;
+        int car = cool[(int)(_rng.NextDouble() * cool.Count) % cool.Count];
+        train.Vehicles[car].HotBox = SimConstants.TickSeconds;
+        CameOn.Add(car);
         _toGo = Draw();
         Came++;
         return caught;

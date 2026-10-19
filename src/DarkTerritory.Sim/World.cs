@@ -1582,6 +1582,9 @@ public sealed partial class World
     public (int Came, int WentOut) GutterCount => _gutters is { } g ? (g.Came, g.WentOut) : (0, 0);
     /// <summary>Host: the night's hot boxes so far (note 331): how many came on, and how many caught.</summary>
     public (int Came, int Caught) HotBoxCount => _hotBoxes is { } h ? (h.Came, h.Caught) : (0, 0);
+    /// <summary>The cars the night's hot boxes, lamps and loose pins came on (note 872), for the harness.</summary>
+    public (IReadOnlyList<int> HotBoxes, IReadOnlyList<int> Lamps, IReadOnlyList<(int Car, LooseCause Cause)> Pins) UpkeepCars =>
+        (_hotBoxes?.CameOn ?? [], _gutters?.CameOn ?? [], _couplings?.CameOn ?? []);
 
     double _groundHint;
 
