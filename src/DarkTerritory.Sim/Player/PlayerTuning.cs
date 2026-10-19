@@ -231,6 +231,18 @@ public sealed record VoicesTuning
     public CoveredVoiceTuning Covered { get; init; } = new();
     /// <summary>Note 855: every microphone brought to one speech level before it's sent (player.json <c>voices.leveller</c>).</summary>
     public LevellerTuning Leveller { get; init; } = new();
+    /// <summary>Note 862: a voice through the cab's wall with a side door open (player.json <c>voices.openCab</c>).</summary>
+    public OpenCabTuning OpenCab { get; init; } = new();
+}
+
+/// <summary>
+/// Note 862 (the director, 19 Oct 2026: "open cab door should let voices out a bit more but not completely"). Field docs live
+/// in player.json <c>voices.openCab</c>.
+/// </summary>
+public sealed record OpenCabTuning
+{
+    public bool On { get; init; } = true;
+    public double Occlusion { get; init; } = 0.5;
 }
 
 /// <summary>

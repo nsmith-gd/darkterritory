@@ -93,6 +93,27 @@ public static class VoiceRouting
     public static bool HearsTube(in PlayerState listener, Ballast.Double3 horn, TrainOnLine train, TubeTuning t) =>
         listener.Alive && (PlayerMotor.WorldPosition(listener, train) - horn).Length <= t.HeardWithin;
 
+    /// <summary>
+    /// Note 862 (the director, 19 Oct 2026: "open cab door should let voices out a bit more but not completely"): whether a voice
+    /// between these two goes through the cab's wall with one of its side doors open (note 856's doors by the coal and across the
+    /// front): one of them in the cab, the other outside it, and a door of the engine's open. The listener's client hears it
+    /// through <see cref="VoicesTuning.OpenCab"/>'s share of the wall instead of the whole of it. From replicated state only (the
+    /// door bits, the two positions), so every client reaches the same answer.
+    /// </summary>
+    public static bool ThroughOpenCabDoor(in PlayerState a, in PlayerState b, TrainOnLine train)
+    {
+        if (train.Vehicles.Count == 0 || train.Frames.Count == 0)
+            return false;
+        int sa = PlayerMotor.Space(a, train), sb = PlayerMotor.Space(b, train);
+        if (!(sa == 0 && sb == PlayerMotor.Outside || sb == 0 && sa == PlayerMotor.Outside))
+            return false;
+        var engine = train.Vehicles[0];
+        foreach (var door in train.Frames[0].Shape.DoorList)
+            if (engine.DoorOpen(door.Index))
+                return true;
+        return false;
+    }
+
     /// <summary>Radio dies in tunnels (spec A.5): anyone whose nearest point on the line is under one.</summary>
     static bool InTunnel(in PlayerState s, TrainOnLine train, Func<double, bool>? inTunnel)
     {
