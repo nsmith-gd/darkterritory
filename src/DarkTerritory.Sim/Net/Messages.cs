@@ -123,7 +123,8 @@ public static class Protocol
     // 76: a drop off the crane's hook is a gag (note 802): past Hoisted, Lounging and Playing, the player flag OffTheHook (bit 18),
     //     which a predicting client's landing reads.
     // 77: the human cannonball (note 746): the player flags InCannon (524288) and Fired (1048576).
-    public const int Version = 78;
+    // 79: a ping on the abandoned town (note 739 part two): PingKind.Town (5), its target the stop whose village it is.
+    public const int Version = 79;
 }
 
 public enum MessageType : byte
