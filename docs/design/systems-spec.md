@@ -514,16 +514,17 @@ A car fire burns on cells (decided 6 Oct, GDD App. F.1; ARCHITECTURE note 267). 
 
 ## B.20 Two on the run: a jumped pin
 
-*The director, 2026-10-19, on Otis's call 5 (note 861): "Yes but not on solo nights"* (GDD §12 "One can, two do it faster"; `coupling.jump` in `content/tuning/upkeep.json`; ARCHITECTURE §8 note 865). `TwoOnTheRunTests.MatchesB20` pins this table.
+*The director, 2026-10-19, on Otis's call 5 (note 861): "Yes but not on solo nights"; and, having played it: "I want a pin to jump almost never and when it does it should have hella telegraphing to the players"* (GDD §12 "One can, two do it faster"; `coupling.jump` in `content/tuning/upkeep.json`; ARCHITECTURE §8 note 865). `TwoOnTheRunTests.MatchesB20` pins this table; `ComesAboutOneNightInNine` its rate.
 
 | Parameter | Value |
 |---|---|
 | **Crew** | **2** or more alive; never on a night of one |
-| When | running at **12 m/s** or more, a **0.25** chance each minute; none in the first **180 s**, none within **300 s** of the last |
+| When | running at **12 m/s** or more, a **0.03** chance each minute, none in the first **180 s**: about **one night in nine** (a frontier night has about 230 s it could come in); at most **1** a night |
+| **Warning** | **10 s** working loose before it jumps: its line, the knock quickening **3** to **10** a second (heard from the cab), the callout beating **3** times as fast, the cars either side shaking; two on it then drive it home, and letting go parts nothing |
 | Hands | one holding the pin in the gap (Use, bare hands) **and** one taking the slack off: a brake wheel over the gap held, or the throttle shut by one in the cab (or the train stood) |
 | **Home** | both on it **4 s** |
-| **Let go** | once both have hold, either off it **0.3 s** parts it there and then |
-| Left | parts after **60 s** of running (a pin worked loose: 90 s); holds while the train stands |
+| **Let go** | once it's jumped and both have hold, either off it **0.3 s** parts it there and then |
+| Left | once jumped, parts after **60 s** of running (a pin worked loose: 90 s); holds while the train stands |
 
 # PART C — DEATH AND REVIVAL
 
