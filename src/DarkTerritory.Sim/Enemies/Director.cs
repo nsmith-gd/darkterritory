@@ -74,9 +74,14 @@ public sealed class Director
         // The kinds not about tonight (note 635): each named kind's roll, in name order, on its own stream from the scrambled
         // seed (a PCG stream's first draws barely move between neighbouring seeds), so the night's other draws are as they were.
         var about = new Pcg32(unchecked(seed * 0x9E3779B97F4A7C15UL + 0x0BE5E), 0x0BE5E);
+        var rolls = new List<(string Name, double Chance)>();
         foreach (var (name, chance) in tuning.NightChance.OrderBy(k => k.Key, StringComparer.Ordinal))
             if (about.NextDouble() >= chance)
+            {
                 _outTonight.Add(name);
+                rolls.Add((name, chance));
+            }
+        Floor(tuning, tier, crew, ref about, rolls);
     }
 
     readonly HashSet<string> _outTonight = [];
@@ -798,6 +803,52 @@ public sealed class Director
         return kind;
     }
 
+    /// <summary>
+    /// The night's floor (note 868; the director, 19 Oct 2026: "It should be impossible to have a night with no creatures"):
+    /// the night's chances (note 635) may roll out nearly everything (seed 1 rolled 22 of 28 kinds out, and every creature that
+    /// lives at a yard). Of those rolled out, kinds are brought back, each drawn by its chance on the same stream (so the
+    /// night's other draws are untouched), until as many of <c>stops.residents</c> are about as a stop's own wants on this
+    /// tier for this crew wait at it (<see cref="StopsTuning.Count"/>, <see cref="StopsTuning.Split"/>), and at least <c>stops.floorKinds</c> kinds of the roster are.
+    /// </summary>
+    void Floor(DirectorTuning tuning, RouteTier tier, int crew, ref Pcg32 about, List<(string Name, double Chance)> rolled)
+    {
+        var st = tuning.Stops;
+        if (!st.On)
+            return;
+        int named = tuning.NightChance.Count;
+        int residents = Math.Min(st.Split(st.Count(tier, crew)).Waiting, st.Residents.Length);
+        var dice = about;
+        void Back(Func<string, bool> which, Func<int> missing)
+        {
+            while (missing() > 0)
+            {
+                var pool = rolled.Where(r => _outTonight.Contains(r.Name) && which(r.Name)).ToList();
+                double total = pool.Sum(r => Math.Max(1e-3, r.Chance));
+                if (pool.Count == 0 || total <= 0)
+                    return;
+                double pick = dice.NextDouble() * total;
+                var back = pool[^1].Name;
+                foreach (var r in pool)
+                {
+                    if (pick < Math.Max(1e-3, r.Chance))
+                    {
+                        back = r.Name;
+                        break;
+                    }
+                    pick -= Math.Max(1e-3, r.Chance);
+                }
+                _outTonight.Remove(back);
+                FloorBrought.Add(back);
+            }
+        }
+        Back(st.Residents.Contains, () => residents - st.Residents.Count(r => !_outTonight.Contains(r)));
+        Back(_ => true, () => st.FloorKinds - (named - _outTonight.Count));
+        about = dice;
+    }
+
+    /// <summary>The kinds the night's floor brought back from out tonight (note 868), in the order it did.</summary>
+    public List<string> FloorBrought { get; } = [];
+
     /// <summary>The stops' own dice (note 860), a stream of their own: the night's other draws are as they were with it off.</summary>
     Pcg32 _stopRng;
     /// <summary>Each stop stood at tonight (<see cref="StopAt"/>): the seconds stood there, and how many it's put in place and aboard.</summary>
@@ -839,11 +890,13 @@ public sealed class Director
     EnemyKind? SpendStop(World world, IReadOnlyList<Enemy> active, double s)
     {
         var st = _t.Stops;
-        if (!st.On || st.Waiting + st.Boarding <= 0 || StopAt(world) is var key && key < 0 || world.Enemies is not { } et)
+        if (!st.On || StopAt(world) is var key && key < 0 || world.Enemies is not { } et)
             return null;
+        // How many by the tier and the crew in the night now (note 868).
+        var (wants, boardsWanted) = st.Split(st.Count(_route?.Tier ?? RouteTier.Frontier, Crew));
         var (stood, waiting, boarding) = _stops.GetValueOrDefault(key);
         _stops[key] = (stood + 1, waiting, boarding);
-        if (stood >= st.TrySeconds || waiting >= st.Waiting && boarding >= st.Boarding)
+        if (stood >= st.TrySeconds || waiting >= wants && boarding >= boardsWanted)
             return null;
         var holding = Holding(world, active);
         if (holding.Count >= EngagedCap)
@@ -855,7 +908,7 @@ public sealed class Director
             bool boards = st.Boarders.Contains(Key(rule.Kind));
             // The boarder gets aboard while the crew's busy with the stop, not while they're cutting the train at its points:
             // a Whistler in the gap the shunter has to uncouple held a crew of four at frontier:12's first yard for good.
-            if (boards ? boarding >= st.Boarding || stood < st.BoardingAfterSeconds : waiting >= st.Waiting)
+            if (boards ? boarding >= boardsWanted || stood < st.BoardingAfterSeconds : waiting >= wants)
                 continue;
             if (!Allows(rule.Kind) || !Tonight(rule.Kind, world) || world.Slain.Contains(rule.Kind) || !Room(rule.Kind, holding)
                 || rule.Weight(ctx) is not { } w || w <= 0)

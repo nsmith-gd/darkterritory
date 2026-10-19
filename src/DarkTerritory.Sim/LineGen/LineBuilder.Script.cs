@@ -463,6 +463,25 @@ sealed partial class LineBuilder
         // §11.3: every 4–8 km of main line, counted along the whole line (a stretch is often shorter than that).
         if (double.IsNaN(_nextSettlement))
             _nextSettlement = NextSettlement(_gate + _t.Budget.GraceM, ref rng);
+        // Note 868 (the director, 19 Oct 2026: "I'd love more [abandoned villages] but we can't have a longer night, fewer
+        // hazards, or fewer stops"): the 7 km night's free stretches are short (450 m to 1 km between the threshold, the
+        // facilities' fixed zones and the windows), and the every-so-often above rarely fell in one with room after its first
+        // connector: one night in twelve had a settlement on the main line. So, up to deadSettlement's perNight a night, a
+        // stretch with spare room takes one at its start, leadM in (a village stands clear of a yard's zone), out of what its
+        // hazards, signatures and quotas leave it (Owed): what's handed out keeps its room, and the night its length.
+        var dead = Def("deadSettlement");
+        if (_settlements < (int)dead.Param("perNight") && st.Window is null && !st.Spike && first.Chain is null)
+        {
+            double lead = dead.Param("leadM"), after = Math.Min(200, RecoveryLength());
+            double spare = end - s - Owed(queue) - lead;
+            if (spare >= dead.Param("haltM") + after && Settlement(s + lead, spare, ref rng) is { } halt)
+            {
+                list.Add(Connector(s, s + lead, st, ref rng));
+                s += lead;
+                Place([halt], list, ref s, ref budget);
+                _settlements++;
+            }
+        }
         int guard = 0;
         while (end - s > 1 && guard++ < 200)
         {
@@ -489,6 +508,7 @@ sealed partial class LineBuilder
                 if (Settlement(s, end - s - (held ? Owed(queue) : 0), ref rng) is { } town)
                 {
                     Place([town], list, ref s, ref budget);
+                    _settlements++;
                     _nextSettlement = NextSettlement(s, ref rng);
                     continue;
                 }
@@ -561,6 +581,8 @@ sealed partial class LineBuilder
     }
 
     double _nextSettlement = double.NaN;
+    /// <summary>Dead settlements laid on the main line so far (note 868: <c>deadSettlement.perNight</c>).</summary>
+    int _settlements;
 
     /// <summary>The least a must-place unit needs: its pieces' shortest (a long climb's 1.2 km and a bit).</summary>
     double MustLength(string id, string[] chain) => id == "climb_long" ? 1400 : chain.Sum(c => c.Split('+').Max(x => Def(x).LengthM[0])) + 100;
