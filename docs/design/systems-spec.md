@@ -511,6 +511,19 @@ A car fire burns on cells (decided 6 Oct, GDD App. F.1; ARCHITECTURE note 267). 
 | **Seized** | the train held to **7 m/s** while the car's in it; repaired with a wrench, **10 s** |
 | **Exposed** | at a stand for **2 s**: **6** blows kill it, or a crowbar or wrench held **4 s** prises it out; it bites **30** every 3 s |
 
+## B.20 Two on the run: a jumped pin
+
+*The director, 2026-10-19, on Otis's call 5 (note 861): "Yes but not on solo nights"* (GDD §12 "One can, two do it faster"; `coupling.jump` in `content/tuning/upkeep.json`; ARCHITECTURE §8 note 865). `TwoOnTheRunTests.MatchesB20` pins this table.
+
+| Parameter | Value |
+|---|---|
+| **Crew** | **2** or more alive; never on a night of one |
+| When | running at **13 m/s** or more, a **0.1** chance each minute; none in the first **180 s**, none within **300 s** of the last |
+| Hands | one holding the pin in the gap (Use, bare hands) **and** one taking the slack off: a brake wheel over the gap held, or the throttle shut by one in the cab (or the train stood) |
+| **Home** | both on it **4 s** |
+| **Let go** | once both have hold, either off it **0.3 s** parts it there and then |
+| Left | parts after **40 s** of running (a pin worked loose: 90 s); holds while the train stands |
+
 # PART C — DEATH AND REVIVAL
 
 > **Superseded by GDD v1.2 Appendix D (Death, Holdouts and Return).** The Vigil is cut. A dead player returns only through a Holdout at a halt, village or yard; bodies are loot (D.9). This part is kept for the record.

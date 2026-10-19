@@ -2387,6 +2387,11 @@ public static partial class Hud
     /// A hold's prompt (GDD §32, note 344): the action and its key, and its progress only once there's some, as the search's
     /// and the generator's say it. A mend kept half done with Use let go (note 301) still shows how far it got.
     /// </summary>
+    /// <summary>Note 865: a jumped pin in the gap behind <paramref name="car"/> or ahead of it (either car's brake wheel takes its slack).</summary>
+    static bool JumpedGap(TrainOnLine train, int car) =>
+        car > 0 && car < train.Vehicles.Count && (train.Vehicles[car] is { Loose: > 0, LooseCause: LooseCause.Jumped }
+            || train.VehicleAhead(car) is var ahead and > 0 && ahead < train.Vehicles.Count && train.Vehicles[ahead] is { Loose: > 0, LooseCause: LooseCause.Jumped });
+
     static string Hold(string verb, double done) =>
         done > 1e-6 ? $"{verb} : HOLD [E] ({Math.Min(1, done) * 100:0}%)" : $"{verb} : HOLD [E]";
 
@@ -2558,6 +2563,10 @@ public static partial class Hud
         // A hot axle box (note 331): greased from the gap behind its car or the ground beside it.
         if (train.HotBoxTuning is { Enabled: true } hb && HotBoxes.Within(p, train, hb) is not null)
             return Hold("GREASE THE HOT BOX", p.ActionProgress / hb.GreaseSeconds);
+        // Note 865: a jumped pin, held down by hand; it goes home only while a second takes the slack off it, and the prompt says so.
+        if (train.Loose is { Enabled: true } jt && Couplings.Within(p, train, jt) is { } jumped && train.Vehicles[jumped].LooseCause == LooseCause.Jumped)
+            return train.Vehicles[jumped].Pinned ? Hold("DRIVE THE PIN HOME", p.ActionProgress / jt.Jump.DriveSeconds)
+                : "HOLD THE PIN : HOLD [E]   TAKES TWO: A HAND ON THE BRAKE WHEEL ABOVE, OR THE THROTTLE SHUT";
         // A loose coupling (note 356): the wrench in the gap tightens it; without it in hand, the key that puts it there.
         if (train.Loose is { Enabled: true } lt && Couplings.Within(p, train, lt) is not null)
             return Couplings.Tightens(p, train) ? Hold("TIGHTEN THE COUPLING", p.ActionProgress / lt.TightenSeconds)
@@ -2608,6 +2617,9 @@ public static partial class Hud
             case InteractableKind.ToolRack when PlayerMotor.InCab(p, train):
                 return Kit.Held(p) == Tool.Wrench ? "PUT THE WRENCH BACK : [E]" : Kit.Held(p) == Tool.Shovel ? "HANG THE SHOVEL BACK : [E]" : train.Boiler.WrenchOut ? "THE WRENCH IS OUT"
                     : "TAKE THE WRENCH : [E]";
+            // Note 865: over a jumped pin's gap, the wheel held takes the slack off it for the one holding it down below.
+            case InteractableKind.Handbrake when p.Surface == Surface.Roof && JumpedGap(train, p.Parent):
+                return "TAKE THE SLACK OFF THE PIN : HOLD [E]";
             case InteractableKind.Handbrake when p.Surface == Surface.Roof:
                 return "HANDBRAKE : HOLD [E]";
             // T99: a cargo car's roof hatch, for the crane to lower a casting in through; from the roof, or the floor under it

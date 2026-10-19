@@ -236,7 +236,8 @@ public sealed partial class GameAudio
         }
         if (v.Loose > 0)
         {
-            double loose = Math.Clamp(v.Loose / lt.PartAfter, 0, 1);
+            // Note 865: a jumped pin goes sooner, and knocks up to it as quick.
+            double loose = Math.Clamp(v.Loose / (v.LooseCause == LooseCause.Jumped ? lt.Jump.PartAfter : lt.PartAfter), 0, 1);
             if (!HasCue("state-coupling-loose.knock"))
                 Hold("coupling-loose", v.Id, Pin(train, v.Id), outside)?.Params.Set("loose", loose);
             else if (_time >= c.NextKnock)
@@ -269,11 +270,13 @@ public sealed partial class GameAudio
         {
             LooseCause.RunIn => "state-coupling-loose.jump-brake",
             LooseCause.Bend => "state-coupling-loose.jump-bend",
+            // Note 865: a rail joint at speed (AU1's cue to come; the slack's snatch stands in).
+            LooseCause.Jumped => "state-coupling-loose.jump-joint",
             _ => "state-coupling-loose.jump-coupled",
         };
         if (Cue(own, pin, outside) is not null)
             return;
-        if (v.LooseCause == LooseCause.RunIn)
+        if (v.LooseCause is LooseCause.RunIn or LooseCause.Jumped)
             Cue("bed-slack.run-in", pin, outside);
         else if (v.LooseCause == LooseCause.Bend)
             Cue("bed-groan.creak", pin, outside);
