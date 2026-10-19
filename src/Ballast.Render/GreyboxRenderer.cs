@@ -656,11 +656,21 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     /// (scene.frag; the lantern tree's pods, note 696); 0 for everything that stands still.
     /// </summary>
     public static float Motion(string layer) =>
-        layer.EndsWith("_card", StringComparison.Ordinal) || layer.EndsWith("_bough", StringComparison.Ordinal) ? 1
+        // A model's baked atlas (`<model>_<n>`) never moves by its name: the water tower's, water_tower_0, was drawn as water,
+        // rippling in speckles (the director's playtest of 19 Oct, line 3: "Tower texture looks like TV static"; note 870).
+        BakedAtlas(layer) ? 0
+        : layer.EndsWith("_card", StringComparison.Ordinal) || layer.EndsWith("_bough", StringComparison.Ordinal) ? 1
         : layer.StartsWith("water_", StringComparison.Ordinal) ? 2
         : layer.EndsWith("_drip", StringComparison.Ordinal) ? 3
         : layer.EndsWith("_pod", StringComparison.Ordinal) ? 4
         : 0;
+
+    /// <summary>A layer named as a model's baked atlas is (tools/models cook.py: <c>&lt;model&gt;_&lt;material index&gt;</c>).</summary>
+    static bool BakedAtlas(string layer)
+    {
+        int cut = layer.LastIndexOf('_');
+        return cut > 0 && cut < layer.Length - 1 && layer.AsSpan(cut + 1).IndexOfAnyExceptInRange('0', '9') < 0;
+    }
 
     /// <summary>
     /// The hero layers (authored larger than the arrays' size: the baked atlases of what's seen closest) again at up to
