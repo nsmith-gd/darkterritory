@@ -55,7 +55,8 @@ public sealed partial class StopHand
         if (_spot is null)
         {
             // Not with the dawn close, and not more than our share of the hands at once.
-            if (run.DawnIn < t.VillageDawnSpare || calls.OutCount(member) >= Math.Max(1, (int)Math.Ceiling(calls.CrateHands * t.VillageShare)))
+            // (A hand sent to the town by a ping, note 739, goes whoever else is out.)
+            if (run.DawnIn < t.VillageDawnSpare || !TownOrdered(_stopIndex) && calls.OutCount(member) >= Math.Max(1, (int)Math.Ceiling(calls.CrateHands * t.VillageShare)))
                 return GiveUpVillage(self, world, p);
             var kept = Lived(world);
             var next = run.HidingSpots
@@ -151,10 +152,16 @@ public sealed partial class StopHand
     {
         var t = Crew(world);
         var kept = Lived(world);
-        return run.DawnIn >= t.VillageDawnSpare && calls.OutCount(member) < Math.Max(1, (int)Math.Ceiling(calls.CrateHands * t.VillageShare))
+        return run.DawnIn >= t.VillageDawnSpare && (TownOrdered(_stopIndex) || calls.OutCount(member) < Math.Max(1, (int)Math.Ceiling(calls.CrateHands * t.VillageShare)))
             && run.HidingSpots.Any(h => h.Stop == _stopIndex && !run.Searched(h.Stop, h.Container.Index) && !_cantReach.Contains(h.Key)
                 && !calls.SpotClaimed(h.Key, member) && (Flat(h.At) - Flat(here)).Length <= t.VillageReach && !InLived(world, kept, h.At));
     }
+
+    /// <summary>
+    /// Whether this hand's order is the town at this stop (note 739 part two; the director, 14 Oct: "an abandoned town by a
+    /// yard"): out to search its houses whatever the crates and however many hands are out already.
+    /// </summary>
+    bool TownOrdered(int stop) => stop >= 0 && PlayerId is { } me && calls.OrderOf(me) is { Kind: PingKind.Town, Target: var k } && k == stop;
 
     /// <summary>
     /// The houses something lives in (the house creatures, notes 583–586): the bots keep out of them, as they keep out of the
