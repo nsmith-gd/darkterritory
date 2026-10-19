@@ -83,8 +83,13 @@ public class WreckDeathTests
         // on its own, falling and tumbling to rest on the ground; and nothing of the bodies' film changes for it.
         var carrying = new FilmPlayer(5, "Ada", "carrying", new Double3(0, 1.1, -1), new Double3(0, 0, -12), 0, 0, Task: FilmTask.Carrying,
             Carried: Physics.BodyKind.Crate);
-        var film = WreckFilm.Shoot(W, new FilmStart(3, [Car(12)], [], [carrying], "test", 12), Flat);
-        var without = WreckFilm.Shoot(W, new FilmStart(3, [Car(12)], [], [carrying with { Carried = null }], "test", 12), Flat);
+        // Note 872: every film seed, now the wreck's jostles draw (they repeated before, and seed 3 alone was tried); on the
+        // ground wherever the body it fell with came down on the ground, as some do on the wreck itself.
+        int grounded = 0;
+        for (ulong seed = 1; seed <= 8; seed++)
+        {
+        var film = WreckFilm.Shoot(W, new FilmStart(seed, [Car(12)], [], [carrying], "test", 12), Flat);
+        var without = WreckFilm.Shoot(W, new FilmStart(seed, [Car(12)], [], [carrying with { Carried = null }], "test", 12), Flat);
         Assert.Equal(without.Deaths, film.Deaths);
         for (int f = 0; f < film.Frames.Count; f++)
             Assert.Equal(without.Frames[f].Ragdolls[0], film.Frames[f].Ragdolls[0]);
@@ -101,10 +106,16 @@ public class WreckDeathTests
         var last = film.Frames[^1];
         var end = Assert.Single(last.Loads!);
         Assert.True((end.At - WreckFilm.InArms(last.Ragdolls[0]).At).Length > 0.3, "not still in the hands");
-        Assert.InRange(end.At.Y, 0.1, 0.6);
+        if (last.Ragdolls[0].Min(j => j.Y) < 0.3)
+        {
+            Assert.InRange(end.At.Y, 0.1, 0.6);
+            grounded++;
+        }
         Assert.True(end.Up.Y > 0.95, $"settled flat: up {end.Up}");
         // It tumbled on the way: its up was well off the vertical somewhere in the air.
         Assert.Contains(film.Frames, f => f.Loads is [var l] && l.Up.Y < 0.7);
+        }
+        Assert.True(grounded >= 3, $"{grounded} of 8 came down on the ground");
     }
 
     [Fact]
