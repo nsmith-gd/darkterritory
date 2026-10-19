@@ -2086,6 +2086,28 @@ public static partial class Staging
     }
 
     /// <summary>
+    /// Note 866 (<c>dt screenshot --threats --view fire --put-out n</c>): the staged fire's car ablaze end to end, and the
+    /// <paramref name="stretches"/> stretches of it at its rear end (toward the fire view's camera) put out, charred where they
+    /// burnt: a car the crew are working down with the extinguisher, a stretch at a time.
+    /// </summary>
+    public static void PutOut(TrainOnLine train, CarFire fire, int stretches, CarFireTuning? tuning = null)
+    {
+        if (FireGrid.Of(train, fire.Attached, (tuning ?? new CarFireTuning()).CellSize) is not { } grid)
+            return;
+        var heat = new double[grid.Count];
+        var burnt = new byte[grid.Count];
+        for (int i = 0; i < grid.Count; i++)
+        {
+            bool doused = grid.Row(i) >= grid.Along - stretches;
+            heat[i] = doused ? 0 : 0.85 + 0.03 * (i * 7 % 5);
+            burnt[i] = (byte)(doused ? 6 + i * 3 % 4 : 4);
+        }
+        fire.RestoreHeat(heat);
+        fire.Restore(SpinePhase.Punish, fire.PhaseSeconds, fire.Health, fire.Attached, fire.Local, 0, 0, 0, heat.Average(), 0);
+        train.Vehicles[fire.Attached].Char = burnt;
+    }
+
+    /// <summary>
     /// A car's boards as a fire that burnt out in it leaves them (note 763; <c>dt screenshot --burnt car,s</c>): its cells charred
     /// the way <see cref="CarFire"/> writes them, burnt out where it started a little behind the middle, less towards the ends,
     /// the walls and roof less than the floor, each cell a little its own.

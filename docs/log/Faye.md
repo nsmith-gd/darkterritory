@@ -1,0 +1,4 @@
+# Faye's log
+
+- 2026-10-19 17:45 UTC · Faye · Claimed by the Token Budget Manager (nathaniel3): queue #593, note 866, branch `faye-extinguisher-593` (the 19 Oct playtest, line 10: the extinguisher flame by flame).
+- 2026-10-19 18:03 UTC · Faye · #593 (note 866): the sim already puts out the stretch aimed at (it stays out ~8 s beside a burning one). The drawing didn't: the fire's heart (`CreatureArt`'s own `Effects`, whose `CellFlames` the scene never set) drew a whole fire in the middle of the car until its last cell was out, and the jet was drawn to the heart. Fixed in the Game: `CreatureArt.CellFlames`, `Effects.FireStretch` (a stretch's own smoke, glow, cinders, light), the jet to the cell cooling fastest; `dt screenshot --put-out n`. Tests: `CarFireTests.WorkedDownTheCar…`, `EffectsTests.AFireOnItsCells…`. No wire change. Branch `faye-extinguisher-593`.

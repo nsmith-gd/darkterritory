@@ -788,9 +788,13 @@ public sealed partial class GreyboxScene
             Look?.Art.Creatures?.Pins[id] = (V(laid.Feet + head * Art.CreatureArt.RibbitLaid, eye), -ToF(head));
             Look?.Art.Effects?.Devour(mesh, V(laid.Feet, eye), ToF(head), Time - since, id);
         }
-        // A fire on its cells draws its flames there (FireGrids), and only its smoke and light at its heart (note 267).
+        // A fire on its cells is drawn there (FireGrids; notes 267, 866), and nothing of it at its heart: the heart's drawn by
+        // the creatures' art (CreatureArt.Enemy), so it's told too.
+        bool onCells = Enemies?.Any(e => e is Sim.Enemies.CarFire { Gone: false, Heat.Length: > 0 }) == true;
         if (Look?.Art.Effects is { } cells)
-            cells.CellFlames = Enemies?.Any(e => e is Sim.Enemies.CarFire { Gone: false, Heat.Length: > 0 }) == true;
+            cells.CellFlames = onCells;
+        if (Look?.Art.Creatures is { } heart)
+            heart.CellFlames = onCells;
         // The yard's fight (note 608): the town's guards out to whatever's brought in through the gate, while it lasts.
         if (Arrival is { } fought)
             fought.Fight = YardFight(line, frames, fought);
@@ -1866,8 +1870,25 @@ public sealed partial class GreyboxScene
             _fires[e.Id] = (e.Extra, fell);
             var car = frames[e.Attached];
             var foot = car.ToWorld(e.Local + new Double3(-0.2, 0.5, 0)).RelativeTo(eye);
+            // Note 866 (the director, 19 Oct: "it aims at a flame, puts it out, then I aim at a different flame"): the jet goes
+            // to the flames it's putting out, not to the heart of the fire. The aim isn't replicated, the cells are: a jet goes
+            // to the cell in its reach going out fastest (the stretch it's on falls at the whole sprayPerSecond, the cells round
+            // it at a share), kept between snapshots; with no cells, to the heart as before.
+            var fire = e as Sim.Enemies.CarFire;
+            var grid = fire is { Heat.Length: > 0 } && car.Shape.Interior is { } room && Look.Art.Creatures is { } art
+                && Sim.Enemies.FireGrid.For(room, art.CarFire.CellSize) is { } g && g.Count == fire.Heat.Length ? g : null;
+            double[] falling = grid is not null && _cellsWas.TryGetValue(e.Id, out var before) && before.Length == fire!.Heat.Length
+                ? [.. before.Select((h, i) => h - fire.Heat[i])] : Array.Empty<double>();
+            if (fire is not null)
+                _cellsWas[e.Id] = [.. fire.Heat];
+            Vector3 Flames(int i) => car.ToWorld(grid!.Centre[i] + grid.Normal(i) * 0.35).RelativeTo(eye);
             if (StagedSpray)
-                fx.Spray(mesh, car.ToWorld(e.Local + new Double3(-1.0, 1.0, 1.7)).RelativeTo(eye), foot, Time);
+            {
+                var staged = car.ToWorld(e.Local + new Double3(-1.0, 1.0, 1.7));
+                int at = grid is null ? -1 : Enumerable.Range(0, grid.Count).Where(i => fire!.Heat[i] > 0)
+                    .OrderBy(i => (car.ToWorld(grid.Centre[i]) - staged).Length).DefaultIfEmpty(-1).First();
+                fx.Spray(mesh, staged.RelativeTo(eye), at >= 0 ? Flames(at) : foot, Time);
+            }
             if (Time - fell > 0.4 || Bodies is null)
                 continue;
             foreach (var b in Bodies)
@@ -1877,14 +1898,35 @@ public sealed partial class GreyboxScene
                 var held = HeldHere is { } h && b.Carrier == h.Player ? h.Hands
                     : b.Parent >= 0 && b.Parent < frames.Count ? frames[b.Parent].ToWorld(b.Pbd.Particles[0].Position) : b.Pbd.Particles[0].Position;
                 var nozzle = held.RelativeTo(eye);
-                if ((nozzle - foot).Length() < 3.2f)
+                var to = foot;
+                if (grid is not null)
                 {
-                    fx.Spray(mesh, nozzle, foot, Time);
+                    int best = -1;
+                    double most = 1e-6;
+                    for (int i = 0; i < falling.Length; i++)
+                        if (falling[i] > most && (car.ToWorld(grid.Centre[i]) - held).Length <= 4.5)
+                            (most, best) = (falling[i], i);
+                    if (best >= 0)
+                        _jetAt[b.Carrier] = (e.Id, best, Time);
+                    if (_jetAt.TryGetValue(b.Carrier, out var jet) && jet.Fire == e.Id && Time - jet.At <= 0.4)
+                        to = Flames(jet.Cell);
+                    else
+                        continue;
+                }
+                if ((nozzle - to).Length() < 4.5f)
+                {
+                    fx.Spray(mesh, nozzle, to, Time);
                     _spraying.Add(b.Carrier);
                 }
             }
         }
+        foreach (int gone in _cellsWas.Keys.Where(id => !Enemies.Any(e => e.Id == id && !e.Gone)).ToList())
+            _cellsWas.Remove(gone);
     }
+
+    /// <summary>Each fire's cells as last drawn, and where each sprayer's jet last went (the fire, its cell, when): note 866.</summary>
+    readonly Dictionary<int, double[]> _cellsWas = new();
+    readonly Dictionary<int, (int Fire, int Cell, double At)> _jetAt = new();
 
     /// <summary>
     /// The fire grid (GDD App. F.1; note 267), from what's replicated: every burning car's cells alight, each where it is on
@@ -1931,6 +1973,24 @@ public sealed partial class GreyboxScene
                 var (at, along, across, normal) = Patch(car, grid, i);
                 fx.FireCell(mesh, at, along, across, normal, grid.Face[i], (float)fire.Heat[i],
                     alight && fire.Heat[i] >= creatures.CarFire.BurnFrom * 0.8, Time, e.Id * 97 + i);
+            }
+            // Its smoke, glow, cinders and light a stretch at a time (note 866), each by the hottest of its cells: put out
+            // where the spray lands, that stretch goes dark while the rest burns on.
+            var size = grid.Room.Max - grid.Room.Min;
+            double half = size.Z / grid.Along / 2, floorY = grid.Room.Min.Y + Sim.Enemies.FireGrid.FloorPad, middle = (grid.Room.Min.X + grid.Room.Max.X) / 2;
+            for (int i = 0; i < grid.Count; i++)
+            {
+                var stretch = grid.Slice[i];
+                if (stretch[0] != i)
+                    continue;
+                double hottest = 0;
+                foreach (int k in stretch)
+                    hottest = Math.Max(hottest, fire.Heat[k]);
+                var c = new Double3(middle, floorY, grid.Centre[i].Z);
+                var at = car.ToWorld(c).RelativeTo(eye);
+                fx.FireStretch(mesh, at, car.ToWorld(c + new Double3(0, 0, half)).RelativeTo(eye) - at,
+                    car.ToWorld(c + new Double3(size.X / 2, 0, 0)).RelativeTo(eye) - at, (float)(grid.Room.Max.Y - floorY), (float)hottest,
+                    alight && hottest >= creatures.CarFire.BurnFrom * 0.8, Time, e.Id * 89 + grid.Row(i));
             }
         }
     }
