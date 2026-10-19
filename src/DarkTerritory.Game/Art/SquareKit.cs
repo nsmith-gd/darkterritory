@@ -861,8 +861,8 @@ public static class SquareKit
         k.Box(new Vector3(-x + 0.2f, 0.78f, -z + 0.1f), new Vector3(x - 0.2f, 0.84f, -z + 0.75f));
         foreach (float lx in new[] { -x + 0.3f, x - 0.35f })
         {
-            k.Rod(new Vector3(lx, 0, -z + 0.15f), new Vector3(lx + 0.05f, 0.78f, -z + 0.7f), 0.025f);
-            k.Rod(new Vector3(lx, 0, -z + 0.7f), new Vector3(lx + 0.05f, 0.78f, -z + 0.15f), 0.025f);
+            k.Rod(new Vector3(lx, 0.02f, -z + 0.15f), new Vector3(lx + 0.05f, 0.78f, -z + 0.7f), 0.025f);
+            k.Rod(new Vector3(lx, 0.02f, -z + 0.7f), new Vector3(lx + 0.05f, 0.78f, -z + 0.15f), 0.025f);
         }
         Cloth(k, Cream);
         k.Shade(0.8f);
@@ -901,8 +901,8 @@ public static class SquareKit
         // The shafts, propped on a block behind it (inside the stall's box: the stallholder stands past them); the wheels.
         Timber(k);
         foreach (float sx in new[] { -0.45f, 0.45f })
-            k.Rod(new Vector3(sx, axle + 0.15f, z + 0.1f), new Vector3(sx * 0.8f, 0.3f, z + 0.42f), 0.035f);
-        k.Box(new Vector3(-0.5f, 0, z + 0.3f), new Vector3(0.5f, 0.28f, z + 0.48f));
+            k.Rod(new Vector3(sx, axle + 0.15f, z + 0.1f), new Vector3(sx * 0.8f, 0.3f, z + 0.32f), 0.035f);
+        k.Box(new Vector3(-0.5f, 0, z + 0.22f), new Vector3(0.5f, 0.28f, z + 0.36f));
         k.Use("wheel_iron", Palette.IronGrey, 0.7f, 0.3f, tile: 1);
         foreach (float sx in new[] { -1f, 1f })
         {
@@ -956,7 +956,7 @@ public static class SquareKit
         k.Use("corrugated_iron", Palette.IronGrey, 0.8f, 0.35f, tile: 1);
         for (int i = 0; i < 3; i++)
         {
-            float a = -x - 0.15f + i * (2 * x + 0.3f) / 3 - 0.05f, b = a + (2 * x + 0.3f) / 3 + 0.1f, lift = i == 2 ? 0.08f : 0;
+            float a = -x - 0.1f + i * (2 * x + 0.2f) / 3 - (i > 0 ? 0.05f : 0), b = -x - 0.1f + (i + 1) * (2 * x + 0.2f) / 3 + (i < 2 ? 0.05f : 0), lift = i == 2 ? 0.08f : 0;
             k.Quad(new Vector3(a, h + 0.05f, z + 0.15f), new Vector3(b, h + 0.05f, z + 0.15f), new Vector3(b, front + lift - 0.05f, -z), new Vector3(a, front - 0.05f, -z), twoSided: true);
         }
         Iron(k);
