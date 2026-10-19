@@ -1040,4 +1040,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [856. Cab doors by the coal and across the front (the director, 16 Oct, `docs/playtest/2026-10-16.md` line 10: "a door near where the coal is,…](notes/856.md)
 - [857. Audit: the GDD and the Director's Inbox against the last week's work (the director, 18 Oct) (Elsie, queue #585)](notes/857.md)
 - [858. Audit: the Audio Checklist and the Art Checklist against the last week's work (the director, 18 Oct) (Rowan, queue #586)](notes/858.md)
+- [859. A crate hand sent to shut a car's door stood still at the foot of its steps (queue #553; B3's find on #532, note 820)](notes/859.md)
 <!-- end of the notes index -->
