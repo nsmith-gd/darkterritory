@@ -1065,15 +1065,16 @@
     // had anything at all. Now, from the first second the train stands at a yard (a facility with a stop laid) or an
     // abandoned village's halt (dead_settlement, stood), and for trySeconds of standing there, the director puts in place
     // `waiting` of the creatures whose rule the stop meets (what lives at its sites, the Moose by it, the Freight Beetle in its
-    // freight, the Grumbler on its perch...), and `boarding` of the `boarders` whose rule it meets, which use the stop to get
-    // aboard. Each picked by its rule's weight × weights × the night's variety, under the roster, its night (nightChance,
+    // freight, the Grumbler on its perch...), and, once it's stood there boardingAfterSeconds (while the crew is busy with
+    // the stop, not cutting the train at its points: a Whistler in the gap the shunter must uncouple held four bots at
+    // frontier:12's first yard for good), `boarding` of the `boarders` whose rule it meets, which use the stop to get aboard. Each picked by its rule's weight × weights × the night's variety, under the roster, its night (nightChance,
     // perNight), slain and the engaged cap; a kind needing someone on the ground comes the moment one steps down. Once a
     // stop a night (a crew shunting its yard hasn't arrived again). Beside the pressure's spends: outside its budget,
     // threshold, cooldown and the facility lull (it was there before the train came); the grace, the forts, the final
     // stretch and the line's spawn bans hold. On its own dice (0x5709): the night's other draws are as they were. Logged
     // DirectorSpawn.Stop.
     "stops": {
-      "on": true, "waiting": 1, "boarding": 1, "trySeconds": 240,
+      "on": true, "waiting": 1, "boarding": 1, "boardingAfterSeconds": 90, "trySeconds": 240,
       "boarders": ["whistler", "draggers", "tippyToesie", "passenger"]
     },
     // T128 (build 1121: "a player left behind by the train should feel the world close in: tension, monsters coming, the

@@ -845,6 +845,7 @@ public sealed record StopsTuning
     public bool On { get; init; } = true;
     public int Waiting { get; init; } = 1;
     public int Boarding { get; init; } = 1;
+    public double BoardingAfterSeconds { get; init; } = 90;
     public double TrySeconds { get; init; } = 240;
     public string[] Boarders { get; init; } = [];
 }

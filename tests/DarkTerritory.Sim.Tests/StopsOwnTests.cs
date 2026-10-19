@@ -8,7 +8,8 @@ namespace DarkTerritory.Sim.Tests;
 /// The stops' own (GDD App. B.1 "The stops' own"; ARCHITECTURE §8 note 860; the director's playtest of 16 Oct evening, line 7:
 /// "Monsters are positioned and ready at yards and abandoned villages, or use those stops to get onto the train"). What a stop
 /// met was whatever the pressure could spend while the train stood there; now, as the train stands at a yard, the director
-/// puts in place one of what lives there and one that boards there, beside the pressure, once a stop.
+/// puts in place one of what lives there, and once the crew is busy with the stop one that boards there, beside the pressure,
+/// once a stop.
 /// </summary>
 public class StopsOwnTests
 {
@@ -53,11 +54,14 @@ public class StopsOwnTests
     {
         var n = AtTheFirstYard(Own());
         Assert.True(Director.StopAt(n.World) >= 0);
-        // In the first seconds stood there, inside the facility lull: it was there before the train came.
-        var sent = Think(n.World, 5);
+        // In the first seconds stood there, inside the facility lull, what lives there: it was there before the train came.
+        var waiting = Assert.Single(Think(n.World, 5));
+        Assert.DoesNotContain(Director.Key(waiting.Kind), D.Stops.Boarders);
+        // The boarder once the crew's busy with the stop (not while they cut the train at its points).
+        Assert.Single(Think(n.World, (int)D.Stops.BoardingAfterSeconds - 10));
+        var sent = Think(n.World, 10);
         Assert.Equal(2, sent.Count);
-        Assert.Single(sent, l => D.Stops.Boarders.Contains(Director.Key(l.Kind)));
-        Assert.Single(sent, l => !D.Stops.Boarders.Contains(Director.Key(l.Kind)));
+        Assert.Contains(Director.Key(sent[1].Kind), D.Stops.Boarders);
         Assert.All(sent, l => Assert.False(l.Free));
         // Once a stop: standing on there sends nothing more of the stop's own.
         Assert.Equal(2, Think(n.World, 300).Count);
@@ -79,8 +83,8 @@ public class StopsOwnTests
     [Fact]
     public void TheSameNightSendsTheSameAndItsDiceAreItsOwn()
     {
-        var a = Think(AtTheFirstYard(Own(), seed: 7).World, 10).Select(l => l.Kind).ToList();
-        var b = Think(AtTheFirstYard(Own(), seed: 7).World, 10).Select(l => l.Kind).ToList();
+        var a = Think(AtTheFirstYard(Own(), seed: 7).World, 100).Select(l => l.Kind).ToList();
+        var b = Think(AtTheFirstYard(Own(), seed: 7).World, 100).Select(l => l.Kind).ToList();
         Assert.Equal(a, b);
         Assert.Equal(2, a.Count);
     }
@@ -91,6 +95,6 @@ public class StopsOwnTests
         var kinds = Spawns.Rules.Select(r => Director.Key(r.Kind)).ToHashSet();
         Assert.NotEmpty(D.Stops.Boarders);
         Assert.All(D.Stops.Boarders, b => Assert.Contains(b, kinds));
-        Assert.True(D.Stops is { On: true, Waiting: 1, Boarding: 1 });
+        Assert.True(D.Stops is { On: true, Waiting: 1, Boarding: 1, BoardingAfterSeconds: 90, TrySeconds: 240 });
     }
 }

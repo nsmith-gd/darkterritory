@@ -831,8 +831,8 @@ public sealed class Director
     /// The stops' own (note 860; GDD App. B.1 "The stops' own"; the director's playtest of 16 Oct evening, line 7: "Monsters
     /// are positioned and ready at yards and abandoned villages, or use those stops to get onto the train"): while the train
     /// stands at a stop (<see cref="StopAt"/>), for <c>stops.trySeconds</c> of standing there, the director puts in place
-    /// <c>stops.waiting</c> of the kinds whose rule the stop meets now and <c>stops.boarding</c> of its <c>boarders</c>, one a
-    /// second, each by its rule's weight × the tuning's weights × the night's variety, under the roster, the kind's night,
+    /// <c>stops.waiting</c> of the kinds whose rule the stop meets now and, from <c>stops.boardingAfterSeconds</c> stood there,
+    /// <c>stops.boarding</c> of its <c>boarders</c>, one a second, each by its rule's weight × the tuning's weights × the night's variety, under the roster, the kind's night,
     /// slain and the engaged cap. Beside the pressure: nothing off its budget or the pressure; it ends the quiet and counts
     /// toward the night's variety and the kind's cap as any send does. Once a stop a night.
     /// </summary>
@@ -853,7 +853,9 @@ public sealed class Director
         foreach (var rule in Spawns.Rules)
         {
             bool boards = st.Boarders.Contains(Key(rule.Kind));
-            if (boards ? boarding >= st.Boarding : waiting >= st.Waiting)
+            // The boarder gets aboard while the crew's busy with the stop, not while they're cutting the train at its points:
+            // a Whistler in the gap the shunter has to uncouple held a crew of four at frontier:12's first yard for good.
+            if (boards ? boarding >= st.Boarding || stood < st.BoardingAfterSeconds : waiting >= st.Waiting)
                 continue;
             if (!Allows(rule.Kind) || !Tonight(rule.Kind, world) || world.Slain.Contains(rule.Kind) || !Room(rule.Kind, holding)
                 || rule.Weight(ctx) is not { } w || w <= 0)
