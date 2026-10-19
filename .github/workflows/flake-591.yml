@@ -8,6 +8,10 @@ on:
     paths-ignore: ['docs/**']
 permissions:
   contents: read
+# The fix under test: the test platform's telemetry off (its ApplicationInsights flush at shutdown can block 100 s).
+env:
+  TESTINGPLATFORM_TELEMETRY_OPTOUT: 1
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
 jobs:
   probe:
     strategy:
