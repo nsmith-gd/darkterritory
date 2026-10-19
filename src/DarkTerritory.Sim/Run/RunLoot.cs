@@ -342,6 +342,8 @@ public sealed partial class Run
     public double UnlockSeconds => _loot?.JackpotHouse?.UnlockSeconds ?? 6;
 
     /// <summary>Note 719: stop <paramref name="stop"/>'s two-person jackpots, each its item and the container it's by (−1: in the jackpot house).</summary>
+    /// <summary>The night's two-person jackpots, every stop's (note 861's count).</summary>
+    public int Jackpots => _jackpots.Sum(j => j.Count);
     public IReadOnlyList<(string Item, int Beside)> JackpotsAt(int stop) => stop >= 0 && stop < _jackpots.Count ? _jackpots[stop] : [];
 
     /// <summary>Note 719: what lies on stop <paramref name="stop"/>'s jackpot house's floor besides what it keeps.</summary>
