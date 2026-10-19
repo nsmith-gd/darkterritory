@@ -531,7 +531,12 @@ public sealed class Town
             {
                 // A thing turned to face along the line (a stall against the square's end) is turned a quarter.
                 bool turned = Math.Abs(f.FaceS) > Math.Abs(f.FaceD);
-                yield return Box(f.S, f.D, turned ? f.SolidD : f.SolidS, turned ? f.SolidS : f.SolidD, Math.Max(1, f.Height));
+                // A heap (slag, coal) is a mound walked up, in layers (note 869), not a block stopping you at its foot.
+                if (TownFixtures.Heap(f.Kind))
+                    foreach (var (hs, hd, bottom, top) in TownFixtures.HeapLayers(f.SolidS, f.SolidD, f.Height, HeapStep))
+                        yield return Box(f.S, f.D, turned ? hd : hs, turned ? hs : hd, top - bottom, up: bottom);
+                else
+                    yield return Box(f.S, f.D, turned ? f.SolidD : f.SolidS, turned ? f.SolidS : f.SolidD, Math.Max(1, f.Height));
             }
         // Not the people: they go about their rounds (note 353), so a wall of their own would be in a different place on
         // every machine that's stopped somebody to talk.
@@ -596,6 +601,9 @@ public sealed class Town
             if (x.Solid)
                 yield return Part(x.U - x.HalfU, x.U + x.HalfU, x.V - x.HalfV, x.V + x.HalfV, Math.Max(0.5, x.Height));
     }
+
+    /// <summary>How deep a heap's layers are (m): under player.json stepUp (0.35), so a heap is walked up. Not a design number.</summary>
+    const double HeapStep = 0.3;
 
     /// <summary>A box in the rail frame, square to the line (or <paramref name="turn"/> off it, radians: a turned house's
     /// body, note 490): half its length along it and across it, its height.</summary>

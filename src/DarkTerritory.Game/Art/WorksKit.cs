@@ -237,7 +237,8 @@ public static class WorksKit
         const int sides = 18;
         for (int r = 0; r <= 6; r++)
         {
-            float t = r / 6f, y = h * (1 - t * t) - 0.2f * (1 - t), scale = t;
+            // (Its profile the Sim's, which stands its walls in layers up it: TownFixtures.HeapHeight, note 869.)
+            float t = r / 6f, y = (float)Sim.Towns.TownFixtures.HeapHeight(h, t), scale = t;
             var ring = new Vector3[sides];
             for (int i = 0; i < sides; i++)
             {

@@ -948,4 +948,38 @@ public static class TownFixtures
             or "stove" or "stairdoor" or "photo" => (0, 0, 0.5),
         _ => (0.5, 0.5, 1.5),
     };
+
+    /// <summary>
+    /// The works' heaps, slag and coal (WorksKit.Heap): a mound, not a block. Its height at <paramref name="t"/> of the way out
+    /// from its middle to its foot (0..1, its footprint an ellipse <see cref="Size"/> across): the profile the art lofts.
+    /// </summary>
+    public static bool Heap(string kind) => kind is "slag" or "coal";
+
+    public static double HeapHeight(double height, double t) => height * (1 - t * t) - 0.2 * (1 - t);
+
+    /// <summary>
+    /// A heap's walls (note 869; the director's playtest of 19 Oct line 2, "Collision boxes are off": a slag heap stood a 4 m
+    /// box from the ground over its whole footprint, so its foot stopped you in mid-air): a stack of layers no deeper than
+    /// <paramref name="step"/> (player.json stepUp: walked up, as a heap is), each the cross of two boxes inside the ellipse
+    /// where the heap stands higher than the layer below's top. Each (halfS, halfD, bottom, top) in the heap's own frame,
+    /// its footprint <paramref name="halfS"/> by <paramref name="halfD"/>.
+    /// </summary>
+    public static IEnumerable<(double HalfS, double HalfD, double Bottom, double Top)> HeapLayers(double halfS, double halfD, double height, double step)
+    {
+        int layers = Math.Max(1, (int)Math.Ceiling(height / Math.Max(0.05, step * 0.9)));
+        for (int i = 0; i < layers; i++)
+        {
+            double below = height * i / layers, top = height * (i + 1) / layers;
+            // How far out the heap still stands higher than the layer below's top.
+            double lo = 0, hi = 1;
+            for (int k = 0; k < 30; k++)
+            {
+                double mid = (lo + hi) / 2;
+                (lo, hi) = HeapHeight(height, mid) > below ? (mid, hi) : (lo, mid);
+            }
+            // The cross inscribed in that ellipse: (0.9, 0.45) and (0.45, 0.9) of it.
+            yield return (halfS * lo * 0.9, halfD * lo * 0.45, below, top);
+            yield return (halfS * lo * 0.45, halfD * lo * 0.9, below, top);
+        }
+    }
 }

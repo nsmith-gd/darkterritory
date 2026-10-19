@@ -2818,6 +2818,14 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     for (int b = 0; b < builds; b++)
         scene.Build(mesh, train, camera.Position, leaned);
     double buildMs = buildClock.Elapsed.TotalMilliseconds / builds;
+    // --walls [r]: the night's Sim walls within r of the eye (60 m) over the scene, to lay what's walked into against what's
+    // drawn (note 869; WallsOverlay). The whole night's, as the app stands them: the run, its facilities, both towns.
+    if (args.Contains("--walls") && generated is not null)
+    {
+        var night = new DarkTerritory.Game.PrototypeSession(content, generated, cars, enemies: false);
+        int drawn = WallsOverlay.Draw(mesh, night.World.Train.Walls!, night.Train.Line, camera.Position, Opt(args, "--walls", 60));
+        Console.Error.WriteLine($"walls: {drawn} of {night.World.Train.Walls!.All.Count} drawn");
+    }
     // --lantern: a hand lamp held just under the eye (the scene is eye-relative), the light you'd have in a dark car.
     if (args.Contains("--lantern") || Staging.IsHouseView(view))
         mesh.PointLights.Add(new PointLight(new System.Numerics.Vector3(0.15f, -0.35f, 0), DarkTerritory.Game.Palette.LampAmber * 1.6f, 6));

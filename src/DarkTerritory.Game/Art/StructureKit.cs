@@ -646,20 +646,23 @@ public static class StructureKit
     /// <summary>
     /// A bay of the fortified station's platform (the art sheet's "fortified station"): cobbles at a low kerb, timber posts,
     /// a pitched canopy of slate on rafters, a lantern hanging under each bay. <see cref="Lantern"/> is where its light is.
+    /// Its deck, posts, bench and crates are where the Sim stands them solid (Sim.Run.Fortresses: PlatformEdge, PostOut,
+    /// OnThePlatformBay; note 869).
     /// </summary>
     /// <param name="lantern">False when the scene hangs a sourced lantern on the bracket instead (tools/models).</param>
     public static MeshAsset PlatformBay(Look? look, int variant, bool lantern = true)
     {
         var k = new Kit(look, 970 + variant);
-        const float x0 = 3.6f, x1 = 10, len = 8;
+        const float x0 = (float)Sim.Run.Fortresses.PlatformEdge, x1 = (float)Sim.Run.Fortresses.PlatformOut, len = (float)Sim.Run.Fortresses.PlatformBay;
+        float deck = (float)Sim.Run.Fortresses.PlatformDeck, post = (float)Sim.Run.Fortresses.PostHalf, postTop = (float)Sim.Run.Fortresses.PostTop;
         k.Use("cobbles", Palette.Ballast, 0.7f, 0.05f, tile: 2);
-        k.Box(new Vector3(x0, -0.3f, -len), new Vector3(x1, 0.25f, 0), Kit.Faces.PosY | Kit.Faces.NegX);
+        k.Box(new Vector3(x0, -0.3f, -len), new Vector3(x1, deck, 0), Kit.Faces.PosY | Kit.Faces.NegX);
         k.Use("stone_block", Palette.Charcoal, 0.7f, 0.1f, tile: 1.2f);
         k.Box(new Vector3(x0, -0.3f, -len), new Vector3(x0 + 0.35f, 0.3f, 0), Kit.Faces.PosY | Kit.Faces.NegX);
         k.Use("wood_sleeper", Palette.DeepBrown, 0.9f, 0, tile: 1.5f);
-        foreach (float x in new[] { 5.2f, 9.2f })
+        foreach (float x in Sim.Run.Fortresses.PostOut.Select(o => (float)o))
         {
-            k.Box(new Vector3(x - 0.13f, 0.25f, -0.13f), new Vector3(x + 0.13f, 4.2f, 0.13f));
+            k.Box(new Vector3(x - post, deck, -post), new Vector3(x + post, postTop, post));
             // Knee braces up under the canopy.
             k.Rod(new Vector3(x, 3.4f, 0), new Vector3(x - 0.9f, 4.2f, 0), 0.06f);
             k.Rod(new Vector3(x, 3.4f, 0), new Vector3(x + 0.9f, 4.2f, 0), 0.06f);
@@ -681,19 +684,22 @@ public static class StructureKit
             k.BoxAt(l, new Vector3(0.1f, 0.18f, 0.1f));
             k.Emissive = 0;
         }
-        // Something on the platform: a bench, or crates, or a sack barrow.
+        // Something on the platform: a bench, or crates (where the Sim stands them, Fortresses.OnThePlatformBay).
+        var on = Sim.Run.Fortresses.OnThePlatformBay(variant);
         if (variant % 3 == 0)
         {
+            var (bx0, bz0, bx1, bz1, top) = on[0];
             k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
-            k.Box(new Vector3(8.6f, 0.25f, -5.5f), new Vector3(9.1f, 0.7f, -3.5f));
-            k.Box(new Vector3(9.0f, 0.7f, -5.5f), new Vector3(9.1f, 1.2f, -3.5f));
+            k.Box(new Vector3((float)bx0, deck, (float)bz0), new Vector3((float)bx1, 0.7f, (float)bz1));
+            k.Box(new Vector3((float)bx1 - 0.1f, 0.7f, (float)bz0), new Vector3((float)bx1, (float)top, (float)bz1));
         }
         else if (variant % 3 == 1)
         {
+            var ((ax0, az0, ax1, az1, atop), (cx0, cz0, cx1, cz1, ctop)) = (on[0], on[1]);
             k.Use("wood_crate", Palette.TarnishedBrass * 0.8f, 0.8f, 0, tile: 0.6f);
-            k.Box(new Vector3(7.5f, 0.25f, -3), new Vector3(8.1f, 0.85f, -2.4f));
-            k.Box(new Vector3(7.6f, 0.85f, -2.95f), new Vector3(8.1f, 1.35f, -2.45f));
-            k.Box(new Vector3(8.2f, 0.25f, -3.1f), new Vector3(8.8f, 0.85f, -2.5f));
+            k.Box(new Vector3((float)ax0, deck, (float)az0), new Vector3((float)ax1, 0.85f, (float)az1));
+            k.Box(new Vector3((float)ax0 + 0.1f, 0.85f, (float)az0 + 0.05f), new Vector3((float)ax1, (float)atop, (float)az1 - 0.05f));
+            k.Box(new Vector3((float)cx0, deck, (float)cz0), new Vector3((float)cx1, (float)ctop, (float)cz1));
         }
         return k.Build($"platform-{variant}");
     }

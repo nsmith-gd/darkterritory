@@ -10,7 +10,7 @@ namespace DarkTerritory.Sim.Tests;
 /// <summary>
 /// The coaling tower is solid (note 758; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 8: "We're actually clipping
 /// a little bit through some of the ... things at the station"). A main-line facility has no stop, so nothing stood where
-/// its trestle is drawn; now its faces, footings and ladder are walls, the woods stand back from it, and it's
+/// its trestle is drawn; now its faces and footings are walls (no ladder since note 869), the woods stand back from it, and it's
 /// gone once Tower Jaw brings it down.
 /// </summary>
 public class CoalingTowerWallsTests
