@@ -151,6 +151,13 @@ public sealed record SquareTuning
     public double MarketPer { get; init; } = 400;
     public double MarketIn { get; init; } = 3.6;
     public double MarketEvery { get; init; } = 4.6;
+    /// <summary>
+    /// The market's second row (note 870; the director's playtest of 19 Oct, line 4: "Too many cut and paste stalls in a
+    /// row"): how wide the aisle between its two rows of counters is, and how far each stall may stand off its place along
+    /// and across (m).
+    /// </summary>
+    public double MarketAisle { get; init; } = 3.4;
+    public double MarketJitter { get; init; } = 0.5;
 }
 
 public sealed record ExplorableTuning
