@@ -2417,6 +2417,20 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
     /// </summary>
     PlayerIntent? Done(in PlayerState self, World world, StopPlan p)
     {
+        // Note 867: a two-person jackpot in reach first (not from inside the errand's own carry).
+        if (job is StopJob.Winch0 or StopJob.Winch1 or StopJob.Crates && !_inErrand)
+        {
+            _inErrand = true;
+            try
+            {
+                if (JackpotErrand(self, world, p) is { } errand)
+                    return errand;
+            }
+            finally
+            {
+                _inErrand = false;
+            }
+        }
         if (job is not (StopJob.Shunter or StopJob.Driver))
             return Aboard(self, p);
         return OffTheCar(self, world, p) ?? Ride(self, world.Train, p);
@@ -3035,6 +3049,53 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
     bool _pressed;
     /// <summary>A find from the village it put down on a car's landing to open the door (note 326), to take up again.</summary>
     int? _setDown;
+
+    /// <summary>
+    /// Note 867: the winch done, a two-person jackpot before going aboard: our end of one in our arms home with it (the crate
+    /// hand's way, <see cref="Carry"/>), the other end of one someone's holding alone, or one lying within jackpotReach fetched
+    /// (<see cref="Yard"/>, jackpots only). Null with none of those, or with the train leaving.
+    /// </summary>
+    PlayerIntent? JackpotErrand(in PlayerState self, World world, StopPlan p)
+    {
+        var errand = JackpotStep(self, world, p);
+        // Out on it (as at the houses): the driver doesn't call the loading done while anyone is; back, it can. (Only ours to
+        // take back: another errand's out is that errand's.)
+        if (errand is not null || _jackpotOut)
+            calls.Out(member, errand is not null);
+        _jackpotOut = errand is not null;
+        return errand;
+    }
+
+    bool _jackpotOut, _inErrand;
+
+    PlayerIntent? JackpotStep(in PlayerState self, World world, StopPlan p)
+    {
+        var t = Crew(world);
+        if (PlayerId is not { } me || t.JackpotReach <= 0 || !p.AtTheEnd(world.Train) || world.Run is not { } run || run.DawnIn < t.VillageDawnSpare)
+            return null;
+        if (world.Bodies.CarriedBy(me) is { } mine)
+            return Run.Run.IsJackpot(mine) ? Carry(self, world, p) : null;
+        var here = PlayerMotor.WorldPosition(self, world.Train);
+        if (Wanting(world, p, here) is { } held && Run.Run.IsJackpot(held))
+            return LendAHand(self, world, held);
+        bool lying = world.Bodies.All.Any(b => Run.Run.IsJackpot(b) && b.Parent == PlayerState.World && b.Carrier < 0
+            && (Flat(b.Centre) - Flat(here)).Length <= t.JackpotReach && !calls.SpotClaimed(CrateKey(b.Id), member)
+            && !_cantReach.Contains(CrateKey(b.Id)));
+        if (_yardCrate < 0 && !lying)
+            return null;
+        _jackpotsOnly = true;
+        try
+        {
+            return Yard(self, world, p);
+        }
+        finally
+        {
+            _jackpotsOnly = false;
+        }
+    }
+
+    /// <summary>Fetching for <see cref="JackpotErrand"/>: <see cref="NextCrate"/> takes jackpots alone, two hands or not.</summary>
+    bool _jackpotsOnly;
 
     /// <summary>
     /// The front end of a jackpot up between two (note 867) walks at the back end's pace, as a heavy crate from the yard does

@@ -35,7 +35,8 @@ public sealed partial class StopHand
         if (PlayerId is { } me && world.Bodies.CarriedBy(me) is not null)
             return null;
         var t = Crew(world);
-        if (world.Run is not { } run || calls.Leaving || PlayerId is null || t.YardReach <= 0 || run.DawnIn < t.VillageDawnSpare
+        // (A jackpot fetched once the loading's done, note 867: whatever the driver's called; it's out, so the driver waits.)
+        if (world.Run is not { } run || calls.Leaving && !_jackpotsOnly || PlayerId is null || t.YardReach <= 0 || run.DawnIn < t.VillageDawnSpare
             || Roomiest(world, p, calls, member) < 0)
             return LetGoOfCrate();
         var train = world.Train;
@@ -127,7 +128,7 @@ public sealed partial class StopHand
     Physics.Body? NextCrate(World world, StopPlan p, Double3 here, double reach, double jackpotReach = 0)
     {
         bool heavy = calls.HeavyHands >= 2;
-        return world.Bodies.All.Where(b => (b.Kind == Physics.BodyKind.Cargo || heavy && b.Kind == Physics.BodyKind.Heavy)
+        return world.Bodies.All.Where(b => (_jackpotsOnly ? Run.Run.IsJackpot(b) : b.Kind == Physics.BodyKind.Cargo || heavy && b.Kind == Physics.BodyKind.Heavy)
                 && b.Parent == PlayerState.World && b.Carrier < 0 && b.Pbd.Asleep
                 && !p.Loose(world, b) && (Flat(b.Centre) - Flat(here)).Length <= (Run.Run.IsJackpot(b) ? Math.Max(reach, jackpotReach) : reach)
                 && !calls.SpotClaimed(CrateKey(b.Id), member) && !_cantReach.Contains(CrateKey(b.Id))
