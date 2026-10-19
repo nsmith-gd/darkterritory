@@ -218,34 +218,42 @@ public class BigFindsTests
     }
 
     [Fact]
-    public void MostStopsHaveAJackpotAndTheJackpotHouseHoldsOneAtItsShare()
+    public void AboutAQuarterOfStopsHaveAJackpotAndNoTierMoreThanThreeInTen()
     {
         // Seeded per stop, the same every time; never more than `most` at a stop. Note 861 (the 16 Oct evening playtest's line
-        // 8): most frontier stops have one, so most stops ask two to carry something together (it was about one a night).
-        int nights = 40, stops = 0, withOne = 0, inHouses = 0, houses = 0;
-        for (ulong seed = 1; seed <= (ulong)nights; seed++)
+        // 8): raised from about one a frontier night, so a stop often asks two to carry something together; the director, 19
+        // Oct: "a jackpot should be at most 3/10". Counted as a crew sees it: a stop with one lying out or in its jackpot house.
+        double Share(RouteTier tier, out double inHouse)
         {
-            var route = RouteGenerator.Generate(Tuning.Route, RouteTier.Frontier, seed);
-            for (int i = 0; i < route.Features.Count; i++)
+            int stops = 0, withOne = 0, houses = 0, inHouses = 0;
+            for (ulong seed = 1; seed <= 40; seed++)
             {
-                if (route.Features[i].Stop is not { } stop)
-                    continue;
-                int locked = StopLoot.JackpotHouse(L, stop, route.Seed, i, RouteTier.Frontier);
-                Assert.Equal(locked, StopLoot.JackpotHouse(L, stop, route.Seed, i, RouteTier.Frontier));
-                var at = StopLoot.Jackpots(L, stop, route.Seed, i, RouteTier.Frontier, locked, _ => true);
-                Assert.Equal(at, StopLoot.Jackpots(L, stop, route.Seed, i, RouteTier.Frontier, locked, _ => true));
-                Assert.True(at.Count <= L.Jackpots!.Most);
-                Assert.All(at, j => Assert.True(j.Beside >= 0 || locked >= 0));
-                stops++;
-                withOne += at.Count > 0 ? 1 : 0;
-                houses += locked >= 0 ? 1 : 0;
-                inHouses += at.Count(j => j.Beside < 0);
+                var route = RouteGenerator.Generate(Tuning.Route, tier, seed);
+                for (int i = 0; i < route.Features.Count; i++)
+                {
+                    if (route.Features[i].Stop is not { } stop)
+                        continue;
+                    int locked = StopLoot.JackpotHouse(L, stop, route.Seed, i, tier);
+                    Assert.Equal(locked, StopLoot.JackpotHouse(L, stop, route.Seed, i, tier));
+                    var at = StopLoot.Jackpots(L, stop, route.Seed, i, tier, locked, _ => true);
+                    Assert.Equal(at, StopLoot.Jackpots(L, stop, route.Seed, i, tier, locked, _ => true));
+                    Assert.True(at.Count <= L.Jackpots!.Most);
+                    Assert.All(at, j => Assert.True(j.Beside >= 0 || locked >= 0));
+                    stops++;
+                    withOne += at.Count > 0 ? 1 : 0;
+                    houses += locked >= 0 ? 1 : 0;
+                    inHouses += at.Count(j => j.Beside < 0);
+                }
             }
+            inHouse = houses == 0 ? 0 : inHouses / (double)houses;
+            return withOne / (double)stops;
         }
-        Assert.True(withOne / (double)stops >= 0.5, $"{withOne} of {stops} frontier stops have a jackpot");
+        double frontier = Share(RouteTier.Frontier, out double frontierHouse);
+        Assert.InRange(frontier, 0.2, 0.3);
         // A jackpot house holds one at `house`.
-        Assert.True(houses > 0);
-        Assert.InRange(inHouses / (double)houses, L.Jackpots!.House - 0.2, L.Jackpots.House + 0.2);
+        Assert.InRange(frontierHouse, L.Jackpots!.House - 0.2, L.Jackpots.House + 0.2);
+        foreach (var tier in new[] { RouteTier.Local, RouteTier.DeadLines, RouteTier.DeepTerritory })
+            Assert.True(Share(tier, out _) <= 0.3, $"{tier}: {Share(tier, out _):P0} of stops have a jackpot");
     }
 
     // ---- fragile valuables.
