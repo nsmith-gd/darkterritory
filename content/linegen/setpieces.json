@@ -59,9 +59,8 @@
     // laid at it (PlanStops). Every everyKm along the main line where a stretch has room, and (note 868, the director, 19 Oct:
     // "I'd love more [abandoned villages] but we can't have a longer night, fewer hazards, or fewer stops") up to perNight a
     // night in a filled stretch's straight recovery long enough (its hazards where they were), leadM into the stretch.
-    // perNight 0 for now: at 2, 8 nights in 12 have one (12 village stops against 1), but a halt straightens a wandering
-    // recovery and the line downstream moves, its alternates, lakes and roads with it (9 tests pinned to a night's alternate,
-    // lake or road fail); the director's call (note 868).
+    // perNight 2 (the director, 19 Oct: "Yes, turn the abandoned villages on"): 7 nights in 12 have one, 11 village stops
+    // against 1; a halt straightens a wandering recovery, so the line downstream moves, its alternates, lakes and roads with it.
     { "id": "deadSettlement", "kind": "settlement", "minD": 0, "fullD": 0, "lengthM": [300, 900], "cost": 0, "costScale": 0, "crunch": false,
       "tags": ["dead_settlement", "landmark"], "params": { "townChance": [0.35], "haltM": [300], "townM": [400, 550], "everyKm": [1.5, 3],
         "perNight": [2], "leadM": [120] }, "weight": 0 }
