@@ -10,7 +10,7 @@ namespace DarkTerritory.Sim.Enemies;
 /// Pressed for: the pressure was at <see cref="PressureTuning.PressAt"/>, and it came through the cooldown or over the budget's
 /// curve (by at most <see cref="DirectorTuning.PacedCost"/>).
 /// </param>
-public readonly record struct DirectorSpawn(uint Tick, EnemyKind Kind, double Cost, double TrainDistance, int ActiveInZone, int ActiveTotal, bool Paced = false, bool Free = false);
+public readonly record struct DirectorSpawn(uint Tick, EnemyKind Kind, double Cost, double TrainDistance, int ActiveInZone, int ActiveTotal, bool Paced = false, bool Free = false, bool Stop = false);
 
 /// <summary>What built the director's pressure in its last second (note 266), for the harness's trace.</summary>
 /// <param name="Rate">Pressure a second, all told.</param>
@@ -56,6 +56,7 @@ public sealed class Director
         // The free spawns' own dice (note 849): a stream of their own off the scrambled seed, so the night's other draws are as
         // they were with the curve off.
         _freeRng = new Pcg32(unchecked(seed * 0x9E3779B97F4A7C15UL + 0xF4EE), 0xF4EE);
+        _stopRng = new Pcg32(unchecked(seed * 0x9E3779B97F4A7C15UL + 0x5709), 0x5709);
         _seed = seed;
         var tier = route?.Tier ?? RouteTier.Frontier;
         string key = char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..];
@@ -515,6 +516,10 @@ public sealed class Director
         // pressed through: at twelve seconds it's short enough not to need to be.
         if (shaken)
             return Held("aftermath");
+        // The stops' own (note 860): what lives at the yard or village the train stands at is there as it comes in, the facility
+        // lull or not (it was there before the train came; its own rules say when it moves).
+        if (SpendStop(world, active, s) is { } waiting)
+            return waiting;
         // App. B.1 "Facility lull": "~20 seconds of calm on arrival before facility threats activate. Lets the crew commit to
         // a plan before it falls apart." Read as everything the director would send while the train stands at the facility,
         // which is what comes at a stop (its residents, the stop's own creatures, the Whistler boarding there): calm on
@@ -790,6 +795,97 @@ public sealed class Director
             SpawnsAfoot++;
         var zone = Profile(kind).Zone;
         Log.Add(new DirectorSpawn(world.Tick, kind, Cost(kind), s, active.Count(e => Engaged(e) && e.Zone == zone) + 1, active.Count(Engaged) + 1, Free: true));
+        return kind;
+    }
+
+    /// <summary>The stops' own dice (note 860), a stream of their own: the night's other draws are as they were with it off.</summary>
+    Pcg32 _stopRng;
+    /// <summary>Each stop stood at tonight (<see cref="StopAt"/>): the seconds stood there, and how many it's put in place and aboard.</summary>
+    readonly Dictionary<int, (double Stood, int Waiting, int Boarding)> _stops = [];
+
+    /// <summary>The stops stood at tonight, by <see cref="StopAt"/>'s key (note 860): seconds stood, waiting and boarding placed.</summary>
+    public IReadOnlyDictionary<int, (double Stood, int Waiting, int Boarding)> StopsStood => _stops;
+
+    /// <summary>
+    /// The stop the train stands at, for its own creatures (note 860), or −1: a facility with a stop laid that it stands at
+    /// (<see cref="Run.Run.StandsAt"/>: down its spur, or on the main line beside it), as its index; or, stood on the main line
+    /// over an abandoned village (a <see cref="FeatureKind.Village"/> stop, a halt or dead town), 1000 + its feature's index.
+    /// </summary>
+    public static int StopAt(World world)
+    {
+        if (world.Run is not { } run)
+            return -1;
+        if (run.StandsAt(world.Train) is >= 0 and var i)
+            return run.Facilities[i].Stop is not null ? i : -1;
+        var train = world.Train;
+        if (world.Route is not { } route || !train.OnMain || train.Dynamics.Speed >= run.Tuning.StopBelowSpeed)
+            return -1;
+        double front = train.Dynamics.Distance, rear = front - train.Dynamics.Consist.LengthMetres;
+        for (int f = 0; f < route.Features.Count; f++)
+            if (route.Features[f] is { Kind: FeatureKind.Village, Stop: not null } v && front >= v.Start && rear <= v.End)
+                return 1000 + f;
+        return -1;
+    }
+
+    /// <summary>
+    /// The stops' own (note 860; GDD App. B.1 "The stops' own"; the director's playtest of 16 Oct evening, line 7: "Monsters
+    /// are positioned and ready at yards and abandoned villages, or use those stops to get onto the train"): while the train
+    /// stands at a stop (<see cref="StopAt"/>), for <c>stops.trySeconds</c> of standing there, the director puts in place
+    /// <c>stops.waiting</c> of the kinds whose rule the stop meets now and, from <c>stops.boardingAfterSeconds</c> stood there,
+    /// <c>stops.boarding</c> of its <c>boarders</c>, one a second, each by its rule's weight × the tuning's weights × the night's variety, under the roster, the kind's night,
+    /// slain and the engaged cap. Beside the pressure: nothing off its budget or the pressure; it ends the quiet and counts
+    /// toward the night's variety and the kind's cap as any send does. Once a stop a night.
+    /// </summary>
+    EnemyKind? SpendStop(World world, IReadOnlyList<Enemy> active, double s)
+    {
+        var st = _t.Stops;
+        if (!st.On || st.Waiting + st.Boarding <= 0 || StopAt(world) is var key && key < 0 || world.Enemies is not { } et)
+            return null;
+        var (stood, waiting, boarding) = _stops.GetValueOrDefault(key);
+        _stops[key] = (stood + 1, waiting, boarding);
+        if (stood >= st.TrySeconds || waiting >= st.Waiting && boarding >= st.Boarding)
+            return null;
+        var holding = Holding(world, active);
+        if (holding.Count >= EngagedCap)
+            return null;
+        var ctx = new SpawnContext(world, et, this);
+        var options = new List<(EnemyKind Kind, double Weight)>();
+        foreach (var rule in Spawns.Rules)
+        {
+            bool boards = st.Boarders.Contains(Key(rule.Kind));
+            // The boarder gets aboard while the crew's busy with the stop, not while they're cutting the train at its points:
+            // a Whistler in the gap the shunter has to uncouple held a crew of four at frontier:12's first yard for good.
+            if (boards ? boarding >= st.Boarding || stood < st.BoardingAfterSeconds : waiting >= st.Waiting)
+                continue;
+            if (!Allows(rule.Kind) || !Tonight(rule.Kind, world) || world.Slain.Contains(rule.Kind) || !Room(rule.Kind, holding)
+                || rule.Weight(ctx) is not { } w || w <= 0)
+                continue;
+            options.Add((rule.Kind, w * _t.Weights.GetValueOrDefault(Key(rule.Kind), 1) * NightVariety(rule.Kind)));
+        }
+        double total = options.Sum(o => o.Weight);
+        if (total <= 0)
+            return null;
+        double pick = _stopRng.NextDouble() * total;
+        var kind = options[^1].Kind;
+        foreach (var o in options)
+        {
+            if (pick < o.Weight)
+            {
+                kind = o.Kind;
+                break;
+            }
+            pick -= o.Weight;
+        }
+        bool boarder = st.Boarders.Contains(Key(kind));
+        _stops[key] = (stood + 1, waiting + (boarder ? 0 : 1), boarding + (boarder ? 1 : 0));
+        HeldBecause = null;
+        _sinceAny = 0;
+        _sinceThreat = 0;
+        _quietMetres = 0;
+        if (AfootShare > 0)
+            SpawnsAfoot++;
+        var zone = Profile(kind).Zone;
+        Log.Add(new DirectorSpawn(world.Tick, kind, Cost(kind), s, active.Count(e => Engaged(e) && e.Zone == zone) + 1, active.Count(Engaged) + 1, Stop: true));
         return kind;
     }
 
