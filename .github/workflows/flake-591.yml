@@ -1,0 +1,39 @@
+# TEMPORARY (queue #591, note 864; comes out before the PR): the Windows host left running after Game.Tests passes.
+# The whole suite as CI runs it, on four Windows runners twice each; Game.Tests' probe (ShutdownProbe.cs) prints every
+# managed thread's stack as its last test finishes, and each run says whether xunit's watchdog fired.
+name: Flake 591
+on:
+  push:
+    branches: [claude/n1w3-591-flake]
+    paths-ignore: ['docs/**']
+permissions:
+  contents: read
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [1, 2, 3, 4]
+    runs-on: windows-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet tool install -g dotnet-stack
+      - run: dotnet build Ballast.slnx -c Release
+      - name: The suite, twice
+        shell: pwsh
+        run: |
+          $stack = Join-Path $env:USERPROFILE ".dotnet\tools\dotnet-stack.exe"
+          $env:PROBE_STACK = $stack
+          foreach ($i in 1..2) {
+            $env:PROBE_OUT = Join-Path $env:RUNNER_TEMP "stacks-$i.txt"
+            $out = dotnet test --solution Ballast.slnx -c Release --no-build 2>&1 | Out-String
+            $fired = $out -match "Foreground threads were left running"
+            Write-Host "=== run $i (runner ${{ matrix.runner }}): watchdog fired: $fired"
+            if ($fired) { Write-Host $out }
+            Write-Host "=== run $i stacks at Game.Tests' end"
+            if (Test-Path $env:PROBE_OUT) { Get-Content $env:PROBE_OUT | Write-Host } else { Write-Host "(no probe output)" }
+          }
