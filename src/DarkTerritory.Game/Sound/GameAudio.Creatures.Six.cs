@@ -280,6 +280,8 @@ public sealed partial class GameAudio
         {
             Cue("tell-hotbox.knock", at, occ);
             was.Stride -= 1;
+            // The axle oilers (queue #505, note 775): at its first knock, the oil's eased knock and drip beside it.
+            Oilers(world.Train, h.Id, at, occ);
         }
         if (glow)
             Hold("tell-hotbox.sizzle", h.Id, at, occ);
