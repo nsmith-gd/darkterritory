@@ -62,6 +62,34 @@ public class VoiceTests
         Assert.InRange(quiet.NearDb - hot.NearDb, -1, 1);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void AnOpenCabDoorLetsTheVoiceOutABitButNotCompletely(bool fromTheCab)
+    {
+        // Note 862 (the director, 19 Oct 2026: "open cab door should let voices out a bit more but not completely"): the driver
+        // in the cab and a crewmate on the engine 7.5 m off, at speed, from a quiet mic. Through the shut wall, heard over the
+        // bed; with either side door open (note 856's, 4 by the coal and 8 across the front), louder and brighter; and still
+        // short of the same voice at the same distance with no wall at all.
+        var trainTuning = DataFile.Load<TrainTuning>(Path.Combine(Content, TrainTuning.File));
+        VoiceBenchReport Heard(byte doors) => fromTheCab
+            ? VoiceBench.Run(Content, speakerCar: 0, speakerZ: 0, radio: false, seconds: 3, speed: trainTuning.MaxSpeed, listenerCar: 0, micDb: -20, cabDoors: doors)
+            : VoiceBench.Run(Content, speakerCar: 0, speakerZ: 0, radio: false, seconds: 3, speed: trainTuning.MaxSpeed, speakerInCab: false, listenerInCab: true,
+                micDb: -20, cabDoors: doors);
+        var shut = Heard(0);
+        var left = Heard(4);
+        var right = Heard(8);
+        var outside = VoiceBench.Run(Content, speakerCar: 3, speakerZ: 7.5, radio: false, seconds: 3, speed: trainTuning.MaxSpeed, micDb: -20);
+        Assert.Equal(shut.DistanceM, outside.DistanceM, 0.6);
+        foreach (var open in new[] { left, right })
+        {
+            Assert.True(open.NearDb > shut.NearDb + 4, $"open {open.NearDb} dB, shut {shut.NearDb}");
+            Assert.True(open.NearHighDb > shut.NearHighDb + 6, $"open over 2 kHz {open.NearHighDb} dB, shut {shut.NearHighDb}");
+            Assert.True(outside.NearDb > open.NearDb + 3, $"outside {outside.NearDb} dB, open {open.NearDb}");
+        }
+        Assert.True(shut.OverRestDb >= 2, $"shut, {shut.OverRestDb} dB over the bed");
+    }
+
     [Fact]
     public void TheRadioCarriesTheLengthOfTheTrainBandLimited()
     {

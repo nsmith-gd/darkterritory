@@ -1045,4 +1045,13 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [861. Shared challenges that make laughs on a multiplayer night (the director's playtest of 16 Oct evening, line 8) (Otis, queue #588)](notes/861.md)
 - [862. An open cab door lets voices out a bit more, not completely (the director, 19 Oct, on #583's call) (Theo, queue #589)](notes/862.md)
 - [863. The 3-a-night creature cap, on (Nell, queue #590; the director, 19 Oct 2026: "turn on the 3-a-night creature cap"; Elsie's audit, note 857)](notes/863.md)
+- [863. The 3-a-night creature cap turned on (the director, 19 Oct, answering note 857's call) (Nell, queue #590)](notes/863.md)
+- [864. The Windows CI flake: Game.Tests' host left running after its tests pass (nathaniel1 n1-w3, queue #591)](notes/864.md)
+- [865. Something for two on the run, not on solo nights (the director, 19 Oct, on note 861's call 5) (Bram, queue #592)](notes/865.md)
+- [866. The extinguisher puts out the flame it's aimed at, stretch by stretch down the car (Faye, queue #593; the 19 Oct playtest, line 10)](notes/866.md)
+- [867. Pair jobs: a grab on one makes the other let go, and bots carry jackpots in pairs (the director, 19 Oct, on note 861's calls 2 and 3)…](notes/867.md)
+- [868. The stops' own scale with crew and difficulty, no night without creatures, more abandoned villages (the director, 19 Oct, on note 860's…](notes/868.md)
+- [869. The starting town and yard: colliders, the gate, lineside geometry, the coaling ladder, the crane (the director's playtest of 19 Oct, lines…](notes/869.md)
+- [870. The starting town's look: flat assets, the water tower's texture, a market with varied stalls, the Bitten Van (the director's playtest of…](notes/870.md)
+- [871. The flare pistol (nathaniel1 n1-w3, queue #598; #410's catalogue, docs/design/upgrades.md §4 "Tools")](notes/871.md)
 <!-- end of the notes index -->

@@ -44,7 +44,7 @@ Strict ducking priority. Higher tiers duck everything below, except voice: nothi
 | Tier | Content | Behaviour |
 |---|---|---|
 | **1** | Enemy telegraphs | Ducks tiers 3–6 −9dB (*changed 2 Oct*: not voice, so a crewmate calling out the tell is heard over it; as the implementation table below has it, "tier 1 bus ducks buses 3–6"). Never masked. Never occluded beyond −6dB. |
-| **2** | Proximity voice | Ducks bed −6dB while active, and the ambient world with it (*changed 18 Oct, note 855*: on a roof at speed the wind is the loudest thing in the voice's band, and a crewmate talking from the cab's door was lost under it). Every microphone is levelled to one speech level before it's sent (note 855), so a quiet mic is heard as a loud one |
+| **2** | Proximity voice | Ducks bed −6dB while active, and the ambient world with it (*changed 18 Oct, note 855*: on a roof at speed the wind is the loudest thing in the voice's band, and a crewmate talking from the cab's door was lost under it). Every microphone is levelled to one speech level before it's sent (note 855), so a quiet mic is heard as a loud one. Through the cab's wall with a side door open, half the wall's occlusion (note 862, A.5) |
 | **3** | Critical train state | Pressure alarm, brake fade, breach |
 | **4** | Player actions | Footsteps, tools, shovel, gun |
 | **5** | Train bed | The floor everything sits on |
@@ -113,7 +113,7 @@ Three enemies are silent on purpose, and the Gaunt and the Passenger make silenc
 | Full clarity | 0–8m |
 | Falloff curve | Logarithmic, 8–26m |
 | Cutoff | 26m |
-| Occlusion | Car walls −12dB and lowpass at 900Hz |
+| Occlusion | Car walls −12dB and lowpass at 900Hz. The cab with a side door open (*added 19 Oct, note 862*: "open cab door should let voices out a bit more but not completely"): half the wall, −6dB and lowpass at about 4.2kHz, between the cab and outside |
 | Radio channel | Flat, no falloff, band-limited 300–3kHz, static floor |
 | Radio range | Whole run, dies in tunnels and mine spurs |
 
@@ -342,7 +342,7 @@ A breach is a car's shell giving way to the outside (decided 1 Oct): a door forc
 
 ## B.10 Director pacing
 
-*Design decision, 2026-10* (GDD App. B.1 "Pressure", "Pacing rules"; `director` in `content/tuning/enemies.json`). The budget and its curve, the caps and the gates are GDD App. B.1's; these say when the director spends. The night's curve and the free spawns on it (the director, 16 Oct 2026; note 849) are the rows marked so; `NightCurveTests` pins them.
+*Design decision, 2026-10* (GDD App. B.1 "Pressure", "Pacing rules"; `director` in `content/tuning/enemies.json`). The budget and its curve, the caps and the gates are GDD App. B.1's; these say when the director spends. The night's curve and the free spawns on it (the director, 16 Oct 2026; note 849) are the rows marked so; `NightCurveTests` pins them. The stops' own (note 860) is its row; `StopsOwnTests` pins it.
 
 | Parameter | Value |
 |---|---|
@@ -365,6 +365,7 @@ A breach is a car's shell giving way to the outside (decided 1 Oct): a door forc
 | Free spawn: the fill (`curve.fill`) | The pressure **pressed** (at 16, `fillPressed`) with **no rule met** spends on the rule-less (the list below) instead of nothing: charged, paced and relieving as any spend |
 | Free spawn: what comes | One draw among the rule-less, sent without their situational rule, by weight: Cinder Hounds 0.5 (the train moving), Climbers 1, Ribbits 1.5, Followers 1, Soot Children 1, the Moose 0.7 (`curve.kinds`); and every kind whose rule is met now at its rule's weight × **1** × the curve (`curve.bound`); a Dragger or Whistler (silent until met) only with nothing else to send |
 | **Most of a kind a night** (note 863) | **3** (`director.perNightDefault`; a kind's own `perNight` wins: the Knotter 2). Counts the director's sends (the pressure's, the free spawns, the fill), the Stoker, the house creatures and the Pickers' groups; a pack counts **once** (`packCountsOnce`). The lineside moose, the hound runs and the truss Draggers stop at it without counting |
+| **The stops' own** (GDD App. B.1 "The stops' own"; note 860) | As the train stands at a yard (a facility with a stop laid) or an abandoned village (a village stop, stood on the main line by it): **1** of the kinds whose rule the stop meets put in place (`waiting`) and, from **40 s** stood there (`boardingAfterSeconds`), **1** of the boarders (`boarding`: the Whistler, Draggers, Tippy Toesie, the Passenger) whose rule it meets, one a second, for the first **240 s** stood there (`trySeconds`); by rule weight × `weights` × the night's variety, under the roster, `nightChance`, `perNight`, slain and the engaged cap. Once a stop a night. Beside the pressure: outside its budget, threshold, cooldown and the facility lull; the grace, the forts, the final stretch and the spawn bans hold; nothing off the pressure; its own dice |
 | Post-spawn cooldown | 25–45 s (gives way when pressed) |
 | Facility lull (note 751) | 20 s from the first second stood at a facility: nothing of the director's own |
 | Aftermath (note 751) | 12 s after a death, cars lost (told), a grab broken with the one held alive, a Holdout freed: nothing of the director's own, pressed or not |

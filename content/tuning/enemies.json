@@ -1059,6 +1059,24 @@
       // The hounds at half: a free pack boards a slow train at once and lights its cars (4-bot seed 1: 16 pack fires at 1).
       "kinds": { "cinderHounds": 0.5, "climbers": 1, "ribbits": 1.5, "followers": 1, "sootChildren": 1, "moose": 0.7 }
     },
+    // The stops' own (note 860; GDD App. B.1 "The stops' own"; the director's playtest of 16 Oct evening, line 7: "Monsters are
+    // positioned and ready at yards and abandoned villages, or use those stops to get onto the train"). Before it, what a stop
+    // met was whatever the pressure could spend while the train stood there: on frontier:7 with two bots, one yard of three
+    // had anything at all. Now, from the first second the train stands at a yard (a facility with a stop laid) or an
+    // abandoned village's halt (dead_settlement, stood), and for trySeconds of standing there, the director puts in place
+    // `waiting` of the creatures whose rule the stop meets (what lives at its sites, the Moose by it, the Freight Beetle in its
+    // freight, the Grumbler on its perch...), and, once it's stood there boardingAfterSeconds (while the crew is busy with
+    // the stop, not cutting the train at its points: a Whistler in the gap the shunter must uncouple held four bots at
+    // frontier:12's first yard for good), `boarding` of the `boarders` whose rule it meets, which use the stop to get aboard. Each picked by its rule's weight × weights × the night's variety, under the roster, its night (nightChance,
+    // perNight), slain and the engaged cap; a kind needing someone on the ground comes the moment one steps down. Once a
+    // stop a night (a crew shunting its yard hasn't arrived again). Beside the pressure's spends: outside its budget,
+    // threshold, cooldown and the facility lull (it was there before the train came); the grace, the forts, the final
+    // stretch and the line's spawn bans hold. On its own dice (0x5709): the night's other draws are as they were. Logged
+    // DirectorSpawn.Stop.
+    "stops": {
+      "on": true, "waiting": 1, "boarding": 1, "boardingAfterSeconds": 40, "trySeconds": 240,
+      "boarders": ["whistler", "draggers", "tippyToesie", "passenger"]
+    },
     // T128 (build 1121: "a player left behind by the train should feel the world close in: tension, monsters coming, the
     // difficulty spiking for that player. They needn't die at once"; GDD §7, §23; ARCHITECTURE §8 note 273). Not in the spec.
     // A crewmate alive on the ground, further than behindM (m) along the line from the nearest end of the train and not in a

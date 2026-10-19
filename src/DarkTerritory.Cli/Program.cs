@@ -143,7 +143,9 @@ return args switch
         tube: args.Contains("--tube"),
         // Note 855: under way (--speed m/s), the listener in the cab or on a roof of their own, a quiet mic (--mic -20), a WAV.
         speed: Opt(args, "--speed", 0), listenerInCab: args.Contains("--listener-cab"), listenerCar: (int)Opt(args, "--listener-car", 3),
-        listenerZ: Opt(args, "--listener-z", 0), micDb: Opt(args, "--mic", 0), wav: Str(args, "--out", "") is { Length: > 0 } wav ? wav : null)),
+        listenerZ: Opt(args, "--listener-z", 0), micDb: Opt(args, "--mic", 0), wav: Str(args, "--out", "") is { Length: > 0 } wav ? wav : null,
+        // Note 862: --cab-door left|right|both, the cab's side doors held open.
+        cabDoors: Str(args, "--cab-door", "") switch { "left" => 4, "right" => 8, "both" => 12, _ => 0 })),
 
     _ => Usage(),
 };
@@ -224,6 +226,7 @@ object RunHarness(string[] args)
             // The app's own link is UDP over localhost (D1.4); the perfect one is kept by default, as a trends night must
             // play the same on every commit it's measured on. --udp for the sockets.
             Udp = args.Contains("--udp"),
+            Shared = DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Shared,
         }, args.Contains("--no-boiler") ? null : hosted.Boiler);
     }
     return Harness.Run(line, train, player, new HarnessOptions
@@ -276,6 +279,7 @@ object RunHarness(string[] args)
             ? DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Combinations.HazardSets.First(h => h.Name == hz) : null,
         // And its look-out (note 212), as the sweep's; --no-look leaves it out (note 222: the before of a before/after).
         Look = args.Contains("--insist") && !args.Contains("--no-look") ? DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Combinations.Look : null,
+        Shared = DataFile.Load<BalanceTuning>(Path.Combine(content, BalanceTuning.File)).Shared,
     }, args.Contains("--no-boiler") ? null : boiler);
 }
 
@@ -328,6 +332,7 @@ BalanceReport RunBalance(string[] args)
             Enemies = enemies,
             Route = route,
             Holdouts = holdouts,
+            Shared = targets.Shared,
             Sight = sight,
             Run = run,
             Facilities = facilities,
@@ -2301,6 +2306,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             scene.Self = you;
         }
     }
+    // --put-out n (note 866; with --threats, the fire view): the staged car ablaze end to end, and the n stretches of it nearest
+    // the camera put out by the extinguisher, dark, wet and charred, as the crew leave a car they're working down.
+    if (args.Contains("--put-out") && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.CarFire>().FirstOrDefault() is { Heat.Length: > 0 } dousing)
+        Staging.PutOut(train, dousing, (int)Opt(args, "--put-out", 1), stagedFire);
     // --scorch [m] (note 821; with --threats, the fire view): a crewmate in the burning car m from its hottest cell (1.4),
     // the fire's heat on them as the host reckons it, smoking.
     if (args.Contains("--scorch") && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.CarFire>().FirstOrDefault() is { Heat.Length: > 0 } burning)
@@ -4543,6 +4552,7 @@ static int Usage()
                      [--utility i,j]   those cars as utility cars, fitted out for the crew (bunks, stove, table)
                      [--cold c]   a night that cold (0..1): frost on what's outdoors, breath from every mouth
                      [--burnt car,s]   that car gutted by a fire out s seconds ago: charred, smouldering
+                     [--put-out n]     with --threats, the staged car ablaze end to end, its n stretches nearest the fire view put out (note 866)
                      [--route tier:seed --structure girder|truss|trestle|viaduct|causeway|retainingwall]   the night's first of the plan's structures of that type, the train on it, from off its side
                      [--route tier:seed --mail s]   at the night's first mail crane, car 2's door by it; s > 0: the bag caught s seconds ago (its snatch, the arms falling)
                      [--route tier:seed --site [--crank | --crane | --facility i|kind [--leak] [--settled]]]   stopped at a facility: crates out, the winch sled part-hauled (spec D); --crank: close on the cranks; --crane: a gantry crane's facility, a casting on the hook [--hook h --trolley t] [--operator: from its cab]; --facility: the route's i-th
@@ -4610,7 +4620,7 @@ static int Usage()
                      one sound alone (a one-shot to its end, a loop for 4 s): WAV, spectrogram, its length, takes and level
           edit [--port p] [--screenshot file.png]   the designer's editor (tuning + routes) at http://127.0.0.1:<port>/
           voice bench [--car n (0 = cab)] [--z m] [--radio] [--latency s --jitter s --loss 0..1] [--speed m/s]
-                      [--listener-cab | --listener-car n --listener-z m] [--mic dB] [--out file.wav]
+                      [--listener-cab | --listener-car n --listener-z m] [--mic dB] [--cab-door left|right|both] [--out file.wav]
                      one speaker to a listener on car 3 through host routing, Opus and the mixer (spec A.5); restDb is
                      everything else they hear in the voice band, overRestDb the voice's margin over it (note 855)
         """);

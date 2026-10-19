@@ -47,6 +47,43 @@ public class EffectsTests
     }
 
     [Fact]
+    public void AFireOnItsCellsIsDrawnAStretchAtATimeAndNothingOfItAtItsHeart()
+    {
+        // Note 866 (the director, 19 Oct: "its not going out on the grid Im aiming at"): drawn on its cells, a fire has nothing
+        // at its heart, through the creatures' art (which draws the heart, and has its own effects) as through these; each
+        // stretch has its own smoke, glow and light while it burns, and nothing once it's put out.
+        var fx = new Effects(Look) { CellFlames = true };
+        var heart = Mesh();
+        fx.CarFire(heart, O, Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, alight: true, 0.8, 5, spread: 0.5f);
+        Assert.Empty(heart.PointLights);
+        Assert.Empty(heart.AdditiveFx);
+        Assert.Empty(heart.AlphaFx);
+        var creatures = new CreatureArt(Look) { CellFlames = true };
+        var drawn = Mesh();
+        creatures.Enemy(drawn, Matrix4x4.CreateTranslation(O), Sim.Enemies.EnemyKind.CarFire, Sim.Enemies.SpinePhase.Punish, 5, 0.8);
+        Assert.Empty(drawn.PointLights);
+        Assert.Empty(drawn.AdditiveFx);
+        Assert.Empty(drawn.AlphaFx);
+        var along = new Vector3(0, 0, 1.75f);
+        var burning = Mesh();
+        fx.FireStretch(burning, O, along, new Vector3(1.4f, 0, 0), 2.2f, 0.9f, true, 5, 3);
+        var light = Assert.Single(burning.PointLights);
+        Assert.True(light.Range < 6, $"its light reaches {light.Range} m: the stretch beside it, put out, goes dark");
+        Assert.NotEmpty(burning.AlphaFx);
+        Assert.NotEmpty(burning.AdditiveFx);
+        Assert.All(burning.AlphaFx.ToArray(), v => Assert.InRange(v.Position.Z, O.Z - 3, O.Z + 3));
+        var smouldering = Mesh();
+        fx.FireStretch(smouldering, O, along, new Vector3(1.4f, 0, 0), 2.2f, 0.2f, false, 5, 3);
+        Assert.NotEmpty(smouldering.AlphaFx);
+        Assert.True(Assert.Single(smouldering.PointLights).Colour.Length() < light.Colour.Length() / 2);
+        var doused = Mesh();
+        fx.FireStretch(doused, O, along, new Vector3(1.4f, 0, 0), 2.2f, 0, true, 5, 3);
+        Assert.Empty(doused.PointLights);
+        Assert.Empty(doused.AdditiveFx);
+        Assert.Empty(doused.AlphaFx);
+    }
+
+    [Fact]
     public void AFireAboutToJumpTheCouplingCreepsTowardTheCarsEnds()
     {
         // App. A.5 "grows, jumps couplings": the nearer the blaze is to spreading, the further its flames reach along the car.
