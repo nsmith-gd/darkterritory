@@ -126,7 +126,7 @@ public class AfootTests
         // The outside creatures and the stops' residents weigh more with crew afoot; the train's own don't.
         Assert.All(new[] { EnemyKind.Ribbit, EnemyKind.Gaunt, EnemyKind.Follower, EnemyKind.SootChildren, EnemyKind.Grumbler, EnemyKind.Whistler },
             k => Assert.True(Director.Outdoors(k), k.ToString()));
-        Assert.All(new[] { EnemyKind.Dragger, EnemyKind.Climber, EnemyKind.Switchman, EnemyKind.Stoker, EnemyKind.CarFire },
+        Assert.All(new[] { EnemyKind.Dragger, EnemyKind.Climber, EnemyKind.Stoker, EnemyKind.CarFire },
             k => Assert.False(Director.Outdoors(k), k.ToString()));
         Assert.True(A.OutsideWeight > 1);
     }

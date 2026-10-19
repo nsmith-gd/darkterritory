@@ -229,6 +229,24 @@ public sealed record VoicesTuning
     public LampSignalTuning LampSignals { get; init; } = new();
     /// <summary>Note 749: a held speaker's voice, a hand over the mouth (player.json <c>voices.covered</c>).</summary>
     public CoveredVoiceTuning Covered { get; init; } = new();
+    /// <summary>Note 855: every microphone brought to one speech level before it's sent (player.json <c>voices.leveller</c>).</summary>
+    public LevellerTuning Leveller { get; init; } = new();
+}
+
+/// <summary>
+/// Note 855 (the director's playtest of 16 Oct evening, line 1: the host's Windows mic "way too low" for the joiner): the
+/// capture leveller, client side (Ballast.Voice.VoiceLeveller). Field docs live in player.json <c>voices.leveller</c>.
+/// </summary>
+public sealed record LevellerTuning
+{
+    public bool On { get; init; } = true;
+    public double TargetDb { get; init; } = -14;
+    public double MaxBoostDb { get; init; } = 24;
+    public double MaxCutDb { get; init; } = 12;
+    public double RiseSeconds { get; init; } = 0.15;
+    public double FallSeconds { get; init; } = 2.5;
+    public double IgnoreBelowDb { get; init; } = 20;
+    public double Ceiling { get; init; } = 0.95;
 }
 
 /// <summary>

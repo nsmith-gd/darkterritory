@@ -156,7 +156,7 @@ public class ClerkVoiceTests
     public void EveryCauseCardTheStrandedLineAndTheKitLostAreSaidWithNothingBreakingUp()
     {
         // Note 242: the cause card (E.5) reads the derail's cause and C.9's blame through IncidentLog.CauseCard, and the
-        // causes are the sim's templates (Lineside's bends, the Sleepers, the Switchman, TrackRules' washouts and bridges, the
+        // causes are the sim's templates (Lineside's bends, the Sleepers, TrackRules' washouts and bridges, the
         // Stoker's runaway); the places are the line generator's own words. A new word in any of them fails here until the
         // bank (tools/audio/clerk.py) has it.
         var clerk = Clerk();
@@ -166,7 +166,6 @@ public class ClerkVoiceTests
             "ran onto the washout",
             "Carrow Trestle gave way under car 4",
             "ran onto the Sleepers at 52 km/h, 12 km/h over the 40 km/h they'll take",
-            "the Switchman threw the points under it at 35 km/h (over 25 km/h they throw a train off)",
             "the Stoker ran away with it: took the 45 km/h bend at 68 km/h, 23 km/h too fast",
         ];
         string[] blames =

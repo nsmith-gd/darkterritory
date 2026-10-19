@@ -50,9 +50,9 @@ public sealed partial class World
     }
 
     /// <summary>
-    /// Host: sets a switch without anyone at its stand (the Switchman, scripted set pieces, tests). Returns whether it now
+    /// Host: sets a switch without anyone at its stand (scripted set pieces, tests). Returns whether it now
     /// stands as asked: false only when a wheel on the points kept it from moving. (Note 289: it returned whether it moved,
-    /// so one already set that way read as held, and the Switchman left its lever a tick after throwing it.)
+    /// so one already set that way read as held.)
     /// </summary>
     public bool SetSwitch(int branch, bool diverge) =>
         Train.Diverging(branch) == diverge || Train.ThrowSwitch(branch, diverge, Switches?.Tuning.PointsLength ?? 0);
@@ -209,23 +209,11 @@ public sealed partial class World
     public double DeadEndWarnSeconds { get; set; }
     /// <summary>Host: buffers hit over the limit before the warning had been up its lead (the buffer stop's damage alone; should be 0).</summary>
     public int DeadEndsSpared { get; set; }
-    /// <summary>Host: the dead lines a Switchman has thrown the points for this night (note 286), by branch: C.9's Switchman row.</summary>
-    public HashSet<int> SwitchmanThrew { get; } = new();
-
-    /// <summary>
-    /// Through a dead line's buffers and off the end (note 286). Down a line the Switchman threw it onto, C.9's Switchman row
-    /// names the forward cannon as it always has; otherwise it's the throttle's.
-    /// </summary>
+    /// <summary>Through a dead line's buffers and off the end (note 286): the throttle's. (The Switchman's row went with it, note 852.)</summary>
     void OffTheEnd(int branch, double speed, double limit)
     {
         int kmh = (int)Math.Round(speed * 3.6), over = (int)Math.Round(limit * 3.6);
-        if (SwitchmanThrew.Contains(branch))
-        {
-            var (gunner, cannon) = Sim.Run.IncidentLog.ForwardCannon(this);
-            Derail($"ran off the end of the dead line the Switchman threw it down, at {kmh} km/h (over {over} km/h it goes through the buffers)", gunner, cannon);
-        }
-        else
-            Derail($"ran off the end of a dead line at {kmh} km/h (over {over} km/h it goes through the buffers)");
+        Derail($"ran off the end of a dead line at {kmh} km/h (over {over} km/h it goes through the buffers)");
     }
 
     /// <summary>Host: each bend derailment, by how long its warning had been up when it came (the audit's).</summary>
@@ -869,7 +857,7 @@ public sealed partial class World
 
     /// <summary>The generated line whose track rules the host holds the train to (curves, weak bridges, washouts); null for a hand-laid one.</summary>
     public LineGen.LinePlan? TrackPlan { get; set; }
-    /// <summary>What derailed the train (the report and the HUD say so): the track, a board run too fast, the Sleepers, the Switchman.</summary>
+    /// <summary>What derailed the train (the report and the HUD say so): the track, a board run too fast, the Sleepers, a dead line's end.</summary>
     public string? DerailCause { get; private set; }
     /// <summary>At the derail tick: the train's speed, and who was on the throttle (App. C.9's "speed at impact").</summary>
     public double DerailSpeed { get; private set; }
@@ -877,7 +865,7 @@ public sealed partial class World
     /// <summary>
     /// The derail's contributing action (App. C.9), as the cause card and the report read it: who made it (−1 for nobody)
     /// and the clerk's words, with <c>{actor}</c> where their name goes. The throttle for the track's dangers and the
-    /// debris; the forward cannon for the Switchman; the firebox for a Stoker's runaway (note 190).
+    /// debris; the firebox for a Stoker's runaway (note 190).
     /// </summary>
     public int DerailActor { get; private set; } = -1;
     public string DerailAction { get; private set; } = "";
@@ -2241,6 +2229,24 @@ public sealed partial class World
         _nextFx = _nextFx % 0xFFFFFF + 1;
     }
 
+    /// <summary>
+    /// Host (note 854; the director's playtest of 16 Oct, line 13: "What is making these couplings loose? It doesn't make any
+    /// sense"): a pin's just jumped. The report keeps what did it for when it parts (note 640), and the crew are told now, where
+    /// and why, everyone alike (the news line, <see cref="Sim.Run.News.Line"/>), while there's still the 90 s to tighten it.
+    /// </summary>
+    /// <param name="board">For a bend, its posted board (km/h); 0 not known.</param>
+    public void PinLoosened(int car, LooseCause cause, double speed, int board = 0)
+    {
+        if (!Authority)
+            return;
+        Attribution.Loosened(car, cause, speed, board);
+        _loosenings.Add((cause, speed));
+        var news = new Sim.Run.NewsEvent(_nextFx, Tick, Sim.Run.NewsKind.Loose, [car], (byte)cause, (byte)Math.Clamp(board, 0, 255), Attribution.Driver, speed);
+        NewsLog.Add(news);
+        News.Add(news);
+        _nextFx = _nextFx % 0xFFFFFF + 1;
+    }
+
     /// <summary>Note 846: whether <paramref name="vehicle"/>'s gun holds its fire, its car inside a walled town (combat.json holdInTowns).</summary>
     public bool GunHeld(int vehicle) =>
         Combat is { Guns.HoldInTowns: true } && vehicle >= 0 && vehicle < Train.Frames.Count && InTown(Train.Frames[vehicle].Origin);
@@ -2323,10 +2329,7 @@ public sealed partial class World
             bool pack = ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && !e.Gone && e.Attached >= 0);
             int parted = pins.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort || CallOnly, pack);
             if (pins.Loosened is { } l)
-            {
-                Attribution.Loosened(l.Car, l.Cause, l.Speed);
-                _loosenings.Add((l.Cause, l.Speed));
-            }
+                PinLoosened(l.Car, l.Cause, l.Speed, l.Cause == LooseCause.Bend ? Train.LurchBoardKmh : 0);
             // Note 511: what it parted is in the report as the pin's, not a cut nobody's named for.
             // The rake that isn't the engine's: ahead of it, the parted pin's own car's (note 653: seed 7's pair carried ahead).
             if (parted >= 0 && pins.PartedFrom >= 0)
@@ -2781,7 +2784,7 @@ public sealed partial class World
             // Its grace counts from the run's start when the yard's safe (note 263): a crew who waited half an hour at the gate
             // haven't been out in the Territory for it.
             else if (d.Decide(this, Run is { Tuning.YardIsSafe: true } r ? r.Seconds : ElapsedSeconds, _enemies, NoSpawnFinalApproach) is { } kind && Spawns.For(kind) is { } rule)
-                rule.Spawn(new SpawnContext(this, t, d));
+                rule.Spawn(new SpawnContext(this, t, d) { Free = d.SentFree });
             // The dark answers the draw (note 287): heard from out past the lamp, and eyes at its edge, before the threat comes.
             foreach (var (cause, actor) in d.TakeAnswers())
                 Answer = new DrawAnswer(t.Director.Draw.ShowSeconds, cause, AnswerAt(t.Director.Draw), actor);

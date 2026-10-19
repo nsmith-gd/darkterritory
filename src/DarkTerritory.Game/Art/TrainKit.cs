@@ -1152,18 +1152,26 @@ public static partial class TrainKit
         {
             // The side under the windows, from the nose back to the doorway (note 338): flat plate, braced corner to corner.
             float sideOut = side * (w + 0.05f), sideIn = side * w;
-            Plate(k, 1.4f);
-            k.Box(new Vector3(MathF.Min(sideOut, sideIn), 1.0f, cabFront + 0.02f), new Vector3(MathF.Max(sideOut, sideIn), waist, doorFront), Kit.Faces.All & ~Kit.Faces.PosY);
-            Rusted(k).Shade(0.6f);
-            Strap(k, new Vector3(sideOut, 1.08f, cabFront + 0.2f), new Vector3(sideOut, waist - 0.08f, doorFront - 0.12f), new Vector3(side, 0, 0), 0.07f);
-            Strap(k, new Vector3(sideOut, waist - 0.08f, cabFront + 0.2f), new Vector3(sideOut, 1.08f, doorFront - 0.12f), new Vector3(side, 0, 0), 0.07f);
-            // Welded patches over old damage, proud of the plate.
+            // Each length of side between the front pillar, a side door at the cab's front (note 856) and the doorway.
+            var lengths = Around(shape, side, cabFront + 0.02f, doorFront).ToList();
+            foreach (var (za, zb) in lengths)
+            {
+                Plate(k, 1.4f);
+                k.Box(new Vector3(MathF.Min(sideOut, sideIn), 1.0f, za), new Vector3(MathF.Max(sideOut, sideIn), waist, zb), Kit.Faces.All & ~Kit.Faces.PosY);
+                Rusted(k).Shade(0.6f);
+                float s0 = za + (za < cabFront + 0.1f ? 0.18f : 0.12f), s1 = zb - 0.12f;
+                Strap(k, new Vector3(sideOut, 1.08f, s0), new Vector3(sideOut, waist - 0.08f, s1), new Vector3(side, 0, 0), 0.07f);
+                Strap(k, new Vector3(sideOut, waist - 0.08f, s0), new Vector3(sideOut, 1.08f, s1), new Vector3(side, 0, 0), 0.07f);
+            }
+            // Welded patches over old damage, proud of the plate (in the side's longest length, clear of a door).
             k.Use("rust_heavy", Palette.RustRed, 0.95f, 0.15f);
-            float mid = (cabFront + doorFront) / 2;
+            var longest = lengths.MaxBy(x => x.B - x.A);
+            float mid = Math.Clamp((cabFront + doorFront) / 2, longest.A + 0.65f, longest.B - 0.2f);
             k.Box(new Vector3(side * (w + 0.08f) - 0.02f, 1.55f, mid - 0.55f), new Vector3(side * (w + 0.08f) + 0.02f, 1.95f, mid + 0.1f));
             // The rolled rail along the waist.
             k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.4f);
-            k.Box(new Vector3(MathF.Min(side * (w - 0.02f), side * (w + 0.09f)), waist - 0.02f, cabFront), new Vector3(MathF.Max(side * (w - 0.02f), side * (w + 0.09f)), waist + 0.06f, doorFront));
+            foreach (var (za, zb) in Around(shape, side, cabFront, doorFront))
+                k.Box(new Vector3(MathF.Min(side * (w - 0.02f), side * (w + 0.09f)), waist - 0.02f, za), new Vector3(MathF.Max(side * (w - 0.02f), side * (w + 0.09f)), waist + 0.06f, zb));
             // The shutter over the side windows, propped out and down off its hinge under the eave.
             Iron(k);
             float h0 = roofLow - EaveAt(cabFront + 0.25f, cabFront, cabBack) - 0.02f;
@@ -1182,7 +1190,7 @@ public static partial class TrainKit
             float xs = side * (w + 0.02f), xi = side * (w - 0.06f);
             Vector3 P(float x, float y, float z) => new(x, y, z);
             float Eave(float z) => roofLow - EaveAt(z, cabFront, cabBack) + 0.02f;
-            var zones = SideWindows(shape).ToList();
+            var zones = SideWindows(shape, side).ToList();
             foreach (var (za, zb, y0, y1, _) in zones)
             {
                 k.Box(new Vector3(x0, waist + 0.05f, za), new Vector3(x1, y0, zb));
@@ -1197,9 +1205,26 @@ public static partial class TrainKit
                 k.Quad(P(xs, Eave(closed), closed), P(xs, Eave(doorFront - 0.02f), doorFront - 0.02f), P(xs, waist + 0.05f, doorFront - 0.02f), P(xs, waist + 0.05f, closed), twoSided: true);
                 k.Quad(P(xi, Eave(closed), closed), P(xi, Eave(doorFront - 0.02f), doorFront - 0.02f), P(xi, waist + 0.05f, doorFront - 0.02f), P(xi, waist + 0.05f, closed), twoSided: true);
             }
+            // Over each side door (note 856), plate from its lintel up to the eave; the door's track over it and over where its
+            // leaf stands slid open, on brackets off the side.
+            float doorTop = deck + k.DoorHeight();
+            foreach (var door in CabSideDoors(shape, side))
+            {
+                float za = (float)door.Box.Min.Z, zb = (float)door.Box.Max.Z;
+                Plate(k, 1.2f);
+                k.Quad(P(xs, Eave(za), za), P(xs, Eave(zb), zb), P(xs, doorTop, zb), P(xs, doorTop, za), twoSided: true);
+                k.Quad(P(xi, Eave(za), za), P(xi, Eave(zb), zb), P(xi, doorTop, zb), P(xi, doorTop, za), twoSided: true);
+                k.Quad(P(xs, doorTop, za), P(xs, doorTop, zb), P(xi, doorTop, zb), P(xi, doorTop, za), twoSided: true);
+                float out1 = side * (w + (float)door.Out - 0.05f), slid = door.Slide * (zb - za);
+                float t0 = MathF.Min(za, za + slid) - 0.05f, t1 = MathF.Max(zb, zb + slid) + 0.05f;
+                k.Use("rust_heavy", Palette.SootBlack, 0.8f, 0.3f);
+                k.Rod(new Vector3(out1, doorTop + 0.07f, t0), new Vector3(out1, doorTop + 0.07f, t1), 0.025f, 6);
+                foreach (float z in new[] { t0 + 0.04f, t1 - 0.04f })
+                    k.Rod(new Vector3(side * (w + 0.02f), doorTop + 0.07f, z), new Vector3(out1, doorTop + 0.07f, z), 0.02f, 6);
+            }
             // Rivet straps up the plate at each post.
             k.Use("rust_heavy", Palette.RustRed, 0.9f, 0.2f);
-            foreach (float z in WindowPosts(shape))
+            foreach (float z in WindowPosts(shape, side))
                 k.Box(new Vector3(x0 - 0.015f, waist + 0.05f, z - 0.06f), new Vector3(x1 + 0.015f, roofLow - EaveAt(z, cabFront, cabBack), z + 0.06f));
         }
         // The windscreen's frame, raked forward from the sill up into the brow, the way a ship's bridge leans out over its
@@ -1210,6 +1235,15 @@ public static partial class TrainKit
         // doorway at the back of the cab, which the running board along the boiler comes up to from car 1, framed in rolled
         // iron, with a caged lamp over it, so it reads as the door it is from along the boards and from the roofs.
         float lintel = deck + k.DoorHeight();
+        // (And each side door at the cab's front, note 856, framed the same.)
+        foreach (var door in CabSideDoors(shape, -1).Concat(CabSideDoors(shape, 1)))
+        {
+            float x = MathF.Sign((float)door.Box.Centre.X) * (w + 0.04f), z0 = (float)door.Box.Min.Z, z1 = (float)door.Box.Max.Z;
+            k.Use("rust_heavy", Palette.RustRed, 0.85f, 0.3f);
+            k.Rod(new Vector3(x, deck, z0), new Vector3(x, lintel + 0.06f, z0), 0.045f);
+            k.Rod(new Vector3(x, deck, z1), new Vector3(x, lintel + 0.06f, z1), 0.045f);
+            k.Rod(new Vector3(x, lintel + 0.06f, z0 - 0.05f), new Vector3(x, lintel + 0.06f, z1 + 0.05f), 0.045f);
+        }
         foreach (int side in new[] { -1, 1 })
         {
             float x = side * (w + 0.04f), z0 = doorFront, z1 = cabBack - 0.15f;
@@ -1468,7 +1502,7 @@ public static partial class TrainKit
             var b = solid.Box;
             bool front = b.Max.Z <= cabFront + 0.2, waistWall = b.Max.Y <= waist + 0.5 && b.Max.X - b.Min.X < 0.2; // (a waist over the gallery's floor, note 716)
             var faces = front ? Kit.Faces.PosZ | Kit.Faces.PosY | Kit.Faces.PosX | Kit.Faces.NegX
-                : waistWall ? (b.Min.X < 0 ? Kit.Faces.PosX : Kit.Faces.NegX) | Kit.Faces.PosY : Kit.Faces.All;
+                : waistWall ? (b.Min.X < 0 ? Kit.Faces.PosX : Kit.Faces.NegX) | Kit.Faces.PosY | Kit.Faces.PosZ | Kit.Faces.NegZ : Kit.Faces.All; // (its ends a side door's jambs, note 856)
             Plate(k);
             k.Box(F(b.Min), F(b.Max), faces);
         }
@@ -1478,7 +1512,7 @@ public static partial class TrainKit
             float xo = side * w;
             // The side windows (note 276): posts between the front pillar and the doorway, so the side reads as a cab's
             // glazed side and not an open shed; nothing to walk into (the waist under them is the wall).
-            foreach (float z in WindowPosts(shape))
+            foreach (float z in WindowPosts(shape, side))
                 k.Box(new Vector3(MathF.Min(xo, xo - side * 0.09f), waist + 0.05f, z - 0.045f), new Vector3(MathF.Max(xo, xo - side * 0.09f), roofLow - EaveAt(z, cabFront, cabBack), z + 0.045f));
             // Grab irons at the doorway, and the step irons down to the ballast: hung off the running board's outer edge
             // under the doorway, where the sim's cab steps are (note 559; off the cab's side when the board stopped short of
@@ -1487,15 +1521,26 @@ public static partial class TrainKit
             Grab(k, new Vector3(xo, deck + 0.3f, cabBack - 0.12f), new Vector3(xo, waist + 0.6f, cabBack - 0.12f), new Vector3(side, 0, 0));
             float hang = shape.Ladders.Where(d => d.Foot.Y < 0.2 && MathF.Sign((float)d.Foot.X) == side && Math.Abs(d.Inward.X) > 0.9)
                 .Select(d => side * ((float)Math.Abs(d.Foot.X) - 0.15f)).DefaultIfEmpty(xo).First();
-            float under = shape.Solids.Where(s => s.Part == PartKind.RunningBoard && MathF.Sign((float)s.Box.Centre.X) == side && s.Box.Min.Z <= doorFront)
-                .Select(s => (float)s.Box.Min.Y - 0.16f).DefaultIfEmpty(deck).First();
-            foreach (float y in new[] { deck - 0.5f, deck - 1.0f })
-                k.Box(new Vector3(MathF.Min(hang, hang + side * 0.25f), y - 0.03f, doorFront + 0.1f), new Vector3(MathF.Max(hang, hang + side * 0.25f), y, cabBack - 0.1f));
-            foreach (float z in new[] { doorFront + 0.12f, cabBack - 0.12f })
+            // (The same at each side door at the cab's front, note 856, off its landing; its grab iron at the door's back jamb.)
+            var ways = CabSideDoors(shape, side).Select(d => ((float)d.Box.Min.Z, (float)d.Box.Max.Z)).Append((doorFront, cabBack)).ToList();
+            foreach (var door in CabSideDoors(shape, side))
             {
-                k.Rod(new Vector3(hang + side * 0.24f, deck - 1.03f, z), new Vector3(hang + side * 0.02f, under, z), 0.015f);
-                if (MathF.Abs(hang) > MathF.Abs(xo) + 0.05f)
-                    k.Rod(new Vector3(hang - side * 0.04f, deck + 0.03f, z - 0.02f), new Vector3(hang - side * 0.04f, deck + 1.0f, z - 0.02f), 0.016f, 6);
+                // (At the jamb its leaf doesn't slide over.)
+                float gz = door.Slide > 0 ? (float)door.Box.Min.Z - 0.14f : (float)door.Box.Max.Z + 0.14f;
+                Grab(k, new Vector3(xo, deck + 0.3f, gz), new Vector3(xo, waist + 0.6f, gz), new Vector3(side, 0, 0));
+            }
+            foreach (var (za, zb) in ways)
+            {
+                float under = shape.Solids.Where(s => s.Part == PartKind.RunningBoard && MathF.Sign((float)s.Box.Centre.X) == side && s.Box.Min.Z <= za && s.Box.Max.Z >= zb)
+                    .Select(s => (float)s.Box.Min.Y - 0.16f).DefaultIfEmpty(deck).First();
+                foreach (float y in new[] { deck - 0.5f, deck - 1.0f })
+                    k.Box(new Vector3(MathF.Min(hang, hang + side * 0.25f), y - 0.03f, za + 0.1f), new Vector3(MathF.Max(hang, hang + side * 0.25f), y, zb - 0.1f));
+                foreach (float z in new[] { za + 0.12f, zb - 0.12f })
+                {
+                    k.Rod(new Vector3(hang + side * 0.24f, deck - 1.03f, z), new Vector3(hang + side * 0.02f, under, z), 0.015f);
+                    if (MathF.Abs(hang) > MathF.Abs(xo) + 0.05f)
+                        k.Rod(new Vector3(hang - side * 0.04f, deck + 0.03f, z - 0.02f), new Vector3(hang - side * 0.04f, deck + 1.0f, z - 0.02f), 0.016f, 6);
+                }
             }
         }
         // The front windows (note 276: "controls at the front with full vis of the rail"): two tall openings either side of a
@@ -1698,7 +1743,7 @@ public static partial class TrainKit
             yield return new Pane(new Vector3(win.X0, win.Y0, z), new Vector3(win.X1 - win.X0, 0, 0), new Vector3(0, win.Y1 - win.Y0, 0), Vector3.UnitZ);
         }
         foreach (int side in new[] { -1, 1 })
-            foreach (var (z0, z1, y0, y1, bays) in SideWindows(shape))
+            foreach (var (z0, z1, y0, y1, bays) in SideWindows(shape, side))
                 for (int bay = 0; bay < bays; bay++)
                 {
                     // Between the posts' straps (0.06 m either side of each post; none at the front pillar).
@@ -1717,7 +1762,27 @@ public static partial class TrainKit
     /// back wall's hooks and shelf are on it). Each zone's along-span, its glass's foot and head, and how many bays its posts
     /// make. An engine without the gallery has its slits from the pillar to the doorway, as it always had.
     /// </summary>
-    static IEnumerable<(float Z0, float Z1, float Y0, float Y1, int Bays)> SideWindows(CarShape shape)
+    /// <remarks>
+    /// Note 856: a side door at the cab's front on <paramref name="side"/> breaks its zone, the glass either side of it in bays
+    /// of about <see cref="SlitBay"/>; a side without one is as it was.
+    /// </remarks>
+    static IEnumerable<(float Z0, float Z1, float Y0, float Y1, int Bays)> SideWindows(CarShape shape, int side)
+    {
+        foreach (var (z0, z1, y0, y1, bays) in SideWindowZones(shape))
+        {
+            var pieces = Around(shape, side, z0, z1).Where(p => p.B - p.A > 0.3f).ToList();
+            if (pieces.Count == 1 && pieces[0] == (z0, z1))
+                yield return (z0, z1, y0, y1, bays);
+            else
+                foreach (var (a, b) in pieces)
+                    yield return (a, b, y0, y1, Math.Max(1, (int)MathF.Round((b - a) / SlitBay)));
+        }
+    }
+
+    /// <summary>How long a side window's bay is, about, beside a side door (m, note 856): the 11 m cab's slits' 1.5, a little less.</summary>
+    const float SlitBay = 1.2f;
+
+    static IEnumerable<(float Z0, float Z1, float Y0, float Y1, int Bays)> SideWindowZones(CarShape shape)
     {
         var cab = shape.Cab!.Value;
         float deck = (float)cab.Min.Y + 0.1f, front = (float)cab.Min.Z + 0.15f;
@@ -1738,19 +1803,44 @@ public static partial class TrainKit
     }
 
     /// <summary>The posts down each side (frame Z): between each zone's bays and at the zones' ends, as <see cref="SideWindows"/> lays them.</summary>
-    static IEnumerable<float> WindowPosts(CarShape shape)
+    static IEnumerable<float> WindowPosts(CarShape shape, int side)
     {
-        var zones = SideWindows(shape).ToList();
+        var zones = SideWindows(shape, side).ToList();
         var cab = shape.Cab!.Value;
         float doorFront = DoorFront(shape, (float)cab.Min.Y + 0.1f, (float)cab.Max.Z);
         for (int i = 0; i < zones.Count; i++)
         {
             var (z0, z1, _, _, bays) = zones[i];
+            // A zone after a side door (note 856) has its post at the door's jamb, just outside the opening, as one before it does.
+            if (i > 0 && zones[i - 1].Z1 < z0 - 0.05f)
+                yield return z0 + 0.045f;
             for (int bay = 1; bay < bays; bay++)
                 yield return z0 + (z1 - z0) * bay / bays;
-            if (i + 1 < zones.Count || z1 < doorFront - 0.1f)
+            if (i + 1 < zones.Count && zones[i + 1].Z0 > z1 + 0.05f)
+                yield return z1 - 0.045f;
+            else if (i + 1 < zones.Count || z1 < doorFront - 0.1f)
                 yield return z1;
         }
+    }
+
+    /// <summary>The cab's side doors at its front on <paramref name="side"/> (note 856), front to back: the sim's doors in its sides.</summary>
+    static IEnumerable<Door> CabSideDoors(CarShape shape, int side) =>
+        shape.DoorList.Where(d => Math.Sign(d.Box.Centre.X) == side && d.Box.Max.Z - d.Box.Min.Z > d.Box.Max.X - d.Box.Min.X).OrderBy(d => d.Box.Min.Z);
+
+    /// <summary><paramref name="a"/> to <paramref name="b"/> along the cab's <paramref name="side"/>, less its side doors' openings (note 856).</summary>
+    static IEnumerable<(float A, float B)> Around(CarShape shape, int side, float a, float b)
+    {
+        foreach (var door in CabSideDoors(shape, side))
+        {
+            float d0 = (float)door.Box.Min.Z, d1 = (float)door.Box.Max.Z;
+            if (d1 <= a || d0 >= b)
+                continue;
+            if (d0 > a)
+                yield return (a, d0);
+            a = MathF.Max(a, d1);
+        }
+        if (b > a)
+            yield return (a, b);
     }
 
     /// <summary>The top of the gallery's long windows over the cab floor (m, note 716): under the eave as it falls towards the back.</summary>
@@ -2938,12 +3028,31 @@ public static partial class TrainKit
         k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f);
         // Straps across the face, both faces.
         bool alongZ = size.Z > size.X;
-        foreach (float y in new[] { -half.Y + 0.3f, 0, half.Y - 0.3f })
+        // A side door a body's width is the cab's (note 856): the cab side's slit carried across it, so the line of the slits
+        // reads unbroken shut, its strap and brace kept under it.
+        bool cab = side && size.Z < 1.2f;
+        foreach (float y in cab ? new[] { -half.Y + 0.3f, 0 } : new[] { -half.Y + 0.3f, 0, half.Y - 0.3f })
         {
             var e = alongZ ? new Vector3(half.X + 0.012f, 0.04f, half.Z) : new Vector3(half.X, 0.04f, half.Z + 0.012f);
             k.BoxAt(new Vector3(0, y, 0), e);
         }
-        if (side)
+        if (cab)
+        {
+            var a = new Vector3(0, -0.04f, -half.Z + 0.1f);
+            var b = new Vector3(0, -half.Y + 0.34f, half.Z - 0.1f);
+            k.Rod(a + new Vector3(half.X + 0.01f, 0, 0), b + new Vector3(half.X + 0.01f, 0, 0), 0.035f);
+            k.Rod(a - new Vector3(half.X + 0.01f, 0, 0), b - new Vector3(half.X + 0.01f, 0, 0), 0.035f);
+            // The slit, framed in the strap iron, its glass both faces.
+            float wy = -half.Y + (SlitBottom + SlitTop) / 2, wh = (SlitTop - SlitBottom) / 2, ww = half.Z - 0.12f;
+            foreach (float y in new[] { wy - wh - 0.03f, wy + wh + 0.03f })
+                k.BoxAt(new Vector3(0, y, 0), new Vector3(half.X + 0.012f, 0.03f, ww + 0.03f));
+            foreach (float z in new[] { -ww - 0.015f, ww + 0.015f })
+                k.BoxAt(new Vector3(0, wy, z), new Vector3(half.X + 0.012f, wh + 0.06f, 0.015f));
+            k.Use("glass_dirty", Palette.BlueGrey, 0.3f, 0.8f, tile: 0.4f);
+            k.Panel(new Vector3(half.X + 0.005f, wy, 0), Vector3.UnitX, Vector3.UnitY, ww * 2, wh * 2);
+            k.Panel(new Vector3(-half.X - 0.005f, wy, 0), -Vector3.UnitX, Vector3.UnitY, ww * 2, wh * 2);
+        }
+        else if (side)
         {
             // The Z brace of a boxcar door.
             var a = new Vector3(0, half.Y - 0.3f, -half.Z + 0.1f);

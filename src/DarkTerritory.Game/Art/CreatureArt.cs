@@ -85,7 +85,7 @@ public sealed partial class CreatureArt
     /// <summary>The Drift's mat, drawn from a car's roof: past this half-width (m) it's on the ground, this far down.</summary>
     const float CarHalfWidth = 1.6f, RoofDrop = 3.6f;
     /// <summary>The models this draws, by file name (content/art/models/&lt;name&gt;.glb).</summary>
-    public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
+    public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "soot_child", "dragger", "husk", "weight",
         "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker", "follower", "climber", "fire_fly", "passenger",
         "survivor_prisoner", "survivor_wildlander", "sheep", "moose", "gannet", "mourner", "freight_beetle", "tower_jaw", "brakeman", "knotter", "hotbox", "hanger",
         "picker", "lodger", "householder", "waker", "mouse_moose", DaveArt.Figure];
@@ -209,7 +209,6 @@ public sealed partial class CreatureArt
         EnemyKind.Whistler => (8.0, 2.0, 0),       // found in its gap (A.4: "flees"): gone fast, low, into the field
         EnemyKind.Ribbit => (4.0, 3.0, 0),         // the pack's eaten: off in hops
         EnemyKind.Gaunt => (1.5, 6.0, 0),          // its loot taken or talked down: on walking, out past its 30 m
-        EnemyKind.Switchman => (4.0, 3.0, 0),      // the points thrown back, or the train gone by: off from the lever
         EnemyKind.TippyToesie => (5.0, 2.5, 0),
         EnemyKind.SootChildren => (3.0, 3.0, 0),
         EnemyKind.Passenger => (3.0, 3.0, 0),      // unmasked, off the back of the train
@@ -372,10 +371,6 @@ public sealed partial class CreatureArt
     // front of their feet (m).
     const float SootPinSeconds = 0.6f, SootCling = 0.3f;
 
-    // The Switchman's lever turns on its stand's pivot here (m, in the model's space: by its right foot, at the top of the
-    // stand's short post).
-    static readonly Vector3 SwitchLeverPivot = new(0.34f, 0.32f, -0.3f);
-
     const int FireFlyMost = 22;
     // T131 (the director, build 1121: "what were the bubbles?"): the wings' smouldering rims, lit all round against the
     // lamp, drew each moth as a hollow orange ring: a bubble. The rims go to the charred paper (unlit), and the burning tail
@@ -465,7 +460,6 @@ public sealed partial class CreatureArt
         ["sleeper"] = 0.6f,
         ["clinger"] = 0.4f,
         ["hollow"] = 0.6f,
-        ["switchman"] = 0.55f,
         ["soot_child"] = 0.5f,
         ["dragger"] = 0.2f,
         ["husk"] = 0.7f,
@@ -798,7 +792,7 @@ public sealed partial class CreatureArt
         return l with { Colour = new Vector3(Q(l.Colour.X), Q(l.Colour.Y), Q(l.Colour.Z)), Emissive = Q(l.Emissive), Shine = Q(l.Shine), Wear = Q(l.Wear) };
     }
 
-    /// <summary>Where a bone of the model last drawn by name is, in camera-relative space (the Switchman's lantern).</summary>
+    /// <summary>Where a bone of the model last drawn by name is, in camera-relative space.</summary>
     /// <summary>A square iron bar from <paramref name="a"/> to <paramref name="b"/>, <paramref name="half"/> thick (a lever, a post).</summary>
     static void Bar(MeshBuilder mesh, Vector3 a, Vector3 b, float half, Vector3 colour)
     {
@@ -1913,7 +1907,6 @@ public sealed partial class CreatureArt
     /// would slide); boarded (punish) it crouches, lunges, crouches. Embers pulse hotter as it closes.</item>
     /// <item>Sleepers: six ties 2.6 m apart along −Z from the origin, dormant, writhing once telegraphed, lifting when the
     /// engine's on them.</item>
-    /// <item>Switchman: feet at the origin, lantern swinging while it waits; it flees when broken off.</item>
     /// <item>Climber: feet at the origin; inside a car (<paramref name="extra"/> below 0) it crouches.</item>
     /// <item>Soot child: one, feet at the origin; <paramref name="extra2"/> 1 is a Soot Child (black eyes), 0 a real child.</item>
     /// <item>Gaunt, Follower, Grumbler: <paramref name="extra2"/> is the anger, the nest, and feral, as the sim keeps them; track
@@ -2024,33 +2017,6 @@ public sealed partial class CreatureArt
                         _fallenPine ??= WorldKit.Pine(Look, 2, DebrisKit.TreeHeight);
                         mesh.Instances.Add(new MeshInstance(_fallenPine, DebrisKit.FallenPine * model));
                     }
-                    return true;
-                }
-            case EnemyKind.Switchman:
-                {
-                    // At the lever (App. A.7): waiting by it; the derailer's hand on it, gripping, till the train's over the
-                    // points (COMMIT, the tell); then it's thrown, heaved over, and the Switchman stands dead still by it,
-                    // watching what it's done (PUNISH); called off, it flees.
-                    var (clip, loop) = phase switch
-                    {
-                        SpinePhase.BreakOff => ("flee", true),
-                        SpinePhase.Commit => ("grip", true),
-                        SpinePhase.Punish => ("throw", false),
-                        _ => ("wait", true),
-                    };
-                    if (!Draw(mesh, "switchman", clip, t, loop, model) && !Draw(mesh, "switchman", phase == SpinePhase.BreakOff ? "flee" : "wait", t, true, model))
-                        return false;
-                    if (clip is "grip" or "throw")
-                    {
-                        // The lever, from its stand's pivot by its right foot up into its hand (the stand's post under it).
-                        var hand = BoneAt("switchman", "fingers_r", model);
-                        var pivot = Vector3.Transform(SwitchLeverPivot, model);
-                        var (_, up, _) = Basis(model);
-                        Bar(mesh, pivot, hand + Vector3.Normalize(hand - pivot) * 0.12f, 0.018f, Palette.IronGrey);
-                        Bar(mesh, pivot - up * SwitchLeverPivot.Y, pivot, 0.05f, Palette.SootBlack);
-                    }
-                    // Its lantern is the only light on it (App. A.7's "distant figure at the switch").
-                    mesh.PointLights.Add(new PointLight(BoneAt("switchman", "lantern", model), Palette.LampAmber * 1.1f, 6f));
                     return true;
                 }
             case EnemyKind.SootChildren:
@@ -3333,10 +3299,6 @@ public sealed partial class CreatureArt
                 // Pacing the train on its side of the line (extra2, −1 or +1): running along it, not at it (the loose basis
                 // faces the train; its right is the train's way, ahead, on the +1 side).
                 m = Matrix4x4.CreateRotationY(-MathF.Sign((float)e.Extra2 == 0 ? 1 : (float)e.Extra2) * MathF.PI / 2) * model;
-                break;
-            case EnemyKind.Switchman:
-                // Face back down the line at the train, turned in towards the track.
-                m = Matrix4x4.CreateRotationY(MathF.PI - Math.Sign(e.Lateral) * 0.6f) * model;
                 break;
             case EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw or EnemyKind.Pickers or EnemyKind.Lodger or EnemyKind.Householder
                 or EnemyKind.MouseMoose:

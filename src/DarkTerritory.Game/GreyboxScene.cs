@@ -1348,7 +1348,7 @@ public sealed partial class GreyboxScene
                 _newBeats.Add(("scattered", was));
             }
         // The rest let go of, not killed (note 458): a Climber outnumbered or giving up, a Whistler found in its gap, a pack
-        // that's eaten, the Gaunt going with its loot, a Switchman at the lever, a hound aboard over the side. The sim has
+        // that's eaten, the Gaunt going with its loot, a hound aboard over the side. The sim has
         // them gone the tick it's done with them; they're seen going.
         foreach (var (id, was) in _seen)
             if (Art.CreatureArt.Retreat(was.Kind) is not null && !(was.Kind == EnemyKind.CinderHound && was.Attached < 0)
@@ -3019,20 +3019,6 @@ public sealed partial class GreyboxScene
                     }
                     break;
                 }
-            case EnemyKind.Switchman:
-                {
-                    // A railwayman, stooped wrong, standing at the switch with a lantern held out: the lantern's the only
-                    // light on it, and it swings while it waits for the train.
-                    Draw(0, 0.45, 0, 0.12, 0.45, 0.12, Palette.SootBlack);
-                    Draw(0, 1.2, 0.05, 0.22, 0.35, 0.14, Palette.SootBlack);
-                    Draw(0, 1.62, -0.12, 0.13, 0.13, 0.13, Palette.Corrupted);
-                    double swing = e.Phase == SpinePhase.Telegraph ? 0.15 * Math.Sin(e.PhaseSeconds * 2.2) : 0;
-                    Draw(0.32, 1.0, -0.1 + swing, 0.05, 0.28, 0.05, Palette.SootBlack);
-                    mesh.Emissive = 1;
-                    Draw(0.32, 0.7, -0.1 + swing, 0.08, 0.1, 0.08, Palette.LampAmber);
-                    mesh.Emissive = 0;
-                    break;
-                }
             case EnemyKind.Drift:
                 {
                     // A dark spreading mat over the roof and down the sides, as wide as it's spread.
@@ -3271,9 +3257,8 @@ public sealed partial class GreyboxScene
         if (Look is not null)
         {
             var at = (Stands ?? DefaultStands).LeverAt(main, branch.Index);
-            // The Switchman gripping this lever to throw it under the train (App. A.8): the lamp flickers.
-            bool gripped = Enemies?.Any(e => e is Sim.Enemies.Switchman { Gripping: true } s && s.Branch == branch.Index && !e.Gone) == true;
-            float flicker = gripped ? (MathF.Sin((float)Math.Floor(Time * 14) * 12.9898f) * 43758.5f % 1 is var j && MathF.Abs(j) < 0.45f ? 0.08f : 1) : 1;
+            // (The lamp flickered while the Switchman gripped the lever, App. A.8; it went with the Switchman, note 852.)
+            const float flicker = 1;
             Look.Art.World.Branch(mesh, branch, eye, DrawDistance, at, main.Sample(branch.Toe).Tangent, Diverging?.Invoke(branch.Index) ?? false, flicker);
             return;
         }

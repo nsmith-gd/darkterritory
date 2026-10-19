@@ -131,7 +131,6 @@
   // A sleeping Gaunt is curled to gauntAsleep of its height.
   "bodies": {
     "cinderHound": [[0.75, 0.4]],
-    "switchman": [[0.4, 0.5], [0.4, 1.15], [0.3, 1.6]],
     "climber": [[0.65, 0.3]],
     "trackDoll": [[0.55, 0.7], [0.4, 1.6]],
     "ribbit": [[0.6, 0.55]],
@@ -700,22 +699,6 @@
     // seconds (35, note 652).
     "nightFleesSeconds": 35, "staysAtDawn": ["knotter", "hotbox"] },
 
-  // THE SWITCHMAN · vibration · corrupted (App. A.8, B.8). At a junction ahead[0]-[1] m out; seen at revealAt m. It throws
-  // the points for the dead line, and the train goes down a line that leads nowhere (the clock's cost: stop, back out, set
-  // them back by hand). Killed before the train's over them (killedSetsBack), the lever falls back to the main line. One
-  // cannon round (4 blows) or three blows kills it. B.8: minJunctions on the route, deadLineWeight more with dead lines about.
-  // The director's decision of 7 Oct 2026 (note 286): "The switch itself shouldn't cause derail, it should be lines that
-  // lead nowhere." throwsUnderTrain false: it never throws points under a train. True (a mod) brings back v1.1's derailing
-  // kind: derailChance of them grip the lever at gripAt m and throw it under the engine. A derailment comes only from
-  // running off the dead line's end (train.json overspeed.deadEndDerailAbove, warned in the cab a full lead ahead).
-  "switchman": {
-    "ahead": [500, 1200], "standBeside": 1.2, "revealAt": 300, "derailChance": 0.3, "gripAt": 250, "health": 3,
-    "lingerSeconds": 20, "minJunctions": 3, "deadLineWeight": 1.5, "throwsUnderTrain": false, "killedSetsBack": true,
-    // T121 playtest (derailed "at a very low speed"): points thrown under a train at or under derailAbove (m/s, 25 km/h)
-    // split under it instead: the engine takes runThroughDamage and stops hard. Over it, the Switchman derails it.
-    "derailAbove": 6.9, "runThroughDamage": 0.25
-  },
-
   // SOOT CHILDREN · sound · outside (App. A.6, B.6). Calling from callOut m every callEvery s. realChance of a real
   // survivor (a host's first-ever call is always real). A Soot Child lunges at anyone within lungeWithin m and drinks for
   // drainSeconds, gaining healthPerSecond blows a second while it does. Ignored for ignoredSeconds, it gives up. Alone, the
@@ -1003,10 +986,10 @@
       "threshold": 10, "start": 4, "max": 18, "pressAt": 16,
       // A cost-3 threat takes 9 off: the trough after a spawn is the pressure building again.
       "reliefPerCost": 3,
-      // The night's own rise: everything × (1 + escalation × progress^escalationPower), progress being how far along the line
-      // or toward dawn, whichever is further (×4 at the end: fewer threats early, more toward the terminus); and a base
-      // that builds whatever else is going on.
-      "basePerSecond": 0.03, "escalation": 3, "escalationPower": 1,
+      // The night's own rise: everything × (1 + escalation × the night's curve), the curve being how far along the line or
+      // toward dawn, whichever is further, to curve.power (note 849; ×4 at the end: fewer threats early, more toward the
+      // terminus); and a base that builds whatever else is going on.
+      "basePerSecond": 0.03, "escalation": 3,
       // Quiet builds pressure: + quietPerSecond × (seconds since a threat was engaged (telegraphing, committing, grabbing,
       // punishing) or sent / quietRampSeconds, to 1), so no
       // stretch goes much past a minute and a half without something, even at the gate.
@@ -1037,6 +1020,41 @@
       // train). The budget scales by both too (crewPerPlayer, lengthPerCarBeyondThird), but on a 7 km night it never binds:
       // this is what does. 0.18 and 0.06: the director's on the Creature Tweaker (note 652, 13 Oct).
       "crewScale": 0.18, "lengthScale": 0.06, "scaleCrew": 4, "scaleCars": 8, "scaleFloor": 0.5
+    },
+    // The night's curve and the free spawns on it (note 849; GDD App. B.1 "The night's curve"; spec B.10; the director's
+    // playtest of 16 Oct: "I do like the whole Lethal Company. The longer a run goes, the more monsters just spawn in general,
+    // forcing you to kind of push towards the end ... I want more monsters to spawn the longer the run goes that don't have a
+    // rules system. And then I want the weighting of the likelihood of spawn for monsters with rules that they have to follow
+    // ... to increase"). The curve is how far into the night (along the line or toward dawn, whichever is further, the
+    // pressure's own progress) to the power: 0 at the gate, 1 at the end. The pressure's escalation climbs by it (above).
+    // free: beside the pressure's spends, outside its budget, its cooldown and its holds (the quiet, the census's slack, saving
+    // for something new), the director sends a free spawn at atGate an hour at the gate rising to atEnd an hour at the end
+    // along the curve, rolled a second at a time on dice of its own (the night's other draws are as they were with it off).
+    // By the crew: the whole of that for a crew of crewFadeFrom or fewer, crewFade less an hour for each crewmate alive over
+    // it, never under crewFloor of it (a crew of four, half; six and up, 0.35): a bigger crew's pressure already scales with it
+    // (pressure.crewScale), and on 4-bot nights the whole curve on top burned the cargo (pack fires 0 to 3.5 a night).
+    // What it sends, by one draw among:
+    // - kinds: the rule-less, each at this weight: a creature sent without its situational rule, needing only what its
+    //   spawn needs (the Cinder Hounds behind a moving train at any speed, Climbers to any gap, the Ribbits, Followers and Soot
+    //   Children to whoever's on the ground anywhere, the Moose beside the train wherever it stands; the Gaunt may be named,
+    //   its tier, crew and once a night kept). A kind not named never comes free. These are the "monsters that don't have a
+    //   rules system": more of them the longer the run goes.
+    // - and every kind whose rule is met now (the whole roster, A1's rules kept), at its rule's weight × bound × the curve:
+    //   the rule-bound's weight climbs with the night, so what the stop or the speed lets in comes more toward the end.
+    // The hard caps hold (a crew of one still meets one thing at a time), each kind's night (nightChance, perNight, slain),
+    // the variety rules (unseen, repeats), who's next and the dead's votes; never within spacingSeconds of anything the
+    // director sent, and (afterFirst) never before the night's first threat, which is drawn (note 287). A free spawn takes
+    // nothing off the pressure: it's beside the pressure, not instead of it. free false: no free spawns of their own.
+    // fill: and the rule-less fill the gaps the rules leave: when the pressure would spend and no rule is met (a moving train
+    // lets few kinds in; a crew of one or two fewer: "nothing fits" was most of a two-player night), it spends on the
+    // rule-less instead of nothing, by their kinds weights, charged, paced and relieving as any spend. fillPressed: only
+    // once the pressure presses (pressAt: a long quiet), so the rules keep their rhythm and the fill is the gap's answer, not
+    // every threshold's (at every threshold, 3- and 4-bot nights missed dawn, note 849). fill false: as before.
+    "curve": {
+      "power": 1, "free": true, "fill": true, "fillPressed": true, "atGate": 3, "atEnd": 18, "spacingSeconds": 20,
+      "crewFade": 0.25, "crewFadeFrom": 2, "crewFloor": 0.35, "afterFirst": true, "bound": 1,
+      // The hounds at half: a free pack boards a slow train at once and lights its cars (4-bot seed 1: 16 pack fires at 1).
+      "kinds": { "cinderHounds": 0.5, "climbers": 1, "ribbits": 1.5, "followers": 1, "sootChildren": 1, "moose": 0.7 }
     },
     // T128 (build 1121: "a player left behind by the train should feel the world close in: tension, monsters coming, the
     // difficulty spiking for that player. They needn't die at once"; GDD §7, §23; ARCHITECTURE §8 note 273). Not in the spec.
@@ -1102,8 +1120,8 @@
       // is the walkers' on the run and the ground's at a stand (prised out of its truck from beside it); the Moose, Tower Jaw
       // and the Freight Beetle are met on the ground.
       "answers": {
-        "cab": ["trackDoll", "switchman", "stoker"],
-        "gunner": ["cinderHounds", "climbers", "trackDoll", "switchman"],
+        "cab": ["trackDoll", "stoker"],
+        "gunner": ["cinderHounds", "climbers", "trackDoll"],
         "walker": ["climbers", "draggers", "fireFlies", "whistler", "carHugger", "cinderHounds", "carFire", "gannet", "brakeman", "knotter", "hotbox"],
         "rider": ["tippyToesie", "fireFlies", "passenger", "carHugger", "carFire"],
         "ground": ["ribbits", "gaunt", "followers", "sootChildren", "grumbler", "moose", "towerJaw", "freightBeetle", "hotbox"]
@@ -1207,7 +1225,7 @@
     "perNightDefault": null,
     "nightChance": { "knotter": 0.66, "hotbox": 0.4, "brakeman": 0.6, "climbers": 0.35, "draggers": 0.65,
       "cinderHounds": 0.7, "fireFlies": 0.42, "carHugger": 0.51, "whistler": 0.65, "trackDoll": 0.22,
-      "tippyToesie": 0.7, "stoker": 0.4, "switchman": 0.12, "followers": 0.66, "ribbits": 0.66, "gaunt": 0.21,
+      "tippyToesie": 0.7, "stoker": 0.4, "followers": 0.66, "ribbits": 0.66, "gaunt": 0.21,
       "sootChildren": 0.36, "grumbler": 0.11, "passenger": 0.1, "moose": 0.19, "gannet": 0.72, "freightBeetle": 0.63,
       "towerJaw": 0.53, "pickers": 0.28, "lodger": 0.06, "householder": 0.68, "hollowHouse": 0.13, "hanger": 0.53,
       "mouseMoose": 0.5 },
@@ -1248,7 +1266,7 @@
     // Budget share spent before the first facility, across the middle, and in the final approach.
     "phaseShares": [0.15, 0.45, 0.40],
     // App. B.1 v1.1's cost table (the Choir costs nothing: it isn't spawned; hazards are level content).
-    "costs": { "followers": 2, "draggers": 2, "fireFlies": 2, "switchman": 2, "trackDoll": 3, "cinderHounds": 3, "climbers": 3,
+    "costs": { "followers": 2, "draggers": 2, "fireFlies": 2, "trackDoll": 3, "cinderHounds": 3, "climbers": 3,
       "whistler": 3, "stoker": 3, "ribbits": 3, "carHugger": 4, "tippyToesie": 4, "gaunt": 4, "sootChildren": 4, "grumbler": 4,
       "passenger": 5, "moose": 3, "gannet": 4, "freightBeetle": 1, "towerJaw": 3, "brakeman": 3, "hotbox": 2, "knotter": 3,
       "mouseMoose": 2 },
@@ -1315,7 +1333,6 @@
       ["trackDoll", "facilityLoading"],
       ["whistler", "facilityStop"],
       ["tippyToesie", "stoker"],
-      ["ribbits", "switchman"],
       ["carHugger", "grade"]
     ],
     "pairWeight": 3,

@@ -18,7 +18,7 @@
   // trivially solved" (dt balance --pairs / --triples; note 186). Each combination is insisted on (only those kinds, sent
   // whenever their spawn can place them, again insistEvery s after one's gone) for a short night of seconds s: crew bots on
   // route's line with a train of cars, starting on the first stretch clear of stops and tunnels from which every kind that
-  // needs the line (the Car Hugger's marsh or bridge, the Switchman's dead line) can be placed, leadM short of it. A night
+  // needs the line (the Car Hugger's marsh or bridge) can be placed, leadM short of it. A night
   // is lost if the train's derailed or stranded, or unwinnableLost of the crew are dead. Unwinnable: lost every seed.
   // Trivial: every kind came on, and in every seed nothing landed (no grab, no punish, nobody dead, under trivialCargoLoss
   // of the cargo gone). Kinds that never came on are reported (unplaced: their spawn found nowhere; dormant: put there,

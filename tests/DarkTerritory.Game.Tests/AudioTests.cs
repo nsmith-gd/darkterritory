@@ -27,6 +27,29 @@ public class AudioTests
         Assert.All(sweep.Audit, a => Assert.True(a.WorstOverBedDb >= 6, $"{a.Sound} is only {a.WorstOverBedDb} dB over the bed at the {a.WorstListener}"));
     }
 
+    [Theory]
+    // In the open on a roof, at the edge of spec A.5's full clarity and nearer.
+    [InlineData(3, 4.0, true, false, 3, 0.0, 10)]
+    [InlineData(3, -4.0, true, false, 3, 4.0, 10)]
+    // The driver in the cab, a crewmate outside it on the engine, through the cab's wall (spec A.3's -12 dB and 900 Hz).
+    [InlineData(0, 0.0, true, false, 0, 0.0, 2)]
+    // And back: the crewmate on the engine to the driver.
+    [InlineData(0, 0.0, false, true, 0, 0.0, 2)]
+    public void TheBedAtSpeedNeverDrownsACrewmateTalkingAtSpeakingDistance(int speakerCar, double speakerZ, bool speakerInCab, bool listenerInCab,
+        int listenerCar, double listenerZ, double overDb)
+    {
+        // Note 855 (the director's playtest of 16 Oct evening, line 1): the host, driving, couldn't be heard by the joiner
+        // outdoors, though she was heard. A quiet mic (20 dB under the synthetic talker: a Windows headset) at the top speed:
+        // the leveller brings it up to everyone's level, and the voice ducks the wind as it does the train, so the wind past
+        // a roof isn't what it's lost in. Spec A.3: a tell that can be drowned out is a bug, and a crewmate's voice is a tell.
+        var trainTuning = DataFile.Load<TrainTuning>(Path.Combine(Content, TrainTuning.File));
+        var r = VoiceBench.Run(Content, speakerCar, speakerZ, radio: false, seconds: 3, speed: trainTuning.MaxSpeed, speakerInCab: speakerCar == 0 && speakerInCab, listenerInCab: listenerInCab,
+            listenerCar: listenerCar, listenerZ: listenerZ, micDb: -20);
+        Assert.Equal(r.FramesSent, r.FramesHeard);
+        Assert.True(r.OverRestDb >= overDb, $"{r.DistanceM} m away the voice is {r.NearDb} dB, {r.OverRestDb} dB over the rest ({r.RestDb} dB: "
+            + string.Join(", ", r.MaskedBy!.Select(kv => $"{kv.Key} {kv.Value}")) + ")");
+    }
+
     [Fact]
     public void NoInstalledTakeClipsOnceItsDecoded()
     {

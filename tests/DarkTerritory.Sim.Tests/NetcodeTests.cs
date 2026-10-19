@@ -348,7 +348,7 @@ public class NetcodeTests
     [Fact]
     public void ABrakeLeftOnStaysOnWithNobodyAtTheControls()
     {
-        // frontier:7: the driver got down to club a Switchman, the brake came off with nobody holding it, and the train
+        // frontier:7: the driver got down (to club a Switchman, then; it's cut, note 852), the brake came off with nobody holding it, and the train
         // rolled down the grade into its points. The brake valve stays where it was left, as the throttle does.
         var (net, host, clients) = Session(2);
         Run(net, host, clients, 10, _ => default);

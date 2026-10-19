@@ -953,7 +953,8 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
 public sealed record StopRecord(int Facility, string Kind, double Seconds, int SledsHauled, IReadOnlyDictionary<string, double> Legs, double Coal = 0, int Castings = 0);
 
 /// <summary>
-/// A dead line's switch set against the train (App. A.7, the Switchman's work): its lamp reads wrong from the cab. The
+/// A dead line's switch set against the train (someone's hand, or a scripted set piece; the Switchman's work once, note 852):
+/// its lamp reads wrong from the cab. The
 /// crew stops short of its points and someone sets it back on the ground; if the train's already down the dead line, it
 /// backs out first. A facility's spur set for it outside a stop is the same (note 550: frontier:7's seed 8, a shunter
 /// threw the Foundry's points after the driver had given the stop up, and the train ran down the spur to its buffer and
@@ -3659,28 +3660,6 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         var stand = TrackPoint(train.Line, RailLine.MainPath, branch.Toe, branch.Side * StandOff);
         var (step, there) = WalkTo(self, train.Line, RailLine.MainPath, stand, null);
         return there ? new PlayerIntent { Buttons = PlayerButtons.Use } : step;
-    }
-
-    /// <summary>
-    /// A derailing Switchman gripping its lever ahead (v1.1 App. A.8: "stop and club it"): down off the train, along the
-    /// ballast to it, and clubbed. Null once it's gone.
-    /// </summary>
-    public PlayerIntent? Club(in PlayerState self, World world, Enemies.Switchman sw)
-    {
-        var train = world.Train;
-        if (sw.Gone || sw.Branch < 0 || sw.Branch >= train.Line.Branches.Count)
-            return null;
-        if (self.Surface == Surface.Air)
-            return new PlayerIntent();
-        var branch = train.Line.Branches[sw.Branch];
-        if (self.Parent != PlayerState.World)
-            return GetDown(self, train, branch.Side);
-        Doing = "at the Switchman";
-        var at = sw.WorldPosition(train);
-        if ((at - PlayerMotor.WorldPosition(self, train)).Length <= 1.6)
-            return Heed.Strike(self, train, at, 1.6);
-        var stand = TrackPoint(train.Line, RailLine.MainPath, branch.Toe, branch.Side * StandOff);
-        return WalkTo(self, train.Line, RailLine.MainPath, stand, null).Step;
     }
 
     /// <summary>
