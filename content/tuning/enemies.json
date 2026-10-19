@@ -1074,7 +1074,7 @@
     // stretch and the line's spawn bans hold. On its own dice (0x5709): the night's other draws are as they were. Logged
     // DirectorSpawn.Stop.
     "stops": {
-      "on": true, "waiting": 1, "boarding": 1, "boardingAfterSeconds": 90, "trySeconds": 240,
+      "on": true, "waiting": 1, "boarding": 1, "boardingAfterSeconds": 40, "trySeconds": 240,
       "boarders": ["whistler", "draggers", "tippyToesie", "passenger"]
     },
     // T128 (build 1121: "a player left behind by the train should feel the world close in: tension, monsters coming, the

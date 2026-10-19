@@ -95,6 +95,6 @@ public class StopsOwnTests
         var kinds = Spawns.Rules.Select(r => Director.Key(r.Kind)).ToHashSet();
         Assert.NotEmpty(D.Stops.Boarders);
         Assert.All(D.Stops.Boarders, b => Assert.Contains(b, kinds));
-        Assert.True(D.Stops is { On: true, Waiting: 1, Boarding: 1, BoardingAfterSeconds: 90, TrySeconds: 240 });
+        Assert.True(D.Stops is { On: true, Waiting: 1, Boarding: 1, BoardingAfterSeconds: 40, TrySeconds: 240 });
     }
 }
