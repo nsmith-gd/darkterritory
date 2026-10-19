@@ -19,6 +19,8 @@ public sealed record BalanceTuning(int SurvivableCrew, double SurvivableDelivere
     public SoloTuning Solo { get; init; } = new();
     /// <summary>The orchestrator's pacing targets (orchestrator.md §4; note 379).</summary>
     public PacingTargets Pacing { get; init; } = new();
+    /// <summary>What counts as a shared problem, and how many stops should have one (note 861).</summary>
+    public SharedTuning Shared { get; init; } = new();
 }
 
 /// <summary>
@@ -53,6 +55,9 @@ public sealed record BalanceRow(RouteTier Tier, ulong Seed, int Crew, int Cars, 
     public double SlackOver { get; init; }
     /// <summary>The share of the night out on the line that was quiet (the harness's pacing quietShare).</summary>
     public double QuietShare { get; init; }
+    /// <summary>The stops the train stood at, and those with a shared problem in them (note 861).</summary>
+    public int Stops { get; init; }
+    public int StopsWithShared { get; init; }
 }
 
 /// <summary>The nights with one crew size (or train length) together.</summary>
@@ -86,6 +91,8 @@ public static class Balance
         {
             SlackOver = threats?.Slack.Values.Select(v => v.Over).DefaultIfEmpty(0).Max() ?? 0,
             QuietShare = r.Pacing?.QuietShare ?? 0,
+            Stops = r.Shared?.Stops.Count ?? 0,
+            StopsWithShared = r.Shared?.StopsWithShared ?? 0,
         };
     }
 
@@ -134,6 +141,13 @@ public static class Balance
             double engaged = crewed.Average(r => 1 - r.QuietShare);
             checks.Add(new BalanceCheck($"P3: something engaged {p.Engaged[0]:P0}–{p.Engaged[1]:P0} of the night", engaged >= p.Engaged[0] && engaged <= p.Engaged[1],
                 $"{engaged:P0} on average", p.Advisory));
+        }
+        // Note 861 (the director's playtest of 16 Oct evening, line 8): a crew's stops give them something to share.
+        if (rows.Where(r => r.Crew >= 2).Sum(r => r.Stops) is > 0 and var stops)
+        {
+            double share = (double)rows.Where(r => r.Crew >= 2).Sum(r => r.StopsWithShared) / stops;
+            checks.Add(new BalanceCheck($"stops shared (≥ {t.Shared.StopsWithShared:P0} with a problem for two)", share >= t.Shared.StopsWithShared,
+                $"{share:P0} of {stops} stops", Advisory: true));
         }
         int unfair = rows.Sum(r => r.FairnessViolations);
         checks.Add(new BalanceCheck("fair (App. A.1)", unfair == 0, $"{unfair} commits without the reaction window"));

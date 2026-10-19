@@ -32,7 +32,9 @@ public class SwitchyardAheadTests
             },
             Bots = 3,
             Cars = cars,
-            Seconds = 1500,
+            // Note 860: with the stops' own the crew takes Wren Yard and the next, and leaves the second with Followers on them
+            // (delivered at about 1,500 s, against 1,256 without): the night's length isn't what's tested here.
+            Seconds = 1800,
             Seed = 1,
             Link = Ballast.Net.LinkConditions.Perfect,
             StartDistance = from,

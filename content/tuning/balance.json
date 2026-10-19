@@ -101,5 +101,13 @@
   // in the report, never failing the sweep, until the director sets them. P1: no crewmate spends more than slackOverSeconds
   // a night at or past the census's slackPress (enemies.json director.orchestrator; note 345), on the run between stops. P3:
   // something engaged for engaged[0]..engaged[1] of the night out on the line (1 - the harness's pacing quietShare).
-  "pacing": { "advisory": true, "slackOverSeconds": 30, "engaged": [0.45, 0.60] }
+  "pacing": { "advisory": true, "slackOverSeconds": 30, "engaged": [0.45, 0.60] },
+
+  // Shared problems (the director's playtest of 16 Oct evening, line 8: "we didn't get any of the challenges to share
+  // together that lead to laughs and fun"; ARCHITECTURE §8 note 861): what the harness counts as two crewmates in one
+  // problem. A grab is shared with a living friend within nearMetres (proximity voice's reach, player.json crewNews
+  // beyondMetres: they hear it and can come); two crewmates busy (a carry, a timed job, a module, a gun's reload) within
+  // pairMetres of each other are at one job. A stop's moments run from arriving till afterStopSeconds after leaving.
+  // stopsWithShared: the share of stops a crew of two or more should meet one at (advisory, for the director to set).
+  "shared": { "nearMetres": 26, "pairMetres": 6, "afterStopSeconds": 30, "stopsWithShared": 0.5 }
 }
