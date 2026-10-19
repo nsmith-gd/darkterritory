@@ -121,13 +121,24 @@ public static partial class StopGenerator
     }
 
     /// <summary>
+    /// Note 869 (the director's playtest of 19 Oct line 9: "Crane overlap inside a building is a bug"): whether a candidate
+    /// stands on a yard gantry's ground, its legs, bridge, cab or castings (<see cref="Run.StopWalls.Gantry"/>).
+    /// </summary>
+    static bool UnderAGantry(StopDraft g, StopBuilding b)
+    {
+        var corners = Plan.Corners(b).ToList();
+        double s0 = corners.Min(p => p.S), s1 = corners.Max(p => p.S), d0 = corners.Min(p => p.D), d1 = corners.Max(p => p.D);
+        return g.Tracks.Any(tr => Run.StopWalls.Gantry(g.Containers, tr) is { } y && s0 < y.S1 && s1 > y.S0 && d0 < y.D1 && d1 > y.D0);
+    }
+
+    /// <summary>
     /// D.4's rules for a candidate, in order of cost: it fits; it's where its site says; it can be walked to from the
     /// consist; its lamp is seen from the approach. Null if it fails any.
     /// </summary>
     static StopHoldout? Judge(StopDraft g, StopTuning t, StopBuilding b, HoldoutSite site, Pt stopPoint, Pt board, StopWalk.Field walk)
     {
         var h = t.Holdouts;
-        if (!g.Fits(b, new Fit(Gap: 3, Rail: b.Kind == BuildingKind.PrisonCar ? 3.5 : 3, Road: 2)))
+        if (!g.Fits(b, new Fit(Gap: 3, Rail: b.Kind == BuildingKind.PrisonCar ? 3.5 : 3, Road: 2)) || UnderAGantry(g, b))
             return null;
         if (!Sited(h, b, site, stopPoint, g) || site == HoldoutSite.Facility && !ClearOfTheLoading(h, b, g))
             return null;

@@ -369,14 +369,21 @@ public sealed partial class StopWalls
     static int DoorSide(StopLayout stop, StopBuilding b) => (b.Tracks.Count > 0 ? stop.Tracks[b.Tracks[0]].FaceStart.D : 0) >= b.D ? 1 : -1;
 
     /// <summary>
-    /// A shed's roofed lengths along its axis: the whole of it, or either side of a gantry's cut (3 m or more). The art roofs
+    /// A shed's roofed lengths along its axis: the whole of it, or either side of each gantry's cut (3 m or more). The art roofs
     /// these (WorldArt.ShedShell, note 387).
     /// </summary>
     public static IEnumerable<(double Lo, double Hi)> Roofed(StopLayout stop, int building)
     {
         var b = stop.Buildings[building];
         double half = b.Length / 2;
-        (double, double)[] spans = CraneCut(stop, building) is { } g ? [(-half, g.From - b.S), (g.To - b.S, half)] : [(-half, half)];
+        var spans = new List<(double, double)>();
+        double at = -half;
+        foreach (var (from, to) in CraneCuts(stop, building))
+        {
+            spans.Add((at, from - b.S));
+            at = to - b.S;
+        }
+        spans.Add((at, half));
         foreach (var (g0, g1) in spans)
             if (Math.Min(g1, half) - Math.Max(g0, -half) >= 3)
                 yield return (Math.Max(g0, -half), Math.Min(g1, half));
@@ -423,13 +430,78 @@ public sealed partial class StopWalls
         // lie in the open under the hook. The art's low wall behind it is drawn, not stood.
     }
 
-    /// <summary>Where a yard gantry's runway cuts through a shed (zone S, its legs either side), as the art lays it; null if none does.</summary>
-    static (double From, double To)? CraneCut(StopLayout stop, int building)
+    /// <summary>
+    /// Where yard gantries' runways cut through a shed (zone S, their legs either side), as the art lays them, in order and
+    /// merged; none if none does. A shed with a crane bay of a runway's in it, and (note 869; the director's playtest of 19
+    /// Oct line 9: "Crane overlap inside a building is a bug", the hook and its load hanging inside a shed, the bridge through
+    /// its wall) any other shed on a gantry's side of its face (<see cref="GantryToward"/>), within its reach, that its runway
+    /// passes: a runway's 35 to 60 m cross two or three sheds of a row, and a shed between two craned tracks is crossed from
+    /// both, and only a shed with a bay of the first was cut, so the gantry (its far legs 9 m out, its cab and castings)
+    /// stood inside the rest.
+    /// </summary>
+    public static IReadOnlyList<(double From, double To)> CraneCuts(StopLayout stop, int building)
     {
-        foreach (var c in stop.Containers)
-            if (c.Kind == ContainerKind.CraneBay && c.Building == building && c.Track >= 0 && stop.Tracks[c.Track].Crane is { } rw)
-                return (rw.From - 1.5, rw.To + 1.5);
-        return null;
+        var b = stop.Buildings[building];
+        var cuts = new List<(double From, double To)>();
+        foreach (var tr in stop.Tracks)
+        {
+            if (tr.Crane is not { } rw)
+                continue;
+            bool bay = stop.Containers.Any(c => c.Kind == ContainerKind.CraneBay && c.Building == building && c.Track == tr.Index);
+            bool crossed = b.Kind == BuildingKind.Shed && rw.Bays > 0 && Math.Sign(b.D - tr.FaceStart.D) == GantryToward(stop.Containers, tr)
+                && Math.Abs(b.D - tr.FaceStart.D) - b.Width / 2 < GantryReach && rw.From - 1.5 < b.S + b.Length / 2 && rw.To + 1.5 > b.S - b.Length / 2;
+            if (bay || crossed)
+                cuts.Add((rw.From - 1.5, rw.To + 1.5));
+        }
+        var merged = new List<(double From, double To)>();
+        foreach (var c in cuts.OrderBy(c => c.From))
+            if (merged.Count > 0 && c.From <= merged[^1].To)
+                merged[^1] = (merged[^1].From, Math.Max(merged[^1].To, c.To));
+            else
+                merged.Add(c);
+        return merged;
+    }
+
+    /// <summary>
+    /// The side of its track's loading face a yard gantry's castings and far legs are on (Run.BuildYardCranes): toward its
+    /// crane bays, or the track's own side when they're level with it.
+    /// </summary>
+    public static int GantryToward(IEnumerable<StopContainer> containers, YardTrack track)
+    {
+        var bays = containers.Where(c => c.Kind == ContainerKind.CraneBay && c.Track == track.Index).ToList();
+        double lateral = bays.Count == 0 ? 0 : bays.Average(c => c.At.D) - track.FaceStart.D;
+        return lateral == 0 ? track.Side : Math.Sign(lateral);
+    }
+
+    /// <summary>
+    /// How far out from its face a yard gantry stands (m): its far legs (facilities.json crane.span, 9 m), the cab hung past
+    /// them (cabOut, 1.4 m) and the cab's own width; and its near legs the other side (span −3.5 m, and the leg's own). A
+    /// building nearer than this beside its runway is in its way (note 869).
+    /// </summary>
+    public const double GantryReach = 12, GantryBack = 4;
+
+    /// <summary>
+    /// A yard gantry's ground in the stop's frame (zone S along, D across), its legs and cab in: its runway and a leg's room
+    /// each end, from its near legs to its cab (note 869). Null for a track with none.
+    /// </summary>
+    public static (double S0, double S1, double D0, double D1)? Gantry(IEnumerable<StopContainer> containers, YardTrack track)
+    {
+        if (track.Crane is not { Bays: > 0 } rw)
+            return null;
+        int toward = GantryToward(containers, track);
+        double a = track.FaceStart.D - toward * GantryBack, c = track.FaceStart.D + toward * GantryReach;
+        return (rw.From - 2, rw.To + 2, Math.Min(a, c), Math.Max(a, c));
+    }
+
+    /// <summary>
+    /// The side of its track's loading face a yard gantry's castings and far legs are on (Run.BuildYardCranes): toward its
+    /// crane bays, or the track's own side when they're level with it.
+    /// </summary>
+    public static int GantryToward(StopLayout stop, YardTrack track)
+    {
+        var bays = stop.Containers.Where(c => c.Kind == ContainerKind.CraneBay && c.Track == track.Index).ToList();
+        double lateral = bays.Count == 0 ? 0 : bays.Average(c => c.At.D) - track.FaceStart.D;
+        return lateral == 0 ? track.Side : Math.Sign(lateral);
     }
 
     /// <param name="forts">The line's fortresses (<see cref="Fortresses.Of"/>); none when null.</param>

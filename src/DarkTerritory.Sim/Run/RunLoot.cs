@@ -153,8 +153,8 @@ public sealed partial class Run
                 if (track.Crane is not { Bays: > 0 } rw || track.Primary && site.Crane is not null)
                     continue;
                 var bays = stop.Containers.Where(c => c.Kind == ContainerKind.CraneBay && c.Track == track.Index).ToList();
-                double lateral = bays.Average(c => c.At.D) - track.FaceStart.D;
-                int toward = lateral == 0 ? track.Side : Math.Sign(lateral);
+                // (The sheds it passes on that side are cut open for it: StopWalls.CraneCuts, note 869.)
+                int toward = StopWalls.GantryToward(stop.Containers, track);
                 double mid = (rw.From + rw.To) / 2, d = track.FaceStart.D;
                 var tuning = ct with { Along = 0, Length = rw.Length, Castings = bays.Count, Spacing = Math.Min(ct.Spacing, rw.Length / (bays.Count + 1)) };
                 var feature = site.Feature;
