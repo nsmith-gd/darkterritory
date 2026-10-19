@@ -1,0 +1,7 @@
+# Wade
+
+- 2026-10-19 18:30 UTC · Wade · Claimed by the Token Budget Manager (nathaniel3): queue #596, note 869, branch `wade-town-geometry-596` (the 19 Oct playtest's lines 2, 6, 7, 8, 9).
+- 2026-10-19 19:05 UTC · Wade · Line 6: the departure gate was stood shut until the first tick, so drawn swinging in toward the engine; `World.StandGates` opens it from the first (GateTests). Line 8: the coaling tower's ladder (never climbable) taken out of the model (rebuilt with bpy 5.2) and its wall. `dt screenshot --walls` added. WIP pushed.
+- 2026-10-19 19:15 UTC · Wade · Line 2: the platform's posts, bench, crates and deck stood in the Sim from shared constants; the works' heaps stand as layers under their mound. Told Lena (#597) we share the slag heap (`WorksKit.Heap` reads `TownFixtures.HeapHeight`).
+- 2026-10-19 19:35 UTC · Wade · Line 9: every yard gantry stood in a shed (sheds 4 m off every face, a gantry reaching 10+ m). `StopWalls.CraneCuts` cuts every shed a runway crosses; runways kept off the hero sheds; holdouts off gantries. `YardGantryClearTests` (failed on main in all four tiers).
+- 2026-10-19 19:55 UTC · Wade · Line 7: the modelled houses' gables were wound inward (a black hole in each end); fixed in town_houses.py and re-cooked. `dt art closed` (MeshOpenness) also found #575's left gate leaf inside out; fixed. `ClosedPiecesTests`, `TownSolidsMatchArtTests`. Note 869 written; row and playtest lines in review.
