@@ -1577,6 +1577,8 @@ public sealed partial class World
     public (int Came, int Parted) LooseCount => _couplings is { } c ? (c.Came, c.Parted) : (0, 0);
     /// <summary>Note 865: pins jumped at speed tonight, driven home by two, and parted with one letting go (host).</summary>
     public (int Jumped, int Home, int LetGo) JumpCount => _couplings is { } c ? (c.Jumped, c.Home, c.LetGos) : (0, 0, 0);
+    /// <summary>Note 865: seconds tonight a pin could have jumped (host).</summary>
+    public double JumpSeconds => _couplings?.JumpSeconds ?? 0;
     /// <summary>Host: each pin worked loose tonight, what did it and the train's speed then (note 640; the harness's).</summary>
     public IReadOnlyList<(LooseCause Cause, double Speed)> Loosenings => _loosenings;
     readonly List<(LooseCause Cause, double Speed)> _loosenings = [];

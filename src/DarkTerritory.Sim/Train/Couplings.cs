@@ -111,6 +111,8 @@ public sealed class Couplings(LooseTuning tuning, ulong seed)
     public int Jumped { get; private set; }
     public int Home { get; private set; }
     public int LetGos { get; private set; }
+    /// <summary>Note 865: seconds tonight a pin could have jumped (the crew, the speed, the night's clock; host, for the tuning).</summary>
+    public double JumpSeconds { get; private set; }
     /// <summary>Note 865: a jumped pin let go this tick (it parted): its car, how it was let go, who let go, the speed (host), or null.</summary>
     public (int Car, LooseCause How, int Who, double Speed)? LetGo { get; private set; }
 
@@ -224,7 +226,8 @@ public sealed class Couplings(LooseTuning tuning, ulong seed)
         // Note 865: a rail joint taken at speed jumps a pin clear, now and then, and only with two or more of the crew alive
         // (the director: "not on solo nights"). Its own draws, so a night's other pins come as they did.
         else if (tuning.Jump is { Enabled: true } jt && crew is not null && crew.Count(c => c.State.Alive) >= jt.MinCrew && speed >= jt.Above
-            && _clock >= jt.After && _clock - _lastJump >= jt.Spacing && _jumps.NextDouble() < jt.PerMinute / 60 * SimConstants.TickSeconds)
+            && _clock >= jt.After && _clock - _lastJump >= jt.Spacing && (JumpSeconds += SimConstants.TickSeconds) > 0
+            && _jumps.NextDouble() < jt.PerMinute / 60 * SimConstants.TickSeconds)
         {
             Loose(train, tight[(int)(_jumps.NextDouble() * tight.Count) % tight.Count], LooseCause.Jumped, speed);
             _lastJump = _clock;

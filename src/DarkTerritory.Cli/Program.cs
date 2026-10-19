@@ -3825,6 +3825,17 @@ static object HudShot(string content, string[] args)
                 solo.Train.Vehicles[2].Loose = SimConstants.TickSeconds;
                 solo.World.PinLoosened(2, DarkTerritory.Sim.Train.LooseCause.Bend, 62 / 3.6, 50);
             }
+            // jumped (note 865): the pin behind car 2 just jumped clear at a rail joint at 64 km/h, the one that takes two.
+            else if (said == "jumped")
+            {
+                solo.Train.Loose = DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File)).Coupling;
+                (solo.Train.Vehicles[2].Loose, solo.Train.Vehicles[2].LooseCause) = (SimConstants.TickSeconds, DarkTerritory.Sim.Train.LooseCause.Jumped);
+                solo.World.PinLoosened(2, DarkTerritory.Sim.Train.LooseCause.Jumped, 64 / 3.6);
+                // Down in its gap, at the pin: the HUD's prompt says it takes two.
+                var g = solo.Train.Dynamics.Tuning.Geometry;
+                solo.Player = solo.Player with { Parent = 2, Surface = DarkTerritory.Sim.Player.Surface.Coupler, Velocity = default,
+                    Position = new Double3(g.PlateX, g.CouplerHeight, solo.Train.Frames[2].Shape.HalfLength + 0.7) };
+            }
             else if (said == "fire")
                 solo.World.FireStarted(DarkTerritory.Sim.Enemies.CarFire.In(99, solo.Train, 3, 2, solo.World.Enemies?.CarFire ?? new DarkTerritory.Sim.Enemies.CarFireTuning(),
                     DarkTerritory.Sim.Enemies.FireCause.HotBox, 3, -1, "Its rear axle box ran hot, ungreased."));
