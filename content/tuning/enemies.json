@@ -1174,7 +1174,11 @@
       // before (collisionWeight 1 turns only the weight off).
       // pairRepeat: a conflict pair made tonight weighs ÷pairRepeat for each time it's been made, when it would be made again
       // (seed 2 frontier drew whistler+facilityStop three times); 1: off.
-      "commitment": true, "collisionWeight": 1.75, "committedNearM": 20, "collisionReachM": 60, "pairRepeat": 2
+      // pairFree (note 867; the director, 19 Oct, on note 861's call 2: "Yes"): one of a pair on one job (a jackpot's two
+      // ends, the winch's two handles, the crane's operator and rigger) counts as free for the other's collision, so a crew
+      // of two both at the winch can meet one: a grab on one, and the other lets go of their handle to come. false: a pair is
+      // two busy and nobody free (note 753).
+      "commitment": true, "collisionWeight": 1.75, "committedNearM": 20, "collisionReachM": 60, "pairRepeat": 2, "pairFree": true
     },
     // Note 327 (GDD App. F.3, the director, 7 Oct 2026: "ideally, we want people to be feeling like when they leave, there is
     // this presence of threat at all times"). Not in the spec. A crewmate alive on the ground further than fromTrainM (m) from

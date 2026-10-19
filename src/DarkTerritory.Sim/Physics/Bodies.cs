@@ -1487,13 +1487,16 @@ public sealed class Bodies
 
     /// <summary>
     /// A heavy crate (spec D.2, T43): with one on it, it's held where it lies (and let go by walking off from it); with
-    /// both, it rides between their hands, in the first one's frame. Too far apart, and it's down.
+    /// both, it rides between their hands, in the first one's frame. Too far apart, and it's down; one of them grabbed, and
+    /// their end's let go (note 867).
     /// </summary>
     void CarryHeavy(Body b, TrainOnLine train, Func<int, PlayerState?> player)
     {
-        if (b.Second >= 0 && player(b.Second) is not { Alive: true })
+        // Dead, or grabbed (note 867: something has them, so their end's let go; the other's left holding it, to choose).
+        static bool Holds(PlayerState? s) => s is { Alive: true } p && !p.Has(PlayerFlags.Held);
+        if (b.Second >= 0 && !Holds(player(b.Second)))
             b.Second = -1;
-        if (b.Carrier >= 0 && player(b.Carrier) is not { Alive: true })
+        if (b.Carrier >= 0 && !Holds(player(b.Carrier)))
             (b.Carrier, b.Second) = (b.Second, -1);
         if (b.Carrier < 0 || player(b.Carrier) is not { } lead)
             return;
