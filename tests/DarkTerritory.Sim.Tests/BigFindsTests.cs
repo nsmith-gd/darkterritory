@@ -167,6 +167,11 @@ public class BigFindsTests
         Step(world, crew, [new PlayerIntent { Buttons = PlayerButtons.Throw }, default], Dt);
         Step(world, crew, [new PlayerIntent { MoveZ = -1 }, default], 0.4);
         Assert.True((jackpot.Centre - lay).Length < 0.05, "one alone moved it");
+        // Note 861's watch: one at an end, the other standing by, isn't yet a job for two.
+        var shared = new SharedWatch(new SharedTuning());
+        IReadOnlyList<(int, PlayerState)> Crew() => [.. crew.Select((c, i) => (i + 1, c))];
+        shared.Watch(world.Tick, world, Crew());
+        Assert.Equal(0, shared.Report(world).Moments.GetValueOrDefault("pairJob"));
 
         // The second takes the other end: it comes up between them, and goes where they go.
         crew[0] = OnTheGround(world, lay + new Double3(0, 0, 1.0)) with { Yaw = 0 };
@@ -178,6 +183,9 @@ public class BigFindsTests
         Assert.Equal(2, jackpot.Second);
         Step(world, crew, [new PlayerIntent { MoveX = 1 }, new PlayerIntent { MoveX = -1 }], 1.5);
         Assert.True((jackpot.Centre - lay).Length > 1.0, "two together didn't move it");
+        shared.Watch(world.Tick, world, Crew());
+        shared.Watch(world.Tick + 1, world, Crew());
+        Assert.Equal(1, shared.Report(world).Moments.GetValueOrDefault("pairJob"));
         var between = (PlayerMotor.WorldPosition(crew[0], world.Train) + PlayerMotor.WorldPosition(crew[1], world.Train)) * 0.5;
         Assert.True(((Bodies.WorldCentre(jackpot, world.Train) - between) with { Y = 0 }).Length < 0.4);
     }
@@ -203,10 +211,11 @@ public class BigFindsTests
     }
 
     [Fact]
-    public void JackpotsAreRareAndTheJackpotHouseHoldsThemLikelier()
+    public void MostStopsHaveAJackpotAndTheJackpotHouseHoldsOneAtItsShare()
     {
-        // Seeded per stop, the same every time; never more than `most` at a stop; about one a frontier night.
-        int nights = 40, jackpots = 0, inHouses = 0, houses = 0;
+        // Seeded per stop, the same every time; never more than `most` at a stop. Note 861 (the 16 Oct evening playtest's line
+        // 8): most frontier stops have one, so most stops ask two to carry something together (it was about one a night).
+        int nights = 40, stops = 0, withOne = 0, inHouses = 0, houses = 0;
         for (ulong seed = 1; seed <= (ulong)nights; seed++)
         {
             var route = RouteGenerator.Generate(Tuning.Route, RouteTier.Frontier, seed);
@@ -217,17 +226,19 @@ public class BigFindsTests
                 int locked = StopLoot.JackpotHouse(L, stop, route.Seed, i, RouteTier.Frontier);
                 Assert.Equal(locked, StopLoot.JackpotHouse(L, stop, route.Seed, i, RouteTier.Frontier));
                 var at = StopLoot.Jackpots(L, stop, route.Seed, i, RouteTier.Frontier, locked, _ => true);
+                Assert.Equal(at, StopLoot.Jackpots(L, stop, route.Seed, i, RouteTier.Frontier, locked, _ => true));
                 Assert.True(at.Count <= L.Jackpots!.Most);
                 Assert.All(at, j => Assert.True(j.Beside >= 0 || locked >= 0));
-                jackpots += at.Count;
+                stops++;
+                withOne += at.Count > 0 ? 1 : 0;
                 houses += locked >= 0 ? 1 : 0;
                 inHouses += at.Count(j => j.Beside < 0);
             }
         }
-        Assert.InRange(jackpots / (double)nights, 0.4, 2.5);
-        Assert.True(houses > 0 && inHouses > 0);
-        // A jackpot house holds one at `house`; any other stop at its tier's chance.
-        Assert.True(inHouses / (double)houses > L.Jackpots!.Chance["frontier"] * 2);
+        Assert.True(withOne / (double)stops >= 0.5, $"{withOne} of {stops} frontier stops have a jackpot");
+        // A jackpot house holds one at `house`.
+        Assert.True(houses > 0);
+        Assert.InRange(inHouses / (double)houses, L.Jackpots!.House - 0.2, L.Jackpots.House + 0.2);
     }
 
     // ---- fragile valuables.
