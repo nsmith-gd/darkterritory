@@ -69,6 +69,11 @@ public static class News
                 LooseCause.RunIn => $"{gap} · A HARD BRAKE AT {Kmh(e.Speed)}",
                 LooseCause.Knock => $"{gap} · COUPLED UP AT {Kmh(e.Speed)}",
                 LooseCause.Bend => e.Detail > 0 ? $"{gap} · A {e.Detail} KM/H BEND TAKEN AT {Kmh(e.Speed)}" : $"{gap} · A BEND TAKEN AT {Kmh(e.Speed)}",
+                // Note 865: jumped clear, and it takes two (what it is, not what to do: note 402).
+                // The warning first (the director, 19 Oct: "hella telegraphing"), where and why, and that it wants two now; then
+                // the jump itself.
+                LooseCause.Working => $"{(e.Cars.Length > 0 ? $"PIN WORKING LOOSE BEHIND CAR {e.Cars[0]}" : "PIN WORKING LOOSE")} · A RAIL JOINT AT {Kmh(e.Speed)} · GET TWO TO IT",
+                LooseCause.Jumped => $"{(e.Cars.Length > 0 ? $"PIN JUMPED BEHIND CAR {e.Cars[0]}" : "PIN JUMPED")} · TWO TO HOLD IT",
                 _ => gap,
             };
         }
@@ -87,6 +92,11 @@ public static class News
                 LooseCause.RunIn => $"{cars} LOST · THE PIN THE HARD BRAKE WORKED LOOSE",
                 LooseCause.Knock => $"{cars} LOST · THE PIN THE HARD COUPLING WORKED LOOSE",
                 LooseCause.Bend => $"{cars} LOST · THE PIN THE BEND WORKED LOOSE",
+                // Note 865: a jumped pin nobody held, or one of the two holding it let go (and who).
+                LooseCause.Jumped => $"{cars} LOST · THE PIN THE RAIL JOINT JUMPED",
+                LooseCause.LetGoPin => $"{cars} LOST · {IncidentLog.NameOf(world, e.Who).ToUpperInvariant()} LET GO OF THE PIN",
+                LooseCause.LetGoBrake => $"{cars} LOST · {IncidentLog.NameOf(world, e.Who).ToUpperInvariant()} LET GO OF THE BRAKE WHEEL",
+                LooseCause.LetGoThrottle => $"{cars} LOST · {IncidentLog.NameOf(world, e.Who).ToUpperInvariant()} OPENED THE THROTTLE",
                 _ => $"{cars} LOST · THE PIN WORKED LOOSE",
             },
             Parting.Knotter => $"{cars} LOST · A KNOTTER PARTED {it}",
