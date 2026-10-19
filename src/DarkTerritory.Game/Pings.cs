@@ -53,13 +53,14 @@ public static class PingMarks
     static readonly Vector4 Mark = new(0.55f, 0.85f, 1f, 0.95f);
     const float Edge = 14;
 
-    /// <summary>What a ping's on, as said: "FIRE, CAR 3", "THE CONTROLS", "LOOT", "THE CRANE".</summary>
+    /// <summary>What a ping's on, as said: "FIRE, CAR 3", "THE CONTROLS", "LOOT", "THE CRANE", "THE TOWN".</summary>
     public static string What(PingEvent p) => p.Kind switch
     {
         PingKind.Fire => $"FIRE, CAR {p.Target}",
         PingKind.Cab => "THE CONTROLS",
         PingKind.Loot => "LOOT",
         PingKind.Crane => "THE CRANE",
+        PingKind.Town => "THE TOWN",
         _ => "THERE",
     };
 

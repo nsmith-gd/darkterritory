@@ -3079,6 +3079,9 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         // Note 617: not the shunter lent to them while the pair are at their own work: it's the points' to set back once the
         // loading's done, and out at the yard's far crates it kept a frontier:7 Foundry's clear waiting 150 s for it.
         bool spare = job == StopJob.Shunter && calls.PairAtWork;
+        // The town pinged for us (note 739 part two, GDD §12 "Ping the bots"): its houses searched, before the yard's crates.
+        if (!heavy && _setDown is null && mine is null && world.Run is { } run && TownOrdered(run.StopOf(p.Site.Feature).Stop) && Village(self, world, p) is { } town)
+            return town;
         if (!heavy && _setDown is null && !spare && (Fetching || !p.CratesToLoad(world, calls.HeavyHands)) && Yard(self, world, p) is { } fetch)
             return fetch;
         if (!heavy && _setDown is null && !spare && (!p.CratesToLoad(world, calls.HeavyHands) || calls.Leaving) && Village(self, world, p) is { } errand)
