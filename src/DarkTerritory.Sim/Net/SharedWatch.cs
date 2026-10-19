@@ -39,7 +39,8 @@ public sealed record SharedReport(IReadOnlyDictionary<string, int> Moments, IRea
 /// </summary>
 public sealed class SharedWatch(SharedTuning t)
 {
-    readonly HashSet<(int Enemy, int Victim)> _grabs = [], _near = [];
+    /// <summary>Who's held now, and whether a friend has come within reach of them this hold.</summary>
+    readonly SortedDictionary<int, bool> _held = [];
     readonly HashSet<(int, int)> _pairs = [];
     readonly SortedDictionary<string, int> _all = new(StringComparer.Ordinal), _run = new(StringComparer.Ordinal);
     readonly List<SharedStop> _stops = [];
@@ -81,20 +82,24 @@ public sealed class SharedWatch(SharedTuning t)
             _afoot += crew.Count(c => c.State.Alive && c.State.Parent == PlayerState.World) * SimConstants.TickSeconds;
 
         var living = crew.Where(c => c.State.Alive).Select(c => (c.Id, c.State, At: PlayerMotor.WorldPosition(c.State, train))).ToList();
-        foreach (var e in world.ActiveEnemies)
+        // Each hold (the Held flag's spell, whatever has them), and whether a friend was ever within reach of it.
+        foreach (var held in living)
         {
-            int h = e.Holding < 0 || e.Gone ? -1 : living.FindIndex(c => c.Id == e.Holding);
-            if (h < 0)
-                continue;
-            var held = living[h];
-            if (_grabs.Add((e.Id, e.Holding)))
-                Count("grab");
-            if (!_near.Contains((e.Id, e.Holding)) && living.Any(c => c.Id != held.Id && (c.At - held.At).Length <= t.NearMetres))
+            if (!held.State.Has(PlayerFlags.Held))
             {
-                _near.Add((e.Id, e.Holding));
+                _held.Remove(held.Id);
+                continue;
+            }
+            if (_held.TryAdd(held.Id, false))
+                Count("grab");
+            if (!_held[held.Id] && living.Any(c => c.Id != held.Id && (c.At - held.At).Length <= t.NearMetres))
+            {
+                _held[held.Id] = true;
                 Count("grabNear");
             }
         }
+        foreach (int gone in _held.Keys.Where(k => !living.Any(c => c.Id == k)).ToList())
+            _held.Remove(gone);
         // A hold broken by a friend (the log's Rescue, its actor someone else).
         var log = world.Attribution.Log;
         for (; _incidents < log.Count; _incidents++)
