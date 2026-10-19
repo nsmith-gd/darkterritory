@@ -840,19 +840,41 @@ public sealed record CurveTuning
 /// <summary>
 /// The stops' own (note 860; GDD App. B.1 "The stops' own"; the director's playtest of 16 Oct evening, line 7: "Monsters are
 /// positioned and ready at yards and abandoned villages, or use those stops to get onto the train"): as the train stands at
-/// a yard or a village, <see cref="Waiting"/> of what lives there is put in place, and <see cref="Boarding"/> of the
-/// <see cref="Boarders"/> gets aboard there, each a kind whose rule the stop meets, at its own and the tuning's weights;
-/// beside the pressure's spends, outside its budget, threshold, cooldown and the facility lull. Mirror of enemies.json
-/// <c>director.stops</c>; field docs live there.
+/// a yard or a village, <see cref="Count"/> of its creatures come (note 868, the director, 19 Oct: "variable depending on
+/// player count and difficulty"): what lives there put in place, and the <see cref="Boarding"/> share of them from the
+/// <see cref="Boarders"/>, which get aboard there; each a kind whose rule the stop meets, at its own and the tuning's
+/// weights; beside the pressure's spends, outside its budget, threshold, cooldown and the facility lull. And the night's
+/// floor (note 868: "It should be impossible to have a night with no creatures"): however the night's chances roll, at least
+/// <see cref="FloorKinds"/> kinds are about, and as many of the <see cref="Residents"/> as a stop's own will want. Mirror of
+/// enemies.json <c>director.stops</c>; field docs live there.
 /// </summary>
 public sealed record StopsTuning
 {
     public bool On { get; init; } = true;
-    public int Waiting { get; init; } = 1;
-    public int Boarding { get; init; } = 1;
+    public Dictionary<string, double> ByTier { get; init; } = new() { ["local"] = 1 };
+    public double PerCrew { get; init; } = 0;
+    public int Max { get; init; } = 6;
+    public double Boarding { get; init; } = 0.3;
     public double BoardingAfterSeconds { get; init; } = 40;
     public double TrySeconds { get; init; } = 240;
     public string[] Boarders { get; init; } = [];
+    public string[] Residents { get; init; } = [];
+    public int FloorKinds { get; init; } = 0;
+
+    /// <summary>How many of a stop's own come on <paramref name="tier"/> for a crew of <paramref name="crew"/>, at least 1, at most <see cref="Max"/>.</summary>
+    public int Count(Route.RouteTier tier, int crew)
+    {
+        string key = char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..];
+        double n = ByTier.GetValueOrDefault(key, ByTier.Values.DefaultIfEmpty(1).Max()) + PerCrew * Math.Max(0, crew - 1);
+        return Math.Clamp((int)Math.Floor(n + 0.5), 1, Math.Max(1, Max));
+    }
+
+    /// <summary>Of <paramref name="count"/>, how many board (the <see cref="Boarding"/> share, rounded half up) and how many wait; one alone waits.</summary>
+    public (int Waiting, int Boarding) Split(int count)
+    {
+        int boarding = count <= 1 ? 0 : Math.Clamp((int)Math.Floor(count * Boarding + 0.5), 0, count - 1);
+        return (count - boarding, boarding);
+    }
 }
 
 /// <summary>

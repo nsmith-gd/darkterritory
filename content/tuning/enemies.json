@@ -1061,21 +1061,34 @@
     },
     // The stops' own (note 860; GDD App. B.1 "The stops' own"; the director's playtest of 16 Oct evening, line 7: "Monsters are
     // positioned and ready at yards and abandoned villages, or use those stops to get onto the train"). Before it, what a stop
-    // met was whatever the pressure could spend while the train stood there: on frontier:7 with two bots, one yard of three
-    // had anything at all. Now, from the first second the train stands at a yard (a facility with a stop laid) or an
-    // abandoned village's halt (dead_settlement, stood), and for trySeconds of standing there, the director puts in place
-    // `waiting` of the creatures whose rule the stop meets (what lives at its sites, the Moose by it, the Freight Beetle in its
-    // freight, the Grumbler on its perch...), and, once it's stood there boardingAfterSeconds (while the crew is busy with
-    // the stop, not cutting the train at its points: a Whistler in the gap the shunter must uncouple held four bots at
-    // frontier:12's first yard for good), `boarding` of the `boarders` whose rule it meets, which use the stop to get aboard. Each picked by its rule's weight × weights × the night's variety, under the roster, its night (nightChance,
-    // perNight), slain and the engaged cap; a kind needing someone on the ground comes the moment one steps down. Once a
-    // stop a night (a crew shunting its yard hasn't arrived again). Beside the pressure's spends: outside its budget,
-    // threshold, cooldown and the facility lull (it was there before the train came); the grace, the forts, the final
-    // stretch and the line's spawn bans hold. On its own dice (0x5709): the night's other draws are as they were. Logged
-    // DirectorSpawn.Stop.
+    // met was whatever the pressure could spend while the train stood there: on 2-bot frontier:7 nights, something within
+    // 30 s of arriving at 3 stops in 8. Now, from the first second the train stands at a yard (a facility with a stop laid)
+    // or an abandoned village's halt (a village stop, stood on the main line by it), and for trySeconds of standing there,
+    // the director sends the stop's own: how many by the tier and the crew in the night (note 868; the director, 19 Oct:
+    // "Easy difficulty and low player count means one creature. High difficulty high player count should be at least 4+
+    // creatures to deal with per stop"): byTier + perCrew a crewmate over one, rounded half up, 1 to max (local alone 1,
+    // frontier 2 for two and 3 for four, deadLines 3 for four, deepTerritory 4 for four and 5 for eight). Of them the
+    // `boarding` share, rounded half up and never the only one, are `boarders` whose rule the stop meets, which use it to get
+    // aboard, once it's stood there boardingAfterSeconds (while the crew is busy with the stop, not cutting the train at its
+    // points: a Whistler in the gap the shunter must uncouple held four bots at frontier:12's first yard for good); the rest
+    // wait there: creatures whose rule the stop meets (what lives at its sites, the Moose by it, the Freight Beetle in its
+    // freight, the Grumbler on its perch...). Each picked by its rule's weight × weights × the night's variety, under the
+    // roster, its night (nightChance, perNight), slain and the engaged cap; a kind needing someone on the ground comes the
+    // moment one steps down. Once a stop a night (a crew shunting its yard hasn't arrived again). Beside the pressure's
+    // spends: outside its budget, threshold, cooldown and the facility lull (it was there before the train came); the grace,
+    // the forts, the final stretch and the line's spawn bans hold. On its own dice (0x5709): the night's other draws are as
+    // they were. Logged DirectorSpawn.Stop.
+    // The night's floor (note 868; the director: "It should be impossible to have a night with no creatures"): nightChance
+    // (below) rolled seed 1 with 22 of 28 kinds out, every creature that lives at a yard among them. After the roll, kinds
+    // rolled out are brought back, each drawn by its nightChance on the roll's own stream, until as many `residents` are about
+    // as wait at a stop on this tier for this crew, and floorKinds of the 22 kinds the director sends (Spawns.Rules; one
+    // nightChance doesn't name is about every night). A chance of 0 is never brought back. Off with `on`.
     "stops": {
-      "on": true, "waiting": 1, "boarding": 1, "boardingAfterSeconds": 40, "trySeconds": 240,
-      "boarders": ["whistler", "draggers", "tippyToesie", "passenger"]
+      "on": true, "byTier": { "local": 1, "frontier": 1.5, "deadLines": 2, "deepTerritory": 2.5 }, "perCrew": 0.35, "max": 6,
+      "boarding": 0.3, "boardingAfterSeconds": 40, "trySeconds": 240,
+      "boarders": ["whistler", "draggers", "tippyToesie", "passenger"],
+      "residents": ["ribbits", "gaunt", "moose", "sootChildren", "followers", "freightBeetle", "grumbler", "mouseMoose", "towerJaw"],
+      "floorKinds": 8
     },
     // T128 (build 1121: "a player left behind by the train should feel the world close in: tension, monsters coming, the
     // difficulty spiking for that player. They needn't die at once"; GDD §7, §23; ARCHITECTURE §8 note 273). Not in the spec.
