@@ -64,7 +64,7 @@
     // lake or road fail); the director's call (note 868).
     { "id": "deadSettlement", "kind": "settlement", "minD": 0, "fullD": 0, "lengthM": [300, 900], "cost": 0, "costScale": 0, "crunch": false,
       "tags": ["dead_settlement", "landmark"], "params": { "townChance": [0.35], "haltM": [300], "townM": [400, 550], "everyKm": [1.5, 3],
-        "perNight": [0], "leadM": [120] }, "weight": 0 }
+        "perNight": [2], "leadM": [120] }, "weight": 0 }
   ],
 
   // Plan §7.4: placed at least once a run where the tier allows. chain: pieces one after another, each inside the

@@ -9,7 +9,7 @@ namespace DarkTerritory.Sim.Tests;
 /// More abandoned villages in the same night (ARCHITECTURE §8 note 868; the director, 19 Oct 2026: "I'd love more [abandoned
 /// villages] but we can't have a longer night, fewer hazards, or fewer stops"). The 7 km night's free stretches are short,
 /// and its every-so-often dead settlement fell in one with room one night in twelve. With setpieces.json deadSettlement
-/// perNight (0 until the director decides: the line downstream moves), a filled stretch's straight recovery long enough
+/// perNight (2: the director, 19 Oct, "Yes, turn the abandoned villages on"), a filled stretch's straight recovery long enough
 /// becomes one, its hazards untouched, and each is a village stop.
 /// </summary>
 public class VillageStopTests
@@ -27,7 +27,7 @@ public class VillageStopTests
     [Fact]
     public void WithTwoANightMostNightsHaveAnAbandonedVillageAndEveryHazardTheyHad()
     {
-        Assert.Equal(0, LineGenContent.Cached(Content).Config.SetPieces.Pieces.Single(p => p.Id == "deadSettlement").Param("perNight"));
+        Assert.Equal(2, LineGenContent.Cached(Content).Config.SetPieces.Pieces.Single(p => p.Id == "deadSettlement").Param("perNight"));
         var (off, on) = (PerNight(0), PerNight(2));
         int nights = 0, withVillage = 0, villages = 0;
         foreach (var tier in new[] { "local", "frontier", "deadLines" })
@@ -48,7 +48,7 @@ public class VillageStopTests
                 if (here > 0)
                     withVillage++;
             }
-        // Measured: 8 of 12 nights, 12 village stops (perNight 0: 1 night, 1 stop).
+        // Measured: 7 of 12 nights, 11 village stops (perNight 0: 1 night, 1 stop).
         Assert.True(withVillage >= 7, $"{withVillage} of {nights} nights with a village");
         Assert.True(villages >= 10, $"{villages} village stops");
     }
