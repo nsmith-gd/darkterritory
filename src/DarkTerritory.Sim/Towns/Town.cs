@@ -461,10 +461,11 @@ public sealed class Town
         return true;
     }
 
+    // (Or stands under it: a heap's lower layers, note 869, hold the point up its side that's looked at.)
     static bool Holds(Wall w, Double3 p, double margin)
     {
         var l = w.ToLocal(p);
-        return Math.Abs(l.X) <= w.HalfLength + margin && Math.Abs(l.Z) <= w.HalfWidth + margin && l.Y >= w.Bottom - margin && l.Y <= w.Top + margin;
+        return Math.Abs(l.X) <= w.HalfLength + margin && Math.Abs(l.Z) <= w.HalfWidth + margin && l.Y >= w.Bottom - margin;
     }
 
     /// <summary>Whether the segment from <paramref name="a"/> to <paramref name="b"/> passes through a wall's box (slabs, in its frame).</summary>

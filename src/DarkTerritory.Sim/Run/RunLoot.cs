@@ -155,8 +155,10 @@ public sealed partial class Run
                 var bays = stop.Containers.Where(c => c.Kind == ContainerKind.CraneBay && c.Track == track.Index).ToList();
                 // (The sheds it passes on that side are cut open for it: StopWalls.CraneCuts, note 869.)
                 int toward = StopWalls.GantryToward(stop.Containers, track);
-                double mid = (rw.From + rw.To) / 2, d = track.FaceStart.D;
-                var tuning = ct with { Along = 0, Length = rw.Length, Castings = bays.Count, Spacing = Math.Min(ct.Spacing, rw.Length / (bays.Count + 1)) };
+                // Its run along the runway, clear of the buildings it can't cut through (StopWalls.GantryRun, note 869).
+                var (from, to) = StopWalls.GantryRun(stop, track) ?? (rw.From, rw.To);
+                double mid = (from + to) / 2, d = track.FaceStart.D;
+                var tuning = ct with { Along = 0, Length = to - from, Castings = bays.Count, Spacing = Math.Min(ct.Spacing, (to - from) / (bays.Count + 1)) };
                 var feature = site.Feature;
                 var line = _lootLine!;
                 cranes.Add(new Crane(tuning, (along, across, up) => StopWorld(line, feature, new Pt(mid + along, d + toward * across), up)));

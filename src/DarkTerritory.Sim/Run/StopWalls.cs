@@ -447,11 +447,12 @@ public sealed partial class StopWalls
         {
             if (tr.Crane is not { } rw)
                 continue;
+            var (from, to) = GantryRun(stop, tr) ?? (rw.From, rw.To);
             bool bay = stop.Containers.Any(c => c.Kind == ContainerKind.CraneBay && c.Building == building && c.Track == tr.Index);
             bool crossed = b.Kind == BuildingKind.Shed && rw.Bays > 0 && Math.Sign(b.D - tr.FaceStart.D) == GantryToward(stop.Containers, tr)
-                && Math.Abs(b.D - tr.FaceStart.D) - b.Width / 2 < GantryReach && rw.From - 1.5 < b.S + b.Length / 2 && rw.To + 1.5 > b.S - b.Length / 2;
+                && Math.Abs(b.D - tr.FaceStart.D) - b.Width / 2 < GantryReach && from - 1.5 < b.S + b.Length / 2 && to + 1.5 > b.S - b.Length / 2;
             if (bay || crossed)
-                cuts.Add((rw.From - 1.5, rw.To + 1.5));
+                cuts.Add((from - 1.5, to + 1.5));
         }
         var merged = new List<(double From, double To)>();
         foreach (var c in cuts.OrderBy(c => c.From))
@@ -478,25 +479,44 @@ public sealed partial class StopWalls
     /// them (cabOut, 1.4 m) and the cab's own width; and its near legs the other side (span −3.5 m, and the leg's own). A
     /// building nearer than this beside its runway is in its way (note 869).
     /// </summary>
-    public const double GantryReach = 12, GantryBack = 4;
+    public const double GantryReach = 12, GantryBack = 3.95;
 
     /// <summary>
-    /// A yard gantry's ground in the stop's frame (zone S along, D across), its legs and cab in: its runway and a leg's room
-    /// each end, from its near legs to its cab (note 869). Null for a track with none.
+    /// Where along its runway a yard gantry stands (zone S): the longest stretch of it whose gantry stands clear of every
+    /// building in its reach that isn't a shed it cuts open (<see cref="CraneCuts"/>): a hero shed keeps its roof and its
+    /// strongroom, a Holdout's prison car or lockup its own walls (note 869). Its legs' room is kept off each. The whole runway
+    /// where nothing's in the way, or where no stretch of <see cref="GantryLeast"/> is left; null for a track with none. From
+    /// the layout alone, so every machine stands the gantry alike, and the stop is what it was.
     /// </summary>
-    public static (double S0, double S1, double D0, double D1)? Gantry(IEnumerable<StopContainer> containers, YardTrack track)
+    public static (double From, double To)? GantryRun(StopLayout stop, YardTrack track)
     {
         if (track.Crane is not { Bays: > 0 } rw)
             return null;
-        int toward = GantryToward(containers, track);
-        double a = track.FaceStart.D - toward * GantryBack, c = track.FaceStart.D + toward * GantryReach;
-        return (rw.From - 2, rw.To + 2, Math.Min(a, c), Math.Max(a, c));
+        int toward = GantryToward(stop.Containers, track);
+        var blocked = new List<(double From, double To)>();
+        foreach (var b in stop.Buildings)
+        {
+            if (b.Kind == BuildingKind.Shed)
+                continue;
+            var corners = Stops.Plan.Corners(b).ToList();
+            double u0 = corners.Min(p => toward * (p.D - track.FaceStart.D)), u1 = corners.Max(p => toward * (p.D - track.FaceStart.D));
+            if (u1 > -GantryBack && u0 < GantryReach)
+                blocked.Add((corners.Min(p => p.S) - 2, corners.Max(p => p.S) + 2));
+        }
+        (double From, double To) best = (rw.From, rw.From);
+        double at = rw.From;
+        foreach (var (lo, hi) in blocked.OrderBy(x => x.From).Append((rw.To, rw.To)))
+        {
+            if (Math.Min(lo, rw.To) - at > best.To - best.From)
+                best = (at, Math.Min(lo, rw.To));
+            at = Math.Max(at, hi);
+        }
+        return best.To - best.From >= GantryLeast ? best : (rw.From, rw.To);
     }
 
-    /// <summary>
-    /// The side of its track's loading face a yard gantry's castings and far legs are on (Run.BuildYardCranes): toward its
-    /// crane bays, or the track's own side when they're level with it.
-    /// </summary>
+    /// <summary>The shortest stretch of runway a gantry is stood on (m): its castings side by side under it, over a car. Not a design number.</summary>
+    public const double GantryLeast = 5;
+
     public static int GantryToward(StopLayout stop, YardTrack track)
     {
         var bays = stop.Containers.Where(c => c.Kind == ContainerKind.CraneBay && c.Track == track.Index).ToList();

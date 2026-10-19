@@ -25,8 +25,12 @@ public class StopWallsTests
     }
 
     /// <summary>Within <paramref name="pad"/> of a wall's box (round its corners, as the motor keeps a crewmate off it).</summary>
+    // (A wall no higher than a step over the feet is stepped onto, not walked into, as PlayerMotor.PushOut has it: note 817's
+    // decks and stones, the home platform's deck since note 869.)
     static bool InAnyWall(StopWalls walls, Double3 p, double pad) => walls.Near(p).Any(w =>
     {
+        if (w.Top - p.Y <= P.StepUp)
+            return false;
         var l = w.ToLocal(p);
         double dx = Math.Max(0, Math.Abs(l.X) - w.HalfLength), dz = Math.Max(0, Math.Abs(l.Z) - w.HalfWidth);
         return dx * dx + dz * dz < pad * pad;

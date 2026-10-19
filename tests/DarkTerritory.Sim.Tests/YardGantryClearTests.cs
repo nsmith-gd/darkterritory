@@ -9,8 +9,9 @@ namespace DarkTerritory.Sim.Tests;
 /// No yard gantry stands in a building (queue #596, ARCHITECTURE §8 note 869; the director's playtest of 19 Oct, line 9:
 /// "Crane overlap inside a building is a bug", the switchyard's hook and its load hanging inside a shed by the sidings, the
 /// bridge through its wall). Every loading face's sheds stand 4 m off it, and a gantry reaches 9 m out (its cab and its
-/// castings further), so a shed the runway passes on the gantry's side is cut open for it (StopWalls.CraneCut): the gantry's
-/// legs, bridge, cab and castings stand in the open, clear of every roofed length of every building.
+/// castings further), so a shed the runway passes on the gantry's side is cut open for it (StopWalls.CraneCuts), and the
+/// gantry stands on the stretch of its runway clear of what it can't cut (a hero shed, a Holdout's prison car;
+/// StopWalls.GantryRun): its legs, bridge, cab and castings stand in the open, clear of every roofed length of every building.
 /// </summary>
 public class YardGantryClearTests
 {
@@ -44,7 +45,12 @@ public class YardGantryClearTests
                         // Its footprint across the face, toward its castings: the near legs to the cab beyond the far ones; and
                         // along it, the runway and its legs.
                         double u0 = Crane.Span[0] - LegHalf, u1 = Math.Max(Crane.Span[1] + LegHalf, Crane.Span[1] + Crane.CabOut + CabHalf);
-                        double a0 = rw.From - LegHalf, a1 = rw.To + LegHalf;
+                        // Along it, where it stands on its runway (clear of what it can't cut: StopWalls.GantryRun) and its legs.
+                        var (run0, run1) = StopWalls.GantryRun(stop, track)!.Value;
+                        double a0 = run0 - LegHalf, a1 = run1 + LegHalf;
+                        // Its castings lie side by side under it (RunLoot.BuildYardCranes spaces them along its run).
+                        Assert.True((run1 - run0) / (rw.Bays + 1) >= Crane.CastingSize[0] + 0.1,
+                            $"{tier} {kind} {facility} seed {seed}: track {track.Index}'s gantry {run1 - run0:0.0} m long for {rw.Bays} castings");
                         for (int i = 0; i < stop.Buildings.Count; i++)
                         {
                             var b = stop.Buildings[i];

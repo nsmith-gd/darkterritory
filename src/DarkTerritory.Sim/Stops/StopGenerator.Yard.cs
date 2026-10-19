@@ -120,9 +120,9 @@ public static partial class StopGenerator
         var runways = new Dictionary<int, CraneRunway>();
         for (int j = 0; j < g.Tracks.Count; j++)
             if (R.Chance(tt.Crane))
-                runways[j] = Runway(R, t, tt, g.Tracks[j], Heroes(g, heroes, g.Tracks[j]));
+                runways[j] = Runway(R, t, tt, g.Tracks[j]);
         if (runways.Count == 0)
-            runways[0] = Runway(R, t, tt, g.Tracks[0], Heroes(g, heroes, g.Tracks[0]));
+            runways[0] = Runway(R, t, tt, g.Tracks[0]);
 
         // Containers (P2, P14): the yard holds the tier's stock, in bays picked at random across every shed. A bay a
         // runway reaches holds a casting for that crane; any other bay a crate stack. The hero's last shed holds the
@@ -265,49 +265,13 @@ public static partial class StopGenerator
         g.AddRail(path);
     }
 
-    /// <summary>
-    /// A crane's runway along a loading face (P18), on the longest stretch of it clear of <paramref name="blocked"/> (note 869:
-    /// the hero sheds beside it, which keep their strongroom under their roof; a gantry's 9 m reach stood in one). The same
-    /// dice either way, so the rest of the stop is what it was.
-    /// </summary>
-    static CraneRunway Runway(Dice R, StopTuning t, StopTier tt, YardTrack track, IReadOnlyList<(double From, double To)> blocked)
+    static CraneRunway Runway(Dice R, StopTuning t, StopTier tt, YardTrack track)
     {
-        // (A stretch too short for a runway leaves it the whole face, as before.)
-        (double From, double To) whole = (track.FaceStart.S, track.FaceEnd.S);
-        var (f0, f1) = Clear(whole.From, whole.To, blocked).Where(c => c.To - c.From >= MinRunwayFace).DefaultIfEmpty(whole).MaxBy(c => c.To - c.From);
-        double face = f1 - f0;
+        double face = track.FaceEnd.S - track.FaceStart.S;
         double length = Math.Min(R.Range(tt.Runway), face - 8);
-        double from = f0 + R.Range(4, Math.Max(4, face - length - 4));
+        double from = track.FaceStart.S + R.Range(4, Math.Max(4, face - length - 4));
         return new CraneRunway(Math.Round(from, 2), Math.Round(from + length, 2), t.Crane.Reach, 0);
     }
-
-    // The shortest stretch of a face a runway is laid on (m): room for a gantry over a car or two. Not a design number.
-    const double MinRunwayFace = 24;
-
-    /// <summary>The stretches of <paramref name="from"/>..<paramref name="to"/> left between the <paramref name="blocked"/> ones, in order.</summary>
-    static IEnumerable<(double From, double To)> Clear(double from, double to, IReadOnlyList<(double From, double To)> blocked)
-    {
-        double at = from;
-        foreach (var (lo, hi) in blocked.OrderBy(b => b.From))
-        {
-            if (lo > at)
-                yield return (at, Math.Min(lo, to));
-            at = Math.Max(at, hi);
-        }
-        if (to > at)
-            yield return (at, to);
-    }
-
-    /// <summary>
-    /// Where the hero sheds stand along a loading face, within a gantry's reach of it either side (StopWalls.GantryReach),
-    /// and a leg's room past each end: what a runway keeps off (note 869).
-    /// </summary>
-    static IReadOnlyList<(double From, double To)> Heroes(StopDraft g, IReadOnlyList<int> heroes, YardTrack track) =>
-    [
-        .. heroes.Select(i => g.Buildings[i])
-            .Where(b => Math.Abs(b.D - track.FaceStart.D) - b.Width / 2 < Run.StopWalls.GantryReach)
-            .Select(b => (b.S - b.Length / 2 - 2.0, b.S + b.Length / 2 + 2.0)),
-    ];
 
     /// <summary>A row of sheds along the line from <paramref name="from"/> to <paramref name="to"/>, centred <paramref name="d"/> out.</summary>
     static List<int> ShedRow(StopDraft g, Dice R, StopTuning t, double from, double to, double d, int[] tracks, int depth)
