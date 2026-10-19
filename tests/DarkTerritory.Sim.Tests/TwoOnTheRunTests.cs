@@ -192,29 +192,31 @@ public class TwoOnTheRunTests
     }
 
     [Theory]
-    [InlineData(2)]
-    [InlineData(4)]
-    public void ABotCrewAnswersItAWalkerOnThePinAndTheDriverEasingOff(int bots)
+    [InlineData(2, 6, 3)]
+    [InlineData(4, 6, 3)]
+    [InlineData(2, 10, 8)]
+    public void ABotCrewAnswersItAWalkerOnThePinAndTheDriverEasingOff(int bots, int cars, int gap)
     {
         // A pin jumps behind car 3 at 40 s on the open line: a hand goes down into the gap and holds it, the driver shuts the
         // throttle for them, and it goes home before it parts. (The night's own jumps off: this one's the test's.)
         double? cameAt = null, homeAt = null;
         var quiet = L with { Jump = L.Jump with { Enabled = false } };
-        var report = CrewOfTwoTests.Night(CrewOfTwoTests.OpenLine.Spec, 6, 40 + L.Jump.PartAfter + 5, null, start: CrewOfTwoTests.OpenLine.Start, bots: bots,
+        var report = CrewOfTwoTests.Night(CrewOfTwoTests.OpenLine.Spec, cars, 40 + L.Jump.PartAfter + 5, null, start: CrewOfTwoTests.OpenLine.Start, bots: bots,
             upkeep: new UpkeepTuning { HotBox = new() { Enabled = false }, Lamp = new() { Enabled = false }, Coupling = quiet },
             each: w =>
             {
                 if (cameAt is null && w.ElapsedSeconds >= 40 && w.Train.Dynamics.Speed > 5)
                 {
-                    w.Train.Vehicles[3].Loose = Dt;
-                    w.Train.Vehicles[3].LooseCause = LooseCause.Jumped;
+                    w.Train.Vehicles[gap].Loose = Dt;
+                    w.Train.Vehicles[gap].LooseCause = LooseCause.Jumped;
                     cameAt = w.ElapsedSeconds;
                 }
-                else if (cameAt is not null && homeAt is null && w.Train.Vehicles[3].Loose == 0 && w.JumpCount.Home > 0)
+                else if (cameAt is not null && homeAt is null && w.Train.Vehicles[gap].Loose == 0 && w.JumpCount.Home > 0)
                     homeAt = w.ElapsedSeconds;
             });
+        Console.Error.WriteLine($"BOTS {bots} cars {cars} gap {gap}: home {homeAt - cameAt:0.0} s after");
         Assert.NotNull(cameAt);
-        Assert.True(homeAt is not null, $"jumped at {cameAt:0} s, never home ({report.Upkeep?.Parted} parted, {report.Deaths} died)");
+        Assert.True(homeAt is not null, $"jumped at {cameAt:0} s behind car {gap}, never home ({report.Upkeep?.Parted} parted, {report.Deaths} died)");
         Assert.Equal(0, report.Upkeep?.Parted ?? 0);
     }
 
