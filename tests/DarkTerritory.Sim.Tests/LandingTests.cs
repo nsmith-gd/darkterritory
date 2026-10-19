@@ -176,11 +176,11 @@ public class LandingTests
     {
         // deepTerritory:1 seed 2: a walker and the gunner stepped down off the train at a stand where the ground beside it was
         // 26 m under the rail, and the fall (now) killed them. Getting down looks for ground on its side, then the other.
-        // (frontier:5's trestle, 34 m up, on note 554's 7 km nights; named from the night's dice, Cotter now the halts take
-        // their names first, note 868.)
+        // (frontier:5's trestle, 34 m up, on note 554's 7 km nights; its one on the main line: its name is the night's dice's,
+        // and moved when the halts took theirs first, note 868.)
         var route = LineGen.Routes.Generate(DataFile.FindContentRoot(), "frontier:5", 8);
         var line = route.Build();
-        var bridge = route.Plan!.Structures.Single(st => st.Name == "Cotter Trestle");
+        var bridge = route.Plan!.Structures.Single(st => st.Edge == "main" && st.Type == LineGen.StructureType.Trestle);
         var n = new Night(4, 0, line: line);
         var mid = line.Sample(RailLine.MainPath, (bridge.S0 + bridge.S1) / 2).Position;
         var open = line.Sample(RailLine.MainPath, bridge.S0 - 300).Position;

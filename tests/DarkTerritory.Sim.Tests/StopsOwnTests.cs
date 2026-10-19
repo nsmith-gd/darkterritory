@@ -126,6 +126,27 @@ public class StopsOwnTests
 
     static EnemyKind Kind(string key) => Enum.GetValues<EnemyKind>().First(k => Director.Key(k) == key);
 
+    /// <summary>
+    /// Note 868: a stop's own that placed nothing (the Ribbits, with warrens at the stop but none near the crew) is taken back,
+    /// and the stop tries again: frontier:7's 4-bot seeds 2 and 3 had spent a waiting slot on it.
+    /// </summary>
+    [Fact]
+    public void OneThatPlacedNothingIsTakenBackAndTheStopTriesAgain()
+    {
+        var n = AtTheFirstYard(Own());
+        var d = n.World.Director!;
+        var (waiting, _) = D.Stops.Split(D.Stops.Count(RouteTier.Frontier, 4));
+        // The fixture's first second stood there sent (and placed) the first; the next is decided here, and placed nothing.
+        int before = d.Log.Count(l => l.Stop);
+        Assert.True(before < waiting);
+        Assert.NotNull(d.Decide(n.World, 1_000, n.World.ActiveEnemies, 500));
+        Assert.Equal(before + 1, d.Log.Count(l => l.Stop));
+        d.Placed(false);
+        Assert.Equal(before, d.Log.Count(l => l.Stop));
+        // The stop still gets its whole count.
+        Assert.Equal(waiting, Think(n.World, 5).Count);
+    }
+
     [Fact]
     public void NothingOfTheStopsOwnStoodAwayFromAStopOrWithItOff()
     {
