@@ -1053,4 +1053,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [869. The starting town and yard: colliders, the gate, lineside geometry, the coaling ladder, the crane (the director's playtest of 19 Oct, lines…](notes/869.md)
 - [870. The starting town's look: flat assets, the water tower's texture, a market with varied stalls, the Bitten Van (the director's playtest of…](notes/870.md)
 - [871. The flare pistol (nathaniel1 n1-w3, queue #598; #410's catalogue, docs/design/upgrades.md §4 "Tools")](notes/871.md)
+- [872. Readonly Pcg32 fields that never advance: hot boxes, gutters, couplings and the wreck (Hugo, queue #599)](notes/872.md)
 <!-- end of the notes index -->
