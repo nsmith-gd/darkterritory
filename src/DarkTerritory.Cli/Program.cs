@@ -3833,8 +3833,13 @@ static object HudShot(string content, string[] args)
                 solo.World.PinLoosened(2, DarkTerritory.Sim.Train.LooseCause.Jumped, 64 / 3.6);
                 // Down in its gap, at the pin: the HUD's prompt says it takes two.
                 var g = solo.Train.Dynamics.Tuning.Geometry;
-                solo.Player = solo.Player with { Parent = 2, Surface = DarkTerritory.Sim.Player.Surface.Coupler, Velocity = default,
-                    Position = new Double3(g.PlateX, g.CouplerHeight, solo.Train.Frames[2].Shape.HalfLength + 0.7) };
+                solo.Player = solo.Player with
+                {
+                    Parent = 2,
+                    Surface = DarkTerritory.Sim.Player.Surface.Coupler,
+                    Velocity = default,
+                    Position = new Double3(g.PlateX, g.CouplerHeight, solo.Train.Frames[2].Shape.HalfLength + 0.7),
+                };
             }
             else if (said == "fire")
                 solo.World.FireStarted(DarkTerritory.Sim.Enemies.CarFire.In(99, solo.Train, 3, 2, solo.World.Enemies?.CarFire ?? new DarkTerritory.Sim.Enemies.CarFireTuning(),
