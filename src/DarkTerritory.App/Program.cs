@@ -1546,8 +1546,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 Voice = (byte)Math.Clamp(voiceLevel * 255, 0, 255),
                 // Note 664: crouch and pushing the gun along, each its own key, held (a headset rider crouches for real).
                 Moves = (Held(Control.Crouch) ? PlayerMoves.Crouch : 0) | (Held(Control.Push) ? PlayerMoves.Push : 0)
-                    // Note 717: the shove (the host acts on the press).
-                    | (Held(Control.Shove) ? PlayerMoves.Shove : 0)
+                    // Note 717: the shove (the host acts on the press). Note 898: on 5, so not with the roster out, whose
+                    // numbers mute the crew (as the hotbar's don't pick a slot then).
+                    | (Held(Control.Shove) && !(net is not null && Held(Control.Roster)) ? PlayerMoves.Shove : 0)
                     // Note 739: the ping is the push's button, made on the press away from a gun (the host's to tell).
                     | (Held(Control.Push) ? PlayerMoves.Ping : 0),
                 Select = pendingSelect,
