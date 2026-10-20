@@ -1,3 +1,4 @@
 # Milo
 
 2026-10-20 17:53 UTC · Milo · #618 (note 904) on `milo-blacksmith-618`: the blacksmith's press opens his catalogue while he sells (the hold and towns.json smithy.holdSeconds gone), his card elsewhere says where the wares are; the catalogue opens on NOTHING CAN BE BOUGHT UNTIL YOU HAVE SCRIP (or can't afford yet) with every line priced; a dev build's Settings open on DEVELOPER: DEV UNLOCK; tests in FrontEndTests and TownTalkTests; looked at with dt screenshot
+2026-10-20 18:41 UTC · Milo · #618: merged origin/main (docs rebuilt from main's, #618's row and playtest lines 4-5 re-applied; coord check clean, merge-tree clean); build 0 warnings, format clean; FrontEndTests+TownTalkTests 38/38, Dev.Tests 53/53 (PlayerBuildTests), Sim Blacksmith+Town* 166/166; the full suite before the merge 1396 Game + 928 Sim passed, 0 failed, when its 30-min limit stopped it; handed to the Token Budget Manager
