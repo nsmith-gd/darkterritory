@@ -203,6 +203,34 @@ public static class DMath
         return r;
     }
 
+    /// <summary>
+    /// <paramref name="x"/> (at least 0) to a real power: the whole part by squaring, the fraction by its binary digits, each
+    /// a square root taken again (IEEE-754 rounds a square root exactly, so it's the same everywhere), to 2^-52. Within a few
+    /// ulps of <c>Math.Pow</c>; NaN for a negative <paramref name="x"/>.
+    /// </summary>
+    public static double Pow(double x, double y)
+    {
+        if (x < 0 || double.IsNaN(x) || double.IsNaN(y))
+            return double.NaN;
+        if (y < 0)
+            return 1.0 / Pow(x, -y);
+        if (x == 0)
+            return y == 0 ? 1.0 : 0.0;
+        double whole = Math.Floor(y), f = y - whole, root = x;
+        double r = Pow(x, (int)Math.Min(whole, int.MaxValue));
+        for (int i = 0; i < 52 && f > 0; i++)
+        {
+            root = Math.Sqrt(root);
+            f *= 2;
+            if (f >= 1)
+            {
+                r *= root;
+                f -= 1;
+            }
+        }
+        return r;
+    }
+
     // k_sin.c: sin on [-pi/4, pi/4]; y is the tail of x, and only counts when hasTail.
     static double KernelSin(double x, double y, bool hasTail)
     {
