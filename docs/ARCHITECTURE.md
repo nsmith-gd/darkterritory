@@ -1091,4 +1091,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [930. The spawn director overhaul's balance report: the brief's §7 bands scored on `dt director sweep`, old against new, and the final sweep…](notes/930.md)
 - [931. A crewmate down to cover the shunter at a pick-up's points (queue #632, n1-w7 for nathaniel1; from note 894's Unfixed)](notes/931.md)
 - [932. The spawn director overhaul in the GDD and the systems spec (n1-G2, #613's docs half, agreed with n1-B1, who holds #613; the director's…](notes/932.md)
+- [933. The crew bots counter the Car Hugger, so its low ground can go on (found under #612, note 915; n1-A2, nathaniel1, queue #633)](notes/933.md)
 <!-- end of the notes index -->
