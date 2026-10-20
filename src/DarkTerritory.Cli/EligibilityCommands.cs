@@ -32,7 +32,7 @@ static class EligibilityCommands
         public int Stopped, AtStop, OnGround;
         /// <summary>What-ifs at lower speeds (note 875): hound runs the run's count would have started with fromSpeed at each, and
         /// the open seconds a Gannet's arrival (arriveSeconds at arriveAbove) would have been met.</summary>
-        public Dictionary<double, int> RunsAt = [], GannetAt = [];
+        public Dictionary<double, int> RunsAt = [], RunsFromStopAt = [], GannetAt = [];
         public Dictionary<double, double> FirstGannetAt = [];
     }
 
@@ -68,10 +68,16 @@ static class EligibilityCommands
             double runMetres = 0;
             var whatRun = WhatIf.ToDictionary(x => x, _ => 0.0);
             var whatFast = WhatIf.ToDictionary(x => x, _ => 0.0);
+            var whatStop = WhatIf.ToDictionary(x => x, _ => 0.0);
             harness(["harness", "--as-app", "--route", g.Route, "--bots", I(g.Bots), "--cars", I(g.Cars), "--enemies", "--upkeep",
                 "--seconds", seconds.ToString(CultureInfo.InvariantCulture), "--seed", I(g.Seed)], (tick, _, world) =>
                 {
                     run = world;
+                    // The Gannet's fast seconds are counted tick by tick, as World.FastSeconds is: one tick under, and it starts again
+                    // (a once-a-second sample misses the dips of a driver holding just over a threshold).
+                    double now = world.Train.Dynamics.Speed;
+                    foreach (double at in WhatIf)
+                        whatFast[at] = now >= at ? whatFast[at] + SimConstants.TickSeconds : 0;
                     if (tick % SimConstants.TickRate != 0 || world.Director is not { } d || world.Enemies is not { } et)
                         return;
                     night.Seconds++;
@@ -100,7 +106,13 @@ static class EligibilityCommands
                             night.RunsAt[at] = night.RunsAt.GetValueOrDefault(at) + 1;
                             whatRun[at] = 0;
                         }
-                        whatFast[at] = v >= at ? whatFast[at] + 1 : 0;
+                        // From the last stop (note 915's trial): started again only at a stand at a stop.
+                        whatStop[at] = v < hr.StopSpeed && Director.StopAt(world) >= 0 ? 0 : whatStop[at] + (v >= at ? v : 0);
+                        if (whatStop[at] >= hr.AfterMetres)
+                        {
+                            night.RunsFromStopAt[at] = night.RunsFromStopAt.GetValueOrDefault(at) + 1;
+                            whatStop[at] = 0;
+                        }
                         if (whatFast[at] >= et.Gannet.ArriveSeconds && world.Train.Dynamics.Consist.CarCount >= et.Gannet.MinCars)
                         {
                             night.GannetAt[at] = night.GannetAt.GetValueOrDefault(at) + 1;
@@ -192,7 +204,11 @@ static class EligibilityCommands
                         if (!d.OutTonight(Spawns.Rules.First(r => Director.Key(r.Kind) == k).Kind))
                             about[k]++;
                 }
-                rows.Add(new { tier = route.Tier.ToString(), crew, about = about.ToDictionary(a => a.Key, a => Share(a.Value, seeds.Count)) });
+                // And the first --list seeds each kind is about on (for picking a trial's nights, note 915).
+                int list = (int)Opt(args, "--list", 12);
+                var on = keys.ToDictionary(k => k, k => seeds.Take(list).Where(seed =>
+                    !new Director(et.Director, route, (ulong)seed, 6, crew).OutTonight(Spawns.Rules.First(r => Director.Key(r.Kind) == k).Kind)).ToList());
+                rows.Add(new { tier = route.Tier.ToString(), crew, about = about.ToDictionary(a => a.Key, a => Share(a.Value, seeds.Count)), aboutOnSeeds = on });
                 foreach (var k in keys)
                     table[k].Add(P(Share(about[k], seeds.Count)));
             }
@@ -222,6 +238,7 @@ static class EligibilityCommands
             // What-ifs: per night, the hound runs a fromSpeed of each would have started, and the nights a Gannet arriving at each
             // speed would have had its moment (and the open seconds it would have held).
             houndRunsIf = WhatIf.ToDictionary(x => $"fromSpeed {x:0}", x => R(g.Average(n => (double)n.RunsAt.GetValueOrDefault(x)))),
+            houndRunsFromStopIf = WhatIf.ToDictionary(x => $"fromSpeed {x:0}", x => R(g.Average(n => (double)n.RunsFromStopAt.GetValueOrDefault(x)))),
             gannetIf = WhatIf.ToDictionary(x => $"arriveAbove {x:0}", x => new
             {
                 nights = $"{g.Count(n => n.GannetAt.ContainsKey(x))}/{g.Count()}",
@@ -295,10 +312,11 @@ static class EligibilityCommands
             sb.AppendLine($"| {n.Config} s{n.Seed} | {n.Open} | {n.Km:0.0} | {P(Share(n.Stopped, n.Open))} | {P(Share(n.AtStop, n.Open))} | {P(Share(n.OnGround, n.Open))} | "
                 + string.Join(" | ", new[] { 8, 10, 14, 18, 19 }.Select(s => P(Share(n.SpeedAtLeast.GetValueOrDefault($"≥{s}"), n.Open)))) + $" | {n.HoundRuns} | {n.RunMetresMax:0} |");
         sb.AppendLine();
-        sb.AppendLine($"| Crew and train | {string.Join(" | ", WhatIf.Select(x => $"run from {x:0} m/s"))} | {string.Join(" | ", WhatIf.Select(x => $"Gannet over {x:0} m/s"))} |");
-        sb.AppendLine($"|---|{string.Concat(WhatIf.Select(_ => "---|"))}{string.Concat(WhatIf.Select(_ => "---|"))}");
+        sb.AppendLine($"| Crew and train | {string.Join(" | ", WhatIf.Select(x => $"run from {x:0} m/s"))} | {string.Join(" | ", WhatIf.Select(x => $"from the last stop, {x:0} m/s"))} | {string.Join(" | ", WhatIf.Select(x => $"Gannet over {x:0} m/s"))} |");
+        sb.AppendLine($"|---|{string.Concat(WhatIf.Select(_ => "---|"))}{string.Concat(WhatIf.Select(_ => "---|"))}{string.Concat(WhatIf.Select(_ => "---|"))}");
         foreach (var g in nights.GroupBy(n => n.Config))
             sb.AppendLine($"| {g.Key} | {string.Join(" | ", WhatIf.Select(x => g.Average(n => (double)n.RunsAt.GetValueOrDefault(x)).ToString("0.0", CultureInfo.InvariantCulture)))} | "
+                + string.Join(" | ", WhatIf.Select(x => g.Average(n => (double)n.RunsFromStopAt.GetValueOrDefault(x)).ToString("0.0", CultureInfo.InvariantCulture))) + " | "
                 + string.Join(" | ", WhatIf.Select(x => $"{g.Count(n => n.GannetAt.ContainsKey(x))}/{g.Count()} ({P(Share(g.Sum(n => n.GannetAt.GetValueOrDefault(x)), g.Sum(n => n.Open)))})")) + " |");
         sb.AppendLine();
         sb.AppendLine("| Kind | Gate: share of open seconds it held |");
