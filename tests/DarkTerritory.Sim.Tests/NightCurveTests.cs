@@ -100,7 +100,7 @@ public class NightCurveTests
         var rule = Spawns.For(EnemyKind.Climber)!;
         Assert.Null(rule.Weight(ctx));
         Assert.True(rule.Free!(ctx));
-        Assert.True(rule.Spawn(ctx));
+        Assert.True(rule.Spawn(ctx).Placed);
         Assert.Contains(world.ActiveEnemies, e => e.Kind == EnemyKind.Climber);
     }
 
