@@ -128,7 +128,8 @@ public static class Protocol
     //     Jumped (4) and the let-go causes LetGoPin, LetGoBrake, LetGoThrottle (5-7) in the record and the news.
     // 81: the flare pistol (note 871): the body kinds FlarePistol (24, its flares left in the ninth field) and Flare (25, its
     //     burn left, 0..1, there).
-    public const int Version = 81;
+    // 82: a shovelful answers (note 903): the boiler record gains its green and catching coal (fields 8 and 9).
+    public const int Version = 82;
 }
 
 public enum MessageType : byte

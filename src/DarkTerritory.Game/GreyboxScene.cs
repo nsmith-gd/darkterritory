@@ -364,6 +364,11 @@ public sealed partial class GreyboxScene
     public bool Venting { get; set; }
     public bool SafetyValve { get; set; }
     /// <summary>
+    /// A shovelful flaring in the firebox (BoilerTuning.FlareLook, note 903): 1 is one at its height. The stack answers it,
+    /// a second or two after the stroke: thicker, faster smoke and a spit of cinders.
+    /// </summary>
+    public float Flare { get; set; }
+    /// <summary>
     /// The boiler's ruptured (spec B.6, GDD §23): its torn flank, the burst's steam timed from the frame the scene first saw
     /// it (presentation only, like <see cref="Derailed"/>), a dead stack; and with <see cref="DriversLocked"/>, the drivers
     /// seized, not turning, sliding on the rail in sparks.
@@ -695,7 +700,7 @@ public sealed partial class GreyboxScene
             Look.Art.Effects.Train(mesh, trainFrames, eye, Time, Controls, FireGlow, Emergency, Venting && !Ruptured, SafetyValve && !Ruptured,
                 trainFrames.Count == 0 ? default : Look.Art.BiteOf(trainFrames[^1].Shape, Vehicles is { } fleet && trainFrames[^1].Index < fleet.Count ? fleet[trainFrames[^1].Index] : null, trainFrames[^1].Index),
                 whistle: !Ruptured && (CordPulled || Enemies?.Any(e => e is Sim.Enemies.Whistler { Whistling: true } && !e.Gone) == true), dead: Ruptured || BrokenDown, lamp: LampLit,
-                reach: (float)LampReach, searchlight: Dressed("rearSearchlight"));
+                reach: (float)LampReach, flare: Flare, searchlight: Dressed("rearSearchlight"));
             // (And the crew on a straining car stumble: SceneArt.Crewmate, drawn after.)
             Look.Art.BendStrain = BendStrain;
             if (BendStrain is { } bends)
