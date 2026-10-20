@@ -4825,8 +4825,10 @@ public static partial class Heed
             var at = tippy.WorldPosition(train);
             if (tippy.Target == selfId || (at - me).Length <= 8)
             {
-                // It's after us or near: turn and look at it (seen, it flees), and hit it if we're on it.
-                return Strike(self, train, at, 1.2) ?? intent;
+                // It's after us or near: turn and look at it (seen, it flees), and hit it if we're on it. Note 859: up out of a
+                // gun's seat first. Seated, the view's held in the gun's arc, and it comes from behind, up the train from the
+                // guard van's gun: frontier:6's gunner, alone on car 10 while the engine fetched the pick-up, never saw it.
+                return Strike(self, train, at, 1.2) is { } strike ? Up(self, strike) : intent;
             }
         }
         // Idle: a glance round every few seconds, a half turn. Not while holding something to (the kit at the firebox for its
