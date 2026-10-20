@@ -36,6 +36,9 @@ return args switch
     // dt credits [--notices | --write]: everyone whose work is in the game, from the base content's provenance (note 390);
     // --notices prints THIRD-PARTY-NOTICES.txt, --write rewrites it in content/credits. A mod credits its own.
     ["credits", ..] => CreditsCommands.Run(baseContent, args),
+    // dt controls [--write | --check] (note 898): the controls map, every control on its default key, as README.md's table
+    // and PLAYING.txt's keys write it; --write rewrites both, --check exits 1 when either disagrees with Controls.Defaults.
+    ["controls", ..] => ControlsCommands.Run(baseContent, args),
     // dt report [--problem] [--out dir] (note 452): a crash report (or a player's own) as the game writes one, its JSON
     // twin, and the mail to the studio it opens.
     ["report", ..] => ReportCommands.Run(content, args),
