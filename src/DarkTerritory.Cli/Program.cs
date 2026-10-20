@@ -56,6 +56,9 @@ return args switch
     // dt director sweep [--quick] [--routes r,...] [--crews ..] [--cars ..] [--cells 1x3,..] [--seeds 1-4] [--compare f.json]: the
     // spawn director overhaul's matrix of nights (the director's brief §8, note 888), encounters measured from the spines.
     ["director", "sweep", ..] => DirectorCommands.Sweep(args, (a, w) => RunHarness(a, (_, _, world) => w(world))),
+    // dt director report <sweep.json> [--against old.json] [--bands f.json]: a sweep scored against the brief's §7 bands
+    // (tools/director/bands.json), old against new side by side (note 930).
+    ["director", "report", var sweep, ..] => DirectorCommands.Score(sweep, args),
     // dt mcp: live control for agents (note 524): an MCP server on stdio whose tools host a night, step it, read it, insist
     // on what comes, open a recording, draw any of it framed on a subject (subject:gaunt), and run the rest of dt.
     ["mcp", ..] => McpCommands.Run(content, args, noMods),
@@ -124,6 +127,11 @@ return args switch
     // and the mixer's sound, encoded to an MP4 (GDD v1.4 App. E; note 251).
     ["film", ..] => Print(FilmCommands.Run(content, args)),
     ["playthrough", ..] => Print(PlaythroughCommands.Run(content, args)),
+    // Note 913 (queue #624): the playtest recorder's schema, and a bot night recorded with it.
+    ["telemetry", "schema", ..] => Print(TelemetryCommands.Schema()),
+    ["telemetry", "record", ..] => Print(TelemetryCommands.Record(content, args)),
+    ["telemetry", "summary", ..] => Print(TelemetryCommands.Summary(args)),
+    ["telemetry", "map", ..] => Print(TelemetryCommands.Map(content, args)),
     ["afoot", "census", ..] => Print(AfootCommands.Census(content, args)),
     // dt eligibility rolls [--seeds 1-2000]: each kind's nightChance with the night's floor, by tier and crew. dt eligibility [--routes frontier:7,deadLines:3] [--crews 1:3,2:5,4:8] [--seeds 1-3] [--seconds 2700] [--markdown f.md]: every
     // kind of the director's spend table, its gates read a second at a time through ordinary nights (note 875).

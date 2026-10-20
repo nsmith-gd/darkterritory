@@ -84,6 +84,28 @@ public sealed class SpawnContext(World world, EnemyTuning tuning, Director direc
         return best;
     }
 
+    /// <summary>
+    /// One of <paramref name="vehicles"/> (cars, or the gaps ahead of them with <paramref name="gaps"/>) to put what comes at
+    /// (note 895; the brief §5): the rule's one draw, weighed away from the threats already about the train and from on top
+    /// of a crewmate (<see cref="EncounterPlacement.Pick"/>). With nothing about and nobody near, the uniform pick it was.
+    /// </summary>
+    public int Spread(IReadOnlyList<int> vehicles, bool gaps = false)
+    {
+        double draw = Director.NextRange(0, vehicles.Count - 1e-9);
+        var t = Tuning.Director.Encounters.Placement;
+        if (!t.On || vehicles.Count <= 1)
+            return vehicles[Math.Clamp((int)draw, 0, vehicles.Count - 1)];
+        double Along(Double3 at)
+        {
+            double hint = Front;
+            return Train.Line.Nearest(at, ref hint).Distance;
+        }
+        var places = vehicles.Select(v => gaps ? Train.Cars[v].FrontDistance : Train.Cars[v].FrontDistance - Train.Cars[v].Length * 0.5).ToList();
+        var threats = World.ActiveEnemies.Where(e => !e.Gone && !e.Hazard).Select(e => Along(e.WorldPosition(Train))).ToList();
+        var crew = Living.Select(p => Along(PlayerMotor.WorldPosition(p.State, Train))).ToList();
+        return vehicles[EncounterPlacement.Pick(places, threats, crew, draw, t)];
+    }
+
     public int NextId => World.NextEnemyId;
     public T Add<T>(Func<int, T> make) where T : Enemy
     {
@@ -206,7 +228,7 @@ public static class Spawns
             var gaps = CrewSense.Gaps(c.Train);
             if (gaps.Count == 0)
                 return SpawnContext.Failed(SpawnFailure.NoGap);
-            int gap = gaps[(int)c.Director.NextRange(0, gaps.Count - 1e-9)];
+            int gap = c.Spread(gaps, gaps: true);
             int side = c.Director.NextRange(0, 1) < 0.5 ? -1 : 1;
             int size = Math.Max(1, (int)Math.Round(c.Director.NextRange(t.PackSize[0], t.PackSize[1] + 0.49)));
             int pack = c.NextId;
@@ -257,7 +279,7 @@ public static class Spawns
                 var cars = c.Train.Dynamics.Consist.Vehicles.Where(v => v.Id > 0).Select(v => v.Id).ToList();
                 if (cars.Count == 0)
                     return SpawnContext.Failed(SpawnFailure.NoSpot);
-                int car = cars[(int)c.Director.NextRange(0, cars.Count - 1e-9)];
+                int car = c.Spread(cars);
                 double along = c.Director.NextRange(-0.4, 0.4) * c.Train.Frames[car].Shape.HalfLength * 2;
                 c.Add(i => Dragger.Under(i, c.Train, car, side, along));
                 return c.Placed();
@@ -281,7 +303,7 @@ public static class Spawns
             var free = gaps.Where(g => !c.Living.Any(p => CrewSense.InGap(PlayerMotor.WorldPosition(p.State, c.Train), c.Train, g))).ToList();
             if (free.Count == 0)
                 return SpawnContext.Failed(SpawnFailure.NoGap);
-            int gap = free[(int)c.Director.NextRange(0, free.Count - 1e-9)];
+            int gap = c.Spread(free, gaps: true);
             c.Add(i => Whistler.InGap(i, c.Train, gap, c.Tuning.Whistler));
             return c.Placed();
         }),
@@ -317,7 +339,7 @@ public static class Spawns
             var lit = LitCars(c);
             if (lit.Count == 0)
                 return SpawnContext.Failed(SpawnFailure.NoSpot);
-            int car = lit[(int)c.Director.NextRange(0, lit.Count - 1e-9)];
+            int car = c.Spread(lit);
             c.Add(i => FireFlies.OnLamp(i, c.Train, car));
             return c.Placed();
         }),
@@ -510,7 +532,7 @@ public static class Spawns
             var cars = Hotbox.Cars(c.Train);
             if (cars.Count == 0)
                 return SpawnContext.Failed(SpawnFailure.NoSpot);
-            int car = cars[(int)c.Director.NextRange(0, cars.Count - 1e-9)];
+            int car = c.Spread(cars);
             bool rear = c.Director.NextRange(0, 1) < 0.5;
             int side = c.Director.NextRange(0, 1) < 0.5 ? -1 : 1;
             c.Add(i => Hotbox.In(i, c.Train, car, rear, side, c.Tuning.Hotbox));
@@ -530,7 +552,7 @@ public static class Spawns
             var joints = Knotter.Joints(c.Train, c.Living);
             if (joints.Count == 0)
                 return SpawnContext.Failed(SpawnFailure.NoGap);
-            int car = joints[(int)c.Director.NextRange(0, joints.Count - 1e-9)];
+            int car = c.Spread(joints, gaps: true);
             c.Add(i => Knotter.Into(i, c.Train, car, c.Tuning.Knotter));
             return c.Placed();
         }),
