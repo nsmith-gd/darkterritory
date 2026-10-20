@@ -157,6 +157,42 @@ public class TelemetrySchemaTests
         Assert.Equal(written, sink.Lines.Count);
     }
 
+    [Theory]
+    [InlineData("MEND THE CAR : HOLD [E]", "MEND THE CAR")]
+    [InlineData("BOARD IT UP 45%", "BOARD IT UP")]
+    [InlineData("PULL DAVE FREE : [E]", "PULL SOMEONE FREE")]
+    [InlineData("DOWN THE WELL : [E]", "DOWN THE WELL")]
+    public void APromptIsNamedByItsWordsNeverAName(string prompt, string name) =>
+        Assert.Equal(name, SessionRecorder.PromptName(prompt, ["Dave", "Nicki"]));
+
+    [Fact]
+    public void APromptsShowingIsWrittenWhenItGoesAndWhetherItWasActedOn()
+    {
+        // Note 913: shown and acted on, shown and walked past; and one prompt seen over and over (a row of lockers) written at most
+        // PromptsEach times a night.
+        var sink = new MemoryTelemetrySink();
+        var s = Night();
+        var recorder = new SessionRecorder(sink, new FixedTelemetryGate(true, "unused"), clock: () => 0);
+        recorder.Begin(Facts);
+        recorder.NightBegin(s.World, "solo", humans: 1, bots: 0, me: 1);
+        foreach (var (prompt, used) in new (string?, bool)[] { (null, false), ("MEND THE CAR : HOLD [E]", false), ("MEND THE CAR : HOLD [E]", true),
+                     ("MENDING THE CAR 40%", false), (null, false), ("DOWN THE WELL : [E]", false), (null, false) })
+            recorder.Prompting(s.World, prompt, used);
+        for (int i = 0; i < 9; i++)
+        {
+            recorder.Prompting(s.World, "OPEN THE LOCKER : [E]", false);
+            recorder.Prompting(s.World, null, true);
+        }
+        recorder.NightEnd(s.World);
+        var prompts = sink.Lines.Select(l => JsonDocument.Parse(l).RootElement).Where(o => o.GetProperty("type").GetString() == "prompt")
+            .Select(o => (o.GetProperty("name").GetString(), o.GetProperty("acted").GetBoolean())).ToList();
+        Assert.Equal(("MEND THE CAR", true), prompts[0]);
+        Assert.Equal(("MENDING THE CAR", false), prompts[1]);
+        Assert.Equal(("DOWN THE WELL", false), prompts[2]);
+        Assert.Equal(SessionRecorder.PromptsEach, prompts.Count(p => p.Item1 == "OPEN THE LOCKER"));
+        Assert.All(prompts.Where(p => p.Item1 == "OPEN THE LOCKER"), p => Assert.False(p.Item2));
+    }
+
     [Fact]
     public void NoNameIsEverWritten()
     {

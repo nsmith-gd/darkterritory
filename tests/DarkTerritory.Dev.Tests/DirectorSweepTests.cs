@@ -94,8 +94,11 @@ public class DirectorSweepTests
         Assert.Equal(plain.Threats!.Spawned, watched.Threats!.Spawned);
         Assert.Equal(plain.Threats.Director, watched.Threats.Director);
         watch.Grace = watched.Threats.Pressure!.Grace;
-        var row = DirectorSweep.Row(cell, watched, watch, 1);
+        var row = DirectorSweep.Row(cell, watched, watch, 1, JsonSerializer.SerializeToNode(watched, DataFile.Options));
         Assert.Equal(watched.Threats.Spawned.Values.Sum(), row.Sent);
+        // #600's encounter block, copied whole, and its attempts read by name: placed is never more than tried.
+        Assert.NotNull(row.Telemetry);
+        Assert.InRange(row.Placed!.Value, 0, row.Tried!.Value);
         Assert.InRange(watch.Seconds, 235, 241);
         var report = new SweepReport("test", 240, DirectorSweep.Groups([row, row with { Cell = cell with { Seed = 4 } }]), [row]);
         var back = JsonSerializer.Deserialize<SweepReport>(JsonSerializer.Serialize(report, DataFile.Options), DataFile.Options)!;
