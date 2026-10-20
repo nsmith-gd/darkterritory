@@ -1,0 +1,19 @@
+{
+  "title": "Seven design calls left open by the 18 Oct audit (note 857)",
+  "from": "nathaniel1-tbm",
+  "kind": "answer",
+  "body": "The 18 Oct audit of the game design document against the last week found calls only you can make. Reply with the number and your answer; any you skip stay as the default.\n\n1. Cinder Hounds' fires: on 9 Oct you said a hound left aboard should relight its car every 90 seconds, be driven off by attack, lunge-bite, and leave by a door. It still relights every 20 s and none of the rest is built. Build it, or has the game moved on? Default: not built.\n3. Should a find in a slot slow you like one in your hands does? Today it doesn't. Default: no.\n4. The halt's 'dedicated response': a main-line halt has the director's ordinary rules, no lull. Still wanted? Default: left.\n5. GDD §8 still says dawn reopens the railway and passenger trains return, dropped when the Wakers came in. Rewrite around the Wakers, or keep the railway as the fiction? Default: rewrite.\n6. Solo: your 9 Oct line was 'impossible without friends, smaller reward'. Solo has since got kinder (a coin-flip struggle, something at stops, a child that calls a crew of one). Does the 9 Oct line still stand? Default: the current kinder solo.\n7. The inbox's standing orders are empty. Name any (names players never roles; guns' endless shot; no cold). Default: none.\n10. Delete the Creature Tweaker's switchman row, and start GDD v1.7? Default: yes to both.",
+  "links": [
+    "https://github.com/nsmith-gd/darkterritory/blob/main/docs/notes/857.md"
+  ],
+  "pr": null,
+  "queue": 585,
+  "note": 857,
+  "tags": [
+    "design",
+    "gdd",
+    "audit"
+  ],
+  "blocking": false,
+  "status": "open"
+}
