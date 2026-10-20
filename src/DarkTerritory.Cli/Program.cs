@@ -49,7 +49,10 @@ return args switch
     ["review", ..] => ReviewCommands.Run(args),
     // dt trends measure | show <file.jsonl> | judge | value: main's numbers per commit (dt harness nights, dt perf), the falls
     // among them, and the bisect's call on a commit (note 523).
-    ["trends", ..] => TrendsCommands.Run(args, RunHarness, a => PerfCommands.Run(train, content, a)),
+    ["trends", ..] => TrendsCommands.Run(args, a => RunHarness(a), a => PerfCommands.Run(train, content, a)),
+    // dt director sweep [--quick] [--routes r,...] [--crews ..] [--cars ..] [--cells 1x3,..] [--seeds 1-4] [--compare f.json]: the
+    // spawn director overhaul's matrix of nights (the director's brief §8, note 888), encounters measured from the spines.
+    ["director", "sweep", ..] => DirectorCommands.Sweep(args, (a, w) => RunHarness(a, w)),
     // dt mcp: live control for agents (note 524): an MCP server on stdio whose tools host a night, step it, read it, insist
     // on what comes, open a recording, draw any of it framed on a subject (subject:gaunt), and run the rest of dt.
     ["mcp", ..] => McpCommands.Run(content, args, noMods),
@@ -170,7 +173,8 @@ static object TrainTable(TrainTuning t, PlayerTuning p) => t.Performance.Select(
     };
 }).ToList();
 
-object RunHarness(string[] args)
+// watch: an extra eye on each tick, beside --trace's (`dt director sweep`'s EncounterWatch, note 888); it reads, never writes.
+object RunHarness(string[] args, Action<DarkTerritory.Sim.World>? watch = null)
 {
     Route? route = Str(args, "--route", "") is { Length: > 0 } spec ? DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, (int)Opt(args, "--cars", 10)) : null;
     // --dawn-at s: the night's dawn that many seconds in, not the route's (note 628: a night with time for every stop, to see
@@ -207,6 +211,8 @@ object RunHarness(string[] args)
             }
             lastTrace = now;
         };
+    if (watch is not null)
+        observe = observe is { } traced ? (tick, crew, world) => { traced(tick, crew, world); watch(world); } : (_, _, world) => watch(world);
     // --as-app (note 622): the night as the app hosts it (HostedAsApp, note 616): the train at the gate as the app stands it,
     // the crew aboard, the perfect link, the loadout's tunings, the upkeep and the stops' finds (--no-upkeep, --no-loot to
     // leave them out, as `dt campaign play`). What stays the harness's: --seed seeds the director as well as the bots, so a
