@@ -196,6 +196,8 @@ public sealed record HarnessReport(int Ticks, double Seconds, string Link, doubl
     public DrivingReport? Driving { get; init; }
     /// <summary>The problems two crewmates were in together, at each stop and on the run (note 861, <see cref="SharedWatch"/>).</summary>
     public SharedReport? Shared { get; init; }
+    /// <summary>The night's encounters (the director's brief §8; note 880): attempts, placements, droughts, overlap; null without enemies.</summary>
+    public Enemies.EncounterReport? Encounters { get; init; }
 }
 
 /// <summary>
@@ -805,6 +807,7 @@ public static class Harness
             SnapshotsThinned = host.SnapshotsThinned,
             UploadStrained = host.UploadStrained,
             Upkeep = upkeep,
+            Encounters = host.World.Encounters is { } encounters ? Enemies.EncounterReport.Of(encounters, host.World) : null,
             Voice = calls?.Voice?.Report(),
             Crew = crewCap,
             Rejoin = o.DropRejoin is { } back && back.Bot >= 0 && back.Bot < clients.Count ? Rejoined(host, clients, back.Bot, droppedAs, dropTick, redialTick, backTick) : null,
