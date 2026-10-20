@@ -2232,6 +2232,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // --venting: the blow-off held open and the safety valve lifting (T101), their steam.
         Venting = args.Contains("--venting"),
         SafetyValve = args.Contains("--venting"),
+        // --flare x: a shovelful flaring that hard (1: one at its height, note 903), the stack's answer.
+        Flare = (float)Opt(args, "--flare", 0),
         // --ruptured s: the boiler burst s seconds ago (default 0.8: the blast at its height; 30 for the hiss after), spec
         // B.6, GDD §23; the drivers seized and sliding while she's still dragging down to coasting speed.
         // --strain x: every car straining round a bend that hard (0..1, BendStrain: 1 is coming off), its outer rail on the
@@ -3597,6 +3599,13 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
         menu.ModProblems = ["Nightjar-LongerNights isn't loaded: it needs Nightjar-SharedCore-1.2.0, which isn't installed"];
         menu.ModsOff = args.Contains("--no-mods");
     }
+    // Note 914: playtest data's question and page (--menu consent, --menu playtestdata), unanswered in the shot's own folder
+    // (--dev: a developer build's, on unless said no).
+    var telemetryDir = Path.Combine(dir, "telemetry");
+    if (Directory.Exists(telemetryDir))
+        Directory.Delete(telemetryDir, recursive: true);
+    menu.Playtest = DarkTerritory.Game.Telemetry.PlaytestConsent.Load(telemetryDir, defaultOn: args.Contains("--dev"));
+    menu.PlaytestNotice = DarkTerritory.Game.Telemetry.PlaytestNotice.Load(content);
     // Note 452: reports go to the studio, and REPORT A PROBLEM writes one (in the shot's own folder).
     var reports = new DarkTerritory.Game.CrashReports(Path.Combine(dir, "crashes"));
     menu.Reports = DarkTerritory.Game.ReportsTuning.Load(content);
@@ -4660,7 +4669,7 @@ static int Usage()
              [--route tier:seed --town [square|centre|board|hall|gate|street|houses|house|kitchen|parlour|over|lane]]   the departure fortress's town (note 281), standing in it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)
           art show <piece> [--yaw deg] [--pitch deg] [--zoom k] [--ps2] [--greybox]   a piece on a turntable, to out/shots/art/
-          screenshot --menu title|slots|fortress|upgrades|stores|quickNight|host|join|settings|credits|night|leave|profile [--down n] [--saves dir] [--others n] [--joined]
+          screenshot --menu title|slots|fortress|upgrades|stores|quickNight|host|join|settings|credits|night|leave|profile|consent|playtestData [--dev] [--down n] [--saves dir] [--others n] [--joined]
                      a screen of the front end over the yard, as the game draws it
           screenshot --hud [--emote-wheel] [--lost] [--route tier:seed] [--seconds t] [--throttle 0..1] [--pitch r] [--yaw r]
                      a solo session played for a few seconds, first person, with the HUD, at the game's 480x270

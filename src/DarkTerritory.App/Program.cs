@@ -207,7 +207,18 @@ crashes.Live = () =>
     new ReportField("doing", playing is null ? $"{doing}: {frontEnd.Screen}" : doing),
     .. playing is { } night ? [new ReportField("night", ReportFields.Night(night))] : (ReportField[])[],
 ];
-if (frontEnd.Crash is not null)
+// Playtest data (note 914): asked once, before anything's recorded; a developer build's is on unless the director says no.
+bool playtestOnByDefault = false;
+#if DEVTOOLS
+playtestOnByDefault = true;
+#endif
+frontEnd.PlaytestNotice = DarkTerritory.Game.Telemetry.PlaytestNotice.Load(content);
+frontEnd.Playtest = DarkTerritory.Game.Telemetry.PlaytestConsent.Load(
+    args.Contains("--saves") ? Path.Combine(saves.Directory, "telemetry") : DarkTerritory.Game.Telemetry.PlaytestConsent.DefaultDirectory, defaultOn: playtestOnByDefault);
+crashes.Context("playtest data", frontEnd.Playtest.Recording ? "on" : "off");
+if (frontEnd.Playtest.NeedsAsking(frontEnd.PlaytestNotice))
+    frontEnd.Show(Screen.Consent);
+else if (frontEnd.Crash is not null)
     frontEnd.Show(Screen.Crashed);
 
 // A night named on the command line starts straight away; otherwise it's the front end's choice.
@@ -1834,7 +1845,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (session.StrandedOutro)
             Views.CinematicFog(ref lighting, Views.StrandedDistance(session.Train, session.World.WreckTuning.Stranded, session.OutroSeconds));
         DerailSequence.Fog(ref lighting, derailShot);
-        scene.FireGlow = session.Train.BoilerTuning is { } bt ? GreyboxScene.FireLook(session.Train.Boiler.Firebox, bt.FireboxCapacity) : 0.7f;
+        scene.FireGlow = session.Train.BoilerTuning is { } bt ? GreyboxScene.FireLook(session.Train.Boiler.Fire, bt.FireboxCapacity) : 0.7f;
         scene.WrenchRacked = !session.Train.Boiler.WrenchOut;
         scene.ShovelRacked = !session.Train.Boiler.ShovelOut;
         scene.CordPulled = DarkTerritory.Game.Art.CrewActs.CrewWhistling(session.World);
@@ -1867,6 +1878,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.HandcarFrom(session.Train);
         scene.Venting = session.Train.Boiler.Vented;
         scene.SafetyValve = session.Train.Boiler.SafetyValveLifting;
+        scene.Flare = session.Train.BoilerTuning is { } flt ? (float)flt.FlareLook(session.Train.Boiler) : 0;
         scene.Ruptured = session.Train.Boiler.Ruptured;
         // Every break the crew can mend, called out where it is, and the ones a wrench is at (note 301).
         // And the loose couplings, called out alike (note 356).

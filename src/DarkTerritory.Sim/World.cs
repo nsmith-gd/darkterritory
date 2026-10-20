@@ -468,7 +468,7 @@ public sealed partial class World
         if (!authority)
             return;
         Director = new Director(tuning.Director, route, seed, Train.Dynamics.Consist.CarCount, crew);
-        Encounters = new EncounterLog(tuning.Director.Telemetry);
+        Encounters = new EncounterLog(tuning.Director.Telemetry, tuning.Director.Threats);
         // Note 266: off unless a mod brings them back (the director's decision, 2026-10-06).
         if (route is not null && tuning.Sleepers.Enabled && Director.Allows(EnemyKind.Sleepers))
             foreach (var f in route.Of(FeatureKind.Sleepers))
@@ -3261,16 +3261,25 @@ public sealed partial class World
 
     public void SetDerailed(bool derailed) => Derailed = derailed;
 
-    /// <summary>App. B.1: nothing may spawn inside the final approach.</summary>
-    public double NoSpawnFinalApproach { get; set; } = 500;
+    /// <summary>
+    /// App. B.1: nothing may spawn inside the final approach: the route's, as route.json sets it (note 912; note 887 found it a
+    /// constant nobody set), and 500 m on a world with no route.
+    /// </summary>
+    public double NoSpawnFinalApproach => Route?.NoSpawnFinalApproach ?? 500;
 
     /// <summary>
     /// The train's front on the run in to the terminus, where nothing new comes for it (the line's terminus_safe, the final
     /// <see cref="NoSpawnFinalApproach"/>): the director's own spawns, and (note 590) the Stoker, the Marsh and the lineside
     /// moose too, so a crew stopped outside the doors can clear the train. The Wakers (note 588) are dawn's, not this.
     /// </summary>
-    public bool HomeStretch => Route is { } r
-        && (Train.Dynamics.Distance > r.RunLength - NoSpawnFinalApproach || r.Plan?.Director.TagsAt(Train.Dynamics.Distance).Contains("terminus_safe") == true);
+    public bool HomeStretch => InHomeStretch(Train.Dynamics.Distance);
+
+    /// <summary>
+    /// <paramref name="along"/> the main line is on the run in to the terminus (<see cref="HomeStretch"/>): past the final
+    /// approach's start, or under the line's terminus_safe tag. The one check for every spawn's terminus ban (note 912).
+    /// </summary>
+    public bool InHomeStretch(double along) => Route is { } r
+        && (along > r.RunLength - NoSpawnFinalApproach || r.Plan?.Director.TagsAt(along).Contains("terminus_safe") == true);
 
     /// <summary>Applies this tick's damage and a derailment to the crew. Host only.</summary>
     public void ApplyDamage(Func<int, PlayerState?> get, Action<int, PlayerState> set, IEnumerable<int> crew)

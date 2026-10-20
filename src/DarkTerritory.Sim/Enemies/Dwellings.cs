@@ -30,6 +30,9 @@ public sealed class Dwelling
             if (!_placed.Contains(byStop.Key) && front >= f.Start - dt.PlaceWithin && front <= f.End + dt.ForgetPast)
             {
                 _placed.Add(byStop.Key);
+                // Nothing new on the run in to the terminus (note 912): a stop there keeps its houses empty.
+                if (!dt.InHomeStretch && (world.InHomeStretch(f.Start) || world.InHomeStretch(f.End)))
+                    continue;
                 foreach (var house in byStop.OrderBy(h => h.Index))
                     // Not about tonight, or its night's cap reached (note 644; the director's Creature Tweaker): the house
                     // stands empty.
