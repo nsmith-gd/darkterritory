@@ -1056,5 +1056,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [872. Readonly Pcg32 fields that never advance: hot boxes, gutters, couplings and the wreck (found by Bram, note 865; the director, 19 Oct: "Yes…](notes/872.md)
 - [873. A crate hand sent to shut a car's door stood still at the foot of its steps (queue #553; B3's find on #532, note 820)](notes/873.md)
 - [874. The spawn director overhaul: the plan, split into queue items #600–#613 so several agents can work at once (the director, 20 Oct 2026;…](notes/874.md)
+- [875. The monster eligibility audit (queue #605, the spawn director overhaul's B3; the director's brief `docs/design/spawn-director-overhaul.md`…](notes/875.md)
 - [891. The Cinder Hounds aboard, the director's 9 Oct answer (n1-H1, queue #614; inbox `D1.2-car-fires-from-packs`, note 857's call 1)](notes/891.md)
 <!-- end of the notes index -->
