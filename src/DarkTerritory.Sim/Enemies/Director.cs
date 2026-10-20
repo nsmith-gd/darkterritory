@@ -972,11 +972,14 @@ public sealed class Director
     SpawnAttempt? SpendHalt(World world, IReadOnlyList<Enemy> active)
     {
         var h = _t.Encounters.Halt;
-        if (!h.On || _route is null || StopAt(world) is var key && key < 1000 || key - 1000 >= _route.Features.Count
+        if (_route is null || StopAt(world) is var key && key < 1000 || key - 1000 >= _route.Features.Count
             || _route.Features[key - 1000].Stop?.Halt is null || world.Enemies is not { } et)
             return null;
+        // Counted whether or not the halt's own is on (note 934: the halts the night stood at, for the harness).
         double stood = _haltStood.GetValueOrDefault(key) + 1;
         _haltStood[key] = stood;
+        if (!h.On)
+            return null;
         _stops.TryAdd(key, (0, 0, 0));
         var (_, waiting, boarding) = _stops[key];
         if (stood < h.LullSeconds || waiting + boarding > 0)
