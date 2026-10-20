@@ -53,6 +53,9 @@ return args switch
     // dt trends measure | show <file.jsonl> | judge | value: main's numbers per commit (dt harness nights, dt perf), the falls
     // among them, and the bisect's call on a commit (note 523).
     ["trends", ..] => TrendsCommands.Run(args, a => RunHarness(a), a => PerfCommands.Run(train, content, a)),
+    // dt director sweep [--quick] [--routes r,...] [--crews ..] [--cars ..] [--cells 1x3,..] [--seeds 1-4] [--compare f.json]: the
+    // spawn director overhaul's matrix of nights (the director's brief §8, note 888), encounters measured from the spines.
+    ["director", "sweep", ..] => DirectorCommands.Sweep(args, (a, w) => RunHarness(a, (_, _, world) => w(world))),
     // dt mcp: live control for agents (note 524): an MCP server on stdio whose tools host a night, step it, read it, insist
     // on what comes, open a recording, draw any of it framed on a subject (subject:gaunt), and run the rest of dt.
     ["mcp", ..] => McpCommands.Run(content, args, noMods),
