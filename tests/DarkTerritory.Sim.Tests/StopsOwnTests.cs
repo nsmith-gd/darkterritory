@@ -147,8 +147,8 @@ public class StopsOwnTests
         d.Commit(n.World, attempt, SpawnOutcome.Failed(SpawnFailure.NoSite), n.World.ActiveEnemies);
         Assert.Equal(before, d.Log.Count(l => l.Stop));
         Assert.Equal(SpawnFailure.NoSite, d.Attempts[^1].Failure);
-        // The stop still gets its whole count.
-        Assert.Equal(waiting, Think(n.World, 5).Count);
+        // The stop still gets its whole count (the kind that failed sitting out its hold first, note 885).
+        Assert.Equal(waiting, Think(n.World, 5 + (int)D.Encounters.Attempts.FailHoldSeconds).Count);
     }
 
     [Fact]

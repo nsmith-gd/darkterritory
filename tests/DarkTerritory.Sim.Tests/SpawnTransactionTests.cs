@@ -77,11 +77,18 @@ public class SpawnTransactionTests
         Assert.Null(d.First);
         Assert.Equal("failed (NoSpot)", d.HeldBecause);
         Assert.Equal(new SpawnAttemptResult(attempt.Tick, attempt.Kind, SpawnChannel.Pressure, SpawnFailure.NoSpot, 0, attempt.Distance), d.Attempts.Single());
-        // No cooldown started: the next second it chooses again, and not the kind that just failed (it sits out a while).
-        var again = d.Choose(world, 1_000 + second++, [], 500);
-        Assert.NotEqual("cooldown", d.HeldBecause);
+        // No cooldown started: it chooses again as soon as anything fits. The kind that failed sits out its hold (here it's the
+        // only kind a stood train mid-line lets in, so nothing fits until the hold's done), then may be chosen again.
+        double hold = D.Encounters.Attempts.FailHoldSeconds;
+        SpawnAttempt? again = null;
+        for (int i = 0; i <= hold && again is null; i++)
+        {
+            again = d.Choose(world, 1_000 + second++, [], 500);
+            Assert.NotEqual("cooldown", d.HeldBecause);
+            if (again is not null)
+                Assert.True(again.Kind != attempt.Kind || i >= hold - 1, $"{attempt.Kind} again {i} s after failing");
+        }
         Assert.NotNull(again);
-        Assert.NotEqual(attempt.Kind, again.Kind);
         // Placed, it's accounted: the budget and the pressure charged, the log written, and the cooldown it drew begun.
         double before = d.Pressure;
         d.Commit(world, again, SpawnOutcome.Of([world.NextEnemyId]), []);
