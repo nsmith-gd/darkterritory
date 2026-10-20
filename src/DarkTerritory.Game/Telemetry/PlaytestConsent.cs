@@ -3,21 +3,6 @@ using Ballast;
 
 namespace DarkTerritory.Game.Telemetry;
 
-/// <summary>
-/// What the session recorder (#624, note 913) asks before it records anything (#625, note 914; the plan, note 907):
-/// whether this install said yes, and the anonymous id its sessions carry. Read it on every write, so turning playtest data
-/// off stops the recording at once.
-/// </summary>
-public interface ITelemetryGate
-{
-    /// <summary>Record. False: record nothing, and drop what's held.</summary>
-    bool Recording { get; }
-    /// <summary>The random id this install's sessions carry; null while not recording.</summary>
-    string? InstallId { get; }
-    /// <summary>Where the spool's session files go (#626): cleared by <see cref="PlaytestConsent.Delete"/>.</summary>
-    string SessionsDirectory { get; }
-}
-
 /// <summary>Whether this install has been asked, and what it said.</summary>
 public enum PlaytestChoice { Unasked, Yes, No }
 
@@ -127,7 +112,8 @@ public sealed class PlaytestConsent : ITelemetryGate
 }
 
 /// <summary>A group of fields the recorder writes, as the "what we collect" page says it.</summary>
-public sealed record PlaytestField(string What, string Detail);
+/// <param name="Fields">The schema's fields it covers (note 913's list, "type.field, field; ..."), for the test that holds the page to the schema.</param>
+public sealed record PlaytestField(string What, string Detail, string Fields = "");
 
 /// <summary>The first-run question and the "what we collect" page, from content/ui/playtest-data.json (note 914).</summary>
 public sealed record PlaytestNotice

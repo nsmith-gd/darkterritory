@@ -22,14 +22,27 @@
   // Shown on that screen in a developer build, where it's on unless the player says no.
   "devBuild": "This is a developer build: playtest data is on unless you say no.",
 
-  // The "what we collect" page: every group of fields the session recorder (#624, note 913) writes, in plain words.
+  // The "what we collect" page: every group of fields the session recorder (#624, note 913) writes, in plain words, each
+  // with the schema's fields it covers (a test holds the page to the schema).
   "collect": [
-    { "what": "THIS INSTALL", "detail": "A random id made when you said yes (a new one after DELETE), the game's build and edition, your operating system and graphics card, your graphics settings, and PC or VR." },
-    { "what": "THE CREW", "detail": "How many people and bots were aboard, and whether you hosted or joined. Never anyone's name." },
-    { "what": "THE NIGHT", "detail": "The route and its tier, the cars, how far the train got, the stops made, who died of what and where along the line, the creatures met, cars lost, cargo delivered, how the night ended, and when anyone left or dropped." },
-    { "what": "JOBS AND SCRIP", "detail": "Which jobs you took and for how long, the scrip earned and spent, and what was bought." },
-    { "what": "GETTING STARTED", "detail": "How long it took to first move and to take a first job, which prompts were shown and which were acted on, the keys you rebound, and the menus you opened." },
-    { "what": "HOW IT RAN", "detail": "Stutters, frame times, and the connection's ping and loss." }
+    { "what": "THIS INSTALL", "detail": "A random id made when you said yes (a new one after DELETE), the game's build and edition, whether it's a developer build, your operating system and graphics card, PC or VR, and your display settings (resolution, render scale, vsync, field of view).",
+      "fields": "session.session, install, build, commit, edition, dev, os, gpu, vr, resolution, renderScale, vsync, fov" },
+    { "what": "THE NIGHT'S SETUP", "detail": "Whether you hosted, joined or played alone, the route and its tier, the cars, and how many people and bots were aboard. Never anyone's name.",
+      "fields": "night.role, route, tier, cars, humans, bots" },
+    { "what": "HOW THE NIGHT WENT", "detail": "Each minute how far the train had got and how many were alive; at the end, how it ended, how long it ran, the cars and cargo delivered and lost, the scrip it made, who came home, and the deaths and creatures counted.",
+      "fields": "minute.km, alive, crew; nightEnd.end, seconds, km, carsDelivered, carsLost, cargoDelivered, net, crewHome, crewLost, deaths, encounters" },
+    { "what": "DEATHS", "detail": "When and where along the line someone died, of what, what they were doing (driving, on a gun, walking), and whether it was you.",
+      "fields": "death.s, km, cause, post, me" },
+    { "what": "WHAT HAPPENED", "detail": "The kinds of incidents and creatures met: where, when they closed in and when it ended, the grabs and how it came out. Never the incident's words, which name people.",
+      "fields": "incident.kind, cause; encounter.kind, channel, where, part, afoot, engagedAt, confrontedAt, nearAt, grabs, punishes, end, endedAt" },
+    { "what": "LEARNING THE GAME", "detail": "How long it took to first move, take a job, stop and deliver; which prompts were shown and acted on; the menus you opened and for how long; the keys you rebound.",
+      "fields": "first.what, s; prompt.name, acted; menu.name, seconds; rebind.control" },
+    { "what": "THE FORTRESS", "detail": "What was bought between nights, what it cost, and the scrip left.",
+      "fields": "purchase.what, cost, scripAfter" },
+    { "what": "HOW IT RAN", "detail": "Each minute the frames drawn, how smooth they were and the stutters, and your connection's ping and loss.",
+      "fields": "minute.frames, hitches, p50, p95, p99, pingMs, loss; nightEnd.hitches, p50, p95, p99" },
+    { "what": "LEAVING", "detail": "How and when a night or the game was left: from the menu, closed, dropped or put off.",
+      "fields": "quit.how, night, s" }
   ],
 
   // What it never collects, said as plainly.
