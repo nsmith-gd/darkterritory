@@ -467,7 +467,7 @@ public sealed partial class World
         if (!authority)
             return;
         Director = new Director(tuning.Director, route, seed, Train.Dynamics.Consist.CarCount, crew);
-        Encounters = new EncounterLog(tuning.Director.Telemetry);
+        Encounters = new EncounterLog(tuning.Director.Telemetry, tuning.Director.Threats);
         // Note 266: off unless a mod brings them back (the director's decision, 2026-10-06).
         if (route is not null && tuning.Sleepers.Enabled && Director.Allows(EnemyKind.Sleepers))
             foreach (var f in route.Of(FeatureKind.Sleepers))
