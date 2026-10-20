@@ -655,10 +655,34 @@ public sealed record HoundTuning(int[] PackSize, double Health, double Radius, d
     public bool StayAboard { get; init; } = true;
     /// <summary>Note 269: aboard with nobody near, each eats this share of its car's cargo a second.</summary>
     public double CargoPerSecond { get; init; } = 0.002;
-    /// <summary>Note 269: and sets its car alight this long after it's left alone (and again, after it's put out).</summary>
-    public double IgniteEverySeconds { get; init; } = 20;
+    /// <summary>Note 269: and sets its car alight this long after it's left alone (and again, after it's put out). Note 891: with
+    /// <see cref="HoundAboardTuning.On"/>, this long aboard since it boarded, its last fire or the last blow on it.</summary>
+    public double IgniteEverySeconds { get; init; } = 90;
     /// <summary>Note 472: aboard with nobody in reach, it patrols (enemies.json cinderHounds.patrol).</summary>
     public HoundPatrolTuning Patrol { get; init; } = new();
+    /// <summary>Note 891: the director's 9 Oct answer, how a hound aboard fights (enemies.json cinderHounds.aboard).</summary>
+    public HoundAboardTuning Aboard { get; init; } = new();
+}
+
+/// <summary>
+/// Note 891 (the director, 9 Oct 2026, inbox <c>D1.2-car-fires-from-packs</c>): the ignite clock runs while it's aboard and a
+/// blow resets it; a blow drives it back; it lunges, bites and retreats; driven to the back of the train with a way off, it
+/// leaves. Field docs live in enemies.json cinderHounds.aboard.
+/// </summary>
+public sealed record HoundAboardTuning
+{
+    public bool On { get; init; } = true;
+    public double LungeFrom { get; init; } = 4;
+    public double LungeSeconds { get; init; } = 0.5;
+    public double LungeShort { get; init; } = 0.8;
+    public double RetreatMetres { get; init; } = 3;
+    public double RetreatSpeed { get; init; } = 2.5;
+    public double CrouchSeconds { get; init; } = 2;
+    public double StruckSeconds { get; init; } = 1;
+    public double StruckSpeed { get; init; } = 3.5;
+    public bool LeaveAtRear { get; init; } = true;
+    public double IgniteWindUpSeconds { get; init; } = 2;
+    public int FleeAfterBlows { get; init; } = 2;
 }
 
 /// <summary>
@@ -707,6 +731,8 @@ public sealed record DirectorTuning(
     public double LingerRadius { get; init; } = 12;
     /// <summary>Note 795: with every living crewmate off the train, what none of them is within this of holds no cap (0: off).</summary>
     public double CapNear { get; init; } = 60;
+    /// <summary>Note 881 (the brief §2 issue 4): the engagement states, and the engaged cap counting threats, not bodies.</summary>
+    public ThreatTuning Threats { get; init; } = new();
     /// <summary>
     /// The quiet spell at the start of a night (GDD App. B.1 "Grace period", design decision 2026-10): a range, picked per night
     /// from its seed (<see cref="PressureTuning.GraceTierScale"/> shortens it at the harder tiers).
@@ -797,6 +823,8 @@ public sealed record DirectorTuning(
     public DrawTuning Draw { get; init; } = new();
     /// <summary>A short hold after a crisis (GDD App. B.1 "Aftermath"; note 751): enemies.json director.aftermath.</summary>
     public AftermathTuning Aftermath { get; init; } = new();
+    /// <summary>The encounter pacing (the spawn director overhaul, note 874): enemies.json director.encounters.</summary>
+    public EncountersTuning Encounters { get; init; } = new();
 }
 
 /// <summary>
@@ -884,6 +912,11 @@ public sealed record AftermathTuning
     public bool On { get; init; } = true;
     public double Seconds { get; init; } = 12;
     public string[] Events { get; init; } = ["death", "carLost", "rescue", "holdoutFreed"];
+    /// <summary>
+    /// The director's own specials wait it out too (note 912; note 887 found the aftermath held only its decisions): the hound
+    /// run (a new run, or its next pair) and the truss drops. A left-behind crewmate's hunts are theirs and keep their own.
+    /// </summary>
+    public bool Specials { get; init; } = true;
 }
 
 /// <summary>
@@ -1301,6 +1334,11 @@ public sealed record DwellingsTuning
     public double JackpotShare { get; init; } = 1;
     public double PlaceWithin { get; init; } = 500;
     public double ForgetPast { get; init; } = 800;
+    /// <summary>
+    /// A stop in the home stretch (the line's terminus_safe stretch or the final approach, <see cref="World.HomeStretch"/>) has
+    /// its houses' own too (note 912; note 887 found they did); false, its houses stand empty, as nothing else new comes there.
+    /// </summary>
+    public bool InHomeStretch { get; init; }
 
     /// <summary>The share of a stop's open houses with something in them, at <paramref name="tier"/> (0.25 where it isn't listed).</summary>
     public double ShareFor(Route.RouteTier tier) =>

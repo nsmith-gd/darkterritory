@@ -67,7 +67,7 @@ public static class RouteGenerator
         AddHazards(t, tt, weather, built, length, zones, features, ref hazardRng);
         features.Sort((a, b) => a.Start.CompareTo(b.Start));
         branches.Sort((a, b) => a.Toe.CompareTo(b.Toe));
-        return new Route(line.Name, tier, seed, line, features, weather, dawn) { Branches = branches };
+        return new Route(line.Name, tier, seed, line, features, weather, dawn) { Branches = branches, NoSpawnFinalApproach = t.NoSpawnFinalApproach };
     }
 
     /// <summary>

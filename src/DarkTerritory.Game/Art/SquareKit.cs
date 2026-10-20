@@ -127,7 +127,7 @@ public static class SquareKit
         k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.3f);
         var lamp = Lamp(d, hall);
         k.Rod(lamp + new Vector3(0, 0.25f, 0.35f), lamp + new Vector3(0, 0.25f, 0), 0.03f);
-        k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
+        k.Use("lantern_pane", Palette.LampAmber, 0, 0, tile: 0.25f);
         k.Emissive = 1;
         k.BoxAt(lamp, new Vector3(0.11f, 0.16f, 0.11f));
         k.Emissive = 0;
@@ -326,7 +326,7 @@ public static class SquareKit
                     {
                         Iron(k);
                         k.BoxAt(new Vector3(lx, y + 0.2f, 0), new Vector3(0.1f, 0.2f, 0.1f));
-                        k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
+                        k.Use("lantern_pane", Palette.LampAmber, 0, 0, tile: 0.25f);
                         k.Emissive = 0.4f;
                         k.Panel(new Vector3(lx, y + 0.2f, 0.11f), Vector3.UnitZ, Vector3.UnitY, 0.12f, 0.2f);
                         k.Emissive = 0;
@@ -549,7 +549,7 @@ public static class SquareKit
         // The lantern under it, at its middle.
         Iron(k);
         k.Rod(new Vector3(0, by - bh / 2, bz), new Vector3(0, by - bh / 2 - 0.15f, bz - 0.2f), 0.02f);
-        k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
+        k.Use("lantern_pane", Palette.LampAmber, 0, 0, tile: 0.25f);
         k.Emissive = 1;
         k.BoxAt(new Vector3(0, by - bh / 2 - 0.3f, bz - 0.2f), new Vector3(0.09f, 0.13f, 0.09f));
         k.Emissive = 0;
@@ -562,7 +562,7 @@ public static class SquareKit
         Iron(k);
         k.Cylinder(Vector3.Zero, new Vector3(0, 3.2f, 0), 0.07f, 6);
         k.Rod(new Vector3(0, 3.1f, 0), new Vector3(0, 3.1f, -0.4f), 0.03f);
-        k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
+        k.Use("lantern_pane", Palette.LampAmber, 0, 0, tile: 0.25f);
         k.Emissive = 1;
         k.BoxAt(LampTop, new Vector3(0.12f, 0.18f, 0.12f));
         k.Emissive = 0;
@@ -1015,7 +1015,7 @@ public static class SquareKit
         // The lantern on the crate, and candles in jars along the trestle's front.
         var lamp = StallLights(4)[0].At;
         Lantern(k, lamp, 0);
-        k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
+        k.Use("lantern_pane", Palette.LampAmber, 0, 0, tile: 0.25f);
         k.Emissive = 0.8f;
         for (int i = 0; i < 3; i++)
             k.Cylinder(new Vector3(0.1f + i * 0.28f, 0.68f, -z + 0.08f), new Vector3(0.1f + i * 0.28f, 0.8f, -z + 0.08f), 0.035f, 6);
@@ -1073,7 +1073,7 @@ public static class SquareKit
         else
             k.BoxAt(at - new Vector3(0, 0.13f, 0), new Vector3(0.09f, 0.02f, 0.09f));
         k.BoxAt(at + new Vector3(0, 0.12f, 0), new Vector3(0.1f, 0.025f, 0.1f));
-        k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
+        k.Use("lantern_pane", Palette.LampAmber, 0, 0, tile: 0.25f);
         k.Emissive = 1;
         k.BoxAt(at, new Vector3(0.08f, 0.11f, 0.08f));
         k.Emissive = 0;
@@ -1296,7 +1296,7 @@ public static class SquareKit
             k.Box(new Vector3(-x - 0.45f, 0.62f, gz - 0.25f), new Vector3(-x - 0.05f, 0.66f, gz + 0.25f));
         }
         k.Box(new Vector3(-x - 0.2f, 2.6f, -1.17f), new Vector3(-x, 2.66f, -1.07f));
-        k.Use("lamp_lens", Palette.RustRed, 0.2f, 0.4f, tile: 1);
+        k.Use("lantern_pane", Palette.RustRed, 0.2f, 0.4f, tile: 1);
         k.Tint = new Vector3(0.7f, 0.12f, 0.08f);
         k.BoxAt(new Vector3(-x - 0.14f, 2.8f, -1.12f), new Vector3(0.09f, 0.13f, 0.09f));
         // The arched roof, tarred canvas on its boards, as far as the bite left it; its eaves boarded; the roofwalk.

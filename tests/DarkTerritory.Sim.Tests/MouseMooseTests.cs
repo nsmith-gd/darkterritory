@@ -180,7 +180,7 @@ public class MouseMooseTests
         var ctx = new SpawnContext(stop.World, Tuning.Enemies, stop.World.Director!);
         var rule = Spawns.For(EnemyKind.MouseMoose)!;
         Assert.NotNull(rule.Weight(ctx));
-        Assert.True(rule.Spawn(ctx));
+        Assert.True(rule.Spawn(ctx).Placed);
         var moose = Assert.Single(stop.World.ActiveEnemies.OfType<MouseMoose>());
         var crane = stop.Site.Crane!;
         Assert.Same(crane, moose.Crane);

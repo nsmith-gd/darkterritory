@@ -64,7 +64,7 @@ ALBEDO = {
     # glass
     "glass_dirty": 0.04,
     # not graded: emitted colour, paper/dials, FX, sky
-    "lamp_lens": None, "window_lit": None, "firebox": None, "ember_crack": None,
+    "lamp_lens": None, "lantern_pane": None, "window_lit": None, "firebox": None, "ember_crack": None,
     "gauge_face": None, "paper_form": None, "sky_backdrop": None,
     "fx_smoke": None, "fx_steam": None, "fx_spark": None, "fx_fog": None, "fx_frost": None,
 }
