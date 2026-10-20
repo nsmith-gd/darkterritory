@@ -6,7 +6,8 @@ namespace Ballast.Online.Eos;
 /// <see cref="EosBackend"/> depends on:
 /// <list type="bullet">
 /// <item>Every request answers on a later <see cref="IEosSdk.Tick"/>, never inside the call; notifications too.</item>
-/// <item>A packet from a peer we haven't accepted is dropped and asks for a connection, once; sending to a peer accepts it.</item>
+/// <item>A packet from a peer we haven't accepted waits, and asks for a connection, once; accepting it lets what waited through
+/// (EOS's delayed delivery), and sending to a peer accepts it. A peer never accepted never gets through.</item>
 /// <item>Each machine is behind a NAT. Two can meet directly unless both are strict, or one strict and one moderate; then the
 /// relays carry them, unless either side said no relays, in which case nothing gets through. Forced relays always relay.</item>
 /// <item>Lobbies have a member limit and a permission level; a shut or full one refuses a join; the owner leaving promotes the next.</item>
@@ -24,7 +25,7 @@ public sealed class FakeEos
     /// <summary>The game's credentials are right (false: sign-in fails with <see cref="EosResult.InvalidCredentials"/>).</summary>
     public bool CredentialsValid { get; set; } = true;
 
-    /// <summary>Packets dropped because the receiver hadn't accepted the sender.</summary>
+    /// <summary>Packets held because the receiver hadn't accepted the sender (yet).</summary>
     public int Refused { get; private set; }
     /// <summary>Packets dropped because no path joins the two (strict NATs with the relays refused).</summary>
     public int Unreachable { get; private set; }
@@ -68,6 +69,9 @@ public sealed class FakeEos
         readonly Queue<Action> _due = new();
         readonly Queue<(string From, byte[] Data)> _inbox = new();
         readonly HashSet<string> _accepted = new(StringComparer.Ordinal), _asked = new(StringComparer.Ordinal);
+        // Packets from peers not yet accepted, by sender: EOS holds a little of them, and lets them through on accepting.
+        readonly Dictionary<string, Queue<byte[]>> _held = new(StringComparer.Ordinal);
+        const int HoldAtMost = 64;
         readonly Dictionary<string, EosConnection> _connections = new(StringComparer.Ordinal);
         EosRelay _relay;
         string? _me;
@@ -131,6 +135,10 @@ public sealed class FakeEos
             if (!them._accepted.Contains(_me))
             {
                 cloud.Refused++;
+                if (!them._held.TryGetValue(_me, out var held))
+                    them._held[_me] = held = new Queue<byte[]>();
+                if (held.Count < HoldAtMost)
+                    held.Enqueue(data.ToArray());
                 if (them._asked.Add(_me))
                 {
                     string from = _me;
@@ -179,6 +187,9 @@ public sealed class FakeEos
             {
                 _accepted.Add(from);
                 _asked.Remove(from);
+                if (_held.Remove(from, out var held) && cloud._users.TryGetValue(from, out var them) && _me is not null)
+                    foreach (var data in held)
+                        them.Carry(_me, data);
             }
         }
 

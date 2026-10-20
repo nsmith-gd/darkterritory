@@ -230,7 +230,8 @@ public sealed class EosBackend : IOnlineBackend, IJoinCodes
         });
     }
 
-    public string CodeOf(LobbyId lobby) => LobbyData(lobby, CodeKey);
+    /// <summary>The code once EOS has it, so it's only shown when a friend's search can find it (not while it's on its way).</summary>
+    public string CodeOf(LobbyId lobby) => Details(lobby)?.Get(CodeKey) ?? "";
 
     public void LeaveLobby(LobbyId lobby)
     {
