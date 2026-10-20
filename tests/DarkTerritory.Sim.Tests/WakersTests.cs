@@ -107,6 +107,54 @@ public class WakersTests
         Assert.False(n.World.TakenAtDawn);
     }
 
+    /// <summary>
+    /// Note 902 (the director's playtest of 16 Oct 2026, line 29): he stops behind the train, not over it, and takes it a car at
+    /// a time in his hands: the last car goes up in his grab, each after it in its turn as the one before is eaten, three bites
+    /// a car. Whoever's come down off the car in his hands once it's up, on the ground where it stood, fell from it; down
+    /// beside a car still on the rails, nobody did.
+    /// </summary>
+    [Fact]
+    public void HeStopsBehindTheTrainLiftsACarAtATimeAndAFallFromItKills()
+    {
+        var n = new Night(front: 4000);
+        while (!(n.Lead?.Holds ?? false) && n.Run.Seconds < 600)
+            n.Step(0.05);
+        var lead = n.Lead!;
+        Assert.True(lead.Holds);
+        Assert.Equal(n.World.Train.RearDistance - W.CatchShort, lead.LineDistance, 1.5); // (the train dragged on a tick since)
+        int cars = n.World.Train.Dynamics.Consist.Vehicles.Count;
+        // His hands on the last car, then it up: nothing else off the rails.
+        Assert.Equal(0, lead.Lifted(W, cars));
+        Assert.Equal(1, Waker.LiftedAt(W.EatAfter - 0.01, W, cars));
+        Assert.Equal(1, Waker.LiftedAt(Waker.TurnStart(1, W) + 0.01, W, cars)); // the last eaten, his hands going down for the next
+        Assert.Equal(2, Waker.LiftedAt(Waker.TurnStart(1, W) + W.ScoopShare * W.EatSeconds, W, cars));
+        Assert.Equal(3, Waker.BitesACar(W));
+        // Down beside the last car, now, while it's still on the rails: no fall.
+        var last = n.World.Train.Frames[n.World.Train.Dynamics.Consist.Vehicles[^1].Id];
+        var below = last.ToWorld(new Ballast.Double3(last.Shape.HalfWidth + 1, 0, 0));
+        n.Player = PlayerMotor.SpawnOnGround(below, n.World.Train.Line, n.World.Train.Dynamics.Distance, Tuning.Player);
+        n.Step(0.2);
+        Assert.True(n.Player.Alive, $"{n.Player.Death}");
+        // Once it's up, they fell from it.
+        n.Step(W.ScoopFrom + (W.EatAfter - W.ScoopHold - W.ScoopFrom) * W.FallFrom + 0.5);
+        Assert.False(n.Player.Alive);
+        Assert.Equal(DeathCause.Fell, n.Player.Death);
+    }
+
+    [Fact]
+    public void DownBesideACarStillOnTheRailsNobodyFalls()
+    {
+        var n = new Night(front: 4000);
+        while (!(n.Lead?.Holds ?? false) && n.Run.Seconds < 600)
+            n.Step(0.05);
+        n.Step(W.EatAfter - W.ScoopHold);
+        var f = n.World.Train.Frames[n.World.Train.Dynamics.Consist.Vehicles[^3].Id];
+        n.Player = PlayerMotor.SpawnOnGround(f.ToWorld(new Ballast.Double3(f.Shape.HalfWidth + 1, 0, 0)), n.World.Train.Line,
+            n.World.Train.Dynamics.Distance, Tuning.Player);
+        n.Step(1);
+        Assert.NotEqual(DeathCause.Fell, n.Player.Death);
+    }
+
     [Fact]
     public void NobodyOffTheTrainBeforeItsHeldIsTakenAndNoneRiseForThem()
     {
