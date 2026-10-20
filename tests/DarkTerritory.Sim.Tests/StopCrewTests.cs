@@ -668,24 +668,34 @@ public class StopCrewTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public void WithTheShunterOnTheGroundAtThePointsAfterAStopTheSwitchHandStandsWithIt(bool cover)
+    public void AtAPickUpTheSwitchHandStandsWithTheShunterOnTheGround(bool cover)
     {
-        // Note 931: frontier:6 seed 4's shunter, alone on the ground for its 10 s at the lever setting the points back, was
-        // eaten by a pack of three (App. A.6: "never be outnumbered"). The stop over, the switch hand (the winch's first handle)
-        // comes down and stands with it.
+        // Note 931: frontier:6 seed 4's shunter, alone on the ground for its 10 s at the lever setting a pick-up's points back,
+        // was eaten by a pack of three (App. A.6: "never be outnumbered"); a pick-up keeps everyone else aboard (note 628).
+        // Now the switch hand (the winch's first handle) comes down and stands with it. The night's dawn is set as in
+        // WithTimeForAPickUpButNotItsOwnTrackTheDriverFetchesTheStandingCars, so the driver makes the pick-up.
         var e = Tuning.Enemies with { CrewBots = Tuning.Enemies.CrewBots with { CoverTheShunter = cover } };
-        var night = new Night(cars: 8, walkers: 0, creatures: true, enemies: e, modules: [ModuleKind.Rakes, ModuleKind.Crates]);
+        ModuleKind[] modules = [ModuleKind.Rakes, ModuleKind.Crates];
+        var open = new Night(cars: 8, walkers: 0, dawn: 1e6, creatures: true, enemies: e, modules: modules);
+        var openStops = open.Driver.Stops!;
+        double spare = double.NaN;
+        open.Until(() => openStops.Doing != StopDriver.Leg.Cruise, 900, () => spare = openStops.Spare);
+        var own = openStops.Plan!;
+        var pickUp = StopPlan.Ahead(open.World, own.Hold + 1, new HashSet<int> { own.Key }, open.Calls)!;
+        double between = (StopDriver.Allowance(own, open.World) + StopDriver.Allowance(pickUp, open.World)) / 2;
+        var night = new Night(cars: 8, walkers: 0, dawn: 1e6 - (spare - between), creatures: true, enemies: e, modules: modules);
         var stops = night.Driver.Stops!;
         double nearest = double.MaxValue, alone = 0;
-        night.Until(() => stops.Log.Count > 0, 1500, () =>
+        night.Until(() => stops.Log.Count > 0, 1200, () =>
         {
-            if (stops.Doing != StopDriver.Leg.Clear || night.Calls.ShunterAt is not { } at)
+            if (stops.Plan is not { PickUp: true } || night.Calls.ShunterAt is not { } at)
                 return;
             alone += SimConstants.TickSeconds;
             var hand = PlayerMotor.WorldPosition(night.Crew[2], night.Train);
             nearest = Math.Min(nearest, ((hand - at) with { Y = 0 }).Length);
         });
-        Assert.True(stops.Log.Count > 0 && alone > 2, $"no stop with the shunter on the ground in its clear ({alone:0.0} s)");
+        Assert.StartsWith(nameof(FacilityKind.Switchyard) + "PickUp", Assert.Single(stops.Log).Kind);
+        Assert.True(alone > 2, $"the shunter was on the ground at the pick-up only {alone:0.0} s");
         double beside = e.CrewBots.CoverBeside + 0.5;
         Assert.True(cover ? nearest <= beside : nearest > beside, $"the switch hand came within {nearest:0.0} m of the shunter ({alone:0.0} s on the ground)");
     }

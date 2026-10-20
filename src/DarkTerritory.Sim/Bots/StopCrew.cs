@@ -2018,6 +2018,8 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
     /// <summary>Its part in a facility stop is under way: the train's standing for it, or in at it, and not yet away (note 601).</summary>
     public bool AtAStop => _plan is not null;
     bool _wentIn, _reachedEnd;
+    /// <summary>Note 931: the stop it last had a plan for was a pick-up (its clear's after that plan's over).</summary>
+    bool _lastPickUp;
 
     public StopJob Job => job;
     /// <summary>
@@ -2213,9 +2215,10 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         if (job == StopJob.Shunter)
             calls.ShunterAfoot(self.Alive && self.Parent == PlayerState.World && Math.Abs(world.Train.Dynamics.Velocity) < 0.05
                 ? PlayerMotor.WorldPosition(self, world.Train) : null);
-        // Note 931: and the switch hand down beside it, at a pick-up or between stops (a pick-up's clear is after the train's
-        // back together, its stop over for the rest: seed 4's shunter was at the lever then), never off its own part at a stop.
-        if (job is not (StopJob.None or StopJob.Driver or StopJob.Shunter) && (_plan is null or { PickUp: true }) && _coal is null
+        // Note 931: and the switch hand down beside it at a pick-up, its clear included (that's after the train's back
+        // together, the stop over for the rest: seed 4's shunter was at the lever then). Not at other stops or between them:
+        // there everyone waited on the cover to climb back aboard (16 nights: 82 s longer on the mean, a night more missed).
+        if (job is not (StopJob.None or StopJob.Driver or StopJob.Shunter) && (_plan?.PickUp ?? _lastPickUp) && _coal is null
             && CoverTheShunter(self, world) is { } covering)
             return covering;
         if (job == StopJob.None || !self.Alive || world.Run is null)
@@ -2231,6 +2234,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
             if (StopPlan.Ahead(world, train.Dynamics.Distance - 10, _done, calls) is not { } plan || !plan.StandingAt(train))
                 return job == StopJob.Driver || _coal is not null || _switch is not null ? null : LeftOnTheBallast(self, world);
             _plan = plan;
+            _lastPickUp = plan.PickUp;
             _wentIn = _reachedEnd = false;
         }
         var p = _plan;
@@ -3641,8 +3645,8 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
     /// stale stop plan used to take it to the cab instead (the bug that kept two hurt hands at the engine's side on seed 6).
     /// </summary>
     /// <summary>
-    /// Note 931 (App. A.6, "never be outnumbered"): at a pick-up or between stops, the switch hand (note 609's second pair of
-    /// hands, free then) down beside the shunter while the shunter's on the ground with the train standing, within enemies.json
+    /// Note 931 (App. A.6, "never be outnumbered"): at a pick-up, the switch hand (note 609's second pair of hands, free
+    /// there) down beside the shunter while the shunter's on the ground with the train standing, within enemies.json
     /// <c>crewBots.coverWithin</c> of it, and stood with it; null otherwise (then it's back aboard as before).
     /// </summary>
     PlayerIntent? CoverTheShunter(in PlayerState self, World world)
