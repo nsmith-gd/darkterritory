@@ -1307,7 +1307,30 @@
       // takes the pressure's own crewScale/lengthScale and the free spawns' crewFade out with it. #607's `debt` goes here.
       "base": 0.12, "ramp": 0.33, "rampPerCrew": 0.035, "power": 1.2, "perCrew": 0.07, "perCar": 0.05, "carsFrom": 3,
       "tier": { "local": 0.8, "frontier": 1, "deadLines": 1.2, "deepTerritory": 1.4 },
-      "max": 3
+      "max": 3,
+      // Concurrency and overlap by crew and train length (the brief §1 B–C, §6; note 906; Concurrency, ConcurrencyTests). Not
+      // yet read by the director: it goes in with #604's threat states and #608's pacing.
+      // The engaged cap: the living × share, share rising by sharePerCar a car past carsFrom to at most shareMax, rounded half
+      // up, at least 1 while anyone's alive, at most max: solo 1 to 6 cars and 2 from 7; two crew 2 on 4 cars, 3 on 6, 4 on 8;
+      // four 4 on 4 cars, 7 on 8; eight 11 on 6 cars, 12 from 7. Gradual, where App. B.1's flat 4 / 6 (maxConcurrentSmallCrew /
+      // LargeCrew) and note 647's two each at 8 cars (orchestrator.longTrainCars) were steps. perCrewmateMax: the most on one
+      // crewmate at once (share rounded half up: two each from 7 cars). ambientRoom (#604's, off the cap) + ambientPerCar a
+      // car past carsFrom, rounded down.
+      // Contradiction pairs (App. B.1 "contradiction seeding", the conflicts table): a night seeds pairsPerRun (its tier's)
+      // × (1 + pairsPerCrew a living crewmate over one), rounded half up (frontier: 1 for one or two, 2 for three to six, 3 for
+      // seven or eight). pairMinCrew: the pairs whose two answers need two people at once, never made for a smaller living crew
+      // (whoever the Moose chases ends up alone vs. never be outnumbered by Ribbits; the loading needs everyone vs. someone
+      // keeps the Moose busy; run fast for the hounds vs. stop to pull the Hotbox, or to kill the Knotter, or to climb after
+      // the Brakeman): a crew of one isn't set a problem only two can answer (§6). Named pairs only; the rest need one.
+      // Relief when crew are lost (§1 B, §6): × (alive ÷ the crew in the night)^reliefPower × (1 − hurtRelief × the share of
+      // the living under hurtBelow health), on the encounter rate (which counts only the living already).
+      "concurrency": {
+        "share": 0.75, "sharePerCar": 0.2, "carsFrom": 3, "shareMax": 2, "max": 12, "perCrewmateMax": 2,
+        "ambientRoom": 1, "ambientPerCar": 0.1,
+        "pairsPerCrew": 0.25,
+        "pairMinCrew": { "ribbits+moose": 2, "moose+facilityLoading": 2, "cinderHounds+hotbox": 2, "cinderHounds+knotter": 2, "cinderHounds+brakeman": 2 },
+        "reliefPower": 1, "hurtBelow": 35, "hurtRelief": 0.25
+      }
     },
     // GDD App. B.1 "Post-event cooldown" (design decision, 2026-10): the least trough after a spawn; the pressure's relief
     // makes the rest of it, and well past the threshold (pressAt) it gives way.
