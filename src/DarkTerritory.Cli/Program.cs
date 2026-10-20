@@ -127,6 +127,8 @@ return args switch
     // Note 913 (queue #624): the playtest recorder's schema, and a bot night recorded with it.
     ["telemetry", "schema", ..] => Print(TelemetryCommands.Schema()),
     ["telemetry", "record", ..] => Print(TelemetryCommands.Record(content, args)),
+    // dt telemetry spool [--dir d] [--trim] [--export out] (queue #626, note 919): the spool's sessions against its caps; trim; bundle.
+    ["telemetry", "spool", ..] => Print(TelemetryCommands.Spool(content, args)),
     ["afoot", "census", ..] => Print(AfootCommands.Census(content, args)),
     // dt eligibility rolls [--seeds 1-2000]: each kind's nightChance with the night's floor, by tier and crew. dt eligibility [--routes frontier:7,deadLines:3] [--crews 1:3,2:5,4:8] [--seeds 1-3] [--seconds 2700] [--markdown f.md]: every
     // kind of the director's spend table, its gates read a second at a time through ordinary nights (note 875).

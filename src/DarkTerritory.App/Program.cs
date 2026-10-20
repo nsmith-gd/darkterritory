@@ -328,8 +328,24 @@ using var rendererOwner = new Owner(() => renderer.Dispose());
 // #625's PlaytestConsent is the gate the game will ask; until it lands, a fixed answer.
 var telemetryGate = new DarkTerritory.Game.Telemetry.FixedTelemetryGate(startSettings.Telemetry || args.Contains("--telemetry"),
     Arg("--telemetry-dir", DarkTerritory.Game.Telemetry.FixedTelemetryGate.DefaultDirectory));
-var telemetry = DarkTerritory.Game.Telemetry.SessionRecorder.ToFile(telemetryGate);
+// The spool (#626, note 919): the session's file capped, the folder held to its caps (oldest first), and a player's problem
+// report carrying the finished sessions and this one so far, bundled beside it for the tester to send (the `file` sink).
+var telemetryTuning = DarkTerritory.Game.Telemetry.TelemetryTuning.Load(content);
+var telemetrySpool = new DarkTerritory.Game.Telemetry.TelemetrySpool(telemetryGate.SessionsDirectory, telemetryTuning.Spool);
+var telemetry = telemetrySpool.Recorder(telemetryGate);
 using var telemetryOwner = telemetry.Closer;
+telemetrySpool.Trim(telemetry.SessionId);
+crashes.Saved += (report, path) =>
+{
+    if (report.Kind != Report.Problem || !telemetryGate.Recording
+        || DarkTerritory.Game.Telemetry.TelemetryUploader.SinkFor(telemetryTuning.Upload, Path.GetDirectoryName(path) ?? crashes.Directory) is not { } sink)
+        return;
+    telemetrySpool.Writing?.Flush();
+    var sent = new DarkTerritory.Game.Telemetry.TelemetryUploader(telemetrySpool, sink, telemetryTuning.Upload, telemetryGate)
+        .PumpAsync(inNight: false, telemetry.SessionId, withWriting: true).GetAwaiter().GetResult();
+    if (sent.Result is { } r)
+        Console.WriteLine($"telemetry: {r.Outcome} {r.Detail}");
+};
 bool devBuild = false;
 #if DEVTOOLS
 devBuild = true;
