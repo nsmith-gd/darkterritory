@@ -8,7 +8,7 @@ namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
 /// Note 915 (queue #612; the director's answers to note 875, "test creature spawn first"): each eligibility trial is its own
-/// tuning flag, off in content until it's measured and confirmed, and on it does only what it says: the Gannet's speeds, the
+/// tuning flag, off in content until it's measured and confirmed (the rare kinds' is on), and on it does only what it says: the Gannet's speeds, the
 /// hound run's count, the rare kinds' chances, the free Climbers' speed, the Car Hugger's low ground.
 /// </summary>
 public class EligibilityTrialTests
@@ -16,12 +16,13 @@ public class EligibilityTrialTests
     static readonly string Content = DataFile.FindContentRoot();
 
     [Fact]
-    public void EveryTrialIsOffInContent()
+    public void EveryTrialButTheRareKindsIsOffInContent()
     {
         var et = Tuning.Enemies;
         Assert.False(et.Gannet.LowArrive.On);
         Assert.False(et.Director.Run.FromLastStop.On);
-        Assert.False(et.Director.NightChanceTrial.On);
+        // The rare kinds' is on: measured, and the director chose "raise" (note 915).
+        Assert.True(et.Director.NightChanceTrial.On);
         Assert.False(et.Climbers.FreeNeedsSpeed);
         Assert.False(et.CarHugger.LowGround.On);
         // Off, the numbers are spec B.13's and note 328's.
@@ -45,6 +46,7 @@ public class EligibilityTrialTests
     public void OnTheRareKindsAreAboutOnTheirTrialChancesAndTheRestRollAsTheyDid()
     {
         var d = Tuning.Enemies.Director;
+        d = d with { NightChanceTrial = d.NightChanceTrial with { On = false } };
         var on = d with { NightChanceTrial = d.NightChanceTrial with { On = true } };
         Assert.NotEmpty(on.NightChanceTrial.Chances);
         var route = Routes.Generate(Content, "frontier:7", 6);

@@ -1336,8 +1336,9 @@
       "mouseMoose": 0.5 },
     // A trial (note 915, #612; the director, 20 Oct 2026, to note 875's question 3: "raise", 30–40%): on, these stand in for
     // nightChance's (same order, same stream). Their gates hold 6–46% of an ordinary night; their chances kept them out four
-    // nights in five. Into the Creature Tweaker's game column only once measured and confirmed.
-    "nightChanceTrial": { "on": false, "chances": { "grumbler": 0.35, "passenger": 0.3, "moose": 0.4, "gaunt": 0.35, "trackDoll": 0.35 } },
+    // nights in five. Measured (note 915: the Grumbler joins nights, deaths and delivery as they were) and on, the director
+    // having chosen "raise"; the Creature Tweaker's game column carries these.
+    "nightChanceTrial": { "on": true, "chances": { "grumbler": 0.35, "passenger": 0.3, "moose": 0.4, "gaunt": 0.35, "trackDoll": 0.35 } },
     // How often each kind comes against the rest: its weight among what could come, times this (×1 not named).
     "weights": {},
     // The in-car incidents' weight each (the others weigh 1): trouble in the cars is some of the night, not most of it.
