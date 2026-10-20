@@ -46,6 +46,44 @@ public sealed record BoilerTuning(
     /// there to be thrown (horseplay) until it goes in at <see cref="ShovelSeconds"/>.
     /// </summary>
     public double ScoopSeconds { get; init; } = 0.6;
+
+    /// <summary>
+    /// The director's playtest of 13 Oct evening (line 19, note 903): "a shovel and one to three seconds later ... some sort of
+    /// reaction for the locomotive". This share of each shovelful doesn't settle into the bed: it catches over
+    /// <see cref="CatchSeconds"/> and flares over <see cref="FlareSeconds"/>, so its steam lands as a kick on the gauge a second
+    /// or two after the stroke. The same coal makes the same steam (B.6's burn table holds); it's only sooner. 0: off.
+    /// </summary>
+    public double CatchShare { get; init; }
+    public double CatchSeconds { get; init; } = 0.9;
+    public double FlareSeconds { get; init; } = 1.2;
+    /// <summary>Note 903: the engine's surge while a shovelful flares, m/s² per unit of pressure a second the flare makes.</summary>
+    public double SurgePerPressure { get; init; }
+    /// <summary>Note 903: the most that surge pushes (m/s²), however many shovelfuls are flaring at once.</summary>
+    public double SurgeMax { get; init; }
+
+    /// <summary>
+    /// Note 903: how hard the coal's flaring, as one shovelful at its height is 1 (and more shovelfuls more): what the stack's
+    /// smoke and the chuff answer with.
+    /// </summary>
+    public double FlareLook(in Boiler b) => CatchShare <= 0 ? 0 : b.Flare(this) / (CatchShare * SteamPerUnit * FlarePeak);
+
+    /// <summary>
+    /// A shovelful's flare at its height, per unit of its coal's steam: the two lags' impulse response at its peak (presentation
+    /// only, so its Exp and Log don't touch the sim).
+    /// </summary>
+    double FlarePeak
+    {
+        get
+        {
+            double c = Math.Max(0.05, CatchSeconds), f = Math.Max(0.05, FlareSeconds);
+            if (Math.Abs(c - f) < 1e-6)
+                return Math.Exp(-1) / f;
+            double at = Math.Log(f / c) * c * f / (f - c);
+            return (Math.Exp(-at / f) - Math.Exp(-at / c)) / (f - c);
+        }
+    }
+    /// <summary>Note 903: the push (m/s²) a steam-driven engine gets from the coal flaring in its firebox.</summary>
+    public double Surge(in Boiler b) => SteamDrive && !b.Ruptured ? Math.Min(SurgeMax, SurgePerPressure * b.Flare(this)) : 0;
 }
 
 /// <summary>
@@ -96,13 +134,25 @@ public struct Boiler
     /// the one, and coal goes on with it in hand.
     /// </summary>
     public bool ShovelOut;
+    /// <summary>
+    /// Note 903: coal just shovelled on that hasn't caught yet (<see cref="BoilerTuning.CatchShare"/> of each shovelful), and
+    /// coal that's caught and flaring, its steam going into the gauge now. Both count as the fire's.
+    /// </summary>
+    public double Green;
+    public double Catching;
+
+    /// <summary>Note 903: the pressure a second the flaring coal is making (what the gauge's kick, the stack and the chuff show).</summary>
+    public readonly double Flare(BoilerTuning t) => Ruptured || t.FlareSeconds <= 0 ? 0 : Catching / t.FlareSeconds * t.SteamPerUnit;
+
+    /// <summary>Every unit of coal in the firebox: the bed, and what's catching on it (note 903).</summary>
+    public readonly double Fire => Firebox + Green + Catching;
 
     /// <summary>T109: made good with the wrench after a rupture: whole again, but cold and empty.</summary>
     public void Repair()
     {
         Ruptured = false;
         Pressure = 0;
-        Firebox = 0;
+        Firebox = Green = Catching = 0;
         AtMaxSeconds = 0;
     }
 
@@ -114,8 +164,8 @@ public struct Boiler
     };
 
     public readonly bool InWorkingBand(BoilerTuning t) => Pressure >= t.WorkingBandMin && Pressure <= t.WorkingBandMax;
-    public readonly bool LowFire(BoilerTuning t) => Firebox < t.FireboxCapacity * t.LowFireFraction;
-    public readonly double FireFraction(BoilerTuning t) => Firebox / t.FireboxCapacity;
+    public readonly bool LowFire(BoilerTuning t) => Fire < t.FireboxCapacity * t.LowFireFraction;
+    public readonly double FireFraction(BoilerTuning t) => Fire / t.FireboxCapacity;
 
     /// <summary>Fraction of full tractive effort the pressure supports: none below the floor, all from the working band.</summary>
     public readonly double PowerFactor(BoilerTuning t) =>
@@ -151,10 +201,12 @@ public struct Boiler
     {
         FireDoorOpen = true;
         SinceShovel = 0;
-        if (Ruptured || Tender < 1 || Firebox > t.FireboxCapacity - 1)
+        if (Ruptured || Tender < 1 || Fire > t.FireboxCapacity - 1)
             return false;
         Tender -= 1;
-        Firebox += 1;
+        double green = Math.Clamp(t.CatchShare, 0, 1);
+        Firebox += 1 - green;
+        Green += green;
         return true;
     }
 
@@ -173,13 +225,27 @@ public struct Boiler
         double draw = t.SteamDrive ? Math.Max(Math.Clamp(throttle, 0, 1), Math.Clamp(speedFraction / t.FullDemandAt, 0, 1)) : throttle;
         double burn = Math.Min(BurnRate(t, draw) * dt, Firebox);
         Firebox -= burn;
-        double gain = burn * t.SteamPerUnit + ExternalHeat * dt;
+        // Note 903: under way, the fresh coal catches, then flares in the exhaust's draw: every shovelful answers within a few
+        // seconds. Standing, with no exhaust to draw it, it settles into the bed like the rest (so C.2's slow rebuild at a stop
+        // holds: what limits it is the bed's burn, and a flare would get round that).
+        bool working = draw > 0 || speedFraction > 0;
+        double caught = t.CatchSeconds > 0 ? Green * Math.Min(1, dt / t.CatchSeconds) : Green;
+        double flared = t.FlareSeconds > 0 ? Catching * Math.Min(1, dt / t.FlareSeconds) : Catching;
+        Green -= caught;
+        if (working)
+            Catching += caught;
+        else
+            Firebox += caught;
+        Catching -= flared;
+        double gain = (burn + flared) * t.SteamPerUnit + ExternalHeat * dt;
         double vent = Venting ? t.VentRate * dt : 0;
         double loss = SteamDemand(t, throttle, cars, speedFraction) * dt + vent;
         double next = Pressure + gain - loss;
         // The engine's own demand is served first; with the gauge run down, the vent gets what's left of what the fire made.
         VentedSteam = Math.Clamp(vent + Math.Min(0, next), 0, vent);
-        double shed = SafetyValveJammed ? 0 : Math.Clamp(next - t.SafetyValveLift, 0, t.SafetyValveCapacity * dt);
+        // Past the lift the valve blows off a flare's kick as well (note 903): a shovelful in the red lifts it, and doesn't hurry
+        // the climb to a rupture (T109's time in the red to answer it holds).
+        double shed = SafetyValveJammed ? 0 : Math.Clamp(next - t.SafetyValveLift, 0, t.SafetyValveCapacity * dt + flared * t.SteamPerUnit);
         SafetyValveLifting = shed > 0;
         Pressure = Math.Clamp(next - shed, 0, t.PressureMax);
 
@@ -193,7 +259,7 @@ public struct Boiler
             // Spec B.6 / GDD §23: loud, spectacular, run-changing. The engine is a coasting weight from here.
             Ruptured = true;
             Pressure = 0;
-            Firebox = 0;
+            Firebox = Green = Catching = 0;
             return true;
         }
         return false;

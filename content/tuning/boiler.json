@@ -34,6 +34,19 @@
   // "Every crew member should be able to shovel coal regardless of having the shovel in their hand. We shouldn't need a
   // tool to do that"): the shovel stays on its rack as a club.
   "shovelInHand": false,
+  // The director's playtest of 13 Oct evening (line 19, note 903): "if I add any coal with any pressure, we should get some
+  // level of speed build up ... a shovel and one to three seconds later ... some sort of reaction for the locomotive ... we're
+  // going for fun". Main's shovelful just joined the bed and burned over half a minute: nothing to feel. Now this share of it
+  // catches (catchSeconds) and flares (flareSeconds), its steam landing as a kick on the gauge that peaks a second after the
+  // stroke and is mostly in by three: about +6 on the gauge a shovelful (0.35 x steamPerUnit), the stack and the chuff
+  // answering. The same coal makes the same steam, only sooner, so B.6's burn table holds. While it flares the engine
+  // surges: surgePerPressure m/s² per unit of pressure a second the flare makes (about 0.3 at a shovelful's peak), at most
+  // surgeMax. Not in the spec's tables (systems spec B.6 "A shovelful answers"); fun over realism.
+  "catchShare": 0.35,
+  "catchSeconds": 0.9,
+  "flareSeconds": 1.2,
+  "surgePerPressure": 0.15,
+  "surgeMax": 0.5,
 
   "fireTimeConstant": 30,
   // Draft with the regulator shut (blower only), as a fraction of working draft.

@@ -864,6 +864,9 @@ public sealed class TrainOnLine
             + CreatureDrag(rake)
             // And a car off its rails (the tipple's bad clamp, note 423) holds its whole rake fast: more than anything can pull.
             + (AnyOffRails(rake) ? OffRailsDrag : 0),
+        // A shovelful flaring in the firebox (note 903): the engine surges, a second or two after the stroke. Only under way,
+        // so a standing train on its brake doesn't lurch.
+        Surge = rake == _engineRake && !HeldInYard && rake.Speed > 0.05 && BoilerTuning is { } sb ? sb.Surge(Boiler) : 0,
     };
 
     /// <summary>The top speed a car with a seized axle holds the train to (enemies.json <c>hotbox.seizedTopSpeed</c>, set with the enemies).</summary>

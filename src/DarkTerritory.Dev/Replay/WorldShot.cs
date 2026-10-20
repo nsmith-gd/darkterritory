@@ -119,6 +119,7 @@ public sealed class WorldShot : IDisposable
         s.Breaks = breaks;
         s.BendStrain = world.TrackPlan is { } bent ? BendStrain.PerCar(train, bent.Rules) : null;
         s.SinceShovel = train.Boiler.SinceShovel;
+        s.Flare = train.BoilerTuning is { } flt ? (float)flt.FlareLook(train.Boiler) : 0;
         s.ChoirGathering = world.Choir.Present ? 1 : (float)world.Choir.Build;
         s.Answer = world.Answer;
         s.AnswerShowSeconds = world.Director?.Tuning.Draw.ShowSeconds ?? 7;

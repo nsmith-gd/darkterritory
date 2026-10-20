@@ -274,6 +274,12 @@ There's no regulator. **The pressure sets the speed the engine can make:** none 
 
 **The director's playtest of 16 Oct (line 18, note 843): the gauge moves 17% faster** ("build pressure a bit faster ... 15-20% faster"). The steam a unit of coal makes and the steam the train draws went up together, so the burn table below is unchanged, and a rebuild at a standstill (C.2) is about 15% quicker: 37 s to the working band at three cars, three and a half minutes at twenty. A boiler left unfed also falls 17% faster.
 
+### A shovelful answers (note 903, the director's playtest of 13 Oct evening, line 19)
+
+"A shovel and one to three seconds later ... some sort of reaction for the locomotive ... we're going for fun." A shovelful used to just join the bed and burn over half a minute: +0.6 a second on the gauge, nothing to feel. Now, under way, **0.35 of each shovelful catches** (0.9 s) **and flares** (1.2 s): its steam lands as a kick that peaks about a second after the stroke and is mostly in by three, **about +6 on the gauge**. While it flares the engine **surges**, 0.15 m/s² per unit of pressure a second the flare makes (about 0.3 m/s² at one shovelful's height, at most 0.5), and the stack and the chuff work as if pulling hard. Measured (8 cars at the speed their steam makes, one shovelful against none): the flare's height at about 1.0 s, under a third of the gain in the first half second, the gauge 4+ up and the train 0.4+ m/s faster at 3 s (`BoilerTests.AShovelfulAnswersOnTheGaugeAndInThePullOneToThreeSecondsLater`).
+
+The same coal makes the same steam, only sooner, so the burn and endurance table below is unchanged. **At a stand**, with no exhaust to draw it, the coal settles into the bed like the rest: a flare would get round the bed's burn, and C.2's rebuild at a stop (37 s at three cars, 208 at twenty) holds exactly. **In the red** the safety valve blows the kicks off as well as its own 0.6 a second: a hot fire still reaches 100, and the time from the valve's first lift to a rupture is what it was (T109). Numbers in `boiler.json` (`catchShare`, `catchSeconds`, `flareSeconds`, `surgePerPressure`, `surgeMax`).
+
 ### Burn rate by consist
 
 | Consist | Burn | Shovel interval | Tender endurance |
