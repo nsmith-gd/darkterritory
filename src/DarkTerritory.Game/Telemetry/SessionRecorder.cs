@@ -92,9 +92,10 @@ public sealed class SessionRecorder
 
     /// <param name="enabled">The player's consent (#625). False: nothing is ever written.</param>
     /// <param name="clock">Seconds since the session began; a stopwatch by default (tests and <c>dt</c> give their own).</param>
-    public SessionRecorder(ITelemetrySink? sink, bool enabled, Func<double>? clock = null)
+    public SessionRecorder(ITelemetrySink? sink, bool enabled, Func<double>? clock = null, string? sessionId = null)
     {
         _sink = sink;
+        SessionId = sessionId ?? NewId();
         Enabled = enabled && sink is not null;
         if (clock is null)
         {
@@ -107,11 +108,28 @@ public sealed class SessionRecorder
     /// <summary>Recording (consent given, somewhere to write).</summary>
     public bool Enabled { get; }
     /// <summary>A random id for this session, made here: nothing about the player or the machine is in it.</summary>
-    public string SessionId { get; } = Guid.NewGuid().ToString("N");
+    public string SessionId { get; }
+
+    static string NewId() => Guid.NewGuid().ToString("N");
+
+    /// <summary>Where the app writes its sessions: the player's app data, a file a session (#626 caps and sends them).</summary>
+    public static string DefaultDirectory =>
+        System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DarkTerritory", "telemetry");
+
+    /// <summary>A recorder writing to <c>&lt;directory&gt;/&lt;session&gt;.jsonl</c>; not enabled, it makes no file at all.</summary>
+    public static SessionRecorder ToFile(string directory, bool enabled)
+    {
+        string id = NewId();
+        return new SessionRecorder(enabled ? new FileTelemetrySink(System.IO.Path.Combine(directory, id + ".jsonl")) : null, enabled, sessionId: id);
+    }
+
+    /// <summary>The file sink's, to close at the end (null for any other).</summary>
+    public IDisposable? Closer => _sink as IDisposable;
     public int Lines { get; private set; }
     public long Bytes { get; private set; }
     /// <summary>In a night (between <see cref="NightBegin"/> and <see cref="NightEnd"/>).</summary>
     public bool InNight { get; private set; }
+    bool _closed;
 
     /// <summary>The session begins: what the build is, and what it runs on.</summary>
     public void Begin(SessionFacts f)
@@ -257,8 +275,10 @@ public sealed class SessionRecorder
     /// </summary>
     public void Quit(string how, World? world = null)
     {
-        if (!Enabled)
+        // The game closed mid-night is said then, with the night; not again as the app ends.
+        if (!Enabled || how == "app" && _closed)
             return;
+        _closed |= how == "app";
         Emit("quit", ("how", how), ("night", InNight ? _night : 0), ("s", InNight && world is not null ? Seconds(world) : null));
         _sink!.Flush();
     }
