@@ -29,8 +29,8 @@ from mathutils.bvhtree import BVHTree
 VOXEL = 0.0035          # the union's voxel (m): the strap's 8 mm and the fingers' grooves survive it
 FRAME_FACES = 2700      # QuadriFlow's target (quads): the frame's share of the crew's (and the husk's) 9k
 HAND_VOXEL = 0.0022     # the hands' union's voxel (m): the gaps between the fingers' tips survive it
-HAND_FACES = 520        # the hands' triangles (both), out of FRAME_FACES (two to a quad, and a little to spare: QuadriFlow
-                        # comes in near its target, and the crew's whole is held under 9k, CreatureArtTests)
+HAND_FACES = 1000       # the hands' triangles (both): fewer and the collapse cuts the fingertips into shards
+BODY_TRIS = 3900        # the frame's triangles but the hands': with them and the kit's, the crew's under 9k (CreatureArtTests)
 
 
 # ----------------------------------------------------------------------------------------------------------------
@@ -479,8 +479,21 @@ def build(g, blocks=blocking, shells=coat_shells):
     frame.name = frame.data.name = "frame"
     bpy.context.scene.collection.objects.link(frame)
     select(frame)
-    bpy.ops.object.quadriflow_remesh(target_faces=FRAME_FACES - (HAND_FACES // 2 + 70 if has_hands else 0), use_mesh_symmetry=False,
-                                     use_preserve_sharp=False, use_preserve_boundary=False, smooth_normals=False, seed=0)
+    if has_hands:
+        # Down to BODY_TRIS, the hands having taken their share: QuadriFlow comes out near its target but not at it, so
+        # the target's brought down until it fits (deterministic: a fixed seed and the same steps every build).
+        target = FRAME_FACES - HAND_FACES // 2
+        for _ in range(6):
+            bpy.ops.object.quadriflow_remesh(target_faces=target, use_mesh_symmetry=False, use_preserve_sharp=False,
+                                             use_preserve_boundary=False, smooth_normals=False, seed=0)
+            n = sum(len(p.vertices) - 2 for p in frame.data.polygons)
+            if n <= BODY_TRIS:
+                break
+            target = int(target * BODY_TRIS / n * 0.98)
+            frame.data = high.data.copy()
+    else:
+        bpy.ops.object.quadriflow_remesh(target_faces=FRAME_FACES, use_mesh_symmetry=False, use_preserve_sharp=False,
+                                         use_preserve_boundary=False, smooth_normals=False, seed=0)
     if has_hands:
         # The hands: their union collapsed to HAND_FACES (a collapse keeps a finger's gaps and tips, where a quad
         # remesh this coarse rounds them into one), joined to the frame. The gauntlets go up into the sleeves' cuffs, so
