@@ -12,7 +12,7 @@ namespace DarkTerritory.Sim.Enemies;
 /// <code>
 /// λ = (base + (ramp + rampPerCrew·(P−1)) · p^power) · (1 + perCrew·(P−1)) · (1 + perCar·max(0, C−carsFrom)) · tier
 /// </code>
-/// to at most <see cref="EncounterTuning.Max"/>. Pure statics: nothing here draws, reads the world or holds state, so the
+/// to at most <see cref="EncountersTuning.Max"/>. Pure statics: nothing here draws, reads the world or holds state, so the
 /// host and every client get the same bits (<see cref="DMath"/> for the power). The director's channels are driven by it in
 /// #608; this is only the rate.
 /// </summary>
@@ -49,7 +49,7 @@ public static class EncounterPacing
     /// Encounter opportunities a minute at <paramref name="progress"/> (0..1) for <paramref name="crew"/> alive (at least one
     /// counts) and <paramref name="cars"/> cars on <paramref name="tier"/>. Never falls as progress, crew or cars rise.
     /// </summary>
-    public static double Rate(double progress, int crew, int cars, RouteTier tier, EncounterTuning t)
+    public static double Rate(double progress, int crew, int cars, RouteTier tier, EncountersTuning t)
     {
         double ramp = Ramp(crew, t) * DMath.Pow(Math.Clamp(progress, 0, 1), Math.Max(0, t.Power));
         double rate = (Math.Max(0, t.Base) + ramp) * CrewFactor(crew, t) * CarFactor(cars, t)
@@ -58,25 +58,25 @@ public static class EncounterPacing
     }
 
     /// <summary><see cref="Rate"/> a second.</summary>
-    public static double PerSecond(double progress, int crew, int cars, RouteTier tier, EncounterTuning t) =>
+    public static double PerSecond(double progress, int crew, int cars, RouteTier tier, EncountersTuning t) =>
         Rate(progress, crew, cars, tier, t) / 60;
 
     /// <summary>How much the rate climbs from the gate to the end of the night (before the crew and car factors): steeper with each crewmate over one.</summary>
-    public static double Ramp(int crew, EncounterTuning t) =>
+    public static double Ramp(int crew, EncountersTuning t) =>
         Math.Max(0, t.Ramp + Math.Max(0, t.RampPerCrew) * (Math.Max(1, crew) - 1));
 
-    /// <summary>The crew's factor: 1 alone, <see cref="EncounterTuning.PerCrew"/> more for each crewmate over one.</summary>
-    public static double CrewFactor(int crew, EncounterTuning t) => 1 + Math.Max(0, t.PerCrew) * (Math.Max(1, crew) - 1);
+    /// <summary>The crew's factor: 1 alone, <see cref="EncountersTuning.PerCrew"/> more for each crewmate over one.</summary>
+    public static double CrewFactor(int crew, EncountersTuning t) => 1 + Math.Max(0, t.PerCrew) * (Math.Max(1, crew) - 1);
 
-    /// <summary>The train's factor: 1 to <see cref="EncounterTuning.CarsFrom"/> cars, <see cref="EncounterTuning.PerCar"/> more for each car past it, with no breakpoints.</summary>
-    public static double CarFactor(int cars, EncounterTuning t) => 1 + Math.Max(0, t.PerCar) * Math.Max(0, cars - t.CarsFrom);
+    /// <summary>The train's factor: 1 to <see cref="EncountersTuning.CarsFrom"/> cars, <see cref="EncountersTuning.PerCar"/> more for each car past it, with no breakpoints.</summary>
+    public static double CarFactor(int cars, EncountersTuning t) => 1 + Math.Max(0, t.PerCar) * Math.Max(0, cars - t.CarsFrom);
 
     /// <summary>
     /// The opportunities a whole night of <paramref name="minutes"/> holds if progress runs evenly from 0 to 1 (the rate's
     /// mean over the night × its length): what the sweep's encounter counts are read against (brief §7). Midpoint sums over
     /// <paramref name="steps"/>.
     /// </summary>
-    public static double Night(double minutes, int crew, int cars, RouteTier tier, EncounterTuning t, int steps = 200)
+    public static double Night(double minutes, int crew, int cars, RouteTier tier, EncountersTuning t, int steps = 200)
     {
         double sum = 0;
         for (int i = 0; i < steps; i++)
@@ -85,11 +85,10 @@ public static class EncounterPacing
     }
 }
 
-/// <summary>
-/// The encounter rate's tuning (<see cref="EncounterPacing"/>; note 877). Mirror of enemies.json <c>director.encounters</c>;
-/// field docs live there. The defaults are the brief's prototype (§3). #607's encounter debt adds its <c>debt</c> here.
-/// </summary>
-public sealed record EncounterTuning
+// The encounter rate's numbers (note 877), in director.encounters beside #607's debt: EncountersTuning is partial, one part
+// for each overhaul item. Mirror of enemies.json director.encounters; field docs live there. The defaults are the brief's
+// prototype (§3).
+public sealed partial record EncountersTuning
 {
     public double Base { get; init; } = 0.12;
     public double Ramp { get; init; } = 0.33;

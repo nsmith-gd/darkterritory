@@ -719,8 +719,6 @@ public sealed record DirectorTuning(
     public CurveTuning Curve { get; init; } = new();
     /// <summary>The stops' own creatures, in place as the train stands at a yard or village, and one boarding there (note 860).</summary>
     public StopsTuning Stops { get; init; } = new();
-    /// <summary>The encounter rate, time × crew × cars × tier (the director's brief §1, §3; note 877): <see cref="EncounterPacing"/>.</summary>
-    public EncounterTuning Encounters { get; init; } = new();
     /// <summary>T128 (note 273): the pressure on a crewmate the train has left behind.</summary>
     public AbandonedTuning Abandoned { get; init; } = new();
     /// <summary>Note 327 (GDD App. F.3): the crew on foot off the train, watched: the pressure they draw, and the signs they're shown.</summary>
@@ -797,6 +795,8 @@ public sealed record DirectorTuning(
     public DrawTuning Draw { get; init; } = new();
     /// <summary>A short hold after a crisis (GDD App. B.1 "Aftermath"; note 751): enemies.json director.aftermath.</summary>
     public AftermathTuning Aftermath { get; init; } = new();
+    /// <summary>The encounter pacing (the spawn director overhaul, note 874): enemies.json director.encounters.</summary>
+    public EncountersTuning Encounters { get; init; } = new();
 }
 
 /// <summary>

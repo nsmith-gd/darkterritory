@@ -11,7 +11,7 @@ namespace DarkTerritory.Sim.Tests;
 /// </summary>
 public class EncounterPacingTests
 {
-    static readonly EncounterTuning T = Tuning.Enemies.Director.Encounters;
+    static readonly EncountersTuning T = Tuning.Enemies.Director.Encounters;
     static readonly int[] Crews = [1, 2, 3, 4, 6, 8];
     static readonly int[] Cars = [2, 3, 4, 8, 12, 18, 24];
     static readonly RouteTier[] Tiers = Enum.GetValues<RouteTier>();
