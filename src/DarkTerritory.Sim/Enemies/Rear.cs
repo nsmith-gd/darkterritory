@@ -769,7 +769,8 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
     /// <summary>
     /// Struck (note 891): driven back from whoever hit it for <see cref="HoundAboardTuning.StruckSeconds"/>, along its car; at
     /// its end toward the back, over the gap onto the car behind; at the back of the train with a way off, off it. Driven
-    /// toward the engine it stops at its car's end. True while it's being driven (it does nothing else this tick).
+    /// toward the engine it stops at its car's end; and then it crouches <see cref="HoundAboardTuning.CrouchSeconds"/> before it
+    /// comes again. True while it's being driven (it does nothing else this tick).
     /// </summary>
     bool Pushed(EnemyContext ctx, HoundTuning t)
     {
@@ -779,6 +780,9 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         var train = ctx.Train;
         _struck -= SimConstants.TickSeconds;
         _biteTimer = 0;
+        // Driven back as far as the blow sends it, it crouches a beat before it comes again: the crew's time to press it.
+        if (_struck <= 0)
+            _crouchUntil = PhaseSeconds + a.CrouchSeconds;
         if (Aboard == HoundMode.Leap)
         {
             Leaping(ctx, t.Patrol);

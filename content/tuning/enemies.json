@@ -101,11 +101,11 @@
     // lungeShort m short of them) and bites as it lands if they're still in reach (biteDamage; down to the last, the pin),
     // backs off retreatMetres at retreatSpeed m/s, crouches crouchSeconds watching them, and comes again. A blow that
     // doesn't kill it drives it away from whoever struck it for struckSeconds at struckSpeed m/s, over the gap to the car
-    // behind; at the back of the rear car (its roof's end, or inside with one of its doors open), with leaveAtRear, it
-    // leaves the train (as the extinguisher drives it off). The spray's backing off (note 728) leaves the same way.
+    // behind, and then crouches crouchSeconds before it comes again; at the back of the rear car (its roof's end, or inside
+    // with one of its doors open), with leaveAtRear, it leaves the train (as the extinguisher drives it off). The spray's backing off (note 728) leaves the same way.
     // on false: note 472's bite every biteEverySeconds where it stands, and the clock only while it's alone.
     "aboard": { "on": true, "lungeFrom": 4, "lungeSeconds": 0.5, "lungeShort": 0.8, "retreatMetres": 3, "retreatSpeed": 2.5,
-      "crouchSeconds": 2, "struckSeconds": 1.5, "struckSpeed": 3.5, "leaveAtRear": true },
+      "crouchSeconds": 2, "struckSeconds": 1, "struckSpeed": 3.5, "leaveAtRear": true },
     "boredSeconds": 6,
     // App. B.3: needs sustained speed first.
     "minTrainSpeed": 8,

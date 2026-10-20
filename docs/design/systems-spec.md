@@ -398,7 +398,7 @@ A car fire burns on cells (decided 6 Oct, GDD App. F.1; ARCHITECTURE note 267). 
 | A hound over the crew | A Cinder Hound on the roof of a car with a crewmate inside it (out of its reach, note 471) is not alone: it doesn't feed and relight the car over their heads; it prowls and waits for them to come out (note 851) |
 | A hound's fires | Once every `igniteEverySeconds` 90 s aboard (was 20), the car it's on: counted the whole time it's aboard, set back to nought by a blow on it or a fire it lights; held while crew are near it (the row above), lit once they're gone (the director, 9 Oct: "reignite every minute and a half ... Attacking a cinder hound should reset its ignite burst"; note 891; `HoundAboardTests`, `BoardingRuleTests`) |
 | A hound's bite aboard | Someone it can reach within 4 m: a lunge of 0.5 s to 0.8 m short of them, the bite (35) as it lands if they're within its 4 m reach, back off 3 m at 2.5 m/s, crouch 2 s, again (`cinderHounds.aboard`; on false, note 472's bite every 4 s where it stands) |
-| A blow on a hound aboard | Driven back from the striker 1.5 s at 3.5 m/s, over the gap onto the car behind; at the back of the rear car with a way off (its roof's end; inside, one of its doors open) it leaves the train, counted as driven off. The spray's backing off (note 728) leaves the same way |
+| A blow on a hound aboard | Driven back from the striker 1 s at 3.5 m/s, over the gap onto the car behind, then a 2 s crouch before it comes again; at the back of the rear car with a way off (its roof's end; inside, one of its doors open) it leaves the train, counted as driven off. The spray's backing off (note 728) leaves the same way |
 
 ---
 

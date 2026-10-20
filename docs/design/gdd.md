@@ -1676,7 +1676,7 @@ PACK FIGHT several hounds; each takes several bludgeons; bites hard
           └ LUNGE: someone in reach on its ground, spotted → leaps at them and bites as it lands,
             backs off 3 m, crouches 2 s watching them, and again (note 891)
 STRUCK    a blow that doesn't kill it → its ignite clock back to nought; driven back from the
-          striker 1.5 s, over the gap to the car behind (note 891)
+          striker 1 s, over the gap to the car behind, then a 2 s crouch (note 891)
           └ LEAVES: driven to the back of the rear car with a way off (its roof's end, or
             inside with a door open) → off the train
 IGNITE    every 90 s aboard (its clock reset by a blow, or by a fire it lit), the car it's on,

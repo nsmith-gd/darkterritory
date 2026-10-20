@@ -678,7 +678,7 @@ public sealed record HoundAboardTuning
     public double RetreatMetres { get; init; } = 3;
     public double RetreatSpeed { get; init; } = 2.5;
     public double CrouchSeconds { get; init; } = 2;
-    public double StruckSeconds { get; init; } = 1.5;
+    public double StruckSeconds { get; init; } = 1;
     public double StruckSpeed { get; init; } = 3.5;
     public bool LeaveAtRear { get; init; } = true;
 }
