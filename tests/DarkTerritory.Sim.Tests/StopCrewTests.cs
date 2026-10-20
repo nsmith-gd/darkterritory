@@ -1535,6 +1535,38 @@ public class StopCrewTests
             $"doors open at {night.World.Run!.Seconds:0}s: {string.Join(", ", night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job?.Doing))}; driver {night.Driver.Stops!.Doing}");
     }
 
+    [Theory]
+    [InlineData(3, 2)]
+    [InlineData(1, 2)]
+    [InlineData(5, 1)]
+    public void TheStopsPackingLeavesWholeHalvesForTheHeavyCrates(int lights, int heavies)
+    {
+        // Note 920 (queue #630; Rhea's find under #623, note 903): each car has a half's room. An odd count of lights to the
+        // roomiest car went one to a car and left the heavies no whole half: three lights and two heavies, 1.75 against 2,
+        // loaded 1.25 and left a heavy in the yard. The plan sets the heavies' halves aside first, so everything that fits goes.
+        var counts = F with { Crates = F.Crates with { Count = [lights, lights], Heavy = F.Crates.Heavy with { Count = [heavies, heavies] } } };
+        var night = new Night(cars: 8, walkers: 1, crateHands: true, ids: true, facilities: counts, modules: ModuleKind.Crates);
+        var train = night.Train;
+        var run = night.World.Run!;
+        var cargoCars = train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo).ToList();
+        double before = cargoCars.Sum(v => v.Load);
+        var doing = new HashSet<string>();
+        night.Until(() => run.Departures > 0, 1500, () =>
+        {
+            foreach (var b in night.Bots)
+                if (b is RoofWalkerBot { Job.Doing: { Length: > 0 } d })
+                    doing.Add(d);
+        });
+        Assert.True(run.Departures > 0, $"never left: driver {night.Driver.Stops!.Doing}");
+        int fit = SpurDrill.Capacity(T.Geometry, train.Line.Branches[night.Site.Spur], Tuning.Route.Junctions.PointsLength);
+        double room = fit * (1 - HalfLoaded);
+        double offered = lights * F.Crates.LoadPerCrate + heavies * F.Crates.Heavy.LoadPerCrate;
+        Assert.True(offered <= room, $"offered {offered} against {room}: not a packing test");
+        Assert.True(Math.Abs(offered - (cargoCars.Sum(v => v.Load) - before)) < 1e-6, $"loaded {cargoCars.Sum(v => v.Load) - before} of {offered}; {string.Join(", ", doing)}; heavies {string.Join("; ", night.World.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Heavy).Select(b => $"#{b.Id} on {b.Parent} banked {b.Banked} carrier {b.Carrier} at {b.Centre}"))}; cars {string.Join(", ", cargoCars.Select(v => $"{v.Id}:{v.Load:0.00}"))}; lights {string.Join("; ", night.World.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Cargo && !b.Banked).Select(b => $"#{b.Id} on {b.Parent} carrier {b.Carrier} at {b.Centre}"))}; at {run.Seconds:0}s; last {string.Join(" | ", night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job?.Doing))}");
+        Assert.DoesNotContain(night.World.Bodies.All, b => b.Kind == Physics.BodyKind.Heavy && !b.Banked);
+        Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}"));
+    }
+
     /// <summary>Someone who stands still: a player holding a heavy crate's end, waiting.</summary>
     sealed class Waiting : IWorldBot
     {

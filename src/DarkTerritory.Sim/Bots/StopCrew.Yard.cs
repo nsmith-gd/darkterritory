@@ -36,8 +36,10 @@ public sealed partial class StopHand
             return null;
         var t = Crew(world);
         // (A jackpot fetched once the loading's done, note 867: whatever the driver's called; it's out, so the driver waits.)
+        // Note 920: room for a light, or a whole half the stop's packing plan holds for a heavy one (only a heavy, then).
+        bool lights = Roomiest(world, p, calls, member) >= 0;
         if (world.Run is not { } run || calls.Leaving && !_jackpotsOnly || PlayerId is null || t.YardReach <= 0 || run.DawnIn < t.VillageDawnSpare
-            || Roomiest(world, p, calls, member) < 0)
+            || !lights && p.HeavyCar(world, calls, member) < 0)
             return LetGoOfCrate();
         var train = world.Train;
         var here = PlayerMotor.WorldPosition(self, train);
@@ -46,7 +48,7 @@ public sealed partial class StopHand
         if (crate is null || crate.Carrier >= 0 || crate.Parent != PlayerState.World)
         {
             LetGoOfCrate();
-            crate = NextCrate(world, p, here, t.YardReach, t.JackpotReach);
+            crate = NextCrate(world, p, here, t.YardReach, t.JackpotReach, lights);
             if (crate is null)
                 return null;
         }
@@ -102,7 +104,9 @@ public sealed partial class StopHand
         if (_leadFor == crate.Id && (Flat(_leadFrom) - Flat(crate.Centre)).Length < 0.3)
             return _lead;
         var train = world.Train;
-        int car = Roomiest(world, p, calls, member);
+        // Toward the car it's going to (note 920: a heavy one's car is the packing plan's, with a whole half for it; led out
+        // toward the lights' car, the pair turned round on the way and let it fall again and again).
+        int car = crate.Kind == Physics.BodyKind.Heavy && p.HeavyCar(world, calls, member) is var forIt and >= 0 ? forIt : Roomiest(world, p, calls, member);
         var home = train.Frames[car >= 0 ? car : 0].Origin;
         var way = FootPath.Plan(train, crate.Centre, home);
         var first = way is { Count: > 0 } ? way.FirstOrDefault(q => (Flat(q) - Flat(crate.Centre)).Length > 1.0, way[^1]) : home;
@@ -125,10 +129,11 @@ public sealed partial class StopHand
     /// know who they are to carry it (<see cref="CrewCalls.HeavyHands"/>): this hand takes an end, and another comes for the
     /// other (<see cref="Wanting"/>).
     /// </remarks>
-    Physics.Body? NextCrate(World world, StopPlan p, Double3 here, double reach, double jackpotReach = 0)
+    /// <param name="lights">A light one too: the packing plan has room for it (note 920); else only a heavy one.</param>
+    Physics.Body? NextCrate(World world, StopPlan p, Double3 here, double reach, double jackpotReach = 0, bool lights = true)
     {
         bool heavy = calls.HeavyHands >= 2;
-        return world.Bodies.All.Where(b => (_jackpotsOnly ? Run.Run.IsJackpot(b) : b.Kind == Physics.BodyKind.Cargo || heavy && b.Kind == Physics.BodyKind.Heavy)
+        return world.Bodies.All.Where(b => (_jackpotsOnly ? Run.Run.IsJackpot(b) : lights && b.Kind == Physics.BodyKind.Cargo || heavy && b.Kind == Physics.BodyKind.Heavy)
                 && b.Parent == PlayerState.World && b.Carrier < 0 && b.Pbd.Asleep
                 && !p.Loose(world, b) && (Flat(b.Centre) - Flat(here)).Length <= (Run.Run.IsJackpot(b) ? Math.Max(reach, jackpotReach) : reach)
                 && !calls.SpotClaimed(CrateKey(b.Id), member) && !_cantReach.Contains(CrateKey(b.Id))
