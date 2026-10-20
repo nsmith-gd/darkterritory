@@ -1,0 +1,37 @@
+{
+  "title": "Players off Steam: Steam-only at launch, or build an EOS relay?",
+  "from": "nathaniel1-tbm",
+  "kind": "choose",
+  "body": "What the player sees: a friend who bought the game on itch.io can join only by typing your address, and only if your router has the port open. Many home routers don't allow it. Steam players don't have the problem because Steam relays the connection.\n\nBackground (queue #274, netcode audit gap 6): Lethal Company shipped Steam-only. The other route is Epic's free relay (EOS P2P), a third network carrier the design already leaves room for. It's about a week of agent work plus a test evening, and then a second network path to keep working in every release.\n\nDecision: which one for launch.\n\nDefault meanwhile: Steam-only, as Lethal Company did. LAN and direct IP keep working, and the itch page says online play needs Steam. EOS stays unbuilt.",
+  "options": [
+    {
+      "key": "steam",
+      "label": "Steam-only online at launch",
+      "detail": "No new work. itch players need LAN or an open port. Say so on the itch page. Can add EOS later."
+    },
+    {
+      "key": "eos",
+      "label": "Build EOS relay",
+      "detail": "About a week; itch and other-store players can play online with friends. A second thing to test and keep working."
+    },
+    {
+      "key": "later",
+      "label": "Steam-only now, EOS after launch if asked",
+      "detail": "Same as Steam-only; we write up the relay plan so it can start when you say."
+    }
+  ],
+  "links": [
+    "https://github.com/nsmith-gd/darkterritory/blob/main/docs/netcode-audit.md",
+    "https://github.com/nsmith-gd/darkterritory/blob/main/docs/ROADMAP.md"
+  ],
+  "pr": null,
+  "queue": 274,
+  "note": null,
+  "tags": [
+    "steam",
+    "netcode",
+    "itch"
+  ],
+  "blocking": false,
+  "status": "open"
+}

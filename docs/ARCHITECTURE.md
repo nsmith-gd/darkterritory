@@ -1057,4 +1057,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [873. A crate hand sent to shut a car's door stood still at the foot of its steps (queue #553; B3's find on #532, note 820)](notes/873.md)
 - [874. The spawn director overhaul: the plan, split into queue items #600–#613 so several agents can work at once (the director, 20 Oct 2026;…](notes/874.md)
 - [877. The encounter rate λ(progress, crew, cars, tier): `EncounterPacing` (the director's brief §1, §3; plan note 874; nathaniel1's n1-C1, queue…](notes/877.md)
+- [891. The Cinder Hounds aboard, the director's 9 Oct answer (n1-H1, queue #614; inbox `D1.2-car-fires-from-packs`, note 857's call 1)](notes/891.md)
 <!-- end of the notes index -->

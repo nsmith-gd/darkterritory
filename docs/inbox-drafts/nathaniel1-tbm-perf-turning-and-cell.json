@@ -1,0 +1,18 @@
+{
+  "title": "Performance: a measurement only you can take (turning hitch and the big track mesh)",
+  "from": "nathaniel1-tbm",
+  "kind": "answer",
+  "body": "What the player feels: on 13 Oct you reported the game stuttering in towns, a frame drop when a prompt pops up, and frame drops when you turn fast. The town stutter and the prompt drop are fixed (houses rebuilt every frame; code compiled on the spot). Two things remain that this machine can't settle.\n\nBackground (note 695, queue #427): (1) Turning fast: nothing the CPU builds depends on where you look, so it was probably the town fix, but that needs checking on your PC. (2) Each 100 m piece of line is one mesh of 14 to 28 MB. It uploaded in 440 to 1,100 ms here, but this machine has a software renderer and a real GPU is far faster, so nobody knows if you feel it.\n\nWhat to do: play the latest Test build for one night on frontier:7. Flick the view hard left and right for 20 seconds in a town and on the open line, and ride the line at speed. Then send up the night's logs/test-reports.txt and say yes/no if it hitched in each place.\n\nDefault meanwhile: no more perf work on these two. If you report a hitch, A1 splits the cell mesh in two uploads and halves lineside detail.",
+  "links": [
+    "https://github.com/nsmith-gd/darkterritory/blob/main/docs/notes/695.md",
+    "https://github.com/nsmith-gd/darkterritory/blob/main/docs/playtest/2026-10-13-evening.md"
+  ],
+  "pr": null,
+  "queue": 427,
+  "note": 695,
+  "tags": [
+    "performance"
+  ],
+  "blocking": false,
+  "status": "open"
+}
