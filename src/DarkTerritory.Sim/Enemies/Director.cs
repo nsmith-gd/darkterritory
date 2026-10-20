@@ -59,6 +59,8 @@ public sealed class Director
         _freeRng = new Pcg32(unchecked(seed * 0x9E3779B97F4A7C15UL + 0xF4EE), 0xF4EE);
         _stopRng = new Pcg32(unchecked(seed * 0x9E3779B97F4A7C15UL + 0x5709), 0x5709);
         _seed = seed;
+        // The encounter clock's thresholds (#608, note 908): a stream of their own, drawn only when an encounter places.
+        _paceRng = new Pcg32(seed, 0xD21E);
         var tier = route?.Tier ?? RouteTier.Frontier;
         string key = char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..];
         double baseBudget = tuning.BaseBudget.GetValueOrDefault(key, 70);
@@ -468,6 +470,43 @@ public sealed class Director
         return null;
     }
 
+    /// <summary>Held for a quiet the game means (#608, note 908): the encounter clock gains nothing this second.</summary>
+    SpawnAttempt? Held(string why, DebtCause quiet)
+    {
+        _hold = quiet;
+        return Held(why);
+    }
+
+    /// <summary>
+    /// The one pacing model (the brief §3; note 874's #608; note 908): the encounters the night owes the crew at the encounter
+    /// rate λ, and what went unmet as bounded debt. Every channel's placed encounter pays it; the free channel sends when it's
+    /// due. Its state as of the director's last second.
+    /// </summary>
+    public EncounterClock Pacing => _clock;
+    EncounterClock _clock = EncounterClock.Start;
+    Pcg32 _paceRng;
+    /// <summary>Why this second's director is held for an intended quiet, or null.</summary>
+    DebtCause? _hold;
+    /// <summary>Why the free channel last went unmet: nothing fitting, or what it chose finding nowhere.</summary>
+    DebtCause _unmet = DebtCause.Ineligible;
+    /// <summary>The encounter rate a minute as of the director's last second (λ, <see cref="EncounterPacing.Rate"/>).</summary>
+    public double EncounterRate { get; private set; }
+
+    /// <summary>
+    /// The encounter clock's second (note 908), after the director's choice: λ at the night's progress for the crew alive and
+    /// the cars, unless held for a quiet the game means; the debt repaid into the engaged caps' room.
+    /// </summary>
+    void Pace(World world, double elapsed, IReadOnlyList<Enemy> active)
+    {
+        var e = _t.Encounters;
+        if (!e.Drive.On)
+            return;
+        double progress = EncounterPacing.Progress(elapsed, _route?.DawnSeconds ?? 0, world.Train.Dynamics.Distance, _route?.RunLength ?? 0, _clock.Progress);
+        EncounterRate = EncounterPacing.Rate(progress, Math.Max(1, Active), _cars, _route?.Tier ?? RouteTier.Frontier, e);
+        double headroom = Math.Max(0, EngagedCap - Holding(world, active).Count);
+        _clock = (_clock with { Progress = progress }).Second(EncounterRate / 60, _hold, _unmet, headroom, e);
+    }
+
     /// <summary>
     /// Chooses and commits as placed (note 885): for tests and tools that think with the director without putting anything in
     /// the world. The world itself chooses (<see cref="Choose"/>), places and commits (<see cref="Commit"/>).
@@ -486,6 +525,14 @@ public sealed class Director
     /// </summary>
     public SpawnAttempt? Choose(World world, double elapsed, IReadOnlyList<Enemy> active, double noSpawnFinal)
     {
+        _hold = null;
+        var attempt = ChooseNow(world, elapsed, active, noSpawnFinal);
+        Pace(world, elapsed, active);
+        return attempt;
+    }
+
+    SpawnAttempt? ChooseNow(World world, double elapsed, IReadOnlyList<Enemy> active, double noSpawnFinal)
+    {
         _cooldown -= 1;
         _sinceAny += 1;
         _seconds += 1;
@@ -503,12 +550,12 @@ public sealed class Director
         var train = world.Train;
         double s = train.Dynamics.Distance;
         if (elapsed < Grace)
-            return Held("grace");
+            return Held("grace", DebtCause.Grace);
         if (_route is not null && s > _route.RunLength - noSpawnFinal)
-            return Held("final stretch");
+            return Held("final stretch", DebtCause.Terminus);
         // GDD §9, T128 (note 273): nothing comes for a train that's in one of the forts.
         if (world.TrainInFort)
-            return Held("in a fort");
+            return Held("in a fort", DebtCause.SafeZone);
         // A generated line's director context (linegen plan §15): no spawns under a ban (the grace stretch, the terminus), and
         // none of its own while the terrain is already at its hardest there (§15.4). The pressure waits with it: the terrain's
         // the problem there, not the quiet.
@@ -521,9 +568,9 @@ public sealed class Director
             // grace (T74, ARCHITECTURE §8 notes 85 and 195): the stretch keeps its easy geometry and no Sleepers or Grease on it.
             bool graceOver = _t.LineGraceSeconds >= 0 && world.Run is { } graceRun && graceRun.Seconds >= Math.Max(_t.LineGraceSeconds, Grace);
             if (tags.FirstOrDefault(t => context.SpawnBans.Contains(t) && !(t == "grace" && graceOver)) is { } ban)
-                return Held($"banned ({ban})");
+                return Held($"banned ({ban})", ban == "grace" ? DebtCause.Grace : ban.StartsWith("terminus") ? DebtCause.Terminus : DebtCause.SafeZone);
             if (context.PressureAt(s) >= context.PressureCeiling)
-                return Held("terrain at its ceiling");
+                return Held("terrain at its ceiling", DebtCause.Recovery);
         }
         Build(world, active, elapsed, s);
         // Slack presses (note 345; orchestrator.md §3.2 4): each crewmate who's had nothing to answer for slackPress seconds
@@ -534,7 +581,7 @@ public sealed class Director
         // pressed; the pressure goes on building (the dawn clock doesn't wait either), so whatever's due comes after it. Not
         // pressed through: at twelve seconds it's short enough not to need to be.
         if (shaken)
-            return Held("aftermath");
+            return Held("aftermath", DebtCause.Recovery);
         // The stops' own (note 860): what lives at the yard or village the train stands at is there as it comes in, the facility
         // lull or not (it was there before the train came; its own rules say when it moves).
         if (SpendStop(world, active, s) is { } waiting)
@@ -545,7 +592,7 @@ public sealed class Director
         // arrival, as the rule says. What isn't the director's spend keeps its own rules (the Stoker's heat, the Pickers'
         // own wait, a left-behind's hunts). The pressure builds through it, as through the grace's end.
         if (lull)
-            return Held("facility lull");
+            return Held("facility lull", DebtCause.Recovery);
         if (Spend(world, elapsed, active, s, tags, context) is { } spent)
             return spent;
         // Nothing of the budget's: the night's curve may send something free (note 849).
@@ -596,7 +643,7 @@ public sealed class Director
         var holding = Holding(world, active);
         int total = holding.Count;
         if (total >= EngagedCap)
-            return Held("at the cap");
+            return Held("at the cap", DebtCause.Capped);
         double available = Allowance(s) - _spent;
         var options = new List<(EnemyKind Kind, double Weight)>();
         if (world.Enemies is { } et)
@@ -783,15 +830,26 @@ public sealed class Director
             return null;
         // Rolled every second it may come, before anything else is asked, so what held it doesn't move the night's dice.
         // One that fired and found nowhere is still owed a while (note 885): the roll's made all the same, so the dice don't move.
-        bool fires = _freeRng.NextDouble() < f.PerHour(Curve, Math.Max(1, Active)) / 3600 || _seconds < _freeOwedUntil;
+        // With the one pacing model (#608, note 908) it sends when the encounter clock says one is due, not on a roll: the roll is
+        // still drawn, so the curve's dice run as they did.
+        bool rolled = _freeRng.NextDouble() < f.PerHour(Curve, Math.Max(1, Active)) / 3600;
+        bool fires = (_t.Encounters.Drive.On ? _clock.Ready : rolled) || _seconds < _freeOwedUntil;
         if (!fires || _sinceAny < f.SpacingSeconds)
             return null;
         var holding = Holding(world, active);
-        if (holding.Count >= EngagedCap || world.Enemies is not { } et)
+        if (holding.Count >= EngagedCap)
+        {
+            _hold = DebtCause.Capped;
+            return null;
+        }
+        if (world.Enemies is not { } et)
             return null;
         var options = FreeOptions(world, et, holding, withBound: true);
         if (options.Count == 0)
+        {
+            _unmet = DebtCause.Ineligible;
             return null;
+        }
         options = WeighVotes(WhoseNext(options));
         double total = options.Sum(o => o.Weight);
         if (total <= 0)
@@ -1084,7 +1142,13 @@ public sealed class Director
             afoot += world.HorseplayTuning.Marked.PressurePerSecond;
         // By the crew in the night (who joined it, alive or not: the relief valve has the dead) and the cars the engine
         // pulls (note 646).
-        double scale = p.Scale(Math.Max(1, Crew), world.Train.Dynamics.Consist.CarCount);
+        // With the one pacing model (#608, note 908) by the encounter rate's own crew and train factors: 1 alone on a short
+        // train and rising from there (the brief §2 issue 1: no more a solo crew's pressure at a third of a four's).
+        var e = _t.Encounters;
+        int cars = world.Train.Dynamics.Consist.CarCount;
+        double scale = e.Drive is { On: true, PressureScale: true }
+            ? EncounterPacing.CrewFactor(Math.Max(1, Crew), e) * EncounterPacing.CarFactor(cars, e)
+            : p.Scale(Math.Max(1, Crew), cars);
         double rate = _tierRate * scale * conditions * relief * busy * escalation * (p.BasePerSecond + quiet + loud + cargo + afoot);
         _pressure = Math.Min(p.Max, _pressure + rate);
         Terms = new PressureTerms(rate, escalation, _sinceThreat, loud, cargo, relief, conditions, afoot);
@@ -1943,10 +2007,16 @@ public sealed class Director
             HeldBecause = $"failed ({outcome.Failure})";
             _failedUntil[attempt.Kind] = _seconds + tries.FailHoldSeconds;
             if (attempt.Channel == SpawnChannel.Free)
+            {
                 _freeOwedUntil = _seconds + tries.FreeRetrySeconds;
+                _unmet = DebtCause.NoPlacement;
+            }
             return outcome;
         }
         HeldBecause = null;
+        // Placed, by whichever channel: one encounter off the night's account (#608, note 908), a pack as one.
+        if (_t.Encounters.Drive.On)
+            _clock = _clock.Paid(EncounterClock.NextThreshold(_paceRng.NextDouble(), _t.Encounters), _t.Encounters);
         switch (attempt.Channel)
         {
             case SpawnChannel.Pressure:
