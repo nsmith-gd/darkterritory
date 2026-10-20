@@ -122,9 +122,9 @@ return args switch
     ["film", ..] => Print(FilmCommands.Run(content, args)),
     ["playthrough", ..] => Print(PlaythroughCommands.Run(content, args)),
     ["afoot", "census", ..] => Print(AfootCommands.Census(content, args)),
-    // dt eligibility [--routes frontier:7,deadLines:3] [--crews 1:3,2:5,4:8] [--seeds 1-3] [--seconds 2700] [--markdown f.md]: every
+    // dt eligibility rolls [--seeds 1-2000]: each kind's nightChance with the night's floor, by tier and crew. dt eligibility [--routes frontier:7,deadLines:3] [--crews 1:3,2:5,4:8] [--seeds 1-3] [--seconds 2700] [--markdown f.md]: every
     // kind of the director's spend table, its gates read a second at a time through ordinary nights (note 875).
-    ["eligibility", ..] => Print(EligibilityCommands.Run(args, (a, also) => RunHarness(a, also))),
+    ["eligibility", ..] => Print(EligibilityCommands.Run(content, args, (a, also) => RunHarness(a, also))),
     ["afoot", ..] => Print(AfootCommands.Run(content, args)),
     // dt town [--route tier:seed] [--last culture] | dt town sweep [--seeds n]: the departure fortress's town (note 281).
     ["town", ..] => Print(TownCommands.Run(content, args)),
@@ -2780,7 +2780,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         }
         else
             waker.Restore(holds ? DarkTerritory.Sim.Enemies.SpinePhase.Punish : DarkTerritory.Sim.Enemies.SpinePhase.Commit, 30, 1, -1, default,
-                train.RearDistance - (holds ? 4 : Opt(args, "--behind", 150)), 0, 0, holds ? Opt(args, "--held", 7) : 0, 0);
+                train.RearDistance - (holds ? wt.CatchShort : Opt(args, "--behind", 150)), 0, 0, holds ? Opt(args, "--held", 7) : 0, 0);
         scene.Enemies = [.. scene.Enemies ?? [], waker];
         var lifted = new List<CarFrame>(leaned ?? train.Frames);
         DarkTerritory.Game.WakerLift.Apply(lifted, train, [waker], wt);
@@ -2802,7 +2802,10 @@ static object Screenshot(TrainTuning t, string content, string[] args)
                 ? Camera.LookAt(eating.Origin + eating.Right * -34 + Double3.Up * 14 + eating.Back * -8, eating.Origin + Double3.Up * 6 + eating.Back * 4, 72)
                 : camera,
             "wakerlift" => Camera.LookAt(train.Frames[next.Index].ToWorld(new Double3(-60, 4, 10)), train.Frames[next.Index].ToWorld(new Double3(0, 9, 12)), 66),
-            "wakerinside" => Camera.LookAt(next.ToWorld(new Double3(0.4, next.Shape.Bounds.Max.Y + 1.6, -half * 0.4)), next.ToWorld(new Double3(-1.5, next.Shape.Bounds.Max.Y + 2, half + 14)), 80),
+            // (Note 902: once the car's up in his hands, up at it and his face.)
+            "wakerinside" => Camera.LookAt(next.ToWorld(new Double3(0.4, next.Shape.Bounds.Max.Y + 1.6, -half * 0.4)),
+                DarkTerritory.Game.WakerLift.Of(train.Frames, train, waker, wt) is { Raised: > 0.3 } up ? up.Mouth
+                    : next.ToWorld(new Double3(-1.5, next.Shape.Bounds.Max.Y + 2, half + 14)), 80),
             _ => camera,
         };
     }
