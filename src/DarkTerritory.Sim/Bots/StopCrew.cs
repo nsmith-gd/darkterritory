@@ -3186,7 +3186,12 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
             return OpenSideDoor(world, p, calls, member, self) is { } car ? ShutUp(self, world, p, car) : Done(self, world, p);
         }
         if (!heavy && _setDown is null || _car < 0)
-            _car = Roomiest(world, p, calls, member);
+        {
+            // (One already in hand goes in where there's room, as ever: a hand stood holding it can't take a heavy's end.)
+            _car = Roomiest(world, p, calls, member, light: !heavy);
+            if (_car < 0 && !heavy)
+                _car = Roomiest(world, p, calls, member);
+        }
         calls.CarryingTo(member, heavy ? _car : -1);
         // Every car's room spoken for by crates on their way in: wait for them to land (then either there's room again,
         // or the crates are done and the doors want shutting). Going aboard now would leave this stop for good.
@@ -3332,7 +3337,9 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         // Nothing loose just now, though some are still on their way in (in someone's arms, settling): wait by the stack
         // for the next, rather than give up the stop.
         // The light ones gone, two hands take a heavy one between them: one takes an end, and the other comes to help.
-        var crate = Crate(world, p, self)
+        // Note 903: a light one only if there's a car for it that leaves the heavies their room; else the heavy first.
+        bool lightRoom = Roomiest(world, p, calls, member, light: true) >= 0 || Roomiest(world, p, calls, member) < 0;
+        var crate = (lightRoom ? Crate(world, p, self) : null)
             ?? (PlayerId is not null && calls.HeavyHands >= 2 ? HeavyCrate(world, p, self) : null);
         if (crate is null)
         {
@@ -3453,9 +3460,10 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
 
     /// <summary>
     /// The cargo car in the engine's rake with the most room, counting crates already put down in it and the ones others
-    /// say they're taking there; of equal ones, the nearest the stack.
+    /// say they're taking there; of equal ones, the nearest the stack. For a light crate (<paramref name="light"/>), none that
+    /// would leave the cars fewer heavy-sized rooms than there are heavy crates still to load (note 903).
     /// </summary>
-    static int Roomiest(World world, StopPlan p, CrewCalls calls, int member)
+    static int Roomiest(World world, StopPlan p, CrewCalls calls, int member, bool light = false)
     {
         var train = world.Train;
         // Put down inside a car and settling: that room's taken. One left on a car's steps isn't in it (T50).
@@ -3463,8 +3471,22 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         var pending = world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Cargo && b.Carrier < 0 && !b.Banked && b.Parent > 0 && StopPlan.Inside(train, b))
             .GroupBy(b => b.Parent).ToDictionary(g => g.Key, g => g.Count());
         var stack = p.Site.CrateStack.Length > 0 ? p.Site.CrateStack[0] : train.Frames[0].Origin;
-        return StopPlan.WithRoom(train).Select(v => (v.Id, Room: 1 - v.Load - p.Site.LoadPerCrate * (pending.GetValueOrDefault(v.Id) + calls.BoundFor(v.Id, member))))
-            .Where(x => x.Room > 1e-6).OrderByDescending(x => Math.Round(x.Room, 3)).ThenBy(x => (train.Frames[x.Id].Origin - stack).Length)
+        var cars = StopPlan.WithRoom(train).Select(v => (v.Id, Room: 1 - v.Load - p.Site.LoadPerCrate * (pending.GetValueOrDefault(v.Id) + calls.BoundFor(v.Id, member))))
+            .Where(x => x.Room > 1e-6).ToList();
+        // Note 903 (A1's loading, changed minimally): the light crates go in first (T45), each to the roomiest car, and that
+        // could leave every car a quarter short of a heavy crate's half with heavies still lying in the yard: StopCrewTests'
+        // heavy-crate night loaded 1.75 of its room of 2, two heavies left behind, as the surge's timing had it (main's timing
+        // happened to get the heavies in before the last light). A light crate now waits rather than take the room a heavy
+        // still needs; with room to spare it goes in first as ever.
+        if (light && p.Site.LoadPerHeavy > 0)
+        {
+            int heavies = world.Bodies.All.Count(b => b.Kind == Physics.BodyKind.Heavy
+                && (b.Lifted || b.Carrier >= 0 || calls.HeavyHands >= 2 && p.Loose(world, b)));
+            int Slots(int except) => cars.Sum(x => (int)Math.Floor((x.Room - (x.Id == except ? p.Site.LoadPerCrate : 0)) / p.Site.LoadPerHeavy + 1e-6));
+            if (heavies > 0)
+                cars = [.. cars.Where(x => x.Room >= p.Site.LoadPerCrate - 1e-6 && Slots(x.Id) >= heavies)];
+        }
+        return cars.OrderByDescending(x => Math.Round(x.Room, 3)).ThenBy(x => (train.Frames[x.Id].Origin - stack).Length)
             .Select(x => x.Id).DefaultIfEmpty(-1).First();
     }
 
