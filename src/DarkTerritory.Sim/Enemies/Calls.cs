@@ -176,11 +176,11 @@ public static class Calls
         }
         if (Spawns.For(kind) is not { } rule)
             return "it has no spawn of its own";
-        if (rule.Spawn(ctx))
+        if (rule.Spawn(ctx).Placed)
             return null;
         // From the train's middle, for what lives at the stop (a warren, a roost) further from you than its rule reaches.
         var middle = train.Line.Sample(train.Dynamics.Path, train.Dynamics.Distance - train.Dynamics.Consist.LengthMetres / 2).Position;
-        if (rule.Spawn(new SpawnContext(world, t, d) { CalledAt = middle, CrewAs = AsCrew }))
+        if (rule.Spawn(new SpawnContext(world, t, d) { CalledAt = middle, CrewAs = AsCrew }).Placed)
             return "from where it lives at this stop";
         return kind switch
         {

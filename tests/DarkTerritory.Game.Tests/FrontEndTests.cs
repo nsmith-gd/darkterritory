@@ -170,6 +170,57 @@ public sealed class FrontEndTests : IDisposable
     }
 
     [Fact]
+    public void TheBlacksmithSaysPlainlyWhenNothingCanBeBoughtAndShowsWhatItCosts()
+    {
+        // Note 904 (the director, 16 Oct: "It should tell me that nothing is available to purchase until you have scrip").
+        var m = Menu();
+        var broke = Campaign.New(C, 1, "Crew 1", 5) with { Scrip = 0 };
+        m.SmithyBuy = id => Campaign.BuyUpgrade(C, broke, id);
+        m.OpenSmithy(new NightMenu(Yard: true), new SmithyShop("Archie MacNeil", broke, CanBuy: true));
+        Assert.Equal("NOTHING CAN BE BOUGHT UNTIL YOU HAVE SCRIP", m.Items[0].Label);
+        Assert.False(m.Items[0].Enabled);
+        // Every line on the shelves says its price, the ones for a longer train too.
+        foreach (var u in C.Upgrades)
+            Assert.Contains(m.Items, i => i.Label.StartsWith($"{u.Name.ToUpperInvariant()}: ", StringComparison.Ordinal)
+                && i.Label.EndsWith($"{Campaign.UpgradeCost(C, broke, u):0} SCRIP", StringComparison.Ordinal));
+        // Some scrip, not enough: it says the cheapest.
+        var some = broke with { Scrip = 1 };
+        m.OpenSmithy(new NightMenu(Yard: true), new SmithyShop("Archie MacNeil", some, CanBuy: true));
+        Assert.StartsWith("NOTHING HERE YOU CAN AFFORD YET: 1 SCRIP", m.Items[0].Label, StringComparison.Ordinal);
+        // Enough, and the shelves start at their first heading.
+        m.OpenSmithy(new NightMenu(Yard: true), new SmithyShop("Archie MacNeil", broke with { Scrip = 100_000 }, CanBuy: true));
+        Assert.True(m.Items[0].Heading);
+        // The fortress's UPGRADES says it too.
+        Saves.Save(broke);
+        m.Back();
+        m.ShowFortress(1);
+        Choose(m, "UPGRADES");
+        Assert.Equal("NOTHING CAN BE BOUGHT UNTIL YOU HAVE SCRIP", m.Items[0].Label);
+    }
+
+    [Fact]
+    public void SettingsHasTheDevUnlockOnlyWhenADeveloperBuildGivesIt()
+    {
+        // Note 904 (the director, 16 Oct: "I don't see a developer setting to be able to go in and unlock everything"): a
+        // player's build never sets SmithyMode, and its Settings have no DEVELOPER section.
+        var m = Menu();
+        m.Show(Screen.Settings);
+        Assert.DoesNotContain(m.Items, i => i.Label == "DEVELOPER");
+        bool on = false;
+        m.SmithyMode = () =>
+        {
+            m.SmithyFree = on;
+            return (new MenuItem(on ? "DEV UNLOCK: ON" : "DEV UNLOCK: OFF"), () => on = !on);
+        };
+        m.Show(Screen.Settings);
+        Assert.Contains(m.Items, i => i is { Label: "DEVELOPER", Heading: true });
+        Choose(m, "DEV UNLOCK: OFF");
+        Assert.True(on);
+        Assert.True(m.SmithyFree);
+        Assert.Contains(m.Items, i => i.Label == "DEV UNLOCK: ON");
+    }
+
+    [Fact]
     public void TheFortressRenamesTheCrewAndDeletesItOnlyOnceAskedTwice()
     {
         var m = Menu();

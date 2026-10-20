@@ -39,8 +39,11 @@ public sealed partial class Effects(Look look)
     /// <param name="tailBite">What a Car Hugger's eaten of the last car (Art/BiteKit): its tail lamp goes with its corner.</param>
     /// <param name="reach">The headlamp's reach (train.json <c>headlampReach</c>, note 506): the beam drawn that much longer.</param>
     /// <param name="flare">A shovelful flaring (note 903; 1 is one at its height): the stack's answer to the stroke.</param>
+    /// <param name="searchlight">The rear searchlight's fitted on the last car (note 899): its beam back down the line, and the
+    /// track behind lit by it.</param>
     public void Train(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Double3 eye, double time, TrainControls controls, float fire, bool emergency,
-        bool vent = false, bool safety = false, Bite tailBite = default, bool whistle = false, bool dead = false, bool lamp = true, float reach = 1, float flare = 0)
+        bool vent = false, bool safety = false, Bite tailBite = default, bool whistle = false, bool dead = false, bool lamp = true, float reach = 1,
+        float flare = 0, bool searchlight = false)
     {
         if (frames.Count == 0 || (frames[0].Origin - eye).Length > 400)
             return;
@@ -194,14 +197,49 @@ public sealed partial class Effects(Look look)
             mesh.Billboard(at0 - head.LampDirection * 0.25f, 0.9f, 0, new Vector4(head.LampColour * (0.3f + 0.7f * glare), 1), -1, FxBlend.Additive);
             Beam(mesh, at0, head.LampDirection, head.LampConeDegrees * 0.8f, 40 * reach, head.LampColour * 0.07f);
         }
-        // The tail lamp's glow at the back of the train.
         var last = frames[^1];
+        if (searchlight)
+            Searchlight(mesh, last, eye);
+        // The tail lamp's glow at the back of the train.
         var corner = new Double3(-last.Shape.HalfWidth + 0.25, last.Shape.RoofHeight - 0.3, last.Shape.HalfLength + 0.15);
         if (tailBite.Eats(new Vector3((float)corner.X, (float)corner.Y, (float)corner.Z - 0.2f)))
             return;
         var tail = last.ToWorld(corner).RelativeTo(eye);
         mesh.Billboard(tail, 1.0f, 0, new Vector4(0.6f, 0.08f, 0.05f, 1), -1, FxBlend.Additive);
     }
+
+    /// <summary>
+    /// The rear searchlight (note 899; the director's "look": it lights, nothing more): a halo at its glass, a narrow beam back
+    /// down the line through the fog, and the track behind lit where it lands, a few practical lights stepped along the beam
+    /// (the renderer's one shadowed spot is the headlamp's).
+    /// </summary>
+    void Searchlight(MeshBuilder mesh, in CarFrame van, Double3 eye)
+    {
+        var mount = van.ToWorld(WhimsyKit.SearchlightMount(van.Shape));
+        if ((mount - eye).Length > 400)
+            return;
+        var m = SceneArt.FrameMatrix(van, eye);
+        var glass = Vector3.Transform(Vector3.Transform(WhimsyKit.SearchlightLens, Matrix4x4.CreateTranslation(F(WhimsyKit.SearchlightMount(van.Shape)))), m);
+        var aim = Vector3.Normalize(Vector3.TransformNormal(WhimsyKit.SearchlightAim, m));
+        var white = SearchlightWhite;
+        float glare = Math.Clamp((glass.Length() - 3) / 14, 0, 1);
+        mesh.Billboard(glass + aim * 0.05f, 2.2f, 0, new Vector4(white * 0.45f * glare, 1), -1, FxBlend.Additive);
+        mesh.Billboard(glass + aim * 0.04f, 0.7f, 0, new Vector4(white * (0.35f + 0.65f * glare), 1), -1, FxBlend.Additive);
+        Beam(mesh, glass, aim, SearchlightCone, SearchlightLength, white * 0.06f);
+        // The track lit where the beam comes down to it (about 40 m out), and the air along it: each pool kept a metre over
+        // the rails, so it lights the ballast and what's standing there rather than the inside of the ground.
+        float rail = Vector3.Transform(Vector3.Zero, m).Y + 1.2f;
+        foreach (var (d, range, power) in SearchlightPools)
+        {
+            var at = glass + aim * d;
+            mesh.PointLights.Add(new PointLight(at with { Y = MathF.Max(at.Y, rail) }, white * power, range));
+        }
+    }
+
+    /// <summary>The searchlight's carbon-arc white, its beam's half-angle (°) and length (m), and its pools: along the beam (m), reach (m), power.</summary>
+    static readonly Vector3 SearchlightWhite = new(0.95f, 0.93f, 0.85f);
+    const float SearchlightCone = 7, SearchlightLength = 55;
+    static readonly (float Along, float Range, float Power)[] SearchlightPools = [(8, 8, 1.3f), (18, 11, 2.0f), (30, 14, 2.4f), (44, 16, 2.2f)];
 
     static Vector3 FurnaceTint(float fire) => new Vector3(0.12f, 0.05f, 0.01f) * fire;
 
