@@ -50,7 +50,8 @@ public sealed partial class GameAudio
         int bathers = 0;
         foreach (var (id, s) in CrewStates)
         {
-            var now = s.Alive ? Bbq.LoungingIn(s, train) : null;
+            // (Not the big cab's benches, note 905: sat on in silence, for now; AU1's to give a sound.)
+            var now = s.Alive && Bbq.LoungingIn(s, train) is { Kind: not LoungeKind.Bench } lounge ? lounge : (Lounge?)null;
             var was = _loungeWas.GetValueOrDefault(id);
             if (primed && now?.Kind != was && (now?.Kind ?? was) is { } kind && At(train, s) is { } feet)
                 Cue(kind == LoungeKind.Hammock ? "up-lounge.hammock" : "up-lounge.tub-in", feet + Double3.Up * 0.5,

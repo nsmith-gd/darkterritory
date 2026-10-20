@@ -208,10 +208,15 @@ public class CrewMemoryTests
         Assert.Equal(0, book.Car);
         Assert.False(book.OnShelf);
         Assert.InRange(book.Local.Y - bench.Max.Y, 0, 0.02);
-        Assert.InRange(book.Local.X, bench.Min.X + LogbookReader.BookHalf.X, bench.Max.X - LogbookReader.BookHalf.X);
-        Assert.InRange(book.Local.Z, bench.Min.Z + LogbookReader.BookHalf.Z, bench.Max.Z - LogbookReader.BookHalf.Z);
-        Assert.True(book.Local.Z - LogbookReader.BookHalf.Z > table.Max.Z);
-        // Stood in the lane beside the bench, looking down at it: its prompt; looking up the line, no.
+        // (Note 905: the bench along the side wall, the book's spine along it, so its length is along the bench.)
+        Assert.Equal(Math.PI / 2, book.Yaw, 6);
+        Assert.InRange(book.Local.X, bench.Min.X + LogbookReader.BookHalf.Z, bench.Max.X - LogbookReader.BookHalf.Z);
+        Assert.InRange(book.Local.Z, bench.Min.Z + LogbookReader.BookHalf.X, bench.Max.Z - LogbookReader.BookHalf.X);
+        Assert.True(book.Local.Z - LogbookReader.BookHalf.X > table.Max.Z);
+        // Clear of the bench's seats: nobody sits on it.
+        Assert.All(shape.Lounges.Where(l => l.Kind == Sim.Train.LoungeKind.Bench && bench.ContainsXZ(l.At)),
+            l => Assert.True(Math.Abs(l.At.Z - book.Local.Z) >= LogbookReader.BookHalf.X + 0.25, $"a seat at {l.At.Z:0.00} on the book"));
+        // Stood in front of the bench, looking down at it: its prompt; looking up the line, no.
         var feet = LogbookReader.ReadFrom(s.Train, book)!.Value;
         var to = book.Local - (feet + Double3.Up * s.Train.Dynamics.Tuning.Pick.EyeHeight);
         s.Player = s.Player with

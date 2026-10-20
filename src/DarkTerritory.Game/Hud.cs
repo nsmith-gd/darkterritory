@@ -2641,6 +2641,9 @@ public static partial class Hud
             // The BBQ deck (note 698): a chair, the cooler, the grill.
             case InteractableKind.Chair:
                 return "SIT : [E]";
+            // The big cab's benches (note 905).
+            case InteractableKind.Bench:
+                return "SIT ON THE BENCH : [E]";
             // The hammock and the hot tub (note 744).
             case InteractableKind.Hammock:
                 return "LIE IN THE HAMMOCK : [E]";

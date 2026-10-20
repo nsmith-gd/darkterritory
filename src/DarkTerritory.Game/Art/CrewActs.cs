@@ -402,6 +402,9 @@ public static class CrewActs
         return c with { Feet = frame.ToWorld(local), Yaw = yaw + frame.Heading, Local = local };
     }
 
+    /// <summary>How far back toward the wall a bench's sitter is drawn from where the sim holds them (m, note 905): the pelvis against it.</summary>
+    public const double BenchLean = 0.15;
+
     /// <summary>How far in from the edge a sitter's feet (the model's origin, under the pelvis) are drawn (m): the seat on it, the backs of
     /// the knees just over it (crew_clips' sit_edge, SIT_BACK).</summary>
     const double SitBack = 0.3;
@@ -626,6 +629,10 @@ public static class CrewActs
     {
         // C1's lounge and hammock clips (note 791) are posed from the sitter's root at the seat's own height: no lift. The hot
         // tub's bench is still the gunner's seat let down to it.
+        // On a big cab's bench (note 905): sat back against the wall behind the seat the sim holds them at, the knees over
+        // its edge (the sit's clip has them SitBack ahead of the feet).
+        if (Bbq.LoungingIn(s, train) is { Kind: LoungeKind.Bench } seat)
+            return s with { Position = s.Position with { X = s.Position.X + Math.Sign(s.Position.X) * BenchLean } };
         if (Bbq.LoungingIn(s, train)?.Kind != LoungeKind.HotTub)
             return s;
         return s with { Position = s.Position with { Y = s.Position.Y + TubPan - GunnerPan } };
@@ -781,6 +788,8 @@ public static class CrewActs
             {
                 LoungeKind.Hammock => CrewPose.Hammock,
                 LoungeKind.HotTub => CrewPose.Gunner,
+                // On the big cab's bench (note 905): sat on its edge, upright, the feet on the gallery's floor.
+                LoungeKind.Bench => CrewPose.SitEdge,
                 _ => world.Bodies.CarriedBy(id) is { Kind: BodyKind.Beer } can
                     ? can.MendTicks > 0 ? CrewPose.LoungeDrink
                     // An emote from the chair with a can in hand (the wheel's wave, or any): a cheers, held out to the next chair.

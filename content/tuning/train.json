@@ -109,13 +109,18 @@
         "galleryRise": 0.45,
         "galleryStep": 0.45,
         "galleryWaist": 1.1,
-        // The benches on it, facing forward down the middle of the cab (the chart table's line, so a bench sees over it), one
-        // a row, from each benchRows (m behind the cab's front), benchWidth across, benchDepth deep, its seat benchHeight up.
-        // The ways either side of the table run on past them to the back wall's doors.
-        "benchRows": [5.9, 7.3],
-        "benchWidth": 1.0,
-        "benchDepth": 0.45,
+        // The benches on it (the director, 16 Oct 2026: "move them to like side benches so that we keep the middle clear. And
+        // then let's have them be really thin. And if we're going to have benches at all, we need players to be able to
+        // actually sit down on them"; note 905): one along each side wall, from benchFrom to benchTo (m behind the cab's
+        // front), benchDepth out from the wall, its seat benchHeight up, facing across the cab; the gallery's middle clear
+        // between them. benchSeats places to sit on each, seatEvery apart from its back end (its front end left for the
+        // logbook, note 721): the Seat press at one sits you on it, as in a Muskoka chair.
+        "benchFrom": 5.15,
+        "benchTo": 8.35,
+        "benchDepth": 0.35,
         "benchHeight": 0.45,
+        "benchSeats": 4,
+        "seatEvery": 0.7,
         // The back wall's kettle on the warm backhead sings from kettleFrom under boiler.json's redline, full at it: the
         // cab's own sign the gauge is climbing. The cuckoo clock's bird comes out every cuckooEvery seconds over the last
         // enemies.json wakers.stirSeconds before dawn, for cuckooOutSeconds each time.

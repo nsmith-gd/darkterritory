@@ -7,8 +7,8 @@ namespace DarkTerritory.Sim.Bots;
 public static partial class Heed
 {
     /// <summary>
-    /// Note 716: the big cab's chart table and the gallery's benches stand down its middle, and the ways down the cab are
-    /// either side of them (<see cref="EnginePlan.Lane"/>). A bot walking the cab, front to back or back to front, into one of
+    /// Note 716: the big cab's chart table stands down its middle (the gallery's benches are along its sides, note 905), and
+    /// the ways down the cab are either side of it (<see cref="EnginePlan.Lane"/>). A bot walking the cab, front to back or back to front, into one of
     /// them goes out into the way on the side it's on and on along it, whatever it was going there for (its own walks use
     /// <see cref="WarmUp.SteerCab"/>; this is for every other one, a rescue or a crewmate to heal). The treads up to the
     /// gallery are walked up, as anyone does.
@@ -33,7 +33,9 @@ public static partial class Heed
                 block = f;
         if (block is not { } b)
             return intent;
-        double lane = at.X >= (b.Min.X + b.Max.X) / 2 ? plan.Lane : -plan.Lane;
+        // Round the chart table by the way on its side; along a bench against a side wall (note 905), in off its edge.
+        double lane = Math.Abs(b.Centre.X) < 0.3 ? at.X >= b.Centre.X ? plan.Lane : -plan.Lane
+            : Math.Sign(b.Centre.X) * Math.Min(plan.Lane, Math.Min(Math.Abs(b.Min.X), Math.Abs(b.Max.X)) - r);
         double ax = Math.Clamp((lane - at.X) * 3, -1, 1), az = Math.Abs(lane - at.X) < 0.1 ? wz : 0;
         return intent with
         {

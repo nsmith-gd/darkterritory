@@ -932,7 +932,7 @@ public static partial class Staging
         for (int car = 0; car < train.Frames.Count; car++)
         {
             var frame = train.Frames[car];
-            foreach (var l in frame.Shape.Lounges)
+            foreach (var l in frame.Shape.Lounges.Where(l => l.Kind != LoungeKind.Bench))
             {
                 // The hammock's clip lies at its own height (note 791); the tub's bench is the gunner's seat let down to it.
                 bool hammock = l.Kind == LoungeKind.Hammock;
@@ -1027,9 +1027,12 @@ public static partial class Staging
             crew.Add(At(32, table.Max.X + 0.42, deck, table.Centre.Z + 0.2, -Math.PI / 2 + 0.25));
         if (Art.TrainKit.GalleryFloor(shape) is { } gallery)
         {
-            crew.Add(At(33, -0.95, gallery.Max.Y, gallery.Min.Z + 0.35, 0.1));
-            crew.Add(At(34, 0.95, gallery.Max.Y, gallery.Min.Z + 1.6, -0.15));
-            crew.Add(At(35, -0.95, gallery.Max.Y, gallery.Min.Z + 2.4, -0.2));
+            // One stood in the gallery's clear middle; two sat on the benches along its sides (note 905), across from each other.
+            crew.Add(At(33, -0.2, gallery.Max.Y, gallery.Min.Z + 0.35, 0.1));
+            var seats = shape.Lounges.Where(l => l.Kind == LoungeKind.Bench).ToList();
+            foreach (var (id, seat) in new[] { ((byte)34, seats.LastOrDefault(l => l.At.X > 0)), ((byte)35, seats.FirstOrDefault(l => l.At.X < 0)) })
+                crew.Add(seat.Kind == LoungeKind.Bench ? At(id, seat.At.X + Math.Sign(seat.At.X) * Art.CrewActs.BenchLean, seat.At.Y, seat.At.Z, seat.Yaw, Art.CrewPose.SitEdge)
+                    : At(id, id == 34 ? 0.6 : -0.6, gallery.Max.Y, gallery.Min.Z + (id == 34 ? 1.6 : 2.4), -0.15));
         }
         // Off the train: one down on the ballast by the engine, one dead.
         crew.Add(new Crewmate(36, engine.ToWorld(new Double3(-shape.HalfWidth - 3, 0, 4)), engine.Heading, true));

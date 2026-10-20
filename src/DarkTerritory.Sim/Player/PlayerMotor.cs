@@ -773,7 +773,7 @@ public static class PlayerMotor
             {
                 if (intent.Has(PlayerButtons.Jump))
                 {
-                    Bbq.GetUp(ref s);
+                    Bbq.GetUp(ref s, train);
                     s.Flags |= PlayerFlags.GotUp;
                 }
             }

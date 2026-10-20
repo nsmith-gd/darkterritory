@@ -404,6 +404,9 @@ public static class Views
             "carside" => CarSideCamera(train, car),
             // (Not one of Names.) Coming down the engine's rear ladder to the coupler plate onto car 1, looking down at it.
             "rearstep" => RearStepCamera(train),
+            // (Not one of Names.) Off the train's left side, low, square on to the gap behind the engine (note 905): the ramp up
+            // its coupler plate from car 1's floor to the engine's deck.
+            "rampside" => RampSideCamera(train),
             // (Not one of Names.) Low off the side behind the engine's half of a cut train (dt screenshot --cut n), at the
             // coupler that was let go: its knuckle swung open, its hose hanging parted (T91).
             "cut" => CutCamera(train),
@@ -566,6 +569,13 @@ public static class Views
         var ahead = train.Frames[Math.Clamp(car, 0, train.Frames.Count - 2)];
         double l = ahead.Shape.HalfLength;
         return Camera.LookAt(ahead.ToWorld(new Double3(0.35, 2.75, l + 1.3)), ahead.ToWorld(new Double3(-0.4, 1.4, l)), 80);
+    }
+
+    static Camera RampSideCamera(TrainOnLine train)
+    {
+        var engine = train.Frames[0];
+        double l = engine.Shape.HalfLength, gap = train.Dynamics.Tuning.Geometry.CouplingGap;
+        return Camera.LookAt(engine.ToWorld(new Double3(-3.2, 1.9, l + gap / 2)), engine.ToWorld(new Double3(-0.3, 1.2, l + gap / 2)), 55);
     }
 
     static Camera RearStepCamera(TrainOnLine train)
