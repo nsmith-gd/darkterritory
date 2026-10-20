@@ -1093,4 +1093,11 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [931. A crewmate down to cover the shunter at a pick-up's points (queue #632, n1-w7 for nathaniel1; from note 894's Unfixed)](notes/931.md)
 - [932. The spawn director overhaul in the GDD and the systems spec (n1-G2, #613's docs half, agreed with n1-B1, who holds #613; the director's…](notes/932.md)
 - [933. The crew bots counter the Car Hugger, so its low ground can go on (found under #612, note 915; n1-A2, nathaniel1, queue #633)](notes/933.md)
+- [935. The driver bot vents, waits for its crew, and stops at the stop (Nora, queue #638; the director's playtest of 20 Oct evening)](notes/935.md)
+- [936. The ping reads what you point at (Finn, queue #639; the director's playtest of 20 Oct evening)](notes/936.md)
+- [937. Leaving a game leaves it (Quinn, queue #640; the director's playtest of 20 Oct evening)](notes/937.md)
+- [938. The HUD: the vent prompt in the cab only, who's dead told, the loader's message (Sage, queue #641; the director's playtest of 20 Oct…](notes/938.md)
+- [939. Car fires told: why a car burns and relights, boarding a burning car, the extinguisher's reach (Hazel, queue #642; the director's playtest…](notes/939.md)
+- [940. The Waker near the town, and a moving or reversing train (Cole, queue #643; the director's playtest of 20 Oct evening)](notes/940.md)
+- [941. Small things: the floating statue, the village doors, the crane's let-go, the rain (Ezra, queue #644; the director's playtest of 20 Oct…](notes/941.md)
 <!-- end of the notes index -->
