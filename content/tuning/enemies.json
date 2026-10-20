@@ -1298,6 +1298,25 @@
     // (a friend's pull or blow, or their own struggle); holdoutFreed: someone broken out of a Holdout. Short on purpose.
     // on false: none, as before.
     "aftermath": { "on": true, "seconds": 12, "events": ["death", "carLost", "rescue", "holdoutFreed"] },
+    // The encounter pacing (the spawn director overhaul, docs/design/spawn-director-overhaul.md §3; the plan, note 874).
+    "encounters": {
+      // The encounter rate (spec B.10 "The encounter rate"; the director's brief, docs/design/spawn-director-overhaul.md §1 and
+      // §3; note 877): encounter opportunities a minute, time × crew × train length × tier, every factor rising and none
+      // falling (the brief's six requirements, EncounterPacingTests):
+      //   λ = (base + (ramp + rampPerCrew × (P − 1)) × p^power) × (1 + perCrew × (P − 1)) × (1 + perCar × max(0, C − carsFrom))
+      //       × tier, to at most max
+      // p: how far into the night, the clock toward dawn or the train along the line, whichever is further, never going back
+      // (standing still doesn't stop it). P: the crew alive in the night, bots and players alike (never one who's left; at
+      // least 1). C: the cars. base is the solo floor at the gate (a solo night is never just the clock); ramp what the night
+      // adds by its end, steeper by rampPerCrew a crewmate over one, so a bigger crew's night worsens faster as well as
+      // starting higher; perCar is gradual, no breakpoint at eight cars. The tier is its own factor (Local to Deep Territory).
+      // The defaults are the brief's prototype. A 20-minute night's opportunities at Frontier (EncounterPacing.Night): solo
+      // 2 cars 5.4, two 5 cars 6.7, four 8 cars 9.6, eight 12 cars 16.5. Not yet driving the director: #608 wires it in, and
+      // takes the pressure's own crewScale/lengthScale and the free spawns' crewFade out with it. #607's `debt` goes here.
+      "base": 0.12, "ramp": 0.33, "rampPerCrew": 0.035, "power": 1.2, "perCrew": 0.07, "perCar": 0.05, "carsFrom": 3,
+      "tier": { "local": 0.8, "frontier": 1, "deadLines": 1.2, "deepTerritory": 1.4 },
+      "max": 3
+    },
     // GDD App. B.1 "Post-event cooldown" (design decision, 2026-10): the least trough after a spawn; the pressure's relief
     // makes the rest of it, and well past the threshold (pressAt) it gives way.
     "cooldownSeconds": [25, 45],

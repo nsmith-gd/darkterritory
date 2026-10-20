@@ -218,6 +218,31 @@ public class DemoRosterTests
         Assert.True(n.Crew[1].Alive);
     }
 
+    [Fact]
+    public void ABotAtTheGuardVansGunGetsUpOutOfItsSeatToLookAtIt()
+    {
+        // Note 859: frontier:6's pick-up, the train standing and the gunner alone at the rear gun. Seated, the view's held
+        // in the gun's arc, back down the line, and Tippy Toesie comes from behind it, up the roof: unseen, it smothered him.
+        var quiet = E with { Director = E.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } };
+        var n = new Night(4, speed: 0, enemies: quiet);
+        int guard = n.Train.Dynamics.Consist.Vehicles[^1].Id;
+        var mount = n.Train.Frames[guard].Shape.Gun!.Value;
+        var gunner = PlayerMotor.SpawnOnRoof(n.Train, guard, mount.Position.Z - 0.7, P);
+        n.Crew[1] = gunner with { Yaw = Math.PI, Flags = gunner.Flags | PlayerFlags.Seated };
+        n.Crew[2] = PlayerMotor.SpawnInCab(n.Train, P);
+        var tippy = n.World.AddEnemy(id => TippyToesie.Hiding(id, E.TippyToesie));
+        // At the gun, laid back along the lane (the gunner's own aim) till it hears the tiptoeing; then its back watched.
+        PlayerIntent Gunner() => tippy.Hidden ? new PlayerIntent { LookYaw = (float)Math.IEEERemainder(Math.PI - n.Crew[1].Yaw, 2 * Math.PI) }
+            : Bots.Heed.Backs(default, n.Crew[1], n.World, 1, n.World.Tick);
+        Func<int, PlayerIntent> crew = id => id == 1 ? Gunner() : new PlayerIntent { MoveX = 0.01f };
+        UntilGrab(n, tippy, E.TippyToesie.IdleSeconds + E.TippyToesie.StartBehind / E.TippyToesie.ApproachSpeed + 3, crew);
+        Assert.Contains(n.Events, e => e.Kind == EnemyKind.TippyToesie && e.To == SpinePhase.Telegraph);
+        Assert.DoesNotContain(n.Events, e => e.Kind == EnemyKind.TippyToesie && e.To == SpinePhase.Grab);
+        Assert.True(tippy.Hidden, $"{tippy.Phase}");
+        Assert.True(n.Crew[1].Alive);
+        n.AssertFair();
+    }
+
     // ---- Ribbits (App. A.6): never be outnumbered.
 
     [Fact]

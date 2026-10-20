@@ -799,6 +799,8 @@ public sealed record DirectorTuning(
     public DrawTuning Draw { get; init; } = new();
     /// <summary>A short hold after a crisis (GDD App. B.1 "Aftermath"; note 751): enemies.json director.aftermath.</summary>
     public AftermathTuning Aftermath { get; init; } = new();
+    /// <summary>The encounter pacing (the spawn director overhaul, note 874): enemies.json director.encounters.</summary>
+    public EncountersTuning Encounters { get; init; } = new();
 }
 
 /// <summary>
