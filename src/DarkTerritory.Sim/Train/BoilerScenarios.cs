@@ -52,7 +52,7 @@ public static class BoilerScenarios
             speedSum += train.Dynamics.Speed;
         }
         int shovels = (int)Math.Round(tenderStart - train.Boiler.Tender);
-        double burned = tenderStart - train.Boiler.Tender + (startFirebox - train.Boiler.Firebox);
+        double burned = tenderStart - train.Boiler.Tender + (startFirebox - train.Boiler.Fire);
         return new BoilerRun(cars, seconds, Math.Round(min, 2), Math.Round(max, 2), Math.Round(train.Boiler.Pressure, 2), Math.Round(burned, 2), shovels,
             shovels > 0 ? Math.Round(seconds / shovels, 2) : double.PositiveInfinity, Math.Round((double)shovellingTicks / ticks, 3),
             Math.Round(speedSum / ticks, 2), train.Boiler.Ruptured);
@@ -69,7 +69,7 @@ public static class BoilerScenarios
         while (train.Boiler.Pressure < b.WorkingBandMin && ticks < SimConstants.TickRate * 3600)
         {
             // Keep the box topped up the way a fireman would while it rebuilds.
-            if (train.Boiler.Firebox <= b.FireboxCapacity - 1)
+            if (train.Boiler.Fire <= b.FireboxCapacity - 1)
                 train.Boiler.Shovel(b);
             // On its brake: with steam driving (T97), a standing engine with pressure would otherwise pull away.
             train.Step(SimConstants.TickSeconds, new TrainControls { Reverser = 1, Brake = 1 });
