@@ -112,7 +112,7 @@ public class StopCrewTests
         /// <param name="dawn">The night's dawn (s on the run's clock), if not the route's.</param>
         public Night(int cars, int walkers = 1, bool winchPair = true, bool crateHands = false, bool coaling = false, bool deadLine = false,
             bool ids = false, int hands = 3, FacilityTuning? facilities = null, bool loot = false, bool express = false, int lost = 0,
-            double from = 600, bool creatures = false, double? dawn = null, params ModuleKind[] modules)
+            double from = 600, bool creatures = false, double? dawn = null, EnemyTuning? enemies = null, params ModuleKind[] modules)
         {
             // A crew that searches the village (note 326) needs a stop with one: open houses with something kept in them.
             Func<RouteFeature, bool>? village = loot
@@ -132,7 +132,7 @@ public class StopCrewTests
             World.EnableRun(Tuning.Run, route, Tuning.Route.YardLength, authority: true, facilities ?? F, loot ? L : null);
             // The creatures on, the director quiet: only what a test puts there (note 545).
             if (creatures)
-                World.EnableEnemies(Tuning.Enemies with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } },
+                World.EnableEnemies((enemies ?? Tuning.Enemies) with { Director = Tuning.Enemies.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } },
                     route, 1, 4, authority: true);
             // The stops' finds and their houses' walls (note 326), for a crew that searches the village.
             if (loot)
@@ -663,6 +663,31 @@ public class StopCrewTests
         night.Until(() => stops.Log.Count > 0, 900);
         var made = Assert.Single(stops.Log);
         Assert.StartsWith(nameof(FacilityKind.Switchyard) + "PickUp", made.Kind);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void WithTheShunterOnTheGroundAtThePointsAfterAStopTheSwitchHandStandsWithIt(bool cover)
+    {
+        // Note 931: frontier:6 seed 4's shunter, alone on the ground for its 10 s at the lever setting the points back, was
+        // eaten by a pack of three (App. A.6: "never be outnumbered"). The stop over, the switch hand (the winch's first handle)
+        // comes down and stands with it.
+        var e = Tuning.Enemies with { CrewBots = Tuning.Enemies.CrewBots with { CoverTheShunter = cover } };
+        var night = new Night(cars: 8, walkers: 0, creatures: true, enemies: e, modules: [ModuleKind.Rakes, ModuleKind.Crates]);
+        var stops = night.Driver.Stops!;
+        double nearest = double.MaxValue, alone = 0;
+        night.Until(() => stops.Log.Count > 0, 1500, () =>
+        {
+            if (stops.Doing != StopDriver.Leg.Clear || night.Calls.ShunterAt is not { } at)
+                return;
+            alone += SimConstants.TickSeconds;
+            var hand = PlayerMotor.WorldPosition(night.Crew[2], night.Train);
+            nearest = Math.Min(nearest, ((hand - at) with { Y = 0 }).Length);
+        });
+        Assert.True(stops.Log.Count > 0 && alone > 2, $"no stop with the shunter on the ground in its clear ({alone:0.0} s)");
+        double beside = e.CrewBots.CoverBeside + 0.5;
+        Assert.True(cover ? nearest <= beside : nearest > beside, $"the switch hand came within {nearest:0.0} m of the shunter ({alone:0.0} s on the ground)");
     }
 
     [Fact]
