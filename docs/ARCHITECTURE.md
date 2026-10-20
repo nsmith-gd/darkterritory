@@ -1065,6 +1065,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [887. The spawn director overhaul's guard tests: today's protections locked before anything changes (the director's brief,…](notes/887.md)
 - [888. `dt director sweep`: the spawn director overhaul's matrix of nights, and the old director's baseline (the director's brief §8; note 874's…](notes/888.md)
 - [891. The Cinder Hounds aboard, the director's 9 Oct answer (n1-H1, queue #614; inbox `D1.2-car-fires-from-packs`, note 857's call 1)](notes/891.md)
+- [893. Encounter severity (levels 1–3, from world state) and drought detection that tells recovery from a true drought (queue #610, the spawn…](notes/893.md)
 - [894. The shunter alone at a pick-up's points, eaten by the Ribbits (queue #615, n1-w7 for nathaniel1; from note 859's Unfixed)](notes/894.md)
 - [896. Epic Online Services P2P: the third online platform, for players off Steam (n1-N1, queue #274; the netcode audit's gap 6; note 24)](notes/896.md)
 - [897. Docs from the director's inbox answers of 20 Oct (n1-G2, queue #616; note 857's calls 3, 5, 6 and 10)](notes/897.md)
@@ -1082,4 +1083,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [908. One pacing model in the director: the spawn director overhaul's #608 (C3) (the director's brief, `docs/design/spawn-director-overhaul.md`…](notes/908.md)
 - [913. Playtest telemetry T1: the session recorder and its event schema (n1-H1, nathaniel1; queue #624; the plan, note 907)](notes/913.md)
 - [914. Playtest telemetry T2: consent and privacy (n1-N1, nathaniel1; queue #625; the plan, note 907)](notes/914.md)
+- [916. Playtest telemetry T5: the playtest kit (n1-U2, nathaniel1; queue #628; the plan, note 907)](notes/916.md)
+- [917. Playtest telemetry T4: `dt telemetry summary`, `dt telemetry map` and the playtest dashboard (n1-G2, queue #627; note 907's plan)](notes/917.md)
+- [920. The stop's packing plan: castings and heavies first in whole halves, then the lights, whatever the arrival's timing (queue #630; found by…](notes/920.md)
 <!-- end of the notes index -->

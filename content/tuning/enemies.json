@@ -964,7 +964,15 @@
     // `dt director sweep` measure the encounters, never what the night does. A crewmate within nearMetres of a creature is
     // "near" it (a perception proxy: never "seen"); droughtSeconds out on the run with nothing confronting the crew is a
     // drought (§7: 90 s); off the train, within tracksideMetres of a vehicle is trackside, past it afield.
-    "telemetry": { "nearMetres": 25, "droughtSeconds": 90, "tracksideMetres": 30 },
+    // Severity and droughts (the brief §4, §6; queue #610, note 893), from world state: level 1, a creature about within
+    // presenceMetres of the train or a living crewmate (a proxy: near enough to be noticed); level 2, one threatening or
+    // engaging (note 881's states: alert, near someone, working on a train system, at someone); level 3, two harassing at
+    // once at least compoundApartMetres apart. A second out with nothing at level 2 is the director's rest when it holds for
+    // one of recoveryHolds (prefixes of its held reasons), presence with something at level 1, else a true drought.
+    "telemetry": {
+      "nearMetres": 25, "droughtSeconds": 90, "tracksideMetres": 30, "presenceMetres": 60, "compoundApartMetres": 15,
+      "recoveryHolds": ["grace", "aftermath", "facility lull", "in a fort", "banned", "final stretch", "terrain at its ceiling", "derailed"]
+    },
     // GDD v1.4 App. D.11 and D.13, the dead's creature vote (note 180): a ballot of `options` drawn from what the director
     // could send now, each vote ×perVote to its creature's weight, to at most ×cap, within its want tag. A dead bot votes
     // botSeconds after its ballot's offered (note 202: not a GDD number, the bots' deliberation, so harness nights vote).
@@ -1419,9 +1427,12 @@
     // engagement state, from what it's doing (Threats.Of): dormant (lying in wait), ambient (about, nobody near, nothing of
     // the train's in its teeth), threatening (alert, near a crewmate within nearMetres, or doing a train system harm with
     // nobody near: a Hotbox, a pack feeding aboard, a Knotter, a Brakeman at the brakes), engaging (at someone), resolved.
-    // on: the engaged cap counts threatening and engaging, not bodies, and ambientRoom more may be about off it; false: as
-    // before (everything Director.Engaged holds the caps).
-    "threats": { "on": true, "nearMetres": 20, "ambientRoom": 1 },
+    // leftMetres: loose, holding nobody and this far from every car and crewmate, it's ambient whatever it's doing (a yard's
+    // Freight Beetle or Mouse Moose the train left behind held a solo crew's one place for 500-1,000 s of a night; note 881).
+    // on: the engaged cap counts threatening and engaging, not bodies, and ambientRoom more may be about off it (the cap plus
+    // ambientRoom in all, so what paces cars nobody's in can't pile up into a wave); false: as before (everything
+    // Director.Engaged holds the caps).
+    "threats": { "on": true, "nearMetres": 20, "ambientRoom": 2, "leftMetres": 150 },
     "maxConcurrentZone": 2,
     "maxConcurrentSmallCrew": 4,
     "maxConcurrentLargeCrew": 6,

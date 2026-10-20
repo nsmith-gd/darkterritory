@@ -129,6 +129,7 @@ public sealed partial class World
     public List<SignalEvent> Signals { get; } = new();
     /// <summary>Voices as tools (note 720): the tube, singing, lamp signals; from the players' tuning where the sessions set it.</summary>
     public VoicesTuning VoicesTuning => Movement?.Voices ?? DefaultVoices;
+    static readonly TwoHandedTuning DefaultTwoHanded = new();
     static readonly VoicesTuning DefaultVoices = new();
     /// <summary>
     /// Singing together (GDD §14; note 720), heard on the host each tick from the crew's voice levels: who's singing now
@@ -467,7 +468,7 @@ public sealed partial class World
         if (!authority)
             return;
         Director = new Director(tuning.Director, route, seed, Train.Dynamics.Consist.CarCount, crew);
-        Encounters = new EncounterLog(tuning.Director.Telemetry);
+        Encounters = new EncounterLog(tuning.Director.Telemetry, tuning.Director.Threats);
         // Note 266: off unless a mod brings them back (the director's decision, 2026-10-06).
         if (route is not null && tuning.Sleepers.Enabled && Director.Allows(EnemyKind.Sleepers))
             foreach (var f in route.Of(FeatureKind.Sleepers))
@@ -1781,9 +1782,11 @@ public sealed partial class World
             // GDD v1.4 App. C.4 and D.9 (note 181): hand-carried loot is carried the same way: a toy, a find, the child, a body.
             // Note 594: in the hands; one put away in a slot doesn't slow you (Lethal Company's slots: "grab a few pieces of loot").
             // Note 723: and a friend over the shoulder, carried as a body is.
+            // Note 897 (the director, the inbox, 20 Oct: "We shouldn't be slowed carrying anything unless it's a two handed
+            // object"): only what takes both hands (player.json twoHanded): freight, a heavy crate's end, the child, a body.
             bool carrying = s.Alive && CarriedBy(playerId) is not null;
-            bool heavy = carrying || Bodies.All.Any(b => b.HeldBy(playerId) && !b.Stashed && b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy
-                or Physics.BodyKind.Toy or Physics.BodyKind.Loot or Physics.BodyKind.Child or Physics.BodyKind.Ragdoll);
+            var twoHanded = Movement?.TwoHanded ?? DefaultTwoHanded;
+            bool heavy = carrying || Bodies.All.Any(b => b.HeldBy(playerId) && !b.Stashed && twoHanded.Slows(b.Kind));
             s.Flags = heavy ? s.Flags | PlayerFlags.Heavy : s.Flags & ~PlayerFlags.Heavy;
             s.Flags = carrying ? s.Flags | PlayerFlags.Carrying : s.Flags & ~PlayerFlags.Carrying;
             // Playing the instrument in your hands (note 700): every machine hears you, in time with the band.
