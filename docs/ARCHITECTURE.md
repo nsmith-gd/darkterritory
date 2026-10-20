@@ -1056,7 +1056,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [872. Readonly Pcg32 fields that never advance: hot boxes, gutters, couplings and the wreck (found by Bram, note 865; the director, 19 Oct: "Yes…](notes/872.md)
 - [873. A crate hand sent to shut a car's door stood still at the foot of its steps (queue #553; B3's find on #532, note 820)](notes/873.md)
 - [874. The spawn director overhaul: the plan, split into queue items #600–#613 so several agents can work at once (the director, 20 Oct 2026;…](notes/874.md)
-- [881. The engagement states: `ThreatState`, and the engaged cap counting threats, not bodies (the director overhaul's B2, queue #604; the…](notes/881.md)
 - [876. Bounded encounter debt: `EncounterDebt`, the spawn director overhaul's #607 (C2) (the director's brief,…](notes/876.md)
 - [877. The encounter rate λ(progress, crew, cars, tier): `EncounterPacing` (the director's brief §1, §3; plan note 874; nathaniel1's n1-C1, queue…](notes/877.md)
 - [880. Encounter telemetry: an `EncounterLog` in the Sim, reported as the `encounters` block of `dt harness` and `dt playthrough` (queue #600, the…](notes/880.md)
