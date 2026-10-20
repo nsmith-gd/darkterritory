@@ -184,6 +184,13 @@ public abstract class Enemy
     public virtual bool StaysAboard => false;
 
     /// <summary>
+    /// Host: doing a train system harm now, whether or not anyone is near (note 881): a Hotbox in its truck, a pack feeding
+    /// aboard, a Knotter in a coupling, a Brakeman at the brakes. Such a creature is <see cref="ThreatState.Threatening"/> with
+    /// nobody near it (<see cref="Threats.Of(Enemy, World, ThreatTuning)"/>).
+    /// </summary>
+    public virtual bool Working(World world) => false;
+
+    /// <summary>
     /// A vehicle it drags on while the train's over <see cref="DragAbove"/> (the Car Hugger's speed cap), or −1. From
     /// replicated state, so a predicting client drags the same.
     /// </summary>

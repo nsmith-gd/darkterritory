@@ -701,10 +701,16 @@
   // them rise (Local, Frontier, DeadLines, DeepTerritory): the first riseBehind m behind the train's rear on its path, the
   // rest riseAside m off either side and asideBack m further back, closing on the line over joinSeconds. Up after
   // riseSeconds, each runs startSpeed rising to topSpeed m/s over rampSeconds (faster than the engine's 22), over everything,
-  // and stops stopShort m short of the terminus's gate (the guns). The first one to reach the last car has the train: it
-  // drags at dragFactor x the engine's pull, lifts a car every liftSeconds from the rear, and from eatAfter s eats one every
-  // eatSeconds, whoever's in it with it. The engine eaten, the run's over: "taken at dawn". stirSeconds: the tension before
-  // dawn (the sky, the ground, their calls; presentation and audio).
+  // and stops stopShort m short of the terminus's gate (the guns). The first one to come within catchShort m of the last car
+  // has the train: it stops there, behind it, drags at dragFactor x the engine's pull, and from eatAfter s eats a car every
+  // eatSeconds from the rear, whoever's in it with it. The engine eaten, the run's over: "taken at dawn". stirSeconds: the
+  // tension before dawn (the sky, the ground, their calls; presentation and audio).
+  // The lift (note 902; the director's playtest of 16 Oct 2026, line 29: "stop behind the train and like scoop it up with its
+  // hands ... like a two-handed hot dog ... three bites per car"): a car at a time, in both hands. The last car goes up
+  // from scoopFrom s into the hold till scoopHold s before eatAfter; each car after it in its own turn (its eatSeconds):
+  // his hands down to it over reachShare of scoopShare of the turn, then up to his mouth over the rest of scoopShare. His
+  // bites come at bites (fractions of the turn), the last as the turn ends and the sim has it eaten: three a car. Whoever's
+  // down on the ground within fallAround m of the car in his hands, once it's fallFrom of the way up, fell from it.
   // Those who ran (note 710; the director, 14 Oct 2026: "It should capture players who escape the train and eat them too"):
   // while one holds the train, another rises out of the land pickAside m beyond each crewmate off it (up to pickers at once),
   // over pickRiseSeconds (the telegraph), strides to them at pickSpeed m/s, takes them within pickReach m, lifts them
@@ -712,7 +718,8 @@
   // after, it goes for the next. In under a fort's guns, nobody's taken.
   "wakers": { "enabled": true, "stirSeconds": 180, "count": [1, 1, 2, 3], "riseBehind": 1200, "riseAside": 600, "asideBack": 300,
     "joinSeconds": 90, "riseSeconds": 8, "startSpeed": 6, "topSpeed": 26, "rampSeconds": 45, "stopShort": 300,
-    "dragFactor": 3, "liftSeconds": 2.5, "eatAfter": 6, "eatSeconds": 4,
+    "dragFactor": 3, "eatAfter": 6, "eatSeconds": 4, "catchShort": 12, "scoopFrom": 1.2, "scoopHold": 1, "scoopShare": 0.45,
+    "reachShare": 0.35, "bites": [0.55, 0.775], "fallFrom": 0.15, "fallAround": 3,
     "pickers": 3, "pickAside": 40, "pickRiseSeconds": 4, "pickSpeed": 12, "pickReach": 18, "pickLiftSeconds": 4,
     "pickMouthOut": 10, "pickMouthHeight": 22, "pickEatSeconds": 4,
     // wakers.md §2, the night things run (note 635; the director, the inbox, 12 Oct 2026: "creatures should leave all except
@@ -1408,6 +1415,13 @@
     // that has nobody in its grip) holds no cap: a hound pack aboard or a Knotter in a coupling left behind held a crew of
     // one's single place all night. 0: off.
     "capNear": 60,
+    // Note 881 (the director overhaul's B2, queue #604; docs/design/spawn-director-overhaul.md §2 issue 4): each enemy's
+    // engagement state, from what it's doing (Threats.Of): dormant (lying in wait), ambient (about, nobody near, nothing of
+    // the train's in its teeth), threatening (alert, near a crewmate within nearMetres, or doing a train system harm with
+    // nobody near: a Hotbox, a pack feeding aboard, a Knotter, a Brakeman at the brakes), engaging (at someone), resolved.
+    // on: the engaged cap counts threatening and engaging, not bodies, and ambientRoom more may be about off it; false: as
+    // before (everything Director.Engaged holds the caps).
+    "threats": { "on": true, "nearMetres": 20, "ambientRoom": 1 },
     "maxConcurrentZone": 2,
     "maxConcurrentSmallCrew": 4,
     "maxConcurrentLargeCrew": 6,
