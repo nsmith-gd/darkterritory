@@ -126,7 +126,7 @@ public sealed record NightMenu(bool Hosting = true, int Others = 0, bool Campaig
 /// <summary>A listed run's lobby as its host has it now (note 535): its mood, and whether it's behind a password.</summary>
 public sealed record HostLobby(RunMood Mood, bool Locked);
 
-public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile, DeleteCrew, Mods, Crashed, Password, Paint, Smithy }
+public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile, DeleteCrew, Mods, Crashed, Password, Paint, Smithy, Consent, PlaytestData }
 
 /// <summary>
 /// The blacksmith's catalogue, open over the yard (ARCHITECTURE §8 note 697): who's selling, the crew's campaign as it stands
@@ -288,6 +288,16 @@ public sealed class FrontEnd
     /// opens on <see cref="Screen.Crashed"/> while there are; OK or Escape puts it away for good.
     /// </summary>
     public CrashNotice? Crash { get; set; }
+
+    /// <summary>
+    /// Note 914: the player's answer about playtest data, and what the question and the "what we collect" page say
+    /// (content/ui/playtest-data.json). The app opens on <see cref="Screen.Consent"/> while it's due; both null, and
+    /// nothing asks or offers it.
+    /// </summary>
+    public Telemetry.PlaytestConsent? Playtest { get; set; }
+    public Telemetry.PlaytestNotice? PlaytestNotice { get; set; }
+    // Where WHAT WE COLLECT was opened from (the question, or the settings), for its BACK.
+    Screen _playtestBack = Screen.Settings;
 
     /// <summary>Note 452: where reports go (content/ui/reports.json); without an address nothing offers to send one.</summary>
     public ReportsTuning? Reports { get; set; }
@@ -464,6 +474,17 @@ public sealed class FrontEnd
         if (Screen == Screen.Crashed)
         {
             PutCrashAway();
+            return;
+        }
+        // Note 914: Escape on the question answers nothing (asked again next time; nothing recorded meanwhile).
+        if (Screen == Screen.Consent)
+        {
+            AfterConsent();
+            return;
+        }
+        if (Screen == Screen.PlaytestData)
+        {
+            Show(_playtestBack);
             return;
         }
         Show(Screen switch
@@ -679,6 +700,8 @@ public sealed class FrontEnd
         if (screen is Screen.DeleteCrew && Open is null)
             screen = Screen.Slots;
         if (screen is Screen.Crashed && Crash is null)
+            screen = Screen.Title;
+        if (screen is Screen.Consent or Screen.PlaytestData && (Playtest is null || PlaytestNotice is null))
             screen = Screen.Title;
         _blankName = false;
         Editing = null;
@@ -898,6 +921,61 @@ public sealed class FrontEnd
         Message = $"Report written: {Path.GetFileName(path)}. Attach it to the mail.";
         return new Launch.Mail(report.MailTo(Reports!, path), Path.GetDirectoryName(path)!);
     }
+
+    /// <summary>
+    /// Note 914: the first-run question. YES lit first only in a developer build, where it's on unless the player says no;
+    /// a player's build lights neither answer above the other (NO is first: saying yes is a choice made, not a key pressed
+    /// through).
+    /// </summary>
+    List<Entry> ConsentEntries(Telemetry.PlaytestConsent p, Telemetry.PlaytestNotice n)
+    {
+        // What it's for is said under the heading, read before either answer (ConsentLines); each answer says what it does.
+        string dev = p.DefaultOn && n.DevBuild.Length > 0 ? " " + n.DevBuild : "";
+        var yes = new Entry(new("YES, RECORD MY NIGHTS", "Your nights are recorded anonymously, to help tune the game. Off or deleted any time in Settings." + dev),
+            () => Answer(p, n, yes: true));
+        var no = new Entry(new("NO THANKS", "Nothing is recorded. You can change this any time in Settings, PLAYTEST DATA."), () => Answer(p, n, yes: false));
+        var what = new Entry(new("WHAT WE COLLECT", "Every kind of thing it records, and for how long, before you answer."),
+            () => { _playtestBack = Screen.Consent; Show(Screen.PlaytestData); return null; });
+        return p.DefaultOn ? [yes, no, what] : [no, yes, what];
+    }
+
+    Launch? Answer(Telemetry.PlaytestConsent p, Telemetry.PlaytestNotice n, bool yes)
+    {
+        p.Choose(yes, n);
+        AfterConsent();
+        Message = yes ? "Thank you. Playtest data is on: Settings, PLAYTEST DATA to change it." : "Playtest data is off.";
+        return null;
+    }
+
+    /// <summary>After the question: the crash notice if there's one waiting, else the title.</summary>
+    void AfterConsent() => Show(Crash is not null ? Screen.Crashed : Screen.Title);
+
+    Entry PlaytestSwitch(Telemetry.PlaytestConsent p) =>
+        new(new($"PLAYTEST DATA: {(p.Recording ? "ON" : "OFF")}", p.Recording
+                ? "Your nights are recorded, anonymously, to help tune the game. Left and right, or Enter, to turn it off."
+                : "Nothing is recorded. On, your nights are recorded anonymously to help tune the game."),
+            () => { p.Choose(!p.Recording, PlaytestNotice!); return null; }, _ => p.Choose(!p.Recording, PlaytestNotice!));
+
+    /// <summary>
+    /// Note 914, WHAT WE COLLECT: the switch, each kind of thing the recorder writes (its detail under it as it's chosen),
+    /// what it never does, where it goes and for how long, and DELETE.
+    /// </summary>
+    List<Entry> PlaytestDataEntries(Telemetry.PlaytestConsent p, Telemetry.PlaytestNotice n) =>
+    [
+        PlaytestSwitch(p),
+        Heading("WHAT WE COLLECT"),
+        .. n.Collect.Select(f => new Entry(new(f.What, f.Detail))),
+        new(new("WHAT WE NEVER COLLECT", n.Never)),
+        new(new($"KEPT FOR {n.RetentionMonths} MONTHS", n.WhereLine)),
+        new(new("DELETE MY PLAYTEST DATA", "Deletes every night recorded on this computer, and starts a new id, so nothing sent before can be tied to you after."),
+            () =>
+            {
+                int gone = p.Delete();
+                Message = $"Deleted {gone} recorded {(gone == 1 ? "night" : "nights")}{(p.Recording ? "; a new id from now on" : "")}.";
+                return null;
+            }),
+        BackTo(_playtestBack),
+    ];
 
     /// <summary>The crash notice put away: its reports aren't said again, and the title's up.</summary>
     void PutCrashAway()
@@ -1321,6 +1399,11 @@ public sealed class FrontEnd
             // Note 350: a new player's first nights.
             new(new($"FIRST NIGHTS: {(Settings.FirstNights ? "ON" : "OFF")}", "Tips while a night's built, and the controls in the yard for your first nights."),
                 Toggle(s => s with { FirstNights = !s.FirstNights }), _ => Change(Settings with { FirstNights = !Settings.FirstNights })),
+            // Note 914: playtest data, on or off, and what it is.
+            .. Playtest is { } playtest && PlaytestNotice is not null
+                ? [Heading("PLAYTEST DATA"), PlaytestSwitch(playtest),
+                    new Entry(new("WHAT WE COLLECT", "Every kind of thing it records, for how long, and DELETE."), () => { _playtestBack = Screen.Settings; Show(Screen.PlaytestData); return null; })]
+                : (Entry[])[],
             // Note 452: something wrong that didn't crash it, reported as a crash is, from the player's own mail.
             .. CanMail && ProblemReport is not null
                 ? [Heading("HELP"), new Entry(new("REPORT A PROBLEM", "Writes what the game's doing and its log to a file, and opens a mail to the studio to send it with a few words."),
@@ -1336,6 +1419,8 @@ public sealed class FrontEnd
         Screen.Leave when Night is { } n => LeaveEntries(n, Go(Screen.Night)),
         Screen.DeleteCrew when Open is { } s => DeleteEntries(s),
         Screen.Crashed when Crash is { } c => CrashEntries(c),
+        Screen.Consent when Playtest is { } p && PlaytestNotice is { } n => ConsentEntries(p, n),
+        Screen.PlaytestData when Playtest is { } p && PlaytestNotice is { } n => PlaytestDataEntries(p, n),
         // Note 323: a row a mod, its description under it; what couldn't load, why. Nothing here changes them: they're laid
         // over as the game starts, from its folders or a mod manager's profile (note 53).
         Screen.Mods =>
@@ -1992,6 +2077,8 @@ public sealed class FrontEnd
             Screen.Slots => "CAMPAIGN",
             Screen.DeleteCrew when Open is { } s => $"DELETE {CrewName(s).ToUpperInvariant()}?",
             Screen.Crashed => "DARK TERRITORY STOPPED LAST TIME",
+            Screen.Consent => PlaytestNotice?.Question ?? "PLAYTEST DATA",
+            Screen.PlaytestData => "PLAYTEST DATA",
             Screen.Fortress or Screen.Upgrades or Screen.Stores when Open is { } s =>
                 $"{CrewName(s).ToUpperInvariant()}{(s.Town is { } town ? $" IN {town.Name.ToUpperInvariant()}" : "")}: {s.Cars} CARS, {s.Scrip:0} SCRIP, NIGHT {s.Runs + 1}, {Name(Campaign.TierFor(_campaign, s.Cars))}",
             Screen.Upgrades => "UPGRADES",
@@ -2021,7 +2108,8 @@ public sealed class FrontEnd
             y += 10;
         }
         // (Wrapped, as the heading is, at a bigger TEXT SIZE: note 347.)
-        string? under = Screen == Screen.Upgrades ? "BOUGHT FROM THE BLACKSMITH, AT THE FORGE IN THE YARD"
+        string? under = Screen == Screen.Consent && PlaytestNotice is { } notice ? string.Join(" ", notice.Ask).ToUpperInvariant()
+            : Screen == Screen.Upgrades ? "BOUGHT FROM THE BLACKSMITH, AT THE FORGE IN THE YARD"
             : Screen == Screen.Smithy && Smithy is { } selling
                 ? !selling.CanBuy ? $"THE HOST PAYS: ASK {(selling.Payer ?? "THEM").ToUpperInvariant()}"
                     // Note 904: with nothing in reach, why, where every one of its rows can see it.
@@ -2031,7 +2119,8 @@ public sealed class FrontEnd
         if (under is not null)
             foreach (var row in UiStyle.Wrap(o, under, width - x - 8))
             {
-                o.Text(x, y, row, Faint);
+                // The playtest question's reasons are read before answering (note 914): as bright as the heading.
+                o.Text(x, y, row, Screen == Screen.Consent ? Dim : Faint);
                 y += 10;
             }
         if (Screen == Screen.Stores)
