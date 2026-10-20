@@ -60,6 +60,8 @@ public sealed record BoilerTuning(
     public double SurgePerPressure { get; init; }
     /// <summary>Note 903: the most that surge pushes (m/s²), however many shovelfuls are flaring at once.</summary>
     public double SurgeMax { get; init; }
+    /// <summary>Note 903: the surge only from this speed (m/s): running, not shunting in a yard.</summary>
+    public double SurgeFrom { get; init; } = 4;
 
     /// <summary>
     /// Note 903: how hard the coal's flaring, as one shovelful at its height is 1 (and more shovelfuls more): what the stack's
