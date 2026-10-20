@@ -37,12 +37,6 @@ public sealed record Settings
     public bool PushToTalk { get; init; }
     public bool Hud { get; init; } = true;
     /// <summary>
-    /// Playtest telemetry (note 913, queue #624): this machine's sessions written down (nothing sent; #626). Off unless the
-    /// player says yes: #625 asks on first run and puts it in the settings screen; until then only by hand here, or
-    /// <c>--telemetry</c>.
-    /// </summary>
-    public bool Telemetry { get; init; }
-    /// <summary>
     /// The keys in the HUD's corner for what you're holding or driving (note 285, the director: "a setting to hide corner
     /// controls"). Off, the corner keeps only what it's about (the speed, what's in your hands); the prompts at the
     /// crosshair stay.
