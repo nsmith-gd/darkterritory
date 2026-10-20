@@ -183,7 +183,12 @@ object RunHarness(string[] args, Action<uint, IReadOnlyList<(DarkTerritory.Sim.B
     var line = route?.Build() ?? LoadLine(Str(args, "--line", "test-loop"));
     var combat = DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File));
     var enemies = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File));
-    using var online = args.Contains("--online") ? new DarkTerritory.Game.FakeLobbyNetwork() : null;
+    // --eos (note 896): the same over the EOS path, every machine behind a strict NAT so it all goes through the relays
+    // (--nat open|moderate|strict, --relay allow|force).
+    using DarkTerritory.Sim.Net.IHarnessNetwork? online = args.Contains("--online") ? new DarkTerritory.Game.FakeLobbyNetwork()
+        : args.Contains("--eos") ? new DarkTerritory.Game.FakeEosLobbyNetwork(Enum.Parse<Ballast.Online.Eos.EosNat>(Str(args, "--nat", "strict"), ignoreCase: true),
+            new Ballast.Online.Eos.EosSettings("", "", "", "", "", Str(args, "--relay", "allow")).RelayControl)
+        : null;
     // --trace file: a line each time anyone changes what they're doing (where they are, their part at a stop, warming up).
     using var trace = Str(args, "--trace", "") is { Length: > 0 } tracePath ? new StreamWriter(tracePath) : null;
     string lastTrace = "";
@@ -4655,8 +4660,10 @@ static int Usage()
           linegen sweep [--tier all|t] [--cars 3,10,20] [--seeds n] [--report sweep.csv] [--fallbacks]
                      generation, validation and metrics over many seeds (plan §16.5, §20.2)
           harness [--bots n] [--cars n] [--seconds t] [--seed s] [--latency s] [--jitter s] [--loss 0..1] [--line name | --route tier:seed]
-                     [--enemies] [--no-combat] [--no-boiler] [--udp | --online] [--trace file]   --udp: real sockets on localhost instead of the simulated link;
+                     [--enemies] [--no-combat] [--no-boiler] [--udp | --online | --eos] [--trace file]   --udp: real sockets on localhost instead of the simulated link;
                      --online: every bot joins a lobby on the fake Steam and plays over relayed P2P
+                     --eos [--nat strict|moderate|open] [--relay allow|force]: every bot joins the host's lobby on the fake EOS
+                     by its code, over EOS P2P (strict NATs: all through the relays; note 896)
                      host + bot clients over a simulated network; reports prediction error, bandwidth, deaths,
                      and with --enemies the director's spawns, punishes, deaths by cause and fairness audit; on a route, the
                      facility stops the crew worked (five bots make a crew for a winch); --trace writes who's doing what;
