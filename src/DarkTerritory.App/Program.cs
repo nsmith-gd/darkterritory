@@ -41,6 +41,9 @@ using CrewActs = DarkTerritory.Game.Art.CrewActs;
 // Steam: --steam hosts a lobby as well (F2 opens the invite dialog; friends can also "Join Game" from the
 //   friends list). Accepting an invite starts the game with +connect_lobby <id>, or --join-lobby <id> by hand.
 //   Needs steam_api64.dll next to the game (external/steam/README.md); --no-steam to not even try.
+// EOS (note 896; the itch.io build): without Steam, Epic Online Services when the game has its credentials (eos.json beside
+//   it, or the DT_EOS_* variables) and its SDK (external/eos/README.md); --eos hosts a lobby on it as well, --no-eos never
+//   tries. The host's lobby has a join code (the status line says it); friends type it where an address goes, or --join CODE.
 // Networked, the cab is the only place to drive from (GDD §12): R/F/B/X work when you're standing in it.
 // VR: --vr plays in an OpenXR headset (Quest via Link, SteamVR, Monado) and mirrors to the window; --vr-scale 0.5 of the
 //   runtime's per-eye size. You look with your head and walk where you look: left stick walks (click it to run), right
@@ -121,6 +124,24 @@ static SteamBackend? NoSteam(string? error)
     Console.WriteLine($"steam: {error}; LAN and direct IP still work");
     return null;
 }
+// The platform the game's online play goes through: Steam when it's up, else EOS when this copy has its credentials.
+using var eos = steam is not null || args.Contains("--no-eos") ? null : StartEos(args.Contains("--eos"));
+IOnlineBackend? online = (IOnlineBackend?)steam ?? eos;
+static Ballast.Online.Eos.EosBackend? StartEos(bool asked)
+{
+    if (Ballast.Online.Eos.EosSettings.Load() is not { } settings)
+    {
+        if (asked)
+            Console.WriteLine("eos: no credentials (eos.json beside the game, or the DT_EOS_* variables; note 896)");
+        return null;
+    }
+    string? error = null;
+    var started = Ballast.Online.Eos.EosSdk.TryCreate(settings, out error) is { } sdk
+        ? Ballast.Online.Eos.EosBackend.TryStart(sdk, Environment.UserName, settings.RelayControl, out error)
+        : null;
+    Console.WriteLine(started is null ? $"eos: {error}; LAN and direct IP still work" : $"eos: signed in (relays {settings.Relay})");
+    return started;
+}
 
 var campaignTuning = DataFile.Load<CampaignTuning>(Path.Combine(content, CampaignTuning.File));
 var runTuning = DataFile.Load<DarkTerritory.Sim.Run.RunTuning>(Path.Combine(content, DarkTerritory.Sim.Run.RunTuning.File));
@@ -176,6 +197,7 @@ crashes.Context("edition", EditionTuning.Load(content).Name);
 crashes.Context("mods", Mods.Off ? "off (--no-mods)" : Mods.Installed.Mods.Count == 0 ? "none"
     : string.Join(", ", Mods.Installed.Mods.Select(m => $"{m.Name} {m.Version}")) + (Mods.Installed.Problems.Count > 0 ? $"; {Mods.Installed.Problems.Count} couldn't load" : ""));
 crashes.Context("steam", steam is null ? "off" : "on");
+crashes.Context("eos", eos is null ? "off" : "on");
 crashes.Context("args", args.Length == 0 ? "none" : string.Join(" ", args));
 IPlaySession? playing = null;
 string doing = "the menus";
@@ -217,7 +239,7 @@ Launch? LaunchFromArgs()
         route = edition.Tiers[0] + (route.Contains(':') ? route[route.IndexOf(':')..] : "");
     }
     string? routeFile = Arg("--route-file", "") is { Length: > 0 } f ? f : null;
-    bool host = port is not null || args.Contains("--steam") && steam is not null;
+    bool host = port is not null || args.Contains("--steam") && steam is not null || args.Contains("--eos") && eos is not null;
     if (host || route is not null || routeFile is not null || args.Contains("--line"))
         return new Launch.Night(route, cars, host)
         {
@@ -433,10 +455,10 @@ LobbyId? Invited(NetPlaySession? net)
 {
     if (net?.Lobby is not null)
         return net.TakeJoinRequest();
-    if (steam is null)
+    if (online is null)
         return null;
     steamEvents.Clear();
-    steam.Poll(steamEvents);
+    online.Poll(steamEvents);
     return steamEvents.Where(e => e.Kind == OnlineEventKind.JoinRequested).Select(e => (LobbyId?)e.Lobby).LastOrDefault();
 }
 
@@ -499,7 +521,7 @@ Launch? MenuLoop()
         vrKeys.Read(vr.Session.Controllers);
     // The public games (T116; the user's playtest: "Join should work like Lethal Company"), for the join screen: the local
     // network's, and Steam's lobby search when Steam's up.
-    using var browser = new LobbyBrowser(new Ballast.Net.LanBrowser(), steam);
+    using var browser = new LobbyBrowser(new Ballast.Net.LanBrowser(), online);
     // Note 351 (the polish pass, headless with --capture): --screen name opens a menu screen from the first frame (fortress
     // is slot 1's), and --select n moves n rows down it.
     if (Arg("--screen", "") is { Length: > 0 } opened && !menuOpened)
@@ -636,9 +658,13 @@ static string Doing(Launch chosen) => chosen switch
 #endif
     switch (chosen)
     {
-        case Launch.JoinLobby lobby when steam is not null:
-            Console.WriteLine($"joining lobby {lobby.Lobby} on Steam…");
-            return (NetPlaySession.JoinLobby(content, steam, lobby.Lobby, password: lobby.Password), null);
+        case Launch.JoinLobby lobby when online is not null:
+            Console.WriteLine($"joining lobby {lobby.Lobby} on {online.Platform}…");
+            return (NetPlaySession.JoinLobby(content, online, lobby.Lobby, password: lobby.Password), null);
+        // A join code typed where the address goes (EOS, note 896): six letters and digits, no dots or colons.
+        case Launch.Join { Address: var typed } byCode when online is IJoinCodes && JoinCode.Normalize(typed) is { } code:
+            Console.WriteLine($"joining {JoinCode.Show(code)} on {online.Platform}…");
+            return (NetPlaySession.JoinByCode(content, online, code, password: byCode.Password), null);
         case Launch.Join join:
             {
                 string target = join.Address;
@@ -676,7 +702,7 @@ static string Doing(Launch chosen) => chosen switch
                 frontEnd.Bots = night.Bots;
                 if (night.Bots > 0)
                     Console.WriteLine($"a crew of {night.Bots} bot{(night.Bots == 1 ? "" : "s")} aboard");
-                return (NetPlaySession.HostGame(content, setup, port, online: night.Host ? steam : null, resume: resume, bots: night.Bots,
+                return (NetPlaySession.HostGame(content, setup, port, online: night.Host ? online : null, resume: resume, bots: night.Bots,
                     listed: frontEnd.Settings.PublicLobby || password is not null, lobbyName: frontEnd.LobbyName, password: password, mood: frontEnd.Settings.Mood, mischief: frontEnd.Mischief,
                     recordKm: profile.Load().RecordKm), campaign);
             }
@@ -693,15 +719,16 @@ static string Doing(Launch chosen) => chosen switch
                     MusicBag = musicBags.Load(),
                     FirstChildReal = profile.FirstChildReal,
                 };
-                var session = NetPlaySession.HostGame(content, setup, port, online: hosted.Host ? steam : null, bots: hosted.Bots,
+                var session = NetPlaySession.HostGame(content, setup, port, online: hosted.Host ? online : null, bots: hosted.Bots,
                     listed: hosted.Public, lobbyName: hosted.LobbyName, password: hosted.Password, mood: hosted.Mood, mischief: hosted.Mischief,
                     recordKm: profile.Load().RecordKm);
                 if (hosted.Bots > 0)
                     Console.WriteLine($"a crew of {hosted.Bots} bot{(hosted.Bots == 1 ? "" : "s")} aboard");
                 if (port is not null)
                     Console.WriteLine($"hosting on UDP port {session.Port}: others join with --join <this machine's address>:{session.Port}");
-                if (steam is not null && hosted.Host)
-                    Console.WriteLine($"hosting a {(session.Locked ? "private (password)" : hosted.Public ? "public" : "friends-only")} Steam lobby, \"{session.LobbyName}\", as {steam.NameOf(steam.Me)}: F2 to invite");
+                if (online is not null && hosted.Host)
+                    Console.WriteLine($"hosting a {(session.Locked ? "private (password)" : hosted.Public ? "public" : "friends-only")} {online.Platform} lobby, \"{session.LobbyName}\", as {online.NameOf(online.Me)}: " +
+                        (online is IJoinCodes ? "its join code is on the status line" : "F2 to invite"));
                 return (session, null);
             }
         case Launch.Night { RouteFile: { } file } alone:
@@ -725,7 +752,7 @@ while (!window.CloseRequested && !QuitNow())
 {
     launch ??= Menu();
     sound.UiLoop(UiCue.Title, on: false);
-    if (launch is null or Launch.Quit || launch is Launch.JoinLobby && steam is null)
+    if (launch is null or Launch.Quit || launch is Launch.JoinLobby && online is null)
         break;
     // T116 playtest ("the linux build crashed ... keeps getting a 'not responding' message"): connecting and building the
     // night's line take seconds, and ran on the window's thread with nothing pumping it, and a join nobody answered threw

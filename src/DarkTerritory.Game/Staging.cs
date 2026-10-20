@@ -2228,6 +2228,33 @@ public static partial class Staging
     }
 
     /// <summary>
+    /// Hounds winding up to light their car (note 891; <c>dt screenshot --ignite --view patrol</c>): on the second car's roof,
+    /// one <paramref name="w"/> of the way through its wind-up (its cracks blazing, embers streaming up off it), and one at
+    /// the burst from its body that lights the car.
+    /// </summary>
+    public static List<Enemy> Ignite(TrainOnLine train, double w, double windUp)
+    {
+        int car = Math.Min(2, train.Frames.Count - 1);
+        var shape = train.Frames[car].Shape;
+        double roof = shape.RoofHeight, end = shape.HalfLength;
+        (int Face, Double3 At, double Into)[] hounds =
+        [
+            (1, new Double3(0.6, roof, -end + 3), windUp * w),
+            (0, new Double3(-0.6, roof, end - 3.5), windUp * 0.92),
+        ];
+        var list = new List<Enemy>();
+        for (int i = 0; i < hounds.Length; i++)
+        {
+            var (face, at, into) = hounds[i];
+            var hound = new CinderHound(80 + i, 80);
+            const double seconds = 30;
+            hound.Restore(SpinePhase.Commit, seconds, 60, car, at, seconds - into, (int)HoundMode.Ignite * 4 + face, 0, 80, 0);
+            list.Add(hound);
+        }
+        return list;
+    }
+
+    /// <summary>
     /// A Dragger perched on a through-truss's top chord (note 435; <c>dt screenshot --route frontier:7 --truss --view ahead</c>):
     /// mid-span on the right, scraping (its limb reaching down off the steel), the train coming up on it.
     /// </summary>

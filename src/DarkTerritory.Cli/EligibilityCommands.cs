@@ -30,6 +30,10 @@ static class EligibilityCommands
         public double RunMetresMax;
         public int HoundRuns;
         public int Stopped, AtStop, OnGround;
+        /// <summary>What-ifs at lower speeds (note 875): hound runs the run's count would have started with fromSpeed at each, and
+        /// the open seconds a Gannet's arrival (arriveSeconds at arriveAbove) would have been met.</summary>
+        public Dictionary<double, int> RunsAt = [], GannetAt = [];
+        public Dictionary<double, double> FirstGannetAt = [];
     }
 
     sealed class Kind
@@ -42,9 +46,12 @@ static class EligibilityCommands
     }
 
     static readonly double[] Speeds = [3, 5, 8, 10, 14, 18, 19];
+    static readonly double[] WhatIf = [11, 12, 13, 14, 16, 18, 19];
 
-    public static object Run(string[] args, Func<string[], Action<uint, IReadOnlyList<(IBot Bot, PlayerState State)>, World>, object> harness)
+    public static object Run(string content, string[] args, Func<string[], Action<uint, IReadOnlyList<(IBot Bot, PlayerState State)>, World>, object> harness)
     {
+        if (args is [_, "rolls", ..])
+            return Rolls(content, args);
         var routes = Str(args, "--routes", "frontier:7,deadLines:3").Split(',', StringSplitOptions.RemoveEmptyEntries);
         // A crew and its train: 1:3 is one crewmate on three cars (the brief §7's sessions).
         var crews = Str(args, "--crews", "1:3,2:5,4:8").Split(',', StringSplitOptions.RemoveEmptyEntries)
@@ -59,6 +66,8 @@ static class EligibilityCommands
             var night = new Night { Route = g.Route, Bots = g.Bots, Cars = g.Cars, Seed = g.Seed, Config = $"{g.Route} {g.Bots}p/{g.Cars}c" };
             var run = (World?)null;
             double runMetres = 0;
+            var whatRun = WhatIf.ToDictionary(x => x, _ => 0.0);
+            var whatFast = WhatIf.ToDictionary(x => x, _ => 0.0);
             harness(["harness", "--as-app", "--route", g.Route, "--bots", I(g.Bots), "--cars", I(g.Cars), "--enemies", "--upkeep",
                 "--seconds", seconds.ToString(CultureInfo.InvariantCulture), "--seed", I(g.Seed)], (tick, _, world) =>
                 {
@@ -83,6 +92,21 @@ static class EligibilityCommands
                     var hr = d.Tuning.Run;
                     runMetres = v < hr.StopSpeed ? 0 : runMetres + (v >= hr.FromSpeed ? v : 0);
                     night.RunMetresMax = Math.Max(night.RunMetresMax, runMetres);
+                    foreach (double at in WhatIf)
+                    {
+                        whatRun[at] = v < hr.StopSpeed ? 0 : whatRun[at] + (v >= at ? v : 0);
+                        if (whatRun[at] >= hr.AfterMetres)
+                        {
+                            night.RunsAt[at] = night.RunsAt.GetValueOrDefault(at) + 1;
+                            whatRun[at] = 0;
+                        }
+                        whatFast[at] = v >= at ? whatFast[at] + 1 : 0;
+                        if (whatFast[at] >= et.Gannet.ArriveSeconds && world.Train.Dynamics.Consist.CarCount >= et.Gannet.MinCars)
+                        {
+                            night.GannetAt[at] = night.GannetAt.GetValueOrDefault(at) + 1;
+                            night.FirstGannetAt.TryAdd(at, world.Run?.Seconds ?? night.Seconds);
+                        }
+                    }
                     var ctx = new SpawnContext(world, et, d);
                     if (ctx.Stopped)
                         night.Stopped++;
@@ -139,6 +163,47 @@ static class EligibilityCommands
         return report;
     }
 
+    /// <summary>
+    /// `dt eligibility rolls [--seeds 1-2000] [--crews 1,2,4,8]`: each kind's night (nightChance and the night's floor, note 868)
+    /// as the director rolls it at its making, over many seeds, by tier and crew: the share of nights it's about. No night played.
+    /// </summary>
+    static object Rolls(string content, string[] args)
+    {
+        var et = Ballast.DataFile.Load<EnemyTuning>(Path.Combine(content, EnemyTuning.File));
+        var seeds = Seeds(Str(args, "--seeds", "1-2000"));
+        var crews = Str(args, "--crews", "1,2,4,8").Split(',').Select(c => int.Parse(c, CultureInfo.InvariantCulture)).ToList();
+        var tiers = new[] { "local:1", "frontier:7", "deadLines:3", "deepTerritory:1" };
+        var rows = new List<object>();
+        var sb = new StringBuilder();
+        var keys = Spawns.Rules.Select(r => Director.Key(r.Kind)).OrderBy(k => k, StringComparer.Ordinal).ToList();
+        sb.AppendLine($"| Kind | nightChance | {string.Join(" | ", tiers.SelectMany(t => crews.Select(c => $"{t.Split(':')[0]} {c}p")))} |");
+        sb.AppendLine($"|---|---|{string.Concat(tiers.SelectMany(_ => crews).Select(_ => "---|"))}");
+        var table = keys.ToDictionary(k => k, _ => new List<string>());
+        foreach (var spec in tiers)
+        {
+            var route = DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, 6);
+            foreach (int crew in crews)
+            {
+                var about = keys.ToDictionary(k => k, _ => 0);
+                foreach (int seed in seeds)
+                {
+                    var d = new Director(et.Director, route, (ulong)seed, 6, crew);
+                    foreach (var k in keys)
+                        if (!d.OutTonight(Spawns.Rules.First(r => Director.Key(r.Kind) == k).Kind))
+                            about[k]++;
+                }
+                rows.Add(new { tier = route.Tier.ToString(), crew, about = about.ToDictionary(a => a.Key, a => Share(a.Value, seeds.Count)) });
+                foreach (var k in keys)
+                    table[k].Add(P(Share(about[k], seeds.Count)));
+            }
+        }
+        foreach (var k in keys)
+            sb.AppendLine($"| {k} | {(et.Director.NightChance.TryGetValue(k, out var ch) ? P(ch) : "every night")} | {string.Join(" | ", table[k])} |");
+        if (Str(args, "--markdown", "") is { Length: > 0 } md)
+            File.WriteAllText(md, sb.ToString());
+        return new { seeds = seeds.Count, rows };
+    }
+
     static object Report(List<Night> nights, double seconds) => new
     {
         seconds,
@@ -154,6 +219,15 @@ static class EligibilityCommands
             onGround = Share(g.Sum(n => n.OnGround), g.Sum(n => n.Open)),
             speed = Speeds.ToDictionary(s => $"≥{s:0}", s => Share(g.Sum(n => n.SpeedAtLeast.GetValueOrDefault($"≥{s:0}")), g.Sum(n => n.Open))),
             houndRun = new { runs = g.Sum(n => n.HoundRuns), bestMetres = g.Select(n => Math.Round(n.RunMetresMax)).ToList() },
+            // What-ifs: per night, the hound runs a fromSpeed of each would have started, and the nights a Gannet arriving at each
+            // speed would have had its moment (and the open seconds it would have held).
+            houndRunsIf = WhatIf.ToDictionary(x => $"fromSpeed {x:0}", x => R(g.Average(n => (double)n.RunsAt.GetValueOrDefault(x)))),
+            gannetIf = WhatIf.ToDictionary(x => $"arriveAbove {x:0}", x => new
+            {
+                nights = $"{g.Count(n => n.GannetAt.ContainsKey(x))}/{g.Count()}",
+                share = Share(g.Sum(n => n.GannetAt.GetValueOrDefault(x)), g.Sum(n => n.Open)),
+                firstAt = g.Where(n => n.FirstGannetAt.ContainsKey(x)).Select(n => Math.Round(n.FirstGannetAt[x])).ToList(),
+            }),
             held = g.SelectMany(n => n.Held).GroupBy(h => h.Key).OrderByDescending(h => h.Sum(x => x.Value))
                 .ToDictionary(h => h.Key, h => Share(h.Sum(x => x.Value), g.Sum(n => n.Seconds))),
         }).ToList(),
@@ -220,6 +294,12 @@ static class EligibilityCommands
         foreach (var n in nights)
             sb.AppendLine($"| {n.Config} s{n.Seed} | {n.Open} | {n.Km:0.0} | {P(Share(n.Stopped, n.Open))} | {P(Share(n.AtStop, n.Open))} | {P(Share(n.OnGround, n.Open))} | "
                 + string.Join(" | ", new[] { 8, 10, 14, 18, 19 }.Select(s => P(Share(n.SpeedAtLeast.GetValueOrDefault($"≥{s}"), n.Open)))) + $" | {n.HoundRuns} | {n.RunMetresMax:0} |");
+        sb.AppendLine();
+        sb.AppendLine($"| Crew and train | {string.Join(" | ", WhatIf.Select(x => $"run from {x:0} m/s"))} | {string.Join(" | ", WhatIf.Select(x => $"Gannet over {x:0} m/s"))} |");
+        sb.AppendLine($"|---|{string.Concat(WhatIf.Select(_ => "---|"))}{string.Concat(WhatIf.Select(_ => "---|"))}");
+        foreach (var g in nights.GroupBy(n => n.Config))
+            sb.AppendLine($"| {g.Key} | {string.Join(" | ", WhatIf.Select(x => g.Average(n => (double)n.RunsAt.GetValueOrDefault(x)).ToString("0.0", CultureInfo.InvariantCulture)))} | "
+                + string.Join(" | ", WhatIf.Select(x => $"{g.Count(n => n.GannetAt.ContainsKey(x))}/{g.Count()} ({P(Share(g.Sum(n => n.GannetAt.GetValueOrDefault(x)), g.Sum(n => n.Open)))})")) + " |");
         sb.AppendLine();
         sb.AppendLine("| Kind | Gate: share of open seconds it held |");
         sb.AppendLine("|---|---|");

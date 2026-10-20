@@ -58,6 +58,25 @@ public sealed class Lobby : IDisposable
         return lobby;
     }
 
+    /// <summary>
+    /// Joins a friend's lobby by the code they read out (EOS, note 896): the platform finds it, then it's as
+    /// <see cref="Join"/>. Fails at once on a platform without codes (Steam has its invites).
+    /// </summary>
+    public static Lobby JoinByCode(IOnlineBackend online, string code, string game, int protocol)
+    {
+        var lobby = new Lobby(online, game, protocol, host: false, target: null) { _byCode = true };
+        if (online is IJoinCodes codes)
+            codes.JoinByCode(code);
+        else
+            lobby.Fail($"{online.Platform} has no join codes");
+        return lobby;
+    }
+
+    bool _byCode;
+
+    /// <summary>The code friends type to join this lobby, on a platform with codes (EOS); "" otherwise or until it's made.</summary>
+    public string Code => Status == State.Open && _online is IJoinCodes codes ? codes.CodeOf(Id) : "";
+
     public IOnlineBackend Online => _online;
     public bool IsHost { get; }
     public State Status { get; private set; }
@@ -102,10 +121,12 @@ public sealed class Lobby : IDisposable
                         _online.SetLobbyData(Id, key, value);
                     Status = State.Open;
                     break;
-                case OnlineEventKind.LobbyEntered when Status == State.Joining && e.Lobby == _target:
+                case OnlineEventKind.LobbyEntered when Status == State.Joining && (e.Lobby == _target || _byCode && _target is null):
                     Entered(e.Lobby);
                     break;
                 case OnlineEventKind.LobbyFailed when Status is State.Creating or State.Joining:
+                    // Joined by id, it's the one asked for; by code, the one the code found (its values say why, note 254).
+                    Id = _target ?? e.Lobby;
                     Fail(e.Error ?? "the lobby couldn't be reached");
                     break;
                 case OnlineEventKind.JoinRequested when e.Lobby != Id:
