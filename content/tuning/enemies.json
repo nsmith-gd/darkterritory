@@ -75,7 +75,9 @@
     // left alone. They go only dead, or with their car cut loose. stayAboard false: v1.1's drop-off after boredSeconds.
     "stayAboard": true,
     "cargoPerSecond": 0.002,
-    "igniteEverySeconds": 20,
+    // Note 891 (the director, 9 Oct 2026: "This is too much. Cinder Hounds should reignite every minute and a half they are
+    // left aboard at the car they are currently in. Crew should have time to fight fires effectively"): 20 → 90.
+    "igniteEverySeconds": 90,
     // Note 472 (the director, 8 Oct 2026: "It matters that they dont just stand there and howl, they should either patrol
     // between cars that have doors open or patrol the roofs of the cars, jumping between them if they can make the jump").
     // Aboard with nobody it can reach (note 471), a hound patrols its roof at walk m/s, and the next car's at its end: a leap
@@ -89,6 +91,21 @@
     "patrol": { "on": true, "walk": 1.6, "chase": 3.5, "chaseFrom": 20, "leapSeconds": 0.9, "leapFrom": 0.25, "leapTo": 0.65,
       "sniffEvery": [8, 15], "sniffSeconds": 3, "dropSeconds": 1.0, "climbSeconds": 1.2, "inChance": 0.5, "insideSeconds": [8, 15],
       "carsAhead": 1 },
+    // Note 891 (the director, 9 Oct 2026, inbox D1.2-car-fires-from-packs): "Attacking a cinder hound should reset its ignite
+    // burst from its body that sets the fire. Attacking should cause it to retreat. Cinder Hounds attack the player when the
+    // player is first spotted with a lunge attack by jumping at the player to bite, then retreating to do it again. Cinder
+    // Hounds stop attacking and leave the train if they are pushed to the back of the train and there is a valid exit (door
+    // open or roof of car)." With on: its ignite clock (igniteEverySeconds) runs the whole time it's aboard, not only alone,
+    // and lights the car it's on when it runs out with nobody near (note 851's rule: never over the crew fighting the fire);
+    // a blow sets it back to nought. Someone it can reach within lungeFrom m, it leaps at them over lungeSeconds (to
+    // lungeShort m short of them) and bites as it lands if they're still in reach (biteDamage; down to the last, the pin),
+    // backs off retreatMetres at retreatSpeed m/s, crouches crouchSeconds watching them, and comes again. A blow that
+    // doesn't kill it drives it away from whoever struck it for struckSeconds at struckSpeed m/s, over the gap to the car
+    // behind; at the back of the rear car (its roof's end, or inside with one of its doors open), with leaveAtRear, it
+    // leaves the train (as the extinguisher drives it off). The spray's backing off (note 728) leaves the same way.
+    // on false: note 472's bite every biteEverySeconds where it stands, and the clock only while it's alone.
+    "aboard": { "on": true, "lungeFrom": 4, "lungeSeconds": 0.5, "lungeShort": 0.8, "retreatMetres": 3, "retreatSpeed": 2.5,
+      "crouchSeconds": 2, "struckSeconds": 1.5, "struckSpeed": 3.5, "leaveAtRear": true },
     "boredSeconds": 6,
     // App. B.3: needs sustained speed first.
     "minTrainSpeed": 8,

@@ -222,9 +222,10 @@ public class FireCauseTests
         Assert.Single(n.World.NewsLog, e => e.Kind == NewsKind.Fire);
         Assert.All(n.Crew.Values, s => Assert.True(s.Alive));
         // Out of the car and off the train, nobody's near it: it feeds, and lights the car again, told as its own (on boards
-        // the first fire charred it may not take; the telling's the point).
+        // the first fire charred it may not take; the telling's the point). Its clock ran out under them (note 891: it runs
+        // the whole time it's aboard, only a blow sets it back), so it's at once.
         n.Crew.Clear();
-        n.Run(E.CinderHounds.IgniteEverySeconds + 3);
+        n.Run(3);
         var relit = n.World.NewsLog.Where(e => e.Kind == NewsKind.Fire).ToList();
         Assert.Equal(2, relit.Count);
         Assert.Equal(FireCause.Hounds, (FireCause)relit[1].Cause);

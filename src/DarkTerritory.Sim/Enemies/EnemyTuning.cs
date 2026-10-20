@@ -655,10 +655,32 @@ public sealed record HoundTuning(int[] PackSize, double Health, double Radius, d
     public bool StayAboard { get; init; } = true;
     /// <summary>Note 269: aboard with nobody near, each eats this share of its car's cargo a second.</summary>
     public double CargoPerSecond { get; init; } = 0.002;
-    /// <summary>Note 269: and sets its car alight this long after it's left alone (and again, after it's put out).</summary>
-    public double IgniteEverySeconds { get; init; } = 20;
+    /// <summary>Note 269: and sets its car alight this long after it's left alone (and again, after it's put out). Note 891: with
+    /// <see cref="HoundAboardTuning.On"/>, this long aboard since it boarded, its last fire or the last blow on it.</summary>
+    public double IgniteEverySeconds { get; init; } = 90;
     /// <summary>Note 472: aboard with nobody in reach, it patrols (enemies.json cinderHounds.patrol).</summary>
     public HoundPatrolTuning Patrol { get; init; } = new();
+    /// <summary>Note 891: the director's 9 Oct answer, how a hound aboard fights (enemies.json cinderHounds.aboard).</summary>
+    public HoundAboardTuning Aboard { get; init; } = new();
+}
+
+/// <summary>
+/// Note 891 (the director, 9 Oct 2026, inbox <c>D1.2-car-fires-from-packs</c>): the ignite clock runs while it's aboard and a
+/// blow resets it; a blow drives it back; it lunges, bites and retreats; driven to the back of the train with a way off, it
+/// leaves. Field docs live in enemies.json cinderHounds.aboard.
+/// </summary>
+public sealed record HoundAboardTuning
+{
+    public bool On { get; init; } = true;
+    public double LungeFrom { get; init; } = 4;
+    public double LungeSeconds { get; init; } = 0.5;
+    public double LungeShort { get; init; } = 0.8;
+    public double RetreatMetres { get; init; } = 3;
+    public double RetreatSpeed { get; init; } = 2.5;
+    public double CrouchSeconds { get; init; } = 2;
+    public double StruckSeconds { get; init; } = 1.5;
+    public double StruckSpeed { get; init; } = 3.5;
+    public bool LeaveAtRear { get; init; } = true;
 }
 
 /// <summary>

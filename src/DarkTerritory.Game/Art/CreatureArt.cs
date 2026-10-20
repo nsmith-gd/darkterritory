@@ -1971,6 +1971,8 @@ public sealed partial class CreatureArt
                         (clip, loop) = _houndAboard.Mode switch
                         {
                             HoundMode.Leap => ("leap", false),
+                            // Note 891: the leap at someone to bite, and backing off from them (a retreat walks, as its patrol).
+                            HoundMode.Lunge => ("lunge", false),
                             HoundMode.Drop => ("drop", false),
                             HoundMode.Climb => ("climb", false),
                             HoundMode.Sniff => ("sniff", true),
@@ -1980,7 +1982,7 @@ public sealed partial class CreatureArt
                         if (!HasClip("cinder_hound", clip))
                             (clip, loop) = _houndAboard.Mode switch
                             {
-                                HoundMode.Leap => ("lunge", false),
+                                HoundMode.Leap or HoundMode.Lunge => ("lunge", false),
                                 HoundMode.Drop or HoundMode.Climb => ("board", false),
                                 HoundMode.Sniff => ("crouch", true),
                                 _ => ("prowl", true),

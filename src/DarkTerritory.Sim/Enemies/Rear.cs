@@ -73,8 +73,14 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
             Enter(ctx, SpinePhase.Gone);
             return;
         }
+        // Note 891: its ignite clock runs the whole time it's aboard (a blow sets it back, Struck).
+        if (Attached >= 0 && t.Aboard.On)
+            _ignite += SimConstants.TickSeconds;
         // Note 728 (playtest 13 Oct evening, line 24): the extinguisher's cold on a hound aboard drives it back.
-        if (Attached >= 0 && Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab && Doused(ctx))
+        if (Attached >= 0 && Phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.Grab && Doused(ctx, t))
+            return;
+        // Note 891: struck, it's driven back from whoever hit it, toward the back of the train and off it.
+        if (Attached >= 0 && Phase is SpinePhase.Telegraph or SpinePhase.Commit && Pushed(ctx, t))
             return;
         switch (Phase)
         {
@@ -372,7 +378,7 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
     public static (HoundMode Mode, int Face) Decode(double lateral)
     {
         int code = Math.Max(0, (int)Math.Round(lateral));
-        return ((HoundMode)Math.Min(code / 4, (int)HoundMode.Sniff), code % 4);
+        return ((HoundMode)Math.Min(code / 4, (int)HoundMode.Retreat), code % 4);
     }
 
     void SetMode(HoundMode mode, int face)
@@ -669,6 +675,11 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
             return;
         }
         _boredTimer = 0;
+        if (t.Aboard.On)
+        {
+            Fight(ctx, t, v.Id, v.Distance, v.World, v.State);
+            return;
+        }
         if (v.Distance > t.Reach)
         {
             // Out of its reach on the train: after them (note 472), over the gaps.
@@ -699,9 +710,10 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         var train = ctx.Train;
         var car = train.Vehicles[Attached];
         car.CargoIntegrity = Math.Max(0, car.CargoIntegrity - t.CargoPerSecond * SimConstants.TickSeconds);
-        if (_boredTimer < t.IgniteEverySeconds)
+        if ((t.Aboard.On ? _ignite : _boredTimer) < t.IgniteEverySeconds)
             return;
         _boredTimer = 0;
+        _ignite = 0;
         if (ctx.World.ActiveEnemies.Any(e => e is CarFire f && !f.Gone && f.Attached == Attached))
             return;
         // Note 851: home (in through the arrival's gates), nothing burns: it eats, and lights nothing.
@@ -714,6 +726,160 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         string where = Inside(train) ? "in it" : "on its roof";
         ctx.World.AddEnemy(i => CarFire.In(i, train, into, along, ctx.Tuning.CarFire, FireCause.Hounds, -1, -1, $"Feeding {where}, nobody near."));
         ctx.World.PackFires++;
+    }
+
+    // ---- Note 891: the director's 9 Oct answer ----
+    // How long it's been aboard since its last fire or the last blow on it (s); how long a blow's still driving it back (s), and
+    // which way along its car (+1 toward the back); until when it crouches between lunges; where (its car's z) a lunge lands,
+    // and how far it has yet to back off after one.
+    double _ignite, _struck, _crouchUntil = -1, _lungeZ, _lungeFromZ, _retreatLeft;
+    int _pushDir = 1;
+
+    /// <summary>The ends of the ground it's on in its car, along z: its room's, dropped in; else its roof's.</summary>
+    (double Lo, double Hi) Ends(TrainOnLine train)
+    {
+        var shape = train.Frames[Attached].Shape;
+        return Inside(train) ? (shape.Interior!.Value.Min.Z + RoomEnd, shape.Interior!.Value.Max.Z - RoomEnd)
+            : (-(shape.HalfLength - RoofEnd), shape.HalfLength - RoofEnd);
+    }
+
+    /// <summary>
+    /// A way off the back of the train from where it is (the director, 9 Oct 2026: "if they are pushed to the back of the train
+    /// and there is a valid exit (door open or roof of car)"): on the rear car, up on its roof, or in it with one of its doors open.
+    /// </summary>
+    bool WayOff(TrainOnLine train)
+    {
+        var consist = train.Dynamics.Consist;
+        if (consist.Vehicles.Count == 0 || consist.Vehicles[^1].Id != Attached)
+            return false;
+        if (!Inside(train))
+            return true;
+        var v = train.Vehicles[Attached];
+        return train.Frames[Attached].Shape.DoorList.Any(d => v.DoorOpen(d.Index));
+    }
+
+    /// <summary>Off the back of the train into the dark: driven off, as the extinguisher drives it (note 728).</summary>
+    void Leave(EnemyContext ctx)
+    {
+        ctx.World.DrivenOff.Add(Kind);
+        Enter(ctx, SpinePhase.BreakOff);
+        Enter(ctx, SpinePhase.Gone);
+    }
+
+    /// <summary>
+    /// Struck (note 891): driven back from whoever hit it for <see cref="HoundAboardTuning.StruckSeconds"/>, along its car; at
+    /// its end toward the back, over the gap onto the car behind; at the back of the train with a way off, off it. Driven
+    /// toward the engine it stops at its car's end. True while it's being driven (it does nothing else this tick).
+    /// </summary>
+    bool Pushed(EnemyContext ctx, HoundTuning t)
+    {
+        if (_struck <= 0)
+            return false;
+        var a = t.Aboard;
+        var train = ctx.Train;
+        _struck -= SimConstants.TickSeconds;
+        _biteTimer = 0;
+        if (Aboard == HoundMode.Leap)
+        {
+            Leaping(ctx, t.Patrol);
+            return true;
+        }
+        var (lo, hi) = Ends(train);
+        int face = _pushDir < 0 ? 0 : 1;
+        double z = Math.Clamp(Local.Z + _pushDir * a.StruckSpeed * SimConstants.TickSeconds, lo, hi);
+        if (Math.Abs(z - Local.Z) > 1e-9)
+        {
+            Local = Local with { Z = z };
+            SetMode(HoundMode.Retreat, face);
+            return true;
+        }
+        if (_pushDir > 0 && a.LeaveAtRear && WayOff(train))
+        {
+            Leave(ctx);
+            return true;
+        }
+        int behind = _pushDir > 0 && !Inside(train) ? train.VehicleBehind(Attached) : -1;
+        if (behind >= 0 && !train.Vehicles[behind].IsEngine)
+        {
+            _leapTo = behind;
+            _leapFromCar = Attached;
+            _leapZ = -(train.Frames[behind].Shape.HalfLength - RoofEnd);
+            _leapFrom = Local;
+            SetMode(HoundMode.Leap, 1);
+            return true;
+        }
+        SetMode(HoundMode.Still, face);
+        return true;
+    }
+
+    /// <summary>
+    /// Someone it can reach on its ground (note 891; the director, 9 Oct 2026: "Cinder Hounds attack the player when the player
+    /// is first spotted with a lunge attack by jumping at the player to bite, then retreating to do it again"): within
+    /// <see cref="HoundAboardTuning.LungeFrom"/> it leaps at them, bites as it lands if they're still in its reach, backs
+    /// off, crouches watching them, and comes again. Further off, after them along the roofs (note 472).
+    /// </summary>
+    void Fight(EnemyContext ctx, HoundTuning t, int victim, double distance, Double3 world, PlayerState state)
+    {
+        var a = t.Aboard;
+        var train = ctx.Train;
+        double dt = SimConstants.TickSeconds;
+        var (lo, hi) = Ends(train);
+        double theirZ = train.Frames[Attached].ToLocal(world).Z;
+        int toward = theirZ < Local.Z ? 0 : 1;
+        switch (Aboard)
+        {
+            case HoundMode.Lunge:
+            {
+                double f = Math.Clamp(ModeSeconds / a.LungeSeconds, 0, 1);
+                Local = Local with { Z = Math.Clamp(_lungeFromZ + (_lungeZ - _lungeFromZ) * f, lo, hi) };
+                if (ModeSeconds < a.LungeSeconds)
+                    return;
+                // Landed: the bite, if they're still in its reach. Bitten down to the last: it pins them (App. A.1, kills go
+                // through GRAB).
+                if (distance <= t.Reach)
+                {
+                    var held = ctx.Crew.First(c => c.Player.Id == victim).Player.State;
+                    if (held.Health <= t.BiteDamage && Grab(ctx, victim, t.MaulSeconds))
+                        return;
+                    ctx.Bite(victim, t.BiteDamage, DeathCause.Mauled);
+                }
+                _retreatLeft = a.RetreatMetres;
+                SetMode(HoundMode.Retreat, toward == 0 ? 1 : 0);
+                return;
+            }
+            case HoundMode.Retreat:
+            {
+                int away = theirZ < Local.Z ? 1 : -1;
+                double step = a.RetreatSpeed * dt, z = Math.Clamp(Local.Z + away * step, lo, hi);
+                _retreatLeft -= step;
+                if (_retreatLeft > 0 && Math.Abs(z - Local.Z) > 1e-9)
+                {
+                    Local = Local with { Z = z };
+                    SetMode(HoundMode.Retreat, away < 0 ? 0 : 1);
+                    return;
+                }
+                _crouchUntil = PhaseSeconds + a.CrouchSeconds;
+                SetMode(HoundMode.Still, toward);
+                return;
+            }
+        }
+        if (PhaseSeconds < _crouchUntil && distance <= a.LungeFrom + a.RetreatMetres)
+        {
+            // Crouched, watching them: the beat before it comes again.
+            SetMode(HoundMode.Still, toward);
+            return;
+        }
+        if (distance > a.LungeFrom)
+        {
+            Patrol(ctx, t, state);
+            return;
+        }
+        // In range: the leap at them, to just short of where they stand.
+        _lungeFromZ = Local.Z;
+        _lungeZ = Math.Clamp(theirZ - Math.Sign(theirZ - Local.Z) * a.LungeShort, lo, hi);
+        if (Math.Sign(_lungeZ - Local.Z) != Math.Sign(theirZ - Local.Z))
+            _lungeZ = Local.Z;
+        SetMode(HoundMode.Lunge, toward);
     }
 
     // Note 728: the ticks it's been sprayed lately, how long it keeps off yet, and where (its car's z) the spray came from.
@@ -730,7 +896,7 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
     /// holds, can't bite, and backs off along its car away from the sprayer, and keeps off a while after. Sprayed long enough
     /// in a short while, it leaps off the train. True while it's backing off (it does nothing else this tick).
     /// </summary>
-    bool Doused(EnemyContext ctx)
+    bool Doused(EnemyContext ctx, HoundTuning t)
     {
         var a = ctx.World.Senses.Answers.CinderHounds;
         if (!a.SprayRepels)
@@ -771,6 +937,8 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         _dir = Local.Z >= _sprayFrom ? 1 : -1;
         if (_dir * Local.Z < (_dir > 0 ? hi : -lo) - 1e-6)
             Walk(ctx, a.BackOffSpeed, lo, hi);
+        else if (_dir > 0 && t.Aboard.On && t.Aboard.LeaveAtRear && WayOff(train))
+            Leave(ctx); // backed to the back of the train, with a way off (note 891)
         else
             SetMode(HoundMode.Still, _dir < 0 ? 1 : 0);
         return true;
@@ -783,6 +951,20 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         base.Struck(ctx, by, damage);
         if (running && Gone)
             ctx.World.Director?.RunnerEnded(Pack, 1);
+        // Note 891 (the director, 9 Oct 2026: "Attacking a cinder hound should reset its ignite burst from its body that sets the
+        // fire. Attacking should cause it to retreat"): a blow aboard that doesn't kill it sets its clock back to nought and
+        // drives it away from whoever struck it.
+        var a = ctx.Tuning.CinderHounds.Aboard;
+        if (!a.On || Gone || Attached < 0 || Phase == SpinePhase.Grab || Attached >= ctx.Train.Frames.Count)
+            return;
+        _ignite = 0;
+        _struck = a.StruckSeconds;
+        _crouchUntil = -1;
+        var frame = ctx.Train.Frames[Attached];
+        _pushDir = 1;
+        foreach (var (player, world) in ctx.LivingCrew())
+            if (player.Id == by)
+                _pushDir = frame.ToLocal(world).Z > Local.Z ? -1 : 1;
     }
 
     /// <summary>Mauled: it takes its kill and leaves the fight.</summary>
@@ -978,4 +1160,4 @@ public sealed class CarHugger(int id) : Enemy(id)
 }
 
 /// <summary>What a Cinder Hound aboard is doing (note 472), replicated in its Lateral for E1's clips.</summary>
-public enum HoundMode : byte { Still, Patrol, Leap, Drop, Climb, Sniff }
+public enum HoundMode : byte { Still, Patrol, Leap, Drop, Climb, Sniff, Lunge, Retreat }
