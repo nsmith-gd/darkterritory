@@ -912,6 +912,11 @@ public sealed record AftermathTuning
     public bool On { get; init; } = true;
     public double Seconds { get; init; } = 12;
     public string[] Events { get; init; } = ["death", "carLost", "rescue", "holdoutFreed"];
+    /// <summary>
+    /// The director's own specials wait it out too (note 912; note 887 found the aftermath held only its decisions): the hound
+    /// run (a new run, or its next pair) and the truss drops. A left-behind crewmate's hunts are theirs and keep their own.
+    /// </summary>
+    public bool Specials { get; init; } = true;
 }
 
 /// <summary>
@@ -1329,6 +1334,11 @@ public sealed record DwellingsTuning
     public double JackpotShare { get; init; } = 1;
     public double PlaceWithin { get; init; } = 500;
     public double ForgetPast { get; init; } = 800;
+    /// <summary>
+    /// A stop in the home stretch (the line's terminus_safe stretch or the final approach, <see cref="World.HomeStretch"/>) has
+    /// its houses' own too (note 912; note 887 found they did); false, its houses stand empty, as nothing else new comes there.
+    /// </summary>
+    public bool InHomeStretch { get; init; }
 
     /// <summary>The share of a stop's open houses with something in them, at <paramref name="tier"/> (0.25 where it isn't listed).</summary>
     public double ShareFor(Route.RouteTier tier) =>

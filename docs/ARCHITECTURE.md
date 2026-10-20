@@ -1079,7 +1079,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [905. The big cab's benches thin, along the sides, and sat on; the step from car 1 to the locomotive (Tess, queue #619)](notes/905.md)
 - [906. Concurrency and overlap by crew and train length (the director's brief §1, §6; plan note 874; nathaniel1's n1-C1, queue #611)](notes/906.md)
 - [907. Playtest telemetry: the plan, split into queue items #624–#628 (the director, 20 Oct 2026: "we don't have any telemetry tracking right now…](notes/907.md)
-- [912. The director's protections made one: note 887's gaps closed (the aftermath for the director's own specials, the terminus_safe stretch for…](notes/912.md)
+- [912. The director's protections made one: note 887's gaps closed (the aftermath for the director's own specials, one terminus ban for the truss…](notes/912.md)
 - [913. Playtest telemetry T1: the session recorder and its event schema (n1-H1, nathaniel1; queue #624; the plan, note 907)](notes/913.md)
 - [914. Playtest telemetry T2: consent and privacy (n1-N1, nathaniel1; queue #625; the plan, note 907)](notes/914.md)
 - [916. Playtest telemetry T5: the playtest kit (n1-U2, nathaniel1; queue #628; the plan, note 907)](notes/916.md)

@@ -59,7 +59,7 @@ public class DirectorGuardTests
     }
 
     /// <summary>A crew of four (the cab, two roofs, the van's), on a train held at <paramref name="speed"/>, a run under way past its start.</summary>
-    static GuardNight Moving(EnemyTuning enemies, double front, double speed, Route.Route? route = null, ulong seed = 1)
+    internal static GuardNight Moving(EnemyTuning enemies, double front, double speed, Route.Route? route = null, ulong seed = 1)
     {
         var n = new GuardNight(enemies, route, front, speed, run: true, seed: seed);
         n.Underway(900);
@@ -182,9 +182,9 @@ public class DirectorGuardTests
         var route = Frontier7.Value;
         double final = RouteTuning.Load(Content).NoSpawnFinalApproach;
         var n = Moving(Pressed(), route.RunLength - final + 20, 14, route);
-        // The sim's ban is its own (World.NoSpawnFinalApproach, nobody sets it); the line's generator lays its last stop by
-        // route.json's. They're to agree (note 887).
+        // The sim's ban is the route's, as route.json set it when the line was laid (note 912; note 887 found it a constant).
         Assert.Equal(final, n.World.NoSpawnFinalApproach);
+        Assert.Equal(final, route.NoSpawnFinalApproach);
         n.Run(30, each: g => Assert.True(g.World.HomeStretch, "out of the home stretch"));
         Assert.Equal(0, n.DirectorSent);
         Assert.Empty(n.Arrivals);
@@ -206,11 +206,13 @@ public class DirectorGuardTests
             Assert.DoesNotContain(route.Plan.Director.Tags, t => t.Edge == "main" && t.Tag == "terminus_safe" && t.S0 < final - 200);
             return;
         }
+        double seconds = Math.Min(30, (Math.Min(safe.S1, final) - safe.S0 - 20) / 14);
         var n = Moving(Pressed(), safe.S0 + 10, 14, route);
-        n.Run(Math.Min(30, (Math.Min(safe.S1, final) - safe.S0 - 20) / 14), each: g => Assert.True(g.World.HomeStretch));
+        n.Run(seconds, each: g => Assert.True(g.World.HomeStretch));
         Assert.Equal(0, n.DirectorSent);
-        // The houses' own (notes 583–586) are put in their houses as the train comes up to them, the terminus town's too: the
-        // dwellings keep no home stretch today (note 887, for #603 and #609 to decide). Nothing else comes.
+        // The houses' own (notes 583–586) of the yard behind (6130–6830 m, short of the stretch at 6980 m): the test puts the
+        // train down within reach of it, where on a night they'd have come as the train came up to it. A stop in the home
+        // stretch itself keeps its houses empty (note 912, ProtectionGapTests). Nothing else comes.
         Assert.All(n.Arrivals, a => Assert.Contains(a.Kind, Dwellers));
     }
 
@@ -223,8 +225,8 @@ public class DirectorGuardTests
     public void AfterACrisisTheDirectorsOwnDecisionsHoldForTheAftermath()
     {
         // GDD App. B.1 "Aftermath" (note 751): a crewmate dead, and for the aftermath nothing of the director's own decisions
-        // (its spend, its free spawns, the stops' own) comes, pressed as it is. The hound runs, the hunts and the drops keep
-        // their own rules (note 887: not held by the aftermath today; #603/#608 to say whether they should be).
+        // (its spend, its free spawns, the stops' own) comes, pressed as it is. Its specials (the hound run, the truss drops) wait
+        // it out too (note 912, aftermath.specials; ProtectionGapTests); a left-behind's hunts are theirs and keep their own.
         var n = Moving(Pressed(), 3_000, 14);
         n.Run(20);
         var d = n.Director;
