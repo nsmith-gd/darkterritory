@@ -35,6 +35,8 @@ public sealed class FreightBeetle(int id) : Enemy(id)
     public override double MeleeRadius => 1.4;
     /// <summary>It belongs to its stop: the director never sends it off for want of company.</summary>
     public override bool StaysAboard => true;
+    /// <summary>Braced against or pushing a load (note 881): the stop's freight going where nobody wants it.</summary>
+    public override bool Working(World world) => !Gone && Mode is BeetleMode.Brace or BeetleMode.Push;
 
     public BeetleMode Mode => (BeetleMode)(int)Height;
     public int? Load => Extra >= 0 ? (int)Extra : null;

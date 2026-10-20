@@ -40,6 +40,8 @@ public sealed class Brakeman(int id) : Enemy(id)
     public override bool Exposed => !Gone && Mode != BrakemanMode.Hidden;
     /// <summary>He's the train's until he's killed: hidden, he's still aboard.</summary>
     public override bool StaysAboard => true;
+    /// <summary>Up on the roofs at his job (note 881): winding the cars' handbrakes on, car by car.</summary>
+    public override bool Working(World world) => !Gone && Mode is BrakemanMode.Climb or BrakemanMode.Walk or BrakemanMode.Wind;
 
     public BrakemanMode Mode => (BrakemanMode)(int)Height;
     /// <summary>Metres back from the engine's front.</summary>

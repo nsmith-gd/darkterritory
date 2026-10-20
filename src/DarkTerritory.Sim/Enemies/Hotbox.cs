@@ -40,6 +40,8 @@ public sealed class Hotbox(int id) : Enemy(id)
     public override bool Exposed => !Gone && Mode == HotboxMode.Unfolded;
     /// <summary>It stays in its truck until it's dealt with: the director never sends it off for want of company.</summary>
     public override bool StaysAboard => true;
+    /// <summary>Feeding in its truck, knocking, glowing or seized (note 881): the train's running gear, nobody near or not.</summary>
+    public override bool Working(World world) => !Gone && Mode != HotboxMode.Prised;
 
     public HotboxMode Mode => (HotboxMode)(int)Height;
     public double Heat => Extra;

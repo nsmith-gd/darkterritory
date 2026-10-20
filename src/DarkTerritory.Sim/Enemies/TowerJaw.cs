@@ -56,6 +56,8 @@ public sealed class TowerJaw(int id) : Enemy(id)
     public override bool Hazard => Mode == TowerJawMode.Wreck;
     public override bool OnMainLine => Mode == TowerJawMode.Wreck;
     public override bool StaysAboard => true;
+    /// <summary>Gnawing its support (note 881): the coaling tower or the gantry coming down, heard or not.</summary>
+    public override bool Working(World world) => !Gone && Mode == TowerJawMode.Gnaw;
 
     public TowerJawMode Mode => (TowerJawMode)(int)Height;
     public double Gnawed => Extra;

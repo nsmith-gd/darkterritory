@@ -45,6 +45,8 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
     /// <summary>A runner of a flank lane (note 418): put down out in the open abeam the train, it runs in to the car alongside.</summary>
     public bool Flank { get; init; }
     public override bool StaysAboard => _stays && Attached >= 0;
+    /// <summary>Aboard to stay (note 881): it eats the car's supplies and sets it alight with nobody near (<see cref="Feed"/>).</summary>
+    public override bool Working(World world) => !Gone && StaysAboard;
 
     protected override void Tick(EnemyContext ctx)
     {
