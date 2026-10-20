@@ -495,7 +495,11 @@
     "share": { "local": 0.2, "frontier": 0.25, "deadLines": 0.33, "deepTerritory": 0.5 },
     "weights": { "lodger": 3, "householder": 2, "hollowHouse": 1.5, "hanger": 3 },
     "jackpotShare": 2,
-    "placeWithin": 500, "forgetPast": 800
+    "placeWithin": 500, "forgetPast": 800,
+    // A stop on the run in to the terminus (the line's terminus_safe stretch or route.json's final approach, where nothing
+    // else new comes) has its houses' own only with inHomeStretch (note 912; note 887 found they always did). The director's
+    // call (the inbox): false, the default taken, keeps the houses there empty.
+    "inHomeStretch": false
   },
   // THE LODGER · sound · outside (note 583; docs/design/creatures/lodger.md). Folded in the house's darkest corner (the spot
   // furthest from its doors, hideInset m off the walls), breathing. Someone in its house noticeSeconds, or within
@@ -669,7 +673,11 @@
   // the loading's not called done; else it's left (D1: "a body never costs the night"), and put down if it's in the arms.
   // Note 790: on foot within mouseMooseWithin m of the Mouse Moose at a casting (creeping in, its teeth in it, dragging it), it
   // goes at it and clubs it: it bolts long before (mouseMoose.scareWithin), and the casting's kept.
+  // Note 894 (App. A.6, "outrunnable, if you run"): ribbitsOutnumberedRun, a bot on its way somewhere (aboard, say) with a pack
+  // hunting it that outnumbers it and those with it runs on instead of turning to club them (frontier:6's shunter, alone at
+  // the pick-up's points, went at a pack of three and was eaten).
   "crewBots": {
+    "ribbitsOutnumberedRun": true,
     "mournersWithin": 30, "mournersLeash": 20, "towerJawWithin": 25, "towerJawClearFrom": 0.9, "towerJawClearBy": 2.5,
     "wreckWithin": 250, "wreckStopShort": 15, "wreckHoldWithin": 60, "beetleWithin": 15, "ribbitWithin": 12, "brakemanStandOff": 1.5,
     "brakemanWaitPast": 1, "standGiveUp": 240, "gateClearShort": 30, "gateClearWithin": 1500, "gateClearGiveUp": 240, "gateClearMargin": 45,
@@ -1327,7 +1335,10 @@
     // told of (note 663's news; a cut at a stand isn't one); rescue: a grab let go with the one held alive and not punished
     // (a friend's pull or blow, or their own struggle); holdoutFreed: someone broken out of a Holdout. Short on purpose.
     // on false: none, as before.
-    "aftermath": { "on": true, "seconds": 12, "events": ["death", "carLost", "rescue", "holdoutFreed"] },
+    // specials (note 912; note 887 found the aftermath held only the director's decisions): the hound run (a new one, or its
+    // next pair) and the truss drops wait it out too; a left-behind crewmate's hunts are theirs and don't. The director's call
+    // (the inbox): true, the default taken.
+    "aftermath": { "on": true, "seconds": 12, "events": ["death", "carLost", "rescue", "holdoutFreed"], "specials": true },
     // The encounter pacing (the spawn director overhaul, docs/design/spawn-director-overhaul.md §3; the plan, note 874).
     "encounters": {
       // The encounter rate (spec B.10 "The encounter rate"; the director's brief, docs/design/spawn-director-overhaul.md §1 and
@@ -1418,7 +1429,22 @@
       // the crew does) is the same for any crew and train, not pressure.crewScale/lengthScale about a crew of four on eight
       // cars (issue 1: a solo crew's was a third of a four's; issue 2: no double scaling). With `on` the free spawns'
       // curve.atGate/atEnd roll and its crewFade are no longer read; on false, the director as before.
-      "drive": { "on": true, "dueCap": 1.5, "dueFloor": -1, "jitter": 0.35, "pressureByLambda": true }
+      "drive": { "on": true, "dueCap": 1.5, "dueFloor": -1, "jitter": 0.35, "pressureByLambda": true },
+      // Selection and placement (note 895; the brief §3 "Encounter selection" 6, §4 level 3, §5). selection: a kind whose zone
+      // (Enemy.Zone: forward, rear, flank, interior, structural, outside) already has engaged threats weighs ×zoneRepeatWeight
+      // for each, in the pressure's and the curve's choices, so the next threat is a problem somewhere else (the conflict
+      // table's pairs still weigh their combinations up). placement: where along the train a rule puts what it sends, among
+      // the cars, gaps or couplings its rule allows (Climbers, Draggers waiting under the rake, Whistler, Fire Flies, Hotbox,
+      // Knotter): a place within threatSpreadM (m along the line) of a threat already about weighs down to nearThreatWeight
+      // (right at it; 1 at threatSpreadM), one within onTopM of a crewmate ×onTopWeight. The rule's own draw, so with nothing
+      // about and nobody near it picks as it did. on: false for either is the director before note 895.
+      "selection": { "on": true, "zoneRepeatWeight": 0.5 },
+      "placement": { "on": true, "threatSpreadM": 40, "nearThreatWeight": 0.2, "onTopM": 6, "onTopWeight": 0.3 },
+      // A halt's own (note 895; GDD D.15 question 3, the director 9 Oct: "Needs a dedicated response"; 20 Oct: "What's best
+      // for gameplay?"): stood on the main line at an abandoned village's halt, lullSeconds after stopping there, one
+      // encounter (whatever the night's curve could send, rule-met or free) if the stop's own haven't put one there; counted
+      // as the stop's. Off until measured ("test creature spawn first").
+      "halt": { "on": false, "lullSeconds": 15 }
     },
     // GDD App. B.1 "Post-event cooldown" (design decision, 2026-10): the least trough after a spawn; the pressure's relief
     // makes the rest of it, and well past the threshold (pressAt) it gives way.

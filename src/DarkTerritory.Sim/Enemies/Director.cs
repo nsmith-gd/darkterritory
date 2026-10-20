@@ -641,6 +641,9 @@ public sealed class Director
         // lull or not (it was there before the train came; its own rules say when it moves).
         if (SpendStop(world, active, s) is { } waiting)
             return waiting;
+        // A halt's own (note 895; GDD D.15 question 3): one encounter while the train stands at a halt, after its lull.
+        if (SpendHalt(world, active) is { } halted)
+            return halted;
         // App. B.1 "Facility lull": "~20 seconds of calm on arrival before facility threats activate. Lets the crew commit to
         // a plan before it falls apart." Read as everything the director would send while the train stands at the facility,
         // which is what comes at a stop (its residents, the stop's own creatures, the Whistler boarding there): calm on
@@ -697,7 +700,10 @@ public sealed class Director
         // train, what nobody's near doesn't (note 795).
         var holding = Holding(world, active);
         int total = holding.Count;
-        if (total >= EngagedCap || Crowded(active))
+        // Crowded (#604: too many about at all) is the fairness bound itself: a quiet the game means.
+        if (Crowded(active))
+            return Held("at the cap", DebtCause.Capped);
+        if (total >= EngagedCap)
             return Held("at the cap", CapQuiet(world, holding));
         double available = Allowance(s) - _spent;
         var options = new List<(EnemyKind Kind, double Weight)>();
@@ -809,7 +815,7 @@ public sealed class Director
         // Everything that could come is for someone who has one on them already (note 345): nothing, this second. Only when
         // the census is what zeroed them: a list weighing nothing for other reasons is App. B.1's as it was (its last pick).
         bool weighed = options.Any(op => op.Weight > 0);
-        options = WhoseNext(options);
+        options = WhoseNext(ZoneSpread(options, holding));
         if (weighed && options.All(op => op.Weight <= 0))
             return Held("one on each");
         options = WeighVotes(options);
@@ -894,7 +900,12 @@ public sealed class Director
         if (!fires || _sinceAny < f.SpacingSeconds)
             return null;
         var holding = Holding(world, active);
-        if (holding.Count >= EngagedCap || Crowded(active))
+        if (Crowded(active))
+        {
+            _hold = DebtCause.Capped;
+            return null;
+        }
+        if (holding.Count >= EngagedCap)
         {
             _hold = CapQuiet(world, holding);
             return null;
@@ -907,7 +918,7 @@ public sealed class Director
             _unmet = DebtCause.Ineligible;
             return null;
         }
-        options = WeighVotes(WhoseNext(options));
+        options = WeighVotes(WhoseNext(ZoneSpread(options, holding)));
         double total = options.Sum(o => o.Weight);
         if (total <= 0)
             return null;
@@ -1061,6 +1072,68 @@ public sealed class Director
         return Attempt(world, kind, SpawnChannel.Stop, active) with { Stop = (key, st.Boarders.Contains(Key(kind))) };
     }
 
+    /// <summary>Seconds stood at each halt tonight (note 895), by <see cref="StopAt"/>'s key.</summary>
+    readonly Dictionary<int, double> _haltStood = [];
+    /// <summary>The halts' own dice (note 895), a stream of their own: the night's other draws are as they were with it off.</summary>
+    Pcg32 _haltRng;
+    bool _haltSeeded;
+    /// <summary>The halts whose own encounter was chosen (note 895).</summary>
+    readonly HashSet<int> _haltChose = [];
+
+    /// <summary>Tonight's halts (note 895): how many were stood at, and how many had their own encounter come.</summary>
+    public (int Stood, int Sent) Halts =>
+        (_haltStood.Count, _haltChose.Count(k => _stops.TryGetValue(k, out var st) && st.Waiting + st.Boarding > 0));
+
+    /// <summary>
+    /// A halt's own (note 895; GDD D.15 question 3, "Needs a dedicated response", and the director, 20 Oct 2026: "What's best
+    /// for gameplay?"): stood on the main line at an abandoned village's halt (a <see cref="FeatureKind.Village"/> stop with a
+    /// halt laid), once <see cref="HaltTuning.LullSeconds"/> have been stood there, one encounter, if the stop's own
+    /// (<see cref="SpendStop"/>) haven't put one there already: whatever the night's curve could send now, rule-met or free
+    /// (<see cref="FreeOptions"/>), under the caps, the zone spread and who's next, on dice of its own. It's the stop's: counted
+    /// against its waiting slots when it places, so the halt has its one. Off (<c>director.encounters.halt.on</c>) until measured.
+    /// </summary>
+    SpawnAttempt? SpendHalt(World world, IReadOnlyList<Enemy> active)
+    {
+        var h = _t.Encounters.Halt;
+        if (!h.On || _route is null || StopAt(world) is var key && key < 1000 || key - 1000 >= _route.Features.Count
+            || _route.Features[key - 1000].Stop?.Halt is null || world.Enemies is not { } et)
+            return null;
+        double stood = _haltStood.GetValueOrDefault(key) + 1;
+        _haltStood[key] = stood;
+        _stops.TryAdd(key, (0, 0, 0));
+        var (_, waiting, boarding) = _stops[key];
+        if (stood < h.LullSeconds || waiting + boarding > 0)
+            return null;
+        var holding = Holding(world, active);
+        if (holding.Count >= EngagedCap)
+            return null;
+        var options = WeighVotes(WhoseNext(ZoneSpread(FreeOptions(world, et, holding, active, withBound: true), holding)));
+        double total = options.Sum(o => o.Weight);
+        if (total <= 0)
+            return null;
+        if (!_haltSeeded)
+        {
+            _haltRng = new Pcg32(unchecked(_seed * 0x9E3779B97F4A7C15UL + 0x4A17), 0x4A17);
+            _haltSeeded = true;
+        }
+        double pick = _haltRng.NextDouble() * total;
+        var kind = options[^1].Kind;
+        foreach (var o in options)
+        {
+            if (pick < o.Weight)
+            {
+                kind = o.Kind;
+                break;
+            }
+            pick -= o.Weight;
+        }
+        HeldBecause = null;
+        _haltChose.Add(key);
+        // Free when its own rule isn't met here: it comes as the curve's free spawns do (from the dark, not its site).
+        bool met = Spawns.For(kind)?.Weight(new SpawnContext(world, et, this)) is > 0;
+        return Attempt(world, kind, SpawnChannel.Stop, active) with { Free = !met, Stop = (key, false) };
+    }
+
     /// <summary>The crewmate the census would send the next threat to (note 345): the free one with the most slack, past minSlack.</summary>
     /// <remarks>
     /// Note 717: a crewmate marked for a shove that killed (<see cref="World.IsMarked"/>) is the next threat's first choice while
@@ -1104,6 +1177,19 @@ public sealed class Director
                 w *= o.EmptyPostWeight;
             return (op.Kind, w * Collision(posts, entries));
         })];
+    }
+
+    /// <summary>
+    /// The zone spread (note 895; the brief §3 selection 6, §4 level 3): each kind × <see cref="SelectionTuning.ZoneRepeatWeight"/>
+    /// for every engaged threat already in its zone (<paramref name="holding"/>), so the next comes as a problem somewhere
+    /// else. Never to nothing: only which kind, as <see cref="WhoseNext"/>.
+    /// </summary>
+    List<(EnemyKind Kind, double Weight)> ZoneSpread(List<(EnemyKind Kind, double Weight)> options, List<Enemy> holding)
+    {
+        var t = _t.Encounters.Selection;
+        if (!t.On || holding.Count == 0)
+            return options;
+        return [.. options.Select(o => (o.Kind, o.Weight * EncounterPlacement.ZoneSpread(holding.Count(e => e.Zone == Profile(o.Kind).Zone), t)))];
     }
 
     /// <summary>
@@ -1651,9 +1737,12 @@ public sealed class Director
             _pairsLeft = 0;
             return;
         }
+        // The aftermath (note 751) holds the run as it holds the director's decisions (note 912): the next pair waits, and a new
+        // run's count goes on (banked, as at the cap) until the crew have had their moment.
+        bool shaken = _t.Aftermath.Specials && AftermathLeft > 0;
         if (_pairsLeft > 0)
         {
-            if (elapsed >= _nextPair)
+            if (elapsed >= _nextPair && !shaken)
                 SendPair(world, et, r);
             return;
         }
@@ -1665,7 +1754,7 @@ public sealed class Director
         if (speed >= r.FromSpeed)
             _runMetres += speed;
         bool hot = train.BoilerTuning is { } b && train.Boiler.Pressure > b.WorkingBandMax;
-        if (_runMetres < r.AfterMetres * (hot ? r.HotShorter : 1) || atCap)
+        if (_runMetres < r.AfterMetres * (hot ? r.HotShorter : 1) || atCap || shaken)
             return;
         int alive = Math.Max(1, world.CrewThisTick.Count(c => c.State.Alive));
         int size = Math.Clamp((int)Math.Round(r.Base + r.PerActive * alive, MidpointRounding.AwayFromZero), r.Size[0], r.Size[1]);
@@ -1778,8 +1867,11 @@ public sealed class Director
         }
         var train = world.Train;
         double front = train.Dynamics.Distance;
+        // The terminus ban is the world's one check (note 912: the line's terminus_safe stretch as well as the final approach;
+        // note 887 found the drops kept only the latter); a truss left unrolled through the aftermath is rolled for after it.
         if (elapsed < Grace || world.TrainInFort || train.Dynamics.Speed < t.FromSpeed || front > _route.RunLength - noSpawnFinal
-            || train.Dynamics.Consist.CarCount < world.Enemies!.Draggers.MinCars)
+            || world.InHomeStretch(front) || train.Dynamics.Consist.CarCount < world.Enemies!.Draggers.MinCars
+            || _t.Aftermath.Specials && AftermathLeft > 0)
             return;
         foreach (var st in plan.Structures)
         {
