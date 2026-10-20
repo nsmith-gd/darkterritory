@@ -148,7 +148,7 @@
     // guns aim no better by it (a purchase that does nothing but light), so the clerk reads it into every tally.
     { "id": "rearSearchlight", "name": "Rear searchlight", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "dress:rearSearchlight": 1 },
       "line": "A searchlight on the guard van's roof, pointed back down the line. Whatever's following you, you'll see it following you.",
-      "tally": "Searchlight: lit. Pointed backwards, as ordered." },
+      "tally": "Caboose: lamp parts, bolted on. Still up." },
     // The feedwater heater (upgrades.md): retired with the cold (note 852): the cold took nothing off the boiler to give back.
     // More creatures at the rear and flanks each tier down: a reload step in 1.2 s, not 1.5.
     { "id": "gunRammers", "name": "Gun rammers", "size": "small", "costShare": 0.25, "fromTier": "deadLines", "effect": { "reload": 0.8, "dress:gunRammers": 1 },
