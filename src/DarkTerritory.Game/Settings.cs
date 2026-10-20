@@ -235,12 +235,31 @@ public sealed record Settings
         return this with { Keys = keys };
     }
 
+    /// <summary>
+    /// A saved file's keys brought past a default that moved (note 898): a shove saved on Caps Lock goes to its default, 5,
+    /// unless the player put something else on 5; and a player who did, with the shove never changed, keeps the shove on
+    /// Caps Lock, where it was, so no key does two things. Every other key the player chose stays.
+    /// </summary>
+    public Settings Migrated()
+    {
+        string shove = Control.Shove.ToString(), key = Controls.Defaults[Control.Shove];
+        bool taken = Keys.Any(k => k.Key != shove && k.Value == key);
+        var keys = new Dictionary<string, string>(Keys);
+        if (keys.GetValueOrDefault(shove) == "CapsLock" && !taken)
+            keys.Remove(shove);
+        else if (!keys.ContainsKey(shove) && taken)
+            keys[shove] = "CapsLock";
+        else
+            return this;
+        return this with { Keys = keys };
+    }
+
     /// <summary>The file's settings, or the defaults if there's no file or it can't be read.</summary>
     public static Settings Load(string path)
     {
         try
         {
-            return File.Exists(path) ? JsonSerializer.Deserialize<Settings>(File.ReadAllText(path), DataFile.Options) ?? new() : new();
+            return File.Exists(path) ? (JsonSerializer.Deserialize<Settings>(File.ReadAllText(path), DataFile.Options) ?? new()).Migrated() : new();
         }
         catch (JsonException)
         {

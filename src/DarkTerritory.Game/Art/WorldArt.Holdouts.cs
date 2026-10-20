@@ -496,7 +496,7 @@ public sealed partial class WorldArt
         k.Rod(new Vector3(0, 0.25f, 0), new Vector3(0, 0.6f, 0), 0.02f);
         k.BoxAt(new Vector3(0, 0.22f, 0), new Vector3(0.14f, 0.03f, 0.14f));
         k.BoxAt(new Vector3(0, -0.2f, 0), new Vector3(0.12f, 0.03f, 0.12f));
-        k.Use("lamp_lens", Palette.SootBlack, 0.2f, 0.5f, tile: 0.25f);
+        k.Use("lantern_pane", Palette.SootBlack, 0.2f, 0.5f, tile: 0.25f);
         k.BoxAt(Vector3.Zero, new Vector3(0.1f, 0.18f, 0.1f));
     }
 }

@@ -65,7 +65,10 @@ public static class GymCheck
             Step(night, gym, host, 1);
             string? shot = called.Ids.Count > 0 && host.World.ActiveEnemies.Any(e => e.Id == called.Ids[0] && !e.Gone)
                 ? Shoot(shooter, host, $"subject:enemy:{called.Ids[0]}", shots, $"{n:00}-{Live.EnemyNames.Name(kind)}") : null;
-            Step(night, gym, host, Math.Max(0, seconds - 1));
+            if (kind == EnemyKind.Waker && called.Ids.Count > 0)
+                WakerHeld(night, gym, host, shooter, called.Ids[0], Math.Max(0, seconds - 1), shots, n);
+            else
+                Step(night, gym, host, Math.Max(0, seconds - 1));
             // The Choir comes a few seconds after it's called (it gathers first): its ghosts are what came.
             var ids = kind == EnemyKind.Choir ? [.. host.World.ActiveEnemies.Where(e => e.Kind == EnemyKind.Choir && !e.Gone).Select(e => e.Id)] : called.Ids;
             var still = host.World.ActiveEnemies.Where(e => ids.Contains(e.Id) && !e.Gone).ToList();
@@ -135,6 +138,34 @@ public static class GymCheck
         {
             night.Step(default);
             gym.Step(host, host.Tick * SimConstants.TickSeconds);
+        }
+    }
+
+    /// <summary>
+    /// A Waker called (note 902): its <paramref name="seconds"/> stepped, and once it has the train, shot through its hold (its
+    /// hands down to the last car, the car up at its mouth, the first bite, its hands down for the next, that one up).
+    /// </summary>
+    static void WakerHeld(NetPlaySession night, CreatureGym gym, HostSession host, WorldShot? shooter, int id, double seconds, string? shots, int n)
+    {
+        double[] marks = [1.5, 5, 8.6, 10.4, 12];
+        int next = 0;
+        for (double s = 0; s < seconds; s += 0.25)
+        {
+            Step(night, gym, host, 0.25);
+            if (next < marks.Length && host.World.ActiveEnemies.FirstOrDefault(e => e.Id == id) is Sim.Enemies.Waker { Holds: true } w && w.Extra >= marks[next]
+                && host.World.Enemies?.Wakers is { } t && WakerLift.Of(host.World.Train.Frames, host.World.Train, w, t) is { } hold)
+            {
+                // From out beside the line, level with his hands, at him and the car he has (a subject view's too close for a titan).
+                var rail = host.World.Train.Frames[hold.Car];
+                var side = (rail.Right with { Y = 0 }).Normalized;
+                var at = hold.Stand - (rail.Back with { Y = 0 }).Normalized * 10 + Double3.Up * 16;
+                if (shooter is not null && shots is not null)
+                {
+                    string path = Path.Combine(shots, $"{n:00}-waker-held-{marks[next]:0.0}.png");
+                    shooter.Save(path, shooter.Render(host.World, [.. host.Players], Camera.LookAt(at + side * 90 + Double3.Up * 4, at, 60)));
+                }
+                next++;
+            }
         }
     }
 

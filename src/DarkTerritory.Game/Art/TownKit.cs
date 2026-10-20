@@ -521,7 +521,7 @@ public static partial class TownKit
                 k.Use("rust_heavy", Palette.IronGrey, 0.7f, 0.4f);
                 k.Lathe(at + new Vector3(0, height - 0.12f, 0), [new(0.07f, 0), new(0.08f, 0.03f), new(0.06f, 0.06f)], 8, smooth: false);
                 k.Lathe(at + new Vector3(0, height + 0.06f, 0), [new(0.06f, 0), new(0.04f, 0.05f), new(0.015f, 0.1f)], 8, smooth: false);
-                k.Use("lamp_lens", Palette.LampAmber * 0.5f, 0, 0, tile: 0.25f);
+                k.Use("lantern_pane", Palette.LampAmber * 0.5f, 0, 0, tile: 0.25f);
                 k.Emissive = 1;
                 k.Cylinder(at + new Vector3(0, height - 0.06f, 0), at + new Vector3(0, height + 0.06f, 0), 0.045f, 8, caps: false);
                 k.Emissive = 0;

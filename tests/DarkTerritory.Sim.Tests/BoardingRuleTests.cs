@@ -54,12 +54,15 @@ public class BoardingRuleTests
     [Fact]
     public void ABoardedHoundStartsTheFireOnlyOnceItsBeenLeftAloneThatLong()
     {
+        // Note 891: every minute and a half (the director, 9 Oct), on whichever car of its ground it's on then (it may have
+        // patrolled on over the gap since).
         var n = new Night(4, speed: 14);
         var hound = Boarded(n);
+        int[] ground = [hound.Attached, n.Train.VehicleAhead(hound.Attached)];
         n.Run(E.CinderHounds.IgniteEverySeconds - 2);
-        Assert.DoesNotContain(n.World.ActiveEnemies, e => e is CarFire { Gone: false } f && f.Attached == hound.Attached);
-        n.Run(3);
-        Assert.Contains(n.World.ActiveEnemies, e => e is CarFire { Gone: false } f && f.Attached == hound.Attached);
+        Assert.DoesNotContain(n.World.ActiveEnemies, e => e is CarFire { Gone: false } f && ground.Contains(f.Attached));
+        n.Run(E.CinderHounds.Aboard.IgniteWindUpSeconds + 3);
+        Assert.Contains(n.World.ActiveEnemies, e => e is CarFire { Gone: false } f && ground.Contains(f.Attached));
     }
 
     [Fact]
