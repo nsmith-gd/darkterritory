@@ -295,7 +295,7 @@
     // them as it holds the wind: walking into a friend never puts them off a roof; a shove does). Not on a ladder (a hatch's
     // comes up through a crowded roof), in a gun's seat or in the air.
     "crowd": { "radius": 0.25, "share": 0.75, "maxSpeed": 6.0 },
-    // The shove (its own key, Caps Lock since note 844): looking at a crewmate within `reach` (m, chest to chest) and coneDegrees of where you
+    // The shove (its own key, 5 since note 898): looking at a crewmate within `reach` (m, chest to chest) and coneDegrees of where you
     // face, hands off the shovel. They go off their feet the way you shoved, at `speed` (m/s) and `lift` (m/s) up, staggered
     // staggerSeconds (they can look and talk, nothing else), and you can't shove again for cooldownSeconds. On a roof, from
     // within a metre or so of its side, that's over the edge (the lip holds a walker, note 273, not a shove), and the landing

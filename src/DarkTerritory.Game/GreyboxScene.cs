@@ -455,6 +455,9 @@ public sealed partial class GreyboxScene
         CabooseTuning = train.Dynamics.Tuning.Composition.Caboose;
         SwitchThrower = train.Dynamics.Tuning.Composition.SwitchThrower;
         HandcarFrom(train);
+        // Note 902: the car a Waker has, reckoned off the train on its rails (the frames drawn have it lifted).
+        _wakerHold = Look?.Art.Creatures?.WakersTuning is { } wt && Enemies is { } held && WakerLift.Holding(held) is { } holder
+            ? WakerLift.Of(train.Frames, train, holder, wt) : null;
         // Note 847: where the train's front and rear are along the main line, for a gate the walls don't stand (a still's).
         _trainAlong = (train.Line.MainDistance(train.Dynamics.Path, train.Dynamics.Distance), train.Line.MainDistance(train.Dynamics.Path, train.Dynamics.RearDistance));
         Build(mesh, train.Line, frames ?? train.Frames, train.Dynamics.Distance, eye);
@@ -631,7 +634,7 @@ public sealed partial class GreyboxScene
         // The car a Waker's eating is bitten off, not dropped out of sight (note 679): its lamps, its fittings and its body
         // all go by the same bite (Art.SceneArt.BiteOf).
         if (Look is not null)
-            Look.Art.WakerEating = WakerEating(frames) is { } eating ? (eating.Car.Index, eating.Through) : null;
+            Look.Art.WakerEating = _wakerHold is { } eating ? (eating.Car, eating.Bitten, eating.Bites) : null;
         foreach (var frame in frames)
         {
             if ((frame.Origin - eye).Length > LampRange)
@@ -2323,31 +2326,13 @@ public sealed partial class GreyboxScene
     public static double WakerWall(RailLine line, Route? route, Sim.Run.Run? run, Sim.Enemies.WakersTuning t) =>
         (route?.Plan?.Terminus.GateM ?? line.Length - (run?.Tuning.TerminusZone ?? 400)) - t.StopShort;
 
-    /// <summary>
-    /// The car the Waker holding the train is eating (note 679): the rearmost car he hasn't finished (an eaten one's drawn far
-    /// under the ground, <see cref="WakerLift"/>) and how far through his eating of it he is (0 till wakers.eatAfter, then
-    /// 0..1 over each wakers.eatSeconds, as the sim counts them eaten). Null with nobody holding it.
-    /// </summary>
-    (Sim.Enemies.Waker Waker, CarFrame Car, double Through)? WakerEating(IReadOnlyList<CarFrame> frames)
-    {
-        if (frames.Count == 0 || Enemies?.OfType<Sim.Enemies.Waker>().FirstOrDefault(w => w.Lead && w.Holds && !w.Gone) is not { } e)
-            return null;
-        var t = Look?.Art.Creatures?.WakersTuning ?? new Sim.Enemies.WakersTuning();
-        double floor = frames[0].Origin.Y - 100;
-        for (int i = frames.Count - 1; i >= 0; i--)
-            if (frames[i].Origin.Y > floor)
-            {
-                double into = e.Extra - t.EatAfter;
-                double through = into < 0 ? 0 : (into - Math.Floor(into / Math.Max(1e-6, t.EatSeconds)) * t.EatSeconds) / Math.Max(1e-6, t.EatSeconds);
-                return (e, frames[i], through);
-            }
-        return null;
-    }
+    /// <summary>The car the lead Waker has this draw (note 902; <see cref="Build(MeshBuilder, TrainOnLine, Double3, IReadOnlyList{CarFrame}?)"/> reckons it), or null.</summary>
+    WakerLift.Hold? _wakerHold;
 
     /// <summary>
     /// What a Waker's art needs of the scene (note 679): whether he's stood at the walls; and, the one holding the train, where
-    /// his mouth goes: on the car he's eating (the top of <see cref="WakerLift"/>'s ramp, which the lift has drawn the frames up
-    /// to), its end at first, then on down it as he bites it off (<see cref="Art.Bite.Waker"/>), to the next car's end.
+    /// he kneels behind the car he has (note 902), where his hands are on it and where his mouth goes (<see cref="WakerLift"/>):
+    /// bowed over it at the rails, then on its bitten end in his hands at his mouth.
     /// </summary>
     Art.WakerScene WakerIn(Sim.Enemies.Waker e, RailLine line, IReadOnlyList<CarFrame> frames, Double3 eye)
     {
@@ -2361,16 +2346,10 @@ public sealed partial class GreyboxScene
             return new Art.WakerScene(Picker: true, Mouth: V(Sim.Enemies.Waker.Mouth(e.Local, e.Lateral, t), eye), Hand: hand);
         }
         bool walls = e.Phase == SpinePhase.Commit && e.LineDistance >= WakerWall(line, t) - 1;
-        if (WakerEating(frames) is not { } eating || eating.Waker != e)
+        if (_wakerHold is not { } hold || !e.Lead || !e.Holds)
             return new Art.WakerScene(walls);
-        var held = eating.Car;
-        double half = held.Shape.HalfLength, rear = held.Shape.Platform is { } p ? p.Max.Z : half;
-        var end = held.ToWorld(new Double3(0, WakerMouthHeight, rear - eating.Through * (rear + half)));
-        return new Art.WakerScene(walls, V(end, eye));
+        return new Art.WakerScene(walls, V(hold.Mouth, eye), Hand: V(hold.Right, eye), HandLeft: V(hold.Left, eye), Stand: V(hold.Stand, eye));
     }
-
-    /// <summary>How high up a car's end (m over its floor's frame) a Waker takes it in his mouth: the middle of its body.</summary>
-    const double WakerMouthHeight = 2.6;
 
     /// <summary>
     /// A Waker's earth and dust (note 599): rising, the clods it heaves up and the bank of dust it breaks out of; running, the
