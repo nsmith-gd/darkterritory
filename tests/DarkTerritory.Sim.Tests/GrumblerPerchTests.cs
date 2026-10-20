@@ -54,7 +54,7 @@ public class GrumblerPerchTests
         var ctx = new SpawnContext(n.World, E, n.World.Director!);
         var rule = Spawns.For(EnemyKind.Grumbler)!;
         Assert.NotNull(rule.Weight(ctx));
-        Assert.True(rule.Spawn(ctx));
+        Assert.True(rule.Spawn(ctx).Placed);
         var g = Assert.Single(n.World.ActiveEnemies.OfType<Grumbler>());
         // On a casting of the gantry whose perch is nearest the crewmate.
         var perches = site.Feature.Stop!.Lairs.Where(l => l.Kind == LairKind.GrumblerPerch).Select(l => Run.Run.StopWorld(n.Train.Line, site.Feature, l.At)).ToList();
