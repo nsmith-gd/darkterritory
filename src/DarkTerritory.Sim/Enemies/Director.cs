@@ -541,7 +541,7 @@ public sealed class Director
             return;
         // With no route, the same stand-in line as the pressure's (Build): 20 km.
         double progress = EncounterPacing.Progress(elapsed, _route?.DawnSeconds ?? 0, world.Train.Dynamics.Distance, _route?.RunLength ?? 20_000, _clock.Progress);
-        EncounterRate = EncounterPacing.Rate(progress, Math.Max(1, Active), _cars, _route?.Tier ?? RouteTier.Frontier, e);
+        EncounterRate = EncounterPacing.Rate(progress, Math.Max(1, Active), world.Train.Dynamics.Consist.CarCount, _route?.Tier ?? RouteTier.Frontier, e);
         // A crew that's losing gets relief (note 906, #611): λ counts only the living already; × the alive share and the hurt.
         if (e.Concurrency is { On: true } c && world.CrewThisTick is { Count: > 0 } crew)
         {
