@@ -331,6 +331,7 @@ DarkTerritory.Game.Telemetry.ITelemetryGate telemetryGate = args.Contains("--tel
     ? new DarkTerritory.Game.Telemetry.FixedTelemetryGate(true, Arg("--telemetry-dir", frontEnd.Playtest.SessionsDirectory), frontEnd.Playtest.InstallId)
     : frontEnd.Playtest;
 var telemetry = DarkTerritory.Game.Telemetry.SessionRecorder.ToFile(telemetryGate);
+frontEnd.Telemetry = telemetry;
 using var telemetryOwner = telemetry.Closer;
 bool devBuild = false;
 #if DEVTOOLS
@@ -1099,6 +1100,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
 #endif
     frontEnd.SmithyBuy = net is { Host: not null } && campaign is not null ? id =>
     {
+        double scripBefore = campaign!.Scrip;
         var bought = Campaign.BuyUpgrade(campaignTuning, campaign!, id);
 #if DEVTOOLS
         if (devUnlock.On)
@@ -1109,6 +1111,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             campaign = bought.State;
             saves.Save(campaign);
             refitWanted = true;
+            telemetry.Purchase($"upgrade:{id}", scripBefore - campaign.Scrip, campaign.Scrip);
         }
         return bought;
     }
@@ -2121,6 +2124,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // every hitch kept for the night's report, with how fast the view was turning.
         frameWatch.View(camera.Yaw, camera.Pitch);
         telemetry.Frame(dt * 1000);
+        // Note 913: the prompt at the crosshair, and whether it was acted on.
+        if (telemetry.Enabled)
+            telemetry.Prompting(telemetryWorld, Hud.Prompt(session), Hit(Control.Use));
         if (frameWatch.End(timer.Elapsed.TotalSeconds, () => $"at {session.Train.Dynamics.Distance / 1000:0.00} km, {session.Train.Dynamics.Speed:0.0} m/s, {session.World.Run?.Phase.ToString() ?? "no run"}, {session.World.ActiveEnemies.Count()} enemies{Gaps()}") is { } slow)
             Console.WriteLine(slow);
     }
