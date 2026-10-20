@@ -1064,6 +1064,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [897. Docs from the director's inbox answers of 20 Oct (n1-G2, queue #616; note 857's calls 3, 5, 6 and 10)](notes/897.md)
 - [898. Shove off Caps Lock, and the controls map brought up to date (queue #617; the director's inbox answer of 20 Oct,…](notes/898.md)
 - [899. The rear searchlight, look only (queue #410, from note 678's handoff; the director's inbox answer of 20 Oct,…](notes/899.md)
+- [906. Concurrency and overlap by crew and train length (the director's brief §1, §6; plan note 874; nathaniel1's n1-C1, queue #611)](notes/906.md)
 - [900. The crew's hands and the lamps' texture wrapping (Arlo, queue #620)](notes/900.md)
 - [901. How to get the mail, shown; the yellow circle on the casting (Iris, queue #621)](notes/901.md)
 - [902. The Waker lifts the train (Cole, queue #622)](notes/902.md)
