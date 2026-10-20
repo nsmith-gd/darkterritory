@@ -210,7 +210,9 @@ public class CrewMemoryTests
         Assert.InRange(book.Local.Y - bench.Max.Y, 0, 0.02);
         // (Note 905: the bench along the side wall, the book's spine along it, so its length is along the bench.)
         Assert.Equal(Math.PI / 2, book.Yaw, 6);
-        Assert.InRange(book.Local.X, bench.Min.X + LogbookReader.BookHalf.Z, bench.Max.X - LogbookReader.BookHalf.Z);
+        // Against the wall, its middle on the perch (it overhangs the perch's edge a little: the book's wider than the seat).
+        Assert.InRange(book.Local.X, bench.Min.X, bench.Max.X);
+        Assert.True(book.Local.X + LogbookReader.BookHalf.Z <= bench.Max.X && book.Local.X - LogbookReader.BookHalf.Z >= bench.Min.X - 0.1, "into the wall, or off the seat");
         Assert.InRange(book.Local.Z, bench.Min.Z + LogbookReader.BookHalf.X, bench.Max.Z - LogbookReader.BookHalf.X);
         Assert.True(book.Local.Z - LogbookReader.BookHalf.X > table.Max.Z);
         // Clear of the bench's seats: nobody sits on it.

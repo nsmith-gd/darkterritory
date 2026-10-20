@@ -35,7 +35,11 @@ public sealed class LogbookReader
     public static (int Car, Double3 Local, double Yaw, bool OnShelf)? Shelf(TrainOnLine train, LogbookTuning t)
     {
         if (t.Place == "cab" && train.Frames.Count > 0 && CrewCar.FrontBench(train.Frames[0].Shape) is { } bench)
-            return (0, new Double3((bench.Min.X + bench.Max.X) / 2, bench.Max.Y + 0.006, bench.Min.Z + SeatInset + BookHalf.X), Math.PI / 2, false);
+        {
+            // Against the wall, its spine along the bench (note 905: a perch narrower than the book, which overhangs its edge a little).
+            double against = bench.Centre.X > 0 ? bench.Max.X - BookHalf.Z - 0.01 : bench.Min.X + BookHalf.Z + 0.01;
+            return (0, new Double3(against, bench.Max.Y + 0.006, bench.Min.Z + SeatInset + BookHalf.X), Math.PI / 2, false);
+        }
         if (World.KitLocker(train) is not { } locker || train.Frames[locker.Car].Shape.Interior is not { } room)
             return null;
         var box = locker.Bay.Box;
