@@ -1,5 +1,6 @@
 using Ballast;
 using DarkTerritory.Sim.Enemies;
+using DarkTerritory.Sim.Player;
 
 namespace DarkTerritory.Sim.Tests;
 
@@ -32,14 +33,14 @@ public class ThreatStateTests
     {
         var n = new Night(4, speed: 12);
         var climber = n.World.AddEnemy(id => new Climber(id));
-        Assert.Equal(SpinePhase.Dormant, climber.Phase);
+        climber.Restore(SpinePhase.Dormant, 0, 3, 2, new Double3(0, 4, 0), 0, 0, 0, 0, 0);
         // Cars away (a solo crew in the cab, it pacing the tail): about, but not the crew's problem yet.
         Assert.Equal(ThreatState.Ambient, Threats.Of(climber, n.World, [Near(n, climber, T.NearMetres * 3)], T));
         Assert.Equal(ThreatState.Ambient, Threats.Of(climber, n.World, [], T));
         // Someone in its car: it is.
         Assert.Equal(ThreatState.Threatening, Threats.Of(climber, n.World, [Near(n, climber, T.NearMetres / 2)], T));
         // Coming at them: engaging, wherever anyone stands.
-        climber.Restore(SpinePhase.Telegraph, 0, 3, -1, default, 0, 0, 0, 0, 0);
+        climber.Restore(SpinePhase.Telegraph, 0, 3, 2, new Double3(0, 4, 0), 0, 0, 0, 0, 0);
         Assert.Equal(ThreatState.Engaging, Threats.Of(climber, n.World, [], T));
     }
 
@@ -102,5 +103,83 @@ public class ThreatStateTests
             Assert.Equal(a, Threats.Of(e, n.World, [], T));
             Assert.True(Enum.IsDefined(a));
         }
+    }
+}
+
+/// <summary>
+/// The engaged cap counting threats, not bodies (note 881; the brief §2 issue 4: "An unseen monster several cars away should
+/// not indefinitely suppress interesting encounters for a solo player"), with the fairness bound and the persistent creatures
+/// kept.
+/// </summary>
+public class ThreatCapTests
+{
+    static Night Solo(EnemyTuning? enemies = null)
+    {
+        var n = new Night(8, speed: 12, enemies: enemies);
+        n.Crew[1] = PlayerMotor.SpawnInCab(n.Train, Tuning.Player);
+        n.Run(1.0 / SimConstants.TickRate);
+        return n;
+    }
+
+    static Enemy LeftAtAYard(Night n)
+    {
+        // A yard's Freight Beetle the train has gone on from: 600 m back down the line, off to the side.
+        var p = n.Train.Line.Sample(n.Train.Dynamics.Distance - 600);
+        var side = Double3.Cross(p.Tangent, Double3.Up).Normalized;
+        return n.World.AddEnemy(id => FreightBeetle.At(id, p.Position + side * 8, n.Train.Dynamics.Distance - 600, 0, Tuning.Enemies.FreightBeetle));
+    }
+
+    [Fact]
+    public void WhatsLeftAtAStopOrPacingTheTailDoesntHoldASoloCrewsPlace()
+    {
+        var n = Solo();
+        var d = n.World.Director!;
+        var beetle = LeftAtAYard(n);
+        var climber = n.World.AddEnemy(id => new Climber(id));
+        climber.Restore(SpinePhase.Dormant, 0, 3, 7, new Double3(0, 4, 0), 0, 0, 0, 0, 0);
+        // Both about (Director.Engaged, as the old cap counted them), neither on the crew: the cap is free.
+        Assert.True(Director.Engaged(beetle));
+        Assert.True(Director.Engaged(climber));
+        Assert.Empty(d.Holding(n.World, n.World.ActiveEnemies));
+        Assert.False(d.Crowded(n.World.ActiveEnemies));
+        // Off (director.threats.on false), they held it, as before note 881.
+        var off = Solo(Tuning.Enemies with { Director = Tuning.Enemies.Director with { Threats = new ThreatTuning { On = false } } });
+        LeftAtAYard(off);
+        Assert.Single(off.World.Director!.Holding(off.World, off.World.ActiveEnemies));
+    }
+
+    [Fact]
+    public void AHotboxWithNobodyNearStillHoldsTheCap()
+    {
+        // A sustained problem is danger all the same: the Hotbox in the tail car's truck, the crew of one in the cab.
+        var n = Solo();
+        var hotbox = n.World.AddEnemy(id => Hotbox.In(id, n.Train, 7, rear: true, side: 1, Tuning.Enemies.Hotbox));
+        Assert.Contains(hotbox, n.World.Director!.Holding(n.World, n.World.ActiveEnemies));
+    }
+
+    [Fact]
+    public void BodiesAboutAreHeldToTheCapPlusTheAmbientRoom()
+    {
+        var n = Solo();
+        var d = n.World.Director!;
+        for (int i = 0; i < d.EngagedCap + Tuning.Enemies.Director.Threats.AmbientRoom; i++)
+        {
+            Assert.False(d.Crowded(n.World.ActiveEnemies));
+            LeftAtAYard(n);
+        }
+        Assert.True(d.Crowded(n.World.ActiveEnemies));
+    }
+
+    [Fact]
+    public void PersistentCreaturesKeepTheirPlacesOffTheCap()
+    {
+        // Off the cap is not dismissed (the brief: "Avoid solving this by indiscriminately despawning persistent monsters"): the
+        // left-behind beetle and a Hotbox are both still there minutes on.
+        var n = Solo();
+        var beetle = LeftAtAYard(n);
+        var hotbox = n.World.AddEnemy(id => Hotbox.In(id, n.Train, 7, rear: true, side: 1, Tuning.Enemies.Hotbox));
+        n.Run(200);
+        Assert.False(beetle.Gone);
+        Assert.False(hotbox.Gone);
     }
 }
