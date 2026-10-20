@@ -68,6 +68,23 @@ static class DirectorCommands
         return 0;
     }
 
+    /// <summary>
+    /// `dt director report` (note 930): a sweep's groups scored against the brief's §7 bands, red or green, and against an
+    /// older sweep's (<c>--against</c>: the old director's, tools/director/quick-old.json) side by side. The table to stdout.
+    /// </summary>
+    public static int Score(string path, string[] args)
+    {
+        var bands = BalanceBands.Load(Str(args, "--bands", BalanceBands.DefaultPath(DataFile.FindContentRoot(Environment.CurrentDirectory))));
+        var after = JsonSerializer.Deserialize<SweepReport>(File.ReadAllText(path), DataFile.Options)!;
+        var before = Str(args, "--against", "") is { Length: > 0 } against
+            ? JsonSerializer.Deserialize<SweepReport>(File.ReadAllText(against), DataFile.Options)!
+            : null;
+        Console.WriteLine($"{path} ({after.Commit[..Math.Min(9, after.Commit.Length)]}){(before is null ? "" : $" against {Str(args, "--against", "")} ({before.Commit[..Math.Min(9, before.Commit.Length)]})")}, the brief's §7 bands:");
+        Console.WriteLine();
+        Console.Write(SweepScoring.Table(bands, after.Groups, before?.Groups));
+        return 0;
+    }
+
     static IReadOnlyList<SweepCell> Cells(string[] args)
     {
         if (args.Contains("--quick"))

@@ -287,6 +287,9 @@ public sealed record ThreatReport(double Budget, double Spent, IReadOnlyDictiona
     public int PackFires { get; init; }
     /// <summary>The night's curve (note 849): the director's spawns sent without their rule, by kind; "free" the curve's own, "fill" the pressure's.</summary>
     public IReadOnlyDictionary<string, int> FreeSpawns { get; init; } = new Dictionary<string, int>();
+    /// <summary>The halts stood at tonight and those whose own encounter came (note 895; <c>director.encounters.halt</c>).</summary>
+    public int HaltsStood { get; init; }
+    public int HaltsSent { get; init; }
     /// <summary>The Gannet's passes (note 454): hung over a walker, folded, stabbed.</summary>
     public GannetReport Gannet { get; init; } = new(0, 0, 0);
     /// <summary>Each Cinder Hound pack that boarded (note 484): how long it was aboard and how its hounds ended.</summary>
@@ -750,6 +753,8 @@ public static class Harness
                 FreeSpawns = d.Log.Where(l => l.Free).GroupBy(l => l.Kind.ToString()).OrderBy(g => g.Key).ToDictionary(g => g.Key, g => g.Count())
                     .Concat([new KeyValuePair<string, int>("free", d.Log.Count(l => l.Free && !l.Paced)), new("fill", d.Log.Count(l => l.Free && l.Paced))]).ToDictionary(kv => kv.Key, kv => kv.Value),
                 Packs = [.. packs.OrderBy(kv => kv.Value.First).Select(kv => PackAboard(kv.Key, kv.Value, host.Train))],
+                HaltsStood = d.Halts.Stood,
+                HaltsSent = d.Halts.Sent,
                 HoundRuns = [.. d.HoundRuns.Select(r => new HoundRunReport(Math.Round(r.Tick * SimConstants.TickSeconds, 1), Math.Round(r.Distance / 1000, 2), r.Size,
                     r.Active, r.Hot, d.RunOutcome(r.Pack).Scattered, d.RunOutcome(r.Pack).Killed, d.RunOutcome(r.Pack).Boarded, d.AheadRunners(r.Pack), d.FlankRunners(r.Pack),
                     d.FlankEngineRunners(r.Pack)))],

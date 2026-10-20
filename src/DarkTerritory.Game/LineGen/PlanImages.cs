@@ -124,7 +124,10 @@ public static class PlanImages
         [EdgeRole.Spur] = (230, 150, 60),
     };
 
-    public static void Map(LinePlan plan, RailLine line, string path, int width = 1400, int height = 1000)
+    /// <param name="overlay">Drawn last, over the map: given the canvas and where a main-line distance (m) falls on it (`dt telemetry
+    /// map`'s deaths and quits, note 917).</param>
+    public static void Map(LinePlan plan, RailLine line, string path, int width = 1400, int height = 1000,
+        Action<Canvas, Func<double, (int X, int Y)>>? overlay = null)
     {
         var c = new Canvas(width, height, (20, 22, 26));
         var pts = new List<Double3>();
@@ -191,6 +194,7 @@ public static class PlanImages
         c.Dot(tx, ty, 6, (250, 220, 120));
         c.Text(10, 10, $"{plan.Route.Id}  D {plan.Route.D:0.00}  {plan.Route.Region}  {plan.Consist.NPlan} cars  {plan.Km(plan.TerminusM):0.0} km  g_main {plan.Consist.MainGradePct:0.00}%", (230, 230, 230), 2);
         c.Text(10, 32, $"{plan.RouteCard.Title}", (180, 180, 180), 2);
+        overlay?.Invoke(c, s => P(line.Sample(Math.Clamp(s, 0, line.Length)).Position));
         c.Save(path);
     }
 
