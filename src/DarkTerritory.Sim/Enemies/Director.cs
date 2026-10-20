@@ -954,6 +954,12 @@ public sealed class Director
     /// <summary>The halts' own dice (note 895), a stream of their own: the night's other draws are as they were with it off.</summary>
     Pcg32 _haltRng;
     bool _haltSeeded;
+    /// <summary>The halts whose own encounter was chosen (note 895).</summary>
+    readonly HashSet<int> _haltChose = [];
+
+    /// <summary>Tonight's halts (note 895): how many were stood at, and how many had their own encounter come.</summary>
+    public (int Stood, int Sent) Halts =>
+        (_haltStood.Count, _haltChose.Count(k => _stops.TryGetValue(k, out var st) && st.Waiting + st.Boarding > 0));
 
     /// <summary>
     /// A halt's own (note 895; GDD D.15 question 3, "Needs a dedicated response", and the director, 20 Oct 2026: "What's best
@@ -999,6 +1005,7 @@ public sealed class Director
             pick -= o.Weight;
         }
         HeldBecause = null;
+        _haltChose.Add(key);
         // Free when its own rule isn't met here: it comes as the curve's free spawns do (from the dark, not its site).
         bool met = Spawns.For(kind)?.Weight(new SpawnContext(world, et, this)) is > 0;
         return Attempt(world, kind, SpawnChannel.Stop, active) with { Free = !met, Stop = (key, false) };
