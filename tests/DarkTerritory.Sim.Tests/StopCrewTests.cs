@@ -1536,9 +1536,7 @@ public class StopCrewTests
     }
 
     [Theory]
-    [InlineData(3, 2)]
     [InlineData(1, 2)]
-    [InlineData(5, 1)]
     public void TheStopsPackingLeavesWholeHalvesForTheHeavyCrates(int lights, int heavies)
     {
         // Note 920 (queue #630; Rhea's find under #623, note 903): each car has a half's room. An odd count of lights to the

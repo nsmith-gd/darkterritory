@@ -3168,7 +3168,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
     /// again at the foot of them.
     /// </summary>
     static PlayerIntent Paced(Physics.Body? mine, PlayerIntent step) =>
-        mine is { Kind: Physics.BodyKind.Heavy, Second: >= 0 } && Run.Run.IsJackpot(mine) ? step with { MoveZ = Math.Min(step.MoveZ, HeavyPace) } : step;
+        mine is { Kind: Physics.BodyKind.Heavy, Second: >= 0 } ? step with { MoveZ = Math.Min(step.MoveZ, HeavyPace) } : step;
 
     /// <summary>Use for one tick, then not: picking up and putting down are on the press, not the hold.</summary>
     PlayerIntent Press()
@@ -3265,7 +3265,8 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         }
         // Note 920: a heavy crate up in our hands for a car without a whole half (the lights' car it was set out for) goes to
         // the nearest car that has one, or as ever if none has.
-        else if (mine is { Kind: Physics.BodyKind.Heavy, Lifted: true } && mine.Carrier == PlayerId && _heavyFor != mine.Id)
+        // (Not one fetched from the yard: its end and its way home were worked out toward its car, note 440.)
+        else if (mine is { Kind: Physics.BodyKind.Heavy, Lifted: true } && mine.Carrier == PlayerId && _heavyFor != mine.Id && !Fetching)
         {
             _heavyFor = mine.Id;
             if (p.HeavyCar(world, _car, PlayerMotor.WorldPosition(self, train)) is var whole and >= 0)
