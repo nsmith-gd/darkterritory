@@ -1532,9 +1532,12 @@ public sealed class Director
             _pairsLeft = 0;
             return;
         }
+        // The aftermath (note 751) holds the run as it holds the director's decisions (note 912): the next pair waits, and a new
+        // run's count goes on (banked, as at the cap) until the crew have had their moment.
+        bool shaken = _t.Aftermath.Specials && AftermathLeft > 0;
         if (_pairsLeft > 0)
         {
-            if (elapsed >= _nextPair)
+            if (elapsed >= _nextPair && !shaken)
                 SendPair(world, et, r);
             return;
         }
@@ -1546,7 +1549,7 @@ public sealed class Director
         if (speed >= r.FromSpeed)
             _runMetres += speed;
         bool hot = train.BoilerTuning is { } b && train.Boiler.Pressure > b.WorkingBandMax;
-        if (_runMetres < r.AfterMetres * (hot ? r.HotShorter : 1) || atCap)
+        if (_runMetres < r.AfterMetres * (hot ? r.HotShorter : 1) || atCap || shaken)
             return;
         int alive = Math.Max(1, world.CrewThisTick.Count(c => c.State.Alive));
         int size = Math.Clamp((int)Math.Round(r.Base + r.PerActive * alive, MidpointRounding.AwayFromZero), r.Size[0], r.Size[1]);
@@ -1659,8 +1662,11 @@ public sealed class Director
         }
         var train = world.Train;
         double front = train.Dynamics.Distance;
+        // The terminus ban is the world's one check (note 912: the line's terminus_safe stretch as well as the final approach;
+        // note 887 found the drops kept only the latter); a truss left unrolled through the aftermath is rolled for after it.
         if (elapsed < Grace || world.TrainInFort || train.Dynamics.Speed < t.FromSpeed || front > _route.RunLength - noSpawnFinal
-            || train.Dynamics.Consist.CarCount < world.Enemies!.Draggers.MinCars)
+            || world.InHomeStretch(front) || train.Dynamics.Consist.CarCount < world.Enemies!.Draggers.MinCars
+            || _t.Aftermath.Specials && AftermathLeft > 0)
             return;
         foreach (var st in plan.Structures)
         {

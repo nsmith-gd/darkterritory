@@ -472,7 +472,11 @@
     "share": { "local": 0.2, "frontier": 0.25, "deadLines": 0.33, "deepTerritory": 0.5 },
     "weights": { "lodger": 3, "householder": 2, "hollowHouse": 1.5, "hanger": 3 },
     "jackpotShare": 2,
-    "placeWithin": 500, "forgetPast": 800
+    "placeWithin": 500, "forgetPast": 800,
+    // A stop on the run in to the terminus (the line's terminus_safe stretch or route.json's final approach, where nothing
+    // else new comes) has its houses' own only with inHomeStretch (note 912; note 887 found they always did). The director's
+    // call (the inbox): false, the default taken, keeps the houses there empty.
+    "inHomeStretch": false
   },
   // THE LODGER · sound · outside (note 583; docs/design/creatures/lodger.md). Folded in the house's darkest corner (the spot
   // furthest from its doors, hideInset m off the walls), breathing. Someone in its house noticeSeconds, or within
@@ -1289,7 +1293,10 @@
     // told of (note 663's news; a cut at a stand isn't one); rescue: a grab let go with the one held alive and not punished
     // (a friend's pull or blow, or their own struggle); holdoutFreed: someone broken out of a Holdout. Short on purpose.
     // on false: none, as before.
-    "aftermath": { "on": true, "seconds": 12, "events": ["death", "carLost", "rescue", "holdoutFreed"] },
+    // specials (note 912; note 887 found the aftermath held only the director's decisions): the hound run (a new one, or its
+    // next pair) and the truss drops wait it out too; a left-behind crewmate's hunts are theirs and don't. The director's call
+    // (the inbox): true, the default taken.
+    "aftermath": { "on": true, "seconds": 12, "events": ["death", "carLost", "rescue", "holdoutFreed"], "specials": true },
     // The encounter pacing (the spawn director overhaul, docs/design/spawn-director-overhaul.md §3; the plan, note 874).
     "encounters": {
       // The encounter rate (spec B.10 "The encounter rate"; the director's brief, docs/design/spawn-director-overhaul.md §1 and
