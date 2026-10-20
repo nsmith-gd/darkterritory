@@ -384,6 +384,8 @@ static class PlaythroughCommands
                 curveAtEnd = Math.Round(dd.Curve, 2),
                 held,
             } : null,
+            // Note 880 (the director's brief §8): the night's encounters, as dt harness reports them.
+            encounters = last.Encounters is { } encounters ? EncounterReport.Of(encounters, last) : null,
             // Note 860 (the director's playtest of 16 Oct evening, line 7): every stop of the night, stood at or passed; for those
             // stood at, what was there within readySeconds of arriving, everything met there, what got aboard (on a car) while
             // it stood, and the director's sends while it stood (the stop's own marked).
