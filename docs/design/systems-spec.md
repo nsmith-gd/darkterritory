@@ -456,10 +456,10 @@ A car fire burns on cells (decided 6 Oct, GDD App. F.1; ARCHITECTURE note 267). 
 | **Mark** | whoever hit it; its next pass is a **2.5 s** bank, then down on them (a roof, or the ground within 200 m) |
 | **Pin** | **4 pecks, 3 s apart** (12 s); **3 blows** from friends drive it off |
 | Health | **12** blows; under 4 it leaves for the run |
-
-*In progress (#612; note 875's audit, the director's answer of 20 Oct 2026, "13 m/s"):* at 18 m/s it never comes on an ordinary night, which runs at 14 m/s cruise or under the line speed. It will come at **13 m/s**, behind its own flag, off until the sweep has measured it ("test creature spawn first"). This table, its tuning and `SpecTableTests` change together when the flag goes on.
 | Trophy | its head: **1.5** of the tier's car-loads (loot.json `trophies`) |
 | Spawn weight by tier | 1 · 1.5 · 2 · 2.5 (Local to Deep Territory) |
+
+*In progress (#612; note 875's audit, the director's answer of 20 Oct 2026, "13 m/s"):* at 18 m/s it never comes on an ordinary night, which runs at 14 m/s cruise or under the line speed. It will come at **13 m/s**, behind its own flag, off until the sweep has measured it ("test creature spawn first"). This table, its tuning and `SpecTableTests` change together when the flag goes on.
 
 ## B.14 The Mourners
 
