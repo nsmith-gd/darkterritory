@@ -40,7 +40,13 @@ public sealed record ThreatTuning
     /// Bodies the director may have about beyond the engaged cap (ambient ones, off the cap): the cap plus this many in all,
     /// so what's pacing cars nobody's in can't pile up into an unfair wave when the crew walks into it.
     /// </summary>
-    public int AmbientRoom { get; init; } = 1;
+    public int AmbientRoom { get; init; } = 2;
+    /// <summary>
+    /// Off the train, holding nobody, and this far (m) from every car and every living crewmate: left where the train was (a
+    /// yard's Freight Beetle or Mouse Moose after the train's gone on). Ambient, whatever it's doing there: the crew can't
+    /// answer it and it can't reach them. 0: off.
+    /// </summary>
+    public double LeftMetres { get; init; } = 150;
 }
 
 /// <summary>The engagement states (note 881): one enemy's, and what the caps count.</summary>
@@ -79,6 +85,8 @@ public static class Threats
         // A fire in a car (App. C.5) is the train's harm, someone in it or not: its Telegraph is its smoke, not a lunge.
         if (e is Incident)
             return ThreatState.Threatening;
+        if (t.LeftMetres > 0 && e.Attached < 0 && e.Holding < 0 && Left(e, world, crewAt, t.LeftMetres))
+            return ThreatState.Ambient;
         if (e.Holding >= 0 || Director.Confronting(e))
             return ThreatState.Engaging;
         if (!Hunts(e))
@@ -94,6 +102,20 @@ public static class Threats
             if ((c - at).Length <= t.NearMetres)
                 return ThreatState.Threatening;
         return ThreatState.Ambient;
+    }
+
+    /// <summary>Loose in the world, further than <paramref name="metres"/> from every car of the train and every crewmate.</summary>
+    static bool Left(Enemy e, World world, IReadOnlyList<Double3> crewAt, double metres)
+    {
+        var train = world.Train;
+        var at = e.WorldPosition(train);
+        foreach (var f in train.Frames)
+            if ((f.Origin - at).Length <= metres)
+                return false;
+        foreach (var c in crewAt)
+            if ((c - at).Length <= metres)
+                return false;
+        return true;
     }
 
     /// <summary>Peeled off and away: a Gannet gone off over the trees (note 340), a Beetle driven off, Tower Jaw driven off or its structure down.</summary>
