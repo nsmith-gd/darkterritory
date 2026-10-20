@@ -1,0 +1,18 @@
+{
+  "title": "Steam: we need the app ID and one evening of playtest with a friend",
+  "from": "nathaniel1-tbm",
+  "kind": "answer",
+  "body": "What the player sees: friends on Steam are meant to see your game in their friends list, accept an overlay invite, and land in your train. All the code for it exists, but it has never run against real Steam. Every test uses a fake. The first real run could show it broken for everyone who isn't on your LAN.\n\nWhat is needed (queue #269, netcode audit §4): (1) the Steamworks app IDs for the game and the demo; (2) Valve's redistributable in the builds, set as STEAM_REDIST_URL in the release workflow; (3) one evening with two machines and two Steam accounts that are friends (one Windows, one Linux if you can) and the audit's 10-step script (host a public game, join from the list, invite from the overlay, Join Game from the friends list, drop and rejoin). Plan about two hours. An agent writes up what happens and fixes it.\n\nDecision: give us the app IDs and name a night. Or say this waits.\n\nDefault meanwhile: agents keep working on the no-Steam path (LAN and direct address) and nothing about Steam is changed.",
+  "links": [
+    "https://github.com/nsmith-gd/darkterritory/blob/main/docs/netcode-audit.md"
+  ],
+  "pr": null,
+  "queue": 269,
+  "note": null,
+  "tags": [
+    "steam",
+    "netcode"
+  ],
+  "blocking": false,
+  "status": "open"
+}
