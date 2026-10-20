@@ -38,11 +38,12 @@ public sealed partial class Effects(Look look)
     /// <param name="lamp">The headlamp's lit (World.LampShining): out, no halo and no beam (the tail lamp's its own).</param>
     /// <param name="tailBite">What a Car Hugger's eaten of the last car (Art/BiteKit): its tail lamp goes with its corner.</param>
     /// <param name="reach">The headlamp's reach (train.json <c>headlampReach</c>, note 506): the beam drawn that much longer.</param>
+    /// <param name="flare">A shovelful flaring (note 903; 1 is one at its height): the stack's answer to the stroke.</param>
     /// <param name="searchlight">The rear searchlight's fitted on the last car (note 899): its beam back down the line, and the
     /// track behind lit by it.</param>
     public void Train(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Double3 eye, double time, TrainControls controls, float fire, bool emergency,
         bool vent = false, bool safety = false, Bite tailBite = default, bool whistle = false, bool dead = false, bool lamp = true, float reach = 1,
-        bool searchlight = false)
+        float flare = 0, bool searchlight = false)
     {
         if (frames.Count == 0 || (frames[0].Origin - eye).Length > 400)
             return;
@@ -59,7 +60,10 @@ public sealed partial class Effects(Look look)
         // Smoke: puffs at a rate the regulator sets, each drifting up and left behind where the stack was. The wind
         // leans it off the line a little. Dark, sooty, lit only by the night (and faintly by the fire underneath).
         float work = dead ? 0 : (float)Math.Clamp(controls.Throttle, 0, 1);
-        float rate = 3.5f + 7f * work;
+        // A shovelful flaring (note 903): she works as if pulling hard while it burns, and the puffs come thick and black.
+        float kick = dead ? 0 : Math.Clamp(flare, 0, 1.5f);
+        work = Math.Max(work, Math.Min(1, kick));
+        float rate = 3.5f + 7f * work + 4f * kick;
         const float life = 5.5f;
         int count = (int)(rate * life);
         double emitted = Math.Floor(time * rate);
@@ -73,8 +77,8 @@ public sealed partial class Effects(Look look)
             float h = Hash((float)(index * 0.618));
             float t = age / life;
             var drift = -velocity * age + wind * age + up * (2.2f * MathF.Pow(age, 0.6f) * (1 + work)) + (right * (h - 0.5f) + back * (Hash((float)index + 3.3f) - 0.5f)) * (0.4f + age * 0.5f);
-            float size = 0.9f + 3.6f * MathF.Sqrt(t) * (0.8f + 0.4f * h);
-            float alpha = 0.6f * MathF.Pow(1 - t, 1.4f) * MathF.Min(1, age * 6) * (0.6f + 0.4f * work) * (dead ? 0.18f : 1);
+            float size = (0.9f + 3.6f * MathF.Sqrt(t) * (0.8f + 0.4f * h)) * (1 + 0.35f * kick);
+            float alpha = MathF.Min(0.9f, 0.6f * MathF.Pow(1 - t, 1.4f) * MathF.Min(1, age * 6) * (0.6f + 0.4f * work) * (1 + 0.4f * kick) * (dead ? 0.18f : 1));
             var soot = dead ? new Vector3(0.2f, 0.2f, 0.21f) : new Vector3(0.05f, 0.046f, 0.044f);
             var colour = new Vector4(soot * (0.9f + 0.3f * h) + FurnaceTint(dead ? 0 : fire) * MathF.Max(0, 0.4f - t), alpha);
             mesh.Billboard(stackTop + drift, size, h * 6.28f + age * 0.3f, colour, _smoke, FxBlend.Alpha, (int)(t * 15.99f), 4);

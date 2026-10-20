@@ -64,6 +64,11 @@ public sealed record Route(string Name, RouteTier Tier, ulong Seed, LineDefiniti
     /// line, but for a town terminus's yard, which runs on past where it used to end.
     /// </summary>
     public double RunLength => Plan?.Terminus.RunEndM is { } end ? Math.Min(end, Length) : Length;
+    /// <summary>
+    /// App. B.1: the final approach nothing may spawn in, as the route was generated with it (route.json
+    /// <c>noSpawnFinalApproach</c>; note 912), so the sim's ban and the generator's last stop move together.
+    /// </summary>
+    public double NoSpawnFinalApproach { get; init; } = 500;
     public IEnumerable<RouteFeature> Of(FeatureKind kind) => Features.Where(f => f.Kind == kind);
     public bool InTunnel(double s) => Features.Any(f => f.Kind == FeatureKind.Tunnel && f.Contains(s));
     /// <summary>

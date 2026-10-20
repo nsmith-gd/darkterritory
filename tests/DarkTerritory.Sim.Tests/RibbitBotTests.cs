@@ -48,4 +48,25 @@ public class RibbitBotTests
         Assert.True(grabs <= 1, $"the pack had them {grabs} times");
         Assert.True(n.Crew[2].Alive && n.Crew[3].Alive);
     }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void ABotAloneOnItsWayWithAPackOfThreeAfterItRunsOnAndIsntTaken(bool run)
+    {
+        // Note 894: frontier:6 seed 4's shunter, alone at the pick-up's points and walking back to the train, turned on a pack
+        // of three (note 658's clubbing) and was eaten. Outnumbered, it keeps going, at a run (App. A.6: "outrunnable").
+        var e = E with { CrewBots = E.CrewBots with { RibbitsOutnumberedRun = run } };
+        var n = new Night(4, speed: 0, enemies: e);
+        n.Crew[2] = PlayerMotor.SpawnOnGround(Beside(n, 2, 4), n.Train.Line, n.Train.Dynamics.Distance, P);
+        // Coming up behind it, 10 m back along the train (within the bots' ribbitWithin); it walks on, away from them.
+        var pack = Enumerable.Range(0, 3).Select(i => n.World.AddEnemy(id => Ribbit.At(id, 7, Beside(n, 2, 3 + i * 1.5, 10), e.Ribbits))).ToList();
+        // Its way on: straight away from them, turned to it as the bots' own walking turns (the yaw the look's laid on).
+        var away = PlayerMotor.WorldPosition(n.Crew[2], n.Train) - pack[0].WorldPosition(n.Train);
+        PlayerIntent Walk() => new() { MoveZ = 1, LookYaw = (float)Math.IEEERemainder(Math.Atan2(-away.X, -away.Z) - n.Crew[2].Yaw, 2 * Math.PI) };
+        for (int i = 0; i < 10 * SimConstants.TickRate; i++)
+            n.Run(SimConstants.TickSeconds, id => id == 2 ? Heed.Ribbits(Walk(), n.Crew[2], n.World, 2, [(2, n.Crew[2])]) : default);
+        bool taken = n.Events.Any(ev => ev.Kind == EnemyKind.Ribbit && ev.To == SpinePhase.Grab);
+        Assert.True(taken != run, run ? "taken, though it ran" : "never taken, turning on a pack of three: the test's not the night's");
+    }
 }
