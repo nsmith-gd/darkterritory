@@ -829,39 +829,39 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         switch (Aboard)
         {
             case HoundMode.Lunge:
-            {
-                double f = Math.Clamp(ModeSeconds / a.LungeSeconds, 0, 1);
-                Local = Local with { Z = Math.Clamp(_lungeFromZ + (_lungeZ - _lungeFromZ) * f, lo, hi) };
-                if (ModeSeconds < a.LungeSeconds)
-                    return;
-                // Landed: the bite, if they're still in its reach. Bitten down to the last: it pins them (App. A.1, kills go
-                // through GRAB).
-                if (distance <= t.Reach)
                 {
-                    var held = ctx.Crew.First(c => c.Player.Id == victim).Player.State;
-                    if (held.Health <= t.BiteDamage && Grab(ctx, victim, t.MaulSeconds))
+                    double f = Math.Clamp(ModeSeconds / a.LungeSeconds, 0, 1);
+                    Local = Local with { Z = Math.Clamp(_lungeFromZ + (_lungeZ - _lungeFromZ) * f, lo, hi) };
+                    if (ModeSeconds < a.LungeSeconds)
                         return;
-                    ctx.Bite(victim, t.BiteDamage, DeathCause.Mauled);
-                }
-                _retreatLeft = a.RetreatMetres;
-                SetMode(HoundMode.Retreat, toward == 0 ? 1 : 0);
-                return;
-            }
-            case HoundMode.Retreat:
-            {
-                int away = theirZ < Local.Z ? 1 : -1;
-                double step = a.RetreatSpeed * dt, z = Math.Clamp(Local.Z + away * step, lo, hi);
-                _retreatLeft -= step;
-                if (_retreatLeft > 0 && Math.Abs(z - Local.Z) > 1e-9)
-                {
-                    Local = Local with { Z = z };
-                    SetMode(HoundMode.Retreat, away < 0 ? 0 : 1);
+                    // Landed: the bite, if they're still in its reach. Bitten down to the last: it pins them (App. A.1, kills go
+                    // through GRAB).
+                    if (distance <= t.Reach)
+                    {
+                        var held = ctx.Crew.First(c => c.Player.Id == victim).Player.State;
+                        if (held.Health <= t.BiteDamage && Grab(ctx, victim, t.MaulSeconds))
+                            return;
+                        ctx.Bite(victim, t.BiteDamage, DeathCause.Mauled);
+                    }
+                    _retreatLeft = a.RetreatMetres;
+                    SetMode(HoundMode.Retreat, toward == 0 ? 1 : 0);
                     return;
                 }
-                _crouchUntil = PhaseSeconds + a.CrouchSeconds;
-                SetMode(HoundMode.Still, toward);
-                return;
-            }
+            case HoundMode.Retreat:
+                {
+                    int away = theirZ < Local.Z ? 1 : -1;
+                    double step = a.RetreatSpeed * dt, z = Math.Clamp(Local.Z + away * step, lo, hi);
+                    _retreatLeft -= step;
+                    if (_retreatLeft > 0 && Math.Abs(z - Local.Z) > 1e-9)
+                    {
+                        Local = Local with { Z = z };
+                        SetMode(HoundMode.Retreat, away < 0 ? 0 : 1);
+                        return;
+                    }
+                    _crouchUntil = PhaseSeconds + a.CrouchSeconds;
+                    SetMode(HoundMode.Still, toward);
+                    return;
+                }
         }
         if (PhaseSeconds < _crouchUntil && distance <= a.LungeFrom + a.RetreatMetres)
         {
