@@ -1292,12 +1292,6 @@
     "aftermath": { "on": true, "seconds": 12, "events": ["death", "carLost", "rescue", "holdoutFreed"] },
     // The encounter pacing (the spawn director overhaul, docs/design/spawn-director-overhaul.md §3; the plan, note 874).
     "encounters": {
-      // The spawn transaction (note 885; the brief §2 issue 3): a spawn the director chose that placed nothing commits nothing
-      // (no pressure, budget, cooldown, log line or cap). The pressure tries again the next second; the kind that failed sits
-      // out failHoldSeconds of the pressure's, the curve's and the stops' choices, so another is chosen rather than the same
-      // one into the same wall. A free spawn that fired and failed stays owed for freeRetrySeconds (fires again on the next
-      // seconds' choices without a new roll; the roll is still made, so the curve's dice don't move).
-      "attempts": { "failHoldSeconds": 10, "freeRetrySeconds": 20 },
       // The encounter rate (spec B.10 "The encounter rate"; the director's brief, docs/design/spawn-director-overhaul.md §1 and
       // §3; note 877): encounter opportunities a minute, time × crew × train length × tier, every factor rising and none
       // falling (the brief's six requirements, EncounterPacingTests):
@@ -1332,6 +1326,12 @@
         "releasePerMinute": 0.5,
         "releaseBurst": 1
       },
+      // The spawn transaction (note 885; the brief §2 issue 3): a spawn the director chose that placed nothing commits nothing
+      // (no pressure, budget, cooldown, log line or cap). The pressure tries again the next second; the kind that failed sits
+      // out failHoldSeconds of the pressure's, the curve's and the stops' choices, so another is chosen rather than the same
+      // one into the same wall. A free spawn that fired and failed stays owed for freeRetrySeconds (fires again on the next
+      // seconds' choices without a new roll; the roll is still made, so the curve's dice don't move).
+      "attempts": { "failHoldSeconds": 10, "freeRetrySeconds": 20 },
       // One pacing model (§2 issues 1 and 2, §3; note 908): the encounter rate and the debt drive the director's channels.
       // Each director second the night isn't held for a quiet it means (the grace, a fort, the final stretch and the line's
       // bans, the aftermath, a facility's lull, the terrain at its ceiling, the engaged caps full), the night owes the crew
