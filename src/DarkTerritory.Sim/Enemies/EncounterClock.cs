@@ -81,7 +81,7 @@ public sealed record DriveTuning
 {
     public bool On { get; init; } = true;
     public double DueCap { get; init; } = 1.5;
-    public double DueFloor { get; init; } = -1;
+    public double DueFloor { get; init; } = -0.25;
     public double Jitter { get; init; } = 0.35;
     public bool PressureByLambda { get; init; } = true;
 }
