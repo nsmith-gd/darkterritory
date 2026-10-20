@@ -370,4 +370,14 @@ renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's 
 ## Waiting on the director
 
 - **Nell's #590, PR [#1285](https://github.com/nsmith-gd/darkterritory/pull/1285)** (20 Oct): green, held as a draft for the director's call on the pack-fire rise it measured. The director overhaul (note 874) recommends merging it before #608 and #612 start, with #612 answering the pack fires.
+- **Drafted for the inbox, not yet published** (20 Oct, n1-inbox; drafts in `docs/inbox-drafts/`, the Token Budget Manager publishes them):
+  - `nathaniel1-tbm-night-cap-1285`: merge Nell's #1285 (the 3-a-night cap), given the pack-fire rise and the quiet last third.
+  - `nathaniel1-tbm-voice-booth-keep-redo`: Keep or Redo on the 34 disguised voice versions (#42, note 304).
+  - `nathaniel1-tbm-rear-searchlight`: what the rear searchlight does (#410, note 678).
+  - `nathaniel1-tbm-perf-turning-and-cell`: the director's turning-fast report and a real-GPU number for the line cell mesh (#427, note 695).
+  - `nathaniel1-tbm-vent-shove-left-alt`: confirm Caps Lock for Shove now the vent is on Left Alt (built, #1180).
+  - `nathaniel1-tbm-boiler-pressure-17`: confirm the 17% faster boiler (built, #1179).
+  - `nathaniel1-tbm-steam-app-id-evening`: the Steam app id and a test evening (#269).
+  - `nathaniel1-tbm-non-steam-relay`: Steam-only or an EOS relay (#274).
+  - `nathaniel1-tbm-note857-for-the-director`: note 857's open calls 1, 3, 4, 5, 6, 7 and 10.
 - Nothing asked in the inbox is open (18 Oct, note 857). The Stoker's hose was decided on 12 Oct (`D1-stoker-hose-in-the-cab`, b) and built in #866 (note 648). The calls the 18 Oct audit found waiting are listed in [note 857](notes/857.md)'s "For the director".

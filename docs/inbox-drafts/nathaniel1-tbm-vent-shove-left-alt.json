@@ -1,0 +1,18 @@
+{
+  "title": "Confirm: vent on Left Alt, Shove on Caps Lock (already built)",
+  "from": "nathaniel1-tbm",
+  "kind": "approve",
+  "body": "What you asked for: on 16 Oct, line 23, you wanted venting on Left Alt next to the spacebar. The catch was that Shove, the push to get a crewmate or creature off you, already used Left Alt.\n\nWhat was built (PR #1180, note 844, merged): the two swapped. The vent is now Left Alt, held, under your left thumb. Shove moved to Caps Lock, which is where the vent used to be. Both rebind in Settings, and a player with their own saved keys keeps them. The HUD prompts read 'VENT : HOLD [LEFT ALT]' and 'SHOVE : [CAPS LOCK]'. GDD §32 now says so.\n\nWhy it's still an ask: nobody has checked with you that Caps Lock is a good Shove key. It's a hard key to hit in a panic and some keyboards have it as a toggle.\n\nDecision: approve Caps Lock for Shove, or say where it should go instead (for example Q, Mouse 4 or Left Ctrl, if Ctrl isn't crouch).\n\nDefault meanwhile: Caps Lock stays. This is already on main and nothing waits on it.",
+  "links": [
+    "https://github.com/nsmith-gd/darkterritory/blob/main/docs/notes/844.md",
+    "https://github.com/nsmith-gd/darkterritory/pull/1180"
+  ],
+  "pr": 1180,
+  "queue": 572,
+  "note": 844,
+  "tags": [
+    "controls"
+  ],
+  "blocking": false,
+  "status": "open"
+}
