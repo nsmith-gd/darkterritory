@@ -1560,6 +1560,8 @@ public sealed record CrewBotsTuning
     public double MouseMooseWithin { get; init; } = 30;
     /// <summary>Note 658: a Ribbit this near (m, flat), a bot on the ground goes at it and clubs it.</summary>
     public double RibbitWithin { get; init; } = 12;
+    /// <summary>Note 894: a bot on its way somewhere, hunted by a pack that outnumbers its group, runs on instead of clubbing.</summary>
+    public bool RibbitsOutnumberedRun { get; init; } = true;
     public double BrakemanStandOff { get; init; } = 1.5;
     public double BrakemanWaitPast { get; init; } = 1;
     public double StandGiveUp { get; init; } = 240;

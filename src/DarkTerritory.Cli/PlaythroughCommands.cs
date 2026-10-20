@@ -92,13 +92,14 @@ static class PlaythroughCommands
             scene.BendStrain = world.TrackPlan is { } bent ? DarkTerritory.Game.BendStrain.PerCar(train, bent.Rules) : null;
             scene.DriversLocked = scene.Ruptured && train.BoilerTuning is { } rt && train.Dynamics.Speed > rt.RuptureCoastBelow;
             scene.SinceShovel = train.Boiler.SinceShovel;
+            scene.Flare = train.BoilerTuning is { } flt ? (float)flt.FlareLook(train.Boiler) : 0;
             scene.ChoirGathering = world.Choir.Present ? 1 : (float)world.Choir.Build;
             scene.Answer = world.Answer;
             scene.AnswerShowSeconds = world.Director?.Tuning.Draw.ShowSeconds ?? 7;
             // Watched afoot (note 327): eyes toward what lives at the stop.
             scene.Watcher = world.Watcher;
             scene.WatcherShowSeconds = world.Director?.Tuning.Afoot.SignSeconds ?? 3.5;
-            scene.FireGlow = train.BoilerTuning is { } bt ? GreyboxScene.FireLook(train.Boiler.Firebox, bt.FireboxCapacity) : 0.7f;
+            scene.FireGlow = train.BoilerTuning is { } bt ? GreyboxScene.FireLook(train.Boiler.Fire, bt.FireboxCapacity) : 0.7f;
             scene.StokerLowFor = stokerSince < 0 ? -1 : seconds - stokerSince;
             scene.StokerDownAt = world.Enemies?.Stoker.HeatSeconds ?? 20;
             scene.LampLit = world.LampShining;
