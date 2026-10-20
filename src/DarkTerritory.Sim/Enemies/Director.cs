@@ -706,7 +706,7 @@ public sealed class Director
         // Everything that could come is for someone who has one on them already (note 345): nothing, this second. Only when
         // the census is what zeroed them: a list weighing nothing for other reasons is App. B.1's as it was (its last pick).
         bool weighed = options.Any(op => op.Weight > 0);
-        options = WhoseNext(options);
+        options = WhoseNext(ZoneSpread(options, holding));
         if (weighed && options.All(op => op.Weight <= 0))
             return Held("one on each");
         options = WeighVotes(options);
@@ -792,7 +792,7 @@ public sealed class Director
         var options = FreeOptions(world, et, holding, withBound: true);
         if (options.Count == 0)
             return null;
-        options = WeighVotes(WhoseNext(options));
+        options = WeighVotes(WhoseNext(ZoneSpread(options, holding)));
         double total = options.Sum(o => o.Weight);
         if (total <= 0)
             return null;
@@ -989,6 +989,19 @@ public sealed class Director
                 w *= o.EmptyPostWeight;
             return (op.Kind, w * Collision(posts, entries));
         })];
+    }
+
+    /// <summary>
+    /// The zone spread (note 895; the brief §3 selection 6, §4 level 3): each kind × <see cref="SelectionTuning.ZoneRepeatWeight"/>
+    /// for every engaged threat already in its zone (<paramref name="holding"/>), so the next comes as a problem somewhere
+    /// else. Never to nothing: only which kind, as <see cref="WhoseNext"/>.
+    /// </summary>
+    List<(EnemyKind Kind, double Weight)> ZoneSpread(List<(EnemyKind Kind, double Weight)> options, List<Enemy> holding)
+    {
+        var t = _t.Encounters.Selection;
+        if (!t.On || holding.Count == 0)
+            return options;
+        return [.. options.Select(o => (o.Kind, o.Weight * EncounterPlacement.ZoneSpread(holding.Count(e => e.Zone == Profile(o.Kind).Zone), t)))];
     }
 
     /// <summary>
