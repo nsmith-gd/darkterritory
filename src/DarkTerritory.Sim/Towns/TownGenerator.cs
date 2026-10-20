@@ -295,7 +295,7 @@ public static partial class TownGenerator
         // centrepiece, each where it's clear of what's in the square and of the doors. Its stalls are listed after every other
         // fixture but the forge, and its stallholders after every other townsperson but the blacksmith and the Flame's keeper,
         // so every other keeps its index and its name.
-        var market = Market(sq, s0, s1, side * (front - sq.MarketIn), population, fixtures, buildings, w, industry, Rng("market"));
+        var market = Market(sq, s0, s1, side * (front - sq.MarketIn), population, fixtures, buildings, homes.Green, w, industry, Rng("market"));
 
         // The people. Those with a place: the jobs a town this size has, round the centrepiece, the households at home, out
         // with a lantern in front of the lived-in houses.
@@ -370,8 +370,8 @@ public static partial class TownGenerator
 
         // The night market's stallholders (note 825), each behind their counter, facing the square: after everyone else with
         // a place, before the blacksmith, who stays last.
-        foreach (var (ms, md, _) in market)
-            spots.Add(new("stallholder", ms, md + side * (TownFixtures.Size("marketstall").HalfD + StallholderBack), 0, -side, 0));
+        foreach (var (ms, md, face, _) in market)
+            spots.Add(new("stallholder", ms, md - face * (TownFixtures.Size("marketstall").HalfD + StallholderBack), 0, face, 0));
 
         // The town's blacksmith, who does the trains (note 697; the director, 13 Oct 2026: "a vendor who is clearly marked as
         // the vendor blacksmith of the town who does train upgrades"): every town has one, at the forge beside the engine as it
@@ -558,8 +558,8 @@ public static partial class TownGenerator
         // fixtures, so every other keeps its index.
         Fix("lostcrews", "the board of lost crews", LostCrewsText, mid + LostCrewsAlong, side * BoardOut, 0, -side);
         // The night market's stalls (note 825), after it.
-        foreach (var (ms, md, on) in market)
-            Fix("marketstall", on.Title, on.Text, ms, md, 0, -side);
+        foreach (var (ms, md, face, on) in market)
+            Fix("marketstall", on.Title, on.Text, ms, md, 0, face);
 
         // The board: the custom's order first, then what the town makes, then whatever else is posted; and a note or two
         // left about the square (a letter on a bench, a page by the hall door, a scrap by the engine).
@@ -725,22 +725,36 @@ public static partial class TownGenerator
 
     /// <summary>
     /// The night market (queue #552, note 825; the director's playtest of 14 Oct, line 3: "The town's looking better ...
-    /// Still a bit basic"): along a row <paramref name="d"/> out, from ten metres in from the square's ends, every
-    /// <see cref="SquareTuning.MarketEvery"/> where a stall stands clear of every fixture so far and of the buildings' doors;
-    /// as many of those as the town's size has stalls (<see cref="SquareTuning.Market"/>), drawn at random and laid in
-    /// order along the square. Each stall's wares are dealt from the town's trade's stalls and the market's own, none twice
-    /// and none a shut stall's already.
+    /// Still a bit basic"; of 19 Oct, line 4, note 870: "Too many cut and paste stalls in a row ... doesn't look like a
+    /// market"): two rows of stalls facing each other across an aisle (<see cref="SquareTuning.MarketAisle"/>), the first
+    /// <paramref name="d"/> out with its counters to the line, the second nearer the line with its counters to the
+    /// buildings; along each, every <see cref="SquareTuning.MarketEvery"/> from ten metres in from the square's ends (the
+    /// second row's places half a step on from the first's), each stall set off its place by up to
+    /// <see cref="SquareTuning.MarketJitter"/> each way, where it stands clear of every fixture so far, of the
+    /// buildings' doors and of a small town's green; as many of those as the town's size has stalls
+    /// (<see cref="SquareTuning.Market"/>), drawn at random and laid in order along the square. Each stall's wares are
+    /// dealt from the town's trade's stalls and the market's own, none twice and none a shut stall's already. Face: the way
+    /// its counter looks, across the line (±1).
     /// </summary>
-    static List<(double S, double D, TownText Wares)> Market(SquareTuning sq, double s0, double s1, double d, int population,
-        List<TownFixture> fixtures, List<TownBuilding> buildings, TownWriting w, TownIndustry? industry, Pcg32 rng)
+    static List<(double S, double D, int Face, TownText Wares)> Market(SquareTuning sq, double s0, double s1, double d, int population,
+        List<TownFixture> fixtures, List<TownBuilding> buildings, TownGreen? green, TownWriting w, TownIndustry? industry, Pcg32 rng)
     {
         int want = Math.Clamp(sq.Market[0] + (int)(population / Math.Max(1, sq.MarketPer)), sq.Market[0], sq.Market[1]);
         var (hs, hd, _) = TownFixtures.Size("marketstall");
-        var clear = new List<double>();
-        for (double s = s0 + 10; s <= s1 - 10; s += sq.MarketEvery)
-            if (fixtures.All(f => Math.Abs(f.S - s) > f.SolidS + hs + 0.8 || Math.Abs(f.D - d) > f.SolidD + hd + 0.8)
-                && buildings.All(b => Math.Abs(b.S - s) > hs + DoorClear))
-                clear.Add(s);
+        int side = Math.Sign(d);
+        // The rows: the first toward the buildings, counters to the line; the second across the aisle from it.
+        var rows = new[] { (D: d, Face: -side, From: 0.0), (D: d - side * (2 * hd + sq.MarketAisle), Face: side, From: sq.MarketEvery / 2) };
+        var clear = new List<(double S, double D, int Face)>();
+        var jitter = rng.Fork(2);
+        foreach (var row in rows)
+            for (double s = s0 + 10 + row.From; s <= s1 - 10; s += sq.MarketEvery)
+            {
+                // Each off its place a little, along and across, so the rows are a market's, not a ruled line.
+                double ps = s + (jitter.NextDouble() * 2 - 1) * sq.MarketJitter, pd = row.D + (jitter.NextDouble() * 2 - 1) * sq.MarketJitter;
+                if (fixtures.All(f => Math.Abs(f.S - ps) > f.SolidS + hs + 0.8 || Math.Abs(f.D - pd) > f.SolidD + hd + 0.8)
+                    && buildings.All(b => Math.Abs(b.S - ps) > hs + DoorClear) && green?.Holds(ps, pd, Math.Max(hs, hd)) != true)
+                    clear.Add((ps, pd, row.Face));
+            }
         // Which of them: a shuffle of the clear places, the first as many as are wanted, in order along the square.
         for (int i = clear.Count - 1; i > 0; i--)
         {
@@ -749,10 +763,10 @@ public static partial class TownGenerator
         }
         var wares = new Deck<TownText>([.. (industry?.Stalls ?? []).Where(x => fixtures.All(f => f.Text != x)).Select(x => new TownText("a market stall", x)),
             .. w.Market], rng.Fork(1));
-        var stalls = new List<(double, double, TownText)>();
-        foreach (double s in clear.Take(want).OrderBy(x => x))
+        var stalls = new List<(double, double, int, TownText)>();
+        foreach (var (s, sd, face) in clear.Take(want).OrderBy(x => x.S).ThenBy(x => x.Face))
             if (wares.Next() is { } on)
-                stalls.Add((s, d, on));
+                stalls.Add((s, sd, face, on));
         return stalls;
     }
 
@@ -948,4 +962,56 @@ public static class TownFixtures
             or "stove" or "stairdoor" or "photo" => (0, 0, 0.5),
         _ => (0.5, 0.5, 1.5),
     };
+
+    /// <summary>
+    /// The works' heaps, slag and coal (WorksKit.Heap, note 870's mound tipped from a line: a ridge along X at its crest, set
+    /// back toward +Z, its slopes straight, gullied): a mound, not a block.
+    /// </summary>
+    public static bool Heap(string kind) => kind is "slag" or "coal";
+
+    /// <summary>
+    /// A heap's walls (note 869; the director's playtest of 19 Oct line 2, "Collision boxes are off": a slag heap stood a 4 m
+    /// box from the ground over its whole footprint, so its foot stopped you in mid-air): a stack of layers no deeper than
+    /// <paramref name="step"/> (player.json stepUp: walked up, as a heap is), each the cross of two boxes inside where the
+    /// mound stands higher than the layer's foot. In the heap's own frame (WorksKit's: X along its front, +Z back from it),
+    /// its footprint <paramref name="halfX"/> by <paramref name="halfZ"/>: each layer's half sizes, how far back its middle
+    /// stands, its foot and top. From the art's shape at every height (its outline's least reach, <see cref="HeapReachLeast"/>;
+    /// its gullies' deepest, <see cref="HeapGully"/> of its height), so a layer is never out past the mound drawn.
+    /// </summary>
+    public static IEnumerable<(double HalfX, double HalfZ, double Back, double Bottom, double Top)> HeapLayers(double halfX, double halfZ, double height,
+        double step)
+    {
+        // Up to its crest, less what a gully takes off it.
+        double peak = height * (1 - HeapGully);
+        int layers = Math.Max(1, (int)Math.Ceiling(peak / Math.Max(0.05, step * 0.9)));
+        for (int i = 0; i < layers; i++)
+        {
+            double below = peak * i / layers, top = peak * (i + 1) / layers;
+            // How far out (t) its slope still stands over the layer's foot, its gullies' worst taken off: y = h (1 - t^1.2).
+            double fall = Math.Min(1, below / height + HeapGully);
+            double t = SixthRootOfFifth(1 - fall), r = t * HeapReachLeast;
+            double x = halfX * (0.42 * (1 - r) + r), z = halfZ * (0.06 * (1 - r) + r), back = halfZ * 0.18 * (1 - t);
+            // The cross inscribed in that ellipse: (0.88, 0.44) and (0.44, 0.88) of it, its corners just inside.
+            yield return (x * 0.88, z * 0.44, back, below, top);
+            yield return (x * 0.44, z * 0.88, back, below, top);
+        }
+    }
+
+    /// <summary>
+    /// x^(5/6), the art's t^1.2 undone (1 / 1.2 = 5 / 6), for x in 0..1: the y with y^6 = x^5, found by halving, so it's the
+    /// same bits on every machine (the C library's Pow isn't; DeterministicMathTests).
+    /// </summary>
+    static double SixthRootOfFifth(double x)
+    {
+        double target = DMath.Pow(Math.Clamp(x, 0, 1), 5), lo = 0, hi = 1;
+        for (int i = 0; i < 52; i++)
+        {
+            double mid = (lo + hi) / 2;
+            (lo, hi) = DMath.Pow(mid, 6) < target ? (mid, hi) : (lo, mid);
+        }
+        return lo;
+    }
+
+    /// <summary>A heap's outline's least reach (of its footprint's half sizes) and its gullies' deepest (of its height): WorksKit.Heap's. Not design numbers.</summary>
+    public const double HeapReachLeast = 0.72, HeapGully = 0.17;
 }

@@ -14,6 +14,9 @@ public sealed partial class SceneArt(Look look)
 {
     readonly Dictionary<string, MeshAsset> _pieces = new();
 
+    /// <summary>A burning flare's light (note 871): a signal flare's red, hot enough to read as white at its head.</summary>
+    public static readonly Vector3 FlareGlow = new(1f, 0.28f, 0.18f);
+
     public Look Look { get; } = look;
 
     /// <summary>What a village find is (loot.json's item key), from the run: its model (FindKit). Null, the plain bundle.</summary>
@@ -905,6 +908,9 @@ public sealed partial class SceneArt(Look look)
             Sim.Physics.BodyKind.Cat => Piece($"whimsy-cat-{(int)b.Tipped}", () => WhimsyKit.Cat(Look, b.Tipped)),
             Sim.Physics.BodyKind.Dog => Piece($"whimsy-dog-{(int)b.Tipped}", () => WhimsyKit.Dog(Look, b.Tipped)),
             Sim.Physics.BodyKind.TennisBall => Piece("whimsy-tennis-ball", () => WhimsyKit.TennisBall(Look)),
+            // The flare pistol and a flare from it (note 871).
+            Sim.Physics.BodyKind.FlarePistol => Piece("prop-flare-pistol", () => PropKit.FlarePistol(Look)),
+            Sim.Physics.BodyKind.Flare => Piece("prop-flare", () => PropKit.Flare(Look)),
             // The band's (note 700).
             Sim.Physics.BodyKind.Instrument when (InstrumentOf?.Invoke(b) ?? "fiddle") is var id => Piece($"prop-band-{id}", () => PropKit.Instrument(Look, id)),
             // The hand lamp: the sourced lantern (tools/models hand_lantern) where it's built.
@@ -926,6 +932,17 @@ public sealed partial class SceneArt(Look look)
             mesh.Billboard(o + u * 0.12f, 0.9f * breath, 0, new Vector4(FindKit.CometGlow * 0.4f * breath, 1), -1, FxBlend.Additive);
             // ... and a wide, faint haze of it in the fog over it, what a crew picks out from the line a stop's length off.
             mesh.Billboard(o + u * 0.8f, 3.2f * breath, 0, new Vector4(FindKit.CometGlow * 0.25f * breath, 1), -1, FxBlend.Additive);
+        }
+        // A flare burning (note 871): its hot head and its red glare over it, sputtering, dimming as it burns down (Body.Charge,
+        // the burn left).
+        if (b.Kind == Sim.Physics.BodyKind.Flare && b.Charge > 0)
+        {
+            float sputter = 0.85f + 0.15f * MathF.Sin((float)(time * 23) + b.Id) * MathF.Sin((float)(time * 7.1) + 2 * b.Id);
+            float left = 0.35f + 0.65f * (float)Math.Clamp(b.Charge, 0, 1);
+            var head = o + u * 0.08f;
+            // (Its light is the scene's, GreyboxScene.FlareLight, so it can take the shadows as a lamp does.)
+            mesh.Billboard(head, 0.6f * sputter, 0, new Vector4(new Vector3(1f, 0.9f, 0.85f) * sputter, 1), -1, FxBlend.Additive);
+            mesh.Billboard(head + u * 0.4f, 2.4f * sputter * left, 0, new Vector4(FlareGlow * 0.35f * sputter, 1), -1, FxBlend.Additive);
         }
         if (b.Kind == Sim.Physics.BodyKind.Lamp)
         {

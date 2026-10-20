@@ -32,6 +32,8 @@ public enum BodyKind : byte
     FishingRod = 18, Fish = 19, GrilledFish = 20,
     // The yard cat, the dog and a tennis ball off the launcher (note 745).
     Cat = 21, Dog = 22, TennisBall = 23,
+    // The flare pistol from the stores, its flares left in Charge, and a flare fired from it, burning (note 871).
+    FlarePistol = 24, Flare = 25,
 }
 
 /// <summary>
@@ -1004,7 +1006,7 @@ public sealed class Bodies
         // A heavy crate with one on it is still free at its other end (T43).
         // What's in a locker is the locker's: taken from it with a tap there, not reached for (note 173).
         var free = _bodies.Where(b => !b.Stowed && b.TakenBy < 0 && (b.Carrier < 0 || b.Kind == BodyKind.Heavy && b.Second < 0 && b.Carrier != playerId)
-            && !(wearingRadio && b.Kind == BodyKind.Radio) && b.Kind is not (BodyKind.Caboose or BodyKind.Dog)
+            && !(wearingRadio && b.Kind == BodyKind.Radio) && b.Kind is not (BodyKind.Caboose or BodyKind.Dog or BodyKind.Flare)
             // A lamp broken and burning (note 728) is a puddle of burning oil and glass, not a thing to pick up.
             && !(b.Kind == BodyKind.Lamp && b.Broken));
         if (hand is not null && PlayerMotor.HandWorld(s, train) is { } h)
@@ -1487,13 +1489,16 @@ public sealed class Bodies
 
     /// <summary>
     /// A heavy crate (spec D.2, T43): with one on it, it's held where it lies (and let go by walking off from it); with
-    /// both, it rides between their hands, in the first one's frame. Too far apart, and it's down.
+    /// both, it rides between their hands, in the first one's frame. Too far apart, and it's down; one of them grabbed, and
+    /// their end's let go (note 867).
     /// </summary>
     void CarryHeavy(Body b, TrainOnLine train, Func<int, PlayerState?> player)
     {
-        if (b.Second >= 0 && player(b.Second) is not { Alive: true })
+        // Dead, or grabbed (note 867: something has them, so their end's let go; the other's left holding it, to choose).
+        static bool Holds(PlayerState? s) => s is { Alive: true } p && !p.Has(PlayerFlags.Held);
+        if (b.Second >= 0 && !Holds(player(b.Second)))
             b.Second = -1;
-        if (b.Carrier >= 0 && player(b.Carrier) is not { Alive: true })
+        if (b.Carrier >= 0 && !Holds(player(b.Carrier)))
             (b.Carrier, b.Second) = (b.Second, -1);
         if (b.Carrier < 0 || player(b.Carrier) is not { } lead)
             return;

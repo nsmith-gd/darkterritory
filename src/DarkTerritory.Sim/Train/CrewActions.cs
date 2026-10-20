@@ -59,6 +59,18 @@ public static class CrewActions
         }
         // A loose coupling (note 356): the wrench in the gap, Use held, and it's tight. Before the plate's doors: at a loose
         // pin with the wrench in hand, it's the pin that's worked.
+        // Note 865: a pin jumped clear at speed is held down by hand, wrench or none, and goes home only while a second takes the
+        // slack off it (the host's say, Vehicle.Pinned): alone, the hands are on it and it doesn't move.
+        if (s.Alive && intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5 && train.Loose is { Enabled: true } jt
+            && Couplings.Within(s, train, jt) is { } jumped && Couplings.TakesTwo(train.Vehicles[jumped].LooseCause))
+        {
+            s.Flags &= ~PlayerFlags.Shovelful;
+            if (!train.Vehicles[jumped].Pinned || s.ActionProgress >= jt.Jump.DriveSeconds)
+                s.ActionProgress = 0;
+            if (train.Vehicles[jumped].Pinned && (s.ActionProgress += dt) >= jt.Jump.DriveSeconds)
+                train.Vehicles[jumped].Loose = 0;
+            return;
+        }
         if (s.Alive && intent.Has(PlayerButtons.Use) && intent.MoveZ <= 0.5 && train.Loose is { Enabled: true } lt
             && Couplings.Tightens(s, train) && Couplings.Within(s, train, lt) is { } pin)
         {
@@ -366,8 +378,10 @@ public static class CrewActions
         if (!s.Alive || s.Surface != Surface.Coupler || s.Parent == PlayerState.World || s.Has(PlayerFlags.Held)
             || Math.Abs(intent.MoveX) > 0.1 || Math.Abs(intent.MoveZ) > 0.1)
             return false;
+        // Note 865: a headset hand down at a jumped pin is holding it down, not cutting the coupling under it.
         if (Hand(s, hand))
-            return intent.Has(PlayerButtons.Use) && s.Hand.Y < ReachedDown;
+            return intent.Has(PlayerButtons.Use) && s.Hand.Y < ReachedDown
+                && !(train.Loose is { Enabled: true } lt && Couplings.Within(s, train, lt) is { } pin && Couplings.TakesTwo(train.Vehicles[pin].LooseCause));
         double down = train.Dynamics.Tuning.Couplings.UncoupleLookDownDegrees * Math.PI / 180;
         return intent.Has(PlayerActions.Uncouple) && s.Pitch <= -down;
     }

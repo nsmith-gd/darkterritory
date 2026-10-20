@@ -655,6 +655,9 @@ public sealed partial class World
             Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(-0.5, floor, room.Max.Z - 2.5 - 0.4 * (i + 1)), Physics.BodyKind.Lamp);
         for (int i = 0; i < kit.SpareExtinguishers; i++)
             Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(-0.2, floor, room.Min.Z + 1.2 + 0.4 * i), Physics.BodyKind.Extinguisher);
+        // Note 871: the flare pistols, loaded (their flares left in Charge), beside the extinguishers.
+        for (int i = 0; i < kit.FlarePistols; i++)
+            Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(0.2, floor, room.Min.Z + 1.2 + 0.4 * i), Physics.BodyKind.FlarePistol).Charge = kit.FlareShots;
         // Hand-carried loot (GDD v1.1 App. C.4): toys, for the Track Doll to steal.
         for (int i = 0; i < kit.Toys; i++)
             Bodies.SpawnCrate(Train, guard.Id, new Ballast.Double3(0.6, floor, room.Max.Z - 1.2 - 0.5 * i), Physics.BodyKind.Toy).Noise =
@@ -969,6 +972,7 @@ public sealed partial class World
             Train.Walls.Lock(Run.LockedDoors());
         }
         Train.Walls = ClearSiteWork(Train.Walls);
+        StandGates();
         // Note 730: the night's odd things at the stops, from the route alike on every machine.
         EnableOddities(tuning, route);
         Authority |= authority;
@@ -983,6 +987,19 @@ public sealed partial class World
     /// the line as they're drawn until Tower Jaw brings one down, and the facilities' buildings where the art stands them (note
     /// 758; once the sites are laid out).
     /// </summary>
+    /// <summary>
+    /// Note 847: the fortress gates open for the train and shut behind it, from where it is now. Also as soon as the walls are
+    /// stood (note 869, the director's playtest of 19 Oct line 6: "We clip through the front gate to start?"): the night starts
+    /// with the engine run.json departShortOfGateM short of the departure's gate, which is open from the first, not shut until
+    /// the first tick and then drawn swinging in toward an engine already moving off.
+    /// </summary>
+    void StandGates()
+    {
+        if (Run is { } run && Train.Walls is { Gates.Count: > 0 } gated)
+            gated.OpenGates(Train.Line.MainDistance(Train.Dynamics.Path, Train.Dynamics.Distance),
+                Train.Line.MainDistance(Train.Dynamics.Path, Train.Dynamics.RearDistance), run.Tuning.Gates);
+    }
+
     Sim.Run.StopWalls StopsWalls(Route.Route route)
     {
         var walls = LinesideToo(Sim.Run.StopWalls.Of(route, Train.Line, Forts, _walls), route);
@@ -1049,6 +1066,7 @@ public sealed partial class World
         Train.Walls.Add(Town.Walls);
         if (Arrival is not null)
             Train.Walls.Add(Arrival.Walls);
+        StandGates();
         // A town type's ground laid over the land (note 692): its terraces, benches, decks and water are what's stood on.
         Town.Lay(Train.Line);
         Arrival?.Lay(Train.Line);
@@ -1575,6 +1593,12 @@ public sealed partial class World
     public SortedDictionary<int, int> RacksFilledBy { get; } = [];
     /// <summary>Host: the night's loose couplings so far (note 356): how many worked loose, and how many parted.</summary>
     public (int Came, int Parted) LooseCount => _couplings is { } c ? (c.Came, c.Parted) : (0, 0);
+    /// <summary>Note 865: pins jumped at speed tonight, driven home by two, and parted with one letting go (host).</summary>
+    public (int Jumped, int Home, int LetGo) JumpCount => _couplings is { } c ? (c.Jumped, c.Home, c.LetGos) : (0, 0, 0);
+    /// <summary>Note 865: of the pins driven home, those two caught in the warning, before they jumped (host).</summary>
+    public int JumpCaught => _couplings?.Caught ?? 0;
+    /// <summary>Note 865: seconds tonight a pin could have jumped (host).</summary>
+    public double JumpSeconds => _couplings?.JumpSeconds ?? 0;
     /// <summary>Host: each pin worked loose tonight, what did it and the train's speed then (note 640; the harness's).</summary>
     public IReadOnlyList<(LooseCause Cause, double Speed)> Loosenings => _loosenings;
     readonly List<(LooseCause Cause, double Speed)> _loosenings = [];
@@ -1582,6 +1606,9 @@ public sealed partial class World
     public (int Came, int WentOut) GutterCount => _gutters is { } g ? (g.Came, g.WentOut) : (0, 0);
     /// <summary>Host: the night's hot boxes so far (note 331): how many came on, and how many caught.</summary>
     public (int Came, int Caught) HotBoxCount => _hotBoxes is { } h ? (h.Came, h.Caught) : (0, 0);
+    /// <summary>The cars the night's hot boxes, lamps and loose pins came on (note 872), for the harness.</summary>
+    public (IReadOnlyList<int> HotBoxes, IReadOnlyList<int> Lamps, IReadOnlyList<(int Car, LooseCause Cause)> Pins) UpkeepCars =>
+        (_hotBoxes?.CameOn ?? [], _gutters?.CameOn ?? [], _couplings?.CameOn ?? []);
 
     double _groundHint;
 
@@ -1712,6 +1739,8 @@ public sealed partial class World
         WindGramophone(s, intent, playerId);
         // The tennis-ball launcher (note 745), the same press on the guard van's platform.
         Launch(s, intent, playerId);
+        // The flare pistol (note 871): Fire with it in hand.
+        FireFlare(s, intent, playerId);
         if (handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Ragdoll } lifted)
             Physics.Bodies.TakeTools(ref s, lifted);
         // Searching an open house's hiding spot (note 326), empty-handed, with a Use the hands didn't take.
@@ -2295,9 +2324,7 @@ public sealed partial class World
         Train.Step(SimConstants.TickSeconds, applied);
         // Note 847: the fortress gates open for the train and shut behind it, from where it is now (the host and every client
         // alike: prediction walks into the same leaves).
-        if (Run is { } gatesRun && Train.Walls is { Gates.Count: > 0 } gated)
-            gated.OpenGates(Train.Line.MainDistance(Train.Dynamics.Path, Train.Dynamics.Distance),
-                Train.Line.MainDistance(Train.Dynamics.Path, Train.Dynamics.RearDistance), gatesRun.Tuning.Gates);
+        StandGates();
         if (Authority && !Derailed)
         {
             int spared = DeadEndsSpared, path = Train.Dynamics.Path;
@@ -2327,9 +2354,13 @@ public sealed partial class World
         if (Authority && !Derailed && _couplings is { } pins)
         {
             bool pack = ActiveEnemies.Any(e => e.Kind == EnemyKind.CinderHound && !e.Gone && e.Attached >= 0);
-            int parted = pins.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort || CallOnly, pack);
+            // Note 865: with the crew's hands, for a pin jumped at speed (two or more alive) and who has hold of it.
+            int parted = pins.Step(Train, Math.Max(1, _actors.Count(a => a.State.Alive)), SafeYard || TrainInFort || CallOnly, pack, _actors, Hand);
             if (pins.Loosened is { } l)
                 PinLoosened(l.Car, l.Cause, l.Speed, l.Cause == LooseCause.Bend ? Train.LurchBoardKmh : 0);
+            // Note 865: a jumped pin let go by one of the two: the report and the line name who, and what they let go of.
+            if (pins.LetGo is { } letGo)
+                Attribution.LetGo(letGo.Car, letGo.How, letGo.Who, letGo.Speed);
             // Note 511: what it parted is in the report as the pin's, not a cut nobody's named for.
             // The rake that isn't the engine's: ahead of it, the parted pin's own car's (note 653: seed 7's pair carried ahead).
             if (parted >= 0 && pins.PartedFrom >= 0)
@@ -2784,7 +2815,7 @@ public sealed partial class World
             // Its grace counts from the run's start when the yard's safe (note 263): a crew who waited half an hour at the gate
             // haven't been out in the Territory for it.
             else if (d.Decide(this, Run is { Tuning.YardIsSafe: true } r ? r.Seconds : ElapsedSeconds, _enemies, NoSpawnFinalApproach) is { } kind && Spawns.For(kind) is { } rule)
-                rule.Spawn(new SpawnContext(this, t, d) { Free = d.SentFree });
+                d.Placed(rule.Spawn(new SpawnContext(this, t, d) { Free = d.SentFree }));
             // The dark answers the draw (note 287): heard from out past the lamp, and eyes at its edge, before the threat comes.
             foreach (var (cause, actor) in d.TakeAnswers())
                 Answer = new DrawAnswer(t.Director.Draw.ShowSeconds, cause, AnswerAt(t.Director.Draw), actor);

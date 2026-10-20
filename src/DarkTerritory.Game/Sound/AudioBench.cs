@@ -130,7 +130,8 @@ public static class AudioBench
     /// "wreck" (the train derails, heard from beside the line), "toys" (the noisy toys carried on the listener's roof), "band"
     /// (the band round the listener on the roof, playing <paramref name="track"/>: a tune's title or place), "chaos+band"
     /// (chaos with the whole band playing on the listener's roof, or the first car's from the cab: the crew's own music
-    /// mustn't bury a tell, note 775), "feet" (the crew walking: <see cref="FeetAt"/>).</param>
+    /// mustn't bury a tell, note 775), "feet" (the crew walking: <see cref="FeetAt"/>), "pin" (note 865: the pin behind car 3
+    /// working loose from half a second in, through its warning to the jump and on, the listener in the cab or up on a roof).</param>
     /// <param name="listenerCar">0 = in the cab; otherwise on that car's roof (in "feet", inside it, or the last beside it).</param>
     /// <param name="space">Hear it all as if in this space (content/audio/spaces.json); null, where the listener is.</param>
     /// <param name="track">"wreck": the music track to play (a manifest id); null, the host's draw from a fresh bag.</param>
@@ -193,6 +194,11 @@ public static class AudioBench
         }
         // "feet" (note 667): your own steps and a crewmate's a stride behind, walking, on what's under each, over the train.
         bool feet = scenario == "feet";
+        // "pin" (note 865): a pin that takes two, its warning and its jump, as the cab and the roofs hear them.
+        bool pin = scenario == "pin";
+        var loose = pin ? DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File)).Coupling : null;
+        if (loose is not null)
+            train.Loose = loose;
         // The sweep's last listener (cars - 1) stands beside its car on the ground, the train at a stop, where the crew walk
         // the ballast.
         int lastCar = Math.Min(cars - 1, train.Frames.Count - 1);
@@ -262,6 +268,17 @@ public static class AudioBench
                     if (sequence >= voice.From && sequence < voice.To)
                         laughter.Fill(words);
                     deadChannel!.Write(words);
+                }
+                // The pin behind car 3: working loose half a second in, through its warning, then jumped and knocking.
+                if (loose is not null && simClock >= 0.5 && train.Vehicles.Count > 4)
+                {
+                    var v = train.Vehicles[3];
+                    if (v.Loose <= 0)
+                        (v.Loose, v.LooseCause) = (SimConstants.TickSeconds, LooseCause.Working);
+                    else if (v.LooseCause == LooseCause.Working && v.Loose >= loose.Jump.WarnSeconds)
+                        (v.Loose, v.LooseCause) = (SimConstants.TickSeconds, LooseCause.Jumped);
+                    else
+                        v.Loose += SimConstants.TickSeconds;
                 }
                 world.Step(controls);
                 if (train.Wreck is null)

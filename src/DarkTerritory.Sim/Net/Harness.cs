@@ -84,6 +84,8 @@ public sealed record HarnessOptions
     public Action<uint, World>? Script { get; init; }
     /// <summary>The night ends early once this holds on the host's world (a cascade recovered, or past saving).</summary>
     public Func<World, bool>? Until { get; init; }
+    /// <summary>What counts as two crewmates in one problem (balance.json <c>shared</c>, note 861).</summary>
+    public SharedTuning Shared { get; init; } = new();
     /// <summary>The combination audit (note 186): only these kinds, insisted on (<see cref="World.Insist"/>). Null: the director's night.</summary>
     public IReadOnlyList<EnemyKind>? Insist { get; init; }
     /// <summary>With <see cref="Insist"/>: seconds after one's gone before it's sent again.</summary>
@@ -192,6 +194,8 @@ public sealed record HarnessReport(int Ticks, double Seconds, string Link, doubl
     public IReadOnlyList<Reckoning>? Reckonings { get; init; }
     /// <summary>How the brake was worked (note 820).</summary>
     public DrivingReport? Driving { get; init; }
+    /// <summary>The problems two crewmates were in together, at each stop and on the run (note 861, <see cref="SharedWatch"/>).</summary>
+    public SharedReport? Shared { get; init; }
 }
 
 /// <summary>
@@ -311,6 +315,18 @@ public sealed record UpkeepReport(int HotBoxes, int Caught, int Lamps, int WentO
     public IReadOnlyDictionary<string, int> FilledBy { get; init; } = new Dictionary<string, int>();
     /// <summary>Seconds a gun that's fired stood with its rack dry while there was powder below (note 377), its gunner waiting or gone for it.</summary>
     public double DrySeconds { get; init; }
+    /// <summary>Note 872: the car (0 the engine) each hot box, lamp and loose pin came on, so a night's spread along the train shows.</summary>
+    public IReadOnlyList<int> HotBoxCars { get; init; } = [];
+    public IReadOnlyList<int> LampCars { get; init; } = [];
+    public IReadOnlyList<string> PinCars { get; init; } = [];
+    /// <summary>Note 865: pins a rail joint jumped (two to hold, among <see cref="Couplings"/>), driven home by two, parted as one let go.</summary>
+    public int Jumped { get; init; }
+    public int JumpedHome { get; init; }
+    public int JumpLetGo { get; init; }
+    /// <summary>Note 865: of <see cref="JumpedHome"/>, those caught in the warning before the pin jumped.</summary>
+    public int JumpCaught { get; init; }
+    /// <summary>Note 865: seconds a pin could have jumped (two alive, at speed, the night's clock past its first and the last's spacing).</summary>
+    public double JumpSeconds { get; init; }
 }
 
 /// <summary>
@@ -474,6 +490,7 @@ public static class Harness
         bool freedSince = false;
         var freedBy = new SortedDictionary<string, int>(StringComparer.Ordinal);
         var falls = new FallWatch();
+        var shared = new SharedWatch(o.Shared);
         var braking = new BrakeWatch();
         // Note 607: the crew at the dawn line, and when the lead Waker took the train.
         double? lineAt = null;
@@ -519,6 +536,7 @@ public static class Harness
             }
             foreach (var p in host.Players)
                 falls.Watch(t, host.Train, p.Id, p.State, clients.FirstOrDefault(c => c.Session.PlayerId == p.Id).Bot);
+            shared.Watch(t, host.World, [.. host.Players.Select(p => (p.Id, p.State))]);
             if (host.World.Run is { } dawnRun && host.World.Enemies is { Wakers.Enabled: true } dawnTuning)
             {
                 List<string> Crew() => [.. host.Players.Select(p => clients.FirstOrDefault(c => c.Session.PlayerId == p.Id).Bot is { } b ? Describe(b, p.State) : $"player {p.Id}")];
@@ -761,9 +779,17 @@ public static class Harness
         {
             Rounds = rounds,
             Loosened = loosened,
+            HotBoxCars = [.. host.World.UpkeepCars.HotBoxes],
+            LampCars = [.. host.World.UpkeepCars.Lamps],
+            PinCars = [.. host.World.UpkeepCars.Pins.Select(p => $"{p.Cause} {p.Car}")],
             FilledBy = host.World.RacksFilledBy.GroupBy(f => clients.FirstOrDefault(c => c.Session.PlayerId == f.Key).Bot?.Name ?? $"player {f.Key}")
                 .ToDictionary(g => g.Key, g => g.Sum(f => f.Value)),
             DrySeconds = Math.Round(dryTicks * SimConstants.TickSeconds, 1),
+            Jumped = host.World.JumpCount.Jumped,
+            JumpedHome = host.World.JumpCount.Home,
+            JumpLetGo = host.World.JumpCount.LetGo,
+            JumpCaught = host.World.JumpCaught,
+            JumpSeconds = Math.Round(host.World.JumpSeconds),
         };
         return new HarnessReport(ticks, seconds, link,
             Math.Round(host.Train.Dynamics.Distance, 1), Math.Round(host.Train.Dynamics.Speed, 2),
@@ -789,6 +815,7 @@ public static class Harness
                 host.HoldoutEvents.Count(e => e.Kind == Sim.Run.HoldoutEventKind.Released), toFree, freedBy)
             { StandSeconds = stands },
             Falls = falls.Falls,
+            Shared = shared.Report(host.World),
             Dawn = dawn ?? (lineAt is { } la ? new DawnReport(la, atLine ?? [], -1, -1, -1, [], double.IsFinite(closest) ? Math.Round(closest, 1) : -1) : null),
             Reckonings = clients.Select(c => c.Bot).OfType<ConductorBot>().FirstOrDefault()?.Stops?.Reckonings,
             Driving = braking.Report(),

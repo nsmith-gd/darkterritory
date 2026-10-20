@@ -1367,7 +1367,7 @@ public static class PlayerMotor
                 if (hand is { } h && !OnLadder(frame.ToLocal(h), ladder, p.Hand.Grab))
                     continue;
                 var relative = frame.VelocityToLocal(worldVelocity);
-                if (Math.Sqrt(relative.X * relative.X + relative.Z * relative.Z) >= p.Ladder.GrabMaxRelativeSpeed)
+                if (Math.Sqrt(relative.X * relative.X + relative.Z * relative.Z) >= p.Ladder.GrabMaxRelativeSpeed * train.Dynamics.Tuning.Kit.GrabIrons)
                     continue;
                 if (s.Parent != frame.Index)
                     s.Yaw += (s.Parent == PlayerState.World ? 0 : train.Frames[s.Parent].Heading) - frame.Heading;

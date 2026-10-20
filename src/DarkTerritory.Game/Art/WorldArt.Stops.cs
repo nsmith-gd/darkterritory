@@ -155,12 +155,12 @@ public sealed partial class WorldArt
                     float height = YardShedHeight(b);
                     // Where a yard gantry works this shed's bays (P18), its runway is an open bay cut through it: the
                     // castings lie in the open under the hook, the gantry's legs at the ends, the shed either side.
-                    var gap = CraneBay(stop, index);
+                    var gaps = CraneBay(stop, index);
                     k.With(frame, () =>
                     {
                         // The shed as the sim stands it, its bay doors open to walk in by (note 387).
                         ShedShell(k, stop, index, height, wall);
-                        if (gap is { } open)
+                        foreach (var open in gaps)
                         {
                             // The cut: its floor, and the old wall's footing along its back, flush, where the crew walk and
                             // the gantry's operator stands (the sim leaves it open, note 279).
@@ -285,16 +285,11 @@ public sealed partial class WorldArt
     }
 
     /// <summary>
-    /// The stretch along the line (zone S) of a yard gantry's runway, and a little either side for its legs, if one works
-    /// bays in building <paramref name="index"/>; null if none does.
+    /// The stretches along the line (zone S) of yard gantries' runways, and a little either side for their legs, where they
+    /// cut through building <paramref name="index"/> (the Sim's, so what's open is what's walked: StopWalls.CraneCuts, note
+    /// 869); none if none does.
     /// </summary>
-    static (double From, double To)? CraneBay(StopLayout stop, int index)
-    {
-        foreach (var c in stop.Containers)
-            if (c.Kind == ContainerKind.CraneBay && c.Building == index && c.Track >= 0 && stop.Tracks[c.Track].Crane is { } rw)
-                return (rw.From - 1.5, rw.To + 1.5);
-        return null;
-    }
+    static IReadOnlyList<(double From, double To)> CraneBay(StopLayout stop, int index) => Sim.Run.StopWalls.CraneCuts(stop, index);
 
     /// <summary>A station's iron canopy over its side to the line (<paramref name="door"/>, ±1 across it in the kit's frame).</summary>
     static void StationCanopy(Kit k, float width, float length, int door)

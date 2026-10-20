@@ -30,7 +30,7 @@ public class WatersideTests
     }
 
     [Theory]
-    [InlineData("frontier:6")]
+    [InlineData("frontier:33")]
     [InlineData("deadLines:5")]
     public void LakesHoldWaterAndACrossedOneIsCrossedOnTheFormation(string spec)
     {
@@ -63,7 +63,7 @@ public class WatersideTests
     [Theory]
     [InlineData("frontier:7")]
     [InlineData("deadLines:2")]
-    [InlineData("local:9")]
+    [InlineData("local:12")]
     public void ALakesRimStandsOverItsWater(string spec)
     {
         // Out along rays from each lake's middle to its shore, the land just past it (3 m and its rim's crest out) is over
@@ -141,7 +141,7 @@ public class WatersideTests
     [Fact]
     public void RoadsLieFlatAcrossTheirBedAndCrossTheLineAtRailHeight()
     {
-        var (plan, line, terrain) = Night("frontier:6");
+        var (plan, line, terrain) = Night("frontier:33");
         Assert.NotEmpty(plan.Roads);
         Assert.NotEmpty(plan.Crossings);
         var rules = plan.Rules.Terrain.Roads;
@@ -168,7 +168,7 @@ public class WatersideTests
         }
     }
     [Theory]
-    [InlineData("frontier:49")]
+    [InlineData("frontier:65")]
     [InlineData("deadLines:5")]
     public void SomeCrossedLakesAreTakenOnATrestleWithTheWaterOnUnderIt(string spec)
     {

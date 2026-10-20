@@ -57,6 +57,10 @@ public class UpgradeTests
         Assert.Equal(Tuning.Enemies.Hotbox.KnockSeconds * 1.5, With("axleOilers").Enemies!.Hotbox.KnockSeconds, 9);
         Assert.Equal(Tuning.Enemies.Hotbox.GlowSeconds * 1.5, With("axleOilers").Enemies!.Hotbox.GlowSeconds, 9);
         Assert.Equal(Tuning.Enemies.Hotbox.RepairSeconds * 0.5, With("axleOilers").Enemies!.Hotbox.RepairSeconds, 9);
+        Assert.Equal(Tuning.Enemies.Sleepers.HeavyDamage * 0.5, With("cowcatcher").Enemies!.Sleepers.HeavyDamage, 9);
+        Assert.Equal(Tuning.Enemies.Sleepers.MinorDamage * 0.5, With("cowcatcher").Enemies!.Sleepers.MinorDamage, 9);
+        Assert.Equal(Tuning.Train.Kit.GrabIrons * 4.0 / 3.0, With("grabIrons").Train.Kit.GrabIrons, 6);
+        Assert.Equal(1, Tuning.Train.Kit.GrabIrons);
         Assert.Equal(Tuning.Enemies.CarFire.ChargeSeconds * 1.5, With("bigExtinguishers").Enemies!.CarFire.ChargeSeconds, 9);
         Assert.Equal(Tuning.Enemies.CarFire.RechargeSeconds / 1.5, With("bigExtinguishers").Enemies!.CarFire.RechargeSeconds, 9);
         Assert.Equal(Tuning.Combat.Guns.ReloadStepSeconds * 0.8, With("gunRammers").Combat.Guns.ReloadStepSeconds, 9);
@@ -95,6 +99,27 @@ public class UpgradeTests
         Assert.Contains("the honk", both.Refused);
         // Either way round.
         Assert.False(Campaign.Campaign.BuyUpgrade(C, Campaign.Campaign.BuyUpgrade(C, rich, "goldWhistle").State, "theHonk").Ok);
+    }
+
+    [Fact]
+    public void TheArmouredCabHoldsAClimberAtTheGlass()
+    {
+        Assert.False(Tuning.Train.Composition.CabArmour);
+        Assert.True(With("armouredCab").Train.Composition.CabArmour);
+        Assert.True(Tuning.Enemies.Climbers.CabGlassSeconds > 0);
+    }
+
+    [Fact]
+    public void ArmourIIAndIIIAreRanksOfTheConversion()
+    {
+        // Each plates one more car than the last: three fitted, three plated; and a rank needs the one before it.
+        Assert.Equal(Tuning.Train.Composition.ArmouredCars + 3, With("armouredCar", "armouredCar2", "armouredCar3").Train.Composition.ArmouredCars);
+        var s = Campaign.Campaign.New(C, 1, "t", 1) with { Cars = 20, Scrip = 1e9 };
+        Assert.Contains("armoured car conversion", Campaign.Campaign.BuyUpgrade(C, s, "armouredCar2").Refused, StringComparison.OrdinalIgnoreCase);
+        s = Campaign.Campaign.BuyUpgrade(C, s, "armouredCar").State;
+        Assert.False(Campaign.Campaign.BuyUpgrade(C, s, "armouredCar3").Ok);
+        s = Campaign.Campaign.BuyUpgrade(C, s, "armouredCar2").State;
+        Assert.True(Campaign.Campaign.BuyUpgrade(C, s, "armouredCar3").Ok);
     }
 
     [Fact]

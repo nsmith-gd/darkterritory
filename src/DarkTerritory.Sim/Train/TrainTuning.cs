@@ -139,6 +139,8 @@ public sealed record CompositionTuning
     public int UtilityCars { get; init; }
     /// <summary>Cars converted to armour (GDD §26 "reinforced plating, heavier mass"), from the rear forward.</summary>
     public int ArmouredCars { get; init; }
+    /// <summary>Note 678, §8.8: the cab's glass is armour glass in riveted frames (the driver keeps full sight of the line); a Climber coming over the tender holds there for <c>climbers.cabGlassSeconds</c> first.</summary>
+    public bool CabArmour { get; init; }
     /// <summary>Cars that stay cargo whatever's bought: a conversion that would leave fewer isn't made.</summary>
     public int MinCargoCars { get; init; } = 1;
     /// <summary>What an armoured car's plate weighs on top of the car.</summary>
@@ -254,6 +256,8 @@ public sealed record KitTuning
     /// still carries (m). Spec F.3's radio range adds to it (note 196).
     /// </summary>
     public double RadioReach { get; init; }
+    /// <summary>Note 678's grab irons: how many times player.json's <c>ladder.grabMaxRelativeSpeed</c> a ladder can be caught at, 1 as built.</summary>
+    public double GrabIrons { get; init; } = 1;
     /// <summary>
     /// The band's instruments the blacksmith sold the crew (note 700; band.json <c>instruments</c> ids), in the guard van; the
     /// campaign sets it (effect <c>instrument:&lt;id&gt;</c>).
@@ -284,6 +288,12 @@ public sealed record KitTuning
     /// </summary>
     public int SpareLamps { get; init; }
     public int SpareExtinguishers { get; init; }
+    /// <summary>
+    /// Flare pistols bought at the fortress for the night (note 871; campaign.json <c>stores.flares</c>): in the guard van, each
+    /// loaded with <see cref="FlareShots"/> flares. The campaign sets them (<c>SessionSetup</c>).
+    /// </summary>
+    public int FlarePistols { get; init; }
+    public int FlareShots { get; init; } = 3;
     /// <summary>The crew lockers in the kit's car (ARCHITECTURE §8 note 173). Unset, the car has none.</summary>
     public LockerTuning? Lockers { get; init; }
 }

@@ -60,6 +60,21 @@ def rec(rng, keys, semis=0.0, length=None):
     return cut(x, length) if length else x
 
 
+# The Switchmen's lamp went with their cut (#1245); the upkeep's oil lamp (recipes.upkeep) still burns with it.
+def flame(rng, length, level):
+    """An oil lamp's flame in a draught: a soft fluttering roar (burning gas tearing and lapping at 5-14 Hz) with a
+    little hiss and the wick's tiny spits, following `level` (0 out, 1 burning well; a curve)."""
+    n = samples(length)
+    lv = synth.curve(level, n)
+    flutter = np.clip(0.45 + 0.65 * norm(lp(rng.standard_normal(n).astype(np.float32), 14)), 0.0, 1.2) ** 1.5
+    roar = bp(synth.noise(length, rng, "brown"), 50, 450) * flutter
+    gas = bp(synth.noise(length, rng), 800, 3000) * 0.1 * flutter
+    spits = synth.crackle(length, 8 + 25 * lv, rng, size=(0.0003, 0.002), hi=1200)
+    pops = synth.crackle(length, 0.5 + 2.5 * lv, rng, size=(0.002, 0.006), hi=300)
+    return norm((roar + gas) * lv + (spits * 1.2 + pops * 1.5) * np.sqrt(lv))
+
+
+
 def cut(x, length, tail=None):
     """A recording shortened to `length` s with its end faded (a knock without its ring, a grain of a crunch)."""
     y = dsp.fit(x, samples(length))

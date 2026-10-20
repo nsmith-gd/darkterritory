@@ -210,6 +210,8 @@ public sealed record StopCrewTuning
     public double VillageDawnSpare { get; init; } = 900;
     /// <summary>Note 403: how far from where it stands a crate lying loose elsewhere in the yard may be for a hand to fetch it (m; 0: none).</summary>
     public double YardReach { get; init; }
+    /// <summary>Note 867: how far a two-person jackpot may lie for a hand to fetch it, or be held alone for a hand to come to its other end (m; 0: as before).</summary>
+    public double JackpotReach { get; init; }
     /// <summary>Note 413: how far the Choir's gathered (0 to 1) when a hand on foot at a stop gets behind a door (0: never).</summary>
     public double ShelterAt { get; init; }
     /// <summary>Gathered less than this, and not here, it comes out again.</summary>

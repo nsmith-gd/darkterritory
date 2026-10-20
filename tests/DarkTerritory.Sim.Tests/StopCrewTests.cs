@@ -1065,6 +1065,140 @@ public class StopCrewTests
     }
 
     [Fact]
+    public void ATownPingedAtAStopIsSearchedByAHandBeforeTheCratesAreIn()
+    {
+        // Note 739 part two (GDD §12 "Ping the bots"; the director, 14 Oct: "an abandoned town by a yard"): at a stop, with
+        // the crates still going in, someone looks at a house of the village and pings it. That's the town, the stop's; a
+        // walker takes it and goes out searching its houses then and there, not once the crates are in as it would.
+        var night = new Night(cars: 8, walkers: 3, crateHands: true, ids: true, loot: true, modules: ModuleKind.Crates);
+        var train = night.Train;
+        var world = night.World;
+        var run = world.Run!;
+        int k = run.Stops.ToList().IndexOf(night.Site.Feature);
+        var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().ToList();
+        night.Until(() => hands.Any(h => h.Doing.Contains("crate")), 900);
+        Assert.Contains(hands, h => h.Doing.Contains("crate"));
+        // Standing out beside the middle of the train, looking at the nearest house of the stop's village: the town.
+        var walls = train.Walls!;
+        var beside = train.Frames[4].ToWorld(new Double3(night.Site.Side * (train.Frames[4].Shape.Bounds.Max.X + 3), 0, 0));
+        var house = walls.OpenHouses.Where(h => h.Feature == run.StopOf(night.Site.Feature).Feature)
+            .OrderBy(h => (h.Middle - beside).Length).First();
+        var eye = PlayerMotor.SpawnOnGround(beside, train.Line, train.Dynamics.Distance, P);
+        var to = house.Middle + Double3.Up * 2 - (eye.Position + Double3.Up * train.Dynamics.Tuning.Pick.EyeHeight);
+        to *= 1 / to.Length;
+        Assert.True(run.CurrentSite is not null, "no current site");
+        Assert.True((house.Middle - beside).Length < P.Pings.TownRange, $"house {(house.Middle - beside).Length:0} m off");
+        var ping = Pings.Resolve(world, eye with { Yaw = Math.Atan2(-to.X, -to.Z), Pitch = Math.Asin(to.Y) }, P.Pings);
+        Assert.Equal((PingKind.Town, k), (ping?.Kind, ping?.Target));
+        world.Pings.Add(new PingEvent(1, world.Tick, 99, PingKind.Town, k, ping!.Value.At));
+        for (int i = 0; i < night.Bots.Count; i++)
+        {
+            night.Calls.Bot(i + 1);
+            night.Calls.Role(i + 1, night.Bots[i] is ConductorBot ? BotRole.Driver : BotRole.Walker);
+        }
+        int? taker = null;
+        bool cratesGoing = false;
+        night.Until(() => taker is int id && hands.First(h => h.PlayerId == id).Searching is not null, 120, () =>
+        {
+            var crew = night.Crew.Select((c, i) => (i + 1, c)).ToList();
+            for (int i = 0; i < night.Bots.Count; i++)
+                night.Calls.Pings(world, i + 1, night.Crew[i], crew);
+            taker ??= Enumerable.Range(1, night.Bots.Count).Select(id => (int?)id).FirstOrDefault(id => night.Calls.OrderOf(id!.Value) is { Kind: PingKind.Town });
+            cratesGoing = hands.Any(h => h.PlayerId != taker && h.Doing.Contains("crate"));
+        });
+        string doing = string.Join(", ", hands.Select(h => h.Doing));
+        Assert.True(taker is not null, $"nobody took the ping; the hands were {doing}");
+        var hand = hands.First(h => h.PlayerId == taker);
+        Assert.True(hand.Searching is { } spot && spot.Stop == k, $"the taker's not searching the town's houses; the hands were {doing}");
+        Assert.True(cratesGoing, $"the crates were in before it went; the hands were {doing}");
+        Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}"));
+    }
+
+    [Fact]
+    public void ACranePingedIsRunByTwoWalkersWhereThePairCantBeMadeUp()
+    {
+        // Note 739 part two (GDD §12 "Ping the bots"; the director, 14 Oct: "If I point at the crane"): a foundry's crane, and a
+        // crew without the winch pair (the shunter, two crate hands, the driver kept to the cab): nobody works the crane, two
+        // being "mandatory" (spec D.2). Pinged, two walkers take it, one up at the controls and one rigging, and a casting goes
+        // onto a car.
+        var night = new Night(cars: 8, walkers: 2, crateHands: true, ids: true, hands: 1, facilities: F with { Crew = F.Crew with { DriverWorks = false } },
+            modules: [ModuleKind.Crane, ModuleKind.Crates]);
+        var world = night.World;
+        var crane = Assert.IsType<Crane>(night.Site.Crane);
+        var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().ToList();
+        night.Until(() => hands.Any(h => h.Doing.Contains("crate")), 900);
+        Assert.Contains(hands, h => h.Doing.Contains("crate"));
+        Assert.DoesNotContain(crane.Castings, c => c.State is CastingState.Hooked or CastingState.Loaded);
+        int i = night.Site.Cranes.ToList().IndexOf(crane);
+        world.Pings.Add(new PingEvent(1, world.Tick, 99, PingKind.Crane, i, crane.Controls + Double3.Up));
+        for (int b = 0; b < night.Bots.Count; b++)
+        {
+            night.Calls.Bot(b + 1);
+            night.Calls.Role(b + 1, night.Bots[b] is ConductorBot ? BotRole.Driver : BotRole.Walker);
+        }
+        var parts = new Dictionary<int, StopJob>();
+        var doing = new HashSet<string>();
+        night.Until(() => crane.Castings.Any(c => c.State == CastingState.Loaded), 480, () =>
+        {
+            var crew = night.Crew.Select((c, k) => (k + 1, c)).ToList();
+            for (int b = 0; b < night.Bots.Count; b++)
+            {
+                night.Calls.Pings(world, b + 1, night.Crew[b], crew);
+                if (night.Calls.CranePart(b + 1) is var part and not StopJob.None)
+                    parts[b + 1] = part;
+            }
+            foreach (var h in hands)
+                if (h.Doing.Length > 0)
+                    doing.Add(h.Doing);
+        });
+        string trace = $"parts {string.Join(", ", parts.Select(kv => $"{kv.Key}: {kv.Value}"))}; castings {string.Join(", ", crane.Castings.Select(c => c.State))}; did {string.Join(", ", doing)}";
+        // Two took it, one part each, walkers both.
+        Assert.True(parts.Values.Order().SequenceEqual([StopJob.Winch0, StopJob.Winch1]), trace);
+        Assert.All(parts.Keys, id => Assert.IsType<RoofWalkerBot>(night.Bots[id - 1]));
+        Assert.Contains(crane.Castings, c => c.State == CastingState.Loaded);
+        Assert.Contains("at the crane", doing);
+        Assert.Contains("rigging", doing);
+        Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}; {trace}"));
+    }
+
+    [Fact]
+    public void ACranePingedWhereThePairWorkItStillLoadsEveryCasting()
+    {
+        // Note 739 part two: with the winch pair there, the crane's theirs; pinged as they start, whoever takes the ping has
+        // that part and the pair's hand on it stands aside (one at the controls, one rigging, never two). The castings all
+        // go on and the train leaves, as without the ping.
+        var night = new Night(cars: 8, walkers: 2, crateHands: true, ids: true, modules: [ModuleKind.Crane, ModuleKind.Winch, ModuleKind.Crates]);
+        var world = night.World;
+        var run = world.Run!;
+        var crane = Assert.IsType<Crane>(night.Site.Crane);
+        var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().ToList();
+        night.Until(() => hands.Any(h => h.Doing is "to the crane" or "at the crane"), 900);
+        world.Pings.Add(new PingEvent(1, world.Tick, 99, PingKind.Crane, night.Site.Cranes.ToList().IndexOf(crane), crane.Controls + Double3.Up));
+        for (int b = 0; b < night.Bots.Count; b++)
+        {
+            night.Calls.Bot(b + 1);
+            night.Calls.Role(b + 1, night.Bots[b] is ConductorBot ? BotRole.Driver : BotRole.Walker);
+        }
+        int most = 0;
+        var doing = new HashSet<string>();
+        night.Until(() => run.Departures > 0, 1500, () =>
+        {
+            var crew = night.Crew.Select((c, k) => (k + 1, c)).ToList();
+            for (int b = 0; b < night.Bots.Count; b++)
+                night.Calls.Pings(world, b + 1, night.Crew[b], crew);
+            most = Math.Max(most, night.Crew.Count(c => c.Has(PlayerFlags.Operating)));
+            foreach (var h in hands)
+                if (h.Doing.Length > 0)
+                    doing.Add(h.Doing);
+        });
+        string trace = $"castings {string.Join(", ", crane.Castings.Select(c => $"{c.State} car {c.Car}"))}; did {string.Join(", ", doing)}";
+        Assert.True(run.Departures > 0, $"never left: driver {night.Driver.Stops!.Doing}; {trace}");
+        Assert.True(most <= 1, $"{most} at the controls at once; {trace}");
+        Assert.DoesNotContain(crane.Castings, c => c.State is CastingState.Stacked or CastingState.Hooked);
+        Assert.All(night.Crew, c => Assert.True(c.Alive, $"died of {c.Death}; {trace}"));
+    }
+
+    [Fact]
     public void AHandOutInTheVillageFillsItsSlotsBeforeItWalksBack()
     {
         // Note 594 (the director, 9 Oct: "I'm able to kind of hold on to it so I can grab a few pieces of loot at a time"): a
@@ -1430,6 +1564,96 @@ public class StopCrewTests
         Assert.True(heavy.Lifted, $"nobody came: {string.Join(", ", night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job?.Doing))}");
         Assert.NotEqual(id, heavy.Second);
         Assert.Equal(id, heavy.Carrier);
+    }
+
+    /// <summary>
+    /// A two-person jackpot (note 719) lying on the ground beside car <paramref name="car"/>, <paramref name="out_"/> m out on the
+    /// site's side: a heavy crate's ball with a jackpot's owner, as the run stocks one.
+    /// </summary>
+    static Physics.Body JackpotBeside(Night night, int car, double out_)
+    {
+        var frame = night.Train.Frames[car];
+        int side = night.Site.Side == 0 ? 1 : night.Site.Side;
+        var at = frame.ToWorld(new Double3(side * (frame.Shape.HalfWidth + out_), 0, 0));
+        double hint = night.Train.Cars[car].FrontDistance - frame.Shape.HalfLength;
+        at = at with { Y = PlayerMotor.GroundAt(at, night.Train.Line, ref hint) };
+        var b = night.World.Bodies.SpawnCargo(at, hint, L.Jackpots!.Items["safe"].Radius);
+        b.Owner = Run.Run.LootOwner(0, Run.Run.JackpotContainer);
+        Assert.True(Run.Run.IsJackpot(b));
+        return b;
+    }
+
+    [Fact]
+    public void AHandComesToTheOtherEndOfAJackpotAPlayerHoldsWhereverItIs()
+    {
+        // Note 867 (the director, 19 Oct, on note 861's call 3): a player holding one end of a jackpot alone, at a winch stop
+        // with no crate stack (the heavy crate's help came only by a stack, note 440): a bot hand comes and takes the other
+        // end, so a solo player with bots has a second pair of hands.
+        var night = new Night(cars: 8, walkers: 1, crateHands: true, ids: true);
+        night.Until(() => night.World.Run!.Phase == RunPhase.AtFacility && night.Bots.OfType<RoofWalkerBot>().Any(b => b.Job is { Job: StopJob.Crates } h && h.Doing.Length > 0), 900);
+        Assert.Empty(night.Site.CrateStack);
+        var jackpot = JackpotBeside(night, 4, 8);
+        var player = PlayerMotor.SpawnOnGround(jackpot.Centre + new Double3(0, 0, 1.0), night.Train.Line, night.Train.Dynamics.Distance, P);
+        int id = night.Add(new Waiting(), player);
+        jackpot.Carrier = id;
+        night.Until(() => jackpot.Lifted, 600);
+        Assert.True(jackpot.Lifted, $"nobody came: {string.Join(", ", night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job?.Doing))}");
+        Assert.Equal(id, jackpot.Carrier);
+        Assert.NotEqual(id, jackpot.Second);
+        // Off (jackpotReach 0): as before, nobody comes away from a stack.
+        var off = new Night(cars: 8, walkers: 1, crateHands: true, ids: true, facilities: F with { Crew = F.Crew with { JackpotReach = 0 } });
+        off.Until(() => off.World.Run!.Phase == RunPhase.AtFacility && off.Bots.OfType<RoofWalkerBot>().Any(b => b.Job is { Job: StopJob.Crates } h && h.Doing.Length > 0), 900);
+        var alone = JackpotBeside(off, 4, 8);
+        int offId = off.Add(new Waiting(), PlayerMotor.SpawnOnGround(alone.Centre + new Double3(0, 0, 1.0), off.Train.Line, off.Train.Dynamics.Distance, P));
+        alone.Carrier = offId;
+        off.Until(() => alone.Lifted, 120);
+        Assert.False(alone.Lifted);
+    }
+
+    [Fact]
+    public void TwoHandsFetchAJackpotLyingInTheYardAndStowIt()
+    {
+        // Note 867: a jackpot lying out in the yard, the site's crates in: two crate hands go for it (one an end, the other
+        // the other, note 440's way), carry it home between them and put it down in a car, where it's paid at the gate.
+        var few = F with
+        {
+            Crates = F.Crates with { Count = [2, 2], Heavy = F.Crates.Heavy with { Count = [0, 0] } },
+            Crew = F.Crew with { VillageShare = 0 },
+        };
+        var night = new Night(cars: 8, walkers: 3, crateHands: true, ids: true, loot: true, facilities: few, modules: ModuleKind.Crates);
+        var run = night.World.Run!;
+        Physics.Body? jackpot = null;
+        bool two = false;
+        double stood = 0;
+        var did = new List<string>();
+        night.Until(() => run.Departures > 0, 2400, () =>
+        {
+            // Laid once the train's stood at the end of the spur a while (where the cars will be worked from).
+            stood = run.Phase == RunPhase.AtFacility && Math.Abs(night.Train.Dynamics.Velocity) < 0.01 ? stood + SimConstants.TickSeconds : 0;
+            // Away from the site's own stack (there it's the site's to load, note 403): out in the yard, by a car further down.
+            if (jackpot is null && stood > 20)
+            {
+                var stack = night.Site.CrateStack[0];
+                int car = night.Train.Frames.Where(f => f.Index > 0 && (f.Origin - stack).Length < 100).MaxBy(f => (f.Origin - stack).Length)!.Index;
+                double out_ = 6;
+                while (out_ < 60 && (night.Train.Frames[car].ToWorld(new Double3((night.Site.Side == 0 ? 1 : night.Site.Side) * (night.Train.Frames[car].Shape.HalfWidth + out_), 0, 0)) - stack).Length < 65)
+                    out_ += 2;
+                jackpot = JackpotBeside(night, car, out_);
+                foreach (var v in night.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo))
+                    v.Load = 0;
+            }
+            two |= jackpot is { Lifted: true, Second: >= 0 };
+            foreach (var b in night.Bots.OfType<RoofWalkerBot>())
+                if (b.Job?.Doing is { Length: > 0 } d && !did.Contains(d))
+                    did.Add(d);
+        });
+        string doing = string.Join(", ", did);
+        Assert.True(run.Departures > 0, $"never left: driver {night.Driver.Stops!.Doing}; hands {doing}");
+        Assert.NotNull(jackpot);
+        Assert.True(two, $"never up between two ({(jackpot!.Centre - night.Site.CrateStack[0]).Length:0} m from the stack): {doing}");
+        Assert.True(jackpot!.Parent > 0 && jackpot.Carrier < 0, $"not stowed: on {jackpot.Parent}, held by {jackpot.Carrier}");
+        Assert.All(night.Crew, c => Assert.True(c.Alive));
+        Assert.All(night.Crew, c => Assert.NotEqual(Surface.Ground, c.Surface));
     }
 
     [Fact]

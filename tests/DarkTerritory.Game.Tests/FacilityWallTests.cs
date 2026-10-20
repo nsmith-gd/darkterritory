@@ -76,7 +76,8 @@ public class FacilityWallTests
         var session = new PrototypeSession(Content, route, 6, enemies: false);
         var tower = route.Features.First(f => f.Kind == FeatureKind.Facility && f.Facility == FacilityKind.CoalingTower);
         var (low, open) = Uncovered(session, tower);
-        Assert.True(low > 100);
+        // (Its posts, braces, footings and coal at a body's height: fewer since its ladder went, note 869.)
+        Assert.True(low > 50, $"only {low} of its points at a crewmate's height");
         float side = tower.Side == 0 ? 1 : tower.Side;
         Assert.All(open, p => Assert.True(MathF.Abs(p.Z) < 4.2f && p.X * side > 3.8f && p.X * side < 10.2f, $"{p} is outside the trestle"));
     }

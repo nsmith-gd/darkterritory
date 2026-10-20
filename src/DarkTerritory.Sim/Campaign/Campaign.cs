@@ -26,25 +26,39 @@ public sealed record CampaignTuning(int StartingCars, double StartingScrip, int 
 }
 
 /// <summary>One line of the fortress's stores: its price, how many a night takes at most, and what each holds.</summary>
-public sealed record StoreItem(double Cost, int Most, int Each = 1);
+public sealed record StoreItem(double Cost, int Most, int Each = 1)
+{
+    /// <summary>Stocked once the consist works this tier (note 871: the flare pistol is a Frontier tool, upgrades.md §4), as an upgrade's.</summary>
+    public RouteTier FromTier { get; init; }
+}
 
 /// <summary>campaign.json <c>stores</c> (GDD §9 "stock coal, powder and shot, lamps, repair supplies and tools"; note 182).</summary>
-public sealed record StoresTuning(StoreItem Powder, StoreItem Lamps, StoreItem Extinguishers);
+public sealed record StoresTuning(StoreItem Powder, StoreItem Lamps, StoreItem Extinguishers)
+{
+    /// <summary>A flare pistol and <see cref="StoreItem.Each"/> flares (note 871); unset, the fortress sells none.</summary>
+    public StoreItem? Flares { get; init; }
+}
 
 /// <summary>campaign.json <c>sellCar</c>: what a car taken off brings back (a share of what it cost), and the fewest a consist keeps.</summary>
 public sealed record SellCarTuning(double Share, int Fewest);
 
 /// <summary>What the fortress's stores sell for a night (note 182).</summary>
-public enum StoreKind : byte { Powder, Lamp, Extinguisher }
+public enum StoreKind : byte { Powder, Lamp, Extinguisher, Flare }
 
 /// <summary>
 /// The stores bought for the coming night (GDD §9): crates of powder and shot (each <see cref="StoreItem.Each"/> rounds more a
 /// gun), spare lamps and spare extinguishers in the guard van. Issued for the night: settling it spends them.
 /// </summary>
-public sealed record Stores(int Powder = 0, int Lamps = 0, int Extinguishers = 0)
+public sealed record Stores(int Powder = 0, int Lamps = 0, int Extinguishers = 0, int Flares = 0)
 {
-    public int Of(StoreKind kind) => kind switch { StoreKind.Powder => Powder, StoreKind.Lamp => Lamps, _ => Extinguishers };
-    public bool Any => Powder > 0 || Lamps > 0 || Extinguishers > 0;
+    public int Of(StoreKind kind) => kind switch
+    {
+        StoreKind.Powder => Powder,
+        StoreKind.Lamp => Lamps,
+        StoreKind.Flare => Flares,
+        _ => Extinguishers,
+    };
+    public bool Any => Powder > 0 || Lamps > 0 || Extinguishers > 0 || Flares > 0;
 }
 
 public sealed record CarCostTuning(double Base, double Growth, int FromCar);
@@ -69,6 +83,8 @@ public sealed record UpgradeDef(string Id, string Name, UpgradeSize Size, double
     public UpgradeKind Kind { get; init; }
     public RouteTier FromTier { get; init; }
     public string[] Excludes { get; init; } = [];
+    /// <summary>What has to be fitted first (armour II needs the conversion, III needs II): ranks of one upgrade.</summary>
+    public string[] Requires { get; init; } = [];
     public string? Line { get; init; }
     public string? Tally { get; init; }
 }
@@ -329,6 +345,9 @@ public static class Campaign
     {
         if (TierFor(t, s.Cars) < u.FromTier)
             return $"{u.Name} is stocked for {TierWords(u.FromTier)} work: a train of {t.Tiers.Where(x => x.Tier == u.FromTier).Select(x => x.FromCars).DefaultIfEmpty(0).First()} cars";
+        foreach (var need in u.Requires)
+            if (!s.Upgrades.Contains(need))
+                return $"{u.Name} needs the {t.Upgrades.FirstOrDefault(o => o.Id == need)?.Name.ToLowerInvariant() ?? need} first";
         foreach (var other in s.Upgrades)
             if (other != u.Id && t.Upgrades.FirstOrDefault(o => o.Id == other) is { } o && (u.Excludes.Contains(other) || o.Excludes.Contains(u.Id)))
                 return $"{u.Name} won't go with the {o.Name.ToLowerInvariant()}";
@@ -379,8 +398,14 @@ public static class Campaign
         {
             StoreKind.Powder => (st.Powder, "crate of powder and shot"),
             StoreKind.Lamp => (st.Lamps, "spare lamp"),
+            StoreKind.Flare => (st.Flares, "flare pistol"),
             _ => (st.Extinguishers, "spare extinguisher"),
         };
+        if (item is null)
+            return new(s, "the fortress has none to sell");
+        // Note 871: a tool's stocked for the tier whose trouble it answers, as an upgrade is (UpgradeDef.FromTier).
+        if (TierFor(t, s.Cars) < item.FromTier)
+            return new(s, $"the {name} is stocked for {TierWords(item.FromTier)} work");
         if (s.Stores.Of(kind) >= item.Most)
             return new(s, $"a night takes {item.Most} at most, and you have them");
         if (s.Scrip < item.Cost)
@@ -389,6 +414,7 @@ public static class Campaign
         {
             StoreKind.Powder => s.Stores with { Powder = s.Stores.Powder + 1 },
             StoreKind.Lamp => s.Stores with { Lamps = s.Stores.Lamps + 1 },
+            StoreKind.Flare => s.Stores with { Flares = s.Stores.Flares + 1 },
             _ => s.Stores with { Extinguishers = s.Stores.Extinguishers + 1 },
         };
         return new(s with { Stores = stores, Scrip = s.Scrip - item.Cost }, null);
@@ -429,6 +455,9 @@ public static class Campaign
                 {
                     SpareLamps = l.Train.Kit.SpareLamps + stores.Lamps * st.Lamps.Each,
                     SpareExtinguishers = l.Train.Kit.SpareExtinguishers + stores.Extinguishers * st.Extinguishers.Each,
+                    // Note 871: each flare pistol bought comes loaded with its flares.
+                    FlarePistols = l.Train.Kit.FlarePistols + stores.Flares,
+                    FlareShots = st.Flares?.Each ?? l.Train.Kit.FlareShots,
                 },
             },
         };
@@ -527,6 +556,7 @@ public static class Campaign
                     "utilityCars" => Fit(l, c => c with { UtilityCars = c.UtilityCars + (int)Math.Round(k) }),
                     "guardCars" => Fit(l, c => c with { GuardCars = c.GuardCars + (int)Math.Round(k) }),
                     "armouredCars" => Fit(l, c => c with { ArmouredCars = c.ArmouredCars + (int)Math.Round(k) }),
+                    "cabArmour" => Fit(l, c => c with { CabArmour = c.CabArmour || k > 0 }),
                     "handrails" => Fit(l, c => c with { Handrails = c.Handrails || k > 0 }),
                     "contactSafe" => l with { Train = l.Train with { Couplings = l.Train.Couplings with { SafeContactSpeed = l.Train.Couplings.SafeContactSpeed * k } } },
                     "underLoad" => l with { Train = l.Train with { Couplings = l.Train.Couplings with { UncoupleUnderLoadSeconds = l.Train.Couplings.UncoupleUnderLoadSeconds * k } } },
@@ -534,6 +564,8 @@ public static class Campaign
                     // The last of F.3's small ones and its switch thrower (note 196).
                     "lampOut" when l.Enemies is { } e => l with { Enemies = e with { Climbers = e.Climbers with { LampOutSeconds = e.Climbers.LampOutSeconds * k } } },
                     "foul" => l with { Combat = l.Combat with { Guns = l.Combat.Guns with { FoulChance = l.Combat.Guns.FoulChance * k } } },
+                    // The lucky horseshoe (note 678): foul's, and its share kept, so a foul it saved can glint (note 775).
+                    "horseshoe" => l with { Combat = l.Combat with { Guns = l.Combat.Guns with { FoulChance = l.Combat.Guns.FoulChance * k, HorseshoeFoul = l.Combat.Guns.HorseshoeFoul * k } } },
                     "repair" => l with { Boiler = l.Boiler with { RepairSeconds = l.Boiler.RepairSeconds * k } },
                     "radioReach" => l with { Train = l.Train with { Kit = l.Train.Kit with { RadioReach = l.Train.Kit.RadioReach + k } } },
                     "switchThrower" => Fit(l, c => c with { SwitchThrower = c.SwitchThrower || k > 0 }),
@@ -557,6 +589,10 @@ public static class Campaign
                     "overspeedLead" => l with { Train = l.Train with { Overspeed = l.Train.Overspeed with { LeadSeconds = l.Train.Overspeed.LeadSeconds * k } } },
                     "brakeFade" => l with { Train = l.Train with { BrakeFade = l.Train.BrakeFade with { FadePerSecond = l.Train.BrakeFade.FadePerSecond * k } } },
                     "fragile" when l.Train.Fragile is { } f => l with { Train = l.Train with { Fragile = f with { ShockShare = f.ShockShare * k, BrakeShockPerSecond = f.BrakeShockPerSecond * k } } },
+                    // The cowcatcher: what striking debris on the line costs the front car, heavy or minor, k times.
+                    "debrisDamage" when l.Enemies is { } e => l with { Enemies = e with { Sleepers = e.Sleepers with { HeavyDamage = e.Sleepers.HeavyDamage * k, MinorDamage = e.Sleepers.MinorDamage * k } } },
+                    // The grab irons: a ladder caught from the ground at k times the speed (the player's own tuning stays the base).
+                    "grabIrons" => l with { Train = l.Train with { Kit = l.Train.Kit with { GrabIrons = l.Train.Kit.GrabIrons * k } } },
                     "boardUp" => l with { Train = l.Train with { Breach = l.Train.Breach with { BoardSeconds = l.Train.Breach.BoardSeconds * k } } },
                     "radios" => l with { Train = l.Train with { Kit = l.Train.Kit with { Radios = l.Train.Kit.Radios + (int)Math.Round(k) } } },
                     "accel" => l with { Train = l.Train with { Performance = [.. l.Train.Performance.Select(r => r with { Accel = r.Accel * k })] } },

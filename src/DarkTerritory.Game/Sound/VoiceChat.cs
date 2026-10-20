@@ -99,6 +99,11 @@ public sealed class VoiceChat
         public bool Held, Creature;
         /// <summary>The hand's share of their voice in the air (1 uncovered), for <see cref="Decode"/>'s volume.</summary>
         public float HandGain = 1;
+        /// <summary>
+        /// How much of the wall their voice comes through when the host says there's one between you (1 the whole wall): less with
+        /// a cab side door open between the cab and outside (note 862, player.json <c>voices.openCab</c>).
+        /// </summary>
+        public float Wall = 1;
     }
 
     public IEnumerable<byte> Speakers => _speakers.Keys;
@@ -222,6 +227,11 @@ public sealed class VoiceChat
         var covered = client.PlayerTuning.Voices.Covered;
         foreach (var s in _speakers.Values)
             s.Held = covered.On && client.TryGetRemote(s.Id, 1, out var them) && them.Alive && them.Has(Sim.Player.PlayerFlags.Held);
+        // Note 862: a cab side door open between you and them, the cab's wall only partly between (door bits are replicated).
+        var openCab = client.PlayerTuning.Voices.OpenCab;
+        foreach (var s in _speakers.Values)
+            s.Wall = openCab.On && client.TryGetRemote(s.Id, 1, out var them) && VoiceRouting.ThroughOpenCabDoor(client.Predicted, them, client.Train)
+                ? (float)Math.Clamp(openCab.Occlusion, 0, 1) : 1;
         foreach (var s in _speakers.Values)
             s.Order.Drain(_clock, (_, f) => Decode(s, f));
         foreach (var (source, m) in _mimics.ToList())
@@ -357,7 +367,7 @@ public sealed class VoiceChat
             // cries for help, as the host says how much is left.
             bool muffled = f.Path.HasFlag(VoicePath.Muffled);
             s.Creature = muffled || f.Path.HasFlag(VoicePath.Fading);
-            s.NearVoice.Occlusion = f.Path.HasFlag(VoicePath.Occluded) || muffled ? 1 : 0;
+            s.NearVoice.Occlusion = muffled ? 1 : f.Path.HasFlag(VoicePath.Occluded) ? s.Wall : 0;
             s.NearVoice.Volume = (float)((muffled ? 0.45 : 1) * (f.Path.HasFlag(VoicePath.Fading) ? f.Gain : 1) * (s.Creature ? 1 : s.HandGain));
         }
         if (s.MimicVoice is not null)

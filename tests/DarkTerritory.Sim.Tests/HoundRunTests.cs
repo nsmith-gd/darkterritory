@@ -18,8 +18,10 @@ public class HoundRunTests
     static readonly PlayerTuning P = Tuning.Player;
 
     /// <summary>
-    /// The director spending nothing of its own (its pressure never reaches its threshold, no first draw): the run alone, so
-    /// the live crew's cap (note 336) doesn't hold it behind the director's threats.
+    /// The director spending nothing of its own (its pressure never reaches its threshold, no first draw, nothing free on the
+    /// night's curve): the run alone, so the live crew's cap (note 336) doesn't hold it behind the director's threats. The
+    /// curve's free spawns (note 849) were left on and seed 1's first came at 22 s as a hound pack; with the night's floor
+    /// (note 868) more kinds are about, and the same draw sent a Knotter, which took a crew of one's cap and held the run.
     /// </summary>
     internal static readonly EnemyTuning Quiet = E with
     {
@@ -27,6 +29,7 @@ public class HoundRunTests
         {
             Pressure = E.Director.Pressure with { Threshold = 1e9, PressAt = 2e9, Max = 3e9 },
             Draw = E.Director.Draw with { Enabled = false },
+            Curve = E.Director.Curve with { Free = false, Fill = false },
         },
     };
 

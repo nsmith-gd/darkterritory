@@ -34,10 +34,13 @@ public static partial class TownGenerator
         public TownYard? Yard;
         readonly Dictionary<int, (TownHousehold Household, Dictionary<string, string> Vars, Dictionary<string, Queue<string>> Lines)> _open = [];
 
-        public void Open(int house, TownHousehold household, Dictionary<string, string> vars, Pcg32 rng)
+        public void Open(int house, TownHousehold household, Dictionary<string, string> vars, ref Pcg32 rng)
         {
             // Each part's lines shuffled once, dealt to whoever has that part, so two parents don't say the same.
-            var lines = household.Lines.ToDictionary(kv => kv.Key, kv => new Queue<string>(new Deck<string>(kv.Value, rng.Fork((ulong)kv.Key.Length)).All()));
+            // By ref, so the next household's shuffle doesn't repeat this one's (note 872).
+            var lines = new Dictionary<string, Queue<string>>();
+            foreach (var (part, said) in household.Lines)
+                lines[part] = new Queue<string>(new Deck<string>(said, rng.Fork((ulong)part.Length)).All());
             _open[house] = (household, vars, lines);
         }
 
@@ -520,7 +523,7 @@ public static partial class TownGenerator
                 vars["{other}"] = srng.Pick(w.Places.Where(p => !site.Name.Contains(p, StringComparison.OrdinalIgnoreCase)).ToList());
             if (household.Absent)
                 vars["{absent}"] = srng.Pick(w.FirstNames);
-            homes.Open(i, household, vars, srng);
+            homes.Open(i, household, vars, ref srng);
             var parts = new List<string> { "parent" };
             foreach (string part in new[] { "elder", "child", "lodger", "parent" })
                 if (parts.Count < Math.Min(sizes[i], 4) && household.Lines.ContainsKey(part) && (part != "parent" || sizes[i] >= 4))
@@ -557,7 +560,7 @@ public static partial class TownGenerator
                 Lines = new Dictionary<string, string[]> { ["offer"] = party.Offer, ["host"] = party.Host, ["guest"] = party.Guests },
                 Object = party.Wine,
             };
-            homes.Open(i, household, new Dictionary<string, string> { ["{family}"] = house.Family }, srng);
+            homes.Open(i, household, new Dictionary<string, string> { ["{family}"] = house.Family }, ref srng);
             int guests = Math.Min(layout.Spots.Count - 1, prng.RangeInclusive(t.NickiGuests[0], t.NickiGuests[1]));
             var door = layout.Spots.FirstOrDefault(x => x.Name == "door") ?? layout.Spots[0];
             var order = new List<HouseSpot> { door };
