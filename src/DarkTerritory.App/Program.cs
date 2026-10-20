@@ -208,13 +208,13 @@ crashes.Live = () =>
     .. playing is { } night ? [new ReportField("night", ReportFields.Night(night))] : (ReportField[])[],
 ];
 // Playtest data (note 914): asked once, before anything's recorded; a developer build's is on unless the director says no.
-bool devBuild = false;
+bool playtestOnByDefault = false;
 #if DEVTOOLS
-devBuild = true;
+playtestOnByDefault = true;
 #endif
 frontEnd.PlaytestNotice = DarkTerritory.Game.Telemetry.PlaytestNotice.Load(content);
 frontEnd.Playtest = DarkTerritory.Game.Telemetry.PlaytestConsent.Load(
-    args.Contains("--saves") ? Path.Combine(saves.Directory, "telemetry") : DarkTerritory.Game.Telemetry.PlaytestConsent.DefaultDirectory, defaultOn: devBuild);
+    args.Contains("--saves") ? Path.Combine(saves.Directory, "telemetry") : DarkTerritory.Game.Telemetry.PlaytestConsent.DefaultDirectory, defaultOn: playtestOnByDefault);
 crashes.Context("playtest data", frontEnd.Playtest.Recording ? "on" : "off");
 if (frontEnd.Playtest.NeedsAsking(frontEnd.PlaytestNotice))
     frontEnd.Show(Screen.Consent);
