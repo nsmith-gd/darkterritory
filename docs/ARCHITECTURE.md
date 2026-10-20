@@ -1059,7 +1059,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [876. Bounded encounter debt: `EncounterDebt`, the spawn director overhaul's #607 (C2) (the director's brief,…](notes/876.md)
 - [877. The encounter rate λ(progress, crew, cars, tier): `EncounterPacing` (the director's brief §1, §3; plan note 874; nathaniel1's n1-C1, queue…](notes/877.md)
 - [880. Encounter telemetry: an `EncounterLog` in the Sim, reported as the `encounters` block of `dt harness` and `dt playthrough` (queue #600, the…](notes/880.md)
-- [887. The spawn director overhaul's guard tests: today's protections locked before anything changes (the director's brief,…](notes/887.md)
 - [885. The spawn transaction: a spawn the director chose commits nothing until it's placed; failures kept with their reason; a pack is one…](notes/885.md)
 - [887. The spawn director overhaul's guard tests: today's protections locked before anything changes (the director's brief,…](notes/887.md)
 - [888. `dt director sweep`: the spawn director overhaul's matrix of nights, and the old director's baseline (the director's brief §8; note 874's…](notes/888.md)
@@ -1079,4 +1078,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [907. Playtest telemetry: the plan, split into queue items #624–#628 (the director, 20 Oct 2026: "we don't have any telemetry tracking right now…](notes/907.md)
 - [912. The director's protections made one: note 887's gaps closed (the aftermath for the director's own specials, the terminus_safe stretch for…](notes/912.md)
 - [913. Playtest telemetry T1: the session recorder and its event schema (n1-H1, nathaniel1; queue #624; the plan, note 907)](notes/913.md)
+- [914. Playtest telemetry T2: consent and privacy (n1-N1, nathaniel1; queue #625; the plan, note 907)](notes/914.md)
 <!-- end of the notes index -->
