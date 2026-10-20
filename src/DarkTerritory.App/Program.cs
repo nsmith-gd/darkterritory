@@ -323,11 +323,13 @@ if (args.Contains("--crash-test"))
     throw new InvalidOperationException("--crash-test: stopped on purpose to try the crash report");
 var renderer = new GreyboxRenderer(gpu, internalSize[0], internalSize[1]) { OverlaySize = new Vector2(UiWidth, UiHeight) };
 using var rendererOwner = new Owner(() => renderer.Dispose());
-// Playtest telemetry (note 913, queue #624): this session written down, only with the player's say-so (#625 asks; until then
-// "telemetry": true in settings.json, or --telemetry). Off, nothing's recorded and no file's made. Nothing's sent (#626).
-// #625's PlaytestConsent is the gate the game will ask; until it lands, a fixed answer.
-var telemetryGate = new DarkTerritory.Game.Telemetry.FixedTelemetryGate(startSettings.Telemetry || args.Contains("--telemetry"),
-    Arg("--telemetry-dir", DarkTerritory.Game.Telemetry.FixedTelemetryGate.DefaultDirectory));
+// Playtest telemetry (note 913, queue #624): this session written down, only with the player's say-so: #625's answer
+// (frontEnd.Playtest, note 914), asked on every line, so saying no in Settings stops it at once. --telemetry records this
+// launch whatever the answer (a tester told to, or the director), into --telemetry-dir or the same folder. Off, nothing's
+// recorded and no file's made. Nothing's sent of the game's own accord; a problem report carries it (#626, below).
+DarkTerritory.Game.Telemetry.ITelemetryGate telemetryGate = args.Contains("--telemetry")
+    ? new DarkTerritory.Game.Telemetry.FixedTelemetryGate(true, Arg("--telemetry-dir", frontEnd.Playtest.SessionsDirectory), frontEnd.Playtest.InstallId)
+    : frontEnd.Playtest;
 // The spool (#626, note 919): the session's file capped, the folder held to its caps (oldest first), and a player's problem
 // report carrying the finished sessions and this one so far, bundled beside it for the tester to send (the `file` sink).
 var telemetryTuning = DarkTerritory.Game.Telemetry.TelemetryTuning.Load(content);
@@ -1886,7 +1888,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (session.StrandedOutro)
             Views.CinematicFog(ref lighting, Views.StrandedDistance(session.Train, session.World.WreckTuning.Stranded, session.OutroSeconds));
         DerailSequence.Fog(ref lighting, derailShot);
-        scene.FireGlow = session.Train.BoilerTuning is { } bt ? GreyboxScene.FireLook(session.Train.Boiler.Firebox, bt.FireboxCapacity) : 0.7f;
+        scene.FireGlow = session.Train.BoilerTuning is { } bt ? GreyboxScene.FireLook(session.Train.Boiler.Fire, bt.FireboxCapacity) : 0.7f;
         scene.WrenchRacked = !session.Train.Boiler.WrenchOut;
         scene.ShovelRacked = !session.Train.Boiler.ShovelOut;
         scene.CordPulled = DarkTerritory.Game.Art.CrewActs.CrewWhistling(session.World);
@@ -1919,6 +1921,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.HandcarFrom(session.Train);
         scene.Venting = session.Train.Boiler.Vented;
         scene.SafetyValve = session.Train.Boiler.SafetyValveLifting;
+        scene.Flare = session.Train.BoilerTuning is { } flt ? (float)flt.FlareLook(session.Train.Boiler) : 0;
         scene.Ruptured = session.Train.Boiler.Ruptured;
         // Every break the crew can mend, called out where it is, and the ones a wrench is at (note 301).
         // And the loose couplings, called out alike (note 356).

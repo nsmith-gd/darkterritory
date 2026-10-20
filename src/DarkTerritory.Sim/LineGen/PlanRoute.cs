@@ -68,6 +68,7 @@ public static class PlanRoutes
             Branches = branches,
             Plan = plan,
             Gate = plan.GateM,
+            NoSpawnFinalApproach = tuning.NoSpawnFinalApproach,
         };
     }
 }
