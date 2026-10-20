@@ -891,6 +891,21 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
         var heavy = new Dictionary<int, double>();
         if (calls is null)
             return (new Dictionary<int, double>(free), heavy);
+        // The crane's castings first, while the pair can work it: a whole casting's room in the cars its hook reaches, nearest
+        // the hook first (the lights kept out of the room the castings need, they took the cars under the crane and it had
+        // nowhere to set one down). (Set aside in the same tally as the heavies' halves.)
+        if (Site.Crane is { Wrecked: false } crane && calls.PairWithPeople)
+        {
+            double size = crane.Tuning.LoadPerCasting;
+            int castings = crane.Left;
+            var hook = crane.HookAt;
+            foreach (int car in free.Keys.Where(c => StopHand.Reaches(crane, train, c)).OrderBy(c => (train.Frames[c].Origin - hook).Length).ThenBy(c => c))
+                while (castings > 0 && free[car] - heavy.GetValueOrDefault(car) >= size - 1e-6)
+                {
+                    heavy[car] = heavy.GetValueOrDefault(car) + size;
+                    castings--;
+                }
+        }
         double half = Site.LoadPerHeavy;
         int heavies = world.Bodies.All.Count(b => b.Kind == Physics.BodyKind.Heavy && !b.Banked && !(free.ContainsKey(b.Parent) && Inside(train, b))
             && (b.Lifted || b.Carrier >= 0 || calls.HeavyHands >= 2 && Loose(world, b)));
@@ -2535,10 +2550,15 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
     /// A cargo car with room and where on its roof the hook reaches (anywhere along it, clear of its ends: the gantry may
     /// only span part of a car), the nearest car first: null for none in reach.
     /// </summary>
-    static (int Car, double Bridge, double Trolley)? RoofFor(Crane crane, TrainOnLine train)
+    static (int Car, double Bridge, double Trolley)? RoofFor(Crane crane, TrainOnLine train) => RoofFor(crane, train, StopPlan.WithRoom(train));
+
+    /// <summary>Note 920: whether the hook reaches anywhere along <paramref name="car"/>'s roof (the packing plan's casting cars).</summary>
+    public static bool Reaches(Crane crane, TrainOnLine train, int car) => RoofFor(crane, train, train.Vehicles.Where(v => v.Id == car)) is not null;
+
+    static (int Car, double Bridge, double Trolley)? RoofFor(Crane crane, TrainOnLine train, IEnumerable<Vehicle> cars)
     {
         (int Car, double Bridge, double Trolley, double Off)? best = null;
-        foreach (var v in StopPlan.WithRoom(train))
+        foreach (var v in cars)
         {
             var frame = train.Frames[v.Id];
             double half = frame.Shape.HalfLength - 1;
@@ -3266,7 +3286,8 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         // Note 920: a heavy crate up in our hands for a car without a whole half (the lights' car it was set out for) goes to
         // the nearest car that has one, or as ever if none has.
         // (Not one fetched from the yard: its end and its way home were worked out toward its car, note 440.)
-        else if (mine is { Kind: Physics.BodyKind.Heavy, Lifted: true } && mine.Carrier == PlayerId && _heavyFor != mine.Id && !Fetching)
+        else if (mine is { Kind: Physics.BodyKind.Heavy, Lifted: true } && mine.Carrier == PlayerId && _heavyFor != mine.Id && !Fetching
+            && !Run.Run.IsJackpot(mine))
         {
             _heavyFor = mine.Id;
             if (p.HeavyCar(world, _car, PlayerMotor.WorldPosition(self, train)) is var whole and >= 0)
