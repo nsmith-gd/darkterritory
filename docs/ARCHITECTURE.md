@@ -1056,4 +1056,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [872. Readonly Pcg32 fields that never advance: hot boxes, gutters, couplings and the wreck (found by Bram, note 865; the director, 19 Oct: "Yes…](notes/872.md)
 - [873. A crate hand sent to shut a car's door stood still at the foot of its steps (queue #553; B3's find on #532, note 820)](notes/873.md)
 - [874. The spawn director overhaul: the plan, split into queue items #600–#613 so several agents can work at once (the director, 20 Oct 2026;…](notes/874.md)
+- [876. Bounded encounter debt: `EncounterDebt`, the spawn director overhaul's #607 (C2) (the director's brief,…](notes/876.md)
 <!-- end of the notes index -->

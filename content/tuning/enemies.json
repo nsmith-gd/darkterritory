@@ -1285,6 +1285,27 @@
     // (a friend's pull or blow, or their own struggle); holdoutFreed: someone broken out of a Holdout. Short on purpose.
     // on false: none, as before.
     "aftermath": { "on": true, "seconds": 12, "events": ["death", "carLost", "rescue", "holdoutFreed"] },
+    // The encounter pacing (the spawn director overhaul, docs/design/spawn-director-overhaul.md §3; the plan, note 874).
+    "encounters": {
+      // Bounded encounter debt (§3 "Encounter debt"; note 876): part of the encounter rate the director wanted but couldn't
+      // place, remembered and paid back gradually, so a spell with nothing eligible doesn't erase the night's escalation.
+      // share: of each unmet opportunity, what's owed, by why it went unmet: noPlacement (a kind picked, nowhere legal to put
+      // it) and ineligible (nothing about tonight fitting here and now). Nothing else ever owes, whatever's named here: a
+      // safe zone, the grace, recovery, the terminus and full engagement caps are quiet the game means (§1.A, §6).
+      // cap: encounters owed at most. meanLifeSeconds: the debt forgets itself over this (a debt from an hour ago is no
+      // reason for a monster now). releasePerMinute: at most this many owed encounters repaid a minute, on top of the
+      // night's own rate; releaseBurst: the most the release allowance holds. While the director is held (a safe zone,
+      // the grace, recovery) the allowance empties, so a backlog comes back at the release rate after the yard, never as a
+      // burst (§3). on false: no debt, as before.
+      "debt": {
+        "on": true,
+        "share": { "noPlacement": 0.6, "ineligible": 0.4 },
+        "cap": 2,
+        "meanLifeSeconds": 240,
+        "releasePerMinute": 0.5,
+        "releaseBurst": 1
+      }
+    },
     // GDD App. B.1 "Post-event cooldown" (design decision, 2026-10): the least trough after a spawn; the pressure's relief
     // makes the rest of it, and well past the threshold (pressAt) it gives way.
     "cooldownSeconds": [25, 45],
