@@ -1058,4 +1058,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [874. The spawn director overhaul: the plan, split into queue items #600–#613 so several agents can work at once (the director, 20 Oct 2026;…](notes/874.md)
 - [880. Encounter telemetry: an `EncounterLog` in the Sim, reported as the `encounters` block of `dt harness` and `dt playthrough` (queue #600, the…](notes/880.md)
 - [891. The Cinder Hounds aboard, the director's 9 Oct answer (n1-H1, queue #614; inbox `D1.2-car-fires-from-packs`, note 857's call 1)](notes/891.md)
+- [897. Docs from the director's inbox answers of 20 Oct (n1-G2, queue #616; note 857's calls 3, 5, 6 and 10)](notes/897.md)
 <!-- end of the notes index -->
