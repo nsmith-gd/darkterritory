@@ -130,6 +130,8 @@ return args switch
     // Note 913 (queue #624): the playtest recorder's schema, and a bot night recorded with it.
     ["telemetry", "schema", ..] => Print(TelemetryCommands.Schema()),
     ["telemetry", "record", ..] => Print(TelemetryCommands.Record(content, args)),
+    // dt telemetry spool [--dir d] [--trim] [--export out] (queue #626, note 919): the spool's sessions against its caps; trim; bundle.
+    ["telemetry", "spool", ..] => Print(TelemetryCommands.Spool(content, args)),
     ["telemetry", "summary", ..] => Print(TelemetryCommands.Summary(args)),
     ["telemetry", "map", ..] => Print(TelemetryCommands.Map(content, args)),
     // dt playtest bake --into <content> [--cohort CODE] (note 916): a playtest build's mark, as tools/package.sh --playtest bakes it.

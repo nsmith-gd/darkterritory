@@ -331,13 +331,29 @@ using var rendererOwner = new Owner(() => renderer.Dispose());
 // Playtest telemetry (note 913, queue #624): this session written down, only with the player's say-so: #625's answer
 // (frontEnd.Playtest, note 914), asked on every line, so saying no in Settings stops it at once. --telemetry records this
 // launch whatever the answer (a tester told to, or the director), into --telemetry-dir or the same folder. Off, nothing's
-// recorded and no file's made. Nothing's sent (#626).
+// recorded and no file's made. Nothing's sent of the game's own accord; a problem report carries it (#626, below).
 DarkTerritory.Game.Telemetry.ITelemetryGate telemetryGate = args.Contains("--telemetry")
     ? new DarkTerritory.Game.Telemetry.FixedTelemetryGate(true, Arg("--telemetry-dir", frontEnd.Playtest.SessionsDirectory), frontEnd.Playtest.InstallId)
     : frontEnd.Playtest;
-var telemetry = DarkTerritory.Game.Telemetry.SessionRecorder.ToFile(telemetryGate);
+// The spool (#626, note 919): the session's file capped, the folder held to its caps (oldest first), and a player's problem
+// report carrying the finished sessions and this one so far, bundled beside it for the tester to send (the `file` sink).
+var telemetryTuning = DarkTerritory.Game.Telemetry.TelemetryTuning.Load(content);
+var telemetrySpool = new DarkTerritory.Game.Telemetry.TelemetrySpool(telemetryGate.SessionsDirectory, telemetryTuning.Spool);
+var telemetry = telemetrySpool.Recorder(telemetryGate);
 frontEnd.Telemetry = telemetry;
 using var telemetryOwner = telemetry.Closer;
+telemetrySpool.Trim(telemetry.SessionId);
+crashes.Saved += (report, path) =>
+{
+    if (report.Kind != Report.Problem || !telemetryGate.Recording
+        || DarkTerritory.Game.Telemetry.TelemetryUploader.SinkFor(telemetryTuning.Upload, Path.GetDirectoryName(path) ?? crashes.Directory) is not { } sink)
+        return;
+    telemetrySpool.Writing?.Flush();
+    var sent = new DarkTerritory.Game.Telemetry.TelemetryUploader(telemetrySpool, sink, telemetryTuning.Upload, telemetryGate)
+        .PumpAsync(inNight: false, telemetry.SessionId, withWriting: true).GetAwaiter().GetResult();
+    if (sent.Result is { } r)
+        Console.WriteLine($"telemetry: {r.Outcome} {r.Detail}");
+};
 bool devBuild = false;
 #if DEVTOOLS
 devBuild = true;
