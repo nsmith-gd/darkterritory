@@ -873,21 +873,21 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
 
     /// <summary>
     /// Note 920: the car for a heavy crate in <paramref name="member"/>'s hands: one with a whole half free of what the castings
-    /// and the other heavy crates on their way need: the cars the crane doesn't reach first, then one whose side door's open
-    /// (a light's been in), then the nearest the crate stack, the way the hands come and go, as <c>Roomiest</c>'s. (A car the
-    /// other way had the front end turn back past its own back end, and the crate fell between them again and again.) −1 for
-    /// none.
+    /// and the other heavy crates on their way need: the cars the crane doesn't reach first, then the nearest the hand leading
+    /// it (else the crate stack). The pair falls apart on a long walk (too far apart, and it's down: a keg of powder went up),
+    /// so it goes to the nearest half, not to a car a light's already opened 40 m off. −1 for none.
     /// </summary>
-    public int HeavyCar(World world, CrewCalls calls, int member)
+    /// <param name="from">Where the hand leading it stands (world), if known: the nearest car to it, so the pair walks away from
+    /// the back end, never back through it.</param>
+    public int HeavyCar(World world, CrewCalls calls, int member, Double3? from = null)
     {
         var train = world.Train;
         var (free, cast, _) = Pack(world, calls, member);
         double half = Site.LoadPerHeavy;
         var reach = CraneReach(train);
-        var stack = Site.CrateStack.Length > 0 ? Site.CrateStack[0] : Site.HeavyStack.Length > 0 ? Site.HeavyStack[0] : train.Frames[0].Origin;
-        var open = OpenSideDoors(train).ToHashSet();
+        var stack = from ?? (Site.CrateStack.Length > 0 ? Site.CrateStack[0] : Site.HeavyStack.Length > 0 ? Site.HeavyStack[0] : train.Frames[0].Origin);
         return free.Where(kv => kv.Value - cast.GetValueOrDefault(kv.Key) - half * calls.BoundFor(kv.Key, member) >= half - 1e-6)
-            .Select(kv => kv.Key).OrderBy(reach.Contains).ThenBy(car => !open.Contains(car)).ThenBy(car => (train.Frames[car].Origin - stack).Length).ThenBy(car => car)
+            .Select(kv => kv.Key).OrderBy(reach.Contains).ThenBy(car => (train.Frames[car].Origin - stack).Length).ThenBy(car => car)
             .DefaultIfEmpty(-1).First();
     }
 
@@ -3176,6 +3176,21 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
     }
 
     int _car = -1;
+    // Note 920: what this hand last said it's carrying where (a heavy crate's half; a light's or a find's quarter), said
+    // again only when it changes: the calls go by voice, and said every tick they came through late and out of order.
+    int _saidCarrying = -1, _saidLight = -1;
+
+    void SayCarrying(int car)
+    {
+        if (car != _saidCarrying)
+            calls.CarryingTo(member, _saidCarrying = car);
+    }
+
+    void SayCarryingLight(int car)
+    {
+        if (car != _saidLight)
+            calls.CarryingLightTo(member, _saidLight = car);
+    }
     /// <summary>Note 920: the heavy crate <see cref="_car"/> was picked for (−1, none).</summary>
     int _heavyFor = -1;
     bool _pressed;
@@ -3269,6 +3284,11 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         // Heavy crates (T45): holding an end, wait for a hand; at the back end of one, follow it in; someone holding one
         // alone, go and take the other end.
         var mine = PlayerId is { } me ? world.Bodies.CarriedBy(me) : null;
+        // Note 920: the light we said we're carrying, unsaid as soon as our hands are empty or on a heavy one (the back end of
+        // one returns before it's said again below): said once and never unsaid, it kept a quarter off its car in everyone's
+        // plan, and the heavy crate going there found no whole half.
+        if (mine is null or { Kind: Physics.BodyKind.Heavy })
+            SayCarryingLight(-1);
         // Note 594's four slots: finds in them. A slot still free and another house worth searching, the one in hand is put
         // away (the number key of a slot without a find) and on to the next; else one out into the hand, and home with it.
         if (_setDown is null && SlotFinds(self, world, p, mine) is { } slots)
@@ -3278,9 +3298,8 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
             if (!mine.Lifted)
             {
                 Doing = "holding an end, waiting for a hand";
-                calls.CarryingTo(member, -1);
-                calls.CarryingLightTo(member, -1);
-            calls.CarryingLightTo(member, -1);
+                SayCarrying(-1);
+                SayCarryingLight(-1);
                 return new PlayerIntent();
             }
             if (mine.Second == PlayerId)
@@ -3316,8 +3335,8 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
             return errand;
         if (!heavy && _setDown is null && (!p.CratesToLoad(world, calls.HeavyHands) || calls.Leaving))
         {
-            calls.CarryingTo(member, -1);
-            calls.CarryingLightTo(member, -1);
+            SayCarrying(-1);
+            SayCarryingLight(-1);
             // The lamp we set down out at the wreck (note 492): up again first, and aboard with it.
             if (LampAboard(self, world, p) is { } lamp)
                 return lamp;
@@ -3330,7 +3349,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         bool forHeavy = false;
         if (mine is { Kind: Physics.BodyKind.Heavy } && _heavyFor != mine.Id)
         {
-            _car = p.HeavyCar(world, calls, member);
+            _car = p.HeavyCar(world, calls, member, PlayerMotor.WorldPosition(self, train));
             _heavyFor = mine.Id;
         }
         else if (!heavy && _setDown is null || _car < 0)
@@ -3346,14 +3365,14 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         // gone into, and a front end that had to set it down on the steps to open the door left it there.
         if (forHeavy && SideDoor(train.Frames[_car].Shape, side) is { } shut && !train.Vehicles[_car].DoorOpen(shut))
         {
-            calls.CarryingTo(member, -1);
-            calls.CarryingLightTo(member, -1);
+            SayCarrying(-1);
+            SayCarryingLight(-1);
             return ShutUp(self, world, p, _car, "opening up for a heavy one");
         }
         // Note 920: a heavy crate's half and anything else's quarter (a light crate, a find) said apart, for the plan.
         bool aHeavy = mine is { Kind: Physics.BodyKind.Heavy };
-        calls.CarryingTo(member, heavy && aHeavy ? _car : -1);
-        calls.CarryingLightTo(member, heavy && !aHeavy ? _car : -1);
+        SayCarrying(heavy && aHeavy ? _car : -1);
+        SayCarryingLight(heavy && !aHeavy ? _car : -1);
         // Every car's room spoken for by crates on their way in: wait for them to land (then either there's room again,
         // or the crates are done and the doors want shutting). Going aboard now would leave this stop for good.
         if (_car < 0)
