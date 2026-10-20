@@ -75,6 +75,10 @@ public sealed partial class World
                 case Physics.BodyKind.Ragdoll:
                     Give("body", EmitterKind.Body, at, b.Owner, b.Id, car);
                     break;
+                // A flare fired from the pistol, burning (note 871).
+                case Physics.BodyKind.Flare when b.Burns > 0:
+                    Give("flare", EmitterKind.Flare, at, b.LastHeld, b.Id, car);
+                    break;
             }
         }
         foreach (var v in Train.Vehicles)
@@ -198,6 +202,7 @@ public sealed partial class World
                 b.Burns = Math.Max(0, b.Burns - dt);
         }
         Bodies.All.Where(b => b.Kind == Physics.BodyKind.Lamp && b.Broken && b.Burns <= 0).ToList().ForEach(Bodies.Remove);
+        StepFlares(dt);
     }
 
     /// <summary>

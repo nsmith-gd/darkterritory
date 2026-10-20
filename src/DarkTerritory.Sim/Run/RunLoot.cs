@@ -153,10 +153,12 @@ public sealed partial class Run
                 if (track.Crane is not { Bays: > 0 } rw || track.Primary && site.Crane is not null)
                     continue;
                 var bays = stop.Containers.Where(c => c.Kind == ContainerKind.CraneBay && c.Track == track.Index).ToList();
-                double lateral = bays.Average(c => c.At.D) - track.FaceStart.D;
-                int toward = lateral == 0 ? track.Side : Math.Sign(lateral);
-                double mid = (rw.From + rw.To) / 2, d = track.FaceStart.D;
-                var tuning = ct with { Along = 0, Length = rw.Length, Castings = bays.Count, Spacing = Math.Min(ct.Spacing, rw.Length / (bays.Count + 1)) };
+                // (The sheds it passes on that side are cut open for it: StopWalls.CraneCuts, note 869.)
+                int toward = StopWalls.GantryToward(stop.Containers, track);
+                // Its run along the runway, clear of the buildings it can't cut through (StopWalls.GantryRun, note 869).
+                var (from, to) = StopWalls.GantryRun(stop, track) ?? (rw.From, rw.To);
+                double mid = (from + to) / 2, d = track.FaceStart.D;
+                var tuning = ct with { Along = 0, Length = to - from, Castings = bays.Count, Spacing = Math.Min(ct.Spacing, (to - from) / (bays.Count + 1)) };
                 var feature = site.Feature;
                 var line = _lootLine!;
                 cranes.Add(new Crane(tuning, (along, across, up) => StopWorld(line, feature, new Pt(mid + along, d + toward * across), up)));
@@ -317,6 +319,18 @@ public sealed partial class Run
     /// <summary>Note 719: stop <paramref name="stop"/>'s jackpot house, its building's index, or −1 (for tools, tests and the walls).</summary>
     public int LockedHouse(int stop) => stop >= 0 && stop < _locked.Count ? _locked[stop] : -1;
 
+    /// <summary>
+    /// The stop (its place in <see cref="Stops"/>) that's the route's feature <paramref name="feature"/>, and that feature's
+    /// place in the route's features (the houses' <c>OpenHouse.Feature</c>); (−1, −1) for a feature that's no stop.
+    /// </summary>
+    public (int Stop, int Feature) StopOf(RouteFeature feature)
+    {
+        for (int k = 0; k < _stopLoot.Count; k++)
+            if (ReferenceEquals(_stopLoot[k].Feature, feature))
+                return (k, _stopLoot[k].Index);
+        return (-1, -1);
+    }
+
     /// <summary>Note 719: the jackpot house's building at the route's feature <paramref name="feature"/>, or −1.</summary>
     public int LockedAt(int feature)
     {
@@ -330,6 +344,8 @@ public sealed partial class Run
     public double UnlockSeconds => _loot?.JackpotHouse?.UnlockSeconds ?? 6;
 
     /// <summary>Note 719: stop <paramref name="stop"/>'s two-person jackpots, each its item and the container it's by (−1: in the jackpot house).</summary>
+    /// <summary>The night's two-person jackpots, every stop's (note 861's count).</summary>
+    public int Jackpots => _jackpots.Sum(j => j.Count);
     public IReadOnlyList<(string Item, int Beside)> JackpotsAt(int stop) => stop >= 0 && stop < _jackpots.Count ? _jackpots[stop] : [];
 
     /// <summary>Note 719: what lies on stop <paramref name="stop"/>'s jackpot house's floor besides what it keeps.</summary>

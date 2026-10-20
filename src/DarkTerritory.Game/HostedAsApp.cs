@@ -34,6 +34,7 @@ public static class HostedAsApp
             Powder = s.Stores.Powder,
             SpareLamps = s.Stores.Lamps,
             SpareExtinguishers = s.Stores.Extinguishers,
+            Flares = s.Stores.Flares,
             LastTown = s.LastTown,
             Burnt = s.Burnt.Count > 0 ? s.Burnt : null,
             CampaignNight = true,

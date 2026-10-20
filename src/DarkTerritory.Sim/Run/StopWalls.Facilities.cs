@@ -14,9 +14,8 @@ public sealed partial class StopWalls
     /// The coaling towers beside the line, solid (note 758; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 8: "We're
     /// actually clipping a little bit through some of the ... things at the station"). A main-line facility has no stop of its
     /// own, so nothing stood where the art draws its tower (facility_pieces.py <c>coaling_tower</c>, 7 m off the line on the
-    /// facility's side: four posts 9 m along and 7 m across on concrete footings, X-braced on every face from 0.4 m up, a
-    /// ladder up its back): the crew walked through it. Now each face of the trestle is a wall to its top, with its footings
-    /// and its ladder. A trestle doesn't hold
+    /// facility's side: four posts 9 m along and 7 m across on concrete footings, X-braced on every face from 0.4 m up): the crew walked
+    /// through it. Now each face of the trestle is a wall to its top, with its footings. A trestle doesn't hold
     /// a creature out (<see cref="Wall.Trestle"/>), and stands only until Tower Jaw brings it down (<see cref="Fell"/>).
     /// </summary>
     /// <param name="facilities">The night's facilities, in order (<see cref="Run.Facilities"/>): a tower's key is its index + 1.</param>
@@ -49,9 +48,8 @@ public sealed partial class StopWalls
             foreach (double x in new[] { -TowerHalfAlong, TowerHalfAlong })
                 foreach (double y in new[] { -TowerHalfAcross, TowerHalfAcross })
                     Add(Part(x, y, FootingHalf, FootingHalf, FootingTop));
-            // The ladder up its back, off the far face. (The lever's slim stand by the track is left to walk through: the one who
-            // works it stands at it, StopCrew's shunter just beyond it from the track.)
-            Add(Part(LadderAlong, TowerHalfAcross + LadderOut, 0.3, 0.2, TowerTop));
+            // No ladder up its back (note 869: the model has none, since it couldn't be climbed). The lever's slim stand by the
+            // track is left to walk through: the one who works it stands at it, StopCrew's shunter just beyond it from the track.
         }
     }
 
@@ -141,5 +139,5 @@ public sealed partial class StopWalls
     // The drawn tower's dimensions (facility_pieces.py coaling_tower; StructureKit stands it TowerOut off the line). Not
     // design numbers: the model's.
     const double TowerOut = 7, TowerHalfAlong = 4.5, TowerHalfAcross = 3.5, TowerTop = 12, FaceHalf = 0.3;
-    const double FootingHalf = 0.55, FootingTop = 0.6, LadderAlong = 2.0, LadderOut = 0.15;
+    const double FootingHalf = 0.55, FootingTop = 0.6;
 }

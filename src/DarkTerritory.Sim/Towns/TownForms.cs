@@ -1170,7 +1170,7 @@ public static class TownForms
                     spines.Add((side, pts));
                 }
             foreach (var (side, pts) in spines)
-                Boardwalk(pts, StageLevel, jetty: 2, stages: Clusters(Length(pts), brng, FenCluster, FenGap));
+                Boardwalk(pts, StageLevel, jetty: 2, stages: Clusters(Length(pts), ref brng, FenCluster, FenGap));
             // Across: between each spine and the next on its side, a walk at a couple of places out along them.
             foreach (int side in new[] { -1, 1 })
             {
@@ -1186,7 +1186,7 @@ public static class TownForms
                             continue;
                         double mid = (ua + ub) / 2 + brng.Range(-6, 6), dk = d + side * brng.Range(-5, 5);
                         var pts = new List<(double U, double D)> { (ua, d), (mid, dk), (ub, d) };
-                        Boardwalk(pts, StageLevel, stages: Clusters(Length(pts), brng, FenCluster, FenGap));
+                        Boardwalk(pts, StageLevel, stages: Clusters(Length(pts), ref brng, FenCluster, FenGap));
                     }
             }
             // Round the mounds: a boardwalk round each at its foot, a stage of houses outside it fronting the mound, open where
@@ -1229,7 +1229,7 @@ public static class TownForms
         }
 
         /// <summary>A walk's stages in clusters along it (from, to, which sides), the water between them (note 692).</summary>
-        static List<(double, double, int)> Clusters(double len, Pcg32 rng, double[] cluster, double[] gap)
+        static List<(double, double, int)> Clusters(double len, ref Pcg32 rng, double[] cluster, double[] gap)
         {
             var stages = new List<(double, double, int)>();
             for (double x = rng.Range(4, 10); x < len - 12;)
@@ -1387,7 +1387,7 @@ public static class TownForms
                     if (!Wet(mid, dk))
                         continue;
                     // Its houses in clusters along it, a stage on one side or both, the flood between them.
-                    Boardwalk(pts, StageLevel, jetty: (fromA ? 0 : 1) | (toB ? 0 : 2), stages: Clusters(Length(pts), rng, BoroughCluster, BoroughGap));
+                    Boardwalk(pts, StageLevel, jetty: (fromA ? 0 : 1) | (toB ? 0 : 2), stages: Clusters(Length(pts), ref rng, BoroughCluster, BoroughGap));
                 }
                 if (d > water.Max(x => x.D))
                     break;
@@ -1647,7 +1647,7 @@ public static class TownForms
             for (double u = -L * 0.9; u < -L * 0.46; u += srng.Range(40, 56))
             {
                 var pts = new List<(double U, double D)> { (u, -16), (u + srng.Range(-8, 8), -wl * 0.45), (u + srng.Range(-10, 10), -wl * 0.85) };
-                Boardwalk(pts, StageLevel, jetty: 2, stages: Clusters(Length(pts), srng, FenCluster, FenGap));
+                Boardwalk(pts, StageLevel, jetty: 2, stages: Clusters(Length(pts), ref srng, FenCluster, FenGap));
             }
             Landmark("watchtower", -L * 0.5, -wl + 20, 0, 1);
         }

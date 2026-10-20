@@ -307,12 +307,12 @@ public sealed partial class WorldArt
         if (!platform)
             return;
         // The platform: behind the gate, a few hundred metres of it, right of the line.
-        double p0 = Math.Max(a, start + 60), p1 = Math.Min(b, gateAt - 30);
-        for (double s = Math.Floor(p0 / 8) * 8; s < p1; s += 8)
+        // (Where the Sim stands its deck, posts and what's on it: Fortresses.PlatformBays, note 869.)
+        foreach (double s in Fortresses.PlatformBays(start, gateAt))
         {
-            if ((line.Sample(s).Position - eye).Length > 260)
+            if (s + Fortresses.PlatformBay <= a || s >= b || (line.Sample(s).Position - eye).Length > 260)
                 continue;
-            int v = (int)(s / 8) % 3;
+            int v = (int)(s / Fortresses.PlatformBay) % 3;
             var t = line.Sample(s);
             var m = Basis(t.Tangent, t.Position, eye, 0);
             var hand = _props.Get("hand_lantern");

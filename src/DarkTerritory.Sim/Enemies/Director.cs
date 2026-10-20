@@ -10,7 +10,7 @@ namespace DarkTerritory.Sim.Enemies;
 /// Pressed for: the pressure was at <see cref="PressureTuning.PressAt"/>, and it came through the cooldown or over the budget's
 /// curve (by at most <see cref="DirectorTuning.PacedCost"/>).
 /// </param>
-public readonly record struct DirectorSpawn(uint Tick, EnemyKind Kind, double Cost, double TrainDistance, int ActiveInZone, int ActiveTotal, bool Paced = false, bool Free = false);
+public readonly record struct DirectorSpawn(uint Tick, EnemyKind Kind, double Cost, double TrainDistance, int ActiveInZone, int ActiveTotal, bool Paced = false, bool Free = false, bool Stop = false);
 
 /// <summary>What built the director's pressure in its last second (note 266), for the harness's trace.</summary>
 /// <param name="Rate">Pressure a second, all told.</param>
@@ -56,6 +56,7 @@ public sealed class Director
         // The free spawns' own dice (note 849): a stream of their own off the scrambled seed, so the night's other draws are as
         // they were with the curve off.
         _freeRng = new Pcg32(unchecked(seed * 0x9E3779B97F4A7C15UL + 0xF4EE), 0xF4EE);
+        _stopRng = new Pcg32(unchecked(seed * 0x9E3779B97F4A7C15UL + 0x5709), 0x5709);
         _seed = seed;
         var tier = route?.Tier ?? RouteTier.Frontier;
         string key = char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..];
@@ -73,9 +74,14 @@ public sealed class Director
         // The kinds not about tonight (note 635): each named kind's roll, in name order, on its own stream from the scrambled
         // seed (a PCG stream's first draws barely move between neighbouring seeds), so the night's other draws are as they were.
         var about = new Pcg32(unchecked(seed * 0x9E3779B97F4A7C15UL + 0x0BE5E), 0x0BE5E);
+        var rolls = new List<(string Name, double Chance)>();
         foreach (var (name, chance) in tuning.NightChance.OrderBy(k => k.Key, StringComparer.Ordinal))
             if (about.NextDouble() >= chance)
+            {
                 _outTonight.Add(name);
+                rolls.Add((name, chance));
+            }
+        Floor(tuning, tier, crew, ref about, rolls);
     }
 
     readonly HashSet<string> _outTonight = [];
@@ -469,6 +475,7 @@ public sealed class Director
         _cooldown -= 1;
         _sinceAny += 1;
         SentFree = false;
+        _lastStop = null;
         // The aftermath (note 751) and the facility lull (App. B.1) run down a second a decision, whatever holds it.
         bool shaken = AftermathLeft > 0;
         AftermathLeft = Math.Max(0, AftermathLeft - 1);
@@ -515,6 +522,10 @@ public sealed class Director
         // pressed through: at twelve seconds it's short enough not to need to be.
         if (shaken)
             return Held("aftermath");
+        // The stops' own (note 860): what lives at the yard or village the train stands at is there as it comes in, the facility
+        // lull or not (it was there before the train came; its own rules say when it moves).
+        if (SpendStop(world, active, s) is { } waiting)
+            return waiting;
         // App. B.1 "Facility lull": "~20 seconds of calm on arrival before facility threats activate. Lets the crew commit to
         // a plan before it falls apart." Read as everything the director would send while the train stands at the facility,
         // which is what comes at a stop (its residents, the stop's own creatures, the Whistler boarding there): calm on
@@ -793,6 +804,169 @@ public sealed class Director
         return kind;
     }
 
+    /// <summary>
+    /// The night's floor (note 868; the director, 19 Oct 2026: "It should be impossible to have a night with no creatures"):
+    /// the night's chances (note 635) may roll out nearly everything (seed 1 rolled 22 of 28 kinds out, and every creature that
+    /// lives at a yard but the Followers). Of those rolled out (but those at a chance of 0: never), kinds are brought back, each
+    /// drawn by its chance on the same stream (so the night's other draws are untouched), until as many of
+    /// <c>stops.residents</c> are about as wait at a stop on this tier for this crew (<see cref="StopsTuning.Count"/>,
+    /// <see cref="StopsTuning.Split"/>), and at least <c>stops.floorKinds</c> of the kinds the director sends are (those the chances
+    /// don't name are about every night).
+    /// </summary>
+    void Floor(DirectorTuning tuning, RouteTier tier, int crew, ref Pcg32 about, List<(string Name, double Chance)> rolled)
+    {
+        var st = tuning.Stops;
+        if (!st.On)
+            return;
+        // Every kind the director sends counts: those nightChance doesn't name are about every night.
+        var sends = Spawns.Rules.Select(r => Key(r.Kind)).ToHashSet();
+        int residents = Math.Min(st.Split(st.Count(tier, crew)).Waiting, st.Residents.Length);
+        var dice = about;
+        void Back(Func<string, bool> which, Func<int> missing)
+        {
+            while (missing() > 0)
+            {
+                // A chance of 0 is the director's "never": not brought back.
+                var pool = rolled.Where(r => r.Chance > 0 && _outTonight.Contains(r.Name) && which(r.Name)).ToList();
+                double total = pool.Sum(r => r.Chance);
+                if (pool.Count == 0 || total <= 0)
+                    return;
+                double pick = dice.NextDouble() * total;
+                var back = pool[^1].Name;
+                foreach (var r in pool)
+                {
+                    if (pick < r.Chance)
+                    {
+                        back = r.Name;
+                        break;
+                    }
+                    pick -= r.Chance;
+                }
+                _outTonight.Remove(back);
+                FloorBrought.Add(back);
+            }
+        }
+        Back(st.Residents.Contains, () => residents - st.Residents.Count(r => !_outTonight.Contains(r)));
+        Back(sends.Contains, () => st.FloorKinds - sends.Count(k => !_outTonight.Contains(k)));
+        about = dice;
+    }
+
+    /// <summary>The kinds the night's floor brought back from out tonight (note 868), in the order it did.</summary>
+    public List<string> FloorBrought { get; } = [];
+
+    /// <summary>The stop and the slot (boarding or waiting) of the last of the stops' own sent, until it's placed.</summary>
+    (int Key, bool Boarder)? _lastStop;
+
+    /// <summary>
+    /// What the director just decided was placed (<paramref name="placed"/>) or not (World, after the kind's spawn). A stop's
+    /// own that placed nothing (the Ribbits with warrens at the stop but none near the crew) is taken back: off the log and
+    /// the stop's count, so the stop tries again (note 868: frontier:7's 4-bot seeds 2 and 3 spent a waiting slot on it).
+    /// </summary>
+    public void Placed(bool placed)
+    {
+        if (_lastStop is { } last && !placed && Log.Count > 0 && Log[^1].Stop)
+        {
+            Log.RemoveAt(Log.Count - 1);
+            var (stood, waiting, boarding) = _stops[last.Key];
+            _stops[last.Key] = (stood, waiting - (last.Boarder ? 0 : 1), boarding - (last.Boarder ? 1 : 0));
+        }
+        _lastStop = null;
+    }
+
+    /// <summary>The stops' own dice (note 860), a stream of their own: the night's other draws are as they were with it off.</summary>
+    Pcg32 _stopRng;
+    /// <summary>Each stop stood at tonight (<see cref="StopAt"/>): the seconds stood there, and how many it's put in place and aboard.</summary>
+    readonly Dictionary<int, (double Stood, int Waiting, int Boarding)> _stops = [];
+
+    /// <summary>The stops stood at tonight, by <see cref="StopAt"/>'s key (note 860): seconds stood, waiting and boarding placed.</summary>
+    public IReadOnlyDictionary<int, (double Stood, int Waiting, int Boarding)> StopsStood => _stops;
+
+    /// <summary>
+    /// The stop the train stands at, for its own creatures (note 860), or −1: a facility with a stop laid that it stands at
+    /// (<see cref="Run.Run.StandsAt"/>: down its spur, or on the main line beside it), as its index; or, stood on the main line
+    /// over an abandoned village (a <see cref="FeatureKind.Village"/> stop, a halt or dead town), 1000 + its feature's index.
+    /// </summary>
+    public static int StopAt(World world)
+    {
+        if (world.Run is not { } run)
+            return -1;
+        if (run.StandsAt(world.Train) is >= 0 and var i)
+            return run.Facilities[i].Stop is not null ? i : -1;
+        var train = world.Train;
+        if (world.Route is not { } route || !train.OnMain || train.Dynamics.Speed >= run.Tuning.StopBelowSpeed)
+            return -1;
+        double front = train.Dynamics.Distance, rear = front - train.Dynamics.Consist.LengthMetres;
+        for (int f = 0; f < route.Features.Count; f++)
+            if (route.Features[f] is { Kind: FeatureKind.Village, Stop: not null } v && front >= v.Start && rear <= v.End)
+                return 1000 + f;
+        return -1;
+    }
+
+    /// <summary>
+    /// The stops' own (note 860; GDD App. B.1 "The stops' own"; the director's playtest of 16 Oct evening, line 7: "Monsters
+    /// are positioned and ready at yards and abandoned villages, or use those stops to get onto the train"): while the train
+    /// stands at a stop (<see cref="StopAt"/>), for <c>stops.trySeconds</c> of standing there, the director puts in place
+    /// <c>stops.waiting</c> of the kinds whose rule the stop meets now and, from <c>stops.boardingAfterSeconds</c> stood there,
+    /// <c>stops.boarding</c> of its <c>boarders</c>, one a second, each by its rule's weight × the tuning's weights × the night's variety, under the roster, the kind's night,
+    /// slain and the engaged cap. Beside the pressure: nothing off its budget or the pressure; it ends the quiet and counts
+    /// toward the night's variety and the kind's cap as any send does. Once a stop a night.
+    /// </summary>
+    EnemyKind? SpendStop(World world, IReadOnlyList<Enemy> active, double s)
+    {
+        var st = _t.Stops;
+        if (!st.On || StopAt(world) is var key && key < 0 || world.Enemies is not { } et)
+            return null;
+        // How many by the tier and the crew in the night now (note 868).
+        var (wants, boardsWanted) = st.Split(st.Count(_route?.Tier ?? RouteTier.Frontier, Crew));
+        var (stood, waiting, boarding) = _stops.GetValueOrDefault(key);
+        _stops[key] = (stood + 1, waiting, boarding);
+        if (stood >= st.TrySeconds || waiting >= wants && boarding >= boardsWanted)
+            return null;
+        var holding = Holding(world, active);
+        if (holding.Count >= EngagedCap)
+            return null;
+        var ctx = new SpawnContext(world, et, this);
+        var options = new List<(EnemyKind Kind, double Weight)>();
+        foreach (var rule in Spawns.Rules)
+        {
+            bool boards = st.Boarders.Contains(Key(rule.Kind));
+            // The boarder gets aboard while the crew's busy with the stop, not while they're cutting the train at its points:
+            // a Whistler in the gap the shunter has to uncouple held a crew of four at frontier:12's first yard for good.
+            if (boards ? boarding >= boardsWanted || stood < st.BoardingAfterSeconds : waiting >= wants)
+                continue;
+            if (!Allows(rule.Kind) || !Tonight(rule.Kind, world) || world.Slain.Contains(rule.Kind) || !Room(rule.Kind, holding)
+                || rule.Weight(ctx) is not { } w || w <= 0)
+                continue;
+            options.Add((rule.Kind, w * _t.Weights.GetValueOrDefault(Key(rule.Kind), 1) * NightVariety(rule.Kind)));
+        }
+        double total = options.Sum(o => o.Weight);
+        if (total <= 0)
+            return null;
+        double pick = _stopRng.NextDouble() * total;
+        var kind = options[^1].Kind;
+        foreach (var o in options)
+        {
+            if (pick < o.Weight)
+            {
+                kind = o.Kind;
+                break;
+            }
+            pick -= o.Weight;
+        }
+        bool boarder = st.Boarders.Contains(Key(kind));
+        _stops[key] = (stood + 1, waiting + (boarder ? 0 : 1), boarding + (boarder ? 1 : 0));
+        _lastStop = (key, boarder);
+        HeldBecause = null;
+        _sinceAny = 0;
+        _sinceThreat = 0;
+        _quietMetres = 0;
+        if (AfootShare > 0)
+            SpawnsAfoot++;
+        var zone = Profile(kind).Zone;
+        Log.Add(new DirectorSpawn(world.Tick, kind, Cost(kind), s, active.Count(e => Engaged(e) && e.Zone == zone) + 1, active.Count(Engaged) + 1, Stop: true));
+        return kind;
+    }
+
     /// <summary>The crewmate the census would send the next threat to (note 345): the free one with the most slack, past minSlack.</summary>
     /// <remarks>
     /// Note 717: a crewmate marked for a shove that killed (<see cref="World.IsMarked"/>) is the next threat's first choice while
@@ -845,7 +1019,8 @@ public sealed class Director
     /// that a free crewmate's post answers within <see cref="OrchestratorTuning.CollisionReachM"/> of them: the free one then
     /// chooses between their own post and their friend's job. Never with nobody free in reach (that's a pile-on, not a
     /// collision). Only which kind comes, never when or how many: the caps, the gates and the pacing are the director's as
-    /// before. Free: nothing on them, not committed, not left behind (the census counts only the living).
+    /// before. Free: nothing on them, not committed, not left behind (the census counts only the living). With
+    /// <see cref="OrchestratorTuning.PairFree"/> (note 867), their partner on one pair job is free for them: they can let go.
     /// </summary>
     double Collision(List<Post> posts, IReadOnlyList<CensusEntry> entries)
     {
@@ -856,8 +1031,9 @@ public sealed class Director
         {
             bool comes = posts.Contains(busy.Post)
                 || entries.Any(x => x.Player != busy.Player && posts.Contains(x.Post) && (x.At - busy.At).Length <= o.CommittedNearM);
-            if (comes && entries.Any(f => f.Player != busy.Player && f.On == 0 && !f.Committed && f.Post != Post.LeftBehind
-                && posts.Contains(f.Post) && (f.At - busy.At).Length <= o.CollisionReachM))
+            // Free: not committed, or (note 867, pairFree) committed only to the same pair job as them: they can let go.
+            if (comes && entries.Any(f => f.Player != busy.Player && f.On == 0 && (!f.Committed || o.PairFree && f.Partner == busy.Player)
+                && f.Post != Post.LeftBehind && posts.Contains(f.Post) && (f.At - busy.At).Length <= o.CollisionReachM))
                 return o.CollisionWeight;
         }
         return 1;
@@ -1870,6 +2046,5 @@ public sealed class Director
     /// <summary>What's been spent on each want (App. B.1), for the harness's want-balance check.</summary>
     public IReadOnlyDictionary<string, double> SpentByWant => _spentByWant;
 
-    public Pcg32 Rng => _rng;
     public double NextRange(double min, double max) => _rng.Range(min, max);
 }

@@ -401,8 +401,15 @@ public sealed class TownGround
         return rects;
     }
 
-    /// <summary>The town's water as rectangles of one surface (rail frame), the basins and channels under the decks too.</summary>
-    public IReadOnlyList<(double S0, double S1, double D0, double D1, double Level)> WaterRects()
+    /// <summary>
+    /// The town's water as rectangles of one surface (rail frame), the basins and channels under the decks too. The ground never
+    /// changes, so they're worked out once: the art asks every frame, and the scan of its grid took most of the town form's frame (queue #427).
+    /// </summary>
+    public IReadOnlyList<(double S0, double S1, double D0, double D1, double Level)> WaterRects() => _waterRects ??= MakeWaterRects();
+
+    IReadOnlyList<(double S0, double S1, double D0, double D1, double Level)>? _waterRects;
+
+    IReadOnlyList<(double S0, double S1, double D0, double D1, double Level)> MakeWaterRects()
     {
         if (Flat)
             return [];

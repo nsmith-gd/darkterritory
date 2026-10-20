@@ -283,8 +283,16 @@ public static partial class Staging
             };
         }
         // A walled town's works (note 353): from the first street on their side, and from over the line looking across them.
-        if (plan.Works is { } works && where is "works" or "worksover" or "worksend")
+        if (plan.Works is { } works && (where is "works" or "worksover" or "worksend" || Art.WorksKit.Draws(where)))
         {
+            // A piece of them by its kind (note 870: the slag, the coal, the water tower), from the line side, a little
+            // up the street toward the gate, standing back as far as it is tall.
+            if (plan.Fixtures.FirstOrDefault(f => f.Kind == where && works.Holds(f.S, f.D)) is { } piece)
+            {
+                double back = Math.Max(8, piece.SolidS * 1.6 + Sim.Towns.TownFixtures.Size(where).Height);
+                return Ballast.Render.Camera.LookAt(town.World(piece.S + back * 0.45, piece.D - works.Side * back, 1.8),
+                    town.World(piece.S, piece.D, Sim.Towns.TownFixtures.Size(where).Height * 0.45), 62);
+            }
             double ws = (works.S0 + works.S1) / 2, wd = works.Side * (works.Near + works.Far) / 2;
             return where switch
             {
@@ -2074,6 +2082,28 @@ public static partial class Staging
             burnt[i] = (byte)Math.Clamp((int)(heat[i] * 18) - 3, 0, 15);
         }
         fire.RestoreHeat(heat);
+        train.Vehicles[fire.Attached].Char = burnt;
+    }
+
+    /// <summary>
+    /// Note 866 (<c>dt screenshot --threats --view fire --put-out n</c>): the staged fire's car ablaze end to end, and the
+    /// <paramref name="stretches"/> stretches of it at its rear end (toward the fire view's camera) put out, charred where they
+    /// burnt: a car the crew are working down with the extinguisher, a stretch at a time.
+    /// </summary>
+    public static void PutOut(TrainOnLine train, CarFire fire, int stretches, CarFireTuning? tuning = null)
+    {
+        if (FireGrid.Of(train, fire.Attached, (tuning ?? new CarFireTuning()).CellSize) is not { } grid)
+            return;
+        var heat = new double[grid.Count];
+        var burnt = new byte[grid.Count];
+        for (int i = 0; i < grid.Count; i++)
+        {
+            bool doused = grid.Row(i) >= grid.Along - stretches;
+            heat[i] = doused ? 0 : 0.85 + 0.03 * (i * 7 % 5);
+            burnt[i] = (byte)(doused ? 6 + i * 3 % 4 : 4);
+        }
+        fire.RestoreHeat(heat);
+        fire.Restore(SpinePhase.Punish, fire.PhaseSeconds, fire.Health, fire.Attached, fire.Local, 0, 0, 0, heat.Average(), 0);
         train.Vehicles[fire.Attached].Char = burnt;
     }
 

@@ -35,6 +35,9 @@ public class WaterArtTests
         Assert.Equal(3, GreyboxRenderer.Motion("tar_drip"));
         Assert.Equal(4, GreyboxRenderer.Motion("glow_pod"));
         Assert.Equal(0, GreyboxRenderer.Motion("shore_shingle"));
+        // A model's baked atlas never, whatever it's called: the water tower's was drawn as water (note 870).
+        Assert.Equal(0, GreyboxRenderer.Motion("water_tower_0"));
+        Assert.All(Look.Textures.Where(t => t.Family == "model"), t => Assert.Equal(0, GreyboxRenderer.Motion(t.Name)));
     }
 
     [Fact]

@@ -44,6 +44,9 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
     public int SpareLamps { get; init; }
     [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
     public int SpareExtinguishers { get; init; }
+    /// <summary>Flare pistols bought for the night (note 871), each loaded with campaign.json's <c>stores.flares.each</c>.</summary>
+    [System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingDefault)]
+    public int Flares { get; init; }
     /// <summary>
     /// The host's only: this host has never had a child's call, so tonight's first is a real child (GDD App. B.6, A.6 "the first
     /// one a host player ever meets is always real"). The app reads it from the host's profile; the Sim gets the bool.
@@ -126,9 +129,9 @@ public sealed record SessionSetup(string? Route = null, string Line = "test-loop
             DataFile.Load<CombatTuning>(Path.Combine(content, CombatTuning.File)),
             DataFile.Load<EnemyTuning>(Path.Combine(content, EnemyTuning.File)));
         loadout = Sim.Campaign.Campaign.WithSpareKits(loadout, SpareKits);
-        if (Powder > 0 || SpareLamps > 0 || SpareExtinguishers > 0)
+        if (Powder > 0 || SpareLamps > 0 || SpareExtinguishers > 0 || Flares > 0)
             loadout = Sim.Campaign.Campaign.WithStores(DataFile.Load<Sim.Campaign.CampaignTuning>(Path.Combine(content, Sim.Campaign.CampaignTuning.File)),
-                loadout, new Sim.Campaign.Stores(Powder, SpareLamps, SpareExtinguishers));
+                loadout, new Sim.Campaign.Stores(Powder, SpareLamps, SpareExtinguishers, Flares));
         return Upgrades.Count == 0 ? loadout
             : Sim.Campaign.Campaign.Apply(DataFile.Load<Sim.Campaign.CampaignTuning>(Path.Combine(content, Sim.Campaign.CampaignTuning.File)), Upgrades, loadout);
     }

@@ -55,8 +55,15 @@
     { "id": "hardBend", "kind": "bend", "minD": 0, "fullD": 0, "lengthM": [250, 600], "cost": 2, "costScale": 0, "crunch": false,
       "tags": ["pre_curve"], "params": { "deflectionDeg": [40, 90], "tangentM": [80, 200], "spurM": [8, 20], "fallM": [2, 6],
         "sDeflectionDeg": [30, 50], "sGapM": [20, 50] }, "weight": 0 },
+    // A dead settlement (§11.3): a halt (haltM) or, at townChance, a dead town (townM), straight and level; a village stop is
+    // laid at it (PlanStops). Every everyKm along the main line where a stretch has room, and (note 868, the director, 19 Oct:
+    // "I'd love more [abandoned villages] but we can't have a longer night, fewer hazards, or fewer stops") up to perNight a
+    // night in a filled stretch's straight recovery long enough (its hazards where they were), leadM into the stretch.
+    // perNight 2 (the director, 19 Oct: "Yes, turn the abandoned villages on"): 7 nights in 12 have one, 11 village stops
+    // against 1; a halt straightens a wandering recovery, so the line downstream moves, its alternates, lakes and roads with it.
     { "id": "deadSettlement", "kind": "settlement", "minD": 0, "fullD": 0, "lengthM": [300, 900], "cost": 0, "costScale": 0, "crunch": false,
-      "tags": ["dead_settlement", "landmark"], "params": { "townChance": [0.35], "haltM": [300], "townM": [400, 550], "everyKm": [1.5, 3] }, "weight": 0 }
+      "tags": ["dead_settlement", "landmark"], "params": { "townChance": [0.35], "haltM": [300], "townM": [400, 550], "everyKm": [1.5, 3],
+        "perNight": [2], "leadM": [120] }, "weight": 0 }
   ],
 
   // Plan §7.4: placed at least once a run where the tier allows. chain: pieces one after another, each inside the
