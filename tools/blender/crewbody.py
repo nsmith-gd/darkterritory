@@ -28,6 +28,9 @@ from mathutils.bvhtree import BVHTree
 
 VOXEL = 0.0035          # the union's voxel (m): the strap's 8 mm and the fingers' grooves survive it
 FRAME_FACES = 2700      # QuadriFlow's target (quads): the frame's share of the crew's (and the husk's) 9k
+HAND_VOXEL = 0.0022     # the hands' union's voxel (m): the gaps between the fingers' tips survive it
+HAND_FACES = 520        # the hands' triangles (both), out of FRAME_FACES (two to a quad, and a little to spare: QuadriFlow
+                        # comes in near its target, and the crew's whole is held under 9k, CreatureArtTests)
 
 
 # ----------------------------------------------------------------------------------------------------------------
@@ -115,8 +118,28 @@ STRAP_PATH = [(0.21, 0.11, 0.96), (0.13, 0.16, 1.13), (0.03, 0.172, 1.27), (-0.0
               (-0.147, -0.02, 1.49), (-0.122, -0.132, 1.41), (-0.02, -0.16, 1.27), (0.1, -0.155, 1.12), (0.2, -0.112, 0.97)]
 
 
+# The glove's hand (the right's; x mirrored for the left), in the T-pose: the palm's spine (x, z) and its radii (down,
+# across), the fingers (base y, splay in degrees, length) from the knuckles at FINGER_X, and the thumb's spine. The rig's
+# hand bone runs 0.72 to 0.82, its fingers from the knuckles and its fingertips (crew.py) from the middle joints.
+HAND = "hand"
+PALM = [(0.735, 1.446), (0.765, 1.445), (0.8, 1.444), (0.83, 1.443), (0.846, 1.442)]
+PALM_R = [(0.03, 0.05), (0.029, 0.057), (0.027, 0.06), (0.025, 0.058), (0.019, 0.05)]
+FINGER_X = 0.828
+FINGERS = [(0.037, 7.0, 0.1), (0.0125, 2.5, 0.11), (-0.0115, -2.5, 0.104), (-0.035, -8.0, 0.086)]
+THUMB = [(0.75, 0.035, 1.438), (0.775, 0.062, 1.433), (0.8, 0.083, 1.428), (0.822, 0.098, 1.424)]
+
+
+def finger(sx, y, angle, length):
+    """A finger's spine from the knuckles, fanned `angle` degrees off straight, its tip dropped a little (a hand at rest
+    is never quite flat)."""
+    a = math.radians(angle)
+    return [(sx * (FINGER_X + length * t * math.cos(a)), y + length * t * math.sin(a), 1.443 - 0.006 * t * t)
+            for t in (0.0, 0.4, 0.75, 1.0)]
+
+
 def blocking():
-    """[(material key, fn(bm))]: the solids the union is made of. Keys are crew.py's material globals."""
+    """[(material key, fn(bm)[, HAND])]: the solids the union is made of. Keys are crew.py's material globals; a solid
+    marked HAND is the hands', unioned and retopologised apart from the body (build)."""
     out = []
     out.append(("COAT", lambda bm: loft(bm, [superellipse(z, rx, ry, dy, sq) for z, rx, ry, dy, sq in TORSO_RINGS])))
     # The lapped front: a lapel standing proud from the collar down across the chest to the belt, a double row of the
@@ -134,17 +157,22 @@ def blocking():
         out.append(("SLEEVE", lambda bm, sx=sx: sweep(bm, [(sx * x, 0.0, 1.448) for x in xs], rs, n=22, ref=(0, 0, 1))))
         out.append(("SLEEVE", lambda bm, sx=sx: sweep(bm, [(sx * 0.672, 0, 1.448), (sx * 0.692, 0, 1.448), (sx * 0.728, 0, 1.448)],
                                                       [(0.064, 0.068), (0.068, 0.072), (0.066, 0.07)], n=22, ref=(0, 0, 1))))
-        # Gloves: the gauntlet out of the cuff, the palm (flat, facing down in the T-pose), four fingers side by side
-        # (their grooves stay in the union), the thumb forward and down.
-        out.append(("GLOVE", lambda bm, sx=sx: sweep(bm, [(sx * 0.69, 0, 1.447), (sx * 0.73, 0, 1.446), (sx * 0.755, 0, 1.445)],
-                                                     [(0.047, 0.054), (0.04, 0.05), (0.03, 0.046)], n=18, ref=(0, 0, 1))))
-        out.append(("GLOVE", lambda bm, sx=sx: ellipsoid(bm, (sx * 0.782, 0.0, 1.444), (0.044, 0.047, 0.022))))
-        for y, length in ((0.031, 0.093), (0.011, 0.1), (-0.009, 0.096), (-0.029, 0.082)):
-            out.append(("GLOVE", lambda bm, sx=sx, y=y, length=length: sweep(
-                bm, [(sx * 0.8, y, 1.443), (sx * (0.8 + length * 0.5), y, 1.443), (sx * (0.8 + length), y, 1.441)],
-                [(0.0115, 0.0105), (0.011, 0.01), (0.0095, 0.009)], n=12, ref=(0, 0, 1))))
-        out.append(("GLOVE", lambda bm, sx=sx: sweep(bm, [(sx * 0.752, 0.03, 1.438), (sx * 0.775, 0.058, 1.434), (sx * 0.797, 0.078, 1.43)],
-                                                     [(0.013, 0.014), (0.012, 0.012), (0.01, 0.0105)], n=12, ref=(0, 0, 1))))
+        # Gloves: the gauntlet out of the cuff, the palm (flat, facing down in the T-pose), four fingers fanned a little
+        # from the knuckles (apart at the tips, so they read as fingers and not a bundle), the thumb forward and down.
+        # A size up on a bare hand's, as a work glove is and as a hand has to be to read past the coat's cuffs (the
+        # director's playtest of 16 Oct: "unnervingly small"). Their own union and retopology (`HAND`, build below):
+        # the frame's quads are wider than a finger.
+        out.append(("GLOVE", lambda bm, sx=sx: sweep(bm, [(sx * 0.69, 0, 1.447), (sx * 0.725, 0, 1.446), (sx * 0.755, 0, 1.445)],
+                                                     [(0.05, 0.058), (0.044, 0.055), (0.034, 0.05)], n=18, ref=(0, 0, 1)), HAND))
+        out.append(("GLOVE", lambda bm, sx=sx: sweep(bm, [(sx * x, 0.002, z) for x, z in PALM],
+                                                     PALM_R, n=20, ref=(0, 0, 1), sq=0.75), HAND))
+        for y, angle, length in FINGERS:
+            out.append(("GLOVE", lambda bm, sx=sx, y=y, angle=angle, length=length: sweep(
+                bm, finger(sx, y, angle, length), [(0.0145, 0.0135), (0.0138, 0.0128), (0.0128, 0.0118), (0.011, 0.0102)],
+                n=12, ref=(0, 0, 1)), HAND))
+        out.append(("GLOVE", lambda bm, sx=sx: sweep(bm, [(sx * x, y, z) for x, y, z in THUMB],
+                                                     [(0.017, 0.018), (0.0155, 0.016), (0.014, 0.0145), (0.012, 0.0125)],
+                                                     n=12, ref=(0, 0, 1)), HAND))
         # Trousers, hip to boot, the knee forward.
         leg = [(sx * 0.093, 0.0, 1.0), (sx * 0.1, 0.004, 0.85), (sx * 0.104, 0.01, 0.7), (sx * 0.105, 0.016, 0.53),
                (sx * 0.105, 0.004, 0.4), (sx * 0.105, -0.006, 0.31), (sx * 0.105, -0.01, 0.26)]
@@ -298,12 +326,44 @@ def coat_shells(g):
 # ----------------------------------------------------------------------------------------------------------------
 # Weights: the rig's region functions, by position
 
+def _to_path(p, path):
+    """How far `p` is from a polyline (m)."""
+    best = 1e9
+    for a, b in zip(path, path[1:]):
+        a, b = Vector(a), Vector(b)
+        t = max(0.0, min(1.0, (p - a).dot(b - a) / (b - a).length_squared))
+        best = min(best, (p - (a + (b - a) * t)).length)
+    return best
+
+
+def hand_weights(p, tips):
+    """The glove's weights (p on the right hand, x out along the arm): the thumb by nearness to its spine, the fingers
+    past the knuckles, bending again at the middle joints (fingertips, when the rig has them) so a grip curls into a fist
+    rather than folding at one hinge; the knuckles and the joint shared, so the glove creases rather than tears."""
+    thumb = _to_path(p, [Vector(t) for t in THUMB])
+    if thumb < 0.022 and p.x < FINGER_X:
+        return {"thumb_{s}": 1.0} if thumb < 0.016 or p.x > 0.77 else {"thumb_{s}": 0.6, "hand_{s}": 0.4}
+    f = smoothstep(FINGER_X - 0.014, FINGER_X + 0.008, p.x)
+    if f <= 0.0:
+        return {"hand_{s}": 1.0}
+    t = smoothstep(FINGER_X + 0.038, FINGER_X + 0.054, p.x) if tips else 0.0
+    out = {"hand_{s}": 1.0 - f, "fingers_{s}": f * (1.0 - t), "fingertips_{s}": f * t}
+    return {k: v for k, v in out.items() if v > 0.01}
+
+
+def smoothstep(a, b, x):
+    t = max(0.0, min(1.0, (x - a) / (b - a)))
+    return t * t * (3 - 2 * t)
+
+
 def frame_weights(g):
     TORSO, ARM, LEGW, coat_weights, sided = g["TORSO"], g["ARM"], g["LEGW"], g["coat_weights"], g["sided"]
 
     def w(p):
         ax = abs(p.x)
         s = "r" if p.x >= 0 else "l"
+        if g.get("HANDS_APART") and ax > 0.735 and p.z > 1.35:
+            return {k.format(s=s): v for k, v in hand_weights(Vector((ax, p.y, p.z)), "fingertips_r" in g["sk"].rig.data.bones).items()}
         if ax > 0.745 and p.z > 1.35:
             # The glove: fingers past the knuckles, the thumb forward of the palm, the palm on the hand.
             if ax > 0.81:
@@ -363,10 +423,11 @@ def build(g, blocks=blocking, shells=coat_shells):
         return bpy.data.materials.get(m.name) or rig.make_material(m)
     g["_mat"] = mat
 
-    # 1. Blocking, each solid its own mesh for the union and for telling the faces' materials after.
+    # 1. Blocking, each solid its own mesh for the union and for telling the faces' materials after. The hands' solids
+    # (marked HAND) go into a union of their own.
     solids = []
-    bm_all = bmesh.new()
-    for key, fn in blocks():
+    bms = {False: bmesh.new(), True: bmesh.new()}
+    for key, fn, *flag in blocks():
         bm = bmesh.new()
         fn(bm)
         bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
@@ -374,7 +435,7 @@ def build(g, blocks=blocking, shells=coat_shells):
         tmp = bpy.data.meshes.new("solid")
         bm.to_mesh(tmp)
         bm.free()
-        bm_all.from_mesh(tmp)
+        bms[HAND in flag].from_mesh(tmp)
         bpy.data.meshes.remove(tmp)
 
     def key_at(p):
@@ -385,32 +446,59 @@ def build(g, blocks=blocking, shells=coat_shells):
                 best, best_d = key, hit[3]
         return best
 
+    def select(o):
+        bpy.ops.object.select_all(action="DESELECT")
+        o.select_set(True)
+        bpy.context.view_layer.objects.active = o
+
     # 2. The union, voxel-remeshed and relaxed: the high copy.
-    me = bpy.data.meshes.new("frame_high")
-    bm_all.to_mesh(me)
-    bm_all.free()
-    high = bpy.data.objects.new("frame_high", me)
-    bpy.context.scene.collection.objects.link(high)
-    bpy.ops.object.select_all(action="DESELECT")
-    high.select_set(True)
-    bpy.context.view_layer.objects.active = high
-    me.remesh_voxel_size = VOXEL
-    me.remesh_voxel_adaptivity = 0.0
-    bpy.ops.object.voxel_remesh()
-    mod = high.modifiers.new("relax", "SMOOTH")
-    mod.factor, mod.iterations = 0.5, 4
-    bpy.ops.object.modifier_apply(modifier=mod.name)
+    def union(name, bm, voxel, relax):
+        me = bpy.data.meshes.new(name)
+        bm.to_mesh(me)
+        bm.free()
+        o = bpy.data.objects.new(name, me)
+        bpy.context.scene.collection.objects.link(o)
+        select(o)
+        me.remesh_voxel_size = voxel
+        me.remesh_voxel_adaptivity = 0.0
+        bpy.ops.object.voxel_remesh()
+        mod = o.modifiers.new("relax", "SMOOTH")
+        mod.factor, mod.iterations = 0.5, relax
+        bpy.ops.object.modifier_apply(modifier=mod.name)
+        return o
+
+    has_hands = len(bms[True].verts) > 0
+    high = union("frame_high", bms[False], VOXEL, 4)
+    hands_high = union("hands_high", bms[True], HAND_VOXEL, 2) if has_hands else None
+    if not has_hands:
+        bms[True].free()
 
     # 3. The frame: QuadriFlow over a copy of it, smooth-shaded.
     frame = high.copy()
     frame.data = high.data.copy()
     frame.name = frame.data.name = "frame"
     bpy.context.scene.collection.objects.link(frame)
-    bpy.ops.object.select_all(action="DESELECT")
-    frame.select_set(True)
-    bpy.context.view_layer.objects.active = frame
-    bpy.ops.object.quadriflow_remesh(target_faces=FRAME_FACES, use_mesh_symmetry=False, use_preserve_sharp=False,
-                                     use_preserve_boundary=False, smooth_normals=False, seed=0)
+    select(frame)
+    bpy.ops.object.quadriflow_remesh(target_faces=FRAME_FACES - (HAND_FACES // 2 + 70 if has_hands else 0), use_mesh_symmetry=False,
+                                     use_preserve_sharp=False, use_preserve_boundary=False, smooth_normals=False, seed=0)
+    if has_hands:
+        # The hands: their union collapsed to HAND_FACES (a collapse keeps a finger's gaps and tips, where a quad
+        # remesh this coarse rounds them into one), joined to the frame. The gauntlets go up into the sleeves' cuffs, so
+        # the two never need to meet.
+        hands = hands_high.copy()
+        hands.data = hands_high.data.copy()
+        bpy.context.scene.collection.objects.link(hands)
+        select(hands)
+        mod = hands.modifiers.new("decimate", "DECIMATE")
+        mod.ratio = HAND_FACES / sum(len(p.vertices) - 2 for p in hands.data.polygons)
+        bpy.ops.object.modifier_apply(modifier=mod.name)
+        select(frame)
+        hands.select_set(True)
+        bpy.ops.object.join()
+        select(hands_high)
+        high.select_set(True)
+        bpy.context.view_layer.objects.active = high
+        bpy.ops.object.join()
 
     # Each face of both wears the material of the solid it's nearest.
     keys = sorted({k for k, _ in solids})
@@ -424,6 +512,7 @@ def build(g, blocks=blocking, shells=coat_shells):
             f.use_smooth = True
 
     # 4. Weights, and the coat's shells.
+    g["HANDS_APART"] = has_hands
     skin(frame, frame_weights(g), arm)
     coat = shells(g)
     skin(coat, g["coat_weights"], arm)
