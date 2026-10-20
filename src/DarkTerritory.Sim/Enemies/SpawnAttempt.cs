@@ -22,19 +22,6 @@ public enum SpawnFailure : byte
     NoSite,
 }
 
-/// <summary>The director's channel an attempt came by (note 874's <c>SpawnAttempt</c> contract).</summary>
-public enum SpawnChannel : byte
-{
-    /// <summary>The pressure's spend (App. B.1), the night's curve's fill included.</summary>
-    Pressure,
-    /// <summary>The night's curve's free spawn (note 849).</summary>
-    Free,
-    /// <summary>The stops' own (note 860).</summary>
-    Stop,
-    /// <summary>What comes on its own condition, charged as the director's: the Stoker, an insisted kind (note 186).</summary>
-    Special,
-}
-
 /// <summary>
 /// What a spawn rule's placement did (<see cref="SpawnRule.Spawn"/>): placed, with the ids of every member it put in (a pack is
 /// one encounter of several), or failed, with why.

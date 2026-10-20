@@ -375,6 +375,11 @@ public sealed partial class World
         && Train.Boiler.Firebox >= t.Stoker.HeatFirebox && !_enemies.Any(e => e.Kind == EnemyKind.Stoker && !e.Gone);
     public Route.Route? Route { get; private set; }
     public Director? Director { get; private set; }
+    /// <summary>
+    /// The encounter telemetry (the director's brief §8; note 880), host-side beside the director: it only watches (each spawn
+    /// attempt, what each spawn call put in, a sweep a second), and nothing in the Sim reads it back. Null turns it off.
+    /// </summary>
+    public EncounterLog? Encounters { get; set; }
 
     /// <summary>
     /// The night's commendations (GDD v1.4 App. D.12; note 180): one from each player in the session at run end, to anyone
@@ -462,6 +467,7 @@ public sealed partial class World
         if (!authority)
             return;
         Director = new Director(tuning.Director, route, seed, Train.Dynamics.Consist.CarCount, crew);
+        Encounters = new EncounterLog(tuning.Director.Telemetry);
         // Note 266: off unless a mod brings them back (the director's decision, 2026-10-06).
         if (route is not null && tuning.Sleepers.Enabled && Director.Allows(EnemyKind.Sleepers))
             foreach (var f in route.Of(FeatureKind.Sleepers))
@@ -2810,15 +2816,21 @@ public sealed partial class World
             // Note 327: the crew afoot off the train, watched (the pressure they draw, and a sign now and then).
             if (d.Watch(this) is { } sign)
                 Watcher = sign;
+            int mark = _nextEnemyId, logged = d.Log.Count;
             if (Insist is { } insist)
                 InsistOn(insist, t, d);
             // Its grace counts from the run's start when the yard's safe (note 263): a crew who waited half an hour at the gate
             // haven't been out in the Territory for it.
-            // Chosen, placed by its rule, then accounted only if it placed (note 885: the spawn transaction).
+            // Chosen, placed by its rule, then accounted only if it placed (note 885: the spawn transaction); told to the
+            // encounter log (note 880) as it went.
             else if (d.Choose(this, Run is { Tuning.YardIsSafe: true } r ? r.Seconds : ElapsedSeconds, _enemies, NoSpawnFinalApproach) is { } attempt)
-                d.Commit(this, attempt, Spawns.For(attempt.Kind) is { } rule
+            {
+                var outcome = d.Commit(this, attempt, Spawns.For(attempt.Kind) is { } rule
                     ? rule.Spawn(new SpawnContext(this, t, d) { Free = attempt.Free })
                     : SpawnOutcome.Failed(SpawnFailure.NoRule), _enemies);
+                Encounters?.Attempt(this, attempt.Channel, attempt.Kind, outcome.Placed, outcome.Placed ? null : outcome.Failure.ToString(), outcome.Placed, mark);
+            }
+            mark = _nextEnemyId;
             // The dark answers the draw (note 287): heard from out past the lamp, and eyes at its edge, before the threat comes.
             foreach (var (cause, actor) in d.TakeAnswers())
                 Answer = new DrawAnswer(t.Director.Draw.ShowSeconds, cause, AnswerAt(t.Director.Draw), actor);
@@ -2833,6 +2845,7 @@ public sealed partial class World
                 d.Commit(this, stoker, SpawnOutcome.Of([id]), _enemies);
                 _hotFor = 0;
             }
+            Encounters?.Came(this, SpawnChannel.Special, mark);
             // The marsh (v1.1 §22, formerly the Drift): a hazard over the line's bogs, not a spawn. Once a marsh.
             if (d.Allows(EnemyKind.Drift) && Drift.Ground(this, t.Drift) is { } marsh && marsh.Start != _driftMarsh && Train.Dynamics.Consist.CarCount >= 1
                 && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Drift) && !homeStretch)
@@ -2868,12 +2881,16 @@ public sealed partial class World
             // The house creatures (notes 583–586): what lives in the stops' open houses, put in as the train comes up to them.
             if (t.Dwellings.Enabled)
                 _dwelling.Step(this, t, d, ref _nextEnemyId, _enemies);
+            // Note 880: what the line and the houses put in themselves (the director pays nothing for it).
+            Encounters?.Came(this, SpawnChannel.World, mark);
+            mark = _nextEnemyId;
             // T128 (note 273): whoever the train's left behind has a pressure of their own, and the hunts that come of it.
             d.Abandoned(this, _enemies);
             // Note 328: a train run fast draws the hound run, the guns' wave.
             d.Runs(this, Run is { Tuning.YardIsSafe: true } rs ? rs.Seconds : ElapsedSeconds, _enemies, NoSpawnFinalApproach);
             // Note 435: a Dragger on a truss's top chord, ahead of a fast train.
             d.Drops(this, Run is { Tuning.YardIsSafe: true } rd ? rd.Seconds : ElapsedSeconds, NoSpawnFinalApproach);
+            Encounters?.Came(this, SpawnChannel.Special, mark);
         }
 
         foreach (var e in _enemies.ToList())
@@ -2907,6 +2924,13 @@ public sealed partial class World
         }
         _enemies.RemoveAll(e => e.Gone);
         EnemyEvents.AddRange(ctx.Events);
+        // Note 880: the telemetry hears each tick's grabs, and sweeps once a second after the enemies have stepped.
+        if (Encounters is { } log)
+        {
+            log.Heard(ctx.Events);
+            if (Tick % SimConstants.TickRate == 0 && !CallOnly)
+                log.Sweep(this);
+        }
         Damage.AddRange(ctx.Damage);
         _heldThisTick.Clear();
         _heldThisTick.UnionWith(ctx.Held);
@@ -2935,12 +2959,15 @@ public sealed partial class World
                 _insistGone[kind] = ElapsedSeconds;
             if (_insistGone.TryGetValue(kind, out double gone) && ElapsedSeconds - gone < InsistEvery)
                 continue;
-            // An insisted kind is a special attempt (note 885): placed by its rule, charged only if it placed.
+            // An insisted kind is a special attempt (note 885): placed by its rule, charged only if it placed (note 880's log told).
+            int mark = _nextEnemyId;
             var attempt = d.Attempt(this, kind, SpawnChannel.Special, _enemies);
             var outcome = kind == EnemyKind.Stoker
                 ? Train.BoilerTuning is not null && !Train.Boiler.Ruptured ? SpawnOutcome.Of([AddStoker(t)]) : SpawnOutcome.Failed(SpawnFailure.Gated)
                 : Spawns.For(kind) is { } rule ? rule.Spawn(new SpawnContext(this, t, d)) : SpawnOutcome.Failed(SpawnFailure.NoRule);
-            if (!d.Commit(this, attempt, outcome, _enemies).Placed)
+            d.Commit(this, attempt, outcome, _enemies);
+            Encounters?.Attempt(this, SpawnChannel.Special, kind, outcome.Placed, outcome.Placed ? null : outcome.Failure.ToString(), outcome.Placed, mark);
+            if (!outcome.Placed)
                 continue;
             _insistGone.Remove(kind);
         }

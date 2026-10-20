@@ -724,7 +724,7 @@ public sealed class Director
         }
         HeldBecause = null;
         // Chosen, not yet spent (note 885): the cooldown's drawn now, as it always was, and started only if the kind places.
-        return Attempt(world, kind, SpawnChannel.Pressure, active) with
+        return Attempt(world, kind, fill ? SpawnChannel.Fill : SpawnChannel.Pressure, active) with
         {
             Free = fill,
             Paced = fill || due && (_cooldown > 0 || Cost(kind) > available - Reserve(world, s, kind)),
@@ -1950,10 +1950,12 @@ public sealed class Director
         switch (attempt.Channel)
         {
             case SpawnChannel.Pressure:
+            case SpawnChannel.Fill:
                 Charge(world, attempt, active, outcome.Members.Count);
                 _cooldown = attempt.Cooldown;
                 break;
             case SpawnChannel.Special:
+            case SpawnChannel.World:
                 Charge(world, attempt, active, outcome.Members.Count);
                 break;
             case SpawnChannel.Free:
