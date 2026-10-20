@@ -112,6 +112,10 @@
     "aboard": { "on": true, "lungeFrom": 4, "lungeSeconds": 0.5, "lungeShort": 0.8, "retreatMetres": 3, "retreatSpeed": 2.5,
       "crouchSeconds": 2, "struckSeconds": 1, "struckSpeed": 3.5, "leaveAtRear": true, "igniteWindUpSeconds": 2,
       "fleeAfterBlows": 2 },
+    // A trial (note 915, #612's answer to note 863's pack fires: one pack left alone aboard lit 26 in a night): on, once a
+    // pack's hounds have lit `fires` fires between them, each leaves the train as it would bored (not driven off), lighting
+    // nothing more. Off until measured.
+    "sated": { "on": false, "fires": 3 },
     "boredSeconds": 6,
     // App. B.3: needs sustained speed first.
     "minTrainSpeed": 8,
@@ -1328,6 +1332,18 @@
     // The most of any kind perNight doesn't name (note 654): null, no cap. For the director's D1-roster-piles-up: with few
     // kinds about on a night (nightChance), those about come again and again (note 652); this holds each to a few.
     "perNightDefault": null,
+    // A trial (note 915, porting #590's 3-a-night cap, note 863, #1285; the director's call on it is open): on, perNightDefault
+    // stands at nightCap.perNightDefault (a kind's own perNight still wins). Off until measured and decided.
+    "nightCap": { "on": false, "perNightDefault": 3 },
+    // A pack the director sends (Cinder Hounds, Ribbits, Climbers) counts once toward its kind's cap (note 863; the spec
+    // doesn't say); false counts each of its members.
+    "packCountsOnce": true,
+    // Fresh kinds when the night's run dry (note 863, ported off in note 915; the director, 19 Oct 2026: "I don't want the
+    // night to run into a soft ending but I dont want repeats of the same monsters over and over"): when the director would
+    // send something and nothing fits, and a kind about tonight has had its cap, one kind nightChance rolled out comes in,
+    // drawn by its chance among those whose rule is met now or whose free gate is open; a chance of 0 is never brought. At most
+    // one every everySeconds, maxPerNight a night; on its own dice. A trial: off until measured with the cap.
+    "fresh": { "on": false, "everySeconds": 30, "maxPerNight": 10 },
     "nightChance": { "knotter": 0.66, "hotbox": 0.4, "brakeman": 0.6, "climbers": 0.35, "draggers": 0.65,
       "cinderHounds": 0.7, "fireFlies": 0.42, "carHugger": 0.51, "whistler": 0.65, "trackDoll": 0.22,
       "tippyToesie": 0.7, "stoker": 0.4, "followers": 0.66, "ribbits": 0.66, "gaunt": 0.21,
