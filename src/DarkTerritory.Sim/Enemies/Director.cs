@@ -194,7 +194,7 @@ public sealed class Director
         // And only with the train on the move: a generated stop keeps the run under way while the train stands to be worked.
         bool counting = elapsed >= Grace && !world.TrainInFort && !home && world.Run?.Phase is null or Run.RunPhase.Underway
             && Math.Abs(world.Train.Dynamics.Velocity) > _t.Orchestrator.DrivingAbove;
-        Posts.Count(world, active, _t.Orchestrator, _t.Abandoned.BehindM, counting);
+        Posts.Count(world, _t.Threats.On ? Threatening(world, active) : [.. active.Where(Engaged)], _t.Orchestrator, _t.Abandoned.BehindM, counting);
     }
 
     /// <summary>Seconds left of the aftermath's hold (note 751): nothing of the director's own comes while it runs.</summary>
@@ -654,6 +654,9 @@ public sealed class Director
         // train, what nobody's near doesn't (note 795).
         var holding = Holding(world, active);
         int total = holding.Count;
+        // Crowded (#604: too many about at all) is the fairness bound itself: a quiet the game means.
+        if (Crowded(active))
+            return Held("at the cap", DebtCause.Capped);
         if (total >= EngagedCap)
             return Held("at the cap", CapQuiet(world, holding));
         double available = Allowance(s) - _spent;
@@ -849,6 +852,11 @@ public sealed class Director
         if (!fires || _sinceAny < f.SpacingSeconds)
             return null;
         var holding = Holding(world, active);
+        if (Crowded(active))
+        {
+            _hold = DebtCause.Capped;
+            return null;
+        }
         if (holding.Count >= EngagedCap)
         {
             _hold = CapQuiet(world, holding);
@@ -981,7 +989,7 @@ public sealed class Director
         if (stood >= st.TrySeconds || waiting >= wants && boarding >= boardsWanted)
             return null;
         var holding = Holding(world, active);
-        if (holding.Count >= EngagedCap)
+        if (holding.Count >= EngagedCap || Crowded(active))
             return null;
         var ctx = new SpawnContext(world, et, this);
         var options = new List<(EnemyKind Kind, double Weight)>();
@@ -1606,9 +1614,12 @@ public sealed class Director
             _pairsLeft = 0;
             return;
         }
+        // The aftermath (note 751) holds the run as it holds the director's decisions (note 912): the next pair waits, and a new
+        // run's count goes on (banked, as at the cap) until the crew have had their moment.
+        bool shaken = _t.Aftermath.Specials && AftermathLeft > 0;
         if (_pairsLeft > 0)
         {
-            if (elapsed >= _nextPair)
+            if (elapsed >= _nextPair && !shaken)
                 SendPair(world, et, r);
             return;
         }
@@ -1616,11 +1627,11 @@ public sealed class Director
             return; // one run at a time: the count starts once the last runner's dealt with
         // The run is one threat to the crew's caps (note 336): with the crew already at its cap, it waits (the count banked),
         // so a crew of one never meets a run and the director's threat at once.
-        bool atCap = _t.Orchestrator.On && active.Count(Engaged) >= EngagedCap;
+        bool atCap = _t.Orchestrator.On && (_t.Threats.On ? Holding(world, active).Count >= EngagedCap || Crowded(active) : active.Count(Engaged) >= EngagedCap);
         if (speed >= r.FromSpeed)
             _runMetres += speed;
         bool hot = train.BoilerTuning is { } b && train.Boiler.Pressure > b.WorkingBandMax;
-        if (_runMetres < r.AfterMetres * (hot ? r.HotShorter : 1) || atCap)
+        if (_runMetres < r.AfterMetres * (hot ? r.HotShorter : 1) || atCap || shaken)
             return;
         int alive = Math.Max(1, world.CrewThisTick.Count(c => c.State.Alive));
         int size = Math.Clamp((int)Math.Round(r.Base + r.PerActive * alive, MidpointRounding.AwayFromZero), r.Size[0], r.Size[1]);
@@ -1733,8 +1744,11 @@ public sealed class Director
         }
         var train = world.Train;
         double front = train.Dynamics.Distance;
+        // The terminus ban is the world's one check (note 912: the line's terminus_safe stretch as well as the final approach;
+        // note 887 found the drops kept only the latter); a truss left unrolled through the aftermath is rolled for after it.
         if (elapsed < Grace || world.TrainInFort || train.Dynamics.Speed < t.FromSpeed || front > _route.RunLength - noSpawnFinal
-            || train.Dynamics.Consist.CarCount < world.Enemies!.Draggers.MinCars)
+            || world.InHomeStretch(front) || train.Dynamics.Consist.CarCount < world.Enemies!.Draggers.MinCars
+            || _t.Aftermath.Specials && AftermathLeft > 0)
             return;
         foreach (var st in plan.Structures)
         {
@@ -1807,11 +1821,31 @@ public sealed class Director
         var engaged = active.Where(Engaged).ToList();
         var train = world.Train;
         var living = world.CrewThisTick.Where(c => c.State.Alive).ToList();
+        // Note 881 (the brief §2 issue 4): the cap counts threats, not bodies. What only lies in wait, paces a car nobody's
+        // in, or was left at a stop the train's gone on from is about, not on the crew; what's at a train system is.
+        if (_t.Threats.On)
+            engaged = Threatening(world, active);
         if (_t.CapNear <= 0 || living.Count == 0 || !living.All(c => CrewSense.Afoot(c.State, train)))
             return engaged;
         var crew = living.Select(c => PlayerMotor.WorldPosition(c.State, train)).ToList();
         return [.. engaged.Where(e => e.Holding >= 0 || e.WorldPosition(train) is var at && crew.Any(p => (p - at).Length <= _t.CapNear))];
     }
+
+    /// <summary>
+    /// Note 881: what's a threat now (<see cref="Threats.Counts"/>): threatening or engaging, among what hunts the crew and is
+    /// <see cref="Engaged"/> or at someone (a lurker that's sprung).
+    /// </summary>
+    public List<Enemy> Threatening(World world, IReadOnlyList<Enemy> active)
+    {
+        var crewAt = Threats.LivingAt(world);
+        return [.. active.Where(e => Threats.Hunts(e) && (Engaged(e) || e.Holding >= 0) && Threats.Counts(Threats.Of(e, world, crewAt, _t.Threats)))];
+    }
+
+    /// <summary>
+    /// Note 881: with the cap counting threats, the bodies about (everything <see cref="Engaged"/>) are held to the cap plus
+    /// <see cref="ThreatTuning.AmbientRoom"/>, so what's pacing cars nobody's in can't pile up into a wave the crew walks into.
+    /// </summary>
+    public bool Crowded(IReadOnlyList<Enemy> active) => _t.Threats.On && active.Count(Engaged) >= EngagedCap + _t.Threats.AmbientRoom;
 
     /// <summary>
     /// App. B.1's hard caps, on what's engaged: two at a time in the flank, the interior and outside (the middle is

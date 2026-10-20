@@ -89,16 +89,17 @@ public sealed class Census
         s.Parent >= 0 && s.Parent < train.Frames.Count && Math.Abs(s.Position.X) < train.Frames[s.Parent].Shape.HalfWidth ? Post.Rider : Post.Walker;
 
     /// <summary>
-    /// One second: posts, who each engaged threat is on, and slack. <paramref name="counting"/>: out on the line (past the
+    /// One second: posts, who each threat in <paramref name="threats"/> is on (note 881: the director's threats now, see
+    /// <see cref="Director.Threatening"/>; everything <see cref="Director.Engaged"/> with <c>director.threats</c> off), and slack. <paramref name="counting"/>: out on the line (past the
     /// grace, out of the forts, short of the final approach); otherwise slack holds where it is.
     /// </summary>
-    public void Count(World world, IReadOnlyList<Enemy> active, OrchestratorTuning t, double behindM, bool counting)
+    public void Count(World world, IReadOnlyList<Enemy> threats, OrchestratorTuning t, double behindM, bool counting)
     {
         var train = world.Train;
         var crew = world.CrewThisTick.Where(c => c.State.Alive).OrderBy(c => c.Id).ToList();
         var posts = crew.Select(c => (c.Id, Post: PostOf(c.State, train, behindM), At: PlayerMotor.WorldPosition(c.State, train), c.State.Parent)).ToList();
         var on = new SortedDictionary<int, int>();
-        foreach (var e in active.Where(Director.Engaged).OrderBy(e => e.Id))
+        foreach (var e in threats.OrderBy(e => e.Id))
             if (On(e, posts, train, t) is { } who)
                 on[who] = on.GetValueOrDefault(who) + 1;
         bool anyHotBox = train.Vehicles.Any(v => v.HotBox > 0 || v.Loose > 0), anyGutter = train.Vehicles.Any(v => v.Gutter > 0);
