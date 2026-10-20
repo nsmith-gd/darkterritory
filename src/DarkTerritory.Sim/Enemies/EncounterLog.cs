@@ -53,13 +53,13 @@ public sealed class Encounter
     /// <summary>Other encounters active (some member engaged, <see cref="Director.Engaged"/>) when it came.</summary>
     public int Overlap { get; init; }
 
-    /// <summary>Measured: the first second any member was engaged (alert, or on the move), −1 for never.</summary>
+    /// <summary>Measured: the first second any member was engaged (threatening or engaging, #604's <see cref="ThreatState"/>), −1 for never.</summary>
     public double EngagedAt { get; internal set; } = -1;
     /// <summary>Measured: the first second any member confronted someone (telegraph, commit, grab, punish), −1 for never.</summary>
     public double ConfrontedAt { get; internal set; } = -1;
     /// <summary>Measured: the last second any member was engaged, −1 for never.</summary>
     public double LastEngagedAt { get; internal set; } = -1;
-    /// <summary>Measured: seconds some member was engaged; seconds every member lay dormant (alive, not engaged).</summary>
+    /// <summary>Measured: seconds some member was engaged; seconds none was (dormant, ambient: alive, not a threat).</summary>
     public double EngagedSeconds { get; internal set; }
     public double DormantSeconds { get; internal set; }
     /// <summary>Measured: grabs and punishes its members made.</summary>
@@ -74,11 +74,19 @@ public sealed class Encounter
     /// <summary>Inferred: the closest any living crewmate came to a member, metres (∞ for nobody alive to measure).</summary>
     public double NearestMetres { get; internal set; } = double.PositiveInfinity;
 
-    /// <summary>The brief §4's level (1 ambient, 2 harassment, 3 compound), 0 until #610's classifier writes it.</summary>
-    public int Severity { get; set; }
+    /// <summary>
+    /// The brief §4's level it reached (<see cref="EncounterSeverity"/>; note 893): 0 never noticed, 1 ambient presence, 2 active
+    /// harassment, 3 compound crisis.
+    /// </summary>
+    public int Severity { get; internal set; }
+    /// <summary>The first second it reached level 2 (harassing the crew or the train), and level 3 (compound); −1 for never.</summary>
+    public double HarassedAt { get; internal set; } = -1;
+    public double CompoundAt { get; internal set; } = -1;
+    /// <summary>Seconds it spent at level 1, 2 and 3 (index 1–3; index 0 the seconds about but unnoticed).</summary>
+    public int[] SecondsAt { get; } = new int[4];
 
-    /// <summary>Meaningful, until #610's severities: a member confronted someone (measured).</summary>
-    public bool Meaningful => ConfrontedAt >= 0;
+    /// <summary>Meaningful (note 893): it harassed the crew or the train, level 2 or more; level 1 is presence, not an encounter met.</summary>
+    public bool Meaningful => Severity >= 2;
 }
 
 /// <summary>A stretch of the run with no meaningful encounter going (note 880): from, to, and what held the director meanwhile.</summary>
@@ -93,9 +101,11 @@ public readonly record struct Drought(double From, double To, double Progress, s
 /// the Sim reads it back, so it can't move a night (no draws, no wire state); <c>dt harness</c>, <c>dt playthrough</c> and
 /// <c>dt director sweep</c> (#601) report it as their <c>encounters</c> block.
 /// </summary>
-public sealed class EncounterLog(TelemetryTuning t)
+public sealed class EncounterLog(TelemetryTuning t, ThreatTuning threats)
 {
     readonly TelemetryTuning _t = t;
+    readonly ThreatTuning _threats = threats;
+    double _quietFrom = -1;
     readonly Dictionary<int, Encounter> _byMember = [];
     /// <summary>The open encounters and their members' bodies, kept past their removal from the world so a kill can be told.</summary>
     readonly List<(Encounter Encounter, List<Enemy> Bodies)> _open = [];
@@ -105,7 +115,18 @@ public sealed class EncounterLog(TelemetryTuning t)
 
     public List<SpawnAttemptRecord> Attempts { get; } = [];
     public List<Encounter> Encounters { get; } = [];
+    /// <summary>Stretches of at least droughtSeconds with nothing harassing the crew (level 2+), rests and presence included.</summary>
     public List<Drought> Droughts { get; } = [];
+    /// <summary>
+    /// True droughts (the brief §6; note 893): unbroken runs of at least droughtSeconds of <see cref="QuietKind.Drought"/>, nothing
+    /// about and the director not resting. What the director is to answer; the rest is pacing.
+    /// </summary>
+    public List<Drought> TrueDroughts { get; } = [];
+    /// <summary>Seconds out on the run by what kind of second each was (<see cref="QuietKind"/>).</summary>
+    public int[] QuietSeconds { get; } = new int[4];
+    /// <summary>What the last second out was, and how long the true drought running now has gone (0 when none is).</summary>
+    public QuietKind Now { get; private set; } = QuietKind.Recovery;
+    public double DroughtNow { get; private set; }
     /// <summary>Seconds out on the run the director held, by its reason (<see cref="Director.HeldBecause"/>; "sent" when it didn't).</summary>
     public SortedDictionary<string, int> Suppressed { get; } = new(StringComparer.Ordinal);
     /// <summary>Seconds out on the run with this many encounters active at once (index 0, 1, 2, … the last bucket and over).</summary>
@@ -206,8 +227,11 @@ public sealed class EncounterLog(TelemetryTuning t)
         bool counting = world.Run is not { Phase: Run.RunPhase.Yard or Run.RunPhase.Arrived or Run.RunPhase.Failed } && !world.SafeYard;
         Advance(world);
         var train = world.Train;
-        var crew = world.CrewThisTick.Where(c => c.State.Alive).Select(c => PlayerMotor.WorldPosition(c.State, train)).ToList();
-        int active = 0;
+        var crew = Threats.LivingAt(world);
+        // Presence (level 1) is near the crew or the train: the train's vehicles stand for it.
+        var near = crew.Concat(train.Frames.Select(f => f.Origin)).ToList();
+        int active = 0, highest = 0;
+        var harassing = new List<(Encounter Encounter, Double3 At)>();
         foreach (var (enc, bodies) in _open.ToList())
         {
             var members = bodies.Where(b => !b.Gone).ToList();
@@ -218,7 +242,8 @@ public sealed class EncounterLog(TelemetryTuning t)
                 _open.Remove((enc, bodies));
                 continue;
             }
-            bool engaged = members.Any(Director.Engaged), confronting = members.Any(Director.Confronting);
+            var states = members.Select(m => Threats.Of(m, world, crew, _threats)).ToList();
+            bool engaged = states.Any(Threats.Counts), confronting = members.Any(Director.Confronting);
             if (engaged)
             {
                 active++;
@@ -231,8 +256,19 @@ public sealed class EncounterLog(TelemetryTuning t)
                 enc.DormantSeconds++;
             if (confronting && enc.ConfrontedAt < 0)
                 enc.ConfrontedAt = now;
-            if (confronting)
+            bool present = members.Any(m => m.WorldPosition(train) is var at && near.Any(p => (p - at).Length <= _t.PresenceMetres));
+            int level = EncounterSeverity.Level(states, present);
+            if (level >= 2)
+            {
+                harassing.Add((enc, members[states.FindIndex(Threats.Counts)].WorldPosition(train)));
+                if (enc.HarassedAt < 0)
+                    enc.HarassedAt = now;
                 _lastMeaningful = now;
+            }
+            else
+                enc.SecondsAt[level]++;
+            enc.Severity = Math.Max(enc.Severity, level);
+            highest = Math.Max(highest, level);
             foreach (var m in members)
             {
                 var p = m.WorldPosition(train);
@@ -245,6 +281,18 @@ public sealed class EncounterLog(TelemetryTuning t)
                 }
             }
         }
+        // Level 3: harassing while another problem harasses elsewhere (the crew has to split up, or choose).
+        var compound = EncounterSeverity.Compound([.. harassing.Select(h => h.At)], _t.CompoundApartMetres);
+        for (int i = 0; i < harassing.Count; i++)
+        {
+            var enc = harassing[i].Encounter;
+            enc.SecondsAt[compound[i] ? 3 : 2]++;
+            if (!compound[i])
+                continue;
+            enc.Severity = 3;
+            if (enc.CompoundAt < 0)
+                enc.CompoundAt = now;
+        }
         PeakActive = Math.Max(PeakActive, active);
         DebtPeak = Math.Max(DebtPeak, Debt);
         PeakBodies = Math.Max(PeakBodies, world.ActiveEnemies.Count(e => !e.Gone && Counts(e)));
@@ -254,6 +302,16 @@ public sealed class EncounterLog(TelemetryTuning t)
         Concurrent[Math.Min(active, Concurrent.Length - 1)]++;
         string held = world.Derailed ? "derailed" : world.Director?.HeldBecause ?? "sent";
         Suppressed[held] = Suppressed.GetValueOrDefault(held) + 1;
+        Now = EncounterSeverity.Classify(highest, EncounterSeverity.Resting(held, _t.RecoveryHolds));
+        QuietSeconds[(int)Now]++;
+        if (Now == QuietKind.Drought)
+        {
+            if (_quietFrom < 0)
+                _quietFrom = now - 1;
+            DroughtNow = now - _quietFrom;
+        }
+        else
+            CloseTrueDrought(now);
         // The drought clock: from the last second something confronted the crew (or the run's start), closed when something does.
         if (_lastMeaningful == now)
             CloseDrought(now);
@@ -279,7 +337,19 @@ public sealed class EncounterLog(TelemetryTuning t)
     }
 
     /// <summary>The night's over (the harness's last tick): the drought still running is closed now.</summary>
-    public void Finish(World world) => CloseDrought(Seconds(world));
+    public void Finish(World world)
+    {
+        CloseDrought(Seconds(world));
+        CloseTrueDrought(Seconds(world));
+    }
+
+    void CloseTrueDrought(double now)
+    {
+        if (_quietFrom >= 0 && now - _quietFrom >= _t.DroughtSeconds)
+            TrueDroughts.Add(new Drought(_quietFrom, now, _progress, "drought"));
+        _quietFrom = -1;
+        DroughtNow = 0;
+    }
 
     void CloseDrought(double now)
     {
@@ -341,4 +411,17 @@ public sealed class EncounterLog(TelemetryTuning t)
 /// <param name="NearMetres">A crewmate this close to a member is "near" it: the perception proxy, never "seen" (§8).</param>
 /// <param name="DroughtSeconds">A stretch out on the run this long with nothing confronting the crew is a drought (§7: 90 s).</param>
 /// <param name="TracksideMetres">Off the train, this close to a vehicle is trackside; further, afield.</param>
-public sealed record TelemetryTuning(double NearMetres = 25, double DroughtSeconds = 90, double TracksideMetres = 30);
+/// <param name="PresenceMetres">
+/// Level 1 (note 893): a creature about within this of the train or a living crewmate is present, near enough to be noticed
+/// (a proxy, never "noticed").
+/// </param>
+/// <param name="CompoundApartMetres">Level 3 (note 893): two harassing encounters at least this far apart are a compound crisis (0: any two).</param>
+public sealed record TelemetryTuning(double NearMetres = 25, double DroughtSeconds = 90, double TracksideMetres = 30,
+    double PresenceMetres = 60, double CompoundApartMetres = 15)
+{
+    /// <summary>
+    /// The director's held reasons (<see cref="Director.HeldBecause"/>, each a prefix) that are its rests, not a drought (§6;
+    /// note 893): the grace, an aftermath, the facility lull, a fort, a ban, the final stretch, the terrain at its ceiling.
+    /// </summary>
+    public string[] RecoveryHolds { get; init; } = ["grace", "aftermath", "facility lull", "in a fort", "banned", "final stretch", "terrain at its ceiling", "derailed"];
+}
