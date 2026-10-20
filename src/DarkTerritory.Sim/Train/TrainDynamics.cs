@@ -25,6 +25,11 @@ public struct TrackConditions
     /// can't push the train backwards.
     /// </summary>
     public double Drag;
+    /// <summary>
+    /// An extra push along the reverser (m/s²), as much as the rail will take: the engine's surge while a shovelful flares
+    /// (boiler.json catchShare, note 903).
+    /// </summary>
+    public double Surge;
 
     public static TrackConditions Flat => new() { GradePercent = 0, Traction = 1 };
 }
@@ -96,7 +101,7 @@ public sealed class TrainDynamics
         // resistance. So full throttle overcomes resistance and full brake includes it; resistance
         // only shows on its own when coasting, which is when it matters (GDD §23: boiler dies).
         double resistance = Tuning.Resistance.Rolling + Tuning.Resistance.Air * Velocity * Velocity;
-        double drive = reverser * throttle * (MaxTractiveForce * traction / mass + resistance);
+        double drive = reverser * (throttle * (MaxTractiveForce * traction / mass + resistance) + Math.Max(0, track.Surge) * traction);
         double brakeAccel = brake * Math.Max(MaxBrakeForce * BrakeEfficiency * traction / mass - resistance, 0) + resistance + Math.Max(0, track.Drag);
 
         double a = drive + gravityAccel;

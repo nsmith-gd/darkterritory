@@ -3913,6 +3913,9 @@ public sealed class WarmUp
     int _hoseTo = -1;
     /// <summary>The door of <see cref="_car"/> it goes in by: the rear, or the front (note 634).</summary>
     int _inDoor = RearDoor;
+    /// <summary>The side door it opened to come in off its landing (note 903): shut behind it once it's in.</summary>
+    int? _inThrough;
+    int _inThroughTicks;
 
     /// <summary>This tick's intent while getting warm; null when there's nothing to do (walk as usual).</summary>
     public PlayerIntent? Decide(in PlayerState self, TrainOnLine train)
@@ -3972,6 +3975,23 @@ public sealed class WarmUp
         // moving train's (faster than anyone catches on foot) that's a fall. But shutting up and warming are in the car whatever
         // the speed (note 633): the shunter of StopCrewTests' crew of two, cold on car 3's landing after shutting its door, stood
         // out there "warming" behind the shut door for 140 s, colder all the while, and cars 1 and 2 left open.
+        // In off the landing by a side door it had to open (below): shut behind it, once it's in, before anything else. Left
+        // open, it went on out by an end door and the car rode on with its side door open (note 903, StopCrewTests' foot-of-
+        // the-steps night: car 1's, shut by its hands at 268 s, opened at 294 s by a crewmate shut out on its landing).
+        if (_inThrough is { } behind)
+        {
+            var through = train.Frames[_car].Shape;
+            bool inside = through.Interior is { } room && self.Position.X >= room.Min.X && self.Position.X <= room.Max.X;
+            if (self.Parent != _car || self.Surface != Surface.Deck || !train.Vehicles[_car].DoorOpen(behind) || ++_inThroughTicks > ShutBehindTicks)
+                _inThrough = null;
+            else if (inside)
+            {
+                // The warm-up's own shutting up: along the aisle to the side door's inside, facing it, and shut (then warm
+                // and out again as it was going).
+                _inThrough = null;
+                return Next(Step.Shut);
+            }
+        }
         if (_step is Step.Shut or Step.Warm or Step.Reopen or Step.Out && self.Parent == _car && self.Surface == Surface.Deck
             && (_step is Step.Shut or Step.Warm || !SpeedBands.CanBeCaughtOnFoot(train.Dynamics.Tuning, train.Dynamics.Speed))
             && train.Frames[_car].Shape is { Interior: { } walls } inShape && (self.Position.X < walls.Min.X || self.Position.X > walls.Max.X))
@@ -3990,9 +4010,12 @@ public sealed class WarmUp
                 return Steer(self, new Double3(self.Position.X, 0, inZ), self.Yaw).Step;
             // Shut: open it, facing in.
             if (shut)
-                return CrewActions.Nearest(self, train) == InteractableKind.Door
-                    ? new PlayerIntent { Buttons = PlayerButtons.Use } // held: a door takes a moment's hold (interior.doorSeconds)
-                    : new PlayerIntent { LookYaw = Turn(self, facing) };
+            {
+                if (CrewActions.Nearest(self, train) != InteractableKind.Door)
+                    return new PlayerIntent { LookYaw = Turn(self, facing) };
+                (_inThrough, _inThroughTicks) = (doorway, 0);
+                return new PlayerIntent { Buttons = PlayerButtons.Use }; // held: a door takes a moment's hold (interior.doorSeconds)
+            }
             return Steer(self, new Double3(inX, 0, inZ), facing).Step;
         }
         switch (_step)
