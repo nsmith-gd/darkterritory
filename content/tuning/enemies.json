@@ -1304,10 +1304,28 @@
       // starting higher; perCar is gradual, no breakpoint at eight cars. The tier is its own factor (Local to Deep Territory).
       // The defaults are the brief's prototype. A 20-minute night's opportunities at Frontier (EncounterPacing.Night): solo
       // 2 cars 5.4, two 5 cars 6.7, four 8 cars 9.6, eight 12 cars 16.5. Not yet driving the director: #608 wires it in, and
-      // takes the pressure's own crewScale/lengthScale and the free spawns' crewFade out with it. #607's `debt` goes here.
+      // takes the pressure's own crewScale/lengthScale and the free spawns' crewFade out with it.
       "base": 0.12, "ramp": 0.33, "rampPerCrew": 0.035, "power": 1.2, "perCrew": 0.07, "perCar": 0.05, "carsFrom": 3,
       "tier": { "local": 0.8, "frontier": 1, "deadLines": 1.2, "deepTerritory": 1.4 },
-      "max": 3
+      "max": 3,
+      // Bounded encounter debt (§3 "Encounter debt"; note 876): part of the encounter rate the director wanted but couldn't
+      // place, remembered and paid back gradually, so a spell with nothing eligible doesn't erase the night's escalation.
+      // share: of each unmet opportunity, what's owed, by why it went unmet: noPlacement (a kind picked, nowhere legal to put
+      // it) and ineligible (nothing about tonight fitting here and now). Nothing else ever owes, whatever's named here: a
+      // safe zone, the grace, recovery, the terminus and full engagement caps are quiet the game means (§1.A, §6).
+      // cap: encounters owed at most. meanLifeSeconds: the debt forgets itself over this (a debt from an hour ago is no
+      // reason for a monster now). releasePerMinute: at most this many owed encounters repaid a minute, on top of the
+      // night's own rate; releaseBurst: the most the release allowance holds. While the director is held (a safe zone,
+      // the grace, recovery) the allowance empties, so a backlog comes back at the release rate after the yard, never as a
+      // burst (§3). on false: no debt, as before.
+      "debt": {
+        "on": true,
+        "share": { "noPlacement": 0.6, "ineligible": 0.4 },
+        "cap": 2,
+        "meanLifeSeconds": 240,
+        "releasePerMinute": 0.5,
+        "releaseBurst": 1
+      }
     },
     // GDD App. B.1 "Post-event cooldown" (design decision, 2026-10): the least trough after a spawn; the pressure's relief
     // makes the rest of it, and well past the threshold (pressAt) it gives way.
