@@ -1031,7 +1031,7 @@ public static partial class Staging
             crew.Add(At(33, -0.2, gallery.Max.Y, gallery.Min.Z + 0.35, 0.1));
             var seats = shape.Lounges.Where(l => l.Kind == LoungeKind.Bench).ToList();
             foreach (var (id, seat) in new[] { ((byte)34, seats.LastOrDefault(l => l.At.X > 0)), ((byte)35, seats.FirstOrDefault(l => l.At.X < 0)) })
-                crew.Add(seat.Kind == LoungeKind.Bench ? At(id, seat.At.X + Math.Sign(seat.At.X) * Art.CrewActs.BenchLean, seat.At.Y, seat.At.Z, seat.Yaw, Art.CrewPose.SitEdge)
+                crew.Add(seat.Kind == LoungeKind.Bench ? At(id, seat.At.X, seat.At.Y, seat.At.Z, seat.Yaw, Art.CrewPose.SitEdge)
                     : At(id, id == 34 ? 0.6 : -0.6, gallery.Max.Y, gallery.Min.Z + (id == 34 ? 1.6 : 2.4), -0.15));
         }
         // Off the train: one down on the ballast by the engine, one dead.

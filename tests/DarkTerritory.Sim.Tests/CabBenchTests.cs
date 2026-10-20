@@ -61,7 +61,7 @@ public class CabBenchTests
             // Against its wall, thin (a seat's depth, no more), on the gallery's floor, the gallery's length.
             Assert.Equal(side * inner, side < 0 ? bench.Min.X : bench.Max.X, 6);
             Assert.Equal(c.BenchDepth, bench.Max.X - bench.Min.X, 6);
-            Assert.InRange(c.BenchDepth, 0.25, 0.4);
+            Assert.InRange(c.BenchDepth, 0.15, 0.3);
             Assert.Equal(Plan.Gallery.Max.Y, bench.Min.Y, 6);
             Assert.True(bench.Min.Z >= Plan.Gallery.Min.Z && bench.Max.Z <= Plan.Gallery.Max.Z);
             Assert.True(bench.Max.Z - bench.Min.Z >= 2.5, "a bench the gallery's length");
@@ -71,14 +71,9 @@ public class CabBenchTests
         Assert.True(clear >= 2.0, $"{clear:0.00} m clear");
         Assert.DoesNotContain(shape.Solids, s => s.Part is PartKind.Bench or PartKind.ChartTable && s.Box.Min.Z < Plan.Gallery.Max.Z
             && s.Box.Max.Z > Plan.Gallery.Min.Z && s.Box.Min.X < 0.5 && s.Box.Max.X > -0.5);
-        // The way down the cab is clear of the chart table by a body's radius; abreast of the benches, a walker's way along
-        // the cab is in off their edge.
+        // The way down the cab is clear of the chart table and of the benches by a body's radius: nobody walking it meets a bench.
         Assert.True(Plan.Lane - P.Radius >= Plan.ChartTable.Max.X - 1e-9, "the way's clear of the table");
-        double mid = (Plan.Gallery.Min.Z + Plan.Gallery.Max.Z) / 2;
-        var way = Plan.CabWay(new Double3(0.3, 0, mid), new Double3(Plan.Benches[1].Max.X - 0.2, 0, mid + 0.6));
-        Assert.True(Math.Abs(way.X) + 0.35 <= Plan.Benches[1].Min.X + 1e-9, $"the way at {way.X:0.00} runs into the bench");
-        // A sitter's held a body's radius off the wall, on the seat.
-        Assert.True(G.RoofWidth / 2 - 0.1 - EnginePlan.SeatBack >= P.Radius - 1e-9);
+        Assert.True(Plan.Lane + P.Radius <= Plan.Benches[1].Min.X + 1e-9, "the way's clear of the bench");
     }
 
     [Fact]
@@ -226,4 +221,46 @@ public class CabBenchTests
         Assert.Equal(G.Engine.DeckHeight, s.Position.Y, 3);
         Assert.True(maxRise <= CarShape.RampRise + 1e-6, $"a rise of {maxRise:0.000} m in a tick");
     }
+
+    [Fact]
+    public void ABotWalksFromAnywhereInTheCabToAnywhereElseRoundTheTableAndPastTheBenches()
+    {
+        // Note 905: the side benches narrow the gallery's ways; every walk a bot makes in the cab (WarmUp.SteerCab) still
+        // arrives: the footplate, either side of the chart table, the gallery's middle and in front of each bench, the back
+        // wall's doorways and the corridors along the boiler.
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 3, 1)), new RailLine(new LineDefinition("t", [new TrackSegment(2000)])), 500);
+        double inner = G.RoofWidth / 2 - 0.1, mid = (Plan.Gallery.Min.Z + Plan.Gallery.Max.Z) / 2;
+        double corridor = G.Engine.BoilerHalfWidth + (inner - G.Engine.BoilerHalfWidth) / 2, door = Plan.DoorFront + G.Doorway.Width / 2;
+        var places = new List<Double3>
+        {
+            new(0, 0, PlayerMotor.CabFloorZ(train.Frames[0].Shape)), new(0.8, 0, Plan.ChartTable.Min.Z - 0.4), new(-0.52, 0, Plan.ChartTable.Min.Z - 0.4),
+            new(0, 0, mid), new(1.1, 0, door), new(-1.1, 0, door), new(corridor, 0, Plan.CabBack - 0.6), new(-corridor, 0, Plan.CabBack - 0.6),
+        };
+        foreach (int side in new[] { -1, 1 })
+            places.Add(new(side * Plan.Lane, 0, (Plan.ChartTable.Min.Z + Plan.ChartTable.Max.Z) / 2));
+        places.AddRange(Plan.Seats.Where((_, i) => i % 3 == 0).Select(Plan.SeatStand));
+        var stuck = new List<string>();
+        foreach (var start in places)
+            // (Not straight across from one of the chart table's ways to the other, abreast of it: CabWay's hemmed-in case, as
+            // it has been since note 716.)
+            foreach (var to in places.Where(p => p != start && !(Math.Abs(p.Z - start.Z) < 1e-9 && p.Z == (Plan.ChartTable.Min.Z + Plan.ChartTable.Max.Z) / 2)))
+            {
+                var s = PlayerMotor.SpawnInCab(train, P, 0);
+                s.Position = start with { Y = train.Frames[0].Shape.TopAt(start.X, start.Z, Plan.Gallery.Max.Y + 0.01)!.Value.Top };
+                for (int i = 0; i < 3 * SimConstants.TickRate; i++)
+                    PlayerMotor.Step(ref s, default, train, P, Tuning.Train, SimConstants.TickSeconds, applyLook: false);
+                bool there = false;
+                for (int i = 0; i < 20 * SimConstants.TickRate && !there; i++)
+                {
+                    var (step, arrived) = Bots.WarmUp.SteerCab(s, train, to, s.Yaw);
+                    there = arrived || (Flat(s.Position) - Flat(to)).Length < 0.2;
+                    PlayerMotor.Step(ref s, step, train, P, Tuning.Train, SimConstants.TickSeconds);
+                }
+                if (!there)
+                    stuck.Add($"({start.X:0.00},{start.Z:0.00}) -> ({to.X:0.00},{to.Z:0.00}): at ({s.Position.X:0.00},{s.Position.Z:0.00})");
+            }
+        Assert.True(stuck.Count == 0, string.Join("\n", stuck));
+    }
+
+    static Double3 Flat(Double3 v) => v with { Y = 0 };
 }

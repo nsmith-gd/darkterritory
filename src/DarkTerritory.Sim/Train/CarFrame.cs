@@ -925,11 +925,8 @@ public readonly record struct EnginePlan(double Half, double CabFront, double Ca
     /// are held (the seat's top, <see cref="SeatBack"/> off the wall) and which way they face, across the cab.
     /// </summary>
     public IReadOnlyList<Lounge> Seats { get; init; } = [];
-    /// <summary>
-    /// How far off the cab's side wall a bench's sitter is held (m): a body's radius (player.json radius 0.3), so the motor
-    /// doesn't push them off it. The art sits them back against the wall from there.
-    /// </summary>
-    public const double SeatBack = 0.3;
+    /// <summary>How far off the cab's side wall a bench's sitter is held (m): the pelvis's, sat back against it, on the perch.</summary>
+    public const double SeatBack = 0.1;
 
     /// <summary>
     /// Where a bench's sitter stands, in front of their seat on the gallery's floor (note 905): got up, they're put there, and
@@ -946,8 +943,7 @@ public readonly record struct EnginePlan(double Half, double CabFront, double Ca
     public const double StandOff = 0.35;
     /// <summary>
     /// The ways down the cab either side of the chart table (m off the centreline): a walker going between the footplate and
-    /// the back wall keeps to one (<see cref="CabWay"/>); abreast of the benches along the gallery's sides past it (note 905),
-    /// in off their edge.
+    /// the back wall keeps to one (<see cref="CabWay"/>), clear of the benches along the gallery's sides past it too (note 905).
     /// </summary>
     public double Lane { get; init; }
     /// <summary>
@@ -992,13 +988,12 @@ public readonly record struct EnginePlan(double Half, double CabFront, double Ca
             {
                 double edge = side * (inner - c.BenchDepth);
                 benches.Add(new Box(new Double3(Math.Min(edge, side * inner), rise, b0), new Double3(Math.Max(edge, side * inner), rise + c.BenchHeight, b1)));
-                // A body's radius off the wall (the motor keeps a sitter's body out of it, as anyone's), facing across the
-                // cab (yaw: 0 faces −Z, π/2 faces −X); drawn sat back against it.
+                // Sat back against the wall (the motor holds a sitter where they sit, PlayerMotor), facing across the cab
+                // (yaw: 0 faces −Z, π/2 faces −X), the knees over the seat's edge.
                 for (int k = 0; k < c.BenchSeats && b1 - c.SeatEvery * (k + 0.5) >= b0 + c.SeatEvery / 2 - 1e-9; k++)
                     seats.Add(new Lounge(LoungeKind.Bench, new Double3(side * (inner - SeatBack), rise + c.BenchHeight, b1 - c.SeatEvery * (k + 0.5)), side * Math.PI / 2));
             }
-        // Half way between the chart table's edge and the cab's side. (On the gallery a walker's way is in off the benches,
-        // CabWay's: they and the table are never abreast.)
+        // Half way between the chart table's edge and the cab's side. (The benches' edge is a body's radius past it, note 905.)
         double lane = (c.TableWidth / 2 + inner) / 2;
         var sideDoors = new List<CabSideDoor>();
         foreach (var (side, behind) in new[] { (-1, e.CoalDoorFrom), (1, e.FrontDoorFrom) })
@@ -1040,12 +1035,9 @@ public readonly record struct EnginePlan(double Half, double CabFront, double Ca
         // Its own legs, across into a way and along it, need only miss the furniture itself by a little: a walker already
         // close by a face slides along it (PlayerMotor's push out) as it goes.
         double skim = Math.Max(0.05, radius - 0.2);
-        // Abreast of a bench (note 905), the way's in off its edge, a body's breadth clear of it.
-        double laneAt = Benches.Any(b => from.Z > b.Min.Z - radius && from.Z < b.Max.Z + radius)
-            ? Math.Min(Lane, Benches.Min(b => Math.Min(Math.Abs(b.Min.X), Math.Abs(b.Max.X))) - radius) : Lane;
         foreach (double side in new[] { toSide, -toSide })
         {
-            double lane = side * laneAt;
+            double lane = side * Lane;
             // Out in the way already: along it to abreast of where it's going, then across.
             if (Math.Abs(from.X - lane) < 0.15)
             {

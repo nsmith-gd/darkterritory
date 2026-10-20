@@ -424,7 +424,7 @@ public sealed record CrewCarLayout
     public double GalleryWaist { get; init; } = 1.1;
     public double BenchFrom { get; init; } = 5.15;
     public double BenchTo { get; init; } = 8.35;
-    public double BenchDepth { get; init; } = 0.35;
+    public double BenchDepth { get; init; } = 0.175;
     public double BenchHeight { get; init; } = 0.45;
     public int BenchSeats { get; init; } = 4;
     public double SeatEvery { get; init; } = 0.7;

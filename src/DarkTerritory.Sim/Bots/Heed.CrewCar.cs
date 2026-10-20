@@ -33,9 +33,9 @@ public static partial class Heed
                 block = f;
         if (block is not { } b)
             return intent;
-        // Round the chart table by the way on its side; along a bench against a side wall (note 905), in off its edge.
+        // Round the chart table by the way on its side; along a bench against a side wall (note 905), into the way in front of it.
         double lane = Math.Abs(b.Centre.X) < 0.3 ? at.X >= b.Centre.X ? plan.Lane : -plan.Lane
-            : Math.Sign(b.Centre.X) * Math.Min(plan.Lane, Math.Min(Math.Abs(b.Min.X), Math.Abs(b.Max.X)) - r);
+            : Math.Sign(b.Centre.X) * plan.Lane;
         double ax = Math.Clamp((lane - at.X) * 3, -1, 1), az = Math.Abs(lane - at.X) < 0.1 ? wz : 0;
         return intent with
         {

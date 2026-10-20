@@ -402,9 +402,6 @@ public static class CrewActs
         return c with { Feet = frame.ToWorld(local), Yaw = yaw + frame.Heading, Local = local };
     }
 
-    /// <summary>How far back toward the wall a bench's sitter is drawn from where the sim holds them (m, note 905): the pelvis against it.</summary>
-    public const double BenchLean = 0.15;
-
     /// <summary>How far in from the edge a sitter's feet (the model's origin, under the pelvis) are drawn (m): the seat on it, the backs of
     /// the knees just over it (crew_clips' sit_edge, SIT_BACK).</summary>
     const double SitBack = 0.3;
@@ -629,10 +626,6 @@ public static class CrewActs
     {
         // C1's lounge and hammock clips (note 791) are posed from the sitter's root at the seat's own height: no lift. The hot
         // tub's bench is still the gunner's seat let down to it.
-        // On a big cab's bench (note 905): sat back against the wall behind the seat the sim holds them at, the knees over
-        // its edge (the sit's clip has them SitBack ahead of the feet).
-        if (Bbq.LoungingIn(s, train) is { Kind: LoungeKind.Bench } seat)
-            return s with { Position = s.Position with { X = s.Position.X + Math.Sign(s.Position.X) * BenchLean } };
         if (Bbq.LoungingIn(s, train)?.Kind != LoungeKind.HotTub)
             return s;
         return s with { Position = s.Position with { Y = s.Position.Y + TubPan - GunnerPan } };
