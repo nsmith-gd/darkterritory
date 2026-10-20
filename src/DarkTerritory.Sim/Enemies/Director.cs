@@ -470,6 +470,14 @@ public sealed class Director
         return null;
     }
 
+    /// <summary>
+    /// The caps full (#608, note 908): a quiet the game means only while something on them is confronting the crew (the brief
+    /// §6: "a dormant unseen creature should not indefinitely satisfy the game's encounter pacing"); full of what threatens
+    /// nobody, the night still owes, and what it can't place goes to the debt. #604's engagement states refine what holds the
+    /// caps themselves.
+    /// </summary>
+    DebtCause CapQuiet(List<Enemy> holding) => holding.Any(Confronting) ? DebtCause.Capped : DebtCause.Ineligible;
+
     /// <summary>Held for a quiet the game means (#608, note 908): the encounter clock gains nothing this second.</summary>
     SpawnAttempt? Held(string why, DebtCause quiet)
     {
@@ -644,7 +652,7 @@ public sealed class Director
         var holding = Holding(world, active);
         int total = holding.Count;
         if (total >= EngagedCap)
-            return Held("at the cap", DebtCause.Capped);
+            return Held("at the cap", CapQuiet(holding));
         double available = Allowance(s) - _spent;
         var options = new List<(EnemyKind Kind, double Weight)>();
         if (world.Enemies is { } et)
@@ -840,7 +848,7 @@ public sealed class Director
         var holding = Holding(world, active);
         if (holding.Count >= EngagedCap)
         {
-            _hold = DebtCause.Capped;
+            _hold = CapQuiet(holding);
             return null;
         }
         if (world.Enemies is not { } et)
