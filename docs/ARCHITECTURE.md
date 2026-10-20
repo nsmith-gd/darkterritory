@@ -1087,4 +1087,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [920. The stop's packing plan: castings and heavies first in whole halves, then the lights, whatever the arrival's timing (queue #630; found by…](notes/920.md)
 - [921. Bandwidth at 8 crew back under the budget (n1-N1, nathaniel1; queue #631; ARCHITECTURE §6's ≤ 64 kbit/s down per client typical, 128 peak)](notes/921.md)
 - [930. The spawn director overhaul's balance report: the brief's §7 bands scored on `dt director sweep`, old against new, and the final sweep…](notes/930.md)
+- [931. A crewmate down to cover the shunter at a pick-up's points (queue #632, n1-w7 for nathaniel1; from note 894's Unfixed)](notes/931.md)
 <!-- end of the notes index -->
