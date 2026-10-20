@@ -39,13 +39,22 @@ public sealed record SweepRow(SweepCell Cell, string End, bool Delivered, double
 {
     /// <summary>#600's `encounters` block, copied whole when the harness report has one (attempts, failures and their reasons).</summary>
     public JsonNode? Telemetry { get; init; }
+    /// <summary>From <see cref="Telemetry"/>'s attempts, every channel's together: spawns tried, placed, and charged though
+    /// nothing was placed (§2 issue 3); null with no telemetry (the old director's baseline).</summary>
+    public int? Tried { get; init; }
+    public int? Placed { get; init; }
+    public int? ChargedUnplaced { get; init; }
 }
 
 /// <summary>A route, crew and train's nights together: the means the brief's §7 table is judged by, and their spread.</summary>
 public sealed record SweepGroup(string Key, string Route, int Crew, int Cars, int Nights, double Encounters, int EncountersMin, int EncountersMax,
     double EncountersPer20Min, double Kinds, double EarlyHalf, double LateHalf, double? FirstThreat, double LongestDrought, double WorstDrought,
     double DroughtsOver90, double MaxOverlap, double OverlapShare, double Deaths, double CargoKept, double Delivered, double Minutes,
-    double Sent, double PackFires);
+    double Sent, double PackFires)
+{
+    /// <summary>Of the spawns tried, the share placed (#600's telemetry); null when no night had it.</summary>
+    public double? Placement { get; init; }
+}
 
 public sealed record SweepReport(string Commit, double Seconds, IReadOnlyList<SweepGroup> Groups, IReadOnlyList<SweepRow> Nights);
 
@@ -93,8 +102,17 @@ public static class DirectorSweep
             Sorted(t?.Director.Where(kv => kv.Key != "sent").ToDictionary() ?? []), Math.Round(wallSeconds, 1))
         {
             Telemetry = printed?["threats"]?["encounters"]?.DeepClone() ?? printed?["encounters"]?.DeepClone(),
-        };
+        } is var row && row.Telemetry?["attempts"] is JsonObject attempts
+            ? row with
+            {
+                Tried = attempts.Sum(a => Int(a.Value?["tried"])),
+                Placed = attempts.Sum(a => Int(a.Value?["placed"])),
+                ChargedUnplaced = attempts.Sum(a => Int(a.Value?["chargedUnplaced"])),
+            }
+            : row;
     }
+
+    static int Int(JsonNode? n) => n is JsonValue v && v.TryGetValue(out int i) ? i : 0;
 
     static SortedDictionary<string, int> Sorted(IDictionary<string, int> d) => new(d, StringComparer.Ordinal);
 
@@ -110,18 +128,21 @@ public static class DirectorSweep
                 M(g.Select(r => r.LongestDrought)), g.Max(r => r.LongestDrought), M(g.Select(r => (double)r.DroughtsOver90)),
                 M(g.Select(r => (double)r.MaxOverlap)), M(g.Select(r => r.Minutes > 0 ? r.OverlapSeconds / (r.Minutes * 60) : 0)),
                 M(g.Select(r => (double)r.Deaths)), M(g.Select(r => r.CargoKept)), M(g.Select(r => r.Delivered ? 1.0 : 0)), M(g.Select(r => r.Minutes)),
-                M(g.Select(r => (double)r.Sent)), M(g.Select(r => (double)r.PackFires)));
+                M(g.Select(r => (double)r.Sent)), M(g.Select(r => (double)r.PackFires)))
+            {
+                Placement = g.Sum(r => r.Tried ?? 0) is > 0 and var tried ? Math.Round((double)g.Sum(r => r.Placed ?? 0) / tried, 3) : null,
+            };
         }).OrderBy(g => Array.IndexOf(Tiers, g.Route.Split(':')[0])).ThenBy(g => g.Route, StringComparer.Ordinal).ThenBy(g => g.Crew).ThenBy(g => g.Cars)];
 
     /// <summary>The groups as a markdown table, as a note or a PR quotes them.</summary>
     public static string Table(IEnumerable<SweepGroup> groups)
     {
         var sb = new StringBuilder();
-        sb.AppendLine("| route | crew | cars | nights | encounters (min–max) | per 20 min | kinds | early / late | first (s) | drought mean / worst (s) | >90 s | overlap max / share | deaths | cargo | delivered | minutes | sent |");
-        sb.AppendLine("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|");
+        sb.AppendLine("| route | crew | cars | nights | encounters (min–max) | per 20 min | kinds | early / late | first (s) | drought mean / worst (s) | >90 s | overlap max / share | deaths | cargo | delivered | minutes | sent | placed |");
+        sb.AppendLine("|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|");
         foreach (var g in groups)
             sb.AppendLine(string.Create(CultureInfo.InvariantCulture,
-                $"| {g.Route} | {g.Crew} | {g.Cars} | {g.Nights} | {g.Encounters:0.0} ({g.EncountersMin}–{g.EncountersMax}) | {g.EncountersPer20Min:0.0} | {g.Kinds:0.0} | {g.EarlyHalf:0.0} / {g.LateHalf:0.0} | {(g.FirstThreat is { } f ? f.ToString("0", CultureInfo.InvariantCulture) : "—")} | {g.LongestDrought:0} / {g.WorstDrought:0} | {g.DroughtsOver90:0.0} | {g.MaxOverlap:0.0} / {g.OverlapShare:P0} | {g.Deaths:0.00} | {g.CargoKept:0.00} | {g.Delivered:P0} | {g.Minutes:0.0} | {g.Sent:0.0} |"));
+                $"| {g.Route} | {g.Crew} | {g.Cars} | {g.Nights} | {g.Encounters:0.0} ({g.EncountersMin}–{g.EncountersMax}) | {g.EncountersPer20Min:0.0} | {g.Kinds:0.0} | {g.EarlyHalf:0.0} / {g.LateHalf:0.0} | {(g.FirstThreat is { } f ? f.ToString("0", CultureInfo.InvariantCulture) : "—")} | {g.LongestDrought:0} / {g.WorstDrought:0} | {g.DroughtsOver90:0.0} | {g.MaxOverlap:0.0} / {g.OverlapShare:P0} | {g.Deaths:0.00} | {g.CargoKept:0.00} | {g.Delivered:P0} | {g.Minutes:0.0} | {g.Sent:0.0} | {(g.Placement is { } p ? p.ToString("P0", CultureInfo.InvariantCulture) : "—")} |"));
         return sb.ToString();
     }
 
