@@ -312,6 +312,21 @@ if (args.Contains("--crash-test"))
     throw new InvalidOperationException("--crash-test: stopped on purpose to try the crash report");
 var renderer = new GreyboxRenderer(gpu, internalSize[0], internalSize[1]) { OverlaySize = new Vector2(UiWidth, UiHeight) };
 using var rendererOwner = new Owner(() => renderer.Dispose());
+// Playtest telemetry (note 913, queue #624): this session written down, only with the player's say-so (#625 asks; until then
+// "telemetry": true in settings.json, or --telemetry). Off, nothing's recorded and no file's made. Nothing's sent (#626).
+// #625's PlaytestConsent is the gate the game will ask; until it lands, a fixed answer.
+var telemetryGate = new DarkTerritory.Game.Telemetry.FixedTelemetryGate(startSettings.Telemetry || args.Contains("--telemetry"),
+    Arg("--telemetry-dir", DarkTerritory.Game.Telemetry.FixedTelemetryGate.DefaultDirectory));
+var telemetry = DarkTerritory.Game.Telemetry.SessionRecorder.ToFile(telemetryGate);
+using var telemetryOwner = telemetry.Closer;
+bool devBuild = false;
+#if DEVTOOLS
+devBuild = true;
+#endif
+telemetry.Begin(new DarkTerritory.Game.Telemetry.SessionFacts(EditionTuning.Load(content).Name, devBuild, DarkTerritory.Game.Telemetry.SessionFacts.ThisOs,
+    gpu.DeviceName, vr is not null, startSettings.Resolution, startSettings.RenderScale, startSettings.VSync, startSettings.FieldOfView));
+if (telemetry.Enabled)
+    Console.WriteLine($"telemetry: recording this session ({telemetry.SessionId}) to {telemetryGate.SessionsDirectory}");
 if (look is not null)
 {
     look.Dress(renderer);
@@ -867,6 +882,7 @@ while (!window.CloseRequested && !QuitNow())
 }
 
 Console.WriteLine($"frames {frameCount} ({frameCount / timer.Elapsed.TotalSeconds:0} fps)");
+telemetry.Quit("app");
 return 0;
 
 // Note 450: the run's password as the settings have it: a private run's, typed; null, an open run (or none typed yet).
@@ -980,6 +996,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     var clock = new FixedStepClock(SimConstants.TickRate);
     // Note 549: the night's slow frames, to the launch log; note 691: its hitches and frames, for its performance report.
     var frameWatch = new FrameWatch();
+    // Note 913: the night, as this machine has it (the host's world, with its incident and encounter logs, on the host).
+    var telemetryWorld = net?.Host?.World ?? session.World;
+    telemetry.NightBegin(telemetryWorld, net is null ? "solo" : net.Host is not null ? "host" : "client", humans: Math.Max(1, session.World.Names.Count),
+        bots: 0, me: session.PlayerId);
 #if DEVTOOLS
     // A note (F8, F9) carries the last minute's frames (GDD §34.3).
     if (dev.Notes is { } frameNotes)
@@ -1607,6 +1627,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             pendingReverser = false;
             pendingYaw = pendingPitch = 0;
             session.Step(intent);
+            if (telemetry.Enabled && telemetryWorld.Tick % SimConstants.TickRate == 0)
+            {
+                telemetry.Link(net?.Link?.PingMs, net?.Link?.Loss);
+                telemetry.Tick(telemetryWorld, session.CrewStates(1));
+            }
 #if DEVTOOLS
             // The creature gym (note 676): a death stood up again at the safe ring, after the host's step.
             if (gym is not null && net?.Host is { } gymHost)
@@ -2081,6 +2106,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // Note 549: a frame well over the night's run, written down with what it spent and where the night was; note 691:
         // every hitch kept for the night's report, with how fast the view was turning.
         frameWatch.View(camera.Yaw, camera.Pitch);
+        telemetry.Frame(dt * 1000);
         if (frameWatch.End(timer.Elapsed.TotalSeconds, () => $"at {session.Train.Dynamics.Distance / 1000:0.00} km, {session.Train.Dynamics.Speed:0.0} m/s, {session.World.Run?.Phase.ToString() ?? "no run"}, {session.World.ActiveEnemies.Count()} enemies{Gaps()}") is { } slow)
             Console.WriteLine(slow);
     }
@@ -2099,6 +2125,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         nightNotes.Frames = null;
 #endif
 
+    // Note 913: the night written down, and if it was left before its end, how.
+    if (session.World.Run?.Over != true)
+        telemetry.Quit(net is { Kicked: true } ? "kicked" : net is { Lost: true, GoingOn: null } ? "disconnected" : window.CloseRequested ? "app" : "menu", telemetryWorld);
+    telemetry.NightEnd(telemetryWorld);
     // Note 350: a night seen to its end is one of the player's nights.
     if (session.World.Run?.Over == true)
         nightsOver = profile.CountNight().Nights;
