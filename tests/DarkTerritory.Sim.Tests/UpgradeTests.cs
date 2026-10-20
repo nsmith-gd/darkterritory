@@ -134,6 +134,25 @@ public class UpgradeTests
     }
 
     [Fact]
+    public void TheRearSearchlightIsLookOnlyAndTheClerkSaysSo()
+    {
+        // Note 899 (the director, 20 Oct: "look"): a lamp on the guard van, sold with the Frontier's tools. It changes nothing in
+        // the night but what's drawn (the van's dressing), so the clerk reads it into every tally.
+        var lamp = C.Upgrades.Single(u => u.Id == "rearSearchlight");
+        Assert.Equal(UpgradeKind.Tool, lamp.Kind);
+        Assert.Equal(RouteTier.Frontier, lamp.FromTier);
+        var lit = With("rearSearchlight");
+        Assert.True(lit.Train.Composition.Dressed("rearSearchlight"));
+        // Everything else the night reads is as it was: the loadout with the dressing taken off is the base's, to the number.
+        var bare = lit with { Train = lit.Train with { Composition = lit.Train.Composition with { Dress = Base.Train.Composition.Dress } } };
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(Base, DataFile.Options), System.Text.Json.JsonSerializer.Serialize(bare, DataFile.Options));
+        Assert.Equal(["Searchlight: lit. Pointed backwards, as ordered."], Campaign.Campaign.TallyLines(C, ["rearSearchlight"]));
+        var rich = Campaign.Campaign.New(C, 1, "t", 1) with { Scrip = 1e9 };
+        Assert.False(Campaign.Campaign.BuyUpgrade(C, rich, "rearSearchlight").Ok);
+        Assert.True(Campaign.Campaign.BuyUpgrade(C, rich with { Cars = 6 }, "rearSearchlight").Ok);
+    }
+
+    [Fact]
     public void TheClerkReadsTheSillyOnesIntoEveryTally()
     {
         var report = new Run.RunReport(Run.RunEnd.Delivered, 1000, 12, 3, 1, 2, 2450, 40, 12, 30, -350, 3, 1);
