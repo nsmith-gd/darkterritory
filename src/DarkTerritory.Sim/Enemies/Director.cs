@@ -475,6 +475,7 @@ public sealed class Director
         _cooldown -= 1;
         _sinceAny += 1;
         SentFree = false;
+        _lastStop = null;
         // The aftermath (note 751) and the facility lull (App. B.1) run down a second a decision, whatever holds it.
         bool shaken = AftermathLeft > 0;
         AftermathLeft = Math.Max(0, AftermathLeft - 1);
@@ -853,6 +854,25 @@ public sealed class Director
     /// <summary>The kinds the night's floor brought back from out tonight (note 868), in the order it did.</summary>
     public List<string> FloorBrought { get; } = [];
 
+    /// <summary>The stop and the slot (boarding or waiting) of the last of the stops' own sent, until it's placed.</summary>
+    (int Key, bool Boarder)? _lastStop;
+
+    /// <summary>
+    /// What the director just decided was placed (<paramref name="placed"/>) or not (World, after the kind's spawn). A stop's
+    /// own that placed nothing (the Ribbits with warrens at the stop but none near the crew) is taken back: off the log and
+    /// the stop's count, so the stop tries again (note 868: frontier:7's 4-bot seeds 2 and 3 spent a waiting slot on it).
+    /// </summary>
+    public void Placed(bool placed)
+    {
+        if (_lastStop is { } last && !placed && Log.Count > 0 && Log[^1].Stop)
+        {
+            Log.RemoveAt(Log.Count - 1);
+            var (stood, waiting, boarding) = _stops[last.Key];
+            _stops[last.Key] = (stood, waiting - (last.Boarder ? 0 : 1), boarding - (last.Boarder ? 1 : 0));
+        }
+        _lastStop = null;
+    }
+
     /// <summary>The stops' own dice (note 860), a stream of their own: the night's other draws are as they were with it off.</summary>
     Pcg32 _stopRng;
     /// <summary>Each stop stood at tonight (<see cref="StopAt"/>): the seconds stood there, and how many it's put in place and aboard.</summary>
@@ -935,6 +955,7 @@ public sealed class Director
         }
         bool boarder = st.Boarders.Contains(Key(kind));
         _stops[key] = (stood + 1, waiting + (boarder ? 0 : 1), boarding + (boarder ? 1 : 0));
+        _lastStop = (key, boarder);
         HeldBecause = null;
         _sinceAny = 0;
         _sinceThreat = 0;
