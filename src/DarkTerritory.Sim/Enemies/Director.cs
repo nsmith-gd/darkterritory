@@ -511,7 +511,7 @@ public sealed class Director
             return;
         // With no route, the same stand-in line as the pressure's (Build): 20 km.
         double progress = EncounterPacing.Progress(elapsed, _route?.DawnSeconds ?? 0, world.Train.Dynamics.Distance, _route?.RunLength ?? 20_000, _clock.Progress);
-        EncounterRate = EncounterPacing.Rate(progress, Math.Max(1, Active), _cars, _route?.Tier ?? RouteTier.Frontier, e);
+        EncounterRate = EncounterPacing.Rate(progress, Math.Max(1, Active), world.Train.Dynamics.Consist.CarCount, _route?.Tier ?? RouteTier.Frontier, e);
         double headroom = Math.Max(0, EngagedCap - Holding(world, active).Count);
         _clock = (_clock with { Progress = progress }).Second(EncounterRate / 60, _hold, _unmet, headroom, e);
     }
