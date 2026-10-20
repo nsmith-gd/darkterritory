@@ -216,6 +216,11 @@ frontEnd.PlaytestNotice = DarkTerritory.Game.Telemetry.PlaytestNotice.Load(conte
 frontEnd.Playtest = DarkTerritory.Game.Telemetry.PlaytestConsent.Load(
     args.Contains("--saves") ? Path.Combine(saves.Directory, "telemetry") : DarkTerritory.Game.Telemetry.PlaytestConsent.DefaultDirectory, defaultOn: playtestOnByDefault);
 crashes.Context("playtest data", frontEnd.Playtest.Recording ? "on" : "off");
+// The playtest kit (note 916): a playtest build's mark and cohort (content/ui/playtest.json), the code typed in Settings.
+frontEnd.Kit = DarkTerritory.Game.Telemetry.PlaytestKit.Load(content,
+    args.Contains("--saves") ? Path.Combine(saves.Directory, "telemetry") : DarkTerritory.Game.Telemetry.PlaytestConsent.DefaultDirectory);
+if (frontEnd.Kit.Cohort is { } cohort)
+    crashes.Context("playtest", cohort);
 if (frontEnd.Playtest.NeedsAsking(frontEnd.PlaytestNotice))
     frontEnd.Show(Screen.Consent);
 else if (frontEnd.Crash is not null)
@@ -338,9 +343,14 @@ bool devBuild = false;
 devBuild = true;
 #endif
 telemetry.Begin(new DarkTerritory.Game.Telemetry.SessionFacts(EditionTuning.Load(content).Name, devBuild, DarkTerritory.Game.Telemetry.SessionFacts.ThisOs,
-    gpu.DeviceName, vr is not null, startSettings.Resolution, startSettings.RenderScale, startSettings.VSync, startSettings.FieldOfView));
+    gpu.DeviceName, vr is not null, startSettings.Resolution, startSettings.RenderScale, startSettings.VSync, startSettings.FieldOfView, frontEnd.Kit.Cohort));
+// Note 916: the night's questions, answered or skipped, into the session.
+frontEnd.Surveyed = telemetry.Survey;
 if (telemetry.Enabled)
     Console.WriteLine($"telemetry: recording this session ({telemetry.SessionId}) to {telemetryGate.SessionsDirectory}");
+// Note 916: a crash report written in a recorded session names it (and its playtest's code), so the two are read together.
+if (telemetry.Enabled)
+    crashes.Context("playtest session", telemetry.SessionId);
 if (look is not null)
 {
     look.Dress(renderer);
@@ -893,6 +903,8 @@ while (!window.CloseRequested && !QuitNow())
         frontEnd.ShowFortress(night.Slot, howItWent);
     else
         frontEnd.NightOver();
+    // Note 916: in a playtest, a few questions about the night just recorded, before the menu it came back to.
+    frontEnd.AskSurvey(telemetry.Enabled && telemetry.LastNight > 0);
 }
 
 Console.WriteLine($"frames {frameCount} ({frameCount / timer.Elapsed.TotalSeconds:0} fps)");
