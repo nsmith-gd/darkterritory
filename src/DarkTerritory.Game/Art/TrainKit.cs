@@ -492,6 +492,7 @@ public static partial class TrainKit
         Bunker(k, shape, deck, roofLow, roofTop, w);
         RunningBoards(k, shape);
         CouplerPlates(k, shape);
+        Ramp(k, shape);
         RearEnd(k, shape, w, l, deck, boilerBack);
         return k.Build($"engine-{variant}");
     }
@@ -2589,6 +2590,34 @@ public static partial class TrainKit
         k.Rod(new Vector3(gx, max.Y, l - 0.12f), new Vector3(gx, top, l - 0.12f), 0.018f, 6);
         k.Rod(new Vector3(gx, top, l - 0.12f), new Vector3(gx, top, MathF.Min(back + 0.3f, l - 0.12f)), 0.016f, 6);
         k.BoxAt(new Vector3(gx, top + 0.02f, l - 0.12f), new Vector3(0.025f));
+    }
+
+    /// <summary>
+    /// The ramp up the engine's coupler plate from car 1's floor to its deck (note 905; the director, 16 Oct 2026: "We still
+    /// have this step from car one to the locomotive car"): one chequer-plate slope over the sim's shallow treads
+    /// (<see cref="PartKind.Ramp"/>), from the deck's edge down to the plate at car 1's end, an iron stringer down each side
+    /// of it and a worn bright nosing where it meets the deck.
+    /// </summary>
+    static void Ramp(Kit k, CarShape shape)
+    {
+        var treads = shape.Solids.Where(s => s.Part == PartKind.Ramp).Select(s => s.Box).ToList();
+        if (treads.Count == 0)
+            return;
+        float x0 = (float)treads.Min(b => b.Min.X), x1 = (float)treads.Max(b => b.Max.X);
+        float zTop = (float)treads.Min(b => b.Min.Z), yTop = (float)treads.Max(b => b.Max.Y);
+        var plate = shape.Solids.Where(s => s.Part == PartKind.Coupler).Select(s => s.Box).FirstOrDefault();
+        float zLow = (float)Math.Max(treads.Max(b => b.Max.Z), plate.Max.Z), yLow = (float)plate.Max.Y;
+        const float lift = 0.012f;
+        k.Use("iron_plate", Palette.IronGrey * 0.8f, 0.9f, 0.45f, tile: 0.25f);
+        k.Quad(new Vector3(x0, yTop + lift, zTop), new Vector3(x1, yTop + lift, zTop), new Vector3(x1, yLow + lift, zLow), new Vector3(x0, yLow + lift, zLow), twoSided: true);
+        k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f);
+        foreach (float x in new[] { x0, x1 - 0.04f })
+        {
+            k.Quad(new Vector3(x, yTop + lift, zTop), new Vector3(x, yLow + lift, zLow), new Vector3(x, yLow - 0.08f, zLow), new Vector3(x, yTop - 0.08f, zTop), twoSided: true);
+            k.Quad(new Vector3(x + 0.04f, yTop + lift, zTop), new Vector3(x + 0.04f, yLow + lift, zLow), new Vector3(x + 0.04f, yLow - 0.08f, zLow), new Vector3(x + 0.04f, yTop - 0.08f, zTop), twoSided: true);
+        }
+        k.Use("iron_plate", new Vector3(0.7f, 0.68f, 0.62f), 0.3f, 0.8f, tile: 0.25f);
+        k.Box(new Vector3(x0, yTop, zTop - 0.03f), new Vector3(x1, yTop + lift + 0.006f, zTop + 0.03f));
     }
 
     /// <summary>The plate over the coupling gap you cross on (spec B.4): an open grating, the ballast rushing under it.</summary>

@@ -216,6 +216,11 @@ frontEnd.PlaytestNotice = DarkTerritory.Game.Telemetry.PlaytestNotice.Load(conte
 frontEnd.Playtest = DarkTerritory.Game.Telemetry.PlaytestConsent.Load(
     args.Contains("--saves") ? Path.Combine(saves.Directory, "telemetry") : DarkTerritory.Game.Telemetry.PlaytestConsent.DefaultDirectory, defaultOn: playtestOnByDefault);
 crashes.Context("playtest data", frontEnd.Playtest.Recording ? "on" : "off");
+// The playtest kit (note 916): a playtest build's mark and cohort (content/ui/playtest.json), the code typed in Settings.
+frontEnd.Kit = DarkTerritory.Game.Telemetry.PlaytestKit.Load(content,
+    args.Contains("--saves") ? Path.Combine(saves.Directory, "telemetry") : DarkTerritory.Game.Telemetry.PlaytestConsent.DefaultDirectory);
+if (frontEnd.Kit.Cohort is { } cohort)
+    crashes.Context("playtest", cohort);
 if (frontEnd.Playtest.NeedsAsking(frontEnd.PlaytestNotice))
     frontEnd.Show(Screen.Consent);
 else if (frontEnd.Crash is not null)
@@ -335,6 +340,7 @@ DarkTerritory.Game.Telemetry.ITelemetryGate telemetryGate = args.Contains("--tel
 var telemetryTuning = DarkTerritory.Game.Telemetry.TelemetryTuning.Load(content);
 var telemetrySpool = new DarkTerritory.Game.Telemetry.TelemetrySpool(telemetryGate.SessionsDirectory, telemetryTuning.Spool);
 var telemetry = telemetrySpool.Recorder(telemetryGate);
+frontEnd.Telemetry = telemetry;
 using var telemetryOwner = telemetry.Closer;
 telemetrySpool.Trim(telemetry.SessionId);
 crashes.Saved += (report, path) =>
@@ -353,9 +359,14 @@ bool devBuild = false;
 devBuild = true;
 #endif
 telemetry.Begin(new DarkTerritory.Game.Telemetry.SessionFacts(EditionTuning.Load(content).Name, devBuild, DarkTerritory.Game.Telemetry.SessionFacts.ThisOs,
-    gpu.DeviceName, vr is not null, startSettings.Resolution, startSettings.RenderScale, startSettings.VSync, startSettings.FieldOfView));
+    gpu.DeviceName, vr is not null, startSettings.Resolution, startSettings.RenderScale, startSettings.VSync, startSettings.FieldOfView, frontEnd.Kit.Cohort));
+// Note 916: the night's questions, answered or skipped, into the session.
+frontEnd.Surveyed = telemetry.Survey;
 if (telemetry.Enabled)
     Console.WriteLine($"telemetry: recording this session ({telemetry.SessionId}) to {telemetryGate.SessionsDirectory}");
+// Note 916: a crash report written in a recorded session names it (and its playtest's code), so the two are read together.
+if (telemetry.Enabled)
+    crashes.Context("playtest session", telemetry.SessionId);
 if (look is not null)
 {
     look.Dress(renderer);
@@ -908,6 +919,8 @@ while (!window.CloseRequested && !QuitNow())
         frontEnd.ShowFortress(night.Slot, howItWent);
     else
         frontEnd.NightOver();
+    // Note 916: in a playtest, a few questions about the night just recorded, before the menu it came back to.
+    frontEnd.AskSurvey(telemetry.Enabled && telemetry.LastNight > 0);
 }
 
 Console.WriteLine($"frames {frameCount} ({frameCount / timer.Elapsed.TotalSeconds:0} fps)");
@@ -1115,6 +1128,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
 #endif
     frontEnd.SmithyBuy = net is { Host: not null } && campaign is not null ? id =>
     {
+        double scripBefore = campaign!.Scrip;
         var bought = Campaign.BuyUpgrade(campaignTuning, campaign!, id);
 #if DEVTOOLS
         if (devUnlock.On)
@@ -1125,6 +1139,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             campaign = bought.State;
             saves.Save(campaign);
             refitWanted = true;
+            telemetry.Purchase($"upgrade:{id}", scripBefore - campaign.Scrip, campaign.Scrip);
         }
         return bought;
     }
@@ -2137,6 +2152,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         // every hitch kept for the night's report, with how fast the view was turning.
         frameWatch.View(camera.Yaw, camera.Pitch);
         telemetry.Frame(dt * 1000);
+        // Note 913: the prompt at the crosshair, and whether it was acted on.
+        if (telemetry.Enabled)
+            telemetry.Prompting(telemetryWorld, Hud.Prompt(session), Hit(Control.Use));
         if (frameWatch.End(timer.Elapsed.TotalSeconds, () => $"at {session.Train.Dynamics.Distance / 1000:0.00} km, {session.Train.Dynamics.Speed:0.0} m/s, {session.World.Run?.Phase.ToString() ?? "no run"}, {session.World.ActiveEnemies.Count()} enemies{Gaps()}") is { } slow)
             Console.WriteLine(slow);
     }

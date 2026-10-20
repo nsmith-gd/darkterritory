@@ -12,9 +12,12 @@ public static class CrewCar
     public static Box? Table(CarShape engine) =>
         engine.Solids.Where(s => s.Part == PartKind.ChartTable).Select(s => (Box?)s.Box).FirstOrDefault();
 
-    /// <summary>The gallery's front bench (note 716), the one nearest the chart table, in the engine's frame: its top the seat's. Null without one.</summary>
+    /// <summary>
+    /// The gallery's right-hand bench (notes 716, 905), along the driver's side wall, in the engine's frame: its top the seat's,
+    /// its front end nearest the chart table. Null without one.
+    /// </summary>
     public static Box? FrontBench(CarShape engine) =>
-        engine.Solids.Where(s => s.Part == PartKind.Bench).OrderBy(s => s.Box.Min.Z).Select(s => (Box?)s.Box).FirstOrDefault();
+        engine.Solids.Where(s => s.Part == PartKind.Bench).OrderBy(s => s.Box.Min.Z).ThenByDescending(s => s.Box.Max.X).Select(s => (Box?)s.Box).FirstOrDefault();
 
     /// <summary>
     /// The chart table's lamp for a crewmate (note 716: "the navigator sees who's missing"): lit while they're alive and on the

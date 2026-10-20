@@ -773,7 +773,7 @@ public static class PlayerMotor
             {
                 if (intent.Has(PlayerButtons.Jump))
                 {
-                    Bbq.GetUp(ref s);
+                    Bbq.GetUp(ref s, train);
                     s.Flags |= PlayerFlags.GotUp;
                 }
             }
@@ -794,6 +794,13 @@ public static class PlayerMotor
             s.Velocity -= Double3.Up * (p.Gravity * dt);
         }
 
+        // Sat (note 905): the seat holds you where you sat, not the floor or the walls round it (a big cab's bench is a perch,
+        // shallower than a body, against its wall). Got up (above), you're walked and collided as anyone.
+        if (s.Has(PlayerFlags.Lounging))
+        {
+            s.Velocity = default;
+            return;
+        }
         // Integrate in the parent frame: a car parent carries the player with it for free.
         var prevWorld = ToWorld(s, train, s.Position);
         int pushedOn = s.Has(PlayerFlags.Pushing) && s.Grounded ? s.Parent : PlayerState.World;

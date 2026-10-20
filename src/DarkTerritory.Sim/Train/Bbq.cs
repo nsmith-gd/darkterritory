@@ -20,8 +20,9 @@ public static class Bbq
     public static bool Lit(Vehicle v) => v.Grill > 0;
 
     /// <summary>
-    /// A Muskoka chair (each tick, after the gun's seat), or the hammock or the hot tub (note 744): the Seat press at a free one
-    /// sits you in it, facing its way (a chair down the line); the Seat press again, or Jump (the motor), gets you up. Sat,
+    /// A Muskoka chair (each tick, after the gun's seat), or the hammock or the hot tub (note 744), or a seat on the big cab's
+    /// benches (note 905): the Seat press at a free one sits you in it, facing its way (a chair down the line, a bench across
+    /// the cab); the Seat press again, or Jump (the motor), gets you up (off a bench, onto the floor in front of it). Sat,
     /// your feet stay in it as the train runs. Someone already in it keeps it. <paramref name="others"/> are the rest of the
     /// crew as they stand.
     /// </summary>
@@ -33,7 +34,7 @@ public static class Bbq
         {
             if (seats.Count == 0 || !s.Alive || intent.Has(PlayerActions.Seat))
             {
-                GetUp(ref s);
+                GetUp(ref s, train);
                 return;
             }
             // Where they sat: the seat nearest the feet.
@@ -61,8 +62,8 @@ public static class Bbq
         s.Pitch = 0;
     }
 
-    /// <summary>Whether <paramref name="kind"/> is somewhere to sit or lie (a chair, the hammock, the hot tub).</summary>
-    public static bool IsSeat(InteractableKind kind) => kind is InteractableKind.Chair or InteractableKind.Hammock or InteractableKind.HotTub;
+    /// <summary>Whether <paramref name="kind"/> is somewhere to sit or lie (a chair, the hammock, the hot tub, a bench's seat).</summary>
+    public static bool IsSeat(InteractableKind kind) => kind is InteractableKind.Chair or InteractableKind.Hammock or InteractableKind.HotTub or InteractableKind.Bench;
 
     /// <summary>Every seat on <paramref name="vehicle"/>: its chairs (down the line) and its lounges.</summary>
     public static List<(Double3 At, double Yaw)> Seats(TrainOnLine train, int vehicle)
@@ -91,6 +92,26 @@ public static class Bbq
 
     /// <summary>Up out of the chair, where it is.</summary>
     public static void GetUp(ref PlayerState s) => s.Flags &= ~PlayerFlags.Lounging;
+
+    /// <summary>
+    /// Up out of the seat: a chair, the hammock or the tub where it is; off a bench's seat (note 905), stood on the floor in
+    /// front of it (<see cref="EnginePlan.SeatStand"/>), not on the bench.
+    /// </summary>
+    public static void GetUp(ref PlayerState s, TrainOnLine train)
+    {
+        if (LoungingIn(s, train) is { Kind: LoungeKind.Bench } seat)
+        {
+            var shape = train.Frames[s.Parent].Shape;
+            foreach (var i in shape.Interactables)
+                if (i.Kind == InteractableKind.Bench && shape.Lounges[i.Index] == seat)
+                {
+                    s.Position = i.Position;
+                    s.Velocity = default;
+                    break;
+                }
+        }
+        GetUp(ref s);
+    }
 
     /// <summary>
     /// Use held at the grill (CrewActions): out, it's lit once held <see cref="BbqTuning.LightSeconds"/> (a bag of charcoal:
