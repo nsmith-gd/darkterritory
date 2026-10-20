@@ -64,7 +64,7 @@ public class FireCauseTests
         // A hound feeding with nobody near sets its car alight (GDD App. F, 6 Oct 2026); before, with no record and no word.
         var n = new Night(4, speed: 14, enemies: HoundRunTests.Quiet);
         var hound = OnRoof(n, n.Train.Dynamics.Consist.Vehicles[^1].Id, 0);
-        n.Run(E.CinderHounds.IgniteEverySeconds + 2);
+        n.Run(E.CinderHounds.IgniteEverySeconds + E.CinderHounds.Aboard.IgniteWindUpSeconds + 1);
         // Wherever its patrol (note 472) has taken it by then.
         int car = hound.Attached;
         var fire = TheFire(n, car);
@@ -222,9 +222,10 @@ public class FireCauseTests
         Assert.Single(n.World.NewsLog, e => e.Kind == NewsKind.Fire);
         Assert.All(n.Crew.Values, s => Assert.True(s.Alive));
         // Out of the car and off the train, nobody's near it: it feeds, and lights the car again, told as its own (on boards
-        // the first fire charred it may not take; the telling's the point).
+        // the first fire charred it may not take; the telling's the point). Its clock ran out under them (note 891: it runs
+        // the whole time it's aboard, only a blow sets it back), so it's at once.
         n.Crew.Clear();
-        n.Run(E.CinderHounds.IgniteEverySeconds + 3);
+        n.Run(E.CinderHounds.Aboard.IgniteWindUpSeconds + 3);
         var relit = n.World.NewsLog.Where(e => e.Kind == NewsKind.Fire).ToList();
         Assert.Equal(2, relit.Count);
         Assert.Equal(FireCause.Hounds, (FireCause)relit[1].Cause);
