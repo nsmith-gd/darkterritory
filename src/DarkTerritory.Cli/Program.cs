@@ -56,6 +56,9 @@ return args switch
     // dt director sweep [--quick] [--routes r,...] [--crews ..] [--cars ..] [--cells 1x3,..] [--seeds 1-4] [--compare f.json]: the
     // spawn director overhaul's matrix of nights (the director's brief §8, note 888), encounters measured from the spines.
     ["director", "sweep", ..] => DirectorCommands.Sweep(args, (a, w) => RunHarness(a, (_, _, world) => w(world))),
+    // dt director report <sweep.json> [--against old.json] [--bands f.json]: a sweep scored against the brief's §7 bands
+    // (tools/director/bands.json), old against new side by side (note 930).
+    ["director", "report", var sweep, ..] => DirectorCommands.Score(sweep, args),
     // dt mcp: live control for agents (note 524): an MCP server on stdio whose tools host a night, step it, read it, insist
     // on what comes, open a recording, draw any of it framed on a subject (subject:gaunt), and run the rest of dt.
     ["mcp", ..] => McpCommands.Run(content, args, noMods),
