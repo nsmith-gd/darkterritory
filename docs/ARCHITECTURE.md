@@ -1077,4 +1077,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [906. Concurrency and overlap by crew and train length (the director's brief §1, §6; plan note 874; nathaniel1's n1-C1, queue #611)](notes/906.md)
 - [907. Playtest telemetry: the plan, split into queue items #624–#628 (the director, 20 Oct 2026: "we don't have any telemetry tracking right now…](notes/907.md)
 - [912. The director's protections made one: note 887's gaps closed (the aftermath for the director's own specials, the terminus_safe stretch for…](notes/912.md)
+- [908. One pacing model in the director: the spawn director overhaul's #608 (C3) (the director's brief, `docs/design/spawn-director-overhaul.md`…](notes/908.md)
 <!-- end of the notes index -->

@@ -1377,7 +1377,20 @@
       // out failHoldSeconds of the pressure's, the curve's and the stops' choices, so another is chosen rather than the same
       // one into the same wall. A free spawn that fired and failed stays owed for freeRetrySeconds (fires again on the next
       // seconds' choices without a new roll; the roll is still made, so the curve's dice don't move).
-      "attempts": { "failHoldSeconds": 10, "freeRetrySeconds": 20 }
+      "attempts": { "failHoldSeconds": 10, "freeRetrySeconds": 20 },
+      // One pacing model (§2 issues 1 and 2, §3; note 908): the encounter rate and the debt drive the director's channels.
+      // Each director second the night isn't held for a quiet it means (the grace, a fort, the final stretch and the line's
+      // bans, the aftermath, a facility's lull, the terrain at its ceiling, the engaged caps full), the night owes the crew
+      // λ/60 more encounters; every encounter placed by any channel (the pressure's spend and fill, the stops' own, a free
+      // spawn, the Stoker) pays one off, a pack as one, so no channel adds to another's rate. Owed past a threshold drawn
+      // about 1 (± jitter) at each payment, the free channel sends one (its spacing, the caps and each kind's night hold):
+      // the night meets λ's encounters even when the pressure's rules find nothing, and not by a roll that may never land.
+      // dueCap: the most owed at once; what λ would add past it goes to the debt (why: nothing fitting, or what was chosen
+      // finding nowhere). dueFloor: the least (a stop's several residents don't buy minutes of silence after it).
+      // pressureScale: the pressure's own rate scaled by λ's crew and car factors (1 alone on a short train, rising),
+      // instead of pressure.crewScale/lengthScale about a crew of four on eight cars (issue 1). With `on` the free spawns'
+      // curve.atGate/atEnd roll and its crewFade (issue 2) are no longer read; on false, the director as before.
+      "drive": { "on": true, "dueCap": 1.5, "dueFloor": -1, "jitter": 0.35, "pressureScale": true }
     },
     // GDD App. B.1 "Post-event cooldown" (design decision, 2026-10): the least trough after a spawn; the pressure's relief
     // makes the rest of it, and well past the threshold (pressAt) it gives way.
