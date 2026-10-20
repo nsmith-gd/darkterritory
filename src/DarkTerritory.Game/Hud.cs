@@ -2848,7 +2848,7 @@ public static partial class Hud
         // Note 723: a friend in front, empty-handed with nothing else in reach: lifted onto the shoulder with Use held.
         bool carry = world.Bodies.CarriedBy(s.PlayerId) is null && near is null && Rescue.LiftTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning.Rescue, s.PlayerTuning) is not null;
         bool shove = world.MischiefOn && Horseplay.ShoveTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning) is not null;
-        return carry && shove ? "CARRY : HOLD [E]   SHOVE : [CAPS LOCK]" : carry ? "CARRY : HOLD [E]" : shove ? "SHOVE : [CAPS LOCK]" : null;
+        return carry && shove ? "CARRY : HOLD [E]   SHOVE : [5]" : carry ? "CARRY : HOLD [E]" : shove ? "SHOVE : [5]" : null;
     }
 
     /// <summary>

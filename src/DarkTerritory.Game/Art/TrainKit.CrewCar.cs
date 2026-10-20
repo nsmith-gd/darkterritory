@@ -148,7 +148,7 @@ public static partial class TrainKit
         k.Lathe(lamp + new Vector3(0, -0.02f, 0), [new(0.19f, 0), new(0.15f, 0.07f), new(0.06f, 0.14f), new(0.025f, 0.16f)], 12, smooth: true, capTop: true);
         k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.2f);
         k.Emissive = 1;
-        k.Disc(lamp + new Vector3(0, 0.0f, 0), -Vector3.UnitY, 0.07f, 8);
+        k.Disc(lamp + new Vector3(0, 0.0f, 0), -Vector3.UnitY, 0.07f, 8, new Vector2(0.1f, 0.1f), 0.1f);
         k.Emissive = 0;
     }
 
@@ -185,7 +185,7 @@ public static partial class TrainKit
             k.Box(lamp + new Vector3(-0.1f, 0.0f, -0.1f), lamp + new Vector3(0.1f, 0.14f, 0.1f));
             k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.2f);
             k.Emissive = 1;
-            k.Disc(lamp - new Vector3(0, 0.005f, 0), -Vector3.UnitY, 0.08f, 8);
+            k.Disc(lamp - new Vector3(0, 0.005f, 0), -Vector3.UnitY, 0.08f, 8, new Vector2(0.1f, 0.1f), 0.1f);
             k.Emissive = 0;
             k.Use("rust_heavy", Palette.SootBlack, 0.8f, 0.3f);
             foreach (float a in new[] { -0.06f, 0.06f })

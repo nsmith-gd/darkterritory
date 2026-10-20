@@ -15,6 +15,9 @@ content/lines/generated*.json
 external/steam/*.dll
 external/steam/*.so
 external/steam/*.dylib
+# Epic's EOS SDK and the game's EOS credentials (external/eos/README.md, note 896)
+external/eos/*
+!external/eos/README.md
 # raw third-party art sources are fetched, not committed (intake/README.md, tools/art/fetch_sources.sh)
 intake/_sources/
 __pycache__/

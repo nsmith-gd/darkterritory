@@ -69,10 +69,9 @@ public class BodyCarryTests
 
     [Theory]
     [InlineData(BodyKind.Ragdoll)]
-    [InlineData(BodyKind.Toy)]
-    [InlineData(BodyKind.Loot)]
     [InlineData(BodyKind.Child)]
-    public void HandLootIsCarriedSlowlyAndKeepsYouOffLadders(BodyKind kind)
+    [InlineData(BodyKind.Cargo)]
+    public void TwoHandedThingsAreCarriedSlowlyAndKeepYouOffLadders(BodyKind kind)
     {
         var n = new Night();
         int a = n.Add(PlayerMotor.SpawnOnGround(n.Beside(3), n.Train.Line, 2_950, P));
@@ -82,11 +81,49 @@ public class BodyCarryTests
         n.Step(0.1);
         Assert.True(n.Crew[a].State.Has(PlayerFlags.Heavy));
         Assert.False(n.Crew[a].State.Has(PlayerFlags.SoloCarry));
-        // Running flat out: no faster than carryHeavy.
+        // Running flat out from a stand: held to carryHeavy (about half a run's pace, the start's pick-up blurring it).
+        Assert.InRange(RunFlatOut(n, a), 0.4, 0.75);
+    }
+
+    /// <summary>
+    /// Note 897 (the director, the inbox, 20 Oct 2026: "We shouldn't be slowed carrying anything unless it's a two handed
+    /// object"): a toy or a find in the hands is one-handed: full pace, and up a ladder. player.json twoHanded.only off puts
+    /// back the rule before it.
+    /// </summary>
+    [Theory]
+    [InlineData(BodyKind.Toy)]
+    [InlineData(BodyKind.Loot)]
+    public void AOneHandedFindInTheHandsDoesNotSlowYou(BodyKind kind)
+    {
+        var n = new Night();
+        int a = n.Add(PlayerMotor.SpawnOnGround(n.Beside(3), n.Train.Line, 2_950, P));
+        n.Add(PlayerMotor.SpawnInCab(n.Train, P));
+        n.World.Bodies.SpawnItem(n.Beside(3), 2_950, kind).Carrier = a;
+        n.Step(0.1);
+        Assert.False(n.Crew[a].State.Has(PlayerFlags.Heavy));
+        Assert.Equal(1, RunFlatOut(n, a), 9);
+
+        Assert.True(new TwoHandedTuning(Only: false).Slows(kind));
+        Assert.False(P.TwoHanded.Slows(kind));
+    }
+
+    /// <summary>
+    /// How fast crewmate <paramref name="a"/> covers the ground running flat out for a second (over the ground: a ground walker
+    /// keeps no velocity), as their state is over the same run with nothing in their hands (1 is unslowed).
+    /// </summary>
+    static double RunFlatOut(Night n, int a)
+    {
+        static double Run(PlayerState s, Night n)
+        {
+            var start = s.Position;
+            int ticks = (int)Math.Round(1 / SimConstants.TickSeconds);
+            for (int i = 0; i < ticks; i++)
+                PlayerMotor.Step(ref s, new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Run }, n.Train, P, Tuning.Train, SimConstants.TickSeconds);
+            var d = s.Position - start;
+            return new Double3(d.X, 0, d.Z).Length;
+        }
         var s = n.Crew[a].State;
-        for (int i = 0; i < 30; i++)
-            PlayerMotor.Step(ref s, new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Run }, n.Train, P, Tuning.Train, SimConstants.TickSeconds);
-        Assert.True(new Double3(s.Velocity.X, 0, s.Velocity.Z).Length <= P.CarryHeavy + 1e-9);
+        return Run(s, n) / Run(s with { Flags = s.Flags & ~PlayerFlags.Heavy }, n);
     }
 
     [Fact]

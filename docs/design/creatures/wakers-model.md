@@ -179,9 +179,11 @@ So the Peat Man is built stood up, not crawling as in the blockout above:
 - **His walk and his run** are blended by his speed and played at it. He walks below 12 m/s, a 24 m step every two
   seconds; at his top speed he runs, a 44 m step every 1.7 s. His feet stay where they come down. The dust they raise and
   the thuds through the train are the same footfalls.
-- **The catch.** He's on his knees over the line, bowed so his mouth is on the car he's eating, wherever `WakerLift`'s
-  ramp has it. He bites each car off a quarter at a time, four bites over the Sim's four seconds, the underframe and the
-  trucks going with the rest, and his mouth goes on down it to the next car. `WakerLift` and the Sim are unchanged.
+- **The catch** (note 902 since 20 Oct 2026; it was a ramp of lifted cars with him over them). He kneels on the line behind
+  the car he's taking, both arms reached onto it (`ReachArm`), and lifts it in his hands to his mouth, bowed onto its bitten
+  end. He bites each car off a third at a time, three bites over the Sim's four seconds, the underframe and the trucks going
+  with the rest; then his hands go down for the next car and he shuffles on after it. Only the car in his hands is off the
+  rails (`WakerLift`).
 
 ## C1's recommendation (before the choice)
 

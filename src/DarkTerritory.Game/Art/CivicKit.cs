@@ -219,7 +219,7 @@ public static class CivicKit
         {
             k.Cylinder(new Vector3(lx, 0, 0), new Vector3(lx, LampHigh, 0), 0.04f, 6);
             k.Rod(new Vector3(lx, LampHigh, 0), new Vector3(lx * 0.6f, LampHigh, 0), 0.02f);
-            k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
+            k.Use("lantern_pane", Palette.LampAmber, 0, 0, tile: 0.25f);
             k.Emissive = 1;
             k.Cylinder(new Vector3(lx * 0.6f, LampHigh - 0.25f, 0), new Vector3(lx * 0.6f, LampHigh - 0.05f, 0), 0.06f, 8, radiusB: 0.045f);
             k.Emissive = 0;
@@ -280,7 +280,7 @@ public static class CivicKit
             k.Rod(bough + new Vector3(0.2f, 0, 0), bough + new Vector3(0.2f, -2.0f, 0), 0.012f);
             Timber(k);
             k.Box(bough + new Vector3(-0.28f, -2.05f, -0.1f), bough + new Vector3(0.28f, -2.0f, 0.1f));
-            k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
+            k.Use("lantern_pane", Palette.LampAmber, 0, 0, tile: 0.25f);
             k.Emissive = 1;
             foreach (var p in ElmLamps())
                 k.Lathe(p, [new(0.035f, 0), new(0.03f, 0.06f), new(0, 0.08f)], 6);
