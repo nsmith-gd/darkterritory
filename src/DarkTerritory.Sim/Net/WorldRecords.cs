@@ -696,7 +696,8 @@ public static class WorldRecords
     /// Writes <paramref name="current"/> as a delta against <paramref name="baseline"/> (null: against nothing).
     /// Unchanged records cost nothing; changed ones send a field mask and zigzag deltas of the changed fields.
     /// </summary>
-    public static void WriteDelta(NetWriter w, IReadOnlyList<WireRecord> current, IReadOnlyList<WireRecord>? baseline)
+    /// <param name="tally">Note 921: the bytes each kind of record took, added to (null: not counted).</param>
+    public static void WriteDelta(NetWriter w, IReadOnlyList<WireRecord> current, IReadOnlyList<WireRecord>? baseline, Dictionary<RecordKind, long>? tally = null)
     {
         var old = baseline?.ToDictionary(r => r.Key) ?? new Dictionary<uint, WireRecord>();
         var keys = new HashSet<uint>(current.Select(r => r.Key));
@@ -709,6 +710,8 @@ public static class WorldRecords
         w.VarU((ulong)changed.Count);
         foreach (var r in changed)
         {
+            int at = w.Length;
+            tally?.TryAdd(r.Kind, 0);
             w.VarU(r.Key);
             bool delta = old.TryGetValue(r.Key, out var b) && b.Fields.Length == r.Fields.Length && r.Fields.Length <= 64;
             w.VarU(((ulong)r.Fields.Length << 1) | (delta ? 1ul : 0));
@@ -716,6 +719,8 @@ public static class WorldRecords
             {
                 foreach (long v in r.Fields)
                     w.VarS(v);
+                if (tally is not null)
+                    tally[r.Kind] += w.Length - at;
                 continue;
             }
             ulong mask = 0;
@@ -726,6 +731,8 @@ public static class WorldRecords
             for (int i = 0; i < r.Fields.Length; i++)
                 if ((mask & (1ul << i)) != 0)
                     w.VarS(r.Fields[i] - b.Fields[i]);
+            if (tally is not null)
+                tally[r.Kind] += w.Length - at;
         }
     }
 

@@ -418,8 +418,9 @@ public static class Messages
 
     /// <param name="queued">Inputs from this client the host still holds beyond the one it applied (note 532; at most 255).</param>
     /// <param name="flags"><see cref="SnapshotThinned"/> and any later ones (note 557).</param>
+    /// <param name="tally">Note 921: the bytes each kind of record took, added to (null: not counted).</param>
     public static void WriteSnapshot(NetWriter w, uint tick, uint ackedInput, uint baselineTick, IReadOnlyList<WireRecord> records, IReadOnlyList<WireRecord>? baseline,
-        int queued = 0, byte flags = 0)
+        int queued = 0, byte flags = 0, Dictionary<RecordKind, long>? tally = null)
     {
         w.Reset();
         w.U8((byte)MessageType.Snapshot);
@@ -428,7 +429,7 @@ public static class Messages
         w.U32(baselineTick);
         w.U8((byte)Math.Clamp(queued, 0, 255));
         w.U8(flags);
-        WorldRecords.WriteDelta(w, records, baseline);
+        WorldRecords.WriteDelta(w, records, baseline, tally);
     }
 
     /// <param name="session">What a joining machine needs to build the same world (route, cars...), opaque to the sim.</param>
