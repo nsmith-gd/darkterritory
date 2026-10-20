@@ -1394,6 +1394,28 @@ public class StopCrewTests
     }
 
     [Fact]
+    public void ACrateHandStoppedAtTheFootOfTheStepsStillShutsItsDoor()
+    {
+        // Note 859 (queue #553, found by B3 on #532): from 680 m the loading ends with car 2's side door open and a crate hand
+        // sent up to shut it. It walks to the foot of the steps, ends the walk within a quarter metre of the tread's middle
+        // (0.52 m out from the car, past ShutUp's 0.5 window), and there it stood with no step to take: the door open, the
+        // stop waiting out its 300 s give-up (the train left at 751 s). Shut, they leave at 419 s with every door shut.
+        var night = new Night(cars: 8, walkers: 3, crateHands: true, ids: true, from: 680, modules: ModuleKind.Crates);
+        var train = night.Train;
+        var run = night.World.Run!;
+        double at = 0;
+        var open = new List<int>();
+        night.Until(() => run.Departures > 0, 1500, () =>
+        {
+            at += 1.0 / SimConstants.TickRate;
+            open = [.. OpenSideDoors(train, night.Site.Side)];
+        });
+        Assert.True(run.Departures > 0, "never left");
+        Assert.True(at < 500, $"left at {at:F0} s, the door left open ({string.Join(",", open)}) for the give-up");
+        Assert.Empty(open);
+    }
+
+    [Fact]
     public void WithTheSitesCratesInTheHandsFetchTheRestOfTheYardsOnFoot()
     {
         // Note 403 (GDD App. F.3 "work the yard together"; queue #89's loot on every siding): the crates by the site's own

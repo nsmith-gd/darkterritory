@@ -3527,7 +3527,9 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
             return GetDown(self, train, side);
         var local = frame.ToLocal(PlayerMotor.WorldPosition(self, train));
         double outward = side * local.X - w;
-        if (outward > 0.1 && outward < layout.StepWidth - 0.1 && local.Z > -sd - 4 * layout.StepDepth - 1.2 && local.Z < -sd - 0.3)
+        // (Out to the step's whole width: the walk to the foot ends within a quarter metre of the tread's middle, which is past
+        // a tread's width less 0.1. A hand that stopped there stood still for good, the door open: note 873.)
+        if (outward > 0.1 && outward < layout.StepWidth && local.Z > -sd - 4 * layout.StepDepth - 1.2 && local.Z < -sd - 0.3)
             return Head(self, frame.ToWorld(landing with { Y = 0, Z = local.Z + 1.5 }), "shutting up");
         Doing = "shutting up";
         return WalkTo(self, train.Line, p.Spur.Index, frame.ToWorld(landing with { Y = 0, Z = -sd - 4 * layout.StepDepth - 0.4 }), null).Step;
