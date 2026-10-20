@@ -7,13 +7,16 @@ namespace DarkTerritory.Sim.Enemies;
 /// </summary>
 /// <param name="Attempts">The director's spawn attempts by channel: tried, placed, and charged with nothing placed (issue 3).</param>
 /// <param name="Failures">Failed attempts by reason.</param>
-/// <param name="Count">Encounters, every channel; <paramref name="Meaningful"/> those where a member confronted someone.</param>
+/// <param name="Count">Encounters, every channel; <paramref name="Meaningful"/> those that harassed the crew or the train (level 2+, note 893).</param>
 /// <param name="Bodies">Creatures put in, the packs' every member.</param>
 /// <param name="ByQuarter">Encounters, then meaningful ones, in each quarter of the run's progress (§7: the latter half busier).</param>
-/// <param name="FirstSeconds">The first encounter's and the first meaningful one's run seconds (−1 for none).</param>
+/// <param name="FirstSeconds">The first encounter's run seconds, the first second one harassed the crew, and the first compound one (−1 for none).</param>
 /// <param name="Droughts">Stretches out on the run of at least the tuning's droughtSeconds with nothing confronting the crew.</param>
 /// <param name="Concurrent">Seconds out on the run with 0, 1, 2, 3 and 4+ encounters active at once.</param>
 /// <param name="Suppressed">Seconds out on the run the director held, by its reason ("sent" the seconds it didn't).</param>
+/// <param name="Severity">Encounters by the highest level each reached (note 893: 0 unnoticed, 1 presence, 2 harassment, 3 compound).</param>
+/// <param name="Quiet">Seconds out on the run by what each was (§6): sustained danger, the director's rest, presence, a true drought.</param>
+/// <param name="TrueDroughts">Unbroken true droughts of at least droughtSeconds: what the director is to answer.</param>
 public sealed record EncounterReport(
     IReadOnlyDictionary<string, ChannelAttempts> Attempts,
     IReadOnlyDictionary<string, int> Failures,
@@ -29,6 +32,8 @@ public sealed record EncounterReport(
     int[] Concurrent, int PeakActive, int PeakBodies,
     IReadOnlyDictionary<string, int> Suppressed,
     IReadOnlyDictionary<string, int> Severity,
+    IReadOnlyDictionary<string, int> Quiet,
+    IReadOnlyList<DroughtReport> TrueDroughts, double LongestTrueDrought,
     double DebtPeak,
     InferredReport Inferred,
     IReadOnlyList<EncounterLine> List)
@@ -63,7 +68,8 @@ public sealed record EncounterReport(
             Tally(all.Select(e => e.Where)),
             Tally(all.Where(e => e.Part != "").Select(e => e.Part)),
             quarters,
-            [all.Count > 0 ? R(all[0].Seconds) : -1, meaningful.Count > 0 ? R(meaningful.Min(e => e.ConfrontedAt)) : -1],
+            [all.Count > 0 ? R(all[0].Seconds) : -1, meaningful.Count > 0 ? R(meaningful.Min(e => e.HarassedAt)) : -1,
+                all.Where(e => e.CompoundAt >= 0).Select(e => R(e.CompoundAt)).DefaultIfEmpty(-1).Min()],
             new EncounterEnds(all.Count(e => e.EndedAt >= 0 && e.End == EncounterEnd.Killed), all.Count(e => e.EndedAt >= 0 && e.End == EncounterEnd.Gone),
                 all.Count(e => e.EndedAt < 0), R(all.Sum(e => e.EngagedSeconds)), R(all.Sum(e => e.DormantSeconds)),
                 all.Sum(e => e.Grabs), all.Sum(e => e.Punishes)),
@@ -72,13 +78,16 @@ public sealed record EncounterReport(
             [.. log.Concurrent], log.PeakActive, log.PeakBodies,
             new SortedDictionary<string, int>(log.Suppressed, StringComparer.Ordinal),
             Tally(all.Select(e => e.Severity.ToString(System.Globalization.CultureInfo.InvariantCulture))),
+            new SortedDictionary<string, int>(Enum.GetValues<QuietKind>().ToDictionary(q => q.ToString().ToLowerInvariant(), q => log.QuietSeconds[(int)q]), StringComparer.Ordinal),
+            [.. log.TrueDroughts.Select(d => new DroughtReport(R(d.From), R(d.To), R(d.Seconds), Math.Round(d.Progress, 2), d.Held))],
+            R(log.TrueDroughts.Select(d => d.Seconds).DefaultIfEmpty(0).Max()),
             Math.Round(log.DebtPeak, 2),
             new InferredReport(log.Tuning.NearMetres, all.Count(e => e.NearAt >= 0),
                 all.Where(e => !double.IsInfinity(e.NearestMetres)).Select(e => e.NearestMetres).DefaultIfEmpty(-1).Average() is var m && m >= 0 ? R(m) : -1),
             [.. all.Select(e => new EncounterLine(e.Index, e.Kind.ToString(), Name(e.Channel), e.Members.Count, e.Where, e.Vehicle, e.Part, e.Afoot,
                 R(e.Seconds), Math.Round(e.Progress, 2), e.Crew, e.Cars, e.Overlap, R(e.EngagedAt), R(e.ConfrontedAt), R(e.EndedAt),
-                e.EndedAt < 0 ? "about" : e.End.ToString().ToLowerInvariant(), e.Severity, R(e.NearAt),
-                double.IsInfinity(e.NearestMetres) ? -1 : R(e.NearestMetres)))]);
+                e.EndedAt < 0 ? "about" : e.End.ToString().ToLowerInvariant(), e.Severity, R(e.HarassedAt), R(e.CompoundAt), [.. e.SecondsAt],
+                R(e.NearAt), double.IsInfinity(e.NearestMetres) ? -1 : R(e.NearestMetres)))]);
     }
 
     static string Name(SpawnChannel c) => c.ToString().ToLowerInvariant();
@@ -99,4 +108,4 @@ public sealed record InferredReport(double NearMetres, int Near, double MeanNear
 /// <summary>One encounter, for the sweep and for reading a night through: seconds are the run's, −1 for never.</summary>
 public sealed record EncounterLine(int Index, string Kind, string Channel, int Members, string Where, int Vehicle, string Part, bool Afoot,
     double Seconds, double Progress, int Crew, int Cars, int Overlap, double EngagedAt, double ConfrontedAt, double EndedAt, string End,
-    int Severity, double NearAt, double NearestMetres);
+    int Severity, double HarassedAt, double CompoundAt, int[] SecondsAt, double NearAt, double NearestMetres);

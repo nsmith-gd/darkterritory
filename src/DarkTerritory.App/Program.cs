@@ -207,7 +207,18 @@ crashes.Live = () =>
     new ReportField("doing", playing is null ? $"{doing}: {frontEnd.Screen}" : doing),
     .. playing is { } night ? [new ReportField("night", ReportFields.Night(night))] : (ReportField[])[],
 ];
-if (frontEnd.Crash is not null)
+// Playtest data (note 914): asked once, before anything's recorded; a developer build's is on unless the director says no.
+bool playtestOnByDefault = false;
+#if DEVTOOLS
+playtestOnByDefault = true;
+#endif
+frontEnd.PlaytestNotice = DarkTerritory.Game.Telemetry.PlaytestNotice.Load(content);
+frontEnd.Playtest = DarkTerritory.Game.Telemetry.PlaytestConsent.Load(
+    args.Contains("--saves") ? Path.Combine(saves.Directory, "telemetry") : DarkTerritory.Game.Telemetry.PlaytestConsent.DefaultDirectory, defaultOn: playtestOnByDefault);
+crashes.Context("playtest data", frontEnd.Playtest.Recording ? "on" : "off");
+if (frontEnd.Playtest.NeedsAsking(frontEnd.PlaytestNotice))
+    frontEnd.Show(Screen.Consent);
+else if (frontEnd.Crash is not null)
     frontEnd.Show(Screen.Crashed);
 
 // A night named on the command line starts straight away; otherwise it's the front end's choice.
@@ -1584,8 +1595,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 Voice = (byte)Math.Clamp(voiceLevel * 255, 0, 255),
                 // Note 664: crouch and pushing the gun along, each its own key, held (a headset rider crouches for real).
                 Moves = (Held(Control.Crouch) ? PlayerMoves.Crouch : 0) | (Held(Control.Push) ? PlayerMoves.Push : 0)
-                    // Note 717: the shove (the host acts on the press).
-                    | (Held(Control.Shove) ? PlayerMoves.Shove : 0)
+                    // Note 717: the shove (the host acts on the press). Note 898: on 5, so not with the roster out, whose
+                    // numbers mute the crew (as the hotbar's don't pick a slot then).
+                    | (Held(Control.Shove) && !(net is not null && Held(Control.Roster)) ? PlayerMoves.Shove : 0)
                     // Note 739: the ping is the push's button, made on the press away from a gun (the host's to tell).
                     | (Held(Control.Push) ? PlayerMoves.Ping : 0),
                 Select = pendingSelect,

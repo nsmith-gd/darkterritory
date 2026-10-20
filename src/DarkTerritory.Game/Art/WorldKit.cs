@@ -329,7 +329,7 @@ public static class WorldKit
             k.Use("lamp_lens", Palette.SignalRed, 0, 0, tile: 0.2f);
             k.Emissive = 1;
             k.Tint = new Vector3(1.0f, 0.2f, 0.12f);
-            k.Panel(new Vector3(-0.1f, 5.6f, -0.155f), -Vector3.UnitZ, Vector3.UnitY, 0.14f, 0.14f);
+            k.Panel(new Vector3(-0.1f, 5.6f, -0.155f), -Vector3.UnitZ, Vector3.UnitY, 0.14f, 0.14f, Vector2.Zero, new Vector2(0.2f, 0.2f));
             k.Emissive = 0;
         }
         // A ladder up the mast.
