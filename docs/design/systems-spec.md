@@ -179,7 +179,7 @@ The alternative is Unity's built-in AudioMixer with hand-rolled ducking. It's vi
 | Roof run | 3.5 m/s | Wind and balance penalty |
 | Roof walk (safe) | 1.8 m/s | Off the centreline is Dragger range |
 | Ladder climb | 1.6 m/s | |
-| Carrying heavy cargo | 2.8 m/s | No climbing |
+| Carrying heavy cargo | 2.8 m/s | No climbing. Only what takes two hands (freight, a heavy crate's end, the child, a body, a friend): a toy or a find in the hands, or anything in a slot, doesn't slow you (the director, the inbox, 20 Oct 2026: "We shouldn't be slowed carrying anything unless it's a two handed object"; `player.json` `twoHanded`, note 897) |
 | Jump gap | 2.2m max | Coupling gaps are 1.5m — jumpable, but not while it's rattling |
 | Jump height | 1.2m | Playtest (T90): the 0.48 m a flat 2.2 m gap needs felt like no jump at all (0.8 m then); the director, 8 Oct 2026: "our base jump is too weak" (note 473). A roof-run jump now carries ~3.4 m |
 | Health | 100 | Most attacks 35–60. No regeneration. Damage model (GDD App. F.1, note 272): every creature hit is a big one, at least 30 (`enemies.json` `damage.minHit`; a hit 35, a heavy hit 60) and at least 2.5 s apart (`minGapSeconds`), so a creature on you is two or three hits from death. The train's own continuous dangers (fire, gas) and landings are not chip-limited |
