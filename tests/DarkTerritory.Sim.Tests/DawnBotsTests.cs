@@ -111,7 +111,8 @@ public class DawnBotsTests
             n.Step(0.2);
         }
         Assert.True(n.Lead!.Holds);
-        n.Step(W.LiftSeconds * 2);
+        // Out of it before his first bite (note 902: it goes up to his mouth in his grab, and he eats it from wakers.eatAfter).
+        n.Step(W.EatAfter);
         Assert.True(n.Walker.Alive, $"{n.Walker.Death}");
         Assert.NotEqual(last, n.Walker.Parent);
         Assert.True(n.Train.Dynamics.Consist.IndexOf(n.Walker.Parent) < n.Train.Dynamics.Consist.IndexOf(last), $"on {n.Walker.Parent}");

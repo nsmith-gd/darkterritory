@@ -4810,7 +4810,7 @@ public static partial class Heed
     public const int PackFightHealth = 55;
 
     /// <summary>How long a pack rides aboard before the driver cuts it loose whoever's fit to fight it (note 484): the crew's
-    /// eight bots killed theirs in 10 to 150 s; a car set alight every 20 s or so meanwhile.</summary>
+    /// eight bots killed theirs in 10 to 150 s; a car set alight every 20 s or so meanwhile (every 90 s since note 891).</summary>
     public const double PackUnfoughtSeconds = 90;
 
     /// <summary>

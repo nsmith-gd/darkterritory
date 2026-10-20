@@ -928,11 +928,19 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
 
     /// <summary>Joins a friend's lobby (an invite, "Join Game", <c>+connect_lobby</c>) and connects to its owner.</summary>
     public static NetPlaySession JoinLobby(string content, IOnlineBackend online, LobbyId id, Action? whileWaiting = null, DatagramOptions? options = null,
-        string? password = null)
+        string? password = null) =>
+        JoinThrough(content, online, () => Lobby.Join(online, id, Game, Protocol.Version), whileWaiting, options, password);
+
+    /// <summary>Joins a friend's lobby by the code they read out (EOS, note 896) and connects to its owner.</summary>
+    public static NetPlaySession JoinByCode(string content, IOnlineBackend online, string code, Action? whileWaiting = null, DatagramOptions? options = null,
+        string? password = null) =>
+        JoinThrough(content, online, () => Lobby.JoinByCode(online, code, Game, Protocol.Version), whileWaiting, options, password);
+
+    static NetPlaySession JoinThrough(string content, IOnlineBackend online, Func<Lobby> join, Action? whileWaiting, DatagramOptions? options, string? password)
     {
         var tuning = options is null ? DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File)) : null;
         options ??= LinkOptions(tuning!);
-        var lobby = Lobby.Join(online, id, Game, Protocol.Version);
+        var lobby = join();
         var clock = System.Diagnostics.Stopwatch.StartNew();
         while (lobby.Status == Lobby.State.Joining)
         {
@@ -945,6 +953,7 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
             whileWaiting?.Invoke();
             Thread.Sleep(5);
         }
+        var id = lobby.Id;
         if (lobby.Status != Lobby.State.Open)
         {
             // Note 254: a full crew's lobby is shut; where the platform still shows us its values, say why as the host would.
@@ -1436,6 +1445,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         {
             Lobby.State.Creating => $"hosting {udp} · {platform} lobby…",
             Lobby.State.Failed => $"hosting {udp} · no {platform} lobby ({lobby.Error})",
+            // EOS has no overlay to invite from (note 896): friends type the lobby's code.
+            _ when Host is not null && lobby.Code is { Length: > 0 } code => $"hosting {udp} · {platform} lobby{crew}{(Host.Full ? "" : $", code {JoinCode.Show(code)}")}",
             _ when Host is not null => $"hosting {udp} · {platform} lobby{crew}{(Host.Full ? "" : ", F2 invites")}",
             _ when lobby.HostLeft => $"{platform}: the host left",
             _ => $"joined {lobby.Online.NameOf(lobby.Owner)} on {platform}",
