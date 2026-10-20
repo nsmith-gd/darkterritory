@@ -319,13 +319,13 @@ public class HorseplayTests
         // Thrown instead: the tender's a unit short, the fire doesn't get it, and nothing counts it twice.
         n.Run(Tuning.Boiler.ScoopSeconds, _ => use);
         Assert.True(n.Players[1].Has(PlayerFlags.Shovelful));
-        double before = n.Train.Boiler.Tender, burning = n.Train.Boiler.Firebox;
+        double before = n.Train.Boiler.Tender, burning = n.Train.Boiler.Fire;
         n.Ticks(1, _ => new PlayerIntent { Buttons = PlayerButtons.Use | PlayerButtons.Throw });
         Assert.False(n.Players[1].Has(PlayerFlags.Shovelful));
         Assert.Equal(before - 1, n.Train.Boiler.Tender, 6);
         Assert.Contains(n.Seen, e => e is { Kind: KnockKind.Coal, By: 1, Target: -1 });
         n.Run(Tuning.Boiler.ShovelSeconds - 2 * Dt, _ => use);
-        Assert.True(n.Train.Boiler.Firebox <= burning + 1e-6, "the thrown handful went on the fire");
+        Assert.True(n.Train.Boiler.Fire <= burning + 1e-6, "the thrown handful went on the fire");
         Assert.True(box >= 0);
     }
 

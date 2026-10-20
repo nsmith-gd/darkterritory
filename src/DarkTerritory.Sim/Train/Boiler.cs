@@ -68,18 +68,22 @@ public sealed record BoilerTuning(
     public double FlareLook(in Boiler b) => CatchShare <= 0 ? 0 : b.Flare(this) / (CatchShare * SteamPerUnit * FlarePeak);
 
     /// <summary>
-    /// A shovelful's flare at its height, per unit of its coal's steam: the two lags' impulse response at its peak (presentation
-    /// only, so its Exp and Log don't touch the sim).
+    /// A shovelful's flare at its height, per unit of its coal's steam: the two lags stepped as <see cref="Boiler.Step"/> steps
+    /// them, a tick at a time, so 1 in <see cref="FlareLook"/> is one shovelful's peak exactly (and no platform math in the Sim).
     /// </summary>
     double FlarePeak
     {
         get
         {
-            double c = Math.Max(0.05, CatchSeconds), f = Math.Max(0.05, FlareSeconds);
-            if (Math.Abs(c - f) < 1e-6)
-                return Math.Exp(-1) / f;
-            double at = Math.Log(f / c) * c * f / (f - c);
-            return (Math.Exp(-at / f) - Math.Exp(-at / c)) / (f - c);
+            double dt = SimConstants.TickSeconds, green = 1, catching = 0, peak = 0;
+            for (int i = 0; i < SimConstants.TickRate * 10; i++)
+            {
+                double caught = CatchSeconds > 0 ? green * Math.Min(1, dt / CatchSeconds) : green;
+                green -= caught;
+                catching += caught - (FlareSeconds > 0 ? catching * Math.Min(1, dt / FlareSeconds) : catching);
+                peak = Math.Max(peak, catching / Math.Max(dt, FlareSeconds));
+            }
+            return peak;
         }
     }
     /// <summary>Note 903: the push (m/s²) a steam-driven engine gets from the coal flaring in its firebox.</summary>
