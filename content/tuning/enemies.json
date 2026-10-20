@@ -1419,7 +1419,11 @@
       // the crew does) is the same for any crew and train, not pressure.crewScale/lengthScale about a crew of four on eight
       // cars (issue 1: a solo crew's was a third of a four's; issue 2: no double scaling). With `on` the free spawns'
       // curve.atGate/atEnd roll and its crewFade are no longer read; on false, the director as before.
-      "drive": { "on": true, "dueCap": 1.5, "dueFloor": -0.25, "jitter": 0.35, "pressureByLambda": true },
+      // pressureGate: the pressure's spends (and its fill) wait until the clock owes at least this, pressed or not (an
+      // answered draw, the night's first threat, goes ahead): λ says how many, the pressure when and what. Without it the
+      // pressure spent past λ, the free channel never fired, and 2, 4 and 8 crew ran over §7's bands in bursts (note 908).
+      // null (as shipped, until the tests that pin the pressure alone are re-pinned): the pressure spends as it would alone.
+      "drive": { "on": true, "dueCap": 1.5, "dueFloor": -0.25, "jitter": 0.35, "pressureByLambda": true, "pressureGate": null },
       // Selection and placement (note 895; the brief §3 "Encounter selection" 6, §4 level 3, §5). selection: a kind whose zone
       // (Enemy.Zone: forward, rear, flank, interior, structural, outside) already has engaged threats weighs ×zoneRepeatWeight
       // for each, in the pressure's and the curve's choices, so the next threat is a problem somewhere else (the conflict
