@@ -1570,6 +1570,8 @@ public sealed class StopDriver(CrewCalls calls)
                         _halted.Add(Halt!.Feature);
                         Halt = null;
                         Begin(Leg.Cruise);
+                        // In the night's stops as a "Halt" (no facility of its own: −1).
+                        _log.Add(new StopRecord(-1, "Halt", Math.Round(Seconds(_ticks - _stopStart), 1), 0, new Dictionary<string, double>(_legs)));
                         return null;
                     }
                     return Hold(world);
