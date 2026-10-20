@@ -4,7 +4,7 @@
 // `n1-N1-playtest-consent`): drafted for Quebec's Law 25, PIPEDA and the GDPR.
 {
   // Raised whenever what's collected or why changes: everyone who said yes to an older notice is asked again.
-  "version": 1,
+  "version": 2,
 
   // How long a session's data is kept on the studio's side once it's sent (#626), in months.
   "retentionMonths": 12,
@@ -16,11 +16,14 @@
   "question": "HELP US TUNE THE GAME?",
   "ask": [
     "Dark Territory is still being built. With your yes, the game keeps a record of how your nights go (how far the train got, what killed whom, where people got stuck in the menus, how smoothly it ran) so we can make it better.",
-    "It's anonymous: a random number for this install, never your name, your Steam or Epic account, your address, your voice or anything you type (but a comment you choose to write in a playtest's questions). Nothing is recorded unless you say yes, and you can turn it off or delete it at any time in Settings."
+    "It's anonymous: a random number for this install, never your name, your Steam or Epic account, your address, your voice or anything you type, except a comment you choose to send after a playtest's night. Nothing is recorded unless you say yes, and you can turn it off or delete it at any time in Settings."
   ],
 
   // Shown on that screen in a developer build, where it's on unless the player says no.
   "devBuild": "This is a developer build: playtest data is on unless you say no.",
+
+  // Shown on that screen in a playtest build (#628, note 916; tools/package.sh --playtest), {code} its playtest's code.
+  "playtestBuild": "This is a playtest build ({code}): saying yes is what makes your nights count for it, and no is still fine.",
 
   // The "what we collect" page: every group of fields the session recorder (#624, note 913) writes, in plain words, each
   // with the schema's fields it covers (a test holds the page to the schema).
@@ -43,12 +46,12 @@
       "fields": "minute.frames, hitches, p50, p95, p99, pingMs, loss; nightEnd.hitches, p50, p95, p99" },
     { "what": "LEAVING", "detail": "How and when a night or the game was left: from the menu, closed, dropped or put off.",
       "fields": "quit.how, night, s" },
-    { "what": "YOUR ANSWERS AFTER A NIGHT", "detail": "In a playtest only: how fun and how frightening the night was and whether you'd play again (1 to 5), a comment if you choose to write one, whether you skipped the questions, and the playtest's code, which groups the testers' nights.",
+    { "what": "YOUR ANSWERS AFTER A NIGHT", "detail": "In a playtest only: how fun and how frightening the night was and whether you'd play again (1 to 5), whether you skipped the questions, and the playtest's code, which groups the testers' nights. A comment only if you write one and tick SEND MY WORDS TOO; it's sent as you wrote it.",
       "fields": "survey.fun, fear, again, comment, skipped; session.cohort" }
   ],
 
   // What it never collects, said as plainly.
-  "never": "Never: your name or player name, your Steam or Epic id, your IP address, email, hardware serials, voice, chat, or anything you type but a comment you choose to write after a playtest's night.",
+  "never": "Never: your name or player name, your Steam or Epic id, your IP address, email, hardware serials, voice, chat, or anything you type, except a comment you choose to send after a playtest's night.",
 
   // Where the data goes.
   "where": "Kept on this computer until a night is over, then sent to the studio when sending is switched on; kept there for {months} months, then deleted. Questions, or a deletion you can't do here: {contact}."

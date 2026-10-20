@@ -113,10 +113,15 @@ public sealed class PlaytestKitTests : IDisposable
         menu.Select();
         menu.Type("Great bridge.\u0007" + new string('!', 400));
         menu.Select();
+        // The words go only with their own yes (note 916): off until it's ticked.
+        menu.Down();
+        Assert.Equal("SEND MY WORDS TOO: NO", menu.Items[menu.Selected].Label);
+        menu.Select();
+        Assert.Equal("SEND MY WORDS TOO: YES", menu.Items[menu.Selected].Label);
         menu.Down();
         Assert.Equal("SEND", menu.Items[menu.Selected].Label);
         menu.Select();
-        Assert.Equal(new SurveyAnswers(4, 1, null, ("Great bridge." + new string('!', 400))[..SurveyAnswers.CommentLength]), got);
+        Assert.Equal(new SurveyAnswers(4, 1, null, ("Great bridge." + new string('!', 400))[..SurveyAnswers.CommentLength], SendComment: true), got);
         Assert.Equal(then, menu.Screen);
         Assert.StartsWith("Thank you.", menu.Message);
     }
@@ -148,12 +153,16 @@ public sealed class PlaytestKitTests : IDisposable
         var night = new PrototypeSession(Content, "test-loop", 3);
         recorder.NightBegin(night.World, "solo", 1, 0, 0);
         recorder.NightEnd(night.World);
-        recorder.Survey(new SurveyAnswers(4, 2, 7, "  Good.  "));
+        recorder.Survey(new SurveyAnswers(4, 2, 7, "  Good.  ", SendComment: true));
+        // Words written but not ticked to go: not kept.
+        recorder.Survey(new SurveyAnswers(4, 2, 3, "left here"));
         recorder.Survey(new SurveyAnswers(Fun: 3, Comment: "never said", Skipped: true));
         var lines = sink.Lines.Select(l => JsonDocument.Parse(l).RootElement).ToList();
         Assert.Equal("WAVE-1", lines.Single(l => l.GetProperty("type").GetString() == "session").GetProperty("cohort").GetString());
         var surveys = lines.Where(l => l.GetProperty("type").GetString() == "survey").ToList();
-        Assert.Equal(2, surveys.Count);
+        Assert.Equal(3, surveys.Count);
+        Assert.Equal(JsonValueKind.Null, surveys[1].GetProperty("comment").ValueKind);
+        surveys.RemoveAt(1);
         Assert.Equal([.. TelemetrySchema.Common, .. TelemetrySchema.Events["survey"]], surveys[0].EnumerateObject().Select(p => p.Name));
         Assert.Equal(1, surveys[0].GetProperty("night").GetInt32());
         Assert.Equal(4, surveys[0].GetProperty("fun").GetInt32());
@@ -171,11 +180,13 @@ public sealed class PlaytestKitTests : IDisposable
     [Fact]
     public void WhatWeCollectSaysTheSurveyAndTheCode()
     {
-        // #625's page lists every field the recorder can write, the survey's and the cohort included.
+        // #625's page covers the survey's fields and the cohort (its wording is the director's to change, so the fields are held).
         var notice = PlaytestNotice.Load(Content);
-        var group = notice.Collect.Single(f => f.What == "YOUR ANSWERS AFTER A NIGHT");
-        Assert.Contains("comment", group.Detail);
-        Assert.Contains("code", group.Detail);
-        Assert.Contains("comment you choose to write", notice.Never);
+        var fields = string.Join("; ", notice.Collect.Select(f => f.Fields));
+        foreach (string field in TelemetrySchema.Events["survey"])
+            Assert.Contains(field, fields);
+        Assert.Contains("session.cohort", fields);
+        // And the question says a playtest build when it is one.
+        Assert.NotEmpty(notice.PlaytestBuild);
     }
 }

@@ -385,6 +385,8 @@ renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's 
 
 ## Waiting on the director
 
+- **#628's survey comment** (n1-U2, [#1393](https://github.com/nsmith-gd/darkterritory/pull/1393), note 916; `n1-U2-survey-comment`): the playtest survey's optional comment is typed text, which note 907's privacy rule otherwise never records. It's kept only when the player ticks SEND MY WORDS TOO, and WHAT WE COLLECT says so. Keep the comment that way, or drop it (the 1-5 answers stay)?
+
 - **Nell's #590, PR [#1285](https://github.com/nsmith-gd/darkterritory/pull/1285)** (20 Oct): green, held as a draft for the director's call on the pack-fire rise it measured. The director overhaul (note 874) recommends merging it before #608 and #612 start, with #612 answering the pack fires.
 - **Open in the inbox** (20 Oct): `nathaniel1-tbm-night-cap-1285` (merge Nell's #1285?), `nathaniel1-tbm-voice-booth-keep-redo`, `nathaniel1-tbm-perf-turning-and-cell`, `nathaniel1-tbm-boiler-pressure-17`, `nathaniel1-tbm-steam-app-id-evening`, `nathaniel1-tbm-standing-orders` (note 857's call 7 asked again).
 - **Playtest telemetry (note 907, #624-#628)** (20 Oct): (1) the upload backend (a small self-hosted ingest, a hosted analytics service such as PostHog or GameAnalytics, or no upload yet, testers sending their spool files); (2) the consent wording and how long data is kept (12 months suggested); (3) whether nathaniel3 starts workers on #624, #625 and #627 now.

@@ -993,10 +993,6 @@ public sealed class FrontEnd
     /// <summary>After the question: the crash notice if there's one waiting, else the title.</summary>
     void AfterConsent() => Show(Crash is not null ? Screen.Crashed : Screen.Title);
 
-    /// <summary>Under the first-run question in a playtest build (note 916): which test it is, and that the choice is still theirs.</summary>
-    static string PlaytestBuildLine(Telemetry.PlaytestBuild build) =>
-        $"This is a playtest build{(build.Cohort is { } code ? $" ({code})" : "")}: saying yes is what makes your nights count for it, and no is still fine.";
-
     /// <summary>
     /// The night's questions (note 916), asked as the menu comes back after a night, when the kit asks them (a playtest, and
     /// playtest data on: <paramref name="recording"/>). Answered or skipped, the menu goes where the night left it.
@@ -1032,7 +1028,11 @@ public sealed class FrontEnd
         Rating("ANOTHER NIGHT", "Would you play another? 1, not again; 5, right now.", _survey.Again, n => _survey with { Again = n }),
         new(new($"A WORD FOR US: {_survey.Comment}{(Editing == TextField.SurveyComment ? "_" : "")}", Editing == TextField.SurveyComment
                 ? $"Anything about tonight, in your own words (up to {Telemetry.SurveyAnswers.CommentLength} letters). Please no names. Enter or Esc when it's done."
-                : "Optional: Enter to write something about tonight."), Field: TextField.SurveyComment),
+                : "Optional: Enter to write something about tonight. It's sent only if you tick SEND MY WORDS TOO."), Field: TextField.SurveyComment),
+        // The comment is typed text, the one kind the recorder keeps (note 916): sent only with this ticked, its own yes.
+        new(new($"SEND MY WORDS TOO: {(_survey.SendComment ? "YES" : "NO")}", "Your comment goes in the record only with this on, as you wrote it. Off, it's left here.",
+                _survey.Comment is { Length: > 0 }),
+            () => { _survey = _survey with { SendComment = !_survey.SendComment }; return null; }, _ => _survey = _survey with { SendComment = !_survey.SendComment }),
         new(new("SEND", "Your answers go in tonight's playtest record.", _survey.Said), () => { EndSurvey(_survey); return null; }),
         new(new("SKIP", "Nothing is asked again for this night."), () => { EndSurvey(new Telemetry.SurveyAnswers(Skipped: true)); return null; }, Back: true),
     ];
@@ -2206,7 +2206,8 @@ public sealed class FrontEnd
         }
         // (Wrapped, as the heading is, at a bigger TEXT SIZE: note 347.)
         string? under = Screen == Screen.Consent && PlaytestNotice is { } notice
-                ? (string.Join(" ", notice.Ask) + (Kit?.Build is { } build ? " " + PlaytestBuildLine(build) : "")).ToUpperInvariant()
+                ? (string.Join(" ", notice.Ask) + (Kit?.Build is { } build && notice.PlaytestBuild.Length > 0
+                    ? " " + notice.PlaytestBuild.Replace("{code}", build.Cohort ?? "no code", StringComparison.Ordinal) : "")).ToUpperInvariant()
             : Screen == Screen.Survey ? "FOR THE PLAYTEST: EACH FROM 1 TO 5, LEFT AND RIGHT. SKIP IT IF YOU'D RATHER."
             : Screen == Screen.Upgrades ? "BOUGHT FROM THE BLACKSMITH, AT THE FORGE IN THE YARD"
             : Screen == Screen.Smithy && Smithy is { } selling

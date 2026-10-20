@@ -14,14 +14,16 @@ public sealed record PlaytestBuild(string Channel = "playtest", string? Cohort =
 
 /// <summary>
 /// The end-of-night survey's answers (note 916; the plan, note 907): fun, fear and would-play-again, each 1-5 or not said,
-/// and a comment in the player's own words if they wrote one. Skipped: none of it, and that it was skipped.
+/// and a comment in the player's own words, kept only if they ticked <paramref name="SendComment"/> (typed text is the one
+/// exception to note 907's "nothing typed", and it's the player's own yes). Skipped: none of it, and that it was skipped.
 /// </summary>
-public sealed record SurveyAnswers(int? Fun = null, int? Fear = null, int? Again = null, string? Comment = null, bool Skipped = false)
+public sealed record SurveyAnswers(int? Fun = null, int? Fear = null, int? Again = null, string? Comment = null, bool Skipped = false,
+    bool SendComment = false)
 {
     /// <summary>A comment's longest: a few sentences, not a letter.</summary>
     public const int CommentLength = 280;
 
-    public bool Said => Fun is not null || Fear is not null || Again is not null || Comment is { Length: > 0 };
+    public bool Said => Fun is not null || Fear is not null || Again is not null || SendComment && Comment is { Length: > 0 };
 }
 
 /// <summary>

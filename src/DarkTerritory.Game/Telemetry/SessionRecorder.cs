@@ -263,13 +263,13 @@ public sealed class SessionRecorder
 
     /// <summary>
     /// The end-of-night survey (#628, note 916), after <see cref="NightEnd"/>: the night just played, its three answers (1-5,
-    /// null not said) and the player's comment if they wrote one; skipped, none of it.
+    /// null not said) and the player's comment if they wrote one and ticked it to be sent; skipped, none of it.
     /// </summary>
     public void Survey(SurveyAnswers a)
     {
         if (!Enabled || _night == 0)
             return;
-        string? comment = a.Skipped || a.Comment is not { } c || c.Trim().Length == 0 ? null : c.Trim()[..Math.Min(c.Trim().Length, SurveyAnswers.CommentLength)];
+        string? comment = a.Skipped || !a.SendComment || a.Comment is not { } c || c.Trim().Length == 0 ? null : c.Trim()[..Math.Min(c.Trim().Length, SurveyAnswers.CommentLength)];
         Emit("survey", ("night", _night), ("fun", a.Skipped ? null : Rating(a.Fun)), ("fear", a.Skipped ? null : Rating(a.Fear)),
             ("again", a.Skipped ? null : Rating(a.Again)), ("comment", comment), ("skipped", a.Skipped));
         _sink!.Flush();
