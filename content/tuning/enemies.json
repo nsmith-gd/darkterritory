@@ -1298,6 +1298,13 @@
     // that has nobody in its grip) holds no cap: a hound pack aboard or a Knotter in a coupling left behind held a crew of
     // one's single place all night. 0: off.
     "capNear": 60,
+    // Note 881 (the director overhaul's B2, queue #604; docs/design/spawn-director-overhaul.md §2 issue 4): each enemy's
+    // engagement state, from what it's doing (Threats.Of): dormant (lying in wait), ambient (about, nobody near, nothing of
+    // the train's in its teeth), threatening (alert, near a crewmate within nearMetres, or doing a train system harm with
+    // nobody near: a Hotbox, a pack feeding aboard, a Knotter, a Brakeman at the brakes), engaging (at someone), resolved.
+    // on: the engaged cap counts threatening and engaging, not bodies, and ambientRoom more may be about off it; false: as
+    // before (everything Director.Engaged holds the caps).
+    "threats": { "on": true, "nearMetres": 20, "ambientRoom": 1 },
     "maxConcurrentZone": 2,
     "maxConcurrentSmallCrew": 4,
     "maxConcurrentLargeCrew": 6,

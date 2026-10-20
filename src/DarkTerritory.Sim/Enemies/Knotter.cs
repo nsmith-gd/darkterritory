@@ -34,6 +34,8 @@ public sealed class Knotter(int id) : Enemy(id)
     public override double MeleeRadius => 2.0;
     /// <summary>It's the coupling until it's dealt with: the director never sends it off for want of company.</summary>
     public override bool StaysAboard => true;
+    /// <summary>Up in a coupling (note 881): splitting the crew, with nobody at the gap or not.</summary>
+    public override bool Working(World world) => !Gone;
     /// <summary>A friend's hand (Use held at whoever it's coiled round) pulls them back up.</summary>
     public override bool PullsFree => true;
 

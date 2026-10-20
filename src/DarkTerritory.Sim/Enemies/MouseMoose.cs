@@ -42,6 +42,8 @@ public sealed class MouseMoose(int id) : Enemy(id)
     public override double MeleeRadius => Mode == MouseMooseMode.Hide ? 0 : 0.6;
     /// <summary>It does its work when nobody's near: the director never dismisses it for want of company.</summary>
     public override bool StaysAboard => true;
+    /// <summary>Its teeth in a casting, dragging it off (note 881): the yard's loot going, nobody watching or not.</summary>
+    public override bool Working(World world) => !Gone && Mode == MouseMooseMode.Drag;
 
     public MouseMooseMode Mode => (MouseMooseMode)(int)Height;
     public int Casting => (int)Math.Round(Extra);
