@@ -397,6 +397,7 @@ public sealed class FrontEnd
         }
         var was = Enum.GetValues<Control>().FirstOrDefault(o => o != c && Settings.KeyFor(o) == key, c);
         Change(Settings.Bind(c, key));
+        Telemetry?.Rebind(c.ToString());
         Message = was != c ? $"{Controls.Label(was)} moved to {Controls.KeyLabel(Settings.KeyFor(was))}." : null;
         Cue?.Invoke(UiCue.Select);
     }
@@ -692,8 +693,22 @@ public sealed class FrontEnd
             Address = Address[..^1];
     }
 
+    /// <summary>The playtest session recorder (note 913): purchases, rebinds and the screens' times go to it. Null: nothing's told.</summary>
+    public Telemetry.SessionRecorder? Telemetry { get; set; }
+    readonly System.Diagnostics.Stopwatch _onScreen = System.Diagnostics.Stopwatch.StartNew();
+
+    /// <summary>The screen up till now is left (for another, or the menus closed): its time on screen told.</summary>
+    void Opened()
+    {
+        Telemetry?.Menu(Screen.ToString(), _onScreen.Elapsed.TotalSeconds);
+        _onScreen.Restart();
+    }
+
     public void Show(Screen screen)
     {
+        // Note 913: the screen left, and how long it was up (the playtest telemetry's menu event).
+        if (screen != Screen)
+            Opened();
         // The in-night menu's pages are only there over a night (note 292).
         if (screen is Screen.Night or Screen.Leave && Night is null || screen is Screen.Smithy && (Night is null || Smithy is null))
             screen = Screen.Title;
@@ -773,6 +788,7 @@ public sealed class FrontEnd
     {
         if (Night is null)
             return;
+        Opened();
         Night = null;
         Smithy = null;
         Editing = null;
@@ -1687,7 +1703,7 @@ public sealed class FrontEnd
         double carCost = Campaign.NextCarCost(_campaign, s);
         bool full = s.Cars >= _campaign.MaxCars;
         list.Add(new(new(full ? "BUY A CAR: THE CONSIST IS FULL" : $"BUY A CAR: {carCost:0} SCRIP", full ? null : $"Car {s.Cars + 1}. More cars carry more, and burn more, and need more hands.",
-            !full && s.Current is null), () => Buy(Campaign.BuyCar(_campaign, s), $"A car bought: {s.Cars + 1} now.")));
+            !full && s.Current is null), () => Buy(Campaign.BuyCar(_campaign, s), $"A car bought: {s.Cars + 1} now.", "car")));
         // GDD §9 "add or remove railcars" (note 182): a car off brings back a share of its price; a shorter train works a lower tier.
         if (_campaign.SellCar is { } sell)
         {
@@ -1696,7 +1712,7 @@ public sealed class FrontEnd
             string after = tierAfter != Campaign.TierFor(_campaign, s.Cars) ? $" The consist drops to {Name(tierAfter)} work." : "";
             list.Add(new(new(fewest ? $"TAKE A CAR OFF: {sell.Fewest} IS THE FEWEST" : $"TAKE A CAR OFF: +{Campaign.SellBack(_campaign, s):0} SCRIP",
                 fewest ? null : $"Car {s.Cars} back to the yard for {sell.Share:P0} of its price.{after}", !fewest && s.Current is null),
-                () => Buy(Campaign.SellCar(_campaign, s), $"A car taken off: {s.Cars - 1} now.")));
+                () => Buy(Campaign.SellCar(_campaign, s), $"A car taken off: {s.Cars - 1} now.", "carSold")));
         }
         // GDD v1.4 App. E.12 question 4: the fortress sells spare repair kits; each rides in a crew locker (note 173).
         if (_campaign.SpareKit is { } spare)
@@ -1705,7 +1721,7 @@ public sealed class FrontEnd
             string have = s.SpareKits == 0 ? "None aboard yet" : $"{s.SpareKits} aboard";
             list.Add(new(new(most ? $"SPARE REPAIR KIT: THE LOCKERS HOLD {spare.Most}" : $"BUY A SPARE REPAIR KIT: {spare.Cost:0} SCRIP",
                 $"{have}. A ruptured boiler with every kit lost strands the night; spares ride in the crew lockers.", !most && s.Current is null),
-                () => Buy(Campaign.BuySpareKit(_campaign, s), $"A spare repair kit bought: {s.SpareKits + 1} now.")));
+                () => Buy(Campaign.BuySpareKit(_campaign, s), $"A spare repair kit bought: {s.SpareKits + 1} now.", "spareKit")));
         }
         if (_campaign.Stores is not null)
             list.Add(new(new("STORES", StoresLine(s.Stores), s.Current is null), () => { Show(Screen.Stores); return null; }));
@@ -1881,7 +1897,7 @@ public sealed class FrontEnd
             int have = s.Stores.Of(kind);
             bool most = have >= item.Most;
             list.Add(new(new(most ? $"{name}: {have} OF {item.Most}, ALL A NIGHT TAKES" : $"{name}: {item.Cost:0} SCRIP ({have} OF {item.Most})", detail, !most && s.Current is null),
-                () => Buy(Campaign.BuyStores(_campaign, s, kind), $"{name.ToLowerInvariant()} bought for tonight.")));
+                () => Buy(Campaign.BuyStores(_campaign, s, kind), $"{name.ToLowerInvariant()} bought for tonight.", $"stores:{kind}")));
         }
         Row(StoreKind.Powder, st.Powder, "POWDER AND SHOT", $"A crate: {st.Powder.Each} more rounds for every gun tonight.");
         Row(StoreKind.Lamp, st.Lamps, "SPARE LAMP", "In the guard van beside its own, for when one goes out over the side.");
@@ -1899,10 +1915,12 @@ public sealed class FrontEnd
         return list;
     }
 
-    Launch? Buy(Purchase p, string done)
+    Launch? Buy(Purchase p, string done, string what)
     {
         if (p.Ok)
         {
+            // Note 913: what was bought (or sold back: a negative cost), and the scrip after.
+            Telemetry?.Purchase(what, (Open?.Scrip ?? p.State.Scrip) - p.State.Scrip, p.State.Scrip);
             _saves.Save(p.State);
             Open = p.State;
         }

@@ -171,6 +171,8 @@ public sealed class SessionRecorder
         _me = me;
         _startParent = int.MinValue;
         _firsts.Clear();
+        _promptsShown.Clear();
+        _prompt = null;
         _startKm = world.Train.Dynamics.Distance / 1000;
         Array.Clear(_minuteFrames);
         Array.Clear(_nightFrames);
@@ -239,6 +241,59 @@ public sealed class SessionRecorder
             Emit("prompt", ("night", InNight ? _night : 0), ("name", name), ("acted", acted));
     }
 
+    /// <summary>At most this many of one prompt's showings a night are written (walking past a row of lockers is one prompt).</summary>
+    public const int PromptsEach = 5;
+    string? _prompt;
+    bool _promptUsed;
+    readonly Dictionary<string, int> _promptsShown = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Each frame of a night: the prompt at the crosshair (<c>Hud.Prompt</c>, null for none) and whether Use was pressed. A
+    /// prompt's showing ends when it changes or goes, and is written then as <c>prompt</c>: its name and whether it was acted
+    /// on while it showed. Its name is its words (<see cref="PromptName"/>), never anyone's name.
+    /// </summary>
+    public void Prompting(World world, string? prompt, bool used)
+    {
+        if (!Enabled || !InNight)
+            return;
+        string? name = prompt is null ? null : PromptName(prompt, world.Names.Values);
+        if (name == _prompt)
+        {
+            _promptUsed |= used && name is not null;
+            return;
+        }
+        EndPrompt();
+        (_prompt, _promptUsed) = (name, used && name is not null);
+    }
+
+    void EndPrompt()
+    {
+        if (_prompt is not { } shown)
+            return;
+        _prompt = null;
+        int n = _promptsShown.GetValueOrDefault(shown);
+        _promptsShown[shown] = n + 1;
+        if (n < PromptsEach)
+            Prompt(shown, _promptUsed);
+    }
+
+    /// <summary>
+    /// A prompt as the schema names it: its words before the key it asks for ("MEND THE CAR : HOLD [E]" → "MEND THE CAR"), with
+    /// no numbers (a share done, a count) and no crewmate's name (a prompt can name who it's about: "SOMEONE").
+    /// </summary>
+    public static string PromptName(string prompt, IEnumerable<string> names)
+    {
+        string text = prompt;
+        int colon = text.IndexOf(" : ", StringComparison.Ordinal);
+        if (colon > 0)
+            text = text[..colon];
+        foreach (string name in names.Where(n => n.Trim().Length > 0))
+            text = System.Text.RegularExpressions.Regex.Replace(text, System.Text.RegularExpressions.Regex.Escape(name.Trim()), "SOMEONE",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"\[[^\]]*\]|[0-9]+%?|[()]", "");
+        return System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ").Trim(' ', '.', ':', '-');
+    }
+
     public void Purchase(string what, double cost, double scripAfter)
     {
         if (Enabled)
@@ -276,6 +331,7 @@ public sealed class SessionRecorder
             ("km", world.Train.Dynamics.Distance / 1000), ("carsDelivered", r?.CarsDelivered), ("carsLost", r?.CarsLost),
             ("cargoDelivered", r?.CargoDelivered), ("net", r?.Net), ("crewHome", r?.CrewHome), ("crewLost", r?.CrewLost), ("deaths", r?.Deaths),
             ("encounters", world.Encounters?.Encounters.Count), ("hitches", _nightHitches), ("p50", p50), ("p95", p95), ("p99", p99));
+        EndPrompt();
         InNight = false;
         _sink!.Flush();
     }
