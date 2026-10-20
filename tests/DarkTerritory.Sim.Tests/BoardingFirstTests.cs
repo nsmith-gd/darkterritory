@@ -113,7 +113,7 @@ public class BoardingFirstTests
         var slow = new Night(5, speed: E.Draggers.BoardBelow - 4);
         slow.Run(0.2);
         Assert.Equal(1, Weight(slow, EnemyKind.Dragger)); // nobody up yet: it can still get on, to wait
-        Assert.True(Spawns.For(EnemyKind.Dragger)!.Spawn(new SpawnContext(slow.World, E, slow.World.Director!)));
+        Assert.True(Spawns.For(EnemyKind.Dragger)!.Spawn(new SpawnContext(slow.World, E, slow.World.Director!)).Placed);
         var d = Assert.Single(slow.World.ActiveEnemies.OfType<Dragger>());
         slow.Run(5);
         Assert.Equal(SpinePhase.Dormant, d.Phase);
@@ -154,7 +154,7 @@ public class BoardingFirstTests
         Assert.Null(Weight(n, EnemyKind.FireFlies));
         n.Train.Vehicles[3].ToggleDoor(1);
         Assert.Equal(E.FireFlies.StoppedWeight, Weight(n, EnemyKind.FireFlies));
-        Assert.True(Spawns.For(EnemyKind.FireFlies)!.Spawn(new SpawnContext(n.World, E, n.World.Director!)));
+        Assert.True(Spawns.For(EnemyKind.FireFlies)!.Spawn(new SpawnContext(n.World, E, n.World.Director!)).Placed);
         Assert.Equal(3, Assert.Single(n.World.ActiveEnemies.OfType<FireFlies>()).Attached);
     }
 }
