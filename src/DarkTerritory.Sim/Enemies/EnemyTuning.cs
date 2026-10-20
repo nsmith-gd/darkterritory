@@ -731,6 +731,8 @@ public sealed record DirectorTuning(
     public double LingerRadius { get; init; } = 12;
     /// <summary>Note 795: with every living crewmate off the train, what none of them is within this of holds no cap (0: off).</summary>
     public double CapNear { get; init; } = 60;
+    /// <summary>Note 881 (the brief §2 issue 4): the engagement states, and the engaged cap counting threats, not bodies.</summary>
+    public ThreatTuning Threats { get; init; } = new();
     /// <summary>
     /// The quiet spell at the start of a night (GDD App. B.1 "Grace period", design decision 2026-10): a range, picked per night
     /// from its seed (<see cref="PressureTuning.GraceTierScale"/> shortens it at the harder tiers).
