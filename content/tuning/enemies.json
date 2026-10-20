@@ -1108,7 +1108,12 @@
       // (right at it; 1 at threatSpreadM), one within onTopM of a crewmate ×onTopWeight. The rule's own draw, so with nothing
       // about and nobody near it picks as it did. on: false for either is the director before note 895.
       "selection": { "on": true, "zoneRepeatWeight": 0.5 },
-      "placement": { "on": true, "threatSpreadM": 40, "nearThreatWeight": 0.2, "onTopM": 6, "onTopWeight": 0.3 }
+      "placement": { "on": true, "threatSpreadM": 40, "nearThreatWeight": 0.2, "onTopM": 6, "onTopWeight": 0.3 },
+      // A halt's own (note 895; GDD D.15 question 3, the director 9 Oct: "Needs a dedicated response"; 20 Oct: "What's best
+      // for gameplay?"): stood on the main line at an abandoned village's halt, lullSeconds after stopping there, one
+      // encounter (whatever the night's curve could send, rule-met or free) if the stop's own haven't put one there; counted
+      // as the stop's. Off until measured ("test creature spawn first").
+      "halt": { "on": false, "lullSeconds": 15 }
     },
     // T128 (build 1121: "a player left behind by the train should feel the world close in: tension, monsters coming, the
     // difficulty spiking for that player. They needn't die at once"; GDD §7, §23; ARCHITECTURE §8 note 273). Not in the spec.

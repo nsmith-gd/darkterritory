@@ -114,4 +114,17 @@ public sealed partial record EncounterTuning
     public SelectionTuning Selection { get; init; } = new();
     /// <summary>Where along the train (note 895).</summary>
     public PlacementTuning Placement { get; init; } = new();
+    /// <summary>A halt's own encounter (note 895; GDD D.15 question 3).</summary>
+    public HaltTuning Halt { get; init; } = new();
+}
+
+/// <summary>
+/// A halt's own (note 895; enemies.json <c>director.encounters.halt</c>; GDD D.15 question 3): one encounter while the train
+/// stands at an abandoned village's halt, <see cref="LullSeconds"/> after it stopped there. Off until measured (the director's
+/// "test creature spawn first").
+/// </summary>
+public sealed record HaltTuning
+{
+    public bool On { get; init; }
+    public double LullSeconds { get; init; } = 15;
 }
