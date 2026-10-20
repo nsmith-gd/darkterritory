@@ -2081,8 +2081,9 @@ public sealed partial class GreyboxScene
         // A friend stood on the hook (note 726) is its load: the lamp on the cable hangs over their head, not in their chest.
         double above = crane.Riders > 0 ? Math.Max(w.HookAbove, crane.Tuning.Hoist.FeetAbove + RiderHeadroom) : w.HookAbove;
         var lamp = V(crane.HookAt + (crane.Riders > 0 ? Art.CrewActs.HookSway(Time) : default) + Double3.Up * above, eye);
-        mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * w.HookIntensity, w.HookRange));
-        mesh.Billboard(lamp, 0.12f, 0, new Vector4(Palette.LampAmber * 1.4f, 1), -1, FxBlend.Additive);
+        // The bulb's own white (note 901), so the pool it throws on the load isn't the repairs' amber either.
+        mesh.PointLights.Add(new PointLight(lamp, WorkLampBulb * w.HookIntensity, w.HookRange));
+        WorkLamp(mesh, lamp);
         Double3 sum = default;
         int stacked = 0;
         foreach (var c in crane.Castings)
@@ -2093,6 +2094,27 @@ public sealed partial class GreyboxScene
             }
         if (stacked > 0)
             mesh.PointLights.Add(new PointLight(V(sum * (1.0 / stacked) + Double3.Up * w.StackHeight, eye), Palette.LampAmber * w.StackIntensity, w.StackRange));
+    }
+
+    /// <summary>
+    /// The work lamp's bulb (note 901): a warm white, not the repairs' amber. Its glow used to be a bare amber disc, and seen
+    /// from the crane's seat it sat on the casting under it: the director, 16 Oct, "a yellow circle on it ... the same thing
+    /// we're using ... to save the rig" (Effects.CalloutAmber, "mend me here").
+    /// </summary>
+    public static readonly Vector3 WorkLampBulb = new(1.0f, 0.93f, 0.8f);
+
+    /// <summary>The work lamp's hood: a dark iron shade over the bulb, wider than it (half extents, m).</summary>
+    public static readonly Vector3 WorkLampHood = new(0.11f, 0.05f, 0.11f);
+
+    /// <summary>
+    /// A gantry's work lamp as a lamp (note 901): an iron hood on the cable with the bulb under its rim, so from the crane's
+    /// seat over it you see the shade, not a glowing disc on the load, and from beside it a small white bulb. Its light is
+    /// <see cref="CraneLamps"/>'.
+    /// </summary>
+    public static void WorkLamp(MeshBuilder mesh, Vector3 lamp)
+    {
+        mesh.Box(lamp + new Vector3(0, WorkLampHood.Y, 0), Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, WorkLampHood, Palette.SootBlack);
+        mesh.Billboard(lamp - new Vector3(0, 0.02f, 0), 0.09f, 0, new Vector4(WorkLampBulb * 1.3f, 1), -1, FxBlend.Additive);
     }
 
     /// <summary>A crewmate's height and a hand's breadth over it (m): where the hook's lamp hangs over a rider (note 726).</summary>
