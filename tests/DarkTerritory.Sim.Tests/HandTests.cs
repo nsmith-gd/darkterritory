@@ -145,7 +145,7 @@ public class HandTests
             Assert.False(s.Has(PlayerFlags.Shovelful));
         }
         Assert.Equal(tender - 4, world.Train.Boiler.Tender, 6);
-        Assert.Equal(4, world.Train.Boiler.Firebox, 6);
+        Assert.Equal(4, world.Train.Boiler.Fire, 6);
     }
 
     [Fact]
