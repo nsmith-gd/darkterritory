@@ -1072,7 +1072,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [899. The rear searchlight, look only (queue #410, from note 678's handoff; the director's inbox answer of 20 Oct,…](notes/899.md)
 - [900. The crew's hands and the lamps' texture wrapping (Arlo, queue #620)](notes/900.md)
 - [901. How to get the mail, shown; the yellow circle on the casting (Iris, queue #621)](notes/901.md)
-- [902. The Waker lifts the train (Cole, queue #622)](notes/902.md)
+- [902. The Waker lifts the train in his hands: stops behind it, scoops a car at a time, three bites a car, and a fall from his hands kills (queue…](notes/902.md)
 - [903. The boiler answers the shovel (Rhea, queue #623)](notes/903.md)
 - [904. The blacksmith says what it sells and why not yet; the dev unlock findable from Settings (Milo, queue #618)](notes/904.md)
 - [905. The big cab's benches thin, along the sides, and sat on; the step from car 1 to the locomotive (Tess, queue #619)](notes/905.md)

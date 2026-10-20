@@ -129,10 +129,16 @@ public sealed class WorldShot : IDisposable
         s.Cut = SceneArt.Cuts(train);
         var states = crew.Select(c => c.State).ToList();
         s.Crew = [.. crew.Where(c => c.Id != hide).Select(c => CrewActs.Crewmate(c.Id, c.State, world, train.Frames, states, [.. crew.Select(x => ((int)x.Id, x.State))]))];
-        s.Build(_mesh, train, camera.Position);
+        // The car in a Waker's hands up off the rails, as the sessions draw it (note 902).
+        _frames.Clear();
+        _frames.AddRange(train.Frames);
+        WakerLift.Apply(_frames, train, world);
+        s.Build(_mesh, train, camera.Position, _frames);
         _overlay.Clear();
         return _renderer.Render(_mesh, camera, lighting, lighting.FogColor, _overlay);
     }
+
+    readonly List<CarFrame> _frames = [];
 
     public void Save(string path, byte[] pixels)
     {
