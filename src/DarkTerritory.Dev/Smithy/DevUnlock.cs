@@ -16,7 +16,8 @@ public sealed class DevUnlock
     /// <summary>The catalogue's top row: what it says, and the toggle.</summary>
     public (Game.MenuItem Item, Action Choose) Row() =>
         (new Game.MenuItem(On ? "DEV UNLOCK: ON" : "DEV UNLOCK: OFF",
-            On ? "Everything free, any tier, as often as you like; choose an owned one to take it off." : "A developer build's: buy anything, free."),
+            On ? "Everything at the blacksmith's free, any tier, as often as you like; choose an owned one to take it off."
+                : "A developer build's: buy anything at the blacksmith's, free."),
          () => On = !On);
 
     /// <summary>

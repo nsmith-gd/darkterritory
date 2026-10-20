@@ -481,9 +481,15 @@ public sealed partial class GameAudio
         }
         if (mode == HoundMode.Sniff)
             HoldLevel("cs-hounds.sniff", h.Id, at + Double3.Up * HoundNose, occ, 1);
+        // Note 891: winding up to light its car, the car fire's smoulder at its body, rising to the burst (a tell: the fire's
+        // coming). Its own sound is the audio checklist's to make; this is the car fire's own, which the crew already know.
+        if (mode == HoundMode.Ignite)
+            HoldLevel("tell-car-fire.smoulder", h.Id | HoundIgniteOwner, at + Double3.Up * 0.4, occ,
+                0.3 + 0.7 * Math.Clamp(h.ModeSeconds / Math.Max(0.1, (_creatureWorld?.Enemies?.CinderHounds.Aboard ?? new HoundAboardTuning()).IgniteWindUpSeconds), 0, 1));
         // Only walking is stepped: in the air, at a door and sniffing its moves are their own sounds; over to another car
         // other than by a leap is the record catching up, not a step.
-        if (mode is HoundMode.Leap or HoundMode.Drop or HoundMode.Climb or HoundMode.Sniff || h.Attached != was.Attached)
+        if (mode is HoundMode.Leap or HoundMode.Drop or HoundMode.Climb or HoundMode.Sniff or HoundMode.Lunge or HoundMode.Ignite
+            || h.Attached != was.Attached)
             return;
         double run = (h.Local - was.Local).Length, speed = run / dt;
         if (speed < HoundAboardMoving || run > HoundAboardJump)
@@ -505,6 +511,8 @@ public sealed partial class GameAudio
     // How late a move's sound can still come (the record arrives in snapshots; joining mid-move, it's missed), the forefeet
     // to the hind feet landing, and its nose's height sniffing.
     const double HoundMoveLate = 0.25, HoundHindAfter = 0.09, HoundNose = 0.3;
+    // Its ignite's smoulder held apart from anything else it holds (note 891).
+    const int HoundIgniteOwner = 1 << 28;
 
     /// <summary>A hound aboard begun on <paramref name="mode"/> (note 489): its move's sounds, each when it comes.</summary>
     void HoundMove(CinderHound h, HoundMode mode)
@@ -525,6 +533,25 @@ public sealed partial class GameAudio
                 // The whole climb is the one sound, from the trot to the sill to its weight onto the roof (E1's clip).
                 HoundAfter(h.Id, -into, c => Cue("cs-hounds.climb", c.At + Double3.Up * HoundDropUp * 0.5, Occlusion(c.Attached)));
                 break;
+            case HoundMode.Lunge:
+                {
+                    // Note 891: the leap at someone, a snarl with it, and its paws landing by them at the lunge's end (the bite, if it
+                    // lands, is the crew's hurt: GameAudio's).
+                    var a = _creatureWorld?.Enemies?.CinderHounds.Aboard ?? new HoundAboardTuning();
+                    string on = _creatureWorld is { } w && Inside(w.Train, h.Attached, h.Local) ? "wood" : "roof";
+                    HoundAfter(h.Id, -into, c => Cue("cs-hounds.spring", c.At, Occlusion(c.Attached)));
+                    HoundAfter(h.Id, 0.05 - into, c => Cue("cs-hounds.snarl", c.At, Occlusion(c.Attached)));
+                    HoundLands(h.Id, a.LungeSeconds - into, on);
+                    break;
+                }
+            case HoundMode.Ignite:
+                {
+                    // Note 891: the burst from its body that lights the car (CreatureArt's last fifth): a snarl with it; the car's
+                    // own fire takes over from there.
+                    var a = _creatureWorld?.Enemies?.CinderHounds.Aboard ?? new HoundAboardTuning();
+                    HoundAfter(h.Id, a.IgniteWindUpSeconds * 0.8 - into, c => Cue("cs-hounds.snarl", c.At, Occlusion(c.Attached)));
+                    break;
+                }
         }
     }
 

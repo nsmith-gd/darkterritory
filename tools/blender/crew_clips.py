@@ -94,7 +94,7 @@ from mathutils import Quaternion  # noqa: E402
 from rig import Clip, Mat, Vector, hexc, mirror, over, swap  # noqa: E402
 
 rig.reset()
-sk = rig.human(1.8)
+sk = rig.human(1.8, extra=rig.fingertips())   # crew.py's skeleton, the fingers' middle joints with it
 sk.build()
 kit = rig.Kit(sk, "crew_clips")
 # A stand-in so the file has a skin to name the joints (the exporter writes skins for skinned meshes only); never drawn,
@@ -2187,6 +2187,7 @@ throw_off.key(20, look_at(by_side(by_side(over(STAND, spine_02=(-2, 0, 0)), "r")
 clips.append(throw_off)
 
 kit.build()
+rig.curl_fingertips(clips)
 rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"wave", "point", "dance", "paint", "drink", "grill", "eat", "bow", "salute", "conga", "shove", "pump", "heave", "throw_off", "fireman", "hand_up", "high_five", "high_five_met", "fist_bump", "fist_bump_met", "dance_off",
                                                         "dance_off_cheer", "lean_out", "lean_out_left", "carry", "carry_walk", "drag", "drag_fwd", "shovel", "door", "handbrake", "hatch",
                                                         "uncouple", "vent", "lever", "push", "swing", "mend",
