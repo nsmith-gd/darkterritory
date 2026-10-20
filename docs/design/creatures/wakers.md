@@ -83,7 +83,13 @@ playing."
 
 - **The grab.** The Waker closes on the last car. The train drags to a stop against it (`dragDecel`), whatever the
   driver does.
-- **The lift.** The last car goes up, nose-down, then the next as the coupling hauls it, a car every `liftSeconds`.
+- **The lift** (note 902; the director's playtest of 16 Oct 2026: "stop behind the train and like scoop it up with its
+  hands and pick it up like it's like a two-handed hot dog"). It stops `catchShort` m behind the last car, drops to its
+  knees on the line and gets both hands under the car where it stands on the rails, tears it off its coupling and lifts
+  it to its mouth, end first, its far end tipped down. It takes it in three bites (`bites` of the car's `eatSeconds`, the
+  last as the sim has it eaten), then its hands go down for the next and it shuffles on after it on its knees. Only the
+  car in its hands leaves the rails; the rest of the train stands where it is. Whoever comes down off the car in its hands
+  once it's `fallFrom` of the way up, onto the ground where it stood (within `fallAround` m), fell from it, and dies.
   Everyone aboard stays in first person and in control of their eyes. They are pinned in their car (the frame they live
   in tilts and rises), and can look out at the land falling away and the thing holding them.
 - **No cutaway while you're playing.** Held by a Waker is not D1.4's held camera (#312): that cuts to third person for
@@ -110,8 +116,10 @@ playing."
 | `startSpeed` → `topSpeed` | 6 → 26 m/s over `rampSeconds` 45 |
 | `stopShort` | 300 m short of the gate |
 | `dragDecel` | 3 m/s² once it has the last car |
-| `liftSeconds` | 2.5 a car |
-| `eatSeconds` | 4 a car |
+| `catchShort` | 12 m behind the last car, where it kneels to take it (note 902) |
+| `scoopFrom`, `scoopHold` | the last car goes up from 1.2 s into the hold till 1 s before `eatAfter` (6) |
+| `eatSeconds` | 4 a car: `reachShare` 0.35 of `scoopShare` 0.45 of it its hands going down, the rest up; bites at 0.55 and 0.775, the third as it ends |
+| `fallFrom`, `fallAround` | 0.15 of the way up; 3 m round the car |
 | `pickers`, `pickAside`, `pickRiseSeconds` | 3 at once, 40 m beyond whoever ran, 4 s up (note 710) |
 | `pickSpeed`, `pickReach`, `pickLiftSeconds` | 12 m/s over, in hand within 18 m, 4 s up to its mouth (22 m up, 10 m out) |
 

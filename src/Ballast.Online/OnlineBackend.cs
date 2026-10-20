@@ -62,8 +62,8 @@ public sealed record LobbyListing(LobbyId Id, int Members, int MaxMembers, IRead
 
 /// <summary>
 /// A platform's online services: identity, lobbies, invites and relayed P2P datagrams (ARCHITECTURE §4, §8 note 24).
-/// Implementations: <see cref="Steam.SteamBackend"/>, and <see cref="FakeOnline"/> for tests and the harness.
-/// EOS (itch.io builds) will be the third. Everything asynchronous comes back as an <see cref="OnlineEvent"/> from
+/// Implementations: <see cref="Steam.SteamBackend"/>, <see cref="Eos.EosBackend"/> (itch.io builds, note 896), and
+/// <see cref="FakeOnline"/> for tests and the harness. Everything asynchronous comes back as an <see cref="OnlineEvent"/> from
 /// <see cref="Poll"/>, which also pumps the platform's callbacks, so call it every frame.
 /// </summary>
 public interface IOnlineBackend : IDisposable

@@ -493,14 +493,15 @@ public sealed partial class SceneArt(Look look)
 
     /// <summary>
     /// The car a Waker's eating this frame (note 679; GreyboxScene sets it): its index among the frames and how far through
-    /// its eating he is (0..1). It's bitten off where it's drawn (<see cref="Bite.Waker"/>), not dropped out of sight.
+    /// the bites he's taken of it, of how many it takes (note 902: three). It's bitten off where it's drawn
+    /// (<see cref="Bite.Waker"/>), not dropped out of sight.
     /// </summary>
-    public (int Car, double Through)? WakerEating { get; set; }
+    public (int Car, int Bitten, int Bites)? WakerEating { get; set; }
 
     /// <summary>What's eaten of a car as it's drawn: a Waker's bites into the car he's eating, else a Car Hugger's.</summary>
     public Bite BiteOf(CarShape shape, Vehicle? vehicle, int index) =>
         WakerEating is { } w && w.Car == index
-            ? Bite.Waker(shape, w.Through, Bite.ScarSeed(vehicle?.Id ?? index))
+            ? Bite.Waker(shape, w.Bitten, w.Bites, Bite.ScarSeed(vehicle?.Id ?? index))
             : Bite.For(Look.Tuning.Bite, shape, vehicle, index);
 
     // How strained a car is before the crew on it stumble: past halfway to derailing, where the eye's judder is plain
