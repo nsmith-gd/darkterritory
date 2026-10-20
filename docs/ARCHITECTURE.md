@@ -1059,4 +1059,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [880. Encounter telemetry: an `EncounterLog` in the Sim, reported as the `encounters` block of `dt harness` and `dt playthrough` (queue #600, the…](notes/880.md)
 - [891. The Cinder Hounds aboard, the director's 9 Oct answer (n1-H1, queue #614; inbox `D1.2-car-fires-from-packs`, note 857's call 1)](notes/891.md)
 - [896. Epic Online Services P2P: the third datagram carrier, for players off Steam (n1-N1, queue #274; the netcode audit's gap 6; note 24)](notes/896.md)
+- [894. The shunter alone at a pick-up's points, eaten by the Ribbits (queue #615, n1-w7 for nathaniel1; from note 859's Unfixed)](notes/894.md)
 <!-- end of the notes index -->
