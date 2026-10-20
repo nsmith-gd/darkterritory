@@ -73,7 +73,7 @@ public readonly record struct SpawnAttemptResult(uint Tick, EnemyKind Kind, Spaw
 /// The spawn overhaul's encounter tuning (<c>director.encounters</c> in enemies.json; note 874). Partial: each overhaul item
 /// adds its own block in a file of its own (#606's rate, #607's debt), so they merge without touching each other's lines.
 /// </summary>
-public sealed partial record EncounterTuning
+public sealed partial record EncountersTuning
 {
     /// <summary>The spawn transaction's retries (note 885).</summary>
     public SpawnAttemptTuning Attempts { get; init; } = new();
