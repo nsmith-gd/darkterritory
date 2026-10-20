@@ -646,7 +646,7 @@ public static class Spawns
     ];
 
     /// <summary>The cranes at the stop the train stands at (<see cref="SpawnContext.StopSite"/>) with castings stacked, in the site's order.</summary>
-    static List<Crane> GrumblerCranes(SpawnContext c) =>
+    internal static List<Crane> GrumblerCranes(SpawnContext c) =>
         c.StopSite is not { } site ? [] : [.. site.Cranes.Where(k => !k.Wrecked && k.Castings.Any(x => x.State == CastingState.Stacked))];
 
     /// <summary>
@@ -671,14 +671,14 @@ public static class Spawns
     /// The cranes at the stop the train's standing at with castings the Mouse Moose could take (note 790), each with those
     /// castings: in the order the site has them.
     /// </summary>
-    static List<(Crane Crane, List<int> Castings)> MouseMooseCranes(SpawnContext c) =>
+    internal static List<(Crane Crane, List<int> Castings)> MouseMooseCranes(SpawnContext c) =>
         c.World.Run?.CurrentSite is not { } site ? []
             : [.. site.Cranes.Where(k => !k.Wrecked).Select(k => (k, MouseMoose.Takeable(k, k.Controls).OrderBy(i => i).ToList())).Where(x => x.Item2.Count > 0)];
 
     /// <summary>Cars in the engine's rake with a room and their lamp lit (the Fire Flies' light).
     /// With <see cref="FireFliesTuning.ShutCarKeepsOut"/>, only those with a way in: a door or the hatch open, or a breach
     /// (boarding-first, note 286: a car shut up tight keeps them off its lamp).</summary>
-    static List<int> LitCars(SpawnContext c) =>
+    internal static List<int> LitCars(SpawnContext c) =>
         // Note 728: a hand lamp lying lit in a car lights it as its own lamps do (World.CarLit).
         [.. c.Train.Dynamics.Consist.Vehicles.Where(v => v.Id > 0 && c.World.CarLit(v.Id) && c.Train.Frames[v.Id].Shape.Interior is not null
             && !(c.Tuning.FireFlies.ShutCarKeepsOut && Boarding.ShutUp(c.Train, v.Id))).Select(v => v.Id)];
@@ -687,7 +687,7 @@ public static class Spawns
     /// Followers ride the facility's grounds (level-design H.2, note 309): of the crew on an excursion, those standing in one of
     /// the stop's follower grounds (its radius and <c>sites.groundMargin</c>). All of them where the stop has no layout.
     /// </summary>
-    static List<int> OnFollowerGround(SpawnContext c, List<int> free)
+    internal static List<int> OnFollowerGround(SpawnContext c, List<int> free)
     {
         var grounds = c.Sites(LairKind.FollowerGround);
         if (grounds.Count == 0)
