@@ -17,7 +17,7 @@ public static class TelemetrySchema
     public static readonly IReadOnlyDictionary<string, string[]> Events = new Dictionary<string, string[]>(StringComparer.Ordinal)
     {
         // Once, when the game starts recording: what it is and what it runs on.
-        ["session"] = ["session", "build", "commit", "edition", "dev", "os", "gpu", "vr", "resolution", "renderScale", "vsync", "fov"],
+        ["session"] = ["session", "install", "build", "commit", "edition", "dev", "os", "gpu", "vr", "resolution", "renderScale", "vsync", "fov"],
         // A night begins: where, how long a train, who's aboard (counted), and this machine's part in it.
         ["night"] = ["night", "role", "route", "tier", "cars", "humans", "bots"],
         // Each minute of a night: how far, who's alive, how it ran, how the link was.

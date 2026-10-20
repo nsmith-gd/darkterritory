@@ -31,7 +31,7 @@ static class TelemetryCommands
         // The session's own clock is the night's (a bot night runs faster than real time): the lines say sim seconds.
         World? last = null;
         var sink = new MemoryTelemetrySink();
-        var recorder = new SessionRecorder(sink, enabled: true, clock: () => last is null ? 0 : last.Tick * SimConstants.TickSeconds);
+        var recorder = new SessionRecorder(sink, new FixedTelemetryGate(true, dir), clock: () => last is null ? 0 : last.Tick * SimConstants.TickSeconds);
         recorder.Begin(new SessionFacts("full", Dev: true, SessionFacts.ThisOs, Gpu: "headless", Vr: false, Resolution: "-", RenderScale: 1, VSync: false,
             FieldOfView: 0));
         Harness.Run(route.Build(), c.Train, c.Player, new HarnessOptions

@@ -26,7 +26,7 @@ public class TelemetrySchemaTests
     {
         var sink = new MemoryTelemetrySink();
         var s = Night();
-        var recorder = new SessionRecorder(sink, enabled, clock: () => s.World.Tick * SimConstants.TickSeconds);
+        var recorder = new SessionRecorder(sink, new FixedTelemetryGate(enabled, "unused", "0123abcd"), clock: () => s.World.Tick * SimConstants.TickSeconds);
         recorder.Begin(Facts);
         recorder.NightBegin(s.World, "solo", humans: 1, bots: 0, me: 1);
         var friend = s.Player;
@@ -99,6 +99,37 @@ public class TelemetrySchemaTests
         Assert.Empty(sink.Lines);
         Assert.False(recorder.Enabled);
         Assert.Equal(0, recorder.Bytes);
+    }
+
+    [Fact]
+    public void ConsentIsAskedOnEveryLine()
+    {
+        // #625: switched off mid-night, nothing more's written; switched on after the game's up, the session line comes first.
+        var sink = new MemoryTelemetrySink();
+        var gate = new FixedTelemetryGate(false, "unused", "0123abcd");
+        var s = Night();
+        var recorder = new SessionRecorder(sink, gate, clock: () => s.World.Tick * SimConstants.TickSeconds);
+        recorder.Begin(Facts);
+        Assert.Empty(sink.Lines);
+        gate.Recording = true;
+        recorder.NightBegin(s.World, "solo", humans: 1, bots: 0, me: 1);
+        Assert.Equal(["session", "night"], sink.Lines.Select(l => JsonDocument.Parse(l).RootElement.GetProperty("type").GetString()));
+        Assert.Equal("0123abcd", JsonDocument.Parse(sink.Lines[0]).RootElement.GetProperty("install").GetString());
+        for (int t = 0; t < 30 * SimConstants.TickRate; t++)
+        {
+            s.Step(default);
+            recorder.Tick(s.World, [(1, s.Player)]);
+        }
+        gate.Recording = false;
+        int written = sink.Lines.Count;
+        for (int t = 0; t < 90 * SimConstants.TickRate; t++)
+        {
+            s.Step(default);
+            recorder.Tick(s.World, [(1, s.Player)]);
+        }
+        recorder.NightEnd(s.World);
+        recorder.Quit("app");
+        Assert.Equal(written, sink.Lines.Count);
     }
 
     [Fact]

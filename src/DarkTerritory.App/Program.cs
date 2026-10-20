@@ -292,8 +292,10 @@ var renderer = new GreyboxRenderer(gpu, internalSize[0], internalSize[1]) { Over
 using var rendererOwner = new Owner(() => renderer.Dispose());
 // Playtest telemetry (note 913, queue #624): this session written down, only with the player's say-so (#625 asks; until then
 // "telemetry": true in settings.json, or --telemetry). Off, nothing's recorded and no file's made. Nothing's sent (#626).
-var telemetry = DarkTerritory.Game.Telemetry.SessionRecorder.ToFile(Arg("--telemetry-dir", DarkTerritory.Game.Telemetry.SessionRecorder.DefaultDirectory),
-    enabled: startSettings.Telemetry || args.Contains("--telemetry"));
+// #625's PlaytestConsent is the gate the game will ask; until it lands, a fixed answer.
+var telemetryGate = new DarkTerritory.Game.Telemetry.FixedTelemetryGate(startSettings.Telemetry || args.Contains("--telemetry"),
+    Arg("--telemetry-dir", DarkTerritory.Game.Telemetry.FixedTelemetryGate.DefaultDirectory));
+var telemetry = DarkTerritory.Game.Telemetry.SessionRecorder.ToFile(telemetryGate);
 using var telemetryOwner = telemetry.Closer;
 #if DEVTOOLS
 const bool devBuild = true;
@@ -303,7 +305,7 @@ const bool devBuild = false;
 telemetry.Begin(new DarkTerritory.Game.Telemetry.SessionFacts(EditionTuning.Load(content).Name, devBuild, DarkTerritory.Game.Telemetry.SessionFacts.ThisOs,
     gpu.DeviceName, vr is not null, startSettings.Resolution, startSettings.RenderScale, startSettings.VSync, startSettings.FieldOfView));
 if (telemetry.Enabled)
-    Console.WriteLine($"telemetry: recording this session ({telemetry.SessionId}) to {Arg("--telemetry-dir", DarkTerritory.Game.Telemetry.SessionRecorder.DefaultDirectory)}");
+    Console.WriteLine($"telemetry: recording this session ({telemetry.SessionId}) to {telemetryGate.SessionsDirectory}");
 if (look is not null)
 {
     look.Dress(renderer);

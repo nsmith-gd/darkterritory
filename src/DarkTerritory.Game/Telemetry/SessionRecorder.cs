@@ -71,6 +71,7 @@ public sealed record SessionFacts(string Edition, bool Dev, string Os, string Gp
 public sealed class SessionRecorder
 {
     readonly ITelemetrySink? _sink;
+    readonly ITelemetryGate _gate;
     readonly Func<double> _clock;
     int _night;
     // The crew as last looked at: who was alive.
@@ -90,13 +91,13 @@ public sealed class SessionRecorder
     double _median = 1000.0 / 60;
     double? _pingMs, _loss;
 
-    /// <param name="enabled">The player's consent (#625). False: nothing is ever written.</param>
+    /// <param name="gate">The player's consent (#625), read on every write: not recording, nothing is written.</param>
     /// <param name="clock">Seconds since the session began; a stopwatch by default (tests and <c>dt</c> give their own).</param>
-    public SessionRecorder(ITelemetrySink? sink, bool enabled, Func<double>? clock = null, string? sessionId = null)
+    public SessionRecorder(ITelemetrySink? sink, ITelemetryGate gate, Func<double>? clock = null, string? sessionId = null)
     {
         _sink = sink;
+        _gate = gate;
         SessionId = sessionId ?? NewId();
-        Enabled = enabled && sink is not null;
         if (clock is null)
         {
             var watch = Stopwatch.StartNew();
@@ -105,22 +106,21 @@ public sealed class SessionRecorder
         _clock = clock;
     }
 
-    /// <summary>Recording (consent given, somewhere to write).</summary>
-    public bool Enabled { get; }
+    /// <summary>Recording: consent given now (the gate's asked every time), and somewhere to write.</summary>
+    public bool Enabled => _sink is not null && _gate.Recording;
     /// <summary>A random id for this session, made here: nothing about the player or the machine is in it.</summary>
     public string SessionId { get; }
 
     static string NewId() => Guid.NewGuid().ToString("N");
 
-    /// <summary>Where the app writes its sessions: the player's app data, a file a session (#626 caps and sends them).</summary>
-    public static string DefaultDirectory =>
-        System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DarkTerritory", "telemetry");
-
-    /// <summary>A recorder writing to <c>&lt;directory&gt;/&lt;session&gt;.jsonl</c>; not enabled, it makes no file at all.</summary>
-    public static SessionRecorder ToFile(string directory, bool enabled)
+    /// <summary>
+    /// A recorder writing to <c>&lt;the gate's sessions folder&gt;/&lt;session&gt;.jsonl</c>; the file's made on the first line written, so
+    /// a session never recorded leaves none.
+    /// </summary>
+    public static SessionRecorder ToFile(ITelemetryGate gate)
     {
         string id = NewId();
-        return new SessionRecorder(enabled ? new FileTelemetrySink(System.IO.Path.Combine(directory, id + ".jsonl")) : null, enabled, sessionId: id);
+        return new SessionRecorder(new FileTelemetrySink(System.IO.Path.Combine(gate.SessionsDirectory, id + ".jsonl")), gate, sessionId: id);
     }
 
     /// <summary>The file sink's, to close at the end (null for any other).</summary>
@@ -131,16 +131,28 @@ public sealed class SessionRecorder
     public bool InNight { get; private set; }
     bool _closed;
 
-    /// <summary>The session begins: what the build is, and what it runs on.</summary>
+    /// <summary>
+    /// The session begins: what the build is, and what it runs on. Its line is written now if the player's said yes, else
+    /// before the first line once they do (#625's question may come after the game's up).
+    /// </summary>
     public void Begin(SessionFacts f)
     {
-        if (!Enabled)
-            return;
+        _facts = f;
+        if (Enabled)
+            _sink!.Flush();
+    }
+
+    SessionFacts? _facts;
+    bool _sessionWritten;
+
+    void Session()
+    {
+        _sessionWritten = true;
+        var f = _facts!;
         var (build, commit) = Report.Build();
-        Emit("session", ("session", SessionId), ("build", build), ("commit", commit), ("edition", f.Edition), ("dev", f.Dev), ("os", f.Os),
-            ("gpu", f.Gpu), ("vr", f.Vr), ("resolution", f.Resolution), ("renderScale", f.RenderScale), ("vsync", f.VSync),
+        Emit("session", ("session", SessionId), ("install", _gate.InstallId), ("build", build), ("commit", commit), ("edition", f.Edition), ("dev", f.Dev),
+            ("os", f.Os), ("gpu", f.Gpu), ("vr", f.Vr), ("resolution", f.Resolution), ("renderScale", f.RenderScale), ("vsync", f.VSync),
             ("fov", f.FieldOfView));
-        _sink!.Flush();
     }
 
     /// <summary>
@@ -340,6 +352,11 @@ public sealed class SessionRecorder
     /// <summary>One line: the common fields, then the type's, each of which must be in <see cref="TelemetrySchema.Events"/>.</summary>
     void Emit(string type, params (string Key, object? Value)[] fields)
     {
+        // Consent's asked on every line (#625): switched off mid-night, nothing more is written.
+        if (!Enabled)
+            return;
+        if (!_sessionWritten && _facts is not null && type != "session")
+            Session();
         if (!TelemetrySchema.Events.TryGetValue(type, out var allowed))
             throw new InvalidOperationException($"telemetry: no event \"{type}\" in the schema");
         using var stream = new MemoryStream();
