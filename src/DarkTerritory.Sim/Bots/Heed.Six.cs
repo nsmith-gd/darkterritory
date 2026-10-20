@@ -292,9 +292,12 @@ public static partial class Heed
         var train = world.Train;
         var me = PlayerMotor.WorldPosition(self, train);
         // Note 894 (App. A.6, "outrunnable, if you run"): a pack hunting us that outnumbers us and those with us, and we're on
-        // our way somewhere (aboard, say): on, at a run, not round to club them. frontier:6 seed 4's shunter, alone at the
-        // pick-up's points and walking back to the train, turned on a pack of three and was eaten.
-        if (et.CrewBots.RibbitsOutnumberedRun && (intent.MoveX != 0 || intent.MoveZ != 0) && Hunted(world, selfId, me, others, et.Ribbits.GroupRadius))
+        // our way somewhere away from it (aboard, say): on, at a run, not round to club them. frontier:6 seed 4's shunter, alone
+        // at the pick-up's points and walking back to the train, turned on a pack of three and was eaten. Our way taking us
+        // toward them or past them, the clubbing below (seed 2's shunter ran by them to its ladder and was taken; clubbing,
+        // it killed one and got clear).
+        if (et.CrewBots.RibbitsOutnumberedRun && Hunted(world, selfId, me, others, et.Ribbits.GroupRadius) is { } pack
+            && Flat(Going(self, intent)) > 0 && Double3.Dot(Going(self, intent), (me - pack) with { Y = 0 }) > 0)
             return intent with { Buttons = intent.Buttons | PlayerButtons.Run };
         // Any of them near, hunting or not: one left sitting when the count's against it takes the next hand to walk off alone.
         var nearest = world.ActiveEnemies.OfType<Ribbit>().Where(r => !r.Gone).Select(r => (r, At: r.WorldPosition(train))).Where(x => Flat(x.At - me) <= et.CrewBots.RibbitWithin)
@@ -304,17 +307,30 @@ public static partial class Heed
 
     /// <summary>
     /// A Ribbit pack after this bot (its leader's mark) that outnumbers it and the crewmates on foot within the pack's
-    /// <c>groupRadius</c> of it (the count the pack goes by, App. A.6).
+    /// <c>groupRadius</c> of it (the count the pack goes by, App. A.6): where the pack is, or null.
     /// </summary>
-    static bool Hunted(World world, int selfId, Double3 me, IReadOnlyList<(int Id, PlayerState State)>? others, double groupRadius)
+    static Double3? Hunted(World world, int selfId, Double3 me, IReadOnlyList<(int Id, PlayerState State)>? others, double groupRadius)
     {
-        var after = world.ActiveEnemies.OfType<Ribbit>().Where(r => !r.Gone && r.Target == selfId && r.Phase != SpinePhase.Grab).ToList();
+        var after = world.ActiveEnemies.OfType<Ribbit>().Where(r => !r.Gone && r.Target == selfId && r.Phase != SpinePhase.Grab)
+            .OrderBy(r => r.Id).ToList();
         if (after.Count == 0)
-            return false;
-        int pack = world.ActiveEnemies.OfType<Ribbit>().Count(r => !r.Gone && r.Pack == after[0].Pack);
+            return null;
+        var pack = world.ActiveEnemies.OfType<Ribbit>().Where(r => !r.Gone && r.Pack == after[0].Pack).ToList();
         int group = 1 + (others ?? []).Count(o => o.Id != selfId && CrewSense.Afoot(o.State, world.Train)
             && Flat(PlayerMotor.WorldPosition(o.State, world.Train) - me) <= groupRadius);
-        return pack > group;
+        if (pack.Count <= group)
+            return null;
+        // Where it is: the middle of it.
+        return pack.Aggregate(Double3.Zero, (a, r) => a + r.WorldPosition(world.Train)) * (1.0 / pack.Count);
+    }
+
+    /// <summary>The way this intent walks us on the ground (world, flat), as the motor turns and moves us this tick.</summary>
+    static Double3 Going(in PlayerState self, in PlayerIntent intent)
+    {
+        double yaw = self.Yaw + intent.LookYaw;
+        var forward = new Double3(-DMath.Sin(yaw), 0, -DMath.Cos(yaw));
+        var right = new Double3(DMath.Cos(yaw), 0, -DMath.Sin(yaw));
+        return right * intent.MoveX + forward * intent.MoveZ;
     }
 
     /// <summary>A Ribbit's <c>meleeRadius</c> is 0.7 and a blow reaches 2.2 m past it: this near on the flat, a swing (m).</summary>
