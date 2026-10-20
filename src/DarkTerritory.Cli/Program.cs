@@ -122,9 +122,9 @@ return args switch
     ["film", ..] => Print(FilmCommands.Run(content, args)),
     ["playthrough", ..] => Print(PlaythroughCommands.Run(content, args)),
     ["afoot", "census", ..] => Print(AfootCommands.Census(content, args)),
-    // dt eligibility [--routes frontier:7,deadLines:3] [--crews 1:3,2:5,4:8] [--seeds 1-3] [--seconds 2700] [--markdown f.md]: every
+    // dt eligibility rolls [--seeds 1-2000]: each kind's nightChance with the night's floor, by tier and crew. dt eligibility [--routes frontier:7,deadLines:3] [--crews 1:3,2:5,4:8] [--seeds 1-3] [--seconds 2700] [--markdown f.md]: every
     // kind of the director's spend table, its gates read a second at a time through ordinary nights (note 875).
-    ["eligibility", ..] => Print(EligibilityCommands.Run(args, (a, also) => RunHarness(a, also))),
+    ["eligibility", ..] => Print(EligibilityCommands.Run(content, args, (a, also) => RunHarness(a, also))),
     ["afoot", ..] => Print(AfootCommands.Run(content, args)),
     // dt town [--route tier:seed] [--last culture] | dt town sweep [--seeds n]: the departure fortress's town (note 281).
     ["town", ..] => Print(TownCommands.Run(content, args)),
