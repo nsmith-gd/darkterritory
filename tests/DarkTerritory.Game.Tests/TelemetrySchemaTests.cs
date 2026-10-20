@@ -62,6 +62,31 @@ public class TelemetrySchemaTests
     }
 
     [Fact]
+    public void TheWhatWeCollectPageCoversEveryField()
+    {
+        // #625's page (content/ui/playtest-data.json `collect`, note 914): each group's `fields` is "type.field, field; type.field, …".
+        // Every field the recorder can write is on it, bar the ones that only say when (`night`, `minute`, `s`, and every
+        // line's `schema`, `type`, `t`, which the page's groups cover in words); and nothing's on it the recorder can't write.
+        var options = new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
+        using var page = JsonDocument.Parse(File.ReadAllText(Path.Combine(Content, "ui", "playtest-data.json")), options);
+        var listed = new HashSet<(string Type, string Field)>();
+        foreach (var group in page.RootElement.GetProperty("collect").EnumerateArray())
+            foreach (string part in group.GetProperty("fields").GetString()!.Split(';', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+            {
+                var names = part.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+                var (type, first) = (names[0][..names[0].IndexOf('.')], names[0][(names[0].IndexOf('.') + 1)..]);
+                foreach (string field in names.Skip(1).Prepend(first))
+                    listed.Add((type, field));
+            }
+        string[] when = ["night", "minute", "s"];
+        foreach (var (type, fields) in TelemetrySchema.Events)
+            foreach (string field in fields.Where(f => !when.Contains(f)))
+                Assert.True(listed.Contains((type, field)), $"{type}.{field} isn't on the what-we-collect page");
+        foreach (var (type, field) in listed)
+            Assert.True(TelemetrySchema.Events.TryGetValue(type, out var fields) && fields.Contains(field), $"the page lists {type}.{field}, which isn't recorded");
+    }
+
+    [Fact]
     public void ANightWritesOnlyTheSchemasFields()
     {
         var (sink, recorder, _) = Recorded(150);
