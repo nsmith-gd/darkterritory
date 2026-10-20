@@ -17,7 +17,7 @@ dotnet build Ballast.slnx                          # warnings are errors
 dotnet test --solution Ballast.slnx                # all tests (Microsoft.Testing.Platform runner)
 dotnet test --project tests/DarkTerritory.Sim.Tests  # one project
 dotnet run --project src/DarkTerritory.Cli -- train table   # `dt`: headless inspection tool, JSON out
-tools/package.sh [--demo] [--dev] [win-x64] [linux-x64]    # builds for players: self-contained, zipped, in out/dist/ (--demo: the demo edition beside it; --dev: the director's test build, the developer tools in)
+tools/package.sh [--demo] [--dev] [--playtest[=CODE]] [win-x64] [linux-x64]    # builds for players: self-contained, zipped, in out/dist/ (--demo: the demo edition beside it; --dev: the director's test build, the developer tools in; --playtest: a playtest's build beside it, its cohort CODE baked in and the survey after each night, note 916)
 dotnet run --project src/DarkTerritory.Cli -- build check out/dist/DarkTerritory-linux-x64   # none of the developer tools in a built game (note 514; --dev: all of them)
 dotnet run --project src/DarkTerritory.Cli -- replay night.dtrec [--to 12:30] [--shot out/shots/r.png --view eye:2|chase]   # a recorded night (a dev build records every night it hosts) played again tick for tick: where it parts, the crew and train there, a shot (note 515); `replay record --bots 4 --seconds 120` makes one headless
 dotnet run --project src/DarkTerritory.Cli -- feedback pull && dotnet run --project src/DarkTerritory.Cli -- feedback show <id>   # the director's notes from inside the game (F8 types, F9 says, in a dev build), from the repo's feedback branch; show replays the note's moment and draws it through their eyes (note 516)

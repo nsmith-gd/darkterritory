@@ -346,6 +346,9 @@ telemetry.Begin(new DarkTerritory.Game.Telemetry.SessionFacts(EditionTuning.Load
 frontEnd.Surveyed = telemetry.Survey;
 if (telemetry.Enabled)
     Console.WriteLine($"telemetry: recording this session ({telemetry.SessionId}) to {telemetryGate.SessionsDirectory}");
+// Note 916: a crash report written in a recorded session names it (and its playtest's code), so the two are read together.
+if (telemetry.Enabled)
+    crashes.Context("playtest session", telemetry.SessionId);
 if (look is not null)
 {
     look.Dress(renderer);
