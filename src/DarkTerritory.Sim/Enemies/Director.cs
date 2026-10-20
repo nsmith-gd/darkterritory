@@ -10,7 +10,8 @@ namespace DarkTerritory.Sim.Enemies;
 /// Pressed for: the pressure was at <see cref="PressureTuning.PressAt"/>, and it came through the cooldown or over the budget's
 /// curve (by at most <see cref="DirectorTuning.PacedCost"/>).
 /// </param>
-public readonly record struct DirectorSpawn(uint Tick, EnemyKind Kind, double Cost, double TrainDistance, int ActiveInZone, int ActiveTotal, bool Paced = false, bool Free = false, bool Stop = false);
+/// <param name="Members">How many it put in (note 885): a pack is one spawn of several; 0 when accounted without placing (a test's).</param>
+public readonly record struct DirectorSpawn(uint Tick, EnemyKind Kind, double Cost, double TrainDistance, int ActiveInZone, int ActiveTotal, bool Paced = false, bool Free = false, bool Stop = false, int Members = 0);
 
 /// <summary>What built the director's pressure in its last second (note 266), for the harness's trace.</summary>
 /// <param name="Rate">Pressure a second, all told.</param>
@@ -139,8 +140,6 @@ public sealed class Director
     Pcg32 _freeRng;
     /// <summary>Seconds since the director last sent anything, its own spend or a free spawn (the free spawns' spacing).</summary>
     double _sinceAny = 1e9;
-    /// <summary>The last kind <see cref="Decide"/> returned was a free spawn (note 849): its rule's spawn goes without the rule.</summary>
-    public bool SentFree { get; private set; }
     double _sinceThreat;
     /// <summary>The line run since a threat was last engaged or sent (note 270: quiet counted in kilometres).</summary>
     double _quietMetres;
@@ -463,19 +462,33 @@ public sealed class Director
     /// <summary>Why the last decision sent nothing (for the harness's pacing report); null after one that sent something.</summary>
     public string? HeldBecause { get; private set; }
 
-    EnemyKind? Held(string why)
+    SpawnAttempt? Held(string why)
     {
         HeldBecause = why;
         return null;
     }
 
-    /// <summary>Called once a second by the world. Returns what to spawn, if anything.</summary>
+    /// <summary>
+    /// Chooses and commits as placed (note 885): for tests and tools that think with the director without putting anything in
+    /// the world. The world itself chooses (<see cref="Choose"/>), places and commits (<see cref="Commit"/>).
+    /// </summary>
     public EnemyKind? Decide(World world, double elapsed, IReadOnlyList<Enemy> active, double noSpawnFinal)
+    {
+        if (Choose(world, elapsed, active, noSpawnFinal) is not { } attempt)
+            return null;
+        Commit(world, attempt, SpawnOutcome.Assumed, active);
+        return attempt.Kind;
+    }
+
+    /// <summary>
+    /// Called once a second by the world: what to spawn, if anything, chosen and not yet accounted (note 885; the brief §2 issue
+    /// 3). The world places it by its rule and hands the outcome to <see cref="Commit"/>, which accounts it only if it placed.
+    /// </summary>
+    public SpawnAttempt? Choose(World world, double elapsed, IReadOnlyList<Enemy> active, double noSpawnFinal)
     {
         _cooldown -= 1;
         _sinceAny += 1;
-        SentFree = false;
-        _lastStop = null;
+        _seconds += 1;
         // The aftermath (note 751) and the facility lull (App. B.1) run down a second a decision, whatever holds it.
         bool shaken = AftermathLeft > 0;
         AftermathLeft = Math.Max(0, AftermathLeft - 1);
@@ -543,7 +556,7 @@ public sealed class Director
     /// The pressure's spend (App. B.1): past the threshold, what the weights, wants, pairs, gates and caps pick; null, and why
     /// (<see cref="HeldBecause"/>), when it sends nothing this second.
     /// </summary>
-    EnemyKind? Spend(World world, double elapsed, IReadOnlyList<Enemy> active, double s, List<string> tags, LineGen.PlanDirector? context)
+    SpawnAttempt? Spend(World world, double elapsed, IReadOnlyList<Enemy> active, double s, List<string> tags, LineGen.PlanDirector? context)
     {
         // The night's first threat is drawn (note 287): it answers what the crew did. A draw past answerAt is answered out loud at
         // once (the World puts the answer where it's heard), and the threat follows leadSeconds on, pressed for; with no draw that
@@ -592,7 +605,7 @@ public sealed class Director
             foreach (var rule in Spawns.Rules)
             {
                 // Killed by the crew together tonight (note 288): it's done for the night.
-                if (!Allows(rule.Kind) || !Tonight(rule.Kind, world) || world.Slain.Contains(rule.Kind) || !Room(rule.Kind, holding) || rule.Weight(ctx) is not { } w || w <= 0)
+                if (!Allows(rule.Kind) || !Tonight(rule.Kind, world) || world.Slain.Contains(rule.Kind) || !Room(rule.Kind, holding) || FailedLately(rule.Kind) || rule.Weight(ctx) is not { } w || w <= 0)
                     continue;
                 options.Add((rule.Kind, w * _t.Weights.GetValueOrDefault(Key(rule.Kind), 1)));
             }
@@ -710,10 +723,13 @@ public sealed class Director
             pick -= o.Weight;
         }
         HeldBecause = null;
-        SentFree = fill;
-        Charge(world, kind, active, paced: fill || due && (_cooldown > 0 || Cost(kind) > available - Reserve(world, s, kind)), free: fill);
-        _cooldown = _rng.Range(_t.CooldownSeconds[0], _t.CooldownSeconds[1]);
-        return kind;
+        // Chosen, not yet spent (note 885): the cooldown's drawn now, as it always was, and started only if the kind places.
+        return Attempt(world, kind, SpawnChannel.Pressure, active) with
+        {
+            Free = fill,
+            Paced = fill || due && (_cooldown > 0 || Cost(kind) > available - Reserve(world, s, kind)),
+            Cooldown = _rng.Range(_t.CooldownSeconds[0], _t.CooldownSeconds[1]),
+        };
     }
 
     /// <summary>
@@ -729,7 +745,7 @@ public sealed class Director
         var options = new List<(EnemyKind Kind, double Weight)>();
         foreach (var rule in Spawns.Rules)
         {
-            if (!Allows(rule.Kind) || !Tonight(rule.Kind, world) || world.Slain.Contains(rule.Kind) || !Room(rule.Kind, holding))
+            if (!Allows(rule.Kind) || !Tonight(rule.Kind, world) || world.Slain.Contains(rule.Kind) || !Room(rule.Kind, holding) || FailedLately(rule.Kind))
                 continue;
             double w;
             if (rule.Weight(ctx) is { } met && met > 0)
@@ -758,7 +774,7 @@ public sealed class Director
     /// kind's night (its chance, its cap, slain), the night's variety, who's next and the dead's votes hold as for the rest.
     /// Never before the night's first threat, which is drawn (note 287), nor within <c>curve.spacingSeconds</c> of anything sent.
     /// </summary>
-    EnemyKind? SpendFree(World world, IReadOnlyList<Enemy> active, double s)
+    SpawnAttempt? SpendFree(World world, IReadOnlyList<Enemy> active, double s)
     {
         var f = _t.Curve;
         if (!f.Free || f.Kinds.Count == 0 && f.Bound <= 0)
@@ -766,7 +782,8 @@ public sealed class Director
         if (f.AfterFirst && _t.Draw.Enabled && First is null)
             return null;
         // Rolled every second it may come, before anything else is asked, so what held it doesn't move the night's dice.
-        bool fires = _freeRng.NextDouble() < f.PerHour(Curve, Math.Max(1, Active)) / 3600;
+        // One that fired and found nowhere is still owed a while (note 885): the roll's made all the same, so the dice don't move.
+        bool fires = _freeRng.NextDouble() < f.PerHour(Curve, Math.Max(1, Active)) / 3600 || _seconds < _freeOwedUntil;
         if (!fires || _sinceAny < f.SpacingSeconds)
             return null;
         var holding = Holding(world, active);
@@ -790,18 +807,8 @@ public sealed class Director
             }
             pick -= o.Weight;
         }
-        // Sent, not spent: nothing off the budget, nothing off the pressure (it's beside the pressure, not instead of it); the
-        // quiet is over, and it counts toward the night's variety and the kind's cap as any of the director's own does.
-        SentFree = true;
         HeldBecause = null;
-        _sinceAny = 0;
-        _sinceThreat = 0;
-        _quietMetres = 0;
-        if (AfootShare > 0)
-            SpawnsAfoot++;
-        var zone = Profile(kind).Zone;
-        Log.Add(new DirectorSpawn(world.Tick, kind, Cost(kind), s, active.Count(e => Engaged(e) && e.Zone == zone) + 1, active.Count(Engaged) + 1, Free: true));
-        return kind;
+        return Attempt(world, kind, SpawnChannel.Free, active) with { Free = true };
     }
 
     /// <summary>
@@ -854,25 +861,6 @@ public sealed class Director
     /// <summary>The kinds the night's floor brought back from out tonight (note 868), in the order it did.</summary>
     public List<string> FloorBrought { get; } = [];
 
-    /// <summary>The stop and the slot (boarding or waiting) of the last of the stops' own sent, until it's placed.</summary>
-    (int Key, bool Boarder)? _lastStop;
-
-    /// <summary>
-    /// What the director just decided was placed (<paramref name="placed"/>) or not (World, after the kind's spawn). A stop's
-    /// own that placed nothing (the Ribbits with warrens at the stop but none near the crew) is taken back: off the log and
-    /// the stop's count, so the stop tries again (note 868: frontier:7's 4-bot seeds 2 and 3 spent a waiting slot on it).
-    /// </summary>
-    public void Placed(bool placed)
-    {
-        if (_lastStop is { } last && !placed && Log.Count > 0 && Log[^1].Stop)
-        {
-            Log.RemoveAt(Log.Count - 1);
-            var (stood, waiting, boarding) = _stops[last.Key];
-            _stops[last.Key] = (stood, waiting - (last.Boarder ? 0 : 1), boarding - (last.Boarder ? 1 : 0));
-        }
-        _lastStop = null;
-    }
-
     /// <summary>The stops' own dice (note 860), a stream of their own: the night's other draws are as they were with it off.</summary>
     Pcg32 _stopRng;
     /// <summary>Each stop stood at tonight (<see cref="StopAt"/>): the seconds stood there, and how many it's put in place and aboard.</summary>
@@ -911,7 +899,7 @@ public sealed class Director
     /// slain and the engaged cap. Beside the pressure: nothing off its budget or the pressure; it ends the quiet and counts
     /// toward the night's variety and the kind's cap as any send does. Once a stop a night.
     /// </summary>
-    EnemyKind? SpendStop(World world, IReadOnlyList<Enemy> active, double s)
+    SpawnAttempt? SpendStop(World world, IReadOnlyList<Enemy> active, double s)
     {
         var st = _t.Stops;
         if (!st.On || StopAt(world) is var key && key < 0 || world.Enemies is not { } et)
@@ -935,7 +923,7 @@ public sealed class Director
             if (boards ? boarding >= boardsWanted || stood < st.BoardingAfterSeconds : waiting >= wants)
                 continue;
             if (!Allows(rule.Kind) || !Tonight(rule.Kind, world) || world.Slain.Contains(rule.Kind) || !Room(rule.Kind, holding)
-                || rule.Weight(ctx) is not { } w || w <= 0)
+                || FailedLately(rule.Kind) || rule.Weight(ctx) is not { } w || w <= 0)
                 continue;
             options.Add((rule.Kind, w * _t.Weights.GetValueOrDefault(Key(rule.Kind), 1) * NightVariety(rule.Kind)));
         }
@@ -953,18 +941,9 @@ public sealed class Director
             }
             pick -= o.Weight;
         }
-        bool boarder = st.Boarders.Contains(Key(kind));
-        _stops[key] = (stood + 1, waiting + (boarder ? 0 : 1), boarding + (boarder ? 1 : 0));
-        _lastStop = (key, boarder);
         HeldBecause = null;
-        _sinceAny = 0;
-        _sinceThreat = 0;
-        _quietMetres = 0;
-        if (AfootShare > 0)
-            SpawnsAfoot++;
-        var zone = Profile(kind).Zone;
-        Log.Add(new DirectorSpawn(world.Tick, kind, Cost(kind), s, active.Count(e => Engaged(e) && e.Zone == zone) + 1, active.Count(Engaged) + 1, Stop: true));
-        return kind;
+        // Counted against the stop's slots when it places (note 885; note 868's take-back, now the transaction's).
+        return Attempt(world, kind, SpawnChannel.Stop, active) with { Stop = (key, st.Boarders.Contains(Key(kind))) };
     }
 
     /// <summary>The crewmate the census would send the next threat to (note 345): the free one with the most slack, past minSlack.</summary>
@@ -1916,9 +1895,95 @@ public sealed class Director
         _ => $"The {Run.IncidentLog.Spoken(kind.ToString())}",
     };
 
-    /// <summary>Condition-triggered enemies (the Stoker) cost budget only when they actually fire (App. B.5).</summary>
-    public void Charge(World world, EnemyKind kind, IReadOnlyList<Enemy> active, bool paced = false, bool free = false)
+    /// <summary>
+    /// An attempt at <paramref name="kind"/> by <paramref name="channel"/>, chosen now (note 885): the engaged threats as they
+    /// stand before it's placed, for its log line.
+    /// </summary>
+    public SpawnAttempt Attempt(World world, EnemyKind kind, SpawnChannel channel, IReadOnlyList<Enemy> active)
     {
+        var zone = Profile(kind).Zone;
+        return new SpawnAttempt(kind, channel, world.Tick, world.Train.Dynamics.Distance,
+            active.Count(e => Engaged(e) && e.Zone == zone) + 1, active.Count(Engaged) + 1);
+    }
+
+    /// <summary>Every attempt tonight as it went (note 885): placed or failed and why, and how many it put in.</summary>
+    public List<SpawnAttemptResult> Attempts { get; } = [];
+
+    /// <summary>The director's seconds thought tonight (<see cref="Choose"/>), the clock its retries keep (note 885).</summary>
+    double _seconds;
+    /// <summary>Each kind that failed to place, and the second it may be chosen again from (note 885).</summary>
+    readonly Dictionary<EnemyKind, double> _failedUntil = [];
+    /// <summary>A free spawn that fired and failed is owed until this second (note 885).</summary>
+    double _freeOwedUntil = double.NegativeInfinity;
+
+    /// <summary>The kind failed to place within <see cref="SpawnAttemptTuning.FailHoldSeconds"/> (note 885): sit it out.</summary>
+    bool FailedLately(EnemyKind kind) => _failedUntil.TryGetValue(kind, out double until) && _seconds < until;
+
+    /// <summary>
+    /// The transaction's one commit point (note 874's <c>SpawnAttempt</c> contract; note 885; the brief §2 issue 3). Placed, the
+    /// attempt is accounted by its channel: the pressure's charges the budget and the pressure and starts the cooldown it drew;
+    /// the free spawn and the stops' own end the quiet and count toward the night's variety and caps (a stop's toward its
+    /// slots); a special one is charged as the pressure's, without a cooldown. One log line however many members it put in: a
+    /// pack is one encounter. Failed, nothing is: the pressure keeps what it would have spent, the stop its slot, a free spawn
+    /// stays owed a while, and the kind sits out the next choices; the failure and its reason are kept in
+    /// <see cref="Attempts"/> and <see cref="HeldBecause"/>.
+    /// </summary>
+    public SpawnOutcome Commit(World world, SpawnAttempt attempt, SpawnOutcome outcome, IReadOnlyList<Enemy> active)
+    {
+        Attempts.Add(new SpawnAttemptResult(attempt.Tick, attempt.Kind, attempt.Channel, outcome.Failure, outcome.Members.Count, attempt.Distance));
+        var tries = _t.Encounters.Attempts;
+        if (!outcome.Placed)
+        {
+            HeldBecause = $"failed ({outcome.Failure})";
+            _failedUntil[attempt.Kind] = _seconds + tries.FailHoldSeconds;
+            if (attempt.Channel == SpawnChannel.Free)
+                _freeOwedUntil = _seconds + tries.FreeRetrySeconds;
+            return outcome;
+        }
+        HeldBecause = null;
+        switch (attempt.Channel)
+        {
+            case SpawnChannel.Pressure:
+                Charge(world, attempt, active, outcome.Members.Count);
+                _cooldown = attempt.Cooldown;
+                break;
+            case SpawnChannel.Special:
+                Charge(world, attempt, active, outcome.Members.Count);
+                break;
+            case SpawnChannel.Free:
+            case SpawnChannel.Stop:
+                // Sent, not spent: nothing off the budget, nothing off the pressure (it's beside the pressure, not instead of
+                // it); the quiet is over, and it counts toward the night's variety and the kind's cap as any of the director's
+                // own does.
+                if (attempt.Channel == SpawnChannel.Free)
+                    _freeOwedUntil = double.NegativeInfinity;
+                if (attempt.Stop is { } stop)
+                {
+                    var (stood, waiting, boarding) = _stops[stop.Key];
+                    _stops[stop.Key] = (stood, waiting + (stop.Boarder ? 0 : 1), boarding + (stop.Boarder ? 1 : 0));
+                }
+                _sinceAny = 0;
+                _sinceThreat = 0;
+                _quietMetres = 0;
+                if (AfootShare > 0)
+                    SpawnsAfoot++;
+                Log.Add(new DirectorSpawn(attempt.Tick, attempt.Kind, Cost(attempt.Kind), attempt.Distance, attempt.InZone, attempt.Engaged,
+                    Free: attempt.Channel == SpawnChannel.Free, Stop: attempt.Channel == SpawnChannel.Stop, Members: outcome.Members.Count));
+                break;
+        }
+        return outcome;
+    }
+
+    /// <summary>
+    /// Condition-triggered enemies (the Stoker) cost budget only when they actually fire (App. B.5): chosen and placed, charged
+    /// as a special attempt (note 885). For tests and tools; the world commits through <see cref="Commit"/>.
+    /// </summary>
+    public void Charge(World world, EnemyKind kind, IReadOnlyList<Enemy> active, bool paced = false, bool free = false) =>
+        Commit(world, Attempt(world, kind, SpawnChannel.Special, active) with { Paced = paced, Free = free }, SpawnOutcome.Assumed, active);
+
+    void Charge(World world, SpawnAttempt attempt, IReadOnlyList<Enemy> active, int members)
+    {
+        var kind = attempt.Kind;
         // The night's first (note 287): the Stoker is the firebox's own answer (drawn by heat, note 263), whoever tended it last;
         // anything else, the draw that was answered, or the biggest standing.
         if (kind == EnemyKind.Stoker)
@@ -1941,11 +2006,9 @@ public sealed class Director
         _spentByWant[want] = _spentByWant.GetValueOrDefault(want) + Cost(kind);
         if (Completes(kind, world, active) is { } pair)
             Pairs.Add(pair);
-        var zone = Profile(kind).Zone;
         if (AfootShare > 0)
             SpawnsAfoot++;
-        Log.Add(new DirectorSpawn(world.Tick, kind, Cost(kind), world.Train.Dynamics.Distance,
-            active.Count(e => Engaged(e) && e.Zone == zone) + 1, active.Count(Engaged) + 1, paced, free));
+        Log.Add(new DirectorSpawn(attempt.Tick, kind, Cost(kind), attempt.Distance, attempt.InZone, attempt.Engaged, attempt.Paced, attempt.Free, Members: members));
     }
 
     // GDD v1.4 App. D.11, the creature vote (note 180): host-side, by player id in order, so every choice is deterministic.

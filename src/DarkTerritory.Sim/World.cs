@@ -2814,8 +2814,11 @@ public sealed partial class World
                 InsistOn(insist, t, d);
             // Its grace counts from the run's start when the yard's safe (note 263): a crew who waited half an hour at the gate
             // haven't been out in the Territory for it.
-            else if (d.Decide(this, Run is { Tuning.YardIsSafe: true } r ? r.Seconds : ElapsedSeconds, _enemies, NoSpawnFinalApproach) is { } kind && Spawns.For(kind) is { } rule)
-                d.Placed(rule.Spawn(new SpawnContext(this, t, d) { Free = d.SentFree }));
+            // Chosen, placed by its rule, then accounted only if it placed (note 885: the spawn transaction).
+            else if (d.Choose(this, Run is { Tuning.YardIsSafe: true } r ? r.Seconds : ElapsedSeconds, _enemies, NoSpawnFinalApproach) is { } attempt)
+                d.Commit(this, attempt, Spawns.For(attempt.Kind) is { } rule
+                    ? rule.Spawn(new SpawnContext(this, t, d) { Free = attempt.Free })
+                    : SpawnOutcome.Failed(SpawnFailure.NoRule), _enemies);
             // The dark answers the draw (note 287): heard from out past the lamp, and eyes at its edge, before the threat comes.
             foreach (var (cause, actor) in d.TakeAnswers())
                 Answer = new DrawAnswer(t.Director.Draw.ShowSeconds, cause, AnswerAt(t.Director.Draw), actor);
@@ -2824,8 +2827,10 @@ public sealed partial class World
             if (d.Allows(EnemyKind.Stoker) && d.Tonight(EnemyKind.Stoker, this) && _hotFor >= t.Stoker.HeatSeconds && Train.BoilerTuning is not null
                 && !_enemies.Any(e => !e.Gone && e.Kind == EnemyKind.Stoker) && !TrainInFort && !homeStretch)
             {
-                d.Charge(this, EnemyKind.Stoker, _enemies);
-                _enemies.Add(Stoker.AtTender(_nextEnemyId++, Train, t.Stoker));
+                var stoker = d.Attempt(this, EnemyKind.Stoker, SpawnChannel.Special, _enemies);
+                int id = _nextEnemyId++;
+                _enemies.Add(Stoker.AtTender(id, Train, t.Stoker));
+                d.Commit(this, stoker, SpawnOutcome.Of([id]), _enemies);
                 _hotFor = 0;
             }
             // The marsh (v1.1 §22, formerly the Drift): a hazard over the line's bogs, not a spawn. Once a marsh.
@@ -2922,7 +2927,6 @@ public sealed partial class World
     {
         if (ElapsedSeconds < InsistAfter)
             return;
-        var ctx = new SpawnContext(this, t, d);
         foreach (var kind in insist)
         {
             if (kind == EnemyKind.Choir || _enemies.Any(e => !e.Gone && e.Kind == kind))
@@ -2931,20 +2935,22 @@ public sealed partial class World
                 _insistGone[kind] = ElapsedSeconds;
             if (_insistGone.TryGetValue(kind, out double gone) && ElapsedSeconds - gone < InsistEvery)
                 continue;
-            bool placed = kind == EnemyKind.Stoker
-                ? Train.BoilerTuning is not null && !Train.Boiler.Ruptured && AddStoker(t)
-                : Spawns.For(kind) is { } rule && rule.Spawn(ctx);
-            if (!placed)
+            // An insisted kind is a special attempt (note 885): placed by its rule, charged only if it placed.
+            var attempt = d.Attempt(this, kind, SpawnChannel.Special, _enemies);
+            var outcome = kind == EnemyKind.Stoker
+                ? Train.BoilerTuning is not null && !Train.Boiler.Ruptured ? SpawnOutcome.Of([AddStoker(t)]) : SpawnOutcome.Failed(SpawnFailure.Gated)
+                : Spawns.For(kind) is { } rule ? rule.Spawn(new SpawnContext(this, t, d)) : SpawnOutcome.Failed(SpawnFailure.NoRule);
+            if (!d.Commit(this, attempt, outcome, _enemies).Placed)
                 continue;
             _insistGone.Remove(kind);
-            d.Charge(this, kind, _enemies);
         }
     }
 
-    bool AddStoker(EnemyTuning t)
+    int AddStoker(EnemyTuning t)
     {
-        _enemies.Add(Stoker.InFirebox(_nextEnemyId++, Train, false, t.Stoker));
-        return true;
+        int id = _nextEnemyId++;
+        _enemies.Add(Stoker.InFirebox(id, Train, false, t.Stoker));
+        return id;
     }
 
     /// <summary>What a call brought (the creature gym's, note 676): whether it came, where (said plainly), and its ids.</summary>

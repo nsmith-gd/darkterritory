@@ -139,10 +139,14 @@ public class StopsOwnTests
         // The fixture's first second stood there sent (and placed) the first; the next is decided here, and placed nothing.
         int before = d.Log.Count(l => l.Stop);
         Assert.True(before < waiting);
-        Assert.NotNull(d.Decide(n.World, 1_000, n.World.ActiveEnemies, 500));
-        Assert.Equal(before + 1, d.Log.Count(l => l.Stop));
-        d.Placed(false);
+        // Note 885: chosen, it's not yet on the log; placing nothing, it never is, and the failure's kept with its reason.
+        var attempt = d.Choose(n.World, 1_000, n.World.ActiveEnemies, 500);
+        Assert.NotNull(attempt);
+        Assert.Equal(SpawnChannel.Stop, attempt.Channel);
         Assert.Equal(before, d.Log.Count(l => l.Stop));
+        d.Commit(n.World, attempt, SpawnOutcome.Failed(SpawnFailure.NoSite), n.World.ActiveEnemies);
+        Assert.Equal(before, d.Log.Count(l => l.Stop));
+        Assert.Equal(SpawnFailure.NoSite, d.Attempts[^1].Failure);
         // The stop still gets its whole count.
         Assert.Equal(waiting, Think(n.World, 5).Count);
     }
