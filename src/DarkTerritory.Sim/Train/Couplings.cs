@@ -96,7 +96,7 @@ public enum SlackOff : byte { None, Brake, Throttle, Standing }
 /// </summary>
 public sealed class Couplings(LooseTuning tuning, ulong seed)
 {
-    readonly Pcg32 _rng = new(seed, 0xC0091);
+    Pcg32 _rng = new(seed, 0xC0091);
     /// <summary>The engine's rake's speed over the last <see cref="LooseTuning.RunInSeconds"/>, a tick at a time (a ring).</summary>
     double[]? _speeds;
     int _tick;
@@ -114,6 +114,8 @@ public sealed class Couplings(LooseTuning tuning, ulong seed)
     public LooseTuning Tuning => tuning;
     /// <summary>How many worked loose, and how many parted, so far tonight (host; for the tests).</summary>
     public int Came { get; private set; }
+    /// <summary>The car each came on, in order (note 872: where along the train, for the harness).</summary>
+    public List<(int Car, LooseCause Cause)> CameOn { get; } = [];
     public int Parted { get; private set; }
     /// <summary>The pin worked loose this tick, what did it and the train's speed then (host; the clerk's), or null.</summary>
     public (int Car, LooseCause Cause, double Speed)? Loosened { get; private set; }
@@ -350,6 +352,7 @@ public sealed class Couplings(LooseTuning tuning, ulong seed)
         train.Vehicles[car].Loose = SimConstants.TickSeconds;
         train.Vehicles[car].LooseCause = cause;
         Loosened = (car, cause, speed);
+        CameOn.Add((car, cause));
         Came++;
     }
 

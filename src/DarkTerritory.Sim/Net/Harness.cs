@@ -315,6 +315,10 @@ public sealed record UpkeepReport(int HotBoxes, int Caught, int Lamps, int WentO
     public IReadOnlyDictionary<string, int> FilledBy { get; init; } = new Dictionary<string, int>();
     /// <summary>Seconds a gun that's fired stood with its rack dry while there was powder below (note 377), its gunner waiting or gone for it.</summary>
     public double DrySeconds { get; init; }
+    /// <summary>Note 872: the car (0 the engine) each hot box, lamp and loose pin came on, so a night's spread along the train shows.</summary>
+    public IReadOnlyList<int> HotBoxCars { get; init; } = [];
+    public IReadOnlyList<int> LampCars { get; init; } = [];
+    public IReadOnlyList<string> PinCars { get; init; } = [];
     /// <summary>Note 865: pins a rail joint jumped (two to hold, among <see cref="Couplings"/>), driven home by two, parted as one let go.</summary>
     public int Jumped { get; init; }
     public int JumpedHome { get; init; }
@@ -775,6 +779,9 @@ public static class Harness
         {
             Rounds = rounds,
             Loosened = loosened,
+            HotBoxCars = [.. host.World.UpkeepCars.HotBoxes],
+            LampCars = [.. host.World.UpkeepCars.Lamps],
+            PinCars = [.. host.World.UpkeepCars.Pins.Select(p => $"{p.Cause} {p.Car}")],
             FilledBy = host.World.RacksFilledBy.GroupBy(f => clients.FirstOrDefault(c => c.Session.PlayerId == f.Key).Bot?.Name ?? $"player {f.Key}")
                 .ToDictionary(g => g.Key, g => g.Sum(f => f.Value)),
             DrySeconds = Math.Round(dryTicks * SimConstants.TickSeconds, 1),
