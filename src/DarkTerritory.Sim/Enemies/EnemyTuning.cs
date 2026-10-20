@@ -943,6 +943,11 @@ public sealed record AftermathTuning
     public bool On { get; init; } = true;
     public double Seconds { get; init; } = 12;
     public string[] Events { get; init; } = ["death", "carLost", "rescue", "holdoutFreed"];
+    /// <summary>
+    /// The director's own specials wait it out too (note 912; note 887 found the aftermath held only its decisions): the hound
+    /// run (a new run, or its next pair) and the truss drops. A left-behind crewmate's hunts are theirs and keep their own.
+    /// </summary>
+    public bool Specials { get; init; } = true;
 }
 
 /// <summary>
@@ -1383,6 +1388,11 @@ public sealed record DwellingsTuning
     public double JackpotShare { get; init; } = 1;
     public double PlaceWithin { get; init; } = 500;
     public double ForgetPast { get; init; } = 800;
+    /// <summary>
+    /// A stop in the home stretch (the line's terminus_safe stretch or the final approach, <see cref="World.HomeStretch"/>) has
+    /// its houses' own too (note 912; note 887 found they did); false, its houses stand empty, as nothing else new comes there.
+    /// </summary>
+    public bool InHomeStretch { get; init; }
 
     /// <summary>The share of a stop's open houses with something in them, at <paramref name="tier"/> (0.25 where it isn't listed).</summary>
     public double ShareFor(Route.RouteTier tier) =>
@@ -1604,6 +1614,8 @@ public sealed record CrewBotsTuning
     public double MouseMooseWithin { get; init; } = 30;
     /// <summary>Note 658: a Ribbit this near (m, flat), a bot on the ground goes at it and clubs it.</summary>
     public double RibbitWithin { get; init; } = 12;
+    /// <summary>Note 894: a bot on its way somewhere, hunted by a pack that outnumbers its group, runs on instead of clubbing.</summary>
+    public bool RibbitsOutnumberedRun { get; init; } = true;
     public double BrakemanStandOff { get; init; } = 1.5;
     public double BrakemanWaitPast { get; init; } = 1;
     public double StandGiveUp { get; init; } = 240;

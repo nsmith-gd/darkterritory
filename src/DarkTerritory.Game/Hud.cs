@@ -498,7 +498,7 @@ public static partial class Hud
         int Count(BodyKind kind) => bodies.Count(b => b.Kind == kind);
         var rows = new List<(string, string, bool)>();
         if (train.BoilerTuning is { } bt)
-            rows.Add(("COAL", $"{train.Boiler.Tender:0} IN THE TENDER, FIRE {train.Boiler.Firebox:0.0}", train.Boiler.Tender < 40 || train.Boiler.LowFire(bt)));
+            rows.Add(("COAL", $"{train.Boiler.Tender:0} IN THE TENDER, FIRE {train.Boiler.Fire:0.0}", train.Boiler.Tender < 40 || train.Boiler.LowFire(bt)));
         int kits = Count(BodyKind.RepairKit);
         // Note 301: where the wrench is the repair tool, there's no kit to keep track of.
         if (!Repairs.ByWrench(train))
@@ -2845,7 +2845,7 @@ public static partial class Hud
         // Note 723: a friend in front, empty-handed with nothing else in reach: lifted onto the shoulder with Use held.
         bool carry = world.Bodies.CarriedBy(s.PlayerId) is null && near is null && Rescue.LiftTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning.Rescue, s.PlayerTuning) is not null;
         bool shove = world.MischiefOn && Horseplay.ShoveTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning) is not null;
-        return carry && shove ? "CARRY : HOLD [E]   SHOVE : [CAPS LOCK]" : carry ? "CARRY : HOLD [E]" : shove ? "SHOVE : [CAPS LOCK]" : null;
+        return carry && shove ? "CARRY : HOLD [E]   SHOVE : [5]" : carry ? "CARRY : HOLD [E]" : shove ? "SHOVE : [5]" : null;
     }
 
     /// <summary>

@@ -681,7 +681,7 @@ public static class StructureKit
         if (lantern)
         {
             k.BoxAt(l + new Vector3(0, 0.22f, 0), new Vector3(0.14f, 0.03f, 0.14f));
-            k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
+            k.Use("lantern_pane", Palette.LampAmber, 0, 0, tile: 0.25f);
             k.Emissive = 1;
             k.BoxAt(l, new Vector3(0.1f, 0.18f, 0.1f));
             k.Emissive = 0;

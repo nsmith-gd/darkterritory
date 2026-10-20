@@ -191,7 +191,7 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
             intent = Heed.HandUp(intent, session.Predicted, session.World, me, others, calls, session.PlayerTuning.Rescue);
         // Note 658: the Ribbits near, clubbed by whoever's on the ground (a rescue alone only evens the count).
         if (!hunted)
-            intent = Heed.Ribbits(intent, session.Predicted, session.World, me);
+            intent = Heed.Ribbits(intent, session.Predicted, session.World, me, others);
         intent = Heed.Hounds(intent, session.Predicted, session.World, me);
         intent = Heed.Backs(intent, session.Predicted, session.World, me, t);
         intent = Heed.Voice(intent, session.Predicted, session.World, me, t);

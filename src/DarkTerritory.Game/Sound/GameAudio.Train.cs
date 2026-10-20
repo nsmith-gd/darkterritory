@@ -221,6 +221,9 @@ public sealed partial class GameAudio
         double effort = bt is null ? train.LastControls.Throttle
             : bt.SteamDrive ? Math.Clamp((boiler.SteamSpeed(bt, rake.Tuning.MaxSpeed) - speed) / bt.DriveSpeedBand, 0, 1)
             : train.LastControls.Throttle * boiler.PowerFactor(bt);
+        // A shovelful flaring (note 903): she barks with it, a second or two after the stroke.
+        if (bt is not null)
+            effort = Math.Max(effort, Math.Clamp(bt.FlareLook(boiler), 0, 1));
         bool steam = !boiler.Ruptured && (bt is null || boiler.Pressure > bt.PowerFloor);
         float occlusion = Occlusion(0);
         if (steam)

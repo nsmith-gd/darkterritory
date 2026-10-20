@@ -307,7 +307,7 @@ static class FilmCommands
         scene.Time = session.Tick * SimConstants.TickSeconds;
         scene.LampsOut = 0;
         scene.LampRange = 60;
-        scene.FireGlow = train.BoilerTuning is { } bt ? GreyboxScene.FireLook(train.Boiler.Firebox, bt.FireboxCapacity) : 0.7f;
+        scene.FireGlow = train.BoilerTuning is { } bt ? GreyboxScene.FireLook(train.Boiler.Fire, bt.FireboxCapacity) : 0.7f;
         scene.WrenchRacked = !train.Boiler.WrenchOut;
         scene.CordPulled = CrewActs.CrewWhistling(session.World);
         scene.Cut = SceneArt.Cuts(train);
@@ -320,6 +320,7 @@ static class FilmCommands
         scene.LampLit = session.World.LampShining;
         scene.Venting = train.Boiler.Vented;
         scene.SafetyValve = train.Boiler.SafetyValveLifting;
+        scene.Flare = train.BoilerTuning is { } flt ? (float)flt.FlareLook(train.Boiler) : 0;
         scene.Ruptured = train.Boiler.Ruptured;
         scene.DriversLocked = scene.Ruptured && train.BoilerTuning is { } rt && train.Dynamics.Speed > rt.RuptureCoastBelow;
         scene.Controls = session.Controls;

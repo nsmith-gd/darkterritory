@@ -503,7 +503,11 @@
     "share": { "local": 0.2, "frontier": 0.25, "deadLines": 0.33, "deepTerritory": 0.5 },
     "weights": { "lodger": 3, "householder": 2, "hollowHouse": 1.5, "hanger": 3 },
     "jackpotShare": 2,
-    "placeWithin": 500, "forgetPast": 800
+    "placeWithin": 500, "forgetPast": 800,
+    // A stop on the run in to the terminus (the line's terminus_safe stretch or route.json's final approach, where nothing
+    // else new comes) has its houses' own only with inHomeStretch (note 912; note 887 found they always did). The director's
+    // call (the inbox): false, the default taken, keeps the houses there empty.
+    "inHomeStretch": false
   },
   // THE LODGER · sound · outside (note 583; docs/design/creatures/lodger.md). Folded in the house's darkest corner (the spot
   // furthest from its doors, hideInset m off the walls), breathing. Someone in its house noticeSeconds, or within
@@ -677,7 +681,11 @@
   // the loading's not called done; else it's left (D1: "a body never costs the night"), and put down if it's in the arms.
   // Note 790: on foot within mouseMooseWithin m of the Mouse Moose at a casting (creeping in, its teeth in it, dragging it), it
   // goes at it and clubs it: it bolts long before (mouseMoose.scareWithin), and the casting's kept.
+  // Note 894 (App. A.6, "outrunnable, if you run"): ribbitsOutnumberedRun, a bot on its way somewhere (aboard, say) with a pack
+  // hunting it that outnumbers it and those with it runs on instead of turning to club them (frontier:6's shunter, alone at
+  // the pick-up's points, went at a pack of three and was eaten).
   "crewBots": {
+    "ribbitsOutnumberedRun": true,
     "mournersWithin": 30, "mournersLeash": 20, "towerJawWithin": 25, "towerJawClearFrom": 0.9, "towerJawClearBy": 2.5,
     "wreckWithin": 250, "wreckStopShort": 15, "wreckHoldWithin": 60, "beetleWithin": 15, "ribbitWithin": 12, "brakemanStandOff": 1.5,
     "brakemanWaitPast": 1, "standGiveUp": 240, "gateClearShort": 30, "gateClearWithin": 1500, "gateClearGiveUp": 240, "gateClearMargin": 45,
@@ -709,10 +717,16 @@
   // them rise (Local, Frontier, DeadLines, DeepTerritory): the first riseBehind m behind the train's rear on its path, the
   // rest riseAside m off either side and asideBack m further back, closing on the line over joinSeconds. Up after
   // riseSeconds, each runs startSpeed rising to topSpeed m/s over rampSeconds (faster than the engine's 22), over everything,
-  // and stops stopShort m short of the terminus's gate (the guns). The first one to reach the last car has the train: it
-  // drags at dragFactor x the engine's pull, lifts a car every liftSeconds from the rear, and from eatAfter s eats one every
-  // eatSeconds, whoever's in it with it. The engine eaten, the run's over: "taken at dawn". stirSeconds: the tension before
-  // dawn (the sky, the ground, their calls; presentation and audio).
+  // and stops stopShort m short of the terminus's gate (the guns). The first one to come within catchShort m of the last car
+  // has the train: it stops there, behind it, drags at dragFactor x the engine's pull, and from eatAfter s eats a car every
+  // eatSeconds from the rear, whoever's in it with it. The engine eaten, the run's over: "taken at dawn". stirSeconds: the
+  // tension before dawn (the sky, the ground, their calls; presentation and audio).
+  // The lift (note 902; the director's playtest of 16 Oct 2026, line 29: "stop behind the train and like scoop it up with its
+  // hands ... like a two-handed hot dog ... three bites per car"): a car at a time, in both hands. The last car goes up
+  // from scoopFrom s into the hold till scoopHold s before eatAfter; each car after it in its own turn (its eatSeconds):
+  // his hands down to it over reachShare of scoopShare of the turn, then up to his mouth over the rest of scoopShare. His
+  // bites come at bites (fractions of the turn), the last as the turn ends and the sim has it eaten: three a car. Whoever's
+  // down on the ground within fallAround m of the car in his hands, once it's fallFrom of the way up, fell from it.
   // Those who ran (note 710; the director, 14 Oct 2026: "It should capture players who escape the train and eat them too"):
   // while one holds the train, another rises out of the land pickAside m beyond each crewmate off it (up to pickers at once),
   // over pickRiseSeconds (the telegraph), strides to them at pickSpeed m/s, takes them within pickReach m, lifts them
@@ -720,7 +734,8 @@
   // after, it goes for the next. In under a fort's guns, nobody's taken.
   "wakers": { "enabled": true, "stirSeconds": 180, "count": [1, 1, 2, 3], "riseBehind": 1200, "riseAside": 600, "asideBack": 300,
     "joinSeconds": 90, "riseSeconds": 8, "startSpeed": 6, "topSpeed": 26, "rampSeconds": 45, "stopShort": 300,
-    "dragFactor": 3, "liftSeconds": 2.5, "eatAfter": 6, "eatSeconds": 4,
+    "dragFactor": 3, "eatAfter": 6, "eatSeconds": 4, "catchShort": 12, "scoopFrom": 1.2, "scoopHold": 1, "scoopShare": 0.45,
+    "reachShare": 0.35, "bites": [0.55, 0.775], "fallFrom": 0.15, "fallAround": 3,
     "pickers": 3, "pickAside": 40, "pickRiseSeconds": 4, "pickSpeed": 12, "pickReach": 18, "pickLiftSeconds": 4,
     "pickMouthOut": 10, "pickMouthHeight": 22, "pickEatSeconds": 4,
     // wakers.md §2, the night things run (note 635; the director, the inbox, 12 Oct 2026: "creatures should leave all except
@@ -968,7 +983,15 @@
     // `dt director sweep` measure the encounters, never what the night does. A crewmate within nearMetres of a creature is
     // "near" it (a perception proxy: never "seen"); droughtSeconds out on the run with nothing confronting the crew is a
     // drought (§7: 90 s); off the train, within tracksideMetres of a vehicle is trackside, past it afield.
-    "telemetry": { "nearMetres": 25, "droughtSeconds": 90, "tracksideMetres": 30 },
+    // Severity and droughts (the brief §4, §6; queue #610, note 893), from world state: level 1, a creature about within
+    // presenceMetres of the train or a living crewmate (a proxy: near enough to be noticed); level 2, one threatening or
+    // engaging (note 881's states: alert, near someone, working on a train system, at someone); level 3, two harassing at
+    // once at least compoundApartMetres apart. A second out with nothing at level 2 is the director's rest when it holds for
+    // one of recoveryHolds (prefixes of its held reasons), presence with something at level 1, else a true drought.
+    "telemetry": {
+      "nearMetres": 25, "droughtSeconds": 90, "tracksideMetres": 30, "presenceMetres": 60, "compoundApartMetres": 15,
+      "recoveryHolds": ["grace", "aftermath", "facility lull", "in a fort", "banned", "final stretch", "terrain at its ceiling", "derailed"]
+    },
     // GDD v1.4 App. D.11 and D.13, the dead's creature vote (note 180): a ballot of `options` drawn from what the director
     // could send now, each vote ×perVote to its creature's weight, to at most ×cap, within its want tag. A dead bot votes
     // botSeconds after its ballot's offered (note 202: not a GDD number, the bots' deliberation, so harness nights vote).
@@ -1332,7 +1355,10 @@
     // told of (note 663's news; a cut at a stand isn't one); rescue: a grab let go with the one held alive and not punished
     // (a friend's pull or blow, or their own struggle); holdoutFreed: someone broken out of a Holdout. Short on purpose.
     // on false: none, as before.
-    "aftermath": { "on": true, "seconds": 12, "events": ["death", "carLost", "rescue", "holdoutFreed"] },
+    // specials (note 912; note 887 found the aftermath held only the director's decisions): the hound run (a new one, or its
+    // next pair) and the truss drops wait it out too; a left-behind crewmate's hunts are theirs and don't. The director's call
+    // (the inbox): true, the default taken.
+    "aftermath": { "on": true, "seconds": 12, "events": ["death", "carLost", "rescue", "holdoutFreed"], "specials": true },
     // The encounter pacing (the spawn director overhaul, docs/design/spawn-director-overhaul.md §3; the plan, note 874).
     "encounters": {
       // The encounter rate (spec B.10 "The encounter rate"; the director's brief, docs/design/spawn-director-overhaul.md §1 and
@@ -1416,9 +1442,12 @@
     // engagement state, from what it's doing (Threats.Of): dormant (lying in wait), ambient (about, nobody near, nothing of
     // the train's in its teeth), threatening (alert, near a crewmate within nearMetres, or doing a train system harm with
     // nobody near: a Hotbox, a pack feeding aboard, a Knotter, a Brakeman at the brakes), engaging (at someone), resolved.
-    // on: the engaged cap counts threatening and engaging, not bodies, and ambientRoom more may be about off it; false: as
-    // before (everything Director.Engaged holds the caps).
-    "threats": { "on": true, "nearMetres": 20, "ambientRoom": 1 },
+    // leftMetres: loose, holding nobody and this far from every car and crewmate, it's ambient whatever it's doing (a yard's
+    // Freight Beetle or Mouse Moose the train left behind held a solo crew's one place for 500-1,000 s of a night; note 881).
+    // on: the engaged cap counts threatening and engaging, not bodies, and ambientRoom more may be about off it (the cap plus
+    // ambientRoom in all, so what paces cars nobody's in can't pile up into a wave); false: as before (everything
+    // Director.Engaged holds the caps).
+    "threats": { "on": true, "nearMetres": 20, "ambientRoom": 2, "leftMetres": 150 },
     "maxConcurrentZone": 2,
     "maxConcurrentSmallCrew": 4,
     "maxConcurrentLargeCrew": 6,

@@ -1178,8 +1178,9 @@ public sealed partial class CreatureArt
     // ----------------------------------------------------------------------------------------------------------------
     // Your own arms (X3)
 
-    /// <summary>The bones whose skin is drawn as your own arms: the coat's cuffs down, the gloves.</summary>
-    static readonly string[] ArmBones = ["lowerarm_l", "lowerarm_r", "hand_l", "hand_r", "fingers_l", "fingers_r", "thumb_l", "thumb_r"];
+    /// <summary>The bones whose skin is drawn as your own arms: the coat's cuffs down, the gloves (their fingers' middle
+    /// joints too, note 900).</summary>
+    static readonly string[] ArmBones = ["lowerarm_l", "lowerarm_r", "hand_l", "hand_r", "fingers_l", "fingers_r", "fingertips_l", "fingertips_r", "thumb_l", "thumb_r"];
 
     /// <summary>The eye over the head bone's root (m, model space: the mask's eyepieces, crew_clips.py's EYE).</summary>
     static readonly Vector3 EyeOverHead = new(0, 0.1f, -0.09f);
