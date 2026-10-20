@@ -1066,7 +1066,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [888. `dt director sweep`: the spawn director overhaul's matrix of nights, and the old director's baseline (the director's brief §8; note 874's…](notes/888.md)
 - [891. The Cinder Hounds aboard, the director's 9 Oct answer (n1-H1, queue #614; inbox `D1.2-car-fires-from-packs`, note 857's call 1)](notes/891.md)
 - [894. The shunter alone at a pick-up's points, eaten by the Ribbits (queue #615, n1-w7 for nathaniel1; from note 859's Unfixed)](notes/894.md)
-- [896. Epic Online Services P2P: the third datagram carrier, for players off Steam (n1-N1, queue #274; the netcode audit's gap 6; note 24)](notes/896.md)
 - [896. Epic Online Services P2P: the third online platform, for players off Steam (n1-N1, queue #274; the netcode audit's gap 6; note 24)](notes/896.md)
 - [897. Docs from the director's inbox answers of 20 Oct (n1-G2, queue #616; note 857's calls 3, 5, 6 and 10)](notes/897.md)
 - [898. Shove off Caps Lock, and the controls map brought up to date (queue #617; the director's inbox answer of 20 Oct,…](notes/898.md)
