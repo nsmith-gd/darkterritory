@@ -129,6 +129,7 @@ public sealed partial class World
     public List<SignalEvent> Signals { get; } = new();
     /// <summary>Voices as tools (note 720): the tube, singing, lamp signals; from the players' tuning where the sessions set it.</summary>
     public VoicesTuning VoicesTuning => Movement?.Voices ?? DefaultVoices;
+    static readonly TwoHandedTuning DefaultTwoHanded = new();
     static readonly VoicesTuning DefaultVoices = new();
     /// <summary>
     /// Singing together (GDD §14; note 720), heard on the host each tick from the crew's voice levels: who's singing now
@@ -467,7 +468,7 @@ public sealed partial class World
         if (!authority)
             return;
         Director = new Director(tuning.Director, route, seed, Train.Dynamics.Consist.CarCount, crew);
-        Encounters = new EncounterLog(tuning.Director.Telemetry);
+        Encounters = new EncounterLog(tuning.Director.Telemetry, tuning.Director.Threats);
         // Note 266: off unless a mod brings them back (the director's decision, 2026-10-06).
         if (route is not null && tuning.Sleepers.Enabled && Director.Allows(EnemyKind.Sleepers))
             foreach (var f in route.Of(FeatureKind.Sleepers))
@@ -1781,9 +1782,11 @@ public sealed partial class World
             // GDD v1.4 App. C.4 and D.9 (note 181): hand-carried loot is carried the same way: a toy, a find, the child, a body.
             // Note 594: in the hands; one put away in a slot doesn't slow you (Lethal Company's slots: "grab a few pieces of loot").
             // Note 723: and a friend over the shoulder, carried as a body is.
+            // Note 897 (the director, the inbox, 20 Oct: "We shouldn't be slowed carrying anything unless it's a two handed
+            // object"): only what takes both hands (player.json twoHanded): freight, a heavy crate's end, the child, a body.
             bool carrying = s.Alive && CarriedBy(playerId) is not null;
-            bool heavy = carrying || Bodies.All.Any(b => b.HeldBy(playerId) && !b.Stashed && b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy
-                or Physics.BodyKind.Toy or Physics.BodyKind.Loot or Physics.BodyKind.Child or Physics.BodyKind.Ragdoll);
+            var twoHanded = Movement?.TwoHanded ?? DefaultTwoHanded;
+            bool heavy = carrying || Bodies.All.Any(b => b.HeldBy(playerId) && !b.Stashed && twoHanded.Slows(b.Kind));
             s.Flags = heavy ? s.Flags | PlayerFlags.Heavy : s.Flags & ~PlayerFlags.Heavy;
             s.Flags = carrying ? s.Flags | PlayerFlags.Carrying : s.Flags & ~PlayerFlags.Carrying;
             // Playing the instrument in your hands (note 700): every machine hears you, in time with the band.
@@ -3258,16 +3261,25 @@ public sealed partial class World
 
     public void SetDerailed(bool derailed) => Derailed = derailed;
 
-    /// <summary>App. B.1: nothing may spawn inside the final approach.</summary>
-    public double NoSpawnFinalApproach { get; set; } = 500;
+    /// <summary>
+    /// App. B.1: nothing may spawn inside the final approach: the route's, as route.json sets it (note 912; note 887 found it a
+    /// constant nobody set), and 500 m on a world with no route.
+    /// </summary>
+    public double NoSpawnFinalApproach => Route?.NoSpawnFinalApproach ?? 500;
 
     /// <summary>
     /// The train's front on the run in to the terminus, where nothing new comes for it (the line's terminus_safe, the final
     /// <see cref="NoSpawnFinalApproach"/>): the director's own spawns, and (note 590) the Stoker, the Marsh and the lineside
     /// moose too, so a crew stopped outside the doors can clear the train. The Wakers (note 588) are dawn's, not this.
     /// </summary>
-    public bool HomeStretch => Route is { } r
-        && (Train.Dynamics.Distance > r.RunLength - NoSpawnFinalApproach || r.Plan?.Director.TagsAt(Train.Dynamics.Distance).Contains("terminus_safe") == true);
+    public bool HomeStretch => InHomeStretch(Train.Dynamics.Distance);
+
+    /// <summary>
+    /// <paramref name="along"/> the main line is on the run in to the terminus (<see cref="HomeStretch"/>): past the final
+    /// approach's start, or under the line's terminus_safe tag. The one check for every spawn's terminus ban (note 912).
+    /// </summary>
+    public bool InHomeStretch(double along) => Route is { } r
+        && (along > r.RunLength - NoSpawnFinalApproach || r.Plan?.Director.TagsAt(along).Contains("terminus_safe") == true);
 
     /// <summary>Applies this tick's damage and a derailment to the crew. Host only.</summary>
     public void ApplyDamage(Func<int, PlayerState?> get, Action<int, PlayerState> set, IEnumerable<int> crew)

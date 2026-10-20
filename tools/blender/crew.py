@@ -29,7 +29,8 @@ import rig  # noqa: E402
 from rig import Clip, Mat, Vector, along, hexc, in_cell, mirror, over, smoothstep, swap  # noqa: E402
 
 rig.reset()
-sk = rig.human(1.8)
+# The fingers' middle joints (rig.fingertips) on the crew's own hands; Dave's (DT_CREW=dave) keep the one hinge.
+sk = rig.human(1.8, extra=() if os.environ.get("DT_CREW") == "dave" else rig.fingertips())
 sk.build()
 kit = rig.Kit(sk, "crew")
 
@@ -514,5 +515,7 @@ if DAVE:
 else:
     import crewbody  # noqa: E402
     crewbody.build(globals())
+if "fingertips_r" in sk.by:
+    rig.curl_fingertips(CLIPS)
 rig.bake(sk, CLIPS, plant=rig.feet_planter(sk, clips={"idle", "walk", "crouch_idle", "shovel"}))
 rig.export(rig.args()[0] if rig.args() else "crew.glb", kit)

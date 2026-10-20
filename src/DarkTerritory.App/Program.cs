@@ -207,7 +207,18 @@ crashes.Live = () =>
     new ReportField("doing", playing is null ? $"{doing}: {frontEnd.Screen}" : doing),
     .. playing is { } night ? [new ReportField("night", ReportFields.Night(night))] : (ReportField[])[],
 ];
-if (frontEnd.Crash is not null)
+// Playtest data (note 914): asked once, before anything's recorded; a developer build's is on unless the director says no.
+bool playtestOnByDefault = false;
+#if DEVTOOLS
+playtestOnByDefault = true;
+#endif
+frontEnd.PlaytestNotice = DarkTerritory.Game.Telemetry.PlaytestNotice.Load(content);
+frontEnd.Playtest = DarkTerritory.Game.Telemetry.PlaytestConsent.Load(
+    args.Contains("--saves") ? Path.Combine(saves.Directory, "telemetry") : DarkTerritory.Game.Telemetry.PlaytestConsent.DefaultDirectory, defaultOn: playtestOnByDefault);
+crashes.Context("playtest data", frontEnd.Playtest.Recording ? "on" : "off");
+if (frontEnd.Playtest.NeedsAsking(frontEnd.PlaytestNotice))
+    frontEnd.Show(Screen.Consent);
+else if (frontEnd.Crash is not null)
     frontEnd.Show(Screen.Crashed);
 
 // A night named on the command line starts straight away; otherwise it's the front end's choice.
@@ -312,11 +323,13 @@ if (args.Contains("--crash-test"))
     throw new InvalidOperationException("--crash-test: stopped on purpose to try the crash report");
 var renderer = new GreyboxRenderer(gpu, internalSize[0], internalSize[1]) { OverlaySize = new Vector2(UiWidth, UiHeight) };
 using var rendererOwner = new Owner(() => renderer.Dispose());
-// Playtest telemetry (note 913, queue #624): this session written down, only with the player's say-so (#625 asks; until then
-// "telemetry": true in settings.json, or --telemetry). Off, nothing's recorded and no file's made. Nothing's sent (#626).
-// #625's PlaytestConsent is the gate the game will ask; until it lands, a fixed answer.
-var telemetryGate = new DarkTerritory.Game.Telemetry.FixedTelemetryGate(startSettings.Telemetry || args.Contains("--telemetry"),
-    Arg("--telemetry-dir", DarkTerritory.Game.Telemetry.FixedTelemetryGate.DefaultDirectory));
+// Playtest telemetry (note 913, queue #624): this session written down, only with the player's say-so: #625's answer
+// (frontEnd.Playtest, note 914), asked on every line, so saying no in Settings stops it at once. --telemetry records this
+// launch whatever the answer (a tester told to, or the director), into --telemetry-dir or the same folder. Off, nothing's
+// recorded and no file's made. Nothing's sent (#626).
+DarkTerritory.Game.Telemetry.ITelemetryGate telemetryGate = args.Contains("--telemetry")
+    ? new DarkTerritory.Game.Telemetry.FixedTelemetryGate(true, Arg("--telemetry-dir", frontEnd.Playtest.SessionsDirectory), frontEnd.Playtest.InstallId)
+    : frontEnd.Playtest;
 var telemetry = DarkTerritory.Game.Telemetry.SessionRecorder.ToFile(telemetryGate);
 using var telemetryOwner = telemetry.Closer;
 bool devBuild = false;
@@ -1584,8 +1597,9 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 Voice = (byte)Math.Clamp(voiceLevel * 255, 0, 255),
                 // Note 664: crouch and pushing the gun along, each its own key, held (a headset rider crouches for real).
                 Moves = (Held(Control.Crouch) ? PlayerMoves.Crouch : 0) | (Held(Control.Push) ? PlayerMoves.Push : 0)
-                    // Note 717: the shove (the host acts on the press).
-                    | (Held(Control.Shove) ? PlayerMoves.Shove : 0)
+                    // Note 717: the shove (the host acts on the press). Note 898: on 5, so not with the roster out, whose
+                    // numbers mute the crew (as the hotbar's don't pick a slot then).
+                    | (Held(Control.Shove) && !(net is not null && Held(Control.Roster)) ? PlayerMoves.Shove : 0)
                     // Note 739: the ping is the push's button, made on the press away from a gun (the host's to tell).
                     | (Held(Control.Push) ? PlayerMoves.Ping : 0),
                 Select = pendingSelect,
@@ -1858,7 +1872,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         if (session.StrandedOutro)
             Views.CinematicFog(ref lighting, Views.StrandedDistance(session.Train, session.World.WreckTuning.Stranded, session.OutroSeconds));
         DerailSequence.Fog(ref lighting, derailShot);
-        scene.FireGlow = session.Train.BoilerTuning is { } bt ? GreyboxScene.FireLook(session.Train.Boiler.Firebox, bt.FireboxCapacity) : 0.7f;
+        scene.FireGlow = session.Train.BoilerTuning is { } bt ? GreyboxScene.FireLook(session.Train.Boiler.Fire, bt.FireboxCapacity) : 0.7f;
         scene.WrenchRacked = !session.Train.Boiler.WrenchOut;
         scene.ShovelRacked = !session.Train.Boiler.ShovelOut;
         scene.CordPulled = DarkTerritory.Game.Art.CrewActs.CrewWhistling(session.World);
@@ -1891,6 +1905,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
         scene.HandcarFrom(session.Train);
         scene.Venting = session.Train.Boiler.Vented;
         scene.SafetyValve = session.Train.Boiler.SafetyValveLifting;
+        scene.Flare = session.Train.BoilerTuning is { } flt ? (float)flt.FlareLook(session.Train.Boiler) : 0;
         scene.Ruptured = session.Train.Boiler.Ruptured;
         // Every break the crew can mend, called out where it is, and the ones a wrench is at (note 301).
         // And the loose couplings, called out alike (note 356).
