@@ -1332,7 +1332,13 @@
         "meanLifeSeconds": 240,
         "releasePerMinute": 0.5,
         "releaseBurst": 1
-      }
+      },
+      // The spawn transaction (note 885; the brief §2 issue 3): a spawn the director chose that placed nothing commits nothing
+      // (no pressure, budget, cooldown, log line or cap). The pressure tries again the next second; the kind that failed sits
+      // out failHoldSeconds of the pressure's, the curve's and the stops' choices, so another is chosen rather than the same
+      // one into the same wall. A free spawn that fired and failed stays owed for freeRetrySeconds (fires again on the next
+      // seconds' choices without a new roll; the roll is still made, so the curve's dice don't move).
+      "attempts": { "failHoldSeconds": 10, "freeRetrySeconds": 20 }
     },
     // GDD App. B.1 "Post-event cooldown" (design decision, 2026-10): the least trough after a spawn; the pressure's relief
     // makes the rest of it, and well past the threshold (pressAt) it gives way.

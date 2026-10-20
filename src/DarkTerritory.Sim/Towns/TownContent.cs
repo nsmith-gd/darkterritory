@@ -363,10 +363,10 @@ public sealed record TownText(string Title, string Text);
 /// <summary>
 /// Where the blacksmith works (towns.json <c>smithy</c>; ARCHITECTURE §8 note 697): the forge <see cref="FromGate"/> m along
 /// the line from the gate (back into the yard, beside the engine as it stands there), <see cref="Out"/> m out on the town's
-/// side; the smith <see cref="Stand"/> m in front of it, toward the line. <see cref="HoldSeconds"/>: Use held on them that long
-/// opens the catalogue.
+/// side; the smith <see cref="Stand"/> m in front of it, toward the line. Use pressed on them opens the
+/// catalogue (note 904).
 /// </summary>
-public sealed record SmithyTuning(double FromGate = -18, double Out = 8.5, double Stand = 2.2, double HoldSeconds = 0.6);
+public sealed record SmithyTuning(double FromGate = -18, double Out = 8.5, double Stand = 2.2);
 
 /// <summary>
 /// A piece of a town's works (note 353): its <see cref="Kind"/> (its art and its size, <see cref="TownFixtures.Size"/>), what
