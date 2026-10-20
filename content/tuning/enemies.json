@@ -75,7 +75,9 @@
     // left alone. They go only dead, or with their car cut loose. stayAboard false: v1.1's drop-off after boredSeconds.
     "stayAboard": true,
     "cargoPerSecond": 0.002,
-    "igniteEverySeconds": 20,
+    // Note 891 (the director, 9 Oct 2026: "This is too much. Cinder Hounds should reignite every minute and a half they are
+    // left aboard at the car they are currently in. Crew should have time to fight fires effectively"): 20 → 90.
+    "igniteEverySeconds": 90,
     // Note 472 (the director, 8 Oct 2026: "It matters that they dont just stand there and howl, they should either patrol
     // between cars that have doors open or patrol the roofs of the cars, jumping between them if they can make the jump").
     // Aboard with nobody it can reach (note 471), a hound patrols its roof at walk m/s, and the next car's at its end: a leap
@@ -89,6 +91,27 @@
     "patrol": { "on": true, "walk": 1.6, "chase": 3.5, "chaseFrom": 20, "leapSeconds": 0.9, "leapFrom": 0.25, "leapTo": 0.65,
       "sniffEvery": [8, 15], "sniffSeconds": 3, "dropSeconds": 1.0, "climbSeconds": 1.2, "inChance": 0.5, "insideSeconds": [8, 15],
       "carsAhead": 1 },
+    // Note 891 (the director, 9 Oct 2026, inbox D1.2-car-fires-from-packs): "Attacking a cinder hound should reset its ignite
+    // burst from its body that sets the fire. Attacking should cause it to retreat. Cinder Hounds attack the player when the
+    // player is first spotted with a lunge attack by jumping at the player to bite, then retreating to do it again. Cinder
+    // Hounds stop attacking and leave the train if they are pushed to the back of the train and there is a valid exit (door
+    // open or roof of car)." With on: its ignite clock (igniteEverySeconds) runs the whole time it's aboard, not only alone,
+    // and lights the car it's on when it runs out with nobody near (note 851's rule: never over the crew fighting the fire);
+    // a blow sets it back to nought. Someone it can reach within lungeFrom m, it leaps at them over lungeSeconds (to
+    // lungeShort m short of them) and bites as it lands if they're still in reach (biteDamage; down to the last, the pin),
+    // backs off retreatMetres at retreatSpeed m/s, crouches crouchSeconds watching them, and comes again. A blow that
+    // doesn't kill it drives it away from whoever struck it for struckSeconds at struckSpeed m/s, over the gap to the car
+    // behind, and then crouches crouchSeconds before it comes again; at the back of the rear car (its roof's end, or inside
+    // with one of its doors open), with leaveAtRear, it leaves the train (as the extinguisher drives it off). The spray's backing off (note 728) leaves the same way.
+    // The director's answers in the inbox, 20 Oct (note 891): "Every 90 seconds and there needs to be an associated animation
+    // of how that happens": its clock run out, it stops and winds up igniteWindUpSeconds (its cracks blazing up, embers
+    // rising off it), and the burst from its body lights the car at the end of it; someone coming near, or a blow, and it
+    // breaks off. And the hounds that ride longer should "flee": the fleeAfterBlows-th blow on it aboard (0: never), it gives
+    // up and jumps off the train wherever it is.
+    // on false: note 472's bite every biteEverySeconds where it stands, the clock only while it's alone, no wind-up.
+    "aboard": { "on": true, "lungeFrom": 4, "lungeSeconds": 0.5, "lungeShort": 0.8, "retreatMetres": 3, "retreatSpeed": 2.5,
+      "crouchSeconds": 2, "struckSeconds": 1, "struckSpeed": 3.5, "leaveAtRear": true, "igniteWindUpSeconds": 2,
+      "fleeAfterBlows": 2 },
     "boredSeconds": 6,
     // App. B.3: needs sustained speed first.
     "minTrainSpeed": 8,
@@ -1290,6 +1313,72 @@
     // (a friend's pull or blow, or their own struggle); holdoutFreed: someone broken out of a Holdout. Short on purpose.
     // on false: none, as before.
     "aftermath": { "on": true, "seconds": 12, "events": ["death", "carLost", "rescue", "holdoutFreed"] },
+    // The encounter pacing (the spawn director overhaul, docs/design/spawn-director-overhaul.md §3; the plan, note 874).
+    "encounters": {
+      // The encounter rate (spec B.10 "The encounter rate"; the director's brief, docs/design/spawn-director-overhaul.md §1 and
+      // §3; note 877): encounter opportunities a minute, time × crew × train length × tier, every factor rising and none
+      // falling (the brief's six requirements, EncounterPacingTests):
+      //   λ = (base + (ramp + rampPerCrew × (P − 1)) × p^power) × (1 + perCrew × (P − 1)) × (1 + perCar × max(0, C − carsFrom))
+      //       × tier, to at most max
+      // p: how far into the night, the clock toward dawn or the train along the line, whichever is further, never going back
+      // (standing still doesn't stop it). P: the crew alive in the night, bots and players alike (never one who's left; at
+      // least 1). C: the cars. base is the solo floor at the gate (a solo night is never just the clock); ramp what the night
+      // adds by its end, steeper by rampPerCrew a crewmate over one, so a bigger crew's night worsens faster as well as
+      // starting higher; perCar is gradual, no breakpoint at eight cars. The tier is its own factor (Local to Deep Territory).
+      // The defaults are the brief's prototype. A 20-minute night's opportunities at Frontier (EncounterPacing.Night): solo
+      // 2 cars 5.4, two 5 cars 6.7, four 8 cars 9.6, eight 12 cars 16.5. Not yet driving the director: #608 wires it in, and
+      // takes the pressure's own crewScale/lengthScale and the free spawns' crewFade out with it.
+      "base": 0.12, "ramp": 0.33, "rampPerCrew": 0.035, "power": 1.2, "perCrew": 0.07, "perCar": 0.05, "carsFrom": 3,
+      "tier": { "local": 0.8, "frontier": 1, "deadLines": 1.2, "deepTerritory": 1.4 },
+      "max": 3,
+      // Concurrency and overlap by crew and train length (the brief §1 B–C, §6; note 906; Concurrency, ConcurrencyTests). Not
+      // yet read by the director: it goes in with #604's threat states and #608's pacing.
+      // The engaged cap: the living × share, share rising by sharePerCar a car past carsFrom to at most shareMax, rounded half
+      // up, at least 1 while anyone's alive, at most max: solo 1 to 6 cars and 2 from 7; two crew 2 on 4 cars, 3 on 6, 4 on 8;
+      // four 4 on 4 cars, 7 on 8; eight 11 on 6 cars, 12 from 7. Gradual, where App. B.1's flat 4 / 6 (maxConcurrentSmallCrew /
+      // LargeCrew) and note 647's two each at 8 cars (orchestrator.longTrainCars) were steps. perCrewmateMax: the most on one
+      // crewmate at once (share rounded half up: two each from 7 cars). ambientRoom (#604's, off the cap) + ambientPerCar a
+      // car past carsFrom, rounded down.
+      // Contradiction pairs (App. B.1 "contradiction seeding", the conflicts table): a night seeds pairsPerRun (its tier's)
+      // × (1 + pairsPerCrew a living crewmate over one), rounded half up (frontier: 1 for one or two, 2 for three to six, 3 for
+      // seven or eight). pairMinCrew: the pairs whose two answers need two people at once, never made for a smaller living crew
+      // (whoever the Moose chases ends up alone vs. never be outnumbered by Ribbits; the loading needs everyone vs. someone
+      // keeps the Moose busy; run fast for the hounds vs. stop to pull the Hotbox, or to kill the Knotter, or to climb after
+      // the Brakeman): a crew of one isn't set a problem only two can answer (§6). Named pairs only; the rest need one.
+      // Relief when crew are lost (§1 B, §6): × (alive ÷ the crew in the night)^reliefPower × (1 − hurtRelief × the share of
+      // the living under hurtBelow health), on the encounter rate (which counts only the living already).
+      "concurrency": {
+        "share": 0.75, "sharePerCar": 0.2, "carsFrom": 3, "shareMax": 2, "max": 12, "perCrewmateMax": 2,
+        "ambientRoom": 1, "ambientPerCar": 0.1,
+        "pairsPerCrew": 0.25,
+        "pairMinCrew": { "ribbits+moose": 2, "moose+facilityLoading": 2, "cinderHounds+hotbox": 2, "cinderHounds+knotter": 2, "cinderHounds+brakeman": 2 },
+        "reliefPower": 1, "hurtBelow": 35, "hurtRelief": 0.25
+      },
+      // Bounded encounter debt (§3 "Encounter debt"; note 876): part of the encounter rate the director wanted but couldn't
+      // place, remembered and paid back gradually, so a spell with nothing eligible doesn't erase the night's escalation.
+      // share: of each unmet opportunity, what's owed, by why it went unmet: noPlacement (a kind picked, nowhere legal to put
+      // it) and ineligible (nothing about tonight fitting here and now). Nothing else ever owes, whatever's named here: a
+      // safe zone, the grace, recovery, the terminus and full engagement caps are quiet the game means (§1.A, §6).
+      // cap: encounters owed at most. meanLifeSeconds: the debt forgets itself over this (a debt from an hour ago is no
+      // reason for a monster now). releasePerMinute: at most this many owed encounters repaid a minute, on top of the
+      // night's own rate; releaseBurst: the most the release allowance holds. While the director is held (a safe zone,
+      // the grace, recovery) the allowance empties, so a backlog comes back at the release rate after the yard, never as a
+      // burst (§3). on false: no debt, as before.
+      "debt": {
+        "on": true,
+        "share": { "noPlacement": 0.6, "ineligible": 0.4 },
+        "cap": 2,
+        "meanLifeSeconds": 240,
+        "releasePerMinute": 0.5,
+        "releaseBurst": 1
+      },
+      // The spawn transaction (note 885; the brief §2 issue 3): a spawn the director chose that placed nothing commits nothing
+      // (no pressure, budget, cooldown, log line or cap). The pressure tries again the next second; the kind that failed sits
+      // out failHoldSeconds of the pressure's, the curve's and the stops' choices, so another is chosen rather than the same
+      // one into the same wall. A free spawn that fired and failed stays owed for freeRetrySeconds (fires again on the next
+      // seconds' choices without a new roll; the roll is still made, so the curve's dice don't move).
+      "attempts": { "failHoldSeconds": 10, "freeRetrySeconds": 20 }
+    },
     // GDD App. B.1 "Post-event cooldown" (design decision, 2026-10): the least trough after a spawn; the pressure's relief
     // makes the rest of it, and well past the threshold (pressAt) it gives way.
     "cooldownSeconds": [25, 45],
@@ -1303,6 +1392,13 @@
     // that has nobody in its grip) holds no cap: a hound pack aboard or a Knotter in a coupling left behind held a crew of
     // one's single place all night. 0: off.
     "capNear": 60,
+    // Note 881 (the director overhaul's B2, queue #604; docs/design/spawn-director-overhaul.md §2 issue 4): each enemy's
+    // engagement state, from what it's doing (Threats.Of): dormant (lying in wait), ambient (about, nobody near, nothing of
+    // the train's in its teeth), threatening (alert, near a crewmate within nearMetres, or doing a train system harm with
+    // nobody near: a Hotbox, a pack feeding aboard, a Knotter, a Brakeman at the brakes), engaging (at someone), resolved.
+    // on: the engaged cap counts threatening and engaging, not bodies, and ambientRoom more may be about off it; false: as
+    // before (everything Director.Engaged holds the caps).
+    "threats": { "on": true, "nearMetres": 20, "ambientRoom": 1 },
     "maxConcurrentZone": 2,
     "maxConcurrentSmallCrew": 4,
     "maxConcurrentLargeCrew": 6,

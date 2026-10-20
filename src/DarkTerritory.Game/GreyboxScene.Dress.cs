@@ -247,6 +247,14 @@ public sealed partial class GreyboxScene
         if (Dressed("tennisBalls") && frame.Shape.Platform is { } platform && index == _frames.Count - 1)
             mesh.Append(art.Piece("whimsy-launcher", () => Art.WhimsyKit.Launcher(Look)),
                 Matrix4x4.CreateTranslation(ToF(Sim.Train.CarShape.Launcher(platform)) + new Vector3(0.35f, 0, -0.25f)) * m);
+        // The rear searchlight on the guard van's roof (note 899): its glass lit unless the lamps are down (Effects.Train its beam).
+        if (Dressed("rearSearchlight") && index == _frames.Count - 1)
+        {
+            var mount = Matrix4x4.CreateTranslation(ToF(Art.WhimsyKit.SearchlightMount(frame.Shape))) * m;
+            mesh.Append(art.Piece("whimsy-searchlight", () => Art.WhimsyKit.Searchlight(Look)), mount);
+            if (!Emergency)
+                mesh.Append(art.Piece("whimsy-searchlight-glass", () => Art.WhimsyKit.SearchlightGlass(Look)), mount);
+        }
         if (Dressed("calliope") && index == 0)
             mesh.Append(art.Piece("whimsy-calliope", () => Art.WhimsyKit.Calliope(Look)),
                 Matrix4x4.CreateTranslation(0, (float)frame.Shape.RoofHeight, -2.4f) * m);

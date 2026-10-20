@@ -68,7 +68,7 @@ Trade-offs accepted: we ship the JIT runtime (not NativeAOT) so mods can load; s
 | ECS | **Friflo.Engine.ECS** or **Arch**, decided in M1 | Needs: fast queries, struct components, and component change tracking for replication |
 | Audio | **Custom mixer** in C# + **miniaudio** device I/O + **Steam Audio** (HRTF, occlusion) | See §6 |
 | Voice codec | **Opus** (libopus via P/Invoke, `Concentus` as pure-C# fallback) | |
-| Networking | `ITransport`. One protocol (`DatagramTransport`) over **UDP** for LAN and direct IP, and over **Steam's relayed P2P** (`ISteamNetworkingMessages`, Steam Datagram Relay) with Steam lobbies and invites (`Ballast.Online`, Steamworks.NET). **Epic Online Services P2P** will follow for itch.io, and **loopback** serves tests and bots. | EOS gives NAT-punch + relay + lobbies free, no servers for us to run, and no Epic account needed (device-ID login). §8 note 24. |
+| Networking | `ITransport`. One protocol (`DatagramTransport`) over **UDP** for LAN and direct IP, and over **Steam's relayed P2P** (`ISteamNetworkingMessages`, Steam Datagram Relay) with Steam lobbies and invites (`Ballast.Online`, Steamworks.NET). **Epic Online Services P2P** for itch.io (device-id sign-in, lobbies joined by a code, Epic's relays when NAT blocks the direct path; note 896), and **loopback** serves tests and bots. | EOS gives NAT-punch + relay + lobbies free, no servers for us to run, and no Epic account needed (device-ID login). §8 notes 24, 896. |
 | UI / editor | **Dear ImGui** (`Hexa.NET.ImGui` + ImGuizmo) for editor and debug. A small custom retained UI for diegetic and in-game UI. | |
 | Models | **glTF 2.0** is the only interchange format | Blender scripts export glTF; the cooker converts to runtime meshes |
 | Animation | Skeletal, GPU skinning, text-defined blend graphs, two-bone + look-at IK, VR body IK | Clips come from free mocap (CMU, etc.) retargeted in Blender, from procedural motion, and later from AI text-to-motion |
@@ -1056,11 +1056,30 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [872. Readonly Pcg32 fields that never advance: hot boxes, gutters, couplings and the wreck (found by Bram, note 865; the director, 19 Oct: "Yes…](notes/872.md)
 - [873. A crate hand sent to shut a car's door stood still at the foot of its steps (queue #553; B3's find on #532, note 820)](notes/873.md)
 - [874. The spawn director overhaul: the plan, split into queue items #600–#613 so several agents can work at once (the director, 20 Oct 2026;…](notes/874.md)
+- [875. The monster eligibility audit (queue #605, the spawn director overhaul's B3; the director's brief `docs/design/spawn-director-overhaul.md`…](notes/875.md)
+- [876. Bounded encounter debt: `EncounterDebt`, the spawn director overhaul's #607 (C2) (the director's brief,…](notes/876.md)
+- [877. The encounter rate λ(progress, crew, cars, tier): `EncounterPacing` (the director's brief §1, §3; plan note 874; nathaniel1's n1-C1, queue…](notes/877.md)
 - [880. Encounter telemetry: an `EncounterLog` in the Sim, reported as the `encounters` block of `dt harness` and `dt playthrough` (queue #600, the…](notes/880.md)
+- [881. The engagement states: `ThreatState`, and the engaged cap counting threats, not bodies (the director overhaul's B2, queue #604; the…](notes/881.md)
+- [885. The spawn transaction: a spawn the director chose commits nothing until it's placed; failures kept with their reason; a pack is one…](notes/885.md)
+- [887. The spawn director overhaul's guard tests: today's protections locked before anything changes (the director's brief,…](notes/887.md)
+- [888. `dt director sweep`: the spawn director overhaul's matrix of nights, and the old director's baseline (the director's brief §8; note 874's…](notes/888.md)
 - [891. The Cinder Hounds aboard, the director's 9 Oct answer (n1-H1, queue #614; inbox `D1.2-car-fires-from-packs`, note 857's call 1)](notes/891.md)
 - [894. The shunter alone at a pick-up's points, eaten by the Ribbits (queue #615, n1-w7 for nathaniel1; from note 859's Unfixed)](notes/894.md)
 - [896. Epic Online Services P2P: the third datagram carrier, for players off Steam (n1-N1, queue #274; the netcode audit's gap 6; note 24)](notes/896.md)
+- [896. Epic Online Services P2P: the third online platform, for players off Steam (n1-N1, queue #274; the netcode audit's gap 6; note 24)](notes/896.md)
 - [897. Docs from the director's inbox answers of 20 Oct (n1-G2, queue #616; note 857's calls 3, 5, 6 and 10)](notes/897.md)
 - [898. Shove off Caps Lock, and the controls map brought up to date (queue #617; the director's inbox answer of 20 Oct,…](notes/898.md)
 - [899. The rear searchlight, look only (queue #410, from note 678's handoff; the director's inbox answer of 20 Oct,…](notes/899.md)
+- [900. The crew's hands and the lamps' texture wrapping (Arlo, queue #620)](notes/900.md)
+- [901. How to get the mail, shown; the yellow circle on the casting (Iris, queue #621)](notes/901.md)
+- [902. The Waker lifts the train (Cole, queue #622)](notes/902.md)
+- [903. The boiler answers the shovel (Rhea, queue #623)](notes/903.md)
+- [904. The blacksmith says what it sells and why not yet; the dev unlock findable from Settings (Milo, queue #618)](notes/904.md)
+- [905. The big cab's benches thin, along the sides, and sat on; the step from car 1 to the locomotive (Tess, queue #619)](notes/905.md)
+- [906. Concurrency and overlap by crew and train length (the director's brief §1, §6; plan note 874; nathaniel1's n1-C1, queue #611)](notes/906.md)
+- [907. Playtest telemetry: the plan, split into queue items #624–#628 (the director, 20 Oct 2026: "we don't have any telemetry tracking right now…](notes/907.md)
+- [912. The director's protections made one: note 887's gaps closed (the aftermath for the director's own specials, the terminus_safe stretch for…](notes/912.md)
+- [913. Playtest telemetry T1: the session recorder and its event schema (n1-H1, nathaniel1; queue #624; the plan, note 907)](notes/913.md)
+- [914. Playtest telemetry T2: consent and privacy (n1-N1, nathaniel1; queue #625; the plan, note 907)](notes/914.md)
 <!-- end of the notes index -->

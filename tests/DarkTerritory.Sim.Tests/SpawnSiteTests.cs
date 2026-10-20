@@ -57,7 +57,7 @@ public class SpawnSiteTests
         Stand(n, stop, 2, warren.At + new Pt(2, -Math.Sign(warren.At.D) * 30));
         var rule = Spawns.For(EnemyKind.Ribbit)!;
         int before = n.World.ActiveEnemies.Count;
-        Assert.True(rule.Spawn(new SpawnContext(n.World, E, n.World.Director!)));
+        Assert.True(rule.Spawn(new SpawnContext(n.World, E, n.World.Director!)).Placed);
         var pack = n.World.ActiveEnemies.Skip(before).OfType<Ribbit>().ToList();
         Assert.NotEmpty(pack);
         var centre = (n.Crew[1].Position + n.Crew[2].Position) * 0.5;
@@ -72,7 +72,7 @@ public class SpawnSiteTests
             .First(p => away.All(l => Pt.Distance(l.At, p) > E.Sites.WarrenReach + 5));
         Stand(far.Night, far.Stop, 1, spot);
         Stand(far.Night, far.Stop, 2, spot + new Pt(2, 0));
-        Assert.False(rule.Spawn(new SpawnContext(far.Night.World, E, far.Night.World.Director!)));
+        Assert.False(rule.Spawn(new SpawnContext(far.Night.World, E, far.Night.World.Director!)).Placed);
     }
 
     [Fact]
@@ -88,7 +88,7 @@ public class SpawnSiteTests
             Stand(n, stop, 1, toward);
             Stand(n, stop, 2, toward + new Pt(3, 0));
             int before = n.World.ActiveEnemies.Count;
-            Assert.True(Spawns.For(enemy)!.Spawn(new SpawnContext(n.World, E, n.World.Director!)));
+            Assert.True(Spawns.For(enemy)!.Spawn(new SpawnContext(n.World, E, n.World.Director!)).Placed);
             var e = n.World.ActiveEnemies.Skip(before).Single();
             Assert.True(Flat(e.Local, site) < 0.5, $"{enemy} {Flat(e.Local, site):0.0} m from its {kind}");
             seen++;
@@ -106,11 +106,11 @@ public class SpawnSiteTests
         var off = Enumerable.Range(0, 40).SelectMany(i => new[] { 25.0, -25, 50, -50 }.Select(d => new Pt(stop.Stop.ZoneLength * i / 40, d)))
             .First(p => grounds.All(g => Pt.Distance(g.At, p) > g.Radius + E.Sites.GroundMargin + 2));
         Stand(n, stop, 1, off);
-        Assert.False(rule.Spawn(new SpawnContext(n.World, E, n.World.Director!)));
+        Assert.False(rule.Spawn(new SpawnContext(n.World, E, n.World.Director!)).Placed);
         // In the middle of one: they're taken.
         Stand(n, stop, 1, ground.At);
         int before = n.World.ActiveEnemies.Count;
-        Assert.True(rule.Spawn(new SpawnContext(n.World, E, n.World.Director!)));
+        Assert.True(rule.Spawn(new SpawnContext(n.World, E, n.World.Director!)).Placed);
         Assert.IsType<Follower>(n.World.ActiveEnemies.Skip(before).Single());
     }
 
@@ -167,6 +167,6 @@ public class SpawnSiteTests
         n.Run(SimConstants.TickSeconds);
         var ctx = new SpawnContext(n.World, E, n.World.Director!);
         Assert.Empty(ctx.Sites(LairKind.Warren));
-        Assert.True(Spawns.For(EnemyKind.Ribbit)!.Spawn(ctx));
+        Assert.True(Spawns.For(EnemyKind.Ribbit)!.Spawn(ctx).Placed);
     }
 }
