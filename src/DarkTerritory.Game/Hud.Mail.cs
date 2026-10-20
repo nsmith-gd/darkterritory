@@ -8,7 +8,9 @@ namespace DarkTerritory.Game;
 /// The mail cranes on the HUD (note 673; the director, 13 Oct: "I still don't know what the mail is suggesting"). The
 /// board ("MAIL &gt;") was all there was: what it's for was nowhere. In note 285's form, as the cranes come: the board read,
 /// its crane at the top of the screen, which side and how far, as a place is; in its last seconds, the same for anyone in
-/// a car; at the open door on its side, the crosshair says the hook; and a bag caught, what was in it.
+/// a car; at the open door on its side, the crosshair says the hook; and a bag caught, what was in it. Note 901 (the
+/// director, 13 Oct evening: "I went outside looking for it and I did not see it"): until you're at that door, a third
+/// line says where it's caught from, and the mail's pay says where it's paid.
 /// </summary>
 public static partial class Hud
 {
@@ -43,13 +45,20 @@ public static partial class Hud
         (drop.Side > 0 ? "MAIL CRANE >" : "< MAIL CRANE",
             (metres >= 1000 ? $"{metres / 1000:0.0} KM" : $"{Math.Round(metres / 10) * 10:0} M") + (limitKmh > 0 ? $" / {limitKmh}" : ""));
 
+    /// <summary>
+    /// How the bag's taken (note 901), under the crane's two lines until the crosshair says the hook: from the train, at an
+    /// open side door on the crane's side, never off it on foot.
+    /// </summary>
+    public static string MailHow(Drop drop) => drop.Side > 0 ? "CATCH IT FROM AN OPEN RIGHT SIDE DOOR" : "CATCH IT FROM AN OPEN LEFT SIDE DOOR";
+
     /// <summary>A bag hooked over the crane's speed (note 727): it tore off, and what was in it is gone.</summary>
     public const string TornLine = "THE BAG TORE: TOO FAST";
 
     /// <summary>A bag caught, at the top of the screen: what was in it, and what it's done.</summary>
     public static string CaughtLine(Drop drop) => drop.Kind switch
     {
-        DropKind.Mail => $"MAIL: {drop.Amount:0} SCRIP",
+        // The mail's scrip is paid with the freight (note 673), so it says so (note 901).
+        DropKind.Mail => $"MAIL: {drop.Amount:0} SCRIP AT THE TERMINUS",
         DropKind.Coal => "COAL: THE TENDER",
         DropKind.Ammo => "ROUNDS: THE GUNS",
         _ => "SPARES: A CAR MENDED",
@@ -97,6 +106,14 @@ public static partial class Hud
                 o.TextCentred(cx, y, distance, Dim with { W = a }, k);
                 y += (line + 2) * k;
                 half = Math.Max(half, Math.Max(o.Measure(head), o.Measure(distance, k)) / 2);
+                // At the door the crosshair says the hook; anywhere else, where it's caught from (note 901).
+                if (MailPrompt(s) is null)
+                {
+                    string how = MailHow(mail.Drop);
+                    o.TextCentred(cx, y, how, Dim with { W = a }, k);
+                    y += (line + 2) * k;
+                    half = Math.Max(half, o.Measure(how, k) / 2);
+                }
             }
         }
         if (m.CaughtDrop >= 0 && s.World.Lineside is { } lineside && m.CaughtDrop < lineside.AllDrops.Count

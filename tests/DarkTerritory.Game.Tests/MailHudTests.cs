@@ -27,6 +27,7 @@ public class MailHudTests
         Assert.Equal(drop.Side > 0 ? "MAIL CRANE >" : "< MAIL CRANE", head);
         Assert.EndsWith(" M", distance);
         Assert.Equal("HOOK THE BAG : HOLD [LMB]", Hud.Prompt(s));
+        Assert.NotNull(Hud.MailPrompt(s)); // so the top's "catch it from" line gives way to the crosshair's hook (note 901)
 
         // Held as the car goes by: caught, and paid (or the tender, the guns, a car).
         // Held under the crane's posted speed (note 727): over it, the bag tears.
@@ -46,6 +47,11 @@ public class MailHudTests
         var s = Staging.MailCrane(Content, Frontier, 6, seconds: 6, atDoor: false);
         Assert.NotNull(Hud.MailAhead(s));
         Assert.NotEqual("HOOK THE BAG : HOLD [LMB]", Hud.Prompt(s));
+        // Note 901 (the director, 13 Oct evening: "I went outside looking for it and I did not see it"): away from the door,
+        // the top of the screen says where the bag's caught from, on the crane's side.
+        Assert.Null(Hud.MailPrompt(s));
+        var coming = Hud.MailAhead(s)!.Value.Drop;
+        Assert.Equal(coming.Side > 0 ? "CATCH IT FROM AN OPEN RIGHT SIDE DOOR" : "CATCH IT FROM AN OPEN LEFT SIDE DOOR", Hud.MailHow(coming));
         // Nothing caught going by with nobody at the door.
         var drop = Hud.MailAhead(s)!.Value.Drop;
         for (int i = 0; i < 20 * Sim.SimConstants.TickRate && !s.World.Lineside!.Passed(drop.Id); i++)
@@ -91,7 +97,7 @@ public class MailHudTests
     }
 
     [Theory]
-    [InlineData(DropKind.Mail, "MAIL: 40 SCRIP")]
+    [InlineData(DropKind.Mail, "MAIL: 40 SCRIP AT THE TERMINUS")]
     [InlineData(DropKind.Coal, "COAL: THE TENDER")]
     [InlineData(DropKind.Ammo, "ROUNDS: THE GUNS")]
     [InlineData(DropKind.Spares, "SPARES: A CAR MENDED")]
