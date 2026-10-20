@@ -1765,6 +1765,12 @@ public sealed class Director
     /// uncoverable; three is unfair), one corrupted human, and one of a tell type at once (tells must stay distinguishable).
     /// The total cap is checked before this.
     /// </summary>
+    /// <summary>
+    /// Whether <paramref name="kind"/> has room among what's holding the crew now (its zone's cap, one a sense): the zone gate
+    /// every channel asks, read without sending anything (the eligibility audit, note 875).
+    /// </summary>
+    public bool RoomFor(EnemyKind kind, World world) => Room(kind, Holding(world, world.ActiveEnemies));
+
     bool Room(EnemyKind kind, IReadOnlyList<Enemy> engaged)
     {
         var (zone, sense) = Profile(kind);
