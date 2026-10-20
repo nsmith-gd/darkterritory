@@ -1405,10 +1405,11 @@
       // the night meets λ's encounters even when the pressure's rules find nothing, and not by a roll that may never land.
       // dueCap: the most owed at once; what λ would add past it goes to the debt (why: nothing fitting, or what was chosen
       // finding nowhere). dueFloor: the least (a stop's several residents don't buy minutes of silence after it).
-      // pressureScale: the pressure's own rate scaled by λ's crew and car factors (1 alone on a short train, rising),
-      // instead of pressure.crewScale/lengthScale about a crew of four on eight cars (issue 1). With `on` the free spawns'
-      // curve.atGate/atEnd roll and its crewFade (issue 2) are no longer read; on false, the director as before.
-      "drive": { "on": true, "dueCap": 1.5, "dueFloor": -1, "jitter": 0.35, "pressureScale": true }
+      // pressureByLambda: the crew and the train scale the night once, in λ: the pressure (the director's answer to what
+      // the crew does) is the same for any crew and train, not pressure.crewScale/lengthScale about a crew of four on eight
+      // cars (issue 1: a solo crew's was a third of a four's; issue 2: no double scaling). With `on` the free spawns'
+      // curve.atGate/atEnd roll and its crewFade are no longer read; on false, the director as before.
+      "drive": { "on": true, "dueCap": 1.5, "dueFloor": -1, "jitter": 0.35, "pressureByLambda": true }
     },
     // GDD App. B.1 "Post-event cooldown" (design decision, 2026-10): the least trough after a spawn; the pressure's relief
     // makes the rest of it, and well past the threshold (pressAt) it gives way.

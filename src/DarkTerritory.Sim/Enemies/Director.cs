@@ -501,12 +501,15 @@ public sealed class Director
     }
 
     /// <summary>
-    /// The caps full (#608, note 908): a quiet the game means only while something on them is confronting the crew (the brief
-    /// §6: "a dormant unseen creature should not indefinitely satisfy the game's encounter pacing"); full of what threatens
-    /// nobody, the night still owes, and what it can't place goes to the debt. #604's engagement states refine what holds the
-    /// caps themselves.
+    /// The caps full (#608, note 908): a quiet the game means only while something on them threatens or engages the crew
+    /// (#604's <see cref="Threats.Counts"/>; the brief §6: "a dormant unseen creature should not indefinitely satisfy the game's
+    /// encounter pacing"); full of what's dormant or only about, the night still owes, and what it can't place goes to the debt.
     /// </summary>
-    DebtCause CapQuiet(List<Enemy> holding) => holding.Any(Confronting) ? DebtCause.Capped : DebtCause.Ineligible;
+    DebtCause CapQuiet(World world, List<Enemy> holding)
+    {
+        var crewAt = Threats.LivingAt(world);
+        return holding.Any(e => Threats.Counts(Threats.Of(e, world, crewAt, _t.Threats))) ? DebtCause.Capped : DebtCause.Ineligible;
+    }
 
     /// <summary>Held for a quiet the game means (#608, note 908): the encounter clock gains nothing this second.</summary>
     SpawnAttempt? Held(string why, DebtCause quiet)
@@ -694,7 +697,7 @@ public sealed class Director
         var holding = Holding(world, active);
         int total = holding.Count;
         if (total >= EngagedCap || Crowded(active))
-            return Held("at the cap", CapQuiet(holding));
+            return Held("at the cap", CapQuiet(world, holding));
         double available = Allowance(s) - _spent;
         var options = new List<(EnemyKind Kind, double Weight)>();
         if (world.Enemies is { } et)
@@ -892,7 +895,7 @@ public sealed class Director
         var holding = Holding(world, active);
         if (holding.Count >= EngagedCap || Crowded(active))
         {
-            _hold = CapQuiet(holding);
+            _hold = CapQuiet(world, holding);
             return null;
         }
         if (world.Enemies is not { } et)
@@ -1195,13 +1198,11 @@ public sealed class Director
             afoot += world.HorseplayTuning.Marked.PressurePerSecond;
         // By the crew in the night (who joined it, alive or not: the relief valve has the dead) and the cars the engine
         // pulls (note 646).
-        // With the one pacing model (#608, note 908) by the encounter rate's own crew and train factors: 1 alone on a short
-        // train and rising from there (the brief §2 issue 1: no more a solo crew's pressure at a third of a four's).
-        var e = _t.Encounters;
-        int cars = world.Train.Dynamics.Consist.CarCount;
-        double scale = e.Drive is { On: true, PressureScale: true }
-            ? EncounterPacing.CrewFactor(Math.Max(1, Crew), e) * EncounterPacing.CarFactor(cars, e)
-            : p.Scale(Math.Max(1, Crew), cars);
+        // With the one pacing model (#608, note 908) the crew and the train scale the night once, in the encounter rate λ
+        // that the clock owes: the pressure, the director's answer to what the crew does, is the same for any crew (the brief
+        // §2 issue 1: no more a solo crew's at a third of a four's; issue 2: no double scaling).
+        double scale = _t.Encounters.Drive is { On: true, PressureByLambda: true } ? 1
+            : p.Scale(Math.Max(1, Crew), world.Train.Dynamics.Consist.CarCount);
         double rate = _tierRate * scale * conditions * relief * busy * escalation * (p.BasePerSecond + quiet + loud + cargo + afoot);
         _pressure = Math.Min(p.Max, _pressure + rate);
         Terms = new PressureTerms(rate, escalation, _sinceThreat, loud, cargo, relief, conditions, afoot);
