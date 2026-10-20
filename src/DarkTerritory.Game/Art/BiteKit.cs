@@ -46,23 +46,20 @@ public readonly record struct Bite(float RearZ, float Centre, float Side, float 
         return new Bite(rear, centre, platform + side, w, t.Floor, advance, grip, seed);
     }
 
-    /// <summary>How many bites a Waker takes a car in (note 679): his jaws shut four times over wakers.eatSeconds (waker.py's eat).</summary>
-    public const int WakerBites = 4;
-
     /// <summary>
-    /// A car a Waker's eating (note 679; the director, 13 Oct 2026: "make the eaten cars get bitten off instead of vanishing"),
-    /// <paramref name="through"/> (0..1) of the way through its eating: bitten off from its rear end a quarter of it at a bite
-    /// (<see cref="WakerBites"/>), the whole of it, underframe and trucks and all, the middle a little deeper than the sides
-    /// where his jaws meet. The last bite takes the rest as the sim has it eaten.
+    /// A car a Waker's eating (notes 679, 902; the director, 13 Oct 2026: "make the eaten cars get bitten off instead of
+    /// vanishing"; 16 Oct: "let's call it three bites per car"), <paramref name="bitten"/> of its <paramref name="bites"/>
+    /// bites taken (Waker.Bitten): bitten off from its rear end a share of it at a bite, the whole of it, underframe and trucks
+    /// and all, the middle a little deeper than the sides where his jaws meet. The last bite takes the rest as the sim has it
+    /// eaten.
     /// </summary>
-    public static Bite Waker(CarShape shape, double through, float seed)
+    public static Bite Waker(CarShape shape, int bitten, int bites, float seed)
     {
         float l = (float)shape.HalfLength, w = (float)shape.HalfWidth;
         float rear = shape.Platform is { } p ? (float)p.Max.Z : l;
-        int bites = (int)Math.Floor(Math.Clamp(through, 0, 1) * WakerBites);
-        if (bites <= 0)
+        if (bitten <= 0 || bites <= 0)
             return new Bite(rear, 0, 0, w, -100, 0, 0, seed);
-        float depth = (rear + l) * bites / WakerBites;
+        float depth = (rear + l) * Math.Min(bitten, bites) / bites;
         return new Bite(rear, depth, MathF.Max(Step, depth - 0.7f), w, -100, 0, 0, seed);
     }
 

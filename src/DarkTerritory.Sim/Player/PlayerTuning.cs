@@ -64,6 +64,11 @@ public sealed record PlayerTuning(
     /// together, and lamp signals. Field docs live in player.json <c>voices</c>.
     /// </summary>
     public VoicesTuning Voices { get; init; } = new();
+    /// <summary>
+    /// What in your hands slows you (the director, the inbox, 20 Oct 2026: "We shouldn't be slowed carrying anything unless it's
+    /// a two handed object"; note 897). Field docs live in player.json <c>twoHanded</c>.
+    /// </summary>
+    public TwoHandedTuning TwoHanded { get; init; } = new();
 
     public string BotName(int i) => i < BotNames.Count ? BotNames[i] : $"Crew {i + 1}";
 
@@ -306,3 +311,20 @@ public sealed record LampSignalTuning
     public double StoppedWithin { get; init; } = 40;
 }
 
+/// <summary>
+/// Note 897: what in the hands is carried two-handed, and so slows you, keeps you off ladders and can't jump (spec B.2, App. C.4).
+/// <paramref name="Only"/> off is the rule before it: anything in the hands, a toy and a find too (note 594).
+/// </summary>
+public sealed record TwoHandedTuning(bool Only = true, IReadOnlyList<string>? Kinds = null)
+{
+    static readonly Physics.BodyKind[] Before =
+        [Physics.BodyKind.Cargo, Physics.BodyKind.Heavy, Physics.BodyKind.Toy, Physics.BodyKind.Loot, Physics.BodyKind.Child, Physics.BodyKind.Ragdoll];
+
+    Physics.BodyKind[]? _kinds;
+
+    Physics.BodyKind[] Two => _kinds ??= (Kinds ?? ["cargo", "heavy", "child", "ragdoll"])
+        .Select(k => Enum.Parse<Physics.BodyKind>(k, ignoreCase: true)).ToArray();
+
+    /// <summary>Whether a thing of this kind in the hands (not in a slot) slows whoever holds it.</summary>
+    public bool Slows(Physics.BodyKind kind) => Array.IndexOf(Only ? Two : Before, kind) >= 0;
+}

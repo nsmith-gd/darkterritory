@@ -5,23 +5,61 @@ Start DarkTerritory (DarkTerritory.exe on Windows). The title screen has:
   CAMPAIGN      three save slots; the fortress between nights, where you take contracts, buy cars and upgrades
   QUICK NIGHT   any tier and seed, alone or hosted for friends
   JOIN A NIGHT  a friend's address (host:port); Steam friends join from the friends list
-  SETTINGS      sound, voice (open mic or push to talk), HUD, VR comfort, mouse speed
+  SETTINGS      sound, voice (open mic or push to talk), HUD, VR comfort, mouse speed, controls
 
-On foot
-  mouse look, WASD walk, Shift run, Space jump
-  E: grab or let go of a ladder; hold E to work things (the firebox shovel, the valve, a door, a coupler, a switch stand)
-  E near a crate, a lamp or a body: pick it up or put it down; right mouse: throw it
+Keys (the defaults: SETTINGS > CONTROLS changes any of them)
+  W                  Walk forward
+  S                  Walk back
+  A                  Step left
+  D                  Step right
+  Left Shift         Run (held)
+  Space              Jump
+  E                  Use: press to pick up or put down; hold to work things (the shovel, a valve, a door, a coupler, a switch stand, a brake wheel), to carry a crewmate, to struggle free
+  Left Mouse         Fire the gun you're at
+  T                  Throw what you're holding (the coal off the shovel too)
+  R                  In the cab: release the brake and go
+  Y                  In the cab: close the regulator (a train with no boiler only)
+  B                  In the cab: brake (held)
+  X                  In the cab: the reverser (stopped only)
+  L                  The engine's headlamp, on or off
+  V                  Push to talk (with PUSH TO TALK on in Settings; otherwise the mic is open)
+  Right Mouse        The radio, held, with one on your belt: the whole train hears
+  Q                  The crew roster (held); with a number, mute that crewmate (Shift and a number: put them off, or vote to)
+  C                  The route card, a page a press, then away
+  Tab                The chase view; dead, the next of the dead's views
+  G                  Swing the tool you carry
+  H                  The whistle cord, in the cab
+  K                  The lamp in the car you're in
+  Z                  Cut a coupling (held, looking down at the coupler)
+  F                  Grab the nearest ladder
+  P                  Dead: bookmark the view you're following
+  Left Alt           Vent the boiler's steam (held, in the cab)
+  I                  What's aboard (toggle)
+  J                  The emote wheel (held; the mouse picks)
+  Left Ctrl          Crouch (held, or a toggle with HOLD KEYS on TOGGLE)
+  Middle Mouse       Push the gun along its rail (held, walking)
+  5                  Shove the crewmate in front of you
+  U                  With a hand lamp: the lamp signals' wheel (held; the mouse picks)
+These keys are fixed:
+  1-4 · Mouse wheel  The hotbar's slots: pick one · step through them
+  1-9 · Enter        Dead, with a ballot: pick a creature · cast it (the same number again casts it too)
+  Space              Dead: your live mic to the living, on or off; at the run's end, give the commendation the arrows picked
+  F1                 The HUD, off or on
+  F2                 Invite Steam friends
+  F4                 Hide the first nights' card
+  F5                 Reconnect, when the link to the host is gone
+  Esc                The night's menu (settings, leave the night); in a menu, back
+  Alt+Enter          Windowed or full screen
+
+Working the train
+  hold E to work things: the firebox shovel, a valve, a door, a coupler, a switch stand, a brake wheel
+  E near a crate, a lamp or a body: pick it up or put it down; T throws it
   the big crates take two: one takes an end with E, then the other; either lets go and it's down
   the winch: one on each crank, both holding E. In VR, turn the crank round with your hand, together
   left mouse at a gun (the engine's roof, the guard car's roof): fire. Every round brings the Choir.
-Driving (from the cab)
-  R/F regulator up/down, B brake (hold), X reverser (stopped only)
-Voice
-  talk nearby with an open mic (or hold V for push to talk); hold T for the radio
   the radio is a thing: E near one puts it on your belt (the train carries two, in the cab and the guard van);
-  right mouse with empty hands sets it down for someone else. Without one you're not on it, and it's dead in tunnels and mines
-Other
-  F1 the HUD, F2 invite Steam friends, Tab chase camera, Esc frees the mouse, Esc again leaves the night
+  hold right mouse to talk on it. Without one you're not on it, and it's dead in tunnels and mines
+  driving is from the cab: R releases the brake and goes, B brakes, X the reverser (stopped only), Left Alt vents
 VR
   start with --vr: head to look, left stick to walk (click to run), right stick to turn, grip to use, trigger to fire
   both hands on a heavy crate's end to take it
