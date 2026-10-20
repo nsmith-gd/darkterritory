@@ -1085,4 +1085,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [916. Playtest telemetry T5: the playtest kit (n1-U2, nathaniel1; queue #628; the plan, note 907)](notes/916.md)
 - [917. Playtest telemetry T4: `dt telemetry summary`, `dt telemetry map` and the playtest dashboard (n1-G2, queue #627; note 907's plan)](notes/917.md)
 - [920. The stop's packing plan: castings and heavies first in whole halves, then the lights, whatever the arrival's timing (queue #630; found by…](notes/920.md)
+- [921. Bandwidth at 8 crew back under the budget (n1-N1, nathaniel1; queue #631; ARCHITECTURE §6's ≤ 64 kbit/s down per client typical, 128 peak)](notes/921.md)
 <!-- end of the notes index -->
