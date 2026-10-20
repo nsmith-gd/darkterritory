@@ -405,6 +405,50 @@ public static class WhimsyKit
         return k.Build("whimsy-launcher");
     }
 
+    /// <summary>
+    /// Where the rear searchlight stands on the guard van (note 899), in the car's frame: the roof's back right corner, off the
+    /// gun's rail down the middle and out of its muzzle's way (the tail lamp has the left corner).
+    /// </summary>
+    public static Ballast.Double3 SearchlightMount(Sim.Train.CarShape shape) => new(shape.HalfWidth - 0.4, shape.RoofHeight + 0.04, shape.HalfLength - 0.45);
+
+    /// <summary>The searchlight's lens centre, and where it points, in its own frame (+Z back down the line, dipped to the track).</summary>
+    public static readonly Vector3 SearchlightLens = new(0, 0.62f, 0.3f), SearchlightAim = Vector3.Normalize(new Vector3(0, -0.11f, 1));
+
+    /// <summary>
+    /// The rear searchlight (note 899): a black drum on a yoke on a short pedestal, its lens facing back down the line and a
+    /// little down, the kind a yard tower sweeps with. Its glass is <see cref="SearchlightGlass"/>, drawn lit.
+    /// </summary>
+    public static MeshAsset Searchlight(Look? look)
+    {
+        var k = new Kit(look, 1761);
+        var aim = SearchlightAim;
+        var lens = SearchlightLens;
+        k.Use("dress_iron", new Vector3(0.09f, 0.09f, 0.1f), 0.55f, 0.6f);
+        k.Cylinder(new Vector3(0, 0, 0), new Vector3(0, 0.06f, 0), 0.22f, 12);
+        k.Cylinder(new Vector3(0, 0.06f, 0), new Vector3(0, 0.38f, 0), 0.05f, 8);
+        // The yoke: a fork up either side of the drum, to its trunnions.
+        k.Box(new Vector3(-0.3f, 0.36f, -0.05f), new Vector3(0.3f, 0.41f, 0.05f));
+        foreach (float x in new[] { -0.29f, 0.29f })
+            k.Box(new Vector3(x - 0.025f, 0.38f, -0.04f), new Vector3(x + 0.025f, 0.66f, 0.04f));
+        // The drum, its back a cooling hood, its front a brass bezel round the glass.
+        var centre = lens - aim * 0.3f;
+        k.Cylinder(centre - aim * 0.28f, lens - aim * 0.02f, 0.24f, 16);
+        k.Cylinder(centre - aim * 0.38f, centre - aim * 0.28f, 0.16f, 12);
+        k.Rod(centre + new Vector3(0, 0.24f, 0) - aim * 0.12f, centre + new Vector3(0, 0.3f, 0) - aim * 0.12f, 0.03f);
+        k.Use("dress_brass", Brass * 0.7f, 0.35f, 0.85f);
+        k.Cylinder(lens - aim * 0.03f, lens + aim * 0.01f, 0.26f, 16);
+        return k.Build("whimsy-searchlight");
+    }
+
+    /// <summary>The searchlight's glass, lit (drawn only while it's shining).</summary>
+    public static MeshAsset SearchlightGlass(Look? look)
+    {
+        var k = new Kit(look, 1762) { Emissive = 1 };
+        k.Use("dress_glass", new Vector3(1.0f, 0.95f, 0.82f), 0.1f, 0);
+        k.Cylinder(SearchlightLens, SearchlightLens + SearchlightAim * 0.015f, 0.215f, 16);
+        return k.Build("whimsy-searchlight-glass");
+    }
+
     /// <summary>A white fleck on the record, put where it's got to as it turns (the record playing).</summary>
     public static MeshAsset Label(Look? look)
     {

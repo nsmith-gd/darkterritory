@@ -108,7 +108,7 @@ public sealed record PlacementTuning
     public double OnTopWeight { get; init; } = 0.3;
 }
 
-public sealed partial record EncounterTuning
+public sealed partial record EncountersTuning
 {
     /// <summary>The selection's zone spread (note 895).</summary>
     public SelectionTuning Selection { get; init; } = new();

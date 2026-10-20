@@ -40,6 +40,10 @@ public static class Views
                 ? Camera.LookAt(engine.ToWorld(ed + new Double3(-3.2, 0.9, 2.6)), engine.ToWorld(ed), 60)
                 : Camera.LookAt(engine.ToWorld(new Double3(-4, 2.5, 3)), engine.ToWorld(new Double3(0, 2, 0)), 60),
             "mend" => Camera.LookAt(target.ToWorld(new Double3(0.4, Floor(train) + 1.65, -0.5)), target.ToWorld(new Double3(-1.0, Floor(train) + 1.1, target.Shape.HalfLength * 0.62)), 70),
+            // (Not one of Names.) Up close on the car's front hanging lantern, at arm's length below it: how it's textured (the
+            // director's playtest of 16 Oct, line 12, note 900: "the texture wrapping on the lamps").
+            "carlamp" when target.Shape.Interior is { } lit && Art.SceneArt.LampPositions(lit).First() is var lamp =>
+                Camera.LookAt(target.ToWorld(new Double3(lamp.X - 0.45, lamp.Y - 0.12, lamp.Z + 0.5)), target.ToWorld(new Double3(lamp.X, lamp.Y - 0.05, lamp.Z)), 45),
             "inside" => Camera.LookAt(target.ToWorld(new Double3(-0.5, Floor(train) + 1.65, -target.Shape.HalfLength + 0.6)), target.ToWorld(new Double3(0, Floor(train) + 1.3, 2)), 70),
             // From inside the car behind, through both open end doors at this car's rear doorway (note 110: who comes through).
             "door" => DoorCamera(train, car),
@@ -344,6 +348,15 @@ public static class Views
                 : Camera.LookAt(engine.ToWorld(new Double3(0, 3, 0)), engine.ToWorld(new Double3(0, 2, -1)), 60),
             "dog" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(0.8, Floor(train) + 1.3, train.Frames[^1].Shape.HalfLength - 4.6)),
                 train.Frames[^1].ToWorld(new Double3(-0.4, Floor(train) + 0.3, train.Frames[^1].Shape.HalfLength - 2.0)), 60),
+            // The rear searchlight (note 899; `--upgrades rearSearchlight`): from the guard van's roof back down the line it
+            // lights, as the rear gunner sees it; the lamp close, on the roof's back corner; and from off the line's side behind
+            // the train, the van with its beam on the track.
+            "searchlight" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(-0.6, train.Frames[^1].Shape.RoofHeight + 1.7, train.Frames[^1].Shape.HalfLength - 2.6)),
+                train.Frames[^1].ToWorld(new Double3(0.4, 0.5, train.Frames[^1].Shape.HalfLength + 26)), 65),
+            "searchlightlamp" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(train.Frames[^1].Shape.HalfWidth + 2.2, train.Frames[^1].Shape.RoofHeight + 1.2, train.Frames[^1].Shape.HalfLength - 2.4)),
+                train.Frames[^1].ToWorld(new Double3(train.Frames[^1].Shape.HalfWidth - 0.4, train.Frames[^1].Shape.RoofHeight + 0.5, train.Frames[^1].Shape.HalfLength - 0.3)), 50),
+            "searchlightside" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(-14, 6, train.Frames[^1].Shape.HalfLength + 22)),
+                train.Frames[^1].ToWorld(new Double3(0, 1.5, train.Frames[^1].Shape.HalfLength + 8)), 60),
             "launcher" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(3.2, 2.4, train.Frames[^1].Shape.HalfLength + 4.5)),
                 train.Frames[^1].ToWorld(new Double3(0.2, 1.6, train.Frames[^1].Shape.HalfLength + 0.6)), 50),
             "gerald" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(3.0, train.Frames[^1].Shape.RoofHeight + 1.6, -train.Frames[^1].Shape.HalfLength + 5.5)),

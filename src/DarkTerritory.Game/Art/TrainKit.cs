@@ -717,7 +717,7 @@ public static partial class TrainKit
         {
             k.Use("paint_black", Palette.SootBlack, 0.7f, 0.3f);
             k.Box(lamp - new Vector3(0.08f, 0.12f, 0.08f), lamp + new Vector3(0.08f, 0.12f, 0.08f));
-            k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.2f);
+            k.Use("lantern_pane", Palette.LampAmber, 0, 0, tile: 0.2f);
             k.Emissive = 1;
             float face = -MathF.Sign(lamp.X);
             k.Panel(lamp + new Vector3(face * 0.085f, 0, 0), new Vector3(face, 0, 0), Vector3.UnitY, 0.12f, 0.17f);
@@ -1258,7 +1258,7 @@ public static partial class TrainKit
             k.Rod(new Vector3(side * (w - 0.02f), lamp.Y, cabBack - 0.05f), lamp, 0.02f);
             k.Use("paint_black", Palette.SootBlack, 0.7f, 0.3f);
             k.Box(lamp - new Vector3(0.09f, 0.13f, 0.09f), lamp + new Vector3(0.09f, 0.13f, 0.09f));
-            k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.2f);
+            k.Use("lantern_pane", Palette.LampAmber, 0, 0, tile: 0.2f);
             k.Emissive = 1;
             k.Panel(lamp + new Vector3(0, 0, 0.095f), Vector3.UnitZ, Vector3.UnitY, 0.13f, 0.18f);
             k.Panel(lamp + new Vector3(side * 0.095f, 0, 0), new Vector3(side, 0, 0), Vector3.UnitY, 0.13f, 0.18f);
@@ -2023,7 +2023,7 @@ public static partial class TrainKit
             return k.Build("vent-stand-cab");
         k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.3f);
         k.Rod(new Vector3(0, height, 0), new Vector3(0, height + 0.5f, 0), 0.015f, 4);
-        k.Use("lamp_lens", new Vector3(1.0f, 0.35f, 0.15f), 0, 0, tile: 0.25f);
+        k.Use("lantern_pane", new Vector3(1.0f, 0.35f, 0.15f), 0, 0, tile: 0.25f);
         k.Emissive = 1;
         k.BoxAt(new Vector3(0, height + 0.45f, 0), new Vector3(0.05f, 0.07f, 0.05f));
         k.Emissive = 0;
@@ -2208,7 +2208,7 @@ public static partial class TrainKit
         k.Use("lamp_lens", Palette.SignalRed, 0, 0, tile: 0.2f);
         k.Emissive = 1;
         k.Tint = new Vector3(1.0f, 0.25f, 0.18f);
-        k.Panel(tail + new Vector3(0, 0, 0.101f), Vector3.UnitZ, Vector3.UnitY, 0.16f, 0.18f);
+        k.Panel(tail + new Vector3(0, 0, 0.101f), Vector3.UnitZ, Vector3.UnitY, 0.16f, 0.18f, Vector2.Zero, new Vector2(0.2f, 0.2f));
         k.Emissive = 0;
     }
 

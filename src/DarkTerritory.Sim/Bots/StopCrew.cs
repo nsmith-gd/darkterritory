@@ -3122,7 +3122,10 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         var train = world.Train;
         if (!_reachedEnd)
             return Ride(self, train, p);
-        bool heavy = self.Has(PlayerFlags.Heavy);
+        // Arms full: what's two-handed, or a find in the hands (note 897: it doesn't slow you, but it's still carried in and
+        // set down aboard as a crate is).
+        bool heavy = self.Has(PlayerFlags.Heavy)
+            || PlayerId is { } holder && world.Bodies.CarriedBy(holder) is { Kind: Physics.BodyKind.Loot or Physics.BodyKind.Toy };
         int side = p.Site.Side;
         // The train's leaving: down with it if it's in our arms, and aboard.
         if (!p.AtTheEnd(train))

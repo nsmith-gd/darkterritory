@@ -22,19 +22,6 @@ public enum SpawnFailure : byte
     NoSite,
 }
 
-/// <summary>The director's channel an attempt came by (note 874's <c>SpawnAttempt</c> contract).</summary>
-public enum SpawnChannel : byte
-{
-    /// <summary>The pressure's spend (App. B.1), the night's curve's fill included.</summary>
-    Pressure,
-    /// <summary>The night's curve's free spawn (note 849).</summary>
-    Free,
-    /// <summary>The stops' own (note 860).</summary>
-    Stop,
-    /// <summary>What comes on its own condition, charged as the director's: the Stoker, an insisted kind (note 186).</summary>
-    Special,
-}
-
 /// <summary>
 /// What a spawn rule's placement did (<see cref="SpawnRule.Spawn"/>): placed, with the ids of every member it put in (a pack is
 /// one encounter of several), or failed, with why.
@@ -82,11 +69,8 @@ public readonly record struct SpawnAttemptResult(uint Tick, EnemyKind Kind, Spaw
     public bool Placed => Failure == SpawnFailure.None;
 }
 
-/// <summary>
-/// The spawn overhaul's encounter tuning (<c>director.encounters</c> in enemies.json; note 874). Partial: each overhaul item
-/// adds its own block in a file of its own (#606's rate, #607's debt), so they merge without touching each other's lines.
-/// </summary>
-public sealed partial record EncounterTuning
+/// <summary>#603's block of <c>director.encounters</c> (note 885); the rest in #606's and #607's files.</summary>
+public sealed partial record EncountersTuning
 {
     /// <summary>The spawn transaction's retries (note 885).</summary>
     public SpawnAttemptTuning Attempts { get; init; } = new();
