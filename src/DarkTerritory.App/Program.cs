@@ -328,11 +328,13 @@ if (args.Contains("--crash-test"))
     throw new InvalidOperationException("--crash-test: stopped on purpose to try the crash report");
 var renderer = new GreyboxRenderer(gpu, internalSize[0], internalSize[1]) { OverlaySize = new Vector2(UiWidth, UiHeight) };
 using var rendererOwner = new Owner(() => renderer.Dispose());
-// Playtest telemetry (note 913, queue #624): this session written down, only with the player's say-so (#625 asks; until then
-// "telemetry": true in settings.json, or --telemetry). Off, nothing's recorded and no file's made. Nothing's sent (#626).
-// #625's PlaytestConsent is the gate the game will ask; until it lands, a fixed answer.
-var telemetryGate = new DarkTerritory.Game.Telemetry.FixedTelemetryGate(startSettings.Telemetry || args.Contains("--telemetry"),
-    Arg("--telemetry-dir", DarkTerritory.Game.Telemetry.FixedTelemetryGate.DefaultDirectory));
+// Playtest telemetry (note 913, queue #624): this session written down, only with the player's say-so: #625's answer
+// (frontEnd.Playtest, note 914), asked on every line, so saying no in Settings stops it at once. --telemetry records this
+// launch whatever the answer (a tester told to, or the director), into --telemetry-dir or the same folder. Off, nothing's
+// recorded and no file's made. Nothing's sent (#626).
+DarkTerritory.Game.Telemetry.ITelemetryGate telemetryGate = args.Contains("--telemetry")
+    ? new DarkTerritory.Game.Telemetry.FixedTelemetryGate(true, Arg("--telemetry-dir", frontEnd.Playtest.SessionsDirectory), frontEnd.Playtest.InstallId)
+    : frontEnd.Playtest;
 var telemetry = DarkTerritory.Game.Telemetry.SessionRecorder.ToFile(telemetryGate);
 using var telemetryOwner = telemetry.Closer;
 bool devBuild = false;
