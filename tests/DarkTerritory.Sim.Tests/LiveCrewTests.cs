@@ -91,6 +91,27 @@ public class LiveCrewTests
         Assert.Equal(2, n.World.Director!.EngagedCap);
     }
 
+    /// <summary>
+    /// Note 906 (n1-A1's measure: a Knotter at a coupling cars from a solo crew held their one place for minutes): a threat that's
+    /// had nobody within farMetres for farHoldSeconds is off the cap; danger still, but not the reason nothing else comes.
+    /// </summary>
+    [Fact]
+    public void AThreatFarFromEveryoneAWhileComesOffTheCap()
+    {
+        var c = D.Encounters.Concurrency;
+        var n = Crewed(1);
+        var world = n.World;
+        int car = n.Train.Dynamics.Consist.CarCount - 2;
+        var knotter = world.AddEnemy(id => Knotter.Into(id, n.Train, car, Tuning.Enemies.Knotter));
+        double metres = (knotter.WorldPosition(n.Train) - PlayerMotor.WorldPosition(n.Crew[0], n.Train)).Length;
+        Assert.True(metres > c.FarMetres, $"{metres} m");
+        n.Run(5);
+        Assert.Contains(knotter, world.Director!.Holding(world, world.ActiveEnemies));
+        n.Run(c.FarHoldSeconds + 2);
+        Assert.False(knotter.Gone);
+        Assert.DoesNotContain(knotter, world.Director.Holding(world, world.ActiveEnemies));
+    }
+
     [Fact]
     public void WithTheOrchestratorOffTheCapsAreAppBsFlatOnes()
     {

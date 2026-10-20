@@ -580,6 +580,7 @@ public sealed class Director
     public SpawnAttempt? Choose(World world, double elapsed, IReadOnlyList<Enemy> active, double noSpawnFinal)
     {
         _hold = null;
+        TrackFar(world, active);
         var attempt = ChooseNow(world, elapsed, active, noSpawnFinal);
         Pace(world, elapsed, active);
         return attempt;
@@ -1868,7 +1869,40 @@ public sealed class Director
     public List<Enemy> Threatening(World world, IReadOnlyList<Enemy> active)
     {
         var crewAt = Threats.LivingAt(world);
-        return [.. active.Where(e => Threats.Hunts(e) && (Engaged(e) || e.Holding >= 0) && Threats.Counts(Threats.Of(e, world, crewAt, _t.Threats)))];
+        var c = _t.Encounters.Concurrency;
+        return [.. active.Where(e => Threats.Hunts(e) && (Engaged(e) || e.Holding >= 0) && Threats.Counts(Threats.Of(e, world, crewAt, _t.Threats))
+            // Note 906: a car fire is the train's harm and its own counterplay, not a creature on the crew (off: as #604).
+            && !(c.On && !c.IncidentsHoldCap && e is Incident)
+            // And what's been far from everyone a while is danger still, but off the cap.
+            && (!c.On || Concurrency.HoldsCap(e.Holding >= 0, e.Working(world), Key(e.Kind), _far.GetValueOrDefault(e.Id), c)))];
+    }
+
+    /// <summary>Note 906: by enemy id, how long it's had no living crewmate within <c>concurrency.farMetres</c> (once a second).</summary>
+    readonly Dictionary<int, double> _far = [];
+
+    /// <summary>Once a second (<see cref="Choose"/>): each active enemy's seconds far from every living crewmate, reset when one's near.</summary>
+    void TrackFar(World world, IReadOnlyList<Enemy> active)
+    {
+        var c = _t.Encounters.Concurrency;
+        if (!c.On || c.FarHoldSeconds <= 0)
+            return;
+        var crewAt = Threats.LivingAt(world);
+        // Nobody alive seen (a director thought with headless, or the whole crew down): there's no one to be far from.
+        if (crewAt.Count == 0)
+            return;
+        var train = world.Train;
+        var seen = new HashSet<int>();
+        foreach (var e in active)
+        {
+            if (e.Gone)
+                continue;
+            seen.Add(e.Id);
+            var at = e.WorldPosition(train);
+            bool near = crewAt.Any(p => (p - at).Length <= c.FarMetres);
+            _far[e.Id] = near ? 0 : _far.GetValueOrDefault(e.Id) + 1;
+        }
+        foreach (int id in _far.Keys.Where(id => !seen.Contains(id)).ToList())
+            _far.Remove(id);
     }
 
     /// <summary>

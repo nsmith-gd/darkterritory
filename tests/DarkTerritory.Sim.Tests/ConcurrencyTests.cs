@@ -113,4 +113,19 @@ public class ConcurrencyTests
         // Late joiners (alive over the count) aren't a bonus.
         Assert.Equal(1, Concurrency.Relief(5, 4, 0, T));
     }
+
+    [Fact]
+    public void WhatsBeenFarFromEveryoneAWhileComesOffTheCap()
+    {
+        Assert.True(Concurrency.HoldsCap(holding: false, working: false, "climbers", farSeconds: T.FarHoldSeconds - 1, T));
+        Assert.False(Concurrency.HoldsCap(holding: false, working: false, "climbers", farSeconds: T.FarHoldSeconds, T));
+        // Holding someone, it holds its place however far the rest are.
+        Assert.True(Concurrency.HoldsCap(holding: true, working: false, "climbers", farSeconds: 10_000, T));
+        Assert.True(Concurrency.HoldsCap(false, false, "climbers", 10_000, T with { FarHoldSeconds = 0 }));
+        // At work on the train it holds (a pack feeding aboard, a Hotbox), but for a Knotter that's become the coupling.
+        Assert.True(Concurrency.HoldsCap(false, working: true, "cinderHounds", 10_000, T));
+        Assert.True(Concurrency.HoldsCap(false, working: true, "hotbox", 10_000, T));
+        Assert.False(Concurrency.HoldsCap(false, working: true, "knotter", 10_000, T));
+        Assert.False(T.IncidentsHoldCap);
+    }
 }
