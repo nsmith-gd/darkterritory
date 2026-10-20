@@ -646,7 +646,11 @@
   // the loading's not called done; else it's left (D1: "a body never costs the night"), and put down if it's in the arms.
   // Note 790: on foot within mouseMooseWithin m of the Mouse Moose at a casting (creeping in, its teeth in it, dragging it), it
   // goes at it and clubs it: it bolts long before (mouseMoose.scareWithin), and the casting's kept.
+  // Note 894 (App. A.6, "outrunnable, if you run"): ribbitsOutnumberedRun, a bot on its way somewhere (aboard, say) with a pack
+  // hunting it that outnumbers it and those with it runs on instead of turning to club them (frontier:6's shunter, alone at
+  // the pick-up's points, went at a pack of three and was eaten).
   "crewBots": {
+    "ribbitsOutnumberedRun": true,
     "mournersWithin": 30, "mournersLeash": 20, "towerJawWithin": 25, "towerJawClearFrom": 0.9, "towerJawClearBy": 2.5,
     "wreckWithin": 250, "wreckStopShort": 15, "wreckHoldWithin": 60, "beetleWithin": 15, "ribbitWithin": 12, "brakemanStandOff": 1.5,
     "brakemanWaitPast": 1, "standGiveUp": 240, "gateClearShort": 30, "gateClearWithin": 1500, "gateClearGiveUp": 240, "gateClearMargin": 45,

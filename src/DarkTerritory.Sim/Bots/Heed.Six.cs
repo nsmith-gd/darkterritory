@@ -284,16 +284,37 @@ public static partial class Heed
     /// pack had the same hand again a few seconds later. On deepTerritory:7 seed 2 under note 652's roster one Ribbit pack
     /// took the Foundry's hand 60 times, and the stop loaded nothing.
     /// </summary>
-    public static PlayerIntent Ribbits(PlayerIntent intent, in PlayerState self, World world, int selfId)
+    public static PlayerIntent Ribbits(PlayerIntent intent, in PlayerState self, World world, int selfId,
+        IReadOnlyList<(int Id, PlayerState State)>? others = null)
     {
         if (!Free(self) || self.Parent != PlayerState.World || world.Enemies is not { } et)
             return intent;
         var train = world.Train;
         var me = PlayerMotor.WorldPosition(self, train);
+        // Note 894 (App. A.6, "outrunnable, if you run"): a pack hunting us that outnumbers us and those with us, and we're on
+        // our way somewhere (aboard, say): on, at a run, not round to club them. frontier:6 seed 4's shunter, alone at the
+        // pick-up's points and walking back to the train, turned on a pack of three and was eaten.
+        if (et.CrewBots.RibbitsOutnumberedRun && (intent.MoveX != 0 || intent.MoveZ != 0) && Hunted(world, selfId, me, others, et.Ribbits.GroupRadius))
+            return intent with { Buttons = intent.Buttons | PlayerButtons.Run };
         // Any of them near, hunting or not: one left sitting when the count's against it takes the next hand to walk off alone.
         var nearest = world.ActiveEnemies.OfType<Ribbit>().Where(r => !r.Gone).Select(r => (r, At: r.WorldPosition(train))).Where(x => Flat(x.At - me) <= et.CrewBots.RibbitWithin)
             .OrderBy(x => Flat(x.At - me)).ThenBy(x => x.r.Id).FirstOrDefault();
         return nearest.r is null ? intent : Strike(self, train, nearest.At, RibbitReach) ?? intent;
+    }
+
+    /// <summary>
+    /// A Ribbit pack after this bot (its leader's mark) that outnumbers it and the crewmates on foot within the pack's
+    /// <c>groupRadius</c> of it (the count the pack goes by, App. A.6).
+    /// </summary>
+    static bool Hunted(World world, int selfId, Double3 me, IReadOnlyList<(int Id, PlayerState State)>? others, double groupRadius)
+    {
+        var after = world.ActiveEnemies.OfType<Ribbit>().Where(r => !r.Gone && r.Target == selfId && r.Phase != SpinePhase.Grab).ToList();
+        if (after.Count == 0)
+            return false;
+        int pack = world.ActiveEnemies.OfType<Ribbit>().Count(r => !r.Gone && r.Pack == after[0].Pack);
+        int group = 1 + (others ?? []).Count(o => o.Id != selfId && CrewSense.Afoot(o.State, world.Train)
+            && Flat(PlayerMotor.WorldPosition(o.State, world.Train) - me) <= groupRadius);
+        return pack > group;
     }
 
     /// <summary>A Ribbit's <c>meleeRadius</c> is 0.7 and a blow reaches 2.2 m past it: this near on the flat, a swing (m).</summary>
