@@ -68,7 +68,7 @@ Trade-offs accepted: we ship the JIT runtime (not NativeAOT) so mods can load; s
 | ECS | **Friflo.Engine.ECS** or **Arch**, decided in M1 | Needs: fast queries, struct components, and component change tracking for replication |
 | Audio | **Custom mixer** in C# + **miniaudio** device I/O + **Steam Audio** (HRTF, occlusion) | See §6 |
 | Voice codec | **Opus** (libopus via P/Invoke, `Concentus` as pure-C# fallback) | |
-| Networking | `ITransport`. One protocol (`DatagramTransport`) over **UDP** for LAN and direct IP, and over **Steam's relayed P2P** (`ISteamNetworkingMessages`, Steam Datagram Relay) with Steam lobbies and invites (`Ballast.Online`, Steamworks.NET). **Epic Online Services P2P** will follow for itch.io, and **loopback** serves tests and bots. | EOS gives NAT-punch + relay + lobbies free, no servers for us to run, and no Epic account needed (device-ID login). §8 note 24. |
+| Networking | `ITransport`. One protocol (`DatagramTransport`) over **UDP** for LAN and direct IP, and over **Steam's relayed P2P** (`ISteamNetworkingMessages`, Steam Datagram Relay) with Steam lobbies and invites (`Ballast.Online`, Steamworks.NET). **Epic Online Services P2P** for itch.io (device-id sign-in, lobbies joined by a code, Epic's relays when NAT blocks the direct path; note 896), and **loopback** serves tests and bots. | EOS gives NAT-punch + relay + lobbies free, no servers for us to run, and no Epic account needed (device-ID login). §8 notes 24, 896. |
 | UI / editor | **Dear ImGui** (`Hexa.NET.ImGui` + ImGuizmo) for editor and debug. A small custom retained UI for diegetic and in-game UI. | |
 | Models | **glTF 2.0** is the only interchange format | Blender scripts export glTF; the cooker converts to runtime meshes |
 | Animation | Skeletal, GPU skinning, text-defined blend graphs, two-bone + look-at IK, VR body IK | Clips come from free mocap (CMU, etc.) retargeted in Blender, from procedural motion, and later from AI text-to-motion |
@@ -1059,12 +1059,13 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [876. Bounded encounter debt: `EncounterDebt`, the spawn director overhaul's #607 (C2) (the director's brief,…](notes/876.md)
 - [877. The encounter rate λ(progress, crew, cars, tier): `EncounterPacing` (the director's brief §1, §3; plan note 874; nathaniel1's n1-C1, queue…](notes/877.md)
 - [880. Encounter telemetry: an `EncounterLog` in the Sim, reported as the `encounters` block of `dt harness` and `dt playthrough` (queue #600, the…](notes/880.md)
+- [887. The spawn director overhaul's guard tests: today's protections locked before anything changes (the director's brief,…](notes/887.md)
 - [885. The spawn transaction: a spawn the director chose commits nothing until it's placed; failures kept with their reason; a pack is one…](notes/885.md)
 - [887. The spawn director overhaul's guard tests: today's protections locked before anything changes (the director's brief,…](notes/887.md)
 - [888. `dt director sweep`: the spawn director overhaul's matrix of nights, and the old director's baseline (the director's brief §8; note 874's…](notes/888.md)
 - [891. The Cinder Hounds aboard, the director's 9 Oct answer (n1-H1, queue #614; inbox `D1.2-car-fires-from-packs`, note 857's call 1)](notes/891.md)
 - [894. The shunter alone at a pick-up's points, eaten by the Ribbits (queue #615, n1-w7 for nathaniel1; from note 859's Unfixed)](notes/894.md)
-- [896. Epic Online Services P2P: the third datagram carrier, for players off Steam (n1-N1, queue #274; the netcode audit's gap 6; note 24)](notes/896.md)
+- [896. Epic Online Services P2P: the third online platform, for players off Steam (n1-N1, queue #274; the netcode audit's gap 6; note 24)](notes/896.md)
 - [897. Docs from the director's inbox answers of 20 Oct (n1-G2, queue #616; note 857's calls 3, 5, 6 and 10)](notes/897.md)
 - [898. Shove off Caps Lock, and the controls map brought up to date (queue #617; the director's inbox answer of 20 Oct,…](notes/898.md)
 - [899. The rear searchlight, look only (queue #410, from note 678's handoff; the director's inbox answer of 20 Oct,…](notes/899.md)

@@ -186,7 +186,12 @@ object RunHarness(string[] args, Action<uint, IReadOnlyList<(DarkTerritory.Sim.B
     var line = route?.Build() ?? LoadLine(Str(args, "--line", "test-loop"));
     var combat = DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File));
     var enemies = DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File));
-    using var online = args.Contains("--online") ? new DarkTerritory.Game.FakeLobbyNetwork() : null;
+    // --eos (note 896): the same over the EOS path, every machine behind a strict NAT so it all goes through the relays
+    // (--nat open|moderate|strict, --relay allow|force).
+    using DarkTerritory.Sim.Net.IHarnessNetwork? online = args.Contains("--online") ? new DarkTerritory.Game.FakeLobbyNetwork()
+        : args.Contains("--eos") ? new DarkTerritory.Game.FakeEosLobbyNetwork(Enum.Parse<Ballast.Online.Eos.EosNat>(Str(args, "--nat", "strict"), ignoreCase: true),
+            new Ballast.Online.Eos.EosSettings("", "", "", "", "", Str(args, "--relay", "allow")).RelayControl)
+        : null;
     // --trace file: a line each time anyone changes what they're doing (where they are, their part at a stop, warming up).
     using var trace = Str(args, "--trace", "") is { Length: > 0 } tracePath ? new StreamWriter(tracePath) : null;
     string lastTrace = "";
@@ -773,13 +778,25 @@ object CampaignCommand(string content, string verb, string[] args)
     }
 }
 
-// Can this machine reach Steam? Says who it's signed in as, or exactly what's missing.
+// Can this machine reach Steam, and EOS (note 896)? Says who it's signed in as, or exactly what's missing.
 static object OnlineCheck()
 {
-    using var steam = Ballast.Online.Steam.SteamBackend.TryStart(Ballast.Online.Steam.SteamBackend.DevAppId, out var error);
-    return steam is null
-        ? new { steam = false, error }
-        : new { steam = true, error = (string?)null, user = steam.NameOf(steam.Me), id = steam.Me.ToString() };
+    object steamCheck;
+    using (var steam = Ballast.Online.Steam.SteamBackend.TryStart(Ballast.Online.Steam.SteamBackend.DevAppId, out var error))
+        steamCheck = steam is null
+            ? new { steam = false, error }
+            : new { steam = true, error = (string?)null, user = steam.NameOf(steam.Me), id = steam.Me.ToString() };
+    var settings = Ballast.Online.Eos.EosSettings.Load();
+    string? eosError = settings is null ? "no credentials (eos.json beside the game, or the DT_EOS_* variables)" : null;
+    using var eos = settings is null ? null
+        : Ballast.Online.Eos.EosSdk.TryCreate(settings, out eosError) is { } sdk
+            ? Ballast.Online.Eos.EosBackend.TryStart(sdk, Environment.UserName, settings.RelayControl, out eosError)
+            : null;
+    return new
+    {
+        steam = steamCheck,
+        eos = new { eos = eos is not null, sdk = Ballast.Online.Eos.EosSdk.Available, error = eosError, id = eos?.Me.ToString(), relay = settings?.Relay },
+    };
 }
 
 RailLine LoadLine(string name) => RailLine.Load(Path.Combine(content, "lines", name + ".json"));
@@ -4661,8 +4678,10 @@ static int Usage()
           linegen sweep [--tier all|t] [--cars 3,10,20] [--seeds n] [--report sweep.csv] [--fallbacks]
                      generation, validation and metrics over many seeds (plan §16.5, §20.2)
           harness [--bots n] [--cars n] [--seconds t] [--seed s] [--latency s] [--jitter s] [--loss 0..1] [--line name | --route tier:seed]
-                     [--enemies] [--no-combat] [--no-boiler] [--udp | --online] [--trace file]   --udp: real sockets on localhost instead of the simulated link;
+                     [--enemies] [--no-combat] [--no-boiler] [--udp | --online | --eos] [--trace file]   --udp: real sockets on localhost instead of the simulated link;
                      --online: every bot joins a lobby on the fake Steam and plays over relayed P2P
+                     --eos [--nat strict|moderate|open] [--relay allow|force]: every bot joins the host's lobby on the fake EOS
+                     by its code, over EOS P2P (strict NATs: all through the relays; note 896)
                      host + bot clients over a simulated network; reports prediction error, bandwidth, deaths,
                      and with --enemies the director's spawns, punishes, deaths by cause and fairness audit; on a route, the
                      facility stops the crew worked (five bots make a crew for a winch); --trace writes who's doing what;
@@ -4686,7 +4705,7 @@ static int Usage()
                      an OpenXR session end to end (Monado's simulated headset works headless) and both eyes as a PNG
           campaign new|show|slots|buy car|kit|powder|lamp|extinguisher|sell|<upgrade>|sim|play [--slot 1..3] [--saves dir] [--contract i] [--seed n]
                      the campaign between nights (spec E, F): the board, purchases, F.4's progression check, a bot night settled
-          online check                             is Steam reachable from here (signed-in user, or what's missing)
+          online check                             are Steam and EOS reachable from here (signed-in user, or what's missing)
           audio opera [--check]
                      the derailment's music (GDD v1.4 App. E.6): our own CC0 recordings into content/audio/music, the manifest, CREDITS.md
           audio render [--scenario bed|tells|chaos|wreck|toys] [--cars n] [--speed v] [--listener car (0 = cab) | all] [--seconds t] [--out file.wav] [--track id] [--space name]
