@@ -207,7 +207,18 @@ crashes.Live = () =>
     new ReportField("doing", playing is null ? $"{doing}: {frontEnd.Screen}" : doing),
     .. playing is { } night ? [new ReportField("night", ReportFields.Night(night))] : (ReportField[])[],
 ];
-if (frontEnd.Crash is not null)
+// Playtest data (note 914): asked once, before anything's recorded; a developer build's is on unless the director says no.
+bool devBuild = false;
+#if DEVTOOLS
+devBuild = true;
+#endif
+frontEnd.PlaytestNotice = DarkTerritory.Game.Telemetry.PlaytestNotice.Load(content);
+frontEnd.Playtest = DarkTerritory.Game.Telemetry.PlaytestConsent.Load(
+    args.Contains("--saves") ? Path.Combine(saves.Directory, "telemetry") : DarkTerritory.Game.Telemetry.PlaytestConsent.DefaultDirectory, defaultOn: devBuild);
+crashes.Context("playtest data", frontEnd.Playtest.Recording ? "on" : "off");
+if (frontEnd.Playtest.NeedsAsking(frontEnd.PlaytestNotice))
+    frontEnd.Show(Screen.Consent);
+else if (frontEnd.Crash is not null)
     frontEnd.Show(Screen.Crashed);
 
 // A night named on the command line starts straight away; otherwise it's the front end's choice.
