@@ -90,8 +90,9 @@ static class TelemetryCommands
     }
 
     /// <summary>
-    /// <c>dt telemetry summary &lt;dir&gt; [--out out/telemetry/summary.json]</c> (queue #627, note 917): every session file under the
-    /// folder read back and summed up (<see cref="TelemetrySummary"/>), written for the playtest dashboard and printed.
+    /// <c>dt telemetry summary &lt;dir&gt; [--out out/telemetry/summary.json] [--tables out/telemetry/tables]</c> (queue #627, note
+    /// 917): every session file under the folder read back and summed up (<see cref="TelemetrySummary"/>), written and printed;
+    /// <c>--tables</c> the same as flat row tables, a file each, for the playtest dashboard.
     /// </summary>
     public static object Summary(string[] args)
     {
@@ -102,6 +103,14 @@ static class TelemetryCommands
         Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output))!);
         File.WriteAllText(output, summary.ToJsonString(new JsonSerializerOptions { WriteIndented = true }));
         summary["written"] = Path.GetFullPath(output);
+        // --tables dir: the same as flat row tables, a JSON file each, for the playtest dashboard's datasets.
+        if (Str(args, "--tables", "") is { Length: > 0 } tables)
+        {
+            Directory.CreateDirectory(tables);
+            foreach (var (name, rows) in TelemetrySummary.Tables(summary))
+                File.WriteAllText(Path.Combine(tables, name + ".json"), rows.ToJsonString());
+            summary["tables"] = Path.GetFullPath(tables);
+        }
         return summary;
     }
 

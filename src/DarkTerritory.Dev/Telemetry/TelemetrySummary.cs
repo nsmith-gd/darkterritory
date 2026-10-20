@@ -173,6 +173,60 @@ public static class TelemetrySummary
         };
     }
 
+    /// <summary>
+    /// The summary as flat tables, rows of plain values (<c>dt telemetry summary --tables</c>), for the playtest dashboard, which
+    /// reads row datasets: the overview (one row), the funnel, how nights end, deaths by cause, encounters by kind and by
+    /// channel, the night minute by minute (deaths, encounters, quits), the tiers, and a row a night.
+    /// </summary>
+    public static IReadOnlyDictionary<string, JsonArray> Tables(JsonObject summary)
+    {
+        JsonArray Pairs(JsonNode? counts, string key, string value) =>
+            new([.. (counts as JsonObject ?? []).Select(kv => (JsonNode)new JsonObject { [key] = kv.Key, [value] = kv.Value?.DeepClone() })]);
+        var deaths = summary["deaths"]!["byMinute"]!.AsArray();
+        var encounters = summary["encounters"]!["byMinute"]!.AsArray();
+        var quits = summary["quits"]!["byMinute"]!.AsArray();
+        int span = Math.Max(deaths.Count, Math.Max(encounters.Count, quits.Count));
+        int At(JsonArray a, int m) => m < a.Count ? (int)a[m]! : 0;
+        var perf = summary["performance"]!;
+        int nights = (int)summary["nights"]!;
+        int delivered = summary["ends"]!["Delivered"] is { } d ? (int)d : 0;
+        return new SortedDictionary<string, JsonArray>(StringComparer.Ordinal)
+        {
+            ["overview"] = new JsonArray(new JsonObject
+            {
+                ["sessions"] = summary["sessions"]!.DeepClone(),
+                ["nights"] = nights,
+                ["minutes"] = summary["minutes"]!.DeepClone(),
+                ["delivered"] = delivered,
+                ["deliveredShare"] = nights == 0 ? 0 : Round((double)delivered / nights, 3),
+                ["deaths"] = summary["deaths"]!["total"]!.DeepClone(),
+                ["deathsPerNight"] = summary["deaths"]!["perNight"]!.DeepClone(),
+                ["encounters"] = summary["encounters"]!["total"]!.DeepClone(),
+                ["encountersPerNight"] = summary["encounters"]!["perNight"]!.DeepClone(),
+                ["quitsMidNight"] = summary["quits"]!["midNight"]!.DeepClone(),
+                ["p50"] = perf["p50"]?.DeepClone(),
+                ["p95"] = perf["p95"]?.DeepClone(),
+                ["p99"] = perf["p99"]?.DeepClone(),
+                ["hitchesPerMinute"] = perf["hitchesPerMinute"]?.DeepClone(),
+                ["skippedLines"] = summary["skippedLines"]!.DeepClone(),
+            }),
+            ["funnel"] = summary["funnel"]!.AsArray().DeepClone().AsArray(),
+            ["ends"] = Pairs(summary["ends"], "end", "nights"),
+            ["tiers"] = Pairs(summary["tiers"], "tier", "nights"),
+            ["deathsByCause"] = Pairs(summary["deaths"]!["byCause"], "cause", "deaths"),
+            ["encountersByKind"] = Pairs(summary["encounters"]!["byKind"], "kind", "encounters"),
+            ["encountersByChannel"] = Pairs(summary["encounters"]!["byChannel"], "channel", "encounters"),
+            ["timeline"] = new JsonArray([.. Enumerable.Range(0, span).Select(m => (JsonNode)new JsonObject
+            {
+                ["minute"] = m,
+                ["deaths"] = At(deaths, m),
+                ["encounters"] = At(encounters, m),
+                ["quits"] = At(quits, m),
+            })]),
+            ["nights"] = summary["nightRows"]!.AsArray().DeepClone().AsArray(),
+        };
+    }
+
     /// <summary>One night of one session, as its lines tell it.</summary>
     public sealed record Night(string Session, int Number, string Role, string Route, string Tier, int Cars, int Humans, int Bots, string End,
         double Minutes, double Km, int Deaths, int Encounters, string? QuitHow, double? QuitMinute)

@@ -120,6 +120,23 @@ public class TelemetrySummaryTests
     }
 
     [Fact]
+    public void TheDashboardsTablesAreFlatRowsOfTheSummary()
+    {
+        var t = TelemetrySummary.Tables(Summarise());
+        Assert.Equal(["deathsByCause", "encountersByChannel", "encountersByKind", "ends", "funnel", "nights", "overview", "tiers", "timeline"], t.Keys);
+        var overview = Assert.Single(t["overview"]);
+        Assert.Equal(3, (int)overview!["nights"]!);
+        Assert.Equal(1, (int)overview["delivered"]!);
+        // Every row is flat: a value per column, nothing nested, so a dataset reads it as a table.
+        Assert.All(t.Values.SelectMany(rows => rows), r => Assert.All(r!.AsObject(), kv => Assert.True(kv.Value is null or JsonValue)));
+        // The timeline lines the minutes up: the death in minute 2, the quit in minute 3.
+        var timeline = t["timeline"].ToDictionary(r => (int)r!["minute"]!, r => r!);
+        Assert.Equal(1, (int)timeline[2]["deaths"]!);
+        Assert.Equal(1, (int)timeline[3]["quits"]!);
+        Assert.Equal(3, t["nights"].Count);
+    }
+
+    [Fact]
     public void ItReadsOnlyFieldsTheRecordersSchemaHas()
     {
         Assert.True(TelemetryFiles.Schema <= TelemetrySchema.Version, "the summary reads a newer schema than the recorder writes");
