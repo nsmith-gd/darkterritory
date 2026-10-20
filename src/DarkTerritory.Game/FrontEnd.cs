@@ -1232,8 +1232,8 @@ public sealed class FrontEnd
             MoodEntry("Runs of your mood first on the list, nearest first. Your runs are listed with it too."),
             new(new("REFRESH", "Look again, and ping everyone afresh."), () => { _refresh = true; Message = "Looking..."; return null; }),
             new(new($"ADDRESS: {Address}{(Editing == TextField.Address ? "_" : "")}", Editing == TextField.Address
-                    ? "Type it, and the host's port if it isn't the usual one (host:port); Enter or Esc when it's done."
-                    : "A private game, or one far off: Enter to type its address."), Field: TextField.Address),
+                    ? "Type it, and the host's port if it isn't the usual one (host:port), or the host's join code; Enter or Esc when it's done."
+                    : "A private game, or one far off: Enter to type its address, or its join code (note 896)."), Field: TextField.Address),
             new(new("JOIN", null, Address.Length > 0), () => new Launch.Join(Address)),
             BackTo(Screen.Title),
         ],
