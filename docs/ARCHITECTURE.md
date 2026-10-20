@@ -1081,4 +1081,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [912. The director's protections made one: note 887's gaps closed (the aftermath for the director's own specials, the terminus_safe stretch for…](notes/912.md)
 - [913. Playtest telemetry T1: the session recorder and its event schema (n1-H1, nathaniel1; queue #624; the plan, note 907)](notes/913.md)
 - [914. Playtest telemetry T2: consent and privacy (n1-N1, nathaniel1; queue #625; the plan, note 907)](notes/914.md)
+- [917. Playtest telemetry T4: `dt telemetry summary`, `dt telemetry map` and the playtest dashboard (n1-G2, queue #627; note 907's plan)](notes/917.md)
 <!-- end of the notes index -->
