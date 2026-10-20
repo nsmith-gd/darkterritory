@@ -1,0 +1,19 @@
+{
+  "title": "Confirm: boiler pressure builds 17% faster (already built)",
+  "from": "nathaniel1-tbm",
+  "kind": "approve",
+  "body": "What you'd feel: after a stop or a stall, the fireman waits for the gauge to climb back to the working band before the train can pull properly. On 16 Oct, line 18, you asked for it 'a touch' faster, 15 to 20%.\n\nWhat was built (PR #1179, note 843, merged): pressure now builds 17% faster. The steam a coal unit makes and the steam the train draws were both raised 17%, so the coal burn table (a unit lasts 20 s, 12 s or 8 s; 133, 80 or 53 minutes of fuel) is unchanged and a twenty-car train isn't made easy. Rebuilding from zero at a standstill: 3 cars 43 → 37 s, 10 cars 65 → 56 s, 20 cars 243 → 208 s. That still reads 'about 40 s at three cars and over three minutes at twenty', so the spec's rebuild tables and tests needed no change. The cost: a boiler nobody feeds also falls 17% faster.\n\nDecision: is 17% right, or do you want it nearer 15 or 20, or the fall left alone?\n\nDefault meanwhile: 17% stays on main. Changing it later is one line in boiler.json.",
+  "links": [
+    "https://github.com/nsmith-gd/darkterritory/blob/main/docs/notes/843.md",
+    "https://github.com/nsmith-gd/darkterritory/pull/1179"
+  ],
+  "pr": 1179,
+  "queue": 571,
+  "note": 843,
+  "tags": [
+    "boiler",
+    "tuning"
+  ],
+  "blocking": false,
+  "status": "open"
+}

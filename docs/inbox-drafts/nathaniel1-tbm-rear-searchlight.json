@@ -1,0 +1,41 @@
+{
+  "title": "Rear searchlight: what should it do for the player?",
+  "from": "nathaniel1-tbm",
+  "kind": "choose",
+  "body": "What the player sees today: the rear gun fires at what's behind the train, and there's no searchlight to help you see it. The fortress's shop (queue #410, note 678), the train upgrades you asked for on 13 Oct, is meant to sell one, but the sim has no way of giving a light a job. Only the Fire Flies and the Interior threats react to light. A purchase that does nothing is a bug by the project's rule, so it isn't on sale.\n\nWhat it could do, each with a gameplay effect, is below. Time is small to medium.\n\nDecision: pick what the searchlight is for.\n\nDefault meanwhile: it stays unbuilt and off the shelf. U1's other tools (cowcatcher, grab irons, armour, flare pistol) don't wait on it.",
+  "options": [
+    {
+      "key": "beam",
+      "label": "A real light cone on the van",
+      "detail": "The beam shows light-sensing creatures, so the Fire Flies are drawn to the back of the train: a cost for owning it, not a tool. Cheapest."
+    },
+    {
+      "key": "spotted",
+      "label": "A 'spotted' call on the HUD",
+      "detail": "A gunner sees a callout for any creature inside the beam, so it's a real tool for the rear gun. Needs new network state and tests; most work."
+    },
+    {
+      "key": "look",
+      "label": "Look only, with a tally line",
+      "detail": "A lamp on the van that lights the track behind. No sim change, so the yard clerk reads a joke line in the nightly tally. Silliest, cheapest, no help in play."
+    },
+    {
+      "key": "skip",
+      "label": "Drop it",
+      "detail": "Not sold. The money goes to other tools."
+    }
+  ],
+  "links": [
+    "https://github.com/nsmith-gd/darkterritory/blob/main/docs/notes/678.md",
+    "https://github.com/nsmith-gd/darkterritory/blob/main/docs/design/upgrades.md"
+  ],
+  "pr": null,
+  "queue": 410,
+  "note": 678,
+  "tags": [
+    "upgrades",
+    "fortress"
+  ],
+  "blocking": false,
+  "status": "open"
+}
