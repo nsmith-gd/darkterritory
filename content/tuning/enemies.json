@@ -103,9 +103,15 @@
     // doesn't kill it drives it away from whoever struck it for struckSeconds at struckSpeed m/s, over the gap to the car
     // behind, and then crouches crouchSeconds before it comes again; at the back of the rear car (its roof's end, or inside
     // with one of its doors open), with leaveAtRear, it leaves the train (as the extinguisher drives it off). The spray's backing off (note 728) leaves the same way.
-    // on false: note 472's bite every biteEverySeconds where it stands, and the clock only while it's alone.
+    // The director's answers in the inbox, 20 Oct (note 891): "Every 90 seconds and there needs to be an associated animation
+    // of how that happens": its clock run out, it stops and winds up igniteWindUpSeconds (its cracks blazing up, embers
+    // rising off it), and the burst from its body lights the car at the end of it; someone coming near, or a blow, and it
+    // breaks off. And the hounds that ride longer should "flee": the fleeAfterBlows-th blow on it aboard (0: never), it gives
+    // up and jumps off the train wherever it is.
+    // on false: note 472's bite every biteEverySeconds where it stands, the clock only while it's alone, no wind-up.
     "aboard": { "on": true, "lungeFrom": 4, "lungeSeconds": 0.5, "lungeShort": 0.8, "retreatMetres": 3, "retreatSpeed": 2.5,
-      "crouchSeconds": 2, "struckSeconds": 1, "struckSpeed": 3.5, "leaveAtRear": true },
+      "crouchSeconds": 2, "struckSeconds": 1, "struckSpeed": 3.5, "leaveAtRear": true, "igniteWindUpSeconds": 2,
+      "fleeAfterBlows": 2 },
     "boredSeconds": 6,
     // App. B.3: needs sustained speed first.
     "minTrainSpeed": 8,

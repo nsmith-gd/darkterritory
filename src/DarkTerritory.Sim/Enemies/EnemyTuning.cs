@@ -681,6 +681,8 @@ public sealed record HoundAboardTuning
     public double StruckSeconds { get; init; } = 1;
     public double StruckSpeed { get; init; } = 3.5;
     public bool LeaveAtRear { get; init; } = true;
+    public double IgniteWindUpSeconds { get; init; } = 2;
+    public int FleeAfterBlows { get; init; } = 2;
 }
 
 /// <summary>

@@ -104,8 +104,65 @@ public class HoundAboardTests
         n.Crew.Clear();
         n.Run(H.IgniteEverySeconds - 5);
         Assert.DoesNotContain(n.World.ActiveEnemies, e => e is CarFire { Gone: false });
-        n.Run(8);
+        n.Run(H.Aboard.IgniteWindUpSeconds + 8);
         Assert.Contains(n.World.ActiveEnemies, e => e is CarFire { Gone: false } f && f.Attached == car);
+    }
+
+    [Fact]
+    public void ItWindsUpBeforeTheBurstThatLightsTheCar()
+    {
+        // The director, the inbox, 20 Oct: "Every 90 seconds and there needs to be an associated animation of how that
+        // happens": its clock run out, it stands blazing for the wind-up (HoundMode.Ignite, CreatureArt draws it), and the
+        // car catches at the end of it.
+        var n = new Night(4, speed: 10, enemies: Still());
+        int car = n.Train.Dynamics.Consist.Vehicles[^1].Id;
+        var hound = OnRoof(n, car, 0);
+        n.Run(H.IgniteEverySeconds + 0.2);
+        Assert.Equal(HoundMode.Ignite, hound.Aboard);
+        n.Run(H.Aboard.IgniteWindUpSeconds - 0.5);
+        Assert.Equal(HoundMode.Ignite, hound.Aboard);
+        Assert.DoesNotContain(n.World.ActiveEnemies, e => e is CarFire { Gone: false });
+        n.Run(1);
+        Assert.NotEqual(HoundMode.Ignite, hound.Aboard);
+        Assert.Contains(n.World.ActiveEnemies, e => e is CarFire { Gone: false } f && f.Attached == car);
+    }
+
+    [Fact]
+    public void SomeoneComingNearBreaksTheWindUp()
+    {
+        var n = new Night(4, speed: 10, enemies: Still());
+        int car = n.Train.Dynamics.Consist.Vehicles[^1].Id;
+        var hound = OnRoof(n, car, 0);
+        n.Run(H.IgniteEverySeconds + 0.5);
+        Assert.Equal(HoundMode.Ignite, hound.Aboard);
+        // Up the ladder, onto its roof: it turns on them, and lights nothing while they're there (note 851).
+        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, car, -5, P);
+        n.Run(H.Aboard.IgniteWindUpSeconds + 1);
+        Assert.NotEqual(HoundMode.Ignite, hound.Aboard);
+        Assert.DoesNotContain(n.World.ActiveEnemies, e => e is CarFire { Gone: false });
+    }
+
+    [Fact]
+    public void BeatenItGivesUpAndJumpsOffWhereverItIs()
+    {
+        // The director, the inbox, 20 Oct ("flee"): the fleeAfterBlows-th blow and it jumps off the train, here on a car well
+        // up from the back.
+        var n = new Night(5, speed: 10, enemies: Still());
+        int car = n.Train.VehicleAhead(n.Train.VehicleAhead(n.Train.Dynamics.Consist.Vehicles[^1].Id));
+        var hound = OnRoof(n, car, 0);
+        n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, car, -1.6, P);
+        for (int blow = 1; blow < H.Aboard.FleeAfterBlows; blow++)
+        {
+            Assert.True(Strike(n, 1, hound));
+            Assert.False(hound.Gone);
+            // After it again, as it crouches.
+            n.Run(H.Aboard.StruckSeconds);
+            var at = hound.Local;
+            n.Crew[1] = PlayerMotor.SpawnOnRoof(n.Train, hound.Attached, at.Z - 1.6, P);
+        }
+        Assert.True(Strike(n, 1, hound));
+        Assert.True(hound.Gone);
+        Assert.Contains(EnemyKind.CinderHound, n.World.DrivenOff);
     }
 
     [Fact]

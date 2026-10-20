@@ -61,7 +61,7 @@ public class BoardingRuleTests
         int[] ground = [hound.Attached, n.Train.VehicleAhead(hound.Attached)];
         n.Run(E.CinderHounds.IgniteEverySeconds - 2);
         Assert.DoesNotContain(n.World.ActiveEnemies, e => e is CarFire { Gone: false } f && ground.Contains(f.Attached));
-        n.Run(3);
+        n.Run(E.CinderHounds.Aboard.IgniteWindUpSeconds + 3);
         Assert.Contains(n.World.ActiveEnemies, e => e is CarFire { Gone: false } f && ground.Contains(f.Attached));
     }
 

@@ -378,7 +378,7 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
     public static (HoundMode Mode, int Face) Decode(double lateral)
     {
         int code = Math.Max(0, (int)Math.Round(lateral));
-        return ((HoundMode)Math.Min(code / 4, (int)HoundMode.Retreat), code % 4);
+        return ((HoundMode)Math.Min(code / 4, (int)HoundMode.Ignite), code % 4);
     }
 
     void SetMode(HoundMode mode, int face)
@@ -658,11 +658,18 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
             // all the same. It doesn't settle to eating and lighting the car over their heads every igniteEverySeconds, unseen:
             // it prowls, and waits for them to come out.
             bool near = ctx.LivingCrew().Any(c => (c.World - at).Length <= 12 && OnGround(ctx.Train, c.Player.State, t));
+            // Someone near breaks off its wind-up to light the car (note 891).
+            if (near && Aboard == HoundMode.Ignite)
+                SetMode(HoundMode.Still, Facing);
             if (!near)
             {
                 _boredTimer += SimConstants.TickSeconds;
+                // Winding up to light its car (note 891): it stands there blazing, and does nothing else.
                 if (t.StayAboard)
-                    Feed(ctx, t);
+                {
+                    if (Feed(ctx, t))
+                        return;
+                }
                 else if (_boredTimer >= t.BoredSeconds)
                 {
                     Enter(ctx, SpinePhase.BreakOff);
@@ -675,6 +682,8 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
             return;
         }
         _boredTimer = 0;
+        if (Aboard == HoundMode.Ignite)
+            SetMode(HoundMode.Still, Facing);
         if (t.Aboard.On)
         {
             Fight(ctx, t, v.Id, v.Distance, v.World, v.State);
@@ -705,20 +714,36 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
     /// the car alight while they eat the supplies, which forces the crew to confront them"; note 269). The fire is App. C.5's,
     /// one to a car; put out, it starts another once it's been left alone that long again.
     /// </summary>
-    void Feed(EnemyContext ctx, HoundTuning t)
+    bool Feed(EnemyContext ctx, HoundTuning t)
     {
         var train = ctx.Train;
         var car = train.Vehicles[Attached];
         car.CargoIntegrity = Math.Max(0, car.CargoIntegrity - t.CargoPerSecond * SimConstants.TickSeconds);
         if ((t.Aboard.On ? _ignite : _boredTimer) < t.IgniteEverySeconds)
-            return;
+            return false;
+        if (ctx.World.ActiveEnemies.Any(e => e is CarFire f && !f.Gone && f.Attached == Attached)
+            // Note 851: home (in through the arrival's gates), nothing burns: it eats, and lights nothing.
+            || ctx.World.HomeSafe(Attached))
+        {
+            _boredTimer = 0;
+            _ignite = 0;
+            return false;
+        }
+        // Note 891 (the director, the inbox, 20 Oct: "there needs to be an associated animation of how that happens"): it
+        // stops and winds up (its cracks blazing, CreatureArt), and the burst from its body lights the car at the end.
+        if (t.Aboard.On && t.Aboard.IgniteWindUpSeconds > 0 && Aboard is not HoundMode.Leap and not HoundMode.Drop and not HoundMode.Climb)
+        {
+            if (Aboard != HoundMode.Ignite)
+            {
+                SetMode(HoundMode.Ignite, Facing);
+                return true;
+            }
+            if (ModeSeconds < t.Aboard.IgniteWindUpSeconds)
+                return true;
+            SetMode(HoundMode.Still, Facing);
+        }
         _boredTimer = 0;
         _ignite = 0;
-        if (ctx.World.ActiveEnemies.Any(e => e is CarFire f && !f.Gone && f.Attached == Attached))
-            return;
-        // Note 851: home (in through the arrival's gates), nothing burns: it eats, and lights nothing.
-        if (ctx.World.HomeSafe(Attached))
-            return;
         int into = Attached;
         double along = Local.Z;
         // C.9's row and the news line are the fire's own (World.FireStarted, note 851): its table names no actor for a fire the
@@ -726,6 +751,7 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         string where = Inside(train) ? "in it" : "on its roof";
         ctx.World.AddEnemy(i => CarFire.In(i, train, into, along, ctx.Tuning.CarFire, FireCause.Hounds, -1, -1, $"Feeding {where}, nobody near."));
         ctx.World.PackFires++;
+        return false;
     }
 
     // ---- Note 891: the director's 9 Oct answer ----
@@ -733,7 +759,7 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
     // which way along its car (+1 toward the back); until when it crouches between lunges; where (its car's z) a lunge lands,
     // and how far it has yet to back off after one.
     double _ignite, _struck, _crouchUntil = -1, _lungeZ, _lungeFromZ, _retreatLeft;
-    int _pushDir = 1;
+    int _pushDir = 1, _blowsTaken;
 
     /// <summary>The ends of the ground it's on in its car, along z: its room's, dropped in; else its roof's.</summary>
     (double Lo, double Hi) Ends(TrainOnLine train)
@@ -962,6 +988,12 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         if (!a.On || Gone || Attached < 0 || Phase == SpinePhase.Grab || Attached >= ctx.Train.Frames.Count)
             return;
         _ignite = 0;
+        // The director, the inbox, 20 Oct: beaten, it should "flee": the fleeAfterBlows-th blow and it jumps off wherever it is.
+        if (a.FleeAfterBlows > 0 && ++_blowsTaken >= a.FleeAfterBlows)
+        {
+            Leave(ctx);
+            return;
+        }
         _struck = a.StruckSeconds;
         _crouchUntil = -1;
         var frame = ctx.Train.Frames[Attached];
@@ -1164,4 +1196,4 @@ public sealed class CarHugger(int id) : Enemy(id)
 }
 
 /// <summary>What a Cinder Hound aboard is doing (note 472), replicated in its Lateral for E1's clips.</summary>
-public enum HoundMode : byte { Still, Patrol, Leap, Drop, Climb, Sniff, Lunge, Retreat }
+public enum HoundMode : byte { Still, Patrol, Leap, Drop, Climb, Sniff, Lunge, Retreat, Ignite }
