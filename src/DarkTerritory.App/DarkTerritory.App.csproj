@@ -25,5 +25,7 @@
   <ItemGroup>
     <!-- Valve's native Steam library, when the developer has put it there (external/steam/README.md). -->
     <None Include="../../external/steam/*.dll;../../external/steam/*.so;../../external/steam/*.dylib" CopyToOutputDirectory="PreserveNewest" Link="%(Filename)%(Extension)" />
+    <!-- Epic's native EOS library and the game's EOS credentials, when they're there (external/eos/README.md, note 896). -->
+    <None Include="../../external/eos/SDK/Bin/EOSSDK-Win64-Shipping*.dll;../../external/eos/SDK/Bin/libEOSSDK-Linux-Shipping*.so;../../external/eos/eos*.json" CopyToOutputDirectory="PreserveNewest" Link="%(Filename)%(Extension)" />
   </ItemGroup>
 </Project>

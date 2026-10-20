@@ -692,7 +692,7 @@ public sealed partial class GreyboxScene
             Look.Art.Effects.Train(mesh, trainFrames, eye, Time, Controls, FireGlow, Emergency, Venting && !Ruptured, SafetyValve && !Ruptured,
                 trainFrames.Count == 0 ? default : Look.Art.BiteOf(trainFrames[^1].Shape, Vehicles is { } fleet && trainFrames[^1].Index < fleet.Count ? fleet[trainFrames[^1].Index] : null, trainFrames[^1].Index),
                 whistle: !Ruptured && (CordPulled || Enemies?.Any(e => e is Sim.Enemies.Whistler { Whistling: true } && !e.Gone) == true), dead: Ruptured || BrokenDown, lamp: LampLit,
-                reach: (float)LampReach);
+                reach: (float)LampReach, searchlight: Dressed("rearSearchlight"));
             // (And the crew on a straining car stumble: SceneArt.Crewmate, drawn after.)
             Look.Art.BendStrain = BendStrain;
             if (BendStrain is { } bends)

@@ -58,11 +58,19 @@ public class TownTalkTests
         Assert.Equal($"{name}, BLACKSMITH   TALK : [E]", Hud.Prompt(s));
         var target = Hud.TownTarget(s);
         Assert.Equal(new TownTarget(TownTargetKind.Person, smith), target);
-        Assert.Equal($"{name}, BLACKSMITH   TALK : [E]   UPGRADES : HOLD [E]", TownTalk.Prompt(town, target!.Value, selling: true));
-        // A word with them is about the trains.
+        // Note 904 (the director, 16 Oct: "I would have assumed talking to him, I get the upgrades"): selling, the press is the
+        // catalogue's; not selling, it's a word, and their card says where and when the wares are.
+        Assert.Equal($"{name}, BLACKSMITH   UPGRADES : [E]", TownTalk.Prompt(town, target!.Value, selling: true));
+        Assert.True(TownTalk.OpensForge(town, target, selling: true));
+        Assert.False(TownTalk.OpensForge(town, target, selling: false));
         var talk = new TownTalk();
         Assert.True(talk.Use(town, target, 10));
-        Assert.Contains(talk.Card(town, 30)!.Text, town.Plan.People[smith].Lines);
+        var card = talk.Card(town, 30)!;
+        Assert.Contains(card.Text, town.Plan.People[smith].Lines);
+        Assert.Contains(TownTalk.ForgeLater, card.Footer, StringComparison.Ordinal);
+        // Nobody else's press opens a forge.
+        var other = new TownTarget(TownTargetKind.Person, town.Plan.People.First(p => p.Role != "blacksmith").Id);
+        Assert.False(TownTalk.OpensForge(town, other, selling: true));
     }
 
     [Fact]
