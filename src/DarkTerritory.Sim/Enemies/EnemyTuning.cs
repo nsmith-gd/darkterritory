@@ -1562,6 +1562,12 @@ public sealed record CrewBotsTuning
     public double RibbitWithin { get; init; } = 12;
     /// <summary>Note 894: a bot on its way somewhere, hunted by a pack that outnumbers its group, runs on instead of clubbing.</summary>
     public bool RibbitsOutnumberedRun { get; init; } = true;
+    /// <summary>Note 931: at a pick-up, the switch hand comes down and stands with the shunter while it's on the ground.</summary>
+    public bool CoverTheShunter { get; init; } = true;
+    /// <summary>Note 931: the shunter this near (m, flat) for the switch hand to go down to it.</summary>
+    public double CoverWithin { get; init; } = 80;
+    /// <summary>Note 931: this near the shunter (m, flat), the switch hand stands (inside the Ribbits' groupRadius, 8).</summary>
+    public double CoverBeside { get; init; } = 2.5;
     public double BrakemanStandOff { get; init; } = 1.5;
     public double BrakemanWaitPast { get; init; } = 1;
     public double StandGiveUp { get; init; } = 240;

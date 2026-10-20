@@ -46,6 +46,14 @@ public sealed partial class CrewCalls
     public void Standing(int playerId, Double3 world) => Heard(playerId, "standing", playerId, world, () => _standing[playerId] = world);
     public Double3? Where(int playerId) => _standing.TryGetValue(playerId, out var at) ? at : null;
 
+    /// <summary>
+    /// Note 931: "I'm down at the points": the shunter on the ground with the train standing says where it is (null once it's
+    /// aboard, or the train's moving), so a hand can come down to it at a pick-up (<see cref="StopHand"/>'s cover).
+    /// </summary>
+    public void ShunterAfoot(Double3? world) => Heard(-1, "shunter afoot", -1, world is { } w ? w : "aboard", () => ShunterAt = world);
+    /// <summary>Where the shunter's said it is on the ground (note 931), or null.</summary>
+    public Double3? ShunterAt { get; private set; }
+
     /// <summary>"This one's for car n": a crate hand says which car the crate in its arms is going to (−1 when empty-handed).</summary>
     public void CarryingTo(int member, int car) => Heard(member, "carrying", member, car, () => _carryingTo[member] = car);
     /// <summary>Crates other hands are taking to a car.</summary>
@@ -2201,6 +2209,15 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
             calls.Standing(id, PlayerMotor.WorldPosition(self, world.Train));
         }
         Doing = "";
+        // Note 931: on the ground with the train standing, the shunter says where (null aboard, or with the train moving).
+        if (job == StopJob.Shunter)
+            calls.ShunterAfoot(self.Alive && self.Parent == PlayerState.World && Math.Abs(world.Train.Dynamics.Velocity) < 0.05
+                ? PlayerMotor.WorldPosition(self, world.Train) : null);
+        // Note 931: and the switch hand down beside it, at a pick-up or between stops (a pick-up's clear is after the train's
+        // back together, its stop over for the rest: seed 4's shunter was at the lever then), never off its own part at a stop.
+        if (job is not (StopJob.None or StopJob.Driver or StopJob.Shunter) && (_plan is null or { PickUp: true }) && _coal is null
+            && CoverTheShunter(self, world) is { } covering)
+            return covering;
         if (job == StopJob.None || !self.Alive || world.Run is null)
             return job == StopJob.None ? LeftOnTheBallast(self, world) : null;
         var train = world.Train;
@@ -2230,6 +2247,8 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         // A pick-up (note 187) is the shunter's and the driver's: everyone else stays aboard, and one on the ballast already
         // comes back aboard (note 628: frontier:6 seed 3's gunner, down from the yard's own track, stood beside the train
         // through the pick-up, and the driver waited out the aboard and the clear give-ups for it, 240 s).
+        // Note 931: but the shunter's not left alone on the ground. The switch hand comes down and stands with it while it's
+        // there (frontier:6 seed 4's shunter, 10 s at the lever setting the points back, was eaten by a pack of three).
         if (p.PickUp && job != StopJob.Shunter)
             return job == StopJob.Driver ? null : LeftOnTheBallast(self, world);
         // Note 261: the shunter's free once the train's in: a place in the pair nobody else has, or the crates with too few
@@ -3621,6 +3640,23 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
     /// freed from the Holdout at km 10 ran into its wall for two minutes, the driver went on, and the Ribbits had it. Its
     /// stale stop plan used to take it to the cab instead (the bug that kept two hurt hands at the engine's side on seed 6).
     /// </summary>
+    /// <summary>
+    /// Note 931 (App. A.6, "never be outnumbered"): at a pick-up or between stops, the switch hand (note 609's second pair of
+    /// hands, free then) down beside the shunter while the shunter's on the ground with the train standing, within enemies.json
+    /// <c>crewBots.coverWithin</c> of it, and stood with it; null otherwise (then it's back aboard as before).
+    /// </summary>
+    PlayerIntent? CoverTheShunter(in PlayerState self, World world)
+    {
+        if (world.Enemies?.CrewBots is not { CoverTheShunter: true } t || !self.Alive || self.Has(PlayerFlags.Held) || calls.CalledAboard
+            || calls.ShunterAt is not { } at || Math.Abs(world.Train.Dynamics.Velocity) > 0.05 || !calls.SwitchHand(member))
+            return null;
+        var here = PlayerMotor.WorldPosition(self, world.Train);
+        if ((Flat(at) - Flat(here)).Length > t.CoverWithin)
+            return null;
+        Doing = "covering the shunter";
+        return Afoot(self, world, at, t.CoverBeside) ?? new PlayerIntent();
+    }
+
     PlayerIntent? LeftOnTheBallast(in PlayerState self, World world)
     {
         var train = world.Train;
