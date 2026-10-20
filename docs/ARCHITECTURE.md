@@ -1059,4 +1059,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [880. Encounter telemetry: an `EncounterLog` in the Sim, reported as the `encounters` block of `dt harness` and `dt playthrough` (queue #600, the…](notes/880.md)
 - [881. The engagement states: `ThreatState`, and the engaged cap counting threats, not bodies (the director overhaul's B2, queue #604; the…](notes/881.md)
 - [891. The Cinder Hounds aboard, the director's 9 Oct answer (n1-H1, queue #614; inbox `D1.2-car-fires-from-packs`, note 857's call 1)](notes/891.md)
+- [893. Encounter severity (levels 1–3, from world state) and drought detection that tells recovery from a true drought (queue #610, the spawn…](notes/893.md)
 <!-- end of the notes index -->
