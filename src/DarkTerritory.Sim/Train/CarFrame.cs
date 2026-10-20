@@ -838,7 +838,10 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
             Brake: new Double3(w - 0.4, deck + 1.15, cabFront + 0.6),
             Reverser: new Double3(w - 0.35, deck + 0.95, cabFront + 1.1));
         return new CarShape(bounds, solids, ladders, interactables, cab, new GunMount(mount + new Double3(0, 0.9, 0), new Double3(0, 0, -1)),
-            Doors: doors.Count > 0 ? doors : null, Levers: levers) { Lounges = plan.Seats };
+            Doors: doors.Count > 0 ? doors : null, Levers: levers)
+        {
+            Lounges = plan.Seats
+        };
     }
 
     /// <summary>How far from where a bench's sitter stands up to a seat is in reach of the Seat press (m): less than the seats are apart.</summary>
