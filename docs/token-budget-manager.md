@@ -79,6 +79,25 @@ Under 60% weekly, with items `open for pick-up` in the queue: tell the person. W
 oldest item, in its row and in its handoff's *Claimed by*, in a docs PR. Then send the handoff to a worker, or ask the
 person to start one with it.
 
+## The director's standing orders (20 Oct 2026)
+
+"Why are no agents working? If there's questions that need calls always put them in the Director's Inbox artifact and
+always explain the context around it regarding gameplay for the player. Never assume I know exactly all the background
+behind a question ... ensure you always have agents progressing towards continued development of the game. Never let
+agents be blocked by my reviews."
+
+- **Never idle.** While the account is under its handoff threshold, keep workers running. When one finishes, it takes the
+  next open row whose dependencies are merged. When the queue has nothing it can take, the manager finds work: the
+  director's open briefs (`docs/design/`), the playtest files' open lines, the checklists, the boards, stale claims.
+- **Never blocked by a review or a call.** A worker that needs the director's decision takes the most reasonable default
+  behind a tuning flag, writes the question in its note, and carries on. Its manager puts the question in the Director's
+  Inbox.
+- **Every inbox ask explains the gameplay.** Say what the player sees and feels at that moment of a night, the background
+  (what was built or measured, with numbers), the decision, and the default being built meanwhile. Never assume the
+  director remembers the thread.
+- **Watch for stuck workers.** Check every worker hourly. One that's waiting on input, refused by permissions, or idle while
+  it holds a claim gets unblocked or replaced at once.
+
 ## Rules
 
 - Edit only your own account's row, and the rows and *Claimed by* lines of what you claim. Never another account's row or

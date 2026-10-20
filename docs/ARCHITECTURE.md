@@ -1057,4 +1057,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [873. A crate hand sent to shut a car's door stood still at the foot of its steps (queue #553; B3's find on #532, note 820)](notes/873.md)
 - [874. The spawn director overhaul: the plan, split into queue items #600–#613 so several agents can work at once (the director, 20 Oct 2026;…](notes/874.md)
 - [881. The engagement states: `ThreatState`, and the engaged cap counting threats, not bodies (the director overhaul's B2, queue #604; the…](notes/881.md)
+- [891. The Cinder Hounds aboard, the director's 9 Oct answer (n1-H1, queue #614; inbox `D1.2-car-fires-from-packs`, note 857's call 1)](notes/891.md)
 <!-- end of the notes index -->
