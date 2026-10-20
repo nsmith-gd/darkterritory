@@ -206,12 +206,10 @@ public sealed partial class GameAudio
     }
 
     /// <summary>The cars it had lifted at <paramref name="extra"/> seconds in (Waker.Lifted, from last tick's record).</summary>
-    static int Lifted(double extra, WakersTuning t, int cars, bool began) =>
-        began ? 0 : Math.Min(cars, 1 + (int)Math.Floor(extra / Math.Max(1e-6, t.LiftSeconds)));
+    static int Lifted(double extra, WakersTuning t, int cars, bool began) => began ? 0 : Waker.LiftedAt(extra, t, cars);
 
     /// <summary>The cars it had eaten at <paramref name="extra"/> seconds in (Waker.EatenCars).</summary>
-    static int Eaten(double extra, WakersTuning t, int cars) =>
-        Math.Min(cars, (int)Math.Floor(Math.Max(0, extra - t.EatAfter) / Math.Max(1e-6, t.EatSeconds)));
+    static int Eaten(double extra, WakersTuning t, int cars) => Waker.EatenAt(extra, t, cars);
 
     /// <summary>One risen beside a crewmate who ran (note 710): its strides to them, its grip on them, and the swallow.</summary>
     void PickerWakerSounds(World world, Waker w, Creature was, Double3 at, bool began, WakersTuning t)

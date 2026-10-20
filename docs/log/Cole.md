@@ -1,0 +1,4 @@
+# Cole
+
+2026-10-20 18:16 UTC · Cole · started queue #622 (note 902; the director's playtest of 16 Oct, line 29) on `cole-waker-lift-622` from main 547c8c3, for the Token Budget Manager (nathaniel3). On main the Waker knelt over the last car and `WakerLift` raised the cars as a ramp (the levitating, and him "disappearing" round a crewmate on the rear cars); `WorldShot` didn't lift at all.
+2026-10-20 18:16 UTC · Cole · built: he stops `wakers.catchShort` 12 m behind the train, kneels, both hands down to the last car, lifts it to his mouth and takes it in three bites, then the next (`Waker.Raised/Reached/Bitten`, `WakerLift.Of`, `CreatureArt.DrawWakerHolding`); a fall from the car in his hands kills (`DeathCause.Fell`); `liftSeconds` gone; `WorldShot` applies the lift; the gym shoots the hold. Spawning and the director untouched (note 874).
