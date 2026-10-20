@@ -34,7 +34,7 @@ def queue_rows(text):
         cells = [c.strip() for c in line.strip().strip('|').split('|')]
         if len(cells) < 6:
             continue
-        agent = re.search(r'[A-Z]{1,2}\d+', cells[2])
+        agent = re.search(r'(?:[a-z]\w*-)?[A-Z]{1,2}\d+', cells[2])
         notes = [int(n) for n in re.findall(r'\b(\d{3,4})\b', cells[-2])]
         rows.setdefault(int(m.group(1)), (agent.group(0) if agent else '', notes))
     return rows
