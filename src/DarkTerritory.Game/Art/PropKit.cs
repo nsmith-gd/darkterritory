@@ -256,7 +256,7 @@ public static class PropKit
         k.Use("rust_heavy", Palette.IronGrey, 0.7f, 0.4f);
         k.Lathe(new Vector3(0, -0.14f, 0), [new(0.09f, 0), new(0.1f, 0.03f), new(0.09f, 0.06f)], 8, smooth: false);
         k.Lathe(new Vector3(0, 0.08f, 0), [new(0.09f, 0), new(0.07f, 0.04f), new(0.03f, 0.08f), new(0.02f, 0.1f)], 8, smooth: false);
-        k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
+        k.Use("lantern_pane", Palette.LampAmber, 0, 0, tile: 0.25f);
         k.Emissive = 1;
         k.Cylinder(new Vector3(0, -0.08f, 0), new Vector3(0, 0.08f, 0), 0.07f, 8, caps: false);
         k.Emissive = 0;
@@ -283,7 +283,7 @@ public static class PropKit
         k.Use("lamp_lens", Palette.SignalRed, 0, 0, tile: 0.1f);
         k.Emissive = 1;
         k.Tint = new Vector3(1, 0.2f, 0.1f);
-        k.Panel(new Vector3(-0.04f, 0.1f, -0.0405f), -Vector3.UnitZ, Vector3.UnitY, 0.02f, 0.02f);
+        k.Panel(new Vector3(-0.04f, 0.1f, -0.0405f), -Vector3.UnitZ, Vector3.UnitY, 0.02f, 0.02f, Vector2.Zero, new Vector2(0.1f, 0.1f));
         k.Emissive = 0;
         return k.Build("radio");
     }

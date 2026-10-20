@@ -67,6 +67,28 @@ def lamp_lens(ctx):
                    procedural="Fresnel rings, bezel, soot crescent")
 
 
+@texture("lantern_pane", "emissive", tile=0.25)
+def lantern_pane(ctx):
+    """A lit lantern's glass, for the box and drum lanterns the kits build (the director's playtest of 16 Oct: lamp_lens,
+    a lens's face meant to be mapped whole, tiled over them showed each pane a slice of its rings and its black corners,
+    "this sort of odd texture wrapping pattern"). Warm and even, as a flame through glass is, a little hotter in broad
+    patches; the soot film in drifts and runs, specks. Emissive over all of it, less where the soot is thick. Tiles."""
+    W = ctx.W
+    film = noise.fbm01(ctx.rng("film"), (W, W), 90, octaves=5, gain=0.5)
+    runs = C.convert.streaks(ctx.rng("runs"), smoothstep(0.96, 0.985, noise.white(ctx.rng("rs"), (W, W))),
+                             length=0.99, density=0.6)
+    soot = saturate(smoothstep(0.55, 0.95, film) * 0.7 + runs * 0.2)
+    hot = noise.fbm01(ctx.rng("hot"), (W, W), 220, octaves=2)
+    t = saturate((0.74 + 0.2 * hot) * (1 - 0.45 * soot))
+    lamp = core.apply_ramp(t, ["#3A1A08", "#8A4A18", "#D08030", "#E0A050", "#F4D8A0"])
+    specks = smoothstep(0.985, 0.995, noise.white(ctx.rng("sp"), (W, W)))
+    d = lamp * (1 - 0.5 * specks)[..., None]
+    e = (0.6 + 0.4 * t) * (1 - 0.45 * soot) * (1 - 0.4 * specks)
+    s = (0.75 * (1 - 0.6 * soot)).astype(np.float32)
+    g = (0.85 * (1 - 0.4 * soot)).astype(np.float32)
+    return ctx.out(d, s, g, emissive=e, procedural="sooted lantern glass: film, runs, specks, warm patches")
+
+
 @texture("window_lit", "emissive", tile=None)
 def window_lit(ctx):
     """A lit warm window: six panes in a dark wooden sash (muntins), warm lamp light inside,

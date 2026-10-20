@@ -40,6 +40,10 @@ public static class Views
                 ? Camera.LookAt(engine.ToWorld(ed + new Double3(-3.2, 0.9, 2.6)), engine.ToWorld(ed), 60)
                 : Camera.LookAt(engine.ToWorld(new Double3(-4, 2.5, 3)), engine.ToWorld(new Double3(0, 2, 0)), 60),
             "mend" => Camera.LookAt(target.ToWorld(new Double3(0.4, Floor(train) + 1.65, -0.5)), target.ToWorld(new Double3(-1.0, Floor(train) + 1.1, target.Shape.HalfLength * 0.62)), 70),
+            // (Not one of Names.) Up close on the car's front hanging lantern, at arm's length below it: how it's textured (the
+            // director's playtest of 16 Oct, line 12, note 900: "the texture wrapping on the lamps").
+            "carlamp" when target.Shape.Interior is { } lit && Art.SceneArt.LampPositions(lit).First() is var lamp =>
+                Camera.LookAt(target.ToWorld(new Double3(lamp.X - 0.45, lamp.Y - 0.12, lamp.Z + 0.5)), target.ToWorld(new Double3(lamp.X, lamp.Y - 0.05, lamp.Z)), 45),
             "inside" => Camera.LookAt(target.ToWorld(new Double3(-0.5, Floor(train) + 1.65, -target.Shape.HalfLength + 0.6)), target.ToWorld(new Double3(0, Floor(train) + 1.3, 2)), 70),
             // From inside the car behind, through both open end doors at this car's rear doorway (note 110: who comes through).
             "door" => DoorCamera(train, car),

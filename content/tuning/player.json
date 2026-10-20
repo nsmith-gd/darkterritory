@@ -7,8 +7,15 @@
   "ladderClimb": 1.6,
   "carryHeavy": 2.8,
   // GDD v1.4 App. D.9 "solo remainer" (note 181): the last of the crew alive can climb a ladder carrying a body, at this
-  // (a quarter of ladderClimb); anyone else carrying a body, a toy, a find or the child can't climb at all (C.4).
+  // (a quarter of ladderClimb); anyone else carrying a body, the child or freight can't climb at all (C.4; a toy or a find in
+  // the hands doesn't stop you since note 897: twoHanded).
   "soloBodyClimb": 0.4,
+  // Note 897 (the director, the inbox, 20 Oct 2026: "We shouldn't be slowed carrying anything unless it's a two handed object"):
+  // only a thing of these kinds in the hands (not put away in a slot) is carried two-handed: it holds you to carryHeavy, keeps
+  // you off ladders (but for soloBodyClimb) and off a jump. A friend over the shoulder always is (rescue.carry). Freight, a
+  // heavy crate's end, the child and a body; a toy or a find is one-handed. A find that should take two hands gets a kind of
+  // its own and goes in the list. only: false is the rule before it: a toy and a find in the hands too (note 594).
+  "twoHanded": { "only": true, "kinds": ["cargo", "heavy", "child", "ragdoll"] },
   // Pushing a gun along its roof rail (T93): the gun goes where you go, no faster than this. Note 664: on its own key, O.
   "pushGun": 1.2,
   // Note 664 (the director's playtest, 13 Oct: "we should have a crouch function"; D1's calls for it): held down (LeftCtrl),

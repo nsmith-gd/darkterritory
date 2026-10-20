@@ -642,7 +642,8 @@ public static class Harness
                 }
                 outSeconds++;
                 if (what == "at the cap")
-                    foreach (var e in host.World.ActiveEnemies.Where(DarkTerritory.Sim.Enemies.Director.Engaged))
+                    // What holds the cap (note 881: the threats, with director.threats on; what's engaged, off).
+                    foreach (var e in dir.Holding(host.World, host.World.ActiveEnemies))
                         capped[$"{e.Kind}:{e.Phase}"] = capped.GetValueOrDefault($"{e.Kind}:{e.Phase}") + 1;
             }
             // Once everyone's in, the gunner goes to the guard gun (a host-side respawn at their post), unless they walk to it.
