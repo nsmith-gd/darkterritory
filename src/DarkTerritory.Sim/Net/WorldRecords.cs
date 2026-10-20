@@ -717,7 +717,10 @@ public static class WorldRecords
             int at = w.Length;
             tally?.TryAdd(r.Kind, 0);
             w.VarU(r.Key);
-            bool delta = old.TryGetValue(r.Key, out var b) && b.Fields.Length == r.Fields.Length && r.Fields.Length <= 64;
+            // Note 921: any length deltas, a mask word for each 64 fields. (Before protocol 83 only records of 64 fields or fewer
+            // did, so the run's record, 9 fields and 25 a facility, went whole every tick on a route of three facilities or
+            // more: a third of what a client was sent.)
+            bool delta = old.TryGetValue(r.Key, out var b) && b.Fields.Length == r.Fields.Length;
             w.VarU(((ulong)r.Fields.Length << 1) | (delta ? 1ul : 0));
             if (!delta)
             {
@@ -727,14 +730,18 @@ public static class WorldRecords
                     tally[r.Kind] += w.Length - at;
                 continue;
             }
-            ulong mask = 0;
-            for (int i = 0; i < r.Fields.Length; i++)
-                if (r.Fields[i] != b.Fields[i])
-                    mask |= 1ul << i;
-            w.VarU(mask);
-            for (int i = 0; i < r.Fields.Length; i++)
-                if ((mask & (1ul << i)) != 0)
-                    w.VarS(r.Fields[i] - b.Fields[i]);
+            for (int word = 0; word * 64 < r.Fields.Length; word++)
+            {
+                int from = word * 64, to = Math.Min(r.Fields.Length, from + 64);
+                ulong mask = 0;
+                for (int i = from; i < to; i++)
+                    if (r.Fields[i] != b.Fields[i])
+                        mask |= 1ul << (i - from);
+                w.VarU(mask);
+                for (int i = from; i < to; i++)
+                    if ((mask & (1ul << (i - from))) != 0)
+                        w.VarS(r.Fields[i] - b.Fields[i]);
+            }
             if (tally is not null)
                 tally[r.Kind] += w.Length - at;
         }
@@ -764,9 +771,13 @@ public static class WorldRecords
             {
                 if (!result.TryGetValue(key, out var b) || b.Fields.Length != count)
                     throw new InvalidDataException("delta against a record the baseline doesn't have");
-                ulong mask = r.VarU();
-                for (int k = 0; k < count; k++)
-                    fields[k] = (mask & (1ul << k)) != 0 ? b.Fields[k] + r.VarS() : b.Fields[k];
+                for (int word = 0; word * 64 < count; word++)
+                {
+                    int from = word * 64, to = Math.Min(count, from + 64);
+                    ulong mask = r.VarU();
+                    for (int k = from; k < to; k++)
+                        fields[k] = (mask & (1ul << (k - from))) != 0 ? b.Fields[k] + r.VarS() : b.Fields[k];
+                }
             }
             result[key] = new WireRecord(key, fields);
         }

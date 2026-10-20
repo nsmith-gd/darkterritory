@@ -129,7 +129,8 @@ public static class Protocol
     // 81: the flare pistol (note 871): the body kinds FlarePistol (24, its flares left in the ninth field) and Flare (25, its
     //     burn left, 0..1, there).
     // 82: a shovelful answers (note 903): the boiler record gains its green and catching coal (fields 8 and 9).
-    public const int Version = 82;
+    // 83: a record of any length goes as a delta (note 921): a mask word for each 64 fields, where only 64 or fewer could.
+    public const int Version = 83;
 }
 
 public enum MessageType : byte
