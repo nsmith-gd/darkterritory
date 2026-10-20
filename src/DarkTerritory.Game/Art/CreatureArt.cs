@@ -629,6 +629,9 @@ public sealed partial class CreatureArt
     /// <summary>How high the couplers' heads are over the rail (m; train.json couplerHeight): where a whistling Whistler stands.</summary>
     public double CouplerHeight => _couplerHeight ??= DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(ContentRoot, Sim.Train.TrainTuning.File)).Geometry.CouplerHeight;
     Sim.Enemies.CarFireTuning? _carFire;
+    Sim.Enemies.HoundTuning? _hounds;
+    /// <summary>The Cinder Hounds' tuning (note 891: the ignite's wind-up, drawn).</summary>
+    public Sim.Enemies.HoundTuning Hounds => _hounds ??= DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(ContentRoot, Sim.Enemies.EnemyTuning.File)).CinderHounds;
     /// <summary>The car fire's tuning, as the content has it (its grid's cell size, its spread clock; note 267).</summary>
     public Sim.Enemies.CarFireTuning CarFire => _carFire ??= DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(ContentRoot, Sim.Enemies.EnemyTuning.File)).CarFire;
     readonly Dictionary<int, MeshAsset> _debris = new();
@@ -1971,6 +1974,10 @@ public sealed partial class CreatureArt
                         (clip, loop) = _houndAboard.Mode switch
                         {
                             HoundMode.Leap => ("leap", false),
+                            // Note 891: the leap at someone to bite, and backing off from them (a retreat walks, as its patrol).
+                            HoundMode.Lunge => ("lunge", false),
+                            // Note 891: winding up to light its car, low and braced (the burst's drawn below).
+                            HoundMode.Ignite => ("crouch", true),
                             HoundMode.Drop => ("drop", false),
                             HoundMode.Climb => ("climb", false),
                             HoundMode.Sniff => ("sniff", true),
@@ -1980,7 +1987,7 @@ public sealed partial class CreatureArt
                         if (!HasClip("cinder_hound", clip))
                             (clip, loop) = _houndAboard.Mode switch
                             {
-                                HoundMode.Leap => ("lunge", false),
+                                HoundMode.Leap or HoundMode.Lunge => ("lunge", false),
                                 HoundMode.Drop or HoundMode.Climb => ("board", false),
                                 HoundMode.Sniff => ("crouch", true),
                                 _ => ("prowl", true),
@@ -2000,8 +2007,15 @@ public sealed partial class CreatureArt
                     }
                     else
                         clip = phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.BreakOff ? "run" : "prowl";
+                    // Note 891 (the director, the inbox, 20 Oct: "there needs to be an associated animation of how that happens"):
+                    // winding up to light its car, its cracks blaze up, brighter to the end of it.
+                    float windUp = aboard && _houndAboard.Mode == HoundMode.Ignite
+                        ? Math.Clamp((float)(_houndAboard.Seconds / Math.Max(0.1, Hounds.Aboard.IgniteWindUpSeconds)), 0, 1) : 0;
+                    glow *= 1 + 3.5f * windUp * windUp;
                     if (!Draw(mesh, "cinder_hound", clip, ct, loop, model, glow: glow, seed: (float)extra))
                         return false;
+                    if (windUp > 0)
+                        IgniteBurst(mesh, model, windUp, t, extra);
                     // A light of its own (note 209's "not yet", note 337): its cracks' heat, under the keel, lighting its legs
                     // and a pool of the ground it runs over orange. At night, in the rear lamp or past it, a pack reads as
                     // the pools moving behind the train, each a hound, before their shapes do. (Not on itself: the light's
@@ -3327,6 +3341,39 @@ public sealed partial class CreatureArt
             Clutches[e.Holding] = clutch;
         _clutch = null;
         return drawn;
+    }
+
+    /// <summary>
+    /// A Cinder Hound winding up to light its car (note 891), <paramref name="w"/> 0..1 through it: embers streaming up off its
+    /// back, more and higher as it goes, and in its last fifth the burst from its body: a flash, and sparks thrown out over
+    /// the roof round it, where the fire catches.
+    /// </summary>
+    void IgniteBurst(MeshBuilder mesh, in Matrix4x4 model, float w, double time, double seed)
+    {
+        var (r, u, b) = Basis(model);
+        var body = BoneAt("cinder_hound", "belly", model) + u * 0.25f;
+        int n = 8 + (int)(28 * w);
+        for (int i = 0; i < n; i++)
+        {
+            float h = Hash01(i, 11 + (int)seed), h2 = Hash01(i, 23), h3 = Hash01(i, 37);
+            float age = (float)((time * (0.9 + 0.8 * h) + h2) % 1.0);
+            var p = body + r * (h - 0.5f) * 0.5f + b * (h3 - 0.5f) * 0.9f + u * (0.1f + age * (0.5f + 1.3f * w))
+                + r * MathF.Sin((float)time * 7 + i) * 0.06f;
+            float alpha = (0.35f + 0.65f * w) * (1 - age);
+            mesh.Billboard(p, 0.05f + 0.06f * h2 + 0.04f * w, 0, new Vector4(1.0f, 0.42f + 0.3f * h3, 0.1f, alpha), -1, FxBlend.Additive);
+        }
+        if (w < 0.8f)
+            return;
+        // The burst: what lights the car.
+        float f = (w - 0.8f) / 0.2f;
+        mesh.Billboard(body, 0.8f + 2.2f * f, 0, new Vector4(1.0f, 0.55f, 0.18f, 0.9f * (1 - 0.5f * f)), -1, FxBlend.Additive);
+        for (int i = 0; i < 24; i++)
+        {
+            float ang = i * MathF.Tau / 24 + Hash01(i, 5) * 0.4f, out_ = (0.3f + 1.6f * f) * (0.7f + 0.6f * Hash01(i, 7));
+            var p = body + (r * MathF.Cos(ang) + b * MathF.Sin(ang)) * out_ + u * (0.35f * f - 0.6f * f * f);
+            mesh.Billboard(p, 0.07f + 0.05f * Hash01(i, 9), 0, new Vector4(1.0f, 0.5f, 0.15f, 1 - 0.6f * f), -1, FxBlend.Additive);
+        }
+        mesh.PointLights.Add(new PointLight(body, HoundEmber * (2.5f * f + 1), HoundLightRange * 1.8f));
     }
 
     static (Vector3 Right, Vector3 Up, Vector3 Back) Basis(in Matrix4x4 m) =>

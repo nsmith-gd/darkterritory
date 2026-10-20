@@ -1232,14 +1232,17 @@ public sealed class FrontEnd
             MoodEntry("Runs of your mood first on the list, nearest first. Your runs are listed with it too."),
             new(new("REFRESH", "Look again, and ping everyone afresh."), () => { _refresh = true; Message = "Looking..."; return null; }),
             new(new($"ADDRESS: {Address}{(Editing == TextField.Address ? "_" : "")}", Editing == TextField.Address
-                    ? "Type it, and the host's port if it isn't the usual one (host:port); Enter or Esc when it's done."
-                    : "A private game, or one far off: Enter to type its address."), Field: TextField.Address),
+                    ? "Type it, and the host's port if it isn't the usual one (host:port), or the host's join code; Enter or Esc when it's done."
+                    : "A private game, or one far off: Enter to type its address, or its join code (note 896)."), Field: TextField.Address),
             new(new("JOIN", null, Address.Length > 0), () => new Launch.Join(Address)),
             BackTo(Screen.Title),
         ],
         Screen.Settings =>
         [
             // Note 386: in sections, a heading over each (never selected), so TEXT SIZE isn't found past the microphone.
+            // Note 904 (the director, 16 Oct: "I don't see a developer setting to be able to go in and unlock everything"): a
+            // developer build's unlock (note 747) is here, first, as well as at the forge. A player's build never sets SmithyMode.
+            .. SmithyMode is not null ? [Heading("DEVELOPER"), DevUnlockEntry()] : (Entry[])[],
             Heading("YOU"),
             // Note 267: the name the crew and the report know you by, typed here (empty: your Steam or system name). Not in a
             // night (note 292): the crew have it already, from when you joined.
@@ -1384,6 +1387,22 @@ public sealed class FrontEnd
     Func<Launch?> Go(Screen screen) => () => { Show(screen); return null; };
 
     /// <summary>A section's heading (note 386): greyed so the keys pass over it, drawn as a heading.</summary>
+    /// <summary>The developer build's unlock as a row (note 747; in Settings, note 904): its toggle, and the menu redrawn.</summary>
+    Entry DevUnlockEntry()
+    {
+        var mode = SmithyMode!();
+        return new(mode.Item, () =>
+        {
+            mode.Choose();
+            SmithyMode!();
+            return null;
+        }, _ =>
+        {
+            mode.Choose();
+            SmithyMode!();
+        });
+    }
+
     static Entry Heading(string label) => new(new(label, null, Enabled: false, Heading: true));
 
     Entry BackTo(Screen screen) => new(new("BACK"), Go(screen), Back: true);
@@ -1664,6 +1683,8 @@ public sealed class FrontEnd
             return [BackTo(Screen.Fortress)];
         // Note 687: bought from the town's blacksmith, not the menu; here it's to look at.
         var list = CatalogueEntries(s, _ => () => { Message = "Buy it from the blacksmith, at the forge in the yard."; return null; });
+        if (Purse(s, false) is { } purse)
+            list.Insert(0, purse);
         list.Add(BackTo(Screen.Fortress));
         return list;
     }
@@ -1686,6 +1707,8 @@ public sealed class FrontEnd
                 : had ? $"{u.Name}: painted before the gate." : $"{u.Name}: fitted before the gate.";
             return null;
         }, free: SmithyFree);
+        if (Purse(shop.State, SmithyFree) is { } purse)
+            list.Insert(0, purse);
         if (SmithyMode?.Invoke() is { } mode)
             list.Insert(0, new(mode.Item, () =>
             {
@@ -1694,6 +1717,24 @@ public sealed class FrontEnd
             }));
         list.Add(new(new("DONE", "Back to the yard."), () => { CloseNight(); return null; }, Back: true));
         return list;
+    }
+
+    /// <summary>
+    /// The catalogue's first line when the crew can't buy anything on it yet (note 904; the director, 16 Oct: "It should tell me
+    /// that nothing is available to purchase until you have scrip"): no scrip at all, or less than the cheapest thing they could
+    /// otherwise have. Null when something's in reach (or the shelves are free, a developer build's unlock, note 747).
+    /// </summary>
+    Entry? Purse(CampaignState s, bool free)
+    {
+        if (free)
+            return null;
+        var costs = _campaign.Upgrades.Where(u => !s.Upgrades.Contains(u.Id) && Campaign.Unavailable(_campaign, s, u) is null)
+            .Select(u => Campaign.UpgradeCost(_campaign, s, u)).ToList();
+        if (costs.Count == 0 || s.Scrip >= costs.Min())
+            return null;
+        string earn = "Scrip's paid at the end of a night for what the train delivered. What each thing costs is on its line.";
+        return new(new(s.Scrip <= 0 ? "NOTHING CAN BE BOUGHT UNTIL YOU HAVE SCRIP" : $"NOTHING HERE YOU CAN AFFORD YET: {s.Scrip:0} SCRIP",
+            s.Scrip <= 0 ? $"The crew has none. {earn}" : $"The cheapest is {costs.Min():0} scrip. {earn}", Enabled: false));
     }
 
     /// <summary>
@@ -1723,8 +1764,9 @@ public sealed class FrontEnd
                     : painted ? $"{u.Name.ToUpperInvariant()}: ON THE TRAIN"
                     : livery && owned ? $"{u.Name.ToUpperInvariant()}: OWNED, PAINT HER IN IT"
                     : owned ? $"{u.Name.ToUpperInvariant()}: OWNED"
-                    : why is not null && Campaign.TierFor(_campaign, s.Cars) < u.FromTier ? $"{u.Name.ToUpperInvariant()}: {Name(u.FromTier)} AND ON"
-                    : $"{u.Name.ToUpperInvariant()}: {cost:0}";
+                    // Note 904 (the director, 16 Oct: "it should tell me ... until you have scrip"): what it costs, on every line.
+                    : why is not null && Campaign.TierFor(_campaign, s.Cars) < u.FromTier ? $"{u.Name.ToUpperInvariant()}: {Name(u.FromTier)} AND ON, {cost:0} SCRIP"
+                    : $"{u.Name.ToUpperInvariant()}: {cost:0} SCRIP";
                 list.Add(new(new(label, why is null ? detail : $"{why}.", (free || !owned || livery && !painted) && why is null), select(u)));
             }
         }
@@ -1981,7 +2023,10 @@ public sealed class FrontEnd
         // (Wrapped, as the heading is, at a bigger TEXT SIZE: note 347.)
         string? under = Screen == Screen.Upgrades ? "BOUGHT FROM THE BLACKSMITH, AT THE FORGE IN THE YARD"
             : Screen == Screen.Smithy && Smithy is { } selling
-                ? selling.CanBuy ? "A SHARE OF THE NEXT CAR. FITTED BEFORE THE GATE" : $"THE HOST PAYS: ASK {(selling.Payer ?? "THEM").ToUpperInvariant()}"
+                ? !selling.CanBuy ? $"THE HOST PAYS: ASK {(selling.Payer ?? "THEM").ToUpperInvariant()}"
+                    // Note 904: with nothing in reach, why, where every one of its rows can see it.
+                    : Purse(selling.State, SmithyFree) is { } purse ? purse.Item.Detail!.ToUpperInvariant()
+                    : "A SHARE OF THE NEXT CAR. FITTED BEFORE THE GATE"
             : null;
         if (under is not null)
             foreach (var row in UiStyle.Wrap(o, under, width - x - 8))
