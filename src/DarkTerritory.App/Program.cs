@@ -1050,11 +1050,10 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     // Talking and reading in the fortress town (note 281): on this machine alone. A press the town took isn't sent to the
     // host while the key's still down (nothing in a town changes the night; a lamp at somebody's feet stays where it is).
     var townTalk = new TownTalk();
-    // The blacksmith (note 697): how long Use's been held on them (-1: their catalogue's been opened by this hold), and whether
-    // something's been bought to fit. The host's purchase is the campaign's, saved at once; the yard's hosted again to fit it.
-    double smithHeld = 0;
+    // The blacksmith (note 697): whether something's been bought to fit. The host's purchase is the campaign's, saved at once;
+    // the yard's hosted again to fit it. A press on them opens their catalogue (note 904), when there's a catalogue at all.
     bool refitWanted = false;
-    var smithy = campaignTuning.Upgrades.Length > 0 ? DataFile.Load<DarkTerritory.Sim.Towns.TownTuning>(Path.Combine(content, DarkTerritory.Sim.Towns.TownTuning.File)).Smithy : null;
+    bool smithy = campaignTuning.Upgrades.Length > 0;
 #if DEVTOOLS
     // The blacksmith's unlock (note 747): a developer build's catalogue has a row to make everything free, any tier, any number
     // of times; on, a choice goes through it, and the refit's the same.
@@ -1366,6 +1365,24 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             sound.Ui(crewMemory.Reader.Open ? UiCue.LogbookOpen : UiCue.LogbookShut);
             useKept = true;
         }
+        // The blacksmith (note 697; note 904, the director, 16 Oct: "I would have assumed talking to him, I get the upgrades"): Use
+        // pressed on them opens their catalogue over the yard. Only a campaign night's yard sells; elsewhere it's their card.
+        else if (Hit(Control.Use) && !inMenu && smithy && session.World.TownOf(session.Player) is { } forgeTown && Hud.TownTarget(session) is { } smithT
+            && TownTalk.OpensForge(forgeTown, smithT, TownTalk.Selling(session))
+            && (campaign ?? (net is not null ? Campaign.New(campaignTuning, 0, "", 1) with
+            {
+                Cars = net.Setup.Cars,
+                Scrip = net.Setup.Scrip,
+                Upgrades = net.Setup.Upgrades,
+            } : null)) is { } stock)
+        {
+            townTalk.Close();
+            frontEnd.OpenSmithy(NightNow(), new SmithyShop(forgeTown.Plan.People[smithT.Index].Name, stock, frontEnd.SmithyBuy is not null, "the host"));
+            window.MouseCaptured = false;
+            window.CaptureOnClick = false;
+            inMenu = true;
+            useKept = true;
+        }
         else if (Hit(Control.Use) && session.World.TownOf(session.Player) is { } town && Hud.TownTarget(session) is var spoken && townTalk.Use(town, spoken, now))
             useKept = spoken is not { Kind: DarkTerritory.Sim.Towns.TownTargetKind.Person } hosting || !town.Plan.People[hosting.Index].Hosting;
         // Dave's card is this machine's alone; Jacob's press goes on to the host as well (a word with him mends the train), and
@@ -1384,32 +1401,6 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (turn != 0 && crewMemory.Reader.Turn(turn, crewMemory.Pages().Count))
                 sound.Ui(UiCue.LogbookPage);
         }
-        // The blacksmith (note 697): Use held on them opens their catalogue over the yard. Only a campaign night's yard sells.
-        if (!inMenu && smithy is not null && Held(Control.Use) && TownTalk.Selling(session) && session.World.TownOf(session.Player) is { } forgeTown
-            && Hud.TownTarget(session) is { Kind: DarkTerritory.Sim.Towns.TownTargetKind.Person } smithT && TownTalk.IsSmith(forgeTown.Plan.People[smithT.Index]))
-        {
-            if (smithHeld >= 0 && (smithHeld += dt) >= smithy.HoldSeconds)
-            {
-                smithHeld = -1;
-                var smith = forgeTown.Plan.People[smithT.Index];
-                var stock = campaign ?? (net is not null ? Campaign.New(campaignTuning, 0, "", 1) with
-                {
-                    Cars = net.Setup.Cars,
-                    Scrip = net.Setup.Scrip,
-                    Upgrades = net.Setup.Upgrades,
-                } : null);
-                if (stock is not null)
-                {
-                    townTalk.Close();
-                    frontEnd.OpenSmithy(NightNow(), new SmithyShop(smith.Name, stock, frontEnd.SmithyBuy is not null, "the host"));
-                    window.MouseCaptured = false;
-                    window.CaptureOnClick = false;
-                    inMenu = true;
-                }
-            }
-        }
-        else if (!Held(Control.Use))
-            smithHeld = 0;
         // The gun's seat (T112): Use pressed standing still at a loaded gun sits you in it (Use held at one waiting on its
         // reload loads it, walking with it pushes it). Seated, Jump gets you up.
         if (Hit(Control.Use) && !session.Player.Has(PlayerFlags.Seated) && session.World.Combat is { } gc

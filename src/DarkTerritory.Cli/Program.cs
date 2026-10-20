@@ -3607,18 +3607,21 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
         or DarkTerritory.Game.Screen.Smithy)
         menu.ShowFortress((int)Opt(args, "--slot", 1));
     // --menu smithy (note 697): the blacksmith's catalogue over the yard, the slot's campaign (--joined: a joiner's, who asks the host).
+    // --dev-unlock (note 747): a developer build's catalogue with its unlock row, turned on; --menu settings shows its row
+    // under DEVELOPER (note 904). --scrip n: the slot's crew with that much to spend (--scrip 0: nothing can be bought).
+    if (args.Contains("--dev-unlock"))
+    {
+        var unlock = new DarkTerritory.Dev.Smithy.DevUnlock { On = true };
+        menu.SmithyMode = () =>
+        {
+            menu.SmithyFree = unlock.On;
+            return unlock.Row();
+        };
+    }
     if (screen == DarkTerritory.Game.Screen.Smithy && menu.Open is { } stock)
     {
-        // --dev-unlock (note 747): a developer build's catalogue with its unlock row, turned on.
-        if (args.Contains("--dev-unlock"))
-        {
-            var unlock = new DarkTerritory.Dev.Smithy.DevUnlock { On = true };
-            menu.SmithyMode = () =>
-            {
-                menu.SmithyFree = unlock.On;
-                return unlock.Row();
-            };
-        }
+        if (args.Contains("--scrip"))
+            stock = stock with { Scrip = Opt(args, "--scrip", 0) };
         menu.OpenSmithy(new(Yard: true), new DarkTerritory.Game.SmithyShop("Archie MacNeil", stock, !args.Contains("--joined"), "the host"));
     }
     // --menu night|leave (note 292): the in-night menu over a night hosted on the network for --others n (3), or with

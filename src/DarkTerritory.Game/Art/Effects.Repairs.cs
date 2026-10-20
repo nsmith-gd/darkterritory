@@ -8,7 +8,7 @@ namespace DarkTerritory.Game.Art;
 public sealed partial class Effects
 {
     /// <summary>The callouts' colour: the lamp's amber run hot, the one colour on the train that means "mend me here".</summary>
-    static readonly Vector3 CalloutAmber = new(1.0f, 0.62f, 0.18f);
+    public static readonly Vector3 CalloutAmber = new(1.0f, 0.62f, 0.18f);
 
     /// <summary>
     /// Every break the crew can mend, called out where it is (note 301, queue #39: "every repairable breakage has a clear VFX
