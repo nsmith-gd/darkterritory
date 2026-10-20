@@ -1773,9 +1773,39 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
         var here = PlayerMotor.WorldPosition(self, train);
         bool pulled = Crew.Any(c => c.Id != Me && c.State.Alive && !PlayerMotor.InCab(c.State, train)
             && (PlayerMotor.WorldPosition(c.State, train) - here).Length <= PullReach);
+        // #633 (note 933): the Car Hugger on its own (GDD §21: "cut the caboose or kill it. A group kills it fast"). Free for it,
+        // this walker says so; the crew's order sends the two fit walkers nearest it along the roofs to club it off from its
+        // platform together (Beat, below), or, with no platform, nobody fit free, or it still on after HuggerCutAfter, the
+        // nearest walker to cut its car loose at the gap ahead of it. Before, everyone kept clear of it and nobody went: on 8
+        // crew and 12 cars it held the train under 9 m/s for minutes and two of four nights missed dawn (note 915).
+        int toHugger = -1;
+        if (Calls is { } calls && self.Alive && _warm is not { Active: true })
+        {
+            calls.FreeForHugger(Me, tick);
+            if (calls.Hugger(world, Crew, Me, self, tick) is { } order)
+            {
+                if (order.Cutter == Me && job is not null
+                    && (SpeedBands.CanBeCaughtOnFoot(train.Dynamics.Tuning, train.Dynamics.Speed)
+                        ? job.CutLoose(self, world, train.VehicleAhead(order.Car))
+                        : job.CutFromTheRoofs(self, world, train.VehicleAhead(order.Car))) is { } cutting)
+                    return cutting;
+                if (order.Party.Contains(Me))
+                {
+                    toHugger = order.Car;
+                    int partner = order.Party.First(id => id != Me);
+                    bool near = Crew.Any(c => c.Id == partner && c.State.Alive && (PlayerMotor.WorldPosition(c.State, train) - here).Length <= PullReach);
+                    // On the car ahead of it with the partner not yet near enough to pull us from its mouth: wait for them.
+                    if (on == train.VehicleAhead(order.Car) && self.Surface == Surface.Roof && !near)
+                        return default;
+                    if (on == order.Car && train.Frames[on].Shape.Platform is { } clubFrom && near)
+                        return Beat(self, train, clubFrom, tick, far: order.Party[1] == Me,
+                            world.ActiveEnemies.OfType<CarHugger>().FirstOrDefault(h => h.Latched && h.Attached == on)?.Local);
+                }
+            }
+        }
         if (self.Alive && on > 0 && on < train.Frames.Count && _warm is not { Active: true } && train.Frames[on].Shape.Platform is { } platform
             && pulled && world.ActiveEnemies.Any(e => e is CarHugger { Latched: true } h && h.Attached == on))
-            return Beat(self, train, platform, tick);
+            return Beat(self, train, platform, tick, hugger: world.ActiveEnemies.OfType<CarHugger>().FirstOrDefault(h => h.Latched && h.Attached == on)?.Local);
         if (self.Alive && self.Parent > 0 && self.Parent < train.Frames.Count)
         {
             int parent = self.Parent;
@@ -1816,7 +1846,9 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
             // A gunner's gun saved onto the car ahead (T103) is its post again (note 447): it may go back along that car to it.
             // At 1.2 m a jump off the held car lands it past the gun's seat, and this sent it on up the train, back over the gap
             // for the gun and up again, all night (note 473).
-            if (mine >= 0 && world.ActiveEnemies.Any(e => e is CarHugger { Latched: true } h && train.Dynamics.Consist.IndexOf(h.Attached) is var held && held >= 0
+            if (toHugger >= 0)
+                _direction = train.Dynamics.Consist.IndexOf(toHugger) > mine ? 1 : -1;
+            else if (mine >= 0 && world.ActiveEnemies.Any(e => e is CarHugger { Latched: true } h && train.Dynamics.Consist.IndexOf(h.Attached) is var held && held >= 0
                     && (mine >= held || mine == held - 1 && !(Gunner && train.Vehicles[parent].HasGun))))
                 _direction = -1;
             // A hot axle box (note 331) or a loose coupling (note 356): to its car, down its end ladder into the gap behind it,
@@ -2061,7 +2093,13 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
     /// to over the coupling it's hanging on, and swing at it, press by press, until it lets go. Then up the ladder, as out
     /// of any gap.
     /// </summary>
-    static PlayerIntent Beat(in PlayerState self, TrainOnLine train, Box platform, uint tick)
+    /// <param name="far">The second of a pair (#633, note 933): the platform's other side, mirrored across its door. Side by side
+    /// on one spot each swing was the other's (a crewmate nearer than the creature takes the blow, note 717), and two clubbed
+    /// each other for a minute while it ate the car.</param>
+    /// <param name="hugger">Where it is in the car's frame (its <see cref="Enemy.Local"/>): the swing turns to it. Facing straight
+    /// back down the line from beside it, it was outside the swing's cone (enemies.json melee.coneDegrees) and no blow ever
+    /// landed (#633: two walkers swung at it for a minute and its health never moved).</param>
+    static PlayerIntent Beat(in PlayerState self, TrainOnLine train, Box platform, uint tick, bool far = false, Double3? hugger = null)
     {
         double l = platform.Min.Z;
         switch (self.Surface)
@@ -2077,11 +2115,13 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
             case Surface.Coupler:
                 {
                     // Over the coupling, clear of the rear door's reach (a press there would work the door) and off the ladder's foot.
-                    var (step, there) = WarmUp.Steer(self, new Double3(train.Dynamics.Tuning.Geometry.EndLadderX + 0.45, 0, l + 0.5), Math.PI);
+                    double x = train.Dynamics.Tuning.Geometry.EndLadderX + 0.45;
+                    var (step, there) = WarmUp.Steer(self, new Double3(far ? -x : x, 0, l + 0.5), Math.PI);
                     if (!there)
                         return step;
-                    // Swinging at it (v1.1 App. C.2): the tool swings as often as it recovers.
-                    return new PlayerIntent { Actions = PlayerActions.Swing };
+                    // Swinging at it (v1.1 App. C.2): the tool swings as often as it recovers, turned to face it.
+                    double turn = hugger is { } h ? WrapAngle(Math.Atan2(-(h.X - self.Position.X), -(h.Z - self.Position.Z)) - self.Yaw) : 0;
+                    return new PlayerIntent { Actions = PlayerActions.Swing, LookYaw = (float)turn };
                 }
             default:
                 return default;
