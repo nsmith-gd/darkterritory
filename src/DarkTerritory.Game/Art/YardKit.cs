@@ -164,7 +164,7 @@ public static class YardKit
         k.Box(new Vector3(-x * 0.4f - 0.75f, 1.08f, -z - 0.14f), new Vector3(-x * 0.4f + 0.75f, 1.14f, -z));
         k.Use("paper_form", Palette.BoardEnamel, 0.7f, 0, tile: 1);
         k.Box(new Vector3(x * 0.45f + 0.65f, 1.2f, -z - 0.03f), new Vector3(x * 0.45f + 1.15f, 1.85f, -z - 0.01f));
-        k.Use("lamp_lens", Palette.LampAmber, 0.2f, 0.3f, tile: 1);
+        k.Use("lantern_pane", Palette.LampAmber, 0.2f, 0.3f, tile: 1);
         k.Emissive = 1.4f;
         k.BoxAt(new Vector3(x * 0.45f, 2.45f, -z - 0.2f), new Vector3(0.1f, 0.13f, 0.09f));
         k.Emissive = 0;

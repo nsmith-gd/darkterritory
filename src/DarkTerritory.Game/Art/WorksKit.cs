@@ -204,7 +204,7 @@ public static class WorksKit
         k.Use("wood_grey", Palette.BlueGrey, 0.9f, 0.05f, tile: 1);
         k.Box(new Vector3(-0.55f, 0, -z - 0.05f), new Vector3(0.55f, 2.1f, -z + 0.02f));
         // Rows of lamps hung inside over the beds, lit: the glow that's the warmest thing in the town.
-        k.Use("lamp_lens", Palette.LampAmber, 0.2f, 0.3f, tile: 1);
+        k.Use("lantern_pane", Palette.LampAmber, 0.2f, 0.3f, tile: 1);
         k.Tint = new Vector3(1.0f, 0.75f, 0.55f);
         k.Emissive = 1.2f;
         for (float lz = -z + 1.5f; lz < z - 1f; lz += 2.5f)
@@ -407,7 +407,7 @@ public static class WorksKit
             k.Box(new Vector3(-1.8f, 2.6f - line * 0.28f, -z - 0.125f), new Vector3(-1.8f + 0.9f + (line * 37 % 5) * 0.2f, 2.66f - line * 0.28f, -z - 0.121f));
         k.Tint = Vector3.One;
         // The lamp over the door.
-        k.Use("lamp_lens", Palette.LampAmber, 0.2f, 0.3f, tile: 1);
+        k.Use("lantern_pane", Palette.LampAmber, 0.2f, 0.3f, tile: 1);
         k.Emissive = 1.4f;
         k.BoxAt(new Vector3(1.6f, 3.2f, -z - 0.25f), new Vector3(0.12f, 0.15f, 0.1f));
         k.Emissive = 0;
