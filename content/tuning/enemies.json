@@ -673,7 +673,11 @@
   // the loading's not called done; else it's left (D1: "a body never costs the night"), and put down if it's in the arms.
   // Note 790: on foot within mouseMooseWithin m of the Mouse Moose at a casting (creeping in, its teeth in it, dragging it), it
   // goes at it and clubs it: it bolts long before (mouseMoose.scareWithin), and the casting's kept.
+  // Note 894 (App. A.6, "outrunnable, if you run"): ribbitsOutnumberedRun, a bot on its way somewhere (aboard, say) with a pack
+  // hunting it that outnumbers it and those with it runs on instead of turning to club them (frontier:6's shunter, alone at
+  // the pick-up's points, went at a pack of three and was eaten).
   "crewBots": {
+    "ribbitsOutnumberedRun": true,
     "mournersWithin": 30, "mournersLeash": 20, "towerJawWithin": 25, "towerJawClearFrom": 0.9, "towerJawClearBy": 2.5,
     "wreckWithin": 250, "wreckStopShort": 15, "wreckHoldWithin": 60, "beetleWithin": 15, "ribbitWithin": 12, "brakemanStandOff": 1.5,
     "brakemanWaitPast": 1, "standGiveUp": 240, "gateClearShort": 30, "gateClearWithin": 1500, "gateClearGiveUp": 240, "gateClearMargin": 45,
@@ -1413,7 +1417,22 @@
       // the crew does) is the same for any crew and train, not pressure.crewScale/lengthScale about a crew of four on eight
       // cars (issue 1: a solo crew's was a third of a four's; issue 2: no double scaling). With `on` the free spawns'
       // curve.atGate/atEnd roll and its crewFade are no longer read; on false, the director as before.
-      "drive": { "on": true, "dueCap": 1.5, "dueFloor": -1, "jitter": 0.35, "pressureByLambda": true }
+      "drive": { "on": true, "dueCap": 1.5, "dueFloor": -1, "jitter": 0.35, "pressureByLambda": true },
+      // Selection and placement (note 895; the brief §3 "Encounter selection" 6, §4 level 3, §5). selection: a kind whose zone
+      // (Enemy.Zone: forward, rear, flank, interior, structural, outside) already has engaged threats weighs ×zoneRepeatWeight
+      // for each, in the pressure's and the curve's choices, so the next threat is a problem somewhere else (the conflict
+      // table's pairs still weigh their combinations up). placement: where along the train a rule puts what it sends, among
+      // the cars, gaps or couplings its rule allows (Climbers, Draggers waiting under the rake, Whistler, Fire Flies, Hotbox,
+      // Knotter): a place within threatSpreadM (m along the line) of a threat already about weighs down to nearThreatWeight
+      // (right at it; 1 at threatSpreadM), one within onTopM of a crewmate ×onTopWeight. The rule's own draw, so with nothing
+      // about and nobody near it picks as it did. on: false for either is the director before note 895.
+      "selection": { "on": true, "zoneRepeatWeight": 0.5 },
+      "placement": { "on": true, "threatSpreadM": 40, "nearThreatWeight": 0.2, "onTopM": 6, "onTopWeight": 0.3 },
+      // A halt's own (note 895; GDD D.15 question 3, the director 9 Oct: "Needs a dedicated response"; 20 Oct: "What's best
+      // for gameplay?"): stood on the main line at an abandoned village's halt, lullSeconds after stopping there, one
+      // encounter (whatever the night's curve could send, rule-met or free) if the stop's own haven't put one there; counted
+      // as the stop's. Off until measured ("test creature spawn first").
+      "halt": { "on": false, "lullSeconds": 15 }
     },
     // GDD App. B.1 "Post-event cooldown" (design decision, 2026-10): the least trough after a spawn; the pressure's relief
     // makes the rest of it, and well past the threshold (pressAt) it gives way.

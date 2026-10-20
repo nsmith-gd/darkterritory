@@ -124,6 +124,9 @@ return args switch
     // and the mixer's sound, encoded to an MP4 (GDD v1.4 App. E; note 251).
     ["film", ..] => Print(FilmCommands.Run(content, args)),
     ["playthrough", ..] => Print(PlaythroughCommands.Run(content, args)),
+    // Note 913 (queue #624): the playtest recorder's schema, and a bot night recorded with it.
+    ["telemetry", "schema", ..] => Print(TelemetryCommands.Schema()),
+    ["telemetry", "record", ..] => Print(TelemetryCommands.Record(content, args)),
     ["afoot", "census", ..] => Print(AfootCommands.Census(content, args)),
     // dt eligibility rolls [--seeds 1-2000]: each kind's nightChance with the night's floor, by tier and crew. dt eligibility [--routes frontier:7,deadLines:3] [--crews 1:3,2:5,4:8] [--seeds 1-3] [--seconds 2700] [--markdown f.md]: every
     // kind of the director's spend table, its gates read a second at a time through ordinary nights (note 875).
@@ -2232,6 +2235,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // --venting: the blow-off held open and the safety valve lifting (T101), their steam.
         Venting = args.Contains("--venting"),
         SafetyValve = args.Contains("--venting"),
+        // --flare x: a shovelful flaring that hard (1: one at its height, note 903), the stack's answer.
+        Flare = (float)Opt(args, "--flare", 0),
         // --ruptured s: the boiler burst s seconds ago (default 0.8: the blast at its height; 30 for the hiss after), spec
         // B.6, GDD §23; the drivers seized and sliding while she's still dragging down to coasting speed.
         // --strain x: every car straining round a bend that hard (0..1, BendStrain: 1 is coming off), its outer rail on the

@@ -200,6 +200,8 @@ public static class WorldRecords
             // The door's swing-shut clock: without it the host's own snap back onto the grid zeroed it every tick, and the
             // door never shut.
             Q(Math.Min(b.SinceShovel, 60), Fine),
+            // The shovelful catching and flaring (note 903): the gauge's kick and the engine's surge, predicted as the host has them.
+            Q(b.Green, Fine), Q(b.Catching, Fine),
         ]));
         // And who holds them (note 574): a bot driver hands over when someone playing does.
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Controls, 0), [Q(controls.Throttle, Fine), Q(controls.Brake, Fine), controls.Reverser,
@@ -504,6 +506,8 @@ public static class WorldRecords
                         ShovelOut = (f[6] & 64) != 0,
                         Vented = (f[6] & 16) != 0,
                         SinceShovel = f.Length > 7 ? D(f[7], Fine) : 0,
+                        Green = f.Length > 9 ? D(f[8], Fine) : 0,
+                        Catching = f.Length > 9 ? D(f[9], Fine) : 0,
                     };
                     break;
                 case RecordKind.Controls:
