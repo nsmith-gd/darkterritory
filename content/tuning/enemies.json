@@ -236,7 +236,11 @@
   "carHugger": {
     "speedCap": 9, "dragFactor": 1.6, "shellPerSecond": 0.004, "lootPerSecond": 0.006, "mouthReach": 1.6,
     "swallowSeconds": 10, "health": 16, "regenPerSecond": 0.15, "lurkAheadMin": 250, "lurkAheadMax": 800, "maxGrade": 0.6,
-    "lowSpeed": 8, "lowSpeedWeight": 2, "minCars": 2, "breachEaten": 0.1
+    "lowSpeed": 8, "lowSpeedWeight": 2, "minCars": 2, "breachEaten": 0.1,
+    // A trial (note 915, #612; "test creature spawn first"): App. B.3's "low ground", never laid (note 875: its spot held 1.4%
+    // of an ordinary night, under 0.1% on frontier:7). On, the line plan's main-line stretches of these biomes are spots
+    // too (the first level point every step m), and lurkAheadMax replaces the block's own. Off until measured and confirmed.
+    "lowGround": { "on": false, "biomes": ["marsh", "dykeland", "contaminatedMarsh"], "lurkAheadMax": 1500, "step": 50 }
   },
 
   // WHISTLER · absence · flank (App. A.4, B.4). Boards at a stop; whistleAfterStop s into the next stop it blows the
@@ -410,6 +414,10 @@
     "strikeRadius": 0.9, "stabDamage": 35, "stuckSeconds": 4,
     "bankSeconds": 2.5, "pecks": 4, "peckEvery": 3, "driveOffBlows": 3,
     "health": 12, "giveUpBelow": 4, "markReach": 200, "minCars": 2, "perRoofWeight": 1,
+    // A trial (note 915, #612; the director, 20 Oct 2026, to note 875's question 1: "13"): on, it comes over the train at
+    // lowArrive.arriveAbove (no ordinary night reached B.13's 18 m/s; at 13 its 30 s held on every one) and peels off under
+    // lowArrive.stallBelow. "Test creature spawn first": off until measured and confirmed; spec B.13 follows then.
+    "lowArrive": { "on": false, "arriveAbove": 13, "stallBelow": 10 },
     "tierWeights": { "local": 1, "frontier": 1.5, "deadLines": 2, "deepTerritory": 2.5 },
     "biomeWeights": { "coast": 3, "dykeland": 3, "plains": 1.5, "marsh": 1.5, "contaminatedMarsh": 1.5, "blackForest": 0.3,
       "forestEdge": 0.5, "mountain": 1, "deadTown": 1.5 },
@@ -800,6 +808,9 @@
     "maxTries": 3, "traverseSpeed": 2.2, "reach": 1.8, "biteDamage": 35, "biteEvery": 3, "boredSeconds": 120, "health": 3,
     "minGaps": 2, "minSpeed": 5, "perGapWeight": 0.5, "packSize": [2, 3], "countRadius": 8, "takeSeconds": 10,
     "breachLitCars": false,
+    // A trial (note 915, #612; note 887's find): the night's curve's free Climbers want minSpeed too, as their rule does (a
+    // moving train's gaps, boarding-first), not only a gap: they came to a train stood on the open line. Off until measured.
+    "freeNeedsSpeed": false,
     // Note 288 (drivenOff; "outnumber them at the gaps"): up on the roofs or in a car, outnumbered where it is (more crew than
     // Climbers within countRadius) with no gang striking it, it drops back off after outnumberedSeconds (letting go) for
     // another gap. A lone blow knocks it off a friend; only the gang's blows take its health.
@@ -1244,6 +1255,11 @@
     // one run at a time. Its own dice, so the night's other draws are as they were.
     "run": {
       "on": true, "fromSpeed": 19, "stopSpeed": 2, "afterMetres": 2400, "hotShorter": 0.75,
+      // A trial (note 915, #612; the director, 20 Oct 2026, to note 875's question 2: "lastStop"): on, the metres count at the
+      // tier's fromSpeed (its line speed, linegen tiers.json lineSpeed, − 4) and start again only at a stop (a facility, a
+      // village halt), not whenever the train slows under stopSpeed: in 24 ordinary nights the run never came (the stops are
+      // 1.1 km apart). Off, the run answers only a train run hot over the boards (note 328). Off until measured and confirmed.
+      "fromLastStop": { "on": false, "fromSpeed": { "local": 16, "frontier": 14, "deadLines": 12, "deepTerritory": 10 } },
       "base": 1.4, "perActive": 0.6, "size": [2, 6], "spacing": 6, "spawnBehind": 200, "lateral": [4, 8],
       "closing": 5, "scatter": 5,
       // The lane ahead (note 405; orchestrator.md §5.3 6, "lanes ahead: runners crossing the line in the lamp, for the forward
@@ -1295,6 +1311,10 @@
       "sootChildren": 0.36, "grumbler": 0.11, "passenger": 0.1, "moose": 0.19, "gannet": 0.72, "freightBeetle": 0.63,
       "towerJaw": 0.53, "pickers": 0.28, "lodger": 0.06, "householder": 0.68, "hollowHouse": 0.13, "hanger": 0.53,
       "mouseMoose": 0.5 },
+    // A trial (note 915, #612; the director, 20 Oct 2026, to note 875's question 3: "raise", 30–40%): on, these stand in for
+    // nightChance's (same order, same stream). Their gates hold 6–46% of an ordinary night; their chances kept them out four
+    // nights in five. Into the Creature Tweaker's game column only once measured and confirmed.
+    "nightChanceTrial": { "on": false, "chances": { "grumbler": 0.35, "passenger": 0.3, "moose": 0.4, "gaunt": 0.35, "trackDoll": 0.35 } },
     // How often each kind comes against the rest: its weight among what could come, times this (×1 not named).
     "weights": {},
     // The in-car incidents' weight each (the others weigh 1): trouble in the cars is some of the night, not most of it.

@@ -98,7 +98,7 @@ public sealed class Gannet(int id) : Enemy(id)
         Pace(ctx);
         double speed = train.Dynamics.Speed;
         bool tunnel = InTunnel(ctx.World);
-        _fastFor = speed >= t.ArriveAbove && !tunnel ? _fastFor + dt : 0;
+        _fastFor = speed >= t.Arrive && !tunnel ? _fastFor + dt : 0;
         if (Attached >= train.Frames.Count)
             Attached = MiddleCar(train);
 
@@ -118,7 +118,7 @@ public sealed class Gannet(int id) : Enemy(id)
         // creature gym (GDD §34.1; the director, 13 Oct, App. F.5: "doesn't dive consistently or loop its attacks"): there
         // the train stands, and it stays over it, diving again and again, until it's cleared.
         bool gym = ctx.World.CallOnly;
-        _slowFor = speed < t.StallBelow && !gym ? _slowFor + dt : 0;
+        _slowFor = speed < t.Stall && !gym ? _slowFor + dt : 0;
         bool anyone = Walkers(ctx, t).Any() || Mark is { } m && MarkOut(ctx, m, t);
         _quietFor = anyone || gym ? 0 : _quietFor + dt;
         if (Phase != SpinePhase.Grab && (tunnel || _slowFor >= t.StallSeconds || _quietFor >= t.QuietSeconds))

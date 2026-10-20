@@ -76,7 +76,8 @@ public sealed class Director
         // seed (a PCG stream's first draws barely move between neighbouring seeds), so the night's other draws are as they were.
         var about = new Pcg32(unchecked(seed * 0x9E3779B97F4A7C15UL + 0x0BE5E), 0x0BE5E);
         var rolls = new List<(string Name, double Chance)>();
-        foreach (var (name, chance) in tuning.NightChance.OrderBy(k => k.Key, StringComparer.Ordinal))
+        // The rare kinds' trial (note 915) stands in its chances for theirs, in the same order on the same stream.
+        foreach (var (name, chance) in tuning.NightChance.OrderBy(k => k.Key, StringComparer.Ordinal).Select(k => (k.Key, tuning.ChanceFor(k.Key, k.Value))))
             if (about.NextDouble() >= chance)
             {
                 _outTonight.Add(name);
@@ -1524,11 +1525,19 @@ public sealed class Director
         bool home = _route is { } route && (front > route.RunLength - noSpawnFinal || route.Plan?.Director.TagsAt(front).Contains("terminus_safe") == true);
         bool open = elapsed >= Grace && !world.TrainInFort && !home && train.Dynamics.Consist.CarCount >= 1
             && world.Run?.Phase is null or Run.RunPhase.Underway;
-        if (!open || speed < r.StopSpeed)
+        // From the last stop (note 915, a trial): only a stand at a stop (a facility, or a village halt) starts the count again;
+        // slowed or stood anywhere else, it waits where it was.
+        bool fromStop = r.FromLastStop.On;
+        if (!open || speed < r.StopSpeed && (!fromStop || StopAt(world) >= 0))
         {
             // Slowed, stopped or somewhere nothing comes: the count starts again, and no more pairs of this run are sent
             // (what's already running keeps coming).
             _runMetres = 0;
+            _pairsLeft = 0;
+            return;
+        }
+        if (speed < r.StopSpeed)
+        {
             _pairsLeft = 0;
             return;
         }
@@ -1543,7 +1552,7 @@ public sealed class Director
         // The run is one threat to the crew's caps (note 336): with the crew already at its cap, it waits (the count banked),
         // so a crew of one never meets a run and the director's threat at once.
         bool atCap = _t.Orchestrator.On && active.Count(Engaged) >= EngagedCap;
-        if (speed >= r.FromSpeed)
+        if (speed >= r.FromSpeedOn(_route?.Tier ?? RouteTier.Frontier))
             _runMetres += speed;
         bool hot = train.BoilerTuning is { } b && train.Boiler.Pressure > b.WorkingBandMax;
         if (_runMetres < r.AfterMetres * (hot ? r.HotShorter : 1) || atCap)
