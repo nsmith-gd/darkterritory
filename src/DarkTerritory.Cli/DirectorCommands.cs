@@ -25,7 +25,7 @@ using DarkTerritory.Sim.Net;
 /// </summary>
 static class DirectorCommands
 {
-    public static int Sweep(string[] args, Func<string[], Action<World>?, object> harness)
+    public static int Sweep(string[] args, Func<string[], Action<World>, object> harness)
     {
         var cells = Cells(args);
         double seconds = Opt(args, "--seconds", 2700);

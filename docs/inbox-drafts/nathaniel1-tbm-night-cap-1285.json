@@ -1,0 +1,38 @@
+{
+  "title": "Cap each creature at 3 a night? It makes nights varied, but the end of the night goes quiet",
+  "from": "nathaniel1-tbm",
+  "kind": "choose",
+  "body": "What you'd see: today a night can pile up one kind. In 8 four-player test nights one night sent 12 Cinder Hounds, so a crew meets the same threat again and again. The other side is the pacing note 874 wants fixed: you want encounters to grow more frequent as the night goes on.\n\nWhat was built: Nell's PR #1285 (queue #590, note 863) turns on the cap you chose on 19 Oct: no kind more than 3 a night (the Knotter 2), and a hound pack counts once. It's a draft with merge conflicts.\n\nMeasured, 8 nights, 4 bots: creatures a night 22.6 → 18.0; the most of one kind 12 → 3; distance, deliveries and cars lost unchanged. But car fires from hound packs a night rose from 0.5 to 8.75, and in a 20-minute test the director's sends by thirds went 3/7/9 → 4/7/0: the last third of the night goes quiet, because the capped kinds are used up by then.\n\nDecision: should #1285 merge? Note 874 recommends merging it before the pacing items #608 and #612 start, with #612 then answering the pack fires and the quiet end.\n\nDefault meanwhile: agents build the pacing items assuming #1285 merges, and #612 owns fixing the pack fires. Nothing merges until you answer.",
+  "options": [
+    {
+      "key": "merge",
+      "label": "Merge #1285 now",
+      "detail": "Variety up: no kind past 3. Hound-pack car fires rise ~17x until #612 answers them; the night's last third is quiet until #608 refills it. Recommended by note 874."
+    },
+    {
+      "key": "hold",
+      "label": "Hold it until the pacing work lands",
+      "detail": "Nights stay as today (piles of one kind, a busier end). #608/#612 build around the old behaviour, and #1285 is redone after."
+    },
+    {
+      "key": "cap4",
+      "label": "Merge with a higher cap (4 or 5)",
+      "detail": "Less quiet at the end, less variety. Nell re-measures first; costs a few days."
+    }
+  ],
+  "links": [
+    "https://github.com/nsmith-gd/darkterritory/blob/main/docs/notes/863.md",
+    "https://github.com/nsmith-gd/darkterritory/blob/main/docs/notes/874.md",
+    "https://github.com/nsmith-gd/darkterritory/blob/main/docs/design/spawn-director-overhaul.md"
+  ],
+  "pr": 1285,
+  "queue": 590,
+  "note": 863,
+  "tags": [
+    "director",
+    "spawn",
+    "cap"
+  ],
+  "blocking": false,
+  "status": "open"
+}
