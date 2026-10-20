@@ -6,7 +6,7 @@ namespace DarkTerritory.Sim.Enemies;
 /// gradually with the crew alive and the cars, with no breakpoint at eight cars or six crew, so four and eight crews meet
 /// overlapping threats across the train and a long train holds more; and a crew of one is never set a dilemma only two can
 /// answer. Pure statics on counts: nothing drawn, no world read, the same on the host and every client. The director reads
-/// them once #604's threat states and #608's pacing are in (note 906).
+/// them with <see cref="ConcurrencyTuning.On"/> (note 906).
 /// </summary>
 public static class Concurrency
 {
@@ -90,6 +90,7 @@ public sealed partial record EncountersTuning
 /// <summary>Mirror of enemies.json <c>director.encounters.concurrency</c> (note 906); field docs live there.</summary>
 public sealed record ConcurrencyTuning
 {
+    public bool On { get; init; } = true;
     public double Share { get; init; } = 0.75;
     public double SharePerCar { get; init; } = 0.2;
     public int CarsFrom { get; init; } = 3;

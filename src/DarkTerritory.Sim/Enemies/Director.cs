@@ -284,6 +284,9 @@ public sealed class Director
             var o = _t.Orchestrator;
             if (!o.On)
                 return MaxConcurrent;
+            // Note 906 (#611): by the living and the cars, gradually, with no step at eight cars or six crew.
+            if (_t.Encounters.Concurrency is { On: true } c)
+                return Concurrency.EngagedCap(Math.Max(1, Active), _cars, c);
             // A longer train has more of them under a threat at once (note 646), never more than perPlayer each.
             double share = o.EngagedShare(_cars, _t.Pressure.ScaleCars);
             int byCrew = Math.Min((int)Math.Ceiling(Active * share - 1e-9), (int)Math.Floor(Active * o.PerPlayerFor(_cars) + 1e-9));
@@ -387,7 +390,30 @@ public sealed class Director
     }
 
     /// <summary>App. B.1: "at least one pair per run on Frontier and above. Two on Deep Territory."</summary>
-    int PairsWanted => _route is null ? 0 : _t.PairsPerRun.GetValueOrDefault(char.ToLowerInvariant(_route.Tier.ToString()[0]) + _route.Tier.ToString()[1..], 0);
+    int PairsWanted => _route is null ? 0 : _t.Encounters.Concurrency is { On: true } c
+        ? Concurrency.PairsWanted(TierPairs, Active, c) : TierPairs;
+    int TierPairs => _route is null ? 0 : _t.PairsPerRun.GetValueOrDefault(char.ToLowerInvariant(_route.Tier.ToString()[0]) + _route.Tier.ToString()[1..], 0);
+
+    /// <summary>
+    /// Note 906 (#611; the brief §6): sending <paramref name="kind"/> would make, with what's there now, a conflict pair whose two
+    /// answers need more crew than are alive (<c>concurrency.pairMinCrew</c>): a crew of one isn't set a problem only two can
+    /// answer. Every channel's choices leave it out.
+    /// </summary>
+    bool Refused(EnemyKind kind, World world, IReadOnlyList<Enemy> active)
+    {
+        if (_t.Encounters.Concurrency is not { On: true } c || c.PairMinCrew.Count == 0)
+            return false;
+        string key = Key(kind);
+        foreach (var pair in _t.Conflicts)
+        {
+            if (pair.Length != 2)
+                continue;
+            string? other = pair[0] == key ? pair[1] : pair[1] == key ? pair[0] : null;
+            if (other is not null && !Concurrency.PairAllowed($"{pair[0]}+{pair[1]}", Math.Max(1, Active), c) && Present(other, world, active))
+                return true;
+        }
+        return false;
+    }
 
     /// <summary>
     /// Budget held back for the rare, expensive threats this run can still have (the Passenger): the director spends as soon
@@ -457,6 +483,10 @@ public sealed class Director
     int MaxConcurrent => (int)Math.Round((Crew >= 6 ? _t.MaxConcurrentLargeCrew : _t.MaxConcurrentSmallCrew)
         * (_t.Orchestrator.PerPlayerFor(_cars) / Math.Max(1e-9, _t.Orchestrator.PerPlayer)));
 
+    /// <summary>The most threats on one crewmate at once (the census's perTarget): note 906's by the cars with concurrency on.</summary>
+    int PerCrewmate => _t.Encounters.Concurrency is { On: true } c ? Concurrency.PerCrewmate(_cars, c)
+        : Math.Max(1, (int)Math.Floor(_t.Orchestrator.PerPlayerFor(_cars) + 1e-9));
+
     /// <summary>At or near one of the route's facilities: within <paramref name="margin"/> of its span.</summary>
     bool NearFacility(double distance, double margin) =>
         _route is not null && _route.Of(FeatureKind.Facility).Any(f => distance >= f.Start - margin && distance <= f.End + margin);
@@ -512,6 +542,18 @@ public sealed class Director
         // With no route, the same stand-in line as the pressure's (Build): 20 km.
         double progress = EncounterPacing.Progress(elapsed, _route?.DawnSeconds ?? 0, world.Train.Dynamics.Distance, _route?.RunLength ?? 20_000, _clock.Progress);
         EncounterRate = EncounterPacing.Rate(progress, Math.Max(1, Active), _cars, _route?.Tier ?? RouteTier.Frontier, e);
+        // A crew that's losing gets relief (note 906, #611): λ counts only the living already; × the alive share and the hurt.
+        if (e.Concurrency is { On: true } c && world.CrewThisTick is { Count: > 0 } crew)
+        {
+            int alive = 0, hurt = 0;
+            foreach (var (_, state) in crew)
+                if (state.Alive)
+                {
+                    alive++;
+                    hurt += state.Health < c.HurtBelow ? 1 : 0;
+                }
+            EncounterRate *= Concurrency.Relief(alive, crew.Count, hurt, c);
+        }
         double headroom = Math.Max(0, EngagedCap - Holding(world, active).Count);
         _clock = (_clock with { Progress = progress }).Second(EncounterRate / 60, _hold, _unmet, headroom, e);
     }
@@ -720,10 +762,11 @@ public sealed class Director
         // The night's curve fills the gaps the rules leave (note 849; curve.fill): with no rule met (the moving train lets few
         // kinds in; a crew of one or two fewer), the pressure spends on the rule-less instead of nothing: a kind sent without
         // its situational rule, at its free weight, charged and paced as any spend.
+        options.RemoveAll(o => Refused(o.Kind, world, active));
         bool fill = false;
         if (options.Count == 0 && _t.Curve.Fill && (due || !_t.Curve.FillPressed) && world.Enemies is { } ft)
         {
-            options = FreeOptions(world, ft, holding, withBound: false);
+            options = FreeOptions(world, ft, holding, active, withBound: false);
             options.RemoveAll(o => Cost(o.Kind) > (due ? Math.Max(available - Reserve(world, s, o.Kind), _t.PacedCost) : available - Reserve(world, s, o.Kind)));
             fill = options.Count > 0;
         }
@@ -794,14 +837,15 @@ public sealed class Director
     /// rule's weight × <c>curve.bound</c> × the curve. Each × the tuning's weights and the night's variety; under the roster,
     /// the kind's night, slain and the zone caps. A Dragger or Whistler (silent until met) only with nothing else.
     /// </summary>
-    List<(EnemyKind Kind, double Weight)> FreeOptions(World world, EnemyTuning et, List<Enemy> holding, bool withBound)
+    List<(EnemyKind Kind, double Weight)> FreeOptions(World world, EnemyTuning et, List<Enemy> holding, IReadOnlyList<Enemy> active, bool withBound)
     {
         var f = _t.Curve;
         var ctx = new SpawnContext(world, et, this) { Free = true };
         var options = new List<(EnemyKind Kind, double Weight)>();
         foreach (var rule in Spawns.Rules)
         {
-            if (!Allows(rule.Kind) || !Tonight(rule.Kind, world) || world.Slain.Contains(rule.Kind) || !Room(rule.Kind, holding) || FailedLately(rule.Kind))
+            if (!Allows(rule.Kind) || !Tonight(rule.Kind, world) || world.Slain.Contains(rule.Kind) || !Room(rule.Kind, holding) || FailedLately(rule.Kind)
+                || Refused(rule.Kind, world, active))
                 continue;
             double w;
             if (rule.Weight(ctx) is { } met && met > 0)
@@ -853,7 +897,7 @@ public sealed class Director
         }
         if (world.Enemies is not { } et)
             return null;
-        var options = FreeOptions(world, et, holding, withBound: true);
+        var options = FreeOptions(world, et, holding, active, withBound: true);
         if (options.Count == 0)
         {
             _unmet = DebtCause.Ineligible;
@@ -990,7 +1034,7 @@ public sealed class Director
             if (boards ? boarding >= boardsWanted || stood < st.BoardingAfterSeconds : waiting >= wants)
                 continue;
             if (!Allows(rule.Kind) || !Tonight(rule.Kind, world) || world.Slain.Contains(rule.Kind) || !Room(rule.Kind, holding)
-                || FailedLately(rule.Kind) || rule.Weight(ctx) is not { } w || w <= 0)
+                || FailedLately(rule.Kind) || rule.Weight(ctx) is not { } w || w <= 0 || Refused(rule.Kind, world, active))
                 continue;
             options.Add((rule.Kind, w * _t.Weights.GetValueOrDefault(Key(rule.Kind), 1) * NightVariety(rule.Kind)));
         }
@@ -1047,7 +1091,7 @@ public sealed class Director
             if (posts.Count == 0)
                 return op;
             if (o.PerTarget && entries.Where(c => posts.Contains(c.Post)).ToList() is { Count: > 0 } answering
-                && answering.All(c => c.On >= Math.Max(1, (int)Math.Floor(o.PerPlayerFor(_cars) + 1e-9))))
+                && answering.All(c => c.On >= PerCrewmate))
                 return (op.Kind, 0.0);
             double w = op.Weight;
             if (next is not null && posts.Contains(next.Post))

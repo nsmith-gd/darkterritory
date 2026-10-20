@@ -54,6 +54,20 @@ public class LiveCrewTests
         Assert.Equal(four, d.Budget, 9);
     }
 
+    // On the night's four cars: the living × (0.75 + 0.2 a car past three), half up (note 906, director.encounters.concurrency).
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(2, 2)]
+    [InlineData(3, 3)]
+    [InlineData(4, 4)]
+    [InlineData(5, 5)]
+    [InlineData(8, 8)]
+    public void TheEngagedCapGoesByTheCrewActive(int crew, int cap)
+    {
+        Assert.Equal(cap, Crewed(crew).World.Director!.EngagedCap);
+    }
+
+    // Before note 906 (concurrency off): App. B.1's flat 4 / 6 and ceil(active × 0.75) (note 336).
     [Theory]
     [InlineData(1, 1)]
     [InlineData(2, 2)]
@@ -61,9 +75,20 @@ public class LiveCrewTests
     [InlineData(4, 3)]
     [InlineData(5, 4)]
     [InlineData(8, 6)]
-    public void TheEngagedCapGoesByTheCrewActive(int crew, int cap)
+    public void WithConcurrencyOffTheEngagedCapIsNote336s(int crew, int cap)
     {
-        Assert.Equal(cap, Crewed(crew).World.Director!.EngagedCap);
+        var off = E with { Director = D with { Encounters = D.Encounters with { Concurrency = D.Encounters.Concurrency with { On = false } } } };
+        Assert.Equal(cap, Crewed(crew, enemies: off).World.Director!.EngagedCap);
+    }
+
+    [Fact]
+    public void TheEngagedCapCountsOnlyTheLiving()
+    {
+        var n = Crewed(4);
+        foreach (int id in new[] { 2, 3 })
+            n.Crew[id] = n.Crew[id] with { Health = 0, Death = DeathCause.Mauled };
+        n.Run(1.1);
+        Assert.Equal(2, n.World.Director!.EngagedCap);
     }
 
     [Fact]

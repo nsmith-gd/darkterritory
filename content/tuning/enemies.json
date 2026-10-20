@@ -1331,8 +1331,10 @@
       "base": 0.12, "ramp": 0.33, "rampPerCrew": 0.035, "power": 1.2, "perCrew": 0.07, "perCar": 0.05, "carsFrom": 3,
       "tier": { "local": 0.8, "frontier": 1, "deadLines": 1.2, "deepTerritory": 1.4 },
       "max": 3,
-      // Concurrency and overlap by crew and train length (the brief §1 B–C, §6; note 906; Concurrency, ConcurrencyTests). Not
-      // yet read by the director: it goes in with #604's threat states and #608's pacing.
+      // Concurrency and overlap by crew and train length (the brief §1 B–C, §6; note 906; Concurrency, ConcurrencyTests). With
+      // `on` the director reads it: the engaged cap and the census's perTarget below, the pairs a night, the pairs refused a
+      // small crew (every channel's choices), and the relief on the encounter rate (drive). on false: the director as before
+      // (maxConcurrentSmallCrew / LargeCrew, orchestrator.engagedPerActive ... perPlayerLong, pairsPerRun as it stands).
       // The engaged cap: the living × share, share rising by sharePerCar a car past carsFrom to at most shareMax, rounded half
       // up, at least 1 while anyone's alive, at most max: solo 1 to 6 cars and 2 from 7; two crew 2 on 4 cars, 3 on 6, 4 on 8;
       // four 4 on 4 cars, 7 on 8; eight 11 on 6 cars, 12 from 7. Gradual, where App. B.1's flat 4 / 6 (maxConcurrentSmallCrew /
@@ -1348,6 +1350,7 @@
       // Relief when crew are lost (§1 B, §6): × (alive ÷ the crew in the night)^reliefPower × (1 − hurtRelief × the share of
       // the living under hurtBelow health), on the encounter rate (which counts only the living already).
       "concurrency": {
+        "on": true,
         "share": 0.75, "sharePerCar": 0.2, "carsFrom": 3, "shareMax": 2, "max": 12, "perCrewmateMax": 2,
         "ambientRoom": 1, "ambientPerCar": 0.1,
         "pairsPerCrew": 0.25,
