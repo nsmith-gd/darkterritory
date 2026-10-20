@@ -1,3 +1,4 @@
+using Ballast;
 using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Train;
 
@@ -133,8 +134,11 @@ public class NightCurveTests
         // A crew of one meets one thing at a time (App. B.1; note 336): with one engaged, nothing comes free.
         var solo = Plain(Curved(), at: 19_000, crew: 1);
         Assert.Equal(1, solo.Director!.EngagedCap);
+        // Alert aboard the train (note 881: a threat, not a body left kilometres off down the line, which holds no cap).
         var climber = solo.AddEnemy(id => new Climber(id));
+        climber.Restore(SpinePhase.Alert, 0, 3, 1, new Double3(0, 4, 0), 0, 0, 0, 0, 0);
         Assert.True(Director.Engaged(climber));
+        Assert.Equal(ThreatState.Threatening, Threats.Of(climber, solo, D.Threats));
         for (int i = 0; i < 1_800; i++)
             Assert.Null(solo.Director.Decide(solo, 1_000 + i, [climber], 500));
     }
