@@ -1057,6 +1057,12 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [873. A crate hand sent to shut a car's door stood still at the foot of its steps (queue #553; B3's find on #532, note 820)](notes/873.md)
 - [874. The spawn director overhaul: the plan, split into queue items #600–#613 so several agents can work at once (the director, 20 Oct 2026;…](notes/874.md)
 - [876. Bounded encounter debt: `EncounterDebt`, the spawn director overhaul's #607 (C2) (the director's brief,…](notes/876.md)
+- [877. The encounter rate λ(progress, crew, cars, tier): `EncounterPacing` (the director's brief §1, §3; plan note 874; nathaniel1's n1-C1, queue…](notes/877.md)
 - [880. Encounter telemetry: an `EncounterLog` in the Sim, reported as the `encounters` block of `dt harness` and `dt playthrough` (queue #600, the…](notes/880.md)
 - [891. The Cinder Hounds aboard, the director's 9 Oct answer (n1-H1, queue #614; inbox `D1.2-car-fires-from-packs`, note 857's call 1)](notes/891.md)
+- [896. Epic Online Services P2P: the third datagram carrier, for players off Steam (n1-N1, queue #274; the netcode audit's gap 6; note 24)](notes/896.md)
+- [894. The shunter alone at a pick-up's points, eaten by the Ribbits (queue #615, n1-w7 for nathaniel1; from note 859's Unfixed)](notes/894.md)
+- [897. Docs from the director's inbox answers of 20 Oct (n1-G2, queue #616; note 857's calls 3, 5, 6 and 10)](notes/897.md)
+- [898. Shove off Caps Lock, and the controls map brought up to date (queue #617; the director's inbox answer of 20 Oct,…](notes/898.md)
+- [899. The rear searchlight, look only (queue #410, from note 678's handoff; the director's inbox answer of 20 Oct,…](notes/899.md)
 <!-- end of the notes index -->
