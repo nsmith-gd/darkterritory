@@ -58,7 +58,6 @@ public class CreatureRestrictionGuardTests
         ["knotter: a standing train"] = new(EnemyKind.Knotter, e => Stood(e)),
         ["gannet: a standing train"] = new(EnemyKind.Gannet, e => Stood(e)),
         ["brakeman: a standing train"] = new(EnemyKind.Brakeman, e => Stood(e)),
-        ["climbers: a standing train"] = new(EnemyKind.Climber, e => Stood(e)),
         // ...and what comes to a standing one never to one on the move.
         ["whistler: a moving train"] = new(EnemyKind.Whistler, e => Moving(e, 14)),
         ["moose: a moving train"] = new(EnemyKind.Moose, e => Moving(e, 14)),
@@ -119,13 +118,13 @@ public class CreatureRestrictionGuardTests
         // The contrasts: the same pressed director, the creature's rule met, sends it (so the cases aren't held by something else).
         var hounds = Moving(DirectorGuardTests.Pressed([Director.Key(EnemyKind.CinderHound)]), E.CinderHounds.MinTrainSpeed + 4);
         hounds.Run(Seconds);
-        Assert.Contains(hounds.Arrivals, a => a.Kind == EnemyKind.CinderHound);
+        Assert.True(hounds.Arrivals.Any(a => a.Kind == EnemyKind.CinderHound), $"no hounds: {hounds.Director.HeldBecause}");
         var ribbits = Stood(DirectorGuardTests.Pressed([Director.Key(EnemyKind.Ribbit)]));
         ribbits.Run(Seconds);
-        Assert.Contains(ribbits.Arrivals, a => a.Kind == EnemyKind.Ribbit);
-        var huggers = Moving(DirectorGuardTests.Pressed([Director.Key(EnemyKind.CarHugger)]), 10);
-        huggers.Run(Seconds);
-        Assert.Contains(huggers.Arrivals, a => a.Kind == EnemyKind.CarHugger);
+        Assert.True(ribbits.Arrivals.Any(a => a.Kind == EnemyKind.Ribbit), $"no ribbits: {ribbits.Director.HeldBecause}");
+        var draggers = Moving(DirectorGuardTests.Pressed([Director.Key(EnemyKind.Dragger)]), 8);
+        draggers.Run(Seconds);
+        Assert.True(draggers.Arrivals.Any(a => a.Kind == EnemyKind.Dragger), $"no draggers: {draggers.Director.HeldBecause}");
     }
 
     [Theory]

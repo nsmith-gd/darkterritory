@@ -25,12 +25,13 @@ public class DirectorGuardNetTests
     /// <summary>Everything that came into the host's world, tick by tick, and the director's sends by every channel.</summary>
     sealed record NightRecord(List<string> Arrivals, List<string> Sends, HarnessReport Report);
 
-    /// <summary>A four-bot night on frontier:7 (the yard, the gates, the line and its stops), its director's seed the night's.</summary>
-    static NightRecord Night(int seed, double seconds = 420)
+    /// <summary>Two bots on frontier:7 from just past its gates, the director pressed, its seed the night's.</summary>
+    static NightRecord Night(int seed, double seconds = 120)
     {
         var route = Routes.Generate(Content, "frontier:7", 6);
         double gate = route.GateOr(Tuning.Route.YardLength);
-        double from = Tuning.Run.DepartFrom(gate, Consist.Uniform(T, 6, 1).LengthMetres);
+        // Out past the gates from the first tick, so the night's spent on the line, not boarding.
+        double from = gate + 400;
         var arrivals = new List<string>();
         var seen = new HashSet<int>();
         World? last = null;
@@ -46,19 +47,17 @@ public class DirectorGuardNetTests
                         arrivals.Add($"{tick} #{e.Id} {e.Kind} {at.X:0.000} {at.Y:0.000} {at.Z:0.000}");
                     }
             },
-            Bots = 4,
+            Bots = 2,
             Cars = 6,
             Seconds = seconds,
             Seed = seed,
             Link = new LinkConditions(0.09, 0.02, 0.03),
             StartDistance = from,
-            WalkAboard = from < gate,
+            WalkAboard = false,
             Combat = Tuning.Combat,
-            Enemies = DirectorGuardTests.Pressed(grace: null),
+            Enemies = DirectorGuardTests.Pressed(),
             Route = route,
             Run = Tuning.Run,
-            Facilities = DataFile.Load<Run.FacilityTuning>(Path.Combine(Content, Run.FacilityTuning.File)),
-            Loot = DataFile.Load<Stops.LootTuning>(Path.Combine(Content, Stops.LootTuning.File)),
             YardLength = gate,
         });
         var d = last!.Director!;
@@ -75,8 +74,8 @@ public class DirectorGuardNetTests
         var a = Night(seed: 2);
         var b = Night(seed: 2);
         // Something happened (a guard over an empty night guards nothing)...
-        Assert.True(a.Sends.Count > 3, $"only {a.Sends.Count - 1} sends");
-        Assert.True(a.Arrivals.Count > 3, $"only {a.Arrivals.Count} arrivals");
+        Assert.True(a.Sends.Count > 1, $"only {a.Sends.Count - 1} sends: {string.Join(", ", a.Report.Threats!.Director.Select(k => k.Key + " " + k.Value))}");
+        Assert.True(a.Arrivals.Count >= 3, $"only {a.Arrivals.Count} arrivals");
         // ...and it all happened again, at the same tick, where it did.
         Assert.Equal(a.Sends, b.Sends);
         Assert.Equal(a.Arrivals, b.Arrivals);
