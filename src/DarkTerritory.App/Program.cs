@@ -335,10 +335,9 @@ var telemetryGate = new DarkTerritory.Game.Telemetry.FixedTelemetryGate(startSet
     Arg("--telemetry-dir", DarkTerritory.Game.Telemetry.FixedTelemetryGate.DefaultDirectory));
 var telemetry = DarkTerritory.Game.Telemetry.SessionRecorder.ToFile(telemetryGate);
 using var telemetryOwner = telemetry.Closer;
+bool devBuild = false;
 #if DEVTOOLS
-const bool devBuild = true;
-#else
-const bool devBuild = false;
+devBuild = true;
 #endif
 telemetry.Begin(new DarkTerritory.Game.Telemetry.SessionFacts(EditionTuning.Load(content).Name, devBuild, DarkTerritory.Game.Telemetry.SessionFacts.ThisOs,
     gpu.DeviceName, vr is not null, startSettings.Resolution, startSettings.RenderScale, startSettings.VSync, startSettings.FieldOfView, frontEnd.Kit.Cohort));
