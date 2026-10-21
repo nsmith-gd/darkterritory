@@ -57,8 +57,8 @@ public class ClerkTallyTests
         Assert.Equal(1, counts["geraldTaken"]);
         var report = new RunReport(RunEnd.Delivered, 1000, 12, 3, 0, 2, 1240, 40, 12, 30, 1158, 3, 0) { Counts = counts };
         var lines = Radio.Tally(report, Campaign.Campaign.TallyLines(C, owned));
-        Assert.Contains("Dining car: laid. Bar: 2 poured.", lines);
-        Assert.Contains("Deck: barbecue. Beers: 3. Off the grill: 0.", lines);
+        Assert.Contains("Car: candles. Taken: 2.", lines);
+        Assert.Contains("Deck: barbecue. Taken: 3. Food: 0.", lines);
         Assert.Contains("Gerald. Body not recovered. Fee 0.", lines);
         Assert.Contains("Canary: singing.", lines);
         // The report reaches the clients as JSON (Messages.ReportMessages): the counts with it, so they read the same.
