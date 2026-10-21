@@ -2281,6 +2281,9 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
     /// </summary>
     public void Report(in PlayerState self) => calls.Say(member, job, self);
 
+    /// <summary>Where it is, its part not its to work now: gone forward to the controls as the relief driver (note 955).</summary>
+    public void ReportOff(in PlayerState self) => calls.Say(member, StopJob.None, self);
+
     /// <summary>It's gone in off the roofs (and says where it is), or come out again.</summary>
     public void Warming(in PlayerState self, bool on)
     {

@@ -1634,8 +1634,13 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
 
     public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
     {
-        // Note 609: where it is, whatever it's about (StopHand.Report).
-        job?.Report(self);
+        // Note 609: where it is, whatever it's about (StopHand.Report). Note 955: gone forward to the controls, its part isn't
+        // its to work (frontier:7 seed 10's relief was the shunter, and its driving stood 150 s at the Foundry's points waiting
+        // for the shunter to set them back): heard as no part, the driving works that part alone, as a crew without one does.
+        if (Relieving)
+            job?.ReportOff(self);
+        else
+            job?.Report(self);
         return HoldOn(self, world.Train, Decided(self, world, tick, out aimed));
     }
 

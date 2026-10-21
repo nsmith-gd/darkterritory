@@ -1,7 +1,9 @@
+using Ballast;
 using DarkTerritory.Sim.Bots;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Run;
+using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Tests;
 
@@ -91,5 +93,30 @@ public partial class StopCrewTests
             $"never left: the relief {relief.Doing} at {night.Train.Dynamics.Distance:0} on {night.Train.Dynamics.Path}; crew {where}");
         Assert.All(night.Crew.Skip(1).Where(c => c.Alive), c => Assert.NotEqual(PlayerState.World, c.Parent));
         Assert.Contains(relief.Log, r => r.Facility == plan.Facility);
+    }
+
+    [Fact]
+    public void TheShunterGoneForwardForTheControlsIsNoShunterToWaitFor()
+    {
+        // Note 955 (frontier:7 seed 10): the relief was the shunter, and still said so; its driving stood 150 s at the Foundry's
+        // points (ShunterGiveUp) for a shunter to come and set them back, before it went down and did it itself. Gone forward
+        // for the controls, it's heard as no part: the driving does the shunter's part alone, as a crew without one does.
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), new RailLine(new LineDefinition("t", [new TrackSegment(4000)])), 600);
+        var world = new World(train, Tuning.Combat);
+        world.EnableBodies();
+        var calls = new CrewCalls();
+        var cab = PlayerMotor.SpawnInCab(train, P);
+        calls.Say(0, StopJob.Driver, cab);
+        var bot = new RoofWalkerBot(21, new StopHand(StopJob.Shunter, calls, 1)) { Me = 2, Calls = calls };
+        var roof = PlayerMotor.SpawnOnRoof(train, 2, 0, P);
+        bot.Decide(roof, world, 0, out _);
+        Assert.True(calls.Has(StopJob.Shunter));
+        calls.Say(0, StopJob.Driver, cab with { Health = 0, Death = DeathCause.Mauled });
+        world.Tick++;
+        bot.Decide(roof, world, 1, out _);
+        Assert.True(bot.Relieving);
+        world.Tick++;
+        bot.Decide(roof, world, 2, out _);
+        Assert.False(calls.Has(StopJob.Shunter));
     }
 }
