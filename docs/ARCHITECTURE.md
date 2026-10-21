@@ -1131,4 +1131,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [972. The clerk's tally of the silly upgrades (Hazel, queue #672; note 959's leftover)](notes/972.md)
 - [974. The dining car modelled (C1, queue #674; the art pass over #656's greybox, note 959)](notes/974.md)
 - [975. The flare pistol heard: the shot, the flare burning, an empty click (AU1, queue #675; the Audio Checklist's `up-flare` line)](notes/975.md)
+- [971. Households that argue, and lines that change once the custom has been told (Cole, queue #671)](notes/971.md)
+- [972. The clerk's tally of the silly upgrades (Hazel, queue #672)](notes/972.md)
+- [979. A note out along the line is left only at a leaving that's there (queue #679, B1; found under note 965's notes at the line's leavings, 21…](notes/979.md)
 <!-- end of the notes index -->

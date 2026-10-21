@@ -1111,6 +1111,9 @@ public sealed partial class World
         // Note 719: built again, the jackpot houses are locked again.
         if (Run is { } run)
             Train.Walls.Lock(run.LockedDoors());
+        // Note 979: and the odd things dealt again, so no note's left in the towns' ground, where the lineside isn't drawn.
+        if (Oddities is not null && Run is { } r)
+            EnableOddities(r.Tuning, route);
         Train.Walls.Add(Town.Walls);
         if (Arrival is not null)
             Train.Walls.Add(Arrival.Walls);

@@ -24,8 +24,22 @@ public sealed partial class LinesideProps
     {
         foreach (var (_, yaw, laid) in Laid(from, to))
             foreach (var (piece, s, lateral) in laid)
-                yield return PieceOf(piece.Name, s, lateral, yaw + piece.Turn, 1, LeavingSink - piece.Lift, piece.Variant, GroundAt(s, lateral));
+                yield return LeavingPiece(piece, s, lateral, yaw);
     }
+
+    /// <summary>A leaving's piece as a piece of the lineside, where <see cref="Laid"/> lays it, turned with the leaving.</summary>
+    LinesideProp LeavingPiece(Leavings.Piece piece, double s, double lateral, double yaw) =>
+        PieceOf(piece.Name, s, lateral, yaw + piece.Turn, 1, LeavingSink - piece.Lift, piece.Variant, GroundAt(s, lateral));
+
+    /// <summary>
+    /// Whether a leaving <see cref="Laid"/> lays is there whole, drawn and standing (note 979): none of its pieces kept out of
+    /// a board's sight line or crowded out by a building, as <see cref="Props"/> leaves them out, and none in a fortress's or a
+    /// town's ground (<paramref name="forts"/>), where the art draws nothing of the lineside and the walls stand nothing
+    /// (<see cref="InsideAFort"/>). What's left at a leaving (a note, note 965) is left only at one that's whole.
+    /// </summary>
+    public bool Whole(double yaw, IEnumerable<(Leavings.Piece Piece, double S, double Lateral)> pieces, IReadOnlyList<Fort>? forts) =>
+        pieces.All(x => (forts is null || !InsideAFort(forts, x.S, x.Lateral))
+            && LeavingPiece(x.Piece, x.S, x.Lateral, yaw) is var p && !Hidden(p) && !InABuilding(p));
 
     /// <summary>
     /// The leavings left on the line (<see cref="LineLeavings"/>'s, before they're pieces): each as dealt, the way it's
