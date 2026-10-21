@@ -235,6 +235,17 @@ public static class Eyes
     /// <summary>Sat on an edge, legs over (note 722): the eyes over the edge sat on (m), a seated body's (CreatureArt.SitOnEdge).</summary>
     public const double SatOnEdge = 0.92;
 
+    /// <summary>Sat on one of the big cab's benches (note 905), sat up on its edge as on any edge (<see cref="SatOnEdge"/>), not lounging back.</summary>
+    static bool OnABench(in PlayerState s, IReadOnlyList<CarFrame> frames)
+    {
+        if (s.Parent < 0 || s.Parent >= frames.Count)
+            return false;
+        foreach (var l in frames[s.Parent].Shape.Lounges)
+            if (l.Kind == Sim.Train.LoungeKind.Bench && (l.At - s.Position).Length < 0.05)
+                return true;
+        return false;
+    }
+
     /// <summary>
     /// Up in the crane's cab while at its controls (T48): looking along the gantry at the bridge and trolley. Spec D.2: "the
     /// crane operator cannot see the ground crew", who have to call the position. Note 707 (the director: "widen the camera
@@ -284,7 +295,7 @@ public static class Eyes
         double crouchDrop = 0)
     {
         var local = prev.Parent == cur.Parent ? Double3.Lerp(prev.Position, cur.Position, alpha) : cur.Position;
-        var eyeLocal = local + Double3.Up * (!cur.Alive ? 0.3 : cur.Has(PlayerFlags.Seated) ? Seated : cur.Has(PlayerFlags.Lounging) ? Lounging
+        var eyeLocal = local + Double3.Up * (!cur.Alive ? 0.3 : cur.Has(PlayerFlags.Seated) ? Seated : cur.Has(PlayerFlags.Lounging) ? (OnABench(cur, frames) ? SatOnEdge : Lounging)
             : cur.Has(PlayerFlags.Crouched) && cur.Head <= 0 ? Height - crouchDrop : Height);
         bool onCar = cur.Parent != PlayerState.World && cur.Parent < frames.Count;
         var eye = onCar ? frames[cur.Parent].ToWorld(eyeLocal) : eyeLocal;

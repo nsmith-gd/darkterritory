@@ -6,8 +6,9 @@ namespace DarkTerritory.Game.Telemetry;
 /// session began), and then only the fields <see cref="Events"/> lists for its type. The recorder can't write a field the
 /// table doesn't list (<see cref="SessionRecorder"/> throws), and <c>TelemetrySchemaTests</c> pins the table to note 913's:
 /// a change to either is a change to both, and to <see cref="Version"/> when a field's meaning or a type goes.
-/// <para>Nothing personal (note 907, #625): no names, no Steam id, no IP, no text anyone typed. The crew is counted, never
-/// named; an incident is its kind and cause, never its line (which names players).</para>
+/// <para>Nothing personal (note 907, #625): no names, no Steam id, no IP, no text anyone typed but the survey's comment,
+/// which the player writes for us (#628, note 916). The crew is counted, never named; an incident is its kind and cause,
+/// never its line (which names players).</para>
 /// </summary>
 public static class TelemetrySchema
 {
@@ -16,8 +17,8 @@ public static class TelemetrySchema
     /// <summary>Every event type and its fields, in the order they're written.</summary>
     public static readonly IReadOnlyDictionary<string, string[]> Events = new Dictionary<string, string[]>(StringComparer.Ordinal)
     {
-        // Once, when the game starts recording: what it is and what it runs on.
-        ["session"] = ["session", "install", "build", "commit", "edition", "dev", "os", "gpu", "vr", "resolution", "renderScale", "vsync", "fov"],
+        // Once, when the game starts recording: what it is and what it runs on; and the playtest it's for (#628).
+        ["session"] = ["session", "install", "build", "commit", "edition", "dev", "os", "gpu", "vr", "resolution", "renderScale", "vsync", "fov", "cohort"],
         // A night begins: where, how long a train, who's aboard (counted), and this machine's part in it.
         ["night"] = ["night", "role", "route", "tier", "cars", "humans", "bots"],
         // Each minute of a night: how far, who's alive, how it ran, how the link was.
@@ -42,6 +43,9 @@ public static class TelemetrySchema
         // A night over: how it ended and what came of it, and how it ran.
         ["nightEnd"] = ["night", "end", "seconds", "km", "carsDelivered", "carsLost", "cargoDelivered", "net", "crewHome", "crewLost",
             "deaths", "encounters", "hitches", "p50", "p95", "p99"],
+        // The end-of-night survey (#628, note 916): fun, fear and play-again, 1-5 or null; the player's own comment, if any;
+        // or that they skipped it.
+        ["survey"] = ["night", "fun", "fear", "again", "comment", "skipped"],
         // Leaving: to the menu mid-night, quitting the game, kicked, or the link lost; and how far into a night.
         ["quit"] = ["how", "night", "s"],
     };

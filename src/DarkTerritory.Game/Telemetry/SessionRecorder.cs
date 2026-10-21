@@ -50,8 +50,9 @@ public sealed class FileTelemetrySink(string path) : ITelemetrySink, IDisposable
 }
 
 /// <summary>What the machine and the build are (the <c>session</c> event).</summary>
+/// <param name="Cohort">The playtest's cohort code (#628, note 916: typed in Settings or baked into a playtest build); null, none.</param>
 public sealed record SessionFacts(string Edition, bool Dev, string Os, string Gpu, bool Vr, string Resolution, double RenderScale, bool VSync,
-    double FieldOfView)
+    double FieldOfView, string? Cohort = null)
 {
     /// <summary>The OS as the runtime names it.</summary>
     public static string ThisOs => System.Runtime.InteropServices.RuntimeInformation.OSDescription;
@@ -152,7 +153,7 @@ public sealed class SessionRecorder
         var (build, commit) = Report.Build();
         Emit("session", ("session", SessionId), ("install", _gate.InstallId), ("build", build), ("commit", commit), ("edition", f.Edition), ("dev", f.Dev),
             ("os", f.Os), ("gpu", f.Gpu), ("vr", f.Vr), ("resolution", f.Resolution), ("renderScale", f.RenderScale), ("vsync", f.VSync),
-            ("fov", f.FieldOfView));
+            ("fov", f.FieldOfView), ("cohort", f.Cohort));
     }
 
     /// <summary>
@@ -171,6 +172,8 @@ public sealed class SessionRecorder
         _me = me;
         _startParent = int.MinValue;
         _firsts.Clear();
+        _promptsShown.Clear();
+        _prompt = null;
         _startKm = world.Train.Dynamics.Distance / 1000;
         Array.Clear(_minuteFrames);
         Array.Clear(_nightFrames);
@@ -239,6 +242,59 @@ public sealed class SessionRecorder
             Emit("prompt", ("night", InNight ? _night : 0), ("name", name), ("acted", acted));
     }
 
+    /// <summary>At most this many of one prompt's showings a night are written (walking past a row of lockers is one prompt).</summary>
+    public const int PromptsEach = 5;
+    string? _prompt;
+    bool _promptUsed;
+    readonly Dictionary<string, int> _promptsShown = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Each frame of a night: the prompt at the crosshair (<c>Hud.Prompt</c>, null for none) and whether Use was pressed. A
+    /// prompt's showing ends when it changes or goes, and is written then as <c>prompt</c>: its name and whether it was acted
+    /// on while it showed. Its name is its words (<see cref="PromptName"/>), never anyone's name.
+    /// </summary>
+    public void Prompting(World world, string? prompt, bool used)
+    {
+        if (!Enabled || !InNight)
+            return;
+        string? name = prompt is null ? null : PromptName(prompt, world.Names.Values);
+        if (name == _prompt)
+        {
+            _promptUsed |= used && name is not null;
+            return;
+        }
+        EndPrompt();
+        (_prompt, _promptUsed) = (name, used && name is not null);
+    }
+
+    void EndPrompt()
+    {
+        if (_prompt is not { } shown)
+            return;
+        _prompt = null;
+        int n = _promptsShown.GetValueOrDefault(shown);
+        _promptsShown[shown] = n + 1;
+        if (n < PromptsEach)
+            Prompt(shown, _promptUsed);
+    }
+
+    /// <summary>
+    /// A prompt as the schema names it: its words before the key it asks for ("MEND THE CAR : HOLD [E]" → "MEND THE CAR"), with
+    /// no numbers (a share done, a count) and no crewmate's name (a prompt can name who it's about: "SOMEONE").
+    /// </summary>
+    public static string PromptName(string prompt, IEnumerable<string> names)
+    {
+        string text = prompt;
+        int colon = text.IndexOf(" : ", StringComparison.Ordinal);
+        if (colon > 0)
+            text = text[..colon];
+        foreach (string name in names.Where(n => n.Trim().Length > 0))
+            text = System.Text.RegularExpressions.Regex.Replace(text, System.Text.RegularExpressions.Regex.Escape(name.Trim()), "SOMEONE",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"\[[^\]]*\]|[0-9]+%?|[()]", "");
+        return System.Text.RegularExpressions.Regex.Replace(text, @"\s+", " ").Trim(' ', '.', ':', '-');
+    }
+
     public void Purchase(string what, double cost, double scripAfter)
     {
         if (Enabled)
@@ -256,6 +312,25 @@ public sealed class SessionRecorder
         if (Enabled)
             Emit("menu", ("name", name), ("seconds", seconds));
     }
+
+    /// <summary>The last night begun this session (0: none yet): what a survey after it is about.</summary>
+    public int LastNight => _night;
+
+    /// <summary>
+    /// The end-of-night survey (#628, note 916), after <see cref="NightEnd"/>: the night just played, its three answers (1-5,
+    /// null not said) and the player's comment if they wrote one and ticked it to be sent; skipped, none of it.
+    /// </summary>
+    public void Survey(SurveyAnswers a)
+    {
+        if (!Enabled || _night == 0)
+            return;
+        string? comment = a.Skipped || !a.SendComment || a.Comment is not { } c || c.Trim().Length == 0 ? null : c.Trim()[..Math.Min(c.Trim().Length, SurveyAnswers.CommentLength)];
+        Emit("survey", ("night", _night), ("fun", a.Skipped ? null : Rating(a.Fun)), ("fear", a.Skipped ? null : Rating(a.Fear)),
+            ("again", a.Skipped ? null : Rating(a.Again)), ("comment", comment), ("skipped", a.Skipped));
+        _sink!.Flush();
+    }
+
+    static int? Rating(int? r) => r is >= 1 and <= 5 ? r : null;
 
     /// <summary>The night over (or left): the host's encounters, then how it ended and how it ran.</summary>
     public void NightEnd(World world)
@@ -276,6 +351,7 @@ public sealed class SessionRecorder
             ("km", world.Train.Dynamics.Distance / 1000), ("carsDelivered", r?.CarsDelivered), ("carsLost", r?.CarsLost),
             ("cargoDelivered", r?.CargoDelivered), ("net", r?.Net), ("crewHome", r?.CrewHome), ("crewLost", r?.CrewLost), ("deaths", r?.Deaths),
             ("encounters", world.Encounters?.Encounters.Count), ("hitches", _nightHitches), ("p50", p50), ("p95", p95), ("p99", p99));
+        EndPrompt();
         InNight = false;
         _sink!.Flush();
     }

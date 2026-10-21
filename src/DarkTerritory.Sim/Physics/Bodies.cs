@@ -925,7 +925,7 @@ public sealed class Bodies
         var near = CrewActions.NearestInteractable(s, train, hand)?.Thing.Kind;
         var find = (party || carried is { Kind: BodyKind.Loot } && (on != playerId || s.Health < FullHealth) && Heals?.Invoke(carried) > 0) && !throwPressed
             && (near is null || party && near is InteractableKind.Chair or InteractableKind.Cooler or InteractableKind.Grill or InteractableKind.Hammock
-                or InteractableKind.HotTub) ? carried : null;
+                or InteractableKind.HotTub or InteractableKind.Bench) ? carried : null;
         bool had = _dosing.TryGetValue(playerId, out var was);
         if (had && (find is null || find.Id != was.Find || on != was.Patient))
         {
