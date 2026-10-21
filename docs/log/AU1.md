@@ -441,3 +441,18 @@ The director asked for the last three friendslop features to be heard. Two were 
 
 - The Token Budget Manager's RESUME (nathaniel2 at 0%). #1160 (#562) had merged on 16 Oct; #505 was finished by n1-w3 ([#1288](https://github.com/nsmith-gd/darkterritory/pull/1288)) and #649, the arrival town's sounds, by Ezra ([#1494](https://github.com/nsmith-gd/darkterritory/pull/1494)). The Voice Booth (#42) still has no Keep/Redo on its 34 versions.
 - The Audio Checklist's only line short of L1 that nobody holds is `up-flare`: the flare pistol (#598) is in play and drawn but silent. Claimed queue #675, note 975 (`crew-gun-lay` stays in review, waiting on the director's pick).
+
+## 21 Oct, ~21:15 UTC: #675 in review
+
+- The claim merged ([#1563](https://github.com/nsmith-gd/darkterritory/pull/1563), main merged in twice for the docs' union merge GitHub doesn't do).
+- The flare pistol heard (note 975): `recipes/flare.py` (two candidates a cue, uploaded to the checklist; the real ones installed), `GameAudio.Flare` (the shooter's own shot at once, everyone else's where the flare first flies; the burn held on the flare for its minute; the dry click), captions, `FlareSoundTests`. The `up-flare` line at L1, in review.
+
+## 21 Oct, ~21:20 UTC: #675 merging
+
+- [#1572](https://github.com/nsmith-gd/darkterritory/pull/1572) green on Linux and Windows (and the package and crossplay); main merged in once more, row #675 done in it (the union merge's stale copies of #671, #672 and #675 dropped). Merges on this run's green.
+- Next (one at a time): the coupling's long-carrying `state-coupling-loose.warn` (note 865; hooked in `GameAudio.Faults`, no sound yet), the clerk's word bank with the catalogue's words for Hazel's tally (note 972), the dining car's glass and bell (note 959), the big cab's benches (note 905), Rowan's audit's tidy-ups (note 858).
+
+## 21 Oct, ~22:05 UTC: #675 merged; #680, a pin working loose heard the length of the train
+
+- [#1572](https://github.com/nsmith-gd/darkterritory/pull/1572) merged (the flare pistol heard, #675, note 975). The `up-flare` line's notes say so.
+- Claimed queue #680, note 980: note 865's `state-coupling-loose.warn`, hooked in `GameAudio.Faults` since #592 but with no sound, so the warning borrows the ordinary knock pulled toward the ear.

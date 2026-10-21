@@ -19331,6 +19331,64 @@
   "takes": 1,
   "sha": "15772230a8f8f819"
  },
+ "up-flare/burn": {
+  "cue": "up-flare.burn",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A flare burning where it came down: a fierce magnesium hiss and sputter",
+    "key": "fizz",
+    "sources": [
+     "sfx_100_v2:air_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "07bdd9a00d814672"
+ },
+ "up-flare/click": {
+  "cue": "up-flare.click",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The flare pistol empty: the hammer falling dry",
+    "key": "hammer",
+    "sources": [
+     "kenney_rpg-audio:metalClick"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "622ebf8d3181569d"
+ },
+ "up-flare/shot": {
+  "cue": "up-flare.shot",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The flare pistol fired: a hollow pop and the flare hissing away",
+    "key": "pop",
+    "sources": [
+     "kenney_impact-sounds:impactSoft_heavy_000",
+     "kenney_impact-sounds:impactSoft_heavy_001",
+     "kenney_impact-sounds:impactSoft_heavy_002",
+     "kenney_impact-sounds:impactSoft_heavy_003",
+     "kenney_impact-sounds:impactSoft_heavy_004",
+     "kenney_rpg-audio:bookPlace2",
+     "sfx_100_v2:air_01",
+     "sfx_100_v2:air_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "40920970e790470e"
+ },
  "up-forge/anvil": {
   "cue": "up-forge.anvil",
   "surface": null,
