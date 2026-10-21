@@ -34,6 +34,8 @@ public sealed record SpoolTuning(long MaxSessionBytes = 2_000_000, long MaxTotal
 public sealed record UploadTuning(string Sink = "file", long MaxBatchBytes = 4_000_000, int Attempts = 3, double[]? BackoffSeconds = null)
 {
     public double[] Backoff => BackoffSeconds is { Length: > 0 } b ? b : [30, 120, 600];
+    /// <summary>The PostHog sink (queue #637, note 943): the sessions sent between nights, once the director's project key is in.</summary>
+    public PostHogTuning PostHog { get; init; } = new();
 }
 
 /// <summary>A session's file in the spool: its id, path, size, when it was last written, and whether it's been sent.</summary>

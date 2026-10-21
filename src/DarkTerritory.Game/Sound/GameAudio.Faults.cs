@@ -1,6 +1,7 @@
 using Ballast;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Combat;
+using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Train;
 
@@ -177,9 +178,13 @@ public sealed partial class GameAudio
             if (v.Id >= train.Frames.Count)
                 continue;
             // A hot axle box (note 331): its squeal at the rear bogie, harsher as it heats, and its smoke from halfway.
-            if (v.HotBox > 0 && train.HotBoxTuning is { } hb)
+            // Note 939 (the director's playtest of 20 Oct evening, line 9: "it's got to be one of these dudes on this wheel"): a
+            // fire it started, its squeal at its worst for as long as the car burns, so the box that caught is heard where it is.
+            bool caught = v.HotBox <= 0 && world.ActiveEnemies.Any(e => e is CarFire { Gone: false, Cause: FireCause.HotBox } f && f.Attached == v.Id
+                && f.Phase is not SpinePhase.Dormant and not SpinePhase.BreakOff);
+            if ((v.HotBox > 0 || caught) && train.HotBoxTuning is { } hb)
                 Hold("hotbox", v.Id, train.Frames[v.Id].ToWorld(HotBoxes.Box(train.Frames[v.Id].Shape, hb)), outside)?
-                    .Params.Set("heat", Math.Clamp(v.HotBox / hb.FireAfter, 0, 1));
+                    .Params.Set("heat", caught ? 1 : Math.Clamp(v.HotBox / hb.FireAfter, 0, 1));
             var hole = train.Frames[v.Id].ToWorld(v.BreachAt);
             if (!_faultCars.TryGetValue(v.Id, out var c))
             {

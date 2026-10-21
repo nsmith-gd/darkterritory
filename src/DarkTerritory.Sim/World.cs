@@ -206,6 +206,8 @@ public sealed partial class World
     public int BendsSpared { get; set; }
     /// <summary>Host: the fires a boarded hound pack has set (note 269's; counted for the burns' report, note 437).</summary>
     public int PackFires { get; set; }
+    /// <summary>Host (note 939): how many fires each car (by index) has had tonight, for the relight told.</summary>
+    readonly SortedDictionary<int, int> _firesIn = [];
     /// <summary>Host: how long the cab's dead-end warning has been up (<see cref="Sim.Train.DeadEnds"/>, note 286).</summary>
     public double DeadEndWarnSeconds { get; set; }
     /// <summary>Host: buffers hit over the limit before the warning had been up its lead (the buffer stop's damage alone; should be 0).</summary>
@@ -2261,7 +2263,12 @@ public sealed partial class World
         };
         string action = fire.Cause == Sim.Enemies.FireCause.Jumped ? $"From car {fire.From}." : fire.Action;
         Attribution.Add(Sim.Run.IncidentLog.Event(this, Sim.Run.IncidentKind.Fire, what, fire.Actor, action, car));
-        var news = new Sim.Run.NewsEvent(_nextFx, Tick, Sim.Run.NewsKind.Fire, [car], (byte)fire.Cause, (byte)Math.Clamp(fire.From, 0, 255), fire.Actor, 0);
+        // Note 939 (the director's playtest of 20 Oct evening, line 9: "how does this keep relighting?"): a car alight again
+        // tonight says so, with what lit it this time, in the news and on the fire for as long as it burns.
+        int before = _firesIn.GetValueOrDefault(car);
+        _firesIn[car] = before + 1;
+        fire.Again = before;
+        var news = new Sim.Run.NewsEvent(_nextFx, Tick, Sim.Run.NewsKind.Fire, [car], (byte)fire.Cause, Sim.Run.News.FireDetail(fire), fire.Actor, 0);
         NewsLog.Add(news);
         News.Add(news);
         _nextFx = _nextFx % 0xFFFFFF + 1;
