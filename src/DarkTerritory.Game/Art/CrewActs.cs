@@ -781,6 +781,8 @@ public static class CrewActs
             {
                 LoungeKind.Hammock => CrewPose.Hammock,
                 LoungeKind.HotTub => CrewPose.Gunner,
+                // On the big cab's bench (note 905): sat on its edge, upright, the feet on the gallery's floor.
+                LoungeKind.Bench => CrewPose.SitEdge,
                 _ => world.Bodies.CarriedBy(id) is { Kind: BodyKind.Beer } can
                     ? can.MendTicks > 0 ? CrewPose.LoungeDrink
                     // An emote from the chair with a can in hand (the wheel's wave, or any): a cheers, held out to the next chair.

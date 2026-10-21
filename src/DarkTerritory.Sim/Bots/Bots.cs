@@ -675,7 +675,7 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
         if (!free || !self.Alive || self.Parent < 0)
             return null;
         bool coming = world.ActiveEnemies.Any(e => e is CinderHound { Gone: false } h && h.Attached < 0 && h.Phase is SpinePhase.Telegraph or SpinePhase.Commit);
-        bool due = coming || world.Enemies is { } et && train.Dynamics.Speed >= et.Director.Run.FromSpeed;
+        bool due = coming || world.Enemies is { } et && train.Dynamics.Speed >= et.Director.Run.FromSpeedOn(world.Route?.Tier ?? Sim.Route.RouteTier.Frontier);
         if (!due)
             return null;
         foreach (bool f in (ReadOnlySpan<bool>)[false, true])
@@ -1773,9 +1773,39 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
         var here = PlayerMotor.WorldPosition(self, train);
         bool pulled = Crew.Any(c => c.Id != Me && c.State.Alive && !PlayerMotor.InCab(c.State, train)
             && (PlayerMotor.WorldPosition(c.State, train) - here).Length <= PullReach);
+        // #633 (note 933): the Car Hugger on its own (GDD §21: "cut the caboose or kill it. A group kills it fast"). Free for it,
+        // this walker says so; the crew's order sends the two fit walkers nearest it along the roofs to club it off from its
+        // platform together (Beat, below), or, with no platform, nobody fit free, or it still on after HuggerCutAfter, the
+        // nearest walker to cut its car loose at the gap ahead of it. Before, everyone kept clear of it and nobody went: on 8
+        // crew and 12 cars it held the train under 9 m/s for minutes and two of four nights missed dawn (note 915).
+        int toHugger = -1;
+        if (Calls is { } calls && self.Alive && _warm is not { Active: true })
+        {
+            calls.FreeForHugger(Me, tick);
+            if (calls.Hugger(world, Crew, Me, self, tick) is { } order)
+            {
+                if (order.Cutter == Me && job is not null
+                    && (SpeedBands.CanBeCaughtOnFoot(train.Dynamics.Tuning, train.Dynamics.Speed)
+                        ? job.CutLoose(self, world, train.VehicleAhead(order.Car))
+                        : job.CutFromTheRoofs(self, world, train.VehicleAhead(order.Car))) is { } cutting)
+                    return cutting;
+                if (order.Party.Contains(Me))
+                {
+                    toHugger = order.Car;
+                    int partner = order.Party.First(id => id != Me);
+                    bool near = Crew.Any(c => c.Id == partner && c.State.Alive && (PlayerMotor.WorldPosition(c.State, train) - here).Length <= PullReach);
+                    // On the car ahead of it with the partner not yet near enough to pull us from its mouth: wait for them.
+                    if (on == train.VehicleAhead(order.Car) && self.Surface == Surface.Roof && !near)
+                        return default;
+                    if (on == order.Car && train.Frames[on].Shape.Platform is { } clubFrom && near)
+                        return Beat(self, train, clubFrom, tick, far: order.Party[1] == Me,
+                            world.ActiveEnemies.OfType<CarHugger>().FirstOrDefault(h => h.Latched && h.Attached == on)?.Local);
+                }
+            }
+        }
         if (self.Alive && on > 0 && on < train.Frames.Count && _warm is not { Active: true } && train.Frames[on].Shape.Platform is { } platform
             && pulled && world.ActiveEnemies.Any(e => e is CarHugger { Latched: true } h && h.Attached == on))
-            return Beat(self, train, platform, tick);
+            return Beat(self, train, platform, tick, hugger: world.ActiveEnemies.OfType<CarHugger>().FirstOrDefault(h => h.Latched && h.Attached == on)?.Local);
         if (self.Alive && self.Parent > 0 && self.Parent < train.Frames.Count)
         {
             int parent = self.Parent;
@@ -1816,7 +1846,9 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
             // A gunner's gun saved onto the car ahead (T103) is its post again (note 447): it may go back along that car to it.
             // At 1.2 m a jump off the held car lands it past the gun's seat, and this sent it on up the train, back over the gap
             // for the gun and up again, all night (note 473).
-            if (mine >= 0 && world.ActiveEnemies.Any(e => e is CarHugger { Latched: true } h && train.Dynamics.Consist.IndexOf(h.Attached) is var held && held >= 0
+            if (toHugger >= 0)
+                _direction = train.Dynamics.Consist.IndexOf(toHugger) > mine ? 1 : -1;
+            else if (mine >= 0 && world.ActiveEnemies.Any(e => e is CarHugger { Latched: true } h && train.Dynamics.Consist.IndexOf(h.Attached) is var held && held >= 0
                     && (mine >= held || mine == held - 1 && !(Gunner && train.Vehicles[parent].HasGun))))
                 _direction = -1;
             // A hot axle box (note 331) or a loose coupling (note 356): to its car, down its end ladder into the gap behind it,
@@ -2061,7 +2093,13 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
     /// to over the coupling it's hanging on, and swing at it, press by press, until it lets go. Then up the ladder, as out
     /// of any gap.
     /// </summary>
-    static PlayerIntent Beat(in PlayerState self, TrainOnLine train, Box platform, uint tick)
+    /// <param name="far">The second of a pair (#633, note 933): the platform's other side, mirrored across its door. Side by side
+    /// on one spot each swing was the other's (a crewmate nearer than the creature takes the blow, note 717), and two clubbed
+    /// each other for a minute while it ate the car.</param>
+    /// <param name="hugger">Where it is in the car's frame (its <see cref="Enemy.Local"/>): the swing turns to it. Facing straight
+    /// back down the line from beside it, it was outside the swing's cone (enemies.json melee.coneDegrees) and no blow ever
+    /// landed (#633: two walkers swung at it for a minute and its health never moved).</param>
+    static PlayerIntent Beat(in PlayerState self, TrainOnLine train, Box platform, uint tick, bool far = false, Double3? hugger = null)
     {
         double l = platform.Min.Z;
         switch (self.Surface)
@@ -2077,11 +2115,13 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
             case Surface.Coupler:
                 {
                     // Over the coupling, clear of the rear door's reach (a press there would work the door) and off the ladder's foot.
-                    var (step, there) = WarmUp.Steer(self, new Double3(train.Dynamics.Tuning.Geometry.EndLadderX + 0.45, 0, l + 0.5), Math.PI);
+                    double x = train.Dynamics.Tuning.Geometry.EndLadderX + 0.45;
+                    var (step, there) = WarmUp.Steer(self, new Double3(far ? -x : x, 0, l + 0.5), Math.PI);
                     if (!there)
                         return step;
-                    // Swinging at it (v1.1 App. C.2): the tool swings as often as it recovers.
-                    return new PlayerIntent { Actions = PlayerActions.Swing };
+                    // Swinging at it (v1.1 App. C.2): the tool swings as often as it recovers, turned to face it.
+                    double turn = hugger is { } h ? WrapAngle(DMath.Atan2(-(h.X - self.Position.X), -(h.Z - self.Position.Z)) - self.Yaw) : 0;
+                    return new PlayerIntent { Actions = PlayerActions.Swing, LookYaw = (float)turn };
                 }
             default:
                 return default;
@@ -2889,8 +2929,42 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
                 _backToTheCab = false;
             }
         }
-        return Ease(world, DecideDriving(self, world, tick, out aimed));
+        return Relieve(self, world, Ease(world, DecideDriving(self, world, tick, out aimed)));
     }
+
+    bool _relieving;
+    /// <summary>Venting down off the top of the working band, it lets the vent go this far under it (psi).</summary>
+    const double ReliefBand = 4;
+
+    /// <summary>
+    /// Note 935 (the director's playtest of 20 Oct evening, line 1: "Can you just learn to let some of the pressure out? We
+    /// don't need this to explode right now"): in the cab, the vent key held (note 264: anywhere in the cab, whatever else
+    /// it's doing) while the gauge is over the top of the working band (boiler.json workingBandMax), or over what the speed
+    /// it's driving to wants if that's more (an express's), and never into the red; let go <see cref="ReliefBand"/> under.
+    /// The rest of the driving vents only for a board or a fading brake (<see cref="Vent"/>), and stood at a stop with a full
+    /// bed and nothing drawing on it the gauge climbed into the red and sat on the safety valve. Steam over the band is steam
+    /// the valve would blow off, and the hounds come to a hot boiler (enemies.json houndsHotBoilerWeight). Someone playing at
+    /// the controls has the gauge (note 597).
+    /// </summary>
+    PlayerIntent Relieve(in PlayerState self, World world, PlayerIntent intent)
+    {
+        var train = world.Train;
+        if (!self.Alive || train.BoilerTuning is not { } bt || train.Boiler.Ruptured || !PlayerMotor.InCab(self, train)
+            || world.ControlsHolder >= 0 && world.ControlsHolder != Me && !world.ControlsHolderBot)
+        {
+            _relieving = false;
+            return intent;
+        }
+        double from = bt.WorkingBandMax;
+        if (bt.SteamDrive)
+            from = Math.Max(from, Boiler.PressureFor(bt, _cruise + 1, train.Dynamics.Tuning.MaxSpeed));
+        from = Math.Min(from, bt.Redline - 1);
+        _relieving = train.Boiler.Pressure > (_relieving ? from - ReliefBand : from);
+        return _relieving ? intent with { Actions = intent.Actions | PlayerActions.Vent } : intent;
+    }
+
+    /// <summary>Holding the vent key to keep the gauge out of the red (note 935; for the harness's trace and tests).</summary>
+    public bool Relieving => _relieving;
 
     /// <summary>
     /// Note 865 (GDD §12, two on the run): a crewmate in the gap of a jumped pin, holding it down: the throttle's shut (the brake
@@ -2929,6 +3003,9 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
     {
         aimed = self;
         var train = world.Train;
+        // Note 935: who the stop's departure waits on besides the bots.
+        if (Stops is { } waiting)
+            waiting.People = Players ?? [];
         // T102: the night starts with the crew on the ballast at the gate (the harness walks them aboard): driver and fireman
         // up the cab steps on foot. Only before departure: at a stop, the driver's down there working.
         if (self.Alive && world.Run is { Phase: Run.RunPhase.Yard } && train.Dynamics.Speed < 0.05 && calls is not null)
@@ -3037,6 +3114,12 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         // Note 343: a hound pack aboard and nobody else to fight it: stand the train, and cut its car loose.
         if (CutAlone(self, world, tick) is { } cuttingAlone)
             return cuttingAlone with { Lamp = lamp };
+        // Note 936 (GDD §12 "Ping the bots"): out of the cab to a job pinged for it, the crew's only hands; and the train held
+        // for a crewmate's.
+        if (OnAPing(self, world, tick) is { } pinged)
+            return pinged with { Lamp = lamp };
+        if (self.Alive && PlayerMotor.InCab(self, train) && ForAPing(world) is { } heldForIt)
+            return Work(self, train, heldForIt) with { Lamp = lamp };
         // Note 720 (GDD §12): a crewmate's lamp signal where the driver can see it: stop, go on, or back up.
         if (self.Alive && PlayerMotor.InCab(self, train) && Signalled(world) is { } signalled)
             return Work(self, train, signalled) with { Lamp = lamp };
@@ -4768,8 +4851,15 @@ public static partial class Heed
     }
 
     /// <summary>
+    /// A swing's reach up or down (m): from the eye (<see cref="SwingFrom"/> over the feet) to the point struck
+    /// (<see cref="StrikeAt"/> over what's struck), as <c>World.Swing</c> measures it, within enemies.json <c>melee.reach</c>
+    /// (2.2) and a little of the creature's own radius.
+    /// </summary>
+    const double SwingUpOrDown = 2.4, SwingFrom = 1.3, StrikeAt = 0.8;
+
+    /// <summary>
     /// Toward a point (in our frame, or loose in the world) to within <paramref name="reach"/>, turned to it, then a swing.
-    /// Null if we can't get at it from where we are (another car).
+    /// Null if we can't get at it from where we are (another car, or above or below a swing's reach: note 945).
     /// </summary>
     public static PlayerIntent? Strike(in PlayerState self, TrainOnLine train, Double3 world, double reach)
     {
@@ -4784,6 +4874,12 @@ public static partial class Heed
         else
             local = world;
         var to = local - self.Position;
+        // Note 945 (the director's playtest of 20 Oct evening, line 17: "he's standing on top of the car, and it's on the
+        // outside of the car, so that's certainly not going well"): out of a swing's reach above or below where we stand (a
+        // Hotbox down at the wheels, a Tippy Toesie in the car under the roof), nothing from here: never a swing at the air,
+        // never a run at it along the roof. The caller's other ways (down off the car, Heed.Six's Afoot) are the way to it.
+        if (Math.Abs(to.Y + StrikeAt - SwingFrom) > SwingUpOrDown)
+            return null;
         var flat = new Double3(to.X, 0, to.Z);
         double yaw = DMath.Atan2(-flat.X, -flat.Z);
         var intent = new PlayerIntent { LookYaw = (float)Math.IEEERemainder(yaw - self.Yaw, 2 * Math.PI) };

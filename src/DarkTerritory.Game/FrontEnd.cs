@@ -126,7 +126,7 @@ public sealed record NightMenu(bool Hosting = true, int Others = 0, bool Campaig
 /// <summary>A listed run's lobby as its host has it now (note 535): its mood, and whether it's behind a password.</summary>
 public sealed record HostLobby(RunMood Mood, bool Locked);
 
-public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile, DeleteCrew, Mods, Crashed, Password, Paint, Smithy, Consent, PlaytestData }
+public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile, DeleteCrew, Mods, Crashed, Password, Paint, Smithy, Consent, PlaytestData, Survey }
 
 /// <summary>
 /// The blacksmith's catalogue, open over the yard (ARCHITECTURE §8 note 697): who's selling, the crew's campaign as it stands
@@ -146,7 +146,7 @@ public sealed record MenuItem(string Label, string? Detail = null, bool Enabled 
 /// The front end's text fields (note 264, the director's notes on build 1121: "when I go to name of lobby, it just starts
 /// automatically typing"). None takes typing on being chosen: Enter or a click starts editing, Enter or Esc ends it.
 /// </summary>
-public enum TextField { LobbyName, Address, PlayerName, CrewName, LobbyPassword, JoinPassword, NightPassword, EngineName }
+public enum TextField { LobbyName, Address, PlayerName, CrewName, LobbyPassword, JoinPassword, NightPassword, EngineName, PlaytestCode, SurveyComment }
 
 /// <summary>Where a pointer is over the front end (note 264): an item, and on a value's row, its arrows (−1, +1) or the row (0).</summary>
 public readonly record struct MenuHit(int Item, int Step = 0);
@@ -298,6 +298,20 @@ public sealed class FrontEnd
     public Telemetry.PlaytestNotice? PlaytestNotice { get; set; }
     // Where WHAT WE COLLECT was opened from (the question, or the settings), for its BACK.
     Screen _playtestBack = Screen.Settings;
+
+    /// <summary>
+    /// The playtest kit (queue #628, note 916): the cohort code typed in PLAYTEST DATA or baked into a playtest build, and
+    /// whether a night's end asks the survey. Null: neither is offered.
+    /// </summary>
+    public DarkTerritory.Game.Telemetry.PlaytestKit? Kit { get; set; }
+
+    /// <summary>The survey answered or skipped (the app writes it into the session: <c>SessionRecorder.Survey</c>).</summary>
+    public Action<DarkTerritory.Game.Telemetry.SurveyAnswers>? Surveyed { get; set; }
+
+    // The survey's answers as they're given, and where it goes after (where the night's end left the menu, and what it said).
+    DarkTerritory.Game.Telemetry.SurveyAnswers _survey = new();
+    Screen _surveyThen = Screen.Title;
+    string? _surveyThenSaid;
 
     /// <summary>Note 452: where reports go (content/ui/reports.json); without an address nothing offers to send one.</summary>
     public ReportsTuning? Reports { get; set; }
@@ -488,6 +502,12 @@ public sealed class FrontEnd
             Show(_playtestBack);
             return;
         }
+        // Note 916: Escape on the night's questions skips them.
+        if (Screen == Screen.Survey)
+        {
+            EndSurvey(new DarkTerritory.Game.Telemetry.SurveyAnswers(Skipped: true));
+            return;
+        }
         Show(Screen switch
         {
             Screen.Upgrades or Screen.Stores or Screen.DeleteCrew => Screen.Fortress,
@@ -565,6 +585,8 @@ public sealed class FrontEnd
         TextField.LobbyPassword => Settings.LobbyPassword,
         TextField.JoinPassword => JoinPassword,
         TextField.NightPassword => NightPassword,
+        TextField.PlaytestCode => Kit?.Typed ?? "",
+        TextField.SurveyComment => _survey.Comment ?? "",
         _ => NamingLobby ? LobbyName : "",
     };
 
@@ -623,6 +645,21 @@ public sealed class FrontEnd
                 if ((char.IsLetterOrDigit(c) || c is ' ' or '\'' or '.' or '-' or '!' or '?') && name.Length < MaxCrewName && c < 0x7f)
                     name += c;
             SaveCrew(crew with { Name = name.TrimStart() });
+            return;
+        }
+        // Note 916: the playtest's code (letters, digits and dashes: Kit.Clean keeps it so), and the survey's comment, as typed.
+        if (Editing == TextField.PlaytestCode && Kit is { } kit)
+        {
+            kit.Type(kit.Typed + text);
+            return;
+        }
+        if (Editing == TextField.SurveyComment)
+        {
+            string said = _survey.Comment ?? "";
+            foreach (char c in text)
+                if (c is >= ' ' and < (char)0x7f && said.Length < DarkTerritory.Game.Telemetry.SurveyAnswers.CommentLength)
+                    said += c;
+            _survey = _survey with { Comment = said.TrimStart() };
             return;
         }
         if (Editing != TextField.Address)
@@ -691,6 +728,10 @@ public sealed class FrontEnd
         }
         if (Editing == TextField.Address && Address.Length > 0)
             Address = Address[..^1];
+        if (Editing == TextField.PlaytestCode && Kit is { Typed.Length: > 0 } kit)
+            kit.Type(kit.Typed[..^1]);
+        if (Editing == TextField.SurveyComment && _survey.Comment is { Length: > 0 } said)
+            _survey = _survey with { Comment = said[..^1] };
     }
 
     /// <summary>The playtest session recorder (note 913): purchases, rebinds and the screens' times go to it. Null: nothing's told.</summary>
@@ -717,6 +758,8 @@ public sealed class FrontEnd
         if (screen is Screen.Crashed && Crash is null)
             screen = Screen.Title;
         if (screen is Screen.Consent or Screen.PlaytestData && (Playtest is null || PlaytestNotice is null))
+            screen = Screen.Title;
+        if (screen is Screen.Survey && Kit is null)
             screen = Screen.Title;
         _blankName = false;
         Editing = null;
@@ -834,8 +877,10 @@ public sealed class FrontEnd
         else if (n.Hosting && n.JoinAt is { } at)
             list.Add(new(new("INVITE", "Friends on your network join by its address."),
                 () => { Message = $"Friends join at {at}: JOIN, then type it."; return null; }));
-        // Over, there's nothing to lose by leaving: it goes at once, as Enter does.
-        list.Add(new(new(n.Hosting && n.Others > 0 && !n.Over ? "END THE NIGHT" : "LEAVE"), n.Over ? () => new Launch.Leave() : Go(Screen.Leave)));
+        // Over, there's nothing to lose by leaving: it goes at once. Enter on the end screen goes on with the crew (to the
+        // fortress, or the next night from the town); LEAVE goes to the title (note 937).
+        list.Add(new(new(n.Hosting && n.Others > 0 && !n.Over ? "END THE NIGHT" : "LEAVE", n.Over ? LeaveOver : null),
+            n.Over ? () => new Launch.Leave() : Go(Screen.Leave)));
         return list;
     }
 
@@ -863,6 +908,9 @@ public sealed class FrontEnd
                 () => { Change(Settings with { PublicLobby = true }); Message = "THE RUN'S OPEN."; return null; }));
         return list;
     }
+
+    /// <summary>LEAVE's line on a night that's over (note 937): where it goes, and where Enter goes instead.</summary>
+    public const string LeaveOver = "Back to the title. Enter on the night's end goes on with the crew.";
 
     /// <summary>The new password being typed in a night (note 535), from blank; it's the run's on Enter, and nothing on Esc.</summary>
     public string NightPassword { get; private set; } = "";
@@ -945,6 +993,23 @@ public sealed class FrontEnd
     /// </summary>
     List<Entry> ConsentEntries(Telemetry.PlaytestConsent p, Telemetry.PlaytestNotice n)
     {
+        // Note 946: a playtest build's is on already: a notice, OK lit first and TURN IT OFF beside it (one key away).
+        if (p.OnByNotice)
+            return
+            [
+                new(new("OK, KEEP IT ON", "Your nights in this playtest are recorded anonymously. Off or deleted any time in Settings, PLAYTEST DATA."),
+                    () =>
+                    {
+                        p.Acknowledge(n);
+                        AfterConsent();
+                        Message = "Thank you. Playtest data is on: Settings, PLAYTEST DATA to change it.";
+                        return null;
+                    }),
+                new(new("TURN IT OFF", "Nothing more is recorded, in this playtest or after. On again any time in Settings, PLAYTEST DATA."),
+                    () => Answer(p, n, yes: false)),
+                new(new("WHAT WE COLLECT", "Every kind of thing it records, where it goes and for how long."),
+                    () => { _playtestBack = Screen.Consent; Show(Screen.PlaytestData); return null; }),
+            ];
         // What it's for is said under the heading, read before either answer (ConsentLines); each answer says what it does.
         string dev = p.DefaultOn && n.DevBuild.Length > 0 ? " " + n.DevBuild : "";
         var yes = new Entry(new("YES, RECORD MY NIGHTS", "Your nights are recorded anonymously, to help tune the game. Off or deleted any time in Settings." + dev),
@@ -966,9 +1031,61 @@ public sealed class FrontEnd
     /// <summary>After the question: the crash notice if there's one waiting, else the title.</summary>
     void AfterConsent() => Show(Crash is not null ? Screen.Crashed : Screen.Title);
 
+    /// <summary>
+    /// The night's questions (note 916), asked as the menu comes back after a night, when the kit asks them (a playtest, and
+    /// playtest data on: <paramref name="recording"/>). Answered or skipped, the menu goes where the night left it.
+    /// </summary>
+    public void AskSurvey(bool recording)
+    {
+        if (Kit is not { } kit || !kit.AsksSurvey(recording))
+            return;
+        (_surveyThen, _surveyThenSaid) = (Screen, Message);
+        _survey = new();
+        Show(Screen.Survey);
+        Message = null;
+    }
+
+    void EndSurvey(DarkTerritory.Game.Telemetry.SurveyAnswers answers)
+    {
+        Surveyed?.Invoke(answers);
+        Show(_surveyThen);
+        Message = answers.Skipped ? _surveyThenSaid : $"Thank you.{(_surveyThenSaid is { } said ? " " + said : "")}";
+    }
+
+    /// <summary>A 1-5 question: unsaid until it's stepped onto, then left and right along it.</summary>
+    Entry Rating(string label, string detail, int? now, Func<int?, DarkTerritory.Game.Telemetry.SurveyAnswers> with)
+    {
+        void Step(int by) => _survey = with(Math.Clamp((now ?? (by > 0 ? 0 : 6)) + by, 1, 5));
+        return new(new($"{label}: {(now is { } n ? $"{n} OF 5" : "-")}", detail), () => { Step(+1); return null; }, Step);
+    }
+
+    List<Entry> SurveyEntries() =>
+    [
+        Rating("HOW FUN", "How fun was tonight? 1, not at all; 5, the most fun you've had in a while.", _survey.Fun, n => _survey with { Fun = n }),
+        Rating("HOW FRIGHTENING", "How frightening was it? 1, not at all; 5, you didn't want to look.", _survey.Fear, n => _survey with { Fear = n }),
+        Rating("ANOTHER NIGHT", "Would you play another? 1, not again; 5, right now.", _survey.Again, n => _survey with { Again = n }),
+        new(new($"A WORD FOR US: {_survey.Comment}{(Editing == TextField.SurveyComment ? "_" : "")}", Editing == TextField.SurveyComment
+                ? $"Anything about tonight, in your own words (up to {DarkTerritory.Game.Telemetry.SurveyAnswers.CommentLength} letters). Please no names. Enter or Esc when it's done."
+                : "Optional: Enter to write something about tonight. It's sent only if you tick SEND MY WORDS TOO."), Field: TextField.SurveyComment),
+        // The comment is typed text, the one kind the recorder keeps (note 916): sent only with this ticked, its own yes.
+        new(new($"SEND MY WORDS TOO: {(_survey.SendComment ? "YES" : "NO")}", "Your comment goes in the record only with this on, as you wrote it. Off, it's left here.",
+                _survey.Comment is { Length: > 0 }),
+            () => { _survey = _survey with { SendComment = !_survey.SendComment }; return null; }, _ => _survey = _survey with { SendComment = !_survey.SendComment }),
+        new(new("SEND", "Your answers go in tonight's playtest record.", _survey.Said), () => { EndSurvey(_survey); return null; }),
+        new(new("SKIP", "Nothing is asked again for this night."), () => { EndSurvey(new DarkTerritory.Game.Telemetry.SurveyAnswers(Skipped: true)); return null; }, Back: true),
+    ];
+
+    /// <summary>Settings' PLAYTEST CODE (note 916): the code a playtest's organiser gives out, so its testers' nights group together.</summary>
+    Entry CodeEntry(DarkTerritory.Game.Telemetry.PlaytestKit kit) =>
+        new(new($"PLAYTEST CODE: {(Editing == TextField.PlaytestCode ? kit.Typed + "_" : kit.Cohort ?? "NONE")}", Editing == TextField.PlaytestCode
+                ? $"Letters, digits and dashes, up to {DarkTerritory.Game.Telemetry.PlaytestKit.CodeLength}; blank for none{(kit.Build?.Cohort is { } baked ? $" (this build's, {baked})" : "")}. Enter or Esc when it's done; it counts from your next session."
+                : "In a playtest, the code you were given: your nights are grouped with the other testers', and a few questions follow each night."),
+            Field: TextField.PlaytestCode);
+
     Entry PlaytestSwitch(Telemetry.PlaytestConsent p) =>
         new(new($"PLAYTEST DATA: {(p.Recording ? "ON" : "OFF")}", p.Recording
                 ? "Your nights are recorded, anonymously, to help tune the game. Left and right, or Enter, to turn it off."
+                    + (p.OnByNotice ? " On by default in this playtest build." : "")
                 : "Nothing is recorded. On, your nights are recorded anonymously to help tune the game."),
             () => { p.Choose(!p.Recording, PlaytestNotice!); return null; }, _ => p.Choose(!p.Recording, PlaytestNotice!));
 
@@ -983,6 +1100,8 @@ public sealed class FrontEnd
         .. n.Collect.Select(f => new Entry(new(f.What, f.Detail))),
         new(new("WHAT WE NEVER COLLECT", n.Never)),
         new(new($"KEPT FOR {n.RetentionMonths} MONTHS", n.WhereLine)),
+        // Note 946: who keeps it for the studio (#637's PostHog).
+        .. n.ThirdParty.Length > 0 ? [new Entry(new("WHO KEEPS IT", n.ThirdParty))] : (Entry[])[],
         new(new("DELETE MY PLAYTEST DATA", "Deletes every night recorded on this computer, and starts a new id, so nothing sent before can be tied to you after."),
             () =>
             {
@@ -1418,6 +1537,7 @@ public sealed class FrontEnd
             // Note 914: playtest data, on or off, and what it is.
             .. Playtest is { } playtest && PlaytestNotice is not null
                 ? [Heading("PLAYTEST DATA"), PlaytestSwitch(playtest),
+                    .. Kit is { } kit ? [CodeEntry(kit)] : (Entry[])[],
                     new Entry(new("WHAT WE COLLECT", "Every kind of thing it records, for how long, and DELETE."), () => { _playtestBack = Screen.Settings; Show(Screen.PlaytestData); return null; })]
                 : (Entry[])[],
             // Note 452: something wrong that didn't crash it, reported as a crash is, from the player's own mail.
@@ -1437,6 +1557,7 @@ public sealed class FrontEnd
         Screen.Crashed when Crash is { } c => CrashEntries(c),
         Screen.Consent when Playtest is { } p && PlaytestNotice is { } n => ConsentEntries(p, n),
         Screen.PlaytestData when Playtest is { } p && PlaytestNotice is { } n => PlaytestDataEntries(p, n),
+        Screen.Survey => SurveyEntries(),
         // Note 323: a row a mod, its description under it; what couldn't load, why. Nothing here changes them: they're laid
         // over as the game starts, from its folders or a mod manager's profile (note 53).
         Screen.Mods =>
@@ -2095,8 +2216,10 @@ public sealed class FrontEnd
             Screen.Slots => "CAMPAIGN",
             Screen.DeleteCrew when Open is { } s => $"DELETE {CrewName(s).ToUpperInvariant()}?",
             Screen.Crashed => "DARK TERRITORY STOPPED LAST TIME",
-            Screen.Consent => PlaytestNotice?.Question ?? "PLAYTEST DATA",
+            Screen.Consent => Playtest is { OnByNotice: true } && PlaytestNotice is { OnByDefaultTitle.Length: > 0 } on ? on.OnByDefaultTitle
+                : PlaytestNotice?.Question ?? "PLAYTEST DATA",
             Screen.PlaytestData => "PLAYTEST DATA",
+            Screen.Survey => "TONIGHT, IN THREE NUMBERS",
             Screen.Fortress or Screen.Upgrades or Screen.Stores when Open is { } s =>
                 $"{CrewName(s).ToUpperInvariant()}{(s.Town is { } town ? $" IN {town.Name.ToUpperInvariant()}" : "")}: {s.Cars} CARS, {s.Scrip:0} SCRIP, NIGHT {s.Runs + 1}, {Name(Campaign.TierFor(_campaign, s.Cars))}",
             Screen.Upgrades => "UPGRADES",
@@ -2126,7 +2249,12 @@ public sealed class FrontEnd
             y += 10;
         }
         // (Wrapped, as the heading is, at a bigger TEXT SIZE: note 347.)
-        string? under = Screen == Screen.Consent && PlaytestNotice is { } notice ? string.Join(" ", notice.Ask).ToUpperInvariant()
+        string? under = Screen == Screen.Consent && Playtest is { OnByNotice: true } && PlaytestNotice is { OnByDefault.Length: > 0 } onNotice
+                ? string.Join(" ", onNotice.OnByDefault).Replace("{code}", Kit?.Cohort ?? "no code", StringComparison.Ordinal).ToUpperInvariant()
+            : Screen == Screen.Consent && PlaytestNotice is { } notice
+                ? (string.Join(" ", notice.Ask) + (Kit?.Build is { } build && notice.PlaytestBuild.Length > 0
+                    ? " " + notice.PlaytestBuild.Replace("{code}", build.Cohort ?? "no code", StringComparison.Ordinal) : "")).ToUpperInvariant()
+            : Screen == Screen.Survey ? "FOR THE PLAYTEST: EACH FROM 1 TO 5, LEFT AND RIGHT. SKIP IT IF YOU'D RATHER."
             : Screen == Screen.Upgrades ? "BOUGHT FROM THE BLACKSMITH, AT THE FORGE IN THE YARD"
             : Screen == Screen.Smithy && Smithy is { } selling
                 ? !selling.CanBuy ? $"THE HOST PAYS: ASK {(selling.Payer ?? "THEM").ToUpperInvariant()}"
@@ -2161,8 +2289,12 @@ public sealed class FrontEnd
         // A value's row has its arrows at the plate's right, for the mouse (note 264): < and > step it, as left and right do.
         bool arrows = entries.Any(e => e.Adjust is not null);
         float plate = Math.Min(width - x, widest + 12 + (arrows ? 24 : 0));
-        // A list longer than the screen (the controls) scrolls: the selection kept in view, or where the wheel put it.
-        int rows = Math.Max(1, (int)((height - y - 44) / 10));
+        // A list longer than the screen (the controls) scrolls: the selection kept in view, or where the wheel put it. Room is
+        // left under it for the longest detail any row has (note 946: WHAT WE COLLECT's run to three lines, and the third ran
+        // into the keys' line), so the list doesn't change length as the selection moves.
+        int detailLines = items.Where(i => i.Enabled && i.Detail is not null)
+            .Select(i => UiStyle.Wrap(o, i.Detail!.ToUpperInvariant(), width - x - 8).Count()).DefaultIfEmpty(0).Max();
+        int rows = Math.Max(1, (int)((height - y - 24 - 10 * Math.Max(2, detailLines)) / 10));
         int first = First(rows, items.Count);
         int shown = Math.Min(rows, items.Count - first);
         UiStyle.Plate(o, x - 8, y - 6, plate, shown * 10 + 10);

@@ -11,25 +11,33 @@ public enum PlaytestChoice { Unasked, Yes, No }
 /// <see cref="PlaytestNotice.Version"/> rises), changeable in Settings. Kept in <c>consent.json</c> in the telemetry folder
 /// beside the settings, with the sessions under it, so DELETE clears both. The id is random, made on saying yes, and a new
 /// one after DELETE: nothing about the player or the machine is in it.
+/// <para>
+/// In a playtest build (note 946; the director, the inbox, 20 Oct: "On by default in playtest builds, with an off switch") it's
+/// on from the start: the first run shows a notice (<see cref="OnByNotice"/>) with the off switch beside OK, not the question.
+/// A yes that was the notice's counts only in a playtest: the same machine on an ordinary build is asked properly.
+/// </para>
 /// </summary>
 public sealed class PlaytestConsent : ITelemetryGate
 {
     public static string DefaultDirectory => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DarkTerritory", "telemetry");
 
-    sealed record Stored(PlaytestChoice Choice, int Notice, string? InstallId);
+    /// <param name="ByNotice">The yes was a playtest build's notice put away, not an answer to the question (note 946).</param>
+    sealed record Stored(PlaytestChoice Choice, int Notice, string? InstallId, bool ByNotice = false);
 
     readonly string _directory;
     Stored _stored;
 
-    PlaytestConsent(string directory, Stored stored, bool defaultOn)
+    PlaytestConsent(string directory, Stored stored, bool defaultOn, bool onByNotice)
     {
         _directory = directory;
         _stored = stored;
-        DefaultOn = defaultOn;
+        OnByNotice = onByNotice;
+        DefaultOn = defaultOn || onByNotice;
     }
 
     /// <param name="defaultOn">A developer build (note 907): unasked counts as yes, and the question says so.</param>
-    public static PlaytestConsent Load(string directory, bool defaultOn = false)
+    /// <param name="onByNotice">A playtest build (note 946): on unless the player turns it off, and a notice in place of the question.</param>
+    public static PlaytestConsent Load(string directory, bool defaultOn = false, bool onByNotice = false)
     {
         string path = Path.Combine(directory, "consent.json");
         Stored? stored = null;
@@ -42,16 +50,22 @@ public sealed class PlaytestConsent : ITelemetryGate
         {
             // A file that can't be read is no answer: asked again, and nothing recorded meanwhile.
         }
-        return new PlaytestConsent(directory, stored ?? new Stored(PlaytestChoice.Unasked, 0, null), defaultOn);
+        return new PlaytestConsent(directory, stored ?? new Stored(PlaytestChoice.Unasked, 0, null), defaultOn, onByNotice);
     }
 
+    /// <summary>Unasked counts as yes: a developer build, or a playtest build.</summary>
     public bool DefaultOn { get; }
+    /// <summary>A playtest build: the first run shows the notice, OK or TURN IT OFF, rather than the question (note 946).</summary>
+    public bool OnByNotice { get; }
     public PlaytestChoice Choice => _stored.Choice;
 
-    /// <summary>The first-run question is due: never answered, or answered to an older notice.</summary>
-    public bool NeedsAsking(PlaytestNotice notice) => _stored.Choice == PlaytestChoice.Unasked || _stored.Notice < notice.Version;
+    // A notice's yes, outside a playtest build, is no answer.
+    bool Answered => _stored.Choice != PlaytestChoice.Unasked && !(_stored.ByNotice && !OnByNotice);
 
-    public bool Recording => _stored.Choice == PlaytestChoice.Yes || _stored.Choice == PlaytestChoice.Unasked && DefaultOn;
+    /// <summary>The first-run question (or a playtest's notice) is due: never answered, or answered to an older notice.</summary>
+    public bool NeedsAsking(PlaytestNotice notice) => !Answered || _stored.Notice < notice.Version;
+
+    public bool Recording => Answered ? _stored.Choice == PlaytestChoice.Yes : DefaultOn;
 
     public string? InstallId
     {
@@ -72,10 +86,15 @@ public sealed class PlaytestConsent : ITelemetryGate
     public event Action? Changed;
 
     /// <summary>The player's answer, to this version of the notice.</summary>
-    public void Choose(bool yes, PlaytestNotice notice)
+    public void Choose(bool yes, PlaytestNotice notice) => Keep(yes, notice, byNotice: false);
+
+    /// <summary>A playtest build's notice put away with OK: on, as it was, and not shown again in a playtest (note 946).</summary>
+    public void Acknowledge(PlaytestNotice notice) => Keep(true, notice, byNotice: true);
+
+    void Keep(bool yes, PlaytestNotice notice, bool byNotice)
     {
         bool was = Recording;
-        Save(new Stored(yes ? PlaytestChoice.Yes : PlaytestChoice.No, notice.Version, yes ? _stored.InstallId ?? NewId() : _stored.InstallId));
+        Save(new Stored(yes ? PlaytestChoice.Yes : PlaytestChoice.No, notice.Version, yes ? _stored.InstallId ?? NewId() : _stored.InstallId, byNotice));
         if (was != Recording)
             Changed?.Invoke();
     }
@@ -126,6 +145,13 @@ public sealed record PlaytestNotice
     public string Question { get; init; } = "";
     public string[] Ask { get; init; } = [];
     public string DevBuild { get; init; } = "";
+    /// <summary>Under the question in a playtest build (#628, note 916), "{code}" its cohort's: which test it is, and that no is fine.</summary>
+    public string PlaytestBuild { get; init; } = "";
+    /// <summary>A playtest build's first run (note 946): the notice's title and lines, "{code}" its cohort's.</summary>
+    public string OnByDefaultTitle { get; init; } = "";
+    public string[] OnByDefault { get; init; } = [];
+    /// <summary>Who keeps it for the studio (note 946, with #637's PostHog), on WHAT WE COLLECT.</summary>
+    public string ThirdParty { get; init; } = "";
     public PlaytestField[] Collect { get; init; } = [];
     public string Never { get; init; } = "";
     public string Where { get; init; } = "";

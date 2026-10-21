@@ -50,8 +50,9 @@ public sealed class FileTelemetrySink(string path) : ITelemetrySink, IDisposable
 }
 
 /// <summary>What the machine and the build are (the <c>session</c> event).</summary>
+/// <param name="Cohort">The playtest's cohort code (#628, note 916: typed in Settings or baked into a playtest build); null, none.</param>
 public sealed record SessionFacts(string Edition, bool Dev, string Os, string Gpu, bool Vr, string Resolution, double RenderScale, bool VSync,
-    double FieldOfView)
+    double FieldOfView, string? Cohort = null)
 {
     /// <summary>The OS as the runtime names it.</summary>
     public static string ThisOs => System.Runtime.InteropServices.RuntimeInformation.OSDescription;
@@ -152,7 +153,7 @@ public sealed class SessionRecorder
         var (build, commit) = Report.Build();
         Emit("session", ("session", SessionId), ("install", _gate.InstallId), ("build", build), ("commit", commit), ("edition", f.Edition), ("dev", f.Dev),
             ("os", f.Os), ("gpu", f.Gpu), ("vr", f.Vr), ("resolution", f.Resolution), ("renderScale", f.RenderScale), ("vsync", f.VSync),
-            ("fov", f.FieldOfView));
+            ("fov", f.FieldOfView), ("cohort", f.Cohort));
     }
 
     /// <summary>
@@ -311,6 +312,25 @@ public sealed class SessionRecorder
         if (Enabled)
             Emit("menu", ("name", name), ("seconds", seconds));
     }
+
+    /// <summary>The last night begun this session (0: none yet): what a survey after it is about.</summary>
+    public int LastNight => _night;
+
+    /// <summary>
+    /// The end-of-night survey (#628, note 916), after <see cref="NightEnd"/>: the night just played, its three answers (1-5,
+    /// null not said) and the player's comment if they wrote one and ticked it to be sent; skipped, none of it.
+    /// </summary>
+    public void Survey(SurveyAnswers a)
+    {
+        if (!Enabled || _night == 0)
+            return;
+        string? comment = a.Skipped || !a.SendComment || a.Comment is not { } c || c.Trim().Length == 0 ? null : c.Trim()[..Math.Min(c.Trim().Length, SurveyAnswers.CommentLength)];
+        Emit("survey", ("night", _night), ("fun", a.Skipped ? null : Rating(a.Fun)), ("fear", a.Skipped ? null : Rating(a.Fear)),
+            ("again", a.Skipped ? null : Rating(a.Again)), ("comment", comment), ("skipped", a.Skipped));
+        _sink!.Flush();
+    }
+
+    static int? Rating(int? r) => r is >= 1 and <= 5 ? r : null;
 
     /// <summary>The night over (or left): the host's encounters, then how it ended and how it ran.</summary>
     public void NightEnd(World world)

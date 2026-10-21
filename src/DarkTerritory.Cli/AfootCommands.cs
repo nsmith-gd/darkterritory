@@ -22,13 +22,26 @@ static class AfootCommands
         double seconds = Opt(args, "--seconds", 240), speed = Opt(args, "--walk", 1.4);
         int cars = (int)Opt(args, "--cars", 6);
         var route = DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars);
-        var stop = route.Features.FirstOrDefault(f => f.Stop?.Buildings.Count(b => b.Kind == BuildingKind.House && b.Zone == StopZone.Village) >= 3)
-            ?? throw new InvalidOperationException($"{spec} has no stop with a village");
+        // --halt (#651, note 953): at the first abandoned village with a halt, the train stood at the halt on the main line, and
+        // the two walks are the halt's own response (director.encounters.halt) on and off, the watch on in both.
+        bool halt = args.Contains("--halt");
+        var stop = (halt
+            ? route.Features.FirstOrDefault(f => f.Kind == FeatureKind.Village && f.Stop?.Halt is not null
+                && f.Stop.Buildings.Any(b => b.Kind == BuildingKind.House && b.Zone == StopZone.Village))
+            : route.Features.FirstOrDefault(f => f.Stop?.Buildings.Count(b => b.Kind == BuildingKind.House && b.Zone == StopZone.Village) >= 3))
+            ?? throw new InvalidOperationException($"{spec} has no stop with a village{(halt ? " and a halt" : "")}");
+        double standAt = stop.Start + (halt ? stop.Stop!.Halt!.Value.S : stop.Stop!.StopPoint.S);
         object Walk(bool on)
         {
-            var session = new PrototypeSession(content, route, cars, enemies: true, crew: 1, at: stop.Start + stop.Stop!.StopPoint.S);
+            var session = new PrototypeSession(content, route, cars, enemies: true, crew: 1, at: standAt);
             var world = session.World;
-            if (!on)
+            if (halt)
+            {
+                var t = world.Enemies!;
+                var enc = t.Director.Encounters;
+                world.EnableEnemies(t with { Director = t.Director with { Encounters = enc with { Halt = enc.Halt with { On = on } } } }, route, route.Seed, crew: 1, authority: true);
+            }
+            else if (!on)
             {
                 var t = world.Enemies!;
                 world.EnableEnemies(t with { Director = t.Director with { Afoot = t.Director.Afoot with { On = false } } }, route, route.Seed, crew: 1, authority: true);
@@ -115,7 +128,9 @@ static class AfootCommands
             var engaged = events.Where(e => e.To == SpinePhase.Telegraph).DistinctBy(e => e.EnemyId).ToList();
             return new
             {
-                afoot = on,
+                afoot = halt || on,
+                haltOwn = halt ? on : (bool?)null,
+                stopSends = d.Log.Count(l => l.Stop),
                 crewSeconds = d.AfootSeconds,
                 signs = d.Signs.Count,
                 fromSites = d.Signs.Count(s => s.FromSite),
@@ -140,7 +155,7 @@ static class AfootCommands
         {
             route = spec,
             km = Math.Round(stop.Start / 1000, 2),
-            stop = $"{stop.Kind} {stop.Facility} {stop.Start:0}-{stop.End:0} at {stop.Start + stop.Stop!.StopPoint.S:0}",
+            stop = $"{stop.Kind} {stop.Facility} {stop.Start:0}-{stop.End:0} at {standAt:0}{(halt ? " (its halt)" : "")}",
             tags = route.Plan?.Director.Tags.Where(t => t.Edge == "main" && t.S1 >= stop.Start - 500 && t.S0 <= stop.End + 500).Select(t => $"{t.Tag} {t.S0:0}-{t.S1:0}").ToArray(),
             houses = stop.Stop!.Buildings.Count(b => b.Kind == BuildingKind.House && b.Zone == StopZone.Village),
             lairs = stop.Stop.Lairs.GroupBy(l => l.Kind.ToString()).ToDictionary(g => g.Key, g => g.Count()),

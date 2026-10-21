@@ -925,7 +925,7 @@ public sealed class Bodies
         var near = CrewActions.NearestInteractable(s, train, hand)?.Thing.Kind;
         var find = (party || carried is { Kind: BodyKind.Loot } && (on != playerId || s.Health < FullHealth) && Heals?.Invoke(carried) > 0) && !throwPressed
             && (near is null || party && near is InteractableKind.Chair or InteractableKind.Cooler or InteractableKind.Grill or InteractableKind.Hammock
-                or InteractableKind.HotTub) ? carried : null;
+                or InteractableKind.HotTub or InteractableKind.Bench) ? carried : null;
         bool had = _dosing.TryGetValue(playerId, out var was);
         if (had && (find is null || find.Id != was.Find || on != was.Patient))
         {
@@ -1039,7 +1039,8 @@ public sealed class Bodies
         return s.Parent == PlayerState.World ? local : train.Frames[s.Parent].ToWorld(local);
     }
 
-    Double3 HandsAt(in PlayerState s, TrainOnLine train)
+    /// <summary>Where someone's hands carry (world): a heavy crate rides midway between its two carriers' (note 948 reads it).</summary>
+    public Double3 HandsAt(in PlayerState s, TrainOnLine train)
     {
         var forward = new Double3(-DMath.Sin(s.Yaw), 0, -DMath.Cos(s.Yaw));
         var local = s.Position + Double3.Up * Hands.CarryHeight + forward * Hands.CarryForward;

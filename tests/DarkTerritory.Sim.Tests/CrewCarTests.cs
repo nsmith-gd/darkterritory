@@ -75,12 +75,11 @@ public class CrewCarTests
         Assert.Equal(shape.Cab!.Value.Min.X, plan.Gallery.Min.X, 6);
         Assert.Equal(2, plan.Benches.Count);
         Assert.All(plan.Benches, b => Assert.True(b.Min.Y == plan.Gallery.Max.Y && b.Max.Z <= plan.Gallery.Max.Z));
-        // The ways either side of the furniture are a body's breadth and more.
-        foreach (var f in plan.Furniture)
-        {
-            Assert.True(shape.Cab!.Value.Max.X - f.Max.X >= 2 * Tuning.Player.Radius + 0.2);
-            Assert.True(f.Min.X - shape.Cab!.Value.Min.X >= 2 * Tuning.Player.Radius + 0.2);
-        }
+        // The ways either side of the chart table are a body's breadth and more; past it, between the benches along the
+        // gallery's sides (note 905), so is all of the middle.
+        Assert.True(shape.Cab!.Value.Max.X - plan.ChartTable.Max.X >= 2 * Tuning.Player.Radius + 0.2);
+        Assert.True(plan.ChartTable.Min.X - shape.Cab!.Value.Min.X >= 2 * Tuning.Player.Radius + 0.2);
+        Assert.True(plan.Benches[1].Min.X - plan.Benches[0].Max.X >= 4 * Tuning.Player.Radius + 0.4);
         // Behind the gallery, the back wall's floor at the cab's, the doorways in it.
         Assert.True(plan.BackTread.Max.Z <= plan.DoorFront - 0.5, "the doorways open onto the cab floor behind the gallery");
     }
@@ -101,10 +100,11 @@ public class CrewCarTests
         Walk(ref s, train, new Double3(lane, 0, (plan.Gallery.Min.Z + plan.Gallery.Max.Z) / 2), 4);
         Assert.Equal(plan.Gallery.Max.Y, s.Position.Y, 3);
         Assert.True(PlayerMotor.InCab(s, train));
-        // In front of the benches to the middle, and back into the way.
-        Walk(ref s, train, new Double3(0, 0, plan.Benches[0].Min.Z - 0.4), 2);
+        // Between the benches to the middle (note 905: kept clear), and back into the way.
+        double mid = (plan.Gallery.Min.Z + plan.Gallery.Max.Z) / 2;
+        Walk(ref s, train, new Double3(0, 0, mid), 2);
         Assert.Equal(plan.Gallery.Max.Y, s.Position.Y, 3);
-        Walk(ref s, train, new Double3(lane, 0, plan.Benches[0].Min.Z - 0.4), 2);
+        Walk(ref s, train, new Double3(lane, 0, mid), 2);
         // Down off its back to the back wall's floor, and out of its door onto the running board.
         double door = plan.DoorFront + g.Doorway.Width / 2, board = side * (shape.HalfWidth + g.Engine.RunningBoardWidth / 2);
         Walk(ref s, train, new Double3(lane, 0, door), 3);
@@ -174,8 +174,9 @@ public class CrewCarTests
     public void TheWayRoundIsStraightWhenNothingsInTheWay()
     {
         var plan = EnginePlan.Of(Tuning.Train.Geometry);
+        // (Down the way past the chart table: the benches along the gallery's sides, note 905, are further back.)
         var a = new Double3(plan.Lane, 0, plan.CabFront + 1);
-        var b = new Double3(plan.Lane, 0, plan.CabBack - 1);
+        var b = new Double3(plan.Lane, 0, plan.Benches[0].Min.Z - 0.6);
         Assert.Equal(b, plan.CabWay(a, b));
         // Through the table, it's out into a way first.
         var mid = new Double3(0, 0, plan.CabFront + 2.5);

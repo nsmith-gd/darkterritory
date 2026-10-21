@@ -465,7 +465,10 @@ public sealed class Gaunt(int id) : Enemy(id)
         var at = Local;
         var near = train.Frames.MinBy(f => ((f.Origin - at) with { Y = 0 }).Length);
         var away = (at - near.Origin) with { Y = 0 };
-        if (away.Length >= t.ClearedAt)
+        // Note 945: and out of the crew's sight, never gone in their lamps: nobody out in the open (in a car or the cab, the
+        // walls are round them) within goneUnseenAt.
+        if (away.Length >= t.ClearedAt && (t.GoneUnseenAt <= 0 || !ctx.LivingCrew().Any(c => (c.World - at).Length < t.GoneUnseenAt
+                && !PlayerMotor.Indoors(c.Player.State, train) && !PlayerMotor.InCab(c.Player.State, train))))
         {
             Away(ctx);
             return;

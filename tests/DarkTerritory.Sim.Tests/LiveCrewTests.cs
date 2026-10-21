@@ -125,13 +125,24 @@ public class LiveCrewTests
     [Fact]
     public void ACrewOfOneIsNeverSentASecondThreatWhileOneIsOnThem()
     {
-        // A long solo night on the line: every spawn the director made, it made with nothing else engaged.
+        // A long solo night on the line: every spawn the director made, it made with nothing else holding them. Since note 881
+        // (#604, director.threats) the cap counts threats, not bodies (the brief §2 issue 4): what lies in wait (a Track Doll
+        // dormant on the rail ahead) is about but not on them, so it's what holds the cap the director asks (Holding), checked
+        // the second before each spawn, that's held to none. With threats off, every body engaged, as before note 881.
         var n = Crewed(1);
-        n.Run(900);
         var d = n.World.Director!;
+        int seen = 0;
+        var sentOnTop = new List<string>();
+        for (int s = 0; s < 900; s++)
+        {
+            int holding = D.Threats.On ? d.Holding(n.World, n.World.ActiveEnemies).Count : n.World.ActiveEnemies.Count(Director.Engaged);
+            n.Run(1);
+            for (; seen < d.Log.Count; seen++)
+                if (holding > 0)
+                    sentOnTop.Add($"{d.Log[seen]} with {holding} already on them");
+        }
         Assert.NotEmpty(d.Log);
-        // ActiveTotal counts the spawn itself.
-        Assert.All(d.Log, l => Assert.True(l.ActiveTotal <= 1, $"{l}"));
+        Assert.Empty(sentOnTop);
         n.AssertFair();
     }
 

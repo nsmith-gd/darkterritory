@@ -76,7 +76,8 @@ public sealed partial class ConductorBot
         double margin = et.CrewBots.GateClearMargin;
         if (!et.Wakers.Enabled)
             return run.DawnIn + run.Tuning.DawnGraceSeconds - margin;
-        double wall = (run.Route.Plan?.Terminus.GateM ?? run.Route.Length - run.Tuning.TerminusZone) - et.Wakers.StopShort;
+        // In through the gate, the last car and all (note 940: short of it, they take it however near the guns).
+        double wall = Waker.Gate(world, et.Wakers);
         double length = d.Consist.LengthMetres, rear = d.Distance - length, standRear = stand - length;
         if (rear > wall && standRear > wall)
             return double.PositiveInfinity;
