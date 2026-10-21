@@ -1412,9 +1412,7 @@
       // about 1 (± jitter) at each payment, the free channel sends one (its spacing, the caps and each kind's night hold):
       // the night meets λ's encounters even when the pressure's rules find nothing, and not by a roll that may never land.
       // dueCap: the most owed at once; what λ would add past it goes to the debt (why: nothing fitting, or what was chosen
-      // finding nowhere). dueFloor: the least (a stop's several residents, or a pressure spend on top of a free one, don't buy
-      // minutes of silence after them: at −1 the 8-crew nights came in clumps and then gaps, 3.3 gaps over 90 s a night;
-      // note 908).
+      // finding nowhere). dueFloor: the least (a stop's several residents don't buy minutes of silence after it).
       // pressureByLambda: the crew and the train scale the night once, in λ: the pressure (the director's answer to what
       // the crew does) is the same for any crew and train, not pressure.crewScale/lengthScale about a crew of four on eight
       // cars (issue 1: a solo crew's was a third of a four's; issue 2: no double scaling). With `on` the free spawns'
@@ -1422,8 +1420,9 @@
       // pressureGate: the pressure's spends (and its fill) wait until the clock owes at least this, pressed or not (an
       // answered draw, the night's first threat, goes ahead): λ says how many, the pressure when and what. Without it the
       // pressure spent past λ, the free channel never fired, and 2, 4 and 8 crew ran over §7's bands in bursts (note 908).
-      // null (as shipped, until the tests that pin the pressure alone are re-pinned): the pressure spends as it would alone.
-      "drive": { "on": true, "dueCap": 1.5, "dueFloor": -0.25, "jitter": 0.35, "pressureByLambda": true, "pressureGate": null },
+      // null (as shipped): the pressure spends as it would alone. Measured at 0.5 (note 908): 8 of 20 cells in §7's bands
+      // against 12 without it (λ counts placements, many of which never come on), so it waits for #613's calibration.
+      "drive": { "on": true, "dueCap": 1.5, "dueFloor": -1, "jitter": 0.35, "pressureByLambda": true, "pressureGate": null },
       // Selection and placement (note 895; the brief §3 "Encounter selection" 6, §4 level 3, §5). selection: a kind whose zone
       // (Enemy.Zone: forward, rear, flank, interior, structural, outside) already has engaged threats weighs ×zoneRepeatWeight
       // for each, in the pressure's and the curve's choices, so the next threat is a problem somewhere else (the conflict
