@@ -108,4 +108,20 @@ public class DirectorSweepTests
         Assert.Contains("frontier:7 | 2 | 4", DirectorSweep.Table(back.Groups));
         Assert.Contains("→", DirectorSweep.Compare(report.Groups, back.Groups));
     }
+
+    /// <summary>
+    /// The quiets the brief keeps (#613, note 930) are what the halves' open time leaves out: the grace, the final stretch, the
+    /// terminus's and the line's grace bans, a facility's lull; nothing else the director holds for.
+    /// </summary>
+    [Theory]
+    [InlineData("grace", true)]
+    [InlineData("final stretch", true)]
+    [InlineData("facility lull", true)]
+    [InlineData("banned (terminus_safe)", true)]
+    [InlineData("banned (grace)", true)]
+    [InlineData("at the cap", false)]
+    [InlineData("building", false)]
+    [InlineData("aftermath", false)]
+    [InlineData("cooldown", false)]
+    public void TheProtectedQuietsAreTheBriefsOwn(string why, bool kept) => Assert.Equal(kept, EncounterWatch.Protects(why));
 }

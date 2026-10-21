@@ -49,9 +49,29 @@ public sealed class EncounterWatch(double groupSeconds = EncounterWatch.DefaultG
     public int CappedIdleSeconds { get; private set; }
     public int Seconds => (int)_seconds;
 
-    /// <summary>A world's tick, read: every enemy, as <see cref="Seen"/>.</summary>
-    public void Observe(World world) => Tick(world.Tick * SimConstants.TickSeconds,
-        world.ActiveEnemies.Select(e => new Seen(e.Id, e.Kind, e.Phase, e.Hazard || e is Incident, Sim.Enemies.Director.Engaged(e))));
+    /// <summary>A world's tick, read: every enemy, as <see cref="Seen"/>; and whether the director is held for a quiet the brief
+    /// keeps (<see cref="Protected"/>).</summary>
+    public void Observe(World world)
+    {
+        double seconds = world.Tick * SimConstants.TickSeconds;
+        if (world.Director?.HeldBecause is { } why && Protects(why))
+            _protected.Add((int)Math.Floor(seconds));
+        Tick(seconds, world.ActiveEnemies.Select(e => new Seen(e.Id, e.Kind, e.Phase, e.Hazard || e is Incident, Sim.Enemies.Director.Engaged(e))));
+    }
+
+    /// <summary>
+    /// The quiets the brief keeps (§1 A, §6; #613, note 930): the night's grace, the final stretch and the terminus's safe stretch,
+    /// the line's grace ban, and a facility's lull. Seconds under them can't hold an encounter of the director's, so the halves'
+    /// counts are also read per minute open (n1-C2's finding: the terminus approach takes ~225 s of every late half).
+    /// </summary>
+    public static bool Protects(string heldBecause) => heldBecause is "grace" or "final stretch" or "facility lull"
+        || heldBecause.StartsWith("banned (terminus", StringComparison.Ordinal) || heldBecause.StartsWith("banned (grace", StringComparison.Ordinal);
+
+    readonly HashSet<int> _protected = [];
+
+    /// <summary>Seconds before <paramref name="half"/> (early) and from it to <paramref name="end"/> (late) not under a protected quiet.</summary>
+    public (double Early, double Late) OpenSeconds(double half, double end) =>
+        (Math.Max(0, half - _protected.Count(s => s < half)), Math.Max(0, end - half - _protected.Count(s => s >= half && s < end)));
 
     public void Tick(double seconds, IEnumerable<Seen> enemies)
     {
