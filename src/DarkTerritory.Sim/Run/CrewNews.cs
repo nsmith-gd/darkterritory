@@ -13,6 +13,7 @@ public sealed record CrewNewsTuning
     public bool On { get; init; }
     public double BeyondMetres { get; init; } = Net.VoiceRouting.ProximityCutoff;
     public double DeathSeconds { get; init; } = 4;
+    public bool DeathsNear { get; init; }
 }
 
 /// <summary>One crewmate's emergency as a living crewmate's HUD says it: who and where, never what.</summary>
@@ -87,8 +88,9 @@ public sealed class CrewNews
             bool was = _alive.TryGetValue(id, out bool alive) && alive;
             _alive[id] = s.Alive;
             if (was && !s.Alive)
-                // Out of reach as they went: the line, for its few seconds. Within it, heard (and the cut heard, App. D.2).
-                _gone[id] = Far(s) ? new CrewNewsLine(id, $"{name(id).ToUpperInvariant()} IS GONE - {Place(train, s, stop)}", true, tick) : null;
+                // Out of reach as they went: the line, for its few seconds. Within it, heard (and the cut heard, App. D.2),
+                // unless deathsNear tells it there too (note 938: a bot's death beside you went by unheard).
+                _gone[id] = t.DeathsNear || Far(s) ? new CrewNewsLine(id, $"{name(id).ToUpperInvariant()} IS GONE - {Place(train, s, stop)}", true, tick) : null;
             if (s.Alive && _gone.ContainsKey(id))
                 _gone.Remove(id);
             if (s.Alive && s.Has(PlayerFlags.Held))

@@ -675,7 +675,7 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
         if (!free || !self.Alive || self.Parent < 0)
             return null;
         bool coming = world.ActiveEnemies.Any(e => e is CinderHound { Gone: false } h && h.Attached < 0 && h.Phase is SpinePhase.Telegraph or SpinePhase.Commit);
-        bool due = coming || world.Enemies is { } et && train.Dynamics.Speed >= et.Director.Run.FromSpeed;
+        bool due = coming || world.Enemies is { } et && train.Dynamics.Speed >= et.Director.Run.FromSpeedOn(world.Route?.Tier ?? Sim.Route.RouteTier.Frontier);
         if (!due)
             return null;
         foreach (bool f in (ReadOnlySpan<bool>)[false, true])
@@ -3037,6 +3037,12 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         // Note 343: a hound pack aboard and nobody else to fight it: stand the train, and cut its car loose.
         if (CutAlone(self, world, tick) is { } cuttingAlone)
             return cuttingAlone with { Lamp = lamp };
+        // Note 936 (GDD §12 "Ping the bots"): out of the cab to a job pinged for it, the crew's only hands; and the train held
+        // for a crewmate's.
+        if (OnAPing(self, world, tick) is { } pinged)
+            return pinged with { Lamp = lamp };
+        if (self.Alive && PlayerMotor.InCab(self, train) && ForAPing(world) is { } heldForIt)
+            return Work(self, train, heldForIt) with { Lamp = lamp };
         // Note 720 (GDD §12): a crewmate's lamp signal where the driver can see it: stop, go on, or back up.
         if (self.Alive && PlayerMotor.InCab(self, train) && Signalled(world) is { } signalled)
             return Work(self, train, signalled) with { Lamp = lamp };

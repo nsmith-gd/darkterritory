@@ -65,10 +65,10 @@ public sealed partial class StopHand
                 .OrderBy(h => (Flat(h.At) - Flat(here)).Length).ThenBy(h => h.Key).FirstOrDefault();
             if (next.Seconds <= 0)
                 return GiveUpVillage(self, world, p);
-            if ((Flat(next.At) - Flat(here)).Length > t.VillageReach)
+            if ((Flat(next.At) - Flat(here)).Length > Reach(world, t))
                 return GiveUpVillage(self, world, p);
             var path = FootPath.Plan(train, here, Front(next));
-            if (path is null || FootPath.Length(here, path) > t.VillageReach * 1.4)
+            if (path is null || FootPath.Length(here, path) > Reach(world, t) * 1.4)
             {
                 // Nowhere it can walk to from here (round the far side of a lake, say): try the next one next tick.
                 _cantReach.Add(next.Key);
@@ -154,8 +154,14 @@ public sealed partial class StopHand
         var kept = Lived(world);
         return run.DawnIn >= t.VillageDawnSpare && (TownOrdered(_stopIndex) || calls.OutCount(member) < Math.Max(1, (int)Math.Ceiling(calls.CrateHands * t.VillageShare)))
             && run.HidingSpots.Any(h => h.Stop == _stopIndex && !run.Searched(h.Stop, h.Container.Index) && !_cantReach.Contains(h.Key)
-                && !calls.SpotClaimed(h.Key, member) && (Flat(h.At) - Flat(here)).Length <= t.VillageReach && !InLived(world, kept, h.At));
+                && !calls.SpotClaimed(h.Key, member) && (Flat(h.At) - Flat(here)).Length <= Reach(world, t) && !InLived(world, kept, h.At));
     }
+
+    /// <summary>
+    /// How far from where it stands it goes to a spot (m): the crew's village reach; a hand sent to the town by a ping, as far
+    /// as the town pinged (note 936, player.json <c>pings.townReach</c>).
+    /// </summary>
+    double Reach(World world, StopCrewTuning t) => TownOrdered(_stopIndex) ? Math.Max(t.VillageReach, world.PingTuning.TownReach) : t.VillageReach;
 
     /// <summary>
     /// Whether this hand's order is the town at this stop (note 739 part two; the director, 14 Oct: "an abandoned town by a

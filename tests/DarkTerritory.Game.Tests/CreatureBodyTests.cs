@@ -33,6 +33,8 @@ public class CreatureBodyTests
         { EnemyKind.Pickers, "picker", 1 }, { EnemyKind.Lodger, "lodger", 1 }, { EnemyKind.Householder, "householder", 1 },
         // The Mouse Moose (note 796).
         { EnemyKind.MouseMoose, "mouse_moose", 1 },
+        // The Waker (note 940): drawn WakerGait.Scale times his modelled size, so his body is checked at that.
+        { EnemyKind.Waker, "waker", WakerGait.Scale },
     };
 
     [Theory]

@@ -60,7 +60,7 @@ public static class Footing
             PartKind.Chassis or PartKind.Steps or PartKind.Cargo or PartKind.Locker or PartKind.Wall => "wood",
             // The engine's running boards and the gangway's footplate are chequer plate (steel_grate), as are the coupler
             // plates and the guard van's rear platform.
-            PartKind.RunningBoard or PartKind.Coupler => "grate",
+            PartKind.RunningBoard or PartKind.Coupler or PartKind.Ramp => "grate",
             PartKind.Tender => "coal",
             PartKind.Boiler or PartKind.Stack or PartKind.CabWall or PartKind.GunMount => "plate",
             // Car roofs, the cab roof and the hatch's lid: corrugated iron or plate, the roof walk's tin.

@@ -126,7 +126,7 @@ public sealed record NightMenu(bool Hosting = true, int Others = 0, bool Campaig
 /// <summary>A listed run's lobby as its host has it now (note 535): its mood, and whether it's behind a password.</summary>
 public sealed record HostLobby(RunMood Mood, bool Locked);
 
-public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile, DeleteCrew, Mods, Crashed, Password, Paint, Smithy, Consent, PlaytestData }
+public enum Screen { Title, Slots, Fortress, Upgrades, QuickNight, Join, Settings, Controls, Host, Stores, Credits, Night, Leave, Profile, DeleteCrew, Mods, Crashed, Password, Paint, Smithy, Consent, PlaytestData, Survey }
 
 /// <summary>
 /// The blacksmith's catalogue, open over the yard (ARCHITECTURE §8 note 697): who's selling, the crew's campaign as it stands
@@ -146,7 +146,7 @@ public sealed record MenuItem(string Label, string? Detail = null, bool Enabled 
 /// The front end's text fields (note 264, the director's notes on build 1121: "when I go to name of lobby, it just starts
 /// automatically typing"). None takes typing on being chosen: Enter or a click starts editing, Enter or Esc ends it.
 /// </summary>
-public enum TextField { LobbyName, Address, PlayerName, CrewName, LobbyPassword, JoinPassword, NightPassword, EngineName }
+public enum TextField { LobbyName, Address, PlayerName, CrewName, LobbyPassword, JoinPassword, NightPassword, EngineName, PlaytestCode, SurveyComment }
 
 /// <summary>Where a pointer is over the front end (note 264): an item, and on a value's row, its arrows (−1, +1) or the row (0).</summary>
 public readonly record struct MenuHit(int Item, int Step = 0);
@@ -299,6 +299,20 @@ public sealed class FrontEnd
     // Where WHAT WE COLLECT was opened from (the question, or the settings), for its BACK.
     Screen _playtestBack = Screen.Settings;
 
+    /// <summary>
+    /// The playtest kit (queue #628, note 916): the cohort code typed in PLAYTEST DATA or baked into a playtest build, and
+    /// whether a night's end asks the survey. Null: neither is offered.
+    /// </summary>
+    public DarkTerritory.Game.Telemetry.PlaytestKit? Kit { get; set; }
+
+    /// <summary>The survey answered or skipped (the app writes it into the session: <c>SessionRecorder.Survey</c>).</summary>
+    public Action<DarkTerritory.Game.Telemetry.SurveyAnswers>? Surveyed { get; set; }
+
+    // The survey's answers as they're given, and where it goes after (where the night's end left the menu, and what it said).
+    DarkTerritory.Game.Telemetry.SurveyAnswers _survey = new();
+    Screen _surveyThen = Screen.Title;
+    string? _surveyThenSaid;
+
     /// <summary>Note 452: where reports go (content/ui/reports.json); without an address nothing offers to send one.</summary>
     public ReportsTuning? Reports { get; set; }
 
@@ -397,6 +411,7 @@ public sealed class FrontEnd
         }
         var was = Enum.GetValues<Control>().FirstOrDefault(o => o != c && Settings.KeyFor(o) == key, c);
         Change(Settings.Bind(c, key));
+        Telemetry?.Rebind(c.ToString());
         Message = was != c ? $"{Controls.Label(was)} moved to {Controls.KeyLabel(Settings.KeyFor(was))}." : null;
         Cue?.Invoke(UiCue.Select);
     }
@@ -487,6 +502,12 @@ public sealed class FrontEnd
             Show(_playtestBack);
             return;
         }
+        // Note 916: Escape on the night's questions skips them.
+        if (Screen == Screen.Survey)
+        {
+            EndSurvey(new DarkTerritory.Game.Telemetry.SurveyAnswers(Skipped: true));
+            return;
+        }
         Show(Screen switch
         {
             Screen.Upgrades or Screen.Stores or Screen.DeleteCrew => Screen.Fortress,
@@ -564,6 +585,8 @@ public sealed class FrontEnd
         TextField.LobbyPassword => Settings.LobbyPassword,
         TextField.JoinPassword => JoinPassword,
         TextField.NightPassword => NightPassword,
+        TextField.PlaytestCode => Kit?.Typed ?? "",
+        TextField.SurveyComment => _survey.Comment ?? "",
         _ => NamingLobby ? LobbyName : "",
     };
 
@@ -622,6 +645,21 @@ public sealed class FrontEnd
                 if ((char.IsLetterOrDigit(c) || c is ' ' or '\'' or '.' or '-' or '!' or '?') && name.Length < MaxCrewName && c < 0x7f)
                     name += c;
             SaveCrew(crew with { Name = name.TrimStart() });
+            return;
+        }
+        // Note 916: the playtest's code (letters, digits and dashes: Kit.Clean keeps it so), and the survey's comment, as typed.
+        if (Editing == TextField.PlaytestCode && Kit is { } kit)
+        {
+            kit.Type(kit.Typed + text);
+            return;
+        }
+        if (Editing == TextField.SurveyComment)
+        {
+            string said = _survey.Comment ?? "";
+            foreach (char c in text)
+                if (c is >= ' ' and < (char)0x7f && said.Length < DarkTerritory.Game.Telemetry.SurveyAnswers.CommentLength)
+                    said += c;
+            _survey = _survey with { Comment = said.TrimStart() };
             return;
         }
         if (Editing != TextField.Address)
@@ -690,10 +728,28 @@ public sealed class FrontEnd
         }
         if (Editing == TextField.Address && Address.Length > 0)
             Address = Address[..^1];
+        if (Editing == TextField.PlaytestCode && Kit is { Typed.Length: > 0 } kit)
+            kit.Type(kit.Typed[..^1]);
+        if (Editing == TextField.SurveyComment && _survey.Comment is { Length: > 0 } said)
+            _survey = _survey with { Comment = said[..^1] };
+    }
+
+    /// <summary>The playtest session recorder (note 913): purchases, rebinds and the screens' times go to it. Null: nothing's told.</summary>
+    public Telemetry.SessionRecorder? Telemetry { get; set; }
+    readonly System.Diagnostics.Stopwatch _onScreen = System.Diagnostics.Stopwatch.StartNew();
+
+    /// <summary>The screen up till now is left (for another, or the menus closed): its time on screen told.</summary>
+    void Opened()
+    {
+        Telemetry?.Menu(Screen.ToString(), _onScreen.Elapsed.TotalSeconds);
+        _onScreen.Restart();
     }
 
     public void Show(Screen screen)
     {
+        // Note 913: the screen left, and how long it was up (the playtest telemetry's menu event).
+        if (screen != Screen)
+            Opened();
         // The in-night menu's pages are only there over a night (note 292).
         if (screen is Screen.Night or Screen.Leave && Night is null || screen is Screen.Smithy && (Night is null || Smithy is null))
             screen = Screen.Title;
@@ -702,6 +758,8 @@ public sealed class FrontEnd
         if (screen is Screen.Crashed && Crash is null)
             screen = Screen.Title;
         if (screen is Screen.Consent or Screen.PlaytestData && (Playtest is null || PlaytestNotice is null))
+            screen = Screen.Title;
+        if (screen is Screen.Survey && Kit is null)
             screen = Screen.Title;
         _blankName = false;
         Editing = null;
@@ -773,6 +831,7 @@ public sealed class FrontEnd
     {
         if (Night is null)
             return;
+        Opened();
         Night = null;
         Smithy = null;
         Editing = null;
@@ -818,8 +877,10 @@ public sealed class FrontEnd
         else if (n.Hosting && n.JoinAt is { } at)
             list.Add(new(new("INVITE", "Friends on your network join by its address."),
                 () => { Message = $"Friends join at {at}: JOIN, then type it."; return null; }));
-        // Over, there's nothing to lose by leaving: it goes at once, as Enter does.
-        list.Add(new(new(n.Hosting && n.Others > 0 && !n.Over ? "END THE NIGHT" : "LEAVE"), n.Over ? () => new Launch.Leave() : Go(Screen.Leave)));
+        // Over, there's nothing to lose by leaving: it goes at once. Enter on the end screen goes on with the crew (to the
+        // fortress, or the next night from the town); LEAVE goes to the title (note 937).
+        list.Add(new(new(n.Hosting && n.Others > 0 && !n.Over ? "END THE NIGHT" : "LEAVE", n.Over ? LeaveOver : null),
+            n.Over ? () => new Launch.Leave() : Go(Screen.Leave)));
         return list;
     }
 
@@ -847,6 +908,9 @@ public sealed class FrontEnd
                 () => { Change(Settings with { PublicLobby = true }); Message = "THE RUN'S OPEN."; return null; }));
         return list;
     }
+
+    /// <summary>LEAVE's line on a night that's over (note 937): where it goes, and where Enter goes instead.</summary>
+    public const string LeaveOver = "Back to the title. Enter on the night's end goes on with the crew.";
 
     /// <summary>The new password being typed in a night (note 535), from blank; it's the run's on Enter, and nothing on Esc.</summary>
     public string NightPassword { get; private set; } = "";
@@ -949,6 +1013,57 @@ public sealed class FrontEnd
 
     /// <summary>After the question: the crash notice if there's one waiting, else the title.</summary>
     void AfterConsent() => Show(Crash is not null ? Screen.Crashed : Screen.Title);
+
+    /// <summary>
+    /// The night's questions (note 916), asked as the menu comes back after a night, when the kit asks them (a playtest, and
+    /// playtest data on: <paramref name="recording"/>). Answered or skipped, the menu goes where the night left it.
+    /// </summary>
+    public void AskSurvey(bool recording)
+    {
+        if (Kit is not { } kit || !kit.AsksSurvey(recording))
+            return;
+        (_surveyThen, _surveyThenSaid) = (Screen, Message);
+        _survey = new();
+        Show(Screen.Survey);
+        Message = null;
+    }
+
+    void EndSurvey(DarkTerritory.Game.Telemetry.SurveyAnswers answers)
+    {
+        Surveyed?.Invoke(answers);
+        Show(_surveyThen);
+        Message = answers.Skipped ? _surveyThenSaid : $"Thank you.{(_surveyThenSaid is { } said ? " " + said : "")}";
+    }
+
+    /// <summary>A 1-5 question: unsaid until it's stepped onto, then left and right along it.</summary>
+    Entry Rating(string label, string detail, int? now, Func<int?, DarkTerritory.Game.Telemetry.SurveyAnswers> with)
+    {
+        void Step(int by) => _survey = with(Math.Clamp((now ?? (by > 0 ? 0 : 6)) + by, 1, 5));
+        return new(new($"{label}: {(now is { } n ? $"{n} OF 5" : "-")}", detail), () => { Step(+1); return null; }, Step);
+    }
+
+    List<Entry> SurveyEntries() =>
+    [
+        Rating("HOW FUN", "How fun was tonight? 1, not at all; 5, the most fun you've had in a while.", _survey.Fun, n => _survey with { Fun = n }),
+        Rating("HOW FRIGHTENING", "How frightening was it? 1, not at all; 5, you didn't want to look.", _survey.Fear, n => _survey with { Fear = n }),
+        Rating("ANOTHER NIGHT", "Would you play another? 1, not again; 5, right now.", _survey.Again, n => _survey with { Again = n }),
+        new(new($"A WORD FOR US: {_survey.Comment}{(Editing == TextField.SurveyComment ? "_" : "")}", Editing == TextField.SurveyComment
+                ? $"Anything about tonight, in your own words (up to {DarkTerritory.Game.Telemetry.SurveyAnswers.CommentLength} letters). Please no names. Enter or Esc when it's done."
+                : "Optional: Enter to write something about tonight. It's sent only if you tick SEND MY WORDS TOO."), Field: TextField.SurveyComment),
+        // The comment is typed text, the one kind the recorder keeps (note 916): sent only with this ticked, its own yes.
+        new(new($"SEND MY WORDS TOO: {(_survey.SendComment ? "YES" : "NO")}", "Your comment goes in the record only with this on, as you wrote it. Off, it's left here.",
+                _survey.Comment is { Length: > 0 }),
+            () => { _survey = _survey with { SendComment = !_survey.SendComment }; return null; }, _ => _survey = _survey with { SendComment = !_survey.SendComment }),
+        new(new("SEND", "Your answers go in tonight's playtest record.", _survey.Said), () => { EndSurvey(_survey); return null; }),
+        new(new("SKIP", "Nothing is asked again for this night."), () => { EndSurvey(new DarkTerritory.Game.Telemetry.SurveyAnswers(Skipped: true)); return null; }, Back: true),
+    ];
+
+    /// <summary>Settings' PLAYTEST CODE (note 916): the code a playtest's organiser gives out, so its testers' nights group together.</summary>
+    Entry CodeEntry(DarkTerritory.Game.Telemetry.PlaytestKit kit) =>
+        new(new($"PLAYTEST CODE: {(Editing == TextField.PlaytestCode ? kit.Typed + "_" : kit.Cohort ?? "NONE")}", Editing == TextField.PlaytestCode
+                ? $"Letters, digits and dashes, up to {DarkTerritory.Game.Telemetry.PlaytestKit.CodeLength}; blank for none{(kit.Build?.Cohort is { } baked ? $" (this build's, {baked})" : "")}. Enter or Esc when it's done; it counts from your next session."
+                : "In a playtest, the code you were given: your nights are grouped with the other testers', and a few questions follow each night."),
+            Field: TextField.PlaytestCode);
 
     Entry PlaytestSwitch(Telemetry.PlaytestConsent p) =>
         new(new($"PLAYTEST DATA: {(p.Recording ? "ON" : "OFF")}", p.Recording
@@ -1402,6 +1517,7 @@ public sealed class FrontEnd
             // Note 914: playtest data, on or off, and what it is.
             .. Playtest is { } playtest && PlaytestNotice is not null
                 ? [Heading("PLAYTEST DATA"), PlaytestSwitch(playtest),
+                    .. Kit is { } kit ? [CodeEntry(kit)] : (Entry[])[],
                     new Entry(new("WHAT WE COLLECT", "Every kind of thing it records, for how long, and DELETE."), () => { _playtestBack = Screen.Settings; Show(Screen.PlaytestData); return null; })]
                 : (Entry[])[],
             // Note 452: something wrong that didn't crash it, reported as a crash is, from the player's own mail.
@@ -1421,6 +1537,7 @@ public sealed class FrontEnd
         Screen.Crashed when Crash is { } c => CrashEntries(c),
         Screen.Consent when Playtest is { } p && PlaytestNotice is { } n => ConsentEntries(p, n),
         Screen.PlaytestData when Playtest is { } p && PlaytestNotice is { } n => PlaytestDataEntries(p, n),
+        Screen.Survey => SurveyEntries(),
         // Note 323: a row a mod, its description under it; what couldn't load, why. Nothing here changes them: they're laid
         // over as the game starts, from its folders or a mod manager's profile (note 53).
         Screen.Mods =>
@@ -1687,7 +1804,7 @@ public sealed class FrontEnd
         double carCost = Campaign.NextCarCost(_campaign, s);
         bool full = s.Cars >= _campaign.MaxCars;
         list.Add(new(new(full ? "BUY A CAR: THE CONSIST IS FULL" : $"BUY A CAR: {carCost:0} SCRIP", full ? null : $"Car {s.Cars + 1}. More cars carry more, and burn more, and need more hands.",
-            !full && s.Current is null), () => Buy(Campaign.BuyCar(_campaign, s), $"A car bought: {s.Cars + 1} now.")));
+            !full && s.Current is null), () => Buy(Campaign.BuyCar(_campaign, s), $"A car bought: {s.Cars + 1} now.", "car")));
         // GDD §9 "add or remove railcars" (note 182): a car off brings back a share of its price; a shorter train works a lower tier.
         if (_campaign.SellCar is { } sell)
         {
@@ -1696,7 +1813,7 @@ public sealed class FrontEnd
             string after = tierAfter != Campaign.TierFor(_campaign, s.Cars) ? $" The consist drops to {Name(tierAfter)} work." : "";
             list.Add(new(new(fewest ? $"TAKE A CAR OFF: {sell.Fewest} IS THE FEWEST" : $"TAKE A CAR OFF: +{Campaign.SellBack(_campaign, s):0} SCRIP",
                 fewest ? null : $"Car {s.Cars} back to the yard for {sell.Share:P0} of its price.{after}", !fewest && s.Current is null),
-                () => Buy(Campaign.SellCar(_campaign, s), $"A car taken off: {s.Cars - 1} now.")));
+                () => Buy(Campaign.SellCar(_campaign, s), $"A car taken off: {s.Cars - 1} now.", "carSold")));
         }
         // GDD v1.4 App. E.12 question 4: the fortress sells spare repair kits; each rides in a crew locker (note 173).
         if (_campaign.SpareKit is { } spare)
@@ -1705,7 +1822,7 @@ public sealed class FrontEnd
             string have = s.SpareKits == 0 ? "None aboard yet" : $"{s.SpareKits} aboard";
             list.Add(new(new(most ? $"SPARE REPAIR KIT: THE LOCKERS HOLD {spare.Most}" : $"BUY A SPARE REPAIR KIT: {spare.Cost:0} SCRIP",
                 $"{have}. A ruptured boiler with every kit lost strands the night; spares ride in the crew lockers.", !most && s.Current is null),
-                () => Buy(Campaign.BuySpareKit(_campaign, s), $"A spare repair kit bought: {s.SpareKits + 1} now.")));
+                () => Buy(Campaign.BuySpareKit(_campaign, s), $"A spare repair kit bought: {s.SpareKits + 1} now.", "spareKit")));
         }
         if (_campaign.Stores is not null)
             list.Add(new(new("STORES", StoresLine(s.Stores), s.Current is null), () => { Show(Screen.Stores); return null; }));
@@ -1881,7 +1998,7 @@ public sealed class FrontEnd
             int have = s.Stores.Of(kind);
             bool most = have >= item.Most;
             list.Add(new(new(most ? $"{name}: {have} OF {item.Most}, ALL A NIGHT TAKES" : $"{name}: {item.Cost:0} SCRIP ({have} OF {item.Most})", detail, !most && s.Current is null),
-                () => Buy(Campaign.BuyStores(_campaign, s, kind), $"{name.ToLowerInvariant()} bought for tonight.")));
+                () => Buy(Campaign.BuyStores(_campaign, s, kind), $"{name.ToLowerInvariant()} bought for tonight.", $"stores:{kind}")));
         }
         Row(StoreKind.Powder, st.Powder, "POWDER AND SHOT", $"A crate: {st.Powder.Each} more rounds for every gun tonight.");
         Row(StoreKind.Lamp, st.Lamps, "SPARE LAMP", "In the guard van beside its own, for when one goes out over the side.");
@@ -1899,10 +2016,12 @@ public sealed class FrontEnd
         return list;
     }
 
-    Launch? Buy(Purchase p, string done)
+    Launch? Buy(Purchase p, string done, string what)
     {
         if (p.Ok)
         {
+            // Note 913: what was bought (or sold back: a negative cost), and the scrip after.
+            Telemetry?.Purchase(what, (Open?.Scrip ?? p.State.Scrip) - p.State.Scrip, p.State.Scrip);
             _saves.Save(p.State);
             Open = p.State;
         }
@@ -2079,6 +2198,7 @@ public sealed class FrontEnd
             Screen.Crashed => "DARK TERRITORY STOPPED LAST TIME",
             Screen.Consent => PlaytestNotice?.Question ?? "PLAYTEST DATA",
             Screen.PlaytestData => "PLAYTEST DATA",
+            Screen.Survey => "TONIGHT, IN THREE NUMBERS",
             Screen.Fortress or Screen.Upgrades or Screen.Stores when Open is { } s =>
                 $"{CrewName(s).ToUpperInvariant()}{(s.Town is { } town ? $" IN {town.Name.ToUpperInvariant()}" : "")}: {s.Cars} CARS, {s.Scrip:0} SCRIP, NIGHT {s.Runs + 1}, {Name(Campaign.TierFor(_campaign, s.Cars))}",
             Screen.Upgrades => "UPGRADES",
@@ -2108,7 +2228,10 @@ public sealed class FrontEnd
             y += 10;
         }
         // (Wrapped, as the heading is, at a bigger TEXT SIZE: note 347.)
-        string? under = Screen == Screen.Consent && PlaytestNotice is { } notice ? string.Join(" ", notice.Ask).ToUpperInvariant()
+        string? under = Screen == Screen.Consent && PlaytestNotice is { } notice
+                ? (string.Join(" ", notice.Ask) + (Kit?.Build is { } build && notice.PlaytestBuild.Length > 0
+                    ? " " + notice.PlaytestBuild.Replace("{code}", build.Cohort ?? "no code", StringComparison.Ordinal) : "")).ToUpperInvariant()
+            : Screen == Screen.Survey ? "FOR THE PLAYTEST: EACH FROM 1 TO 5, LEFT AND RIGHT. SKIP IT IF YOU'D RATHER."
             : Screen == Screen.Upgrades ? "BOUGHT FROM THE BLACKSMITH, AT THE FORGE IN THE YARD"
             : Screen == Screen.Smithy && Smithy is { } selling
                 ? !selling.CanBuy ? $"THE HOST PAYS: ASK {(selling.Payer ?? "THEM").ToUpperInvariant()}"

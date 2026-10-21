@@ -110,7 +110,7 @@ public class EmotesForTwoTests
                 Assert.Equal(cycle, frames[0].Intent.Cycle);
                 Assert.Equal(2, frames[0].Intent.Select);
             }
-        Assert.Equal(82, Protocol.Version);
+        Assert.Equal(84, Protocol.Version);
     }
 
     [Fact]

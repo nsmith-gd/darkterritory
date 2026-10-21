@@ -130,8 +130,14 @@ return args switch
     // Note 913 (queue #624): the playtest recorder's schema, and a bot night recorded with it.
     ["telemetry", "schema", ..] => Print(TelemetryCommands.Schema()),
     ["telemetry", "record", ..] => Print(TelemetryCommands.Record(content, args)),
+    // dt telemetry spool [--dir d] [--trim] [--export out] (queue #626, note 919): the spool's sessions against its caps; trim; bundle.
+    ["telemetry", "spool", ..] => Print(TelemetryCommands.Spool(content, args)),
+    // dt telemetry send [--dir d] [--dry-run] (queue #637, note 943): the pending sessions to PostHog, or what would go.
+    ["telemetry", "send", ..] => Print(TelemetryCommands.Send(content, args)),
     ["telemetry", "summary", ..] => Print(TelemetryCommands.Summary(args)),
     ["telemetry", "map", ..] => Print(TelemetryCommands.Map(content, args)),
+    // dt playtest bake --into <content> [--cohort CODE] (note 916): a playtest build's mark, as tools/package.sh --playtest bakes it.
+    ["playtest", "bake", ..] => Print(PlaytestBake(Str(args, "--into", ""), Str(args, "--cohort", ""))),
     ["afoot", "census", ..] => Print(AfootCommands.Census(content, args)),
     // dt eligibility rolls [--seeds 1-2000]: each kind's nightChance with the night's floor, by tier and crew. dt eligibility [--routes frontier:7,deadLines:3] [--crews 1:3,2:5,4:8] [--seeds 1-3] [--seconds 2700] [--markdown f.md]: every
     // kind of the director's spend table, its gates read a second at a time through ordinary nights (note 875).
@@ -285,6 +291,8 @@ object RunHarness(string[] args, Action<uint, IReadOnlyList<(DarkTerritory.Sim.B
         Upkeep = args.Contains("--upkeep") ? DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File)) : null,
         Route = route,
         Udp = args.Contains("--udp"),
+        // --wire (note 921): what each kind of record costs each client, kbit/s.
+        Wire = args.Contains("--wire"),
         Network = online,
         Holdouts = DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(content, DarkTerritory.Sim.Run.HoldoutTuning.File)),
         Sight = sight,
@@ -2362,6 +2370,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         scene.Crew = [.. scene.Crew ?? [], Staging.Scorched(train, burning, stagedFire ?? new DarkTerritory.Sim.Enemies.CarFireTuning(),
             Array.IndexOf(args, "--scorch") is var sc && sc + 1 < args.Length
                 && double.TryParse(args[sc + 1], System.Globalization.CultureInfo.InvariantCulture, out double scorchFrom) ? scorchFrom : 1.4)];
+    // --fire-cause hotbox|hounds|inside|flies|lamp (note 939; with --threats): the staged fire lit by that, shown where it is: the
+    // hot box burning at its wheel (--view hotbox --car the fire's), a hound on its roof over it seen from inside (--view fire;
+    // --ignite-at w, its wind-up to light it again); with --hud, the line saying it.
+    if (Str(args, "--fire-cause", "") is { Length: > 0 } fireCause && scene.Enemies is { } stagedThreats)
+        scene.Enemies = Staging.Caused(train, stagedThreats, fireCause, Opt(args, "--ignite-at", 0),
+            DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).CinderHounds.Aboard.IgniteWindUpSeconds, stagedFire);
     // --hugger swallow: the one it has in its mouth at the rear car's end door (App. A.3; Staging.Swallowed).
     if (Str(args, "--hugger", "") == "swallow" && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.CarHugger>().FirstOrDefault() is { Holding: >= 0 })
         scene.Crew = [.. scene.Crew ?? [], Staging.Swallowed(train), .. args.Contains("--rescue") ? [Staging.SwallowRescuer(train)] : Array.Empty<Crewmate>()];
@@ -2551,10 +2565,17 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             if (view == "jackpothouse" && bigStop >= 0)
             {
                 int door = run.LockedDoors(bigStop).First();
+                // --plain (note 941): the door of the house nearest it, a village's plank door, not the jackpot house's.
+                if (args.Contains("--plain"))
+                {
+                    var jackpot = scene.Walls.HouseDoors.First(x => x.Key == door).At;
+                    door = scene.Walls.HouseDoors.Where(x => !scene.Walls.Locked(x.Key) && (x.Key - 1) >> 12 == (door - 1) >> 12)
+                        .OrderBy(x => (x.At - jackpot).Length).First().Key;
+                }
                 if (args.Contains("--inside"))
                     scene.Walls.SetShut(door, false);
                 if (Str(args, "--cam", "") is not { Length: > 0 })
-                    camera = Staging.JackpotHouse(scene.Walls, door, args.Contains("--inside"));
+                    camera = Staging.JackpotHouse(scene.Walls, door, args.Contains("--inside"), args.Contains("--close"));
             }
         }
     }
@@ -3546,6 +3567,22 @@ static object MenuShot(TrainTuning t, string content, string[] args)
     return new { path = Path.GetFullPath(output), screen = screen.ToString(), items = menu.Items.Select(i => i.Label) };
 }
 
+/// <summary>
+/// A playtest build's mark (note 916) into a content folder: <c>ui/playtest.json</c>, its channel and cohort code (cleaned as
+/// the game cleans a typed one). tools/package.sh --playtest bakes it into the build it zips.
+/// </summary>
+static object PlaytestBake(string into, string cohort)
+{
+    if (into.Length == 0)
+        throw new ArgumentException("dt playtest bake --into <content folder> [--cohort CODE]");
+    var build = new DarkTerritory.Game.Telemetry.PlaytestBuild(Cohort: DarkTerritory.Game.Telemetry.PlaytestKit.Clean(cohort));
+    string path = Path.Combine(into, DarkTerritory.Game.Telemetry.PlaytestBuild.File);
+    Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+    File.WriteAllText(path, "// A playtest build (note 916): written by tools/package.sh --playtest (dt playtest bake).\n"
+        + System.Text.Json.JsonSerializer.Serialize(build, DataFile.Options) + "\n");
+    return new { written = Path.GetFullPath(path), build.Channel, build.Cohort };
+}
+
 /// <summary>The front end on <c>--menu</c>'s screen, with a demo campaign slot unless <c>--saves</c> names real ones.</summary>
 static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) DemoMenu(string content, string[] args)
 {
@@ -3614,6 +3651,35 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
         Directory.Delete(telemetryDir, recursive: true);
     menu.Playtest = DarkTerritory.Game.Telemetry.PlaytestConsent.Load(telemetryDir, defaultOn: args.Contains("--dev"));
     menu.PlaytestNotice = DarkTerritory.Game.Telemetry.PlaytestNotice.Load(content);
+    // Note 916: the playtest kit, --cohort CODE a playtest build's (the question says so; Settings shows its code); --menu survey
+    // the night's questions as a playtest's night ends (--answered: three answers and a word given).
+    if (args.Contains("--cohort"))
+        PlaytestBake(Path.Combine(dir, "playtest-build"), Str(args, "--cohort", ""));
+    menu.Kit = DarkTerritory.Game.Telemetry.PlaytestKit.Load(Path.Combine(dir, args.Contains("--cohort") ? "playtest-build" : "no-playtest-build"), telemetryDir);
+    if (screen == DarkTerritory.Game.Screen.Survey)
+    {
+        if (!args.Contains("--cohort"))
+            menu.Kit.Type("FALL-26-A");
+        menu.AskSurvey(recording: true);
+        if (args.Contains("--answered"))
+        {
+            menu.Right();
+            menu.Right();
+            menu.Right();
+            menu.Down();
+            menu.Right();
+            menu.Right();
+            menu.Down();
+            menu.Right();
+            menu.Right();
+            menu.Right();
+            menu.Right();
+            menu.Right();
+            menu.Down();
+            menu.Select();
+            menu.Type("Lost the guard van on the bridge. Worth it.");
+        }
+    }
     // Note 452: reports go to the studio, and REPORT A PROBLEM writes one (in the shot's own folder).
     var reports = new DarkTerritory.Game.CrashReports(Path.Combine(dir, "crashes"));
     menu.Reports = DarkTerritory.Game.ReportsTuning.Load(content);
@@ -3959,6 +4025,30 @@ static object HudShot(string content, string[] args)
         }
         session = solo;
     }
+    // --boiler-red [max][-roof] (note 938): the boiler climbing past what its safety valve holds (max: pinned at the top, the
+    // countdown running), as the cab (at the controls: the key) or, with -roof, car 2's roof (one plain line, no key) is told it.
+    if (args.Contains("--boiler-red") && session.Train.BoilerTuning is { } redTuning)
+    {
+        string red = Str(args, "--boiler-red", "");
+        session.Train.Boiler.Pressure = red.StartsWith("max", StringComparison.Ordinal) ? redTuning.PressureMax : redTuning.SafetyValveLift + 2;
+        session.Train.Boiler.AtMaxSeconds = red.StartsWith("max", StringComparison.Ordinal) ? 6 : 0;
+        if (red.EndsWith("roof", StringComparison.Ordinal) && session is PrototypeSession redSolo)
+            redSolo.Player = PlayerMotor.SpawnOnRoof(redSolo.Train, 2, 0, redSolo.PlayerTuning) with { Yaw = 0, Pitch = -0.15 };
+    }
+    // --belt-short m (note 938): at a grain elevator's drive house (with --site --facility grainElevator), its belt running and
+    // the train m metres short of a car under its head (negative: past it), as the drive house's prompt says which way to go.
+    if (Opt(args, "--belt-short", double.NaN) is var short_ && !double.IsNaN(short_) && session is PrototypeSession beltSolo
+        && beltSolo.World.Run?.Sites.FirstOrDefault(x => x is not null && x.Has(DarkTerritory.Sim.Run.ModuleKind.Conveyor)) is { Spur: >= 0 } belt)
+    {
+        var beltTrain = beltSolo.Train;
+        var beltConsist = beltTrain.Dynamics.Consist;
+        double underHead = beltTrain.Line.Branches[belt.Spur].Toe + belt.ConveyorAlong + beltConsist.OffsetOf(1) + beltConsist.Vehicles[1].Length(beltTrain.Dynamics.Tuning) / 2;
+        var beltState = beltTrain.Capture();
+        beltTrain.Restore(beltState with { Rakes = [beltState.Rakes[0] with { Path = belt.Spur, Distance = underHead - short_, Velocity = 0 }, .. beltState.Rakes[1..]] });
+        beltTrain.RefreshFrames();
+        belt.Mirror(belt.State with { Start = 0, Running = true });
+        beltSolo.Player = PlayerMotor.SpawnOnGround(belt.ConveyorStarter - Double3.Up * 0.9, beltTrain.Line, belt.MainDistance, beltSolo.PlayerTuning);
+    }
     // --crew-news held|gone (note 750): a crewmate held, or just killed, on the last car's roof, out of voice reach: the line
     // this player's shown for it, under the news.
     if (Str(args, "--crew-news", "") is { Length: > 0 } crewNews)
@@ -4140,8 +4230,8 @@ static object HudShot(string content, string[] args)
     }
     else
     {
-        // --ping: the crew's pings (note 739): Priya's on car 2 (as if afire) and on the controls, one of yours on car 3, and
-        // Dunmore's on a town.
+        // --ping: the crew's pings (note 739): Priya's on car 2 (as if afire) and on the controls, one of yours on car 3,
+        // Dunmore's on a town, and yours on a spur that Dunmore's answered (note 936).
         if (args.Contains("--ping"))
         {
             var pinged = session.World;
@@ -4154,6 +4244,8 @@ static object HudShot(string content, string[] args)
             // And Dunmore's on the abandoned town (note 739 part two), a house out beside the line.
             pinged.Names[91] = "Dunmore";
             pinged.Pings.Add(new PingEvent(9004, (uint)session.HostTick, 91, PingKind.Town, 0, f[Math.Min(2, f.Count - 1)].ToWorld(new Double3(-80, 2, -40))));
+            // And yours on a spur's lever, answered (note 936): "DUNMORE: ON THE SPUR".
+            pinged.Pings.Add(new PingEvent(9005, (uint)session.HostTick + 1, session.PlayerId, PingKind.Points, -1, f[0].ToWorld(new Double3(4, 0.9, -40)), Taker: 91));
         }
         // --photo f.png (note 721): the crew photo at the gate (`dt screenshot --view crewphoto`'s) as tonight's, the end card's print.
         Hud.Build(hud, width, height, session, pixels: scale, firstNight: args.Contains("--first-night"), captions: captioned, photo: photoStill, commendations: args.Contains("--commend")
@@ -4201,7 +4293,9 @@ static object HudShot(string content, string[] args)
     {
         var (lines, heard) = Staging.Roster(session.Train, content);
         // Note 724: as a host in a public run has it: Reyes muted, the keys under the names, and a vote open on Okafor.
-        Hud.Roster(hud, width, height, [.. lines.Select(l => l.Id == 3 ? l with { Muted = true } : l)], heard, Hud.RosterKeys(host: true, vote: true));
+        // --roster dead (note 938): Dunmore dead, as the roster marks the dead.
+        bool dunmoreDead = Str(args, "--roster", "") == "dead";
+        Hud.Roster(hud, width, height, [.. lines.Select(l => l.Id == 3 ? l with { Muted = true } : l.Id == 1 && dunmoreDead ? l with { Alive = false } : l)], heard, Hud.RosterKeys(host: true, vote: true));
         if (Hud.KickVoteLine(new DarkTerritory.Sim.Net.KickVote(2, 1, 2, 0), "OKAFOR", onYou: false, 21, 2) is { } vote)
             Hud.KickVoteBanner(hud, width, height, vote);
     }
@@ -4677,7 +4771,7 @@ static int Usage()
              [--route tier:seed --town [square|centre|board|hall|gate|street|houses|house|kitchen|parlour|over|lane]]   the departure fortress's town (note 281), standing in it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)
           art show <piece> [--yaw deg] [--pitch deg] [--zoom k] [--ps2] [--greybox]   a piece on a turntable, to out/shots/art/
-          screenshot --menu title|slots|fortress|upgrades|stores|quickNight|host|join|settings|credits|night|leave|profile|consent|playtestData [--dev] [--down n] [--saves dir] [--others n] [--joined]
+          screenshot --menu title|slots|fortress|upgrades|stores|quickNight|host|join|settings|credits|night|leave|profile|consent|playtestData|survey [--dev] [--cohort CODE] [--answered] [--down n] [--saves dir] [--others n] [--joined]
                      a screen of the front end over the yard, as the game draws it
           screenshot --hud [--emote-wheel] [--lost] [--route tier:seed] [--seconds t] [--throttle 0..1] [--pitch r] [--yaw r]
                      a solo session played for a few seconds, first person, with the HUD, at the game's 480x270
@@ -4701,7 +4795,7 @@ static int Usage()
           linegen sweep [--tier all|t] [--cars 3,10,20] [--seeds n] [--report sweep.csv] [--fallbacks]
                      generation, validation and metrics over many seeds (plan §16.5, §20.2)
           harness [--bots n] [--cars n] [--seconds t] [--seed s] [--latency s] [--jitter s] [--loss 0..1] [--line name | --route tier:seed]
-                     [--enemies] [--no-combat] [--no-boiler] [--udp | --online | --eos] [--trace file]   --udp: real sockets on localhost instead of the simulated link;
+                     [--enemies] [--no-combat] [--no-boiler] [--udp | --online | --eos] [--trace file] [--wire]   --udp: real sockets on localhost instead of the simulated link;
                      --online: every bot joins a lobby on the fake Steam and plays over relayed P2P
                      --eos [--nat strict|moderate|open] [--relay allow|force]: every bot joins the host's lobby on the fake EOS
                      by its code, over EOS P2P (strict NATs: all through the relays; note 896)

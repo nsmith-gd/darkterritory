@@ -1889,6 +1889,9 @@ public sealed class StopDriver(CrewCalls calls)
         bool hosed = !calls.HoseHand || !p.HoseLeft(world);
         // Note 326: nor while a hand's out searching the village's houses, or bringing a find back.
         bool searched = !calls.Scavenging;
+        // Note 936: nor while a crewmate's at a job someone pinged them to (the town searched, the cargo in, the points).
+        if (calls.JobsOrdered)
+            return false;
         return winched && crated && craned && herded && hosed && searched;
     }
 
@@ -2514,7 +2517,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         return OffTheCar(self, world, p) ?? Ride(self, world.Train, p);
     }
 
-    bool _atControls, _fired;
+    bool _atControls;
     (int Casting, double Bridge, double Trolley)? _castingAt;
     (int Car, double Bridge, double Trolley)? _carAt;
 
@@ -2604,7 +2607,6 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         var t = c.Tuning;
         if (c.Hooked is null)
         {
-            _fired = false;
             _carAt = null;
             if (CraneTarget(c, train) is not { Casting: >= 0 } target)
                 return drive;
@@ -2640,11 +2642,8 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         double above = c.HookedBase.Y - roofY;
         if (under == car.Car && above <= Math.Min(0.3, t.DropAbove - 0.1))
         {
-            if (!_fired)
-            {
-                drive.Buttons |= PlayerButtons.Fire;
-                _fired = true;
-            }
+            // Held till it lets go (note 941: the let-go's a hold).
+            drive.Buttons |= PlayerButtons.Fire;
             return drive;
         }
         drive.Buttons |= PlayerButtons.Brake;
@@ -3183,12 +3182,36 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
     bool _jackpotsOnly;
 
     /// <summary>
-    /// The front end of a jackpot up between two (note 867) walks at the back end's pace, as a heavy crate from the yard does
-    /// (<see cref="HeavyPace"/>): at a walk to the steps the back end fell behind and it was down (too far apart), again and
-    /// again at the foot of them.
+    /// The front end of anything heavy up between two keeps to its back end. A jackpot (note 867) walks at the back end's pace
+    /// (<see cref="HeavyPace"/>) all the way, as a heavy crate from the yard does (note 440). Any other heavy one walks at a
+    /// walk while the back end's close, at its pace once they're more than <see cref="PaceSpan"/> of <c>Bodies.HeavySpan</c>
+    /// apart, and stands once they're more than <see cref="WaitSpan"/> of it apart, till the back end's caught up. At a walk all the way the back
+    /// end fell behind, they were more than the span apart and it was down, again and again (queue #635, note 948; n1-B2's
+    /// findings, note 920). At its pace all the way, every carry took twice as long and the stop's other work moved with it.
     /// </summary>
-    static PlayerIntent Paced(Physics.Body? mine, PlayerIntent step) =>
-        mine is { Kind: Physics.BodyKind.Heavy, Second: >= 0 } ? step with { MoveZ = Math.Min(step.MoveZ, HeavyPace) } : step;
+    static PlayerIntent Paced(Physics.Body? mine, in PlayerState self, World world, PlayerIntent step)
+    {
+        if (mine is not { Kind: Physics.BodyKind.Heavy, Second: >= 0 })
+            return step;
+        if (Run.Run.IsJackpot(mine))
+            return step with { MoveZ = Math.Min(step.MoveZ, HeavyPace) };
+        // The crate rides midway between the two pairs of hands, so from ours to it is half the way to the back end's.
+        double gap = 2 * (Physics.Bodies.WorldCentre(mine, world.Train) - world.Bodies.HandsAt(self, world.Train)).Length;
+        double span = world.Bodies.HeavySpan;
+        return gap > WaitSpan * span ? step with { MoveZ = 0, MoveX = 0 }
+            : gap > PaceSpan * span ? step with { MoveZ = Math.Min(step.MoveZ, HeavyPace) }
+            : step;
+    }
+
+    /// <summary>The share of <c>Bodies.HeavySpan</c> past which the front end of a heavy one stands for its back end (note 948).</summary>
+    const double WaitSpan = 0.92;
+
+    /// <summary>
+    /// The share of <c>Bodies.HeavySpan</c> past which it walks at the back end's pace. Both are past where the pair settles (the
+    /// back end a pace behind the crate, <see cref="TrailBehind"/>, puts the hands about 2 m apart): below that, the front end
+    /// stood for a back end already where it meant to be, and neither moved till the train left (note 948).
+    /// </summary>
+    const double PaceSpan = 0.8;
 
     /// <summary>Use for one tick, then not: picking up and putting down are on the press, not the hold.</summary>
     PlayerIntent Press()
@@ -3212,8 +3235,9 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         bool heavy = self.Has(PlayerFlags.Heavy)
             || PlayerId is { } holder && world.Bodies.CarriedBy(holder) is { Kind: Physics.BodyKind.Loot or Physics.BodyKind.Toy };
         int side = p.Site.Side;
-        // The train's leaving: down with it if it's in our arms, and aboard.
-        if (!p.AtTheEnd(train))
+        // The train's leaving: down with it if it's in our arms, and aboard. (Not for a job pinged at the stop it stands at,
+        // note 936: there the train's held for it wherever it stands.)
+        if (!p.AtTheEnd(train) && !(_orderedHere && Math.Abs(train.Dynamics.Velocity) < 0.05))
         {
             _car = -1;
             EndLampRun();
@@ -3276,7 +3300,8 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         bool forHeavy = false;
         if (!heavy && _setDown is null || _car < 0)
         {
-            _car = Roomiest(world, p, calls, member);
+            // (The car pinged for the cargo first, note 936, while it has room.)
+            _car = OrderedCar(world, p) ?? Roomiest(world, p, calls, member);
             // Note 920: no room the plan leaves the lights, but a heavy crate for two to fetch: it's the next one (else the
             // hands waited for room the heavies' halves held).
             if (_car < 0 && mine is null && PlayerId is not null && calls.HeavyHands >= 2 && HeavyCrate(world, p, self) is { } next
@@ -3430,12 +3455,12 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
             double outward = side * local.X - w;
             bool inLane = outward > 0.1 && outward < layout.StepWidth - 0.1 && local.Z > -sd - 4 * layout.StepDepth - 1.2 && local.Z < -sd - 0.3;
             if (inLane)
-                return Paced(mine, Head(self, frame.ToWorld(landing with { Y = 0, Z = local.Z + 1.5 }), heavy ? "up the steps with it" : "up the steps"));
+                return Paced(mine, self, world, Head(self, frame.ToWorld(landing with { Y = 0, Z = local.Z + 1.5 }), heavy ? "up the steps with it" : "up the steps"));
             Doing = heavy ? "carrying" : "to the door";
             // Arrived at the foot but a hand's width outside the lane (the 100-night playtest's crate hands, stood there for
             // good with the crates in their arms): straight on up from there.
             var (walk, atFoot) = WalkTo(self, train.Line, p.Spur.Index, foot, null);
-            return Paced(mine, atFoot ? Head(self, frame.ToWorld(landing with { Y = 0, Z = local.Z + 1.5 }), heavy ? "up the steps with it" : "up the steps") : walk);
+            return Paced(mine, self, world, atFoot ? Head(self, frame.ToWorld(landing with { Y = 0, Z = local.Z + 1.5 }), heavy ? "up the steps with it" : "up the steps") : walk);
         }
         // Nothing loose just now, though some are still on their way in (in someone's arms, settling): wait by the stack
         // for the next, rather than give up the stop.
@@ -3545,6 +3570,10 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
             target = _trail[i - 1];
         }
         var local = self.Parent == PlayerState.World ? target : train.Frames[self.Parent].ToLocal(target);
+        // Too far from it to hold it long (the front end stands for us past PaceSpan, note 948): in to it, wherever the trail
+        // says to stand. Standing a pace back along the trail with the front end standing for us, neither moved again.
+        if (2 * (at - world.Bodies.HandsAt(self, train)).Length > PaceSpan * world.Bodies.HeavySpan)
+            return Head(self, self.Parent == PlayerState.World ? at : train.Frames[self.Parent].ToLocal(at), "carrying the back end");
         if (back < TrailBehind * 0.5 || Near(self, local, 0.3))
         {
             // Keep facing it while the front end stands.

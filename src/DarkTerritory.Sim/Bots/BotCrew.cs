@@ -222,6 +222,13 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
                 (bot as RoofWalkerBot)?.Crew ?? (bot as GunnerBot)?.Crew ?? (bot as ConductorBot)?.Crew ?? []);
         // Note 716: and round the big cab's chart table and benches, down the ways either side of them.
         intent = Heed.CabFurniture(intent, session.Predicted, session.World, session.PlayerTuning);
+        // Note 936 (the director, 20 Oct: "oh, the spur? Yeah, of course"): a ping it's taken, answered while it's at it, so the
+        // crew are told who's on it ("DUNMORE: ON THE SPUR").
+        if (calls?.Answering(me) is { } answering && session.Predicted.Alive)
+        {
+            intent.Moves |= PlayerMoves.Answer;
+            intent.Answer = answering;
+        }
         return Vote(intent, session, me);
     }
 
