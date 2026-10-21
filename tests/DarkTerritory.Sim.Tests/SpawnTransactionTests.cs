@@ -221,5 +221,17 @@ public class SpawnTransactionTests
             Assert.Equal(Group(Spending(), 4, seed), Group(on, 4, seed));
             Assert.True(Group(Spending(), 1, seed) >= 2);
         }
+        // The draws stand where they were: the size is drawn as before and then capped, and a capped member draws nothing
+        // (its place is fixed by its index), so the director's next draw is the same with the trial on or off.
+        for (ulong seed = 1; seed <= 6; seed++)
+        {
+            double Next(EnemyTuning e)
+            {
+                var world = Plain(e, speed: 8, seed: seed, crew: 1);
+                Spawns.For(EnemyKind.Climber)!.Spawn(new SpawnContext(world, world.Enemies!, world.Director!));
+                return world.Director!.NextRange(0, 1);
+            }
+            Assert.Equal(Next(Spending()), Next(on));
+        }
     }
 }
