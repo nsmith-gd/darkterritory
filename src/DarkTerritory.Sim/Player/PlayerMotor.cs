@@ -1392,10 +1392,95 @@ public static class PlayerMotor
                 return;
             }
         }
+        // A ladder standing in the world (note 973: a houseboat's, leant against its bow): the same, reached for where it is
+        // at the climber's height, as it leans; from its deck, from its top.
+        foreach (var ladder in train.Ladders)
+        {
+            var on = ladder.At(world.Y);
+            double dx = world.X - on.X, dz = world.Z - on.Z;
+            double reach = walkIn ? Math.Min(WalkInReach, p.Ladder.GrabRange) : p.Ladder.GrabRange;
+            if (dx * dx + dz * dz > reach * reach || world.Y < ladder.Foot.Y - 0.5 || world.Y > ladder.Top.Y + 0.1)
+                continue;
+            if (walkIn)
+            {
+                if (world.Y > ladder.Top.Y - 0.5)
+                    continue;
+                double yaw = WorldYaw(s, train);
+                if (-DMath.Sin(yaw) * ladder.Inward.X - DMath.Cos(yaw) * ladder.Inward.Z < 0.7)
+                    continue;
+            }
+            if (hand is { } h && (h - ladder.At(h.Y)) with { Y = 0 } is var off && off.Length > p.Hand.Grab)
+                continue;
+            if (Math.Sqrt(worldVelocity.X * worldVelocity.X + worldVelocity.Z * worldVelocity.Z) >= p.Ladder.GrabMaxRelativeSpeed)
+                continue;
+            Reparent(ref s, train, PlayerState.World);
+            s.Surface = Surface.Ladder;
+            s.Position = ladder.At(Math.Clamp(world.Y, ladder.Foot.Y, ladder.Top.Y - 0.05));
+            s.Velocity = default;
+            return;
+        }
+    }
+
+    /// <summary>The world's ladder a climber parented to the world is on (note 973): the nearest, where it is at their height.</summary>
+    static WorldLadder? HeldWorldLadder(TrainOnLine train, Double3 at)
+    {
+        WorldLadder? best = null;
+        double bestDistance = double.MaxValue;
+        foreach (var ladder in train.Ladders)
+        {
+            double d = ((at - ladder.At(at.Y)) with { Y = 0 }).Length;
+            if (d < bestDistance)
+                (best, bestDistance) = (ladder, d);
+        }
+        return bestDistance < 1 ? best : null;
+    }
+
+    /// <summary>
+    /// Up or down a ladder standing in the world (note 973): along it as it leans, over its top onto the deck it serves, off
+    /// its foot onto the ground; let go as a car's is.
+    /// </summary>
+    static void StepWorldLadder(ref PlayerState s, in PlayerIntent intent, TrainOnLine train, PlayerTuning p, TrainTuning t, double dt)
+    {
+        if (HeldWorldLadder(train, s.Position) is not { } ladder)
+        {
+            s.Surface = Surface.Air;
+            return;
+        }
+        if (intent.Has(PlayerButtons.Jump) || intent.Has(PlayerButtons.Use) && intent.MoveZ < -0.5)
+        {
+            s.Velocity = ladder.Inward * -1.5;
+            s.Surface = Surface.Air;
+            return;
+        }
+        double climb = s.Has(PlayerFlags.SoloCarry) ? p.SoloBodyClimb : p.LadderClimb;
+        double y = s.Position.Y + Math.Clamp(intent.MoveZ, -1, 1) * climb * dt;
+        if (y >= ladder.Top.Y)
+        {
+            // Over the top onto its deck, just in past the edge, and stood there.
+            var onto = ladder.Top + ladder.Inward * ladder.Onto;
+            s.Position = onto;
+            s.Velocity = default;
+            s.Surface = Surface.Air;
+            UpdateSupport(ref s, onto, onto, train, p, t);
+            return;
+        }
+        s.Position = ladder.At(Math.Max(ladder.Foot.Y, y));
+        s.Velocity = default;
+        if (y <= ladder.Foot.Y)
+        {
+            // Off its foot onto the ground.
+            s.Surface = Surface.Air;
+            UpdateSupport(ref s, s.Position, s.Position, train, p, t);
+        }
     }
 
     static void StepLadder(ref PlayerState s, in PlayerIntent intent, TrainOnLine train, PlayerTuning p, TrainTuning t, double dt)
     {
+        if (s.Parent == PlayerState.World)
+        {
+            StepWorldLadder(ref s, intent, train, p, t, dt);
+            return;
+        }
         var frame = train.Frames[s.Parent];
         var ladder = HeldLadder(frame.Shape, s.Position);
         var inward = ladder.Inward;

@@ -59,6 +59,9 @@ public sealed class TrainOnLine
     /// <summary>The stops' buildings, for whoever walks among them (T114); set with the run, alike on every machine.</summary>
     public Run.StopWalls? Walls { get; set; }
 
+    /// <summary>Ladders standing in the world, not on a car (note 973: the towns' houseboats'), grabbed and climbed as a car's are.</summary>
+    public IReadOnlyList<WorldLadder> Ladders { get; set; } = [];
+
     /// <summary>
     /// What's lying still in the cars (note 659, the director: "we want the loot we put in the cars to persist once in there so
     /// poor stacking becomes an obstacle for players passing through"): each thing's box in its car's frame, to walk round or
