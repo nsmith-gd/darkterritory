@@ -52,4 +52,25 @@ public class BurntOnArrivalTests
         // The joiner had it from the host's setup.
         Assert.Equal(2, joiner.Setup.Burnt![terminus.Key]);
     }
+
+    [Fact]
+    public void TheHouseABroughtInCreatureBurnsIsInViewOfTheTrain()
+    {
+        // Note 966 (Ezra's find under #649, note 958): on frontier:7 the houses it burnt stood about 430 m up the town from
+        // the yard, the fire neither seen nor heard from the train. Now the nearest lived-in house to where the train come in stands, its rear just inside the way in.
+        using var night = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: false), port: null);
+        var plan = night.World.Arrival!.Plan;
+        var f = plan.Frame;
+        var lived = plan.Houses.Where(h => h.Kind == HouseKind.Lived).ToList();
+        var first = Assert.Single(TownGenerator.Harmed(plan, 1));
+        double away = TownGenerator.FromWayIn(plan, first);
+        double gateWas = TownGenerator.FromWayIn(plan, lived.OrderBy(h => Math.Abs(h.S - plan.Gate)).ThenBy(h => h.Id).First());
+        Console.WriteLine($"way in {f.Entry:0}, gate {plan.Gate:0}; burnt house {first.Id} at s {first.S:0} d {first.D:0}: {away:0} m; the gate's was {gateWas:0} m");
+        // In view and in earshot of the crew beside the standing train (the house fires are heard within 60 m of the listener,
+        // GameAudio.YardFight): 59 m from the way in, 35 m out from the line. The gate's house was 526 m.
+        Assert.True(away < 80, $"{away:0} m");
+        Assert.True(first.S >= f.Entry, "inside the walls");
+        Assert.True(gateWas > 4 * away, $"{gateWas:0} m against {away:0} m");
+    }
 }
+

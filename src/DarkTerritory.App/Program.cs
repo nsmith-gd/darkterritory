@@ -221,13 +221,13 @@ frontEnd.PlaytestNotice = DarkTerritory.Game.Telemetry.PlaytestNotice.Load(conte
 // Note 946 (the director, the inbox, 20 Oct: "On by default in playtest builds, with an off switch"): a playtest (its build,
 // or a code typed in) records from the start, and its first run is a notice with the off switch, not the question. A
 // developer build keeps #625's question, on unless the director says no.
-frontEnd.Playtest = DarkTerritory.Game.Telemetry.PlaytestConsent.Load(telemetryDirectory, defaultOn: playtestOnByDefault,
-    onByNotice: !playtestOnByDefault && (frontEnd.Kit.PlaytestBuildOn || frontEnd.Kit.Cohort is not null));
+// Note 968 (the director, 21 Oct: "Playtest data is on by default and there's an option in the menu to turn it off"): with the
+// notice's firstBootLine, on in every build, and the first boot says so in a line under the title menu.
+bool casualPlaytest = frontEnd.PlaytestNotice.Casual;
+frontEnd.Playtest = DarkTerritory.Game.Telemetry.PlaytestConsent.Load(telemetryDirectory, defaultOn: playtestOnByDefault || casualPlaytest,
+    onByNotice: casualPlaytest || !playtestOnByDefault && (frontEnd.Kit.PlaytestBuildOn || frontEnd.Kit.Cohort is not null));
+frontEnd.OpenPlaytest();
 crashes.Context("playtest data", frontEnd.Playtest.Recording ? "on" : "off");
-if (frontEnd.Playtest.NeedsAsking(frontEnd.PlaytestNotice))
-    frontEnd.Show(Screen.Consent);
-else if (frontEnd.Crash is not null)
-    frontEnd.Show(Screen.Crashed);
 
 // A night named on the command line starts straight away; otherwise it's the front end's choice.
 Launch? LaunchFromArgs()
@@ -1944,7 +1944,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             swingFrom = -1;
         scene.Own = third || cinematic || held || vr is not null || !me.Alive || session.Watching >= 0 ? null
             : new OwnView((float)camera.Yaw, (float)camera.Pitch, act, me.Velocity.X * me.Velocity.X + me.Velocity.Z * me.Velocity.Z > 0.16,
-                swing, session.World.OutfitOf(session.PlayerId), Kit.Held(me));
+                swing, session.World.OutfitOf(session.PlayerId), Kit.Held(me),
+                Pistol: session.World.Bodies.CarriedBy(session.PlayerId) is { Kind: DarkTerritory.Sim.Physics.BodyKind.FlarePistol });
         scene.Time = now;
         // Dave's card (note 570): closes as you walk off, and opens on what he says to a blow near you.
         figureTalk.Step(session.World, PlayerMotor.WorldPosition(me, session.Train) + Double3.Up * session.Train.Dynamics.Tuning.Pick.EyeHeight, now);

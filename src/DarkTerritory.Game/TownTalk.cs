@@ -130,7 +130,66 @@ public sealed class TownTalk
     {
         int heard = _heard.GetValueOrDefault((town.Plan.Name, p.Id));
         _heard[(town.Plan.Name, p.Id)] = heard + 1;
-        return p.Lines.Count == 0 ? 0 : heard % p.Lines.Count;
+        int page = p.Lines.Count == 0 ? 0 : heard % p.Lines.Count;
+        // The custom's told once in a town (note 971): whoever tells it first says it; after, anybody's custom line is what
+        // they say of it having been told (theirs too, the next time round).
+        _instead = null;
+        if (p.Custom.Contains(page) && !_toldIn.Add(town.Plan.Name))
+            _instead = Told(town.Tuning, p);
+        return page;
+    }
+
+    // The towns this crew's been told the custom in (note 971), on this machine; and what the person open says in place of
+    // the custom's line, once it has been.
+    readonly HashSet<string> _toldIn = [];
+    string? _instead;
+
+    /// <summary>Whether this machine's crew has been told the custom in <paramref name="town"/> (note 971).</summary>
+    public bool Told(Town town) => _toldIn.Contains(town.Plan.Name);
+
+    /// <summary>What <paramref name="p"/> says in place of the custom once it's been told (towns.json <c>told</c>, by their temperament).</summary>
+    public static string Told(TownTuning t, Townsperson p)
+    {
+        var lines = p.Personality is { } who && t.Told.TryGetValue(who.Temperament, out var theirs) && theirs.Length > 0 ? theirs
+            : t.Told.TryGetValue("plain", out var plain) ? plain : [];
+        return lines.Length == 0 ? p.Lines[0] : lines[p.Id % lines.Length];
+    }
+
+    /// <summary>
+    /// A household's quarrel overheard (note 971): the line being said now in the nearest house within <c>quarrels.hear</c>
+    /// of <paramref name="eye"/> that's quarrelling, as a card; null with none. Nothing to press: it's theirs, not yours.
+    /// </summary>
+    public static TownCard? Overheard(Town town, Double3 eye, double now)
+    {
+        var q = town.Tuning.Quarrels;
+        TownCard? card = null;
+        double best = q.Hear;
+        foreach (var quarrel in town.Plan.Quarrels)
+        {
+            var house = town.Plan.Houses[quarrel.House];
+            var (fs, fd) = house.Rail(0, 0);
+            double far = ((town.World(fs, fd) - eye) with { Y = 0 }).Length;
+            if (far > best || QuarrelLine(q, quarrel, now) is not (var k and >= 0))
+                continue;
+            var (who, line) = quarrel.Lines[k];
+            best = far;
+            card = new TownCard(TownCardKind.Speech, $"Through the wall, {HouseName(house)}", $"{town.Plan.People[who].Name}: {line}", "");
+        }
+        return card;
+    }
+
+    /// <summary>
+    /// Which of <paramref name="quarrel"/>'s lines is being said at <paramref name="now"/> (note 971): each house's on its own
+    /// beat, for <c>lasts</c> s of every <c>every</c>, a line each <c>lineSeconds</c>; −1 between.
+    /// </summary>
+    public static int QuarrelLine(QuarrelTuning q, TownQuarrel quarrel, double now)
+    {
+        if (quarrel.Lines.Count == 0 || q.Every <= 0)
+            return -1;
+        double into = (now + quarrel.House * 37.0) % q.Every;
+        if (into < 0)
+            into += q.Every;
+        return into >= q.Lasts ? -1 : (int)(into / Math.Max(0.1, q.LineSeconds)) % quarrel.Lines.Count;
     }
 
     /// <summary>Closes the card once you've walked off from it, or a person's line has been said and left long enough.</summary>
@@ -142,7 +201,8 @@ public sealed class TownTalk
             return;
         var tuning = town.Tuning;
         bool gone = (town.Where(t) - eye).Length > tuning.Reach.CloseBeyond;
-        bool said = t.Kind == TownTargetKind.Person && now - Since > Line(town).Length / Math.Max(1, tuning.TypePerSecond) + tuning.LingerSeconds;
+        bool said = t.Kind == TownTargetKind.Person
+            && now - Since > tuning.VoiceOf(town.Plan.People[t.Index]).Seconds(Line(town), tuning.TypePerSecond) + tuning.LingerSeconds;
         if (gone || said)
         {
             Open = null;
@@ -151,7 +211,7 @@ public sealed class TownTalk
     }
 
     string Line(Town town) => Open is { Kind: TownTargetKind.Person } t && town.Plan.People[t.Index].Lines is { Count: > 0 } lines
-        ? lines[Math.Clamp(Page, 0, lines.Count - 1)] : "";
+        ? _instead ?? lines[Math.Clamp(Page, 0, lines.Count - 1)] : "";
 
     /// <summary>The card to draw now, or null.</summary>
     public TownCard? Card(Town town, double now)
@@ -164,7 +224,8 @@ public sealed class TownTalk
                 {
                     var p = town.Plan.People[t.Index];
                     string line = Line(town);
-                    int typed = (int)Math.Clamp((now - Since) * town.Tuning.TypePerSecond, 0, line.Length);
+                    // In their own voice (note 963): a frayed one's in bursts, a hollow one's slow, a talker's quick.
+                    int typed = town.Tuning.VoiceOf(p).Typed(line, town.Tuning.TypePerSecond, now - Since);
                     string again = p.Lines.Count > 1 && typed == line.Length ? "AGAIN : [E]" : "";
                     // Note 904: a press on the blacksmith opens the forge while they sell; a card is them not selling now.
                     if (IsSmith(p))

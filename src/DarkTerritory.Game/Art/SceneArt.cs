@@ -222,7 +222,7 @@ public sealed partial class SceneArt(Look look)
             Sim.Physics.BodyKind.GrilledFish => Piece("whimsy-grilled-fish", () => WhimsyKit.Fish(Look, true)),
             _ => null,
         } : null;
-        bool drawn = Creatures.Crewmate(mesh, m, pose, clipTime, c.Variant, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)), ToolProp(c.Holding),
+        bool drawn = Creatures.Crewmate(mesh, m, pose, clipTime, c.Variant, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)), c.Pistol ? PistolInHand : ToolProp(c.Holding),
             hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor), body: HeadsetBody(c, pose, time), carried: kit, sooted: c.Sooted,
             // (A Passenger's id is 200 and the face it wears, GreyboxScene.AsCrewmate: it wears that crewmate's number too.)
             mask: new CreatureArt.MaskLook(c.Paint, CrewSigil, (c.Id >= 200 ? c.Id - 200 : c.Id) % 9 + 1), emote: c.EmoteWith, fist: fist);
@@ -517,7 +517,10 @@ public sealed partial class SceneArt(Look look)
 
     /// <summary>Your own forearms and hands in view, with the tool in them (X3). False without the crew model.</summary>
     public bool OwnArms(MeshBuilder mesh, in OwnView own, double time) =>
-        Creatures.OwnArms(mesh, own.Yaw, own.Pitch, own.Act, own.Moving, own.Swing, time, own.Variant, ToolProp(own.Holding));
+        Creatures.OwnArms(mesh, own.Yaw, own.Pitch, own.Act, own.Moving, own.Swing, time, own.Variant, own.Pistol ? PistolInHand : ToolProp(own.Holding));
+
+    /// <summary>The flare pistol as a fist holds it (note 964): its grip on the hand tools' haft, its barrel out ahead.</summary>
+    MeshAsset PistolInHand => Piece("prop-flare-pistol-held", () => PropKit.FlarePistolHeld(Look));
 
     /// <summary>A hotbar tool's model (tools/models hand_tools), or null for none.</summary>
     /// <summary>A headset player's own gloved hands on their controllers, the tool in hand in the right (CreatureArt.HeadsetHands).</summary>
@@ -811,6 +814,9 @@ public sealed partial class SceneArt(Look look)
 
     public bool Body(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Sim.Physics.Body b, Double3 eye, double heavyHalf, double time)
     {
+        // The flare pistol in someone's hand is drawn in their fist, as a tool is (note 964: CrewActs' Pistol, OwnView's).
+        if (b.Kind == Sim.Physics.BodyKind.FlarePistol && b.Carrier >= 0 && Creatures.Loaded)
+            return true;
         bool onCar = b.Parent != Sim.Player.PlayerState.World && b.Parent < frames.Count;
         if (!onCar && b.Parent != Sim.Player.PlayerState.World)
             return true;

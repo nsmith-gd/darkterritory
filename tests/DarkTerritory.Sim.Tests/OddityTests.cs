@@ -331,7 +331,38 @@ public class OddityTests
                 Assert.True(((line.Sample(along).Position - t.At) with { Y = 0 }).Length > 4, $"note {t.Index} on frontier:{seed} lies on the line");
             }
         }
-        Assert.True(nights >= 6, $"only {nights} of 12 frontier nights had a note at their villages");
+        Assert.True(nights >= 6, $"only {nights} of 12 frontier nights had a note");
+    }
+
+    [Fact]
+    public void BetweenTheStopsNotesLieAtTheHutsCampsGravesAndWrecksTheLineLeft()
+    {
+        // Note 965: out along the line, a note is left at a lineman's hut, a camp gone cold, a grave or a wreck (the railway's
+        // leavings, LinesideProps.Laid), by its stretch's own draw: every one by such a leaving and off the line, the same on
+        // every machine, and a few to a night.
+        int total = 0;
+        for (int seed = 1; seed <= 6; seed++)
+        {
+            var route = Routes.Generate(Content, $"frontier:{seed}", 4);
+            var line = route.Build();
+            var a = Oddities.Of(O, route, line)!;
+            var b = Oddities.Of(O, route, line)!;
+            Assert.Equal(a.Things.Select(t => (t.Kind, t.At)), b.Things.Select(t => (t.Kind, t.At)));
+            var laid = LinesideProps.Of(route, line)!.Laid(0, line.Length + Leavings.Every)
+                .Where(x => x.Leaving.Kind is "hut" or "camp" or "grave" or "wheelset" or "trolley")
+                .Select(x => line.Sample(x.Leaving.Along) is var t ? t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * x.Leaving.Lateral : default)
+                .ToList();
+            var notes = a.Things.Where(t => t.Kind == OddThingKind.Note && t.Feature < 0).ToList();
+            total += notes.Count;
+            foreach (var n in notes)
+            {
+                Assert.Contains(laid, at => ((at - n.At) with { Y = 0 }).Length < 3.5);
+                double hint = 0;
+                var (_, along) = line.Nearest(n.At, ref hint);
+                Assert.True(((line.Sample(along).Position - n.At) with { Y = 0 }).Length > LinesideProps.LeavingClearM, $"a note on frontier:{seed} lies on the line");
+            }
+        }
+        Assert.InRange(total / 6.0, 1.5, 12);
     }
 
     [Fact]

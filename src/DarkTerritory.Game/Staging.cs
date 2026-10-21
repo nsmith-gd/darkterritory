@@ -123,11 +123,15 @@ public static partial class Staging
         var centre = plan.Fixtures[0];
         var board = plan.Fixtures.First(f => f.Kind == "board");
         var hall = plan.Buildings.First(b => b.Kind == "hall");
+        // Inside the town's gate, looking out at it (note 963, `--town gatein --clock 60`): the restless stood at it looking out
+        // down the line, a watcher at the wall beside it, on their slot away from their posts.
+        if (where == "gatein" && plan.Bounds is { } walls)
+            return Ballast.Render.Camera.LookAt(town.World(walls.Gate - 24, -side * 10, 4), town.World(walls.Gate - 2, 0, 1.4), 64);
         // A house from out in front of it, along its street a way (note 608): "fires", the first a creature brought in tonight
-        // sets alight (`--arrival fires --patrol`); "burnt", the nearest the gate of a town's burnt houses, come back to.
+        // sets alight (`--arrival fires --patrol`); "burnt", the nearest the train of a town's burnt houses, come back to (note 966).
         if (where is "fires" or "burnt"
             && (where == "fires" ? Sim.Towns.TownGenerator.Harmed(plan, 1).FirstOrDefault()
-                : plan.Houses.Where(h => h.Kind == Sim.Towns.HouseKind.Burnt).OrderBy(h => Math.Abs(h.S - plan.Gate)).ThenBy(h => h.Id).FirstOrDefault()) is { } house)
+                : plan.Houses.Where(h => h.Kind == Sim.Towns.HouseKind.Burnt).OrderBy(h => Sim.Towns.TownGenerator.FromWayIn(plan, h)).ThenBy(h => h.Id).FirstOrDefault()) is { } house)
         {
             var (fs, fd) = house.Rail(0, 0);
             var front = town.World(fs, fd);
@@ -646,6 +650,31 @@ public static partial class Staging
     /// extinguisher on its mount, each at <paramref name="charge"/> (its sight glass, App. C.5), settled where they lie, and
     /// the guns' full stock of powder and shot.
     /// </summary>
+    /// <summary>
+    /// The flare pistol's shot (note 964; <c>dt screenshot --flares</c>), from <paramref name="eye"/> along <paramref name="look"/>:
+    /// one just fired, leaving the muzzle a metre out (the flash); one high in its arc out ahead, falling, burning; and one
+    /// down on the ground beyond, its burn half gone, lighting what's round it.
+    /// </summary>
+    public static Sim.Physics.Bodies Flares(TrainOnLine train, Double3 eye, Double3 look)
+    {
+        var bodies = new Sim.Physics.Bodies();
+        double hint = train.Dynamics.Distance;
+        var flat = new Double3(look.X, 0, look.Z).Normalized;
+        Sim.Physics.Body Flare(Double3 at, Double3 velocity, double charge)
+        {
+            var b = bodies.SpawnItem(at, hint, Sim.Physics.BodyKind.Flare);
+            (b.Burns, b.Charge) = (60 * charge, charge);
+            b.Pbd.Particles[0].SetVelocity(velocity, Sim.SimConstants.TickSeconds);
+            return b;
+        }
+        Flare(eye + look * 3.5 - Double3.Up * 0.1, look * 28 + Double3.Up * 9, 1);
+        Flare(eye + flat * 26 + Double3.Up * 11, flat * 20 - Double3.Up * 7, 0.96);
+        var ground = eye + flat * 40;
+        ground = ground with { Y = Sim.Player.PlayerMotor.GroundAt(ground, train.Line, ref hint) };
+        Flare(ground, default, 0.5).Pbd.Sleep();
+        return bodies;
+    }
+
     public static Sim.Physics.Bodies Stocked(TrainOnLine train, string content, double charge = 1)
     {
         var tuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
@@ -810,7 +839,9 @@ public static partial class Staging
         int i = 0, swings = 0, jumps = 0;
         foreach (var name in acts)
         {
-            var act = Enum.Parse<Art.CrewPose>(name.Replace("_", ""), ignoreCase: true);
+            // "pistol" (note 964): stood with the flare pistol in hand, as a tool's held.
+            bool pistol = name == "pistol";
+            var act = pistol ? Art.CrewPose.Idle : Enum.Parse<Art.CrewPose>(name.Replace("_", ""), ignoreCase: true);
             var s = Sim.Player.PlayerMotor.SpawnOnRoof(train, 2, -6 + 1.5 * i, player, i % 2 == 0 ? -0.5 : 0.5) with { Yaw = Math.PI + (i % 2 == 0 ? 0.5 : -0.5) };
             var tool = act is Art.CrewPose.Smash or Art.CrewPose.Pry ? Sim.Player.Tool.Crowbar : Sim.Player.Tool.None;
             // A swing (note 275): each one further into its blow than the last, with the shovel, the crowbar, the wrench in turn.
@@ -828,7 +859,7 @@ public static partial class Staging
                 feet += new Double3(0, 0.15 + 0.3 * Math.Min(jumps, 2), 0);
             }
             crew.Add(new Crewmate((byte)(20 + i), feet, Sim.Player.PlayerMotor.WorldYaw(s, train), true,
-                Act: act, Holding: tool, Lamp: act is Art.CrewPose.Lantern or Art.CrewPose.LanternWalk, Survivor: survivor, Phase: swing));
+                Act: act, Holding: tool, Lamp: act is Art.CrewPose.Lantern or Art.CrewPose.LanternWalk, Survivor: survivor, Phase: swing, Pistol: pistol));
             i++;
         }
         return crew;

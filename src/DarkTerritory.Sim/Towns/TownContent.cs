@@ -43,6 +43,19 @@ public sealed record TownTuning
     public required int[] LooseNotes { get; init; }
     public required TownReach Reach { get; init; }
     public double TypePerSecond { get; init; } = 45;
+    /// <summary>Note 971: households that argue where the crew can overhear them (towns.json <c>quarrels</c>).</summary>
+    public QuarrelTuning Quarrels { get; init; } = new();
+    /// <summary>
+    /// Note 971: what somebody says in place of the custom's line once it's been told in their town (towns.json <c>told</c>,
+    /// by temperament; "plain" for anyone else).
+    /// </summary>
+    public Dictionary<string, string[]> Told { get; init; } = [];
+
+    /// <summary>Note 963: how a temperament's lines type out on the talk card (towns.json <c>voices</c>); a temperament not named types plainly.</summary>
+    public Dictionary<string, TalkVoice> Voices { get; init; } = [];
+
+    /// <summary>The voice <paramref name="p"/>'s lines type in: their temperament's, or plain.</summary>
+    public TalkVoice VoiceOf(Townsperson p) => p.Personality is { } who && Voices.TryGetValue(who.Temperament, out var v) ? v : TalkVoice.Plain;
     public double LingerSeconds { get; init; } = 6;
     /// <summary>Their rounds (note 353).</summary>
     public RoundTuning Rounds { get; init; } = new();
@@ -128,7 +141,77 @@ public sealed record RoundTuning
     public double Walk { get; init; } = 1.2;
     public double Pace { get; init; } = 3.5;
     public double[] Street { get; init; } = [10, 24];
+    /// <summary>
+    /// Note 963 (townsfolk.md "Not yet"): where somebody's temperament takes them on a slot away from their post, and how often
+    /// (towns.json <c>rounds.temperaments</c>): "gate" (stood inside it looking out), "wall" (at the nearest of the town's
+    /// walls, looking out), or a kind of the square's places ("garden", "vigil", "warm", "read", "work", "mend"), "lamps" (down their street to a lamp) or "talk"; more
+    /// than one, comma-separated, tried in turn.
+    /// </summary>
+    public Dictionary<string, TemperamentRound> Temperaments { get; init; } = [];
 }
+
+/// <summary>
+/// How somebody's lines type out on the talk card (note 963; docs/design/townsfolk.md "Not yet": "A frayed person could type in
+/// bursts, a hollow one slowly"): <see cref="Rate"/> times the town's pace; a pause after a comma or a dash
+/// (<see cref="Comma"/>, s) and after a sentence's end (<see cref="Stop"/>); and in bursts, <see cref="Burst"/> characters
+/// at a time with <see cref="BurstPause"/> between (0: none). Presentation only, a pure function of the line and the time.
+/// </summary>
+public sealed record TalkVoice(double Rate = 1, double Comma = 0, double Stop = 0, int Burst = 0, double BurstPause = 0)
+{
+    public static readonly TalkVoice Plain = new();
+
+    /// <summary>How long the whole of <paramref name="line"/> takes to type at <paramref name="perSecond"/> (the town's pace).</summary>
+    public double Seconds(string line, double perSecond) => At(line, perSecond, double.PositiveInfinity).Seconds;
+
+    /// <summary>How many characters of <paramref name="line"/> are out <paramref name="elapsed"/> seconds in.</summary>
+    public int Typed(string line, double perSecond, double elapsed) => At(line, perSecond, elapsed).Typed;
+
+    (int Typed, double Seconds) At(string line, double perSecond, double elapsed)
+    {
+        double each = 1 / Math.Max(1e-3, perSecond * Math.Max(0.05, Rate)), t = 0;
+        for (int i = 0; i < line.Length; i++)
+        {
+            t += each;
+            if (t > elapsed)
+                return (i, t);
+            char c = line[i];
+            bool last = i == line.Length - 1;
+            // (Pauses after a character that's out: the line's end has none.)
+            if (!last)
+            {
+                if (c is ',' or ';' or ':' || c == '-' && i > 0 && line[i - 1] == ' ' || c == '\u2014')
+                    t += Comma;
+                else if (c is '.' or '?' or '!' && line[i + 1] == ' ')
+                    t += Stop;
+                if (Burst > 0 && (i + 1) % Burst == 0)
+                    t += BurstPause;
+            }
+            if (t > elapsed)
+                return (i + 1, t);
+        }
+        return (line.Length, t);
+    }
+}
+
+/// <summary>
+/// Households that argue (note 971; docs/design/townsfolk.md "Not yet": "a lapsed lodger in a zealous house could say so"): a
+/// house whose two at most odds on one of <see cref="Lines"/>' traits are <see cref="Gap"/> or more apart has that trait's
+/// quarrel, overheard within <see cref="Hear"/> m of its front for <see cref="Lasts"/> s of every <see cref="Every"/>, a line
+/// every <see cref="LineSeconds"/> s. Each quarrel's lines go back and forth, the first said by the one higher on the trait;
+/// "{other}" is the other one's name.
+/// </summary>
+public sealed record QuarrelTuning
+{
+    public double Gap { get; init; } = 1.1;
+    public double Hear { get; init; } = 9;
+    public double Every { get; init; } = 150;
+    public double Lasts { get; init; } = 40;
+    public double LineSeconds { get; init; } = 5;
+    public Dictionary<string, string[][]> Lines { get; init; } = [];
+}
+
+/// <summary>A temperament's pull on somebody's round (note 963): where to (<see cref="To"/>), and the chance a slot away goes there.</summary>
+public sealed record TemperamentRound(string To = "", double Chance = 0);
 
 public sealed record SquareTuning
 {

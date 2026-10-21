@@ -1,10 +1,18 @@
-// Playtest data (queue #625, note 914; the plan, note 907): what the game asks a player before it records anything about
-// their nights, and the "what we collect" page in Settings. Off unless the player says yes; anonymous (a random install id,
-// nothing that names them); deleted on request. The wording and the retention are the director's to approve (the inbox,
-// `n1-N1-playtest-consent`): drafted for Quebec's Law 25, PIPEDA and the GDPR.
+// Playtest data (queue #625, note 914; the plan, note 907): what the game says about recording a player's nights, and the "what
+// we collect" page in Settings. Anonymous (a random install id, nothing that names them), and deleted on request.
+// The director, 21 Oct (`n1-N1-playtest-consent`, note 968): "This is the right idea but it sounds too legalize, remove all the
+// legal sounding stuff and keep it indie dev casual. Playtest data is on by default and there's an option in the menu to turn
+// it off. Keep it a small line at the bottom of the home menu screen only on first boot up." So it's on by default, the first
+// boot says so in firstBootLine, and the page is plain words. firstBootLine "" puts back #625's question (and note 946's
+// playtest notice), drafted for Quebec's Law 25, PIPEDA and the GDPR, with the retention and the contact below.
 {
-  // Raised whenever what's collected or why changes: everyone who said yes to an older notice is asked again.
+  // Raised whenever what's collected or why changes: everyone who said yes to an older notice is asked again (or, with
+  // firstBootLine, shown the line again).
   "version": 3,
+
+  // Note 968: the director's own words, small at the foot of the title menu on the first boot only. Set, playtest data is on
+  // in every build and nothing asks; "" puts the question back.
+  "firstBootLine": "Playtest data is recorded to help me improve game balancing. You can turn this off in the menu if you want.",
 
   // How long a session's data is kept on the studio's side once it's sent (#626), in months.
   "retentionMonths": 12,
@@ -36,33 +44,33 @@
   // Shown on that screen in a playtest build (#628, note 916; tools/package.sh --playtest), {code} its playtest's code.
   "playtestBuild": "This is a playtest build ({code}): saying yes is what makes your nights count for it, and no is still fine.",
 
-  // The "what we collect" page: every group of fields the session recorder (#624, note 913) writes, in plain words, each
+  // The "what we collect" page: every group of fields the session recorder (#624, note 913) writes, in plain words (note 968), each
   // with the schema's fields it covers (a test holds the page to the schema).
   "collect": [
-    { "what": "THIS INSTALL", "detail": "A random id made when you said yes (a new one after DELETE), the game's build and edition, whether it's a developer build, your operating system and graphics card, PC or VR, and your display settings (resolution, render scale, vsync, field of view).",
+    { "what": "THIS INSTALL", "detail": "A random id for this copy of the game (a new one if you delete), the game's version, your operating system, graphics card, PC or VR, and your display settings.",
       "fields": "session.session, install, build, commit, edition, dev, os, gpu, vr, resolution, renderScale, vsync, fov" },
-    { "what": "THE NIGHT'S SETUP", "detail": "Whether you hosted, joined or played alone, the route and its tier, the cars, and how many people and bots were aboard. Never anyone's name.",
+    { "what": "THE NIGHT'S SETUP", "detail": "Whether you hosted, joined or played alone, the route, the cars, and how many people and bots came along. No names.",
       "fields": "night.role, route, tier, cars, humans, bots" },
-    { "what": "HOW THE NIGHT WENT", "detail": "Each minute how far the train had got and how many were alive; at the end, how it ended, how long it ran, the cars and cargo delivered and lost, the scrip it made, who came home, and the deaths and creatures counted.",
+    { "what": "HOW THE NIGHT WENT", "detail": "How far the train got each minute and who was still alive; at the end, how it ended, the cars and cargo delivered, the scrip, who made it home and what killed them.",
       "fields": "minute.km, alive, crew; nightEnd.end, seconds, km, carsDelivered, carsLost, cargoDelivered, net, crewHome, crewLost, deaths, encounters" },
-    { "what": "DEATHS", "detail": "When and where along the line someone died, of what, what they were doing (driving, on a gun, walking), and whether it was you.",
+    { "what": "DEATHS", "detail": "When and where someone died, what got them, and what they were doing at the time.",
       "fields": "death.s, km, cause, post, me" },
-    { "what": "WHAT HAPPENED", "detail": "The kinds of incidents and creatures met: where, when they closed in and when it ended, the grabs and how it came out. Never the incident's words, which name people.",
+    { "what": "WHAT HAPPENED", "detail": "Which creatures and trouble showed up, where and when, and how it went.",
       "fields": "incident.kind, cause; encounter.kind, channel, where, part, afoot, engagedAt, confrontedAt, nearAt, grabs, punishes, end, endedAt" },
-    { "what": "LEARNING THE GAME", "detail": "How long it took to first move, take a job, stop and deliver; which prompts were shown and acted on; the menus you opened and for how long; the keys you rebound.",
+    { "what": "LEARNING THE GAME", "detail": "How long it took to get moving, take a job, stop and deliver; which tips you saw and used; the menus you opened; the keys you changed.",
       "fields": "first.what, s; prompt.name, acted; menu.name, seconds; rebind.control" },
-    { "what": "THE FORTRESS", "detail": "What was bought between nights, what it cost, and the scrip left.",
+    { "what": "THE FORTRESS", "detail": "What you bought between nights and what it cost.",
       "fields": "purchase.what, cost, scripAfter" },
-    { "what": "HOW IT RAN", "detail": "Each minute the frames drawn, how smooth they were and the stutters, and your connection's ping and loss.",
+    { "what": "HOW IT RAN", "detail": "Your frame rate and stutters each minute, and your ping and packet loss.",
       "fields": "minute.frames, hitches, p50, p95, p99, pingMs, loss; nightEnd.hitches, p50, p95, p99" },
-    { "what": "LEAVING", "detail": "How and when a night or the game was left: from the menu, closed, dropped or put off.",
+    { "what": "LEAVING", "detail": "How and when you left a night or the game.",
       "fields": "quit.how, night, s" },
-    { "what": "YOUR ANSWERS AFTER A NIGHT", "detail": "In a playtest only: how fun and how frightening the night was and whether you'd play again (1 to 5), whether you skipped the questions, and the playtest's code, which groups the testers' nights. A comment only if you write one and tick SEND MY WORDS TOO; it's sent as you wrote it.",
+    { "what": "YOUR ANSWERS AFTER A NIGHT", "detail": "In a playtest: your 1 to 5 answers after a night (fun, scary, play again) and the playtest's code. A comment only if you write one and tick SEND MY WORDS TOO.",
       "fields": "survey.fun, fear, again, comment, skipped; session.cohort" }
   ],
 
   // What it never collects, said as plainly.
-  "never": "Never: your name, your Steam or Epic id, your IP address, email, hardware serials, voice, chat, or anything you type but a comment you choose to send.",
+  "never": "Your name, your Steam or Epic account, your IP address, your voice, chat, or anything you type (except a comment you choose to send).",
 
   // Where the data goes.
   "where": "Kept on this computer until a night is over, then sent to the studio when sending is switched on; kept there for {months} months, then deleted. Questions, or a deletion you can't do here: {contact}."

@@ -8,7 +8,7 @@ namespace DarkTerritory.Sim.Towns;
 /// along the main line, the night's seed, the creatures this edition fields (enemies.json director.roster; empty, all of
 /// them), and the custom of the last town, which this one won't share (App. F.1: "different from the last").
 /// </summary>
-/// <para><see cref="Burnt"/>: how many of its houses are burnt out (note 608), the nearest its gate (<see cref="TownGenerator.Harmed"/>).</para>
+/// <para><see cref="Burnt"/>: how many of its houses are burnt out (note 608), the nearest where a train come in stands (<see cref="TownGenerator.Harmed"/>, note 966).</para>
 public sealed record TownSite(string Name, string Industry, double Gate, ulong Seed, IReadOnlyList<string> Roster, string? Last = null, int Burnt = 0)
 {
     /// <summary>The town type to make it (note 692; "" the street town), or null to draw it from its trade and seed.</summary>
@@ -46,6 +46,39 @@ public static partial class TownGenerator
     /// <summary>The quiet house: how far inside the gate, and how far out from the line on the far side (m).</summary>
     const double QuietIn = 15, QuietOut = 21;
     /// <summary>How far past the way in's gatehouse a town type's murals are painted on its back wall (m; note 692).</summary>
+    /// <summary>
+    /// Note 971: a household's quarrel, at most one a house, by its two at most odds on a trait <c>quarrels.lines</c> names,
+    /// <c>quarrels.gap</c> apart or more; the first line said by the one higher on it. Not at the party.
+    /// </summary>
+    static List<TownQuarrel> Quarrels(QuarrelTuning t, IReadOnlyList<Townsperson> people, Pcg32 rng)
+    {
+        var quarrels = new List<TownQuarrel>();
+        if (t.Lines.Count == 0)
+            return quarrels;
+        string[] axes = [.. TownTraits.Axes.Where(t.Lines.ContainsKey)];
+        foreach (var house in people.Where(p => p.House >= 0 && p.Personality is not null && !p.Hosting).GroupBy(p => p.House).OrderBy(g => g.Key))
+        {
+            var members = house.OrderBy(p => p.Id).ToList();
+            (Townsperson A, Townsperson B, string Over, double Gap)? worst = null;
+            foreach (var axis in axes)
+                for (int x = 0; x < members.Count; x++)
+                    for (int y = x + 1; y < members.Count; y++)
+                    {
+                        int at = Array.IndexOf(TownTraits.Axes, axis);
+                        double a = members[x].Personality!.Traits[at], b = members[y].Personality!.Traits[at];
+                        if (Math.Abs(a - b) >= t.Gap && (worst is null || Math.Abs(a - b) > worst.Value.Gap))
+                            worst = a >= b ? (members[x], members[y], axis, Math.Abs(a - b)) : (members[y], members[x], axis, Math.Abs(a - b));
+                    }
+            if (worst is not { } w || t.Lines[w.Over] is not { Length: > 0 } decks)
+                continue;
+            var said = decks[rng.RangeInclusive(0, decks.Length - 1)];
+            string Given(Townsperson p) => p.Personality?.Given is { Length: > 0 } g ? g : p.Name;
+            quarrels.Add(new TownQuarrel(house.Key, w.A.Id, w.B.Id, w.Over,
+                [.. said.Select((line, k) => k % 2 == 0 ? (w.A.Id, line.Replace("{other}", Given(w.B))) : (w.B.Id, line.Replace("{other}", Given(w.A))))]));
+        }
+        return quarrels;
+    }
+
     const double MuralByGate = 6;
 
     /// <summary>The roles any townsperson without a place may have ("hand": works at what the town makes).</summary>
@@ -462,6 +495,7 @@ public static partial class TownGenerator
         }
         var lrng = Rng("lines");
         var said = new List<string>[people.Count];
+        var custom = new int[people.Count][];
         foreach (int i in Enumerable.Range(0, people.Count).OrderBy(i => Precedence(people[i].Spot)).ThenBy(i => i))
         {
             var (role, name, spot, street) = (people[i].Role, people[i].Name, people[i].Spot, people[i].Spot.Street);
@@ -515,7 +549,10 @@ public static partial class TownGenerator
             while (lines.Count < want && (spare.Next() ?? inside.Next() ?? trade.Next() ?? JobDeck(role).Next() ?? scraps.Next() ?? anyone.Next()) is { } extra)
                 lines.Add(extra);
             var vars = spot.House >= 0 ? homes.Vars(spot.House) : null;
-            said[i] = [.. lines.Take(Math.Max(Math.Max(1, want), spot.House >= 0 ? 2 : 1)).Select(l => fill.In(l, name, vars))];
+            var kept = lines.Take(Math.Max(Math.Max(1, want), spot.House >= 0 ? 2 : 1)).ToList();
+            said[i] = [.. kept.Select(l => fill.In(l, name, vars))];
+            // Which are the custom's (note 971): once it's been told in the town, they say something else in its place.
+            custom[i] = [.. kept.Select((l, k) => (l, k)).Where(x => culture.Lines.Contains(x.l) || creed?.Lines.Contains(x.l) == true).Select(x => x.k)];
         }
         var townsfolk = new List<Townsperson>();
         for (int i = 0; i < people.Count; i++)
@@ -525,7 +562,7 @@ public static partial class TownGenerator
                 : role == "hand" ? industry?.Hand ?? "townsman" : w.Roles.TryGetValue(role, out var rt) ? rt.Title : role;
             townsfolk.Add(new Townsperson(i, name, fill.In(title, name, spot.House >= 0 ? homes.Vars(spot.House) : null), role, spot.S, spot.D, spot.Up, spot.FaceS, spot.FaceD,
                 (int)(Streams.Mix(seed, "look", name) % 8), said[i], spot.House, spot.Pose, TownGear.Pick(homes.Gear, Streams.Mix(seed, "gear", name)), mind)
-            { Hosting = spot.Part == "host" });
+            { Hosting = spot.Part == "host", Custom = custom[i] });
         }
 
         // The plaque: the town, when it was walled, how many live here and how many did.
@@ -611,6 +648,7 @@ public static partial class TownGenerator
             Ways = form?.Ways ?? [],
             Wards = form?.Wards ?? [],
             Moles = form?.Moles ?? [],
+            Quarrels = Quarrels(t.Quarrels, townsfolk, Rng("quarrels")),
         };
         return Remember(plan, site.Burnt, w, Rng("remember"));
     }
@@ -628,11 +666,23 @@ public static partial class TownGenerator
 
     /// <summary>
     /// The <paramref name="count"/> houses a creature brought in through the gate burns (note 608): lived-in houses, the
-    /// nearest the gate first (the yard's fight is there), the same ones every time for the same plan. A plan with some
-    /// burnt already gives the next ones, so tonight's fires and the town the crew comes back to agree.
+    /// nearest where the train come in stands first (<see cref="FromWayIn"/>), the same ones every time for the same plan. A plan with
+    /// some burnt already gives the next ones, so tonight's fires and the town the crew comes back to agree.
     /// </summary>
     public static IReadOnlyList<TownHouse> Harmed(TownPlan plan, int count) =>
-        count <= 0 ? [] : [.. plan.Houses.Where(h => h.Kind == HouseKind.Lived).OrderBy(h => Math.Abs(h.S - plan.Gate)).ThenBy(h => h.Id).Take(count)];
+        count <= 0 ? [] : [.. plan.Houses.Where(h => h.Kind == HouseKind.Lived).OrderBy(h => FromWayIn(plan, h)).ThenBy(h => h.Id).Take(count)];
+
+    /// <summary>
+    /// How far a house stands from where a train come in through the town's way in stands (m; note 966): along the line from
+    /// its rear gate (<see cref="TownFrame.Entry"/>; the engine's home is run.json homeInsideGateM inside it, its rake behind),
+    /// and out from the line, as the crew on the ground there sees it. The gate's houses (the way out) stood about 430 m up
+    /// the town on frontier:7 (note 958), the fire neither seen nor heard from the train.
+    /// </summary>
+    public static double FromWayIn(TownPlan plan, TownHouse h)
+    {
+        double along = h.S - plan.Frame.Entry;
+        return Math.Sqrt(along * along + h.D * h.D);
+    }
 
     /// <summary>
     /// The town remembering what's been brought into it (note 608): its <paramref name="burnt"/> houses (<see cref="Harmed"/>)

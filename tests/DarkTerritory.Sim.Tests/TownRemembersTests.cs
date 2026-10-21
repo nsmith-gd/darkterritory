@@ -10,7 +10,7 @@ namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
 /// The town remembers the creature brought in (queue #340, ARCHITECTURE §8 note 608; note 589's not-yets): its guards turn
-/// out to the yard while it's fought, the houses nearest the gate burn, and the campaign carries them burnt to the next
+/// out to the yard while it's fought, the houses nearest where the train come in stands burn (note 966), and the campaign carries them burnt to the next
 /// visit, where the town's people say so.
 /// </summary>
 public class TownRemembersTests
@@ -43,7 +43,7 @@ public class TownRemembersTests
     }
 
     [Fact]
-    public void TheHousesBurntAreTheLivedInOnesNearestTheGateAndStayTheSame()
+    public void TheHousesBurntAreTheLivedInOnesNearestTheTrainAndStayTheSame()
     {
         var whole = Plan(0);
         var harmed = Plan(2);
@@ -53,9 +53,9 @@ public class TownRemembersTests
         var gone = TownGenerator.Harmed(whole, 2);
         Assert.Equal(2, gone.Count);
         Assert.All(gone, h => Assert.Equal(HouseKind.Lived, h.Kind));
-        // No lived-in house nearer the gate is left standing.
-        double farthest = gone.Max(h => Math.Abs(h.S - whole.Gate));
-        Assert.DoesNotContain(whole.Houses, h => h.Kind == HouseKind.Lived && Math.Abs(h.S - whole.Gate) < farthest && !gone.Contains(h));
+        // No lived-in house nearer where the train come in stands is left standing.
+        double farthest = gone.Max(h => TownGenerator.FromWayIn(whole, h));
+        Assert.DoesNotContain(whole.Houses, h => h.Kind == HouseKind.Lived && TownGenerator.FromWayIn(whole, h) < farthest && !gone.Contains(h));
         // Burnt out, shut, nobody home, and the look says whose it was; everything else as it was.
         foreach (var h in harmed.Houses)
         {
