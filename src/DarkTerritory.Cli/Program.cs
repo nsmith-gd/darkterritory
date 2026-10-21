@@ -1562,7 +1562,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             Note = ot.Note with { Chance = 1 },
         }, generated, line);
         var oddThing = Enum.Parse<DarkTerritory.Sim.Run.OddThingKind>(oddKind, ignoreCase: true);
-        if (oddities?.Things.FirstOrDefault(x => x.Kind == oddThing) is not { } thing)
+        // --lineside (note 965): a note out along the line, at a hut, a camp, a grave or a wreck, not at a village.
+        if (oddities?.Things.FirstOrDefault(x => x.Kind == oddThing && (!args.Contains("--lineside") || x.Feature < 0)) is not { } thing)
             return Print(new { error = "no " + oddThing + " on this night" });
         if (args.Contains("--turned"))
             oddities.Finish(thing.Index);
@@ -2184,6 +2185,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // --stocked: the train as it leaves, its stores and every car's extinguisher aboard (--charge 0..1: theirs).
         Bodies = shouldered is { } carried ? carried.Bodies.All
             : args.Contains("--bodies") ? Staging.Bodies(train, content).All
+            // --flares (note 964): the flare pistol's shot along the view's look, one in its arc and one burning on the ground.
+            : args.Contains("--flares") ? Staging.Flares(train, camera.Position, new Double3(camera.Forward.X, camera.Forward.Y, camera.Forward.Z)).All
             : args.Contains("--stocked") ? WithToolInLocker(Staging.Stocked(train, content, Opt(args, "--charge", 1)), train, args).All : cargo,
         // --crew: three on car 2's roof, one reaching up, one holding out both hands, one with a keyboard (T47's arms).
         // --working: the crew at work (X1): carrying, at a hatch and a brake wheel on car 2's roof, sat at the last gun.
@@ -2282,13 +2285,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         Diverging = train.Diverging,
         // --throttle x: the regulator's handle drawn that far open (T29's cab levers).
         Controls = new TrainControls { Throttle = Math.Clamp(Opt(args, "--throttle", 0), 0, 1), Reverser = 1 },
-        // --own crowbar|shovel|wrench|none: your own arms in view, from the view's eye (X3); --own-swing s: that far into a
+        // --own crowbar|shovel|wrench|pistol|none: your own arms in view (pistol: the flare pistol, note 964), from the view's eye (X3); --own-swing s: that far into a
         // blow; --own-act shovel|carry|...: at that work instead.
         Own = Str(args, "--own", "") is { Length: > 0 } own
             ? new OwnView((float)camera.Yaw, (float)camera.Pitch,
                 Str(args, "--own-act", "") is { Length: > 0 } a ? Enum.Parse<DarkTerritory.Game.Art.CrewPose>(a.Replace("_", ""), true) : null,
                 args.Contains("--own-walk"), args.Contains("--own-swing") ? Opt(args, "--own-swing", 0.3) : -1, 1,
-                own == "none" ? Tool.None : Enum.Parse<Tool>(own, true))
+                own is "none" or "pistol" ? Tool.None : Enum.Parse<Tool>(own, true), Pistol: own == "pistol")
             : null,
     };
     if (cradledFirst && shouldered is { } inArms)
@@ -4137,7 +4140,7 @@ static object HudShot(string content, string[] args)
     // picked up, and the note read on the HUD (the night's oddities with every stop's note out).
     if (args.Contains("--note") && session is PrototypeSession reader && reader.World.Oddities is { } odds)
     {
-        if (odds.Things.FirstOrDefault(x => x.Kind == DarkTerritory.Sim.Run.OddThingKind.Note) is not { } note)
+        if (odds.Things.FirstOrDefault(x => x.Kind == DarkTerritory.Sim.Run.OddThingKind.Note && (!args.Contains("--lineside") || x.Feature < 0)) is not { } note)
             return new { error = "no note at this night's villages (try another --route)" };
         var noteAt = odds.At(note.Index);
         var stand = noteAt - note.Facing * 0.8;
