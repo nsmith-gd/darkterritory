@@ -26,7 +26,8 @@ public class EligibilityTrialTests
         Assert.False(et.Climbers.FreeNeedsSpeed);
         // The director's answer to it is on: the lower third of the line speed (note 970).
         Assert.True(et.Climbers.FreeSpeed.On);
-        Assert.False(et.CarHugger.LowGround.On);
+        // On, the director's "on" at the measured setting (note 981): CarHuggerPlacesTests.TheShippingHuggerIsOnAtTheMeasuredSetting.
+        Assert.True(et.CarHugger.LowGround.On);
         // Off, the numbers are spec B.13's and note 328's.
         Assert.Equal((18.0, 12.0), (et.Gannet.Arrive, et.Gannet.Stall));
         Assert.Equal(et.Director.Run.FromSpeed, et.Director.Run.FromSpeedOn(RouteTier.Frontier));

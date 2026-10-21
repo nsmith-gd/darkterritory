@@ -93,8 +93,7 @@ public class CarHuggerPlacesTests
     public void TheStretchChanceKeepsThatShareOfTheLowStretchesTheSameEveryTime()
     {
         // Note 981: the marsh stretches thinned by a chance per stretch, by the line's seed and where it starts.
-        var all = E.CarHugger.LowGround with { On = true };
-        Assert.Equal(1, E.CarHugger.LowGround.StretchChance);
+        var all = E.CarHugger.LowGround with { On = true, StretchChance = 1 };
         var plans = Enumerable.Range(1, 24).Select(s => Routes.Generate(Content, $"frontier:{s}", 4).Plan!).ToList();
         var stretches = plans.SelectMany(p => p.Biomes.Where(b => b.Edge == "main" && all.Biomes.Contains(b.Biome)).Select(b => (p.Seed, b.S0))).ToList();
         Assert.True(stretches.Count >= 20, $"{stretches.Count} low stretches");
@@ -108,6 +107,19 @@ public class CarHuggerPlacesTests
         // A thinner chance's stretches are among a thicker one's.
         var half = all with { StretchChance = 0.5 };
         Assert.All(stretches.Where(s => third.Keeps(s.Seed, s.S0)), s => Assert.True(half.Keeps(s.Seed, s.S0)));
+    }
+
+    [Fact]
+    public void TheShippingHuggerIsOnAtTheMeasuredSetting()
+    {
+        // The director's "on" (21 Oct 2026, n1-B3-car-hugger-low-ground), at exactly what note 981 measured at 30 seeds:
+        // its low ground, the plan's places and a stood train's far side, a third of the marsh stretches, one a night.
+        var low = E.CarHugger.LowGround;
+        Assert.True(low.On);
+        Assert.NotEmpty(low.Tags);
+        Assert.True(low.Stood.On);
+        Assert.Equal(0.3, low.StretchChance);
+        Assert.Equal(1, E.Director.PerNight["carHugger"]);
     }
 
     [Theory]
