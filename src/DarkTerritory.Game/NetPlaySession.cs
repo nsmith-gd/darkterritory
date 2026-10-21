@@ -1551,15 +1551,17 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// <summary>
     /// The roster's lines: you and the rest of the session's crew, by name, in player-id order. GDD v1.4 (open question 2)
     /// made roll call verbal: "there is no aboard indicator for the conductor or anyone else", so a line says nothing of
-    /// where anyone is or whether they're alive, and the Passenger isn't on it: its only tell is silence, heard by ear.
+    /// where anyone is, and the Passenger isn't on it: its only tell is silence, heard by ear. Who's dead it does say (note 938;
+    /// the director, 20 Oct: "we need a way to like know if ... our crew is dead. Crew roll call shouted. One, Dunmore, me. I
+    /// don't see Dunmore"): the dead aren't anyone's to count.
     /// </summary>
     /// <param name="muted">Who's muted on this machine (note 724): the roster says MUTED beside them.</param>
     public static IReadOnlyList<RosterLine> RosterOf(byte me, in PlayerState mine, IEnumerable<(byte Id, PlayerState State)> crew, World world,
         Func<byte, bool>? muted = null)
     {
-        var lines = new List<RosterLine> { new(me, NameOr(world, me, "YOU").ToUpperInvariant(), "", true, You: true) };
-        foreach (var (id, _) in crew)
-            lines.Add(new RosterLine(id, NameOr(world, id, $"CREW {id}").ToUpperInvariant(), "", true) { Muted = muted?.Invoke(id) == true });
+        var lines = new List<RosterLine> { new(me, NameOr(world, me, "YOU").ToUpperInvariant(), "", mine.Alive, You: true) };
+        foreach (var (id, s) in crew)
+            lines.Add(new RosterLine(id, NameOr(world, id, $"CREW {id}").ToUpperInvariant(), "", s.Alive) { Muted = muted?.Invoke(id) == true });
         return [.. lines.OrderBy(l => l.Id)];
     }
 
