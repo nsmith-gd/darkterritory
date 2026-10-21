@@ -56,9 +56,10 @@ public sealed partial class GameAudio
     /// </summary>
     const double WarnKnockFrom = 3, WarnKnockTo = 10, RattleEvery = 0.45;
     /// <summary>
-    /// Note 865: the warning's knock carries the length of the train (the director: "hella telegraphing"). Until AU1's own cue
-    /// for it (<c>state-coupling-loose.warn</c>, long-carrying) is installed, the knock's played from no further than this off
-    /// the ear (m), toward the gap: the knock's own sound stops at 60 m, and the cab is further than that from most gaps.
+    /// Note 865: the warning's knock carries the length of the train (the director: "hella telegraphing"). Its own cue does
+    /// (<c>state-coupling-loose.warn</c>, note 980: a harder knock whose ring carries, out to 400 m, at the pin); where it isn't
+    /// installed (a mod's), the knock's played from no further than this off the ear (m), toward the gap: the knock's own
+    /// sound stops at 60 m, and the cab is further than that from most gaps.
     /// </summary>
     const double WarnCarries = 45;
 

@@ -280,6 +280,8 @@
     "state-coupling-loose.jump-brake": "COUPLINGS SLAMMING, A PIN JUMPING",
     "state-coupling-loose.jump-coupled": "A COUPLER CLASHING, A PIN JUMPING",
     "state-coupling-loose.jump-bend": "CARS LURCHING, A PIN JUMPING",
+    // A pin working loose before it jumps (note 980): its own harder knock, quickening.
+    "state-coupling-loose.warn": "IRON CLANGING AT A COUPLING, FASTER",
     "tell-house.creak": "BOARDS CREAKING INSIDE",
     "tell-householder.shift": "A CHAIR SHIFTING",
     "world-bell.far": "A BELL, FAR OFF",

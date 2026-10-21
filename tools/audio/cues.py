@@ -434,6 +434,9 @@ CUES = {
         O("jump-brake", "Jumped by a run-in: the slack slamming in down the train and the pin jumping in its knuckle", vars=3),
         O("jump-coupled", "Jumped by a hard coupling: a coupler's clash and the pin knocked up in its knuckle", vars=3),
         O("jump-bend", "Jumped on a bend: the cars lurching, a frame's groan and the pin jumping", vars=3),
+        # A pin working loose before it jumps (note 865, #592; queue #680, note 980): the warning, heard the length of the
+        # train, fired three to ten a second as it comes to jumping.
+        O("warn", "A pin working loose: struck hard in its knuckle, the coupler ringing out the length of the train", vars=4),
     ],
     "state-derail": [
         L("flange-scream", "Flanges screaming on a curve taken too fast (the warning)"),

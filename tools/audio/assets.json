@@ -4159,6 +4159,16 @@
   "url": "/_blob/6daa61e107beb90b2ca78434df03567a",
   "sha": "852699d918c00920"
  },
+ "previews/state-coupling-loose--warn--casting.mp4": {
+  "id": "c85443cd8de92bbac95bbb82f22e0993",
+  "url": "/_blob/c85443cd8de92bbac95bbb82f22e0993",
+  "sha": "532f14b80e5f11c4"
+ },
+ "previews/state-coupling-loose--warn--clang.mp4": {
+  "id": "6dd0e2e27e7fd56480faf1fe97e1dc9f",
+  "url": "/_blob/6dd0e2e27e7fd56480faf1fe97e1dc9f",
+  "sha": "ef2dd1421779c9ed"
+ },
  "previews/state-derail--climb--flange.mp4": {
   "id": "37ddf2f2ef38318d8ea1e74a87383851",
   "url": "/_blob/37ddf2f2ef38318d8ea1e74a87383851",
