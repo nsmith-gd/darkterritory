@@ -23,6 +23,12 @@ public sealed record BalanceBands
     public IReadOnlyList<SessionBand> Encounters { get; init; } = [];
     public double[] FirstThreatSeconds { get; init; } = [90, 150];
     public bool LateAtLeastEarly { get; init; } = true;
+    /// <summary>
+    /// The late half judged per minute open to spawning (note 930; n1-C2's finding): the terminus approach §1 A keeps (the
+    /// final stretch, terminus_safe) takes a third of the late half, the grace a little of the early. The raw count is shown
+    /// beside it, unbanded. With no nights to measure the open time from, the raw count is judged.
+    /// </summary>
+    public bool LatePerOpenMinute { get; init; } = true;
     /// <summary>Droughts over 90 s a night, at most, on the mean (ours: §7 says to investigate them).</summary>
     public double DroughtsOver90 { get; init; } = 2;
     /// <summary>The share of a group's nights that get home, at least (ours: §7's "the ability to finish runs").</summary>
@@ -51,7 +57,38 @@ public static class SweepScoring
     /// <summary>The session band that judges <paramref name="g"/>'s encounters, if any holds it.</summary>
     public static SessionBand? SessionFor(BalanceBands b, SweepGroup g) => b.Encounters.FirstOrDefault(s => s.Holds(g));
 
-    public static GroupScore Score(BalanceBands b, SweepGroup g)
+    /// <summary>
+    /// Each group's encounters per minute open to spawning, early half and late (note 930; n1-C2's reckoning). Measured per
+    /// second where the sweep recorded it (<see cref="SweepRow.EarlyOpenSeconds"/>); for older sweeps, estimated: a half's
+    /// encounters over its seconds less what the director held there (the grace and its bans in the early half; the final
+    /// stretch and every terminus ban in the late), × 60, the nights' mean. The held seconds aren't split by half; the grace
+    /// sits in the early by construction, the terminus in the late.
+    /// </summary>
+    public static Dictionary<string, (double Early, double Late)> OpenRates(IEnumerable<SweepRow> nights) =>
+        nights.GroupBy(r => r.Cell.Key).ToDictionary(g => g.Key, g =>
+        {
+            double early = 0, late = 0;
+            foreach (var r in g)
+            {
+                // Measured a second at a time where the sweep has it (n1-C2's fields, the director's held reason each
+                // second); a night with no open time in a half counts as level there.
+                if (r.EarlyOpenSeconds is not null)
+                {
+                    early += r.EarlyPerOpenMinute ?? 0;
+                    late += r.LatePerOpenMinute ?? 0;
+                    continue;
+                }
+                double half = r.Minutes * 30;
+                double held(Func<string, bool> which) => r.HeldBack.Where(kv => which(kv.Key)).Sum(kv => (double)kv.Value);
+                double openEarly = Math.Max(60, half - held(k => k == "grace" || k.StartsWith("banned (grace", StringComparison.Ordinal)));
+                double openLate = Math.Max(60, half - held(k => k == "final stretch" || k.StartsWith("banned (terminus", StringComparison.Ordinal)));
+                early += r.EarlyHalf / openEarly * 60;
+                late += r.LateHalf / openLate * 60;
+            }
+            return (Math.Round(early / g.Count(), 2), Math.Round(late / g.Count(), 2));
+        });
+
+    public static GroupScore Score(BalanceBands b, SweepGroup g, (double Early, double Late)? open = null)
     {
         var scores = new List<BandScore>();
         var session = SessionFor(b, g);
@@ -59,7 +96,12 @@ public static class SweepScoring
             ? new("encounters / 20 min", g.EncountersPer20Min, Range(s.Per20Min), In(g.EncountersPer20Min, s.Per20Min))
             : new("encounters / 20 min", g.EncountersPer20Min, "no session", null));
         scores.Add(new("first threat (s)", g.FirstThreat, Range(b.FirstThreatSeconds), g.FirstThreat is { } f ? In(f, b.FirstThreatSeconds) : false));
-        if (b.LateAtLeastEarly)
+        if (b.LateAtLeastEarly && b.LatePerOpenMinute && open is { } o)
+        {
+            scores.Add(new("late − early / open min", Math.Round(o.Late - o.Early, 2), "≥ 0", o.Late >= o.Early));
+            scores.Add(new("late half − early (raw)", g.LateHalf - g.EarlyHalf, "—", null));
+        }
+        else if (b.LateAtLeastEarly)
             scores.Add(new("late half − early", g.LateHalf - g.EarlyHalf, "≥ 0", g.LateHalf >= g.EarlyHalf));
         scores.Add(new("droughts > 90 s", g.DroughtsOver90, $"≤ {Num(b.DroughtsOver90)}", g.DroughtsOver90 <= b.DroughtsOver90));
         scores.Add(new("delivered", g.Delivered, $"≥ {Num(b.DeliveredAtLeast)}", g.Delivered >= b.DeliveredAtLeast));
@@ -81,15 +123,22 @@ public static class SweepScoring
     /// The groups as a markdown table, one row a measure: the band, then each sweep's value and mark, the baseline's (old)
     /// before the sweep's (new) where there is one. A group only one of them has shows its own columns.
     /// </summary>
-    public static string Table(BalanceBands b, IReadOnlyList<SweepGroup> after, IReadOnlyList<SweepGroup>? before = null)
+    public static string Table(BalanceBands b, IReadOnlyList<SweepGroup> after, IReadOnlyList<SweepGroup>? before = null,
+        IEnumerable<SweepRow>? afterNights = null, IEnumerable<SweepRow>? beforeNights = null)
     {
         var old = before?.ToDictionary(g => g.Key) ?? [];
+        // Per open minute only when every sweep shown has its nights (the old and the new judged the same way, row for row).
+        bool open = afterNights is not null && (before is null || beforeNights is not null);
+        var openNow = open ? OpenRates(afterNights!) : null;
+        var openThen = open && beforeNights is not null ? OpenRates(beforeNights) : null;
+        (double, double)? Open(Dictionary<string, (double Early, double Late)>? rates, string key) =>
+            rates is not null && rates.TryGetValue(key, out var r) ? r : null;
         var sb = new StringBuilder();
         int passed = 0, judged = 0, oldPassed = 0, oldJudged = 0;
         foreach (var g in after)
         {
-            var now = Score(b, g);
-            var then = old.TryGetValue(g.Key, out var o) ? Score(b, o) : null;
+            var now = Score(b, g, Open(openNow, g.Key));
+            var then = old.TryGetValue(g.Key, out var o) ? Score(b, o, Open(openThen, g.Key)) : null;
             passed += now.Passed;
             judged += now.Judged;
             oldPassed += then?.Passed ?? 0;

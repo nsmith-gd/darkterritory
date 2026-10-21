@@ -1,0 +1,5 @@
+// climbers.smallCrew on (note 930).
+{
+  "$patch": true,
+  "climbers": { "smallCrew": { "on": true } }
+}

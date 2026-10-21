@@ -24,6 +24,9 @@
   ],
   "firstThreatSeconds": [90, 150],
   "lateAtLeastEarly": true,
+  // Ours (note 930; n1-C2): the late half judged per minute open to spawning, the terminus approach (§1 A: the final
+  // stretch, terminus_safe) and the grace taken out; the raw count shown beside it. false: the raw count judged.
+  "latePerOpenMinute": true,
   "droughtsOver90": 2,
   "deliveredAtLeast": 0.75
 }

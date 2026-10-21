@@ -1,0 +1,7 @@
+// halt-own-creature: a halt's own encounter (#609's halt, note 895), the bots standing 60 s at the halts (#634, note 934)
+{
+  "$patch": true,
+  "crew": {
+    "haltStandSeconds": 60
+  }
+}

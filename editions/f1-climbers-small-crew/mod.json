@@ -1,0 +1,9 @@
+// #613's balance sweep (note 930): the shipping content with the proposed Climber trial on (climbers.smallCrew: a crew of
+// one or two meets a single Climber). `dt --edition f1-climbers-small-crew director sweep ...`. Measurement only.
+{
+  "id": "edition-f1-climbers-small-crew",
+  "name": "f1-climbers-small-crew",
+  "version": "1.0.0",
+  "description": "climbers.smallCrew on: a crew of one or two meets one Climber, not a group (note 930)",
+  "order": -1000
+}

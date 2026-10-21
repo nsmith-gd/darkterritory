@@ -44,6 +44,15 @@ public sealed record SweepRow(SweepCell Cell, string End, bool Delivered, double
     public int? Tried { get; init; }
     public int? Placed { get; init; }
     public int? ChargedUnplaced { get; init; }
+    /// <summary>
+    /// Each half's seconds open to the director's encounters, not under a quiet the brief keeps (grace, the final stretch and the
+    /// terminus's, the facility lull; <see cref="EncounterWatch.Protects"/>), and each half's encounters per open minute (#613,
+    /// note 930): the terminus approach falls in the late half, so its raw count understates the escalation.
+    /// </summary>
+    public double? EarlyOpenSeconds { get; init; }
+    public double? LateOpenSeconds { get; init; }
+    public double? EarlyPerOpenMinute { get; init; }
+    public double? LatePerOpenMinute { get; init; }
     /// <summary>How the crew died (the harness's deaths by cause), and the incident report's death, car-lost, derailment and
     /// stranding lines in the clerk's words, with when: what a night that failed died of (#613's survival question).</summary>
     public IReadOnlyDictionary<string, int> DeathsByCause { get; init; } = new Dictionary<string, int>();
@@ -58,6 +67,9 @@ public sealed record SweepGroup(string Key, string Route, int Crew, int Cars, in
 {
     /// <summary>Of the spawns tried, the share placed (#600's telemetry); null when no night had it.</summary>
     public double? Placement { get; init; }
+    /// <summary>The nights' mean encounters per open minute in each half (<see cref="SweepRow.EarlyPerOpenMinute"/>); null when no night had it.</summary>
+    public double? EarlyPerOpenMinute { get; init; }
+    public double? LatePerOpenMinute { get; init; }
 }
 
 public sealed record SweepReport(string Commit, double Seconds, IReadOnlyList<SweepGroup> Groups, IReadOnlyList<SweepRow> Nights);
@@ -95,6 +107,8 @@ public static class DirectorSweep
         var enc = w.Encounters;
         double half = r.Seconds / 2;
         var droughts = w.Droughts;
+        var (earlyOpen, lateOpen) = w.OpenSeconds(half, r.Seconds);
+        int early = enc.Count(e => e.Start < half), late = enc.Count(e => e.Start >= half);
         return new SweepRow(cell, run?.End.ToString() ?? "none", run?.End == Sim.Run.RunEnd.Delivered, Math.Round((run?.Seconds ?? r.Seconds) / 60, 1),
             Math.Round(run?.DistanceKm ?? r.TrainDistance / 1000, 2), run?.CrewLost ?? r.Deaths, t?.MeanCargoIntegrity ?? 1,
             run?.CarsDelivered ?? 0, run?.CarsLost ?? 0, t?.Spawned.Values.Sum() ?? 0, t?.Spawned ?? new Dictionary<string, int>(), enc.Count,
@@ -106,6 +120,10 @@ public static class DirectorSweep
             Sorted(t?.Director.Where(kv => kv.Key != "sent").ToDictionary() ?? []), Math.Round(wallSeconds, 1))
         {
             Telemetry = printed?["threats"]?["encounters"]?.DeepClone() ?? printed?["encounters"]?.DeepClone(),
+            EarlyOpenSeconds = Math.Round(earlyOpen),
+            LateOpenSeconds = Math.Round(lateOpen),
+            EarlyPerOpenMinute = earlyOpen > 0 ? Math.Round(early / earlyOpen * 60, 3) : null,
+            LatePerOpenMinute = lateOpen > 0 ? Math.Round(late / lateOpen * 60, 3) : null,
             DeathsByCause = Sorted(t?.DeathsByCause.ToDictionary() ?? []),
             Losses = [.. (run?.Lines ?? []).Where(l => l.Kind is Sim.Run.IncidentKind.Death or Sim.Run.IncidentKind.CarLost
                 or Sim.Run.IncidentKind.Derailed or Sim.Run.IncidentKind.Stranded).Select(l => $"{(l.Seconds >= 0 ? $"{l.Seconds:0}s " : "")}{l.Kind}: {l.Text}")],
@@ -138,6 +156,8 @@ public static class DirectorSweep
                 M(g.Select(r => (double)r.Sent)), M(g.Select(r => (double)r.PackFires)))
             {
                 Placement = g.Sum(r => r.Tried ?? 0) is > 0 and var tried ? Math.Round((double)g.Sum(r => r.Placed ?? 0) / tried, 3) : null,
+                EarlyPerOpenMinute = g.Any(r => r.EarlyPerOpenMinute is not null) ? M(g.Where(r => r.EarlyPerOpenMinute is not null).Select(r => r.EarlyPerOpenMinute!.Value)) : null,
+                LatePerOpenMinute = g.Any(r => r.LatePerOpenMinute is not null) ? M(g.Where(r => r.LatePerOpenMinute is not null).Select(r => r.LatePerOpenMinute!.Value)) : null,
             };
         }).OrderBy(g => Array.IndexOf(Tiers, g.Route.Split(':')[0])).ThenBy(g => g.Route, StringComparer.Ordinal).ThenBy(g => g.Crew).ThenBy(g => g.Cars)];
 
