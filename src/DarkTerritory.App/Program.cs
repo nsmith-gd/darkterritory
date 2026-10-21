@@ -834,6 +834,10 @@ while (!window.CloseRequested && !QuitNow())
     leftNight = false;
     campaign = Play(session, campaign);
     (playing, doing) = (null, "the menus");
+    // Note 937: the press that ended the night (LEAVE's Enter or click, the end screen's Enter) is this frame's, and the
+    // night's loop broke before it ended the frame. Left standing, the menu's first frame took it as a choice of its own:
+    // the fortress board's CARRY ON, the night started again with the director "joining" it.
+    input.EndFrame();
     bool delivered = session.World.Run?.End == DarkTerritory.Sim.Run.RunEnd.Delivered;
     // Note 606: a joiner whose host went on to the next night goes after it.
     var following = session is NetPlaySession { Lost: true, GoingOn: { } going } && !leftNight ? going : null;
