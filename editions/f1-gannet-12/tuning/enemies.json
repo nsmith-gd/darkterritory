@@ -1,0 +1,10 @@
+// gannet-12: the Gannet arrives above 12 m/s (note 915)
+{
+  "$patch": true,
+  "gannet": {
+    "lowArrive": {
+      "on": true,
+      "arriveAbove": 12
+    }
+  }
+}

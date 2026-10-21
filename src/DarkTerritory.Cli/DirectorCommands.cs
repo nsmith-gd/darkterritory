@@ -81,7 +81,32 @@ static class DirectorCommands
             : null;
         Console.WriteLine($"{path} ({after.Commit[..Math.Min(9, after.Commit.Length)]}){(before is null ? "" : $" against {Str(args, "--against", "")} ({before.Commit[..Math.Min(9, before.Commit.Length)]})")}, the brief's §7 bands:");
         Console.WriteLine();
-        Console.Write(SweepScoring.Table(bands, after.Groups, before?.Groups));
+        Console.Write(SweepScoring.Table(bands, after.Groups, before?.Groups, after.Nights, before?.Nights));
+        return 0;
+    }
+
+    /// <summary>
+    /// `dt director join` (note 930): sweeps run in parts joined into one, every part's nights together and the groups remade
+    /// from them (never the parts' means averaged, which would weigh a short part like a long one). The parts must share the
+    /// night's length; the commit is the first part's.
+    /// </summary>
+    public static int Join(string[] args)
+    {
+        var paths = args.Skip(2).TakeWhile(a => !a.StartsWith("--", StringComparison.Ordinal)).ToList();
+        var parts = paths.Select(p => JsonSerializer.Deserialize<SweepReport>(File.ReadAllText(p), DataFile.Options)!).ToList();
+        if (parts.Count == 0)
+            throw new ArgumentException("dt director join a.json b.json ... --out all.json");
+        if (parts.Select(p => p.Seconds).Distinct().Count() > 1)
+            throw new ArgumentException("the parts' nights aren't the same length");
+        var nights = parts.SelectMany(p => p.Nights).ToList();
+        var joined = new SweepReport(parts[0].Commit, parts[0].Seconds, DirectorSweep.Groups(nights), nights);
+        string json = JsonSerializer.Serialize(joined, DataFile.Options);
+        if (Str(args, "--out", "") is { Length: > 0 } output)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(output))!);
+            File.WriteAllText(output, json + "\n");
+        }
+        Console.Error.WriteLine($"{parts.Count} parts, {nights.Count} nights, {joined.Groups.Count} groups");
         return 0;
     }
 

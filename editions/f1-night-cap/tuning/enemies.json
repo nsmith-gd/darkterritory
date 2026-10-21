@@ -1,0 +1,17 @@
+// night-cap-1285: the night's cap, fresh kinds and sated hounds (#590/#1285, #612's #1445)
+{
+  "$patch": true,
+  "director": {
+    "nightCap": {
+      "on": true
+    },
+    "fresh": {
+      "on": true
+    }
+  },
+  "cinderHounds": {
+    "sated": {
+      "on": true
+    }
+  }
+}

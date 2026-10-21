@@ -1,0 +1,9 @@
+// #613's balance sweep (note 930): the shipping content with one of the director's pending asks on, to give each its
+// 30-seed number. `dt --edition f1-dread director sweep ...`. Measurement only; never shipped.
+{
+  "id": "edition-f1-dread",
+  "name": "f1-dread",
+  "version": "1.0.0",
+  "description": "dread-at-the-stops: dread afoot at the stops (#646, note 944)",
+  "order": -1000
+}

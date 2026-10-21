@@ -839,6 +839,11 @@
     // A trial (note 915, #612; note 887's find): the night's curve's free Climbers want minSpeed too, as their rule does (a
     // moving train's gaps, boarding-first), not only a gap: they came to a train stood on the open line. Off until measured.
     "freeNeedsSpeed": false,
+    // A trial (note 930; #613's final sweep, n1-A2's causes and n1-H1's note 955): a group of three Climbers reaching the cab
+    // of a slow train at a yard took a lone driver (frontier:10 solo at 225 s; 2 crew at 230 and 259 s; 8 crew seed 8), a
+    // small crew's early pressure send. With smallCrew on, a crew of crewUpTo or fewer meets at most packMax of them (the
+    // group's size still drawn as before, then capped). The director's call: off until measured.
+    "smallCrew": { "on": false, "crewUpTo": 2, "packMax": 1 },
     // Note 288 (drivenOff; "outnumber them at the gaps"): up on the roofs or in a car, outnumbered where it is (more crew than
     // Climbers within countRadius) with no gang striking it, it drops back off after outnumberedSeconds (letting go) for
     // another gap. A lone blow knocks it off a friend; only the gang's blows take its health.

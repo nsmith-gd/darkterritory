@@ -75,6 +75,31 @@ public class BalanceBandsTests
         Assert.Contains("In band: new 5 of 5; old 2 of 5", table);
     }
 
+    /// <summary>
+    /// Note 930 (n1-C2): the late half judged per minute open to spawning: the terminus approach's held seconds come out of
+    /// the late half, the grace's out of the early. A night whose raw late half is short of its early can be busier per open
+    /// minute, and is judged so; the raw count is shown, unbanded.
+    /// </summary>
+    [Fact]
+    public void TheLateHalfIsJudgedPerMinuteOpenToSpawning()
+    {
+        Assert.True(Bands.LatePerOpenMinute);
+        // A 20-minute night: 600 s a half. The early half had 60 s of grace (540 open) and 6 encounters; the late half had
+        // 300 s held in the final stretch and terminus_safe (300 open) and 4: fewer raw, but 0.8 a minute against 0.67.
+        var cell = new SweepCell("frontier:7", 2, 5, 1);
+        var night = new SweepRow(cell, "Delivered", true, 20, 8, 0, 1, 5, 0, 10, new Dictionary<string, int>(), 10,
+            new Dictionary<string, int>(), 4, 6, 4, 100, 80, 80, 0, 2, 0, 0, 0,
+            new Dictionary<string, int> { ["grace"] = 60, ["final stretch"] = 200, ["banned (terminus_safe)"] = 100, ["cooldown"] = 50 }, 1);
+        var rates = SweepScoring.OpenRates([night]);
+        Assert.Equal((0.67, 0.8), rates[cell.Key]);
+        var group = DirectorSweep.Groups([night]).Single();
+        var score = SweepScoring.Score(Bands, group, rates[cell.Key]);
+        Assert.Contains(score.Scores, s => s.Measure == "late − early / open min" && s.Pass == true);
+        Assert.Contains(score.Scores, s => s.Measure == "late half − early (raw)" && s.Value == -2 && s.Pass is null);
+        // With no nights to measure it from, the raw count is judged, as before.
+        Assert.Contains(SweepScoring.Score(Bands, group).Scores, s => s.Measure == "late half − early" && s.Pass == false);
+    }
+
     static SweepGroup Group(int crew, int cars, double per20, double? first, double early, double late) =>
         new($"frontier:7 crew {crew} cars {cars}", "frontier:7", crew, cars, 4, per20, (int)per20, (int)per20, per20, 3, early, late, first,
             60, 80, 1, 2, 0.1, 0, 1, 1, 20, per20, 0);
