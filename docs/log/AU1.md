@@ -460,3 +460,7 @@ The director asked for the last three friendslop features to be heard. Two were 
 ## 21 Oct, ~22:45 UTC: #680 in review
 
 - The claim merged ([#1582](https://github.com/nsmith-gd/darkterritory/pull/1582)). `state-coupling-loose.warn` (note 980): `recipes/coupling_warn.py` (the packs' real slam and rings, the casting modelled; on the checklist), installed at the pin out to 400 m as an alarm, captioned, two tests (the warn at the pin from the cab, or the stand-in knock pulled to 45 m; the installed reach and level). The line's other cues untouched.
+
+## 21 Oct, ~22:58 UTC: #680 merging
+
+- [#1584](https://github.com/nsmith-gd/darkterritory/pull/1584) green on Linux and Windows (package, crossplay); main merged in once more, row #680 done in it (the union merge's stale copies of #679 and #680 dropped). Merges on this run's green. Next: the clerk's bank rebuilt with the catalogue's words for Hazel's tally (note 972).
