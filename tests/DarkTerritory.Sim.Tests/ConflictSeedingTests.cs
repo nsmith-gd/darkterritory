@@ -109,6 +109,46 @@ public class ConflictSeedingTests
         Assert.Contains("choir+cinderHounds", coming.Director!.Pairs);
     }
 
+    /// <summary>
+    /// Note 906 (#611; the brief §6): a pair whose two answers need two people at once (<c>concurrency.pairMinCrew</c>) is never
+    /// made for a crew of one: with the Choir coming, a solo crew isn't sent the hounds at all; a crew of two is, and the pair
+    /// is made.
+    /// </summary>
+    [Fact]
+    public void APairOnlyTwoCanAnswerIsNeverMadeForOne()
+    {
+        var tuning = Priced(new() { ["cinderHounds"] = 1 }, d => d with
+        {
+            SaveFor = [],
+            Encounters = d.Encounters with
+            {
+                Concurrency = d.Encounters.Concurrency with { On = true, PairMinCrew = new() { ["choir+cinderHounds"] = 2 } },
+            },
+        });
+        World Coming(int crew)
+        {
+            var w = Night(tuning, Frontier(), at: 40_000, speed: 12, crew: crew);
+            for (int i = 0; i < 20 * SimConstants.TickRate; i++)
+            {
+                w.Choir = w.Choir with { Build = 0.3 };
+                w.Train.Dynamics.Velocity = 12;
+                w.BeginTick();
+                w.Step(new TrainControls { Reverser = 1 });
+            }
+            return w;
+        }
+        var solo = Coming(1);
+        Assert.DoesNotContain(solo.Director!.Log, l => l.Kind == EnemyKind.CinderHound);
+        Assert.Empty(solo.Director.Pairs);
+        var two = Coming(2);
+        Assert.Contains(two.Director!.Log, l => l.Kind == EnemyKind.CinderHound);
+        Assert.Contains("choir+cinderHounds", two.Director.Pairs);
+        // Without the Choir it isn't a pair, and the solo gets the hounds as ever.
+        var quiet = Night(tuning, Frontier(), at: 40_000, speed: 12, crew: 1);
+        Run(quiet, 2, 12);
+        Assert.Equal(EnemyKind.CinderHound, quiet.Director!.Log[0].Kind);
+    }
+
     [Fact]
     public void TheTableIsInTheTuningAndOnlyNamesThingsThereAre()
     {

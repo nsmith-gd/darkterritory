@@ -6,7 +6,7 @@ namespace DarkTerritory.Sim.Enemies;
 /// gradually with the crew alive and the cars, with no breakpoint at eight cars or six crew, so four and eight crews meet
 /// overlapping threats across the train and a long train holds more; and a crew of one is never set a dilemma only two can
 /// answer. Pure statics on counts: nothing drawn, no world read, the same on the host and every client. The director reads
-/// them once #604's threat states and #608's pacing are in (note 906).
+/// them with <see cref="ConcurrencyTuning.On"/> (note 906).
 /// </summary>
 public static class Concurrency
 {
@@ -78,6 +78,19 @@ public static class Concurrency
         return Math.Clamp(Ballast.DMath.Pow(share, Math.Max(0, t.ReliefPower)) * (1 - Math.Clamp(t.HurtRelief, 0, 1) * hurtShare), 0, 1);
     }
 
+    /// <summary>
+    /// Whether a threat holds its place on the engaged cap (note 906; the brief §2 issue 4, §6: "an unseen monster several cars
+    /// away should not indefinitely suppress interesting encounters for a solo player"): one holding someone always does; one
+    /// that's had no living crewmate within <c>farMetres</c> for <paramref name="farSeconds"/> of <c>farHoldSeconds</c> or more
+    /// doesn't (it still counts as danger for the pacing: it's only off the cap). One at work on the train (<paramref
+    /// name="working"/>: a pack feeding aboard, a Hotbox in its truck, a Brakeman at the brakes) holds it however far it is
+    /// (§6: "an active monster damaging a train system should count as ongoing danger"), but for the kinds in
+    /// <c>farWorkers</c> (<paramref name="kind"/>), whose work is a state the train is left in, not a harm that grows: the
+    /// Knotter that's become the coupling. <c>farHoldSeconds</c> 0: always holds.
+    /// </summary>
+    public static bool HoldsCap(bool holding, bool working, string kind, double farSeconds, ConcurrencyTuning t) =>
+        holding || t.FarHoldSeconds <= 0 || farSeconds < t.FarHoldSeconds || working && !t.FarWorkers.Contains(kind);
+
     static int HalfUp(double x) => (int)Math.Floor(x + 0.5 + 1e-9);
 }
 
@@ -90,6 +103,7 @@ public sealed partial record EncountersTuning
 /// <summary>Mirror of enemies.json <c>director.encounters.concurrency</c> (note 906); field docs live there.</summary>
 public sealed record ConcurrencyTuning
 {
+    public bool On { get; init; } = true;
     public double Share { get; init; } = 0.75;
     public double SharePerCar { get; init; } = 0.2;
     public int CarsFrom { get; init; } = 3;
@@ -103,4 +117,8 @@ public sealed record ConcurrencyTuning
     public double ReliefPower { get; init; } = 1;
     public double HurtBelow { get; init; } = 35;
     public double HurtRelief { get; init; } = 0.25;
+    public double FarMetres { get; init; } = 30;
+    public double FarHoldSeconds { get; init; } = 60;
+    public bool IncidentsHoldCap { get; init; } = true;
+    public string[] FarWorkers { get; init; } = [];
 }
