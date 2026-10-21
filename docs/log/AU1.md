@@ -451,3 +451,8 @@ The director asked for the last three friendslop features to be heard. Two were 
 
 - [#1572](https://github.com/nsmith-gd/darkterritory/pull/1572) green on Linux and Windows (and the package and crossplay); main merged in once more, row #675 done in it (the union merge's stale copies of #671, #672 and #675 dropped). Merges on this run's green.
 - Next (one at a time): the coupling's long-carrying `state-coupling-loose.warn` (note 865; hooked in `GameAudio.Faults`, no sound yet), the clerk's word bank with the catalogue's words for Hazel's tally (note 972), the dining car's glass and bell (note 959), the big cab's benches (note 905), Rowan's audit's tidy-ups (note 858).
+
+## 21 Oct, ~22:05 UTC: #675 merged; #680, a pin working loose heard the length of the train
+
+- [#1572](https://github.com/nsmith-gd/darkterritory/pull/1572) merged (the flare pistol heard, #675, note 975). The `up-flare` line's notes say so.
+- Claimed queue #680, note 980: note 865's `state-coupling-loose.warn`, hooked in `GameAudio.Faults` since #592 but with no sound, so the warning borrows the ordinary knock pulled toward the ear.
