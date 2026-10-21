@@ -470,6 +470,8 @@ public sealed record GauntTuning
     public double LongStopSeconds { get; init; } = 120;
     public double LeaveSpeed { get; init; } = 1.4;
     public double ClearedAt { get; init; } = 30;
+    /// <summary>Note 945: leaving, it's gone only once no living crewmate out in the open is within this (m) as well; 0, at <see cref="ClearedAt"/> whoever's watching.</summary>
+    public double GoneUnseenAt { get; init; }
     public double CarryHigh { get; init; } = 1.7;
     public double CarryLow { get; init; } = 0.55;
     /// <summary>Note 288: talked down, it leaves; killed only by a gang while someone talks to it. False: the old health fight.</summary>
@@ -729,6 +731,11 @@ public sealed record DirectorTuning(
     /// </summary>
     public double LingerSeconds { get; init; } = 120;
     public double LingerRadius { get; init; } = 12;
+    /// <summary>
+    /// Note 945: the stuck rule (telegraphing or committing <see cref="LingerSeconds"/> × 1.5) spares a threat with a living
+    /// crewmate within <see cref="LingerRadius"/> of it: a Gaunt following its waker, talked to, isn't stuck. Off: as T114.
+    /// </summary>
+    public bool StuckSparesTheMet { get; init; }
     /// <summary>Note 795: with every living crewmate off the train, what none of them is within this of holds no cap (0: off).</summary>
     public double CapNear { get; init; } = 60;
     /// <summary>Note 881 (the brief §2 issue 4): the engagement states, and the engaged cap counting threats, not bodies.</summary>

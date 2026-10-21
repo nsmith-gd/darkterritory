@@ -2465,6 +2465,34 @@ public static partial class Hud
         return Hold(verb, done);
     }
 
+    /// <summary>
+    /// Note 945 (the director's playtest of 20 Oct evening, line 20: "I have hit this thing so many times from standing up here.
+    /// Oh, it won't die ... Can it not die while we're driving?"): it can't, by design (its brief, GDD §21: taut while the train
+    /// runs, it shrugs blows off; at a stand it slackens and can be killed), and nothing said so; every blow showed as a hit.
+    /// Facing a Knotter that isn't slack, within a blow's reach of it (the melee's reach and its own), the crosshair says.
+    /// </summary>
+    public const string KnotterTaut = "IT'S TAUT : STOP THE TRAIN";
+
+    static string? KnotterPrompt(IPlaySession s)
+    {
+        var world = s.World;
+        if (world.Enemies is not { } et)
+            return null;
+        var train = s.Train;
+        var me = PlayerMotor.WorldPosition(s.Player, train);
+        double yaw = PlayerMotor.WorldYaw(s.Player, train), reach = et.Melee.Reach;
+        var facing = new Ballast.Double3(-Math.Sin(yaw), 0, -Math.Cos(yaw));
+        foreach (var e in world.ActiveEnemies)
+            if (e is Sim.Enemies.Knotter { Gone: false } k && k.Mode is not (Sim.Enemies.KnotterMode.Slack or Sim.Enemies.KnotterMode.Coil))
+            {
+                var to = k.WorldPosition(train) - me;
+                var flat = to with { Y = 0 };
+                if (to.Length <= reach + k.MeleeRadius && (flat.Length < 0.4 || Ballast.Double3.Dot(flat.Normalized, facing) >= Math.Cos(et.Melee.ConeDegrees * Math.PI / 180)))
+                    return KnotterTaut;
+            }
+        return null;
+    }
+
     public static string? Prompt(IPlaySession s)
     {
         var p = s.Player;
@@ -2488,6 +2516,9 @@ public static partial class Hud
         // The hand-up (note 723): a friend running beside the moving car, in reach of the door you stand in, before the door.
         if (world.Bodies.CarriedBy(s.PlayerId) is null && Rescue.HandUpTarget(p, s.PlayerId, s.CrewStates(1), train, s.PlayerTuning.Rescue) is not null)
             return "HAUL UP : HOLD [E]";
+        // Note 945: at a Knotter held taut, where a blow reaches it: why the blows aren't landing.
+        if (KnotterPrompt(s) is { } taut)
+            return taut;
         // A mail crane's last seconds, in the open door on its side (note 673): the hook, before anything else in reach.
         if (MailPrompt(s) is { } hook)
             return hook;

@@ -1878,7 +1878,7 @@ COUNTER   kill it (a group job; it hits hard)
 ```
 Talking only holds it off. **It punishes silence while the Choir punishes noise**, so players must chat to it quietly. *A wound music box left by it holds it where it is (the director, 14 Oct 2026; ARCHITECTURE §8 note 728)), and feeds the Choir while it plays: the contradiction, in a toy.* Whose voice counts, and whether talking lowers aggro, are open questions (Part Eleven).
 
-**A body is an item.** It ranks at its refund value (D.9), so the Gaunt will sometimes pass over the medicine and leave with a dead crew member. It carries the body out at walking pace, in full view, and the crew can still chase it down before it clears the train.
+**A body is an item.** It ranks at its refund value (D.9), so the Gaunt will sometimes pass over the medicine and leave with a dead crew member. It carries the body out at walking pace, in full view, and the crew can still chase it down before it clears the train. It's gone only once it's clear of the train and out of sight too: no crewmate out in the open within 60 m (`gaunt.goneUnseenAt`; note 945, the director's playtest of 20 Oct evening: "I think I just saw a gaunt. Oh, but it just disappeared").
 
 ### FOLLOWERS · scent
 ```
@@ -2028,7 +2028,8 @@ HOLD      the train pulls as one; the gap is 5 m (no jump carries it)
           ├ a crewmate walks its back → each second on it at speed, a chance to SLIP (45% a second over 2 m/s)
           │   SLIP → GRAB: it coils round them, dragging them under (1.5 s): a friend's blow on it, or the victim's own
           │   jump back, frees them → else PUNISH: pulled under the train
-          └ blows on it while the train moves don't land (taut, it shrugs them off)
+          └ blows on it while the train moves don't land (taut, it shrugs them off); at it within a blow's reach,
+            the crosshair says IT'S TAUT : STOP THE TRAIN (note 945)
 STOPPED   the train stands → it slackens (EXPOSED): its back is safe to walk; blows land
           ├ 8 blows kill it (a gun round is 4) → it unlays, and the cars stand uncoupled where it was (the rear rake's
           │   handbrakes go on, as any cut at a stand)
