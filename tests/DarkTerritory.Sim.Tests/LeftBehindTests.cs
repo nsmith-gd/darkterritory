@@ -2,6 +2,7 @@ using DarkTerritory.Sim.Bots;
 using DarkTerritory.Sim.Net;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Tests;
@@ -53,5 +54,50 @@ public class LeftBehindTests
         Run(40);
         Assert.Equal(1, c.Reverser);
         Assert.True(train.Dynamics.Velocity > 3, $"under way again at {train.Dynamics.Velocity:0.0} m/s");
+    }
+
+    /// <summary>
+    /// #613: the stand for someone left behind yields to the dawn, as a stop's wait for someone on the ground does (note 935):
+    /// late for it (the reckoning that calls a stop's loading done), the driver goes on. frontier:4 seed 4's driver stood 120 s
+    /// for a gunner stuck by a switch, and the dawn caught the train 6.6 km in. With the dawn far off it sets back as ever.
+    /// </summary>
+    [Theory]
+    [InlineData(60, false)]
+    [InlineData(3000, true)]
+    public void TheStandForSomeoneLeftBehindYieldsToTheDawn(double dawn, bool setsBack)
+    {
+        var route = RouteGenerator.Generate(Tuning.Route, RouteTier.Frontier, 7) with { DawnSeconds = dawn };
+        var line = route.Build();
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 3, 1)), line, 4_000, Tuning.Boiler);
+        train.Dynamics.Velocity = 12;
+        var world = new World(train, Tuning.Combat);
+        world.EnableRun(Tuning.Run, route, 600, authority: true);
+        var bot = new ConductorBot(new CrewCalls(), 0);
+        var driver = PlayerMotor.SpawnInCab(train, P);
+        double at = train.Dynamics.RearDistance - 250;
+        var them = PlayerMotor.SpawnOnGround(line.Sample(RailLine.MainPath, at).Position + new Ballast.Double3(3, 0, 0), line, at, P);
+        var c = new TrainControls { Reverser = 1 };
+        double slowest = double.MaxValue;
+        for (int i = 0; i < 150 * SimConstants.TickRate; i++)
+        {
+            bot.Crewmates = [them];
+            var intent = bot.Decide(driver, world, world.Tick, out _);
+            if (CabControls.CanDrive(driver, train) && CabControls.Clears(c, train, CabControls.ReleasesBrake(intent, driver, train)))
+                c.Brake = 0;
+            CabControls.Apply(ref c, intent, driver, train);
+            world.BeginTick();
+            world.CrewAct(ref driver, intent, 1);
+            world.Step(c);
+            PlayerMotor.Step(ref driver, intent, train, P, Tuning.Train, SimConstants.TickSeconds, applyLook: false);
+            slowest = Math.Min(slowest, train.Dynamics.Velocity);
+        }
+        Assert.Equal(setsBack, bot.Stops!.LateHere(world) is false);
+        if (setsBack)
+            Assert.True(slowest < -0.5, $"never set back (slowest {slowest:0.0} m/s, at {train.Dynamics.Velocity:0.0} m/s, their gap {train.Dynamics.RearDistance - at:0} m)");
+        else
+        {
+            Assert.True(slowest > 3, $"stopped for them (slowest {slowest:0.0} m/s)");
+            Assert.True(train.Dynamics.Velocity > 3, $"going at {train.Dynamics.Velocity:0.0} m/s");
+        }
     }
 }

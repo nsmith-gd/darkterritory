@@ -1923,6 +1923,13 @@ public sealed class StopDriver(CrewCalls calls)
     bool LateAt(World world, double at) => world.Run is { } lr && Deadline(world, lr) < Home(world, lr, at) + LateSpare + AboardGiveUp;
 
     /// <summary>
+    /// #613: late for the dawn from where the train is on the main line, as a stop's leaving reckons it (<see cref="LateAt"/>):
+    /// what the driver's stand for a crewmate left behind yields to (<c>ConductorBot.ForTheLeftBehind</c>), as a stop's wait for
+    /// someone on the ground does (note 935). False off the main line or without a run.
+    /// </summary>
+    public bool LateHere(World world) => world.Train.OnMain && LateAt(world, world.Train.Dynamics.Distance);
+
+    /// <summary>
     /// Note 935: the people playing (not bots), as the driver sees them (<c>ConductorBot.Players</c>), set each tick. The
     /// crew's calls are the bots' (each says its part), so a person was never in <see cref="CrewCalls.Riding"/> or
     /// <see cref="CrewCalls.AllAboard"/>.
@@ -3005,7 +3012,10 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
             : (Double3.Lerp(site.ConveyorTail, site.ConveyorKnee, 0.5), -1.0, "along the belt", "minding the belt", false);
         var (along, across) = TrackCoords(train.Line, p.Spur.Index, goal, self.LineHint);
         var stand = TrackPoint(train.Line, p.Spur.Index, along, Math.Sign(across) * (Math.Abs(across) + beyond));
-        var (step, there) = WalkTo(self, train.Line, p.Spur.Index, stand, null);
+        // By the foot path from further off (as to the powerhouse, note 639): from a powerhouse out by the switch, 320 m back
+        // down the spur, the track-side walk along the spur went nowhere, and frontier:4 seed 4's gunner stood by it the rest of
+        // the stop while the driver gave the belt up and waited for it, and missed the dawn (#613).
+        var (step, there) = OnFoot(self, train, p.Spur.Index, stand, null);
         if (!there && ((self.Position - stand) with { Y = 0 }).Length > 0.35)
         {
             Doing = going;
