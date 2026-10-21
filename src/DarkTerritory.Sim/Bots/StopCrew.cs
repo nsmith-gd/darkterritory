@@ -2068,6 +2068,32 @@ public sealed class StopDriver(CrewCalls calls)
         calls.Idle(Seconds(_ticks - _progressAt) > wait);
     }
 
+    /// <summary>
+    /// Note 955: a driver taking over at the controls mid-stop (the relief, note 399, its driver dead at the loading) takes the
+    /// stop on where it stands: the engine down a facility's own spur is that stop's (in to the end, or loading at it), not a
+    /// dead line taken by mistake. A fresh driver backed off the spur as off one (<see cref="SwitchPlan.DownOne"/>), leaving the
+    /// crew at the loading to walk to the train where it stood. True if it took one on.
+    /// </summary>
+    public bool TakeOver(World world)
+    {
+        var train = world.Train;
+        int path = train.Dynamics.Path;
+        if (Doing != Leg.Cruise || world.Run is not { } run || path < 0 || path >= train.Line.Branches.Count
+            || run.Sites.FirstOrDefault(s => s is { Spur: >= 0 } && s.Spur == path) is not { } site)
+            return false;
+        var spur = train.Line.Branches[path];
+        double points = world.Switches?.Tuning.PointsLength ?? 12;
+        int fit = SpurDrill.Capacity(train.Dynamics.Tuning.Geometry, spur, points);
+        // Cut or not, it's what's down here: the rest, cut off and left on the main line, are its near rake to back onto.
+        var plan = new StopPlan(site.Index, site, spur, spur.Toe - points - 2, fit, -1);
+        Plan = plan;
+        _legs.Clear();
+        _stopStart = _ticks;
+        _sledsAtStart = site.SledsLeft;
+        Begin(plan.AtTheEnd(train) ? Leg.Loading : Leg.SpurIn);
+        return true;
+    }
+
     void BeginSwitch(SwitchPlan plan, Leg leg)
     {
         Switch = plan;
@@ -2262,6 +2288,9 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
     /// </summary>
     public void Report(in PlayerState self) => calls.Say(member, job, self);
 
+    /// <summary>Where it is, its part not its to work now: gone forward to the controls as the relief driver (note 955).</summary>
+    public void ReportOff(in PlayerState self) => calls.Say(member, StopJob.None, self);
+
     /// <summary>It's gone in off the roofs (and says where it is), or come out again.</summary>
     public void Warming(in PlayerState self, bool on)
     {
@@ -2312,6 +2341,20 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
     public const int TroubleHands = 2;
 
     /// <summary>
+    /// At the crane's controls, the press that lets go of them (and it's off them: its part takes them again only when it
+    /// comes back to it); null when it hasn't got them. Its stick drives the crane while it has them, so anything that takes
+    /// it elsewhere lets go first: trouble in a car (note 609), the dead driver's controls (note 955).
+    /// </summary>
+    public PlayerIntent? OffTheCrane(in PlayerState self, string why)
+    {
+        if (!self.Has(PlayerFlags.Operating) && !_atControls)
+            return null;
+        _atControls = false;
+        Doing = why;
+        return self.Has(PlayerFlags.Operating) ? new PlayerIntent { Actions = PlayerActions.Seat } : new PlayerIntent();
+    }
+
+    /// <summary>
     /// At a stop, trouble in a car (a fire, a loose load, Gnawers): in by its side door, as a crate goes in, from the
     /// ground, up its steps, open up and inside. The walker's own way in (a car's rear door, down from its roof or the one
     /// behind) has nothing to go by at the end of a cut rake, where the stop's cars stand, and the hands stood about on
@@ -2329,12 +2372,8 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         // Note 609: at the crane's controls, let go of them first (the press that takes them lets them go). Its stick drives
         // the crane while it has them: frontier:7 seed 4's operator, off to a car fire, walked the gantry to the end of its
         // rails and stood there at the controls for two minutes.
-        if (self.Has(PlayerFlags.Operating) || _atControls)
-        {
-            _atControls = false;
-            Doing = "off the crane for the trouble";
-            return self.Has(PlayerFlags.Operating) ? new PlayerIntent { Actions = PlayerActions.Seat } : new PlayerIntent();
-        }
+        if (OffTheCrane(self, "off the crane for the trouble") is { } letGo)
+            return letGo;
         int side = p.Site.Side;
         var frame = train.Frames[car];
         var shape = frame.Shape;
