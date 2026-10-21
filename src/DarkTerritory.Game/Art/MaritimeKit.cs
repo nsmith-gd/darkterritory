@@ -252,7 +252,7 @@ public static class MaritimeKit
         {
             // A houseboat's hull as a box under it, the house on its deck (note 822).
             k.Use("tar", Palette.SootBlack, 0.85f, 0.15f, tile: 1);
-            k.Box(new Vector3(b.X0 - HullBeam, Stilts, b.Z0 - HullEnds), new Vector3(b.X1 + HullBeam, HullLift, b.Z1 + HullEnds), Kit.Faces.Sides);
+            k.Box(new Vector3(b.X0 - HullBeam, Stilts, b.Z0 - HullBow), new Vector3(b.X1 + HullBeam, HullLift, b.Z1 + HullEnds), Kit.Faces.Sides);
             k.Push(Kit.At(0, HullLift, 0));
             FarBody(k, h, b, c, lit);
             k.Pop();
@@ -268,7 +268,8 @@ public static class MaritimeKit
     /// ends past its front and back, and how far each end rakes in to the flat bottom.
     /// </summary>
     public const float Stilts = 0.9f, HullLift = (float)HouseDesign.HullLift, HullDeep = HullLift - Stilts,
-        HullBeam = (float)HouseDesign.HullBeam, HullEnds = (float)HouseDesign.HullEnds, HullRake = 1.0f;
+        HullBeam = (float)HouseDesign.HullBeam, HullEnds = (float)HouseDesign.HullEnds, HullBow = (float)HouseDesign.HullBow,
+        LadderOut = (float)HouseDesign.LadderOut, HullRake = 1.0f;
 
     /// <summary>
     /// Under a Flooder's house (note 822): a scow's hull, flat-bottomed, its ends raked, tarred, a rubbing strake along its
@@ -276,7 +277,8 @@ public static class MaritimeKit
     /// </summary>
     static void Hull(Kit k, Block b, float doorX)
     {
-        float x0 = b.X0 - HullBeam, x1 = b.X1 + HullBeam, z0 = b.Z0 - HullEnds, z1 = b.Z1 + HullEnds;
+        // Its bow stands further out than its stern: a foredeck at the door, off the top of its ladder (note 973).
+        float x0 = b.X0 - HullBeam, x1 = b.X1 + HullBeam, z0 = b.Z0 - HullBow, z1 = b.Z1 + HullEnds;
         float bz0 = z0 + HullRake, bz1 = z1 - HullRake;
         // The stilts: tarred posts under its bottom, three pairs, each pair braced across.
         k.Use("wood_sleeper", Palette.DeepBrown, 0.9f, 0.05f, tile: 1);
@@ -304,8 +306,8 @@ public static class MaritimeKit
         k.Box(new Vector3(x0, HullLift - 0.08f, z0), new Vector3(x1, HullLift, z1), Kit.Faces.PosY);
         k.Box(new Vector3(x0 - 0.08f, HullLift - 0.35f, z0), new Vector3(x0, HullLift - 0.15f, z1), Kit.Faces.All);
         k.Box(new Vector3(x1, HullLift - 0.35f, z0), new Vector3(x1 + 0.08f, HullLift - 0.15f, z1), Kit.Faces.All);
-        // The ladder up to the deck at its door, leant against the bow.
-        float lz = z0 - 1.0f;
+        // The ladder up to the deck at its door, leant against the bow, where the Sim's is (Town.Ladders, note 973).
+        float lz = z0 - LadderOut;
         foreach (float side in new[] { -0.28f, 0.28f })
             k.Rod(new Vector3(doorX + side, 0, lz), new Vector3(doorX + side, HullLift + 0.6f, z0 - 0.05f), 0.035f);
         for (float y = 0.3f; y < HullLift; y += 0.32f)
