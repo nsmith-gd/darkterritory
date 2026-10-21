@@ -1516,7 +1516,9 @@ public class StopCrewTests
         // From 700 m short (note 843): at the boiler's faster gauge, from the usual 600 m the crate hands stall on a heavy crate
         // and the driver gives up on the loading at 360 s (it did at the old rate too, door 2 shut only just in time); that's
         // note 843's follow-up, not this test's. From 700 m the loading's done in 162 s and they leave together as before.
-        var night = new Night(cars: 8, walkers: 3, crateHands: true, ids: true, from: 700, modules: ModuleKind.Crates);
+        // From 760 m (note 935): with the run in eased down from further out (facilities.json crew.approachEase), from 700 car
+        // 2's side door was left open at the departure (note 859's door, the stop's timing); from 760 it's shut as before.
+        var night = new Night(cars: 8, walkers: 3, crateHands: true, ids: true, from: 760, modules: ModuleKind.Crates);
         var train = night.Train;
         var world = night.World;
         var run = world.Run!;
@@ -1586,7 +1588,7 @@ public class StopCrewTests
             Crates = F.Crates with { Count = [2, 2], Heavy = F.Crates.Heavy with { Count = [0, 0] } },
             Crew = F.Crew with { VillageShare = 0 },
         };
-        var night = new Night(cars: 8, walkers: 3, crateHands: true, ids: true, loot: true, facilities: few, modules: ModuleKind.Crates);
+        var night = new Night(cars: 8, walkers: 3, crateHands: true, ids: true, loot: true, facilities: few, from: 700, modules: ModuleKind.Crates);
         var train = night.Train;
         var run = night.World.Run!;
         var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().Where(h => h.Job == StopJob.Crates).ToList();
@@ -1630,7 +1632,7 @@ public class StopCrewTests
             Crates = F.Crates with { Count = [2, 2], Heavy = F.Crates.Heavy with { Count = [0, 0] } },
             Crew = F.Crew with { VillageShare = 0 },
         };
-        var night = new Night(cars: 8, walkers: 3, crateHands: true, ids: true, loot: true, facilities: few, modules: ModuleKind.Crates);
+        var night = new Night(cars: 8, walkers: 3, crateHands: true, ids: true, loot: true, facilities: few, from: 700, modules: ModuleKind.Crates);
         var train = night.Train;
         var run = night.World.Run!;
         var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().Where(h => h.Job == StopJob.Crates).ToList();
@@ -1782,12 +1784,15 @@ public class StopCrewTests
     {
         // Note 867: a jackpot lying out in the yard, the site's crates in: two crate hands go for it (one an end, the other
         // the other, note 440's way), carry it home between them and put it down in a car, where it's paid at the gate.
+        // From 700 m (note 935): with the run in eased down from further out (facilities.json crew.approachEase), from 600 (and
+        // 620, 650) the pair left it lying in the yard when the loading was called done; that's the stop's order (note 903, #630
+        // and #635), not this test's. From 560 or 700 it's carried home and stowed as before.
         var few = F with
         {
             Crates = F.Crates with { Count = [2, 2], Heavy = F.Crates.Heavy with { Count = [0, 0] } },
             Crew = F.Crew with { VillageShare = 0 },
         };
-        var night = new Night(cars: 8, walkers: 3, crateHands: true, ids: true, loot: true, facilities: few, modules: ModuleKind.Crates);
+        var night = new Night(cars: 8, walkers: 3, crateHands: true, ids: true, loot: true, facilities: few, from: 700, modules: ModuleKind.Crates);
         var run = night.World.Run!;
         Physics.Body? jackpot = null;
         bool two = false;
@@ -2067,11 +2072,12 @@ public class StopCrewTests
     // GDD §18's set pieces (WP15, ARCHITECTURE §8 note 185): a bot crew works each, through intent alone.
 
     /// <param name="stock">The train stocked as a night leaves the fortress (the guard van's lamp, car 1's lockers: note 492).</param>
-    static FacilityWorkReport Work(FacilityKind kind, bool stock = false)
+    /// <param name="from">How far short of the spur's points it starts (m).</param>
+    static FacilityWorkReport Work(FacilityKind kind, bool stock = false, double from = 600)
     {
         var (route, facility) = FacilityWork.Find(Tuning.Route, kind)!.Value;
         return FacilityWork.Run(route, facility, T, P, Tuning.Boiler, Tuning.Run, F, Tuning.Route.Junctions, cars: 8, hands: 2, seconds: 1200,
-            yardLength: Tuning.Route.YardLength, stock: stock);
+            yardLength: Tuning.Route.YardLength, stock: stock, from: from);
     }
 
     static void LeftWellAndWhole(FacilityWorkReport r)
@@ -2193,7 +2199,10 @@ public class StopCrewTests
     [Fact]
     public void AtTheMilitaryDepotTheCrateHandsSetThePowderDownAndNothingGoesUp()
     {
-        var r = Work(FacilityKind.MilitaryDepot);
+        // From 700 m (note 935): the run in eased down from further out (facilities.json crew.approachEase), and from 600 one keg
+        // left car 1's ammunition at integrity 0.7: the order the kegs and crates go in moves with the arrival (note 903's and
+        // #630's packing order, #635's pair carry), not this test's. From 700 they go in whole as before.
+        var r = Work(FacilityKind.MilitaryDepot, from: 700);
         LeftWellAndWhole(r);
         Assert.Contains("putting it down", r.Doing);
         Assert.Contains(r.Loads, c => c.Cargo == CargoKind.Ammunition);
