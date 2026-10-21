@@ -3649,13 +3649,15 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
     var telemetryDir = Path.Combine(dir, "telemetry");
     if (Directory.Exists(telemetryDir))
         Directory.Delete(telemetryDir, recursive: true);
-    menu.Playtest = DarkTerritory.Game.Telemetry.PlaytestConsent.Load(telemetryDir, defaultOn: args.Contains("--dev"));
     menu.PlaytestNotice = DarkTerritory.Game.Telemetry.PlaytestNotice.Load(content);
     // Note 916: the playtest kit, --cohort CODE a playtest build's (the question says so; Settings shows its code); --menu survey
     // the night's questions as a playtest's night ends (--answered: three answers and a word given).
     if (args.Contains("--cohort"))
         PlaytestBake(Path.Combine(dir, "playtest-build"), Str(args, "--cohort", ""));
     menu.Kit = DarkTerritory.Game.Telemetry.PlaytestKit.Load(Path.Combine(dir, args.Contains("--cohort") ? "playtest-build" : "no-playtest-build"), telemetryDir);
+    // Note 946: a playtest build's (--cohort) is on from the start, and its first run is the notice, not the question.
+    menu.Playtest = DarkTerritory.Game.Telemetry.PlaytestConsent.Load(telemetryDir, defaultOn: args.Contains("--dev"),
+        onByNotice: !args.Contains("--dev") && args.Contains("--cohort"));
     if (screen == DarkTerritory.Game.Screen.Survey)
     {
         if (!args.Contains("--cohort"))

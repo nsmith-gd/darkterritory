@@ -212,15 +212,18 @@ bool playtestOnByDefault = false;
 #if DEVTOOLS
 playtestOnByDefault = true;
 #endif
-frontEnd.PlaytestNotice = DarkTerritory.Game.Telemetry.PlaytestNotice.Load(content);
-frontEnd.Playtest = DarkTerritory.Game.Telemetry.PlaytestConsent.Load(
-    args.Contains("--saves") ? Path.Combine(saves.Directory, "telemetry") : DarkTerritory.Game.Telemetry.PlaytestConsent.DefaultDirectory, defaultOn: playtestOnByDefault);
-crashes.Context("playtest data", frontEnd.Playtest.Recording ? "on" : "off");
+string telemetryDirectory = args.Contains("--saves") ? Path.Combine(saves.Directory, "telemetry") : DarkTerritory.Game.Telemetry.PlaytestConsent.DefaultDirectory;
 // The playtest kit (note 916): a playtest build's mark and cohort (content/ui/playtest.json), the code typed in Settings.
-frontEnd.Kit = DarkTerritory.Game.Telemetry.PlaytestKit.Load(content,
-    args.Contains("--saves") ? Path.Combine(saves.Directory, "telemetry") : DarkTerritory.Game.Telemetry.PlaytestConsent.DefaultDirectory);
+frontEnd.Kit = DarkTerritory.Game.Telemetry.PlaytestKit.Load(content, telemetryDirectory);
 if (frontEnd.Kit.Cohort is { } cohort)
     crashes.Context("playtest", cohort);
+frontEnd.PlaytestNotice = DarkTerritory.Game.Telemetry.PlaytestNotice.Load(content);
+// Note 946 (the director, the inbox, 20 Oct: "On by default in playtest builds, with an off switch"): a playtest (its build,
+// or a code typed in) records from the start, and its first run is a notice with the off switch, not the question. A
+// developer build keeps #625's question, on unless the director says no.
+frontEnd.Playtest = DarkTerritory.Game.Telemetry.PlaytestConsent.Load(telemetryDirectory, defaultOn: playtestOnByDefault,
+    onByNotice: !playtestOnByDefault && (frontEnd.Kit.PlaytestBuildOn || frontEnd.Kit.Cohort is not null));
+crashes.Context("playtest data", frontEnd.Playtest.Recording ? "on" : "off");
 if (frontEnd.Playtest.NeedsAsking(frontEnd.PlaytestNotice))
     frontEnd.Show(Screen.Consent);
 else if (frontEnd.Crash is not null)
