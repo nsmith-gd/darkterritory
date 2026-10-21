@@ -81,7 +81,7 @@ static class DirectorCommands
             : null;
         Console.WriteLine($"{path} ({after.Commit[..Math.Min(9, after.Commit.Length)]}){(before is null ? "" : $" against {Str(args, "--against", "")} ({before.Commit[..Math.Min(9, before.Commit.Length)]})")}, the brief's §7 bands:");
         Console.WriteLine();
-        Console.Write(SweepScoring.Table(bands, after.Groups, before?.Groups));
+        Console.Write(SweepScoring.Table(bands, after.Groups, before?.Groups, after.Nights, before?.Nights));
         return 0;
     }
 
