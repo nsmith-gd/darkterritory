@@ -42,8 +42,12 @@ public sealed partial class World
     readonly HashSet<int> _oddSeen = [];
     readonly HashSet<int> _wavesSeen = [];
 
-    /// <summary>Builds the night's odd things (from <see cref="EnableRun"/>, on every machine alike).</summary>
-    void EnableOddities(RunTuning tuning, Route.Route route) => Oddities = Sim.Run.Oddities.Of(tuning.Oddities, route, Train.Line);
+    /// <summary>
+    /// Builds the night's odd things (from <see cref="EnableRun"/>, on every machine alike), knowing the forts: no note's left
+    /// where the lineside isn't drawn (note 979). Built again by <see cref="EnableTown"/> once the towns' squares and walls are
+    /// on the forts, before anything's been done to them.
+    /// </summary>
+    void EnableOddities(RunTuning tuning, Route.Route route) => Oddities = Sim.Run.Oddities.Of(tuning.Oddities, route, Train.Line, Forts);
 
     /// <summary>A happening (host): kept for the wire, and the townspeople's looks taken from it here as on every client.</summary>
     void Odd(OddKind kind, int by, int thing, Double3 at)

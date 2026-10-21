@@ -178,8 +178,10 @@
       "chance": 0.6,
       // Note 965: and out along the line between the stops, at the railway's leavings where somebody stopped a while (a
       // lineman's hut, by its door; a camp gone cold, by its fire; a grave, at its cross; a wreck, a wheelset or a tipped
-      // trolley, beside it), each such at this chance by its stretch's own draw: three or four a frontier night.
-      "lineside": 0.2,
+      // trolley, beside it), each such at this chance by its stretch's own draw: three or four a frontier night. Only at a
+      // leaving that's there whole (note 979): not one in a town's ground or kept out of a board's sight, which isn't drawn
+      // (0.2 left two notes in five alone by nothing, about one-in-three of them real, at 2.2 a frontier night).
+      "lineside": 0.3,
       "holdSeconds": 1.0,
       "reach": 1.3,
       "notes": [
