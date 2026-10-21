@@ -2259,7 +2259,7 @@ public static partial class Staging
             var hound = new CinderHound(86, 86);
             const double seconds = 30;
             var mode = w > 0 ? HoundMode.Ignite : HoundMode.Still;
-            hound.Restore(SpinePhase.Commit, seconds, 60, was.Attached, new Double3(0.4, train.Frames[was.Attached].Shape.RoofHeight, was.Local.Z + 1.3),
+            hound.Restore(SpinePhase.Commit, seconds, 60, was.Attached, new Double3(0.4, train.Frames[was.Attached].Shape.RoofHeight, was.Local.Z - 0.8),
                 seconds - windUp * w, (int)mode * 4 + 1, 0, 86, 0);
             list.Add(hound);
         }

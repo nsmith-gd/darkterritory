@@ -89,7 +89,7 @@ public sealed partial class Effects
             return;
         float hot = 0.35f + 0.65f * Math.Clamp(windUp, 0, 1);
         float flicker = 0.75f + 0.25f * MathF.Sin((float)t * 6 + seed);
-        mesh.Billboard(under + down * 0.05f, 0.9f + 0.5f * hot, seed, new Vector4(1.0f, 0.32f, 0.06f, 0.5f * hot * flicker), _spark, FxBlend.Additive, 0, 2);
+        mesh.Billboard(under + down * 0.05f, 1.1f + 0.6f * hot, seed, new Vector4(1.0f, 0.32f, 0.06f, 0.75f * hot * flicker), _spark, FxBlend.Additive, 0, 2);
         int cinders = 4 + (int)(10 * hot);
         for (int k = 0; k < cinders; k++)
         {
