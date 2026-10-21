@@ -392,7 +392,12 @@
     "shelterAt": 0.5,
     "shelterOutAt": 0.25,
     "shelterReach": 60,
-    "shelterOverTrain": 2
+    "shelterOverTrain": 2,
+    // Note 935 (the director's playtest of 20 Oct evening, line 14: "Ashgrove Yard. Whoa there, bot ... Oh, we're a half a
+    // kilometer away still"): a bot driving runs in to a stop's hold no faster than a stop at approachEase m/s² from where it
+    // is, so from the open line's 14 m/s it's seen easing down about 400 m out. It ran in on the brake's own curve (about 0.66
+    // m/s²): at 14 m/s 160 m short and down hard from there. 0: as before. Not in the spec.
+    "approachEase": 0.25
   },
   // Which modules each facility offers (spec D.1: 2–4 per POI once the roster is built; the coaling tower is its chute). The
   // first is the kind's signature, the one every stop of it has; with "draw" on, the rest are drawn per stop (note 449).

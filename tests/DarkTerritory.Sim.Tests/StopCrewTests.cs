@@ -891,6 +891,165 @@ public class StopCrewTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void TheDriverVentsBeforeTheRed(bool standing)
+    {
+        // Note 935 (the director's playtest of 20 Oct evening, line 1: "Can you just learn to let some of the pressure out? We
+        // don't need this to explode right now"): the driver vented only for a board or a fading brake. With the bed full and
+        // the gauge near the top of the working band, stood at a stop's loading (nothing drawing on the steam) or running in
+        // the open on the way to it, it climbed into the red and sat on the safety valve. The vent key held in the cab keeps
+        // it out of the red.
+        var night = new Night(5, dawn: 1e6);
+        var stops = night.Driver.Stops!;
+        var train = night.Train;
+        var bt = train.BoilerTuning!;
+        if (standing)
+            night.Until(() => stops.Doing == StopDriver.Leg.Loading, 900);
+        else
+            night.Until(() => train.Dynamics.Speed > 8, 300);
+        Assert.True(standing ? stops.Doing == StopDriver.Leg.Loading : train.Dynamics.Speed > 8, $"never got there: {stops.Doing} at {train.Dynamics.Speed:0.0} m/s");
+        train.Boiler.Pressure = bt.WorkingBandMax;
+        train.Boiler.Firebox = bt.FireboxCapacity - 1;
+        double top = 0, red = 0;
+        bool vented = false;
+        night.Until(() => !standing && stops.Doing != StopDriver.Leg.Cruise, standing ? 120 : 40, () =>
+        {
+            top = Math.Max(top, train.Boiler.Pressure);
+            red += train.Boiler.Pressure >= bt.Redline ? SimConstants.TickSeconds : 0;
+            vented |= night.Driver.Relieving;
+        });
+        Assert.True(red == 0, $"{red:0.0} s in the red, the gauge to {top:0.0}");
+        Assert.True(top < bt.Redline, $"the gauge to {top:0.0}");
+        Assert.True(vented, "never held the vent");
+    }
+
+    [Fact]
+    public void TheRunInToAStopEasesDownFromWellOutAndStandsAtItsHold()
+    {
+        // Note 935 (the director's playtest of 20 Oct evening, line 14: "Ashgrove Yard. Whoa there, bot ... Oh, we're a half a
+        // kilometer away still"): on the brake's own curve the driver ran at the cruise till 160 m short of the stop and came
+        // down hard. Now it's easing down from well out (facilities.json crew.approachEase), and stands at the hold, not past it.
+        var night = new Night(5, from: 2500, dawn: 1e6);
+        var stops = night.Driver.Stops!;
+        var train = night.Train;
+        double ease = F.Crew.ApproachEase, top = 0, past = double.NegativeInfinity;
+        var at = new SortedDictionary<int, double>();
+        night.Until(() => stops.Doing == StopDriver.Leg.Held, 600, () =>
+        {
+            if (stops.Doing == StopDriver.Leg.Cruise)
+                top = Math.Max(top, train.Dynamics.Speed);
+            if (stops.Doing != StopDriver.Leg.Approach || stops.Plan is not { } p)
+                return;
+            double left = p.Hold - train.Dynamics.Distance;
+            past = Math.Max(past, -left);
+            foreach (int mark in (int[])[300, 150, 60])
+                if (left <= mark && !at.ContainsKey(mark))
+                    at[mark] = train.Dynamics.Speed;
+        });
+        Assert.True(ease > 0, "facilities.json crew.approachEase");
+        Assert.Equal(StopDriver.Leg.Held, stops.Doing);
+        Assert.True(top > 12, $"never got up to speed ({top:0.0} m/s)");
+        foreach (var (mark, speed) in at)
+            Assert.True(speed <= Math.Sqrt(2 * ease * mark) + 1.5, $"{speed:0.0} m/s {mark} m short of the hold");
+        Assert.True(past <= StopDriver.HoldOver, $"stood {past:0.0} m past its hold");
+    }
+
+    [Fact]
+    public void ACarSomeonePingedBurningIsSeenToBeforeTheTrainLeaves()
+    {
+        // Note 935 (the director's playtest of 20 Oct evening, line 18: "And he didn't put out the fire in car one"): someone
+        // pings a burning car at a stop (GDD §12's ping, note 739). The driver doesn't back out of the stop with it still
+        // burning. One bot, the driver, and someone playing up on a roof, as the director played.
+        var (route, _, toe) = StopWith(ModuleKind.Crates);
+        var spur = route.Build().Branches.First(b => b.Kind == BranchKind.Spur && Math.Abs(b.Toe - toe) < 1e-6);
+        int fit = SpurDrill.Capacity(T.Geometry, spur, Tuning.Route.Junctions.PointsLength);
+        var night = new Night(cars: Math.Clamp(fit, 3, 5), walkers: 0, hands: 0, creatures: true, dawn: 1e6, modules: ModuleKind.Crates);
+        var stops = night.Driver.Stops!;
+        var train = night.Train;
+        var run = night.World.Run!;
+        int person = night.Add(new Waiting(), PlayerMotor.SpawnOnRoof(train, 1, 0, P)) - 1;
+        night.Driver.Players = [night.Crew[person]];
+        night.Until(() => stops.Doing == StopDriver.Leg.Loading, 900, () => night.Driver.Players = [night.Crew[person]]);
+        Assert.Equal(StopDriver.Leg.Loading, stops.Doing);
+        int car = train.Vehicles[2].Id;
+        CarFire Light() => night.World.AddEnemy(id => CarFire.In(id, train, car, 2, Tuning.Enemies.CarFire, FireCause.Set).Ablaze(0.4, 3));
+        var at = PlayerMotor.WorldPosition(PlayerMotor.SpawnOnRoof(train, 2, 0, P), train);
+        int pings = 0;
+        CarFire Pinged()
+        {
+            var lit = Light();
+            night.World.Pings.Add(new PingEvent(++pings, night.World.Tick, 99, PingKind.Fire, car, at));
+            return lit;
+        }
+        var fire = Pinged();
+        // Relit as it goes out, as the director's car one was (line 9: "we keep relighting the same fire"), and pinged again,
+        // past the loading's give-up and the wait for the crew after it; then let go out.
+        double burning = 0;
+        bool leftBurning = false;
+        night.Until(() => burning > 520, 600, () =>
+        {
+            night.Driver.Players = [night.Crew[person]];
+            burning += SimConstants.TickSeconds;
+            if (fire.Gone)
+                fire = Pinged();
+            leftBurning |= stops.Doing is StopDriver.Leg.BackOut or StopDriver.Leg.Clear or StopDriver.Leg.Depart;
+        });
+        Assert.True(night.Calls.Leaving, "the loading was never called done");
+        Assert.False(leftBurning, $"backed out with car {car} burning");
+        Assert.True(train.Dynamics.Speed < 0.1, $"moving at {train.Dynamics.Speed:0.0} m/s with car {car} burning");
+        // Out: away.
+        night.Until(() => run.Departures > 0, 900, () => night.Driver.Players = [night.Crew[person]]);
+        Assert.True(fire.Gone, "it never went out");
+        Assert.True(run.Departures > 0, $"never left: driver {stops.Doing}");
+    }
+
+    [Fact]
+    public void TheDriverNeverLeavesAStopWithSomeonePlayingStillOnTheGround()
+    {
+        // Note 935 (the director's playtest of 20 Oct evening, line 18: "The bot's leaving? Is he ditching me? ... I didn't even
+        // get to finish loading that in"): one bot, the driver, and someone playing. The calls are the bots', so "everyone
+        // aboard" was always true, and the driver backed out the moment it called the loading done. Here the person is down
+        // beside the cars from the moment the loading starts, past the loading's give-up and the wait for the crew after it:
+        // the train doesn't move. Once they're up on a roof, it goes.
+        var (route, _, toe) = StopWith(ModuleKind.Crates);
+        var spur = route.Build().Branches.First(b => b.Kind == BranchKind.Spur && Math.Abs(b.Toe - toe) < 1e-6);
+        int fit = SpurDrill.Capacity(T.Geometry, spur, Tuning.Route.Junctions.PointsLength);
+        var night = new Night(cars: Math.Clamp(fit, 3, 5), walkers: 0, hands: 0, dawn: 1e6, modules: ModuleKind.Crates);
+        var train = night.Train;
+        var run = night.World.Run!;
+        var stops = night.Driver.Stops!;
+        int person = night.Add(new Waiting(), PlayerMotor.SpawnOnRoof(train, 1, 0, P)) - 1;
+        night.Driver.Players = [night.Crew[person]];
+        night.Until(() => stops.Doing == StopDriver.Leg.Loading, 900, () => night.Driver.Players = [night.Crew[person]]);
+        Assert.Equal(StopDriver.Leg.Loading, stops.Doing);
+
+        // Down beside car 2, standing there.
+        int car = train.Vehicles[2].Id;
+        var shape = train.Frames[car].Shape;
+        var beside = train.Frames[car].ToWorld(new Ballast.Double3(shape.HalfWidth + 1.5, 0, 0));
+        night.Crew[person] = PlayerMotor.SpawnOnGround(beside, train.Line, train.Cars[car].FrontDistance, P);
+        var legs = new HashSet<StopDriver.Leg>();
+        double moved = 0, standing = train.Dynamics.Distance;
+        night.Until(() => false, 560, () =>
+        {
+            night.Driver.Players = [night.Crew[person]];
+            legs.Add(stops.Doing);
+            moved = Math.Max(moved, Math.Abs(train.Dynamics.Distance - standing));
+        });
+        var down = night.Crew[person];
+        Assert.True(down.Alive && down.Parent == PlayerState.World, $"the person's {down.Surface} on {down.Parent}, alive {down.Alive}");
+        Assert.True(night.Calls.Leaving, "the loading was never called done");
+        Assert.DoesNotContain(StopDriver.Leg.BackOut, legs);
+        Assert.True(moved < 0.5, $"the train moved {moved:0.0} m with them down beside it");
+
+        // Up on a roof: away.
+        night.Crew[person] = PlayerMotor.SpawnOnRoof(train, 1, 0, P);
+        night.Until(() => run.Departures > 0, 900, () => night.Driver.Players = [night.Crew[person]]);
+        Assert.True(run.Departures > 0, $"never left: driver {stops.Doing}");
+    }
+
+    [Theory]
     [InlineData(1)]
     [InlineData(-1)]
     public void ADriverAloneOnACarsLandingGetsDownAndBackUpIntoTheCab(int side)
