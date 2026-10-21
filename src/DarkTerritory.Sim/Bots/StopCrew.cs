@@ -1815,9 +1815,10 @@ public sealed class StopDriver(CrewCalls calls)
     }
 
     /// <summary>
-    /// Note 935: what the driver waits on at a stop besides its crew of bots: someone playing still off the train, a pinged fire.
+    /// Note 935: what the driver waits on at a stop besides its crew of bots: someone playing still off the train, a pinged fire,
+    /// and (note 936, #639) a bot sent to a job by a ping and not done with it. The one hold on a stop's departure.
     /// </summary>
-    bool Waiting(World world) => PeopleOff(world) || PingedFire(world);
+    bool Waiting(World world) => PeopleOff(world) || PingedFire(world) || calls.JobsOrdered;
 
     /// <summary>
     /// Note 935: a stop's give-ups (its "long enough waited for them") leave nobody playing on the ground and no pinged fire

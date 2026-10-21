@@ -65,6 +65,12 @@ public sealed partial class CrewCalls
     /// <summary>Whether any bot's been sent to the crane (note 739 part two): the driver waits for its loading.</summary>
     public bool CraneOrdered => _orders.Values.Any(o => o.Kind == PingKind.Crane);
 
+    /// <summary>
+    /// Note 936: whether a bot's been sent to a job off the train by a ping, and isn't done with it (anything but the
+    /// controls): the driver doesn't take the train away from under it.
+    /// </summary>
+    public bool JobsOrdered => _orders.Values.Any(o => o.Kind != PingKind.Cab);
+
     /// <summary>The ping <paramref name="bot"/> is working on, or null.</summary>
     public (PingKind Kind, int Target)? OrderOf(int bot) => _orders.TryGetValue(bot, out var o) ? (o.Kind, o.Target) : null;
 
