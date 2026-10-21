@@ -1005,6 +1005,7 @@ public class StopCrewTests
         var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().Where(h => h.Job == StopJob.Crates).ToList();
         int most = 0;
         var doing = new List<string>();
+        var last = new Dictionary<int, string>();
         night.Until(() => run.Departures > 0, 1800, () =>
         {
             // Whoever's carrying crates may go: at a crates-only stop the winch pair carry too (note 593: with more spots to
@@ -1248,6 +1249,7 @@ public class StopCrewTests
         int me = outThere.PlayerId!.Value - 1;
         Assert.True(night.Crew[me].Parent == PlayerState.World, "nobody went out to the village");
         var doing = new List<string>();
+        var last = new Dictionary<int, string>();
         // Every stop hand's doings, not only the crate hands': another of us may have taken the house first and shut its door on
         // the pair of them (note 406: the hand out there's then its guest, behind that door).
         var allHands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().ToList();
@@ -1318,6 +1320,7 @@ public class StopCrewTests
         Assert.Equal(mine.House, walls.HouseAt(s.Position));
         var allHands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().ToList();
         var doing = new List<string>();
+        var last = new Dictionary<int, string>();
         void Watch()
         {
             foreach (var h in allHands)
@@ -1368,6 +1371,7 @@ public class StopCrewTests
         var hand = hands.First(Loading);
         int me = hand.PlayerId!.Value - 1, car = night.Crew[me].Parent;
         var doing = new List<string>();
+        var last = new Dictionary<int, string>();
         void Watch()
         {
             if (hand.Doing.Length > 0 && !doing.Contains(hand.Doing))
@@ -1433,6 +1437,7 @@ public class StopCrewTests
         var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().Where(h => h.Job == StopJob.Crates).ToList();
         var fetched = new HashSet<int>();
         var doing = new List<string>();
+        var last = new Dictionary<int, string>();
         night.Until(() => run.Departures > 0, 2400, () =>
         {
             foreach (var h in hands)
@@ -1477,6 +1482,7 @@ public class StopCrewTests
         var hands = night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job).OfType<StopHand>().Where(h => h.Job == StopJob.Crates).ToList();
         var fetched = new HashSet<int>();
         var doing = new List<string>();
+        var last = new Dictionary<int, string>();
         int heavyInYard = 0;
         night.Until(() => run.Departures > 0, 2400, () =>
         {
@@ -1569,8 +1575,16 @@ public class StopCrewTests
         var heavy = new Dictionary<int, bool>();
         int drops = 0;
         string dropped = "";
+        var doing = new List<string>();
+        var last = new Dictionary<int, string>();
         night.Until(() => run.Departures > 0 || night.World.Bodies.All.Any(b => b.Kind == Physics.BodyKind.Heavy && b.Banked), 1500, () =>
         {
+            for (int i = 0; i < night.Bots.Count; i++)
+                if (night.Bots[i] is RoofWalkerBot { Job.Doing: { Length: > 0 } d } && last.GetValueOrDefault(i) != d)
+                {
+                    last[i] = d;
+                    doing.Add($"{run.Seconds:0}:{i}:{d}");
+                }
             foreach (var b in night.World.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Heavy))
             {
                 bool between = b.Carrier >= 0 && b.Second >= 0;
@@ -1584,7 +1598,7 @@ public class StopCrewTests
         });
         Assert.True(drops == 0, $"car {target}: the heavy crate fell from between two {drops} times:{dropped}");
         Assert.True(night.World.Bodies.All.Any(b => b.Kind == Physics.BodyKind.Heavy && b.Banked && b.Parent == target),
-            $"car {target}: not loaded by {run.Seconds:0}s; the heavy {string.Join(", ", night.World.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Heavy).Select(b => $"on {b.Parent} banked {b.Banked} held {b.Carrier}/{b.Second}"))}; loads {string.Join(" ", train.Vehicles.Select(v => $"{v.Id}:{v.Load:0.00}"))}");
+            $"car {target}: not loaded by {run.Seconds:0}s; the heavy {string.Join(", ", night.World.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Heavy).Select(b => $"on {b.Parent} banked {b.Banked} held {b.Carrier}/{b.Second}"))}; loads {string.Join(" ", train.Vehicles.Select(v => $"{v.Id}:{v.Load:0.00}"))}; {string.Join(" | ", doing.TakeLast(60))}");
     }
 
     /// <summary>Someone who stands still: a player holding a heavy crate's end, waiting.</summary>

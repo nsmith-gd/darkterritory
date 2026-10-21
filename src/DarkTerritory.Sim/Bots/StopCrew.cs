@@ -3464,6 +3464,10 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
             target = _trail[i - 1];
         }
         var local = self.Parent == PlayerState.World ? target : train.Frames[self.Parent].ToLocal(target);
+        // Too far from it to hold it long (the front end stands for us past PaceSpan, note 948): in to it, wherever the trail
+        // says to stand. Standing a pace back along the trail with the front end standing for us, neither moved again.
+        if (2 * (at - world.Bodies.HandsAt(self, train)).Length > PaceSpan * world.Bodies.HeavySpan)
+            return Head(self, self.Parent == PlayerState.World ? at : train.Frames[self.Parent].ToLocal(at), "carrying the back end");
         if (back < TrailBehind * 0.5 || Near(self, local, 0.3))
         {
             // Keep facing it while the front end stands.
