@@ -146,6 +146,11 @@ public sealed record RunReport(RunEnd End, double Seconds, double DistanceKm, in
 {
     public IReadOnlyList<ReportLine> Lines { get; init; } = [];
     /// <summary>
+    /// Note 972: what the silly and whimsy upgrades did tonight (<see cref="World.UpgradeCounts"/>), by name: what the clerk's
+    /// tally lines for them read (<see cref="Radio.Fill"/>). In the report's JSON, so it reaches every client with it.
+    /// </summary>
+    public IReadOnlyDictionary<string, int> Counts { get; init; } = new Dictionary<string, int>();
+    /// <summary>
     /// Repair kits home beyond the train's own (train.json kit.repairKits): spares the fortress sold that weren't lost, and
     /// kits found at stops and brought in (GDD v1.4 App. E.12 question 4). The campaign keeps them as its spares; −1 for a
     /// report that doesn't say (the campaign's spares stand as they were).
@@ -1067,6 +1072,8 @@ public sealed partial class Run
             FinderWorth = delivered && finder >= 0 ? finderWorth : 0,
             // D.8: who everyone is now, for the campaign to carry into the next night.
             Identities = Identity.ByName(world, world.LastCrew.Select(c => c.Id)),
+            // Note 972: what the silly upgrades did tonight, for the clerk's lines about them (Radio.Fill).
+            Counts = world.UpgradeCounts(),
             // Home with the cars that are (in one of them, its floor or a locker) or in a living crewmate's hands.
             SpareKitsHome = Math.Max(0, world.Bodies.All.Count(b => b.Kind == Physics.BodyKind.RepairKit && b.Claimed
                 && (b.Carrier >= 0 || attached.Contains(b.Parent))) - train.Dynamics.Tuning.Kit.RepairKits),
