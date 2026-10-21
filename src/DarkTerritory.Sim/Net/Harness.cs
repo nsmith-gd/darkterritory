@@ -202,6 +202,8 @@ public sealed record HarnessReport(int Ticks, double Seconds, string Link, doubl
     public IReadOnlyList<Reckoning>? Reckonings { get; init; }
     /// <summary>How the brake was worked (note 820).</summary>
     public DrivingReport? Driving { get; init; }
+    /// <summary>Note 935: the gauge, the stops' runs in and the crew left behind, under the bot at the controls.</summary>
+    public DriverReport? Driver { get; init; }
     /// <summary>The problems two crewmates were in together, at each stop and on the run (note 861, <see cref="SharedWatch"/>).</summary>
     public SharedReport? Shared { get; init; }
     /// <summary>The night's encounters (the director's brief §8; note 880): attempts, placements, droughts, overlap; null without enemies.</summary>
@@ -507,6 +509,8 @@ public static class Harness
         var falls = new FallWatch();
         var shared = new SharedWatch(o.Shared);
         var braking = new BrakeWatch();
+        var driverWatch = new DriverWatch();
+        var driverBot = clients.Select(c => c.Bot).OfType<ConductorBot>().FirstOrDefault(b => !b.Fireman);
         // Note 607: the crew at the dawn line, and when the lead Waker took the train.
         double? lineAt = null;
         IReadOnlyList<string>? atLine = null;
@@ -714,6 +718,7 @@ public static class Harness
                         p.Hounds.Add(hound);
                     packs[hound.Pack] = (p.First, t, p.Hounds);
                 }
+            driverWatch.Watch(host.World, host.Players.Select(p => ((int)p.Id, p.State)), driverBot);
             if (o.Observe is { } observe)
             {
                 var states = host.Players.ToDictionary(p => p.Id, p => p.State);
@@ -841,6 +846,7 @@ public static class Harness
             Dawn = dawn ?? (lineAt is { } la ? new DawnReport(la, atLine ?? [], -1, -1, -1, [], double.IsFinite(closest) ? Math.Round(closest, 1) : -1) : null),
             Reckonings = clients.Select(c => c.Bot).OfType<ConductorBot>().FirstOrDefault()?.Stops?.Reckonings,
             Driving = braking.Report(),
+            Driver = driverWatch.Report(),
         };
     }
 

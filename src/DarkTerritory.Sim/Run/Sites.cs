@@ -222,6 +222,8 @@ public sealed record StopCrewTuning
     public double ShelterReach { get; init; } = 60;
     /// <summary>A house is taken over the train while its door's no further than this many times the train's nearest car.</summary>
     public double ShelterOverTrain { get; init; } = 2;
+    /// <summary>Note 935: a bot driving runs in to a stop's hold no faster than a stop at this from where it is (m/s²; 0: the brake's curve).</summary>
+    public double ApproachEase { get; init; }
 }
 
 /// <summary>The grain elevator's spout (GDD §18 "one spout, one car at a time"; spec D.2 gravity chute). Field docs in facilities.json.</summary>
