@@ -206,6 +206,8 @@ public sealed partial class World
     public int BendsSpared { get; set; }
     /// <summary>Host: the fires a boarded hound pack has set (note 269's; counted for the burns' report, note 437).</summary>
     public int PackFires { get; set; }
+    /// <summary>Host (note 959): the drinks the dining car's bar has poured tonight.</summary>
+    public int BarDrinks { get; private set; }
     /// <summary>The fires each Cinder Hound pack has lit tonight, by its pack (note 915: a feeding pack sated).</summary>
     public Dictionary<int, int> FiresByPack { get; } = new();
     /// <summary>Host (note 939): how many fires each car (by index) has had tonight, for the relight told.</summary>
@@ -632,6 +634,13 @@ public sealed partial class World
         foreach (var v in Train.Vehicles)
             if (v is not null && Bbq.On(Train, v.Id) is not null)
                 (v.Beers, v.Grill) = (bbq.Beers, 0);
+        // The dining car's bar (note 959): what the fortress's cellar sold the crew tonight, kept as the cooler's beers are
+        // (the vehicle's own count, replicated), and what a drink gives back.
+        var dining = Train.Dynamics.Tuning.Composition.Dining;
+        Bodies.DrinkHeals = dining.DrinkHeals;
+        foreach (var v in Train.Vehicles)
+            if (v is { Kind: VehicleKind.Dining })
+                v.Beers = dining.Drinks;
         // The radios (T41, train.json kit): one on the cab floor against its back wall right of the middle, out of the reach
         // of a crewmate arriving in the cab and of all the work at its front (note 280), and against the plate over the
         // boiler's end, clear of the corridor in beside it (note 338); the rest in the guard van.
@@ -1723,6 +1732,11 @@ public sealed partial class World
             && Train.Vehicles[coolerCar].Beers > 0 ? coolerCar : null;
         if (cooler is not null)
             fetch = Physics.BodyKind.Beer;
+        // The dining car's bar (upgrades.md §8.5, note 959): empty hands at its counter, and there's a drink left, one's poured.
+        int? bar = Authority && fetch is null && CrewActions.NearestInteractable(s, Train, Hand) is ({ Kind: InteractableKind.Bar }, var barCar)
+            && Train.Vehicles[barCar].Beers > 0 ? barCar : null;
+        if (bar is not null)
+            fetch = Physics.BodyKind.Drink;
         // Hands first: a Use press that picks something up (or puts it down) isn't also working a lever. Except at a switch's
         // lever, which takes Use whatever's in your hands (queue #94, note 357): the lamp you carried out to a stand stays lit
         // in your hand while you throw it, and a crate lying by it stays down.
@@ -1743,6 +1757,11 @@ public sealed partial class World
             Charge(s, intent, playerId, gunTuning);
         if (cooler is { } fromCooler && handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Beer })
             Train.Vehicles[fromCooler].Beers--;
+        if (bar is { } fromBar && handsTookIt && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Drink })
+        {
+            Train.Vehicles[fromBar].Beers--;
+            BarDrinks++;
+        }
         // The tiny caboose off the rails (note 713): empty hands and Use within reach of it put it back on them.
         if (Authority && !handsTookIt && intent.Has(PlayerButtons.Use) && Bodies.CarriedBy(playerId) is null)
             Bodies.Rerail(s, Train, Train.Dynamics.Tuning.Composition.Caboose);

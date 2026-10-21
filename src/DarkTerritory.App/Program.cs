@@ -330,6 +330,8 @@ crashes.Context("vr", vr is null ? "off" : "on");
 if (args.Contains("--crash-test"))
     throw new InvalidOperationException("--crash-test: stopped on purpose to try the crash report");
 var renderer = new GreyboxRenderer(gpu, internalSize[0], internalSize[1]) { OverlaySize = new Vector2(UiWidth, UiHeight) };
+// The dining car's drinks on this player's view (note 959): blurred and leaning, never in a headset.
+var tipsy = new Tipsy();
 using var rendererOwner = new Owner(() => renderer.Dispose());
 // Playtest telemetry (note 913, queue #624): this session written down, only with the player's say-so: #625's answer
 // (frontEnd.Playtest, note 914), asked on every line, so saying no in Settings stops it at once. --telemetry records this
@@ -1896,6 +1898,20 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (scene.BendStrain is { } judder && session.Viewpoint.Parent is var on and >= 0 && on < judder.Count)
                 camera.Position += BendStrain.Offset(judder[on].Stress, timer.Elapsed.TotalSeconds) * settings.CameraShake;
         }
+        // A drink from the dining car's bar (upgrades.md §8.5, note 959): your own view blurred and leaning, through your own
+        // eyes only, never in a headset (VR comfort). Presentation: the sim's walk is straight.
+        float viewBlur = 0;
+        if (scene.Look?.Tuning.Tipsy is { } tipsyTuning)
+        {
+            tipsy.Observe(session.World, session.PlayerId, timer.Elapsed.TotalSeconds, tipsyTuning);
+            if (vr is null && !third && !cinematic && !held && session.Watching < 0)
+            {
+                camera.Roll = tipsy.Roll(timer.Elapsed.TotalSeconds, tipsyTuning);
+                viewBlur = tipsy.Blur(timer.Elapsed.TotalSeconds, tipsyTuning);
+            }
+        }
+        if (renderer.Post.Blur != viewBlur)
+            renderer.Post = renderer.Post with { Blur = viewBlur };
         // E.5's film draws the crew as ragdolls, its cutaway and light rig; the replay, the crew as they were (DerailSequence.Dress).
         DerailSequence.Dress(scene, derailShot, session, camera.Position, derailShot.Replay is null && derailShot.Filming is null ? session.Crew(frames, clock.Alpha) : []);
         // Behind a crewmate's eyes (App. D.10), their own figure isn't drawn round the camera.

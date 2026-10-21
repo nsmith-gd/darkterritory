@@ -159,6 +159,10 @@ public sealed record CompositionTuning
     public bool Handcar { get; init; }
     /// <summary>The BBQ deck on the engine's front (note 698): its chairs, its cooler and its grill.</summary>
     public bool BbqDeck { get; init; }
+    /// <summary>The dining car (upgrades.md §8.5, note 959): a cargo car converted, its table laid and its bar, behind the crew cars.</summary>
+    public bool DiningCar { get; init; }
+    /// <summary>What its bar pours.</summary>
+    public DiningTuning Dining { get; init; } = new();
     /// <summary>
     /// The train's dressing (note 701): the silly and the fun bought from the blacksmith that are only things on the train to
     /// see (fuzzy dice, flames, the hubcaps, the tiny caboose...), by campaign.json's ids (effect <c>dress:&lt;id&gt;</c>). The
@@ -196,6 +200,13 @@ public sealed record WhimsyTuning(int Gnomes = 5, int CanaryCars = 1, double Can
 /// <summary>The tiny caboose (train.json <c>composition.caboose</c>; ARCHITECTURE §8 note 713). Field docs live in that file.</summary>
 public sealed record CabooseTuning(double Rope = 1.4, double Length = 0.36, double Radius = 0.1, double CouplerHeight = 1.0, double DerailAccel = 0.8,
     double Friction = 0.15, double DraggedFriction = 0.6, double Reach = 2.0);
+
+/// <summary>The dining car's bar (train.json <c>composition.dining</c>; ARCHITECTURE §8 note 959). Field docs live in that file.</summary>
+public sealed record DiningTuning
+{
+    public int Drinks { get; init; } = 8;
+    public int DrinkHeals { get; init; }
+}
 
 /// <summary>The BBQ deck (train.json <c>composition.bbq</c>; ARCHITECTURE §8 note 698). Field docs live in that file.</summary>
 public sealed record BbqTuning

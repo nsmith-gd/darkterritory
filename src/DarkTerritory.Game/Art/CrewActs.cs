@@ -783,7 +783,7 @@ public static class CrewActs
                 LoungeKind.HotTub => CrewPose.Gunner,
                 // On the big cab's bench (note 905): sat on its edge, upright, the feet on the gallery's floor.
                 LoungeKind.Bench => CrewPose.SitEdge,
-                _ => world.Bodies.CarriedBy(id) is { Kind: BodyKind.Beer } can
+                _ => world.Bodies.CarriedBy(id) is { Kind: BodyKind.Beer or BodyKind.Drink } can
                     ? can.MendTicks > 0 ? CrewPose.LoungeDrink
                     // An emote from the chair with a can in hand (the wheel's wave, or any): a cheers, held out to the next chair.
                     : EmoteOf(id, s, world) is { Kind: not Emote.None, Seconds: < CheersSeconds } ? CrewPose.Cheers : CrewPose.Lounge
@@ -794,7 +794,7 @@ public static class CrewActs
             {
                 // A can at the mouth, a sausage (or the grilled fish) bitten, while it's had (Bodies.Dose's MendTicks); a sausage
                 // in hand at a lit grill, turned with the tongs (note 698; C1's clips, note 791).
-                BodyKind.Beer when carried.MendTicks > 0 => CrewPose.Drink,
+                BodyKind.Beer or BodyKind.Drink when carried.MendTicks > 0 => CrewPose.Drink,
                 BodyKind.Sausage or BodyKind.GrilledFish when carried.MendTicks > 0 => CrewPose.Eat,
                 BodyKind.Sausage when Bbq.ByTheGrill(s, train) => CrewPose.Grill,
                 // Over the shoulder (App. C.4), the arm round its legs: where the sim holds it (Bodies.Shoulder).

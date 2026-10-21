@@ -1123,7 +1123,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     var line = generated?.Build() ?? RailLine.Load(Path.Combine(content, "lines", lineName + ".json"));
     // --upgrades id[,id]: the train as the campaign's upgrades make it (note 184: crewCar, secondGuardCar, armouredCar,
     // roofHandrails...).
-    if (Str(args, "--upgrades", "") is { Length: > 0 } upgrades)
+    // The dining and diningbar views (note 959) fit the dining car.
+    if (Str(args, "--upgrades", view is "dining" or "diningbar" ? "diningCar" : "") is { Length: > 0 } upgrades)
         t = DarkTerritory.Sim.Campaign.Campaign.Apply(DataFile.Load<DarkTerritory.Sim.Campaign.CampaignTuning>(Path.Combine(content, DarkTerritory.Sim.Campaign.CampaignTuning.File)),
             upgrades.Split(','), new DarkTerritory.Sim.Campaign.Loadout(t, DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)),
                 DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)), null)).Train;
@@ -2964,7 +2965,21 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         lighting.FogDensity = args.Contains("--fog") ? lighting.FogDensity : 0.0012f;
         lighting.Wetness = 0;
     }
+    // --tipsy n [--tipsy-at s] (note 959): through the eyes of someone n drinks into the dining car's bar, s seconds after the
+    // last (2): the view blurred and leaning as the app draws it (Tipsy; look.json tipsy).
+    float wasBlur = renderer.Post.Blur;
+    if (Opt(args, "--tipsy", 0) is var drinks and > 0 && look?.Tuning.Tipsy is { } tipsyTuning)
+    {
+        var tipsy = new Tipsy();
+        for (int i = 0; i < (int)drinks; i++)
+            tipsy.Drank(0, tipsyTuning);
+        double tipsyAt = Opt(args, "--tipsy-at", tipsyTuning.LeanPeriod / 4);
+        camera.Roll = tipsy.Roll(tipsyAt, tipsyTuning);
+        renderer.Post = renderer.Post with { Blur = tipsy.Blur(tipsyAt, tipsyTuning) };
+    }
     var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor);
+    if (renderer.Post.Blur != wasBlur)
+        renderer.Post = renderer.Post with { Blur = wasBlur };
     // The yard photographer's print (note 714): as the app keeps it, cropped, shrunk and sepia.
     if (view == "yardphoto")
     {
