@@ -1006,6 +1006,13 @@ public sealed partial class GameAudio
                 Cue(blow, h.At, occlusion);
             else
                 Mixer.Play("hit-confirm", h.At)?.Also(v => v.Occlusion = occlusion);
+            // A Waker shot (note 940: "nothing happens when I shoot it"): he roars at it, once in a while however many land.
+            if (h.Kind == Sim.Enemies.EnemyKind.Waker && _time >= _wakerHitRoar
+                && world.ActiveEnemies.FirstOrDefault(e => e.Id == h.EnemyId) is { } shot)
+            {
+                Cue("tell-wakers.roar", shot.WorldPosition(world.Train) + Ballast.Double3.Up * 50, 0);
+                _wakerHitRoar = _time + WakerHitRoarEvery;
+            }
         }
         _strikesPrimed = true;
         // Forget what's gone off the wire (ids aren't reused for a long while: a night's worth).
@@ -1014,6 +1021,10 @@ public sealed partial class GameAudio
         if (_heardHits.Count > 64)
             _heardHits.IntersectWith(world.Hits.Select(h => h.Id));
     }
+
+    // Note 940: the soonest a shot Waker roars again (the mixer's clock), and how far apart his roars at shots come (s).
+    double _wakerHitRoar;
+    const double WakerHitRoarEvery = 4;
 
     SoundInstance? _cooling;
     int _lampsOut;
