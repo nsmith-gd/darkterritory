@@ -366,6 +366,59 @@ public class OddityTests
     }
 
     [Fact]
+    public void NotesOutAlongTheLineAreLeftOnlyAtLeavingsThatAreThere()
+    {
+        // Note 979 (note 965's notes at the line's leavings): a note was left at every leaving its draw picked, drawn or not.
+        // Inside the departure and arrival towns nothing of the lineside is drawn or stands (LinesideProps.InsideAFort), and out
+        // on the line a leaving in a board's sight line isn't there either (note 560): on 48 nights two notes in five lay alone,
+        // on the departure town's yard, under its platform, in a house of the arrival town or on bare ground by the line, a
+        // prompt over nothing. With both towns up, every note out along the line lies at a leaving that's drawn whole, and none
+        // in a town.
+        var towns = TownContent.Load(Content)!;
+        var identities = LineGenContent.Cached(Content).Config.Tiers.Fortress.Identities;
+        int alone = 0;
+        foreach (var spec in new[] { "frontier:6", "frontier:10", "frontier:12", "deadLines:3", "deadLines:6", "deadLines:11", "deepTerritory:9" })
+        {
+            var route = Routes.Generate(Content, spec, 4);
+            double gate = route.GateOr(RouteTuning.Load(Content).YardLength);
+            var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 4, 1)), route.Build(), gate - Tuning.Run.DepartShortOfGateM);
+            var world = new World(train, Tuning.Combat);
+            world.EnableRun(Tuning.Run, route, gate, authority: true);
+            world.EnableTown(towns, route, gate, [], arrival: TownAt.Terminus(route, identities));
+            var forts = world.Forts!;
+            var side = LinesideProps.Of(route, train.Line)!;
+            var drawn = side.Props(0, train.Line.Length + Leavings.Every)
+                .Where(p => p.Kind == LinesideKind.Piece && Leavings.PieceNames.Contains(p.Species)).ToList();
+            var laid = side.Laid(0, train.Line.Length + Leavings.Every).ToList();
+            // The leaving a note was left at (the nearest the line laid), and whether all of it is drawn.
+            bool AtAWholeLeaving(OddThing n)
+            {
+                var (along, lateral) = OnTheLine(train.Line, n.At);
+                var (_, _, pieces) = laid.MinBy(x => double.Hypot(x.Leaving.Along - along, x.Leaving.Lateral - lateral));
+                return pieces.All(x => drawn.Any(p => Math.Abs(p.Along - x.S) < 0.05 && Math.Abs(p.Lateral - x.Lateral) < 0.05));
+            }
+            bool InATown(OddThing n) => OnTheLine(train.Line, n.At) is var (along, lateral) && LinesideProps.InsideAFort(forts, along, lateral);
+            var notes = world.Oddities!.Things.Where(t => t.Kind == OddThingKind.Note && t.Feature < 0).ToList();
+            Assert.NotEmpty(notes);
+            Assert.All(notes, n => Assert.False(InATown(n), $"{spec}: note {n.Index} at {n.At} lies in a town"));
+            Assert.All(notes, n => Assert.True(AtAWholeLeaving(n), $"{spec}: note {n.Index} at {n.At} lies at a leaving that isn't drawn"));
+            // Dealt without the towns, a note's left in one on these nights but out on the line.
+            var without = Oddities.Of(O, route, train.Line)!.Things.Where(t => t.Kind == OddThingKind.Note && t.Feature < 0).ToList();
+            alone += without.Count(InATown);
+        }
+        Assert.True(alone >= 4, $"only {alone} notes in a town dealt without the towns");
+    }
+
+    /// <summary>Where a world point lies by the main line: how far along it, and how far out (+ right of the way the line runs).</summary>
+    static (double Along, double Lateral) OnTheLine(RailLine line, Double3 p)
+    {
+        double hint = Enumerable.Range(0, (int)(line.Length / 25) + 1).Select(i => i * 25.0).MinBy(s => ((line.Sample(s).Position - p) with { Y = 0 }).Length);
+        line.Nearest(p, ref hint);
+        var t = line.Sample(hint);
+        return (hint, Double3.Dot(p - t.Position, Double3.Cross(t.Tangent, Double3.Up).Normalized));
+    }
+
+    [Fact]
     public void SitAWhileWithDaveAndHeGivesYouAPaintingOnceANight()
     {
         var route = Routes.Generate(Content, "frontier:7", 4);

@@ -456,3 +456,7 @@ The director asked for the last three friendslop features to be heard. Two were 
 
 - [#1572](https://github.com/nsmith-gd/darkterritory/pull/1572) merged (the flare pistol heard, #675, note 975). The `up-flare` line's notes say so.
 - Claimed queue #680, note 980: note 865's `state-coupling-loose.warn`, hooked in `GameAudio.Faults` since #592 but with no sound, so the warning borrows the ordinary knock pulled toward the ear.
+
+## 21 Oct, ~23:00 UTC: #682, the clerk's words for the silly upgrades' tally
+
+- Claimed queue #682, note 982 (Hazel's ask in note 972): the clerk's radio bank rebuilt with "dining", "bar", "poured", "beers", "grill", "deceased" and "volunteers", so the tally reads as the catalogue has it. #680 (#1584) merges on its last green.
