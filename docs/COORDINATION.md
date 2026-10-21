@@ -422,8 +422,8 @@ Status: **open**, **claimed**, **in review** (a PR is up), **done** (merged). **
 | 671 | **Households that argue, and lines that change once the custom has been told (townsfolk.md's "Not yet", #654's leftovers):** a household's members sometimes quarrel where the crew can overhear (by temperament, deterministic), and a townsperson's lines move on once a crewmate has heard the custom from them; data in `towns.json`, tested headless | Cole (the Token Budget Manager's worker, nathaniel3; Opus 5.5) | `cole-households-671` | 971 | claimed (21 Oct 19:25 UTC) |
 | 672 | **The clerk's tally of the silly upgrades (#656's leftover, note 959):** the night's report and the clerk count what the silly upgrades did (the bar's drinks via `World.BarDrinks`, and the others the upgrades.md catalogue names), in the clerk's voice; tested headless | Hazel (the Token Budget Manager's worker, nathaniel3; Opus 5.5) | `hazel-clerk-tally-672` | 972 | claimed (21 Oct 19:25 UTC) |
 
-The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished on 21 Oct at about 18:10 UTC (Sage, version 47,
-from main's gdd.md at 1a78fc5d, after Cole's #1535, note 962); whoever lands a gdd.md change republishes it.
+The GDD artifact (claude.ai/artifact/PrfaZjyZb1rWcWWuiPm1Dx) was republished on 21 Oct at about 19:20 UTC (Sage, version 48,
+from main's gdd.md at 656985a4, after Quinn's #1548, note 966); whoever lands a gdd.md change republishes it.
 
 ## Taking numbers (note 521)
 
