@@ -4525,7 +4525,7 @@ public sealed partial class GreyboxScene
     {
         var wood = new Vector3(0.13f, 0.1f, 0.07f);
         var up = Vector3.UnitY;
-        const float Lintel = 2.15f, Half = (float)(Sim.Run.StopWalls.DoorWidth / 2), Thick = 0.025f;
+        const float Lintel = 2.15f, Half = (float)(Sim.Run.StopWalls.DoorWidth / 2), Thick = Art.TownKit.DoorThick;
         foreach (var d in walls.HouseDoors)
         {
             if ((d.At - eye).Length > 60)
@@ -4557,18 +4557,42 @@ public sealed partial class GreyboxScene
             // The jackpot house (note 719): a better door than the rest, locked or not, panelled and painted oxblood, a brass
             // knob and knocker; and a lamp left burning in the window beside it, seen from the line.
             bool better = Run?.LockedAt(feature) == building;
-            var leaf = better ? new Vector3(0.3f, 0.06f, 0.05f) : wood;
-            mesh.Box(On(width / 2, height / 2), face, up, along, new Vector3(Thick, height / 2, width / 2), leaf);
             float inside = Vector3.Dot(face, -outward) >= 0 ? 1 : -1;
+            if (Look is not null)
+            {
+                // Note 941 (the director, 20 Oct: "there's no texture for the abandoned village doors, so it looks like I'm
+                // picking nothing"): the door's the kit's, in the houses' own timber, its lock drawn and, while it's locked,
+                // the hasp and padlock the wrench is at. Built hinge to free edge with its outside out along +z: turned
+                // about, it's built the other way across (mirror) rather than drawn inside out.
+                var outside = -inside * face;
+                bool locked = better && walls.Locked(d.Key), mirror = Vector3.Dot(Vector3.Cross(along, up), outside) < 0;
+                string kind = better ? locked ? "locked" : "better" : "plain";
+                var piece = Look.Art.Piece($"house-door-{kind}-{width:0.00}x{height:0.00}{(mirror ? "-m" : "")}",
+                    () => Art.TownKit.HouseDoor(Look, width, height, better, locked, mirror));
+                var x = mirror ? -along : along;
+                var o = mirror ? On(width, 0) : On(0, 0);
+                mesh.Append(piece, new Matrix4x4(x.X, x.Y, x.Z, 0, up.X, up.Y, up.Z, 0, outside.X, outside.Y, outside.Z, 0, o.X, o.Y, o.Z, 1));
+            }
+            else
+            {
+                // The greybox's: flat boxes, as before the kit's (note 719's panels and brass, note 401's ledges).
+                var leaf = better ? new Vector3(0.3f, 0.06f, 0.05f) : wood;
+                mesh.Box(On(width / 2, height / 2), face, up, along, new Vector3(Thick, height / 2, width / 2), leaf);
+                if (better)
+                {
+                    foreach (float a in new[] { width * 0.28f, width * 0.72f })
+                        foreach (float h in new[] { height * 0.28f, height * 0.7f })
+                            mesh.Box(On(a, h, -inside * (Thick + 0.008f)), face, up, along, new Vector3(0.008f, height * 0.17f, width * 0.17f), leaf * 1.25f);
+                    var brass = new Vector3(0.75f, 0.58f, 0.25f);
+                    mesh.Box(On(width - 0.1f, 1.0f, -inside * (Thick + 0.03f)), face, up, along, new Vector3(0.03f, 0.03f, 0.03f), brass);
+                    mesh.Box(On(width / 2, 1.5f, -inside * (Thick + 0.015f)), face, up, along, new Vector3(0.015f, 0.06f, 0.04f), brass);
+                }
+                foreach (float h in new[] { 0.3f, height - 0.3f })
+                    mesh.Box(On(width / 2, h, inside * (Thick + 0.012f)), face, up, along, new Vector3(0.012f, 0.06f, width / 2 - 0.04f), leaf * 0.8f);
+            }
+            // The jackpot house (note 719): a lamp left burning in the window beside its door, seen from the line.
             if (better)
             {
-                // Four raised panels on its outside, the brass knob and the knocker.
-                foreach (float a in new[] { width * 0.28f, width * 0.72f })
-                    foreach (float h in new[] { height * 0.28f, height * 0.7f })
-                        mesh.Box(On(a, h, -inside * (Thick + 0.008f)), face, up, along, new Vector3(0.008f, height * 0.17f, width * 0.17f), leaf * 1.25f);
-                var brass = new Vector3(0.75f, 0.58f, 0.25f);
-                mesh.Box(On(width - 0.1f, 1.0f, -inside * (Thick + 0.03f)), face, up, along, new Vector3(0.03f, 0.03f, 0.03f), brass);
-                mesh.Box(On(width / 2, 1.5f, -inside * (Thick + 0.015f)), face, up, along, new Vector3(0.015f, 0.06f, 0.04f), brass);
                 var sill = new Double3(d.At.X, floor, d.At.Z) + ToD(side * 1.75f + outward * 0.02f);
                 var pane = V(sill + new Double3(0, 1.45, 0), eye);
                 // Its frame, and the pane lit from within.
@@ -4583,9 +4607,6 @@ public sealed partial class GreyboxScene
                 mesh.PointLights.Add(new PointLight(pane + outward * 0.6f, Palette.LampAmber * 1.2f * flicker, 7f));
                 mesh.Billboard(pane + outward * 0.1f, 0.9f * flicker, 0, new Vector4(Palette.LampAmber * 0.35f * flicker, 1), -1, FxBlend.Additive);
             }
-            // Its ledges, top and bottom, and the brace between, on the room's side.
-            foreach (float h in new[] { 0.3f, height - 0.3f })
-                mesh.Box(On(width / 2, h, inside * (Thick + 0.012f)), face, up, along, new Vector3(0.012f, 0.06f, width / 2 - 0.04f), leaf * 0.8f);
             if (moved.Moved != Matrix4x4.Identity)
                 mesh.Move(start, moved.Moved);
             if (slammed >= 0 && Look is not null)

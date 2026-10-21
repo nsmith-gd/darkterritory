@@ -2436,7 +2436,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         return OffTheCar(self, world, p) ?? Ride(self, world.Train, p);
     }
 
-    bool _atControls, _fired;
+    bool _atControls;
     (int Casting, double Bridge, double Trolley)? _castingAt;
     (int Car, double Bridge, double Trolley)? _carAt;
 
@@ -2521,7 +2521,6 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         var t = c.Tuning;
         if (c.Hooked is null)
         {
-            _fired = false;
             _carAt = null;
             if (CraneTarget(c, train) is not { Casting: >= 0 } target)
                 return drive;
@@ -2557,11 +2556,8 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         double above = c.HookedBase.Y - roofY;
         if (under == car.Car && above <= Math.Min(0.3, t.DropAbove - 0.1))
         {
-            if (!_fired)
-            {
-                drive.Buttons |= PlayerButtons.Fire;
-                _fired = true;
-            }
+            // Held till it lets go (note 941: the let-go's a hold).
+            drive.Buttons |= PlayerButtons.Fire;
             return drive;
         }
         drive.Buttons |= PlayerButtons.Brake;
