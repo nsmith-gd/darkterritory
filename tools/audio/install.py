@@ -357,7 +357,9 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 "crew-scorch.sizzle": "singe",
                 # Note 975: the flare pistol from the packs' real things (the soft heavy blow and the book's snap through the
                 # barrel, the air release, the metal click).
-                "up-flare.shot": "pop", "up-flare.burn": "fizz", "up-flare.click": "hammer"}
+                "up-flare.shot": "pop", "up-flare.burn": "fizz", "up-flare.click": "hammer",
+                # Note 980: a pin working loose, from the packs' real slams and rings (the casting modelled beside it).
+                "state-coupling-loose.warn": "clang"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the
@@ -680,6 +682,9 @@ CUE_DEF = {
     "up-flare.shot": {"minDistance": 3, "maxDistance": 500, "rolloff": 0.8},
     "up-flare.burn": {"minDistance": 4, "maxDistance": 300, "rolloff": 0.8},
     "up-flare.click": {"minDistance": 0.5, "maxDistance": 8, "rolloff": 1.0},
+    # A pin working loose (note 980; note 865, the director: "hella telegraphing"): an alarm, as the train's are (tier 3), heard
+    # the length of the train (a twenty-car rake is 300 m) over its wind and wheels.
+    "state-coupling-loose.warn": {"tier": 3, "minDistance": 10, "maxDistance": 400, "rolloff": 0.45},
 }
 
 
