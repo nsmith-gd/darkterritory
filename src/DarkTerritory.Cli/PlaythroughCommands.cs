@@ -295,8 +295,9 @@ static class PlaythroughCommands
         }
 
         World last;
+        DriverReport? driver = null;
         if (bots > 0)
-            last = Crewed(content, route, cars, bots, minutes, args, Watch);
+            last = Crewed(content, route, cars, bots, minutes, args, Watch, out driver);
         else
         {
             // --crew n: the night the director plans for a crew of n (a solo night meets only part of the roster), the one
@@ -391,6 +392,8 @@ static class PlaythroughCommands
             // stood at, what was there within readySeconds of arriving, everything met there, what got aboard (on a car) while
             // it stood, and the director's sends while it stood (the stop's own marked).
             stops = StopsReport(last, stopVisits),
+            // Note 935: with a bot crew, the bot at the controls: the gauge in the red, its runs in past a stop, crew left behind.
+            driver,
             // Note 326: what the crew found at the stops (with --loot): the hiding spots searched, the finds stowed and their scrip.
             loot = last.Run is { } lr ? new
             {
@@ -410,13 +413,13 @@ static class PlaythroughCommands
     /// The host's world is photographed.
     /// </summary>
     static World Crewed(string content, DarkTerritory.Sim.Route.Route route, int cars, int bots, double minutes, string[] args,
-        Action<World, IReadOnlyList<PlayerState>> watch)
+        Action<World, IReadOnlyList<PlayerState>> watch, out DriverReport? driver)
     {
         var c = AuditCommands.Load(content);
         var routeTuning = RouteTuning.Load(content);
         double yard = route.GateOr(routeTuning.YardLength);
         World? last = null;
-        Harness.Run(route.Build(), c.Train, c.Player, new HarnessOptions
+        var report = Harness.Run(route.Build(), c.Train, c.Player, new HarnessOptions
         {
             Bots = bots,
             Cars = cars,
@@ -443,6 +446,7 @@ static class PlaythroughCommands
             },
             Until = world => world.Run?.Over == true,
         }, c.Boiler);
+        driver = report.Driver;
         return last ?? throw new InvalidOperationException("the night never started");
     }
 
