@@ -72,6 +72,16 @@ static class DirectorCommands
     /// `dt director report` (note 930): a sweep's groups scored against the brief's §7 bands, red or green, and against an
     /// older sweep's (<c>--against</c>: the old director's, tools/director/quick-old.json) side by side. The table to stdout.
     /// </summary>
+    public static int Merge(string output, string[] inputs)
+    {
+        var reports = inputs.Select(f => JsonSerializer.Deserialize<SweepReport>(File.ReadAllText(f), DataFile.Options)!).ToList();
+        var rows = reports.SelectMany(r => r.Nights).ToList();
+        var merged = new SweepReport(reports[0].Commit, reports[0].Seconds, DirectorSweep.Groups(rows), rows);
+        File.WriteAllText(output, JsonSerializer.Serialize(merged, DataFile.Options) + "\n");
+        Console.WriteLine($"{rows.Count} nights from {inputs.Length} files -> {output}");
+        return 0;
+    }
+
     public static int Score(string path, string[] args)
     {
         var bands = BalanceBands.Load(Str(args, "--bands", BalanceBands.DefaultPath(DataFile.FindContentRoot(Environment.CurrentDirectory))));

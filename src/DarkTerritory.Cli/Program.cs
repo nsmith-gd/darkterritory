@@ -59,6 +59,8 @@ return args switch
     // dt director report <sweep.json> [--against old.json] [--bands f.json]: a sweep scored against the brief's §7 bands
     // (tools/director/bands.json), old against new side by side (note 930).
     ["director", "report", var sweep, ..] => DirectorCommands.Score(sweep, args),
+    // Scratch (n1-C2, #613; not committed): sweep chunks merged, the groups rebuilt from every night.
+    ["director", "merge", var mergeOut, ..] => DirectorCommands.Merge(mergeOut, args[3..]),
     // dt mcp: live control for agents (note 524): an MCP server on stdio whose tools host a night, step it, read it, insist
     // on what comes, open a recording, draw any of it framed on a subject (subject:gaunt), and run the rest of dt.
     ["mcp", ..] => McpCommands.Run(content, args, noMods),
@@ -4922,4 +4924,3 @@ sealed record SpectatedNight(NetPlaySession Host, NetPlaySession Watcher) : IDis
         Host.Dispose();
     }
 }
-
