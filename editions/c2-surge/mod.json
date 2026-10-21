@@ -1,0 +1,9 @@
+// #613's balance sweep (note 930): the shipping content with one of the director's pending asks on, to give each its
+// 30-seed number. `dt --edition c2-surge director sweep ...`. Measurement only; never shipped.
+{
+  "id": "edition-c2-surge",
+  "name": "c2-surge",
+  "version": "1.0.0",
+  "description": "the final surge before the terminus approach (#663, note 960)",
+  "order": -1000
+}

@@ -1,0 +1,13 @@
+// the final surge (#663, note 960): measurement only
+{
+  "$patch": true,
+  "director": {
+    "encounters": {
+      "drive": {
+        "finalSurge": {
+          "on": true
+        }
+      }
+    }
+  }
+}
