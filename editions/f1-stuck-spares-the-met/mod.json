@@ -1,0 +1,9 @@
+// #613's balance sweep (note 930): the shipping content with one of the director's pending asks on, to give each its
+// 30-seed number. `dt --edition f1-stuck-spares-the-met director sweep ...`. Measurement only; never shipped.
+{
+  "id": "edition-f1-stuck-spares-the-met",
+  "name": "f1-stuck-spares-the-met",
+  "version": "1.0.0",
+  "description": "stuck-spares-the-met: a stuck threat stays on whoever it met (note 945)",
+  "order": -1000
+}
