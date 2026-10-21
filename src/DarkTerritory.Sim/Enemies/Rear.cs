@@ -1124,8 +1124,8 @@ public sealed class CarHugger(int id) : Enemy(id)
         }
         // Note 915 (a trial): the low ground, the line plan's stretches of the low biomes on the main line, its first level point
         // in reach.
-        if (t.LowGround is { On: true } low && route.Plan?.Biomes is { Count: > 0 } biomes)
-            foreach (var b in biomes.Where(b => b.Edge == "main" && low.Biomes.Contains(b.Biome)).OrderBy(b => b.S0))
+        if (t.LowGround is { On: true } low && route.Plan is { Biomes.Count: > 0 } plan)
+            foreach (var b in plan.Biomes.Where(b => b.Edge == "main" && low.Biomes.Contains(b.Biome) && low.Keeps(plan.Seed, b.S0)).OrderBy(b => b.S0))
                 for (double at = Math.Max(b.S0, front + t.LurkAheadMin); at <= Math.Min(b.S1, front + far); at += low.Step)
                     if (Math.Abs(train.Line.Sample(train.Dynamics.Path, at).GradePercent) <= t.MaxGrade)
                         return at;

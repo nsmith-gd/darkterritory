@@ -252,7 +252,10 @@
     // train stood under `below` m/s, at its rear car, with no living crewmate within unseenM of it.
     "lowGround": { "on": false, "biomes": ["marsh", "dykeland", "contaminatedMarsh"], "lurkAheadMax": 1500, "step": 50,
       "tags": ["low_ground", "water_crossing", "cutting", "dark_forest", "blind_curve_exit"],
-      "stood": { "on": true, "below": 0.5, "unseenM": 20 } }
+      "stood": { "on": true, "below": 0.5, "unseenM": 20 },
+      // Note 981: the share of the low (biome) stretches kept as its ground, each by the line's seed and where it starts
+      // (not the director's dice). 1: all, as before.
+      "stretchChance": 1 }
   },
 
   // WHISTLER · absence · flank (App. A.4, B.4). Boards at a stop; whistleAfterStop s into the next stop it blows the

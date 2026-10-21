@@ -89,6 +89,27 @@ public class CarHuggerPlacesTests
         Assert.Equal(-1, CarHugger.FarSide(n.World));
     }
 
+    [Fact]
+    public void TheStretchChanceKeepsThatShareOfTheLowStretchesTheSameEveryTime()
+    {
+        // Note 981: the marsh stretches thinned by a chance per stretch, by the line's seed and where it starts.
+        var all = E.CarHugger.LowGround with { On = true };
+        Assert.Equal(1, E.CarHugger.LowGround.StretchChance);
+        var plans = Enumerable.Range(1, 24).Select(s => Routes.Generate(Content, $"frontier:{s}", 4).Plan!).ToList();
+        var stretches = plans.SelectMany(p => p.Biomes.Where(b => b.Edge == "main" && all.Biomes.Contains(b.Biome)).Select(b => (p.Seed, b.S0))).ToList();
+        Assert.True(stretches.Count >= 20, $"{stretches.Count} low stretches");
+        Assert.All(stretches, s => Assert.True(all.Keeps(s.Seed, s.S0)));
+        var third = all with { StretchChance = 1.0 / 3 };
+        int kept = stretches.Count(s => third.Keeps(s.Seed, s.S0));
+        Assert.InRange(kept, stretches.Count * 0.15, stretches.Count * 0.5);
+        // The same stretch, the same answer; nothing at 0.
+        Assert.All(stretches, s => Assert.Equal(third.Keeps(s.Seed, s.S0), third.Keeps(s.Seed, s.S0)));
+        Assert.DoesNotContain(stretches, s => (all with { StretchChance = 0 }).Keeps(s.Seed, s.S0));
+        // A thinner chance's stretches are among a thicker one's.
+        var half = all with { StretchChance = 0.5 };
+        Assert.All(stretches.Where(s => third.Keeps(s.Seed, s.S0)), s => Assert.True(half.Keeps(s.Seed, s.S0)));
+    }
+
     [Theory]
     [InlineData(0.0, false)]
     [InlineData(0.6, true)]
