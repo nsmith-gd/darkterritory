@@ -190,6 +190,24 @@ public sealed record CarHuggerTuning
     public int MinCars { get; init; } = 2;
     /// <summary>Every this much of the shell eaten, it's through the end wall again: the car breached (decided 1 Oct).</summary>
     public double BreachEaten { get; init; } = 0.1;
+    /// <summary>App. B.3's "low ground" (note 915, #612; note 875 found its spot held 1.4% of an ordinary night). A trial.</summary>
+    public CarHuggerLowGround LowGround { get; init; } = new();
+    /// <summary>How far ahead its spot may be: <see cref="LurkAheadMax"/>, or the low ground trial's when that's on.</summary>
+    public double LurkAheadFar => LowGround.On ? LowGround.LurkAheadMax : LurkAheadMax;
+}
+
+/// <summary>
+/// The Car Hugger's low ground (note 915; App. B.3 "marsh, water crossings, low ground"): the line plan's stretches of these
+/// biomes on the main line are spots too, beside the marsh and bridge features, and it lurks up to <see cref="LurkAheadMax"/>
+/// ahead. Off, the spots are the features alone within <c>lurkAheadMax</c>.
+/// </summary>
+public sealed record CarHuggerLowGround
+{
+    public bool On { get; init; }
+    public string[] Biomes { get; init; } = ["marsh", "dykeland", "contaminatedMarsh"];
+    public double LurkAheadMax { get; init; } = 1500;
+    /// <summary>Along a low stretch, the first level point is looked for every this many metres.</summary>
+    public double Step { get; init; } = 50;
 }
 
 /// <summary>The Whistler (v1.1 App. A.4, B.4). Field docs live in enemies.json.</summary>
@@ -504,6 +522,11 @@ public sealed record ClimberTuning
     public double Health { get; init; } = 3;
     public int MinGaps { get; init; } = 2;
     public double MinSpeed { get; init; } = 5;
+    /// <summary>
+    /// Note 915 (#612; note 887's find): the night's curve's free Climbers want <see cref="MinSpeed"/> too, as their rule does
+    /// (boarding-first, note 286: a moving train's gaps), not only a gap. A trial, off until measured.
+    /// </summary>
+    public bool FreeNeedsSpeed { get; init; }
     public double PerGapWeight { get; init; } = 0.5;
     public int[] PackSize { get; init; } = [2, 3];
     public double CountRadius { get; init; } = 8;
@@ -782,6 +805,14 @@ public sealed record DirectorTuning(
     /// seed; a kind not named is always about.
     /// </summary>
     public Dictionary<string, double> NightChance { get; init; } = new();
+    /// <summary>
+    /// The rare kinds' nights raised (note 915; the director, 20 Oct 2026, to note 875's question 3: 30–40%): on, these
+    /// chances stand in for <see cref="NightChance"/>'s, rolled in the same order on the same stream. A trial: into the
+    /// Creature Tweaker's <c>game</c> column only once measured and confirmed.
+    /// </summary>
+    public NightChanceTrial NightChanceTrial { get; init; } = new();
+    /// <summary>The chance <paramref name="key"/> is about tonight: <see cref="NightChance"/>'s, or the trial's.</summary>
+    public double ChanceFor(string key, double chance) => NightChanceTrial.On && NightChanceTrial.Chances.TryGetValue(key, out double c) ? c : chance;
     /// <summary>
     /// How often, against the rest (note 635; the director's Creature Tweaker): each kind's weight among what could come is
     /// multiplied by this; a kind not named weighs as its own rule says (×1).
@@ -1092,6 +1123,11 @@ public sealed record HoundRunTuning
     public double FromSpeed { get; init; } = 19;
     public double StopSpeed { get; init; } = 2;
     public double AfterMetres { get; init; } = 2400;
+    /// <summary>Note 915 (#612): the run counted from the last stop at the tier's line speed − 4 (the director's answer to note 875). A trial.</summary>
+    public HoundRunFromLastStop FromLastStop { get; init; } = new();
+    /// <summary>The speed the run's metres count from on <paramref name="tier"/>: <see cref="FromSpeed"/>, or the trial's for the tier.</summary>
+    public double FromSpeedOn(Route.RouteTier tier) =>
+        FromLastStop.On && FromLastStop.FromSpeed.TryGetValue(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], out double v) ? v : FromSpeed;
     public double HotShorter { get; init; } = 0.75;
     public double Base { get; init; } = 1.4;
     public double PerActive { get; init; } = 0.6;
@@ -1225,9 +1261,27 @@ public sealed record SolidityTuning
     }
 }
 
+/// <summary>
+/// The hound run from the last stop (note 915; the director, 20 Oct 2026, to note 875's question 2): on, the run's metres
+/// count at the tier's <see cref="FromSpeed"/> (its line speed, tiers.json <c>lineSpeed</c>, − 4) and start again only when the
+/// train stands at a stop, not whenever it slows under <c>stopSpeed</c> (the stops are 1.1 km apart on a 7 km night, and the
+/// count never reached its 2.4 km). Off, the run is the top-speed answer it was (note 328).
+/// </summary>
+public sealed record HoundRunFromLastStop
+{
+    public bool On { get; init; }
+    public Dictionary<string, double> FromSpeed { get; init; } = new() { ["local"] = 16, ["frontier"] = 14, ["deadLines"] = 12, ["deepTerritory"] = 10 };
+}
+
 /// <summary>The Gannet (GDD §21, App. A.4, B.4; ARCHITECTURE §8 note 340). Field docs live in enemies.json.</summary>
 public sealed record GannetTuning
 {
+    /// <summary>Note 915 (#612): the Gannet at 13 m/s (the director's answer to note 875's question 1). A trial.</summary>
+    public GannetLowArrive LowArrive { get; init; } = new();
+    /// <summary>The speed it comes over: <see cref="ArriveAbove"/>, or the trial's.</summary>
+    public double Arrive => LowArrive.On ? LowArrive.ArriveAbove : ArriveAbove;
+    /// <summary>The speed it peels off under: <see cref="StallBelow"/>, or the trial's.</summary>
+    public double Stall => LowArrive.On ? LowArrive.StallBelow : StallBelow;
     public double ArriveAbove { get; init; } = 18;
     public double ArriveSeconds { get; init; } = 30;
     public double StallBelow { get; init; } = 12;
@@ -1572,4 +1626,23 @@ public sealed record CrewBotsTuning
     public double SixDawnMargin { get; init; } = 45;
     public double MournersCarryWithin { get; init; } = 60;
     public double MournersCarrySeconds { get; init; } = 60;
+}
+
+/// <summary>
+/// The Gannet over a train at cruise (note 915; the director, 20 Oct 2026, to note 875's question 1: no ordinary night reached
+/// spec B.13's 18 m/s; at 13 its 30 s held on every one): on, it comes over <see cref="ArriveAbove"/> and peels off under
+/// <see cref="StallBelow"/>, its tunnel rule, biome, once a night and roof prey as they are. Off, B.13's numbers.
+/// </summary>
+public sealed record GannetLowArrive
+{
+    public bool On { get; init; }
+    public double ArriveAbove { get; init; } = 13;
+    public double StallBelow { get; init; } = 10;
+}
+
+/// <summary>The rare kinds' trial chances (note 915): see <see cref="DirectorTuning.NightChanceTrial"/>.</summary>
+public sealed record NightChanceTrial
+{
+    public bool On { get; init; }
+    public Dictionary<string, double> Chances { get; init; } = new();
 }

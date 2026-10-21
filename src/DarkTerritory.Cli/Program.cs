@@ -291,6 +291,8 @@ object RunHarness(string[] args, Action<uint, IReadOnlyList<(DarkTerritory.Sim.B
         Upkeep = args.Contains("--upkeep") ? DataFile.Load<UpkeepTuning>(Path.Combine(content, UpkeepTuning.File)) : null,
         Route = route,
         Udp = args.Contains("--udp"),
+        // --wire (note 921): what each kind of record costs each client, kbit/s.
+        Wire = args.Contains("--wire"),
         Network = online,
         Holdouts = DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(content, DarkTerritory.Sim.Run.HoldoutTuning.File)),
         Sight = sight,
@@ -4752,7 +4754,7 @@ static int Usage()
           linegen sweep [--tier all|t] [--cars 3,10,20] [--seeds n] [--report sweep.csv] [--fallbacks]
                      generation, validation and metrics over many seeds (plan §16.5, §20.2)
           harness [--bots n] [--cars n] [--seconds t] [--seed s] [--latency s] [--jitter s] [--loss 0..1] [--line name | --route tier:seed]
-                     [--enemies] [--no-combat] [--no-boiler] [--udp | --online | --eos] [--trace file]   --udp: real sockets on localhost instead of the simulated link;
+                     [--enemies] [--no-combat] [--no-boiler] [--udp | --online | --eos] [--trace file] [--wire]   --udp: real sockets on localhost instead of the simulated link;
                      --online: every bot joins a lobby on the fake Steam and plays over relayed P2P
                      --eos [--nat strict|moderate|open] [--relay allow|force]: every bot joins the host's lobby on the fake EOS
                      by its code, over EOS P2P (strict NATs: all through the relays; note 896)
