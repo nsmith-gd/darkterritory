@@ -1078,6 +1078,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     var proto = session as PrototypeSession;
     var net = session as NetPlaySession;
     int aboardLogged = -1;
+    bool lobbyLogged = false;
     // The yard's readings go at its voice's pace (note 240): the card typed as it's said.
     if (net is not null && sound.Clerk.Speaks)
         net.RadioPace = sound.Clerk.Seconds;
@@ -1753,6 +1754,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             {
                 aboardLogged = aboardNow;
                 Console.WriteLine($"crew: {aboardNow} aboard");
+            }
+            // The host's Steam lobby by its id once it's open (note 976): a friend the invite doesn't reach starts the game
+            // with --join-lobby <id> (#269's Steam evening). EOS lobbies have their join code on the status line instead.
+            if (!lobbyLogged && net?.Lobby is { IsHost: true, Status: Lobby.State.Open } ours && ours.Online is not IJoinCodes)
+            {
+                lobbyLogged = true;
+                Console.WriteLine($"{ours.Online.Platform} lobby {ours.Id}: a friend can also join with --join-lobby {ours.Id}");
             }
             if (campaign is not null && session is NetPlaySession played)
                 campaign = Autosave(saves, profile, campaign, played, content);

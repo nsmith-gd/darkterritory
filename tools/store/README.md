@@ -41,7 +41,7 @@ The scripts read these from the environment, and the Release workflow reads them
 |---|---|---|
 | `STEAM_USERNAME` | Steam | the build account |
 | `STEAM_CONFIG_VDF` | Steam, CI only | base64 of `config/config.vdf` from a machine where the build account has logged in to `steamcmd` once. This is how CI gets past Steam Guard without a code. |
-| `STEAM_REDIST_URL` | Steam, CI only | a private link to a zip of Valve's redistributables (`steam_api64.dll`, `libsteam_api.so`). The Release workflow puts them in `external/steam/` before packaging. |
+| `STEAM_REDIST_URL` | Steam, CI only | a private link to a zip of Valve's redistributables (`steam_api64.dll`, `libsteam_api.so`). The Release workflow puts them in `external/steam/` before packaging, and so does Tonight's build, for the director's playtest builds (`tools/store/steam_redist.py`, note 976; the SDK's own zip works too). |
 | `BUTLER_API_KEY` | itch | the API key. Running `butler login` does the same on a developer's machine. |
 | `EOS_SDK_URL` | itch (EOS), CI only | a private link to Epic's EOS C# SDK zip (`SDK/Source`, `SDK/Bin`). The Release workflow unzips it into `external/eos/` before packaging, so the build has EOS in it (note 896, external/eos/README.md). |
 | `EOS_PRODUCT_ID`, `EOS_SANDBOX_ID`, `EOS_DEPLOYMENT_ID`, `EOS_CLIENT_ID`, `EOS_CLIENT_SECRET` | itch (EOS), CI only | the Epic Developer Portal's ids for the game, its live sandbox and deployment, and its GameClient client. The Release workflow writes them to `eos.json` beside the game. Without them online play off Steam is LAN and direct IP only. |
