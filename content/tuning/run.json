@@ -176,6 +176,10 @@
     // the fortresses only begun, the Flooders, the trades).
     "note": {
       "chance": 0.6,
+      // Note 965: and out along the line between the stops, at the railway's leavings where somebody stopped a while (a
+      // lineman's hut, by its door; a camp gone cold, by its fire; a grave, at its cross; a wreck, a wheelset or a tipped
+      // trolley, beside it), each such at this chance by its stretch's own draw: three or four a frontier night.
+      "lineside": 0.2,
       "holdSeconds": 1.0,
       "reach": 1.3,
       "notes": [
@@ -190,7 +194,25 @@
         { "heading": "Water-stained, the ink run", "text": "The water mark was a hand higher this morning. Brother Ezekiel says the comet was sent and the flood is coming. I've painted the mark anyway. Better to be counted." },
         { "heading": "On a pit tally", "text": "Night shift came up at first light. Nobody asked what they heard down there. They told us anyway. Tipple's shut till the Company sends a priest." },
         { "heading": "From a seed packet", "text": "Grow lamps on every bed. The plants don't know it's dark. We don't tell them. Last night the lamps went out and the beans turned to the window. There's nothing out the window." },
-        { "heading": "Left with a key on a string", "text": "Furnace is banked. The glow will carry for miles. So will everything else. Whoever finds this, the key's for the coal shed, not the house. Do not open the house." }
+        { "heading": "Left with a key on a string", "text": "Furnace is banked. The glow will carry for miles. So will everything else. Whoever finds this, the key's for the coal shed, not the house. Do not open the house." },
+        { "heading": "The section gang's book, last page", "text": "Walked the length from the cut to the culvert. Six ties gone, two rails sprung, one spike pulled out and laid neatly on the ballast beside the hole. We didn't pull it." },
+        { "heading": "Nailed inside the hut door", "text": "Lamp oil under the floorboard. Biscuits in the tin. If the tapping starts on the roof, it isn't hail. Don't open the door to look. It's never hail." },
+        { "heading": "On the back of a work ticket", "text": "Ganger says we're paid by the mile whether we come back or not. MacInnis says that's the most honest thing the Company's ever told us." },
+        { "heading": "Pencil, on a cigarette paper", "text": "Three of us went out to the points. The lamp came back on its own. It was still lit." },
+        { "heading": "Under a tin cup by the fire ring", "text": "We stopped here because the engine wouldn't. Fire's out by morning. If you're reading this, it went out sooner." },
+        { "heading": "Scrawled on a feed sack", "text": "Don't sleep facing the trees. We took turns. Hector had the last turn. Hector's boots are by the fire. That's all I'm going to say about Hector." },
+        { "heading": "A letter never sent", "text": "Mother. I'm with the night crew now. The pay's good and the food's hot and you can't hear the singing from inside the cab. Mostly you can't." },
+        { "heading": "Burned into a plank", "text": "J. ROSS. FIREMAN. HE KEPT STEAM TO THE LAST. The clerk paid seventy-five. We spent it on the cross." },
+        { "heading": "In a jar at the foot of the cross", "text": "She asked to be buried facing the line so she could see the trains go home. We did as she asked. Twice now we've come by and found her turned the other way." },
+        { "heading": "A child's drawing, folded", "text": "A train with all its windows lit, and the moon, and a tall man beside the track with his arms too long. Underneath, in another hand: we didn't let her draw any more after that." },
+        { "heading": "Tucked in a brakeman's glove", "text": "Ran the hand brakes down the whole rake and she still wouldn't stop. Something was pushing. I went back to look. I'm writing this from the last car. I can hear it breathing on the coupling." },
+        { "heading": "On a waybill, the goods crossed out", "text": "Consigned: forty sacks of seed. Received: nothing. Remarks: the car arrived sealed and empty and warm inside. Nobody signed for it." },
+        { "heading": "Wedged in a wheel's spokes", "text": "Came off at speed on the curve. Nobody hurt in the derailment. I want that understood. Nobody hurt in the derailment." },
+        { "heading": "A page from a hymn book", "text": "The hymn's been crossed through and above it, in pencil: the comet was not sent. Nothing sends anything. Stop waiting for the water. Fix the pump." },
+        { "heading": "A fortress mason's tally", "text": "Course nine laid by dark. Company man says a wall is safe at twelve courses. Company man has never seen what walked past us at nine." },
+        { "heading": "On the inside of a matchbox", "text": "Saw the Hope Tower's flame from here, forty miles off, through the fog. Means we're nearly home. Means it can see us too." },
+        { "heading": "Signed, the Clerk", "text": "Crews are reminded that the fee for a body brought home is paid on delivery of the body. A cap, a boot or a ring is not a body. The Clerk regrets." },
+        { "heading": "Stuck to the rail with tar", "text": "To whoever's driving: don't whistle past the next mile. They come to the whistle. We learned that one the hard way. Coast it." }
       ]
     },
     // The coaling chute (GDD §18): anyone within reach of where the coal falls while it pours comes out of it sooted.
