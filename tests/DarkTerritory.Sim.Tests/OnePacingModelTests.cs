@@ -97,6 +97,30 @@ public class OnePacingModelTests
         Assert.True(on.Director!.Terms.Rate > off.Director!.Terms.Rate * 2, $"on {on.Director.Terms.Rate}, off {off.Director.Terms.Rate}");
     }
 
+    /// <summary>
+    /// <c>drive.pressureGate</c> (note 908): a pressure pressed every second still waits for the clock to owe one; off (null),
+    /// it spends as it would alone.
+    /// </summary>
+    [Fact]
+    public void ThePressureGateHoldsThePressuresSpendsForTheClock()
+    {
+        static EnemyTuning Pressed(double? gate) => Tuning.Enemies with
+        {
+            Director = D with
+            {
+                Pressure = D.Pressure with { Threshold = 1, PressAt = 1, Start = 18, Max = 18, ReliefPerCost = 0 },
+                Draw = D.Draw with { Enabled = false },
+                Curve = D.Curve with { Free = false },
+                Encounters = D.Encounters with { Drive = D.Encounters.Drive with { PressureGate = gate } },
+            },
+        };
+        var off = Plain(Pressed(null), at: 10_000, crew: 2);
+        var held = Plain(Pressed(1e9), at: 10_000, crew: 2);
+        Assert.True(Sent(off, 600) > 0, "a pressed pressure with no gate sends");
+        Assert.Equal(0, Sent(held, 600));
+        Assert.Equal("pacing", held.Director!.HeldBecause);
+    }
+
     /// <summary>The same night twice is the same night (replays, the host's).</summary>
     [Fact]
     public void ItIsDeterministic()
