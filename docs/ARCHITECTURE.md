@@ -1110,4 +1110,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [950. The joiner leaves the wait by hand (Quinn, queue #648; found by Wynn's audit, note 949)](notes/950.md)
 - [951. The guards run out to the yard (Cole, queue #650; found by Wynn's audit, note 949)](notes/951.md)
 - [952. The GDD's stale "not yet" markers brought up to date (Sage, queue #658; found by Wynn's audit, note 949)](notes/952.md)
+- [953. The halt's own response, measured (queue #651; GDD D.15 question 3, the director 9 Oct: "Needs a dedicated response"; note 895 built it…](notes/953.md)
 <!-- end of the notes index -->
