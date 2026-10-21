@@ -257,6 +257,21 @@ public class AudioTests
     }
 
     [Fact]
+    public void TheArrivalTownIsHeardAndACreatureBroughtInIsFoughtAloudUnderItsTells()
+    {
+        // Note 958 (GDD v1.6 "Not yet": the terminus had only its threshold and gates, and a creature ridden in was fought in
+        // silence): stood in the arrival town's yard, its townsfolk are heard; hounds ridden in are heard crying out under the
+        // wall guns, the town's bell rung over the gate; and their howl, a tell, is still over everything else.
+        var (report, _) = AudioBench.Render(Content, "brought", cars: 6, speed: 0, listenerCar: 2, seconds: 10);
+        Assert.Contains("place-town.murmur", report.StemsDb.Keys);
+        Assert.Contains("cs-hounds.yelp", report.StemsDb.Keys);
+        Assert.Contains("place-town.bell", report.StemsDb.Keys);
+        Assert.Contains("town-guns.fire", report.StemsDb.Keys);
+        var howl = Assert.Single(report.Tells, t => t.Sound == "hound-howl");
+        Assert.True(howl.OverAllDb >= 3, $"the howl is only {howl.OverAllDb} dB over the yard's fight");
+    }
+
+    [Fact]
     public void EveryLoopingTellWandersAndTheTapeRunsUnderTheTellsAndTheVoices()
     {
         // Spec A.4 rule 4 and A.6 (note 250): no looping tell plays the same twice round, and the tape's wow and flutter are
