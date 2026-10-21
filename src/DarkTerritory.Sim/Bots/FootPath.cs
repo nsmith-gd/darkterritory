@@ -152,7 +152,9 @@ public static class FootPath
         // Standing where no square's free (against a car's side, by its steps): out to the nearest free one first. Straight from
         // there to the way's first corner, a hand at a car's door ran along its side into the steps under it, climbed onto
         // them, was put down again where it stood, and never got round the train to the crane's controls (note 920).
-        if (CellOf(from) != (si, sk))
+        // (Not from aboard one, over its own footprint: a way planned from a roof or a floor is the walker's to get down by.)
+        if (CellOf(from) != (si, sk) && !cars.Any(c => c.ToLocal(@from with { Y = c.Origin.Y }) is var l
+                && l.X > c.Shape.Bounds.Min.X && l.X < c.Shape.Bounds.Max.X && l.Z > c.Shape.Bounds.Min.Z && l.Z < c.Shape.Bounds.Max.Z))
             points.Add(At(si, sk) with { Y = to.Y });
         int from0 = 0;
         while (from0 < cells.Count - 1)

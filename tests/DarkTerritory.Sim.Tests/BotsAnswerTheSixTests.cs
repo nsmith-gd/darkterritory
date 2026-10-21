@@ -628,7 +628,9 @@ public class BotsAnswerTheSixTests
         Assert.True(k.Gone, $"the Knotter's {k.Mode}, {k.Health} health ({driver.SixStep})");
         Assert.Equal(1, n.Train.TrainRakes);
         Assert.True(n.Train.Dynamics.Speed > 4, $"standing at {n.Train.Dynamics.Speed:0.0} m/s ({driver.SixStep})");
-        Assert.All(n.Crew.Values, c => Assert.True(c.Alive && c.Parent != PlayerState.World));
+        // Aboard, once nobody's mid-stride over a coupling gap (in the air there, in the world's frame, as the train got going).
+        Drive(n, driver, Walk, 2, until: () => n.Crew.Values.All(c => c.Surface != Surface.Air));
+        Assert.All(n.Crew.Values, c => Assert.True(c.Alive && c.Parent != PlayerState.World, $"alive {c.Alive}, on {c.Parent} ({c.Surface})"));
     }
 
     /// <summary>
