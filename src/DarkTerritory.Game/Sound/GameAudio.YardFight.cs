@@ -25,11 +25,13 @@ public sealed partial class GameAudio
     // often the bell is rung while the fight's on (its sample is two to four strokes). The bell hangs this high over the gate.
     const double YardCries = 0.5, YardBellEvery = 3.5, YardBellUp = 7;
     const float YardCry = 0.6f;
-    // A burning house is held at this many points along its front, this high up, heard from this far (its fire is a big
-    // one: place-town.fire's barrel loud enough at each point to carry), no more than this many houses at once.
+    // A burning house is held at this many points along its front, this high up, heard from this far, no more than this many
+    // houses at once. Note 966: the houses burn beside the standing train now (the nearest the way in it came through), and
+    // a whole house going up is the town's great fire (place-town.flame, the Flame of Hope's roar, carrying hundreds of
+    // metres), held once a house; the square's brazier (place-town.fire, gone at 30 m) was never heard from the yard.
     const int HouseFirePoints = 3, HouseFiresHeard = 4;
-    const double HouseFireUp = 2.5, HouseFireReach = 60;
-    const float HouseFireLevel = 1;
+    const double HouseFireUp = 2.5, HouseFireReach = 120;
+    const float HouseFireLevel = 1, HouseFlameLevel = 0.5f;
 
     // The creatures being fought (id: where it was, its kind), the bell's next stroke, and every one fought tonight (the
     // houses burnt are one each), kept for the town it was in.
@@ -117,11 +119,12 @@ public sealed partial class GameAudio
         HouseFireSounds(world, town, ear, outside);
     }
 
-    /// <summary>The houses a creature brought in has set burning (one each, the lived-in ones nearest the gate), heard burning.</summary>
+    /// <summary>The houses a creature brought in has set burning (one each, the lived-in ones nearest the train, note 966), heard burning.</summary>
     void HouseFireSounds(World world, Town town, Double3 ear, float outside)
     {
         int brought = Math.Max(_yardSeen.Count, world.Run?.BroughtIn.Count ?? 0);
-        if (brought == 0 || !HasCue("place-town.fire"))
+        bool flame = HasCue("place-town.flame");
+        if (brought == 0 || !flame && !HasCue("place-town.fire"))
             return;
         int burns = brought * (world.Run?.Tuning.BroughtIn.Burns ?? 1);
         var near = TownGenerator.Harmed(town.Plan, burns)
@@ -131,6 +134,11 @@ public sealed partial class GameAudio
             .Take(HouseFiresHeard);
         foreach (var (h, front) in near)
         {
+            if (flame)
+            {
+                HoldLevel("place-town.flame", HouseFireOwner + h.Id * HouseFirePoints, front + Double3.Up * HouseFireUp, outside, HouseFlameLevel);
+                continue;
+            }
             var (s, _) = h.Rail(0, 0);
             var along = town.Direction(s, 1, 0);
             for (int k = 0; k < HouseFirePoints; k++)

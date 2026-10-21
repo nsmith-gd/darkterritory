@@ -142,7 +142,8 @@ public sealed class TownTalk
             return;
         var tuning = town.Tuning;
         bool gone = (town.Where(t) - eye).Length > tuning.Reach.CloseBeyond;
-        bool said = t.Kind == TownTargetKind.Person && now - Since > Line(town).Length / Math.Max(1, tuning.TypePerSecond) + tuning.LingerSeconds;
+        bool said = t.Kind == TownTargetKind.Person
+            && now - Since > tuning.VoiceOf(town.Plan.People[t.Index]).Seconds(Line(town), tuning.TypePerSecond) + tuning.LingerSeconds;
         if (gone || said)
         {
             Open = null;
@@ -164,7 +165,8 @@ public sealed class TownTalk
                 {
                     var p = town.Plan.People[t.Index];
                     string line = Line(town);
-                    int typed = (int)Math.Clamp((now - Since) * town.Tuning.TypePerSecond, 0, line.Length);
+                    // In their own voice (note 963): a frayed one's in bursts, a hollow one's slow, a talker's quick.
+                    int typed = town.Tuning.VoiceOf(p).Typed(line, town.Tuning.TypePerSecond, now - Since);
                     string again = p.Lines.Count > 1 && typed == line.Length ? "AGAIN : [E]" : "";
                     // Note 904: a press on the blacksmith opens the forge while they sell; a card is them not selling now.
                     if (IsSmith(p))

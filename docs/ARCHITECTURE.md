@@ -1121,10 +1121,12 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [960. The late half's escalation before the terminus approach, `drive.finalSurge` (queue #663; #613's late − early; n1-C2, 21 Oct 2026)](notes/960.md)
 - [961. Notes found out along the line (Ezra, queue #653; found by Wynn's audit, note 949)](notes/961.md)
 - [962. The far hills move at dawn (Cole, queue #655; found by Wynn's audit, note 949)](notes/962.md)
-- [963. Townsfolk who live by their temperament (Cole, queue #654)](notes/963.md)
+- [963. Townsfolk who live by their temperament (Cole, queue #654; found by Wynn's audit, note 949)](notes/963.md)
 - [964. The flare pistol drawn (Hazel, queue #664)](notes/964.md)
 - [965. Notes in more places along the line (Ezra, queue #665)](notes/965.md)
 - [966. A creature brought in sets alight a house the crew can see and hear (Quinn, queue #666)](notes/966.md)
 - [967. The Look Review rebuilt for verdicts (Sage, queue #667; the director, 21 Oct)](notes/967.md)
 - [969. The boiler's rebuild from nothing: 8 s at three cars, 10 at twenty (n1-N1, nathaniel1; queue #669; the director, the inbox, 21 Oct,…](notes/969.md)
+- [971. Households that argue, and lines that change once the custom has been told (Cole, queue #671)](notes/971.md)
+- [972. The clerk's tally of the silly upgrades (Hazel, queue #672)](notes/972.md)
 <!-- end of the notes index -->
