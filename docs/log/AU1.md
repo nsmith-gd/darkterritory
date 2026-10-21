@@ -464,3 +464,6 @@ The director asked for the last three friendslop features to be heard. Two were 
 ## 21 Oct, ~22:58 UTC: #680 merging
 
 - [#1584](https://github.com/nsmith-gd/darkterritory/pull/1584) green on Linux and Windows (package, crossplay); main merged in once more, row #680 done in it (the union merge's stale copies of #679 and #680 dropped). Merges on this run's green. Next: the clerk's bank rebuilt with the catalogue's words for Hazel's tally (note 972).
+## 21 Oct, ~23:00 UTC: #682, the clerk's words for the silly upgrades' tally
+
+- Claimed queue #682, note 982 (Hazel's ask in note 972): the clerk's radio bank rebuilt with "dining", "bar", "poured", "beers", "grill", "deceased" and "volunteers", so the tally reads as the catalogue has it. #680 (#1584) merges on its last green.

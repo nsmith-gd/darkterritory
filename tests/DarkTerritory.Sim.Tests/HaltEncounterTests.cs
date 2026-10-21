@@ -53,7 +53,7 @@ public class HaltEncounterTests
     static int HaltSends(GuardNight n) => n.Director.Log.Count(l => l.Stop);
 
     [Fact]
-    public void ItsOffUntilMeasured() => Assert.False(E.Director.Encounters.Halt.On);
+    public void ItsOnAsTheDirectorChose() => Assert.True(E.Director.Encounters.Halt.On, "the director, 21 Oct (n1-A3-halt-own-creature), measured in note 970");
 
     [Fact]
     public void StoodAtAHaltOneEncounterComesAfterTheLullAndNoSecond()

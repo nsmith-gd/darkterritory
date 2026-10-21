@@ -208,6 +208,26 @@ public sealed record CarHuggerLowGround
     public double LurkAheadMax { get; init; } = 1500;
     /// <summary>Along a low stretch, the first level point is looked for every this many metres.</summary>
     public double Step { get; init; } = 50;
+    /// <summary>
+    /// Note 970 (the director, 21 Oct 2026: "We need more situations the Hugger can pop up, not just marshes"): the line plan's
+    /// director tags on the main line that are spots too (low ground, water crossings, cuttings, the woods' edge, a blind
+    /// curve's exit), searched like the low biomes. Empty: none.
+    /// </summary>
+    public string[] Tags { get; init; } = [];
+    /// <summary>Note 970: the far side of a train stood still, at its rear car (see <see cref="CarHuggerStood"/>).</summary>
+    public CarHuggerStood Stood { get; init; } = new();
+}
+
+/// <summary>
+/// Note 970: a train stood still (under <see cref="Below"/> m/s) with no living crewmate within <see cref="UnseenM"/> of its
+/// rear car is a spot: the Hugger comes up beside that car on the side away from the crew, and latches as it would on a
+/// passing train. Off: only the spots ahead.
+/// </summary>
+public sealed record CarHuggerStood
+{
+    public bool On { get; init; }
+    public double Below { get; init; } = 0.5;
+    public double UnseenM { get; init; } = 20;
 }
 
 /// <summary>The Whistler (v1.1 App. A.4, B.4). Field docs live in enemies.json.</summary>
@@ -538,6 +558,11 @@ public sealed record ClimberTuning
     /// (boarding-first, note 286: a moving train's gaps), not only a gap. A trial, off until measured.
     /// </summary>
     public bool FreeNeedsSpeed { get; init; }
+    /// <summary>
+    /// The director's answer to <see cref="FreeNeedsSpeed"/>'s ask (21 Oct 2026, note 970: "Allow them to get on at certain
+    /// speeds, lower third of the speed limit"): with it on, the free Climbers come only to a moving train in the lower third.
+    /// </summary>
+    public ClimberFreeSpeed FreeSpeed { get; init; } = new();
     public double PerGapWeight { get; init; } = 0.5;
     public int[] PackSize { get; init; } = [2, 3];
     /// <summary>
@@ -1725,4 +1750,21 @@ public sealed record HoundSatedTuning
 {
     public bool On { get; init; }
     public int Fires { get; init; } = 3;
+}
+
+/// <summary>
+/// Note 970: the free Climbers' speeds, on the director's "lower third of the speed limit": a train moving at
+/// <see cref="Moving"/> m/s or more and at most <see cref="Fraction"/> of its tier's <see cref="LineSpeed"/> (linegen
+/// tiers.json <c>lineSpeed</c>). Replaces <see cref="ClimberTuning.FreeNeedsSpeed"/>'s minSpeed when on.
+/// </summary>
+public sealed record ClimberFreeSpeed
+{
+    public bool On { get; init; }
+    public double Fraction { get; init; } = 1.0 / 3;
+    public double Moving { get; init; } = 0.5;
+    public Dictionary<string, double> LineSpeed { get; init; } = new() { ["local"] = 20, ["frontier"] = 18, ["deadLines"] = 16, ["deepTerritory"] = 14 };
+
+    /// <summary>Whether a train at <paramref name="speed"/> on <paramref name="tier"/> is one the free Climbers come to.</summary>
+    public bool Allows(double speed, Route.RouteTier tier) =>
+        speed >= Moving && speed <= Fraction * LineSpeed.GetValueOrDefault(char.ToLowerInvariant(tier.ToString()[0]) + tier.ToString()[1..], 18);
 }

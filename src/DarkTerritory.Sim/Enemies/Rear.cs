@@ -1129,7 +1129,46 @@ public sealed class CarHugger(int id) : Enemy(id)
                 for (double at = Math.Max(b.S0, front + t.LurkAheadMin); at <= Math.Min(b.S1, front + far); at += low.Step)
                     if (Math.Abs(train.Line.Sample(train.Dynamics.Path, at).GradePercent) <= t.MaxGrade)
                         return at;
+        // Note 970 (the director: "more situations the Hugger can pop up, not just marshes"): the line plan's places of its kind,
+        // by the director's tags on the main line (a cutting's wet floor, a culvert's water crossing, the woods' edge, a blind
+        // curve's exit), the first level point in reach.
+        if (t.LowGround is { On: true, Tags.Length: > 0 } tagged && route.Plan?.Director.Tags is { Count: > 0 } tags)
+            foreach (var g in tags.Where(g => g.Edge == "main" && tagged.Tags.Contains(g.Tag)).OrderBy(g => g.S0))
+                for (double at = Math.Max(g.S0, front + t.LurkAheadMin); at <= Math.Min(g.S1, front + far); at += tagged.Step)
+                    if (Math.Abs(train.Line.Sample(train.Dynamics.Path, at).GradePercent) <= t.MaxGrade)
+                        return at;
+        // And the far side of a train stood still, where nobody's watching its rear car (note 970).
+        if (StoodSpot(world, t) is { } rear)
+            return rear;
         return null;
+    }
+
+    /// <summary>
+    /// Note 970: beside the rear car of a train stood still with no living crewmate within <see cref="CarHuggerStood.UnseenM"/>
+    /// of it (off, or a moving train: null). Its side is <see cref="FarSide"/>.
+    /// </summary>
+    public static double? StoodSpot(World world, CarHuggerTuning t)
+    {
+        if (t.LowGround is not { On: true, Stood.On: true } low || world.Train.Dynamics.Speed >= low.Stood.Below)
+            return null;
+        var train = world.Train;
+        int rear = train.Dynamics.Consist.Vehicles[^1].Id;
+        if (rear == 0)
+            return null;
+        var at = train.Frames[rear].ToWorld(Double3.Zero);
+        if (world.CrewThisTick.Where(c => c.State.Alive).Select(c => PlayerMotor.WorldPosition(c.State, world.Train)).Any(p => (p - at).Length <= low.Stood.UnseenM))
+            return null;
+        return train.Dynamics.RearDistance + 1;
+    }
+
+    /// <summary>The side of the line away from the living crew (their mean across the rear car; +1 with nobody about).</summary>
+    public static int FarSide(World world)
+    {
+        var train = world.Train;
+        var frame = train.Frames[train.Dynamics.Consist.Vehicles[^1].Id];
+        var centre = frame.ToWorld(Double3.Zero);
+        double across = world.CrewThisTick.Where(c => c.State.Alive).Select(c => PlayerMotor.WorldPosition(c.State, world.Train)).Sum(p => Double3.Dot(p - centre, frame.Right));
+        return across > 0 ? -1 : 1;
     }
 
     protected override void Tick(EnemyContext ctx)
