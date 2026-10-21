@@ -1110,4 +1110,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [950. The joiner leaves the wait by hand (Quinn, queue #648; found by Wynn's audit, note 949)](notes/950.md)
 - [951. The guards run out to the yard (Cole, queue #650; found by Wynn's audit, note 949)](notes/951.md)
 - [952. The GDD's stale "not yet" markers brought up to date (Sage, queue #658; found by Wynn's audit, note 949)](notes/952.md)
+- [954. Carried bodies sent as their carrier's hand (n1-N1, nathaniel1; queue #659; note 921's follow-up)](notes/954.md)
 <!-- end of the notes index -->
