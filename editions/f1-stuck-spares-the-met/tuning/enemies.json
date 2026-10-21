@@ -1,0 +1,7 @@
+// stuck-spares-the-met: a stuck threat stays on whoever it met (note 945)
+{
+  "$patch": true,
+  "director": {
+    "stuckSparesTheMet": true
+  }
+}

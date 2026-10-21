@@ -89,6 +89,34 @@ public sealed class FrontEndTests : IDisposable
     }
 
     [Fact]
+    public void ThePlaytestRecorderHearsTheMenusRebindsAndPurchases()
+    {
+        // Note 913: a screen left (and how long it was up), a control rebound (its name, never the key), a car bought (what,
+        // the scrip it cost, the scrip after); recorded, as everything, only with consent.
+        var sink = new DarkTerritory.Game.Telemetry.MemoryTelemetrySink();
+        var m = Menu();
+        m.Telemetry = new DarkTerritory.Game.Telemetry.SessionRecorder(sink, new DarkTerritory.Game.Telemetry.FixedTelemetryGate(true, "unused"));
+        Saves.Save(Campaign.New(C, 1, "Crew 1", 5) with { Scrip = 10_000 });
+        m.ShowFortress(1);
+        double cost = Campaign.NextCarCost(C, m.Open!);
+        Choose(m, "BUY A CAR");
+        m.Show(Screen.Settings);
+        Choose(m, "CONTROLS");
+        Choose(m, "USE: E");
+        m.Bind("F");
+        var lines = sink.Lines.Select(l => System.Text.Json.JsonDocument.Parse(l).RootElement).ToList();
+        var bought = Assert.Single(lines, l => l.GetProperty("type").GetString() == "purchase");
+        Assert.Equal("car", bought.GetProperty("what").GetString());
+        Assert.Equal(cost, bought.GetProperty("cost").GetDouble(), 3);
+        Assert.Equal(10_000 - cost, bought.GetProperty("scripAfter").GetDouble(), 3);
+        Assert.Equal("Use", Assert.Single(lines, l => l.GetProperty("type").GetString() == "rebind").GetProperty("control").GetString());
+        var menus = lines.Where(l => l.GetProperty("type").GetString() == "menu").Select(l => l.GetProperty("name").GetString()).ToList();
+        Assert.Contains("Fortress", menus);
+        Assert.Contains("Settings", menus);
+        Assert.DoesNotContain(sink.Lines, l => l.Contains("\"F\"", StringComparison.Ordinal));
+    }
+
+    [Fact]
     public void TheFortressSellsCarsAndUpgradesAndSaysWhyNot()
     {
         var m = Menu();
@@ -167,6 +195,57 @@ public sealed class FrontEndTests : IDisposable
         Assert.Contains("ask Sam", m.Message);
         m.Back();
         Assert.Null(m.Night);
+    }
+
+    [Fact]
+    public void TheBlacksmithSaysPlainlyWhenNothingCanBeBoughtAndShowsWhatItCosts()
+    {
+        // Note 904 (the director, 16 Oct: "It should tell me that nothing is available to purchase until you have scrip").
+        var m = Menu();
+        var broke = Campaign.New(C, 1, "Crew 1", 5) with { Scrip = 0 };
+        m.SmithyBuy = id => Campaign.BuyUpgrade(C, broke, id);
+        m.OpenSmithy(new NightMenu(Yard: true), new SmithyShop("Archie MacNeil", broke, CanBuy: true));
+        Assert.Equal("NOTHING CAN BE BOUGHT UNTIL YOU HAVE SCRIP", m.Items[0].Label);
+        Assert.False(m.Items[0].Enabled);
+        // Every line on the shelves says its price, the ones for a longer train too.
+        foreach (var u in C.Upgrades)
+            Assert.Contains(m.Items, i => i.Label.StartsWith($"{u.Name.ToUpperInvariant()}: ", StringComparison.Ordinal)
+                && i.Label.EndsWith($"{Campaign.UpgradeCost(C, broke, u):0} SCRIP", StringComparison.Ordinal));
+        // Some scrip, not enough: it says the cheapest.
+        var some = broke with { Scrip = 1 };
+        m.OpenSmithy(new NightMenu(Yard: true), new SmithyShop("Archie MacNeil", some, CanBuy: true));
+        Assert.StartsWith("NOTHING HERE YOU CAN AFFORD YET: 1 SCRIP", m.Items[0].Label, StringComparison.Ordinal);
+        // Enough, and the shelves start at their first heading.
+        m.OpenSmithy(new NightMenu(Yard: true), new SmithyShop("Archie MacNeil", broke with { Scrip = 100_000 }, CanBuy: true));
+        Assert.True(m.Items[0].Heading);
+        // The fortress's UPGRADES says it too.
+        Saves.Save(broke);
+        m.Back();
+        m.ShowFortress(1);
+        Choose(m, "UPGRADES");
+        Assert.Equal("NOTHING CAN BE BOUGHT UNTIL YOU HAVE SCRIP", m.Items[0].Label);
+    }
+
+    [Fact]
+    public void SettingsHasTheDevUnlockOnlyWhenADeveloperBuildGivesIt()
+    {
+        // Note 904 (the director, 16 Oct: "I don't see a developer setting to be able to go in and unlock everything"): a
+        // player's build never sets SmithyMode, and its Settings have no DEVELOPER section.
+        var m = Menu();
+        m.Show(Screen.Settings);
+        Assert.DoesNotContain(m.Items, i => i.Label == "DEVELOPER");
+        bool on = false;
+        m.SmithyMode = () =>
+        {
+            m.SmithyFree = on;
+            return (new MenuItem(on ? "DEV UNLOCK: ON" : "DEV UNLOCK: OFF"), () => on = !on);
+        };
+        m.Show(Screen.Settings);
+        Assert.Contains(m.Items, i => i is { Label: "DEVELOPER", Heading: true });
+        Choose(m, "DEV UNLOCK: OFF");
+        Assert.True(on);
+        Assert.True(m.SmithyFree);
+        Assert.Contains(m.Items, i => i.Label == "DEV UNLOCK: ON");
     }
 
     [Fact]

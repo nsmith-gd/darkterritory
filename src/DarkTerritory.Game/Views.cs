@@ -40,6 +40,10 @@ public static class Views
                 ? Camera.LookAt(engine.ToWorld(ed + new Double3(-3.2, 0.9, 2.6)), engine.ToWorld(ed), 60)
                 : Camera.LookAt(engine.ToWorld(new Double3(-4, 2.5, 3)), engine.ToWorld(new Double3(0, 2, 0)), 60),
             "mend" => Camera.LookAt(target.ToWorld(new Double3(0.4, Floor(train) + 1.65, -0.5)), target.ToWorld(new Double3(-1.0, Floor(train) + 1.1, target.Shape.HalfLength * 0.62)), 70),
+            // (Not one of Names.) Up close on the car's front hanging lantern, at arm's length below it: how it's textured (the
+            // director's playtest of 16 Oct, line 12, note 900: "the texture wrapping on the lamps").
+            "carlamp" when target.Shape.Interior is { } lit && Art.SceneArt.LampPositions(lit).First() is var lamp =>
+                Camera.LookAt(target.ToWorld(new Double3(lamp.X - 0.45, lamp.Y - 0.12, lamp.Z + 0.5)), target.ToWorld(new Double3(lamp.X, lamp.Y - 0.05, lamp.Z)), 45),
             "inside" => Camera.LookAt(target.ToWorld(new Double3(-0.5, Floor(train) + 1.65, -target.Shape.HalfLength + 0.6)), target.ToWorld(new Double3(0, Floor(train) + 1.3, 2)), 70),
             // From inside the car behind, through both open end doors at this car's rear doorway (note 110: who comes through).
             "door" => DoorCamera(train, car),
@@ -265,8 +269,6 @@ public static class Views
             "deadshoulder" => StagedShoulder(train),
             "deadbody" => DeadViews.OverBody(train.Frames[Math.Min(3, train.Frames.Count - 1)].ToWorld(new Double3(0, train.Frames[Math.Min(3, train.Frames.Count - 1)].Shape.RoofHeight, -2)),
                 train.Frames[0].Back * -1),
-            // On the line 47 m ahead of the engine, at the staged Switchman by its lever 8 m on (Staging.Threats).
-            "switchman" => Camera.LookAt(engine.ToWorld(new Double3(1.6, 1.8, -engineHalf - 50.5)), engine.ToWorld(new Double3(3.8, 1.1, -engineHalf - 55)), 50),
             // (Not one of Names.) Off the engine's right side ahead of it, the whole of it three-quarters on (note 276, the cab
             // forward): the cab and its lamp leading, the boiler and the stack behind, car 1 coupled on.
             // The boiler's left flank, where it tears when it ruptures (TrainKit.RuptureSeam; dt screenshot --ruptured).
@@ -277,6 +279,13 @@ public static class Views
             "cabhatch" => engine.Shape.Ladders.FirstOrDefault(d => d.Foot.Y > 0.2 && d.Inward.Z > 0) is { Top: > 0 } hatchLadder
                 ? Camera.LookAt(engine.ToWorld(hatchLadder.Foot + new Double3(1.2, 1.5, -1.3)), engine.ToWorld(hatchLadder.Foot + new Double3(0, 2.7, -0.33)), 70)
                 : Camera.LookAt(engine.ToWorld(new Double3(0, 2.5, 0)), engine.ToWorld(new Double3(0, 2.5, -1)), 60),
+            // (Not one of Names.) The side doors at the cab's front (note 856): from across the cab at the one beside the coal
+            // (cabdoor) and at the right-hand one (cabdoorright); and from the ballast off the engine's front quarter at each, its
+            // landing and steps (cabdoorout, cabdoorrightout). --doors-open slides them open.
+            "cabdoor" => CabDoorCamera(engine, -1, inside: true),
+            "cabdoorright" => CabDoorCamera(engine, 1, inside: true),
+            "cabdoorout" => CabDoorCamera(engine, -1, inside: false),
+            "cabdoorrightout" => CabDoorCamera(engine, 1, inside: false),
             // (Not one of Names.) From over car 1's front end, a crewmate's eye up on the roofs, forward along the hood to the
             // whistle on it: its valve lever pulled down by its rod from the cab while a crewmate blows it (note 445).
             "whistlepull" => Camera.LookAt(engine.ToWorld(new Double3(1.4, engine.Shape.Bounds.Max.Y + 1.3, Art.TrainKit.WhistleZ(engine.Shape) + 5.5)),
@@ -339,6 +348,15 @@ public static class Views
                 : Camera.LookAt(engine.ToWorld(new Double3(0, 3, 0)), engine.ToWorld(new Double3(0, 2, -1)), 60),
             "dog" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(0.8, Floor(train) + 1.3, train.Frames[^1].Shape.HalfLength - 4.6)),
                 train.Frames[^1].ToWorld(new Double3(-0.4, Floor(train) + 0.3, train.Frames[^1].Shape.HalfLength - 2.0)), 60),
+            // The rear searchlight (note 899; `--upgrades rearSearchlight`): from the guard van's roof back down the line it
+            // lights, as the rear gunner sees it; the lamp close, on the roof's back corner; and from off the line's side behind
+            // the train, the van with its beam on the track.
+            "searchlight" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(-0.6, train.Frames[^1].Shape.RoofHeight + 1.7, train.Frames[^1].Shape.HalfLength - 2.6)),
+                train.Frames[^1].ToWorld(new Double3(0.4, 0.5, train.Frames[^1].Shape.HalfLength + 26)), 65),
+            "searchlightlamp" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(train.Frames[^1].Shape.HalfWidth + 2.2, train.Frames[^1].Shape.RoofHeight + 1.2, train.Frames[^1].Shape.HalfLength - 2.4)),
+                train.Frames[^1].ToWorld(new Double3(train.Frames[^1].Shape.HalfWidth - 0.4, train.Frames[^1].Shape.RoofHeight + 0.5, train.Frames[^1].Shape.HalfLength - 0.3)), 50),
+            "searchlightside" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(-14, 6, train.Frames[^1].Shape.HalfLength + 22)),
+                train.Frames[^1].ToWorld(new Double3(0, 1.5, train.Frames[^1].Shape.HalfLength + 8)), 60),
             "launcher" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(3.2, 2.4, train.Frames[^1].Shape.HalfLength + 4.5)),
                 train.Frames[^1].ToWorld(new Double3(0.2, 1.6, train.Frames[^1].Shape.HalfLength + 0.6)), 50),
             "gerald" => Camera.LookAt(train.Frames[^1].ToWorld(new Double3(3.0, train.Frames[^1].Shape.RoofHeight + 1.6, -train.Frames[^1].Shape.HalfLength + 5.5)),
@@ -399,6 +417,9 @@ public static class Views
             "carside" => CarSideCamera(train, car),
             // (Not one of Names.) Coming down the engine's rear ladder to the coupler plate onto car 1, looking down at it.
             "rearstep" => RearStepCamera(train),
+            // (Not one of Names.) Off the train's left side, low, square on to the gap behind the engine (note 905): the ramp up
+            // its coupler plate from car 1's floor to the engine's deck.
+            "rampside" => RampSideCamera(train),
             // (Not one of Names.) Low off the side behind the engine's half of a cut train (dt screenshot --cut n), at the
             // coupler that was let go: its knuckle swung open, its hose hanging parted (T91).
             "cut" => CutCamera(train),
@@ -441,6 +462,9 @@ public static class Views
             // (Not one of Names.) Down the aisle of the first cargo car at the face of its load, where the staged fire
             // burns (dt screenshot --threats --view fire: Staging.Threats' car fire, Effects.CarFire).
             "fire" => FireCamera(train),
+            // (Not one of Names.) The dining car (note 959; dt screenshot --view dining, which fits it): from its front end
+            // door down the aisle, the table laid under the chandelier and the bar at the far end; diningbar, at the counter.
+            "dining" or "diningbar" => DiningCamera(train, name == "diningbar"),
             // (Not one of Names.) In the guard van at its back end, down at the stores World.Stock puts there: the crates,
             // the lamp and radios, the toys (App. C.4), and its extinguisher on the wall beyond them.
             "stores" => StoresCamera(train),
@@ -513,6 +537,19 @@ public static class Views
         return Camera.LookAt(engine.ToWorld(eye), engine.ToWorld(at + new Double3(0, 1.1, 0)), 70);
     }
 
+    /// <summary>At a side door at the cab's front (note 856), from inside across the cab or from the ballast outside it.</summary>
+    static Camera CabDoorCamera(in CarFrame engine, int side, bool inside)
+    {
+        var doors = engine.Shape.DoorList.Where(d => Math.Sign(d.Box.Centre.X) == side && d.Box.Max.Z - d.Box.Min.Z > d.Box.Max.X - d.Box.Min.X).ToList();
+        if (doors.Count == 0)
+            return CabCamera(engine);
+        var c = doors[0].Box.Centre;
+        double deck = doors[0].Box.Min.Y;
+        return inside
+            ? Camera.LookAt(engine.ToWorld(new Double3(-side * 0.9, deck + 1.65, c.Z + 1.7)), engine.ToWorld(new Double3(side * 1.3, deck + 0.95, c.Z - 0.7)), 75)
+            : Camera.LookAt(engine.ToWorld(new Double3(side * 5.5, deck + 0.5, c.Z - 3.5)), engine.ToWorld(new Double3(side * 1.6, deck + 0.4, c.Z)), 55);
+    }
+
     /// <summary>The cab's hatch ladder, up through the cab roof (note 704), if the engine has one.</summary>
     static Ladder? CabHatch(in CarFrame engine)
     {
@@ -548,6 +585,13 @@ public static class Views
         var ahead = train.Frames[Math.Clamp(car, 0, train.Frames.Count - 2)];
         double l = ahead.Shape.HalfLength;
         return Camera.LookAt(ahead.ToWorld(new Double3(0.35, 2.75, l + 1.3)), ahead.ToWorld(new Double3(-0.4, 1.4, l)), 80);
+    }
+
+    static Camera RampSideCamera(TrainOnLine train)
+    {
+        var engine = train.Frames[0];
+        double l = engine.Shape.HalfLength, gap = train.Dynamics.Tuning.Geometry.CouplingGap;
+        return Camera.LookAt(engine.ToWorld(new Double3(-3.2, 1.9, l + gap / 2)), engine.ToWorld(new Double3(-0.3, 1.2, l + gap / 2)), 55);
     }
 
     static Camera RearStepCamera(TrainOnLine train)
@@ -719,6 +763,18 @@ public static class Views
         var last = train.Frames[^1];
         double roof = last.Shape.RoofHeight;
         return Camera.LookAt(last.ToWorld(new Double3(1.6, roof + 2.2, -2)), last.ToWorld(new Double3(0, roof + 0.4, last.Shape.HalfLength - 2.5)), 60);
+    }
+
+    static Camera DiningCamera(TrainOnLine train, bool bar)
+    {
+        int v = Enumerable.Range(0, train.Vehicles.Count).FirstOrDefault(i => train.Vehicles[i].Kind == Sim.Train.VehicleKind.Dining, 1);
+        var f = train.Frames[v];
+        if (f.Shape.Dining is not { } d)
+            return FireCamera(train);
+        double floor = d.Table.Min.Y, z0 = f.Shape.Interior!.Value.Min.Z;
+        return bar
+            ? Camera.LookAt(f.ToWorld(new Double3(-0.6, floor + 1.6, d.Counter.Min.Z - 1.6)), f.ToWorld(new Double3(0.8, floor + 1.2, d.Counter.Max.Z + 0.6)), 60)
+            : Camera.LookAt(f.ToWorld(new Double3(-0.6, floor + 1.65, z0 + 0.9)), f.ToWorld(new Double3(0.3, floor + 1.1, d.Counter.Min.Z)), 70);
     }
 
     static Camera FireCamera(TrainOnLine train)

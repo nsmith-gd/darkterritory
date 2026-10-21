@@ -361,7 +361,7 @@ public sealed class WreckFilm
         var wreck = Wreck.FromStart(wt with { Substeps = t.Substeps }, cars, start.Links.Select(l => (l.A, l.B, l.Length)), ground, start.Seed);
         var rng = new Pcg32(start.Seed, 0xF11);
         var engine = cars.Count > 0 ? cars[0].Centre : Double3.Zero;
-        var dolls = start.Players.Select(p => Ragdoll(p, cars, start.Cars, rng, t, start.Speed)).ToList();
+        var dolls = start.Players.Select(p => Ragdoll(p, cars, start.Cars, ref rng, t, start.Speed)).ToList();
         // What anyone was carrying (note 370): its own seeded spin, so nothing of the dolls' film changes for it.
         var loads = new List<Load>();
         for (int k = 0; k < dolls.Count; k++)
@@ -670,7 +670,7 @@ public sealed class WreckFilm
     /// upward kick and a tumble from the seed, capped; a bystander far from every car gets nothing, and a beat to watch. The
     /// gunner in the gun's seat (T112) is thrown up out of it, from just clear of the gun, with the seat's own velocity.
     /// </summary>
-    static Doll Ragdoll(FilmPlayer p, List<WreckBody> cars, IReadOnlyList<FilmCar> starts, Pcg32 rng, FilmTuning t, double speed)
+    static Doll Ragdoll(FilmPlayer p, List<WreckBody> cars, IReadOnlyList<FilmCar> starts, ref Pcg32 rng, FilmTuning t, double speed)
     {
         double c = DMath.Cos(p.Yaw), s = DMath.Sin(p.Yaw);
         var at = p.Position;

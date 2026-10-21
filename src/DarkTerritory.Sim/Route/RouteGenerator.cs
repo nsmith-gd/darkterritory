@@ -67,11 +67,11 @@ public static class RouteGenerator
         AddHazards(t, tt, weather, built, length, zones, features, ref hazardRng);
         features.Sort((a, b) => a.Start.CompareTo(b.Start));
         branches.Sort((a, b) => a.Toe.CompareTo(b.Toe));
-        return new Route(line.Name, tier, seed, line, features, weather, dawn) { Branches = branches };
+        return new Route(line.Name, tier, seed, line, features, weather, dawn) { Branches = branches, NoSpawnFinalApproach = t.NoSpawnFinalApproach };
     }
 
     /// <summary>
-    /// Junctions with a dead line off each (App. A.7: what the Switchman sets you onto). The turnout is on straight
+    /// Junctions with a dead line off each (a line that leads nowhere, the clock's cost). The turnout is on straight
     /// main line, and the dead line runs alongside, so it lies on the main line's ground and never crosses it.
     /// </summary>
     static void AddJunctions(JunctionTuning j, int count, RailLine line, double length, List<(double Start, double End)> blocked,

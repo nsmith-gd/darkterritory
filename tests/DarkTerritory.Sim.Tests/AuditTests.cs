@@ -71,10 +71,11 @@ public class AuditTests
     [Fact]
     public void EveryPairAndTripleOfTheRoster()
     {
-        Assert.Equal(20, Combinations.Roster.Count);
-        Assert.Equal(20 * 19 / 2, Combinations.Of(Combinations.Roster, 2).Count);
+        // Nineteen since note 852 cut the Switchman.
+        Assert.Equal(19, Combinations.Roster.Count);
+        Assert.Equal(19 * 18 / 2, Combinations.Of(Combinations.Roster, 2).Count);
         var triples = Combinations.Of(Combinations.Roster, 3);
-        Assert.Equal(20 * 19 * 18 / 6, triples.Count);
+        Assert.Equal(19 * 18 * 17 / 6, triples.Count);
         Assert.Equal(triples.Count, triples.Select(t => string.Join("+", t)).Distinct().Count());
         // A sample is the same sample every time, and a sample of the whole.
         var a = Combinations.Of(Combinations.Roster, 3, sample: 40, seed: 5);
@@ -170,11 +171,10 @@ public class AuditTests
     public void AHazardSetTakesAwayButNeverGives()
     {
         var line = new RailLine(new LineDefinition("t", [new TrackSegment(5_000)]));
-        var set = new HazardSet("test", Adhesion: 0.75, ColdStep: 2, Wind: 1);
+        var set = new HazardSet("test", Adhesion: 0.75, Wind: 1);
         HazardConditions.Apply(line, set);
         var c = Assert.IsType<HazardConditions>(line.Conditions);
         Assert.Equal(0.75, c.Adhesion(RailLine.MainPath, 100));
-        Assert.Equal(2, c.ColdStep(RailLine.MainPath, 100));
         Assert.Equal(1, c.Wind(RailLine.MainPath, 100));
         // A hand-laid line's ground is still its rail height.
         Assert.Equal(line.Sample(100).Position.Y, c.Ground(line.Sample(100).Position + new Double3(3, 0, 0)), 6);
@@ -182,7 +182,7 @@ public class AuditTests
         var bare = new RailLine(new LineDefinition("t", [new TrackSegment(5_000)]));
         HazardConditions.Apply(bare, HazardSet.Clear);
         Assert.Null(bare.Conditions);
-        Assert.Equal(["clear", "wet", "cold", "dark"], Balance.Combinations.HazardSets.Select(h => h.Name));
+        Assert.Equal(["clear", "wet", "wind", "dark"], Balance.Combinations.HazardSets.Select(h => h.Name));
     }
 
     [Fact]

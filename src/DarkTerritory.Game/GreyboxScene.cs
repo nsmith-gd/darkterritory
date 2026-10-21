@@ -107,7 +107,64 @@ public sealed partial class GreyboxScene
         if ((at - eye).Length >= 60)
             return;
         var (drift, flicker) = Look is null ? (Vector3.Zero, 1f) : (Art.SceneArt.FlameDrift(Time, id), Art.SceneArt.Flicker(Time, id));
-        var light = new PointLight(V(at, eye) + drift, Palette.LampAmber * Interiors.HandLamp * flicker, Interiors.HandLampRange);
+        Practical(mesh, new PointLight(V(at, eye) + drift, Palette.LampAmber * Interiors.HandLamp * flicker, Interiors.HandLampRange), id);
+    }
+
+    /// <summary>
+    /// A flare burning (note 871; upgrades.md §4: "a flare lights a village"): a hard red light round it, sputtering
+    /// and dimming as it burns down (Body.Charge, the burn left). It takes the shadows as a hand lamp does when it's the nearest,
+    /// so it doesn't light the cars' insides through their walls.
+    /// </summary>
+    /// <summary>Each flare as last seen (note 964): where it was first (the muzzle, if it was just fired), and where it was last, when.</summary>
+    /// <summary>How far a burning flare's light reaches (m; note 964).</summary>
+    public const float FlareReach = 30;
+
+    readonly Dictionary<int, (Double3 First, double FirstAt, bool Fired, Double3 Last, double LastAt, Vector3 Velocity)> _flares = new();
+
+    /// <summary>
+    /// A flare fired and in flight (note 964; the Art Checklist's <c>flare-pistol</c>): the shot at the muzzle where it was
+    /// first seen just fired (its burn barely begun), and its streak and smoke as it climbs and falls, by its way between
+    /// frames (the bodies replicate where, not how fast). Settled on the ground, its burn is the body's (SceneArt).
+    /// </summary>
+    void FlareFlight(MeshBuilder mesh, Sim.Physics.Body b, Double3 at, Double3 eye)
+    {
+        if (Look?.Art.Effects is not { } fx)
+            return;
+        if (!_flares.TryGetValue(b.Id, out var seen))
+        {
+            // Its own way to start with, where its body's in the air in the world's frame (the host's, a staged shot's).
+            var v0 = b.Parent == Sim.Player.PlayerState.World && b.Pbd.Particles.Length > 0 ? b.Pbd.Particles[0].Velocity(Sim.SimConstants.TickSeconds) : default;
+            seen = (at, Time, b.Charge > 0.99, at, Time, new Vector3((float)v0.X, (float)v0.Y, (float)v0.Z));
+        }
+        double dt = Time - seen.LastAt;
+        var velocity = seen.Velocity;
+        if (dt > 1e-3)
+        {
+            var step = (at - seen.Last) * (1 / dt);
+            var now = new Vector3((float)step.X, (float)step.Y, (float)step.Z);
+            velocity = Vector3.Lerp(velocity, now, (float)Math.Clamp(dt * 12, 0, 1));
+        }
+        _flares[b.Id] = seen with { Last = at, LastAt = Time, Velocity = velocity };
+        if (seen.Fired && Time - seen.FirstAt < Art.Effects.FlareShotSeconds)
+            fx.FlareShot(mesh, V(seen.First, eye), velocity.LengthSquared() > 1 ? Vector3.Normalize(velocity) : -Vector3.UnitZ, Time - seen.FirstAt, b.Id);
+        fx.FlareFlight(mesh, V(at, eye), velocity, Time, b.Id);
+    }
+
+    void FlareLight(MeshBuilder mesh, Double3 at, Double3 eye, int id, double left)
+    {
+        if ((at - eye).Length >= 120)
+            return;
+        float sputter = 0.85f + 0.15f * MathF.Sin((float)(Time * 23) + id) * MathF.Sin((float)(Time * 7.1) + 2 * id);
+        float burn = 0.35f + 0.65f * (float)Math.Clamp(left, 0, 1);
+        // (Its light's reach is the look's, short of the sim's: point lights cast no shadow unless they're the nearest, so one
+        // reaching a village's width would light the cars' insides through their walls. Its glare carries it further.)
+        // Note 964: out to 30 m (it was 18), a village's yard and the houses round it, the brightest light there is.
+        Practical(mesh, new PointLight(V(at + Double3.Up * 0.7, eye), Art.SceneArt.FlareGlow * 9f * sputter * burn, FlareReach), -2 - id);
+    }
+
+    /// <summary>A practical light into the scene (a lamp's, a flare's): the nearest the eye casts the shadows, the rest light unshadowed.</summary>
+    void Practical(MeshBuilder mesh, PointLight light, int id)
+    {
         // Which casts the shadows holds it until another's clearly nearer (note 762): two lamps about as near as each other
         // (a crewmate's beside yours in the cab) would otherwise swap it from frame to frame, and the shadows flash.
         float Near(PointLight l, int lamp) => l.Position.Length() - (lamp == _shadowLampWas ? ShadowHoldM : 0);
@@ -343,6 +400,11 @@ public sealed partial class GreyboxScene
     public bool Venting { get; set; }
     public bool SafetyValve { get; set; }
     /// <summary>
+    /// A shovelful flaring in the firebox (BoilerTuning.FlareLook, note 903): 1 is one at its height. The stack answers it,
+    /// a second or two after the stroke: thicker, faster smoke and a spit of cinders.
+    /// </summary>
+    public float Flare { get; set; }
+    /// <summary>
     /// The boiler's ruptured (spec B.6, GDD §23): its torn flank, the burst's steam timed from the frame the scene first saw
     /// it (presentation only, like <see cref="Derailed"/>), a dead stack; and with <see cref="DriversLocked"/>, the drivers
     /// seized, not turning, sliding on the rail in sparks.
@@ -434,6 +496,11 @@ public sealed partial class GreyboxScene
         CabooseTuning = train.Dynamics.Tuning.Composition.Caboose;
         SwitchThrower = train.Dynamics.Tuning.Composition.SwitchThrower;
         HandcarFrom(train);
+        // Note 902: the car a Waker has, reckoned off the train on its rails (the frames drawn have it lifted).
+        _wakerHold = Look?.Art.Creatures?.WakersTuning is { } wt && Enemies is { } held && WakerLift.Holding(held) is { } holder
+            ? WakerLift.Of(train.Frames, train, holder, wt) : null;
+        // Note 847: where the train's front and rear are along the main line, for a gate the walls don't stand (a still's).
+        _trainAlong = (train.Line.MainDistance(train.Dynamics.Path, train.Dynamics.Distance), train.Line.MainDistance(train.Dynamics.Path, train.Dynamics.RearDistance));
         Build(mesh, train.Line, frames ?? train.Frames, train.Dynamics.Distance, eye);
     }
 
@@ -572,13 +639,16 @@ public sealed partial class GreyboxScene
             double yard = Run?.YardLength ?? 600, terminus = Run?.Tuning.TerminusZone ?? 400;
             Lap(mesh, "route");
             // (Where the sim stands their solids, T124.)
+            SwingGates();
             foreach (var fort in Sim.Run.Fortresses.Of(Route, line, yard, terminus))
                 // The terminus that's a town (notes 600, 692) is drawn as the departure's is, in its own frame from where that
                 // starts, the same way round: the window along it, its way out at the far end of its yard.
                 if (fort.Start > 0 && fort.Lived && Arrival is { Origin: { } origin } arrival)
-                    Fortress(mesh, arrival.Line, eye, from - origin, to - origin, 0, arrival.Plan.Gate, gateAt: arrival.Plan.Gate, town: arrival);
+                    Fortress(mesh, arrival.Line, eye, from - origin, to - origin, 0, arrival.Plan.Gate, gateAt: arrival.Plan.Gate, town: arrival,
+                        gateOpen: GateSwing(origin + arrival.Plan.Gate), rearOpen: GateSwing(origin + (arrival.Plan.Bounds?.Rear ?? 0)));
                 else
-                    Fortress(mesh, line, eye, from, to, fort.Start, fort.End, gateAt: fort.Gate, lit: fort.Lived);
+                    Fortress(mesh, line, eye, from, to, fort.Start, fort.End, gateAt: fort.Gate, lit: fort.Lived,
+                        gateOpen: GateSwing(fort.Gate), rearOpen: fort.Start == 0 && Town?.Plan.Bounds is { } walled ? GateSwing(walled.Rear) : 0);
             Photographer(mesh, line, eye);
             Lap(mesh, "fortresses and towns");
         }
@@ -589,6 +659,17 @@ public sealed partial class GreyboxScene
             foreach (var b in Bodies.Where(b => b.Kind == Sim.Physics.BodyKind.Lamp && !b.Stashed))
                 if (((b.Carrier >= 0 ? Look?.Art.LampInHand(b.Carrier, Time) : null) ?? BodyWorld(b, frames, b.Centre)) is { } at)
                     HandLamp(mesh, at, eye, b.Carrier >= 0 ? b.Carrier : b.Id);
+        // Flares burning (note 871), and fired and in flight (note 964).
+        if (Bodies is not null)
+            foreach (var b in Bodies.Where(b => b.Kind == Sim.Physics.BodyKind.Flare && b.Charge > 0))
+                if (BodyWorld(b, frames, b.Centre) is { } at)
+                {
+                    FlareLight(mesh, at, eye, b.Id, b.Charge);
+                    FlareFlight(mesh, b, at, eye);
+                }
+        if (_flares.Count > 0 && Bodies is not null)
+            foreach (int gone in _flares.Keys.Where(id => !Bodies.Any(b => b.Id == id)).ToList())
+                _flares.Remove(gone);
         // (A staged crewmate's, dt screenshot --act lantern, has no body: its light is where the art hung it.)
         if (Crew is not null && Look is not null)
             foreach (var c in Crew.Where(c => c.Lamp && Bodies?.Any(b => b.Kind == Sim.Physics.BodyKind.Lamp && b.Carrier == c.Id) != true))
@@ -600,7 +681,7 @@ public sealed partial class GreyboxScene
         // The car a Waker's eating is bitten off, not dropped out of sight (note 679): its lamps, its fittings and its body
         // all go by the same bite (Art.SceneArt.BiteOf).
         if (Look is not null)
-            Look.Art.WakerEating = WakerEating(frames) is { } eating ? (eating.Car.Index, eating.Through) : null;
+            Look.Art.WakerEating = _wakerHold is { } eating ? (eating.Car, eating.Bitten, eating.Bites) : null;
         foreach (var frame in frames)
         {
             if ((frame.Origin - eye).Length > LampRange)
@@ -661,7 +742,7 @@ public sealed partial class GreyboxScene
             Look.Art.Effects.Train(mesh, trainFrames, eye, Time, Controls, FireGlow, Emergency, Venting && !Ruptured, SafetyValve && !Ruptured,
                 trainFrames.Count == 0 ? default : Look.Art.BiteOf(trainFrames[^1].Shape, Vehicles is { } fleet && trainFrames[^1].Index < fleet.Count ? fleet[trainFrames[^1].Index] : null, trainFrames[^1].Index),
                 whistle: !Ruptured && (CordPulled || Enemies?.Any(e => e is Sim.Enemies.Whistler { Whistling: true } && !e.Gone) == true), dead: Ruptured || BrokenDown, lamp: LampLit,
-                reach: (float)LampReach);
+                reach: (float)LampReach, flare: Flare, searchlight: Dressed("rearSearchlight"));
             // (And the crew on a straining car stumble: SceneArt.Crewmate, drawn after.)
             Look.Art.BendStrain = BendStrain;
             if (BendStrain is { } bends)
@@ -783,9 +864,13 @@ public sealed partial class GreyboxScene
             Look?.Art.Creatures?.Pins[id] = (V(laid.Feet + head * Art.CreatureArt.RibbitLaid, eye), -ToF(head));
             Look?.Art.Effects?.Devour(mesh, V(laid.Feet, eye), ToF(head), Time - since, id);
         }
-        // A fire on its cells draws its flames there (FireGrids), and only its smoke and light at its heart (note 267).
+        // A fire on its cells is drawn there (FireGrids; notes 267, 866), and nothing of it at its heart: the heart's drawn by
+        // the creatures' art (CreatureArt.Enemy), so it's told too.
+        bool onCells = Enemies?.Any(e => e is Sim.Enemies.CarFire { Gone: false, Heat.Length: > 0 }) == true;
         if (Look?.Art.Effects is { } cells)
-            cells.CellFlames = Enemies?.Any(e => e is Sim.Enemies.CarFire { Gone: false, Heat.Length: > 0 }) == true;
+            cells.CellFlames = onCells;
+        if (Look?.Art.Creatures is { } heart)
+            heart.CellFlames = onCells;
         // The yard's fight (note 608): the town's guards out to whatever's brought in through the gate, while it lasts.
         if (Arrival is { } fought)
             fought.Fight = YardFight(line, frames, fought);
@@ -921,7 +1006,7 @@ public sealed partial class GreyboxScene
                 var party = Crew?.Where(c => c.Alive && Art.SceneArt.Fisted(c.Act)).Select(c => (int)c.Id).ToHashSet();
                 Look.Art.FistCarriers = party is { Count: > 0 }
                     ? Bodies.Where(b => b.Carrier >= 0 && party.Contains(b.Carrier) && b.Kind is Sim.Physics.BodyKind.Beer or Sim.Physics.BodyKind.Sausage
-                        or Sim.Physics.BodyKind.GrilledFish).GroupBy(b => b.Carrier).ToDictionary(g => g.Key, g => g.First().Kind)
+                        or Sim.Physics.BodyKind.GrilledFish or Sim.Physics.BodyKind.Drink).GroupBy(b => b.Carrier).ToDictionary(g => g.Key, g => g.First().Kind)
                     : null;
             }
             GroundFindLights(mesh, frames, eye);
@@ -968,6 +1053,7 @@ public sealed partial class GreyboxScene
         }
         Extinguishing(mesh, frames, eye);
         FireGrids(mesh, frames, eye);
+        HoundsOverhead(mesh, frames, eye);
         if (Crew is not null)
             foreach (var held in Crew)
             {
@@ -1173,6 +1259,8 @@ public sealed partial class GreyboxScene
     /// <summary>How long a creature flinches from a blow (s), and how far it's knocked (m) and tipped (rad) at the most.</summary>
     const double FlinchSeconds = 0.32;
     const float FlinchPush = 0.16f, FlinchTip = 0.22f;
+    // (A Waker's: about a metre and a half at his head, stood.)
+    const float WakerFlinch = 0.12f;
 
     /// <summary>
     /// A creature's flinch from the latest blow or ball to land on it (T121's hit confirm): its basis knocked back along the
@@ -1193,6 +1281,9 @@ public sealed partial class GreyboxScene
             return (Vector3.Zero, Quaternion.Identity);
         float k = (float)(age < 0.05 ? age / 0.05 : 1 - (age - 0.05) / (FlinchSeconds - 0.05));
         k *= hit.Source == Sim.Combat.HitSource.Cannon ? 2 : 1;
+        // A Waker (note 940) takes a ball as a man takes a stone: a jolt through sixty metres of him, not a stagger.
+        if (e.Kind == EnemyKind.Waker)
+            k *= WakerFlinch;
         var flat = new Vector3((float)hit.From.X, 0, (float)hit.From.Z);
         if (flat.LengthSquared() < 1e-6f)
             return (Vector3.Zero, Quaternion.Identity);
@@ -1343,7 +1434,7 @@ public sealed partial class GreyboxScene
                 _newBeats.Add(("scattered", was));
             }
         // The rest let go of, not killed (note 458): a Climber outnumbered or giving up, a Whistler found in its gap, a pack
-        // that's eaten, the Gaunt going with its loot, a Switchman at the lever, a hound aboard over the side. The sim has
+        // that's eaten, the Gaunt going with its loot, a hound aboard over the side. The sim has
         // them gone the tick it's done with them; they're seen going.
         foreach (var (id, was) in _seen)
             if (Art.CreatureArt.Retreat(was.Kind) is not null && !(was.Kind == EnemyKind.CinderHound && was.Attached < 0)
@@ -1861,8 +1952,25 @@ public sealed partial class GreyboxScene
             _fires[e.Id] = (e.Extra, fell);
             var car = frames[e.Attached];
             var foot = car.ToWorld(e.Local + new Double3(-0.2, 0.5, 0)).RelativeTo(eye);
+            // Note 866 (the director, 19 Oct: "it aims at a flame, puts it out, then I aim at a different flame"): the jet goes
+            // to the flames it's putting out, not to the heart of the fire. The aim isn't replicated, the cells are: a jet goes
+            // to the cell in its reach going out fastest (the stretch it's on falls at the whole sprayPerSecond, the cells round
+            // it at a share), kept between snapshots; with no cells, to the heart as before.
+            var fire = e as Sim.Enemies.CarFire;
+            var grid = fire is { Heat.Length: > 0 } && car.Shape.Interior is { } room && Look.Art.Creatures is { } art
+                && Sim.Enemies.FireGrid.For(room, art.CarFire.CellSize) is { } g && g.Count == fire.Heat.Length ? g : null;
+            double[] falling = grid is not null && _cellsWas.TryGetValue(e.Id, out var before) && before.Length == fire!.Heat.Length
+                ? [.. before.Select((h, i) => h - fire.Heat[i])] : Array.Empty<double>();
+            if (fire is not null)
+                _cellsWas[e.Id] = [.. fire.Heat];
+            Vector3 Flames(int i) => car.ToWorld(grid!.Centre[i] + grid.Normal(i) * 0.35).RelativeTo(eye);
             if (StagedSpray)
-                fx.Spray(mesh, car.ToWorld(e.Local + new Double3(-1.0, 1.0, 1.7)).RelativeTo(eye), foot, Time);
+            {
+                var staged = car.ToWorld(e.Local + new Double3(-1.0, 1.0, 1.7));
+                int at = grid is null ? -1 : Enumerable.Range(0, grid.Count).Where(i => fire!.Heat[i] > 0)
+                    .OrderBy(i => (car.ToWorld(grid.Centre[i]) - staged).Length).DefaultIfEmpty(-1).First();
+                fx.Spray(mesh, staged.RelativeTo(eye), at >= 0 ? Flames(at) : foot, Time);
+            }
             if (Time - fell > 0.4 || Bodies is null)
                 continue;
             foreach (var b in Bodies)
@@ -1872,12 +1980,64 @@ public sealed partial class GreyboxScene
                 var held = HeldHere is { } h && b.Carrier == h.Player ? h.Hands
                     : b.Parent >= 0 && b.Parent < frames.Count ? frames[b.Parent].ToWorld(b.Pbd.Particles[0].Position) : b.Pbd.Particles[0].Position;
                 var nozzle = held.RelativeTo(eye);
-                if ((nozzle - foot).Length() < 3.2f)
+                var to = foot;
+                if (grid is not null)
                 {
-                    fx.Spray(mesh, nozzle, foot, Time);
+                    int best = -1;
+                    double most = 1e-6;
+                    for (int i = 0; i < falling.Length; i++)
+                        if (falling[i] > most && (car.ToWorld(grid.Centre[i]) - held).Length <= 4.5)
+                            (most, best) = (falling[i], i);
+                    if (best >= 0)
+                        _jetAt[b.Carrier] = (e.Id, best, Time);
+                    if (_jetAt.TryGetValue(b.Carrier, out var jet) && jet.Fire == e.Id && Time - jet.At <= 0.4)
+                        to = Flames(jet.Cell);
+                    else
+                        continue;
+                }
+                if ((nozzle - to).Length() < 4.5f)
+                {
+                    fx.Spray(mesh, nozzle, to, Time);
                     _spraying.Add(b.Carrier);
                 }
             }
+        }
+        foreach (int gone in _cellsWas.Keys.Where(id => !Enemies.Any(e => e.Id == id && !e.Gone)).ToList())
+            _cellsWas.Remove(gone);
+    }
+
+    /// <summary>Each fire's cells as last drawn, and where each sprayer's jet last went (the fire, its cell, when): note 866.</summary>
+    readonly Dictionary<int, double[]> _cellsWas = new();
+    readonly Dictionary<int, (int Fire, int Cell, double At)> _jetAt = new();
+
+    /// <summary>Note 939: whether car <paramref name="car"/> is burning from its hot box (the fire's cause is replicated on it).</summary>
+    bool HotBoxFire(int car) =>
+        Enemies?.Any(e => e is Sim.Enemies.CarFire { Gone: false, Cause: Sim.Enemies.FireCause.HotBox } f && f.Attached == car
+            && f.Phase is not SpinePhase.Dormant and not SpinePhase.BreakOff) == true;
+
+    /// <summary>
+    /// Note 939 (the director's playtest of 20 Oct evening, line 9: "how does this keep relighting?"): every Cinder Hound on a
+    /// car's roof, seen from inside the car under it as its heat through the boards and cinders sifting down, brighter as it
+    /// winds up to light the car (its <see cref="Sim.Enemies.HoundMode.Ignite"/>). Out of the car the roof hides it, and the
+    /// hound itself is in sight.
+    /// </summary>
+    void HoundsOverhead(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Double3 eye)
+    {
+        if (Look?.Art.Effects is not { HasFlames: true } fx || Look.Art.Creatures is not { } creatures)
+            return;
+        foreach (var e in Enemies ?? [])
+        {
+            if (e is not Sim.Enemies.CinderHound { Gone: false } hound || e.Attached <= 0 || e.Attached >= frames.Count)
+                continue;
+            var car = frames[e.Attached];
+            if (car.Shape.Interior is not { } room || hound.Aboard is Sim.Enemies.HoundMode.Leap or Sim.Enemies.HoundMode.Drop or Sim.Enemies.HoundMode.Climb
+                || e.Local.Y < car.Shape.RoofHeight - 0.5 || Math.Abs(e.Local.Z) > room.Max.Z)
+                continue;
+            float windUp = hound.Aboard == Sim.Enemies.HoundMode.Ignite
+                ? (float)Math.Clamp(hound.ModeSeconds / Math.Max(1e-6, creatures.Hounds.Aboard.IgniteWindUpSeconds), 0, 1) : 0;
+            var under = new Double3(Math.Clamp(e.Local.X, room.Min.X + 0.2, room.Max.X - 0.2), room.Max.Y - 0.25, e.Local.Z);
+            var at = car.ToWorld(under).RelativeTo(eye);
+            fx.HoundThroughRoof(mesh, at, Vector3.Normalize(car.ToWorld(under - Double3.Up).RelativeTo(eye) - at), windUp, Time, e.Id);
         }
     }
 
@@ -1926,6 +2086,24 @@ public sealed partial class GreyboxScene
                 var (at, along, across, normal) = Patch(car, grid, i);
                 fx.FireCell(mesh, at, along, across, normal, grid.Face[i], (float)fire.Heat[i],
                     alight && fire.Heat[i] >= creatures.CarFire.BurnFrom * 0.8, Time, e.Id * 97 + i);
+            }
+            // Its smoke, glow, cinders and light a stretch at a time (note 866), each by the hottest of its cells: put out
+            // where the spray lands, that stretch goes dark while the rest burns on.
+            var size = grid.Room.Max - grid.Room.Min;
+            double half = size.Z / grid.Along / 2, floorY = grid.Room.Min.Y + Sim.Enemies.FireGrid.FloorPad, middle = (grid.Room.Min.X + grid.Room.Max.X) / 2;
+            for (int i = 0; i < grid.Count; i++)
+            {
+                var stretch = grid.Slice[i];
+                if (stretch[0] != i)
+                    continue;
+                double hottest = 0;
+                foreach (int k in stretch)
+                    hottest = Math.Max(hottest, fire.Heat[k]);
+                var c = new Double3(middle, floorY, grid.Centre[i].Z);
+                var at = car.ToWorld(c).RelativeTo(eye);
+                fx.FireStretch(mesh, at, car.ToWorld(c + new Double3(0, 0, half)).RelativeTo(eye) - at,
+                    car.ToWorld(c + new Double3(size.X / 2, 0, 0)).RelativeTo(eye) - at, (float)(grid.Room.Max.Y - floorY), (float)hottest,
+                    alight && hottest >= creatures.CarFire.BurnFrom * 0.8, Time, e.Id * 89 + grid.Row(i));
             }
         }
     }
@@ -1990,8 +2168,9 @@ public sealed partial class GreyboxScene
         // A friend stood on the hook (note 726) is its load: the lamp on the cable hangs over their head, not in their chest.
         double above = crane.Riders > 0 ? Math.Max(w.HookAbove, crane.Tuning.Hoist.FeetAbove + RiderHeadroom) : w.HookAbove;
         var lamp = V(crane.HookAt + (crane.Riders > 0 ? Art.CrewActs.HookSway(Time) : default) + Double3.Up * above, eye);
-        mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * w.HookIntensity, w.HookRange));
-        mesh.Billboard(lamp, 0.12f, 0, new Vector4(Palette.LampAmber * 1.4f, 1), -1, FxBlend.Additive);
+        // The bulb's own white (note 901), so the pool it throws on the load isn't the repairs' amber either.
+        mesh.PointLights.Add(new PointLight(lamp, WorkLampBulb * w.HookIntensity, w.HookRange));
+        WorkLamp(mesh, lamp);
         Double3 sum = default;
         int stacked = 0;
         foreach (var c in crane.Castings)
@@ -2002,6 +2181,27 @@ public sealed partial class GreyboxScene
             }
         if (stacked > 0)
             mesh.PointLights.Add(new PointLight(V(sum * (1.0 / stacked) + Double3.Up * w.StackHeight, eye), Palette.LampAmber * w.StackIntensity, w.StackRange));
+    }
+
+    /// <summary>
+    /// The work lamp's bulb (note 901): a warm white, not the repairs' amber. Its glow used to be a bare amber disc, and seen
+    /// from the crane's seat it sat on the casting under it: the director, 16 Oct, "a yellow circle on it ... the same thing
+    /// we're using ... to save the rig" (Effects.CalloutAmber, "mend me here").
+    /// </summary>
+    public static readonly Vector3 WorkLampBulb = new(1.0f, 0.93f, 0.8f);
+
+    /// <summary>The work lamp's hood: a dark iron shade over the bulb, wider than it (half extents, m).</summary>
+    public static readonly Vector3 WorkLampHood = new(0.11f, 0.05f, 0.11f);
+
+    /// <summary>
+    /// A gantry's work lamp as a lamp (note 901): an iron hood on the cable with the bulb under its rim, so from the crane's
+    /// seat over it you see the shade, not a glowing disc on the load, and from beside it a small white bulb. Its light is
+    /// <see cref="CraneLamps"/>'.
+    /// </summary>
+    public static void WorkLamp(MeshBuilder mesh, Vector3 lamp)
+    {
+        mesh.Box(lamp + new Vector3(0, WorkLampHood.Y, 0), Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, WorkLampHood, Palette.SootBlack);
+        mesh.Billboard(lamp - new Vector3(0, 0.02f, 0), 0.09f, 0, new Vector4(WorkLampBulb * 1.3f, 1), -1, FxBlend.Additive);
     }
 
     /// <summary>A crewmate's height and a hand's breadth over it (m): where the hook's lamp hangs over a rider (note 726).</summary>
@@ -2210,31 +2410,13 @@ public sealed partial class GreyboxScene
     public static double WakerWall(RailLine line, Route? route, Sim.Run.Run? run, Sim.Enemies.WakersTuning t) =>
         (route?.Plan?.Terminus.GateM ?? line.Length - (run?.Tuning.TerminusZone ?? 400)) - t.StopShort;
 
-    /// <summary>
-    /// The car the Waker holding the train is eating (note 679): the rearmost car he hasn't finished (an eaten one's drawn far
-    /// under the ground, <see cref="WakerLift"/>) and how far through his eating of it he is (0 till wakers.eatAfter, then
-    /// 0..1 over each wakers.eatSeconds, as the sim counts them eaten). Null with nobody holding it.
-    /// </summary>
-    (Sim.Enemies.Waker Waker, CarFrame Car, double Through)? WakerEating(IReadOnlyList<CarFrame> frames)
-    {
-        if (frames.Count == 0 || Enemies?.OfType<Sim.Enemies.Waker>().FirstOrDefault(w => w.Lead && w.Holds && !w.Gone) is not { } e)
-            return null;
-        var t = Look?.Art.Creatures?.WakersTuning ?? new Sim.Enemies.WakersTuning();
-        double floor = frames[0].Origin.Y - 100;
-        for (int i = frames.Count - 1; i >= 0; i--)
-            if (frames[i].Origin.Y > floor)
-            {
-                double into = e.Extra - t.EatAfter;
-                double through = into < 0 ? 0 : (into - Math.Floor(into / Math.Max(1e-6, t.EatSeconds)) * t.EatSeconds) / Math.Max(1e-6, t.EatSeconds);
-                return (e, frames[i], through);
-            }
-        return null;
-    }
+    /// <summary>The car the lead Waker has this draw (note 902; <see cref="Build(MeshBuilder, TrainOnLine, Double3, IReadOnlyList{CarFrame}?)"/> reckons it), or null.</summary>
+    WakerLift.Hold? _wakerHold;
 
     /// <summary>
     /// What a Waker's art needs of the scene (note 679): whether he's stood at the walls; and, the one holding the train, where
-    /// his mouth goes: on the car he's eating (the top of <see cref="WakerLift"/>'s ramp, which the lift has drawn the frames up
-    /// to), its end at first, then on down it as he bites it off (<see cref="Art.Bite.Waker"/>), to the next car's end.
+    /// he kneels behind the car he has (note 902), where his hands are on it and where his mouth goes (<see cref="WakerLift"/>):
+    /// bowed over it at the rails, then on its bitten end in his hands at his mouth.
     /// </summary>
     Art.WakerScene WakerIn(Sim.Enemies.Waker e, RailLine line, IReadOnlyList<CarFrame> frames, Double3 eye)
     {
@@ -2248,16 +2430,10 @@ public sealed partial class GreyboxScene
             return new Art.WakerScene(Picker: true, Mouth: V(Sim.Enemies.Waker.Mouth(e.Local, e.Lateral, t), eye), Hand: hand);
         }
         bool walls = e.Phase == SpinePhase.Commit && e.LineDistance >= WakerWall(line, t) - 1;
-        if (WakerEating(frames) is not { } eating || eating.Waker != e)
+        if (_wakerHold is not { } hold || !e.Lead || !e.Holds)
             return new Art.WakerScene(walls);
-        var held = eating.Car;
-        double half = held.Shape.HalfLength, rear = held.Shape.Platform is { } p ? p.Max.Z : half;
-        var end = held.ToWorld(new Double3(0, WakerMouthHeight, rear - eating.Through * (rear + half)));
-        return new Art.WakerScene(walls, V(end, eye));
+        return new Art.WakerScene(walls, V(hold.Mouth, eye), Hand: V(hold.Right, eye), HandLeft: V(hold.Left, eye), Stand: V(hold.Stand, eye));
     }
-
-    /// <summary>How high up a car's end (m over its floor's frame) a Waker takes it in his mouth: the middle of its body.</summary>
-    const double WakerMouthHeight = 2.6;
 
     /// <summary>
     /// A Waker's earth and dust (note 599): rising, the clods it heaves up and the bank of dust it breaks out of; running, the
@@ -2386,7 +2562,7 @@ public sealed partial class GreyboxScene
 
     /// <summary>
     /// The arrival town's houses burning (note 608): run.json broughtIn.burns for each creature brought in tonight, the
-    /// lived-in houses nearest the gate (<see cref="Sim.Towns.TownGenerator.Harmed"/>, the ones the campaign remembers burnt).
+    /// lived-in houses nearest the standing train (<see cref="Sim.Towns.TownGenerator.Harmed"/>, the ones the campaign remembers burnt; note 966).
     /// They catch as the creature comes in and burn on through the night.
     /// </summary>
     void HouseFires(MeshBuilder mesh, Double3 eye, Sim.Towns.Town town)
@@ -3014,20 +3190,6 @@ public sealed partial class GreyboxScene
                     }
                     break;
                 }
-            case EnemyKind.Switchman:
-                {
-                    // A railwayman, stooped wrong, standing at the switch with a lantern held out: the lantern's the only
-                    // light on it, and it swings while it waits for the train.
-                    Draw(0, 0.45, 0, 0.12, 0.45, 0.12, Palette.SootBlack);
-                    Draw(0, 1.2, 0.05, 0.22, 0.35, 0.14, Palette.SootBlack);
-                    Draw(0, 1.62, -0.12, 0.13, 0.13, 0.13, Palette.Corrupted);
-                    double swing = e.Phase == SpinePhase.Telegraph ? 0.15 * Math.Sin(e.PhaseSeconds * 2.2) : 0;
-                    Draw(0.32, 1.0, -0.1 + swing, 0.05, 0.28, 0.05, Palette.SootBlack);
-                    mesh.Emissive = 1;
-                    Draw(0.32, 0.7, -0.1 + swing, 0.08, 0.1, 0.08, Palette.LampAmber);
-                    mesh.Emissive = 0;
-                    break;
-                }
             case EnemyKind.Drift:
                 {
                     // A dark spreading mat over the roof and down the sides, as wide as it's spread.
@@ -3266,9 +3428,8 @@ public sealed partial class GreyboxScene
         if (Look is not null)
         {
             var at = (Stands ?? DefaultStands).LeverAt(main, branch.Index);
-            // The Switchman gripping this lever to throw it under the train (App. A.8): the lamp flickers.
-            bool gripped = Enemies?.Any(e => e is Sim.Enemies.Switchman { Gripping: true } s && s.Branch == branch.Index && !e.Gone) == true;
-            float flicker = gripped ? (MathF.Sin((float)Math.Floor(Time * 14) * 12.9898f) * 43758.5f % 1 is var j && MathF.Abs(j) < 0.45f ? 0.08f : 1) : 1;
+            // (The lamp flickered while the Switchman gripped the lever, App. A.8; it went with the Switchman, note 852.)
+            const float flicker = 1;
             Look.Art.World.Branch(mesh, branch, eye, DrawDistance, at, main.Sample(branch.Toe).Tangent, Diverging?.Invoke(branch.Index) ?? false, flicker);
             return;
         }
@@ -3783,25 +3944,66 @@ public sealed partial class GreyboxScene
 
     /// <summary>Walls both sides, gun towers with lamps, and a gatehouse over the line.</summary>
     /// <param name="town">The town this fortress is (the terminus's, note 600); null, the departure fortress's is <see cref="Town"/>.</param>
+    // Note 847: how far each fortress gate's leaves stand open, by its key (0 shut, 1 against the passage's walls), and when
+    // they were last swung (the scene's clock).
+    readonly Dictionary<int, double> _gateSwing = [];
+    double _gateClock = double.NaN;
+
+    /// <summary>
+    /// Note 847: swings each gate's leaves toward what the walls say (<see cref="Sim.Run.StopWalls.GateOpen"/>, the Sim's own,
+    /// which the crew walk into), over run.json <c>gates.swingSeconds</c>; a gate first seen is drawn as it stands.
+    /// </summary>
+    void SwingGates()
+    {
+        double dt = double.IsNaN(_gateClock) || Time < _gateClock ? 0 : Time - _gateClock;
+        _gateClock = Time;
+        if (Walls is not { } walls)
+            return;
+        double rate = 1 / Math.Max(0.1, Run?.Tuning.Gates.SwingSeconds ?? 4);
+        foreach (int key in walls.Gates)
+        {
+            double want = walls.GateOpen(key) ? 1 : 0;
+            _gateSwing[key] = _gateSwing.TryGetValue(key, out double at) ? at + Math.Clamp(want - at, -rate * dt, rate * dt) : want;
+        }
+    }
+
+    // Note 847: the train's front and rear along the main line, as last built.
+    (double Front, double Rear) _trainAlong = (double.NaN, double.NaN);
+
+    /// <summary>
+    /// Note 847: how far the gate <paramref name="along"/> the main line stands open; where the walls don't stand it (a still
+    /// built without the forts' solids), as the Sim's rule has it for where the train is.
+    /// </summary>
+    double GateSwing(double along) => GatesHeld ?? (_gateSwing.TryGetValue(Sim.Run.Fortresses.GateKey(along), out double open) ? open
+        : Run is { } run && Sim.Run.Fortresses.Open(along, _trainAlong.Front, _trainAlong.Rear, run.Tuning.Gates) ? 1 : 0);
+
+    /// <summary>Note 847: every gate's leaves held this far open (0..1) whatever the train's doing (`dt screenshot --gates`); null, as they swing.</summary>
+    public double? GatesHeld { get; set; }
+
     void Fortress(MeshBuilder mesh, RailLine line, Double3 eye, double from, double to, double start, double end, double gateAt, bool lit = true,
-        Sim.Towns.Town? town = null)
+        Sim.Towns.Town? town = null, double gateOpen = 0, double rearOpen = 0)
     {
         if (Look is not null)
         {
             // The departure fortress is a town (note 281): its square, and its people where note 107's folk stood.
             town ??= start == 0 && lit ? Town : null;
-            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit, Time, town?.Plan.Square, town?.Plan.Bounds, town?.Ground);
+            Look.Art.World.Fortress(mesh, line, eye, from, to, start, end, gateAt, platform: start == 0, lit, Time, town?.Plan.Square, town?.Plan.Bounds, town?.Ground,
+                gateOpen, rearOpen);
             Lap(mesh, "fortress walls");
             if (town is not null)
             {
                 Look.Art.World.Square(mesh, line, eye, town, from, to);
+                Lap(mesh, "town square");
                 Look.Art.World.Civic(mesh, line, eye, town, from, to, Look.Tuning.Atmosphere.Wind.Of(Wind), Look.Tuning.Atmosphere.Wind.Gusts, Time);
+                Lap(mesh, "town green");
                 Look.Art.World.Works(mesh, line, eye, town, from, to);
+                Lap(mesh, "town works");
                 // The rail yard behind the platform (note 502).
                 Look.Art.World.Yard(mesh, line, eye, town, from, to);
+                Lap(mesh, "town rail yard");
                 // A town type's own ground, water and landmarks (note 692).
                 Look.Art.World.Forms(mesh, line, eye, town, from, to, Time, Route);
-                Lap(mesh, "town square, green, works");
+                Lap(mesh, "town form");
                 Look.Art.World.Houses(mesh, line, eye, town, from, to);
                 if (town == Arrival)
                     HouseFires(mesh, eye, town);
@@ -4402,7 +4604,7 @@ public sealed partial class GreyboxScene
     {
         var wood = new Vector3(0.13f, 0.1f, 0.07f);
         var up = Vector3.UnitY;
-        const float Lintel = 2.15f, Half = (float)(Sim.Run.StopWalls.DoorWidth / 2), Thick = 0.025f;
+        const float Lintel = 2.15f, Half = (float)(Sim.Run.StopWalls.DoorWidth / 2), Thick = Art.TownKit.DoorThick;
         foreach (var d in walls.HouseDoors)
         {
             if ((d.At - eye).Length > 60)
@@ -4434,18 +4636,42 @@ public sealed partial class GreyboxScene
             // The jackpot house (note 719): a better door than the rest, locked or not, panelled and painted oxblood, a brass
             // knob and knocker; and a lamp left burning in the window beside it, seen from the line.
             bool better = Run?.LockedAt(feature) == building;
-            var leaf = better ? new Vector3(0.3f, 0.06f, 0.05f) : wood;
-            mesh.Box(On(width / 2, height / 2), face, up, along, new Vector3(Thick, height / 2, width / 2), leaf);
             float inside = Vector3.Dot(face, -outward) >= 0 ? 1 : -1;
+            if (Look is not null)
+            {
+                // Note 941 (the director, 20 Oct: "there's no texture for the abandoned village doors, so it looks like I'm
+                // picking nothing"): the door's the kit's, in the houses' own timber, its lock drawn and, while it's locked,
+                // the hasp and padlock the wrench is at. Built hinge to free edge with its outside out along +z: turned
+                // about, it's built the other way across (mirror) rather than drawn inside out.
+                var outside = -inside * face;
+                bool locked = better && walls.Locked(d.Key), mirror = Vector3.Dot(Vector3.Cross(along, up), outside) < 0;
+                string kind = better ? locked ? "locked" : "better" : "plain";
+                var piece = Look.Art.Piece($"house-door-{kind}-{width:0.00}x{height:0.00}{(mirror ? "-m" : "")}",
+                    () => Art.TownKit.HouseDoor(Look, width, height, better, locked, mirror));
+                var x = mirror ? -along : along;
+                var o = mirror ? On(width, 0) : On(0, 0);
+                mesh.Append(piece, new Matrix4x4(x.X, x.Y, x.Z, 0, up.X, up.Y, up.Z, 0, outside.X, outside.Y, outside.Z, 0, o.X, o.Y, o.Z, 1));
+            }
+            else
+            {
+                // The greybox's: flat boxes, as before the kit's (note 719's panels and brass, note 401's ledges).
+                var leaf = better ? new Vector3(0.3f, 0.06f, 0.05f) : wood;
+                mesh.Box(On(width / 2, height / 2), face, up, along, new Vector3(Thick, height / 2, width / 2), leaf);
+                if (better)
+                {
+                    foreach (float a in new[] { width * 0.28f, width * 0.72f })
+                        foreach (float h in new[] { height * 0.28f, height * 0.7f })
+                            mesh.Box(On(a, h, -inside * (Thick + 0.008f)), face, up, along, new Vector3(0.008f, height * 0.17f, width * 0.17f), leaf * 1.25f);
+                    var brass = new Vector3(0.75f, 0.58f, 0.25f);
+                    mesh.Box(On(width - 0.1f, 1.0f, -inside * (Thick + 0.03f)), face, up, along, new Vector3(0.03f, 0.03f, 0.03f), brass);
+                    mesh.Box(On(width / 2, 1.5f, -inside * (Thick + 0.015f)), face, up, along, new Vector3(0.015f, 0.06f, 0.04f), brass);
+                }
+                foreach (float h in new[] { 0.3f, height - 0.3f })
+                    mesh.Box(On(width / 2, h, inside * (Thick + 0.012f)), face, up, along, new Vector3(0.012f, 0.06f, width / 2 - 0.04f), leaf * 0.8f);
+            }
+            // The jackpot house (note 719): a lamp left burning in the window beside its door, seen from the line.
             if (better)
             {
-                // Four raised panels on its outside, the brass knob and the knocker.
-                foreach (float a in new[] { width * 0.28f, width * 0.72f })
-                    foreach (float h in new[] { height * 0.28f, height * 0.7f })
-                        mesh.Box(On(a, h, -inside * (Thick + 0.008f)), face, up, along, new Vector3(0.008f, height * 0.17f, width * 0.17f), leaf * 1.25f);
-                var brass = new Vector3(0.75f, 0.58f, 0.25f);
-                mesh.Box(On(width - 0.1f, 1.0f, -inside * (Thick + 0.03f)), face, up, along, new Vector3(0.03f, 0.03f, 0.03f), brass);
-                mesh.Box(On(width / 2, 1.5f, -inside * (Thick + 0.015f)), face, up, along, new Vector3(0.015f, 0.06f, 0.04f), brass);
                 var sill = new Double3(d.At.X, floor, d.At.Z) + ToD(side * 1.75f + outward * 0.02f);
                 var pane = V(sill + new Double3(0, 1.45, 0), eye);
                 // Its frame, and the pane lit from within.
@@ -4460,9 +4686,6 @@ public sealed partial class GreyboxScene
                 mesh.PointLights.Add(new PointLight(pane + outward * 0.6f, Palette.LampAmber * 1.2f * flicker, 7f));
                 mesh.Billboard(pane + outward * 0.1f, 0.9f * flicker, 0, new Vector4(Palette.LampAmber * 0.35f * flicker, 1), -1, FxBlend.Additive);
             }
-            // Its ledges, top and bottom, and the brace between, on the room's side.
-            foreach (float h in new[] { 0.3f, height - 0.3f })
-                mesh.Box(On(width / 2, h, inside * (Thick + 0.012f)), face, up, along, new Vector3(0.012f, 0.06f, width / 2 - 0.04f), leaf * 0.8f);
             if (moved.Moved != Matrix4x4.Identity)
                 mesh.Move(start, moved.Moved);
             if (slammed >= 0 && Look is not null)
@@ -4797,6 +5020,13 @@ public sealed partial class GreyboxScene
             foreach (int side in (ReadOnlySpan<int>)[1, -1])
                 Look.Art.Effects.HotBoxSmoke(mesh, o + right * (float)(box.X * side) + up * (float)box.Y + back * (float)box.Z, up, back, heat,
                     (float)_speed, Time, frame.Index * 2 + (side > 0 ? 1 : 0));
+        }
+        // Note 939: a fire its hot box started, the box that caught burning at its wheel for as long as the car does (the box
+        // itself is cool again, note 331: its smoke above would have stopped as the fire began).
+        else if (Look is not null && HotBoxFire(frame.Index))
+        {
+            var box = Sim.Train.HotBoxes.Box(frame.Shape, HotBoxTuning ?? DefaultHotBox);
+            Look.Art.Effects.HotBoxAlight(mesh, o + right * (float)box.X + up * (float)box.Y + back * (float)box.Z, up, back, (float)_speed, Time, frame.Index * 2 + 1);
         }
         // A wound brake's shoes and a seized axle's dragged wheel (notes 364, 367).
         TrainCar(mesh, frame, vehicle, eye);

@@ -18,7 +18,7 @@
   // trivially solved" (dt balance --pairs / --triples; note 186). Each combination is insisted on (only those kinds, sent
   // whenever their spawn can place them, again insistEvery s after one's gone) for a short night of seconds s: crew bots on
   // route's line with a train of cars, starting on the first stretch clear of stops and tunnels from which every kind that
-  // needs the line (the Car Hugger's marsh or bridge, the Switchman's dead line) can be placed, leadM short of it. A night
+  // needs the line (the Car Hugger's marsh or bridge) can be placed, leadM short of it. A night
   // is lost if the train's derailed or stranded, or unwinnableLost of the crew are dead. Unwinnable: lost every seed.
   // Trivial: every kind came on, and in every seed nothing landed (no grab, no punish, nobody dead, under trivialCargoLoss
   // of the cargo gone). Kinds that never came on are reported (unplaced: their spawn found nowhere; dormant: put there,
@@ -52,13 +52,13 @@
     // curious player, roughly.
     "look": { "waitSeconds": 12, "seekM": 80, "gauntM": 3, "ribbitM": 5, "mooseM": 10, "towerJawM": 20, "beetleM": 12, "edgeM": 0.6 },
     // §22: "hazards remove your tools. They never change enemy rules." What each set takes away, laid over the line:
-    // adhesion (wet rail; 0.75 is the generator's wettest, linegen tiers.json wetBiasAdhesion), coldStep (deep cold, added
-    // to the line's), wind (gunfire carries; 1 is Deep Territory's worst night), lampsOut (§23 "lights fail": the forward
-    // lamp smashed and every car's out).
+    // adhesion (wet rail; 0.75 is the generator's wettest, linegen tiers.json wetBiasAdhesion), wind (gunfire carries; 1 is
+    // Deep Territory's worst night), lampsOut (§23 "lights fail": the forward lamp smashed and every car's out). The deep
+    // cold's set went with the cold (note 852): the wind that came with it is its own set.
     "hazardSets": [
       { "name": "clear" },
       { "name": "wet", "adhesion": 0.75 },
-      { "name": "cold", "coldStep": 2, "wind": 1 },
+      { "name": "wind", "wind": 1 },
       { "name": "dark", "lampsOut": true }
     ]
   },
@@ -101,5 +101,13 @@
   // in the report, never failing the sweep, until the director sets them. P1: no crewmate spends more than slackOverSeconds
   // a night at or past the census's slackPress (enemies.json director.orchestrator; note 345), on the run between stops. P3:
   // something engaged for engaged[0]..engaged[1] of the night out on the line (1 - the harness's pacing quietShare).
-  "pacing": { "advisory": true, "slackOverSeconds": 30, "engaged": [0.45, 0.60] }
+  "pacing": { "advisory": true, "slackOverSeconds": 30, "engaged": [0.45, 0.60] },
+
+  // Shared problems (the director's playtest of 16 Oct evening, line 8: "we didn't get any of the challenges to share
+  // together that lead to laughs and fun"; ARCHITECTURE §8 note 861): what the harness counts as two crewmates in one
+  // problem. A grab is shared with a living friend within nearMetres (proximity voice's reach, player.json crewNews
+  // beyondMetres: they hear it and can come); two crewmates busy (a carry, a timed job, a module, a gun's reload) within
+  // pairMetres of each other are at one job. A stop's moments run from arriving till afterStopSeconds after leaving.
+  // stopsWithShared: the share of stops a crew of two or more should meet one at (advisory, for the director to set).
+  "shared": { "nearMetres": 26, "pairMetres": 6, "afterStopSeconds": 30, "stopsWithShared": 0.5 }
 }

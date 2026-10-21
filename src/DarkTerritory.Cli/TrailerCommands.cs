@@ -16,7 +16,7 @@ using DarkTerritory.Sim.Train;
 /// `dt trailer`: the game's trailer at L1 (the art checklist's "trailer"; Steam's Next Fest pulls one, GDD §36), cut from
 /// the game itself, headless and repeatable. A solo night on the open line (or a generated one, --route) is warmed up to
 /// speed, then run on in real time while the cameras cut between shots: the train coming out of the fog, its roofs, the
-/// hounds running beside it, the Switchman at his lever with the lamp coming on, something in a car's aisle, a Car Hugger on
+/// hounds running beside it, something in a car's aisle, a Car Hugger on
 /// the rear car, the Choir over the guard van, the cannon, the dawn. Title cards come between on the game's own nameboard
 /// (Game/UiStyle). The creatures are staged as the screenshots stage them (Staging), and go on with what they're doing.
 /// Each frame is rendered as the screenshots are, to out/trailer/frames. The sound is the game's own mixer, offline, heard
@@ -30,7 +30,7 @@ static class TrailerCommands
     /// A beat of the trailer: how long, and what's seen (a card's lines, or a shot's camera and staging). Stage names what's
     /// staged; Heard, which of the staged the mixer hears (the rest are seen but kept quiet, so the beat's own tell isn't
     /// lost under every other's); Alone, only those drawn too. Fixed: the staging and the camera are taken once, as the
-    /// beat starts, and stay where they are while the train comes on (the Switchman's lever is by the line, not on the train).
+    /// beat starts, and stay where they are while the train comes on (a lever is by the line, not on the train).
     /// </summary>
     sealed record Beat(double Seconds, string[]? Card = null, Func<TrainOnLine, double, Camera>? Shot = null, string Stage = "", float Dawn = 0,
         EnemyKind[]? Heard = null, bool Alone = false, bool Fixed = false);
@@ -80,9 +80,6 @@ static class TrailerCommands
             // Behind the train, riding with the pack: the Cinder Hounds running it down, the guard van's lamp ahead of them.
             new(4, Shot: (t, _) => Camera.LookAt(Line(t, t.Dynamics.RearDistance - 15, -1.3, 0.75), Line(t, t.Dynamics.RearDistance - 3, 0.3, 1.15), 56),
                 Stage: "hounds", Heard: [EnemyKind.CinderHound]),
-            // Up the line, the Switchman at his lever, his hand on it, and the train's lamp coming at him out of the fog.
-            new(4.5, Shot: (t, _) => Camera.LookAt(Line(t, t.Dynamics.Distance + 66, 5.5, 1.5), Line(t, t.Dynamics.Distance + 52, 2.6, 1.3), 44),
-                Stage: "switchman", Heard: [EnemyKind.Switchman], Alone: true, Fixed: true),
             new(2.5, ["SOMETHING IS ABOARD"]),
             // A car's aisle, and what's tiptoeing down it.
             new(4, Shot: (t, _) => Views.Get("inside", t, 2), Stage: "tippy", Heard: [EnemyKind.TippyToesie]),
@@ -266,8 +263,6 @@ static class TrailerCommands
     {
         "" or "crew" => null,
         "tippy" => Staging.Tippy(Staging.Threats(train), train, "in"),
-        // His hand on the lever (COMMIT): waiting to throw it under the train.
-        "switchman" => Staging.Switchman(Staging.Threats(train), "grip"),
         "hounds" or "cannon" => Pack(Staging.Threats(train), train),
         _ => Staging.Threats(train),
     };

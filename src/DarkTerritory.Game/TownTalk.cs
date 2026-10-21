@@ -43,14 +43,14 @@ public sealed class TownTalk
     /// will do (GDD §32, the director's decisions of 7 Oct on #206: <c>ACTION : [KEY]</c>).
     /// </summary>
     /// <param name="wine">Nicki has a glass for you in reach (note 571): her prompt says the hold that takes it.</param>
-    /// <param name="selling">The blacksmith's open for the crew (note 697: a campaign night's yard): their prompt says the hold
-    /// that opens the catalogue.</param>
+    /// <param name="selling">The blacksmith's open for the crew (note 697: a campaign night's yard): their prompt says the press
+    /// opens the catalogue (note 904: talking to them is buying from them).</param>
     public static string Prompt(Town town, TownTarget t, bool wine = false, bool selling = false) => t.Kind switch
     {
         TownTargetKind.Person when wine && town.Plan.People[t.Index].Hosting => $"{town.Plan.People[t.Index].Name.ToUpperInvariant()}   TALK : [E]   A GLASS : HOLD [E]",
         // Clearly the blacksmith (note 697), whatever the town calls them, and what they sell.
         TownTargetKind.Person when IsSmith(town.Plan.People[t.Index]) =>
-            $"{town.Plan.People[t.Index].Name.ToUpperInvariant()}, BLACKSMITH   TALK : [E]{(selling ? "   UPGRADES : HOLD [E]" : "")}",
+            $"{town.Plan.People[t.Index].Name.ToUpperInvariant()}, BLACKSMITH   {(selling ? "UPGRADES" : "TALK")} : [E]",
         TownTargetKind.Person => $"{town.Plan.People[t.Index].Name.ToUpperInvariant()}   TALK : [E]",
         TownTargetKind.Board => $"THE BOARD ({town.Notices.Count} {(town.Notices.Count == 1 ? "NOTICE" : "NOTICES")})   READ : [E]",
         TownTargetKind.Paper => $"{town.Plan.Papers[t.Index].Title.ToUpperInvariant()}   READ : [E]",
@@ -62,6 +62,16 @@ public sealed class TownTalk
 
     /// <summary>The town's blacksmith, who does the trains (note 697).</summary>
     public static bool IsSmith(Townsperson p) => p.Role == "blacksmith";
+
+    /// <summary>
+    /// Whether a Use press on <paramref name="target"/> opens the blacksmith's catalogue rather than a card (note 904; the
+    /// director, 16 Oct: "I would have assumed talking to him, I get the upgrades"): the town's blacksmith, while they sell.
+    /// </summary>
+    public static bool OpensForge(Town town, TownTarget? target, bool selling) =>
+        selling && target is { Kind: TownTargetKind.Person } t && IsSmith(town.Plan.People[t.Index]);
+
+    /// <summary>The blacksmith's card's foot when they aren't selling (note 904): where and when their wares are.</summary>
+    public const string ForgeLater = "UPGRADES : AT THE FORGE, IN A CAMPAIGN NIGHT'S YARD";
 
     /// <summary>
     /// Whether the blacksmith's selling to this crew now (note 697): a campaign night (its upgrades are the campaign's), in
@@ -132,7 +142,8 @@ public sealed class TownTalk
             return;
         var tuning = town.Tuning;
         bool gone = (town.Where(t) - eye).Length > tuning.Reach.CloseBeyond;
-        bool said = t.Kind == TownTargetKind.Person && now - Since > Line(town).Length / Math.Max(1, tuning.TypePerSecond) + tuning.LingerSeconds;
+        bool said = t.Kind == TownTargetKind.Person
+            && now - Since > tuning.VoiceOf(town.Plan.People[t.Index]).Seconds(Line(town), tuning.TypePerSecond) + tuning.LingerSeconds;
         if (gone || said)
         {
             Open = null;
@@ -154,9 +165,13 @@ public sealed class TownTalk
                 {
                     var p = town.Plan.People[t.Index];
                     string line = Line(town);
-                    int typed = (int)Math.Clamp((now - Since) * town.Tuning.TypePerSecond, 0, line.Length);
-                    return new TownCard(TownCardKind.Speech, $"{p.Name}, {p.Title}", line[..typed],
-                        p.Lines.Count > 1 && typed == line.Length ? "AGAIN : [E]" : "");
+                    // In their own voice (note 963): a frayed one's in bursts, a hollow one's slow, a talker's quick.
+                    int typed = town.Tuning.VoiceOf(p).Typed(line, town.Tuning.TypePerSecond, now - Since);
+                    string again = p.Lines.Count > 1 && typed == line.Length ? "AGAIN : [E]" : "";
+                    // Note 904: a press on the blacksmith opens the forge while they sell; a card is them not selling now.
+                    if (IsSmith(p))
+                        again = again.Length > 0 ? $"{again}   {ForgeLater}" : ForgeLater;
+                    return new TownCard(TownCardKind.Speech, $"{p.Name}, {p.Title}", line[..typed], again);
                 }
             case TownTargetKind.Board:
                 {

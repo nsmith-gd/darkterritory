@@ -19,6 +19,9 @@ public static partial class TownGenerator
         public string Character = "";
         /// <summary>The creed its people keep, by its houses' character (note 822), or null.</summary>
         public string? Creed;
+        /// <summary>Its people out at their own work among its houses (<see cref="HouseCharacter.Out"/>, note 841).</summary>
+        public int[] Out = [0, 0];
+        public string[] OutActs = [];
         /// <summary>What the town breathes through (its character's <see cref="HouseCharacter.Gear"/>).</summary>
         public IReadOnlyDictionary<string, double> Gear = new Dictionary<string, double> { ["respirator"] = 1 };
         /// <summary>A walled town's extent and streets (queue #74), or null where its houses are the line's street's alone.</summary>
@@ -31,10 +34,13 @@ public static partial class TownGenerator
         public TownYard? Yard;
         readonly Dictionary<int, (TownHousehold Household, Dictionary<string, string> Vars, Dictionary<string, Queue<string>> Lines)> _open = [];
 
-        public void Open(int house, TownHousehold household, Dictionary<string, string> vars, Pcg32 rng)
+        public void Open(int house, TownHousehold household, Dictionary<string, string> vars, ref Pcg32 rng)
         {
             // Each part's lines shuffled once, dealt to whoever has that part, so two parents don't say the same.
-            var lines = household.Lines.ToDictionary(kv => kv.Key, kv => new Queue<string>(new Deck<string>(kv.Value, rng.Fork((ulong)kv.Key.Length)).All()));
+            // By ref, so the next household's shuffle doesn't repeat this one's (note 872).
+            var lines = new Dictionary<string, Queue<string>>();
+            foreach (var (part, said) in household.Lines)
+                lines[part] = new Queue<string>(new Deck<string>(said, rng.Fork((ulong)part.Length)).All());
             _open[house] = (household, vars, lines);
         }
 
@@ -382,6 +388,8 @@ public static partial class TownGenerator
         var hullRng = rngFor("houses.hull");
         homes.Character = character.Id;
         homes.Creed = character.Creed;
+        homes.Out = character.Out;
+        homes.OutActs = character.OutActs;
         homes.Gear = character.Gear;
         // A company's plans (note 815), each drawn the first time a run of it is built, with its size; and what the
         // families have done to their houses since, on streams of their own so the rest are as they were.
@@ -515,7 +523,7 @@ public static partial class TownGenerator
                 vars["{other}"] = srng.Pick(w.Places.Where(p => !site.Name.Contains(p, StringComparison.OrdinalIgnoreCase)).ToList());
             if (household.Absent)
                 vars["{absent}"] = srng.Pick(w.FirstNames);
-            homes.Open(i, household, vars, srng);
+            homes.Open(i, household, vars, ref srng);
             var parts = new List<string> { "parent" };
             foreach (string part in new[] { "elder", "child", "lodger", "parent" })
                 if (parts.Count < Math.Min(sizes[i], 4) && household.Lines.ContainsKey(part) && (part != "parent" || sizes[i] >= 4))
@@ -552,7 +560,7 @@ public static partial class TownGenerator
                 Lines = new Dictionary<string, string[]> { ["offer"] = party.Offer, ["host"] = party.Host, ["guest"] = party.Guests },
                 Object = party.Wine,
             };
-            homes.Open(i, household, new Dictionary<string, string> { ["{family}"] = house.Family }, srng);
+            homes.Open(i, household, new Dictionary<string, string> { ["{family}"] = house.Family }, ref srng);
             int guests = Math.Min(layout.Spots.Count - 1, prng.RangeInclusive(t.NickiGuests[0], t.NickiGuests[1]));
             var door = layout.Spots.FirstOrDefault(x => x.Name == "door") ?? layout.Spots[0];
             var order = new List<HouseSpot> { door };

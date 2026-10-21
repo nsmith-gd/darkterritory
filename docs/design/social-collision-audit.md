@@ -358,7 +358,7 @@ Ranked by expected social benefit over implementation and regression cost. Every
 
 ### R7. Recovery for more than one: carry the injured and the hand-up (medium; K1 holds it, #457)
 
-- **Current behaviour.** No downed state. You can carry the dead, not the living. Healing is self-use. #457 (the hand-up onto a moving car, carrying a live friend, helping up, bandaging someone else) is claimed by K1 and unbuilt.
+- **Current behaviour.** No downed state. You can carry the dead, not the living. Healing is self-use. #457 (the hand-up onto a moving car, carrying a live friend, helping up, bandaging someone else) was claimed by K1 then; it's built since (note 723, #1026), all but helping up (no downed state, note 573).
 - **Social deficiency.** Most recoveries are one person with one tool. #457 is the cheapest route to "we got him out".
 - **Proposed adjustment.** No new design: **raise #457 above #463 (handcar), #464 (odd outcomes) and #465 (masks) in K1's order**, and build the hand-up first. It's what makes R3's left-behind recovery a two-person act: someone on the rear ladder hauls the runner aboard at up to the 3.5 m/s ladder limit plus their reach.
 - **Example encounter.** See R3. "GIVE ME YOUR HAND" at 9 m/s with Ribbits behind.

@@ -54,7 +54,7 @@ public sealed partial class WorldArt
             yield break;
         // A crane's runway through a shed is the yard's to keep clear (its castings lie there): no piles at that shed. Nor at
         // an open barn or shed (note 417): it's walked into, and a gable's length of rail laid along it reached in through the wall.
-        if (CraneBay(stop, index) is not null || Sim.Run.StopWalls.OpenShed(b))
+        if (CraneBay(stop, index).Count > 0 || Sim.Run.StopWalls.OpenShed(b))
             yield break;
         double along = f.Start + b.S;
         var at = Footing(line, route, f, b, valleyDepth);
@@ -103,7 +103,13 @@ public sealed partial class WorldArt
             };
             if ((endA != world && !ClearOfTracks(line, endA, along)) || (endB != world && !ClearOfTracks(line, endB, along)))
                 continue;
-            yield return new YardPile(world, spots[j].At, yaw, kind, (int)(Hash(slot * 4.17f + seed * 0.031f) * 6), endA, endB);
+            int variant = (int)(Hash(slot * 4.17f + seed * 0.031f) * 6);
+            // And the whole of it (note 868): every piece's footprint (footprints.json) clear of the loading gauge, not only its
+            // middle. A sandbagged wall 3.2 m off by its middle laid its turned-in end and its drums onto the main line's rails
+            // by a halt's lamp room, 6.5 m out (deepTerritory:3, once the abandoned villages were on).
+            if (route.Plan?.Rules.Footprints is { } prints && !FootprintClear(line, prints, kind, variant, world, Out, along))
+                continue;
+            yield return new YardPile(world, spots[j].At, yaw, kind, variant, endA, endB);
         }
     }
 
@@ -117,9 +123,11 @@ public sealed partial class WorldArt
     /// Whether a pile at <paramref name="p"/> (world) stands at least <see cref="YardTrackClear"/> from the centre of every
     /// track near it: the main line about <paramref name="near"/>, and every branch (a yard's tracks) whose span is.
     /// </summary>
-    public static bool ClearOfTracks(RailLine line, Double3 p, double near)
+    public static bool ClearOfTracks(RailLine line, Double3 p, double near) => Clear(line, p, near, YardTrackClear);
+
+    static bool Clear(RailLine line, Double3 p, double near, double clear)
     {
-        double clear2 = YardTrackClear * YardTrackClear;
+        double clear2 = clear * clear;
         bool Close(Double3 q) => (q.X - p.X) * (q.X - p.X) + (q.Z - p.Z) * (q.Z - p.Z) < clear2;
         for (double s = Math.Max(0, near - 60); s <= Math.Min(line.Length, near + 60); s += 2)
             if (Close(line.Sample(s).Position))
@@ -137,6 +145,32 @@ public sealed partial class WorldArt
 
     /// <summary>How far a pile stands from the centre of any track (m): the loading gauge's half and a step.</summary>
     public const double YardTrackClear = 3.2;
+
+    /// <summary>How far any of a pile's pieces stands from the centre of any track (m): the loading gauge's half and a little.</summary>
+    public const double YardFootprintClear = 1.8;
+
+    /// <summary>
+    /// Whether every piece of a pile of <paramref name="kind"/> (its cluster, <see cref="Sim.Run.Leavings.Cluster"/>), each of
+    /// its footprint's boxes taken as the circle round it, stands <see cref="YardFootprintClear"/> from every track near it.
+    /// </summary>
+    static bool FootprintClear(RailLine line, IReadOnlyDictionary<string, double[][][]> prints, string kind, int variant, Double3 world,
+        Func<Vector3, Double3> turn, double near)
+    {
+        foreach (var piece in Sim.Run.Leavings.Cluster(kind, variant))
+        {
+            if (!prints.TryGetValue(piece.Name, out var variants) || variants.Length == 0)
+                continue;
+            foreach (var box in variants[piece.Variant % variants.Length])
+            {
+                double c = DMath.Cos(piece.Turn), sn = DMath.Sin(piece.Turn);
+                // The box's middle in the pile's frame (x across, z along): turned with the piece, then off the pile's spot.
+                var at = world + turn(new Vector3((float)(piece.X + box[0] * c + box[1] * sn), 0, (float)(piece.Z + box[1] * c - box[0] * sn)));
+                if (!Clear(line, at, near, YardFootprintClear + double.Hypot(box[2], box[3])))
+                    return false;
+            }
+        }
+        return true;
+    }
 
     /// <summary>How far a rack of rail reaches either way from its middle (m): half its 9 m lengths and a bent one's swing (JunkKit.Rails).</summary>
     const float RailRackReach = 4.6f;

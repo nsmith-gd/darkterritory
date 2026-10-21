@@ -64,6 +64,10 @@ public static class ArtCatalog
             return k.Build("guard-armoured");
         }));
         list.Add(new("roof-handrails", SmallProp, () => TrainKit.RoofHandrails(look, cargo)));
+        // The flare pistol (notes 871, 964): lying in the guard van, as a fist holds it, and a flare fired from it.
+        list.Add(new("flare-pistol", SmallProp, () => PropKit.FlarePistol(look)));
+        list.Add(new("flare-pistol-held", SmallProp, () => PropKit.FlarePistolHeld(look)));
+        list.Add(new("flare", SmallProp, () => PropKit.Flare(look)));
         // The voice's fittings (note 720): the speaking tube's horn and its pipe down to the floor, and the whistle codes' card.
         list.Add(new("speaking-tube", SmallProp, () => VoiceKit.TubeEnd(look, (float)SpeakingTube.MouthHeight + 0.1f)));
         list.Add(new("whistle-card", MediumProp, () => VoiceKit.WhistleCard(look, "WHISTLE CODES",
@@ -136,6 +140,16 @@ public static class ArtCatalog
         list.Add(new("tower", LargeProp, () => StructureKit.Tower(look, 1)));
         // A harbour town's Hope Tower (note 819): one a town, seen from a kilometre off, so a large prop's budget.
         list.Add(new("hope-tower", LargeProp, () => HopeKit.Tower(look)));
+        // The starting town's pieces the director looked at on 19 Oct (note 870): the bitten van, the night market's stalls
+        // (every form and colouring), the works' heaps.
+        list.Add(new("square-carriage", MediumProp, () => SquareKit.Fixture(look, "carriage")));
+        for (int v = 0; v < SquareKit.StallVariants; v++)
+        {
+            int variant = v;
+            list.Add(new($"square-marketstall-{v}", MediumProp, () => SquareKit.Fixture(look, "marketstall", variant)));
+        }
+        list.Add(new("works-slag", LargeProp, () => WorksKit.Piece(look, "slag")));
+        list.Add(new("works-coal", LargeProp, () => WorksKit.Piece(look, "coal")));
         // A fortress town begun and stamped flat by a Waker (note 824), out beside the line: a large prop's budget each.
         for (int v = 0; v < RuinKit.Variants; v++)
         {
@@ -143,6 +157,13 @@ public static class ArtCatalog
             list.Add(new($"fortruin-{v}", LargeProp, () => RuinKit.FortRuin(look, variant)));
         }
         list.Add(new("gatehouse", LargeProp, () => StructureKit.Gatehouse(look)));
+        // Its gates (note 847): the plain one and the one with the wicket in it, each side.
+        foreach (int side in new[] { -1, 1 })
+        {
+            int s = side;
+            list.Add(new($"gateleaf-{s}", SmallProp, () => StructureKit.GateLeaf(look, s, false)));
+            list.Add(new($"gateleaf-wicket-{s}", SmallProp, () => StructureKit.GateLeaf(look, s, true)));
+        }
         list.Add(new("platform", StructureBay, () => StructureKit.PlatformBay(look, 1)));
         list.Add(new("house", LargeProp, () => TownKit.House(look, 1)));
         list.Add(new("lived-house", LargeProp, () => TownKit.LivedHouse(look, 1)));

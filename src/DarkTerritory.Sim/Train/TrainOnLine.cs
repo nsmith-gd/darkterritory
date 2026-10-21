@@ -23,7 +23,7 @@ public readonly record struct RakeContact(int Front, int Rear, double ClosingSpe
 public readonly record struct RakeState(int[] Vehicles, double Distance, double Velocity, double BrakeEfficiency, bool Handbrake, bool FrontCouplerLocked, int Path = RailLine.MainPath);
 public readonly record struct VehicleState(int Id, double Load, double Integrity, double CargoIntegrity, GunState Gun = default, byte DoorsOpen = 0,
     CargoKind Cargo = CargoKind.None, bool LampLit = true, double Eaten = 0, uint LockersOpen = 0, bool Breached = false, Double3 BreachAt = default, byte[]? Char = null, double HotBox = 0, double Gutter = 0, double Loose = 0, bool Wound = false, bool Seized = false, double Knot = 0,
-    bool OffRails = false, double Placed = 0, double Grill = 0, int Beers = 0, LooseCause LooseCause = LooseCause.None);
+    bool OffRails = false, double Placed = 0, double Grill = 0, int Beers = 0, LooseCause LooseCause = LooseCause.None, bool Pinned = false);
 
 /// <summary>Everything about the train that the host owns and clients re-simulate from.</summary>
 public sealed record TrainState(RakeState[] Rakes, VehicleState[] Vehicles, Boiler Boiler)
@@ -455,6 +455,8 @@ public sealed class TrainOnLine
     /// by sight.json <c>lurchOver</c>). Held long enough it works a pin loose (<see cref="LooseTuning.BendSeconds"/>, note 732).
     /// </summary>
     public bool Lurching { get; set; }
+    /// <summary>Host, this tick: the posted board (km/h) of the bend the engine's rake is lurching on, for the line that says so (note 854).</summary>
+    public int LurchBoardKmh { get; set; }
 
     /// <summary>At a buffer stop: the end of the line, a dead line's end, or back at the start.</summary>
     public bool AtEndOfLine => Dynamics.Distance >= Line.PathLength(Dynamics.Path) || RearDistance <= 0;
@@ -581,7 +583,7 @@ public sealed class TrainOnLine
 
     public TrainState Capture() => new(
         _rakes.Select(r => new RakeState(r.Consist.Vehicles.Select(v => v.Id).ToArray(), r.Distance, r.Velocity, r.BrakeEfficiency, r.Handbrake, r.FrontCouplerLocked, r.Path)).ToArray(),
-        _vehicles.Select(v => new VehicleState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun, v.DoorsOpen, v.Cargo, v.LampLit, v.Eaten, v.LockersOpen, v.Breached, v.BreachAt, v.Char, v.HotBox, v.Gutter, v.Loose, v.Wound, v.Seized, v.Knot, v.OffRails, v.Placed, v.Grill, v.Beers, v.LooseCause)).ToArray(),
+        _vehicles.Select(v => new VehicleState(v.Id, v.Load, v.Integrity, v.CargoIntegrity, v.Gun, v.DoorsOpen, v.Cargo, v.LampLit, v.Eaten, v.LockersOpen, v.Breached, v.BreachAt, v.Char, v.HotBox, v.Gutter, v.Loose, v.Wound, v.Seized, v.Knot, v.OffRails, v.Placed, v.Grill, v.Beers, v.LooseCause, v.Pinned)).ToArray(),
         Boiler)
     { Handcar = HandcarNow };
 
@@ -607,6 +609,7 @@ public sealed class TrainOnLine
             vehicle.Gutter = v.Gutter;
             vehicle.Loose = v.Loose;
             vehicle.LooseCause = v.LooseCause;
+            vehicle.Pinned = v.Pinned;
             vehicle.Wound = v.Wound;
             vehicle.Seized = v.Seized;
             vehicle.Knot = v.Knot;
@@ -735,8 +738,6 @@ public sealed class TrainOnLine
                 var effective = controls;
                 if (BoilerTuning is { } bt)
                 {
-                    // GDD §22 deep cold (note 183): the cold where the engine is takes the edge off what a shovelful makes.
-                    Boiler.Efficiency = bt.ColdEfficiency(Line.Conditions?.ColdStep(rake.Path, rake.Distance) ?? 0);
                     // Tractive effort comes from the pressure there is now; then the fire and the cylinders move it.
                     if (bt.SteamDrive)
                     {
@@ -863,6 +864,10 @@ public sealed class TrainOnLine
             + CreatureDrag(rake)
             // And a car off its rails (the tipple's bad clamp, note 423) holds its whole rake fast: more than anything can pull.
             + (AnyOffRails(rake) ? OffRailsDrag : 0),
+        // A shovelful flaring in the firebox (note 903): the engine surges, a second or two after the stroke. Only running (from
+        // boiler.json surgeFrom) and off the brake: a standing train doesn't lurch, the yard's shunting at walking pace isn't
+        // nudged off its marks, and a driver bringing it in to a stop isn't pushed past it.
+        Surge = rake == _engineRake && !HeldInYard && LastControls.Brake <= 0 && BoilerTuning is { } sb && rake.Speed >= sb.SurgeFrom ? sb.Surge(Boiler) : 0,
     };
 
     /// <summary>The top speed a car with a seized axle holds the train to (enemies.json <c>hotbox.seizedTopSpeed</c>, set with the enemies).</summary>

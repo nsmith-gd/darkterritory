@@ -23,6 +23,11 @@ public sealed class SpawnContext(World world, EnemyTuning tuning, Director direc
     /// </summary>
     public Double3? CalledAt { get; init; }
     public int? CrewAs { get; init; }
+    /// <summary>
+    /// A free spawn (note 849; GDD App. B.1 "The night's curve"): the kind sent without its situational rule, on the night's
+    /// curve. What lives at a stop's sites comes from the dark when none of its sites is near.
+    /// </summary>
+    public bool Free { get; init; }
     public IEnumerable<(int Id, PlayerState State)> Living => World.CrewThisTick.Where(c => c.State.Alive).Select(c => ((int)c.Id, c.State));
     public IEnumerable<(int Id, PlayerState State)> OnGround => Living.Where(c => CrewSense.Afoot(c.State, Train));
     public bool AtFacility => World.Run is { Phase: RunPhase.AtFacility };
@@ -79,15 +84,61 @@ public sealed class SpawnContext(World world, EnemyTuning tuning, Director direc
         return best;
     }
 
+    /// <summary>
+    /// One of <paramref name="vehicles"/> (cars, or the gaps ahead of them with <paramref name="gaps"/>) to put what comes at
+    /// (note 895; the brief §5): the rule's one draw, weighed away from the threats already about the train and from on top
+    /// of a crewmate (<see cref="EncounterPlacement.Pick"/>). With nothing about and nobody near, the uniform pick it was.
+    /// </summary>
+    public int Spread(IReadOnlyList<int> vehicles, bool gaps = false)
+    {
+        double draw = Director.NextRange(0, vehicles.Count - 1e-9);
+        var t = Tuning.Director.Encounters.Placement;
+        if (!t.On || vehicles.Count <= 1)
+            return vehicles[Math.Clamp((int)draw, 0, vehicles.Count - 1)];
+        double Along(Double3 at)
+        {
+            double hint = Front;
+            return Train.Line.Nearest(at, ref hint).Distance;
+        }
+        var places = vehicles.Select(v => gaps ? Train.Cars[v].FrontDistance : Train.Cars[v].FrontDistance - Train.Cars[v].Length * 0.5).ToList();
+        var threats = World.ActiveEnemies.Where(e => !e.Gone && !e.Hazard).Select(e => Along(e.WorldPosition(Train))).ToList();
+        var crew = Living.Select(p => Along(PlayerMotor.WorldPosition(p.State, Train))).ToList();
+        return vehicles[EncounterPlacement.Pick(places, threats, crew, draw, t)];
+    }
+
     public int NextId => World.NextEnemyId;
-    public T Add<T>(Func<int, T> make) where T : Enemy => World.AddEnemy(make);
+    public T Add<T>(Func<int, T> make) where T : Enemy
+    {
+        var e = World.AddEnemy(make);
+        _added.Add(e.Id);
+        return e;
+    }
+
+    readonly List<int> _added = [];
+
+    /// <summary>The ids put in through this context so far (note 885: a pack is one encounter of several members).</summary>
+    public IReadOnlyList<int> Added => _added;
+
+    /// <summary>Placed: every member put in through this context (note 885).</summary>
+    public SpawnOutcome Placed() => SpawnOutcome.Of([.. _added]);
+
+    /// <summary>Put nothing in, and why (note 885).</summary>
+    public static SpawnOutcome Failed(SpawnFailure why) => SpawnOutcome.Failed(why);
 }
 
 /// <summary>
 /// One enemy's spawn rule (GDD v1.1 App. B.2-B.8): its context and gates (<see cref="Weight"/> null when it can't come now),
-/// its weighting, and how it's put into the world (<see cref="Spawn"/>, false if in the end it couldn't be).
+/// its weighting, and how it's put into the world (<see cref="Spawn"/>: what it put in, or why in the end it couldn't, note 885).
 /// </summary>
-public sealed record SpawnRule(EnemyKind Kind, Func<SpawnContext, double?> Weight, Func<SpawnContext, bool> Spawn);
+public sealed record SpawnRule(EnemyKind Kind, Func<SpawnContext, double?> Weight, Func<SpawnContext, SpawnOutcome> Spawn)
+{
+    /// <summary>
+    /// The kind without its situational rule (note 849; GDD App. B.1 "The night's curve"): only what its <see cref="Spawn"/>
+    /// needs of the train and the crew (cars, gaps, someone on the ground, its once a night), nothing of where or when. The
+    /// director's free spawns, on the night's curve, send a kind this says yes to; null, it comes by its rule alone.
+    /// </summary>
+    public Func<SpawnContext, bool>? Free { get; init; }
+}
 
 /// <summary>The director's spawn table: every enemy it spends on (the Stoker and the Choir come on their own conditions).</summary>
 public static class Spawns
@@ -107,7 +158,7 @@ public static class Spawns
         }, c =>
         {
             c.Add(i => TrackDoll.Ahead(i, c.Train, c.Tuning.TrackDoll.SpawnAhead, c.Tuning.TrackDoll));
-            return true;
+            return c.Placed();
         }),
         // B.3 · Cinder Hounds: behind the train, after sustained speed; ×1.5 with the boiler hot (×2.5 livestock, ×2 food:
         // the cargo weights).
@@ -134,8 +185,15 @@ public static class Spawns
                     Health = t.Health,
                 });
             }
-            return true;
-        }),
+            return c.Placed();
+        })
+        {
+            // Free (note 849): behind a train moving at the hounds' own minTrainSpeed (their rule, kept: a slow train they board at
+            // once and light, SwitchyardAheadTests); never to one stood still (a 4-bot seed's packs lit a stood train's cars with
+            // the crew on the ground: the stop has its own creatures).
+            Free = c => c.Train.Dynamics.Consist.CarCount >= 1 && !c.Stopped && c.Train.Dynamics.Speed >= c.Tuning.CinderHounds.MinTrainSpeed
+                && c.None(EnemyKind.CinderHound),
+        },
         // B.3 · Car Hugger: marsh, water crossings, low ground; a train of two or more; never on a grade; weight up at low speed.
         new(EnemyKind.CarHugger, c =>
         {
@@ -146,9 +204,9 @@ public static class Spawns
         }, c =>
         {
             if (CarHugger.Spot(c.World, c.Tuning.CarHugger) is not { } at)
-                return false;
+                return SpawnContext.Failed(SpawnFailure.NoSpot);
             c.Add(i => CarHugger.Lurking(i, at, c.Director.NextRange(0, 1) < 0.5 ? -1 : 1, c.Tuning.CarHugger));
-            return true;
+            return c.Placed();
         }),
         // B.4 · Climbers: at least two coupling gaps and a minimum speed; weight scales with the gap count. Boarding-first
         // (GDD App. F.1, note 286): they get a grip only on a slow train, so at speed they come rarely (and pace it, waiting
@@ -169,10 +227,13 @@ public static class Spawns
             var t = c.Tuning.Climbers;
             var gaps = CrewSense.Gaps(c.Train);
             if (gaps.Count == 0)
-                return false;
-            int gap = gaps[(int)c.Director.NextRange(0, gaps.Count - 1e-9)];
+                return SpawnContext.Failed(SpawnFailure.NoGap);
+            int gap = c.Spread(gaps, gaps: true);
             int side = c.Director.NextRange(0, 1) < 0.5 ? -1 : 1;
             int size = Math.Max(1, (int)Math.Round(c.Director.NextRange(t.PackSize[0], t.PackSize[1] + 0.49)));
+            // A small crew meets a smaller group (note 930): drawn as before, so the night's dice don't move, then capped.
+            if (t.SmallCrew is { On: true } small && c.Crew <= small.CrewUpTo)
+                size = Math.Min(size, Math.Max(1, small.PackMax));
             int pack = c.NextId;
             for (int i = 0; i < size; i++)
                 c.Add(id => new Climber(id)
@@ -184,8 +245,15 @@ public static class Spawns
                     LineDistance = Climber.GapAlong(c.Train, gap) - 2 * i,
                     Lateral = side * (c.Train.Frames[gap].Shape.HalfWidth + t.PaceOut + i * 0.8),
                 });
-            return true;
-        }),
+            return c.Placed();
+        })
+        {
+            // Free (note 849): any coupling gap, at any speed (slow, they mount at once; at speed they pace, as their rule has it).
+            // Note 915: with climbers.freeNeedsSpeed, only to a train moving at their minSpeed (note 887: the curve sent them to a
+            // train stood on the open line).
+            Free = c => CrewSense.Gaps(c.Train).Count >= 1 && c.None(EnemyKind.Climber)
+                && (!c.Tuning.Climbers.FreeNeedsSpeed || c.Train.Dynamics.Speed >= c.Tuning.Climbers.MinSpeed),
+        },
         // B.4 · Draggers: a train of two or more, dormant until someone's on the roofs; weight up per roof walker.
         // Boarding-first (GDD App. F.1, note 286): they get under a car only while the train's slow (a stop, a tight bend),
         // and wait there for someone to walk its roof; on a train at speed they can't get on at all.
@@ -209,19 +277,19 @@ public static class Spawns
             if (walked.Count == 0)
             {
                 if (c.Tuning.Draggers.BoardBelow == double.MaxValue)
-                    return false;
+                    return SpawnContext.Failed(SpawnFailure.Gated);
                 // Nobody up yet: under any car of the rake, to wait for whoever walks it.
                 var cars = c.Train.Dynamics.Consist.Vehicles.Where(v => v.Id > 0).Select(v => v.Id).ToList();
                 if (cars.Count == 0)
-                    return false;
-                int car = cars[(int)c.Director.NextRange(0, cars.Count - 1e-9)];
+                    return SpawnContext.Failed(SpawnFailure.NoSpot);
+                int car = c.Spread(cars);
                 double along = c.Director.NextRange(-0.4, 0.4) * c.Train.Frames[car].Shape.HalfLength * 2;
                 c.Add(i => Dragger.Under(i, c.Train, car, side, along));
-                return true;
+                return c.Placed();
             }
             var on = walked[(int)c.Director.NextRange(0, walked.Count - 1e-9)].State;
             c.Add(i => Dragger.Under(i, c.Train, on.Parent, side, on.Position.Z + c.Director.NextRange(-4, 4)));
-            return true;
+            return c.Placed();
         }),
         // B.4 · Whistler: boards at any stop, into a coupling gap; a train of two or more; weight up on routes with more stops.
         new(EnemyKind.Whistler, c =>
@@ -237,10 +305,10 @@ public static class Spawns
             // A gap nobody's standing in.
             var free = gaps.Where(g => !c.Living.Any(p => CrewSense.InGap(PlayerMotor.WorldPosition(p.State, c.Train), c.Train, g))).ToList();
             if (free.Count == 0)
-                return false;
-            int gap = free[(int)c.Director.NextRange(0, free.Count - 1e-9)];
+                return SpawnContext.Failed(SpawnFailure.NoGap);
+            int gap = c.Spread(free, gaps: true);
             c.Add(i => Whistler.InGap(i, c.Train, gap, c.Tuning.Whistler));
-            return true;
+            return c.Placed();
         }),
         // B.5 · Tippy Toesie: any car or the ground near the train; crew of two or more; weight up per player idle and alone.
         new(EnemyKind.TippyToesie, c =>
@@ -255,7 +323,7 @@ public static class Spawns
         }, c =>
         {
             c.Add(i => TippyToesie.Hiding(i, c.Tuning.TippyToesie));
-            return true;
+            return c.Placed();
         }),
         // B.5 · Fire Flies: lineside in dark forest and open sections, at least one lamp lit inside a car; ×2 at night depth,
         // ×0 with every car lamp out. Only to a stopped train, and rarely (note 269).
@@ -273,10 +341,10 @@ public static class Spawns
         {
             var lit = LitCars(c);
             if (lit.Count == 0)
-                return false;
-            int car = lit[(int)c.Director.NextRange(0, lit.Count - 1e-9)];
+                return SpawnContext.Failed(SpawnFailure.NoSpot);
+            int car = c.Spread(lit);
             c.Add(i => FireFlies.OnLamp(i, c.Train, car));
-            return true;
+            return c.Placed();
         }),
         // B.6 · Ribbits: yards and villages; the pack capped at the crew's size; weight up per player on the ground.
         new(EnemyKind.Ribbit, c =>
@@ -290,15 +358,15 @@ public static class Spawns
         {
             var t = c.Tuning.Ribbits;
             if (c.GroundCentre() is not { } centre)
-                return false;
+                return SpawnContext.Failed(SpawnFailure.NoTarget);
             int size = Math.Min(c.Crew, (int)Math.Round(c.Director.NextRange(t.PackSize[0], t.PackSize[1] + 0.49)));
             // Out of their warren (level-design H.2, note 309): the one nearest the ground crew. A stop with warrens and none
             // near has none to come; one without a layout sends them from out in the dark, as before.
             Double3 at;
             if (c.NearestSite(LairKind.Warren, centre, c.Tuning.Sites.WarrenReach) is { } warren)
                 at = warren;
-            else if (c.Sites(LairKind.Warren).Count > 0)
-                return false;
+            else if (c.Sites(LairKind.Warren).Count > 0 && !c.Free)
+                return SpawnContext.Failed(SpawnFailure.NoSite);
             else
                 at = c.Out(centre, t.SpawnOut);
             int pack = c.NextId;
@@ -307,8 +375,12 @@ public static class Spawns
                 var spot = at + new Double3(i * 1.2, 0, (i % 2) * 1.2);
                 c.Add(id => Ribbit.At(id, pack, spot, t));
             }
-            return true;
-        }),
+            return c.Placed();
+        })
+        {
+            // Free (note 849): for whoever's on the ground, anywhere (a hot box pulled mid-line as much as a yard).
+            Free = c => c.OnGround.Any() && c.Crew >= c.Tuning.Ribbits.MinCrew && c.None(EnemyKind.Ribbit),
+        },
         // B.6 · The Gaunt: asleep in villages and yards, the Frontier and on, once a run; weight up on long facility stops.
         new(EnemyKind.Gaunt, c =>
         {
@@ -320,12 +392,17 @@ public static class Spawns
         }, c =>
         {
             if (c.GroundCentre() is not { } centre)
-                return false;
+                return SpawnContext.Failed(SpawnFailure.NoTarget);
             // Asleep in its roost (level-design H.2, note 309): the building furthest from the train on foot. You go to it.
             var at = c.NearestSite(LairKind.GauntRoost, centre, c.Tuning.Sites.RoostReach) is { } roost ? roost : c.Out(centre, c.Tuning.Gaunt.SpawnOut);
             c.Add(i => Gaunt.Asleep(i, at, c.Tuning.Gaunt));
-            return true;
-        }),
+            return c.Placed();
+        })
+        {
+            // Free (note 849): asleep out in the dark off any ground the crew stand on; its tier, its crew and its once a night kept.
+            Free = c => c.Tier >= c.Director.Gate(c.World, RouteTier.Frontier) && c.Crew >= c.Tuning.Gaunt.MinCrew
+                && c.Once(EnemyKind.Gaunt) && c.OnGround.Any(),
+        },
         // B.6 · The Moose (note 339): grazing beside a stop, in every tier and more the harder; none where one's already
         // about; by the line's biome; weight up per player on the ground.
         new(EnemyKind.Moose, c =>
@@ -342,7 +419,7 @@ public static class Spawns
             var t = c.Tuning.Moose;
             // Only to a stopped train (an insisted night places it without the weight's gates): it's the stop's.
             if (!c.Stopped)
-                return false;
+                return SpawnContext.Failed(SpawnFailure.Gated);
             var mid = c.Train.Line.Sample(c.Train.Dynamics.Path, c.Front - c.Train.Dynamics.Consist.LengthMetres * 0.5);
             var right = Double3.Cross(mid.Tangent, Double3.Up).Normalized;
             // Its ground: beside the stop, out from the consist's middle on either side, wherever a moose can stand.
@@ -357,10 +434,14 @@ public static class Spawns
                     continue;
                 double yaw = c.Director.NextRange(-Math.PI, Math.PI);
                 c.Add(id => Moose.Grazing(id, spot, c.Front, yaw));
-                return true;
+                return c.Placed();
             }
-            return false;
-        }),
+            return SpawnContext.Failed(SpawnFailure.NoSpot);
+        })
+        {
+            // Free (note 849): grazing beside the train wherever it stands, a stop or not.
+            Free = c => c.Crew >= c.Tuning.Moose.MinCrew && c.None(EnemyKind.Moose) && c.Stopped,
+        },
         // B.6 · Tower Jaw (note 363): at work on a facility's coaling tower or crane gantry as the train comes to it (or stands
         // at it); every tier, more the harder; one at a stop, and not at a structure already down.
         new(EnemyKind.TowerJaw, c =>
@@ -373,10 +454,10 @@ public static class Spawns
         {
             var t = c.Tuning.TowerJaw;
             if (TowerJaw.Structure(c.World, t) is not { } at)
-                return false;
+                return SpawnContext.Failed(SpawnFailure.NoSpot);
             c.Add(i => at.Crane is { } crane ? TowerJaw.AtGantry(i, c.World, at.Facility, crane, t, t.StartGnawed)
                 : TowerJaw.AtCoalingTower(i, c.World, at.Facility, t, t.StartGnawed));
-            return true;
+            return c.Placed();
         }),
         // B.6 · The Freight Beetle (note 366): at a facility the train's stopped at, among its loose freight; every tier, more
         // the harder; one at a stop.
@@ -391,7 +472,7 @@ public static class Spawns
             var t = c.Tuning.FreightBeetle;
             var freight = FreightBeetle.Freight(c.World, t);
             if (freight.Count == 0)
-                return false;
+                return SpawnContext.Failed(SpawnFailure.NoSpot);
             // Settled beside one of the loads, on the side away from the train.
             var load = freight[(int)c.Director.NextRange(0, freight.Count - 1e-9)];
             var at = load.Centre;
@@ -403,7 +484,7 @@ public static class Spawns
             spot = spot with { Y = PlayerMotor.GroundAt(spot, c.Train.Line, ref hint) };
             double yaw = DMath.Atan2(away.X, away.Z);
             c.Add(i => FreightBeetle.At(i, spot, hint, yaw, t));
-            return true;
+            return c.Placed();
         }),
         // The Mouse Moose (note 790): stopped at a facility whose crane (its own or a yard's) still has a casting to take in
         // the hook's reach; every tier, more the harder; one at a stop. It comes out of its hole, out past the castings.
@@ -416,12 +497,12 @@ public static class Spawns
         {
             var cranes = MouseMooseCranes(c);
             if (cranes.Count == 0)
-                return false;
+                return SpawnContext.Failed(SpawnFailure.NoSpot);
             var (crane, castings) = cranes[(int)c.Director.NextRange(0, cranes.Count - 1e-9)];
             int on = castings[(int)c.Director.NextRange(0, castings.Count - 1e-9)];
             var (hole, hint) = MouseMoose.HoleFor(c.World, crane.Castings[on].At, c.Tuning.MouseMoose);
             c.Add(i => MouseMoose.At(i, crane, on, hole, hint));
-            return true;
+            return c.Placed();
         }),
         // B.8 · The Brakeman (note 364): up at the far end of a moving train; never with a crew of one; every tier, more the
         // harder, the longer the train and with a climb ahead.
@@ -439,7 +520,7 @@ public static class Spawns
         }, c =>
         {
             c.Add(i => Brakeman.AtFarEnd(i, c.Train, c.Living, c.Tuning.Brakeman));
-            return true;
+            return c.Placed();
         }),
         // B.3 · Hotbox (note 367): into a truck of a car of the engine's rake, the train running over its speed; every tier,
         // more the harder; one at a time; a car whose axle's already seized isn't taken again.
@@ -453,12 +534,12 @@ public static class Spawns
         {
             var cars = Hotbox.Cars(c.Train);
             if (cars.Count == 0)
-                return false;
-            int car = cars[(int)c.Director.NextRange(0, cars.Count - 1e-9)];
+                return SpawnContext.Failed(SpawnFailure.NoSpot);
+            int car = c.Spread(cars);
             bool rear = c.Director.NextRange(0, 1) < 0.5;
             int side = c.Director.NextRange(0, 1) < 0.5 ? -1 : 1;
             c.Add(i => Hotbox.In(i, c.Train, car, rear, side, c.Tuning.Hotbox));
-            return true;
+            return c.Placed();
         }),
         // B.3 · The Knotter (note 365): into a coupling of the engine's rake at speed, one nobody's at; every tier, more the
         // harder; one at a time.
@@ -473,10 +554,10 @@ public static class Spawns
         {
             var joints = Knotter.Joints(c.Train, c.Living);
             if (joints.Count == 0)
-                return false;
-            int car = joints[(int)c.Director.NextRange(0, joints.Count - 1e-9)];
+                return SpawnContext.Failed(SpawnFailure.NoGap);
+            int car = c.Spread(joints, gaps: true);
             c.Add(i => Knotter.Into(i, c.Train, car, c.Tuning.Knotter));
-            return true;
+            return c.Placed();
         }),
         // B.4 · The Gannet (note 340; the orchestrator's S3): over a train run fast a while in open country (not a tunnel), a
         // train of two or more; every tier, more the harder; by the line's biome; up per walker on the roofs. Once a run:
@@ -484,7 +565,7 @@ public static class Spawns
         new(EnemyKind.Gannet, c =>
         {
             var t = c.Tuning.Gannet;
-            if (!c.Once(EnemyKind.Gannet) || c.Train.Dynamics.Consist.CarCount < t.MinCars || c.Train.Dynamics.Speed < t.ArriveAbove
+            if (!c.Once(EnemyKind.Gannet) || c.Train.Dynamics.Consist.CarCount < t.MinCars || c.Train.Dynamics.Speed < t.Arrive
                 || c.World.FastSeconds < t.ArriveSeconds
                 || c.World.Route?.Features.Any(f => f.Kind == FeatureKind.Tunnel && f.Contains(c.Front)) == true)
                 return null;
@@ -500,7 +581,7 @@ public static class Spawns
             var t = c.Tuning.Gannet;
             double height = c.Director.NextRange(t.SoarHeight[0], t.SoarHeight[1]);
             c.Add(i => Gannet.Arriving(i, c.Train, t, height));
-            return true;
+            return c.Placed();
         }),
         // B.6 · Followers: facility grounds, latching onto a disembarked player (an excursion); weight up per extra on the ground.
         new(EnemyKind.Follower, c =>
@@ -513,14 +594,19 @@ public static class Spawns
             return 1 + t.PerGroundWeight * (c.OnGround.Count() - 1);
         }, c =>
         {
-            var free = OnFollowerGround(c, Follower.Excursions(c.World));
+            var free = c.Free ? Follower.Excursions(c.World) : OnFollowerGround(c, Follower.Excursions(c.World));
             if (free.Count == 0)
-                return false;
+                return SpawnContext.Failed(SpawnFailure.NoTarget);
             int on = free[(int)c.Director.NextRange(0, free.Count - 1e-9)];
             var s = c.World.CrewThisTick.First(p => p.Id == on).State;
             c.Add(i => Follower.On(i, c.Train, s, on, c.Tuning.Followers));
-            return true;
-        }),
+            return c.Placed();
+        })
+        {
+            // Free (note 849): onto anyone off the train, wherever they are, under their cap.
+            Free = c => Follower.Excursions(c.World).Count > 0
+                && c.World.ActiveEnemies.Count(e => !e.Gone && e.Kind == EnemyKind.Follower) < c.Tuning.Followers.MaxActive,
+        },
         // B.6 · Soot Children: near facilities and dead settlements; any crew, alone too (enemies.json minCrew, note 770); a
         // true 50/50 with a real child (a host's first-ever call always real).
         new(EnemyKind.SootChildren, c =>
@@ -533,15 +619,19 @@ public static class Spawns
         {
             var t = c.Tuning.SootChildren;
             if (c.GroundCentre() is not { } centre)
-                return false;
+                return SpawnContext.Failed(SpawnFailure.NoTarget);
             bool soot = !c.World.NextChildReal && c.Director.NextRange(0, 1) >= t.RealChance;
             c.World.NextChildReal = false;
             c.World.ChildCalled = true;
             // From the open beyond the stop's built edge, where the train can see it (level-design H.2, note 309).
             var at = c.NearestSite(LairKind.SootCall, centre, c.Tuning.Sites.CallReach) is { } call ? call : c.Out(centre, t.CallOut);
             c.Add(i => SootChildren.Calls(i, at, soot, t));
-            return true;
-        }),
+            return c.Placed();
+        })
+        {
+            // Free (note 849): calling from the dark beyond whoever's on the ground, anywhere.
+            Free = c => c.Crew >= c.Tuning.SootChildren.MinCrew && c.None(EnemyKind.SootChildren) && c.OnGround.Any(),
+        },
         // B.8 · The Passenger: boards during a facility stop; the Dead lines and on (comet relaxes it a tier); crew of three or
         // more (a crowd to hide in); once a run; weight up with the crew split across tasks.
         new(EnemyKind.Passenger, c =>
@@ -555,65 +645,68 @@ public static class Spawns
         }, c =>
         {
             if (Passenger.Car(c.Train) is not { } car)
-                return false;
+                return SpawnContext.Failed(SpawnFailure.NoSpot);
             var faces = c.Living.Select(p => p.Id).ToList();
             if (faces.Count == 0)
-                return false;
+                return SpawnContext.Failed(SpawnFailure.NoTarget);
             int looks = faces[(int)c.Director.NextRange(0, faces.Count - 1e-9)];
             c.Add(i => Passenger.Boards(i, c.Train, car, looks, c.Tuning.Passenger));
-            return true;
+            return c.Placed();
         }),
-        // B.8 · The Switchman: the junction network ahead; the Frontier and on; a route with three or more junctions; weight up
-        // with dead-line branches available.
-        new(EnemyKind.Switchman, c =>
-        {
-            var t = c.Tuning.Switchman;
-            if (c.Tier < RouteTier.Frontier || c.World.Route is not { } r || r.Of(FeatureKind.Junction).Count() < t.MinJunctions
-                || c.World.Switches is null || !c.None(EnemyKind.Switchman) || Switchman.Junction(c.World, t) is null)
-                return null;
-            return c.Train.Line.Branches.Any(b => b.Kind == Rail.BranchKind.DeadLine) ? t.DeadLineWeight : 1;
-        }, c =>
-        {
-            if (Switchman.Junction(c.World, c.Tuning.Switchman) is not { } junction)
-                return false;
-            // The director's decision of 7 Oct 2026 (note 286): it never throws points under the train unless a mod asks it to
-            // (the draw is kept either way, so the director's dice run as they did).
-            bool derail = c.Director.NextRange(0, 1) < c.Tuning.Switchman.DerailChance && c.Tuning.Switchman.ThrowsUnderTrain;
-            c.Add(i => Switchman.At(i, junction, c.Tuning.Switchman, c.World.Switches?.Tuning.LeverOffset ?? 2.6, derail));
-            return true;
-        }),
-        // B.8 · The Grumbler: facilities with a crane and crates (the Foundry first); any tier; ×2 with food at the facility.
+        // B.8 · The Grumbler: facilities with a crane and crates (the Foundry first); any tier; ×2 with food at the facility. On
+        // its perch (level-design H.2, note 848): any of the stop's cranes with castings stacked, a yard's gantry as much as the
+        // facility's own.
         new(EnemyKind.Grumbler, c =>
         {
-            if (!c.AtStop || c.StopSite?.Crane is not { } crane || crane.Left == 0 || !c.None(EnemyKind.Grumbler))
+            if (!c.AtStop || GrumblerCranes(c).Count == 0 || !c.None(EnemyKind.Grumbler))
                 return null;
             return Director.Aboard(c.World).Contains(CargoKind.Food) ? c.Tuning.Grumbler.FoodWeight : 1;
         }, c =>
         {
-            if (c.StopSite?.Crane is not { } crane)
-                return false;
+            if (GrumblerPerch(c) is not { } crane)
+                return SpawnContext.Failed(SpawnFailure.NoSpot);
             var stacked = Enumerable.Range(0, crane.Castings.Length).Where(i => crane.Castings[i].State == CastingState.Stacked).ToList();
-            if (stacked.Count == 0)
-                return false;
             int on = stacked[(int)c.Director.NextRange(0, stacked.Count - 1e-9)];
             var at = crane.Castings[on].At;
-            c.Add(i => Grumbler.OnCrates(i, at + Double3.Up * 0.8, on, c.Tuning.Grumbler));
-            return true;
+            c.Add(i => Grumbler.OnCrates(i, at + Double3.Up * 0.8, on, c.Tuning.Grumbler, crane));
+            return c.Placed();
         }),
     ];
+
+    /// <summary>The cranes at the stop the train stands at (<see cref="SpawnContext.StopSite"/>) with castings stacked, in the site's order.</summary>
+    internal static List<Crane> GrumblerCranes(SpawnContext c) =>
+        c.StopSite is not { } site ? [] : [.. site.Cranes.Where(k => !k.Wrecked && k.Castings.Any(x => x.State == CastingState.Stacked))];
+
+    /// <summary>
+    /// Which of them it's on (level-design H.2, note 848): the crane of the perch nearest the crew on the ground (or the
+    /// consist's middle, with nobody off the train) that has castings stacked; a stop without perches laid (a hand-laid line),
+    /// the first such crane.
+    /// </summary>
+    static Crane? GrumblerPerch(SpawnContext c)
+    {
+        var cranes = GrumblerCranes(c);
+        if (cranes.Count == 0 || c.StopSite is not { } site)
+            return null;
+        var from = c.GroundCentre() ?? c.Train.Line.Sample(c.Train.Dynamics.Path, c.Front - c.Train.Dynamics.Consist.LengthMetres * 0.5).Position;
+        double Flat(Double3 a) => ((a - from) with { Y = 0 }).Length;
+        foreach (var (perch, _) in c.Sites(LairKind.GrumblerPerch).OrderBy(p => Flat(p.At)))
+            if (site.CraneNear(perch) is { } crane && cranes.Contains(crane))
+                return crane;
+        return cranes[0];
+    }
 
     /// <summary>
     /// The cranes at the stop the train's standing at with castings the Mouse Moose could take (note 790), each with those
     /// castings: in the order the site has them.
     /// </summary>
-    static List<(Crane Crane, List<int> Castings)> MouseMooseCranes(SpawnContext c) =>
+    internal static List<(Crane Crane, List<int> Castings)> MouseMooseCranes(SpawnContext c) =>
         c.World.Run?.CurrentSite is not { } site ? []
             : [.. site.Cranes.Where(k => !k.Wrecked).Select(k => (k, MouseMoose.Takeable(k, k.Controls).OrderBy(i => i).ToList())).Where(x => x.Item2.Count > 0)];
 
     /// <summary>Cars in the engine's rake with a room and their lamp lit (the Fire Flies' light).
     /// With <see cref="FireFliesTuning.ShutCarKeepsOut"/>, only those with a way in: a door or the hatch open, or a breach
     /// (boarding-first, note 286: a car shut up tight keeps them off its lamp).</summary>
-    static List<int> LitCars(SpawnContext c) =>
+    internal static List<int> LitCars(SpawnContext c) =>
         // Note 728: a hand lamp lying lit in a car lights it as its own lamps do (World.CarLit).
         [.. c.Train.Dynamics.Consist.Vehicles.Where(v => v.Id > 0 && c.World.CarLit(v.Id) && c.Train.Frames[v.Id].Shape.Interior is not null
             && !(c.Tuning.FireFlies.ShutCarKeepsOut && Boarding.ShutUp(c.Train, v.Id))).Select(v => v.Id)];
@@ -622,7 +715,7 @@ public static class Spawns
     /// Followers ride the facility's grounds (level-design H.2, note 309): of the crew on an excursion, those standing in one of
     /// the stop's follower grounds (its radius and <c>sites.groundMargin</c>). All of them where the stop has no layout.
     /// </summary>
-    static List<int> OnFollowerGround(SpawnContext c, List<int> free)
+    internal static List<int> OnFollowerGround(SpawnContext c, List<int> free)
     {
         var grounds = c.Sites(LairKind.FollowerGround);
         if (grounds.Count == 0)

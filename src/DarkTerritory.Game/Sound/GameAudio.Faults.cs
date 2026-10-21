@@ -1,6 +1,7 @@
 using Ballast;
 using DarkTerritory.Sim;
 using DarkTerritory.Sim.Combat;
+using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Train;
 
@@ -23,18 +24,23 @@ public sealed partial class GameAudio
     const double FizzleAfterMisfire = 0.9;
     // Presentation, not design: the first nail this long after the board's put to the hole, then one a blow this often.
     const double HammerFirst = 0.35, HammerEvery = 0.55;
+    // The pre-cut boards' run of quick blows (up-tells.precut's takes, about 1.5 s): the hammering goes on after it.
+    const double PrecutRun = 1.5;
 
     sealed class FaultGun
     {
         public bool Mounted, Jammed;
-        public double Progress, LastRise = double.NegativeInfinity;
+        public double Progress, LastRise = double.NegativeInfinity, Glinted = double.NegativeInfinity;
+        public uint Shot;
     }
 
     sealed class FaultCar
     {
         public bool Breached;
         public Double3 At;
-        public double HotBox, Loose, NextKnock, TightenedAt = double.NegativeInfinity;
+        public double HotBox, Loose, NextKnock, NextRattle, TightenedAt = double.NegativeInfinity;
+        /// <summary>Note 865: what its pin was working loose from last tick (a warning that's just jumped is heard so).</summary>
+        public LooseCause Cause;
     }
 
     /// <summary>A loose pin's knocks a second, just come loose and about to drop: D1's synth's pace (note 356).</summary>
@@ -44,6 +50,26 @@ public sealed partial class GameAudio
     /// slam, the clash or the lurch began; and its loudness, from a clear knock just loose to full about to drop.
     /// </summary>
     const double FirstKnockAfter = 0.6, KnockGainFrom = 0.7;
+    /// <summary>
+    /// Note 865: a pin working loose before it jumps knocks this many times a second, from the start of its warning to its end
+    /// (twice a worked-loose pin's, and climbing), as loud as a knock goes; and the pin rattles in its knuckle between.
+    /// </summary>
+    const double WarnKnockFrom = 3, WarnKnockTo = 10, RattleEvery = 0.45;
+    /// <summary>
+    /// Note 865: the warning's knock carries the length of the train (the director: "hella telegraphing"). Until AU1's own cue
+    /// for it (<c>state-coupling-loose.warn</c>, long-carrying) is installed, the knock's played from no further than this off
+    /// the ear (m), toward the gap: the knock's own sound stops at 60 m, and the cab is further than that from most gaps.
+    /// </summary>
+    const double WarnCarries = 45;
+
+    /// <summary>Note 865: where a warning's knock is heard from: the pin, or toward it from the ear, no further than <see cref="WarnCarries"/>.</summary>
+    Double3 Carried(Double3 pin)
+    {
+        var ear = Mixer.Listener.Position;
+        var to = pin - ear;
+        double d = to.Length;
+        return d <= WarnCarries ? pin : ear + to * (WarnCarries / d);
+    }
 
     /// <summary>A hot box that goes cool this near its catching (or nearer) caught: its car's fire is the sound, not a greasing.</summary>
     const double CaughtWithin = 1.0;
@@ -105,7 +131,7 @@ public sealed partial class GameAudio
             if (!_faultGuns.TryGetValue(v.Id, out var m))
             {
                 // Fouled already when first seen: that's how it is, not something happening.
-                _faultGuns[v.Id] = new FaultGun { Mounted = g.Mounted, Jammed = g.Jammed, Progress = g.ReloadProgress };
+                _faultGuns[v.Id] = new FaultGun { Mounted = g.Mounted, Jammed = g.Jammed, Progress = g.ReloadProgress, Shot = g.LastShotTick };
                 continue;
             }
             if (g.Mounted && m.Mounted && Guns.Mount(train, v.Id) is { } mount)
@@ -114,6 +140,13 @@ public sealed partial class GameAudio
                 var vent = train.Frames[v.Id].ToWorld(mount.Position - mount.Facing * 0.55 + Double3.Up * 0.15);
                 if (g.Jammed && m.Jammed && mine == v.Id)
                     Cue("state-cannon-foul.misfire", vent, outside);
+                // The lucky horseshoe (queue #505, note 775): a shot that would have fouled without it glints.
+                if (g.LastShotTick != m.Shot && g.LastShotTick > 0 && !g.Jammed && _time - m.Glinted > GlintAgain
+                    && HasCue("up-tells.horseshoe") && HorseshoeSaved(world, g.LastShotTick, v.Id))
+                {
+                    m.Glinted = _time;
+                    Cue("up-tells.horseshoe", vent, outside);
+                }
                 // As it fouls, after the shot that fouled it, the damp charge's pfft out of the vent (crew-mishaps).
                 if (g.Jammed && !m.Jammed)
                     CrewAfter(FizzleAfterMisfire, "crew-mishaps.foul-fizzle", vent, outside);
@@ -127,6 +160,7 @@ public sealed partial class GameAudio
             m.Mounted = g.Mounted;
             m.Jammed = g.Jammed;
             m.Progress = g.ReloadProgress;
+            m.Shot = g.LastShotTick;
         }
     }
 
@@ -144,9 +178,13 @@ public sealed partial class GameAudio
             if (v.Id >= train.Frames.Count)
                 continue;
             // A hot axle box (note 331): its squeal at the rear bogie, harsher as it heats, and its smoke from halfway.
-            if (v.HotBox > 0 && train.HotBoxTuning is { } hb)
+            // Note 939 (the director's playtest of 20 Oct evening, line 9: "it's got to be one of these dudes on this wheel"): a
+            // fire it started, its squeal at its worst for as long as the car burns, so the box that caught is heard where it is.
+            bool caught = v.HotBox <= 0 && world.ActiveEnemies.Any(e => e is CarFire { Gone: false, Cause: FireCause.HotBox } f && f.Attached == v.Id
+                && f.Phase is not SpinePhase.Dormant and not SpinePhase.BreakOff);
+            if ((v.HotBox > 0 || caught) && train.HotBoxTuning is { } hb)
                 Hold("hotbox", v.Id, train.Frames[v.Id].ToWorld(HotBoxes.Box(train.Frames[v.Id].Shape, hb)), outside)?
-                    .Params.Set("heat", Math.Clamp(v.HotBox / hb.FireAfter, 0, 1));
+                    .Params.Set("heat", caught ? 1 : Math.Clamp(v.HotBox / hb.FireAfter, 0, 1));
             var hole = train.Frames[v.Id].ToWorld(v.BreachAt);
             if (!_faultCars.TryGetValue(v.Id, out var c))
             {
@@ -200,6 +238,12 @@ public sealed partial class GameAudio
                 {
                     Cue("crew-repair.board-place", hole, outside);
                     b.NextBlow = _time + HammerFirst;
+                    // Pre-cut boards (queue #505, note 775): cut to the hole, nailed light and quick, in place of the first blows.
+                    if (Fitted(train, "precutBoards", "up-tells.precut"))
+                    {
+                        Cue("up-tells.precut", hole, outside);
+                        b.NextBlow = _time + PrecutRun;
+                    }
                 }
                 b.Placed = true;
                 b.LastRise = _time;
@@ -234,9 +278,36 @@ public sealed partial class GameAudio
             PinJumped(train, v, outside);
             c.NextKnock = _time + FirstKnockAfter;
         }
-        if (v.Loose > 0)
+        // Note 865: the warning's over and the pin's out: heard as loud as anything on the train, the slack's snatch and the
+        // pin flung up in its knuckle, twice over.
+        if (v.Loose > 0 && c.Cause == LooseCause.Working && v.LooseCause == LooseCause.Jumped)
         {
-            double loose = Math.Clamp(v.Loose / lt.PartAfter, 0, 1);
+            PinJumped(train, v, outside);
+            Cue("crew-coupling.pin-lift", Pin(train, v.Id), outside, 1.4f);
+            c.NextKnock = _time + FirstKnockAfter;
+        }
+        c.Cause = v.Loose > 0 ? v.LooseCause : LooseCause.None;
+        // Note 865: working loose, the warning. The knock quickens from three a second to ten as it comes to jumping, full loud,
+        // and the pin rattles in its knuckle between: a sound the crew hears from the cab and the roofs, before anything's gone.
+        if (v.Loose > 0 && v.LooseCause == LooseCause.Working && HasCue("state-coupling-loose.knock"))
+        {
+            double warned = Couplings.Warned(v, lt);
+            if (_time >= c.NextKnock)
+            {
+                if (Cue("state-coupling-loose.warn", Pin(train, v.Id), outside) is null)
+                    Cue("state-coupling-loose.knock", Carried(Pin(train, v.Id)), outside, 1.2f);
+                c.NextKnock = _time + (0.85 + 0.3 * _creatureRng.Next()) / (WarnKnockFrom + (WarnKnockTo - WarnKnockFrom) * warned);
+            }
+            if (_time >= c.NextRattle)
+            {
+                Cue("crew-coupling.pin-lift", Pin(train, v.Id), outside, (float)(0.6 + 0.6 * warned));
+                c.NextRattle = _time + RattleEvery * (1.3 - 0.6 * warned) * (0.8 + 0.4 * _creatureRng.Next());
+            }
+        }
+        else if (v.Loose > 0)
+        {
+            // Note 865: a jumped pin goes sooner, and knocks up to it as quick.
+            double loose = Math.Clamp(v.Loose / (v.LooseCause == LooseCause.Jumped ? lt.Jump.PartAfter : lt.PartAfter), 0, 1);
             if (!HasCue("state-coupling-loose.knock"))
                 Hold("coupling-loose", v.Id, Pin(train, v.Id), outside)?.Params.Set("loose", loose);
             else if (_time >= c.NextKnock)
@@ -269,11 +340,13 @@ public sealed partial class GameAudio
         {
             LooseCause.RunIn => "state-coupling-loose.jump-brake",
             LooseCause.Bend => "state-coupling-loose.jump-bend",
+            // Note 865: a rail joint at speed (AU1's cue to come; the slack's snatch stands in).
+            LooseCause.Jumped or LooseCause.Working => "state-coupling-loose.jump-joint",
             _ => "state-coupling-loose.jump-coupled",
         };
         if (Cue(own, pin, outside) is not null)
             return;
-        if (v.LooseCause == LooseCause.RunIn)
+        if (v.LooseCause is LooseCause.RunIn or LooseCause.Jumped or LooseCause.Working)
             Cue("bed-slack.run-in", pin, outside);
         else if (v.LooseCause == LooseCause.Bend)
             Cue("bed-groan.creak", pin, outside);

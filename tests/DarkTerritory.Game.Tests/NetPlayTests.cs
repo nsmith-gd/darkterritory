@@ -273,6 +273,80 @@ public class NetPlayTests
     }
 
     [Fact]
+    public void AFriendJoinsAnEosGameByItsCode()
+    {
+        // The itch.io build's online play (note 896), against the fake EOS: the host's status line shows the lobby's code,
+        // the friend types it, and the game connects them over EOS P2P, both behind strict NATs, so through Epic's relays.
+        var cloud = new Ballast.Online.Eos.FakeEos();
+        using var alice = Ballast.Online.Eos.EosBackend.TryStart(cloud.Machine(Ballast.Online.Eos.EosNat.Strict), "alice",
+            Ballast.Online.Eos.EosRelay.AllowRelays, out _)!;
+        using var bob = Ballast.Online.Eos.EosBackend.TryStart(cloud.Machine(Ballast.Online.Eos.EosNat.Strict), "bob",
+            Ballast.Online.Eos.EosRelay.AllowRelays, out _)!;
+        using var host = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: false), port: null, online: alice);
+        for (int i = 0; i < 5 && host.Lobby!.Code.Length == 0; i++)
+            host.Step(default);
+        string code = host.Lobby!.Code;
+        Assert.Contains($"EOS lobby, crew 1/8, code {JoinCode.Show(code)}", host.Status());
+
+        using var joiner = NetPlaySession.JoinByCode(Content, bob, JoinCode.Show(code), () => host.Step(default));
+        Assert.Equal("frontier:7", joiner.Setup.Route);
+        for (int t = 0; t < SimConstants.TickRate * 2; t++)
+        {
+            host.Step(default);
+            joiner.Step(default);
+            Thread.Sleep(1);
+        }
+        Assert.True(joiner.Client.Connected);
+        Assert.Single(host.Crew(host.InterpolatedFrames(1), 1));
+        Assert.Contains("joined alice on EOS", joiner.Status());
+        Assert.Contains("EOS lobby, crew 2/8", host.Status());
+        Assert.Equal(0, cloud.Direct);
+        Assert.True(cloud.Relayed > 0);
+    }
+
+    [Fact]
+    public void AWrongCodeSaysSo()
+    {
+        using var bob = Ballast.Online.Eos.EosBackend.TryStart(new Ballast.Online.Eos.FakeEos().Machine(), "bob", Ballast.Online.Eos.EosRelay.AllowRelays, out _)!;
+        var e = Assert.Throws<IOException>(() => NetPlaySession.JoinByCode(Content, bob, "K7Q-M2X"));
+        Assert.Equal("couldn't join: no open game has the code K7Q-M2X", e.Message);
+    }
+
+    [Fact]
+    public void EightBotsPlayThroughTheEosRelays()
+    {
+        // dt harness --eos: every bot a machine behind a strict NAT that joins the host's lobby by its code.
+        using var online = new FakeEosLobbyNetwork();
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines/test-loop.json"));
+        var r = Sim.Net.Harness.Run(line, DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File)),
+            DataFile.Load<PlayerTuning>(Path.Combine(Content, PlayerTuning.File)), new Sim.Net.HarnessOptions { Bots = 8, Seconds = 20, Network = online });
+        Assert.Equal("fake EOS lobby", r.Link);
+        Assert.Equal(1, online.Cloud.Lobbies);
+        Assert.Equal(9, online.Members);
+        Assert.All(r.Clients, c => Assert.True(c.Snapshots > r.Ticks * 0.9, $"player {c.Id} got {c.Snapshots} of {r.Ticks} snapshots"));
+        Assert.All(r.Clients, c => Assert.True(c.MaxCorrectionM < 0.01, $"player {c.Id} corrected by {c.MaxCorrectionM} m"));
+        Assert.True(r.TrainSpeed > 5, "the conductor should have the train moving");
+        Assert.Equal(0, online.Cloud.Direct);
+        Assert.Equal(0, online.Cloud.Unreachable);
+    }
+
+    [Fact]
+    public void ABotRejoinsThroughTheEosLobby()
+    {
+        // Note 253 over EOS: dropped, back by the lobby's code as another machine's connection, its slot found by the token.
+        using var online = new FakeEosLobbyNetwork();
+        var line = Sim.Rail.RailLine.Load(Path.Combine(Content, "lines/test-loop.json"));
+        var r = Sim.Net.Harness.Run(line, DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(Content, Sim.Train.TrainTuning.File)),
+            DataFile.Load<PlayerTuning>(Path.Combine(Content, PlayerTuning.File)),
+            new Sim.Net.HarnessOptions { Bots = 4, Seconds = 20, Network = online, DropRejoin = new Sim.Net.DropRejoin(2, 8, 3) });
+        var back = Assert.IsType<Sim.Net.RejoinReport>(r.Rejoin);
+        Assert.Equal(back.Was, back.Back);
+        Assert.Equal(1, back.HostRejoins);
+        Assert.True(back.OthersSeeOne);
+        Assert.True(back.MaxCorrectionAfterM < 0.01, $"corrected by {back.MaxCorrectionAfterM} m after coming back");
+    }
+
+    [Fact]
     public void AJoinerWithDifferentModsIsToldWhichMods()
     {
         // T49: the refusal names the files that differ, and the mods on each side when they don't match.

@@ -43,6 +43,11 @@ public sealed record TownTuning
     public required int[] LooseNotes { get; init; }
     public required TownReach Reach { get; init; }
     public double TypePerSecond { get; init; } = 45;
+    /// <summary>Note 963: how a temperament's lines type out on the talk card (towns.json <c>voices</c>); a temperament not named types plainly.</summary>
+    public Dictionary<string, TalkVoice> Voices { get; init; } = [];
+
+    /// <summary>The voice <paramref name="p"/>'s lines type in: their temperament's, or plain.</summary>
+    public TalkVoice VoiceOf(Townsperson p) => p.Personality is { } who && Voices.TryGetValue(who.Temperament, out var v) ? v : TalkVoice.Plain;
     public double LingerSeconds { get; init; } = 6;
     /// <summary>Their rounds (note 353).</summary>
     public RoundTuning Rounds { get; init; } = new();
@@ -128,7 +133,60 @@ public sealed record RoundTuning
     public double Walk { get; init; } = 1.2;
     public double Pace { get; init; } = 3.5;
     public double[] Street { get; init; } = [10, 24];
+    /// <summary>
+    /// Note 963 (townsfolk.md "Not yet"): where somebody's temperament takes them on a slot away from their post, and how often
+    /// (towns.json <c>rounds.temperaments</c>): "gate" (stood inside it looking out), "wall" (at the nearest of the town's
+    /// walls, looking out), or a kind of the square's places ("garden", "vigil", "warm", "read", "work", "mend"), "lamps" (down their street to a lamp) or "talk"; more
+    /// than one, comma-separated, tried in turn.
+    /// </summary>
+    public Dictionary<string, TemperamentRound> Temperaments { get; init; } = [];
 }
+
+/// <summary>
+/// How somebody's lines type out on the talk card (note 963; docs/design/townsfolk.md "Not yet": "A frayed person could type in
+/// bursts, a hollow one slowly"): <see cref="Rate"/> times the town's pace; a pause after a comma or a dash
+/// (<see cref="Comma"/>, s) and after a sentence's end (<see cref="Stop"/>); and in bursts, <see cref="Burst"/> characters
+/// at a time with <see cref="BurstPause"/> between (0: none). Presentation only, a pure function of the line and the time.
+/// </summary>
+public sealed record TalkVoice(double Rate = 1, double Comma = 0, double Stop = 0, int Burst = 0, double BurstPause = 0)
+{
+    public static readonly TalkVoice Plain = new();
+
+    /// <summary>How long the whole of <paramref name="line"/> takes to type at <paramref name="perSecond"/> (the town's pace).</summary>
+    public double Seconds(string line, double perSecond) => At(line, perSecond, double.PositiveInfinity).Seconds;
+
+    /// <summary>How many characters of <paramref name="line"/> are out <paramref name="elapsed"/> seconds in.</summary>
+    public int Typed(string line, double perSecond, double elapsed) => At(line, perSecond, elapsed).Typed;
+
+    (int Typed, double Seconds) At(string line, double perSecond, double elapsed)
+    {
+        double each = 1 / Math.Max(1e-3, perSecond * Math.Max(0.05, Rate)), t = 0;
+        for (int i = 0; i < line.Length; i++)
+        {
+            t += each;
+            if (t > elapsed)
+                return (i, t);
+            char c = line[i];
+            bool last = i == line.Length - 1;
+            // (Pauses after a character that's out: the line's end has none.)
+            if (!last)
+            {
+                if (c is ',' or ';' or ':' || c == '-' && i > 0 && line[i - 1] == ' ' || c == '\u2014')
+                    t += Comma;
+                else if (c is '.' or '?' or '!' && line[i + 1] == ' ')
+                    t += Stop;
+                if (Burst > 0 && (i + 1) % Burst == 0)
+                    t += BurstPause;
+            }
+            if (t > elapsed)
+                return (i + 1, t);
+        }
+        return (line.Length, t);
+    }
+}
+
+/// <summary>A temperament's pull on somebody's round (note 963): where to (<see cref="To"/>), and the chance a slot away goes there.</summary>
+public sealed record TemperamentRound(string To = "", double Chance = 0);
 
 public sealed record SquareTuning
 {
@@ -151,6 +209,13 @@ public sealed record SquareTuning
     public double MarketPer { get; init; } = 400;
     public double MarketIn { get; init; } = 3.6;
     public double MarketEvery { get; init; } = 4.6;
+    /// <summary>
+    /// The market's second row (note 870; the director's playtest of 19 Oct, line 4: "Too many cut and paste stalls in a
+    /// row"): how wide the aisle between its two rows of counters is, and how far each stall may stand off its place along
+    /// and across (m).
+    /// </summary>
+    public double MarketAisle { get; init; } = 3.4;
+    public double MarketJitter { get; init; } = 0.5;
 }
 
 public sealed record ExplorableTuning
@@ -356,10 +421,10 @@ public sealed record TownText(string Title, string Text);
 /// <summary>
 /// Where the blacksmith works (towns.json <c>smithy</c>; ARCHITECTURE §8 note 697): the forge <see cref="FromGate"/> m along
 /// the line from the gate (back into the yard, beside the engine as it stands there), <see cref="Out"/> m out on the town's
-/// side; the smith <see cref="Stand"/> m in front of it, toward the line. <see cref="HoldSeconds"/>: Use held on them that long
-/// opens the catalogue.
+/// side; the smith <see cref="Stand"/> m in front of it, toward the line. Use pressed on them opens the
+/// catalogue (note 904).
 /// </summary>
-public sealed record SmithyTuning(double FromGate = -18, double Out = 8.5, double Stand = 2.2, double HoldSeconds = 0.6);
+public sealed record SmithyTuning(double FromGate = -18, double Out = 8.5, double Stand = 2.2);
 
 /// <summary>
 /// A piece of a town's works (note 353): its <see cref="Kind"/> (its art and its size, <see cref="TownFixtures.Size"/>), what

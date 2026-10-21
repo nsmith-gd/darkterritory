@@ -91,7 +91,7 @@ public static class Combinations
     [
         EnemyKind.TrackDoll, EnemyKind.CinderHound, EnemyKind.CarHugger, EnemyKind.Climber, EnemyKind.Dragger, EnemyKind.Whistler,
         EnemyKind.Stoker, EnemyKind.TippyToesie, EnemyKind.FireFlies, EnemyKind.Ribbit, EnemyKind.Gaunt, EnemyKind.Follower,
-        EnemyKind.SootChildren, EnemyKind.Choir, EnemyKind.Passenger, EnemyKind.Switchman, EnemyKind.Grumbler, EnemyKind.Moose,
+        EnemyKind.SootChildren, EnemyKind.Choir, EnemyKind.Passenger, EnemyKind.Grumbler, EnemyKind.Moose,
         EnemyKind.Gannet, EnemyKind.FreightBeetle,
     ];
 
@@ -139,8 +139,7 @@ public static class Combinations
     /// Where a combination's nights start (on <paramref name="route"/>, built as <paramref name="line"/>). With a kind that
     /// comes at a stop, and <paramref name="atStops"/>: <paramref name="approach"/> short of the first facility with a spur to work (one with a crane for the
     /// Grumbler, <paramref name="crane"/>). Otherwise the first place clear of the yard, stops and tunnels from which every kind
-    /// that needs the line to place it can be placed (the Car Hugger's marsh or bridge ahead, the Switchman's dead line
-    /// ahead), <paramref name="lead"/> short. The kinds no place suits are returned as <c>Unstaged</c>.
+    /// that needs the line to place it can be placed (the Car Hugger's marsh or bridge ahead), <paramref name="lead"/> short. The kinds no place suits are returned as <c>Unstaged</c>.
     /// </summary>
     public static CombinationStage Stage(Route.Route route, Rail.RailLine line, IReadOnlyList<EnemyKind> kinds, EnemyTuning e, double yard, double lead,
         double approach = 350, Func<RouteFeature, bool>? crane = null, bool atStops = true)
@@ -157,7 +156,7 @@ public static class Combinations
                 var unstaged = new List<string>();
                 if (wantCrane && !crane!(at))
                     unstaged.Add(EnemyKind.Grumbler.ToString());
-                unstaged.AddRange(kinds.Where(k => k is EnemyKind.CarHugger or EnemyKind.Switchman).Select(k => k.ToString()));
+                unstaged.AddRange(kinds.Where(k => k is EnemyKind.CarHugger).Select(k => k.ToString()));
                 return new CombinationStage(Math.Round(toe - approach), true, unstaged);
             }
         }
@@ -173,21 +172,16 @@ public static class Combinations
         bool Hugger(double s) => route.Features.Any(f => f.Kind is FeatureKind.Marsh or FeatureKind.Bridge
             && (f.Start + f.End) * 0.5 is var at && at >= s + e.CarHugger.LurkAheadMin + lead && at <= s + e.CarHugger.LurkAheadMax
             && Math.Abs(line.Sample(Rail.RailLine.MainPath, at).GradePercent) <= e.CarHugger.MaxGrade);
-        bool Switchman(double s) => line.Branches.Any(b => b.Kind == Rail.BranchKind.DeadLine && b.Toe - s >= e.Switchman.Ahead[0] + lead && b.Toe - s <= e.Switchman.Ahead[1]);
         bool Clear(double s) => !route.Features.Any(f => f.Kind is FeatureKind.Facility or FeatureKind.Tunnel or FeatureKind.Junction
             && s >= f.Start - 300 && s <= f.End + 100);
         var needs = new List<(EnemyKind Kind, Func<double, bool> Ok)>();
         if (kinds.Contains(EnemyKind.CarHugger))
             needs.Add((EnemyKind.CarHugger, Hugger));
-        if (kinds.Contains(EnemyKind.Switchman))
-            needs.Add((EnemyKind.Switchman, Switchman));
         // The places to try: just far enough short of each thing a kind needs (so the train's soon on it from a stand), then
         // every 50 m of the line.
         var tries = new List<double>();
         if (kinds.Contains(EnemyKind.CarHugger))
             tries.AddRange(route.Features.Where(f => f.Kind is FeatureKind.Marsh or FeatureKind.Bridge).Select(f => (f.Start + f.End) * 0.5 - e.CarHugger.LurkAheadMin - lead));
-        if (kinds.Contains(EnemyKind.Switchman))
-            tries.AddRange(line.Branches.Where(b => b.Kind == Rail.BranchKind.DeadLine).Select(b => b.Toe - e.Switchman.Ahead[0] - lead));
         for (double s = yard + 400; s < route.RunLength - 4000; s += 50)
             tries.Add(s);
         double best = -1;

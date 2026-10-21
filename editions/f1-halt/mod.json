@@ -1,0 +1,9 @@
+// #613's balance sweep (note 930): the shipping content with one of the director's pending asks on, to give each its
+// 30-seed number. `dt --edition f1-halt director sweep ...`. Measurement only; never shipped.
+{
+  "id": "edition-f1-halt",
+  "name": "f1-halt",
+  "version": "1.0.0",
+  "description": "halt-own-creature: a halt's own encounter (#609's halt, note 895), the bots standing 60 s at the halts (#634, note 934)",
+  "order": -1000
+}

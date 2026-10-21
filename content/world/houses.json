@@ -151,10 +151,14 @@
     // stilts ... a cult who insist the comet ... was an act of God and God will cleanse the Earth with a great flood once
     // again"): every shut house a scow's hull with the house on its deck, up on stilts (hull, MaritimeKit.Hull); low cabins,
     // hip and gable roofs, tarred and bleached; their creed (world/towns.json creeds) heard and posted.
+    // Out among their houseboats all night (out: one for every 8 houses, at most 20; note 841, the director, 16 Oct: "nobody
+    // walking around ... no kind of like culture going on"): a lamp walked along the stage, a hull caulked, the water's mark
+    // read on a stilt, a rope hauled.
     { "id": "flooders", "name": "a houseboat town",
       "shingle": 0.5, "gableFront": 0.5, "dormers": 0.05, "ell": 0, "porch": 0, "shutters": 0.25, "fancy": 0, "grime": 0.55, "grimeSpread": 0.15,
       "storeys": [6, 4, 1, 0], "roofs": [5, 1, 0, 3], "paints": ["tarred", "kelp", "bleached", "storm", "sage", "drab"], "own": 0.9,
       "hull": 1, "creed": "flooders",
+      "out": [8, 20], "outActs": ["lantern", "mend", "lantern", "crouch", "work"],
       "gear": { "wrap": 5, "respirator": 2 },
       "yard": { "picket": 0, "boards": 0, "count": [0, 0], "things": {} } },
     { "id": "pitborn", "name": "a quarry warren",

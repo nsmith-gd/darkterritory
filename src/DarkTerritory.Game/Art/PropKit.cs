@@ -71,6 +71,77 @@ public static class PropKit
         return k.Build("prop-beer");
     }
 
+    /// <summary>
+    /// A drink from the dining car's bar (note 959), greybox: a short glass tumbler of something amber, its middle at (0, 0, 0)
+    /// as the beer's can is, so it's held where the can is.
+    /// </summary>
+    public static MeshAsset Drink(Look? look)
+    {
+        var k = new Kit(look, 1959);
+        k.Use("window_lit", new Vector3(0.95f, 0.55f, 0.18f), 0.1f, 0.8f, tile: 0.2f);
+        k.Cylinder(new Vector3(0, -0.05f, 0), new Vector3(0, 0.02f, 0), 0.034f, 10);
+        k.Use("bbq_plastic", new Vector3(0.82f, 0.86f, 0.86f), 0.1f, 0.9f);
+        k.Cylinder(new Vector3(0, -0.055f, 0), new Vector3(0, 0.055f, 0), 0.04f, 10, caps: false);
+        k.Cylinder(new Vector3(0, -0.06f, 0), new Vector3(0, -0.05f, 0), 0.04f, 10);
+        return k.Build("prop-drink");
+    }
+
+    /// <summary>
+    /// The flare pistol (note 871), greybox: a stubby wide-bored signal pistol, its barrel along −Z, painted the stores' orange
+    /// so it's told from anything else lying in the guard van. Its middle at (0, 0, 0).
+    /// </summary>
+    public static MeshAsset FlarePistol(Look? look)
+    {
+        var k = new Kit(look, 1871);
+        k.Use("dress_paint", new Vector3(0.9f, 0.38f, 0.08f), 0.4f, 0.3f);
+        k.Cylinder(new Vector3(0, 0.02f, 0.04f), new Vector3(0, 0.02f, -0.14f), 0.028f, 10);
+        k.Use("rust_heavy", new Vector3(0.2f, 0.18f, 0.16f), 0.5f, 0.6f);
+        k.BoxAt(new Vector3(0, -0.04f, 0.06f), new Vector3(0.016f, 0.05f, 0.022f));
+        k.Cylinder(new Vector3(0, 0.02f, -0.14f), new Vector3(0, 0.02f, -0.15f), 0.031f, 10);
+        return k.Build("prop-flare-pistol");
+    }
+
+    /// <summary>
+    /// The flare pistol as a fist holds it (note 964), in the hand tools' frame (tools/models hand_tools; CreatureArt's
+    /// ToolGrip, where a held tool's haft runs out along −Z and up is +Y): its wooden grip down through the fist at the
+    /// origin, the wide-bored orange barrel out along −Z from the grip's top, the hammer back over the thumb, the trigger
+    /// guard under the breech.
+    /// </summary>
+    public static MeshAsset FlarePistolHeld(Look? look)
+    {
+        var k = new Kit(look, 1873);
+        // Tipped down about the fist (the hold raises a bar up ahead of you): the barrel out level along your look.
+        var tip = Matrix4x4.CreateRotationX(PistolTip);
+        Vector3 P(float x, float y, float z) => Vector3.Transform(new Vector3(x, y, z), tip);
+        k.Use("rust_heavy", new Vector3(0.2f, 0.18f, 0.16f), 0.5f, 0.6f);
+        // The grip: a dark stock down through the fist, raked back a little.
+        k.Cylinder(P(0, -0.055f, 0.025f), P(0, 0.045f, 0), 0.018f, 8, radiusB: 0.016f);
+        // The barrel: the stores' orange, wide-bored, out ahead from the grip's top.
+        float y = 0.07f;
+        k.Use("dress_paint", new Vector3(0.9f, 0.38f, 0.08f), 0.4f, 0.3f);
+        k.Cylinder(P(0, y, 0.04f), P(0, y, -0.17f), 0.026f, 10);
+        k.Use("rust_heavy", new Vector3(0.25f, 0.22f, 0.2f), 0.5f, 0.6f);
+        k.Cylinder(P(0, y, -0.17f), P(0, y, -0.182f), 0.03f, 10);
+        // The hammer, back over the thumb; the trigger guard under the breech.
+        k.Cylinder(P(0, y + 0.01f, 0.04f), P(0, y + 0.035f, 0.06f), 0.007f, 6);
+        k.Cylinder(P(0, y - 0.03f, -0.005f), P(0, y - 0.055f, -0.04f), 0.005f, 5);
+        return k.Build("prop-flare-pistol-held");
+    }
+
+    /// <summary>How far the held flare pistol is tipped down about the fist (rad; note 964), so it points along the look.</summary>
+    public const float PistolTip = -0.9f;
+
+    /// <summary>A flare fired from the pistol (note 871), greybox: a short red cartridge, its burning head at +Y. Its middle at (0, 0, 0).</summary>
+    public static MeshAsset Flare(Look? look)
+    {
+        var k = new Kit(look, 1872);
+        k.Use("dress_paint", new Vector3(0.75f, 0.08f, 0.06f), 0.4f, 0.2f);
+        k.Cylinder(new Vector3(0, -0.06f, 0), new Vector3(0, 0.05f, 0), 0.022f, 8);
+        k.Use("rust_heavy", new Vector3(0.25f, 0.22f, 0.2f), 0.5f, 0.6f);
+        k.Cylinder(new Vector3(0, 0.05f, 0), new Vector3(0, 0.06f, 0), 0.02f, 8);
+        return k.Build("prop-flare");
+    }
+
     /// <summary>A sausage off the BBQ deck's grill (note 698), in its bun.</summary>
     public static MeshAsset Sausage(Look? look)
     {
@@ -230,7 +301,7 @@ public static class PropKit
         k.Use("rust_heavy", Palette.IronGrey, 0.7f, 0.4f);
         k.Lathe(new Vector3(0, -0.14f, 0), [new(0.09f, 0), new(0.1f, 0.03f), new(0.09f, 0.06f)], 8, smooth: false);
         k.Lathe(new Vector3(0, 0.08f, 0), [new(0.09f, 0), new(0.07f, 0.04f), new(0.03f, 0.08f), new(0.02f, 0.1f)], 8, smooth: false);
-        k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
+        k.Use("lantern_pane", Palette.LampAmber, 0, 0, tile: 0.25f);
         k.Emissive = 1;
         k.Cylinder(new Vector3(0, -0.08f, 0), new Vector3(0, 0.08f, 0), 0.07f, 8, caps: false);
         k.Emissive = 0;
@@ -257,7 +328,7 @@ public static class PropKit
         k.Use("lamp_lens", Palette.SignalRed, 0, 0, tile: 0.1f);
         k.Emissive = 1;
         k.Tint = new Vector3(1, 0.2f, 0.1f);
-        k.Panel(new Vector3(-0.04f, 0.1f, -0.0405f), -Vector3.UnitZ, Vector3.UnitY, 0.02f, 0.02f);
+        k.Panel(new Vector3(-0.04f, 0.1f, -0.0405f), -Vector3.UnitZ, Vector3.UnitY, 0.02f, 0.02f, Vector2.Zero, new Vector2(0.1f, 0.1f));
         k.Emissive = 0;
         return k.Build("radio");
     }

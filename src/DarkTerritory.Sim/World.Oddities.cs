@@ -28,7 +28,7 @@ public sealed partial class World
     readonly Dictionary<int, double> _atBell = [];
     readonly Dictionary<int, double> _byDave = [];
     readonly Dictionary<int, double> _washing = [];
-    readonly Dictionary<int, (int Thing, double Held)> _atPostbox = [];
+    readonly Dictionary<int, (int Thing, double Held)> _atPostbox = [], _atNote = [];
     readonly HashSet<int> _wellUseWas = [];
     // Host: when each town's bell last rang (its clock), the happenings still to come (a splash, the coin, an answer), the
     // scarecrows somebody's been up to, the cans kicked so far tonight, and the crew to soot or jolt once everyone's acted.
@@ -77,7 +77,13 @@ public sealed partial class World
     {
         if (!s.Alive || s.Parent != PlayerState.World || Oddities is not { } odd)
             return null;
-        double reach = kind switch { OddThingKind.Well => odd.Tuning.Well.Reach, OddThingKind.Postbox => odd.Tuning.Postbox.Reach, _ => odd.Tuning.Can.Reach };
+        double reach = kind switch
+        {
+            OddThingKind.Well => odd.Tuning.Well.Reach,
+            OddThingKind.Postbox => odd.Tuning.Postbox.Reach,
+            OddThingKind.Note => odd.Tuning.Note.Reach,
+            _ => odd.Tuning.Can.Reach,
+        };
         var at = PlayerMotor.WorldPosition(s, Train);
         OddThing? best = null;
         double nearest = reach;
@@ -195,6 +201,23 @@ public sealed partial class World
         }
         else
             _atPostbox.Remove(playerId);
+        // A note left out along the line (note 961): picked up and read, once a note; it's gone from the doorstep after.
+        if (use && OddThingInReach(s, OddThingKind.Note) is { } note && !Oddities!.Done(note.Index))
+        {
+            double held = (_atNote.TryGetValue(playerId, out var was) && was.Thing == note.Index ? was.Held : 0) + SimConstants.TickSeconds;
+            _atNote[playerId] = (note.Index, held);
+            if (held >= t!.Note.HoldSeconds - 1e-9)
+            {
+                _atNote.Remove(playerId);
+                Oddities.Finish(note.Index);
+                Odd(OddKind.Letter, playerId, note.Index, Oddities.At(note.Index) + Double3.Up * 0.3);
+                if (Oddities.NoteIn(note.Index) is { } read)
+                    Attribution.Add(IncidentLog.Event(this, IncidentKind.Letter, "A note found by the line", playerId,
+                        $"{read.Heading}: \"{read.Text}\" Picked up by {{actor}}.", Oddities.At(note.Index)));
+            }
+        }
+        else
+            _atNote.Remove(playerId);
     }
 
     /// <summary>How far over the bell rope's foot the bell hangs, for where it's heard and looked up at (m). Not a design number.</summary>

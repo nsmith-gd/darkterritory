@@ -196,13 +196,19 @@
   // is, lying still in any car at the gate. Its ball's radius (m): a safe, a church bell off its frame, a ship's figurehead
   // off a wreck. A stop's chance of one lying out by tier (in a yard by its strongroom or crate stack, or on an open house's
   // floor), and the jackpot house's chance of one inside it (`house`); never more than `most` at a stop.
+  // Note 861 (the director's playtest of 16 Oct evening, line 8: "we didn't get any of the challenges to share together that
+  // lead to laughs and fun"): `chance` was 0.08-0.15 by tier, about one a frontier night, and a two-player night's one or two
+  // stops met none. Raised so a stop often asks two of the crew to leave the train together and carry one, both pairs of hands
+  // full, while what waits at the stop (note 860) comes; the director (19 Oct): "a jackpot should be at most 3/10", so with
+  // the jackpot house's own (`house` of jackpotHouse.chance) no tier's stops have one more than three times in ten. A crew of
+  // one sees it and can't lift it: the PEAK wall, the director's 14 Oct call.
   "jackpots": {
     "items": {
       "safe": { "worth": 1.0, "radius": 0.42 },
       "churchBell": { "worth": 0.85, "radius": 0.45 },
       "figurehead": { "worth": 1.1, "radius": 0.42 }
     },
-    "chance": { "local": 0.08, "frontier": 0.1, "deadLines": 0.12, "deepTerritory": 0.15 },
+    "chance": { "local": 0.12, "frontier": 0.15, "deadLines": 0.19, "deepTerritory": 0.24 },
     "house": 0.4,
     "most": 2
   },

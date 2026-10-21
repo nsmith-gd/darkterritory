@@ -121,7 +121,7 @@ public class CreatureSoundTests
     {
         // Note 290: the gun hits what it's laid on, and per-creature pain is the audio chat's (note 322). Health dropping on
         // a record still there is a hurt (a killing blow takes the record, and that's its death: Vanished).
-        using var scene = new Scene(1, "cs-gaunt.hit", "cs-switchman.hit", "cs-soot-children.hit", "cs-followers.hit",
+        using var scene = new Scene(1, "cs-gaunt.hit", "cs-soot-children.hit", "cs-followers.hit",
             "cs-grumbler.hit", "cs-grumbler.feral");
         double s = scene.Train.Dynamics.Distance - 40;
         var shape = scene.Train.Frames[2].Shape;
@@ -129,7 +129,6 @@ public class CreatureSoundTests
         (Func<double, double, Enemy> Make, string Hurt)[] kinds =
         [
             ((h, x) => Record(new Gaunt(60), SpinePhase.Telegraph, 1, h, -1, default, s, 12), "cs-gaunt.hit"),
-            ((h, x) => Record(new Switchman(61), SpinePhase.Telegraph, 1, h, -1, default, s, 6), "cs-switchman.hit"),
             ((h, x) => Record(new SootChildren(62), SpinePhase.Telegraph, 1, h, -1, default, s, 9), "cs-soot-children.hit"),
             ((h, x) => Record(new Follower(63), SpinePhase.Telegraph, 1, h, -1, default, s, 7), "cs-followers.hit"),
             ((h, x) => Record(new Grumbler(64), SpinePhase.Telegraph, 1, h, 2, inside, extra2: x), "cs-grumbler.hit"),
@@ -408,6 +407,62 @@ public class CreatureSoundTests
     }
 
     [Fact]
+    public void AHoundAboardIsHeardLungingAndWindingUpToLightItsCar()
+    {
+        // Note 891: its lunge (the director, 9 Oct: "a lunge attack by jumping at the player to bite"), the spring and a snarl as
+        // it goes, its paws landing at the lunge's end, and no walk's paws for the ground it covers; and its ignite's wind-up
+        // (the director, the inbox, 20 Oct: "an associated animation of how that happens"), the car fire's smoulder at its
+        // body, held to the end of the wind-up and rising, and a snarl at the burst.
+        using var scene = new Scene(5, "cs-hounds.paw.roof", "cs-hounds.spring", "cs-hounds.snarl", "tell-car-fire.smoulder~");
+        var a = new HoundAboardTuning();
+        int rear = scene.Rear;
+        var shape = scene.Train.Frames[rear].Shape;
+        double secs = 2;
+        CinderHound On(Double3 local, HoundMode mode, double began) =>
+            Record(new CinderHound(10, 10), SpinePhase.Commit, secs, 3, rear, local, s: began, lateral: (int)mode * 4, extra: 10);
+        var roof = new Double3(0.6, shape.RoofHeight, 2);
+        var times = new List<(string Name, double At)>();
+        void Run(double seconds, Func<double, CinderHound> at)
+        {
+            double began = secs + SimConstants.TickSeconds;
+            times.Clear();
+            for (int i = 0; i < seconds * SimConstants.TickRate; i++)
+            {
+                secs += SimConstants.TickSeconds;
+                foreach (var name in scene.Tick(at(secs - began)))
+                    times.Add((name, secs - began));
+            }
+        }
+        double began0 = 0;
+        Run(0.5, _ => On(roof, HoundMode.Still, 0));
+        // The lunge: 3 m along the roof in its half second, then crouched.
+        Run(a.LungeSeconds + 0.3, t =>
+        {
+            if (t <= SimConstants.TickSeconds)
+                began0 = secs;
+            return t < a.LungeSeconds ? On(roof with { Z = roof.Z - 3 * t / a.LungeSeconds }, HoundMode.Lunge, began0)
+                : On(roof with { Z = roof.Z - 3 }, HoundMode.Still, began0);
+        });
+        Assert.Equal(1, times.Count(x => x.Name == "cs-hounds.spring"));
+        Assert.InRange(times.Single(x => x.Name == "cs-hounds.spring").At, 0, 0.1);
+        Assert.Equal(1, times.Count(x => x.Name == "cs-hounds.snarl"));
+        Assert.Equal(4, times.Count(x => x.Name == "cs-hounds.paw.roof"));
+        Assert.InRange(times.First(x => x.Name == "cs-hounds.paw.roof").At, a.LungeSeconds - 0.05, a.LungeSeconds + 0.1);
+        // The wind-up: the smoulder held, rising; the snarl at the burst; once it's done, the smoulder stops.
+        Run(a.IgniteWindUpSeconds, t =>
+        {
+            if (t <= SimConstants.TickSeconds)
+                began0 = secs;
+            return On(roof with { Z = roof.Z - 3 }, HoundMode.Ignite, began0);
+        });
+        Assert.True(scene.Playing("tell-car-fire.smoulder"));
+        Assert.InRange(times.Single(x => x.Name == "cs-hounds.snarl").At, a.IgniteWindUpSeconds * 0.8 - 0.05, a.IgniteWindUpSeconds * 0.8 + 0.1);
+        Assert.Equal(0, times.Count(x => x.Name == "cs-hounds.paw.roof"));
+        Run(0.5, _ => On(roof with { Z = roof.Z - 3 }, HoundMode.Still, 0));
+        Assert.False(scene.Playing("tell-car-fire.smoulder"));
+    }
+
+    [Fact]
     public void TheTrackDollWorksTheCabLeversWithTheirOwnSoundsUntilItHasOne()
     {
         static List<string> Tamper(Scene scene)
@@ -634,6 +689,33 @@ public class CreatureSoundTests
         heard.AddRange(scene.Tick(M(MooseMode.Ram, 100, rams: 1)));
         heard.AddRange(scene.Tick(M(MooseMode.Ram, 100, rams: 2)));
         Assert.Equal(2, heard.Count(h => h == "cs-moose-ram.boom"));
+    }
+
+    [Fact]
+    public void TheMooseGrazingIsHeardFromTheLineButQuietEnoughToCreepCloser()
+    {
+        // The director's 16 Oct playtest, line 19 (queue #562, note 834): "The munching is a bit loud ... We do need to be able
+        // to hear it, but we don't want to hear it maybe so loud. We want to allow players to get a little bit closer." The
+        // installed sounds, as heard at a distance: where its temper starts to rise (crowdAt) the chewing is well under its own
+        // level, so it doesn't sound on top of you; it's still there from the train going by (trainPassAt); and it grows as
+        // you creep in, so how close you are is in the sound.
+        var audio = new GameAudio(Content);
+        var t = DataFile.Load<EnemyTuning>(Path.Combine(Content, EnemyTuning.File)).Moose;
+        double Db(string name, double d)
+        {
+            audio.Mixer.StopAll();
+            audio.Mixer.Listener = Listener.At(Double3.Zero, 0);
+            var v = audio.Mixer.Play(name, new Double3(0, 0, -d))!;
+            audio.Mixer.Render(new float[Ballast.Audio.Audio.Block * 2]);
+            return 20 * Math.Log10(v.AudibleGain);
+        }
+        foreach (var cue in new[] { "chew", "browse", "creak", "grunt" })
+        {
+            string name = $"tell-moose-grazing.{cue}";
+            Assert.True(Db(name, t.CrowdAt) < -8, $"{name} at {t.CrowdAt} m: {Db(name, t.CrowdAt):0.0} dB");
+            Assert.True(Db(name, t.TrainPassAt) > -16, $"{name} from the train going by: {Db(name, t.TrainPassAt):0.0} dB");
+            Assert.True(Db(name, t.CloseAt / 2) > Db(name, t.CloseAt) + 4 && Db(name, t.CloseAt) > Db(name, t.CrowdAt) + 3);
+        }
     }
 
     [Fact]

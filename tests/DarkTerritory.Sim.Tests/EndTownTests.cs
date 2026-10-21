@@ -39,6 +39,23 @@ public class EndTownTests
         return (world, route, gate);
     }
 
+    [Fact]
+    public void TheGunsHoldFireInsideTheTown()
+    {
+        // Note 846 (the director's playtest of 16 Oct, line 7: "the cannon lets me fire when I'm in a town, and I just fired
+        // at a house"): stood at the departure's gate, every gun's car is in the walled town and holds its fire.
+        var (world, _, _) = Night("frontier:7");
+        var guns = world.Train.Vehicles.Where(v => v.HasGun).Select(v => v.Id).ToList();
+        Assert.NotEmpty(guns);
+        Assert.All(guns, g => Assert.True(world.GunHeld(g), $"the gun on car {g} would fire in the town"));
+        // Out past its walls it isn't the town's.
+        var front = world.Train.Frames[0];
+        Assert.False(world.InTown(front.Origin + front.Right * 400));
+        // And with combat.json holdInTowns off, they fire as before.
+        world.Combat = world.Combat! with { Guns = world.Combat.Guns with { HoldInTowns = false } };
+        Assert.All(guns, g => Assert.False(world.GunHeld(g)));
+    }
+
     [Theory]
     [InlineData("frontier:7", "frontier:3")]
     [InlineData("local:2", "frontier:5")]

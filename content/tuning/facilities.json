@@ -97,6 +97,9 @@
     // as if set down there (note 659: it's no longer lost).
     "dropAbove": 0.6,
     "crushRadius": 1.4,
+    // The hook lets go of a casting only with Fire held this long (note 941; the director, 20 Oct: "Oh, God, I accidentally
+    // clicked and just let it go"): a stray click lets go of nothing. Held on, it lets go of one, not the next.
+    "releaseHold": 0.5,
     // Note 581 (the director, 9 Oct 2026: "extremely difficult to get loot into the cars, the game should be more forgiving"):
     // a casting with its base this low over an open hatch's roof that overlaps the opening but doesn't clear it is eased over
     // it, the bridge and trolley drawn there at guideSpeed (m/s, about the bridge's own speed); let go there, it's put through.
@@ -372,11 +375,24 @@
     "villageShare": 0.5,
     "villageReach": 150,
     "villageDawnSpare": 900,
+    // Note 934 (found under #609, note 895: the bot driver never stopped at a halt, so no bot night stood at one): a driver
+    // bot stands haltStandSeconds at each halt on the line (an abandoned village's on the main line, the route card's "halt"
+    // rows) with at least haltAllowance (s) of the night in hand past the run home, before going on. 0: it drives past them,
+    // as before.
+    "haltStandSeconds": 0,
+    "haltAllowance": 600,
     // Note 403 (GDD App. F.3's "work the yard together"; since queue #89 every siding has loot beside it): the crates by the
     // site's own stack in, a crate hand fetches the nearest crate lying loose elsewhere in the yard, either side of the
     // train, within yardReach (m) of where it stands, on foot round the sheds and the train, before anyone goes to the village. The same
     // dawn spare. Not in the spec: a crate's carried at 2.8 m/s, so 120 m is a minute and a half there and back.
     "yardReach": 120,
+    // Note 867 (the director, 19 Oct, on note 861's call 3: "Yes"): two-person jackpots (loot.json jackpots, note 719) are a
+    // pair's. A crate hand fetches one lying within jackpotReach (m) of where it stands (or the yard's reach, the further),
+    // and the winch's pair, their sleds in, one within jackpotReach before going aboard (out on it, so the driver waits);
+    // the other end's taken as a heavy crate's is (note 440). And a hand comes to take the other end of one anyone's holding
+    // alone within jackpotReach of it, a person playing too: a solo player with bots has a second pair of hands. 60 m: there
+    // and back at the heavy pace is about a minute. 0: as before (the yard's reach, and help only by the crate stack).
+    "jackpotReach": 60,
     // Note 413 (GDD §21: the Choir takes "anyone ... not behind a closed door"; App. A.7): the Choir gathered this far (0 to 1;
     // the walkers' own 0.5, about 20 s off) or here, a hand on foot at a stop gets behind a door: the nearest open house with a
     // single door, if its door's within shelterReach (m) and no further than shelterOverTrain times the train's nearest car
@@ -385,7 +401,12 @@
     "shelterAt": 0.5,
     "shelterOutAt": 0.25,
     "shelterReach": 60,
-    "shelterOverTrain": 2
+    "shelterOverTrain": 2,
+    // Note 935 (the director's playtest of 20 Oct evening, line 14: "Ashgrove Yard. Whoa there, bot ... Oh, we're a half a
+    // kilometer away still"): a bot driving runs in to a stop's hold no faster than a stop at approachEase m/s² from where it
+    // is, so from the open line's 14 m/s it's seen easing down about 400 m out. It ran in on the brake's own curve (about 0.66
+    // m/s²): at 14 m/s 160 m short and down hard from there. 0: as before. Not in the spec.
+    "approachEase": 0.25
   },
   // Which modules each facility offers (spec D.1: 2–4 per POI once the roster is built; the coaling tower is its chute). The
   // first is the kind's signature, the one every stop of it has; with "draw" on, the rest are drawn per stop (note 449).

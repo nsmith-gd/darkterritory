@@ -7,8 +7,15 @@
   "ladderClimb": 1.6,
   "carryHeavy": 2.8,
   // GDD v1.4 App. D.9 "solo remainer" (note 181): the last of the crew alive can climb a ladder carrying a body, at this
-  // (a quarter of ladderClimb); anyone else carrying a body, a toy, a find or the child can't climb at all (C.4).
+  // (a quarter of ladderClimb); anyone else carrying a body, the child or freight can't climb at all (C.4; a toy or a find in
+  // the hands doesn't stop you since note 897: twoHanded).
   "soloBodyClimb": 0.4,
+  // Note 897 (the director, the inbox, 20 Oct 2026: "We shouldn't be slowed carrying anything unless it's a two handed object"):
+  // only a thing of these kinds in the hands (not put away in a slot) is carried two-handed: it holds you to carryHeavy, keeps
+  // you off ladders (but for soloBodyClimb) and off a jump. A friend over the shoulder always is (rescue.carry). Freight, a
+  // heavy crate's end, the child and a body; a toy or a find is one-handed. A find that should take two hands gets a kind of
+  // its own and goes in the list. only: false is the rule before it: a toy and a find in the hands too (note 594).
+  "twoHanded": { "only": true, "kinds": ["cargo", "heavy", "child", "ragdoll"] },
   // Pushing a gun along its roof rail (T93): the gun goes where you go, no faster than this. Note 664: on its own key, O.
   "pushGun": 1.2,
   // Note 664 (the director's playtest, 13 Oct: "we should have a crouch function"; D1's calls for it): held down (LeftCtrl),
@@ -78,22 +85,8 @@
     "overhead": 2.3,
     "grab": 0.3
   },
-  // Spec B.2: 600 s outside to onset, 1200 s to death, reset in 20 s near heat (from any point short of death). Cut from
-  // 200 / 320 / 45 after the 100-night playtest, where cold was 73% of all deaths: it was attrition, not a decision.
-  // Heat is the cab while the fire burns, or a shut car while the boiler has steam to heat it.
-  "cold": {
-    "onsetSeconds": 600,
-    "deathSeconds": 1200,
-    "recoverSecondsNearHeat": 20,
-    // Not in the spec, which gives onset no effect: past it you move at this fraction of your speed.
-    "onsetSpeedScale": 0.9,
-    // Spec B.2: inside a car's walls with a door open (working a side door, say), out of the wind but not warm, the cold
-    // comes on at this fraction of the rate outside.
-    "indoorsRate": 0.25,
-    // GDD §22 deep cold (note 183): each of linegen §14's cold steps where you are (the night's, high ground, exposed track)
-    // makes it come on this much faster. A step-3 night on an exposed crest: about twice as fast.
-    "perColdStep": 0.25
-  },
+  // The cold (spec B.2's exposure, GDD §22's deep cold) is out of gameplay since note 852 (the director, 16 Oct 2026): a
+  // night's cold is the look's alone (look.json atmosphere.cold: the frost, the breath).
   // GDD §22 wind, spec B.2's "roof run: wind and balance penalty" (ARCHITECTURE §8 note 201). Up on a roof, the wind
   // (the route's conditions: the night's, ×1.5 on exposed track) pushes you sideways: drift m/s at wind 1 with the train
   // at its maxSpeed, still of that with it stopped (it's the wind across a moving train), in gusts that swing from one
@@ -178,7 +171,14 @@
     "thinSeconds": 2,
     "thinHoldSeconds": 20,
     "strainCrew": 2,
-    "strainSeconds": 5
+    "strainSeconds": 5,
+    // Note 956: each voice a listener hears is about 22 kbit/s more of the host's upload, on top of the snapshots (8 of the crew
+    // on the radio: 1.8 Mbit/s). While strainCrew or more of the crew are being thinned (the host's upload can't carry them),
+    // and for thinHoldSeconds after, each listener is sent at most strainedVoices at once: whoever was talking first keeps the
+    // floor (a voice is talking while its frames come within voiceFloorSeconds of each other), and a grabbed crewmate's cry on
+    // the radio always gets through (App. C.8). 0: never capped.
+    "strainedVoices": 2,
+    "voiceFloorSeconds": 0.5
   },
   // The crew cap (GDD §1 "Players: 2–8", §15's largest crew; ARCHITECTURE §8 note 254). The host turns a joiner away once
   // the crew, living and dead, those waiting to board at a stop and the places held for the dropped (rejoin above) come to
@@ -226,7 +226,16 @@
     "coneDegrees": 12,
     "seconds": 20,
     "orderSeconds": 120,
-    "cooldown": 0.5
+    "cooldown": 0.5,
+    // Note 739 part two: how far off a house of a stop's village can be pinged (m), the abandoned town. A village stands
+    // well back from the yard (100 m and more), and a house is big enough to point at from there.
+    "townRange": 150,
+    // Note 739 part two: how long the crane's two keep to its loading (s), the castings lifted one at a time; orderSeconds
+    // is the rest's.
+    "craneOrderSeconds": 600,
+    // Note 936: how far from where it stands a hand sent to the town by a ping goes to search its houses (m), past
+    // facilities.json crew.villageReach: a house is pinged from as far off as townRange, and its rooms are further in.
+    "townReach": 300
   },
   "emotes": {
     "dance": 8,
@@ -277,7 +286,10 @@
   // further than beyondMetres from you (voice's reach, spec A.5's 26 m: nearer, you hear it) is a line under the news, who
   // and where, never what: "PRIYA - CAR 4 ROOF" for as long as they're held, "PRIYA IS GONE - CAR 4" for deathSeconds.
   // Each machine works it out for its own player from the snapshots. Never shown to the dead. Off: nothing shown.
-  "crewNews": { "on": true, "beyondMetres": 26, "deathSeconds": 4 },
+  // deathsNear (note 938; the director's playtest of 20 Oct: "Where did he go? Is he dead? ... I don't see Dunmore"): a death
+  // is told within voice's reach too, since a crewmate (a bot above all) can go quietly beside you; the roster (held Q) says
+  // who's dead from then on. deathSeconds was 4, too short to catch at the controls.
+  "crewNews": { "on": true, "beyondMetres": 26, "deathSeconds": 8, "deathsNear": true },
   // Horseplay (GDD §23.4; ARCHITECTURE §8 note 717). The director, 14 Oct 2026: "The griefer ideas are funny"; "if we're
   // going to allow shoving, then we need shoving to be in full effect, which means if you're standing on top of a car, you
   // can be shoved off of it. And at speed, it kills you"; and the lump of coal "is going to need to be able to work with the
@@ -296,7 +308,7 @@
     // them as it holds the wind: walking into a friend never puts them off a roof; a shove does). Not on a ladder (a hatch's
     // comes up through a crowded roof), in a gun's seat or in the air.
     "crowd": { "radius": 0.25, "share": 0.75, "maxSpeed": 6.0 },
-    // The shove (its own key, LeftAlt): looking at a crewmate within `reach` (m, chest to chest) and coneDegrees of where you
+    // The shove (its own key, 5 since note 898): looking at a crewmate within `reach` (m, chest to chest) and coneDegrees of where you
     // face, hands off the shovel. They go off their feet the way you shoved, at `speed` (m/s) and `lift` (m/s) up, staggered
     // staggerSeconds (they can look and talk, nothing else), and you can't shove again for cooldownSeconds. On a roof, from
     // within a metre or so of its side, that's over the edge (the lip holds a walker, note 273, not a shove), and the landing
@@ -387,6 +399,20 @@
     // through the sounds' own low-pass on their "covered" parameter (voice.json and voice-radio.json, 1.4 kHz). A creature
     // that does its own thing to the voice keeps it, alone: Tippy Toesie's hand (muffled) and a Soot Child's draining
     // (fading). Off: a held voice as it was.
-    "covered": { "on": true, "gainDb": -6 }
+    "covered": { "on": true, "gainDb": -6 },
+    // The capture leveller (note 855; the director's playtest of 16 Oct evening, line 1: "my mic is way too low for her"). Out
+    // of the box a microphone's speech sits anywhere from about -35 dBFS (a Windows headset, no boost) to -15 (a Linux
+    // desktop's PulseAudio at 100%), and the mix is made for the loud end: a quiet mic's voice in the air was under the train's
+    // bed outdoors at 8 m, where a loud one stood 18 dB over it. Each client levels its own mic before it's encoded: the
+    // talker's level (each 20 ms frame's RMS while the voice activity hears talk, coming up to louder speech over riseSeconds
+    // and down to quieter over fallSeconds, frames more than ignoreBelowDb under it left out) is brought to targetDb (dBFS),
+    // lifted at most maxBoostDb and cut at most maxCutDb, a frame's peak held under ceiling (full scale 1). The settings' MIC
+    // LEVEL trims after it. Off: each mic as it comes.
+    "leveller": { "on": true, "targetDb": -14, "maxBoostDb": 24, "maxCutDb": 12, "riseSeconds": 0.15, "fallSeconds": 2.5, "ignoreBelowDb": 20, "ceiling": 0.95 },
+    // A cab side door open (note 862; the director, 19 Oct 2026: "open cab door should let voices out a bit more but not
+    // completely"): a voice between the cab and outside it, with either of its side doors open (note 856), comes through
+    // occlusion of the cab's wall (mix.json's occlusionDb and occlusionLowpass; 1 the whole wall, 0 none): at 0.5, half the
+    // wall's 12 dB and its low-pass up from 900 Hz to about 4.2 kHz. Off: an open door's as shut, for voice.
+    "openCab": { "on": true, "occlusion": 0.5 }
   }
 }

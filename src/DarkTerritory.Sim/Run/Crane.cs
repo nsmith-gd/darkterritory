@@ -64,7 +64,9 @@ public sealed class Crane
     }
     public double Rigging { get; internal set; }
     internal int Rigger = -1;
-    bool _releaseWas;
+    bool _releaseWas, _letGoSpent;
+    /// <summary>How long the operator's held Fire with a casting on the hook (note 941): the let-go's hold, till it's spent.</summary>
+    public double LetGoHeld { get; private set; }
 
     /// <summary>
     /// How many crewmates ride the hook (note 726): the host's (World's hoist), replicated in the Crane record, so every machine
@@ -99,6 +101,43 @@ public sealed class Crane
     /// the cars' roofs hid the ground round them; from here the stack's in front and the car beyond.
     /// </summary>
     public Double3 Cab => _at(Bridge, _t.Span[1] + _t.CabOut, Top - 1.2);
+
+    /// <summary>
+    /// The stick (right, forward) as the bridge's and the trolley's way, as seen from the cab (note 845; the director's
+    /// playtest of 16 Oct, line 14: "when I hit A, and then ... it goes up ... S, and it goes to the right"): the cab rides the
+    /// bridge's far end looking in across the span (<see cref="Cab"/>), so forward (W) takes the hook away from it, back (S)
+    /// toward it, and A and D left and right on the screen. The stick ran the bridge and the trolley straight, a quarter
+    /// turn off the view. From the gantry's own axes, so a crane laid either way along the line reads the same.
+    /// </summary>
+    public (double Bridge, double Trolley) Stick(double right, double forward)
+    {
+        var (b, t, r, f) = Axes();
+        return (right * Double3.Dot(r, b) + forward * Double3.Dot(f, b), right * Double3.Dot(r, t) + forward * Double3.Dot(f, t));
+    }
+
+    /// <summary>The stick (right, forward) that moves the bridge and the trolley this way: <see cref="Stick"/> undone (a bot's hands).</summary>
+    public (double Right, double Forward) StickFor(double bridge, double trolley)
+    {
+        var (b, t, r, f) = Axes();
+        return (bridge * Double3.Dot(r, b) + trolley * Double3.Dot(r, t), bridge * Double3.Dot(f, b) + trolley * Double3.Dot(f, t));
+    }
+
+    /// <summary>The bridge's and the trolley's ways on the ground, and the cab's view: in (forward) and to its right.</summary>
+    (Double3 Bridge, Double3 Trolley, Double3 Right, Double3 Forward) Axes()
+    {
+        var o = _at(Bridge, Trolley, 0);
+        var b = Flat(_at(Bridge + 1, Trolley, 0) - o);
+        var t = Flat(_at(Bridge, Trolley + 1, 0) - o);
+        // The cab's at the trolley's far end (Span[1]) looking in, so forward is the trolley's way back toward Span[0].
+        var f = t * -1;
+        return (b, t, Double3.Cross(f, Double3.Up), f);
+    }
+
+    static Double3 Flat(Double3 v)
+    {
+        v = v with { Y = 0 };
+        return v.Length > 1e-9 ? v.Normalized : default;
+    }
 
     /// <summary>The casting's half-height (it hangs this far under the hook, its middle).</summary>
     public double CastingHalf => _t.CastingSize[1] * 0.5;
@@ -193,14 +232,14 @@ public sealed class Crane
 
     /// <summary>
     /// The operator's hands on the controls this tick (host and client alike: the replicated state is the host's). The stick
-    /// runs the bridge (forward is along the track, away from the stand) and the trolley (right is out across); Jump
-    /// raises the hook, Brake lowers it, Fire lets go.
+    /// moves the hook as the cab's view sees it (<see cref="Stick"/>); Jump raises the hook, Brake lowers it, Fire held lets go (note 941).
     /// </summary>
     public void Drive(in PlayerIntent intent, TrainOnLine train, double dt)
     {
         dt *= SpeedScale;
-        Bridge = Math.Clamp(Bridge + intent.MoveZ * _t.BridgeSpeed * dt, _t.Along - 0.5 * _t.Length, _t.Along + 0.5 * _t.Length);
-        Trolley = Math.Clamp(Trolley + intent.MoveX * _t.TrolleySpeed * dt, _t.Span[0] + 0.5, _t.Span[1] - 0.5);
+        var (bridge, trolley) = Stick(intent.MoveX, intent.MoveZ);
+        Bridge = Math.Clamp(Bridge + bridge * _t.BridgeSpeed * dt, _t.Along - 0.5 * _t.Length, _t.Along + 0.5 * _t.Length);
+        Trolley = Math.Clamp(Trolley + trolley * _t.TrolleySpeed * dt, _t.Span[0] + 0.5, _t.Span[1] - 0.5);
         double lift = (intent.Has(PlayerButtons.Jump) ? 1 : 0) - (intent.Has(PlayerButtons.Brake) ? 1 : 0);
         double lowest = Lowest(train);
         Hook = Math.Clamp(Hook + lift * _t.HoistSpeed * dt, lowest, Math.Max(lowest, Highest));
@@ -460,6 +499,27 @@ public sealed class Crane
         bool pressed = fire && !_releaseWas;
         _releaseWas = fire;
         return pressed;
+    }
+
+    /// <summary>
+    /// The operator's Fire, held (note 941; the director, 20 Oct: "Oh, God, I accidentally clicked and just let it go"): the
+    /// hook lets go only once Fire's been held <c>releaseHold</c> seconds, and only once a hold (kept held, it lets go of no
+    /// more). A stray click lets go of nothing. True the tick the hold's done.
+    /// </summary>
+    internal bool LetsGo(bool fire, double dt)
+    {
+        if (!fire)
+        {
+            (LetGoHeld, _letGoSpent) = (0, false);
+            return false;
+        }
+        if (_letGoSpent)
+            return false;
+        LetGoHeld += dt;
+        if (LetGoHeld + 1e-9 < _t.ReleaseHold)
+            return false;
+        (LetGoHeld, _letGoSpent) = (0, true);
+        return true;
     }
 
     /// <summary>Client side: adopts the host's crane (the Crane record).</summary>

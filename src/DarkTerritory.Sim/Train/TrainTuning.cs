@@ -42,6 +42,9 @@ public sealed record TrainTuning
     /// <summary>What running into a branch's buffer stop does (train.json <c>bufferStop</c>; note 661).</summary>
     public BufferStopTuning BufferStop { get; init; } = new();
 
+    /// <summary>The engine's whistle on the cord (train.json <c>whistle</c>; note 839): how long it blows on once let go.</summary>
+    public WhistleTuning Whistle { get; init; } = new();
+
     /// <summary>The handcar (train.json <c>handcar</c>; GDD §24.1, note 729): what it is and how it runs, when the night has one.</summary>
     public HandcarTuning Handcar { get; init; } = new();
 
@@ -136,16 +139,14 @@ public sealed record CompositionTuning
     public int UtilityCars { get; init; }
     /// <summary>Cars converted to armour (GDD §26 "reinforced plating, heavier mass"), from the rear forward.</summary>
     public int ArmouredCars { get; init; }
+    /// <summary>Note 678, §8.8: the cab's glass is armour glass in riveted frames (the driver keeps full sight of the line); a Climber coming over the tender holds there for <c>climbers.cabGlassSeconds</c> first.</summary>
+    public bool CabArmour { get; init; }
     /// <summary>Cars that stay cargo whatever's bought: a conversion that would leave fewer isn't made.</summary>
     public int MinCargoCars { get; init; } = 1;
     /// <summary>What an armoured car's plate weighs on top of the car.</summary>
     public double ArmourTonnes { get; init; } = 10;
     /// <summary>How much of a blow to its shell an armoured car takes (the plate turns the rest).</summary>
     public double ArmourDamage { get; init; } = 0.5;
-    /// <summary>A crew car's stove warms this far round it with a door open; shut in, the whole car's warm.</summary>
-    public double StoveReach { get; init; } = 2.5;
-    /// <summary>How fast the cold comes on in an unheated car, against player.json <c>cold.indoorsRate</c> (spec F.3 car insulation).</summary>
-    public double Insulation { get; init; } = 1;
     /// <summary>Handrails along every roof's edges (spec F.3 roof handrails).</summary>
     public bool Handrails { get; init; }
     /// <summary>What holding them does.</summary>
@@ -158,6 +159,10 @@ public sealed record CompositionTuning
     public bool Handcar { get; init; }
     /// <summary>The BBQ deck on the engine's front (note 698): its chairs, its cooler and its grill.</summary>
     public bool BbqDeck { get; init; }
+    /// <summary>The dining car (upgrades.md §8.5, note 959): a cargo car converted, its table laid and its bar, behind the crew cars.</summary>
+    public bool DiningCar { get; init; }
+    /// <summary>What its bar pours.</summary>
+    public DiningTuning Dining { get; init; } = new();
     /// <summary>
     /// The train's dressing (note 701): the silly and the fun bought from the blacksmith that are only things on the train to
     /// see (fuzzy dice, flames, the hubcaps, the tiny caboose...), by campaign.json's ids (effect <c>dress:&lt;id&gt;</c>). The
@@ -180,7 +185,7 @@ public sealed record CompositionTuning
 
 /// <summary>The whimsies (train.json <c>composition.whimsy</c>; ARCHITECTURE §8 note 715). Field docs live in that file.</summary>
 public sealed record WhimsyTuning(int Gnomes = 5, int CanaryCars = 1, double CanaryGasM = 10, double CanaryFumesSeconds = 20,
-    double GramophoneHears = 22, double GramophoneLoudness = 0.25, double CalliopeHears = 80, double HammockCold = 0.5, double TubSteam = 0.15,
+    double GramophoneHears = 22, double GramophoneLoudness = 0.25, double CalliopeHears = 80, double TubSteam = 0.15,
     double FishReach = 4, double[]? FishSeconds = null, int FishHeals = 40, double CatSpeed = 1.1, double DogSpeed = 1.8, double[]? Wander = null,
     int CatWarnCars = 1, double DogHears = 40, double Fetch = 0.45, double Drop = 1.2, double LaunchSpeed = 14, double LaunchEvery = 2,
     double BallSeen = 70, double BallTake = 1.5, double BallWorry = 4)
@@ -196,13 +201,19 @@ public sealed record WhimsyTuning(int Gnomes = 5, int CanaryCars = 1, double Can
 public sealed record CabooseTuning(double Rope = 1.4, double Length = 0.36, double Radius = 0.1, double CouplerHeight = 1.0, double DerailAccel = 0.8,
     double Friction = 0.15, double DraggedFriction = 0.6, double Reach = 2.0);
 
+/// <summary>The dining car's bar (train.json <c>composition.dining</c>; ARCHITECTURE §8 note 959). Field docs live in that file.</summary>
+public sealed record DiningTuning
+{
+    public int Drinks { get; init; } = 8;
+    public int DrinkHeals { get; init; }
+}
+
 /// <summary>The BBQ deck (train.json <c>composition.bbq</c>; ARCHITECTURE §8 note 698). Field docs live in that file.</summary>
 public sealed record BbqTuning
 {
     public double DeckLength { get; init; } = 3.0;
     public double RailHeight { get; init; } = 1.0;
     public int Beers { get; init; } = 24;
-    public double BeerWarmth { get; init; } = 30;
     public int BeerHeals { get; init; }
     public double LightSeconds { get; init; } = 0.6;
     public double BurnSeconds { get; init; } = 300;
@@ -256,6 +267,8 @@ public sealed record KitTuning
     /// still carries (m). Spec F.3's radio range adds to it (note 196).
     /// </summary>
     public double RadioReach { get; init; }
+    /// <summary>Note 678's grab irons: how many times player.json's <c>ladder.grabMaxRelativeSpeed</c> a ladder can be caught at, 1 as built.</summary>
+    public double GrabIrons { get; init; } = 1;
     /// <summary>
     /// The band's instruments the blacksmith sold the crew (note 700; band.json <c>instruments</c> ids), in the guard van; the
     /// campaign sets it (effect <c>instrument:&lt;id&gt;</c>).
@@ -286,6 +299,12 @@ public sealed record KitTuning
     /// </summary>
     public int SpareLamps { get; init; }
     public int SpareExtinguishers { get; init; }
+    /// <summary>
+    /// Flare pistols bought at the fortress for the night (note 871; campaign.json <c>stores.flares</c>): in the guard van, each
+    /// loaded with <see cref="FlareShots"/> flares. The campaign sets them (<c>SessionSetup</c>).
+    /// </summary>
+    public int FlarePistols { get; init; }
+    public int FlareShots { get; init; } = 3;
     /// <summary>The crew lockers in the kit's car (ARCHITECTURE §8 note 173). Unset, the car has none.</summary>
     public LockerTuning? Lockers { get; init; }
 }
@@ -387,6 +406,13 @@ public sealed record EngineLayout(double DeckHeight, double BoilerHalfWidth, dou
     public double RunningBoardAhead { get; init; } = 1.0;
     /// <summary>The sandboxes on the running boards: this far behind the cab, over the drivers.</summary>
     public double SandboxBehind { get; init; } = 2.5;
+    /// <summary>
+    /// The cab's side doors at its front (note 856): the left one's opening this far behind the cab's front (beside the coal),
+    /// the right one's; 0 is none. Each the standard doorway's size, a landing <see cref="SideDoorLanding"/> past it either side.
+    /// </summary>
+    public double CoalDoorFrom { get; init; }
+    public double FrontDoorFrom { get; init; }
+    public double SideDoorLanding { get; init; } = 0.3;
     /// <summary>The big cab behind the footplate (ARCHITECTURE §8 note 716): the chart table, the gallery, the back wall.</summary>
     public CrewCarLayout CrewCar { get; init; } = new();
 }
@@ -407,10 +433,12 @@ public sealed record CrewCarLayout
     public double GalleryRise { get; init; } = 0.45;
     public double GalleryStep { get; init; } = 0.45;
     public double GalleryWaist { get; init; } = 1.1;
-    public IReadOnlyList<double> BenchRows { get; init; } = [5.9, 7.3];
-    public double BenchWidth { get; init; } = 1.0;
-    public double BenchDepth { get; init; } = 0.45;
+    public double BenchFrom { get; init; } = 5.15;
+    public double BenchTo { get; init; } = 8.35;
+    public double BenchDepth { get; init; } = 0.175;
     public double BenchHeight { get; init; } = 0.45;
+    public int BenchSeats { get; init; } = 4;
+    public double SeatEvery { get; init; } = 0.7;
     public double KettleFrom { get; init; } = 10;
     public double CuckooEvery { get; init; } = 60;
     public double CuckooOutSeconds { get; init; } = 3;
@@ -439,3 +467,14 @@ public sealed record FragileTuning(double SafeContactSpeed = 0.3, double ShockSh
 public sealed record BufferStopTuning(double SafeSpeed = 2.5, double DamagePerSpeedSquared = 0.02);
 
 public sealed record RecoveryTuning(double CorridorM = 40, double DropM = 15, double EdgeM = 3.5);
+
+/// <summary>
+/// The engine's whistle on the cord (train.json <c>whistle</c>; GDD §12, note 839; the director, 16 Oct 2026: "while I'm holding
+/// the key, I am holding the whistle pull. And then when I let go of the key, it immediately stops the whistle. That way we can
+/// actually do the longs and the shorts"). Held, it blows; let go, it blows on only <see cref="TailSeconds"/>, the steam off the
+/// valve, so the whistle codes' shorts and longs come out as blown. (It was a second, so two shorts ran into one long.)
+/// </summary>
+public sealed record WhistleTuning
+{
+    public double TailSeconds { get; init; } = 0.12;
+}

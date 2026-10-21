@@ -76,6 +76,8 @@ struct PostConstants
     public Vector4 A;
     public Vector4 B;
     public Vector4 C;
+    /// <summary>The composite's: x = the view's blur (0..1, <see cref="PostSettings.Blur"/>).</summary>
+    public Vector4 D;
 }
 
 /// <summary>
@@ -656,11 +658,21 @@ public sealed unsafe class GreyboxRenderer : IDisposable
     /// (scene.frag; the lantern tree's pods, note 696); 0 for everything that stands still.
     /// </summary>
     public static float Motion(string layer) =>
-        layer.EndsWith("_card", StringComparison.Ordinal) || layer.EndsWith("_bough", StringComparison.Ordinal) ? 1
+        // A model's baked atlas (`<model>_<n>`) never moves by its name: the water tower's, water_tower_0, was drawn as water,
+        // rippling in speckles (the director's playtest of 19 Oct, line 3: "Tower texture looks like TV static"; note 870).
+        BakedAtlas(layer) ? 0
+        : layer.EndsWith("_card", StringComparison.Ordinal) || layer.EndsWith("_bough", StringComparison.Ordinal) ? 1
         : layer.StartsWith("water_", StringComparison.Ordinal) ? 2
         : layer.EndsWith("_drip", StringComparison.Ordinal) ? 3
         : layer.EndsWith("_pod", StringComparison.Ordinal) ? 4
         : 0;
+
+    /// <summary>A layer named as a model's baked atlas is (tools/models cook.py: <c>&lt;model&gt;_&lt;material index&gt;</c>).</summary>
+    static bool BakedAtlas(string layer)
+    {
+        int cut = layer.LastIndexOf('_');
+        return cut > 0 && cut < layer.Length - 1 && layer.AsSpan(cut + 1).IndexOfAnyExceptInRange('0', '9') < 0;
+    }
 
     /// <summary>
     /// The hero layers (authored larger than the arrays' size: the baked atlases of what's seen closest) again at up to
@@ -1055,7 +1067,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         f->Wind = new Vector4(lighting.Wind, lighting.Gusts);
         f->Probe = new Vector4(HoleSlope, ShowUntextured ? 1 : 0, 0, 0);
         f->Stir = new Vector4(lighting.StirDirection, lighting.Stir);
-        f->StirColour = new Vector4(lighting.StirColour, 0);
+        f->StirColour = new Vector4(lighting.StirColour, lighting.Hills);
         for (int i = 0; i < LayerTable; i++)
             f->MotionOf[i] = i < _motion.Length ? _motion[i] : 0;
     }
@@ -1320,6 +1332,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             A = new Vector4(Post.BloomStrength, Post.Vignette, Post.Grain, Post.ColourLevels),
             B = new Vector4((float)(lighting.Time * 30 % 997), (float)Width / Height, Post.Ps2 ? 1 : 0, Post.Exposure),
             C = new Vector4(Post.WideBloom, Post.LensFringe, Post.Ps2 ? 0 : Post.Occlusion, 1f / _ao.Width),
+            D = new Vector4(Post.Blur, 0, 0, 0),
         };
         Transition(cmd, _ldr.Image, VkImageAspectFlags.Color, VkImageLayout.Undefined, VkImageLayout.ColorAttachmentOptimal);
         BeginRendering(cmd, _ldr, withDepth: false);

@@ -369,6 +369,115 @@ public static partial class TownKit
     public const float DoorFrame = 0.065f, DoorInset = 0.03f, DoorGap = 0.006f, DrawerFrom = 0.64f, DrawerTo = 0.8f, DrawerFrame = 0.035f,
         DrawerInset = 0.04f, PanelShade = 0.8f, FrameShade = 1.0f, PanelTile = 1.2f, FrontTile = 2.5f, CarcassTile = 2f;
 
+    /// <summary>The jackpot house's door's paint (note 719): oxblood, gone dull.</summary>
+    public static readonly Vector3 Oxblood = new(0.42f, 0.09f, 0.07f);
+
+    /// <summary>
+    /// An open house's door (notes 401, 719, 941), in its own frame: x across from its hinge at 0 to its free edge at
+    /// <paramref name="width"/> (with <paramref name="mirror"/>, the hinge at <paramref name="width"/> and the free edge at
+    /// 0), y up from 0 to <paramref name="height"/>, z through it, its outside face out along +z and its leaf
+    /// 2·<see cref="DoorThick"/> thick about z = 0. The director, 20 Oct: "there's no texture for the abandoned village
+    /// doors, so it looks like I'm picking nothing". A village's is boards of the houses' grey deal, ledged and braced on the
+    /// room's side, strap hinges and a ring latch of rusted iron on the outside. The jackpot house's (<paramref name="better"/>)
+    /// is panelled and painted oxblood with a brass knob and knocker, and its lock is what the wrench picks: a brass plate
+    /// under the knob with its keyhole black in it, and while it's <paramref name="locked"/> a barrel bolt shot into the
+    /// frame with a padlock hung through it.
+    /// </summary>
+    public static MeshAsset HouseDoor(Look? look, float width, float height, bool better, bool locked, bool mirror)
+    {
+        var k = new Kit(look, better ? 64 : 63);
+        const float T = DoorThick;
+        float X(float a) => mirror ? width - a : a;
+        void At(float a, float y, float z, float hx, float hy, float hz) => k.BoxAt(new Vector3(X(a), y, z), new Vector3(hx, hy, hz));
+        // An upright piece, its grain up it: built lying along x (the texture's grain) and stood up.
+        void Upright(float a, float y, float z, float hx, float hy, float hz) =>
+            k.With(Matrix4x4.CreateRotationZ(MathF.PI / 2) * Kit.At(X(a), y, z), () => k.BoxAt(Vector3.Zero, new Vector3(hy, hx, hz)));
+        if (better)
+        {
+            // Stiles and rails round four sunk panels, the panels a shade darker, the whole painted and worn.
+            k.Use("wood_floor", Oxblood, 0.8f, 0.08f, tile: PanelTile).Tint = Oxblood * PanelShade;
+            At(width / 2, height / 2, 0, width / 2 - 0.004f, height / 2 - 0.004f, T * 0.6f);
+            k.Use("wood_grey", Oxblood, 0.75f, 0.08f, tile: FrontTile).Tint = Oxblood;
+            float stile = 0.11f, rail = 0.13f, mid = height * 0.52f;
+            foreach (float a in new[] { stile / 2, width / 2, width - stile / 2 })
+                Upright(a, height / 2, 0, a == width / 2 ? 0.04f : stile / 2, height / 2, T);
+            foreach (float y in new[] { rail / 2, mid, height - rail / 2 })
+                At(width / 2, y, 0, width / 2, y == mid ? 0.08f : rail / 2, T);
+            // Raised fields in the panels, outside and in.
+            k.Use("wood_floor", Oxblood, 0.8f, 0.08f, tile: PanelTile).Tint = Oxblood * 0.9f;
+            float pw = (width - 2 * stile - 0.08f) / 2;
+            foreach (float a in new[] { stile + pw / 2, width - stile - pw / 2 })
+                foreach (var (y0, y1) in new[] { (rail, mid - 0.08f), (mid + 0.08f, height - rail) })
+                    foreach (float z in new[] { 1f, -1f })
+                        At(a, (y0 + y1) / 2, z * T * 0.75f, pw / 2 - 0.035f, (y1 - y0) / 2 - 0.035f, T * 0.3f);
+            k.Use("brass", Palette.TarnishedBrass, 0.55f, 0.6f, tile: 0.3f);
+            // The knob and its rose, the knocker on the top rail, and the lock: its plate, keyhole and all.
+            float knob = width - 0.09f;
+            k.Cylinder(new Vector3(X(knob), 1.0f, T), new Vector3(X(knob), 1.0f, T + 0.05f), 0.012f, 8, radiusB: 0.03f);
+            k.Cylinder(new Vector3(X(knob), 1.0f, T), new Vector3(X(knob), 1.0f, T + 0.008f), 0.035f, 10);
+            At(width / 2, height - 0.42f, T + 0.012f, 0.05f, 0.07f, 0.012f);
+            k.Cylinder(new Vector3(X(width / 2) - 0.05f, height - 0.5f, T + 0.03f), new Vector3(X(width / 2) + 0.05f, height - 0.5f, T + 0.03f), 0.012f, 6);
+            At(knob, 0.86f, T + 0.006f, 0.035f, 0.075f, 0.006f);
+            k.Use("rust_heavy", Palette.SootBlack, 0.95f, 0, tile: 1).Tint = Palette.SootBlack * 0.3f;
+            k.Cylinder(new Vector3(X(knob), 0.885f, T + 0.012f), new Vector3(X(knob), 0.885f, T + 0.0125f), 0.011f, 8);
+            At(knob, 0.855f, T + 0.0122f, 0.0045f, 0.022f, 0.0005f);
+            if (locked)
+            {
+                // A barrel bolt shot into the frame (the doorway's jamb hides where it goes), padlocked through its staple.
+                k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f, tile: 1);
+                float bolt = 1.24f, staple = width - 0.1f;
+                At(width - 0.17f, bolt, T + 0.006f, 0.17f, 0.035f, 0.006f);
+                k.Cylinder(new Vector3(X(width - 0.32f), bolt, T + 0.022f), new Vector3(X(width + 0.02f), bolt, T + 0.022f), 0.011f, 8);
+                At(staple, bolt, T + 0.03f, 0.012f, 0.045f, 0.018f);
+                // The padlock hung from the staple: its shackle and its brass body, the keyhole black in it.
+                foreach (float sx in new[] { -0.025f, 0.025f })
+                    k.Rod(new Vector3(X(staple + sx), bolt - 0.075f, T + 0.04f), new Vector3(X(staple + sx), bolt - 0.005f, T + 0.04f), 0.007f);
+                k.Rod(new Vector3(X(staple - 0.025f), bolt - 0.005f, T + 0.04f), new Vector3(X(staple + 0.025f), bolt - 0.005f, T + 0.04f), 0.007f);
+                k.Use("brass", Palette.TarnishedBrass, 0.7f, 0.45f, tile: 0.3f);
+                At(staple, bolt - 0.12f, T + 0.04f, 0.042f, 0.05f, 0.017f);
+                k.Use("rust_heavy", Palette.SootBlack, 0.95f, 0, tile: 1).Tint = Palette.SootBlack * 0.3f;
+                At(staple, bolt - 0.13f, T + 0.058f, 0.005f, 0.016f, 0.001f);
+            }
+            return k.Build(locked ? "house-door-locked" : "house-door-better");
+        }
+        // Boards side by side, each its own width, a hair apart.
+        k.Use("wood_grey", new Vector3(0.42f, 0.34f, 0.24f), 0.9f, 0.03f, tile: 1);
+        int boards = 5;
+        for (int i = 0; i < boards; i++)
+        {
+            float a0 = width * i / boards, a1 = width * (i + 1) / boards;
+            k.Shade(i % 2 == 0 ? 1f : 0.92f);
+            Upright((a0 + a1) / 2, height / 2 - (i % 3) * 0.004f, 0, (a1 - a0) / 2 - 0.003f, height / 2 - (i % 3) * 0.004f, T);
+            k.Shade(i % 2 == 0 ? 1f : 1 / 0.92f);
+        }
+        // On the room's side: the ledges top and bottom and the brace between them, rising from the hinge's foot.
+        k.Shade(0.85f);
+        foreach (float y in new[] { 0.3f, height - 0.3f })
+            At(width / 2, y, -T - 0.012f, width / 2 - 0.04f, 0.06f, 0.012f);
+        var foot = new Vector3(X(0.08f), 0.36f, -T - 0.012f);
+        var head = new Vector3(X(width - 0.08f), height - 0.36f, -T - 0.012f);
+        k.Cylinder(foot, head, 0.05f, 4, smooth: false);
+        // Strap hinges and the ring latch, rusted iron, on the outside.
+        k.Use("rust_heavy", Palette.IronGrey, 0.9f, 0.3f, tile: 1);
+        foreach (float y in new[] { 0.3f, height - 0.3f })
+        {
+            At(width * 0.32f, y, T + 0.004f, width * 0.32f, 0.022f, 0.004f);
+            k.Cylinder(new Vector3(X(0.012f), y - 0.06f, T + 0.006f), new Vector3(X(0.012f), y + 0.06f, T + 0.006f), 0.012f, 6);
+        }
+        float latch = width - 0.1f;
+        At(latch, 1.0f, T + 0.004f, 0.025f, 0.06f, 0.004f);
+        for (int i = 0; i < 8; i++)
+        {
+            float a0 = i * MathF.Tau / 8, a1 = (i + 1) * MathF.Tau / 8;
+            k.Rod(new Vector3(X(latch) + 0.04f * MathF.Sin(a0), 0.93f - 0.04f * MathF.Cos(a0), T + 0.014f),
+                new Vector3(X(latch) + 0.04f * MathF.Sin(a1), 0.93f - 0.04f * MathF.Cos(a1), T + 0.014f), 0.005f);
+        }
+        return k.Build("house-door");
+    }
+
+    /// <summary>Half an open house's door's thickness (m): a plank door's boards, an inch and a bit.</summary>
+    public const float DoorThick = 0.025f;
+
     /// <summary>
     /// A door or a drawer front on its own (note 760; the one a searched dresser's swung open on), in its own frame: x across
     /// from 0 to <paramref name="width"/>, y up from 0 to <paramref name="height"/>, its back on z = 0 and its face out along
@@ -521,7 +630,7 @@ public static partial class TownKit
                 k.Use("rust_heavy", Palette.IronGrey, 0.7f, 0.4f);
                 k.Lathe(at + new Vector3(0, height - 0.12f, 0), [new(0.07f, 0), new(0.08f, 0.03f), new(0.06f, 0.06f)], 8, smooth: false);
                 k.Lathe(at + new Vector3(0, height + 0.06f, 0), [new(0.06f, 0), new(0.04f, 0.05f), new(0.015f, 0.1f)], 8, smooth: false);
-                k.Use("lamp_lens", Palette.LampAmber * 0.5f, 0, 0, tile: 0.25f);
+                k.Use("lantern_pane", Palette.LampAmber * 0.5f, 0, 0, tile: 0.25f);
                 k.Emissive = 1;
                 k.Cylinder(at + new Vector3(0, height - 0.06f, 0), at + new Vector3(0, height + 0.06f, 0), 0.045f, 8, caps: false);
                 k.Emissive = 0;

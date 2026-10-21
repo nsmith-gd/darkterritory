@@ -34,7 +34,7 @@ public static class CrewActs
         var act = Of(s, id, world, others);
         var placed = s.Has(PlayerFlags.Lounging) ? Lounging(s, world.Train)
             : s.Has(PlayerFlags.InCannon) && world.Combat is { } combat ? InTheCannon(s, world.Train, combat.Cannonball)
-            : act is CrewPose.Gunner or CrewPose.Reload && Guns.Mount(world.Train, s.Parent) is { } gun ? Seated(s, gun) : s;
+            : act is CrewPose.Gunner or CrewPose.Reload && Guns.Mount(world.Train, s.Parent) is { } gun ? Seated(s, gun, world.Train.Vehicles[s.Parent].Gun) : s;
         var (feet, yaw) = Eyes.World(placed, frames);
         var (emote, emoteSeconds) = act is null ? EmoteOf(id, s, world) : (Emote.None, 0);
         int outfit = world.OutfitOf(id);
@@ -49,7 +49,8 @@ public static class CrewActs
             Headset: s.Head > 0 ? new HeadsetBody(s.Head, s.Pitch, s.Parent, s.Position, s.Yaw) : null,
             Car: placed.Parent != PlayerState.World && placed.Parent < frames.Count ? placed.Parent : PlayerState.World, Local: placed.Position,
             Emote: emote, EmoteSeconds: emoteSeconds, Sooted: s.Has(PlayerFlags.Sooted), Signal: signal, SignalSeconds: signalSeconds,
-            Paint: world.PaintOf(id), Hat: world.HatOf(id), Scorch: Sim.Enemies.CarFire.HeatOn(s, world));
+            Paint: world.PaintOf(id), Hat: world.HatOf(id), Scorch: Sim.Enemies.CarFire.HeatOn(s, world),
+            Pistol: world.Bodies.CarriedBy(id) is { Kind: BodyKind.FlarePistol });
         if (emote != Emote.None)
             drawn = WithEmote(drawn, id, s, world, frames, crew);
         // Over a friend's shoulder (note 723): draped over it, where the one carrying them is and on their clock (note 812).
@@ -597,14 +598,24 @@ public static class CrewActs
     /// <summary>How near the regulator (across the floor, m) a crewmate in the cab is at the controls.</summary>
     const double AtControls = 0.9;
 
-    /// <summary><paramref name="s"/> moved onto <paramref name="gun"/>'s seat (their feet on the roof under it), facing the gun's way.</summary>
-    public static PlayerState Seated(in PlayerState s, GunMount gun)
+    /// <summary><paramref name="s"/> moved onto <paramref name="gun"/>'s seat (their feet on the roof under it), the gun laid straight: a staged crew's.</summary>
+    public static PlayerState Seated(in PlayerState s, GunMount gun) => Seated(s, gun, default);
+
+    /// <summary>
+    /// <paramref name="s"/> moved onto <paramref name="gun"/>'s seat (their feet on the roof under it): on the carriage behind the
+    /// breech, turned with the gun. Note 850 (the director, 16 Oct evening: "the cannon, when she's turning it, appears to be
+    /// networked, but her body positioning turning with it is not"): the seat was drawn behind the mount's fixed facing, so a
+    /// gunner on another client's screen sat facing forward while the barrel swung; the gun's traverse is in every snapshot
+    /// (<see cref="GunState.Traverse"/>), and the sim seats them on it (<see cref="Guns.SeatAt"/>), so the body is drawn there too.
+    /// </summary>
+    public static PlayerState Seated(in PlayerState s, GunMount gun, in GunState laid)
     {
-        var seat = gun.Position - gun.Facing * TrainKit.CannonSeat.Z;
+        double yaw = Guns.FacingYaw(gun) + laid.Traverse;
         return s with
         {
-            Position = seat with { Y = gun.Position.Y + TrainKit.CannonSeat.Y - GunnerPan },
-            Yaw = Math.Atan2(-gun.Facing.X, -gun.Facing.Z),
+            Position = new Ballast.Double3(gun.Position.X + Math.Sin(yaw) * TrainKit.CannonSeat.Z, gun.Position.Y + TrainKit.CannonSeat.Y - GunnerPan,
+                gun.Position.Z + Math.Cos(yaw) * TrainKit.CannonSeat.Z),
+            Yaw = yaw,
         };
     }
 
@@ -771,18 +782,21 @@ public static class CrewActs
             {
                 LoungeKind.Hammock => CrewPose.Hammock,
                 LoungeKind.HotTub => CrewPose.Gunner,
-                _ => world.Bodies.CarriedBy(id) is { Kind: BodyKind.Beer } can
+                // On the big cab's bench (note 905): sat on its edge, upright, the feet on the gallery's floor.
+                LoungeKind.Bench => CrewPose.SitEdge,
+                _ => world.Bodies.CarriedBy(id) is { Kind: BodyKind.Beer or BodyKind.Drink } can
                     ? can.MendTicks > 0 ? CrewPose.LoungeDrink
                     // An emote from the chair with a can in hand (the wheel's wave, or any): a cheers, held out to the next chair.
                     : EmoteOf(id, s, world) is { Kind: not Emote.None, Seconds: < CheersSeconds } ? CrewPose.Cheers : CrewPose.Lounge
                     : CrewPose.Lounge,
             };
-        if (world.Bodies.CarriedBy(id) is { } carried)
+        // The flare pistol (note 964) is held as a hand tool is, in one fist, not carried in the arms.
+        if (world.Bodies.CarriedBy(id) is { Kind: not BodyKind.FlarePistol } carried)
             return carried.Kind switch
             {
                 // A can at the mouth, a sausage (or the grilled fish) bitten, while it's had (Bodies.Dose's MendTicks); a sausage
                 // in hand at a lit grill, turned with the tongs (note 698; C1's clips, note 791).
-                BodyKind.Beer when carried.MendTicks > 0 => CrewPose.Drink,
+                BodyKind.Beer or BodyKind.Drink when carried.MendTicks > 0 => CrewPose.Drink,
                 BodyKind.Sausage or BodyKind.GrilledFish when carried.MendTicks > 0 => CrewPose.Eat,
                 BodyKind.Sausage when Bbq.ByTheGrill(s, train) => CrewPose.Grill,
                 // Over the shoulder (App. C.4), the arm round its legs: where the sim holds it (Bodies.Shoulder).
@@ -813,7 +827,9 @@ public static class CrewActs
         if (s.Has(PlayerFlags.Crouched) && s.Head <= 0)
             return CrewPose.Crouch;
         if (world.Combat is { } combat && Guns.MannedGun(s, train, combat.Guns) is { } manned)
-            return train.Vehicles[manned].Gun.ReloadNeeded > 0 ? CrewPose.Reload : CrewPose.Gunner;
+            // Note 846 (the director's playtest of 16 Oct, line 7: "the reloading animation plays even if you're not
+            // reloading"): the reload's clip only while a hand's on it (its step under way), not for as long as it wants one.
+            return train.Vehicles[manned].Gun is { ReloadNeeded: > 0, ReloadProgress: > 0 } ? CrewPose.Reload : CrewPose.Gunner;
         // On the ground at the line's own levers: a switch stand's (spec C.6), a coaling chute's or a spout's (spec D.3).
         if (s.Parent == PlayerState.World)
         {

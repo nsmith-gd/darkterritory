@@ -19,11 +19,6 @@
   "safetyValveCapacity": 0.6,
   // Tractive effort fades out below workingBandMin and is gone at this pressure.
   "powerFloor": 20,
-  // GDD §22 deep cold (note 183): each cold step where the engine is takes coldEfficiencyPerStep off what a shovelful makes,
-  // to no less than coldEfficiencyFloor.
-  "coldEfficiencyPerStep": 0.06,
-  "coldEfficiencyFloor": 0.7,
-
   "tenderCapacity": 400,
   "fireboxCapacity": 6,
   "shovelSeconds": 1.2,
@@ -39,14 +34,35 @@
   // "Every crew member should be able to shovel coal regardless of having the shovel in their hand. We shouldn't need a
   // tool to do that"): the shovel stays on its rack as a club.
   "shovelInHand": false,
+  // The director's playtest of 13 Oct evening (line 19, note 903): "if I add any coal with any pressure, we should get some
+  // level of speed build up ... a shovel and one to three seconds later ... some sort of reaction for the locomotive ... we're
+  // going for fun". Main's shovelful just joined the bed and burned over half a minute: nothing to feel. Now this share of it
+  // catches (catchSeconds) and flares (flareSeconds), its steam landing as a kick on the gauge that peaks a second after the
+  // stroke and is mostly in by three: about +6 on the gauge a shovelful (0.35 x steamPerUnit), the stack and the chuff
+  // answering. The same coal makes the same steam, only sooner, so B.6's burn table holds. While it flares the engine
+  // surges: surgePerPressure m/s² per unit of pressure a second the flare makes (about 0.3 at a shovelful's peak), at most
+  // surgeMax, and only running, from surgeFrom m/s and off the brake: the yard's shunting at walking pace isn't nudged off its
+  // marks (StopCrewTests' jackpot carry went astray when it was) and a driver braking in to a stop isn't pushed past it.
+  // Not in the spec's tables (systems spec B.6 "A shovelful answers"); fun over realism.
+  "catchShare": 0.35,
+  "catchSeconds": 0.9,
+  "flareSeconds": 1.2,
+  "surgePerPressure": 0.15,
+  "surgeMax": 0.5,
+  "surgeFrom": 4,
 
   "fireTimeConstant": 30,
   // Draft with the regulator shut (blower only), as a fraction of working draft.
   "idleDraft": 0.6,
-  "steamPerUnit": 15,
-  "auxiliaryDrain": 0.05,
-  "heatingPerCar": 0.0675,
-  "fullThrottleDemand": 0.5,
+  // The director's playtest of 16 Oct (line 18, note 843): "build pressure a bit faster ... maybe like 15-20% faster". The
+  // steam a unit makes and the steam drawn (auxiliaries, heating, the cylinders) all went up 17% together (were 15, 0.05,
+  // 0.0675 and 0.5): the gauge moves 17% faster either way, and B.6's burn and endurance table stays as it was, since what
+  // burns to hold pressure is draw / steamPerUnit. A rebuild at a standstill is 37 s at three cars (was 43), 208 s at twenty
+  // (was 243).
+  "steamPerUnit": 17.55,
+  "auxiliaryDrain": 0.0585,
+  "heatingPerCar": 0.078975,
+  "fullThrottleDemand": 0.585,
 
   // Holding the vent valve open dumps pressure at this rate. T97: it's how the crew slows the train (steam sets the
   // speed). T109 playtest: in the cab, on its left side, so one player can drive it all from the footplate.

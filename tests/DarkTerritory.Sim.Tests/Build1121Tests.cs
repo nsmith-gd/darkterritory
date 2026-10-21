@@ -261,7 +261,7 @@ public class Build1121Tests
         (Night N, CarFire Fire) Blaze()
         {
             var n = new Night(5, speed: 8);
-            var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, car, 2, E.CarFire).Ablaze(1, 1.5));
+            var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, car, 2, E.CarFire, FireCause.Set).Ablaze(1, 1.5));
             n.Train.Vehicles[car].Cargo = CargoKind.None;
             n.Run(3); // alight (past its telegraph), with nobody in the car yet
             return (n, fire);
@@ -306,8 +306,8 @@ public class Build1121Tests
         // Build 1121: "putting the fire out in one car douses it in the whole train". The director's linger rule (T114) put
         // out every fire nobody had been within 12 m of for two minutes, while the crew were fighting another.
         var n = new Night(5, speed: 8);
-        var near = n.World.AddEnemy(id => CarFire.In(id, n.Train, 2, 2, E.CarFire));
-        var far = n.World.AddEnemy(id => CarFire.In(id, n.Train, 4, 2, E.CarFire));
+        var near = n.World.AddEnemy(id => CarFire.In(id, n.Train, 2, 2, E.CarFire, FireCause.Set));
+        var far = n.World.AddEnemy(id => CarFire.In(id, n.Train, 4, 2, E.CarFire, FireCause.Set));
         var room = n.Train.Frames[2].Shape.Interior!.Value;
         n.Crew[1] = new PlayerState { Parent = 2, Position = new Double3(room.Centre.X, room.Min.Y, near.Local.Z + 6), Surface = Surface.Deck, Health = 100_000 };
         n.Run(E.Director.LingerSeconds + 30);

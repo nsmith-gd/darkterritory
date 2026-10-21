@@ -77,7 +77,8 @@ public static class WorksKit
                 yield return (new Vector3(x * 0.7f, 2.5f, -z - 1.5f), Palette.FurnaceOrange * 1.6f, 12);
                 break;
             case "slag":
-                yield return (new Vector3(-x * 0.4f, 0.6f, -z * 0.6f), Palette.FurnaceOrange * 0.9f, 6);
+                // Over the pool at the toe of its front, where the runs come down (Heap's glow).
+                yield return (new Vector3(0, 0.7f, -z * 1.05f), Palette.FurnaceOrange * 1.1f, 7);
                 break;
             case "winding":
                 yield return (new Vector3(0, 3.5f, -z - 1.2f), Palette.LampAmber * 1.2f, 8);
@@ -106,15 +107,18 @@ public static class WorksKit
                 Cellar(k, x, z, h);
                 break;
             case "slag":
-                Heap(k, x, z, h, "slag", Palette.Charcoal, 0.15f, 11);
-                // Its toe still glowing where the last ladle went over.
-                k.Use("ember_crack", Palette.FurnaceOrange, 0.9f, 0, tile: 1.5f);
-                k.Emissive = 0.9f;
-                k.Panel(new Vector3(-x * 0.4f, 0.35f, -z * 0.86f), Vector3.Normalize(new Vector3(0, 0.6f, -1)), Vector3.UnitY, x * 0.7f, 0.7f);
-                k.Emissive = 0;
+                // Tipped from the ladles, its runs still glowing where the last one went over (note 870: it was a smooth
+                // dome with a flat glowing panel at its foot).
+                Heap(k, x, z, h, "slag", Palette.Charcoal, 0.15f, 11, glow: true);
                 break;
             case "coal":
-                Heap(k, x, z, h, "coal", Palette.SootBlack, 0.35f, 5);
+                Heap(k, x, z, h, "coal", Palette.SootBlack, 0.35f, 5, glow: false);
+                // The shovel left standing in it.
+                k.Use("wood_grey", Palette.DeepBrown, 0.9f, 0, tile: 1);
+                k.Rod(new Vector3(-x * 0.35f, h * 0.55f, -z * 0.45f), new Vector3(-x * 0.42f, h * 0.55f + 1.15f, -z * 0.62f), 0.025f);
+                k.Use("rust_heavy", Palette.IronGrey, 0.8f, 0.4f, tile: 1);
+                k.Quad(new Vector3(-x * 0.35f - 0.14f, h * 0.55f + 0.05f, -z * 0.45f), new Vector3(-x * 0.35f + 0.14f, h * 0.55f + 0.05f, -z * 0.45f),
+                    new Vector3(-x * 0.35f + 0.12f, h * 0.55f - 0.3f, -z * 0.4f), new Vector3(-x * 0.35f - 0.12f, h * 0.55f - 0.3f, -z * 0.4f), twoSided: true);
                 break;
             case "pigs":
                 // Pig iron in stacks like loaves, crossed course on course.
@@ -200,7 +204,7 @@ public static class WorksKit
         k.Use("wood_grey", Palette.BlueGrey, 0.9f, 0.05f, tile: 1);
         k.Box(new Vector3(-0.55f, 0, -z - 0.05f), new Vector3(0.55f, 2.1f, -z + 0.02f));
         // Rows of lamps hung inside over the beds, lit: the glow that's the warmest thing in the town.
-        k.Use("lamp_lens", Palette.LampAmber, 0.2f, 0.3f, tile: 1);
+        k.Use("lantern_pane", Palette.LampAmber, 0.2f, 0.3f, tile: 1);
         k.Tint = new Vector3(1.0f, 0.75f, 0.55f);
         k.Emissive = 1.2f;
         for (float lz = -z + 1.5f; lz < z - 1f; lz += 2.5f)
@@ -229,24 +233,149 @@ public static class WorksKit
         k.Box(new Vector3(0.28f, 0.85f, -z - 0.09f), new Vector3(0.38f, 0.98f, -z - 0.04f));
     }
 
-    /// <summary>A heap (coal, slag): a long low mound, lumpy, its own texture.</summary>
-    static void Heap(Kit k, float x, float z, float h, string texture, Vector3 colour, float shine, int seed)
+    /// <summary>
+    /// A heap (coal, slag), tipped from one side: a long uneven mound higher toward its back, gullied down its slopes where
+    /// the rain runs, its toe spread out ragged, and lumps of what it's made of rolled down round its foot and lying on its
+    /// flanks (note 870: the director's playtest of 19 Oct, line 1, "a bit odd and 2D flat": a smooth dome, shaded as one).
+    /// <paramref name="glow"/>: the slag's runs from the last ladle down its front, and the crust at its toe, still hot.
+    /// </summary>
+    static void Heap(Kit k, float x, float z, float h, string texture, Vector3 colour, float shine, int seed, bool glow)
     {
+        var rng = new Random(seed * 31 + 870);
         k.Use(texture, colour, 0.9f, shine, tile: 1.2f);
-        var rings = new List<Vector3[]>();
-        const int sides = 18;
-        for (int r = 0; r <= 6; r++)
+        // Its outline and its surface, as functions of how far out (t, 0 the crest, 1 the toe) and which way (a).
+        // (Never past its fixture's footprint: the town's walls round it are that box, note 869.)
+        float Reach(float a) => 0.86f + 0.08f * MathF.Sin(a * 2 + seed) + 0.04f * MathF.Sin(a * 5 + seed * 1.7f) + 0.02f * MathF.Sin(a * 11 + seed * 0.3f);
+        Vector3 At(float t, float a)
         {
-            float t = r / 6f, y = h * (1 - t * t) - 0.2f * (1 - t), scale = t;
-            var ring = new Vector3[sides];
+            // A ridge along it at the crest (a heap tipped from a line of barrows, not a cone), widening to its toe.
+            float r = MathF.Min(1, t) * Reach(a);
+            float px = MathF.Cos(a) * x * (0.42f * (1 - r) + r), pz = MathF.Sin(a) * z * (0.06f * (1 - r) + r);
+            // The crest set back (+Z): the tipping face toward the line longer than the back.
+            pz += z * 0.18f * (1 - MathF.Min(1, t));
+            // Its slopes straight, at what it'll stand at, rounding over only at the crest.
+            float fall = 1 - MathF.Pow(MathF.Min(1, t), 1.2f);
+            // Gullies down the slopes, the crest's own lumps.
+            float gully = 0.07f * MathF.Sin(a * 13 + seed) * MathF.Sin(MathF.PI * MathF.Min(1, t)) + 0.05f * MathF.Sin(px * 1.3f + pz * 2.1f + seed);
+            float y = h * (fall + gully * (0.4f + fall)) - 0.2f * MathF.Max(0, t - 0.9f) * 10;
+            return new Vector3(px, MathF.Max(-0.2f, y), pz);
+        }
+        // The skin: rings from the crest out to the toe, smooth-shaded, its texture laid from above (a loft's runs round each
+        // ring, sheared to a streak toward the crest), so the slag's cracks and the coal's lumps lie the same size all over.
+        const int rings = 12, sides = 30;
+        var grid = new Vector3[rings + 1, sides];
+        for (int r = 0; r <= rings; r++)
+            for (int i = 0; i < sides; i++)
+                grid[r, i] = At((float)r / rings, MathF.Tau * i / sides);
+        var normals = new Vector3[rings + 1, sides];
+        for (int r = 0; r < rings; r++)
             for (int i = 0; i < sides; i++)
             {
-                float a = MathF.Tau * i / sides, lump = 1 + 0.1f * MathF.Sin(a * 3 + seed) * MathF.Sin(t * 5 + seed);
-                ring[i] = new Vector3(MathF.Cos(a) * x * scale * lump, MathF.Max(-0.2f, y), MathF.Sin(a) * z * scale * lump);
+                int j = (i + 1) % sides;
+                var n = Vector3.Cross(grid[r, j] - grid[r, i], grid[r + 1, i] - grid[r, i]);
+                if (n.Y < 0)
+                    n = -n;
+                normals[r, i] += n;
+                normals[r, j] += n;
+                normals[r + 1, i] += n;
+                normals[r + 1, j] += n;
+            }
+        void Face(Vector3 a, Vector3 b, Vector3 c, Vector3 na, Vector3 nb, Vector3 nc)
+        {
+            var n = Vector3.Cross(b - a, c - a);
+            if (Vector3.Dot(n, na + nb + nc) < 0)
+                (b, c, nb, nc, n) = (c, b, nc, nb, -n);
+            // Each face's texture from the way it most faces: from above on the gentle slopes, from the side on the steep.
+            n = Vector3.Normalize(n);
+            Func<Vector3, Vector2> uv = MathF.Abs(n.Y) > 0.55f ? p => new(p.X, p.Z) : MathF.Abs(n.X) > MathF.Abs(n.Z) ? p => new(p.Z, p.Y) : p => new(p.X, p.Y);
+            k.Tri(a, b, c, Vector3.Normalize(na), Vector3.Normalize(nb), Vector3.Normalize(nc), uv(a), uv(b), uv(c));
+        }
+        for (int r = 0; r < rings; r++)
+            for (int i = 0; i < sides; i++)
+            {
+                int j = (i + 1) % sides;
+                Face(grid[r, i], grid[r, j], grid[r + 1, j], normals[r, i], normals[r, j], normals[r + 1, j]);
+                Face(grid[r, i], grid[r + 1, j], grid[r + 1, i], normals[r, i], normals[r + 1, j], normals[r + 1, i]);
+            }
+        // The crest's ridge closed over.
+        var crest = new Vector3[sides];
+        for (int i = 0; i < sides; i++)
+            crest[i] = grid[0, i];
+        for (int i = 1; i < sides - 1; i++)
+            Face(crest[0], crest[i], crest[i + 1], Vector3.UnitY, Vector3.UnitY, Vector3.UnitY);
+        // The lumps: rolled to the foot and out past it mostly, a few lodged up the flanks, each its own size and lie.
+        var tint = k.Tint;
+        for (int i = 0; i < 34; i++)
+        {
+            float a = (float)rng.NextDouble() * MathF.Tau;
+            float t = i < 24 ? 0.88f + (float)rng.NextDouble() * 0.16f : 0.35f + (float)rng.NextDouble() * 0.5f;
+            var p = At(MathF.Min(t, 1), a);
+            if (t > 1)
+                p = new Vector3(p.X * t, -0.05f, p.Z * t);
+            float size = (i < 24 ? 0.18f : 0.12f) + (float)rng.NextDouble() * 0.28f;
+            k.Tint = tint * (0.85f + (float)rng.NextDouble() * 0.3f);
+            Lump(k, p, size, rng);
+        }
+        k.Tint = tint;
+        if (!glow)
+            return;
+        // Three runs down the front from near the crest, each a narrow skin laid on the slope, brightest at the toe.
+        k.Use("ember_crack", Palette.FurnaceOrange, 0.9f, 0, tile: 1.5f);
+        foreach (float a0 in new[] { -1.85f, -1.45f, -1.2f })
+        {
+            float a = a0 + ((float)rng.NextDouble() - 0.5f) * 0.1f, w = 0.05f + (float)rng.NextDouble() * 0.04f;
+            var strip = new List<Vector3[]>();
+            for (int s = 0; s <= 8; s++)
+            {
+                float t = 0.3f + 0.68f * s / 8, wob = 0.04f * MathF.Sin(s * 1.9f + a * 7);
+                var l = At(t, a + wob - w) + new Vector3(0, 0.04f, 0);
+                var r = At(t, a + wob + w) + new Vector3(0, 0.04f, 0);
+                strip.Add([l, r]);
+            }
+            for (int s = 0; s < strip.Count - 1; s++)
+            {
+                k.Emissive = 0.3f + 0.7f * s / (strip.Count - 1);
+                k.Loft([strip[s], strip[s + 1]], facing: Vector3.UnitY);
+            }
+        }
+        // And where they've pooled at the toe: a crust broken over the glow, dark plates on a lit bed.
+        k.Emissive = 0.9f;
+        var pool = new Vector3[10];
+        var foot = At(1, -1.5f);
+        for (int i = 0; i < pool.Length; i++)
+        {
+            float a = MathF.Tau * i / pool.Length, r = 0.9f + 0.3f * MathF.Sin(i * 2.3f);
+            pool[i] = foot + new Vector3(MathF.Cos(a) * r * 1.6f, 0.06f, MathF.Sin(a) * r * 0.7f - 0.4f);
+        }
+        k.Cap(pool, Vector3.UnitY);
+        k.Emissive = 0;
+        k.Use(texture, colour, 0.9f, shine, tile: 1.2f);
+        for (int i = 0; i < 6; i++)
+        {
+            var c = foot + new Vector3(((float)rng.NextDouble() - 0.5f) * 2.4f, 0.08f, ((float)rng.NextDouble() - 0.5f) * 1.0f - 0.4f);
+            float s = 0.2f + (float)rng.NextDouble() * 0.25f;
+            k.Box(c - new Vector3(s, 0.02f, s * 0.7f), c + new Vector3(s, 0.06f, s * 0.7f), Kit.Faces.All & ~Kit.Faces.NegY);
+        }
+    }
+
+    /// <summary>A lump of coal or slag: a few faces, flat-shaded, lying however it came to rest.</summary>
+    static void Lump(Kit k, Vector3 at, float size, Random rng)
+    {
+        const int n = 5;
+        float turn = (float)rng.NextDouble() * MathF.Tau, squash = 0.55f + (float)rng.NextDouble() * 0.35f;
+        var rings = new List<Vector3[]>();
+        foreach (var (lift, scale) in new[] { (-0.25f, 0.75f), (0.2f, 1f), (0.8f, 0.45f) })
+        {
+            var ring = new Vector3[n];
+            for (int i = 0; i < n; i++)
+            {
+                float a = turn + MathF.Tau * i / n, r = size * scale * (0.75f + (float)rng.NextDouble() * 0.5f);
+                ring[i] = at + new Vector3(MathF.Cos(a) * r, lift * size * squash, MathF.Sin(a) * r * (0.7f + (float)rng.NextDouble() * 0.4f));
             }
             rings.Add(ring);
         }
-        k.Loft(rings, closed: true, smooth: true);
+        k.Loft(rings, closed: true, smooth: false, facing: Vector3.Zero);
+        k.Cap(rings[^1], Vector3.UnitY);
     }
 
     /// <summary>
@@ -278,7 +407,7 @@ public static class WorksKit
             k.Box(new Vector3(-1.8f, 2.6f - line * 0.28f, -z - 0.125f), new Vector3(-1.8f + 0.9f + (line * 37 % 5) * 0.2f, 2.66f - line * 0.28f, -z - 0.121f));
         k.Tint = Vector3.One;
         // The lamp over the door.
-        k.Use("lamp_lens", Palette.LampAmber, 0.2f, 0.3f, tile: 1);
+        k.Use("lantern_pane", Palette.LampAmber, 0.2f, 0.3f, tile: 1);
         k.Emissive = 1.4f;
         k.BoxAt(new Vector3(1.6f, 3.2f, -z - 0.25f), new Vector3(0.12f, 0.15f, 0.1f));
         k.Emissive = 0;

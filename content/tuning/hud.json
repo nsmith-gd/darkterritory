@@ -24,10 +24,6 @@
   // ALL ABOARD once every living crewmate has. Nobody is counted who hasn't called.
   "aboardRollSeconds": 90,
 
-  // Going out into a deeper step of the cold (GDD §22, note 201): its line, for this long (s). Getting chilled says how
-  // long you've got for as long as it lasts.
-  "coldSeconds": 5,
-
   // The dawn clock (GDD §11) comes up at the top of the screen in the night's last stretch (s before dawn), as Lethal
   // Company's clock does when it matters. Before that, the route card has it.
   "dawnClockSeconds": 600,

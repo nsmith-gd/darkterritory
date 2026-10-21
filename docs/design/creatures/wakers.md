@@ -52,7 +52,7 @@ The director: "the tension before it is really, really important." Three minutes
   director sends no more of them. The Knotter and Hotbox stay (`staysAtDawn`); the director ticks each creature in the
   Creature Tweaker (claude.ai/artifact/TdoxfYnmZTgv2jc9JmRkkw). Not yet: a creature seen running for the trees, rather
   than gone.
-- **The hills move.** Across the dark land, the shapes the crew took for hills settle and shift.
+- **The hills move.** Across the dark land, the shapes the crew took for hills settle and shift (note 962: the far ridges toward the stir heave in slow swells against its line, from `hillsFrom` of the way through it, up to `hills` degrees by dawn).
 - **The clock.** The HUD's dawn clock shows in the last stretch already (note 459). In the stir it turns to the
   Wakers' distance once they're up.
 
@@ -72,18 +72,31 @@ At dawn, `count` Wakers rise (by tier: 1 on the Frontier, 2 on the Dead Lines, 3
 
 ## 4. Racing in: the walls
 
-A train whose engine has crossed the town's gate (`Run.Tuning.TerminusZone`) is in. The Wakers stop `stopShort` metres
-out and stand there, roaring, while the town's guns fire at them. That's the picture the crew rolls in under. A train
-stopped short of the gate to clear its cars (#322, #323) is still out, and the clock's still running.
+A train whose last car is in through the town's gate is in (note 940; the director, 20 Oct 2026: "unless I'm behind those
+walls fully, it should really make a good effort to try and get me"). Only then do the Wakers stop: `stopShort` metres out
+(150, halved from 300: "it should stop maybe halfway a bit closer"), standing there roaring while the town's guns fire at
+them. That's the picture the crew rolls in under. Short of the gate, by however little, the train is still theirs: they come
+on past where they'd stand and take it. A train stopped short of the gate to clear its cars (#322, #323) is still out, and
+the clock's still running. One backed out of the gate again comes back to them, and they have it as it does.
 
 ## 5. The catch, and being eaten
 
 The director: "the picking up of the train, especially with you in it, you should experience that if you're still
 playing."
 
-- **The grab.** The Waker closes on the last car. The train drags to a stop against it (`dragDecel`), whatever the
-  driver does.
-- **The lift.** The last car goes up, nose-down, then the next as the coupling hauls it, a car every `liftSeconds`.
+- **The grab.** The Waker closes on the last car, whichever way the train's going (note 940: "pick up the train while it's
+  moving"; "I'm going straight between its legs"): run down from behind, or backed into him, it's his. The train is brought
+  to a stand in his hands at `holdDecel` (6 m/s²) at the least, whatever the driver does: stopped before the last car's up.
+- **Shot.** Up out of the land his body's in the open (`bodies.waker`, his legs to his head; on his knees `kneelStoop` of
+  it), so a ball lands: the hit's sound and marker, a jolt through him, and he roars. Nothing hurts him (note 940): he's the
+  dawn, and the only answer is the walls.
+- **The lift** (note 902; the director's playtest of 16 Oct 2026: "stop behind the train and like scoop it up with its
+  hands and pick it up like it's like a two-handed hot dog"). It stops `catchShort` m behind the last car, drops to its
+  knees on the line and gets both hands under the car where it stands on the rails, tears it off its coupling and lifts
+  it to its mouth, end first, its far end tipped down. It takes it in three bites (`bites` of the car's `eatSeconds`, the
+  last as the sim has it eaten), then its hands go down for the next and it shuffles on after it on its knees. Only the
+  car in its hands leaves the rails; the rest of the train stands where it is. Whoever comes down off the car in its hands
+  once it's `fallFrom` of the way up, onto the ground where it stood (within `fallAround` m), fell from it, and dies.
   Everyone aboard stays in first person and in control of their eyes. They are pinned in their car (the frame they live
   in tilts and rises), and can look out at the land falling away and the thing holding them.
 - **No cutaway while you're playing.** Held by a Waker is not D1.4's held camera (#312): that cuts to third person for
@@ -108,10 +121,13 @@ playing."
 | `riseBehind` | 1200 m behind the last car |
 | `riseAside` | 600 m off the line, the others |
 | `startSpeed` → `topSpeed` | 6 → 26 m/s over `rampSeconds` 45 |
-| `stopShort` | 300 m short of the gate |
+| `stopShort` | 150 m short of the gate, once the train's last car is in past it (note 940; it was 300) |
+| `holdDecel` | 6 m/s²: a train he has is stopped in his hands (note 940) |
 | `dragDecel` | 3 m/s² once it has the last car |
-| `liftSeconds` | 2.5 a car |
-| `eatSeconds` | 4 a car |
+| `catchShort` | 12 m behind the last car, where it kneels to take it (note 902) |
+| `scoopFrom`, `scoopHold` | the last car goes up from 1.2 s into the hold till 1 s before `eatAfter` (6) |
+| `eatSeconds` | 4 a car: `reachShare` 0.35 of `scoopShare` 0.45 of it its hands going down, the rest up; bites at 0.55 and 0.775, the third as it ends |
+| `fallFrom`, `fallAround` | 0.15 of the way up; 3 m round the car |
 | `pickers`, `pickAside`, `pickRiseSeconds` | 3 at once, 40 m beyond whoever ran, 4 s up (note 710) |
 | `pickSpeed`, `pickReach`, `pickLiftSeconds` | 12 m/s over, in hand within 18 m, 4 s up to its mouth (22 m up, 10 m out) |
 

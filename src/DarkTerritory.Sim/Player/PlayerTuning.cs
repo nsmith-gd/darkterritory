@@ -3,7 +3,7 @@ namespace DarkTerritory.Sim.Player;
 /// <summary>Mirror of content/tuning/player.json.</summary>
 public sealed record PlayerTuning(
     double Run, double Walk, double RoofRun, double RoofWalkSafe, double LadderClimb,
-    double CarryHeavy, double JumpGap, int Health, ColdTuning Cold,
+    double CarryHeavy, double JumpGap, int Health,
     double Gravity, double Radius, double Height, double StepUp,
     LandingTuning Landing, LadderTuning Ladder, HandTuning Hand, double JumpHeight = 0, double PushGun = 1.2, IReadOnlyList<string>? Kit = null)
 {
@@ -64,6 +64,11 @@ public sealed record PlayerTuning(
     /// together, and lamp signals. Field docs live in player.json <c>voices</c>.
     /// </summary>
     public VoicesTuning Voices { get; init; } = new();
+    /// <summary>
+    /// What in your hands slows you (the director, the inbox, 20 Oct 2026: "We shouldn't be slowed carrying anything unless it's
+    /// a two handed object"; note 897). Field docs live in player.json <c>twoHanded</c>.
+    /// </summary>
+    public TwoHandedTuning TwoHanded { get; init; } = new();
 
     public string BotName(int i) => i < BotNames.Count ? BotNames[i] : $"Crew {i + 1}";
 
@@ -74,10 +79,6 @@ public sealed record PlayerTuning(
     public double JumpVelocity => Math.Max(Gravity * JumpGap / (2 * RoofRun), Math.Sqrt(2 * Gravity * JumpHeight));
 }
 
-/// <param name="IndoorsRate">How fast the cold comes on inside a car's walls with a door open, against outside (spec B.2).</param>
-/// <param name="PerColdStep">GDD §22 deep cold (note 183): each cold step where you are makes the cold climb this much faster.</param>
-public sealed record ColdTuning(double OnsetSeconds, double DeathSeconds, double RecoverSecondsNearHeat, double OnsetSpeedScale, double IndoorsRate = 1,
-    double PerColdStep = 0.25);
 /// <summary>
 /// GDD §22 wind on a roof (note 201): the wind across a moving train pushes whoever's up top sideways, in gusts from
 /// either side. Field docs live in player.json <c>wind</c>.
@@ -104,7 +105,8 @@ public sealed record RejoinTuning(double ReserveSeconds = 180, bool ReclaimBody 
 /// </summary>
 public sealed record LinkTuning(double TimeoutSeconds = 15, double KeepaliveSeconds = 1, int PumpMilliseconds = 4,
     int PaceQueued = 4, double PaceSlow = 0.05, double PaceSeconds = 1, double HeldBackSeconds = 5,
-    int ThinLossPct = 12, double ThinSeconds = 2, double ThinHoldSeconds = 20, int StrainCrew = 2, double StrainSeconds = 5);
+    int ThinLossPct = 12, double ThinSeconds = 2, double ThinHoldSeconds = 20, int StrainCrew = 2, double StrainSeconds = 5,
+    int StrainedVoices = 2, double VoiceFloorSeconds = 0.5);
 /// <summary>
 /// The crew cap (note 254). Field docs live in player.json <c>crew</c>. Never under one: the host's own player always fits.
 /// </summary>
@@ -233,6 +235,36 @@ public sealed record VoicesTuning
     public LampSignalTuning LampSignals { get; init; } = new();
     /// <summary>Note 749: a held speaker's voice, a hand over the mouth (player.json <c>voices.covered</c>).</summary>
     public CoveredVoiceTuning Covered { get; init; } = new();
+    /// <summary>Note 855: every microphone brought to one speech level before it's sent (player.json <c>voices.leveller</c>).</summary>
+    public LevellerTuning Leveller { get; init; } = new();
+    /// <summary>Note 862: a voice through the cab's wall with a side door open (player.json <c>voices.openCab</c>).</summary>
+    public OpenCabTuning OpenCab { get; init; } = new();
+}
+
+/// <summary>
+/// Note 862 (the director, 19 Oct 2026: "open cab door should let voices out a bit more but not completely"). Field docs live
+/// in player.json <c>voices.openCab</c>.
+/// </summary>
+public sealed record OpenCabTuning
+{
+    public bool On { get; init; } = true;
+    public double Occlusion { get; init; } = 0.5;
+}
+
+/// <summary>
+/// Note 855 (the director's playtest of 16 Oct evening, line 1: the host's Windows mic "way too low" for the joiner): the
+/// capture leveller, client side (Ballast.Voice.VoiceLeveller). Field docs live in player.json <c>voices.leveller</c>.
+/// </summary>
+public sealed record LevellerTuning
+{
+    public bool On { get; init; } = true;
+    public double TargetDb { get; init; } = -14;
+    public double MaxBoostDb { get; init; } = 24;
+    public double MaxCutDb { get; init; } = 12;
+    public double RiseSeconds { get; init; } = 0.15;
+    public double FallSeconds { get; init; } = 2.5;
+    public double IgnoreBelowDb { get; init; } = 20;
+    public double Ceiling { get; init; } = 0.95;
 }
 
 /// <summary>
@@ -280,3 +312,20 @@ public sealed record LampSignalTuning
     public double StoppedWithin { get; init; } = 40;
 }
 
+/// <summary>
+/// Note 897: what in the hands is carried two-handed, and so slows you, keeps you off ladders and can't jump (spec B.2, App. C.4).
+/// <paramref name="Only"/> off is the rule before it: anything in the hands, a toy and a find too (note 594).
+/// </summary>
+public sealed record TwoHandedTuning(bool Only = true, IReadOnlyList<string>? Kinds = null)
+{
+    static readonly Physics.BodyKind[] Before =
+        [Physics.BodyKind.Cargo, Physics.BodyKind.Heavy, Physics.BodyKind.Toy, Physics.BodyKind.Loot, Physics.BodyKind.Child, Physics.BodyKind.Ragdoll];
+
+    Physics.BodyKind[]? _kinds;
+
+    Physics.BodyKind[] Two => _kinds ??= (Kinds ?? ["cargo", "heavy", "child", "ragdoll"])
+        .Select(k => Enum.Parse<Physics.BodyKind>(k, ignoreCase: true)).ToArray();
+
+    /// <summary>Whether a thing of this kind in the hands (not in a slot) slows whoever holds it.</summary>
+    public bool Slows(Physics.BodyKind kind) => Array.IndexOf(Only ? Two : Before, kind) >= 0;
+}

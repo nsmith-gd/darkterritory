@@ -140,6 +140,7 @@ public sealed partial class GameAudio
         BedStarved(train, engine, rake, derailed);
         BedWheels(world, train, dt, derailed);
         BedBrakes(train, rake, primed, derailed);
+        Booster(train, rake, derailed);
         BedAirflow(world, train, rake, dt, derailed);
         BedLabour(train, rake, dt, derailed);
         BendWarning(world, train, derailed);
@@ -220,6 +221,9 @@ public sealed partial class GameAudio
         double effort = bt is null ? train.LastControls.Throttle
             : bt.SteamDrive ? Math.Clamp((boiler.SteamSpeed(bt, rake.Tuning.MaxSpeed) - speed) / bt.DriveSpeedBand, 0, 1)
             : train.LastControls.Throttle * boiler.PowerFactor(bt);
+        // A shovelful flaring (note 903): she barks with it, a second or two after the stroke.
+        if (bt is not null)
+            effort = Math.Max(effort, Math.Clamp(bt.FlareLook(boiler), 0, 1));
         bool steam = !boiler.Ruptured && (bt is null || boiler.Pressure > bt.PowerFloor);
         float occlusion = Occlusion(0);
         if (steam)
@@ -405,6 +409,7 @@ public sealed partial class GameAudio
         double level = Math.Clamp(speed / 12, 0.3, 1) * Math.Clamp(brake, 0.3, 1);
         HoldCrossfade("bed-brake.drag", "bed-brake.drag-hot", 0, hot, at, 0, level * (1 - fading), "load", brake * speed);
         HoldLevel("state-brake-fade.fade", 0, at, 0, level * fading);
+        CompositionShoes(train, heat, at);
     }
 
     /// <summary>bed-wind: the air past a listener out in it, slow crossing to fast with the train's speed and the night's wind; and gusts.</summary>
@@ -479,11 +484,16 @@ public sealed partial class GameAudio
         }
         if (_time < _bellAgain)
             return;
+        bool first = _bellAgain == 0;
         _bellAgain = _time + t.RepeatSeconds;
         var engine = train.Frames[0];
         // On the cab's roof plate, over the driver's head.
         var bell = engine.Shape.Cab is { } cab ? engine.ToWorld(cab.Centre with { Y = cab.Max.Y - 0.2 }) : engine.ToWorld(new Double3(0, 3.6, engine.Shape.HalfLength * 0.6));
         Mixer.Play(t.WarningSound, bell);
+        // The speed recorder (queue #505, note 775): its own small gong on the backhead, struck once as the warning comes on
+        // (earlier than it would without it: overspeedLead), beside the bell.
+        if (first && Fitted(train, "speedRecorder", "up-tells.recorder-bell"))
+            Cue("up-tells.recorder-bell", engine.Shape.Cab is { } backhead ? engine.ToWorld(backhead.Centre with { Z = backhead.Min.Z + 0.3 }) : bell);
     }
 
     // ---- The boiler ------------------------------------------------------------------------------------------------------

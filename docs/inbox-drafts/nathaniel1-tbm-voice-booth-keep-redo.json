@@ -1,0 +1,19 @@
+{
+  "title": "Voice booth: listen to the 34 disguised takes and mark each Keep or Redo",
+  "from": "nathaniel1-tbm",
+  "kind": "answer",
+  "body": "What you'd hear in the game: the Holdout prisoners calling from behind a wall, the Soot Children's call, the yard clerk's radio lists and the Track Doll. Right now those use stand-in sounds, not voices you recorded.\n\nWhat was built (note 304, queue #42): the Dark Territory Voice Booth page, claude.ai/artifact/3VvuCkMwP3hJ6iDb1PZaoe. You recorded 11 lines on 7 Oct. AU1 turned them into 34 disguised versions (a deep old prisoner, a woman, a girl, a boy, a small child, a flat clerk and so on). They move the voice's size as well as its pitch, so it doesn't sound like you. The versions are under each take on the page. As of 16 Oct none had a verdict.\n\nDecision: open the page, play each version, press Keep or Redo. If it's Redo, say what's wrong (too deep, too like you, too thin).\n\nWhat each does: a Keep is copied into the game as that sound and credited to you; a Redo is made again with your note as a new version. Nothing goes into the game until you mark it.\n\nDefault meanwhile: the stand-in sounds stay and no agent installs any voice. Booth tooling is done; an audio agent acts the day a verdict appears. Note: the handoff says 34 versions of 11 takes, not 34 takes.",
+  "links": [
+    "https://claude.ai/artifact/3VvuCkMwP3hJ6iDb1PZaoe",
+    "https://github.com/nsmith-gd/darkterritory/blob/main/docs/notes/304.md"
+  ],
+  "pr": null,
+  "queue": 42,
+  "note": 304,
+  "tags": [
+    "audio",
+    "voices"
+  ],
+  "blocking": false,
+  "status": "open"
+}

@@ -1935,6 +1935,25 @@
     "license": "CC0-1.0"
   },
   {
+    "name": "lantern_pane",
+    "diffuse": "lantern_pane.png",
+    "spec": "lantern_pane_s.png",
+    "size": 512,
+    "tileMetres": 0.25,
+    "tiling": true,
+    "family": "emissive",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/art/textures.py",
+        "what": "sooted lantern glass: film, runs, specks, warm patches",
+        "author": "Dark Territory",
+        "license": "CC0-1.0"
+      }
+    ],
+    "license": "CC0-1.0"
+  },
+  {
     "name": "window_lit",
     "diffuse": "window_lit.png",
     "spec": "window_lit_s.png",

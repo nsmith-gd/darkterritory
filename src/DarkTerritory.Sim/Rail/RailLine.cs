@@ -41,7 +41,7 @@ public sealed record LineDefinition(string Name, IReadOnlyList<TrackSegment> Seg
 
 public enum BranchKind : byte
 {
-    /// <summary>A disused line off into the Territory, ending at a buffer stop (what the Switchman sets you onto, App. A.7).</summary>
+    /// <summary>A disused line off into the Territory, ending at a buffer stop (the clock's cost if the train's sent down one).</summary>
     DeadLine,
     /// <summary>A facility's siding (GDD §17): where the empties go to be loaded.</summary>
     Spur,
@@ -84,8 +84,6 @@ public interface ITrackConditions
     double Adhesion(int path, double distance);
     /// <summary>A deceleration (m/s²) the track puts on a train at <paramref name="speed"/> there (brass across the rail).</summary>
     double Drag(int path, double distance, double speed);
-    /// <summary>How deep the cold is there (GDD §22 "deep cold"; linegen plan §14's cold steps, 0 a normal night; note 183).</summary>
-    int ColdStep(int path, double distance) => 0;
     /// <summary>How exposed to the wind it is there (GDD §22 "wind"; 0 sheltered, 1 a normal night's wind; note 183).</summary>
     double Wind(int path, double distance) => 0;
     /// <summary>

@@ -312,6 +312,9 @@ public sealed partial class WorldArt
         }
         // The things in it (those inside the houses are the houses' own: Houses).
         int notices = plan.Papers.Count(p => p.OnBoard);
+        // The night market's stalls dealt their forms (note 870): seven on round the kit's eighteen from a place set by the
+        // town's name, so no two stalls in a row are the same form and no two towns' markets start alike.
+        int stallsDealt = 0, stallFrom = plan.Name.Sum(c => c) % SquareKit.StallVariants;
         foreach (var f in plan.Fixtures)
         {
             if (f.House >= 0)
@@ -324,8 +327,14 @@ public sealed partial class WorldArt
             if (plan.Form.Length > 0 && Landmark(f.Kind) && !(plan.Works is { } wk && wk.Holds(f.S, f.D, 1)))
                 continue;
             var m = Place(line, eye, town.World(f.S, f.D), f.S, f.FaceS, f.FaceD);
-            // (A market stall's awning is one of three colours, by where it stands: note 825.)
-            int count = f.Kind switch { "board" => notices, "line" => (int)(sq.S1 - sq.S0 - 8), "marketstall" => (int)Math.Abs(Math.Round(f.S / 4.6)) % 3, _ => 0 };
+            // (A market stall's form and colours: dealt in turn, note 870.)
+            int count = f.Kind switch
+            {
+                "board" => notices,
+                "line" => (int)(sq.S1 - sq.S0 - 8),
+                "marketstall" => (stallFrom + 7 * stallsDealt++) % SquareKit.StallVariants,
+                _ => 0,
+            };
             // The board carries the town's own notices, written on its sheets (note 669): a piece of its own, per town.
             var piece = f.Kind == "board"
                 ? Piece($"square-board-{plan.Name}-{notices}", () => SquareKit.Board(_look, [.. plan.Papers.Where(p => p.OnBoard).Select(p => (p.Title, p.Text))]))
@@ -347,13 +356,15 @@ public sealed partial class WorldArt
             }
             if (f.Kind == "lamps")
                 mesh.PointLights.Add(new PointLight(Vector3.Transform(new Vector3(0, 1.8f, -0.6f), m), Palette.LampAmber * 0.4f, 4));
-            // The night market's lanterns (note 825), each lighting its counter and the ground in front.
+            // The night market's lights (note 825), each lighting its counter and the ground in front: each stall's own, a
+            // lantern, a fire in a drum, candles (note 870).
             if (f.Kind == "marketstall")
-            {
-                var lamp = Vector3.Transform(SquareKit.MarketLamp, m);
-                mesh.PointLights.Add(new PointLight(lamp, Palette.LampAmber * 1.5f, 7));
-                mesh.Billboard(lamp, 0.5f, 0, new Vector4(Palette.LampAmber * 0.6f, 1), -1, FxBlend.Additive);
-            }
+                foreach (var (at, colour, range) in SquareKit.StallLights(count))
+                {
+                    var lamp = Vector3.Transform(at, m);
+                    mesh.PointLights.Add(new PointLight(lamp, colour, range));
+                    mesh.Billboard(lamp, 0.5f, 0, new Vector4(colour * 0.4f, 1), -1, FxBlend.Additive);
+                }
         }
         // The papers left about: flat on a bench or a crate, or pinned up by the hall's door.
         foreach (var p in plan.Papers)
@@ -484,20 +495,22 @@ public sealed partial class WorldArt
     public IEnumerable<(Vector3 Top, int Seed)> Chimneys(RailLine line, Double3 eye, Town town, double reach)
     {
         var houses = town.Plan.Houses;
-        for (int i = 0; i < houses.Count; i++)
+        // Where each lived-in house stands and where its chimneys are on it never change: found once a town, not every frame (queue #427).
+        var smoking = _chimneys.GetValue(town, t => [.. Enumerable.Range(0, houses.Count)
+            .Where(i => houses[i].Kind is HouseKind.Lived or HouseKind.Open)
+            .Select(i => (i, t.World(houses[i].S, houses[i].D), MaritimeKit.ChimneyTops(houses[i]).ToArray()))]);
+        foreach (var (i, at, tops) in smoking)
         {
-            var h = houses[i];
-            if (h.Kind is not (HouseKind.Lived or HouseKind.Open))
-                continue;
-            var at = town.World(h.S, h.D);
             if ((at - eye).Length > reach)
                 continue;
-            var m = HouseAt(line, eye, town, h);
+            var m = HouseAt(line, eye, town, houses[i]);
             int k = 0;
-            foreach (var top in MaritimeKit.ChimneyTops(h))
+            foreach (var top in tops)
                 yield return (Vector3.Transform(top, m), i * 8 + k++);
         }
     }
+
+    readonly System.Runtime.CompilerServices.ConditionalWeakTable<Town, (int House, Double3 At, Vector3[] Tops)[]> _chimneys = [];
 
     /// <summary>
     /// The watch on a town's wall (App. F.3: the fortresses feel static): a guard with a lantern walking each stretch of
@@ -601,7 +614,8 @@ public sealed partial class WorldArt
     /// the rear wall to the gate, the front wall out from the gatehouse to each corner, the rear wall across the line, a
     /// tower at each corner and down the sides, their lamps lit near you.
     /// </summary>
-    void TownWall(MeshBuilder mesh, RailLine line, Double3 eye, TownBounds town, double from, double to, bool lit, double time, TownGround? ground = null)
+    void TownWall(MeshBuilder mesh, RailLine line, Double3 eye, TownBounds town, double from, double to, bool lit, double time, TownGround? ground = null,
+        double rearOpen = 0)
     {
         // Standing on a town type's ground (note 692): a bay on the town's side's level, its stone plinth down to the lower.
         var (low, high) = Sim.Run.Fortresses.Footing(town, ground);
@@ -646,7 +660,12 @@ public sealed partial class WorldArt
         Turrets(mesh, eye, town, start, low, high, lit);
         // The gatehouse at the way in from the last night (note 692), facing out of the town as the way out's does.
         if (Near(town.Rear, 0))
-            mesh.Instances.Add(new MeshInstance(Piece("gatehouse", () => StructureKit.Gatehouse(_look)), Basis(start.Tangent, P(town.Rear, 0), eye, MathF.PI)));
+        {
+            var gm = Basis(start.Tangent, P(town.Rear, 0), eye, MathF.PI);
+            mesh.Instances.Add(new MeshInstance(Piece("gatehouse", () => StructureKit.Gatehouse(_look)), gm));
+            // Its gates (note 847), swung in toward the town ahead of it; turned round, the line's left is the piece's +X.
+            GateLeaves(mesh, gm, rearOpen, 1, wicketLeft: false);
+        }
         {
             var towers = Sim.Run.Fortresses.Towers(town).ToList();
             int side = 0;

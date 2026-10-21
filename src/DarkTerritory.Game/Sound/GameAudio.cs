@@ -422,8 +422,11 @@ public sealed partial class GameAudio
         }
         if (world.WhistleSeconds <= 0 || CordWhistles(world))
         {
-            // A held whistle stops with the blowing; a recorded blast (a whole take, start to release) rings out.
-            if (Bank.Get("train-whistle") is { Loop: true })
+            // A held whistle stops with the blowing. So does a crewmate's pull on a recorded blast (note 839, the director, 16 Oct:
+            // "when I let go of the key, it immediately stops the whistle. That way we can actually do the longs and the shorts"):
+            // the sim's short tail (train.json whistle.tailSeconds) is its release. The Whistler's blast (no hand on the cord,
+            // App. A.4) rings out as recorded.
+            if (Bank.Get("train-whistle") is { Loop: true } || world.WhistleBy >= 0)
                 _whistle?.Stop();
             _whistle = null;
             return;
@@ -1003,6 +1006,13 @@ public sealed partial class GameAudio
                 Cue(blow, h.At, occlusion);
             else
                 Mixer.Play("hit-confirm", h.At)?.Also(v => v.Occlusion = occlusion);
+            // A Waker shot (note 940: "nothing happens when I shoot it"): he roars at it, once in a while however many land.
+            if (h.Kind == Sim.Enemies.EnemyKind.Waker && _time >= _wakerHitRoar
+                && world.ActiveEnemies.FirstOrDefault(e => e.Id == h.EnemyId) is { } shot)
+            {
+                Cue("tell-wakers.roar", shot.WorldPosition(world.Train) + Ballast.Double3.Up * 50, 0);
+                _wakerHitRoar = _time + WakerHitRoarEvery;
+            }
         }
         _strikesPrimed = true;
         // Forget what's gone off the wire (ids aren't reused for a long while: a night's worth).
@@ -1011,6 +1021,10 @@ public sealed partial class GameAudio
         if (_heardHits.Count > 64)
             _heardHits.IntersectWith(world.Hits.Select(h => h.Id));
     }
+
+    // Note 940: the soonest a shot Waker roars again (the mixer's clock), and how far apart his roars at shots come (s).
+    double _wakerHitRoar;
+    const double WakerHitRoarEvery = 4;
 
     SoundInstance? _cooling;
     int _lampsOut;

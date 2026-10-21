@@ -1,0 +1,9 @@
+// #613's balance sweep (note 930): the shipping content with one of the director's pending asks on, to give each its
+// 30-seed number. `dt --edition f1-car-hugger-low-ground director sweep ...`. Measurement only; never shipped.
+{
+  "id": "edition-f1-car-hugger-low-ground",
+  "name": "f1-car-hugger-low-ground",
+  "version": "1.0.0",
+  "description": "car-hugger-low-ground: the Car Hugger on low ground (#612, #633's counter in)",
+  "order": -1000
+}

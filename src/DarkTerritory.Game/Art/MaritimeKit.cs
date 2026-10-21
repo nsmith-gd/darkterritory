@@ -267,7 +267,8 @@ public static class MaritimeKit
     /// hull is to its deck, where the house stands (m); how far the hull's sides stand out past the house's walls and its
     /// ends past its front and back, and how far each end rakes in to the flat bottom.
     /// </summary>
-    public const float Stilts = 0.9f, HullDeep = 1.3f, HullLift = Stilts + HullDeep, HullBeam = 0.3f, HullEnds = 0.4f, HullRake = 1.0f;
+    public const float Stilts = 0.9f, HullLift = (float)HouseDesign.HullLift, HullDeep = HullLift - Stilts,
+        HullBeam = (float)HouseDesign.HullBeam, HullEnds = (float)HouseDesign.HullEnds, HullRake = 1.0f;
 
     /// <summary>
     /// Under a Flooder's house (note 822): a scow's hull, flat-bottomed, its ends raked, tarred, a rubbing strake along its
@@ -877,7 +878,7 @@ public static class MaritimeKit
             k.Use("iron_smokebox", Palette.SootBlack, 0.6f, 0.3f, tile: 1);
             k.Box(new Vector3(lamp.X - 0.03f, lamp.Y + 0.12f, dz - 0.02f), new Vector3(lamp.X + 0.03f, lamp.Y + 0.17f, lamp.Z));
             k.Box(new Vector3(lamp.X - 0.09f, lamp.Y + 0.12f, lamp.Z - 0.09f), new Vector3(lamp.X + 0.09f, lamp.Y + 0.15f, lamp.Z + 0.09f));
-            k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
+            k.Use("lantern_pane", Palette.LampAmber, 0, 0, tile: 0.25f);
             k.Emissive = lit ? 1 : 0.35f;
             k.BoxAt(lamp, new Vector3(0.07f, 0.11f, 0.07f));
             k.Emissive = 0;
@@ -1257,7 +1258,7 @@ public static class MaritimeKit
                 // An oil lamp in the middle of it: the kitchen's light (WorldArt lights it, Lights).
                 k.Use("brass", Palette.TarnishedBrass, 0.3f, 0.6f);
                 k.Cylinder(new Vector3(cx, ht, cz), new Vector3(cx, ht + 0.1f, cz), 0.07f, 10, radiusB: 0.04f);
-                k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
+                k.Use("lantern_pane", Palette.LampAmber, 0, 0, tile: 0.25f);
                 k.Emissive = 1;
                 k.Cylinder(new Vector3(cx, ht + 0.1f, cz), new Vector3(cx, ht + 0.32f, cz), 0.05f, 10, radiusB: 0.035f);
                 k.Emissive = 0;
@@ -1287,7 +1288,7 @@ public static class MaritimeKit
                 k.Box(new Vector3(cx - hx * 0.7f, 0, cz - hz * 0.7f), new Vector3(cx + hx * 0.7f, 0.04f, cz + hz * 0.7f));
                 k.Use("brass", Palette.TarnishedBrass, 0.3f, 0.6f);
                 k.Cylinder(new Vector3(cx, 0.7f, cz), new Vector3(cx, 0.8f, cz), 0.07f, 10, radiusB: 0.04f);
-                k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
+                k.Use("lantern_pane", Palette.LampAmber, 0, 0, tile: 0.25f);
                 k.Emissive = 1;
                 k.Cylinder(new Vector3(cx, 0.8f, cz), new Vector3(cx, 1.02f, cz), 0.05f, 10, radiusB: 0.035f);
                 k.Emissive = 0;
@@ -1321,7 +1322,7 @@ public static class MaritimeKit
                 k.Use("wood_floor", Palette.DeepBrown, 0.8f, 0.15f, tile: 1);
                 k.Tint = new Vector3(0.6f, 0.42f, 0.3f);
                 k.Box(new Vector3(cx - hx, 0, cz - hz), new Vector3(cx + hx, ht, cz + hz));
-                k.Use("lamp_lens", Palette.LampAmber, 0, 0, tile: 0.25f);
+                k.Use("lantern_pane", Palette.LampAmber, 0, 0, tile: 0.25f);
                 k.Emissive = 1;
                 k.BoxAt(new Vector3(cx + hx * 0.6f * Math.Sign(cx), ht + 0.14f, cz), new Vector3(0.045f, 0.07f, 0.045f));
                 k.Emissive = 0;

@@ -55,7 +55,8 @@ public sealed partial class StopHand
         if (_spot is null)
         {
             // Not with the dawn close, and not more than our share of the hands at once.
-            if (run.DawnIn < t.VillageDawnSpare || calls.OutCount(member) >= Math.Max(1, (int)Math.Ceiling(calls.CrateHands * t.VillageShare)))
+            // (A hand sent to the town by a ping, note 739, goes whoever else is out.)
+            if (run.DawnIn < t.VillageDawnSpare || !TownOrdered(_stopIndex) && calls.OutCount(member) >= Math.Max(1, (int)Math.Ceiling(calls.CrateHands * t.VillageShare)))
                 return GiveUpVillage(self, world, p);
             var kept = Lived(world);
             var next = run.HidingSpots
@@ -64,10 +65,10 @@ public sealed partial class StopHand
                 .OrderBy(h => (Flat(h.At) - Flat(here)).Length).ThenBy(h => h.Key).FirstOrDefault();
             if (next.Seconds <= 0)
                 return GiveUpVillage(self, world, p);
-            if ((Flat(next.At) - Flat(here)).Length > t.VillageReach)
+            if ((Flat(next.At) - Flat(here)).Length > Reach(world, t))
                 return GiveUpVillage(self, world, p);
             var path = FootPath.Plan(train, here, Front(next));
-            if (path is null || FootPath.Length(here, path) > t.VillageReach * 1.4)
+            if (path is null || FootPath.Length(here, path) > Reach(world, t) * 1.4)
             {
                 // Nowhere it can walk to from here (round the far side of a lake, say): try the next one next tick.
                 _cantReach.Add(next.Key);
@@ -151,10 +152,22 @@ public sealed partial class StopHand
     {
         var t = Crew(world);
         var kept = Lived(world);
-        return run.DawnIn >= t.VillageDawnSpare && calls.OutCount(member) < Math.Max(1, (int)Math.Ceiling(calls.CrateHands * t.VillageShare))
+        return run.DawnIn >= t.VillageDawnSpare && (TownOrdered(_stopIndex) || calls.OutCount(member) < Math.Max(1, (int)Math.Ceiling(calls.CrateHands * t.VillageShare)))
             && run.HidingSpots.Any(h => h.Stop == _stopIndex && !run.Searched(h.Stop, h.Container.Index) && !_cantReach.Contains(h.Key)
-                && !calls.SpotClaimed(h.Key, member) && (Flat(h.At) - Flat(here)).Length <= t.VillageReach && !InLived(world, kept, h.At));
+                && !calls.SpotClaimed(h.Key, member) && (Flat(h.At) - Flat(here)).Length <= Reach(world, t) && !InLived(world, kept, h.At));
     }
+
+    /// <summary>
+    /// How far from where it stands it goes to a spot (m): the crew's village reach; a hand sent to the town by a ping, as far
+    /// as the town pinged (note 936, player.json <c>pings.townReach</c>).
+    /// </summary>
+    double Reach(World world, StopCrewTuning t) => TownOrdered(_stopIndex) ? Math.Max(t.VillageReach, world.PingTuning.TownReach) : t.VillageReach;
+
+    /// <summary>
+    /// Whether this hand's order is the town at this stop (note 739 part two; the director, 14 Oct: "an abandoned town by a
+    /// yard"): out to search its houses whatever the crates and however many hands are out already.
+    /// </summary>
+    bool TownOrdered(int stop) => stop >= 0 && PlayerId is { } me && calls.OrderOf(me) is { Kind: PingKind.Town, Target: var k } && k == stop;
 
     /// <summary>
     /// The houses something lives in (the house creatures, notes 583–586): the bots keep out of them, as they keep out of the

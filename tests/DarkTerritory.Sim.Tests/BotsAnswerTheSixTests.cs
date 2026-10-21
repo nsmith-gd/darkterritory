@@ -23,7 +23,7 @@ public class BotsAnswerTheSixTests
     /// <summary>The director quiet (its grace never over): only what each test puts there.</summary>
     static readonly EnemyTuning Quiet = E with { Director = E.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } };
 
-    static StopHand Hand(int id) => new(StopJob.None, new CrewCalls(), id, P.Cold);
+    static StopHand Hand(int id) => new(StopJob.None, new CrewCalls(), id);
 
     static Double3 Beside(Night n, int car, double lateral, double along = 0)
     {
@@ -131,7 +131,7 @@ public class BotsAnswerTheSixTests
         n.World.AddEnemy(id => Mourner.Come(id, 1, body, n.Train, E.Mourners)[0]);
         n.Crew[2] = Ground(n, Beside(n, 2, 14));
         var calls = new CrewCalls();
-        var hand = new StopHand(StopJob.None, calls, 2, P.Cold);
+        var hand = new StopHand(StopJob.None, calls, 2);
         var job = new PlayerIntent { MoveX = 0.7f };
         Assert.NotEqual(job, Heed.Mourners(job, n.Crew[2], n.World, 2, hand));
         calls.Leave(true);
@@ -196,7 +196,7 @@ public class BotsAnswerTheSixTests
     /// <summary>A roof walker (no stop part) whose legs are its own, as a crew bot's are.</summary>
     static RoofWalkerBot Walker(int id, int head = -1)
     {
-        var w = new RoofWalkerBot(id, P.Cold) { Me = id };
+        var w = new RoofWalkerBot(id) { Me = id };
         w.Head(head);
         return w;
     }
@@ -628,7 +628,9 @@ public class BotsAnswerTheSixTests
         Assert.True(k.Gone, $"the Knotter's {k.Mode}, {k.Health} health ({driver.SixStep})");
         Assert.Equal(1, n.Train.TrainRakes);
         Assert.True(n.Train.Dynamics.Speed > 4, $"standing at {n.Train.Dynamics.Speed:0.0} m/s ({driver.SixStep})");
-        Assert.All(n.Crew.Values, c => Assert.True(c.Alive && c.Parent != PlayerState.World));
+        // Aboard, once nobody's mid-stride over a coupling gap (in the air there, in the world's frame, as the train got going).
+        Drive(n, driver, Walk, 2, until: () => n.Crew.Values.All(c => c.Surface != Surface.Air));
+        Assert.All(n.Crew.Values, c => Assert.True(c.Alive && c.Parent != PlayerState.World, $"alive {c.Alive}, on {c.Parent} ({c.Surface})"));
     }
 
     /// <summary>
@@ -711,6 +713,34 @@ public class BotsAnswerTheSixTests
         // From the side: out of its bite all along.
         Assert.Equal(P.Health, n.Crew[2].Health);
         Assert.True(n.Crew[2].Parent != PlayerState.World);
+    }
+
+    [Fact]
+    public void ABotWithNoToolGetsDownToClubAHotboxNeverFromTheRoofOverIt()
+    {
+        // The director's playtest of 20 Oct evening, line 17 (note 945): "he's standing on top of the car, and it's on the
+        // outside of the car, so that's certainly not going well". With no crowbar or wrench to prise it with, a bot clubs it
+        // (it snaps; a hurt): from the ground beside the car, where a blow reaches it, as a prise is made from; never stood on
+        // the roof over it swinging at the air.
+        var t = E.Hotbox;
+        var n = new Night(6, speed: 0, enemies: Quiet);
+        var h = n.World.AddEnemy(id => Hotbox.In(id, n.Train, 3, rear: true, 1, t));
+        h.Extra = t.KnockSeconds + t.GlowSeconds + 1;
+        n.Run(t.ExposeAfter + 0.5);
+        Assert.Equal(HotboxMode.Unfolded, h.Mode);
+        var at = h.WorldPosition(n.Train);
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 3, h.Local.Z, P) with { Kit = 0 };
+        var legs = new Dictionary<int, RoofWalkerBot> { [2] = Walker(2) };
+        var hands = new Dictionary<int, StopHand> { [2] = Hand(2) };
+        bool down = false;
+        for (double s = 0; s < 40 && h.LastHitBy != 2; s += SimConstants.TickSeconds)
+        {
+            n.Run(SimConstants.TickSeconds, id => Heed.Hotbox(legs[id].Decide(n.Crew[id], n.World, n.World.Tick, out _), n.Crew[id], n.World, id, hands[id], Others(n, id)));
+            down |= n.Crew[2].Parent == PlayerState.World;
+        }
+        Assert.True(down, $"stayed up on car {n.Crew[2].Parent}");
+        Assert.Equal(2, h.LastHitBy);
+        Assert.True((PlayerMotor.WorldPosition(n.Crew[2], n.Train) - at).Length < 4);
     }
 
     [Fact]

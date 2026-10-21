@@ -228,6 +228,21 @@ public class TownFormTests
     }
 
     /// <summary>
+    /// A town's water rectangles are worked out once (queue #427): the art asks for them every frame, and a scan of the ground's
+    /// grid each time was most of a town's frame (about 40 ms a frame on a fen, `dt perf --town square`).
+    /// </summary>
+    [Fact]
+    public void ATownsWaterRectanglesAreWorkedOutOnceNotEveryFrame()
+    {
+        foreach (var form in TownForms.All)
+        {
+            var site = new TownSite("Fort Boudreau", "coal", 1180, 1234, []) { Form = form };
+            var ground = TownGround.Of(TownGenerator.Generate(As(form, 400), site));
+            Assert.Same(ground.WaterRects(), ground.WaterRects());
+        }
+    }
+
+    /// <summary>
     /// The same town from the same seed, to the last lot and level (note 591: "the exact same town with the exact same
     /// layout"), whichever night makes it; and towns.json's trade weights give every form somewhere.
     /// </summary>

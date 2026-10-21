@@ -53,20 +53,50 @@ public static class PingMarks
     static readonly Vector4 Mark = new(0.55f, 0.85f, 1f, 0.95f);
     const float Edge = 14;
 
-    /// <summary>What a ping's on, as said: "FIRE, CAR 3", "THE CONTROLS", "LOOT", "THE CRANE".</summary>
-    public static string What(PingEvent p) => p.Kind switch
+    /// <summary>
+    /// What a ping's on, as said: "FIRE, CAR 3", "THE CONTROLS", "LOOT", "THE CRANE", "THE TOWN"; note 936's "THE SPUR" (a
+    /// switch's points: "THE POINTS" off a branch that isn't a spur), "THE CARGO" and "CAR 4" (an open car for it).
+    /// </summary>
+    public static string What(PingEvent p, World? world = null) => p.Kind switch
     {
         PingKind.Fire => $"FIRE, CAR {p.Target}",
         PingKind.Cab => "THE CONTROLS",
         PingKind.Loot => "LOOT",
         PingKind.Crane => "THE CRANE",
+        PingKind.Town => "THE TOWN",
+        PingKind.Points => Spur(p, world) ? "THE SPUR" : "THE POINTS",
+        PingKind.Cargo => p.Target > 0 ? $"CAR {p.Target}" : "THE CARGO",
         _ => "THERE",
     };
 
-    /// <summary>The HUD's lines (note 739): "PRIYA: FIRE, CAR 3", newest first, yours as "YOU".</summary>
+    /// <summary>
+    /// Note 936 (the director, 20 Oct: "oh, the spur? Yeah, of course, you want me to throw the spur. Oh, an abandoned house?
+    /// Sure, I'll go search it"): what the crewmate who's taken a ping says back, on it.
+    /// </summary>
+    public static string Answer(PingEvent p, World? world = null) => p.Kind switch
+    {
+        PingKind.Fire => $"ON THE FIRE, CAR {p.Target}",
+        PingKind.Cab => "TAKING THE CONTROLS",
+        PingKind.Loot => "FETCHING THE LOOT",
+        PingKind.Crane => "ON THE CRANE",
+        PingKind.Town => "SEARCHING THE HOUSE",
+        PingKind.Points => Spur(p, world) ? "ON THE SPUR" : "ON THE POINTS",
+        PingKind.Cargo => p.Target > 0 ? $"LOADING CAR {p.Target}" : "LOADING THE CARGO",
+        _ => "ON IT",
+    };
+
+    static bool Spur(PingEvent p, World? world) =>
+        world is null || p.Target < 0 || p.Target >= world.Train.Line.Branches.Count || world.Train.Line.Branches[p.Target].Kind == Sim.Rail.BranchKind.Spur;
+
+    /// <summary>
+    /// The HUD's lines (note 739): "PRIYA: FIRE, CAR 3", newest first, yours as "YOU". Note 936: one a crewmate's answered is
+    /// their answer, "DUNMORE: ON THE SPUR".
+    /// </summary>
     public static IEnumerable<string> Lines(World world, int me) =>
         world.Pings.OrderByDescending(p => p.Tick).ThenByDescending(p => p.Id).Take(3)
-            .Select(p => $"{(p.By == me ? "YOU" : IncidentLog.NameOf(world, p.By).ToUpperInvariant())}: {What(p)}");
+            .Select(p => p.Taker >= 0 ? $"{Who(world, p.Taker, me)}: {Answer(p, world)}" : $"{Who(world, p.By, me)}: {What(p, world)}");
+
+    static string Who(World world, int id, int me) => id == me ? "YOU" : IncidentLog.NameOf(world, id).ToUpperInvariant();
 
     /// <summary>Each ping's mark, as this machine draws the world through <paramref name="camera"/>.</summary>
     public static void Draw(Overlay overlay, int width, int height, in Camera camera, World world)
@@ -74,7 +104,7 @@ public static class PingMarks
         var eye = camera.Position;
         foreach (var p in world.Pings)
         {
-            string label = $"{What(p)} {(p.At - eye).Length:0} M";
+            string label = $"{What(p, world)} {(p.At - eye).Length:0} M";
             var at = ScreenPoint.Of(camera, p.At, width, height, Edge);
             if (at.OnScreen)
             {

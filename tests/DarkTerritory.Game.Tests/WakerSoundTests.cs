@@ -59,7 +59,8 @@ public class WakerSoundTests : IDisposable
         {
             world.BeginTick();
             world.CrewAct(ref player, default, 1);
-            world.Step(new TrainControls { Reverser = 1, Brake = 1 });
+            train.Dynamics.Velocity = 0.6;
+            world.Step(new TrainControls { Reverser = 1, Brake = 0 });
             world.StepRun([player]);
             var ear = train.Frames[0].ToWorld(new Double3(0, 2.5, 0));
             audio.Update(world, world.Controls, Listener.At(ear, train.Frames[0].Heading), exposed: true, SimConstants.TickSeconds);
@@ -91,13 +92,16 @@ public class WakerSoundTests : IDisposable
     [Fact]
     public void StoodAtTheWallsTheTownsGunsAreHeardFiringOnItAndEachBallLanding()
     {
-        // Pulled in just inside the gate at dawn (WakersTests.UnderTheTerminusGunsTheyStopShortAndTheCrewIsHome): the lead
-        // stands stopShort out, and each of the gatehouse's and towers' guns fires on it on its own beat (Effects.WallGunBeat,
-        // as the scene draws them), every ball landing on its back its flight later. Nothing fires before it's stood there.
+        // Pulled in through the gate at dawn, its last car and all (WakersTests.HomeThroughTheGateTheyStopShortAndTheCrewIsHome;
+        // note 940: short of the gate the train's still theirs): the lead stands stopShort out, and each of the gatehouse's and
+        // towers' guns fires on it on its own beat (Effects.WallGunBeat, as the scene draws them), every ball landing on its back
+        // its flight later. Nothing fires before it's stood there. (The train creeps on in, over the run's stop speed: on this
+        // line home is the gate, and a train stood past it is delivered, the night over.)
         var runTuning = DataFile.Load<RunTuning>(Path.Combine(Content, RunTuning.File));
         var route = RouteGenerator.Generate(RouteTuning.Load(Content), RouteTier.Frontier, 7) with { DawnSeconds = 3 };
         double gate = route.Length - runTuning.TerminusZone;
-        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 6, 1)), route.Build(), gate - 20);
+        var consist = Consist.Uniform(T, 6, 1);
+        var train = new TrainOnLine(new TrainDynamics(consist), route.Build(), gate + consist.LengthMetres + 20);
         var world = new World(train, C);
         world.EnableRun(runTuning, route, 600, authority: true);
         world.EnableEnemies(E with { Director = E.Director with { GraceMinSeconds = 1e9, GraceMaxSeconds = 1e9 } }, null, 1, crew: 1, authority: true);
@@ -109,7 +113,8 @@ public class WakerSoundTests : IDisposable
         {
             world.BeginTick();
             world.CrewAct(ref player, default, 1);
-            world.Step(new TrainControls { Reverser = 1, Brake = 1 });
+            train.Dynamics.Velocity = 0.6;
+            world.Step(new TrainControls { Reverser = 1, Brake = 0 });
             world.StepRun([player]);
             var ear = train.Frames[0].ToWorld(new Double3(0, 2.5, 0));
             audio.Update(world, world.Controls, Listener.At(ear, train.Frames[0].Heading), exposed: true, SimConstants.TickSeconds);
@@ -127,10 +132,11 @@ public class WakerSoundTests : IDisposable
         Assert.True(guns >= 2);
         int fired = heard.Count(h => h.Name == "town-guns.fire"), landed = heard.Count(h => h.Name == "town-guns.hit");
         Assert.DoesNotContain(heard, h => h.Name.StartsWith("town-guns.") && h.At < stood);
-        // Each gun once every WallGunEvery, give or take its first and last; each ball landing (but those still in the air).
-        double standing = t - stood;
+        // Each gun has its turn every WallGunEvery and fires in about three in five of them, more in a burst and fewer in a
+        // lull (note 834: never on a beat), give or take its first and last; each ball landing (but those still in the air).
+        double standing = t - stood, turns = standing / Art.Effects.WallGunEvery;
         Assert.True(standing > 60, $"stood under the guns {standing:0} s");
-        Assert.InRange(fired, guns * (standing / Art.Effects.WallGunEvery - 1), guns * (standing / Art.Effects.WallGunEvery + 1));
+        Assert.InRange(fired, guns * (turns * 0.35 - 1), guns * (turns * 0.85 + 1));
         Assert.InRange(landed, fired - guns, fired);
         Assert.DoesNotContain(heard, h => h.Name == "gunshot");
     }

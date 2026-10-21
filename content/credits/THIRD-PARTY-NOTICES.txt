@@ -39,17 +39,15 @@ Cut up, recombined and rebaked for the game.
 - Glass Hurricane Candle Holder, Eric Chadwick for Wayfair (Khronos glTF sample assets), CC BY 4.0
   CC BY 4.0. From github.com/KhronosGroup/glTF-Sample-Assets. In: portrait room.
 - Infinite, 3D Head Scan by Lee Perry-Smith (ir-ltd.net), CC BY 3.0, based on a work at triplegangers.com
-  CC BY 3.0. From github.com/mrdoob/three.js. In: clinger, dave, husk, survivor prisoner, survivor wildlander, switchman, wall face.
+  CC BY 3.0. From github.com/mrdoob/three.js. In: clinger, dave, husk, survivor prisoner, survivor wildlander, wall face.
 - Interior Scene by Allay Design (sketchfab.com/Alister.Dsouza), CC BY 4.0
   CC BY 4.0. From github.com/gkjohnson/3d-demo-data. In: wake room.
 - Antique Camera, Maximillan Kamps for UX3D (Khronos glTF sample assets), CC0
   CC0 1.0. From github.com/KhronosGroup/glTF-Sample-Assets. In: portrait room.
 - Crab and Elbow Crab, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions
   Free to use, no copyright restrictions. From github.com/gkjohnson/3d-demo-data. In: clinger.
-- FlightHelmet, Microsoft (Khronos glTF sample assets), CC0
-  CC0 1.0. From github.com/KhronosGroup/glTF-Sample-Assets. In: switchman.
 - Hosmer, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions
-  Free to use, no copyright restrictions. From github.com/gkjohnson/3d-demo-data. In: effigy, switchman, wake room.
+  Free to use, no copyright restrictions. From github.com/gkjohnson/3d-demo-data. In: effigy, wake room.
 - Lantern, Microsoft (Khronos glTF sample assets), CC0
   CC0 1.0. From github.com/KhronosGroup/glTF-Sample-Assets. In: hand lantern, lamp post, skull lantern.
 - Le Transi de Rene de Chalon, scanned by Three D Scans (threedscans.com): free to use, no copyright restrictions
@@ -67,11 +65,11 @@ Cut, layered and processed for the game.
 - Body percussion (github.com/sfzinstruments/body_percussion)
   CC0 1.0. In 1 of the game's sounds.
 - Impact Sounds, by Kenney (kenney.nl)
-  CC0 1.0. In 422 of the game's sounds.
+  CC0 1.0. In 423 of the game's sounds.
 - RPG Audio, by Kenney (kenney.nl)
   CC0 1.0. In 351 of the game's sounds.
 - SFX 100, volume 2
-  CC0 1.0. In 444 of the game's sounds.
+  CC0 1.0. In 446 of the game's sounds.
 - Shinyguitar, by D. Smolken, Karoryfer Samples (github.com/sfzinstruments/karoryfer.shinyguitar)
   CC0 1.0. In 1 of the game's sounds.
 - UI Audio, by Kenney (kenney.nl)

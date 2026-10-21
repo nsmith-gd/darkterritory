@@ -83,9 +83,12 @@
   // A small town's green (note 490), in its square's rear end: "greenAlong" m from that end, "greenOut" m out from the line.
   // market (queue #552, note 825; the director's playtest of 14 Oct, line 3: "Still a bit basic"): the night market's
   // stalls on the square, the least and the most, one more for every marketPer people; its row marketIn m in front of the
-  // buildings' fronts, its stalls at least marketEvery m apart along it.
+  // buildings' fronts, its stalls at least marketEvery m apart along it. Its second row (note 870; the director's playtest
+  // of 19 Oct, line 4: "Too many cut and paste stalls in a row ... doesn't look like a market"): across an aisle marketAisle
+  // m wide, its counters facing the first's; every stall set off its place by up to marketJitter m along and across.
   "square": { "side": -1, "fromGate": [-100, -28], "wallOut": 30, "buildingDepth": 6, "hallWidth": 14, "officeWidth": 9,
-    "greenAlong": [5, 17], "greenOut": [7, 17], "market": [4, 8], "marketPer": 400, "marketIn": 3.6, "marketEvery": 4.6 },
+    "greenAlong": [5, 17], "greenOut": [7, 17], "market": [4, 8], "marketPer": 400, "marketIn": 3.6, "marketEvery": 4.6,
+    "marketAisle": 3.4, "marketJitter": 0.5 },
 
   // People. "ring": how many stand round the centrepiece, one for every 30 in the town between these; the rest have
   // their places (the gate, the doors, the board, the engine, the platform), more of them in a bigger town, and the
@@ -109,9 +112,9 @@
   // The blacksmith, who does the trains (note 697; the director, 13 Oct: "Upgrades need to be purchasable in the fortress
   // towns from a vendor who is clearly marked as the vendor blacksmith of the town who does train upgrades"). The forge
   // "fromGate" m along the line from the gate (into the yard: beside the cab as the engine stands 8 m short of the gate,
-  // run.json departShortOfGateM), "out" m off the line on the town's side; the smith "stand" m in front of it. Use held on
-  // them "holdSeconds" opens the catalogue (campaign.json upgrades).
-  "smithy": { "fromGate": -18, "out": 8.5, "stand": 2.2, "holdSeconds": 0.6 },
+  // run.json departShortOfGateM), "out" m off the line on the town's side; the smith "stand" m in front of it. Use pressed on
+  // them opens the catalogue (campaign.json upgrades; note 904: talking to him is buying from him).
+  "smithy": { "fromGate": -18, "out": 8.5, "stand": 2.2 },
   // Quirks a town has on top of its culture, and its board: notices pinned up, and notes left lying about the square.
   // Of the board's notices, after the custom's own order, "boardOwn" are the town's own, written for it (note 669).
   "quirks": [1, 2],
@@ -125,6 +128,21 @@
   "reach": { "talk": 2.6, "read": 2.0, "lookDegrees": 28, "closeBeyond": 4.0 },
   // A line types out at this many characters a second (the radio card's pace), and stays this long once it's out.
   "typePerSecond": 45,
+  // How each temperament's lines type (note 963; docs/design/townsfolk.md, "Not yet": "A frayed person could type in bursts,
+  // a hollow one slowly"): rate times typePerSecond; a pause (s) after a comma or dash and after a sentence's end; in bursts
+  // of burst characters with burstPause between. Not named: plain, at typePerSecond.
+  "voices": {
+    "frayed": { "rate": 1.6, "burst": 9, "burstPause": 0.35, "stop": 0.5 },
+    "hollow": { "rate": 0.5, "comma": 0.5, "stop": 0.9 },
+    "mourner": { "rate": 0.7, "comma": 0.4, "stop": 0.7 },
+    "talker": { "rate": 1.35, "comma": 0.05 },
+    "watcher": { "rate": 0.9, "comma": 0.3, "stop": 0.6 },
+    "comforter": { "rate": 0.85, "comma": 0.2, "stop": 0.3 },
+    "faithful": { "stop": 0.4 },
+    "doubter": { "comma": 0.35, "stop": 0.3 },
+    "mender": { "rate": 0.95, "stop": 0.25 },
+    "restless": { "rate": 1.15 }
+  },
   "lingerSeconds": 6,
 
   // Their rounds (ARCHITECTURE §8 note 353; the director, 8 Oct 2026: "There needs to be a behaviour loop for all the
@@ -132,7 +150,18 @@
   // "slots" of "slot" seconds, their own post and somewhere about the square in turn (a bench, a fire barrel, the board,
   // a stall, the centrepiece, a neighbour), a pacer "pace" m either way of their post; at home, a household goes round
   // its rooms' places, "homeSlot" seconds at each. They walk between at "walk" m/s, and stop for whoever talks to them.
-  "rounds": { "slot": 45, "slots": 4, "homeSlot": 38, "walk": 1.2, "pace": 3.5, "street": [10, 24] },
+  "rounds": { "slot": 45, "slots": 4, "homeSlot": 38, "walk": 1.2, "pace": 3.5, "street": [10, 24],
+    // Note 963 (docs/design/townsfolk.md, "Not yet"): a temperament's pull on a slot away from their post, where to and how
+    // often: "gate" stood inside it looking out down the line, "wall" at the nearest of the walls looking out, or a kind of
+    // the square's places ("garden" the lamp garden, "vigil" the names and the centrepiece, "warm" a fire, "read", "work",
+    // "mend"), "lamps" down their street to a lamp, seeing to it, or "talk", a word with somebody; more than one, comma-separated, tried in turn. Out of reach (40 m) or no room, the
+    // slot goes as anyone's does.
+    "temperaments": {
+      "restless": { "to": "gate", "chance": 0.6 }, "watcher": { "to": "wall", "chance": 0.6 },
+      "mender": { "to": "garden,lamps", "chance": 0.6 }, "mourner": { "to": "vigil", "chance": 0.5 },
+      "faithful": { "to": "vigil", "chance": 0.35 }, "comforter": { "to": "warm", "chance": 0.5 },
+      "talker": { "to": "talk", "chance": 0.6 }, "frayed": { "to": "warm", "chance": 0.4 }
+    } },
 
   // The town types (queue #424, ARCHITECTURE §8 note 692; the director, 13 Oct 2026, with five renders of town layouts:
   // "we want for the world building to have multiple different town types ... interesting culture, interesting looks,

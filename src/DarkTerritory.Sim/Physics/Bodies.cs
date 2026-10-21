@@ -32,6 +32,10 @@ public enum BodyKind : byte
     FishingRod = 18, Fish = 19, GrilledFish = 20,
     // The yard cat, the dog and a tennis ball off the launcher (note 745).
     Cat = 21, Dog = 22, TennisBall = 23,
+    // The flare pistol from the stores, its flares left in Charge, and a flare fired from it, burning (note 871).
+    FlarePistol = 24, Flare = 25,
+    // A drink poured at the dining car's bar (note 959): drunk as a beer, and it blurs and leans the drinker's view (the art's).
+    Drink = 26,
 }
 
 /// <summary>
@@ -72,6 +76,11 @@ public sealed class Body
     /// kill it and it's dropped.
     /// </summary>
     public int TakenBy { get; set; } = -1;
+    /// <summary>
+    /// A client's copy of a thing the host sent as held (note 954): its place wasn't sent, it's at its carrier's hands
+    /// (<see cref="Bodies.PlaceHeld"/>).
+    /// </summary>
+    public bool PlacedByCarrier { get; init; }
     /// <summary>Whether a player has hold of it (either end of a heavy crate).</summary>
     public bool HeldBy(int playerId) => Carrier == playerId || Second == playerId;
     /// <summary>Off the ground in someone's hands: a heavy crate only with both ends taken.</summary>
@@ -223,6 +232,8 @@ public sealed class Bodies
     public Func<Body, int>? Heals { get; set; }
     /// <summary>The BBQ deck's beer and sausage (note 698): what each gives back used (train.json composition.bbq).</summary>
     public int BeerHeals { get; set; }
+    /// <summary>The dining car's drink (note 959): what one gives back drunk (train.json composition.dining).</summary>
+    public int DrinkHeals { get; set; }
     public int SausageHeals { get; set; }
     /// <summary>What a fish off the grill gives back (note 744: train.json composition.whimsy.fishHeals).</summary>
     public int FishHeals { get; set; }
@@ -918,12 +929,12 @@ public sealed class Bodies
     {
         int on = patient >= 0 && patient != playerId ? patient : playerId;
         // A beer or a sausage (note 698) is had whatever your health: it's a party, and your own.
-        bool party = on == playerId && carried is { Kind: BodyKind.Beer or BodyKind.Sausage or BodyKind.GrilledFish };
+        bool party = on == playerId && carried is { Kind: BodyKind.Beer or BodyKind.Sausage or BodyKind.GrilledFish or BodyKind.Drink };
         // And anywhere on the deck, by its chairs, its cooler or its grill (whatever's nearest a Use would work), and sat down.
         var near = CrewActions.NearestInteractable(s, train, hand)?.Thing.Kind;
         var find = (party || carried is { Kind: BodyKind.Loot } && (on != playerId || s.Health < FullHealth) && Heals?.Invoke(carried) > 0) && !throwPressed
             && (near is null || party && near is InteractableKind.Chair or InteractableKind.Cooler or InteractableKind.Grill or InteractableKind.Hammock
-                or InteractableKind.HotTub) ? carried : null;
+                or InteractableKind.HotTub or InteractableKind.Bench or InteractableKind.Bar) ? carried : null;
         bool had = _dosing.TryGetValue(playerId, out var was);
         if (had && (find is null || find.Id != was.Find || on != was.Patient))
         {
@@ -956,6 +967,7 @@ public sealed class Bodies
             int heal = find.Kind switch
             {
                 BodyKind.Beer => BeerHeals,
+                BodyKind.Drink => DrinkHeals,
                 BodyKind.Sausage => SausageHeals,
                 BodyKind.GrilledFish => FishHeals,
                 _ => Heals!(find),
@@ -963,7 +975,7 @@ public sealed class Bodies
             if (on != playerId)
                 heal = (int)Math.Round(heal * OnAFriend);
             _doses[on] = _doses.GetValueOrDefault(on) + heal;
-            if (find.Kind == BodyKind.Beer)
+            if (find.Kind is BodyKind.Beer or BodyKind.Drink)
                 _drunk.Add(playerId);
             _dosing.Remove(playerId);
             Remove(find);
@@ -1004,7 +1016,7 @@ public sealed class Bodies
         // A heavy crate with one on it is still free at its other end (T43).
         // What's in a locker is the locker's: taken from it with a tap there, not reached for (note 173).
         var free = _bodies.Where(b => !b.Stowed && b.TakenBy < 0 && (b.Carrier < 0 || b.Kind == BodyKind.Heavy && b.Second < 0 && b.Carrier != playerId)
-            && !(wearingRadio && b.Kind == BodyKind.Radio) && b.Kind is not (BodyKind.Caboose or BodyKind.Dog)
+            && !(wearingRadio && b.Kind == BodyKind.Radio) && b.Kind is not (BodyKind.Caboose or BodyKind.Dog or BodyKind.Flare)
             // A lamp broken and burning (note 728) is a puddle of burning oil and glass, not a thing to pick up.
             && !(b.Kind == BodyKind.Lamp && b.Broken));
         if (hand is not null && PlayerMotor.HandWorld(s, train) is { } h)
@@ -1037,7 +1049,8 @@ public sealed class Bodies
         return s.Parent == PlayerState.World ? local : train.Frames[s.Parent].ToWorld(local);
     }
 
-    Double3 HandsAt(in PlayerState s, TrainOnLine train)
+    /// <summary>Where someone's hands carry (world): a heavy crate rides midway between its two carriers' (note 948 reads it).</summary>
+    public Double3 HandsAt(in PlayerState s, TrainOnLine train)
     {
         var forward = new Double3(-DMath.Sin(s.Yaw), 0, -DMath.Cos(s.Yaw));
         var local = s.Position + Double3.Up * Hands.CarryHeight + forward * Hands.CarryForward;
@@ -1487,13 +1500,16 @@ public sealed class Bodies
 
     /// <summary>
     /// A heavy crate (spec D.2, T43): with one on it, it's held where it lies (and let go by walking off from it); with
-    /// both, it rides between their hands, in the first one's frame. Too far apart, and it's down.
+    /// both, it rides between their hands, in the first one's frame. Too far apart, and it's down; one of them grabbed, and
+    /// their end's let go (note 867).
     /// </summary>
     void CarryHeavy(Body b, TrainOnLine train, Func<int, PlayerState?> player)
     {
-        if (b.Second >= 0 && player(b.Second) is not { Alive: true })
+        // Dead, or grabbed (note 867: something has them, so their end's let go; the other's left holding it, to choose).
+        static bool Holds(PlayerState? s) => s is { Alive: true } p && !p.Has(PlayerFlags.Held);
+        if (b.Second >= 0 && !Holds(player(b.Second)))
             b.Second = -1;
-        if (b.Carrier >= 0 && player(b.Carrier) is not { Alive: true })
+        if (b.Carrier >= 0 && !Holds(player(b.Carrier)))
             (b.Carrier, b.Second) = (b.Second, -1);
         if (b.Carrier < 0 || player(b.Carrier) is not { } lead)
             return;
@@ -1822,6 +1838,22 @@ public sealed class Bodies
     {
         _bodies.Clear();
         _bodies.AddRange(bodies);
+    }
+
+    /// <summary>
+    /// A client, after <see cref="Mirror"/> (note 954): each thing the host sent as held put at its carrier's hands, from the
+    /// carrier's state in the same snapshot, by the host's own <see cref="Carry"/>. One without its carrier in the snapshot
+    /// isn't sent as held, so there's always one.
+    /// </summary>
+    public void PlaceHeld(IEnumerable<(int Id, PlayerState State)> crew, TrainOnLine train)
+    {
+        var held = _bodies.Where(b => b.PlacedByCarrier).ToList();
+        if (held.Count == 0)
+            return;
+        var states = crew.ToDictionary(c => c.Id, c => c.State);
+        foreach (var b in held)
+            if (states.TryGetValue(b.Carrier, out var carrier))
+                Carry(b, carrier, train);
     }
 
     /// <summary>Removes a body entirely (tests, a revived crewmate).</summary>

@@ -14,6 +14,9 @@ public sealed partial class SceneArt(Look look)
 {
     readonly Dictionary<string, MeshAsset> _pieces = new();
 
+    /// <summary>A burning flare's light (note 871): a signal flare's red, hot enough to read as white at its head.</summary>
+    public static readonly Vector3 FlareGlow = new(1f, 0.28f, 0.18f);
+
     public Look Look { get; } = look;
 
     /// <summary>What a village find is (loot.json's item key), from the run: its model (FindKit). Null, the plain bundle.</summary>
@@ -214,11 +217,12 @@ public sealed partial class SceneArt(Look look)
         var fist = FistCarriers?.TryGetValue(c.Id, out var inFist) == true ? inFist switch
         {
             Sim.Physics.BodyKind.Beer => Piece("prop-beer", () => PropKit.Beer(Look)),
+            Sim.Physics.BodyKind.Drink => Piece("prop-drink", () => PropKit.Drink(Look)),
             Sim.Physics.BodyKind.Sausage => Piece("prop-sausage", () => PropKit.Sausage(Look)),
             Sim.Physics.BodyKind.GrilledFish => Piece("whimsy-grilled-fish", () => WhimsyKit.Fish(Look, true)),
             _ => null,
         } : null;
-        bool drawn = Creatures.Crewmate(mesh, m, pose, clipTime, c.Variant, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)), ToolProp(c.Holding),
+        bool drawn = Creatures.Crewmate(mesh, m, pose, clipTime, c.Variant, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)), c.Pistol ? PistolInHand : ToolProp(c.Holding),
             hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor), body: HeadsetBody(c, pose, time), carried: kit, sooted: c.Sooted,
             // (A Passenger's id is 200 and the face it wears, GreyboxScene.AsCrewmate: it wears that crewmate's number too.)
             mask: new CreatureArt.MaskLook(c.Paint, CrewSigil, (c.Id >= 200 ? c.Id - 200 : c.Id) % 9 + 1), emote: c.EmoteWith, fist: fist);
@@ -490,14 +494,15 @@ public sealed partial class SceneArt(Look look)
 
     /// <summary>
     /// The car a Waker's eating this frame (note 679; GreyboxScene sets it): its index among the frames and how far through
-    /// its eating he is (0..1). It's bitten off where it's drawn (<see cref="Bite.Waker"/>), not dropped out of sight.
+    /// the bites he's taken of it, of how many it takes (note 902: three). It's bitten off where it's drawn
+    /// (<see cref="Bite.Waker"/>), not dropped out of sight.
     /// </summary>
-    public (int Car, double Through)? WakerEating { get; set; }
+    public (int Car, int Bitten, int Bites)? WakerEating { get; set; }
 
     /// <summary>What's eaten of a car as it's drawn: a Waker's bites into the car he's eating, else a Car Hugger's.</summary>
     public Bite BiteOf(CarShape shape, Vehicle? vehicle, int index) =>
         WakerEating is { } w && w.Car == index
-            ? Bite.Waker(shape, w.Through, Bite.ScarSeed(vehicle?.Id ?? index))
+            ? Bite.Waker(shape, w.Bitten, w.Bites, Bite.ScarSeed(vehicle?.Id ?? index))
             : Bite.For(Look.Tuning.Bite, shape, vehicle, index);
 
     // How strained a car is before the crew on it stumble: past halfway to derailing, where the eye's judder is plain
@@ -512,7 +517,10 @@ public sealed partial class SceneArt(Look look)
 
     /// <summary>Your own forearms and hands in view, with the tool in them (X3). False without the crew model.</summary>
     public bool OwnArms(MeshBuilder mesh, in OwnView own, double time) =>
-        Creatures.OwnArms(mesh, own.Yaw, own.Pitch, own.Act, own.Moving, own.Swing, time, own.Variant, ToolProp(own.Holding));
+        Creatures.OwnArms(mesh, own.Yaw, own.Pitch, own.Act, own.Moving, own.Swing, time, own.Variant, own.Pistol ? PistolInHand : ToolProp(own.Holding));
+
+    /// <summary>The flare pistol as a fist holds it (note 964): its grip on the hand tools' haft, its barrel out ahead.</summary>
+    MeshAsset PistolInHand => Piece("prop-flare-pistol-held", () => PropKit.FlarePistolHeld(Look));
 
     /// <summary>A hotbar tool's model (tools/models hand_tools), or null for none.</summary>
     /// <summary>A headset player's own gloved hands on their controllers, the tool in hand in the right (CreatureArt.HeadsetHands).</summary>
@@ -806,6 +814,9 @@ public sealed partial class SceneArt(Look look)
 
     public bool Body(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Sim.Physics.Body b, Double3 eye, double heavyHalf, double time)
     {
+        // The flare pistol in someone's hand is drawn in their fist, as a tool is (note 964: CrewActs' Pistol, OwnView's).
+        if (b.Kind == Sim.Physics.BodyKind.FlarePistol && b.Carrier >= 0 && Creatures.Loaded)
+            return true;
         bool onCar = b.Parent != Sim.Player.PlayerState.World && b.Parent < frames.Count;
         if (!onCar && b.Parent != Sim.Player.PlayerState.World)
             return true;
@@ -896,6 +907,7 @@ public sealed partial class SceneArt(Look look)
             Sim.Physics.BodyKind.Loot => Piece("prop-loot", () => PropKit.Loot(Look, 0.15f)),
             // The BBQ deck's (note 698).
             Sim.Physics.BodyKind.Beer => Piece("prop-beer", () => PropKit.Beer(Look)),
+            Sim.Physics.BodyKind.Drink => Piece("prop-drink", () => PropKit.Drink(Look)),
             Sim.Physics.BodyKind.Sausage => Piece("prop-sausage", () => PropKit.Sausage(Look)),
             // The fishing rod's (note 744).
             Sim.Physics.BodyKind.FishingRod => Piece("whimsy-fishing-rod", () => WhimsyKit.FishingRod(Look)),
@@ -905,6 +917,9 @@ public sealed partial class SceneArt(Look look)
             Sim.Physics.BodyKind.Cat => Piece($"whimsy-cat-{(int)b.Tipped}", () => WhimsyKit.Cat(Look, b.Tipped)),
             Sim.Physics.BodyKind.Dog => Piece($"whimsy-dog-{(int)b.Tipped}", () => WhimsyKit.Dog(Look, b.Tipped)),
             Sim.Physics.BodyKind.TennisBall => Piece("whimsy-tennis-ball", () => WhimsyKit.TennisBall(Look)),
+            // The flare pistol and a flare from it (note 871).
+            Sim.Physics.BodyKind.FlarePistol => Piece("prop-flare-pistol", () => PropKit.FlarePistol(Look)),
+            Sim.Physics.BodyKind.Flare => Piece("prop-flare", () => PropKit.Flare(Look)),
             // The band's (note 700).
             Sim.Physics.BodyKind.Instrument when (InstrumentOf?.Invoke(b) ?? "fiddle") is var id => Piece($"prop-band-{id}", () => PropKit.Instrument(Look, id)),
             // The hand lamp: the sourced lantern (tools/models hand_lantern) where it's built.
@@ -926,6 +941,17 @@ public sealed partial class SceneArt(Look look)
             mesh.Billboard(o + u * 0.12f, 0.9f * breath, 0, new Vector4(FindKit.CometGlow * 0.4f * breath, 1), -1, FxBlend.Additive);
             // ... and a wide, faint haze of it in the fog over it, what a crew picks out from the line a stop's length off.
             mesh.Billboard(o + u * 0.8f, 3.2f * breath, 0, new Vector4(FindKit.CometGlow * 0.25f * breath, 1), -1, FxBlend.Additive);
+        }
+        // A flare burning (note 871): its hot head and its red glare over it, sputtering, dimming as it burns down (Body.Charge,
+        // the burn left).
+        if (b.Kind == Sim.Physics.BodyKind.Flare && b.Charge > 0)
+        {
+            float sputter = 0.85f + 0.15f * MathF.Sin((float)(time * 23) + b.Id) * MathF.Sin((float)(time * 7.1) + 2 * b.Id);
+            float left = 0.35f + 0.65f * (float)Math.Clamp(b.Charge, 0, 1);
+            var head = o + u * 0.08f;
+            // (Its light is the scene's, GreyboxScene.FlareLight, so it can take the shadows as a lamp does.)
+            mesh.Billboard(head, 0.6f * sputter, 0, new Vector4(new Vector3(1f, 0.9f, 0.85f) * sputter, 1), -1, FxBlend.Additive);
+            mesh.Billboard(head + u * 0.4f, 2.4f * sputter * left, 0, new Vector4(FlareGlow * 0.35f * sputter, 1), -1, FxBlend.Additive);
         }
         if (b.Kind == Sim.Physics.BodyKind.Lamp)
         {
@@ -1565,6 +1591,14 @@ public sealed partial class SceneArt(Look look)
         if (utility && !engine)
             mesh.Instances.Add(new MeshInstance(Piece($"utility:{ShapeKey(shape)}", () => TrainKit.UtilityFit(Look, shape)), m,
                 emergency ? 0.06f : 1, Scar: scar, Bite: cut, BiteFloor: floor));
+        // The dining car (note 959): its table laid and its bar, where a load would go; its chandelier's light, lamps lit.
+        else if (shape.Dining is not null && !engine)
+        {
+            mesh.Instances.Add(new MeshInstance(Piece($"dining:{ShapeKey(shape)}", () => TrainKit.DiningFit(Look, shape)), m,
+                emergency ? 0.06f : 1, Scar: scar, Bite: cut, BiteFloor: floor));
+            if (!emergency && !dark && (frame.Origin - eye).Length < 120)
+                mesh.PointLights.Add(new PointLight(Vector3.Transform(TrainKit.ChandelierAt(shape) + new Vector3(0, 0.1f, 0), m), Palette.LampAmber * 1.4f, 6));
+        }
         else if (loadApart && vehicle!.Bulk > Solid.HeapFrom)
         {
             // Its heap (note 659): only what's been poured in, as high as the sim has it, in eighths for the meshes kept.
@@ -1689,7 +1723,7 @@ public sealed partial class SceneArt(Look look)
                 // Out from the wall first, then along it: the step out done in the first fifth of the slide.
                 double outward = Math.Min(1, slid * 5), along = slid;
                 var move = side
-                    ? new Double3((box.Min.X < 0 ? -0.12 : 0.12) * outward, 0, (box.Max.Z - box.Min.Z) * along)
+                    ? new Double3((box.Min.X < 0 ? -door.Out : door.Out) * outward, 0, (box.Max.Z - box.Min.Z) * along * door.Slide)
                     : new Double3((box.Max.X - box.Min.X) * along, 0, (box.Min.Z < 0 ? 0.12 : -0.12) * outward);
                 box = new Box(box.Min + move, box.Max + move);
             }

@@ -123,7 +123,20 @@ public static class Protocol
     // 76: a drop off the crane's hook is a gag (note 802): past Hoisted, Lounging and Playing, the player flag OffTheHook (bit 18),
     //     which a predicting client's landing reads.
     // 77: the human cannonball (note 746): the player flags InCannon (524288) and Fired (1048576).
-    public const int Version = 77;
+    // 79: a ping on the abandoned town (note 739 part two): PingKind.Town (5), its target the stop whose village it is.
+    // 80: a pin jumped at speed takes two (note 865): the vehicle record's field 28 gains bit 10 (Pinned), and LooseCause gains
+    //     Jumped (4) and the let-go causes LetGoPin, LetGoBrake, LetGoThrottle (5-7) in the record and the news.
+    // 81: the flare pistol (note 871): the body kinds FlarePistol (24, its flares left in the ninth field) and Flare (25, its
+    //     burn left, 0..1, there).
+    // 82: a shovelful answers (note 903): the boiler record gains its green and catching coal (fields 8 and 9).
+    // 83: a record of any length goes as a delta (note 921): a mask word for each 64 fields, where only 64 or fewer could.
+    // 84: the ping read for what's pointed at (note 936): PingKind gains Points (6) and Cargo (7); the ping record's eighth
+    //     field is who answered it (−1: nobody); the intent's moves bit 6 (Answer) says a ping's id follows (three bytes).
+    // 85: a thing in someone's hands goes as held (note 954): the body record's fifth field is bit 0 asleep, bit 1 held, and a
+    //     held one's yaw and place are left out, each machine putting it at its carrier's hands.
+    // 86: the dining car's bar (note 959): the body kind Drink (26), a drink poured at the bar; the dining car's drinks left
+    //     ride in its vehicle record's cooler field (the 33rd), as the BBQ deck's beers do.
+    public const int Version = 86;
 }
 
 public enum MessageType : byte
@@ -311,6 +324,13 @@ public static class Messages
         w.U8((byte)((byte)i.Moves & MovesMask | ((byte)i.Signal & 3) << 2));
         if (i.Watch != 0)
             w.U8(i.Watch);
+        // Note 936: the ping answered, while it's being answered (a ping's id is 24 bits, World's effects counter).
+        if (i.Has(PlayerMoves.Answer))
+        {
+            w.U8((byte)i.Answer);
+            w.U8((byte)(i.Answer >> 8));
+            w.U8((byte)(i.Answer >> 16));
+        }
         // A hotbar choice (T108), only on the tick it's made: the slot in the low nibble, the wheel's step in the high; an
         // emote (note 298) in the top two bits, on the tick it's picked.
         if (tool)
@@ -371,6 +391,8 @@ public static class Messages
         i.Signal = (LampSignal)((moves >> 2) & 3);
         if ((notch & 0x80) != 0)
             i.Watch = r.U8();
+        if (i.Has(PlayerMoves.Answer))
+            i.Answer = r.U8() | r.U8() << 8 | r.U8() << 16;
         if (i.Has(PlayerActions.Tool))
         {
             byte t = r.U8();
@@ -413,8 +435,9 @@ public static class Messages
 
     /// <param name="queued">Inputs from this client the host still holds beyond the one it applied (note 532; at most 255).</param>
     /// <param name="flags"><see cref="SnapshotThinned"/> and any later ones (note 557).</param>
+    /// <param name="tally">Note 921: the bytes each kind of record took, added to (null: not counted).</param>
     public static void WriteSnapshot(NetWriter w, uint tick, uint ackedInput, uint baselineTick, IReadOnlyList<WireRecord> records, IReadOnlyList<WireRecord>? baseline,
-        int queued = 0, byte flags = 0)
+        int queued = 0, byte flags = 0, Dictionary<RecordKind, long>? tally = null)
     {
         w.Reset();
         w.U8((byte)MessageType.Snapshot);
@@ -423,7 +446,7 @@ public static class Messages
         w.U32(baselineTick);
         w.U8((byte)Math.Clamp(queued, 0, 255));
         w.U8(flags);
-        WorldRecords.WriteDelta(w, records, baseline);
+        WorldRecords.WriteDelta(w, records, baseline, tally);
     }
 
     /// <param name="session">What a joining machine needs to build the same world (route, cars...), opaque to the sim.</param>

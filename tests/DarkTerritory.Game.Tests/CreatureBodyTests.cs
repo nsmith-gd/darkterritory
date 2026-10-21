@@ -18,7 +18,7 @@ public class CreatureBodyTests
     /// <summary>The model each kind is drawn with, and the scale it's drawn at (CreatureArt: the Ribbit's 1.4).</summary>
     public static TheoryData<EnemyKind, string, float> Drawn() => new()
     {
-        { EnemyKind.CinderHound, "cinder_hound", 1 }, { EnemyKind.Switchman, "switchman", 1 }, { EnemyKind.Climber, "climber", 1 },
+        { EnemyKind.CinderHound, "cinder_hound", 1 }, { EnemyKind.Climber, "climber", 1 },
         { EnemyKind.TrackDoll, "track_doll", 1 }, { EnemyKind.Ribbit, "ribbit", 1.4f }, { EnemyKind.Gaunt, "gaunt", 1 },
         { EnemyKind.Grumbler, "grumbler", 1 }, { EnemyKind.Whistler, "whistler", 1 }, { EnemyKind.Dragger, "dragger", 1 },
         { EnemyKind.Follower, "follower", 1 }, { EnemyKind.SootChildren, "soot_child", 1 }, { EnemyKind.CarHugger, "car_hugger", 1 },
@@ -33,6 +33,8 @@ public class CreatureBodyTests
         { EnemyKind.Pickers, "picker", 1 }, { EnemyKind.Lodger, "lodger", 1 }, { EnemyKind.Householder, "householder", 1 },
         // The Mouse Moose (note 796).
         { EnemyKind.MouseMoose, "mouse_moose", 1 },
+        // The Waker (note 940): drawn WakerGait.Scale times his modelled size, so his body is checked at that.
+        { EnemyKind.Waker, "waker", WakerGait.Scale },
     };
 
     [Theory]

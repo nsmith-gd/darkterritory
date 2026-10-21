@@ -38,8 +38,6 @@ public static partial class Hud
         public long SlotTick = long.MinValue / 2;
         public (string Name, double At)? Place;
         public long PlaceTick = long.MinValue / 2;
-        public int ColdStep;
-        public long ColdTick = long.MinValue / 2;
         // The mail crane coming up (note 673), from when its board was read; the last bag caught, and when.
         public int MailDrop = -1;
         public long MailTick = long.MinValue / 2;
@@ -64,10 +62,6 @@ public static partial class Hud
             && next.At - s.Train.Dynamics.Distance <= Tuning.PlaceAheadMetres && m.Place != next)
             (m.Place, m.PlaceTick) = (next, now);
         ObserveMail(s, m, now);
-        int step = s.Player.Alive ? PlayerMotor.ColdStep(s.Player, s.Train) : 0;
-        if (step > m.ColdStep)
-            m.ColdTick = now;
-        m.ColdStep = step;
         return m;
     }
 
@@ -234,6 +228,9 @@ public static partial class Hud
             // Note 720: a hand lamp's signals, its own wheel (what each says is the crew's to learn).
             if (carried.Kind == BodyKind.Lamp)
                 lines.Add("SIGNAL : HOLD [U]");
+            // Note 871: a loaded flare pistol fires as a gun does (its flares left are in its name).
+            if (carried.Kind == BodyKind.FlarePistol && carried.Charge >= 1)
+                lines.Insert(0, "FIRE : [LMB]");
             return (Called(world, carried), lines);
         }
         // Note 649: at a crew locker with a tool in hand, Throw puts it on a shelf (the prompt's line is the locker's Use).
@@ -246,7 +243,10 @@ public static partial class Hud
             var gun = train.Vehicles[manned].Gun;
             bool steam = train.BoilerTuning is null || train.Boiler.Pressure >= combat.Guns.MinPressure;
             int ready = Guns.Ready(gun, combat.Guns);
-            if (!gun.Jammed && gun.ReloadNeeded == 0 && ready > 0 && steam)
+            // Note 846: inside a walled town the gun holds its fire, and says why.
+            if (world.GunHeld(manned))
+                lines.Add("NO FIRING IN TOWN");
+            else if (!gun.Jammed && gun.ReloadNeeded == 0 && ready > 0 && steam)
                 lines.Add("FIRE : [LMB]");
             lines.Add("GET UP : [SPACE]");
             // With a rack (note 374): what's at the gun, and what's left down in the locker for every gun.
@@ -259,8 +259,9 @@ public static partial class Hud
         {
             // The hook both ways (Crane.Drive: Jump raises it, the brake key lowers it).
             lines.AddRange(["BRIDGE AND TROLLEY : [WASD]", "HOOK UP : [SPACE]", "HOOK DOWN : [B]"]);
+            // Note 941: a hold, so a stray click lets go of nothing.
             if (crane.Hooked is not null)
-                lines.Add("LET GO : [LMB]");
+                lines.Add("LET GO : HOLD [LMB]");
             // A friend on the hook (note 726): shaken off only with the crew mischief switch on.
             else if (crane.Riders > 0 && world.MischiefOn && crane.Tuning.Hoist.ShakeOff)
                 lines.Add("SHAKE THEM OFF : [LMB]");

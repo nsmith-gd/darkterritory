@@ -12598,110 +12598,6 @@
   "takes": 1,
   "sha": "b9fd8d6e342f4ccc"
  },
- "cs-switchman/death": {
-  "cue": "cs-switchman.death",
-  "surface": null,
-  "picked": "first",
-  "candidates": [
-   {
-    "label": "Its oil lamp smashing on the ballast and the spilt oil catching, its spindly half folding shut, the body falling",
-    "key": "lamp",
-    "sources": [
-     "sfx_100_v2:glass_03",
-     "sfx_100_v2:misc_26",
-     "sfx_100_v2:misc_27",
-     "kenney_impact-sounds:impactTin_medium_000",
-     "kenney_impact-sounds:impactTin_medium_001",
-     "kenney_impact-sounds:impactTin_medium_002",
-     "kenney_impact-sounds:impactTin_medium_003",
-     "kenney_impact-sounds:impactTin_medium_004",
-     "kenney_rpg-audio:metalClick",
-     "kenney_rpg-audio:cloth1",
-     "kenney_rpg-audio:cloth2",
-     "kenney_rpg-audio:cloth3",
-     "kenney_rpg-audio:cloth4"
-    ],
-    "licence": "CC0"
-   }
-  ],
-  "takes": 3,
-  "sha": "005e5b9cee9856b8"
- },
- "cs-switchman/flicker": {
-  "cue": "cs-switchman.flicker",
-  "surface": null,
-  "picked": "first",
-  "candidates": [
-   {
-    "label": "The lamp's flame breathing: drawn down and flaring again in the rhythm of slow breaths, its glass singing, long fingers closing",
-    "key": "breath",
-    "sources": [],
-    "licence": "CC0"
-   }
-  ],
-  "takes": 2,
-  "sha": "030c1ea9d4eede84"
- },
- "cs-switchman/hit": {
-  "cue": "cs-switchman.hit",
-  "surface": null,
-  "picked": "first",
-  "candidates": [
-   {
-    "label": "Struck: its lamp jerking and rattling on its chain, and its thin reed of a throat shrieking through cracked glass",
-    "key": "chimney",
-    "sources": [
-     "sfx_100_v2:misc_09",
-     "sfx_100_v2:wood_03",
-     "kenney_impact-sounds:impactTin_medium_000",
-     "kenney_impact-sounds:impactTin_medium_001",
-     "kenney_impact-sounds:impactTin_medium_002",
-     "kenney_impact-sounds:impactTin_medium_003",
-     "kenney_impact-sounds:impactTin_medium_004",
-     "kenney_rpg-audio:metalClick",
-     "kenney_impact-sounds:impactGlass_light_000",
-     "kenney_impact-sounds:impactGlass_light_001",
-     "kenney_impact-sounds:impactGlass_light_002",
-     "kenney_impact-sounds:impactGlass_light_003",
-     "kenney_impact-sounds:impactGlass_light_004",
-     "kenney_rpg-audio:cloth1",
-     "kenney_rpg-audio:cloth2",
-     "kenney_rpg-audio:cloth3",
-     "kenney_rpg-audio:cloth4"
-    ],
-    "licence": "CC0"
-   }
-  ],
-  "takes": 3,
-  "sha": "d380766a9ed0a5f1"
- },
- "cs-switchman/throw": {
-  "cue": "cs-switchman.throw",
-  "surface": null,
-  "picked": "first",
-  "candidates": [
-   {
-    "label": "Its long fingers closing round the lever and heaving it over: the knuckles, the lamp swinging on its arm, the glass",
-    "key": "grip",
-    "sources": [
-     "kenney_impact-sounds:impactGlass_light_000",
-     "kenney_impact-sounds:impactGlass_light_001",
-     "kenney_impact-sounds:impactGlass_light_002",
-     "kenney_impact-sounds:impactGlass_light_003",
-     "kenney_impact-sounds:impactGlass_light_004",
-     "kenney_impact-sounds:impactTin_medium_000",
-     "kenney_impact-sounds:impactTin_medium_001",
-     "kenney_impact-sounds:impactTin_medium_002",
-     "kenney_impact-sounds:impactTin_medium_003",
-     "kenney_impact-sounds:impactTin_medium_004",
-     "kenney_rpg-audio:metalClick"
-    ],
-    "licence": "CC0"
-   }
-  ],
-  "takes": 3,
-  "sha": "e0bda002b55dc949"
- },
  "cs-tippy/flee": {
   "cue": "cs-tippy.flee",
   "surface": null,
@@ -19759,6 +19655,165 @@
   "takes": 4,
   "sha": "8cef9fa26a43a7a8"
  },
+ "up-tells/booster": {
+  "cue": "up-tells.booster",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The booster cutting in, modelled: a gear knocking into mesh, then smaller, quicker blast-pipe beats under the chuff",
+    "key": "beats",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "1a5aed78c8eeac45"
+ },
+ "up-tells/composition": {
+  "cue": "up-tells.composition",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Composition shoes on a descent: a duller grind holding, a lesser moan near 1 kHz where the iron ones shriek",
+    "key": "scrape",
+    "sources": [
+     "sfx_100_v2:misc_10",
+     "kenney_rpg-audio:creak2",
+     "kenney_rpg-audio:creak3",
+     "kenney_impact-sounds:impactPlate_medium_000",
+     "kenney_impact-sounds:impactPlate_medium_001",
+     "kenney_impact-sounds:impactPlate_medium_002",
+     "kenney_impact-sounds:impactPlate_medium_003",
+     "kenney_impact-sounds:impactPlate_medium_004",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "73d4371bf642e917"
+ },
+ "up-tells/horseshoe": {
+  "cue": "up-tells.horseshoe",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The lucky horseshoe's glint: a tiny, bright run of high tings rising, a shimmer hanging after, from real things",
+    "key": "glint",
+    "sources": [
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "sfx_100_v2:glass_05",
+     "kenney_impact-sounds:impactGlass_light_001",
+     "kenney_rpg-audio:handleCoins2"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "3472ba8cfd9450e4"
+ },
+ "up-tells/oilers": {
+  "cue": "up-tells.oilers",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The oilers at work, modelled: the casting's knock cushioned and easing off, the cup ticking, oil dropping",
+    "key": "cups",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "b2a9e4fbfa2b9b40"
+ },
+ "up-tells/precut": {
+  "cue": "up-tells.precut",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Pre-cut boards going up: quick, light hammering, a tap and a blow a nail, three to five nails, the last flush",
+    "key": "nails",
+    "sources": [
+     "sfx_100_v2:misc_19",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "sfx_100_v2:wood_hit_01",
+     "sfx_100_v2:wood_hit_02",
+     "sfx_100_v2:misc_08",
+     "sfx_100_v2:door_03"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "e0f273d37463403f"
+ },
+ "up-tells/rammer": {
+  "cue": "up-tells.rammer",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The gun rammer seating the ball: its catch let go, the steel rod's slide, a clean clack, sprung back home",
+    "key": "clack",
+    "sources": [
+     "kenney_rpg-audio:drawKnife2",
+     "kenney_rpg-audio:drawKnife1",
+     "sfx_100_v2:door_04",
+     "sfx_100_v2:door_05",
+     "sfx_100_v2:door_02",
+     "sfx_100_v2:metal_hit_02",
+     "kenney_impact-sounds:impactPlate_heavy_000",
+     "kenney_impact-sounds:impactPlate_heavy_001",
+     "kenney_impact-sounds:impactPlate_heavy_002",
+     "kenney_impact-sounds:impactPlate_heavy_003",
+     "kenney_impact-sounds:impactPlate_heavy_004",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "5ce4ef5263d82c15"
+ },
+ "up-tells/recorder-bell": {
+  "cue": "up-tells.recorder-bell",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The speed recorder's bell, modelled: a small flat brass gong struck once, an escapement's tick before it",
+    "key": "gong",
+    "sources": [],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "455911eff0483c20"
+ },
  "up-whimsy/calliope": {
   "cue": "up-whimsy.calliope",
   "surface": null,
@@ -20915,7 +20970,7 @@
    }
   ],
   "takes": 1,
-  "sha": "4e4b9f1eec4298ae"
+  "sha": "e8964fb4144fcc98"
  },
  "world-rain/rain-roof": {
   "cue": "world-rain.rain-roof",
@@ -20930,7 +20985,7 @@
    }
   ],
   "takes": 1,
-  "sha": "220a9000593f19b3"
+  "sha": "b615f58a60ab36fb"
  },
  "world-rain/slip": {
   "cue": "world-rain.slip",

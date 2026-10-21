@@ -35,6 +35,13 @@ public readonly record struct Fort(double Start, double End, double Gate, bool P
 public readonly record struct FortHouse(double Width, double Depth, double Ridge);
 
 /// <summary>
+/// The fortress gates (note 847; the director's playtest of 16 Oct, line 26: "The gates to the fortress should close behind
+/// me"), run.json <c>gates</c>: open while the train's going through, as its engine comes within <see cref="OpenAheadM"/> of
+/// one, shut again once its last car's <see cref="ShutBehindM"/> past; the leaves take <see cref="SwingSeconds"/> to swing.
+/// </summary>
+public sealed record GateTuning(double OpenAheadM, double ShutBehindM, double SwingSeconds);
+
+/// <summary>
 /// Where a fortress's walls, gun towers, gatehouse and houses stand (T100; T124 "fort buildings have no collision, and gun
 /// shots hit nothing"). The rules are the sim's, so every machine stands the same solids in the same places
 /// (<see cref="StopWalls"/>): the art pass draws its pieces where these say (WorldFeatures.Fortress), and the sizes here are
@@ -59,12 +66,51 @@ public static class Fortresses
     public const double WardHalf = 0.6, WardHeight = 6.2;
     /// <summary>The gatehouse's two towers, from the line out (each side), their half-depth along it, height; the arch between them over the line.</summary>
     public const double GateInner = 3.5, GateOuter = 8.5, GateHalf = 3.5, GateHeight = 14.9, ArchBottom = 7.8, ArchTop = 13;
+    /// <summary>
+    /// A gate's iron leaves (note 847; StructureKit.GateLeaf): each hung from the passage's wall by <see cref="LeafHinge"/> out
+    /// from the line, half <see cref="LeafHalf"/> thick, the two meeting over the line, up to the arch. In the left one (across
+    /// the line, −D) the wicket, standing open from <see cref="WicketLo"/> to <see cref="WicketHi"/> and
+    /// <see cref="WicketHeight"/> high: a crewmate left behind outside a shut gate can still come in (run.json forts: "A
+    /// crewmate left behind near the gate can run back inside"). Not design numbers: the pieces'.
+    /// </summary>
+    public const double LeafHinge = 3.25, LeafHalf = 0.08, WicketLo = -1.4, WicketHi = -0.2, WicketHeight = 2.1;
     /// <summary>How far apart the houses inside the walls stand along the line, and how far out from it.</summary>
     public const double HouseEvery = 15, HouseOut = 10.9;
     /// <summary>The deepest a lived-in house is (front to back), so it fits between the line and the wall.</summary>
     public const double LivedDepth = 6;
     /// <summary>The seed of a lived-in house's sizes, by variant (TownKit.LivedHouse draws its look on from the same).</summary>
     public const int HouseSeed = 7001;
+
+    /// <summary>
+    /// The home platform's bays (StructureKit.PlatformBay; note 869): one every <see cref="PlatformBay"/> m along the line from
+    /// <see cref="PlatformFrom"/> past the yard's start to <see cref="PlatformShort"/> short of its gate, right of the line. Its
+    /// deck from <see cref="PlatformEdge"/> out to <see cref="PlatformOut"/>, <see cref="PlatformDeck"/> up; at each bay's start
+    /// its canopy's two posts, <see cref="PostOut"/> out, <see cref="PostHalf"/> square and <see cref="PostTop"/> tall. Not
+    /// design numbers: the kit's.
+    /// </summary>
+    public const double PlatformBay = 8, PlatformFrom = 60, PlatformShort = 30, PlatformEdge = 3.6, PlatformOut = 10, PlatformDeck = 0.25;
+    public const double PostHalf = 0.13, PostTop = 4.2;
+    public static readonly double[] PostOut = [5.2, 9.2];
+
+    /// <summary>
+    /// What stands on a platform bay of <paramref name="variant"/> (every third bay the same, by where it is: (s / 8) % 3), in
+    /// the bay's frame (x out from the line, z up the line from the bay's start, negative): the bench (0) or the crates (1), each
+    /// (x0, z0, x1, z1, top); none on the third. StructureKit.PlatformBay draws them from these.
+    /// </summary>
+    public static IReadOnlyList<(double X0, double Z0, double X1, double Z1, double Top)> OnThePlatformBay(int variant) => (variant % 3) switch
+    {
+        0 => [(8.6, -5.5, 9.1, -3.5, 1.2)],
+        1 => [(7.5, -3.0, 8.1, -2.4, 1.35), (8.2, -3.1, 8.8, -2.5, 0.85)],
+        _ => [],
+    };
+
+    /// <summary>The platform's bays' starts along the line, for a fortress from <paramref name="start"/> with its gate at <paramref name="gateAt"/>.</summary>
+    public static IEnumerable<double> PlatformBays(double start, double gateAt)
+    {
+        double p0 = start + PlatformFrom, p1 = gateAt - PlatformShort;
+        for (double s = Math.Floor(p0 / PlatformBay) * PlatformBay; s < p1; s += PlatformBay)
+            yield return s;
+    }
 
     /// <summary>
     /// The line's fortresses: the home fortress's yard (the gate at its end, <paramref name="yardLength"/>), and the terminus's
@@ -124,8 +170,38 @@ public static class Fortresses
     }
 
     /// <summary>
+    /// Note 847: whether the gate <paramref name="gate"/> along the main line stands open for the train, from its
+    /// <paramref name="front"/> and <paramref name="rear"/> along it: from its engine coming up to it until its last car's
+    /// through. Every other time it's shut: before the night's off, behind the train once it's through, and a town's other
+    /// gate (the way in to the departure, the way on out of the arrival), which no train comes to tonight.
+    /// </summary>
+    public static bool Open(double gate, double front, double rear, GateTuning t) =>
+        front >= gate - t.OpenAheadM && rear < gate + t.ShutBehindM;
+
+    // A gate's key from where it stands along the main line, to the quarter metre (a departure town's way in is behind the
+    // line's start, so offset), and back. Never 0.
+    const int GateKeyOffset = 1 << 20;
+
+    /// <summary>Note 847: the key of the gate <paramref name="along"/> the main line (its leaves' <see cref="Wall.Gate"/>).</summary>
+    public static int GateKey(double along) => (int)Math.Round(along * 4) + GateKeyOffset;
+
+    /// <summary>Note 847: where along the main line the gate of <paramref name="key"/> stands.</summary>
+    public static double GateAlong(int key) => (key - GateKeyOffset) / 4.0;
+
+    /// <summary>
+    /// Note 847: a shut gate's two leaves, across the passage at the gate from either wall to the other, less the wicket: as
+    /// spans across the line (from, to) for <paramref name="place"/> to stand.
+    /// </summary>
+    static IEnumerable<Wall> Leaves(Func<double, double, Wall> place)
+    {
+        foreach (var (lo, hi) in new[] { (-GateInner, WicketLo), (WicketHi, GateInner) })
+            yield return place((lo + hi) / 2, (hi - lo) / 2);
+    }
+
+    /// <summary>
     /// Every solid a fortress stands (each an upright box turned to the line where it stands): the walls a bay at a time,
-    /// the gun towers on them, the gatehouse's towers and arch, and the village's houses.
+    /// the gun towers on them, the gatehouse's towers and arch, the gate's leaves (note 847: standing only while it's shut,
+    /// <see cref="StopWalls.OpenGates"/>), and the village's houses. A walled town's two gatehouses are its wall's (<see cref="Round"/>).
     /// </summary>
     public static IEnumerable<Wall> Solids(Fort fort, RailLine line)
     {
@@ -143,7 +219,7 @@ public static class Fortresses
         }
         if (fort.Bounds is { } town)
         {
-            foreach (var w in Round(town, Anchor(line, fort.Origin ?? 0, town.Rear), fort.Ground))
+            foreach (var w in Round(town, Anchor(line, fort.Origin ?? 0, town.Rear), fort.Ground, fort.Origin ?? 0))
                 yield return w;
         }
         else
@@ -178,13 +254,31 @@ public static class Fortresses
                     }
             }
         }
-        if (fort.Gate >= 0 && fort.Gate <= line.Length)
+        // The home platform (note 869; the director's playtest of 19 Oct line 2, "Collision boxes are off"): its deck, stepped
+        // up onto, its canopy's posts and what stands on it, solid where StructureKit.PlatformBay draws them, not walked through.
+        if (fort.Platform)
+            foreach (double s in PlatformBays(fort.Start, fort.Gate))
+            {
+                if (s < a || s + PlatformBay > b)
+                    continue;
+                double deck = (PlatformEdge + PlatformOut) / 2;
+                yield return At(s + PlatformBay / 2, deck, PlatformBay / 2, (PlatformOut - PlatformEdge) / 2, -3, PlatformDeck);
+                foreach (double x in PostOut)
+                    yield return At(s, x, PostHalf, PostHalf, -3, PostTop);
+                foreach (var (x0, z0, x1, z1, top) in OnThePlatformBay((int)(s / PlatformBay)))
+                    yield return At(s - (z0 + z1) / 2, (x0 + x1) / 2, (z1 - z0) / 2, (x1 - x0) / 2, -3, top);
+            }
+        if (fort.Bounds is null && fort.Gate >= 0 && fort.Gate <= line.Length)
         {
             double mid = (GateInner + GateOuter) / 2, half = (GateOuter - GateInner) / 2;
             foreach (int side in new[] { -1, 1 })
                 yield return At(fort.Gate, side * mid, GateHalf, half, -3, GateHeight);
             // The arch over the line, clear above anyone on a car's roof.
             yield return At(fort.Gate, 0, GateHalf, GateInner, ArchBottom, ArchTop);
+            // Its leaves, up to the arch (note 847).
+            int key = GateKey(fort.Gate);
+            foreach (var leaf in Leaves((d, h) => At(fort.Gate, d, LeafHalf, h, -3, ArchBottom) with { Gate = key }))
+                yield return leaf;
         }
     }
 
@@ -208,8 +302,11 @@ public static class Fortresses
         return t with { Position = t.Position - along * entry };
     }
 
-    /// <summary>A walled town's wall (<see cref="Round(Towns.TownBounds, RailLine)"/>) from its frame's start, <paramref name="start"/>.</summary>
-    public static IEnumerable<Wall> Round(Towns.TownBounds town, TrackSample start, Towns.TownGround? ground = null)
+    /// <summary>
+    /// A walled town's wall (<see cref="Round(Towns.TownBounds, RailLine)"/>) from its frame's start, <paramref name="start"/>,
+    /// which is <paramref name="origin"/> along the main line (a terminus's town, note 600; its gates' keys are the main line's).
+    /// </summary>
+    public static IEnumerable<Wall> Round(Towns.TownBounds town, TrackSample start, Towns.TownGround? ground = null, double origin = 0)
     {
         var tangent = new Double3(start.Tangent.X, 0, start.Tangent.Z).Normalized;
         var right = Double3.Cross(tangent, Double3.Up).Normalized;
@@ -235,12 +332,19 @@ public static class Fortresses
         }
         foreach (var (s, d) in Towers(town).Concat(Turrets(town)))
             yield return Tower(s, d);
-        // The gatehouse at the way in from the last night (note 692; the way out's is the fort's own, Solids): its two
-        // towers either side of the line and the arch over it, as the way out's.
+        // Its two gatehouses (note 692): at the way in from the last night and the way out to the next, each its two towers
+        // either side of the line, the arch over it and its leaves up to the arch (note 847), keyed where it stands along the
+        // main line.
         double mid = (GateInner + GateOuter) / 2, half = (GateOuter - GateInner) / 2;
-        foreach (int side in new[] { -1, 1 })
-            yield return new Wall(P(town.Rear, side * mid), tangent, GateHalf, half, y - 3, y + GateHeight);
-        yield return new Wall(P(town.Rear, 0), tangent, GateHalf, GateInner, y + ArchBottom, y + ArchTop);
+        foreach (double at in new[] { town.Rear, town.Gate })
+        {
+            foreach (int side in new[] { -1, 1 })
+                yield return new Wall(P(at, side * mid), tangent, GateHalf, half, y - 3, y + GateHeight);
+            yield return new Wall(P(at, 0), tangent, GateHalf, GateInner, y + ArchBottom, y + ArchTop);
+            int key = GateKey(origin + at);
+            foreach (var leaf in Leaves((d, h) => new Wall(P(at, d), tangent, LeafHalf, h, y - 3, y + ArchBottom) { Gate = key }))
+                yield return leaf;
+        }
     }
 
     /// <summary>

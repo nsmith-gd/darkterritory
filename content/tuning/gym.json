@@ -6,10 +6,6 @@
   "route": "frontier:7",
   "cars": 6,
   "stop": "yardAndVillage",
-  // The engine stands this far short of the stop's first points, the yard's throat (the director, 13 Oct 2026, GDD App.
-  // F.5: "Switchman cannot be tested that far away"): points ahead to call the Switchman to, the village round them. 0
-  // stands the train's middle beside the village instead (so it does when the village is too far from the throat).
-  "pointsAhead": 60,
   // Nothing called comes nearer you than this (metres), whatever its own rule would do: past every creature's reach, so
   // it never sets itself off as it arrives. A creature whose own reach is longer keeps that.
   "minDistance": 45,
@@ -45,7 +41,6 @@
   "notes": {
     "sleepers": { "from": "Debris on the line ahead (a hazard, off on real nights)", "answer": "Brake before it: over 40 km/h it derails the train" },
     "cinderHound": { "from": "A pack running up close behind the train, onto the rear car; they go for whoever's out on the train", "answer": "Run fast, or a round from the guns sends them off; aboard, beat them off" },
-    "switchman": { "from": "At the yard's points just ahead of the engine, at the lever", "answer": "It throws them as you come: go and throw them back" },
     "sootChildren": { "from": "A child calling out of the dark beyond the stop", "answer": "A real child or soot: go and see, and don't stand within reach" },
     "dragger": { "from": "Under the roof edge of the car nearest you, on your side, unseen (the panel names it)", "answer": "Keep off that roof's edge; at speed it pulls you over" },
     "stoker": { "from": "Boarding at the tender, for the firebox", "answer": "Drive it off on the way in; in the firebox, cool it out; never open the door on it" },

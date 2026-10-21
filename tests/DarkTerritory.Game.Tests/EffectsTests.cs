@@ -47,6 +47,43 @@ public class EffectsTests
     }
 
     [Fact]
+    public void AFireOnItsCellsIsDrawnAStretchAtATimeAndNothingOfItAtItsHeart()
+    {
+        // Note 866 (the director, 19 Oct: "its not going out on the grid Im aiming at"): drawn on its cells, a fire has nothing
+        // at its heart, through the creatures' art (which draws the heart, and has its own effects) as through these; each
+        // stretch has its own smoke, glow and light while it burns, and nothing once it's put out.
+        var fx = new Effects(Look) { CellFlames = true };
+        var heart = Mesh();
+        fx.CarFire(heart, O, Vector3.UnitX, Vector3.UnitY, Vector3.UnitZ, alight: true, 0.8, 5, spread: 0.5f);
+        Assert.Empty(heart.PointLights);
+        Assert.Empty(heart.AdditiveFx);
+        Assert.Empty(heart.AlphaFx);
+        var creatures = new CreatureArt(Look) { CellFlames = true };
+        var drawn = Mesh();
+        creatures.Enemy(drawn, Matrix4x4.CreateTranslation(O), Sim.Enemies.EnemyKind.CarFire, Sim.Enemies.SpinePhase.Punish, 5, 0.8);
+        Assert.Empty(drawn.PointLights);
+        Assert.Empty(drawn.AdditiveFx);
+        Assert.Empty(drawn.AlphaFx);
+        var along = new Vector3(0, 0, 1.75f);
+        var burning = Mesh();
+        fx.FireStretch(burning, O, along, new Vector3(1.4f, 0, 0), 2.2f, 0.9f, true, 5, 3);
+        var light = Assert.Single(burning.PointLights);
+        Assert.True(light.Range < 6, $"its light reaches {light.Range} m: the stretch beside it, put out, goes dark");
+        Assert.NotEmpty(burning.AlphaFx);
+        Assert.NotEmpty(burning.AdditiveFx);
+        Assert.All(burning.AlphaFx.ToArray(), v => Assert.InRange(v.Position.Z, O.Z - 3, O.Z + 3));
+        var smouldering = Mesh();
+        fx.FireStretch(smouldering, O, along, new Vector3(1.4f, 0, 0), 2.2f, 0.2f, false, 5, 3);
+        Assert.NotEmpty(smouldering.AlphaFx);
+        Assert.True(Assert.Single(smouldering.PointLights).Colour.Length() < light.Colour.Length() / 2);
+        var doused = Mesh();
+        fx.FireStretch(doused, O, along, new Vector3(1.4f, 0, 0), 2.2f, 0, true, 5, 3);
+        Assert.Empty(doused.PointLights);
+        Assert.Empty(doused.AdditiveFx);
+        Assert.Empty(doused.AlphaFx);
+    }
+
+    [Fact]
     public void AFireAboutToJumpTheCouplingCreepsTowardTheCarsEnds()
     {
         // App. A.5 "grows, jumps couplings": the nearer the blaze is to spreading, the further its flames reach along the car.
@@ -165,6 +202,52 @@ public class EffectsTests
         var gone = Mesh();
         Fx.CannonShot(gone, O, -Vector3.UnitZ, Vector3.UnitZ, Vector3.UnitY, 10, Effects.ShotSmokeSeconds + 0.1, 100);
         Assert.Empty(gone.AlphaFx);
+    }
+
+    [Theory]
+    [InlineData(0.0, 4242L)]
+    [InlineData(40000.0, 17L)]
+    public void TheWallsGunsFireInRaggedBurstsAndLullsNeverOnABeat(double from, long seed)
+    {
+        // The director's 16 Oct playtest, line 27 (queue #562, note 834): "they seem like they're firing once a second. It
+        // should be a bit more random." Ten minutes of a gatehouse's and four towers' guns on one Waker (the app's clock, early
+        // on and hours in), each shot read where Effects.WallGunBeat's shot number changes.
+        const int Guns = 6;
+        const double Dt = 1 / 120.0, Span = 600;
+        var shots = new List<double>[Guns];
+        for (int g = 0; g < Guns; g++)
+        {
+            shots[g] = [];
+            long last = Effects.WallGunBeat(from, seed, g).Shot;
+            for (double t = from + Dt; t < from + Span; t += Dt)
+            {
+                var (since, shot) = Effects.WallGunBeat(t, seed, g);
+                Assert.InRange(since, 0, 6 * Effects.WallGunEvery);
+                if (shot != last && since < Effects.WallGunEvery)
+                {
+                    // A shot is a moment: what draws its flash and what hears its report agree on when it was.
+                    Assert.True(since < Dt + 1e-9, $"gun {g}'s shot at {t - since:0.00} first seen {since:0.000} s after");
+                    shots[g].Add(t - since);
+                }
+                last = shot;
+            }
+        }
+        foreach (var fired in shots)
+        {
+            var gaps = fired.Zip(fired.Skip(1), (a, b) => b - a).ToList();
+            double mean = gaps.Average(), spread = Math.Sqrt(gaps.Average(x => (x - mean) * (x - mean)));
+            // A gun reloads and lays again between shots, and lets some of its turns go by.
+            Assert.True(gaps.Min() > 1.5, $"a gun fired again {gaps.Min():0.00} s after");
+            Assert.InRange(mean, Effects.WallGunEvery * 1.2, Effects.WallGunEvery * 2.5);
+            Assert.True(spread > 0.4 * mean, $"a gun's gaps {mean:0.0} s give or take only {spread:0.0}");
+        }
+        // All of them together: never a shot a second, but a ragged fire, bursts and lulls.
+        var all = shots.SelectMany(s => s).Order().ToList();
+        var between = all.Zip(all.Skip(1), (a, b) => b - a).ToList();
+        double m = between.Average(), sd = Math.Sqrt(between.Average(x => (x - m) * (x - m)));
+        Assert.True(sd > 0.8 * m, $"the walls' shots {m:0.00} s apart give or take {sd:0.00}: a beat");
+        var tens = Enumerable.Range(0, (int)(Span / 10)).Select(w => all.Count(x => x >= from + w * 10 && x < from + w * 10 + 10)).ToList();
+        Assert.True(tens.Max() >= 2.5 * Math.Max(1, tens.Min()), $"ten seconds' shots run {tens.Min()} to {tens.Max()}: no bursts or lulls");
     }
 
     [Fact]

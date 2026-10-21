@@ -98,7 +98,8 @@ public static class WorldRecords
                     v.OffRails ? 1 : 0,
                     // Its handbrake wound on by the Brakeman (note 364), an axle seized by Hotbox (note 367): drag every client feels;
                     // and what worked the coupling behind it loose (note 732), so every client hears the moment as what did it.
-                    (v.Wound ? 1L : 0L) | (v.Seized ? 2L : 0L) | ((long)v.LooseCause << 2),
+                    // Note 865: and a jumped pin two have hold of, so its pinner's client drives it home as the host does.
+                    (v.Wound ? 1L : 0L) | (v.Seized ? 2L : 0L) | ((long)v.LooseCause << 2) | (v.Pinned ? 1L << 10 : 0L),
                     // How far a Knotter's forced the coupling behind it apart (note 365): every client lays the cars out so.
                     Q(v.Knot, Fine),
                     // How much of its load is things lying in it as themselves (note 659): the rest is its heap, every client's.
@@ -155,9 +156,9 @@ public static class WorldRecords
         // Emotes (note 298): who, which, and when it began; note 722, when a high five's hands met (0: not yet) and with whom.
         foreach (var e in world.Emotes)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Emote, e.Id), [e.Tick, e.By, (long)e.Kind, e.Meet, e.With]));
-        // Pings (note 739): who, on what, which one of those, where, and when.
+        // Pings (note 739): who, on what, which one of those, where, and when; and who answered it (note 936).
         foreach (var e in world.Pings)
-            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Ping, e.Id), [e.Tick, e.By, (long)e.Kind, e.Target, Q(e.At.X, Pos), Q(e.At.Y, Pos), Q(e.At.Z, Pos)]));
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Ping, e.Id), [e.Tick, e.By, (long)e.Kind, e.Target, Q(e.At.X, Pos), Q(e.At.Y, Pos), Q(e.At.Z, Pos), e.Taker]));
         // Lamp signals (note 720): who, which, and when it began.
         foreach (var e in world.Signals)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Signal, e.Id), [e.Tick, e.By, (long)e.Kind]));
@@ -193,11 +194,14 @@ public static class WorldRecords
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Boiler, 0),
         [
             Q(b.Pressure, Fine), Q(b.Firebox, Fine), Q(b.Tender, Fine), Q(b.AtMaxSeconds, Fine), Q(b.LowFireSeconds, Fine),
-            Q(b.ExternalHeat, Fine), Q(b.Efficiency, Fine),
+            // (The deep cold's efficiency came out of the record with the cold, note 852; protocol 78.)
+            Q(b.ExternalHeat, Fine),
             (b.Ruptured ? 1 : 0) | (b.SafetyValveLifting ? 2 : 0) | (b.SafetyValveJammed ? 4 : 0) | (b.FireDoorOpen ? 8 : 0) | (b.Vented ? 16 : 0) | (b.WrenchOut ? 32 : 0) | (b.ShovelOut ? 64 : 0),
             // The door's swing-shut clock: without it the host's own snap back onto the grid zeroed it every tick, and the
             // door never shut.
             Q(Math.Min(b.SinceShovel, 60), Fine),
+            // The shovelful catching and flaring (note 903): the gauge's kick and the engine's surge, predicted as the host has them.
+            Q(b.Green, Fine), Q(b.Catching, Fine),
         ]));
         // And who holds them (note 574): a bot driver hands over when someone playing does.
         list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Controls, 0), [Q(controls.Throttle, Fine), Q(controls.Brake, Fine), controls.Reverser,
@@ -303,16 +307,24 @@ public static class WorldRecords
         // D.6 (note 179): the queue, in order, for the dead and lobbied to see: player id and lobbied, pairs.
         if (world.Holdouts is { } queued)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Holdout, QueueRecord), [.. queued.Queue.SelectMany(e => new long[] { e.PlayerId, e.Lobbied ? 1 : 0 })]));
+        // Note 954: who's in this snapshot, so a thing in their hands can go as theirs (below).
+        var aboard = players as ICollection<PlayerSnapshot> ?? [.. players];
         foreach (var body in world.Bodies.All)
         {
             var ps = body.Pbd.Particles;
             var f = new long[BodyParticles + ps.Length * 3];
+            // Note 954: a one-piece thing in someone's hands is wherever their hands are (Bodies.Carry), so it goes as held:
+            // its place and yaw left out (they don't change, so its delta is nothing) and set again on each machine from its
+            // carrier's state in the same snapshot (Bodies.PlaceHeld). A heavy crate (two carriers) and a body over the shoulder
+            // (its limbs hang free) go as they are.
+            bool held = body.Carrier >= 0 && body.Kind != Physics.BodyKind.Heavy && ps.Length == 1 && body.TakenBy < 0 && !body.Stowed
+                && aboard.Any(p => p.Id == body.Carrier);
             f[0] = (long)body.Kind;
             f[1] = body.Parent;
             f[2] = body.Carrier;
             f[3] = body.Owner;
-            f[4] = body.Pbd.Asleep ? 1 : 0;
-            f[5] = Q(body.Yaw, Ang);
+            f[4] = (body.Pbd.Asleep ? 1 : 0) | (held ? 2 : 0);
+            f[5] = held ? 0 : Q(body.Yaw, Ang);
             f[6] = ps.Length;
             f[7] = body.Second;
             // The ninth: an extinguisher's charge, a body's tools (GDD v1.4 D.2: it keeps the engineering kit), a toy's noise, or a
@@ -320,6 +332,8 @@ public static class WorldRecords
             f[8] = body.Kind switch
             {
                 Physics.BodyKind.Extinguisher => Q(body.Charge, Hint),
+                // The flare pistol's flares left, and a flare's burn left (0..1) (note 871).
+                Physics.BodyKind.FlarePistol or Physics.BodyKind.Flare => Q(body.Charge, Hint),
                 Physics.BodyKind.Ragdoll or Physics.BodyKind.Tool => (long)body.Tools,
                 // Its noise, and 0x100 while it plays (note 728: a wound toy set down keeps playing where it lies).
                 Physics.BodyKind.Toy => (long)body.Noise + (body.Playing ? 0x100 : 0),
@@ -344,7 +358,7 @@ public static class WorldRecords
             f[10] = body.TakenBy;
             // How big it is, a single particle's radius (note 659: a thing lying in a car is as solid on every client, its size and all).
             f[11] = ps.Length == 1 ? Q(ps[0].Radius, Cm) : 0;
-            for (int i = 0; i < ps.Length; i++)
+            for (int i = 0; i < ps.Length && !held; i++)
             {
                 f[BodyParticles + i * 3] = Q(ps[i].Position.X, Pos);
                 f[BodyParticles + 1 + i * 3] = Q(ps[i].Position.Y, Pos);
@@ -360,7 +374,7 @@ public static class WorldRecords
                 s.Parent, Q(s.Position.X, Pos), Q(s.Position.Y, Pos), Q(s.Position.Z, Pos),
                 Q(s.Velocity.X, Pos), Q(s.Velocity.Y, Pos), Q(s.Velocity.Z, Pos),
                 Q(s.Yaw, Ang), Q(s.Pitch, Ang), (long)s.Surface, s.Health, (long)s.Death, Q(s.LineHint, Hint), Q(s.ActionProgress, Fine),
-                Q(s.Cold, Fine), (long)s.Flags, s.Placed,
+                (long)s.Flags, s.Placed,
                 // A VR player's hands, on the centimetre grid they came in on (T47): the rest of the crew see their arms.
                 Q(s.Hand.X, Cm), Q(s.Hand.Y, Cm), Q(s.Hand.Z, Cm), Q(s.OtherHand.X, Cm), Q(s.OtherHand.Y, Cm), Q(s.OtherHand.Z, Cm),
                 // The hotbar (T108): what they carry, and which is in hand; over it, the slots holding a thing (note 594).
@@ -446,7 +460,7 @@ public static class WorldRecords
                         f.Length > 23 ? D(f[23], Fine) : 0, f.Length > 24 ? D(f[24], Fine) : 0, f.Length > 25 ? D(f[25], Fine) : 0,
                         f.Length > 28 && (f[28] & 1) != 0, f.Length > 28 && (f[28] & 2) != 0, f.Length > 29 ? D(f[29], Fine) : 0,
                         f.Length > 27 && f[27] != 0, f.Length > 30 ? D(f[30], Fine) : 0, f.Length > 31 ? D(f[31], Fine) : 0, f.Length > 32 ? (int)f[32] : 0,
-                        f.Length > 28 ? (LooseCause)((f[28] >> 2) & 0xFF) : LooseCause.None));
+                        f.Length > 28 ? (LooseCause)((f[28] >> 2) & 0xFF) : LooseCause.None, f.Length > 28 && (f[28] & (1L << 10)) != 0));
                     break;
                 case RecordKind.World:
                     world.Choir = new ChoirState
@@ -492,15 +506,16 @@ public static class WorldRecords
                         AtMaxSeconds = D(f[3], Fine),
                         LowFireSeconds = D(f[4], Fine),
                         ExternalHeat = D(f[5], Fine),
-                        Efficiency = D(f[6], Fine),
-                        Ruptured = (f[7] & 1) != 0,
-                        SafetyValveLifting = (f[7] & 2) != 0,
-                        SafetyValveJammed = (f[7] & 4) != 0,
-                        FireDoorOpen = (f[7] & 8) != 0,
-                        WrenchOut = (f[7] & 32) != 0,
-                        ShovelOut = (f[7] & 64) != 0,
-                        Vented = (f[7] & 16) != 0,
-                        SinceShovel = f.Length > 8 ? D(f[8], Fine) : 0,
+                        Ruptured = (f[6] & 1) != 0,
+                        SafetyValveLifting = (f[6] & 2) != 0,
+                        SafetyValveJammed = (f[6] & 4) != 0,
+                        FireDoorOpen = (f[6] & 8) != 0,
+                        WrenchOut = (f[6] & 32) != 0,
+                        ShovelOut = (f[6] & 64) != 0,
+                        Vented = (f[6] & 16) != 0,
+                        SinceShovel = f.Length > 7 ? D(f[7], Fine) : 0,
+                        Green = f.Length > 9 ? D(f[8], Fine) : 0,
+                        Catching = f.Length > 9 ? D(f[9], Fine) : 0,
                     };
                     break;
                 case RecordKind.Controls:
@@ -522,7 +537,7 @@ public static class WorldRecords
                     swings.Add(new SwingEvent(r.Id, (uint)f[0], (int)f[1]));
                     break;
                 case RecordKind.Ping when !world.Authority:
-                    pings.Add(new PingEvent(r.Id, (uint)f[0], (int)f[1], (PingKind)f[2], (int)f[3], new Ballast.Double3(D(f[4], Pos), D(f[5], Pos), D(f[6], Pos))));
+                    pings.Add(new PingEvent(r.Id, (uint)f[0], (int)f[1], (PingKind)f[2], (int)f[3], new Ballast.Double3(D(f[4], Pos), D(f[5], Pos), D(f[6], Pos)), (int)f[7]));
                     break;
                 case RecordKind.Emote when !world.Authority:
                     emotes.Add(new EmoteEvent(r.Id, (uint)f[0], (int)f[1], (Emote)f[2], (uint)f[3], (int)f[4]));
@@ -631,6 +646,8 @@ public static class WorldRecords
             world.MirrorHorseplay(horseplay, lumps);
             world.MirrorOddities(odd, oddity, q => D(q, Pos), players.Select(p => ((int)p.Id, p.State)));
             world.Bodies.Mirror(bodies);
+            // Note 954: what's in someone's hands, put there from their state in this snapshot, as the host did.
+            world.Bodies.PlaceHeld(players.Select(p => ((int)p.Id, p.State)), train);
             world.Train.Lying = world.Bodies.Lying(world.Train);
             // Seen a radio once, a client knows they're things tonight (T41): no radio on you, no radio.
             if (bodies.Any(b => b.Kind == Physics.BodyKind.Radio))
@@ -649,7 +666,7 @@ public static class WorldRecords
                 n == 1 && f[11] > 0 ? D(f[11], Cm) : 0.1);
         var pbd = new Ballast.Physics.PbdBody(particles);
         // At rest on the host, at rest here: a bot's hand picks up a crate left on a car's steps once it's lain still (T50).
-        if (f[4] != 0)
+        if ((f[4] & 1) != 0)
             pbd.Sleep();
         return new Physics.Body(r.Id, (Physics.BodyKind)f[0], (int)f[1], pbd)
         {
@@ -657,7 +674,8 @@ public static class WorldRecords
             Second = (int)f[7],
             Owner = (int)f[3],
             Yaw = D(f[5], Ang),
-            Charge = (Physics.BodyKind)f[0] == Physics.BodyKind.Extinguisher ? D(f[8], Hint) : 1,
+            PlacedByCarrier = (f[4] & 2) != 0,
+            Charge = (Physics.BodyKind)f[0] is Physics.BodyKind.Extinguisher or Physics.BodyKind.FlarePistol or Physics.BodyKind.Flare ? D(f[8], Hint) : 1,
             Tools = (Physics.BodyKind)f[0] is Physics.BodyKind.Ragdoll or Physics.BodyKind.Tool ? (ulong)f[8] : 0,
             Cargo = (Physics.BodyKind)f[0] is Physics.BodyKind.Extinguisher or Physics.BodyKind.Ragdoll or Physics.BodyKind.Toy or Physics.BodyKind.Radio or Physics.BodyKind.Loot or Physics.BodyKind.Tool
                 or Physics.BodyKind.Instrument or Physics.BodyKind.Caboose or Physics.BodyKind.Lamp ? CargoKind.None : (CargoKind)f[8],
@@ -693,7 +711,8 @@ public static class WorldRecords
     /// Writes <paramref name="current"/> as a delta against <paramref name="baseline"/> (null: against nothing).
     /// Unchanged records cost nothing; changed ones send a field mask and zigzag deltas of the changed fields.
     /// </summary>
-    public static void WriteDelta(NetWriter w, IReadOnlyList<WireRecord> current, IReadOnlyList<WireRecord>? baseline)
+    /// <param name="tally">Note 921: the bytes each kind of record took, added to (null: not counted).</param>
+    public static void WriteDelta(NetWriter w, IReadOnlyList<WireRecord> current, IReadOnlyList<WireRecord>? baseline, Dictionary<RecordKind, long>? tally = null)
     {
         var old = baseline?.ToDictionary(r => r.Key) ?? new Dictionary<uint, WireRecord>();
         var keys = new HashSet<uint>(current.Select(r => r.Key));
@@ -706,23 +725,36 @@ public static class WorldRecords
         w.VarU((ulong)changed.Count);
         foreach (var r in changed)
         {
+            int at = w.Length;
+            tally?.TryAdd(r.Kind, 0);
             w.VarU(r.Key);
-            bool delta = old.TryGetValue(r.Key, out var b) && b.Fields.Length == r.Fields.Length && r.Fields.Length <= 64;
+            // Note 921: any length deltas, a mask word for each 64 fields. (Before protocol 83 only records of 64 fields or fewer
+            // did, so the run's record, 9 fields and 25 a facility, went whole every tick on a route of three facilities or
+            // more: a third of what a client was sent.)
+            bool delta = old.TryGetValue(r.Key, out var b) && b.Fields.Length == r.Fields.Length;
             w.VarU(((ulong)r.Fields.Length << 1) | (delta ? 1ul : 0));
             if (!delta)
             {
                 foreach (long v in r.Fields)
                     w.VarS(v);
+                if (tally is not null)
+                    tally[r.Kind] += w.Length - at;
                 continue;
             }
-            ulong mask = 0;
-            for (int i = 0; i < r.Fields.Length; i++)
-                if (r.Fields[i] != b.Fields[i])
-                    mask |= 1ul << i;
-            w.VarU(mask);
-            for (int i = 0; i < r.Fields.Length; i++)
-                if ((mask & (1ul << i)) != 0)
-                    w.VarS(r.Fields[i] - b.Fields[i]);
+            for (int word = 0; word * 64 < r.Fields.Length; word++)
+            {
+                int from = word * 64, to = Math.Min(r.Fields.Length, from + 64);
+                ulong mask = 0;
+                for (int i = from; i < to; i++)
+                    if (r.Fields[i] != b.Fields[i])
+                        mask |= 1ul << (i - from);
+                w.VarU(mask);
+                for (int i = from; i < to; i++)
+                    if ((mask & (1ul << (i - from))) != 0)
+                        w.VarS(r.Fields[i] - b.Fields[i]);
+            }
+            if (tally is not null)
+                tally[r.Kind] += w.Length - at;
         }
     }
 
@@ -750,9 +782,13 @@ public static class WorldRecords
             {
                 if (!result.TryGetValue(key, out var b) || b.Fields.Length != count)
                     throw new InvalidDataException("delta against a record the baseline doesn't have");
-                ulong mask = r.VarU();
-                for (int k = 0; k < count; k++)
-                    fields[k] = (mask & (1ul << k)) != 0 ? b.Fields[k] + r.VarS() : b.Fields[k];
+                for (int word = 0; word * 64 < count; word++)
+                {
+                    int from = word * 64, to = Math.Min(count, from + 64);
+                    ulong mask = r.VarU();
+                    for (int k = from; k < to; k++)
+                        fields[k] = (mask & (1ul << (k - from))) != 0 ? b.Fields[k] + r.VarS() : b.Fields[k];
+                }
             }
             result[key] = new WireRecord(key, fields);
         }
@@ -785,16 +821,16 @@ public static class WorldRecords
             Death = (DeathCause)f[11],
             LineHint = D(f[12], Hint),
             ActionProgress = D(f[13], Fine),
-            Cold = D(f[14], Fine),
-            Flags = (PlayerFlags)f[15],
-            Placed = (byte)f[16],
-            Hand = f.Length > 22 ? new Double3(D(f[17], Cm), D(f[18], Cm), D(f[19], Cm)) : default,
-            OtherHand = f.Length > 22 ? new Double3(D(f[20], Cm), D(f[21], Cm), D(f[22], Cm)) : default,
-            Kit = f.Length > 24 ? (ulong)f[23] : 0,
-            HeldSlot = f.Length > 24 ? (byte)(f[24] & 0xFF) : (byte)0,
-            Pockets = f.Length > 24 ? (byte)(f[24] >> 8) : (byte)0,
-            Head = f.Length > 25 ? D(f[25], Cm) : 0,
-            Stagger = f.Length > 26 ? (byte)f[26] : (byte)0,
+            // The cold's field came out of the record with the cold (note 852; protocol 78).
+            Flags = (PlayerFlags)f[14],
+            Placed = (byte)f[15],
+            Hand = f.Length > 21 ? new Double3(D(f[16], Cm), D(f[17], Cm), D(f[18], Cm)) : default,
+            OtherHand = f.Length > 21 ? new Double3(D(f[19], Cm), D(f[20], Cm), D(f[21], Cm)) : default,
+            Kit = f.Length > 23 ? (ulong)f[22] : 0,
+            HeldSlot = f.Length > 23 ? (byte)(f[23] & 0xFF) : (byte)0,
+            Pockets = f.Length > 23 ? (byte)(f[23] >> 8) : (byte)0,
+            Head = f.Length > 24 ? D(f[24], Cm) : 0,
+            Stagger = f.Length > 25 ? (byte)f[25] : (byte)0,
         });
     }
 

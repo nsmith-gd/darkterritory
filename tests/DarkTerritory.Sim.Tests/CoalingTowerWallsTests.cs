@@ -10,7 +10,7 @@ namespace DarkTerritory.Sim.Tests;
 /// <summary>
 /// The coaling tower is solid (note 758; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 8: "We're actually clipping
 /// a little bit through some of the ... things at the station"). A main-line facility has no stop, so nothing stood where
-/// its trestle is drawn; now its faces, footings and ladder are walls, the woods stand back from it, and it's
+/// its trestle is drawn; now its faces and footings are walls (no ladder since note 869), the woods stand back from it, and it's
 /// gone once Tower Jaw brings it down.
 /// </summary>
 public class CoalingTowerWallsTests
@@ -64,6 +64,19 @@ public class CoalingTowerWallsTests
         // Past its end, the way is open: out beyond its far face (10.5 m).
         var clear = WalkOut(world, 2.0, 7.5, 4);
         Assert.True(Lateral(clear, mid, outward) > 11, $"walked out {Lateral(clear, mid, outward):F1} m past its end");
+    }
+
+    [Fact]
+    public void NothingStandsOffItsBackButItsFootings()
+    {
+        // Note 869 (the director's playtest of 19 Oct line 8: "Ladder on the coaling tower but can't climb it?"): no ladder up
+        // its back, drawn or stood; nothing of it reaches past its far face but a footing's corner.
+        var world = Night(Tower.Start - 2000);
+        var (mid, outward, _) = Where(world.Train);
+        var walls = world.Train.Walls!.All.Where(w => w.Tower > 0 && ((w.Centre - mid) with { Y = 0 }).Length < 20).ToList();
+        Assert.Equal(8, walls.Count); // its four faces and four footings
+        foreach (var w in walls)
+            Assert.True(Double3.Dot((w.Centre - mid) with { Y = 0 }, outward) <= 7 + 3.5 + 0.01, "a wall off the trestle's back");
     }
 
     [Fact]

@@ -123,11 +123,15 @@ public static partial class Staging
         var centre = plan.Fixtures[0];
         var board = plan.Fixtures.First(f => f.Kind == "board");
         var hall = plan.Buildings.First(b => b.Kind == "hall");
+        // Inside the town's gate, looking out at it (note 963, `--town gatein --clock 60`): the restless stood at it looking out
+        // down the line, a watcher at the wall beside it, on their slot away from their posts.
+        if (where == "gatein" && plan.Bounds is { } walls)
+            return Ballast.Render.Camera.LookAt(town.World(walls.Gate - 24, -side * 10, 4), town.World(walls.Gate - 2, 0, 1.4), 64);
         // A house from out in front of it, along its street a way (note 608): "fires", the first a creature brought in tonight
-        // sets alight (`--arrival fires --patrol`); "burnt", the nearest the gate of a town's burnt houses, come back to.
+        // sets alight (`--arrival fires --patrol`); "burnt", the nearest the train of a town's burnt houses, come back to (note 966).
         if (where is "fires" or "burnt"
             && (where == "fires" ? Sim.Towns.TownGenerator.Harmed(plan, 1).FirstOrDefault()
-                : plan.Houses.Where(h => h.Kind == Sim.Towns.HouseKind.Burnt).OrderBy(h => Math.Abs(h.S - plan.Gate)).ThenBy(h => h.Id).FirstOrDefault()) is { } house)
+                : plan.Houses.Where(h => h.Kind == Sim.Towns.HouseKind.Burnt).OrderBy(h => Sim.Towns.TownGenerator.FromWayIn(plan, h)).ThenBy(h => h.Id).FirstOrDefault()) is { } house)
         {
             var (fs, fd) = house.Rail(0, 0);
             var front = town.World(fs, fd);
@@ -142,7 +146,7 @@ public static partial class Staging
             double r0 = sq.S0 + 10, r1 = sq.S0 - 110;
             return Ballast.Render.Camera.LookAt(town.World(r0, rs.At(r0), 16), town.World(r1, rs.At(r1), 0), 60);
         }
-        if (plan.Bounds is { } wall && where is "over" or "lane" or "outside" or "watch" or "bend" or "crooked" or "crookedover" or "towergun")
+        if (plan.Bounds is { } wall && where is "over" or "lane" or "outside" or "wayin" or "wayinout" or "wayout" or "watch" or "bend" or "crooked" or "crookedover" or "towergun")
         {
             // The first street's line out from the line (a town type's warren has none of the street town's: its first row).
             double stD = wall.Streets.OrderBy(x => Math.Abs(x.D)).ThenBy(x => x.D).FirstOrDefault()?.D ?? -side * 26;
@@ -150,6 +154,12 @@ public static partial class Staging
             {
                 "over" => Ballast.Render.Camera.LookAt(town.World(wall.Gate + 40, 0, 70), town.World(wall.Gate - 260, 0, 0), 70),
                 "outside" => Ballast.Render.Camera.LookAt(town.World(wall.Gate + 90, wall.Right * 0.35, 4), town.World(wall.Gate, -wall.Left * 0.3, 6), 75),
+                // Its way in from the last night (note 847): "wayin" from in its yard back at the gate (behind an arrived train, shut
+                // behind it), "wayinout" from just outside it, its wicket open in the left gate.
+                "wayin" => Ballast.Render.Camera.LookAt(town.World(wall.Rear + 48, -5, 6), town.World(wall.Rear, 0, 4), 70),
+                "wayinout" => Ballast.Render.Camera.LookAt(town.World(wall.Rear - 22, -4, 2.2), town.World(wall.Rear, -0.8, 2.6), 70),
+                // Its way out to the next, "wayout": from its yard beside the engine, the gate opening ahead of it.
+                "wayout" => Ballast.Render.Camera.LookAt(town.World(wall.Gate - 36, -7, 4.5), town.World(wall.Gate, 0, 4), 70),
                 // Below the wall, inside it, up at one of the watch on its walk (from a street, the houses' roofs hide it).
                 "watch" when Art.WorldArt.Watch(town, wall.Gate, 0.37).Select(g => g.Feet).OrderBy(f => (f - town.World(mid, wall.Right)).Length).ToList() is { Count: > 0 } guards
                     => guards[0] is var g && town.Direction(mid, 1, 0) is var along && town.Direction(mid, 0, 1) is var across
@@ -183,6 +193,17 @@ public static partial class Staging
             return where == "houseboat"
                 ? Ballast.Render.Camera.LookAt(front + outward * 5 + along * (boat.Width / 2 + 7) + Double3.Up * 1.4, front + Double3.Up * 1.8 - outward * (boat.Depth / 2), 66)
                 : Ballast.Render.Camera.LookAt(front + outward * 26 + along * 22 + Double3.Up * 9, front + Double3.Up * 2 - along * 10, 62);
+        }
+        // A Flooder out at their work (note 841): "flooder" the first kneeling at a houseboat's bow, from a few steps out on
+        // the stage; "flooders" from over the stage, the houseboats' row along it.
+        if (where is "flooder" or "flooders" && plan.People.FirstOrDefault(p => p.House < 0 && p.Pose == "mend") is { } worker)
+        {
+            var feet = town.Feet(worker);
+            var facing = town.Direction(worker.S, worker.FaceS, worker.FaceD);
+            var by = town.Direction(worker.S, 1, 0);
+            return where == "flooder"
+                ? Ballast.Render.Camera.LookAt(feet - facing * 3.4 + by * 1.4 + Double3.Up * 1.6, feet + Double3.Up * 1.1 + facing * 0.8, 66)
+                : Ballast.Render.Camera.LookAt(feet - facing * 16 + by * 6 + Double3.Up * 11, feet - facing * 3 + Double3.Up * 1, 64);
         }
         // A harbour town's Hope Tower (queue #547, note 819): "hope" up at its Flame from the lanes below it, toward the line;
         // "hopeover" from over the head, level with its fire basket; "hopefar" from the line far out past the town's gate,
@@ -266,8 +287,16 @@ public static partial class Staging
             };
         }
         // A walled town's works (note 353): from the first street on their side, and from over the line looking across them.
-        if (plan.Works is { } works && where is "works" or "worksover" or "worksend")
+        if (plan.Works is { } works && (where is "works" or "worksover" or "worksend" || Art.WorksKit.Draws(where)))
         {
+            // A piece of them by its kind (note 870: the slag, the coal, the water tower), from the line side, a little
+            // up the street toward the gate, standing back as far as it is tall.
+            if (plan.Fixtures.FirstOrDefault(f => f.Kind == where && works.Holds(f.S, f.D)) is { } piece)
+            {
+                double back = Math.Max(8, piece.SolidS * 1.6 + Sim.Towns.TownFixtures.Size(where).Height);
+                return Ballast.Render.Camera.LookAt(town.World(piece.S + back * 0.45, piece.D - works.Side * back, 1.8),
+                    town.World(piece.S, piece.D, Sim.Towns.TownFixtures.Size(where).Height * 0.45), 62);
+            }
             double ws = (works.S0 + works.S1) / 2, wd = works.Side * (works.Near + works.Far) / 2;
             return where switch
             {
@@ -621,6 +650,31 @@ public static partial class Staging
     /// extinguisher on its mount, each at <paramref name="charge"/> (its sight glass, App. C.5), settled where they lie, and
     /// the guns' full stock of powder and shot.
     /// </summary>
+    /// <summary>
+    /// The flare pistol's shot (note 964; <c>dt screenshot --flares</c>), from <paramref name="eye"/> along <paramref name="look"/>:
+    /// one just fired, leaving the muzzle a metre out (the flash); one high in its arc out ahead, falling, burning; and one
+    /// down on the ground beyond, its burn half gone, lighting what's round it.
+    /// </summary>
+    public static Sim.Physics.Bodies Flares(TrainOnLine train, Double3 eye, Double3 look)
+    {
+        var bodies = new Sim.Physics.Bodies();
+        double hint = train.Dynamics.Distance;
+        var flat = new Double3(look.X, 0, look.Z).Normalized;
+        Sim.Physics.Body Flare(Double3 at, Double3 velocity, double charge)
+        {
+            var b = bodies.SpawnItem(at, hint, Sim.Physics.BodyKind.Flare);
+            (b.Burns, b.Charge) = (60 * charge, charge);
+            b.Pbd.Particles[0].SetVelocity(velocity, Sim.SimConstants.TickSeconds);
+            return b;
+        }
+        Flare(eye + look * 3.5 - Double3.Up * 0.1, look * 28 + Double3.Up * 9, 1);
+        Flare(eye + flat * 26 + Double3.Up * 11, flat * 20 - Double3.Up * 7, 0.96);
+        var ground = eye + flat * 40;
+        ground = ground with { Y = Sim.Player.PlayerMotor.GroundAt(ground, train.Line, ref hint) };
+        Flare(ground, default, 0.5).Pbd.Sleep();
+        return bodies;
+    }
+
     public static Sim.Physics.Bodies Stocked(TrainOnLine train, string content, double charge = 1)
     {
         var tuning = DataFile.Load<TrainTuning>(Path.Combine(content, TrainTuning.File));
@@ -785,7 +839,9 @@ public static partial class Staging
         int i = 0, swings = 0, jumps = 0;
         foreach (var name in acts)
         {
-            var act = Enum.Parse<Art.CrewPose>(name.Replace("_", ""), ignoreCase: true);
+            // "pistol" (note 964): stood with the flare pistol in hand, as a tool's held.
+            bool pistol = name == "pistol";
+            var act = pistol ? Art.CrewPose.Idle : Enum.Parse<Art.CrewPose>(name.Replace("_", ""), ignoreCase: true);
             var s = Sim.Player.PlayerMotor.SpawnOnRoof(train, 2, -6 + 1.5 * i, player, i % 2 == 0 ? -0.5 : 0.5) with { Yaw = Math.PI + (i % 2 == 0 ? 0.5 : -0.5) };
             var tool = act is Art.CrewPose.Smash or Art.CrewPose.Pry ? Sim.Player.Tool.Crowbar : Sim.Player.Tool.None;
             // A swing (note 275): each one further into its blow than the last, with the shovel, the crowbar, the wrench in turn.
@@ -803,7 +859,7 @@ public static partial class Staging
                 feet += new Double3(0, 0.15 + 0.3 * Math.Min(jumps, 2), 0);
             }
             crew.Add(new Crewmate((byte)(20 + i), feet, Sim.Player.PlayerMotor.WorldYaw(s, train), true,
-                Act: act, Holding: tool, Lamp: act is Art.CrewPose.Lantern or Art.CrewPose.LanternWalk, Survivor: survivor, Phase: swing));
+                Act: act, Holding: tool, Lamp: act is Art.CrewPose.Lantern or Art.CrewPose.LanternWalk, Survivor: survivor, Phase: swing, Pistol: pistol));
             i++;
         }
         return crew;
@@ -907,7 +963,7 @@ public static partial class Staging
         for (int car = 0; car < train.Frames.Count; car++)
         {
             var frame = train.Frames[car];
-            foreach (var l in frame.Shape.Lounges)
+            foreach (var l in frame.Shape.Lounges.Where(l => l.Kind != LoungeKind.Bench))
             {
                 // The hammock's clip lies at its own height (note 791); the tub's bench is the gunner's seat let down to it.
                 bool hammock = l.Kind == LoungeKind.Hammock;
@@ -1002,9 +1058,12 @@ public static partial class Staging
             crew.Add(At(32, table.Max.X + 0.42, deck, table.Centre.Z + 0.2, -Math.PI / 2 + 0.25));
         if (Art.TrainKit.GalleryFloor(shape) is { } gallery)
         {
-            crew.Add(At(33, -0.95, gallery.Max.Y, gallery.Min.Z + 0.35, 0.1));
-            crew.Add(At(34, 0.95, gallery.Max.Y, gallery.Min.Z + 1.6, -0.15));
-            crew.Add(At(35, -0.95, gallery.Max.Y, gallery.Min.Z + 2.4, -0.2));
+            // One stood in the gallery's clear middle; two sat on the benches along its sides (note 905), across from each other.
+            crew.Add(At(33, -0.2, gallery.Max.Y, gallery.Min.Z + 0.35, 0.1));
+            var seats = shape.Lounges.Where(l => l.Kind == LoungeKind.Bench).ToList();
+            foreach (var (id, seat) in new[] { ((byte)34, seats.LastOrDefault(l => l.At.X > 0)), ((byte)35, seats.FirstOrDefault(l => l.At.X < 0)) })
+                crew.Add(seat.Kind == LoungeKind.Bench ? At(id, seat.At.X, seat.At.Y, seat.At.Z, seat.Yaw, Art.CrewPose.SitEdge)
+                    : At(id, id == 34 ? 0.6 : -0.6, gallery.Max.Y, gallery.Min.Z + (id == 34 ? 1.6 : 2.4), -0.15));
         }
         // Off the train: one down on the ballast by the engine, one dead.
         crew.Add(new Crewmate(36, engine.ToWorld(new Double3(-shape.HalfWidth - 3, 0, 4)), engine.Heading, true));
@@ -1538,26 +1597,6 @@ public static partial class Staging
     const double SootOut = 4.6, SootRiseAt = 5.6;
 
     /// <summary>
-    /// The staged Switchman (<c>dt screenshot --switchman</c>), at its lever 55 m up the line (App. A.7): <c>wait</c> by it
-    /// (TELEGRAPH), <c>grip</c> its hand on it, waiting to throw it under the train (COMMIT, the derailer's tell),
-    /// <c>throw</c> it thrown (PUNISH). The <c>switchman</c> view is on the line short of it.
-    /// </summary>
-    public static List<Enemy> Switchman(List<Enemy> threats, string mode)
-    {
-        if (mode.Length == 0 || threats.OfType<Sim.Enemies.Switchman>().FirstOrDefault() is not { } s)
-            return threats;
-        var (phase, derail) = mode switch
-        {
-            "wait" => (SpinePhase.Telegraph, 0.0),
-            "grip" => (SpinePhase.Commit, 1.0),
-            "throw" => (SpinePhase.Punish, 1.0),
-            _ => throw new ArgumentException($"--switchman {mode}: wait, grip or throw"),
-        };
-        s.Restore(phase, 0.4, s.Health, s.Attached, s.Local, s.LineDistance, s.Lateral, s.Height, s.Extra, derail);
-        return threats;
-    }
-
-    /// <summary>
     /// The staged Moose (<c>dt screenshot --moose</c>; note 339, docs/design/creatures/moose.md), on the ground off the
     /// stopped engine's left ahead of it, where its headlamp reaches (beside the line, never on it: well outside the track's
     /// clearance). Its ears and posture are its meter: <c>graze</c> unbothered, <c>listen</c> its head up (aggro past
@@ -1950,7 +1989,7 @@ public static partial class Staging
         log.Add(new Sim.Run.Incident(Sim.Run.IncidentKind.Fire, 940, -1, "Fire Flies set car 3 alight", "at km 11", 3, "Lamp lit by {actor}."));
         log.Add(new Sim.Run.Incident(Sim.Run.IncidentKind.Slain, 980, -1, "Killed the Gaunt together", "beside car 2 at km 12", 0, "By Dave, Dunmore."));
         At(1012);
-        log.Add(Sim.Run.IncidentLog.Death(world, 3, line with { Death = Sim.Player.DeathCause.Cold }, null, crew));
+        log.Add(Sim.Run.IncidentLog.Death(world, 3, line with { Death = Sim.Player.DeathCause.Woken }, null, crew));
         At(1104);
         marks.Manual(world, 3, 0, cab);
         At(1290);
@@ -2081,6 +2120,28 @@ public static partial class Staging
     }
 
     /// <summary>
+    /// Note 866 (<c>dt screenshot --threats --view fire --put-out n</c>): the staged fire's car ablaze end to end, and the
+    /// <paramref name="stretches"/> stretches of it at its rear end (toward the fire view's camera) put out, charred where they
+    /// burnt: a car the crew are working down with the extinguisher, a stretch at a time.
+    /// </summary>
+    public static void PutOut(TrainOnLine train, CarFire fire, int stretches, CarFireTuning? tuning = null)
+    {
+        if (FireGrid.Of(train, fire.Attached, (tuning ?? new CarFireTuning()).CellSize) is not { } grid)
+            return;
+        var heat = new double[grid.Count];
+        var burnt = new byte[grid.Count];
+        for (int i = 0; i < grid.Count; i++)
+        {
+            bool doused = grid.Row(i) >= grid.Along - stretches;
+            heat[i] = doused ? 0 : 0.85 + 0.03 * (i * 7 % 5);
+            burnt[i] = (byte)(doused ? 6 + i * 3 % 4 : 4);
+        }
+        fire.RestoreHeat(heat);
+        fire.Restore(SpinePhase.Punish, fire.PhaseSeconds, fire.Health, fire.Attached, fire.Local, 0, 0, 0, heat.Average(), 0);
+        train.Vehicles[fire.Attached].Char = burnt;
+    }
+
+    /// <summary>
     /// A car's boards as a fire that burnt out in it leaves them (note 763; <c>dt screenshot --burnt car,s</c>): its cells charred
     /// the way <see cref="CarFire"/> writes them, burnt out where it started a little behind the middle, less towards the ends,
     /// the walls and roof less than the floor, each cell a little its own.
@@ -2201,6 +2262,64 @@ public static partial class Staging
     }
 
     /// <summary>
+    /// Hounds winding up to light their car (note 891; <c>dt screenshot --ignite --view patrol</c>): on the second car's roof,
+    /// one <paramref name="w"/> of the way through its wind-up (its cracks blazing, embers streaming up off it), and one at
+    /// the burst from its body that lights the car.
+    /// </summary>
+    /// <summary>
+    /// Note 939 (<c>dt screenshot --threats --fire-cause hotbox|hounds|inside</c>): the staged car fire lit by
+    /// <paramref name="cause"/>, shown where it is: <c>hotbox</c>, its hot box burning at its wheel (<c>--view hotbox --car</c> the
+    /// fire's car); <c>hounds</c>, a Cinder Hound on its roof over the fire, seen from inside (<c>--view fire</c>), winding up to
+    /// light it again <paramref name="w"/> of the way through (0, prowling); <c>inside</c>, the same hound's fire told as lit
+    /// from inside. The fire's cause rides on it as it would from the host, so the HUD's line (<c>--hud</c>) says it too.
+    /// </summary>
+    public static List<Enemy> Caused(TrainOnLine train, IReadOnlyList<Enemy> staged, string cause, double w, double windUp, CarFireTuning? t = null)
+    {
+        var list = new List<Enemy>(staged);
+        int at = list.FindIndex(e => e is CarFire);
+        if (at < 0)
+            return list;
+        var was = (CarFire)list[at];
+        var why = cause switch { "hotbox" => FireCause.HotBox, "flies" => FireCause.FireFlies, "lamp" => FireCause.Lamp, _ => FireCause.Hounds };
+        var fire = CarFire.In(was.Id, train, was.Attached, was.Local.Z, t ?? new CarFireTuning(), why).LitInside(cause == "inside");
+        fire.Restore(was.Phase, was.PhaseSeconds, was.Health, was.Attached, was.Local, 0, fire.Lateral, fire.Height, was.Extra, was.Extra2);
+        fire.RestoreHeat([.. was.Heat]);
+        list[at] = fire;
+        if (why == FireCause.Hounds && cause != "inside")
+        {
+            var hound = new CinderHound(86, 86);
+            const double seconds = 30;
+            var mode = w > 0 ? HoundMode.Ignite : HoundMode.Still;
+            hound.Restore(SpinePhase.Commit, seconds, 60, was.Attached, new Double3(0.4, train.Frames[was.Attached].Shape.RoofHeight, was.Local.Z - 0.8),
+                seconds - windUp * w, (int)mode * 4 + 1, 0, 86, 0);
+            list.Add(hound);
+        }
+        return list;
+    }
+
+    public static List<Enemy> Ignite(TrainOnLine train, double w, double windUp)
+    {
+        int car = Math.Min(2, train.Frames.Count - 1);
+        var shape = train.Frames[car].Shape;
+        double roof = shape.RoofHeight, end = shape.HalfLength;
+        (int Face, Double3 At, double Into)[] hounds =
+        [
+            (1, new Double3(0.6, roof, -end + 3), windUp * w),
+            (0, new Double3(-0.6, roof, end - 3.5), windUp * 0.92),
+        ];
+        var list = new List<Enemy>();
+        for (int i = 0; i < hounds.Length; i++)
+        {
+            var (face, at, into) = hounds[i];
+            var hound = new CinderHound(80 + i, 80);
+            const double seconds = 30;
+            hound.Restore(SpinePhase.Commit, seconds, 60, car, at, seconds - into, (int)HoundMode.Ignite * 4 + face, 0, 80, 0);
+            list.Add(hound);
+        }
+        return list;
+    }
+
+    /// <summary>
     /// A Dragger perched on a through-truss's top chord (note 435; <c>dt screenshot --route frontier:7 --truss --view ahead</c>):
     /// mid-span on the right, scraping (its limb reaching down off the steel), the train coming up on it.
     /// </summary>
@@ -2248,7 +2367,7 @@ public static partial class Staging
         whistler.Restore(SpinePhase.Alert, 1, 6, middle, CrewSense.GapLocal(train, middle), 0, 0, 0, 0, 0);
         threats.Add(whistler);
         // The first cargo car alight, and Fire Flies swarming the lamp in the middle car (A.5, C.5).
-        var fire = CarFire.In(24, train, cargo, 1.5, fireTuning ?? new CarFireTuning());
+        var fire = CarFire.In(24, train, cargo, 1.5, fireTuning ?? new CarFireTuning(), FireCause.Set);
         fire.Restore(SpinePhase.Punish, 5, 1, cargo, fire.Local, 0, 0, 0, 0.7, 0);
         Cells(train, fire, 0.7, 0, fireTuning);
         threats.Add(fire);
@@ -2309,10 +2428,6 @@ public static partial class Staging
             ghost.Restore(SpinePhase.Commit, 2, 6, Enemy.Loose, train.Frames[rear].ToWorld(new Double3(i == 0 ? -1.2 : 1.3, rearShape.RoofHeight + 1.6 + i * 0.4, -1 + i * 2)), 0, 0, 0, -1, 0);
             threats.Add(ghost);
         }
-        // At the side of the line ahead, where a switch stand would be, lantern out.
-        var switchman = new Switchman(40);
-        switchman.Restore(SpinePhase.Telegraph, 3, 1, -1, default, d.Distance + 55, 3.8, 0, -1, 0);
-        threats.Add(switchman);
         // Out in the dark off the second car's side, calling for help: black eyes, from five metres (A.6).
         var soot = new SootChildren(41);
         soot.Restore(SpinePhase.Telegraph, 4, 1, Enemy.Loose, side.ToWorld(new Double3(-(side.Shape.HalfWidth + 6), 0, 6)), 0, 0, 0, 1, 1);

@@ -21,13 +21,18 @@
     "forwardTraverseDegrees": 360,
     // Spec B.7: no firing within this many degrees of the train's own body axis.
     "deadZoneDegrees": 20,
-    "minPitchDegrees": -12,
+    // Note 846 (the director's playtest of 16 Oct, line 7: "we're going to want to be able to pitch the cannon down a little bit
+    // more"): -20 (was -12), so a roof gun lays on what's close in beside the train.
+    "minPitchDegrees": -20,
+    // Note 846 (line 7: "the cannon lets me fire when I'm in a town, and I just fired at a house ... we really shouldn't let
+    // people do that"): a gun whose car is inside a walled town (the departure's or the arrival's, World.InTown) won't fire.
+    "holdInTowns": true,
     "maxPitchDegrees": 45,
     // App. C.3: "powder and shot are stocked at departure" and are rare: a gun's shots for the night.
     "ammo": 24,
     // Stand within this of the gun to work it.
     "reach": 1.0,
-    // In blows (App. C.2's unit): a ball is four clubbings' worth. The Switchman dies to "one cannon shot".
+    // In blows (App. C.2's unit): a ball is four clubbings' worth. A creature of three blows dies to "one cannon shot".
     "damagePerRound": 4,
     // The guns are their own (the director, 13 Oct evening, note 689: "I really don't want a situation where the driver has to
     // coordinate how much pressure the boiler has to be able to fire the cannons. I just want the cannons to be like an
@@ -88,7 +93,7 @@
     "feedWhileFiring": 20,
     // A bot crew of this many or more has a second gunner, on the engine's forward gun (note 414): the last place in the crew
     // goes forward over the cars onto the engine's hood (the relief driver's way, note 399) and takes that gun's seat, for
-    // the hound run's lane ahead (note 405), the Track Doll and the Switchman. Below it, a crew's one gunner is the guard
+    // the hound run's lane ahead (note 405) and the Track Doll. Below it, a crew's one gunner is the guard
     // van's and the lane ahead boards. Six: the driver, the guard van's gunner, the winch pair and the shunter come first.
     "forwardGunnerFrom": 6
   },
@@ -109,6 +114,10 @@
   // m of them in the air takes the ball's hit (guns.damagePerRound) once, and they drop there.
   "cannonball": { "climbReach": 1.0, "climbSeconds": 1.5, "muzzle": 1.5, "range": 40, "speed": 22, "step": 2, "mapHalfWidth": 300,
     "hitRadius": 1.2 },
+  // The flare pistol (note 871; docs/design/upgrades.md §4: "A flare lights a village for 60 s, and the Fire Flies follow it
+  // away from the train"). Fire with it in hand: a flare out along the look at speed m/s, lift of that upward (so it arcs
+  // out over a village rather than into the ballast), one every `every` s at most; it burns burnSeconds where it lands.
+  "flarePistol": { "speed": 28, "lift": 0.35, "every": 1.0, "burnSeconds": 60 },
   "hits": {
     "keepSeconds": 1,
     "impactKeepSeconds": 8

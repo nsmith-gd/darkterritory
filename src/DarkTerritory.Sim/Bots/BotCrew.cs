@@ -67,13 +67,13 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
             2 => StopJob.Winch1,
             _ => i == 1 && gunner ? StopJob.None : StopJob.Crates,
         };
-        StopHand? hand = calls is null ? null : new StopHand(job, calls, i, player.Cold);
-        return i == 0 ? express is { } fast ? new ConductorBot(calls, i) { CruiseSpeed = fast, Express = true } : new ConductorBot(calls, i) { Cold = player.Cold }
-            : i == 1 && combat is { } c ? new GunnerBot(c.Guns, c.Choir, seed * 1000 + i, player.Cold, hand)
+        StopHand? hand = calls is null ? null : new StopHand(job, calls, i);
+        return i == 0 ? express is { } fast ? new ConductorBot(calls, i) { CruiseSpeed = fast, Express = true } : new ConductorBot(calls, i)
+            : i == 1 && combat is { } c ? new GunnerBot(c.Guns, c.Choir, seed * 1000 + i, hand)
             // The engine's forward gun's (note 414), in a crew big enough: its last place.
             : i == count - 1 && combat is { Guns.ForwardGunnerFrom: > 0 } f && count >= f.Guns.ForwardGunnerFrom
-                ? new GunnerBot(f.Guns, f.Choir, seed * 1000 + i, player.Cold, hand) { Forward = true }
-            : new RoofWalkerBot(seed * 1000 + i, player.Cold, hand);
+                ? new GunnerBot(f.Guns, f.Choir, seed * 1000 + i, hand) { Forward = true }
+            : new RoofWalkerBot(seed * 1000 + i, hand);
     }
 
     /// <summary>Every bot's tick: decide and send (its client steps with it).</summary>
@@ -191,7 +191,7 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
             intent = Heed.HandUp(intent, session.Predicted, session.World, me, others, calls, session.PlayerTuning.Rescue);
         // Note 658: the Ribbits near, clubbed by whoever's on the ground (a rescue alone only evens the count).
         if (!hunted)
-            intent = Heed.Ribbits(intent, session.Predicted, session.World, me);
+            intent = Heed.Ribbits(intent, session.Predicted, session.World, me, others);
         intent = Heed.Hounds(intent, session.Predicted, session.World, me);
         intent = Heed.Backs(intent, session.Predicted, session.World, me, t);
         intent = Heed.Voice(intent, session.Predicted, session.World, me, t);
@@ -222,6 +222,13 @@ public sealed class BotCrew(CrewCalls? calls) : IDisposable
                 (bot as RoofWalkerBot)?.Crew ?? (bot as GunnerBot)?.Crew ?? (bot as ConductorBot)?.Crew ?? []);
         // Note 716: and round the big cab's chart table and benches, down the ways either side of them.
         intent = Heed.CabFurniture(intent, session.Predicted, session.World, session.PlayerTuning);
+        // Note 936 (the director, 20 Oct: "oh, the spur? Yeah, of course"): a ping it's taken, answered while it's at it, so the
+        // crew are told who's on it ("DUNMORE: ON THE SPUR").
+        if (calls?.Answering(me) is { } answering && session.Predicted.Alive)
+        {
+            intent.Moves |= PlayerMoves.Answer;
+            intent.Answer = answering;
+        }
         return Vote(intent, session, me);
     }
 

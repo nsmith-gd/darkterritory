@@ -27,6 +27,29 @@ public class AudioTests
         Assert.All(sweep.Audit, a => Assert.True(a.WorstOverBedDb >= 6, $"{a.Sound} is only {a.WorstOverBedDb} dB over the bed at the {a.WorstListener}"));
     }
 
+    [Theory]
+    // In the open on a roof, at the edge of spec A.5's full clarity and nearer.
+    [InlineData(3, 4.0, true, false, 3, 0.0, 10)]
+    [InlineData(3, -4.0, true, false, 3, 4.0, 10)]
+    // The driver in the cab, a crewmate outside it on the engine, through the cab's wall (spec A.3's -12 dB and 900 Hz).
+    [InlineData(0, 0.0, true, false, 0, 0.0, 2)]
+    // And back: the crewmate on the engine to the driver.
+    [InlineData(0, 0.0, false, true, 0, 0.0, 2)]
+    public void TheBedAtSpeedNeverDrownsACrewmateTalkingAtSpeakingDistance(int speakerCar, double speakerZ, bool speakerInCab, bool listenerInCab,
+        int listenerCar, double listenerZ, double overDb)
+    {
+        // Note 855 (the director's playtest of 16 Oct evening, line 1): the host, driving, couldn't be heard by the joiner
+        // outdoors, though she was heard. A quiet mic (20 dB under the synthetic talker: a Windows headset) at the top speed:
+        // the leveller brings it up to everyone's level, and the voice ducks the wind as it does the train, so the wind past
+        // a roof isn't what it's lost in. Spec A.3: a tell that can be drowned out is a bug, and a crewmate's voice is a tell.
+        var trainTuning = DataFile.Load<TrainTuning>(Path.Combine(Content, TrainTuning.File));
+        var r = VoiceBench.Run(Content, speakerCar, speakerZ, radio: false, seconds: 3, speed: trainTuning.MaxSpeed, speakerInCab: speakerCar == 0 && speakerInCab, listenerInCab: listenerInCab,
+            listenerCar: listenerCar, listenerZ: listenerZ, micDb: -20);
+        Assert.Equal(r.FramesSent, r.FramesHeard);
+        Assert.True(r.OverRestDb >= overDb, $"{r.DistanceM} m away the voice is {r.NearDb} dB, {r.OverRestDb} dB over the rest ({r.RestDb} dB: "
+            + string.Join(", ", r.MaskedBy!.Select(kv => $"{kv.Key} {kv.Value}")) + ")");
+    }
+
     [Fact]
     public void NoInstalledTakeClipsOnceItsDecoded()
     {
@@ -231,6 +254,21 @@ public class AudioTests
         foreach (var toy in toys)
             Assert.True(report.StemsDb[toy] > wind + 6, $"{toy} at {report.StemsDb[toy]} dB, wind {wind:0.0}");
         Assert.InRange(toys.Max(t => report.StemsDb[t]) - toys.Min(t => report.StemsDb[t]), 0, 4);
+    }
+
+    [Fact]
+    public void TheArrivalTownIsHeardAndACreatureBroughtInIsFoughtAloudUnderItsTells()
+    {
+        // Note 958 (GDD v1.6 "Not yet": the terminus had only its threshold and gates, and a creature ridden in was fought in
+        // silence): stood in the arrival town's yard, its townsfolk are heard; hounds ridden in are heard crying out under the
+        // wall guns, the town's bell rung over the gate; and their howl, a tell, is still over everything else.
+        var (report, _) = AudioBench.Render(Content, "brought", cars: 6, speed: 0, listenerCar: 2, seconds: 10);
+        Assert.Contains("place-town.murmur", report.StemsDb.Keys);
+        Assert.Contains("cs-hounds.yelp", report.StemsDb.Keys);
+        Assert.Contains("place-town.bell", report.StemsDb.Keys);
+        Assert.Contains("town-guns.fire", report.StemsDb.Keys);
+        var howl = Assert.Single(report.Tells, t => t.Sound == "hound-howl");
+        Assert.True(howl.OverAllDb >= 3, $"the howl is only {howl.OverAllDb} dB over the yard's fight");
     }
 
     [Fact]

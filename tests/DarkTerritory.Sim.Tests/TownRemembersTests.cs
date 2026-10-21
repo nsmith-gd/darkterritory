@@ -10,7 +10,7 @@ namespace DarkTerritory.Sim.Tests;
 
 /// <summary>
 /// The town remembers the creature brought in (queue #340, ARCHITECTURE §8 note 608; note 589's not-yets): its guards turn
-/// out to the yard while it's fought, the houses nearest the gate burn, and the campaign carries them burnt to the next
+/// out to the yard while it's fought, the houses nearest where the train come in stands burn (note 966), and the campaign carries them burnt to the next
 /// visit, where the town's people say so.
 /// </summary>
 public class TownRemembersTests
@@ -43,7 +43,7 @@ public class TownRemembersTests
     }
 
     [Fact]
-    public void TheHousesBurntAreTheLivedInOnesNearestTheGateAndStayTheSame()
+    public void TheHousesBurntAreTheLivedInOnesNearestTheTrainAndStayTheSame()
     {
         var whole = Plan(0);
         var harmed = Plan(2);
@@ -53,9 +53,9 @@ public class TownRemembersTests
         var gone = TownGenerator.Harmed(whole, 2);
         Assert.Equal(2, gone.Count);
         Assert.All(gone, h => Assert.Equal(HouseKind.Lived, h.Kind));
-        // No lived-in house nearer the gate is left standing.
-        double farthest = gone.Max(h => Math.Abs(h.S - whole.Gate));
-        Assert.DoesNotContain(whole.Houses, h => h.Kind == HouseKind.Lived && Math.Abs(h.S - whole.Gate) < farthest && !gone.Contains(h));
+        // No lived-in house nearer where the train come in stands is left standing.
+        double farthest = gone.Max(h => TownGenerator.FromWayIn(whole, h));
+        Assert.DoesNotContain(whole.Houses, h => h.Kind == HouseKind.Lived && TownGenerator.FromWayIn(whole, h) < farthest && !gone.Contains(h));
         // Burnt out, shut, nobody home, and the look says whose it was; everything else as it was.
         foreach (var h in harmed.Houses)
         {
@@ -128,14 +128,48 @@ public class TownRemembersTests
         var town = world.Arrival!;
         var guards = town.Plan.People.Where(Town.Guards).ToList();
         Assert.NotEmpty(guards);
+        double start = town.Clock;
         var posted = guards.Select(town.Now).ToList();
+        // (Where their rounds would have them a minute on, with no fight.)
+        town.Clock = start + 60;
+        var later = guards.Select(town.Now).ToList();
+        town.Clock = start;
 
-        // A creature fought 40 m inside the gate: every guard out on the yard round it, facing it, their pieces up.
+        // A creature fought 40 m inside the gate. Note 951: at first they're where they stood, looking to it; then they run out
+        // to it, each in turn; and a minute on, every guard's out on the yard round it, facing it, their pieces up.
         double along = route.Plan!.Terminus.GateM + 40;
         town.Fight = town.Along(along);
         var fight = town.World(town.Fight.Value, 0);
         Assert.Equal(train.Line.Sample(along).Position.X, fight.X, 3);
         Assert.Equal(train.Line.Sample(along).Position.Z, fight.Z, 3);
+        for (int i = 0; i < guards.Count; i++)
+        {
+            // (Where they stood; or, posted far off, on their way in already, no more than 20 m out from their place.)
+            var now = town.Now(guards[i]);
+            var place = town.OnTheYard(i, town.Fight.Value, guards[i].Up).Feet;
+            Assert.True(now.Feet == posted[i].Feet || ((place - now.Feet) with { Y = 0 }).Length <= 20.01);
+            Assert.Equal("idle", now.Act);
+            var look = (fight - now.Feet) with { Y = 0 };
+            Assert.True(look.Length < 1e-6 || Double3.Dot(look.Normalized, now.Facing) > 0.99, "looking to it");
+        }
+        town.Clock = start + 2.5;
+        var running = guards.Select(town.Now).Where(p => p.Act == "run").ToList();
+        Assert.NotEmpty(running);
+        Assert.All(running, r => Assert.True(r.Walking));
+        // Running toward it: nearer it than where they set off from, and faced the way they're going.
+        for (int i = 0; i < guards.Count; i++)
+            if (town.Now(guards[i]) is { Act: "run" } r)
+            {
+                var there = town.OnTheYard(guards.Take(i).Count(), town.Fight.Value, guards[i].Up).Feet;
+                Assert.True(((there - r.Feet) with { Y = 0 }).Length < Math.Min(20, ((there - posted[i].Feet) with { Y = 0 }).Length));
+                Assert.True(Double3.Dot(((there - r.Feet) with { Y = 0 }).Normalized, r.Facing) > 0.99);
+            }
+        // All there well within the fight (run.json broughtIn.fightSeconds), and a minute on still.
+        foreach (double at in new[] { Tuning.Run.BroughtIn.FightSeconds - 1.5, 60 })
+        {
+            town.Clock = start + at;
+            Assert.All(guards, g => Assert.Equal("guard", town.Now(g).Act));
+        }
         foreach (var g in guards)
         {
             var now = town.Now(g);
@@ -152,6 +186,6 @@ public class TownRemembersTests
         // Everyone else on their round as before; and the fight over, the guards back to theirs.
         Assert.All(town.Plan.People.Where(p => !Town.Guards(p)), p => Assert.NotEqual("guard", town.Now(p).Act));
         town.Fight = null;
-        Assert.Equal(posted, guards.Select(town.Now).ToList());
+        Assert.Equal(later, guards.Select(town.Now).ToList());
     }
 }

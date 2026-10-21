@@ -39,7 +39,6 @@ public sealed partial class GameAudio
     readonly Dictionary<int, BodyKind> _bodies = new();
     readonly HashSet<BodyKind> _bodiesGone = new();
     readonly HashSet<int> _bodyIds = new();
-    readonly Dictionary<int, bool> _points = new();
     readonly Dictionary<int, double> _bangs = new();
     readonly HashSet<int> _gallopers = new();
     readonly List<(double At, Action Play)> _later = new();
@@ -100,7 +99,6 @@ public sealed partial class GameAudio
             _crewHealth.Clear();
             _shotTicks.Clear();
             _bodies.Clear();
-            _points.Clear();
             _bangs.Clear();
             _later.Clear();
             _lastShot = double.NegativeInfinity;
@@ -141,7 +139,6 @@ public sealed partial class GameAudio
         }
         Mauled(world);
         ChoirSwarm(world);
-        SwitchmanThrows(world);
         SixSoundsAfter(world);
         StirSounds(world);
         WallGunSounds(world);
@@ -235,15 +232,6 @@ public sealed partial class GameAudio
                 break;
             case Passenger:
                 PassengerSounds(e, was, at, occ);
-                break;
-            case Switchman sw:
-                // The derailer gripping the lever (App. A.8): the junction lamp flickers, again and again, until it throws.
-                if (sw.Gripping && _time >= was.Next)
-                {
-                    Cue("cs-switchman.flicker", Lamp(world, sw.Branch, at), Occlusion(PlayerMotor.Outside));
-                    was.Next = _time + 0.25 + 0.55 * _creatureRng.Next();
-                }
-                Pained("cs-switchman.hit", e, at, occ, struck);
                 break;
             case Grumbler g:
                 GrumblerSounds(g, was, at, occ);
@@ -493,9 +481,15 @@ public sealed partial class GameAudio
         }
         if (mode == HoundMode.Sniff)
             HoldLevel("cs-hounds.sniff", h.Id, at + Double3.Up * HoundNose, occ, 1);
+        // Note 891: winding up to light its car, the car fire's smoulder at its body, rising to the burst (a tell: the fire's
+        // coming). Its own sound is the audio checklist's to make; this is the car fire's own, which the crew already know.
+        if (mode == HoundMode.Ignite)
+            HoldLevel("tell-car-fire.smoulder", h.Id | HoundIgniteOwner, at + Double3.Up * 0.4, occ,
+                0.3 + 0.7 * Math.Clamp(h.ModeSeconds / Math.Max(0.1, (_creatureWorld?.Enemies?.CinderHounds.Aboard ?? new HoundAboardTuning()).IgniteWindUpSeconds), 0, 1));
         // Only walking is stepped: in the air, at a door and sniffing its moves are their own sounds; over to another car
         // other than by a leap is the record catching up, not a step.
-        if (mode is HoundMode.Leap or HoundMode.Drop or HoundMode.Climb or HoundMode.Sniff || h.Attached != was.Attached)
+        if (mode is HoundMode.Leap or HoundMode.Drop or HoundMode.Climb or HoundMode.Sniff or HoundMode.Lunge or HoundMode.Ignite
+            || h.Attached != was.Attached)
             return;
         double run = (h.Local - was.Local).Length, speed = run / dt;
         if (speed < HoundAboardMoving || run > HoundAboardJump)
@@ -517,6 +511,8 @@ public sealed partial class GameAudio
     // How late a move's sound can still come (the record arrives in snapshots; joining mid-move, it's missed), the forefeet
     // to the hind feet landing, and its nose's height sniffing.
     const double HoundMoveLate = 0.25, HoundHindAfter = 0.09, HoundNose = 0.3;
+    // Its ignite's smoulder held apart from anything else it holds (note 891).
+    const int HoundIgniteOwner = 1 << 28;
 
     /// <summary>A hound aboard begun on <paramref name="mode"/> (note 489): its move's sounds, each when it comes.</summary>
     void HoundMove(CinderHound h, HoundMode mode)
@@ -537,6 +533,25 @@ public sealed partial class GameAudio
                 // The whole climb is the one sound, from the trot to the sill to its weight onto the roof (E1's clip).
                 HoundAfter(h.Id, -into, c => Cue("cs-hounds.climb", c.At + Double3.Up * HoundDropUp * 0.5, Occlusion(c.Attached)));
                 break;
+            case HoundMode.Lunge:
+                {
+                    // Note 891: the leap at someone, a snarl with it, and its paws landing by them at the lunge's end (the bite, if it
+                    // lands, is the crew's hurt: GameAudio's).
+                    var a = _creatureWorld?.Enemies?.CinderHounds.Aboard ?? new HoundAboardTuning();
+                    string on = _creatureWorld is { } w && Inside(w.Train, h.Attached, h.Local) ? "wood" : "roof";
+                    HoundAfter(h.Id, -into, c => Cue("cs-hounds.spring", c.At, Occlusion(c.Attached)));
+                    HoundAfter(h.Id, 0.05 - into, c => Cue("cs-hounds.snarl", c.At, Occlusion(c.Attached)));
+                    HoundLands(h.Id, a.LungeSeconds - into, on);
+                    break;
+                }
+            case HoundMode.Ignite:
+                {
+                    // Note 891: the burst from its body that lights the car (CreatureArt's last fifth): a snarl with it; the car's
+                    // own fire takes over from there.
+                    var a = _creatureWorld?.Enemies?.CinderHounds.Aboard ?? new HoundAboardTuning();
+                    HoundAfter(h.Id, a.IgniteWindUpSeconds * 0.8 - into, c => Cue("cs-hounds.snarl", c.At, Occlusion(c.Attached)));
+                    break;
+                }
         }
     }
 
@@ -967,9 +982,6 @@ public sealed partial class GameAudio
                 // At the caboose, it uncoupled it (Passenger.Tick): the crew's coupling hooks hear the knuckle part; this is its own.
                 Cue("cs-passenger.uncouple", (c.Attached >= 0 ? GapAhead(train, c.Attached) : null) ?? c.At, Occlusion(PlayerMotor.Outside));
                 break;
-            case EnemyKind.Switchman when killed && c.Phase is SpinePhase.Telegraph or SpinePhase.Commit:
-                Cue("cs-switchman.death", c.At, occ);
-                break;
             case EnemyKind.Dragger when c.Phase == SpinePhase.Grab:
                 // Its limb clubbed off the one it held (one blow kills it): they're free, hauled back up.
                 DraggerLetGo(train, c);
@@ -1120,23 +1132,6 @@ public sealed partial class GameAudio
                 var door = doors[(int)(_creatureRng.Next() * doors.Count) % doors.Count];
                 Cue("cs-choir.bang-door", "wood", frame.ToWorld(door.Box.Centre), Occlusion(space));
             }
-        }
-    }
-
-    /// <summary>
-    /// The Switchman throwing the points (App. A.8): a branch it stands at going over to diverging. The crew's switch hooks
-    /// play the lever and the blades for any throw; this is its own cue, at the lever.
-    /// </summary>
-    void SwitchmanThrows(World world)
-    {
-        var train = world.Train;
-        for (int b = 0; b < train.Line.Branches.Count; b++)
-        {
-            bool now = train.Diverging(b);
-            bool thrown = _points.TryGetValue(b, out bool was) && now && !was;
-            _points[b] = now;
-            if (thrown && world.ActiveEnemies.Any(e => e is Switchman { Gone: false } s && s.Branch == b))
-                Cue("cs-switchman.throw", Lever(world, b), Occlusion(PlayerMotor.Outside));
         }
     }
 

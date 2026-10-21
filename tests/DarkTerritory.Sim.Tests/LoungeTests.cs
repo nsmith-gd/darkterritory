@@ -64,7 +64,8 @@ public class LoungeTests
         }
         var plain = World(Tuning.Train);
         Assert.Empty(plain.Train.Frames[^1].Shape.Lounges);
-        Assert.Empty(plain.Train.Frames[0].Shape.Lounges);
+        // (The big cab's benches' seats are always the engine's, note 905: not a whimsy's.)
+        Assert.DoesNotContain(plain.Train.Frames[0].Shape.Lounges, l => l.Kind != LoungeKind.Bench);
         Assert.DoesNotContain(plain.Bodies.All, b => b.Kind == BodyKind.FishingRod);
         var w = World(Dressed("hammock", "hotTub", "fishingRod"));
         Assert.Equal(LoungeKind.Hammock, Assert.Single(w.Train.Frames[^1].Shape.Lounges).Kind);
@@ -73,49 +74,19 @@ public class LoungeTests
     }
 
     [Fact]
-    public void TheHammockIsLainInAcrossTheVanAndTheColdComesOnSlower()
-    {
-        var w = World(Dressed("hammock"));
-        int van = w.Train.Frames.Count - 1;
-        var spot = Assert.Single(w.Train.Frames[van].Shape.Interactables, i => i.Kind == InteractableKind.Hammock);
-        var hammock = w.Train.Frames[van].Shape.Lounges[spot.Index];
-        // The boiler cold: the van's no warmer than a shut car without steam.
-        w.Train.Boiler.Pressure = 0;
-        w.Train.Boiler.Firebox = 0;
-        double Chill(bool lie)
-        {
-            var s = At(w, van, spot.Position);
-            if (lie)
-            {
-                Tick(w, ref s, Sit);
-                Assert.True(s.Has(PlayerFlags.Lounging));
-                Assert.True((s.Position - hammock.At).Length < 1e-9);
-                Assert.Equal(Math.PI / 2, s.Yaw, 9);
-            }
-            double before = s.Cold;
-            Hold(w, ref s, default, 10);
-            return s.Cold - before;
-        }
-        double standing = Chill(false), lying = Chill(true);
-        Assert.True(standing > 0, "the van's cold");
-        Assert.Equal(standing * w.Train.Dynamics.Tuning.Composition.Whimsy.HammockCold, lying, 3);
-    }
-
-    [Fact]
-    public void TheHotTubKeepsYouWarmWhileThereIsSteamAndEatsIt()
+    public void TheHotTubIsSatInAndEatsTheSteam()
     {
         var w = World(Dressed("hotTub"));
         var engine = w.Train.Frames[0].Shape;
         var spot = engine.Interactables.First(i => i.Kind == InteractableKind.HotTub);
-        var s = At(w, 0, spot.Position) with { Cold = 60, Surface = Surface.Roof };
+        var s = At(w, 0, spot.Position) with { Surface = Surface.Roof };
         Tick(w, ref s, Sit);
         Assert.True(s.Has(PlayerFlags.Lounging));
         Assert.Equal(LoungeKind.HotTub, Bbq.LoungingIn(s, w.Train)?.Kind);
-        // Out on the roof in the night, and warm.
+        // Out on the roof in the night (and warm, until note 852 cut the cold).
         w.Train.Boiler.Pressure = 80;
         double steam = w.Train.Boiler.Pressure;
         Hold(w, ref s, default, 5);
-        Assert.True(s.Cold < 60, $"cold {s.Cold:0.0}");
         // A second soaking draws it at the tub's rate (and the boiler's own losses beside it).
         var plain = World(Dressed("hotTub"));
         plain.Train.Boiler.Pressure = 80;

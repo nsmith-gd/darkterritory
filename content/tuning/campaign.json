@@ -25,7 +25,11 @@
   "stores": {
     "powder": { "cost": 120, "most": 3, "each": 4 },
     "lamps": { "cost": 60, "most": 2 },
-    "extinguishers": { "cost": 90, "most": 2 }
+    "extinguishers": { "cost": 90, "most": 2 },
+    // Note 871 (docs/design/upgrades.md §4, the director: "fantastic"): a flare pistol loaded with `each` flares, stocked from
+    // the Frontier tier as a tool is (fromTier). Priced between a spare lamp and an extinguisher: a flare pistol is three
+    // nights' answer to the Fire Flies at one stop each.
+    "flares": { "cost": 80, "most": 2, "each": 3, "fromTier": "frontier" }
   },
   // GDD §9 "add or remove railcars": a car taken off the consist brings back this share of what that car cost (spec F.2),
   // and a consist keeps the starting three at least. A shorter train works a lower tier when it drops below one (F.4).
@@ -38,7 +42,7 @@
   "saveSlots": 3,
   // Spec F.3. Cost is a share of what the next car costs now. "effect" multiplies tuning: tender (tender capacity),
   // ammo (rounds per gun), lamp (how far the headlamp reaches: train.json headlampReach, note 506), brakes (braking), burn (coal per unit of steam),
-  // insulation (how fast the cold comes on in an unheated car: player.json cold.indoorsRate), contactSafe (the closing
+  // contactSafe (the closing
   // speed a coupling takes before the ends are damaged: train.json couplings.safeContactSpeed), underLoad (how long cutting
   // a working train's coupling takes: couplings.uncoupleUnderLoadSeconds), unhook (how long the Passenger takes to unhook
   // the caboose: enemies.json passenger.uncoupleSeconds).
@@ -60,10 +64,14 @@
   // The note's effects: overspeedLead (train.json overspeed.leadSeconds: the cab's bell before a bend, and how long it rings
   // before a bend can take the train), brakeFade (brakeFade.fadePerSecond), fragile (fragile.shockShare and
   // brakeShockPerSecond: what knocks spoil of medicine), boardUp (breach.boardSeconds), radios (kit.radios, added), accel
-  // (each performance row's accel), coldBoiler (boiler.json coldEfficiencyPerStep), reload (combat.json
+  // (each performance row's accel), reload (combat.json
   // guns.reloadStepSeconds), whistle (choir.whistleLoudness), hotboxKnock (enemies.json hotbox.knockSeconds and
   // glowSeconds: how long a Hotbox's axle knocks and glows before it seizes), hotboxMend (hotbox.repairSeconds) and
   // extinguisher (carFire.chargeSeconds times it, rechargeSeconds over it).
+  // Heard working (queue #505, note 775; upgrades.md §8.1 "When it works"): a tool whose moment has a sound of its own marks
+  // itself with "dress:<id>" so every machine knows it's fitted (the recorder's bell, the pre-cut boards, the rammer, the
+  // booster's beat, the composition shoes, the oilers). horseshoe multiplies foul as foul does, and the guns keep the
+  // factor (GunTuning.HorseshoeFoul): a shot that would have fouled without it, and didn't, glints.
   "upgrades": [
     { "id": "lampBrightness", "name": "Lamp brightness", "size": "small", "costShare": 0.15, "effect": { "lamp": 1.25 }, "line": "A brighter headlamp, seen further down the line." },
     // F.3 "lamp armour": the Climbers still smash the forward lamp coming into the cab (§23 "lights fail"), but the guard
@@ -86,8 +94,7 @@
     // F.3 "radio range" (spec A.5's radio already covers the whole run, and "dies in tunnels and mine spurs"): it carries
     // 150 m into one before it dies, from a tunnel's mouth or a mine spur's points.
     { "id": "radioRange", "name": "Radio range", "size": "small", "costShare": 0.15, "effect": { "radioReach": 150 }, "line": "A stronger set. The radio carries 150 m into a tunnel or down a mine spur." },
-    // F.3 "car insulation (cold)": in a car without heat (a door open, or the steam gone), the cold comes on half as fast.
-    { "id": "carInsulation", "name": "Car insulation", "size": "small", "costShare": 0.2, "effect": { "insulation": 0.5 }, "line": "Lined walls. With the steam gone or a door open, the cold comes on half as fast." },
+    // F.3 "car insulation (cold)": retired with the cold (note 852, the director, 16 Oct 2026): nothing for it to slow now.
     // GDD §26 "reinforced plating, heavier mass": one car, the guard van (composition.armourTonnes, armourDamage).
     { "id": "armouredCar", "name": "Armoured car conversion", "size": "major", "costShare": 1.2, "effect": { "armouredCars": 1 }, "line": "Plate on the guard van. Heavier, and it takes the knocks." },
     // F.3 "a third gun, but it costs a cargo slot": a cargo car in the middle becomes a guard car.
@@ -109,34 +116,58 @@
     // takes a share of it, never all of it: a warning sooner, a job done faster, a window held open longer.
     // The deeper lines' bends (GDD §11: "harder grades and bends"): the bell rings 6 s out, not 4, and a bend has to have
     // been rung that long before it can take the train (note 266).
-    { "id": "speedRecorder", "name": "Speed recorder", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "overspeedLead": 1.5 },
+    { "id": "speedRecorder", "name": "Speed recorder", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "overspeedLead": 1.5, "dress:speedRecorder": 1 },
       "line": "A bell in the cab that rings before the bend does. Six seconds' warning, not four." },
     // The grades (spec B.5's fade, on a descent): half as fast.
-    { "id": "compositionShoes", "name": "Composition brake shoes", "size": "small", "costShare": 0.2, "fromTier": "frontier", "effect": { "brakeFade": 0.5 },
+    { "id": "compositionShoes", "name": "Composition brake shoes", "size": "small", "costShare": 0.2, "fromTier": "frontier", "effect": { "brakeFade": 0.5, "dress:compositionShoes": 1 },
       "line": "Shoes that fade half as fast on a long descent." },
     // Medicine (GDD §19 "fragile, high value"): knocks and hard braking spoil 40% of what they did.
     { "id": "sprungCradles", "name": "Sprung cradles", "size": "small", "costShare": 0.15, "effect": { "fragile": 0.4 },
       "line": "Racks on springs for the medicine. A hard stop spoils less of it." },
     // Breaches (spec B.9; the Car Hugger and the Climbers, more of both on every tier down): boarded up in 4 s, not 8.
-    { "id": "precutBoards", "name": "Pre-cut boards", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "boardUp": 0.5 },
+    { "id": "precutBoards", "name": "Pre-cut boards", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "boardUp": 0.5, "dress:precutBoards": 1 },
       "line": "Planks cut to a breach's size, stacked in every car. Boarded up in half the time." },
     // The Hotbox (App. A.3; weighted up each tier, enemies.json hotbox.tierWeights): its axle knocks and glows half again
     // as long before it seizes, and is mended in half the time.
-    { "id": "axleOilers", "name": "Axle oilers", "size": "small", "costShare": 0.2, "fromTier": "deadLines", "effect": { "hotboxKnock": 1.5, "hotboxMend": 0.5 },
+    { "id": "axleOilers", "name": "Axle oilers", "size": "small", "costShare": 0.2, "fromTier": "deadLines", "effect": { "hotboxKnock": 1.5, "hotboxMend": 0.5, "dress:axleOilers": 1 },
       "line": "Oil cups on every axle. A hot box knocks longer before it seizes, and cools quicker under the wrench." },
     // Car fires (App. C.5; powder, chemicals and fuel grow them, and the deeper yards load them): half again the spray, and
     // back to full on the bracket in half the time.
     { "id": "bigExtinguishers", "name": "Big extinguishers", "size": "small", "costShare": 0.2, "fromTier": "frontier", "effect": { "extinguisher": 1.5 },
       "line": "Bigger bottles: half again the spray, and full again on the bracket in half the time." },
-    // The cold (player.json cold): each step of it costs the boiler half what it did.
-    { "id": "feedwaterHeater", "name": "Feedwater heater", "size": "small", "costShare": 0.25, "fromTier": "deadLines", "effect": { "coldBoiler": 0.5 },
-      "line": "Warms the water before it reaches the boiler. The cold takes half as much off the steam." },
+    // Debris on the line (enemies.json sleepers; off by default since note 265, a mod can bring it back): the cowcatcher takes
+    // half the front car's damage from striking it, heavy or minor. It's the plough on the front of the engine (upgrades.md §8.2).
+    { "id": "cowcatcher", "name": "Cowcatcher", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "debrisDamage": 0.5 },
+      "line": "A plough on the engine's front. Debris struck on the line costs half." },
+    // The ladders (player.json ladder.grabMaxRelativeSpeed, 3.5 m/s): caught from the ground at a third more speed, so a
+    // crewmate left behind has a longer chase to make. Extra irons on every ladder's foot.
+    { "id": "grabIrons", "name": "Grab irons", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "grabIrons": 1.3333333333 },
+      "line": "Extra irons at every ladder's foot. A ladder caught from the ground at a third more speed." },
+    // The rear searchlight (note 899; the director's inbox answer of 20 Oct, `nathaniel1-tbm-rear-searchlight`: "look"): a lamp
+    // on the guard van's roof lighting the track behind. Look only, by the director's choice: no creature sees it and the
+    // guns aim no better by it (a purchase that does nothing but light), so the clerk reads it into every tally.
+    { "id": "rearSearchlight", "name": "Rear searchlight", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "dress:rearSearchlight": 1 },
+      "line": "A searchlight on the guard van's roof, pointed back down the line. Whatever's following you, you'll see it following you.",
+      "tally": "Caboose: lamp parts, bolted on. Still up." },
+    // The feedwater heater (upgrades.md): retired with the cold (note 852): the cold took nothing off the boiler to give back.
     // More creatures at the rear and flanks each tier down: a reload step in 1.2 s, not 1.5.
-    { "id": "gunRammers", "name": "Gun rammers", "size": "small", "costShare": 0.25, "fromTier": "deadLines", "effect": { "reload": 0.8 },
+    { "id": "gunRammers", "name": "Gun rammers", "size": "small", "costShare": 0.25, "fromTier": "deadLines", "effect": { "reload": 0.8, "dress:gunRammers": 1 },
       "line": "Sprung rammers and a powder measure at every gun. Each step of a reload a fifth quicker." },
     // The longest trains (spec B.5: 0.18 m/s² at 20 cars) get going again after a stop a fifth harder.
-    { "id": "boosterEngine", "name": "Trailing-truck booster", "size": "major", "costShare": 1.5, "fromTier": "deadLines", "effect": { "accel": 1.2 },
+    { "id": "boosterEngine", "name": "Trailing-truck booster", "size": "major", "costShare": 1.5, "fromTier": "deadLines", "effect": { "accel": 1.2, "dress:boosterEngine": 1 },
       "line": "A second engine under the tender's trucks. A long train pulls away a fifth harder." },
+
+    // The armoured cab (upgrades.md §8.8, the director: "You still want full visibility of the track"): thick glass in heavy
+    // riveted frames and a grille outside, never slits. A Climber over the tender is held at the glass (enemies.json
+    // climbers.cabGlassSeconds) before it's through into the cab.
+    { "id": "armouredCab", "name": "Armoured cab", "size": "major", "costShare": 1.5, "fromTier": "deepTerritory", "effect": { "cabArmour": 1 },
+      "line": "Armour glass and a grille at the cab windows. Full sight of the line; a Climber is held at the glass before it's through." },
+    // Armour II and III (upgrades.md §8.2; "the conversion repeatable"): one more car plated each, a rank at a time, from the
+    // tier whose Climbers and Draggers they answer. "requires" names the rank before.
+    { "id": "armouredCar2", "name": "Armour rank 2", "size": "major", "costShare": 1.4, "fromTier": "deadLines", "requires": [ "armouredCar" ], "effect": { "armouredCars": 1 },
+      "line": "Plate on the next car back. Needs the first conversion." },
+    { "id": "armouredCar3", "name": "Armour rank 3", "size": "major", "costShare": 1.6, "fromTier": "deepTerritory", "requires": [ "armouredCar2" ], "effect": { "armouredCars": 1 },
+      "line": "Plate on a third car. Needs armour rank 2." },
 
     // Whimsy (note 678): it works, and it's funny. A real use and a joke in the same purchase.
     // The whistle swapped for a clown's bulb horn: a third as loud to the Choir (combat.json choir.whistleLoudness; it still
@@ -145,6 +176,11 @@
     { "id": "theHonk", "name": "The honk", "kind": "whimsy", "size": "small", "costShare": 0.05, "effect": { "whistle": 0.35, "dress:theHonk": 1 }, "excludes": [ "goldWhistle", "cucarachaHorn", "calliope" ],
       "line": "A bulb horn off a clown's bicycle where the whistle was. The Territory doesn't take it seriously.",
       "tally": "Horn: comedic." },
+    // The dining car (upgrades.md §4 silly, §8.5; approved by the director, 13 Oct: "If we have a dining car, we should be able to
+    // order drinks at the bar"; note 959): a cargo car converted behind the crew cars, its table laid for eight under a
+    // chandelier, and its bar, which pours train.json composition.dining.drinks a night. It carries nothing and weighs a car.
+    { "id": "diningCar", "name": "The dining car", "kind": "silly", "size": "major", "costShare": 1.2, "effect": { "diningCar": 1 },
+      "line": "A cargo car converted: a chandelier, a table laid for eight, and a bar at the far end. It carries nothing. Dining car: laid." },
     // The BBQ deck (note 698; the director, 13 Oct: "its the BBQ Dads at the end of the world"): train.json composition.bbq.
     // A whimsy that's also a tool (a heal off the grill, a warm spot, the best seat on the train), and it costs like one: the
     // grill's heat and smell bring the Cinder Hounds as a hot boiler does, and the chairs are out front in the cold.
@@ -179,7 +215,7 @@
       "line": "A mop handle, a rubber boot, bottle caps and a tin can. Hold [E] to thump it: the Newfoundland way.",
       "tally": "Ugly stick: ugly." },
     // Nailed points up over the cab door: the guns foul a little less (with gun cooling too: they multiply).
-    { "id": "luckyHorseshoe", "name": "Lucky horseshoe", "kind": "whimsy", "size": "small", "costShare": 0.1, "effect": { "foul": 0.85 },
+    { "id": "luckyHorseshoe", "name": "Lucky horseshoe", "kind": "whimsy", "size": "small", "costShare": 0.1, "effect": { "horseshoe": 0.85 },
       "line": "Nailed over the cab door, points up. The guns foul a little less. Nobody can say why.",
       "tally": "Horseshoe: still up." },
 

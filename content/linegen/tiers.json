@@ -105,8 +105,8 @@
   // the 7 km nights). Junctions no nearer each other than minSpacingM (a train's tail clears one before its front
   // reaches the next). An alternate's or dead line's turnout: two curves of turnoutLength at turnoutRadius, out to
   // 7.5 m between track centres. The radius posts no lower than the fastest line speed (floor(sqrt(aPost R)) >= 20
-  // m/s) and derails above spec B.1's 22 m/s: the diverging route is taken at line speed, and a switch the Switchman
-  // threw costs the clock, never the train (App. A.7). Facility spurs are route.json's kit, taken at a crawl.
+  // m/s) and derails above spec B.1's 22 m/s: the diverging route is taken at line speed, and a dead line taken
+  // costs the clock, never the train (App. A.7). Facility spurs are route.json's kit, taken at a crawl.
   // padM 75 on the 7 km night (note 554; was 150): a pad in the middle of a short stretch left two too short for anything.
   "junctions": {
     "tangentClearM": 40, "maxGrade": 0.5, "lampVisibleM": 250, "separationM": 300, "separationWithinM": 2000, "padM": 75,
@@ -249,7 +249,7 @@
   // along the line, averaged over fogBlendM either side so it thickens and thins, never steps; fogAlongLine false
   // keeps the night's one density everywhere (note 313).
   "weather": {
-    "fogLowGround": 1.3, "fogCrest": 0.8, "windExposed": 1.5, "coldStepPerM": 150, "coldExposedStep": 1, "wetAdhesion": 0.85, "wetBiasAdhesion": 0.75,
+    "fogLowGround": 1.3, "fogCrest": 0.8, "windExposed": 1.5, "wetAdhesion": 0.85, "wetBiasAdhesion": 0.75,
     "fogDensityPerInverseMetre": 1.6, "crestLengthM": 400, "fogWater": 1.3, "fogWaterM": 40, "fogBlendM": 150, "fogAlongLine": true
   },
 
@@ -260,12 +260,12 @@
     "preGradeM": [400, 900], "tunnelExitM": 200, "nearFacilityM": 800, "greaseWetCold": 2, "greasePerKm": 0.12, "greaseLengthM": [40, 150],
     "sleeperZonesPerKm": 0.15, "sleeperLengthM": 20, "pressureStepM": 50, "deadSettlementNearFacilityM": 2000,
     // §15.1 read by the director: under a tag, each enemy's weight is multiplied by these (Cinder Hounds gain on grades,
-    // Clingers pair with a long climb, the Soot Children by dead towns and facilities, the Switchman at junctions); no
+    // Clingers pair with a long climb, the Soot Children by dead towns and facilities); no
     // spawns at all under spawnBans; and it holds its own spikes while the terrain pressure (§15.4, the stacked cost of
     // the pieces at a point) is at or over pressureCeiling.
     "affinity": {
       "climb": { "cinderHound": 1.5 }, "climb_long": { "cinderHound": 2, "clinger": 2 }, "pre_grade": { "cinderHound": 1.3 },
-      "dead_settlement": { "sootChildren": 2 }, "near_facility": { "sootChildren": 1.5 }, "junction": { "switchman": 2 }
+      "dead_settlement": { "sootChildren": 2 }, "near_facility": { "sootChildren": 1.5 }
     },
     "spawnBans": ["grace", "terminus_safe"],
     "pressureCeiling": 2.5,

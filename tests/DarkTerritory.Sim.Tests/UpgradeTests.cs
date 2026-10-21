@@ -57,9 +57,12 @@ public class UpgradeTests
         Assert.Equal(Tuning.Enemies.Hotbox.KnockSeconds * 1.5, With("axleOilers").Enemies!.Hotbox.KnockSeconds, 9);
         Assert.Equal(Tuning.Enemies.Hotbox.GlowSeconds * 1.5, With("axleOilers").Enemies!.Hotbox.GlowSeconds, 9);
         Assert.Equal(Tuning.Enemies.Hotbox.RepairSeconds * 0.5, With("axleOilers").Enemies!.Hotbox.RepairSeconds, 9);
+        Assert.Equal(Tuning.Enemies.Sleepers.HeavyDamage * 0.5, With("cowcatcher").Enemies!.Sleepers.HeavyDamage, 9);
+        Assert.Equal(Tuning.Enemies.Sleepers.MinorDamage * 0.5, With("cowcatcher").Enemies!.Sleepers.MinorDamage, 9);
+        Assert.Equal(Tuning.Train.Kit.GrabIrons * 4.0 / 3.0, With("grabIrons").Train.Kit.GrabIrons, 6);
+        Assert.Equal(1, Tuning.Train.Kit.GrabIrons);
         Assert.Equal(Tuning.Enemies.CarFire.ChargeSeconds * 1.5, With("bigExtinguishers").Enemies!.CarFire.ChargeSeconds, 9);
         Assert.Equal(Tuning.Enemies.CarFire.RechargeSeconds / 1.5, With("bigExtinguishers").Enemies!.CarFire.RechargeSeconds, 9);
-        Assert.Equal(Tuning.Boiler.ColdEfficiencyPerStep * 0.5, With("feedwaterHeater").Boiler.ColdEfficiencyPerStep, 9);
         Assert.Equal(Tuning.Combat.Guns.ReloadStepSeconds * 0.8, With("gunRammers").Combat.Guns.ReloadStepSeconds, 9);
         Assert.All(train.Performance.Zip(With("boosterEngine").Train.Performance), p => Assert.Equal(p.First.Accel * 1.2, p.Second.Accel, 9));
         // The whimsy and the silly: the honk is a third as loud to the Choir, the gold one a quarter louder.
@@ -99,6 +102,27 @@ public class UpgradeTests
     }
 
     [Fact]
+    public void TheArmouredCabHoldsAClimberAtTheGlass()
+    {
+        Assert.False(Tuning.Train.Composition.CabArmour);
+        Assert.True(With("armouredCab").Train.Composition.CabArmour);
+        Assert.True(Tuning.Enemies.Climbers.CabGlassSeconds > 0);
+    }
+
+    [Fact]
+    public void ArmourIIAndIIIAreRanksOfTheConversion()
+    {
+        // Each plates one more car than the last: three fitted, three plated; and a rank needs the one before it.
+        Assert.Equal(Tuning.Train.Composition.ArmouredCars + 3, With("armouredCar", "armouredCar2", "armouredCar3").Train.Composition.ArmouredCars);
+        var s = Campaign.Campaign.New(C, 1, "t", 1) with { Cars = 20, Scrip = 1e9 };
+        Assert.Contains("armoured car conversion", Campaign.Campaign.BuyUpgrade(C, s, "armouredCar2").Refused, StringComparison.OrdinalIgnoreCase);
+        s = Campaign.Campaign.BuyUpgrade(C, s, "armouredCar").State;
+        Assert.False(Campaign.Campaign.BuyUpgrade(C, s, "armouredCar3").Ok);
+        s = Campaign.Campaign.BuyUpgrade(C, s, "armouredCar2").State;
+        Assert.True(Campaign.Campaign.BuyUpgrade(C, s, "armouredCar3").Ok);
+    }
+
+    [Fact]
     public void TheCataloguesPricesKeepSpecF3sBands()
     {
         // Spec F.3: a small tool 15-25% of the next car, a major 100-180%. The whimsy sits under a tool; the silly may be
@@ -107,6 +131,25 @@ public class UpgradeTests
             Assert.InRange(u.CostShare, u.Size == UpgradeSize.Small ? 0.15 : 1.0, u.Size == UpgradeSize.Small ? 0.25 : 1.8));
         Assert.All(C.Upgrades.Where(u => u.Kind == UpgradeKind.Whimsy), u => Assert.InRange(u.CostShare, 0.01, u.Size == UpgradeSize.Small ? 0.15 : 1.0));
         Assert.Contains(C.Upgrades, u => u.Kind == UpgradeKind.Silly && u.CostShare > 1.8);
+    }
+
+    [Fact]
+    public void TheRearSearchlightIsLookOnlyAndTheClerkSaysSo()
+    {
+        // Note 899 (the director, 20 Oct: "look"): a lamp on the guard van, sold with the Frontier's tools. It changes nothing in
+        // the night but what's drawn (the van's dressing), so the clerk reads it into every tally.
+        var lamp = C.Upgrades.Single(u => u.Id == "rearSearchlight");
+        Assert.Equal(UpgradeKind.Tool, lamp.Kind);
+        Assert.Equal(RouteTier.Frontier, lamp.FromTier);
+        var lit = With("rearSearchlight");
+        Assert.True(lit.Train.Composition.Dressed("rearSearchlight"));
+        // Everything else the night reads is as it was: the loadout with the dressing taken off is the base's, to the number.
+        var bare = lit with { Train = lit.Train with { Composition = lit.Train.Composition with { Dress = Base.Train.Composition.Dress } } };
+        Assert.Equal(System.Text.Json.JsonSerializer.Serialize(Base, DataFile.Options), System.Text.Json.JsonSerializer.Serialize(bare, DataFile.Options));
+        Assert.Equal(["Caboose: lamp parts, bolted on. Still up."], Campaign.Campaign.TallyLines(C, ["rearSearchlight"]));
+        var rich = Campaign.Campaign.New(C, 1, "t", 1) with { Scrip = 1e9 };
+        Assert.False(Campaign.Campaign.BuyUpgrade(C, rich, "rearSearchlight").Ok);
+        Assert.True(Campaign.Campaign.BuyUpgrade(C, rich with { Cars = 6 }, "rearSearchlight").Ok);
     }
 
     [Fact]
@@ -317,7 +360,7 @@ public class UpgradeTests
         Assert.True(run.Underground(Down(reach + 60), train, reach));
     }
 
-    /// <summary>A main line with one dead line off it, set for the dead line (the Switchman's work), and a train short of it.</summary>
+    /// <summary>A main line with one dead line off it, set for the dead line (a hand's work; the Switchman's, until note 852), and a train short of it.</summary>
     static World Junction(TrainTuning t, double short_, double speed = 0)
     {
         const double Toe = 3_000;
@@ -391,7 +434,7 @@ public class UpgradeTests
     [Fact]
     public void ThePoweredThrowerWontMoveThePointsUnderAWheel()
     {
-        // The engine's front is over the toe (so the Switchman's setting couldn't go on either): the points are under it, and
+        // The engine's front is over the toe (so no setting could go on either): the points are under it, and
         // there are none ahead for the lever to reach.
         var world = Junction(With("poweredSwitchThrower").Train, -5);
         Assert.False(world.Train.Diverging(0));

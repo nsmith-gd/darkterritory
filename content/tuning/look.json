@@ -164,7 +164,9 @@
       // The Wakers' stir (note 599; wakers.md §2: "the horizon behind the train goes from black to a bruise to a thin cold
       // line"): over enemies.json wakers.stirSeconds before dawn, low on the sky behind the train, from a wide dim bruise
       // to a thin grey line, up to strength (the sky shader adds it).
-      "stir": { "bruise": [0.16, 0.08, 0.14], "line": [0.50, 0.55, 0.62], "strength": 1.3 }
+      // And the hills move (note 962; GDD §8 "The hills move", note 599's not-yet): from hillsFrom of the way through the stir,
+      // the far ridges toward it heave, slow swells rising and settling along the skyline, up to hills degrees by dawn.
+      "stir": { "bruise": [0.16, 0.08, 0.14], "line": [0.50, 0.55, 0.62], "strength": 1.3, "hillsFrom": 0.35, "hills": 0.9 }
     },
     // The cold (the night's route weather cold, 0..1; GDD §26 "survival time outside is short"): a rime of frost comes on
     // the metal, the roofs and the glass from frostFrom and is full by frostFull; breath shows as vapour from breathFrom.
@@ -271,10 +273,20 @@
   },
   // GDD §31 "Speed is felt" (the director's evening playtest, 13 Oct: "It says we're going 27 kilometers an hour ... when I
   // look out the front, it just feels so agonizingly slow"; note 709). Presentation only, aboard, never in a headset.
+  // The dining car's bar (upgrades.md §8.5, note 959; the director, 13 Oct: "If you drink one of those drinks, though, your
+  // vision should get blurry ... make you sort of tip over a bit. Of course, that wouldn't happen in VR"). Presentation
+  // only: the drinker's own camera on this machine, never in a headset; the walk is straight. A drink blurs the view
+  // ("blur", 0..1 of the composite's soft taps; "blurEach" more a drink after the first) for "seconds", "moreEach" longer a
+  // drink after the first, easing off over its last "fadeSeconds"; and leans it, the horizon swaying "leanDegrees" one way
+  // and the other ("leanEach" more a drink after the first) over "leanPeriod" s, slowly, as if the floor moved more than it
+  // does. Counted up to "mostDrinks" drinks. DESIGN-TODO: the catalogue's "a minute, a little more with each" is the only number.
+  "tipsy": { "seconds": 60, "moreEach": 15, "blur": 0.5, "blurEach": 0.15, "leanDegrees": 4, "leanEach": 1.5, "leanPeriod": 7,
+    "mostDrinks": 4, "fadeSeconds": 10 },
   "speedFeel": {
     // The view widens by up to "widen" degrees, at "fullAt" m/s, eased by (speed / fullAt) ^ "ease" (under 1: felt early).
-    // Note 735 (the director, 14 Oct: "It still feels a bit slow"): 8 to 12.
-    "widen": 12,
+    // Note 735 (the director, 14 Oct: "It still feels a bit slow"): 8 to 12. Note 842 (the director, 16 Oct: "the FOV is
+    // adjusting a little bit ... maybe that's a miss. I would get rid of that"): off.
+    "widen": 0,
     "fullAt": 20,
     "ease": 0.6,
     // A knock through the floor at each rail joint, "joint" m apart, under each bogie ("bogies" m apart): "jolt" m at full

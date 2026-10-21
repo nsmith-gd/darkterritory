@@ -385,7 +385,7 @@ public class CargoTests
             var n = new Night(5, speed: 8);
             foreach (var v in n.Train.Vehicles.Where(v => v.Kind == VehicleKind.Cargo))
                 v.Cargo = cargo;
-            var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 2, 2, EveryKind.Enemies.CarFire));
+            var fire = n.World.AddEnemy(id => CarFire.In(id, n.Train, 2, 2, EveryKind.Enemies.CarFire, FireCause.Set));
             n.Run(20);
             double grown = fire.Extra;
             double t = 20;
@@ -448,12 +448,12 @@ public class CargoTests
         n.Crew[2] = n.Crew[1] with { Position = beside + new Double3(0, 0, 2) };
         n.Run(SimConstants.TickSeconds);
         var rule = Spawns.For(EnemyKind.SootChildren)!;
-        Assert.True(rule.Spawn(new SpawnContext(n.World, t, n.World.Director!)));
+        Assert.True(rule.Spawn(new SpawnContext(n.World, t, n.World.Director!)).Placed);
         var first = Assert.IsType<SootChildren>(n.World.ActiveEnemies.Last());
         Assert.False(first.Soot);
         Assert.True(n.World.ChildCalled);
         Assert.False(n.World.NextChildReal);
-        Assert.True(rule.Spawn(new SpawnContext(n.World, t, n.World.Director!)));
+        Assert.True(rule.Spawn(new SpawnContext(n.World, t, n.World.Director!)).Placed);
         Assert.True(Assert.IsType<SootChildren>(n.World.ActiveEnemies.Last()).Soot);
     }
 
@@ -472,7 +472,7 @@ public class CargoTests
         Assert.Equal(1, Tuning.Enemies.SootChildren.MinCrew);
         var rule = Spawns.For(EnemyKind.SootChildren)!;
         Assert.NotNull(rule.Weight(ctx));
-        Assert.True(rule.Spawn(ctx));
+        Assert.True(rule.Spawn(ctx).Placed);
         Assert.IsType<SootChildren>(stop.World.ActiveEnemies.Last());
         // Put back to a crew of two's rule, the lone hand hears nothing: what kept a solo night childless.
         var two = Tuning.Enemies with { SootChildren = Tuning.Enemies.SootChildren with { MinCrew = 2 } };

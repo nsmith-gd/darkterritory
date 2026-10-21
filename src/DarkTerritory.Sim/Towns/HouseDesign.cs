@@ -54,6 +54,13 @@ public sealed record HouseDesign(bool GableFront, double Storeys, HouseRoof Roof
     /// </summary>
     public bool Hull { get; init; }
 
+    /// <summary>
+    /// A houseboat's hull as the Sim holds it (note 841): how high its deck stands, and how far its sides stand out past
+    /// the house's walls and its ends past its front and back (m). <c>MaritimeKit</c> draws it to these, so what's solid is
+    /// what's drawn (the director, 16 Oct: "I can sort of clip through the corners of some of them and just see inside").
+    /// </summary>
+    public const double HullLift = 2.2, HullBeam = 0.3, HullEnds = 0.4;
+
     /// <summary>How far the eaves stand off the ground, by storeys (m): the wall's height under the roof.</summary>
     public double Eaves => Storeys switch { <= 1 => 2.9, <= 1.5 => 3.6, <= 2 => 5.6, _ => 6.2 };
 }
@@ -133,6 +140,15 @@ public sealed record HouseCharacter
     /// lines and notes are, its first notice on the board after the custom's order.
     /// </summary>
     public string? Creed { get; init; }
+    /// <summary>
+    /// Its people out among its houses at their own work all night (note 841; the director, 16 Oct, in a Flooder town:
+    /// "There's also nobody walking around. There's no kind of like culture going on"): one for every <c>Out[0]</c> of its
+    /// houses, at most <c>Out[1]</c>, spread through the town, each at a house's front doing <see cref="OutActs"/>' next
+    /// (a townsperson's act: "mend" caulking a hull, "crouch" reading the water's mark on a stilt, "lantern" out walking
+    /// with a lamp, "work" hauling). None where it's [0, 0].
+    /// </summary>
+    public int[] Out { get; init; } = [0, 0];
+    public string[] OutActs { get; init; } = ["lantern"];
     /// <summary>What its yards hold (note 335).</summary>
     public YardOdds Yard { get; init; } = new();
     /// <summary>What its people breathe through (note 353): each of <see cref="TownGear.Kinds"/>' weight against the rest.</summary>

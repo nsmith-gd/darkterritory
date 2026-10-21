@@ -1,0 +1,10 @@
+# Rhea
+
+2026-10-20 17:00 UTC · Rhea · started queue #623 (note 903), branch `rhea-boiler-shovel-623` from main: the boiler answers the shovel (13 Oct evening line 19).
+2026-10-20 17:58 UTC · Rhea · built: each shovelful's green coal catches and flares 1-3 s on (+6 on the gauge, a surge, the stack and chuff); at a stand it settles into the bed (C.2's rebuild held exact); in the red the valve sheds it (T109's time in the red held; the overfire test now times from the lift). Protocol 82. Tuning `boiler.json` catchShare etc.
+2026-10-20 19:36 UTC · Rhea · #1369: main merged in (#1358's searchlight beside the flare on Effects.Train); the surge gated to running off the brake (surgeFrom 4) after StopCrewTests' jackpot carry went astray; tests green; pushed.
+2026-10-20 19:58 UTC · Rhea · #1369: HandTests fixed (reads the whole fire). Two StopCrewTests still red from the surge; root cause not found yet (a jobless bot reopens car 1's side door at 294 s); findings and next steps in note 903's Handoff. Pushed.
+2026-10-20 20:17 UTC · Rhea · #1369: fixed the door one (a walker in off a side door's landing now shuts it behind it, Bots.cs WarmUp, latent A1 bug); the heavy-crate one is the hands' light-first packing (StopCrew.cs Roomiest), a design call: in note 903.
+2026-10-20 20:41 UTC · Rhea · #1369: the heavy-crate packing fixed per the Token Budget Manager's (a): a light crate leaves the heavies their room (StopCrew.cs Roomiest, the hand's crate pick), A1's loading changed minimally; running StopCrew, Hand, Netcode, DeterministicMath, Boiler, Crate and Load tests.
+2026-10-20 21:05 UTC · Rhea · #1369: the light-crate packing rule (a) fixed its test but broke the crane's castings and the depot's kegs; reverted. The heavy-crate test stays red: a stop-wide packing plan or a re-picked scenario, A1's or the Token Budget Manager's call (note 903).
+2026-10-20 21:08 UTC · Rhea · #1369: TwoHandsCarryTheHeavyCratesInTogether's scenario re-picked (two light, two heavy: fits in any order), the assertion kept; its unreached none-left check now reads !Banked; the stop-wide packing plan is the follow-up (note 903).

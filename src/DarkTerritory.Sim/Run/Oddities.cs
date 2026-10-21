@@ -1,4 +1,5 @@
 using Ballast;
+using DarkTerritory.Sim.LineGen;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Stops;
 
@@ -19,8 +20,9 @@ public enum OddKind : byte { Bell, Wave, Painting, Drop, Splash, Coin, Wash, Kic
 /// </summary>
 public readonly record struct OddEvent(int Id, uint Tick, OddKind Kind, int By, int Thing, Double3 At);
 
-/// <summary>The odd things put out at the stops (note 730): a village's well, a tin can in its street, a scarecrow, a postbox.</summary>
-public enum OddThingKind : byte { Well, Can, Scarecrow, Postbox }
+/// <summary>The odd things put out at the stops (note 730): a village's well, a tin can in its street, a scarecrow, a postbox; and
+/// a note left out along the line (notes 961, 965), weighted by a stone at a house's door, a lineman's hut, a camp, a grave or a wreck.</summary>
+public enum OddThingKind : byte { Well, Can, Scarecrow, Postbox, Note }
 
 /// <summary>
 /// One odd thing at a stop (note 730): its index, kind, the route feature it's at, where it stands at nightfall (on the
@@ -50,7 +52,19 @@ public sealed class Oddities
         Seed = seed;
         _at = [.. things.Select(t => t.At)];
         _done = new bool[things.Count];
+        // The night's notes dealt (note 961): each note at the stops in turn takes the next of a shuffle of the lot, so no two
+        // read the same till every one's been out.
+        int n = tuning.Note.Notes.Count;
+        _deal = [.. Enumerable.Range(0, n)];
+        var rng = new Pcg32(StopSeed.Of(seed, Stream ^ 0x4e));
+        for (int i = n - 1; i > 0; i--)
+        {
+            int j = (int)(rng.NextDouble() * (i + 1));
+            (_deal[i], _deal[j]) = (_deal[j], _deal[i]);
+        }
     }
+
+    readonly int[] _deal;
 
     public OddityTuning Tuning { get; }
     public IReadOnlyList<OddThing> Things { get; }
@@ -98,6 +112,19 @@ public sealed class Oddities
             return null;
         var rng = new Pcg32(StopSeed.Of(Seed, Stream ^ 0x4c, (ulong)thing));
         return letters[(int)(rng.NextDouble() * letters.Count)];
+    }
+
+    /// <summary>The note left at <paramref name="thing"/> (<c>oddities.note.notes</c>, note 961): dealt by the night's seed, in turn.</summary>
+    public OddNote? NoteIn(int thing)
+    {
+        var notes = Tuning.Note.Notes;
+        if (notes.Count == 0 || Things[thing].Kind != OddThingKind.Note)
+            return null;
+        int k = 0;
+        for (int i = 0; i < thing; i++)
+            if (Things[i].Kind == OddThingKind.Note)
+                k++;
+        return notes[_deal[k % notes.Count]];
     }
 
     /// <summary>The state for the wire: the night's flags, then each thing's done bit and, a can's, where it lies.</summary>
@@ -151,6 +178,9 @@ public sealed class Oddities
             // Every draw is made whatever's switched off, so one thing's chance never moves another.
             bool can = rng.Chance(t.Can.Chance), crow = rng.Chance(t.Scarecrow.Chance), box = rng.Chance(t.Postbox.Chance);
             double pickCan = rng.NextDouble(), crowS = rng.NextDouble(), crowD = rng.NextDouble(), boxEnd = rng.NextDouble();
+            // Drawn after the rest (note 961), so a stop's can, scarecrow and postbox stand where they did.
+            bool note = rng.Chance(t.Note.Chance);
+            double notePick = rng.NextDouble();
             var side = ToWorld(line, f, new Pt(0, 1)) - ToWorld(line, f, new Pt(0, 0));
             foreach (var b in stop.Buildings.Where(b => b.Kind == BuildingKind.Well))
                 things.Add(new OddThing(things.Count, OddThingKind.Well, i, Ground(line, f, b.Centre), side.Normalized));
@@ -162,8 +192,67 @@ public sealed class Oddities
             if (box && PostboxSpot(stop, boxEnd) is { } p)
                 // Its slot to the line.
                 things.Add(new OddThing(things.Count, OddThingKind.Postbox, i, Ground(line, f, p), (side * -Math.Sign(p.D)).Normalized));
+            if (note && t.Note.Notes.Count > 0 && NoteSpot(stop, notePick) is { } spot)
+                // Read facing the house's door, from the line's side.
+                things.Add(new OddThing(things.Count, OddThingKind.Note, i, Ground(line, f, spot.At),
+                    ((ToWorld(line, f, spot.House) - ToWorld(line, f, spot.At)) with { Y = 0 }).Normalized));
         }
+        // And out along the line between the stops (note 965): at the railway's leavings where somebody stopped a while, by
+        // the night's seed, a stretch's own draw.
+        if (t.Note is { Lineside: > 0, Notes.Count: > 0 } nt && LinesideProps.Of(route, line) is { } lineside)
+            foreach (var (l, yaw, _) in lineside.Laid(0, line.Length + Leavings.Every))
+            {
+                if (NoteBy(l.Kind) is not { } by || Streams.Rng(route.Seed, "leaving-note", "", l.Slot).NextDouble() >= nt.Lineside)
+                    continue;
+                // Where it was meant to be left, or round the leaving from there (mirrored, then further out), the first spot
+                // that's clear of its pieces (not in a hut's wall or under a grave's mound) and off the ballast.
+                (double Across, double Along)? spot = null;
+                foreach (double k in NoteFurther)
+                    foreach (var (x, z) in new[] { (by.X, by.Z), (-by.X, by.Z), (by.X, -by.Z), (-by.X, -by.Z) })
+                        if (spot is null && Leavings.Offset(new Leavings.Piece("", 0, x * k, z * k, 0, 0), yaw) is var (ax, az)
+                            && Math.Abs(l.Lateral + ax) >= NoteOffLine && lineside.ClearOfLeavings(l.Along + az, l.Lateral + ax, NoteRoom))
+                            spot = (ax, az);
+                if (spot is not { } found)
+                    continue;
+                var at = LineGround(line, l.Along + found.Along, l.Lateral + found.Across);
+                var middle = LineGround(line, l.Along, l.Lateral);
+                // Read facing what it was left at.
+                things.Add(new OddThing(things.Count, OddThingKind.Note, -1, at, ((middle - at) with { Y = 0 }).Normalized));
+            }
         return new Oddities(t, things, route.Seed);
+    }
+
+    /// <summary>
+    /// Where a note's left at a leaving of <paramref name="kind"/> (note 965), in the leaving's own frame (x across, z along,
+    /// +z its front, as <see cref="Leavings.Cluster"/> lays its pieces); null at a leaving nobody stopped at. A lineman's hut,
+    /// on its step before the door; a camp gone cold, by the ring of its fire; a grave, at the foot of its cross; a wreck
+    /// (a wheelset off a car, a trolley tipped off the rails), beside it in the ballast.
+    /// </summary>
+    static (double X, double Z)? NoteBy(string kind) => kind switch
+    {
+        "hut" => (0.3, 2.0),
+        "camp" => (1.2, 0.9),
+        "grave" => (0.9, 0.6),
+        "wheelset" or "trolley" => (1.4, 0.4),
+        _ => null,
+    };
+
+    /// <summary>How near the main line's middle a note out along the line may lie (m): off its ballast and the train's side. Not a design number.</summary>
+    const double NoteOffLine = 4.5;
+
+    /// <summary>How far past a leaving piece's reach a note's left (m): its sheet and stone. Not a design number.</summary>
+    const double NoteRoom = 0.25;
+
+    /// <summary>How much further out round a leaving a note's spot is tried, in turn.</summary>
+    static readonly double[] NoteFurther = [1, 1.6, 2.2];
+
+    /// <summary>A point beside the main line, <paramref name="lateral"/> out from it at <paramref name="along"/>, on the ground.</summary>
+    static Double3 LineGround(RailLine line, double along, double lateral)
+    {
+        var t = line.Sample(along);
+        var at = t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * lateral;
+        double hint = along;
+        return at with { Y = Player.PlayerMotor.GroundAt(at, line, ref hint) };
     }
 
     static Double3 ToWorld(RailLine line, Route.RouteFeature f, Pt p) => Run.StopWorld(line, f, p);
@@ -213,6 +302,27 @@ public sealed class Oddities
     }
 
     /// <summary>
+    /// A note (note 961): on the doorstep side of one of the village's three houses nearest the line, the side toward it, a
+    /// step off its wall, clear of everything else; with the house's middle, which it's read facing.
+    /// </summary>
+    static (Pt At, Pt House)? NoteSpot(StopLayout stop, double pick)
+    {
+        var houses = Houses(stop).OrderBy(h => Math.Abs(h.D)).ThenBy(h => h.S).ToList();
+        for (int tries = 0; tries < houses.Count; tries++)
+        {
+            var h = houses[((int)(pick * Math.Min(3, houses.Count)) + tries) % houses.Count];
+            int toward = h.D < 0 ? 1 : -1;
+            for (double d = 0.5; d < 15; d += 0.5)
+            {
+                var p = new Pt(h.S, h.D + toward * d);
+                if (Plan.Distance(p, h) >= 0.8 && Clear(stop, p, 0.6) && Math.Abs(p.D) > ClearOfLine)
+                    return (p, new Pt(h.S, h.D));
+            }
+        }
+        return null;
+    }
+
+    /// <summary>
     /// A postbox: at a halt, just past one end of its platform on its far side from the line; else where the village's road
     /// comes in nearest the line, beside it.
     /// </summary>
@@ -247,6 +357,9 @@ public sealed class Oddities
 /// <summary>A letter in a postbox (note 730): who it's to, and what it says.</summary>
 public sealed record OddLetter(string To = "", string Text = "");
 
+/// <summary>A note left out along the line (note 961): what's written on its outside or at its head, and what it says.</summary>
+public sealed record OddNote(string Heading = "", string Text = "");
+
 /// <summary>Mirror of run.json <c>oddities</c> (queue #464, note 730). Field docs live in that file.</summary>
 public sealed record OddityTuning
 {
@@ -260,6 +373,7 @@ public sealed record OddityTuning
     public CanTuning Can { get; init; } = new();
     public ScarecrowTuning Scarecrow { get; init; } = new();
     public PostboxTuning Postbox { get; init; } = new();
+    public NoteTuning Note { get; init; } = new();
     public ChuteSootTuning Chute { get; init; } = new();
     public LurchTuning Lurch { get; init; } = new();
 }
@@ -282,6 +396,15 @@ public sealed record PostboxTuning
     public double HoldSeconds { get; init; } = 1.5;
     public double Reach { get; init; } = 1.3;
     public IReadOnlyList<OddLetter> Letters { get; init; } = [];
+}
+public sealed record NoteTuning
+{
+    public double Chance { get; init; } = 0.6;
+    /// <summary>Note 965: the chance a lineman's hut, a cold camp, a grave or a wreck beside the line has one.</summary>
+    public double Lineside { get; init; }
+    public double HoldSeconds { get; init; } = 1.0;
+    public double Reach { get; init; } = 1.3;
+    public IReadOnlyList<OddNote> Notes { get; init; } = [];
 }
 public sealed record ChuteSootTuning(double Reach = 1.8);
 public sealed record LurchTuning(double BladesHalfWidth = 1.0, double Speed = 1.6, double Lift = 1.4, double StaggerSeconds = 0.5);

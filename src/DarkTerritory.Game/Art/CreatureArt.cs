@@ -85,7 +85,7 @@ public sealed partial class CreatureArt
     /// <summary>The Drift's mat, drawn from a car's roof: past this half-width (m) it's on the ground, this far down.</summary>
     const float CarHalfWidth = 1.6f, RoofDrop = 3.6f;
     /// <summary>The models this draws, by file name (content/art/models/&lt;name&gt;.glb).</summary>
-    public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "switchman", "soot_child", "dragger", "husk", "weight",
+    public static readonly string[] Names = ["crew", "cinder_hound", "sleeper", "clinger", "hollow", "soot_child", "dragger", "husk", "weight",
         "track_doll", "car_hugger", "tippy_toesie", "whistler", "ribbit", "choir", "gaunt", "grumbler", "stoker", "follower", "climber", "fire_fly", "passenger",
         "survivor_prisoner", "survivor_wildlander", "sheep", "moose", "gannet", "mourner", "freight_beetle", "tower_jaw", "brakeman", "knotter", "hotbox", "hanger",
         "picker", "lodger", "householder", "waker", "mouse_moose", DaveArt.Figure];
@@ -111,6 +111,10 @@ public sealed partial class CreatureArt
     /// round as far as it takes, behind it included (GDD §31: still when watched, then too-fast corrections).
     /// </summary>
     const float DollHeadClick = 30;
+
+    /// <summary>How many levels the lit Track Doll's face glow comes in (see Draw's track_doll case: each level is an asset cooked once).</summary>
+    const float DollGlowSteps = 8;
+
     /// <summary>On the rail it beckons the train in once it's this close (m, from the eye).</summary>
     const float DollBeckons = 40;
     /// <summary>Aboard, bent over the cargo, it looks round at you when you're this close (m).</summary>
@@ -205,7 +209,6 @@ public sealed partial class CreatureArt
         EnemyKind.Whistler => (8.0, 2.0, 0),       // found in its gap (A.4: "flees"): gone fast, low, into the field
         EnemyKind.Ribbit => (4.0, 3.0, 0),         // the pack's eaten: off in hops
         EnemyKind.Gaunt => (1.5, 6.0, 0),          // its loot taken or talked down: on walking, out past its 30 m
-        EnemyKind.Switchman => (4.0, 3.0, 0),      // the points thrown back, or the train gone by: off from the lever
         EnemyKind.TippyToesie => (5.0, 2.5, 0),
         EnemyKind.SootChildren => (3.0, 3.0, 0),
         EnemyKind.Passenger => (3.0, 3.0, 0),      // unmasked, off the back of the train
@@ -368,10 +371,6 @@ public sealed partial class CreatureArt
     // front of their feet (m).
     const float SootPinSeconds = 0.6f, SootCling = 0.3f;
 
-    // The Switchman's lever turns on its stand's pivot here (m, in the model's space: by its right foot, at the top of the
-    // stand's short post).
-    static readonly Vector3 SwitchLeverPivot = new(0.34f, 0.32f, -0.3f);
-
     const int FireFlyMost = 22;
     // T131 (the director, build 1121: "what were the bubbles?"): the wings' smouldering rims, lit all round against the
     // lamp, drew each moth as a hollow orange ring: a bubble. The rims go to the charred paper (unlit), and the burning tail
@@ -461,7 +460,6 @@ public sealed partial class CreatureArt
         ["sleeper"] = 0.6f,
         ["clinger"] = 0.4f,
         ["hollow"] = 0.6f,
-        ["switchman"] = 0.55f,
         ["soot_child"] = 0.5f,
         ["dragger"] = 0.2f,
         ["husk"] = 0.7f,
@@ -498,6 +496,13 @@ public sealed partial class CreatureArt
     // The flipbook effects some of what's drawn here is made of (a car fire: Effects.CarFire).
     readonly Effects _fx;
     readonly float _texels;
+
+    /// <summary>
+    /// Whether a car fire is drawn on its cells (<see cref="Effects.CellFlames"/>), for the fire drawn here at its heart. Note
+    /// 866: the scene set it only on the art's own effects, never on these, so the heart drew its whole fire (flames, smoke,
+    /// glow, light) at the middle of it until the last cell was out.
+    /// </summary>
+    public bool CellFlames { get => _fx.CellFlames; set => _fx.CellFlames = value; }
 
     /// <param name="contentRoot">The content folder; by default the one <paramref name="look"/>'s textures came from.</param>
     DaveKit? _dave;
@@ -624,6 +629,9 @@ public sealed partial class CreatureArt
     /// <summary>How high the couplers' heads are over the rail (m; train.json couplerHeight): where a whistling Whistler stands.</summary>
     public double CouplerHeight => _couplerHeight ??= DataFile.Load<Sim.Train.TrainTuning>(Path.Combine(ContentRoot, Sim.Train.TrainTuning.File)).Geometry.CouplerHeight;
     Sim.Enemies.CarFireTuning? _carFire;
+    Sim.Enemies.HoundTuning? _hounds;
+    /// <summary>The Cinder Hounds' tuning (note 891: the ignite's wind-up, drawn).</summary>
+    public Sim.Enemies.HoundTuning Hounds => _hounds ??= DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(ContentRoot, Sim.Enemies.EnemyTuning.File)).CinderHounds;
     /// <summary>The car fire's tuning, as the content has it (its grid's cell size, its spread clock; note 267).</summary>
     public Sim.Enemies.CarFireTuning CarFire => _carFire ??= DataFile.Load<Sim.Enemies.EnemyTuning>(Path.Combine(ContentRoot, Sim.Enemies.EnemyTuning.File)).CarFire;
     readonly Dictionary<int, MeshAsset> _debris = new();
@@ -794,7 +802,7 @@ public sealed partial class CreatureArt
         return l with { Colour = new Vector3(Q(l.Colour.X), Q(l.Colour.Y), Q(l.Colour.Z)), Emissive = Q(l.Emissive), Shine = Q(l.Shine), Wear = Q(l.Wear) };
     }
 
-    /// <summary>Where a bone of the model last drawn by name is, in camera-relative space (the Switchman's lantern).</summary>
+    /// <summary>Where a bone of the model last drawn by name is, in camera-relative space.</summary>
     /// <summary>A square iron bar from <paramref name="a"/> to <paramref name="b"/>, <paramref name="half"/> thick (a lever, a post).</summary>
     static void Bar(MeshBuilder mesh, Vector3 a, Vector3 b, float half, Vector3 colour)
     {
@@ -1170,8 +1178,9 @@ public sealed partial class CreatureArt
     // ----------------------------------------------------------------------------------------------------------------
     // Your own arms (X3)
 
-    /// <summary>The bones whose skin is drawn as your own arms: the coat's cuffs down, the gloves.</summary>
-    static readonly string[] ArmBones = ["lowerarm_l", "lowerarm_r", "hand_l", "hand_r", "fingers_l", "fingers_r", "thumb_l", "thumb_r"];
+    /// <summary>The bones whose skin is drawn as your own arms: the coat's cuffs down, the gloves (their fingers' middle
+    /// joints too, note 900).</summary>
+    static readonly string[] ArmBones = ["lowerarm_l", "lowerarm_r", "hand_l", "hand_r", "fingers_l", "fingers_r", "fingertips_l", "fingertips_r", "thumb_l", "thumb_r"];
 
     /// <summary>The eye over the head bone's root (m, model space: the mask's eyepieces, crew_clips.py's EYE).</summary>
     static readonly Vector3 EyeOverHead = new(0, 0.1f, -0.09f);
@@ -1909,7 +1918,6 @@ public sealed partial class CreatureArt
     /// would slide); boarded (punish) it crouches, lunges, crouches. Embers pulse hotter as it closes.</item>
     /// <item>Sleepers: six ties 2.6 m apart along −Z from the origin, dormant, writhing once telegraphed, lifting when the
     /// engine's on them.</item>
-    /// <item>Switchman: feet at the origin, lantern swinging while it waits; it flees when broken off.</item>
     /// <item>Climber: feet at the origin; inside a car (<paramref name="extra"/> below 0) it crouches.</item>
     /// <item>Soot child: one, feet at the origin; <paramref name="extra2"/> 1 is a Soot Child (black eyes), 0 a real child.</item>
     /// <item>Gaunt, Follower, Grumbler: <paramref name="extra2"/> is the anger, the nest, and feral, as the sim keeps them; track
@@ -1967,6 +1975,10 @@ public sealed partial class CreatureArt
                         (clip, loop) = _houndAboard.Mode switch
                         {
                             HoundMode.Leap => ("leap", false),
+                            // Note 891: the leap at someone to bite, and backing off from them (a retreat walks, as its patrol).
+                            HoundMode.Lunge => ("lunge", false),
+                            // Note 891: winding up to light its car, low and braced (the burst's drawn below).
+                            HoundMode.Ignite => ("crouch", true),
                             HoundMode.Drop => ("drop", false),
                             HoundMode.Climb => ("climb", false),
                             HoundMode.Sniff => ("sniff", true),
@@ -1976,7 +1988,7 @@ public sealed partial class CreatureArt
                         if (!HasClip("cinder_hound", clip))
                             (clip, loop) = _houndAboard.Mode switch
                             {
-                                HoundMode.Leap => ("lunge", false),
+                                HoundMode.Leap or HoundMode.Lunge => ("lunge", false),
                                 HoundMode.Drop or HoundMode.Climb => ("board", false),
                                 HoundMode.Sniff => ("crouch", true),
                                 _ => ("prowl", true),
@@ -1996,8 +2008,15 @@ public sealed partial class CreatureArt
                     }
                     else
                         clip = phase is SpinePhase.Telegraph or SpinePhase.Commit or SpinePhase.BreakOff ? "run" : "prowl";
+                    // Note 891 (the director, the inbox, 20 Oct: "there needs to be an associated animation of how that happens"):
+                    // winding up to light its car, its cracks blaze up, brighter to the end of it.
+                    float windUp = aboard && _houndAboard.Mode == HoundMode.Ignite
+                        ? Math.Clamp((float)(_houndAboard.Seconds / Math.Max(0.1, Hounds.Aboard.IgniteWindUpSeconds)), 0, 1) : 0;
+                    glow *= 1 + 3.5f * windUp * windUp;
                     if (!Draw(mesh, "cinder_hound", clip, ct, loop, model, glow: glow, seed: (float)extra))
                         return false;
+                    if (windUp > 0)
+                        IgniteBurst(mesh, model, windUp, t, extra);
                     // A light of its own (note 209's "not yet", note 337): its cracks' heat, under the keel, lighting its legs
                     // and a pool of the ground it runs over orange. At night, in the rear lamp or past it, a pack reads as
                     // the pools moving behind the train, each a hound, before their shapes do. (Not on itself: the light's
@@ -2020,33 +2039,6 @@ public sealed partial class CreatureArt
                         _fallenPine ??= WorldKit.Pine(Look, 2, DebrisKit.TreeHeight);
                         mesh.Instances.Add(new MeshInstance(_fallenPine, DebrisKit.FallenPine * model));
                     }
-                    return true;
-                }
-            case EnemyKind.Switchman:
-                {
-                    // At the lever (App. A.7): waiting by it; the derailer's hand on it, gripping, till the train's over the
-                    // points (COMMIT, the tell); then it's thrown, heaved over, and the Switchman stands dead still by it,
-                    // watching what it's done (PUNISH); called off, it flees.
-                    var (clip, loop) = phase switch
-                    {
-                        SpinePhase.BreakOff => ("flee", true),
-                        SpinePhase.Commit => ("grip", true),
-                        SpinePhase.Punish => ("throw", false),
-                        _ => ("wait", true),
-                    };
-                    if (!Draw(mesh, "switchman", clip, t, loop, model) && !Draw(mesh, "switchman", phase == SpinePhase.BreakOff ? "flee" : "wait", t, true, model))
-                        return false;
-                    if (clip is "grip" or "throw")
-                    {
-                        // The lever, from its stand's pivot by its right foot up into its hand (the stand's post under it).
-                        var hand = BoneAt("switchman", "fingers_r", model);
-                        var pivot = Vector3.Transform(SwitchLeverPivot, model);
-                        var (_, up, _) = Basis(model);
-                        Bar(mesh, pivot, hand + Vector3.Normalize(hand - pivot) * 0.12f, 0.018f, Palette.IronGrey);
-                        Bar(mesh, pivot - up * SwitchLeverPivot.Y, pivot, 0.05f, Palette.SootBlack);
-                    }
-                    // Its lantern is the only light on it (App. A.7's "distant figure at the switch").
-                    mesh.PointLights.Add(new PointLight(BoneAt("switchman", "lantern", model), Palette.LampAmber * 1.1f, 6f));
                     return true;
                 }
             case EnemyKind.SootChildren:
@@ -2335,7 +2327,9 @@ public sealed partial class CreatureArt
                     // shines out of the fog far off and eases to a sheen as the train closes on it (the model's translation is
                     // from the eye). Unrevealed, or aboard, it's only porcelain.
                     float far = SmoothStep(15, 120, model.Translation.Length());
-                    float glow = phase == SpinePhase.Telegraph ? 0.15f + 0.75f * far : 0.05f;
+                    // (In DollGlowSteps levels: the face's glow is baked into the asset Bound keeps, so a glow that changed a little every
+                    // frame as the train closed on it cooked and uploaded a new doll every frame or two: queue #427.)
+                    float glow = phase == SpinePhase.Telegraph ? MathF.Round((0.15f + 0.75f * far) * DollGlowSteps) / DollGlowSteps : 0.05f;
                     // On the rail it faces the train coming at it (a thing on the line faces down it, the way the train goes).
                     var at = aboard ? model : Matrix4x4.CreateRotationY(MathF.PI) * model;
                     // With the toy it was given, it's clutching it under its chin (its giggle's hands), and looking at you.
@@ -3328,10 +3322,6 @@ public sealed partial class CreatureArt
                 // faces the train; its right is the train's way, ahead, on the +1 side).
                 m = Matrix4x4.CreateRotationY(-MathF.Sign((float)e.Extra2 == 0 ? 1 : (float)e.Extra2) * MathF.PI / 2) * model;
                 break;
-            case EnemyKind.Switchman:
-                // Face back down the line at the train, turned in towards the track.
-                m = Matrix4x4.CreateRotationY(MathF.PI - Math.Sign(e.Lateral) * 0.6f) * model;
-                break;
             case EnemyKind.Mourners or EnemyKind.FreightBeetle or EnemyKind.TowerJaw or EnemyKind.Pickers or EnemyKind.Lodger or EnemyKind.Householder
                 or EnemyKind.MouseMoose:
                 // What it's doing (the sim's mode) and how fast it's going (CreatureArt.Outside.cs).
@@ -3352,6 +3342,39 @@ public sealed partial class CreatureArt
             Clutches[e.Holding] = clutch;
         _clutch = null;
         return drawn;
+    }
+
+    /// <summary>
+    /// A Cinder Hound winding up to light its car (note 891), <paramref name="w"/> 0..1 through it: embers streaming up off its
+    /// back, more and higher as it goes, and in its last fifth the burst from its body: a flash, and sparks thrown out over
+    /// the roof round it, where the fire catches.
+    /// </summary>
+    void IgniteBurst(MeshBuilder mesh, in Matrix4x4 model, float w, double time, double seed)
+    {
+        var (r, u, b) = Basis(model);
+        var body = BoneAt("cinder_hound", "belly", model) + u * 0.25f;
+        int n = 8 + (int)(28 * w);
+        for (int i = 0; i < n; i++)
+        {
+            float h = Hash01(i, 11 + (int)seed), h2 = Hash01(i, 23), h3 = Hash01(i, 37);
+            float age = (float)((time * (0.9 + 0.8 * h) + h2) % 1.0);
+            var p = body + r * (h - 0.5f) * 0.5f + b * (h3 - 0.5f) * 0.9f + u * (0.1f + age * (0.5f + 1.3f * w))
+                + r * MathF.Sin((float)time * 7 + i) * 0.06f;
+            float alpha = (0.35f + 0.65f * w) * (1 - age);
+            mesh.Billboard(p, 0.05f + 0.06f * h2 + 0.04f * w, 0, new Vector4(1.0f, 0.42f + 0.3f * h3, 0.1f, alpha), -1, FxBlend.Additive);
+        }
+        if (w < 0.8f)
+            return;
+        // The burst: what lights the car.
+        float f = (w - 0.8f) / 0.2f;
+        mesh.Billboard(body, 0.8f + 2.2f * f, 0, new Vector4(1.0f, 0.55f, 0.18f, 0.9f * (1 - 0.5f * f)), -1, FxBlend.Additive);
+        for (int i = 0; i < 24; i++)
+        {
+            float ang = i * MathF.Tau / 24 + Hash01(i, 5) * 0.4f, out_ = (0.3f + 1.6f * f) * (0.7f + 0.6f * Hash01(i, 7));
+            var p = body + (r * MathF.Cos(ang) + b * MathF.Sin(ang)) * out_ + u * (0.35f * f - 0.6f * f * f);
+            mesh.Billboard(p, 0.07f + 0.05f * Hash01(i, 9), 0, new Vector4(1.0f, 0.5f, 0.15f, 1 - 0.6f * f), -1, FxBlend.Additive);
+        }
+        mesh.PointLights.Add(new PointLight(body, HoundEmber * (2.5f * f + 1), HoundLightRange * 1.8f));
     }
 
     static (Vector3 Right, Vector3 Up, Vector3 Back) Basis(in Matrix4x4 m) =>

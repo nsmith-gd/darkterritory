@@ -1,4 +1,4 @@
-"""Creature sounds for five horrors (GDD §21): the Choir, the Gaunt, the Soot Children, the Switchman and the Stoker.
+"""Creature sounds for four horrors (GDD §21): the Choir, the Gaunt, the Soot Children and the Stoker (the Switchman's went with it, note 852).
 
 What each body is made of decides the build:
 - The Choir: small ghosts, each a veined membrane bell with one child's mouth singing, six tendrils. Every voice it uses
@@ -58,6 +58,21 @@ def rec(rng, keys, semis=0.0, length=None):
     """A recording picked from `keys`, its lead-in silence cut so the attack lands on time, varispeeded, shortened."""
     x = dsp.vari(dsp.trim_silence(any_of(rng, keys), -40, 0.002), semis)
     return cut(x, length) if length else x
+
+
+# The Switchmen's lamp went with their cut (#1245); the upkeep's oil lamp (recipes.upkeep) still burns with it.
+def flame(rng, length, level):
+    """An oil lamp's flame in a draught: a soft fluttering roar (burning gas tearing and lapping at 5-14 Hz) with a
+    little hiss and the wick's tiny spits, following `level` (0 out, 1 burning well; a curve)."""
+    n = samples(length)
+    lv = synth.curve(level, n)
+    flutter = np.clip(0.45 + 0.65 * norm(lp(rng.standard_normal(n).astype(np.float32), 14)), 0.0, 1.2) ** 1.5
+    roar = bp(synth.noise(length, rng, "brown"), 50, 450) * flutter
+    gas = bp(synth.noise(length, rng), 800, 3000) * 0.1 * flutter
+    spits = synth.crackle(length, 8 + 25 * lv, rng, size=(0.0003, 0.002), hi=1200)
+    pops = synth.crackle(length, 0.5 + 2.5 * lv, rng, size=(0.002, 0.006), hi=300)
+    return norm((roar + gas) * lv + (spits * 1.2 + pops * 1.5) * np.sqrt(lv))
+
 
 
 def cut(x, length, tail=None):
@@ -1149,239 +1164,6 @@ def soot_death_whimper(rng, take):
     b.at(t, rec(rng, CLOTH, -2, 0.4), -8)
     b.at(t, soot(rng, 1.0, env([(0, 300), (1.0, 10)], 1.0)), -12)
     return finish(dsp.room(b.x, "car", wet=0.1, rng=rng))
-
-
-# ---- The Switchman ------------------------------------------------------------------------------------------------------
-# Its junction lamp is an oil lamp: flame and hot glass, never electricity.
-
-GLASS_TICK = K("impactGlass_light")
-TIN = K("impactTin_medium") + ["kenney_rpg-audio:metalClick"]
-
-
-def flame(rng, length, level):
-    """An oil lamp's flame in a draught: a soft fluttering roar (burning gas tearing and lapping at 5-14 Hz) with a
-    little hiss and the wick's tiny spits, following `level` (0 out, 1 burning well; a curve)."""
-    n = samples(length)
-    lv = synth.curve(level, n)
-    flutter = np.clip(0.45 + 0.65 * norm(lp(rng.standard_normal(n).astype(np.float32), 14)), 0.0, 1.2) ** 1.5
-    roar = bp(synth.noise(length, rng, "brown"), 50, 450) * flutter
-    gas = bp(synth.noise(length, rng), 800, 3000) * 0.1 * flutter
-    spits = synth.crackle(length, 8 + 25 * lv, rng, size=(0.0003, 0.002), hi=1200)
-    pops = synth.crackle(length, 0.5 + 2.5 * lv, rng, size=(0.002, 0.006), hi=300)
-    return norm((roar + gas) * lv + (spits * 1.2 + pops * 1.5) * np.sqrt(lv))
-
-
-def junction(x, rng, tail=0.8):
-    """Out at the junction, a few metres off in the open: a little air and a short outdoor tail, cut off before the
-    reverb drags the take out."""
-    y = dsp.room(lp(x, 10000), "night", wet=0.15, rng=rng)
-    L = len(x) / SR
-    return y[:samples(L + tail)] * env([(0, 1), (L, 1), (L + tail, 0)], L + tail)[:samples(L + tail)]
-
-
-def whump(rng, length=0.35):
-    """Lamp vapour catching: a soft low puff."""
-    return mix(lp(synth.noise(length, rng), 500) * env([(0, 0), (0.03, 1), (length, 0)], length), synth.thump(90, 0.2) * 0.5)
-
-
-def glass_chatter(rng, b, t, count):
-    """The lamp's glass chimney rattling in its gallery: small clinks of thin glass, quick and uneven."""
-    for i in range(count):
-        b.at(t, rec(rng, GLASS_TICK, rng.uniform(5, 9), 0.06), -14 - 2 * i)
-        t += rng.uniform(0.02, 0.06)
-
-
-def lever_creak(rng, length):
-    """The iron lever taking up a grip: a slow stick-slip groan through a heavy iron part."""
-    return synth.creak(length, env([(0, 15), (length, 40)], length), rng, body=[f * 1.6 for f in synth.IRON], q=20) * \
-        env([(0, 0), (0.1, 1), (length, 0)], length)
-
-
-def knuckles(rng, b, t, count, span):
-    """Long fingers closing: a ripple of small dry joints, far too many of them."""
-    for c in np.sort(rng.uniform(0, span, count)):
-        b.at(t + c, snap(rng, 0.03, rng.uniform(2200, 3800)), -14 + rng.uniform(-3, 2))
-
-
-@recipe("cs-switchman", "flicker", "gutter",
-        "Its oil lamp guttering as it grips the lever: the flame fluttering nearly out and catching again, the glass chattering",
-        """An oil flame, not a bulb: a soft fluttering roar (brown noise lapping at 5-14 Hz) with the wick's small spits,
-        which gutters down nearly to nothing as the lamp jerks and catches again with a soft whump of vapour, twice. The
-        lamp's glass chimney chatters in its gallery (light glass impacts pitched up), the tin bail clinks, and the
-        iron lever creaks as its grip takes up the slack. A few metres off, in the open.""",
-        sources=GLASS_TICK + TIN, takes=2)
-def switchman_flicker_gutter(rng, take):
-    T = 3.2
-    g1, g2 = rng.uniform(0.9, 1.2), rng.uniform(2.1, 2.5)
-    lv = env([(0, 0.8), (g1 - 0.4, 0.9), (g1, 0.25), (g1 + 0.3, 0.06), (g1 + 0.45, 0.9), (g1 + 0.7, 0.7), (g2, 0.3),
-              (g2 + 0.15, 0.12), (g2 + 0.3, 0.8), (T, 0.6)], T)
-    b = Bus(T + 0.5)
-    b.at(0, flame(rng, T, lv) * env([(0, 0), (0.15, 1), (T - 0.3, 1), (T, 0)], T))
-    b.at(g1 + 0.4, whump(rng), -6)
-    b.at(g2 + 0.25, whump(rng, 0.25), -10)
-    glass_chatter(rng, b, rng.uniform(0.2, 0.4), 4)
-    glass_chatter(rng, b, g2 - 0.1, 3)
-    for c in rng.uniform(0, T, 4):
-        b.at(c, synth.click(rng.uniform(4500, 7000), q=30, length=0.04, rng=rng), -22)
-    b.at(0.35, lever_creak(rng, 0.8), -14)
-    for c in (0.3, g2):
-        b.at(c, rec(rng, TIN, rng.uniform(1, 4), 0.08), -16)
-    return finish(junction(b.x, rng))
-
-
-@recipe("cs-switchman", "flicker", "breath",
-        "The lamp's flame breathing: drawn down and flaring again in the rhythm of slow breaths, its glass singing, long fingers closing",
-        """It starts with its hand: a ripple of small dry knuckles, too many of them, closing on the iron lever. Then the
-        flame does what a flame can't: it breathes. Twice it's drawn down low with a faint draw of air through the
-        burner, and flares out again with a soft whump and a spray of spits, slow as someone breathing. The hot glass
-        chimney sings faintly over it (friction noise rung through a thin glass's partials, wavering) and the iron
-        lever creaks under the grip at the end.""",
-        takes=2)
-def switchman_flicker_breath(rng, take):
-    T = 3.8
-    b = Bus(T + 0.5)
-    knuckles(rng, b, 0.0, int(rng.integers(9, 13)), 0.35)
-    i1, o1 = 0.4, rng.uniform(1.3, 1.5)
-    i2, o2 = o1 + 0.6, o1 + rng.uniform(1.5, 1.7)
-    lv = env([(0, 0.7), (i1, 0.75), (o1 - 0.1, 0.12), (o1 + 0.1, 1.0), (i2, 0.7), (o2 - 0.1, 0.1), (o2 + 0.1, 1.0),
-              (T, 0.7)], T)
-    b.at(0.1, flame(rng, T, lv) * env([(0, 0), (0.25, 1), (T - 0.3, 1), (T, 0)], T))
-    for a, o in ((i1, o1), (i2, o2)):
-        L = o - a
-        b.at(a + 0.1, bp(synth.noise(L, rng), 1500, 4000) * env([(0, 0), (L * 0.85, 1), (L, 0)], L), -20)
-        b.at(o + 0.1, whump(rng, 0.4), -6)
-        b.at(o + 0.1, synth.crackle(0.5, 60, rng, size=(0.0005, 0.003), hi=1000) * env([(0, 1), (0.5, 0)], 0.5), -8)
-    n = samples(T)
-    rub = synth.noise(T, rng) * (1 + 0.7 * norm(lp(rng.standard_normal(n).astype(np.float32), 3)))
-    fg = rng.uniform(2300, 2800)
-    sing = norm(dsp.resonate(bp(rub, 1500, 12000), [fg, fg * 2.32, fg * 4.25], q=400, gains=[1, 0.5, 0.25]))
-    sing = bend(sing, 0.15 * np.sin(2 * np.pi * 0.4 * np.arange(n) / SR))
-    b.at(0, sing * env([(0, 0), (1, 1), (T, 0.6)], T)[:len(sing)], -24)
-    b.at(T - 1.0, lever_creak(rng, 0.8), -12)
-    return finish(junction(b.x, rng))
-
-
-# The throw itself: the game plays the stand's lever, the blades and the latch (crew-switch) for any throw, so these are
-# what only the Switchman adds on top of them, at the lever: its grip, its lamp, its strength.
-
-@recipe("cs-switchman", "throw", "grip",
-        "Its long fingers closing round the lever and heaving it over: the knuckles, the lamp swinging on its arm, the glass",
-        """Laid over the stand's own lever and blades (the crew's switch sounds, which the game plays for any throw):
-        a ripple of far too many dry knuckles closing on the iron, the lever creaking under a grip no man has (a slow
-        iron stick-slip pitched up, strained), then the heave: its oil lamp swung hard on its bail (the tin bail's
-        creak and clink), the glass chimney chattering in its gallery and the flame fluttering low and flaring back with
-        a soft whump. A few metres off, in the open.""",
-        sources=GLASS_TICK + TIN, takes=3)
-def switchman_throw_grip(rng, take):
-    T = 1.6
-    b = Bus(T + 0.6)
-    knuckles(rng, b, 0.0, int(rng.integers(8, 12)), 0.3)
-    b.at(0.2, lever_creak(rng, 0.7), -9)
-    heave = rng.uniform(0.55, 0.7)
-    b.at(heave, rec(rng, TIN, rng.uniform(-2, 2), 0.12), -12)
-    b.at(heave + rng.uniform(0.2, 0.3), rec(rng, TIN, rng.uniform(1, 4), 0.1), -16)
-    glass_chatter(rng, b, heave + 0.05, int(rng.integers(3, 6)))
-    lv = env([(0, 0.8), (heave, 0.85), (heave + 0.12, 0.15), (heave + 0.35, 0.95), (T, 0.7)], T)
-    b.at(0, flame(rng, T, lv) * env([(0, 0), (0.1, 1), (T - 0.2, 1), (T, 0)], T), -8)
-    b.at(heave + 0.33, whump(rng, 0.3), -10)
-    return finish(junction(b.x, rng))
-
-
-@recipe("cs-switchman", "throw", "strain",
-        "The heave in its two throats: a man's grunt and a thin reedy breath over it, the knuckles and the lamp's glass",
-        """Laid over the stand's own lever and blades: it puts its weight on the lever, and you hear both of it. A man's
-        effort (a short rough grunt through a man's throat, pushed out on the heave) and, a moment behind it, the
-        spindly half's breath (a thin reedy 'ee' high up, breathy, sliding up as the lever goes over), the knuckles
-        tightening first and the lamp's glass chattering on the heave. A few metres off, in the open.""",
-        sources=GLASS_TICK + TIN, takes=3)
-def switchman_throw_strain(rng, take):
-    T = 1.5
-    b = Bus(T + 0.6)
-    knuckles(rng, b, 0.0, int(rng.integers(6, 9)), 0.22)
-    heave = rng.uniform(0.3, 0.4)
-    Lg = rng.uniform(0.35, 0.5)
-    man = throat(rng, env([(0, 130), (Lg * 0.3, 150), (Lg, 105)], Lg, "exp"), [(0, "a"), (Lg, "u")], 0.72, breath=0.45,
-                 rough=0.5, jitter=0.02)
-    b.at(heave, man * env([(0, 0), (0.03, 1), (Lg * 0.6, 0.7), (Lg, 0)], Lg), -6)
-    Lr = rng.uniform(0.7, 0.9)
-    reed = throat(rng, env([(0, 420), (Lr, 640)], Lr, "exp"), "i", 0.65, breath=0.8, jitter=0.01)
-    b.at(heave + 0.08, bp(reed, 1200, 6000) * env([(0, 0), (0.1, 1), (Lr * 0.6, 0.6), (Lr, 0)], Lr), -12)
-    glass_chatter(rng, b, heave + 0.05, int(rng.integers(3, 5)))
-    b.at(heave + 0.02, rec(rng, TIN, rng.uniform(-1, 3), 0.1), -15)
-    b.at(0.1, lever_creak(rng, 0.5), -14)
-    return finish(junction(b.x, rng))
-
-
-GLASS_BREAK = ["sfx_100_v2:glass_03", "sfx_100_v2:misc_26", "sfx_100_v2:misc_27"]
-
-
-def ballast_fall(rng, b, t, weight=1.0):
-    """A body landing on the ballast: weight, a coat, stones shifting under it."""
-    b.at(t, thud(rng, 70, 0.4, weight), -9)
-    b.at(t, rec(rng, CLOTH, -3, 0.35), -6)
-    b.at(t + 0.01, gravel(rng, 14, 0.12, 900, 5000, body=0), -8)
-
-
-def folding_rule(rng, b, t, count):
-    """Its spindly half folding up like a carpenter's rule: dry joints snapping shut one after another, quicker each time.
-    Returns when the last one closes."""
-    gap = rng.uniform(0.06, 0.08)
-    for i in range(count):
-        b.at(t, snap(rng, 0.04, rng.uniform(1500, 2800)), -10 - 0.5 * i)
-        t += gap
-        gap *= 0.86
-    return t
-
-
-@recipe("cs-switchman", "death", "lamp",
-        "Its oil lamp smashing on the ballast and the spilt oil catching, its spindly half folding shut, the body falling",
-        """The lamp goes first: thin glass breaking (glass breaks from the sfx pack), the tin lamp body bouncing on the
-        stones, and the spilt oil catching with a soft whoomph into a little crackling fire. Its spindly half folds up
-        like a carpenter's rule (dry joints snapping shut, quicker each time), the man half drops onto the ballast, and
-        its last breath goes out of two throats at once: a man's exhale and a thin reedy whistle.""",
-        sources=GLASS_BREAK + TIN + CLOTH, takes=3)
-def switchman_death_lamp(rng, take):
-    T = 4.2
-    b = Bus(T + 0.5)
-    b.at(0, rec(rng, GLASS_BREAK, rng.uniform(-1, 2), 0.7), 0)
-    b.at(rng.uniform(0.02, 0.05), rec(rng, GLASS_BREAK, rng.uniform(-4, -1), 0.6), -4)
-    b.at(0, rec(rng, TIN, -3, 0.2), -4)
-    b.at(rng.uniform(0.15, 0.22), rec(rng, TIN, 1, 0.15), -11)
-    b.at(0.02, gravel(rng, 10, 0.12, 900, 5000, body=0), -10)
-    tf = rng.uniform(0.35, 0.6)
-    L = T - tf
-    fc = env([(0, 300), (0.15, 1500), (0.6, 600)], 0.6, "exp")
-    b.at(tf, dsp.sweep_filter(synth.noise(0.6, rng, "pink"), "bp", fc, q=0.8) * env([(0, 0), (0.05, 1), (0.6, 0)], 0.6), -4)
-    b.at(tf, synth.fire(L, env([(0, 0.1), (0.3, 0.55), (L, 0.3)], L), rng) * env([(0, 0), (0.2, 1), (L - 0.5, 0.8), (L, 0)], L), -9)
-    t = folding_rule(rng, b, rng.uniform(0.3, 0.6), int(rng.integers(8, 12)))
-    ballast_fall(rng, b, t)
-    Lb = 1.4
-    man = airflow(rng, Lb, [(0, "a"), (Lb, "h")], 0.72, [(0, 0), (0.1, 1), (Lb, 0)])
-    reed = dsp.sweep_filter(synth.noise(Lb, rng), "bp", env([(0, 1800), (Lb, 1450)], Lb, "exp"), q=25)
-    b.at(t + 0.15, man * 0.8 + norm(reed) * env([(0, 0), (0.2, 0.5), (Lb, 0)], Lb) * 0.4, -10)
-    return finish(junction(b.x, rng, 1.0))
-
-
-@recipe("cs-switchman", "death", "split",
-        "Its voice coming apart into two: a man's groan sinking and a thin reed of a throat rising, as it lets the lever go and folds",
-        """The two halves of it part in its voice: a man's groaning breath (a man's throat through his tract, rough)
-        sinking while a thin reedy throat (a narrow, breathy 'ee' up high) rises against it, contrary motion that opens
-        to more than an octave. Its grip lets go of the lever (a heavy metal clank, the ratchet slipping), the spindly
-        half folds like a carpenter's rule, and the man half drops onto the ballast.""",
-        sources=K("impactMetal_heavy") + ["sfx_100_v2:misc_20"] + CLOTH, takes=3)
-def switchman_death_split(rng, take):
-    b = Bus(4.0)
-    L = rng.uniform(2.0, 2.4)
-    man = throat(rng, env([(0, 115), (L, 72)], L, "exp"), [(0, "a"), (L, "o")], 0.72, breath=0.5, rough=0.35, jitter=0.015)
-    reed = throat(rng, env([(0, 330), (L, 560)], L, "exp"), "i", 0.65, breath=0.7, jitter=0.01)
-    shape = env([(0, 0), (0.15, 1), (L * 0.7, 0.7), (L, 0)], L)
-    b.at(0, man * shape, -4)
-    b.at(0.1, bp(reed, 1200, 6000) * shape, -5)
-    b.at(0.05, rec(rng, K("impactMetal_heavy"), rng.uniform(-6, -4), 0.4), -6)
-    b.at(0.1, rec(rng, ["sfx_100_v2:misc_20"], -3, 0.35), -10)
-    t = folding_rule(rng, b, rng.uniform(0.6, 0.9), int(rng.integers(7, 10)))
-    ballast_fall(rng, b, max(t, L * 0.8))
-    return finish(junction(b.x, rng, 1.0))
 
 
 # ---- The Stoker ---------------------------------------------------------------------------------------------------------

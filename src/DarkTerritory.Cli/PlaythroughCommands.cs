@@ -92,13 +92,14 @@ static class PlaythroughCommands
             scene.BendStrain = world.TrackPlan is { } bent ? DarkTerritory.Game.BendStrain.PerCar(train, bent.Rules) : null;
             scene.DriversLocked = scene.Ruptured && train.BoilerTuning is { } rt && train.Dynamics.Speed > rt.RuptureCoastBelow;
             scene.SinceShovel = train.Boiler.SinceShovel;
+            scene.Flare = train.BoilerTuning is { } flt ? (float)flt.FlareLook(train.Boiler) : 0;
             scene.ChoirGathering = world.Choir.Present ? 1 : (float)world.Choir.Build;
             scene.Answer = world.Answer;
             scene.AnswerShowSeconds = world.Director?.Tuning.Draw.ShowSeconds ?? 7;
             // Watched afoot (note 327): eyes toward what lives at the stop.
             scene.Watcher = world.Watcher;
             scene.WatcherShowSeconds = world.Director?.Tuning.Afoot.SignSeconds ?? 3.5;
-            scene.FireGlow = train.BoilerTuning is { } bt ? GreyboxScene.FireLook(train.Boiler.Firebox, bt.FireboxCapacity) : 0.7f;
+            scene.FireGlow = train.BoilerTuning is { } bt ? GreyboxScene.FireLook(train.Boiler.Fire, bt.FireboxCapacity) : 0.7f;
             scene.StokerLowFor = stokerSince < 0 ? -1 : seconds - stokerSince;
             scene.StokerDownAt = world.Enemies?.Stoker.HeatSeconds ?? 20;
             scene.LampLit = world.LampShining;
@@ -203,6 +204,11 @@ static class PlaythroughCommands
         }
 
         int signsShot = 0, encountersAfoot = 0;
+        // Note 849: why the director sent nothing, by the second (its own spend's reason; a free spawn clears it).
+        var held = new SortedDictionary<string, int>();
+        uint lastHeldTick = uint.MaxValue;
+        // Note 860: each stop the train stood at (Director.StopAt), what was there and what got aboard while it stood.
+        var stopVisits = new Dictionary<int, StopVisit>();
 
         // After each tick: each enemy as it arrives and at each beat of its spine that a crew would be watching for, and the
         // line between.
@@ -259,6 +265,28 @@ static class PlaythroughCommands
             }
             if (world.Director is { AfootShare: > 0 })
                 encountersAfoot += world.EnemyEvents.Count(e => e.To == SpinePhase.Telegraph);
+            if (world.Director is { } hd && world.Tick % SimConstants.TickRate == 0 && world.Tick != lastHeldTick)
+            {
+                lastHeldTick = world.Tick;
+                string why = hd.HeldBecause ?? (world.SafeYard ? "safe yard" : "sent");
+                held[why] = held.GetValueOrDefault(why) + 1;
+            }
+            if (Director.StopAt(world) is >= 0 and var stopKey)
+            {
+                if (!stopVisits.TryGetValue(stopKey, out var visit))
+                    stopVisits[stopKey] = visit = new StopVisit(stopKey, now, train.Dynamics.Distance, world.Director?.Log.Count ?? 0);
+                visit.Left = now;
+                foreach (var e in world.ActiveEnemies)
+                    if (!e.Gone)
+                    {
+                        visit.Met.TryAdd(e.Id, e.Kind);
+                        if (now - visit.Arrived <= StopVisit.ReadySeconds)
+                            visit.Ready.TryAdd(e.Id, e.Kind);
+                        if (e.Attached >= 0)
+                            visit.Boarded.TryAdd(e.Id, e.Kind);
+                    }
+                visit.LogTo = world.Director?.Log.Count ?? 0;
+            }
             if (now - lastChase >= every)
             {
                 lastChase = now;
@@ -267,8 +295,9 @@ static class PlaythroughCommands
         }
 
         World last;
+        DriverReport? driver = null;
         if (bots > 0)
-            last = Crewed(content, route, cars, bots, minutes, args, Watch);
+            last = Crewed(content, route, cars, bots, minutes, args, Watch, out driver);
         else
         {
             // --crew n: the night the director plans for a crew of n (a solo night meets only part of the roster), the one
@@ -344,6 +373,27 @@ static class PlaythroughCommands
                 spawnsAll = ld.Log.Count,
                 telegraphs = encountersAfoot,
             } : null,
+            // Note 849: what the director sent, in order and by kind: its own spends and the night's curve's free spawns, so a
+            // night's encounters can be counted (the director, 16 Oct: "Where's the rest of the content?").
+            director = last.Director is { } dd ? new
+            {
+                spawns = dd.Log.Select(l => new { kind = l.Kind.ToString(), seconds = Math.Round(l.Tick * SimConstants.TickSeconds), km = Math.Round(l.TrainDistance / 1000, 2), free = l.Free }).ToArray(),
+                byKind = dd.Log.GroupBy(l => l.Kind.ToString()).OrderBy(g => g.Key).ToDictionary(g => g.Key, g => g.Count()),
+                kinds = dd.Log.Select(l => l.Kind).Distinct().Count(),
+                free = dd.Log.Count(l => l.Free),
+                // Those come their own way (the stops' house creatures, the lineside moose, the Stoker's heat): counted with the rest.
+                ownWay = dd.OwnWay.OrderBy(k => k.Key.ToString()).ToDictionary(k => k.Key.ToString(), k => k.Value),
+                curveAtEnd = Math.Round(dd.Curve, 2),
+                held,
+            } : null,
+            // Note 880 (the director's brief §8): the night's encounters, as dt harness reports them.
+            encounters = last.Encounters is { } encounters ? EncounterReport.Of(encounters, last) : null,
+            // Note 860 (the director's playtest of 16 Oct evening, line 7): every stop of the night, stood at or passed; for those
+            // stood at, what was there within readySeconds of arriving, everything met there, what got aboard (on a car) while
+            // it stood, and the director's sends while it stood (the stop's own marked).
+            stops = StopsReport(last, stopVisits),
+            // Note 935: with a bot crew, the bot at the controls: the gauge in the red, its runs in past a stop, crew left behind.
+            driver,
             // Note 326: what the crew found at the stops (with --loot): the hiding spots searched, the finds stowed and their scrip.
             loot = last.Run is { } lr ? new
             {
@@ -363,13 +413,13 @@ static class PlaythroughCommands
     /// The host's world is photographed.
     /// </summary>
     static World Crewed(string content, DarkTerritory.Sim.Route.Route route, int cars, int bots, double minutes, string[] args,
-        Action<World, IReadOnlyList<PlayerState>> watch)
+        Action<World, IReadOnlyList<PlayerState>> watch, out DriverReport? driver)
     {
         var c = AuditCommands.Load(content);
         var routeTuning = RouteTuning.Load(content);
         double yard = route.GateOr(routeTuning.YardLength);
         World? last = null;
-        Harness.Run(route.Build(), c.Train, c.Player, new HarnessOptions
+        var report = Harness.Run(route.Build(), c.Train, c.Player, new HarnessOptions
         {
             Bots = bots,
             Cars = cars,
@@ -396,6 +446,7 @@ static class PlaythroughCommands
             },
             Until = world => world.Run?.Over == true,
         }, c.Boiler);
+        driver = report.Driver;
         return last ?? throw new InvalidOperationException("the night never started");
     }
 
@@ -456,5 +507,63 @@ static class PlaythroughCommands
     {
         int i = Array.IndexOf(args, name);
         return i >= 0 && i + 1 < args.Length ? double.Parse(args[i + 1], CultureInfo.InvariantCulture) : fallback;
+    }
+
+    /// <summary>Note 860: one stop the train stood at in a playthrough, and what it met there.</summary>
+    sealed class StopVisit(int key, double arrived, double distance, int logFrom)
+    {
+        /// <summary>What's about within this many seconds of the train standing there counts as ready for it.</summary>
+        public const double ReadySeconds = 30;
+        public int Key { get; } = key;
+        public double Arrived { get; } = arrived;
+        public double Left { get; set; } = arrived;
+        public double Distance { get; } = distance;
+        public int LogFrom { get; } = logFrom;
+        public int LogTo { get; set; } = logFrom;
+        public SortedDictionary<int, EnemyKind> Ready { get; } = [];
+        public SortedDictionary<int, EnemyKind> Met { get; } = [];
+        public SortedDictionary<int, EnemyKind> Boarded { get; } = [];
+    }
+
+    static object StopsReport(World world, Dictionary<int, StopVisit> visits)
+    {
+        static Dictionary<string, int> Count(IEnumerable<EnemyKind> kinds) =>
+            kinds.GroupBy(k => k.ToString()).OrderBy(g => g.Key, StringComparer.Ordinal).ToDictionary(g => g.Key, g => g.Count());
+        var all = new List<(int Key, RouteFeature F)>();
+        if (world.Run is { } run)
+            for (int i = 0; i < run.Facilities.Count; i++)
+                if (run.Facilities[i].Stop is not null)
+                    all.Add((i, run.Facilities[i]));
+        if (world.Route is { } route)
+            for (int f = 0; f < route.Features.Count; f++)
+                if (route.Features[f] is { Kind: FeatureKind.Village, Stop: not null } v)
+                    all.Add((1000 + f, v));
+        var log = world.Director?.Log ?? [];
+        var each = all.OrderBy(a => a.F.Start).Select(a =>
+        {
+            visits.TryGetValue(a.Key, out var v);
+            var sent = v is null ? [] : log.Skip(v.LogFrom).Take(v.LogTo - v.LogFrom).ToList();
+            return new
+            {
+                km = Math.Round(a.F.Start / 1000, 2),
+                kind = a.F.Stop!.Kind.ToString(),
+                stood = v is not null,
+                arrived = v is null ? (double?)null : Math.Round(v.Arrived),
+                seconds = v is null ? 0 : Math.Round(v.Left - v.Arrived),
+                ready = Count(v?.Ready.Values ?? Enumerable.Empty<EnemyKind>()),
+                met = Count(v?.Met.Values ?? Enumerable.Empty<EnemyKind>()),
+                boarded = Count(v?.Boarded.Values ?? Enumerable.Empty<EnemyKind>()),
+                sent = sent.Select(l => new { kind = l.Kind.ToString(), at = Math.Round(l.Tick * SimConstants.TickSeconds), stop = l.Stop, free = l.Free }).ToArray(),
+            };
+        }).ToArray();
+        return new
+        {
+            stops = each.Length,
+            stood = each.Count(e => e.stood),
+            readyAt = each.Count(e => e.stood && e.ready.Count > 0),
+            metAt = each.Count(e => e.stood && e.met.Count > 0),
+            boardedAt = each.Count(e => e.stood && e.boarded.Count > 0),
+            each,
+        };
     }
 }

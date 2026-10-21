@@ -21,12 +21,14 @@ public sealed record GutterTuning
 /// </summary>
 public sealed class Gutters(GutterTuning tuning, ulong seed)
 {
-    readonly Pcg32 _rng = new(seed, 0x6077);
+    Pcg32 _rng = new(seed, 0x6077);
     double _toGo = -1;
 
     public GutterTuning Tuning => tuning;
     /// <summary>How many started, and how many went out, so far tonight (host; for the tests).</summary>
     public int Came { get; private set; }
+    /// <summary>The car each came on, in order (note 872: where along the train, for the harness).</summary>
+    public List<int> CameOn { get; } = [];
     public int WentOut { get; private set; }
 
     /// <summary>The cars whose lamp can gutter: lit, with a room for it to light, in the engine's rake.</summary>
@@ -61,7 +63,9 @@ public sealed class Gutters(GutterTuning tuning, ulong seed)
         }
         if (_toGo > 0 || quiet || guttering >= open || lit.Count == 0)
             return;
-        train.Vehicles[lit[(int)(_rng.NextDouble() * lit.Count) % lit.Count]].Gutter = SimConstants.TickSeconds;
+        int car = lit[(int)(_rng.NextDouble() * lit.Count) % lit.Count];
+        train.Vehicles[car].Gutter = SimConstants.TickSeconds;
+        CameOn.Add(car);
         _toGo = Draw();
         Came++;
     }

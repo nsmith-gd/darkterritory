@@ -1,0 +1,11 @@
+// dread-at-the-stops: dread afoot at the stops (#646, note 944)
+{
+  "$patch": true,
+  "director": {
+    "afoot": {
+      "dread": {
+        "on": true
+      }
+    }
+  }
+}

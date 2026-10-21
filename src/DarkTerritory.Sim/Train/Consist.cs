@@ -8,7 +8,8 @@ namespace DarkTerritory.Sim.Train;
 /// <see cref="Handcar"/>: the pump trolley (note 729), a rake of its own on the rails or hung on the guard van's back; never
 /// coupled, never cargo, never the train's.
 /// </summary>
-public enum VehicleKind : byte { Engine, Cargo, Guard, Utility, Handcar }
+/// <summary>What a vehicle is. <see cref="Dining"/> is the dining car (upgrades.md §8.5, note 959): a cargo car converted, with its bar.</summary>
+public enum VehicleKind : byte { Engine, Cargo, Guard, Utility, Handcar, Dining }
 
 /// <summary>
 /// A mounted gun's state (spec B.7). Lives on the vehicle whose roof rail it's on (T93): a gun slides along the rail and
@@ -196,6 +197,12 @@ public sealed class Vehicle(int id, VehicleKind kind, double load)
     /// </summary>
     public LooseCause LooseCause { get; set; }
     /// <summary>
+    /// Note 865: its jumped pin (<see cref="LooseCause.Jumped"/>) has two on it, one holding it down and one taking the slack
+    /// off (<see cref="Couplings.Hands"/>), so the pinner's Use drives it home (<see cref="CrewActions"/>). The host's say, on the
+    /// car's record, so a pinner's client predicts their own hands as the host works them.
+    /// </summary>
+    public bool Pinned { get; set; }
+    /// <summary>
     /// Its handbrake wound on by the Brakeman (note 364): in the engine's rake, its own handbrake's drag on the train (train.json
     /// <c>handbrakeDecel</c> of its mass), until a crewmate unwinds it at its wheel.
     /// </summary>
@@ -320,7 +327,11 @@ public sealed class Consist
             int utility = Math.Min(Math.Max(0, t.UtilityCars), spare - guards);
             for (int i = 0; i < utility; i++)
                 Convert(cargo[i], VehicleKind.Utility);
-            var left = cargo.Skip(utility).ToList();
+            // The dining car (upgrades.md §8.5, note 959) next behind them, if a cargo car's to spare after the guns.
+            int dining = t.DiningCar && spare - guards - utility > 0 ? 1 : 0;
+            if (dining > 0)
+                Convert(cargo[utility], VehicleKind.Dining);
+            var left = cargo.Skip(utility + dining).ToList();
             for (int i = 0; i < guards; i++)
             {
                 var v = left[left.Count * (i + 1) / (guards + 1)];

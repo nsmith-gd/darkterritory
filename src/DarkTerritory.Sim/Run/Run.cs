@@ -15,6 +15,9 @@ public sealed record RunTuning(double StopBelowSpeed, double TerminusZone, doubl
     /// <summary>How far short of the outer gate a night's engine starts (run.json <c>departShortOfGateM</c>).</summary>
     public double DepartShortOfGateM { get; init; } = 8;
 
+    /// <summary>The fortress gates opening for the train and shutting behind it (run.json <c>gates</c>; note 847).</summary>
+    public GateTuning Gates { get; init; } = new(40, 3, 4);
+
     /// <summary>
     /// A terminus that's a town is home once the whole train has stopped this far in through its gate (run.json
     /// <c>homeInsideGateM</c>; note 600): its yard is the departure's length, too long to crawl to the end of. Null: home is
@@ -654,17 +657,24 @@ public sealed partial class Run
         if (crane.Operator >= 0)
         {
             crane.Drive(_craneIntent, world.Train, dt);
-            if (crane.Pressed(_craneIntent.Has(PlayerButtons.Fire)))
+            bool fire = _craneIntent.Has(PlayerButtons.Fire);
+            bool pressed = crane.Pressed(fire);
+            // Nothing hooked and a friend on it (note 726): the press is for the hoist to answer (a shake, mischief on).
+            if (crane.Hooked is null)
             {
-                // Nothing hooked and a friend on it (note 726): the press is for the hoist to answer (a shake, mischief on).
-                if (crane.Hooked is null && crane.Riders > 0)
+                crane.LetsGo(false, dt);
+                if (pressed && crane.Riders > 0)
                     crane.ShakeOffBy = crane.Operator;
-                else if (crane.Release(world.Train) is { Fell: true } drop)
-                    _drop = (drop.Landed, crane.Tuning.CrushRadius);
             }
+            // A casting's let go of only with Fire held (note 941: a stray click let one go).
+            else if (crane.LetsGo(fire, dt) && crane.Release(world.Train) is { Fell: true } drop)
+                _drop = (drop.Landed, crane.Tuning.CrushRadius);
         }
         else
+        {
             crane.Pressed(false);
+            crane.LetsGo(false, dt);
+        }
         // Whose hands moved it this tick (note 726): a rider's height is the lift of whoever drove it.
         crane.LastDriver = crane.Operator;
         crane.Operator = -1;
@@ -942,16 +952,21 @@ public sealed partial class Run
     /// parted these cars, and who was driving, in the clerk's words.
     /// </summary>
     static string PinParted(World world, int car) =>
-        world.Attribution.LooseOf(car) is { } l ? PinParted(world, l.Cause, l.Speed, l.Driver) : PinParted(world, LooseCause.None, 0, -1);
+        world.Attribution.LooseOf(car) is { } l ? PinParted(world, l.Cause, l.Speed, l.Driver, l.Board) : PinParted(world, LooseCause.None, 0, -1);
 
-    static string PinParted(World world, LooseCause cause, double speed, int driver)
+    static string PinParted(World world, LooseCause cause, double speed, int driver, int board = 0)
     {
         string driving = driver >= 0 ? $" Driving: {IncidentLog.NameOf(world, driver)}." : "";
         return cause switch
         {
             LooseCause.RunIn => $"A hard brake at {Kmh(speed)} worked the coupling's pin loose, and it parted.{driving} ",
             LooseCause.Knock => $"Coupled up at {Kmh(speed)}, the knock worked the coupling's pin loose, and it parted.{driving} ",
-            LooseCause.Bend => $"A bend taken at {Kmh(speed)} worked the coupling's pin loose, and it parted.{driving} ",
+            LooseCause.Bend => $"A bend taken at {Kmh(speed)}{(board > 0 ? $" (its board said {board} km/h)" : "")} worked the coupling's pin loose, and it parted.{driving} ",
+            // Note 865: a pin a rail joint jumped, nobody to hold it; or the two holding it, and the one who let go.
+            LooseCause.Jumped => $"A rail joint at {Kmh(speed)} jumped the coupling's pin, nobody held it, and it parted.{driving} ",
+            LooseCause.LetGoPin => $"Two had hold of the jumped pin, {IncidentLog.NameOf(world, driver)} let go of it, and it parted. ",
+            LooseCause.LetGoBrake => $"Two had hold of the jumped pin, {IncidentLog.NameOf(world, driver)} let go of the brake wheel, and it parted. ",
+            LooseCause.LetGoThrottle => $"Two had hold of the jumped pin, {IncidentLog.NameOf(world, driver)} opened the throttle on it, and it parted. ",
             _ => "The coupling worked loose and parted. ",
         };
     }
@@ -965,7 +980,7 @@ public sealed partial class Run
     static string LostCause(World world, NewsEvent e) => (Parting)e.Cause switch
     {
         Parting.Crew when e.Who >= 0 => $"Coupler: {IncidentLog.NameOf(world, e.Who)}. ",
-        Parting.Pin => PinParted(world, (LooseCause)e.Detail, e.Speed, e.Who),
+        Parting.Pin => PinParted(world, (LooseCause)e.Detail, e.Speed, e.Who, e.Cars.Length > 0 && world.Attribution.LooseOf(e.Cars[0]) is { } l ? l.Board : 0),
         Parting.Knotter => "A Knotter took the coupling, and it parted. ",
         Parting.Apart => CameApart,
         _ => "",
