@@ -124,6 +124,8 @@ public struct FrameLighting
     public float Stir;
     public Vector3 StirDirection;
     public Vector3 StirColour;
+    /// <summary>The far hills toward the stir heaving (degrees; 0, still): something vast moving on the skyline before dawn.</summary>
+    public float Hills;
     /// <summary>The wind (m/s, world axes): the foliage's cards and boughs bend with it (<see cref="Gusts"/> how unevenly).</summary>
     public Vector3 Wind;
     public float Gusts;

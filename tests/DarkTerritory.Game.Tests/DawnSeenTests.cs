@@ -71,6 +71,31 @@ public class DawnSeenTests
         Assert.True(Double3.Dot(DawnStir.SkyFrom(world, world.Train.Frames), toward.Normalized) > 0.999);
     }
 
+    /// <summary>
+    /// Note 962 (GDD §8: "The hills move"): the far hills toward the stir are still till it's look.json hillsFrom of the way to
+    /// dawn, then heave more as it nears, up to hills degrees by dawn; the night's own sky (no stir) never moves them.
+    /// </summary>
+    [Fact]
+    public void TheFarHillsMoveAsDawnNears()
+    {
+        var look = Look.Load(Content);
+        var stir = look.Tuning.Atmosphere.Dawn!.Stir;
+        Assert.InRange(stir.HillsFrom, 0.05f, 0.9f);
+        Assert.True(stir.Hills > 0.2f, "too little to be seen");
+        var behind = new System.Numerics.Vector3(0, 0, 1);
+        float At(float t) => look.Stir(Ballast.Render.FrameLighting.Night, t, behind).Hills;
+        Assert.Equal(0, At(0));
+        Assert.Equal(0, At(stir.HillsFrom * 0.9f));
+        float last = 0;
+        foreach (float t in new[] { stir.HillsFrom + 0.1f, 0.6f, 0.8f, 0.95f })
+        {
+            Assert.True(At(t) > last, $"{t}: {At(t)} after {last}");
+            last = At(t);
+        }
+        Assert.Equal(stir.Hills, At(1), 3);
+        Assert.Equal(0, Ballast.Render.FrameLighting.Night.Hills);
+    }
+
     [Fact]
     public void AWakerHeavesUpOutOfTheGroundOverItsRise()
     {

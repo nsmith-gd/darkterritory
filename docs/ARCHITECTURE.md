@@ -1125,4 +1125,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [964. The flare pistol drawn (Hazel, queue #664)](notes/964.md)
 - [965. Notes in more places along the line (Ezra, queue #665)](notes/965.md)
 - [966. A creature brought in sets alight a house the crew can see and hear (Quinn, queue #666)](notes/966.md)
+- [967. The Look Review rebuilt for verdicts (Sage, queue #667; the director, 21 Oct)](notes/967.md)
 <!-- end of the notes index -->

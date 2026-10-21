@@ -202,6 +202,20 @@ public sealed record StirLook
     public Vector3 Line { get; init; } = new(0.34f, 0.37f, 0.42f);
     /// <summary>How bright it gets, at dawn.</summary>
     public float Strength { get; init; } = 1;
+    /// <summary>Note 962: how far through the stir (0..1) the far hills toward it start to move.</summary>
+    public float HillsFrom { get; init; } = 0.35f;
+    /// <summary>Note 962: how high their swells heave by dawn (degrees of the sky).</summary>
+    public float Hills { get; init; } = 0.9f;
+
+    /// <summary>
+    /// How far the hills heave <paramref name="t"/> (0..1) through the stir (note 962): nothing till <see cref="HillsFrom"/>,
+    /// then growing, eased, to <see cref="Hills"/> degrees at dawn; it stays so after, while they come on.
+    /// </summary>
+    public float HillsAt(float t)
+    {
+        float k = Math.Clamp((t - HillsFrom) / Math.Max(1e-3f, 1 - HillsFrom), 0, 1);
+        return Hills * k * k * (3 - 2 * k);
+    }
 }
 
 /// <summary>
@@ -610,6 +624,7 @@ public sealed class Look
         light.Stir = t * d.Stir.Strength;
         light.StirDirection = Vector3.Normalize(flat);
         light.StirColour = Vector3.Lerp(d.Stir.Bruise, d.Stir.Line, t * t);
+        light.Hills = d.Stir.HillsAt(t);
         return light;
     }
 
