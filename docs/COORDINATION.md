@@ -151,11 +151,40 @@ it at a time:
   `queue` and `assignedAt`; and add its shots (`shots`, the image uploaded to the artifact's assets).
 - **The Look Review** (claude.ai/artifact/MgW84RexYLg3JVBC52XoXm): post a round for visual work the director should judge, as
   E1 did on 8 Oct (rounds `r-armour-276`, `r-hound-312`, `r-leavings-325`): the page gains the `<article class="shot">`
-  entries (Latest, "Awaiting the director", a `.nb` notes box) and a `<section class="round">` in the log. Build from a
-  fresh `read` of it (others publish it too). Mind two caps: 16 MB for the page and **512 files** a version. Since 8 Oct
-  (E1, version 101) the older rounds' 507 inline images are in seven `stills/still-pack-N.json` files the page fetches as
-  each image nears the screen (`<img data-pack="N:id">`), so the page is 0.9 MB, but it holds 464 files: put a round's
-  images inline (`data:` JPEG, 960 wide), or in a pack of its own, not a `stills/<name>.jpg` file each.
+  entries (newest first in their subject's `<section class="subject">`, a `.nb` notes box each) and a
+  `<section class="round">` in the log. Build from a fresh `read` of it (others publish it too). Since note 967 the page
+  turns each subject into one card (its first article large, the rest of that round beside it, older rounds under
+  History) and the director gives each a verdict (below), so a round's newest shot goes **first** in its subject. Mind
+  two caps: 16 MB for the page and **512 files** a version. The stills are in two packs per subject the page fetches as
+  a card nears the screen (`<img data-pack="TOKEN:id">` -> `stills/still-pack-TOKEN.json`: TOKEN the subject, TOKEN-old
+  its History), so the page is about 1.3 MB in about 330 files. A round's images may go in inline (`data:` JPEG, 960
+  wide); when the page passes a few MB, re-pack it with `tools/review/look_review.py` (its docstring has the steps).
+
+## Look Review verdicts (the director, 21 Oct 2026: "give notes on latest, approve, mark for change, or reject (redo)"; note 967)
+
+- **Where they are.** The Look Review's store, collection `verdicts` (`ArtifactData list`, collection `verdicts`, on
+  claude.ai/artifact/MgW84RexYLg3JVBC52XoXm). One row per verdict, never edited: `subject` (the card: `cap-<subject>`, a
+  model `anim-<entity>`, a clip `clip:<entity>/<clip>`), `kind` (`subject`, `model`, `clip`), `title`, `shot` (what was
+  judged: the subject's newest article id, a model's clip-set key, a clip's image), `round`, `verdict` (`approve`,
+  `change`, `redo`), `note` (needed for change and redo), `checklist` (the card's Art Checklist `items` ids), `author`,
+  `at`. A subject's newest row is its verdict while its `shot` is still the subject's newest; a newer shot puts the
+  card back to "Awaiting you" (it shows "New since your verdict"). Free notes stay in `notes`, as before.
+- **Who acts.** The agent holding the checklist line (its `assignee`, else the line's owner row in this file, C1 for
+  most art) reads the verdicts when a session starts and before posting a round, and acts on each one newer than its
+  last round:
+  - **Approve:** set the line `done` on the Art Checklist's `items` row (with `current` saying what was approved, the
+    round and the verdict's date), pinned with `if_version`. Where the card names several lines, set done only those
+    the approved shots show; the first id is the line the card is mainly of.
+  - **Change:** the work goes back to the line's owner: make the change the note asks, then post a new latest in that
+    subject (a round, its shot first), which brings the card back to the director. The line's `status` stays `review`.
+  - **Redo:** reopen the line (`status: "missing"`, the note in its `notes`), redo it, then post the new latest.
+  - Say what you did in your log, with the verdict's subject and date. Never write or delete a verdict yourself: they
+    are the director's.
+- **Subjects and checklist lines.** The page's `CHECKLIST` map (`tools/review/look_review/verdict.js`) holds each card's
+  lines; a verdict row carries them in `checklist`. A new subject or model gets its entry there in the same publish.
+  Not matched to a line (no line fits): `cap-husk` (a stand-in), `cap-water` (water and shores), `cap-set-dressing`
+  (shrines, statues and rooms), `cap-concept-headgear` (concepts), and the model `anim-husk`; clips take their model's
+  lines.
 
 ## UI/UX notes and assignments (the director, 7 Oct 2026)
 
