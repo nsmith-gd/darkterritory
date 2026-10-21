@@ -74,6 +74,11 @@ public sealed class Body
     /// kill it and it's dropped.
     /// </summary>
     public int TakenBy { get; set; } = -1;
+    /// <summary>
+    /// A client's copy of a thing the host sent as held (note 954): its place wasn't sent, it's at its carrier's hands
+    /// (<see cref="Bodies.PlaceHeld"/>).
+    /// </summary>
+    public bool PlacedByCarrier { get; init; }
     /// <summary>Whether a player has hold of it (either end of a heavy crate).</summary>
     public bool HeldBy(int playerId) => Carrier == playerId || Second == playerId;
     /// <summary>Off the ground in someone's hands: a heavy crate only with both ends taken.</summary>
@@ -1828,6 +1833,22 @@ public sealed class Bodies
     {
         _bodies.Clear();
         _bodies.AddRange(bodies);
+    }
+
+    /// <summary>
+    /// A client, after <see cref="Mirror"/> (note 954): each thing the host sent as held put at its carrier's hands, from the
+    /// carrier's state in the same snapshot, by the host's own <see cref="Carry"/>. One without its carrier in the snapshot
+    /// isn't sent as held, so there's always one.
+    /// </summary>
+    public void PlaceHeld(IEnumerable<(int Id, PlayerState State)> crew, TrainOnLine train)
+    {
+        var held = _bodies.Where(b => b.PlacedByCarrier).ToList();
+        if (held.Count == 0)
+            return;
+        var states = crew.ToDictionary(c => c.Id, c => c.State);
+        foreach (var b in held)
+            if (states.TryGetValue(b.Carrier, out var carrier))
+                Carry(b, carrier, train);
     }
 
     /// <summary>Removes a body entirely (tests, a revived crewmate).</summary>

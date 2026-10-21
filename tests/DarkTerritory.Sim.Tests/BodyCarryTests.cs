@@ -68,6 +68,50 @@ public class BodyCarryTests
     }
 
     [Theory]
+    [InlineData(BodyKind.Cargo)]
+    [InlineData(BodyKind.Toy)]
+    [InlineData(BodyKind.Child)]
+    public void AThingInTheHandsGoesAsItsCarriersAndLandsWhereTheHostHasIt(BodyKind kind)
+    {
+        // Note 954: on the wire a one-piece thing in someone's hands is theirs (no place sent, so nothing while it's carried),
+        // and a client puts it at their hands from their state in the same snapshot, where the host has it.
+        var n = new Night();
+        int a = n.Add(PlayerMotor.SpawnOnGround(n.Beside(3), n.Train.Line, 2_950, P));
+        n.Add(PlayerMotor.SpawnInCab(n.Train, P));
+        var thing = n.World.Bodies.SpawnItem(n.Beside(3), 2_950, kind);
+        thing.Carrier = a;
+        n.Step(0.5);
+        var players = n.Crew.Select(c => new Net.PlayerSnapshot((byte)c.Id, c.State)).ToList();
+        var records = Net.WorldRecords.Capture(n.World, new TrainControls { Reverser = 1 }, players);
+        var record = records.Single(r => r.Kind == Net.RecordKind.Body && r.Id == thing.Id);
+        Assert.Equal(2, record.Fields[4] & 2);
+        Assert.All(record.Fields[^3..], v => Assert.Equal(0, v));
+
+        var client = new World(new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train, 4, 0)), n.Route.Build(), 3_000, Tuning.Boiler), Tuning.Combat);
+        var controls = new TrainControls();
+        Net.WorldRecords.Apply(records, client, ref controls, []);
+        var there = client.Bodies.All.Single(b => b.Id == thing.Id);
+        Assert.Equal(thing.Parent, there.Parent);
+        Assert.True((there.Pbd.Particles[0].Position - thing.Pbd.Particles[0].Position).Length < 1e-3,
+            $"{there.Pbd.Particles[0].Position} vs the host's {thing.Pbd.Particles[0].Position}");
+        Assert.Equal(thing.Yaw, there.Yaw, 3);
+    }
+
+    [Fact]
+    public void ABodyOverTheShoulderStillGoesWhole()
+    {
+        // Its limbs hang free on the host: they can't be put back from the carrier alone.
+        var n = new Night();
+        int a = n.Add(PlayerMotor.SpawnOnGround(n.Beside(3), n.Train.Line, 2_950, P));
+        n.Add(PlayerMotor.SpawnInCab(n.Train, P));
+        var corpse = n.Corpse(n.Beside(3));
+        corpse.Carrier = a;
+        n.Step(0.2);
+        var records = Net.WorldRecords.Capture(n.World, new TrainControls { Reverser = 1 }, n.Crew.Select(c => new Net.PlayerSnapshot((byte)c.Id, c.State)).ToList());
+        Assert.Equal(0, records.Single(r => r.Kind == Net.RecordKind.Body && r.Id == corpse.Id).Fields[4] & 2);
+    }
+
+    [Theory]
     [InlineData(BodyKind.Ragdoll)]
     [InlineData(BodyKind.Child)]
     [InlineData(BodyKind.Cargo)]

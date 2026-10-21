@@ -47,6 +47,13 @@ public sealed record ThreatTuning
     /// answer it and it can't reach them. 0: off.
     /// </summary>
     public double LeftMetres { get; init; } = 150;
+    /// <summary>
+    /// Note 906 (#611; n1-A1's measure of what filled a solo cap): a creature whose confronting phase is a wait reads as
+    /// engaging. False: a Knotter that's the coupling (taut or slack, coiled round nobody) is at its work, threatening, and a
+    /// Whistler watching its gap (holding nobody) is waiting, threatening; only a grab, or a coil round someone, is engaging.
+    /// True: as #604 had it (both engaging for as long as they last: 168–691 s of a solo night's one place).
+    /// </summary>
+    public bool WaitsEngage { get; init; } = true;
 }
 
 /// <summary>The engagement states (note 881): one enemy's, and what the caps count.</summary>
@@ -87,7 +94,7 @@ public static class Threats
             return ThreatState.Threatening;
         if (t.LeftMetres > 0 && e.Attached < 0 && e.Holding < 0 && Left(e, world, crewAt, t.LeftMetres))
             return ThreatState.Ambient;
-        if (e.Holding >= 0 || Director.Confronting(e))
+        if (e.Holding >= 0 || Director.Confronting(e) && (t.WaitsEngage || !Waits(e)))
             return ThreatState.Engaging;
         if (!Hunts(e))
             return ThreatState.Ambient;
@@ -103,6 +110,12 @@ public static class Threats
                 return ThreatState.Threatening;
         return ThreatState.Ambient;
     }
+
+    /// <summary>
+    /// A confronting phase that's a wait, not a lunge (note 906): the Knotter in its Telegraph while it's the coupling (its
+    /// Coil is the grab), the Whistler's Commit watching its gap (its Grab carries someone off).
+    /// </summary>
+    static bool Waits(Enemy e) => e is Knotter { Mode: not KnotterMode.Coil } || e is Whistler { Phase: SpinePhase.Commit };
 
     /// <summary>Loose in the world, further than <paramref name="metres"/> from every car of the train and every crewmate.</summary>
     static bool Left(Enemy e, World world, IReadOnlyList<Double3> crewAt, double metres)

@@ -307,16 +307,24 @@ public static class WorldRecords
         // D.6 (note 179): the queue, in order, for the dead and lobbied to see: player id and lobbied, pairs.
         if (world.Holdouts is { } queued)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Holdout, QueueRecord), [.. queued.Queue.SelectMany(e => new long[] { e.PlayerId, e.Lobbied ? 1 : 0 })]));
+        // Note 954: who's in this snapshot, so a thing in their hands can go as theirs (below).
+        var aboard = players as ICollection<PlayerSnapshot> ?? [.. players];
         foreach (var body in world.Bodies.All)
         {
             var ps = body.Pbd.Particles;
             var f = new long[BodyParticles + ps.Length * 3];
+            // Note 954: a one-piece thing in someone's hands is wherever their hands are (Bodies.Carry), so it goes as held:
+            // its place and yaw left out (they don't change, so its delta is nothing) and set again on each machine from its
+            // carrier's state in the same snapshot (Bodies.PlaceHeld). A heavy crate (two carriers) and a body over the shoulder
+            // (its limbs hang free) go as they are.
+            bool held = body.Carrier >= 0 && body.Kind != Physics.BodyKind.Heavy && ps.Length == 1 && body.TakenBy < 0 && !body.Stowed
+                && aboard.Any(p => p.Id == body.Carrier);
             f[0] = (long)body.Kind;
             f[1] = body.Parent;
             f[2] = body.Carrier;
             f[3] = body.Owner;
-            f[4] = body.Pbd.Asleep ? 1 : 0;
-            f[5] = Q(body.Yaw, Ang);
+            f[4] = (body.Pbd.Asleep ? 1 : 0) | (held ? 2 : 0);
+            f[5] = held ? 0 : Q(body.Yaw, Ang);
             f[6] = ps.Length;
             f[7] = body.Second;
             // The ninth: an extinguisher's charge, a body's tools (GDD v1.4 D.2: it keeps the engineering kit), a toy's noise, or a
@@ -350,7 +358,7 @@ public static class WorldRecords
             f[10] = body.TakenBy;
             // How big it is, a single particle's radius (note 659: a thing lying in a car is as solid on every client, its size and all).
             f[11] = ps.Length == 1 ? Q(ps[0].Radius, Cm) : 0;
-            for (int i = 0; i < ps.Length; i++)
+            for (int i = 0; i < ps.Length && !held; i++)
             {
                 f[BodyParticles + i * 3] = Q(ps[i].Position.X, Pos);
                 f[BodyParticles + 1 + i * 3] = Q(ps[i].Position.Y, Pos);
@@ -638,6 +646,8 @@ public static class WorldRecords
             world.MirrorHorseplay(horseplay, lumps);
             world.MirrorOddities(odd, oddity, q => D(q, Pos), players.Select(p => ((int)p.Id, p.State)));
             world.Bodies.Mirror(bodies);
+            // Note 954: what's in someone's hands, put there from their state in this snapshot, as the host did.
+            world.Bodies.PlaceHeld(players.Select(p => ((int)p.Id, p.State)), train);
             world.Train.Lying = world.Bodies.Lying(world.Train);
             // Seen a radio once, a client knows they're things tonight (T41): no radio on you, no radio.
             if (bodies.Any(b => b.Kind == Physics.BodyKind.Radio))
@@ -656,7 +666,7 @@ public static class WorldRecords
                 n == 1 && f[11] > 0 ? D(f[11], Cm) : 0.1);
         var pbd = new Ballast.Physics.PbdBody(particles);
         // At rest on the host, at rest here: a bot's hand picks up a crate left on a car's steps once it's lain still (T50).
-        if (f[4] != 0)
+        if ((f[4] & 1) != 0)
             pbd.Sleep();
         return new Physics.Body(r.Id, (Physics.BodyKind)f[0], (int)f[1], pbd)
         {
@@ -664,6 +674,7 @@ public static class WorldRecords
             Second = (int)f[7],
             Owner = (int)f[3],
             Yaw = D(f[5], Ang),
+            PlacedByCarrier = (f[4] & 2) != 0,
             Charge = (Physics.BodyKind)f[0] is Physics.BodyKind.Extinguisher or Physics.BodyKind.FlarePistol or Physics.BodyKind.Flare ? D(f[8], Hint) : 1,
             Tools = (Physics.BodyKind)f[0] is Physics.BodyKind.Ragdoll or Physics.BodyKind.Tool ? (ulong)f[8] : 0,
             Cargo = (Physics.BodyKind)f[0] is Physics.BodyKind.Extinguisher or Physics.BodyKind.Ragdoll or Physics.BodyKind.Toy or Physics.BodyKind.Radio or Physics.BodyKind.Loot or Physics.BodyKind.Tool

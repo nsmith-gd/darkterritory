@@ -389,7 +389,12 @@ public class EnemyTests
             // The caps are on what's engaged; the condition-triggered ones aren't capped (App. B.5). A long train's two each
             // (note 647; from 8 cars in the director's roster, note 652) grows the hard cap in step.
             var o = E.Director.Orchestrator;
-            int hard = (int)Math.Round(E.Director.MaxConcurrentSmallCrew * o.PerPlayerFor(10) / o.PerPlayer);
+            // Note 906 (#611): with the concurrency on, the cap counts threats (a car fire, a far-off Knotter, a Whistler
+            // waiting in its gap are about but off it), and the bodies about are held to the cap and the threat states'
+            // ambient room (Director.Crowded, note 881); off, App. B.1's flat hard cap as before.
+            var c = E.Director.Encounters.Concurrency;
+            int hard = c.On ? Concurrency.EngagedCap(4, 10, c) + E.Director.Threats.AmbientRoom
+                : (int)Math.Round(E.Director.MaxConcurrentSmallCrew * o.PerPlayerFor(10) / o.PerPlayer);
             Assert.All(d.Log.Where(l => l.Kind is not EnemyKind.Stoker),
                 l => Assert.True(l.ActiveInZone <= E.Director.MaxConcurrentZone && l.ActiveTotal <= hard, $"{l}"));
             Assert.All(d.Log, l => Assert.True(l.TrainDistance <= route.Length - 500));

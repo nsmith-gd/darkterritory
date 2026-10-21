@@ -210,6 +210,13 @@ public sealed record StopCrewTuning
     public double VillageReach { get; init; } = 150;
     /// <summary>Nobody goes to the village with less of the night than this left (s).</summary>
     public double VillageDawnSpare { get; init; } = 900;
+    /// <summary>
+    /// Note 934: a driver bot stands this long at each halt on the night's line (an abandoned village's on the main line) that
+    /// the night has time for (0: drives past them, as before).
+    /// </summary>
+    public double HaltStandSeconds { get; init; }
+    /// <summary>Note 934: only with this much of the night in hand past the run home (s), as the other optional stops.</summary>
+    public double HaltAllowance { get; init; } = 600;
     /// <summary>Note 403: how far from where it stands a crate lying loose elsewhere in the yard may be for a hand to fetch it (m; 0: none).</summary>
     public double YardReach { get; init; }
     /// <summary>Note 867: how far a two-person jackpot may lie for a hand to fetch it, or be held alone for a hand to come to its other end (m; 0: as before).</summary>

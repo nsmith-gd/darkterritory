@@ -132,7 +132,9 @@ public static class Protocol
     // 83: a record of any length goes as a delta (note 921): a mask word for each 64 fields, where only 64 or fewer could.
     // 84: the ping read for what's pointed at (note 936): PingKind gains Points (6) and Cargo (7); the ping record's eighth
     //     field is who answered it (−1: nobody); the intent's moves bit 6 (Answer) says a ping's id follows (three bytes).
-    public const int Version = 84;
+    // 85: a thing in someone's hands goes as held (note 954): the body record's fifth field is bit 0 asleep, bit 1 held, and a
+    //     held one's yaw and place are left out, each machine putting it at its carrier's hands.
+    public const int Version = 85;
 }
 
 public enum MessageType : byte

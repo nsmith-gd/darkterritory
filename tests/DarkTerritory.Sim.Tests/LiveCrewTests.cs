@@ -54,6 +54,23 @@ public class LiveCrewTests
         Assert.Equal(four, d.Budget, 9);
     }
 
+    // On the night's four cars: the living × (0.75 + 0.2 a car past three), half up (note 906, director.encounters.concurrency).
+    [Theory]
+    [InlineData(1, 1)]
+    [InlineData(2, 2)]
+    [InlineData(3, 3)]
+    [InlineData(4, 4)]
+    [InlineData(5, 5)]
+    [InlineData(8, 8)]
+    public void TheEngagedCapGoesByTheCrewActive(int crew, int cap)
+    {
+        Assert.Equal(cap, Crewed(crew, enemies: On).World.Director!.EngagedCap);
+    }
+
+    /// <summary>Note 906's concurrency on (off by default: the quick sweep, note 906).</summary>
+    static readonly EnemyTuning On = E with { Director = D with { Encounters = D.Encounters with { Concurrency = D.Encounters.Concurrency with { On = true } } } };
+
+    // Concurrency off (the default; note 906): App. B.1's flat 4 / 6 and ceil(active × 0.75) (note 336).
     [Theory]
     [InlineData(1, 1)]
     [InlineData(2, 2)]
@@ -61,9 +78,41 @@ public class LiveCrewTests
     [InlineData(4, 3)]
     [InlineData(5, 4)]
     [InlineData(8, 6)]
-    public void TheEngagedCapGoesByTheCrewActive(int crew, int cap)
+    public void WithConcurrencyOffTheEngagedCapIsNote336s(int crew, int cap)
     {
-        Assert.Equal(cap, Crewed(crew).World.Director!.EngagedCap);
+        var off = E with { Director = D with { Encounters = D.Encounters with { Concurrency = D.Encounters.Concurrency with { On = false } } } };
+        Assert.Equal(cap, Crewed(crew, enemies: off).World.Director!.EngagedCap);
+    }
+
+    [Fact]
+    public void TheEngagedCapCountsOnlyTheLiving()
+    {
+        var n = Crewed(4, enemies: On);
+        foreach (int id in new[] { 2, 3 })
+            n.Crew[id] = n.Crew[id] with { Health = 0, Death = DeathCause.Mauled };
+        n.Run(1.1);
+        Assert.Equal(2, n.World.Director!.EngagedCap);
+    }
+
+    /// <summary>
+    /// Note 906 (n1-A1's measure: a Knotter at a coupling cars from a solo crew held their one place for minutes): a threat that's
+    /// had nobody within farMetres for farHoldSeconds is off the cap; danger still, but not the reason nothing else comes.
+    /// </summary>
+    [Fact]
+    public void AThreatFarFromEveryoneAWhileComesOffTheCap()
+    {
+        var c = On.Director.Encounters.Concurrency;
+        var n = Crewed(1, enemies: On);
+        var world = n.World;
+        int car = n.Train.Dynamics.Consist.CarCount - 2;
+        var knotter = world.AddEnemy(id => Knotter.Into(id, n.Train, car, Tuning.Enemies.Knotter));
+        double metres = (knotter.WorldPosition(n.Train) - PlayerMotor.WorldPosition(n.Crew[0], n.Train)).Length;
+        Assert.True(metres > c.FarMetres, $"{metres} m");
+        n.Run(5);
+        Assert.Contains(knotter, world.Director!.Holding(world, world.ActiveEnemies));
+        n.Run(c.FarHoldSeconds + 2);
+        Assert.False(knotter.Gone);
+        Assert.DoesNotContain(knotter, world.Director.Holding(world, world.ActiveEnemies));
     }
 
     [Fact]

@@ -1430,8 +1430,13 @@
       "base": 0.12, "ramp": 0.33, "rampPerCrew": 0.035, "power": 1.2, "perCrew": 0.07, "perCar": 0.05, "carsFrom": 3,
       "tier": { "local": 0.8, "frontier": 1, "deadLines": 1.2, "deepTerritory": 1.4 },
       "max": 3,
-      // Concurrency and overlap by crew and train length (the brief §1 B–C, §6; note 906; Concurrency, ConcurrencyTests). Not
-      // yet read by the director: it goes in with #604's threat states and #608's pacing.
+      // Concurrency and overlap by crew and train length (the brief §1 B–C, §6; note 906; Concurrency, ConcurrencyTests). With
+      // `on` the director reads it: the engaged cap and the census's perTarget below, the pairs a night, the pairs refused a
+      // small crew (every channel's choices), and the relief on the encounter rate (drive). on false: the director as before
+      // (maxConcurrentSmallCrew / LargeCrew, orchestrator.engagedPerActive ... perPlayerLong, pairsPerRun as it stands).
+      // Off by default (note 906's quick sweep, 21 Oct, against the same head with it off): on, four crew on 8 cars lost the
+      // late half's band (+0.75 → −0.5), died 1 a night (0.25) and delivered 75 % (100 %); solo and two crew no better. Its
+      // likeliest cost is pairsPerCrew (two pairs a night for four, not one): untried, #612/#613's to measure.
       // The engaged cap: the living × share, share rising by sharePerCar a car past carsFrom to at most shareMax, rounded half
       // up, at least 1 while anyone's alive, at most max: solo 1 to 6 cars and 2 from 7; two crew 2 on 4 cars, 3 on 6, 4 on 8;
       // four 4 on 4 cars, 7 on 8; eight 11 on 6 cars, 12 from 7. Gradual, where App. B.1's flat 4 / 6 (maxConcurrentSmallCrew /
@@ -1447,11 +1452,21 @@
       // Relief when crew are lost (§1 B, §6): × (alive ÷ the crew in the night)^reliefPower × (1 − hurtRelief × the share of
       // the living under hurtBelow health), on the encounter rate (which counts only the living already).
       "concurrency": {
+        "on": false,
         "share": 0.75, "sharePerCar": 0.2, "carsFrom": 3, "shareMax": 2, "max": 12, "perCrewmateMax": 2,
         "ambientRoom": 1, "ambientPerCar": 0.1,
         "pairsPerCrew": 0.25,
         "pairMinCrew": { "ribbits+moose": 2, "moose+facilityLoading": 2, "cinderHounds+hotbox": 2, "cinderHounds+knotter": 2, "cinderHounds+brakeman": 2 },
-        "reliefPower": 1, "hurtBelow": 35, "hurtRelief": 0.25
+        "reliefPower": 1, "hurtBelow": 35, "hurtRelief": 0.25,
+        // What holds the cap (n1-A1's measure, 20 Oct: a solo crew's one place filled 168–691 s a night by a Knotter at its
+        // coupling 34–50 m off, a car fire and a Whistler watching its gap). A threat holding nobody that's had no living
+        // crewmate within farMetres for farHoldSeconds is off the cap: danger still (the pacing counts it), but no longer the
+        // reason nothing else comes (the brief §2 issue 4, §6). 0: off. One at work on the train (a pack feeding aboard, a
+        // Hotbox, a Brakeman at the brakes: a harm that grows) holds it however far, but for farWorkers, whose work is a state
+        // the train's left in (the Knotter that's the coupling); so a hound aboard still holds back a hound run (§9). incidentsHoldCap false: a car fire (App. C.5) is the
+        // train's harm with its own counterplay, never a creature's place on the cap. (The Knotter's and the Whistler's waits
+        // read as threatening, not engaging: director.threats.waitsEngage.)
+        "farMetres": 30, "farHoldSeconds": 60, "farWorkers": ["knotter"], "incidentsHoldCap": false
       },
       // Bounded encounter debt (§3 "Encounter debt"; note 876): part of the encounter rate the director wanted but couldn't
       // place, remembered and paid back gradually, so a spell with nothing eligible doesn't erase the night's escalation.
@@ -1538,7 +1553,10 @@
     // on: the engaged cap counts threatening and engaging, not bodies, and ambientRoom more may be about off it (the cap plus
     // ambientRoom in all, so what paces cars nobody's in can't pile up into a wave); false: as before (everything
     // Director.Engaged holds the caps).
-    "threats": { "on": true, "nearMetres": 20, "ambientRoom": 2, "leftMetres": 150 },
+    // waitsEngage false (note 906): a Knotter that's the coupling and a Whistler watching its gap are at their work or waiting,
+    // threatening, not engaging; only a grab or a coil round someone is. True (the default, as #604 had it): on, with the far
+    // and car-fire readings (concurrency), two crew lost the late half's band in note 906's sweep (+1 → −0.25).
+    "threats": { "on": true, "nearMetres": 20, "ambientRoom": 2, "leftMetres": 150, "waitsEngage": true },
     "maxConcurrentZone": 2,
     "maxConcurrentSmallCrew": 4,
     "maxConcurrentLargeCrew": 6,
