@@ -1,0 +1,9 @@
+// night-cap-1285's recommended split: sated hounds only (cinderHounds.sated), the night's cap and fresh kinds left off.
+{
+  "$patch": true,
+  "cinderHounds": {
+    "sated": {
+      "on": true
+    }
+  }
+}

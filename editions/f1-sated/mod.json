@@ -1,0 +1,9 @@
+// #613's balance sweep (note 930): the shipping content with one of the director's pending asks on, to give each its
+// number. `dt --edition f1-sated director sweep ...`. Measurement only; never shipped.
+{
+  "id": "edition-f1-sated",
+  "name": "f1-sated",
+  "version": "1.0.0",
+  "description": "night-cap-1285's recommended split: sated hounds on, the night's cap and fresh kinds off (#612's #1445)",
+  "order": -1000
+}
