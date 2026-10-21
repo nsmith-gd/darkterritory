@@ -1117,4 +1117,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [956. Voice at 8 crew under load, measured headless (n1-N1, nathaniel1; queue #661; M3's open eight-person voice test, rehearsed)](notes/956.md)
 - [958. The arrival town heard, and a creature brought in heard (Ezra, queue #649; found by Wynn's audit, note 949)](notes/958.md)
 - [959. The dining car and its bar; armour II and III (Hazel, queue #656; found by Wynn's audit, note 949)](notes/959.md)
+- [961. Notes found out along the line (Ezra, queue #653; found by Wynn's audit, note 949)](notes/961.md)
 <!-- end of the notes index -->
