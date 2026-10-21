@@ -43,6 +43,14 @@ public sealed record TownTuning
     public required int[] LooseNotes { get; init; }
     public required TownReach Reach { get; init; }
     public double TypePerSecond { get; init; } = 45;
+    /// <summary>Note 971: households that argue where the crew can overhear them (towns.json <c>quarrels</c>).</summary>
+    public QuarrelTuning Quarrels { get; init; } = new();
+    /// <summary>
+    /// Note 971: what somebody says in place of the custom's line once it's been told in their town (towns.json <c>told</c>,
+    /// by temperament; "plain" for anyone else).
+    /// </summary>
+    public Dictionary<string, string[]> Told { get; init; } = [];
+
     /// <summary>Note 963: how a temperament's lines type out on the talk card (towns.json <c>voices</c>); a temperament not named types plainly.</summary>
     public Dictionary<string, TalkVoice> Voices { get; init; } = [];
 
@@ -183,6 +191,23 @@ public sealed record TalkVoice(double Rate = 1, double Comma = 0, double Stop = 
         }
         return (line.Length, t);
     }
+}
+
+/// <summary>
+/// Households that argue (note 971; docs/design/townsfolk.md "Not yet": "a lapsed lodger in a zealous house could say so"): a
+/// house whose two at most odds on one of <see cref="Lines"/>' traits are <see cref="Gap"/> or more apart has that trait's
+/// quarrel, overheard within <see cref="Hear"/> m of its front for <see cref="Lasts"/> s of every <see cref="Every"/>, a line
+/// every <see cref="LineSeconds"/> s. Each quarrel's lines go back and forth, the first said by the one higher on the trait;
+/// "{other}" is the other one's name.
+/// </summary>
+public sealed record QuarrelTuning
+{
+    public double Gap { get; init; } = 1.1;
+    public double Hear { get; init; } = 9;
+    public double Every { get; init; } = 150;
+    public double Lasts { get; init; } = 40;
+    public double LineSeconds { get; init; } = 5;
+    public Dictionary<string, string[][]> Lines { get; init; } = [];
 }
 
 /// <summary>A temperament's pull on somebody's round (note 963): where to (<see cref="To"/>), and the chance a slot away goes there.</summary>
