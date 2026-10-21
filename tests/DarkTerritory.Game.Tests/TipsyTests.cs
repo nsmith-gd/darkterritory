@@ -51,7 +51,8 @@ public class TipsyTests
 
     static Sim.Physics.Body Glass(int id, int carrier) =>
         new(id, Sim.Physics.BodyKind.Drink, Sim.Player.PlayerState.World,
-            new Ballast.Physics.PbdBody([new Ballast.Physics.Particle(new Double3(0, 1, 0), 1, 0.05)])) { Carrier = carrier };
+            new Ballast.Physics.PbdBody([new Ballast.Physics.Particle(new Double3(0, 1, 0), 1, 0.05)]))
+        { Carrier = carrier };
 
     [Fact]
     public void TheCrewSeeADrinkersHeadLollAndNotWhoPutTheirsDown()
