@@ -847,6 +847,8 @@ public static partial class Hud
         // The BBQ deck's (note 698).
         BodyKind.Beer => "A BEER",
         BodyKind.Sausage => "A SAUSAGE",
+        // The dining car's bar (note 959).
+        BodyKind.Drink => "A DRINK",
         // The fishing rod's (note 744).
         BodyKind.FishingRod => "THE FISHING ROD",
         BodyKind.Fish => "A FISH",
@@ -2347,7 +2349,7 @@ public static partial class Hud
     /// <summary>The BBQ deck's beer or sausage in hand (note 698): had with Use held, as a healing find's used.</summary>
     static string? PartyPrompt(Body carried) => carried.Kind switch
     {
-        BodyKind.Beer => carried.MendTicks > 0 ? "DRINKING" : "DRINK : HOLD [E]",
+        BodyKind.Beer or BodyKind.Drink => carried.MendTicks > 0 ? "DRINKING" : "DRINK : HOLD [E]",
         BodyKind.Sausage or BodyKind.GrilledFish => carried.MendTicks > 0 ? "EATING" : "EAT : HOLD [E]",
         _ => null,
     };
@@ -2747,6 +2749,9 @@ public static partial class Hud
             // The tennis-ball launcher (note 745).
             case InteractableKind.Launcher:
                 return "FIRE A BALL : [E]";
+            // The dining car's bar (upgrades.md §8.5, note 959): what the fortress's cellar sold the crew tonight.
+            case InteractableKind.Bar:
+                return train.Vehicles[p.Parent].Beers is > 0 and var drinks ? $"ORDER A DRINK : [E]   {drinks} LEFT" : "THE BAR'S DRY";
             case InteractableKind.Cooler:
                 return train.Vehicles[p.Parent].Beers is > 0 and var beers ? $"A BEER : [E]   {beers} LEFT" : "THE COOLER'S EMPTY";
             // The gramophone (note 715).

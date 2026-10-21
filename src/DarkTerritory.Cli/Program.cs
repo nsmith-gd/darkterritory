@@ -1123,7 +1123,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     var line = generated?.Build() ?? RailLine.Load(Path.Combine(content, "lines", lineName + ".json"));
     // --upgrades id[,id]: the train as the campaign's upgrades make it (note 184: crewCar, secondGuardCar, armouredCar,
     // roofHandrails...).
-    if (Str(args, "--upgrades", "") is { Length: > 0 } upgrades)
+    // The dining and diningbar views (note 959) fit the dining car.
+    if (Str(args, "--upgrades", view is "dining" or "diningbar" ? "diningCar" : "") is { Length: > 0 } upgrades)
         t = DarkTerritory.Sim.Campaign.Campaign.Apply(DataFile.Load<DarkTerritory.Sim.Campaign.CampaignTuning>(Path.Combine(content, DarkTerritory.Sim.Campaign.CampaignTuning.File)),
             upgrades.Split(','), new DarkTerritory.Sim.Campaign.Loadout(t, DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)),
                 DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)), null)).Train;
@@ -1513,6 +1514,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         var along = Double3.Cross(outward, Double3.Up);
         camera = Camera.LookAt(ropeAt + outward * 2.6 + along * 1.2 + Double3.Up * 1.65, ropeAt + Double3.Up * 1.6, 60);
     }
+    // --fight s (note 951): the yard's fight s seconds on, the guards running out to it (0: looking to it from their posts).
+    if (arrival is not null && args.Contains("--fight"))
+        arrival.FightBegan(Opt(args, "--fight", 2.5));
     if (arrival is not null && !args.Contains("--view"))
         camera = Str(args, "--arrival", "square") == "brought"
             // --arrival brought --patrol (note 589): hounds ridden in on car 2, the town's guns on them, seen from the square's
@@ -1520,6 +1524,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             ? train.Frames[Math.Min(2, train.Frames.Count - 1)] is var car && car.Right * (-arrival.Plan.Square.Side) is var toward
                 ? Ballast.Render.Camera.LookAt(car.Origin + toward * 22 + car.Back * 6 + Double3.Up * 8, car.Origin + Double3.Up * 3, 62) : camera
             : Staging.TownCamera(arrival, Str(args, "--arrival", "square"));
+    // (--fight: over the yard at the fight, car 2's, from the square's side: the guards running in round it.)
+    if (arrival is not null && args.Contains("--fight") && !args.Contains("--view") && !args.Contains("--cam"))
+    {
+        double fightAt = arrival.Along(train.Cars[Math.Min(2, train.Cars.Count - 1)].FrontDistance - 8);
+        int side = arrival.Plan.Square.Side == 0 ? 1 : arrival.Plan.Square.Side;
+        camera = Ballast.Render.Camera.LookAt(arrival.World(fightAt - 14, side * 30, 16), arrival.World(fightAt, 0, 1), 60);
+    }
     // --cam s,lateral,height --target s,lateral,height: place the camera anywhere by line coordinates.
     if (Str(args, "--cam", "") is { Length: > 0 } cam)
     {
@@ -2954,7 +2965,21 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         lighting.FogDensity = args.Contains("--fog") ? lighting.FogDensity : 0.0012f;
         lighting.Wetness = 0;
     }
+    // --tipsy n [--tipsy-at s] (note 959): through the eyes of someone n drinks into the dining car's bar, s seconds after the
+    // last (2): the view blurred and leaning as the app draws it (Tipsy; look.json tipsy).
+    float wasBlur = renderer.Post.Blur;
+    if (Opt(args, "--tipsy", 0) is var drinks and > 0 && look?.Tuning.Tipsy is { } tipsyTuning)
+    {
+        var tipsy = new Tipsy();
+        for (int i = 0; i < (int)drinks; i++)
+            tipsy.Drank(0, tipsyTuning);
+        double tipsyAt = Opt(args, "--tipsy-at", tipsyTuning.LeanPeriod / 4);
+        camera.Roll = tipsy.Roll(tipsyAt, tipsyTuning);
+        renderer.Post = renderer.Post with { Blur = tipsy.Blur(tipsyAt, tipsyTuning) };
+    }
     var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor);
+    if (renderer.Post.Blur != wasBlur)
+        renderer.Post = renderer.Post with { Blur = wasBlur };
     // The yard photographer's print (note 714): as the app keeps it, cropped, shrunk and sepia.
     if (view == "yardphoto")
     {
