@@ -27,7 +27,8 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
 - **Two on the run: a jumped pin** that takes two, almost never and loudly telegraphed, never on a solo night (§12; note 865, #1306).
 - **The spawn director overhaul** (the director's brief, 20 Oct 2026; B.1 "The overhaul", spec B.10; notes 874, 932). In the game: a spawn that can't be placed costs nothing (note 885); the caps count threats, not bodies (note 881); one terminus ban, and the aftermath holds the specials (note 912); encounters graded 1–3 and true droughts told from recovery (note 893); each kind's eligibility measured (note 875). One pacing model: encounters owed at a rate by time, crew, cars and tier, paid by every channel, with a bounded debt (notes 877, 876, 908); the next threat placed somewhere else on the train (note 895). Built, not yet driving: the caps by crew and cars (note 906). In progress: #611, #612, #613.
 - **The Creature Tweaker's switchman row is gone** (the Switchmen were cut, note 852; note 857 call 10).
-- Touches §8, §12, §15, §19, §32, B.1, C.4, D.9 and F.1, and spec B.2 and B.10.
+- **Built, and now marked so** (Wynn's audit of 21 Oct, note 949; note 952): the ping's crane and town (§12; #1277, #1282, and note 936, #1436); the night's creatures going to ground before dawn (v1.6's "Not yet"; note 635, #837); townspeople on their rounds and the bell (§3.1's "Not yet"; notes 353, 730; #389, #1038); the sound cues' own sounds (§32; note 785, #1040); the halt's own encounter, built and off (D.15 question 3; note 895, #1399); the test reports (F.5; note 677, #940).
+- Touches §3.1, §8, §12, §15, §19, §32, B.1, C.4, D.9, D.15, F.1 and F.5, and spec B.2 and B.10.
 
 **v1.6 changes — town to town, and the end of the night (the director's play-test of 9 October; built 9–11 October).**
 - **Dawn is seen and felt coming.** For the last three minutes a cold line comes up on the sky behind the train, the ground thuds and the lamps swing; at dawn the Wakers heave up out of the land in earth and dust and come down the line. The terminus's guns fire on any that come near; short of its gate the train is still theirs, and with it home they stop 150 m out (§8; notes 588, 599, 940).
@@ -40,7 +41,7 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
 - **§1's table** has the night's length v1.5 set: a run of about 17 minutes, dawn at 24 (note 554).
 - Touches §1, §3.1, §8, §9, §23, B.1 and D.9.
 - **Not yet**, of what these promise:
-  - the night's creatures going to ground in the last minute before dawn (wakers.md §2), and the far hills moving against the line;
+  - the far hills moving against the line (the night's creatures going to ground before dawn is in: they let go and are gone 35 s before it, §8, note 635, #837);
   - the arrival town's sounds, and the screams and fire of a creature brought in (AU1's: the town ambience is the departure town's);
   - a town's standing lowered by what's been brought into it (only its burnt houses are remembered);
   - the guards running out to the yard (they're at their places round the creature at once);
@@ -327,9 +328,9 @@ Use talks to someone, and Use again hears their next line. They turn to face you
 **Not yet** (for the next passes):
 - fish sheds, fences, granite and lobster traps between the houses;
 - buying, upgrading and turning loot into scrip in the town itself, not the menu;
-- townspeople who move about, and faces of their own (they wear the crew's model);
+- faces of their own for the townspeople (they wear the crew's model; they move about on their rounds since note 353, #389);
 - upstairs in the open houses;
-- things everyone hears when one person does them (ringing the bell);
+- ~~things everyone hears when one person does them (ringing the bell)~~ *(in: note 730, #1038)*;
 - notes found out along the line.
 
 **Fortresses that were only begun** *(the World Building board's Cultures tab, the director, 12 Oct; queue #551, ARCHITECTURE §8 note 824)*. "Ruins of fortress towns that once were. They're always small beginnings of a fortress that were destroyed by the Wakers."
@@ -608,7 +609,7 @@ Roles emerge from position. You end up on the cannon because you're standing at 
 **Ping the bots** *(the director's second playtest, 14 Oct 2026: "Directing bots is kind of difficult. I think I'm going to want to use my middle mouse button to create some sort of context ping for them ... If I point at a task, like a car on fire, they should understand, okay, go deal with that fire. If I point to the cab controls, then it should understand that the cab controls are in need of being taken over ... If I point at loot, it should understand that I want them to get that loot. If I point at the crane, it should understand that I want them to do the full crane loading sequence. If I point at multiple things, it should understand that the bots should then work as a team to do the thing"; note 739)*. A press of the middle mouse pings what you're looking at, up to 60 m off (held at a gun, it still pushes the gun). What's pinged is what's nearest the middle of your view: a car on fire, the cab's controls, a piece of loot, the crane's controls, or an abandoned town by the line. Everyone sees the ping for 20 s: a mark on it with what it is and how far, an arrow at the screen's edge when it's out of view, and a line naming it ("PRIYA: FIRE, CAR 3"). The nearest bot that's free takes it, and does the job until it's done:
 - **A fire:** the bot goes in to it with an extinguisher, as a walker does (two hands at most, note 634).
 - **The controls:** whoever pinged them lets them go, and a bot comes forward and drives (the driver bot back from its work if it's alive, otherwise the relief, note 741).
-- **Loot:** fetched and stowed in a car. **The crane:** the whole sequence, an operator and a rigger. **A town:** its houses searched. *(The second part: the loot is done, a pinged find fetched aboard and stowed (note 739, #1095); the crane and the town are still to come.)*
+- **Loot:** fetched and stowed in a car. **The crane:** the whole sequence, an operator and a rigger. **A town:** its houses searched. *(All three are in: a pinged find fetched aboard and stowed (note 739, #1095), the crane's whole sequence by a pair (#1282) and the town's houses searched (#1277); and since note 936 (#1436) the ping reads the points and a car's cargo too.)*
 
 Several pings are shared out a bot each, so a bot crew works them as a team, and a ping a bot has taken isn't taken by another. A bot leaves its order when it's done, after two minutes, when it's called aboard (§17), or when something has hold of it. A ping on something no bot can do, or on nothing, is only a mark for the crew. `pings.*` in player.json.
 
@@ -1420,7 +1421,7 @@ The timings are in `content/tuning/hud.json`; the engineering is in ARCHITECTURE
 - **What's about to go.** A coupling's pin never works loose on its own (note 640). It jumps from something the crew can name, and the moment is heard as that thing: a hard brake from speed (the slack slamming in on the engine), coupling up too hard (the knuckles' clash), or a bend taken too fast (the cars lurching over the board for two seconds). It's also told, everyone alike, top centre as it jumps: the gap and the cause ("COUPLING LOOSE BEHIND CAR 2 · A 50 KM/H BEND TAKEN AT 62 KM/H", "· A HARD BRAKE AT 54 KM/H", "· COUPLED UP AT 6 KM/H"); the gap's amber callout shows where; and when it drops, the line and the report name the same cause (note 854). The pin knocks in its gap from that moment, harder and quicker for the 90 s until it drops. A pin a rail joint jumps clear at speed is the one that takes two (§12 "Two on the run": one on the pin, one on a brake wheel or the throttle). It is rare, and it warns for 10 s first: its own line ("PIN WORKING LOOSE BEHIND CAR 3 · ... · GET TWO TO IT"), a knock quickening from three a second to ten that the cab hears, the callout beating hard, the cars shaking. Once jumped, it knocks its way to the drop in 60 s. The Knotter is a creature at a coupling, never a pin. Its wet creak at the gap is its own, and is never the pin's knock. A hot box squeals from the moment it runs dry, rising as it heats, a minute before it drags. A lamp's wick sputters for 45 s before it goes out.
 - **What's been hit.** A far bell rings from where something of the crew's is lost out of their sight. It rings for a car taken with nobody by it, and for a cut of theirs that every living crewmate is now more than 400 m from (§23.2: the night has it). It rings for a Holdout the train has left with a friend still in it (App. D.5). Out in the dark, a dog barks far off, beyond something moving at the edge of the lamps.
 
-The numbers are in `content/tuning/enemies.json` `soundCues` and `upkeep.json` `coupling.bendSeconds`. The sounds are the audio chat's: each cue has its own sound to come, and until it lands a train sound or a house sound of the same kind stands in. A bell and a dog have no stand-in. Nothing installed is a bell or a dog, and a creature's tell standing in would teach the wrong thing.
+The numbers are in `content/tuning/enemies.json` `soundCues` and `upkeep.json` `coupling.bendSeconds`. The sounds are the audio chat's, and each cue has its own: a house's boards, the Householder's chair, what jumped a pin, the far bell and the far dog (AU1, note 785, #1040; until then a train or house sound of the same kind stood in, and the bell and the dog were silent).
 
 ### Accessibility
 
@@ -2817,7 +2818,7 @@ Every number in this appendix lives in data, not code.
 
 1. ~~**Drop-out fee.**~~ **Answered: no fee.** Drop-outs carry no fee, so a crew isn't punished for someone's connection. Quitting instead of dying has no purpose: nothing (no XP, no levelling) is tied to wins, and a run goes better with more people, so dropping out only punishes your friends. Still watched for in playtests.
 2. ~~**The second Holdout threshold.**~~ **Answered: big crews get one at every facility.** The goal of Holdouts is to get everyone back and cut downtime in a balanced way, so every facility has a second Holdout, active when the session crew is 5 or more (D.4).
-3. ~~**Halt stop cost.** Is a main-line stop at a halt dangerous enough, with no facility lull, or does it need a dedicated director response?~~ **Answered (the director, the inbox, 9 Oct 2026): "Needs a dedicated response."** A main-line stop at a halt gets a director response of its own. *Not built yet (note 857).*
+3. ~~**Halt stop cost.** Is a main-line stop at a halt dangerous enough, with no facility lull, or does it need a dedicated director response?~~ **Answered (the director, the inbox, 9 Oct 2026): "Needs a dedicated response."** A main-line stop at a halt gets a director response of its own. *Built, off (note 895, #1399): one encounter of its own 15 s in, behind `director.encounters.halt` (App. B.1 "The overhaul"); on or off is the director's call (note 949).*
 4. **Live Mic and the Passenger.** A spectator who noticed a silent crew member could name it over Live Mic to a rescuer at the door. The living have the same tell, and the 26 m range limits it to one listener mid-rescue, so it's accepted for now. Watch for it in playtests.
 5. **Commendation reel.** Bookmarks are stills, now including automatic captures at every GRAB and PUNISH. If they turn out to be the best part of the run-end screen, short clips may be worth the tech later.
 6. ~~**Attribution tone.** Cause-of-death lines name players. Watch playtests for whether they read as a joke the crew shares or as a scoreboard someone resents. The fallback is to keep names on self-inflicted deaths (jumping, a Choir victim who was also the loudest) and replace another player's name with their role ("Throttle: conductor") where the cause was someone else's action.~~ **Answered (the director, 7 Oct 2026): name players, forget roles.** Cause-of-death lines and the cause card always name the player, whoever caused it; there is no role fallback.
@@ -3088,7 +3089,7 @@ genre ... It's extremely important that friends exceeds our target meaningfully.
 **Played:** the director, alone in the creature gym (§34.1) of the developer Test build of ca0d37e, calling the creatures one by one and letting them do their worst. Fifteen notes were sent from inside it (F8), each as a test report.
 
 **The reports**
-- Sending each note's report on its own is a chore. Keep them as logs in the game's folder, all bundled into one .txt. *In progress (queue #409, ARCHITECTURE §8 note 677): §34.2.*
+- Sending each note's report on its own is a chore. Keep them as logs in the game's folder, all bundled into one .txt. *Done (queue #409, ARCHITECTURE §8 note 677, #940): §34.2.*
 
 **The gym**
 - The Cinder Hounds, called, never come up to the train: they play out their whole life without reaching it. *In progress (queue #412, ARCHITECTURE §8 note 680): §34.1.* (The gym puts them behind a moving train, as on a real night; a standing train has to bring them in too.)
