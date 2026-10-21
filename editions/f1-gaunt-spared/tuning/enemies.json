@@ -1,0 +1,7 @@
+// Note 945's Gaunt-only ask: the stuck rule's spare for the Gaunt alone.
+{
+  "$patch": true,
+  "director": {
+    "stuckSparesKinds": ["gaunt"]
+  }
+}

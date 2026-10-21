@@ -1,0 +1,9 @@
+// Note 945's Gaunt-only ask (n1-H1-stuck-spares-the-met): the shipping content with director.stuckSparesKinds ["gaunt"],
+// for its 30-seed number. `dt --edition f1-gaunt-spared director sweep ...`. Measurement only; never shipped.
+{
+  "id": "edition-f1-gaunt-spared",
+  "name": "f1-gaunt-spared",
+  "version": "1.0.0",
+  "description": "note 945: the stuck rule spares a Gaunt a crewmate is with (director.stuckSparesKinds)",
+  "order": -1000
+}
