@@ -22,6 +22,17 @@ public sealed partial class LinesideProps
     /// </summary>
     IEnumerable<LinesideProp> LineLeavings(double from, double to)
     {
+        foreach (var (_, yaw, laid) in Laid(from, to))
+            foreach (var (piece, s, lateral) in laid)
+                yield return PieceOf(piece.Name, s, lateral, yaw + piece.Turn, 1, LeavingSink - piece.Lift, piece.Variant, GroundAt(s, lateral));
+    }
+
+    /// <summary>
+    /// The leavings left on the line (<see cref="LineLeavings"/>'s, before they're pieces): each as dealt, the way it's
+    /// turned there, and its pieces where they lie. What a note left at one is put by (note 965).
+    /// </summary>
+    public IEnumerable<(Leavings.Dealt Leaving, double Yaw, List<(Leavings.Piece Piece, double S, double Lateral)> Pieces)> Laid(double from, double to)
+    {
         foreach (var l in Leavings.Along(from, to, _seed))
         {
             if (l.Along < 0 || l.Along > _line.Length || !Clear(l.Slot * Leavings.Every)
@@ -36,8 +47,7 @@ public sealed partial class LinesideProps
             var laid = pieces.Select(piece => (Piece: piece, At: Leavings.Offset(piece, yaw))).Select(x => (x.Piece, S: l.Along + x.At.Along, Lateral: l.Lateral + x.At.Across)).ToList();
             if (laid.Any(x => !Free(x.S, x.Lateral)))
                 continue;
-            foreach (var (piece, s, lateral) in laid)
-                yield return PieceOf(piece.Name, s, lateral, yaw + piece.Turn, 1, LeavingSink - piece.Lift, piece.Variant, GroundAt(s, lateral));
+            yield return (l, yaw, laid);
         }
     }
 
@@ -82,6 +92,19 @@ public sealed partial class LinesideProps
                 return true;
         }
         return false;
+    }
+
+    /// <summary>
+    /// Whether a small thing laid at <paramref name="along"/>, <paramref name="lateral"/> (a note left at a leaving, note 965)
+    /// is clear of every leaving's pieces by <paramref name="room"/> past their reach, so it isn't lost in a hut's wall or a
+    /// grave's mound.
+    /// </summary>
+    public bool ClearOfLeavings(double along, double lateral, double room)
+    {
+        foreach (var l in AllLeavings())
+            if (Math.Abs(l.Along - along) < 12 && double.Hypot(l.Along - along, l.Lateral - lateral) < Extent(l) + room)
+                return false;
+        return true;
     }
 
     /// <summary>
