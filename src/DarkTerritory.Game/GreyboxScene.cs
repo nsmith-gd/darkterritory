@@ -115,6 +115,41 @@ public sealed partial class GreyboxScene
     /// and dimming as it burns down (Body.Charge, the burn left). It takes the shadows as a hand lamp does when it's the nearest,
     /// so it doesn't light the cars' insides through their walls.
     /// </summary>
+    /// <summary>Each flare as last seen (note 964): where it was first (the muzzle, if it was just fired), and where it was last, when.</summary>
+    /// <summary>How far a burning flare's light reaches (m; note 964).</summary>
+    public const float FlareReach = 30;
+
+    readonly Dictionary<int, (Double3 First, double FirstAt, bool Fired, Double3 Last, double LastAt, Vector3 Velocity)> _flares = new();
+
+    /// <summary>
+    /// A flare fired and in flight (note 964; the Art Checklist's <c>flare-pistol</c>): the shot at the muzzle where it was
+    /// first seen just fired (its burn barely begun), and its streak and smoke as it climbs and falls, by its way between
+    /// frames (the bodies replicate where, not how fast). Settled on the ground, its burn is the body's (SceneArt).
+    /// </summary>
+    void FlareFlight(MeshBuilder mesh, Sim.Physics.Body b, Double3 at, Double3 eye)
+    {
+        if (Look?.Art.Effects is not { } fx)
+            return;
+        if (!_flares.TryGetValue(b.Id, out var seen))
+        {
+            // Its own way to start with, where its body's in the air in the world's frame (the host's, a staged shot's).
+            var v0 = b.Parent == Sim.Player.PlayerState.World && b.Pbd.Particles.Length > 0 ? b.Pbd.Particles[0].Velocity(Sim.SimConstants.TickSeconds) : default;
+            seen = (at, Time, b.Charge > 0.99, at, Time, new Vector3((float)v0.X, (float)v0.Y, (float)v0.Z));
+        }
+        double dt = Time - seen.LastAt;
+        var velocity = seen.Velocity;
+        if (dt > 1e-3)
+        {
+            var step = (at - seen.Last) * (1 / dt);
+            var now = new Vector3((float)step.X, (float)step.Y, (float)step.Z);
+            velocity = Vector3.Lerp(velocity, now, (float)Math.Clamp(dt * 12, 0, 1));
+        }
+        _flares[b.Id] = seen with { Last = at, LastAt = Time, Velocity = velocity };
+        if (seen.Fired && Time - seen.FirstAt < Art.Effects.FlareShotSeconds)
+            fx.FlareShot(mesh, V(seen.First, eye), velocity.LengthSquared() > 1 ? Vector3.Normalize(velocity) : -Vector3.UnitZ, Time - seen.FirstAt, b.Id);
+        fx.FlareFlight(mesh, V(at, eye), velocity, Time, b.Id);
+    }
+
     void FlareLight(MeshBuilder mesh, Double3 at, Double3 eye, int id, double left)
     {
         if ((at - eye).Length >= 120)
@@ -123,7 +158,8 @@ public sealed partial class GreyboxScene
         float burn = 0.35f + 0.65f * (float)Math.Clamp(left, 0, 1);
         // (Its light's reach is the look's, short of the sim's: point lights cast no shadow unless they're the nearest, so one
         // reaching a village's width would light the cars' insides through their walls. Its glare carries it further.)
-        Practical(mesh, new PointLight(V(at + Double3.Up * 0.7, eye), Art.SceneArt.FlareGlow * 8f * sputter * burn, 18f), -2 - id);
+        // Note 964: out to 30 m (it was 18), a village's yard and the houses round it, the brightest light there is.
+        Practical(mesh, new PointLight(V(at + Double3.Up * 0.7, eye), Art.SceneArt.FlareGlow * 9f * sputter * burn, FlareReach), -2 - id);
     }
 
     /// <summary>A practical light into the scene (a lamp's, a flare's): the nearest the eye casts the shadows, the rest light unshadowed.</summary>
@@ -623,11 +659,17 @@ public sealed partial class GreyboxScene
             foreach (var b in Bodies.Where(b => b.Kind == Sim.Physics.BodyKind.Lamp && !b.Stashed))
                 if (((b.Carrier >= 0 ? Look?.Art.LampInHand(b.Carrier, Time) : null) ?? BodyWorld(b, frames, b.Centre)) is { } at)
                     HandLamp(mesh, at, eye, b.Carrier >= 0 ? b.Carrier : b.Id);
-        // Flares burning (note 871).
+        // Flares burning (note 871), and fired and in flight (note 964).
         if (Bodies is not null)
             foreach (var b in Bodies.Where(b => b.Kind == Sim.Physics.BodyKind.Flare && b.Charge > 0))
                 if (BodyWorld(b, frames, b.Centre) is { } at)
+                {
                     FlareLight(mesh, at, eye, b.Id, b.Charge);
+                    FlareFlight(mesh, b, at, eye);
+                }
+        if (_flares.Count > 0 && Bodies is not null)
+            foreach (int gone in _flares.Keys.Where(id => !Bodies.Any(b => b.Id == id)).ToList())
+                _flares.Remove(gone);
         // (A staged crewmate's, dt screenshot --act lantern, has no body: its light is where the art hung it.)
         if (Crew is not null && Look is not null)
             foreach (var c in Crew.Where(c => c.Lamp && Bodies?.Any(b => b.Kind == Sim.Physics.BodyKind.Lamp && b.Carrier == c.Id) != true))

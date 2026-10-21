@@ -64,6 +64,10 @@ public static class ArtCatalog
             return k.Build("guard-armoured");
         }));
         list.Add(new("roof-handrails", SmallProp, () => TrainKit.RoofHandrails(look, cargo)));
+        // The flare pistol (notes 871, 964): lying in the guard van, as a fist holds it, and a flare fired from it.
+        list.Add(new("flare-pistol", SmallProp, () => PropKit.FlarePistol(look)));
+        list.Add(new("flare-pistol-held", SmallProp, () => PropKit.FlarePistolHeld(look)));
+        list.Add(new("flare", SmallProp, () => PropKit.Flare(look)));
         // The voice's fittings (note 720): the speaking tube's horn and its pipe down to the floor, and the whistle codes' card.
         list.Add(new("speaking-tube", SmallProp, () => VoiceKit.TubeEnd(look, (float)SpeakingTube.MouthHeight + 0.1f)));
         list.Add(new("whistle-card", MediumProp, () => VoiceKit.WhistleCard(look, "WHISTLE CODES",

@@ -49,7 +49,8 @@ public static class CrewActs
             Headset: s.Head > 0 ? new HeadsetBody(s.Head, s.Pitch, s.Parent, s.Position, s.Yaw) : null,
             Car: placed.Parent != PlayerState.World && placed.Parent < frames.Count ? placed.Parent : PlayerState.World, Local: placed.Position,
             Emote: emote, EmoteSeconds: emoteSeconds, Sooted: s.Has(PlayerFlags.Sooted), Signal: signal, SignalSeconds: signalSeconds,
-            Paint: world.PaintOf(id), Hat: world.HatOf(id), Scorch: Sim.Enemies.CarFire.HeatOn(s, world));
+            Paint: world.PaintOf(id), Hat: world.HatOf(id), Scorch: Sim.Enemies.CarFire.HeatOn(s, world),
+            Pistol: world.Bodies.CarriedBy(id) is { Kind: BodyKind.FlarePistol });
         if (emote != Emote.None)
             drawn = WithEmote(drawn, id, s, world, frames, crew);
         // Over a friend's shoulder (note 723): draped over it, where the one carrying them is and on their clock (note 812).
@@ -789,7 +790,8 @@ public static class CrewActs
                     : EmoteOf(id, s, world) is { Kind: not Emote.None, Seconds: < CheersSeconds } ? CrewPose.Cheers : CrewPose.Lounge
                     : CrewPose.Lounge,
             };
-        if (world.Bodies.CarriedBy(id) is { } carried)
+        // The flare pistol (note 964) is held as a hand tool is, in one fist, not carried in the arms.
+        if (world.Bodies.CarriedBy(id) is { Kind: not BodyKind.FlarePistol } carried)
             return carried.Kind switch
             {
                 // A can at the mouth, a sausage (or the grilled fish) bitten, while it's had (Bodies.Dose's MendTicks); a sausage
