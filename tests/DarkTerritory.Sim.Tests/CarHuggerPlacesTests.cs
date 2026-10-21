@@ -68,8 +68,9 @@ public class CarHuggerPlacesTests
         Assert.Equal(world.Train.Dynamics.RearDistance + 1, CarHugger.Spot(world, on));
         // Moving: none (the spots ahead are the ones for a moving train).
         Assert.Null(CarHugger.StoodSpot(WorldAt(route, line, 2_000, speed: 5), on));
-        // Off: none.
-        Assert.Null(CarHugger.StoodSpot(world, E.CarHugger));
+        // Off (stood, or the low ground): none.
+        Assert.Null(CarHugger.StoodSpot(world, on with { LowGround = on.LowGround with { Stood = new() } }));
+        Assert.Null(CarHugger.StoodSpot(world, on with { LowGround = on.LowGround with { On = false } }));
 
         // A crewmate on the ground beside the rear car: watched, none. 30 m off on its right: a spot, on its left.
         var n = new Night(4, speed: 0, enemies: E with { CarHugger = on });
