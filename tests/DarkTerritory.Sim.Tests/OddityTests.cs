@@ -21,7 +21,10 @@ public class OddityTests
     static readonly OddityTuning O = Tuning.Run.Oddities;
     static readonly Stops.LootTuning Loot = DataFile.Load<Stops.LootTuning>(Path.Combine(Content, Stops.LootTuning.File));
     /// <summary>Every stop with a village has its can, its postbox at a halt and a farmstead its scarecrow.</summary>
-    static readonly OddityTuning Always = O with { Can = O.Can with { Chance = 1 }, Scarecrow = O.Scarecrow with { Chance = 1 }, Postbox = O.Postbox with { Chance = 1 } };
+    static readonly OddityTuning Always = O with
+    {
+        Can = O.Can with { Chance = 1 }, Scarecrow = O.Scarecrow with { Chance = 1 }, Postbox = O.Postbox with { Chance = 1 }, Note = O.Note with { Chance = 1 },
+    };
     const double Dt = SimConstants.TickSeconds;
 
     /// <summary>A host's night on a generated route, no creatures: a crew stepped as the host steps them.</summary>
@@ -271,6 +274,61 @@ public class OddityTests
         n.Run(0.1);
         n.Run(O.Postbox.HoldSeconds + 0.1, _ => Use);
         Assert.Single(w.Attribution.Log, i => i.Kind == IncidentKind.Letter);
+    }
+
+    [Fact]
+    public void ANoteOnADoorstepIsPickedUpReadIntoTheNightsReportOnceAndGone()
+    {
+        // Note 961 (GDD §3.1 "Not yet": the world's story between the towns): a note weighted by a stone at a village house's
+        // door, picked up with a held Use, read out to whoever did, in the night's report, and gone from the step.
+        var (n, note) = With(OddThingKind.Note);
+        var w = n.World;
+        w.Names[1] = "Dave";
+        var at = w.Oddities!.At(note.Index);
+        n.Crew[1] = n.Stood(at - note.Facing * 0.9, at);
+        n.Run(O.Note.HoldSeconds / 2, _ => Use);
+        n.Run(0.1);
+        Assert.False(w.Oddities.Done(note.Index), "a tap doesn't pick it up");
+        n.Run(O.Note.HoldSeconds + 0.1, _ => Use);
+        Assert.True(w.Oddities.Done(note.Index));
+        Assert.Contains(w.OddEvents, e => e.Kind == OddKind.Letter && e.By == 1 && e.Thing == note.Index);
+        var read = w.Oddities.NoteIn(note.Index)!;
+        Assert.Contains(read, O.Note.Notes);
+        Assert.Null(w.Oddities.LetterIn(note.Index));
+        var line = Assert.Single(IncidentLog.Lines(w, 0, 0, _ => true), l => l.Kind == IncidentKind.Letter);
+        Assert.Contains(read.Text, line.Text);
+        Assert.Contains("Picked up by Dave.", line.Text);
+        // Gone: another hold there finds nothing.
+        n.Run(0.1);
+        n.Run(O.Note.HoldSeconds + 0.1, _ => Use);
+        Assert.Single(w.Attribution.Log, i => i.Kind == IncidentKind.Letter);
+    }
+
+    [Fact]
+    public void TheNightsNotesStandOffTheLineAtHousesAndNoneIsReadTwiceTillAllHaveBeenOut()
+    {
+        // Note 961: dealt round the night's stops by its seed, a note isn't found twice in a night till every one has been
+        // out; each lies off the main line's ballast, at a village house.
+        int nights = 0;
+        for (int seed = 1; seed <= 12; seed++)
+        {
+            var route = Routes.Generate(Content, $"frontier:{seed}", 4);
+            var line = route.Build();
+            var odd = Oddities.Of(Always, route, line)!;
+            var notes = odd.Things.Where(t => t.Kind == OddThingKind.Note).ToList();
+            if (notes.Count == 0)
+                continue;
+            nights++;
+            var read = notes.Select(t => odd.NoteIn(t.Index)!).ToList();
+            Assert.Equal(Math.Min(notes.Count, O.Note.Notes.Count), read.Distinct().Count());
+            foreach (var t in notes)
+            {
+                double hint = 0;
+                var (_, along) = line.Nearest(t.At, ref hint);
+                Assert.True(((line.Sample(along).Position - t.At) with { Y = 0 }).Length > 4, $"note {t.Index} on frontier:{seed} lies on the line");
+            }
+        }
+        Assert.True(nights >= 6, $"only {nights} of 12 frontier nights had a note at their villages");
     }
 
     [Fact]
