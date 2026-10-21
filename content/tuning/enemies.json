@@ -1542,6 +1542,9 @@
     // Gaunt following its waker, talked to and so held in its telegraph, from right beside them. stuckSparesTheMet: what has
     // a living crewmate within lingerRadius isn't stuck. Off until the director's said (a despawn rule of the director's).
     "stuckSparesTheMet": false,
+    // The Gaunt-only ask (note 945: n1-C1's 30-seed sweep had the rule for every kind cost two-crew deliveries, .73 -> .47):
+    // the same spare for the kinds listed only (["gaunt"]). Empty: off, until measured and the director's said.
+    "stuckSparesKinds": [],
     // Note 795 (the director, 15 Oct: "Even when testing alone I'm not running into monsters in yards or abandoned villages"):
     // with every living crewmate off the train, afoot in a yard or a village, what none of them is within capNear m of (and
     // that has nobody in its grip) holds no cap: a hound pack aboard or a Knotter in a coupling left behind held a crew of
