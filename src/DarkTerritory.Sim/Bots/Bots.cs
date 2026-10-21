@@ -2120,7 +2120,7 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
                     if (!there)
                         return step;
                     // Swinging at it (v1.1 App. C.2): the tool swings as often as it recovers, turned to face it.
-                    double turn = hugger is { } h ? WrapAngle(Math.Atan2(-(h.X - self.Position.X), -(h.Z - self.Position.Z)) - self.Yaw) : 0;
+                    double turn = hugger is { } h ? WrapAngle(DMath.Atan2(-(h.X - self.Position.X), -(h.Z - self.Position.Z)) - self.Yaw) : 0;
                     return new PlayerIntent { Actions = PlayerActions.Swing, LookYaw = (float)turn };
                 }
             default:
