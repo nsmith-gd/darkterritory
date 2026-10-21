@@ -246,7 +246,10 @@ public static class Spawns
         })
         {
             // Free (note 849): any coupling gap, at any speed (slow, they mount at once; at speed they pace, as their rule has it).
-            Free = c => CrewSense.Gaps(c.Train).Count >= 1 && c.None(EnemyKind.Climber),
+            // Note 915: with climbers.freeNeedsSpeed, only to a train moving at their minSpeed (note 887: the curve sent them to a
+            // train stood on the open line).
+            Free = c => CrewSense.Gaps(c.Train).Count >= 1 && c.None(EnemyKind.Climber)
+                && (!c.Tuning.Climbers.FreeNeedsSpeed || c.Train.Dynamics.Speed >= c.Tuning.Climbers.MinSpeed),
         },
         // B.4 · Draggers: a train of two or more, dormant until someone's on the roofs; weight up per roof walker.
         // Boarding-first (GDD App. F.1, note 286): they get under a car only while the train's slow (a stop, a tight bend),
@@ -559,7 +562,7 @@ public static class Spawns
         new(EnemyKind.Gannet, c =>
         {
             var t = c.Tuning.Gannet;
-            if (!c.Once(EnemyKind.Gannet) || c.Train.Dynamics.Consist.CarCount < t.MinCars || c.Train.Dynamics.Speed < t.ArriveAbove
+            if (!c.Once(EnemyKind.Gannet) || c.Train.Dynamics.Consist.CarCount < t.MinCars || c.Train.Dynamics.Speed < t.Arrive
                 || c.World.FastSeconds < t.ArriveSeconds
                 || c.World.Route?.Features.Any(f => f.Kind == FeatureKind.Tunnel && f.Contains(c.Front)) == true)
                 return null;
