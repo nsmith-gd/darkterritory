@@ -1080,8 +1080,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [905. The big cab's benches thin, along the sides, and sat on; the step from car 1 to the locomotive (Tess, queue #619; the director's playtest…](notes/905.md)
 - [906. Concurrency and overlap by crew and train length (the director's brief §1, §6; plan note 874; nathaniel1's n1-C1, queue #611)](notes/906.md)
 - [907. Playtest telemetry: the plan, split into queue items #624–#628 (the director, 20 Oct 2026: "we don't have any telemetry tracking right now…](notes/907.md)
-- [912. The director's protections made one: note 887's gaps closed (the aftermath for the director's own specials, the terminus_safe stretch for…](notes/912.md)
-- [908. One pacing model in the director: the spawn director overhaul's #608 (C3) (the director's brief, `docs/design/spawn-director-overhaul.md`…](notes/908.md)
 - [908. One pacing model in the director: the spawn director overhaul's #608 (C3) (the director's brief, `docs/design/spawn-director-overhaul.md`…](notes/908.md)
 - [912. The director's protections made one: note 887's gaps closed (the aftermath for the director's own specials, one terminus ban for the truss…](notes/912.md)
 - [913. Playtest telemetry T1: the session recorder and its event schema (n1-H1, nathaniel1; queue #624; the plan, note 907)](notes/913.md)
@@ -1116,4 +1114,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [953. The halt's own response, measured (queue #651; GDD D.15 question 3, the director 9 Oct: "Needs a dedicated response"; note 895 built it…](notes/953.md)
 - [954. Carried things sent as their carrier's (n1-N1, nathaniel1; queue #659; note 921's follow-up; protocol 85)](notes/954.md)
 - [955. frontier:7 with 8 crew and 12 cars, seed 6: a missed dawn with no Car Hugger in it (n1-H1, nathaniel1; queue #660; note 933's "another…](notes/955.md)
+- [956. Voice at 8 crew under load, measured headless (n1-N1, nathaniel1; queue #661; M3's open eight-person voice test, rehearsed)](notes/956.md)
 <!-- end of the notes index -->
