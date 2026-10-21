@@ -68,7 +68,7 @@ public static class Radio
         if (report.Scavenged > 0)
             lines.Add($"Salvage: {report.Scavenged:0}.");
         if (owned is not null)
-            lines.AddRange(owned);
+            lines.AddRange(owned.Select(line => Fill(line, report.Counts)));
         // Note 718 (the director, 14 Oct 2026: "as they play the game more often, they learn what those objects are"): the
         // night's best finds by name with what each paid, as flat as the coal, and who brought the most aboard.
         lines.AddRange(Prizes(report));
@@ -82,6 +82,26 @@ public static class Radio
         // cost most, as flat as the rest.
         lines.Add(report.Net < 0 && Costliest(report) is var (what, much) ? $"Net: {report.Net:0}. Most of it {what}, {much:0}. Next." : $"Net: {report.Net:0}. Next.");
         return lines;
+    }
+
+    /// <summary>
+    /// Note 972 (upgrades.md §8.5: "the tally reads 'Bar: eight drinks. Repairs: one window'"): an owned upgrade's tally line
+    /// (campaign.json <c>tally</c>) with the night's counts read into it (<see cref="RunReport.Counts"/>). <c>{name}</c> is the
+    /// count; <c>{name?counted|not}</c> reads the first when there's one or more of it (<c>#</c> in it the count) and the
+    /// second when there's none. A name the night didn't count reads as nought; any other brace is left as it is (the
+    /// engine's name is the session's, read in before).
+    /// </summary>
+    public static string Fill(string line, IReadOnlyDictionary<string, int> counts)
+    {
+        if (!line.Contains('{'))
+            return line;
+        line = System.Text.RegularExpressions.Regex.Replace(line, @"\{([A-Za-z]+)\?([^|{}]*)\|([^{}]*)\}", m =>
+        {
+            int n = counts.GetValueOrDefault(m.Groups[1].Value);
+            return n > 0 ? m.Groups[2].Value.Replace("#", n.ToString(System.Globalization.CultureInfo.InvariantCulture)) : m.Groups[3].Value;
+        });
+        return System.Text.RegularExpressions.Regex.Replace(line, @"\{([A-Za-z]+)\}", m =>
+            m.Groups[1].Value == "engine" ? m.Value : counts.GetValueOrDefault(m.Groups[1].Value).ToString(System.Globalization.CultureInfo.InvariantCulture));
     }
 
     /// <summary>The freight's pay alone (note 766): the gross less the mail, the finds and a child home, each read on its own.</summary>
