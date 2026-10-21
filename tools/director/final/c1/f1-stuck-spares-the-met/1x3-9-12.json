@@ -1,0 +1,1627 @@
+{
+  "commit": "1c9df51e855b5dda56e726c95c274bbd713b2762\u002Bdirty",
+  "seconds": 2700,
+  "groups": [
+    {
+      "key": "frontier crew 1 cars 3",
+      "route": "frontier",
+      "crew": 1,
+      "cars": 3,
+      "nights": 4,
+      "encounters": 4.25,
+      "encountersMin": 1,
+      "encountersMax": 11,
+      "encountersPer20Min": 6.16,
+      "kinds": 1.75,
+      "earlyHalf": 2.5,
+      "lateHalf": 1.75,
+      "firstThreat": 105.57,
+      "longestDrought": 114,
+      "worstDrought": 125.9,
+      "droughtsOver90": 1.25,
+      "maxOverlap": 1.5,
+      "overlapShare": 0.04,
+      "deaths": 0.75,
+      "cargoKept": 0.84,
+      "delivered": 0.25,
+      "minutes": 13.82,
+      "sent": 9,
+      "packFires": 0,
+      "placement": 1
+    }
+  ],
+  "nights": [
+    {
+      "cell": {
+        "route": "frontier",
+        "crew": 1,
+        "cars": 3,
+        "seed": 9,
+        "routeSpec": "frontier:9",
+        "tier": "frontier",
+        "key": "frontier crew 1 cars 3"
+      },
+      "end": "Delivered",
+      "delivered": true,
+      "minutes": 23.4,
+      "km": 8.29,
+      "deaths": 0,
+      "cargoKept": 0.671,
+      "carsDelivered": 2,
+      "carsLost": 0,
+      "sent": 9,
+      "sentByKind": {
+        "Householder": 4,
+        "Knotter": 1,
+        "Moose": 1,
+        "SootChildren": 2,
+        "Whistler": 1
+      },
+      "encounters": 4,
+      "encountersByKind": {
+        "Knotter": 1,
+        "SootChildren": 2,
+        "Whistler": 1
+      },
+      "kinds": 3,
+      "earlyHalf": 4,
+      "lateHalf": 0,
+      "firstThreat": 110,
+      "longestDrought": 111,
+      "longestDangerDrought": 111,
+      "droughtsOver90": 1,
+      "maxOverlap": 2,
+      "overlapSeconds": 48,
+      "cappedIdleSeconds": 11,
+      "packFires": 0,
+      "heldBack": {
+        "at the cap": 445,
+        "banned (terminus_safe)": 92,
+        "building": 451,
+        "facility lull": 20,
+        "final stretch": 299,
+        "grace": 45,
+        "listening": 50
+      },
+      "wallSeconds": 162.3,
+      "telemetry": {
+        "attempts": {
+          "pressure": {
+            "tried": 3,
+            "placed": 3,
+            "chargedUnplaced": 0
+          },
+          "stop": {
+            "tried": 2,
+            "placed": 2,
+            "chargedUnplaced": 0
+          }
+        },
+        "failures": {},
+        "count": 9,
+        "meaningful": 5,
+        "bodies": 10,
+        "kinds": 5,
+        "byKind": {
+          "Householder": 3,
+          "Knotter": 1,
+          "Moose": 2,
+          "SootChildren": 2,
+          "Whistler": 1
+        },
+        "byChannel": {
+          "pressure": 3,
+          "stop": 2,
+          "world": 4
+        },
+        "byWhere": {
+          "afield": 7,
+          "car": 2
+        },
+        "byPart": {
+          "front": 1,
+          "middle": 1
+        },
+        "byQuarter": [
+          [
+            2,
+            6,
+            1,
+            0
+          ],
+          [
+            0,
+            4,
+            1,
+            0
+          ]
+        ],
+        "firstSeconds": [
+          3.8,
+          150.8,
+          222.8
+        ],
+        "ends": {
+          "killed": 0,
+          "gone": 9,
+          "about": 0,
+          "engagedSeconds": 1196,
+          "dormantSeconds": 2073,
+          "grabs": 0,
+          "punishes": 0
+        },
+        "droughts": [
+          {
+            "from": 0.8,
+            "to": 150.8,
+            "seconds": 150,
+            "progress": 0.28,
+            "held": "building"
+          }
+        ],
+        "longestDrought": 150,
+        "concurrent": [
+          260,
+          1098,
+          49,
+          0,
+          0
+        ],
+        "peakActive": 2,
+        "peakBodies": 6,
+        "suppressed": {
+          "at the cap": 445,
+          "banned (terminus_safe)": 92,
+          "building": 451,
+          "facility lull": 20,
+          "final stretch": 299,
+          "grace": 45,
+          "listening": 50,
+          "sent": 5
+        },
+        "severity": {
+          "0": 3,
+          "1": 1,
+          "2": 1,
+          "3": 4
+        },
+        "quiet": {
+          "drought": 106,
+          "presence": 88,
+          "recovery": 66,
+          "sustained": 1147
+        },
+        "trueDroughts": [],
+        "longestTrueDrought": 0,
+        "debtPeak": 0,
+        "inferred": {
+          "nearMetres": 25,
+          "near": 2,
+          "meanNearestMetres": 64.3
+        },
+        "list": [
+          {
+            "index": 0,
+            "kind": "Householder",
+            "channel": "world",
+            "members": 1,
+            "where": "afield",
+            "vehicle": -1,
+            "part": "",
+            "afoot": false,
+            "seconds": 3.8,
+            "progress": 0.14,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 0,
+            "engagedAt": -1,
+            "confrontedAt": -1,
+            "endedAt": 469.8,
+            "end": "gone",
+            "severity": 0,
+            "harassedAt": -1,
+            "compoundAt": -1,
+            "secondsAt": [
+              466,
+              0,
+              0,
+              0
+            ],
+            "nearAt": -1,
+            "nearestMetres": 120.8
+          },
+          {
+            "index": 1,
+            "kind": "Householder",
+            "channel": "world",
+            "members": 2,
+            "where": "afield",
+            "vehicle": -1,
+            "part": "",
+            "afoot": false,
+            "seconds": 53.8,
+            "progress": 0.22,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 0,
+            "engagedAt": -1,
+            "confrontedAt": -1,
+            "endedAt": 795.8,
+            "end": "gone",
+            "severity": 0,
+            "harassedAt": -1,
+            "compoundAt": -1,
+            "secondsAt": [
+              742,
+              0,
+              0,
+              0
+            ],
+            "nearAt": -1,
+            "nearestMetres": 109.5
+          },
+          {
+            "index": 2,
+            "kind": "Moose",
+            "channel": "stop",
+            "members": 1,
+            "where": "afield",
+            "vehicle": -1,
+            "part": "",
+            "afoot": false,
+            "seconds": 117.8,
+            "progress": 0.28,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 0,
+            "engagedAt": -1,
+            "confrontedAt": -1,
+            "endedAt": 485.8,
+            "end": "gone",
+            "severity": 1,
+            "harassedAt": -1,
+            "compoundAt": -1,
+            "secondsAt": [
+              266,
+              102,
+              0,
+              0
+            ],
+            "nearAt": -1,
+            "nearestMetres": 61
+          },
+          {
+            "index": 3,
+            "kind": "SootChildren",
+            "channel": "pressure",
+            "members": 1,
+            "where": "afield",
+            "vehicle": -1,
+            "part": "",
+            "afoot": true,
+            "seconds": 150.8,
+            "progress": 0.28,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 0,
+            "engagedAt": 150.8,
+            "confrontedAt": 150.8,
+            "endedAt": 270.8,
+            "end": "gone",
+            "severity": 3,
+            "harassedAt": 150.8,
+            "compoundAt": 222.8,
+            "secondsAt": [
+              0,
+              0,
+              72,
+              48
+            ],
+            "nearAt": -1,
+            "nearestMetres": 43.1
+          },
+          {
+            "index": 4,
+            "kind": "Whistler",
+            "channel": "stop",
+            "members": 1,
+            "where": "car",
+            "vehicle": 2,
+            "part": "middle",
+            "afoot": true,
+            "seconds": 218.8,
+            "progress": 0.3,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 1,
+            "engagedAt": 222.8,
+            "confrontedAt": 222.8,
+            "endedAt": 342.8,
+            "end": "gone",
+            "severity": 3,
+            "harassedAt": 222.8,
+            "compoundAt": 222.8,
+            "secondsAt": [
+              0,
+              4,
+              72,
+              48
+            ],
+            "nearAt": 231.8,
+            "nearestMetres": 23.7
+          },
+          {
+            "index": 5,
+            "kind": "SootChildren",
+            "channel": "pressure",
+            "members": 1,
+            "where": "afield",
+            "vehicle": -1,
+            "part": "",
+            "afoot": true,
+            "seconds": 342.8,
+            "progress": 0.3,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 0,
+            "engagedAt": 342.8,
+            "confrontedAt": 342.8,
+            "endedAt": 462.8,
+            "end": "gone",
+            "severity": 2,
+            "harassedAt": 342.8,
+            "compoundAt": -1,
+            "secondsAt": [
+              62,
+              0,
+              58,
+              0
+            ],
+            "nearAt": -1,
+            "nearestMetres": 44.4
+          },
+          {
+            "index": 6,
+            "kind": "Householder",
+            "channel": "world",
+            "members": 1,
+            "where": "afield",
+            "vehicle": -1,
+            "part": "",
+            "afoot": false,
+            "seconds": 464.8,
+            "progress": 0.32,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 0,
+            "engagedAt": -1,
+            "confrontedAt": -1,
+            "endedAt": 827.8,
+            "end": "gone",
+            "severity": 0,
+            "harassedAt": -1,
+            "compoundAt": -1,
+            "secondsAt": [
+              363,
+              0,
+              0,
+              0
+            ],
+            "nearAt": -1,
+            "nearestMetres": 120.5
+          },
+          {
+            "index": 7,
+            "kind": "Knotter",
+            "channel": "pressure",
+            "members": 1,
+            "where": "car",
+            "vehicle": 1,
+            "part": "front",
+            "afoot": false,
+            "seconds": 489.8,
+            "progress": 0.36,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 0,
+            "engagedAt": 489.8,
+            "confrontedAt": 500.8,
+            "endedAt": 1386.8,
+            "end": "gone",
+            "severity": 3,
+            "harassedAt": 489.8,
+            "compoundAt": 953.8,
+            "secondsAt": [
+              0,
+              0,
+              896,
+              1
+            ],
+            "nearAt": -1,
+            "nearestMetres": 34.1
+          },
+          {
+            "index": 8,
+            "kind": "Moose",
+            "channel": "world",
+            "members": 1,
+            "where": "afield",
+            "vehicle": -1,
+            "part": "",
+            "afoot": false,
+            "seconds": 932.8,
+            "progress": 0.67,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 1,
+            "engagedAt": 953.8,
+            "confrontedAt": -1,
+            "endedAt": 1001.8,
+            "end": "gone",
+            "severity": 3,
+            "harassedAt": 953.8,
+            "compoundAt": 953.8,
+            "secondsAt": [
+              57,
+              11,
+              0,
+              1
+            ],
+            "nearAt": 953.8,
+            "nearestMetres": 21.4
+          }
+        ]
+      },
+      "tried": 5,
+      "placed": 5,
+      "chargedUnplaced": 0
+    },
+    {
+      "cell": {
+        "route": "frontier",
+        "crew": 1,
+        "cars": 3,
+        "seed": 10,
+        "routeSpec": "frontier:10",
+        "tier": "frontier",
+        "key": "frontier crew 1 cars 3"
+      },
+      "end": "CrewLost",
+      "delivered": false,
+      "minutes": 3.7,
+      "km": 2.69,
+      "deaths": 1,
+      "cargoKept": 1,
+      "carsDelivered": 2,
+      "carsLost": 0,
+      "sent": 5,
+      "sentByKind": {
+        "Climber": 1,
+        "Gaunt": 1,
+        "Householder": 3
+      },
+      "encounters": 1,
+      "encountersByKind": {
+        "Climber": 1
+      },
+      "kinds": 1,
+      "earlyHalf": 0,
+      "lateHalf": 1,
+      "firstThreat": 122,
+      "longestDrought": 123,
+      "longestDangerDrought": 123,
+      "droughtsOver90": 1,
+      "maxOverlap": 1,
+      "overlapSeconds": 0,
+      "cappedIdleSeconds": 6,
+      "packFires": 0,
+      "heldBack": {
+        "building": 69,
+        "facility lull": 20,
+        "grace": 79,
+        "listening": 54
+      },
+      "wallSeconds": 42,
+      "telemetry": {
+        "attempts": {
+          "pressure": {
+            "tried": 1,
+            "placed": 1,
+            "chargedUnplaced": 0
+          },
+          "stop": {
+            "tried": 1,
+            "placed": 1,
+            "chargedUnplaced": 0
+          }
+        },
+        "failures": {},
+        "count": 4,
+        "meaningful": 1,
+        "bodies": 7,
+        "kinds": 3,
+        "byKind": {
+          "Climber": 1,
+          "Gaunt": 1,
+          "Householder": 2
+        },
+        "byChannel": {
+          "pressure": 1,
+          "stop": 1,
+          "world": 2
+        },
+        "byWhere": {
+          "afield": 3,
+          "trackside": 1
+        },
+        "byPart": {
+          "middle": 1
+        },
+        "byQuarter": [
+          [
+            2,
+            2,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0,
+            0
+          ]
+        ],
+        "firstSeconds": [
+          3.8,
+          196.8,
+          -1
+        ],
+        "ends": {
+          "killed": 0,
+          "gone": 0,
+          "about": 4,
+          "engagedSeconds": 28,
+          "dormantSeconds": 483,
+          "grabs": 1,
+          "punishes": 1
+        },
+        "droughts": [
+          {
+            "from": 0.8,
+            "to": 196.8,
+            "seconds": 196,
+            "progress": 0.31,
+            "held": "grace"
+          }
+        ],
+        "longestDrought": 196,
+        "concurrent": [
+          196,
+          28,
+          0,
+          0,
+          0
+        ],
+        "peakActive": 1,
+        "peakBodies": 7,
+        "suppressed": {
+          "building": 69,
+          "facility lull": 20,
+          "grace": 79,
+          "listening": 54,
+          "sent": 2
+        },
+        "severity": {
+          "0": 3,
+          "2": 1
+        },
+        "quiet": {
+          "drought": 111,
+          "presence": 6,
+          "recovery": 79,
+          "sustained": 28
+        },
+        "trueDroughts": [
+          {
+            "from": 78.8,
+            "to": 190.8,
+            "seconds": 112,
+            "progress": 0.3,
+            "held": "drought"
+          }
+        ],
+        "longestTrueDrought": 112,
+        "debtPeak": 0,
+        "inferred": {
+          "nearMetres": 25,
+          "near": 1,
+          "meanNearestMetres": 51.8
+        },
+        "list": [
+          {
+            "index": 0,
+            "kind": "Householder",
+            "channel": "world",
+            "members": 2,
+            "where": "afield",
+            "vehicle": -1,
+            "part": "",
+            "afoot": false,
+            "seconds": 3.8,
+            "progress": 0.14,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 0,
+            "engagedAt": -1,
+            "confrontedAt": -1,
+            "endedAt": -1,
+            "end": "about",
+            "severity": 0,
+            "harassedAt": -1,
+            "compoundAt": -1,
+            "secondsAt": [
+              221,
+              0,
+              0,
+              0
+            ],
+            "nearAt": -1,
+            "nearestMetres": 62.8
+          },
+          {
+            "index": 1,
+            "kind": "Householder",
+            "channel": "world",
+            "members": 1,
+            "where": "afield",
+            "vehicle": -1,
+            "part": "",
+            "afoot": false,
+            "seconds": 53.8,
+            "progress": 0.22,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 0,
+            "engagedAt": -1,
+            "confrontedAt": -1,
+            "endedAt": -1,
+            "end": "about",
+            "severity": 0,
+            "harassedAt": -1,
+            "compoundAt": -1,
+            "secondsAt": [
+              171,
+              0,
+              0,
+              0
+            ],
+            "nearAt": -1,
+            "nearestMetres": 72.3
+          },
+          {
+            "index": 2,
+            "kind": "Gaunt",
+            "channel": "stop",
+            "members": 1,
+            "where": "afield",
+            "vehicle": -1,
+            "part": "",
+            "afoot": true,
+            "seconds": 139.8,
+            "progress": 0.28,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 0,
+            "engagedAt": -1,
+            "confrontedAt": -1,
+            "endedAt": -1,
+            "end": "about",
+            "severity": 0,
+            "harassedAt": -1,
+            "compoundAt": -1,
+            "secondsAt": [
+              85,
+              0,
+              0,
+              0
+            ],
+            "nearAt": -1,
+            "nearestMetres": 70.6
+          },
+          {
+            "index": 3,
+            "kind": "Climber",
+            "channel": "pressure",
+            "members": 3,
+            "where": "trackside",
+            "vehicle": 3,
+            "part": "middle",
+            "afoot": false,
+            "seconds": 190.8,
+            "progress": 0.3,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 0,
+            "engagedAt": 196.8,
+            "confrontedAt": 196.8,
+            "endedAt": -1,
+            "end": "about",
+            "severity": 2,
+            "harassedAt": 196.8,
+            "compoundAt": -1,
+            "secondsAt": [
+              0,
+              6,
+              28,
+              0
+            ],
+            "nearAt": 209.8,
+            "nearestMetres": 1.6
+          }
+        ]
+      },
+      "tried": 2,
+      "placed": 2,
+      "chargedUnplaced": 0
+    },
+    {
+      "cell": {
+        "route": "frontier",
+        "crew": 1,
+        "cars": 3,
+        "seed": 11,
+        "routeSpec": "frontier:11",
+        "tier": "frontier",
+        "key": "frontier crew 1 cars 3"
+      },
+      "end": "DawnMissed",
+      "delivered": false,
+      "minutes": 25.4,
+      "km": 2.66,
+      "deaths": 1,
+      "cargoKept": 0.7,
+      "carsDelivered": 2,
+      "carsLost": 0,
+      "sent": 15,
+      "sentByKind": {
+        "FreightBeetle": 1,
+        "Grumbler": 5,
+        "Hanger": 2,
+        "Householder": 1,
+        "Whistler": 6
+      },
+      "encounters": 11,
+      "encountersByKind": {
+        "Grumbler": 5,
+        "Whistler": 6
+      },
+      "kinds": 2,
+      "earlyHalf": 6,
+      "lateHalf": 5,
+      "firstThreat": 95.2,
+      "longestDrought": 125.9,
+      "longestDangerDrought": 0,
+      "droughtsOver90": 2,
+      "maxOverlap": 2,
+      "overlapSeconds": 218,
+      "cappedIdleSeconds": 134,
+      "packFires": 0,
+      "heldBack": {
+        "at the cap": 644,
+        "building": 432,
+        "cooldown": 140,
+        "facility lull": 20,
+        "grace": 24,
+        "listening": 31,
+        "nothing fits": 139,
+        "saving for something new": 79
+      },
+      "wallSeconds": 178,
+      "telemetry": {
+        "attempts": {
+          "pressure": {
+            "tried": 10,
+            "placed": 10,
+            "chargedUnplaced": 0
+          },
+          "stop": {
+            "tried": 2,
+            "placed": 2,
+            "chargedUnplaced": 0
+          }
+        },
+        "failures": {},
+        "count": 14,
+        "meaningful": 11,
+        "bodies": 15,
+        "kinds": 5,
+        "byKind": {
+          "FreightBeetle": 1,
+          "Grumbler": 5,
+          "Hanger": 1,
+          "Householder": 1,
+          "Whistler": 6
+        },
+        "byChannel": {
+          "pressure": 10,
+          "stop": 2,
+          "world": 2
+        },
+        "byWhere": {
+          "afield": 3,
+          "car": 6,
+          "trackside": 5
+        },
+        "byPart": {
+          "front": 6,
+          "middle": 5
+        },
+        "byQuarter": [
+          [
+            2,
+            6,
+            3,
+            3
+          ],
+          [
+            0,
+            5,
+            3,
+            3
+          ]
+        ],
+        "firstSeconds": [
+          3.7,
+          114.7,
+          145.7
+        ],
+        "ends": {
+          "killed": 0,
+          "gone": 14,
+          "about": 0,
+          "engagedSeconds": 1365,
+          "dormantSeconds": 3745,
+          "grabs": 0,
+          "punishes": 0
+        },
+        "droughts": [
+          {
+            "from": 0.7,
+            "to": 114.7,
+            "seconds": 114,
+            "progress": 0.28,
+            "held": "building"
+          },
+          {
+            "from": 1395.7,
+            "to": 1521.6,
+            "seconds": 125.9,
+            "progress": 1,
+            "held": "nothing fits"
+          }
+        ],
+        "longestDrought": 125.9,
+        "concurrent": [
+          374,
+          929,
+          218,
+          0,
+          0
+        ],
+        "peakActive": 2,
+        "peakBodies": 5,
+        "suppressed": {
+          "at the cap": 644,
+          "building": 432,
+          "cooldown": 140,
+          "facility lull": 20,
+          "grace": 24,
+          "listening": 31,
+          "nothing fits": 139,
+          "saving for something new": 79,
+          "sent": 12
+        },
+        "severity": {
+          "0": 2,
+          "1": 1,
+          "2": 9,
+          "3": 2
+        },
+        "quiet": {
+          "drought": 215,
+          "presence": 135,
+          "recovery": 24,
+          "sustained": 1147
+        },
+        "trueDroughts": [
+          {
+            "from": 23.7,
+            "to": 114.7,
+            "seconds": 91,
+            "progress": 0.28,
+            "held": "drought"
+          },
+          {
+            "from": 1395.7,
+            "to": 1521.6,
+            "seconds": 125.9,
+            "progress": 1,
+            "held": "drought"
+          }
+        ],
+        "longestTrueDrought": 125.9,
+        "debtPeak": 0,
+        "inferred": {
+          "nearMetres": 25,
+          "near": 2,
+          "meanNearestMetres": 44
+        },
+        "list": [
+          {
+            "index": 0,
+            "kind": "Householder",
+            "channel": "world",
+            "members": 1,
+            "where": "afield",
+            "vehicle": -1,
+            "part": "",
+            "afoot": false,
+            "seconds": 3.7,
+            "progress": 0.14,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 0,
+            "engagedAt": -1,
+            "confrontedAt": -1,
+            "endedAt": 1396.7,
+            "end": "gone",
+            "severity": 0,
+            "harassedAt": -1,
+            "compoundAt": -1,
+            "secondsAt": [
+              1393,
+              0,
+              0,
+              0
+            ],
+            "nearAt": -1,
+            "nearestMetres": 61.5
+          },
+          {
+            "index": 1,
+            "kind": "Hanger",
+            "channel": "world",
+            "members": 2,
+            "where": "afield",
+            "vehicle": -1,
+            "part": "",
+            "afoot": false,
+            "seconds": 3.7,
+            "progress": 0.14,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 0,
+            "engagedAt": -1,
+            "confrontedAt": -1,
+            "endedAt": 1396.7,
+            "end": "gone",
+            "severity": 0,
+            "harassedAt": -1,
+            "compoundAt": -1,
+            "secondsAt": [
+              1393,
+              0,
+              0,
+              0
+            ],
+            "nearAt": -1,
+            "nearestMetres": 131.2
+          },
+          {
+            "index": 2,
+            "kind": "Grumbler",
+            "channel": "stop",
+            "members": 1,
+            "where": "afield",
+            "vehicle": -1,
+            "part": "",
+            "afoot": false,
+            "seconds": 114.7,
+            "progress": 0.28,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 0,
+            "engagedAt": 114.7,
+            "confrontedAt": 114.7,
+            "endedAt": 295.7,
+            "end": "gone",
+            "severity": 3,
+            "harassedAt": 114.7,
+            "compoundAt": 145.7,
+            "secondsAt": [
+              0,
+              0,
+              80,
+              101
+            ],
+            "nearAt": 185.7,
+            "nearestMetres": 7.8
+          },
+          {
+            "index": 3,
+            "kind": "Whistler",
+            "channel": "pressure",
+            "members": 1,
+            "where": "car",
+            "vehicle": 1,
+            "part": "front",
+            "afoot": true,
+            "seconds": 141.7,
+            "progress": 0.28,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 1,
+            "engagedAt": 145.7,
+            "confrontedAt": 145.7,
+            "endedAt": 386.7,
+            "end": "gone",
+            "severity": 3,
+            "harassedAt": 145.7,
+            "compoundAt": 145.7,
+            "secondsAt": [
+              0,
+              53,
+              91,
+              101
+            ],
+            "nearAt": 223.7,
+            "nearestMetres": 3.5
+          },
+          {
+            "index": 4,
+            "kind": "Whistler",
+            "channel": "stop",
+            "members": 1,
+            "where": "car",
+            "vehicle": 2,
+            "part": "front",
+            "afoot": true,
+            "seconds": 386.7,
+            "progress": 0.31,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 0,
+            "engagedAt": 390.7,
+            "confrontedAt": 390.7,
+            "endedAt": 510.7,
+            "end": "gone",
+            "severity": 2,
+            "harassedAt": 390.7,
+            "compoundAt": -1,
+            "secondsAt": [
+              0,
+              4,
+              120,
+              0
+            ],
+            "nearAt": -1,
+            "nearestMetres": 40.8
+          },
+          {
+            "index": 5,
+            "kind": "Grumbler",
+            "channel": "pressure",
+            "members": 1,
+            "where": "trackside",
+            "vehicle": 3,
+            "part": "middle",
+            "afoot": true,
+            "seconds": 387.7,
+            "progress": 0.31,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 0,
+            "engagedAt": 387.7,
+            "confrontedAt": 387.7,
+            "endedAt": 507.7,
+            "end": "gone",
+            "severity": 2,
+            "harassedAt": 387.7,
+            "compoundAt": -1,
+            "secondsAt": [
+              0,
+              0,
+              120,
+              0
+            ],
+            "nearAt": -1,
+            "nearestMetres": 49.4
+          },
+          {
+            "index": 6,
+            "kind": "FreightBeetle",
+            "channel": "pressure",
+            "members": 1,
+            "where": "trackside",
+            "vehicle": 3,
+            "part": "middle",
+            "afoot": true,
+            "seconds": 510.7,
+            "progress": 0.36,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 0,
+            "engagedAt": -1,
+            "confrontedAt": -1,
+            "endedAt": 1396.7,
+            "end": "gone",
+            "severity": 1,
+            "harassedAt": -1,
+            "compoundAt": -1,
+            "secondsAt": [
+              0,
+              886,
+              0,
+              0
+            ],
+            "nearAt": -1,
+            "nearestMetres": 46.5
+          },
+          {
+            "index": 7,
+            "kind": "Grumbler",
+            "channel": "pressure",
+            "members": 1,
+            "where": "trackside",
+            "vehicle": 3,
+            "part": "middle",
+            "afoot": true,
+            "seconds": 566.7,
+            "progress": 0.4,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 0,
+            "engagedAt": 566.7,
+            "confrontedAt": 566.7,
+            "endedAt": 686.7,
+            "end": "gone",
+            "severity": 2,
+            "harassedAt": 566.7,
+            "compoundAt": -1,
+            "secondsAt": [
+              0,
+              0,
+              120,
+              0
+            ],
+            "nearAt": -1,
+            "nearestMetres": 46.5
+          },
+          {
+            "index": 8,
+            "kind": "Grumbler",
+            "channel": "pressure",
+            "members": 1,
+            "where": "trackside",
+            "vehicle": 3,
+            "part": "middle",
+            "afoot": true,
+            "seconds": 718.7,
+            "progress": 0.5,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 0,
+            "engagedAt": 718.7,
+            "confrontedAt": 718.7,
+            "endedAt": 838.7,
+            "end": "gone",
+            "severity": 2,
+            "harassedAt": 718.7,
+            "compoundAt": -1,
+            "secondsAt": [
+              0,
+              0,
+              120,
+              0
+            ],
+            "nearAt": -1,
+            "nearestMetres": 49.4
+          },
+          {
+            "index": 9,
+            "kind": "Grumbler",
+            "channel": "pressure",
+            "members": 1,
+            "where": "trackside",
+            "vehicle": 3,
+            "part": "middle",
+            "afoot": true,
+            "seconds": 858.7,
+            "progress": 0.6,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 0,
+            "engagedAt": 858.7,
+            "confrontedAt": 858.7,
+            "endedAt": 978.7,
+            "end": "gone",
+            "severity": 2,
+            "harassedAt": 858.7,
+            "compoundAt": -1,
+            "secondsAt": [
+              0,
+              0,
+              120,
+              0
+            ],
+            "nearAt": -1,
+            "nearestMetres": 46.5
+          },
+          {
+            "index": 10,
+            "kind": "Whistler",
+            "channel": "pressure",
+            "members": 1,
+            "where": "car",
+            "vehicle": 1,
+            "part": "front",
+            "afoot": true,
+            "seconds": 988.7,
+            "progress": 0.69,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 0,
+            "engagedAt": 992.7,
+            "confrontedAt": 992.7,
+            "endedAt": 1112.7,
+            "end": "gone",
+            "severity": 2,
+            "harassedAt": 992.7,
+            "compoundAt": -1,
+            "secondsAt": [
+              0,
+              4,
+              120,
+              0
+            ],
+            "nearAt": -1,
+            "nearestMetres": 25.4
+          },
+          {
+            "index": 11,
+            "kind": "Whistler",
+            "channel": "pressure",
+            "members": 1,
+            "where": "car",
+            "vehicle": 1,
+            "part": "front",
+            "afoot": true,
+            "seconds": 1112.7,
+            "progress": 0.78,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 1,
+            "engagedAt": 1116.7,
+            "confrontedAt": 1116.7,
+            "endedAt": 1236.7,
+            "end": "gone",
+            "severity": 2,
+            "harassedAt": 1116.7,
+            "compoundAt": -1,
+            "secondsAt": [
+              0,
+              4,
+              120,
+              0
+            ],
+            "nearAt": -1,
+            "nearestMetres": 25.4
+          },
+          {
+            "index": 12,
+            "kind": "Whistler",
+            "channel": "pressure",
+            "members": 1,
+            "where": "car",
+            "vehicle": 2,
+            "part": "front",
+            "afoot": true,
+            "seconds": 1236.7,
+            "progress": 0.86,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 1,
+            "engagedAt": 1240.7,
+            "confrontedAt": 1240.7,
+            "endedAt": 1360.7,
+            "end": "gone",
+            "severity": 2,
+            "harassedAt": 1240.7,
+            "compoundAt": -1,
+            "secondsAt": [
+              0,
+              4,
+              120,
+              0
+            ],
+            "nearAt": -1,
+            "nearestMetres": 40.8
+          },
+          {
+            "index": 13,
+            "kind": "Whistler",
+            "channel": "pressure",
+            "members": 1,
+            "where": "car",
+            "vehicle": 2,
+            "part": "front",
+            "afoot": true,
+            "seconds": 1360.7,
+            "progress": 0.95,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 1,
+            "engagedAt": 1364.7,
+            "confrontedAt": 1364.7,
+            "endedAt": 1396.7,
+            "end": "gone",
+            "severity": 2,
+            "harassedAt": 1364.7,
+            "compoundAt": -1,
+            "secondsAt": [
+              0,
+              4,
+              32,
+              0
+            ],
+            "nearAt": -1,
+            "nearestMetres": 40.8
+          }
+        ]
+      },
+      "tried": 12,
+      "placed": 12,
+      "chargedUnplaced": 0
+    },
+    {
+      "cell": {
+        "route": "frontier",
+        "crew": 1,
+        "cars": 3,
+        "seed": 12,
+        "routeSpec": "frontier:12",
+        "tier": "frontier",
+        "key": "frontier crew 1 cars 3"
+      },
+      "end": "CrewLost",
+      "delivered": false,
+      "minutes": 2.8,
+      "km": 2.48,
+      "deaths": 1,
+      "cargoKept": 1,
+      "carsDelivered": 2,
+      "carsLost": 0,
+      "sent": 7,
+      "sentByKind": {
+        "Climber": 1,
+        "Hanger": 6
+      },
+      "encounters": 1,
+      "encountersByKind": {
+        "Climber": 1
+      },
+      "kinds": 1,
+      "earlyHalf": 0,
+      "lateHalf": 1,
+      "firstThreat": 95.1,
+      "longestDrought": 96.1,
+      "longestDangerDrought": 96.1,
+      "droughtsOver90": 1,
+      "maxOverlap": 1,
+      "overlapSeconds": 0,
+      "cappedIdleSeconds": 6,
+      "packFires": 0,
+      "heldBack": {
+        "building": 107,
+        "grace": 28,
+        "listening": 32
+      },
+      "wallSeconds": 33.2,
+      "telemetry": {
+        "attempts": {
+          "fill": {
+            "tried": 1,
+            "placed": 1,
+            "chargedUnplaced": 0
+          }
+        },
+        "failures": {},
+        "count": 3,
+        "meaningful": 1,
+        "bodies": 9,
+        "kinds": 2,
+        "byKind": {
+          "Climber": 1,
+          "Hanger": 2
+        },
+        "byChannel": {
+          "fill": 1,
+          "world": 2
+        },
+        "byWhere": {
+          "afield": 2,
+          "trackside": 1
+        },
+        "byPart": {
+          "middle": 1
+        },
+        "byQuarter": [
+          [
+            2,
+            1,
+            0,
+            0
+          ],
+          [
+            0,
+            1,
+            0,
+            0
+          ]
+        ],
+        "firstSeconds": [
+          3.7,
+          118.7,
+          -1
+        ],
+        "ends": {
+          "killed": 0,
+          "gone": 0,
+          "about": 3,
+          "engagedSeconds": 50,
+          "dormantSeconds": 286,
+          "grabs": 1,
+          "punishes": 1
+        },
+        "droughts": [
+          {
+            "from": 0.7,
+            "to": 118.7,
+            "seconds": 118,
+            "progress": 0.28,
+            "held": "building"
+          }
+        ],
+        "longestDrought": 118,
+        "concurrent": [
+          118,
+          50,
+          0,
+          0,
+          0
+        ],
+        "peakActive": 1,
+        "peakBodies": 9,
+        "suppressed": {
+          "building": 107,
+          "grace": 28,
+          "listening": 32,
+          "sent": 1
+        },
+        "severity": {
+          "0": 2,
+          "2": 1
+        },
+        "quiet": {
+          "drought": 84,
+          "presence": 6,
+          "recovery": 28,
+          "sustained": 50
+        },
+        "trueDroughts": [],
+        "longestTrueDrought": 0,
+        "debtPeak": 0,
+        "inferred": {
+          "nearMetres": 25,
+          "near": 1,
+          "meanNearestMetres": 50.6
+        },
+        "list": [
+          {
+            "index": 0,
+            "kind": "Hanger",
+            "channel": "world",
+            "members": 1,
+            "where": "afield",
+            "vehicle": -1,
+            "part": "",
+            "afoot": false,
+            "seconds": 3.7,
+            "progress": 0.14,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 0,
+            "engagedAt": -1,
+            "confrontedAt": -1,
+            "endedAt": -1,
+            "end": "about",
+            "severity": 0,
+            "harassedAt": -1,
+            "compoundAt": -1,
+            "secondsAt": [
+              165,
+              0,
+              0,
+              0
+            ],
+            "nearAt": -1,
+            "nearestMetres": 70.7
+          },
+          {
+            "index": 1,
+            "kind": "Hanger",
+            "channel": "world",
+            "members": 5,
+            "where": "afield",
+            "vehicle": -1,
+            "part": "",
+            "afoot": false,
+            "seconds": 53.7,
+            "progress": 0.22,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 0,
+            "engagedAt": -1,
+            "confrontedAt": -1,
+            "endedAt": -1,
+            "end": "about",
+            "severity": 0,
+            "harassedAt": -1,
+            "compoundAt": -1,
+            "secondsAt": [
+              115,
+              0,
+              0,
+              0
+            ],
+            "nearAt": -1,
+            "nearestMetres": 79.7
+          },
+          {
+            "index": 2,
+            "kind": "Climber",
+            "channel": "fill",
+            "members": 3,
+            "where": "trackside",
+            "vehicle": 2,
+            "part": "middle",
+            "afoot": false,
+            "seconds": 112.7,
+            "progress": 0.28,
+            "crew": 1,
+            "cars": 3,
+            "overlap": 0,
+            "engagedAt": 118.7,
+            "confrontedAt": 118.7,
+            "endedAt": -1,
+            "end": "about",
+            "severity": 2,
+            "harassedAt": 118.7,
+            "compoundAt": -1,
+            "secondsAt": [
+              0,
+              6,
+              50,
+              0
+            ],
+            "nearAt": 131.7,
+            "nearestMetres": 1.4
+          }
+        ]
+      },
+      "tried": 1,
+      "placed": 1,
+      "chargedUnplaced": 0
+    }
+  ]
+}
