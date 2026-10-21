@@ -158,7 +158,7 @@ public class CraneTests
             stop.Step(SimConstants.TickSeconds, [Move(crane, Math.Clamp((best.Bridge - crane.Bridge) * 5, -1, 1), Math.Clamp((best.Trolley - crane.Trolley) * 5, -1, 1)), default]);
         Assert.Equal(car.Id, crane.Under(stop.Train).Car);
         stop.Step(C.Height / C.HoistSpeed, [Drive(also: PlayerButtons.Brake), default]);
-        stop.Step(SimConstants.TickSeconds, [Drive(also: PlayerButtons.Fire), default]);
+        stop.Step(C.ReleaseHold, [Drive(also: PlayerButtons.Fire), default]);
         Assert.Equal(CastingState.Loaded, casting.State);
         Assert.Equal(before + C.LoadPerCasting, car.Load, 6);
         Assert.Equal(car.Id, casting.Car);
@@ -266,7 +266,7 @@ public class CraneTests
         stop.Crew.Add(stop.OnTheGround(under));
         stop.Crew.Add(stop.OnTheGround(under + new Double3(C.CrushRadius + 2, 0, 0)));
         stop.Step(SimConstants.TickSeconds, [Drive(), default, default]);
-        stop.Step(SimConstants.TickSeconds, [Drive(also: PlayerButtons.Fire), default, default]);
+        stop.Step(C.ReleaseHold, [Drive(also: PlayerButtons.Fire), default, default]);
         // Note 659 (the director, 13 Oct: "an accidental mouse click means it's essentially lost"): it lies where it landed, to
         // be rigged again, not lost.
         Assert.Equal(CastingState.Stacked, casting.State);
@@ -276,6 +276,34 @@ public class CraneTests
         stop.Step(SimConstants.TickSeconds, [Drive(), default, default]);
         var crushed = Assert.Single(stop.World.Damage);
         Assert.Equal((2, DeathCause.Crushed), (crushed.PlayerId, crushed.Cause));
+    }
+
+    [Fact]
+    public void AStrayClickLetsGoOfNothingAHoldLetsGoOfOne()
+    {
+        // Note 941 (the director, 20 Oct: "Oh, God, I accidentally clicked and just let it go"): Fire clicked, the casting
+        // stays on the hook; held for the hold, it's let go of; held on, the next one hooked isn't.
+        var (stop, crane) = AtTheCrane();
+        var (first, second) = (crane.Castings[0], crane.Castings[1]);
+        first.State = CastingState.Hooked;
+        crane.Bridge = C.Along;
+        crane.Trolley = C.StackLateral;
+        crane.Hook = C.Height;
+        stop.Step(SimConstants.TickSeconds, [Drive()]);
+        int hold = (int)Math.Round(C.ReleaseHold * SimConstants.TickRate);
+        for (int i = 0; i < 3; i++)
+            stop.Step(SimConstants.TickSeconds, [Drive(also: PlayerButtons.Fire)]);
+        stop.Step(SimConstants.TickSeconds, [Drive()]);
+        Assert.Equal(CastingState.Hooked, first.State);
+        for (int i = 0; i < hold - 1; i++)
+            stop.Step(SimConstants.TickSeconds, [Drive(also: PlayerButtons.Fire)]);
+        Assert.Equal(CastingState.Hooked, first.State);
+        stop.Step(SimConstants.TickSeconds, [Drive(also: PlayerButtons.Fire)]);
+        Assert.Equal(CastingState.Stacked, first.State);
+        second.State = CastingState.Hooked;
+        for (int i = 0; i < hold * 2; i++)
+            stop.Step(SimConstants.TickSeconds, [Drive(also: PlayerButtons.Fire)]);
+        Assert.Equal(CastingState.Hooked, second.State);
     }
 
     [Fact]

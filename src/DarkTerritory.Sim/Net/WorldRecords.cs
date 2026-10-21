@@ -156,9 +156,9 @@ public static class WorldRecords
         // Emotes (note 298): who, which, and when it began; note 722, when a high five's hands met (0: not yet) and with whom.
         foreach (var e in world.Emotes)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Emote, e.Id), [e.Tick, e.By, (long)e.Kind, e.Meet, e.With]));
-        // Pings (note 739): who, on what, which one of those, where, and when.
+        // Pings (note 739): who, on what, which one of those, where, and when; and who answered it (note 936).
         foreach (var e in world.Pings)
-            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Ping, e.Id), [e.Tick, e.By, (long)e.Kind, e.Target, Q(e.At.X, Pos), Q(e.At.Y, Pos), Q(e.At.Z, Pos)]));
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Ping, e.Id), [e.Tick, e.By, (long)e.Kind, e.Target, Q(e.At.X, Pos), Q(e.At.Y, Pos), Q(e.At.Z, Pos), e.Taker]));
         // Lamp signals (note 720): who, which, and when it began.
         foreach (var e in world.Signals)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Signal, e.Id), [e.Tick, e.By, (long)e.Kind]));
@@ -529,7 +529,7 @@ public static class WorldRecords
                     swings.Add(new SwingEvent(r.Id, (uint)f[0], (int)f[1]));
                     break;
                 case RecordKind.Ping when !world.Authority:
-                    pings.Add(new PingEvent(r.Id, (uint)f[0], (int)f[1], (PingKind)f[2], (int)f[3], new Ballast.Double3(D(f[4], Pos), D(f[5], Pos), D(f[6], Pos))));
+                    pings.Add(new PingEvent(r.Id, (uint)f[0], (int)f[1], (PingKind)f[2], (int)f[3], new Ballast.Double3(D(f[4], Pos), D(f[5], Pos), D(f[6], Pos)), (int)f[7]));
                     break;
                 case RecordKind.Emote when !world.Authority:
                     emotes.Add(new EmoteEvent(r.Id, (uint)f[0], (int)f[1], (Emote)f[2], (uint)f[3], (int)f[4]));
@@ -700,7 +700,8 @@ public static class WorldRecords
     /// Writes <paramref name="current"/> as a delta against <paramref name="baseline"/> (null: against nothing).
     /// Unchanged records cost nothing; changed ones send a field mask and zigzag deltas of the changed fields.
     /// </summary>
-    public static void WriteDelta(NetWriter w, IReadOnlyList<WireRecord> current, IReadOnlyList<WireRecord>? baseline)
+    /// <param name="tally">Note 921: the bytes each kind of record took, added to (null: not counted).</param>
+    public static void WriteDelta(NetWriter w, IReadOnlyList<WireRecord> current, IReadOnlyList<WireRecord>? baseline, Dictionary<RecordKind, long>? tally = null)
     {
         var old = baseline?.ToDictionary(r => r.Key) ?? new Dictionary<uint, WireRecord>();
         var keys = new HashSet<uint>(current.Select(r => r.Key));
@@ -713,23 +714,36 @@ public static class WorldRecords
         w.VarU((ulong)changed.Count);
         foreach (var r in changed)
         {
+            int at = w.Length;
+            tally?.TryAdd(r.Kind, 0);
             w.VarU(r.Key);
-            bool delta = old.TryGetValue(r.Key, out var b) && b.Fields.Length == r.Fields.Length && r.Fields.Length <= 64;
+            // Note 921: any length deltas, a mask word for each 64 fields. (Before protocol 83 only records of 64 fields or fewer
+            // did, so the run's record, 9 fields and 25 a facility, went whole every tick on a route of three facilities or
+            // more: a third of what a client was sent.)
+            bool delta = old.TryGetValue(r.Key, out var b) && b.Fields.Length == r.Fields.Length;
             w.VarU(((ulong)r.Fields.Length << 1) | (delta ? 1ul : 0));
             if (!delta)
             {
                 foreach (long v in r.Fields)
                     w.VarS(v);
+                if (tally is not null)
+                    tally[r.Kind] += w.Length - at;
                 continue;
             }
-            ulong mask = 0;
-            for (int i = 0; i < r.Fields.Length; i++)
-                if (r.Fields[i] != b.Fields[i])
-                    mask |= 1ul << i;
-            w.VarU(mask);
-            for (int i = 0; i < r.Fields.Length; i++)
-                if ((mask & (1ul << i)) != 0)
-                    w.VarS(r.Fields[i] - b.Fields[i]);
+            for (int word = 0; word * 64 < r.Fields.Length; word++)
+            {
+                int from = word * 64, to = Math.Min(r.Fields.Length, from + 64);
+                ulong mask = 0;
+                for (int i = from; i < to; i++)
+                    if (r.Fields[i] != b.Fields[i])
+                        mask |= 1ul << (i - from);
+                w.VarU(mask);
+                for (int i = from; i < to; i++)
+                    if ((mask & (1ul << (i - from))) != 0)
+                        w.VarS(r.Fields[i] - b.Fields[i]);
+            }
+            if (tally is not null)
+                tally[r.Kind] += w.Length - at;
         }
     }
 
@@ -757,9 +771,13 @@ public static class WorldRecords
             {
                 if (!result.TryGetValue(key, out var b) || b.Fields.Length != count)
                     throw new InvalidDataException("delta against a record the baseline doesn't have");
-                ulong mask = r.VarU();
-                for (int k = 0; k < count; k++)
-                    fields[k] = (mask & (1ul << k)) != 0 ? b.Fields[k] + r.VarS() : b.Fields[k];
+                for (int word = 0; word * 64 < count; word++)
+                {
+                    int from = word * 64, to = Math.Min(count, from + 64);
+                    ulong mask = r.VarU();
+                    for (int k = from; k < to; k++)
+                        fields[k] = (mask & (1ul << (k - from))) != 0 ? b.Fields[k] + r.VarS() : b.Fields[k];
+                }
             }
             result[key] = new WireRecord(key, fields);
         }

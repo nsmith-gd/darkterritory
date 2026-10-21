@@ -1011,6 +1011,7 @@ public sealed partial class GreyboxScene
         }
         Extinguishing(mesh, frames, eye);
         FireGrids(mesh, frames, eye);
+        HoundsOverhead(mesh, frames, eye);
         if (Crew is not null)
             foreach (var held in Crew)
             {
@@ -1216,6 +1217,8 @@ public sealed partial class GreyboxScene
     /// <summary>How long a creature flinches from a blow (s), and how far it's knocked (m) and tipped (rad) at the most.</summary>
     const double FlinchSeconds = 0.32;
     const float FlinchPush = 0.16f, FlinchTip = 0.22f;
+    // (A Waker's: about a metre and a half at his head, stood.)
+    const float WakerFlinch = 0.12f;
 
     /// <summary>
     /// A creature's flinch from the latest blow or ball to land on it (T121's hit confirm): its basis knocked back along the
@@ -1236,6 +1239,9 @@ public sealed partial class GreyboxScene
             return (Vector3.Zero, Quaternion.Identity);
         float k = (float)(age < 0.05 ? age / 0.05 : 1 - (age - 0.05) / (FlinchSeconds - 0.05));
         k *= hit.Source == Sim.Combat.HitSource.Cannon ? 2 : 1;
+        // A Waker (note 940) takes a ball as a man takes a stone: a jolt through sixty metres of him, not a stagger.
+        if (e.Kind == EnemyKind.Waker)
+            k *= WakerFlinch;
         var flat = new Vector3((float)hit.From.X, 0, (float)hit.From.Z);
         if (flat.LengthSquared() < 1e-6f)
             return (Vector3.Zero, Quaternion.Identity);
@@ -1961,6 +1967,37 @@ public sealed partial class GreyboxScene
     /// <summary>Each fire's cells as last drawn, and where each sprayer's jet last went (the fire, its cell, when): note 866.</summary>
     readonly Dictionary<int, double[]> _cellsWas = new();
     readonly Dictionary<int, (int Fire, int Cell, double At)> _jetAt = new();
+
+    /// <summary>Note 939: whether car <paramref name="car"/> is burning from its hot box (the fire's cause is replicated on it).</summary>
+    bool HotBoxFire(int car) =>
+        Enemies?.Any(e => e is Sim.Enemies.CarFire { Gone: false, Cause: Sim.Enemies.FireCause.HotBox } f && f.Attached == car
+            && f.Phase is not SpinePhase.Dormant and not SpinePhase.BreakOff) == true;
+
+    /// <summary>
+    /// Note 939 (the director's playtest of 20 Oct evening, line 9: "how does this keep relighting?"): every Cinder Hound on a
+    /// car's roof, seen from inside the car under it as its heat through the boards and cinders sifting down, brighter as it
+    /// winds up to light the car (its <see cref="Sim.Enemies.HoundMode.Ignite"/>). Out of the car the roof hides it, and the
+    /// hound itself is in sight.
+    /// </summary>
+    void HoundsOverhead(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Double3 eye)
+    {
+        if (Look?.Art.Effects is not { HasFlames: true } fx || Look.Art.Creatures is not { } creatures)
+            return;
+        foreach (var e in Enemies ?? [])
+        {
+            if (e is not Sim.Enemies.CinderHound { Gone: false } hound || e.Attached <= 0 || e.Attached >= frames.Count)
+                continue;
+            var car = frames[e.Attached];
+            if (car.Shape.Interior is not { } room || hound.Aboard is Sim.Enemies.HoundMode.Leap or Sim.Enemies.HoundMode.Drop or Sim.Enemies.HoundMode.Climb
+                || e.Local.Y < car.Shape.RoofHeight - 0.5 || Math.Abs(e.Local.Z) > room.Max.Z)
+                continue;
+            float windUp = hound.Aboard == Sim.Enemies.HoundMode.Ignite
+                ? (float)Math.Clamp(hound.ModeSeconds / Math.Max(1e-6, creatures.Hounds.Aboard.IgniteWindUpSeconds), 0, 1) : 0;
+            var under = new Double3(Math.Clamp(e.Local.X, room.Min.X + 0.2, room.Max.X - 0.2), room.Max.Y - 0.25, e.Local.Z);
+            var at = car.ToWorld(under).RelativeTo(eye);
+            fx.HoundThroughRoof(mesh, at, Vector3.Normalize(car.ToWorld(under - Double3.Up).RelativeTo(eye) - at), windUp, Time, e.Id);
+        }
+    }
 
     /// <summary>
     /// The fire grid (GDD App. F.1; note 267), from what's replicated: every burning car's cells alight, each where it is on
@@ -4525,7 +4562,7 @@ public sealed partial class GreyboxScene
     {
         var wood = new Vector3(0.13f, 0.1f, 0.07f);
         var up = Vector3.UnitY;
-        const float Lintel = 2.15f, Half = (float)(Sim.Run.StopWalls.DoorWidth / 2), Thick = 0.025f;
+        const float Lintel = 2.15f, Half = (float)(Sim.Run.StopWalls.DoorWidth / 2), Thick = Art.TownKit.DoorThick;
         foreach (var d in walls.HouseDoors)
         {
             if ((d.At - eye).Length > 60)
@@ -4557,18 +4594,42 @@ public sealed partial class GreyboxScene
             // The jackpot house (note 719): a better door than the rest, locked or not, panelled and painted oxblood, a brass
             // knob and knocker; and a lamp left burning in the window beside it, seen from the line.
             bool better = Run?.LockedAt(feature) == building;
-            var leaf = better ? new Vector3(0.3f, 0.06f, 0.05f) : wood;
-            mesh.Box(On(width / 2, height / 2), face, up, along, new Vector3(Thick, height / 2, width / 2), leaf);
             float inside = Vector3.Dot(face, -outward) >= 0 ? 1 : -1;
+            if (Look is not null)
+            {
+                // Note 941 (the director, 20 Oct: "there's no texture for the abandoned village doors, so it looks like I'm
+                // picking nothing"): the door's the kit's, in the houses' own timber, its lock drawn and, while it's locked,
+                // the hasp and padlock the wrench is at. Built hinge to free edge with its outside out along +z: turned
+                // about, it's built the other way across (mirror) rather than drawn inside out.
+                var outside = -inside * face;
+                bool locked = better && walls.Locked(d.Key), mirror = Vector3.Dot(Vector3.Cross(along, up), outside) < 0;
+                string kind = better ? locked ? "locked" : "better" : "plain";
+                var piece = Look.Art.Piece($"house-door-{kind}-{width:0.00}x{height:0.00}{(mirror ? "-m" : "")}",
+                    () => Art.TownKit.HouseDoor(Look, width, height, better, locked, mirror));
+                var x = mirror ? -along : along;
+                var o = mirror ? On(width, 0) : On(0, 0);
+                mesh.Append(piece, new Matrix4x4(x.X, x.Y, x.Z, 0, up.X, up.Y, up.Z, 0, outside.X, outside.Y, outside.Z, 0, o.X, o.Y, o.Z, 1));
+            }
+            else
+            {
+                // The greybox's: flat boxes, as before the kit's (note 719's panels and brass, note 401's ledges).
+                var leaf = better ? new Vector3(0.3f, 0.06f, 0.05f) : wood;
+                mesh.Box(On(width / 2, height / 2), face, up, along, new Vector3(Thick, height / 2, width / 2), leaf);
+                if (better)
+                {
+                    foreach (float a in new[] { width * 0.28f, width * 0.72f })
+                        foreach (float h in new[] { height * 0.28f, height * 0.7f })
+                            mesh.Box(On(a, h, -inside * (Thick + 0.008f)), face, up, along, new Vector3(0.008f, height * 0.17f, width * 0.17f), leaf * 1.25f);
+                    var brass = new Vector3(0.75f, 0.58f, 0.25f);
+                    mesh.Box(On(width - 0.1f, 1.0f, -inside * (Thick + 0.03f)), face, up, along, new Vector3(0.03f, 0.03f, 0.03f), brass);
+                    mesh.Box(On(width / 2, 1.5f, -inside * (Thick + 0.015f)), face, up, along, new Vector3(0.015f, 0.06f, 0.04f), brass);
+                }
+                foreach (float h in new[] { 0.3f, height - 0.3f })
+                    mesh.Box(On(width / 2, h, inside * (Thick + 0.012f)), face, up, along, new Vector3(0.012f, 0.06f, width / 2 - 0.04f), leaf * 0.8f);
+            }
+            // The jackpot house (note 719): a lamp left burning in the window beside its door, seen from the line.
             if (better)
             {
-                // Four raised panels on its outside, the brass knob and the knocker.
-                foreach (float a in new[] { width * 0.28f, width * 0.72f })
-                    foreach (float h in new[] { height * 0.28f, height * 0.7f })
-                        mesh.Box(On(a, h, -inside * (Thick + 0.008f)), face, up, along, new Vector3(0.008f, height * 0.17f, width * 0.17f), leaf * 1.25f);
-                var brass = new Vector3(0.75f, 0.58f, 0.25f);
-                mesh.Box(On(width - 0.1f, 1.0f, -inside * (Thick + 0.03f)), face, up, along, new Vector3(0.03f, 0.03f, 0.03f), brass);
-                mesh.Box(On(width / 2, 1.5f, -inside * (Thick + 0.015f)), face, up, along, new Vector3(0.015f, 0.06f, 0.04f), brass);
                 var sill = new Double3(d.At.X, floor, d.At.Z) + ToD(side * 1.75f + outward * 0.02f);
                 var pane = V(sill + new Double3(0, 1.45, 0), eye);
                 // Its frame, and the pane lit from within.
@@ -4583,9 +4644,6 @@ public sealed partial class GreyboxScene
                 mesh.PointLights.Add(new PointLight(pane + outward * 0.6f, Palette.LampAmber * 1.2f * flicker, 7f));
                 mesh.Billboard(pane + outward * 0.1f, 0.9f * flicker, 0, new Vector4(Palette.LampAmber * 0.35f * flicker, 1), -1, FxBlend.Additive);
             }
-            // Its ledges, top and bottom, and the brace between, on the room's side.
-            foreach (float h in new[] { 0.3f, height - 0.3f })
-                mesh.Box(On(width / 2, h, inside * (Thick + 0.012f)), face, up, along, new Vector3(0.012f, 0.06f, width / 2 - 0.04f), leaf * 0.8f);
             if (moved.Moved != Matrix4x4.Identity)
                 mesh.Move(start, moved.Moved);
             if (slammed >= 0 && Look is not null)
@@ -4920,6 +4978,13 @@ public sealed partial class GreyboxScene
             foreach (int side in (ReadOnlySpan<int>)[1, -1])
                 Look.Art.Effects.HotBoxSmoke(mesh, o + right * (float)(box.X * side) + up * (float)box.Y + back * (float)box.Z, up, back, heat,
                     (float)_speed, Time, frame.Index * 2 + (side > 0 ? 1 : 0));
+        }
+        // Note 939: a fire its hot box started, the box that caught burning at its wheel for as long as the car does (the box
+        // itself is cool again, note 331: its smoke above would have stopped as the fire began).
+        else if (Look is not null && HotBoxFire(frame.Index))
+        {
+            var box = Sim.Train.HotBoxes.Box(frame.Shape, HotBoxTuning ?? DefaultHotBox);
+            Look.Art.Effects.HotBoxAlight(mesh, o + right * (float)box.X + up * (float)box.Y + back * (float)box.Z, up, back, (float)_speed, Time, frame.Index * 2 + 1);
         }
         // A wound brake's shoes and a seized axle's dragged wheel (notes 364, 367).
         TrainCar(mesh, frame, vehicle, eye);

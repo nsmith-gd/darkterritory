@@ -64,7 +64,9 @@ public sealed class Crane
     }
     public double Rigging { get; internal set; }
     internal int Rigger = -1;
-    bool _releaseWas;
+    bool _releaseWas, _letGoSpent;
+    /// <summary>How long the operator's held Fire with a casting on the hook (note 941): the let-go's hold, till it's spent.</summary>
+    public double LetGoHeld { get; private set; }
 
     /// <summary>
     /// How many crewmates ride the hook (note 726): the host's (World's hoist), replicated in the Crane record, so every machine
@@ -230,7 +232,7 @@ public sealed class Crane
 
     /// <summary>
     /// The operator's hands on the controls this tick (host and client alike: the replicated state is the host's). The stick
-    /// moves the hook as the cab's view sees it (<see cref="Stick"/>); Jump raises the hook, Brake lowers it, Fire lets go.
+    /// moves the hook as the cab's view sees it (<see cref="Stick"/>); Jump raises the hook, Brake lowers it, Fire held lets go (note 941).
     /// </summary>
     public void Drive(in PlayerIntent intent, TrainOnLine train, double dt)
     {
@@ -497,6 +499,27 @@ public sealed class Crane
         bool pressed = fire && !_releaseWas;
         _releaseWas = fire;
         return pressed;
+    }
+
+    /// <summary>
+    /// The operator's Fire, held (note 941; the director, 20 Oct: "Oh, God, I accidentally clicked and just let it go"): the
+    /// hook lets go only once Fire's been held <c>releaseHold</c> seconds, and only once a hold (kept held, it lets go of no
+    /// more). A stray click lets go of nothing. True the tick the hold's done.
+    /// </summary>
+    internal bool LetsGo(bool fire, double dt)
+    {
+        if (!fire)
+        {
+            (LetGoHeld, _letGoSpent) = (0, false);
+            return false;
+        }
+        if (_letGoSpent)
+            return false;
+        LetGoHeld += dt;
+        if (LetGoHeld + 1e-9 < _t.ReleaseHold)
+            return false;
+        (LetGoHeld, _letGoSpent) = (0, true);
+        return true;
     }
 
     /// <summary>Client side: adopts the host's crane (the Crane record).</summary>

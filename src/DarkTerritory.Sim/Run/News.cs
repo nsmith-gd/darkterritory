@@ -37,6 +37,31 @@ public static class News
     static string Kmh(double metresPerSecond) => $"{Math.Abs(metresPerSecond) * 3.6:0} KM/H";
 
     /// <summary>
+    /// Note 939 (the director's playtest of 20 Oct evening, line 9: "Why is it on fire? We've like barely been here"): what set
+    /// a car alight, in the HUD's capitals, as the news says it as it starts and the HUD says it again to whoever's at the
+    /// fire for as long as it burns (<c>Hud.FireLine</c>); null for a fire set by hand. <paramref name="from"/>: the car it came
+    /// from, or −1; <paramref name="who"/>: whose lamp, or −1; <paramref name="inside"/>: a hound's, lit from inside the car.
+    /// </summary>
+    public static string? FireWhy(World world, Enemies.FireCause cause, int from, int who, bool inside) => cause switch
+    {
+        Enemies.FireCause.HotBox => "ITS HOT BOX RAN HOT",
+        Enemies.FireCause.FireFlies => "FIRE FLIES AT ITS LAMP",
+        Enemies.FireCause.Hounds => inside ? "A CINDER HOUND INSIDE IT" : "A CINDER HOUND ON ITS ROOF",
+        Enemies.FireCause.Lamp => who >= 0 ? $"A LAMP THROWN BY {IncidentLog.NameOf(world, who).ToUpperInvariant()}" : "A LAMP BROKEN",
+        Enemies.FireCause.Jumped => from >= 0 ? $"SPREAD FROM CAR {from}" : "SPREAD FROM THE NEXT CAR",
+        Enemies.FireCause.Blast => from >= 0 ? $"CAR {from} WENT UP" : "THE NEXT CAR WENT UP",
+        _ => null,
+    };
+
+    /// <summary>
+    /// Note 939: a fire's news detail byte: the car it came from (a jump, a blast), or how many fires its car had had tonight
+    /// before it (low four bits) and, for a hound's, whether it was lit from inside (the top bit).
+    /// </summary>
+    public static byte FireDetail(Enemies.CarFire fire) => fire.Cause is Enemies.FireCause.Jumped or Enemies.FireCause.Blast
+        ? (byte)Math.Clamp(fire.From, 0, 255)
+        : (byte)(Math.Clamp(fire.Again, 0, 15) | (fire.HoundInside ? 0x80 : 0));
+
+    /// <summary>
     /// The line as the crew read it, in capitals (the HUD's): what happened and why, no instructions (note 402's rule; F1's
     /// wording). What worked a pin loose is said as it jumps and again as it parts (note 854); who was driving is the report's
     /// (it's longer than five seconds' reading).
@@ -47,17 +72,13 @@ public static class News
         // Note 851 (the director, 16 Oct: "how'd that even get started?"): a fire, where and from what, as it starts.
         if (e.Kind == NewsKind.Fire)
         {
-            string car = Cars(e.Cars);
-            return (Enemies.FireCause)e.Cause switch
-            {
-                Enemies.FireCause.HotBox => $"FIRE IN {car} · ITS HOT BOX RAN HOT",
-                Enemies.FireCause.FireFlies => $"FIRE IN {car} · FIRE FLIES AT ITS LAMP",
-                Enemies.FireCause.Hounds => $"FIRE IN {car} · CINDER HOUNDS FEEDING ON IT",
-                Enemies.FireCause.Lamp => e.Who >= 0 ? $"FIRE IN {car} · A LAMP THROWN BY {IncidentLog.NameOf(world, e.Who).ToUpperInvariant()}" : $"FIRE IN {car} · A LAMP BROKEN",
-                Enemies.FireCause.Jumped => $"FIRE IN {car} · SPREAD FROM CAR {e.Detail}",
-                Enemies.FireCause.Blast => $"FIRE IN {car} · CAR {e.Detail} WENT UP",
-                _ => $"FIRE IN {car}",
-            };
+            // Note 939: a car alight again tonight says so; a hound's fire, where the hound was.
+            var cause = (Enemies.FireCause)e.Cause;
+            bool from = cause is Enemies.FireCause.Jumped or Enemies.FireCause.Blast;
+            int again = from ? 0 : e.Detail & 15;
+            bool inside = !from && (e.Detail & 0x80) != 0;
+            string head = $"FIRE IN {Cars(e.Cars)}{(again > 0 ? " AGAIN" : "")}";
+            return FireWhy(world, cause, from ? e.Detail : -1, e.Who, inside) is { } why ? $"{head} · {why}" : head;
         }
         // Note 854 (the director, 16 Oct: "What is making these couplings loose?"): a pin jumped, the gap and what jumped it, as
         // it does, with the 90 s still to tighten it in.

@@ -20,6 +20,37 @@ static class TelemetryCommands
     public static object Schema() => new { version = TelemetrySchema.Version, common = TelemetrySchema.Common, events = TelemetrySchema.Events };
 
     /// <summary>
+    /// <c>dt telemetry send [--dir d] [--dry-run]</c> (queue #637, note 943): the spool's pending sessions to PostHog, as the
+    /// app sends them between nights. <c>--dry-run</c> sends nothing: it prints where they'd go, how many events in how many
+    /// requests, and the first events, with the key masked. Without a key (telemetry.json's <c>upload.postHog</c>) nothing is sent.
+    /// </summary>
+    public static object Send(string content, string[] args)
+    {
+        var t = TelemetryTuning.Load(content);
+        var spool = new TelemetrySpool(Str(args, "--dir", FixedTelemetryGate.DefaultDirectory), t.Spool);
+        var p = t.Upload.PostHog;
+        var pending = spool.Pending(writing: null);
+        var events = pending.SelectMany(PostHogTelemetryUpload.Events).ToList();
+        string key = p.ProjectKey.Trim();
+        var plan = new
+        {
+            directory = spool.Directory,
+            endpoint = $"{p.Host.TrimEnd('/')}/batch/",
+            on = p.On,
+            key = key.Length == 0 ? "(none: nothing is sent)" : key[..Math.Min(6, key.Length)] + "…",
+            sessions = pending.Count,
+            events = events.Count,
+            requests = (events.Count + Math.Max(1, p.EventsPerRequest) - 1) / Math.Max(1, p.EventsPerRequest),
+            first = events.Take(3).ToList(),
+        };
+        if (args.Contains("--dry-run") || TelemetryUploader.NetworkSinkFor(t.Upload) is not { } sink)
+            return new { dryRun = true, plan };
+        var sent = new TelemetryUploader(spool, sink, t.Upload, new FixedTelemetryGate(true, spool.Directory))
+            .PumpAsync(inNight: false, writing: null).GetAwaiter().GetResult();
+        return new { dryRun = false, plan, sent = sent.Sent, outcome = sent.Result?.Outcome.ToString(), detail = sent.Result?.Detail ?? sent.Held };
+    }
+
+    /// <summary>
     /// <c>dt telemetry spool [--dir d] [--trim] [--export out]</c> (queue #626, note 919): a spool's sessions (the app's own
     /// folder by default), sent and pending, against telemetry.json's caps; <c>--trim</c> holds it to them; <c>--export</c>
     /// bundles the pending ones into <c>out</c> as the <c>file</c> sink does beside a problem report, and marks them sent.

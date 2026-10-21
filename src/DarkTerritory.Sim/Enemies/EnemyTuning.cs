@@ -420,6 +420,7 @@ public sealed record CarFireTuning
     /// cell put the walls of the stretch a walker stood in on top of it.
     /// </summary>
     public double BurnPatch { get; init; } = 0.75;
+    public double DoorwayClear { get; init; }
     /// <summary>Note 265: the burn at full blaze once you've stood in it <see cref="BurnRampSeconds"/> (health a second).</summary>
     public double BurnPerSecond { get; init; } = 10;
     /// <summary>Note 265: the share of <see cref="BurnPerSecond"/> a brush against it burns at, from the first moment.</summary>

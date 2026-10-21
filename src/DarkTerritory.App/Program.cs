@@ -354,6 +354,31 @@ crashes.Saved += (report, path) =>
     if (sent.Result is { } r)
         Console.WriteLine($"telemetry: {r.Outcome} {r.Detail}");
 };
+// The PostHog sink (#637, note 943): the finished sessions sent between nights, in the background, one send at a time, with
+// the player's consent; none at all until the director's project key is in telemetry.json.
+var telemetryUploader = DarkTerritory.Game.Telemetry.TelemetryUploader.NetworkSinkFor(telemetryTuning.Upload) is { } telemetryNet
+    ? new DarkTerritory.Game.Telemetry.TelemetryUploader(telemetrySpool, telemetryNet, telemetryTuning.Upload, telemetryGate) : null;
+Task? telemetrySending = null;
+void SendTelemetry()
+{
+    if (telemetryUploader is null || telemetrySending is { IsCompleted: false })
+        return;
+    telemetrySpool.Writing?.Flush();
+    telemetrySending = Task.Run(async () =>
+    {
+        try
+        {
+            var sent = await telemetryUploader.PumpAsync(inNight: false, telemetry.SessionId);
+            if (sent.Result is { } r)
+                Console.WriteLine($"telemetry: {telemetryUploader.Sink.Name} {r.Outcome}: {r.Detail}");
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            Console.WriteLine($"telemetry: not sent ({e.Message})");
+        }
+    });
+}
+SendTelemetry();
 bool devBuild = false;
 #if DEVTOOLS
 devBuild = true;
@@ -522,6 +547,10 @@ bool menuOpened = false;
 TownBackdrop? inTown = null;
 // The blacksmith's fitted something in the yard (note 697): the night's hosted again from its yard, the train as it's fitted.
 bool refitting = false;
+// Note 937: the player chose LEAVE (or END THE NIGHT): back to the title, nothing joined, hosted or followed.
+bool leftNight = false;
+// Note 950: a follower's wait for its host's next night, left by hand (Escape on the town's card).
+CancellationTokenSource? leaveWait = null;
 bool QuitNow() => quitAfter > 0 && timer.Elapsed.TotalSeconds >= quitAfter;
 
 // The town the crew's in behind the menus and the loading card (notes 604, 606): built into the mesh, the view and light its.
@@ -734,7 +763,7 @@ static string Doing(Launch chosen) => chosen switch
         case Launch.Follow after:
             {
                 Console.WriteLine($"going on with the crew from {after.Going.Town.Name}: waiting on the host's next night");
-                return (NetPlaySession.Follow(content, after.Going), null);
+                return (NetPlaySession.Follow(content, after.Going, leaving: leaveWait is { } waiting ? () => waiting.IsCancellationRequested : null), null);
             }
         case Launch.CampaignNight night:
             {
@@ -829,11 +858,16 @@ while (!window.CloseRequested && !QuitNow())
     launch = null;
     // Note 452: a report written in the night says which, and where it had got to.
     (playing, doing) = (session, Doing(leaving));
+    leftNight = false;
     campaign = Play(session, campaign);
     (playing, doing) = (null, "the menus");
+    // Note 937: the press that ended the night (LEAVE's Enter or click, the end screen's Enter) is this frame's, and the
+    // night's loop broke before it ended the frame. Left standing, the menu's first frame took it as a choice of its own:
+    // the fortress board's CARRY ON, the night started again with the director "joining" it.
+    input.EndFrame();
     bool delivered = session.World.Run?.End == DarkTerritory.Sim.Run.RunEnd.Delivered;
     // Note 606: a joiner whose host went on to the next night goes after it.
-    var following = session is NetPlaySession { Lost: true, GoingOn: { } going } ? going : null;
+    var following = session is NetPlaySession { Lost: true, GoingOn: { } going } && !leftNight ? going : null;
     // Note 604: delivered to a town (note 591's campaign town), the front end stands in it until the next night's picked; a
     // joiner following its host waits in it.
     inTown = (leaving is Launch.CampaignNight && campaign?.Town is not null || following is not null) && delivered
@@ -841,7 +875,7 @@ while (!window.CloseRequested && !QuitNow())
         ? new TownBackdrop(arrivedOn, session.Train, session.World.Run, arrival, session.World.Town) : null;
     // Note 687: the blacksmith's refit. The crew's told, as for the next night (note 606), and follows the host back into the
     // same yard, the train as it's now fitted.
-    if (refitting && leaving is Launch.CampaignNight && session is NetPlaySession { Host: not null } refitHost)
+    if (refitting && !leftNight && leaving is Launch.CampaignNight && session is NetPlaySession { Host: not null } refitHost)
     {
         refitHost.CarryOn(DarkTerritory.Sim.Towns.TownAt.Split(refitHost.Setup.Route ?? "").From
             ?? new DarkTerritory.Sim.Towns.TownAt(session.World.Town?.Plan.Name ?? "the fortress", "", 0));
@@ -851,8 +885,9 @@ while (!window.CloseRequested && !QuitNow())
             Thread.Sleep(15);
         }
     }
-    // Note 606: the host's going on from the town; its crew's told, and given a moment to hear it before it hangs up.
-    if (leaving is Launch.CampaignNight && delivered && campaign?.Town is { } goingOn && session is NetPlaySession { Host: not null } goingHost)
+    // Note 606: the host's going on from the town; its crew's told, and given a moment to hear it before it hangs up. Left
+    // (note 937), it isn't: the crew isn't sent to wait on a night it won't host.
+    if (leaving is Launch.CampaignNight && delivered && !leftNight && campaign?.Town is { } goingOn && session is NetPlaySession { Host: not null } goingHost)
     {
         goingHost.CarryOn(goingOn);
         for (var told = Stopwatch.StartNew(); told.Elapsed.TotalSeconds < NetPlaySession.CarryOnSeconds;)
@@ -877,48 +912,52 @@ while (!window.CloseRequested && !QuitNow())
     (session as IDisposable)?.Dispose();
     if (campaign is { Current: not null } unfinished)
         Console.WriteLine($"campaign: the night on {unfinished.Current.Route} isn't settled; its slot carries on from the last facility it left");
-    // An invite accepted (or "Join Game" on a friend) while playing (note 24's relaunch, now in-process: queue #272): this
-    // night's over and disposed, its lobby left, and the friend's lobby is the next launch, through the same loading screen
-    // a JOIN from the menu goes through. Steam stays up: the invite was its.
-    if (relaunch is { } invited)
-    {
-        relaunch = null;
-        launch = new Launch.JoinLobby(invited);
-        fromCommandLine = false;
-        continue;
-    }
-    // Note 687: the same night again from its yard, fitted (its contract's the campaign's Current: Resume takes it).
-    if (refitting && leaving is Launch.CampaignNight refitted)
-    {
-        refitting = false;
-        launch = refitted with { Resume = true, Refit = true };
-        continue;
-    }
+    // What comes after the night (note 937): an invite accepted while playing (note 24's relaunch, now in-process: queue
+    // #272) is the next launch, through the same loading screen a JOIN from the menu goes through, its lobby left and Steam
+    // still up; the blacksmith's refit (note 687) the same night again from its yard, fitted; a joiner after its host (note
+    // 606) on the town's card; otherwise back where it was chosen. A night left on purpose is none of those: the title.
+    var next = AfterNight.Decide(leftNight, session is NetPlaySession { Kicked: true }, relaunch, refitting, following, fromCommandLine,
+        campaign: leaving is Launch.CampaignNight, crew: leaving is Launch.CampaignNight { Crew: not null });
+    relaunch = null;
     refitting = false;
-    // Note 606: after the host, to its next night, on the town's card over the town (no menu in between).
-    if (following is not null)
+    switch (next)
     {
-        if (inTown is { } waitIn)
-            Backdrop(waitIn);
-        launch = new Launch.Follow(following);
-        continue;
+        case AfterNight.Relaunch invited:
+            launch = new Launch.JoinLobby(invited.Lobby);
+            fromCommandLine = false;
+            continue;
+        // Its contract's the campaign's Current: Resume takes it.
+        case AfterNight.Refit when leaving is Launch.CampaignNight refitted:
+            launch = refitted with { Resume = true, Refit = true };
+            continue;
+        case AfterNight.Follow after:
+            if (inTown is { } waitIn)
+                Backdrop(waitIn);
+            launch = new Launch.Follow(after.Going);
+            continue;
     }
-    // Started from the command line: done when the night is. Otherwise, back to where it was chosen.
-    if (fromCommandLine)
+    if (next is AfterNight.Quit)
         break;
     string? howItWent = campaign is { Over: true } ? $"TAKEN AT DAWN. {Hud.CampaignOver}."
         : campaign?.History.LastOrDefault() is { } log && campaign.Current is null
         ? $"{log.End}: {(log.Net >= 0 ? "+" : "")}{log.Net:0} scrip" : null;
-    // Note 724: put off by the crew, the menu says so.
-    if (session is NetPlaySession { Kicked: true })
-        frontEnd.NightOver(DarkTerritory.Sim.Net.Messages.PutOff);
-    // Note 724: a crew ridden with, hosted from its copy: back to its board.
-    else if (leaving is Launch.CampaignNight { Crew: { } rodeWith })
-        frontEnd.ShowCrew(rodeWith, howItWent);
-    else if (leaving is Launch.CampaignNight night)
-        frontEnd.ShowFortress(night.Slot, howItWent);
-    else
-        frontEnd.NightOver();
+    switch ((next as AfterNight.Menu)?.Screen, leaving)
+    {
+        // Note 724: put off by the crew, the menu says so.
+        case (MenuAfter.PutOff, _):
+            frontEnd.NightOver(DarkTerritory.Sim.Net.Messages.PutOff);
+            break;
+        // Note 724: a crew ridden with, hosted from its copy: back to its board.
+        case (MenuAfter.Crew, Launch.CampaignNight { Crew: { } rodeWith }):
+            frontEnd.ShowCrew(rodeWith, howItWent);
+            break;
+        case (MenuAfter.Fortress, Launch.CampaignNight night):
+            frontEnd.ShowFortress(night.Slot, howItWent);
+            break;
+        default:
+            frontEnd.NightOver();
+            break;
+    }
     // Note 916: in a playtest, a few questions about the night just recorded, before the menu it came back to.
     frontEnd.AskSurvey(telemetry.Enabled && telemetry.LastNight > 0);
 }
@@ -933,6 +972,8 @@ static string? LobbyPassword(Settings s) => s.PublicLobby ? null : s.LobbyPasswo
 // Starts what was chosen off the window's thread, drawing what it's doing meanwhile; null (the menu says why) if it failed.
 (IPlaySession Session, CampaignState? Campaign)? Starting(Launch chosen)
 {
+    using var waiting = chosen is Launch.Follow ? new CancellationTokenSource() : null;
+    leaveWait = waiting;
     var task = Task.Run(() => Start(chosen));
     // The user's playtest: "You should be able to host a run, not a night."
     string doing = chosen is Launch.Join or Launch.JoinLobby ? "JOINING"
@@ -961,8 +1002,12 @@ static string? LobbyPassword(Settings s) => s.PublicLobby ? null : s.LobbyPasswo
         if (town is not null)
         {
             var (heading, under) = TownBackdrop.Card(town, null, follow, refit);
-            Onboarding.DrawLoading(overlay, UiWidth, UiHeight, heading, under + dots, Onboarding.Tip(onboarding, frontEnd.Settings, nightsOver));
+            Onboarding.DrawLoading(overlay, UiWidth, UiHeight, heading, under + dots, Onboarding.Tip(onboarding, frontEnd.Settings, nightsOver),
+                hint: waiting is null ? null : TownBackdrop.LeaveWait);
         }
+        // Note 950: Escape leaves the wait for the host's next night: back to the title, as a night's LEAVE goes (note 937).
+        if (waiting is not null && input.Pressed(Key.Escape))
+            waiting.Cancel();
         else
             Onboarding.DrawLoading(overlay, UiWidth, UiHeight, doing + dots, chosen is Launch.Join j ? j.Address.ToUpperInvariant() : "THE LINE, THE LAND, THE CREW",
                 Onboarding.Tip(onboarding, frontEnd.Settings, nightsOver));
@@ -975,8 +1020,20 @@ static string? LobbyPassword(Settings s) => s.PublicLobby ? null : s.LobbyPasswo
         input.EndFrame();
         Thread.Sleep(15);
     }
+    leaveWait = null;
     if (!task.IsCompleted)
+    {
+        // The window closed mid-wait: the follower's dialling stops with it.
+        waiting?.Cancel();
         return null;
+    }
+    // Left by hand (note 950): nothing joined; the title, with nothing said (it wasn't a failure).
+    if (task.Exception?.GetBaseException() is OperationCanceledException || task.IsCanceled)
+    {
+        Console.WriteLine("left the wait for the host's next night");
+        frontEnd.NightOver();
+        return null;
+    }
     // Built: the town's card names the night ahead a moment before it opens in the town's yard (note 604).
     if (town is not null && task.Exception is null && task.Result.Session.Route?.Plan?.Terminus is { } ahead)
         for (double held = timer.Elapsed.TotalSeconds; timer.Elapsed.TotalSeconds - held < TownBackdrop.CardHoldSeconds && !window.CloseRequested;)
@@ -1286,7 +1343,11 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             if (input.Pressed(Key.Escape))
             {
                 if (window.MouseCaptured) window.MouseCaptured = false;
-                else break;
+                else
+                {
+                    leftNight = true;
+                    break;
+                }
             }
         }
         // --night-menu (headless checks with --capture): the in-night menu open from the first frame.
@@ -1341,6 +1402,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
                 net?.SetMischief(switched.On);
             if (chosen is Launch.Leave)
             {
+                leftNight = true;
                 frontEnd.CloseNight();
                 window.TextInput = false;
                 if (net is not null && session.World.Run?.Over == true && session.World.Commendations.Count > 0)
@@ -2177,6 +2239,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     if (session.World.Run?.Over != true)
         telemetry.Quit(net is { Kicked: true } ? "kicked" : net is { Lost: true, GoingOn: null } ? "disconnected" : window.CloseRequested ? "app" : "menu", telemetryWorld);
     telemetry.NightEnd(telemetryWorld);
+    // Note 943: between nights, the finished sessions go (the PostHog sink, once there's a key).
+    SendTelemetry();
     // Note 350: a night seen to its end is one of the player's nights.
     if (session.World.Run?.Over == true)
         nightsOver = profile.CountNight().Nights;
