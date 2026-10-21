@@ -1,0 +1,4 @@
+# Hazel's log
+
+- 2026-10-21 00:10 UTC · Hazel · Claimed by the Token Budget Manager (nathaniel3): queue #642, note 939, branch `hazel-fires-told-642` (the 20 Oct evening playtest, lines 9, 10, 12: car fires told, boarding a burning car, the extinguisher's reach).
+- 2026-10-21 00:40 UTC · Hazel · #642 (note 939): every source that lights a car listed (hot box, hounds, Fire Flies, a lamp, a jump, a blast; the Hotbox creature never does). The cause rides on the fire (`Height`/`Lateral`, no wire change); the news says a relight ("AGAIN") and where the hound was; `Hud.FireLine` tells it at the fire for as long as it burns; a hot box's fire burns at its wheel (drawn and heard), a hound on a roof shows through the boards inside. `carFire.doorwayClear` 0.8 (no burn in an open doorway), `sprayReach` 3.5 → 4.5. Sim 143 and Game 388 tests green, format clean; looked at with `dt screenshot --fire-cause`.
