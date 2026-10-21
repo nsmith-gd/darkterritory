@@ -3490,7 +3490,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
             // it, the nearest it; else the lights' car by the packing plan (Roomiest). Chosen by the lights' plan, a hand that
             // then took a heavy one carried it to a car whose half the plan had set aside for it, and couldn't put it in.
             _car = OrderedCar(world, p)
-                ?? (Crate(world, p, self) is null && PlayerId is not null && calls.HeavyHands >= 2 && HeavyCrate(world, p, self) is { } next
+                ?? (Crate(world, p, self, job == StopJob.Driver) is null && PlayerId is not null && calls.HeavyHands >= 2 && HeavyCrate(world, p, self) is { } next
                     && p.HeavyCar(world, -1, Physics.Bodies.WorldCentre(next, train)) is var half and >= 0 ? half : Roomiest(world, p, calls, member));
         }
         calls.CarryingTo(member, heavy ? _car : -1);
@@ -3638,7 +3638,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         // Nothing loose just now, though some are still on their way in (in someone's arms, settling): wait by the stack
         // for the next, rather than give up the stop.
         // The light ones gone, two hands take a heavy one between them: one takes an end, and the other comes to help.
-        var crate = Crate(world, p, self)
+        var crate = Crate(world, p, self, job == StopJob.Driver)
             ?? (PlayerId is not null && calls.HeavyHands >= 2 ? HeavyCrate(world, p, self) : null);
         if (crate is null)
         {
@@ -3786,13 +3786,24 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
     }
 
     /// <summary>The nearest crate a hand can pick up from the ground (<see cref="StopPlan.Loose"/>) on the working side.</summary>
-    static Physics.Body? Crate(World world, StopPlan p, in PlayerState self)
+    /// <param name="driver">
+    /// #613: the driver's, working the crates alone (note 261): not one lying by the cab's steps. It's the one it put down there
+    /// to go in for its fire, and taken up again it was at the steps with it in its arms, unable to climb, putting it down,
+    /// taking it up, till the dawn (frontier:2's lone driver, at Oldcastle Wreck Yard). Left there, it's left at the stop.
+    /// </param>
+    static Physics.Body? Crate(World world, StopPlan p, in PlayerState self, bool driver = false)
     {
         var train = world.Train;
         var me = self.Position;
         Double3 At(Physics.Body b) => b.Parent == PlayerState.World ? b.Centre : train.Frames[b.Parent].ToWorld(b.Centre);
-        return world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Cargo && p.Loose(world, b) && !Pushed(world, b)).OrderBy(b => (At(b) - me).Length).FirstOrDefault();
+        bool ByTheSteps(Physics.Body b) => driver && b.Parent == PlayerState.World
+            && (Flat(At(b)) - Flat(CabStepsFoot(train, EngineSide(train, At(b))).Foot)).Length < ClearOfTheSteps;
+        return world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Cargo && p.Loose(world, b) && !Pushed(world, b) && !ByTheSteps(b))
+            .OrderBy(b => (At(b) - me).Length).FirstOrDefault();
     }
+
+    /// <summary>#613: a crate lying within this of the foot of the cab's steps (m) isn't the lone driver's to take up.</summary>
+    const double ClearOfTheSteps = 2.5;
 
     /// <summary>
     /// A crate the Freight Beetle has (its load, note 366): it shoves it away from whoever's nearest, so a hand going to take
@@ -4191,7 +4202,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         Doing = "to the cab";
         // On the cab's steps: on up (with nothing held, a hand lets go, and it was back on the ballast to try again, all night).
         if (self.Parent == 0 && self.Surface == Surface.Ladder)
-            return new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use };
+            return new PlayerIntent { MoveZ = 1 };
         var engine = train.Frames[0];
         var (foot, _) = CabStepsFoot(train, side);
         var inward = engine.DirToWorld(new Double3(-side, 0, 0));
