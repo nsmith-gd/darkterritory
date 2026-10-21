@@ -101,10 +101,23 @@ public sealed record FinalSurgeTuning
     public bool On { get; init; }
     public double RampMetres { get; init; } = 2500;
     public double Peak { get; init; } = 2;
+    public int? CrewFull { get; init; }
 
-    /// <summary>λ's factor <paramref name="metres"/> short of the first kept quiet ahead: 1 out of the ramp, rising linearly to
-    /// <see cref="Peak"/> at its start; 1 past it (the quiet holds the director anyway) or off.</summary>
-    public double At(double metres) => !On || RampMetres <= 0 || metres <= 0 || metres >= RampMetres
+    /// <summary>
+    /// The peak for <paramref name="living"/> crew alive: <see cref="Peak"/>, or with <see cref="CrewFull"/> set (the gentler
+    /// surge, note 960), its rise over 1 scaled by <see cref="CrewFull"/> / living above that many, so an eight's night presses
+    /// half as hard as a four's.
+    /// </summary>
+    public double PeakFor(int living)
+    {
+        double peak = Math.Max(1, Peak);
+        return CrewFull is { } full && full > 0 && living > full ? 1 + (peak - 1) * full / living : peak;
+    }
+
+    /// <summary>λ's factor <paramref name="metres"/> short of the first kept quiet ahead, <paramref name="living"/> crew alive (0:
+    /// no easing): 1 out of the ramp, rising linearly to <see cref="PeakFor"/> at its start; 1 past it (the quiet holds the
+    /// director anyway) or off.</summary>
+    public double At(double metres, int living = 0) => !On || RampMetres <= 0 || metres <= 0 || metres >= RampMetres
         ? 1
-        : 1 + (Math.Max(1, Peak) - 1) * (1 - metres / RampMetres);
+        : 1 + (PeakFor(living) - 1) * (1 - metres / RampMetres);
 }

@@ -58,4 +58,18 @@ public class FinalSurgeTests
         far.Director!.Decide(far, 1_000, [], 500);
         Assert.Equal(1, far.Director.Surge);
     }
+
+    /// <summary>The gentler surge (note 960): with <c>crewFull</c>, a crew above it presses less; at or under it, as before.</summary>
+    [Fact]
+    public void TheGentlerSurgeEasesOffForABigCrew()
+    {
+        Assert.Null(D.Encounters.Drive.FinalSurge.CrewFull);
+        var gentle = T with { CrewFull = 4 };
+        Assert.Equal(T.Peak, gentle.PeakFor(4), 9);
+        Assert.Equal(T.Peak, gentle.PeakFor(1), 9);
+        Assert.Equal(1 + (T.Peak - 1) / 2, gentle.PeakFor(8), 9);
+        Assert.Equal(T.Peak, T.PeakFor(8), 9);
+        Assert.True(gentle.At(1, 8) < T.At(1, 8));
+        Assert.Equal(T.At(T.RampMetres / 2, 3), gentle.At(T.RampMetres / 2, 3), 9);
+    }
 }

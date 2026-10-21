@@ -606,7 +606,7 @@ public sealed class Director
         _hold = null;
         // The final surge (#663, note 960): this second's factor on λ and on the pressure's build, ahead of the terminus's quiet.
         var surge = _t.Encounters.Drive.FinalSurge;
-        Surge = surge.On && _route is { } surgeRoute ? surge.At(ToKeptQuiet(world.Train.Dynamics.Distance, surgeRoute, noSpawnFinal)) : 1;
+        Surge = surge.On && _route is { } surgeRoute ? surge.At(ToKeptQuiet(world.Train.Dynamics.Distance, surgeRoute, noSpawnFinal), Active) : 1;
         TrackFar(world, active);
         var attempt = ChooseNow(world, elapsed, active, noSpawnFinal);
         Pace(world, elapsed, active);
