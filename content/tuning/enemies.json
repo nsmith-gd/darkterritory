@@ -1513,7 +1513,12 @@
       // pressure spent past λ, the free channel never fired, and 2, 4 and 8 crew ran over §7's bands in bursts (note 908).
       // null (as shipped): the pressure spends as it would alone. Measured at 0.5 (note 908): 8 of 20 cells in §7's bands
       // against 12 without it (λ counts placements, many of which never come on), so it waits for #613's calibration.
-      "drive": { "on": true, "dueCap": 1.5, "dueFloor": -1, "jitter": 0.35, "pressureByLambda": true, "pressureGate": null },
+      "drive": { "on": true, "dueCap": 1.5, "dueFloor": -1, "jitter": 0.35, "pressureByLambda": true, "pressureGate": null,
+        // The final surge (#663, note 960; #613): the terminus approach is a kept quiet in the late half, so the raw late
+        // half read quieter. Over rampMetres before the first kept quiet ahead (the final stretch or terminus_safe), λ rises
+        // linearly to peak × itself, and the pressure's build with it (the pressure is what spends), so that window's
+        // encounters come before it, never in it. Off until measured and asked.
+        "finalSurge": { "on": false, "rampMetres": 2500, "peak": 2 } },
       // Selection and placement (note 895; the brief §3 "Encounter selection" 6, §4 level 3, §5). selection: a kind whose zone
       // (Enemy.Zone: forward, rear, flank, interior, structural, outside) already has engaged threats weighs ×zoneRepeatWeight
       // for each, in the pressure's and the curve's choices, so the next threat is a problem somewhere else (the conflict
