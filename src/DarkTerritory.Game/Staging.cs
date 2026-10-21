@@ -2235,6 +2235,37 @@ public static partial class Staging
     /// one <paramref name="w"/> of the way through its wind-up (its cracks blazing, embers streaming up off it), and one at
     /// the burst from its body that lights the car.
     /// </summary>
+    /// <summary>
+    /// Note 939 (<c>dt screenshot --threats --fire-cause hotbox|hounds|inside</c>): the staged car fire lit by
+    /// <paramref name="cause"/>, shown where it is: <c>hotbox</c>, its hot box burning at its wheel (<c>--view hotbox --car</c> the
+    /// fire's car); <c>hounds</c>, a Cinder Hound on its roof over the fire, seen from inside (<c>--view fire</c>), winding up to
+    /// light it again <paramref name="w"/> of the way through (0, prowling); <c>inside</c>, the same hound's fire told as lit
+    /// from inside. The fire's cause rides on it as it would from the host, so the HUD's line (<c>--hud</c>) says it too.
+    /// </summary>
+    public static List<Enemy> Caused(TrainOnLine train, IReadOnlyList<Enemy> staged, string cause, double w, double windUp, CarFireTuning? t = null)
+    {
+        var list = new List<Enemy>(staged);
+        int at = list.FindIndex(e => e is CarFire);
+        if (at < 0)
+            return list;
+        var was = (CarFire)list[at];
+        var why = cause switch { "hotbox" => FireCause.HotBox, "flies" => FireCause.FireFlies, "lamp" => FireCause.Lamp, _ => FireCause.Hounds };
+        var fire = CarFire.In(was.Id, train, was.Attached, was.Local.Z, t ?? new CarFireTuning(), why).LitInside(cause == "inside");
+        fire.Restore(was.Phase, was.PhaseSeconds, was.Health, was.Attached, was.Local, 0, fire.Lateral, fire.Height, was.Extra, was.Extra2);
+        fire.RestoreHeat([.. was.Heat]);
+        list[at] = fire;
+        if (why == FireCause.Hounds && cause != "inside")
+        {
+            var hound = new CinderHound(86, 86);
+            const double seconds = 30;
+            var mode = w > 0 ? HoundMode.Ignite : HoundMode.Still;
+            hound.Restore(SpinePhase.Commit, seconds, 60, was.Attached, new Double3(0.4, train.Frames[was.Attached].Shape.RoofHeight, was.Local.Z + 1.3),
+                seconds - windUp * w, (int)mode * 4 + 1, 0, 86, 0);
+            list.Add(hound);
+        }
+        return list;
+    }
+
     public static List<Enemy> Ignite(TrainOnLine train, double w, double windUp)
     {
         int car = Math.Min(2, train.Frames.Count - 1);
