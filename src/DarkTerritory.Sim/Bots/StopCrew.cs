@@ -4128,6 +4128,11 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
             return self.Surface == Surface.Air ? new PlayerIntent() : Throw(self, train, b);
         if (PlayerMotor.InCab(self, train))
             return null;
+        // At the foot of the cab's steps and in the air there: off the bottom rung a tick after taking them, so still pushing
+        // on up (with nothing pushing, the walk-in that takes them and the step off the bottom went on every tick, till the dawn).
+        if (self.Surface == Surface.Air && self.Parent == PlayerState.World && Math.Abs(train.Dynamics.Velocity) <= 0.05
+            && CabStepsFoot(train, EngineSide(train, self.Position)) is var (foot, up) && (Flat(foot) - Flat(self.Position)).Length < AtTheSteps)
+            return new PlayerIntent { MoveZ = 1, LookYaw = Turn(self, up) };
         if (self.Surface == Surface.Air || Math.Abs(train.Dynamics.Velocity) > 0.05)
             return new PlayerIntent();
         // Still up on a car (the last door it shut, on that car's landing): off it by the side it's on first. The walk to the
@@ -4138,6 +4143,14 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         // spur that was as often the far side: frontier:2's lone driver, back from Oldcastle Wreck Yard's crates for its fire,
         // stood 7 m short of the cab beside car 1, walking for the steps across the train, from 404 s till the dawn.
         return IntoCab(self, train, self.Parent == PlayerState.World ? EngineSide(train, self.Position) : 1);
+    }
+
+    /// <summary>The foot of the cab's steps on one side (+1 right), and the yaw that faces up them.</summary>
+    static (Double3 Foot, double Up) CabStepsFoot(TrainOnLine train, int side)
+    {
+        var engine = train.Frames[0];
+        var inward = engine.DirToWorld(new Double3(-side, 0, 0));
+        return (engine.ToWorld(new Double3(side * (CabStepsOut(train) + 0.05), 0, CabDoorZ(train))), DMath.Atan2(-inward.X, -inward.Z));
     }
 
     /// <summary>Within this of the foot of the cab's steps (m), straight on up them.</summary>
@@ -4180,15 +4193,23 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         if (self.Parent == 0 && self.Surface == Surface.Ladder)
             return new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use };
         var engine = train.Frames[0];
-        var foot = engine.ToWorld(new Double3(side * (CabStepsOut(train) + 0.05), 0, CabDoorZ(train)));
+        var (foot, _) = CabStepsFoot(train, side);
         var inward = engine.DirToWorld(new Double3(-side, 0, 0));
         double up = DMath.Atan2(-inward.X, -inward.Z);
         // #613: at the foot, on up the steps whatever it's still turning: the steps are grabbed walking into them, and a
         // stand to face them (the walk's last turn) is a tick off them. Over a link the host has the hand on the steps a round
         // trip before the bot sees it, and that stand, arriving then, stepped it off the bottom rung again: frontier:2's lone
         // driver, on and off the cab's steps every 2.3 s from 358 s till the dawn.
-        if (self.Parent == PlayerState.World && (Flat(PlayerMotor.WorldPosition(self, train)) - Flat(foot)).Length < AtTheSteps)
-            return new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use, LookYaw = Turn(self, up) };
+        if (self.Parent == PlayerState.World && Flat(foot) - Flat(PlayerMotor.WorldPosition(self, train)) is var toFoot && toFoot.Length < AtTheSteps)
+        {
+            // Turned to face up them first, standing (the steps are only taken facing them, so it can't be on them yet), then
+            // into them, sidestepping onto the foot: steered at the foot itself, it went round and round a hand's width off it.
+            if (Math.Abs(Wrap(up - self.Yaw)) > 0.4)
+                return new PlayerIntent { LookYaw = Turn(self, up) };
+            double right = toFoot.X * DMath.Cos(self.Yaw) - toFoot.Z * DMath.Sin(self.Yaw);
+            // (No Use: walking into them takes them, and Use there took up the crate it had put down at their foot for the fire.)
+            return new PlayerIntent { MoveZ = 1, MoveX = (float)Math.Clamp(right * 3, -1, 1), LookYaw = Turn(self, up) };
+        }
         var (step, there) = OnFoot(self, train, train.Dynamics.Path, foot, up);
         return there ? new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use } : step;
     }
