@@ -22,11 +22,8 @@ static class AfootCommands
         double seconds = Opt(args, "--seconds", 240), speed = Opt(args, "--walk", 1.4);
         int cars = (int)Opt(args, "--cars", 6);
         var route = DarkTerritory.Sim.LineGen.Routes.Generate(content, spec, cars);
-        // --halt (note 934): the night's first halt (an abandoned village's on the main line), for director.encounters.halt.
-        var stop = (args.Contains("--halt")
-            ? route.Features.FirstOrDefault(f => f.Kind == FeatureKind.Village && f.Stop?.Halt is not null)
-            : route.Features.FirstOrDefault(f => f.Stop?.Buildings.Count(b => b.Kind == BuildingKind.House && b.Zone == StopZone.Village) >= 3))
-            ?? throw new InvalidOperationException($"{spec} has no {(args.Contains("--halt") ? "halt" : "stop with a village")}");
+        var stop = route.Features.FirstOrDefault(f => f.Stop?.Buildings.Count(b => b.Kind == BuildingKind.House && b.Zone == StopZone.Village) >= 3)
+            ?? throw new InvalidOperationException($"{spec} has no stop with a village");
         object Walk(bool on)
         {
             var session = new PrototypeSession(content, route, cars, enemies: true, crew: 1, at: stop.Start + stop.Stop!.StopPoint.S);
