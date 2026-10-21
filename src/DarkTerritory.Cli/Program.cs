@@ -132,6 +132,8 @@ return args switch
     ["telemetry", "record", ..] => Print(TelemetryCommands.Record(content, args)),
     // dt telemetry spool [--dir d] [--trim] [--export out] (queue #626, note 919): the spool's sessions against its caps; trim; bundle.
     ["telemetry", "spool", ..] => Print(TelemetryCommands.Spool(content, args)),
+    // dt telemetry send [--dir d] [--dry-run] (queue #637, note 943): the pending sessions to PostHog, or what would go.
+    ["telemetry", "send", ..] => Print(TelemetryCommands.Send(content, args)),
     ["telemetry", "summary", ..] => Print(TelemetryCommands.Summary(args)),
     ["telemetry", "map", ..] => Print(TelemetryCommands.Map(content, args)),
     // dt playtest bake --into <content> [--cohort CODE] (note 916): a playtest build's mark, as tools/package.sh --playtest bakes it.
@@ -2368,6 +2370,12 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         scene.Crew = [.. scene.Crew ?? [], Staging.Scorched(train, burning, stagedFire ?? new DarkTerritory.Sim.Enemies.CarFireTuning(),
             Array.IndexOf(args, "--scorch") is var sc && sc + 1 < args.Length
                 && double.TryParse(args[sc + 1], System.Globalization.CultureInfo.InvariantCulture, out double scorchFrom) ? scorchFrom : 1.4)];
+    // --fire-cause hotbox|hounds|inside|flies|lamp (note 939; with --threats): the staged fire lit by that, shown where it is: the
+    // hot box burning at its wheel (--view hotbox --car the fire's), a hound on its roof over it seen from inside (--view fire;
+    // --ignite-at w, its wind-up to light it again); with --hud, the line saying it.
+    if (Str(args, "--fire-cause", "") is { Length: > 0 } fireCause && scene.Enemies is { } stagedThreats)
+        scene.Enemies = Staging.Caused(train, stagedThreats, fireCause, Opt(args, "--ignite-at", 0),
+            DataFile.Load<DarkTerritory.Sim.Enemies.EnemyTuning>(Path.Combine(content, DarkTerritory.Sim.Enemies.EnemyTuning.File)).CinderHounds.Aboard.IgniteWindUpSeconds, stagedFire);
     // --hugger swallow: the one it has in its mouth at the rear car's end door (App. A.3; Staging.Swallowed).
     if (Str(args, "--hugger", "") == "swallow" && scene.Enemies?.OfType<DarkTerritory.Sim.Enemies.CarHugger>().FirstOrDefault() is { Holding: >= 0 })
         scene.Crew = [.. scene.Crew ?? [], Staging.Swallowed(train), .. args.Contains("--rescue") ? [Staging.SwallowRescuer(train)] : Array.Empty<Crewmate>()];

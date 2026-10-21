@@ -1011,6 +1011,7 @@ public sealed partial class GreyboxScene
         }
         Extinguishing(mesh, frames, eye);
         FireGrids(mesh, frames, eye);
+        HoundsOverhead(mesh, frames, eye);
         if (Crew is not null)
             foreach (var held in Crew)
             {
@@ -1961,6 +1962,37 @@ public sealed partial class GreyboxScene
     /// <summary>Each fire's cells as last drawn, and where each sprayer's jet last went (the fire, its cell, when): note 866.</summary>
     readonly Dictionary<int, double[]> _cellsWas = new();
     readonly Dictionary<int, (int Fire, int Cell, double At)> _jetAt = new();
+
+    /// <summary>Note 939: whether car <paramref name="car"/> is burning from its hot box (the fire's cause is replicated on it).</summary>
+    bool HotBoxFire(int car) =>
+        Enemies?.Any(e => e is Sim.Enemies.CarFire { Gone: false, Cause: Sim.Enemies.FireCause.HotBox } f && f.Attached == car
+            && f.Phase is not SpinePhase.Dormant and not SpinePhase.BreakOff) == true;
+
+    /// <summary>
+    /// Note 939 (the director's playtest of 20 Oct evening, line 9: "how does this keep relighting?"): every Cinder Hound on a
+    /// car's roof, seen from inside the car under it as its heat through the boards and cinders sifting down, brighter as it
+    /// winds up to light the car (its <see cref="Sim.Enemies.HoundMode.Ignite"/>). Out of the car the roof hides it, and the
+    /// hound itself is in sight.
+    /// </summary>
+    void HoundsOverhead(MeshBuilder mesh, IReadOnlyList<CarFrame> frames, Double3 eye)
+    {
+        if (Look?.Art.Effects is not { HasFlames: true } fx || Look.Art.Creatures is not { } creatures)
+            return;
+        foreach (var e in Enemies ?? [])
+        {
+            if (e is not Sim.Enemies.CinderHound { Gone: false } hound || e.Attached <= 0 || e.Attached >= frames.Count)
+                continue;
+            var car = frames[e.Attached];
+            if (car.Shape.Interior is not { } room || hound.Aboard is Sim.Enemies.HoundMode.Leap or Sim.Enemies.HoundMode.Drop or Sim.Enemies.HoundMode.Climb
+                || e.Local.Y < car.Shape.RoofHeight - 0.5 || Math.Abs(e.Local.Z) > room.Max.Z)
+                continue;
+            float windUp = hound.Aboard == Sim.Enemies.HoundMode.Ignite
+                ? (float)Math.Clamp(hound.ModeSeconds / Math.Max(1e-6, creatures.Hounds.Aboard.IgniteWindUpSeconds), 0, 1) : 0;
+            var under = new Double3(Math.Clamp(e.Local.X, room.Min.X + 0.2, room.Max.X - 0.2), room.Max.Y - 0.25, e.Local.Z);
+            var at = car.ToWorld(under).RelativeTo(eye);
+            fx.HoundThroughRoof(mesh, at, Vector3.Normalize(car.ToWorld(under - Double3.Up).RelativeTo(eye) - at), windUp, Time, e.Id);
+        }
+    }
 
     /// <summary>
     /// The fire grid (GDD App. F.1; note 267), from what's replicated: every burning car's cells alight, each where it is on
@@ -4920,6 +4952,13 @@ public sealed partial class GreyboxScene
             foreach (int side in (ReadOnlySpan<int>)[1, -1])
                 Look.Art.Effects.HotBoxSmoke(mesh, o + right * (float)(box.X * side) + up * (float)box.Y + back * (float)box.Z, up, back, heat,
                     (float)_speed, Time, frame.Index * 2 + (side > 0 ? 1 : 0));
+        }
+        // Note 939: a fire its hot box started, the box that caught burning at its wheel for as long as the car does (the box
+        // itself is cool again, note 331: its smoke above would have stopped as the fire began).
+        else if (Look is not null && HotBoxFire(frame.Index))
+        {
+            var box = Sim.Train.HotBoxes.Box(frame.Shape, HotBoxTuning ?? DefaultHotBox);
+            Look.Art.Effects.HotBoxAlight(mesh, o + right * (float)box.X + up * (float)box.Y + back * (float)box.Z, up, back, (float)_speed, Time, frame.Index * 2 + 1);
         }
         // A wound brake's shoes and a seized axle's dragged wheel (notes 364, 367).
         TrainCar(mesh, frame, vehicle, eye);
