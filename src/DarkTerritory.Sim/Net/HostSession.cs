@@ -1226,7 +1226,8 @@ public sealed partial class HostSession
         var liveMic = speaker.State.Alive ? null : World.Holdouts?.LiveMicOf(speaker.Id);
         // Note 720 (App. C.8): said into the speaking tube's mouthpiece, it comes out of the far end's horn as well, heard near it.
         var tubeTuning = PlayerTuning.Voices.Tube;
-        var tube = SpeakingTube.Heard(speaker.State, Train, tubeTuning);
+        // Note 978: with the speaking tubes fitted it comes out of more than one horn; each listener hears the nearest they're near.
+        var tubes = SpeakingTube.HeardAll(speaker.State, Train, tubeTuning);
         foreach (var listener in _crew)
         {
             if (listener == speaker)
@@ -1237,7 +1238,13 @@ public sealed partial class HostSession
             var path = VoiceRouting.Route(speaker.State, ears.State, radio, Train, tunnel, World.Bodies.HasRadio(ears.Id), underground);
             if (liveMic is not null && VoiceRouting.HearsLiveMic(listener.State, liveMic.Inside, Train))
                 path |= VoicePath.Proximity;
-            if (tube is { } t && VoiceRouting.HearsTube(ears.State, t.At, Train, tubeTuning))
+            (int End, Ballast.Double3 At)? tube = null;
+            double tubeD = double.MaxValue;
+            foreach (var t in tubes)
+                if (VoiceRouting.HearsTube(ears.State, t.At, Train, tubeTuning)
+                    && (PlayerMotor.WorldPosition(ears.State, Train) - t.At).Length is var d && d < tubeD)
+                    (tube, tubeD) = (t, d);
+            if (tube is not null)
                 path |= VoicePath.Tube;
             if (path == VoicePath.None)
                 continue;

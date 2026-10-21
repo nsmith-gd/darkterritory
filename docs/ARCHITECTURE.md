@@ -1134,5 +1134,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [974. The dining car modelled (C1, queue #674; the art pass over #656's greybox, note 959)](notes/974.md)
 - [975. The flare pistol heard: the shot, the flare burning, an empty click (AU1, queue #675; the Audio Checklist's `up-flare` line)](notes/975.md)
 - [976. The playtest builds carry Valve's Steam library (B3, queue #676; #269's groundwork)](notes/976.md)
+- [978. Speaking tubes between neighbouring cars (T2, queue #678; #410's leftover, upgrades.md §6: "Voice carries between neighbouring cars as in…](notes/978.md)
 - [980. A pin working loose heard the length of the train: `state-coupling-loose.warn` (AU1, queue #680; note 865's ask)](notes/980.md)
 <!-- end of the notes index -->

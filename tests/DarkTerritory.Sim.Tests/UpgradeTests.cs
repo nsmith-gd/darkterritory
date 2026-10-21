@@ -61,6 +61,9 @@ public class UpgradeTests
         Assert.Equal(Tuning.Enemies.Sleepers.MinorDamage * 0.5, With("cowcatcher").Enemies!.Sleepers.MinorDamage, 9);
         Assert.Equal(Tuning.Train.Kit.GrabIrons * 4.0 / 3.0, With("grabIrons").Train.Kit.GrabIrons, 6);
         Assert.Equal(1, Tuning.Train.Kit.GrabIrons);
+        // Note 978: the speaking tubes, piped car to car; not as built.
+        Assert.True(With("speakingTubes").Train.Kit.SpeakingTubes);
+        Assert.False(Tuning.Train.Kit.SpeakingTubes);
         Assert.Equal(Tuning.Enemies.CarFire.ChargeSeconds * 1.5, With("bigExtinguishers").Enemies!.CarFire.ChargeSeconds, 9);
         Assert.Equal(Tuning.Enemies.CarFire.RechargeSeconds / 1.5, With("bigExtinguishers").Enemies!.CarFire.RechargeSeconds, 9);
         Assert.Equal(Tuning.Combat.Guns.ReloadStepSeconds * 0.8, With("gunRammers").Combat.Guns.ReloadStepSeconds, 9);

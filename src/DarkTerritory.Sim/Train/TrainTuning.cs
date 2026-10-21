@@ -270,6 +270,12 @@ public sealed record KitTuning
     /// <summary>Note 678's grab irons: how many times player.json's <c>ladder.grabMaxRelativeSpeed</c> a ladder can be caught at, 1 as built.</summary>
     public double GrabIrons { get; init; } = 1;
     /// <summary>
+    /// Note 978 (upgrades.md §6's speaking tubes; GDD App. C.8): a speaking tube's horn in every car with a room, joined to
+    /// the next car's either way along the train, as well as the cab's to the guard van's (<see cref="SpeakingTube"/>). The
+    /// campaign sets it (effect <c>speakingTubes</c>).
+    /// </summary>
+    public bool SpeakingTubes { get; init; }
+    /// <summary>
     /// The band's instruments the blacksmith sold the crew (note 700; band.json <c>instruments</c> ids), in the guard van; the
     /// campaign sets it (effect <c>instrument:&lt;id&gt;</c>).
     /// </summary>
