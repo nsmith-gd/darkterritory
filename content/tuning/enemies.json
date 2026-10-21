@@ -1518,7 +1518,14 @@
       // pressure spent past λ, the free channel never fired, and 2, 4 and 8 crew ran over §7's bands in bursts (note 908).
       // null (as shipped): the pressure spends as it would alone. Measured at 0.5 (note 908): 8 of 20 cells in §7's bands
       // against 12 without it (λ counts placements, many of which never come on), so it waits for #613's calibration.
-      "drive": { "on": true, "dueCap": 1.5, "dueFloor": -1, "jitter": 0.35, "pressureByLambda": true, "pressureGate": null },
+      "drive": { "on": true, "dueCap": 1.5, "dueFloor": -1, "jitter": 0.35, "pressureByLambda": true, "pressureGate": null,
+        // The final surge (#663, note 960; #613): the terminus approach is a kept quiet in the late half, so the raw late
+        // half read quieter. Over rampMetres before the first kept quiet ahead (the final stretch or terminus_safe), λ rises
+        // linearly to peak × itself, and the pressure's build with it (the pressure is what spends), so that window's
+        // encounters come before it, never in it. Off until measured and asked. crewFull: the gentler surge (note 960; at
+        // peak 2 an eight's deaths went 0.8 → 2.7 a night): above that many crew alive, the peak's rise over 1 scales by
+        // crewFull / alive (4: an eight's peak 1.5). null: every crew the full peak.
+        "finalSurge": { "on": false, "rampMetres": 2500, "peak": 2, "crewFull": null } },
       // Selection and placement (note 895; the brief §3 "Encounter selection" 6, §4 level 3, §5). selection: a kind whose zone
       // (Enemy.Zone: forward, rear, flank, interior, structural, outside) already has engaged threats weighs ×zoneRepeatWeight
       // for each, in the pressure's and the curve's choices, so the next threat is a problem somewhere else (the conflict
@@ -1547,6 +1554,13 @@
     // Gaunt following its waker, talked to and so held in its telegraph, from right beside them. stuckSparesTheMet: what has
     // a living crewmate within lingerRadius isn't stuck. Off until the director's said (a despawn rule of the director's).
     "stuckSparesTheMet": false,
+    // The Gaunt-only ask (note 945: n1-C1's 30-seed sweep had the rule for every kind cost two-crew deliveries, .73 -> .47):
+    // the same spare for the kinds listed only (["gaunt"]). Empty: off, until measured and the director's said.
+    "stuckSparesKinds": [],
+    // Note 957 (frontier:4 4x8, the crew lost one by one to the hounds and the Ribbits): the crew the director's gates
+    // (minCrew) and pack sizes (the Ribbits' "never more than the crew") go by counts the living only. false: everyone in
+    // the night, the dead included, as before. Off until measured and the director's said (spawns are the director's).
+    "crewIsTheLiving": false,
     // Note 795 (the director, 15 Oct: "Even when testing alone I'm not running into monsters in yards or abandoned villages"):
     // with every living crewmate off the train, afoot in a yard or a village, what none of them is within capNear m of (and
     // that has nobody in its grip) holds no cap: a hound pack aboard or a Knotter in a coupling left behind held a crew of

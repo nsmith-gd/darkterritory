@@ -562,8 +562,27 @@ public sealed class Director
                 }
             EncounterRate *= Concurrency.Relief(alive, crew.Count, hurt, c);
         }
+        // The final surge (#663, note 960): what the terminus approach's quiet would have owed, before it.
+        EncounterRate *= Surge;
         double headroom = Math.Max(0, EngagedCap - Holding(world, active).Count);
         _clock = (_clock with { Progress = progress }).Second(EncounterRate / 60, _hold, _unmet, headroom, e);
+    }
+
+    /// <summary>
+    /// Metres from <paramref name="s"/> to the first quiet the brief keeps ahead on the main line (#663): the final stretch
+    /// (<paramref name="noSpawnFinal"/> short of the run's end), or a generated line's terminus safe stretch if that starts sooner.
+    /// </summary>
+    /// <summary>The final surge's factor this second (#663, note 960): 1 off, or out of its ramp.</summary>
+    public double Surge { get; private set; } = 1;
+
+    static double ToKeptQuiet(double s, Route.Route route, double noSpawnFinal)
+    {
+        double at = route.RunLength - noSpawnFinal;
+        if (route.Plan?.Director.Tags is { } tags)
+            foreach (var t in tags)
+                if (t.Tag == "terminus_safe" && t.Edge == "main" && t.S0 < at)
+                    at = t.S0;
+        return at - s;
     }
 
     /// <summary>
@@ -585,6 +604,9 @@ public sealed class Director
     public SpawnAttempt? Choose(World world, double elapsed, IReadOnlyList<Enemy> active, double noSpawnFinal)
     {
         _hold = null;
+        // The final surge (#663, note 960): this second's factor on λ and on the pressure's build, ahead of the terminus's quiet.
+        var surge = _t.Encounters.Drive.FinalSurge;
+        Surge = surge.On && _route is { } surgeRoute ? surge.At(ToKeptQuiet(world.Train.Dynamics.Distance, surgeRoute, noSpawnFinal), Active) : 1;
         TrackFar(world, active);
         var attempt = ChooseNow(world, elapsed, active, noSpawnFinal);
         Pace(world, elapsed, active);
@@ -1362,7 +1384,8 @@ public sealed class Director
         // §2 issue 1: no more a solo crew's at a third of a four's; issue 2: no double scaling).
         double scale = _t.Encounters.Drive is { On: true, PressureByLambda: true } ? 1
             : p.Scale(Math.Max(1, Crew), world.Train.Dynamics.Consist.CarCount);
-        double rate = _tierRate * scale * conditions * relief * busy * escalation * (p.BasePerSecond + quiet + loud + cargo + afoot);
+        // The final surge (#663, note 960) presses the pressure as it raises λ: the pressure is what spends.
+        double rate = _tierRate * scale * conditions * relief * busy * escalation * Surge * (p.BasePerSecond + quiet + loud + cargo + afoot);
         _pressure = Math.Min(p.Max, _pressure + rate);
         Terms = new PressureTerms(rate, escalation, _sinceThreat, loud, cargo, relief, conditions, afoot);
     }

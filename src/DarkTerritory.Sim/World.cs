@@ -2771,9 +2771,11 @@ public sealed partial class World
             _unmet[e.Id] = seconds;
             // Or stuck: telegraphing or committing far longer than any threat's telegraph runs, and nobody in its grip (a
             // Climber scrabbling at the cab's gap all night, never getting in).
-            // Note 945 (stuckSparesTheMet): not one a crewmate is with (a Gaunt following its waker, talked to and held).
+            // Note 945 (stuckSparesTheMet, or stuckSparesKinds for the kinds listed): not one a crewmate is with (a Gaunt
+            // following its waker, talked to and held).
+            bool spared = met && (t.StuckSparesTheMet || t.StuckSparesKinds.Contains(DarkTerritory.Sim.Enemies.Director.Key(e.Kind)));
             bool stuck = e.Phase is SpinePhase.Telegraph or SpinePhase.Commit && e.PhaseSeconds >= t.LingerSeconds * 1.5
-                && !(t.StuckSparesTheMet && met);
+                && !spared;
             if (seconds >= t.LingerSeconds || stuck)
             {
                 e.Dismiss();
@@ -2858,7 +2860,8 @@ public sealed partial class World
         }
         if (Tick % SimConstants.TickRate == 0 && Director is { } d && !Derailed && !SafeYard && !CallOnly)
         {
-            d.Present(_context?.Crew.Count ?? 0);
+            // Note 957: the living only, when the flag says so (the dead stay in the night, watching, and counted as crew).
+            d.Present(_context is null ? 0 : t.Director.CrewIsTheLiving ? _context.Crew.Count(c => c.Player.State.Alive) : _context.Crew.Count);
             d.Count(this, Run is { Tuning.YardIsSafe: true } rc ? rc.Seconds : ElapsedSeconds, _enemies, NoSpawnFinalApproach);
             Unmet(ctx, t.Director);
             // What the crew's done that draws (note 287): the firebox held hot, the engine at speed, cargo come aboard.

@@ -85,4 +85,39 @@ public sealed record DriveTuning
     public double Jitter { get; init; } = 0.35;
     public bool PressureByLambda { get; init; } = true;
     public double? PressureGate { get; init; }
+    /// <summary>The late half's escalation before the terminus approach (#663, note 960): enemies.json <c>director.encounters.drive.finalSurge</c>.</summary>
+    public FinalSurgeTuning FinalSurge { get; init; } = new();
+}
+
+/// <summary>
+/// The final surge (#663, note 960; #613's late − early): the terminus approach is a quiet the brief keeps (§1 A), and it falls in
+/// the night's late half, so the late half's raw count read lower than the early half's though its open minutes were busier. Over
+/// the <see cref="RampMetres"/> before the first kept quiet ahead (the final stretch or the terminus's safe stretch), λ rises to
+/// <see cref="Peak"/> × itself, so what that window would have owed comes before it, never in it. Mirror of enemies.json
+/// <c>director.encounters.drive.finalSurge</c>; field docs live there.
+/// </summary>
+public sealed record FinalSurgeTuning
+{
+    public bool On { get; init; }
+    public double RampMetres { get; init; } = 2500;
+    public double Peak { get; init; } = 2;
+    public int? CrewFull { get; init; }
+
+    /// <summary>
+    /// The peak for <paramref name="living"/> crew alive: <see cref="Peak"/>, or with <see cref="CrewFull"/> set (the gentler
+    /// surge, note 960), its rise over 1 scaled by <see cref="CrewFull"/> / living above that many, so an eight's night presses
+    /// half as hard as a four's.
+    /// </summary>
+    public double PeakFor(int living)
+    {
+        double peak = Math.Max(1, Peak);
+        return CrewFull is { } full && full > 0 && living > full ? 1 + (peak - 1) * full / living : peak;
+    }
+
+    /// <summary>λ's factor <paramref name="metres"/> short of the first kept quiet ahead, <paramref name="living"/> crew alive (0:
+    /// no easing): 1 out of the ramp, rising linearly to <see cref="PeakFor"/> at its start; 1 past it (the quiet holds the
+    /// director anyway) or off.</summary>
+    public double At(double metres, int living = 0) => !On || RampMetres <= 0 || metres <= 0 || metres >= RampMetres
+        ? 1
+        : 1 + (PeakFor(living) - 1) * (1 - metres / RampMetres);
 }

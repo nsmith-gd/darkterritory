@@ -775,6 +775,17 @@ public sealed record DirectorTuning(
     /// crewmate within <see cref="LingerRadius"/> of it: a Gaunt following its waker, talked to, isn't stuck. Off: as T114.
     /// </summary>
     public bool StuckSparesTheMet { get; init; }
+    /// <summary>
+    /// Note 945, the Gaunt-only ask (n1-C1's 30-seed sweep: the rule for every kind cost two-crew deliveries): the same spare,
+    /// for these kinds only (the director's keys, <c>gaunt</c>), whatever <see cref="StuckSparesTheMet"/> says. Empty: off.
+    /// </summary>
+    public string[] StuckSparesKinds { get; init; } = [];
+    /// <summary>
+    /// Note 957's frontier:4 4×8 (the crew lost to the hounds and the Ribbits): the crew the director's gates and pack sizes go
+    /// by (<see cref="Director.Crew"/>) counts the living only. Off: everyone in the night, the dead watching included, so
+    /// the Ribbits' "never more than the crew" sent three to a last survivor.
+    /// </summary>
+    public bool CrewIsTheLiving { get; init; }
     /// <summary>Note 795: with every living crewmate off the train, what none of them is within this of holds no cap (0: off).</summary>
     public double CapNear { get; init; } = 60;
     /// <summary>Note 881 (the brief §2 issue 4): the engagement states, and the engaged cap counting threats, not bodies.</summary>
