@@ -1988,7 +1988,7 @@ public sealed partial class GreyboxScene
                 continue;
             float windUp = hound.Aboard == Sim.Enemies.HoundMode.Ignite
                 ? (float)Math.Clamp(hound.ModeSeconds / Math.Max(1e-6, creatures.Hounds.Aboard.IgniteWindUpSeconds), 0, 1) : 0;
-            var under = new Double3(Math.Clamp(e.Local.X, room.Min.X + 0.2, room.Max.X - 0.2), room.Max.Y - 0.05, e.Local.Z);
+            var under = new Double3(Math.Clamp(e.Local.X, room.Min.X + 0.2, room.Max.X - 0.2), room.Max.Y - 0.25, e.Local.Z);
             var at = car.ToWorld(under).RelativeTo(eye);
             fx.HoundThroughRoof(mesh, at, Vector3.Normalize(car.ToWorld(under - Double3.Up).RelativeTo(eye) - at), windUp, Time, e.Id);
         }
