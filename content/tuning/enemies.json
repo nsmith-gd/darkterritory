@@ -1550,6 +1550,10 @@
     // The Gaunt-only ask (note 945: n1-C1's 30-seed sweep had the rule for every kind cost two-crew deliveries, .73 -> .47):
     // the same spare for the kinds listed only (["gaunt"]). Empty: off, until measured and the director's said.
     "stuckSparesKinds": [],
+    // Note 957 (frontier:4 4x8, the crew lost one by one to the hounds and the Ribbits): the crew the director's gates
+    // (minCrew) and pack sizes (the Ribbits' "never more than the crew") go by counts the living only. false: everyone in
+    // the night, the dead included, as before. Off until measured and the director's said (spawns are the director's).
+    "crewIsTheLiving": false,
     // Note 795 (the director, 15 Oct: "Even when testing alone I'm not running into monsters in yards or abandoned villages"):
     // with every living crewmate off the train, afoot in a yard or a village, what none of them is within capNear m of (and
     // that has nobody in its grip) holds no cap: a hound pack aboard or a Knotter in a coupling left behind held a crew of

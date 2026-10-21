@@ -2860,7 +2860,8 @@ public sealed partial class World
         }
         if (Tick % SimConstants.TickRate == 0 && Director is { } d && !Derailed && !SafeYard && !CallOnly)
         {
-            d.Present(_context?.Crew.Count ?? 0);
+            // Note 957: the living only, when the flag says so (the dead stay in the night, watching, and counted as crew).
+            d.Present(_context is null ? 0 : t.Director.CrewIsTheLiving ? _context.Crew.Count(c => c.Player.State.Alive) : _context.Crew.Count);
             d.Count(this, Run is { Tuning.YardIsSafe: true } rc ? rc.Seconds : ElapsedSeconds, _enemies, NoSpawnFinalApproach);
             Unmet(ctx, t.Director);
             // What the crew's done that draws (note 287): the firebox held hot, the engine at speed, cargo come aboard.
