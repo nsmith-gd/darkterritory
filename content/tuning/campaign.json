@@ -149,6 +149,11 @@
     { "id": "rearSearchlight", "name": "Rear searchlight", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "dress:rearSearchlight": 1 },
       "line": "A searchlight on the guard van's roof, pointed back down the line. Whatever's following you, you'll see it following you.",
       "tally": "Caboose: lamp parts, bolted on. Still up." },
+    // The speaking tubes (note 978; upgrades.md §6, the director: "funny"): a brass horn in every car with a room, joined to the
+    // next car's either way along the train as well as the cab's pipe to the guard van (note 720). Said into one, heard out of
+    // the neighbours' horns, tinny (player.json voices.tube).
+    { "id": "speakingTubes", "name": "Speaking tubes", "size": "small", "costShare": 0.15, "fromTier": "deadLines", "effect": { "speakingTubes": 1 },
+      "line": "A brass horn in every car, piped to the cars either side. Shout down the train without a radio." },
     // The feedwater heater (upgrades.md): retired with the cold (note 852): the cold took nothing off the boiler to give back.
     // More creatures at the rear and flanks each tier down: a reload step in 1.2 s, not 1.5.
     { "id": "gunRammers", "name": "Gun rammers", "size": "small", "costShare": 0.25, "fromTier": "deadLines", "effect": { "reload": 0.8, "dress:gunRammers": 1 },

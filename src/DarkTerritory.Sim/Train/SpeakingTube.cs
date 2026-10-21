@@ -44,8 +44,17 @@ public static class SpeakingTube
         van.Interior is { } room ? new Double3(room.Max.X - HornOut, room.Min.Y + 0.1 + MouthHeight, room.Min.Z + 0.6) : null;
 
     /// <summary>
+    /// A car's between the cab and the van (note 978), in its frame: the front left corner, on the wall the cargo isn't stacked
+    /// against (a car's crates go up its right front first), turned in to the room.
+    /// </summary>
+    public static Double3? CarMouth(CarShape car) =>
+        car.Interior is { } room ? new Double3(room.Min.X + HornOut, room.Min.Y + 0.1 + MouthHeight, room.Min.Z + 0.6) : null;
+
+    /// <summary>
     /// The train's tube ends, in order: the cab's (0), then the guard van's (1), the last guard car on the engine's rake. A
-    /// van cut off or taken has no end aboard: the tube's broken with it.
+    /// van cut off or taken has no end aboard: the tube's broken with it. Note 978 (upgrades.md §6's speaking tubes, the
+    /// train's kit <see cref="KitTuning.SpeakingTubes"/>): fitted, every car between with a room has one too, after those two,
+    /// in the train's order from the engine back (<see cref="CarMouth"/>).
     /// </summary>
     public static IReadOnlyList<TubeEnd> Ends(TrainOnLine train)
     {
@@ -57,11 +66,35 @@ public static class SpeakingTube
             return ends;
         ends.Add(new TubeEnd(0, cab, new Double3(1, 0, 0)));
         ends.Add(new TubeEnd(van.Id, mouth, new Double3(-1, 0, 0)));
+        if (train.Dynamics.Tuning.Kit.SpeakingTubes)
+            foreach (var v in train.Dynamics.Consist.Vehicles)
+                if (v.Id != 0 && v.Id != van.Id && v.Id < train.Frames.Count && CarMouth(train.Frames[v.Id].Shape) is { } m)
+                    ends.Add(new TubeEnd(v.Id, m, new Double3(1, 0, 0)));
         return ends;
     }
 
-    /// <summary>Which ends are joined (by their numbers in <see cref="Ends"/>): the cab's to the van's.</summary>
-    public static IReadOnlyList<(int A, int B)> Tubes(IReadOnlyList<TubeEnd> ends) => ends.Count >= 2 ? [(0, 1)] : [];
+    /// <summary>
+    /// Which ends are joined (by their numbers in <see cref="Ends"/>): the cab's to the van's, the pipe under the floors; and,
+    /// with the speaking tubes fitted (note 978), each end to the next along the train (the cab's, the cars' in order, the
+    /// van's), so a voice carries to the neighbouring cars either way.
+    /// </summary>
+    public static IReadOnlyList<(int A, int B)> Tubes(IReadOnlyList<TubeEnd> ends)
+    {
+        if (ends.Count < 2)
+            return [];
+        var tubes = new List<(int A, int B)> { (0, 1) };
+        if (ends.Count > 2)
+        {
+            // The order along the train: the cab, the cars between (2..), the van.
+            var chain = new List<int> { 0 };
+            for (int i = 2; i < ends.Count; i++)
+                chain.Add(i);
+            chain.Add(1);
+            for (int i = 0; i + 1 < chain.Count; i++)
+                tubes.Add((chain[i], chain[i + 1]));
+        }
+        return tubes;
+    }
 
     /// <summary>
     /// The end <paramref name="s"/> is speaking into: alive, stood in that end's car (not on its roof) within
@@ -85,17 +118,18 @@ public static class SpeakingTube
         return best;
     }
 
-    /// <summary>The end a voice said into <paramref name="end"/> comes out of, or null if it isn't on a tube.</summary>
-    public static int? FarEnd(int end, IReadOnlyList<TubeEnd> ends)
+    /// <summary>The ends a voice said into <paramref name="end"/> comes out of: each joined to it, in <see cref="Tubes"/>' order.</summary>
+    public static IReadOnlyList<int> FarEnds(int end, IReadOnlyList<TubeEnd> ends)
     {
+        var far = new List<int>(2);
         foreach (var (a, b) in Tubes(ends))
         {
             if (a == end)
-                return b;
-            if (b == end)
-                return a;
+                far.Add(b);
+            else if (b == end)
+                far.Add(a);
         }
-        return null;
+        return far;
     }
 
     /// <summary>Where end <paramref name="end"/>'s horn is in the world, or null if there's no such end on this train.</summary>
@@ -123,14 +157,25 @@ public static class SpeakingTube
     }
 
     /// <summary>
-    /// What a speaker says comes out of: the far end's number and its horn in the world, or null when they aren't at a
-    /// mouthpiece (or the tube's broken).
+    /// What a speaker says comes out of: the far end's number and its horn in the world (the first of <see cref="HeardAll"/>),
+    /// or null when they aren't at a mouthpiece (or the tube's broken).
     /// </summary>
-    public static (int End, Double3 At)? Heard(in PlayerState speaker, TrainOnLine train, TubeTuning t)
+    public static (int End, Double3 At)? Heard(in PlayerState speaker, TrainOnLine train, TubeTuning t) =>
+        HeardAll(speaker, train, t) is { Count: > 0 } all ? all[0] : null;
+
+    /// <summary>
+    /// Every horn a speaker's voice comes out of (note 978: with the speaking tubes fitted, the neighbouring cars' as well as
+    /// the far end of the cab's pipe); none when they aren't at a mouthpiece.
+    /// </summary>
+    public static IReadOnlyList<(int End, Double3 At)> HeardAll(in PlayerState speaker, TrainOnLine train, TubeTuning t)
     {
         var ends = Ends(train);
-        if (Into(speaker, ends, t.MouthReach) is not { } into || FarEnd(into, ends) is not { } far || Horn(train, ends, far) is not { } at)
-            return null;
-        return (far, at);
+        if (Into(speaker, ends, t.MouthReach) is not { } into)
+            return [];
+        var heard = new List<(int End, Double3 At)>(2);
+        foreach (int far in FarEnds(into, ends))
+            if (Horn(train, ends, far) is { } at)
+                heard.Add((far, at));
+        return heard;
     }
 }
