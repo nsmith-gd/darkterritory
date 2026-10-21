@@ -354,7 +354,10 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 "up-lounge.hammock": "ropes", "up-lounge.sway": "creak", "up-lounge.tub-in": "splash", "up-lounge.tub": "seethe",
                 "up-fishing.cast": "reel", "up-fishing.line": "lap", "up-fishing.catch": "trout",
                 # The modelled one: the real fizz and cloth crackle carry clicks past the car-fire tell's band (note 833).
-                "crew-scorch.sizzle": "singe"}
+                "crew-scorch.sizzle": "singe",
+                # Note 975: the flare pistol from the packs' real things (the soft heavy blow and the book's snap through the
+                # barrel, the air release, the metal click).
+                "up-flare.shot": "pop", "up-flare.burn": "fizz", "up-flare.click": "hammer"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the
@@ -672,6 +675,11 @@ CUE_DEF = {
     "up-fishing.cast": {"minDistance": 1, "maxDistance": 25, "rolloff": 1.0},
     "up-fishing.line": {"minDistance": 1, "maxDistance": 10, "rolloff": 1.0},
     "up-fishing.catch": {"minDistance": 1.5, "maxDistance": 35, "rolloff": 1.0},
+    # The flare pistol (note 975): its pop carries as a shot does; the flare burning is heard across a village, as its light
+    # is seen across one (the Fire Flies leave the train for it); the empty click is in the hand.
+    "up-flare.shot": {"minDistance": 3, "maxDistance": 500, "rolloff": 0.8},
+    "up-flare.burn": {"minDistance": 4, "maxDistance": 300, "rolloff": 0.8},
+    "up-flare.click": {"minDistance": 0.5, "maxDistance": 8, "rolloff": 1.0},
 }
 
 
