@@ -3128,8 +3128,6 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
     }
 
     int _car = -1;
-    /// <summary>Note 920: the heavy crate whose car was checked for a whole half (−1, none).</summary>
-    int _heavyFor = -1;
     bool _pressed;
     /// <summary>A find from the village it put down on a car's landing to open the door (note 326), to take up again.</summary>
     int? _setDown;
@@ -3297,29 +3295,16 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
                 return lamp;
             return OpenSideDoor(world, p, calls, member, self) is { } car ? ShutUp(self, world, p, car) : Done(self, world, p);
         }
-        bool forHeavy = false;
         if (!heavy && _setDown is null || _car < 0)
         {
-            // (The car pinged for the cargo first, note 936, while it has room.)
-            _car = OrderedCar(world, p) ?? Roomiest(world, p, calls, member);
-            // Note 920: no room the plan leaves the lights, but a heavy crate for two to fetch: it's the next one (else the
-            // hands waited for room the heavies' halves held).
-            if (_car < 0 && mine is null && PlayerId is not null && calls.HeavyHands >= 2 && HeavyCrate(world, p, self) is { } next
-                && p.HeavyCar(world, -1, Physics.Bodies.WorldCentre(next, train)) is var half and >= 0)
-                (_car, forHeavy) = (half, true);
+            // (The car pinged for the cargo first, note 936, while it has room.) Note 920 (queue #630): the car is the one for the
+            // crate we're about to take. With no light one loose and a heavy one next for two, a car with a whole half free for
+            // it, the nearest it; else the lights' car by the packing plan (Roomiest). Chosen by the lights' plan, a hand that
+            // then took a heavy one carried it to a car whose half the plan had set aside for it, and couldn't put it in.
+            _car = OrderedCar(world, p)
+                ?? (Crate(world, p, self) is null && PlayerId is not null && calls.HeavyHands >= 2 && HeavyCrate(world, p, self) is { } next
+                    && p.HeavyCar(world, -1, Physics.Bodies.WorldCentre(next, train)) is var half and >= 0 ? half : Roomiest(world, p, calls, member));
         }
-        // Note 920: a heavy crate up in our hands for a car without a whole half (the lights' car it was set out for) goes to
-        // the nearest car that has one, or as ever if none has.
-        // (Not one fetched from the yard: its end and its way home were worked out toward its car, note 440.)
-        else if (mine is { Kind: Physics.BodyKind.Heavy, Lifted: true } && mine.Carrier == PlayerId && _heavyFor != mine.Id && !Fetching
-            && !Run.Run.IsJackpot(mine))
-        {
-            _heavyFor = mine.Id;
-            if (p.HeavyCar(world, _car, PlayerMotor.WorldPosition(self, train)) is var whole and >= 0)
-                _car = whole;
-        }
-        if (mine is not { Kind: Physics.BodyKind.Heavy })
-            _heavyFor = -1;
         calls.CarryingTo(member, heavy ? _car : -1);
         // Every car's room spoken for by crates on their way in: wait for them to land (then either there's room again,
         // or the crates are done and the doors want shutting). Going aboard now would leave this stop for good.
@@ -3465,7 +3450,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         // Nothing loose just now, though some are still on their way in (in someone's arms, settling): wait by the stack
         // for the next, rather than give up the stop.
         // The light ones gone, two hands take a heavy one between them: one takes an end, and the other comes to help.
-        var crate = (forHeavy ? null : Crate(world, p, self))
+        var crate = Crate(world, p, self)
             ?? (PlayerId is not null && calls.HeavyHands >= 2 ? HeavyCrate(world, p, self) : null);
         if (crate is null)
         {
