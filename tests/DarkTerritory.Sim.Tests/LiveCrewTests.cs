@@ -64,10 +64,13 @@ public class LiveCrewTests
     [InlineData(8, 8)]
     public void TheEngagedCapGoesByTheCrewActive(int crew, int cap)
     {
-        Assert.Equal(cap, Crewed(crew).World.Director!.EngagedCap);
+        Assert.Equal(cap, Crewed(crew, enemies: On).World.Director!.EngagedCap);
     }
 
-    // Before note 906 (concurrency off): App. B.1's flat 4 / 6 and ceil(active × 0.75) (note 336).
+    /// <summary>Note 906's concurrency on (off by default: the quick sweep, note 906).</summary>
+    static readonly EnemyTuning On = E with { Director = D with { Encounters = D.Encounters with { Concurrency = D.Encounters.Concurrency with { On = true } } } };
+
+    // Concurrency off (the default; note 906): App. B.1's flat 4 / 6 and ceil(active × 0.75) (note 336).
     [Theory]
     [InlineData(1, 1)]
     [InlineData(2, 2)]
@@ -84,7 +87,7 @@ public class LiveCrewTests
     [Fact]
     public void TheEngagedCapCountsOnlyTheLiving()
     {
-        var n = Crewed(4);
+        var n = Crewed(4, enemies: On);
         foreach (int id in new[] { 2, 3 })
             n.Crew[id] = n.Crew[id] with { Health = 0, Death = DeathCause.Mauled };
         n.Run(1.1);
@@ -98,8 +101,8 @@ public class LiveCrewTests
     [Fact]
     public void AThreatFarFromEveryoneAWhileComesOffTheCap()
     {
-        var c = D.Encounters.Concurrency;
-        var n = Crewed(1);
+        var c = On.Director.Encounters.Concurrency;
+        var n = Crewed(1, enemies: On);
         var world = n.World;
         int car = n.Train.Dynamics.Consist.CarCount - 2;
         var knotter = world.AddEnemy(id => Knotter.Into(id, n.Train, car, Tuning.Enemies.Knotter));

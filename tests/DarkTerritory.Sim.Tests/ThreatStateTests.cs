@@ -73,11 +73,11 @@ public class ThreatStateTests
         var n = new Night(4, speed: 12);
         var knotter = n.World.AddEnemy(id => Knotter.Into(id, n.Train, 1, Tuning.Enemies.Knotter));
         knotter.Restore(SpinePhase.Telegraph, 30, 3, 1, knotter.Local, 0, 0, (double)KnotterMode.Taut, 0, 0);
-        Assert.False(T.WaitsEngage);
-        Assert.Equal(ThreatState.Threatening, Threats.Of(knotter, n.World, [], T));
+        var waits = T with { WaitsEngage = false };
+        Assert.Equal(ThreatState.Threatening, Threats.Of(knotter, n.World, [], waits));
         Assert.Equal(ThreatState.Engaging, Threats.Of(knotter, n.World, [], T with { WaitsEngage = true }));
         knotter.Restore(SpinePhase.Commit, 0, 3, 1, knotter.Local, 0, 0, (double)KnotterMode.Coil, 0, 0, holding: 0);
-        Assert.Equal(ThreatState.Engaging, Threats.Of(knotter, n.World, [], T));
+        Assert.Equal(ThreatState.Engaging, Threats.Of(knotter, n.World, [], waits));
     }
 
     /// <summary>Note 906: a Whistler watching its gap (its Commit, the train stood: 4 minutes at a stop) waits; carrying someone, it's engaging.</summary>
@@ -86,14 +86,15 @@ public class ThreatStateTests
     {
         var n = new Night(4, speed: 0);
         var whistler = n.World.AddEnemy(id => Enemy.Blank(EnemyKind.Whistler, id));
+        var waits = T with { WaitsEngage = false };
         whistler.Restore(SpinePhase.Commit, 240, 3, 2, new Double3(0, 1, 0), 0, 0, 0, 0, 0);
-        Assert.NotEqual(ThreatState.Engaging, Threats.Of(whistler, n.World, [], T));
-        Assert.False(Threats.Counts(Threats.Of(whistler, n.World, [], T)));
+        Assert.NotEqual(ThreatState.Engaging, Threats.Of(whistler, n.World, [], waits));
+        Assert.False(Threats.Counts(Threats.Of(whistler, n.World, [], waits)));
         // Someone at its gap: threatening (they're where it is).
-        Assert.Equal(ThreatState.Threatening, Threats.Of(whistler, n.World, [Near(n, whistler, 2)], T));
+        Assert.Equal(ThreatState.Threatening, Threats.Of(whistler, n.World, [Near(n, whistler, 2)], waits));
         Assert.Equal(ThreatState.Engaging, Threats.Of(whistler, n.World, [], T with { WaitsEngage = true }));
         whistler.Restore(SpinePhase.Grab, 0, 3, -1, new Double3(5, 0, 0), 0, 0, 0, 0, 0, holding: 0);
-        Assert.Equal(ThreatState.Engaging, Threats.Of(whistler, n.World, [], T));
+        Assert.Equal(ThreatState.Engaging, Threats.Of(whistler, n.World, [], waits));
     }
 
     [Fact]

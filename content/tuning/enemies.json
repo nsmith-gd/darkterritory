@@ -1361,6 +1361,9 @@
       // `on` the director reads it: the engaged cap and the census's perTarget below, the pairs a night, the pairs refused a
       // small crew (every channel's choices), and the relief on the encounter rate (drive). on false: the director as before
       // (maxConcurrentSmallCrew / LargeCrew, orchestrator.engagedPerActive ... perPlayerLong, pairsPerRun as it stands).
+      // Off by default (note 906's quick sweep, 21 Oct, against the same head with it off): on, four crew on 8 cars lost the
+      // late half's band (+0.75 → −0.5), died 1 a night (0.25) and delivered 75 % (100 %); solo and two crew no better. Its
+      // likeliest cost is pairsPerCrew (two pairs a night for four, not one): untried, #612/#613's to measure.
       // The engaged cap: the living × share, share rising by sharePerCar a car past carsFrom to at most shareMax, rounded half
       // up, at least 1 while anyone's alive, at most max: solo 1 to 6 cars and 2 from 7; two crew 2 on 4 cars, 3 on 6, 4 on 8;
       // four 4 on 4 cars, 7 on 8; eight 11 on 6 cars, 12 from 7. Gradual, where App. B.1's flat 4 / 6 (maxConcurrentSmallCrew /
@@ -1376,7 +1379,7 @@
       // Relief when crew are lost (§1 B, §6): × (alive ÷ the crew in the night)^reliefPower × (1 − hurtRelief × the share of
       // the living under hurtBelow health), on the encounter rate (which counts only the living already).
       "concurrency": {
-        "on": true,
+        "on": false,
         "share": 0.75, "sharePerCar": 0.2, "carsFrom": 3, "shareMax": 2, "max": 12, "perCrewmateMax": 2,
         "ambientRoom": 1, "ambientPerCar": 0.1,
         "pairsPerCrew": 0.25,
@@ -1469,8 +1472,9 @@
     // ambientRoom in all, so what paces cars nobody's in can't pile up into a wave); false: as before (everything
     // Director.Engaged holds the caps).
     // waitsEngage false (note 906): a Knotter that's the coupling and a Whistler watching its gap are at their work or waiting,
-    // threatening, not engaging; only a grab or a coil round someone is (true: as #604 had it).
-    "threats": { "on": true, "nearMetres": 20, "ambientRoom": 2, "leftMetres": 150, "waitsEngage": false },
+    // threatening, not engaging; only a grab or a coil round someone is. True (the default, as #604 had it): on, with the far
+    // and car-fire readings (concurrency), two crew lost the late half's band in note 906's sweep (+1 → −0.25).
+    "threats": { "on": true, "nearMetres": 20, "ambientRoom": 2, "leftMetres": 150, "waitsEngage": true },
     "maxConcurrentZone": 2,
     "maxConcurrentSmallCrew": 4,
     "maxConcurrentLargeCrew": 6,

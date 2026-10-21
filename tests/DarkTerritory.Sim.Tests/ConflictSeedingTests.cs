@@ -122,7 +122,7 @@ public class ConflictSeedingTests
             SaveFor = [],
             Encounters = d.Encounters with
             {
-                Concurrency = d.Encounters.Concurrency with { PairMinCrew = new() { ["choir+cinderHounds"] = 2 } },
+                Concurrency = d.Encounters.Concurrency with { On = true, PairMinCrew = new() { ["choir+cinderHounds"] = 2 } },
             },
         });
         World Coming(int crew)
