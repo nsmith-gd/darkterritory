@@ -91,7 +91,8 @@ public partial class StopCrewTests
         Assert.False(backedOff, "backed off the stop's spur as off a dead line");
         Assert.True(night.Train.OnMain && night.Train.Dynamics.Distance > plan.Hold + 100,
             $"never left: the relief {relief.Doing} at {night.Train.Dynamics.Distance:0} on {night.Train.Dynamics.Path}; crew {where}");
-        Assert.All(night.Crew.Skip(1).Where(c => c.Alive), c => Assert.NotEqual(PlayerState.World, c.Parent));
+        // Nobody left standing on the ballast (one mid-jump between two roofs is off every car for a moment).
+        Assert.True(night.Crew.Skip(1).All(c => !c.Alive || c.Surface != Surface.Ground), $"left someone behind: crew {where}");
         Assert.Contains(relief.Log, r => r.Facility == plan.Facility);
     }
 
