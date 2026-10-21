@@ -118,10 +118,27 @@ public sealed class CarFire(int id) : Incident(id)
     /// <summary>Each cell's heat, 0 to 1, in its car's <see cref="FireGrid"/> order. Empty until its first tick on the host.</summary>
     public double[] Heat { get; private set; } = [];
 
-    /// <summary>What started it (note 851). The host's: a client's copy has <see cref="FireCause.Set"/>, and reads the news for it.</summary>
-    public FireCause Cause { get; private set; }
-    /// <summary>The car it came from (<see cref="FireCause.Jumped"/>, <see cref="FireCause.Blast"/>), or −1.</summary>
-    public int From { get; private set; } = -1;
+    /// <summary>
+    /// What started it (note 851). Note 939 (the director's playtest of 20 Oct evening, line 9: "I'm not getting how some of
+    /// these car fires are starting"): it rides in <see cref="Enemy.Height"/>, replicated and unused by a fire on its car, so
+    /// every machine can tell it and show it where it is, for as long as the fire burns: the cause, how many fires the car's
+    /// had before tonight (<see cref="Again"/>), and whether a hound lit it from inside (<see cref="HoundInside"/>).
+    /// </summary>
+    public FireCause Cause { get => (FireCause)(Code & 15); private set => Code = Code & ~15 | (int)value & 15; }
+    /// <summary>Note 939: how many fires its car had had tonight before this one (the relight told), up to 15.</summary>
+    public int Again { get => Code >> 4 & 15; internal set => Code = Code & ~0xF0 | Math.Clamp(value, 0, 15) << 4; }
+    /// <summary>Note 939: a hound's fire, lit inside the car rather than from its roof.</summary>
+    public bool HoundInside { get => (Code & 0x100) != 0; private set => Code = value ? Code | 0x100 : Code & ~0x100; }
+    int Code { get => (int)Math.Round(Height); set => Height = value; }
+    /// <summary>The car it came from (<see cref="FireCause.Jumped"/>, <see cref="FireCause.Blast"/>), or −1 (in <see cref="Enemy.Lateral"/>, note 939).</summary>
+    public int From { get => (int)Math.Round(Lateral) - 1; private set => Lateral = value + 1; }
+
+    /// <summary>Note 939: a hound's fire lit from inside the car (<paramref name="inside"/>) or from its roof.</summary>
+    public CarFire LitInside(bool inside)
+    {
+        HoundInside = inside;
+        return this;
+    }
     /// <summary>Whose hand (the lamp's thrower, who relit the Fire Flies' lamp), or −1; and the clerk's line for it (C.9).</summary>
     public int Actor { get; private set; } = -1;
     public string Action { get; private set; } = "";
@@ -466,9 +483,11 @@ public sealed class CarFire(int id) : Incident(id)
     void Burn(EnemyContext ctx, FireGrid grid, CarFireTuning t, double dt)
     {
         var inIt = new HashSet<int>();
+        var shape = ctx.Train.Frames[Attached].Shape;
+        var car = ctx.Train.Vehicles[Attached];
         foreach (var (p, _) in Inside(ctx, 0))
         {
-            double heat = HeatOn(p.State.Position, grid, Heat, t);
+            double heat = AtDoorway(shape, car, p.State.Position, t) ? 0 : HeatOn(p.State.Position, grid, Heat, t);
             if (heat <= 0)
                 continue;
             inIt.Add(p.Id);
@@ -483,6 +502,30 @@ public sealed class CarFire(int id) : Incident(id)
         }
         foreach (int gone in _burning.Keys.Where(id => !inIt.Contains(id)).ToList())
             _burning.Remove(gone);
+    }
+
+    /// <summary>
+    /// Note 939 (the director's playtest of 20 Oct evening, line 12: "When I'm getting into a car ... to fight a fire ... I get
+    /// burned when I'm getting into a car"): stood in one of the car's open doorways, within
+    /// <see cref="CarFireTuning.DoorwayClear"/> m of its opening (<paramref name="feet"/> in the car's frame), the fire doesn't
+    /// burn you: it's the edge of the fire, where the crew come in to fight it, the air coming in past them. A step further in
+    /// and its cells burn as ever. The cells are 3.5 m (note 634), so a side door's walls either side are burning cells, and
+    /// their reach took in the whole doorway.
+    /// </summary>
+    public static bool AtDoorway(CarShape shape, Vehicle car, Double3 feet, CarFireTuning t)
+    {
+        if (t.DoorwayClear <= 0)
+            return false;
+        foreach (var d in shape.DoorList)
+        {
+            if (!car.DoorOpen(d.Index))
+                continue;
+            double dx = Math.Max(0, Math.Max(d.Box.Min.X - feet.X, feet.X - d.Box.Max.X));
+            double dz = Math.Max(0, Math.Max(d.Box.Min.Z - feet.Z, feet.Z - d.Box.Max.Z));
+            if (dx * dx + dz * dz <= t.DoorwayClear * t.DoorwayClear)
+                return true;
+        }
+        return false;
     }
 
     /// <summary>
@@ -520,6 +563,7 @@ public sealed class CarFire(int id) : Incident(id)
         foreach (var e in world.ActiveEnemies)
             if (e is CarFire { Gone: false, Phase: SpinePhase.Punish, Heat.Length: > 0 } fire && fire.Attached == s.Parent
                 && PlayerMotor.Indoors(s, world.Train) && !PlayerMotor.InCab(s, world.Train)
+                && !AtDoorway(world.Train.Frames[fire.Attached].Shape, world.Train.Vehicles[fire.Attached], s.Position, t)
                 && FireGrid.Of(world.Train, fire.Attached, t.CellSize) is { } grid && grid.Count == fire.Heat.Length)
                 most = Math.Max(most, HeatOn(s.Position, grid, fire.Heat, t));
         return most;
