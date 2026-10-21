@@ -128,6 +128,42 @@
   "reach": { "talk": 2.6, "read": 2.0, "lookDegrees": 28, "closeBeyond": 4.0 },
   // A line types out at this many characters a second (the radio card's pace), and stays this long once it's out.
   "typePerSecond": 45,
+  // Households that argue (note 971; docs/design/townsfolk.md, "Not yet": "a lapsed lodger in a zealous house could say so"):
+  // a house whose two most at odds on one of lines' traits are gap or more apart (traits run -1..1) has that trait's quarrel,
+  // overheard within hear m of its front for lasts s of every every s, a line each lineSeconds. Its lines go back and forth,
+  // the first said by the one higher on the trait; {other} is the other one's given name.
+  "quarrels": { "gap": 1.1, "hear": 9, "every": 150, "lasts": 40, "lineSeconds": 5,
+    "lines": {
+      "keeping": [
+        ["Three times, {other}. Not twice. Three.", "And when three doesn't bring him back, what then? Four?", "Don't you say his name in this house."],
+        ["You left the shelf half done again.", "It's a shelf, {other}. It doesn't know.", "It knows. Everything out there knows."],
+        ["The council says once. You'll do it twice, under my roof.", "Your roof. It was Da's roof, and he did it once.", "And where's Da?"]
+      ],
+      "hope": [
+        ["There's seed in the tin. In spring we'll put in the beds.", "There's no spring, {other}. There's this.", "Then I'll plant them in this."],
+        ["The Hollisters' boy got a letter through.", "A letter's paper. Paper's easy.", "You used to read me his letters."]
+      ],
+      "welcome": [
+        ["They've come a long way. Let them warm their hands.", "Let them warm them at their own fire, {other}.", "They haven't got one. That's the point."],
+        ["I asked the train folk in for tea.", "You what?", "Tea, {other}. It's only tea."]
+      ]
+    } },
+  // What somebody says in place of the custom once it's been told in their town (note 971; townsfolk.md, "Not yet": "The
+  // crew could hear a different line from someone who's been told 'the custom' by another townsperson first"), by their
+  // temperament; plain for anybody else. One of theirs, by who they are.
+  "told": {
+    "plain": ["You've had it from somebody already, I can tell. Then you know.", "Somebody's told you how it's kept. Good. Keep it."],
+    "faithful": ["They told you? Then do it like they said. Do it more."],
+    "doubter": ["You've heard it. Now ask yourself which half of it's true."],
+    "mourner": ["They told you, then. They didn't tell you what it cost."],
+    "hollow": ["You know already. Knowing's not the hard part."],
+    "watcher": ["Who told you? I saw you at the board. Never mind. Do it."],
+    "comforter": ["Somebody's told you. Don't let it frighten you. Sit."],
+    "talker": ["Who told you? Was it me? It might have been me."],
+    "frayed": ["They told you. Good. Good. Then you'll do it."],
+    "mender": ["You know the rule now. There's room in it, if you look."],
+    "restless": ["You've heard how it's kept. Out there, nobody keeps anything."]
+  },
   // How each temperament's lines type (note 963; docs/design/townsfolk.md, "Not yet": "A frayed person could type in bursts,
   // a hollow one slowly"): rate times typePerSecond; a pause (s) after a comma or dash and after a sentence's end; in bursts
   // of burst characters with burstPause between. Not named: plain, at typePerSecond.

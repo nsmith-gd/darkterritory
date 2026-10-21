@@ -132,6 +132,9 @@ public static partial class Hud
         // A letter just taken from a postbox (note 730), read out to whoever took it.
         if (townCard is null && !over && LetterCard(s, now) is { } letter)
             townCard = letter;
+        // A household quarrelling, overheard as you pass (note 971).
+        if (townCard is null && !over && s.World.TownOf(p) is { } near)
+            townCard = TownTalk.Overheard(near, PlayerMotor.WorldPosition(p, s.World.Train), now);
         if (townCard is not null)
             TownCardOn(o, width, height, townCard, line);
         string? prompt = over ? null : Prompt(s);
