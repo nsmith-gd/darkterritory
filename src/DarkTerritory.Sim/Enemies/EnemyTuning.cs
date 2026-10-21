@@ -503,6 +503,14 @@ public sealed record GauntTuning
 }
 
 /// <summary>Climbers (App. A.4, B.4). Field docs live in enemies.json.</summary>
+/// <summary>The Climbers' group capped for a small crew (note 930): <c>climbers.smallCrew</c>.</summary>
+public sealed record SmallCrewTuning
+{
+    public bool On { get; init; }
+    public int CrewUpTo { get; init; } = 2;
+    public int PackMax { get; init; } = 1;
+}
+
 public sealed record ClimberTuning
 {
     /// <summary>GDD §23 "lights fail" (note 183): coming over the engine's end, it smashes the forward lamp for this long.</summary>
@@ -532,6 +540,11 @@ public sealed record ClimberTuning
     public bool FreeNeedsSpeed { get; init; }
     public double PerGapWeight { get; init; } = 0.5;
     public int[] PackSize { get; init; } = [2, 3];
+    /// <summary>
+    /// A trial (note 930, #613's sweep): a crew of <see cref="SmallCrewTuning.CrewUpTo"/> or fewer meets a group of at most
+    /// <see cref="SmallCrewTuning.PackMax"/>. Off until measured.
+    /// </summary>
+    public SmallCrewTuning SmallCrew { get; init; } = new();
     public double CountRadius { get; init; } = 8;
     public double TakeSeconds { get; init; } = 10;
     /// <summary>Getting into a shut car that's lit (with nobody in it) breaches it too; unset, only an unlit one (ARCHITECTURE §8).</summary>

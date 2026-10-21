@@ -231,6 +231,9 @@ public static class Spawns
             int gap = c.Spread(gaps, gaps: true);
             int side = c.Director.NextRange(0, 1) < 0.5 ? -1 : 1;
             int size = Math.Max(1, (int)Math.Round(c.Director.NextRange(t.PackSize[0], t.PackSize[1] + 0.49)));
+            // A small crew meets a smaller group (note 930): drawn as before, so the night's dice don't move, then capped.
+            if (t.SmallCrew is { On: true } small && c.Crew <= small.CrewUpTo)
+                size = Math.Min(size, Math.Max(1, small.PackMax));
             int pack = c.NextId;
             for (int i = 0; i < size; i++)
                 c.Add(id => new Climber(id)
