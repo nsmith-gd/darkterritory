@@ -1112,6 +1112,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [951. The guards run out to the yard (Cole, queue #650; found by Wynn's audit, note 949)](notes/951.md)
 - [952. The GDD's stale "not yet" markers brought up to date (Sage, queue #658; found by Wynn's audit, note 949)](notes/952.md)
 - [953. The halt's own response, measured (queue #651; GDD D.15 question 3, the director 9 Oct: "Needs a dedicated response"; note 895 built it…](notes/953.md)
-- [954. Carried bodies sent as their carrier's hand (n1-N1, nathaniel1; queue #659; note 921's follow-up)](notes/954.md)
+- [954. Carried things sent as their carrier's (n1-N1, nathaniel1; queue #659; note 921's follow-up; protocol 85)](notes/954.md)
 - [955. frontier:7 with 8 crew and 12 cars, seed 6: a missed dawn with no Car Hugger in it (n1-H1, nathaniel1; queue #660; note 933's "another…](notes/955.md)
 <!-- end of the notes index -->
