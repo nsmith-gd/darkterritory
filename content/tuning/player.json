@@ -225,7 +225,10 @@
     "townRange": 150,
     // Note 739 part two: how long the crane's two keep to its loading (s), the castings lifted one at a time; orderSeconds
     // is the rest's.
-    "craneOrderSeconds": 600
+    "craneOrderSeconds": 600,
+    // Note 936: how far from where it stands a hand sent to the town by a ping goes to search its houses (m), past
+    // facilities.json crew.villageReach: a house is pinged from as far off as townRange, and its rooms are further in.
+    "townReach": 300
   },
   "emotes": {
     "dance": 8,
