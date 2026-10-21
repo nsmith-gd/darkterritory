@@ -259,8 +259,9 @@ public static partial class Hud
         {
             // The hook both ways (Crane.Drive: Jump raises it, the brake key lowers it).
             lines.AddRange(["BRIDGE AND TROLLEY : [WASD]", "HOOK UP : [SPACE]", "HOOK DOWN : [B]"]);
+            // Note 941: a hold, so a stray click lets go of nothing.
             if (crane.Hooked is not null)
-                lines.Add("LET GO : [LMB]");
+                lines.Add("LET GO : HOLD [LMB]");
             // A friend on the hook (note 726): shaken off only with the crew mischief switch on.
             else if (crane.Riders > 0 && world.MischiefOn && crane.Tuning.Hoist.ShakeOff)
                 lines.Add("SHAKE THEM OFF : [LMB]");

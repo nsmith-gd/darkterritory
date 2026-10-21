@@ -161,6 +161,8 @@ public sealed record CraneTuning
     public double RigSeconds { get; init; } = 2;
     public double DropAbove { get; init; } = 0.6;
     public double CrushRadius { get; init; } = 1.4;
+    /// <summary>Note 941: how long the operator holds Fire for the hook to let go of a casting (s).</summary>
+    public double ReleaseHold { get; init; } = 0.5;
     /// <summary>Note 581: a casting this low over an open hatch's roof (m, its base) that overlaps it is eased over the opening ...</summary>
     public double GuideAbove { get; init; }
     /// <summary>... at this speed (m/s); 0: never.</summary>

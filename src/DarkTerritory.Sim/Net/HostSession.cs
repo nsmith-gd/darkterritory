@@ -857,8 +857,10 @@ public sealed partial class HostSession
         int car = 1 + (_crew.Count - 1) % Math.Max(1, Train.OwnVehicles - 1);
         c.State = BoardAt is { } at && _crew.Count > 0 ? at(_crew.Count)
             : _crew.Count == 0 ? PlayerMotor.SpawnInCab(Train, PlayerTuning) : PlayerMotor.SpawnOnRoof(Train, car, 0, PlayerTuning);
-        // Past the gate, nobody spawns aboard (D.1): they watch, waiting in the queue, until a Holdout frees them.
-        if (Lobbying && _crew.Count > 0)
+        // Past the gate, nobody spawns aboard (D.1): they watch, waiting in the queue, until a Holdout frees them. The night's
+        // own crew isn't joining it (note 937): a resumed night's bots, then its host, board as it brings them (BotSeatsOpen
+        // shut), alive. The host's own player came in as a mid-run joiner, dead with "JOINING", behind its first bot.
+        if (Lobbying && BotSeatsOpen && _crew.Count > 0)
             c.State = c.State with { Health = 0, Death = DeathCause.Waiting };
         _crew.Add(c);
     }

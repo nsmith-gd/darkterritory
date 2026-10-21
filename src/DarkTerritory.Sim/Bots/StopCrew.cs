@@ -1811,6 +1811,9 @@ public sealed class StopDriver(CrewCalls calls)
         bool hosed = !calls.HoseHand || !p.HoseLeft(world);
         // Note 326: nor while a hand's out searching the village's houses, or bringing a find back.
         bool searched = !calls.Scavenging;
+        // Note 936: nor while a crewmate's at a job someone pinged them to (the town searched, the cargo in, the points).
+        if (calls.JobsOrdered)
+            return false;
         return winched && crated && craned && herded && hosed && searched;
     }
 
@@ -2436,7 +2439,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         return OffTheCar(self, world, p) ?? Ride(self, world.Train, p);
     }
 
-    bool _atControls, _fired;
+    bool _atControls;
     (int Casting, double Bridge, double Trolley)? _castingAt;
     (int Car, double Bridge, double Trolley)? _carAt;
 
@@ -2521,7 +2524,6 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         var t = c.Tuning;
         if (c.Hooked is null)
         {
-            _fired = false;
             _carAt = null;
             if (CraneTarget(c, train) is not { Casting: >= 0 } target)
                 return drive;
@@ -2557,11 +2559,8 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         double above = c.HookedBase.Y - roofY;
         if (under == car.Car && above <= Math.Min(0.3, t.DropAbove - 0.1))
         {
-            if (!_fired)
-            {
-                drive.Buttons |= PlayerButtons.Fire;
-                _fired = true;
-            }
+            // Held till it lets go (note 941: the let-go's a hold).
+            drive.Buttons |= PlayerButtons.Fire;
             return drive;
         }
         drive.Buttons |= PlayerButtons.Brake;
@@ -3151,8 +3150,9 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         bool heavy = self.Has(PlayerFlags.Heavy)
             || PlayerId is { } holder && world.Bodies.CarriedBy(holder) is { Kind: Physics.BodyKind.Loot or Physics.BodyKind.Toy };
         int side = p.Site.Side;
-        // The train's leaving: down with it if it's in our arms, and aboard.
-        if (!p.AtTheEnd(train))
+        // The train's leaving: down with it if it's in our arms, and aboard. (Not for a job pinged at the stop it stands at,
+        // note 936: there the train's held for it wherever it stands.)
+        if (!p.AtTheEnd(train) && !(_orderedHere && Math.Abs(train.Dynamics.Velocity) < 0.05))
         {
             _car = -1;
             EndLampRun();
@@ -3212,8 +3212,9 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
                 return lamp;
             return OpenSideDoor(world, p, calls, member, self) is { } car ? ShutUp(self, world, p, car) : Done(self, world, p);
         }
+        // (The car pinged for the cargo first, note 936, while it has room.)
         if (!heavy && _setDown is null || _car < 0)
-            _car = Roomiest(world, p, calls, member);
+            _car = OrderedCar(world, p) ?? Roomiest(world, p, calls, member);
         calls.CarryingTo(member, heavy ? _car : -1);
         // Every car's room spoken for by crates on their way in: wait for them to land (then either there's room again,
         // or the crates are done and the doors want shutting). Going aboard now would leave this stop for good.

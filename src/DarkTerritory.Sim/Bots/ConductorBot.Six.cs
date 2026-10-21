@@ -170,16 +170,16 @@ public sealed partial class ConductorBot
 
     /// <summary>
     /// Note 615 (queue #347; D1's dawn rule: "at the dawn line, when SecondsInHand doesn't cover the wait plus the run in, it
-    /// goes"): seconds to spare if the train stands <paramref name="wait"/> s more and then runs in to where the Wakers stop
-    /// (their wall, <c>wakers.stopShort</c> short of the gate) at <paramref name="pace"/>, before the lead reaches its rear
+    /// goes"): seconds to spare if the train stands <paramref name="wait"/> s more and then runs in through the gate (note 940:
+    /// the walls the only safety) at <paramref name="pace"/>, before the lead reaches its rear
     /// (<see cref="Waker.SecondsInHand"/>, reckoned for the train as it is: stood, they catch it soonest), less
-    /// <c>crewBots.sixDawnMargin</c>. +∞ with no Wakers tonight, or the rear already past their wall.
+    /// <c>crewBots.sixDawnMargin</c>. +∞ with no Wakers tonight, or the rear already in past the gate.
     /// </summary>
     public static double DawnInHand(World world, EnemyTuning et, double wait, double pace)
     {
         if (!et.Wakers.Enabled || world.Run is null)
             return double.PositiveInfinity;
-        double past = Waker.Wall(world, et.Wakers) - world.Train.RearDistance;
+        double past = Waker.Gate(world, et.Wakers) - world.Train.RearDistance;
         if (past <= 0)
             return double.PositiveInfinity;
         return Waker.SecondsInHand(world) - wait - past / Math.Max(1, pace) - et.CrewBots.SixDawnMargin;

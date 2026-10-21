@@ -34,7 +34,9 @@ public class CrewNewsTests
     {
         Assert.True(T.On);
         Assert.Equal(VoiceRouting.ProximityCutoff, T.BeyondMetres);
-        Assert.Equal(4, T.DeathSeconds);
+        // Note 938: a death's told for 8 s (it was 4), near or far.
+        Assert.Equal(8, T.DeathSeconds);
+        Assert.True(T.DeathsNear);
     }
 
     [Fact]
@@ -75,6 +77,8 @@ public class CrewNewsTests
     [Fact]
     public void ADeathOutOfReachIsALineForItsSecondsAndNotWithinReach()
     {
+        // Note 750's rule, with deathsNear off (the game has it on since note 938: see the next test).
+        var T = CrewNewsTests.T with { DeathsNear = false };
         var train = Train();
         var news = new CrewNews();
         var me = PlayerMotor.SpawnOnRoof(train, 1, 0, P);
@@ -93,6 +97,26 @@ public class CrewNewsTests
         Assert.Null(tomOnly.Update(T, train, Me, me, 1, [(Me, me), (Tom, Dead(near))], Name));
         // Seen dead from the first (a joiner's first snapshot): not news.
         Assert.Null(new CrewNews().Update(T, train, Me, me, 1, [(Me, me), (Priya, Dead(far))], Name));
+    }
+
+    [Fact]
+    public void WithDeathsNearADeathBesideYouIsToldToo()
+    {
+        // Note 938 (the director, 20 Oct: "Where did he go? Is he dead? ... I don't see Dunmore"): a crewmate can go quietly
+        // beside you, so the game's tuning tells a death within voice's reach as well, by name and where.
+        var train = Train();
+        var news = new CrewNews();
+        var me = PlayerMotor.SpawnOnRoof(train, 1, 0, P);
+        var near = PlayerMotor.SpawnOnRoof(train, 1, 3, P);
+        Assert.True(Apart(train, me, near) < T.BeyondMetres);
+        news.Update(T, train, Me, me, 0, [(Me, me), (Tom, near)], Name);
+        var line = news.Update(T, train, Me, me, 1, [(Me, me), (Tom, Dead(near))], Name);
+        Assert.Equal("TOM IS GONE - CAR 1 ROOF", line?.Text);
+        Assert.True(line!.Value.Dead);
+        // A hold near you is still only heard.
+        var held = new CrewNews();
+        held.Update(T, train, Me, me, 0, [(Me, me), (Tom, near)], Name);
+        Assert.Null(held.Update(T, train, Me, me, 1, [(Me, me), (Tom, Held(near))], Name));
     }
 
     [Fact]

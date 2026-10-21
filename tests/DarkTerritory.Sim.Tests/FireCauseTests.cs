@@ -69,7 +69,7 @@ public class FireCauseTests
         int car = hound.Attached;
         var fire = TheFire(n, car);
         Assert.Equal(FireCause.Hounds, fire.Cause);
-        Assert.Equal($"FIRE IN CAR {car} · CINDER HOUNDS FEEDING ON IT", News.Line(n.World, TheNews(n)));
+        Assert.Equal($"FIRE IN CAR {car} · A CINDER HOUND ON ITS ROOF", News.Line(n.World, TheNews(n)));
         var row = Assert.Single(n.World.Attribution.Of(IncidentKind.Fire));
         Assert.Equal($"Cinder Hounds set car {car} alight", row.What);
         Assert.Equal("Feeding on its roof, nobody near.", row.Action);

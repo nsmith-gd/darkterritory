@@ -1105,4 +1105,8 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [945. The Knotter that won't die on a moving train, the Gaunt that vanishes, a bot hitting from where it can't reach (n1-H1, nathaniel1; queue…](notes/945.md)
 - [946. Playtest telemetry on by default in playtest builds, with the off switch (n1-N1, nathaniel1; queue #636; the director, the inbox, 20 Oct:…](notes/946.md)
 - [948. The two-person heavy carry holds together: the front end walks at the back end's pace (queue #635; n1-B2's findings under #630, note 920;…](notes/948.md)
+- [949. The GDD against the game: what it promises that is not built (Wynn, queue #647; the director, 20 Oct evening)](notes/949.md)
+- [950. The joiner leaves the wait by hand (Quinn, queue #648; found by Wynn's audit, note 949)](notes/950.md)
+- [951. The guards run out to the yard (Cole, queue #650; found by Wynn's audit, note 949)](notes/951.md)
+- [952. The GDD's stale "not yet" markers brought up to date (Sage, queue #658; found by Wynn's audit, note 949)](notes/952.md)
 <!-- end of the notes index -->
