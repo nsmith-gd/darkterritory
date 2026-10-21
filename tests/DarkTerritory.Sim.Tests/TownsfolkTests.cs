@@ -118,6 +118,45 @@ public class TownsfolkTests
             Assert.Equal(p.Personality is { } who && t.Voices.ContainsKey(who.Temperament) ? t.Voices[who.Temperament] : TalkVoice.Plain, t.VoiceOf(p));
     }
 
+    /// <summary>
+    /// Note 971 (docs/design/townsfolk.md, "Not yet": "Households don't argue: a lapsed lodger in a zealous house could say
+    /// so"): across a few towns some households quarrel. Each is its two most at odds on the trait it's over, towns.json
+    /// <c>quarrels.gap</c> apart or more, the one higher on it speaking first and the two taking turns; the same plan twice
+    /// is the same quarrels. And the custom's lines are marked as such, for its telling once.
+    /// </summary>
+    [Fact]
+    public void SomeHouseholdsQuarrelByTheirTraits()
+    {
+        var q = Towns.Tuning.Quarrels;
+        int quarrels = 0, custom = 0;
+        foreach (var (spec, people) in new[] { ("frontier:7", 300), ("local:3", 2000), ("deadLines:2", 600) })
+        {
+            var town = Plan(spec, people);
+            Assert.Equal(town.Plan.Quarrels.Select(x => (x.House, x.A, x.B, x.Over)), Plan(spec, people).Plan.Quarrels.Select(x => (x.House, x.A, x.B, x.Over)));
+            Assert.Equal(town.Plan.Quarrels.Count, town.Plan.Quarrels.Select(x => x.House).Distinct().Count());
+            foreach (var x in town.Plan.Quarrels)
+            {
+                quarrels++;
+                var (a, b) = (town.Plan.People[x.A], town.Plan.People[x.B]);
+                Assert.Equal(x.House, a.House);
+                Assert.Equal(x.House, b.House);
+                int axis = Array.IndexOf(TownTraits.Axes, x.Over);
+                Assert.True(a.Personality!.Traits[axis] - b.Personality!.Traits[axis] >= q.Gap - 1e-9, $"{x.Over}: not far enough apart");
+                Assert.True(x.Lines.Count >= 2);
+                for (int k = 0; k < x.Lines.Count; k++)
+                    Assert.Equal(k % 2 == 0 ? x.A : x.B, x.Lines[k].Who);
+                Assert.DoesNotContain(x.Lines, l => l.Line.Contains('{'));
+            }
+            foreach (var p in town.Plan.People)
+            {
+                Assert.All(p.Custom, k => Assert.InRange(k, 0, p.Lines.Count - 1));
+                custom += p.Custom.Count;
+            }
+        }
+        Assert.True(quarrels > 0, "no household quarrels");
+        Assert.True(custom > 0, "nobody's told the custom");
+    }
+
     [Fact]
     public void EveryoneBreathesThroughGearOfTheKindsTheirTownKeeps()
     {

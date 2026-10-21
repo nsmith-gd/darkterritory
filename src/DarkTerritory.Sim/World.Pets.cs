@@ -245,6 +245,7 @@ public sealed partial class World
         var frame = Train.Frames[s.Parent];
         var mouth = frame.ToWorld(CarShape.Launcher(platform) + new Double3(0, 1.1, 0.35));
         var ball = Bodies.SpawnItem(mouth, Train.Dynamics.RearDistance, BodyKind.TennisBall);
+        BallsThrown++;
         ball.Claimed = true;
         var away = frame.DirToWorld(new Double3(0, 0.35, 1).Normalized) * t.LaunchSpeed;
         ball.Pbd.Particles[0].Position = mouth;

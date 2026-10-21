@@ -3693,8 +3693,12 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
         PlaytestBake(Path.Combine(dir, "playtest-build"), Str(args, "--cohort", ""));
     menu.Kit = DarkTerritory.Game.Telemetry.PlaytestKit.Load(Path.Combine(dir, args.Contains("--cohort") ? "playtest-build" : "no-playtest-build"), telemetryDir);
     // Note 946: a playtest build's (--cohort) is on from the start, and its first run is the notice, not the question.
-    menu.Playtest = DarkTerritory.Game.Telemetry.PlaytestConsent.Load(telemetryDir, defaultOn: args.Contains("--dev"),
-        onByNotice: !args.Contains("--dev") && args.Contains("--cohort"));
+    // Note 968: the notice's firstBootLine makes it on in every build, and the title's shot is a first boot, its line under the menu.
+    bool casual = menu.PlaytestNotice.Casual;
+    menu.Playtest = DarkTerritory.Game.Telemetry.PlaytestConsent.Load(telemetryDir, defaultOn: args.Contains("--dev") || casual,
+        onByNotice: casual || !args.Contains("--dev") && args.Contains("--cohort"));
+    if (casual && screen == DarkTerritory.Game.Screen.Title)
+        menu.OpenPlaytest();
     if (screen == DarkTerritory.Game.Screen.Survey)
     {
         if (!args.Contains("--cohort"))

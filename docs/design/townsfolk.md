@@ -115,8 +115,11 @@ Names come from the town's people, then from who each person is.
 
   The card stays up for as long as the line takes, plus its linger.
 
-## Not yet
-
-- Households don't argue: a lapsed lodger in a zealous house could say so.
-- Townsfolk lines are fixed per town. The crew could hear a different line from someone who's been told "the custom" by
-  another townsperson first.
+- **Households quarrel** (note 971; towns.json `quarrels`, `TownPlan.Quarrels`). A house whose two most at odds on keeping,
+  hope or welcome are 1.1 or more apart has that trait's quarrel. The zealous and the lapsed argue over the shelf and the
+  three times; the hopeful and the resigned over the seed tin; the warm and the wary over the train folk. It's overheard
+  within 9 m of the house's front, the two back and forth, for 40 s of every two and a half minutes, each house on its own
+  beat.
+- **The custom's told once** (note 971; towns.json `told`). Whoever tells the crew the custom first says it. After that, in
+  that town, anybody whose line it would be says what their temperament makes of its having been told ("They told you,
+  then. They didn't tell you what it cost."), the first teller too the next time round.
