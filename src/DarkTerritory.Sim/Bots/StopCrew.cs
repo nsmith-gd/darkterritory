@@ -842,6 +842,70 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
         train.Dynamics.Consist.Vehicles.Where(v => v.Kind == VehicleKind.Cargo && v.Load < 1 - 1e-6);
 
     /// <summary>
+    /// The stop's packing plan (queue #630, note 920; found by Rhea under #623, note 903): the whole halves the site's heavy
+    /// crates still to load will need, set aside in the cars before the light crates take their room. Each light went to the
+    /// roomiest car, so how a stop packed hung on the order the crates came in: with a half's room in each car, an odd light
+    /// count went one to a car and left the heavies no whole half (a third light took the last one and left two heavies in
+    /// the yard, and a train that arrived a second later loaded them).
+    /// <para>
+    /// Worked out from the stop as it stands, the same way by every hand: a car's room is what isn't loaded or lying in it
+    /// settling (by each crate's size); the heavy crates at the site still to load (held, up, or lying loose there with two
+    /// hands for them, T45) each take a whole half, in the cars nearest the crate stack. Only what fits is set aside: a heavy
+    /// with no whole half anywhere takes nothing from the lights. The kegs' rules are the hands' own (set down, never thrown),
+    /// whichever car they go to. (The crane's castings aren't set aside: held for them, the lights' room under the gantry
+    /// slowed the pair's loading, and every casting still went in without it.)
+    /// </para>
+    /// </summary>
+    /// <returns>Each cargo car with room, by id: the room the light crates may take (never below zero).</returns>
+    public Dictionary<int, double> LightRoom(World world, CrewCalls calls)
+    {
+        var (free, heavy) = Pack(world, calls);
+        return free.ToDictionary(kv => kv.Key, kv => Math.Max(0, kv.Value - heavy.GetValueOrDefault(kv.Key)));
+    }
+
+    /// <summary>
+    /// Note 920: whether <paramref name="car"/> has a whole half free for a heavy crate (what's loaded and settling in it taken
+    /// off), and the nearest car to <paramref name="from"/> that has, or −1.
+    /// </summary>
+    public int HeavyCar(World world, int car, Double3 from)
+    {
+        var train = world.Train;
+        var (free, _) = Pack(world, null);
+        double half = Site.LoadPerHeavy - 1e-6;
+        if (free.TryGetValue(car, out double room) && room >= half)
+            return car;
+        return free.Where(kv => kv.Value >= half).Select(kv => kv.Key)
+            .OrderBy(c => (train.Frames[c].Origin - from).Length).ThenBy(c => c).DefaultIfEmpty(-1).First();
+    }
+
+    /// <summary>Note 920's plan: each car's free room, and the room set aside in it for the site's heavy crates (none without <paramref name="calls"/>).</summary>
+    (Dictionary<int, double> Free, Dictionary<int, double> Heavy) Pack(World world, CrewCalls? calls)
+    {
+        var train = world.Train;
+        var free = new SortedDictionary<int, double>();
+        foreach (var v in WithRoom(train))
+            free[v.Id] = 1 - v.Load;
+        // Put down inside a car and settling: its room's taken, by the crate's size. (Loaded, note 659, it's in the load.)
+        foreach (var b in world.Bodies.All)
+            if (b.Kind is Physics.BodyKind.Cargo or Physics.BodyKind.Heavy && b.Carrier < 0 && !b.Banked && free.ContainsKey(b.Parent) && Inside(train, b))
+                free[b.Parent] -= b.Kind == Physics.BodyKind.Heavy ? Site.LoadPerHeavy : Site.LoadPerCrate;
+        var heavy = new Dictionary<int, double>();
+        if (calls is null)
+            return (new Dictionary<int, double>(free), heavy);
+        double half = Site.LoadPerHeavy;
+        int heavies = world.Bodies.All.Count(b => b.Kind == Physics.BodyKind.Heavy && !b.Banked && !(free.ContainsKey(b.Parent) && Inside(train, b))
+            && (b.Lifted || b.Carrier >= 0 || calls.HeavyHands >= 2 && Loose(world, b)));
+        var stack = Site.CrateStack.Length > 0 ? Site.CrateStack[0] : Site.HeavyStack.Length > 0 ? Site.HeavyStack[0] : train.Frames[0].Origin;
+        foreach (int car in free.Keys.OrderBy(c => (train.Frames[c].Origin - stack).Length).ThenBy(c => c))
+            while (heavies > 0 && free[car] - heavy.GetValueOrDefault(car) >= half - 1e-6)
+            {
+                heavy[car] = heavy.GetValueOrDefault(car) + half;
+                heavies--;
+            }
+        return (new Dictionary<int, double>(free), heavy);
+    }
+
+    /// <summary>
     /// Crates still to go in: in someone's arms, put down inside a car with room and not yet stowed, or lying where a
     /// hand can pick them up (<see cref="Loose"/>); and a car with room for them. Once they're all in (or nothing has
     /// room), the crates are done.
@@ -3370,9 +3434,16 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
                 return lamp;
             return OpenSideDoor(world, p, calls, member, self) is { } car ? ShutUp(self, world, p, car) : Done(self, world, p);
         }
-        // (The car pinged for the cargo first, note 936, while it has room.)
         if (!heavy && _setDown is null || _car < 0)
-            _car = OrderedCar(world, p) ?? Roomiest(world, p, calls, member);
+        {
+            // (The car pinged for the cargo first, note 936, while it has room.) Note 920 (queue #630): the car is the one for the
+            // crate we're about to take. With no light one loose and a heavy one next for two, a car with a whole half free for
+            // it, the nearest it; else the lights' car by the packing plan (Roomiest). Chosen by the lights' plan, a hand that
+            // then took a heavy one carried it to a car whose half the plan had set aside for it, and couldn't put it in.
+            _car = OrderedCar(world, p)
+                ?? (Crate(world, p, self) is null && PlayerId is not null && calls.HeavyHands >= 2 && HeavyCrate(world, p, self) is { } next
+                    && p.HeavyCar(world, -1, Physics.Bodies.WorldCentre(next, train)) is var half and >= 0 ? half : Roomiest(world, p, calls, member));
+        }
         calls.CarryingTo(member, heavy ? _car : -1);
         // Every car's room spoken for by crates on their way in: wait for them to land (then either there's room again,
         // or the crates are done and the doors want shutting). Going aboard now would leave this stop for good.
@@ -3653,9 +3724,16 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         var pending = world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Cargo && b.Carrier < 0 && !b.Banked && b.Parent > 0 && StopPlan.Inside(train, b))
             .GroupBy(b => b.Parent).ToDictionary(g => g.Key, g => g.Count());
         var stack = p.Site.CrateStack.Length > 0 ? p.Site.CrateStack[0] : train.Frames[0].Origin;
-        return StopPlan.WithRoom(train).Select(v => (v.Id, Room: 1 - v.Load - p.Site.LoadPerCrate * (pending.GetValueOrDefault(v.Id) + calls.BoundFor(v.Id, member))))
-            .Where(x => x.Room > 1e-6).OrderByDescending(x => Math.Round(x.Room, 3)).ThenBy(x => (train.Frames[x.Id].Origin - stack).Length)
-            .Select(x => x.Id).DefaultIfEmpty(-1).First();
+        // Note 920 (queue #630): the stop's packing plan is a preference, never a wall. A light goes first to a car with
+        // room once the heavy crates' whole halves are set aside; with none, to the roomiest as
+        // before. Held to it as a wall, the lights it left had nowhere to go, stayed "to load", and the hands never left the
+        // stack for the village, the Choir's shelter or the crane.
+        var planned = p.LightRoom(world, calls);
+        int Best(IEnumerable<(int Id, double Room)> cars) => cars.Where(x => x.Room > 1e-6).OrderByDescending(x => Math.Round(x.Room, 3))
+            .ThenBy(x => (train.Frames[x.Id].Origin - stack).Length).Select(x => x.Id).DefaultIfEmpty(-1).First();
+        int preferred = Best(planned.Select(kv => (kv.Key, kv.Value - p.Site.LoadPerCrate * calls.BoundFor(kv.Key, member))));
+        return preferred >= 0 ? preferred
+            : Best(StopPlan.WithRoom(train).Select(v => (v.Id, 1 - v.Load - p.Site.LoadPerCrate * (pending.GetValueOrDefault(v.Id) + calls.BoundFor(v.Id, member)))));
     }
 
     /// <summary>The nearest crate a hand can pick up from the ground (<see cref="StopPlan.Loose"/>) on the working side.</summary>
