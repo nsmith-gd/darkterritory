@@ -877,8 +877,10 @@ public sealed class FrontEnd
         else if (n.Hosting && n.JoinAt is { } at)
             list.Add(new(new("INVITE", "Friends on your network join by its address."),
                 () => { Message = $"Friends join at {at}: JOIN, then type it."; return null; }));
-        // Over, there's nothing to lose by leaving: it goes at once, as Enter does.
-        list.Add(new(new(n.Hosting && n.Others > 0 && !n.Over ? "END THE NIGHT" : "LEAVE"), n.Over ? () => new Launch.Leave() : Go(Screen.Leave)));
+        // Over, there's nothing to lose by leaving: it goes at once. Enter on the end screen goes on with the crew (to the
+        // fortress, or the next night from the town); LEAVE goes to the title (note 937).
+        list.Add(new(new(n.Hosting && n.Others > 0 && !n.Over ? "END THE NIGHT" : "LEAVE", n.Over ? LeaveOver : null),
+            n.Over ? () => new Launch.Leave() : Go(Screen.Leave)));
         return list;
     }
 
@@ -906,6 +908,9 @@ public sealed class FrontEnd
                 () => { Change(Settings with { PublicLobby = true }); Message = "THE RUN'S OPEN."; return null; }));
         return list;
     }
+
+    /// <summary>LEAVE's line on a night that's over (note 937): where it goes, and where Enter goes instead.</summary>
+    public const string LeaveOver = "Back to the title. Enter on the night's end goes on with the crew.";
 
     /// <summary>The new password being typed in a night (note 535), from blank; it's the run's on Enter, and nothing on Esc.</summary>
     public string NightPassword { get; private set; } = "";

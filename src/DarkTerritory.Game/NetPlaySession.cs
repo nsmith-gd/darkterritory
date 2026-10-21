@@ -976,8 +976,9 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
 
     /// <param name="redial">A new link to the same host, for coming back after a drop (note 253).</param>
     /// <param name="key">A private run's password, as its key (note 450): said in the Hello, and again on every redial.</param>
+    /// <param name="leaving">The player gave up waiting (note 950): the link's hung up and it throws <see cref="OperationCanceledException"/>.</param>
     static NetPlaySession Connect(string content, ITransport transport, string describe, Lobby? lobby, Action? whileWaiting, Func<ITransport>? redial = null,
-        byte[]? key = null)
+        byte[]? key = null, Func<bool>? leaving = null)
     {
         var early = new List<TransportEvent>();
         string? session = null;
@@ -1019,6 +1020,11 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 }
             }
             early.AddRange(poll);
+            if (leaving?.Invoke() == true)
+            {
+                transport.Dispose();
+                throw new OperationCanceledException("left the wait");
+            }
             whileWaiting?.Invoke();
             Thread.Sleep(5);
         }
@@ -1090,7 +1096,10 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// rejoin.retrySeconds for up to rejoin.followSeconds, and joins it as any joiner does (its yard, its town).
     /// </summary>
     /// <param name="whileWaiting">Called each time round (the app draws the town's card; a test steps its in-process host).</param>
-    public static NetPlaySession Follow(string content, Following going, Action? whileWaiting = null, PlayerTuning? tuning = null)
+    /// <param name="leaving">The joiner leaves the wait by hand (queue #648, note 950): BACK TO THE MENU on the town's card. The
+    /// dial's hung up, nothing is joined, and it throws <see cref="OperationCanceledException"/>.</param>
+    public static NetPlaySession Follow(string content, Following going, Action? whileWaiting = null, PlayerTuning? tuning = null,
+        Func<bool>? leaving = null)
     {
         var t = (tuning ?? DataFile.Load<PlayerTuning>(Path.Combine(content, PlayerTuning.File))).Rejoin;
         var clock = System.Diagnostics.Stopwatch.StartNew();
@@ -1098,7 +1107,8 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
         {
             try
             {
-                var joined = Connect(content, going.Dial(), "the host", null, whileWaiting, going.Dial, going.Key);
+                Left(leaving);
+                var joined = Connect(content, going.Dial(), "the host", null, whileWaiting, going.Dial, going.Key, leaving);
                 // The next night's a new route; the blacksmith's refit (note 697) is the same one with an upgrade more.
                 if (joined.Setup.Route != going.Left || joined.Setup.Upgrades.Count != going.Fitted)
                     return joined;
@@ -1111,10 +1121,17 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
                 throw new IOException("the host didn't start the next night");
             for (var wait = System.Diagnostics.Stopwatch.StartNew(); wait.Elapsed.TotalSeconds < t.RetrySeconds;)
             {
+                Left(leaving);
                 whileWaiting?.Invoke();
                 Thread.Sleep(5);
             }
         }
+    }
+
+    static void Left(Func<bool>? leaving)
+    {
+        if (leaving?.Invoke() == true)
+            throw new OperationCanceledException("left the wait");
     }
 
     /// <summary>RECONNECT: another round of tries, the first at once.</summary>
@@ -1551,15 +1568,17 @@ public sealed class NetPlaySession : IPlaySession, IDisposable
     /// <summary>
     /// The roster's lines: you and the rest of the session's crew, by name, in player-id order. GDD v1.4 (open question 2)
     /// made roll call verbal: "there is no aboard indicator for the conductor or anyone else", so a line says nothing of
-    /// where anyone is or whether they're alive, and the Passenger isn't on it: its only tell is silence, heard by ear.
+    /// where anyone is, and the Passenger isn't on it: its only tell is silence, heard by ear. Who's dead it does say (note 938;
+    /// the director, 20 Oct: "we need a way to like know if ... our crew is dead. Crew roll call shouted. One, Dunmore, me. I
+    /// don't see Dunmore"): the dead aren't anyone's to count.
     /// </summary>
     /// <param name="muted">Who's muted on this machine (note 724): the roster says MUTED beside them.</param>
     public static IReadOnlyList<RosterLine> RosterOf(byte me, in PlayerState mine, IEnumerable<(byte Id, PlayerState State)> crew, World world,
         Func<byte, bool>? muted = null)
     {
-        var lines = new List<RosterLine> { new(me, NameOr(world, me, "YOU").ToUpperInvariant(), "", true, You: true) };
-        foreach (var (id, _) in crew)
-            lines.Add(new RosterLine(id, NameOr(world, id, $"CREW {id}").ToUpperInvariant(), "", true) { Muted = muted?.Invoke(id) == true });
+        var lines = new List<RosterLine> { new(me, NameOr(world, me, "YOU").ToUpperInvariant(), "", mine.Alive, You: true) };
+        foreach (var (id, s) in crew)
+            lines.Add(new RosterLine(id, NameOr(world, id, $"CREW {id}").ToUpperInvariant(), "", s.Alive) { Muted = muted?.Invoke(id) == true });
         return [.. lines.OrderBy(l => l.Id)];
     }
 
