@@ -96,10 +96,15 @@
    "said": "banjo",
    "seconds": 0.417
   },
-  "barbecue": {
-   "file": "barbecue",
-   "said": "barbecue",
-   "seconds": 0.517
+  "bar": {
+   "file": "bar",
+   "said": "bar",
+   "seconds": 0.297
+  },
+  "beers": {
+   "file": "beers",
+   "said": "beers",
+   "seconds": 0.475
   },
   "bend": {
    "file": "bend",
@@ -135,6 +140,11 @@
    "file": "bolted",
    "said": "bolted",
    "seconds": 0.378
+  },
+  "bolted on": {
+   "file": "bolted-on",
+   "said": "bolted on",
+   "seconds": 0.637
   },
   "borrowed": {
    "file": "borrowed",
@@ -386,6 +396,11 @@
    "said": "danced",
    "seconds": 0.422
   },
+  "deceased": {
+   "file": "deceased",
+   "said": "deceased",
+   "seconds": 0.575
+  },
   "deck": {
    "file": "deck",
    "said": "deck",
@@ -416,10 +431,20 @@
    "said": "dog",
    "seconds": 0.347
   },
+  "drinks": {
+   "file": "drinks",
+   "said": "drinks",
+   "seconds": 0.442
+  },
   "drury": {
    "file": "drury",
    "said": "Droo-ree",
    "seconds": 0.447
+  },
+  "dry": {
+   "file": "dry",
+   "said": "dry",
+   "seconds": 0.397
   },
   "dunmore": {
    "file": "dunmore",
@@ -680,6 +705,11 @@
    "file": "grieve",
    "said": "grieve",
    "seconds": 0.395
+  },
+  "grill": {
+   "file": "grill",
+   "said": "grill",
+   "seconds": 0.283
   },
   "guitar": {
    "file": "guitar",
@@ -1426,16 +1456,6 @@
    "said": "the stoker ran away with it",
    "seconds": 1.233
   },
-  "the switchman threw the points under it": {
-   "file": "the-switchman-threw-the-points-under-it",
-   "said": "the switchman threw the points under it",
-   "seconds": 1.462
-  },
-  "they throw a train off": {
-   "file": "they-throw-a-train-off",
-   "said": "they throw a train off",
-   "seconds": 0.973
-  },
   "they'll take": {
    "file": "they-ll-take",
    "said": "they'll take",
@@ -1615,6 +1635,11 @@
    "file": "vickery",
    "said": "vickery",
    "seconds": 0.428
+  },
+  "volunteers": {
+   "file": "volunteers",
+   "said": "volunteers",
+   "seconds": 0.616
   },
   "voss": {
    "file": "voss",

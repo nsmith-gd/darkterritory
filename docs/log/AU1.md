@@ -460,3 +460,7 @@ The director asked for the last three friendslop features to be heard. Two were 
 ## 21 Oct, ~23:00 UTC: #682, the clerk's words for the silly upgrades' tally
 
 - Claimed queue #682, note 982 (Hazel's ask in note 972): the clerk's radio bank rebuilt with "dining", "bar", "poured", "beers", "grill", "deceased" and "volunteers", so the tally reads as the catalogue has it. #680 (#1584) merges on its last green.
+
+## 21 Oct, ~23:25 UTC: #682 ready
+
+- The claim merged ([#1588](https://github.com/nsmith-gd/darkterritory/pull/1588)). The clerk's bank (note 982): "bar", "drinks", "dry", "beers", "grill", "deceased", "volunteers" and the never-read "bolted on"; the dining car, deck, canary and cannon lines in the catalogue's words; `clerk.py` expands a counted line's readings (its first run stopped on a "#"). The Switchman's two stale phrases and "barbecue" gone from the bank. Goes up when #1584 has merged off the branch.

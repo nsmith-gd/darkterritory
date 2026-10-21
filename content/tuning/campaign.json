@@ -64,8 +64,8 @@
   // Note 972 (upgrades.md §8.5: "the tally reads 'Bar: eight drinks'"): a tally reads the night's counts of what it did
   // (World.UpgradeCounts: barDrinks, beers, grilled, geraldTaken, gnomesTaken, canaryDead, volunteers, ballsThrown):
   // "{name}" is the count, "{name?counted|not}" the first reading with one or more ("#" in it the count) and the second with none.
-  // Every reading is said from the clerk's bank of words (tools/audio/clerk.py; ClerkVoiceTests): until the bank's built again
-  // with them, the lines keep to its words ("Car: candles. Taken: 8." for upgrades.md's "Bar: eight drinks").
+  // Every reading is said from the clerk's bank of words (tools/audio/clerk.py; ClerkVoiceTests), built again with the
+  // catalogue's (note 982): "Bar: drinks, 8." for upgrades.md's "Bar: eight drinks", "Canary: deceased.".
   // The note's effects: overspeedLead (train.json overspeed.leadSeconds: the cab's bell before a bend, and how long it rings
   // before a bend can take the train), brakeFade (brakeFade.fadePerSecond), fragile (fragile.shockShare and
   // brakeShockPerSecond: what knocks spoil of medicine), boardUp (breach.boardSeconds), radios (kit.radios, added), accel
@@ -191,13 +191,13 @@
     // chandelier, and its bar, which pours train.json composition.dining.drinks a night. It carries nothing and weighs a car.
     { "id": "diningCar", "name": "The dining car", "kind": "silly", "size": "major", "costShare": 1.2, "effect": { "diningCar": 1 },
       "line": "A cargo car converted: a chandelier, a table laid for eight, and a bar at the far end. It carries nothing. Dining car: laid.",
-      "tally": "Car: candles. Taken: {barDrinks}." },
+      "tally": "{barDrinks?Bar: drinks, #.|Bar: dry.}" },
     // The BBQ deck (note 698; the director, 13 Oct: "its the BBQ Dads at the end of the world"): train.json composition.bbq.
     // A whimsy that's also a tool (a heal off the grill, a warm spot, the best seat on the train), and it costs like one: the
     // grill's heat and smell bring the Cinder Hounds as a hot boiler does, and the chairs are out front in the cold.
     { "id": "bbqDeck", "name": "The BBQ deck", "kind": "whimsy", "size": "major", "costShare": 0.6, "effect": { "bbqDeck": 1 },
       "line": "A deck on a cowcatcher out front: two Muskoka chairs, a cooler of beers and a BBQ on a stand. For the BBQ Dads at the end of the world.",
-      "tally": "Deck: barbecue. Taken: {beers}. Food: {grilled}." },
+      "tally": "Deck: beers, {beers}. Grill: {grilled}." },
     // The band (note 700; the director, 13 Oct: "they are like Celtic folk style songs ... the East Coast folk aesthetic"):
     // band.json's instruments, one each, in the guard van. Carried, Use held plays it, in time with whoever started first;
     // as loud to the Choir as a noisy toy, so a kitchen party in the dark has its price.
@@ -314,7 +314,7 @@
     // The canary in car one: it sings while all's well, stops while an interior creature's aboard near it, and dies in fumes.
     { "id": "canary", "name": "The canary", "kind": "whimsy", "size": "small", "costShare": 0.08, "effect": { "dress:canary": 1 },
       "line": "A canary in a brass cage in car one. It sings while all's well and stops when something's aboard. Keep it out of the fumes.",
-      "tally": "{canaryDead?Canary: fell.|Canary: singing.}" },
+      "tally": "{canaryDead?Canary: deceased.|Canary: singing.}" },
     // The steam calliope: the whistle's each pull the next note of a tune; louder to the Choir, and a Moose stops to listen.
     { "id": "calliope", "name": "Steam calliope", "kind": "whimsy", "size": "small", "costShare": 0.1, "effect": { "whistle": 1.6, "dress:calliope": 1 },
       "excludes": [ "theHonk", "goldWhistle", "cucarachaHorn" ],
@@ -355,7 +355,7 @@
     // they land where it's aimed, unhurt, on dry ground, and anything in the way takes the ball's hit.
     { "id": "humanCannonball", "name": "The human cannonball", "kind": "whimsy", "size": "small", "costShare": 0.12, "effect": { "dress:humanCannonball": 1 },
       "line": "A wider bore and a padded helmet for the van's gun. Powder, pack, and a volunteer. They land. They always land.",
-      "tally": "{volunteers?Cannon: one volunteer. Thrown: #.|Cannon: one volunteer.}" },
+      "tally": "{volunteers?Cannon: volunteers, #.|Cannon: one volunteer.}" },
     // Does nothing at all, and the clerk says so, every night, for good.
     { "id": "commendation", "name": "Framed commendation", "kind": "silly", "size": "small", "costShare": 0.5, "effect": { },
       "line": "\"For Services to the Railway\", signed by a council nobody's met, framed, for the cab. Read into every tally.",
