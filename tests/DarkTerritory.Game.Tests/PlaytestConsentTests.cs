@@ -20,7 +20,7 @@ public sealed class PlaytestConsentTests : IDisposable
             Directory.Delete(_dir, recursive: true);
     }
 
-    PlaytestConsent Consent(bool dev = false) => PlaytestConsent.Load(Path.Combine(_dir, "telemetry"), defaultOn: dev);
+    PlaytestConsent Consent(bool dev = false, bool playtest = false) => PlaytestConsent.Load(Path.Combine(_dir, "telemetry"), defaultOn: dev, onByNotice: playtest);
 
     FrontEnd Menu(PlaytestConsent consent)
     {
@@ -194,5 +194,61 @@ public sealed class PlaytestConsentTests : IDisposable
         m.PlaytestNotice = null;
         m.Show(Screen.Consent);
         Assert.Equal(Screen.Title, m.Screen);
+    }
+
+    [Fact]
+    public void APlaytestBuildRecordsFromTheStartAndItsNoticeHasTheOffSwitchBesideOk()
+    {
+        // Note 946 (the director, 20 Oct: "On by default in playtest builds, with an off switch").
+        var c = Consent(playtest: true);
+        Assert.True(c.Recording);
+        Assert.NotNull(c.InstallId);
+        Assert.True(c.NeedsAsking(Notice));
+        var m = Menu(c);
+        m.Show(Screen.Consent);
+        Assert.Equal(["OK, KEEP IT ON", "TURN IT OFF", "WHAT WE COLLECT"], m.Items.Select(i => i.Label));
+        Assert.Equal(0, m.Selected);
+        m.Select();
+        Assert.Equal(Screen.Title, m.Screen);
+        Assert.True(c.Recording);
+        Assert.False(Consent(playtest: true).NeedsAsking(Notice));
+    }
+
+    [Fact]
+    public void TurningItOffInTheNoticeIsAnAnswer()
+    {
+        var c = Consent(playtest: true);
+        var m = Menu(c);
+        m.Show(Screen.Consent);
+        m.Down();
+        m.Select();
+        Assert.False(c.Recording);
+        Assert.Null(c.InstallId);
+        Assert.False(Consent(playtest: true).NeedsAsking(Notice));
+        Assert.False(Consent().Recording);
+    }
+
+    [Fact]
+    public void ANoticesOkIsNoAnswerOutsideAPlaytest()
+    {
+        // The same machine on an ordinary build afterwards: the notice's yes was the playtest's, so it's asked properly, and
+        // nothing is recorded until it's answered.
+        Consent(playtest: true).Acknowledge(Notice);
+        var after = Consent();
+        Assert.True(after.NeedsAsking(Notice));
+        Assert.False(after.Recording);
+        var m = Menu(after);
+        m.Show(Screen.Consent);
+        Assert.Equal("NO THANKS", m.Items[0].Label);
+    }
+
+    [Fact]
+    public void WhatWeCollectSaysWhoKeepsIt()
+    {
+        var m = Menu(Consent(playtest: true));
+        m.Show(Screen.PlaytestData);
+        var row = m.Items.Single(i => i.Label == "WHO KEEPS IT");
+        Assert.Contains("PostHog", row.Detail);
+        Assert.Contains("default", m.Items[0].Detail);
     }
 }

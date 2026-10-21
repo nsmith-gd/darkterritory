@@ -988,6 +988,23 @@ public sealed class FrontEnd
     /// </summary>
     List<Entry> ConsentEntries(Telemetry.PlaytestConsent p, Telemetry.PlaytestNotice n)
     {
+        // Note 946: a playtest build's is on already: a notice, OK lit first and TURN IT OFF beside it (one key away).
+        if (p.OnByNotice)
+            return
+            [
+                new(new("OK, KEEP IT ON", "Your nights in this playtest are recorded anonymously. Off or deleted any time in Settings, PLAYTEST DATA."),
+                    () =>
+                    {
+                        p.Acknowledge(n);
+                        AfterConsent();
+                        Message = "Thank you. Playtest data is on: Settings, PLAYTEST DATA to change it.";
+                        return null;
+                    }),
+                new(new("TURN IT OFF", "Nothing more is recorded, in this playtest or after. On again any time in Settings, PLAYTEST DATA."),
+                    () => Answer(p, n, yes: false)),
+                new(new("WHAT WE COLLECT", "Every kind of thing it records, where it goes and for how long."),
+                    () => { _playtestBack = Screen.Consent; Show(Screen.PlaytestData); return null; }),
+            ];
         // What it's for is said under the heading, read before either answer (ConsentLines); each answer says what it does.
         string dev = p.DefaultOn && n.DevBuild.Length > 0 ? " " + n.DevBuild : "";
         var yes = new Entry(new("YES, RECORD MY NIGHTS", "Your nights are recorded anonymously, to help tune the game. Off or deleted any time in Settings." + dev),
@@ -1063,6 +1080,7 @@ public sealed class FrontEnd
     Entry PlaytestSwitch(Telemetry.PlaytestConsent p) =>
         new(new($"PLAYTEST DATA: {(p.Recording ? "ON" : "OFF")}", p.Recording
                 ? "Your nights are recorded, anonymously, to help tune the game. Left and right, or Enter, to turn it off."
+                    + (p.OnByNotice ? " On by default in this playtest build." : "")
                 : "Nothing is recorded. On, your nights are recorded anonymously to help tune the game."),
             () => { p.Choose(!p.Recording, PlaytestNotice!); return null; }, _ => p.Choose(!p.Recording, PlaytestNotice!));
 
@@ -1077,6 +1095,8 @@ public sealed class FrontEnd
         .. n.Collect.Select(f => new Entry(new(f.What, f.Detail))),
         new(new("WHAT WE NEVER COLLECT", n.Never)),
         new(new($"KEPT FOR {n.RetentionMonths} MONTHS", n.WhereLine)),
+        // Note 946: who keeps it for the studio (#637's PostHog).
+        .. n.ThirdParty.Length > 0 ? [new Entry(new("WHO KEEPS IT", n.ThirdParty))] : (Entry[])[],
         new(new("DELETE MY PLAYTEST DATA", "Deletes every night recorded on this computer, and starts a new id, so nothing sent before can be tied to you after."),
             () =>
             {
@@ -2191,7 +2211,8 @@ public sealed class FrontEnd
             Screen.Slots => "CAMPAIGN",
             Screen.DeleteCrew when Open is { } s => $"DELETE {CrewName(s).ToUpperInvariant()}?",
             Screen.Crashed => "DARK TERRITORY STOPPED LAST TIME",
-            Screen.Consent => PlaytestNotice?.Question ?? "PLAYTEST DATA",
+            Screen.Consent => Playtest is { OnByNotice: true } && PlaytestNotice is { OnByDefaultTitle.Length: > 0 } on ? on.OnByDefaultTitle
+                : PlaytestNotice?.Question ?? "PLAYTEST DATA",
             Screen.PlaytestData => "PLAYTEST DATA",
             Screen.Survey => "TONIGHT, IN THREE NUMBERS",
             Screen.Fortress or Screen.Upgrades or Screen.Stores when Open is { } s =>
@@ -2223,7 +2244,9 @@ public sealed class FrontEnd
             y += 10;
         }
         // (Wrapped, as the heading is, at a bigger TEXT SIZE: note 347.)
-        string? under = Screen == Screen.Consent && PlaytestNotice is { } notice
+        string? under = Screen == Screen.Consent && Playtest is { OnByNotice: true } && PlaytestNotice is { OnByDefault.Length: > 0 } onNotice
+                ? string.Join(" ", onNotice.OnByDefault).Replace("{code}", Kit?.Cohort ?? "no code", StringComparison.Ordinal).ToUpperInvariant()
+            : Screen == Screen.Consent && PlaytestNotice is { } notice
                 ? (string.Join(" ", notice.Ask) + (Kit?.Build is { } build && notice.PlaytestBuild.Length > 0
                     ? " " + notice.PlaytestBuild.Replace("{code}", build.Cohort ?? "no code", StringComparison.Ordinal) : "")).ToUpperInvariant()
             : Screen == Screen.Survey ? "FOR THE PLAYTEST: EACH FROM 1 TO 5, LEFT AND RIGHT. SKIP IT IF YOU'D RATHER."
@@ -2261,8 +2284,12 @@ public sealed class FrontEnd
         // A value's row has its arrows at the plate's right, for the mouse (note 264): < and > step it, as left and right do.
         bool arrows = entries.Any(e => e.Adjust is not null);
         float plate = Math.Min(width - x, widest + 12 + (arrows ? 24 : 0));
-        // A list longer than the screen (the controls) scrolls: the selection kept in view, or where the wheel put it.
-        int rows = Math.Max(1, (int)((height - y - 44) / 10));
+        // A list longer than the screen (the controls) scrolls: the selection kept in view, or where the wheel put it. Room is
+        // left under it for the longest detail any row has (note 946: WHAT WE COLLECT's run to three lines, and the third ran
+        // into the keys' line), so the list doesn't change length as the selection moves.
+        int detailLines = items.Where(i => i.Enabled && i.Detail is not null)
+            .Select(i => UiStyle.Wrap(o, i.Detail!.ToUpperInvariant(), width - x - 8).Count()).DefaultIfEmpty(0).Max();
+        int rows = Math.Max(1, (int)((height - y - 24 - 10 * Math.Max(2, detailLines)) / 10));
         int first = First(rows, items.Count);
         int shown = Math.Min(rows, items.Count - first);
         UiStyle.Plate(o, x - 8, y - 6, plate, shown * 10 + 10);
