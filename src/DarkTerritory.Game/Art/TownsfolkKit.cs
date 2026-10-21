@@ -131,6 +131,8 @@ public sealed class TownsfolkKit(Look? look)
         "work" => "push",
         "lantern" => "lantern",
         "walk" => lamp ? "lantern_walk" : "walk",
+        // Running out to the yard's fight (note 951).
+        "run" => "run",
         "talk" when who % 3 == 0 => "point",
         // Out on the yard to a creature brought in (note 608): pointing their piece at it.
         "guard" => "point",

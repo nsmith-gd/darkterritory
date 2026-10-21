@@ -398,6 +398,10 @@
     // rolling friction's) until a crewmate within reach m puts it back with Use.
     "caboose": { "rope": 1.4, "length": 0.36, "radius": 0.1, "couplerHeight": 1.0, "derailAccel": 0.8, "friction": 0.15, "draggedFriction": 0.6,
       "reach": 2.0 },
+    // The dining car (upgrades.md §8.5; note 959): the drinks its bar pours a night ("what the fortress's cellar sold the
+    // crew", U1's call: eight), taken one at a time at the counter (Use, empty hands) and drunk as a beer (held Use); what one
+    // gives back drunk (drinkHeals: none, it's a drink). What a drink does to the drinker's view is look.json tipsy's.
+    "dining": { "drinks": 8, "drinkHeals": 0 },
     "bbq": { "deckLength": 3.0, "railHeight": 1.0, "beers": 24, "beerHeals": 0, "lightSeconds": 0.6, "burnSeconds": 300,
       "grillSeconds": 6, "sausageHeals": 20, "grillReach": 2.0 },
     // The whimsies (note 715; docs/design/upgrades.md §8.2). Gerald on the guard van's roof and the garden gnomes along the

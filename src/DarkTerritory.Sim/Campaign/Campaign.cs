@@ -573,6 +573,7 @@ public static class Campaign
                     "handcar" => Fit(l, c => c with { Handcar = c.Handcar || k > 0 }),
                     // The BBQ deck (note 698): the engine's front, its chairs, cooler and grill.
                     "bbqDeck" => Fit(l, c => c with { BbqDeck = c.BbqDeck || k > 0 }),
+                    "diningCar" => Fit(l, c => c with { DiningCar = c.DiningCar || k > 0 }),
                     // The livery (note 714): the train's paint, the last owned's (BuyUpgrade puts the one picked last).
                     "livery" => Fit(l, c => c with { Livery = (int)Math.Round(k) }),
                     // The train's dressing (note 701): drawn on the train; the art reads which.

@@ -176,6 +176,11 @@
     { "id": "theHonk", "name": "The honk", "kind": "whimsy", "size": "small", "costShare": 0.05, "effect": { "whistle": 0.35, "dress:theHonk": 1 }, "excludes": [ "goldWhistle", "cucarachaHorn", "calliope" ],
       "line": "A bulb horn off a clown's bicycle where the whistle was. The Territory doesn't take it seriously.",
       "tally": "Horn: comedic." },
+    // The dining car (upgrades.md §4 silly, §8.5; approved by the director, 13 Oct: "If we have a dining car, we should be able to
+    // order drinks at the bar"; note 959): a cargo car converted behind the crew cars, its table laid for eight under a
+    // chandelier, and its bar, which pours train.json composition.dining.drinks a night. It carries nothing and weighs a car.
+    { "id": "diningCar", "name": "The dining car", "kind": "silly", "size": "major", "costShare": 1.2, "effect": { "diningCar": 1 },
+      "line": "A cargo car converted: a chandelier, a table laid for eight, and a bar at the far end. It carries nothing. Dining car: laid." },
     // The BBQ deck (note 698; the director, 13 Oct: "its the BBQ Dads at the end of the world"): train.json composition.bbq.
     // A whimsy that's also a tool (a heal off the grill, a warm spot, the best seat on the train), and it costs like one: the
     // grill's heat and smell bring the Cinder Hounds as a hot boiler does, and the chairs are out front in the cold.

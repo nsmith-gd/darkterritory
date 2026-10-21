@@ -328,6 +328,21 @@ public sealed record LookTuning
     public BiteTuning Bite { get; init; } = new();
     public WorkLightTuning WorkLight { get; init; } = new();
     public SpeedFeelTuning SpeedFeel { get; init; } = new();
+    public TipsyTuning Tipsy { get; init; } = new();
+}
+
+/// <summary>The dining car's drinks on the drinker's view (upgrades.md §8.5, note 959). Mirror of look.json <c>tipsy</c>, where each field is documented.</summary>
+public sealed record TipsyTuning
+{
+    public double Seconds { get; init; } = 60;
+    public double MoreEach { get; init; } = 15;
+    public double Blur { get; init; } = 0.5;
+    public double BlurEach { get; init; } = 0.15;
+    public double LeanDegrees { get; init; } = 4;
+    public double LeanEach { get; init; } = 1.5;
+    public double LeanPeriod { get; init; } = 7;
+    public double MostDrinks { get; init; } = 4;
+    public double FadeSeconds { get; init; } = 10;
 }
 
 /// <summary>

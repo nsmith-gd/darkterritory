@@ -217,6 +217,7 @@ public sealed partial class SceneArt(Look look)
         var fist = FistCarriers?.TryGetValue(c.Id, out var inFist) == true ? inFist switch
         {
             Sim.Physics.BodyKind.Beer => Piece("prop-beer", () => PropKit.Beer(Look)),
+            Sim.Physics.BodyKind.Drink => Piece("prop-drink", () => PropKit.Drink(Look)),
             Sim.Physics.BodyKind.Sausage => Piece("prop-sausage", () => PropKit.Sausage(Look)),
             Sim.Physics.BodyKind.GrilledFish => Piece("whimsy-grilled-fish", () => WhimsyKit.Fish(Look, true)),
             _ => null,
@@ -900,6 +901,7 @@ public sealed partial class SceneArt(Look look)
             Sim.Physics.BodyKind.Loot => Piece("prop-loot", () => PropKit.Loot(Look, 0.15f)),
             // The BBQ deck's (note 698).
             Sim.Physics.BodyKind.Beer => Piece("prop-beer", () => PropKit.Beer(Look)),
+            Sim.Physics.BodyKind.Drink => Piece("prop-drink", () => PropKit.Drink(Look)),
             Sim.Physics.BodyKind.Sausage => Piece("prop-sausage", () => PropKit.Sausage(Look)),
             // The fishing rod's (note 744).
             Sim.Physics.BodyKind.FishingRod => Piece("whimsy-fishing-rod", () => WhimsyKit.FishingRod(Look)),
@@ -1583,6 +1585,14 @@ public sealed partial class SceneArt(Look look)
         if (utility && !engine)
             mesh.Instances.Add(new MeshInstance(Piece($"utility:{ShapeKey(shape)}", () => TrainKit.UtilityFit(Look, shape)), m,
                 emergency ? 0.06f : 1, Scar: scar, Bite: cut, BiteFloor: floor));
+        // The dining car (note 959): its table laid and its bar, where a load would go; its chandelier's light, lamps lit.
+        else if (shape.Dining is not null && !engine)
+        {
+            mesh.Instances.Add(new MeshInstance(Piece($"dining:{ShapeKey(shape)}", () => TrainKit.DiningFit(Look, shape)), m,
+                emergency ? 0.06f : 1, Scar: scar, Bite: cut, BiteFloor: floor));
+            if (!emergency && !dark && (frame.Origin - eye).Length < 120)
+                mesh.PointLights.Add(new PointLight(Vector3.Transform(TrainKit.ChandelierAt(shape) + new Vector3(0, 0.1f, 0), m), Palette.LampAmber * 1.4f, 6));
+        }
         else if (loadApart && vehicle!.Bulk > Solid.HeapFrom)
         {
             // Its heap (note 659): only what's been poured in, as high as the sim has it, in eighths for the meshes kept.

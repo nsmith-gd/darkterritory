@@ -103,9 +103,34 @@ public sealed partial class GameAudio
     Townsperson? _townGear;
     double _townStepHint = double.NaN;
 
+    // The arrival town is the one heard once the engine's this near its start (m; note 958): its streets, fires and folk
+    // come into earshot as the train draws in through its gate.
+    const double ArrivalHeard = 300;
+    Town? _townHeard;
+
+    /// <summary>
+    /// The town the crew are in or at (note 958; GDD v1.6 "Not yet": the terminus had only its threshold and gates): the
+    /// departure town, till the engine's within <see cref="ArrivalHeard"/> of the arrival town's start; then that one.
+    /// </summary>
+    static Town? HeardTown(World world) =>
+        world.Arrival is { Origin: { } start } arrival
+            && world.Train.Line.MainDistance(world.Train.Dynamics.Path, world.Train.Dynamics.Distance) >= start - ArrivalHeard
+            ? arrival : world.Town;
+
     void TownSounds(World world, Double3 ear, double dt)
     {
-        if (world.Town is not { } town)
+        var town = HeardTown(world);
+        if (!ReferenceEquals(town, _townHeard))
+        {
+            // Another town: what was near in the last one, and its walkers' strides, are nothing here.
+            _townHeard = town;
+            _townLookAt = double.NegativeInfinity;
+            _townStrides.Clear();
+            _townNear.Clear();
+            _townFolk.Clear();
+        }
+        YardFightSounds(world, ear, dt);
+        if (town is null)
             return;
         if (_time - _townLookAt >= TownLook || _time < _townLookAt)
         {

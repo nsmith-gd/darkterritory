@@ -34,6 +34,8 @@ public enum BodyKind : byte
     Cat = 21, Dog = 22, TennisBall = 23,
     // The flare pistol from the stores, its flares left in Charge, and a flare fired from it, burning (note 871).
     FlarePistol = 24, Flare = 25,
+    // A drink poured at the dining car's bar (note 959): drunk as a beer, and it blurs and leans the drinker's view (the art's).
+    Drink = 26,
 }
 
 /// <summary>
@@ -230,6 +232,8 @@ public sealed class Bodies
     public Func<Body, int>? Heals { get; set; }
     /// <summary>The BBQ deck's beer and sausage (note 698): what each gives back used (train.json composition.bbq).</summary>
     public int BeerHeals { get; set; }
+    /// <summary>The dining car's drink (note 959): what one gives back drunk (train.json composition.dining).</summary>
+    public int DrinkHeals { get; set; }
     public int SausageHeals { get; set; }
     /// <summary>What a fish off the grill gives back (note 744: train.json composition.whimsy.fishHeals).</summary>
     public int FishHeals { get; set; }
@@ -925,12 +929,12 @@ public sealed class Bodies
     {
         int on = patient >= 0 && patient != playerId ? patient : playerId;
         // A beer or a sausage (note 698) is had whatever your health: it's a party, and your own.
-        bool party = on == playerId && carried is { Kind: BodyKind.Beer or BodyKind.Sausage or BodyKind.GrilledFish };
+        bool party = on == playerId && carried is { Kind: BodyKind.Beer or BodyKind.Sausage or BodyKind.GrilledFish or BodyKind.Drink };
         // And anywhere on the deck, by its chairs, its cooler or its grill (whatever's nearest a Use would work), and sat down.
         var near = CrewActions.NearestInteractable(s, train, hand)?.Thing.Kind;
         var find = (party || carried is { Kind: BodyKind.Loot } && (on != playerId || s.Health < FullHealth) && Heals?.Invoke(carried) > 0) && !throwPressed
             && (near is null || party && near is InteractableKind.Chair or InteractableKind.Cooler or InteractableKind.Grill or InteractableKind.Hammock
-                or InteractableKind.HotTub or InteractableKind.Bench) ? carried : null;
+                or InteractableKind.HotTub or InteractableKind.Bench or InteractableKind.Bar) ? carried : null;
         bool had = _dosing.TryGetValue(playerId, out var was);
         if (had && (find is null || find.Id != was.Find || on != was.Patient))
         {
@@ -963,6 +967,7 @@ public sealed class Bodies
             int heal = find.Kind switch
             {
                 BodyKind.Beer => BeerHeals,
+                BodyKind.Drink => DrinkHeals,
                 BodyKind.Sausage => SausageHeals,
                 BodyKind.GrilledFish => FishHeals,
                 _ => Heals!(find),
@@ -970,7 +975,7 @@ public sealed class Bodies
             if (on != playerId)
                 heal = (int)Math.Round(heal * OnAFriend);
             _doses[on] = _doses.GetValueOrDefault(on) + heal;
-            if (find.Kind == BodyKind.Beer)
+            if (find.Kind is BodyKind.Beer or BodyKind.Drink)
                 _drunk.Add(playerId);
             _dosing.Remove(playerId);
             Remove(find);
