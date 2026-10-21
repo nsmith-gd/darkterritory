@@ -1039,7 +1039,8 @@ public sealed class Bodies
         return s.Parent == PlayerState.World ? local : train.Frames[s.Parent].ToWorld(local);
     }
 
-    Double3 HandsAt(in PlayerState s, TrainOnLine train)
+    /// <summary>Where someone's hands carry (world): a heavy crate rides midway between its two carriers' (note 948 reads it).</summary>
+    public Double3 HandsAt(in PlayerState s, TrainOnLine train)
     {
         var forward = new Double3(-DMath.Sin(s.Yaw), 0, -DMath.Cos(s.Yaw));
         var local = s.Position + Double3.Up * Hands.CarryHeight + forward * Hands.CarryForward;

@@ -111,10 +111,13 @@ public static class Onboarding
     }
 
     /// <summary>The loading screen (the app's, while the night is built): what's being done, the line under it, and the night's tip.</summary>
-    public static void DrawLoading(Overlay o, int width, int height, string doing, string under, string? tip)
+    /// <param name="hint">A key under it (note 950: a follower's way back to the menu).</param>
+    public static void DrawLoading(Overlay o, int width, int height, string doing, string under, string? tip, string? hint = null)
     {
         o.TextCentred(width / 2f, height / 2f - 10, doing, new Vector4(0.95f, 0.7f, 0.3f, 1), scale: 2);
         o.TextCentred(width / 2f, height / 2f + 14, under, new Vector4(0.6f, 0.6f, 0.6f, 1));
+        if (hint is not null)
+            o.TextCentred(width / 2f, height / 2f + 30, hint, new Vector4(0.8f, 0.77f, 0.68f, 1));
         if (tip is null)
             return;
         // Wrapped to the frame's middle (TEXT SIZE, note 347, makes the frame smaller).
