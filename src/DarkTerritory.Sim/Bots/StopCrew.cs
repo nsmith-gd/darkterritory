@@ -3098,12 +3098,12 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
     bool _jackpotsOnly;
 
     /// <summary>
-    /// The front end of a jackpot up between two (note 867) walks at the back end's pace, as a heavy crate from the yard does
-    /// (<see cref="HeavyPace"/>): at a walk to the steps the back end fell behind and it was down (too far apart), again and
-    /// again at the foot of them.
+    /// The front end of anything heavy up between two walks at the back end's pace (<see cref="HeavyPace"/>), as a heavy crate
+    /// from the yard does (note 440) and a jackpot (note 867): at a walk the back end fell behind, the ends were more than
+    /// <c>Bodies.HeavySpan</c> apart and it was down, again and again (queue #635, note 948; n1-B2's findings, note 920).
     /// </summary>
     static PlayerIntent Paced(Physics.Body? mine, PlayerIntent step) =>
-        mine is { Kind: Physics.BodyKind.Heavy, Second: >= 0 } && Run.Run.IsJackpot(mine) ? step with { MoveZ = Math.Min(step.MoveZ, HeavyPace) } : step;
+        mine is { Kind: Physics.BodyKind.Heavy, Second: >= 0 } ? step with { MoveZ = Math.Min(step.MoveZ, HeavyPace) } : step;
 
     /// <summary>Use for one tick, then not: picking up and putting down are on the press, not the hold.</summary>
     PlayerIntent Press()
