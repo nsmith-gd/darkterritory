@@ -1,0 +1,2 @@
+// Note 970: f1-control-21oct plus one pick (hugger), to attribute f1-director-21oct. Measurement only.
+{ "id": "edition-f1-21oct-only-hugger", "name": "f1-21oct-only-hugger", "version": "1.0.0", "description": "note 970 attribution", "order": -1000 }

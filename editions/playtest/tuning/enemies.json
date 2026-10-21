@@ -1,0 +1,6 @@
+// The Gannet arrives above 12 m/s, not 13 (note 915; n1-B3-gannet-12, the director: playtest only). The shipping
+// enemies.json keeps gannet.lowArrive off.
+{
+  "$patch": true,
+  "gannet": { "lowArrive": { "on": true, "arriveAbove": 12 } }
+}

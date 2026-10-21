@@ -33,6 +33,9 @@ public class SpawnTransactionTests
             Curve = D.Curve with { AfterFirst = false },
             NightChance = D.Costs.Keys.Where(k => !D.Curve.Kinds.ContainsKey(k)).ToDictionary(k => k, _ => 0.0),
         },
+        // The free Climbers come to the stood train here, as before note 970's lower third (climbers.freeSpeed): these tests
+        // are about the free channel's transaction, and want more than one kind it can send.
+        Climbers = Tuning.Enemies.Climbers with { FreeSpeed = Tuning.Enemies.Climbers.FreeSpeed with { On = false } },
     };
 
     /// <summary>A world on a plain 40 km line, the train <paramref name="at"/> m along at <paramref name="speed"/> m/s.</summary>

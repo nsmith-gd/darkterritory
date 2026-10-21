@@ -1,0 +1,9 @@
+// Note 970: f1-director-21oct's control: the shipping content with the bots standing at the halts (#634), nothing else.
+// Measurement only; never shipped.
+{
+  "id": "edition-f1-control-21oct",
+  "name": "f1-control-21oct",
+  "version": "1.0.0",
+  "description": "note 970: the control, the bots standing at the halts",
+  "order": -1000
+}
