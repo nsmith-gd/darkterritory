@@ -54,11 +54,17 @@
   "fireTimeConstant": 30,
   // Draft with the regulator shut (blower only), as a fraction of working draft.
   "idleDraft": 0.6,
+  // The blower at a stand (the director, 21 Oct, `nathaniel1-tbm-boiler-pressure-17`, note 969: "for 3 cars the rebuild for
+  // any speed from 0 is about 8s, at a full 20 cars the rebuild should be no longer than 30s"): the fire's draft while the
+  // engine stands, as a fraction of working draft. Only at a stand, so B.6's burn and endurance table under way is as it
+  // was; a rebuild from nothing to the working band (spec C.2) is 8 s at three cars, 9 at ten, 10 at twenty (were 37, 56
+  // and 215 at idleDraft's 0.6). The cost: a fire left in the box at a stand burns away into the gauge four times as fast.
+  "standingDraft": 2.4,
   // The director's playtest of 16 Oct (line 18, note 843): "build pressure a bit faster ... maybe like 15-20% faster". The
   // steam a unit makes and the steam drawn (auxiliaries, heating, the cylinders) all went up 17% together (were 15, 0.05,
   // 0.0675 and 0.5): the gauge moves 17% faster either way, and B.6's burn and endurance table stays as it was, since what
   // burns to hold pressure is draw / steamPerUnit. A rebuild at a standstill is 37 s at three cars (was 43), 208 s at twenty
-  // (was 243).
+  // (was 243). Since note 969 the blower at a stand (standingDraft) makes those 8 s and 10 s.
   "steamPerUnit": 17.55,
   "auxiliaryDrain": 0.0585,
   "heatingPerCar": 0.078975,

@@ -22,6 +22,13 @@ public sealed record BoilerTuning(
     /// with speed, or with the effort of pulling away, whichever is more.
     /// </summary>
     public double FullDemandAt { get; init; } = 0.85;
+    /// <summary>
+    /// The blower at a stand (the director, 21 Oct, note 969): the fire's draft while the engine stands, as a fraction of
+    /// working draft. Standing is the only time it applies (<see cref="Boiler.Step"/>'s throttle and speed both nil), so the
+    /// burn and endurance table under way (spec B.6) is untouched; it sets how fast a stopped engine rebuilds (spec C.2).
+    /// Null: <see cref="IdleDraft"/>, as before.
+    /// </summary>
+    public double? StandingDraft { get; init; }
     /// <summary>T109: how hard a ruptured engine's seized cylinders drag the train down (m/s²), and to what speed (m/s).</summary>
     public double RuptureDecel { get; init; } = 1.5;
     public double RuptureCoastBelow { get; init; } = 4;
@@ -178,8 +185,10 @@ public struct Boiler
         Ruptured ? 0 : Math.Clamp((Pressure - t.PowerFloor) / (t.WorkingBandMin - t.PowerFloor), 0, 1);
 
     /// <summary>Coal burned per second at this firebox load and regulator opening.</summary>
-    public readonly double BurnRate(BoilerTuning t, double throttle) =>
-        Ruptured ? 0 : Firebox / t.FireTimeConstant * (t.IdleDraft + (1 - t.IdleDraft) * Math.Clamp(throttle, 0, 1));
+    /// <param name="standing">The engine stands: the blower's draft (<see cref="BoilerTuning.StandingDraft"/>), not the exhaust's.</param>
+    public readonly double BurnRate(BoilerTuning t, double throttle, bool standing = false) =>
+        Ruptured ? 0 : Firebox / t.FireTimeConstant
+            * (standing && t.StandingDraft is { } blower ? blower : t.IdleDraft + (1 - t.IdleDraft) * Math.Clamp(throttle, 0, 1));
 
     /// <summary>
     /// Steam drawn per second: cylinders at this throttle, auxiliaries, and heating every car. With steam driving (T97)
@@ -229,7 +238,7 @@ public struct Boiler
 
         // With steam driving (T97) the exhaust draws the fire as hard as the cylinders are working: with effort, or speed.
         double draw = t.SteamDrive ? Math.Max(Math.Clamp(throttle, 0, 1), Math.Clamp(speedFraction / t.FullDemandAt, 0, 1)) : throttle;
-        double burn = Math.Min(BurnRate(t, draw) * dt, Firebox);
+        double burn = Math.Min(BurnRate(t, draw, standing: draw <= 0 && speedFraction <= 0) * dt, Firebox);
         Firebox -= burn;
         // Note 903: under way, the fresh coal catches, then flares in the exhaust's draw: every shovelful answers within a few
         // seconds. Standing, with no exhaust to draw it, it settles into the bed like the rest (so C.2's slow rebuild at a stop
