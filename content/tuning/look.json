@@ -164,7 +164,9 @@
       // The Wakers' stir (note 599; wakers.md §2: "the horizon behind the train goes from black to a bruise to a thin cold
       // line"): over enemies.json wakers.stirSeconds before dawn, low on the sky behind the train, from a wide dim bruise
       // to a thin grey line, up to strength (the sky shader adds it).
-      "stir": { "bruise": [0.16, 0.08, 0.14], "line": [0.50, 0.55, 0.62], "strength": 1.3 }
+      // And the hills move (note 962; GDD §8 "The hills move", note 599's not-yet): from hillsFrom of the way through the stir,
+      // the far ridges toward it heave, slow swells rising and settling along the skyline, up to hills degrees by dawn.
+      "stir": { "bruise": [0.16, 0.08, 0.14], "line": [0.50, 0.55, 0.62], "strength": 1.3, "hillsFrom": 0.35, "hills": 0.9 }
     },
     // The cold (the night's route weather cold, 0..1; GDD §26 "survival time outside is short"): a rime of frost comes on
     // the metal, the roofs and the glass from frostFrom and is full by frostFull; breath shows as vapour from breathFrom.

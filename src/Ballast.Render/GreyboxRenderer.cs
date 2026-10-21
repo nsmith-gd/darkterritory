@@ -1067,7 +1067,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
         f->Wind = new Vector4(lighting.Wind, lighting.Gusts);
         f->Probe = new Vector4(HoleSlope, ShowUntextured ? 1 : 0, 0, 0);
         f->Stir = new Vector4(lighting.StirDirection, lighting.Stir);
-        f->StirColour = new Vector4(lighting.StirColour, 0);
+        f->StirColour = new Vector4(lighting.StirColour, lighting.Hills);
         for (int i = 0; i < LayerTable; i++)
             f->MotionOf[i] = i < _motion.Length ? _motion[i] : 0;
     }
