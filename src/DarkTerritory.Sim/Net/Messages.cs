@@ -134,7 +134,9 @@ public static class Protocol
     //     field is who answered it (−1: nobody); the intent's moves bit 6 (Answer) says a ping's id follows (three bytes).
     // 85: a thing in someone's hands goes as held (note 954): the body record's fifth field is bit 0 asleep, bit 1 held, and a
     //     held one's yaw and place are left out, each machine putting it at its carrier's hands.
-    public const int Version = 85;
+    // 86: the dining car's bar (note 959): the body kind Drink (26), a drink poured at the bar; the dining car's drinks left
+    //     ride in its vehicle record's cooler field (the 33rd), as the BBQ deck's beers do.
+    public const int Version = 86;
 }
 
 public enum MessageType : byte

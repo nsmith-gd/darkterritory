@@ -53,6 +53,10 @@ public sealed record SweepRow(SweepCell Cell, string End, bool Delivered, double
     public double? LateOpenSeconds { get; init; }
     public double? EarlyPerOpenMinute { get; init; }
     public double? LatePerOpenMinute { get; init; }
+    /// <summary>How the crew died (the harness's deaths by cause), and the incident report's death, car-lost, derailment and
+    /// stranding lines in the clerk's words, with when: what a night that failed died of (#613's survival question).</summary>
+    public IReadOnlyDictionary<string, int> DeathsByCause { get; init; } = new Dictionary<string, int>();
+    public IReadOnlyList<string> Losses { get; init; } = [];
 }
 
 /// <summary>A route, crew and train's nights together: the means the brief's §7 table is judged by, and their spread.</summary>
@@ -120,6 +124,9 @@ public static class DirectorSweep
             LateOpenSeconds = Math.Round(lateOpen),
             EarlyPerOpenMinute = earlyOpen > 0 ? Math.Round(early / earlyOpen * 60, 3) : null,
             LatePerOpenMinute = lateOpen > 0 ? Math.Round(late / lateOpen * 60, 3) : null,
+            DeathsByCause = Sorted(t?.DeathsByCause.ToDictionary() ?? []),
+            Losses = [.. (run?.Lines ?? []).Where(l => l.Kind is Sim.Run.IncidentKind.Death or Sim.Run.IncidentKind.CarLost
+                or Sim.Run.IncidentKind.Derailed or Sim.Run.IncidentKind.Stranded).Select(l => $"{(l.Seconds >= 0 ? $"{l.Seconds:0}s " : "")}{l.Kind}: {l.Text}")],
         } is var row && row.Telemetry?["attempts"] is JsonObject attempts
             ? row with
             {

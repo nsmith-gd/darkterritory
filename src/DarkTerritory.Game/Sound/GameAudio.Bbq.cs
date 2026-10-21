@@ -98,7 +98,7 @@ public sealed partial class GameAudio
     {
         var held = new Dictionary<int, (int By, Double3 At)>();
         foreach (var b in world.Bodies.All)
-            if (b.Kind == BodyKind.Beer && b.Carrier >= 0 && Crewmate(b.Carrier) is { } s && At(world.Train, s) is { } at)
+            if (b.Kind is BodyKind.Beer or BodyKind.Drink && b.Carrier >= 0 && Crewmate(b.Carrier) is { } s && At(world.Train, s) is { } at)
                 held[b.Id] = (b.Carrier, at);
         foreach (var (id, (by, at)) in _beersHeld)
             if (!held.ContainsKey(id) && !world.Bodies.All.Any(b => b.Id == id) && primed)

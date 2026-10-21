@@ -1461,6 +1461,9 @@
         "share": 0.75, "sharePerCar": 0.2, "carsFrom": 3, "shareMax": 2, "max": 12, "perCrewmateMax": 2,
         "ambientRoom": 1, "ambientPerCar": 0.1,
         "pairsPerCrew": 0.25,
+        // soloCap (n1-A3's trial for #613, note 906): with one crewmate alive, at least this many threats at once and on
+        // them (a solo crew's share rounds to 1, which held its nights at the cap ~540 s each). 0: by the share, as before.
+        "soloCap": 0,
         "pairMinCrew": { "ribbits+moose": 2, "moose+facilityLoading": 2, "cinderHounds+hotbox": 2, "cinderHounds+knotter": 2, "cinderHounds+brakeman": 2 },
         "reliefPower": 1, "hurtBelow": 35, "hurtRelief": 0.25,
         // What holds the cap (n1-A1's measure, 20 Oct: a solo crew's one place filled 168–691 s a night by a Knotter at its

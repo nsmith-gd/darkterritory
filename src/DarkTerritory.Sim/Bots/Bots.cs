@@ -525,6 +525,8 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
     /// <summary>Gone forward to take the controls from a dead driver, or at them (note 399, for tests and the harness).</summary>
     public bool Relieving { get; private set; }
 
+    /// <summary>Its driving once it's taken the controls from a dead driver (note 399, for tests and the harness), or null.</summary>
+    public ConductorBot? Relief => _relief;
     ConductorBot? _relief;
     bool _sawDriver;
     bool _cameForward;
@@ -617,11 +619,16 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
         }
         calls.ReliefSaid = tick;
         Relieving = true;
-        if (PlayerMotor.InCab(self, train))
+        if (PlayerMotor.InCab(self, train) || driverGone && _relief is { OutOfCab: true })
         {
             if (driverGone)
             {
-                _relief ??= new ConductorBot(calls, 0);
+                if (_relief is null)
+                {
+                    _relief = new ConductorBot(calls, 0);
+                    // Note 955: down a stop's spur, the stop it takes on where its driver left it.
+                    _relief.Stops?.TakeOver(world);
+                }
                 _relief.Crewmates = [.. Crew.Select(c => c.State)];
                 _relief.Players = [.. Crew.Where(c => !calls.IsBot(c.Id)).Select(c => c.State)];
                 return _relief.Decide(self, world, tick, out aimed);
@@ -629,6 +636,16 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
             // The Climber, clubbed with the driver (it clubs it too with someone else in the cab: KeepClear).
             return Heed.Strike(self, train, climber!.WorldPosition(train), 1.6) ?? default;
         }
+        // Note 955: at the crane's controls (the Foundry's operator, the relief), let go of them first: its stick drives the
+        // crane while it has them, and frontier:7 seed 6's stood at the crane till dawn, the train where the driver fell.
+        if (job?.OffTheCrane(self, "off the crane for the controls") is { } letGo)
+            return letGo;
+        // Note 955: the driver dead and a Climber in the cab with nobody: down into it alone, it takes the relief (alone with it,
+        // a grab: App. A.4), and the next, and the next (frontier:7 seed 6, five dead in the cab in four minutes). Short of
+        // it, on car 1's roof or the engine's hood (out of its reach), until it's gone: left alone it leaves (climbers.boredSeconds).
+        if (driverGone && climber is not null && ReliefDriver.HoldShort(self, train)
+            && !Crew.Any(c => c.Id != Me && c.State.Alive && PlayerMotor.InCab(c.State, train)))
+            return new PlayerIntent();
         if (ReliefDriver.ToTheCab(self, train, out bool forward) is { } going)
             return going;
         if (forward)
@@ -1617,8 +1634,13 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
 
     public PlayerIntent Decide(in PlayerState self, World world, uint tick, out PlayerState aimed)
     {
-        // Note 609: where it is, whatever it's about (StopHand.Report).
-        job?.Report(self);
+        // Note 609: where it is, whatever it's about (StopHand.Report). Note 955: gone forward to the controls, its part isn't
+        // its to work (frontier:7 seed 10's relief was the shunter, and its driving stood 150 s at the Foundry's points waiting
+        // for the shunter to set them back): heard as no part, the driving works that part alone, as a crew without one does.
+        if (Relieving)
+            job?.ReportOff(self);
+        else
+            job?.Report(self);
         return HoldOn(self, world.Train, Decided(self, world, tick, out aimed));
     }
 
@@ -2464,7 +2486,10 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         // the rear up to the engine: walking beside the rear car at the train's pace, two of that crew were out of the old
         // window (10 m past the rear) as often as in it, and walked 2.5 km at 2 m/s till one died of the cold.
         // And someone out on the handcar (note 729): on the open line as much as on foot, wherever it's taken them.
-        var behind = atAStop || Crewmates is null ? null : Crewmates
+        // #613: and not once the dawn's about to catch the train (the same reckoning that calls a stop's loading done, and leaves
+        // anyone still on the ground there, note 935): the 120 s stood for frontier:4 seed 4's gunner, stuck by the switch, put
+        // the dawn on the train 6.6 km in.
+        var behind = atAStop || Crewmates is null || Stops?.LateHere(world) == true ? null : Crewmates
             .Where(c => c.Alive && (c.Parent == PlayerState.World && c.Surface == Surface.Ground || train.OnHandcar(c.Parent)))
             .Select(c => (c, along: AlongTheTrain(train, PlayerMotor.WorldPosition(c, train))))
             .Where(x => x.along < d.Distance + 5 && d.RearDistance - x.along < SetBackFor)
@@ -2848,10 +2873,14 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         }
         var part = stops.DriverPart(world);
         bool lowFire = !calls.FiremanMinding && train.BoilerTuning is { } fb && train.Boiler.FireFraction(fb) < fb.LowFireFraction * WorkFireCalls;
+        bool outOfFire = !calls.FiremanMinding && train.BoilerTuning is { } lb && train.Boiler.FireFraction(lb) < lb.LowFireFraction;
         _workHand ??= new StopHand(StopJob.Driver, calls, member);
         if (_workingOut)
         {
-            if (part != StopJob.None && !lowFire && _workHand.Lend(self, world, stops.Plan!, part) is { } working)
+            // #613: with a crate in its arms, it's carried on in first while the fire's not yet low (boiler.json lowFireFraction).
+            // Let go where it stood for the fire, by the cab's steps, the Use that climbs them picked it up again, and
+            // frontier:2's lone driver went up and down them with it till dawn.
+            if (part != StopJob.None && (!lowFire || self.Has(PlayerFlags.Heavy) && !outOfFire) && _workHand.Lend(self, world, stops.Plan!, part) is { } working)
                 return working with { Buttons = working.Buttons | PlayerButtons.Brake, ThrottleNotch = -4 };
             // Done (or the fire wants it): back up into the cab, and from there the loading's its to call. Nobody climbs with
             // freight in their arms: down with it first.
@@ -3243,6 +3272,13 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
     const double SandFireCalls = 1.5;
     /// <summary>Out on the running board to sand, or on the way there or back (for the harness's trace).</summary>
     public bool Sanding => _sandLeg >= 0;
+
+    /// <summary>
+    /// Out of the cab on the driving's own errand (a switch set back or thrown alone, its part of a loading, a breach or a
+    /// cut alone, a ping, the sandbox), and back to the cab its own way after. Note 955: the relief driver's walker leaves it
+    /// to the driving while it is, or its legs took it straight back to the cab from the first step out.
+    /// </summary>
+    public bool OutOfCab => _alone is not null || _workingOut || _outToBreach || _outToCut || OutOnPing || Sanding;
 
     /// <summary>
     /// Grease (App. A.2): "cannot climb grade · cannot brake · cannot accelerate", so the controls can wait. Out of the cab's

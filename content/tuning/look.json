@@ -271,6 +271,15 @@
   },
   // GDD §31 "Speed is felt" (the director's evening playtest, 13 Oct: "It says we're going 27 kilometers an hour ... when I
   // look out the front, it just feels so agonizingly slow"; note 709). Presentation only, aboard, never in a headset.
+  // The dining car's bar (upgrades.md §8.5, note 959; the director, 13 Oct: "If you drink one of those drinks, though, your
+  // vision should get blurry ... make you sort of tip over a bit. Of course, that wouldn't happen in VR"). Presentation
+  // only: the drinker's own camera on this machine, never in a headset; the walk is straight. A drink blurs the view
+  // ("blur", 0..1 of the composite's soft taps; "blurEach" more a drink after the first) for "seconds", "moreEach" longer a
+  // drink after the first, easing off over its last "fadeSeconds"; and leans it, the horizon swaying "leanDegrees" one way
+  // and the other ("leanEach" more a drink after the first) over "leanPeriod" s, slowly, as if the floor moved more than it
+  // does. Counted up to "mostDrinks" drinks. DESIGN-TODO: the catalogue's "a minute, a little more with each" is the only number.
+  "tipsy": { "seconds": 60, "moreEach": 15, "blur": 0.5, "blurEach": 0.15, "leanDegrees": 4, "leanEach": 1.5, "leanPeriod": 7,
+    "mostDrinks": 4, "fadeSeconds": 10 },
   "speedFeel": {
     // The view widens by up to "widen" degrees, at "fullAt" m/s, eased by (speed / fullAt) ^ "ease" (under 1: felt early).
     // Note 735 (the director, 14 Oct: "It still feels a bit slow"): 8 to 12. Note 842 (the director, 16 Oct: "the FOV is

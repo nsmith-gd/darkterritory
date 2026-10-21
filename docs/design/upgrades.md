@@ -148,7 +148,7 @@ Each needs its art (C1, E1); the moose head's temper is one multiplier in the Si
 | **Flare pistol** | stores, Frontier | A flare lights a village for 60 s, and the Fire Flies follow it away from the train | The flare (Sim, art, audio) |
 | **Speaking tubes** | small, Dead lines | Voice carries between neighbouring cars as in one | Voice routing (N1, the audio chat) |
 | **Armoured cab** | major, Deep territory | The cab's windows plated to slits: what comes over the tender is slowed at the glass | The cab (C1), the Climbers' way in (Sim) |
-| **Armour II and III** | major, Dead lines / Deep | A second and third car plated (the conversion repeatable) | Ranks on the conversion (Sim) |
+| **Armour II and III** | major, Dead lines / Deep | A second and third car plated (the conversion repeatable) | Ranks on the conversion (Sim). Built: campaign.json `armouredCar2`, `armouredCar3` (note 959) |
 
 ## 5. The shelf by tier
 
@@ -414,6 +414,9 @@ vision should get blurry ... [it should] make you sort of tip over a bit. Of cou
   (VR comfort; VR's on the back burner).
 - **Feedback**: the drinker sees it; the crew see the drinker's head loll (the art's); the tally reads "Bar: eight
   drinks. Repairs: one window."
+- **Built** (note 959): `diningCar` in campaign.json, the car behind the crew cars, its bar's eight drinks
+  (train.json `composition.dining`), the blur and the lean (look.json `tipsy`). The tally line and the head's loll aren't
+  yet.
 
 ### 8.6 Bumper stickers: all puns
 

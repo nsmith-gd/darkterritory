@@ -2790,6 +2790,134 @@ public static partial class TrainKit
     }
 
     /// <summary>
+    /// The dining car's fit-out (upgrades.md §8.5, note 959; the catalogue: "a cargo car converted: a chandelier and a table
+    /// laid for eight"), on the sim's own table and counter (<see cref="CarShape.Dining"/>): the table under a white cloth with
+    /// eight places laid, four chairs a side; a brass chandelier over it, its candles lit (the light is the scene's); the
+    /// bar across the rear end, its counter, the bell on it, and the bottles in a rack on the wall behind; a runner down the
+    /// aisle; and outside, its lit windows. <see cref="ChandelierAt"/> is where its light hangs.
+    /// </summary>
+    public static MeshAsset DiningFit(Look? look, CarShape shape)
+    {
+        var k = new Kit(look, 959);
+        var room = shape.Interior!.Value;
+        var d = shape.Dining!;
+        float w = (float)shape.HalfWidth, l = (float)shape.HalfLength;
+        float floor = (float)d.Table.Min.Y, xIn = (float)room.Max.X, ceiling = (float)room.Max.Y;
+        Vector3 V(Ballast.Double3 p) => new((float)p.X, (float)p.Y, (float)p.Z);
+        var t0 = V(d.Table.Min);
+        var t1 = V(d.Table.Max);
+        // The table: its legs, its top, the cloth over it hanging a hand down its sides.
+        k.Use("dress_wood", Palette.DeepBrown, 0.6f, 0.2f, tile: 1);
+        foreach (float x in new[] { t0.X + 0.08f, t1.X - 0.08f })
+            foreach (float z in new[] { t0.Z + 0.1f, t1.Z - 0.1f })
+                k.Box(new Vector3(x - 0.035f, floor, z - 0.035f), new Vector3(x + 0.035f, t1.Y - 0.04f, z + 0.035f));
+        k.Use("dress_cloth", Palette.BoardEnamel, 0.9f, 0, tile: 1);
+        k.Box(new Vector3(t0.X - 0.04f, t1.Y - 0.04f, t0.Z - 0.04f), new Vector3(t1.X + 0.04f, t1.Y, t1.Z + 0.04f));
+        k.Box(new Vector3(t0.X - 0.05f, t1.Y - 0.2f, t0.Z - 0.05f), new Vector3(t1.X + 0.05f, t1.Y - 0.04f, t1.Z + 0.05f), Kit.Faces.All & ~Kit.Faces.PosY & ~Kit.Faces.NegY);
+        // Eight places, four a side: a plate, a glass, and a chair pushed in to each.
+        float pitch = (t1.Z - t0.Z) / 4;
+        foreach (int side in new[] { -1, 1 })
+            for (int i = 0; i < 4; i++)
+            {
+                float z = t0.Z + pitch * (i + 0.5f);
+                float px = side < 0 ? t0.X + 0.17f : t1.X - 0.17f;
+                k.Use("dress_paint", new Vector3(0.88f, 0.86f, 0.8f), 0.2f, 0.4f);
+                k.Cylinder(new Vector3(px, t1.Y, z), new Vector3(px, t1.Y + 0.015f, z), 0.12f, 12);
+                k.Use("dress_glass", new Vector3(0.8f, 0.85f, 0.85f), 0.1f, 0.9f);
+                k.Cylinder(new Vector3(px - side * 0.14f, t1.Y, z + 0.15f), new Vector3(px - side * 0.14f, t1.Y + 0.12f, z + 0.15f), 0.03f, 8);
+                k.Use("brass", Palette.TarnishedBrass, 0.4f, 0.8f);
+                k.Box(new Vector3(px - 0.01f, t1.Y, z - 0.2f), new Vector3(px + 0.01f, t1.Y + 0.008f, z - 0.15f));
+                // The chair: its seat, its legs and its back, the far side's against the wall.
+                // (Pushed well in on the aisle's side: the aisle stays clear to walk, the chairs not being the sim's.)
+                float cx = side < 0 ? t0.X - 0.16f : Math.Min(t1.X + 0.28f, xIn - 0.24f);
+                k.Use("dress_wood", Palette.DeepBrown, 0.6f, 0.2f, tile: 1);
+                k.Box(new Vector3(cx - 0.21f, floor + 0.44f, z - 0.21f), new Vector3(cx + 0.21f, floor + 0.48f, z + 0.21f));
+                foreach (float lx in new[] { cx - 0.18f, cx + 0.18f })
+                    foreach (float lz in new[] { z - 0.18f, z + 0.18f })
+                        k.Box(new Vector3(lx - 0.02f, floor, lz - 0.02f), new Vector3(lx + 0.02f, floor + 0.44f, lz + 0.02f));
+                float back = cx + side * 0.2f;
+                k.Box(new Vector3(back - 0.025f, floor + 0.48f, z - 0.2f), new Vector3(back + 0.025f, floor + 1.0f, z + 0.2f));
+                k.Use("dress_felt", Palette.SignalRed * 0.7f, 0.9f, 0, tile: 1);
+                k.Box(new Vector3(cx - 0.19f, floor + 0.48f, z - 0.19f), new Vector3(cx + 0.19f, floor + 0.52f, z + 0.19f), Kit.Faces.All & ~Kit.Faces.NegY);
+            }
+        // The candles' holders down the middle of the table.
+        k.Use("brass", Palette.TarnishedBrass, 0.4f, 0.8f);
+        float mx = (t0.X + t1.X) / 2;
+        foreach (float z in new[] { t0.Z + pitch, t1.Z - pitch })
+        {
+            k.Cylinder(new Vector3(mx, t1.Y, z), new Vector3(mx, t1.Y + 0.22f, z), 0.02f, 8, radiusB: 0.012f);
+            k.Use("dress_paint", new Vector3(0.92f, 0.9f, 0.82f), 0.3f, 0.2f);
+            k.Cylinder(new Vector3(mx, t1.Y + 0.22f, z), new Vector3(mx, t1.Y + 0.34f, z), 0.012f, 6);
+            k.Use("brass", Palette.TarnishedBrass, 0.4f, 0.8f);
+        }
+        // The chandelier: a brass ring of candles on chains from a rose in the ceiling, over the table's middle.
+        var c = ChandelierAt(shape);
+        k.Cylinder(new Vector3(c.X, ceiling, c.Z), new Vector3(c.X, ceiling - 0.05f, c.Z), 0.12f, 10);
+        k.Cylinder(new Vector3(c.X, ceiling - 0.05f, c.Z), new Vector3(c.X, c.Y + 0.05f, c.Z), 0.012f, 6);
+        k.Lathe(new Vector3(c.X, c.Y - 0.18f, c.Z), [new(0.02f, 0), new(0.09f, 0.08f), new(0.05f, 0.2f), new(0.015f, 0.23f)], 10);
+        for (int i = 0; i < 6; i++)
+        {
+            float a = i * MathF.PI / 3, ax = c.X + 0.38f * MathF.Cos(a), az = c.Z + 0.38f * MathF.Sin(a);
+            k.Use("brass", Palette.TarnishedBrass, 0.4f, 0.8f);
+            k.Cylinder(new Vector3(c.X, c.Y - 0.1f, c.Z), new Vector3(ax, c.Y - 0.02f, az), 0.012f, 5);
+            k.Cylinder(new Vector3(ax, c.Y - 0.05f, az), new Vector3(ax, c.Y - 0.02f, az), 0.04f, 8);
+            k.Use("dress_paint", new Vector3(0.92f, 0.9f, 0.82f), 0.3f, 0.2f);
+            k.Cylinder(new Vector3(ax, c.Y - 0.02f, az), new Vector3(ax, c.Y + 0.1f, az), 0.014f, 6);
+            k.Use("window_lit", Palette.LampAmber, 0.1f, 0.2f, tile: 0.2f);
+            k.Cylinder(new Vector3(ax, c.Y + 0.1f, az), new Vector3(ax, c.Y + 0.15f, az), 0.008f, 5, radiusB: 0.001f);
+        }
+        // The bar: its counter (the sim's), panelled, a brass rail along its foot, its top polished; the bell on it.
+        var b0 = V(d.Counter.Min);
+        var b1 = V(d.Counter.Max);
+        k.Use("dress_wood", Palette.DeepBrown * 0.8f, 0.5f, 0.3f, tile: 1);
+        k.Box(b0, b1 - new Vector3(0, 0.06f, 0));
+        k.Use("dress_wood", Palette.DeepBrown * 1.2f, 0.3f, 0.6f, tile: 1);
+        k.Box(new Vector3(b0.X - 0.04f, b1.Y - 0.06f, b0.Z - 0.06f), new Vector3(b1.X, b1.Y, b1.Z));
+        k.Use("brass", Palette.TarnishedBrass, 0.4f, 0.8f);
+        k.Cylinder(new Vector3(b0.X, floor + 0.22f, b0.Z - 0.12f), new Vector3(b1.X - 0.02f, floor + 0.22f, b0.Z - 0.12f), 0.02f, 8);
+        float bellX = b0.X + 0.3f, bellZ = (b0.Z + b1.Z) / 2;
+        k.Cylinder(new Vector3(bellX, b1.Y, bellZ), new Vector3(bellX, b1.Y + 0.012f, bellZ), 0.05f, 10);
+        k.Lathe(new Vector3(bellX, b1.Y + 0.012f, bellZ), [new(0.04f, 0), new(0.035f, 0.03f), new(0.015f, 0.05f), new(0.006f, 0.07f)], 10);
+        // A few glasses and a bottle out on the counter.
+        k.Use("dress_glass", new Vector3(0.55f, 0.35f, 0.15f), 0.1f, 0.9f);
+        k.Cylinder(new Vector3(b1.X - 0.35f, b1.Y, bellZ), new Vector3(b1.X - 0.35f, b1.Y + 0.25f, bellZ), 0.04f, 8);
+        k.Cylinder(new Vector3(b1.X - 0.35f, b1.Y + 0.25f, bellZ), new Vector3(b1.X - 0.35f, b1.Y + 0.34f, bellZ), 0.014f, 6);
+        // The rack behind it on the rear wall's right: three shelves of bottles, greens and ambers.
+        float rz = (float)room.Max.Z - 0.02f, rx0 = b0.X + 0.15f, rx1 = xIn - 0.05f;
+        for (int shelf = 0; shelf < 3; shelf++)
+        {
+            float y = floor + 1.3f + shelf * 0.38f;
+            k.Use("dress_wood", Palette.DeepBrown, 0.6f, 0.2f, tile: 1);
+            k.Box(new Vector3(rx0, y - 0.03f, rz - 0.22f), new Vector3(rx1, y, rz));
+            for (float x = rx0 + 0.08f; x < rx1 - 0.05f; x += 0.13f)
+            {
+                int n = (int)(x * 37 + shelf * 11) & 3;
+                var tint = n switch { 0 => new Vector3(0.12f, 0.3f, 0.12f), 1 => new Vector3(0.45f, 0.25f, 0.08f), 2 => new Vector3(0.6f, 0.55f, 0.4f), _ => new Vector3(0.25f, 0.08f, 0.06f) };
+                float tall = 0.2f + 0.05f * (n % 2);
+                k.Use("dress_glass", tint, 0.1f, 0.9f);
+                k.Cylinder(new Vector3(x, y, rz - 0.11f), new Vector3(x, y + tall, rz - 0.11f), 0.035f, 8);
+                k.Cylinder(new Vector3(x, y + tall, rz - 0.11f), new Vector3(x, y + tall + 0.08f, rz - 0.11f), 0.012f, 6);
+            }
+        }
+        // A runner down the aisle, end door to end door.
+        k.Use("dress_felt", Palette.SignalRed * 0.5f, 0.95f, 0, tile: 1);
+        k.Box(new Vector3(-xIn + 0.35f, floor, (float)room.Min.Z + 0.3f), new Vector3(-0.2f, floor + 0.01f, (float)room.Max.Z - 0.3f), Kit.Faces.PosY);
+        // Outside: its windows lit, along both sides.
+        k.Use("window_lit", Palette.LampAmber, 0.2f, 0.4f, tile: 0.5f);
+        foreach (int side in new[] { -1, 1 })
+            for (float z = -l + 2.0f; z < l - 1.6f; z += (2 * l - 3.6f) / 3)
+                k.Panel(new Vector3(side * (w + 0.012f), floor + 1.65f, z), new Vector3(side, 0, 0), Vector3.UnitY, 0.55f, 0.42f);
+        return k.Build("dining-fit");
+    }
+
+    /// <summary>Where the dining car's chandelier hangs (its candles' height), over the middle of the table (note 959).</summary>
+    public static Vector3 ChandelierAt(CarShape shape)
+    {
+        var t = shape.Dining!.Table;
+        return new Vector3((float)(t.Min.X + t.Max.X) / 2, (float)shape.Interior!.Value.Max.Y - 0.75f, (float)(t.Min.Z + t.Max.Z) / 2);
+    }
+
+    /// <summary>
     /// Where a utility car's stove stands (its rear end, on the left), so its pipe's smoke comes out over it: the crew car's
     /// own (<see cref="CarShape.Stove"/>, note 184), or where it would go in a cargo car's shell (a still frame's).
     /// </summary>

@@ -18,7 +18,7 @@ public sealed partial class GreyboxScene
     /// <summary>The night's odd things at the stops (World.Oddities, note 730); null: none drawn.</summary>
     public Oddities? Oddities { get; set; }
 
-    MeshAsset? _can, _scarecrow, _postbox, _bellRope;
+    MeshAsset? _can, _scarecrow, _postbox, _bellRope, _note;
 
     void OddThings(MeshBuilder mesh, RailLine line, Double3 eye)
     {
@@ -26,13 +26,15 @@ public sealed partial class GreyboxScene
             foreach (var thing in odd.Things)
             {
                 var at = odd.At(thing.Index);
-                if ((at - eye).Length > DrawDistance || thing.Kind == OddThingKind.Well)
+                // A note picked up (note 961) is gone from its doorstep.
+                if ((at - eye).Length > DrawDistance || thing.Kind == OddThingKind.Well || thing.Kind == OddThingKind.Note && odd.Done(thing.Index))
                     continue;
                 var facing = odd.Facing(thing.Index, line);
                 var asset = thing.Kind switch
                 {
                     OddThingKind.Can => _can ??= Can(Look),
                     OddThingKind.Scarecrow => _scarecrow ??= Scarecrow(Look),
+                    OddThingKind.Note => _note ??= Note(Look),
                     _ => _postbox ??= Postbox(Look),
                 };
                 // A can lies however its last kick left it: turned by where it came to rest.
@@ -115,6 +117,23 @@ public sealed partial class GreyboxScene
         k.Use("paper_form", new Vector3(0.85f, 0.8f, 0.66f), 0.4f, 0.2f, tile: 1);
         k.Box(new Vector3(-0.09f, 0.7f, -0.236f), new Vector3(0.09f, 0.82f, -0.226f));
         return k.Build("odd-postbox");
+    }
+
+    /// <summary>
+    /// A note left on a doorstep (note 961): a sheet folded twice, a corner lifting, held down by a stone off the path; laid
+    /// with its writing toward whoever reads it from the line's side (+Z, its back to the house).
+    /// </summary>
+    static MeshAsset Note(Look? look)
+    {
+        var k = new Kit(look, 7305);
+        k.Use("paper_form", new Vector3(0.82f, 0.78f, 0.66f), 0.55f, 0.05f, tile: 0.25f);
+        k.Box(new Vector3(-0.1f, 0.005f, -0.07f), new Vector3(0.1f, 0.012f, 0.07f));
+        // The fold standing a little proud, and the corner the wind's lifting.
+        k.Box(new Vector3(-0.1f, 0.012f, -0.004f), new Vector3(0.1f, 0.018f, 0.004f));
+        k.With(Matrix4x4.CreateRotationX(-0.5f) * Kit.At(0.07f, 0.012f, 0.07f), () => k.Box(new Vector3(-0.03f, 0, -0.035f), new Vector3(0.03f, 0.004f, 0)));
+        k.Use("stone_block", Palette.Charcoal, 0.9f, 0.05f, tile: 0.3f);
+        k.Lathe(new Vector3(-0.04f, 0.01f, -0.02f), [new(0.06f, 0), new(0.055f, 0.03f), new(0.03f, 0.05f), new(0, 0.055f)], 7, smooth: true);
+        return k.Build("odd-note");
     }
 
     /// <summary>The bell's rope down the council house's front: hemp, from under its eaves (the cupola's over them) to a knotted tail at hand height.</summary>

@@ -296,6 +296,9 @@ object RunHarness(string[] args, Action<uint, IReadOnlyList<(DarkTerritory.Sim.B
         Udp = args.Contains("--udp"),
         // --wire (note 921): what each kind of record costs each client, kbit/s.
         Wire = args.Contains("--wire"),
+        // --talk n [--talk-radio] (note 956): n of the crew talking all night, aloud or on the radio.
+        Talkers = (int)Opt(args, "--talk", 0),
+        TalkRadio = args.Contains("--talk-radio"),
         Network = online,
         Holdouts = DataFile.Load<DarkTerritory.Sim.Run.HoldoutTuning>(Path.Combine(content, DarkTerritory.Sim.Run.HoldoutTuning.File)),
         Sight = sight,
@@ -1123,7 +1126,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
     var line = generated?.Build() ?? RailLine.Load(Path.Combine(content, "lines", lineName + ".json"));
     // --upgrades id[,id]: the train as the campaign's upgrades make it (note 184: crewCar, secondGuardCar, armouredCar,
     // roofHandrails...).
-    if (Str(args, "--upgrades", "") is { Length: > 0 } upgrades)
+    // The dining and diningbar views (note 959) fit the dining car.
+    if (Str(args, "--upgrades", view is "dining" or "diningbar" ? "diningCar" : "") is { Length: > 0 } upgrades)
         t = DarkTerritory.Sim.Campaign.Campaign.Apply(DataFile.Load<DarkTerritory.Sim.Campaign.CampaignTuning>(Path.Combine(content, DarkTerritory.Sim.Campaign.CampaignTuning.File)),
             upgrades.Split(','), new DarkTerritory.Sim.Campaign.Loadout(t, DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)),
                 DataFile.Load<DarkTerritory.Sim.Combat.CombatTuning>(Path.Combine(content, DarkTerritory.Sim.Combat.CombatTuning.File)), null)).Train;
@@ -1513,6 +1517,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         var along = Double3.Cross(outward, Double3.Up);
         camera = Camera.LookAt(ropeAt + outward * 2.6 + along * 1.2 + Double3.Up * 1.65, ropeAt + Double3.Up * 1.6, 60);
     }
+    // --fight s (note 951): the yard's fight s seconds on, the guards running out to it (0: looking to it from their posts).
+    if (arrival is not null && args.Contains("--fight"))
+        arrival.FightBegan(Opt(args, "--fight", 2.5));
     if (arrival is not null && !args.Contains("--view"))
         camera = Str(args, "--arrival", "square") == "brought"
             // --arrival brought --patrol (note 589): hounds ridden in on car 2, the town's guns on them, seen from the square's
@@ -1520,6 +1527,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             ? train.Frames[Math.Min(2, train.Frames.Count - 1)] is var car && car.Right * (-arrival.Plan.Square.Side) is var toward
                 ? Ballast.Render.Camera.LookAt(car.Origin + toward * 22 + car.Back * 6 + Double3.Up * 8, car.Origin + Double3.Up * 3, 62) : camera
             : Staging.TownCamera(arrival, Str(args, "--arrival", "square"));
+    // (--fight: over the yard at the fight, car 2's, from the square's side: the guards running in round it.)
+    if (arrival is not null && args.Contains("--fight") && !args.Contains("--view") && !args.Contains("--cam"))
+    {
+        double fightAt = arrival.Along(train.Cars[Math.Min(2, train.Cars.Count - 1)].FrontDistance - 8);
+        int side = arrival.Plan.Square.Side == 0 ? 1 : arrival.Plan.Square.Side;
+        camera = Ballast.Render.Camera.LookAt(arrival.World(fightAt - 14, side * 30, 16), arrival.World(fightAt, 0, 1), 60);
+    }
     // --cam s,lateral,height --target s,lateral,height: place the camera anywhere by line coordinates.
     if (Str(args, "--cam", "") is { Length: > 0 } cam)
     {
@@ -1532,7 +1546,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         }
         camera = Camera.LookAt(At(cam), At(Str(args, "--target", cam)), (float)Opt(args, "--fov", 65));
     }
-    // --odd well|can|scarecrow|postbox (the oddities view: a scarecrow, on deadLines:9): the night's first odd thing of that
+    // --odd well|can|scarecrow|postbox|note (the oddities view: a scarecrow, on deadLines:9): the night's first odd thing of that
     // oddThing at a stop (note 730), every chance of one taken, the camera stood off its front looking at it; --turned, a
     // scarecrow found turned to the line.
     DarkTerritory.Sim.Run.Oddities? oddities = null;
@@ -1545,15 +1559,18 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             Can = ot.Can with { Chance = 1 },
             Scarecrow = ot.Scarecrow with { Chance = 1 },
             Postbox = ot.Postbox with { Chance = 1 },
+            Note = ot.Note with { Chance = 1 },
         }, generated, line);
         var oddThing = Enum.Parse<DarkTerritory.Sim.Run.OddThingKind>(oddKind, ignoreCase: true);
         if (oddities?.Things.FirstOrDefault(x => x.Kind == oddThing) is not { } thing)
             return Print(new { error = "no " + oddThing + " on this night" });
         if (args.Contains("--turned"))
             oddities.Finish(thing.Index);
-        var front = oddities.Facing(thing.Index, line);
+        // (A note faces the house it's read at, so it's seen from the line's side: behind its front.)
+        var front = oddities.Facing(thing.Index, line) * (oddThing == DarkTerritory.Sim.Run.OddThingKind.Note ? -1 : 1);
         var aside = Double3.Cross(front, Double3.Up).Normalized;
-        bool can = oddThing == DarkTerritory.Sim.Run.OddThingKind.Can;
+        // A can, or a note on a doorstep (note 961), from close and low.
+        bool can = oddThing is DarkTerritory.Sim.Run.OddThingKind.Can or DarkTerritory.Sim.Run.OddThingKind.Note;
         double back = can ? 1.6 : oddThing == DarkTerritory.Sim.Run.OddThingKind.Well ? 6 : 4.2;
         camera = Camera.LookAt(thing.At + front * back + aside * (back * 0.35) + Double3.Up * (can ? 0.9 : 1.6),
             thing.At + Double3.Up * (can ? 0.05 : 1.1), (float)Opt(args, "--fov", 55));
@@ -2954,7 +2971,21 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         lighting.FogDensity = args.Contains("--fog") ? lighting.FogDensity : 0.0012f;
         lighting.Wetness = 0;
     }
+    // --tipsy n [--tipsy-at s] (note 959): through the eyes of someone n drinks into the dining car's bar, s seconds after the
+    // last (2): the view blurred and leaning as the app draws it (Tipsy; look.json tipsy).
+    float wasBlur = renderer.Post.Blur;
+    if (Opt(args, "--tipsy", 0) is var drinks and > 0 && look?.Tuning.Tipsy is { } tipsyTuning)
+    {
+        var tipsy = new Tipsy();
+        for (int i = 0; i < (int)drinks; i++)
+            tipsy.Drank(0, tipsyTuning);
+        double tipsyAt = Opt(args, "--tipsy-at", tipsyTuning.LeanPeriod / 4);
+        camera.Roll = tipsy.Roll(tipsyAt, tipsyTuning);
+        renderer.Post = renderer.Post with { Blur = tipsy.Blur(tipsyAt, tipsyTuning) };
+    }
     var pixels = renderer.Render(mesh, camera, lighting, lighting.FogColor);
+    if (renderer.Post.Blur != wasBlur)
+        renderer.Post = renderer.Post with { Blur = wasBlur };
     // The yard photographer's print (note 714): as the app keeps it, cropped, shrunk and sepia.
     if (view == "yardphoto")
     {
@@ -4098,6 +4129,31 @@ static object HudShot(string content, string[] args)
             talk.Use(town, Hud.TownTarget(here), 0);
         talkNow = 30;
     }
+    // --note (note 961): stood on the line's side of the night's first note at a village house's door, Use held till it's
+    // picked up, and the note read on the HUD (the night's oddities with every stop's note out).
+    if (args.Contains("--note") && session is PrototypeSession reader && reader.World.Oddities is { } odds)
+    {
+        if (odds.Things.FirstOrDefault(x => x.Kind == DarkTerritory.Sim.Run.OddThingKind.Note) is not { } note)
+            return new { error = "no note at this night's villages (try another --route)" };
+        var noteAt = odds.At(note.Index);
+        var stand = noteAt - note.Facing * 0.8;
+        var eyeAt = stand + Double3.Up * reader.Train.Dynamics.Tuning.Pick.EyeHeight;
+        var to = noteAt - eyeAt;
+        double hint = reader.Train.Dynamics.Distance;
+        reader.Player = reader.Player with
+        {
+            Parent = DarkTerritory.Sim.Player.PlayerState.World,
+            Surface = DarkTerritory.Sim.Player.Surface.Ground,
+            Position = stand with { Y = PlayerMotor.GroundAt(stand, reader.Train.Line, ref hint) },
+            Yaw = Math.Atan2(-to.X, -to.Z),
+            Pitch = Math.Atan2(to.Y, Math.Sqrt(to.X * to.X + to.Z * to.Z)),
+            Velocity = default,
+        };
+        var hold = new DarkTerritory.Sim.Player.PlayerIntent { Buttons = DarkTerritory.Sim.Player.PlayerButtons.Use };
+        for (int i = 0; i < 90 && !odds.Done(note.Index); i++)
+            reader.Step(hold);
+        reader.Step(default);
+    }
     int width = (int)Opt(args, "--width", 480), height = (int)Opt(args, "--height", 270), scale = (int)Opt(args, "--scale", 2);
     // --text-size s (note 347): the HUD on TEXT SIZE's smaller canvas, at 1080p (each canvas pixel 4, 5 or 6 of the screen's).
     if (args.Contains("--text-size"))
@@ -4161,6 +4217,7 @@ static object HudShot(string content, string[] args)
         Holdouts = session.World.Holdouts,
         Town = session.World.Town,
         Arrival = session.World.Arrival,
+        Oddities = session.World.Oddities,
         TownFacing = talk?.Open is { Kind: DarkTerritory.Sim.Towns.TownTargetKind.Person } facing ? (facing.Index, camera.Position) : null,
         TownFacingIn = talk?.In,
         Vehicles = session.Train.Vehicles,
@@ -4814,7 +4871,7 @@ static int Usage()
           linegen sweep [--tier all|t] [--cars 3,10,20] [--seeds n] [--report sweep.csv] [--fallbacks]
                      generation, validation and metrics over many seeds (plan §16.5, §20.2)
           harness [--bots n] [--cars n] [--seconds t] [--seed s] [--latency s] [--jitter s] [--loss 0..1] [--line name | --route tier:seed]
-                     [--enemies] [--no-combat] [--no-boiler] [--udp | --online | --eos] [--trace file] [--wire]   --udp: real sockets on localhost instead of the simulated link;
+                     [--enemies] [--no-combat] [--no-boiler] [--udp | --online | --eos] [--trace file] [--wire] [--talk n [--talk-radio]]   --udp: real sockets on localhost instead of the simulated link;
                      --online: every bot joins a lobby on the fake Steam and plays over relayed P2P
                      --eos [--nat strict|moderate|open] [--relay allow|force]: every bot joins the host's lobby on the fake EOS
                      by its code, over EOS P2P (strict NATs: all through the relays; note 896)
