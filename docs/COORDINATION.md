@@ -456,6 +456,7 @@ renumbered from 268), 277 (C1's art checklist L1s), 278 (B1's bends), 279 (B1's 
 
 ## Waiting on the director
 
+- **The `STEAM_REDIST_URL` secret** (B3, #676, [#1569](https://github.com/nsmith-gd/darkterritory/pull/1569), [note 976](notes/976.md); #269's groundwork): for the playtest builds (and the Release workflow) to carry Valve's Steam library. The repository's Settings > Secrets and variables > Actions > New repository secret, named `STEAM_REDIST_URL`: a private link to a zip with `steam_api64.dll` and `libsteam_api.so` (the Steamworks SDK 1.60's `sdk/redistributable_bin/win64` and `linux64`, or the SDK's own zip). Until it's set, each tonight's TEST-PLAN.md says the build has no Steam library.
 - **#628's survey comment** (n1-U2, [#1393](https://github.com/nsmith-gd/darkterritory/pull/1393), note 916; `n1-U2-survey-comment`): the playtest survey's optional comment is typed text, which note 907's privacy rule otherwise never records. It's kept only when the player ticks SEND MY WORDS TOO, and WHAT WE COLLECT says so. Keep the comment that way, or drop it (the 1-5 answers stay)?
 
 - **Nell's #590, PR [#1285](https://github.com/nsmith-gd/darkterritory/pull/1285)** (20 Oct): green, held as a draft for the director's call on the pack-fire rise it measured. The director overhaul (note 874) recommends merging it before #608 and #612 start, with #612 answering the pack fires.
