@@ -964,7 +964,7 @@ public sealed partial class GreyboxScene
                 var party = Crew?.Where(c => c.Alive && Art.SceneArt.Fisted(c.Act)).Select(c => (int)c.Id).ToHashSet();
                 Look.Art.FistCarriers = party is { Count: > 0 }
                     ? Bodies.Where(b => b.Carrier >= 0 && party.Contains(b.Carrier) && b.Kind is Sim.Physics.BodyKind.Beer or Sim.Physics.BodyKind.Sausage
-                        or Sim.Physics.BodyKind.GrilledFish).GroupBy(b => b.Carrier).ToDictionary(g => g.Key, g => g.First().Kind)
+                        or Sim.Physics.BodyKind.GrilledFish or Sim.Physics.BodyKind.Drink).GroupBy(b => b.Carrier).ToDictionary(g => g.Key, g => g.First().Kind)
                     : null;
             }
             GroundFindLights(mesh, frames, eye);

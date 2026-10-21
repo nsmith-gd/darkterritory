@@ -75,6 +75,8 @@ public sealed record PostSettings
     public float WideBloom { get; init; } = 0.5f;
     /// <summary>Red and blue pulled apart toward the frame's corners (a fraction of the frame).</summary>
     public float LensFringe { get; init; } = 0.006f;
+    /// <summary>How blurred the whole view is (0: sharp, 1: as soft as it goes): a drink's (the game's), set frame by frame.</summary>
+    public float Blur { get; init; }
     /// <summary>How much the screen-space occlusion darkens the frame (0: off, 1: all of it).</summary>
     public float Occlusion { get; init; } = 0.85f;
     /// <summary>How far the occlusion looks round each point, in metres (near the camera it shrinks, down to a third).</summary>

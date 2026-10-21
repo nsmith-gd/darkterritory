@@ -1,0 +1,10 @@
+// #613's balance sweep (note 930): the shipping content with n1-A3's solo cap on (note 906, the director's ask
+// n1-A3-solo-two-at-once), to give it its 30-seed number. `dt --edition f1-solo-cap director sweep ...`. Measurement only;
+// never shipped.
+{
+  "id": "edition-f1-solo-cap",
+  "name": "f1-solo-cap",
+  "version": "1.0.0",
+  "description": "solo-cap: a crewmate alone meets two threats at once (concurrency on, soloCap 2; note 906)",
+  "order": -1000
+}

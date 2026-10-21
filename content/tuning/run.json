@@ -168,6 +168,31 @@
         { "to": "To the crew of the night train", "text": "If you are reading this, you stopped. Thank you for stopping. Nobody stops. There is tea in the tin behind the stove. It isn't much." }
       ]
     },
+    // A note left out along the line (queue #653, note 961; GDD §3.1 "Not yet": the world's story between the towns): at a
+    // village (chance), weighted by a stone on the doorstep of one of the three houses nearest the line. Use held holdSeconds
+    // picks it up, and it's read out to the one who did, goes in the night's report, and is gone from the step. The notes are
+    // dealt round the night's stops by its seed, none twice till all have been out. In the world's voice (the World Building
+    // board's Cultures and canon: the fall, Dispatch, the dead lines, the lost trains, the fees, the penal cars, the sea,
+    // the fortresses only begun, the Flooders, the trades).
+    "note": {
+      "chance": 0.6,
+      "holdSeconds": 1.0,
+      "reach": 1.3,
+      "notes": [
+        { "heading": "Pencil, on the back of a ration card", "text": "Gran saw it come down. She said the sky rang like a struck rail for a week. I didn't believe her till the cows went quiet. They haven't made a sound since." },
+        { "heading": "A dispatch form, the boxes left blank", "text": "Dispatch says the line is clear to the river. Dispatch has never once been wrong. We are going anyway. If you find this, Dispatch was right." },
+        { "heading": "Chalk on a slate", "text": "Somebody threw the switch at the cut last night. We heard it go over. There's nobody out there. There hasn't been anybody out there since spring." },
+        { "heading": "A page torn from a logbook", "text": "Night mail, nine aboard. Left 9:40. Radio says she's still running. Radio says she's breathing. Radio's been saying it three nights." },
+        { "heading": "Folded small, to the clerk", "text": "Seventy-five for a body brought home. It was eighty in the summer. I'm not asking why. I'm asking who decided I'm worth five less." },
+        { "heading": "Scratched on a tin plate", "text": "Forty men and two guards a car. They let us out to work the far yard. The guards went in the cut to see what was singing. We are still waiting for them to come back and tell us to stop." },
+        { "heading": "In a child's hand", "text": "The boats came in by themselves with the nets full and nobody aboard. Mum says don't eat the fish. I ate the fish. It was fine. It was fine." },
+        { "heading": "On the back of a builder's drawing", "text": "Wall's at eight courses. Tower's at two. The Company says another month and we're a town. Something big walked past the scaffold last night and didn't stop. It will." },
+        { "heading": "Water-stained, the ink run", "text": "The water mark was a hand higher this morning. Brother Ezekiel says the comet was sent and the flood is coming. I've painted the mark anyway. Better to be counted." },
+        { "heading": "On a pit tally", "text": "Night shift came up at first light. Nobody asked what they heard down there. They told us anyway. Tipple's shut till the Company sends a priest." },
+        { "heading": "From a seed packet", "text": "Grow lamps on every bed. The plants don't know it's dark. We don't tell them. Last night the lamps went out and the beans turned to the window. There's nothing out the window." },
+        { "heading": "Left with a key on a string", "text": "Furnace is banked. The glow will carry for miles. So will everything else. Whoever finds this, the key's for the coal shed, not the house. Do not open the house." }
+      ]
+    },
     // The coaling chute (GDD §18): anyone within reach of where the coal falls while it pours comes out of it sooted.
     "chute": { "reach": 1.8 },
     // A switch thrown with a crewmate stood on its blades (within bladesHalfWidth of the main line between the toe and the

@@ -489,7 +489,7 @@ public sealed class Director
         * (_t.Orchestrator.PerPlayerFor(_cars) / Math.Max(1e-9, _t.Orchestrator.PerPlayer)));
 
     /// <summary>The most threats on one crewmate at once (the census's perTarget): note 906's by the cars with concurrency on.</summary>
-    int PerCrewmate => _t.Encounters.Concurrency is { On: true } c ? Concurrency.PerCrewmate(_cars, c)
+    int PerCrewmate => _t.Encounters.Concurrency is { On: true } c ? Math.Max(Concurrency.PerCrewmate(_cars, c), Concurrency.Solo(Math.Max(1, Active), c))
         : Math.Max(1, (int)Math.Floor(_t.Orchestrator.PerPlayerFor(_cars) + 1e-9));
 
     /// <summary>At or near one of the route's facilities: within <paramref name="margin"/> of its span.</summary>

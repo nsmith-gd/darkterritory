@@ -6,7 +6,7 @@ namespace DarkTerritory.Game;
 /// <summary>
 /// The odd outcomes on the HUD (queue #464, note 730): the prompt for what answers a held Use (the bell rope, a wash at a
 /// well, a postbox) and a find's way down a well, in note 285's form (what it is and the key, never what it'll do), and the
-/// letter taken from a postbox, read out on this machine to the one who took it. Dave's painting has no prompt of its own:
+/// letter taken from a postbox (or a note picked up by the line, note 961), read out on this machine to the one who took it. Dave's painting has no prompt of its own:
 /// sitting with him is found, not offered.
 /// </summary>
 public static partial class Hud
@@ -27,6 +27,9 @@ public static partial class Hud
             return "THE WELL   WASH : HOLD [E]";
         if (world.OddThingInReach(p, OddThingKind.Postbox) is { } box)
             return world.Oddities!.Done(box.Index) ? "THE POSTBOX   EMPTY" : "THE POSTBOX   OPEN : HOLD [E]";
+        // A note on a doorstep (note 961); once it's picked up there's nothing there to say.
+        if (world.OddThingInReach(p, OddThingKind.Note) is { } note && !world.Oddities!.Done(note.Index))
+            return "A NOTE   PICK UP : HOLD [E]";
         return null;
     }
 
@@ -47,10 +50,15 @@ public static partial class Hud
         if (world.Oddities is not { } odd)
             return null;
         foreach (var e in world.OddEvents)
-            if (e.Kind == OddKind.Letter && e.By == s.PlayerId && e.Id != _letterSeen && odd.LetterIn(e.Thing) is { } letter)
+            if (e.Kind == OddKind.Letter && e.By == s.PlayerId && e.Id != _letterSeen && e.Thing < odd.Things.Count)
             {
+                // A postbox's letter, or a note picked up by the line (note 961): the same paper in the hand.
+                var card = odd.LetterIn(e.Thing) is { } letter ? new TownCard(TownCardKind.Paper, $"To {letter.To}", letter.Text, "")
+                    : odd.NoteIn(e.Thing) is { } note ? new TownCard(TownCardKind.Paper, note.Heading, note.Text, "") : null;
+                if (card is null)
+                    continue;
                 _letterSeen = e.Id;
-                _letter = (now + LetterSeconds, e.Thing, new TownCard(TownCardKind.Paper, $"To {letter.To}", letter.Text, ""));
+                _letter = (now + LetterSeconds, e.Thing, card);
             }
         if (_letter is not { } up)
             return null;

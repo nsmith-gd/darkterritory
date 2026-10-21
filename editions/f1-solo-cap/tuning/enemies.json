@@ -1,0 +1,14 @@
+// solo-cap: concurrency on with soloCap 2, as n1-A3's 1×3 trial ran it (note 906: farHoldSeconds 0, incidentsHoldCap true)
+{
+  "$patch": true,
+  "director": {
+    "encounters": {
+      "concurrency": {
+        "on": true,
+        "soloCap": 2,
+        "farHoldSeconds": 0,
+        "incidentsHoldCap": true
+      }
+    }
+  }
+}
