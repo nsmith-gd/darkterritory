@@ -1944,7 +1944,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             swingFrom = -1;
         scene.Own = third || cinematic || held || vr is not null || !me.Alive || session.Watching >= 0 ? null
             : new OwnView((float)camera.Yaw, (float)camera.Pitch, act, me.Velocity.X * me.Velocity.X + me.Velocity.Z * me.Velocity.Z > 0.16,
-                swing, session.World.OutfitOf(session.PlayerId), Kit.Held(me));
+                swing, session.World.OutfitOf(session.PlayerId), Kit.Held(me),
+                Pistol: session.World.Bodies.CarriedBy(session.PlayerId) is { Kind: DarkTerritory.Sim.Physics.BodyKind.FlarePistol });
         scene.Time = now;
         // Dave's card (note 570): closes as you walk off, and opens on what he says to a blow near you.
         figureTalk.Step(session.World, PlayerMotor.WorldPosition(me, session.Train) + Double3.Up * session.Train.Dynamics.Tuning.Pick.EyeHeight, now);
