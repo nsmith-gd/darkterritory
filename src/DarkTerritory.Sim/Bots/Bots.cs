@@ -675,7 +675,7 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
         if (!free || !self.Alive || self.Parent < 0)
             return null;
         bool coming = world.ActiveEnemies.Any(e => e is CinderHound { Gone: false } h && h.Attached < 0 && h.Phase is SpinePhase.Telegraph or SpinePhase.Commit);
-        bool due = coming || world.Enemies is { } et && train.Dynamics.Speed >= et.Director.Run.FromSpeed;
+        bool due = coming || world.Enemies is { } et && train.Dynamics.Speed >= et.Director.Run.FromSpeedOn(world.Route?.Tier ?? Sim.Route.RouteTier.Frontier);
         if (!due)
             return null;
         foreach (bool f in (ReadOnlySpan<bool>)[false, true])
