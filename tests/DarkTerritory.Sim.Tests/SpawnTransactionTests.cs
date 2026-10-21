@@ -196,4 +196,30 @@ public class SpawnTransactionTests
         failed.Director!.Commit(failed, two, SpawnOutcome.Failed(SpawnFailure.NoSpot), []);
         Assert.Equal(placed.Director.NextRange(0, 1), failed.Director.NextRange(0, 1));
     }
+
+    /// <summary>
+    /// Note 930: with climbers.smallCrew on, a crew of one or two meets a single Climber (a group of three took a lone driver
+    /// at a yard on #613's sweep); four still meet the group, and with it off nothing changes. The group's size is drawn as
+    /// before, so the dice don't move.
+    /// </summary>
+    [Fact]
+    public void ASmallCrewMeetsASmallerClimberGroupWithTheTrialOn()
+    {
+        Assert.False(Tuning.Enemies.Climbers.SmallCrew.On);
+        var on = Spending() with { Climbers = Tuning.Enemies.Climbers with { SmallCrew = Tuning.Enemies.Climbers.SmallCrew with { On = true } } };
+        int Group(EnemyTuning e, int crew, ulong seed)
+        {
+            var world = Plain(e, speed: 8, seed: seed, crew: crew);
+            var outcome = Spawns.For(EnemyKind.Climber)!.Spawn(new SpawnContext(world, world.Enemies!, world.Director!));
+            Assert.True(outcome.Placed);
+            return outcome.Members.Count;
+        }
+        for (ulong seed = 1; seed <= 6; seed++)
+        {
+            Assert.Equal(1, Group(on, 1, seed));
+            Assert.Equal(1, Group(on, 2, seed));
+            Assert.Equal(Group(Spending(), 4, seed), Group(on, 4, seed));
+            Assert.True(Group(Spending(), 1, seed) >= 2);
+        }
+    }
 }
