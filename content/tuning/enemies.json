@@ -1281,7 +1281,20 @@
       "on": true, "fromTrainM": 20, "perSecond": 0.08, "outsideWeight": 2.5,
       "signEvery": [12, 24], "firstSign": 6, "signOut": [14, 22], "signReach": 160, "signSeconds": 3.5, "signSpread": 35,
       "signHeight": { "ribbits": 0.35, "gaunt": 2.3, "followers": 1.6, "sootChildren": 1.0, "grumbler": 1.5, "whistler": 2.0 },
-      "signHeightDefault": 0.7
+      "signHeightDefault": 0.7,
+      // Dread at the stops (queue #646, note 944; the director's playtest of 20 Oct evening, line 15: "You start safely
+      // collecting loot and then suddenly it doesn't feel so safe. You've been in there just long enough"). An outing is the
+      // seconds anyone's been afoot (as above) since the crew was last all back aboard for forgetSeconds. As it goes on, the
+      // signs come more often (the wait to the next one × 1 falling to signEveryAtScare by scareAt s) and nearer (the
+      // distance × 1 falling to signOutAtScare); from scareAt, a scare: the signs at scareOut × their distance, close by
+      // (still never a spawn: nothing's there when you walk up to it). From threatAt, once an outing, a real threat: the
+      // encounter clock (director.encounters.drive) is brought up to due, so the director's own channels send one, met out
+      // there by outsideWeight, under the placement, the caps and every kind's own rules and telegraph. Not a channel of its
+      // own. Off until the director confirms ("test creature spawn first").
+      "dread": {
+        "on": false, "scareAt": 90, "threatAt": 180, "signEveryAtScare": 0.5, "signOutAtScare": 0.7, "scareOut": 0.45,
+        "forgetSeconds": 30
+      }
     },
     // The hound run (ARCHITECTURE §8 note 328; docs/design/orchestrator.md §5.3 and §6.1; GDD App. F.3, the director, 7 Oct
     // 2026: "more threats that can board the train at speed ... tower defense style that gives our gunners things to do").

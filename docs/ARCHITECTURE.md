@@ -1102,6 +1102,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [940. The Waker near the town, and a moving or reversing train (Cole, queue #643; the director's playtest of 20 Oct evening)](notes/940.md)
 - [941. Small things: the floating statue, the village doors, the crane's let-go, the rain (Ezra, queue #644; the director's playtest of 20 Oct…](notes/941.md)
 - [943. Playtest telemetry: the PostHog sink behind #626's upload interface (queue #637; the director's backend answer, 20 Oct, inbox…](notes/943.md)
+- [944. Dread at the stops: the longer you loot, the less safe (queue #646; the director's playtest of 20 Oct evening, line 15; n1-C2, 21 Oct 2026)](notes/944.md)
 - [945. The Knotter that won't die on a moving train, the Gaunt that vanishes, a bot hitting from where it can't reach (n1-H1, nathaniel1; queue…](notes/945.md)
 - [946. Playtest telemetry on by default in playtest builds, with the off switch (n1-N1, nathaniel1; queue #636; the director, the inbox, 20 Oct:…](notes/946.md)
 - [948. The two-person heavy carry holds together: the front end walks at the back end's pace (queue #635; n1-B2's findings under #630, note 920;…](notes/948.md)
