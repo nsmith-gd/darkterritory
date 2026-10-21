@@ -302,7 +302,8 @@ def bridge_groan(rng, k):
 def rain_roof(rng, k):
     n = samples(12.0)
     pat = W.rain(n, rng, 3000, "tin")
-    drum = W.cyclic(lambda z: dsp.resonate(z, [95, 150, 220, 310], q=12), pat)
+    # Note 941: a drum, not a hum (at q 12 the top mode, whose band the resonator lets most through, sang at 320 Hz).
+    drum = W.cyclic(lambda z: dsp.resonate(z, [95, 150, 220, 310], q=4, gains=[1, 0.6, 0.35, 0.2]), pat)
     eaves = [(t, W.body(rng, rng.uniform(600, 1100), W.PLATE, decay=0.05, length=0.2, contact=0.0003, count=10), rng.uniform(0.4, 1.0))
              for t in W.poisson(12.0, 1.0, rng)]
     swell = np.clip(1 + 0.15 * slow(n, 0.15, rng), 0.5, None)
@@ -323,7 +324,8 @@ def rain_out(rng, k):
     puddle = W.rain(n, rng, 1600, "water")
     tin = cfilter(W.rain(n, rng, 900, "tin"), lambda f: 1 / (1 + (f / 4000) ** 2))
     leaves = W.cyclic(lambda z: z, synth.rustle(12.0, 500, rng, f=(3000, 10000), ticks=0.0))
-    trickle = W.cyclic(lambda z: lp(z, 2500), synth.bubbles(12.0, 70, 300, 1400, rng, rise=(0.1, 0.5)))
+    # Rising only a little (note 941: risen by half their pitch, the runoff's bubbles chirped).
+    trickle = W.cyclic(lambda z: lp(z, 2500), synth.bubbles(12.0, 70, 300, 1400, rng, rise=(0.03, 0.12)))
     thuds = cfilter(ground, lambda f: 1 / (1 + (f / 350) ** 2))         # the big drops landing: a soft low patter
     y = (norm(ground) * 0.55 + norm(thuds) * 0.3 + norm(puddle) * 0.3 + norm(tin) * 0.18 + norm(leaves) * 0.12
          + norm(trickle) * 0.12)

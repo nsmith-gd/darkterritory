@@ -2565,10 +2565,17 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             if (view == "jackpothouse" && bigStop >= 0)
             {
                 int door = run.LockedDoors(bigStop).First();
+                // --plain (note 941): the door of the house nearest it, a village's plank door, not the jackpot house's.
+                if (args.Contains("--plain"))
+                {
+                    var jackpot = scene.Walls.HouseDoors.First(x => x.Key == door).At;
+                    door = scene.Walls.HouseDoors.Where(x => !scene.Walls.Locked(x.Key) && (x.Key - 1) >> 12 == (door - 1) >> 12)
+                        .OrderBy(x => (x.At - jackpot).Length).First().Key;
+                }
                 if (args.Contains("--inside"))
                     scene.Walls.SetShut(door, false);
                 if (Str(args, "--cam", "") is not { Length: > 0 })
-                    camera = Staging.JackpotHouse(scene.Walls, door, args.Contains("--inside"));
+                    camera = Staging.JackpotHouse(scene.Walls, door, args.Contains("--inside"), args.Contains("--close"));
             }
         }
     }
