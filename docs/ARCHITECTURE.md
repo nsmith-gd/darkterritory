@@ -1089,7 +1089,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [917. Playtest telemetry T4: `dt telemetry summary`, `dt telemetry map` and the playtest dashboard (n1-G2, queue #627; note 907's plan)](notes/917.md)
 - [919. Playtest telemetry T3: the local spool and the `file` sink; the upload an interface until the director picks a backend (queue #626; the…](notes/919.md)
 - [920. The stop's packing plan: castings and heavies first in whole halves, then the lights, whatever the arrival's timing (queue #630; found by…](notes/920.md)
-- [921. Bandwidth at 8 crew back under the budget (n1-N1, nathaniel1; queue #631; ARCHITECTURE §6's ≤ 64 kbit/s down per client typical, 128 peak)](notes/921.md)
+- [921. Bandwidth at 8 crew back under the budget (n1-N1, nathaniel1; queue #631; ARCHITECTURE §6's ≤ 64 kbit/s down per client typical, 128 peak;…](notes/921.md)
 - [930. The spawn director overhaul's balance report: the brief's §7 bands scored on `dt director sweep`, old against new, and the final sweep…](notes/930.md)
 - [931. A crewmate down to cover the shunter at a pick-up's points (queue #632, n1-w7 for nathaniel1; from note 894's Unfixed)](notes/931.md)
 - [932. The spawn director overhaul in the GDD and the systems spec (n1-G2, #613's docs half, agreed with n1-B1, who holds #613; the director's…](notes/932.md)
@@ -1101,5 +1101,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [939. Car fires told: why a car burns and relights, boarding a burning car, the extinguisher's reach (Hazel, queue #642; the director's playtest…](notes/939.md)
 - [940. The Waker near the town, and a moving or reversing train (Cole, queue #643; the director's playtest of 20 Oct evening)](notes/940.md)
 - [941. Small things: the floating statue, the village doors, the crane's let-go, the rain (Ezra, queue #644; the director's playtest of 20 Oct…](notes/941.md)
+- [943. Playtest telemetry: the PostHog sink behind #626's upload interface (queue #637; the director's backend answer, 20 Oct, inbox…](notes/943.md)
 - [945. The Knotter that won't die on a moving train, the Gaunt that vanishes, a bot hitting from where it can't reach (n1-H1, nathaniel1; queue…](notes/945.md)
+- [946. Playtest telemetry on by default in playtest builds, with the off switch (n1-N1, nathaniel1; queue #636; the director, the inbox, 20 Oct:…](notes/946.md)
 <!-- end of the notes index -->
