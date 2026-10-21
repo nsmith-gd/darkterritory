@@ -1,0 +1,10 @@
+// concurrency-on: #611's caps and pairs by living crew and cars, its pairs refused a small crew and its relief, at
+// pairsPerCrew 0.25 (n1-A3's value; note 906). The cap readings (farHoldSeconds, incidentsHoldCap) ride with `on`.
+{
+  "$patch": true,
+  "director": {
+    "encounters": {
+      "concurrency": { "on": true, "pairsPerCrew": 0.25 }
+    }
+  }
+}

@@ -1,0 +1,9 @@
+// #613's balance sweep (note 930): the shipping content with one of the director's pending asks on, to give each its
+// 30-seed number. `dt --edition f1-concurrency-on director sweep ...`. Measurement only; never shipped.
+{
+  "id": "edition-f1-concurrency-on",
+  "name": "f1-concurrency-on",
+  "version": "1.0.0",
+  "description": "concurrency-on: #611's caps and pairs by crew and train length, pairsPerCrew 0.25 (note 906)",
+  "order": -1000
+}
