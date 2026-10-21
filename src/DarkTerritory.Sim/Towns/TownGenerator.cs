@@ -353,7 +353,7 @@ public static partial class TownGenerator
                 var h = further[i * further.Count / count];
                 string act = homes.OutActs[i % homes.OutActs.Length];
                 double u = (i % 2 == 0 ? -1 : 1) * Math.Max(0, h.Width / 2 - OutAtCorner);
-                var (os, od) = h.Body(u, -OutInFront - (h.Design.Hull ? HouseDesign.HullEnds : 0));
+                var (os, od) = h.Body(u, -OutInFront - (h.Design.Hull ? HouseDesign.HullBow : 0));
                 var (ofs, ofd) = act == "lantern" ? h.BodyFacing(0, -1) : h.BodyFacing(0, 1);
                 spots.Add(new("", os, od, ofs, ofd, 0, Street: act == "lantern", Pose: act));
             }

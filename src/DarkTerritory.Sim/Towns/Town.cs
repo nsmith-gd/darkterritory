@@ -2,6 +2,7 @@ using Ballast;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Run;
+using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Towns;
 
@@ -30,6 +31,7 @@ public sealed class Town
         _line = line;
         Ground = TownGround.Of(plan);
         Walls = [.. BuildWalls()];
+        Ladders = [.. BuildLadders()];
         Index();
         _behind = new double[plan.People.Count];
         Rounds = TownRounds.Plan(this);
@@ -409,6 +411,30 @@ public sealed class Town
     /// <summary>The square's walls, its buildings, the solid things in it and its people, as boxes nobody walks through.</summary>
     public IReadOnlyList<Wall> Walls { get; }
 
+    /// <summary>
+    /// Its ladders (note 973; the director, 16 Oct: "they have little ladders to go up to them, but the ladders aren't
+    /// climbable. Those should be climbable"): each houseboat's, leant against its bow at the door from
+    /// <see cref="HouseDesign.LadderOut"/> out, up to the deck's edge, the foredeck in past it.
+    /// </summary>
+    public IReadOnlyList<WorldLadder> Ladders { get; }
+
+    IEnumerable<WorldLadder> BuildLadders()
+    {
+        foreach (var h in Plan.Houses)
+        {
+            if (!h.Design.Hull || h.Layout is not null || h.Kind == HouseKind.Burnt)
+                continue;
+            var (fs, fd) = h.Body(h.Design.DoorU, -HouseDesign.HullBow - HouseDesign.LadderOut);
+            var (ts, td) = h.Body(h.Design.DoorU, -HouseDesign.HullBow);
+            // The deck's height is the hull's box's: on the ground at the hull's middle, as Box stands it.
+            var (hs, hd) = h.Body(0, (h.Depth + HouseDesign.HullEnds - HouseDesign.HullBow) / 2);
+            var foot = World(fs, fd);
+            var top = World(ts, td) with { Y = World(hs, hd, HouseDesign.HullLift).Y };
+            var inward = (top - foot) with { Y = 0 };
+            yield return new WorldLadder(foot, top, inward.Normalized, HouseDesign.LadderOnto);
+        }
+    }
+
     /// <summary>Its ground (note 692): a town type's terraces, benches, decks and water; the yard's level everywhere else.</summary>
     public TownGround Ground { get; }
 
@@ -457,7 +483,8 @@ public sealed class Town
     public Double3 Door(TownHouse h)
     {
         var (s, d) = h.Body(h.Design.DoorU, h.DoorV - 0.05);
-        return World(s, d, 1.2);
+        // A houseboat's is up on its deck (note 973), at the top of its ladder.
+        return World(s, d, 1.2 + (h.Design.Hull && h.Layout is null ? HouseDesign.HullLift : 0));
     }
 
     /// <summary>What a crewmate on the ground is looking at within reach, the least angle off the view's centre.</summary>

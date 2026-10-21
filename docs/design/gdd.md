@@ -250,6 +250,7 @@ Each town has a character too: a fishing cove of shingled gable-fronts, an old t
 - **Their houses:** every shut house is a scow's hull with the house built on its deck, up on stilts over the marsh, a ladder to its door.
 - **Their creed:** the comet was sent, and the creatures were sent to thin us out before the water. They say it at their tables and post it on their board, beside the water mark they paint on the stilts each morning.
 - **Out all night among their houseboats** *(the director's playtest of 16 Oct, line 28; queue #569, note 841)*: one for every eight houses, from one end of the town to the other. Some walk a lamp along the stages, some caulk a hull or read the water's mark on a stilt, and some haul a rope. A houseboat is solid out to its hull.
+- **Their ladders are climbed** *(the director's playtest of 16 Oct, line 28; queue #673, note 973)*: up a houseboat's ladder from the stage onto the foredeck at its door, as a car's ladder is climbed, and back down.
 
 **Every house has its yard.** On a street, a picket fence along the front with its gate at the door; a board fence at the back; and behind the house what a yard keeps: the woodpile under a sheet of roofing, a shed, the privy, lobster traps, a dory turned over on its blocks, a rain barrel, the washing pegged out and left out after dark. A cove's yards are traps and dories, a farm town's woodpiles and sheds, a company row's the same fence and privy at every house. You go in by the gate, and the fences stop you.
 
