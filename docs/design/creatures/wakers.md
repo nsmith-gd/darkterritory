@@ -52,7 +52,7 @@ The director: "the tension before it is really, really important." Three minutes
   director sends no more of them. The Knotter and Hotbox stay (`staysAtDawn`); the director ticks each creature in the
   Creature Tweaker (claude.ai/artifact/TdoxfYnmZTgv2jc9JmRkkw). Not yet: a creature seen running for the trees, rather
   than gone.
-- **The hills move.** Across the dark land, the shapes the crew took for hills settle and shift.
+- **The hills move.** Across the dark land, the shapes the crew took for hills settle and shift (note 962: the far ridges toward the stir heave in slow swells against its line, from `hillsFrom` of the way through it, up to `hills` degrees by dawn).
 - **The clock.** The HUD's dawn clock shows in the last stretch already (note 459). In the stir it turns to the
   Wakers' distance once they're up.
 
