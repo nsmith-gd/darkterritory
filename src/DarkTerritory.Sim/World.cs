@@ -1944,6 +1944,17 @@ public sealed partial class World
                 HoldControls(-1, false);
         }
         if (intent.Moves.HasFlag(PlayerMoves.Ping)) _pingWas.Add(playerId); else _pingWas.Remove(playerId);
+        // Note 936 (the director, 20 Oct: "Oh, an abandoned house? Sure, I'll go search it"): a crewmate answering a ping, on it.
+        // The first to answer has it ("DUNMORE: SEARCHING THE HOUSE"), and it's kept on while they say they're still at it.
+        if (Hosting && intent.Has(PlayerMoves.Answer) && intent.Answer > 0 && s.Alive)
+        {
+            int k = Pings.FindIndex(p => p.Id == intent.Answer && p.By != playerId && (p.Taker < 0 || p.Taker == playerId));
+            if (k >= 0)
+            {
+                Pings[k] = Pings[k] with { Taker = playerId };
+                _pingAnswered[Pings[k].Id] = Tick;
+            }
+        }
         // A lamp signal (note 720): given with a hand lamp in the fist, seen by the crew. Not while held, not on top of the last.
         if (Hosting && intent.Signal != LampSignal.None && s.Alive && !s.Has(PlayerFlags.Held)
             && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Lamp, Stashed: false }
@@ -2047,6 +2058,8 @@ public sealed partial class World
     }
     // Who had the ping held last tick (note 739): a ping's made on the press.
     readonly HashSet<int> _pingWas = new();
+    /// <summary>Note 936: the tick each answered ping was last answered, by its id (the host's).</summary>
+    readonly Dictionary<int, uint> _pingAnswered = new();
 
     /// <summary>
     /// A tool's swing (App. C.2): the nearest thing in front within reach that can be struck takes a blow. The host decides,
@@ -2127,7 +2140,11 @@ public sealed partial class World
             Hits.RemoveAll(h => Tick - h.Tick > keep.KeepSeconds * SimConstants.TickRate);
             Swings.RemoveAll(w => Tick - w.Tick > keep.KeepSeconds * SimConstants.TickRate);
             Emotes.RemoveAll(e => !EmoteTuning.Lasts(e, Tick));
-            Pings.RemoveAll(e => Tick - e.Tick > PingTuning.Seconds * SimConstants.TickRate);
+            // (Note 936: one answered stays while its taker's at it, and pings.seconds after.)
+            Pings.RemoveAll(e => Tick - Math.Max(e.Tick, _pingAnswered.GetValueOrDefault(e.Id)) > PingTuning.Seconds * SimConstants.TickRate);
+            if (_pingAnswered.Count > Pings.Count)
+                foreach (int gone in _pingAnswered.Keys.Where(id => !Pings.Exists(p => p.Id == id)).ToList())
+                    _pingAnswered.Remove(gone);
             Signals.RemoveAll(e => Tick - e.Tick > VoicesTuning.LampSignals.Seconds * SimConstants.TickRate);
             Impacts.RemoveAll(i => Tick - i.Tick > keep.ImpactKeepSeconds * SimConstants.TickRate);
             News.RemoveAll(e => Tick - e.Tick > NewsTuning.Seconds * SimConstants.TickRate);

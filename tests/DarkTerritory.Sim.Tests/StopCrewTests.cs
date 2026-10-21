@@ -15,7 +15,7 @@ namespace DarkTerritory.Sim.Tests;
 /// A crew of bots works a facility stop through intent alone (T32, GDD §17): the driver on the regulator, the shunter on
 /// the coupler and the switch, two on the winch; nobody set anything but their own hands and the cab's controls.
 /// </summary>
-public class StopCrewTests
+public partial class StopCrewTests
 {
     static readonly TrainTuning T = Tuning.Train;
     static readonly PlayerTuning P = Tuning.Player;

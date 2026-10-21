@@ -4206,8 +4206,8 @@ static object HudShot(string content, string[] args)
     }
     else
     {
-        // --ping: the crew's pings (note 739): Priya's on car 2 (as if afire) and on the controls, one of yours on car 3, and
-        // Dunmore's on a town.
+        // --ping: the crew's pings (note 739): Priya's on car 2 (as if afire) and on the controls, one of yours on car 3,
+        // Dunmore's on a town, and yours on a spur that Dunmore's answered (note 936).
         if (args.Contains("--ping"))
         {
             var pinged = session.World;
@@ -4220,6 +4220,8 @@ static object HudShot(string content, string[] args)
             // And Dunmore's on the abandoned town (note 739 part two), a house out beside the line.
             pinged.Names[91] = "Dunmore";
             pinged.Pings.Add(new PingEvent(9004, (uint)session.HostTick, 91, PingKind.Town, 0, f[Math.Min(2, f.Count - 1)].ToWorld(new Double3(-80, 2, -40))));
+            // And yours on a spur's lever, answered (note 936): "DUNMORE: ON THE SPUR".
+            pinged.Pings.Add(new PingEvent(9005, (uint)session.HostTick + 1, session.PlayerId, PingKind.Points, -1, f[0].ToWorld(new Double3(4, 0.9, -40)), Taker: 91));
         }
         // --photo f.png (note 721): the crew photo at the gate (`dt screenshot --view crewphoto`'s) as tonight's, the end card's print.
         Hud.Build(hud, width, height, session, pixels: scale, firstNight: args.Contains("--first-night"), captions: captioned, photo: photoStill, commendations: args.Contains("--commend")
