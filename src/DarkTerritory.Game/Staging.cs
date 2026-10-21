@@ -952,6 +952,47 @@ public static partial class Staging
     }
 
     /// <summary>
+    /// The dining car's diners (note 974; `dt screenshot --diners`, views diningtable and diningbar): two sat at the table
+    /// either side under the chandelier, the one on the wall side two drinks in and lolling (<see cref="Tipsy.Loll"/>), and
+    /// one at the counter with a glass, four drinks in and lolling the more.
+    /// </summary>
+    public static (List<Crewmate> Crew, IReadOnlyList<Sim.Physics.Body> Bodies) Diners(TrainOnLine train, TipsyTuning tipsy)
+    {
+        var bodies = new Sim.Physics.Bodies();
+        int car = Enumerable.Range(0, train.Vehicles.Count).FirstOrDefault(i => train.Vehicles[i].Kind == Sim.Train.VehicleKind.Dining, -1);
+        if (car < 0 || train.Frames[car].Shape.Dining is not { } d)
+            return ([], bodies.All);
+        var frame = train.Frames[car];
+        double Loll(int drinks)
+        {
+            var t = new Tipsy();
+            for (int i = 0; i < drinks; i++)
+                t.Drank(0, tipsy);
+            return t.Loll(0, tipsy);
+        }
+        // A chair's sitter: the gunner's clip, its pan (CrewActs.GunnerPan over the feet) on the chair's pad, the feet under
+        // the table's edge; the model faces -Z, so -pi/2 turns them to +X (the aisle side's), +pi/2 to -X.
+        double floor = d.Table.Min.Y, pitch = (d.Table.Max.Z - d.Table.Min.Z) / 4, pad = floor + 0.5 - Art.CrewActs.GunnerPan;
+        Crewmate Sat(byte id, int side, int place, double loll)
+        {
+            double z = d.Table.Min.Z + pitch * (place + 0.5);
+            var local = new Double3(side < 0 ? d.Table.Min.X - 0.12 : d.Table.Max.X + 0.12, pad, z);
+            return new Crewmate(id, frame.ToWorld(local), frame.Heading + (side < 0 ? -Math.PI / 2 : Math.PI / 2), true, Act: Art.CrewPose.Gunner,
+                Car: car, Local: local, Loll: loll);
+        }
+        var bar = d.Bar + new Double3(0, 0, -0.1);
+        var glass = bodies.SpawnCrate(train, car, bar + new Double3(0.25, 1.2, 0.3), Sim.Physics.BodyKind.Drink);
+        glass.Carrier = 62;
+        var crew = new List<Crewmate>
+        {
+            Sat(60, -1, 1, 0),
+            Sat(61, 1, 2, Loll(2)),
+            new(62, frame.ToWorld(bar), frame.Heading + Math.PI * 0.85, true, Act: Art.CrewPose.Drink, Car: car, Local: bar, Loll: Loll(4)),
+        };
+        return (crew, bodies.All);
+    }
+
+    /// <summary>
     /// The lounges (note 744; `dt screenshot --lounge`, views hammock and hottub): a crewmate swinging in the guard van's hammock,
     /// and two soaking in the hot tub on the engine's hood, one with a grilled fish.
     /// </summary>

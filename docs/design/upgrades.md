@@ -415,8 +415,9 @@ vision should get blurry ... [it should] make you sort of tip over a bit. Of cou
 - **Feedback**: the drinker sees it; the crew see the drinker's head loll (the art's); the tally reads "Bar: eight
   drinks. Repairs: one window."
 - **Built** (note 959): `diningCar` in campaign.json, the car behind the crew cars, its bar's eight drinks
-  (train.json `composition.dining`), the blur and the lean (look.json `tipsy`). The tally line and the head's loll aren't
-  yet.
+  (train.json `composition.dining`), the blur and the lean (look.json `tipsy`). Note 974: the room modelled (the table
+  laid for eight, its chairs, the chandelier and candelabra, the counter, its bell and the back bar), and the crew seeing
+  a drinker's head loll (look.json `tipsy` `loll*`). The tally line is #672's.
 
 ### 8.6 Bumper stickers: all puns
 

@@ -48,4 +48,34 @@ public class TipsyTests
         t.Drank(end + 5, T);
         Assert.Equal(1, t.Drinks(end + 6));
     }
+
+    static Sim.Physics.Body Glass(int id, int carrier) =>
+        new(id, Sim.Physics.BodyKind.Drink, Sim.Player.PlayerState.World,
+            new Ballast.Physics.PbdBody([new Ballast.Physics.Particle(new Double3(0, 1, 0), 1, 0.05)])) { Carrier = carrier };
+
+    [Fact]
+    public void TheCrewSeeADrinkersHeadLollAndNotWhoPutTheirsDown()
+    {
+        // Note 974 (§8.5: "the crew see the drinker's head loll"): a drink gone from a crewmate's hands and from the train was
+        // drunk; one put down is still about, in nobody's hands.
+        var drinkers = new Drinkers();
+        drinkers.Observe([Glass(7, 3), Glass(8, 4)], [3, 4, 5], 10, T);
+        Assert.Equal(0, drinkers.Loll(3, 10, T));
+        drinkers.Observe([Glass(8, -1)], [3, 4, 5], 11, T);
+        double loll = drinkers.Loll(3, 12, T);
+        Assert.InRange(loll * 180 / Math.PI, T.LollDegrees * 0.99, T.LollDegrees * 1.01);
+        Assert.Equal(0, drinkers.Loll(4, 12, T));
+        Assert.Equal(0, drinkers.Loll(5, 12, T));
+        // The head rolls over to both sides and drops forward as it goes; sober, it's still.
+        var poses = Enumerable.Range(0, 200).Select(i => Tipsy.LollPose(loll, i * 0.05, T)).ToList();
+        Assert.Contains(poses, p => p.Roll < -0.5 * loll);
+        Assert.Contains(poses, p => p.Roll > 0.5 * loll);
+        Assert.All(poses, p => Assert.True(p.Nod > 0));
+        Assert.Equal((0f, 0f), Tipsy.LollPose(0, 1, T));
+        // A second lolls it further; it's gone when the drinks have worn off.
+        drinkers.Observe([Glass(9, 3)], [3], 20, T);
+        drinkers.Observe([], [3], 21, T);
+        Assert.True(drinkers.Loll(3, 22, T) > loll);
+        Assert.Equal(0, drinkers.Loll(3, 21 + T.Seconds + T.MoreEach + 1, T));
+    }
 }

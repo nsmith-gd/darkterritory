@@ -280,8 +280,11 @@
   // drink after the first, easing off over its last "fadeSeconds"; and leans it, the horizon swaying "leanDegrees" one way
   // and the other ("leanEach" more a drink after the first) over "leanPeriod" s, slowly, as if the floor moved more than it
   // does. Counted up to "mostDrinks" drinks. DESIGN-TODO: the catalogue's "a minute, a little more with each" is the only number.
+  // Note 974 (§8.5: "the crew see the drinker's head loll"): everyone else sees a drinker's head roll over to one side and
+  // the other, "lollDegrees" (and "lollEach" more a drink after the first) over "lollPeriod" s, dropping forward as it goes
+  // by "lollNod" of that, the shoulders swaying a little under it; for as long as the drinks count, easing off as they do.
   "tipsy": { "seconds": 60, "moreEach": 15, "blur": 0.5, "blurEach": 0.15, "leanDegrees": 4, "leanEach": 1.5, "leanPeriod": 7,
-    "mostDrinks": 4, "fadeSeconds": 10 },
+    "mostDrinks": 4, "fadeSeconds": 10, "lollDegrees": 16, "lollEach": 5, "lollPeriod": 3.4, "lollNod": 0.5 },
   "speedFeel": {
     // The view widens by up to "widen" degrees, at "fullAt" m/s, eased by (speed / fullAt) ^ "ease" (under 1: felt early).
     // Note 735 (the director, 14 Oct: "It still feels a bit slow"): 8 to 12. Note 842 (the director, 16 Oct: "the FOV is

@@ -1,5 +1,233 @@
 [
   {
+    "name": "bar_back_0",
+    "diffuse": "models/bar_back_0.png",
+    "spec": "models/bar_back_0_s.png",
+    "normal": "models/bar_back_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/dining_car.py",
+        "what": "the dining car's back bar and its bottles",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_roughness.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/leather_brown_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "Mini Texture (CC0-1.0), via the library's leather"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_floor"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_floor"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/WoodFloor051_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_floor"
+      }
+    ]
+  },
+  {
+    "name": "bar_bell_0",
+    "diffuse": "models/bar_bell_0.png",
+    "spec": "models/bar_bell_0_s.png",
+    "normal": "models/bar_bell_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/dining_car.py",
+        "what": "the bar's service bell",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_roughness.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/leather_brown_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "Mini Texture (CC0-1.0), via the library's leather"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_floor"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_floor"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/WoodFloor051_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_floor"
+      }
+    ]
+  },
+  {
+    "name": "bar_counter_0",
+    "diffuse": "models/bar_counter_0.png",
+    "spec": "models/bar_counter_0_s.png",
+    "normal": "models/bar_counter_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/dining_car.py",
+        "what": "the dining car's bar counter",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_roughness.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/leather_brown_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "Mini Texture (CC0-1.0), via the library's leather"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_floor"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_floor"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/WoodFloor051_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_floor"
+      }
+    ]
+  },
+  {
     "name": "belt_head_0",
     "diffuse": "models/belt_head_0.png",
     "spec": "models/belt_head_0_s.png",
@@ -5903,6 +6131,386 @@
         "path": "mini_texture/textures/fabric_canvas_diffuse.jpg",
         "license": "CC0-1.0",
         "attribution": "Mini Texture (CC0-1.0), via the library's wool"
+      }
+    ]
+  },
+  {
+    "name": "dining_candelabrum_0",
+    "diffuse": "models/dining_candelabrum_0.png",
+    "spec": "models/dining_candelabrum_0_s.png",
+    "normal": "models/dining_candelabrum_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/dining_car.py",
+        "what": "the table's candelabrum",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_roughness.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/leather_brown_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "Mini Texture (CC0-1.0), via the library's leather"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_floor"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_floor"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/WoodFloor051_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_floor"
+      }
+    ]
+  },
+  {
+    "name": "dining_chair_0",
+    "diffuse": "models/dining_chair_0.png",
+    "spec": "models/dining_chair_0_s.png",
+    "normal": "models/dining_chair_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/dining_car.py",
+        "what": "a dining car's chair",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_roughness.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/leather_brown_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "Mini Texture (CC0-1.0), via the library's leather"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_floor"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_floor"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/WoodFloor051_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_floor"
+      }
+    ]
+  },
+  {
+    "name": "dining_chandelier_0",
+    "diffuse": "models/dining_chandelier_0.png",
+    "spec": "models/dining_chandelier_0_s.png",
+    "normal": "models/dining_chandelier_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/dining_car.py",
+        "what": "the dining car's chandelier",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_roughness.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/leather_brown_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "Mini Texture (CC0-1.0), via the library's leather"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_floor"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_floor"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/WoodFloor051_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_floor"
+      }
+    ]
+  },
+  {
+    "name": "dining_place_0",
+    "diffuse": "models/dining_place_0.png",
+    "spec": "models/dining_place_0_s.png",
+    "normal": "models/dining_place_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/dining_car.py",
+        "what": "a place laid at the dining car's table",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_roughness.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/leather_brown_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "Mini Texture (CC0-1.0), via the library's leather"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_floor"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_floor"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/WoodFloor051_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_floor"
+      }
+    ]
+  },
+  {
+    "name": "dining_table_0",
+    "diffuse": "models/dining_table_0.png",
+    "spec": "models/dining_table_0_s.png",
+    "normal": "models/dining_table_0_n.png",
+    "size": 512,
+    "tileMetres": null,
+    "tiling": false,
+    "family": "model",
+    "alphaTest": false,
+    "sources": [
+      {
+        "generator": "tools/models/recipes/dining_car.py",
+        "what": "the dining car's table under its cloth",
+        "author": "Dark Territory",
+        "license": "CC0-1.0",
+        "attribution": "Dark Territory (modelled in tools/models from the texture library)"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_roughness.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Metal063_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Rock064_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's brass"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/leather_brown_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "Mini Texture (CC0-1.0), via the library's leather"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_floor"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/Wood095_displacement.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_floor"
+      },
+      {
+        "repo": "https://github.com/amazingsammed/mini_textures",
+        "commit": "b080ca4df63813b3b764a8f31b3f418e3d6b6a2a",
+        "path": "mini_texture/textures/WoodFloor051_diffuse.jpg",
+        "license": "CC0-1.0",
+        "attribution": "ambientCG (CC0-1.0), via the library's wood_floor"
       }
     ]
   },

@@ -463,8 +463,10 @@ public static class Views
             // burns (dt screenshot --threats --view fire: Staging.Threats' car fire, Effects.CarFire).
             "fire" => FireCamera(train),
             // (Not one of Names.) The dining car (note 959; dt screenshot --view dining, which fits it): from its front end
-            // door down the aisle, the table laid under the chandelier and the bar at the far end; diningbar, at the counter.
-            "dining" or "diningbar" => DiningCamera(train, name == "diningbar"),
+            // door down the aisle, the table laid under the chandelier and the bar at the far end; diningbar, at the counter;
+            // diningtable (note 974), from the aisle across the places laid under the chandelier (--diners: the crew at it);
+            // diningdrunk, close on whoever's at the counter (--diners: a drinker four in, lolling; --clock moves it on).
+            "dining" or "diningbar" or "diningtable" or "diningdrunk" => DiningCamera(train, name),
             // (Not one of Names.) In the guard van at its back end, down at the stores World.Stock puts there: the crates,
             // the lamp and radios, the toys (App. C.4), and its extinguisher on the wall beyond them.
             "stores" => StoresCamera(train),
@@ -765,16 +767,20 @@ public static class Views
         return Camera.LookAt(last.ToWorld(new Double3(1.6, roof + 2.2, -2)), last.ToWorld(new Double3(0, roof + 0.4, last.Shape.HalfLength - 2.5)), 60);
     }
 
-    static Camera DiningCamera(TrainOnLine train, bool bar)
+    static Camera DiningCamera(TrainOnLine train, string name)
     {
         int v = Enumerable.Range(0, train.Vehicles.Count).FirstOrDefault(i => train.Vehicles[i].Kind == Sim.Train.VehicleKind.Dining, 1);
         var f = train.Frames[v];
         if (f.Shape.Dining is not { } d)
             return FireCamera(train);
-        double floor = d.Table.Min.Y, z0 = f.Shape.Interior!.Value.Min.Z;
-        return bar
-            ? Camera.LookAt(f.ToWorld(new Double3(-0.6, floor + 1.6, d.Counter.Min.Z - 1.6)), f.ToWorld(new Double3(0.8, floor + 1.2, d.Counter.Max.Z + 0.6)), 60)
-            : Camera.LookAt(f.ToWorld(new Double3(-0.6, floor + 1.65, z0 + 0.9)), f.ToWorld(new Double3(0.3, floor + 1.1, d.Counter.Min.Z)), 70);
+        double floor = d.Table.Min.Y, z0 = f.Shape.Interior!.Value.Min.Z, mid = (d.Table.Min.Z + d.Table.Max.Z) / 2;
+        return name switch
+        {
+            "diningbar" => Camera.LookAt(f.ToWorld(new Double3(-0.6, floor + 1.6, d.Counter.Min.Z - 1.6)), f.ToWorld(new Double3(0.8, floor + 1.2, d.Counter.Max.Z + 0.6)), 60),
+            "diningdrunk" => Camera.LookAt(f.ToWorld(d.Bar + new Double3(-1.15, 1.7, 0.5)), f.ToWorld(d.Bar + new Double3(0, 1.45, -0.05)), 40),
+            "diningtable" => Camera.LookAt(f.ToWorld(new Double3(-0.95, floor + 1.7, mid + 1.9)), f.ToWorld(new Double3(0.5, floor + 1.05, mid - 0.5)), 62),
+            _ => Camera.LookAt(f.ToWorld(new Double3(-0.6, floor + 1.65, z0 + 0.9)), f.ToWorld(new Double3(0.3, floor + 1.1, d.Counter.Min.Z)), 70),
+        };
     }
 
     static Camera FireCamera(TrainOnLine train)

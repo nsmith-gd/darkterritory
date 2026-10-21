@@ -943,7 +943,7 @@ public sealed partial class CreatureArt
     public bool Crewmate(MeshBuilder mesh, in Matrix4x4 model, CrewPose pose, double time, int variant,
         Vector3? left = null, Vector3? right = null, Vector3 leftPole = default, Vector3 rightPole = default, MeshAsset? inHand = null,
         MeshAsset? hanging = null, string figure = "crew", VrBodyPose? body = null, MeshAsset? carried = null, bool sooted = false,
-        MaskLook mask = default, EmoteDetail emote = default, MeshAsset? fist = null)
+        MaskLook mask = default, EmoteDetail emote = default, MeshAsset? fist = null, (float Roll, float Nod) loll = default)
     {
         if (!_models.ContainsKey(figure))
             figure = "crew";
@@ -1000,6 +1000,14 @@ public sealed partial class CreatureArt
         // Leant out, the head turned on to where they look (as far as a neck goes).
         if (pose == CrewPose.LeanOut && Math.Clamp(emote.Turn, -1.2, 1.2) is var turn && Math.Abs(turn) > 1e-3)
             Bend(m, "neck", Matrix4x4.CreateRotationY((float)turn));
+        // The bar's drinks (note 974, Tipsy.LollPose): the head rolled over to one side and the other and dropped forward,
+        // most of it at the neck, the shoulders swaying a little under it (the model faces -Z: a roll is about Z).
+        if (MathF.Abs(loll.Roll) + loll.Nod > 1e-4f)
+        {
+            Bend(m, "spine_03", Matrix4x4.CreateRotationZ(loll.Roll * 0.2f));
+            Bend(m, "neck", Matrix4x4.CreateRotationZ(loll.Roll * 0.45f) * Matrix4x4.CreateRotationX(-loll.Nod * 0.5f));
+            Bend(m, "head", Matrix4x4.CreateRotationZ(loll.Roll * 0.35f) * Matrix4x4.CreateRotationX(-loll.Nod * 0.5f));
+        }
         if (left is { } l)
             Reach(m, "l", l, leftPole);
         if (right is { } r)

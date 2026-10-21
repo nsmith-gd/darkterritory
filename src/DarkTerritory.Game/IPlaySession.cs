@@ -33,12 +33,14 @@ namespace DarkTerritory.Game;
 /// <param name="EmoteWith">Note 722: how their emote for two, dance-off or edge is drawn (<see cref="EmoteDetail"/>).</param>
 /// <param name="Pistol">Note 964: the flare pistol in their hand (a carried thing, held as a tool is, in place of it).</param>
 /// <param name="Scorch">Note 821: how hot a car fire is on them (0 to 1, <see cref="Sim.Enemies.CarFire.HeatOn(in PlayerState, Sim.World)"/>): smoke off them.</param>
+/// <param name="Loll">Note 974: how far their head lolls with the bar's drinks (radians at most, <see cref="Tipsy.Loll"/>; 0 sober),
+/// as the rest of the crew see a drinker (upgrades.md §8.5).</param>
 public readonly record struct Crewmate(byte Id, Double3 Feet, double Yaw, bool Alive, Double3 Hand = default, Double3 Other = default, int? Looks = null,
     CrewPose? Act = null, Tool Holding = Tool.None, (Double3 A, Double3 B)? Reach = null, bool Lamp = false, Survivor Survivor = Survivor.None,
     bool Stressed = false, int Health = 0, double Phase = 0, DeathCause Death = DeathCause.None, int Car = PlayerState.World,
     Double3 Local = default, HeadsetBody? Headset = null, Sim.Player.Emote Emote = Sim.Player.Emote.None, double EmoteSeconds = 0,
     bool Sooted = false, Sim.Player.LampSignal Signal = Sim.Player.LampSignal.None, double SignalSeconds = 0, Sim.Player.MaskPaint Paint = default,
-    EmoteDetail EmoteWith = default, int Hat = 0, double Scorch = 0, bool Pistol = false)
+    EmoteDetail EmoteWith = default, int Hat = 0, double Scorch = 0, bool Pistol = false, double Loll = 0)
 {
     public int Variant => Looks ?? Id;
 }

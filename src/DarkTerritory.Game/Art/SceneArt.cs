@@ -225,7 +225,9 @@ public sealed partial class SceneArt(Look look)
         bool drawn = Creatures.Crewmate(mesh, m, pose, clipTime, c.Variant, left, rightHand, ToF(Arms.Pole(-1)), ToF(Arms.Pole(1)), c.Pistol ? PistolInHand : ToolProp(c.Holding),
             hanging: lamp, figure: CreatureArt.FigureOf(c.Survivor), body: HeadsetBody(c, pose, time), carried: kit, sooted: c.Sooted,
             // (A Passenger's id is 200 and the face it wears, GreyboxScene.AsCrewmate: it wears that crewmate's number too.)
-            mask: new CreatureArt.MaskLook(c.Paint, CrewSigil, (c.Id >= 200 ? c.Id - 200 : c.Id) % 9 + 1), emote: c.EmoteWith, fist: fist);
+            mask: new CreatureArt.MaskLook(c.Paint, CrewSigil, (c.Id >= 200 ? c.Id - 200 : c.Id) % 9 + 1), emote: c.EmoteWith, fist: fist,
+            // (Note 974: a drinker's head lolling, on a clock of their own.)
+            loll: Tipsy.LollPose(c.Loll, time + c.Id * 1.7, Look.Tuning.Tipsy));
         // The hat rack's (note 714): on the head, over the cap or helmet.
         if (drawn && c.Hat > 0 && HatKit.Of(Look, c.Hat) is { } hat)
             Creatures.Wear(mesh, hat, "head", m, CreatureArt.FigureOf(c.Survivor));
