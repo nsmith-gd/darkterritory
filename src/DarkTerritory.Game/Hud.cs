@@ -1032,6 +1032,16 @@ public static partial class Hud
             o.TextCentred(cx, y, crew.Text, (crew.Dead ? Red : Amber) with { W = shown }, 1);
             y += line + 4;
         }
+        // Note 939: at a burning car, what lit it, for as long as it burns (the news said it once, as it started).
+        if (FireLine(s) is { } fireLine)
+        {
+            foreach (var row in Fitted(o, fireLine, width - 32, 1))
+            {
+                Centred(row, Amber, 1, y);
+                y += line;
+            }
+            y += 4;
+        }
         if (m.Place is { } place && Shown(Since(s, m.PlaceTick), Tuning.PlaceSeconds) is > 0 and var a)
         {
             double left = place.At - s.Train.Dynamics.Distance;
