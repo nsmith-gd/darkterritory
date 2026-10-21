@@ -1216,6 +1216,8 @@ public sealed partial class GreyboxScene
     /// <summary>How long a creature flinches from a blow (s), and how far it's knocked (m) and tipped (rad) at the most.</summary>
     const double FlinchSeconds = 0.32;
     const float FlinchPush = 0.16f, FlinchTip = 0.22f;
+    // (A Waker's: about a metre and a half at his head, stood.)
+    const float WakerFlinch = 0.12f;
 
     /// <summary>
     /// A creature's flinch from the latest blow or ball to land on it (T121's hit confirm): its basis knocked back along the
@@ -1236,6 +1238,9 @@ public sealed partial class GreyboxScene
             return (Vector3.Zero, Quaternion.Identity);
         float k = (float)(age < 0.05 ? age / 0.05 : 1 - (age - 0.05) / (FlinchSeconds - 0.05));
         k *= hit.Source == Sim.Combat.HitSource.Cannon ? 2 : 1;
+        // A Waker (note 940) takes a ball as a man takes a stone: a jolt through sixty metres of him, not a stagger.
+        if (e.Kind == EnemyKind.Waker)
+            k *= WakerFlinch;
         var flat = new Vector3((float)hit.From.X, 0, (float)hit.From.Z);
         if (flat.LengthSquared() < 1e-6f)
             return (Vector3.Zero, Quaternion.Identity);

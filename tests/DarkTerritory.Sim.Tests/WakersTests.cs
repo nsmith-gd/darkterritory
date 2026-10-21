@@ -185,19 +185,108 @@ public class WakersTests
         Assert.InRange(caught, 55, 95);
     }
 
-    [Fact]
-    public void UnderTheTerminusGunsTheyStopShortAndTheCrewIsHome()
+    /// <summary>Holds the train for up to <paramref name="seconds"/>: stepped till the lead has it.</summary>
+    static bool CaughtWithin(Night n, double seconds)
     {
-        // Stood just outside the gate (clearing the train before it goes in, #322/#323): they come no closer than stopShort.
-        double gate = Frontier.Length - Tuning.Run.TerminusZone;
-        var n = new Night(front: gate - 20);
-        Assert.True(n.World.Train.RearDistance > gate - W.StopShort);
+        for (double s = 0; s < seconds && !(n.Lead?.Holds ?? false) && !n.Run.Over; s += 0.1)
+            n.Step(0.1);
+        return n.Lead?.Holds ?? false;
+    }
+
+    [Fact]
+    public void HomeThroughTheGateTheyStopShortAndTheCrewIsHome()
+    {
+        // In through the gate, the last car and all (note 940: the walls the only safety): they come no closer than stopShort.
+        var probe = new Night(front: 4000);
+        double gate = Waker.Gate(probe.World, W), length = probe.World.Train.Dynamics.Consist.LengthMetres;
+        var n = new Night(front: gate + length + 20);
+        Assert.True(n.World.Train.RearDistance > gate);
         n.Step(W.RiseSeconds + 150);
         Assert.False(n.Run.Over);
         Assert.True(n.Player.Alive);
         var lead = n.Lead!;
         Assert.False(lead.Holds);
         Assert.Equal(gate - W.StopShort, lead.LineDistance, 0.5);
+    }
+
+    /// <summary>
+    /// Note 940 (the director's playtest of 20 Oct 2026, evening, line 24: "unless I'm behind those walls fully, it should
+    /// really make a good effort to try and get me"; "it sees me 158 meters behind, and it's not coming any closer"): stood
+    /// outside the gate, inside where they used to stop, the train's still theirs.
+    /// </summary>
+    [Fact]
+    public void StoodJustShortOfTheGateTheyComeOnAndTakeIt()
+    {
+        var probe = new Night(front: 4000);
+        double gate = Waker.Gate(probe.World, W), length = probe.World.Train.Dynamics.Consist.LengthMetres;
+        var n = new Night(front: gate + length - 30);
+        Assert.True(n.World.Train.RearDistance > gate - W.StopShort && n.World.Train.RearDistance < gate);
+        Assert.True(CaughtWithin(n, W.RiseSeconds + 150), $"{n.World.Train.RearDistance - n.Lead!.LineDistance:0} m behind");
+        Assert.Equal(n.World.Train.RearDistance - W.CatchShort, n.Lead!.LineDistance, 1.5);
+        Assert.True(Waker.SecondsToShelter(n.World) > 0);
+    }
+
+    /// <summary>
+    /// Note 940 (line 26: "pick up the train while it's moving"): a train run flat out is run down, taken going, and brought to
+    /// a stand in his hands before the last car's up off the rails.
+    /// </summary>
+    [Fact]
+    public void ATrainTakenGoingIsBroughtToAStandInHisHands()
+    {
+        var n = new Night(front: 2500) { Controls = new TrainControls { Reverser = 1, Throttle = 1, Brake = 0 } };
+        Assert.True(CaughtWithin(n, W.RiseSeconds + 400));
+        double at = n.World.Train.Dynamics.Speed;
+        Assert.True(at > 5, $"taken at {at:0.0} m/s");
+        n.Step(W.ScoopFrom + 0.4 * (W.EatAfter - W.ScoopHold - W.ScoopFrom));
+        Assert.True(Math.Abs(n.World.Train.Dynamics.Speed) < 0.3, $"{n.World.Train.Dynamics.Speed:0.0} m/s, its last car on its way up");
+    }
+
+    /// <summary>
+    /// Note 940 (line 26: "I'm going straight between its legs. It does not know how to deal with me"): backed into him, the
+    /// train's his as it comes, not past him; and at the walls, a train backed out of the gate again is his too.
+    /// </summary>
+    [Fact]
+    public void BackedIntoHimOrBetweenHisLegsTheTrainIsHis()
+    {
+        var n = new Night(front: 4000);
+        n.Step(W.RiseSeconds + 5);
+        Assert.False(n.Lead!.Holds);
+        n.Controls = new TrainControls { Reverser = -1, Throttle = 1, Brake = 0 };
+        Assert.True(CaughtWithin(n, 200));
+        n.Step(3);
+        Assert.True(Math.Abs(n.World.Train.Dynamics.Speed) < 0.3, $"backing at {n.World.Train.Dynamics.Speed:0.0} m/s in his hands");
+
+        var probe = new Night(front: 4000);
+        double gate = Waker.Gate(probe.World, W), length = probe.World.Train.Dynamics.Consist.LengthMetres;
+        var walls = new Night(front: gate + length + 10);
+        walls.Step(W.RiseSeconds + 150);
+        Assert.False(walls.Lead!.Holds);
+        Assert.Equal(gate - W.StopShort, walls.Lead.LineDistance, 0.5);
+        walls.Controls = new TrainControls { Reverser = -1, Throttle = 0.5, Brake = 0 };
+        Assert.True(CaughtWithin(walls, 120), $"rear {walls.World.Train.RearDistance - walls.Lead.LineDistance:0} m from him");
+        Assert.True(walls.World.Train.RearDistance > gate - W.StopShort - 20, "taken as it came back to him, not run on past");
+    }
+
+    /// <summary>
+    /// Note 940 (line 26: "if I shoot it, will it... And nothing happens when I shoot it"): up out of the land, his body's there
+    /// for a ball to find, as tall as he is; it lands and costs him nothing.
+    /// </summary>
+    [Fact]
+    public void ShotHeIsHitAndNothingHurtsHim()
+    {
+        var n = new Night(front: 4000);
+        n.Step(W.RiseSeconds + 5);
+        var lead = n.Lead!;
+        Assert.True(lead.Exposed);
+        var body = lead.Body(n.World.Train, E).ToList();
+        Assert.NotEmpty(body);
+        Assert.True(body.Max(b => b.Position.Y + b.Radius) - n.World.Train.Line.Sample(lead.LineDistance).Position.Y > 50, "his head 50 m up and more");
+        double health = lead.Health;
+        var phase = lead.Phase;
+        lead.Struck(null!, 1, 100);
+        Assert.Equal(health, lead.Health);
+        Assert.Equal(phase, lead.Phase);
+        Assert.False(lead.Gone);
     }
 
     [Fact]
