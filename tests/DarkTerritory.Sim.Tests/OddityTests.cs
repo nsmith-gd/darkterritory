@@ -23,7 +23,10 @@ public class OddityTests
     /// <summary>Every stop with a village has its can, its postbox at a halt and a farmstead its scarecrow.</summary>
     static readonly OddityTuning Always = O with
     {
-        Can = O.Can with { Chance = 1 }, Scarecrow = O.Scarecrow with { Chance = 1 }, Postbox = O.Postbox with { Chance = 1 }, Note = O.Note with { Chance = 1 },
+        Can = O.Can with { Chance = 1 },
+        Scarecrow = O.Scarecrow with { Chance = 1 },
+        Postbox = O.Postbox with { Chance = 1 },
+        Note = O.Note with { Chance = 1 },
     };
     const double Dt = SimConstants.TickSeconds;
 
