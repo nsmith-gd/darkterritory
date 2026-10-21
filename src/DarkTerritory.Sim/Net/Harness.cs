@@ -15,6 +15,14 @@ public sealed record HarnessOptions
     /// <summary>Note 921: count what each kind of record costs on the wire (<see cref="HarnessReport.Wire"/>).</summary>
     public bool Wire { get; init; }
     /// <summary>
+    /// Note 956: the first this many of the crew talking all night, an Opus frame's worth (<see cref="TalkFrameBytes"/>) every
+    /// 20 ms through the real voice path, on the radio with <see cref="TalkRadio"/> (everyone with one hears it), else aloud.
+    /// </summary>
+    public int Talkers { get; init; }
+    public bool TalkRadio { get; init; }
+    /// <summary>One 20 ms Opus frame at the game's 24 kbit/s (ARCHITECTURE §6.3: ~60 bytes).</summary>
+    public const int TalkFrameBytes = 60;
+    /// <summary>
     /// Note 650: the last bot dies this many seconds in, 200 m back up the line (as the Holdout tests kill a player), so the
     /// night has a rescue to measure; null, nobody's killed.
     /// </summary>
@@ -179,6 +187,12 @@ public sealed record HarnessReport(int Ticks, double Seconds, string Link, doubl
     /// everything that isn't a snapshot.
     /// </summary>
     public IReadOnlyDictionary<string, double>? Wire { get; init; }
+    /// <summary>Note 956: kbit/s the host sent in all (every client's down), and with <see cref="HarnessOptions.Talkers"/>, the voice frames forwarded and heard.</summary>
+    public double HostUpKbps { get; init; }
+    public long VoiceFramesForwarded { get; init; }
+    public long VoiceFramesHeard { get; init; }
+    /// <summary>Note 956: voice frames the host didn't send a listener already hearing their fill, its upload strained.</summary>
+    public long VoiceFramesHeldBack { get; init; }
     /// <summary>What got through on the crew's voice, with <see cref="HarnessOptions.Voice"/> (note 186).</summary>
     public VoiceReport? Voice { get; init; }
     /// <summary>The jobs the train made as it ran (orchestrator.md §5.1), and how many got away from the crew; null without them.</summary>
@@ -437,6 +451,11 @@ public static class Harness
         if (calls is not null && o.Voice is { } voice)
             calls.Voice = new CrewVoice(voice, (ulong)o.Seed);
         var clients = new List<(ClientSession Session, IBot Bot, CountingTransport Transport)>();
+        var talkSequence = new ushort[Math.Max(0, o.Talkers)];
+        var talkFrame = new byte[HarnessOptions.TalkFrameBytes];
+        for (int i = 0; i < talkFrame.Length; i++)
+            talkFrame[i] = (byte)(i * 37 + 11);
+        long voiceHeard = 0;
         for (int i = 0; i < o.Bots; i++)
         {
             var transport = new CountingTransport(ClientTransport(i));
@@ -706,6 +725,20 @@ public static class Harness
                 var intent = session.Connected ? BotCrew.Think(session, bot, (uint)t, calls) : default;
                 session.Step(intent);
             }
+            // Note 956: the talkers' frames, 50 a second (5 every 3 ticks at 30), and what everyone's heard drained as a game does.
+            if (o.Talkers > 0)
+            {
+                int frames = (int)((t + 1) * 50 / SimConstants.TickRate) - (int)(t * 50 / SimConstants.TickRate);
+                for (int k = 0; k < Math.Min(o.Talkers, clients.Count); k++)
+                    if (clients[k].Session.Connected)
+                        for (int f = 0; f < frames; f++)
+                            clients[k].Session.SendVoice(talkSequence[k]++, o.TalkRadio, talkFrame);
+                foreach (var (session, _, _) in clients)
+                {
+                    voiceHeard += session.VoiceFrames.Count;
+                    session.VoiceFrames.Clear();
+                }
+            }
             // Who's got to their post, and when (T102).
             foreach (var (session, bot, _) in clients)
                 if (session.PlayerId is { } pid && !posted.ContainsKey(pid) && host.Players.FirstOrDefault(p => p.Id == pid) is { } hp && hp.State.Alive
@@ -830,6 +863,11 @@ public static class Harness
             pacing)
         {
             SnapshotsThinned = host.SnapshotsThinned,
+            // Note 956: what the host sent in all (snapshots, voice and the rest), and the voice frames that got through.
+            HostUpKbps = Math.Round(reports.Sum(r => r.BytesDown) * 8 / 1000.0 / seconds, 1),
+            VoiceFramesHeard = voiceHeard,
+            VoiceFramesForwarded = host.VoiceFramesForwarded,
+            VoiceFramesHeldBack = host.VoiceFramesHeldBack,
             Wire = host.WireTally is { } tally && reports.Count > 0
                 ? tally.OrderByDescending(t => t.Value).ToDictionary(t => t.Key.ToString(), t => Math.Round(t.Value * 8.0 / 1000 / seconds / reports.Count, 2))
                 : null,
