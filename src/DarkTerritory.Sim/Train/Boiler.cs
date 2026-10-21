@@ -23,9 +23,10 @@ public sealed record BoilerTuning(
     /// </summary>
     public double FullDemandAt { get; init; } = 0.85;
     /// <summary>
-    /// The blower at a stand (the director, 21 Oct, note 969): the fire's draft while the engine stands, as a fraction of
-    /// working draft. Standing is the only time it applies (<see cref="Boiler.Step"/>'s throttle and speed both nil), so the
-    /// burn and endurance table under way (spec B.6) is untouched; it sets how fast a stopped engine rebuilds (spec C.2).
+    /// The blower at a stand (the director, 21 Oct, note 969): the fire's draft while the engine stands with the gauge under the
+    /// working band and the vent shut, raising steam, as a fraction of working draft. Only then (<see cref="Boiler.Step"/>'s standing, and below
+    /// <see cref="WorkingBandMin"/>), so the burn and endurance table under way (spec B.6) and a stand with steam up are as
+    /// they were; it sets how fast a stopped engine rebuilds (spec C.2).
     /// Null: <see cref="IdleDraft"/>, as before.
     /// </summary>
     public double? StandingDraft { get; init; }
@@ -227,7 +228,8 @@ public struct Boiler
 
     /// <returns>True on the tick the boiler ruptures.</returns>
     /// <param name="speedFraction">The engine's speed over top speed (steam driving draws with it).</param>
-    public bool Step(BoilerTuning t, double dt, double throttle, int cars, double speedFraction = 0)
+    /// <param name="standing">The engine stands (note 969): below the working band, the blower draws the fire (<see cref="BoilerTuning.StandingDraft"/>).</param>
+    public bool Step(BoilerTuning t, double dt, double throttle, int cars, double speedFraction = 0, bool standing = false)
     {
         if (Ruptured)
         {
@@ -238,7 +240,10 @@ public struct Boiler
 
         // With steam driving (T97) the exhaust draws the fire as hard as the cylinders are working: with effort, or speed.
         double draw = t.SteamDrive ? Math.Max(Math.Clamp(throttle, 0, 1), Math.Clamp(speedFraction / t.FullDemandAt, 0, 1)) : throttle;
-        double burn = Math.Min(BurnRate(t, draw, standing: draw <= 0 && speedFraction <= 0) * dt, Firebox);
+        // Note 969: the blower only raises steam: standing, under the working band, the vent shut. Otherwise the standing fire
+        // burns at idleDraft as it always has, so what a stand does with steam up or let go (a Stoker feeding it, the hot tub,
+        // the stop's winch, a steam lift wound off the vent) is as it was.
+        double burn = Math.Min(BurnRate(t, draw, standing: standing && !Venting && Pressure < t.WorkingBandMin) * dt, Firebox);
         Firebox -= burn;
         // Note 903: under way, the fresh coal catches, then flares in the exhaust's draw: every shovelful answers within a few
         // seconds. Standing, with no exhaust to draw it, it settles into the bed like the rest (so C.2's slow rebuild at a stop

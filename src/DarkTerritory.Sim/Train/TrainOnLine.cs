@@ -743,9 +743,10 @@ public sealed class TrainOnLine
                     {
                         // No regulator (T97): the engine pulls as hard as it takes to make the speed its steam allows.
                         effective.Throttle = Math.Clamp((Boiler.SteamSpeed(bt, rake.Tuning.MaxSpeed) - rake.Speed) / bt.DriveSpeedBand, 0, 1);
-                        // Standing (under 0.05 m/s), it isn't working: no exhaust beats to draw the fire (the blower does, standingDraft), no
-                        // steam through the cylinders.
-                        RupturedThisTick = !HeldInYard && Boiler.Step(bt, dt, rake.Speed < 0.05 ? 0 : effective.Throttle, rake.Consist.CarCount, rake.Speed < 0.05 ? 0 : rake.Speed / rake.Tuning.MaxSpeed);
+                        // Standing (under 0.05 m/s), it isn't working: no exhaust beats to draw the fire, no steam through the cylinders.
+                        // Raising steam there, the blower draws it (boiler.json standingDraft, note 969).
+                        RupturedThisTick = !HeldInYard && Boiler.Step(bt, dt, rake.Speed < 0.05 ? 0 : effective.Throttle, rake.Consist.CarCount, rake.Speed / rake.Tuning.MaxSpeed,
+                            standing: rake.Speed < 0.05);
                     }
                     else
                     {
