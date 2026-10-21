@@ -4158,8 +4158,14 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         // cab is on the ground; from a car's deck it went nowhere, and a crew of one stood there while the fire died (note 300).
         if (self.Parent > 0 && (OffTheCar(self, train, self.Position.X < 0 ? -1 : 1, shutBehind: true) ?? GetDown(self, train, self.Position.X < 0 ? -1 : 1)) is { } off)
             return off;
-        return IntoCab(self, train, self.LineHint >= 0 && self.Parent == PlayerState.World ? Side(train, self.Position, self.LineHint) : 1);
+        // #613: the side it's on of the engine itself, whose steps it's going to. Reckoned against the main line, down a stop's
+        // spur that was as often the far side: frontier:2's lone driver, back from Oldcastle Wreck Yard's crates for its fire,
+        // stood 7 m short of the cab beside car 1, walking for the steps across the train, from 404 s till the dawn.
+        return IntoCab(self, train, self.Parent == PlayerState.World ? EngineSide(train, self.Position) : 1);
     }
+
+    /// <summary>Which side of the engine a point on the ground is (+1 right, as its cab's steps are numbered).</summary>
+    static int EngineSide(TrainOnLine train, Double3 at) => train.Frames[0].ToLocal(at).X >= 0 ? 1 : -1;
 
     /// <summary>Which side of the main line a point on the ground is (+1 right).</summary>
     static int Side(TrainOnLine train, Double3 at, double lineHint)
