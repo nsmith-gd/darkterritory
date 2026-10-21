@@ -1369,6 +1369,13 @@ public sealed class Director
 
     double _signIn = -1;
     int _signTurn;
+    /// <summary>Dread at the stops (#646, note 944): this outing's seconds afoot, the seconds since anyone was, its threat sent.</summary>
+    double _outing, _ashore;
+    bool _dreadSent;
+    /// <summary>This outing's seconds afoot (#646, note 944): what dread at the stops goes by.</summary>
+    public double OutingSeconds => _outing;
+    /// <summary>The real threats dread at the stops brought due tonight (#646, note 944).</summary>
+    public int DreadThreats { get; private set; }
     Pcg32 _signRng;
     bool _signSeeded;
 
@@ -1405,19 +1412,33 @@ public sealed class Director
             if (FromTrain(train, at) > a.FromTrainM && !world.InFort(at))
                 afoot.Add((id, at));
         }
+        var dread = a.Dread;
         if (afoot.Count == 0)
         {
             _signIn = -1;
+            // Back aboard long enough, the outing's over: the next one starts safe again.
+            if ((_ashore += 1) >= dread.ForgetSeconds)
+                (_outing, _dreadSent) = (0, false);
             return null;
         }
+        _ashore = 0;
+        _outing += 1;
         AfootShare = (double)afoot.Count / Math.Max(1, alive);
         AfootSeconds += afoot.Count;
+        // Dread at the stops (#646, note 944): out long enough, a real threat is due, once an outing. Not a spawn of its own:
+        // the encounter clock is brought up to due, and the director's channels send what they would, under their caps.
+        if (dread.On && !_dreadSent && Dread.At(_outing, dread) == Dread.Stage.Threat)
+        {
+            _dreadSent = true;
+            DreadThreats++;
+            _clock = _clock with { Due = Math.Max(_clock.Due, _clock.Threshold) };
+        }
         // The first sign soon after someone steps off; then every so often while anyone's out.
         if (_signIn < 0)
             _signIn = a.FirstSign;
         if ((_signIn -= 1) > 0)
             return null;
-        _signIn = _signRng.Range(a.SignEvery[0], a.SignEvery[1]);
+        _signIn = _signRng.Range(a.SignEvery[0], a.SignEvery[1]) * (dread.On ? Dread.SignEvery(_outing, dread) : 1);
         var (who, from) = afoot[_signTurn++ % afoot.Count];
         // The sites of what lives here, in reach of them, of what the night could send: the nearest.
         // Each kind's nearest site in reach; one kind drawn from them, so a village with a warren, a roost and a child's call
@@ -1469,7 +1490,9 @@ public sealed class Director
         double turn = _signRng.Range(-a.SignSpread, a.SignSpread);
         // At the lamp's edge, or at the site's edge if that's nearer: outside a roost or a warren, never in it (a Gaunt's roost is
         // a house the art draws whether or not the sim walls it).
-        double out_ = Math.Min(_signRng.Range(a.SignOut[0], a.SignOut[1]), site is null ? double.MaxValue : best - edge - 1);
+        // Dread (#646): nearer the longer the outing, close by from the scare.
+        double out_ = Math.Min(_signRng.Range(a.SignOut[0], a.SignOut[1]) * (dread.On ? Dread.SignOut(_outing, dread) : 1),
+            site is null ? double.MaxValue : best - edge - 1);
         // Seen, not through a wall: the bearing drawn, then others across the spread, the first with a clear line out that far
         // past the stop's walls; with none, the drawn one, as far as its first wall (something at the corner of a house).
         Double3 spot = default;
@@ -1485,7 +1508,7 @@ public sealed class Director
         }
         out_ = clearest;
         // Walled in close all round: nothing's seen this time (eyes a step away would be a lie).
-        if (out_ < a.SignOut[0] * 0.5)
+        if (out_ < a.SignOut[0] * 0.5 * (dread.On ? Dread.SignOut(_outing, dread) : 1))
             return null;
         double gh = train.Dynamics.Distance;
         spot = spot with { Y = PlayerMotor.GroundAt(spot, train.Line, ref gh) + a.SignHeight.GetValueOrDefault(Key(what), a.SignHeightDefault) };

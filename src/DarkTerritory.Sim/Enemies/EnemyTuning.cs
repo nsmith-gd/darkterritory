@@ -1078,6 +1078,8 @@ public sealed record AfootTuning
     /// <summary>Eye height off the ground, by the creature's tuning name (default <see cref="SignHeightDefault"/>).</summary>
     public Dictionary<string, double> SignHeight { get; init; } = new();
     public double SignHeightDefault { get; init; } = 0.7;
+    /// <summary>Dread at the stops (#646, note 944): enemies.json director.afoot.dread.</summary>
+    public DreadTuning Dread { get; init; } = new();
 }
 
 /// <summary>
