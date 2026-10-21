@@ -1285,6 +1285,12 @@ public sealed partial class HostSession
     /// which keeps it past the farthest audible tell. 0 (no enemies) sends everything.
     /// </summary>
     public double InterestRadius { get; set; }
+
+    /// <summary>
+    /// Note 921: when set, the bytes each kind of record took in the snapshots actually sent (a budgeted one's last write),
+    /// added to as they go; for <c>dt harness --wire</c>. Counting only: nothing sent changes.
+    /// </summary>
+    public Dictionary<RecordKind, long>? WireTally { get; set; }
     public long RecordsSkipped { get; private set; }
 
     void Broadcast(List<WireRecord> records)
@@ -1311,6 +1317,12 @@ public sealed partial class HostSession
             {
                 mine = Budget(mine, baseline, c, baseTick);
                 SnapshotsBudgeted++;
+            }
+            // The tally counts what goes out: written once more into the scratch writer only when asked for.
+            if (WireTally is { } tally)
+            {
+                _tallyWriter ??= new NetWriter();
+                Messages.WriteSnapshot(_tallyWriter, Tick, c.LastApplied, baseTick, mine, baseline, c.Pending.Count, 0, tally);
             }
             c.Sent[Tick] = mine;
             c.Sent.Remove(Tick - HistoryTicks);
@@ -1376,6 +1388,7 @@ public sealed partial class HostSession
     }
 
     readonly HashSet<uint> _far = new();
+    NetWriter? _tallyWriter;
 
     /// <summary>
     /// Whose eyes and ears a client has (GDD App. D.10): their own, or, dead or waiting to board, the living crewmate they

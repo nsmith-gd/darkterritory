@@ -129,9 +129,10 @@ public static class Protocol
     // 81: the flare pistol (note 871): the body kinds FlarePistol (24, its flares left in the ninth field) and Flare (25, its
     //     burn left, 0..1, there).
     // 82: a shovelful answers (note 903): the boiler record gains its green and catching coal (fields 8 and 9).
-    // 83: the ping read for what's pointed at (note 936): PingKind gains Points (6) and Cargo (7); the ping record's eighth
+    // 83: a record of any length goes as a delta (note 921): a mask word for each 64 fields, where only 64 or fewer could.
+    // 84: the ping read for what's pointed at (note 936): PingKind gains Points (6) and Cargo (7); the ping record's eighth
     //     field is who answered it (−1: nobody); the intent's moves bit 6 (Answer) says a ping's id follows (three bytes).
-    public const int Version = 83;
+    public const int Version = 84;
 }
 
 public enum MessageType : byte
@@ -430,8 +431,9 @@ public static class Messages
 
     /// <param name="queued">Inputs from this client the host still holds beyond the one it applied (note 532; at most 255).</param>
     /// <param name="flags"><see cref="SnapshotThinned"/> and any later ones (note 557).</param>
+    /// <param name="tally">Note 921: the bytes each kind of record took, added to (null: not counted).</param>
     public static void WriteSnapshot(NetWriter w, uint tick, uint ackedInput, uint baselineTick, IReadOnlyList<WireRecord> records, IReadOnlyList<WireRecord>? baseline,
-        int queued = 0, byte flags = 0)
+        int queued = 0, byte flags = 0, Dictionary<RecordKind, long>? tally = null)
     {
         w.Reset();
         w.U8((byte)MessageType.Snapshot);
@@ -440,7 +442,7 @@ public static class Messages
         w.U32(baselineTick);
         w.U8((byte)Math.Clamp(queued, 0, 255));
         w.U8(flags);
-        WorldRecords.WriteDelta(w, records, baseline);
+        WorldRecords.WriteDelta(w, records, baseline, tally);
     }
 
     /// <param name="session">What a joining machine needs to build the same world (route, cars...), opaque to the sim.</param>

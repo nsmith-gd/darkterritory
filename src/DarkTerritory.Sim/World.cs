@@ -2815,7 +2815,7 @@ public sealed partial class World
         else
             StokerBreakSeconds = Math.Max(0, StokerBreakSeconds - SimConstants.TickSeconds);
         // How long the train's run at the Gannet's speed (note 340): its arrival rule.
-        FastSeconds = Train.Dynamics.Speed >= t.Gannet.ArriveAbove ? FastSeconds + SimConstants.TickSeconds : 0;
+        FastSeconds = Train.Dynamics.Speed >= t.Gannet.Arrive ? FastSeconds + SimConstants.TickSeconds : 0;
         _hotFor = Train.BoilerTuning is not null && !Train.Boiler.Ruptured && !stokerIn && StokerBreakSeconds <= 0 && !SafeYard
             && Train.Boiler.Firebox >= t.Stoker.HeatFirebox ? _hotFor + SimConstants.TickSeconds : 0;
         // The director thinks once a second; the Stoker comes whenever its condition holds, charged when it does (App. B.5).
@@ -3076,7 +3076,7 @@ public sealed partial class World
     /// <summary>The marsh (its start) the Drift last came up over: once a marsh.</summary>
     double _driftMarsh = double.NaN;
 
-    /// <summary>Seconds the train's run at or over the Gannet's <see cref="GannetTuning.ArriveAbove"/> without a break (note 340).</summary>
+    /// <summary>Seconds the train's run at or over the Gannet's <see cref="GannetTuning.Arrive"/> without a break (note 340).</summary>
     public double FastSeconds { get; private set; }
 
     readonly Sim.Enemies.Mourning _mourning = new();
