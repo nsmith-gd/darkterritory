@@ -123,11 +123,15 @@ public static partial class Staging
         var centre = plan.Fixtures[0];
         var board = plan.Fixtures.First(f => f.Kind == "board");
         var hall = plan.Buildings.First(b => b.Kind == "hall");
+        // Inside the town's gate, looking out at it (note 963, `--town gatein --clock 60`): the restless stood at it looking out
+        // down the line, a watcher at the wall beside it, on their slot away from their posts.
+        if (where == "gatein" && plan.Bounds is { } walls)
+            return Ballast.Render.Camera.LookAt(town.World(walls.Gate - 24, -side * 10, 4), town.World(walls.Gate - 2, 0, 1.4), 64);
         // A house from out in front of it, along its street a way (note 608): "fires", the first a creature brought in tonight
-        // sets alight (`--arrival fires --patrol`); "burnt", the nearest the gate of a town's burnt houses, come back to.
+        // sets alight (`--arrival fires --patrol`); "burnt", the nearest the train of a town's burnt houses, come back to (note 966).
         if (where is "fires" or "burnt"
             && (where == "fires" ? Sim.Towns.TownGenerator.Harmed(plan, 1).FirstOrDefault()
-                : plan.Houses.Where(h => h.Kind == Sim.Towns.HouseKind.Burnt).OrderBy(h => Math.Abs(h.S - plan.Gate)).ThenBy(h => h.Id).FirstOrDefault()) is { } house)
+                : plan.Houses.Where(h => h.Kind == Sim.Towns.HouseKind.Burnt).OrderBy(h => Sim.Towns.TownGenerator.FromWayIn(plan, h)).ThenBy(h => h.Id).FirstOrDefault()) is { } house)
         {
             var (fs, fd) = house.Rail(0, 0);
             var front = town.World(fs, fd);

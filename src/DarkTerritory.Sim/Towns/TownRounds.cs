@@ -207,6 +207,14 @@ public static class TownRounds
         }
         // Never off the end of a stage into the water (note 841: a Flooder town's lamp-carriers walk its stages).
         bool Dry(double s, double d) => town.Ground.Water(s, d) is not { } w || w - town.Ground.Level(s, d) <= TownGround.Wade;
+        // Their temperament's pull first (note 963): the restless out at the gate looking down the line, a watcher at the wall
+        // (a guard too: off their beat to the wall), a mender at the lamp garden, a mourner at the names, a comforter at the
+        // fire; else as anyone does. The gatekeeper and the porter keep their posts.
+        if (p.Role is not ("gatekeeper" or "porter") && p.Personality is { } who && t.Temperaments.TryGetValue(who.Temperament, out var pull)
+            && rng.Chance(pull.Chance))
+            foreach (var to in pull.To.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+                if (Drawn(to, ref rng) is { } drawn)
+                    return drawn;
         switch (p.Role)
         {
             // The gate's people and the porter on the platform keep to their post, pacing it.
@@ -239,6 +247,67 @@ public static class TownRounds
         }
         return Talk(ref rng);
 
+        // Where a temperament takes them (note 963), if there's room for it and a clear way there within a walk.
+        RoundStop? Drawn(string to, ref Pcg32 rng)
+        {
+            if (to == "talk")
+                return Talk(ref rng);
+            if (to is "gate" or "wall")
+                return Out(to == "gate");
+            // Down their street to a lamp, seeing to it (note 963: "a mender at the lamps"), as the lampman walks the line's.
+            if (to == "lamps")
+            {
+                double by = rng.Range(t.Street[0], t.Street[1]) * (rng.Chance(0.5) ? 1 : -1);
+                return Along(by, "mend") ?? Along(-by, "mend");
+            }
+            foreach (var place in Shuffled(places, ref rng))
+            {
+                if (taken.Contains(place.Key) || !place.Key.StartsWith(to, StringComparison.Ordinal) && place.Act != to)
+                    continue;
+                var goal = place.Approach ?? (place.S, place.D);
+                var there = town.World(goal.S, goal.D, p.Up);
+                if ((there - at).Length > Reach || !Room(town.World(place.S, place.D, p.Up)) || !town.Free(there) || !town.Clear(at, there))
+                    continue;
+                taken.Add(place.Key);
+                return new RoundStop(place.S, place.D, place.FaceS, place.FaceD, place.Act, place.Approach is { } step ? [step] : []);
+            }
+            return null;
+        }
+
+        // Stood inside the wall looking out over it: at the gate (looking out down the line), or at the nearest stretch of
+        // wall, a little in from it, a few places along it tried.
+        RoundStop? Out(bool gate)
+        {
+            if (town.Plan.Bounds is not { } b)
+                return null;
+            var spots = new List<(double S, double D, double FaceS, double FaceD)>();
+            if (gate)
+                foreach (int side in (int[])[1, -1])
+                    spots.Add((b.Gate - WallIn, side * GateAside, 1, 0));
+            else
+            {
+                double s = Math.Clamp(p.S, b.Rear + WallIn, b.Gate - WallIn), d = Math.Clamp(p.D, -b.Left + WallIn, b.Right - WallIn);
+                var walls = new List<(double Gap, double S, double D, double FaceS, double FaceD)>
+                {
+                    (p.D + b.Left, s, -b.Left + WallIn, 0, -1), (b.Right - p.D, s, b.Right - WallIn, 0, 1),
+                    (b.Gate - p.S, b.Gate - WallIn, d, 1, 0), (p.S - b.Rear, b.Rear + WallIn, d, -1, 0),
+                };
+                foreach (var w in walls.OrderBy(w => w.Gap))
+                    foreach (double by in (double[])[0, 6, -6, 12, -12])
+                        spots.Add(w.FaceS != 0 ? (w.S, w.D + by, w.FaceS, w.FaceD) : (w.S + by, w.D, w.FaceS, w.FaceD));
+            }
+            foreach (var (s, d, fs, fd) in spots)
+            {
+                var there = town.World(s, d, p.Up);
+                string key = $"wall{Math.Round(s)}.{Math.Round(d)}";
+                if (taken.Contains(key) || !b.Holds(s, d) || (there - at).Length > Reach || !Room(there) || !town.Free(there) || !town.Clear(at, there))
+                    continue;
+                taken.Add(key);
+                return new RoundStop(s, d, fs, fd, "idle", []);
+            }
+            return null;
+        }
+
         RoundStop? Talk(ref Pcg32 rng)
         {
             foreach (var other in Shuffled(atPosts, ref rng))
@@ -256,6 +325,10 @@ public static class TownRounds
             return null;
         }
     }
+
+    // Note 963: how far a temperament takes somebody on a slot (m, as far as the square's places), how far in from a wall they
+    // stand to look over it, and how far off the line at the gate. Not design numbers: where people stand.
+    const double Reach = 40, WallIn = 2.5, GateAside = 4.5;
 
     /// <summary><paramref name="items"/> in an order drawn from <paramref name="rng"/> (Fisher–Yates).</summary>
     static List<T> Shuffled<T>(IReadOnlyList<T> items, ref Pcg32 rng)
