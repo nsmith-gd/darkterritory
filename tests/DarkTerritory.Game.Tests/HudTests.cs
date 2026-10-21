@@ -162,6 +162,25 @@ public class HudTests
     }
 
     [Fact]
+    public void AtTheCabsDoorwayTheCornerOffersTheLeanAndNotOnceLeant()
+    {
+        // Note 977 (the director, 14 Oct playtest line 9: a brake thrown looking down the side, to spot a car): the lean out
+        // of the cab's doorway keeps the brake, so the corner says it's there; at the controls, away from the doorway, not.
+        var s = new PrototypeSession(Content, "test-loop", 4);
+        s.Player = PlayerMotor.SpawnInCab(s.Train, s.PlayerTuning);
+        Assert.DoesNotContain("LEAN OUT : HOLD [J]", Hud.Hints(s).Lines);
+        var engine = s.Train.Frames[0].Shape;
+        var cab = engine.Cab!.Value;
+        var steps = engine.Ladders.First(l => l.Foot.X > 0);
+        s.Player = PlayerMotor.StandUp(s.Train, 0, new Double3(cab.Max.X - 0.35, cab.Min.Y + 0.1, steps.Foot.Z), s.Train.Cars[0].FrontDistance, s.PlayerTuning) with { Yaw = -1.2 };
+        var lines = Hud.Hints(s).Lines;
+        Assert.Contains("LEAN OUT : HOLD [J]", lines);
+        Assert.Contains(lines, l => l.Contains("BRAKE"));
+        s.World.Emotes.Add(new EmoteEvent(1, s.World.Tick, ((IPlaySession)s).PlayerId, Emote.LeanOut));
+        Assert.DoesNotContain("LEAN OUT : HOLD [J]", Hud.Hints(s).Lines);
+    }
+
+    [Fact]
     public void TheCabSaysTheCordTheVentAndTheBrakeAndLittleElse()
     {
         // Note 267 (the director's notes on build 1121): the whistle cord, looked at, says to pull it (note 285: "PULL CORD :

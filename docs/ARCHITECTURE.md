@@ -1129,4 +1129,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [971. Households that argue, and lines that change once the custom's been told (Cole, queue #671)](notes/971.md)
 - [972. The clerk's tally of the silly upgrades (Hazel, queue #672)](notes/972.md)
 - [974. The dining car modelled (C1, queue #674; the art pass over #656's greybox, note 959)](notes/974.md)
+- [977. A brake thrown leant out of the cab's doorway (A1, queue #677; the director, 14 Oct, `docs/playtest/2026-10-14.md` line 9)](notes/977.md)
 <!-- end of the notes index -->
