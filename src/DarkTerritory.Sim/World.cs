@@ -206,6 +206,8 @@ public sealed partial class World
     public int BendsSpared { get; set; }
     /// <summary>Host: the fires a boarded hound pack has set (note 269's; counted for the burns' report, note 437).</summary>
     public int PackFires { get; set; }
+    /// <summary>Host (note 939): how many fires each car (by index) has had tonight, for the relight told.</summary>
+    readonly SortedDictionary<int, int> _firesIn = [];
     /// <summary>Host: how long the cab's dead-end warning has been up (<see cref="Sim.Train.DeadEnds"/>, note 286).</summary>
     public double DeadEndWarnSeconds { get; set; }
     /// <summary>Host: buffers hit over the limit before the warning had been up its lead (the buffer stop's damage alone; should be 0).</summary>
@@ -1942,6 +1944,17 @@ public sealed partial class World
                 HoldControls(-1, false);
         }
         if (intent.Moves.HasFlag(PlayerMoves.Ping)) _pingWas.Add(playerId); else _pingWas.Remove(playerId);
+        // Note 936 (the director, 20 Oct: "Oh, an abandoned house? Sure, I'll go search it"): a crewmate answering a ping, on it.
+        // The first to answer has it ("DUNMORE: SEARCHING THE HOUSE"), and it's kept on while they say they're still at it.
+        if (Hosting && intent.Has(PlayerMoves.Answer) && intent.Answer > 0 && s.Alive)
+        {
+            int k = Pings.FindIndex(p => p.Id == intent.Answer && p.By != playerId && (p.Taker < 0 || p.Taker == playerId));
+            if (k >= 0)
+            {
+                Pings[k] = Pings[k] with { Taker = playerId };
+                _pingAnswered[Pings[k].Id] = Tick;
+            }
+        }
         // A lamp signal (note 720): given with a hand lamp in the fist, seen by the crew. Not while held, not on top of the last.
         if (Hosting && intent.Signal != LampSignal.None && s.Alive && !s.Has(PlayerFlags.Held)
             && Bodies.CarriedBy(playerId) is { Kind: Physics.BodyKind.Lamp, Stashed: false }
@@ -2045,6 +2058,8 @@ public sealed partial class World
     }
     // Who had the ping held last tick (note 739): a ping's made on the press.
     readonly HashSet<int> _pingWas = new();
+    /// <summary>Note 936: the tick each answered ping was last answered, by its id (the host's).</summary>
+    readonly Dictionary<int, uint> _pingAnswered = new();
 
     /// <summary>
     /// A tool's swing (App. C.2): the nearest thing in front within reach that can be struck takes a blow. The host decides,
@@ -2125,7 +2140,11 @@ public sealed partial class World
             Hits.RemoveAll(h => Tick - h.Tick > keep.KeepSeconds * SimConstants.TickRate);
             Swings.RemoveAll(w => Tick - w.Tick > keep.KeepSeconds * SimConstants.TickRate);
             Emotes.RemoveAll(e => !EmoteTuning.Lasts(e, Tick));
-            Pings.RemoveAll(e => Tick - e.Tick > PingTuning.Seconds * SimConstants.TickRate);
+            // (Note 936: one answered stays while its taker's at it, and pings.seconds after.)
+            Pings.RemoveAll(e => Tick - Math.Max(e.Tick, _pingAnswered.GetValueOrDefault(e.Id)) > PingTuning.Seconds * SimConstants.TickRate);
+            if (_pingAnswered.Count > Pings.Count)
+                foreach (int gone in _pingAnswered.Keys.Where(id => !Pings.Exists(p => p.Id == id)).ToList())
+                    _pingAnswered.Remove(gone);
             Signals.RemoveAll(e => Tick - e.Tick > VoicesTuning.LampSignals.Seconds * SimConstants.TickRate);
             Impacts.RemoveAll(i => Tick - i.Tick > keep.ImpactKeepSeconds * SimConstants.TickRate);
             News.RemoveAll(e => Tick - e.Tick > NewsTuning.Seconds * SimConstants.TickRate);
@@ -2261,7 +2280,12 @@ public sealed partial class World
         };
         string action = fire.Cause == Sim.Enemies.FireCause.Jumped ? $"From car {fire.From}." : fire.Action;
         Attribution.Add(Sim.Run.IncidentLog.Event(this, Sim.Run.IncidentKind.Fire, what, fire.Actor, action, car));
-        var news = new Sim.Run.NewsEvent(_nextFx, Tick, Sim.Run.NewsKind.Fire, [car], (byte)fire.Cause, (byte)Math.Clamp(fire.From, 0, 255), fire.Actor, 0);
+        // Note 939 (the director's playtest of 20 Oct evening, line 9: "how does this keep relighting?"): a car alight again
+        // tonight says so, with what lit it this time, in the news and on the fire for as long as it burns.
+        int before = _firesIn.GetValueOrDefault(car);
+        _firesIn[car] = before + 1;
+        fire.Again = before;
+        var news = new Sim.Run.NewsEvent(_nextFx, Tick, Sim.Run.NewsKind.Fire, [car], (byte)fire.Cause, Sim.Run.News.FireDetail(fire), fire.Actor, 0);
         NewsLog.Add(news);
         News.Add(news);
         _nextFx = _nextFx % 0xFFFFFF + 1;
@@ -2798,7 +2822,7 @@ public sealed partial class World
         else
             StokerBreakSeconds = Math.Max(0, StokerBreakSeconds - SimConstants.TickSeconds);
         // How long the train's run at the Gannet's speed (note 340): its arrival rule.
-        FastSeconds = Train.Dynamics.Speed >= t.Gannet.ArriveAbove ? FastSeconds + SimConstants.TickSeconds : 0;
+        FastSeconds = Train.Dynamics.Speed >= t.Gannet.Arrive ? FastSeconds + SimConstants.TickSeconds : 0;
         _hotFor = Train.BoilerTuning is not null && !Train.Boiler.Ruptured && !stokerIn && StokerBreakSeconds <= 0 && !SafeYard
             && Train.Boiler.Firebox >= t.Stoker.HeatFirebox ? _hotFor + SimConstants.TickSeconds : 0;
         // The director thinks once a second; the Stoker comes whenever its condition holds, charged when it does (App. B.5).
@@ -3059,7 +3083,7 @@ public sealed partial class World
     /// <summary>The marsh (its start) the Drift last came up over: once a marsh.</summary>
     double _driftMarsh = double.NaN;
 
-    /// <summary>Seconds the train's run at or over the Gannet's <see cref="GannetTuning.ArriveAbove"/> without a break (note 340).</summary>
+    /// <summary>Seconds the train's run at or over the Gannet's <see cref="GannetTuning.Arrive"/> without a break (note 340).</summary>
     public double FastSeconds { get; private set; }
 
     readonly Sim.Enemies.Mourning _mourning = new();

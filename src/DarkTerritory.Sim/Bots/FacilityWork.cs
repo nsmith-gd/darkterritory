@@ -46,15 +46,16 @@ public sealed record FacilityWorkReport(string Facility, bool Departed, double S
 /// </summary>
 public static class FacilityWork
 {
+    /// <param name="from">How far short of the spur's points it starts (m).</param>
     public static FacilityWorkReport Run(Route.Route route, int facility, TrainTuning t, PlayerTuning p, BoilerTuning? boiler, RunTuning run,
         FacilityTuning facilities, JunctionTuning junctions, int cars = 8, int hands = 2, double seconds = 1500, double yardLength = 600,
-        bool stock = false)
+        bool stock = false, double from = 600)
     {
         var features = route.Of(FeatureKind.Facility).ToList();
         var line = route.Build();
         var spur = line.Branches.First(b => b.Kind == BranchKind.Spur && features[facility].Contains(b.Toe));
         var calls = new CrewCalls();
-        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(t, cars, run.DepartureLoad)), line, spur.Toe - 600, boiler);
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(t, cars, run.DepartureLoad)), line, spur.Toe - from, boiler);
         var world = new World(train);
         world.EnableBodies();
         world.EnableSwitches(junctions);

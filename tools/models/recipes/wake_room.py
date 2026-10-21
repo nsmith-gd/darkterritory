@@ -174,8 +174,54 @@ for i, dx in enumerate((-0.72, 0.72)):
     bier.append(cook.cube((bx + dx, by, top - 0.07), (0.04, 0.3, 0.03), f"bar_{i}"))
 # Her, lengthwise along the bier (the scan's head end is its -Y: turned so she lies along the room's X).
 cook.transform([body], Matrix.Rotation(math.pi / 2, 4, "Z"))
+
+
+def underside(o, bins=24):
+    """Her lowest point in each slice along her length: (x, z) pairs."""
+    p = np.array([o.matrix_world @ v.co for v in o.data.vertices])
+    edges = np.linspace(p[:, 0].min(), p[:, 0].max(), bins + 1)
+    return np.array([(0.5 * (a + b), p[(p[:, 0] >= a) & (p[:, 0] <= b), 2].min()) for a, b in zip(edges, edges[1:])
+                     if ((p[:, 0] >= a) & (p[:, 0] <= b)).any()]), float(p[:, 0].mean())
+
+
+# Laid as a stone body lies (note 941; the director, 20 Oct: "a statue on a table, but it's like floating above the
+# table"): set down on her one lowest point, her feet (where the plinth was cut) touched the planks and the rest of her
+# hung over them, her hips 0.1 m up and her head 0.3. Now she's turned (about the bier's width) onto the edge of her
+# underside's lower hull that's under her middle, as she'd settle, so her hips and her heels bear on the planks; her
+# head, bowed as the statue stood, is on a folded blanket.
+u, mid = underside(body)
+hull = []
+for q in u[np.argsort(u[:, 0])]:
+    while len(hull) >= 2 and np.cross(hull[-1] - hull[-2], q - hull[-2]) <= 0:
+        hull.pop()
+    hull.append(q)
+support = next(((a, b) for a, b in zip(hull, hull[1:]) if a[0] <= mid <= b[0]), (hull[0], hull[-1]))
+slope = (support[1][1] - support[0][1]) / (support[1][0] - support[0][0])
+cook.transform([body], Matrix.Rotation(math.atan(slope), 4, "Y"))
 blo, bhi = cook.bounds([body])
 cook.move([body], (bx - (blo.x + bhi.x) / 2, by - (blo.y + bhi.y) / 2, top - blo.z - 0.01))
+u, mid = underside(body)
+gap = u[:, 1] - top
+# The blanket: under the end of her that's off the planks, as high as she's off them there, folded to a pad.
+head = u[:, 0] < mid if gap[u[:, 0] < mid].max() > gap[u[:, 0] >= mid].max() else u[:, 0] >= mid
+off = head & (gap > 0.03)
+# Only the one run of slices round where she's highest: never across a slice she lies on.
+peak = int(np.argmax(np.where(head, gap, -1)))
+for i in range(len(off)):
+    if off[i] and any(not off[j] for j in range(min(i, peak), max(i, peak) + 1)):
+        off[i] = False
+cloth = []
+if off.any():
+    # Within the slices she's off the planks in (half a slice in from their ends), as high as the least of them.
+    step = u[1, 0] - u[0, 0]
+    x0, x1 = u[off, 0].min() - 0.5 * step, u[off, 0].max() + 0.5 * step
+    pad = max(float(gap[off].min()), 0.02)
+    blanket = cook.cube(((x0 + x1) / 2, by, top + pad / 2), ((x1 - x0) / 2, 0.2, pad / 2), "blanket")
+    blanket.data.materials.append(cook.library_material("wool", 0.02))
+    cook.box_uv([blanket])
+    cloth.append(blanket)
+print(f"[dt] wake: her underside over the planks {gap.min():.3f}-{np.median(gap):.3f} m (median); head end "
+      f"{gap[head].max():.3f}, on a blanket {pad if off.any() else 0:.3f} thick")
 
 # Joists across where the ceiling was, in the same timber: one the lamp still hangs from, one come down at an angle.
 joists = []
@@ -198,7 +244,7 @@ for o in rest:
         CREPE.add(mat(o))
 
 # Turned so the open side faces the model's front (+Y), centred on the room.
-everything = [o for o in parts + shell + [body] + bier + joists + lights if o.data.polygons]
+everything = [o for o in parts + shell + [body] + bier + cloth + joists + lights if o.data.polygons]
 R = Matrix.Rotation(math.pi, 4, "Z") @ Matrix.Translation(Vector((0, -depth / 2, 0)))
 cook.transform(everything, R)
 lamp_at = R @ lamp_at

@@ -72,17 +72,24 @@ At dawn, `count` Wakers rise (by tier: 1 on the Frontier, 2 on the Dead Lines, 3
 
 ## 4. Racing in: the walls
 
-A train whose engine has crossed the town's gate (`Run.Tuning.TerminusZone`) is in. The Wakers stop `stopShort` metres
-out and stand there, roaring, while the town's guns fire at them. That's the picture the crew rolls in under. A train
-stopped short of the gate to clear its cars (#322, #323) is still out, and the clock's still running.
+A train whose last car is in through the town's gate is in (note 940; the director, 20 Oct 2026: "unless I'm behind those
+walls fully, it should really make a good effort to try and get me"). Only then do the Wakers stop: `stopShort` metres out
+(150, halved from 300: "it should stop maybe halfway a bit closer"), standing there roaring while the town's guns fire at
+them. That's the picture the crew rolls in under. Short of the gate, by however little, the train is still theirs: they come
+on past where they'd stand and take it. A train stopped short of the gate to clear its cars (#322, #323) is still out, and
+the clock's still running. One backed out of the gate again comes back to them, and they have it as it does.
 
 ## 5. The catch, and being eaten
 
 The director: "the picking up of the train, especially with you in it, you should experience that if you're still
 playing."
 
-- **The grab.** The Waker closes on the last car. The train drags to a stop against it (`dragDecel`), whatever the
-  driver does.
+- **The grab.** The Waker closes on the last car, whichever way the train's going (note 940: "pick up the train while it's
+  moving"; "I'm going straight between its legs"): run down from behind, or backed into him, it's his. The train is brought
+  to a stand in his hands at `holdDecel` (6 m/s²) at the least, whatever the driver does: stopped before the last car's up.
+- **Shot.** Up out of the land his body's in the open (`bodies.waker`, his legs to his head; on his knees `kneelStoop` of
+  it), so a ball lands: the hit's sound and marker, a jolt through him, and he roars. Nothing hurts him (note 940): he's the
+  dawn, and the only answer is the walls.
 - **The lift** (note 902; the director's playtest of 16 Oct 2026: "stop behind the train and like scoop it up with its
   hands and pick it up like it's like a two-handed hot dog"). It stops `catchShort` m behind the last car, drops to its
   knees on the line and gets both hands under the car where it stands on the rails, tears it off its coupling and lifts
@@ -114,7 +121,8 @@ playing."
 | `riseBehind` | 1200 m behind the last car |
 | `riseAside` | 600 m off the line, the others |
 | `startSpeed` → `topSpeed` | 6 → 26 m/s over `rampSeconds` 45 |
-| `stopShort` | 300 m short of the gate |
+| `stopShort` | 150 m short of the gate, once the train's last car is in past it (note 940; it was 300) |
+| `holdDecel` | 6 m/s²: a train he has is stopped in his hands (note 940) |
 | `dragDecel` | 3 m/s² once it has the last car |
 | `catchShort` | 12 m behind the last car, where it kneels to take it (note 902) |
 | `scoopFrom`, `scoopHold` | the last car goes up from 1.2 s into the hold till 1 s before `eatAfter` (6) |

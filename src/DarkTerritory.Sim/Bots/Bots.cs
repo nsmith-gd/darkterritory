@@ -675,7 +675,7 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
         if (!free || !self.Alive || self.Parent < 0)
             return null;
         bool coming = world.ActiveEnemies.Any(e => e is CinderHound { Gone: false } h && h.Attached < 0 && h.Phase is SpinePhase.Telegraph or SpinePhase.Commit);
-        bool due = coming || world.Enemies is { } et && train.Dynamics.Speed >= et.Director.Run.FromSpeed;
+        bool due = coming || world.Enemies is { } et && train.Dynamics.Speed >= et.Director.Run.FromSpeedOn(world.Route?.Tier ?? Sim.Route.RouteTier.Frontier);
         if (!due)
             return null;
         foreach (bool f in (ReadOnlySpan<bool>)[false, true])
@@ -2889,8 +2889,42 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
                 _backToTheCab = false;
             }
         }
-        return Ease(world, DecideDriving(self, world, tick, out aimed));
+        return Relieve(self, world, Ease(world, DecideDriving(self, world, tick, out aimed)));
     }
+
+    bool _relieving;
+    /// <summary>Venting down off the top of the working band, it lets the vent go this far under it (psi).</summary>
+    const double ReliefBand = 4;
+
+    /// <summary>
+    /// Note 935 (the director's playtest of 20 Oct evening, line 1: "Can you just learn to let some of the pressure out? We
+    /// don't need this to explode right now"): in the cab, the vent key held (note 264: anywhere in the cab, whatever else
+    /// it's doing) while the gauge is over the top of the working band (boiler.json workingBandMax), or over what the speed
+    /// it's driving to wants if that's more (an express's), and never into the red; let go <see cref="ReliefBand"/> under.
+    /// The rest of the driving vents only for a board or a fading brake (<see cref="Vent"/>), and stood at a stop with a full
+    /// bed and nothing drawing on it the gauge climbed into the red and sat on the safety valve. Steam over the band is steam
+    /// the valve would blow off, and the hounds come to a hot boiler (enemies.json houndsHotBoilerWeight). Someone playing at
+    /// the controls has the gauge (note 597).
+    /// </summary>
+    PlayerIntent Relieve(in PlayerState self, World world, PlayerIntent intent)
+    {
+        var train = world.Train;
+        if (!self.Alive || train.BoilerTuning is not { } bt || train.Boiler.Ruptured || !PlayerMotor.InCab(self, train)
+            || world.ControlsHolder >= 0 && world.ControlsHolder != Me && !world.ControlsHolderBot)
+        {
+            _relieving = false;
+            return intent;
+        }
+        double from = bt.WorkingBandMax;
+        if (bt.SteamDrive)
+            from = Math.Max(from, Boiler.PressureFor(bt, _cruise + 1, train.Dynamics.Tuning.MaxSpeed));
+        from = Math.Min(from, bt.Redline - 1);
+        _relieving = train.Boiler.Pressure > (_relieving ? from - ReliefBand : from);
+        return _relieving ? intent with { Actions = intent.Actions | PlayerActions.Vent } : intent;
+    }
+
+    /// <summary>Holding the vent key to keep the gauge out of the red (note 935; for the harness's trace and tests).</summary>
+    public bool Relieving => _relieving;
 
     /// <summary>
     /// Note 865 (GDD §12, two on the run): a crewmate in the gap of a jumped pin, holding it down: the throttle's shut (the brake
@@ -2929,6 +2963,9 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
     {
         aimed = self;
         var train = world.Train;
+        // Note 935: who the stop's departure waits on besides the bots.
+        if (Stops is { } waiting)
+            waiting.People = Players ?? [];
         // T102: the night starts with the crew on the ballast at the gate (the harness walks them aboard): driver and fireman
         // up the cab steps on foot. Only before departure: at a stop, the driver's down there working.
         if (self.Alive && world.Run is { Phase: Run.RunPhase.Yard } && train.Dynamics.Speed < 0.05 && calls is not null)
@@ -3037,6 +3074,12 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         // Note 343: a hound pack aboard and nobody else to fight it: stand the train, and cut its car loose.
         if (CutAlone(self, world, tick) is { } cuttingAlone)
             return cuttingAlone with { Lamp = lamp };
+        // Note 936 (GDD §12 "Ping the bots"): out of the cab to a job pinged for it, the crew's only hands; and the train held
+        // for a crewmate's.
+        if (OnAPing(self, world, tick) is { } pinged)
+            return pinged with { Lamp = lamp };
+        if (self.Alive && PlayerMotor.InCab(self, train) && ForAPing(world) is { } heldForIt)
+            return Work(self, train, heldForIt) with { Lamp = lamp };
         // Note 720 (GDD §12): a crewmate's lamp signal where the driver can see it: stop, go on, or back up.
         if (self.Alive && PlayerMotor.InCab(self, train) && Signalled(world) is { } signalled)
             return Work(self, train, signalled) with { Lamp = lamp };
