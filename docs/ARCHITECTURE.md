@@ -1128,5 +1128,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [967. The Look Review rebuilt for verdicts (Sage, queue #667; the director, 21 Oct)](notes/967.md)
 - [971. Households that argue, and lines that change once the custom's been told (Cole, queue #671)](notes/971.md)
 - [972. The clerk's tally of the silly upgrades (Hazel, queue #672)](notes/972.md)
+- [973. A houseboat's ladder climbed (queue #673, B2; the director's playtest of 16 Oct, line 28, its open half: "they have little ladders to go up…](notes/973.md)
 - [974. The dining car modelled (C1, queue #674; the art pass over #656's greybox, note 959)](notes/974.md)
 <!-- end of the notes index -->
