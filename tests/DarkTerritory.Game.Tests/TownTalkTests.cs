@@ -100,7 +100,8 @@ public class TownTalkTests
         var eye = s.Player.Position + Double3.Up * s.Train.Dynamics.Tuning.Pick.EyeHeight;
         talk.Step(town, eye, 62);
         Assert.NotNull(talk.Open);
-        talk.Step(town, eye, 61 + person.Lines[0].Length / town.Tuning.TypePerSecond + town.Tuning.LingerSeconds + 1);
+        // (Typed in their temperament's voice, note 963: as long as that takes, then the linger.)
+        talk.Step(town, eye, 61 + town.Tuning.VoiceOf(person).Seconds(person.Lines[0], town.Tuning.TypePerSecond) + town.Tuning.LingerSeconds + 1);
         Assert.Null(talk.Open);
     }
 
