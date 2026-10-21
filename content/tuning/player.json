@@ -171,7 +171,14 @@
     "thinSeconds": 2,
     "thinHoldSeconds": 20,
     "strainCrew": 2,
-    "strainSeconds": 5
+    "strainSeconds": 5,
+    // Note 956: each voice a listener hears is about 22 kbit/s more of the host's upload, on top of the snapshots (8 of the crew
+    // on the radio: 1.8 Mbit/s). While strainCrew or more of the crew are being thinned (the host's upload can't carry them),
+    // and for thinHoldSeconds after, each listener is sent at most strainedVoices at once: whoever was talking first keeps the
+    // floor (a voice is talking while its frames come within voiceFloorSeconds of each other), and a grabbed crewmate's cry on
+    // the radio always gets through (App. C.8). 0: never capped.
+    "strainedVoices": 2,
+    "voiceFloorSeconds": 0.5
   },
   // The crew cap (GDD §1 "Players: 2–8", §15's largest crew; ARCHITECTURE §8 note 254). The host turns a joiner away once
   // the crew, living and dead, those waiting to board at a stop and the places held for the dropped (rejoin above) come to
