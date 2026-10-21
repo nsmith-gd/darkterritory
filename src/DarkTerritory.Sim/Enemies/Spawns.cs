@@ -205,7 +205,11 @@ public static class Spawns
         {
             if (CarHugger.Spot(c.World, c.Tuning.CarHugger) is not { } at)
                 return SpawnContext.Failed(SpawnFailure.NoSpot);
-            c.Add(i => CarHugger.Lurking(i, at, c.Director.NextRange(0, 1) < 0.5 ? -1 : 1, c.Tuning.CarHugger));
+            // The side drawn as before (the night's dice don't move); at a stood train's rear (note 970) the far side from the crew.
+            int side = c.Director.NextRange(0, 1) < 0.5 ? -1 : 1;
+            if (CarHugger.StoodSpot(c.World, c.Tuning.CarHugger) == at)
+                side = CarHugger.FarSide(c.World);
+            c.Add(i => CarHugger.Lurking(i, at, side, c.Tuning.CarHugger));
             return c.Placed();
         }),
         // B.4 · Climbers: at least two coupling gaps and a minimum speed; weight scales with the gap count. Boarding-first
@@ -250,9 +254,11 @@ public static class Spawns
         {
             // Free (note 849): any coupling gap, at any speed (slow, they mount at once; at speed they pace, as their rule has it).
             // Note 915: with climbers.freeNeedsSpeed, only to a train moving at their minSpeed (note 887: the curve sent them to a
-            // train stood on the open line).
+            // train stood on the open line). Note 970, the director's answer: with climbers.freeSpeed, a moving train in the lower
+            // third of its tier's line speed instead.
             Free = c => CrewSense.Gaps(c.Train).Count >= 1 && c.None(EnemyKind.Climber)
-                && (!c.Tuning.Climbers.FreeNeedsSpeed || c.Train.Dynamics.Speed >= c.Tuning.Climbers.MinSpeed),
+                && (c.Tuning.Climbers.FreeSpeed.On ? c.Tuning.Climbers.FreeSpeed.Allows(c.Train.Dynamics.Speed, c.Tier)
+                    : !c.Tuning.Climbers.FreeNeedsSpeed || c.Train.Dynamics.Speed >= c.Tuning.Climbers.MinSpeed),
         },
         // B.4 · Draggers: a train of two or more, dormant until someone's on the roofs; weight up per roof walker.
         // Boarding-first (GDD App. F.1, note 286): they get under a car only while the train's slow (a stop, a tight bend),

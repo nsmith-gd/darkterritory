@@ -30,6 +30,8 @@ public class WorldCueSoundTests
         public readonly World World;
         public readonly GameAudio Audio;
         public double Speed = 8;
+        /// <summary>The car whose side the ear's beside (4 m out, at head height).</summary>
+        public int EarCar = 2;
 
         public Bench(string[] installed, params string[] listen)
         {
@@ -59,7 +61,7 @@ public class WorldCueSoundTests
                 World.BeginTick();
                 World.Step(new TrainControls { Reverser = 1 });
                 World.Train.Dynamics.Velocity = Speed;
-                var frame = Train.Frames[2];
+                var frame = Train.Frames[EarCar];
                 Audio.Update(World, new TrainControls { Reverser = 1 }, Listener.At(frame.ToWorld(new Double3(4, 1.6, 0)), frame.Heading), exposed: true,
                     SimConstants.TickSeconds);
                 heard.AddRange(Audio.Mixer.Voices.Where(v => _seen.Add(v.Id) && _under.Contains(v.Name)).Select(v => (v.Name, v.Position)));
@@ -72,10 +74,10 @@ public class WorldCueSoundTests
     static readonly string[] Own =
     [
         "state-coupling-loose.jump-brake", "state-coupling-loose.jump-coupled", "state-coupling-loose.jump-bend", "tell-house.creak",
-        "tell-householder.shift", "world-bell.far", "world-dog.bark",
+        "tell-householder.shift", "world-bell.far", "world-dog.bark", Warn,
     ];
 
-    const string Knock = "state-coupling-loose.knock", PinLift = "crew-coupling.pin-lift", RunIn = "bed-slack.run-in", Frame = "bed-groan.creak";
+    const string Warn = "state-coupling-loose.warn", Knock = "state-coupling-loose.knock", PinLift = "crew-coupling.pin-lift", RunIn = "bed-slack.run-in", Frame = "bed-groan.creak";
 
     static Double3 PinOf(TrainOnLine train, int car) => train.Frames[car].ToWorld(Couplings.Pin(train.Frames[car].Shape, train.Dynamics.Tuning));
 
@@ -100,6 +102,48 @@ public class WorldCueSoundTests
         Assert.Contains(heard, h => h.Name == Knock);
         // Heard once: it's the moment, not the state.
         Assert.DoesNotContain(b.Run(3), h => h.Name == own);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void APinWorkingLooseIsHeardFromTheCabByItsOwnWarningAtThePinOrTheKnockPulledTowardTheEar(bool warn)
+    {
+        // Note 865's warning (#592), told the length of the train (note 980): a pin working loose four cars back from the engine,
+        // heard from beside the engine. With its own long-carrying warn installed, that's what knocks, at the pin (its reach is
+        // its own, out to 400 m); without it (a mod's), the ordinary knock, from no further than 45 m off the ear toward the gap.
+        var b = new Bench(warn ? [Warn, Knock] : [Knock], Warn, Knock) { Speed = 0, EarCar = 0 };
+        b.Run(0.5);
+        var v = b.Train.Vehicles[4];
+        v.Loose = SimConstants.TickSeconds;
+        v.LooseCause = LooseCause.Working;
+        var heard = b.Run(2);
+        var pin = PinOf(b.Train, 4);
+        var ear = b.Train.Frames[0].ToWorld(new Double3(4, 1.6, 0));
+        Assert.True((pin - ear).Length > 50, $"the pin {(pin - ear).Length:0} m off");
+        // About three knocks a second at the warning's start.
+        var knocks = heard.Where(h => h.Name == (warn ? Warn : Knock)).ToList();
+        Assert.InRange(knocks.Count, 4, 9);
+        Assert.DoesNotContain(heard, h => h.Name == (warn ? Knock : Warn));
+        if (warn)
+            Assert.All(knocks, k => Assert.True((k.At - pin).Length < 1.5, $"{(k.At - pin).Length:0.0} m off the pin"));
+        else
+            Assert.All(knocks, k => Assert.InRange((k.At - ear).Length, 44, 46));
+    }
+
+    [Fact]
+    public void ThePinsOwnWarningIsInstalledToCarryTheLengthOfTheTrain()
+    {
+        // Note 980: an alarm (tier 3, as the train's are), out to 400 m, so the cab hears a pin working loose at a twenty-car
+        // rake's far end; and louder there than the ordinary knock would be pulled in to 45 m.
+        var bank = new GameAudio(Content).Bank;
+        var def = bank.Get(Warn)!;
+        var knock = bank.Get(Knock)!;
+        Assert.Equal(3, def.Tier);
+        Assert.True(def.MaxDistance >= 300, $"reach {def.MaxDistance} m");
+        // The mixer's distance gain (Mixer: (min/d)^rolloff past min), with the cue's own gain; the knock's pulled in at 1.2.
+        static double At(SoundDef d, double m, double volume = 1) => volume * Math.Pow(Math.Min(1, d.MinDistance / m), d.Rolloff) * Math.Pow(10, d.GainDb / 20);
+        Assert.True(At(def, 300) >= At(knock, 45, 1.2), $"{20 * Math.Log10(At(def, 300)):0.0} dB at 300 m against the pulled knock's {20 * Math.Log10(At(knock, 45, 1.2)):0.0} dB");
     }
 
     [Fact]

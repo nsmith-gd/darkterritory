@@ -16200,6 +16200,34 @@
   "takes": 4,
   "sha": "79194cc385552917"
  },
+ "state-coupling-loose/warn": {
+  "cue": "state-coupling-loose.warn",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A pin working loose: struck hard in its knuckle, the coupler ringing out the length of the train",
+    "key": "clang",
+    "sources": [
+     "sfx_100_v2:metal_hit_01",
+     "sfx_100_v2:misc_36",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "40b018388042f0a9"
+ },
  "state-derail/climb": {
   "cue": "state-derail.climb",
   "surface": null,

@@ -1,0 +1,12 @@
+// Note 970: the director's spawn picks of 21 Oct (the Director's Inbox), all on.
+{
+  "$patch": true,
+  "director": {
+    "encounters": { "halt": { "on": true } },
+    "aftermath": { "specials": false }
+  },
+  "carHugger": { "lowGround": { "on": true } },
+  "gannet": { "lowArrive": { "on": true, "arriveAbove": 12 } },
+  "climbers": { "freeSpeed": { "on": true } },
+  "dwellings": { "inHomeStretch": true }
+}
