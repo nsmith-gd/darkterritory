@@ -8,7 +8,7 @@ namespace DarkTerritory.Sim.Towns;
 /// along the main line, the night's seed, the creatures this edition fields (enemies.json director.roster; empty, all of
 /// them), and the custom of the last town, which this one won't share (App. F.1: "different from the last").
 /// </summary>
-/// <para><see cref="Burnt"/>: how many of its houses are burnt out (note 608), the nearest its gate (<see cref="TownGenerator.Harmed"/>).</para>
+/// <para><see cref="Burnt"/>: how many of its houses are burnt out (note 608), the nearest where a train come in stands (<see cref="TownGenerator.Harmed"/>, note 966).</para>
 public sealed record TownSite(string Name, string Industry, double Gate, ulong Seed, IReadOnlyList<string> Roster, string? Last = null, int Burnt = 0)
 {
     /// <summary>The town type to make it (note 692; "" the street town), or null to draw it from its trade and seed.</summary>
@@ -628,11 +628,23 @@ public static partial class TownGenerator
 
     /// <summary>
     /// The <paramref name="count"/> houses a creature brought in through the gate burns (note 608): lived-in houses, the
-    /// nearest the gate first (the yard's fight is there), the same ones every time for the same plan. A plan with some
-    /// burnt already gives the next ones, so tonight's fires and the town the crew comes back to agree.
+    /// nearest where the train come in stands first (<see cref="FromWayIn"/>), the same ones every time for the same plan. A plan with
+    /// some burnt already gives the next ones, so tonight's fires and the town the crew comes back to agree.
     /// </summary>
     public static IReadOnlyList<TownHouse> Harmed(TownPlan plan, int count) =>
-        count <= 0 ? [] : [.. plan.Houses.Where(h => h.Kind == HouseKind.Lived).OrderBy(h => Math.Abs(h.S - plan.Gate)).ThenBy(h => h.Id).Take(count)];
+        count <= 0 ? [] : [.. plan.Houses.Where(h => h.Kind == HouseKind.Lived).OrderBy(h => FromWayIn(plan, h)).ThenBy(h => h.Id).Take(count)];
+
+    /// <summary>
+    /// How far a house stands from where a train come in through the town's way in stands (m; note 966): along the line from
+    /// its rear gate (<see cref="TownFrame.Entry"/>; the engine's home is run.json homeInsideGateM inside it, its rake behind),
+    /// and out from the line, as the crew on the ground there sees it. The gate's houses (the way out) stood about 430 m up
+    /// the town on frontier:7 (note 958), the fire neither seen nor heard from the train.
+    /// </summary>
+    public static double FromWayIn(TownPlan plan, TownHouse h)
+    {
+        double along = h.S - plan.Frame.Entry;
+        return Math.Sqrt(along * along + h.D * h.D);
+    }
 
     /// <summary>
     /// The town remembering what's been brought into it (note 608): its <paramref name="burnt"/> houses (<see cref="Harmed"/>)
