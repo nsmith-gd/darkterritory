@@ -375,6 +375,12 @@
     "villageShare": 0.5,
     "villageReach": 150,
     "villageDawnSpare": 900,
+    // Note 934 (found under #609, note 895: the bot driver never stopped at a halt, so no bot night stood at one): a driver
+    // bot stands haltStandSeconds at each halt on the line (an abandoned village's on the main line, the route card's "halt"
+    // rows) with at least haltAllowance (s) of the night in hand past the run home, before going on. 0: it drives past them,
+    // as before.
+    "haltStandSeconds": 0,
+    "haltAllowance": 600,
     // Note 403 (GDD App. F.3's "work the yard together"; since queue #89 every siding has loot beside it): the crates by the
     // site's own stack in, a crate hand fetches the nearest crate lying loose elsewhere in the yard, either side of the
     // train, within yardReach (m) of where it stands, on foot round the sheds and the train, before anyone goes to the village. The same

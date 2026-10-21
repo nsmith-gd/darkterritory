@@ -1094,6 +1094,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [931. A crewmate down to cover the shunter at a pick-up's points (queue #632, n1-w7 for nathaniel1; from note 894's Unfixed)](notes/931.md)
 - [932. The spawn director overhaul in the GDD and the systems spec (n1-G2, #613's docs half, agreed with n1-B1, who holds #613; the director's…](notes/932.md)
 - [933. The crew bots counter the Car Hugger, so its low ground can go on (found under #612, note 915; n1-A2, nathaniel1, queue #633)](notes/933.md)
+- [934. Bot drivers stop at the halts the night has time for (found under #609, note 895; n1-A3, nathaniel1, queue #634)](notes/934.md)
 - [935. The driver bot vents, waits for its crew, and stops at the stop (Nora, queue #638; the director's playtest of 20 Oct evening)](notes/935.md)
 - [936. The ping reads what you point at (Finn, queue #639; the director's playtest of 20 Oct evening)](notes/936.md)
 - [937. Leaving a game leaves it (Quinn, queue #640; the director's playtest of 20 Oct evening)](notes/937.md)

@@ -1043,6 +1043,44 @@ public sealed record CoalPlan(int Facility, double Spout, double Hold, Double3 L
 }
 
 /// <summary>
+/// A stop at a halt (note 934): an abandoned village's halt on the main line (a <see cref="FeatureKind.Village"/> stop with
+/// a halt laid; the route card's "halt" rows, its whistle and name boards), where the train stands with the whole of it over
+/// the village (<see cref="Enemies.Director.StopAt"/>'s stand) for <see cref="StopCrewTuning.HaltStandSeconds"/>, as a crew
+/// stops to look the place over. Nothing's worked there: no spur, no winch; what a halt holds is its houses' finds and what
+/// lives there.
+/// </summary>
+/// <param name="Feature">The halt's village, by its index in the route's features.</param>
+/// <param name="Hold">Where the engine's front stands: the train's middle over the village's.</param>
+public sealed record HaltPlan(int Feature, double Hold)
+{
+    /// <summary>The nearest halt ahead not stood at yet tonight.</summary>
+    public static HaltPlan? Ahead(World world, double from, IReadOnlySet<int> done)
+    {
+        if (world.Run is not { } run)
+            return null;
+        double length = world.Train.Dynamics.Consist.LengthMetres;
+        HaltPlan? best = null;
+        var features = run.Route.Features;
+        for (int i = 0; i < features.Count; i++)
+        {
+            var f = features[i];
+            if (f.Kind != FeatureKind.Village || f.Stop?.Halt is null || done.Contains(i))
+                continue;
+            // The front at least at the village's start and the rear no further than its end: a train longer than the village
+            // stands over all of it.
+            double hold = Math.Clamp((f.Start + f.End) / 2 + length / 2, f.Start, f.End + length);
+            if (hold >= from - 5 && (best is null || hold < best.Hold))
+                best = new HaltPlan(i, hold);
+        }
+        return best;
+    }
+
+    /// <summary>The engine's stood where it's to stand.</summary>
+    public bool StandingAt(TrainOnLine train) =>
+        train.OnMain && Math.Abs(train.Dynamics.Velocity) < 0.05 && Math.Abs(train.Dynamics.Distance - Hold) < 3;
+}
+
+/// <summary>
 /// The driver's side of a facility stop, through the cab's controls and nothing else (the scripted
 /// <see cref="SpurDrill"/>, done by a crew): stop short of the spur's points; once the rest are cut off, the switch is
 /// over and the ones riding in are aboard, run the empties in to the buffer stop; wait for the winch; back out onto the
@@ -1051,7 +1089,7 @@ public sealed record CoalPlan(int Facility, double Spout, double Hold, Double3 L
 /// </summary>
 public sealed class StopDriver(CrewCalls calls)
 {
-    public enum Leg : byte { Cruise, Approach, Held, SpurIn, Loading, BackOut, Clear, Depart, ToCoal, Coaling, ToSwitch, OffDeadLine, SetBack, Forward, Spouting, Lifting, Conveying, Tippling }
+    public enum Leg : byte { Cruise, Approach, Held, SpurIn, Loading, BackOut, Clear, Depart, ToCoal, Coaling, ToSwitch, OffDeadLine, SetBack, Forward, Spouting, Lifting, Conveying, Tippling, ToHalt, AtHalt }
 
     // Long enough for a crew to do their part at walking pace; past it, the stop is given up rather than the night. (The
     // loading's was 300; cab forward, note 276, the warm a cold hand goes back to is 10 m further from the cars, and a lone
@@ -1314,6 +1352,11 @@ public sealed class StopDriver(CrewCalls calls)
     public StopPlan? Plan { get; private set; }
     /// <summary>The coaling stop it's making, if that's what it's doing.</summary>
     public CoalPlan? Coal { get; private set; }
+    /// <summary>The halt being stood at (note 934), if any.</summary>
+    public HaltPlan? Halt { get; private set; }
+    readonly HashSet<int> _halted = [];
+    /// <summary>The halts stood at tonight (note 934), by their village's feature index.</summary>
+    public IReadOnlySet<int> Halted => _halted;
     /// <summary>The switch set wrong it's stopped for (or backing off the dead line of).</summary>
     public SwitchPlan? Switch { get; private set; }
     readonly HashSet<int> _coaled = [];
@@ -1425,6 +1468,17 @@ public sealed class StopDriver(CrewCalls calls)
                     var coal = spare > CoalAllowance || low ? CoalPlan.Ahead(world, engine.Distance, _coaled, calls) : null;
                     // Note 935: far enough out for the run in to ease down (facilities.json crew.approachEase).
                     double reach = engine.Distance + Math.Max(StoppingDistance(train), EaseDistance(world)) + 80;
+                    // Note 934: a halt the night has time for (crew.haltStandSeconds on), before any stop or coal nearer on.
+                    if (world.Run.FacilityTuning?.Crew is { HaltStandSeconds: > 0 } hc && spare > hc.HaltAllowance
+                        && HaltPlan.Ahead(world, engine.Distance, _halted) is { } halt && halt.Hold <= reach
+                        && (plan is null || halt.Hold < plan.Hold) && (coal is null || halt.Hold < coal.Hold))
+                    {
+                        Halt = halt;
+                        _legs.Clear();
+                        _stopStart = _ticks;
+                        Begin(Leg.ToHalt);
+                        return Toward(world, halt.Hold, +1, Eased(world, halt.Hold), band: CruiseBand);
+                    }
                     // Whichever comes first, when it's near enough to start stopping for.
                     if (coal is not null && coal.Hold <= reach && (plan is null || coal.Hold < plan.Hold))
                     {
@@ -1498,6 +1552,31 @@ public sealed class StopDriver(CrewCalls calls)
                     bool nobody = !calls.Has(StopJob.Shunter) || Waited > CoalGiveUp;
                     if ((poured || nobody) && (calls.AllAboard && !Waiting(world) || Waited > CoalGiveUp + AboardGiveUp && MayLeave(world, Coal!.Hold)))
                         Begin(Leg.Depart);
+                    return Hold(world);
+                }
+            case Leg.ToHalt:
+                {
+                    var h = Halt!;
+                    if (h.StandingAt(train) && still)
+                    {
+                        Begin(Leg.AtHalt);
+                        return Hold(world);
+                    }
+                    return engine.Distance > h.Hold + 1 && (still || engine.Velocity < 0) ? Toward(world, h.Hold, -1, 1) : Toward(world, h.Hold, +1, Eased(world, h.Hold), band: CruiseBand);
+                }
+            case Leg.AtHalt:
+                {
+                    // Stood its while, and everyone back aboard (or given up waiting for them): away.
+                    double stand = world.Run?.FacilityTuning?.Crew.HaltStandSeconds ?? 0;
+                    if (Waited >= stand && (calls.AllAboard || Waited > stand + AboardGiveUp))
+                    {
+                        _halted.Add(Halt!.Feature);
+                        Halt = null;
+                        Begin(Leg.Cruise);
+                        // In the night's stops as a "Halt" (no facility of its own: −1).
+                        _log.Add(new StopRecord(-1, "Halt", Math.Round(Seconds(_ticks - _stopStart), 1), 0, new Dictionary<string, double>(_legs)));
+                        return null;
+                    }
                     return Hold(world);
                 }
             case Leg.Approach:
