@@ -206,6 +206,8 @@ public sealed partial class World
     public int BendsSpared { get; set; }
     /// <summary>Host: the fires a boarded hound pack has set (note 269's; counted for the burns' report, note 437).</summary>
     public int PackFires { get; set; }
+    /// <summary>The fires each Cinder Hound pack has lit tonight, by its pack (note 915: a feeding pack sated).</summary>
+    public Dictionary<int, int> FiresByPack { get; } = new();
     /// <summary>Host (note 939): how many fires each car (by index) has had tonight, for the relight told.</summary>
     readonly SortedDictionary<int, int> _firesIn = [];
     /// <summary>Host: how long the cab's dead-end warning has been up (<see cref="Sim.Train.DeadEnds"/>, note 286).</summary>
