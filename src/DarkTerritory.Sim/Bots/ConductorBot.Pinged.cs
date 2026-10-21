@@ -79,13 +79,13 @@ public sealed partial class ConductorBot
     /// <summary>
     /// Note 936 (the director, 20 Oct: "trying to find a way to tell them to go search the house with me. And of course, we're
     /// just moving right away"): standing, with a crewmate bot sent off to a job by a ping, the train's held on its brake till
-    /// it's done (or its order's time is up, <c>pings.orderSeconds</c>). At a stop's loading <see cref="StopDriver"/> waits
-    /// for it (its <c>Loaded</c>); this is the rest: standing on the open line, or about to depart. Null otherwise.
+    /// it's done (or its order's time is up, <c>pings.orderSeconds</c>). At a stop <see cref="StopDriver"/>'s departure waits
+    /// for it (note 935's one rule, agreed with #638); this is the rest: standing on the open line. Null otherwise.
     /// </summary>
     PlayerIntent? ForAPing(World world)
     {
         if (calls is not { JobsOrdered: true } || Express || world.Train.Dynamics.Speed > CabControls.StandingBelow
-            || Stops is not { Doing: StopDriver.Leg.Cruise or StopDriver.Leg.Depart })
+            || Stops is not { Doing: StopDriver.Leg.Cruise })
             return null;
         return new PlayerIntent { Buttons = PlayerButtons.Brake, ThrottleNotch = -4 };
     }
