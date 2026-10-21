@@ -1543,7 +1543,7 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         }
         camera = Camera.LookAt(At(cam), At(Str(args, "--target", cam)), (float)Opt(args, "--fov", 65));
     }
-    // --odd well|can|scarecrow|postbox (the oddities view: a scarecrow, on deadLines:9): the night's first odd thing of that
+    // --odd well|can|scarecrow|postbox|note (the oddities view: a scarecrow, on deadLines:9): the night's first odd thing of that
     // oddThing at a stop (note 730), every chance of one taken, the camera stood off its front looking at it; --turned, a
     // scarecrow found turned to the line.
     DarkTerritory.Sim.Run.Oddities? oddities = null;
@@ -1556,15 +1556,18 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             Can = ot.Can with { Chance = 1 },
             Scarecrow = ot.Scarecrow with { Chance = 1 },
             Postbox = ot.Postbox with { Chance = 1 },
+            Note = ot.Note with { Chance = 1 },
         }, generated, line);
         var oddThing = Enum.Parse<DarkTerritory.Sim.Run.OddThingKind>(oddKind, ignoreCase: true);
         if (oddities?.Things.FirstOrDefault(x => x.Kind == oddThing) is not { } thing)
             return Print(new { error = "no " + oddThing + " on this night" });
         if (args.Contains("--turned"))
             oddities.Finish(thing.Index);
-        var front = oddities.Facing(thing.Index, line);
+        // (A note faces the house it's read at, so it's seen from the line's side: behind its front.)
+        var front = oddities.Facing(thing.Index, line) * (oddThing == DarkTerritory.Sim.Run.OddThingKind.Note ? -1 : 1);
         var aside = Double3.Cross(front, Double3.Up).Normalized;
-        bool can = oddThing == DarkTerritory.Sim.Run.OddThingKind.Can;
+        // A can, or a note on a doorstep (note 961), from close and low.
+        bool can = oddThing is DarkTerritory.Sim.Run.OddThingKind.Can or DarkTerritory.Sim.Run.OddThingKind.Note;
         double back = can ? 1.6 : oddThing == DarkTerritory.Sim.Run.OddThingKind.Well ? 6 : 4.2;
         camera = Camera.LookAt(thing.At + front * back + aside * (back * 0.35) + Double3.Up * (can ? 0.9 : 1.6),
             thing.At + Double3.Up * (can ? 0.05 : 1.1), (float)Opt(args, "--fov", 55));
@@ -4123,6 +4126,31 @@ static object HudShot(string content, string[] args)
             talk.Use(town, Hud.TownTarget(here), 0);
         talkNow = 30;
     }
+    // --note (note 961): stood on the line's side of the night's first note at a village house's door, Use held till it's
+    // picked up, and the note read on the HUD (the night's oddities with every stop's note out).
+    if (args.Contains("--note") && session is PrototypeSession reader && reader.World.Oddities is { } odds)
+    {
+        if (odds.Things.FirstOrDefault(x => x.Kind == DarkTerritory.Sim.Run.OddThingKind.Note) is not { } note)
+            return new { error = "no note at this night's villages (try another --route)" };
+        var noteAt = odds.At(note.Index);
+        var stand = noteAt - note.Facing * 0.8;
+        var eyeAt = stand + Double3.Up * reader.Train.Dynamics.Tuning.Pick.EyeHeight;
+        var to = noteAt - eyeAt;
+        double hint = reader.Train.Dynamics.Distance;
+        reader.Player = reader.Player with
+        {
+            Parent = DarkTerritory.Sim.Player.PlayerState.World,
+            Surface = DarkTerritory.Sim.Player.Surface.Ground,
+            Position = stand with { Y = PlayerMotor.GroundAt(stand, reader.Train.Line, ref hint) },
+            Yaw = Math.Atan2(-to.X, -to.Z),
+            Pitch = Math.Atan2(to.Y, Math.Sqrt(to.X * to.X + to.Z * to.Z)),
+            Velocity = default,
+        };
+        var hold = new DarkTerritory.Sim.Player.PlayerIntent { Buttons = DarkTerritory.Sim.Player.PlayerButtons.Use };
+        for (int i = 0; i < 90 && !odds.Done(note.Index); i++)
+            reader.Step(hold);
+        reader.Step(default);
+    }
     int width = (int)Opt(args, "--width", 480), height = (int)Opt(args, "--height", 270), scale = (int)Opt(args, "--scale", 2);
     // --text-size s (note 347): the HUD on TEXT SIZE's smaller canvas, at 1080p (each canvas pixel 4, 5 or 6 of the screen's).
     if (args.Contains("--text-size"))
@@ -4186,6 +4214,7 @@ static object HudShot(string content, string[] args)
         Holdouts = session.World.Holdouts,
         Town = session.World.Town,
         Arrival = session.World.Arrival,
+        Oddities = session.World.Oddities,
         TownFacing = talk?.Open is { Kind: DarkTerritory.Sim.Towns.TownTargetKind.Person } facing ? (facing.Index, camera.Position) : null,
         TownFacingIn = talk?.In,
         Vehicles = session.Train.Vehicles,
