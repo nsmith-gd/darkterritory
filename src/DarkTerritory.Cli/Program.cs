@@ -1562,7 +1562,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             Note = ot.Note with { Chance = 1 },
         }, generated, line);
         var oddThing = Enum.Parse<DarkTerritory.Sim.Run.OddThingKind>(oddKind, ignoreCase: true);
-        if (oddities?.Things.FirstOrDefault(x => x.Kind == oddThing) is not { } thing)
+        // --lineside (note 965): a note out along the line, at a hut, a camp, a grave or a wreck, not at a village.
+        if (oddities?.Things.FirstOrDefault(x => x.Kind == oddThing && (!args.Contains("--lineside") || x.Feature < 0)) is not { } thing)
             return Print(new { error = "no " + oddThing + " on this night" });
         if (args.Contains("--turned"))
             oddities.Finish(thing.Index);
@@ -4133,7 +4134,7 @@ static object HudShot(string content, string[] args)
     // picked up, and the note read on the HUD (the night's oddities with every stop's note out).
     if (args.Contains("--note") && session is PrototypeSession reader && reader.World.Oddities is { } odds)
     {
-        if (odds.Things.FirstOrDefault(x => x.Kind == DarkTerritory.Sim.Run.OddThingKind.Note) is not { } note)
+        if (odds.Things.FirstOrDefault(x => x.Kind == DarkTerritory.Sim.Run.OddThingKind.Note && (!args.Contains("--lineside") || x.Feature < 0)) is not { } note)
             return new { error = "no note at this night's villages (try another --route)" };
         var noteAt = odds.At(note.Index);
         var stand = noteAt - note.Facing * 0.8;

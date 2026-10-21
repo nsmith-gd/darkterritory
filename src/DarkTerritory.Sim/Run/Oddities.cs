@@ -1,4 +1,5 @@
 using Ballast;
+using DarkTerritory.Sim.LineGen;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Stops;
 
@@ -20,7 +21,7 @@ public enum OddKind : byte { Bell, Wave, Painting, Drop, Splash, Coin, Wash, Kic
 public readonly record struct OddEvent(int Id, uint Tick, OddKind Kind, int By, int Thing, Double3 At);
 
 /// <summary>The odd things put out at the stops (note 730): a village's well, a tin can in its street, a scarecrow, a postbox; and
-/// a note left out along the line (note 961), weighted by a stone at a house's door.</summary>
+/// a note left out along the line (notes 961, 965), weighted by a stone at a house's door, a lineman's hut, a camp, a grave or a wreck.</summary>
 public enum OddThingKind : byte { Well, Can, Scarecrow, Postbox, Note }
 
 /// <summary>
@@ -196,7 +197,62 @@ public sealed class Oddities
                 things.Add(new OddThing(things.Count, OddThingKind.Note, i, Ground(line, f, spot.At),
                     ((ToWorld(line, f, spot.House) - ToWorld(line, f, spot.At)) with { Y = 0 }).Normalized));
         }
+        // And out along the line between the stops (note 965): at the railway's leavings where somebody stopped a while, by
+        // the night's seed, a stretch's own draw.
+        if (t.Note is { Lineside: > 0, Notes.Count: > 0 } nt && LinesideProps.Of(route, line) is { } lineside)
+            foreach (var (l, yaw, _) in lineside.Laid(0, line.Length + Leavings.Every))
+            {
+                if (NoteBy(l.Kind) is not { } by || Streams.Rng(route.Seed, "leaving-note", "", l.Slot).NextDouble() >= nt.Lineside)
+                    continue;
+                // Where it was meant to be left, or round the leaving from there (mirrored, then further out), the first spot
+                // that's clear of its pieces (not in a hut's wall or under a grave's mound) and off the ballast.
+                (double Across, double Along)? spot = null;
+                foreach (double k in NoteFurther)
+                    foreach (var (x, z) in new[] { (by.X, by.Z), (-by.X, by.Z), (by.X, -by.Z), (-by.X, -by.Z) })
+                        if (spot is null && Leavings.Offset(new Leavings.Piece("", 0, x * k, z * k, 0, 0), yaw) is var (ax, az)
+                            && Math.Abs(l.Lateral + ax) >= NoteOffLine && lineside.ClearOfLeavings(l.Along + az, l.Lateral + ax, NoteRoom))
+                            spot = (ax, az);
+                if (spot is not { } found)
+                    continue;
+                var at = LineGround(line, l.Along + found.Along, l.Lateral + found.Across);
+                var middle = LineGround(line, l.Along, l.Lateral);
+                // Read facing what it was left at.
+                things.Add(new OddThing(things.Count, OddThingKind.Note, -1, at, ((middle - at) with { Y = 0 }).Normalized));
+            }
         return new Oddities(t, things, route.Seed);
+    }
+
+    /// <summary>
+    /// Where a note's left at a leaving of <paramref name="kind"/> (note 965), in the leaving's own frame (x across, z along,
+    /// +z its front, as <see cref="Leavings.Cluster"/> lays its pieces); null at a leaving nobody stopped at. A lineman's hut,
+    /// on its step before the door; a camp gone cold, by the ring of its fire; a grave, at the foot of its cross; a wreck
+    /// (a wheelset off a car, a trolley tipped off the rails), beside it in the ballast.
+    /// </summary>
+    static (double X, double Z)? NoteBy(string kind) => kind switch
+    {
+        "hut" => (0.3, 2.0),
+        "camp" => (1.2, 0.9),
+        "grave" => (0.9, 0.6),
+        "wheelset" or "trolley" => (1.4, 0.4),
+        _ => null,
+    };
+
+    /// <summary>How near the main line's middle a note out along the line may lie (m): off its ballast and the train's side. Not a design number.</summary>
+    const double NoteOffLine = 4.5;
+
+    /// <summary>How far past a leaving piece's reach a note's left (m): its sheet and stone. Not a design number.</summary>
+    const double NoteRoom = 0.25;
+
+    /// <summary>How much further out round a leaving a note's spot is tried, in turn.</summary>
+    static readonly double[] NoteFurther = [1, 1.6, 2.2];
+
+    /// <summary>A point beside the main line, <paramref name="lateral"/> out from it at <paramref name="along"/>, on the ground.</summary>
+    static Double3 LineGround(RailLine line, double along, double lateral)
+    {
+        var t = line.Sample(along);
+        var at = t.Position + Double3.Cross(t.Tangent, Double3.Up).Normalized * lateral;
+        double hint = along;
+        return at with { Y = Player.PlayerMotor.GroundAt(at, line, ref hint) };
     }
 
     static Double3 ToWorld(RailLine line, Route.RouteFeature f, Pt p) => Run.StopWorld(line, f, p);
@@ -344,6 +400,8 @@ public sealed record PostboxTuning
 public sealed record NoteTuning
 {
     public double Chance { get; init; } = 0.6;
+    /// <summary>Note 965: the chance a lineman's hut, a cold camp, a grave or a wreck beside the line has one.</summary>
+    public double Lineside { get; init; }
     public double HoldSeconds { get; init; } = 1.0;
     public double Reach { get; init; } = 1.3;
     public IReadOnlyList<OddNote> Notes { get; init; } = [];
