@@ -4,7 +4,7 @@
 # Usage: tools/package.sh [--demo] [--dev] [--playtest[=CODE]] [win-x64] [linux-x64]   (both by default)
 #   --demo   the demo as well (T79): the same build beside it, DarkTerritory-Demo-<rid>, with the demo edition
 #            (editions/demo) baked into its content
-#   --dev    the director's test build (note 514): the developer tools in, DarkTerritory-Dev-<rid> (never a store's: upload.sh
+#   --dev    the director's test build (note 514; note 970: editions/playtest baked in): the developer tools in, DarkTerritory-Dev-<rid> (never a store's: upload.sh
 #            sends only DarkTerritory-<rid>, and checks it). Without it, a player's build: built with DevTools=false, so
 #            none of the developer tools are in it, and `dt build check` fails the package if any are.
 #   --playtest[=CODE]  a playtest's build as well (note 916): the player's build beside it, DarkTerritory-Playtest-<rid>,
@@ -24,6 +24,12 @@ for a in "$@"; do
     *) rids+=("$a") ;;
   esac
 done
+# The playtest-only values (note 970, editions/playtest) baked into a build's content: the dev build's and a playtest's,
+# never the shipping build's.
+bake_playtest() {
+  dotnet run --project src/DarkTerritory.Cli -c Release -- edition bake playtest --into "$1/content" > /dev/null
+  grep -A2 '"lowArrive"' "$1/content/tuning/enemies.json" | grep -q '"on": true' || { echo "the playtest edition isn't in $1" >&2; exit 1; }
+}
 if [ "$dev" = 1 ]; then name=DarkTerritory-Dev devtools=true check=--dev; else name=DarkTerritory devtools=false check=; fi
 [ ${#rids[@]} -eq 0 ] && rids=(win-x64 linux-x64)
 mkdir -p out/dist
@@ -42,6 +48,8 @@ for rid in "${rids[@]}"; do
     || { cat "out/dist/$name-$rid.check.json"; echo "$dir failed its build check" >&2; exit 1; }
   # Everyone whose work is in the game (note 390), at the top where a player looks; content/credits holds it and the texts.
   cp "$dir/content/credits/THIRD-PARTY-NOTICES.txt" "$dir/"
+  # The director's test build plays what the playtests try before it ships (note 970: editions/playtest, the Gannet at 12).
+  [ "$dev" = 1 ] && bake_playtest "$dir"
   (cd out/dist && zip -qr "$name-$rid.zip" "$name-$rid")
   echo "$dir.zip: $(du -h "$dir.zip" | cut -f1)"
   if [ "$demo" = 1 ]; then
@@ -57,6 +65,7 @@ for rid in "${rids[@]}"; do
     p="out/dist/${name/DarkTerritory/DarkTerritory-Playtest}-$rid"
     rm -rf "$p" "$p.zip"
     cp -r "$dir" "$p"
+    [ "$dev" = 1 ] || bake_playtest "$p"
     dotnet run --project src/DarkTerritory.Cli -c Release -- playtest bake --into "$p/content" --cohort "$cohort" > /dev/null
     grep -q '"channel": "playtest"' "$p/content/ui/playtest.json" || { echo "the playtest's mark isn't in $p" >&2; exit 1; }
     (cd out/dist && zip -qr "$(basename "$p").zip" "$(basename "$p")")

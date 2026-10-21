@@ -90,7 +90,8 @@ public class EligibilityTrialTests
     public void OnTheCarHuggerLurksOnTheLowGroundToo()
     {
         var et = Tuning.Enemies;
-        var on = et.CarHugger with { LowGround = et.CarHugger.LowGround with { On = true } };
+        // The spots ahead (note 970's stood train's rear is CarHuggerPlacesTests'; these trains stand, so it's left out).
+        var on = et.CarHugger with { LowGround = et.CarHugger.LowGround with { On = true, Stood = new() } };
         // A line with a low stretch on its main line.
         var route = Enumerable.Range(1, 12).Select(s => Routes.Generate(Content, $"deadLines:{s}", 4))
             .First(r => r.Plan?.Biomes.Any(b => b.Edge == "main" && on.LowGround.Biomes.Contains(b.Biome)) == true);
