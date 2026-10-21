@@ -4140,6 +4140,9 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         return IntoCab(self, train, self.Parent == PlayerState.World ? EngineSide(train, self.Position) : 1);
     }
 
+    /// <summary>Within this of the foot of the cab's steps (m), straight on up them.</summary>
+    const double AtTheSteps = 0.6;
+
     /// <summary>Which side of the engine a point on the ground is (+1 right, as its cab's steps are numbered).</summary>
     static int EngineSide(TrainOnLine train, Double3 at) => train.Frames[0].ToLocal(at).X >= 0 ? 1 : -1;
 
@@ -4179,7 +4182,14 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         var engine = train.Frames[0];
         var foot = engine.ToWorld(new Double3(side * (CabStepsOut(train) + 0.05), 0, CabDoorZ(train)));
         var inward = engine.DirToWorld(new Double3(-side, 0, 0));
-        var (step, there) = OnFoot(self, train, train.Dynamics.Path, foot, DMath.Atan2(-inward.X, -inward.Z));
+        double up = DMath.Atan2(-inward.X, -inward.Z);
+        // #613: at the foot, on up the steps whatever it's still turning: the steps are grabbed walking into them, and a
+        // stand to face them (the walk's last turn) is a tick off them. Over a link the host has the hand on the steps a round
+        // trip before the bot sees it, and that stand, arriving then, stepped it off the bottom rung again: frontier:2's lone
+        // driver, on and off the cab's steps every 2.3 s from 358 s till the dawn.
+        if (self.Parent == PlayerState.World && (Flat(PlayerMotor.WorldPosition(self, train)) - Flat(foot)).Length < AtTheSteps)
+            return new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use, LookYaw = Turn(self, up) };
+        var (step, there) = OnFoot(self, train, train.Dynamics.Path, foot, up);
         return there ? new PlayerIntent { MoveZ = 1, Buttons = PlayerButtons.Use } : step;
     }
 
