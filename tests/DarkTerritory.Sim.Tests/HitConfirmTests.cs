@@ -395,7 +395,8 @@ public class HitConfirmTests
     public void EveryBodyIsUprightOverWhereItStands()
     {
         // enemies.json bodies: a stack of spheres over the creature's feet, none below the ground it stands on, each its own size.
-        Assert.Equal(Shootable().Select(r => r.Data).OrderBy(k => k), E.Bodies.Keys.Select(k => Enum.Parse<EnemyKind>(k, true)).OrderBy(k => k));
+        // (And the Waker's, note 940: a titan's, sixty metres of him, so not in the creatures' sizes; WakersTests has him.)
+        Assert.Equal(Shootable().Select(r => r.Data).Append(EnemyKind.Waker).OrderBy(k => k), E.Bodies.Keys.Select(k => Enum.Parse<EnemyKind>(k, true)).OrderBy(k => k));
         foreach (var kind in Creatures)
             foreach (var (radius, height) in E.Body(kind))
             {

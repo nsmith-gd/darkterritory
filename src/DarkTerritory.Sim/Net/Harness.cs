@@ -12,6 +12,8 @@ namespace DarkTerritory.Sim.Net;
 public sealed record HarnessOptions
 {
     public int Bots { get; init; } = 8;
+    /// <summary>Note 921: count what each kind of record costs on the wire (<see cref="HarnessReport.Wire"/>).</summary>
+    public bool Wire { get; init; }
     /// <summary>
     /// Note 650: the last bot dies this many seconds in, 200 m back up the line (as the Holdout tests kill a player), so the
     /// night has a rescue to measure; null, nobody's killed.
@@ -171,6 +173,12 @@ public sealed record HarnessReport(int Ticks, double Seconds, string Link, doubl
     /// <summary>Note 549: snapshots the host withheld from thin links, and whether its upload was found wanting.</summary>
     public int SnapshotsThinned { get; init; }
     public bool UploadStrained { get; init; }
+    /// <summary>
+    /// Note 921, with <see cref="HarnessOptions.Wire"/>: kbit/s down per client each kind of record took (its key, header and
+    /// fields), most first; the rest of <see cref="DownKbpsPerClient"/> is the snapshots' own headers, the datagram layer and
+    /// everything that isn't a snapshot.
+    /// </summary>
+    public IReadOnlyDictionary<string, double>? Wire { get; init; }
     /// <summary>What got through on the crew's voice, with <see cref="HarnessOptions.Voice"/> (note 186).</summary>
     public VoiceReport? Voice { get; init; }
     /// <summary>The jobs the train made as it ran (orchestrator.md §5.1), and how many got away from the crew; null without them.</summary>
@@ -194,6 +202,8 @@ public sealed record HarnessReport(int Ticks, double Seconds, string Link, doubl
     public IReadOnlyList<Reckoning>? Reckonings { get; init; }
     /// <summary>How the brake was worked (note 820).</summary>
     public DrivingReport? Driving { get; init; }
+    /// <summary>Note 935: the gauge, the stops' runs in and the crew left behind, under the bot at the controls.</summary>
+    public DriverReport? Driver { get; init; }
     /// <summary>The problems two crewmates were in together, at each stop and on the run (note 861, <see cref="SharedWatch"/>).</summary>
     public SharedReport? Shared { get; init; }
     /// <summary>The night's encounters (the director's brief §8; note 880): attempts, placements, droughts, overlap; null without enemies.</summary>
@@ -372,6 +382,8 @@ public static class Harness
             ?? (udpHost is null ? net.CreateClient() : UdpTransport.Connect(new System.Net.IPEndPoint(System.Net.IPAddress.Loopback, udpHost.Port)));
         var hostTransport = new CountingTransport(o.Network?.Host() ?? udpHost ?? net.CreateHost());
         var host = new HostSession(hostTransport, NewTrain(line, trainTuning, o, boiler), trainTuning, playerTuning, o.Combat);
+        if (o.Wire)
+            host.WireTally = new();
         // The crew the host will take (player.json crew.cap, note 254): more bots than that and the last are turned away.
         int crewSize = Math.Min(o.Bots, host.Cap);
         if (o.Hazards is { } hazards)
@@ -497,6 +509,8 @@ public static class Harness
         var falls = new FallWatch();
         var shared = new SharedWatch(o.Shared);
         var braking = new BrakeWatch();
+        var driverWatch = new DriverWatch();
+        var driverBot = clients.Select(c => c.Bot).OfType<ConductorBot>().FirstOrDefault(b => !b.Fireman);
         // Note 607: the crew at the dawn line, and when the lead Waker took the train.
         double? lineAt = null;
         IReadOnlyList<string>? atLine = null;
@@ -704,6 +718,7 @@ public static class Harness
                         p.Hounds.Add(hound);
                     packs[hound.Pack] = (p.First, t, p.Hounds);
                 }
+            driverWatch.Watch(host.World, host.Players.Select(p => ((int)p.Id, p.State)), driverBot);
             if (o.Observe is { } observe)
             {
                 var states = host.Players.ToDictionary(p => p.Id, p => p.State);
@@ -810,6 +825,9 @@ public static class Harness
             pacing)
         {
             SnapshotsThinned = host.SnapshotsThinned,
+            Wire = host.WireTally is { } tally && reports.Count > 0
+                ? tally.OrderByDescending(t => t.Value).ToDictionary(t => t.Key.ToString(), t => Math.Round(t.Value * 8.0 / 1000 / seconds / reports.Count, 2))
+                : null,
             UploadStrained = host.UploadStrained,
             Upkeep = upkeep,
             Encounters = host.World.Encounters is { } encounters ? Enemies.EncounterReport.Of(encounters, host.World) : null,
@@ -828,6 +846,7 @@ public static class Harness
             Dawn = dawn ?? (lineAt is { } la ? new DawnReport(la, atLine ?? [], -1, -1, -1, [], double.IsFinite(closest) ? Math.Round(closest, 1) : -1) : null),
             Reckonings = clients.Select(c => c.Bot).OfType<ConductorBot>().FirstOrDefault()?.Stops?.Reckonings,
             Driving = braking.Report(),
+            Driver = driverWatch.Report(),
         };
     }
 

@@ -88,13 +88,14 @@ public class GateClearTests
     }
 
     [Fact]
-    public void AtDawnAStandShortOfTheWakersWallHasNoTimeInHandAndOnePastItHasAllOfIt()
+    public void AtDawnAStandShortOfTheGateHasNoTimeInHand()
     {
         var w = HoundRunTests.Quiet.Wakers;
         Assert.True(w.Enabled);
-        // Four cars stood 30 m short of the gate: the rear's inside their wall (stopShort short of the gate), out of reach.
-        Assert.True(double.IsPositiveInfinity(TimeInHand(4, 30, 0)));
-        // Twenty-four cars (some 390 m): stood there, the rear's short of the wall, and dawn's now: they'd have it standing.
+        // Note 940 (the director, 20 Oct 2026: "unless I'm behind those walls fully, it should really make a good effort to try
+        // and get me"): four cars stood 30 m short of the gate are still out on the line, however near the guns, and dawn's
+        // now: they'd have it standing. So would they twenty-four cars (some 390 m).
+        Assert.True(TimeInHand(4, 30, 0) <= 0, $"{TimeInHand(4, 30, 0):0} s in hand at dawn");
         Assert.True(TimeInHand(24, 30, 0) <= 0, $"{TimeInHand(24, 30, 0):0} s in hand at dawn");
         // The same train well before dawn: time enough to stand and clear.
         Assert.True(TimeInHand(24, 30, 600) > 300);

@@ -6,8 +6,8 @@ namespace DarkTerritory.Game.Art;
 /// <summary>
 /// The big cab as the crew car (ARCHITECTURE §8 note 716; the director, 14 Oct 2026: "the cab itself becomes the crew car
 /// ... the captain's quarters, shared by all"): behind the footplate, the chart table with the run map on it under its lamp;
-/// the gallery, a step up, its benches facing forward down the middle so the line's seen over the heads at the controls,
-/// long windows down its sides; and the back wall, the boiler's end, warm, with the kettle on its shelf, the cuckoo clock,
+/// the gallery, a step up, so the line's seen over the heads at the controls, a thin bench along each side wall under its
+/// long windows (note 905), its middle clear; and the back wall, the boiler's end, warm, with the kettle on its shelf, the cuckoo clock,
 /// the rail for the crew's photos, the trophy shelf, a hook for each crewmate's cap, and the shelf kept for the gramophone.
 /// All of it over the sim's own solids (<see cref="PartKind.ChartTable"/>, <see cref="PartKind.Gallery"/>,
 /// <see cref="PartKind.Bench"/>); what moves (the map's train, the lamps, the bird, the caps, the kettle's steam) is the
@@ -173,8 +173,9 @@ public static partial class TrainKit
 
     /// <summary>
     /// The gallery (note 716): its floor boarded like the cab's, plated at its front face and its treads' with a brass
-    /// nosing on each edge (found by a boot in the dark); the benches down its middle, plank seats and slatted backs on iron
-    /// ends, facing forward over the chart table at the front windows.
+    /// nosing on each edge (found by a boot in the dark); along each side wall a thin bench (note 905; the director, 16 Oct
+    /// 2026: "side benches so that we keep the middle clear ... really thin"): one plank seat on slim iron brackets off the
+    /// wall, and a single rail along the wall to sit back against, the space under the seat open.
     /// </summary>
     static void GalleryArt(Kit k, CarShape shape, float w, float deck)
     {
@@ -207,24 +208,33 @@ public static partial class TrainKit
         foreach (var s in shape.Solids.Where(s => s.Part == PartKind.Bench))
         {
             var (min, max) = (F(s.Box.Min), F(s.Box.Max));
-            float seat = max.Y;
-            // The iron ends, the seat's planks, and the back's slats up off its back edge, leaning back a little.
-            k.Use("iron_plate", Palette.SootBlack, 0.8f, 0.4f);
-            foreach (float x in new[] { min.X + 0.03f, max.X - 0.03f })
-            {
-                k.Box(new Vector3(x - 0.025f, min.Y, min.Z + 0.04f), new Vector3(x + 0.025f, seat - 0.04f, max.Z - 0.02f));
-                k.Rod(new Vector3(x, seat - 0.04f, max.Z - 0.04f), new Vector3(x, seat + 0.5f, max.Z + 0.04f), 0.022f);
-            }
+            float seat = max.Y, side = MathF.Sign(min.X + max.X);
+            float wall = side > 0 ? max.X : min.X, edge = side > 0 ? min.X : max.X;
+            // The seat: one plank, a thumb thick, its front edge rounded off by a thinner lip under it.
             k.Use("wood_floor", Palette.DeepBrown * 1.25f, 0.6f, 0.2f, tile: 0.8f);
-            for (int i = 0; i < 3; i++)
+            k.Box(new Vector3(MathF.Min(wall, edge), seat - 0.035f, min.Z), new Vector3(MathF.Max(wall, edge), seat, max.Z));
+            k.Box(new Vector3(MathF.Min(edge, edge + side * 0.04f), seat - 0.05f, min.Z), new Vector3(MathF.Max(edge, edge + side * 0.04f), seat - 0.035f, max.Z));
+            // Slim iron brackets off the wall under it, a seat's width apart: a flat bar out under the plank and a strut down
+            // from its front to the wall, an open triangle; and a foot under the front at each end, on the gallery's floor.
+            k.Use("iron_plate", Palette.SootBlack, 0.8f, 0.4f);
+            int bays = Math.Max(1, (int)MathF.Round((max.Z - min.Z) / 0.7f));
+            for (int i = 0; i <= bays; i++)
             {
-                float z0 = min.Z + (max.Z - min.Z) * i / 3 + 0.01f, z1 = min.Z + (max.Z - min.Z) * (i + 1) / 3 - 0.01f;
-                k.Box(new Vector3(min.X, seat - 0.04f, z0), new Vector3(max.X, seat, z1));
+                float z = min.Z + 0.05f + (max.Z - min.Z - 0.1f) * i / bays;
+                k.Box(new Vector3(MathF.Min(wall, edge + side * 0.03f), seat - 0.06f, z - 0.012f), new Vector3(MathF.Max(wall, edge + side * 0.03f), seat - 0.035f, z + 0.012f));
+                k.Rod(new Vector3(edge + side * 0.05f, seat - 0.06f, z), new Vector3(wall - side * 0.01f, seat - 0.3f, z), 0.012f, 5);
             }
-            for (int i = 0; i < 3; i++)
+            foreach (float z in new[] { min.Z + 0.05f, max.Z - 0.05f })
+                k.Rod(new Vector3(edge + side * 0.05f, seat - 0.06f, z), new Vector3(edge + side * 0.05f, min.Y, z), 0.014f, 5);
+            // The back: one rail along the wall to sit back against, on a standoff at each bracket.
+            k.Use("wood_floor", Palette.DeepBrown * 1.1f, 0.6f, 0.2f, tile: 0.8f);
+            float back = seat + 0.3f;
+            k.Box(new Vector3(MathF.Min(wall, wall - side * 0.05f), back, min.Z), new Vector3(MathF.Max(wall, wall - side * 0.05f), back + 0.09f, max.Z));
+            k.Use("brass", Palette.TarnishedBrass, 0.6f, 0.6f);
+            for (int i = 0; i <= bays; i++)
             {
-                float y = seat + 0.14f + i * 0.13f, z = max.Z - 0.02f + 0.08f * (y - seat) / 0.5f;
-                k.Box(new Vector3(min.X, y, z - 0.015f), new Vector3(max.X, y + 0.09f, z + 0.015f));
+                float z = min.Z + 0.05f + (max.Z - min.Z - 0.1f) * i / bays;
+                k.Rod(new Vector3(wall, back + 0.045f, z), new Vector3(wall - side * 0.05f, back + 0.045f, z), 0.01f, 5);
             }
         }
     }

@@ -65,13 +65,16 @@ public static partial class Staging
     /// the lamp in its window, the house's front in the frame; <paramref name="inside"/>, stood just in its doorway looking in
     /// at what it keeps.
     /// </summary>
-    public static Camera JackpotHouse(Sim.Run.StopWalls walls, int door, bool inside)
+    public static Camera JackpotHouse(Sim.Run.StopWalls walls, int door, bool inside, bool close = false)
     {
         var d = walls.HouseDoors.First(x => x.Key == door);
         var side = Double3.Cross(Double3.Up, d.Out);
         var house = walls.OpenHouses.First(h => h.Index == d.House);
         if (inside)
             return Camera.LookAt(d.At - d.Out * 0.6 + Double3.Up * 1.65, house.Middle + Double3.Up * 0.2, 75);
+        // --close (note 941): where the wrench is, its lock and padlock.
+        if (close)
+            return Camera.LookAt(d.At + d.Out * 1.6 + side * 0.5 + Double3.Up * 1.55, d.At + Double3.Up * 1.05, 60);
         return Camera.LookAt(d.At + d.Out * 7.5 + side * 2.2 + Double3.Up * 1.6, d.At + side * 0.9 + Double3.Up * 1.4, 55);
     }
 

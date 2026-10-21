@@ -94,6 +94,11 @@ public enum PlayerMoves : byte
     /// same button is <see cref="Push"/>, and a ping isn't made there.
     /// </summary>
     Ping = 32,
+    /// <summary>
+    /// Note 936: answering a ping, on it (<see cref="PlayerIntent.Answer"/> says which): sent while at it. A bot's: "ON THE
+    /// SPUR". It moves no player or train state; the host shows the crew who's taken it.
+    /// </summary>
+    Answer = 64,
     // (On the wire the byte's bits 2-3 carry the intent's lamp signal, note 720: the moves keep the other bits.)
 }
 
@@ -218,6 +223,8 @@ public struct PlayerIntent
     /// fist. Like an emote it moves no player or train state itself; the host keeps it for the crew to see.
     /// </summary>
     public LampSignal Signal;
+    /// <summary>Note 936: with <see cref="PlayerMoves.Answer"/>, the ping (its id) this player's on.</summary>
+    public int Answer;
 
     public readonly bool Has(PlayerButtons b) => (Buttons & b) != 0;
     public readonly bool Has(PlayerActions a) => (Actions & a) != 0;
@@ -773,7 +780,7 @@ public static class PlayerMotor
             {
                 if (intent.Has(PlayerButtons.Jump))
                 {
-                    Bbq.GetUp(ref s);
+                    Bbq.GetUp(ref s, train);
                     s.Flags |= PlayerFlags.GotUp;
                 }
             }
@@ -794,6 +801,13 @@ public static class PlayerMotor
             s.Velocity -= Double3.Up * (p.Gravity * dt);
         }
 
+        // Sat (note 905): the seat holds you where you sat, not the floor or the walls round it (a big cab's bench is a perch,
+        // shallower than a body, against its wall). Got up (above), you're walked and collided as anyone.
+        if (s.Has(PlayerFlags.Lounging))
+        {
+            s.Velocity = default;
+            return;
+        }
         // Integrate in the parent frame: a car parent carries the player with it for free.
         var prevWorld = ToWorld(s, train, s.Position);
         int pushedOn = s.Has(PlayerFlags.Pushing) && s.Grounded ? s.Parent : PlayerState.World;

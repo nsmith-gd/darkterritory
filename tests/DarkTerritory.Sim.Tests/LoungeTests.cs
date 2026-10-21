@@ -64,7 +64,8 @@ public class LoungeTests
         }
         var plain = World(Tuning.Train);
         Assert.Empty(plain.Train.Frames[^1].Shape.Lounges);
-        Assert.Empty(plain.Train.Frames[0].Shape.Lounges);
+        // (The big cab's benches' seats are always the engine's, note 905: not a whimsy's.)
+        Assert.DoesNotContain(plain.Train.Frames[0].Shape.Lounges, l => l.Kind != LoungeKind.Bench);
         Assert.DoesNotContain(plain.Bodies.All, b => b.Kind == BodyKind.FishingRod);
         var w = World(Dressed("hammock", "hotTub", "fishingRod"));
         Assert.Equal(LoungeKind.Hammock, Assert.Single(w.Train.Frames[^1].Shape.Lounges).Kind);

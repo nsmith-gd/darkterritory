@@ -126,6 +126,8 @@ public sealed record PlaytestNotice
     public string Question { get; init; } = "";
     public string[] Ask { get; init; } = [];
     public string DevBuild { get; init; } = "";
+    /// <summary>Under the question in a playtest build (#628, note 916), "{code}" its cohort's: which test it is, and that no is fine.</summary>
+    public string PlaytestBuild { get; init; } = "";
     public PlaytestField[] Collect { get; init; } = [];
     public string Never { get; init; } = "";
     public string Where { get; init; } = "";

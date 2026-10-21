@@ -750,8 +750,10 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         double along = Local.Z;
         // C.9's row and the news line are the fire's own (World.FireStarted, note 851): its table names no actor for a fire the
         // hounds set (the burn's own deaths are recorded as ever).
-        string where = Inside(train) ? "in it" : "on its roof";
-        ctx.World.AddEnemy(i => CarFire.In(i, train, into, along, ctx.Tuning.CarFire, FireCause.Hounds, -1, -1, $"Feeding {where}, nobody near."));
+        bool inside = Inside(train);
+        string where = inside ? "in it" : "on its roof";
+        // Note 939: and where it was, so the crew are told where to look for it ("it's got to be one of these dudes").
+        ctx.World.AddEnemy(i => CarFire.In(i, train, into, along, ctx.Tuning.CarFire, FireCause.Hounds, -1, -1, $"Feeding {where}, nobody near.").LitInside(inside));
         ctx.World.PackFires++;
         return false;
     }
@@ -1103,14 +1105,22 @@ public sealed class CarHugger(int id) : Enemy(id)
             return null;
         var train = world.Train;
         double front = train.Dynamics.Distance;
+        double far = t.LurkAheadFar;
         foreach (var f in route.Features.Where(f => f.Kind is Route.FeatureKind.Marsh or Route.FeatureKind.Bridge))
         {
             double at = (f.Start + f.End) * 0.5;
-            if (at < front + t.LurkAheadMin || at > front + t.LurkAheadMax)
+            if (at < front + t.LurkAheadMin || at > front + far)
                 continue;
             if (Math.Abs(train.Line.Sample(train.Dynamics.Path, at).GradePercent) <= t.MaxGrade)
                 return at;
         }
+        // Note 915 (a trial): the low ground, the line plan's stretches of the low biomes on the main line, its first level point
+        // in reach.
+        if (t.LowGround is { On: true } low && route.Plan?.Biomes is { Count: > 0 } biomes)
+            foreach (var b in biomes.Where(b => b.Edge == "main" && low.Biomes.Contains(b.Biome)).OrderBy(b => b.S0))
+                for (double at = Math.Max(b.S0, front + t.LurkAheadMin); at <= Math.Min(b.S1, front + far); at += low.Step)
+                    if (Math.Abs(train.Line.Sample(train.Dynamics.Path, at).GradePercent) <= t.MaxGrade)
+                        return at;
         return null;
     }
 
