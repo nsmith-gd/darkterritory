@@ -595,6 +595,8 @@ public static class Campaign
                     // The grab irons: a ladder caught from the ground at k times the speed (the player's own tuning stays the base).
                     "grabIrons" => l with { Train = l.Train with { Kit = l.Train.Kit with { GrabIrons = l.Train.Kit.GrabIrons * k } } },
                     "boardUp" => l with { Train = l.Train with { Breach = l.Train.Breach with { BoardSeconds = l.Train.Breach.BoardSeconds * k } } },
+                    // The speaking tubes (note 978): a horn in every car, joined to its neighbours'.
+                    "speakingTubes" => l with { Train = l.Train with { Kit = l.Train.Kit with { SpeakingTubes = l.Train.Kit.SpeakingTubes || k > 0 } } },
                     "radios" => l with { Train = l.Train with { Kit = l.Train.Kit with { Radios = l.Train.Kit.Radios + (int)Math.Round(k) } } },
                     "accel" => l with { Train = l.Train with { Performance = [.. l.Train.Performance.Select(r => r with { Accel = r.Accel * k })] } },
                     "reload" => l with { Combat = l.Combat with { Guns = l.Combat.Guns with { ReloadStepSeconds = l.Combat.Guns.ReloadStepSeconds * k } } },

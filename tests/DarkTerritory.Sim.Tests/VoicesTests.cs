@@ -67,6 +67,33 @@ public class VoicesTests
     }
 
     [Fact]
+    public void FittedTheTubesCarryAVoiceToTheNeighbouringCarsEitherWay()
+    {
+        // Note 978 (upgrades.md §6's speaking tubes: "Voice carries between neighbouring cars as in one"): a horn in every car
+        // with a room, joined to the next car's either way along the train, as well as the cab's to the van's.
+        var plain = LongTrain(6);
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(Tuning.Train with { Kit = Tuning.Train.Kit with { SpeakingTubes = true } }, 6, 1)), TestLoop, 1500);
+        var ends = SpeakingTube.Ends(train);
+        Assert.Equal(2, SpeakingTube.Ends(plain).Count);
+        // The cab's and the van's first, as ever; then the cars between, in the train's order, each in its room.
+        Assert.Equal(SpeakingTube.Ends(plain), ends.Take(2));
+        var between = train.Dynamics.Consist.Vehicles.Where(v => v.Id != 0 && v.Id != ends[1].Car && train.Frames[v.Id].Shape.Interior is not null).Select(v => v.Id).ToList();
+        Assert.NotEmpty(between);
+        Assert.Equal(between, ends.Skip(2).Select(e => e.Car));
+        Assert.All(ends.Skip(2), e => Assert.True(train.Frames[e.Car].Shape.Interior!.Value.Contains(e.Mouth)));
+        // Said into a car's horn, it's out of the car ahead's and the car behind's, and heard by someone at each.
+        int middle = 2 + between.Count / 2;
+        var heard = SpeakingTube.HeardAll(SpeakingTube.AtMouth(train, middle, P), train, V.Tube);
+        Assert.Equal(2, heard.Count);
+        int at = between.IndexOf(ends[middle].Car);
+        int ahead = at == 0 ? 0 : 2 + at - 1, behind = at == between.Count - 1 ? 1 : 2 + at + 1;
+        Assert.Equal(new[] { ahead, behind }.Order(), heard.Select(h => h.End).Order());
+        Assert.All(heard, h => Assert.True(VoiceRouting.HearsTube(SpeakingTube.AtMouth(train, h.End, P, off: 1.2), h.At, train, V.Tube)));
+        // The cab's still reaches the van down the old pipe, and the first car beside it now too.
+        Assert.Equal(new[] { 1, 2 }, SpeakingTube.HeardAll(SpeakingTube.AtMouth(train, 0, P), train, V.Tube).Select(h => h.End).Order());
+    }
+
+    [Fact]
     public void AVanCutOffTakesItsEndOfTheTubeWithIt()
     {
         var train = LongTrain(6);
