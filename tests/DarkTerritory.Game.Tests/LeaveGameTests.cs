@@ -170,4 +170,60 @@ public class LeaveGameTests
         Assert.True(alone.Host!.Players.Single(p => p.Id == alone.PlayerId).State.Alive);
         Assert.Equal(DeathCause.Waiting, alone.Host.Players.Single(p => p.Id == friend.PlayerId).State.Death);
     }
+
+    /// <summary>A joiner told its host is going on from the town (note 606), the host gone: what it follows with.</summary>
+    static NetPlaySession.Following GoneOn(out int port)
+    {
+        var first = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:7", Cars: 4, Enemies: false), port: 0);
+        port = first.Port;
+        using var joiner = NetPlaySession.Join(Content, new IPEndPoint(IPAddress.Loopback, port), () => first.Step(default));
+        for (int t = 0; t < SimConstants.TickRate; t++)
+        {
+            first.Step(default);
+            joiner.Step(default);
+        }
+        first.CarryOn(Assert.IsType<TownAt>(TownAt.Terminus(first.Route!, LineGenContent.Cached(Content).Config.Tiers.Fortress.Identities)));
+        for (int t = 0; t < SimConstants.TickRate / 2; t++)
+        {
+            first.Step(default);
+            joiner.Step(default);
+        }
+        first.Dispose();
+        for (int t = 0; t < SimConstants.TickRate * 30 && !joiner.Lost; t++)
+        {
+            joiner.Step(default);
+            Thread.Sleep(1);
+        }
+        return Assert.IsType<NetPlaySession.Following>(joiner.GoingOn);
+    }
+
+    [Fact]
+    public void AFollowerLeavesTheWaitByHandBeforeTheHostsNextNightIsUp()
+    {
+        // Queue #648 (note 950): BACK TO THE MENU on the town's card, the host still picking its next night. The wait ends
+        // when it's asked to, not after rejoin.followSeconds (ten minutes).
+        var going = GoneOn(out _);
+        int asked = 0;
+        var clock = System.Diagnostics.Stopwatch.StartNew();
+        Assert.Throws<OperationCanceledException>(() => NetPlaySession.Follow(Content, going, () => asked++, leaving: () => asked > 50));
+        Assert.True(clock.Elapsed.TotalSeconds < 30, $"{clock.Elapsed.TotalSeconds:0} s");
+    }
+
+    [Fact]
+    public void AFollowerWhoLeavesWhileTheNextNightAnswersJoinsNothing()
+    {
+        // Left while its dial was being answered (the host's next night up, its welcome not yet given): hung up, and the
+        // night has nobody of theirs aboard.
+        var going = GoneOn(out int port);
+        using var next = NetPlaySession.HostGame(Content, new SessionSetup(Route: "frontier:3", Cars: 4, Enemies: false), port: port);
+        bool left = false;
+        Assert.Throws<OperationCanceledException>(() => NetPlaySession.Follow(Content, going, () => left = true, leaving: () => left));
+        for (int t = 0; t < SimConstants.TickRate * 2; t++)
+        {
+            next.Step(default);
+            Thread.Sleep(1);
+        }
+        Assert.Single(next.Host!.Players);
+    }
 }
+
