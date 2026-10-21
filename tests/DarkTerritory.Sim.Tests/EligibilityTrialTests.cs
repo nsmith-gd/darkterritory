@@ -24,6 +24,8 @@ public class EligibilityTrialTests
         // The rare kinds' is on: measured, and the director chose "raise" (note 915).
         Assert.True(et.Director.NightChanceTrial.On);
         Assert.False(et.Climbers.FreeNeedsSpeed);
+        // The director's answer to it is on: the lower third of the line speed (note 970).
+        Assert.True(et.Climbers.FreeSpeed.On);
         Assert.False(et.CarHugger.LowGround.On);
         // Off, the numbers are spec B.13's and note 328's.
         Assert.Equal((18.0, 12.0), (et.Gannet.Arrive, et.Gannet.Stall));

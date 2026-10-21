@@ -41,14 +41,20 @@ public class ProtectionGapTests
     }
 
     [Fact]
-    public void TheHoundRunWaitsOutTheAftermath()
+    public void TheHoundRunWaitsOutTheAftermathOnlyWhenTheSpecialsDo()
     {
-        Assert.True(E.Director.Aftermath.Specials);
-        int at = FirstRunAt(HoundRunTests.Quiet);
+        // The director, 21 Oct (n1-B1-aftermath-specials: "keep", note 970): the specials don't wait, so the shipping tuning
+        // lets them through; with specials on, they wait it out.
+        Assert.False(E.Director.Aftermath.Specials);
+        var waits = HoundRunTests.Quiet with
+        {
+            Director = HoundRunTests.Quiet.Director with { Aftermath = HoundRunTests.Quiet.Director.Aftermath with { Specials = true } },
+        };
+        int at = FirstRunAt(waits);
         Assert.True(at > 5, $"the first run at {at} s");
         // The same night with a crisis five seconds before it: the run waits the aftermath out (its count banked), then comes.
         int crisis = at - 5;
-        int held = FirstRunAt(HoundRunTests.Quiet, crisis);
+        int held = FirstRunAt(waits, crisis);
         Assert.True(held >= crisis + E.Director.Aftermath.Seconds - 1, $"the run at {held} s, the aftermath from {crisis} s");
         Assert.True(held <= crisis + E.Director.Aftermath.Seconds + 2, $"the run at {held} s, banked count lost?");
         // With the specials let through, it comes when it would have.
@@ -75,13 +81,15 @@ public class ProtectionGapTests
     }
 
     /// <summary>
-    /// A stop in the home stretch keeps its houses empty (dwellings.inHomeStretch false, note 912): frontier:7's last yard
+    /// A stop in the home stretch keeps its houses empty with dwellings.inHomeStretch false (note 912; the shipping tuning has
+    /// it true since the director's "yes" of 21 Oct, note 970): frontier:7's last yard
     /// (6130–6830 m of a run of 8630) put in the final approach by widening it to 2600 m, the train come up to the yard.
     /// </summary>
     [Fact]
     public void AStopOnTheRunInToTheTerminusKeepsItsHousesEmpty()
     {
-        Assert.False(E.Dwellings.InHomeStretch);
+        Assert.True(E.Dwellings.InHomeStretch);
+        var empty = E with { Dwellings = E.Dwellings with { InHomeStretch = false } };
         var route = DirectorGuardTests.Frontier7.Value;
         var yard = route.Features.Last(f => f.Kind == FeatureKind.Facility && f.Stop is not null);
         Assert.True(yard.Start < route.RunLength - 1_500, $"the last yard at {yard.Start}");
@@ -93,10 +101,10 @@ public class ProtectionGapTests
             return g.Arrivals.Count(a => a.Kind is EnemyKind.Hanger or EnemyKind.HollowHouse or EnemyKind.Householder or EnemyKind.Lodger);
         }
         // Where the yard's out of the home stretch, its houses have their own; in it, none.
-        int housed = Housed(route, E);
+        int housed = Housed(route, empty);
         Assert.True(housed > 0, "frontier:7's last yard has nobody in its houses");
-        Assert.Equal(0, Housed(near, E));
-        // Let have their own there, they come.
-        Assert.Equal(housed, Housed(near, E with { Dwellings = E.Dwellings with { InHomeStretch = true } }));
+        Assert.Equal(0, Housed(near, empty));
+        // Let have their own there (the shipping tuning), they come.
+        Assert.Equal(housed, Housed(near, E));
     }
 }

@@ -518,8 +518,8 @@
     "placeWithin": 500, "forgetPast": 800,
     // A stop on the run in to the terminus (the line's terminus_safe stretch or route.json's final approach, where nothing
     // else new comes) has its houses' own only with inHomeStretch (note 912; note 887 found they always did). The director's
-    // call (the inbox): false, the default taken, keeps the houses there empty.
-    "inHomeStretch": false
+    // call (the inbox, 21 Oct 2026, n1-B1-houses-on-the-home-stretch: "yes"; note 970): true, its houses have their own.
+    "inHomeStretch": true
   },
   // THE LODGER · sound · outside (note 583; docs/design/creatures/lodger.md). Folded in the house's darkest corner (the spot
   // furthest from its doors, hideInset m off the walls), breathing. Someone in its house noticeSeconds, or within
@@ -848,7 +848,8 @@
     // The director's answer (21 Oct 2026, note 970: "Allow them to get on at certain speeds, lower third of the speed limit"):
     // on, the free Climbers come only to a train moving at `moving` m/s or more and at most `fraction` of its tier's line
     // speed (linegen tiers.json lineSpeed, copied here: 6 m/s on the Frontier). Replaces freeNeedsSpeed's minSpeed when on.
-    "freeSpeed": { "on": false, "fraction": 0.3333, "moving": 0.5, "lineSpeed": { "local": 20, "frontier": 18, "deadLines": 16, "deepTerritory": 14 } },
+    // On: measured with the day's other picks (note 970: alone, 9 of 10 4x8 nights as before).
+    "freeSpeed": { "on": true, "fraction": 0.3333, "moving": 0.5, "lineSpeed": { "local": 20, "frontier": 18, "deadLines": 16, "deepTerritory": 14 } },
     // A trial (note 930; #613's final sweep, n1-A2's causes and n1-H1's note 955): a group of three Climbers reaching the cab
     // of a slow train at a yard took a lone driver (frontier:10 solo at 225 s; 2 crew at 230 and 259 s; 8 crew seed 8), a
     // small crew's early pressure send. With smallCrew on, a crew of crewUpTo or fewer meets at most packMax of them (the
@@ -1425,8 +1426,9 @@
     // on false: none, as before.
     // specials (note 912; note 887 found the aftermath held only the director's decisions): the hound run (a new one, or its
     // next pair) and the truss drops wait it out too; a left-behind crewmate's hunts are theirs and don't. The director's call
-    // (the inbox): true, the default taken.
-    "aftermath": { "on": true, "seconds": 12, "events": ["death", "carLost", "rescue", "holdoutFreed"], "specials": true },
+    // (the inbox, 21 Oct 2026, n1-B1-aftermath-specials: "keep"; note 970): false, the hound run and the truss Draggers
+    // don't wait it out.
+    "aftermath": { "on": true, "seconds": 12, "events": ["death", "carLost", "rescue", "holdoutFreed"], "specials": false },
     // The encounter pacing (the spawn director overhaul, docs/design/spawn-director-overhaul.md §3; the plan, note 874).
     "encounters": {
       // The encounter rate (spec B.10 "The encounter rate"; the director's brief, docs/design/spawn-director-overhaul.md §1 and
@@ -1549,8 +1551,8 @@
       // A halt's own (note 895; GDD D.15 question 3, the director 9 Oct: "Needs a dedicated response"; 20 Oct: "What's best
       // for gameplay?"): stood on the main line at an abandoned village's halt, lullSeconds after stopping there, one
       // encounter (whatever the night's curve could send, rule-met or free) if the stop's own haven't put one there; counted
-      // as the stop's. Off until measured ("test creature spawn first").
-      "halt": { "on": false, "lullSeconds": 15 }
+      // as the stop's. On (the director, 21 Oct 2026, n1-A3-halt-own-creature; measured with the day's other picks, note 970).
+      "halt": { "on": true, "lullSeconds": 15 }
     },
     // GDD App. B.1 "Post-event cooldown" (design decision, 2026-10): the least trough after a spawn; the pressure's relief
     // makes the rest of it, and well past the threshold (pressAt) it gives way.
