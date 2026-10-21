@@ -179,4 +179,65 @@ public class TownTalkTests
                     Assert.True(c == '?' || !ReferenceEquals(font.Glyph(c), unknown), $"no glyph for '{c}' in \"{text}\"");
         }
     }
+
+    /// <summary>
+    /// Note 971 (docs/design/townsfolk.md, "Not yet": "The crew could hear a different line from someone who's been told 'the
+    /// custom' by another townsperson first"): the custom's told once in a town. Whoever tells it first says it; after that,
+    /// anybody whose line it would be says what their temperament makes of its having been told, them too the next time round.
+    /// </summary>
+    [Fact]
+    public void TheCustomsToldOnceAndAfterThatTheyKnowYouKnow()
+    {
+        var s = Night();
+        var town = s.World.Town!;
+        var tellers = town.Plan.People.Where(p => p.Custom.Count > 0).Take(2).ToList();
+        Assert.Equal(2, tellers.Count);
+        var talk = new TownTalk();
+        string Hear(Townsperson p, double at)
+        {
+            // Pressed till their custom line comes up (each press the next line), and read whole.
+            var target = new TownTarget(TownTargetKind.Person, p.Id);
+            for (int k = 0; k < p.Lines.Count; k++)
+            {
+                talk.Close();
+                talk.Use(town, target, at);
+                if (talk.Page == p.Custom[0])
+                    return talk.Card(town, at + 120)!.Text;
+            }
+            throw new InvalidOperationException("never came to it");
+        }
+        Assert.False(talk.Told(town));
+        Assert.Equal(tellers[0].Lines[tellers[0].Custom[0]], Hear(tellers[0], 10));
+        Assert.True(talk.Told(town));
+        Assert.Equal(TownTalk.Told(town.Tuning, tellers[1]), Hear(tellers[1], 200));
+        Assert.NotEqual(tellers[1].Lines[tellers[1].Custom[0]], Hear(tellers[1], 400));
+        Assert.Equal(TownTalk.Told(town.Tuning, tellers[0]), Hear(tellers[0], 600));
+    }
+
+    /// <summary>
+    /// Note 971 (townsfolk.md, "Not yet": "Households don't argue"): a house whose two at most odds are far apart quarrels on
+    /// its own beat, overheard as a card near its front while it does, the two back and forth; nothing further off, or between.
+    /// </summary>
+    [Fact]
+    public void AHouseholdQuarrelsWhereYouCanOverhearIt()
+    {
+        var s = Night();
+        var town = s.World.Town!;
+        var quarrel = Assert.IsType<TownQuarrel>(town.Plan.Quarrels.FirstOrDefault());
+        var q = town.Tuning.Quarrels;
+        var house = town.Plan.Houses[quarrel.House];
+        var (fs, fd) = house.Rail(0, 0);
+        var front = town.World(fs, fd);
+        double on = Enumerable.Range(0, (int)q.Every).Select(k => (double)k).First(t => TownTalk.QuarrelLine(q, quarrel, t) == 0);
+        var card = TownTalk.Overheard(town, front + Double3.Up * 1.6, on);
+        Assert.NotNull(card);
+        Assert.Contains(house.Family, card.Heading);
+        Assert.Equal($"{town.Plan.People[quarrel.A].Name}: {quarrel.Lines[0].Line}", card.Text);
+        // The other one answers.
+        Assert.Contains(town.Plan.People[quarrel.B].Name, TownTalk.Overheard(town, front, on + q.LineSeconds)!.Text);
+        // Out of earshot, nothing; and between their quarrels, nothing.
+        var away = front + (front - town.World(house.S, house.D)).Normalized * (q.Hear + 5);
+        Assert.Null(TownTalk.Overheard(town, away, on) is { } far && far.Text.Contains(town.Plan.People[quarrel.A].Name) ? far : null);
+        Assert.Equal(-1, TownTalk.QuarrelLine(q, quarrel, on + q.Lasts + 1));
+    }
 }
