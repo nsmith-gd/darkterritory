@@ -1,7 +1,9 @@
+using Ballast;
 using DarkTerritory.Sim.Bots;
 using DarkTerritory.Sim.Player;
 using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Run;
+using DarkTerritory.Sim.Train;
 
 namespace DarkTerritory.Sim.Tests;
 
@@ -58,5 +60,64 @@ public partial class StopCrewTests
             $"stuck at {train.Dynamics.Distance:0} on {train.Dynamics.Path} (points for the dead line {train.Diverging(night.Branch)}); the relief {walker.Relieving} at {s.Parent}/{s.Surface}");
         Assert.True(s.Alive);
         Assert.True(PlayerMotor.InCab(s, train));
+    }
+
+    [Fact]
+    public void TheReliefDriverTakesOnTheStopItsDriverDiedAt()
+    {
+        // Note 955 (the TBM's follow-up): the relief driver, a fresh driver, took the Foundry's spur for a dead line taken by
+        // mistake and backed off it, leaving the crew at the loading to walk to the train where it stood (and ten minutes of
+        // frontier:7 seed 10's dawn). Taking over down a stop's spur, it takes the stop on where its driver left it: the
+        // loading, then out with the crew aboard, as the dead driver would have.
+        var night = new Night(cars: 8, walkers: 1, modules: [ModuleKind.Crane, ModuleKind.Winch]);
+        for (int i = 0; i < night.Bots.Count; i++)
+            if (night.Bots[i] is RoofWalkerBot w)
+                (w.Me, w.Calls) = (i + 1, night.Calls);
+        var stops = night.Driver.Stops!;
+        night.Until(() => stops.Doing == StopDriver.Leg.Loading, 900);
+        Assert.Equal(StopDriver.Leg.Loading, stops.Doing);
+        var plan = stops.Plan!;
+        night.Until(() => false, 20);
+        night.Crew[0] = night.Crew[0] with { Health = 0, Death = DeathCause.Climbed };
+        var walkers = night.Bots.OfType<RoofWalkerBot>().ToList();
+        StopDriver? relief = null;
+        night.Until(() => (relief = walkers.FirstOrDefault(w => w.Relief?.Stops is not null)?.Relief!.Stops) is not null, 240);
+        Assert.NotNull(relief);
+        Assert.Equal(plan.Facility, relief.Plan?.Facility);
+        bool backedOff = false;
+        night.Until(() => relief.Doing == StopDriver.Leg.Cruise && night.Train.OnMain && night.Train.Dynamics.Distance > plan.Hold + 100, 900,
+            () => backedOff |= relief.Doing is StopDriver.Leg.OffDeadLine or StopDriver.Leg.SetBack);
+        string where = string.Join(", ", night.Crew.Select((c, i) => $"{i}: {(c.Alive ? $"{c.Surface} on {c.Parent}" : "dead")}"));
+        Assert.False(backedOff, "backed off the stop's spur as off a dead line");
+        Assert.True(night.Train.OnMain && night.Train.Dynamics.Distance > plan.Hold + 100,
+            $"never left: the relief {relief.Doing} at {night.Train.Dynamics.Distance:0} on {night.Train.Dynamics.Path}; crew {where}");
+        // Nobody left standing on the ballast (one mid-jump between two roofs is off every car for a moment).
+        Assert.True(night.Crew.Skip(1).All(c => !c.Alive || c.Surface != Surface.Ground), $"left someone behind: crew {where}");
+        Assert.Contains(relief.Log, r => r.Facility == plan.Facility);
+    }
+
+    [Fact]
+    public void TheShunterGoneForwardForTheControlsIsNoShunterToWaitFor()
+    {
+        // Note 955 (frontier:7 seed 10): the relief was the shunter, and still said so; its driving stood 150 s at the Foundry's
+        // points (ShunterGiveUp) for a shunter to come and set them back, before it went down and did it itself. Gone forward
+        // for the controls, it's heard as no part: the driving does the shunter's part alone, as a crew without one does.
+        var train = new TrainOnLine(new TrainDynamics(Consist.Uniform(T, 4, 1)), new RailLine(new LineDefinition("t", [new TrackSegment(4000)])), 600);
+        var world = new World(train, Tuning.Combat);
+        world.EnableBodies();
+        var calls = new CrewCalls();
+        var cab = PlayerMotor.SpawnInCab(train, P);
+        calls.Say(0, StopJob.Driver, cab);
+        var bot = new RoofWalkerBot(21, new StopHand(StopJob.Shunter, calls, 1)) { Me = 2, Calls = calls };
+        var roof = PlayerMotor.SpawnOnRoof(train, 2, 0, P);
+        bot.Decide(roof, world, 0, out _);
+        Assert.True(calls.Has(StopJob.Shunter));
+        calls.Say(0, StopJob.Driver, cab with { Health = 0, Death = DeathCause.Mauled });
+        world.Tick++;
+        bot.Decide(roof, world, 1, out _);
+        Assert.True(bot.Relieving);
+        world.Tick++;
+        bot.Decide(roof, world, 2, out _);
+        Assert.False(calls.Has(StopJob.Shunter));
     }
 }
