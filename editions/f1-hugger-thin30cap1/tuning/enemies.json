@@ -1,0 +1,1 @@
+{ "$patch": true, "carHugger": { "lowGround": { "on": true, "stretchChance": 0.3 } }, "director": { "perNight": { "knotter": 2, "carHugger": 1 } } }
