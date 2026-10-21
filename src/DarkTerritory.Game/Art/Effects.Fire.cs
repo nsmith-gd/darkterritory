@@ -54,6 +54,57 @@ public sealed partial class Effects
     }
 
     /// <summary>
+    /// Note 939 (the director's playtest of 20 Oct evening, line 9: "it's got to be one of these dudes on this wheel"): a car
+    /// fire its hot box started, shown where it started for as long as it burns. The box (at <paramref name="box"/>, outside
+    /// the wheel) glows red-hot and smokes as it did at its worst, and flames lick up out of it against the car's side, its
+    /// light on the wheels and the ground: the box that caught is the one burning.
+    /// </summary>
+    public void HotBoxAlight(MeshBuilder mesh, Vector3 box, Vector3 u, Vector3 b, float speed, double t, int seed)
+    {
+        HotBoxSmoke(mesh, box, u, b, 1, speed, t, seed);
+        if (_flame < 0)
+            return;
+        float flicker = 0.8f + 0.2f * MathF.Sin((float)t * 11 + seed * 1.3f);
+        for (int k = 0; k < 3; k++)
+        {
+            float h = Hash(k * 3.17f + seed * 2.3f);
+            int frame = (int)((t * (12 + 4 * h) + h * 16) % 16);
+            float tall = 0.35f + 0.25f * h;
+            mesh.Billboard(box + u * (0.12f + tall * 0.45f) + b * ((k - 1) * 0.12f + MathF.Abs(speed) * 0.02f), tall * 0.7f, (h - 0.5f) * 0.4f,
+                new Vector4(1.0f, 0.55f, 0.25f, 0.9f * flicker), _flame, FxBlend.Additive, frame, 4, stretch: 1.5f);
+        }
+        mesh.PointLights.Add(new PointLight(box + u * 0.25f, Palette.FurnaceOrange * 1.3f * flicker, 3.5f));
+    }
+
+    /// <summary>
+    /// Note 939 (the director's playtest of 20 Oct evening, line 9: "how does this keep relighting?"): a Cinder Hound on a car's
+    /// roof, seen from inside the car under it: its heat through the roof's boards at <paramref name="under"/> (the roof's
+    /// underside below it, <paramref name="down"/> into the car), a dull glow and cinders sifting down out of the seams,
+    /// stronger as it winds up to light the car (<paramref name="windUp"/> 0..1, its ignite's wind-up). The crew fighting
+    /// its fire below see where it'll come from again.
+    /// </summary>
+    public void HoundThroughRoof(MeshBuilder mesh, Vector3 under, Vector3 down, float windUp, double t, int seed)
+    {
+        if (_spark < 0 || _flash < 0)
+            return;
+        float hot = 0.35f + 0.65f * Math.Clamp(windUp, 0, 1);
+        float flicker = 0.75f + 0.25f * MathF.Sin((float)t * 6 + seed);
+        // The boards glowing where it stands (the flash's soft round, dull red), a hotter heart in it.
+        mesh.Billboard(under + down * 0.05f, 1.4f + 0.8f * hot, seed, new Vector4(0.9f, 0.22f, 0.04f, 0.45f * hot * flicker), _flash, FxBlend.Additive, 0, 2);
+        mesh.Billboard(under + down * 0.08f, 0.5f + 0.4f * hot, seed + 1, new Vector4(1.0f, 0.5f, 0.15f, 0.6f * hot * flicker), _flash, FxBlend.Additive, 0, 2);
+        int cinders = 4 + (int)(10 * hot);
+        for (int k = 0; k < cinders; k++)
+        {
+            float h = Hash(k * 1.93f + seed * 4.1f), h2 = Hash(k * 4.37f + seed * 0.7f), period = 1.1f + 0.8f * h;
+            float age = (float)((t * (0.8 + 0.4 * h2) + h * 5) % period), s = age / period;
+            var side = new Vector3(MathF.Sin(h * 6.28f), 0, MathF.Cos(h * 6.28f)) * (0.15f + 0.45f * h2);
+            var p = under + side + down * (s * (1.2f + 0.8f * h)) + new Vector3(MathF.Sin(age * 3 + h * 9), 0, 0) * 0.08f;
+            mesh.Billboard(p, 0.12f + 0.06f * h, 0, new Vector4(1.0f, 0.5f + 0.3f * h2, 0.15f, (1 - s) * (0.6f + 0.4f * hot)), _spark, FxBlend.Additive, 0, 2);
+        }
+        mesh.PointLights.Add(new PointLight(under + down * 0.3f, Palette.FurnaceOrange * (0.35f + 1.0f * hot) * flicker, 2.5f + 1.5f * hot));
+    }
+
+    /// <summary>
     /// Note 821: a crewmate a car fire's heat reaches (<paramref name="heat"/> 0..1, the burn's own measure: Sim's
     /// CarFire.HeatOn), from their <paramref name="feet"/>: smoke curling up off their shoulders, back and sleeves, thicker and
     /// darker the hotter, and embers flicked up off them, so whoever sees them sees it burning them (the 14 Oct playtest's
@@ -767,7 +818,7 @@ public sealed partial class Effects
                     continue;
                 var v = back * (1.8f + 2.2f * h) + up * (0.8f + 1.6f * h2) + right * ((h2 - 0.5f) * 1.8f);
                 var p = bed + up * 0.25f + v * a - up * (4.9f * a * a);
-                mesh.Billboard(p, 0.05f + 0.03f * h, 0, new Vector4(1.2f, 0.75f, 0.3f, 1 - a / (0.35f + 0.5f * h2)), _spark, FxBlend.Additive, 0, 2, stretch: 1.6f);
+                mesh.Billboard(p, 0.12f + 0.06f * h, 0, new Vector4(1.2f, 0.75f, 0.3f, 1 - a / (0.35f + 0.5f * h2)), _spark, FxBlend.Additive, 0, 2, stretch: 1.6f);
             }
             // The flash of it, over the hole.
             mesh.Billboard(bed + back * 0.25f + up * 0.25f, 0.9f, 0, new Vector4(tint * 0.6f * flare, 1), -1, FxBlend.Additive);
