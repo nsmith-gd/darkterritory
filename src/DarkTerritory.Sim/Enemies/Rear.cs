@@ -723,6 +723,13 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         car.CargoIntegrity = Math.Max(0, car.CargoIntegrity - t.CargoPerSecond * SimConstants.TickSeconds);
         if ((t.Aboard.On ? _ignite : _boredTimer) < t.IgniteEverySeconds)
             return false;
+        // Note 915 (a trial): the pack sated, it goes as it would bored, lighting nothing more.
+        if (t.Sated.On && ctx.World.FiresByPack.GetValueOrDefault(Pack) >= t.Sated.Fires)
+        {
+            Enter(ctx, SpinePhase.BreakOff);
+            Enter(ctx, SpinePhase.Gone);
+            return true;
+        }
         if (ctx.World.ActiveEnemies.Any(e => e is CarFire f && !f.Gone && f.Attached == Attached)
             // Note 851: home (in through the arrival's gates), nothing burns: it eats, and lights nothing.
             || ctx.World.HomeSafe(Attached))
@@ -755,6 +762,7 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         // Note 939: and where it was, so the crew are told where to look for it ("it's got to be one of these dudes").
         ctx.World.AddEnemy(i => CarFire.In(i, train, into, along, ctx.Tuning.CarFire, FireCause.Hounds, -1, -1, $"Feeding {where}, nobody near.").LitInside(inside));
         ctx.World.PackFires++;
+        ctx.World.FiresByPack[Pack] = ctx.World.FiresByPack.GetValueOrDefault(Pack) + 1;
         return false;
     }
 

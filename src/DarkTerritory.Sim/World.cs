@@ -206,6 +206,8 @@ public sealed partial class World
     public int BendsSpared { get; set; }
     /// <summary>Host: the fires a boarded hound pack has set (note 269's; counted for the burns' report, note 437).</summary>
     public int PackFires { get; set; }
+    /// <summary>The fires each Cinder Hound pack has lit tonight, by its pack (note 915: a feeding pack sated).</summary>
+    public Dictionary<int, int> FiresByPack { get; } = new();
     /// <summary>Host (note 939): how many fires each car (by index) has had tonight, for the relight told.</summary>
     readonly SortedDictionary<int, int> _firesIn = [];
     /// <summary>Host: how long the cab's dead-end warning has been up (<see cref="Sim.Train.DeadEnds"/>, note 286).</summary>
@@ -2750,7 +2752,9 @@ public sealed partial class World
             _unmet[e.Id] = seconds;
             // Or stuck: telegraphing or committing far longer than any threat's telegraph runs, and nobody in its grip (a
             // Climber scrabbling at the cab's gap all night, never getting in).
-            bool stuck = e.Phase is SpinePhase.Telegraph or SpinePhase.Commit && e.PhaseSeconds >= t.LingerSeconds * 1.5;
+            // Note 945 (stuckSparesTheMet): not one a crewmate is with (a Gaunt following its waker, talked to and held).
+            bool stuck = e.Phase is SpinePhase.Telegraph or SpinePhase.Commit && e.PhaseSeconds >= t.LingerSeconds * 1.5
+                && !(t.StuckSparesTheMet && met);
             if (seconds >= t.LingerSeconds || stuck)
             {
                 e.Dismiss();

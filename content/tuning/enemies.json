@@ -112,6 +112,10 @@
     "aboard": { "on": true, "lungeFrom": 4, "lungeSeconds": 0.5, "lungeShort": 0.8, "retreatMetres": 3, "retreatSpeed": 2.5,
       "crouchSeconds": 2, "struckSeconds": 1, "struckSpeed": 3.5, "leaveAtRear": true, "igniteWindUpSeconds": 2,
       "fleeAfterBlows": 2 },
+    // A trial (note 915, #612's answer to note 863's pack fires: one pack left alone aboard lit 26 in a night): on, once a
+    // pack's hounds have lit `fires` fires between them, each leaves the train as it would bored (not driven off), lighting
+    // nothing more. Off until measured.
+    "sated": { "on": false, "fires": 3 },
     "boredSeconds": 6,
     // App. B.3: needs sustained speed first.
     "minTrainSpeed": 8,
@@ -870,6 +874,11 @@
     "crushSeconds": 8, "health": 8, "lootCargo": 0.3, "lingerSeconds": 900, "minCrew": 1, "spawnOut": 25,
     "longStopWeight": 2, "longStopSeconds": 120, "leaveSpeed": 1.4, "clearedAt": 30, "carryHigh": 1.7,
     "carryLow": 0.55,
+    // Note 945 (the director's playtest of 20 Oct evening, line 19: "I think I just saw a gaunt. Oh, but it just disappeared"):
+    // leaving with what it took, it went the moment it was clearedAt m off the train, in the crew's lamps. Now it walks on until
+    // no living crewmate out in the open (not in a car or the cab) is within goneUnseenAt m too (0: gone at clearedAt,
+    // whoever's watching).
+    "goneUnseenAt": 60,
     // Note 288 (drivenOff; "keep talking to it"). talkingCalms: talk brings its anger down a step every silenceSeconds (Part
     // Eleven Q9's "does talking lower its aggro", answered yes for now; false: talk only holds it); calmed under attackAt it
     // stops attacking; calm and talked to for talkedDownSeconds, it leaves empty-handed. Only the gang's blows with someone
@@ -1277,7 +1286,20 @@
       "on": true, "fromTrainM": 20, "perSecond": 0.08, "outsideWeight": 2.5,
       "signEvery": [12, 24], "firstSign": 6, "signOut": [14, 22], "signReach": 160, "signSeconds": 3.5, "signSpread": 35,
       "signHeight": { "ribbits": 0.35, "gaunt": 2.3, "followers": 1.6, "sootChildren": 1.0, "grumbler": 1.5, "whistler": 2.0 },
-      "signHeightDefault": 0.7
+      "signHeightDefault": 0.7,
+      // Dread at the stops (queue #646, note 944; the director's playtest of 20 Oct evening, line 15: "You start safely
+      // collecting loot and then suddenly it doesn't feel so safe. You've been in there just long enough"). An outing is the
+      // seconds anyone's been afoot (as above) since the crew was last all back aboard for forgetSeconds. As it goes on, the
+      // signs come more often (the wait to the next one × 1 falling to signEveryAtScare by scareAt s) and nearer (the
+      // distance × 1 falling to signOutAtScare); from scareAt, a scare: the signs at scareOut × their distance, close by
+      // (still never a spawn: nothing's there when you walk up to it). From threatAt, once an outing, a real threat: the
+      // encounter clock (director.encounters.drive) is brought up to due, so the director's own channels send one, met out
+      // there by outsideWeight, under the placement, the caps and every kind's own rules and telegraph. Not a channel of its
+      // own. Off until the director confirms ("test creature spawn first").
+      "dread": {
+        "on": false, "scareAt": 90, "threatAt": 180, "signEveryAtScare": 0.5, "signOutAtScare": 0.7, "scareOut": 0.45,
+        "forgetSeconds": 30
+      }
     },
     // The hound run (ARCHITECTURE §8 note 328; docs/design/orchestrator.md §5.3 and §6.1; GDD App. F.3, the director, 7 Oct
     // 2026: "more threats that can board the train at speed ... tower defense style that gives our gunners things to do").
@@ -1346,6 +1368,18 @@
     // The most of any kind perNight doesn't name (note 654): null, no cap. For the director's D1-roster-piles-up: with few
     // kinds about on a night (nightChance), those about come again and again (note 652); this holds each to a few.
     "perNightDefault": null,
+    // A trial (note 915, porting #590's 3-a-night cap, note 863, #1285; the director's call on it is open): on, perNightDefault
+    // stands at nightCap.perNightDefault (a kind's own perNight still wins). Off until measured and decided.
+    "nightCap": { "on": false, "perNightDefault": 3 },
+    // A pack the director sends (Cinder Hounds, Ribbits, Climbers) counts once toward its kind's cap (note 863; the spec
+    // doesn't say); false counts each of its members.
+    "packCountsOnce": true,
+    // Fresh kinds when the night's run dry (note 863, ported off in note 915; the director, 19 Oct 2026: "I don't want the
+    // night to run into a soft ending but I dont want repeats of the same monsters over and over"): when the director would
+    // send something and nothing fits, and a kind about tonight has had its cap, one kind nightChance rolled out comes in,
+    // drawn by its chance among those whose rule is met now or whose free gate is open; a chance of 0 is never brought. At most
+    // one every everySeconds, maxPerNight a night; on its own dice. A trial: off until measured with the cap.
+    "fresh": { "on": false, "everySeconds": 30, "maxPerNight": 10 },
     "nightChance": { "knotter": 0.66, "hotbox": 0.4, "brakeman": 0.6, "climbers": 0.35, "draggers": 0.65,
       "cinderHounds": 0.7, "fireFlies": 0.42, "carHugger": 0.51, "whistler": 0.65, "trackDoll": 0.22,
       "tippyToesie": 0.7, "stoker": 0.4, "followers": 0.66, "ribbits": 0.66, "gaunt": 0.21,
@@ -1486,6 +1520,10 @@
     "lingerSeconds": 120,
     // Near enough to be met: a car's length (a Climber settled in the car behind the cab is 15-25 m from the driver).
     "lingerRadius": 12,
+    // Note 945 (line 19, "it just disappeared"): the stuck rule above (telegraphing or committing lingerSeconds × 1.5) took a
+    // Gaunt following its waker, talked to and so held in its telegraph, from right beside them. stuckSparesTheMet: what has
+    // a living crewmate within lingerRadius isn't stuck. Off until the director's said (a despawn rule of the director's).
+    "stuckSparesTheMet": false,
     // Note 795 (the director, 15 Oct: "Even when testing alone I'm not running into monsters in yards or abandoned villages"):
     // with every living crewmate off the train, afoot in a yard or a village, what none of them is within capNear m of (and
     // that has nobody in its grip) holds no cap: a hound pack aboard or a Knotter in a coupling left behind held a crew of

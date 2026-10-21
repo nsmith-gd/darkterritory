@@ -58,6 +58,8 @@ public sealed class Director
         // they were with the curve off.
         _freeRng = new Pcg32(unchecked(seed * 0x9E3779B97F4A7C15UL + 0xF4EE), 0xF4EE);
         _stopRng = new Pcg32(unchecked(seed * 0x9E3779B97F4A7C15UL + 0x5709), 0x5709);
+        // Fresh kinds' own dice (note 863): the night's other draws are as they were.
+        _freshRng = new Pcg32(unchecked(seed * 0x9E3779B97F4A7C15UL + 0xF2E5), 0xF2E5);
         _seed = seed;
         // The encounter clock's thresholds (#608, note 908): a stream of their own, drawn only when an encounter places.
         _paceRng = new Pcg32(seed, 0xD21E);
@@ -107,7 +109,9 @@ public sealed class Director
         Spawns.Rules.Any(r => Allows(r.Kind) && Tonight(r.Kind, world) && !world.Slain.Contains(r.Kind) && SentTonight(r.Kind) == 0);
 
     /// <summary>How many of <paramref name="kind"/> have come tonight: the director's sends and those come their own way.</summary>
-    public int SentTonight(EnemyKind kind) => Log.Count(l => l.Kind == kind) + _ownWay.GetValueOrDefault(kind);
+    public int SentTonight(EnemyKind kind) => Log.Count(l => l.Kind == kind) + _ownWay.GetValueOrDefault(kind)
+        // A pack is one line of the log; with packCountsOnce off (note 863), each member past its first counts too.
+        + (_t.PackCountsOnce ? 0 : Log.Where(l => l.Kind == kind).Sum(l => Math.Max(0, l.Members - 1)));
 
     /// <summary>
     /// What tonight's sends so far make of <paramref name="kind"/>'s weight (note 742): ×<see cref="DirectorTuning.UnseenWeight"/>
@@ -548,6 +552,7 @@ public sealed class Director
     {
         _cooldown -= 1;
         _sinceAny += 1;
+        _sinceFresh += 1;
         _seconds += 1;
         // The aftermath (note 751) and the facility lull (App. B.1) run down a second a decision, whatever holds it.
         bool shaken = AftermathLeft > 0;
@@ -743,7 +748,7 @@ public sealed class Director
             fill = options.Count > 0;
         }
         if (options.Count == 0)
-            return Held("nothing fits");
+            return Held(Freshen(world, holding) ? "fresh" : "nothing fits");
         // Variety across the night (note 742): a kind come repeatHold times tonight waits while one about tonight hasn't come
         // at all; the director saves up for the stop, the town or the stretch that lets the new one in. Pressed, it sends.
         if (!due && _t.RepeatHold > 0 && options.Any(o => SentTonight(o.Kind) >= _t.RepeatHold) && Unseen(world))
@@ -877,6 +882,7 @@ public sealed class Director
         if (options.Count == 0)
         {
             _unmet = DebtCause.Ineligible;
+            Freshen(world, holding);
             return null;
         }
         options = WeighVotes(WhoseNext(ZoneSpread(options, holding)));
@@ -947,6 +953,63 @@ public sealed class Director
 
     /// <summary>The kinds the night's floor brought back from out tonight (note 868), in the order it did.</summary>
     public List<string> FloorBrought { get; } = [];
+
+    Pcg32 _freshRng;
+    double _sinceFresh = 1e9;
+
+    /// <summary>The kinds brought in fresh tonight (note 863), in the order they came.</summary>
+    public List<string> FreshBrought { get; } = [];
+
+    /// <summary>
+    /// Fresh kinds when the night's run dry (note 863, Nell's for #590; ported off in note 915; <c>director.fresh</c>; the
+    /// director, 19 Oct 2026: "I don't want the night to run into a soft ending but I dont want repeats of the same monsters
+    /// over and over"). Asked when the director would send something and nothing fits: if a kind about tonight has had its cap
+    /// (<see cref="DirectorTuning.CapFor"/>), one the night's chances rolled out comes in, drawn by its chance among those whose
+    /// rule is met now or whose free gate is open; a chance of 0 is never brought. On its own dice (0xF2E5).
+    /// </summary>
+    bool Freshen(World world, List<Enemy> holding)
+    {
+        var ft = _t.Fresh;
+        if (!ft.On || FreshBrought.Count >= ft.MaxPerNight || _sinceFresh < ft.EverySeconds || world.Enemies is not { } et)
+            return false;
+        // Run dry under the cap: a kind about tonight has had its most.
+        if (!Spawns.Rules.Any(r => Allows(r.Kind) && !_outTonight.Contains(Key(r.Kind)) && _t.CapFor(Key(r.Kind)) is int cap && SentTonight(r.Kind) >= cap))
+            return false;
+        var met = new SpawnContext(world, et, this);
+        var free = new SpawnContext(world, et, this) { Free = true };
+        bool fleeing = Waker.NightFleeing(world, et.Wakers);
+        var pool = new List<(string Key, double Chance)>();
+        foreach (var rule in Spawns.Rules)
+        {
+            string key = Key(rule.Kind);
+            double chance = _t.ChanceFor(key, _t.NightChance.GetValueOrDefault(key, 0));
+            if (!_outTonight.Contains(key) || chance <= 0 || pool.Any(p => p.Key == key)
+                || !Allows(rule.Kind) || world.Slain.Contains(rule.Kind) || !Room(rule.Kind, holding) || fleeing && et.Wakers.Flees(rule.Kind))
+                continue;
+            bool fits = rule.Weight(met) is > 0
+                || rule.Free is { } gate && _t.Curve.Kinds.GetValueOrDefault(key, 0) > 0 && gate(free);
+            if (fits)
+                pool.Add((key, chance));
+        }
+        double total = pool.Sum(p => p.Chance);
+        if (pool.Count == 0 || total <= 0)
+            return false;
+        double pick = _freshRng.NextDouble() * total;
+        var back = pool[^1].Key;
+        foreach (var p in pool)
+        {
+            if (pick < p.Chance)
+            {
+                back = p.Key;
+                break;
+            }
+            pick -= p.Chance;
+        }
+        _outTonight.Remove(back);
+        FreshBrought.Add(back);
+        _sinceFresh = 0;
+        return true;
+    }
 
     /// <summary>The stops' own dice (note 860), a stream of their own: the night's other draws are as they were with it off.</summary>
     Pcg32 _stopRng;
@@ -1375,6 +1438,13 @@ public sealed class Director
 
     double _signIn = -1;
     int _signTurn;
+    /// <summary>Dread at the stops (#646, note 944): this outing's seconds afoot, the seconds since anyone was, its threat sent.</summary>
+    double _outing, _ashore;
+    bool _dreadSent;
+    /// <summary>This outing's seconds afoot (#646, note 944): what dread at the stops goes by.</summary>
+    public double OutingSeconds => _outing;
+    /// <summary>The real threats dread at the stops brought due tonight (#646, note 944).</summary>
+    public int DreadThreats { get; private set; }
     Pcg32 _signRng;
     bool _signSeeded;
 
@@ -1411,19 +1481,33 @@ public sealed class Director
             if (FromTrain(train, at) > a.FromTrainM && !world.InFort(at))
                 afoot.Add((id, at));
         }
+        var dread = a.Dread;
         if (afoot.Count == 0)
         {
             _signIn = -1;
+            // Back aboard long enough, the outing's over: the next one starts safe again.
+            if ((_ashore += 1) >= dread.ForgetSeconds)
+                (_outing, _dreadSent) = (0, false);
             return null;
         }
+        _ashore = 0;
+        _outing += 1;
         AfootShare = (double)afoot.Count / Math.Max(1, alive);
         AfootSeconds += afoot.Count;
+        // Dread at the stops (#646, note 944): out long enough, a real threat is due, once an outing. Not a spawn of its own:
+        // the encounter clock is brought up to due, and the director's channels send what they would, under their caps.
+        if (dread.On && !_dreadSent && Dread.At(_outing, dread) == Dread.Stage.Threat)
+        {
+            _dreadSent = true;
+            DreadThreats++;
+            _clock = _clock with { Due = Math.Max(_clock.Due, _clock.Threshold) };
+        }
         // The first sign soon after someone steps off; then every so often while anyone's out.
         if (_signIn < 0)
             _signIn = a.FirstSign;
         if ((_signIn -= 1) > 0)
             return null;
-        _signIn = _signRng.Range(a.SignEvery[0], a.SignEvery[1]);
+        _signIn = _signRng.Range(a.SignEvery[0], a.SignEvery[1]) * (dread.On ? Dread.SignEvery(_outing, dread) : 1);
         var (who, from) = afoot[_signTurn++ % afoot.Count];
         // The sites of what lives here, in reach of them, of what the night could send: the nearest.
         // Each kind's nearest site in reach; one kind drawn from them, so a village with a warren, a roost and a child's call
@@ -1475,7 +1559,9 @@ public sealed class Director
         double turn = _signRng.Range(-a.SignSpread, a.SignSpread);
         // At the lamp's edge, or at the site's edge if that's nearer: outside a roost or a warren, never in it (a Gaunt's roost is
         // a house the art draws whether or not the sim walls it).
-        double out_ = Math.Min(_signRng.Range(a.SignOut[0], a.SignOut[1]), site is null ? double.MaxValue : best - edge - 1);
+        // Dread (#646): nearer the longer the outing, close by from the scare.
+        double out_ = Math.Min(_signRng.Range(a.SignOut[0], a.SignOut[1]) * (dread.On ? Dread.SignOut(_outing, dread) : 1),
+            site is null ? double.MaxValue : best - edge - 1);
         // Seen, not through a wall: the bearing drawn, then others across the spread, the first with a clear line out that far
         // past the stop's walls; with none, the drawn one, as far as its first wall (something at the corner of a house).
         Double3 spot = default;
@@ -1491,7 +1577,7 @@ public sealed class Director
         }
         out_ = clearest;
         // Walled in close all round: nothing's seen this time (eyes a step away would be a lie).
-        if (out_ < a.SignOut[0] * 0.5)
+        if (out_ < a.SignOut[0] * 0.5 * (dread.On ? Dread.SignOut(_outing, dread) : 1))
             return null;
         double gh = train.Dynamics.Distance;
         spot = spot with { Y = PlayerMotor.GroundAt(spot, train.Line, ref gh) + a.SignHeight.GetValueOrDefault(Key(what), a.SignHeightDefault) };

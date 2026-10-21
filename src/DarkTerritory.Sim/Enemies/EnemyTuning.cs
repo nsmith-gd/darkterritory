@@ -489,6 +489,8 @@ public sealed record GauntTuning
     public double LongStopSeconds { get; init; } = 120;
     public double LeaveSpeed { get; init; } = 1.4;
     public double ClearedAt { get; init; } = 30;
+    /// <summary>Note 945: leaving, it's gone only once no living crewmate out in the open is within this (m) as well; 0, at <see cref="ClearedAt"/> whoever's watching.</summary>
+    public double GoneUnseenAt { get; init; }
     public double CarryHigh { get; init; } = 1.7;
     public double CarryLow { get; init; } = 0.55;
     /// <summary>Note 288: talked down, it leaves; killed only by a gang while someone talks to it. False: the old health fight.</summary>
@@ -686,6 +688,8 @@ public sealed record HoundTuning(int[] PackSize, double Health, double Radius, d
     public HoundPatrolTuning Patrol { get; init; } = new();
     /// <summary>Note 891: the director's 9 Oct answer, how a hound aboard fights (enemies.json cinderHounds.aboard).</summary>
     public HoundAboardTuning Aboard { get; init; } = new();
+    /// <summary>Note 915: a feeding pack sated after so many fires, a trial (enemies.json cinderHounds.sated).</summary>
+    public HoundSatedTuning Sated { get; init; } = new();
 }
 
 /// <summary>
@@ -753,6 +757,11 @@ public sealed record DirectorTuning(
     /// </summary>
     public double LingerSeconds { get; init; } = 120;
     public double LingerRadius { get; init; } = 12;
+    /// <summary>
+    /// Note 945: the stuck rule (telegraphing or committing <see cref="LingerSeconds"/> × 1.5) spares a threat with a living
+    /// crewmate within <see cref="LingerRadius"/> of it: a Gaunt following its waker, talked to, isn't stuck. Off: as T114.
+    /// </summary>
+    public bool StuckSparesTheMet { get; init; }
     /// <summary>Note 795: with every living crewmate off the train, what none of them is within this of holds no cap (0: off).</summary>
     public double CapNear { get; init; } = 60;
     /// <summary>Note 881 (the brief §2 issue 4): the engagement states, and the engaged cap counting threats, not bodies.</summary>
@@ -799,8 +808,20 @@ public sealed record DirectorTuning(
     /// kinds about on a night, those about come again and again, note 652); null, no cap.
     /// </summary>
     public int? PerNightDefault { get; init; }
-    /// <summary>The kind's most a night: its own (<see cref="PerNight"/>), else <see cref="PerNightDefault"/>; null, none.</summary>
-    public int? CapFor(string key) => PerNight.TryGetValue(key, out int cap) ? cap : PerNightDefault;
+    /// <summary>
+    /// The night's cap as a trial (note 915, porting #590's 3-a-night cap, note 863): on, <see cref="NightCapTrial.PerNightDefault"/>
+    /// stands in for <see cref="PerNightDefault"/>. Off until measured and the director's call on #1285 is answered.
+    /// </summary>
+    public NightCapTrial NightCap { get; init; } = new();
+    /// <summary>
+    /// A pack the director sends (Cinder Hounds, Ribbits, Climbers) counts once toward its kind's night cap (note 863; the spec
+    /// doesn't say): the log has one line a placed spawn, whatever its members (note 885). False counts each of its members.
+    /// </summary>
+    public bool PackCountsOnce { get; init; } = true;
+    /// <summary>Fresh kinds when the night's run dry under its cap (note 863, ported in note 915): see <see cref="FreshTuning"/>.</summary>
+    public FreshTuning Fresh { get; init; } = new();
+    /// <summary>The kind's most a night: its own (<see cref="PerNight"/>), else the cap trial's or <see cref="PerNightDefault"/>; null, none.</summary>
+    public int? CapFor(string key) => PerNight.TryGetValue(key, out int cap) ? cap : NightCap.On ? NightCap.PerNightDefault : PerNightDefault;
     /// <summary>
     /// The chance a kind is about at all tonight (note 635; of the Knotter: "Sometimes never"), drawn once a night from the
     /// seed; a kind not named is always about.
@@ -1110,6 +1131,8 @@ public sealed record AfootTuning
     /// <summary>Eye height off the ground, by the creature's tuning name (default <see cref="SignHeightDefault"/>).</summary>
     public Dictionary<string, double> SignHeight { get; init; } = new();
     public double SignHeightDefault { get; init; } = 0.7;
+    /// <summary>Dread at the stops (#646, note 944): enemies.json director.afoot.dread.</summary>
+    public DreadTuning Dread { get; init; } = new();
 }
 
 /// <summary>
@@ -1646,4 +1669,36 @@ public sealed record NightChanceTrial
 {
     public bool On { get; init; }
     public Dictionary<string, double> Chances { get; init; } = new();
+}
+
+/// <summary>The night's cap as a trial (note 915; #590's, note 863): see <see cref="DirectorTuning.NightCap"/>.</summary>
+public sealed record NightCapTrial
+{
+    public bool On { get; init; }
+    public int PerNightDefault { get; init; } = 3;
+}
+
+/// <summary>
+/// Fresh kinds when the night's run dry (note 863, Nell's for #590, ported off in note 915; the director, 19 Oct 2026: "I
+/// don't want the night to run into a soft ending but I dont want repeats of the same monsters over and over"): with a kind
+/// about tonight at its night's cap and nothing the director may send, a kind the night's chances rolled out (never one at a
+/// chance of 0) comes in, drawn by its chance among those whose rule (or free gate) fits now; at most one every
+/// <see cref="EverySeconds"/>, <see cref="MaxPerNight"/> a night. Mirror of enemies.json <c>director.fresh</c>.
+/// </summary>
+public sealed record FreshTuning
+{
+    public bool On { get; init; }
+    public double EverySeconds { get; init; } = 30;
+    public int MaxPerNight { get; init; } = 10;
+}
+
+/// <summary>
+/// A feeding pack sated (note 915, #612's answer to note 863's pack fires): on, once a pack's hounds have lit <see cref="Fires"/>
+/// fires between them, each leaves the train as it would bored (not driven off), instead of lighting another. Off, a pack left
+/// alone aboard lights its car every igniteEverySeconds without end (one pack lit 26 in a night, note 863).
+/// </summary>
+public sealed record HoundSatedTuning
+{
+    public bool On { get; init; }
+    public int Fires { get; init; } = 3;
 }

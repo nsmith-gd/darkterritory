@@ -716,6 +716,34 @@ public class BotsAnswerTheSixTests
     }
 
     [Fact]
+    public void ABotWithNoToolGetsDownToClubAHotboxNeverFromTheRoofOverIt()
+    {
+        // The director's playtest of 20 Oct evening, line 17 (note 945): "he's standing on top of the car, and it's on the
+        // outside of the car, so that's certainly not going well". With no crowbar or wrench to prise it with, a bot clubs it
+        // (it snaps; a hurt): from the ground beside the car, where a blow reaches it, as a prise is made from; never stood on
+        // the roof over it swinging at the air.
+        var t = E.Hotbox;
+        var n = new Night(6, speed: 0, enemies: Quiet);
+        var h = n.World.AddEnemy(id => Hotbox.In(id, n.Train, 3, rear: true, 1, t));
+        h.Extra = t.KnockSeconds + t.GlowSeconds + 1;
+        n.Run(t.ExposeAfter + 0.5);
+        Assert.Equal(HotboxMode.Unfolded, h.Mode);
+        var at = h.WorldPosition(n.Train);
+        n.Crew[2] = PlayerMotor.SpawnOnRoof(n.Train, 3, h.Local.Z, P) with { Kit = 0 };
+        var legs = new Dictionary<int, RoofWalkerBot> { [2] = Walker(2) };
+        var hands = new Dictionary<int, StopHand> { [2] = Hand(2) };
+        bool down = false;
+        for (double s = 0; s < 40 && h.LastHitBy != 2; s += SimConstants.TickSeconds)
+        {
+            n.Run(SimConstants.TickSeconds, id => Heed.Hotbox(legs[id].Decide(n.Crew[id], n.World, n.World.Tick, out _), n.Crew[id], n.World, id, hands[id], Others(n, id)));
+            down |= n.Crew[2].Parent == PlayerState.World;
+        }
+        Assert.True(down, $"stayed up on car {n.Crew[2].Parent}");
+        Assert.Equal(2, h.LastHitBy);
+        Assert.True((PlayerMotor.WorldPosition(n.Crew[2], n.Train) - at).Length < 4);
+    }
+
+    [Fact]
     public void ABotCrewOverTheNetworkStopsForAHotboxPrisesItAndFreesTheAxle()
     {
         // The whole crew as a night runs it (each bot a client, over lossy loopback, reading only what's sent): 30 s in, a
