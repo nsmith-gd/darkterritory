@@ -1069,7 +1069,7 @@ Overfire past the safety valve and pressure pins at 100. Hold it there for 20s a
 | **Rupture** | A burst loud enough to carry. Pressure and fire drop to zero, and the cylinders seize |
 | **Slowdown** | The seized engine drags the train down at 1.5 m/s² until it's below 4 m/s, then it coasts. Grades still apply, so it can roll on downhill and stall short of a summit |
 | **Repair** | In the cab, the wrench worked at the fire door for **25s** (note 301; once, the engineering kit held there). Presses add up while you stay at it |
-| **Restart** | The boiler is whole but cold and empty. Coal, fire, then pressure back to the working band: 40s at three cars, over three minutes at twenty |
+| **Restart** | The boiler is whole but cold and empty. Coal, fire, then pressure back to the working band: about 8 s at three cars, no more than 30 at twenty (note 969) |
 
 Nobody dies. The cost is the clock, a stopped train with everything that means (the Whistler, a haunting Track Doll at the cab controls, Cinder Hounds closing), and whatever you have to do to get the kit back to the firebox.
 

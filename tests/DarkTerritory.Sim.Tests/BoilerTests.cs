@@ -44,12 +44,21 @@ public class BoilerTests
     }
 
     [Theory]
-    [InlineData(3, 35, 50)]
-    [InlineData(20, 180, 300)]
+    [InlineData(3, 6, 10)]
+    [InlineData(10, 6, 20)]
+    [InlineData(20, 6, 30)]
     public void RebuildingPressureAtAStandstillMatchesTheSpec(int cars, double minSeconds, double maxSeconds)
     {
-        // Spec C.2: "Rebuilding to working band takes 40 s at three cars and over three minutes at twenty."
+        // Spec C.2, the director, 21 Oct (note 969): "for 3 cars the rebuild for any speed from 0 is about 8s, at a full 20 cars
+        // the rebuild should be no longer than 30s" (it was 40 s at three cars and over three minutes at twenty).
         Assert.InRange(BoilerScenarios.RebuildSeconds(T, B, P, cars), minSeconds, maxSeconds);
+    }
+
+    [Fact]
+    public void LongerTrainsNeverRebuildFaster()
+    {
+        // The heating every car draws still costs a standing engine: twenty cars are never quicker to fire up than three.
+        Assert.True(BoilerScenarios.RebuildSeconds(T, B, P, 20) >= BoilerScenarios.RebuildSeconds(T, B, P, 3));
     }
 
     [Fact]
