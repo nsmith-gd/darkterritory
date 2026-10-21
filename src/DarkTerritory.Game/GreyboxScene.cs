@@ -2562,7 +2562,7 @@ public sealed partial class GreyboxScene
 
     /// <summary>
     /// The arrival town's houses burning (note 608): run.json broughtIn.burns for each creature brought in tonight, the
-    /// lived-in houses nearest the gate (<see cref="Sim.Towns.TownGenerator.Harmed"/>, the ones the campaign remembers burnt).
+    /// lived-in houses nearest the standing train (<see cref="Sim.Towns.TownGenerator.Harmed"/>, the ones the campaign remembers burnt; note 966).
     /// They catch as the creature comes in and burn on through the night.
     /// </summary>
     void HouseFires(MeshBuilder mesh, Double3 eye, Sim.Towns.Town town)
