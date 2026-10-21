@@ -26,8 +26,8 @@ public sealed partial class HostSession
         /// <summary>The snapshot this tick's input was predicted against (0: none; the crowd as it stands).</summary>
         public uint Seen;
         public uint LastApplied;
-        /// <summary>Note 956: who this listener's been sent, by the tick of their last frame (the floor while the voices are capped).</summary>
-        public readonly Dictionary<byte, uint> Hearing = new();
+        /// <summary>Note 956: whom this listener can hear, each voice's talk spurt (the tick it began, the tick of its last frame).</summary>
+        public readonly Dictionary<byte, (uint Start, uint Last)> Hearing = new();
         /// <summary>Newest snapshot this client says it has decoded: the baseline for its next delta.</summary>
         public uint AckedSnapshot;
         public PlayerIntent LastIntent;
@@ -1241,14 +1241,15 @@ public sealed partial class HostSession
                 path |= VoicePath.Tube;
             if (path == VoicePath.None)
                 continue;
-            // Note 956: the upload strained, a listener already hearing their fill doesn't get a new voice; the first keep the
-            // floor. A grabbed crewmate's radio (keyed open by the GRAB, App. C.8) always gets through.
+            // Note 956: each voice's talk spurt, as this listener would hear it. The upload strained, a listener is sent only the
+            // voices that began first, link.strainedVoices of them; a grabbed crewmate's radio (keyed open by the GRAB, App. C.8)
+            // always gets through.
+            Spurt(listener, speaker.Id);
             if (VoicesCapped && !(speaker.State.Alive && speaker.State.Has(PlayerFlags.Held)) && !Heard(listener, speaker.Id))
             {
                 VoiceFramesHeldBack++;
                 continue;
             }
-            listener.Hearing[speaker.Id] = Tick;
             // What's holding the speaker changes how they sound (App. C.8): muffled under a hand, fading as they're drained.
             var (muffled, gain) = World.VoiceEffect(speaker.Id);
             if (muffled)
@@ -1262,20 +1263,24 @@ public sealed partial class HostSession
         }
     }
 
+    uint VoiceFloorTicks => (uint)Math.Max(1, PlayerTuning.Link.VoiceFloorSeconds * SimConstants.TickRate);
+
+    /// <summary>Note 956: a frame from this speaker for this listener: their spurt goes on, or (after a gap) a new one begins.</summary>
+    void Spurt(Crew listener, byte speaker) =>
+        listener.Hearing[speaker] = listener.Hearing.TryGetValue(speaker, out var s) && Tick - s.Last <= VoiceFloorTicks ? (s.Start, Tick) : (Tick, Tick);
+
     /// <summary>
-    /// Note 956: whether this listener may be sent this speaker while the voices are capped: they're already hearing them, or
-    /// hearing fewer than link.strainedVoices others (a voice still counts while its last frame is within voiceFloorSeconds).
+    /// Note 956: whether this listener is sent this speaker while the voices are capped: fewer than link.strainedVoices of the
+    /// others talking to them began first (a voice is talking while its frames come within voiceFloorSeconds; ties by id).
     /// </summary>
     bool Heard(Crew listener, byte speaker)
     {
-        uint floor = (uint)Math.Max(1, PlayerTuning.Link.VoiceFloorSeconds * SimConstants.TickRate);
-        if (listener.Hearing.TryGetValue(speaker, out uint last) && Tick - last <= floor)
-            return true;
-        int others = 0;
-        foreach (var (who, at) in listener.Hearing)
-            if (who != speaker && Tick - at <= floor)
-                others++;
-        return others < PlayerTuning.Link.StrainedVoices;
+        var mine = listener.Hearing[speaker];
+        int before = 0;
+        foreach (var (who, s) in listener.Hearing)
+            if (who != speaker && Tick - s.Last <= VoiceFloorTicks && (s.Start < mine.Start || s.Start == mine.Start && who < speaker))
+                before++;
+        return before < PlayerTuning.Link.StrainedVoices;
     }
 
     readonly HashSet<byte> _cut = [];
