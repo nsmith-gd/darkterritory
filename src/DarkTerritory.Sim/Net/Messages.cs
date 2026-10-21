@@ -129,7 +129,9 @@ public static class Protocol
     // 81: the flare pistol (note 871): the body kinds FlarePistol (24, its flares left in the ninth field) and Flare (25, its
     //     burn left, 0..1, there).
     // 82: a shovelful answers (note 903): the boiler record gains its green and catching coal (fields 8 and 9).
-    public const int Version = 82;
+    // 83: the ping read for what's pointed at (note 936): PingKind gains Points (6) and Cargo (7); the ping record's eighth
+    //     field is who answered it (−1: nobody); the intent's moves bit 6 (Answer) says a ping's id follows (three bytes).
+    public const int Version = 83;
 }
 
 public enum MessageType : byte
@@ -317,6 +319,13 @@ public static class Messages
         w.U8((byte)((byte)i.Moves & MovesMask | ((byte)i.Signal & 3) << 2));
         if (i.Watch != 0)
             w.U8(i.Watch);
+        // Note 936: the ping answered, while it's being answered (a ping's id is 24 bits, World's effects counter).
+        if (i.Has(PlayerMoves.Answer))
+        {
+            w.U8((byte)i.Answer);
+            w.U8((byte)(i.Answer >> 8));
+            w.U8((byte)(i.Answer >> 16));
+        }
         // A hotbar choice (T108), only on the tick it's made: the slot in the low nibble, the wheel's step in the high; an
         // emote (note 298) in the top two bits, on the tick it's picked.
         if (tool)
@@ -377,6 +386,8 @@ public static class Messages
         i.Signal = (LampSignal)((moves >> 2) & 3);
         if ((notch & 0x80) != 0)
             i.Watch = r.U8();
+        if (i.Has(PlayerMoves.Answer))
+            i.Answer = r.U8() | r.U8() << 8 | r.U8() << 16;
         if (i.Has(PlayerActions.Tool))
         {
             byte t = r.U8();

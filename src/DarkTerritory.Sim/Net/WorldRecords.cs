@@ -156,9 +156,9 @@ public static class WorldRecords
         // Emotes (note 298): who, which, and when it began; note 722, when a high five's hands met (0: not yet) and with whom.
         foreach (var e in world.Emotes)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Emote, e.Id), [e.Tick, e.By, (long)e.Kind, e.Meet, e.With]));
-        // Pings (note 739): who, on what, which one of those, where, and when.
+        // Pings (note 739): who, on what, which one of those, where, and when; and who answered it (note 936).
         foreach (var e in world.Pings)
-            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Ping, e.Id), [e.Tick, e.By, (long)e.Kind, e.Target, Q(e.At.X, Pos), Q(e.At.Y, Pos), Q(e.At.Z, Pos)]));
+            list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Ping, e.Id), [e.Tick, e.By, (long)e.Kind, e.Target, Q(e.At.X, Pos), Q(e.At.Y, Pos), Q(e.At.Z, Pos), e.Taker]));
         // Lamp signals (note 720): who, which, and when it began.
         foreach (var e in world.Signals)
             list.Add(new WireRecord(WireRecord.MakeKey(RecordKind.Signal, e.Id), [e.Tick, e.By, (long)e.Kind]));
@@ -529,7 +529,7 @@ public static class WorldRecords
                     swings.Add(new SwingEvent(r.Id, (uint)f[0], (int)f[1]));
                     break;
                 case RecordKind.Ping when !world.Authority:
-                    pings.Add(new PingEvent(r.Id, (uint)f[0], (int)f[1], (PingKind)f[2], (int)f[3], new Ballast.Double3(D(f[4], Pos), D(f[5], Pos), D(f[6], Pos))));
+                    pings.Add(new PingEvent(r.Id, (uint)f[0], (int)f[1], (PingKind)f[2], (int)f[3], new Ballast.Double3(D(f[4], Pos), D(f[5], Pos), D(f[6], Pos)), (int)f[7]));
                     break;
                 case RecordKind.Emote when !world.Authority:
                     emotes.Add(new EmoteEvent(r.Id, (uint)f[0], (int)f[1], (Emote)f[2], (uint)f[3], (int)f[4]));

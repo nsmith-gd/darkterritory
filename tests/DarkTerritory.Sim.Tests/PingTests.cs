@@ -150,4 +150,33 @@ public class PingTests
         c.Run(120, until: () => c.Host.World.ControlsHolder >= 0 && c.Host.World.ControlsHolderBot);
         Assert.True(c.Host.World.ControlsHolderBot, $"no bot took the controls: the holder {c.Host.World.ControlsHolder}");
     }
+    [Fact]
+    public void WithOneBotItsTheDriverWhoTakesAPingAndTheCrewAreToldItsOnIt()
+    {
+        // Note 936 (the director's playtest of 20 Oct, one bot crewmate driving: "I am clicking my middle mouse button, trying
+        // to find a way to tell them"): the crew's only bot is the driver. A car pinged on fire is its to take (before, only a
+        // walker's, and nobody took it); it answers, and everyone sees who's on it. It stands the train and goes to the car.
+        var c = new Crew(bots: 1);
+        c.Host.EnableEnemies(Quiet, null, 1, 5);
+        c.Run(2);
+        var train = c.Host.Train;
+        c.Host.Train.Dynamics.Velocity = -12;
+        c.Run(10);
+        c.Host.World.AddEnemy(id => CarFire.In(id, train, 2, 2, Tuning.Enemies.CarFire, FireCause.Set));
+        c.Host.SetPlayerState(c.PlayerId, Looking(PlayerMotor.SpawnOnRoof(train, 1, 0, P), train, Middle(train, 2)));
+        c.Run(0.5);
+        c.Ping();
+        var ping = Assert.Single(c.Host.World.Pings, p => p.Kind == PingKind.Fire && p.Target == 2);
+        int driver = c.Bots[0].Session.PlayerId!.Value;
+        Assert.IsType<ConductorBot>(c.Bots[0].Bot);
+        c.Run(5, until: () => c.Host.World.Pings.Any(p => p.Id == ping.Id && p.Taker == driver) && c.Player.World.Pings.Any(p => p.Id == ping.Id && p.Taker == driver));
+        Assert.Contains(c.Host.World.Pings, p => p.Id == ping.Id && p.Taker == driver);
+        Assert.Contains(c.Player.World.Pings, p => p.Id == ping.Id && p.Taker == driver);
+        // Stood, and down the train to it.
+        c.Run(90, until: () => c.Of((byte)driver).Parent == 2);
+        Assert.Equal(2, c.Of((byte)driver).Parent);
+        Assert.True(train.Dynamics.Speed < 1, $"the train's running on at {train.Dynamics.Speed:0.0} m/s");
+        // Still answered while it's at it: kept on past pings.seconds.
+        Assert.Contains(c.Host.World.Pings, p => p.Id == ping.Id && p.Taker == driver);
+    }
 }
