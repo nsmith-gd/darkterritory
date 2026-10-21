@@ -128,4 +128,20 @@ public class ConcurrencyTests
         Assert.False(Concurrency.HoldsCap(false, working: true, "knotter", 10_000, T));
         Assert.False(T.IncidentsHoldCap);
     }
+
+    [Fact]
+    public void ASoloCapLetsACrewmateAloneMeetTwoAtOnceAndNobodyElse()
+    {
+        // n1-A3's trial for #613 (note 906): off in the game, the share's 1 for a solo crew on a short train.
+        Assert.Equal(0, T.SoloCap);
+        Assert.Equal(1, Concurrency.EngagedCap(1, 3, T));
+        var two = T with { SoloCap = 2 };
+        Assert.Equal(2, Concurrency.EngagedCap(1, 3, two));
+        Assert.Equal(2, Concurrency.Solo(1, two));
+        // Only a crewmate alone: two or more alive, or nobody, are the share's as before.
+        for (int living = 2; living <= 8; living++)
+            Assert.Equal(Concurrency.EngagedCap(living, 3, T), Concurrency.EngagedCap(living, 3, two));
+        Assert.Equal(0, Concurrency.EngagedCap(0, 3, two));
+        Assert.Equal(0, Concurrency.Solo(2, two));
+    }
 }
