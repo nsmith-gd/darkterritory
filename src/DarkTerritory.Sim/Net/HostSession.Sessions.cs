@@ -56,7 +56,8 @@ public sealed partial class HostSession
 
     /// <summary>
     /// Whether a joiner can take a bot's seat yet (note 724). The game shuts it while it brings the night's own crew aboard
-    /// (its bots, then the host's own player), so a resumed night's host doesn't take its own driver's seat.
+    /// (its bots, then the host's own player), so a resumed night's host doesn't take its own driver's seat. Shut, those
+    /// aboard aren't lobbied past the gate either (note 937): they're the night's crew, not joiners.
     /// </summary>
     public bool BotSeatsOpen { get; set; } = true;
 

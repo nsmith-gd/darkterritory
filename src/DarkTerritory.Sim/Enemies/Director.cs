@@ -657,6 +657,11 @@ public sealed class Director
         bool due = _pressure >= _t.Pressure.PressAt || answering;
         if (_pressure < _t.Pressure.Threshold)
             return Held("building");
+        // One pacing model (note 908): the encounter clock says how many, the pressure when and what. Its spends wait for the
+        // clock to owe one (drive.pressureGate), pressed or not; only an answered draw (the night's first threat) goes ahead.
+        // Without it the pressure's spends paid the clock down so often that the free channel never fired and λ was only a floor.
+        if (_t.Encounters.Drive is { On: true, PressureGate: { } gate } && _clock.Due < gate && !answering)
+            return Held("pacing");
         if (_cooldown > 0 && !due)
             return Held("cooldown");
         // The hound run's runners count: they're engaged with the crew like anything else (note 336). With everyone off the

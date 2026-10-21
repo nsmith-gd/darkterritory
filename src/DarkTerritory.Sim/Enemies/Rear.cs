@@ -757,8 +757,10 @@ public sealed class CinderHound(int id, int pack) : Enemy(id)
         double along = Local.Z;
         // C.9's row and the news line are the fire's own (World.FireStarted, note 851): its table names no actor for a fire the
         // hounds set (the burn's own deaths are recorded as ever).
-        string where = Inside(train) ? "in it" : "on its roof";
-        ctx.World.AddEnemy(i => CarFire.In(i, train, into, along, ctx.Tuning.CarFire, FireCause.Hounds, -1, -1, $"Feeding {where}, nobody near."));
+        bool inside = Inside(train);
+        string where = inside ? "in it" : "on its roof";
+        // Note 939: and where it was, so the crew are told where to look for it ("it's got to be one of these dudes").
+        ctx.World.AddEnemy(i => CarFire.In(i, train, into, along, ctx.Tuning.CarFire, FireCause.Hounds, -1, -1, $"Feeding {where}, nobody near.").LitInside(inside));
         ctx.World.PackFires++;
         ctx.World.FiresByPack[Pack] = ctx.World.FiresByPack.GetValueOrDefault(Pack) + 1;
         return false;
