@@ -71,6 +71,15 @@ void main() {
     // The backdrop band: 360 degrees across, sky2.x tall, the horizon 85 % of the way down.
     float azimuth = atan(dir.x, -dir.z) / (2.0 * PI) + 0.5;
     float elevation = asin(clamp(dir.y, -1.0, 1.0));
+    // The hills move (note 962; GDD s8: "The hills move"): toward the stir, the far ridges heave in slow swells along the
+    // skyline, rising and settling, more as dawn nears (stirColour.a degrees at most). Sampled lower, they're drawn higher.
+    if (frame.stirColour.a > 0.0 && frame.stir.w > 0.0) {
+        vec2 flatDir = dir.xz / max(length(dir.xz), 1e-4);
+        float toward = pow(max(dot(flatDir, normalize(frame.stir.xz)), 0.0), 3.0);
+        float t = mod(frame.fogHeight.w, 4096.0);
+        float swell = noise(vec2(azimuth * 36.0 + t * 0.11, t * 0.07)) * 0.7 + noise(vec2(azimuth * 90.0 - t * 0.05, 7.0)) * 0.3;
+        elevation -= radians(frame.stirColour.a) * toward * smoothstep(0.35, 0.9, swell);
+    }
     float v = 0.85 - elevation / frame.sky2.x;
     if (v >= 0.0 && v <= 1.0) {
         vec4 band = texture(backdrop, vec2(azimuth, v));
