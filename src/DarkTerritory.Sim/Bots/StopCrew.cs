@@ -894,7 +894,7 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
         // The crane's castings first, while the pair can work it: a whole casting's room in the cars its hook reaches, nearest
         // the hook first (the lights kept out of the room the castings need, they took the cars under the crane and it had
         // nowhere to set one down). (Set aside in the same tally as the heavies' halves.)
-        if (Site.Crane is { Wrecked: false } crane && calls.PairWithPeople)
+        if (Site.Crane is { Wrecked: false } crane && calls.PairWithPeople && false)
         {
             double size = crane.Tuning.LoadPerCasting;
             int castings = crane.Left;
