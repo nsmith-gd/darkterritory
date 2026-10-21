@@ -441,3 +441,8 @@ The director asked for the last three friendslop features to be heard. Two were 
 
 - The Token Budget Manager's RESUME (nathaniel2 at 0%). #1160 (#562) had merged on 16 Oct; #505 was finished by n1-w3 ([#1288](https://github.com/nsmith-gd/darkterritory/pull/1288)) and #649, the arrival town's sounds, by Ezra ([#1494](https://github.com/nsmith-gd/darkterritory/pull/1494)). The Voice Booth (#42) still has no Keep/Redo on its 34 versions.
 - The Audio Checklist's only line short of L1 that nobody holds is `up-flare`: the flare pistol (#598) is in play and drawn but silent. Claimed queue #675, note 975 (`crew-gun-lay` stays in review, waiting on the director's pick).
+
+## 21 Oct, ~21:15 UTC: #675 in review
+
+- The claim merged ([#1563](https://github.com/nsmith-gd/darkterritory/pull/1563), main merged in twice for the docs' union merge GitHub doesn't do).
+- The flare pistol heard (note 975): `recipes/flare.py` (two candidates a cue, uploaded to the checklist; the real ones installed), `GameAudio.Flare` (the shooter's own shot at once, everyone else's where the flare first flies; the burn held on the flare for its minute; the dry click), captions, `FlareSoundTests`. The `up-flare` line at L1, in review.

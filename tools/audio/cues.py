@@ -1153,6 +1153,13 @@ CUES = {
         L("line", "A line in the water: the shore lapping, the reel's clicker now and then as it's twitched"),
         O("catch", "A fish on: the reel screaming, a splash, wound in, a trout flapping on the ground", vars=3),
     ],
+    # The flare pistol (n1-w3's queue #598, note 871; queue #675, note 975): its shot off the shooter's own Fire (heard where
+    # the flare first flies by everyone else), the flare burning where it lands for its minute, and an empty pistol's click.
+    "up-flare": [
+        O("shot", "The flare pistol fired: the hollow pop of a wide signal pistol, the flare hissing up and away", vars=3),
+        L("burn", "A flare burning where it came down: a fierce magnesium hiss and sputter, a minute long, heard across a village"),
+        O("click", "The flare pistol empty: a dry click on Fire", vars=2),
+    ],
     # U1's whimsies (#967, note 715; queue #534, note 806; U1's ask on #1040): the canary in car one, whose silence is the
     # tell; the steam calliope's note on the whistle's pull (one note, pitched by the game to the tune's); the gramophone
     # wound in the guard van. Each plays over U1's own made sound only where it's installed.
