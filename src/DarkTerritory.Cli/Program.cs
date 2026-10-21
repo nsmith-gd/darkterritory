@@ -59,6 +59,9 @@ return args switch
     // dt director report <sweep.json> [--against old.json] [--bands f.json]: a sweep scored against the brief's §7 bands
     // (tools/director/bands.json), old against new side by side (note 930).
     ["director", "report", var sweep, ..] => DirectorCommands.Score(sweep, args),
+    // dt director join a.json b.json ... --out c.json: sweeps of the same matrix in parts (cells or seeds run apart, so a
+    // container restart loses one part, not the run) as one sweep, its groups recomputed from every night (#613, note 930).
+    ["director", "join", ..] => DirectorCommands.Join(args),
     // dt mcp: live control for agents (note 524): an MCP server on stdio whose tools host a night, step it, read it, insist
     // on what comes, open a recording, draw any of it framed on a subject (subject:gaunt), and run the rest of dt.
     ["mcp", ..] => McpCommands.Run(content, args, noMods),

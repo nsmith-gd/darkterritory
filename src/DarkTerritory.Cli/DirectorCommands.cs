@@ -85,6 +85,26 @@ static class DirectorCommands
         return 0;
     }
 
+    /// <summary>
+    /// `dt director join a.json b.json ... --out c.json`: parts of one sweep (its cells or seeds run apart) as one sweep, every
+    /// night kept and the groups recomputed from all of them (<see cref="DirectorSweep.Groups"/>), so a cell run as seeds 1-10
+    /// and 11-30 scores as one group of 30.
+    /// </summary>
+    public static int Join(string[] args)
+    {
+        var parts = args.Skip(2).TakeWhile(a => !a.StartsWith("--", StringComparison.Ordinal)).ToList();
+        var reports = parts.Select(p => JsonSerializer.Deserialize<SweepReport>(File.ReadAllText(p), DataFile.Options)!).ToList();
+        var nights = reports.SelectMany(r => r.Nights).ToList();
+        var joined = new SweepReport(string.Join("+", reports.Select(r => r.Commit).Distinct()), reports[0].Seconds, DirectorSweep.Groups(nights), nights);
+        string json = JsonSerializer.Serialize(joined, DataFile.Options);
+        if (Str(args, "--out", "") is { Length: > 0 } output)
+            File.WriteAllText(output, json);
+        else
+            Console.WriteLine(json);
+        Console.Error.WriteLine($"dt director join: {parts.Count} parts, {nights.Count} nights, {joined.Groups.Count} groups");
+        return 0;
+    }
+
     static IReadOnlyList<SweepCell> Cells(string[] args)
     {
         if (args.Contains("--quick"))
