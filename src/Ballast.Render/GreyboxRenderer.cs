@@ -76,6 +76,8 @@ struct PostConstants
     public Vector4 A;
     public Vector4 B;
     public Vector4 C;
+    /// <summary>The composite's: x = the view's blur (0..1, <see cref="PostSettings.Blur"/>).</summary>
+    public Vector4 D;
 }
 
 /// <summary>
@@ -1330,6 +1332,7 @@ public sealed unsafe class GreyboxRenderer : IDisposable
             A = new Vector4(Post.BloomStrength, Post.Vignette, Post.Grain, Post.ColourLevels),
             B = new Vector4((float)(lighting.Time * 30 % 997), (float)Width / Height, Post.Ps2 ? 1 : 0, Post.Exposure),
             C = new Vector4(Post.WideBloom, Post.LensFringe, Post.Ps2 ? 0 : Post.Occlusion, 1f / _ao.Width),
+            D = new Vector4(Post.Blur, 0, 0, 0),
         };
         Transition(cmd, _ldr.Image, VkImageAspectFlags.Color, VkImageLayout.Undefined, VkImageLayout.ColorAttachmentOptimal);
         BeginRendering(cmd, _ldr, withDepth: false);

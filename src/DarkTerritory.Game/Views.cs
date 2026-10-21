@@ -462,6 +462,9 @@ public static class Views
             // (Not one of Names.) Down the aisle of the first cargo car at the face of its load, where the staged fire
             // burns (dt screenshot --threats --view fire: Staging.Threats' car fire, Effects.CarFire).
             "fire" => FireCamera(train),
+            // (Not one of Names.) The dining car (note 959; dt screenshot --view dining, which fits it): from its front end
+            // door down the aisle, the table laid under the chandelier and the bar at the far end; diningbar, at the counter.
+            "dining" or "diningbar" => DiningCamera(train, name == "diningbar"),
             // (Not one of Names.) In the guard van at its back end, down at the stores World.Stock puts there: the crates,
             // the lamp and radios, the toys (App. C.4), and its extinguisher on the wall beyond them.
             "stores" => StoresCamera(train),
@@ -760,6 +763,18 @@ public static class Views
         var last = train.Frames[^1];
         double roof = last.Shape.RoofHeight;
         return Camera.LookAt(last.ToWorld(new Double3(1.6, roof + 2.2, -2)), last.ToWorld(new Double3(0, roof + 0.4, last.Shape.HalfLength - 2.5)), 60);
+    }
+
+    static Camera DiningCamera(TrainOnLine train, bool bar)
+    {
+        int v = Enumerable.Range(0, train.Vehicles.Count).FirstOrDefault(i => train.Vehicles[i].Kind == Sim.Train.VehicleKind.Dining, 1);
+        var f = train.Frames[v];
+        if (f.Shape.Dining is not { } d)
+            return FireCamera(train);
+        double floor = d.Table.Min.Y, z0 = f.Shape.Interior!.Value.Min.Z;
+        return bar
+            ? Camera.LookAt(f.ToWorld(new Double3(-0.6, floor + 1.6, d.Counter.Min.Z - 1.6)), f.ToWorld(new Double3(0.8, floor + 1.2, d.Counter.Max.Z + 0.6)), 60)
+            : Camera.LookAt(f.ToWorld(new Double3(-0.6, floor + 1.65, z0 + 0.9)), f.ToWorld(new Double3(0.3, floor + 1.1, d.Counter.Min.Z)), 70);
     }
 
     static Camera FireCamera(TrainOnLine train)

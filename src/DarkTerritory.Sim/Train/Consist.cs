@@ -8,7 +8,8 @@ namespace DarkTerritory.Sim.Train;
 /// <see cref="Handcar"/>: the pump trolley (note 729), a rake of its own on the rails or hung on the guard van's back; never
 /// coupled, never cargo, never the train's.
 /// </summary>
-public enum VehicleKind : byte { Engine, Cargo, Guard, Utility, Handcar }
+/// <summary>What a vehicle is. <see cref="Dining"/> is the dining car (upgrades.md §8.5, note 959): a cargo car converted, with its bar.</summary>
+public enum VehicleKind : byte { Engine, Cargo, Guard, Utility, Handcar, Dining }
 
 /// <summary>
 /// A mounted gun's state (spec B.7). Lives on the vehicle whose roof rail it's on (T93): a gun slides along the rail and
@@ -326,7 +327,11 @@ public sealed class Consist
             int utility = Math.Min(Math.Max(0, t.UtilityCars), spare - guards);
             for (int i = 0; i < utility; i++)
                 Convert(cargo[i], VehicleKind.Utility);
-            var left = cargo.Skip(utility).ToList();
+            // The dining car (upgrades.md §8.5, note 959) next behind them, if a cargo car's to spare after the guns.
+            int dining = t.DiningCar && spare - guards - utility > 0 ? 1 : 0;
+            if (dining > 0)
+                Convert(cargo[utility], VehicleKind.Dining);
+            var left = cargo.Skip(utility + dining).ToList();
             for (int i = 0; i < guards; i++)
             {
                 var v = left[left.Count * (i + 1) / (guards + 1)];

@@ -113,7 +113,7 @@ public readonly record struct Ladder(Double3 Foot, double Top, Double3 Inward, d
 /// <see cref="Chair"/>, <see cref="Cooler"/> and <see cref="Grill"/> are on the BBQ deck (note 698): a Muskoka chair to sit in
 /// (<see cref="Interactable.Index"/> which), the cooler of beers, the BBQ on its stand.
 /// </remarks>
-public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal, Sandbox, Hatch, ToolRack, Locker, Points, Whistle, Chair, Cooler, Grill, Gramophone, Hammock, HotTub, Launcher, Bench }
+public enum InteractableKind : byte { Firebox, Vent, Handbrake, Door, Coal, Sandbox, Hatch, ToolRack, Locker, Points, Whistle, Chair, Cooler, Grill, Gramophone, Hammock, HotTub, Launcher, Bench, Bar }
 
 /// <summary>
 /// A thing a player uses by standing near it and holding Use. <see cref="Index"/> says which door. <see cref="Aim"/> is how
@@ -161,6 +161,12 @@ public readonly record struct LockerBay(int Index, Box Box, string Name)
 /// the line, −Z), the cooler's middle and the grill's, on the deck; and the deck's front edge (Z).
 /// </summary>
 public sealed record BbqLayout(IReadOnlyList<Double3> Chairs, Double3 Cooler, Double3 Grill, double Front);
+
+/// <summary>
+/// The dining car's room (upgrades.md §8.5, note 959), in its frame: the table laid for eight down the middle, the bar's
+/// counter across its rear end, where you stand to order (<see cref="Bar"/>, the bar's <see cref="InteractableKind.Bar"/>).
+/// </summary>
+public sealed record DiningLayout(Box Table, Box Counter, Double3 Bar);
 
 /// <summary>A whimsy's place to lie or soak (note 744): the hammock, the hot tub; or a big cab's bench seat (note 905).</summary>
 public enum LoungeKind : byte { Hammock, HotTub, Bench }
@@ -212,6 +218,8 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
     public Box? Stove { get; init; }
     /// <summary>The BBQ deck on the engine's front (note 698), where it's fitted: its chairs, its cooler and its grill.</summary>
     public BbqLayout? Bbq { get; init; }
+    /// <summary>The dining car's table and bar (note 959), where it's the dining car.</summary>
+    public DiningLayout? Dining { get; init; }
     /// <summary>The hammock and the hot tub's seats, where fitted (note 744); a <see cref="InteractableKind.Hammock"/> or <see cref="InteractableKind.HotTub"/>'s Index is one.</summary>
     public IReadOnlyList<Lounge> Lounges { get; init; } = [];
 
@@ -270,6 +278,7 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         },
         VehicleKind.Guard => Guard(g, hasCarBehind) with { RoofRail = (-g.CarLength / 2 + RailEnd, g.CarLength / 2 - RailEnd) },
         VehicleKind.Utility => Utility(g, hasCarBehind) with { RoofRail = (-g.CarLength / 2 + RailEnd, g.CarLength / 2 - RailEnd) },
+        VehicleKind.Dining => DiningRoom(g, hasCarBehind) with { RoofRail = (-g.CarLength / 2 + RailEnd, g.CarLength / 2 - RailEnd) },
         _ => Car(g, hasCarBehind) with { RoofRail = (-g.CarLength / 2 + RailEnd, g.CarLength / 2 - RailEnd) },
     };
 
@@ -334,6 +343,30 @@ public sealed record CarShape(Box Bounds, IReadOnlyList<Solid> Solids, IReadOnly
         var stove = new Box(new Double3(room.Min.X + 0.05, floor, room.Max.Z - 1.0), new Double3(room.Min.X + 0.5, floor + 0.75, room.Max.Z - 0.5));
         solids.Add(new Solid(stove, SurfaceKind.Deck, PartKind.Stove));
         return car with { Solids = solids, Stove = stove };
+    }
+
+    /// <summary>
+    /// The dining car (upgrades.md §8.5, note 959; the director, 13 Oct: "If we have a dining car, we should be able to order
+    /// drinks at the bar"): a cargo car converted, walled like the crew car (no side doors, no freight). Its table laid for
+    /// eight stands down the middle right of the aisle, the aisle from end door to end door on the left (the end doors stand
+    /// left of centre); the bar's counter is across its rear end on the right, the aisle past it to the rear door, and Use at
+    /// the counter's front orders a drink.
+    /// </summary>
+    static CarShape DiningRoom(GeometryTuning g, bool hasCarBehind)
+    {
+        if (g.Interior is not { } i)
+            return SolidCar(g, hasCarBehind);
+        var car = Shell(g, i, hasCarBehind, cargo: false);
+        var room = car.Interior!.Value;
+        double floor = i.FloorHeight;
+        var solids = car.Solids.ToList();
+        var table = new Box(new Double3(0.05, floor, room.Min.Z + 2.6), new Double3(0.85, floor + 0.76, room.Max.Z - 4.6));
+        var counter = new Box(new Double3(0.15, floor, room.Max.Z - 2.2), new Double3(room.Max.X, floor + 1.08, room.Max.Z - 1.6));
+        solids.Add(new Solid(table, SurfaceKind.Deck, PartKind.Furniture));
+        solids.Add(new Solid(counter, SurfaceKind.Deck, PartKind.Furniture));
+        var bar = new Double3((counter.Min.X + counter.Max.X) / 2, floor, counter.Min.Z - 0.35);
+        var interactables = car.Interactables.Append(new Interactable(InteractableKind.Bar, bar, 0.9)).ToList();
+        return car with { Solids = solids, Interactables = interactables, Dining = new DiningLayout(table, counter, bar) };
     }
 
     /// <summary>

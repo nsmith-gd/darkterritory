@@ -12,8 +12,8 @@ layout(set = 0, binding = 3) uniform EYE_SAMPLER bloomWide;
 layout(set = 0, binding = 4) uniform EYE_SAMPLER occlusion;
 // a: x = bloom strength, y = vignette, z = grain, w = colour levels (PS2 mode).
 // b: x = frame seed, y = aspect, z = PS2 look, w = exposure. c: x = wide bloom share, y = lens fringe, z = occlusion
-// strength, w = the occlusion target's texel (u; v by aspect).
-layout(push_constant) uniform Post { vec4 a; vec4 b; vec4 c; } post;
+// strength, w = the occlusion target's texel (u; v by aspect). d: x = the view's blur (0..1, a drink's).
+layout(push_constant) uniform Post { vec4 a; vec4 b; vec4 c; vec4 d; } post;
 layout(location = 0) in vec2 vUv;
 layout(location = 0) out vec4 outColor;
 
@@ -57,6 +57,16 @@ void main() {
         // Lens fringing: red and blue a hair apart toward the corners, as the era's cameras-in-games had it.
         vec2 shift = (vUv - 0.5) * post.c.y * edge;
         c = vec3(texture(scene, EYE_UV(vUv + shift)).r, texture(scene, EYE_UV(vUv)).g, texture(scene, EYE_UV(vUv - shift)).b);
+        // Blurred (a drink's, the game's): two rings of taps round the pixel, as far as a hundredth of the frame and more.
+        if (post.d.x > 0.0) {
+            vec3 soft = vec3(0.0);
+            for (int i = 0; i < 8; i++) {
+                float a = float(i) * 0.785398;
+                vec2 ring = vec2(cos(a), sin(a) * post.b.y) * post.d.x * 0.014;
+                soft += texture(scene, EYE_UV(vUv + ring)).rgb + texture(scene, EYE_UV(vUv + ring * 0.45 + vec2(-ring.y, ring.x) * 0.2)).rgb;
+            }
+            c = mix(c, soft / 16.0, clamp(post.d.x * 1.6, 0.0, 1.0));
+        }
         // The occlusion, blurred over a few of its texels (four bilinear taps: a 4x4 box), darkening the scene, but not a
         // light's core: a lamp burning in a corner is still a lamp.
         vec2 ot = vec2(post.c.w, post.c.w * post.b.y);

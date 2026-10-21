@@ -72,6 +72,21 @@ public static class PropKit
     }
 
     /// <summary>
+    /// A drink from the dining car's bar (note 959), greybox: a short glass tumbler of something amber, its middle at (0, 0, 0)
+    /// as the beer's can is, so it's held where the can is.
+    /// </summary>
+    public static MeshAsset Drink(Look? look)
+    {
+        var k = new Kit(look, 1959);
+        k.Use("window_lit", new Vector3(0.95f, 0.55f, 0.18f), 0.1f, 0.8f, tile: 0.2f);
+        k.Cylinder(new Vector3(0, -0.05f, 0), new Vector3(0, 0.02f, 0), 0.034f, 10);
+        k.Use("bbq_plastic", new Vector3(0.82f, 0.86f, 0.86f), 0.1f, 0.9f);
+        k.Cylinder(new Vector3(0, -0.055f, 0), new Vector3(0, 0.055f, 0), 0.04f, 10, caps: false);
+        k.Cylinder(new Vector3(0, -0.06f, 0), new Vector3(0, -0.05f, 0), 0.04f, 10);
+        return k.Build("prop-drink");
+    }
+
+    /// <summary>
     /// The flare pistol (note 871), greybox: a stubby wide-bored signal pistol, its barrel along −Z, painted the stores' orange
     /// so it's told from anything else lying in the guard van. Its middle at (0, 0, 0).
     /// </summary>
