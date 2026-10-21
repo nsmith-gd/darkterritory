@@ -4851,8 +4851,15 @@ public static partial class Heed
     }
 
     /// <summary>
+    /// A swing's reach up or down (m): from the eye (<see cref="SwingFrom"/> over the feet) to the point struck
+    /// (<see cref="StrikeAt"/> over what's struck), as <c>World.Swing</c> measures it, within enemies.json <c>melee.reach</c>
+    /// (2.2) and a little of the creature's own radius.
+    /// </summary>
+    const double SwingUpOrDown = 2.4, SwingFrom = 1.3, StrikeAt = 0.8;
+
+    /// <summary>
     /// Toward a point (in our frame, or loose in the world) to within <paramref name="reach"/>, turned to it, then a swing.
-    /// Null if we can't get at it from where we are (another car).
+    /// Null if we can't get at it from where we are (another car, or above or below a swing's reach: note 945).
     /// </summary>
     public static PlayerIntent? Strike(in PlayerState self, TrainOnLine train, Double3 world, double reach)
     {
@@ -4867,6 +4874,12 @@ public static partial class Heed
         else
             local = world;
         var to = local - self.Position;
+        // Note 945 (the director's playtest of 20 Oct evening, line 17: "he's standing on top of the car, and it's on the
+        // outside of the car, so that's certainly not going well"): out of a swing's reach above or below where we stand (a
+        // Hotbox down at the wheels, a Tippy Toesie in the car under the roof), nothing from here: never a swing at the air,
+        // never a run at it along the roof. The caller's other ways (down off the car, Heed.Six's Afoot) are the way to it.
+        if (Math.Abs(to.Y + StrikeAt - SwingFrom) > SwingUpOrDown)
+            return null;
         var flat = new Double3(to.X, 0, to.Z);
         double yaw = DMath.Atan2(-flat.X, -flat.Z);
         var intent = new PlayerIntent { LookYaw = (float)Math.IEEERemainder(yaw - self.Yaw, 2 * Math.PI) };

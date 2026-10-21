@@ -3888,7 +3888,7 @@ static object HudShot(string content, string[] args)
                 Array.IndexOf(args, "--spur-stop") is var sp && sp + 1 < args.Length && double.TryParse(args[sp + 1], System.Globalization.CultureInfo.InvariantCulture, out double dawnIn) ? dawnIn : 150)
             : roofWarning.Length > 0
             ? Staging.RoofWarning(content, generated ?? DarkTerritory.Sim.LineGen.Routes.Generate(content, "deadLines:1", cars), cars, roofWarning)
-            : generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: false);
+            : generated is null ? new PrototypeSession(content, Str(args, "--line", "test-loop"), cars) : new PrototypeSession(content, generated, cars, enemies: args.Contains("--taut-knotter"));
         bool setUp = roofWarning.Length > 0 || mailCrane is not null || args.Contains("--spur-stop") || args.Contains("--terminus");
         if (!setUp)
             solo.Controls.Throttle = Opt(args, "--throttle", args.Contains("--talk") ? 0 : 0.6);
@@ -3919,6 +3919,18 @@ static object HudShot(string content, string[] args)
             for (int i = 0; i < things.Count; i++)
                 (things[i].Carrier, things[i].Locker, things[i].Pocket, things[i].Stashed) = (me, -1, 2 + i, i > 0);
             solo.Player = solo.Player with { HeldSlot = 2, Pockets = (byte)(things.Count > 1 ? 0b1100 : things.Count > 0 ? 0b0100 : 0) };
+        }
+        // --taut-knotter (note 945; with --route): a Knotter held taut in car 2's rear coupling, and stood on car 2's roof over it,
+        // facing it, where a blow reaches it: the crosshair's IT'S TAUT : STOP THE TRAIN.
+        if (args.Contains("--taut-knotter") && solo.World.Enemies is { } knotting)
+        {
+            const int knotCar = 2;
+            var knot = solo.World.AddEnemy(id => DarkTerritory.Sim.Enemies.Knotter.Into(id, solo.Train, knotCar, knotting.Knotter));
+            knot.Restore(DarkTerritory.Sim.Enemies.SpinePhase.Telegraph, 1, knot.Health, knotCar, knot.Local, 0, 0,
+                (int)DarkTerritory.Sim.Enemies.KnotterMode.Taut, -1, 0);
+            solo.Player = DarkTerritory.Sim.Player.PlayerMotor.SpawnOnRoof(solo.Train, knotCar, solo.Train.Frames[knotCar].Shape.HalfLength - 0.8,
+                solo.PlayerTuning) with
+            { Yaw = Math.PI, Pitch = -0.6 };
         }
         // --lockers [NAME] (note 264): stood at a crew locker (the fitter's if none named), facing it, with what it holds on
         // its door's tag; --carrying kit: the repair kit in hands (from the fitter's), as the hotbar shows it.

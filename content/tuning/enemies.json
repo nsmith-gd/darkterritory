@@ -874,6 +874,11 @@
     "crushSeconds": 8, "health": 8, "lootCargo": 0.3, "lingerSeconds": 900, "minCrew": 1, "spawnOut": 25,
     "longStopWeight": 2, "longStopSeconds": 120, "leaveSpeed": 1.4, "clearedAt": 30, "carryHigh": 1.7,
     "carryLow": 0.55,
+    // Note 945 (the director's playtest of 20 Oct evening, line 19: "I think I just saw a gaunt. Oh, but it just disappeared"):
+    // leaving with what it took, it went the moment it was clearedAt m off the train, in the crew's lamps. Now it walks on until
+    // no living crewmate out in the open (not in a car or the cab) is within goneUnseenAt m too (0: gone at clearedAt,
+    // whoever's watching).
+    "goneUnseenAt": 60,
     // Note 288 (drivenOff; "keep talking to it"). talkingCalms: talk brings its anger down a step every silenceSeconds (Part
     // Eleven Q9's "does talking lower its aggro", answered yes for now; false: talk only holds it); calmed under attackAt it
     // stops attacking; calm and talked to for talkedDownSeconds, it leaves empty-handed. Only the gang's blows with someone
@@ -1515,6 +1520,10 @@
     "lingerSeconds": 120,
     // Near enough to be met: a car's length (a Climber settled in the car behind the cab is 15-25 m from the driver).
     "lingerRadius": 12,
+    // Note 945 (line 19, "it just disappeared"): the stuck rule above (telegraphing or committing lingerSeconds × 1.5) took a
+    // Gaunt following its waker, talked to and so held in its telegraph, from right beside them. stuckSparesTheMet: what has
+    // a living crewmate within lingerRadius isn't stuck. Off until the director's said (a despawn rule of the director's).
+    "stuckSparesTheMet": false,
     // Note 795 (the director, 15 Oct: "Even when testing alone I'm not running into monsters in yards or abandoned villages"):
     // with every living crewmate off the train, afoot in a yard or a village, what none of them is within capNear m of (and
     // that has nobody in its grip) holds no cap: a hound pack aboard or a Knotter in a coupling left behind held a crew of
