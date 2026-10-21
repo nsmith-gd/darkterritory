@@ -617,7 +617,7 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
         }
         calls.ReliefSaid = tick;
         Relieving = true;
-        if (PlayerMotor.InCab(self, train))
+        if (PlayerMotor.InCab(self, train) || driverGone && _relief is { OutOfCab: true })
         {
             if (driverGone)
             {
@@ -629,6 +629,16 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
             // The Climber, clubbed with the driver (it clubs it too with someone else in the cab: KeepClear).
             return Heed.Strike(self, train, climber!.WorldPosition(train), 1.6) ?? default;
         }
+        // Note 955: at the crane's controls (the Foundry's operator, the relief), let go of them first: its stick drives the
+        // crane while it has them, and frontier:7 seed 6's stood at the crane till dawn, the train where the driver fell.
+        if (job?.OffTheCrane(self, "off the crane for the controls") is { } letGo)
+            return letGo;
+        // Note 955: the driver dead and a Climber in the cab with nobody: down into it alone, it takes the relief (alone with it,
+        // a grab: App. A.4), and the next, and the next (frontier:7 seed 6, five dead in the cab in four minutes). Short of
+        // it, on car 1's roof or the engine's hood (out of its reach), until it's gone: left alone it leaves (climbers.boredSeconds).
+        if (driverGone && climber is not null && ReliefDriver.HoldShort(self, train)
+            && !Crew.Any(c => c.Id != Me && c.State.Alive && PlayerMotor.InCab(c.State, train)))
+            return new PlayerIntent();
         if (ReliefDriver.ToTheCab(self, train, out bool forward) is { } going)
             return going;
         if (forward)
@@ -3243,6 +3253,13 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
     const double SandFireCalls = 1.5;
     /// <summary>Out on the running board to sand, or on the way there or back (for the harness's trace).</summary>
     public bool Sanding => _sandLeg >= 0;
+
+    /// <summary>
+    /// Out of the cab on the driving's own errand (a switch set back or thrown alone, its part of a loading, a breach or a
+    /// cut alone, a ping, the sandbox), and back to the cab its own way after. Note 955: the relief driver's walker leaves it
+    /// to the driving while it is, or its legs took it straight back to the cab from the first step out.
+    /// </summary>
+    public bool OutOfCab => _alone is not null || _workingOut || _outToBreach || _outToCut || OutOnPing || Sanding;
 
     /// <summary>
     /// Grease (App. A.2): "cannot climb grade · cannot brake · cannot accelerate", so the controls can wait. Out of the cab's
