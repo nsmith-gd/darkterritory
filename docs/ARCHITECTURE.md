@@ -1100,4 +1100,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [939. Car fires told: why a car burns and relights, boarding a burning car, the extinguisher's reach (Hazel, queue #642; the director's playtest…](notes/939.md)
 - [940. The Waker near the town, and a moving or reversing train (Cole, queue #643; the director's playtest of 20 Oct evening)](notes/940.md)
 - [941. Small things: the floating statue, the village doors, the crane's let-go, the rain (Ezra, queue #644; the director's playtest of 20 Oct…](notes/941.md)
+- [943. Playtest telemetry: the PostHog sink behind #626's upload interface (queue #637; the director's backend answer, 20 Oct, inbox…](notes/943.md)
 <!-- end of the notes index -->

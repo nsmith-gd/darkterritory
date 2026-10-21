@@ -132,6 +132,8 @@ return args switch
     ["telemetry", "record", ..] => Print(TelemetryCommands.Record(content, args)),
     // dt telemetry spool [--dir d] [--trim] [--export out] (queue #626, note 919): the spool's sessions against its caps; trim; bundle.
     ["telemetry", "spool", ..] => Print(TelemetryCommands.Spool(content, args)),
+    // dt telemetry send [--dir d] [--dry-run] (queue #637, note 943): the pending sessions to PostHog, or what would go.
+    ["telemetry", "send", ..] => Print(TelemetryCommands.Send(content, args)),
     ["telemetry", "summary", ..] => Print(TelemetryCommands.Summary(args)),
     ["telemetry", "map", ..] => Print(TelemetryCommands.Map(content, args)),
     // dt playtest bake --into <content> [--cohort CODE] (note 916): a playtest build's mark, as tools/package.sh --playtest bakes it.
