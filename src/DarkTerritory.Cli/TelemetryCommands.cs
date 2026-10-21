@@ -19,6 +19,36 @@ static class TelemetryCommands
 {
     public static object Schema() => new { version = TelemetrySchema.Version, common = TelemetrySchema.Common, events = TelemetrySchema.Events };
 
+    /// <summary>
+    /// <c>dt telemetry spool [--dir d] [--trim] [--export out]</c> (queue #626, note 919): a spool's sessions (the app's own
+    /// folder by default), sent and pending, against telemetry.json's caps; <c>--trim</c> holds it to them; <c>--export</c>
+    /// bundles the pending ones into <c>out</c> as the <c>file</c> sink does beside a problem report, and marks them sent.
+    /// </summary>
+    public static object Spool(string content, string[] args)
+    {
+        var t = TelemetryTuning.Load(content);
+        var spool = new TelemetrySpool(Str(args, "--dir", FixedTelemetryGate.DefaultDirectory), t.Spool);
+        var dropped = args.Contains("--trim") ? spool.Trim(writing: null) : [];
+        PumpReport? exported = null;
+        if (Str(args, "--export", "") is { Length: > 0 } output)
+            exported = new TelemetryUploader(spool, new FileTelemetryUpload(output), t.Upload, new FixedTelemetryGate(true, spool.Directory))
+                .PumpAsync(inNight: false, writing: null).GetAwaiter().GetResult();
+        var all = spool.Sessions();
+        return new
+        {
+            directory = spool.Directory,
+            caps = t.Spool,
+            sink = t.Upload.Sink,
+            sessions = all.Count,
+            bytes = all.Sum(s => s.Bytes),
+            pending = all.Count(s => !s.Sent),
+            sent = all.Count(s => s.Sent),
+            dropped = dropped.Select(s => s.Id),
+            exported = exported is null ? null : new { exported.Sent, file = exported.Result?.Detail, exported.Held },
+            list = all.Select(s => new { s.Id, s.Bytes, written = s.Written.ToString("u", CultureInfo.InvariantCulture), s.Sent }),
+        };
+    }
+
     /// <summary><c>dt telemetry record [--route frontier:7] [--bots 4] [--cars 6] [--seconds 600] [--seed 1] [--me n] [--out out/telemetry]</c>.</summary>
     public static object Record(string content, string[] args)
     {
