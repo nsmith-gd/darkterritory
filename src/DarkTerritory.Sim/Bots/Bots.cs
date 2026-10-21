@@ -2486,7 +2486,10 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         // the rear up to the engine: walking beside the rear car at the train's pace, two of that crew were out of the old
         // window (10 m past the rear) as often as in it, and walked 2.5 km at 2 m/s till one died of the cold.
         // And someone out on the handcar (note 729): on the open line as much as on foot, wherever it's taken them.
-        var behind = atAStop || Crewmates is null ? null : Crewmates
+        // #613: and not once the dawn's about to catch the train (the same reckoning that calls a stop's loading done, and leaves
+        // anyone still on the ground there, note 935): the 120 s stood for frontier:4 seed 4's gunner, stuck by the switch, put
+        // the dawn on the train 6.6 km in.
+        var behind = atAStop || Crewmates is null || Stops?.LateHere(world) == true ? null : Crewmates
             .Where(c => c.Alive && (c.Parent == PlayerState.World && c.Surface == Surface.Ground || train.OnHandcar(c.Parent)))
             .Select(c => (c, along: AlongTheTrain(train, PlayerMotor.WorldPosition(c, train))))
             .Where(x => x.along < d.Distance + 5 && d.RearDistance - x.along < SetBackFor)
@@ -2870,10 +2873,14 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
         }
         var part = stops.DriverPart(world);
         bool lowFire = !calls.FiremanMinding && train.BoilerTuning is { } fb && train.Boiler.FireFraction(fb) < fb.LowFireFraction * WorkFireCalls;
+        bool outOfFire = !calls.FiremanMinding && train.BoilerTuning is { } lb && train.Boiler.FireFraction(lb) < lb.LowFireFraction;
         _workHand ??= new StopHand(StopJob.Driver, calls, member);
         if (_workingOut)
         {
-            if (part != StopJob.None && !lowFire && _workHand.Lend(self, world, stops.Plan!, part) is { } working)
+            // #613: with a crate in its arms, it's carried on in first while the fire's not yet low (boiler.json lowFireFraction).
+            // Let go where it stood for the fire, by the cab's steps, the Use that climbs them picked it up again, and
+            // frontier:2's lone driver went up and down them with it till dawn.
+            if (part != StopJob.None && (!lowFire || self.Has(PlayerFlags.Heavy) && !outOfFire) && _workHand.Lend(self, world, stops.Plan!, part) is { } working)
                 return working with { Buttons = working.Buttons | PlayerButtons.Brake, ThrottleNotch = -4 };
             // Done (or the fire wants it): back up into the cab, and from there the loading's its to call. Nobody climbs with
             // freight in their arms: down with it first.

@@ -1923,6 +1923,13 @@ public sealed class StopDriver(CrewCalls calls)
     bool LateAt(World world, double at) => world.Run is { } lr && Deadline(world, lr) < Home(world, lr, at) + LateSpare + AboardGiveUp;
 
     /// <summary>
+    /// #613: late for the dawn from where the train is on the main line, as a stop's leaving reckons it (<see cref="LateAt"/>):
+    /// what the driver's stand for a crewmate left behind yields to (<c>ConductorBot.ForTheLeftBehind</c>), as a stop's wait for
+    /// someone on the ground does (note 935). False off the main line or without a run.
+    /// </summary>
+    public bool LateHere(World world) => world.Train.OnMain && LateAt(world, world.Train.Dynamics.Distance);
+
+    /// <summary>
     /// Note 935: the people playing (not bots), as the driver sees them (<c>ConductorBot.Players</c>), set each tick. The
     /// crew's calls are the bots' (each says its part), so a person was never in <see cref="CrewCalls.Riding"/> or
     /// <see cref="CrewCalls.AllAboard"/>.
@@ -3044,7 +3051,10 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
             : (Double3.Lerp(site.ConveyorTail, site.ConveyorKnee, 0.5), -1.0, "along the belt", "minding the belt", false);
         var (along, across) = TrackCoords(train.Line, p.Spur.Index, goal, self.LineHint);
         var stand = TrackPoint(train.Line, p.Spur.Index, along, Math.Sign(across) * (Math.Abs(across) + beyond));
-        var (step, there) = WalkTo(self, train.Line, p.Spur.Index, stand, null);
+        // By the foot path from further off (as to the powerhouse, note 639): from a powerhouse out by the switch, 320 m back
+        // down the spur, the track-side walk along the spur went nowhere, and frontier:4 seed 4's gunner stood by it the rest of
+        // the stop while the driver gave the belt up and waited for it, and missed the dawn (#613).
+        var (step, there) = OnFoot(self, train, p.Spur.Index, stand, null);
         if (!there && ((self.Position - stand) with { Y = 0 }).Length > 0.35)
         {
             Doing = going;
@@ -3392,9 +3402,33 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
     /// <summary>Use for one tick, then not: picking up and putting down are on the press, not the hold.</summary>
     PlayerIntent Press()
     {
+        _sincePress++;
         _pressed = !_pressed;
+        if (_pressed)
+            _sincePress = 0;
         return _pressed ? new PlayerIntent { Buttons = PlayerButtons.Use } : new PlayerIntent();
     }
+
+    /// <summary>
+    /// #613: <see cref="Press"/> for a light crate taken up or put down, again only <see cref="PressAgain"/> calls after the last.
+    /// Over a link (a bot crew as the app runs it) what a press did is seen a round trip later: a hand that pressed to pick one
+    /// up, still saw empty arms, and pressed again, put it straight back down (and inside a car, picked it up again).
+    /// frontier:8's lone driver did that with one crate at Stroud Wreck Yard from 280 s until the dawn. A first press is as quick
+    /// as ever; a heavy crate's lift, worked between two, keeps its own pace.
+    /// </summary>
+    PlayerIntent PressOnce()
+    {
+        if (!_pressed && _sincePress + 1 < PressAgain)
+        {
+            _sincePress++;
+            return new PlayerIntent();
+        }
+        return Press();
+    }
+
+    /// <summary>Calls between two of <see cref="PressOnce"/>'s presses (a bot's decisions): about half a second, more than a round trip.</summary>
+    const int PressAgain = 12;
+    int _sincePress = PressAgain;
 
     /// <summary>
     /// Crates off the ground and into the cars (spec D.2): pick one up at the stack, walk it to the car with the most room,
@@ -3529,7 +3563,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
             if (!Near(self, drop, 0.25) || !Aligned(self, toward))
                 return Walk(self, drop, toward, "carrying in");
             Doing = "putting it down";
-            return Press();
+            return mine is { Kind: Physics.BodyKind.Cargo } ? PressOnce() : Press();
         }
         if (onThisCar)
         {
@@ -3648,7 +3682,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         if (!Aligned(self, yaw))
             return new PlayerIntent { LookYaw = Turn(self, yaw) };
         Doing = "picking one up";
-        return Press();
+        return crate.Kind == Physics.BodyKind.Cargo ? PressOnce() : Press();
     }
 
     /// <summary>
