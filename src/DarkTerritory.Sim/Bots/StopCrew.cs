@@ -3595,13 +3595,21 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
     static int Roomiest(World world, StopPlan p, CrewCalls calls, int member)
     {
         var train = world.Train;
-        // Note 920: the room the stop's packing plan leaves the lights (the heavy crates' whole halves set aside; what's
-        // settling in a car taken off by size), less what other hands have said they're taking there.
-        var room = p.LightRoom(world, calls);
+        // Put down inside a car and settling: that room's taken. One left on a car's steps isn't in it (T50).
+        // (Loaded, note 659, it's in the car's load already.)
+        var pending = world.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Cargo && b.Carrier < 0 && !b.Banked && b.Parent > 0 && StopPlan.Inside(train, b))
+            .GroupBy(b => b.Parent).ToDictionary(g => g.Key, g => g.Count());
         var stack = p.Site.CrateStack.Length > 0 ? p.Site.CrateStack[0] : train.Frames[0].Origin;
-        return room.Select(kv => (Id: kv.Key, Room: kv.Value - p.Site.LoadPerCrate * calls.BoundFor(kv.Key, member)))
-            .Where(x => x.Room > 1e-6).OrderByDescending(x => Math.Round(x.Room, 3)).ThenBy(x => (train.Frames[x.Id].Origin - stack).Length)
-            .Select(x => x.Id).DefaultIfEmpty(-1).First();
+        // Note 920 (queue #630): the stop's packing plan is a preference, never a wall. A light goes first to a car with
+        // room once the heavy crates' whole halves (and the crane's castings) are set aside; with none, to the roomiest as
+        // before. Held to it as a wall, the lights it left had nowhere to go, stayed "to load", and the hands never left the
+        // stack for the village, the Choir's shelter or the crane.
+        var planned = p.LightRoom(world, calls);
+        int Best(IEnumerable<(int Id, double Room)> cars) => cars.Where(x => x.Room > 1e-6).OrderByDescending(x => Math.Round(x.Room, 3))
+            .ThenBy(x => (train.Frames[x.Id].Origin - stack).Length).Select(x => x.Id).DefaultIfEmpty(-1).First();
+        int preferred = Best(planned.Select(kv => (kv.Key, kv.Value - p.Site.LoadPerCrate * calls.BoundFor(kv.Key, member))));
+        return preferred >= 0 ? preferred
+            : Best(StopPlan.WithRoom(train).Select(v => (v.Id, 1 - v.Load - p.Site.LoadPerCrate * (pending.GetValueOrDefault(v.Id) + calls.BoundFor(v.Id, member)))));
     }
 
     /// <summary>The nearest crate a hand can pick up from the ground (<see cref="StopPlan.Loose"/>) on the working side.</summary>
