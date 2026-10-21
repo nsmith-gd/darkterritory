@@ -1,4 +1,5 @@
 using Ballast;
+using Ballast.Net;
 using DarkTerritory.Sim.Bots;
 using DarkTerritory.Sim.Enemies;
 using DarkTerritory.Sim.Net;
@@ -150,6 +151,30 @@ public class PingTests
         c.Run(120, until: () => c.Host.World.ControlsHolder >= 0 && c.Host.World.ControlsHolderBot);
         Assert.True(c.Host.World.ControlsHolderBot, $"no bot took the controls: the holder {c.Host.World.ControlsHolder}");
     }
+    [Fact]
+    public void APingsAnswerRidesTheIntentWithItsId()
+    {
+        // Note 936: the ping a bot's on, its id (24 bits) after the moves byte's Answer bit, with a watched crewmate and an
+        // emote beside it; and nothing more on an intent without it.
+        foreach (int id in new[] { 1, 0x1234, 0xFFFFFF })
+        {
+            var w = new NetWriter();
+            Messages.WriteInput(w, [new InputFrame(7, new PlayerIntent { MoveZ = 1, Moves = PlayerMoves.Answer | PlayerMoves.Crouch, Answer = id, Watch = 3, Emote = Emote.Aboard })], 0);
+            var r = new NetReader(w.Written);
+            r.U8();
+            var frames = new List<InputFrame>();
+            Messages.ReadInput(ref r, frames, out _);
+            Assert.Equal((id, PlayerMoves.Answer | PlayerMoves.Crouch, (byte)3, Emote.Aboard), (frames[0].Intent.Answer, frames[0].Intent.Moves, frames[0].Intent.Watch, frames[0].Intent.Emote));
+        }
+        var plain = new NetWriter();
+        Messages.WriteInput(plain, [new InputFrame(7, new PlayerIntent { MoveZ = 1, Answer = 5 })], 0);
+        var pr = new NetReader(plain.Written);
+        pr.U8();
+        var read = new List<InputFrame>();
+        Messages.ReadInput(ref pr, read, out _);
+        Assert.Equal(0, read[0].Intent.Answer);
+    }
+
     [Fact]
     public void WithOneBotItsTheDriverWhoTakesAPingAndTheCrewAreToldItsOnIt()
     {
