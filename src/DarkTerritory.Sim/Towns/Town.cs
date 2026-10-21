@@ -118,15 +118,75 @@ public sealed class Town
     /// The yard's fight (ARCHITECTURE §8 note 608; note 589): where along this town's own frame (its S) a creature brought in
     /// through the gate is being fought, while it is; null, none. The town's guards leave their posts for the yard and stand
     /// round it, firing (<see cref="OnTheYard"/>). Whatever draws the town sets it from what it sees: like who's held to
-    /// talk, it moves nobody in the night.
+    /// talk, it moves nobody in the night. Set from none, the fight's begun at the town's <see cref="Clock"/> then, and the
+    /// guards run out to it from where they were (note 951).
     /// </summary>
-    public double? Fight { get; set; }
+    public double? Fight
+    {
+        get => _fight;
+        set
+        {
+            if (value is not null && _fight is null)
+                _fightFrom = Clock;
+            _fight = value;
+        }
+    }
+
+    double? _fight;
+    double _fightFrom;
 
     /// <summary>Who turns out to the yard's fight (note 608): the gate's keeper and the town's guards.</summary>
     public static bool Guards(Townsperson p) => p.Role is "gatekeeper" or "guard";
 
     // Out on the yard (note 608): this far out from the line either side, and this far apart along it.
     const double YardOut = 5.5, YardApart = 6;
+
+    // Turning out (note 951; GDD v1.6 "Not yet", note 608's "the guards step from their posts to the yard rather than running
+    // there"): the wall guns open at once, and the guards look to it where they stand, then set off this long after (s), each
+    // a beat after the one before, and run (m/s) to their places round it. The fight's run.json broughtIn.fightSeconds (8) and
+    // a big town's guards are posted hundreds of metres off, so one further than RunFrom (m) comes running in from that far
+    // out along their way: in the crew's sight they all run in, and are there for most of it. Not design numbers: how a town
+    // is drawn.
+    const double TurnOut = 0.8, TurnOutEach = 0.15, GuardRun = 6, RunFrom = 20;
+
+    /// <summary>
+    /// Where the <paramref name="k"/>th guard is <paramref name="since"/> seconds into the yard's fight at <paramref name="fight"/>
+    /// (note 951): stood where they were at <paramref name="from"/>, looking to it, till their turn to set off; then running
+    /// for their place round it (<see cref="OnTheYard"/>); there, at it.
+    /// </summary>
+    public TownPose TurningOut(int k, double fight, double since, Double3 from, double up = 0)
+    {
+        var there = OnTheYard(k, fight, up);
+        var way = (there.Feet - from) with { Y = 0 };
+        if (way.Length > RunFrom)
+        {
+            from = there.Feet - way.Normalized * RunFrom;
+            way = (there.Feet - from) with { Y = 0 };
+        }
+        double run = since - TurnOut - k * TurnOutEach, left = way.Length;
+        var look = (World(fight, 0, up) - from) with { Y = 0 };
+        if (run <= 0)
+            return new TownPose(from, look.Length > 1e-6 ? look.Normalized : there.Facing, "idle", false);
+        double gone = run * GuardRun;
+        if (gone >= left)
+            return there;
+        var dir = way.Normalized;
+        var at = from + dir * gone;
+        return new TownPose(at with { Y = from.Y + (there.Feet.Y - from.Y) * (gone / left) }, dir, "run", true);
+    }
+
+    /// <summary>
+    /// A staged yard fight (note 951; <c>dt screenshot --arrival brought --patrol --fight s</c>): it began
+    /// <paramref name="secondsAgo"/> by the town's clock, wherever the scene then has it.
+    /// </summary>
+    public void FightBegan(double secondsAgo)
+    {
+        _fight ??= 0;
+        _fightFrom = Clock - secondsAgo;
+    }
+
+    /// <summary>Seconds since the yard's fight began, by the town's clock (note 951); negative with none.</summary>
+    public double FightSeconds => _fight is null ? -1 : Clock - _fightFrom;
 
     /// <summary>
     /// Where the <paramref name="k"/>th of the town's guards stands to the yard's fight at <paramref name="fight"/> (note 608):
@@ -187,7 +247,12 @@ public sealed class Town
     public TownPose Now(Townsperson p)
     {
         if (Fight is { } fight && Guards(p))
-            return OnTheYard(Plan.People.Count(q => q.Id < p.Id && Guards(q)), fight, p.Up);
+        {
+            // From where they were on their round as it began (their round's clock run back to then).
+            double since = Math.Max(0, Clock - _fightFrom);
+            var was = At(p, Own(p.Id) - since).Feet;
+            return TurningOut(Plan.People.Count(q => q.Id < p.Id && Guards(q)), fight, since, was, p.Up);
+        }
         if (_reacting.TryGetValue(p.Id, out var r) && Clock >= r.Start && Clock < r.End)
         {
             var there = At(p, r.Own);
