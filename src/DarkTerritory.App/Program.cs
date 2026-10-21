@@ -354,6 +354,31 @@ crashes.Saved += (report, path) =>
     if (sent.Result is { } r)
         Console.WriteLine($"telemetry: {r.Outcome} {r.Detail}");
 };
+// The PostHog sink (#637, note 943): the finished sessions sent between nights, in the background, one send at a time, with
+// the player's consent; none at all until the director's project key is in telemetry.json.
+var telemetryUploader = DarkTerritory.Game.Telemetry.TelemetryUploader.NetworkSinkFor(telemetryTuning.Upload) is { } telemetryNet
+    ? new DarkTerritory.Game.Telemetry.TelemetryUploader(telemetrySpool, telemetryNet, telemetryTuning.Upload, telemetryGate) : null;
+Task? telemetrySending = null;
+void SendTelemetry()
+{
+    if (telemetryUploader is null || telemetrySending is { IsCompleted: false })
+        return;
+    telemetrySpool.Writing?.Flush();
+    telemetrySending = Task.Run(async () =>
+    {
+        try
+        {
+            var sent = await telemetryUploader.PumpAsync(inNight: false, telemetry.SessionId);
+            if (sent.Result is { } r)
+                Console.WriteLine($"telemetry: {telemetryUploader.Sink.Name} {r.Outcome}: {r.Detail}");
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            Console.WriteLine($"telemetry: not sent ({e.Message})");
+        }
+    });
+}
+SendTelemetry();
 bool devBuild = false;
 #if DEVTOOLS
 devBuild = true;
@@ -2177,6 +2202,8 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     if (session.World.Run?.Over != true)
         telemetry.Quit(net is { Kicked: true } ? "kicked" : net is { Lost: true, GoingOn: null } ? "disconnected" : window.CloseRequested ? "app" : "menu", telemetryWorld);
     telemetry.NightEnd(telemetryWorld);
+    // Note 943: between nights, the finished sessions go (the PostHog sink, once there's a key).
+    SendTelemetry();
     // Note 350: a night seen to its end is one of the player's nights.
     if (session.World.Run?.Over == true)
         nightsOver = profile.CountNight().Nights;
