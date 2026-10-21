@@ -1513,6 +1513,9 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         var along = Double3.Cross(outward, Double3.Up);
         camera = Camera.LookAt(ropeAt + outward * 2.6 + along * 1.2 + Double3.Up * 1.65, ropeAt + Double3.Up * 1.6, 60);
     }
+    // --fight s (note 951): the yard's fight s seconds on, the guards running out to it (0: looking to it from their posts).
+    if (arrival is not null && args.Contains("--fight"))
+        arrival.FightBegan(Opt(args, "--fight", 2.5));
     if (arrival is not null && !args.Contains("--view"))
         camera = Str(args, "--arrival", "square") == "brought"
             // --arrival brought --patrol (note 589): hounds ridden in on car 2, the town's guns on them, seen from the square's
@@ -1520,6 +1523,13 @@ static object Screenshot(TrainTuning t, string content, string[] args)
             ? train.Frames[Math.Min(2, train.Frames.Count - 1)] is var car && car.Right * (-arrival.Plan.Square.Side) is var toward
                 ? Ballast.Render.Camera.LookAt(car.Origin + toward * 22 + car.Back * 6 + Double3.Up * 8, car.Origin + Double3.Up * 3, 62) : camera
             : Staging.TownCamera(arrival, Str(args, "--arrival", "square"));
+    // (--fight: over the yard at the fight, car 2's, from the square's side: the guards running in round it.)
+    if (arrival is not null && args.Contains("--fight") && !args.Contains("--view") && !args.Contains("--cam"))
+    {
+        double fightAt = arrival.Along(train.Cars[Math.Min(2, train.Cars.Count - 1)].FrontDistance - 8);
+        int side = arrival.Plan.Square.Side == 0 ? 1 : arrival.Plan.Square.Side;
+        camera = Ballast.Render.Camera.LookAt(arrival.World(fightAt - 14, side * 30, 16), arrival.World(fightAt, 0, 1), 60);
+    }
     // --cam s,lateral,height --target s,lateral,height: place the camera anywhere by line coordinates.
     if (Str(args, "--cam", "") is { Length: > 0 } cam)
     {
