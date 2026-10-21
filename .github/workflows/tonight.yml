@@ -82,6 +82,13 @@ jobs:
           git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
           python3 tools/tonight/integrate.py --repo "$GITHUB_REPOSITORY" --out out/tonight --run "$RUN_URL"
           cat out/tonight/TEST-PLAN.md >> "$GITHUB_STEP_SUMMARY"
+      # Valve's Steam library in both builds (note 976; #269's Steam evening), from the STEAM_REDIST_URL secret as the
+      # Release workflow has it, so a Steam friend night needs no DLL copied by hand. Without the secret (or with a link
+      # that fails) the builds are made all the same; the plan's "A Steam night" says so, and what to set and where.
+      - name: Valve's Steam library
+        env:
+          STEAM_REDIST_URL: ${{ secrets.STEAM_REDIST_URL }}
+        run: python3 tools/store/steam_redist.py --plan out/tonight/TEST-PLAN.md
       - name: Build (warnings are errors)
         run: dotnet build Ballast.slnx -c Release
       - name: The director's build (Windows, the developer tools in)
