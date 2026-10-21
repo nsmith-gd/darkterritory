@@ -27,7 +27,7 @@
     'cap-derail': ['derail', 'engine-damage', 'failing-stages', 'boiler-rupture', 'car-eaten'],
     'cap-stores': ['stores', 'repair-kit', 'crew-lockers', 'tools', 'toys', 'extinguisher-mount'],
     'cap-cargo': ['cargo-car', 'freight', 'livestock', 'comet'], 'cap-gap': ['crew-gap', 'uncouple-anim'],
-    'cap-cars': ['car-lamps', 'car-doors', 'car-numbers', 'train-lights', 'utility-car', 'guard-car'],
+    'cap-cars': ['car-lamps', 'car-doors', 'car-numbers', 'train-lights', 'utility-car', 'guard-car'], 'cap-dining': ['dining-car'],
     'cap-sky-weather': ['cold', 'fog', 'fog-banks', 'rain', 'wind', 'dawn', 'breath', 'corruption', 'wet-rail'],
     'cap-trackside': ['biomes', 'marsh'], 'cap-corrupted-trees': ['corrupted-trees'],
     'cap-structures': ['iron-bridges', 'tunnels', 'weak-bridge', 'causeway'], 'cap-debris': ['debris', 'debris-telegraph'],
