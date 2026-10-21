@@ -549,6 +549,8 @@ TownBackdrop? inTown = null;
 bool refitting = false;
 // Note 937: the player chose LEAVE (or END THE NIGHT): back to the title, nothing joined, hosted or followed.
 bool leftNight = false;
+// Note 950: a follower's wait for its host's next night, left by hand (Escape on the town's card).
+CancellationTokenSource? leaveWait = null;
 bool QuitNow() => quitAfter > 0 && timer.Elapsed.TotalSeconds >= quitAfter;
 
 // The town the crew's in behind the menus and the loading card (notes 604, 606): built into the mesh, the view and light its.
@@ -761,7 +763,7 @@ static string Doing(Launch chosen) => chosen switch
         case Launch.Follow after:
             {
                 Console.WriteLine($"going on with the crew from {after.Going.Town.Name}: waiting on the host's next night");
-                return (NetPlaySession.Follow(content, after.Going), null);
+                return (NetPlaySession.Follow(content, after.Going, leaving: leaveWait is { } waiting ? () => waiting.IsCancellationRequested : null), null);
             }
         case Launch.CampaignNight night:
             {
@@ -970,6 +972,8 @@ static string? LobbyPassword(Settings s) => s.PublicLobby ? null : s.LobbyPasswo
 // Starts what was chosen off the window's thread, drawing what it's doing meanwhile; null (the menu says why) if it failed.
 (IPlaySession Session, CampaignState? Campaign)? Starting(Launch chosen)
 {
+    using var waiting = chosen is Launch.Follow ? new CancellationTokenSource() : null;
+    leaveWait = waiting;
     var task = Task.Run(() => Start(chosen));
     // The user's playtest: "You should be able to host a run, not a night."
     string doing = chosen is Launch.Join or Launch.JoinLobby ? "JOINING"
@@ -998,8 +1002,12 @@ static string? LobbyPassword(Settings s) => s.PublicLobby ? null : s.LobbyPasswo
         if (town is not null)
         {
             var (heading, under) = TownBackdrop.Card(town, null, follow, refit);
-            Onboarding.DrawLoading(overlay, UiWidth, UiHeight, heading, under + dots, Onboarding.Tip(onboarding, frontEnd.Settings, nightsOver));
+            Onboarding.DrawLoading(overlay, UiWidth, UiHeight, heading, under + dots, Onboarding.Tip(onboarding, frontEnd.Settings, nightsOver),
+                hint: waiting is null ? null : TownBackdrop.LeaveWait);
         }
+        // Note 950: Escape leaves the wait for the host's next night: back to the title, as a night's LEAVE goes (note 937).
+        if (waiting is not null && input.Pressed(Key.Escape))
+            waiting.Cancel();
         else
             Onboarding.DrawLoading(overlay, UiWidth, UiHeight, doing + dots, chosen is Launch.Join j ? j.Address.ToUpperInvariant() : "THE LINE, THE LAND, THE CREW",
                 Onboarding.Tip(onboarding, frontEnd.Settings, nightsOver));
@@ -1012,8 +1020,20 @@ static string? LobbyPassword(Settings s) => s.PublicLobby ? null : s.LobbyPasswo
         input.EndFrame();
         Thread.Sleep(15);
     }
+    leaveWait = null;
     if (!task.IsCompleted)
+    {
+        // The window closed mid-wait: the follower's dialling stops with it.
+        waiting?.Cancel();
         return null;
+    }
+    // Left by hand (note 950): nothing joined; the title, with nothing said (it wasn't a failure).
+    if (task.Exception?.GetBaseException() is OperationCanceledException || task.IsCanceled)
+    {
+        Console.WriteLine("left the wait for the host's next night");
+        frontEnd.NightOver();
+        return null;
+    }
     // Built: the town's card names the night ahead a moment before it opens in the town's yard (note 604).
     if (town is not null && task.Exception is null && task.Result.Session.Route?.Plan?.Terminus is { } ahead)
         for (double held = timer.Elapsed.TotalSeconds; timer.Elapsed.TotalSeconds - held < TownBackdrop.CardHoldSeconds && !window.CloseRequested;)

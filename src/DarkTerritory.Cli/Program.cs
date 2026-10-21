@@ -4123,7 +4123,7 @@ static object HudShot(string content, string[] args)
         var pistol = session.World.Bodies.SpawnItem(at, hint, DarkTerritory.Sim.Physics.BodyKind.FlarePistol);
         (pistol.Charge, pistol.Carrier) = (2, session.PlayerId);
     }
-    // --loading [built]: the next night's loading card over the town the crew's in (note 604), from its square; "built", the
+    // --loading [built|following]: the next night's loading card over the town the crew's in (note 604), from its square; "built", the
     // night ahead named (its terminus), as it holds before the night opens.
     var loadingIn = args.Contains("--loading") ? session.World.Arrival : null;
     if (loadingIn is not null)
@@ -4225,8 +4225,10 @@ static object HudShot(string content, string[] args)
             ahead = DarkTerritory.Sim.LineGen.Routes.Generate(content, DarkTerritory.Sim.Towns.TownAt.With(Str(args, "--next", "frontier:3"), named),
                 session.Train.Dynamics.Consist.CarCount).Plan?.Terminus.Name;
         }
-        var (heading, under) = TownBackdrop.Card(loadingIn.Plan.Name, ahead);
-        Onboarding.DrawLoading(hud, width, height, heading, under, null);
+        // --loading following (note 950): a joiner's card while its host picks the next night, the way back to the menu under it.
+        bool following = Str(args, "--loading", "") == "following";
+        var (heading, under) = TownBackdrop.Card(loadingIn.Plan.Name, ahead, following);
+        Onboarding.DrawLoading(hud, width, height, heading, under, null, following ? TownBackdrop.LeaveWait : null);
     }
     else
     {

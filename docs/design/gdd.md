@@ -44,8 +44,8 @@ Interactive version, with the roster explorer and director tools: [claude.ai/art
   - the far hills moving against the line (the night's creatures going to ground before dawn is in: they let go and are gone 35 s before it, §8, note 635, #837);
   - the arrival town's sounds, and the screams and fire of a creature brought in (AU1's: the town ambience is the departure town's);
   - a town's standing lowered by what's been brought into it (only its burnt houses are remembered);
-  - the guards running out to the yard (they're at their places round the creature at once);
-  - a joiner leaving the wait for the host's next night by hand (it gives up after a while, back to the menu).
+  - the guards running out to the yard (they're at their places round the creature at once).
+- **A joiner waiting on the host's next night leaves the wait by hand**: BACK TO THE MENU : [ESC] on the town's card, to the title (note 950).
 
 **v1.5 changes — the director's play-tests of 5–7 October.**
 - **Boarding-first.** Nothing acts inside the train unless it boarded: each creature by its own rule at a known point, with a telegraph and a counter, at its own speeds. A hauling train is safe from most creatures, not all; stops, facilities and tight bends are where things get on (§21, App. A, F.1 Decided).
