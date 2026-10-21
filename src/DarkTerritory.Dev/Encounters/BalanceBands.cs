@@ -58,7 +58,8 @@ public static class SweepScoring
     public static SessionBand? SessionFor(BalanceBands b, SweepGroup g) => b.Encounters.FirstOrDefault(s => s.Holds(g));
 
     /// <summary>
-    /// Each group's encounters per minute open to spawning, early half and late (note 930; n1-C2's reckoning): a half's
+    /// Each group's encounters per minute open to spawning, early half and late (note 930; n1-C2's reckoning). Measured per
+    /// second where the sweep recorded it (<see cref="SweepRow.EarlyOpenSeconds"/>); for older sweeps, estimated: a half's
     /// encounters over its seconds less what the director held there (the grace and its bans in the early half; the final
     /// stretch and every terminus ban in the late), × 60, the nights' mean. The held seconds aren't split by half; the grace
     /// sits in the early by construction, the terminus in the late.
@@ -69,6 +70,14 @@ public static class SweepScoring
             double early = 0, late = 0;
             foreach (var r in g)
             {
+                // Measured a second at a time where the sweep has it (n1-C2's fields, the director's held reason each
+                // second); a night with no open time in a half counts as level there.
+                if (r.EarlyOpenSeconds is not null)
+                {
+                    early += r.EarlyPerOpenMinute ?? 0;
+                    late += r.LatePerOpenMinute ?? 0;
+                    continue;
+                }
                 double half = r.Minutes * 30;
                 double held(Func<string, bool> which) => r.HeldBack.Where(kv => which(kv.Key)).Sum(kv => (double)kv.Value);
                 double openEarly = Math.Max(60, half - held(k => k == "grace" || k.StartsWith("banned (grace", StringComparison.Ordinal)));
