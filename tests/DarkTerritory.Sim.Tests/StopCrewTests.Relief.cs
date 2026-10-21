@@ -1,5 +1,6 @@
 using DarkTerritory.Sim.Bots;
 using DarkTerritory.Sim.Player;
+using DarkTerritory.Sim.Rail;
 using DarkTerritory.Sim.Run;
 
 namespace DarkTerritory.Sim.Tests;
@@ -31,5 +32,31 @@ public partial class StopCrewTests
         var hand = Assert.IsType<RoofWalkerBot>(night.Bots[at]);
         Assert.True(PlayerMotor.InCab(night.Crew[at], night.Train),
             $"the operator ({hand.Job?.Doing}, relieving {hand.Relieving}, operating {night.Crew[at].Has(PlayerFlags.Operating)}) never reached the cab");
+    }
+
+    [Fact]
+    public void TheReliefDriverDownASpurBacksOutSetsThePointsBackItselfAndGoesOn()
+    {
+        // Note 955: with the driver dead on the Foundry's spur, the relief (a fresh driver, note 399) backed off it as off a
+        // dead line and stood short of the points for someone to set them back. Nobody came, and the driver's own way, down
+        // to set them back itself (SetBackAlone), went one step: out of the cab, the walker's legs took it straight back in.
+        // Here the walker's the only hand: the driver dead down a dead line, it takes over, backs out, sets the points back
+        // itself, and drives on.
+        var night = new Night(cars: 8, walkers: 1, hands: 0, deadLine: true);
+        var walker = Assert.IsType<RoofWalkerBot>(night.Bots[1]);
+        (walker.Me, walker.Calls) = (2, night.Calls);
+        var train = night.Train;
+        var toe = train.Line.Branches[night.Branch].Toe;
+        night.World.SetSwitch(night.Branch, true);
+        var state = train.Capture();
+        train.Restore(state with { Rakes = [state.Rakes[0] with { Path = night.Branch, Distance = toe + 120, Velocity = 0 }] });
+        night.Until(() => false, 5);
+        night.Crew[0] = night.Crew[0] with { Health = 0, Death = DeathCause.Climbed };
+        night.Until(() => train.OnMain && train.Dynamics.Distance > toe + 150, 900);
+        var s = night.Crew[1];
+        Assert.True(train.OnMain && train.Dynamics.Distance > toe + 150,
+            $"stuck at {train.Dynamics.Distance:0} on {train.Dynamics.Path} (points for the dead line {train.Diverging(night.Branch)}); the relief {walker.Relieving} at {s.Parent}/{s.Surface}");
+        Assert.True(s.Alive);
+        Assert.True(PlayerMotor.InCab(s, train));
     }
 }

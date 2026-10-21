@@ -617,7 +617,7 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
         }
         calls.ReliefSaid = tick;
         Relieving = true;
-        if (PlayerMotor.InCab(self, train))
+        if (PlayerMotor.InCab(self, train) || driverGone && _relief is { OutOfCab: true })
         {
             if (driverGone)
             {
@@ -3253,6 +3253,13 @@ public sealed partial class ConductorBot(CrewCalls? calls = null, int member = 0
     const double SandFireCalls = 1.5;
     /// <summary>Out on the running board to sand, or on the way there or back (for the harness's trace).</summary>
     public bool Sanding => _sandLeg >= 0;
+
+    /// <summary>
+    /// Out of the cab on the driving's own errand (a switch set back or thrown alone, its part of a loading, a breach or a
+    /// cut alone, a ping, the sandbox), and back to the cab its own way after. Note 955: the relief driver's walker leaves it
+    /// to the driving while it is, or its legs took it straight back to the cab from the first step out.
+    /// </summary>
+    public bool OutOfCab => _alone is not null || _workingOut || _outToBreach || _outToCut || OutOnPing || Sanding;
 
     /// <summary>
     /// Grease (App. A.2): "cannot climb grade · cannot brake · cannot accelerate", so the controls can wait. Out of the cab's
