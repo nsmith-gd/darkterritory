@@ -1127,9 +1127,13 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [966. A creature brought in sets alight a house the crew can see and hear (Quinn, queue #666)](notes/966.md)
 - [967. The Look Review rebuilt for verdicts (Sage, queue #667; the director, 21 Oct)](notes/967.md)
 - [968. Playtest data made casual: on by default, one line on the first boot, the switch in the menu (n1-N1, nathaniel1; queue #668; the director,…](notes/968.md)
+- [969. The boiler's rebuild from nothing: 8 s at three cars, 10 at twenty (n1-N1, nathaniel1; queue #669; the director, the inbox, 21 Oct,…](notes/969.md)
 - [970. The director's spawn picks of 21 Oct, measured together; four switched on, the Car Hugger's left off (n1-B3, nathaniel1; queue #670, #613's…](notes/970.md)
 - [971. Households that argue, and lines that change once the custom's been told (Cole, queue #671)](notes/971.md)
 - [972. The clerk's tally of the silly upgrades (Hazel, queue #672; note 959's leftover)](notes/972.md)
+- [973. A houseboat's ladder climbed (queue #673, B2; the director's playtest of 16 Oct, line 28, its open half: "they have little ladders to go up…](notes/973.md)
 - [974. The dining car modelled (C1, queue #674; the art pass over #656's greybox, note 959)](notes/974.md)
 - [975. The flare pistol heard: the shot, the flare burning, an empty click (AU1, queue #675; the Audio Checklist's `up-flare` line)](notes/975.md)
+- [976. The playtest builds carry Valve's Steam library (B3, queue #676; #269's groundwork)](notes/976.md)
+- [980. A pin working loose heard the length of the train: `state-coupling-loose.warn` (AU1, queue #680; note 865's ask)](notes/980.md)
 <!-- end of the notes index -->

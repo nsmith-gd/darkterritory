@@ -101,6 +101,22 @@ public readonly record struct Solid(Box Box, SurfaceKind Top, PartKind Part)
 public readonly record struct Ladder(Double3 Foot, double Top, Double3 Inward, double Over = 0);
 
 /// <summary>
+/// A ladder standing in the world, not on a car (note 973: a houseboat's, leant up against its bow): its foot on the ground
+/// and its top at the deck's edge, in world coordinates; which way is in over the top (level); and how far in past the top
+/// a climber steps off. Grabbed and climbed as a car's is (<c>PlayerMotor</c>), the climber up along it as it leans.
+/// </summary>
+public readonly record struct WorldLadder(Double3 Foot, Double3 Top, Double3 Inward, double Onto)
+{
+    /// <summary>The point on it at height <paramref name="y"/> (world), held between its foot and its top.</summary>
+    public Double3 At(double y)
+    {
+        double rise = Top.Y - Foot.Y;
+        double t = rise > 1e-6 ? Math.Clamp((y - Foot.Y) / rise, 0, 1) : 0;
+        return Foot + (Top - Foot) * t;
+    }
+}
+
+/// <summary>
 /// <see cref="Coal"/> is the tender's coal face, where a hand fills the shovel (T29). <see cref="Locker"/> is a crew locker's
 /// door (its <see cref="Interactable.Index"/> the locker's), worked like a car door and wanting facing as one does.
 /// </summary>

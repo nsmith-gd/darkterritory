@@ -205,6 +205,8 @@ public sealed partial class GameAudio
         CrewEngineRoom(world);
         CrewCouplings(world);
         CrewSwitchStands(world);
+        // The flare pistol's shot or click off this machine's own Fire, before the bodies (its flare may be among them already).
+        FlarePistol(world, firePressed);
         CrewCarried(world, firePressed);
         FireDoused(world);
     }
@@ -1279,6 +1281,9 @@ public sealed partial class GameAudio
             bool lifted = b.Kind == BodyKind.Heavy ? b.Lifted : b.Carrier >= 0;
             if (!_crewBodies.TryGetValue(b.Id, out var m))
             {
+                // A flare fired (note 975): its shot where it flies, for whoever didn't fire it.
+                if (b.Kind == BodyKind.Flare)
+                    FlareSeen(b, centre, occlusion);
                 // A charge taken out of the powder locker (note 374): it comes into the hands there, already carried.
                 if (b.Kind == BodyKind.Powder && lifted && _crewBodiesPrimed)
                     Cue("crew-powder.take", centre, occlusion);
@@ -1377,6 +1382,8 @@ public sealed partial class GameAudio
                 }
             }
 
+            if (b.Kind == BodyKind.Flare)
+                FlareBurning(b, centre, occlusion);
             // The extinguisher at work (App. C.5).
             if (b.Kind == BodyKind.Extinguisher)
             {
@@ -1494,6 +1501,7 @@ public sealed partial class GameAudio
             if (_crewBodies[gone] is { Kind: BodyKind.Lamp, Falling: true, Broken: false } lamp && lamp.At != default)
                 Cue("crew-lamp-broken.smash", lamp.At, lamp.Occlusion);
             _crewBodies.Remove(gone);
+            _flaresSeen.Remove(gone);
         }
         _crewBodiesPrimed = true;
     }

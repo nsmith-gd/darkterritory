@@ -61,6 +61,14 @@ public sealed record HouseDesign(bool GableFront, double Storeys, HouseRoof Roof
     /// </summary>
     public const double HullLift = 2.2, HullBeam = 0.3, HullEnds = 0.4;
 
+    /// <summary>
+    /// A houseboat's bow (note 973): how far its hull stands out past the house's front, a foredeck at the door to step off
+    /// the ladder onto; and how far out from the bow the ladder's foot stands, leant up against it, and how far in past its
+    /// top a climber steps off (m). The director, 16 Oct: "they have little ladders to go up to them, but the ladders
+    /// aren't climbable. Those should be climbable."
+    /// </summary>
+    public const double HullBow = 1.2, LadderOut = 1.0, LadderOnto = 0.6;
+
     /// <summary>How far the eaves stand off the ground, by storeys (m): the wall's height under the roof.</summary>
     public double Eaves => Storeys switch { <= 1 => 2.9, <= 1.5 => 3.6, <= 2 => 5.6, _ => 6.2 };
 }
