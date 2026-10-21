@@ -1129,7 +1129,7 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [968. Playtest data made casual: on by default, one line on the first boot, the switch in the menu (n1-N1, nathaniel1; queue #668; the director,…](notes/968.md)
 - [971. Households that argue, and lines that change once the custom's been told (Cole, queue #671)](notes/971.md)
 - [972. The clerk's tally of the silly upgrades (Hazel, queue #672)](notes/972.md)
-- [975. The flare pistol heard: the shot, the flare burning, an empty click (AU1, queue #675; the Audio Checklist's `up-flare` line)](notes/975.md)
 - [974. The dining car modelled (C1, queue #674; the art pass over #656's greybox, note 959)](notes/974.md)
+- [975. The flare pistol heard: the shot, the flare burning, an empty click (AU1, queue #675; the Audio Checklist's `up-flare` line)](notes/975.md)
 - [976. The playtest builds carry Valve's Steam library (B3, queue #676; #269's groundwork)](notes/976.md)
 <!-- end of the notes index -->
