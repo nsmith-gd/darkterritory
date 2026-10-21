@@ -2771,9 +2771,11 @@ public sealed partial class World
             _unmet[e.Id] = seconds;
             // Or stuck: telegraphing or committing far longer than any threat's telegraph runs, and nobody in its grip (a
             // Climber scrabbling at the cab's gap all night, never getting in).
-            // Note 945 (stuckSparesTheMet): not one a crewmate is with (a Gaunt following its waker, talked to and held).
+            // Note 945 (stuckSparesTheMet, or stuckSparesKinds for the kinds listed): not one a crewmate is with (a Gaunt
+            // following its waker, talked to and held).
+            bool spared = met && (t.StuckSparesTheMet || t.StuckSparesKinds.Contains(DarkTerritory.Sim.Enemies.Director.Key(e.Kind)));
             bool stuck = e.Phase is SpinePhase.Telegraph or SpinePhase.Commit && e.PhaseSeconds >= t.LingerSeconds * 1.5
-                && !(t.StuckSparesTheMet && met);
+                && !spared;
             if (seconds >= t.LingerSeconds || stuck)
             {
                 e.Dismiss();
