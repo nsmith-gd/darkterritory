@@ -29,6 +29,9 @@ public sealed record TownPlan(
     TownWorks? Works = null,
     TownYard? Yard = null)
 {
+    /// <summary>Its households' quarrels (note 971), at most one a house.</summary>
+    public IReadOnlyList<TownQuarrel> Quarrels { get; init; } = [];
+
     /// <summary>Its outer gate along the line (the site's), which the houses a creature brought in burns are nearest (note 608).</summary>
     public double Gate { get; init; }
 
@@ -251,9 +254,18 @@ public sealed record TownBuilding(string Kind, string Name, double S, double D, 
 public sealed record Townsperson(int Id, string Name, string Title, string Role, double S, double D, double Up, double FaceS, double FaceD, int Look,
     IReadOnlyList<string> Lines, int House = -1, string Pose = "idle", string Gear = "respirator", TownPersonality? Personality = null)
 {
+    /// <summary>Which of <see cref="Lines"/> are the custom's (or its creed's), told once in a town (note 971).</summary>
+    public IReadOnlyList<int> Custom { get; init; } = [];
+
     /// <summary>Nicki, the host of the party (note 571): the one with the wine.</summary>
     public bool Hosting { get; init; }
 }
+
+/// <summary>
+/// A household's quarrel (note 971): in <see cref="House"/>, <see cref="A"/> (the one higher on <see cref="Over"/>) and
+/// <see cref="B"/>, and what's said, by whom (<see cref="Lines"/>), filled in with each other's names.
+/// </summary>
+public sealed record TownQuarrel(int House, int A, int B, string Over, IReadOnlyList<(int Who, string Line)> Lines);
 
 /// <summary>
 /// A paper to read: a notice on the board (<see cref="OnBoard"/>, read in turn there), or a note left lying about at
