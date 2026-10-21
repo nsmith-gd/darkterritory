@@ -250,6 +250,7 @@ Each town has a character too: a fishing cove of shingled gable-fronts, an old t
 - **Their houses:** every shut house is a scow's hull with the house built on its deck, up on stilts over the marsh, a ladder to its door.
 - **Their creed:** the comet was sent, and the creatures were sent to thin us out before the water. They say it at their tables and post it on their board, beside the water mark they paint on the stilts each morning.
 - **Out all night among their houseboats** *(the director's playtest of 16 Oct, line 28; queue #569, note 841)*: one for every eight houses, from one end of the town to the other. Some walk a lamp along the stages, some caulk a hull or read the water's mark on a stilt, and some haul a rope. A houseboat is solid out to its hull.
+- **Their ladders are climbed** *(the director's playtest of 16 Oct, line 28; queue #673, note 973)*: up a houseboat's ladder from the stage onto the foredeck at its door, as a car's ladder is climbed, and back down.
 
 **Every house has its yard.** On a street, a picket fence along the front with its gate at the door; a board fence at the back; and behind the house what a yard keeps: the woodpile under a sheet of roofing, a shed, the privy, lobster traps, a dory turned over on its blocks, a rain barrel, the washing pegged out and left out after dark. A cove's yards are traps and dories, a farm town's woodpiles and sheds, a company row's the same fence and privy at every house. You go in by the gate, and the fences stop you.
 
@@ -1068,7 +1069,7 @@ Overfire past the safety valve and pressure pins at 100. Hold it there for 20s a
 | **Rupture** | A burst loud enough to carry. Pressure and fire drop to zero, and the cylinders seize |
 | **Slowdown** | The seized engine drags the train down at 1.5 m/s² until it's below 4 m/s, then it coasts. Grades still apply, so it can roll on downhill and stall short of a summit |
 | **Repair** | In the cab, the wrench worked at the fire door for **25s** (note 301; once, the engineering kit held there). Presses add up while you stay at it |
-| **Restart** | The boiler is whole but cold and empty. Coal, fire, then pressure back to the working band: 40s at three cars, over three minutes at twenty |
+| **Restart** | The boiler is whole but cold and empty. Coal, fire, then pressure back to the working band: about 8 s at three cars, no more than 30 at twenty (note 969) |
 
 Nobody dies. The cost is the clock, a stopped train with everything that means (the Whistler, a haunting Track Doll at the cab controls, Cinder Hounds closing), and whatever you have to do to get the kit back to the firebox.
 

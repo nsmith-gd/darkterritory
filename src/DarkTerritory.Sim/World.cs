@@ -1112,6 +1112,8 @@ public sealed partial class World
         if (Run is { } run)
             Train.Walls.Lock(run.LockedDoors());
         Train.Walls.Add(Town.Walls);
+        // Note 973: a town's ladders that aren't a car's (its houseboats'), climbed as a car's are.
+        Train.Ladders = [.. Town.Ladders, .. Arrival?.Ladders ?? []];
         if (Arrival is not null)
             Train.Walls.Add(Arrival.Walls);
         StandGates();
