@@ -851,8 +851,9 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
     /// Worked out from the stop as it stands, the same way by every hand: a car's room is what isn't loaded or lying in it
     /// settling (by each crate's size); the heavy crates at the site still to load (held, up, or lying loose there with two
     /// hands for them, T45) each take a whole half, in the cars nearest the crate stack. Only what fits is set aside: a heavy
-    /// with no whole half anywhere takes nothing from the lights. The crane's castings go down through the roof, where it
-    /// reaches, and the kegs' rules are the hands' own (set down, never thrown), whichever car they go to.
+    /// with no whole half anywhere takes nothing from the lights. The kegs' rules are the hands' own (set down, never thrown),
+    /// whichever car they go to. (The crane's castings aren't set aside: held for them, the lights' room under the gantry
+    /// slowed the pair's loading, and every casting still went in without it.)
     /// </para>
     /// </summary>
     /// <returns>Each cargo car with room, by id: the room the light crates may take (never below zero).</returns>
@@ -891,21 +892,6 @@ public sealed record StopPlan(int Facility, Site Site, Branch Spur, double Hold,
         var heavy = new Dictionary<int, double>();
         if (calls is null)
             return (new Dictionary<int, double>(free), heavy);
-        // The crane's castings first, while the pair can work it: a whole casting's room in the cars its hook reaches, nearest
-        // the hook first (the lights kept out of the room the castings need, they took the cars under the crane and it had
-        // nowhere to set one down). (Set aside in the same tally as the heavies' halves.)
-        if (Site.Crane is { Wrecked: false } crane && calls.PairWithPeople && false)
-        {
-            double size = crane.Tuning.LoadPerCasting;
-            int castings = crane.Left;
-            var hook = crane.HookAt;
-            foreach (int car in free.Keys.Where(c => StopHand.Reaches(crane, train, c)).OrderBy(c => (train.Frames[c].Origin - hook).Length).ThenBy(c => c))
-                while (castings > 0 && free[car] - heavy.GetValueOrDefault(car) >= size - 1e-6)
-                {
-                    heavy[car] = heavy.GetValueOrDefault(car) + size;
-                    castings--;
-                }
-        }
         double half = Site.LoadPerHeavy;
         int heavies = world.Bodies.All.Count(b => b.Kind == Physics.BodyKind.Heavy && !b.Banked && !(free.ContainsKey(b.Parent) && Inside(train, b))
             && (b.Lifted || b.Carrier >= 0 || calls.HeavyHands >= 2 && Loose(world, b)));
@@ -2632,15 +2618,10 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
     /// A cargo car with room and where on its roof the hook reaches (anywhere along it, clear of its ends: the gantry may
     /// only span part of a car), the nearest car first: null for none in reach.
     /// </summary>
-    static (int Car, double Bridge, double Trolley)? RoofFor(Crane crane, TrainOnLine train) => RoofFor(crane, train, StopPlan.WithRoom(train));
-
-    /// <summary>Note 920: whether the hook reaches anywhere along <paramref name="car"/>'s roof (the packing plan's casting cars).</summary>
-    public static bool Reaches(Crane crane, TrainOnLine train, int car) => RoofFor(crane, train, train.Vehicles.Where(v => v.Id == car)) is not null;
-
-    static (int Car, double Bridge, double Trolley)? RoofFor(Crane crane, TrainOnLine train, IEnumerable<Vehicle> cars)
+    static (int Car, double Bridge, double Trolley)? RoofFor(Crane crane, TrainOnLine train)
     {
         (int Car, double Bridge, double Trolley, double Off)? best = null;
-        foreach (var v in cars)
+        foreach (var v in StopPlan.WithRoom(train))
         {
             var frame = train.Frames[v.Id];
             double half = frame.Shape.HalfLength - 1;
@@ -3665,7 +3646,7 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
             .GroupBy(b => b.Parent).ToDictionary(g => g.Key, g => g.Count());
         var stack = p.Site.CrateStack.Length > 0 ? p.Site.CrateStack[0] : train.Frames[0].Origin;
         // Note 920 (queue #630): the stop's packing plan is a preference, never a wall. A light goes first to a car with
-        // room once the heavy crates' whole halves (and the crane's castings) are set aside; with none, to the roomiest as
+        // room once the heavy crates' whole halves are set aside; with none, to the roomiest as
         // before. Held to it as a wall, the lights it left had nowhere to go, stayed "to load", and the hands never left the
         // stack for the village, the Choir's shelter or the crane.
         var planned = p.LightRoom(world, calls);

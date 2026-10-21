@@ -149,6 +149,11 @@ public static class FootPath
         }
         cells.Reverse();
         var points = new List<Double3>();
+        // Standing where no square's free (against a car's side, by its steps): out to the nearest free one first. Straight from
+        // there to the way's first corner, a hand at a car's door ran along its side into the steps under it, climbed onto
+        // them, was put down again where it stood, and never got round the train to the crane's controls (note 920).
+        if (CellOf(from) != (si, sk))
+            points.Add(At(si, sk) with { Y = to.Y });
         int from0 = 0;
         while (from0 < cells.Count - 1)
         {
