@@ -84,8 +84,11 @@ public class NightCurveTests
     public void TheRuleLessComeFreeWithoutTheirRuleAndOffTheBudget()
     {
         // A train stood still mid-line with nobody on the ground: no rule lets anything in (the hounds want speed, the
-        // Ribbits a crew on the ground at a stop). The curve sends the rule-less anyway, late in the night.
-        var world = Plain(Curved(), at: 19_000);
+        // Ribbits a crew on the ground at a stop). The curve sends the rule-less anyway, late in the night. The free Climbers'
+        // speed (climbers.freeSpeed, note 970: a moving train in the lower third) is off here, so they come as before;
+        // EachFreeKindNeedsOnlyWhatItsSpawnNeeds pins it on.
+        var curved = Curved();
+        var world = Plain(curved with { Climbers = curved.Climbers with { FreeSpeed = curved.Climbers.FreeSpeed with { On = false } } }, at: 19_000);
         var d = world.Director!;
         var sent = Think(world, 1_800);
         Assert.NotEmpty(sent);
@@ -193,14 +196,18 @@ public class NightCurveTests
     {
         var world = Plain(Curved(), at: 19_000);
         var ctx = new SpawnContext(world, world.Enemies!, world.Director!) { Free = true };
-        // Nobody on the ground: the ground kinds don't come; a train with gaps lets the Climbers in, and the hounds once it moves.
+        // Nobody on the ground: the ground kinds don't come; a train with gaps lets the Climbers in once it moves (in the lower
+        // third of the line speed, the director's answer of 21 Oct, note 970), and the hounds once it's quick.
         Assert.False(Spawns.For(EnemyKind.CinderHound)!.Free!(ctx));
-        Assert.True(Spawns.For(EnemyKind.Climber)!.Free!(ctx));
+        Assert.True(Tuning.Enemies.Climbers.FreeSpeed.On);
+        Assert.False(Spawns.For(EnemyKind.Climber)!.Free!(ctx));
         // ... not a slow one (the hounds' own minTrainSpeed is their rule, kept), a quick one yes.
         world.Train.Dynamics.Velocity = 5;
         Assert.False(Spawns.For(EnemyKind.CinderHound)!.Free!(ctx));
+        Assert.True(Spawns.For(EnemyKind.Climber)!.Free!(ctx));
         world.Train.Dynamics.Velocity = 10;
         Assert.True(Spawns.For(EnemyKind.CinderHound)!.Free!(ctx));
+        Assert.False(Spawns.For(EnemyKind.Climber)!.Free!(ctx));
         world.Train.Dynamics.Velocity = 0;
         Assert.False(Spawns.For(EnemyKind.Ribbit)!.Free!(ctx));
         Assert.False(Spawns.For(EnemyKind.Follower)!.Free!(ctx));
