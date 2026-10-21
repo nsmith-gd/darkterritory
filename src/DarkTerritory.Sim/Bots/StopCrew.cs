@@ -2162,6 +2162,20 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
     public const int TroubleHands = 2;
 
     /// <summary>
+    /// At the crane's controls, the press that lets go of them (and it's off them: its part takes them again only when it
+    /// comes back to it); null when it hasn't got them. Its stick drives the crane while it has them, so anything that takes
+    /// it elsewhere lets go first: trouble in a car (note 609), the dead driver's controls (note 955).
+    /// </summary>
+    public PlayerIntent? OffTheCrane(in PlayerState self, string why)
+    {
+        if (!self.Has(PlayerFlags.Operating) && !_atControls)
+            return null;
+        _atControls = false;
+        Doing = why;
+        return self.Has(PlayerFlags.Operating) ? new PlayerIntent { Actions = PlayerActions.Seat } : new PlayerIntent();
+    }
+
+    /// <summary>
     /// At a stop, trouble in a car (a fire, a loose load, Gnawers): in by its side door, as a crate goes in, from the
     /// ground, up its steps, open up and inside. The walker's own way in (a car's rear door, down from its roof or the one
     /// behind) has nothing to go by at the end of a cut rake, where the stop's cars stand, and the hands stood about on
@@ -2179,12 +2193,8 @@ public sealed partial class StopHand(StopJob job, CrewCalls calls, int member)
         // Note 609: at the crane's controls, let go of them first (the press that takes them lets them go). Its stick drives
         // the crane while it has them: frontier:7 seed 4's operator, off to a car fire, walked the gantry to the end of its
         // rails and stood there at the controls for two minutes.
-        if (self.Has(PlayerFlags.Operating) || _atControls)
-        {
-            _atControls = false;
-            Doing = "off the crane for the trouble";
-            return self.Has(PlayerFlags.Operating) ? new PlayerIntent { Actions = PlayerActions.Seat } : new PlayerIntent();
-        }
+        if (OffTheCrane(self, "off the crane for the trouble") is { } letGo)
+            return letGo;
         int side = p.Site.Side;
         var frame = train.Frames[car];
         var shape = frame.Shape;
