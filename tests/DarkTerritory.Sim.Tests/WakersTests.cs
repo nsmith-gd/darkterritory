@@ -193,6 +193,20 @@ public class WakersTests
         return n.Lead?.Holds ?? false;
     }
 
+    /// <summary>
+    /// Steps <paramref name="seconds"/> with the train creeping on in at <paramref name="speed"/> (m/s, over the run's stop speed:
+    /// a train stood past the end of line's gate is delivered, and the night's over).
+    /// </summary>
+    static void Creep(Night n, double seconds, double speed = 0.6)
+    {
+        n.Controls = new TrainControls { Reverser = 1, Throttle = 0, Brake = 0 };
+        for (double s = 0; s < seconds && !n.Run.Over; s += 0.1)
+        {
+            n.World.Train.Dynamics.Velocity = speed;
+            n.Step(0.1);
+        }
+    }
+
     [Fact]
     public void HomeThroughTheGateTheyStopShortAndTheCrewIsHome()
     {
@@ -201,7 +215,7 @@ public class WakersTests
         double gate = Waker.Gate(probe.World, W), length = probe.World.Train.Dynamics.Consist.LengthMetres;
         var n = new Night(front: gate + length + 20);
         Assert.True(n.World.Train.RearDistance > gate);
-        n.Step(W.RiseSeconds + 150);
+        Creep(n, W.RiseSeconds + 150);
         Assert.False(n.Run.Over);
         Assert.True(n.Player.Alive);
         var lead = n.Lead!;
@@ -219,7 +233,7 @@ public class WakersTests
     {
         var probe = new Night(front: 4000);
         double gate = Waker.Gate(probe.World, W), length = probe.World.Train.Dynamics.Consist.LengthMetres;
-        var n = new Night(front: gate + length - 30);
+        var n = new Night(front: gate - 30);
         Assert.True(n.World.Train.RearDistance > gate - W.StopShort && n.World.Train.RearDistance < gate);
         Assert.True(CaughtWithin(n, W.RiseSeconds + 150), $"{n.World.Train.RearDistance - n.Lead!.LineDistance:0} m behind");
         Assert.Equal(n.World.Train.RearDistance - W.CatchShort, n.Lead!.LineDistance, 1.5);
@@ -259,11 +273,17 @@ public class WakersTests
         var probe = new Night(front: 4000);
         double gate = Waker.Gate(probe.World, W), length = probe.World.Train.Dynamics.Consist.LengthMetres;
         var walls = new Night(front: gate + length + 10);
-        walls.Step(W.RiseSeconds + 150);
+        Creep(walls, W.RiseSeconds + 150);
+        Assert.False(walls.Run.Over, $"{walls.Run.Phase} after the creep");
         Assert.False(walls.Lead!.Holds);
         Assert.Equal(gate - W.StopShort, walls.Lead.LineDistance, 0.5);
-        walls.Controls = new TrainControls { Reverser = -1, Throttle = 0.5, Brake = 0 };
-        Assert.True(CaughtWithin(walls, 120), $"rear {walls.World.Train.RearDistance - walls.Lead.LineDistance:0} m from him");
+        // Backed out again at 5 m/s (the creep's left the fire low: held at it, as Creep holds its pace).
+        for (double t = 0; t < 120 && !walls.Lead.Holds && !walls.Run.Over; t += 0.1)
+        {
+            walls.World.Train.Dynamics.Velocity = -5;
+            walls.Step(0.1);
+        }
+        Assert.True(walls.Lead.Holds, $"rear {walls.World.Train.RearDistance - walls.Lead.LineDistance:0} m from him, the run {walls.Run.Phase}");
         Assert.True(walls.World.Train.RearDistance > gate - W.StopShort - 20, "taken as it came back to him, not run on past");
     }
 
