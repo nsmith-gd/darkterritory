@@ -24,7 +24,13 @@ public static class Concurrency
     /// many at once as the smaller crew it is.
     /// </summary>
     public static int EngagedCap(int living, int cars, ConcurrencyTuning t) =>
-        living <= 0 ? 0 : Math.Clamp(HalfUp(living * Share(cars, t)), 1, Math.Max(1, t.Max));
+        living <= 0 ? 0 : Math.Max(Math.Clamp(HalfUp(living * Share(cars, t)), 1, Math.Max(1, t.Max)), Solo(living, t));
+
+    /// <summary>
+    /// A crewmate alone (n1-A3's trial for #613, note 906: solo nights were held at a cap of 1 for ~540 s a night): at least
+    /// <c>soloCap</c> threats at once, and on them, while exactly one is alive; 0 (the default) leaves the share to it.
+    /// </summary>
+    public static int Solo(int living, ConcurrencyTuning t) => living == 1 ? Math.Max(0, t.SoloCap) : 0;
 
     /// <summary>
     /// The most threats on any one crewmate at once (the census's perTarget): <see cref="Share"/> rounded half up, 1 to
@@ -113,6 +119,8 @@ public sealed record ConcurrencyTuning
     public int AmbientRoom { get; init; } = 1;
     public double AmbientPerCar { get; init; } = 0.1;
     public double PairsPerCrew { get; init; } = 0.25;
+    /// <summary>The least engaged cap, and threats on them, for a crewmate alone (<see cref="Concurrency.Solo"/>; 0: by the share).</summary>
+    public int SoloCap { get; init; }
     public Dictionary<string, int> PairMinCrew { get; init; } = new();
     public double ReliefPower { get; init; } = 1;
     public double HurtBelow { get; init; } = 35;
