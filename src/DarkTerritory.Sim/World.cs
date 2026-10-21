@@ -208,6 +208,34 @@ public sealed partial class World
     public int PackFires { get; set; }
     /// <summary>Host (note 959): the drinks the dining car's bar has poured tonight.</summary>
     public int BarDrinks { get; private set; }
+    /// <summary>Host (note 972): crewmates fired from the guard van's cannon tonight (note 746), for the clerk.</summary>
+    public int Volunteers { get; private set; }
+    /// <summary>Host (note 972): tennis balls the launcher's thrown tonight (note 745), for the clerk.</summary>
+    public int BallsThrown { get; private set; }
+
+    /// <summary>
+    /// Host (note 972; upgrades.md §8.5: "the tally reads 'Bar: eight drinks'"): what the silly and whimsy upgrades did
+    /// tonight, by the names campaign.json's tally lines read them by (<see cref="Sim.Run.Radio.Fill"/>): the bar's drinks,
+    /// the cooler's beers taken, what came off the grill, Gerald and the gnomes taken by the Gannet, the canary dead, the
+    /// cannon's volunteers, the balls thrown. Only what there was to count; a name not here reads as nought.
+    /// </summary>
+    public SortedDictionary<string, int> UpgradeCounts()
+    {
+        var counts = new SortedDictionary<string, int>();
+        var comp = Train.Dynamics.Tuning.Composition;
+        counts["barDrinks"] = BarDrinks;
+        if (comp.BbqDeck && Train.Vehicles.Count > 0)
+        {
+            counts["beers"] = Math.Max(0, comp.Bbq.Beers - Train.Vehicles[0].Beers);
+            counts["grilled"] = Train.Vehicles.Sum(v => v?.Cooked ?? 0);
+        }
+        counts["geraldTaken"] = Whimsy.IsTaken(0) ? 1 : 0;
+        counts["gnomesTaken"] = Enumerable.Range(1, 31).Count(Whimsy.IsTaken);
+        counts["canaryDead"] = Whimsy.Canary == CanaryMood.Dead ? 1 : 0;
+        counts["volunteers"] = Volunteers;
+        counts["ballsThrown"] = BallsThrown;
+        return counts;
+    }
     /// <summary>The fires each Cinder Hound pack has lit tonight, by its pack (note 915: a feeding pack sated).</summary>
     public Dictionary<int, int> FiresByPack { get; } = new();
     /// <summary>Host (note 939): how many fires each car (by index) has had tonight, for the relight told.</summary>
@@ -1890,6 +1918,7 @@ public sealed partial class World
                     Movement?.Gravity ?? 9.81) is { } launch && Hosting)
             {
                 _launches.Add(launch);
+                Volunteers++;
                 CreditChoir(playerId, hc.Choir.RoundLoudness * hc.Choir.WindowSeconds);
                 Drew(DrawCause.Cannon, playerId, Director?.Tuning.Draw.Weight(DrawCause.Cannon) ?? 0);
             }

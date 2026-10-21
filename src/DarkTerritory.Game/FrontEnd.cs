@@ -296,6 +296,35 @@ public sealed class FrontEnd
     /// </summary>
     public Telemetry.PlaytestConsent? Playtest { get; set; }
     public Telemetry.PlaytestNotice? PlaytestNotice { get; set; }
+    /// <summary>
+    /// Note 968: the first boot's line (<see cref="Telemetry.PlaytestNotice.FirstBootLine"/>), small at the bottom of the title
+    /// menu for this launch. Null: nothing there.
+    /// </summary>
+    public string? PlaytestLine { get; private set; }
+
+    /// <summary>
+    /// The app's start (note 968): with the casual notice, a first boot shows its line under the title menu (and it's not shown
+    /// again); otherwise the question or the playtest's notice, while it's due. Then the crash notice, if one's waiting.
+    /// </summary>
+    public void OpenPlaytest()
+    {
+        if (Playtest is { } p && PlaytestNotice is { } n && p.NeedsAsking(n))
+        {
+            if (n.Casual)
+            {
+                PlaytestLine = n.FirstBootLine;
+                p.SawLine(n);
+            }
+            else
+            {
+                Show(Screen.Consent);
+                return;
+            }
+        }
+        if (Crash is not null)
+            Show(Screen.Crashed);
+    }
+
     // Where WHAT WE COLLECT was opened from (the question, or the settings), for its BACK.
     Screen _playtestBack = Screen.Settings;
 
@@ -1083,7 +1112,11 @@ public sealed class FrontEnd
             Field: TextField.PlaytestCode);
 
     Entry PlaytestSwitch(Telemetry.PlaytestConsent p) =>
-        new(new($"PLAYTEST DATA: {(p.Recording ? "ON" : "OFF")}", p.Recording
+        new(new($"PLAYTEST DATA: {(p.Recording ? "ON" : "OFF")}", PlaytestNotice is { Casual: true }
+                // Note 968: the director's own words.
+                ? p.Recording ? "Playtest data is recorded to help me improve game balancing. Left and right, or Enter, to turn it off."
+                    : "Nothing is recorded. Turn it on to help me balance the game."
+            : p.Recording
                 ? "Your nights are recorded, anonymously, to help tune the game. Left and right, or Enter, to turn it off."
                     + (p.OnByNotice ? " On by default in this playtest build." : "")
                 : "Nothing is recorded. On, your nights are recorded anonymously to help tune the game."),
@@ -1099,10 +1132,13 @@ public sealed class FrontEnd
         Heading("WHAT WE COLLECT"),
         .. n.Collect.Select(f => new Entry(new(f.What, f.Detail))),
         new(new("WHAT WE NEVER COLLECT", n.Never)),
-        new(new($"KEPT FOR {n.RetentionMonths} MONTHS", n.WhereLine)),
+        // Note 968 (the director: "remove all the legal sounding stuff"): the casual page says what's recorded and lets you
+        // turn it off or delete it; how long it's kept and who keeps it are #625's and note 946's.
+        .. n.Casual ? (Entry[])[] : [new Entry(new($"KEPT FOR {n.RetentionMonths} MONTHS", n.WhereLine))],
         // Note 946: who keeps it for the studio (#637's PostHog).
-        .. n.ThirdParty.Length > 0 ? [new Entry(new("WHO KEEPS IT", n.ThirdParty))] : (Entry[])[],
-        new(new("DELETE MY PLAYTEST DATA", "Deletes every night recorded on this computer, and starts a new id, so nothing sent before can be tied to you after."),
+        .. !n.Casual && n.ThirdParty.Length > 0 ? [new Entry(new("WHO KEEPS IT", n.ThirdParty))] : (Entry[])[],
+        new(new("DELETE MY PLAYTEST DATA", n.Casual ? "Deletes every night recorded on this computer, and starts a fresh random id."
+                : "Deletes every night recorded on this computer, and starts a new id, so nothing sent before can be tied to you after."),
             () =>
             {
                 int gone = p.Delete();
@@ -2346,6 +2382,17 @@ public sealed class FrontEnd
             }
         if (Message is { } m)
             o.Text(x, y, m.ToUpperInvariant(), Amber);
+        // Note 968: the first boot's line, small and faint at the foot of the title menu, over the keys' line.
+        if (Screen == Screen.Title && Night is null && PlaytestLine is { } said)
+        {
+            var saidRows = UiStyle.Wrap(o, said.ToUpperInvariant(), width - x - 8).ToList();
+            float at = height - 28 - 10 * (saidRows.Count - 1);
+            foreach (var row in saidRows)
+            {
+                o.Text(x, at, row, Faint);
+                at += 10;
+            }
+        }
         string hints = Capturing is not null ? "PRESS THE KEY   [ESC] KEEP IT"
             // Note 450: on the password page Enter joins.
             : Editing == TextField.JoinPassword ? "TYPE   [ENTER] JOIN   [ESC] DONE"

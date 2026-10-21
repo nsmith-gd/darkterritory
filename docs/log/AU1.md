@@ -436,3 +436,8 @@ The director asked for the last three friendslop features to be heard. Two were 
 
 - #1160 (#562) green on Linux and Windows; main had moved (the whistle held, the stilt town), so main merged in once more and it merges on that run's green. Rows #562 and the playtest's lines 19 and 27 done with it.
 - The Token Budget Manager's EXECUTE HANDOFF (nathaniel2 at 92% weekly, LIMITED until Wed 21 Oct 20:00 UTC): nothing new started. AU1's two open items are `open for pick-up`, their handoffs executed: #42, the Voice Booth (note 304; still no Keep/Redo on its 34 versions), and #505, the upgrades' tools' tells (note 775; waiting on #967's tools, still unbuilt). AU1 stops here until the reset.
+
+## 21 Oct, ~20:25 UTC: back after the weekly reset; #675, the flare pistol heard
+
+- The Token Budget Manager's RESUME (nathaniel2 at 0%). #1160 (#562) had merged on 16 Oct; #505 was finished by n1-w3 ([#1288](https://github.com/nsmith-gd/darkterritory/pull/1288)) and #649, the arrival town's sounds, by Ezra ([#1494](https://github.com/nsmith-gd/darkterritory/pull/1494)). The Voice Booth (#42) still has no Keep/Redo on its 34 versions.
+- The Audio Checklist's only line short of L1 that nobody holds is `up-flare`: the flare pistol (#598) is in play and drawn but silent. Claimed queue #675, note 975 (`crew-gun-lay` stays in review, waiting on the director's pick).
