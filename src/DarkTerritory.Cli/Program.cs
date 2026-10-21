@@ -56,6 +56,9 @@ return args switch
     // dt director sweep [--quick] [--routes r,...] [--crews ..] [--cars ..] [--cells 1x3,..] [--seeds 1-4] [--compare f.json]: the
     // spawn director overhaul's matrix of nights (the director's brief §8, note 888), encounters measured from the spines.
     ["director", "sweep", ..] => DirectorCommands.Sweep(args, (a, w) => RunHarness(a, (_, _, world) => w(world))),
+    // dt director report <sweep.json> [--against old.json] [--bands f.json]: a sweep scored against the brief's §7 bands
+    // (tools/director/bands.json), old against new side by side (note 930).
+    ["director", "report", var sweep, ..] => DirectorCommands.Score(sweep, args),
     // dt mcp: live control for agents (note 524): an MCP server on stdio whose tools host a night, step it, read it, insist
     // on what comes, open a recording, draw any of it framed on a subject (subject:gaunt), and run the rest of dt.
     ["mcp", ..] => McpCommands.Run(content, args, noMods),
@@ -124,6 +127,15 @@ return args switch
     // and the mixer's sound, encoded to an MP4 (GDD v1.4 App. E; note 251).
     ["film", ..] => Print(FilmCommands.Run(content, args)),
     ["playthrough", ..] => Print(PlaythroughCommands.Run(content, args)),
+    // Note 913 (queue #624): the playtest recorder's schema, and a bot night recorded with it.
+    ["telemetry", "schema", ..] => Print(TelemetryCommands.Schema()),
+    ["telemetry", "record", ..] => Print(TelemetryCommands.Record(content, args)),
+    // dt telemetry spool [--dir d] [--trim] [--export out] (queue #626, note 919): the spool's sessions against its caps; trim; bundle.
+    ["telemetry", "spool", ..] => Print(TelemetryCommands.Spool(content, args)),
+    ["telemetry", "summary", ..] => Print(TelemetryCommands.Summary(args)),
+    ["telemetry", "map", ..] => Print(TelemetryCommands.Map(content, args)),
+    // dt playtest bake --into <content> [--cohort CODE] (note 916): a playtest build's mark, as tools/package.sh --playtest bakes it.
+    ["playtest", "bake", ..] => Print(PlaytestBake(Str(args, "--into", ""), Str(args, "--cohort", ""))),
     ["afoot", "census", ..] => Print(AfootCommands.Census(content, args)),
     // dt eligibility rolls [--seeds 1-2000]: each kind's nightChance with the night's floor, by tier and crew. dt eligibility [--routes frontier:7,deadLines:3] [--crews 1:3,2:5,4:8] [--seeds 1-3] [--seconds 2700] [--markdown f.md]: every
     // kind of the director's spend table, its gates read a second at a time through ordinary nights (note 875).
@@ -3538,6 +3550,22 @@ static object MenuShot(TrainTuning t, string content, string[] args)
     return new { path = Path.GetFullPath(output), screen = screen.ToString(), items = menu.Items.Select(i => i.Label) };
 }
 
+/// <summary>
+/// A playtest build's mark (note 916) into a content folder: <c>ui/playtest.json</c>, its channel and cohort code (cleaned as
+/// the game cleans a typed one). tools/package.sh --playtest bakes it into the build it zips.
+/// </summary>
+static object PlaytestBake(string into, string cohort)
+{
+    if (into.Length == 0)
+        throw new ArgumentException("dt playtest bake --into <content folder> [--cohort CODE]");
+    var build = new DarkTerritory.Game.Telemetry.PlaytestBuild(Cohort: DarkTerritory.Game.Telemetry.PlaytestKit.Clean(cohort));
+    string path = Path.Combine(into, DarkTerritory.Game.Telemetry.PlaytestBuild.File);
+    Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+    File.WriteAllText(path, "// A playtest build (note 916): written by tools/package.sh --playtest (dt playtest bake).\n"
+        + System.Text.Json.JsonSerializer.Serialize(build, DataFile.Options) + "\n");
+    return new { written = Path.GetFullPath(path), build.Channel, build.Cohort };
+}
+
 /// <summary>The front end on <c>--menu</c>'s screen, with a demo campaign slot unless <c>--saves</c> names real ones.</summary>
 static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) DemoMenu(string content, string[] args)
 {
@@ -3606,6 +3634,35 @@ static (DarkTerritory.Game.FrontEnd Menu, DarkTerritory.Game.Screen Screen) Demo
         Directory.Delete(telemetryDir, recursive: true);
     menu.Playtest = DarkTerritory.Game.Telemetry.PlaytestConsent.Load(telemetryDir, defaultOn: args.Contains("--dev"));
     menu.PlaytestNotice = DarkTerritory.Game.Telemetry.PlaytestNotice.Load(content);
+    // Note 916: the playtest kit, --cohort CODE a playtest build's (the question says so; Settings shows its code); --menu survey
+    // the night's questions as a playtest's night ends (--answered: three answers and a word given).
+    if (args.Contains("--cohort"))
+        PlaytestBake(Path.Combine(dir, "playtest-build"), Str(args, "--cohort", ""));
+    menu.Kit = DarkTerritory.Game.Telemetry.PlaytestKit.Load(Path.Combine(dir, args.Contains("--cohort") ? "playtest-build" : "no-playtest-build"), telemetryDir);
+    if (screen == DarkTerritory.Game.Screen.Survey)
+    {
+        if (!args.Contains("--cohort"))
+            menu.Kit.Type("FALL-26-A");
+        menu.AskSurvey(recording: true);
+        if (args.Contains("--answered"))
+        {
+            menu.Right();
+            menu.Right();
+            menu.Right();
+            menu.Down();
+            menu.Right();
+            menu.Right();
+            menu.Down();
+            menu.Right();
+            menu.Right();
+            menu.Right();
+            menu.Right();
+            menu.Right();
+            menu.Down();
+            menu.Select();
+            menu.Type("Lost the guard van on the bridge. Worth it.");
+        }
+    }
     // Note 452: reports go to the studio, and REPORT A PROBLEM writes one (in the shot's own folder).
     var reports = new DarkTerritory.Game.CrashReports(Path.Combine(dir, "crashes"));
     menu.Reports = DarkTerritory.Game.ReportsTuning.Load(content);
@@ -4669,7 +4726,7 @@ static int Usage()
              [--route tier:seed --town [square|centre|board|hall|gate|street|houses|house|kitchen|parlour|over|lane]]   the departure fortress's town (note 281), standing in it
           art check                                every kit piece against its triangle budget (exit 1 if any is over)
           art show <piece> [--yaw deg] [--pitch deg] [--zoom k] [--ps2] [--greybox]   a piece on a turntable, to out/shots/art/
-          screenshot --menu title|slots|fortress|upgrades|stores|quickNight|host|join|settings|credits|night|leave|profile|consent|playtestData [--dev] [--down n] [--saves dir] [--others n] [--joined]
+          screenshot --menu title|slots|fortress|upgrades|stores|quickNight|host|join|settings|credits|night|leave|profile|consent|playtestData|survey [--dev] [--cohort CODE] [--answered] [--down n] [--saves dir] [--others n] [--joined]
                      a screen of the front end over the yard, as the game draws it
           screenshot --hud [--emote-wheel] [--lost] [--route tier:seed] [--seconds t] [--throttle 0..1] [--pitch r] [--yaw r]
                      a solo session played for a few seconds, first person, with the HUD, at the game's 480x270

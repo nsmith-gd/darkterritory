@@ -1,0 +1,14 @@
+// Playtest telemetry's spool and upload (queue #626, ARCHITECTURE §8 note 919; the plan, note 907). Not in the systems spec:
+// these are the client's housekeeping, not rules. Nothing here records anything: the player's consent does (#625, note 914).
+{
+  // The local spool: one JSON-lines file a session in the consent's sessions folder. A session's file stops growing at
+  // maxSessionBytes (a 15-minute 4-bot night came to 8.9 KB, note 913); the spool keeps at most maxTotalBytes and
+  // maxSessions, dropping the oldest first (sent ones before unsent), never the session being written.
+  "spool": { "maxSessionBytes": 2000000, "maxTotalBytes": 32000000, "maxSessions": 200 },
+
+  // Where finished sessions go: "file" (bundled beside a problem report, for the tester to send with it, note 452) or
+  // "none". An "https" upload waits on the director's choice of backend (note 907, the Director's Inbox); until then it is
+  // an interface only. Uploads happen between nights, never during one: a batch of at most maxBatchBytes, tried attempts
+  // times with backoffSeconds between (the last repeated), then left for the next launch.
+  "upload": { "sink": "file", "maxBatchBytes": 4000000, "attempts": 3, "backoffSeconds": [30, 120, 600] }
+}
