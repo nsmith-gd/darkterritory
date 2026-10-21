@@ -2061,6 +2061,32 @@ public sealed class StopDriver(CrewCalls calls)
         calls.Idle(Seconds(_ticks - _progressAt) > wait);
     }
 
+    /// <summary>
+    /// Note 955: a driver taking over at the controls mid-stop (the relief, note 399, its driver dead at the loading) takes the
+    /// stop on where it stands: the engine down a facility's own spur is that stop's (in to the end, or loading at it), not a
+    /// dead line taken by mistake. A fresh driver backed off the spur as off one (<see cref="SwitchPlan.DownOne"/>), leaving the
+    /// crew at the loading to walk to the train where it stood. True if it took one on.
+    /// </summary>
+    public bool TakeOver(World world)
+    {
+        var train = world.Train;
+        int path = train.Dynamics.Path;
+        if (Doing != Leg.Cruise || world.Run is not { } run || path < 0 || path >= train.Line.Branches.Count
+            || run.Sites.FirstOrDefault(s => s is { Spur: >= 0 } && s.Spur == path) is not { } site)
+            return false;
+        var spur = train.Line.Branches[path];
+        double points = world.Switches?.Tuning.PointsLength ?? 12;
+        int fit = SpurDrill.Capacity(train.Dynamics.Tuning.Geometry, spur, points);
+        // Cut or not, it's what's down here: the rest, cut off and left on the main line, are its near rake to back onto.
+        var plan = new StopPlan(site.Index, site, spur, spur.Toe - points - 2, fit, -1);
+        Plan = plan;
+        _legs.Clear();
+        _stopStart = _ticks;
+        _sledsAtStart = site.SledsLeft;
+        Begin(plan.AtTheEnd(train) ? Leg.Loading : Leg.SpurIn);
+        return true;
+    }
+
     void BeginSwitch(SwitchPlan plan, Leg leg)
     {
         Switch = plan;

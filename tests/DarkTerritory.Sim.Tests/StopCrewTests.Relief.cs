@@ -59,4 +59,37 @@ public partial class StopCrewTests
         Assert.True(s.Alive);
         Assert.True(PlayerMotor.InCab(s, train));
     }
+
+    [Fact]
+    public void TheReliefDriverTakesOnTheStopItsDriverDiedAt()
+    {
+        // Note 955 (the TBM's follow-up): the relief driver, a fresh driver, took the Foundry's spur for a dead line taken by
+        // mistake and backed off it, leaving the crew at the loading to walk to the train where it stood (and ten minutes of
+        // frontier:7 seed 10's dawn). Taking over down a stop's spur, it takes the stop on where its driver left it: the
+        // loading, then out with the crew aboard, as the dead driver would have.
+        var night = new Night(cars: 8, walkers: 1, modules: [ModuleKind.Crane, ModuleKind.Winch]);
+        for (int i = 0; i < night.Bots.Count; i++)
+            if (night.Bots[i] is RoofWalkerBot w)
+                (w.Me, w.Calls) = (i + 1, night.Calls);
+        var stops = night.Driver.Stops!;
+        night.Until(() => stops.Doing == StopDriver.Leg.Loading, 900);
+        Assert.Equal(StopDriver.Leg.Loading, stops.Doing);
+        var plan = stops.Plan!;
+        night.Until(() => false, 20);
+        night.Crew[0] = night.Crew[0] with { Health = 0, Death = DeathCause.Climbed };
+        var walkers = night.Bots.OfType<RoofWalkerBot>().ToList();
+        StopDriver? relief = null;
+        night.Until(() => (relief = walkers.FirstOrDefault(w => w.Relief?.Stops is not null)?.Relief!.Stops) is not null, 240);
+        Assert.NotNull(relief);
+        Assert.Equal(plan.Facility, relief.Plan?.Facility);
+        bool backedOff = false;
+        night.Until(() => relief.Doing == StopDriver.Leg.Cruise && night.Train.OnMain && night.Train.Dynamics.Distance > plan.Hold + 100, 900,
+            () => backedOff |= relief.Doing is StopDriver.Leg.OffDeadLine or StopDriver.Leg.SetBack);
+        string where = string.Join(", ", night.Crew.Select((c, i) => $"{i}: {(c.Alive ? $"{c.Surface} on {c.Parent}" : "dead")}"));
+        Assert.False(backedOff, "backed off the stop's spur as off a dead line");
+        Assert.True(night.Train.OnMain && night.Train.Dynamics.Distance > plan.Hold + 100,
+            $"never left: the relief {relief.Doing} at {night.Train.Dynamics.Distance:0} on {night.Train.Dynamics.Path}; crew {where}");
+        Assert.All(night.Crew.Skip(1).Where(c => c.Alive), c => Assert.NotEqual(PlayerState.World, c.Parent));
+        Assert.Contains(relief.Log, r => r.Facility == plan.Facility);
+    }
 }

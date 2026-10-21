@@ -525,6 +525,8 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
     /// <summary>Gone forward to take the controls from a dead driver, or at them (note 399, for tests and the harness).</summary>
     public bool Relieving { get; private set; }
 
+    /// <summary>Its driving once it's taken the controls from a dead driver (note 399, for tests and the harness), or null.</summary>
+    public ConductorBot? Relief => _relief;
     ConductorBot? _relief;
     bool _sawDriver;
     bool _cameForward;
@@ -621,7 +623,12 @@ public sealed class RoofWalkerBot(int seed, StopHand? job = null) : IWorldBot
         {
             if (driverGone)
             {
-                _relief ??= new ConductorBot(calls, 0);
+                if (_relief is null)
+                {
+                    _relief = new ConductorBot(calls, 0);
+                    // Note 955: down a stop's spur, the stop it takes on where its driver left it.
+                    _relief.Stops?.TakeOver(world);
+                }
                 _relief.Crewmates = [.. Crew.Select(c => c.State)];
                 _relief.Players = [.. Crew.Where(c => !calls.IsBot(c.Id)).Select(c => c.State)];
                 return _relief.Decide(self, world, tick, out aimed);
