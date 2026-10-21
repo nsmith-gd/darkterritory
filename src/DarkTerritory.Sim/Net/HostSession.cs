@@ -26,6 +26,8 @@ public sealed partial class HostSession
         /// <summary>The snapshot this tick's input was predicted against (0: none; the crowd as it stands).</summary>
         public uint Seen;
         public uint LastApplied;
+        /// <summary>Note 956: who this listener's been sent, by the tick of their last frame (the floor while the voices are capped).</summary>
+        public readonly Dictionary<byte, uint> Hearing = new();
         /// <summary>Newest snapshot this client says it has decoded: the baseline for its next delta.</summary>
         public uint AckedSnapshot;
         public PlayerIntent LastIntent;
@@ -280,6 +282,11 @@ public sealed partial class HostSession
                 (c.Thin, c.ThinHeld) = (true, 0);
         }
         _strainedFor = strained >= t.StrainCrew ? _strainedFor + 1 : 0;
+        // Note 956: the crew being thinned is the upload falling short; the voices are capped while it is, and for the hold after.
+        if (t.StrainedVoices > 0 && (strained >= t.StrainCrew || _crew.Count(c => c.Thin) >= t.StrainCrew))
+            _voicesCappedFor = holdTicks;
+        else if (_voicesCappedFor > 0)
+            _voicesCappedFor--;
         UploadStrained = _strainedFor >= Math.Max(1, t.StrainSeconds * SimConstants.TickRate);
         if (Tick % SimConstants.TickRate == 0)
         {
@@ -288,11 +295,15 @@ public sealed partial class HostSession
         }
     }
 
-    int _strainedFor;
+    int _strainedFor, _voicesCappedFor;
     long _bytesOut;
+    /// <summary>Note 956: each listener is being sent only link.strainedVoices at once (the upload's strained, or was lately).</summary>
+    public bool VoicesCapped => _voicesCappedFor > 0;
+    /// <summary>Note 956: voice frames not sent a listener because they already had their fill.</summary>
+    public long VoiceFramesHeldBack { get; private set; }
     /// <summary>Note 549: at least link.strainCrew of the crew have been reporting a thin downlink at once for link.strainSeconds.</summary>
     public bool UploadStrained { get; private set; }
-    /// <summary>Note 549: what this host sent in snapshots over the last whole second, kbit/s (the voice rides on top).</summary>
+    /// <summary>Note 549: what this host sent over the last whole second, kbit/s: the snapshots and (note 956) the voices forwarded.</summary>
     public double UpKbps { get; private set; }
     /// <summary>Note 549: snapshots withheld from thin links (every other one), for the harness and tests.</summary>
     public int SnapshotsThinned { get; private set; }
@@ -1230,6 +1241,14 @@ public sealed partial class HostSession
                 path |= VoicePath.Tube;
             if (path == VoicePath.None)
                 continue;
+            // Note 956: the upload strained, a listener already hearing their fill doesn't get a new voice; the first keep the
+            // floor. A grabbed crewmate's radio (keyed open by the GRAB, App. C.8) always gets through.
+            if (VoicesCapped && !(speaker.State.Alive && speaker.State.Has(PlayerFlags.Held)) && !Heard(listener, speaker.Id))
+            {
+                VoiceFramesHeldBack++;
+                continue;
+            }
+            listener.Hearing[speaker.Id] = Tick;
             // What's holding the speaker changes how they sound (App. C.8): muffled under a hand, fading as they're drained.
             var (muffled, gain) = World.VoiceEffect(speaker.Id);
             if (muffled)
@@ -1238,8 +1257,25 @@ public sealed partial class HostSession
                 path |= VoicePath.Fading;
             Messages.WriteVoiceDown(_voiceWriter, speaker.Id, seq, path, opus, gain: gain, tube: tube?.End ?? 0);
             _transport.Send(listener.Peer, _voiceWriter.Written, Delivery.Unreliable);
+            _bytesOut += _voiceWriter.Length;
             VoiceFramesForwarded++;
         }
+    }
+
+    /// <summary>
+    /// Note 956: whether this listener may be sent this speaker while the voices are capped: they're already hearing them, or
+    /// hearing fewer than link.strainedVoices others (a voice still counts while its last frame is within voiceFloorSeconds).
+    /// </summary>
+    bool Heard(Crew listener, byte speaker)
+    {
+        uint floor = (uint)Math.Max(1, PlayerTuning.Link.VoiceFloorSeconds * SimConstants.TickRate);
+        if (listener.Hearing.TryGetValue(speaker, out uint last) && Tick - last <= floor)
+            return true;
+        int others = 0;
+        foreach (var (who, at) in listener.Hearing)
+            if (who != speaker && Tick - at <= floor)
+                others++;
+        return others < PlayerTuning.Link.StrainedVoices;
     }
 
     readonly HashSet<byte> _cut = [];

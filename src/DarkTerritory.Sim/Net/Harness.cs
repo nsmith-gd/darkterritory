@@ -191,6 +191,8 @@ public sealed record HarnessReport(int Ticks, double Seconds, string Link, doubl
     public double HostUpKbps { get; init; }
     public long VoiceFramesForwarded { get; init; }
     public long VoiceFramesHeard { get; init; }
+    /// <summary>Note 956: voice frames the host didn't send a listener already hearing their fill, its upload strained.</summary>
+    public long VoiceFramesHeldBack { get; init; }
     /// <summary>What got through on the crew's voice, with <see cref="HarnessOptions.Voice"/> (note 186).</summary>
     public VoiceReport? Voice { get; init; }
     /// <summary>The jobs the train made as it ran (orchestrator.md §5.1), and how many got away from the crew; null without them.</summary>
@@ -865,6 +867,7 @@ public static class Harness
             HostUpKbps = Math.Round(reports.Sum(r => r.BytesDown) * 8 / 1000.0 / seconds, 1),
             VoiceFramesHeard = voiceHeard,
             VoiceFramesForwarded = host.VoiceFramesForwarded,
+            VoiceFramesHeldBack = host.VoiceFramesHeldBack,
             Wire = host.WireTally is { } tally && reports.Count > 0
                 ? tally.OrderByDescending(t => t.Value).ToDictionary(t => t.Key.ToString(), t => Math.Round(t.Value * 8.0 / 1000 / seconds / reports.Count, 2))
                 : null,
