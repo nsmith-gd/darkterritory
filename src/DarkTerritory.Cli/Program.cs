@@ -4008,12 +4008,15 @@ static object HudShot(string content, string[] args)
         }
         session = solo;
     }
-    // --boiler-red [max] (note 938): the boiler climbing past what its safety valve holds (max: pinned at the top, the countdown
-    // running), as the cab view (at the controls: the key) and any other (one plain line, no key) are told it.
+    // --boiler-red [max][-roof] (note 938): the boiler climbing past what its safety valve holds (max: pinned at the top, the
+    // countdown running), as the cab (at the controls: the key) or, with -roof, car 2's roof (one plain line, no key) is told it.
     if (args.Contains("--boiler-red") && session.Train.BoilerTuning is { } redTuning)
     {
-        session.Train.Boiler.Pressure = Str(args, "--boiler-red", "") == "max" ? redTuning.PressureMax : redTuning.SafetyValveLift + 2;
-        session.Train.Boiler.AtMaxSeconds = Str(args, "--boiler-red", "") == "max" ? 6 : 0;
+        string red = Str(args, "--boiler-red", "");
+        session.Train.Boiler.Pressure = red.StartsWith("max", StringComparison.Ordinal) ? redTuning.PressureMax : redTuning.SafetyValveLift + 2;
+        session.Train.Boiler.AtMaxSeconds = red.StartsWith("max", StringComparison.Ordinal) ? 6 : 0;
+        if (red.EndsWith("roof", StringComparison.Ordinal) && session is PrototypeSession redSolo)
+            redSolo.Player = PlayerMotor.SpawnOnRoof(redSolo.Train, 2, 0, redSolo.PlayerTuning) with { Yaw = 0, Pitch = -0.15 };
     }
     // --belt-short m (note 938): at a grain elevator's drive house (with --site --facility grainElevator), its belt running and
     // the train m metres short of a car under its head (negative: past it), as the drive house's prompt says which way to go.
