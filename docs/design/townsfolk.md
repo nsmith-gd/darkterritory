@@ -93,12 +93,30 @@ Names come from the town's people, then from who each person is.
   - Otherwise, for the Gaels, a patronymic: Angus, son of Dan, son of Rory.
   - The byname is part of the name the HUD shows and the one others use when they talk about somebody ("{name}").
 
+## By temperament (note 963)
+
+- **Rounds** (`TownRounds`, towns.json `rounds.temperaments`). On a slot away from their post, somebody's temperament takes
+  them, some of the time, where it would:
+  - the restless to the gate, stood inside it looking out down the line;
+  - a watcher to the nearest stretch of the walls, looking out over it (a guard too, off their beat);
+  - a mender to the lamp garden, or down their street to a lamp, seeing to it;
+  - a mourner and the faithful to the names and the centrepiece;
+  - a comforter and the frayed to a fire;
+  - a talker to a word with somebody.
+
+  A place needs room and a clear way within a walk (40 m); otherwise the slot goes as anyone's does. The gatekeeper and the
+  porter keep their posts.
+- **Their voice** (towns.json `voices`, `TalkVoice`). The talk card types each temperament's lines its own way:
+  - a frayed person's in quick bursts with stalls between;
+  - a hollow one's slowly, stopping at every comma;
+  - a mourner's slow;
+  - a talker's quick;
+  - a watcher's measured, pausing at each sentence.
+
+  The card stays up for as long as the line takes, plus its linger.
+
 ## Not yet
 
-- The talk card reads the same for everyone. A frayed person could type in bursts, a hollow one slowly (presentation only:
-  `TownTalk`).
-- Rounds don't read the matrix yet (note 353's `TownRounds`). The restless could walk to the gate and look out, a watcher
-  could stand at the wall, a mender could tend the lamp garden.
 - Households don't argue: a lapsed lodger in a zealous house could say so.
 - Townsfolk lines are fixed per town. The crew could hear a different line from someone who's been told "the custom" by
   another townsperson first.
