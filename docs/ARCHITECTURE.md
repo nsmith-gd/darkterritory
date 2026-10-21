@@ -1085,7 +1085,6 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [913. Playtest telemetry T1: the session recorder and its event schema (n1-H1, nathaniel1; queue #624; the plan, note 907)](notes/913.md)
 - [914. Playtest telemetry T2: consent and privacy (n1-N1, nathaniel1; queue #625; the plan, note 907)](notes/914.md)
 - [915. Eligibility tuning, its first half: the eligibility trials (queue #612, the spawn director overhaul's E2; the plan, note 874; the audit,…](notes/915.md)
-- [917. Playtest telemetry T4: `dt telemetry summary`, `dt telemetry map` and the playtest dashboard (n1-G2, queue #627; note 907's plan)](notes/917.md)
 - [916. Playtest telemetry T5: the playtest kit (n1-U2, nathaniel1; queue #628; the plan, note 907)](notes/916.md)
 - [917. Playtest telemetry T4: `dt telemetry summary`, `dt telemetry map` and the playtest dashboard (n1-G2, queue #627; note 907's plan)](notes/917.md)
 - [920. The stop's packing plan: castings and heavies first in whole halves, then the lights, whatever the arrival's timing (queue #630; found by…](notes/920.md)
