@@ -1584,7 +1584,7 @@ public class StopCrewTests
         });
         Assert.True(drops == 0, $"car {target}: the heavy crate fell from between two {drops} times:{dropped}");
         Assert.True(night.World.Bodies.All.Any(b => b.Kind == Physics.BodyKind.Heavy && b.Banked && b.Parent == target),
-            $"car {target}: not loaded by {run.Seconds:0}s; did {string.Join(", ", night.Bots.OfType<RoofWalkerBot>().Select(b => b.Job?.Doing))}");
+            $"car {target}: not loaded by {run.Seconds:0}s; the heavy {string.Join(", ", night.World.Bodies.All.Where(b => b.Kind == Physics.BodyKind.Heavy).Select(b => $"on {b.Parent} banked {b.Banked} held {b.Carrier}/{b.Second}"))}; loads {string.Join(" ", train.Vehicles.Select(v => $"{v.Id}:{v.Load:0.00}"))}");
     }
 
     /// <summary>Someone who stands still: a player holding a heavy crate's end, waiting.</summary>
