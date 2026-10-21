@@ -521,7 +521,9 @@ public class HudTests
         // house says what it's doing, not nothing. No car under the head yet: it runs and carries nothing.
         site.Mirror(site.State with { Start = 0, Running = true });
         Assert.Null(s.World.Run.CarUnderHead(s.Train, site));
-        Assert.Equal("THE BELT'S RUNNING   NO CAR UNDER ITS HEAD", Hud.Prompt(s));
+        // Note 938: and what to do about it, the train moved under it (BeltSaysWhichWayToMoveTheTrain).
+        Assert.Equal($"THE BELT'S RUNNING   NO CAR UNDER IT: {Hud.MoveTheTrain(s.Train, site.ConveyorHead)}", Hud.Prompt(s));
+        Assert.StartsWith("MOVE THE TRAIN ", Hud.MoveTheTrain(s.Train, site.ConveyorHead));
         site.Mirror(site.State with { Grain = 0 });
         Assert.Equal("THE BELT'S RUNNING   NO GRAIN LEFT", Hud.Prompt(s));
         site.Mirror(site.State with { Grain = c.Grain, Running = false });
@@ -655,10 +657,135 @@ public class HudTests
     }
 
     [Fact]
+    public void BeltSaysWhichWayToMoveTheTrainAndHowFar()
+    {
+        // Note 938 (the director, 20 Oct: "belt running, no car under its head. Oh, I gotta move the, oh shit, no, wrong way,
+        // throw it in reverse"): no car under the head, the belt says which way the train goes and how far, and done, a car is
+        // under it. Short of the head, forward; past it, back in reverse.
+        var (route, facility) = DarkTerritory.Sim.Bots.FacilityWork.Find(DarkTerritory.Sim.Route.RouteTuning.Load(Content), DarkTerritory.Sim.Route.FacilityKind.GrainElevator)!.Value;
+        var s = new PrototypeSession(Content, route, 4, enemies: false);
+        var site = s.World.Run!.Sites[facility]!;
+        var spur = s.Train.Line.Branches[site.Spur];
+        var consist = s.Train.Dynamics.Consist;
+        // Car 1's middle over the head, at this distance.
+        double under = spur.Toe + site.ConveyorAlong + consist.OffsetOf(1) + consist.Vehicles[1].Length(s.TrainTuning) / 2;
+        void Stand(double front)
+        {
+            var state = s.Train.Capture();
+            s.Train.Restore(state with { Rakes = [state.Rakes[0] with { Path = site.Spur, Distance = front, Velocity = 0 }] });
+            s.Train.RefreshFrames();
+        }
+        Stand(under);
+        Assert.NotNull(s.World.Run.CarUnderHead(s.Train, site));
+        // The engine short of the head: forward, by as far as car 1 is from it.
+        double shortOf = under - consist.OffsetOf(1) - consist.Vehicles[1].Length(s.TrainTuning) - 8;
+        Stand(shortOf);
+        Assert.Null(s.World.Run.CarUnderHead(s.Train, site));
+        var forward = System.Text.RegularExpressions.Regex.Match(Hud.MoveTheTrain(s.Train, site.ConveyorHead), @"^MOVE THE TRAIN (\d+) M FORWARD$");
+        Assert.True(forward.Success, Hud.MoveTheTrain(s.Train, site.ConveyorHead));
+        // To the metre, give or take where on the car the head hangs.
+        Assert.InRange(int.Parse(forward.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture), under - shortOf - 1.5, under - shortOf + 1.5);
+        // The whole train past it: back, in reverse, to the last car.
+        double past = under + consist.LengthMetres + 8;
+        Stand(past);
+        Assert.Null(s.World.Run.CarUnderHead(s.Train, site));
+        Assert.EndsWith("M BACK, IN REVERSE", Hud.MoveTheTrain(s.Train, site.ConveyorHead));
+        // Wherever it stands, doing what it says puts a car under the head.
+        foreach (double at in new[] { shortOf, past, under + 9, under - 9, under + 21 })
+        {
+            Stand(at);
+            if (s.World.Run.CarUnderHead(s.Train, site) is not null)
+                continue;
+            var said = Hud.MoveTheTrain(s.Train, site.ConveyorHead);
+            var m = System.Text.RegularExpressions.Regex.Match(said, @"^MOVE THE TRAIN (\d+) M (FORWARD|BACK, IN REVERSE)$");
+            Assert.True(m.Success, said);
+            Stand(at + (m.Groups[2].Value == "FORWARD" ? 1 : -1) * int.Parse(m.Groups[1].Value, System.Globalization.CultureInfo.InvariantCulture));
+            Assert.True(s.World.Run.CarUnderHead(s.Train, site) is not null, $"at {at - under:0.0} m from under, it said {said}");
+        }
+        // Every car full: nothing to move it for, and it says so.
+        foreach (var v in consist.Vehicles)
+            v.Load = 1;
+        Stand(shortOf);
+        Assert.Equal("EVERY CAR'S FULL", Hud.MoveTheTrain(s.Train, site.ConveyorHead));
+    }
+
+    [Fact]
+    public void ThePressureInTheRedAndItsKeyAreForTheCabAndEndWhenItsOutOfTheRed()
+    {
+        // Note 938 (the director, 20 Oct: "If I'm not in the cab and I can't do anything about the boiler and the pressure, then
+        // I shouldn't be getting this notification. At least not the left alt part"; "Still getting a pressure in red for the
+        // vent notification").
+        var s = new PrototypeSession(Content, "test-loop", 4);
+        var bt = s.Train.BoilerTuning!;
+        var cab = PlayerMotor.SpawnInCab(s.Train, s.PlayerTuning);
+        var roof = PlayerMotor.SpawnOnRoof(s.Train, 2, 3, s.PlayerTuning);
+        Assert.True(DarkTerritory.Sim.Net.CabControls.CanDrive(cab, s.Train));
+        Assert.False(DarkTerritory.Sim.Net.CabControls.CanDrive(roof, s.Train));
+        // In the working band: nothing.
+        s.Train.Boiler.Pressure = bt.WorkingBandMax;
+        Assert.Null(Hud.PressureAlarm(s.Train, cab));
+        Assert.Null(Hud.PressureAlarm(s.Train, roof));
+        // Climbing past what the valve holds: at the controls the key; on the roof one plain line, no key.
+        s.Train.Boiler.Pressure = bt.SafetyValveLift + 2;
+        s.Train.Boiler.SafetyValveLifting = true;
+        Assert.Equal((null, "PRESSURE IN THE RED   VENT : HOLD [VENT]"), Hud.PressureAlarm(s.Train, cab));
+        Assert.Equal((null, "THE BOILER'S IN THE RED"), Hud.PressureAlarm(s.Train, roof));
+        Assert.DoesNotContain("[", Hud.PressureAlarm(s.Train, roof)!.Value.Small);
+        // Pinned at the top: the countdown and the key in the cab; elsewhere the countdown alone.
+        s.Train.Boiler.Pressure = bt.PressureMax;
+        s.Train.Boiler.AtMaxSeconds = 5;
+        int left = (int)Math.Round(bt.RuptureHoldSeconds - 5);
+        Assert.Equal(($"VENT! RUPTURE IN {left}S", "VENT : HOLD [VENT]"), Hud.PressureAlarm(s.Train, cab));
+        Assert.Equal((null, $"THE BOILER'S ABOUT TO GO: {left}S"), Hud.PressureAlarm(s.Train, roof));
+        // The valve blowing off at its lift holds it there: the boiler's looking after itself, and the prompt isn't left standing.
+        s.Train.Boiler.AtMaxSeconds = 0;
+        s.Train.Boiler.Pressure = bt.SafetyValveLift;
+        Assert.True(bt.SafetyValveLift >= bt.Redline);
+        Assert.Null(Hud.PressureAlarm(s.Train, cab));
+        Assert.Null(Hud.PressureAlarm(s.Train, roof));
+        // Unless the valve's jammed: then the red is the red.
+        s.Train.Boiler.SafetyValveJammed = true;
+        s.Train.Boiler.SafetyValveLifting = false;
+        Assert.NotNull(Hud.PressureAlarm(s.Train, cab));
+        // Vented out of the red: gone at once.
+        s.Train.Boiler.Pressure = bt.Redline - 0.5;
+        Assert.Null(Hud.PressureAlarm(s.Train, cab));
+        // Ruptured: the boiler's gone, and so is the prompt (BOILER RUPTURED says it).
+        s.Train.Boiler.Pressure = bt.PressureMax;
+        s.Train.Boiler.Ruptured = true;
+        Assert.Null(Hud.PressureAlarm(s.Train, cab));
+        // The dead are told nothing.
+        s.Train.Boiler.Ruptured = false;
+        Assert.Null(Hud.PressureAlarm(s.Train, cab with { Health = 0, Death = DeathCause.Mauled }));
+    }
+
+    [Fact]
+    public void TheRosterSaysWhosDead()
+    {
+        // Note 938 (the director, 20 Oct: "we need a way to like know if ... our crew is dead. Crew roll call shouted. One,
+        // Dunmore, me. I don't see Dunmore"): the roster marks the dead, still not where anyone is.
+        var s = new PrototypeSession(Content, "test-loop", 4);
+        var world = new DarkTerritory.Sim.World(s.Train, null);
+        world.Names[1] = "Dave";
+        world.Names[2] = "Dunmore";
+        var cab = PlayerMotor.SpawnInCab(s.Train, s.PlayerTuning);
+        var dead = PlayerMotor.SpawnOnRoof(s.Train, 2, 0, s.PlayerTuning) with { Health = 0, Death = DeathCause.Mauled };
+        Assert.False(dead.Alive);
+        var lines = NetPlaySession.RosterOf(1, cab, [(2, dead)], world);
+        Assert.Equal(["DAVE", "DUNMORE"], lines.Select(l => l.Name));
+        Assert.Equal([true, false], lines.Select(l => l.Alive));
+        Assert.All(lines, l => Assert.Equal("", l.Where));
+        var o = new Overlay();
+        Hud.Roster(o, 480, 270, lines, null);
+        Assert.True(o.Count > 0);
+    }
+
+    [Fact]
     public void TheRosterNamesTheCrewAndGivesNothingAway()
     {
         // GDD v1.4 open question 2: roll call is verbal. The roster is the session's crew by name and who's speaking: no
-        // locations, nobody marked dead, and the Passenger aboard wearing crew 2's face isn't on it (its tell is silence).
+        // locations, nobody living marked dead (the dead are, note 938: TheRosterSaysWhosDead), and the Passenger aboard
+        // wearing crew 2's face isn't on it (its tell is silence).
         var s = new PrototypeSession(Content, "test-loop", 4);
         var (lines, heard) = Staging.Roster(s.Train, Content);
         Assert.Equal([1, 2, 3, 4], lines.Select(l => (int)l.Id));

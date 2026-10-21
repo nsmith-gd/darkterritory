@@ -367,9 +367,9 @@ public static partial class Hud
     }
 
     /// <summary>
-    /// The crew roster (T69, held Q): the session's crew by name, and who's speaking now. Not who's aboard, or where, or
-    /// alive: GDD v1.4 made roll call verbal (open question 2). <paramref name="heard"/>: seconds since a crewmate's voice
-    /// last came in, null for never.
+    /// The crew roster (T69, held Q): the session's crew by name, who's speaking now, and who's dead (note 938). Not who's
+    /// aboard, or where: GDD v1.4 made roll call verbal (open question 2). <paramref name="heard"/>: seconds since a crewmate's
+    /// voice last came in, null for never.
     /// </summary>
     /// <param name="keys">
     /// Note 724: what the roster's keys do, under the names (<see cref="RosterKeys"/>): each crewmate but you numbered for them.
@@ -389,9 +389,12 @@ public static partial class Hud
         for (int i = 0; i < lines.Count; i++)
         {
             var l = lines[i];
-            o.Text(x + PanelPad * k, y, names[i], Ink, k);
-            // Heard lately, they're speaking; muted on this machine (note 724), they're never heard here, and it says so.
-            if (!l.You && l.Muted)
+            o.Text(x + PanelPad * k, y, names[i], l.Alive ? Ink : Dim, k);
+            // Dead, it says so (note 938). Heard lately, they're speaking; muted on this machine (note 724), they're never
+            // heard here, and it says so.
+            if (!l.Alive)
+                o.Text(Overlay.Snap(x + w - PanelPad * k - o.Measure("DEAD", k), k), y, "DEAD", Red, k);
+            else if (!l.You && l.Muted)
                 o.Text(Overlay.Snap(x + w - PanelPad * k - o.Measure("MUTED", k), k), y, "MUTED", Dim, k);
             else if (!l.You && heard?.Invoke(l.Id) is < 2)
                 o.Text(Overlay.Snap(x + w - PanelPad * k - o.Measure("SPEAKING", k), k), y, "SPEAKING", Green, k);
@@ -1205,13 +1208,12 @@ public static partial class Hud
                         Small(RepairKitWhere(world, s.PlayerId), Ink);
                 }
             }
-            else if (b.AtMaxSeconds > 0)
+            else if (PressureAlarm(world.Train, p) is var (big, small))
             {
-                Big($"VENT! RUPTURE IN {Math.Max(0, bt.RuptureHoldSeconds - b.AtMaxSeconds):0}S", flash ? Red : Amber);
-                Small(Bound("VENT : HOLD [VENT]"), Ink);
+                if (big is not null)
+                    Big(big, flash ? Red : Amber);
+                Small(Bound(small), big is not null ? Ink : flash ? Red : Amber);
             }
-            else if (b.Pressure >= bt.Redline)
-                Small(Bound("PRESSURE IN THE RED   VENT : HOLD [VENT]"), flash ? Red : Amber);
         }
         // Note 576: a battered shell let go is working itself apart, said where it's felt: in the car, on the engine, and to
         // the cab for any car of the train (the driver feels it through the couplings).
@@ -2381,6 +2383,32 @@ public static partial class Hud
             : null;
 
     /// <summary>
+    /// The boiler in the red (T109), as <paramref name="p"/> is told it (note 938; the director, 20 Oct: "If I'm not in the cab
+    /// and I can't do anything about the boiler and the pressure, then I shouldn't be getting this notification. At least not
+    /// the left alt part"). At the controls, the countdown and the vent's key; anywhere else one plain line, no key, for whoever's
+    /// in the cab to hear about. In the red is past what the safety valve holds (it lifts at the redline and sheds the rest, so
+    /// a valve blowing off at its lift is the boiler looking after itself: "still getting a pressure in red for the vent
+    /// notification"), or at the redline with the valve jammed. Null otherwise, and once she's ruptured. Big is the top line,
+    /// null for the small line alone.
+    /// </summary>
+    public static (string? Big, string Small)? PressureAlarm(TrainOnLine train, in PlayerState p)
+    {
+        if (!p.Alive || train.BoilerTuning is not { } bt || train.Boiler is var b && b.Ruptured)
+            return null;
+        bool cab = CabControls.CanDrive(p, train);
+        if (b.AtMaxSeconds > 0)
+        {
+            double left = Math.Max(0, bt.RuptureHoldSeconds - b.AtMaxSeconds);
+            return cab ? ($"VENT! RUPTURE IN {left:0}S", "VENT : HOLD [VENT]") : (null, $"THE BOILER'S ABOUT TO GO: {left:0}S");
+        }
+        // The gauge's quantum on a client (WorldRecords' Fine) and the valve's own rounding are well under this.
+        bool red = b.Pressure >= bt.Redline && (b.SafetyValveJammed || !b.SafetyValveLifting || b.Pressure > bt.SafetyValveLift + 0.05);
+        if (!red)
+            return null;
+        return cab ? (null, "PRESSURE IN THE RED   VENT : HOLD [VENT]") : (null, "THE BOILER'S IN THE RED");
+    }
+
+    /// <summary>
     /// A running conveyor (note 400), as the drive house and the belt say it (note 582): what its head's filling and how full,
     /// or what's stopping it, as the spout's prompt says its car.
     /// </summary>
@@ -2391,8 +2419,34 @@ public static partial class Hud
         if (belt.Grain <= 1e-9)
             return "THE BELT'S RUNNING   NO GRAIN LEFT";
         if (run.CarUnderHead(train, belt) is not { } car)
-            return "THE BELT'S RUNNING   NO CAR UNDER ITS HEAD";
+            return $"THE BELT'S RUNNING   NO CAR UNDER IT: {MoveTheTrain(train, belt.ConveyorHead)}";
         return car.Load >= 1 - 1e-6 ? "THE BELT'S RUNNING   THE CAR UNDER ITS HEAD IS FULL" : $"LOADING   CAR {car.Load * 100:0}% FULL";
+    }
+
+    /// <summary>
+    /// Note 938 (the director, 20 Oct: "belt running, no car under its head. Oh, I gotta move the, oh shit, no, wrong way, throw
+    /// it in reverse"): with no car under a loader's head, what puts one there, in the driver's words: which way the train goes
+    /// and about how far, to the nearest of the engine's own cargo cars with room left. Forward is the way the engine faces
+    /// (along the line's distance), back is in reverse.
+    /// </summary>
+    public static string MoveTheTrain(TrainOnLine train, Ballast.Double3 head)
+    {
+        double hint = train.Dynamics.Distance;
+        double at = train.Line.Nearest(head, ref hint).Distance;
+        double? best = null;
+        foreach (var v in train.Dynamics.Consist.Vehicles)
+        {
+            if (v.Kind != VehicleKind.Cargo || v.Load >= 1 - 1e-6 || v.Id >= train.Frames.Count)
+                continue;
+            double h = hint;
+            double off = at - train.Line.Nearest(train.Frames[v.Id].Origin, ref h).Distance;
+            if (best is not { } b || Math.Abs(off) < Math.Abs(b))
+                best = off;
+        }
+        if (best is not { } move)
+            return "EVERY CAR'S FULL";
+        int m = Math.Max(1, (int)Math.Round(Math.Abs(move)));
+        return move > 0 ? $"MOVE THE TRAIN {m} M FORWARD" : $"MOVE THE TRAIN {m} M BACK, IN REVERSE";
     }
 
     /// <summary>
@@ -2727,14 +2781,14 @@ public static partial class Hud
         {
             var under = world.Run.CarUnderSpout(train, spout);
             return spout.Pouring ? under is { } filling ? $"POURING   CAR {filling.Load * 100:0}% FULL" : "POURING"
-                : under is { } car ? $"SPOUT : HOLD [E]   CAR {car.Load * 100:0}% FULL" : "NO CAR UNDER THE SPOUT";
+                : under is { } car ? $"SPOUT : HOLD [E]   CAR {car.Load * 100:0}% FULL" : $"NO CAR UNDER THE SPOUT: {MoveTheTrain(train, spout.Spout)}";
         }
         // The mine head's steam lift (note 368): the car under its chute, and the skip coming up while the engine's steam winds it.
         if (world.Run?.LiftLeverInReach(p, train, hand) is { } lift)
         {
             var under = world.Run.CarUnderChute(train, lift);
             return lift.Winding ? under is { } filling ? $"WINDING   CAR {filling.Load * 100:0}% FULL" : "WINDING"
-                : under is { } car ? $"LIFT : HOLD [E]   CAR {car.Load * 100:0}% FULL" : "NO CAR UNDER THE CHUTE";
+                : under is { } car ? $"LIFT : HOLD [E]   CAR {car.Load * 100:0}% FULL" : $"NO CAR UNDER THE CHUTE: {MoveTheTrain(train, lift.LiftChute)}";
         }
         // The mine head's tipple (note 423): a car off its rails beside you and the wrench that puts it back; at the lever, how
         // true the car stands in the cradle is what you read before you clamp it (a clamp shut on one stood off its mark is a bad
