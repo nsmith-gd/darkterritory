@@ -191,7 +191,7 @@
     // Its body across the gap, low (note 365).
     "knotter": [[0.35, 0]],
     // The Waker stood, 62 m (note 940): his legs, his hips and belly, his chest and his head; on his knees, kneelStoop of it.
-    "waker": [[7, 8], [7, 20], [10, 32], [10, 42], [6, 52]]
+    "waker": [[7, 8], [7, 20], [8, 32], [8, 42], [6, 52]]
   },
   "gauntAsleep": 0.35,
 
