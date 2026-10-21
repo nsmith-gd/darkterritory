@@ -857,8 +857,10 @@ public sealed partial class HostSession
         int car = 1 + (_crew.Count - 1) % Math.Max(1, Train.OwnVehicles - 1);
         c.State = BoardAt is { } at && _crew.Count > 0 ? at(_crew.Count)
             : _crew.Count == 0 ? PlayerMotor.SpawnInCab(Train, PlayerTuning) : PlayerMotor.SpawnOnRoof(Train, car, 0, PlayerTuning);
-        // Past the gate, nobody spawns aboard (D.1): they watch, waiting in the queue, until a Holdout frees them.
-        if (Lobbying && _crew.Count > 0)
+        // Past the gate, nobody spawns aboard (D.1): they watch, waiting in the queue, until a Holdout frees them. The night's
+        // own crew isn't joining it (note 937): a resumed night's bots, then its host, board as it brings them (BotSeatsOpen
+        // shut), alive. The host's own player came in as a mid-run joiner, dead with "JOINING", behind its first bot.
+        if (Lobbying && BotSeatsOpen && _crew.Count > 0)
             c.State = c.State with { Health = 0, Death = DeathCause.Waiting };
         _crew.Add(c);
     }
@@ -1285,6 +1287,12 @@ public sealed partial class HostSession
     /// which keeps it past the farthest audible tell. 0 (no enemies) sends everything.
     /// </summary>
     public double InterestRadius { get; set; }
+
+    /// <summary>
+    /// Note 921: when set, the bytes each kind of record took in the snapshots actually sent (a budgeted one's last write),
+    /// added to as they go; for <c>dt harness --wire</c>. Counting only: nothing sent changes.
+    /// </summary>
+    public Dictionary<RecordKind, long>? WireTally { get; set; }
     public long RecordsSkipped { get; private set; }
 
     void Broadcast(List<WireRecord> records)
@@ -1311,6 +1319,12 @@ public sealed partial class HostSession
             {
                 mine = Budget(mine, baseline, c, baseTick);
                 SnapshotsBudgeted++;
+            }
+            // The tally counts what goes out: written once more into the scratch writer only when asked for.
+            if (WireTally is { } tally)
+            {
+                _tallyWriter ??= new NetWriter();
+                Messages.WriteSnapshot(_tallyWriter, Tick, c.LastApplied, baseTick, mine, baseline, c.Pending.Count, 0, tally);
             }
             c.Sent[Tick] = mine;
             c.Sent.Remove(Tick - HistoryTicks);
@@ -1376,6 +1390,7 @@ public sealed partial class HostSession
     }
 
     readonly HashSet<uint> _far = new();
+    NetWriter? _tallyWriter;
 
     /// <summary>
     /// Whose eyes and ears a client has (GDD App. D.10): their own, or, dead or waiting to board, the living crewmate they

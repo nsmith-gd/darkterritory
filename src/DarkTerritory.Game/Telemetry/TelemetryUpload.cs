@@ -125,7 +125,14 @@ public sealed class TelemetryUploader(TelemetrySpool spool, ITelemetryUpload sin
         return batch;
     }
 
-    /// <summary>The sink tuning names, made: <c>file</c> into <paramref name="fileDirectory"/>; <c>none</c> or <c>https</c> (not made yet: the director's call) null.</summary>
+    /// <summary>
+    /// The network sink the spool is pumped to between nights (queue #637, note 943): PostHog when it's on with a project key,
+    /// else none (nothing leaves the machine of the game's own accord).
+    /// </summary>
+    public static ITelemetryUpload? NetworkSinkFor(UploadTuning t, HttpMessageHandler? handler = null) =>
+        t.PostHog.Ready ? new PostHogTelemetryUpload(t.PostHog, handler) : null;
+
+    /// <summary>The sink tuning names, made: <c>file</c> into <paramref name="fileDirectory"/>; <c>none</c> null (the network one is <see cref="NetworkSinkFor"/>).</summary>
     public static ITelemetryUpload? SinkFor(UploadTuning t, string fileDirectory) => t.Sink switch
     {
         "file" => new FileTelemetryUpload(fileDirectory),

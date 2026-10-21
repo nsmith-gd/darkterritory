@@ -94,7 +94,7 @@ public static class Eligibility
             EnemyKind.CarHugger =>
             [
                 G($"cars ≥ {et.CarHugger.MinCars}", cars >= et.CarHugger.MinCars), G("none about", c.None(kind)),
-                G("a lurking spot ahead (water, marsh, low ground, no grade)", CarHugger.Spot(c.World, et.CarHugger) is not null),
+                G(et.CarHugger.LowGround.On ? "a lurking spot ahead (marsh, bridge or low ground, level)" : "a lurking spot ahead (marsh or bridge, level)", CarHugger.Spot(c.World, et.CarHugger) is not null),
             ],
             EnemyKind.Climber =>
             [
@@ -171,7 +171,7 @@ public static class Eligibility
             EnemyKind.Gannet =>
             [
                 G("once a night", c.Once(kind)), G($"cars ≥ {et.Gannet.MinCars}", cars >= et.Gannet.MinCars),
-                G($"speed ≥ {et.Gannet.ArriveAbove:0.#} m/s", v >= et.Gannet.ArriveAbove),
+                G($"speed ≥ {et.Gannet.Arrive:0.#} m/s", v >= et.Gannet.Arrive),
                 G($"fast for {et.Gannet.ArriveSeconds:0} s", c.World.FastSeconds >= et.Gannet.ArriveSeconds), G("not in a tunnel", !tunnel),
             ],
             EnemyKind.Follower =>

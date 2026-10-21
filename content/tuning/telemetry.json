@@ -10,5 +10,14 @@
   // "none". An "https" upload waits on the director's choice of backend (note 907, the Director's Inbox); until then it is
   // an interface only. Uploads happen between nights, never during one: a batch of at most maxBatchBytes, tried attempts
   // times with backoffSeconds between (the last repeated), then left for the next launch.
-  "upload": { "sink": "file", "maxBatchBytes": 4000000, "attempts": 3, "backoffSeconds": [30, 120, 600] }
+  //
+  // The PostHog sink (queue #637, note 943; the director's backend answer, 20 Oct): with "on" and a projectKey, the spool's
+  // finished sessions go to PostHog between nights (batch capture at host/batch/, eventsPerRequest events a request, an
+  // unanswered request a retry after timeoutSeconds), each line an event dt_<type> under the session's anonymous install
+  // id. The project key is PostHog's write-only project API key (it adds events and reads nothing, so it's no secret); the
+  // director makes the project. Empty, nothing is sent. Nothing is ever sent without the player's consent (#625).
+  "upload": {
+    "sink": "file", "maxBatchBytes": 4000000, "attempts": 3, "backoffSeconds": [30, 120, 600],
+    "postHog": { "on": true, "host": "https://us.i.posthog.com", "projectKey": "", "eventsPerRequest": 500, "timeoutSeconds": 20 }
+  }
 }
