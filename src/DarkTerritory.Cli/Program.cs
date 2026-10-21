@@ -4008,6 +4008,27 @@ static object HudShot(string content, string[] args)
         }
         session = solo;
     }
+    // --boiler-red [max] (note 938): the boiler climbing past what its safety valve holds (max: pinned at the top, the countdown
+    // running), as the cab view (at the controls: the key) and any other (one plain line, no key) are told it.
+    if (args.Contains("--boiler-red") && session.Train.BoilerTuning is { } redTuning)
+    {
+        session.Train.Boiler.Pressure = Str(args, "--boiler-red", "") == "max" ? redTuning.PressureMax : redTuning.SafetyValveLift + 2;
+        session.Train.Boiler.AtMaxSeconds = Str(args, "--boiler-red", "") == "max" ? 6 : 0;
+    }
+    // --belt-short m (note 938): at a grain elevator's drive house (with --site --facility grainElevator), its belt running and
+    // the train m metres short of a car under its head (negative: past it), as the drive house's prompt says which way to go.
+    if (Opt(args, "--belt-short", double.NaN) is var short_ && !double.IsNaN(short_) && session is PrototypeSession beltSolo
+        && beltSolo.World.Run?.Sites.FirstOrDefault(x => x is not null && x.Has(DarkTerritory.Sim.Run.ModuleKind.Conveyor)) is { Spur: >= 0 } belt)
+    {
+        var beltTrain = beltSolo.Train;
+        var beltConsist = beltTrain.Dynamics.Consist;
+        double underHead = beltTrain.Line.Branches[belt.Spur].Toe + belt.ConveyorAlong + beltConsist.OffsetOf(1) + beltConsist.Vehicles[1].Length(beltTrain.Dynamics.Tuning) / 2;
+        var beltState = beltTrain.Capture();
+        beltTrain.Restore(beltState with { Rakes = [beltState.Rakes[0] with { Path = belt.Spur, Distance = underHead - short_, Velocity = 0 }, .. beltState.Rakes[1..]] });
+        beltTrain.RefreshFrames();
+        belt.Mirror(belt.State with { Start = 0, Running = true });
+        beltSolo.Player = PlayerMotor.SpawnOnGround(belt.ConveyorStarter - Double3.Up * 0.9, beltTrain.Line, belt.MainDistance, beltSolo.PlayerTuning);
+    }
     // --crew-news held|gone (note 750): a crewmate held, or just killed, on the last car's roof, out of voice reach: the line
     // this player's shown for it, under the news.
     if (Str(args, "--crew-news", "") is { Length: > 0 } crewNews)
@@ -4250,7 +4271,9 @@ static object HudShot(string content, string[] args)
     {
         var (lines, heard) = Staging.Roster(session.Train, content);
         // Note 724: as a host in a public run has it: Reyes muted, the keys under the names, and a vote open on Okafor.
-        Hud.Roster(hud, width, height, [.. lines.Select(l => l.Id == 3 ? l with { Muted = true } : l)], heard, Hud.RosterKeys(host: true, vote: true));
+        // --roster dead (note 938): Dunmore dead, as the roster marks the dead.
+        bool dunmoreDead = Str(args, "--roster", "") == "dead";
+        Hud.Roster(hud, width, height, [.. lines.Select(l => l.Id == 3 ? l with { Muted = true } : l.Id == 1 && dunmoreDead ? l with { Alive = false } : l)], heard, Hud.RosterKeys(host: true, vote: true));
         if (Hud.KickVoteLine(new DarkTerritory.Sim.Net.KickVote(2, 1, 2, 0), "OKAFOR", onYou: false, 21, 2) is { } vote)
             Hud.KickVoteBanner(hud, width, height, vote);
     }

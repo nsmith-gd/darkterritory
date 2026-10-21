@@ -276,7 +276,10 @@
   // further than beyondMetres from you (voice's reach, spec A.5's 26 m: nearer, you hear it) is a line under the news, who
   // and where, never what: "PRIYA - CAR 4 ROOF" for as long as they're held, "PRIYA IS GONE - CAR 4" for deathSeconds.
   // Each machine works it out for its own player from the snapshots. Never shown to the dead. Off: nothing shown.
-  "crewNews": { "on": true, "beyondMetres": 26, "deathSeconds": 4 },
+  // deathsNear (note 938; the director's playtest of 20 Oct: "Where did he go? Is he dead? ... I don't see Dunmore"): a death
+  // is told within voice's reach too, since a crewmate (a bot above all) can go quietly beside you; the roster (held Q) says
+  // who's dead from then on. deathSeconds was 4, too short to catch at the controls.
+  "crewNews": { "on": true, "beyondMetres": 26, "deathSeconds": 8, "deathsNear": true },
   // Horseplay (GDD §23.4; ARCHITECTURE §8 note 717). The director, 14 Oct 2026: "The griefer ideas are funny"; "if we're
   // going to allow shoving, then we need shoving to be in full effect, which means if you're standing on top of a car, you
   // can be shoved off of it. And at speed, it kills you"; and the lump of coal "is going to need to be able to work with the
