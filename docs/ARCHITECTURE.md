@@ -1100,4 +1100,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [939. Car fires told: why a car burns and relights, boarding a burning car, the extinguisher's reach (Hazel, queue #642; the director's playtest…](notes/939.md)
 - [940. The Waker near the town, and a moving or reversing train (Cole, queue #643; the director's playtest of 20 Oct evening)](notes/940.md)
 - [941. Small things: the floating statue, the village doors, the crane's let-go, the rain (Ezra, queue #644; the director's playtest of 20 Oct…](notes/941.md)
+- [944. Dread at the stops: the longer you loot, the less safe (queue #646; the director's playtest of 20 Oct evening, line 15; n1-C2, 21 Oct 2026)](notes/944.md)
 <!-- end of the notes index -->
