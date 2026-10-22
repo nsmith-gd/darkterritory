@@ -353,6 +353,10 @@ public static class TownBetween
             || plan.Works is { } wk && Region(b, wk.S0, wk.S1, wk.Near, wk.Far, wk.Side, t.Places)
             || plan.Yard is { } yd && Region(b, yd.S0, yd.S1, 0, yd.Far, yd.Side, t.Places))
             return false;
+        // A town type's yard (note 692): between the line and its ward walls, where the train stands and the crew get down.
+        foreach (var (s0, d0, s1, _) in plan.Wards)
+            if (b.S1 > Math.Min(s0, s1) - t.Places && b.S0 < Math.Max(s0, s1) + t.Places && (d0 > 0 ? b.D0 < d0 + t.Places : b.D1 > d0 - t.Places))
+                return false;
         var p = b.Pad(t.Street);
         foreach (var st in bounds.Streets)
         {
