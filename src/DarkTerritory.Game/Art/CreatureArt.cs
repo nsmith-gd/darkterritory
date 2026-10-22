@@ -1136,15 +1136,16 @@ public sealed partial class CreatureArt
     {
         if (!_models.TryGetValue(figure, out var m))
             return false;
+        // Drawn where it is, as what they wear is (an instance, not rebuilt into the frame's soup: RetainedSceneTests, note 694).
         var socket = Skinner.Socket(m.Model, m.Pose, left ? "hand_l_prop" : "hand_r_weapon", model);
         if (!upright)
         {
-            mesh.Append(piece, socket);
+            mesh.Instances.Add(new MeshInstance(piece, socket));
             return true;
         }
         var at = model with { M41 = 0, M42 = 0, M43 = 0, M44 = 1 };
         at.Translation = socket.Translation;
-        mesh.Append(piece, at);
+        mesh.Instances.Add(new MeshInstance(piece, at));
         return true;
     }
 
