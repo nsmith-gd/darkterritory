@@ -883,6 +883,88 @@ public static partial class TrainKit
         return k.Build("rupture-tear");
     }
 
+    /// <summary>
+    /// Note 991: the tear mended (the boiler's Patched): a plate bolted over where it was, drawn at <see cref="RuptureSeam"/>
+    /// in the tear's own frame once she's whole again. The scorch stays round it, weathered; the petals are hammered back
+    /// flat under the plate's edge; the plate's a rough oblong of fresh, unpainted iron cut wider than the hole, its corners
+    /// clipped, bent to the casing, with a ring of square-headed bolts through it and a smear of red-lead caulk at its edge.
+    /// </summary>
+    public static MeshAsset RupturePatch(Look? look)
+    {
+        var k = new Kit(look, 79);
+        // The scorch left from the burst, faded to a grey-brown smudge now the hiss has stopped.
+        k.Use("iron_smokebox", Palette.SootBlack, 0.95f, 0.1f, tile: 0.8f);
+        k.Tint = new Vector3(1.1f, 1.05f, 1f);
+        const int n = 9;
+        for (int i = 0; i < n; i++)
+        {
+            float a0 = i * MathF.Tau / n, a1 = (i + 1) * MathF.Tau / n;
+            float r0 = 1.25f + 0.4f * Frac(MathF.Sin(i * 53.1f) * 211.7f), r1 = 1.25f + 0.4f * Frac(MathF.Sin((i + 1) % n * 53.1f) * 211.7f);
+            var e0 = new Vector3(-0.004f, 0.05f + MathF.Sin(a0) * 0.3f * r0, MathF.Cos(a0) * 0.55f * r0);
+            var e1 = new Vector3(-0.004f, 0.05f + MathF.Sin(a1) * 0.3f * r1, MathF.Cos(a1) * 0.55f * r1);
+            k.Tri(new Vector3(-0.004f, 0.05f, 0), e1, e0);
+            k.Tri(new Vector3(-0.004f, 0.05f, 0), e0, e1);
+        }
+        // The petals beaten back: torn plate lipping out from under the patch's edge, rust-red, flat to the casing.
+        k.Use("rust_heavy", Palette.RustRed, 0.85f, 0.25f, tile: 0.5f);
+        k.Tint *= 1.3f;
+        foreach (var (y, z, w) in new[] { (0.3f, 0.32f, 0.12f), (-0.31f, -0.22f, 0.14f), (0.05f, 0.66f, 0.1f), (-0.18f, 0.5f, 0.09f) })
+            k.Quad(new Vector3(-0.012f, y - w, z - w * 0.6f), new Vector3(-0.012f, y + w, z - w * 0.2f),
+                new Vector3(-0.012f, y + w * 0.6f, z + w), new Vector3(-0.012f, y - w * 0.8f, z + w * 0.5f), twoSided: true);
+        // The plate: an oblong 1.3 by 0.78, corners clipped, 12 mm thick, stood out over the casing's face.
+        const float hz = 0.65f, hy = 0.39f, clip = 0.1f, face = -0.032f, back = -0.02f;
+        Vector2[] outline =
+        [
+            new(-hz + clip, -hy), new(hz - clip, -hy), new(hz, -hy + clip), new(hz, hy - clip),
+            new(hz - clip, hy), new(-hz + clip, hy), new(-hz, hy - clip), new(-hz, -hy + clip),
+        ];
+        Vector3 P(Vector2 p, float x) => new(x, p.Y, p.X);
+        // Fresh iron, mill-scaled dark grey and bright where the hammer's been: it reads from the line against the
+        // casing's brown oxide.
+        // (The smokebox's plain iron, lightened: the riveted plate's texture would put its own rivets and seams on it.)
+        k.Use("iron_smokebox", new Vector3(0.38f, 0.38f, 0.4f), 0.45f, 0.5f, tile: 0.8f);
+        k.Tint = new Vector3(2.4f, 2.4f, 2.5f);
+        for (int i = 1; i < outline.Length - 1; i++)
+        {
+            k.Tri(P(outline[0], face), P(outline[i + 1], face), P(outline[i], face));
+            k.Tri(P(outline[0], face), P(outline[i], face), P(outline[i + 1], face));
+        }
+        for (int i = 0; i < outline.Length; i++)
+        {
+            var a = outline[i];
+            var b = outline[(i + 1) % outline.Length];
+            k.Quad(P(a, back), P(b, back), P(b, face), P(a, face), twoSided: true);
+        }
+        // The caulk: a bead of red lead squeezed out round the plate's edge where it meets the casing.
+        k.Use("paint_oxide", new Vector3(0.62f, 0.2f, 0.1f), 0.6f, 0.2f);
+        for (int i = 0; i < outline.Length; i++)
+        {
+            var a = outline[i] * 1.02f;
+            var b = outline[(i + 1) % outline.Length] * 1.02f;
+            k.Rod(P(a, -0.006f), P(b, -0.006f), 0.012f, 4);
+        }
+        // The bolts: square heads on washers, a ring of them 6 cm in from the edge, and a nut or two left bright.
+        k.Use("iron_smokebox", new Vector3(0.3f, 0.3f, 0.3f), 0.5f, 0.6f);
+        const int bolts = 18;
+        float perimeter = 4 * (hz + hy);
+        for (int i = 0; i < bolts; i++)
+        {
+            float s = (i + 0.5f) / bolts * perimeter;
+            // Walk the inset rectangle's edge.
+            float iz = hz - 0.06f, iy = hy - 0.06f;
+            Vector2 at = s < 2 * iz ? new(-iz + s, -iy)
+                : s < 2 * iz + 2 * iy ? new(iz, -iy + (s - 2 * iz))
+                : s < 4 * iz + 2 * iy ? new(iz - (s - 2 * iz - 2 * iy), iy)
+                : new(-iz, iy - (s - 4 * iz - 2 * iy));
+            at = new(Math.Clamp(at.X, -iz, iz), Math.Clamp(at.Y, -iy, iy));
+            var c = P(at, face);
+            k.Tint = i % 7 == 3 ? new Vector3(3.2f, 3.1f, 3f) : new Vector3(0.9f, 0.85f, 0.8f);
+            k.Disc(c + new Vector3(-0.002f, 0, 0), -Vector3.UnitX, 0.04f, 8);
+            k.BoxAt(c + new Vector3(-0.016f, 0, 0), new Vector3(0.018f, 0.026f, 0.026f), top: true, bottom: false);
+        }
+        return k.Build("rupture-patch");
+    }
+
     static float Frac(float x) => x - MathF.Floor(x);
 
     // The war train's iron (note 338, the director's reference: dark, rusted, riveted): the riveted oxide plate darkened

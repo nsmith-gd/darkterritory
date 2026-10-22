@@ -114,6 +114,7 @@ public sealed class WorldShot : IDisposable
         s.Derailed = world.Derailed;
         s.FireDoorOpen = train.Boiler.FireDoorOpen;
         s.Ruptured = train.Boiler.Ruptured;
+        s.Patched = train.Boiler.Patched;
         var breaks = RepairCallouts.Of(train);
         Couplings.Callouts(train, breaks);
         s.Breaks = breaks;

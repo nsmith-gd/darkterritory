@@ -410,6 +410,8 @@ public sealed partial class GreyboxScene
     /// seized, not turning, sliding on the rail in sparks.
     /// </summary>
     public bool Ruptured { get; set; }
+    /// <summary>Note 991: a rupture's been mended (the boiler's Patched): the plate bolted over the tear, once she's whole again.</summary>
+    public bool Patched { get; set; }
     /// <summary>
     /// The breaks the crew can mend, each called out where it is (note 301: <see cref="RepairCallouts.Of"/>), and which of them
     /// (by index) someone's wrench is at now. Null, none.
@@ -5108,6 +5110,8 @@ public sealed partial class GreyboxScene
                 Look.Art.Gear(mesh, frame, eye, _travelled, Emergency ? 0.06f : 1);
             if (engine && Ruptured)
                 Look.Art.RuptureTear(mesh, frame, eye);
+            else if (engine && Patched)
+                Look.Art.RupturePatch(mesh, frame, eye);
             // The lamp out (switched off, or a Climber's smashed it): the lens dark glass over the art's lit one.
             if (engine && !LampLit)
                 Look.Art.HeadlampOut(mesh, frame, eye);

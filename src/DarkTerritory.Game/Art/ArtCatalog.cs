@@ -73,6 +73,9 @@ public static class ArtCatalog
         list.Add(new("whistle-card", MediumProp, () => VoiceKit.WhistleCard(look, "WHISTLE CODES",
             ["ONE LONG - STOPPING", "TWO LONG - GOING", "THREE SHORT - BACKING", "FOUR SHORT - HELP", "TWO SHORT - HEARD YOU"])));
         // A car's damage rides on its body (the car class's budget, what the body leaves of it: the kit's are 9-11k).
+        // The boiler's tear and the plate bolted over it once mended (note 991).
+        list.Add(new("rupture-tear", SmallProp, () => TrainKit.RuptureTear(look)));
+        list.Add(new("rupture-patch", SmallProp, () => TrainKit.RupturePatch(look)));
         list.Add(new("hatch-lid", SmallProp, () => TrainKit.HatchLid(look, new System.Numerics.Vector3(1.4f, 0.15f, 2.4f))));
         list.Add(new("utility-fit", MediumProp, () => TrainKit.UtilityFit(look, cargo)));
         list.Add(new("damage-1", MediumProp, () => DamageKit.Car(look, cargo, 1, 3)));

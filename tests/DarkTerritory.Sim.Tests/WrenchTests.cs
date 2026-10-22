@@ -122,9 +122,17 @@ public class WrenchTests
         Assert.Equal(0, Repairs.WrenchKey(s));
         Hold(world, ref s, Tuning.Boiler.RepairSeconds - 1);
         Assert.True(train.Boiler.Ruptured);
+        Assert.False(train.Boiler.Patched);
         Hold(world, ref s, 1.2);
         Assert.False(train.Boiler.Ruptured);
         Assert.Equal(0, train.Boiler.Pressure);
+        // Note 991: mended, her tear's patched for the rest of the night, and a client sees the plate as the host does.
+        Assert.True(train.Boiler.Patched);
+        var client = World();
+        var controls = new TrainControls();
+        WorldRecords.Apply(WorldRecords.Capture(world, controls, []), client, ref controls, []);
+        Assert.True(client.Train.Boiler.Patched);
+        Assert.False(client.Train.Boiler.Ruptured);
         // Held on past it, coal goes on to fire her back up from nothing, by hand: the wrench stays in it (note 664, the
         // director: no tool to shovel coal; it was the shovel taken into hand).
         Assert.Equal(Tool.Wrench, Kit.Held(s));

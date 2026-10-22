@@ -2306,6 +2306,8 @@ static object Screenshot(TrainTuning t, string content, string[] args)
         // right; the flange sparks of the overspeed telegraph.
         BendStrain = args.Contains("--strain") ? [.. train.Frames.Select(_ => ((float)Opt(args, "--strain", 0.8), 1))] : null,
         Ruptured = args.Contains("--ruptured"),
+        // --patched: the tear mended, its plate bolted over it (note 991).
+        Patched = args.Contains("--patched"),
         StagedRuptureSeconds = Opt(args, "--ruptured", 0.8),
         DriversLocked = args.Contains("--ruptured") && Opt(args, "--speed", 20) - DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)).RuptureDecel * Opt(args, "--ruptured", 0.8)
             > DataFile.Load<BoilerTuning>(Path.Combine(content, BoilerTuning.File)).RuptureCoastBelow,
