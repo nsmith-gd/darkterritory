@@ -10,7 +10,9 @@ namespace DarkTerritory.Game.Sound;
 /// The BBQ deck heard (queue #505, note 775; U1's #967, note 698): "the BBQ Dads at the end of the world". Off the deck's
 /// record (the grill's charcoal left, the cooler's beers, every client's) and the crew's: the charcoal catching as it's lit,
 /// the grill burning while it is, a sausage turned while someone's at it, the cooler's lid as a beer comes out, a can cracked
-/// as one's drunk, cans clinked when two with beers meet, a Muskoka chair as someone sits or gets up.
+/// as one's drunk, cans clinked when two with beers meet, a Muskoka chair as someone sits or gets up. And the dining car's bar
+/// (queue #683, note 983; upgrades.md §8.5, note 959): its bell and a pour at the counter as its drinks go down, a glass's sip
+/// where a drink in hand is drunk, glasses clinked where a drink meets a drink or a beer.
 /// </summary>
 public sealed partial class GameAudio
 {
@@ -21,7 +23,8 @@ public sealed partial class GameAudio
     const double CheersWithin = 1.2;
 
     readonly Dictionary<int, int> _beersWas = [];
-    readonly Dictionary<int, (int By, Double3 At)> _beersHeld = [];
+    readonly Dictionary<int, int> _drinksWas = [];
+    readonly Dictionary<int, (int By, Double3 At, bool Glass, float Occlusion)> _beersHeld = [];
     readonly HashSet<(int, int)> _cheered = [];
     readonly Dictionary<int, bool> _lounging = [];
     readonly Dictionary<int, double> _turnNext = [];
@@ -30,6 +33,7 @@ public sealed partial class GameAudio
     void EndNightBbq()
     {
         _beersWas.Clear();
+        _drinksWas.Clear();
         _beersHeld.Clear();
         _cheered.Clear();
         _lounging.Clear();
@@ -87,22 +91,50 @@ public sealed partial class GameAudio
         }
         foreach (var (id, s) in CrewStates)
             _lounging[id] = s.Has(PlayerFlags.Lounging);
+        BarPours(train, primed);
         Beers(world, outside, primed);
     }
 
     /// <summary>
+    /// A drink poured at the dining car's bar (note 983): its drinks left (the car's record, every client's) down by one, the
+    /// counter's bell and the pour on its top, inside the car.
+    /// </summary>
+    void BarPours(TrainOnLine train, bool primed)
+    {
+        for (int v = 0; v < train.Frames.Count && v < train.Vehicles.Count; v++)
+        {
+            if (train.Frames[v].Shape.Dining is not { } dining || train.Vehicles[v] is not { } car)
+                continue;
+            var c = dining.Counter;
+            var top = new Double3((c.Min.X + c.Max.X) / 2, c.Max.Y, (c.Min.Z + c.Max.Z) / 2);
+            if (_drinksWas.TryGetValue(v, out int was) && car.Beers < was && primed)
+                Cue("up-dining.pour", train.Frames[v].ToWorld(top), OccludedAt(train, v, top));
+            _drinksWas[v] = car.Beers;
+        }
+    }
+
+    /// <summary>
     /// The beers in hand (note 698): one that's gone while it was held has been drunk (the host takes it when the drink's done),
-    /// a can cracked and a swig where its drinker's head is; two crewmates with beers in hand close together, cans clinked.
+    /// a can cracked and a swig where its drinker's head is; two crewmates with beers in hand close together, cans clinked. The
+    /// dining car's drinks are glasses (note 983): a sip from one, and a clink of glasses where one's touched, the can's and the
+    /// cheers' where the bar's line isn't installed.
     /// </summary>
     void Beers(World world, float outside, bool primed)
     {
-        var held = new Dictionary<int, (int By, Double3 At)>();
+        var train = world.Train;
+        var held = new Dictionary<int, (int By, Double3 At, bool Glass, float Occlusion)>();
         foreach (var b in world.Bodies.All)
-            if (b.Kind is BodyKind.Beer or BodyKind.Drink && b.Carrier >= 0 && Crewmate(b.Carrier) is { } s && At(world.Train, s) is { } at)
-                held[b.Id] = (b.Carrier, at);
-        foreach (var (id, (by, at)) in _beersHeld)
+            if (b.Kind is BodyKind.Beer or BodyKind.Drink && b.Carrier >= 0 && Crewmate(b.Carrier) is { } s && At(train, s) is { } at)
+            {
+                // Indoors (the dining car's drinks are drunk in it) the drinker's car decides who hears it; out on a deck, the open air.
+                float occ = s.Parent != PlayerState.World && s.Parent < train.Frames.Count ? OccludedAt(train, s.Parent, s.Position) : outside;
+                held[b.Id] = (b.Carrier, at, b.Kind == BodyKind.Drink, occ);
+            }
+        string sip = HasCue("up-dining.sip") ? "up-dining.sip" : "up-bbq.can";
+        string clink = HasCue("up-dining.clink") ? "up-dining.clink" : "up-bbq.cheers";
+        foreach (var (id, (by, at, glass, occ)) in _beersHeld)
             if (!held.ContainsKey(id) && !world.Bodies.All.Any(b => b.Id == id) && primed)
-                Cue("up-bbq.can", at + Double3.Up * 1.55, outside);
+                Cue(glass ? sip : "up-bbq.can", at + Double3.Up * 1.55, occ);
         var cans = held.ToList();
         for (int i = 0; i < cans.Count; i++)
             for (int j = i + 1; j < cans.Count; j++)
@@ -111,7 +143,8 @@ public sealed partial class GameAudio
                 if (a.Value.By == b.Value.By || (a.Value.At - b.Value.At).Length > CheersWithin)
                     continue;
                 if (_cheered.Add((Math.Min(a.Key, b.Key), Math.Max(a.Key, b.Key))) && primed)
-                    Cue("up-bbq.cheers", (a.Value.At + b.Value.At) * 0.5 + Double3.Up * 1.4, outside);
+                    Cue(a.Value.Glass || b.Value.Glass ? clink : "up-bbq.cheers", (a.Value.At + b.Value.At) * 0.5 + Double3.Up * 1.4,
+                        Math.Min(a.Value.Occlusion, b.Value.Occlusion));
             }
         _beersHeld.Clear();
         foreach (var (id, h) in held)

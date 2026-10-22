@@ -436,3 +436,79 @@ The director asked for the last three friendslop features to be heard. Two were 
 
 - #1160 (#562) green on Linux and Windows; main had moved (the whistle held, the stilt town), so main merged in once more and it merges on that run's green. Rows #562 and the playtest's lines 19 and 27 done with it.
 - The Token Budget Manager's EXECUTE HANDOFF (nathaniel2 at 92% weekly, LIMITED until Wed 21 Oct 20:00 UTC): nothing new started. AU1's two open items are `open for pick-up`, their handoffs executed: #42, the Voice Booth (note 304; still no Keep/Redo on its 34 versions), and #505, the upgrades' tools' tells (note 775; waiting on #967's tools, still unbuilt). AU1 stops here until the reset.
+
+## 21 Oct, ~20:25 UTC: back after the weekly reset; #675, the flare pistol heard
+
+- The Token Budget Manager's RESUME (nathaniel2 at 0%). #1160 (#562) had merged on 16 Oct; #505 was finished by n1-w3 ([#1288](https://github.com/nsmith-gd/darkterritory/pull/1288)) and #649, the arrival town's sounds, by Ezra ([#1494](https://github.com/nsmith-gd/darkterritory/pull/1494)). The Voice Booth (#42) still has no Keep/Redo on its 34 versions.
+- The Audio Checklist's only line short of L1 that nobody holds is `up-flare`: the flare pistol (#598) is in play and drawn but silent. Claimed queue #675, note 975 (`crew-gun-lay` stays in review, waiting on the director's pick).
+
+## 21 Oct, ~21:15 UTC: #675 in review
+
+- The claim merged ([#1563](https://github.com/nsmith-gd/darkterritory/pull/1563), main merged in twice for the docs' union merge GitHub doesn't do).
+- The flare pistol heard (note 975): `recipes/flare.py` (two candidates a cue, uploaded to the checklist; the real ones installed), `GameAudio.Flare` (the shooter's own shot at once, everyone else's where the flare first flies; the burn held on the flare for its minute; the dry click), captions, `FlareSoundTests`. The `up-flare` line at L1, in review.
+
+## 21 Oct, ~21:20 UTC: #675 merging
+
+- [#1572](https://github.com/nsmith-gd/darkterritory/pull/1572) green on Linux and Windows (and the package and crossplay); main merged in once more, row #675 done in it (the union merge's stale copies of #671, #672 and #675 dropped). Merges on this run's green.
+- Next (one at a time): the coupling's long-carrying `state-coupling-loose.warn` (note 865; hooked in `GameAudio.Faults`, no sound yet), the clerk's word bank with the catalogue's words for Hazel's tally (note 972), the dining car's glass and bell (note 959), the big cab's benches (note 905), Rowan's audit's tidy-ups (note 858).
+
+## 21 Oct, ~22:05 UTC: #675 merged; #680, a pin working loose heard the length of the train
+
+- [#1572](https://github.com/nsmith-gd/darkterritory/pull/1572) merged (the flare pistol heard, #675, note 975). The `up-flare` line's notes say so.
+- Claimed queue #680, note 980: note 865's `state-coupling-loose.warn`, hooked in `GameAudio.Faults` since #592 but with no sound, so the warning borrows the ordinary knock pulled toward the ear.
+
+## 21 Oct, ~22:45 UTC: #680 in review
+
+- The claim merged ([#1582](https://github.com/nsmith-gd/darkterritory/pull/1582)). `state-coupling-loose.warn` (note 980): `recipes/coupling_warn.py` (the packs' real slam and rings, the casting modelled; on the checklist), installed at the pin out to 400 m as an alarm, captioned, two tests (the warn at the pin from the cab, or the stand-in knock pulled to 45 m; the installed reach and level). The line's other cues untouched.
+
+## 21 Oct, ~22:58 UTC: #680 merging
+
+- [#1584](https://github.com/nsmith-gd/darkterritory/pull/1584) green on Linux and Windows (package, crossplay); main merged in once more, row #680 done in it (the union merge's stale copies of #679 and #680 dropped). Merges on this run's green. Next: the clerk's bank rebuilt with the catalogue's words for Hazel's tally (note 972).
+## 21 Oct, ~23:00 UTC: #682, the clerk's words for the silly upgrades' tally
+
+- Claimed queue #682, note 982 (Hazel's ask in note 972): the clerk's radio bank rebuilt with "dining", "bar", "poured", "beers", "grill", "deceased" and "volunteers", so the tally reads as the catalogue has it. #680 (#1584) merges on its last green.
+
+## 21 Oct, ~23:25 UTC: #682 ready
+
+- The claim merged ([#1588](https://github.com/nsmith-gd/darkterritory/pull/1588)). The clerk's bank (note 982): "bar", "drinks", "dry", "beers", "grill", "deceased", "volunteers" and the never-read "bolted on"; the dining car, deck, canary and cannon lines in the catalogue's words; `clerk.py` expands a counted line's readings (its first run stopped on a "#"). The Switchman's two stale phrases and "barbecue" gone from the bank. Goes up when #1584 has merged off the branch.
+
+## 22 Oct, ~00:20 UTC: #680 and #682 merged
+
+- [#1584](https://github.com/nsmith-gd/darkterritory/pull/1584) merged (#680, the pin's warn). [#1592](https://github.com/nsmith-gd/darkterritory/pull/1592) green on Linux and Windows; row #682 done in it and merged (#682, the clerk's words). Next: the dining car's bar heard (note 959: a pour and the counter's bell, a glass of its own).
+
+## 22 Oct, ~00:25 UTC: #683, the dining car's bar heard
+
+- Claimed queue #683, note 983 (Hazel's handoff in note 959: "AU1's glass and the bar's bell"): a drink poured at the counter with its bell, and drunk from a glass, not the beer's can.
+
+## 22 Oct, ~00:30 UTC: #683 ready
+
+- The claim merged ([#1595](https://github.com/nsmith-gd/darkterritory/pull/1595)). `up-dining` (note 983): `recipes/dining.py` (the counter's bell and a pour, a glass's sip, glasses clinked; real and modelled), installed, hooked in `GameAudio.Bbq` (the pour off the car's drinks left at the counter's top, the Drink body's sip and clink in place of the can and cheers), captioned, a test. The checklist row at L1, in review.
+- Up as [#1597](https://github.com/nsmith-gd/darkterritory/pull/1597); row #683 done in it, merging on green. Next: the bench in the big cab heard (note 905).
+
+## 22 Oct, ~01:25 UTC: #683 merged; #684, the cab's benches heard
+
+- [#1597](https://github.com/nsmith-gd/darkterritory/pull/1597) green on Linux and Windows (package, crossplay) and merged (#683, the dining car's bar).
+- Claimed queue #684, note 984 (Tess's note 905 left the big cab's benches silent for AU1): a seat on a bench taken or left heard, the plank on its brackets.
+
+## 22 Oct, ~01:35 UTC: #684 ready
+
+- `up-lounge.bench` (note 984): `recipes/cab_bench.py` (the plank on its brackets, a bolt's tick, the back on the rail; real and modelled), clear of every tell, on the checklist, installed, hooked in `GameAudio.Lounge` (the bench seat sat on and got up from), a test. The claim merged ([#1601](https://github.com/nsmith-gd/darkterritory/pull/1601)); up as [#1602](https://github.com/nsmith-gd/darkterritory/pull/1602), row #684 done in it, merging on green.
+
+## 22 Oct, ~02:25 UTC: #684 merged; #687, a bot's answer spoken
+
+- [#1602](https://github.com/nsmith-gd/darkterritory/pull/1602) green on Linux and Windows (package, crossplay) and merged (#684, the cab's benches), after main merged in once more (the union merge's stale copy of row #684 dropped).
+- Claimed queue #687, note 987 (Finn's note 936 left a bot's spoken answer to a ping to AU1): the bot who takes a ping says it, in a voice of its own.
+
+## 22 Oct, ~03:05 UTC: #687 ready
+
+- The claim merged ([#1606](https://github.com/nsmith-gd/darkterritory/pull/1606)). `voice-bot` (note 987): `recipes/bot_voice.py` (each of the bots' answers said in four LibriTTS voices, through the radio or plain; on the checklist), installed with the TTS credit, `GameAudio.Pings` says a bot's answer over the radio as it takes a ping, in the voice its id picks, once. `PingVoiceTests`.
+- Up as [#1608](https://github.com/nsmith-gd/darkterritory/pull/1608); row #687 done in it, merging on green.
+
+## 22 Oct, ~03:40 UTC: #687 merged; #688, note 858's tidy-ups
+
+- [#1608](https://github.com/nsmith-gd/darkterritory/pull/1608) green on Linux and Windows (package, crossplay) and merged (#687, a bot's answer spoken).
+- Claimed queue #688, note 988: Rowan's note 858 items 2, 3 and 14 (the cut shiver, the Switchman's and the forward cannon's leftovers, note 829's row name).
+
+## 22 Oct, ~04:00 UTC: #688 ready
+
+- Note 988: `crew-cold`'s need reworded and its shiver marked cut (its own need); the Switchman's previews out of `assets.json`, his and the forward cannon's lines out of the Voice Booth (page and script); the forward cannon's three phrases out of `clerk.py` and the clerk's bank (and `ClerkVoiceTests`' list of blames); note 829 names `tell-soot-children`. The claim merged ([#1613](https://github.com/nsmith-gd/darkterritory/pull/1613)); up as [#1614](https://github.com/nsmith-gd/darkterritory/pull/1614), row #688 done in it, merging on green.

@@ -59,6 +59,9 @@ public sealed class TrainOnLine
     /// <summary>The stops' buildings, for whoever walks among them (T114); set with the run, alike on every machine.</summary>
     public Run.StopWalls? Walls { get; set; }
 
+    /// <summary>Ladders standing in the world, not on a car (note 973: the towns' houseboats'), grabbed and climbed as a car's are.</summary>
+    public IReadOnlyList<WorldLadder> Ladders { get; set; } = [];
+
     /// <summary>
     /// What's lying still in the cars (note 659, the director: "we want the loot we put in the cars to persist once in there so
     /// poor stacking becomes an obstacle for players passing through"): each thing's box in its car's frame, to walk round or
@@ -743,8 +746,10 @@ public sealed class TrainOnLine
                     {
                         // No regulator (T97): the engine pulls as hard as it takes to make the speed its steam allows.
                         effective.Throttle = Math.Clamp((Boiler.SteamSpeed(bt, rake.Tuning.MaxSpeed) - rake.Speed) / bt.DriveSpeedBand, 0, 1);
-                        // Held on its brake, it isn't working: no exhaust beats to draw the fire, no steam through the cylinders.
-                        RupturedThisTick = !HeldInYard && Boiler.Step(bt, dt, rake.Speed < 0.05 ? 0 : effective.Throttle, rake.Consist.CarCount, rake.Speed / rake.Tuning.MaxSpeed);
+                        // Standing (under 0.05 m/s), it isn't working: no exhaust beats to draw the fire, no steam through the cylinders.
+                        // Raising steam there, the blower draws it (boiler.json standingDraft, note 969).
+                        RupturedThisTick = !HeldInYard && Boiler.Step(bt, dt, rake.Speed < 0.05 ? 0 : effective.Throttle, rake.Consist.CarCount, rake.Speed / rake.Tuning.MaxSpeed,
+                            standing: rake.Speed < 0.05);
                     }
                     else
                     {

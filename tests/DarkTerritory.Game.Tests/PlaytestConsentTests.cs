@@ -12,7 +12,9 @@ namespace DarkTerritory.Game.Tests;
 public sealed class PlaytestConsentTests : IDisposable
 {
     readonly string _dir = Path.Combine(Path.GetTempPath(), $"dt-playtest-{Guid.NewGuid():N}");
-    static readonly PlaytestNotice Notice = PlaytestNotice.Load(DataFile.FindContentRoot());
+    static readonly PlaytestNotice Casual = PlaytestNotice.Load(DataFile.FindContentRoot());
+    // #625's question and note 946's notice, as they are with the casual line taken out (note 968's flag).
+    static readonly PlaytestNotice Notice = Casual with { FirstBootLine = "" };
 
     public void Dispose()
     {
@@ -22,14 +24,14 @@ public sealed class PlaytestConsentTests : IDisposable
 
     PlaytestConsent Consent(bool dev = false, bool playtest = false) => PlaytestConsent.Load(Path.Combine(_dir, "telemetry"), defaultOn: dev, onByNotice: playtest);
 
-    FrontEnd Menu(PlaytestConsent consent)
+    FrontEnd Menu(PlaytestConsent consent, PlaytestNotice? notice = null)
     {
         var content = DataFile.FindContentRoot();
         return new(DataFile.Load<CampaignTuning>(Path.Combine(content, CampaignTuning.File)), DataFile.Load<RunTuning>(Path.Combine(content, RunTuning.File)),
             new SaveSlots(Path.Combine(_dir, "saves"), 3), Path.Combine(_dir, "settings.json"), () => 42)
         {
             Playtest = consent,
-            PlaytestNotice = Notice,
+            PlaytestNotice = notice ?? Notice,
         };
     }
 
@@ -250,5 +252,83 @@ public sealed class PlaytestConsentTests : IDisposable
         var row = m.Items.Single(i => i.Label == "WHO KEEPS IT");
         Assert.Contains("PostHog", row.Detail);
         Assert.Contains("default", m.Items[0].Detail);
+    }
+
+    // Note 968 (the director, 21 Oct): "Playtest data is on by default and there's an option in the menu to turn it off. Keep it
+    // a small line at the bottom of the home menu screen only on first boot up."
+    PlaytestConsent CasualConsent() => PlaytestConsent.Load(Path.Combine(_dir, "telemetry"), defaultOn: Casual.Casual, onByNotice: Casual.Casual);
+
+    [Fact]
+    public void TheDirectorsLineIsTheNotice()
+    {
+        Assert.True(Casual.Casual);
+        Assert.Equal("Playtest data is recorded to help me improve game balancing. You can turn this off in the menu if you want.", Casual.FirstBootLine);
+    }
+
+    [Fact]
+    public void CasuallyItsOnFromTheFirstBootAndTheLineIsShownOnceUnderTheTitle()
+    {
+        var c = CasualConsent();
+        Assert.True(c.Recording);
+        Assert.NotNull(c.InstallId);
+        var m = Menu(c, Casual);
+        m.OpenPlaytest();
+        Assert.Equal(Screen.Title, m.Screen);
+        Assert.Equal(Casual.FirstBootLine, m.PlaytestLine);
+        // The next boot: no line, still on.
+        var next = Menu(CasualConsent(), Casual);
+        next.OpenPlaytest();
+        Assert.Null(next.PlaytestLine);
+        Assert.True(next.Playtest!.Recording);
+    }
+
+    [Fact]
+    public void CasuallyTheMenuTurnsItOffAndItStaysOff()
+    {
+        var c = CasualConsent();
+        Menu(c, Casual).OpenPlaytest();
+        var m = Menu(c, Casual);
+        m.Show(Screen.Settings);
+        int at = m.Items.Select(i => i.Label).ToList().IndexOf("PLAYTEST DATA: ON");
+        Assert.True(at > 0);
+        Assert.Contains("help me improve game balancing", m.Items[at].Detail);
+        while (m.Selected != at)
+            m.Down();
+        m.Select();
+        Assert.False(c.Recording);
+        Assert.Null(c.InstallId);
+        Assert.False(CasualConsent().Recording);
+    }
+
+    [Fact]
+    public void ANoFromBeforeStaysANoWhenTheLineShows()
+    {
+        // A player who said no to #625's question (or an older notice) isn't turned back on by the line.
+        Consent().Choose(yes: false, Notice with { Version = Notice.Version - 1 });
+        var m = Menu(CasualConsent(), Casual);
+        m.OpenPlaytest();
+        Assert.Equal(Casual.FirstBootLine, m.PlaytestLine);
+        Assert.False(m.Playtest!.Recording);
+    }
+
+    [Fact]
+    public void CasuallyWhatWeCollectHasNoLegalRows()
+    {
+        var m = Menu(CasualConsent(), Casual);
+        m.Show(Screen.PlaytestData);
+        var labels = m.Items.Select(i => i.Label).ToList();
+        Assert.All(Casual.Collect, f => Assert.Contains(f.What, labels));
+        Assert.Contains("DELETE MY PLAYTEST DATA", labels);
+        Assert.DoesNotContain(labels, l => l.StartsWith("KEPT FOR", StringComparison.Ordinal));
+        Assert.DoesNotContain("WHO KEEPS IT", labels);
+    }
+
+    [Fact]
+    public void WithoutTheLineTheQuestionIsAskedAtTheStart()
+    {
+        var m = Menu(Consent());
+        m.OpenPlaytest();
+        Assert.Equal(Screen.Consent, m.Screen);
+        Assert.Null(m.PlaytestLine);
     }
 }

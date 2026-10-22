@@ -62,8 +62,8 @@ WORDS = ["crew", "coal", "cars", "freight", "cargo", "paid", "fee", "refund", "m
 # "at kilometre 12", "40 s" as "40 seconds" and "12 m" as "12 metres".
 CAUSE_PHRASES = ["consist derailed", "took the", "too fast", "ran onto the washout", "gave way under car",
                  "ran onto the sleepers", "they'll take",
-                 "the stoker ran away with it", "nobody on the throttle", "forward cannon crewed by", "forward cannon not crewed",
-                 "no forward cannon on the consist", "firebox last tended", "nobody had tended the firebox",
+                 # (Not the forward cannon's three, which the card stopped saying: note 988, Rowan's note 858.)
+                 "the stoker ran away with it", "nobody on the throttle", "firebox last tended", "nobody had tended the firebox",
                  "recovery not scheduled", "cause not established", "consist reported stranded", "recovery at first light",
                  "recovery is chargeable", "kilometres an hour", "from the train"]
 CAUSE_WORDS = ["at", "the", "over", "bend", "throttle", "unattended", "kilometre", "seconds", "metres", "car",
@@ -118,16 +118,36 @@ LEDGER_PHRASES = ["most of it", "the crew lost", "brigade fees"]
 LEDGER_WORDS = ["recovery", "brigade"]
 
 
+COUNTED = re.compile(r"\{([A-Za-z]+)\?([^|{}]*)\|([^{}]*)\}")
+
+
+def readings(tally):
+    """Every way a tally line can read (Sim.Run.Radio.Fill; note 972): each "{name?counted|none}" both ways, and the counts
+    ("#", "{name}") taken out, since the clerk says a number from the bank's number words. "{engine}" goes too: a name a
+    player typed."""
+    todo, out = [tally], []
+    while todo:
+        r = todo.pop(0)
+        m = COUNTED.search(r)
+        if m is None:
+            out.append(re.sub(r"\{[A-Za-z]+\}|#", "", r))
+        else:
+            todo += [r[:m.start()] + alt + r[m.end():] for alt in (m.group(2), m.group(3))]
+    return out
+
+
 def upgrades():
-    """Every upgrade's tally line (campaign.json upgrades' "tally"), in the pieces the clerk says between its marks: "Fiddle: in
-    tune, mostly." is "fiddle", "in tune", "mostly". A {slot} (the engine's nameplate) is a name a player typed: the set
-    breaks up over it, as over any typed name."""
+    """Every upgrade's tally line (campaign.json upgrades' "tally"), in every reading, in the pieces the clerk says between its
+    marks: "Fiddle: in tune, mostly." is "fiddle", "in tune", "mostly". A piece with a number in it ("Fee 0") is said from
+    the number words. A {slot} (the engine's nameplate) is a name a player typed: the set breaks up over it, as over any
+    typed name."""
     out = []
     for u in jsonc("content", "tuning", "campaign.json")["upgrades"]:
-        for part in re.split(r"[:,.;()]", u.get("tally") or ""):
-            part = part.strip().lower()
-            if part and "{" not in part:
-                out.append(part)
+        for reading in readings(u.get("tally") or ""):
+            for part in re.split(r"[:,.;()]", reading):
+                part = part.strip().lower()
+                if part and not re.search(r"\d", part):
+                    out.append(part)
     return out
 
 

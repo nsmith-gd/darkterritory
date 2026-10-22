@@ -85,10 +85,21 @@ public class ClerkVoiceTests
         var lines = Sim.Campaign.Campaign.TallyLines(campaign, campaign.Upgrades.Select(u => u.Id));
         Assert.True(lines.Count >= 40, $"{lines.Count} tally lines");
         foreach (string line in lines)
-        {
-            string said = line.Replace("{engine}", "unnamed", StringComparison.Ordinal);
-            Assert.True(!clerk.Pieces(said).Any(p => p.Kind == ClerkVoice.PieceKind.Breakup), $"the set breaks up over '{said}'");
-        }
+            // Note 972: every reading of a line with the night's counts in it (Radio.Fill): each count at nought and at some.
+            foreach (string reading in Readings(line))
+            {
+                string said = reading.Replace("{engine}", "unnamed", StringComparison.Ordinal);
+                Assert.True(!clerk.Pieces(said).Any(p => p.Kind == ClerkVoice.PieceKind.Breakup), $"the set breaks up over '{said}'");
+            }
+    }
+
+    /// <summary>A tally line read every way the night's counts can have it (note 972): each count it names at 0 and at 3.</summary>
+    static IEnumerable<string> Readings(string line)
+    {
+        var names = System.Text.RegularExpressions.Regex.Matches(line, @"\{([A-Za-z]+)[?}]").Select(m => m.Groups[1].Value)
+            .Where(n => n != "engine").Distinct().ToList();
+        for (int mask = 0; mask < 1 << names.Count; mask++)
+            yield return Radio.Fill(line, names.Select((n, i) => (n, (mask >> i & 1) * 3)).ToDictionary(x => x.n, x => x.Item2));
     }
 
     [Fact]
@@ -170,8 +181,8 @@ public class ClerkVoiceTests
         ];
         string[] blames =
         [
-            "Throttle: {actor}.", "Nobody on the throttle.", "Forward cannon crewed by {actor}.", "Forward cannon not crewed.",
-            "No forward cannon on the consist.", "Firebox last tended: {actor}, unattended 40 s.", "Nobody had tended the firebox.",
+            // (Not the forward cannon's three: no card says them any more, and the bank let them go, note 988.)
+            "Throttle: {actor}.", "Nobody on the throttle.", "Firebox last tended: {actor}, unattended 40 s.", "Nobody had tended the firebox.",
         ];
         foreach (string cause in causes)
             foreach (string blame in blames)

@@ -164,7 +164,10 @@ public sealed class Oddities
     /// stop's seed of their own, a tin can lying in one of its streets, a scarecrow at a farmstead, and a postbox at a halt's
     /// platform, each by its <c>oddities</c> chance. Null with <c>oddities.enabled</c> off.
     /// </summary>
-    public static Oddities? Of(OddityTuning t, Route.Route route, RailLine line)
+    /// <param name="forts">The night's fortresses and their towns (<see cref="Fortresses.Of"/>, the towns' squares and walls on
+    /// them once they're up): nothing of the lineside is drawn or stands inside one (<see cref="LinesideProps.InsideAFort"/>),
+    /// so no note is left at a leaving there (note 979). Null, none.</param>
+    public static Oddities? Of(OddityTuning t, Route.Route route, RailLine line, IReadOnlyList<Fort>? forts = null)
     {
         if (!t.Enabled)
             return null;
@@ -200,9 +203,15 @@ public sealed class Oddities
         // And out along the line between the stops (note 965): at the railway's leavings where somebody stopped a while, by
         // the night's seed, a stretch's own draw.
         if (t.Note is { Lineside: > 0, Notes.Count: > 0 } nt && LinesideProps.Of(route, line) is { } lineside)
-            foreach (var (l, yaw, _) in lineside.Laid(0, line.Length + Leavings.Every))
+            foreach (var (l, yaw, pieces) in lineside.Laid(0, line.Length + Leavings.Every))
             {
                 if (NoteBy(l.Kind) is not { } by || Streams.Rng(route.Seed, "leaving-note", "", l.Slot).NextDouble() >= nt.Lineside)
+                    continue;
+                // Note 979: only at a leaving that's there whole. One kept out of a board's sight, crowded out by a building, or
+                // in a town's or a fortress's ground isn't drawn and doesn't stand, and a note left at it lay alone: on the
+                // departure town's yard, under its platform, in a house, its prompt over nothing. (The draw's made first, so
+                // the line's other notes stay where they were.)
+                if (!lineside.Whole(yaw, pieces, forts))
                     continue;
                 // Where it was meant to be left, or round the leaving from there (mirrored, then further out), the first spot
                 // that's clear of its pieces (not in a hut's wall or under a grave's mound) and off the ballast.
@@ -212,7 +221,7 @@ public sealed class Oddities
                         if (spot is null && Leavings.Offset(new Leavings.Piece("", 0, x * k, z * k, 0, 0), yaw) is var (ax, az)
                             && Math.Abs(l.Lateral + ax) >= NoteOffLine && lineside.ClearOfLeavings(l.Along + az, l.Lateral + ax, NoteRoom))
                             spot = (ax, az);
-                if (spot is not { } found)
+                if (spot is not { } found || forts is not null && LinesideProps.InsideAFort(forts, l.Along + found.Along, l.Lateral + found.Across))
                     continue;
                 var at = LineGround(line, l.Along + found.Along, l.Lateral + found.Across);
                 var middle = LineGround(line, l.Along, l.Lateral);

@@ -1,0 +1,20 @@
+// The hammock and the hot tub: Sitting down on one of the big cab's thin side benches or getting up: the plank on its iron brackets, the back on the rail. Written by tools/audio/install.py from the audio checklist (first); edit the cue, not this.
+{
+ "tier": 4,
+ "loop": false,
+ "maxInstances": 12,
+ "minDistance": 1,
+ "maxDistance": 12,
+ "rolloff": 1.0,
+ "gainDb": 2,
+ "flat": false,
+ "layers": [
+  {
+   "source": "sample",
+   "sample": "up-lounge/bench",
+   "gain": 1,
+   "pitchJitter": 0.4,
+   "gainJitter": 1.0
+  }
+ ]
+}

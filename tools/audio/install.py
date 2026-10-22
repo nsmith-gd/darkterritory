@@ -250,7 +250,8 @@ TAKE_SPLITS = {"tell-brakeman.step": {"good": (0, 2), "bad": (1, 3)}}
 # first squeal dropped out most of its loop (`dt audio render --scenario bend`: -42 dB in the cab at the bend's board).
 # Gameplay foley is the real thing where there's a choice: the wind-up drummer from real tin over the modelled one; the
 # lamp guttering from its flame over cloth whooshes.
-FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note 415: the square's barrels; the folk about
+FIRST_CHOICE = {**{f"voice-bot.{c}": "radio" for c in ("fire", "controls", "loot", "crane", "town", "spur", "points", "cargo")},
+                "place-town.fire": "drum", "place-town.murmur": "masks",  # note 415: the square's barrels; the folk about
                 # Note 826: the Hope Tower's Flame by its coal bed and its weight, the roar a town hears.
                 "place-town.flame": "basket",
                 # Note 827: the night market, its boiler, its counter of clocks, steel needles, a stallholder's cry.
@@ -351,10 +352,17 @@ FIRST_CHOICE = {"place-town.fire": "drum", "place-town.murmur": "masks",  # note
                 "up-forge.hearth": "coals", "up-forge.anvil": "ring", "up-forge.bellows": "leather", "up-forge.quench": "hiss",
                 "up-bbq.light": "whump", "up-bbq.grill": "sausages", "up-bbq.turn": "tongs", "up-bbq.cooler": "lid",
                 "up-bbq.can": "crack", "up-bbq.cheers": "clink", "up-bbq.chair": "creak", "up-bbq.eat": "bite",
-                "up-lounge.hammock": "ropes", "up-lounge.sway": "creak", "up-lounge.tub-in": "splash", "up-lounge.tub": "seethe",
+                "up-lounge.hammock": "ropes", "up-lounge.sway": "creak", "up-lounge.tub-in": "splash", "up-lounge.tub": "seethe", "up-lounge.bench": "plank",
                 "up-fishing.cast": "reel", "up-fishing.line": "lap", "up-fishing.catch": "trout",
                 # The modelled one: the real fizz and cloth crackle carry clicks past the car-fire tell's band (note 833).
-                "crew-scorch.sizzle": "singe"}
+                "crew-scorch.sizzle": "singe",
+                # Note 975: the flare pistol from the packs' real things (the soft heavy blow and the book's snap through the
+                # barrel, the air release, the metal click).
+                "up-flare.shot": "pop", "up-flare.burn": "fizz", "up-flare.click": "hammer",
+                # Note 980: a pin working loose, from the packs' real slams and rings (the casting modelled beside it).
+                "state-coupling-loose.warn": "clang",
+                # Note 983: the dining car's bar from the packs' real bell, water and glass (and the beer's real swig).
+                "up-dining.pour": "bell", "up-dining.sip": "glass", "up-dining.clink": "tumblers"}
 
 
 # A first choice for one surface of a cue (note 419): the car roof's tin rebuilt, the old boots kept beside it. Note 667: the
@@ -467,16 +475,20 @@ SWAP_GAIN_DB = {"boiler-tick": -4, "cannon-impact": -1, "cannon-splash": -4, "do
 SETS_LINES = {"voice-prisoner-sets"}
 # Folders a full install leaves alone: the clerk's word bank (clerk.py), which the checklist doesn't pick.
 KEEP_SAMPLES = {"voice-clerk", "band"}
-# Voices read by Piper's LibriTTS model (recipes/voices.py, children.py; clerk.py): not CC0, they carry its credit.
-TTS_CUES = {("voice-prisoner-sets", "call"), ("voice-prisoner-sets", "shout"), ("tell-soot-children", "call")}
+# Voices read by Piper's LibriTTS model (recipes/voices.py, children.py, bot_voice.py; clerk.py): not CC0, they carry its credit.
+TTS_CUES = {("voice-prisoner-sets", "call"), ("voice-prisoner-sets", "shout"), ("tell-soot-children", "call"),
+            # A bot's answer to a ping (recipes/bot_voice.py, note 987).
+            *{("voice-bot", c) for c in ("fire", "controls", "loot", "crane", "town", "spur", "points", "cargo")}}
 TTS_LICENCE = "CC BY 4.0: LibriTTS, Zen et al. 2019"
 # A prisoner calling from a Holdout (D.7): heard to 60 m with normal falloff and occlusion, on the voice tier.
-VOICE_LINES = {"voice-prisoner-sets", "voice-callout"}
+VOICE_LINES = {"voice-prisoner-sets", "voice-callout", "voice-bot"}
 
 
 # Cue -> layer extras: a curve on a param the game drives (GameAudio sets it on the playing instance).
 # ui-prompts.hold: the hold-to-interact loop hurries as the held action gets there (GameAudio.Ui.cs sets "progress", 0-1).
 LAYER_EXTRAS = {
+    # A bot's answer (note 987): its takes are the bots' voices in order, picked by the bot (GameAudio.Pings); a voice as said.
+    **{f"voice-bot.{c}": {"pitchJitter": 0, "gainJitter": 0} for c in ("fire", "controls", "loot", "crane", "town", "spur", "points", "cargo")},
     "ui-prompts.hold": {"rate": {"param": "progress", "points": [[0, 1], [1, 1.4]]}},
     # The calliope's one pipe (note 806), recorded at C5, played at the tune's note an octave down: GameAudio.Calliope sets
     # "pitch" (the rate); no jitter, a tune's notes stay in tune (the takes waver a little of their own).
@@ -505,6 +517,9 @@ LAYER_EXTRAS = {
 # heard as far, as the Whistler's tell is: spec A.4); the livestock are the world's, out along the train; the casting's bong
 # carries across a yard.
 CUE_DEF = {
+    # A bot's answer over the radio (note 987): the set in every hand, flat as the radio's own voices are, tier 2 with them;
+    # one at a time a bot.
+    **{f"voice-bot.{c}": {"flat": True, "maxInstances": 4} for c in ("fire", "controls", "loot", "crane", "town", "spur", "points", "cargo")},
     # Note 409: a house door shut is heard across the village street, from inside the house and out (the Choir's rule).
     "crew-house-door.shut": {"maxDistance": 60, "gainDb": 3},
     "crew-mishaps.whistle-wheeze": {"tier": 1, "minDistance": 20, "maxDistance": 1500, "rolloff": 0.45, "gainDb": 2},
@@ -669,9 +684,22 @@ CUE_DEF = {
     "up-lounge.sway": {"tier": 6, "minDistance": 1, "maxDistance": 10, "rolloff": 1.0},
     "up-lounge.tub-in": {"minDistance": 1.5, "maxDistance": 25, "rolloff": 1.0},
     "up-lounge.tub": {"tier": 6, "minDistance": 1, "maxDistance": 12, "rolloff": 1.0},
+    "up-lounge.bench": {"minDistance": 1, "maxDistance": 12, "rolloff": 1.0},
     "up-fishing.cast": {"minDistance": 1, "maxDistance": 25, "rolloff": 1.0},
     "up-fishing.line": {"minDistance": 1, "maxDistance": 10, "rolloff": 1.0},
     "up-fishing.catch": {"minDistance": 1.5, "maxDistance": 35, "rolloff": 1.0},
+    # The flare pistol (note 975): its pop carries as a shot does; the flare burning is heard across a village, as its light
+    # is seen across one (the Fire Flies leave the train for it); the empty click is in the hand.
+    "up-flare.shot": {"minDistance": 3, "maxDistance": 500, "rolloff": 0.8},
+    "up-flare.burn": {"minDistance": 4, "maxDistance": 300, "rolloff": 0.8},
+    "up-flare.click": {"minDistance": 0.5, "maxDistance": 8, "rolloff": 1.0},
+    # The dining car's bar (note 983): inside the car, heard down its length and a little past its doors.
+    "up-dining.pour": {"minDistance": 1.5, "maxDistance": 25, "rolloff": 1.0},
+    "up-dining.sip": {"minDistance": 0.8, "maxDistance": 12, "rolloff": 1.0},
+    "up-dining.clink": {"minDistance": 1, "maxDistance": 18, "rolloff": 1.0},
+    # A pin working loose (note 980; note 865, the director: "hella telegraphing"): an alarm, as the train's are (tier 3), heard
+    # the length of the train (a twenty-car rake is 300 m) over its wind and wheels.
+    "state-coupling-loose.warn": {"tier": 3, "minDistance": 10, "maxDistance": 400, "rolloff": 0.45},
 }
 
 

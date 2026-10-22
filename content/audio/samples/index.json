@@ -16200,6 +16200,34 @@
   "takes": 4,
   "sha": "79194cc385552917"
  },
+ "state-coupling-loose/warn": {
+  "cue": "state-coupling-loose.warn",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A pin working loose: struck hard in its knuckle, the coupler ringing out the length of the train",
+    "key": "clang",
+    "sources": [
+     "sfx_100_v2:metal_hit_01",
+     "sfx_100_v2:misc_36",
+     "kenney_impact-sounds:impactMetal_heavy_000",
+     "kenney_impact-sounds:impactMetal_heavy_001",
+     "kenney_impact-sounds:impactMetal_heavy_002",
+     "kenney_impact-sounds:impactMetal_heavy_003",
+     "kenney_impact-sounds:impactMetal_heavy_004",
+     "kenney_impact-sounds:impactMetal_medium_000",
+     "kenney_impact-sounds:impactMetal_medium_001",
+     "kenney_impact-sounds:impactMetal_medium_002",
+     "kenney_impact-sounds:impactMetal_medium_003",
+     "kenney_impact-sounds:impactMetal_medium_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 4,
+  "sha": "40b018388042f0a9"
+ },
  "state-derail/climb": {
   "cue": "state-derail.climb",
   "surface": null,
@@ -19263,6 +19291,92 @@
   "takes": 3,
   "sha": "752e1847cb0214b2"
  },
+ "up-dining/clink": {
+  "cue": "up-dining.clink",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "Glasses touched: two tumblers' bright clink, a glass's ring, never a can",
+    "key": "tumblers",
+    "sources": [
+     "kenney_impact-sounds:impactGlass_light_000",
+     "kenney_impact-sounds:impactGlass_light_001",
+     "kenney_impact-sounds:impactGlass_light_002",
+     "kenney_impact-sounds:impactGlass_light_003",
+     "kenney_impact-sounds:impactGlass_light_004",
+     "sfx_100_v2:glass_01",
+     "sfx_100_v2:glass_04"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "80b5169c4684cc83"
+ },
+ "up-dining/pour": {
+  "cue": "up-dining.pour",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A drink poured at the bar: the counter's bell, a bottle's glugs into a tumbler, the glass slid over",
+    "key": "bell",
+    "sources": [
+     "kenney_impact-sounds:impactBell_heavy_000",
+     "kenney_impact-sounds:impactBell_heavy_001",
+     "kenney_impact-sounds:impactBell_heavy_002",
+     "kenney_impact-sounds:impactBell_heavy_003",
+     "kenney_impact-sounds:impactBell_heavy_004",
+     "sfx_100_v2:loop_machine_02",
+     "sfx_100_v2:loop_water_02",
+     "kenney_impact-sounds:impactGlass_light_000",
+     "kenney_impact-sounds:impactGlass_light_001",
+     "kenney_impact-sounds:impactGlass_light_002",
+     "kenney_impact-sounds:impactGlass_light_003",
+     "kenney_impact-sounds:impactGlass_light_004",
+     "sfx_100_v2:glass_01",
+     "sfx_100_v2:glass_04",
+     "kenney_impact-sounds:impactWood_light_000",
+     "kenney_impact-sounds:impactWood_light_001",
+     "kenney_impact-sounds:impactWood_light_002",
+     "kenney_impact-sounds:impactWood_light_003",
+     "kenney_impact-sounds:impactWood_light_004"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "5420721392074953"
+ },
+ "up-dining/sip": {
+  "cue": "up-dining.sip",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A drink drunk from a glass: its rim at the teeth, a sip, a swallow or two",
+    "key": "glass",
+    "sources": [
+     "kenney_impact-sounds:impactGlass_light_000",
+     "kenney_impact-sounds:impactGlass_light_001",
+     "kenney_impact-sounds:impactGlass_light_002",
+     "kenney_impact-sounds:impactGlass_light_003",
+     "kenney_impact-sounds:impactGlass_light_004",
+     "sfx_100_v2:glass_01",
+     "sfx_100_v2:glass_04",
+     "sfx_100_v2:footstep_wet_01",
+     "sfx_100_v2:footstep_wet_02",
+     "sfx_100_v2:footstep_wet_03",
+     "sfx_100_v2:loop_machine_02",
+     "sfx_100_v2:misc_05"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "65e09285fb326144"
+ },
  "up-fishing/cast": {
   "cue": "up-fishing.cast",
   "surface": null,
@@ -19330,6 +19444,64 @@
   ],
   "takes": 1,
   "sha": "15772230a8f8f819"
+ },
+ "up-flare/burn": {
+  "cue": "up-flare.burn",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A flare burning where it came down: a fierce magnesium hiss and sputter",
+    "key": "fizz",
+    "sources": [
+     "sfx_100_v2:air_01"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 1,
+  "sha": "07bdd9a00d814672"
+ },
+ "up-flare/click": {
+  "cue": "up-flare.click",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The flare pistol empty: the hammer falling dry",
+    "key": "hammer",
+    "sources": [
+     "kenney_rpg-audio:metalClick"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 2,
+  "sha": "622ebf8d3181569d"
+ },
+ "up-flare/shot": {
+  "cue": "up-flare.shot",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "The flare pistol fired: a hollow pop and the flare hissing away",
+    "key": "pop",
+    "sources": [
+     "kenney_impact-sounds:impactSoft_heavy_000",
+     "kenney_impact-sounds:impactSoft_heavy_001",
+     "kenney_impact-sounds:impactSoft_heavy_002",
+     "kenney_impact-sounds:impactSoft_heavy_003",
+     "kenney_impact-sounds:impactSoft_heavy_004",
+     "kenney_rpg-audio:bookPlace2",
+     "sfx_100_v2:air_01",
+     "sfx_100_v2:air_02"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "40920970e790470e"
  },
  "up-forge/anvil": {
   "cue": "up-forge.anvil",
@@ -19511,6 +19683,42 @@
   ],
   "takes": 3,
   "sha": "56480f4b5f18ca13"
+ },
+ "up-lounge/bench": {
+  "cue": "up-lounge.bench",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A cab bench sat on or got up from: a thin plank on iron brackets taking the weight, the back on the wall's rail",
+    "key": "plank",
+    "sources": [
+     "kenney_rpg-audio:creak1",
+     "kenney_rpg-audio:creak3",
+     "kenney_impact-sounds:impactPlank_medium_000",
+     "kenney_impact-sounds:impactPlank_medium_001",
+     "kenney_impact-sounds:impactPlank_medium_002",
+     "kenney_impact-sounds:impactPlank_medium_003",
+     "kenney_impact-sounds:impactPlank_medium_004",
+     "kenney_impact-sounds:impactSoft_medium_000",
+     "kenney_impact-sounds:impactSoft_medium_001",
+     "kenney_impact-sounds:impactSoft_medium_002",
+     "kenney_impact-sounds:impactSoft_medium_003",
+     "kenney_impact-sounds:impactSoft_medium_004",
+     "kenney_impact-sounds:impactMetal_light_000",
+     "kenney_impact-sounds:impactMetal_light_001",
+     "kenney_impact-sounds:impactMetal_light_002",
+     "kenney_impact-sounds:impactMetal_light_003",
+     "kenney_impact-sounds:impactMetal_light_004",
+     "kenney_rpg-audio:cloth1",
+     "kenney_rpg-audio:cloth2",
+     "kenney_rpg-audio:cloth4"
+    ],
+    "licence": "CC0"
+   }
+  ],
+  "takes": 3,
+  "sha": "8218b26cae66dd16"
  },
  "up-lounge/hammock": {
   "cue": "up-lounge.hammock",
@@ -19870,6 +20078,126 @@
   "takes": 2,
   "sha": "42836cf8272d67c1"
  },
+ "voice-bot/cargo": {
+  "cue": "voice-bot.cargo",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A bot's answer over the radio: \"Loading her up.\"",
+    "key": "radio",
+    "sources": [],
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
+   }
+  ],
+  "takes": 4,
+  "sha": "1d9733ea477267ee"
+ },
+ "voice-bot/controls": {
+  "cue": "voice-bot.controls",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A bot's answer over the radio: \"I've got the controls.\"",
+    "key": "radio",
+    "sources": [],
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
+   }
+  ],
+  "takes": 4,
+  "sha": "991a06cc6aab8ce5"
+ },
+ "voice-bot/crane": {
+  "cue": "voice-bot.crane",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A bot's answer over the radio: \"On the crane.\"",
+    "key": "radio",
+    "sources": [],
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
+   }
+  ],
+  "takes": 4,
+  "sha": "7218348aca8148ef"
+ },
+ "voice-bot/fire": {
+  "cue": "voice-bot.fire",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A bot's answer over the radio: \"On the fire!\"",
+    "key": "radio",
+    "sources": [],
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
+   }
+  ],
+  "takes": 4,
+  "sha": "15e1ae95c4f43f12"
+ },
+ "voice-bot/loot": {
+  "cue": "voice-bot.loot",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A bot's answer over the radio: \"I'll fetch it.\"",
+    "key": "radio",
+    "sources": [],
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
+   }
+  ],
+  "takes": 4,
+  "sha": "8463bf656d29550a"
+ },
+ "voice-bot/points": {
+  "cue": "voice-bot.points",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A bot's answer over the radio: \"Throwing the points.\"",
+    "key": "radio",
+    "sources": [],
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
+   }
+  ],
+  "takes": 4,
+  "sha": "9b77a5b495a76138"
+ },
+ "voice-bot/spur": {
+  "cue": "voice-bot.spur",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A bot's answer over the radio: \"The spur? On it.\"",
+    "key": "radio",
+    "sources": [],
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
+   }
+  ],
+  "takes": 4,
+  "sha": "f34db9764c7d7127"
+ },
+ "voice-bot/town": {
+  "cue": "voice-bot.town",
+  "surface": null,
+  "picked": "first",
+  "candidates": [
+   {
+    "label": "A bot's answer over the radio: \"Sure, I'll go search it.\"",
+    "key": "radio",
+    "sources": [],
+    "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
+   }
+  ],
+  "takes": 4,
+  "sha": "5d74fc133bde62cc"
+ },
  "voice-callout/bang": {
   "cue": "voice-callout.bang",
   "surface": null,
@@ -19923,8 +20251,8 @@
     "licence": "CC BY 4.0: LibriTTS, Zen et al. 2019"
    }
   ],
-  "takes": 340,
-  "sha": "c42803bfadf6b13e"
+  "takes": 342,
+  "sha": "1326a50450f71b2e"
  },
  "voice-prisoner-sets/call/set1": {
   "cue": "voice-prisoner-sets.call",

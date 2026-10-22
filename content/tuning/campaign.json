@@ -61,6 +61,11 @@
   // to the crew with the trouble it answers and not before. "excludes" names upgrades it won't go with. "line" is its card
   // in the shop; "tally", what the yard clerk reads into every night's tally while the crew owns it (GDD §9: the clerk isn't
   // impressed either). An upgrade with a tally and no effect does something: the clerk says so, every night.
+  // Note 972 (upgrades.md §8.5: "the tally reads 'Bar: eight drinks'"): a tally reads the night's counts of what it did
+  // (World.UpgradeCounts: barDrinks, beers, grilled, geraldTaken, gnomesTaken, canaryDead, volunteers, ballsThrown):
+  // "{name}" is the count, "{name?counted|not}" the first reading with one or more ("#" in it the count) and the second with none.
+  // Every reading is said from the clerk's bank of words (tools/audio/clerk.py; ClerkVoiceTests), built again with the
+  // catalogue's (note 982): "Bar: drinks, 8." for upgrades.md's "Bar: eight drinks", "Canary: deceased.".
   // The note's effects: overspeedLead (train.json overspeed.leadSeconds: the cab's bell before a bend, and how long it rings
   // before a bend can take the train), brakeFade (brakeFade.fadePerSecond), fragile (fragile.shockShare and
   // brakeShockPerSecond: what knocks spoil of medicine), boardUp (breach.boardSeconds), radios (kit.radios, added), accel
@@ -149,6 +154,11 @@
     { "id": "rearSearchlight", "name": "Rear searchlight", "size": "small", "costShare": 0.15, "fromTier": "frontier", "effect": { "dress:rearSearchlight": 1 },
       "line": "A searchlight on the guard van's roof, pointed back down the line. Whatever's following you, you'll see it following you.",
       "tally": "Caboose: lamp parts, bolted on. Still up." },
+    // The speaking tubes (note 978; upgrades.md §6, the director: "funny"): a brass horn in every car with a room, joined to the
+    // next car's either way along the train as well as the cab's pipe to the guard van (note 720). Said into one, heard out of
+    // the neighbours' horns, tinny (player.json voices.tube).
+    { "id": "speakingTubes", "name": "Speaking tubes", "size": "small", "costShare": 0.15, "fromTier": "deadLines", "effect": { "speakingTubes": 1 },
+      "line": "A brass horn in every car, piped to the cars either side. Shout down the train without a radio." },
     // The feedwater heater (upgrades.md): retired with the cold (note 852): the cold took nothing off the boiler to give back.
     // More creatures at the rear and flanks each tier down: a reload step in 1.2 s, not 1.5.
     { "id": "gunRammers", "name": "Gun rammers", "size": "small", "costShare": 0.25, "fromTier": "deadLines", "effect": { "reload": 0.8, "dress:gunRammers": 1 },
@@ -180,13 +190,14 @@
     // order drinks at the bar"; note 959): a cargo car converted behind the crew cars, its table laid for eight under a
     // chandelier, and its bar, which pours train.json composition.dining.drinks a night. It carries nothing and weighs a car.
     { "id": "diningCar", "name": "The dining car", "kind": "silly", "size": "major", "costShare": 1.2, "effect": { "diningCar": 1 },
-      "line": "A cargo car converted: a chandelier, a table laid for eight, and a bar at the far end. It carries nothing. Dining car: laid." },
+      "line": "A cargo car converted: a chandelier, a table laid for eight, and a bar at the far end. It carries nothing. Dining car: laid.",
+      "tally": "{barDrinks?Bar: drinks, #.|Bar: dry.}" },
     // The BBQ deck (note 698; the director, 13 Oct: "its the BBQ Dads at the end of the world"): train.json composition.bbq.
     // A whimsy that's also a tool (a heal off the grill, a warm spot, the best seat on the train), and it costs like one: the
     // grill's heat and smell bring the Cinder Hounds as a hot boiler does, and the chairs are out front in the cold.
     { "id": "bbqDeck", "name": "The BBQ deck", "kind": "whimsy", "size": "major", "costShare": 0.6, "effect": { "bbqDeck": 1 },
       "line": "A deck on a cowcatcher out front: two Muskoka chairs, a cooler of beers and a BBQ on a stand. For the BBQ Dads at the end of the world.",
-      "tally": "Deck: barbecue." },
+      "tally": "Deck: beers, {beers}. Grill: {grilled}." },
     // The band (note 700; the director, 13 Oct: "they are like Celtic folk style songs ... the East Coast folk aesthetic"):
     // band.json's instruments, one each, in the guard van. Carried, Use held plays it, in time with whoever started first;
     // as loud to the Choir as a noisy toy, so a kitchen party in the dark has its price.
@@ -295,15 +306,15 @@
     // carries him off, and the clerk reads it out. Sold on every tier, as every whimsy is (UpgradeTests): the Gannet comes when it comes.
     { "id": "gerald", "name": "Gerald", "kind": "whimsy", "size": "small", "costShare": 0.1, "effect": { "dress:gerald": 1 },
       "line": "A straw dummy in a crew coat, bolted to the guard van's roof. The Gannet can't tell him from you. Every crew names him Gerald.",
-      "tally": "Gerald: aboard." },
+      "tally": "{geraldTaken?Gerald. Body not recovered. Fee 0.|Gerald: aboard.}" },
     // Garden gnomes along the roofs: the Gannet dives on one now and then, as on Gerald.
     { "id": "gardenGnomes", "name": "Garden gnomes", "kind": "whimsy", "size": "small", "costShare": 0.06, "effect": { "dress:gardenGnomes": 1 },
       "line": "Five gnomes bolted along the roofs, fishing rods and all. Now and then the Gannet takes one instead of you.",
-      "tally": "Gnomes: bolted." },
+      "tally": "{gnomesTaken?Gnomes: # taken.|Gnomes: bolted.}" },
     // The canary in car one: it sings while all's well, stops while an interior creature's aboard near it, and dies in fumes.
     { "id": "canary", "name": "The canary", "kind": "whimsy", "size": "small", "costShare": 0.08, "effect": { "dress:canary": 1 },
       "line": "A canary in a brass cage in car one. It sings while all's well and stops when something's aboard. Keep it out of the fumes.",
-      "tally": "Canary: singing." },
+      "tally": "{canaryDead?Canary: deceased.|Canary: singing.}" },
     // The steam calliope: the whistle's each pull the next note of a tune; louder to the Choir, and a Moose stops to listen.
     { "id": "calliope", "name": "Steam calliope", "kind": "whimsy", "size": "small", "costShare": 0.1, "effect": { "whistle": 1.6, "dress:calliope": 1 },
       "excludes": [ "theHonk", "goldWhistle", "cucarachaHorn" ],
@@ -339,12 +350,12 @@
     // The tennis-ball launcher on the guard van's platform: a ball off the back, and the Cinder Hounds go for it (note 745).
     { "id": "tennisBalls", "name": "The tennis-ball launcher", "kind": "whimsy", "size": "small", "costShare": 0.07, "effect": { "dress:tennisBalls": 1 },
       "line": "A sprung launcher on the van's back rail and a bucket of balls. The hounds are hounds.",
-      "tally": "Balls: thrown." },
+      "tally": "Balls: thrown, {ballsThrown}." },
     // The human cannonball (note 746): the guard van's gun takes a crewmate for its last load, climbed in at the muzzle; fired,
     // they land where it's aimed, unhurt, on dry ground, and anything in the way takes the ball's hit.
     { "id": "humanCannonball", "name": "The human cannonball", "kind": "whimsy", "size": "small", "costShare": 0.12, "effect": { "dress:humanCannonball": 1 },
       "line": "A wider bore and a padded helmet for the van's gun. Powder, pack, and a volunteer. They land. They always land.",
-      "tally": "Cannon: one volunteer." },
+      "tally": "{volunteers?Cannon: volunteers, #.|Cannon: one volunteer.}" },
     // Does nothing at all, and the clerk says so, every night, for good.
     { "id": "commendation", "name": "Framed commendation", "kind": "silly", "size": "small", "costShare": 0.5, "effect": { },
       "line": "\"For Services to the Railway\", signed by a council nobody's met, framed, for the cab. Read into every tally.",

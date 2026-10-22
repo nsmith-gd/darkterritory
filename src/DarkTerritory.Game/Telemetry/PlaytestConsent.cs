@@ -91,6 +91,12 @@ public sealed class PlaytestConsent : ITelemetryGate
     /// <summary>A playtest build's notice put away with OK: on, as it was, and not shown again in a playtest (note 946).</summary>
     public void Acknowledge(PlaytestNotice notice) => Keep(true, notice, byNotice: true);
 
+    /// <summary>
+    /// The first boot's line has been shown (<see cref="PlaytestNotice.FirstBootLine"/>, note 968): not shown again. It's no
+    /// answer: on as it was, and a player who turned it off before stays off.
+    /// </summary>
+    public void SawLine(PlaytestNotice notice) => Keep(_stored.Choice != PlaytestChoice.No, notice, byNotice: true);
+
     void Keep(bool yes, PlaytestNotice notice, bool byNotice)
     {
         bool was = Recording;
@@ -150,6 +156,15 @@ public sealed record PlaytestNotice
     /// <summary>A playtest build's first run (note 946): the notice's title and lines, "{code}" its cohort's.</summary>
     public string OnByDefaultTitle { get; init; } = "";
     public string[] OnByDefault { get; init; } = [];
+    /// <summary>
+    /// The director, 21 Oct (note 968): "keep it indie dev casual. Playtest data is on by default and there's an option in the
+    /// menu to turn it off. Keep it a small line at the bottom of the home menu screen only on first boot up." Set, playtest
+    /// data is on in every build, the first boot shows this under the title menu instead of the question or the notice, and
+    /// WHAT WE COLLECT leaves out how long it's kept and who keeps it. Empty: #625's question (and note 946's notice) as before.
+    /// </summary>
+    public string FirstBootLine { get; init; } = "";
+    /// <summary>The line is set: on by default everywhere, no question (note 968).</summary>
+    public bool Casual => FirstBootLine.Length > 0;
     /// <summary>Who keeps it for the studio (note 946, with #637's PostHog), on WHAT WE COLLECT.</summary>
     public string ThirdParty { get; init; } = "";
     public PlaytestField[] Collect { get; init; } = [];

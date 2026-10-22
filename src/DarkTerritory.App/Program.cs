@@ -72,6 +72,9 @@ var crashes = CrashReports.Install(crashesDir, logs: logsDir);
 #if DEVTOOLS
 // A developer build's tools (note 514): reached only here and under the other DEVTOOLS hooks; a player's build has none of it.
 var dev = DarkTerritory.Dev.DevTools.Start(args, crashes, logsDir);
+// Note 985: the mark's two lines are at the top right, where the HUD says the link; that goes below them.
+if (dev.Marked)
+    DarkTerritory.Game.Hud.LinkTop = 24;
 // The creature gym (GDD §34.1, note 676): the night it's on, while it's on.
 DarkTerritory.Dev.Gym.CreatureGym? gym = null;
 #endif
@@ -221,13 +224,13 @@ frontEnd.PlaytestNotice = DarkTerritory.Game.Telemetry.PlaytestNotice.Load(conte
 // Note 946 (the director, the inbox, 20 Oct: "On by default in playtest builds, with an off switch"): a playtest (its build,
 // or a code typed in) records from the start, and its first run is a notice with the off switch, not the question. A
 // developer build keeps #625's question, on unless the director says no.
-frontEnd.Playtest = DarkTerritory.Game.Telemetry.PlaytestConsent.Load(telemetryDirectory, defaultOn: playtestOnByDefault,
-    onByNotice: !playtestOnByDefault && (frontEnd.Kit.PlaytestBuildOn || frontEnd.Kit.Cohort is not null));
+// Note 968 (the director, 21 Oct: "Playtest data is on by default and there's an option in the menu to turn it off"): with the
+// notice's firstBootLine, on in every build, and the first boot says so in a line under the title menu.
+bool casualPlaytest = frontEnd.PlaytestNotice.Casual;
+frontEnd.Playtest = DarkTerritory.Game.Telemetry.PlaytestConsent.Load(telemetryDirectory, defaultOn: playtestOnByDefault || casualPlaytest,
+    onByNotice: casualPlaytest || !playtestOnByDefault && (frontEnd.Kit.PlaytestBuildOn || frontEnd.Kit.Cohort is not null));
+frontEnd.OpenPlaytest();
 crashes.Context("playtest data", frontEnd.Playtest.Recording ? "on" : "off");
-if (frontEnd.Playtest.NeedsAsking(frontEnd.PlaytestNotice))
-    frontEnd.Show(Screen.Consent);
-else if (frontEnd.Crash is not null)
-    frontEnd.Show(Screen.Crashed);
 
 // A night named on the command line starts straight away; otherwise it's the front end's choice.
 Launch? LaunchFromArgs()
@@ -1078,6 +1081,7 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
     var proto = session as PrototypeSession;
     var net = session as NetPlaySession;
     int aboardLogged = -1;
+    bool lobbyLogged = false;
     // The yard's readings go at its voice's pace (note 240): the card typed as it's said.
     if (net is not null && sound.Clerk.Speaks)
         net.RadioPace = sound.Clerk.Seconds;
@@ -1753,6 +1757,13 @@ CampaignState? Play(IPlaySession session, CampaignState? campaign)
             {
                 aboardLogged = aboardNow;
                 Console.WriteLine($"crew: {aboardNow} aboard");
+            }
+            // The host's Steam lobby by its id once it's open (note 976): a friend the invite doesn't reach starts the game
+            // with --join-lobby <id> (#269's Steam evening). EOS lobbies have their join code on the status line instead.
+            if (!lobbyLogged && net?.Lobby is { IsHost: true, Status: Lobby.State.Open } ours && ours.Online is not IJoinCodes)
+            {
+                lobbyLogged = true;
+                Console.WriteLine($"{ours.Online.Platform} lobby {ours.Id}: a friend can also join with --join-lobby {ours.Id}");
             }
             if (campaign is not null && session is NetPlaySession played)
                 campaign = Autosave(saves, profile, campaign, played, content);
