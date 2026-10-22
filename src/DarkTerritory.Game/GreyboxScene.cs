@@ -260,6 +260,13 @@ public sealed partial class GreyboxScene
     public double Time { get; set; }
     /// <summary>Vehicle state for doors (open or shut). Without it every door is drawn shut.</summary>
     public IReadOnlyList<Vehicle>? Vehicles { get; set; }
+    /// <summary>
+    /// The powder down in the lockers (note 992, <see cref="Art.SceneArt.PowderBelow"/>), drawn in a gun car's locker in the
+    /// engine's rake (<see cref="InRake"/>), set from the train each build; null, each locker its own gun's.
+    /// </summary>
+    public (int Left, int Full)? Powder { get; set; }
+    /// <summary>Whether a frame's car is in the engine's rake (its locker the pool's); every car, unset.</summary>
+    public Func<int, bool>? InRake { get; set; }
     /// <summary>The speaking tube's ends (note 720, <see cref="Sim.Train.SpeakingTube.Ends"/>), set from the train each build.</summary>
     public IReadOnlyList<Sim.Train.TubeEnd>? TubeEnds { get; set; }
     /// <summary>The hot boxes' tuning (note 331), for where a hot one smokes and how near it is to catching; null, the file's defaults.</summary>
@@ -486,6 +493,8 @@ public sealed partial class GreyboxScene
     public void Build(MeshBuilder mesh, TrainOnLine train, Double3 eye, IReadOnlyList<CarFrame>? frames = null)
     {
         Vehicles ??= train.Vehicles;
+        Powder = Look?.Art.PowderBelow(train);
+        InRake = i => train.Dynamics.Consist.IndexOf(i) >= 0;
         Walls = train.Walls ?? Walls;
         TubeEnds = Sim.Train.SpeakingTube.Ends(train);
         Cut = Art.SceneArt.Cuts(train);
@@ -1002,6 +1011,8 @@ public sealed partial class GreyboxScene
                     or Sim.Player.DeathCause.Exploded or Sim.Player.DeathCause.Keg).Select(c => (int)c.Id).ToHashSet();
                 // Who has the repair kit by its handle (note 513): it's drawn in their fist with them, below, not here.
                 Look.Art.KitCarriers = Crew?.Where(c => c.Alive && c.Act == Art.CrewPose.Toolbox).Select(c => (int)c.Id).ToHashSet();
+                // A charge hugged in both hands (note 992): likewise.
+                Look.Art.PowderCarriers = Crew?.Where(c => c.Alive && c.Act == Art.CrewPose.Powder).Select(c => (int)c.Id).ToHashSet();
                 // A can or a sausage at the deck's clips (note 791): in the fist, with them, not where the sim holds it.
                 var party = Crew?.Where(c => c.Alive && Art.SceneArt.Fisted(c.Act)).Select(c => (int)c.Id).ToHashSet();
                 Look.Art.FistCarriers = party is { Count: > 0 }
@@ -5635,7 +5646,7 @@ public sealed partial class GreyboxScene
             var bitten = Look.Art.BiteOf(frame.Shape, fitted, frame.Index);
             Look.Art.CarLamps(mesh, frame, eye, Emergency, bitten, lit: !CarDark(frame.Index) && frame.Index < (Vehicles?.Count ?? int.MaxValue) - LampsOut,
                 sway: LampSwayOf?.Invoke(frame.Index) ?? 0);
-            Look.Art.Fittings(mesh, frame, eye, fitted, bitten);
+            Look.Art.Fittings(mesh, frame, eye, fitted, bitten, InRake?.Invoke(frame.Index) ?? true ? Powder : null);
         }
         else if (shape.Interior is { } room)
         {

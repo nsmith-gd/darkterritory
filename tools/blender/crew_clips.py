@@ -24,6 +24,8 @@ What each is for (CrewActs, from the sim's state; GDD/spec where the act is):
   gap                 on the coupling plate between cars, feet wide, arms out for balance (GDD §32)
   extinguish, spray   the extinguisher on the hip, its nozzle aimed at the fire's foot; at work, braced, kicking (App. C.5)
   lantern, _walk      the hand lamp held out low, swinging with the step
+  powder, _walk       a charge for a gun's rack (note 374): the powder bag hugged in both hands low against the belly, the
+                      shoulders rounded over it (note 992)
   haul                down on a knee, both hands on a friend's collar, hauling them free (App. A.1's rescue)
   haul_up             stood at the edge, leant back, hauling a friend up over it hand over hand (the Draggers, App. A.4)
   pull_mouth          a friend half down the Car Hugger's mouth: braced, leant far back, heaved out hand over hand (note 378)
@@ -2178,6 +2180,34 @@ def throwing(k, reach, toes=0.0):
     return look_at(p, (-0.3, 3.0, 1.2 + 1.4 * reach))
 
 
+# --- powder: a charge for a gun's rack (note 374; note 992, the checklist's powder-shot: it was the crate's carry) -----
+# The serge bag hugged in both hands, low against the belly: the hands cupped either side of it, the elbows in at the
+# sides, the shoulders rounded over it and the head down to it, kept from the sparks; walking, a shorter step, the bag
+# held still against the body (not bobbing out in front as a crate does), the shoulders turning a little with the step.
+POWDER_BODY = over(STAND, spine_01=(-3, 0, 0), spine_02=(-8, 0, 0), spine_03=(-9, 0, 0), neck=(6, 0, 0), head=(-12, 0, 0),
+                   clavicle_r=(0, 6, 12), clavicle_l=(0, -6, -12))
+# The hands under the bag's middle and either side of it (tools/models powder_bag: 0.11 m across), well short of an arm's
+# reach from the shoulder so the elbows bend round it, and drawn out and back: the forearms wrap it, not hang to it.
+POWDER_R, POWDER_L = (0.11, 0.3, 1.0), (-0.11, 0.3, 1.0)
+POWDER_ELBOW = (0.42, -0.02, 1.0)
+
+
+def powder_hug(body, dz=0.0, dy=0.0):
+    return hands(body, at(POWDER_R, dy=dy, dz=dz), at(POWDER_L, dy=dy, dz=dz), grip=45, elbow=POWDER_ELBOW)
+
+
+def powder_upper(f, side):
+    a = math.cos(2 * math.pi * f / 30)  # +1 at the right heel's strike
+    return powder_hug(over(POWDER_BODY, spine_02=(-5, 0, 2 * a)), dz=-0.008 * abs(a))
+
+
+clips.append(walking("powder_walk", powder_upper, cycle=30, short=0.85))
+powder = Clip("powder")
+powder.key(0, powder_hug(POWDER_BODY))
+powder.key(30, powder_hug(over(POWDER_BODY, spine_03=(-7.5, 0, 0), head=(-10, 0, 3)), dz=0.008, dy=0.005))
+powder.close(60)
+clips.append(powder)
+
 throw_off = Clip("throw_off", loop=False)
 throw_off.key(0, throwing(0.1, 0.15), "LINEAR")
 throw_off.key(3, throwing(0.85, 0.8, toes=0.6))
@@ -2189,7 +2219,7 @@ clips.append(throw_off)
 kit.build()
 rig.curl_fingertips(clips)
 rig.bake(sk, clips, plant=rig.feet_planter(sk, clips={"wave", "point", "dance", "paint", "drink", "grill", "eat", "bow", "salute", "conga", "shove", "pump", "heave", "throw_off", "fireman", "hand_up", "high_five", "high_five_met", "fist_bump", "fist_bump_met", "dance_off",
-                                                        "dance_off_cheer", "lean_out", "lean_out_left", "carry", "carry_walk", "drag", "drag_fwd", "shovel", "door", "handbrake", "hatch",
+                                                        "dance_off_cheer", "lean_out", "lean_out_left", "carry", "carry_walk", "powder", "powder_walk", "drag", "drag_fwd", "shovel", "door", "handbrake", "hatch",
                                                         "uncouple", "vent", "lever", "push", "swing", "mend",
                                                         "gap", "extinguish", "spray", "lantern", "lantern_walk", "haul",
                                                         "haul_up", "drive", "whistle", "smash", "pry", "pick", "take_down", "hang_up",

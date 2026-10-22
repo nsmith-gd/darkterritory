@@ -91,4 +91,42 @@ public class TrainStoresTests
         var at = Sim.World.ExtinguisherMount(shape, shape.Interior!.Value);
         Assert.DoesNotContain(shape.Solids, s => s.Part == PartKind.Locker && s.Box.Contains(at with { Y = s.Box.Min.Y + 0.5 }));
     }
+    /// <summary>
+    /// Note 992 (powder-shot's not-yet): the locker held its own gun's stock, but a rack fills from the pool, any gun's stock
+    /// (note 374). Its gun's share spent and the engine gun's still down there, the locker still has powder in it; the pool
+    /// spent, it's empty; a car cut loose has only its own gun's share.
+    /// </summary>
+    [Fact]
+    public void ThePowderLockerHoldsThePoolNotItsOwnGunsStock()
+    {
+        var train = Train();
+        var t = DataFile.Load<Sim.Combat.CombatTuning>(Path.Combine(Content, Sim.Combat.CombatTuning.File)).Guns;
+        Assert.True(t.Rack > 0);
+        int gunCar = Enumerable.Range(1, train.Vehicles.Count - 1).First(i => train.Vehicles[i].HasGun && train.Frames[i].Shape.Interior is not null);
+        var guns = Enumerable.Range(0, train.Vehicles.Count).Where(i => train.Vehicles[i].HasGun).ToList();
+        Assert.True(guns.Count > 1, "the engine's gun and the guard van's");
+        foreach (int g in guns)
+            train.Vehicles[g].Gun = train.Vehicles[g].Gun with { Ammo = t.Ammo, Rack = t.Rack };
+        int Drawn((int Left, int Full)? powder)
+        {
+            var mesh = new MeshBuilder();
+            Look.Art.Fittings(mesh, train.Frames[gunCar], train.Frames[gunCar].Origin, train.Vehicles[gunCar], powder: powder);
+            return mesh.Vertices.Length;
+        }
+        var full = Look.Art.PowderBelow(train)!.Value;
+        Assert.Equal(full.Full, full.Left);
+        int all = Drawn(full);
+        // Its own gun's stock fired down to the rack: the pool's half left.
+        train.Vehicles[gunCar].Gun = train.Vehicles[gunCar].Gun with { Ammo = t.Rack };
+        var half = Look.Art.PowderBelow(train)!.Value;
+        Assert.Equal(Sim.Combat.Guns.Stowed(train, t), half.Left);
+        Assert.True(half.Left > 0);
+        int some = Drawn(half);
+        Assert.True(all > some && some > 0, $"full {all}, its own spent {some}");
+        // Cut loose, it has only its own share: none.
+        Assert.Equal(0, Drawn(null));
+        foreach (int g in guns)
+            train.Vehicles[g].Gun = train.Vehicles[g].Gun with { Ammo = t.Rack };
+        Assert.Equal(0, Drawn(Look.Art.PowderBelow(train)));
+    }
 }

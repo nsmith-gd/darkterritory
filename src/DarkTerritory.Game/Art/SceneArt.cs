@@ -83,6 +83,7 @@ public sealed partial class SceneArt(Look look)
             CrewPose.Cradle => speed < 0.4f ? CrewPose.Cradle : CrewPose.CradleWalk,
             CrewPose.Lantern => speed < 0.4f ? CrewPose.Lantern : CrewPose.LanternWalk,
             CrewPose.Toolbox => speed < 0.4f ? CrewPose.Toolbox : CrewPose.ToolboxWalk,
+            CrewPose.Powder => speed < 0.4f ? CrewPose.Powder : CrewPose.PowderWalk,
             // Across the plate, short careful steps; stood on it, balancing (GDD §32).
             CrewPose.Gap => speed < 0.4f ? CrewPose.Gap : CrewPose.GapStep,
             { } act => act,
@@ -133,7 +134,7 @@ public sealed partial class SceneArt(Look look)
         if (_crewHealth.TryGetValue(c.Id, out int was) && c.Health < was && c.Alive)
             _staggered[c.Id] = time;
         _crewHealth[c.Id] = c.Health;
-        bool free = c.Act is null or CrewPose.Carry or CrewPose.Lantern or CrewPose.Toolbox;
+        bool free = c.Act is null or CrewPose.Carry or CrewPose.Lantern or CrewPose.Toolbox or CrewPose.Powder;
         if (free && _staggered.TryGetValue(c.Id, out double hit) && time - hit < StaggerSeconds)
             pose = CrewPose.Stagger;
         // At the firehole as its door moves: the one who swung it (whoever's stood there; the sim doesn't say who).
@@ -215,6 +216,8 @@ public sealed partial class SceneArt(Look look)
         var lamp = c.Lamp ? PropArt.Of(Look).Get("hand_lantern") : null;
         // The repair kit by its handle (note 513): drawn in the fist, not where the sim holds it (Body skips it).
         var kit = pose is CrewPose.Toolbox or CrewPose.ToolboxWalk ? PropArt.Of(Look).Get("repair_kit") : null;
+        // A charge hugged in both hands (note 992): drawn between them, not where the sim holds it (Body skips it).
+        var charge = pose is CrewPose.Powder or CrewPose.PowderWalk ? PropArt.Of(Look).Get("powder_bag") : null;
         // A can or a sausage at the deck's clips (note 791), in the fist.
         var fist = FistCarriers?.TryGetValue(c.Id, out var inFist) == true ? inFist switch
         {
@@ -229,7 +232,7 @@ public sealed partial class SceneArt(Look look)
             // (A Passenger's id is 200 and the face it wears, GreyboxScene.AsCrewmate: it wears that crewmate's number too.)
             mask: new CreatureArt.MaskLook(c.Paint, CrewSigil, (c.Id >= 200 ? c.Id - 200 : c.Id) % 9 + 1), emote: c.EmoteWith, fist: fist,
             // (Note 974: a drinker's head lolling, on a clock of their own.)
-            loll: Tipsy.LollPose(c.Loll, time + c.Id * 1.7, Look.Tuning.Tipsy));
+            loll: Tipsy.LollPose(c.Loll, time + c.Id * 1.7, Look.Tuning.Tipsy), hugged: charge);
         // The hat rack's (note 714): on the head, over the cap or helmet.
         if (drawn && c.Hat > 0 && HatKit.Of(Look, c.Hat) is { } hat)
             Creatures.Wear(mesh, hat, "head", m, CreatureArt.FigureOf(c.Survivor));
@@ -834,6 +837,9 @@ public sealed partial class SceneArt(Look look)
             return true;
         if (b.Kind == Sim.Physics.BodyKind.RepairKit && b.Carrier >= 0 && KitCarriers?.Contains(b.Carrier) == true && Creatures.Get("crew") is not null)
             return true;
+        // (And a charge, hugged in both hands, note 992.)
+        if (b.Kind == Sim.Physics.BodyKind.Powder && b.Carrier >= 0 && PowderCarriers?.Contains(b.Carrier) == true && Creatures.Get("crew") is not null)
+            return true;
         if (b.Carrier >= 0 && FistCarriers?.TryGetValue(b.Carrier, out var fisted) == true && fisted == b.Kind && Creatures.Get("crew") is not null)
             return true;
         var local = b.Pbd.Particles[0].Position;
@@ -981,15 +987,35 @@ public sealed partial class SceneArt(Look look)
         mesh.Append(bob, Matrix4x4.CreateTranslation(lo + new Vector3(0, h, 0)) * at);
     }
 
-    int? _fullStock;
+    Sim.Combat.GunTuning? _guns;
+
+    /// <summary>combat.json's guns, for the powder locker's stock (note 374).</summary>
+    Sim.Combat.GunTuning GunsTuning(PropArt props) =>
+        _guns ??= DataFile.Load<Sim.Combat.CombatTuning>(Path.Combine(props.ContentRoot, Sim.Combat.CombatTuning.File)).Guns;
+
+    /// <summary>
+    /// The powder down in the lockers as the sim holds it (note 992; note 374's pool): every gun of the engine's rake's stock
+    /// less its rack (<see cref="Sim.Combat.Guns.Stowed(Sim.Train.TrainOnLine, Sim.Combat.GunTuning)"/>), and what that is with
+    /// every gun's stock full. Null with no rack (combat.json <c>guns.rack</c> 0): the locker's each gun's own stock, as before.
+    /// </summary>
+    public (int Left, int Full)? PowderBelow(Sim.Train.TrainOnLine train)
+    {
+        var t = GunsTuning(PropArt.Of(Look));
+        if (t.Rack <= 0)
+            return null;
+        int guns = train.Dynamics.Consist.Vehicles.Count(v => v.HasGun && !v.Taken);
+        return (Sim.Combat.Guns.Stowed(train, t), guns * Math.Max(0, t.Ammo - t.Rack));
+    }
 
     /// <summary>
     /// A car's fittings that aren't its body (GDD §12 "where powder and shot are stored, where tools and fire extinguishers
     /// hang"): the extinguisher's board and cradle in every car with a room (World.ExtinguisherMount), and in a gun car the
-    /// powder and shot locker, holding what's left of the gun's stock (Gun.Ammo of combat.json's guns "ammo": a ball's well and a
-    /// bag's place emptied as it goes). One whose floor a Car Hugger's eaten (<paramref name="bite"/>) has gone with it.
+    /// powder and shot locker, holding what's down in it: a ball's well and a bag's place emptied as it goes. That's the
+    /// rake's pool (<paramref name="powder"/>, <see cref="PowderBelow"/>; note 992), a gun's rack filled from any of their
+    /// stocks; null for a car cut loose, which takes its own gun's share with it, or with no rack, the gun's own stock (Gun.Ammo
+    /// of combat.json's guns "ammo"). One whose floor a Car Hugger's eaten (<paramref name="bite"/>) has gone with it.
     /// </summary>
-    public void Fittings(MeshBuilder mesh, in CarFrame frame, Double3 eye, Vehicle? vehicle, Bite bite = default)
+    public void Fittings(MeshBuilder mesh, in CarFrame frame, Double3 eye, Vehicle? vehicle, Bite bite = default, (int Left, int Full)? powder = null)
     {
         if (frame.Shape.Interior is not { } room || (frame.Origin - eye).Length > 60)
             return;
@@ -1006,8 +1032,12 @@ public sealed partial class SceneArt(Look look)
         if (bite.Eats(at.Translation + new Vector3(0, 0.3f, 0)))
             return;
         mesh.Instances.Add(new MeshInstance(locker, at * m));
-        _fullStock ??= Math.Max(1, DataFile.Load<Sim.Combat.CombatTuning>(Path.Combine(props.ContentRoot, Sim.Combat.CombatTuning.File)).Guns.Ammo);
-        double left = vehicle is null ? 1 : Math.Clamp((double)vehicle.Gun.Ammo / _fullStock.Value, 0, 1);
+        var t = GunsTuning(props);
+        double left = powder is { } pool ? (double)pool.Left / Math.Max(1, pool.Full)
+            : vehicle is null ? 1
+            : t.Rack > 0 ? (double)Sim.Combat.Guns.Stowed(vehicle.Gun, t) / Math.Max(1, t.Ammo - t.Rack)
+            : (double)vehicle.Gun.Ammo / Math.Max(1, t.Ammo);
+        left = Math.Clamp(left, 0, 1);
         int balls = (int)Math.Ceiling(left * 12), bags = (int)Math.Ceiling(left * 6);
         if (props.Get("cannon_ball") is { } ball)
             for (int k = 0; k < balls; k++)
@@ -1115,6 +1145,9 @@ public sealed partial class SceneArt(Look look)
     /// <summary>The crew carrying the repair kit by its handle this frame (note 513: GreyboxScene, from their acts): it's drawn in
     /// their fist (Crewmate), so Body leaves it out.</summary>
     public IReadOnlySet<int>? KitCarriers { get; set; }
+
+    /// <summary>Who has a powder charge hugged in both hands (note 992): drawn between their hands (<see cref="Crewmate"/>), so <see cref="Body"/> skips it.</summary>
+    public IReadOnlySet<int>? PowderCarriers { get; set; }
 
     /// <summary>
     /// Who has a can, a sausage or the grilled fish in their fist at the deck's clips (note 791), and which: drawn there with
