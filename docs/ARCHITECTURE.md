@@ -1141,4 +1141,5 @@ written here instead is moved out by `tools/coord/notes.py split`; the Coordinat
 - [981. The Car Hugger's marsh stretches thinned (n1-B3, nathaniel1; queue #681; note 970's follow-up, for the director's ask…](notes/981.md)
 - [982. The clerk's word bank with the catalogue's words, for the silly upgrades' tally (AU1, queue #682; Hazel's note 972)](notes/982.md)
 - [983. The dining car's bar heard: a drink poured at the counter and its bell, a glass of its own (AU1, queue #683; Hazel's note 959)](notes/983.md)
+- [984. The big cab's benches heard sat on and got up from (AU1, queue #684; Tess's note 905)](notes/984.md)
 <!-- end of the notes index -->
