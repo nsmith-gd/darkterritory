@@ -62,8 +62,8 @@ WORDS = ["crew", "coal", "cars", "freight", "cargo", "paid", "fee", "refund", "m
 # "at kilometre 12", "40 s" as "40 seconds" and "12 m" as "12 metres".
 CAUSE_PHRASES = ["consist derailed", "took the", "too fast", "ran onto the washout", "gave way under car",
                  "ran onto the sleepers", "they'll take",
-                 "the stoker ran away with it", "nobody on the throttle", "forward cannon crewed by", "forward cannon not crewed",
-                 "no forward cannon on the consist", "firebox last tended", "nobody had tended the firebox",
+                 # (Not the forward cannon's three, which the card stopped saying: note 988, Rowan's note 858.)
+                 "the stoker ran away with it", "nobody on the throttle", "firebox last tended", "nobody had tended the firebox",
                  "recovery not scheduled", "cause not established", "consist reported stranded", "recovery at first light",
                  "recovery is chargeable", "kilometres an hour", "from the train"]
 CAUSE_WORDS = ["at", "the", "over", "bend", "throttle", "unattended", "kilometre", "seconds", "metres", "car",

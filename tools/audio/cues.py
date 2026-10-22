@@ -322,7 +322,8 @@ CUES = {
     "crew-cold": [
         O("breath-in", "A cold breath in", vars=4),
         O("breath-out", "A breath out", vars=4),
-        L("shiver", "Shivering, as the cold takes hold"),
+        # Cut with the cold's onset (#1238, note 852): played nowhere; its file stays for a mod (Rowan's note 858; note 988).
+        L("shiver", "Shivering, as the cold takes hold", need="Cut: the deep cold is out of gameplay (#1238, note 852), so the shiver plays nowhere. Its file stays in content/audio for a mod."),
     ],
     # The funny ones (the director's call, 3 Oct): where the crew does it to themselves, or the world shrugs. Real sounds
     # with comic timing, never on a tell, a lure, an alarm or a monster's kill.

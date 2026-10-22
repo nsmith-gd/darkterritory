@@ -586,16 +586,6 @@
    "said": "forty",
    "seconds": 0.347
   },
-  "forward cannon crewed by": {
-   "file": "forward-cannon-crewed-by",
-   "said": "forward cannon crewed by",
-   "seconds": 1.213
-  },
-  "forward cannon not crewed": {
-   "file": "forward-cannon-not-crewed",
-   "said": "forward cannon not crewed",
-   "seconds": 1.462
-  },
   "foundry": {
    "file": "foundry",
    "said": "foundry",
@@ -1040,11 +1030,6 @@
    "file": "ninety",
    "said": "ninety",
    "seconds": 0.459
-  },
-  "no forward cannon on the consist": {
-   "file": "no-forward-cannon-on-the-consist",
-   "said": "no forward cannon on the consist",
-   "seconds": 1.626
   },
   "nobody had tended the firebox": {
    "file": "nobody-had-tended-the-firebox",
