@@ -126,7 +126,8 @@ public sealed class Holdouts
                     Index = _holdouts.Count,
                     Site = f,
                     Layout = h,
-                    Inside = Run.StopWorld(line, f, b.Centre),
+                    // A prison van's on its floor, up off the siding (note 992; StopWalls.Van stands it).
+                    Inside = Run.StopWorld(line, f, b.Centre, h.Kind == HoldoutKind.PrisonCar ? StopWalls.VanFloor : 0),
                     Door = Run.StopWorld(line, f, h.Door),
                     Lamp = Run.StopWorld(line, f, h.Lamp, 3),
                     LineHint = f.Start + b.S,

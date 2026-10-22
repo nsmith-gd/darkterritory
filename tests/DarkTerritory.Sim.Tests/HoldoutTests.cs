@@ -200,6 +200,56 @@ public class HoldoutTests
     }
 
     /// <summary>
+    /// Note 992 (note 387's not-yet): a prison van's floor is drawn 1.05 m up off its siding, and the freed came back on the
+    /// siding's ground under it. They come back on its floor, stay up on it (the sim stands the van: StopWalls.Van), and
+    /// a bot takes the steps down from its door and goes back aboard.
+    /// </summary>
+    [Fact]
+    public void FreedFromAPrisonVanTheyStandOnItsFloorAndWalkDownItsSteps()
+    {
+        var n = new Night(f => f.Kind != FeatureKind.Village && f.Stop!.Holdouts.Count > 0 && f.Stop.Holdouts[0].Kind == HoldoutKind.PrisonCar, engineFrom: 270);
+        int living = n.Add(alive: true), dead = n.Add(alive: false);
+        n.Step(0.2);
+        var h = n.Here.First();
+        Assert.Equal(HoldoutKind.PrisonCar, h.Layout.Kind);
+        double ground = n.Train.Line.Sample(h.LineHint).Position.Y;
+        n.Stand(living, h.Door);
+        n.Hold(living, PlayerButtons.Use);
+        n.Step(h.Breach(H).Seconds + 0.2);
+        Assert.Equal(HoldoutState.Freed, h.State);
+        n.Hold(living, default);
+
+        var s = n[dead];
+        Assert.True((s.Position - h.Inside).Length < 0.01);
+        Assert.Equal(StopWalls.VanFloor, s.Position.Y - ground, 2);
+        // Stood a second: the van's floor holds them up, as it's drawn.
+        for (int tick = 0; tick < SimConstants.TickRate; tick++)
+            PlayerMotor.Step(ref s, default, n.Train, P, Tuning.Train, SimConstants.TickSeconds, applyLook: false);
+        Assert.Equal(Surface.Ground, s.Surface);
+        Assert.Equal(StopWalls.VanFloor, s.Position.Y - ground, 2);
+
+        var calls = new Bots.CrewCalls();
+        var bot = new Bots.RoofWalkerBot(21, new Bots.StopHand(Bots.StopJob.Crates, calls, 1)) { Me = dead };
+        double bound = 30 + ((h.Door - n.Train.Frames[1].Origin) with { Y = 0 }).Length / P.Walk * 1.5, lowest = s.Position.Y;
+        bool outside = false;
+        for (uint tick = 0; tick < bound * SimConstants.TickRate && s.Parent == PlayerState.World; tick++)
+        {
+            n.World.BeginTick();
+            var intent = bot.Decide(s, n.World, tick, out _);
+            n.World.CrewAct(ref s, intent, dead);
+            n.World.Step(new TrainControls { Brake = 1 });
+            PlayerMotor.Step(ref s, intent, n.Train, P, Tuning.Train, SimConstants.TickSeconds, applyLook: false);
+            Assert.True(s.Alive, $"died of {s.Death}");
+            outside |= ((s.Position - h.Inside) with { Y = 0 }).Length > StopWalls.VanHalfWidth - 0.05;
+            // Never under the van's floor: inside it they're on it.
+            if (!outside)
+                lowest = Math.Min(lowest, s.Position.Y);
+        }
+        Assert.True(lowest > ground + StopWalls.VanFloor - 0.05, $"down to {lowest - ground:0.00} m in the van");
+        Assert.True(s.Parent != PlayerState.World, $"still on the ground after {bound:0} s, {(s.Position - h.Inside).Length:0.0} m from the van's inside");
+    }
+
+    /// <summary>
     /// Note 620 (deadLines:7 seed 4): within 10 m of a Holdout's door, a hand going to breach it took the track-side walk,
     /// which keeps to the track's own across and along. With the door on the far side of the house it walked into the wall
     /// and stood there, 6.7 m short, while the driver stood its give-up out and the crewmate in it was left. A door well off

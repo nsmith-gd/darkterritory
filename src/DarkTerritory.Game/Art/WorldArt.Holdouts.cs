@@ -2,6 +2,7 @@ using System.Numerics;
 using Ballast;
 using Ballast.Render;
 using DarkTerritory.Sim.Rail;
+using DarkTerritory.Sim.Run;
 using DarkTerritory.Sim.Route;
 using DarkTerritory.Sim.Stops;
 
@@ -92,7 +93,7 @@ public sealed partial class WorldArt
             case BuildingKind.PrisonCar:
                 {
                     int door = facing.X >= 0 ? 1 : -1;
-                    const float w = 1.5f, floor = 1.1f;
+                    const float w = (float)StopWalls.VanHalfWidth, floor = (float)StopWalls.VanFloor + ShellFloor - 0.1f;
                     float x = door * (w + 0.02f), h = k.DoorHeight();
                     k.Use("paint_oxide", Palette.BlueGrey * 0.7f, 0.95f, 0.2f, tile: 1.5f);
                     // The leaf hangs on its hinges at the van's −Z edge of the doorway: swung out wide, it stands off the side.
@@ -217,7 +218,10 @@ public sealed partial class WorldArt
             k.Box(new Vector3(side * TrainKit.HalfGauge - 0.035f, rail - 0.12f, -siding / 2), new Vector3(side * TrainKit.HalfGauge + 0.035f, rail, siding / 2));
         // The van, 14 m, on two bogies: their wheels on the rails, the side frames over the axle boxes outside them, a
         // bolster across under the van (note 387: they were a block with the wheels inside it).
-        const float half = 7, w = 1.5f, floor = 1.1f, top = 3.6f, wheel = 0.42f;
+        // Its body where the sim stands it (StopWalls.Van, note 992): the floor plate's top VanFloor over the ground, the
+        // frame ShellFloor under it.
+        const float half = (float)StopWalls.VanHalfLength, w = (float)StopWalls.VanHalfWidth, floor = (float)StopWalls.VanFloor + ShellFloor - 0.1f,
+            top = (float)StopWalls.VanRoof + ShellFloor, wheel = 0.42f;
         k.Use("wheel_iron", Palette.IronGrey, 0.8f, 0.4f, tile: 0.5f);
         foreach (float z in new[] { -4.8f, 4.8f })
         {
@@ -288,6 +292,15 @@ public sealed partial class WorldArt
             foreach (int side in new[] { -1, 1 })
                 for (float bz = -0.35f; bz <= 0.36f; bz += 0.175f)
                     k.Rod(new Vector3(side * (w + 0.03f), 2.72f, z + bz), new Vector3(side * (w + 0.03f), 3.08f, z + bz), 0.015f);
+        // Up to its door, the steps the sim stands (StopWalls.Van, note 992): old sleepers stacked under the doorway, out
+        // across the shell's door, so whoever's freed walks down them and the crew up.
+        k.Use("wood_sleeper", Palette.DeepBrown, 0.8f, 0, tile: 1.3f);
+        for (int i = 1; i <= StopWalls.VanSteps; i++)
+        {
+            float x0 = w + (StopWalls.VanSteps - i) * (float)StopWalls.VanTread, x1 = x0 + (float)StopWalls.VanTread, sh = (float)StopWalls.VanStepHalf;
+            k.Box(new Vector3(door > 0 ? x0 : -x1, 0.05f, -sh), new Vector3(door > 0 ? x1 : -x0, ShellFloor + i * (float)StopWalls.VanRise, sh),
+                Kit.Faces.All & ~Kit.Faces.NegY);
+        }
         // (The door on the crew's side, its leaf and padlock, are drawn by its state: Entrance.)
     }
 
